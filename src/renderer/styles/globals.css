@@ -113,3 +113,162 @@ body,
   font-size: 11px;
   color: var(--accent);
 }
+
+/* ---------------------------------------------------------------------------
+   Phase 2 harness styles (temporary; the Phase 3 design system replaces
+   these alongside App.tsx).
+--------------------------------------------------------------------------- */
+
+.tab-spine .project-tab {
+  cursor: pointer;
+}
+
+.tab-spine .project-tab.active {
+  color: var(--fg);
+  background: var(--border);
+}
+
+.tab-spine .add-tab {
+  cursor: pointer;
+  color: var(--accent);
+}
+
+.error-banner {
+  padding: 6px 12px;
+  background: #5a1d1d;
+  color: #f2c4c4;
+  font-size: 12px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.harness-section {
+  padding: 12px;
+}
+
+.harness-section h2 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fg);
+}
+
+.harness-hint {
+  color: var(--fg-dim);
+  font-size: 12px;
+  list-style: none;
+}
+
+.session-create {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.session-create input[type='text'] {
+  flex: 1;
+  min-width: 0;
+}
+
+.session-create input,
+.session-create select,
+.session-create button,
+.session-row input {
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 12px;
+  padding: 4px 6px;
+}
+
+.session-create button {
+  cursor: pointer;
+}
+
+.session-create button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.session-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.session-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 5px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.session-row.active {
+  background: var(--border);
+}
+
+.session-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.session-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-agent {
+  color: var(--fg-dim);
+  font-size: 11px;
+}
+
+.session-kill {
+  background: none;
+  border: none;
+  color: var(--fg-dim);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.session-kill:hover {
+  color: #f28b82;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  background: var(--fg-dim);
+}
+
+.status-dot.status-running {
+  background: #6bcb77;
+}
+
+.status-dot.status-idle {
+  background: var(--fg-dim);
+}
+
+.status-dot.status-needs_input {
+  background: #f5c518;
+}
+
+.status-dot.status-exited {
+  background: #f28b82;
+}
+
+.status-dot.status-restorable {
+  background: #4fc1ff;
+}

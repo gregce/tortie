@@ -154,3 +154,64 @@ export interface GmuxApi {
     versions: { electron: string; chrome: string; node: string };
   };
 }
+
+// ---------------------------------------------------------------------------
+// APPENDED by the attach/terminal stream (new channels/types only — nothing
+// above this line was modified).
+// ---------------------------------------------------------------------------
+
+/**
+ * Per-session flow-control ack (renderer → main, fire-and-forget send).
+ * Payload: number — bytes of term:data the renderer has finished writing
+ * into xterm. The attach host pauses the PTY when > 256 KB are in flight
+ * unacked and resumes once acks bring the window back under 64 KB. If no
+ * ack ever arrives (bridge method not wired), the attach host disables flow
+ * control for that client after a grace period rather than deadlock.
+ */
+export const termAckChannel = (sessionId: string): string =>
+  `term:ack:${sessionId}`;
+
+/**
+ * Per-session attach-client exit notice (main → renderer).
+ * Sent ONLY for unexpected exits — the tmux session was killed elsewhere or
+ * the tmux server went away. A clean sessions:detach never fires this.
+ */
+export const termExitChannel = (sessionId: string): string =>
+  `term:exit:${sessionId}`;
+
+/** Payload of termExitChannel. */
+export interface TermExitPayload {
+  sessionId: string;
+  /** Exit code of the `tmux attach` client process. */
+  exitCode: number;
+  /** Signal number when the client died from a signal. */
+  signal?: number;
+}
+
+/**
+ * OPTIONAL extensions to GmuxApi['term'], feature-detected by the terminal
+ * renderer (`typeof window.gmux.term.ack === 'function'`). INTEGRATOR: add
+ * these two methods to the `term` object in src/preload/index.ts:
+ *
+ *   ack: (sessionId, bytes) =>
+ *     ipcRenderer.send(termAckChannel(sessionId), bytes),
+ *   onExit: (sessionId, cb) => {
+ *     const ch = termExitChannel(sessionId);
+ *     const l = (_e: IpcRendererEvent, p: TermExitPayload) => cb(p);
+ *     ipcRenderer.on(ch, l);
+ *     return () => ipcRenderer.removeListener(ch, l);
+ *   }
+ *
+ * The renderer degrades gracefully when they are absent (no backpressure
+ * acks → attach host's grace-period valve; exit notices → falls back to
+ * sessions.onStatusChanged('exited')).
+ */
+export interface GmuxTermStreamExtras {
+  /** Ack `bytes` of received term:data as consumed (flow control). */
+  ack?(sessionId: string, bytes: number): void;
+  /** Subscribe to unexpected attach-client exits for a session. */
+  onExit?(
+    sessionId: string,
+    cb: (payload: TermExitPayload) => void
+  ): Unsubscribe;
+}

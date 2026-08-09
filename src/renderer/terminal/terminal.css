@@ -1,0 +1,113 @@
+/* Terminal pane + host. Tokens with dark fallbacks so the pane renders
+   correctly before the design stream's tokens.css lands. */
+
+.gmux-terminal-host {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  background: var(--bg-canvas, #131417);
+}
+
+.gmux-terminal-host > .gmux-terminal-pane {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.gmux-terminal-pane {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  background: var(--bg-canvas, #131417);
+  overflow: hidden;
+}
+
+/* xterm mounts here; small inset so glyphs don't kiss the region hairline. */
+.gmux-terminal-mount {
+  position: absolute;
+  inset: 0;
+  padding: 4px 0 0 6px;
+}
+
+.gmux-terminal-mount .xterm {
+  height: 100%;
+}
+
+/* Empty state: no visible session. */
+.gmux-terminal-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--text-muted, #838996);
+  font-size: 13px;
+  line-height: 20px;
+  user-select: none;
+}
+
+.gmux-terminal-empty-title {
+  color: var(--text-secondary, #a8adb8);
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 600;
+}
+
+/* Overlay states: session ended / can't connect / restorable. */
+.gmux-terminal-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+  padding: 24px;
+  background: var(--bg-scrim, rgba(9, 10, 12, 0.55));
+  color: var(--text-secondary, #a8adb8);
+  font-size: 13px;
+  line-height: 20px;
+  z-index: 2;
+}
+
+.gmux-terminal-overlay .gmux-terminal-overlay-title {
+  color: var(--text-primary, #e8eaed);
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 600;
+}
+
+.gmux-terminal-overlay .gmux-terminal-overlay-detail {
+  max-width: 420px;
+  overflow-wrap: anywhere;
+  color: var(--text-muted, #838996);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.gmux-terminal-overlay button {
+  margin-top: 4px;
+  padding: 4px 14px;
+  border: 1px solid var(--border-strong, #3a3e48);
+  border-radius: var(--r-sm, 4px);
+  background: var(--bg-raised, #22252b);
+  color: var(--text-primary, #e8eaed);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.gmux-terminal-overlay button:hover {
+  background: var(--bg-active, #2a2e36);
+}
+
+.gmux-terminal-overlay button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring, 0 0 0 2px rgba(77, 157, 232, 0.6));
+}

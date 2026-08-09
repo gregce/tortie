@@ -1,67 +1,35 @@
 /**
  * gmux main process entry.
  *
- * Scaffold responsibilities only:
- *  - create the single BrowserWindow
- *  - prove native modules (node-pty, better-sqlite3) load inside Electron
- *  - smoke harness:  GMUX_SMOKE=basic  → window + private tmux server
- *    reachability + native-module proof, exit 0 within 15 s, steps on stdout
- *  - screenshot harness:  GMUX_SHOT=<path>  → capturePage after 3 s → PNG → quit
+ * Boot sequence (Phase 2, FINAL-REPORT §2.4): register IPC handlers → boot
+ * the durable core (private tmux server on socket -L gmux → SQLite manifest →
+ * control-mode event bus → reconcile) → open the single window. The core
+ * boots lazily-with-retry via getGmuxCore(), so a missing tmux surfaces as a
+ * friendly renderer state instead of a dead app.
  *
- * Later work streams own src/main/{tmux,manifest,attach,git,watcher,fs}/ and
- * src/main/ipc.ts; the tmux helpers below are deliberately minimal and should
- * be superseded by the tmux stream's supervisor. NOTE: we run the SYSTEM tmux
- * (3.6a at scaffold time) — bundling a pinned tmux build inside gmux.app is
- * out of scope today (see docs/FINAL-REPORT.md §5 Stream A1 for the plan).
+ * Harnesses (all exit the process; parsed by CI / the orchestrator):
+ *  - GMUX_SMOKE=basic   window + native modules + private tmux reachability
+ *  - GMUX_SMOKE=create  create durable 'smoke-keeper' session, assert term
+ *                       bytes arrive in main, exit LEAVING IT RUNNING
+ *  - GMUX_SMOKE=verify  assert smoke-keeper survived (tmux ls + manifest),
+ *                       re-attach, receive bytes, kill it, exit 0
+ *    (create → verify across two processes = the P1/T1 restart acceptance test)
+ *  - GMUX_SHOT=<path>   capturePage after 3 s → PNG → quit
+ *
+ * NOTE: we run the SYSTEM tmux (3.6a at build time) — bundling a pinned tmux
+ * inside gmux.app is out of scope today (docs/FINAL-REPORT.md §5 Stream A1).
  */
 
-import { app, BrowserWindow } from 'electron';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
-import { existsSync } from 'node:fs';
+import { app, BrowserWindow, shell } from 'electron';
 import { writeFile } from 'node:fs/promises';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
-
-const execFileP = promisify(execFile);
-
-// ---------------------------------------------------------------------------
-// Paths & constants
-// ---------------------------------------------------------------------------
-
-/** Private tmux socket name — NEVER touch the user's default tmux server. */
-const TMUX_SOCKET = 'gmux';
-
-function tmuxConfPath(): string {
-  // Packaged: electron-builder copies resources/gmux-tmux.conf into Resources/.
-  // Dev / `electron .`: repo-root resources/.
-  return app.isPackaged
-    ? join(process.resourcesPath, 'gmux-tmux.conf')
-    : join(app.getAppPath(), 'resources', 'gmux-tmux.conf');
-}
-
-/**
- * Locate the tmux binary. GUI-launched Electron apps inherit a minimal PATH
- * (no /opt/homebrew/bin), so we probe known locations before trusting PATH.
- */
-function findTmux(): string | null {
-  const candidates = [
-    '/opt/homebrew/bin/tmux',
-    '/usr/local/bin/tmux',
-    '/usr/bin/tmux'
-  ];
-  for (const c of candidates) {
-    if (existsSync(c)) return c;
-  }
-  return null; // caller decides how to surface TMUX_NOT_FOUND
-}
-
-function tmuxArgs(...rest: string[]): string[] {
-  return ['-L', TMUX_SOCKET, '-f', tmuxConfPath(), ...rest];
-}
+import { getGmuxCore, registerIpcHandlers, shutdownGmuxCore } from './ipc';
+import type { GmuxCore } from './ipc';
+import * as tmux from './tmux';
 
 // ---------------------------------------------------------------------------
-// Native-module proof (scaffold gate: node-pty + better-sqlite3 must load
-// inside Electron's main process after electron-rebuild)
+// Native-module proof (node-pty + better-sqlite3 must load inside Electron)
 // ---------------------------------------------------------------------------
 
 interface NativeProofResult {
@@ -124,67 +92,6 @@ async function proveNativeModules(): Promise<NativeProofResult> {
 }
 
 // ---------------------------------------------------------------------------
-// Minimal tmux server bootstrap (superseded later by src/main/tmux/)
-// ---------------------------------------------------------------------------
-
-interface TmuxCheckResult {
-  ok: boolean;
-  detail: string;
-}
-
-/** Start (idempotent) the private tmux server and prove it is reachable. */
-async function startAndVerifyTmux(tmuxBin: string): Promise<TmuxCheckResult> {
-  const conf = tmuxConfPath();
-  if (!existsSync(conf)) {
-    return { ok: false, detail: `gmux-tmux.conf missing at ${conf}` };
-  }
-
-  // start-server is a no-op when the server is already up.
-  try {
-    await execFileP(tmuxBin, tmuxArgs('start-server'));
-  } catch (err) {
-    return {
-      ok: false,
-      detail: `tmux start-server failed: ${(err as Error).message}`
-    };
-  }
-
-  // Reachability roundtrip: create → has-session → kill a throwaway session.
-  // Unique name so we can never collide with (or harm) a real user session.
-  const probe = `__gmux_smoke_${process.pid}`;
-  try {
-    await execFileP(tmuxBin, tmuxArgs('new-session', '-d', '-s', probe, 'sleep 30'));
-    await execFileP(tmuxBin, tmuxArgs('has-session', '-t', `=${probe}`));
-    await execFileP(tmuxBin, tmuxArgs('kill-session', '-t', `=${probe}`));
-  } catch (err) {
-    return {
-      ok: false,
-      detail: `tmux reachability probe failed: ${(err as Error).message}`
-    };
-  }
-  return { ok: true, detail: `server reachable on private socket -L ${TMUX_SOCKET}` };
-}
-
-/**
- * Smoke-only cleanup: if the private server holds ZERO sessions, kill it so
- * repeated smoke runs don't leak servers (exit-empty is off in our conf).
- * If any real session exists we leave the server strictly alone.
- */
-async function cleanupTmuxIfEmpty(tmuxBin: string): Promise<void> {
-  try {
-    const { stdout } = await execFileP(
-      tmuxBin,
-      tmuxArgs('list-sessions', '-F', '#{session_name}')
-    );
-    if (stdout.trim().length === 0) {
-      await execFileP(tmuxBin, tmuxArgs('kill-server'));
-    }
-  } catch {
-    // "no server running" or zero sessions reported as error — nothing to do.
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Window
 // ---------------------------------------------------------------------------
 
@@ -210,6 +117,12 @@ function createWindow(): BrowserWindow {
 
   win.on('ready-to-show', () => win.show());
 
+  // Terminal web links (and any window.open) go to the system browser.
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:/i.test(url)) void shell.openExternal(url);
+    return { action: 'deny' };
+  });
+
   // electron-vite: dev server URL in dev, bundled file otherwise.
   const devUrl = process.env['ELECTRON_RENDERER_URL'];
   if (!app.isPackaged && devUrl) {
@@ -225,7 +138,7 @@ function createWindow(): BrowserWindow {
 }
 
 // ---------------------------------------------------------------------------
-// Smoke harness — GMUX_SMOKE=basic
+// Smoke harnesses
 // ---------------------------------------------------------------------------
 
 function smokeLog(step: string): void {
@@ -233,13 +146,23 @@ function smokeLog(step: string): void {
   console.log(`[gmux-smoke] ${step}`);
 }
 
-async function runSmoke(): Promise<never> {
-  const watchdog = setTimeout(() => {
-    console.error('[gmux-smoke] FAIL: 15s watchdog expired');
-    app.exit(1);
-  }, 15_000);
-  watchdog.unref?.();
+function smokeFail(err: unknown): never {
+  console.error(`[gmux-smoke] FAIL: ${(err as Error).message}`);
+  app.exit(1);
+  return undefined as never;
+}
 
+function armWatchdog(ms: number): void {
+  const watchdog = setTimeout(() => {
+    console.error(`[gmux-smoke] FAIL: ${ms / 1000}s watchdog expired`);
+    app.exit(1);
+  }, ms);
+  watchdog.unref?.();
+}
+
+/** GMUX_SMOKE=basic — window + native modules + tmux reachability. */
+async function runSmokeBasic(): Promise<void> {
+  armWatchdog(15_000);
   try {
     smokeLog('1/6 app ready');
 
@@ -256,24 +179,152 @@ async function runSmoke(): Promise<never> {
     if (!native.ok) throw new Error(native.detail);
     smokeLog(`3/6 native modules OK — ${native.detail}`);
 
-    const tmuxBin = findTmux();
-    if (!tmuxBin) throw new Error('tmux not found (checked homebrew + /usr/bin)');
-    smokeLog(`4/6 tmux binary: ${tmuxBin}`);
+    const bin = tmux.findTmuxBinary();
+    if (!bin) {
+      throw new Error('tmux not found (checked homebrew + /usr/bin + PATH)');
+    }
+    smokeLog(`4/6 tmux binary: ${bin}`);
 
-    const tmux = await startAndVerifyTmux(tmuxBin);
-    if (!tmux.ok) throw new Error(tmux.detail);
-    smokeLog(`5/6 tmux ${tmux.detail}`);
+    await tmux.ensureServer();
+    // Reachability roundtrip: create → kill a throwaway session.
+    const probe = await tmux.createSession({
+      displayName: `__gmux_smoke_${process.pid}`,
+      cwd: app.getPath('home'),
+      argv: ['sleep', '30']
+    });
+    await tmux.killSession(probe.sessionId);
+    smokeLog(`5/6 tmux server reachable on private socket -L ${tmux.TMUX_SOCKET}`);
 
-    await cleanupTmuxIfEmpty(tmuxBin);
+    // Cleanup: if the private server holds ZERO sessions (incl. the control
+    // session), kill it so repeated smoke runs don't leak servers. Any real
+    // session ⇒ leave the server strictly alone.
+    const remaining = await tmux.listSessions({ includeControl: true });
+    if (remaining.length === 0) {
+      await tmux.execTmux(['kill-server']).catch(() => undefined);
+    }
     smokeLog('6/6 cleanup done — PASS');
-    clearTimeout(watchdog);
     app.exit(0);
   } catch (err) {
-    console.error(`[gmux-smoke] FAIL: ${(err as Error).message}`);
-    app.exit(1);
+    smokeFail(err);
   }
-  // app.exit never returns, but TypeScript wants a tail.
-  return undefined as never;
+}
+
+const SMOKE_KEEPER = 'smoke-keeper';
+
+/** Attach `sessionId` to a hidden window and resolve once bytes flow. */
+async function receiveTermBytes(
+  core: GmuxCore,
+  sessionId: string
+): Promise<number> {
+  const win = new BrowserWindow({ show: false });
+  try {
+    return await new Promise<number>((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error('no term:data bytes arrived within 15s')),
+        15_000
+      );
+      core.onTermData = (sid, byteLength) => {
+        if (sid !== sessionId || byteLength <= 0) return;
+        clearTimeout(timer);
+        resolve(byteLength);
+      };
+      core.attachSession(sessionId, win.webContents).catch((err: unknown) => {
+        clearTimeout(timer);
+        reject(err as Error);
+      });
+    });
+  } finally {
+    core.onTermData = null;
+    core.detachSession(sessionId);
+    // Deliberately NOT destroying the hidden window here: window-all-closed
+    // would app.quit() → before-quit → close the manifest DB while the smoke
+    // is still using it. app.exit() at the end reaps the window anyway.
+  }
+}
+
+/** GMUX_SMOKE=create — first half of the T1 restart acceptance test. */
+async function runSmokeCreate(): Promise<void> {
+  armWatchdog(30_000);
+  try {
+    const core = await getGmuxCore();
+    smokeLog('1/5 core booted: tmux server + manifest + control client + reconcile');
+
+    // Deterministic re-runs: discard any smoke-keeper left by aborted runs.
+    for (const rec of core.listSessionRecords()) {
+      if (rec.name === SMOKE_KEEPER && rec.status !== 'exited') {
+        await core.killSession(rec.id);
+      }
+      if (rec.name === SMOKE_KEEPER) core.discardSession(rec.id);
+    }
+
+    const home = homedir();
+    const session = await core.createSession({
+      name: SMOKE_KEEPER,
+      projectPath: home,
+      cwd: home,
+      agent: 'shell',
+      extraArgs: ['-c', 'while true; do date; sleep 1; done']
+    });
+    smokeLog(
+      `2/5 session created: "${session.name}" (tmux ${session.tmuxName}, id ${session.id})`
+    );
+
+    const bytes = await receiveTermBytes(core, session.id);
+    smokeLog(`3/5 term data flowing: ${bytes} bytes arrived in main`);
+
+    smokeLog('4/5 detached — tmux session left RUNNING for the verify pass');
+    await shutdownGmuxCore();
+    smokeLog('5/5 PASS (create)');
+    app.exit(0);
+  } catch (err) {
+    smokeFail(err);
+  }
+}
+
+/** GMUX_SMOKE=verify — second half: the session must have SURVIVED. */
+async function runSmokeVerify(): Promise<void> {
+  armWatchdog(30_000);
+  try {
+    const core = await getGmuxCore();
+    smokeLog('1/6 core booted (fresh process — simulated app restart)');
+
+    const live = await tmux.listSessions();
+    const keeper = live.find((s) => s.tmuxName === SMOKE_KEEPER);
+    if (!keeper) {
+      throw new Error(
+        `"${SMOKE_KEEPER}" missing from tmux list-sessions — T1 durability FAILED`
+      );
+    }
+    smokeLog(`2/6 tmux still runs ${SMOKE_KEEPER} (${keeper.sessionId})`);
+
+    const rec = core
+      .listSessionRecords()
+      .find((r) => r.name === SMOKE_KEEPER && r.status !== 'exited');
+    if (!rec) throw new Error(`"${SMOKE_KEEPER}" missing from the manifest`);
+    if (rec.status !== 'running') {
+      throw new Error(
+        `manifest status is "${rec.status}", expected "running" after reconcile`
+      );
+    }
+    smokeLog(`3/6 manifest row reconciled to running (id ${rec.id})`);
+
+    const bytes = await receiveTermBytes(core, rec.id);
+    smokeLog(`4/6 re-attach works: ${bytes} bytes arrived in main`);
+
+    await core.killSession(rec.id);
+    const after = await tmux.listSessions();
+    if (after.some((s) => s.tmuxName === SMOKE_KEEPER)) {
+      throw new Error(`"${SMOKE_KEEPER}" still alive after kill`);
+    }
+    core.discardSession(rec.id);
+    smokeLog('5/6 killed smoke-keeper; tmux and manifest both clean');
+
+    await shutdownGmuxCore();
+    smokeLog('6/6 PASS (verify) — T1 restart acceptance test complete');
+    app.exit(0);
+  } catch (err) {
+    smokeFail(err);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -305,14 +356,15 @@ app.whenReady().then(async () => {
   const smoke = process.env['GMUX_SMOKE'];
   const shot = process.env['GMUX_SHOT'];
 
-  if (smoke === 'basic') {
-    await runSmoke();
-    return;
-  }
-  if (shot) {
-    await runShot(shot);
-    return;
-  }
+  // Handlers are lazy (each awaits getGmuxCore()), so registering them in
+  // every mode is free and keeps harness renderers from hitting
+  // "No handler registered" noise.
+  registerIpcHandlers();
+
+  if (smoke === 'basic') return runSmokeBasic();
+  if (smoke === 'create') return runSmokeCreate();
+  if (smoke === 'verify') return runSmokeVerify();
+  if (shot) return runShot(shot);
 
   // Normal startup. Native-module sanity is logged (not fatal) so a broken
   // rebuild is visible immediately in dev consoles.
@@ -323,6 +375,12 @@ app.whenReady().then(async () => {
     console.error(`[gmux] NATIVE MODULE FAILURE: ${native.detail}`);
   }
 
+  // Kick the core boot now so the window opens onto live data; failures are
+  // retried per-IPC-call and surfaced as friendly renderer states.
+  getGmuxCore().catch((err: unknown) => {
+    console.error(`[gmux] core boot failed: ${(err as Error).message}`);
+  });
+
   mainWindow = createWindow();
 
   app.on('activate', () => {
@@ -330,6 +388,12 @@ app.whenReady().then(async () => {
       mainWindow = createWindow();
     }
   });
+});
+
+// Quit-time teardown kills ONLY gmux-side clients (attach PTYs, control
+// client). The tmux server and every session keep running — T1 by design.
+app.on('before-quit', () => {
+  void shutdownGmuxCore();
 });
 
 // Single-window app: quitting on last-window-close is correct on macOS too —

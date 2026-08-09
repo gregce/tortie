@@ -11,6 +11,10 @@
     "build": "electron-vite build",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "smoke": "npm run build && GMUX_SMOKE=basic electron .",
+    "smoke:create": "GMUX_SMOKE=create electron .",
+    "smoke:verify": "GMUX_SMOKE=verify electron .",
+    "smoke:t1": "npm run build && GMUX_SMOKE=create electron . && GMUX_SMOKE=verify electron .",
+    "test": "vitest run",
     "shot": "npm run build && GMUX_SHOT=\"${GMUX_SHOT:-out/gmux-shot.png}\" electron .",
     "start": "electron-vite preview",
     "postinstall": "electron-rebuild -f -w node-pty,better-sqlite3",
@@ -43,6 +47,7 @@
     "electron-builder": "^26.15.3",
     "electron-vite": "^5.0.0",
     "typescript": "~5.9.3",
-    "vite": "^7.3.0"
+    "vite": "^7.3.0",
+    "vitest": "^4.1.10"
   }
 }

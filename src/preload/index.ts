@@ -10,16 +10,20 @@ import type {
   EventChannel,
   EventPayloadMap,
   GmuxApi,
+  GmuxTermStreamExtras,
   InvokeChannel,
   InvokeReq,
   InvokeRes,
+  TermExitPayload,
   Unsubscribe
 } from '../shared/ipc';
 import {
   EVT_GIT_CHANGED,
   EVT_SESSIONS_CHANGED,
   EVT_STATUS_CHANGED,
+  termAckChannel,
   termDataChannel,
+  termExitChannel,
   termInputChannel
 } from '../shared/ipc';
 
@@ -42,6 +46,36 @@ function on<C extends EventChannel>(
   ipcRenderer.on(channel, listener);
   return () => ipcRenderer.removeListener(channel, listener);
 }
+
+/**
+ * term surface = frozen GmuxApi['term'] + the appended optional stream
+ * extras (flow-control acks, unexpected-exit notices) that the terminal
+ * renderer feature-detects.
+ */
+const term: GmuxApi['term'] & GmuxTermStreamExtras = {
+  onData: (sessionId, cb) => {
+    const channel = termDataChannel(sessionId);
+    const listener = (_e: IpcRendererEvent, data: Uint8Array): void => {
+      cb(data);
+    };
+    ipcRenderer.on(channel, listener);
+    return () => ipcRenderer.removeListener(channel, listener);
+  },
+  sendInput: (sessionId, data) => {
+    ipcRenderer.send(termInputChannel(sessionId), data);
+  },
+  ack: (sessionId, bytes) => {
+    ipcRenderer.send(termAckChannel(sessionId), bytes);
+  },
+  onExit: (sessionId, cb) => {
+    const channel = termExitChannel(sessionId);
+    const listener = (_e: IpcRendererEvent, payload: TermExitPayload): void => {
+      cb(payload);
+    };
+    ipcRenderer.on(channel, listener);
+    return () => ipcRenderer.removeListener(channel, listener);
+  }
+};
 
 const api: GmuxApi = {
   sessions: {
@@ -75,19 +109,7 @@ const api: GmuxApi = {
     readFile: (path) => invoke('fs:readFile', path),
     writeFile: (path, contents) => invoke('fs:writeFile', path, contents)
   },
-  term: {
-    onData: (sessionId, cb) => {
-      const channel = termDataChannel(sessionId);
-      const listener = (_e: IpcRendererEvent, data: Uint8Array): void => {
-        cb(data);
-      };
-      ipcRenderer.on(channel, listener);
-      return () => ipcRenderer.removeListener(channel, listener);
-    },
-    sendInput: (sessionId, data) => {
-      ipcRenderer.send(termInputChannel(sessionId), data);
-    }
-  },
+  term,
   meta: {
     platform: process.platform,
     versions: {
