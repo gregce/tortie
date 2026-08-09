@@ -1,6 +1,7 @@
 /**
  * S8 — Shortcuts overlay (⌘/). Content = DESIGN.md §4 table, grouped.
- * One chip per chord ("⌘T"), mono 11 on --bg-raised.
+ * One chip per chord ("⌘T"), UI-sans 11 on --bg-raised — sans letterforms
+ * keep ⌘O unmistakable from ⌘0 (DESIGN.md §3 keycap chips).
  */
 
 import React, { useEffect, useRef } from 'react';

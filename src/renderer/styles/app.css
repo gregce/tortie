@@ -1089,72 +1089,8 @@
   padding-right: var(--space-2);
 }
 
-/* ---------------------------------------------------------------------------
-   Context menu (interim DOM menu — DESIGN.md §3 asks for native Menu.popup;
-   swap when the main-process menu channel lands. Same visual vocabulary as
-   toasts/menus: bg-surface, r-md, shadow-2.)
---------------------------------------------------------------------------- */
-
-.menu-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-tooltip);
-}
-
-.menu {
-  position: fixed;
-  min-width: 180px;
-  padding: var(--space-2);
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  box-shadow: var(--shadow-2);
-  z-index: var(--z-tooltip);
-}
-
-.menu-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  width: 100%;
-  height: 26px;
-  padding: 0 var(--space-4);
-  border-radius: var(--r-sm);
-  font-size: var(--text-base);
-  color: var(--text-primary);
-  text-align: left;
-  white-space: nowrap;
-}
-
-.menu-item:hover,
-.menu-item.active {
-  background: var(--bg-active);
-}
-
-.menu-item.destructive {
-  color: var(--error);
-}
-
-.menu-item .menu-hint {
-  flex: 1;
-  text-align: right;
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-}
-
-/* Contrast rule (§1.1): no muted text on the active fill. */
-.menu-item:hover .menu-hint,
-.menu-item.active .menu-hint,
-.menu-item:focus-visible .menu-hint {
-  color: var(--text-secondary);
-}
-
-.menu-sep {
-  height: 1px;
-  margin: var(--space-2) var(--space-2);
-  background: var(--border);
-}
+/* Context menus are native macOS menus (DESIGN.md §3, ui:popupMenu /
+   Menu.popup in main) — the interim DOM menu and its styles are gone. */
 
 /* Editor slot (Phase 4/5 streams mount here; hidden while empty). */
 .editor-slot:empty {

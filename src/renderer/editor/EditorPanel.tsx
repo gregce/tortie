@@ -288,7 +288,6 @@ export function EditorPanel(): React.JSX.Element | null {
         // Monaco (find widget…) or a shell layer consumed this Esc.
         if (e.defaultPrevented) return;
         if (
-          app.menu !== null ||
           app.attentionOpen ||
           app.confirm !== null ||
           app.createOpen ||

@@ -2,8 +2,9 @@
  * gmux app shell (Phase 3) — composition + the DESIGN.md §4 keyboard map.
  *
  * Layout: titlebar (project tabs) / sidebar (sessions; git+tree slots) /
- * terminal region. Layers: context menu → attention overlay → modals →
- * toasts. Esc closes the topmost layer (§4).
+ * terminal region. Layers: attention overlay → modals → toasts; context
+ * menus are native (Menu.popup) and dismiss themselves. Esc closes the
+ * topmost layer (§4).
  *
  * The native macOS menu (src/main/menu.ts) registers the ⌘-chord
  * accelerators and forwards them here as menu actions (useMenuActions) —
@@ -22,7 +23,6 @@ import { CreateSessionModal } from './CreateSessionModal';
 import { ShortcutsOverlay } from './ShortcutsOverlay';
 import { AttentionOverlay } from './AttentionOverlay';
 import { ConfirmDialog } from './ConfirmDialog';
-import { ContextMenu } from './ContextMenu';
 import { Toasts } from './Toasts';
 import { FirstRun, TmuxMissing } from './EmptyStates';
 // Phase 5 (editor stream): the S5 editor panel — a right split beside the
@@ -64,13 +64,10 @@ function useKeyboardMap(): void {
         s.noteTerminalInput();
       }
 
-      // Esc — close the topmost layer only (menu → overlay → modals).
+      // Esc — close the topmost layer only (overlay → modals). Native
+      // context menus swallow their own Esc before the renderer sees it.
       if (e.key === 'Escape') {
-        if (s.menu) {
-          e.preventDefault();
-          e.stopPropagation();
-          s.setMenu(null);
-        } else if (s.attentionOpen) {
+        if (s.attentionOpen) {
           e.preventDefault();
           e.stopPropagation();
           s.setAttentionOpen(false);
@@ -200,11 +197,7 @@ function focusTerminal(): void {
 function runMenuAction(action: MenuActionId): void {
   const s = useApp.getState();
   const layerOpen =
-    s.menu !== null ||
-    s.confirm !== null ||
-    s.createOpen ||
-    s.shortcutsOpen ||
-    s.attentionOpen;
+    s.confirm !== null || s.createOpen || s.shortcutsOpen || s.attentionOpen;
 
   switch (action) {
     case 'new-session':
@@ -497,7 +490,6 @@ export function App(): React.JSX.Element {
       <ShortcutsOverlay />
       <AttentionOverlay />
       <ConfirmDialog />
-      <ContextMenu />
       <Toasts />
       {dropping ? <div className="drop-overlay" /> : null}
     </div>

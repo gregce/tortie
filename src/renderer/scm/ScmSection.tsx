@@ -23,7 +23,7 @@ import React, {
 import type { GitFileState, GitFileStatus, GitLogEntry } from '@shared/types';
 import type { GmuxGitExtras } from '@shared/ipc';
 import { useApp } from '../state/store';
-import type { ConfirmSpec } from '../state/store';
+import type { ConfirmSpec, MenuItemSpec } from '../state/store';
 import {
   gitErrorLine,
   groupFiles,
@@ -179,6 +179,7 @@ function ScmFileRow({
   const unstage = useGit((s) => s.unstage);
   const discard = useGit((s) => s.discard);
   const setConfirm = useApp((s) => s.setConfirm);
+  const setMenu = useApp((s) => s.setMenu);
 
   const { group, file } = row;
   const badge = badgeFor(group, file);
@@ -187,6 +188,48 @@ function ScmFileRow({
 
   const confirmDiscard = (): void => {
     confirmDiscardFile(setConfirm, discard, repoPath, group, file);
+  };
+
+  // Context menu (DESIGN.md §3: SCM rows have one; native via ui:popupMenu).
+  // Same verbs as the hover actions, plus Open.
+  const onContextMenu = (e: React.MouseEvent): void => {
+    e.preventDefault();
+    e.stopPropagation();
+    const items: (MenuItemSpec | 'sep')[] = [
+      {
+        label:
+          group === 'untracked' || group === 'merge' ? 'Open file' : 'Open diff',
+        run: () => onActivate(row)
+      },
+      'sep'
+    ];
+    if (group === 'staged') {
+      items.push({
+        label: 'Unstage',
+        disabled: busy,
+        run: () => void unstage(repoPath, [file.path])
+      });
+    } else if (group === 'merge') {
+      items.push({
+        label: 'Mark resolved (stage)',
+        disabled: busy,
+        run: () => void stage(repoPath, [file.path])
+      });
+    } else {
+      items.push({
+        label: 'Stage',
+        disabled: busy,
+        run: () => void stage(repoPath, [file.path])
+      });
+      items.push('sep');
+      items.push({
+        label: group === 'untracked' ? 'Delete file…' : 'Discard changes…',
+        destructive: true,
+        disabled: busy,
+        run: confirmDiscard
+      });
+    }
+    setMenu({ x: e.clientX, y: e.clientY, items });
   };
 
   const renamedFrom =
@@ -208,6 +251,7 @@ function ScmFileRow({
         renamedFrom !== null ? `${file.path} — ${renamedFrom}` : file.path
       }
       onClick={() => onActivate(row)}
+      onContextMenu={onContextMenu}
     >
       <span className={`scm-badge ${badge.cls}`} aria-hidden="true">
         {badge.letter}
