@@ -1,0 +1,28 @@
+# gmux packaging — STUB. The packaging stream (Stream F) productionizes this:
+# hardened runtime, entitlements, nested Mach-O signing (bundled tmux later),
+# notarization, SMAppService login item, auto-update feed.
+appId: com.specstory.gmux
+productName: gmux
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**
+  - package.json
+extraResources:
+  # The private tmux server config rides in Contents/Resources/gmux-tmux.conf
+  # (main resolves it via process.resourcesPath when packaged).
+  - from: resources/gmux-tmux.conf
+    to: gmux-tmux.conf
+asarUnpack:
+  - "**/*.node"
+npmRebuild: true
+mac:
+  category: public.app-category.developer-tools
+  target:
+    - dmg
+    - zip
+  # Apple Development cert only today — no notarization. Stream F owns this.
+  hardenedRuntime: false
+  gatekeeperAssess: false
+publish: null

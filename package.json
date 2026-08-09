@@ -1,0 +1,48 @@
+{
+  "name": "gmux",
+  "version": "0.0.1",
+  "description": "Lightweight macOS shell for agentic coding: durable named terminal sessions (private tmux server), git sidebar, decorated file tree, Monaco diff editor.",
+  "private": true,
+  "main": "./out/main/index.js",
+  "author": "SpecStory",
+  "license": "MIT",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "smoke": "npm run build && GMUX_SMOKE=basic electron .",
+    "shot": "npm run build && GMUX_SHOT=\"${GMUX_SHOT:-out/gmux-shot.png}\" electron .",
+    "start": "electron-vite preview",
+    "postinstall": "electron-rebuild -f -w node-pty,better-sqlite3",
+    "package": "electron-vite build && electron-builder --dir"
+  },
+  "dependencies": {
+    "@parcel/watcher": "^2.6.0",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/addon-web-links": "^0.12.0",
+    "@xterm/addon-webgl": "^0.19.0",
+    "@xterm/xterm": "^6.0.0",
+    "better-sqlite3": "^13.0.3",
+    "monaco-editor": "^0.56.0",
+    "node-pty": "^1.1.0",
+    "react": "^19.2.8",
+    "react-arborist": "^3.16.0",
+    "react-dom": "^19.2.8",
+    "uuid": "^14.0.1",
+    "zustand": "^5.0.14"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^4.2.0",
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@types/uuid": "^11.0.0",
+    "@vitejs/plugin-react": "^5.2.0",
+    "electron": "^43.3.0",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^5.0.0",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.0"
+  }
+}
