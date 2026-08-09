@@ -44,6 +44,9 @@ import {
   type ManifestSessionRecord,
   type RolloutWatch
 } from './manifest';
+// LEAF restore modules only — ./restore/ipc imports this file (no cycles).
+import { restoreSessionInTmux } from './restore/restore';
+import { captureSessionSnapshot, deleteSnapshot } from './restore/snapshots';
 import * as tmux from './tmux';
 import { gmuxError, isGmuxError } from './tmux';
 
@@ -80,6 +83,8 @@ export class GmuxCore {
   private readonly byTmuxId = new Map<string, string>();
   /** Pending Codex rollout watches, cancelled on kill/shutdown. */
   private readonly rolloutWatches = new Map<string, RolloutWatch>();
+  /** Session ids with a restore in flight ("Restore all" double-clicks). */
+  private readonly restoresInFlight = new Set<string>();
 
   private refreshTimer: NodeJS.Timeout | null = null;
   private disposed = false;
@@ -138,8 +143,10 @@ export class GmuxCore {
     this.control.on('server-exit', () => {
       // A plain client detach also produces %exit — only a truly dead server
       // is the T2 path. refresh() classifies: TMUX_UNREACHABLE ⇒ every
-      // non-exited row flips to 'restorable'.
-      this.scheduleRefresh();
+      // non-exited row flips to 'restorable'. Snapshot first, best-effort:
+      // if the server still lives (clean detach) the captures succeed; if it
+      // is truly dead they fail harmlessly (research 09 §B.4 capture point).
+      void this.snapshotAllSessions().finally(() => this.scheduleRefresh());
     });
     this.control.on('error', (err) => {
       console.warn(`[gmux] control client: ${err.message}`);
@@ -167,6 +174,150 @@ export class GmuxCore {
       /* unreachable server → refresh below sorts out restorable-vs-exited */
     }
     this.scheduleRefresh();
+  }
+
+  // -------------------------------------------------------------------------
+  // Codex rollout harvest (create time + boot resume)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Watch ~/.codex/sessions for the rollout file that identifies a codex
+   * session's conversation id; record it (with the armed `codex resume`
+   * argv) the moment it appears. Used at create time AND re-armed on boot
+   * for codex sessions that were spawned but never harvested (e.g. gmux
+   * quit within the harvest window).
+   */
+  private startRolloutWatch(
+    id: string,
+    cwd: string,
+    sinceTs: number,
+    extraArgs: readonly string[]
+  ): void {
+    if (this.rolloutWatches.has(id)) return;
+    const watch = watchForRollout(cwd, sinceTs);
+    this.rolloutWatches.set(id, watch);
+    watch.promise
+      .then((rollout) => {
+        this.rolloutWatches.delete(id);
+        // The session may have been killed/discarded while we watched.
+        if (this.manifest.getSession(id) === undefined) return;
+        this.manifest.setAgentSessionId(
+          id,
+          rollout.sessionId,
+          codexResumeArgv(rollout.sessionId, extraArgs)
+        );
+        const live = this.liveIds.get(id);
+        if (live !== undefined) {
+          void tmux
+            .setSessionOption(live, '@gmux-session-id', rollout.sessionId)
+            .catch(() => undefined);
+        }
+        this.broadcastSessions();
+      })
+      .catch((err: unknown) => {
+        this.rolloutWatches.delete(id);
+        console.warn(`[gmux] codex rollout harvest: ${(err as Error).message}`);
+      });
+  }
+
+  /**
+   * Boot-time finalization: any LIVE codex session still missing its
+   * agentSessionId gets a fresh rollout watch keyed to its original spawn
+   * time, so resume ids are recorded even across a gmux restart mid-harvest.
+   * extraArgs are recovered from the recorded launch argv (["codex", ...]).
+   */
+  private resumeRolloutHarvests(): void {
+    for (const rec of this.manifest.listSessions()) {
+      if (rec.agent !== 'codex') continue;
+      if (rec.agentSessionId !== undefined) continue;
+      if (rec.status === 'exited' || rec.status === 'restorable') continue;
+      if (!this.liveIds.has(rec.id)) continue;
+      this.startRolloutWatch(rec.id, rec.cwd, rec.createdAt, rec.argv.slice(1));
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Scrollback snapshots + restore (Phase 6 — §2.4 Steps 2–3)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Snapshot every live manifested session's scrollback to
+   * <userData>/gmux/snapshots/<id>.txt. Best-effort and parallel — quit
+   * paths call this and must never hang on a sick server.
+   */
+  async snapshotAllSessions(): Promise<void> {
+    const jobs: Promise<unknown>[] = [];
+    for (const rec of this.manifest.listSessions()) {
+      if (rec.status === 'exited' || rec.status === 'restorable') continue;
+      const target = this.liveIds.get(rec.id) ?? rec.tmuxName;
+      jobs.push(
+        captureSessionSnapshot(target, rec.id).catch((err: unknown) => {
+          console.warn(
+            `[gmux] snapshot failed for "${rec.name}": ${(err as Error).message}`
+          );
+        })
+      );
+    }
+    await Promise.allSettled(jobs);
+  }
+
+  /**
+   * Restore a 'restorable' session (§2.4 Step 3): recreate it in tmux with
+   * $SHELL, replay the scrollback snapshot as inert history, and TYPE the
+   * recorded resume command without Enter (armed). Idempotent for sessions
+   * that are already live again.
+   */
+  async restoreSession(sessionId: string): Promise<Session> {
+    const rec = this.mustGetSession(sessionId);
+    if (rec.status === 'exited') {
+      throw gmuxError(
+        'INVALID_INPUT',
+        'This session ended — restart it instead of restoring.',
+        sessionId
+      );
+    }
+    if (rec.status !== 'restorable') {
+      return toSession(rec); // already live — nothing to do (Restore-all race)
+    }
+    if (this.restoresInFlight.has(sessionId)) {
+      return toSession(rec); // double-click guard; caller re-renders on event
+    }
+    this.restoresInFlight.add(sessionId);
+    try {
+      const outcome = await restoreSessionInTmux(rec);
+      const { info } = outcome;
+
+      this.liveIds.set(sessionId, info.sessionId);
+      this.byTmuxId.set(info.sessionId, sessionId);
+      const updated = this.manifest.updateSession(sessionId, {
+        tmuxName: info.tmuxName,
+        status: 'running',
+        lastSeen: Date.now()
+      });
+
+      // Re-mirror metadata into tmux user options (best-effort, §2.4 0.2).
+      try {
+        await tmux.setSessionOption(info.sessionId, '@gmux-id', sessionId);
+        await tmux.setSessionOption(info.sessionId, '@gmux-agent', rec.agent);
+        if (rec.agentSessionId !== undefined) {
+          await tmux.setSessionOption(
+            info.sessionId,
+            '@gmux-session-id',
+            rec.agentSessionId
+          );
+        }
+      } catch (err) {
+        console.warn(
+          `[gmux] could not mirror metadata after restore: ${(err as Error).message}`
+        );
+      }
+
+      broadcast(EVT_STATUS_CHANGED, sessionId, 'running');
+      this.broadcastSessions();
+      return toSession(updated);
+    } finally {
+      this.restoresInFlight.delete(sessionId);
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -232,6 +383,10 @@ export class GmuxCore {
       }
     }
     this.broadcastSessions();
+
+    // Phase 6: codex sessions that outlived a gmux restart mid-harvest get
+    // their rollout watch re-armed (no-op when the id is already recorded).
+    this.resumeRolloutHarvests();
   }
 
   private statusSnapshot(): Map<string, SessionStatus> {
@@ -349,28 +504,7 @@ export class GmuxCore {
     // Codex has no --session-id equivalent: harvest the rollout uuid from
     // ~/.codex/sessions after spawn and record the armed resume argv.
     if (spec.idCapture === 'rollout-watch') {
-      const watch = watchForRollout(cwd, now);
-      this.rolloutWatches.set(id, watch);
-      watch.promise
-        .then((rollout) => {
-          this.rolloutWatches.delete(id);
-          this.manifest.setAgentSessionId(
-            id,
-            rollout.sessionId,
-            codexResumeArgv(rollout.sessionId, input.extraArgs ?? [])
-          );
-          const live = this.liveIds.get(id);
-          if (live !== undefined) {
-            void tmux
-              .setSessionOption(live, '@gmux-session-id', rollout.sessionId)
-              .catch(() => undefined);
-          }
-          this.broadcastSessions();
-        })
-        .catch((err: unknown) => {
-          this.rolloutWatches.delete(id);
-          console.warn(`[gmux] codex rollout harvest: ${(err as Error).message}`);
-        });
+      this.startRolloutWatch(id, cwd, now, input.extraArgs ?? []);
     }
 
     this.broadcastSessions();
@@ -426,6 +560,11 @@ export class GmuxCore {
     }
     this.attachHost.detach(sessionId);
     const target = this.liveIds.get(sessionId) ?? rec.tmuxName;
+    // Session-close snapshot (§2.4 Step 2 capture point) — best-effort,
+    // BEFORE the pane disappears.
+    if (rec.status !== 'exited' && rec.status !== 'restorable') {
+      await captureSessionSnapshot(target, sessionId).catch(() => undefined);
+    }
     await tmux.killSession(target); // idempotent — already-gone is fine
     const live = this.liveIds.get(sessionId);
     if (live !== undefined) this.byTmuxId.delete(live);
@@ -441,6 +580,8 @@ export class GmuxCore {
     const live = this.liveIds.get(sessionId);
     if (live !== undefined) this.byTmuxId.delete(live);
     this.liveIds.delete(sessionId);
+    // The row is gone — its snapshot is unreachable garbage now.
+    void deleteSnapshot(sessionId).catch(() => undefined);
   }
 
   /** Start streaming a session into `sender` (visible pane mount). */
@@ -585,13 +726,22 @@ export function getGmuxCore(): Promise<GmuxCore> {
   return corePromise;
 }
 
-/** Quit-time teardown. tmux sessions survive — that is the whole point. */
+/**
+ * Quit-time teardown. tmux sessions survive — that is the whole point.
+ * Phase 6: scrollback snapshots are captured FIRST (app-quit capture point,
+ * §2.4 Step 2), bounded so a sick tmux can never wedge quit.
+ */
 export async function shutdownGmuxCore(): Promise<void> {
   if (corePromise === null) return;
   const pending = corePromise;
   corePromise = null;
   try {
-    (await pending).dispose();
+    const core = await pending;
+    await Promise.race([
+      core.snapshotAllSessions(),
+      new Promise<void>((resolve) => setTimeout(resolve, 8_000))
+    ]).catch(() => undefined);
+    core.dispose();
   } catch {
     /* boot never finished — nothing to tear down */
   }

@@ -6,12 +6,23 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import type { Project, SessionStatus } from '@shared/types';
-import { effectiveStatusOf, sortProjects, useApp } from '../state/store';
+import {
+  effectiveStatusOf,
+  loginItemExtras,
+  sortProjects,
+  useApp
+} from '../state/store';
 import { useGit } from '../state/git';
 import { rollupDot } from './status';
 import type { DotKind } from './status';
 import { truncateMiddle } from './format';
-import { BellIcon, GitBranchIcon, PlusIcon, XIcon } from './icons';
+import {
+  BellIcon,
+  GitBranchIcon,
+  PlusIcon,
+  SettingsIcon,
+  XIcon
+} from './icons';
 
 interface TabData {
   project: Project;
@@ -111,6 +122,83 @@ function ProjectTab({
   );
 }
 
+/**
+ * Settings gear (Phase 6) — one menu, one setting: 'Launch gmux at login'
+ * (the T3 restore trigger, §2.4 Step 3.1). Hidden when the bridge lacks the
+ * login-item methods. State is read fresh on every open and re-read from
+ * the OS after toggling — System Settings can veto silently.
+ */
+function SettingsButton(): React.JSX.Element | null {
+  const setMenu = useApp((s) => s.setMenu);
+  const toast = useApp((s) => s.toast);
+  const extras = loginItemExtras();
+  if (
+    typeof extras.getLoginItem !== 'function' ||
+    typeof extras.setLoginItem !== 'function'
+  ) {
+    return null;
+  }
+  const getLoginItem = extras.getLoginItem.bind(extras);
+  const setLoginItem = extras.setLoginItem.bind(extras);
+
+  const openMenu = async (x: number, y: number): Promise<void> => {
+    let on = false;
+    try {
+      on = (await getLoginItem()).openAtLogin;
+    } catch {
+      /* menu still opens; toggle reports its own errors */
+    }
+    setMenu({
+      x,
+      y,
+      items: [
+        {
+          label: `${on ? '✓ ' : ''}Launch gmux at login`,
+          run: () => {
+            void (async () => {
+              try {
+                const next = await setLoginItem(!on);
+                // Render the OS READBACK, not the request.
+                if (next.openAtLogin === !on) {
+                  toast(
+                    'success',
+                    next.openAtLogin
+                      ? 'gmux will launch at login and offer to restore your sessions.'
+                      : 'gmux will no longer launch at login.'
+                  );
+                } else {
+                  toast(
+                    'error',
+                    'macOS declined the change — check System Settings › General › Login Items.',
+                    { sticky: true }
+                  );
+                }
+              } catch (err) {
+                toast('error', (err as Error).message, { sticky: true });
+              }
+            })();
+          }
+        }
+      ]
+    });
+  };
+
+  return (
+    <button
+      type="button"
+      className="icon-btn titlebar-settings"
+      title="Settings"
+      aria-label="Settings"
+      onClick={(e) => {
+        const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        void openMenu(r.right - 220, r.bottom + 4);
+      }}
+    >
+      <SettingsIcon size={16} />
+    </button>
+  );
+}
+
 export function Titlebar(): React.JSX.Element {
   const projects = useApp((s) => s.projects);
   const tabOrder = useApp((s) => s.tabOrder);
@@ -189,6 +277,7 @@ export function Titlebar(): React.JSX.Element {
           <span className="badge-attention num">{attentionTotal}</span>
         ) : null}
       </button>
+      <SettingsButton />
     </header>
   );
 }

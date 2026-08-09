@@ -17,8 +17,10 @@ import type {
 } from '@shared/types';
 import type {
   GmuxAppExtras,
+  GmuxLoginItemExtras,
   GmuxProjectExtras,
-  GmuxSessionExtras
+  GmuxSessionExtras,
+  GmuxSessionRestoreExtras
 } from '@shared/ipc';
 import { StatusDetector } from './status-detector';
 import type { DetectedStatus } from './status-detector';
@@ -161,6 +163,18 @@ interface AppState {
   removeSession(sessionId: string): Promise<void>;
   /** Whether the optional sessions:discard bridge method exists. */
   canDiscard(): boolean;
+  // -- restore (Phase 6) ------------------------------------------------------
+  /** Session ids with a restore in flight (buttons show progress). */
+  restoringIds: Record<string, boolean>;
+  /** Whether the optional sessions:restore bridge method exists. */
+  canRestore(): boolean;
+  /**
+   * Restore one 'restorable' session: recreate it in tmux with its saved
+   * scrollback replayed and the resume command ARMED (typed, not run).
+   */
+  restoreSession(sessionId: string): Promise<void>;
+  /** Restore every restorable session in the active project (sequential). */
+  restoreAllSessions(): Promise<void>;
   /** User keystrokes went to the active terminal (status detector hint). */
   noteTerminalInput(): void;
 
@@ -270,7 +284,9 @@ export const useApp = create<AppState>((set, get) => {
   };
 
   const sessionExtras = gmux
-    ? (gmux.sessions as typeof gmux.sessions & GmuxSessionExtras)
+    ? (gmux.sessions as typeof gmux.sessions &
+        GmuxSessionExtras &
+        GmuxSessionRestoreExtras)
     : null;
 
   const applySessions = (sessions: Session[]): void => {
@@ -634,6 +650,54 @@ export const useApp = create<AppState>((set, get) => {
       return typeof sessionExtras?.discard === 'function';
     },
 
+    // -- restore (Phase 6) -----------------------------------------------------
+
+    restoringIds: {},
+
+    canRestore() {
+      return typeof sessionExtras?.restore === 'function';
+    },
+
+    async restoreSession(sessionId) {
+      if (typeof sessionExtras?.restore !== 'function') return;
+      const restore = sessionExtras.restore.bind(sessionExtras);
+      const session = get().sessions.find((x) => x.id === sessionId);
+      if (!session || get().restoringIds[sessionId] === true) return;
+      set((s) => ({
+        restoringIds: { ...s.restoringIds, [sessionId]: true }
+      }));
+      try {
+        const restored = await restore(sessionId);
+        get().setActiveSession(restored.id);
+        const armed = (session.resumeArgv?.length ?? 0) > 0;
+        get().toast(
+          'success',
+          armed
+            ? `'${session.name}' restored — press Enter in the terminal to resume the conversation.`
+            : `'${session.name}' restored.`
+        );
+      } catch (err) {
+        get().toast('error', errorText(err), { sticky: true });
+      } finally {
+        set((s) => {
+          const restoringIds = { ...s.restoringIds };
+          delete restoringIds[sessionId];
+          return { restoringIds };
+        });
+      }
+    },
+
+    async restoreAllSessions() {
+      // Sequential on purpose: parallel tmux new-session calls can race the
+      // name dedupe, and one toast per session stays readable.
+      const targets = get()
+        .projectSessions()
+        .filter((x) => x.status === 'restorable');
+      for (const t of targets) {
+        await get().restoreSession(t.id);
+      }
+    },
+
     noteTerminalInput() {
       const active = get().activeSession();
       if (active && detector) detector.noteUserInput(active.id);
@@ -806,4 +870,9 @@ export function projectExtras(): GmuxProjectExtras {
 
 export function appExtras(): GmuxAppExtras {
   return (window.gmux ?? {}) as unknown as GmuxAppExtras;
+}
+
+/** Optional login-item bridge extras (Phase 6), feature-detected. */
+export function loginItemExtras(): GmuxLoginItemExtras {
+  return (window.gmux ?? {}) as unknown as GmuxLoginItemExtras;
 }

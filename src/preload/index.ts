@@ -7,14 +7,17 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { IpcRendererEvent } from 'electron';
 import type {
+  AllInvokeChannel,
+  AllInvokeReq,
+  AllInvokeRes,
   EventChannel,
   EventPayloadMap,
-  ExtendedInvokeChannel,
-  ExtendedInvokeReq,
-  ExtendedInvokeRes,
   GmuxApi,
   GmuxFsExtras,
   GmuxGitExtras,
+  GmuxLoginItemExtras,
+  GmuxSessionExtras,
+  GmuxSessionRestoreExtras,
   GmuxTermStreamExtras,
   TermExitPayload,
   Unsubscribe
@@ -31,13 +34,13 @@ import {
 
 /**
  * Typed wrapper over ipcRenderer.invoke — spans the frozen channels plus the
- * appended optional extensions (git:init, fs:readDir, fs:reveal, …).
+ * appended optional extensions (git:init, fs:readDir, sessions:restore, …).
  */
-function invoke<C extends ExtendedInvokeChannel>(
+function invoke<C extends AllInvokeChannel>(
   channel: C,
-  ...args: ExtendedInvokeReq<C>
-): Promise<ExtendedInvokeRes<C>> {
-  return ipcRenderer.invoke(channel, ...args) as Promise<ExtendedInvokeRes<C>>;
+  ...args: AllInvokeReq<C>
+): Promise<AllInvokeRes<C>> {
+  return ipcRenderer.invoke(channel, ...args) as Promise<AllInvokeRes<C>>;
 }
 
 /** Typed wrapper over ipcRenderer.on with unsubscribe. */
@@ -109,18 +112,29 @@ const fs: GmuxApi['fs'] & GmuxFsExtras = {
   reveal: (path) => invoke('fs:reveal', path)
 };
 
-const api: GmuxApi = {
-  sessions: {
-    create: (input) => invoke('sessions:create', input),
-    list: () => invoke('sessions:list'),
-    rename: (input) => invoke('sessions:rename', input),
-    kill: (sessionId) => invoke('sessions:kill', sessionId),
-    attach: (sessionId) => invoke('sessions:attach', sessionId),
-    detach: (sessionId) => invoke('sessions:detach', sessionId),
-    resize: (input) => invoke('sessions:resize', input),
-    onChanged: (cb) => on(EVT_SESSIONS_CHANGED, cb),
-    onStatusChanged: (cb) => on(EVT_STATUS_CHANGED, cb)
-  },
+/**
+ * sessions surface = frozen GmuxApi['sessions'] + the appended optional
+ * extensions: discard (shell stream, §6.6 Remove) and restore (Phase 6,
+ * §2.4 Step 3 armed restore). Both feature-detected by the renderer.
+ */
+const sessions: GmuxApi['sessions'] &
+  GmuxSessionExtras &
+  GmuxSessionRestoreExtras = {
+  create: (input) => invoke('sessions:create', input),
+  list: () => invoke('sessions:list'),
+  rename: (input) => invoke('sessions:rename', input),
+  kill: (sessionId) => invoke('sessions:kill', sessionId),
+  attach: (sessionId) => invoke('sessions:attach', sessionId),
+  detach: (sessionId) => invoke('sessions:detach', sessionId),
+  resize: (input) => invoke('sessions:resize', input),
+  onChanged: (cb) => on(EVT_SESSIONS_CHANGED, cb),
+  onStatusChanged: (cb) => on(EVT_STATUS_CHANGED, cb),
+  discard: (sessionId) => invoke('sessions:discard', sessionId),
+  restore: (sessionId) => invoke('sessions:restore', sessionId)
+};
+
+const api: GmuxApi & GmuxLoginItemExtras = {
+  sessions,
   projects: {
     add: (path) => invoke('projects:add', path),
     list: () => invoke('projects:list'),
@@ -137,7 +151,10 @@ const api: GmuxApi = {
       chrome: process.versions.chrome ?? 'unknown',
       node: process.versions.node ?? 'unknown'
     }
-  }
+  },
+  // Phase 6 optional extras (top-level, feature-detected): login item.
+  getLoginItem: () => invoke('app:getLoginItem'),
+  setLoginItem: (openAtLogin) => invoke('app:setLoginItem', openAtLogin)
 };
 
 contextBridge.exposeInMainWorld('gmux', api);

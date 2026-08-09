@@ -355,3 +355,60 @@ export type ExtendedInvokeReq<C extends ExtendedInvokeChannel> =
   ExtendedInvokeChannelMap[C]['req'];
 export type ExtendedInvokeRes<C extends ExtendedInvokeChannel> =
   ExtendedInvokeChannelMap[C]['res'];
+
+// ---------------------------------------------------------------------------
+// APPENDED by the restore stream (Phase 6) — new channels/types only, nothing
+// above was modified. All OPTIONAL bridge extensions, feature-detected by the
+// renderer (`typeof window.gmux.sessions.restore === 'function'`), so the app
+// still works against older preloads.
+//
+// Wiring (done by this phase): main registers the channels in
+// src/main/restore/ipc.ts; preload adds the methods per the GmuxApi pattern.
+// ---------------------------------------------------------------------------
+
+import type { Session as RestoreSession } from './types';
+
+/** New invoke channels appended by the restore stream. */
+export interface RestoreInvokeChannelMap {
+  /**
+   * Recreate a 'restorable' session (FINAL-REPORT §2.4 Step 3): fresh tmux
+   * session in the recorded cwd running $SHELL, prior scrollback snapshot
+   * cat-ed as inert history, and the recorded resume command TYPED but not
+   * executed (armed). Resolves to the refreshed Session (status 'running').
+   * Idempotent for already-live sessions.
+   */
+  'sessions:restore': { req: [sessionId: string]; res: RestoreSession };
+  /** Read the 'Launch gmux at login' state (app.getLoginItemSettings). */
+  'app:getLoginItem': { req: []; res: { openAtLogin: boolean } };
+  /**
+   * Toggle 'Launch gmux at login' (app.setLoginItemSettings) and return the
+   * OS-read-back state — the UI must render the readback, not the request.
+   */
+  'app:setLoginItem': { req: [openAtLogin: boolean]; res: { openAtLogin: boolean } };
+}
+
+/**
+ * OPTIONAL extension to GmuxApi['sessions'], feature-detected by the shell
+ * (`typeof window.gmux.sessions.restore === 'function'`).
+ */
+export interface GmuxSessionRestoreExtras {
+  /** Restore a 'restorable' session with an armed resume command. */
+  restore?(sessionId: string): Promise<RestoreSession>;
+}
+
+/** OPTIONAL top-level extras on window.gmux (login item), feature-detected. */
+export interface GmuxLoginItemExtras {
+  getLoginItem?(): Promise<{ openAtLogin: boolean }>;
+  setLoginItem?(openAtLogin: boolean): Promise<{ openAtLogin: boolean }>;
+}
+
+/** Every channel this build's preload can invoke (frozen + all appends). */
+export type AllInvokeChannelMap = ExtendedInvokeChannelMap &
+  RestoreInvokeChannelMap;
+
+export type AllInvokeChannel = keyof AllInvokeChannelMap;
+
+export type AllInvokeReq<C extends AllInvokeChannel> =
+  AllInvokeChannelMap[C]['req'];
+export type AllInvokeRes<C extends AllInvokeChannel> =
+  AllInvokeChannelMap[C]['res'];

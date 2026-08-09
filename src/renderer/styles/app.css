@@ -1056,3 +1056,70 @@
 .editor-slot:empty {
   display: none;
 }
+
+/* ---------------------------------------------------------------------------
+   Phase 6 — restore UI states (restorable rows, Restore buttons, restore-all
+   bar) + titlebar settings gear.
+--------------------------------------------------------------------------- */
+
+/* Restorable rows read as "saved, waiting" — dimmed like ended, but the
+   accent-tinted Restore affordance says they come back. */
+.session-row.restorable .session-name {
+  color: var(--text-muted);
+}
+
+.session-row.restorable .dot {
+  opacity: 0.5;
+}
+
+.btn-restore {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  height: 18px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--accent);
+  border-radius: var(--r-sm);
+  background: var(--accent-wash);
+  color: var(--accent-text);
+  font-size: 10px;
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  transition: background var(--dur-base) var(--ease-out);
+}
+
+.btn-restore:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.btn-restore:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.restore-all-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin: 0 var(--space-2) var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-raised);
+}
+
+.restore-all-bar .restore-all-text {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Titlebar settings gear sits right of the bell; both are no-drag. */
+.titlebar-settings {
+  -webkit-app-region: no-drag;
+  margin-right: var(--space-3);
+}

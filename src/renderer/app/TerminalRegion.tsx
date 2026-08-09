@@ -198,6 +198,9 @@ export function TerminalRegion(): React.JSX.Element {
   const restartSession = useApp((s) => s.restartSession);
   const removeSession = useApp((s) => s.removeSession);
   const canDiscard = useApp((s) => s.canDiscard);
+  const canRestore = useApp((s) => s.canRestore);
+  const restoreSession = useApp((s) => s.restoreSession);
+  const restoringIds = useApp((s) => s.restoringIds);
 
   const [termFocused, setTermFocused] = useState(false);
 
@@ -257,7 +260,9 @@ export function TerminalRegion(): React.JSX.Element {
       {active && (exited || restorable) ? (
         // §6.6 / §6.8 — the tmux-side session is gone, so there is no
         // scrollback to keep under a banner; a quiet state carries the
-        // same copy and actions instead.
+        // same copy and actions instead. Restorable sessions (Phase 6)
+        // offer the real §2.4 Step 3 restore: saved scrollback replayed,
+        // resume command armed — you press Enter.
         <div className="empty">
           <div className="empty-inner">
             <h2 className="empty-title">
@@ -266,16 +271,31 @@ export function TerminalRegion(): React.JSX.Element {
             <p className="empty-body">
               {exited
                 ? 'Restarting opens a fresh session with the same name and directory.'
-                : 'This session is saved but not running — restart it to pick up in the same directory.'}
+                : canRestore()
+                  ? (active.resumeArgv?.length ?? 0) > 0
+                    ? 'Restore brings back its saved scrollback and types the resume command for you — nothing runs until you press Enter.'
+                    : 'Restore reopens it in the same directory with its saved scrollback above a fresh prompt.'
+                  : 'This session is saved but not running — restart it to pick up in the same directory.'}
             </p>
             <div className="empty-actions">
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => void restartSession(active.id)}
-              >
-                Restart
-              </button>
+              {restorable && canRestore() ? (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={restoringIds[active.id] === true}
+                  onClick={() => void restoreSession(active.id)}
+                >
+                  {restoringIds[active.id] === true ? 'Restoring…' : 'Restore'}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => void restartSession(active.id)}
+                >
+                  Restart
+                </button>
+              )}
               {canDiscard() ? (
                 <button
                   type="button"

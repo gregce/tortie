@@ -39,6 +39,9 @@ function SessionRow({
   const restartSession = useApp((s) => s.restartSession);
   const removeSession = useApp((s) => s.removeSession);
   const canDiscard = useApp((s) => s.canDiscard);
+  const canRestore = useApp((s) => s.canRestore);
+  const restoreSession = useApp((s) => s.restoreSession);
+  const restoring = useApp((s) => s.restoringIds[session.id] === true);
   const toast = useApp((s) => s.toast);
 
   const status = effectiveStatusOf(session, overrides);
@@ -62,6 +65,14 @@ function SessionRow({
       y,
       items: [
         { label: 'Rename', hint: 'F2', run: () => setRenaming(session.id) },
+        ...(status === 'restorable' && canRestore()
+          ? [
+              {
+                label: 'Restore',
+                run: () => void restoreSession(session.id)
+              }
+            ]
+          : []),
         ...(ended
           ? [
               {
@@ -112,7 +123,8 @@ function SessionRow({
           'session-row',
           selected ? 'selected' : '',
           status === 'needs_input' ? 'attention' : '',
-          status === 'exited' ? 'ended' : ''
+          status === 'exited' ? 'ended' : '',
+          status === 'restorable' ? 'restorable' : ''
         ]
           .filter(Boolean)
           .join(' ')}
@@ -158,10 +170,26 @@ function SessionRow({
               {session.name}
             </span>
             {status === 'restorable' ? (
-              <span className="chip chip-sm" title="Saved — ready to restore">
-                <RotateCcwIcon size={10} />
-                &nbsp;saved
-              </span>
+              canRestore() ? (
+                <button
+                  type="button"
+                  className="btn-restore"
+                  disabled={restoring}
+                  title="Recreate this session with its saved scrollback and an armed resume command"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void restoreSession(session.id);
+                  }}
+                >
+                  <RotateCcwIcon size={10} />
+                  &nbsp;{restoring ? 'Restoring…' : 'Restore'}
+                </button>
+              ) : (
+                <span className="chip chip-sm" title="Saved — ready to restore">
+                  <RotateCcwIcon size={10} />
+                  &nbsp;saved
+                </span>
+              )
             ) : null}
             <span className="session-row-space" />
             <span className="session-age num">{age}</span>
@@ -199,6 +227,9 @@ export function Sidebar(): React.JSX.Element {
   const setActiveSession = useApp((s) => s.setActiveSession);
   const sidebarWidth = useApp((s) => s.sidebarWidth);
   const setSidebarWidth = useApp((s) => s.setSidebarWidth);
+  const canRestore = useApp((s) => s.canRestore);
+  const restoreAllSessions = useApp((s) => s.restoreAllSessions);
+  const restoringIds = useApp((s) => s.restoringIds);
   const now = useNow();
 
   const project = useMemo(
@@ -294,6 +325,32 @@ export function Sidebar(): React.JSX.Element {
         </div>
         {!sessionsCollapsed ? (
           <div className="section-body">
+            {(() => {
+              // §2.4 Step 3 — post-reboot moment: several saved sessions in
+              // this project, one calm bar to bring them all back (each with
+              // its resume command armed, never auto-fired).
+              const restorable = projectSessions.filter(
+                (x) => x.status === 'restorable'
+              );
+              const busy = restorable.some((x) => restoringIds[x.id] === true);
+              if (restorable.length < 2 || !canRestore()) return null;
+              return (
+                <div className="restore-all-bar" role="status">
+                  <span className="restore-all-text">
+                    {restorable.length} saved sessions
+                  </span>
+                  <button
+                    type="button"
+                    className="btn-restore"
+                    disabled={busy}
+                    onClick={() => void restoreAllSessions()}
+                  >
+                    <RotateCcwIcon size={10} />
+                    &nbsp;{busy ? 'Restoring…' : 'Restore all'}
+                  </button>
+                </div>
+              );
+            })()}
             {projectSessions.length === 0 ? (
               <div className="section-stub">
                 {project

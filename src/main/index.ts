@@ -21,13 +21,15 @@
  */
 
 import { app, BrowserWindow, ipcMain, shell } from 'electron';
-import { writeFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
+import { readFile, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { registerFsIpc } from './fs';
 import { disposeGitIpc, registerGitIpc } from './git';
 import { getGmuxCore, registerIpcHandlers, shutdownGmuxCore } from './ipc';
 import type { GmuxCore } from './ipc';
+import { registerRestoreIpc, snapshotPath, stripAnsi } from './restore';
 import * as tmux from './tmux';
 
 // ---------------------------------------------------------------------------
@@ -330,6 +332,183 @@ async function runSmokeVerify(): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// T3 smoke — reboot-survival acceptance test (FINAL-REPORT §2.4 Steps 2–3)
+//
+//   GMUX_SMOKE=t3-prep    create a durable session with a known scrollback
+//                         marker, plant a deterministic resume argv (a FAKE
+//                         claude uuid — armed commands are typed, never run,
+//                         so no real agent is involved), quit so the app-quit
+//                         snapshot is written, leave the session running.
+//   GMUX_SMOKE=t3-verify  kill ONLY that tmux session OUT-OF-BAND (simulating
+//                         the reboot for that session), boot fresh, assert the
+//                         manifest row shows 'restorable', restore it, and
+//                         assert capture-pane shows BOTH the replayed marker
+//                         and the armed resume command line.
+// ---------------------------------------------------------------------------
+
+const SMOKE_T3 = 'smoke-t3';
+const T3_MARKER_RE = /GMUX-T3-MARKER-\d+/;
+
+/** Kill + discard every prior smoke-t3 trace (manifest rows AND raw tmux). */
+async function cleanupT3Leftovers(core: GmuxCore): Promise<void> {
+  for (const rec of core.listSessionRecords()) {
+    if (rec.name !== SMOKE_T3) continue;
+    if (rec.status !== 'exited' && rec.status !== 'restorable') {
+      await core.killSession(rec.id).catch(() => undefined);
+    }
+    core.discardSession(rec.id);
+  }
+  // Raw leftovers from aborted runs (deduped names included).
+  const live = await tmux.listSessions().catch(() => []);
+  for (const s of live) {
+    if (s.tmuxName === SMOKE_T3 || s.tmuxName.startsWith(`${SMOKE_T3}-`)) {
+      await tmux.killSession(s.sessionId).catch(() => undefined);
+    }
+  }
+}
+
+/** GMUX_SMOKE=t3-prep — first half of the T3 acceptance test. */
+async function runSmokeT3Prep(): Promise<void> {
+  armWatchdog(45_000);
+  try {
+    const core = await getGmuxCore();
+    smokeLog('1/6 core booted');
+
+    await cleanupT3Leftovers(core);
+    smokeLog('2/6 prior smoke-t3 traces cleaned');
+
+    const marker = `GMUX-T3-MARKER-${Date.now()}`;
+    const home = homedir();
+    const session = await core.createSession({
+      name: SMOKE_T3,
+      projectPath: home,
+      cwd: home,
+      agent: 'shell',
+      extraArgs: ['-c', `echo ${marker}; while true; do date; sleep 1; done`]
+    });
+    smokeLog(`3/6 session created: ${session.tmuxName} (${session.id})`);
+
+    const bytes = await receiveTermBytes(core, session.id);
+    smokeLog(`4/6 term data flowing (${bytes} bytes) — marker is on screen`);
+
+    // Simulated agent id: restore ARMS this command without running it, so a
+    // fake uuid exercises the full path with zero real-agent side effects.
+    const fakeId = randomUUID();
+    core.manifest.setAgentSessionId(session.id, fakeId, [
+      'claude',
+      '--resume',
+      fakeId
+    ]);
+    smokeLog(`5/6 armed resume argv planted (claude --resume ${fakeId})`);
+
+    // Quit path writes the app-quit snapshot; prove it landed with content.
+    await shutdownGmuxCore();
+    const snapText = await readFile(snapshotPath(session.id), 'utf8');
+    if (!snapText.includes(marker)) {
+      throw new Error('app-quit snapshot missing the scrollback marker');
+    }
+    smokeLog('6/6 PASS (t3-prep) — snapshot on disk, session left RUNNING');
+    app.exit(0);
+  } catch (err) {
+    smokeFail(err);
+  }
+}
+
+/** GMUX_SMOKE=t3-verify — second half: restorable → restore → armed. */
+async function runSmokeT3Verify(): Promise<void> {
+  armWatchdog(60_000);
+  try {
+    // OUT-OF-BAND kill BEFORE the core boots: the manifest never hears about
+    // it — exactly the state a reboot leaves behind for this session.
+    await tmux.ensureServer();
+    const preLive = await tmux.listSessions();
+    const keeper = preLive.find((s) => s.tmuxName === SMOKE_T3);
+    if (!keeper) {
+      throw new Error(`"${SMOKE_T3}" not running — run GMUX_SMOKE=t3-prep first`);
+    }
+    await tmux.killSession(keeper.sessionId);
+    smokeLog(`1/7 killed ${SMOKE_T3} out-of-band (simulated reboot)`);
+
+    const core = await getGmuxCore();
+    smokeLog('2/7 core booted fresh — reconcile ran');
+
+    const rec = core
+      .listSessionRecords()
+      .find((r) => r.name === SMOKE_T3 && r.status !== 'exited');
+    if (!rec) throw new Error(`"${SMOKE_T3}" missing from the manifest`);
+    if (rec.status !== 'restorable') {
+      throw new Error(
+        `manifest status is "${rec.status}", expected "restorable" — the
+         sidebar would not offer [Restore]`
+      );
+    }
+    smokeLog(`3/7 manifest row is 'restorable' (id ${rec.id})`);
+
+    const marker = T3_MARKER_RE.exec(rec.argv.join(' '))?.[0];
+    const armed = (rec.resumeArgv ?? []).join(' ');
+    if (!marker) throw new Error('marker missing from recorded argv');
+    if (!/^claude --resume /.test(armed)) {
+      throw new Error(`recorded resume argv wrong: "${armed}"`);
+    }
+
+    const restored = await core.restoreSession(rec.id);
+    if (restored.status !== 'running') {
+      throw new Error(`restore left status "${restored.status}"`);
+    }
+    smokeLog(`4/7 restored as tmux "${restored.tmuxName}" — status running`);
+
+    // Capture by immutable $-id: on tmux 3.6a capture-pane does NOT honor
+    // the '=' exact-name prefix in target-pane resolution (verified).
+    const restoredLive = (await tmux.listSessions()).find(
+      (s) => s.tmuxName === restored.tmuxName
+    );
+    if (!restoredLive) {
+      throw new Error(`restored session "${restored.tmuxName}" not in tmux ls`);
+    }
+
+    // The pane runs the user's real interactive shell; poll capture-pane
+    // until the replayed marker AND the armed (typed, unexecuted) resume
+    // command are both visible.
+    const deadline = Date.now() + 25_000;
+    let lastCapture = '';
+    let ok = false;
+    while (Date.now() < deadline) {
+      lastCapture = stripAnsi(
+        await tmux.capturePane(restoredLive.sessionId).catch(() => '')
+      );
+      if (lastCapture.includes(marker) && lastCapture.includes(armed)) {
+        ok = true;
+        break;
+      }
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    if (!ok) {
+      throw new Error(
+        `capture-pane never showed marker+armed command.\n` +
+          `wanted marker: ${marker}\nwanted armed: ${armed}\n` +
+          `last capture tail:\n${lastCapture.split('\n').slice(-15).join('\n')}`
+      );
+    }
+    smokeLog('5/7 capture-pane shows replayed scrollback AND armed resume line');
+
+    // The armed line must be TYPED, not executed — the fake uuid would have
+    // errored loudly if claude had actually run. Cheap negative check:
+    if (/No conversation found|command not found/i.test(lastCapture)) {
+      throw new Error('armed command appears to have EXECUTED');
+    }
+    smokeLog('6/7 armed command was not executed (as designed)');
+
+    await core.killSession(rec.id);
+    core.discardSession(rec.id);
+    await shutdownGmuxCore();
+    smokeLog('7/7 PASS (t3-verify) — T3 reboot-restore acceptance test complete');
+    app.exit(0);
+  } catch (err) {
+    smokeFail(err);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Screenshot harness — GMUX_SHOT=<path>
 // ---------------------------------------------------------------------------
 
@@ -394,10 +573,15 @@ app.whenReady().then(async () => {
   // fs:reveal). Both are self-contained registries, lazy per repo.
   registerGitIpc(ipcMain);
   registerFsIpc(ipcMain);
+  // Phase 6: restore extension channels (sessions:restore, sessions:discard,
+  // app:get/setLoginItem).
+  registerRestoreIpc(ipcMain);
 
   if (smoke === 'basic') return runSmokeBasic();
   if (smoke === 'create') return runSmokeCreate();
   if (smoke === 'verify') return runSmokeVerify();
+  if (smoke === 't3-prep') return runSmokeT3Prep();
+  if (smoke === 't3-verify') return runSmokeT3Verify();
   if (shot) return runShot(shot);
 
   // Normal startup. Native-module sanity is logged (not fatal) so a broken
@@ -426,10 +610,23 @@ app.whenReady().then(async () => {
 
 // Quit-time teardown kills ONLY gmux-side clients (attach PTYs, control
 // client, repo watchers). The tmux server and every session keep running —
-// T1 by design.
-app.on('before-quit', () => {
-  void shutdownGmuxCore();
-  void disposeGitIpc();
+// T1 by design. Phase 6: quit is deferred ONCE so scrollback snapshots
+// (§2.4 Step 2 app-quit capture point) finish before the process dies;
+// shutdownGmuxCore bounds the capture at 8 s so quit can never wedge.
+let quitFlowStarted = false;
+app.on('before-quit', (event) => {
+  if (quitFlowStarted) return; // second pass: let the quit proceed
+  quitFlowStarted = true;
+  event.preventDefault();
+  void (async () => {
+    try {
+      await shutdownGmuxCore(); // snapshots first, then dispose
+    } catch {
+      /* never block quit */
+    }
+    void disposeGitIpc();
+    app.quit();
+  })();
 });
 
 // Single-window app: quitting on last-window-close is correct on macOS too —
