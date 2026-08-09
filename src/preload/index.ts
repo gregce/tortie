@@ -12,6 +12,10 @@ import type {
   AllInvokeRes,
   EventChannel,
   EventPayloadMap,
+  FullInvokeChannel,
+  FullInvokeReq,
+  FullInvokeRes,
+  GmuxAgentExtras,
   GmuxApi,
   GmuxFsExtras,
   GmuxGitExtras,
@@ -44,6 +48,14 @@ function invoke<C extends AllInvokeChannel>(
   ...args: AllInvokeReq<C>
 ): Promise<AllInvokeRes<C>> {
   return ipcRenderer.invoke(channel, ...args) as Promise<AllInvokeRes<C>>;
+}
+
+/** Same wrapper over the Phase-8 superset map (agents:availability, …). */
+function invokeFull<C extends FullInvokeChannel>(
+  channel: C,
+  ...args: FullInvokeReq<C>
+): Promise<FullInvokeRes<C>> {
+  return ipcRenderer.invoke(channel, ...args) as Promise<FullInvokeRes<C>>;
 }
 
 /** Typed wrapper over ipcRenderer.on with unsubscribe. */
@@ -136,7 +148,7 @@ const sessions: GmuxApi['sessions'] &
   restore: (sessionId) => invoke('sessions:restore', sessionId)
 };
 
-const api: GmuxApi & GmuxLoginItemExtras & GmuxMenuExtras = {
+const api: GmuxApi & GmuxLoginItemExtras & GmuxMenuExtras & GmuxAgentExtras = {
   sessions,
   projects: {
     add: (path) => invoke('projects:add', path),
@@ -155,6 +167,8 @@ const api: GmuxApi & GmuxLoginItemExtras & GmuxMenuExtras = {
       node: process.versions.node ?? 'unknown'
     }
   },
+  // Phase 8 optional extra (top-level, feature-detected): agent CLI probe.
+  agentAvailability: () => invokeFull('agents:availability'),
   // Phase 6 optional extras (top-level, feature-detected): login item.
   getLoginItem: () => invoke('app:getLoginItem'),
   setLoginItem: (openAtLogin) => invoke('app:setLoginItem', openAtLogin),

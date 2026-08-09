@@ -45,7 +45,7 @@ function SessionRow({
   const toast = useApp((s) => s.toast);
 
   const status = effectiveStatusOf(session, overrides);
-  const visual = statusVisual(status);
+  const visual = statusVisual(status, session.exitCode);
   const renaming = renamingSessionId === session.id;
   const [draft, setDraft] = useState(session.name);
   const inputRef = useRef<HTMLInputElement | null>(null);

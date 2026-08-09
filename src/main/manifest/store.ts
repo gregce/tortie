@@ -92,6 +92,8 @@ interface SessionRow {
   status: string;
   created_at: number;
   last_seen: number;
+  /** Exit status of the session's process, when known (migration 002). */
+  exit_code: number | null;
 }
 
 interface ProjectRow {
@@ -181,6 +183,9 @@ function rowToRecord(row: SessionRow): ManifestSessionRecord {
   if (resume) record.resumeArgv = resume;
   const env = parseJsonObject(row.env);
   if (env) record.env = env;
+  if (row.exit_code !== null && row.exit_code !== undefined) {
+    record.exitCode = row.exit_code;
+  }
   return record;
 }
 
@@ -200,6 +205,7 @@ export function toSession(record: ManifestSessionRecord): Session {
     session.agentSessionId = record.agentSessionId;
   }
   if (record.resumeArgv !== undefined) session.resumeArgv = record.resumeArgv;
+  if (record.exitCode !== undefined) session.exitCode = record.exitCode;
   return session;
 }
 
@@ -242,6 +248,16 @@ const MIGRATIONS: readonly Migration[] = [
           name TEXT NOT NULL
         );
       `);
+    }
+  },
+  {
+    // Phase 8 (§6.6 exit-code truth): the exit status of the session's
+    // process, read from tmux's dead-pane status before the reap. NULL for
+    // live sessions, user-killed sessions, and rows written before this
+    // migration.
+    name: '002-exit-code',
+    up: (db) => {
+      db.exec('ALTER TABLE sessions ADD COLUMN exit_code INTEGER;');
     }
   }
 ];
@@ -326,11 +342,11 @@ export class ManifestStore {
         .prepare(
           `INSERT INTO sessions
              (id, name, tmux_name, project_path, cwd, agent, agent_session_id,
-              argv, resume_argv, env, status, created_at, last_seen)
+              argv, resume_argv, env, status, created_at, last_seen, exit_code)
            VALUES
              (@id, @name, @tmuxName, @projectPath, @cwd, @agent,
               @agentSessionId, @argv, @resumeArgv, @env, @status,
-              @createdAt, @lastSeen)`
+              @createdAt, @lastSeen, @exitCode)`
         )
         .run({
           id: record.id,
@@ -347,7 +363,8 @@ export class ManifestStore {
           env: record.env ? JSON.stringify(record.env) : null,
           status: record.status,
           createdAt: record.createdAt,
-          lastSeen: record.lastSeen
+          lastSeen: record.lastSeen,
+          exitCode: record.exitCode ?? null
         });
     } catch (err) {
       throw manifestError(
@@ -423,6 +440,7 @@ export class ManifestStore {
     if (patch.env !== undefined) merged.env = patch.env;
     if (patch.status !== undefined) merged.status = patch.status;
     if (patch.lastSeen !== undefined) merged.lastSeen = patch.lastSeen;
+    if (patch.exitCode !== undefined) merged.exitCode = patch.exitCode;
 
     this.db
       .prepare(
@@ -430,7 +448,7 @@ export class ManifestStore {
            name = @name, tmux_name = @tmuxName, project_path = @projectPath,
            cwd = @cwd, agent = @agent, agent_session_id = @agentSessionId,
            argv = @argv, resume_argv = @resumeArgv, env = @env,
-           status = @status, last_seen = @lastSeen
+           status = @status, last_seen = @lastSeen, exit_code = @exitCode
          WHERE id = @id`
       )
       .run({
@@ -445,7 +463,8 @@ export class ManifestStore {
         resumeArgv: merged.resumeArgv ? JSON.stringify(merged.resumeArgv) : null,
         env: merged.env ? JSON.stringify(merged.env) : null,
         status: merged.status,
-        lastSeen: merged.lastSeen
+        lastSeen: merged.lastSeen,
+        exitCode: merged.exitCode ?? null
       });
     return merged;
   }

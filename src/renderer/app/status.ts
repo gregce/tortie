@@ -14,7 +14,10 @@ export interface StatusVisual {
   label: string;
 }
 
-export function statusVisual(status: SessionStatus): StatusVisual {
+export function statusVisual(
+  status: SessionStatus,
+  exitCode?: number
+): StatusVisual {
   switch (status) {
     case 'running':
       return { dot: 'working', label: 'working' };
@@ -23,10 +26,12 @@ export function statusVisual(status: SessionStatus): StatusVisual {
     case 'idle':
       return { dot: 'idle', label: 'idle' };
     case 'exited':
-      // Exit codes are not in the frozen Session shape yet, so every ended
-      // session renders the exit-0 form (hollow gray, "ended"); the failed
-      // variant (hollow red) is wired for when main reports codes.
-      return { dot: 'ended', label: 'ended' };
+      // §6.6 exit-code truth: main records the real exit status (Phase 8,
+      // Session.exitCode). A known non-zero code renders the failed variant
+      // (hollow red); clean/unknown exits stay the quiet gray "ended".
+      return exitCode !== undefined && exitCode !== 0
+        ? { dot: 'failed', label: `failed (exit ${exitCode})` }
+        : { dot: 'ended', label: 'ended' };
     case 'restorable':
       return { dot: 'idle', label: 'saved' };
   }

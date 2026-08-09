@@ -5,6 +5,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { useApp } from '../state/store';
+import { trapTabKey } from './focus-trap';
 
 export function ConfirmDialog(): React.JSX.Element | null {
   const confirm = useApp((s) => s.confirm);
@@ -36,11 +37,17 @@ export function ConfirmDialog(): React.JSX.Element | null {
         aria-modal="true"
         aria-label={confirm.title}
         onKeyDown={(e) => {
+          // aria-modal promises the shell behind the scrim is inert; make
+          // the keyboard honor it (Tab cycles inside the dialog).
+          trapTabKey(e, e.currentTarget);
           if (e.key === 'Escape') {
             e.stopPropagation();
             setConfirm(null);
           }
           if (e.key === 'Enter') {
+            // Let a focused button run its NATIVE activation — otherwise
+            // Enter on [Cancel] would confirm a destructive action.
+            if ((e.target as HTMLElement).tagName === 'BUTTON') return;
             e.preventDefault();
             run();
           }

@@ -449,3 +449,83 @@ export type AllInvokeReq<C extends AllInvokeChannel> =
   AllInvokeChannelMap[C]['req'];
 export type AllInvokeRes<C extends AllInvokeChannel> =
   AllInvokeChannelMap[C]['res'];
+
+// ---------------------------------------------------------------------------
+// APPENDED by the Phase-8 hardening pass — new channels/types only, nothing
+// above was modified.
+//
+// 1) agents:availability — main probes PATH (plus the usual install dirs) for
+//    the agent CLIs once per boot and caches the result. The renderer
+//    feature-detects `window.gmux.agentAvailability` and renders unavailable
+//    agents as disabled options with install guidance (§6.5 / DESIGN-SPEC S6)
+//    instead of letting create fail with a spawn error.
+// 2) ui:popupMenu — CONTRACT ONLY for the native Menu.popup swap scheduled
+//    for src/renderer/app/ContextMenu.tsx (DESIGN.md §3: context menus are
+//    native, never DOM-drawn). INTEGRATOR wiring:
+//      main:    ipcMain.handle('ui:popupMenu', …) → Menu.buildFromTemplate +
+//               menu.popup({window, x, y}); resolve the clicked item id, or
+//               null when dismissed.
+//      preload: popupMenu: (input) => invoke('ui:popupMenu', input)
+//      renderer: ContextMenu.tsx feature-detects popupMenu and prefers it;
+//               the DOM menu remains the fallback for older preloads.
+// ---------------------------------------------------------------------------
+
+/** Which agent CLIs are installed on this machine (probed once per boot). */
+export interface AgentAvailability {
+  claude: boolean;
+  codex: boolean;
+}
+
+/** One item of a native context menu (ui:popupMenu). */
+export interface PopupMenuItem {
+  /** Returned by the invoke when clicked. */
+  id: string;
+  label: string;
+  enabled?: boolean;
+  /** Render with the destructive (error) treatment where supported. */
+  destructive?: boolean;
+  /** Display-only shortcut hint (e.g. "F2"). */
+  hint?: string;
+  /** 'separator' items need no id/label. */
+  type?: 'item' | 'separator';
+}
+
+export interface PopupMenuInput {
+  /** Screen position (CSS pixels, window-relative). */
+  x: number;
+  y: number;
+  items: PopupMenuItem[];
+}
+
+/** New invoke channels appended by the Phase-8 hardening pass. */
+export interface HardeningInvokeChannelMap {
+  /** Cached per-boot probe: which agent CLIs exist on this machine. */
+  'agents:availability': { req: []; res: AgentAvailability };
+  /** Native context menu; resolves the clicked item id (null = dismissed). */
+  'ui:popupMenu': { req: [input: PopupMenuInput]; res: string | null };
+}
+
+/**
+ * OPTIONAL top-level extras on window.gmux, feature-detected by the renderer
+ * (`typeof window.gmux.agentAvailability === 'function'`).
+ */
+export interface GmuxAgentExtras {
+  /** Which agent CLIs are installed (cached in main for the app's lifetime). */
+  agentAvailability?(): Promise<AgentAvailability>;
+}
+
+/** OPTIONAL native-menu extra (unimplemented until the integrator wires it). */
+export interface GmuxPopupMenuExtras {
+  popupMenu?(input: PopupMenuInput): Promise<string | null>;
+}
+
+/** AllInvokeChannelMap + the Phase-8 appends (superset alias, same pattern). */
+export type FullInvokeChannelMap = AllInvokeChannelMap &
+  HardeningInvokeChannelMap;
+
+export type FullInvokeChannel = keyof FullInvokeChannelMap;
+
+export type FullInvokeReq<C extends FullInvokeChannel> =
+  FullInvokeChannelMap[C]['req'];
+export type FullInvokeRes<C extends FullInvokeChannel> =
+  FullInvokeChannelMap[C]['res'];

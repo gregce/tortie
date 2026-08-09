@@ -60,28 +60,31 @@
 }
 
 /* ---------------------------------------------------------------------------
-   Section shells — Changes max 30% of the sidebar rest, own scroll;
-   History max 25% when expanded (DESIGN-SPEC S3 space budget).
+   Section shells — Changes is content-sized and NEGOTIATES with Files via
+   flexbox (Phase 8): it grows past the old 30% cap whenever Files has spare
+   room (so a short list like "Untracked 1" is never clipped), and shrinks
+   back (scrolling internally) when the tree needs its space — tree.css gives
+   .section-files a floor. History keeps its 25% cap (DESIGN-SPEC S3).
 --------------------------------------------------------------------------- */
 
 .section-scm {
   display: flex;
   flex-direction: column;
-  max-height: 30%;
-  flex-shrink: 0;
+  flex: 0 1 auto;
   min-height: 0;
 }
 
 .section-scm.collapsed,
 .section-scm-history.collapsed {
   max-height: none;
+  flex: 0 0 auto;
 }
 
 .section-scm-history {
   display: flex;
   flex-direction: column;
   max-height: 25%;
-  flex-shrink: 0;
+  flex: 0 1 auto;
   min-height: 0;
 }
 
@@ -200,13 +203,18 @@
   color: var(--text-muted);
 }
 
+/* Hidden but still in the tab order (Phase 8): opacity instead of
+   visibility keeps the button focusable, so :focus-within actually fires
+   and keyboard users can reach group staging. */
 .scm-group-action {
-  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .scm-group-row:hover .scm-group-action,
 .scm-group-row:focus-within .scm-group-action {
-  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .scm-row {
@@ -306,17 +314,22 @@
   min-width: 0;
 }
 
-/* Hover actions: 16px icons, right-aligned, appear on hover/focus. */
+/* Hover actions: 16px icons, right-aligned, appear on hover/focus.
+   Phase 8: opacity (not display:none) keeps the buttons in the tab order,
+   so :focus-within works and staging is keyboard-reachable. */
 .scm-row-actions {
-  display: none;
+  display: inline-flex;
   align-items: center;
   gap: var(--space-1);
   flex: 0 0 auto;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .scm-row:hover .scm-row-actions,
 .scm-row:focus-within .scm-row-actions {
-  display: inline-flex;
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .scm-action {

@@ -38,12 +38,13 @@ function ProjectTab({
   const setMenu = useApp((s) => s.setMenu);
   const [dropTarget, setDropTarget] = useState(false);
 
+  // Nested-interactive fix (Phase 8): the close × is a REAL sibling button
+  // positioned over the tab's right edge — a button inside a button is
+  // invalid and unreachable by keyboard. Drag/drop lives on the wrapper so
+  // both children stay plain interactives.
   return (
-    <button
-      type="button"
-      className={`ptab${selected ? ' selected' : ''}${dropTarget ? ' drop-target' : ''}`}
-      title={project.path}
-      onClick={() => setActiveProject(project.id)}
+    <div
+      className={`ptab-wrap${dropTarget ? ' drop-target' : ''}`}
       draggable
       onDragStart={(e) => {
         e.dataTransfer.setData('application/x-gmux-tab', project.id);
@@ -74,33 +75,37 @@ function ProjectTab({
           ]
         });
       }}
-      aria-label={`${project.name}${
-        attentionCount > 0
-          ? `, ${attentionCount} ${attentionCount === 1 ? 'session needs' : 'sessions need'} input`
-          : ''
-      }`}
-      aria-current={selected ? 'true' : undefined}
     >
-      {/* Tab anatomy stays dot · name · badge (DESIGN.md §2.3): branch and
-          dirty count live in the sidebar header, never on the tab. */}
-      <span className={`dot dot-${dot === 'none' ? 'none' : dot}`} />
-      <span className="ptab-name">{truncateMiddle(project.name, 24)}</span>
-      {attentionCount > 0 ? (
-        <span className="badge-attention num">{attentionCount}</span>
-      ) : null}
-      <span
+      <button
+        type="button"
+        className={`ptab${selected ? ' selected' : ''}`}
+        title={project.path}
+        onClick={() => setActiveProject(project.id)}
+        aria-label={`${project.name}${
+          attentionCount > 0
+            ? `, ${attentionCount} ${attentionCount === 1 ? 'session needs' : 'sessions need'} input`
+            : ''
+        }`}
+        aria-current={selected ? 'true' : undefined}
+      >
+        {/* Tab anatomy stays dot · name · badge (DESIGN.md §2.3): branch and
+            dirty count live in the sidebar header, never on the tab. */}
+        <span className={`dot dot-${dot === 'none' ? 'none' : dot}`} />
+        <span className="ptab-name">{truncateMiddle(project.name, 24)}</span>
+        {attentionCount > 0 ? (
+          <span className="badge-attention num">{attentionCount}</span>
+        ) : null}
+      </button>
+      <button
+        type="button"
         className="ptab-close"
-        role="button"
         aria-label={`Close ${project.name}`}
         title="Close project"
-        onClick={(e) => {
-          e.stopPropagation();
-          closeProject(project.id);
-        }}
+        onClick={() => closeProject(project.id)}
       >
         <XIcon size={12} />
-      </span>
-    </button>
+      </button>
+    </div>
   );
 }
 

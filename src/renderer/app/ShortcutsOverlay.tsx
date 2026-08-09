@@ -3,8 +3,9 @@
  * One chip per chord ("⌘T"), mono 11 on --bg-raised.
  */
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useApp } from '../state/store';
+import { trapTabKey } from './focus-trap';
 
 interface Row {
   keys: string[];
@@ -31,7 +32,11 @@ const GROUPS: { title: string; rows: Row[] }[] = [
   },
   {
     title: 'Git',
-    rows: [{ keys: ['⌘↩'], action: 'Commit staged' }]
+    rows: [
+      { keys: ['⌘↩'], action: 'Commit staged' },
+      { keys: ['Space', 'S'], action: 'Stage / unstage selected file' },
+      { keys: ['⌫'], action: 'Discard selected file…' }
+    ]
   },
   {
     title: 'Editor',
@@ -59,6 +64,13 @@ const GROUPS: { title: string; rows: Row[] }[] = [
 export function ShortcutsOverlay(): React.JSX.Element | null {
   const open = useApp((s) => s.shortcutsOpen);
   const setOpen = useApp((s) => s.setShortcutsOpen);
+  const modalRef = useRef<HTMLDivElement | null>(null);
+
+  // Focus the (otherwise focusable-free) dialog so the Tab trap engages and
+  // aria-modal is honest — the shell behind the scrim stays unreachable.
+  useEffect(() => {
+    if (open) requestAnimationFrame(() => modalRef.current?.focus());
+  }, [open]);
 
   if (!open) return null;
 
@@ -70,10 +82,19 @@ export function ShortcutsOverlay(): React.JSX.Element | null {
       }}
     >
       <div
+        ref={modalRef}
         className="modal modal-shortcuts"
         role="dialog"
         aria-modal="true"
         aria-label="Keyboard shortcuts"
+        tabIndex={-1}
+        onKeyDown={(e) => {
+          trapTabKey(e, e.currentTarget);
+          if (e.key === 'Escape') {
+            e.stopPropagation();
+            setOpen(false);
+          }
+        }}
       >
         <h2 className="modal-title">Keyboard shortcuts</h2>
         <div className="shortcut-groups">

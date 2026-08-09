@@ -60,6 +60,15 @@ export interface Session {
   status: SessionStatus;
   /** Epoch milliseconds. */
   createdAt: number;
+  /**
+   * APPENDED (Phase 8 hardening, §6.6 exit-code truth): the exit status of
+   * the session's process when known. Populated by main from tmux's dead-pane
+   * status (`remain-on-exit failed` keeps failed panes long enough to read
+   * `#{pane_dead_status}`). Undefined for clean exits recorded before this
+   * field existed, for user-killed sessions, and for live sessions. A defined
+   * non-zero value drives the "failed" visual (hollow red dot, error copy).
+   */
+  exitCode?: number;
 }
 
 /** A project tab: one repo checkout. */

@@ -46,13 +46,25 @@
   overflow: hidden;
 }
 
+/* Wrapper exists so the close × can be a REAL sibling button (a button
+   nested in a button is invalid and keyboard-unreachable — Phase 8). */
+.ptab-wrap {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+  flex: 0 1 auto;
+  -webkit-app-region: no-drag;
+}
+
 .ptab {
   display: inline-flex;
   align-items: center;
   gap: var(--space-3);
   height: 28px;
   max-width: 200px;
-  padding: 0 10px;
+  min-width: 0;
+  /* Right padding reserves the close button's overlay slot. */
+  padding: 0 26px 0 10px;
   border-radius: var(--r-sm);
   color: var(--text-secondary);
   font-size: var(--text-base);
@@ -86,19 +98,27 @@
 }
 
 .ptab-close {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
   width: 16px;
   height: 16px;
   border-radius: var(--r-sm);
-  display: none;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   color: var(--text-muted);
-  flex: 0 0 auto;
+  /* Hidden but still in the tab order — opacity (not display) keeps ×
+     keyboard-reachable; it lights up on hover or when focused. */
+  opacity: 0;
+  pointer-events: none;
 }
 
-.ptab:hover .ptab-close,
-.ptab:focus-visible .ptab-close {
-  display: inline-flex;
+.ptab-wrap:hover .ptab-close,
+.ptab-wrap:focus-within .ptab-close {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .ptab-close:hover {
@@ -106,7 +126,13 @@
   color: var(--text-primary);
 }
 
-.ptab.drop-target {
+.ptab-close:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+  box-shadow: var(--focus-ring);
+}
+
+.ptab-wrap.drop-target .ptab {
   box-shadow: inset 2px 0 0 var(--accent);
 }
 
@@ -667,6 +693,49 @@
   cursor: default;
 }
 
+.seg-option:disabled:hover {
+  background: none;
+}
+
+/* §6.5 — missing-agent caption under the agent picker: fact + install
+   command + one-click copy (Phase 8). */
+.agent-missing {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  min-width: 0;
+}
+
+.agent-missing-text {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+
+.agent-missing-cmd {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-secondary);
+  background: var(--bg-canvas);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 1px var(--space-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.agent-missing-copy {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
 /* Shortcuts overlay (S8). */
 .modal-shortcuts {
   width: 640px;
@@ -884,6 +953,39 @@
 .quick-create {
   width: 140px;
   height: 32px;
+}
+
+/* Quick-create button + its availability caption (§6.5, Phase 8). */
+.quick-create-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.quick-create-note {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+}
+
+.quick-create:disabled {
+  color: var(--text-disabled);
+  cursor: default;
+}
+
+/* §6.6 exit-code truth: the failed-exit end state carries the error wash. */
+.empty-failed {
+  background:
+    linear-gradient(
+      to bottom,
+      var(--error-wash),
+      transparent 240px
+    );
+}
+
+.empty-failed .empty-title {
+  color: var(--error);
 }
 
 .code-row {

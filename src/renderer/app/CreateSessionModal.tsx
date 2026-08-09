@@ -5,8 +5,15 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { AgentKind } from '@shared/types';
+import {
+  AGENT_INSTALL_COMMANDS,
+  firstAvailableAgent,
+  isAgentAvailable,
+  useAgentAvailability
+} from '../state/agents';
 import { errorPayload, errorText, nextOrdinal, useApp } from '../state/store';
-import { CodeIcon, SparkIcon, TerminalIcon } from './icons';
+import { trapTabKey } from './focus-trap';
+import { CodeIcon, CopyIcon, SparkIcon, TerminalIcon } from './icons';
 
 const AGENT_OPTIONS: {
   agent: AgentKind;
@@ -44,13 +51,17 @@ export function CreateSessionModal(): React.JSX.Element | null {
   const [genericError, setGenericError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const nameRef = useRef<HTMLInputElement | null>(null);
+  const avail = useAgentAvailability();
+  const toast = useApp((s) => s.toast);
 
   // Reset on open; prefill name `<agent>-<n>` and cwd = project root.
+  // Default agent = first INSTALLED one (§6.5): claude → codex → shell.
   useEffect(() => {
     if (!open) return;
-    setAgent('claude');
+    const initial = firstAvailableAgent(avail);
+    setAgent(initial);
     setNameTouched(false);
-    setName(`claude-${nextOrdinal(projectSessions, 'claude')}`);
+    setName(`${initial}-${nextOrdinal(projectSessions, initial)}`);
     setCwd(project?.path ?? '');
     setDirError(null);
     setGenericError(null);
@@ -58,6 +69,14 @@ export function CreateSessionModal(): React.JSX.Element | null {
     requestAnimationFrame(() => nameRef.current?.select());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  // If the availability probe settles AFTER open and the selected agent
+  // turned out to be missing, hop to the best installed one.
+  useEffect(() => {
+    if (!open || isAgentAvailable(avail, agent)) return;
+    setAgent(firstAvailableAgent(avail));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, avail]);
 
   // Re-prefill the name when the agent changes and the user hasn't typed.
   useEffect(() => {
@@ -131,7 +150,13 @@ export function CreateSessionModal(): React.JSX.Element | null {
         aria-modal="true"
         aria-label="New session"
         onKeyDown={(e) => {
+          // aria-modal promises the shell behind the scrim is inert; make
+          // the keyboard honor it (Tab cycles inside the dialog).
+          trapTabKey(e, e.currentTarget);
           if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+            // Let a focused button run its NATIVE activation — otherwise
+            // Enter on [Cancel] (or Choose…/radio) would create a session.
+            if ((e.target as HTMLElement).tagName === 'BUTTON') return;
             e.preventDefault();
             submit();
           }
@@ -148,20 +173,55 @@ export function CreateSessionModal(): React.JSX.Element | null {
             Agent
           </span>
           <div className="seg" role="radiogroup" aria-labelledby="agent-label">
-            {AGENT_OPTIONS.map(({ agent: a, label, Icon }) => (
-              <button
-                key={a}
-                type="button"
-                role="radio"
-                aria-checked={agent === a}
-                className={`seg-option${agent === a ? ' selected' : ''}`}
-                onClick={() => setAgent(a)}
-              >
-                <Icon size={14} />
-                {label}
-              </button>
-            ))}
+            {AGENT_OPTIONS.map(({ agent: a, label, Icon }) => {
+              const available = isAgentAvailable(avail, a);
+              return (
+                <button
+                  key={a}
+                  type="button"
+                  role="radio"
+                  aria-checked={agent === a}
+                  disabled={!available}
+                  title={available ? undefined : `${a} is not installed`}
+                  className={`seg-option${agent === a ? ' selected' : ''}`}
+                  onClick={() => setAgent(a)}
+                >
+                  <Icon size={14} />
+                  {label}
+                </button>
+              );
+            })}
           </div>
+          {/* §6.5 — a missing agent is a friendly state, not a spawn error:
+              name the fact, hand over the install command, one-click copy. */}
+          {(['claude', 'codex'] as const)
+            .filter((a) => !avail[a])
+            .map((a) => (
+              <div key={a} className="agent-missing">
+                <span className="agent-missing-text">
+                  {a} is not installed
+                </span>
+                <code className="agent-missing-cmd">
+                  {AGENT_INSTALL_COMMANDS[a]}
+                </code>
+                <button
+                  type="button"
+                  className="icon-btn agent-missing-copy"
+                  aria-label={`Copy install command for ${a}`}
+                  title="Copy install command"
+                  onClick={() => {
+                    void navigator.clipboard
+                      .writeText(AGENT_INSTALL_COMMANDS[a])
+                      .then(
+                        () => toast('info', 'Install command copied'),
+                        () => toast('error', 'Could not copy the command')
+                      );
+                  }}
+                >
+                  <CopyIcon size={12} />
+                </button>
+              </div>
+            ))}
         </div>
 
         <div className="field">

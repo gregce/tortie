@@ -25,6 +25,7 @@ import { randomUUID } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { registerAgentsIpc } from './agents';
 import { registerFsIpc } from './fs';
 import { disposeGitIpc, registerGitIpc } from './git';
 import { getGmuxCore, registerIpcHandlers, shutdownGmuxCore } from './ipc';
@@ -106,8 +107,9 @@ function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
     width: 1440,
     height: 900,
-    minWidth: 800,
-    minHeight: 500,
+    // DESIGN.md §2.1: "Min window 960×600. Default 1440×900."
+    minWidth: 960,
+    minHeight: 600,
     title: 'gmux',
     show: false,
     // --bg-canvas: pre-paint fill must match the app so launch/resize never
@@ -584,6 +586,8 @@ app.whenReady().then(async () => {
   // Phase 6: restore extension channels (sessions:restore, sessions:discard,
   // app:get/setLoginItem).
   registerRestoreIpc(ipcMain);
+  // Phase 8: agent CLI availability probe (agents:availability).
+  registerAgentsIpc(ipcMain);
 
   if (smoke === 'basic') return runSmokeBasic();
   if (smoke === 'create') return runSmokeCreate();

@@ -3,11 +3,18 @@
  * except the spec'd micro-dimensions (4px dot, 12px chevron box).
  */
 
-/* The section flexes into the sidebar space left under Sessions/Changes. */
+/* The section flexes into the sidebar space left under Sessions/Changes.
+   The min-height floor keeps a usable slice of tree visible while letting
+   the Changes section grow past its old fixed cap when Files has spare
+   room (Phase 8 sidebar space negotiation — see scm.css). */
 .section-files {
   display: flex;
   flex-direction: column;
   flex: 1;
+  min-height: 140px;
+}
+
+.section-files.collapsed {
   min-height: 0;
 }
 

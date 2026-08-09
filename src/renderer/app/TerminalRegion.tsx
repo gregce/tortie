@@ -7,6 +7,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { AgentKind, Session } from '@shared/types';
 import { TerminalHost } from '../terminal';
+import { isAgentAvailable, useAgentAvailability } from '../state/agents';
 import { effectiveStatusOf, useApp } from '../state/store';
 import { statusVisual } from './status';
 import { MoreIcon } from './icons';
@@ -34,7 +35,7 @@ function SessionStrip({
   const toast = useApp((s) => s.toast);
 
   const status = effectiveStatusOf(session, overrides);
-  const visual = statusVisual(status);
+  const visual = statusVisual(status, session.exitCode);
   // The strip rename is a second surface for the same inline pattern; only
   // one rename is active at a time (store keeps the id). Renaming from the
   // strip uses a marker suffix to not collide with the sidebar's input.
@@ -157,6 +158,7 @@ const QUICK_AGENTS: { agent: AgentKind; label: string }[] = [
 
 function NoSessions(): React.JSX.Element {
   const quickCreate = useApp((s) => s.quickCreate);
+  const avail = useAgentAvailability();
   return (
     <div className="empty">
       <div className="empty-inner">
@@ -166,16 +168,25 @@ function NoSessions(): React.JSX.Element {
           restarts.
         </p>
         <div className="empty-actions">
-          {QUICK_AGENTS.map(({ agent, label }) => (
-            <button
-              key={agent}
-              type="button"
-              className="btn btn-secondary quick-create"
-              onClick={() => void quickCreate(agent)}
-            >
-              {label}
-            </button>
-          ))}
+          {QUICK_AGENTS.map(({ agent, label }) => {
+            const available = isAgentAvailable(avail, agent);
+            return (
+              <div key={agent} className="quick-create-item">
+                <button
+                  type="button"
+                  className="btn btn-secondary quick-create"
+                  disabled={!available}
+                  title={available ? undefined : `${agent} is not installed`}
+                  onClick={() => void quickCreate(agent)}
+                >
+                  {label}
+                </button>
+                {!available ? (
+                  <span className="quick-create-note">not installed</span>
+                ) : null}
+              </div>
+            );
+          })}
         </div>
         <div className="empty-hint">
           or press <span className="key">⌘T</span> to customize
@@ -242,6 +253,11 @@ export function TerminalRegion(): React.JSX.Element {
   const status = active ? effectiveStatusOf(active, overrides) : null;
   const exited = active !== null && status === 'exited';
   const restorable = active !== null && status === 'restorable';
+  // §6.6 exit-code truth: a recorded non-zero exit renders the failed state.
+  const failedExit =
+    exited && active.exitCode !== undefined && active.exitCode !== 0
+      ? active.exitCode
+      : null;
 
   return (
     <main
@@ -263,10 +279,14 @@ export function TerminalRegion(): React.JSX.Element {
         // same copy and actions instead. Restorable sessions (Phase 6)
         // offer the real §2.4 Step 3 restore: saved scrollback replayed,
         // resume command armed — you press Enter.
-        <div className="empty">
+        <div className={`empty${failedExit !== null ? ' empty-failed' : ''}`}>
           <div className="empty-inner">
             <h2 className="empty-title">
-              {exited ? 'Session ended' : 'Ready to restore'}
+              {failedExit !== null
+                ? `Session ended unexpectedly (exit ${failedExit})`
+                : exited
+                  ? 'Session ended'
+                  : 'Ready to restore'}
             </h2>
             <p className="empty-body">
               {exited

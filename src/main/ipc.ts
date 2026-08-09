@@ -72,6 +72,11 @@ function broadcast<C extends EventChannel>(
 
 const REFRESH_DEBOUNCE_MS = 150;
 
+/** Cadence of the all-sessions status poll (bell / activity / dead panes). */
+const STATUS_POLL_MS = 2_000;
+/** No output for this long (and no bell) → the session reads as 'idle'. */
+const MAIN_IDLE_AFTER_MS = 15_000;
+
 export class GmuxCore {
   readonly manifest: ManifestStore;
   readonly control: tmux.TmuxControlClient;
@@ -87,6 +92,8 @@ export class GmuxCore {
   private readonly restoresInFlight = new Set<string>();
 
   private refreshTimer: NodeJS.Timeout | null = null;
+  private statusTimer: NodeJS.Timeout | null = null;
+  private statusPollBusy = false;
   private disposed = false;
 
   /**
@@ -126,7 +133,18 @@ export class GmuxCore {
         `[gmux] control client failed to start (will retry): ${(err as Error).message}`
       );
     }
+    // Exit-code truth (§6.6): the conf sets `remain-on-exit failed`, but a
+    // long-lived server started under an older conf never re-reads it —
+    // assert it here so failed panes stay readable for the reaper below.
+    await tmux
+      .execTmux(['set-option', '-g', 'remain-on-exit', 'failed'])
+      .catch((err: unknown) => {
+        console.warn(
+          `[gmux] could not set remain-on-exit: ${(err as Error).message}`
+        );
+      });
     await core.refresh();
+    core.startStatusWatcher();
     return core;
   }
 
@@ -393,6 +411,115 @@ export class GmuxCore {
     const map = new Map<string, SessionStatus>();
     for (const rec of this.manifest.listSessions()) map.set(rec.id, rec.status);
     return map;
+  }
+
+  // -------------------------------------------------------------------------
+  // All-sessions status watcher (Phase 8 — attention coverage, Principle 3)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Watch EVERY running session, not just the visible one. The renderer's
+   * StatusDetector only sees bytes for the attached pane, so bell coverage
+   * (⌘J, Dock badge, tab roll-ups) for hidden sessions comes from here: one
+   * cheap `list-panes -a` poll reads, for all sessions at once,
+   *   - #{window_bell_flag}   BEL rang and was not yet seen → needs_input
+   *     (verified on tmux 3.6a: the flag sets for unattached sessions and
+   *     clears when the user views the session through an attach client);
+   *   - #{window_activity}    recent output → running; sustained quiet → idle;
+   *   - #{pane_dead}/#{pane_dead_status}  the process exited non-zero
+   *     (`remain-on-exit failed` keeps only failed panes) → reap: record the
+   *     REAL exit code in the manifest (§6.6 exit-code truth), then kill.
+   * The visible session is polled too — harmless, because the renderer's
+   * finer per-byte detection overrides main's status for the session it
+   * watches (see store.ts effectiveStatus).
+   */
+  startStatusWatcher(): void {
+    if (this.statusTimer !== null || this.disposed) return;
+    this.statusTimer = setInterval(() => {
+      if (this.statusPollBusy) return;
+      this.statusPollBusy = true;
+      void this.pollSessionStatus()
+        .catch(() => undefined) // unreachable server — next tick retries
+        .finally(() => {
+          this.statusPollBusy = false;
+        });
+    }, STATUS_POLL_MS);
+    // Never hold the process open just for the poll (smoke harness exits).
+    this.statusTimer.unref?.();
+  }
+
+  private async pollSessionStatus(): Promise<void> {
+    const out = await tmux.execTmux([
+      'list-panes',
+      '-a',
+      '-F',
+      '#{session_id}\t#{window_bell_flag}\t#{window_activity}\t#{pane_dead}\t#{pane_dead_status}'
+    ]);
+    if (this.disposed) return;
+    const now = Date.now();
+    let changed = false;
+    for (const line of out.split('\n')) {
+      if (line.length === 0) continue;
+      const [tmuxId, bell, activity, dead, deadStatus] = line.split('\t');
+      if (tmuxId === undefined) continue;
+      const sessionId = this.byTmuxId.get(tmuxId);
+      if (sessionId === undefined) continue; // control session / unmanaged
+      const rec = this.manifest.getSession(sessionId);
+      if (!rec || rec.status === 'exited' || rec.status === 'restorable') {
+        continue;
+      }
+
+      if (dead === '1') {
+        const code =
+          deadStatus !== undefined && /^\d+$/.test(deadStatus)
+            ? parseInt(deadStatus, 10)
+            : undefined;
+        await this.reapDeadSession(sessionId, code);
+        changed = true;
+        continue;
+      }
+
+      const activityMs = Number(activity) * 1000;
+      const next: SessionStatus =
+        bell === '1'
+          ? 'needs_input'
+          : now - activityMs <= MAIN_IDLE_AFTER_MS
+            ? 'running'
+            : 'idle';
+      if (next !== rec.status) {
+        this.manifest.setStatus(sessionId, next);
+        broadcast(EVT_STATUS_CHANGED, sessionId, next);
+        changed = true;
+      }
+    }
+    if (changed) this.broadcastSessions();
+  }
+
+  /**
+   * A pane died with a non-zero exit and `remain-on-exit failed` kept it
+   * readable: record the exit code, snapshot the scrollback, kill the shell
+   * of the session, and flip the manifest to 'exited' — the renderer shows
+   * "Session ended unexpectedly (exit N)" with [Restart][Remove].
+   */
+  private async reapDeadSession(
+    sessionId: string,
+    exitCode: number | undefined
+  ): Promise<void> {
+    const rec = this.manifest.getSession(sessionId);
+    if (!rec) return;
+    this.attachHost.detach(sessionId); // expected teardown, not a surprise
+    const target = this.liveIds.get(sessionId) ?? rec.tmuxName;
+    await captureSessionSnapshot(target, sessionId).catch(() => undefined);
+    await tmux.killSession(target).catch(() => undefined);
+    const live = this.liveIds.get(sessionId);
+    if (live !== undefined) this.byTmuxId.delete(live);
+    this.liveIds.delete(sessionId);
+    this.manifest.updateSession(sessionId, {
+      status: 'exited',
+      lastSeen: Date.now(),
+      ...(exitCode !== undefined ? { exitCode } : {})
+    });
+    broadcast(EVT_STATUS_CHANGED, sessionId, 'exited');
   }
 
   broadcastSessions(): void {
@@ -675,6 +802,10 @@ export class GmuxCore {
     if (this.refreshTimer !== null) {
       clearTimeout(this.refreshTimer);
       this.refreshTimer = null;
+    }
+    if (this.statusTimer !== null) {
+      clearInterval(this.statusTimer);
+      this.statusTimer = null;
     }
     for (const watch of this.rolloutWatches.values()) watch.cancel();
     this.rolloutWatches.clear();

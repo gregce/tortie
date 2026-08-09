@@ -23,6 +23,7 @@ import React, {
 import type { GitFileState, GitFileStatus, GitLogEntry } from '@shared/types';
 import type { GmuxGitExtras } from '@shared/ipc';
 import { useApp } from '../state/store';
+import type { ConfirmSpec } from '../state/store';
 import {
   gitErrorLine,
   groupFiles,
@@ -86,6 +87,37 @@ function badgeFor(
     case '.':
     default:
       return { letter: 'M', cls: 'scm-badge-modified', word: 'modified' };
+  }
+}
+
+/**
+ * Discard-with-confirm, shared by the row's hover action and the listbox's
+ * Backspace binding (Phase 8 keyboard reachability).
+ */
+function confirmDiscardFile(
+  setConfirm: (spec: ConfirmSpec | null) => void,
+  discard: (repoPath: string, paths: string[]) => Promise<void>,
+  repoPath: string,
+  group: GroupId,
+  file: GitFileStatus
+): void {
+  const { base } = splitPath(file.path);
+  if (group === 'untracked') {
+    setConfirm({
+      title: `Delete '${base}'?`,
+      body: 'This file is not tracked by git — deleting it cannot be undone.',
+      confirmLabel: 'Delete file',
+      destructive: true,
+      onConfirm: () => void discard(repoPath, [file.path])
+    });
+  } else {
+    setConfirm({
+      title: `Discard changes to '${base}'?`,
+      body: 'This cannot be undone.',
+      confirmLabel: 'Discard changes',
+      destructive: true,
+      onConfirm: () => void discard(repoPath, [file.path])
+    });
   }
 }
 
@@ -154,23 +186,7 @@ function ScmFileRow({
   const busy = pendingOp !== undefined;
 
   const confirmDiscard = (): void => {
-    if (group === 'untracked') {
-      setConfirm({
-        title: `Delete '${base}'?`,
-        body: 'This file is not tracked by git — deleting it cannot be undone.',
-        confirmLabel: 'Delete file',
-        destructive: true,
-        onConfirm: () => void discard(repoPath, [file.path])
-      });
-    } else {
-      setConfirm({
-        title: `Discard changes to '${base}'?`,
-        body: 'This cannot be undone.',
-        confirmLabel: 'Discard changes',
-        destructive: true,
-        onConfirm: () => void discard(repoPath, [file.path])
-      });
-    }
+    confirmDiscardFile(setConfirm, discard, repoPath, group, file);
   };
 
   const renamedFrom =
@@ -536,6 +552,7 @@ export function ScmSection(): React.JSX.Element | null {
   const pending = useGit((s) => s.pending);
   const stage = useGit((s) => s.stage);
   const unstage = useGit((s) => s.unstage);
+  const discard = useGit((s) => s.discard);
 
   const project = useMemo(
     () => projects.find((p) => p.id === activeProjectId) ?? null,
@@ -600,7 +617,7 @@ export function ScmSection(): React.JSX.Element | null {
   );
 
   const onListKeyDown = (e: React.KeyboardEvent): void => {
-    if (rows.length === 0) return;
+    if (rows.length === 0 || repoPath === null) return;
     const idx = rows.findIndex((r) => r.key === cursorKey);
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
@@ -619,6 +636,23 @@ export function ScmSection(): React.JSX.Element | null {
       e.preventDefault();
       const row = rows.find((r) => r.key === cursorKey) ?? rows[0];
       if (row) activate(row);
+    } else if (e.key === ' ' || e.key === 's' || e.key === 'S') {
+      // Phase 8 keyboard staging: Space / s toggles the cursor row —
+      // staged rows unstage, everything else (incl. conflicts) stages.
+      e.preventDefault();
+      const row = rows.find((r) => r.key === cursorKey) ?? rows[0];
+      if (!row) return;
+      if (row.group === 'staged') {
+        void unstage(repoPath, [row.file.path]);
+      } else {
+        void stage(repoPath, [row.file.path]);
+      }
+    } else if (e.key === 'Backspace') {
+      // Discard the cursor row, behind the SAME confirm the ↩ action uses.
+      e.preventDefault();
+      const row = rows.find((r) => r.key === cursorKey) ?? rows[0];
+      if (!row || row.group === 'staged' || row.group === 'merge') return;
+      confirmDiscardFile(setConfirm, discard, repoPath, row.group, row.file);
     }
   };
 
