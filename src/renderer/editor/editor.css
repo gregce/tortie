@@ -40,14 +40,15 @@
   }
 }
 
-/* S1: "25% black scrim over the terminal (click scrim or Esc closes)". */
+/* S1: "25% black scrim over the terminal (click scrim or Esc closes)".
+   --bg-scrim (0.55α) diluted to ~25% via color-mix — no hardcoded colors. */
 .ed-scrim {
   position: fixed;
   top: 38px;
   right: 0;
   bottom: 0;
   z-index: calc(var(--z-editor-overlay) - 1);
-  background: rgba(0, 0, 0, 0.25);
+  background: color-mix(in srgb, var(--bg-scrim) 45%, transparent);
 }
 
 /* Drag handle: invisible 5px hit area on the panel's left edge; hover shows

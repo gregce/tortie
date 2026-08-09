@@ -17,7 +17,7 @@
 
 import { app, BrowserWindow, Menu } from 'electron';
 import type { MenuItemConstructorOptions } from 'electron';
-import { EVT_MENU_ACTION } from '@shared/ipc';
+import { EVT_MENU_ACTION, EVT_QUIT_REQUESTED } from '@shared/ipc';
 import type { MenuActionId } from '@shared/ipc';
 
 function sendAction(action: MenuActionId): void {
@@ -25,6 +25,26 @@ function sendAction(action: MenuActionId): void {
     BrowserWindow.getFocusedWindow() ??
     BrowserWindow.getAllWindows().find((w) => !w.isDestroyed());
   win?.webContents.send(EVT_MENU_ACTION, action);
+}
+
+/**
+ * ⌘Q / Quit gmux — DESIGN.md §4: "first quit shows a one-time toast saying
+ * so". The renderer owns the one-time flag (localStorage) and the toast, so
+ * quit is FORWARDED: the renderer shows the toast when it's the first quit
+ * with ≥1 live session, then invokes 'app:quit'. A fallback timer quits
+ * anyway if the renderer is hung or running an older preload — quitting can
+ * never be blocked by the toast flow.
+ */
+function requestQuit(): void {
+  const win =
+    BrowserWindow.getFocusedWindow() ??
+    BrowserWindow.getAllWindows().find((w) => !w.isDestroyed());
+  if (!win) {
+    app.quit();
+    return;
+  }
+  win.webContents.send(EVT_QUIT_REQUESTED);
+  setTimeout(() => app.quit(), 3_000);
 }
 
 function item(
@@ -54,9 +74,14 @@ export function installAppMenu(): void {
         { role: 'hideOthers' },
         { role: 'unhide' },
         { type: 'separator' },
-        // Quitting is safe by design (sessions live on the tmux server) —
-        // the standard role keeps ⌘Q native.
-        { role: 'quit', label: 'Quit gmux' }
+        // Quitting is safe by design (sessions live on the tmux server).
+        // Routed through the renderer for the one-time §4 first-quit toast
+        // ("Quitting — your sessions keep running.") — see requestQuit().
+        {
+          label: 'Quit gmux',
+          accelerator: 'Cmd+Q',
+          click: () => requestQuit()
+        }
       ]
     },
     {

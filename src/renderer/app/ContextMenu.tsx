@@ -1,8 +1,10 @@
 /**
- * Context menu — interim DOM implementation. DESIGN.md §3 specifies native
- * macOS menus via Electron Menu.popup; that needs a main-process channel the
- * frozen contract doesn't carry yet. Same menu contents, same trigger
- * surfaces — swap the rendering when the integrator adds `ui:popupMenu`.
+ * Context menu — DOM FALLBACK only. DESIGN.md §3 context menus are native
+ * macOS menus via `ui:popupMenu` (Menu.popup in main); the store's setMenu
+ * routes every trigger surface there when the bridge carries popupMenu, so
+ * this component never renders in the packaged app. It remains for older
+ * preloads and non-Electron test environments (same contents, same
+ * keyboard behavior).
  */
 
 import React, { useEffect, useRef, useState } from 'react';

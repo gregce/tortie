@@ -10,6 +10,9 @@ import type {
   AllInvokeChannel,
   AllInvokeReq,
   AllInvokeRes,
+  CompleteInvokeChannel,
+  CompleteInvokeReq,
+  CompleteInvokeRes,
   EventChannel,
   EventPayloadMap,
   FullInvokeChannel,
@@ -21,6 +24,8 @@ import type {
   GmuxGitExtras,
   GmuxLoginItemExtras,
   GmuxMenuExtras,
+  GmuxPopupMenuExtras,
+  GmuxQuitExtras,
   GmuxSessionExtras,
   GmuxSessionRestoreExtras,
   GmuxTermStreamExtras,
@@ -31,6 +36,7 @@ import type {
 import {
   EVT_GIT_CHANGED,
   EVT_MENU_ACTION,
+  EVT_QUIT_REQUESTED,
   EVT_SESSIONS_CHANGED,
   EVT_STATUS_CHANGED,
   termAckChannel,
@@ -56,6 +62,14 @@ function invokeFull<C extends FullInvokeChannel>(
   ...args: FullInvokeReq<C>
 ): Promise<FullInvokeRes<C>> {
   return ipcRenderer.invoke(channel, ...args) as Promise<FullInvokeRes<C>>;
+}
+
+/** Same wrapper over the Phase-8.2 superset map (app:quit, …). */
+function invokeComplete<C extends CompleteInvokeChannel>(
+  channel: C,
+  ...args: CompleteInvokeReq<C>
+): Promise<CompleteInvokeRes<C>> {
+  return ipcRenderer.invoke(channel, ...args) as Promise<CompleteInvokeRes<C>>;
 }
 
 /** Typed wrapper over ipcRenderer.on with unsubscribe. */
@@ -148,7 +162,12 @@ const sessions: GmuxApi['sessions'] &
   restore: (sessionId) => invoke('sessions:restore', sessionId)
 };
 
-const api: GmuxApi & GmuxLoginItemExtras & GmuxMenuExtras & GmuxAgentExtras = {
+const api: GmuxApi &
+  GmuxLoginItemExtras &
+  GmuxMenuExtras &
+  GmuxAgentExtras &
+  GmuxPopupMenuExtras &
+  GmuxQuitExtras = {
   sessions,
   projects: {
     add: (path) => invoke('projects:add', path),
@@ -169,6 +188,18 @@ const api: GmuxApi & GmuxLoginItemExtras & GmuxMenuExtras & GmuxAgentExtras = {
   },
   // Phase 8 optional extra (top-level, feature-detected): agent CLI probe.
   agentAvailability: () => invokeFull('agents:availability'),
+  // Phase 8.2 optional extra: native context menus (DESIGN.md §3 — the
+  // renderer's store prefers this over the DOM fallback).
+  popupMenu: (input) => invokeFull('ui:popupMenu', input),
+  // Phase 8.2 optional extras: first-quit toast flow (DESIGN.md §4 ⌘Q).
+  onQuitRequested: (cb) => {
+    const listener = (_e: IpcRendererEvent): void => {
+      cb();
+    };
+    ipcRenderer.on(EVT_QUIT_REQUESTED, listener);
+    return () => ipcRenderer.removeListener(EVT_QUIT_REQUESTED, listener);
+  },
+  quit: () => invokeComplete('app:quit'),
   // Phase 6 optional extras (top-level, feature-detected): login item.
   getLoginItem: () => invoke('app:getLoginItem'),
   setLoginItem: (openAtLogin) => invoke('app:setLoginItem', openAtLogin),

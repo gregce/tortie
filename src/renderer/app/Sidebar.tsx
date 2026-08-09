@@ -119,6 +119,9 @@ function SessionRow({
         role="option"
         aria-selected={selected}
         aria-label={`${session.name}, ${visual.label}`}
+        // F2 resolves the focused row through this attribute (App.tsx
+        // focusedSessionRowId) — §4 "rename focused item".
+        data-session-id={session.id}
         className={[
           'session-row',
           selected ? 'selected' : '',

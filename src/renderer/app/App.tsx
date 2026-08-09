@@ -12,7 +12,7 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import type { GmuxMenuExtras, MenuActionId } from '@shared/ipc';
+import type { GmuxMenuExtras, GmuxQuitExtras, MenuActionId } from '@shared/ipc';
 import { useApp } from '../state/store';
 import { useEditor } from '../editor/store';
 import { Titlebar } from './Titlebar';
@@ -33,6 +33,19 @@ import { EditorPanel } from '../editor';
 // Keyboard map (DESIGN.md §4) — one capture-phase listener; ⌘-chords and F2
 // always reach the app, even while the terminal owns the keyboard.
 // ---------------------------------------------------------------------------
+
+/**
+ * The session row the keyboard is "on" right now: any focused element inside
+ * a sidebar row (the row's ⋯ button, the row itself) resolves to that row's
+ * session; focus on the sessions listbox itself resolves to its selected row
+ * (== the active session). Null when focus is elsewhere (terminal, editor…)
+ * — callers fall back to the active session, per §4 "rename focused item".
+ */
+function focusedSessionRowId(): string | null {
+  const el = document.activeElement;
+  if (!(el instanceof HTMLElement)) return null;
+  return el.closest<HTMLElement>('[data-session-id]')?.dataset['sessionId'] ?? null;
+}
 
 function useKeyboardMap(): void {
   useEffect(() => {
@@ -78,13 +91,15 @@ function useKeyboardMap(): void {
         return;
       }
 
-      // F2 — rename: active session, wherever focus is (incl. terminal).
+      // F2 — rename the focused sidebar row when focus is inside the
+      // sessions list (§4 "rename focused item"); anywhere else (terminal,
+      // editor) it renames the active session.
       if (e.key === 'F2') {
-        const renameTarget = s.activeSession();
-        if (renameTarget && s.renamingSessionId === null) {
+        const renameId = focusedSessionRowId() ?? s.activeSession()?.id ?? null;
+        if (renameId !== null && s.renamingSessionId === null) {
           e.preventDefault();
           e.stopPropagation();
-          s.setRenaming(renameTarget.id);
+          s.setRenaming(renameId);
         }
         return;
       }
@@ -200,9 +215,12 @@ function runMenuAction(action: MenuActionId): void {
       }
       return;
     case 'rename-session': {
+      // The native menu owns the F2 accelerator (it fires before renderer
+      // keydown), so the focused-row resolution lives here too: rename the
+      // focused sidebar row, falling back to the active session (§4).
       if (layerOpen || s.renamingSessionId !== null) return;
-      const target = s.activeSession();
-      if (target) s.setRenaming(target.id);
+      const renameId = focusedSessionRowId() ?? s.activeSession()?.id ?? null;
+      if (renameId !== null) s.setRenaming(renameId);
       return;
     }
     case 'end-session': {
@@ -275,6 +293,55 @@ function useMenuActions(): void {
       | undefined;
     if (typeof bridge?.onMenuAction !== 'function') return;
     return bridge.onMenuAction(runMenuAction);
+  }, []);
+}
+
+// ---------------------------------------------------------------------------
+// First-quit toast (DESIGN.md §4: "⌘Q | Quit — sessions keep running; first
+// quit shows a one-time toast saying so"). The native Quit menu item forwards
+// here instead of quitting; the FIRST ⌘Q with ≥1 live session shows the toast
+// for ~1.5s before proceeding, every later quit is immediate. Main arms a
+// fallback timer, so a broken renderer can never block quitting.
+// ---------------------------------------------------------------------------
+
+const LS_QUIT_TOAST = 'gmux.quitToastShown';
+const QUIT_TOAST_MS = 1_500;
+
+function useQuitRequests(): void {
+  useEffect(() => {
+    const bridge = window.gmux as
+      | (typeof window.gmux & GmuxQuitExtras)
+      | undefined;
+    if (
+      typeof bridge?.onQuitRequested !== 'function' ||
+      typeof bridge.quit !== 'function'
+    ) {
+      return;
+    }
+    const quit = bridge.quit.bind(bridge);
+    return bridge.onQuitRequested(() => {
+      const s = useApp.getState();
+      const hasLiveSession = s.sessions.some(
+        (x) => x.status !== 'exited' && x.status !== 'restorable'
+      );
+      let alreadyShown = false;
+      try {
+        alreadyShown = localStorage.getItem(LS_QUIT_TOAST) === '1';
+      } catch {
+        alreadyShown = true; // storage unavailable — never delay quit twice
+      }
+      if (alreadyShown || !hasLiveSession) {
+        void quit();
+        return;
+      }
+      try {
+        localStorage.setItem(LS_QUIT_TOAST, '1');
+      } catch {
+        /* cosmetic flag only */
+      }
+      s.toast('info', 'Quitting — your sessions keep running.');
+      window.setTimeout(() => void quit(), QUIT_TOAST_MS);
+    });
   }, []);
 }
 
@@ -377,6 +444,7 @@ export function App(): React.JSX.Element {
 
   useKeyboardMap();
   useMenuActions();
+  useQuitRequests();
   useWindowTitle();
   const dropping = useFolderDrop();
 

@@ -12,8 +12,12 @@
  * every control-client event and mutation.
  */
 
-import { BrowserWindow, dialog, ipcMain } from 'electron';
-import type { IpcMainInvokeEvent, WebContents } from 'electron';
+import { BrowserWindow, dialog, ipcMain, Menu } from 'electron';
+import type {
+  IpcMainInvokeEvent,
+  MenuItemConstructorOptions,
+  WebContents
+} from 'electron';
 import { randomUUID } from 'node:crypto';
 import { existsSync, statSync } from 'node:fs';
 import { basename, resolve as resolvePath } from 'node:path';
@@ -22,7 +26,8 @@ import type {
   EventPayloadMap,
   InvokeChannel,
   InvokeReq,
-  InvokeRes
+  InvokeRes,
+  PopupMenuInput
 } from '@shared/ipc';
 import { EVT_SESSIONS_CHANGED, EVT_STATUS_CHANGED } from '@shared/ipc';
 import type {
@@ -895,12 +900,81 @@ function handle<C extends InvokeChannel>(
   );
 }
 
+// ---------------------------------------------------------------------------
+// ui:popupMenu — native macOS context menus (DESIGN.md §3: context menus are
+// native Menu.popup, never DOM-drawn). The renderer's store translates its
+// MenuSpec into PopupMenuInput; the resolved item id (null when dismissed)
+// maps back to the item's run() callback renderer-side.
+// ---------------------------------------------------------------------------
+
+/**
+ * Display-only shortcut hint → Electron accelerator (e.g. "F2", "⌘W" →
+ * "Cmd+W"). Popup-menu accelerators are never registered globally — they
+ * only render the keycap and fire while the menu is open, which matches the
+ * native context-menu convention. Unmappable hints are simply dropped.
+ */
+function hintToAccelerator(hint: string | undefined): string | null {
+  if (hint === undefined || hint.length === 0) return null;
+  const acc = hint
+    .replace(/⌘/g, 'Cmd+')
+    .replace(/⇧/g, 'Shift+')
+    .replace(/⌥/g, 'Alt+')
+    .replace(/⌃/g, 'Ctrl+')
+    .replace(/↩|⏎/g, 'Return');
+  return /^([A-Za-z]+\+)*[A-Za-z0-9]+$/.test(acc) ? acc : null;
+}
+
+function registerPopupMenuHandler(): void {
+  ipcMain.handle(
+    'ui:popupMenu',
+    (event: IpcMainInvokeEvent, input: PopupMenuInput): Promise<string | null> =>
+      new Promise((resolve) => {
+        const win = BrowserWindow.fromWebContents(event.sender);
+        if (!win || win.isDestroyed()) {
+          resolve(null);
+          return;
+        }
+        let clicked: string | null = null;
+        const template: MenuItemConstructorOptions[] = input.items.map(
+          (item) => {
+            if (item.type === 'separator') {
+              return { type: 'separator' as const };
+            }
+            const accelerator = hintToAccelerator(item.hint);
+            return {
+              label: item.label,
+              enabled: item.enabled ?? true,
+              // `destructive` has no native Electron menu treatment; the
+              // confirm dialogs behind those items carry the red styling.
+              ...(accelerator !== null ? { accelerator } : {}),
+              click: (): void => {
+                clicked = item.id;
+              }
+            };
+          }
+        );
+        Menu.buildFromTemplate(template).popup({
+          window: win,
+          x: Math.round(input.x),
+          y: Math.round(input.y),
+          // close-callback can fire before a queued click handler — give the
+          // click one macrotask to land before resolving.
+          callback: () => {
+            setImmediate(() => resolve(clicked));
+          }
+        });
+      })
+  );
+}
+
 /**
  * Register every sessions:* and projects:* handler. The git and fs channels
  * are owned by the Phase 3 streams (src/main/git/, src/main/fs/) and are NOT
  * registered here.
  */
 export function registerIpcHandlers(): void {
+  registerPopupMenuHandler();
+
   handle('sessions:create', async (_e, input) =>
     (await getGmuxCore()).createSession(input)
   );

@@ -18,9 +18,11 @@ import type {
 import type {
   GmuxAppExtras,
   GmuxLoginItemExtras,
+  GmuxPopupMenuExtras,
   GmuxProjectExtras,
   GmuxSessionExtras,
-  GmuxSessionRestoreExtras
+  GmuxSessionRestoreExtras,
+  PopupMenuInput
 } from '@shared/ipc';
 import { StatusDetector } from './status-detector';
 import type { DetectedStatus } from './status-detector';
@@ -735,6 +737,44 @@ export const useApp = create<AppState>((set, get) => {
     },
 
     setMenu(menu) {
+      // DESIGN.md §3: context menus are native macOS menus (Menu.popup),
+      // never DOM-drawn. Every trigger surface (session row, project tab,
+      // session strip, tree row, settings gear) funnels through here, so the
+      // native swap covers them all. The DOM <ContextMenu> renders only when
+      // the bridge lacks ui:popupMenu (older preload / non-Electron tests).
+      if (menu !== null) {
+        const popup = (
+          window.gmux as unknown as GmuxPopupMenuExtras | undefined
+        )?.popupMenu;
+        if (typeof popup === 'function') {
+          const input: PopupMenuInput = {
+            x: Math.round(menu.x),
+            y: Math.round(menu.y),
+            items: menu.items.map((item, i) =>
+              item === 'sep'
+                ? { type: 'separator' as const, id: `sep-${i}`, label: '' }
+                : {
+                    id: `item-${i}`,
+                    label: item.label,
+                    enabled: !(item.disabled ?? false),
+                    ...(item.destructive === true
+                      ? { destructive: true }
+                      : {}),
+                    ...(item.hint !== undefined ? { hint: item.hint } : {})
+                  }
+            )
+          };
+          void popup(input).then(
+            (id) => {
+              if (id === null || !id.startsWith('item-')) return;
+              const picked = menu.items[Number(id.slice('item-'.length))];
+              if (picked !== undefined && picked !== 'sep') picked.run();
+            },
+            () => set({ menu }) // native popup failed — DOM fallback
+          );
+          return;
+        }
+      }
       set({ menu });
     },
 

@@ -529,3 +529,43 @@ export type FullInvokeReq<C extends FullInvokeChannel> =
   FullInvokeChannelMap[C]['req'];
 export type FullInvokeRes<C extends FullInvokeChannel> =
   FullInvokeChannelMap[C]['res'];
+
+// ---------------------------------------------------------------------------
+// APPENDED by the Phase-8.2 hardening pass — first-quit toast (DESIGN.md §4:
+// "⌘Q | Quit — sessions keep running; first quit shows a one-time toast
+// saying so"). New channels/types only, nothing above was modified.
+//
+// Flow: the native Quit menu item (src/main/menu.ts) does NOT quit directly;
+// it sends EVT_QUIT_REQUESTED to the renderer. The renderer shows the
+// one-time toast (localStorage gmux.quitToastShown) when ≥1 session is live,
+// then invokes 'app:quit' (immediately on every later quit). Main arms a
+// fallback timer so a hung/old renderer can never block quitting.
+// ---------------------------------------------------------------------------
+
+/** Main → renderer: the user asked to quit (⌘Q / Quit menu item). */
+export const EVT_QUIT_REQUESTED = 'app:quitRequested' as const;
+
+/** New invoke channel appended by the quit-toast flow. */
+export interface QuitInvokeChannelMap {
+  /** Renderer-confirmed quit — main calls app.quit(). */
+  'app:quit': { req: []; res: void };
+}
+
+/** OPTIONAL top-level extras on window.gmux, feature-detected by the shell. */
+export interface GmuxQuitExtras {
+  /** Subscribe to native quit requests (⌘Q / Quit gmux menu item). */
+  onQuitRequested?(cb: () => void): Unsubscribe;
+  /** Proceed with quitting (after the one-time §4 toast, or immediately). */
+  quit?(): Promise<void>;
+}
+
+/** FullInvokeChannelMap + the Phase-8.2 appends (superset alias). */
+export type CompleteInvokeChannelMap = FullInvokeChannelMap &
+  QuitInvokeChannelMap;
+
+export type CompleteInvokeChannel = keyof CompleteInvokeChannelMap;
+
+export type CompleteInvokeReq<C extends CompleteInvokeChannel> =
+  CompleteInvokeChannelMap[C]['req'];
+export type CompleteInvokeRes<C extends CompleteInvokeChannel> =
+  CompleteInvokeChannelMap[C]['res'];

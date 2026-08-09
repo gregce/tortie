@@ -319,7 +319,9 @@ textarea {
   flex: 0 0 auto;
 }
 
-/* Keyboard shortcut chips (⌘/ overlay, hints). */
+/* Keyboard shortcut chips (⌘/ overlay, hints). UI sans, not mono: in the
+   mono face "⌘O" can read as "⌘0" — the sans letterforms keep the round
+   letter O unmistakable (DESIGN.md §3 keycap chips). */
 .key {
   display: inline-flex;
   align-items: center;
@@ -328,7 +330,8 @@ textarea {
   border-radius: var(--r-sm);
   background: var(--bg-raised);
   color: var(--text-secondary);
-  font-family: var(--font-mono);
+  font-family: var(--font-ui);
+  font-weight: var(--weight-medium);
   font-size: var(--text-xs);
   line-height: var(--lh-xs);
   white-space: nowrap;

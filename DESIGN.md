@@ -55,7 +55,9 @@ Accent is used for: primary action per surface, current selection, focus ring, l
 --status-attention-badge-fg: #131417;   /* …with dark text (≥8:1)              */
 ```
 
-Status is never color-alone: WORKING = solid blue, NEEDS_INPUT = solid amber **pulsing**, IDLE = solid gray, EXITED = hollow gray, FAILED = hollow red — shape + motion + color, and rows carry a text label ("working", "needs input", "idle", "ended", "failed").
+Status is never color-alone: WORKING = solid blue, NEEDS_INPUT = solid amber **pulsing**, IDLE = solid gray, EXITED = hollow gray, FAILED = hollow red, SAVED = solid gray + ↺ — shape + motion + color, and rows carry a text label ("working", "needs input", "idle", "ended", "failed (exit N)", "saved").
+
+SAVED is the restorable state (post-reboot / background-server-gone): the process is not running, but the session's scrollback snapshot and resume command are recorded and one click brings it back. It renders with the idle gray dot (`--status-idle`, solid — the session is dormant, not dead) plus a small ↺ chip: an inline [↺ Restore] button on the row when restore is available, or an inert "↺ saved" chip when it is not. Restoring is always user-initiated — nothing auto-runs.
 
 ### 1.4 Git decoration colors (VS Code/Primer-familiar — earned familiarity)
 
@@ -181,7 +183,7 @@ Every interactive component defines: default / hover / focus-visible / active / 
 | Component | Anatomy | Key states |
 |---|---|---|
 | **Project tab** | 28px pill in 38px bar: dot 8px · name 13/500 · badge | selected: `--bg-active` fill, `--text-primary`; unselected: transparent, `--text-secondary`, hover `--bg-raised`; attention badge always visible even unselected |
-| **Session row** | 32px: dot 8px · name 13/400 · ⎇ worktree chip (if any) · right: age 11 muted → ⋯ on hover | selected: `--bg-active` + 2px `--accent` left inset bar; needs-input rows: name at `--text-primary` regardless of selection; exited: name `--text-muted`, hollow dot |
+| **Session row** | 32px: dot 8px · name 13/400 · ⎇ worktree chip (if any) · right: age 11 muted → ⋯ on hover | selected: `--bg-active` + 2px `--accent` left inset bar; needs-input rows: name at `--text-primary` regardless of selection; exited: name `--text-muted`, hollow dot; saved (restorable): idle-gray dot + inline [↺ Restore] button ("Restoring…" while in flight; inert "↺ saved" chip when restore is unavailable) |
 | **Status dot** | 8px circle; hollow = 1.5px ring | working solid `--status-working`; attention solid `--status-attention` + pulse (§5); idle solid `--status-idle`; ended hollow gray; failed hollow `--status-failed` |
 | **SCM file row** | 24px: badge letter (mono 11, git color) · filename 12 · dimmed dir path · hover actions (stage ＋ / unstage － / discard ↩) | click = open diff (P4); staged rows sit in Staged group; hover `--bg-raised`; discard always confirms |
 | **Tree row** | 24px: chevron 12px · name 12 · right: badge letter in git color | modified files: name tinted by git color; folders with dirty descendants: 4px propagation dot `--git-modified`; ignored: `--text-disabled` |
@@ -193,9 +195,11 @@ Every interactive component defines: default / hover / focus-visible / active / 
 | **Commit box** | multiline input at Changes top, placeholder "Commit message (⌘↩ to commit)" | ⌘↩ commits staged (nothing staged → offers "Stage all & commit"); busy: button shows 12px spinner; error: toast + box keeps text |
 | **Toast** | 360px bottom-right, `--bg-surface`, `--r-md`, `--shadow-2`, icon + 13px text + optional action | info/success auto-dismiss 5s; errors sticky with × ; max 3 stacked, oldest collapses |
 | **Banner** | full-width 36px strip above terminal, wash bg + 13px text + inline actions | used for restore-armed, agent-missing, non-blocking session notices |
+| **Restore-all bar** | quiet bar at the top of the Sessions section: "N saved sessions" + [↺ Restore all] | shown only when ≥2 sessions in the project are saved and restore is available; button reads "Restoring…" while any restore is in flight; sessions restore sequentially, each with its resume command armed (typed, never run) |
+| **Ready-to-restore state** | terminal-region empty state when the selected session is saved: title "Ready to restore", body explains that restore replays the saved scrollback and types (never runs) the resume command; [Restore] primary + [Remove] secondary | the terminal shows this state instead of §6.8's banner until the session is restored (scrollback exists again only after restore); [Restore] reads "Restoring…" while in flight; restore-unavailable fallback offers [Restart] |
 | **Empty state** | centered in owning region: 20/600 title, 13 `--text-secondary` body ≤ 2 lines, one primary action + shortcut hint | never bare "nothing here" — every empty state teaches the next step (§6) |
 | **Context menus** | native macOS menus via Electron `Menu.popup` — never DOM-drawn | session row, tab, SCM row, tree row all have one |
-| **Tooltip** | 11px on `--bg-raised`, `--shadow-1`, 600ms delay | shortcuts shown as mono chips (⌘T) |
+| **Tooltip** | 11px on `--bg-raised`, `--shadow-1`, 600ms delay | shortcuts shown as keycap chips (⌘T) in the UI sans — mono letterforms make "⌘O" read as "⌘0" |
 
 Iconography: a single 16px stroke set (Lucide, 1.5px stroke, `--text-secondary` at rest) — no emoji, no mixed sets. Agent chips are text ("claude", "codex", "shell") in mono 11 on `--bg-raised`, not logos.
 
@@ -244,7 +248,7 @@ Reserved, not in v1: ⌘K (command palette), ⌘⇧F (project search). Ending a 
 5. **Agent CLI missing.** (a) In ⌘T modal and quick-create: option disabled, caption "claude is not installed" with hover reveal: `npm install -g @anthropic-ai/claude-code` + copy icon. (b) At restore, a session whose agent is missing opens as a plain shell with a warning banner: "claude isn't installed — this session opened as a shell. Its conversation is safe and will resume once claude is back."
 6. **Session exited.** Row: hollow dot, muted name. Terminal keeps full scrollback; a 36px banner docks at its bottom. Exit 0: "Session ended" [Restart] [Remove]. Non-zero: "Session ended unexpectedly (exit 1)" in `--error` wash [Restart] [Remove]. Remove confirms: "Remove 'claude-1'? Its scrollback will be discarded."
 7. **Restored after app quit/crash (T1).** No modal, no friction — one toast: "Restored. Your sessions were never interrupted."
-8. **Restored after reboot (T3, armed resume).** Each restored agent session shows its scrollback with the resume command pre-typed, plus a banner: "Restored after restart — press ↩ in the terminal to resume this conversation." Project-level toast when >1 armed: "3 sessions restored with their conversations ready to resume." [Resume all] executes each armed command. Sessions restore as idle dots with a small ↺ chip until resumed.
+8. **Restored after reboot (T3, armed resume).** Before restoring, saved sessions announce themselves calmly: a boot toast ("2 sessions are saved and ready to restore."), the "saved" row state (§1.3), the Restore-all bar when ≥2 are saved (§3), and the "Ready to restore" terminal state (§3) on the selected saved session. After [Restore] (or [↺ Restore all]), each restored agent session shows its replayed scrollback with the resume command pre-typed — armed, never executed — and a per-session toast: "'claude-1' restored — press Enter in the terminal to resume the conversation." Sessions restore as idle dots until resumed.
 9. **Attention overlay, empty.** "Nothing needs you — all agents are working or idle."
 10. **Background server stopped (T2, rare).** Terminal regions show a state, not a crash. Title: "Sessions were interrupted". Body: "The background server stopped. Your work is safe — restoring recreates each session with its history and an armed resume command." Primary: [Restore sessions] Secondary: [Not now].
 11. **Git command failed** (commit hook rejection, lock, etc.). Sticky error toast: "Commit failed — {first line of git stderr}" [Show details] (expands mono log in a modal). Commit box retains the message.

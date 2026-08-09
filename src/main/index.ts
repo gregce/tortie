@@ -588,6 +588,12 @@ app.whenReady().then(async () => {
   registerRestoreIpc(ipcMain);
   // Phase 8: agent CLI availability probe (agents:availability).
   registerAgentsIpc(ipcMain);
+  // Phase 8.2: renderer-confirmed quit (first-quit toast flow — the Quit
+  // menu item forwards to the renderer, which invokes this after showing
+  // the one-time §4 toast; see src/main/menu.ts for the fallback timer).
+  ipcMain.handle('app:quit', () => {
+    app.quit();
+  });
 
   if (smoke === 'basic') return runSmokeBasic();
   if (smoke === 'create') return runSmokeCreate();
