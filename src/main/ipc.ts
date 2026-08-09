@@ -34,6 +34,7 @@ import type {
   SessionStatus
 } from '@shared/types';
 import { AttachHost } from './attach';
+import { unwatchGitRepo } from './git';
 import {
   buildLaunchSpec,
   codexResumeArgv,
@@ -512,6 +513,14 @@ export class GmuxCore {
   }
 
   removeProject(projectId: string): void {
+    // Closing the tab also stops the repo watcher (Phase 4) — best-effort,
+    // and BEFORE the row disappears so we still know the path.
+    const project = this.manifest
+      .listProjects()
+      .find((p) => p.id === projectId);
+    if (project !== undefined) {
+      void unwatchGitRepo(project.path).catch(() => undefined);
+    }
     this.manifest.deleteProject(projectId); // sessions keep their history
   }
 

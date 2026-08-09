@@ -85,6 +85,26 @@
   min-width: 0;
 }
 
+/* Live branch chip on a project tab (Phase 4) — quiet, mono, truncating. */
+.ptab-branch {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.ptab.selected .ptab-branch {
+  color: var(--text-secondary);
+}
+
 .ptab-close {
   width: 16px;
   height: 16px;
@@ -311,7 +331,9 @@
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  /* Sections manage their own scrolling (Changes body scrolls, the tree is
+     virtualized) — an outer scrollbar here would double up (Phase 4). */
+  overflow: hidden;
 }
 
 /* Session rows [h:32], radius r-md, inset 4px horizontally. */

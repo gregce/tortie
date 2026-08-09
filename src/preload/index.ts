@@ -9,11 +9,13 @@ import type { IpcRendererEvent } from 'electron';
 import type {
   EventChannel,
   EventPayloadMap,
+  ExtendedInvokeChannel,
+  ExtendedInvokeReq,
+  ExtendedInvokeRes,
   GmuxApi,
+  GmuxFsExtras,
+  GmuxGitExtras,
   GmuxTermStreamExtras,
-  InvokeChannel,
-  InvokeReq,
-  InvokeRes,
   TermExitPayload,
   Unsubscribe
 } from '../shared/ipc';
@@ -27,12 +29,15 @@ import {
   termInputChannel
 } from '../shared/ipc';
 
-/** Typed wrapper over ipcRenderer.invoke. */
-function invoke<C extends InvokeChannel>(
+/**
+ * Typed wrapper over ipcRenderer.invoke — spans the frozen channels plus the
+ * appended optional extensions (git:init, fs:readDir, fs:reveal, …).
+ */
+function invoke<C extends ExtendedInvokeChannel>(
   channel: C,
-  ...args: InvokeReq<C>
-): Promise<InvokeRes<C>> {
-  return ipcRenderer.invoke(channel, ...args) as Promise<InvokeRes<C>>;
+  ...args: ExtendedInvokeReq<C>
+): Promise<ExtendedInvokeRes<C>> {
+  return ipcRenderer.invoke(channel, ...args) as Promise<ExtendedInvokeRes<C>>;
 }
 
 /** Typed wrapper over ipcRenderer.on with unsubscribe. */
@@ -77,6 +82,33 @@ const term: GmuxApi['term'] & GmuxTermStreamExtras = {
   }
 };
 
+/**
+ * git surface = frozen GmuxApi['git'] + the appended optional git:init
+ * (the SCM UI feature-detects it for the §6.3 [Initialize repository] state).
+ */
+const git: GmuxApi['git'] & GmuxGitExtras = {
+  status: (repoPath) => invoke('git:status', repoPath),
+  stage: (input) => invoke('git:stage', input),
+  unstage: (input) => invoke('git:unstage', input),
+  commit: (input) => invoke('git:commit', input),
+  discard: (input) => invoke('git:discard', input),
+  log: (input) => invoke('git:log', input),
+  showHead: (input) => invoke('git:showHead', input),
+  onChanged: (cb) => on(EVT_GIT_CHANGED, cb),
+  init: (repoPath) => invoke('git:init', repoPath)
+};
+
+/**
+ * fs surface = frozen GmuxApi['fs'] + the appended optional tree extensions
+ * (fs:readDir / fs:reveal), feature-detected by the file tree.
+ */
+const fs: GmuxApi['fs'] & GmuxFsExtras = {
+  readFile: (path) => invoke('fs:readFile', path),
+  writeFile: (path, contents) => invoke('fs:writeFile', path, contents),
+  readDir: (dirPath) => invoke('fs:readDir', dirPath),
+  reveal: (path) => invoke('fs:reveal', path)
+};
+
 const api: GmuxApi = {
   sessions: {
     create: (input) => invoke('sessions:create', input),
@@ -95,20 +127,8 @@ const api: GmuxApi = {
     remove: (projectId) => invoke('projects:remove', projectId),
     pickDirectory: () => invoke('projects:pickDirectory')
   },
-  git: {
-    status: (repoPath) => invoke('git:status', repoPath),
-    stage: (input) => invoke('git:stage', input),
-    unstage: (input) => invoke('git:unstage', input),
-    commit: (input) => invoke('git:commit', input),
-    discard: (input) => invoke('git:discard', input),
-    log: (input) => invoke('git:log', input),
-    showHead: (input) => invoke('git:showHead', input),
-    onChanged: (cb) => on(EVT_GIT_CHANGED, cb)
-  },
-  fs: {
-    readFile: (path) => invoke('fs:readFile', path),
-    writeFile: (path, contents) => invoke('fs:writeFile', path, contents)
-  },
+  git,
+  fs,
   term,
   meta: {
     platform: process.platform,

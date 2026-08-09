@@ -180,6 +180,51 @@ export interface GitShowHeadInput {
 }
 
 // ---------------------------------------------------------------------------
+// APPENDED by the git-service stream (Phase 3) — new types only, nothing
+// above was modified. The `git:status` / `git:log` invoke channels keep their
+// frozen response types; the git service actually returns these SUPERSETS
+// (structurally compatible), so renderers may narrow or feature-detect.
+// ---------------------------------------------------------------------------
+
+/**
+ * VS Code-style resource groups derived from the same porcelain-v2 entries in
+ * `GitStatusResult.files` (a file with both staged and worktree edits appears
+ * in `staged` AND `changes`, exactly like VS Code's SCM view).
+ */
+export interface GitStatusGroups {
+  /** Unmerged/conflicted entries (porcelain `u` lines). */
+  merge: GitFileStatus[];
+  /** Entries whose index side changed (M/A/D/R/C staged). */
+  staged: GitFileStatus[];
+  /** Tracked entries whose worktree side changed. */
+  changes: GitFileStatus[];
+  /** Untracked files (`?`). */
+  untracked: GitFileStatus[];
+}
+
+/** What `git:status` actually resolves to: the frozen shape + groups. */
+export interface GitStatusDetailed extends GitStatusResult {
+  groups: GitStatusGroups;
+  /**
+   * True when the repo had more changed files than the status limit
+   * (10 000, VS Code's `git.statusLimit` default) and `files` was capped.
+   */
+  truncated?: boolean;
+}
+
+/** What `git:log` entries actually resolve to: the frozen shape + extras. */
+export interface GitLogEntryDetailed extends GitLogEntry {
+  /** Alias of `hash` (full 40-char SHA). */
+  sha: string;
+  /** Abbreviated SHA (`%h`). */
+  shortSha: string;
+  /** Alias of `authorName`. */
+  author: string;
+  /** `authorDate` as an ISO-8601 string. */
+  dateISO: string;
+}
+
+// ---------------------------------------------------------------------------
 // fs
 // ---------------------------------------------------------------------------
 
@@ -194,6 +239,35 @@ export interface ReadFileResult {
 // ---------------------------------------------------------------------------
 // Errors
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// APPENDED by the file-tree stream (fs:readDir / fs:reveal) — new types only,
+// nothing above was modified.
+// ---------------------------------------------------------------------------
+
+/** One entry of a directory listing (`fs:readDir`). */
+export interface FsDirEntry {
+  /** Base name within the directory. */
+  name: string;
+  /** Absolute path (`join(dirPath, name)`). */
+  path: string;
+  /**
+   * 'dir' ONLY for real directories (`Dirent.isDirectory()`); symlinks are
+   * reported as 'symlink' even when they target directories, so the tree
+   * never follows link cycles. 'other' covers sockets/FIFOs/devices.
+   */
+  kind: 'file' | 'dir' | 'symlink' | 'other';
+}
+
+export interface ReadDirResult {
+  /** The directory that was listed (absolute). */
+  path: string;
+  /**
+   * Unfiltered and unsorted — the renderer hides `.git` and sorts
+   * (directories first, case-insensitive by name). Dotfiles are included.
+   */
+  entries: FsDirEntry[];
+}
 
 /**
  * Structured error shape. Main-process handlers throw Error whose `message`

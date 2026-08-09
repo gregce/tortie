@@ -1,0 +1,478 @@
+/**
+ * SCM stream styles (branch header details, Changes + History sections).
+ * Tokens only (DESIGN.md §1); shared vocabulary (.btn, .icon-btn, .chip,
+ * .section-*) comes from globals.css / app.css. Imported by ScmSection.tsx.
+ */
+
+/* ---------------------------------------------------------------------------
+   Branch header extras (the .branch-header shell lives in app.css)
+--------------------------------------------------------------------------- */
+
+.branch-copy {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 0 1 auto;
+  border-radius: var(--r-sm);
+  padding: 0 var(--space-1);
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+.branch-copy:hover {
+  color: var(--text-primary);
+}
+
+.branch-arrows {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+
+.branch-spacer {
+  flex: 1;
+}
+
+.branch-dirty {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--git-modified);
+  flex: 0 0 auto;
+}
+
+.branch-refresh {
+  width: 22px;
+  height: 22px;
+}
+
+.branch-refresh.busy svg {
+  animation: gmux-scm-spin 0.9s linear infinite;
+}
+
+.scm-chip-merge {
+  color: var(--git-conflict);
+}
+
+/* ---------------------------------------------------------------------------
+   Section shells — Changes max 30% of the sidebar rest, own scroll;
+   History max 25% when expanded (DESIGN-SPEC S3 space budget).
+--------------------------------------------------------------------------- */
+
+.section-scm {
+  display: flex;
+  flex-direction: column;
+  max-height: 30%;
+  flex-shrink: 0;
+  min-height: 0;
+}
+
+.section-scm.collapsed,
+.section-scm-history.collapsed {
+  max-height: none;
+}
+
+.section-scm-history {
+  display: flex;
+  flex-direction: column;
+  max-height: 25%;
+  flex-shrink: 0;
+  min-height: 0;
+}
+
+.scm-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   Commit box — sticky at the top of the Changes scroll (S3)
+--------------------------------------------------------------------------- */
+
+.scm-commit {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-5) var(--space-4);
+  background: var(--bg-sidebar);
+}
+
+.scm-commit-input {
+  width: 100%;
+  min-height: 30px;
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  line-height: var(--lh-sm);
+  resize: none;
+  overflow-y: auto;
+}
+
+.scm-commit-input::placeholder {
+  color: var(--text-muted);
+}
+
+.scm-commit-input:focus {
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
+
+.scm-commit-input:disabled {
+  color: var(--text-disabled);
+}
+
+.scm-commit-btn {
+  width: 100%;
+}
+
+.scm-commit-caption {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+}
+
+/* 12px spinner inside the busy commit button (label carries the state for
+   reduced motion, where the animation is globally disabled). */
+.scm-spinner {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--on-accent) 35%, transparent);
+  border-top-color: var(--on-accent);
+  animation: gmux-scm-spin 0.8s linear infinite;
+  flex: 0 0 auto;
+}
+
+@keyframes gmux-scm-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Resource groups & file rows
+--------------------------------------------------------------------------- */
+
+.scm-list {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: var(--space-2);
+}
+
+.scm-list:focus-visible {
+  box-shadow: inset var(--focus-ring);
+  border-radius: var(--r-md);
+}
+
+.scm-group-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 24px;
+  flex: 0 0 24px;
+  padding: 0 var(--space-4) 0 var(--space-5);
+  user-select: none;
+}
+
+.scm-group-label {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
+}
+
+.scm-group-count {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+}
+
+.scm-group-action {
+  visibility: hidden;
+}
+
+.scm-group-row:hover .scm-group-action,
+.scm-group-row:focus-within .scm-group-action {
+  visibility: visible;
+}
+
+.scm-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 24px;
+  flex: 0 0 24px;
+  padding: 0 var(--space-4) 0 var(--space-7);
+  cursor: default;
+  user-select: none;
+  min-width: 0;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.scm-row:hover {
+  background: var(--bg-raised);
+}
+
+.scm-row.selected {
+  background: var(--bg-active);
+}
+
+.scm-row.busy {
+  opacity: 0.55;
+}
+
+/* Letter badge: mono 11/600 in its git token color. */
+.scm-badge {
+  width: 12px;
+  flex: 0 0 12px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  font-weight: var(--weight-semibold);
+}
+
+.scm-badge-modified {
+  color: var(--git-modified);
+}
+
+.scm-badge-added {
+  color: var(--git-added);
+}
+
+.scm-badge-deleted {
+  color: var(--git-deleted);
+}
+
+.scm-badge-renamed {
+  color: var(--git-renamed);
+}
+
+.scm-badge-conflict {
+  color: var(--git-conflict);
+}
+
+.scm-row-name {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 0 1 auto;
+  min-width: 40px;
+}
+
+.scm-row-name.deleted {
+  text-decoration: line-through;
+}
+
+/* Dir path truncates from the LEFT (rtl trick), keeping the leaf visible. */
+.scm-row-dir {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  direction: rtl;
+  text-align: left;
+  flex: 1 4 auto;
+  min-width: 0;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+/* Contrast rule (DESIGN.md §1.1): never muted text on raised/active fills. */
+.scm-row:hover .scm-row-dir,
+.scm-row.selected .scm-row-dir {
+  color: var(--text-secondary);
+}
+
+.scm-row-space {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* Hover actions: 16px icons, right-aligned, appear on hover/focus. */
+.scm-row-actions {
+  display: none;
+  align-items: center;
+  gap: var(--space-1);
+  flex: 0 0 auto;
+}
+
+.scm-row:hover .scm-row-actions,
+.scm-row:focus-within .scm-row-actions {
+  display: inline-flex;
+}
+
+.scm-action {
+  width: 18px;
+  height: 18px;
+}
+
+.scm-action:disabled {
+  color: var(--text-disabled);
+  background: none;
+  cursor: default;
+}
+
+/* ---------------------------------------------------------------------------
+   States: skeleton, non-repo (§6.3), errors
+--------------------------------------------------------------------------- */
+
+.scm-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+}
+
+.scm-skeleton-row {
+  height: 12px;
+  border-radius: var(--r-sm);
+  background:
+    linear-gradient(
+      100deg,
+      var(--bg-raised) 40%,
+      var(--bg-active) 50%,
+      var(--bg-raised) 60%
+    );
+  background-size: 300% 100%;
+  animation: gmux-scm-shimmer 1.4s var(--ease-out) infinite;
+}
+
+@keyframes gmux-scm-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+
+  to {
+    background-position: 0 0;
+  }
+}
+
+.scm-nonrepo {
+  padding: var(--space-3) var(--space-5) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  align-items: flex-start;
+}
+
+.scm-nonrepo-body {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-secondary);
+}
+
+.scm-nonrepo-hint {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+}
+
+.scm-mono {
+  font-family: var(--font-mono);
+}
+
+.scm-init-btn {
+  height: 26px;
+  font-size: var(--text-sm);
+}
+
+/* ---------------------------------------------------------------------------
+   History rows
+--------------------------------------------------------------------------- */
+
+.scm-history-body {
+  padding-bottom: var(--space-2);
+}
+
+.scm-history-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 24px;
+  flex: 0 0 24px;
+  padding: 0 var(--space-4) 0 var(--space-5);
+  min-width: 0;
+  user-select: none;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.scm-history-row:hover {
+  background: var(--bg-raised);
+}
+
+.scm-history-subject {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 0 1 auto;
+}
+
+.scm-sha {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 18px;
+  padding: 0 var(--space-2);
+  border-radius: var(--r-sm);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+  flex: 0 0 auto;
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
+}
+
+/* Contrast rule: no muted text on raised fills (row hover). */
+.scm-history-row:hover .scm-sha {
+  color: var(--text-secondary);
+}
+
+.scm-sha:hover {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
+.scm-sha-copy {
+  display: none;
+}
+
+.scm-history-row:hover .scm-sha-copy {
+  display: inline;
+}
+
+.scm-history-age {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+  flex: 0 0 auto;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+.scm-history-row:hover .scm-history-age {
+  color: var(--text-secondary);
+}

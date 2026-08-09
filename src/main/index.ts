@@ -20,10 +20,12 @@
  * inside gmux.app is out of scope today (docs/FINAL-REPORT.md §5 Stream A1).
  */
 
-import { app, BrowserWindow, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import { writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { registerFsIpc } from './fs';
+import { disposeGitIpc, registerGitIpc } from './git';
 import { getGmuxCore, registerIpcHandlers, shutdownGmuxCore } from './ipc';
 import type { GmuxCore } from './ipc';
 import * as tmux from './tmux';
@@ -360,6 +362,10 @@ app.whenReady().then(async () => {
   // every mode is free and keeps harness renderers from hitting
   // "No handler registered" noise.
   registerIpcHandlers();
+  // Phase 4: git sidebar (git:* + repo watchers) and file tree (fs:readDir/
+  // fs:reveal). Both are self-contained registries, lazy per repo.
+  registerGitIpc(ipcMain);
+  registerFsIpc(ipcMain);
 
   if (smoke === 'basic') return runSmokeBasic();
   if (smoke === 'create') return runSmokeCreate();
@@ -391,9 +397,11 @@ app.whenReady().then(async () => {
 });
 
 // Quit-time teardown kills ONLY gmux-side clients (attach PTYs, control
-// client). The tmux server and every session keep running — T1 by design.
+// client, repo watchers). The tmux server and every session keep running —
+// T1 by design.
 app.on('before-quit', () => {
   void shutdownGmuxCore();
+  void disposeGitIpc();
 });
 
 // Single-window app: quitting on last-window-close is correct on macOS too —

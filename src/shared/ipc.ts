@@ -264,3 +264,94 @@ export interface GmuxAppExtras {
   /** Set the Dock badge to the global needs-input count (0 clears). */
   setBadgeCount?(count: number): Promise<void>;
 }
+
+// ---------------------------------------------------------------------------
+// APPENDED by the SCM stream (Phase 3) — new channels/types only, nothing
+// above was modified. OPTIONAL bridge extension: the SCM UI feature-detects
+// `typeof window.gmux.git.init === 'function'` and hides the §6.3
+// [Initialize repository] button when absent, so it works against the
+// frozen Phase-2 preload unchanged.
+//
+// INTEGRATOR wiring:
+//   'git:init' → main: spawn `git init` in repoPath (reject with GIT_FAILED
+//                on nonzero exit), then emit EVT_GIT_CHANGED for repoPath.
+//   preload:     init: (repoPath) => invoke('git:init', repoPath)
+// ---------------------------------------------------------------------------
+
+/** New invoke channel appended by the SCM stream (see InvokeChannelMap). */
+export interface ScmInvokeChannelMap {
+  /** `git init` in a non-repo project folder (§6.3 friendly state). */
+  'git:init': { req: [repoPath: string]; res: void };
+}
+
+/** OPTIONAL extensions to GmuxApi['git'], feature-detected by the SCM UI. */
+export interface GmuxGitExtras {
+  /** Initialize a repository in a non-git project folder. */
+  init?(repoPath: string): Promise<void>;
+}
+
+// ---------------------------------------------------------------------------
+// APPENDED by the file-tree stream (Phase 3) — new channels/types only,
+// nothing above was modified. Both channels are OPTIONAL bridge extensions:
+// the tree feature-detects each (`typeof window.gmux.fs.readDir ===
+// 'function'`) and shows a friendly stub / hides the menu item when absent,
+// so the app works against the frozen Phase-2 preload unchanged.
+//
+// INTEGRATOR wiring (no main handler exists yet — both are new):
+//   'fs:readDir' → main: fs.promises.readdir(dirPath, { withFileTypes: true })
+//                  mapped to FsDirEntry[] with kind =
+//                    isDirectory() ? 'dir'
+//                    : isSymbolicLink() ? 'symlink'
+//                    : isFile() ? 'file' : 'other';
+//                  return ALL entries unfiltered/unsorted (the renderer hides
+//                  .git, keeps dotfiles, and sorts). Reject paths outside
+//                  known project roots if you add validation. Errors throw
+//                  GmuxErrorPayload code 'FS_FAILED' (message: "Could not
+//                  read <basename>").
+//   'fs:reveal'  → main: electron shell.showItemInFolder(path) (void).
+// Preload: add to the `fs` object per the GmuxApi pattern:
+//   readDir: (dirPath) => ipcRenderer.invoke('fs:readDir', dirPath),
+//   reveal:  (path)    => ipcRenderer.invoke('fs:reveal', path)
+// ---------------------------------------------------------------------------
+
+import type { ReadDirResult } from './types';
+
+/** New invoke channels appended by the file-tree stream. */
+export interface TreeInvokeChannelMap {
+  /** List one directory (lazy tree loading; renderer filters + sorts). */
+  'fs:readDir': { req: [dirPath: string]; res: ReadDirResult };
+  /** Reveal a file/folder in Finder (tree context menu). */
+  'fs:reveal': { req: [path: string]; res: void };
+}
+
+/**
+ * OPTIONAL extensions to GmuxApi['fs'], feature-detected by the tree
+ * (`typeof window.gmux.fs.readDir === 'function'`).
+ */
+export interface GmuxFsExtras {
+  /** List a directory for the file tree. */
+  readDir?(dirPath: string): Promise<ReadDirResult>;
+  /** Reveal a path in Finder. */
+  reveal?(path: string): Promise<void>;
+}
+
+// ---------------------------------------------------------------------------
+// APPENDED by the Phase-4 integrator — new types only, nothing above was
+// modified. The optional channel maps appended by the Phase-3 streams
+// (Shell/Scm/Tree) become registrable through one combined map, so main-side
+// modules can write typed ipcMain.handle wrappers for the extension channels
+// exactly like the frozen ones.
+// ---------------------------------------------------------------------------
+
+/** Frozen channels + every appended optional extension channel. */
+export type ExtendedInvokeChannelMap = InvokeChannelMap &
+  ShellInvokeChannelMap &
+  ScmInvokeChannelMap &
+  TreeInvokeChannelMap;
+
+export type ExtendedInvokeChannel = keyof ExtendedInvokeChannelMap;
+
+export type ExtendedInvokeReq<C extends ExtendedInvokeChannel> =
+  ExtendedInvokeChannelMap[C]['req'];
+export type ExtendedInvokeRes<C extends ExtendedInvokeChannel> =
+  ExtendedInvokeChannelMap[C]['res'];

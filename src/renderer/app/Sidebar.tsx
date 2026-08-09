@@ -1,21 +1,19 @@
 /**
- * S3 — Sidebar: stacked sections (Sessions live now; Changes and Files are
- * mounted by the git/tree streams into their data-slots). Branch header is
- * a stub until git:status lands — it shows the project folder name.
+ * S3 — Sidebar: stacked sections. Branch header + Changes/History are the
+ * SCM stream's components; Files is the tree stream's. Sessions lives here.
+ * Tree decorations are fed FROM the SCM store's status list so the tree and
+ * the Changes section can never disagree (Phase 4 integration).
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { Session } from '@shared/types';
 import { effectiveStatusOf, useApp } from '../state/store';
+import { useGit } from '../state/git';
+import { BranchHeader, ScmSection } from '../scm';
+import { FilesSection } from '../tree';
 import { statusVisual } from './status';
 import { displayPath, formatAge, useNow } from './format';
-import {
-  ChevronDownIcon,
-  GitBranchIcon,
-  MoreIcon,
-  PlusIcon,
-  RotateCcwIcon
-} from './icons';
+import { ChevronDownIcon, MoreIcon, PlusIcon, RotateCcwIcon } from './icons';
 
 // ---------------------------------------------------------------------------
 // Session row
@@ -221,6 +219,14 @@ export function Sidebar(): React.JSX.Element {
       ? activeSessionByProject[activeProjectId]
       : undefined) ?? projectSessions[projectSessions.length - 1]?.id;
 
+  // One status source for the whole sidebar: the SCM store's list feeds the
+  // tree's decorations (null → the tree fetches for itself, e.g. non-repo).
+  const scmStatusFiles = useGit((s) => {
+    if (!project) return null;
+    const status = s.repos[project.path]?.status;
+    return status?.isRepo === true ? status.files : null;
+  });
+
   const [dragging, setDragging] = useState(false);
 
   const listRef = useRef<HTMLUListElement | null>(null);
@@ -252,17 +258,8 @@ export function Sidebar(): React.JSX.Element {
       data-slot="sidebar"
       style={{ width: sidebarWidth, flexBasis: sidebarWidth }}
     >
-      {/* Branch header [h:36] — git stream replaces the stub content. */}
-      <div className="branch-header" data-slot="branch-header">
-        <GitBranchIcon size={14} />
-        {project ? (
-          <span className="branch-folder" title={project.path}>
-            {displayPath(project.path)}
-          </span>
-        ) : (
-          <span className="branch-folder">No project open</span>
-        )}
-      </div>
+      {/* Branch header [h:36] — ⎇ branch · ↑↓ ahead/behind · dirty count. */}
+      <BranchHeader />
 
       <section
         className={`section-sessions${sessionsCollapsed ? ' collapsed' : ''}`}
@@ -327,10 +324,12 @@ export function Sidebar(): React.JSX.Element {
       </section>
 
       <div className="sidebar-rest">
-        {/* Git stream mounts the Changes section here. */}
-        <div data-slot="scm" />
-        {/* Tree stream mounts the Files section here. */}
-        <div data-slot="tree" />
+        {/* Changes + History (SCM). */}
+        <ScmSection />
+        {/* Files — decorations fed from the SCM store's status list. */}
+        <FilesSection
+          {...(scmStatusFiles !== null ? { statusFiles: scmStatusFiles } : {})}
+        />
       </div>
 
       <div

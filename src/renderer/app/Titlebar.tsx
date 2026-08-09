@@ -4,13 +4,14 @@
  * data stays in the sidebar header — tabs stay scannable.
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import type { Project, SessionStatus } from '@shared/types';
 import { effectiveStatusOf, sortProjects, useApp } from '../state/store';
+import { useGit } from '../state/git';
 import { rollupDot } from './status';
 import type { DotKind } from './status';
 import { truncateMiddle } from './format';
-import { BellIcon, PlusIcon, XIcon } from './icons';
+import { BellIcon, GitBranchIcon, PlusIcon, XIcon } from './icons';
 
 interface TabData {
   project: Project;
@@ -31,6 +32,14 @@ function ProjectTab({
   const reorderTabs = useApp((s) => s.reorderTabs);
   const setMenu = useApp((s) => s.setMenu);
   const [dropTarget, setDropTarget] = useState(false);
+
+  // Live branch name (git:changed keeps the store fresh); null hides the
+  // chip — non-git folders and still-loading repos stay quiet.
+  const branch = useGit((s) => {
+    const status = s.repos[project.path]?.status;
+    if (status?.isRepo !== true) return null;
+    return status.branch ?? status.detachedAt ?? null;
+  });
 
   return (
     <button
@@ -77,6 +86,12 @@ function ProjectTab({
     >
       <span className={`dot dot-${dot === 'none' ? 'none' : dot}`} />
       <span className="ptab-name">{truncateMiddle(project.name, 24)}</span>
+      {branch !== null ? (
+        <span className="ptab-branch" title={`On branch ${branch}`}>
+          <GitBranchIcon size={10} />
+          {truncateMiddle(branch, 18)}
+        </span>
+      ) : null}
       {attentionCount > 0 ? (
         <span className="badge-attention num">{attentionCount}</span>
       ) : null}
@@ -99,6 +114,15 @@ function ProjectTab({
 export function Titlebar(): React.JSX.Element {
   const projects = useApp((s) => s.projects);
   const tabOrder = useApp((s) => s.tabOrder);
+  const gitInit = useGit((s) => s.init);
+  const ensureStatus = useGit((s) => s.ensureStatus);
+
+  // Branch names on every tab: pull each project's status once; git:changed
+  // (subscribed via init) keeps them live afterwards.
+  useEffect(() => {
+    gitInit();
+    for (const p of projects) ensureStatus(p.path);
+  }, [projects, gitInit, ensureStatus]);
   const sessions = useApp((s) => s.sessions);
   const overrides = useApp((s) => s.statusOverrides);
   const activeProjectId = useApp((s) => s.activeProjectId);
