@@ -1,0 +1,324 @@
+/**
+ * S5 — Editor panel styles (docs/DESIGN-SPEC.md). Tokens only; the single
+ * literal color is the S1-spec'd "25% black scrim over the terminal".
+ */
+
+/* ---------------------------------------------------------------------------
+   Panel: right split of the center region / overlay under 1400px
+--------------------------------------------------------------------------- */
+
+.ed-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  min-width: 320px;
+  min-height: 0;
+  background: var(--bg-canvas);
+  border-left: 1px solid var(--border);
+}
+
+.ed-panel.ed-overlay {
+  position: fixed;
+  top: 38px; /* under the titlebar */
+  right: 0;
+  bottom: 0;
+  z-index: var(--z-editor-overlay);
+  box-shadow: var(--shadow-3);
+  animation: ed-slide-in var(--dur-panel) var(--ease-out);
+}
+
+@keyframes ed-slide-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0.6;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* S1: "25% black scrim over the terminal (click scrim or Esc closes)". */
+.ed-scrim {
+  position: fixed;
+  top: 38px;
+  right: 0;
+  bottom: 0;
+  z-index: calc(var(--z-editor-overlay) - 1);
+  background: rgba(0, 0, 0, 0.25);
+}
+
+/* Drag handle: invisible 5px hit area on the panel's left edge; hover shows
+   the divider at --border-strong (S1). */
+.ed-divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -3px;
+  width: 5px;
+  z-index: 2;
+  cursor: col-resize;
+}
+
+.ed-divider::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 2px;
+  width: 1px;
+}
+
+.ed-divider:hover::after,
+.ed-divider:active::after {
+  background: var(--border-strong);
+}
+
+/* ---------------------------------------------------------------------------
+   Tabs row [h:32], bg --bg-sidebar
+--------------------------------------------------------------------------- */
+
+.ed-tabs {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  flex: 0 0 32px;
+  background: var(--bg-sidebar);
+  border-bottom: 1px solid var(--border);
+  padding-right: var(--space-4);
+  user-select: none;
+}
+
+.ed-tabs-list {
+  display: flex;
+  align-items: stretch;
+  align-self: stretch;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.ed-tabs-list::-webkit-scrollbar {
+  display: none;
+}
+
+.ed-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 10px;
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+  cursor: default;
+}
+
+.ed-tab:hover {
+  background: var(--bg-raised);
+}
+
+.ed-tab:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  z-index: 1;
+}
+
+/* Active tab melts into the editor: canvas fill + 2px accent top inset. */
+.ed-tab.active {
+  background: var(--bg-canvas);
+  color: var(--text-primary);
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+
+.ed-tab-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+
+.ed-tab-name.preview {
+  font-style: italic;
+}
+
+.ed-tab-name.deleted {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+/* Dirty: 6px accent dot replaces × until saved (S5). */
+.ed-tab-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.ed-tab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: inherit;
+  opacity: 0.7;
+}
+
+.ed-tab-close:hover {
+  background: var(--bg-active);
+  color: var(--text-primary);
+  opacity: 1;
+}
+
+.ed-tab-close:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* ---------------------------------------------------------------------------
+   Mode toggle: segmented [h:22] Diff | File (tracked-modified files only)
+--------------------------------------------------------------------------- */
+
+.ed-mode {
+  display: inline-flex;
+  flex: none;
+  height: 22px;
+  margin-left: var(--space-4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
+
+.ed-mode-opt {
+  padding: 0 8px;
+  border: none;
+  background: transparent;
+  font-size: var(--text-xs);
+  line-height: 20px;
+  color: var(--text-secondary);
+}
+
+.ed-mode-opt.on {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
+.ed-mode-opt:not(.on):hover {
+  background: var(--bg-raised);
+}
+
+.ed-mode-opt:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* ---------------------------------------------------------------------------
+   Body + Monaco mounts
+--------------------------------------------------------------------------- */
+
+.ed-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: var(--bg-canvas);
+}
+
+.ed-host,
+.ed-mount,
+.ed-skeleton,
+.ed-state {
+  position: absolute;
+  inset: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   S5 loading state: "Opening editor…", shimmer lines past 300ms
+--------------------------------------------------------------------------- */
+
+.ed-skeleton {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-6);
+  background: var(--bg-canvas);
+}
+
+.ed-skeleton-text {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.ed-skeleton-lines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 60%;
+  max-width: 360px;
+  opacity: 0;
+  animation: ed-skeleton-show 1ms linear 300ms forwards;
+}
+
+.ed-skeleton-line {
+  height: 8px;
+  border-radius: var(--r-sm);
+  background: var(--bg-raised);
+  animation: ed-shimmer 1.2s var(--ease-out) infinite;
+}
+
+@keyframes ed-skeleton-show {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ed-shimmer {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Friendly failure states (binary file, Monaco chunk failed)
+--------------------------------------------------------------------------- */
+
+.ed-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  padding: var(--space-8);
+  text-align: center;
+}
+
+.ed-state-title {
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+.ed-state-body {
+  max-width: 340px;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.ed-banner-spacer {
+  flex: 1;
+}

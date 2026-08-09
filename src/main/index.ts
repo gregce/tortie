@@ -334,13 +334,41 @@ async function runSmokeVerify(): Promise<void> {
 // ---------------------------------------------------------------------------
 
 async function runShot(outPath: string): Promise<void> {
+  // Optional drive (Phase 5): GMUX_SHOT_DRIVE carries a JSON spec that the
+  // renderer's window.__gmuxShotDrive hook (src/renderer/editor/shot-hook.ts)
+  // executes — open a project, open a diff — so the capture shows the real
+  // UI. The hook flips __gmuxShotReady; cleanup removes the driven project.
+  const driveJson = process.env['GMUX_SHOT_DRIVE'];
   mainWindow = createWindow();
   mainWindow.webContents.once('did-finish-load', () => {
     setTimeout(async () => {
       try {
-        const image = await mainWindow!.webContents.capturePage();
+        const wc = mainWindow!.webContents;
+        if (driveJson !== undefined && driveJson.length > 0) {
+          await wc.executeJavaScript(
+            `(async () => {
+               try { await window.__gmuxShotDrive?.(${driveJson}); }
+               catch (err) { console.error('[gmux-shot] drive failed', err); }
+             })()`,
+            true
+          );
+          const deadline = Date.now() + 30_000;
+          while (Date.now() < deadline) {
+            const ready = (await wc.executeJavaScript(
+              'window.__gmuxShotReady === true'
+            )) as boolean;
+            if (ready) break;
+            await new Promise((r) => setTimeout(r, 250));
+          }
+        }
+        const image = await wc.capturePage();
         await writeFile(outPath, image.toPNG());
         console.log(`[gmux-shot] wrote ${outPath}`);
+        if (driveJson !== undefined && driveJson.length > 0) {
+          await wc
+            .executeJavaScript('window.__gmuxShotCleanup?.()', true)
+            .catch(() => undefined);
+        }
         app.exit(0);
       } catch (err) {
         console.error(`[gmux-shot] FAIL: ${(err as Error).message}`);

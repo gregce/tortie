@@ -22,6 +22,9 @@ import { ConfirmDialog } from './ConfirmDialog';
 import { ContextMenu } from './ContextMenu';
 import { Toasts } from './Toasts';
 import { FirstRun, TmuxMissing } from './EmptyStates';
+// Phase 5 (editor stream): the S5 editor panel — a right split beside the
+// terminal region (overlay under 1400px). It renders null until a file opens.
+import { EditorPanel } from '../editor';
 
 // ---------------------------------------------------------------------------
 // Keyboard map (DESIGN.md §4) — one capture-phase listener; ⌘-chords and F2
@@ -276,6 +279,7 @@ export function App(): React.JSX.Element {
         <div className="shell-body">
           {sidebarVisible ? <Sidebar /> : null}
           <TerminalRegion />
+          <EditorPanel />
         </div>
       )}
 
