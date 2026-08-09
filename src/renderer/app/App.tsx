@@ -1,310 +1,291 @@
 /**
- * App shell — Phase 2 FUNCTIONAL HARNESS (temporary until Phase 3).
+ * gmux app shell (Phase 3) — composition + the DESIGN.md §4 keyboard map.
  *
- * Proves the durable session core end-to-end in dev: add a project, create a
- * named session (shell / claude / codex), see its live terminal, rename it,
- * kill it. The Phase 3 app stream replaces this file with the real shell
- * (zustand store, ⌘T modal, project tabs) — keep the frozen data-slot mount
- * regions when doing so.
+ * Layout: titlebar (project tabs) / sidebar (sessions; git+tree slots) /
+ * terminal region. Layers: context menu → attention overlay → modals →
+ * toasts. Esc closes the topmost layer (§4).
+ *
+ * NOTE for the integrator: the native macOS menu must mirror every shortcut
+ * here (DESIGN.md §2.1) — that lives in src/main (not this stream). Until
+ * then Electron's default menu still owns ⌘W/⌘Q behavior.
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import type { AgentKind, GmuxErrorPayload, Project, Session } from '@shared/types';
-import { TerminalHost } from '../terminal';
+import React, { useEffect, useRef, useState } from 'react';
+import { useApp } from '../state/store';
+import { Titlebar } from './Titlebar';
+import { Sidebar } from './Sidebar';
+import { TerminalRegion } from './TerminalRegion';
+import { CreateSessionModal } from './CreateSessionModal';
+import { ShortcutsOverlay } from './ShortcutsOverlay';
+import { AttentionOverlay } from './AttentionOverlay';
+import { ConfirmDialog } from './ConfirmDialog';
+import { ContextMenu } from './ContextMenu';
+import { Toasts } from './Toasts';
+import { FirstRun, TmuxMissing } from './EmptyStates';
 
-/** Extract friendly copy from a main-process GmuxErrorPayload rejection. */
-function errorText(err: unknown): string {
-  const raw = err instanceof Error ? err.message : String(err);
-  const start = raw.indexOf('{');
-  if (start !== -1) {
-    try {
-      const payload = JSON.parse(raw.slice(start)) as GmuxErrorPayload;
-      if (payload && typeof payload.message === 'string') {
-        return payload.detail
-          ? `${payload.message} (${payload.detail})`
-          : payload.message;
+// ---------------------------------------------------------------------------
+// Keyboard map (DESIGN.md §4) — one capture-phase listener; ⌘-chords and F2
+// always reach the app, even while the terminal owns the keyboard.
+// ---------------------------------------------------------------------------
+
+function useKeyboardMap(): void {
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent): void => {
+      const s = useApp.getState();
+      const meta = e.metaKey && !e.ctrlKey && !e.altKey;
+      const inTerminal =
+        e.target instanceof HTMLElement &&
+        e.target.closest('.gmux-terminal-mount') !== null;
+
+      // Detector hint: answering a prompt clears needs-input immediately.
+      if (inTerminal && !e.metaKey && !e.ctrlKey && e.key.length === 1) {
+        s.noteTerminalInput();
       }
-    } catch {
-      /* unclassified error — fall through to the raw message */
-    }
-  }
-  return raw;
+      if (inTerminal && e.key === 'Enter' && !e.metaKey) {
+        s.noteTerminalInput();
+      }
+
+      // Esc — close the topmost layer only (menu → overlay → modals).
+      if (e.key === 'Escape') {
+        if (s.menu) {
+          e.preventDefault();
+          e.stopPropagation();
+          s.setMenu(null);
+        } else if (s.attentionOpen) {
+          e.preventDefault();
+          e.stopPropagation();
+          s.setAttentionOpen(false);
+        } else if (s.confirm) {
+          e.preventDefault();
+          e.stopPropagation();
+          s.setConfirm(null);
+        } else if (s.createOpen) {
+          e.preventDefault();
+          e.stopPropagation();
+          s.setCreateOpen(false);
+        } else if (s.shortcutsOpen) {
+          e.preventDefault();
+          e.stopPropagation();
+          s.setShortcutsOpen(false);
+        }
+        // else: Esc belongs to the terminal / focused control.
+        return;
+      }
+
+      // F2 — rename: active session, wherever focus is (incl. terminal).
+      if (e.key === 'F2') {
+        const renameTarget = s.activeSession();
+        if (renameTarget && s.renamingSessionId === null) {
+          e.preventDefault();
+          e.stopPropagation();
+          s.setRenaming(renameTarget.id);
+        }
+        return;
+      }
+
+      // ⌃Tab / ⌃⇧Tab — next / previous project tab.
+      if (e.ctrlKey && !e.metaKey && e.key === 'Tab') {
+        e.preventDefault();
+        s.cycleProject(e.shiftKey ? -1 : 1);
+        return;
+      }
+
+      if (!meta) return;
+
+      // Never act on ⌘-chords while a text field is being edited, except
+      // the layer togglers that make sense anywhere.
+      const inEditable =
+        e.target instanceof HTMLElement &&
+        (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') &&
+        !inTerminal;
+
+      switch (e.key) {
+        case 't':
+          e.preventDefault();
+          if (s.projects.length === 0) {
+            s.toast('info', 'Open a project first (⌘O)');
+          } else if (s.bootBlock === null) {
+            s.setCreateOpen(true);
+          }
+          return;
+        case 'o':
+          e.preventDefault();
+          void s.openProject();
+          return;
+        case 'j':
+          e.preventDefault();
+          s.setAttentionOpen(!s.attentionOpen);
+          return;
+        case '/':
+          e.preventDefault();
+          s.setShortcutsOpen(!s.shortcutsOpen);
+          return;
+        case 'b':
+          if (inEditable) return;
+          e.preventDefault();
+          s.toggleSidebar();
+          return;
+        case 'w':
+          // ⌘W closes editor tabs only (none in this phase) — NEVER a
+          // session or project. Swallow so nothing else acts on it.
+          e.preventDefault();
+          return;
+        default:
+          break;
+      }
+
+      // ⌘1…⌘9 — project tabs.
+      if (/^[1-9]$/.test(e.key)) {
+        e.preventDefault();
+        s.setActiveProjectByIndex(parseInt(e.key, 10) - 1);
+        return;
+      }
+    };
+
+    // ⌥⌘↓ / ⌥⌘↑ — session cycling (separate handler branch since altKey
+    // changes e.key on letters but not on arrows).
+    const onKeyDownArrows = (e: KeyboardEvent): void => {
+      if (!(e.metaKey && e.altKey && !e.ctrlKey)) return;
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        useApp.getState().cycleSession(e.key === 'ArrowDown' ? 1 : -1);
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown, { capture: true });
+    window.addEventListener('keydown', onKeyDownArrows, { capture: true });
+    return () => {
+      window.removeEventListener('keydown', onKeyDown, { capture: true });
+      window.removeEventListener('keydown', onKeyDownArrows, {
+        capture: true
+      });
+    };
+  }, []);
 }
 
-const AGENTS: AgentKind[] = ['shell', 'claude', 'codex'];
+// ---------------------------------------------------------------------------
+// Folder drop (§6.1) — dashed accent overlay while dragging a folder.
+// ---------------------------------------------------------------------------
 
-export function App(): React.JSX.Element {
-  const gmux = window.gmux;
+function useFolderDrop(): boolean {
+  const [dropping, setDropping] = useState(false);
+  const depth = useRef(0);
 
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
-  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  // Create-session form.
-  const [newName, setNewName] = useState('');
-  const [newAgent, setNewAgent] = useState<AgentKind>('shell');
-  const [creating, setCreating] = useState(false);
-
-  // Inline rename (F2 / double-click).
-  const [renamingId, setRenamingId] = useState<string | null>(null);
-  const [renameValue, setRenameValue] = useState('');
-
-  const fail = useCallback((err: unknown) => setError(errorText(err)), []);
-
-  // ---- initial load + live updates ----------------------------------------
   useEffect(() => {
-    if (!gmux) return undefined;
-    let alive = true;
-    Promise.all([gmux.projects.list(), gmux.sessions.list()])
-      .then(([p, s]) => {
-        if (!alive) return;
-        setProjects(p);
-        setSessions(s);
-        setActiveProjectId((cur) => cur ?? p[0]?.id ?? null);
-        setActiveSessionId((cur) => cur ?? s[0]?.id ?? null);
-      })
-      .catch(fail);
-    const unsub = gmux.sessions.onChanged((s) => {
-      setSessions(s);
-      setActiveSessionId((cur) =>
-        cur !== null && s.some((x) => x.id === cur) ? cur : (s[0]?.id ?? null)
-      );
-    });
-    return () => {
-      alive = false;
-      unsub();
+    const hasFiles = (e: DragEvent): boolean =>
+      Array.from(e.dataTransfer?.types ?? []).includes('Files');
+
+    const onDragEnter = (e: DragEvent): void => {
+      if (!hasFiles(e)) return;
+      depth.current++;
+      setDropping(true);
     };
-  }, [gmux, fail]);
-
-  const activeProject = useMemo(
-    () => projects.find((p) => p.id === activeProjectId) ?? null,
-    [projects, activeProjectId]
-  );
-
-  const projectSessions = useMemo(
-    () =>
-      activeProject
-        ? sessions.filter((s) => s.projectPath === activeProject.path)
-        : sessions,
-    [sessions, activeProject]
-  );
-
-  // ---- actions -------------------------------------------------------------
-  const addProject = useCallback(async () => {
-    if (!gmux) return;
-    setError(null);
-    try {
-      const dir = await gmux.projects.pickDirectory();
-      if (dir === null) return;
-      const project = await gmux.projects.add(dir);
-      const list = await gmux.projects.list();
-      setProjects(list);
-      setActiveProjectId(project.id);
-    } catch (err) {
-      fail(err);
-    }
-  }, [gmux, fail]);
-
-  const createSession = useCallback(async () => {
-    if (!gmux || !activeProject || creating) return;
-    const name = newName.trim();
-    if (name.length === 0) return;
-    setError(null);
-    setCreating(true);
-    try {
-      const session = await gmux.sessions.create({
-        name,
-        projectPath: activeProject.path,
-        agent: newAgent
-      });
-      setNewName('');
-      setActiveSessionId(session.id);
-    } catch (err) {
-      fail(err);
-    } finally {
-      setCreating(false);
-    }
-  }, [gmux, activeProject, creating, newName, newAgent, fail]);
-
-  const killSession = useCallback(
-    async (sessionId: string) => {
-      if (!gmux) return;
-      setError(null);
-      try {
-        await gmux.sessions.kill(sessionId);
-      } catch (err) {
-        fail(err);
+    const onDragOver = (e: DragEvent): void => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+    };
+    const onDragLeave = (e: DragEvent): void => {
+      if (!hasFiles(e)) return;
+      depth.current = Math.max(0, depth.current - 1);
+      if (depth.current === 0) setDropping(false);
+    };
+    const onDrop = (e: DragEvent): void => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      depth.current = 0;
+      setDropping(false);
+      const s = useApp.getState();
+      const file = e.dataTransfer?.files[0];
+      // Electron ≥32 removed File.path; without a preload webUtils bridge
+      // the path may be unavailable — fall back to the picker.
+      const path = (file as unknown as { path?: string } | undefined)?.path;
+      if (path !== undefined && path.length > 0) {
+        void s.addProjectPath(path);
+      } else {
+        void s.openProject();
       }
-    },
-    [gmux, fail]
-  );
+    };
 
-  const startRename = useCallback((session: Session) => {
-    setRenamingId(session.id);
-    setRenameValue(session.name);
+    window.addEventListener('dragenter', onDragEnter);
+    window.addEventListener('dragover', onDragOver);
+    window.addEventListener('dragleave', onDragLeave);
+    window.addEventListener('drop', onDrop);
+    return () => {
+      window.removeEventListener('dragenter', onDragEnter);
+      window.removeEventListener('dragover', onDragOver);
+      window.removeEventListener('dragleave', onDragLeave);
+      window.removeEventListener('drop', onDrop);
+    };
   }, []);
 
-  const commitRename = useCallback(async () => {
-    if (!gmux || renamingId === null) return;
-    const name = renameValue.trim();
-    setRenamingId(null);
-    if (name.length === 0) return;
-    setError(null);
-    try {
-      await gmux.sessions.rename({ sessionId: renamingId, name });
-    } catch (err) {
-      fail(err);
-    }
-  }, [gmux, renamingId, renameValue, fail]);
+  return dropping;
+}
 
-  // ---- render --------------------------------------------------------------
-  if (!gmux) {
+// ---------------------------------------------------------------------------
+// App
+// ---------------------------------------------------------------------------
+
+export function App(): React.JSX.Element {
+  const ready = useApp((s) => s.ready);
+  const bootBlock = useApp((s) => s.bootBlock);
+  const boot = useApp((s) => s.boot);
+  const projects = useApp((s) => s.projects);
+  const sidebarVisible = useApp((s) => s.sidebarVisible);
+
+  useKeyboardMap();
+  const dropping = useFolderDrop();
+
+  useEffect(() => {
+    void boot();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (!window.gmux) {
     return (
-      <div className="app-shell">
-        <div className="pane-placeholder">
-          <h2>gmux</h2>
-          <p>window.gmux bridge NOT available — preload failed to load.</p>
+      <div className="shell">
+        <div className="titlebar" />
+        <div className="empty">
+          <div className="empty-inner">
+            <h2 className="empty-title">gmux could not start</h2>
+            <p className="empty-body">
+              The window bridge failed to load. Quit and reopen gmux; if this
+              keeps happening, reinstall it.
+            </p>
+          </div>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="app-shell">
-      <header className="tab-spine" data-slot="project-tabs">
-        <span className="wordmark">gmux</span>
-        {projects.map((p) => (
-          <span
-            key={p.id}
-            className={`tab project-tab${p.id === activeProjectId ? ' active' : ''}`}
-            onClick={() => setActiveProjectId(p.id)}
-            title={p.path}
-          >
-            {p.name}
-          </span>
-        ))}
-        <span className="tab add-tab" onClick={() => void addProject()}>
-          + project
-        </span>
-      </header>
-
-      {error !== null ? (
-        <div className="error-banner" onClick={() => setError(null)}>
-          {error}
-        </div>
-      ) : null}
-
-      <div className="app-body">
-        <aside className="sidebar" data-slot="sidebar">
-          <div className="harness-section">
-            <h2>Sessions</h2>
-            {activeProject === null ? (
-              <p className="harness-hint">
-                Add a project (top bar) to create sessions.
-              </p>
-            ) : (
-              <div className="session-create">
-                <input
-                  type="text"
-                  placeholder="new session name"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') void createSession();
-                  }}
-                />
-                <select
-                  value={newAgent}
-                  onChange={(e) => setNewAgent(e.target.value as AgentKind)}
-                >
-                  {AGENTS.map((a) => (
-                    <option key={a} value={a}>
-                      {a}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  disabled={creating || newName.trim().length === 0}
-                  onClick={() => void createSession()}
-                >
-                  {creating ? 'creating…' : 'create'}
-                </button>
-              </div>
-            )}
-
-            <ul className="session-list">
-              {projectSessions.map((s) => (
-                <li
-                  key={s.id}
-                  className={`session-row${s.id === activeSessionId ? ' active' : ''}`}
-                  onClick={() => setActiveSessionId(s.id)}
-                >
-                  {renamingId === s.id ? (
-                    <input
-                      type="text"
-                      autoFocus
-                      value={renameValue}
-                      onChange={(e) => setRenameValue(e.target.value)}
-                      onBlur={() => void commitRename()}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') void commitRename();
-                        if (e.key === 'Escape') setRenamingId(null);
-                      }}
-                    />
-                  ) : (
-                    <>
-                      <span
-                        className={`status-dot status-${s.status}`}
-                        title={s.status}
-                      />
-                      <span
-                        className="session-name"
-                        onDoubleClick={() => startRename(s)}
-                        title={`${s.agent} · ${s.cwd}`}
-                      >
-                        {s.name}
-                      </span>
-                      <span className="session-agent">{s.agent}</span>
-                      <button
-                        type="button"
-                        className="session-kill"
-                        title="Kill session"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void killSession(s.id);
-                        }}
-                      >
-                        ×
-                      </button>
-                    </>
-                  )}
-                </li>
-              ))}
-              {projectSessions.length === 0 && activeProject !== null ? (
-                <li className="harness-hint">No sessions yet.</li>
-              ) : null}
-            </ul>
-          </div>
-        </aside>
-
-        <main className="center" data-slot="editor">
-          <div className="pane-placeholder">
-            <h2>Editor</h2>
-            <p>Monaco (diff-vs-HEAD on file click) lands here in Phase 3.</p>
-          </div>
-        </main>
-
-        <section className="terminals" data-slot="terminal-stack">
-          <TerminalHost
-            sessions={sessions}
-            visibleSessionIds={activeSessionId !== null ? [activeSessionId] : []}
-            focusedSessionId={activeSessionId}
-          />
-        </section>
+  if (bootBlock === 'tmux-missing') {
+    return (
+      <div className="shell">
+        <div className="titlebar" />
+        <TmuxMissing />
+        <Toasts />
       </div>
+    );
+  }
+
+  return (
+    <div className="shell">
+      <Titlebar />
+      {ready && projects.length === 0 ? (
+        <FirstRun />
+      ) : (
+        <div className="shell-body">
+          {sidebarVisible ? <Sidebar /> : null}
+          <TerminalRegion />
+        </div>
+      )}
+
+      <CreateSessionModal />
+      <ShortcutsOverlay />
+      <AttentionOverlay />
+      <ConfirmDialog />
+      <ContextMenu />
+      <Toasts />
+      {dropping ? <div className="drop-overlay" /> : null}
     </div>
   );
 }

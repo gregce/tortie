@@ -1,0 +1,1036 @@
+/**
+ * gmux app shell — region styles per docs/DESIGN-SPEC.md (S1–S10).
+ * Tokens only; geometry comes from the spec ([h:28] etc.).
+ */
+
+/* ---------------------------------------------------------------------------
+   S1 — Shell geometry
+--------------------------------------------------------------------------- */
+
+.shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg-canvas);
+}
+
+.shell-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   S2 — Titlebar & project tabs (38px, bg-sidebar, hairline bottom)
+--------------------------------------------------------------------------- */
+
+.titlebar {
+  display: flex;
+  align-items: center;
+  height: 38px;
+  flex: 0 0 38px;
+  padding-left: 76px; /* traffic-light inset */
+  padding-right: var(--space-5);
+  background: var(--bg-sidebar);
+  border-bottom: 1px solid var(--border);
+  -webkit-app-region: drag;
+  user-select: none;
+  z-index: var(--z-titlebar);
+}
+
+.titlebar-tabs {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.ptab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 28px;
+  max-width: 200px;
+  padding: 0 10px;
+  border-radius: var(--r-sm);
+  color: var(--text-secondary);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+  -webkit-app-region: no-drag;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.ptab .dot {
+  opacity: 0.8;
+}
+
+.ptab:hover {
+  background: var(--bg-raised);
+}
+
+.ptab.selected {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
+.ptab.selected .dot {
+  opacity: 1;
+}
+
+.ptab-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.ptab-close {
+  width: 16px;
+  height: 16px;
+  border-radius: var(--r-sm);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+
+.ptab:hover .ptab-close,
+.ptab:focus-visible .ptab-close {
+  display: inline-flex;
+}
+
+.ptab-close:hover {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
+.ptab.drop-target {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.ptab-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-left: var(--space-2);
+  border-radius: var(--r-sm);
+  color: var(--text-secondary);
+  flex: 0 0 auto;
+  -webkit-app-region: no-drag;
+}
+
+.ptab-add:hover {
+  background: var(--bg-raised);
+  color: var(--text-primary);
+}
+
+.titlebar-spacer {
+  flex: 1;
+}
+
+.bell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-sm);
+  color: var(--text-muted);
+  -webkit-app-region: no-drag;
+}
+
+.bell.has-attention {
+  color: var(--text-secondary);
+}
+
+.bell:hover {
+  background: var(--bg-raised);
+  color: var(--text-primary);
+}
+
+.bell .badge-attention {
+  position: absolute;
+  top: -3px;
+  right: -5px;
+}
+
+/* ---------------------------------------------------------------------------
+   S3 — Sidebar (stacked sections)
+--------------------------------------------------------------------------- */
+
+.sidebar {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 280px;
+  min-width: 220px;
+  max-width: 400px;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
+  flex: 0 0 auto;
+  min-height: 0;
+}
+
+.sidebar-resizer {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 5px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 2;
+}
+
+.sidebar-resizer:hover,
+.sidebar-resizer.dragging {
+  background: var(--border-strong);
+}
+
+/* Branch header [h:36] — branch slot is a stub until the git stream lands. */
+.branch-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 36px;
+  flex: 0 0 36px;
+  padding: 0 var(--space-5);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
+  min-width: 0;
+}
+
+.branch-header .branch-name {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.branch-header .branch-folder {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* Section header [h:28], sticky. */
+.section-header {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 28px;
+  flex: 0 0 28px;
+  padding: 0 var(--space-4) 0 var(--space-4);
+  background: var(--bg-sidebar);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  user-select: none;
+  z-index: 1;
+  width: 100%;
+  text-align: left;
+}
+
+.section-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 100%;
+  font: inherit;
+  color: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  border-radius: var(--r-sm);
+}
+
+.section-toggle:hover {
+  color: var(--text-secondary);
+}
+
+.section-header .section-chevron {
+  display: inline-flex;
+  color: inherit;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+
+.section-header.collapsed .section-chevron {
+  transform: rotate(-90deg);
+}
+
+.section-header .section-count {
+  font-weight: var(--weight-regular);
+  font-variant-numeric: tabular-nums;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.section-header .section-spacer {
+  flex: 1;
+}
+
+.section-sessions {
+  display: flex;
+  flex-direction: column;
+  max-height: 40%;
+  flex-shrink: 0;
+  min-height: 0;
+}
+
+.section-sessions.collapsed {
+  max-height: none;
+}
+
+.section-body {
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.section-stub {
+  padding: var(--space-3) var(--space-5) var(--space-5);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-muted);
+}
+
+.sidebar-rest {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Session rows [h:32], radius r-md, inset 4px horizontally. */
+.session-list {
+  margin: 0;
+  padding: 0 var(--space-2) var(--space-2);
+  list-style: none;
+}
+
+.session-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: 32px;
+  padding: 0 var(--space-4) 0 10px;
+  border-radius: var(--r-md);
+  cursor: default;
+  transition: background var(--dur-base) var(--ease-out);
+}
+
+.session-row:hover {
+  background: var(--bg-raised);
+}
+
+.session-row.selected {
+  background: var(--bg-active);
+}
+
+.session-row.selected::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+}
+
+.session-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-base);
+  color: var(--text-primary);
+}
+
+.session-row.attention .session-name {
+  font-weight: var(--weight-medium);
+}
+
+.session-row.ended .session-name {
+  color: var(--text-muted);
+}
+
+.session-row-space {
+  flex: 1;
+}
+
+.session-age {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  flex: 0 0 auto;
+}
+
+.session-row .session-more {
+  display: none;
+}
+
+.session-row:hover .session-age,
+.session-row:focus-within .session-age {
+  display: none;
+}
+
+.session-row:hover .session-more,
+.session-row:focus-within .session-more {
+  display: inline-flex;
+}
+
+.session-rename-input {
+  flex: 1;
+  min-width: 0;
+  height: 24px;
+  padding: 0 var(--space-3);
+  background: var(--bg-surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--r-sm);
+  color: var(--text-primary);
+  font-size: var(--text-base);
+}
+
+/* Sessions list keyboard-focus surface. */
+.session-listbox:focus-visible {
+  box-shadow: inset var(--focus-ring);
+  border-radius: var(--r-md);
+}
+
+/* ---------------------------------------------------------------------------
+   S4 — Terminal region & session strip
+--------------------------------------------------------------------------- */
+
+.center {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  background: var(--bg-canvas);
+}
+
+.strip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: 28px;
+  flex: 0 0 28px;
+  padding: 0 var(--space-5);
+  background: var(--bg-sidebar);
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+}
+
+.strip.term-focused {
+  border-bottom-color: var(--accent);
+}
+
+.strip-name {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.strip-status {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.strip-status.attention {
+  color: var(--status-attention);
+}
+
+.strip-spacer {
+  flex: 1;
+}
+
+.strip-rename-input {
+  height: 20px;
+  width: 180px;
+  padding: 0 var(--space-3);
+  background: var(--bg-surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--r-sm);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+}
+
+/* Terminal itself: zero animation ever (§5). */
+.term-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: var(--bg-canvas);
+}
+
+/* One material (§0): the xterm viewport must never flash its stylesheet
+   black — the sub-cell remainder at the bottom shows through it. And S1
+   gives the terminal 8px 12px padding. (Overrides terminal.css/xterm.css,
+   which load after this file — hence the !important.) */
+.term-body .xterm-viewport {
+  background-color: var(--bg-canvas) !important;
+}
+
+.center .term-body .gmux-terminal-mount {
+  padding: 8px 0 8px 12px !important;
+}
+
+/* Banner [h:36] docked at the BOTTOM of the terminal region (S4). */
+.banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: 36px;
+  flex: 0 0 36px;
+  padding: 0 var(--space-5);
+  font-size: var(--text-base);
+  color: var(--text-primary);
+  border-top: 1px solid var(--border);
+}
+
+.banner-warning {
+  background: var(--warning-wash);
+}
+
+.banner-error {
+  background: var(--error-wash);
+}
+
+.banner-success {
+  background: var(--success-wash);
+}
+
+.banner-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------------------
+   S6/S8 — Modals (create session, shortcuts, confirms)
+--------------------------------------------------------------------------- */
+
+.modal-scrim {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-scrim);
+  z-index: var(--z-modal);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.modal {
+  margin-top: 20vh;
+  width: 480px;
+  max-width: calc(100vw - 48px);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-3);
+  padding: var(--space-7);
+  animation: gmux-modal-in var(--dur-panel) var(--ease-out);
+}
+
+@keyframes gmux-modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.modal-title {
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  margin: 0 0 var(--space-6);
+}
+
+.modal-body {
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  color: var(--text-secondary);
+}
+
+.field {
+  margin-bottom: var(--space-6);
+}
+
+.field-label {
+  display: block;
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: var(--space-3);
+}
+
+.field-caption {
+  margin-top: var(--space-2);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+}
+
+.field-row {
+  display: flex;
+  gap: var(--space-4);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-4);
+  margin-top: var(--space-7);
+}
+
+.modal-error {
+  margin-top: var(--space-5);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--error);
+}
+
+/* Segmented control (agent picker) [h:32]. */
+.seg {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-1);
+  background: var(--bg-canvas);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+
+.seg-option {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  height: 28px;
+  border-radius: var(--r-sm);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.seg-option:hover {
+  background: var(--bg-raised);
+}
+
+.seg-option.selected {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
+.seg-option:disabled {
+  color: var(--text-disabled);
+  cursor: default;
+}
+
+/* Shortcuts overlay (S8). */
+.modal-shortcuts {
+  width: 640px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.shortcut-groups {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: var(--space-8);
+  row-gap: var(--space-6);
+}
+
+.shortcut-group-title {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0 0 var(--space-3);
+}
+
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  height: 26px;
+  gap: var(--space-4);
+}
+
+.shortcut-action {
+  flex: 1;
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------------------
+   S7 — Attention overlay (⌘J)
+--------------------------------------------------------------------------- */
+
+.attention-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-attention);
+}
+
+.attention-panel {
+  position: fixed;
+  top: 46px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 560px;
+  max-width: calc(100vw - 48px);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-3);
+  z-index: var(--z-attention);
+  animation: gmux-attention-in var(--dur-panel) var(--ease-out);
+  overflow: hidden;
+}
+
+@keyframes gmux-attention-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.attention-header {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 var(--space-6);
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border);
+}
+
+.attention-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  width: 100%;
+  height: 40px;
+  padding: 0 var(--space-6);
+  text-align: left;
+}
+
+.attention-row.selected {
+  background: var(--bg-active);
+}
+
+.attention-session {
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.attention-project {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.attention-excerpt {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.attention-age {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.attention-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: 28px;
+  padding: 0 var(--space-6);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+}
+
+.attention-empty {
+  padding: var(--space-6);
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+}
+
+/* ---------------------------------------------------------------------------
+   S9 — Empty states (type-only, quiet)
+--------------------------------------------------------------------------- */
+
+.empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  padding: var(--space-8);
+  text-align: center;
+  min-height: 0;
+}
+
+.empty-inner {
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.empty-title {
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.empty-body {
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.empty-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: var(--space-6);
+}
+
+.empty-hint {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-top: var(--space-3);
+}
+
+.quick-create {
+  width: 140px;
+  height: 32px;
+}
+
+.code-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: 32px;
+  padding: 0 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  user-select: text;
+}
+
+/* Folder-drop target (§6.1). */
+.drop-overlay {
+  position: fixed;
+  inset: 12px;
+  border: 2px dashed var(--accent);
+  border-radius: var(--r-lg);
+  background: var(--accent-wash);
+  z-index: var(--z-tooltip);
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------------------------
+   S10 — Toasts
+--------------------------------------------------------------------------- */
+
+.toasts {
+  position: fixed;
+  right: var(--space-6);
+  bottom: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  z-index: var(--z-toast);
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  width: 360px;
+  min-height: 44px;
+  padding: 10px var(--space-5);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-2);
+  animation: gmux-toast-in var(--dur-base) var(--ease-out);
+}
+
+@keyframes gmux-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.toast-icon {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.toast-icon.success {
+  color: var(--success);
+}
+
+.toast-icon.error {
+  color: var(--error);
+}
+
+.toast-icon.info {
+  color: var(--info);
+}
+
+.toast-text {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  color: var(--text-primary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.toast-overflow {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-align: right;
+  padding-right: var(--space-2);
+}
+
+/* ---------------------------------------------------------------------------
+   Context menu (interim DOM menu — DESIGN.md §3 asks for native Menu.popup;
+   swap when the main-process menu channel lands. Same visual vocabulary as
+   toasts/menus: bg-surface, r-md, shadow-2.)
+--------------------------------------------------------------------------- */
+
+.menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-tooltip);
+}
+
+.menu {
+  position: fixed;
+  min-width: 180px;
+  padding: var(--space-2);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-2);
+  z-index: var(--z-tooltip);
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  width: 100%;
+  height: 26px;
+  padding: 0 var(--space-4);
+  border-radius: var(--r-sm);
+  font-size: var(--text-base);
+  color: var(--text-primary);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.menu-item:hover,
+.menu-item.active {
+  background: var(--bg-active);
+}
+
+.menu-item.destructive {
+  color: var(--error);
+}
+
+.menu-item .menu-hint {
+  flex: 1;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.menu-sep {
+  height: 1px;
+  margin: var(--space-2) var(--space-2);
+  background: var(--border);
+}
+
+/* Editor slot (Phase 4/5 streams mount here; hidden while empty). */
+.editor-slot:empty {
+  display: none;
+}

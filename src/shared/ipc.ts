@@ -215,3 +215,52 @@ export interface GmuxTermStreamExtras {
     cb: (payload: TermExitPayload) => void
   ): Unsubscribe;
 }
+
+// ---------------------------------------------------------------------------
+// APPENDED by the app-shell stream (Phase 3) — new channels/types only,
+// nothing above was modified. All of these are OPTIONAL bridge extensions:
+// the shell feature-detects each method (`typeof fn === 'function'`) and
+// hides the corresponding affordance when absent, so the app works against
+// the frozen Phase-2 preload unchanged.
+//
+// INTEGRATOR wiring (main handler exists where noted):
+//   'sessions:discard' → core.discardSession(id) + broadcastSessions()
+//                        (src/main/ipc.ts already implements discardSession)
+//   'projects:rename'  → new manifest update (no core method yet)
+//   'app:setBadgeCount'→ app.setBadgeCount / dock.setBadge in main
+// Preload: add the matching methods per the GmuxApi pattern.
+// ---------------------------------------------------------------------------
+
+/** New invoke channels appended by the shell stream (see InvokeChannelMap). */
+export interface ShellInvokeChannelMap {
+  /**
+   * Remove an exited/restorable session row entirely (manifest delete).
+   * The §6.6 "Remove" affordance. Never valid for a live session.
+   */
+  'sessions:discard': { req: [sessionId: string]; res: void };
+  /** Rename a project tab (F2 on tab). */
+  'projects:rename': { req: [projectId: string, name: string]; res: Project };
+  /** Mirror the global NEEDS_INPUT count onto the Dock badge. */
+  'app:setBadgeCount': { req: [count: number]; res: void };
+}
+
+/**
+ * OPTIONAL extensions to GmuxApi['sessions'], feature-detected by the shell
+ * (`typeof window.gmux.sessions.discard === 'function'`).
+ */
+export interface GmuxSessionExtras {
+  /** Remove an exited/restorable session row (manifest delete). */
+  discard?(sessionId: string): Promise<void>;
+}
+
+/** OPTIONAL extensions to GmuxApi['projects'], feature-detected. */
+export interface GmuxProjectExtras {
+  /** Rename a project tab. */
+  rename?(projectId: string, name: string): Promise<Project>;
+}
+
+/** OPTIONAL app-level extras (Dock badge), feature-detected. */
+export interface GmuxAppExtras {
+  /** Set the Dock badge to the global needs-input count (0 clears). */
+  setBadgeCount?(count: number): Promise<void>;
+}
