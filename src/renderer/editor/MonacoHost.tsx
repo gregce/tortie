@@ -137,7 +137,11 @@ export function MonacoHost({ tab }: MonacoHostProps): React.JSX.Element {
           ignoreTrimWhitespace: false,
           renderSideBySide:
             (diffContainer.current.clientWidth || 0) >= SIDE_BY_SIDE_MIN_PX,
-          diffWordWrap: 'off'
+          diffWordWrap: 'off',
+          // The default diff overview ruler paints a light slider that
+          // fights the dark scrollbar vocabulary; the themed scrollbar +
+          // gutter colors already carry the where-are-the-changes signal.
+          renderOverviewRuler: false
         });
       }
       const de = diffEditor.current;

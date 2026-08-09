@@ -8,6 +8,15 @@
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; worker-src 'self' blob:"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Pre-paint ground: --bg-canvas before any stylesheet arrives, so
+         launch never flashes a foreign color. color-scheme keeps native
+         scrollbars/controls dark from the first frame. -->
+    <style>
+      html {
+        background: #131417;
+        color-scheme: dark;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

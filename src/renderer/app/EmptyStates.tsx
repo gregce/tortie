@@ -27,7 +27,7 @@ export function FirstRun(): React.JSX.Element {
           </button>
         </div>
         <div className="empty-hint">
-          <span className="key">⌘O</span>
+          or press <span className="key">⌘O</span>
         </div>
       </div>
     </div>

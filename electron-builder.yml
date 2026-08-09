@@ -1,17 +1,37 @@
-# gmux packaging — STUB. The packaging stream (Stream F) productionizes this:
-# hardened runtime, entitlements, nested Mach-O signing (bundled tmux later),
-# notarization, SMAppService login item, auto-update feed.
+# gmux packaging — local unsigned arm64 DMG + ZIP.
+#
+# Deliberately unsigned today: only an Apple Development cert is on this
+# machine, which cannot produce a distributable signature — so identity: null
+# (electron-builder ad-hoc signs arm64 so the app still launches locally).
+# Deferred to a future packaging pass: Developer ID signing, hardened runtime
+# + entitlements, notarization/stapling, nested Mach-O signing for a bundled
+# pinned tmux (today we rely on system tmux 3.6a — see BUILD-STATUS.md),
+# auto-update feed.
 appId: com.specstory.gmux
 productName: gmux
+artifactName: ${productName}-${version}-${arch}.${ext}
 directories:
   output: release
   buildResources: build
 files:
   - out/**
   - package.json
+  # electron-vite bundles ALL renderer deps into out/renderer and the main
+  # bundle only requires node-pty, better-sqlite3 and @parcel/watcher at
+  # runtime (externalizeDepsPlugin) — so keep the renderer-only production
+  # deps out of the asar. Their tiny transitive strays (scheduler, …) are
+  # not worth chasing.
+  - "!node_modules/monaco-editor/**"
+  - "!node_modules/react/**"
+  - "!node_modules/react-dom/**"
+  - "!node_modules/react-arborist/**"
+  - "!node_modules/@xterm/**"
+  - "!node_modules/zustand/**"
+  - "!node_modules/uuid/**"
 extraResources:
-  # The private tmux server config rides in Contents/Resources/gmux-tmux.conf
-  # (main resolves it via process.resourcesPath when packaged).
+  # The private tmux server config rides in Contents/Resources/gmux-tmux.conf.
+  # Main resolves it via process.resourcesPath when app.isPackaged
+  # (src/main/tmux/supervisor.ts, src/main/attach/attach-host.ts).
   - from: resources/gmux-tmux.conf
     to: gmux-tmux.conf
 asarUnpack:
@@ -19,10 +39,26 @@ asarUnpack:
 npmRebuild: true
 mac:
   category: public.app-category.developer-tools
+  icon: build/icon.icns
   target:
-    - dmg
-    - zip
-  # Apple Development cert only today — no notarization. Stream F owns this.
+    - target: dmg
+      arch: [arm64]
+    - target: zip
+      arch: [arm64]
+  # No distributable signing identity on this machine (Apple Development
+  # only). null ⇒ skip real codesigning; arm64 gets an ad-hoc signature so
+  # macOS will execute it locally. Gatekeeper on OTHER machines will warn —
+  # right-click → Open, documented in BUILD-STATUS.md.
+  identity: null
   hardenedRuntime: false
   gatekeeperAssess: false
+dmg:
+  # Plain drag-to-Applications layout; no signing, no license panel.
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
 publish: null

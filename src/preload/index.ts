@@ -16,14 +16,17 @@ import type {
   GmuxFsExtras,
   GmuxGitExtras,
   GmuxLoginItemExtras,
+  GmuxMenuExtras,
   GmuxSessionExtras,
   GmuxSessionRestoreExtras,
   GmuxTermStreamExtras,
+  MenuActionId,
   TermExitPayload,
   Unsubscribe
 } from '../shared/ipc';
 import {
   EVT_GIT_CHANGED,
+  EVT_MENU_ACTION,
   EVT_SESSIONS_CHANGED,
   EVT_STATUS_CHANGED,
   termAckChannel,
@@ -133,7 +136,7 @@ const sessions: GmuxApi['sessions'] &
   restore: (sessionId) => invoke('sessions:restore', sessionId)
 };
 
-const api: GmuxApi & GmuxLoginItemExtras = {
+const api: GmuxApi & GmuxLoginItemExtras & GmuxMenuExtras = {
   sessions,
   projects: {
     add: (path) => invoke('projects:add', path),
@@ -154,7 +157,15 @@ const api: GmuxApi & GmuxLoginItemExtras = {
   },
   // Phase 6 optional extras (top-level, feature-detected): login item.
   getLoginItem: () => invoke('app:getLoginItem'),
-  setLoginItem: (openAtLogin) => invoke('app:setLoginItem', openAtLogin)
+  setLoginItem: (openAtLogin) => invoke('app:setLoginItem', openAtLogin),
+  // Native app-menu actions (top-level, feature-detected by the shell).
+  onMenuAction: (cb) => {
+    const listener = (_e: IpcRendererEvent, action: MenuActionId): void => {
+      cb(action);
+    };
+    ipcRenderer.on(EVT_MENU_ACTION, listener);
+    return () => ipcRenderer.removeListener(EVT_MENU_ACTION, listener);
+  }
 };
 
 contextBridge.exposeInMainWorld('gmux', api);

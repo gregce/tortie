@@ -16,13 +16,7 @@ import { useGit } from '../state/git';
 import { rollupDot } from './status';
 import type { DotKind } from './status';
 import { truncateMiddle } from './format';
-import {
-  BellIcon,
-  GitBranchIcon,
-  PlusIcon,
-  SettingsIcon,
-  XIcon
-} from './icons';
+import { BellIcon, PlusIcon, SettingsIcon, XIcon } from './icons';
 
 interface TabData {
   project: Project;
@@ -43,14 +37,6 @@ function ProjectTab({
   const reorderTabs = useApp((s) => s.reorderTabs);
   const setMenu = useApp((s) => s.setMenu);
   const [dropTarget, setDropTarget] = useState(false);
-
-  // Live branch name (git:changed keeps the store fresh); null hides the
-  // chip — non-git folders and still-loading repos stay quiet.
-  const branch = useGit((s) => {
-    const status = s.repos[project.path]?.status;
-    if (status?.isRepo !== true) return null;
-    return status.branch ?? status.detachedAt ?? null;
-  });
 
   return (
     <button
@@ -95,14 +81,10 @@ function ProjectTab({
       }`}
       aria-current={selected ? 'true' : undefined}
     >
+      {/* Tab anatomy stays dot · name · badge (DESIGN.md §2.3): branch and
+          dirty count live in the sidebar header, never on the tab. */}
       <span className={`dot dot-${dot === 'none' ? 'none' : dot}`} />
       <span className="ptab-name">{truncateMiddle(project.name, 24)}</span>
-      {branch !== null ? (
-        <span className="ptab-branch" title={`On branch ${branch}`}>
-          <GitBranchIcon size={10} />
-          {truncateMiddle(branch, 18)}
-        </span>
-      ) : null}
       {attentionCount > 0 ? (
         <span className="badge-attention num">{attentionCount}</span>
       ) : null}
@@ -205,8 +187,8 @@ export function Titlebar(): React.JSX.Element {
   const gitInit = useGit((s) => s.init);
   const ensureStatus = useGit((s) => s.ensureStatus);
 
-  // Branch names on every tab: pull each project's status once; git:changed
-  // (subscribed via init) keeps them live afterwards.
+  // Warm the git store for every open project (status is ready the moment a
+  // tab is switched to); git:changed (subscribed via init) keeps it live.
   useEffect(() => {
     gitInit();
     for (const p of projects) ensureStatus(p.path);

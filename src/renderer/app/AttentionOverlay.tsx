@@ -120,7 +120,7 @@ export function AttentionOverlay(): React.JSX.Element | null {
             </div>
             <div className="attention-footer">
               <span className="key">↩</span> jump to session
-              <span className="key">esc</span> close
+              <span className="key">Esc</span> close
             </div>
           </>
         )}

@@ -29,6 +29,7 @@ import { registerFsIpc } from './fs';
 import { disposeGitIpc, registerGitIpc } from './git';
 import { getGmuxCore, registerIpcHandlers, shutdownGmuxCore } from './ipc';
 import type { GmuxCore } from './ipc';
+import { installAppMenu } from './menu';
 import { registerRestoreIpc, snapshotPath, stripAnsi } from './restore';
 import * as tmux from './tmux';
 
@@ -109,7 +110,9 @@ function createWindow(): BrowserWindow {
     minHeight: 500,
     title: 'gmux',
     show: false,
-    backgroundColor: '#1e1e1e',
+    // --bg-canvas: pre-paint fill must match the app so launch/resize never
+    // flashes a foreign color (DESIGN.md §0: one material).
+    backgroundColor: '#131417',
     titleBarStyle: 'hiddenInset',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -564,6 +567,11 @@ async function runShot(outPath: string): Promise<void> {
 app.whenReady().then(async () => {
   const smoke = process.env['GMUX_SMOKE'];
   const shot = process.env['GMUX_SHOT'];
+
+  // Native menu bar (About / Edit roles for terminal copy-paste / every
+  // DESIGN.md §4 shortcut mirrored; ⌘W = close editor tab, never the
+  // window). Installed in every mode — harness windows are unaffected.
+  installAppMenu();
 
   // Handlers are lazy (each awaits getGmuxCore()), so registering them in
   // every mode is free and keeps harness renderers from hitting

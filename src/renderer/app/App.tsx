@@ -5,13 +5,16 @@
  * terminal region. Layers: context menu → attention overlay → modals →
  * toasts. Esc closes the topmost layer (§4).
  *
- * NOTE for the integrator: the native macOS menu must mirror every shortcut
- * here (DESIGN.md §2.1) — that lives in src/main (not this stream). Until
- * then Electron's default menu still owns ⌘W/⌘Q behavior.
+ * The native macOS menu (src/main/menu.ts) registers the ⌘-chord
+ * accelerators and forwards them here as menu actions (useMenuActions) —
+ * menu accelerators fire before window keydown, so the keydown map below is
+ * the fallback for chords the menu does not register (⌘1…⌘9, ⌘⇧]/⌘⇧[, ⌘↩).
  */
 
 import React, { useEffect, useRef, useState } from 'react';
+import type { GmuxMenuExtras, MenuActionId } from '@shared/ipc';
 import { useApp } from '../state/store';
+import { useEditor } from '../editor/store';
 import { Titlebar } from './Titlebar';
 import { Sidebar } from './Sidebar';
 import { TerminalRegion } from './TerminalRegion';
@@ -129,8 +132,9 @@ function useKeyboardMap(): void {
           s.toggleSidebar();
           return;
         case 'w':
-          // ⌘W closes editor tabs only (none in this phase) — NEVER a
-          // session or project. Swallow so nothing else acts on it.
+          // ⌘W closes editor tabs only — NEVER a session or project.
+          // Swallowed here; the editor panel's bubble-phase listener (or
+          // the native menu's Close Editor Tab) performs the close.
           e.preventDefault();
           return;
         default:
@@ -164,6 +168,142 @@ function useKeyboardMap(): void {
       });
     };
   }, []);
+}
+
+// ---------------------------------------------------------------------------
+// Native menu actions (src/main/menu.ts → EVT_MENU_ACTION → here). Each case
+// mirrors the equivalent keydown branch — the menu owns those accelerators.
+// ---------------------------------------------------------------------------
+
+/** Hand the keyboard to the visible terminal (menu-driven close flows). */
+function focusTerminal(): void {
+  document
+    .querySelector<HTMLTextAreaElement>('.gmux-terminal-mount textarea')
+    ?.focus();
+}
+
+function runMenuAction(action: MenuActionId): void {
+  const s = useApp.getState();
+  const layerOpen =
+    s.menu !== null ||
+    s.confirm !== null ||
+    s.createOpen ||
+    s.shortcutsOpen ||
+    s.attentionOpen;
+
+  switch (action) {
+    case 'new-session':
+      if (s.projects.length === 0) {
+        s.toast('info', 'Open a project first (⌘O)');
+      } else if (s.bootBlock === null) {
+        s.setCreateOpen(true);
+      }
+      return;
+    case 'rename-session': {
+      if (layerOpen || s.renamingSessionId !== null) return;
+      const target = s.activeSession();
+      if (target) s.setRenaming(target.id);
+      return;
+    }
+    case 'end-session': {
+      const target = s.activeSession();
+      if (!target) return;
+      if (target.status === 'exited' || target.status === 'restorable') return;
+      s.endSession(target.id);
+      return;
+    }
+    case 'next-session':
+      s.cycleSession(1);
+      return;
+    case 'prev-session':
+      s.cycleSession(-1);
+      return;
+    case 'open-project':
+      void s.openProject();
+      return;
+    case 'close-project':
+      if (s.activeProjectId !== null) s.closeProject(s.activeProjectId);
+      return;
+    case 'next-project':
+      s.cycleProject(1);
+      return;
+    case 'prev-project':
+      s.cycleProject(-1);
+      return;
+    case 'save-file': {
+      const ed = useEditor.getState();
+      if (ed.panelOpen && ed.activeTab() !== null) void ed.save();
+      return;
+    }
+    case 'close-editor-tab': {
+      const ed = useEditor.getState();
+      if (!ed.panelOpen) return;
+      ed.closeActive();
+      if (useEditor.getState().tabs.length === 0) focusTerminal();
+      return;
+    }
+    case 'toggle-editor': {
+      const ed = useEditor.getState();
+      const wasOpen = ed.panelOpen;
+      ed.togglePanel();
+      if (wasOpen) focusTerminal();
+      return;
+    }
+    case 'toggle-sidebar':
+      s.toggleSidebar();
+      return;
+    case 'attention':
+      s.setAttentionOpen(!s.attentionOpen);
+      return;
+    case 'shortcuts':
+      s.setShortcutsOpen(!s.shortcutsOpen);
+      return;
+    case 'settings':
+      // The settings surface is the titlebar gear's menu (one setting in
+      // v1); ⌘, routes through it so the shortcut stays honest.
+      document
+        .querySelector<HTMLButtonElement>('.titlebar-settings')
+        ?.click();
+      return;
+  }
+}
+
+function useMenuActions(): void {
+  useEffect(() => {
+    const bridge = window.gmux as
+      | (typeof window.gmux & GmuxMenuExtras)
+      | undefined;
+    if (typeof bridge?.onMenuAction !== 'function') return;
+    return bridge.onMenuAction(runMenuAction);
+  }, []);
+}
+
+// ---------------------------------------------------------------------------
+// Window title — "project · session" (Mission Control, app switcher, Dock).
+// ---------------------------------------------------------------------------
+
+function useWindowTitle(): void {
+  const projects = useApp((s) => s.projects);
+  const activeProjectId = useApp((s) => s.activeProjectId);
+  const sessions = useApp((s) => s.sessions);
+  const activeSessionByProject = useApp((s) => s.activeSessionByProject);
+
+  useEffect(() => {
+    const project = projects.find((p) => p.id === activeProjectId) ?? null;
+    let title = 'gmux';
+    if (project) {
+      const inProject = sessions.filter(
+        (x) => x.projectPath === project.path
+      );
+      const selectedId =
+        (activeProjectId !== null
+          ? activeSessionByProject[activeProjectId]
+          : undefined) ?? inProject[inProject.length - 1]?.id;
+      const session = inProject.find((x) => x.id === selectedId) ?? null;
+      title = session ? `${project.name} · ${session.name}` : project.name;
+    }
+    document.title = title;
+  }, [projects, activeProjectId, sessions, activeSessionByProject]);
 }
 
 // ---------------------------------------------------------------------------
@@ -236,6 +376,8 @@ export function App(): React.JSX.Element {
   const sidebarVisible = useApp((s) => s.sidebarVisible);
 
   useKeyboardMap();
+  useMenuActions();
+  useWindowTitle();
   const dropping = useFolderDrop();
 
   useEffect(() => {

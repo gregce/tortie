@@ -10,6 +10,13 @@
   box-sizing: border-box;
 }
 
+html {
+  /* Dark-only v1: native scrollbars, form controls, and the pre-paint
+     ground all render dark (DESIGN.md §0 — one material). */
+  color-scheme: dark;
+  background: var(--bg-canvas);
+}
+
 html,
 body,
 #root {
@@ -31,6 +38,29 @@ body {
 
 ::selection {
   background: var(--accent-wash);
+}
+
+/* Scrollbars — quiet, track-less, same vocabulary everywhere (sidebar
+   sections, tree, editor tab strip, xterm viewport). */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border: 3px solid transparent;
+  border-radius: 5px;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--text-disabled);
 }
 
 /* Every interactive element: :focus-visible → focus ring (DESIGN.md §1.10). */

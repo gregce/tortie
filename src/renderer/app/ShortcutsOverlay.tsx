@@ -49,6 +49,7 @@ const GROUPS: { title: string; rows: Row[] }[] = [
       { keys: ['⌘J'], action: 'Show sessions that need input' },
       { keys: ['⌘B'], action: 'Toggle sidebar' },
       { keys: ['⌘/'], action: 'Keyboard shortcuts' },
+      { keys: ['⌘,'], action: 'Settings' },
       { keys: ['Esc'], action: 'Close topmost layer' },
       { keys: ['⌘Q'], action: 'Quit — sessions keep running' }
     ]

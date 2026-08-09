@@ -52,7 +52,40 @@ export function ContextMenu(): React.JSX.Element | null {
           if (e.key === 'Escape') {
             e.stopPropagation();
             setMenu(null);
+            return;
           }
+          // ↑↓ move between enabled items (native menus do; the DOM interim
+          // must too), Home/End jump.
+          if (
+            e.key !== 'ArrowDown' &&
+            e.key !== 'ArrowUp' &&
+            e.key !== 'Home' &&
+            e.key !== 'End'
+          ) {
+            return;
+          }
+          e.preventDefault();
+          const items = Array.from(
+            ref.current?.querySelectorAll<HTMLButtonElement>(
+              '.menu-item:not(:disabled)'
+            ) ?? []
+          );
+          if (items.length === 0) return;
+          const current = items.findIndex(
+            (el) => el === document.activeElement
+          );
+          let next = 0;
+          if (e.key === 'ArrowDown') {
+            next = current === -1 ? 0 : (current + 1) % items.length;
+          } else if (e.key === 'ArrowUp') {
+            next =
+              current === -1
+                ? items.length - 1
+                : (current - 1 + items.length) % items.length;
+          } else if (e.key === 'End') {
+            next = items.length - 1;
+          }
+          items[next]?.focus();
         }}
       >
         {menu.items.map((item, i) =>

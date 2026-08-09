@@ -402,6 +402,43 @@ export interface GmuxLoginItemExtras {
   setLoginItem?(openAtLogin: boolean): Promise<{ openAtLogin: boolean }>;
 }
 
+// ---------------------------------------------------------------------------
+// APPENDED by the polish stream (native app menu) — new channel/types only,
+// nothing above was modified. The native macOS menu (src/main/menu.ts) owns
+// the ⌘-chord accelerators it registers (menu accelerators fire before the
+// renderer sees the keydown), so every registered item forwards its action to
+// the renderer over this event channel; the renderer's own keydown handlers
+// stay as the fallback when a chord is not menu-registered.
+// ---------------------------------------------------------------------------
+
+/** Main → renderer: a native menu item was activated. */
+export const EVT_MENU_ACTION = 'ui:menuAction' as const;
+
+/** Actions the native app menu can forward to the renderer. */
+export type MenuActionId =
+  | 'new-session'
+  | 'rename-session'
+  | 'end-session'
+  | 'next-session'
+  | 'prev-session'
+  | 'open-project'
+  | 'close-project'
+  | 'next-project'
+  | 'prev-project'
+  | 'save-file'
+  | 'close-editor-tab'
+  | 'toggle-editor'
+  | 'toggle-sidebar'
+  | 'attention'
+  | 'shortcuts'
+  | 'settings';
+
+/** OPTIONAL top-level extra on window.gmux, feature-detected by the shell. */
+export interface GmuxMenuExtras {
+  /** Subscribe to native app-menu actions. */
+  onMenuAction?(cb: (action: MenuActionId) => void): Unsubscribe;
+}
+
 /** Every channel this build's preload can invoke (frozen + all appends). */
 export type AllInvokeChannelMap = ExtendedInvokeChannelMap &
   RestoreInvokeChannelMap;
