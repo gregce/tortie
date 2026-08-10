@@ -7,8 +7,14 @@
  * visible terminal consumes.
  *
  * Heuristics (v1, deliberately simple — see UPGRADE PATH below):
- *  - BEL (0x07) in the stream        → NEEDS_INPUT immediately. Agents ring
- *    the terminal bell when they block on a permission prompt.
+ *  - BEL (0x07) in the stream        → NEEDS_INPUT immediately, but ONLY for
+ *    agent sessions (agents ring the terminal bell when they block on a
+ *    permission prompt; plain shells beep on tab-completion/ZLE noise and
+ *    must never demand attention), and never within
+ *    BEL_INPUT_IGNORE_MS of the user's own input to that session — with
+ *    tmux `mouse on`, clicks become mouse reports, zsh beeps at the
+ *    un-decodable bytes, and the echoed BEL is self-inflicted, not a
+ *    request for attention.
  *  - any output                      → WORKING (and clears NEEDS_INPUT).
  *  - silence > 30s after a BURST     → NEEDS_INPUT for agent sessions: a
  *    burst of output followed by sustained silence usually means the agent
@@ -43,6 +49,12 @@ export const BURST_BYTES = 512; // bytes within the window that count as a burst
 export const BURST_WINDOW_MS = 2_000;
 export const IDLE_AFTER_MS = 5_000; // quiet trickle → idle
 export const NEEDS_INPUT_AFTER_BURST_MS = 30_000; // silence after burst → needs input
+/**
+ * A BEL arriving within this window after the user's own input (keystrokes
+ * or mouse reports) to that session is self-inflicted — ignored for ALL
+ * session kinds, agents included.
+ */
+export const BEL_INPUT_IGNORE_MS = 2_000;
 
 const BEL = 0x07;
 const EXCERPT_MAX = 120;
@@ -74,6 +86,8 @@ interface WatchState {
   lastDataAt: number;
   /** True when the most recent output activity qualified as a burst. */
   burstActive: boolean;
+  /** Epoch ms of the user's last input to this session (-∞ = never). */
+  lastUserInputAt: number;
   status: DetectedStatus | null;
   timer: ReturnType<typeof setTimeout> | null;
   /** Undecoded tail of the stream, for excerpt extraction. */
@@ -106,6 +120,7 @@ export class StatusDetector {
       windowBytes: 0,
       lastDataAt: 0,
       burstActive: false,
+      lastUserInputAt: Number.NEGATIVE_INFINITY,
       status: null,
       timer: null,
       tail: '',
@@ -127,12 +142,16 @@ export class StatusDetector {
   }
 
   /**
-   * The user sent keystrokes to this session — whatever it was waiting for,
-   * it has an answer now. Clears NEEDS_INPUT without waiting for echo.
+   * The user sent keystrokes/mouse reports to this session — whatever it was
+   * waiting for, it has an answer now. Clears NEEDS_INPUT without waiting
+   * for echo, and opens a BEL_INPUT_IGNORE_MS window during which echoed
+   * BELs are treated as self-inflicted rather than as attention requests.
    */
   noteUserInput(sessionId: string): void {
     const state = this.watches.get(sessionId);
-    if (!state || state.status !== 'needs_input') return;
+    if (!state) return;
+    state.lastUserInputAt = this.now();
+    if (state.status !== 'needs_input') return;
     this.setStatus(sessionId, state, 'working');
     this.schedule(sessionId, state);
   }
@@ -159,7 +178,11 @@ export class StatusDetector {
     }
     if (state.windowBytes >= BURST_BYTES) state.burstActive = true;
 
-    // BEL → the loudest, most direct "needs you" signal we have today.
+    // BEL → the loudest, most direct "needs you" signal we have today —
+    // but only when an AGENT rings it unprovoked. Shell beeps
+    // (tab-completion, ZLE rejecting mouse reports) never demand attention,
+    // and any BEL within BEL_INPUT_IGNORE_MS of the user's own input is a
+    // self-inflicted echo for every session kind.
     let sawBel = false;
     for (let i = 0; i < chunk.byteLength; i++) {
       if (chunk[i] === BEL) {
@@ -170,7 +193,12 @@ export class StatusDetector {
 
     this.extractExcerpt(sessionId, state, chunk);
 
-    if (sawBel) {
+    const belNeedsInput =
+      sawBel &&
+      state.agent !== 'shell' &&
+      at - state.lastUserInputAt > BEL_INPUT_IGNORE_MS;
+
+    if (belNeedsInput) {
       this.setStatus(sessionId, state, 'needs_input');
     } else {
       this.setStatus(sessionId, state, 'working');

@@ -5,8 +5,13 @@
  * configured ONLY by resources/gmux-tmux.conf — never the user's own tmux
  * server or ~/.tmux.conf (FINAL-REPORT §2.3). This module:
  *
- *   - locates the tmux binary (GUI-launched Electron inherits a minimal PATH)
- *   - resolves the conf path for dev vs packaged builds
+ *   - resolves binary + conf via ./resolve (the ONE resolution module)
+ *   - injects the user's real login-shell PATH into the server environment
+ *     at boot, BEFORE any session ops — so agent CLIs in ~/.local/bin etc.
+ *     spawn correctly inside panes (Phase 9.2 Bug A)
+ *   - guarantees a UTF-8 locale in the server environment (Phase 9.2 Bug C:
+ *     launchd launches carry no LANG, tmux then draws every non-ASCII cell
+ *     as `_` and pane apps degrade to ASCII — see ./env.ts)
  *   - starts the server idempotently (`start-server`) and health-checks it
  *   - provides `execTmux()`, the one door every other tmux module calls
  *     through, with structured error classification
@@ -18,10 +23,14 @@
 
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { delimiter, join } from 'node:path';
 import { promisify } from 'node:util';
-import { app } from 'electron';
+import { DEFAULT_UTF8_LANG, hasUtf8Locale } from './env';
 import { classifyTmuxFailure, gmuxError } from './errors';
+import { findTmuxBinary, getUserPath, resolveConfPath } from './resolve';
+
+// Re-exported so the barrel (index.ts) and existing callers keep one import
+// surface; the implementations live in ./resolve (growth guardrail 3).
+export { findTmuxBinary, resolveConfPath } from './resolve';
 
 const execFileP = promisify(execFile);
 
@@ -39,36 +48,6 @@ export interface TmuxContext {
   socket: string;
   /** Absolute path to gmux-tmux.conf, passed as `-f` on every invocation. */
   confPath: string;
-}
-
-/** Resolve resources/gmux-tmux.conf for dev vs packaged builds. */
-export function resolveConfPath(): string {
-  // Packaged: electron-builder copies resources/gmux-tmux.conf → Resources/.
-  // Dev / `electron .`: repo-root resources/.
-  return app.isPackaged
-    ? join(process.resourcesPath, 'gmux-tmux.conf')
-    : join(app.getAppPath(), 'resources', 'gmux-tmux.conf');
-}
-
-/**
- * Locate tmux. GUI-launched Electron apps inherit a minimal PATH (no
- * /opt/homebrew/bin), so probe known locations first, then scan PATH.
- */
-export function findTmuxBinary(): string | null {
-  const known = [
-    '/opt/homebrew/bin/tmux',
-    '/usr/local/bin/tmux',
-    '/usr/bin/tmux'
-  ];
-  for (const candidate of known) {
-    if (existsSync(candidate)) return candidate;
-  }
-  for (const dir of (process.env.PATH ?? '').split(delimiter)) {
-    if (dir.length === 0) continue;
-    const candidate = join(dir, 'tmux');
-    if (existsSync(candidate)) return candidate;
-  }
-  return null;
 }
 
 let cachedContext: TmuxContext | null = null;
@@ -174,11 +153,30 @@ let ensureInFlight: Promise<TmuxContext> | null = null;
  * gmux-tmux.conf only when it actually creates the server — an already
  * running server keeps its config, which is exactly what we want.
  *
+ * Bug A (Phase 9.2): before any session can be created, the user's real
+ * login-shell PATH is captured and injected — into THIS process (so probes
+ * and PTYs inherit it) and into the tmux server's global environment (so
+ * every pane, and everything agents spawn inside panes, sees it).
+ *
  * @throws GmuxError TMUX_NOT_FOUND | TMUX_UNREACHABLE
  */
 export function ensureServer(): Promise<TmuxContext> {
   if (ensureInFlight !== null) return ensureInFlight;
   const attempt = (async () => {
+    // PATH first: findTmuxBinary/getTmuxContext scan PATH too, and a tmux
+    // in an exotic login-shell dir should still be found.
+    const userPath = await getUserPath();
+    process.env['PATH'] = userPath;
+
+    // Bug C: guarantee a UTF-8 locale BEFORE the server exists — a server
+    // spawned from a locale-less launchd env passes C/POSIX to every pane,
+    // so zsh/vim/agent TUIs degrade to ASCII and tmux substitutes `_` for
+    // non-ASCII glyphs on locale-less clients. Never overrides a real one.
+    if (!hasUtf8Locale(process.env)) {
+      process.env['LANG'] = DEFAULT_UTF8_LANG;
+    }
+    const lang = process.env['LANG'];
+
     const ctx = getTmuxContext();
     let lastFailure = '';
     // start-server is idempotent; health-check with short retries because a
@@ -187,6 +185,15 @@ export function ensureServer(): Promise<TmuxContext> {
       try {
         await execTmux(['start-server']);
         await execTmux(['list-sessions', '-F', '#{session_id}']);
+        // BEFORE any session op: new panes inherit the server's global
+        // environment, so agents (and their child git/node/etc.) resolve.
+        // Idempotent; also repairs long-lived servers started pre-fix.
+        await execTmux(['set-environment', '-g', 'PATH', userPath]);
+        // Bug C, same repair logic: future panes must see a UTF-8 locale
+        // even on a server that booted from a locale-less launchd env.
+        if (lang !== undefined && lang.length > 0) {
+          await execTmux(['set-environment', '-g', 'LANG', lang]);
+        }
         return ctx;
       } catch (err) {
         lastFailure = err instanceof Error ? err.message : String(err);

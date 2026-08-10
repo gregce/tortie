@@ -20,7 +20,11 @@ import React, {
 } from 'react';
 import type { AgentKind, Session } from '@shared/types';
 import { TerminalHost } from '../terminal';
-import { isAgentAvailable, useAgentAvailability } from '../state/agents';
+import {
+  AGENT_INSTALL_COMMANDS,
+  isAgentAvailable,
+  useAgentAvailability
+} from '../state/agents';
 import { effectiveStatusOf, useApp } from '../state/store';
 import type { MenuItemSpec } from '../state/store';
 import { statusVisual } from './status';
@@ -605,6 +609,12 @@ export function TerminalRegion(): React.JSX.Element {
     exited && active.exitCode !== undefined && active.exitCode !== 0
       ? active.exitCode
       : null;
+  // Bug A (Phase 9.2): exit 127 on an agent session = its command wasn't
+  // found. Explain and hand over the recovery instead of a bare exit code.
+  const commandNotFound =
+    failedExit === 127 && active !== null && active.agent !== 'shell'
+      ? active.agent
+      : null;
 
   // The band renders in EVERY state (zero sessions included) so the S1
   // header hairline never breaks: top → tab strip (just ＋˅ when empty);
@@ -651,21 +661,32 @@ export function TerminalRegion(): React.JSX.Element {
         <div className={`empty${failedExit !== null ? ' empty-failed' : ''}`}>
           <div className="empty-inner">
             <h2 className="empty-title">
-              {failedExit !== null
-                ? `Session ended unexpectedly (exit ${failedExit})`
-                : exited
-                  ? 'Session ended'
-                  : 'Ready to restore'}
+              {commandNotFound !== null
+                ? `${commandNotFound} could not be found`
+                : failedExit !== null
+                  ? `Session ended unexpectedly (exit ${failedExit})`
+                  : exited
+                    ? 'Session ended'
+                    : 'Ready to restore'}
             </h2>
             <p className="empty-body">
-              {exited
-                ? 'Restarting opens a fresh session with the same name and directory.'
-                : canRestore()
+              {commandNotFound !== null
+                ? `The session ended right away because the ${commandNotFound} ` +
+                  'command is not installed (or not where your shell expects ' +
+                  'it). Install it, then restart the session.'
+                : exited
+                  ? 'Restarting opens a fresh session with the same name and directory.'
+                  : canRestore()
                   ? (active.resumeArgv?.length ?? 0) > 0
                     ? 'Restore brings back its saved scrollback and types the resume command for you — nothing runs until you press Enter.'
                     : 'Restore reopens it in the same directory with its saved scrollback above a fresh prompt.'
                   : 'This session is saved but not running — restart it to pick up in the same directory.'}
             </p>
+            {commandNotFound !== null ? (
+              <code className="agent-missing-cmd">
+                {AGENT_INSTALL_COMMANDS[commandNotFound]}
+              </code>
+            ) : null}
             <div className="empty-actions">
               {restorable && canRestore() ? (
                 <button

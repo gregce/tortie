@@ -47,6 +47,10 @@ export function CreateSessionModal(): React.JSX.Element | null {
   const [cwd, setCwd] = useState('');
   const [dirError, setDirError] = useState<string | null>(null);
   const [genericError, setGenericError] = useState<string | null>(null);
+  // Agent whose binary create-time resolution POSITIVELY reported missing
+  // (AGENT_NOT_FOUND) — shows the same install-command block availability
+  // uses, because the boot-time probe can be stale (e.g. CLI uninstalled).
+  const [notFoundAgent, setNotFoundAgent] = useState<AgentKind | null>(null);
   const [creating, setCreating] = useState(false);
   const nameRef = useRef<HTMLInputElement | null>(null);
   const avail = useAgentAvailability();
@@ -63,6 +67,7 @@ export function CreateSessionModal(): React.JSX.Element | null {
     setCwd(project?.path ?? '');
     setDirError(null);
     setGenericError(null);
+    setNotFoundAgent(null);
     setCreating(false);
     requestAnimationFrame(() => nameRef.current?.select());
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -120,6 +125,11 @@ export function CreateSessionModal(): React.JSX.Element | null {
           payload.message.toLowerCase().includes('working directory')
         ) {
           setDirError('Directory not found');
+        } else if (payload?.code === 'AGENT_NOT_FOUND') {
+          // Friendly state, never a dead pane (Bug A): name the problem and
+          // hand over the recovery (install command block below the agents).
+          if (agent !== 'shell') setNotFoundAgent(agent);
+          setGenericError(payload.message);
         } else {
           setGenericError(errorText(err));
         }
@@ -191,9 +201,11 @@ export function CreateSessionModal(): React.JSX.Element | null {
             })}
           </div>
           {/* §6.5 — a missing agent is a friendly state, not a spawn error:
-              name the fact, hand over the install command, one-click copy. */}
+              name the fact, hand over the install command, one-click copy.
+              Includes agents create-time resolution reported missing even
+              when the (cached) boot probe still thinks they exist. */}
           {(['claude', 'codex'] as const)
-            .filter((a) => !avail[a])
+            .filter((a) => !avail[a] || notFoundAgent === a)
             .map((a) => (
               <div key={a} className="agent-missing">
                 <span className="agent-missing-text">

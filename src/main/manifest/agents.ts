@@ -64,20 +64,27 @@ export interface AgentLaunchSpec {
  * @param extraArgs  user-supplied extra flags (e.g. --model, --add-dir).
  *                   Recorded into BOTH argv and resumeArgv because resume
  *                   does not re-apply launch flags (research 02).
+ * @param binPath    RESOLVED absolute path of the agent binary (Bug A: the
+ *                   manifest stores absolute paths in argv AND resume_argv
+ *                   so restores survive PATH drift). The caller resolves via
+ *                   src/main/tmux/resolve.ts; bare names remain the default
+ *                   only for tests/legacy callers.
  */
 export function buildLaunchSpec(
   agent: AgentKind,
-  extraArgs: readonly string[] = []
+  extraArgs: readonly string[] = [],
+  binPath?: string
 ): AgentLaunchSpec {
   switch (agent) {
     case 'claude': {
       // Strongest primitive in the field: deterministic pre-assignment.
       const uuid = randomUUID();
+      const bin = binPath ?? 'claude';
       return {
         agent,
         agentSessionId: uuid,
-        argv: ['claude', '--session-id', uuid, ...extraArgs],
-        resumeArgv: claudeResumeArgv(uuid, extraArgs),
+        argv: [bin, '--session-id', uuid, ...extraArgs],
+        resumeArgv: claudeResumeArgv(uuid, extraArgs, bin),
         idCapture: 'preassigned'
       };
     }
@@ -86,12 +93,12 @@ export function buildLaunchSpec(
       // watchForRollout(). resumeArgv stays undefined until then.
       return {
         agent,
-        argv: ['codex', ...extraArgs],
+        argv: [binPath ?? 'codex', ...extraArgs],
         idCapture: 'rollout-watch'
       };
     case 'shell': {
       // GUI-launched Electron inherits a minimal env; SHELL may be unset.
-      const shell = process.env['SHELL'] ?? '/bin/zsh';
+      const shell = binPath ?? process.env['SHELL'] ?? '/bin/zsh';
       return {
         agent,
         argv: [shell, ...extraArgs],
@@ -104,17 +111,19 @@ export function buildLaunchSpec(
 /** `claude --resume <uuid>` + the original extra flags (not auto-restored). */
 export function claudeResumeArgv(
   sessionId: string,
-  extraArgs: readonly string[] = []
+  extraArgs: readonly string[] = [],
+  bin = 'claude'
 ): string[] {
-  return ['claude', '--resume', sessionId, ...extraArgs];
+  return [bin, '--resume', sessionId, ...extraArgs];
 }
 
 /** `codex resume <uuid>` + the original extra flags. */
 export function codexResumeArgv(
   sessionId: string,
-  extraArgs: readonly string[] = []
+  extraArgs: readonly string[] = [],
+  bin = 'codex'
 ): string[] {
-  return ['codex', 'resume', sessionId, ...extraArgs];
+  return [bin, 'resume', sessionId, ...extraArgs];
 }
 
 // ---------------------------------------------------------------------------
@@ -149,6 +158,11 @@ export interface RolloutWatchOptions {
    * cwd-confirmed rival before being accepted. Default 3000 ms.
    */
   graceMs?: number;
+  /**
+   * Binary used in the ready-made resumeArgv — pass the session's recorded
+   * ABSOLUTE argv[0] (Bug A: resume must survive PATH drift). Default 'codex'.
+   */
+  resumeBin?: string;
 }
 
 export interface RolloutWatch {
@@ -317,7 +331,7 @@ export function watchForRollout(
     settle({
       sessionId: c.sessionId,
       rolloutPath: c.path,
-      resumeArgv: codexResumeArgv(c.sessionId)
+      resumeArgv: codexResumeArgv(c.sessionId, [], options.resumeBin ?? 'codex')
     });
   };
 

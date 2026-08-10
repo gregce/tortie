@@ -24,15 +24,13 @@
  *
  * NOTE: we run the SYSTEM tmux (3.6a at build time); bundling a pinned tmux
  * inside gmux.app is out of scope today (FINAL-REPORT §5 Stream A1 owns the
- * shipping plan). Binary resolution below should be superseded by the tmux
- * stream's supervisor via AttachHostOptions.tmuxBin.
+ * shipping plan). Binary/conf resolution lives in src/main/tmux/resolve.ts
+ * (growth guardrail 3) — AttachHostOptions.tmuxBin normally overrides.
  */
 
-import { app, ipcMain } from 'electron';
+import { ipcMain } from 'electron';
 import type { IpcMainEvent, WebContents } from 'electron';
-import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
 import * as nodePty from 'node-pty';
 import type { IPty } from 'node-pty';
 import {
@@ -43,6 +41,8 @@ import {
 } from '@shared/ipc';
 import type { TermExitPayload } from '@shared/ipc';
 import type { GmuxErrorPayload } from '@shared/types';
+import { withUtf8Locale } from '../tmux/env';
+import { findTmuxBinary, resolveConfPath } from '../tmux/resolve';
 
 // ---------------------------------------------------------------------------
 // Tuning constants
@@ -77,33 +77,6 @@ function gmuxError(
 ): Error {
   const payload: GmuxErrorPayload = { code, message, detail };
   return new Error(JSON.stringify(payload));
-}
-
-// ---------------------------------------------------------------------------
-// tmux binary / conf resolution
-// ---------------------------------------------------------------------------
-
-/**
- * GUI-launched Electron apps inherit a minimal PATH (no /opt/homebrew/bin),
- * so probe known locations. The tmux stream's supervisor is the intended
- * owner of this decision — pass AttachHostOptions.tmuxBin to override.
- */
-function findTmux(): string | null {
-  const candidates = [
-    '/opt/homebrew/bin/tmux',
-    '/usr/local/bin/tmux',
-    '/usr/bin/tmux'
-  ];
-  for (const c of candidates) {
-    if (existsSync(c)) return c;
-  }
-  return null;
-}
-
-function defaultConfPath(): string {
-  return app.isPackaged
-    ? join(process.resourcesPath, 'gmux-tmux.conf')
-    : join(app.getAppPath(), 'resources', 'gmux-tmux.conf');
 }
 
 // ---------------------------------------------------------------------------
@@ -191,7 +164,7 @@ export class AttachHost {
     // Replace any existing client (renderer reloaded, or re-attach).
     this.detach(req.sessionId);
 
-    const tmuxBin = this.opts.tmuxBin ?? findTmux();
+    const tmuxBin = this.opts.tmuxBin ?? findTmuxBinary();
     if (!tmuxBin) {
       throw gmuxError(
         'TMUX_NOT_FOUND',
@@ -199,7 +172,7 @@ export class AttachHost {
         'brew install tmux'
       );
     }
-    const confPath = this.opts.confPath ?? defaultConfPath();
+    const confPath = this.opts.confPath ?? resolveConfPath();
     const socketName = this.opts.socketName ?? 'gmux';
 
     let pty: IPty;
@@ -207,6 +180,12 @@ export class AttachHost {
       pty = nodePty.spawn(
         tmuxBin,
         [
+          // Force UTF-8 output for this client (Bug C): tmux classifies a
+          // client by string-scanning LC_ALL/LC_CTYPE/LANG for "UTF-8" and
+          // draws `_` for every non-ASCII cell on a non-UTF-8 client —
+          // launchd launches carry no locale at all. xterm.js is always
+          // UTF-8, so say so unconditionally.
+          '-u',
           '-L',
           socketName,
           '-f',
@@ -221,7 +200,10 @@ export class AttachHost {
           rows: sanitizeRows(req.rows),
           cwd: req.cwd ?? homedir(),
           env: {
-            ...(process.env as Record<string, string>),
+            // Bug C: guarantee the client env advertises UTF-8 too (status
+            // line, locale-sensitive client paths) — never overrides a
+            // locale the user actually has.
+            ...withUtf8Locale(process.env),
             // xterm.js renders truecolor; advertise it to the tmux client.
             COLORTERM: 'truecolor'
           }

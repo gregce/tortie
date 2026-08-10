@@ -514,6 +514,103 @@ async function runSmokeT3Verify(): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Agent-launch smoke — GMUX_SMOKE=agent (Phase 9.2 Bug A regression test)
+//
+// Creates a REAL agent session (GMUX_SMOKE_AGENT=claude|codex, default
+// claude) and asserts the whole Bug A fix chain: login-shell PATH injected
+// into the tmux server env, manifest argv[0] recorded ABSOLUTE, and the
+// pane alive with no "command not found" — then cleans up completely.
+// ---------------------------------------------------------------------------
+
+const SMOKE_AGENT_PREFIX = 'smoke-agent-';
+
+async function runSmokeAgent(): Promise<void> {
+  armWatchdog(60_000);
+  try {
+    const agent =
+      process.env['GMUX_SMOKE_AGENT'] === 'codex' ? 'codex' : 'claude';
+    const core = await getGmuxCore();
+    smokeLog('1/6 core booted (login-shell PATH captured + injected)');
+
+    // The server's global env must now carry the user's install dirs.
+    const serverPath = await tmux.execTmux(['show-environment', '-g', 'PATH']);
+    if (!/(\.local\/bin|homebrew)/.test(serverPath)) {
+      throw new Error(`tmux server PATH not injected: ${serverPath.trim()}`);
+    }
+    smokeLog('2/6 tmux server global PATH carries user install dirs');
+
+    // Deterministic re-runs: clear leftovers from aborted runs.
+    for (const rec of core.listSessionRecords()) {
+      if (!rec.name.startsWith(SMOKE_AGENT_PREFIX)) continue;
+      if (rec.status !== 'exited' && rec.status !== 'restorable') {
+        await core.killSession(rec.id).catch(() => undefined);
+      }
+      core.discardSession(rec.id);
+    }
+
+    const home = homedir();
+    const session = await core.createSession({
+      name: `${SMOKE_AGENT_PREFIX}${process.pid}`,
+      projectPath: home,
+      cwd: home,
+      agent
+    });
+    const rec = core.listSessionRecords().find((r) => r.id === session.id);
+    if (!rec || rec.argv[0]?.startsWith('/') !== true) {
+      throw new Error(
+        `manifest argv[0] is not absolute: ${JSON.stringify(rec?.argv)}`
+      );
+    }
+    if (agent === 'claude' && rec.resumeArgv?.[0] !== rec.argv[0]) {
+      throw new Error(
+        `resume argv[0] not absolute/matching: ${JSON.stringify(rec.resumeArgv)}`
+      );
+    }
+    smokeLog(`3/6 ${agent} session created; argv[0]=${rec.argv[0]} (absolute)`);
+
+    // Give the CLI a beat to boot (or die), then assert the pane survived.
+    await new Promise((r) => setTimeout(r, 5_000));
+    const live = (await tmux.listSessions()).find(
+      (s) => s.tmuxName === session.tmuxName
+    );
+    const after = core.listSessionRecords().find((r) => r.id === session.id);
+    if (!live || !after || after.status === 'exited') {
+      throw new Error(
+        `agent session died right after spawn (status ${after?.status}, ` +
+          `exit ${after?.exitCode ?? '?'}) — Bug A regression`
+      );
+    }
+    const paneState = await tmux.execTmux([
+      'list-panes',
+      '-t',
+      live.sessionId,
+      '-F',
+      '#{pane_dead} #{pane_dead_status}'
+    ]);
+    if (paneState.trim().startsWith('1')) {
+      throw new Error(`pane is dead: ${paneState.trim()}`);
+    }
+    const capture = stripAnsi(await tmux.capturePane(live.sessionId, 200));
+    if (/command not found/i.test(capture)) {
+      throw new Error(
+        `"command not found" in pane:\n${capture.slice(-500)}`
+      );
+    }
+    smokeLog('4/6 pane alive after 5s — no "command not found", not dead');
+
+    await core.killSession(session.id);
+    core.discardSession(session.id);
+    smokeLog('5/6 agent session killed + discarded (clean)');
+
+    await shutdownGmuxCore();
+    smokeLog('6/6 PASS (agent) — Bug A launch chain verified');
+    app.exit(0);
+  } catch (err) {
+    smokeFail(err);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Screenshot harness — GMUX_SHOT=<path>
 // ---------------------------------------------------------------------------
 
@@ -600,6 +697,7 @@ app.whenReady().then(async () => {
   if (smoke === 'verify') return runSmokeVerify();
   if (smoke === 't3-prep') return runSmokeT3Prep();
   if (smoke === 't3-verify') return runSmokeT3Verify();
+  if (smoke === 'agent') return runSmokeAgent();
   if (shot) return runShot(shot);
 
   // Normal startup. Native-module sanity is logged (not fatal) so a broken

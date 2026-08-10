@@ -190,8 +190,12 @@ interface AppState {
   restoreSession(sessionId: string): Promise<void>;
   /** Restore every restorable session in the active project (sequential). */
   restoreAllSessions(): Promise<void>;
-  /** User keystrokes went to the active terminal (status detector hint). */
-  noteTerminalInput(): void;
+  /**
+   * User input (keystrokes/mouse reports) went to a terminal — status
+   * detector hint. Pass the session id from the pty write path; omitted →
+   * the active session (keydown fallback).
+   */
+  noteTerminalInput(sessionId?: string): void;
 
   // -- ui -----------------------------------------------------------------------
   toast(kind: ToastKind, text: string, opts?: Partial<Toast>): void;
@@ -736,9 +740,10 @@ export const useApp = create<AppState>((set, get) => {
       }
     },
 
-    noteTerminalInput() {
-      const active = get().activeSession();
-      if (active && detector) detector.noteUserInput(active.id);
+    noteTerminalInput(sessionId) {
+      if (!detector) return;
+      const id = sessionId ?? get().activeSession()?.id;
+      if (id !== undefined) detector.noteUserInput(id);
     },
 
     // -- ui -----------------------------------------------------------------------

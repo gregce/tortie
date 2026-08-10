@@ -426,6 +426,10 @@ export interface GmuxErrorPayload {
     | 'FS_FAILED'
     | 'SPAWN_FAILED'
     | 'INVALID_INPUT'
+    // APPENDED (Phase 9.2 Bug A): the agent CLI for a new session could not
+    // be resolved to an executable — surfaced as a friendly create-modal
+    // message, never a dead pane. `detail` carries the bare binary name.
+    | 'AGENT_NOT_FOUND'
     | 'UNKNOWN';
   message: string;
   detail?: string;

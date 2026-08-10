@@ -223,11 +223,13 @@ export class GmuxCore {
       .then((rollout) => {
         this.rolloutWatches.delete(id);
         // The session may have been killed/discarded while we watched.
-        if (this.manifest.getSession(id) === undefined) return;
+        const rec = this.manifest.getSession(id);
+        if (rec === undefined) return;
+        // Resume with the session's recorded ABSOLUTE binary (Bug A).
         this.manifest.setAgentSessionId(
           id,
           rollout.sessionId,
-          codexResumeArgv(rollout.sessionId, extraArgs)
+          codexResumeArgv(rollout.sessionId, extraArgs, rec.argv[0] ?? 'codex')
         );
         const live = this.liveIds.get(id);
         if (live !== undefined) {
@@ -567,7 +569,26 @@ export class GmuxCore {
       );
     }
 
-    const spec = buildLaunchSpec(input.agent, input.extraArgs ?? []);
+    // Bug A (Phase 9.2): resolve the agent binary to an ABSOLUTE path against
+    // the captured login-shell PATH + known install dirs BEFORE anything is
+    // written or spawned. Not found → typed error → friendly modal message —
+    // never a dead pane. The manifest then stores only absolute paths (argv
+    // AND resume_argv), so restores survive PATH drift too.
+    let binPath: string | undefined;
+    if (input.agent !== 'shell') {
+      const bare = input.agent;
+      const abs = await tmux.resolveBinary(bare);
+      if (abs === null) {
+        throw gmuxError(
+          'AGENT_NOT_FOUND',
+          `${bare} not found — install it, or make sure your shell PATH includes it.`,
+          bare
+        );
+      }
+      binPath = abs;
+    }
+
+    const spec = buildLaunchSpec(input.agent, input.extraArgs ?? [], binPath);
     const id = randomUUID();
     const now = Date.now();
     const record: ManifestSessionRecord = {

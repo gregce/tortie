@@ -8,60 +8,25 @@
  * `window.gmux.agentAvailability` to render unavailable agents as disabled
  * options with the install command.
  *
- * Probe strategy: walk PATH like `which` would, then the usual macOS install
- * directories a GUI-launched Electron app may not have on its PATH
- * (homebrew, npm-global, ~/.local/bin, and claude's self-managed location).
+ * Resolution itself lives in src/main/tmux/resolve.ts (growth guardrail 3:
+ * ONE resolver — this probe, session create, and Phase 10's detection
+ * service all share it): captured login-shell PATH + the usual macOS
+ * install dirs a GUI-launched Electron app misses.
  */
 
 import type { IpcMain } from 'electron';
-import { accessSync, constants } from 'node:fs';
-import { homedir } from 'node:os';
-import { delimiter, join } from 'node:path';
 import type { AgentAvailability } from '@shared/ipc';
-
-/** Install dirs probed IN ADDITION to PATH (GUI apps get a minimal PATH). */
-function extraBinDirs(): string[] {
-  const home = homedir();
-  return [
-    '/opt/homebrew/bin',
-    '/usr/local/bin',
-    join(home, '.local', 'bin'),
-    join(home, 'bin'),
-    // `claude install` (native build) symlinks here.
-    join(home, '.claude', 'local'),
-    // Default npm-global prefix locations.
-    join(home, '.npm-global', 'bin')
-  ];
-}
-
-function isExecutable(path: string): boolean {
-  try {
-    accessSync(path, constants.X_OK);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/** `which`-alike over PATH + the extra dirs. Synchronous, cheap, no shell. */
-export function findExecutable(bin: string): string | null {
-  const pathDirs = (process.env['PATH'] ?? '').split(delimiter);
-  for (const dir of [...pathDirs, ...extraBinDirs()]) {
-    if (dir.length === 0) continue;
-    const candidate = join(dir, bin);
-    if (isExecutable(candidate)) return candidate;
-  }
-  return null;
-}
+import { getUserPath, resolveBinaryAgainst } from './tmux/resolve';
 
 let cached: AgentAvailability | null = null;
 
 /** Probe (once per boot) which agent CLIs exist on this machine. */
-export function getAgentAvailability(): AgentAvailability {
+export async function getAgentAvailability(): Promise<AgentAvailability> {
   if (cached === null) {
+    const userPath = await getUserPath();
     cached = {
-      claude: findExecutable('claude') !== null,
-      codex: findExecutable('codex') !== null
+      claude: resolveBinaryAgainst('claude', userPath) !== null,
+      codex: resolveBinaryAgainst('codex', userPath) !== null
     };
     console.log(
       `[gmux] agent availability: claude=${cached.claude} codex=${cached.codex}`

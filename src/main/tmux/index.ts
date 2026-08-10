@@ -28,6 +28,21 @@ export {
   type ExecTmuxOptions
 } from './supervisor';
 
+// Resolution primitives (Phase 9.2 Bug A / Phase 10 detection service) —
+// login-shell PATH capture + argv[0] → absolute binary resolution.
+export {
+  captureLoginShellPath,
+  extraBinDirs,
+  fallbackPath,
+  getUserPath,
+  mergePathDirs,
+  resetUserPathCache,
+  resolveBinary,
+  resolveBinaryAgainst,
+  PATH_CAPTURE_TIMEOUT_MS,
+  type CapturePathOptions
+} from './resolve';
+
 export {
   TmuxControlClient,
   CONTROL_SESSION_NAME,

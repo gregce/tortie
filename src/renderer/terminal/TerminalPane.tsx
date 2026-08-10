@@ -27,6 +27,7 @@ import '@xterm/xterm/css/xterm.css';
 import './terminal.css';
 import type { GmuxApi, GmuxTermStreamExtras } from '@shared/ipc';
 import type { GmuxErrorPayload, SessionStatus } from '@shared/types';
+import { useApp } from '../state/store';
 import {
   resolveTerminalFontFamily,
   resolveTerminalTheme,
@@ -154,26 +155,26 @@ export function TerminalPane({
         window.open(uri, '_blank', 'noopener,noreferrer');
       })
     );
-    term.open(container);
-
+    // Opened inside the boot sequence below — AFTER document.fonts.ready —
+    // so xterm never measures cells or builds its (WebGL) glyph atlas from
+    // a not-yet-loaded font (Bug C hardening: a @font-face --font-mono
+    // would otherwise rasterize as the fallback and stick until a resize).
     // WebGL when available; on failure/context loss xterm silently keeps
     // its built-in DOM renderer (no @xterm/addon-canvas dependency today).
     let webgl: WebglAddon | null = null;
-    try {
-      const addon = new WebglAddon();
-      addon.onContextLoss(() => {
-        addon.dispose();
-        webgl = null;
-      });
-      term.loadAddon(addon);
-      webgl = addon;
-    } catch {
-      webgl = null;
-    }
 
     // ---- keystrokes / binary → main → pty --------------------------------
-    const dataSub = term.onData((d) => gmux.term.sendInput(sessionId, d));
-    const binarySub = term.onBinary((d) => gmux.term.sendInput(sessionId, d));
+    // noteTerminalInput: the status detector must know about EVERY byte the
+    // user sends — including mouse reports, which never reach keydown — so
+    // an echoed BEL right after a click is not mistaken for "needs input".
+    const dataSub = term.onData((d) => {
+      useApp.getState().noteTerminalInput(sessionId);
+      gmux.term.sendInput(sessionId, d);
+    });
+    const binarySub = term.onBinary((d) => {
+      useApp.getState().noteTerminalInput(sessionId);
+      gmux.term.sendInput(sessionId, d);
+    });
 
     // ---- single resize path: fit → xterm onResize → tmux client ----------
     const resizeSub = term.onResize(({ cols, rows }) => {
@@ -237,9 +238,42 @@ export function TerminalPane({
     });
     observer.observe(container);
 
-    // ---- attach -------------------------------------------------------------
-    doFit(); // size the pty request window before the first paint lands
+    // ---- fonts: keep the glyph atlas honest --------------------------------
+    // If a font finishes loading AFTER the terminal opened (late webfont,
+    // user-changed --font-mono), stale atlas glyphs would keep rendering —
+    // re-apply the family and rebuild the atlas. No-op churn is cheap.
+    const onFontsLoaded = (): void => {
+      if (disposed || !termRef.current) return;
+      term.options.fontFamily = resolveTerminalFontFamily();
+      webgl?.clearTextureAtlas();
+      if (term.rows > 0) term.refresh(0, term.rows - 1);
+    };
+    document.fonts?.addEventListener('loadingdone', onFontsLoaded);
+
+    // ---- open + attach ------------------------------------------------------
     void (async () => {
+      // Bug C: wait for pending font loads so cell metrics and the WebGL
+      // atlas are built from the real terminal font. Resolves immediately
+      // for pure system-font stacks (the shipped default).
+      try {
+        await document.fonts?.ready;
+      } catch {
+        /* non-browser test envs have no FontFaceSet — proceed */
+      }
+      if (disposed) return;
+      term.open(container);
+      try {
+        const addon = new WebglAddon();
+        addon.onContextLoss(() => {
+          addon.dispose();
+          webgl = null;
+        });
+        term.loadAddon(addon);
+        webgl = addon;
+      } catch {
+        webgl = null;
+      }
+      doFit(); // size the pty request window before the first paint lands
       try {
         await gmux.sessions.attach(sessionId);
         if (disposed) return;
@@ -256,6 +290,7 @@ export function TerminalPane({
 
     return () => {
       disposed = true;
+      document.fonts?.removeEventListener('loadingdone', onFontsLoaded);
       cancelAnimationFrame(raf);
       observer.disconnect();
       unsubData();
