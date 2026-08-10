@@ -670,3 +670,218 @@ export type LayoutMenuActionId =
 
 /** Every action the native menu can forward after the round-1 additions. */
 export type AnyMenuActionId = MenuActionId | LayoutMenuActionId;
+
+// ---------------------------------------------------------------------------
+// APPENDED by the Phase-10 registry+detection stream — new channels/types
+// only, nothing above was modified.
+//
+// agents:list   — full 12-agent detection result (registry ids, resolved
+//                 absolute binPath, version from each entry's versionCmd,
+//                 store-dir presence). Scanned once on first call, cached.
+// agents:rescan — drop the cache and re-probe (Settings "Re-scan" button);
+//                 resolves the fresh result.
+//
+// Main handlers are registered by src/main/agents (registerAgentsIpc — same
+// entry point that already registers agents:availability, so no main/index.ts
+// change was needed).
+//
+// INTEGRATOR wiring (preload; per standing guardrail 1 fold these into the
+// single typed bridge instead of adding a new wrapper generation):
+//   agentsList:   () => invoke('agents:list'),
+//   agentsRescan: () => invoke('agents:rescan')
+// Renderer feature-detects `typeof window.gmux.agentsList === 'function'`.
+// ---------------------------------------------------------------------------
+
+import type { AgentsScanResult } from './types';
+
+/** New invoke channels appended by the registry+detection stream. */
+export interface AgentsInvokeChannelMap {
+  /** Cached full-registry detection scan (12 agents, path+version+store). */
+  'agents:list': { req: []; res: AgentsScanResult };
+  /** Clear the detection cache and re-probe everything. */
+  'agents:rescan': { req: []; res: AgentsScanResult };
+}
+
+/**
+ * OPTIONAL top-level extras on window.gmux, feature-detected by the renderer
+ * (`typeof window.gmux.agentsList === 'function'`).
+ */
+export interface GmuxAgentRegistryExtras {
+  /** Detection scan over the full agent registry (cached in main). */
+  agentsList?(): Promise<AgentsScanResult>;
+  /** Re-probe (Settings re-scan button); resolves the fresh result. */
+  agentsRescan?(): Promise<AgentsScanResult>;
+}
+
+/** DepthInvokeChannelMap + the Phase-10 agent appends (superset alias). */
+export type RegistryInvokeChannelMap = DepthInvokeChannelMap &
+  AgentsInvokeChannelMap;
+
+export type RegistryInvokeChannel = keyof RegistryInvokeChannelMap;
+
+export type RegistryInvokeReq<C extends RegistryInvokeChannel> =
+  RegistryInvokeChannelMap[C]['req'];
+export type RegistryInvokeRes<C extends RegistryInvokeChannel> =
+  RegistryInvokeChannelMap[C]['res'];
+
+// ---------------------------------------------------------------------------
+// APPENDED by the Phase-10 settings+hotkeys stream (S13) — new channels/types
+// only, nothing above was modified.
+//
+// settings:get / settings:set — the persisted user settings (main-side JSON
+//   store in userData, src/main/settings/store.ts). `set` takes a shallow
+//   patch, persists, applies side effects (menu accelerator rebuild on hotkey
+//   change), broadcasts EVT_SETTINGS_CHANGED to every window, and resolves
+//   the full post-patch settings.
+// settings:openWindow — open/focus the single-instance Settings window
+//   (S13: dedicated BrowserWindow; ⌘, opens it straight from the native
+//   menu, this channel serves the activity-bar gear).
+// agents:flagPresets — the per-agent launch-flag catalogs
+//   (src/main/agents/flags.ts) as renderer-safe views. Static per build;
+//   renderers cache it.
+//
+// PRELOAD: per standing guardrail 1 this stream COLLAPSED the base/full/
+// complete/depth wrapper generations in src/preload/index.ts into the single
+// typed invoke over GmuxInvokeChannelMap below. Future streams append their
+// channel map into a new superset alias and the one wrapper picks it up.
+// ---------------------------------------------------------------------------
+
+import type {
+  AgentFlagCatalogs,
+  GmuxSettings,
+  GmuxSettingsPatch
+} from './settings';
+import type { LaunchableAgentId } from './types';
+
+/** Main → renderers (ALL windows): the persisted settings changed. */
+export const EVT_SETTINGS_CHANGED = 'settings:changed' as const;
+
+/** New invoke channels appended by the settings+hotkeys stream. */
+export interface SettingsInvokeChannelMap {
+  /** Current persisted settings (defaults on first run). */
+  'settings:get': { req: []; res: GmuxSettings };
+  /** Shallow patch; resolves the full post-patch settings. */
+  'settings:set': { req: [patch: GmuxSettingsPatch]; res: GmuxSettings };
+  /** Open/focus the single-instance Settings window. */
+  'settings:openWindow': { req: []; res: void };
+  /** Launch-flag preset catalogs per launchable agent (static per build). */
+  'agents:flagPresets': { req: []; res: AgentFlagCatalogs };
+}
+
+/**
+ * OPTIONAL top-level extras on window.gmux, feature-detected by renderers
+ * (`typeof window.gmux.settingsGet === 'function'`).
+ */
+export interface GmuxSettingsExtras {
+  settingsGet?(): Promise<GmuxSettings>;
+  settingsSet?(patch: GmuxSettingsPatch): Promise<GmuxSettings>;
+  /** Open/focus the Settings window (activity-bar gear; menu uses main). */
+  openSettings?(): Promise<void>;
+  agentFlagPresets?(): Promise<AgentFlagCatalogs>;
+  /** Fires in EVERY window whenever the persisted settings change. */
+  onSettingsChanged?(cb: (settings: GmuxSettings) => void): Unsubscribe;
+}
+
+/**
+ * Menu actions for user-recorded per-agent hotkeys (S13): the native menu
+ * registers "New <agent> session" items whose accelerators come from
+ * GmuxSettings.hotkeys; each forwards `launch-agent:<id>` to the MAIN
+ * window's renderer, which creates `<agent>-<n>` in the active project
+ * (§6.2 quick-create path). Older renderers ignore unknown ids.
+ */
+export type AgentLaunchActionId = `launch-agent:${LaunchableAgentId}`;
+
+/** Every action the native menu can forward after the settings stream. */
+export type MenuActionWithHotkeys = AnyMenuActionId | AgentLaunchActionId;
+
+/**
+ * THE preload bridge map (standing guardrail 1): every channel this build's
+ * preload can invoke. Future streams intersect their appended map here (or
+ * alias a new superset) — the single typed wrapper in src/preload/index.ts
+ * spans whatever this resolves to. (GitBranchesInvokeChannelMap is declared
+ * by the parallel branch-management stream further down this file — type
+ * declarations hoist, so the forward reference is sound.)
+ */
+export type GmuxInvokeChannelMap = RegistryInvokeChannelMap &
+  SettingsInvokeChannelMap &
+  GitBranchesInvokeChannelMap;
+
+export type GmuxInvokeChannel = keyof GmuxInvokeChannelMap;
+
+export type GmuxInvokeReq<C extends GmuxInvokeChannel> =
+  GmuxInvokeChannelMap[C]['req'];
+export type GmuxInvokeRes<C extends GmuxInvokeChannel> =
+  GmuxInvokeChannelMap[C]['res'];
+
+// ---------------------------------------------------------------------------
+// APPENDED by the branch-management stream (Phase 10 #7) — new channels/types
+// only, nothing above was modified. Powers the BRANCHES sidebar section:
+// remote refs, fetch, tracking checkout, and local branch deletion.
+//
+// Main handlers are registered by registerGitDepthIpc (src/main/git/
+// depth-ipc.ts — the existing git-depth registration point), sharing the
+// per-repo GitService + watcher registries.
+//
+// INTEGRATOR wiring (preload; per standing guardrail 1 fold these into the
+// single typed bridge instead of adding a new wrapper generation — append to
+// the existing `git` object):
+//   remoteBranches:   (repoPath) => invoke('git:remoteBranches', repoPath),
+//   fetch:            (repoPath) => invoke('git:fetch', repoPath),
+//   checkoutTracking: (input)    => invoke('git:checkoutTracking', input),
+//   deleteBranch:     (input)    => invoke('git:deleteBranch', input)
+// Renderer feature-detects `typeof window.gmux.git.remoteBranches ===
+// 'function'` (older preloads keep the local-only branch list).
+// ---------------------------------------------------------------------------
+
+import type {
+  GitCheckoutTrackingInput,
+  GitDeleteBranchInput,
+  GitDeleteBranchResult,
+  GitRemoteBranchesResult
+} from './types';
+
+/** New invoke channels appended by the branch-management stream. */
+export interface GitBranchesInvokeChannelMap {
+  /** Remote-tracking branches + last-fetch time (for-each-ref refs/remotes). */
+  'git:remoteBranches': {
+    req: [repoPath: string];
+    res: GitRemoteBranchesResult;
+  };
+  /** `git fetch --all --prune` (network; long timeout, never interactive). */
+  'git:fetch': { req: [repoPath: string]; res: void };
+  /**
+   * Check out a remote branch: existing local with the same short name →
+   * plain checkout; otherwise create a tracking local and switch to it.
+   */
+  'git:checkoutTracking': { req: [input: GitCheckoutTrackingInput]; res: void };
+  /**
+   * Delete a local branch. "Not fully merged" resolves (not rejects!) with a
+   * typed `{status:'unmerged'}` so the UI offers force exactly when needed.
+   */
+  'git:deleteBranch': {
+    req: [input: GitDeleteBranchInput];
+    res: GitDeleteBranchResult;
+  };
+}
+
+/**
+ * OPTIONAL extensions to GmuxApi['git'], feature-detected by the renderer
+ * (`typeof window.gmux.git.remoteBranches === 'function'`, etc.).
+ */
+export interface GmuxGitBranchExtras {
+  remoteBranches?(repoPath: string): Promise<GitRemoteBranchesResult>;
+  fetch?(repoPath: string): Promise<void>;
+  checkoutTracking?(input: GitCheckoutTrackingInput): Promise<void>;
+  deleteBranch?(input: GitDeleteBranchInput): Promise<GitDeleteBranchResult>;
+}
+
+/** RegistryInvokeChannelMap + the branch-management appends (superset alias). */
+export type BranchesInvokeChannelMap = RegistryInvokeChannelMap &
+  GitBranchesInvokeChannelMap;
+
+export type BranchesInvokeChannel = keyof BranchesInvokeChannelMap;
+
+export type BranchesInvokeReq<C extends BranchesInvokeChannel> =
+  BranchesInvokeChannelMap[C]['req'];
+export type BranchesInvokeRes<C extends BranchesInvokeChannel> =
+  BranchesInvokeChannelMap[C]['res'];

@@ -1,0 +1,560 @@
+/**
+ * S13 Settings window styles — tokens only (DESIGN.md §1).
+ * Layout: nav rail w:200 on --bg-sidebar · content on --bg-canvas,
+ * padding 24, content max-width 560. Group cards on --bg-surface with
+ * hairline-separated rows; 11/600 uppercase labels above each card.
+ */
+
+/* ---------------------------------------------------------------- shell */
+
+.set-shell {
+  display: flex;
+  height: 100%;
+  background: var(--bg-canvas);
+}
+
+.set-nav {
+  flex: 0 0 200px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-5) var(--space-4);
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
+}
+
+.set-nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: 32px;
+  padding: 0 var(--space-5);
+  border-radius: var(--r-sm);
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+  text-align: left;
+  position: relative;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.set-nav-item:hover {
+  background: var(--bg-raised);
+  color: var(--text-primary);
+}
+
+.set-nav-item.active {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
+/* 2px accent left inset marks the active section (S13 nav rail). */
+.set-nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+}
+
+.set-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-8);
+}
+
+.set-content > section,
+.set-content > .set-card,
+.set-content > h1 {
+  max-width: 560px;
+}
+
+.set-title {
+  margin: 0 0 var(--space-6);
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+.set-section-caption {
+  margin: calc(-1 * var(--space-4)) 0 var(--space-6);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-secondary);
+}
+
+/* ------------------------------------------------------- group cards */
+
+/* More space above a group label than below it (§1.7 rhythm). */
+.set-group-label {
+  margin: var(--space-6) 0 var(--space-3);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.set-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  margin-bottom: var(--space-6);
+  overflow: hidden;
+}
+
+.set-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  min-height: 36px;
+  padding: var(--space-3) var(--space-5);
+}
+
+.set-row.tall {
+  min-height: 48px;
+}
+
+.set-card > * + * {
+  border-top: 1px solid var(--border);
+}
+
+.set-row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.set-row-label {
+  font-size: var(--text-base);
+  color: var(--text-primary);
+}
+
+.set-row-label.muted {
+  color: var(--text-muted);
+}
+
+.set-row-caption {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+}
+
+.set-row-error {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--error);
+}
+
+.set-row-error.indent {
+  padding: 0 var(--space-5) var(--space-3) 44px;
+}
+
+.set-empty-line {
+  padding: var(--space-5);
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+}
+
+/* Right-aligned control slot */
+.set-row > .set-switch,
+.set-row > .set-select,
+.set-row > .set-recorder-wrap,
+.set-row > .set-ref-chord {
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+/* ------------------------------------------------------------- switch */
+
+.set-switch {
+  position: relative;
+  width: 26px;
+  height: 16px;
+  border-radius: 8px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-strong);
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.set-switch-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--text-primary);
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+
+.set-switch.on {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.set-switch.on.danger {
+  background: var(--error);
+  border-color: var(--error);
+}
+
+.set-switch.on .set-switch-knob {
+  transform: translateX(10px);
+  background: var(--on-accent);
+}
+
+.set-switch:disabled {
+  opacity: 0.5;
+}
+
+.set-switch:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* ------------------------------------------------------------- select */
+
+.set-select {
+  height: 24px;
+  padding: 0 var(--space-4);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+}
+
+.set-select:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
+
+/* -------------------------------------------------------------- chips */
+
+.set-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+  padding: 0 var(--space-2);
+  border-radius: var(--r-sm);
+  background: var(--bg-raised);
+  color: var(--text-secondary); /* never muted on raised (§1.1 rule) */
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.set-chip.flag {
+  height: 16px;
+}
+
+.set-chip.flag.danger {
+  background: var(--error-wash);
+  color: var(--error);
+}
+
+/* -------------------------------------------------------- agents rows */
+
+.set-section-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  margin-bottom: var(--space-3);
+  max-width: 560px;
+}
+
+.set-scan-age {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-right: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.set-rescan {
+  height: 26px;
+}
+
+.set-spinner {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-strong);
+  border-top-color: var(--text-secondary);
+  animation: set-spin 0.8s linear infinite;
+}
+
+@keyframes set-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .set-spinner {
+    animation: none;
+  }
+}
+
+.set-agent-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  min-height: 48px;
+  padding: var(--space-3) var(--space-5);
+}
+
+.set-agent-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  color: var(--text-secondary);
+  flex: 0 0 auto;
+}
+
+.set-agent-icon.missing {
+  color: var(--text-disabled);
+}
+
+.set-agent-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.set-agent-name {
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  color: var(--text-primary);
+}
+
+.set-agent-detail {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.set-agent-path {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.set-agent-missing {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.set-agent-inuse {
+  font-size: 10px;
+  color: var(--success);
+}
+
+.set-agent-cmd {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  background: var(--bg-raised);
+  border-radius: var(--r-sm);
+  padding: 1px var(--space-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.set-copy {
+  width: 18px;
+  height: 18px;
+}
+
+/* ------------------------------------------------------------ hotkeys */
+
+.set-hotkey-row-wrap + .set-hotkey-row-wrap {
+  border-top: 1px solid var(--border);
+}
+
+.set-row-ref .set-ref-chord {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.set-hotkey-row {
+  min-height: 40px;
+}
+
+.set-recorder-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.set-recorder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 22px;
+  min-width: 96px;
+  padding: 0 var(--space-4);
+  border-radius: var(--r-sm);
+  background: var(--bg-raised);
+  border: 1px solid transparent;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.set-recorder:hover {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
+.set-recorder.recording {
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+  color: var(--text-primary);
+}
+
+.set-recorder.assigned .set-recorder-chord {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-primary);
+}
+
+.set-recorder:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.set-recorder-hinting {
+  white-space: nowrap;
+}
+
+.set-recorder-clear {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-sm);
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.set-recorder-clear:hover {
+  background: var(--bg-raised);
+  color: var(--text-primary);
+}
+
+.set-recorder-clear:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* ---------------------------------------------------- launch defaults */
+
+.set-defaults-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  margin-bottom: var(--space-6);
+  max-width: 560px;
+  overflow: hidden;
+}
+
+.set-defaults-card.uninstalled {
+  opacity: 0.5;
+}
+
+.set-defaults-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: 36px;
+  padding: 0 var(--space-5);
+}
+
+.set-defaults-name {
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  color: var(--text-primary);
+}
+
+.set-defaults-body {
+  border-top: 1px solid var(--border);
+}
+
+.set-preset-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-5);
+  min-height: 44px;
+  padding: var(--space-4) var(--space-5);
+}
+
+.set-preset-row + .set-preset-row {
+  border-top: 1px solid var(--border);
+}
+
+.set-preset-row > .set-switch {
+  margin-top: 2px;
+}
+
+.set-preset-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.set-preset-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.set-preset-warn {
+  display: inline-flex;
+  color: var(--error);
+  flex: 0 0 auto;
+}
+
+.set-preset-label {
+  font-size: var(--text-base);
+  color: var(--text-primary);
+}
+
+.set-preset-desc {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-muted);
+}
+
+/* --------------------------------------------------- danger confirm */
+
+.set-confirm {
+  width: 420px;
+}
+
+.set-confirm-body {
+  margin: 0 0 var(--space-5);
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  color: var(--text-secondary);
+}

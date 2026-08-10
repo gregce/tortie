@@ -44,8 +44,9 @@ Conventions: `[h:28]` = height 28px. Hairlines are 1px `--border`. Every interac
 
 - Tab: `[h:28]`, radius `--r-sm`, padding 0 10px, gap 6px between elements, 4px between tabs; vertically centered in the 38px bar. Entire bar is `-webkit-app-region: drag`; tabs/buttons `no-drag`.
 - Anatomy: status dot 8px (roll-up: attention > working > idle across the project's sessions; attention dot pulses here too) · project name 13px/500 · attention badge (only when project NEEDS_INPUT count > 0): `[h:16]` min-w:16 pill, bg `--status-attention-badge-bg`, text 11px/600 `--status-attention-badge-fg`, tabular-nums.
-- States — selected: bg `--bg-active`, text `--text-primary`; unselected: transparent, text `--text-secondary`, dot at 80% opacity; hover (unselected): `--bg-raised`; drag-reorder allowed (HTML5 DnD, 160ms settle).
+- States — selected: bg `--bg-active`, text `--text-primary`; unselected: transparent, text `--text-secondary`, dot at 80% opacity; hover (unselected): `--bg-raised`; drag-reorder per the block below.
 - Max tab width 200px, name truncates middle (keep suffix). ≥10 tabs: overflow into a native dropdown at the strip end (chevron button); ⌘1–9 map to the first nine.
+- **Tab drag-reorder (round 2, user ref media_cWSQ48lD7j):** press + 4px pointer travel lifts the tab — ghost at 90% opacity, `--shadow-2`, follows the pointer on x only (y clamped to the bar). Neighbors do NOT reflow during the drag; instead a 2px `--accent` vertical insertion indicator `[h:20, r:1px]` marks the gap the tab will land in. Drop settles in 160ms `--ease-out`; Esc cancels (tab snaps home, no motion). Order is app-wide persisted state; ⌘1–⌘9, ⌃Tab cycling, and the ≥10-tab overflow menu all follow the visual order. Dragging past either end auto-scrolls the strip. `+` and 🔔 are never drop targets; a drag never leaves the titlebar row (project tabs cannot be dropped into the terminal).
 - `+` button: 24×24, icon 16px `--text-secondary`; opens folder picker (⌘O). Opening an already-open project focuses its tab.
 - 🔔 attention button: 28×28, right margin 12px; shows global NEEDS_INPUT count as the same amber badge; count 0 → bell at `--text-muted`, no badge. Click = ⌘J overlay. Dock badge mirrors this count via IPC.
 - F2 / double-click on a tab → inline rename (S4 rename spec). Context menu (native): Rename, Close project (confirm: "Close 'webapp'? Its sessions keep running and reappear when you reopen it.").
@@ -58,7 +59,7 @@ Sessions no longer live in the sidebar (S4). The sidebar shows ONE view at a tim
 
 Full height below the titlebar, bg `--bg-sidebar`, 1px `--border` right hairline. No horizontal hairline crosses it at the band's y.
 
-- Items 48×48 hit area, codicon 24px centered: `files` (Explorer, ⌘⇧E) then `source-control` (⌃⇧G), top-aligned; `settings-gear` pinned at the bottom (opens Settings, ⌘,).
+- Items 48×48 hit area, codicon 24px centered: `files` (Explorer, ⌘⇧E) then `source-control` (⌃⇧G), top-aligned; `settings-gear` pinned at the bottom (opens the Settings window — S13, ⌘,).
 - States: active — icon `--text-primary` + 2px `--accent` inset bar on the item's LEFT edge, full 48px item height; inactive — `--text-muted`; hover — `--text-secondary` (color change only, no fill); `:focus-visible` — `--focus-ring` inset.
 - SCM badge: dirty-file count on the `source-control` item — pill `[h:16]` min-w:16, bg `--accent`, text 11px/600 `--on-accent` tabular-nums, anchored bottom-right of the icon (overlapping 2px); hidden at 0. Never amber — amber is attention-only.
 - Tooltips (right side, 600ms): "Explorer ⌘⇧E" / "Source control ⌃⇧G" / "Settings ⌘," with keycap chips per DESIGN.md §3.
@@ -68,10 +69,21 @@ Full height below the titlebar, bg `--bg-sidebar`, 1px `--border` right hairline
 
 Padding 0 12px, bg `--bg-sidebar`, shared band hairline below. Content per view (below). Right accessories are icon-buttons 20×20, codicon 16px, `--text-secondary`, hover `--bg-raised` r-sm.
 
+### Sidebar section reordering (round 2, user ref media_Ncoe1XIPhD — VS Code GRAPH drag)
+
+Applies to any view with ≥2 sections — today that is Source Control (CHANGES / HISTORY / BRANCHES); Explorer has one section, nothing to reorder yet. The draggable unit is the section: its sticky `[h:24]` header plus its whole body (the commit box travels with CHANGES).
+
+- Hover a section header → cursor `grab`; codicon `gripper` 14 `--text-muted` appears at the far right, before the hover accessories (advertises draggability).
+- Press + 4px vertical travel lifts a GHOST of the header row only (bg `--bg-raised`, 90% opacity, `--shadow-2`, full sidebar width minus 8px insets) that follows the pointer's y, clamped to the view; the sections themselves never move mid-drag (VS Code behavior per the reference).
+- A 2px `--accent` drop line (inset 4px each side) marks the candidate boundary between sections — always a boundary, never inside a body. Drop reorders and settles in 160ms `--ease-out`; Esc cancels with zero motion; cursor `grabbing` throughout.
+- Order persists **per view, app-wide**. Collapse state (▸/▾) is independent and keeps persisting per project. Headers stay sticky within the view's scroll regardless of order.
+- Keyboard/native alternative: section header context menu (native) — "Move section up" / "Move section down".
+
 ### S3A — Source Control view
 
 ```
 ┌ band: [⎇ feat/auth ˅]  ↑2 ↓1                ↻ │  view header [h:36]
+│ ▾ CHANGES 3                                    │  section header [h:24] (round 2)
 │ [ Commit message (⌘↩ to commit)             ] │  commit box
 │ [        Commit  (primary, full-w)           ] │
 │ Staged (1)                                     │  group row [h:24]
@@ -85,8 +97,11 @@ Padding 0 12px, bg `--bg-sidebar`, shared band hairline below. Content per view 
 │ ○│ Merge branch 'copilot-ide'                  │  (merge = hollow dot)
 │ ●│ Fix resume with Copilot IDE…                │
 │   Load 50 more                                 │  [h:24] 12px --accent-text
+│ ▸ BRANCHES                                  ⇣ │  section header [h:24] (round 2)
 └─────────────────────────────────────────────────┘
 ```
+
+Sections (round 2): three, reorderable per the S3 block above; default order CHANGES · HISTORY · BRANCHES; BRANCHES collapsed by default.
 
 **View header (band):** branch menu button (left) · ahead/behind `↑n ↓n` mono 11px `--text-muted` tabular-nums (hidden at 0/0) · spacer · `refresh` codicon 16 (re-runs status + log). Non-git: folder name 12px `--text-muted` + the §6.3 body below.
 
@@ -95,10 +110,11 @@ Padding 0 12px, bg `--bg-sidebar`, shared band hairline below. Content per view 
 - Separator, then "Create branch…" → mini-modal (below), creates from HEAD and checks out.
 - Detached HEAD state: button renders codicon `git-commit` + short SHA mono 12 in `--warning`.
 - Context menu on the button (native): "Copy branch name" (toast "Branch name copied") — replaces round-0 click-to-copy (click now opens the menu).
+- Round 2: last item, after a separator — "Manage branches": expands + focuses the BRANCHES section (opening the sidebar / SCM view first if needed). The menu stays the one-keystroke switcher; the section is the full UI.
 
-**Commit box, group rows, SCM file rows: unchanged from round 0.** Commit box: textarea auto-grow 1–5 lines, 13px `--font-ui`, bg `--bg-surface`, border 1px `--border-strong`, r-sm, padding 6px 8px; [Commit] primary full-width `[h:28]` ("Committing…" + 12px spinner while running); ⌘↩ commits staged; nothing staged → "Stage all & commit". Group rows `[h:24]`: label 11px/600 `--text-secondary` + count 11px `--text-muted`; order Merge (when present), Staged, Changes, Untracked. SCM file row `[h:24]`, padding-left 20px: status letter mono 11px/600 in git color (M/A/U/D + strikethrough/R/`!` conflict) · filename 12px `--text-primary` · dir path 11px `--text-muted` truncated left; hover `--bg-raised` + stage ＋ / discard ↩ / unstage － icons 16px right; discard confirms per file; click → diff-vs-HEAD (S5); untracked → plain file.
+**CHANGES section wrapper (round 2):** a "▾ CHANGES n" sticky header `[h:24]` (n = total files across Merge/Staged/Changes/Untracked; styled as every section header — 11px/600 uppercase `--text-muted`, count 11px `--text-muted`) now sits above the commit box; the box + file groups are its body (collapsing hides both), and the header doubles as the section's drag handle (S3 block). **Commit box, group rows, SCM file rows: unchanged from round 0.** Commit box: textarea auto-grow 1–5 lines, 13px `--font-ui`, bg `--bg-surface`, border 1px `--border-strong`, r-sm, padding 6px 8px; [Commit] primary full-width `[h:28]` ("Committing…" + 12px spinner while running); ⌘↩ commits staged; nothing staged → "Stage all & commit". Group rows `[h:24]`: label 11px/600 `--text-secondary` + count 11px `--text-muted`; order Merge (when present), Staged, Changes, Untracked. SCM file row `[h:24]`, padding-left 20px: status letter mono 11px/600 in git color (M/A/U/D + strikethrough/R/`!` conflict) · filename 12px `--text-primary` · dir path 11px `--text-muted` truncated left; hover `--bg-raised` + stage ＋ / discard ↩ / unstage － icons 16px right; discard confirms per file; click → diff-vs-HEAD (S5); untracked → plain file.
 
-**Space budget:** commit box fixed at top; file groups scroll together, max-height 45% of the view; HISTORY fills the remainder (min 160px), own scroll; both section states (▸/▾, sticky headers `[h:24]`) persist per project.
+**Space budget (round 2, three sections):** sections stack in the user's order. A collapsed section costs its 24px header. Expanded: CHANGES caps at 45% of the view (commit box fixed at its top; file groups scroll together below it — round-0 rule preserved); the remaining height splits between the other expanded sections at HISTORY weight 2 : BRANCHES weight 1, min 120px each, each with its own scroll. Collapse states (▸/▾, sticky headers `[h:24]`) persist per project; section order per view app-wide (S3 block).
 
 **HISTORY section** — source: `git log --topo-order -n 50` (single lane in v1; multi-lane graph explicitly deferred); "Load 50 more" row at the bottom `[h:24]`, 12px `--accent-text`, left-aligned to message x.
 
@@ -158,6 +174,26 @@ Behaviors: Open Changes = expand the row + open the first file's diff. Open on G
 - Stat line 12px (from `git show --shortstat`): "N files changed" `--text-secondary` + ", X insertions(+)" `--success` + ", Y deletions(-)" `--error`; zero parts omitted.
 - SHA row `[h:24]`: codicon `copy` 14 + short SHA mono 12 `--text-secondary` — clicking either copies the FULL SHA (toast "Commit ID copied") · right: codicon `globe` 14 + "Open on GitHub" 12px `--accent-text` (github remote only).
 
+**BRANCHES section (round 2)** — the full branch UI (BACKLOG Phase 10 #7); extends, never replaces, the branch menu.
+
+```
+│ ▾ BRANCHES                                  ⇣ ↻ │  section header [h:24]
+│   Local (4)                                     │  group row [h:24]
+│   ✓ main                          ↑2            │  current: check --accent, name 500
+│   ⎇ feat/auth                    ↑1 ↓3         │
+│   ⎇ fix/prompt-glyphs                          │
+│   Remotes (6)                                   │
+│   ☁ origin/main                                │
+│   ☁ origin/feat/registry                       │
+```
+
+- **Header accessories** (hover, 20×20 icon-buttons): codicon `cloud-download` 16 = Fetch, tooltip "Fetch all remotes" — runs `git fetch --all --prune`; the icon swaps to a 12px spinner while running; on completion ahead/behind and both groups refresh; failure → §6.11 sticky toast. `refresh` re-enumerates refs without network.
+- **Group rows** `[h:24]`, styled as S3A group rows: "Local (n)" / "Remotes (n)". No remotes → the Remotes group AND the fetch accessory are hidden (DESIGN.md §6.15 — not an error).
+- **Branch row** `[h:24]`, padding-left 20px: codicon `git-branch` 12 `--text-secondary` (current row: `check` 12 `--accent`; remote rows: `cloud` 12) · name mono 12 `--text-primary`, truncate middle (remote rows keep the `origin/` prefix and render the whole name `--text-secondary`) · spacer · ahead/behind `↑n ↓n` mono 11 `--text-muted` tabular-nums vs upstream, local rows only, hidden at 0/0.
+- **Current row**: name weight 500, `check` in `--accent`; click is inert. **Local row click (or ↩)** → `git checkout <name>`: the row's icon swaps to a 12px spinner; failure (dirty tree etc.) → §6.11 sticky toast, nothing changes. **Remote row click (or ↩)** → if a local branch with the same short name exists, checkout that; else `git checkout -b <short> --track <remote>/<short>`; same busy/failure treatment.
+- After any checkout: branch button, ahead/behind, groups, and HISTORY refresh together; detached HEAD renders on the branch button (round-1 spec), never as a ✓ row.
+- Hover `--bg-raised`; ↑↓ ↩ keyboard like every list. Context menus (native): local row — Checkout · Copy branch name; remote row — Checkout as local branch · Copy branch name. (Delete/rename: deliberately out of Phase 10.)
+
 ### S3B — Explorer view
 
 - View header (band): "EXPLORER" 11px/600 uppercase tracking +0.04em `--text-muted` · spacer · `collapse-all` codicon 16 · `refresh` on hover.
@@ -171,6 +207,7 @@ Sessions render on the terminal region in one of two user-selectable orientation
 - **End session** is confirm-gated everywhere (⋯ menu, context menu, tab/row ×): title "End 'claude-auth'?", body "Its process will stop and its scrollback will be discarded. This cannot be undone.", [Cancel] [End session] destructive.
 - **Context menu** (native): Rename (F2), Restart, Copy directory path, End session….
 - **Accessibility**: status via `aria-label="claude-auth, needs input"`; visible status text lives in tooltips (top mode) or the identity strip (right mode) per DESIGN.md §1.3.
+- **Drag (round 2)**: press + 4px travel starts a drag on any single-session tab (top) or row (right). Staying inside the home strip/dock = **reorder** — same ghost/indicator/settle spec as S2's project tabs (indicator vertical between tabs, horizontal between rows); session order persists per project. Crossing into the terminal region = **drag-to-split** (S4A). Split headers drag back to the strip/dock to pop out (S4A). Group tabs/rows (≥2 splits) reorder but never enter split mode. Esc cancels any drag.
 
 ### Orientation "top" (default) — session tab strip in the band
 
@@ -178,7 +215,7 @@ Sessions render on the terminal region in one of two user-selectable orientation
 ┌ HEADER BAND [h:36] = TAB STRIP · bg --bg-sidebar · shared hairline ────────────┐
 │ ⟡ claude-auth ⎇ ● ×│⟡ codex-migrate ●│⌗ shell-1 ●│ »        (spacer)   [＋ ˅] │
 ├─────────────────────────────────────────────────────────────────────────────────┤
-│ xterm.js — bg --bg-canvas, padding 8px 12px, SF Mono 13, lineHeight 1.25       │
+│ xterm.js — bg --bg-canvas, padding 8px 12px, --font-terminal 13, lineHeight 1.25│
 │ theme: DESIGN.md §1.6 · WebGL addon · scrollback cap 10000                     │
 └─────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -189,7 +226,7 @@ Sessions render on the terminal region in one of two user-selectable orientation
 - **×** opens the End-session confirm — closing is never silent, and ⌘W never touches session tabs.
 - Widths: natural up to max 200px, truncate middle; shrink evenly to min 120px; past that the strip scrolls horizontally (no visible scrollbar; trackpad / ⇧-wheel) and a **» overflow button** 24×24 pins before ＋: native menu of ALL sessions (agent icon · name · status text, ✓ on active); » carries the amber count pill when any scrolled-out session needs input.
 - **＋ split button** pinned at the band's right end: ＋ 24×24 opens the ⌘T modal; ˅ 16×24 beside it opens a native quick-create menu — one row per registry agent with its icon (missing CLI → disabled, "not installed") + Shell; selecting creates `<agent>-<n>` in the repo root and focuses it (same path as §6.2 quick-create).
-- Interactions: click = select (terminal swaps, no animation, terminal focused); double-click / F2 = inline rename (shared spec above); right-click = context menu. **Drag-reorder: deferred — explicitly out of round 1.**
+- Interactions: click = select (terminal swaps, no animation, terminal focused); double-click / F2 = inline rename (shared spec above); right-click = context menu (round 2 adds "Open in split" — S4A). Drag: shared spec above + S4A (round 1's deferral is closed).
 - Zero sessions: strip shows only ＋˅; terminal region shows §6.2.
 
 ### Orientation "right" — identity strip + docked session list
@@ -212,10 +249,39 @@ Sessions render on the terminal region in one of two user-selectable orientation
 ### Both orientations
 
 - ⌥⌘↓/↑ cycles sessions regardless of focus; Enter on a row/tab focuses the terminal.
-- Terminal focus signal: the band's bottom hairline under the CENTER region turns `--accent` (1px) when the terminal has focus (round-0 rule, carried to the band).
+- Terminal focus signal: the band's bottom hairline under the CENTER region turns `--accent` (1px) when the terminal has focus (round-0 rule, carried to the band). With splits, the signal means "the surface's focused split has keyboard focus"; the per-split ring (S4A) says which one.
 - **Restore-all bar** (DESIGN.md §3): `[h:32]`, full center width, docked directly under the band, bg `--bg-surface`, hairline bottom: "N saved sessions" 13px + [↺ Restore all] — replaces its round-0 home at the top of the removed Sessions section.
 - Terminal: fit-addon on container resize (16ms debounce; refit on orientation change and dock drag). Never animate terminal content or opacity. Terminal owns keyboard when focused; ⌘-chords and F2 pass to the app.
-- Banners (exited, restore-armed, agent-missing — DESIGN.md §6): `[h:36]` strip docked at the BOTTOM of the terminal region, full width, wash bg (`--warning-wash` / `--error-wash` / `--success-wash`), 13px text, inline text-buttons right, × dismiss where non-actionable. Banner never overlays scrollback (region shrinks by 36px).
+- Banners (exited, restore-armed, agent-missing — DESIGN.md §6): `[h:36]` strip docked at the BOTTOM of the terminal region, full width, wash bg (`--warning-wash` / `--error-wash` / `--success-wash`), 13px text, inline text-buttons right, × dismiss where non-actionable. Banner never overlays scrollback (region shrinks by 36px). With splits, banners and empty states are pane-scoped: they dock at the bottom / center inside the owning split only (S4A).
+
+### S4A — Split surfaces (round 2: drag-to-split; user ref media_UHETSdh05D)
+
+**Model.** Every strip tab / dock row is a SURFACE: a binary split tree whose leaves are sessions. One leaf = today's full-bleed terminal, zero extra chrome. **Max 6 leaves per surface.** Each leaf stays its own tmux-backed session — create/rename/end/restore semantics untouched; the tree, ratios, order, and focused leaf are app-side presentation state persisted per project. Copy rule (DESIGN.md §7): the user-facing noun is "split" — "pane" never appears in a rendered string.
+
+**Starting a drag** — shared S4 spec: a single-session tab/row dragged past the band into the terminal region enters split mode. Drag ghost: the tab/row at 90% opacity, `--shadow-2`, follows the pointer 1:1. Esc cancels; layouts and orders unchanged.
+
+**Quadrant hit-testing.** For the split under the pointer, with normalized pointer position (u, v) in its box: the armed edge is `min(u, 1−u, v, 1−v)` → left / right / top / bottom (the box's diagonals cut the four zones). The corresponding HALF of that split shows the drop overlay: `--drop-wash` fill + 1px `--accent` inset border, snapped on/off with zero transition (never fade over a live terminal — DESIGN.md §5). Drop → that split divides 50/50 on the armed axis; the dragged session takes the lit half and focus; its own tab/row leaves the strip/dock (the surfaces merge into one group tab/row).
+
+**No overlay = no drop.** Zones never arm when: the surface already holds 6 leaves; either resulting split would fall under min size (200w × 120h); the dragged tab IS the active surface's only leaf; or the dragged item is a group.
+
+**Splits (≥2 leaves).**
+- **Header** `[h:24]`, bg `--bg-sidebar`, hairline bottom, padding 0 8px: agent icon 14 · name 12px (F2 / double-click = shared inline rename) · codicon `git-branch` 12 when in a worktree · status dot 8 (full §1.3 vocabulary; saved adds `history` 12) · spacer · × 14 on hover (End-session confirm). The whole header is the drag handle (`grab`/`grabbing`); right-click = shared session context menu + "Move to its own tab". Headers exist only while the surface has ≥2 leaves.
+- **Focus**: exactly one focused split per surface. Focused: header name `--text-primary` + 2px `--accent` left inset, plus a 1px `--accent` inset ring around the split's content box (static — no animation, drawn on the container, never over xterm pixels). Unfocused headers: `--text-secondary`. Click anywhere in a split focuses it.
+- **Dividers**: 1px `--border`, 5px invisible hit area, hover `--border-strong`, cursor `col-resize`/`row-resize`; drag adjusts that tree node's ratio, clamped so no split goes under 200×120; double-click resets that node to 50/50. Ratios persist.
+- **Keyboard**: ⌘⌥←→↑↓ move focus to the geometrically nearest split in that direction (greatest edge overlap with the focused split's projection; ties → topmost/leftmost). At the surface's edge, ⌘⌥↓/↑ fall through to next/previous surface — which is why unsplit surfaces behave exactly as round 1; ⌘⌥←/→ at an edge are no-ops. ⌥⌘-cycling, ⌘J, quick-create, and hotkey launches all target/produce surfaces.
+- **Per-split states**: exited/failed banners `[h:36]` dock at the split's own bottom; Ready-to-restore renders centered in the split; xterm fit-addon refits each split on divider drag / structure change (16ms debounce).
+
+**Pop out.**
+- Drag a split's header onto the tab strip (top) or dock list (right): the S2-style insertion indicator appears; drop removes the leaf (its sibling absorbs the space), recreates the session as its own tab/row at that index, makes it the active surface, and focuses its terminal.
+- Non-drag paths (native menus): split-header context menu — "Move to its own tab"; single-session tab/row context menu — "Open in split ▸ Left / Right / Top / Bottom" (splits the active surface's focused split; disabled at 6 leaves or when the item is the active surface's only leaf).
+- A surface reduced to 1 leaf (pop-out or session end) drops its headers and reverts to a plain session tab/row.
+
+**Group tab / row (surface with ≥2 leaves).**
+- Tab (top): codicon `split-horizontal` 16 `--text-secondary` replaces the agent icon · focused leaf's name 13px · "+n" pill `[h:16]` mono 10 on `--bg-raised` (n = other leaves) · roll-up status dot 8 (attention > working > idle; pulses when any leaf needs input) · **no ×** — sessions end only from split headers, never as a group. Tooltip lists every member with its status ("claude-auth · needs input — codex-migrate · working — 3 splits"). F2 renames the focused leaf's session. Context menu (native): Rename, Break up into tabs (pops every leaf out, in layout order), End all sessions… (one confirm naming all).
+- Dock row (right): same anatomy at row scale (`split-horizontal` 16 · name 13 · +n pill · dot 8, × hidden). Identity strip: `split-horizontal` 16 · focused leaf's name · focused leaf's status label; ⋯ acts on the focused leaf.
+- A ⌘J jump to a session inside a group selects its surface AND focuses its split.
+
+**Durability.** The manifest/tmux layer never learns about splits. Restore rebuilds the persisted layout; each saved leaf shows its own Ready-to-restore state in place; Restore-all counts leaves, not surfaces.
 
 ## S5 — Editor panel
 
@@ -242,7 +308,8 @@ Sessions render on the terminal region in one of two user-selectable orientation
         │ New session                              [h:28 title]  │  padding 20
         │                                                        │
         │ Agent                                                  │  label 11/600 muted
-        │ [ ● Claude Code ] [ Codex ] [ Shell ]                  │  segmented h:32
+        │ [ ● Claude Code ] [ Codex ] [ Cursor ] [ Gemini ]      │  chip grid, h:32 chips,
+        │ [ Droid ] [ DeepSeek ] [ … ] [ Shell ]                 │  wraps (round 2)
         │    claude is not installed — hover for install command │  (only when missing)
         │ Name                                                   │
         │ [ claude-1                                    ]        │  input h:28
@@ -254,8 +321,9 @@ Sessions render on the terminal region in one of two user-selectable orientation
 ```
 
 - Centered horizontally, top at 20vh; scrim `--bg-scrim`; fade+scale 0.98→1, 200ms. Esc cancels; ↩ creates from any field. Focus lands on Agent control; Tab order: Agent → Name → Directory → Choose → Cancel → Create.
-- Agent segmented control: options from the agent registry (Claude Code, Codex, Shell), each rendered as agent icon 16 (`currentColor` logo per DESIGN.md §3; Shell = codicon `terminal`) + label 13px, gap 6px; missing CLI → option disabled at 50% + caption row 11px `--text-muted` with the install command in mono 11 + copy icon (DESIGN.md §6.5). New registry agents inherit their icon from the DESIGN.md §3 map automatically.
+- Agent picker (round 2 — the registry now carries 10 launchable CLIs, so the 3-option segmented control becomes a wrapping chip grid): one chip per registry agent + Shell last. Chip `[h:32]`, r-sm, padding 0 10px, gap 6px both axes: agent icon 16 (`currentColor` logo per DESIGN.md §3; Shell = codicon `terminal`) + label 13px. Radio semantics — arrow keys move, exactly one selected; selected chip: bg `--bg-active`, 1px `--accent` border; default selection = Settings → General "Default agent" (explicit claude out of the box — never alphabetical). Missing CLI → chip disabled at 50%; one caption row 11px `--text-muted` under the grid shows the hovered/focused disabled chip's install command in mono 11 + copy icon (DESIGN.md §6.5). New registry agents inherit their icon from the DESIGN.md §3 map automatically.
 - Name prefills `<agent>-<n>` (next free ordinal per project), select-all on focus. Duplicate → silent `-2` suffix on create. Directory prefills project root; [Choose…] = native dialog; non-existent path → inline error 12px `--error` "Directory not found", Create disabled.
+- **Options (round 2)** — flag presets for the selected agent (registry `flagPresets`), between Directory and the buttons; the group is hidden when the agent has none (Shell always, others until Phase 10 #8 catalogs them). Label "Options" 11px/600 `--text-muted`. Preset row `[h:24]`: checkbox 14 · label 13px `--text-primary` · flag chip mono 10 `--text-muted` on `--bg-raised` `[h:16]` r-sm padding 0 4px. Danger presets (`danger: true`): codicon `warning` 14 `--error` before the label; chip on `--error-wash` with `--error` text. Defaults: all unchecked, except presets enabled in Settings → Launch defaults (danger defaults pre-check too — the warning styling still renders). Checked flags append to the launch argv AND are recorded in the manifest so `resume_argv` keeps them (BACKLOG #8). Toggling here is per-session — it never writes back to Settings. The modal grows; 20vh anchor holds.
 - Create → modal closes, session row appears selected, terminal focused, agent launches. Total flow: ⌘T ↩ = two keys.
 
 ## S7 — Attention overlay (⌘J)
@@ -272,7 +340,7 @@ Sessions render on the terminal region in one of two user-selectable orientation
 
 - Summoned by ⌘J or 🔔. Drops from under the titlebar (translateY -8→0 + fade, 200ms). Scrim-free (non-modal): click-away closes. `--z-attention`.
 - Row `[h:40]`, padding 0 16px: pulsing attention dot 8px · agent icon 16px (`currentColor` logo, `--text-secondary`) · session name 13px/500 · project name 12px `--text-muted` · prompt excerpt mono 12px `--text-secondary` truncated (last non-empty terminal line, from the status detector) · age 11px `--text-muted` right. Sorted newest-blocked first.
-- ↑↓ selects (bg `--bg-active`), ↩ or click jumps: switches project tab, selects session, focuses terminal, closes overlay. First row preselected.
+- ↑↓ selects (bg `--bg-active`), ↩ or click jumps: switches project tab, selects session, focuses terminal, closes overlay (a session living inside a split group selects its surface and focuses its split — S4A). First row preselected.
 - Empty state (count 0): single row 13px `--text-secondary`, copy DESIGN.md §6.9; bell opens it anyway.
 
 ## S8 — Shortcuts overlay (⌘/)
@@ -321,3 +389,48 @@ Every screen's primary action is the visually loudest element and carries its sh
 11. **Orientations**: both reachable from the View menu, persisted across relaunch, and fully equivalent — create / select / rename / end / attention pulse / saved ↺ verified in each; xterm refits on toggle.
 12. **Hover card**: appears at 600ms, interactive (copy + links reachable by pointer), flips instead of clipping at window edges, all text ≥4.5:1, Esc dismisses; reduced-motion renders it without fade.
 13. **History**: context menu shows "Open on GitHub" only with a github.com remote; Copy Commit ID copies the full SHA; detached-HEAD state visible on the branch button after Checkout (Detached).
+14. **Drag correctness (round 2)**: quadrant hit-testing arms the correct half in all four directions on every split; overlay = `--drop-wash` + 1px `--accent` with ZERO transition; no zone arms at 6 splits, under min split size (200×120), for group tabs, or for the active surface's only leaf; Esc cancels every drag kind (tab reorder, section drag, split drop, pop-out) with zero state change.
+15. **Splits**: focus ring + header inset track the focused split; ⌘⌥ arrows navigate geometrically with the ↓/↑ edge fallthrough — verify unsplit surfaces behave key-for-key as round 1; pop-out works by drag AND by menu in BOTH orientations; layout, ratios, and focused split survive relaunch; banners and Ready-to-restore render split-scoped; no rendered string contains "pane" (extend the item-6 vocabulary grep).
+16. **Order persistence**: project-tab order (app-wide), session order (per project), and sidebar section order (per view) survive relaunch; ⌘1–⌘9, ⌃Tab, and overflow menus follow visual order.
+17. **Settings (S13)**: single instance via ⌘, and the activity-bar gear; every control keyboard-reachable with visible focus; the recorder rejects §4-map, cross-row, and macOS-reserved chords with the inline error; danger presets confirm on FIRST enable only; Re-scan updates paths/versions without relaunch; enabled launch defaults pre-check ⌘T Options and land in manifest argv + resume_argv.
+18. **Branches**: current branch inert with ✓; local checkout and remote tracking-checkout run from click and ↩ with per-row busy spinners; fetch runs `--all --prune` with the spinner in the header; every failure → §6.11 sticky toast leaving state unchanged; "Manage branches" (branch menu) reveals + focuses the section.
+
+## S13 — Settings window (⌘,) — round 2
+
+**Decision: a dedicated window, not an in-app panel.** Settings outlive any one project, the main window's regions are all spoken for, and a second `BrowserWindow` costs nothing here (no terminals in it). Single instance: ⌘, or the activity-bar gear opens/focuses it; ⌘W closes it when focused (the main-window rule "⌘W never touches sessions" is unaffected). Native titled window — standard traffic lights, title "Settings" — w:760 h:560 default, min 640×480, resizable, position remembered. Same tokens, dark-only; changes apply immediately (no Save button).
+
+```
+┌ Settings ─────────────────────────────────────────────────────────────┐
+│ NAV w:200                 │ CONTENT bg --bg-canvas · padding 24        │
+│ bg --bg-sidebar           │ section title 20/600 · content max-w 560   │
+│  ⚙ General                │ groups: bg --bg-surface · 1px --border ·   │
+│  ⌂ Agents                 │ r --r-md · rows [h:36] padding 0 12px ·    │
+│  ⌨ Hotkeys                │ hairline-separated · group label 11/600    │
+│  ⚑ Launch defaults        │ uppercase --text-muted above each card     │
+└───────────────────────────┴────────────────────────────────────────────┘
+```
+
+- **Nav rail**: rows `[h:32]` padding 0 12px — codicon 16 (`settings-gear` / `hubot` / `record-keys` / `rocket`) + label 13px; active: `--bg-active` + 2px `--accent` left inset; hover `--bg-raised`; ↑↓ switches sections; 1px `--border` divider to content.
+- **Row anatomy**: label 13px `--text-primary` left (optional caption 11px `--text-muted` below → row grows to 48); control right-aligned: Switch (DESIGN.md §3 component), dropdown `[h:24]` (native select styling per Inputs spec), size field `[h:24]` w:56 mono 12 with stepper arrows, or recorder chip. Every control: `:focus-visible` ring.
+
+### General
+- **Open at login** — Switch; registers the macOS login item. Caption: "gmux starts in the background so sessions are ready instantly."
+- **Default agent** — dropdown of installed launchable agents + Shell; ships as Claude Code (explicit — never alphabetical; registry §1 quirk). Drives the ⌘T picker's initial selection.
+- **Terminal font** — family dropdown (bundled "JetBrains Mono" first, then detected monospace families) + size stepper 11–16, default 13. Sets `--font-terminal`; all terminals refit immediately. Caption: "The bundled font covers prompt symbols many fonts miss."
+
+### Agents
+- Content header row: "Last scanned 2m ago" 11px `--text-muted` + [Re-scan] secondary `[h:26]` ("Scanning…" + 12px spinner while probing `pathProbe` + `extraDirs` per the registry — same resolver as session create, single source of truth per BACKLOG Bug A).
+- One row per launchable registry agent (the 10 `kind: cli` entries; IDE watchers are not listed in v1). Row `[h:48]`, two lines: agent icon 16 monochrome · name 13px/500; second line 11px — detected: path mono, truncate middle, + version chip `[h:16]` mono 10 on `--bg-raised`; missing: "Not installed" `--text-muted` + install command mono 11 + copy 14 where known. pi: registry marks launch UNVERIFIED — if detection can't confirm a runnable binary the row simply renders "Not installed".
+- Chevron expands the row: **Custom command** input mono 12 (placeholder = detected path; overrides argv[0]; tokenized with quote/escape + tilde expansion; precedence per registry `sharedRules`) · "Launch defaults →" link 12px `--accent-text` (jumps to that agent's group in the Launch defaults section).
+- Zero agents detected → §6.14 line + [Re-scan].
+
+### Hotkeys
+- Reference rows first, non-editable, all text `--text-muted`: "New session ⌘T" · "Settings ⌘,".
+- One row per launchable agent: agent icon 16 · "New Claude Code session" 13px · spacer · **recorder chip** (DESIGN.md §3 component): unassigned → "Record shortcut"; click → recording ("Type shortcut…", 1px `--accent` border + `--focus-ring`; Esc cancels, ⌫ clears); a valid chord commits instantly. Placeholder hint mirrors the registry `defaultHotkeyHint` ("e.g. ⌘⇧C"). Nothing is pre-assigned.
+- Validation: chord must include ⌘ or ⌃; collisions with the DESIGN.md §4 map, another row, or macOS-reserved chords → 12px `--error` line under the row, "Already used by <action>", chord not saved.
+- Assigned chords register as accelerators on native Session-menu items ("New Claude Code session ⌘⇧C") — the menu stays the source of nativeness; pressing one creates `<agent>-<n>` in the ACTIVE project's root and focuses it (§6.2 quick-create path). Persisted app-wide.
+
+### Launch defaults
+- One group card per agent, detected agents first (icon + name as the card label; undetected collapsed at 50% opacity with "not installed"). Preset row `[h:44]`, two lines: Switch · label 13px + flag chip mono 10 on `--bg-raised` · description 12px `--text-muted` below. Danger presets (`danger: true`): codicon `warning` 14 `--error` before the label; chip on `--error-wash` with `--error` text.
+- First enable of a danger preset → confirm modal (S6 chrome, w:420): title "Skip permission prompts for Codex?", body "codex --yolo lets the agent run commands without asking. Every new Codex session will start this way.", [Cancel] [Enable] destructive. Disabling never confirms; later re-enables don't re-confirm within the same install.
+- Enabled defaults pre-check the matching ⌘T Options rows (S6) and apply to quick-create and hotkey launches; flags are recorded in manifest argv AND `resume_argv` so restores keep them (BACKLOG #8; per-CLI resume composition verified by the build, not this spec).

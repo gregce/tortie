@@ -12,12 +12,17 @@
  * checkoutDetached) broadcast EVT_GIT_CHANGED immediately so the sidebar
  * snaps without waiting out the watcher debounce — same discipline as
  * stage/commit in ipc.ts.
+ *
+ * Phase 10 #7 appended the branch-management channels (git:remoteBranches /
+ * git:fetch / git:checkoutTracking / git:deleteBranch) here — same
+ * registration point, same shared registries.
  */
 
 import type { IpcMain, IpcMainInvokeEvent } from 'electron';
 import type {
   DepthInvokeReq,
   DepthInvokeRes,
+  GitBranchesInvokeChannelMap,
   GitDepthInvokeChannelMap
 } from '@shared/ipc';
 import type { GitService } from './service';
@@ -45,6 +50,24 @@ function handle<C extends DepthChannel>(
 ): void {
   ipc.handle(channel, (event, ...args) =>
     fn(event, ...(args as DepthInvokeReq<C>))
+  );
+}
+
+type BranchChannel = keyof GitBranchesInvokeChannelMap;
+
+/** Same wrapper over the branch-management channels (Phase 10 #7). */
+function handleBranch<C extends BranchChannel>(
+  ipc: IpcMain,
+  channel: C,
+  fn: (
+    event: IpcMainInvokeEvent,
+    ...args: GitBranchesInvokeChannelMap[C]['req']
+  ) =>
+    | Promise<GitBranchesInvokeChannelMap[C]['res']>
+    | GitBranchesInvokeChannelMap[C]['res']
+): void {
+  ipc.handle(channel, (event, ...args) =>
+    fn(event, ...(args as GitBranchesInvokeChannelMap[C]['req']))
   );
 }
 
@@ -98,5 +121,31 @@ export function registerGitDepthIpc(ipc: IpcMain, deps: GitDepthDeps): void {
     const svc = svcFor(input.repoPath);
     await svc.checkoutDetached(input.sha);
     deps.broadcast(svc.repoPath);
+  });
+
+  // Branch-management channels (Phase 10 #7) — same service/watcher sharing.
+
+  handleBranch(ipc, 'git:remoteBranches', (_e, repoPath) =>
+    svcFor(repoPath).remoteBranches()
+  );
+
+  handleBranch(ipc, 'git:fetch', async (_e, repoPath) => {
+    const svc = svcFor(repoPath);
+    await svc.fetch();
+    // Fetch moves remote refs (and prunes) — refresh ahead/behind everywhere.
+    deps.broadcast(svc.repoPath);
+  });
+
+  handleBranch(ipc, 'git:checkoutTracking', async (_e, input) => {
+    const svc = svcFor(input.repoPath);
+    await svc.checkoutTracking(input.remoteBranch);
+    deps.broadcast(svc.repoPath);
+  });
+
+  handleBranch(ipc, 'git:deleteBranch', async (_e, input) => {
+    const svc = svcFor(input.repoPath);
+    const result = await svc.deleteBranch(input.name, input.force ?? false);
+    if (result.status === 'deleted') deps.broadcast(svc.repoPath);
+    return result;
   });
 }

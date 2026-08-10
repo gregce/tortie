@@ -11,6 +11,7 @@ import { create } from 'zustand';
 import type {
   AgentKind,
   GmuxErrorPayload,
+  LaunchableAgentKind,
   Project,
   Session,
   SessionStatus
@@ -23,6 +24,9 @@ import type {
   GmuxSessionRestoreExtras
 } from '@shared/ipc';
 import { showNativeMenu } from '../app/ContextMenu';
+// Direct module import (NOT ../settings barrel): the barrel re-exports
+// integration.ts which imports this store — presets.ts itself does not.
+import { defaultLaunchArgsFor } from '../settings/presets';
 import { StatusDetector } from './status-detector';
 import type { DetectedStatus } from './status-detector';
 
@@ -159,6 +163,19 @@ interface AppState {
   setActiveSession(sessionId: string): void;
   cycleSession(delta: 1 | -1): void;
   reorderTabs(fromId: string, toId: string): void;
+  /**
+   * Pointer-drag tab reorder (S2, round 2): move a project tab so it lands
+   * at `toIndex` in the visual order (insertion-indicator semantics).
+   */
+  moveProjectToIndex(projectId: string, toIndex: number): void;
+  /**
+   * Terminal region reports which session panes are mounted right now
+   * (the active surface's leaves — several at once under splits, S4A) so
+   * the status detector watches every visible terminal, not just the
+   * focused one.
+   */
+  visibleSessionIds: string[];
+  setVisibleSessions(sessionIds: string[]): void;
 
   // -- projects -----------------------------------------------------------------
   openProject(): Promise<void>;
@@ -168,8 +185,15 @@ interface AppState {
   // -- sessions -----------------------------------------------------------------
   createSession(input: {
     name: string;
-    agent: AgentKind;
+    /** Phase 10: any launchable registry agent, not just the frozen trio. */
+    agent: LaunchableAgentKind;
     cwd?: string;
+    /**
+     * Launch-flag preset tokens (shared/settings.ts catalogs). Main threads
+     * these into BOTH argv and resume_argv (buildLaunchSpec), so a resumed
+     * session keeps the flags it launched with.
+     */
+    extraArgs?: string[];
   }): Promise<boolean>;
   quickCreate(agent: AgentKind): Promise<void>;
   renameSession(sessionId: string, name: string): Promise<void>;
@@ -239,7 +263,7 @@ const LS_ORIENTATION = 'gmux.sessionOrientation';
 const LS_RIGHT_LIST_WIDTH = 'gmux.rightListWidth';
 const LS_SIDEBAR_VIEW = 'gmux.sidebarView';
 
-function loadLocal<T>(key: string, fallback: T): T {
+export function loadLocal<T>(key: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(key);
     return raw === null ? fallback : (JSON.parse(raw) as T);
@@ -248,7 +272,7 @@ function loadLocal<T>(key: string, fallback: T): T {
   }
 }
 
-function saveLocal(key: string, value: unknown): void {
+export function saveLocal(key: string, value: unknown): void {
   try {
     localStorage.setItem(key, JSON.stringify(value));
   } catch {
@@ -296,22 +320,36 @@ export const useApp = create<AppState>((set, get) => {
       )
     : null;
 
-  /** Keep the detector watching exactly the visible (attached) session. */
-  let watchedId: string | null = null;
+  /**
+   * Keep the detector watching exactly the visible (attached) sessions.
+   * Splits (Phase 10, S4A) can mount several panes at once — the terminal
+   * region reports its mounted leaves via setVisibleSessions; before the
+   * first report (or with no splits) this is just the active session.
+   */
+  const watchedIds = new Set<string>();
+  const watchable = (s: Session): boolean =>
+    s.status === 'running' || s.status === 'idle' || s.status === 'needs_input';
   const syncDetector = (): void => {
     if (!detector) return;
-    const active = get().activeSession();
-    const targetId =
-      active && (active.status === 'running' || active.status === 'idle' ||
-        active.status === 'needs_input')
-        ? active.id
-        : null;
-    if (targetId === watchedId) return;
-    if (watchedId !== null) detector.unwatch(watchedId);
-    watchedId = null;
-    if (targetId !== null && active) {
-      detector.watch(targetId, active.agent);
-      watchedId = targetId;
+    const s = get();
+    const targets = new Map<string, Session>();
+    const active = s.activeSession();
+    if (active && watchable(active)) targets.set(active.id, active);
+    for (const id of s.visibleSessionIds) {
+      const sess = s.sessions.find((x) => x.id === id);
+      if (sess && watchable(sess)) targets.set(sess.id, sess);
+    }
+    for (const id of [...watchedIds]) {
+      if (!targets.has(id)) {
+        detector.unwatch(id);
+        watchedIds.delete(id);
+      }
+    }
+    for (const [id, sess] of targets) {
+      if (!watchedIds.has(id)) {
+        detector.watch(id, sess.agent);
+        watchedIds.add(id);
+      }
     }
   };
 
@@ -529,6 +567,29 @@ export const useApp = create<AppState>((set, get) => {
       saveLocal(LS_TAB_ORDER, ordered);
     },
 
+    moveProjectToIndex(projectId, toIndex) {
+      const ordered = get().orderedProjects().map((p) => p.id);
+      const from = ordered.indexOf(projectId);
+      if (from === -1) return;
+      const clamped = Math.max(0, Math.min(ordered.length, toIndex));
+      const target = clamped > from ? clamped - 1 : clamped;
+      if (target === from) return;
+      ordered.splice(target, 0, ...ordered.splice(from, 1));
+      set({ tabOrder: ordered });
+      saveLocal(LS_TAB_ORDER, ordered);
+    },
+
+    visibleSessionIds: [],
+
+    setVisibleSessions(sessionIds) {
+      const prev = get().visibleSessionIds;
+      const same =
+        prev.length === sessionIds.length &&
+        prev.every((id, i) => id === sessionIds[i]);
+      if (!same) set({ visibleSessionIds: sessionIds });
+      syncDetector();
+    },
+
     // -- projects ---------------------------------------------------------------
 
     async openProject() {
@@ -584,7 +645,7 @@ export const useApp = create<AppState>((set, get) => {
 
     // -- sessions -----------------------------------------------------------------
 
-    async createSession({ name, agent, cwd }) {
+    async createSession({ name, agent, cwd, extraArgs }) {
       const project = get().activeProject();
       if (!gmux || !project) return false;
       // Silent display-name dedupe within the project (S6).
@@ -600,8 +661,16 @@ export const useApp = create<AppState>((set, get) => {
       const session = await gmux.sessions.create({
         name: finalName,
         projectPath: project.path,
-        agent,
-        ...(cwd !== undefined && cwd !== project.path ? { cwd } : {})
+        // INTEGRATOR (Phase 10): CreateSessionInput.agent is still the frozen
+        // AgentKind trio; shared/types.ts's registry-stream note widens it to
+        // LaunchableAgentKind at reconciliation (main's buildLaunchSpec
+        // already switches on every launchable id). Until then the wire cast
+        // lives HERE, in exactly one place.
+        agent: agent as AgentKind,
+        ...(cwd !== undefined && cwd !== project.path ? { cwd } : {}),
+        ...(extraArgs !== undefined && extraArgs.length > 0
+          ? { extraArgs }
+          : {})
       });
       get().setActiveSession(session.id);
       return true;
@@ -611,7 +680,16 @@ export const useApp = create<AppState>((set, get) => {
       try {
         const base = agent === 'shell' ? 'shell' : agent;
         const n = nextOrdinal(get().projectSessions(), base);
-        await get().createSession({ name: `${base}-${n}`, agent });
+        // §6.2 quick-create bypasses the ⌘T modal, so Settings → Launch
+        // defaults apply here directly (S13; the modal instead PRE-CHECKS
+        // them and sends its own final selection). Cycle-safe import: the
+        // presets module never imports this store.
+        const defaults = defaultLaunchArgsFor(agent);
+        await get().createSession({
+          name: `${base}-${n}`,
+          agent,
+          ...(defaults.length > 0 ? { extraArgs: defaults } : {})
+        });
       } catch (err) {
         get().toast('error', errorText(err), { sticky: true });
       }

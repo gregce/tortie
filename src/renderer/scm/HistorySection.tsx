@@ -44,6 +44,7 @@ import {
 } from './depth';
 import { formatRelative, fullMessage, shortSha, splitPath } from './format';
 import { requestOpenFile } from './open-file';
+import { usePersistedBool } from './sections';
 import { HoverCard } from './HoverCard';
 import { MiniModal } from './MiniModal';
 import type { MiniModalSpec } from './MiniModal';
@@ -156,42 +157,6 @@ function fileBadge(status: GitCommitFileChange['status']): {
 // ---------------------------------------------------------------------------
 // The section
 // ---------------------------------------------------------------------------
-
-/** Collapse state persisted per project (matches the other sections). */
-function usePersistedBool(
-  key: string,
-  fallback: boolean
-): [boolean, (v: boolean) => void] {
-  const [value, setValue] = useState<boolean>(() => {
-    try {
-      const raw = localStorage.getItem(key);
-      return raw === null ? fallback : raw === '1';
-    } catch {
-      return fallback;
-    }
-  });
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(key);
-      setValue(raw === null ? fallback : raw === '1');
-    } catch {
-      setValue(fallback);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
-  const update = useCallback(
-    (v: boolean): void => {
-      setValue(v);
-      try {
-        localStorage.setItem(key, v ? '1' : '0');
-      } catch {
-        /* cosmetic only */
-      }
-    },
-    [key]
-  );
-  return [value, update];
-}
 
 type HistItem =
   | { kind: 'commit'; sha: string }
@@ -704,8 +669,14 @@ export function HistorySection({
   };
 
   return (
-    <section className={`section-scm-history${collapsed ? ' collapsed' : ''}`}>
-      <div className={`section-header${collapsed ? ' collapsed' : ''}`}>
+    <section
+      className={`section-scm-history${collapsed ? ' collapsed' : ''}`}
+      data-section-root="history"
+    >
+      <div
+        className={`section-header${collapsed ? ' collapsed' : ''}`}
+        data-section="history"
+      >
         <button
           type="button"
           className="section-toggle"
@@ -721,6 +692,9 @@ export function HistorySection({
           </span>
         </button>
         <span className="section-spacer" />
+        <span className="section-gripper" aria-hidden="true">
+          <Codicon name="gripper" size={14} />
+        </span>
       </div>
       {!collapsed ? (
         <div

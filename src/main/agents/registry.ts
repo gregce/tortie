@@ -1,0 +1,578 @@
+/**
+ * The gmux agent registry (Phase 10 — research 11, docs/research/11-agent-registry.md).
+ *
+ * All 12 agents SpecStory has mechanics for, as DATA: binary names, probe
+ * dirs, session-store roots, version/identity probes, launch argv, and
+ * resume strategy. Everything here is synthesized from specstory-cli's
+ * provider SPI (see the research doc for per-field provenance); fields the
+ * research could not answer are marked UNVERIFIED in `notes` and via the
+ * `unverified` flag.
+ *
+ * Consumers:
+ *  - src/main/agents/detection.ts  — probes binaries + stores, runs versionCmd
+ *  - src/main/manifest/agents.ts   — buildLaunchSpec wires launch/resume argv
+ *  - (future) Settings UI          — per-agent enable/override/flag presets
+ *
+ * Pure data + pure helpers (no Electron, no I/O) — unit-testable anywhere.
+ *
+ * Registry rules internalized from the research:
+ *  - Resume is a SUBCOMMAND for codex/muse, a flag for the rest, and the
+ *    different `--conversation` flag for antigravity — all encoded in
+ *    `resume.template`, no special casing anywhere.
+ *  - cursoride/copilotide are IDE watchers (capture-only): NEVER launchable
+ *    in a tmux pane.
+ *  - pi is launchable per BACKLOG Phase-10 item 1, but its binary name,
+ *    version cmd, and launch argv are UNVERIFIED upstream (SpecStory v1 is
+ *    read-only for pi) — flagged so the UI can caveat it.
+ *  - Version commands are IDENTITY PROBES, not semver gates.
+ *  - Default agent must be explicit (claude) — never alphabetical
+ *    (SpecStory's bare-run bug picks antigravity on dev).
+ */
+
+import type { AgentRegistryId, LaunchableAgentId } from '@shared/types';
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+/** How a session id is fed back to the agent to resume a conversation. */
+export type ResumeStrategy =
+  /** `<bin> [--resume|resume|--conversation] <sessionId>` per template. */
+  | 'flag-uuid'
+  /** No resume mechanics exist (pi v1). */
+  | 'none'
+  /** IDE store row-insert; not driveable from a terminal (cursoride/copilotide). */
+  | 'session-file-harvest';
+
+/** How to ask the binary who it is / what version it runs. */
+export interface VersionProbe {
+  /** Args after the binary, e.g. ['-v'] or ['--version']. */
+  args: string[];
+  /** Second attempt when the first errors (codex --version → -V). */
+  fallbackArgs?: string[];
+  /**
+   * Output must contain this substring to count as the real agent
+   * (claude -v must contain "(Claude Code)" — a different `claude` on PATH
+   * is not Claude Code).
+   */
+  identitySubstring?: string;
+  /**
+   * How to distill the version string from the output. Default 'first-line'.
+   * 'strip-ansi-last-line' is droid's documented quirk.
+   */
+  postProcess?: 'first-line' | 'strip-ansi-last-line';
+}
+
+export interface AgentLaunchInfo {
+  /** Bare launch argv; argv[0] is the binary name (resolved to an absolute
+   *  path at create time by the session service). */
+  argv: string[];
+  /** Env deltas injected at spawn (cursor-agent needs FORCE_COLOR=1). */
+  env?: Record<string, string>;
+  /** Behavioral notes from the research (inherit-stdio, aliases, …). */
+  quirks: string[];
+}
+
+export interface AgentResumeInfo {
+  strategy: ResumeStrategy;
+  /**
+   * Args appended after the binary to resume; SESSION_ID_SLOT is replaced
+   * with the conversation id. Empty when strategy is 'none' or
+   * 'session-file-harvest'.
+   */
+  template: string[];
+  /** Where the agent's session files live (template form, for reference). */
+  sessionStore: string;
+  notes: string;
+}
+
+/** One launch-flag preset (BACKLOG Phase-10 item 8 populates these after
+ *  inspecting each installed CLI's --help; the type ships now so the data
+ *  append is additive). */
+export interface AgentFlagPreset {
+  flag: string;
+  label: string;
+  description: string;
+  /** Danger-styled in the UI (permission-skipping flags), off by default. */
+  danger: boolean;
+}
+
+export interface AgentRegistryEntry {
+  id: AgentRegistryId;
+  displayName: string;
+  /** 'cli' = tmux-launchable terminal agent; 'ide' = app watcher. */
+  kind: 'cli' | 'ide';
+  /**
+   * Can gmux spawn it in a tmux pane? IDE entries are capture-only
+   * (false); every CLI including pi is launchable per BACKLOG item 1
+   * (pi's mechanics carry `unverified`).
+   */
+  launchable: boolean;
+  /** Where the provider lives in SpecStory's branch topology (provenance). */
+  status: string;
+  /** Research confidence for gmux ('high' = shipped-main, verified). */
+  confidence: 'high' | 'medium' | 'low';
+  /** Candidate binary names, most canonical first. */
+  binaries: string[];
+  /**
+   * Extra dirs to probe for the binary beyond the captured login-shell PATH
+   * and resolve.ts's extraBinDirs(). May contain `~/` and `$VARS`; a single
+   * `*` path segment is globbed (nvm's versioned bins).
+   */
+  extraProbeDirs: string[];
+  /**
+   * Session-store roots (existence = "installed AND in use", a stronger
+   * signal than a binary on PATH; also the future watcher roots for async
+   * session-id harvest). `~/` and `$VARS` allowed.
+   */
+  storeDirs: string[];
+  /** null when there is no safe subprocess probe (IDEs, pi UNVERIFIED). */
+  versionProbe: VersionProbe | null;
+  /** null when not launchable in a pane. */
+  launch: AgentLaunchInfo | null;
+  resume: AgentResumeInfo;
+  /** Can cross-agent reconstruction write INTO this agent's store? */
+  reconstructionTarget: boolean;
+  /**
+   * AgentIcon key (src/renderer/assets/agents/<key>.svg). Keys without a
+   * shipped SVG yet (antigravity, muse, qwen, pi — research gap #1) render
+   * the terminal-glyph fallback until the asset is commissioned.
+   */
+  iconKey: string;
+  /** gmux proposal for a per-agent hotkey mnemonic (Phase-10 item 3). */
+  defaultHotkeyHint: string | null;
+  /** True when core mechanics are UNVERIFIED upstream (pi). */
+  unverified: boolean;
+  /** Per-agent launch-flag presets (populated by the presets stream). */
+  flagPresets?: AgentFlagPreset[];
+  notes?: string;
+}
+
+/** The slot replaced by the conversation id in resume templates. */
+export const SESSION_ID_SLOT = '<sessionId>';
+
+/** Explicit default agent — NEVER pick alphabetically (research rule 8). */
+export const DEFAULT_AGENT_ID: AgentRegistryId = 'claude';
+
+// ---------------------------------------------------------------------------
+// The 12 entries
+// ---------------------------------------------------------------------------
+
+export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
+  {
+    id: 'claude',
+    displayName: 'Claude Code',
+    kind: 'cli',
+    launchable: true,
+    status: 'shipped-main',
+    confidence: 'high',
+    binaries: ['claude'],
+    extraProbeDirs: ['~/.claude/local'],
+    storeDirs: ['~/.claude/projects'],
+    versionProbe: { args: ['-v'], identitySubstring: '(Claude Code)' },
+    launch: {
+      argv: ['claude'],
+      quirks: [
+        'gmux pre-assigns the session UUID with --session-id <uuid> (gmux FINAL-REPORT plan; UNVERIFIED in SpecStory code — fall back to store-watch harvest if it regresses)'
+      ]
+    },
+    resume: {
+      strategy: 'flag-uuid',
+      template: ['--resume', SESSION_ID_SLOT],
+      sessionStore: '~/.claude/projects/<dashEncode(realpath(cwd))>/<sessionId>.jsonl',
+      notes:
+        '--resume does not restore launch flags — record full original argv and re-append extras (handled by claudeResumeArgv).'
+    },
+    reconstructionTarget: true,
+    iconKey: 'claude',
+    defaultHotkeyHint: 'c',
+    unverified: false
+  },
+  {
+    id: 'cursor',
+    displayName: 'Cursor CLI',
+    kind: 'cli',
+    launchable: true,
+    status: 'shipped-main',
+    confidence: 'high',
+    binaries: ['cursor-agent'],
+    extraProbeDirs: ['~/.cursor/bin'],
+    storeDirs: ['~/.cursor/chats'],
+    versionProbe: { args: ['--version'] },
+    launch: {
+      argv: ['cursor-agent'],
+      env: { FORCE_COLOR: '1' },
+      quirks: ['FORCE_COLOR=1 is the sole env injection SpecStory makes for any agent']
+    },
+    resume: {
+      strategy: 'flag-uuid',
+      template: ['--resume', SESSION_ID_SLOT],
+      sessionStore: '~/.cursor/chats/<md5hex(canonicalCwd)>/<sessionId>/store.db',
+      notes:
+        'store.db is SQLite; md5 dir name is one-way — a cwd can never be recovered from it.'
+    },
+    reconstructionTarget: true,
+    iconKey: 'cursor',
+    defaultHotkeyHint: 'u',
+    unverified: false
+  },
+  {
+    id: 'codex',
+    displayName: 'Codex CLI',
+    kind: 'cli',
+    launchable: true,
+    status: 'shipped-main',
+    confidence: 'high',
+    binaries: ['codex'],
+    extraProbeDirs: ['$NVM_BIN', '~/.nvm/versions/node/*/bin'],
+    storeDirs: ['$CODEX_HOME/sessions', '~/.codex/sessions'],
+    versionProbe: { args: ['--version'], fallbackArgs: ['-V'] },
+    launch: {
+      argv: ['codex'],
+      quirks: ['honors CODEX_HOME for store location']
+    },
+    resume: {
+      strategy: 'flag-uuid',
+      template: ['resume', SESSION_ID_SLOT],
+      sessionStore:
+        '${CODEX_HOME:-~/.codex}/sessions/<YYYY>/<MM>/<DD>/rollout-<timestamp>-<uuid>.jsonl',
+      notes:
+        'Resume is a SUBCOMMAND, not a flag. Global date-sharded store; cwd attribution via line-1 session_meta. Bound watchers to ~7 days (fd-exhaustion lesson).'
+    },
+    reconstructionTarget: true,
+    iconKey: 'codex',
+    defaultHotkeyHint: 'x',
+    unverified: false
+  },
+  {
+    id: 'gemini',
+    displayName: 'Gemini CLI',
+    kind: 'cli',
+    launchable: true,
+    status: 'shipped-main',
+    confidence: 'high',
+    binaries: ['gemini'],
+    extraProbeDirs: [],
+    storeDirs: ['~/.gemini/tmp'],
+    versionProbe: { args: ['--version'] },
+    launch: { argv: ['gemini'], quirks: [] },
+    resume: {
+      strategy: 'flag-uuid',
+      template: ['--resume', SESSION_ID_SLOT],
+      sessionStore: '~/.gemini/tmp/<projectDir>/chats/session-*.json',
+      notes:
+        'projectDir resolution is 3-tier: .project_root marker → legacy sha256(canonicalCwd) → full scan.'
+    },
+    reconstructionTarget: true,
+    iconKey: 'gemini',
+    defaultHotkeyHint: 'g',
+    unverified: false
+  },
+  {
+    id: 'droid',
+    displayName: 'Factory Droid CLI',
+    kind: 'cli',
+    launchable: true,
+    status: 'shipped-main',
+    confidence: 'high',
+    binaries: ['droid'],
+    extraProbeDirs: [],
+    storeDirs: ['~/.factory/sessions'],
+    versionProbe: { args: ['--version'], postProcess: 'strip-ansi-last-line' },
+    launch: { argv: ['droid'], quirks: [] },
+    resume: {
+      strategy: 'flag-uuid',
+      template: ['--resume', SESSION_ID_SLOT],
+      sessionStore: '~/.factory/sessions/<dashEncode(realpath(cwd))>/<sessionId>.jsonl',
+      notes:
+        'Identical dash-encoding to Claude Code; sidecar <sessionId>.settings.json carries token usage.'
+    },
+    reconstructionTarget: true,
+    iconKey: 'droid',
+    defaultHotkeyHint: 'd',
+    unverified: false
+  },
+  {
+    id: 'deepseek',
+    displayName: 'DeepSeek TUI',
+    kind: 'cli',
+    launchable: true,
+    status: 'shipped-main (read/launch); dev adds reconstruct+watch',
+    confidence: 'high',
+    binaries: ['deepseek'],
+    extraProbeDirs: [],
+    storeDirs: ['~/.deepseek/sessions'],
+    versionProbe: { args: ['--version'] },
+    launch: { argv: ['deepseek'], quirks: ['documented floor 0.8.39+, not enforced'] },
+    resume: {
+      strategy: 'flag-uuid',
+      template: ['--resume', SESSION_ID_SLOT],
+      sessionStore: '~/.deepseek/sessions/<sessionId>.json',
+      notes:
+        'Flat GLOBAL store; project identity via metadata.workspace inside the file.'
+    },
+    reconstructionTarget: true,
+    iconKey: 'deepseek',
+    defaultHotkeyHint: 'k',
+    unverified: false
+  },
+  {
+    id: 'antigravity',
+    displayName: 'Antigravity CLI',
+    kind: 'cli',
+    launchable: true,
+    status: 'dev-only (not on main)',
+    confidence: 'medium',
+    binaries: ['agy'],
+    extraProbeDirs: [],
+    storeDirs: ['~/.gemini/antigravity-cli'],
+    versionProbe: { args: ['--version'] },
+    launch: {
+      argv: ['agy'],
+      quirks: [
+        "an 'antigravity' alias exists but is not normally on PATH — probe 'agy'",
+        'shares ~/.gemini root with Gemini CLI: detection dirs kept distinct'
+      ]
+    },
+    resume: {
+      strategy: 'flag-uuid',
+      template: ['--conversation', SESSION_ID_SLOT],
+      sessionStore:
+        '~/.gemini/antigravity-cli/brain/<conversationId>/.system_generated/logs/transcript_full.jsonl',
+      notes:
+        'Resume flag is --conversation, NOT --resume. Project attribution scrapes agy logs with fragile regexes — expect breakage across releases. NOT a cross-agent resume target (real state is protobuf-in-SQLite).'
+    },
+    reconstructionTarget: false,
+    iconKey: 'antigravity',
+    defaultHotkeyHint: 'a',
+    unverified: false
+  },
+  {
+    id: 'muse',
+    displayName: 'Muse Code',
+    kind: 'cli',
+    launchable: true,
+    status: 'branch-only (muse-provider = dev+5, PR #269 in flight)',
+    confidence: 'medium',
+    binaries: ['muse'],
+    extraProbeDirs: [],
+    storeDirs: ['$XDG_DATA_HOME/muse/sessions', '~/.local/share/muse/sessions'],
+    versionProbe: { args: ['--version'] },
+    launch: {
+      argv: ['muse'],
+      quirks: ['honors XDG_DATA_HOME for store location', 'documented floor 0.1.0+, not enforced']
+    },
+    resume: {
+      strategy: 'flag-uuid',
+      template: ['resume', SESSION_ID_SLOT],
+      sessionStore:
+        '${XDG_DATA_HOME:-~/.local/share}/muse/sessions/<YYYY>/<MM>/<DD>/<sessionId>/session.jsonl',
+      notes:
+        'Resume is a SUBCOMMAND, not a flag. Global date-sharded store (Codex-style); filter by stream.id to exclude subagent task-streams.'
+    },
+    reconstructionTarget: true,
+    iconKey: 'muse',
+    defaultHotkeyHint: 'm',
+    unverified: false
+  },
+  {
+    id: 'qwen',
+    displayName: 'Qwen Code',
+    kind: 'cli',
+    launchable: true,
+    status: 'branch-only (qwen-provider-support = dev+4, PR #268 in flight)',
+    confidence: 'medium',
+    binaries: ['qwen'],
+    extraProbeDirs: [],
+    storeDirs: ['~/.qwen/projects'],
+    versionProbe: { args: ['--version'] },
+    launch: {
+      argv: ['qwen'],
+      quirks: ['verified against qwen 0.21.7; empirical floor 0.21.0+, not enforced']
+    },
+    resume: {
+      strategy: 'flag-uuid',
+      template: ['--resume', SESSION_ID_SLOT],
+      sessionStore: '~/.qwen/projects/<sanitize(cwd)>/chats/<sessionId>.jsonl',
+      notes:
+        'sanitize hashes the VERBATIM cwd (no realpath, no leading-dash rule) — differs from claude/droid encoding. Ignore sibling .runtime.json.'
+    },
+    reconstructionTarget: true,
+    iconKey: 'qwen',
+    defaultHotkeyHint: 'q',
+    unverified: false
+  },
+  {
+    id: 'pi',
+    displayName: 'Pi',
+    kind: 'cli',
+    launchable: true,
+    status: 'remote-branch-unreleased (origin/feat/pi-provider = dev+19; SpecStory v1 is READ-ONLY)',
+    confidence: 'low',
+    binaries: ['pi'],
+    extraProbeDirs: [],
+    storeDirs: [
+      '$PI_CODING_AGENT_SESSION_DIR',
+      '$PI_CODING_AGENT_DIR',
+      '~/.pi/agent/sessions'
+    ],
+    // UNVERIFIED: no version command is confirmed upstream — no subprocess probe.
+    versionProbe: null,
+    launch: {
+      argv: ['pi'],
+      quirks: [
+        "UNVERIFIED: binary name and launch argv are gmux's best guess — SpecStory v1 returns 'not yet supported' for run/watch/resume"
+      ]
+    },
+    resume: {
+      strategy: 'none',
+      template: [],
+      sessionStore: '~/.pi/agent/sessions/--<encodedCwd>--/<timestamp>_<uuid>.jsonl',
+      notes:
+        'UNVERIFIED: resume mechanics unimplemented upstream. Env overrides honored: PI_CODING_AGENT_DIR, PI_CODING_AGENT_SESSION_DIR.'
+    },
+    reconstructionTarget: false,
+    iconKey: 'pi',
+    defaultHotkeyHint: null,
+    unverified: true,
+    notes: 'Launchable per BACKLOG Phase-10 item 1, but every mechanic is UNVERIFIED upstream.'
+  },
+  {
+    id: 'cursoride',
+    displayName: 'Cursor IDE',
+    kind: 'ide',
+    launchable: false, // capture-only: not a terminal process, never a tmux pane
+    status: 'dev-only',
+    confidence: 'medium',
+    binaries: ['cursor'],
+    extraProbeDirs: [],
+    storeDirs: ['~/Library/Application Support/Cursor/User/globalStorage/state.vscdb'],
+    versionProbe: null, // detection is store-existence, deliberately no subprocess
+    launch: null,
+    resume: {
+      strategy: 'session-file-harvest',
+      template: [],
+      sessionStore:
+        '~/Library/Application Support/Cursor/User/globalStorage/state.vscdb (cursorDiskKV composerData:<id>)',
+      notes:
+        "Resume = INSERT a composerData row into the global SQLite state.vscdb, then open Cursor. Surface as an 'open in IDE' action only."
+    },
+    reconstructionTarget: true,
+    iconKey: 'cursor',
+    defaultHotkeyHint: null,
+    unverified: false
+  },
+  {
+    id: 'copilotide',
+    displayName: 'VS Code Copilot (chat in IDE)',
+    kind: 'ide',
+    launchable: false, // capture-only: app watcher, never a tmux pane
+    status: 'dev-only; 4 variants registered only if that app has chats',
+    confidence: 'medium',
+    binaries: ['code', 'code-insiders', 'codium', 'codium-insiders'],
+    extraProbeDirs: [],
+    storeDirs: [
+      '~/Library/Application Support/Code/User/workspaceStorage',
+      '~/Library/Application Support/Code - Insiders/User/workspaceStorage',
+      '~/Library/Application Support/VSCodium/User/workspaceStorage',
+      '~/Library/Application Support/VSCodium - Insiders/User/workspaceStorage'
+    ],
+    versionProbe: null, // detection is workspaceStorage existence — no subprocess
+    launch: null,
+    resume: {
+      strategy: 'session-file-harvest',
+      template: [],
+      sessionStore:
+        '~/Library/Application Support/<app>/User/workspaceStorage/<hash>/chatSessions/<sessionId>.{jsonl,json}',
+      notes:
+        'Resume = write the chatSessions file + index row, then FULL VS Code restart. This is Copilot chat inside VS Code — no standalone Copilot CLI exists in SpecStory.'
+    },
+    reconstructionTarget: true,
+    iconKey: 'githubcopilot',
+    defaultHotkeyHint: null,
+    unverified: false
+  }
+];
+
+// ---------------------------------------------------------------------------
+// Lookup + argv helpers
+// ---------------------------------------------------------------------------
+
+const BY_ID = new Map<AgentRegistryId, AgentRegistryEntry>(
+  AGENT_REGISTRY.map((e) => [e.id, e])
+);
+
+/** Every registry id, in registry order. */
+export const AGENT_IDS: readonly AgentRegistryId[] = AGENT_REGISTRY.map((e) => e.id);
+
+/** Ids gmux can launch in a tmux pane (excludes the IDE capture-only pair). */
+export const LAUNCHABLE_AGENT_IDS: readonly LaunchableAgentId[] = AGENT_REGISTRY.filter(
+  (e) => e.launchable
+).map((e) => e.id as LaunchableAgentId);
+
+export function getRegistryEntry(id: AgentRegistryId): AgentRegistryEntry {
+  const entry = BY_ID.get(id);
+  if (entry === undefined) {
+    throw new Error(`Unknown agent registry id: ${id}`);
+  }
+  return entry;
+}
+
+/**
+ * Entry + its non-null launch info; throws for capture-only entries so a
+ * cursoride/copilotide launch attempt fails loudly at the source.
+ */
+export function getLaunchableEntry(
+  id: LaunchableAgentId
+): AgentRegistryEntry & { launch: AgentLaunchInfo } {
+  const entry = getRegistryEntry(id);
+  if (!entry.launchable || entry.launch === null) {
+    throw new Error(`Agent '${id}' is capture-only and cannot be launched in a pane.`);
+  }
+  return entry as AgentRegistryEntry & { launch: AgentLaunchInfo };
+}
+
+/** Canonical binary name for an id (cursor → cursor-agent, antigravity → agy). */
+export function agentBinaryName(id: AgentRegistryId): string {
+  const bin = getRegistryEntry(id).binaries[0];
+  if (bin === undefined || bin.length === 0) {
+    throw new Error(`Agent '${id}' has no binary name in the registry.`);
+  }
+  return bin;
+}
+
+/**
+ * Launch argv for a registry agent: resolved binary (or the registry's bare
+ * name) + registry args + user extras.
+ */
+export function registryLaunchArgv(
+  id: LaunchableAgentId,
+  extraArgs: readonly string[] = [],
+  bin?: string
+): string[] {
+  const entry = getLaunchableEntry(id);
+  const argv0 = bin ?? entry.launch.argv[0] ?? agentBinaryName(id);
+  return [argv0, ...entry.launch.argv.slice(1), ...extraArgs];
+}
+
+/**
+ * Resume argv for a registry agent from its template. Extras are re-appended
+ * because `--resume` does not restore launch flags (research gap #6 —
+ * documented for Claude, assumed for all). Returns [] when the agent has no
+ * resume mechanics (pi).
+ */
+export function registryResumeArgv(
+  id: LaunchableAgentId,
+  sessionId: string,
+  extraArgs: readonly string[] = [],
+  bin?: string
+): string[] {
+  const entry = getLaunchableEntry(id);
+  if (entry.resume.strategy !== 'flag-uuid') return [];
+  const argv0 = bin ?? agentBinaryName(id);
+  return [
+    argv0,
+    ...entry.resume.template.map((t) => (t === SESSION_ID_SLOT ? sessionId : t)),
+    ...extraArgs
+  ];
+}

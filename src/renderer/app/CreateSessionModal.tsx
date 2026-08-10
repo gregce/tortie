@@ -1,27 +1,76 @@
 /**
  * S6 — New session modal (⌘T). w:480, top 20vh, scrim; Enter creates from
  * any field; Esc cancels. Total happy path: ⌘T ↩ = two keys.
+ *
+ * Phase 10 (create-modal stream): the 3-option segmented control became a
+ * wrapping chip grid over EVERY launchable registry agent (agents:list-driven
+ * when the bridge has it, static registry mirror otherwise) + Shell last.
+ * Missing CLIs render disabled with a "not found" caption; the selected
+ * agent's launch-flag presets render as Options toggles (danger-styled per
+ * DESIGN-SPEC S6, pre-seeded from Settings launch defaults) whose tokens ride
+ * CreateSessionInput.extraArgs into BOTH argv and resume_argv. A disabled
+ * SpecStory capture row holds the Phase-12 layout slot.
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import type { AgentKind } from '@shared/types';
+import type { LaunchableAgentKind } from '@shared/types';
+import {
+  presetArgvTokens,
+  type AgentFlagCatalogView,
+  type AgentFlagPresetView,
+  type GmuxSettings
+} from '@shared/settings';
 import {
   AGENT_INSTALL_COMMANDS,
-  firstAvailableAgent,
-  isAgentAvailable,
-  useAgentAvailability
+  buildAgentOptions,
+  defaultAgentChoice,
+  useAgentAvailability,
+  type AgentPickerOption
 } from '../state/agents';
+import { useSettingsStore } from '../settings/settings-store';
 import { errorPayload, errorText, nextOrdinal, useApp } from '../state/store';
 import { trapTabKey } from './focus-trap';
 import { AgentIcon, Codicon } from '../icons';
 
-// Agent options carry the real vendor mark (round 1 — AgentIcon renders the
-// registry logo; shell/unknown fall back to the terminal glyph).
-const AGENT_OPTIONS: { agent: AgentKind; label: string }[] = [
-  { agent: 'claude', label: 'Claude Code' },
-  { agent: 'codex', label: 'Codex' },
-  { agent: 'shell', label: 'Shell' }
-];
+/** Install command for the caption row, when one is known. */
+function installCommandFor(id: string): string | null {
+  return id === 'claude' || id === 'codex'
+    ? AGENT_INSTALL_COMMANDS[id]
+    : null;
+}
+
+/**
+ * Two DIFFERENT presets sharing the same leading token are alternative
+ * values of one value-taking flag (--sandbox workspace-write vs
+ * danger-full-access): checking one must uncheck the other, or the argv
+ * carries contradictions.
+ */
+function presetsConflict(
+  a: AgentFlagPresetView,
+  b: AgentFlagPresetView
+): boolean {
+  if (a.flag === b.flag) return false;
+  return a.flag.split(' ')[0] === b.flag.split(' ')[0];
+}
+
+/**
+ * Settings → Launch defaults for one agent, filtered to the presets the
+ * modal actually offers (verified). Danger defaults pre-check too — the
+ * warning styling still renders (S6).
+ */
+function seededFlags(
+  agent: string,
+  settings: Pick<GmuxSettings, 'launchDefaults'>,
+  presets: readonly AgentFlagPresetView[]
+): readonly string[] {
+  const enabled =
+    (settings.launchDefaults as Record<string, string[] | undefined>)[
+      agent
+    ] ?? [];
+  if (enabled.length === 0) return [];
+  const offered = new Set(presets.map((p) => p.flag));
+  return enabled.filter((f) => offered.has(f));
+}
 
 export function CreateSessionModal(): React.JSX.Element | null {
   const open = useApp((s) => s.createOpen);
@@ -41,26 +90,50 @@ export function CreateSessionModal(): React.JSX.Element | null {
     [sessions, project]
   );
 
-  const [agent, setAgent] = useState<AgentKind>('claude');
+  const avail = useAgentAvailability();
+  // One settings truth across windows: persisted settings (default agent +
+  // launch defaults), flag catalogs, and the agents:list scan all come from
+  // the shared store (src/renderer/settings/settings-store.ts).
+  const initSettings = useSettingsStore((s) => s.init);
+  const settings = useSettingsStore((s) => s.settings);
+  const catalogs = useSettingsStore((s) => s.catalogs);
+  const scan = useSettingsStore((s) => s.scan);
+  useEffect(() => {
+    initSettings();
+  }, [initSettings]);
+  const options = useMemo(
+    () => buildAgentOptions(scan, avail),
+    [scan, avail]
+  );
+
+  const [agent, setAgent] = useState<LaunchableAgentKind>('claude');
   const [name, setName] = useState('');
   const [nameTouched, setNameTouched] = useState(false);
   const [cwd, setCwd] = useState('');
   const [dirError, setDirError] = useState<string | null>(null);
   const [genericError, setGenericError] = useState<string | null>(null);
   // Agent whose binary create-time resolution POSITIVELY reported missing
-  // (AGENT_NOT_FOUND) — shows the same install-command block availability
-  // uses, because the boot-time probe can be stale (e.g. CLI uninstalled).
-  const [notFoundAgent, setNotFoundAgent] = useState<AgentKind | null>(null);
+  // (AGENT_NOT_FOUND) — pins the caption row, because the boot-time scan can
+  // be stale (e.g. CLI uninstalled since).
+  const [notFoundAgent, setNotFoundAgent] = useState<string | null>(null);
+  // Last disabled chip the user hovered/focused — drives the caption row.
+  const [hintAgent, setHintAgent] = useState<string | null>(null);
+  // Per-agent checked preset flags for THIS modal opening; agents absent from
+  // the map show their Settings launch defaults (per-session, never written
+  // back to Settings).
+  const [flagSel, setFlagSel] = useState<Record<string, readonly string[]>>(
+    {}
+  );
   const [creating, setCreating] = useState(false);
   const nameRef = useRef<HTMLInputElement | null>(null);
-  const avail = useAgentAvailability();
+  const chipRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
   const toast = useApp((s) => s.toast);
 
   // Reset on open; prefill name `<agent>-<n>` and cwd = project root.
-  // Default agent = first INSTALLED one (§6.5): claude → codex → shell.
+  // Default agent: Settings default → claude → first installed → shell.
   useEffect(() => {
     if (!open) return;
-    const initial = firstAvailableAgent(avail);
+    const initial = defaultAgentChoice(options, settings.defaultAgent);
     setAgent(initial);
     setNameTouched(false);
     setName(`${initial}-${nextOrdinal(projectSessions, initial)}`);
@@ -68,18 +141,22 @@ export function CreateSessionModal(): React.JSX.Element | null {
     setDirError(null);
     setGenericError(null);
     setNotFoundAgent(null);
+    setHintAgent(null);
+    setFlagSel({});
     setCreating(false);
     requestAnimationFrame(() => nameRef.current?.select());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // If the availability probe settles AFTER open and the selected agent
-  // turned out to be missing, hop to the best installed one.
+  // If detection settles AFTER open and the selected agent turned out to be
+  // missing, hop to the best installed one.
   useEffect(() => {
-    if (!open || isAgentAvailable(avail, agent)) return;
-    setAgent(firstAvailableAgent(avail));
+    if (!open) return;
+    const current = options.find((o) => o.id === agent);
+    if (current !== undefined && current.installed) return;
+    setAgent(defaultAgentChoice(options, settings.defaultAgent));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, avail]);
+  }, [open, options]);
 
   // Re-prefill the name when the agent changes and the user hasn't typed.
   useEffect(() => {
@@ -97,6 +174,59 @@ export function CreateSessionModal(): React.JSX.Element | null {
 
   if (!open || !project) return null;
 
+  // Only VERIFIED presets are offered as toggles (flags seen in the installed
+  // CLI's --help — src/main/agents/flags.ts provenance discipline).
+  const catalog = (
+    catalogs as Record<string, AgentFlagCatalogView | undefined>
+  )[agent];
+  const presets = catalog?.presets.filter((p) => p.verified) ?? [];
+  const checkedFlags = flagSel[agent] ?? seededFlags(agent, settings, presets);
+  const selectedOption = options.find((o) => o.id === agent);
+
+  const togglePreset = (preset: AgentFlagPresetView): void => {
+    const isOn = checkedFlags.includes(preset.flag);
+    let next: string[];
+    if (isOn) {
+      next = checkedFlags.filter((f) => f !== preset.flag);
+    } else {
+      // Checking one value of a value-taking flag unchecks its rivals
+      // (--sandbox workspace-write vs --sandbox danger-full-access).
+      next = checkedFlags.filter((f) => {
+        const rival = presets.find((p) => p.flag === f);
+        return rival === undefined || !presetsConflict(rival, preset);
+      });
+      next.push(preset.flag);
+    }
+    setFlagSel({ ...flagSel, [agent]: next });
+  };
+
+  const selectAgent = (opt: AgentPickerOption): void => {
+    if (!opt.installed) {
+      setHintAgent(opt.id);
+      return;
+    }
+    setAgent(opt.id);
+  };
+
+  /** Arrow-key radio semantics over the ENABLED chips (roving tabindex). */
+  const onGridKeyDown = (e: React.KeyboardEvent): void => {
+    const forward = e.key === 'ArrowRight' || e.key === 'ArrowDown';
+    const backward = e.key === 'ArrowLeft' || e.key === 'ArrowUp';
+    if (!forward && !backward) return;
+    e.preventDefault();
+    const enabled = options.filter((o) => o.installed);
+    if (enabled.length === 0) return;
+    const at = Math.max(
+      0,
+      enabled.findIndex((o) => o.id === agent)
+    );
+    const next =
+      enabled[(at + (forward ? 1 : enabled.length - 1)) % enabled.length];
+    if (next === undefined) return;
+    setAgent(next.id);
+    chipRefs.current.get(next.id)?.focus();
+  };
+
   const submit = (): void => {
     if (creating) return;
     const trimmed = name.trim();
@@ -108,10 +238,14 @@ export function CreateSessionModal(): React.JSX.Element | null {
     setCreating(true);
     setDirError(null);
     setGenericError(null);
+    const extraArgs = presets
+      .filter((p) => checkedFlags.includes(p.flag))
+      .flatMap((p) => presetArgvTokens(p.flag));
     void createSession({
       name: trimmed,
       agent,
-      ...(cwd.trim().length > 0 ? { cwd: cwd.trim() } : {})
+      ...(cwd.trim().length > 0 ? { cwd: cwd.trim() } : {}),
+      ...(extraArgs.length > 0 ? { extraArgs } : {})
     })
       .then((ok) => {
         if (ok) setOpen(false);
@@ -127,7 +261,7 @@ export function CreateSessionModal(): React.JSX.Element | null {
           setDirError('Directory not found');
         } else if (payload?.code === 'AGENT_NOT_FOUND') {
           // Friendly state, never a dead pane (Bug A): name the problem and
-          // hand over the recovery (install command block below the agents).
+          // hand over the recovery in the caption row below the grid.
           if (agent !== 'shell') setNotFoundAgent(agent);
           setGenericError(payload.message);
         } else {
@@ -144,6 +278,12 @@ export function CreateSessionModal(): React.JSX.Element | null {
       }
     });
   };
+
+  // Caption row: a create-time AGENT_NOT_FOUND pins it; otherwise it echoes
+  // the last hovered/focused disabled chip. One row, 11px muted (S6).
+  const captionId = notFoundAgent ?? hintAgent;
+  const captionOption = options.find((o) => o.id === captionId);
+  const captionCmd = captionId !== null ? installCommandFor(captionId) : null;
 
   return (
     <div
@@ -163,7 +303,7 @@ export function CreateSessionModal(): React.JSX.Element | null {
           trapTabKey(e, e.currentTarget);
           if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
             // Let a focused button run its NATIVE activation — otherwise
-            // Enter on [Cancel] (or Choose…/radio) would create a session.
+            // Enter on [Cancel] (or Choose…/chips) would create a session.
             if ((e.target as HTMLElement).tagName === 'BUTTON') return;
             e.preventDefault();
             submit();
@@ -180,58 +320,78 @@ export function CreateSessionModal(): React.JSX.Element | null {
           <span className="field-label" id="agent-label">
             Agent
           </span>
-          <div className="seg" role="radiogroup" aria-labelledby="agent-label">
-            {AGENT_OPTIONS.map(({ agent: a, label }) => {
-              const available = isAgentAvailable(avail, a);
+          <div
+            className="agent-grid"
+            role="radiogroup"
+            aria-labelledby="agent-label"
+            onKeyDown={onGridKeyDown}
+          >
+            {options.map((opt) => {
+              const selected = agent === opt.id;
               return (
                 <button
-                  key={a}
+                  key={opt.id}
+                  ref={(el) => {
+                    if (el !== null) chipRefs.current.set(opt.id, el);
+                    else chipRefs.current.delete(opt.id);
+                  }}
                   type="button"
                   role="radio"
-                  aria-checked={agent === a}
-                  disabled={!available}
-                  title={available ? undefined : `${a} is not installed`}
-                  className={`seg-option${agent === a ? ' selected' : ''}`}
-                  onClick={() => setAgent(a)}
+                  aria-checked={selected}
+                  aria-disabled={!opt.installed}
+                  tabIndex={selected ? 0 : -1}
+                  title={
+                    opt.installed ? undefined : `${opt.label} not found`
+                  }
+                  className={`agent-chip${selected ? ' selected' : ''}${
+                    opt.installed ? '' : ' missing'
+                  }`}
+                  onClick={() => selectAgent(opt)}
+                  onMouseEnter={() => {
+                    if (!opt.installed) setHintAgent(opt.id);
+                  }}
+                  onFocus={() => {
+                    if (!opt.installed) setHintAgent(opt.id);
+                  }}
                 >
-                  <AgentIcon agent={a} size={16} />
-                  {label}
+                  <AgentIcon agent={opt.iconKey} size={16} />
+                  {opt.label}
                 </button>
               );
             })}
           </div>
-          {/* §6.5 — a missing agent is a friendly state, not a spawn error:
-              name the fact, hand over the install command, one-click copy.
-              Includes agents create-time resolution reported missing even
-              when the (cached) boot probe still thinks they exist. */}
-          {(['claude', 'codex'] as const)
-            .filter((a) => !avail[a] || notFoundAgent === a)
-            .map((a) => (
-              <div key={a} className="agent-missing">
-                <span className="agent-missing-text">
-                  {a} is not installed
-                </span>
-                <code className="agent-missing-cmd">
-                  {AGENT_INSTALL_COMMANDS[a]}
-                </code>
-                <button
-                  type="button"
-                  className="icon-btn agent-missing-copy"
-                  aria-label={`Copy install command for ${a}`}
-                  title="Copy install command"
-                  onClick={() => {
-                    void navigator.clipboard
-                      .writeText(AGENT_INSTALL_COMMANDS[a])
-                      .then(
+          {captionOption !== undefined ? (
+            <div className="agent-missing">
+              <span className="agent-missing-text">
+                {captionOption.label} not found
+              </span>
+              {captionCmd !== null ? (
+                <>
+                  <code className="agent-missing-cmd">{captionCmd}</code>
+                  <button
+                    type="button"
+                    className="icon-btn agent-missing-copy"
+                    aria-label={`Copy install command for ${captionOption.label}`}
+                    title="Copy install command"
+                    onClick={() => {
+                      void navigator.clipboard.writeText(captionCmd).then(
                         () => toast('info', 'Install command copied'),
                         () => toast('error', 'Could not copy the command')
                       );
-                  }}
-                >
-                  <Codicon name="copy" size={12} />
-                </button>
-              </div>
-            ))}
+                    }}
+                  >
+                    <Codicon name="copy" size={12} />
+                  </button>
+                </>
+              ) : null}
+            </div>
+          ) : null}
+          {selectedOption?.unverified === true ? (
+            <div className="field-caption">
+              {selectedOption.label} support is early — resume may not work
+              yet.
+            </div>
+          ) : null}
         </div>
 
         <div className="field">
@@ -279,6 +439,61 @@ export function CreateSessionModal(): React.JSX.Element | null {
           {dirError !== null ? (
             <div className="input-error-text">{dirError}</div>
           ) : null}
+        </div>
+
+        {presets.length > 0 ? (
+          <div className="field">
+            <span className="field-label" id="options-label">
+              Options
+            </span>
+            <div role="group" aria-labelledby="options-label">
+              {presets.map((preset) => {
+                const on = checkedFlags.includes(preset.flag);
+                return (
+                  <label
+                    key={preset.flag}
+                    className={`preset-row${preset.danger ? ' danger' : ''}`}
+                    title={preset.description}
+                  >
+                    <input
+                      type="checkbox"
+                      className="preset-check"
+                      checked={on}
+                      onChange={() => togglePreset(preset)}
+                    />
+                    {preset.danger ? (
+                      <Codicon
+                        name="warning"
+                        size={14}
+                        className="preset-warning"
+                      />
+                    ) : null}
+                    <span className="preset-label">{preset.label}</span>
+                    <code className="preset-flag">{preset.flag}</code>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+
+        {/* Phase-12 layout slot: SpecStory capture ships with the bundling
+            round; the row is a disabled placeholder so the S6 layout is
+            already settled when it arrives. */}
+        <div className="field">
+          <span className="field-label" id="capture-label">
+            Capture
+          </span>
+          <label
+            className="preset-row capture-placeholder"
+            title="Coming in Phase 12"
+          >
+            <input type="checkbox" className="preset-check" disabled />
+            <span className="preset-label">
+              Save session history with SpecStory
+            </span>
+            <span className="capture-soon">soon</span>
+          </label>
         </div>
 
         {genericError !== null ? (

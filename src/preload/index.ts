@@ -2,36 +2,37 @@
  * gmux preload — the ONLY bridge between renderer and main.
  * Exposes the typed `window.gmux` API (contract: src/shared/ipc.ts).
  * contextIsolation is ON; nothing else reaches the renderer.
+ *
+ * STANDING GUARDRAIL 1 (BACKLOG): one typed invoke bridge. The historical
+ * base/full/complete/depth wrapper generations were collapsed by the Phase-10
+ * settings+hotkeys stream into the single `invoke` below, typed over
+ * GmuxInvokeChannelMap — the one superset map in src/shared/ipc.ts. Future
+ * streams append channels to that map (or alias a new superset) and add
+ * methods here; they never add another wrapper generation.
  */
 
 import { contextBridge, ipcRenderer } from 'electron';
 import type { IpcRendererEvent } from 'electron';
 import type {
-  AllInvokeChannel,
-  AllInvokeReq,
-  AllInvokeRes,
-  CompleteInvokeChannel,
-  CompleteInvokeReq,
-  CompleteInvokeRes,
-  DepthInvokeChannel,
-  DepthInvokeReq,
-  DepthInvokeRes,
   EventChannel,
   EventPayloadMap,
-  FullInvokeChannel,
-  FullInvokeReq,
-  FullInvokeRes,
   GmuxAgentExtras,
+  GmuxAgentRegistryExtras,
   GmuxApi,
   GmuxFsExtras,
+  GmuxGitBranchExtras,
   GmuxGitDepthExtras,
   GmuxGitExtras,
+  GmuxInvokeChannel,
+  GmuxInvokeReq,
+  GmuxInvokeRes,
   GmuxLoginItemExtras,
   GmuxMenuExtras,
   GmuxPopupMenuExtras,
   GmuxQuitExtras,
   GmuxSessionExtras,
   GmuxSessionRestoreExtras,
+  GmuxSettingsExtras,
   GmuxTermStreamExtras,
   MenuActionId,
   TermExitPayload,
@@ -42,46 +43,24 @@ import {
   EVT_MENU_ACTION,
   EVT_QUIT_REQUESTED,
   EVT_SESSIONS_CHANGED,
+  EVT_SETTINGS_CHANGED,
   EVT_STATUS_CHANGED,
   termAckChannel,
   termDataChannel,
   termExitChannel,
   termInputChannel
 } from '../shared/ipc';
+import type { GmuxSettings } from '../shared/settings';
 
 /**
- * Typed wrapper over ipcRenderer.invoke — spans the frozen channels plus the
- * appended optional extensions (git:init, fs:readDir, sessions:restore, …).
+ * THE typed wrapper over ipcRenderer.invoke — spans every channel in
+ * GmuxInvokeChannelMap (frozen + all appended extensions).
  */
-function invoke<C extends AllInvokeChannel>(
+function invoke<C extends GmuxInvokeChannel>(
   channel: C,
-  ...args: AllInvokeReq<C>
-): Promise<AllInvokeRes<C>> {
-  return ipcRenderer.invoke(channel, ...args) as Promise<AllInvokeRes<C>>;
-}
-
-/** Same wrapper over the Phase-8 superset map (agents:availability, …). */
-function invokeFull<C extends FullInvokeChannel>(
-  channel: C,
-  ...args: FullInvokeReq<C>
-): Promise<FullInvokeRes<C>> {
-  return ipcRenderer.invoke(channel, ...args) as Promise<FullInvokeRes<C>>;
-}
-
-/** Same wrapper over the Phase-8.2 superset map (app:quit, …). */
-function invokeComplete<C extends CompleteInvokeChannel>(
-  channel: C,
-  ...args: CompleteInvokeReq<C>
-): Promise<CompleteInvokeRes<C>> {
-  return ipcRenderer.invoke(channel, ...args) as Promise<CompleteInvokeRes<C>>;
-}
-
-/** Same wrapper over the git-depth superset map (git:branches, …). */
-function invokeDepth<C extends DepthInvokeChannel>(
-  channel: C,
-  ...args: DepthInvokeReq<C>
-): Promise<DepthInvokeRes<C>> {
-  return ipcRenderer.invoke(channel, ...args) as Promise<DepthInvokeRes<C>>;
+  ...args: GmuxInvokeReq<C>
+): Promise<GmuxInvokeRes<C>> {
+  return ipcRenderer.invoke(channel, ...args) as Promise<GmuxInvokeRes<C>>;
 }
 
 /** Typed wrapper over ipcRenderer.on with unsubscribe. */
@@ -129,10 +108,14 @@ const term: GmuxApi['term'] & GmuxTermStreamExtras = {
 /**
  * git surface = frozen GmuxApi['git'] + the appended optional git:init
  * (the SCM UI feature-detects it for the §6.3 [Initialize repository] state)
- * + the git-depth extras (branch switching, commit context menu, hover card),
+ * + the git-depth extras (branch switching, commit context menu, hover card)
+ * + the branch-management extras (remotes, fetch, tracking checkout, delete),
  * all feature-detected by the renderer.
  */
-const git: GmuxApi['git'] & GmuxGitExtras & GmuxGitDepthExtras = {
+const git: GmuxApi['git'] &
+  GmuxGitExtras &
+  GmuxGitDepthExtras &
+  GmuxGitBranchExtras = {
   status: (repoPath) => invoke('git:status', repoPath),
   stage: (input) => invoke('git:stage', input),
   unstage: (input) => invoke('git:unstage', input),
@@ -142,14 +125,18 @@ const git: GmuxApi['git'] & GmuxGitExtras & GmuxGitDepthExtras = {
   showHead: (input) => invoke('git:showHead', input),
   onChanged: (cb) => on(EVT_GIT_CHANGED, cb),
   init: (repoPath) => invoke('git:init', repoPath),
-  branches: (repoPath) => invokeDepth('git:branches', repoPath),
-  checkout: (input) => invokeDepth('git:checkout', input),
-  createBranch: (input) => invokeDepth('git:createBranch', input),
-  createTag: (input) => invokeDepth('git:createTag', input),
-  cherryPick: (input) => invokeDepth('git:cherryPick', input),
-  commitDetail: (input) => invokeDepth('git:commitDetail', input),
-  remoteUrl: (repoPath) => invokeDepth('git:remoteUrl', repoPath),
-  checkoutDetached: (input) => invokeDepth('git:checkoutDetached', input)
+  branches: (repoPath) => invoke('git:branches', repoPath),
+  checkout: (input) => invoke('git:checkout', input),
+  createBranch: (input) => invoke('git:createBranch', input),
+  createTag: (input) => invoke('git:createTag', input),
+  cherryPick: (input) => invoke('git:cherryPick', input),
+  commitDetail: (input) => invoke('git:commitDetail', input),
+  remoteUrl: (repoPath) => invoke('git:remoteUrl', repoPath),
+  checkoutDetached: (input) => invoke('git:checkoutDetached', input),
+  remoteBranches: (repoPath) => invoke('git:remoteBranches', repoPath),
+  fetch: (repoPath) => invoke('git:fetch', repoPath),
+  checkoutTracking: (input) => invoke('git:checkoutTracking', input),
+  deleteBranch: (input) => invoke('git:deleteBranch', input)
 };
 
 /**
@@ -188,8 +175,10 @@ const api: GmuxApi &
   GmuxLoginItemExtras &
   GmuxMenuExtras &
   GmuxAgentExtras &
+  GmuxAgentRegistryExtras &
   GmuxPopupMenuExtras &
-  GmuxQuitExtras = {
+  GmuxQuitExtras &
+  GmuxSettingsExtras = {
   sessions,
   projects: {
     add: (path) => invoke('projects:add', path),
@@ -209,10 +198,14 @@ const api: GmuxApi &
     }
   },
   // Phase 8 optional extra (top-level, feature-detected): agent CLI probe.
-  agentAvailability: () => invokeFull('agents:availability'),
+  agentAvailability: () => invoke('agents:availability'),
+  // Phase 10 optional extras: full-registry detection scan (Settings Agents
+  // section; cached in main, re-scan drops the cache).
+  agentsList: () => invoke('agents:list'),
+  agentsRescan: () => invoke('agents:rescan'),
   // Phase 8.2 optional extra: native context menus (DESIGN.md §3 — the
   // renderer's store prefers this over the DOM fallback).
-  popupMenu: (input) => invokeFull('ui:popupMenu', input),
+  popupMenu: (input) => invoke('ui:popupMenu', input),
   // Phase 8.2 optional extras: first-quit toast flow (DESIGN.md §4 ⌘Q).
   onQuitRequested: (cb) => {
     const listener = (_e: IpcRendererEvent): void => {
@@ -221,7 +214,7 @@ const api: GmuxApi &
     ipcRenderer.on(EVT_QUIT_REQUESTED, listener);
     return () => ipcRenderer.removeListener(EVT_QUIT_REQUESTED, listener);
   },
-  quit: () => invokeComplete('app:quit'),
+  quit: () => invoke('app:quit'),
   // Phase 6 optional extras (top-level, feature-detected): login item.
   getLoginItem: () => invoke('app:getLoginItem'),
   setLoginItem: (openAtLogin) => invoke('app:setLoginItem', openAtLogin),
@@ -232,6 +225,19 @@ const api: GmuxApi &
     };
     ipcRenderer.on(EVT_MENU_ACTION, listener);
     return () => ipcRenderer.removeListener(EVT_MENU_ACTION, listener);
+  },
+  // Phase 10 (S13) optional extras: persisted settings + Settings window +
+  // per-agent launch-flag catalogs, feature-detected by both renderers.
+  settingsGet: () => invoke('settings:get'),
+  settingsSet: (patch) => invoke('settings:set', patch),
+  openSettings: () => invoke('settings:openWindow'),
+  agentFlagPresets: () => invoke('agents:flagPresets'),
+  onSettingsChanged: (cb) => {
+    const listener = (_e: IpcRendererEvent, settings: GmuxSettings): void => {
+      cb(settings);
+    };
+    ipcRenderer.on(EVT_SETTINGS_CHANGED, listener);
+    return () => ipcRenderer.removeListener(EVT_SETTINGS_CHANGED, listener);
   }
 };
 

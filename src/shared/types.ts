@@ -410,6 +410,137 @@ export interface GitCommitDetail {
   deletions: number;
 }
 
+// ---------------------------------------------------------------------------
+// APPENDED by the Phase-10 registry+detection stream — new types only, nothing
+// above was modified. The 12-agent registry (docs/research/11-agent-registry.md)
+// lives in src/main/agents/registry.ts; these are the wire shapes shared with
+// the renderer (agents:list / agents:rescan) plus the widened agent-id unions.
+//
+// INTEGRATOR note: `AgentKind` ('claude'|'codex'|'shell') is frozen above, so
+// Session.agent / CreateSessionInput.agent cannot yet carry the new registry
+// agents end-to-end. When reconciling, widen AgentKind to LaunchableAgentKind
+// (below) — src/main/manifest/agents.ts buildLaunchSpec already accepts it,
+// and src/main/ipc.ts createSession must resolve the binary via
+// agentBinaryName(agent) from src/main/agents/registry (cursor's binary is
+// `cursor-agent`, antigravity's is `agy` — the bare id is NOT the binary).
+// ---------------------------------------------------------------------------
+
+/** Every agent in the gmux registry (research 11 — all 12 entries). */
+export type AgentRegistryId =
+  | 'claude'
+  | 'cursor'
+  | 'codex'
+  | 'gemini'
+  | 'droid'
+  | 'deepseek'
+  | 'antigravity'
+  | 'muse'
+  | 'qwen'
+  | 'pi'
+  | 'cursoride'
+  | 'copilotide';
+
+/**
+ * Registry agents gmux can launch in a tmux pane — everything except the
+ * IDE capture-only pair (cursoride/copilotide). pi is launchable per
+ * BACKLOG Phase-10 item 1 but carries `unverified` mechanics.
+ */
+export type LaunchableAgentId = Exclude<AgentRegistryId, 'cursoride' | 'copilotide'>;
+
+/** AgentKind widened with the new launchable registry agents (Phase 10). */
+export type LaunchableAgentKind = AgentKind | LaunchableAgentId;
+
+/** One row of the agents:list / agents:rescan detection result. */
+export interface DetectedAgent {
+  id: AgentRegistryId;
+  displayName: string;
+  /** 'cli' = tmux-launchable terminal agent; 'ide' = app watcher. */
+  kind: 'cli' | 'ide';
+  /** False for the capture-only IDE pair — never offered for launch. */
+  launchable: boolean;
+  /**
+   * CLI: an executable was resolved (and the identity probe, when one
+   * exists, did not contradict it). IDE: the session store exists.
+   */
+  installed: boolean;
+  /** Resolved absolute executable path; null when not found. */
+  binPath: string | null;
+  /** Version string from the registry versionCmd; null when unknown. */
+  version: string | null;
+  /** The agent's session-store root exists (installed AND in-use signal). */
+  storeDetected: boolean;
+  /** AgentIcon key (unknown keys render the terminal-glyph fallback). */
+  iconKey: string;
+  /** True when the registry marks this agent's mechanics UNVERIFIED (pi). */
+  unverified: boolean;
+}
+
+/** Full detection result (agents:list / agents:rescan). */
+export interface AgentsScanResult {
+  /** All 12 registry agents, in registry order (installed or not). */
+  agents: DetectedAgent[];
+  /** Epoch ms when this scan ran (cache timestamp for the Settings UI). */
+  scannedAt: number;
+}
+
+// ---------------------------------------------------------------------------
+// APPENDED by the branch-management stream (Phase 10 #7) — new types only,
+// nothing above was modified. Powers the BRANCHES sidebar section: remote
+// refs enumeration (git:remoteBranches), network fetch (git:fetch),
+// tracking checkout of a remote branch (git:checkoutTracking), and local
+// branch deletion with a typed unmerged state (git:deleteBranch).
+// ---------------------------------------------------------------------------
+
+/** One remote-tracking branch, from `git for-each-ref refs/remotes`. */
+export interface GitRemoteBranchInfo {
+  /** Full short refname including the remote (e.g. "origin/feat/x"). */
+  name: string;
+  /** The remote's name (e.g. "origin"). */
+  remote: string;
+  /** Branch name without the remote prefix (e.g. "feat/x"). */
+  shortName: string;
+  /** Full OID of the branch tip. */
+  sha: string;
+  /** Abbreviated tip OID. */
+  shortSha: string;
+  /** Subject line of the tip commit. */
+  subject: string;
+}
+
+/** git:remoteBranches result — refs plus the repo's last-fetch timestamp. */
+export interface GitRemoteBranchesResult {
+  /** All remote-tracking branches; symbolic <remote>/HEAD entries deduped. */
+  branches: GitRemoteBranchInfo[];
+  /**
+   * mtime of .git/FETCH_HEAD in epoch ms — when this clone last talked to a
+   * remote (fetch or pull). Null before any fetch (fresh clone counts: clone
+   * writes no FETCH_HEAD) or when unreadable.
+   */
+  lastFetchedAt: number | null;
+}
+
+export interface GitCheckoutTrackingInput {
+  repoPath: string;
+  /** Remote-tracking ref to check out, e.g. "origin/feat/x". */
+  remoteBranch: string;
+}
+
+export interface GitDeleteBranchInput {
+  repoPath: string;
+  /** Local branch name to delete. */
+  name: string;
+  /** True runs `git branch -D` (discard unmerged commits). */
+  force?: boolean;
+}
+
+/**
+ * Delete outcome — "not fully merged" is a TYPED STATE, not an exception,
+ * so the UI can offer the force option exactly when git would need it.
+ */
+export type GitDeleteBranchResult =
+  | { status: 'deleted' }
+  | { status: 'unmerged' };
+
 /**
  * Structured error shape. Main-process handlers throw Error whose `message`
  * is `JSON.stringify(GmuxErrorPayload)` when they can classify the failure;

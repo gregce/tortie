@@ -2,9 +2,21 @@
  * S2 — Titlebar & project tabs. 38px drag region; tabs/buttons no-drag.
  * Tab anatomy: roll-up dot · name · amber needs-input badge. Branch/dirty
  * data stays in the sidebar header — tabs stay scannable.
+ *
+ * Round 2: tabs reorder by POINTER drag (the shared drag engine, not HTML5
+ * dnd): press + 4px travel lifts a ghost that follows the pointer on x only
+ * (y clamped to the bar); neighbors never reflow mid-drag — a 2px accent
+ * insertion indicator marks the landing gap; Esc cancels with zero motion.
+ * Order persists app-wide; ⌘1…⌘9 and ⌃Tab follow the visual order.
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react';
 import type { Project, SessionStatus } from '@shared/types';
 import { effectiveStatusOf, sortProjects, useApp } from '../state/store';
 import { useGit } from '../state/git';
@@ -12,6 +24,11 @@ import { rollupDot } from './status';
 import type { DotKind } from './status';
 import { truncateMiddle } from './format';
 import { Codicon } from '../icons';
+import {
+  armPointerDrag,
+  createGhost,
+  insertionIndex
+} from './split/pointer-drag';
 
 interface TabData {
   project: Project;
@@ -21,41 +38,62 @@ interface TabData {
 
 function ProjectTab({
   data,
-  selected
+  selected,
+  onDragIndicate
 }: {
   data: TabData;
   selected: boolean;
+  /** Report the live insertion index (null = drag ended/canceled). */
+  onDragIndicate: (index: number | null) => void;
 }): React.JSX.Element {
   const { project, dot, attentionCount } = data;
   const setActiveProject = useApp((s) => s.setActiveProject);
   const closeProject = useApp((s) => s.closeProject);
-  const reorderTabs = useApp((s) => s.reorderTabs);
+  const moveProjectToIndex = useApp((s) => s.moveProjectToIndex);
   const setMenu = useApp((s) => s.setMenu);
-  const [dropTarget, setDropTarget] = useState(false);
 
   // Nested-interactive fix (Phase 8): the close × is a REAL sibling button
   // positioned over the tab's right edge — a button inside a button is
-  // invalid and unreachable by keyboard. Drag/drop lives on the wrapper so
-  // both children stay plain interactives.
+  // invalid and unreachable by keyboard. Drag lives on the wrapper so both
+  // children stay plain interactives.
   return (
     <div
-      className={`ptab-wrap${dropTarget ? ' drop-target' : ''}`}
-      draggable
-      onDragStart={(e) => {
-        e.dataTransfer.setData('application/x-gmux-tab', project.id);
-        e.dataTransfer.effectAllowed = 'move';
-      }}
-      onDragOver={(e) => {
-        if (e.dataTransfer.types.includes('application/x-gmux-tab')) {
-          e.preventDefault();
-          setDropTarget(true);
-        }
-      }}
-      onDragLeave={() => setDropTarget(false)}
-      onDrop={(e) => {
-        setDropTarget(false);
-        const fromId = e.dataTransfer.getData('application/x-gmux-tab');
-        if (fromId) reorderTabs(fromId, project.id);
+      className="ptab-wrap"
+      data-project-id={project.id}
+      onPointerDown={(e) => {
+        if ((e.target as HTMLElement).closest('.ptab-close') !== null) return;
+        const wrap = e.currentTarget;
+        const nav = wrap.closest<HTMLElement>('.titlebar-tabs');
+        let ghost: ReturnType<typeof createGhost> | null = null;
+        let lastIndex: number | null = null;
+        armPointerDrag(e.nativeEvent, {
+          onStart() {
+            ghost = createGhost(wrap, { lockAxis: 'x' });
+          },
+          onMove(ev) {
+            ghost?.move(ev.clientX, ev.clientY);
+            if (!nav) return;
+            const items = Array.from(
+              nav.querySelectorAll<HTMLElement>('[data-project-id]')
+            ).map((el) => ({ rect: el.getBoundingClientRect() }));
+            lastIndex = insertionIndex(
+              items,
+              { x: ev.clientX, y: ev.clientY },
+              'x'
+            );
+            onDragIndicate(lastIndex);
+          },
+          onDrop() {
+            if (lastIndex !== null) {
+              moveProjectToIndex(project.id, lastIndex);
+            }
+          },
+          onEnd() {
+            ghost?.destroy();
+            ghost = null;
+            onDragIndicate(null);
+          }
+        });
       }}
       onContextMenu={(e) => {
         e.preventDefault();
@@ -104,6 +142,42 @@ function ProjectTab({
   );
 }
 
+/** 2px accent insertion indicator in the tab gap (S2 drag spec). */
+function TabIndicator({
+  index,
+  navRef
+}: {
+  index: number;
+  navRef: React.RefObject<HTMLElement | null>;
+}): React.JSX.Element | null {
+  const [left, setLeft] = useState<number | null>(null);
+
+  useLayoutEffect(() => {
+    const nav = navRef.current;
+    if (!nav) {
+      setLeft(null);
+      return;
+    }
+    const items = Array.from(
+      nav.querySelectorAll<HTMLElement>('[data-project-id]')
+    );
+    if (items.length === 0) {
+      setLeft(null);
+      return;
+    }
+    const at = items[index];
+    const last = items[items.length - 1];
+    setLeft(
+      at !== undefined
+        ? at.offsetLeft - 3
+        : (last?.offsetLeft ?? 0) + (last?.offsetWidth ?? 0) + 1
+    );
+  }, [index, navRef]);
+
+  if (left === null) return null;
+  return <div className="drop-indicator-v tab-indicator" style={{ left }} />;
+}
+
 // The Settings gear moved to the activity bar's bottom slot (round 1, S3) —
 // see src/renderer/app/ActivityBar.tsx.
 
@@ -125,6 +199,9 @@ export function Titlebar(): React.JSX.Element {
   const openProject = useApp((s) => s.openProject);
   const setAttentionOpen = useApp((s) => s.setAttentionOpen);
   const attentionOpen = useApp((s) => s.attentionOpen);
+
+  const navRef = useRef<HTMLElement | null>(null);
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
 
   const tabs = useMemo<TabData[]>(() => {
     const ordered = sortProjects(projects, tabOrder);
@@ -150,14 +227,18 @@ export function Titlebar(): React.JSX.Element {
 
   return (
     <header className="titlebar" data-slot="project-tabs">
-      <nav className="titlebar-tabs" aria-label="Projects">
+      <nav className="titlebar-tabs" aria-label="Projects" ref={navRef}>
         {tabs.map((t) => (
           <ProjectTab
             key={t.project.id}
             data={t}
             selected={t.project.id === activeProjectId}
+            onDragIndicate={setDropIndex}
           />
         ))}
+        {dropIndex !== null ? (
+          <TabIndicator index={dropIndex} navRef={navRef} />
+        ) : null}
         <button
           type="button"
           className="ptab-add"

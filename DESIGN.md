@@ -38,10 +38,11 @@ Contrast rule: `--text-muted` passes 4.5:1 only up to `--bg-surface`. On `--bg-r
 --accent-hover:  #63ACF0;
 --accent-text:   #82BFFF;  /* accent-colored text/links on dark (≥4.5:1 on canvas)   */
 --accent-wash:   rgba(77, 157, 232, 0.14);  /* selected-row fill, editor selection    */
+--drop-wash:     rgba(77, 157, 232, 0.25);  /* drag drop-target fill (split halves)   */
 --on-accent:     #0D1117;  /* text on accent-filled controls                          */
 ```
 
-Accent is used for: primary action per surface, current selection, focus ring, links. Never for decoration, headings, or icons at rest.
+Accent is used for: primary action per surface, current selection, focus ring, links, and drag affordances — drop-zone halves fill with `--drop-wash` behind a 1px `--accent` border, and every insertion indicator / section drop line is 2px `--accent`. Never for decoration, headings, or icons at rest. (`--drop-wash` is deliberately stronger than `--accent-wash`: it must read over a live terminal, not a sidebar row.)
 
 ### 1.3 Session status (the semantic heart of the app)
 
@@ -105,6 +106,7 @@ Rhythm rules: tight inside a group (2–8px), generous between groups (16–24px
 ```css
 --font-ui:   -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
 --font-mono: "SF Mono", ui-monospace, Menlo, monospace;
+--font-terminal: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, monospace;  /* xterm ONLY — bundled face leads for glyph coverage */
 
 --text-xs:   11px/16px;   /* section labels (uppercase +0.04em), badges, ages   */
 --text-sm:   12px/18px;   /* dense rows (tree, SCM), branch names (mono)        */
@@ -117,7 +119,7 @@ Rhythm rules: tight inside a group (2–8px), generous between groups (16–24px
 
 - One family (system sans) carries all UI. **Mono is for terminal-adjacent truth only**: branch names, paths shown as paths, SHAs, commands, exit codes, keyboard shortcuts in the ⌘/ overlay — never as a "technical" costume on labels.
 - Counts and ages use `font-variant-numeric: tabular-nums`.
-- Terminal: SF Mono 13px, xterm `lineHeight: 1.25`, `letterSpacing: 0`.
+- Terminal: `--font-terminal` at 13px, xterm `lineHeight: 1.25`, `letterSpacing: 0`. JetBrains Mono (OFL) ships bundled and leads the stack so common prompt glyphs (➜ ✗ ● λ) never fall back to tofu/underscores (Bug C); family + size are user-configurable in Settings → General (DESIGN-SPEC S13). `--font-mono` stays the UI-mono token — the two are never conflated.
 - No display faces anywhere. Scale ratio ≈ 1.18; contrast between steps comes from weight (500/600), not size jumps.
 
 ### 1.9 Radii, borders, shadows, z-layers
@@ -174,13 +176,13 @@ Shadows always carry offset + blur (no zero-offset halos). Hairline borders are 
 - **Activity bar (decision reversed from round 0).** A 48px VS Code-style icon rail at the far left, full height below the titlebar: **Explorer** (⌘⇧E) and **Source Control** (⌃⇧G) views, Settings gear at the bottom, 2px accent bar marking the active view. Round 0 rejected segmenting because it would hide the sessions' NEEDS_INPUT state behind a mode switch; sessions no longer live in the sidebar (next bullet), so that objection is dissolved and the sidebar adopts the single-view VS Code pattern — earned familiarity, and full sidebar height for both SCM and the tree.
 - **Sessions live on the terminal region, always visible.** Default: a **session tab strip** in the header band across the top of the terminal — one row of tabs (agent logo · name · status dot · close). Alternate: a VS Code-terminal-style **vertical session list docked at the right edge** (200px), with the band above the terminal showing the active session's identity strip instead. Orientation is a View-menu choice ("Sessions on top" / "Sessions on right"), persisted app-wide; both surfaces render the same store, states, and menus. The attention signal is therefore never behind a mode switch in either orientation.
 - **Sidebar: one view at a time.** Source Control view = branch menu (list + checkout + create), commit box, Merge/Staged/Changes/Untracked groups, and History (commit list with refs badges, context menu, hover card). Explorer view = the git-decorated file tree with VS Code-style file-type icons (§3.1). ⌘B collapses/expands the sidebar; the activity bar never hides.
-- **Terminal is the center.** Exactly one session's terminal is visible per project tab (the selected session); switching sessions swaps the terminal (hidden sessions cost nothing — architecture). No splits in v1 (deferred per FINAL-REPORT v1 tail). Rename lives on the tab / list row / identity strip (F2 or double-click); the ⋯ session menu lives on the identity strip and on tab/row context menus.
+- **Terminal is the center.** The region shows one *surface* per project at a time: a surface is one session full-bleed or — round 2 — a drag-built **split group of up to 6 sessions** (DESIGN-SPEC S4A; reverses round 1's "no splits"). Every split stays its own durable tmux-backed session — layout is app-side presentation only. Switching surfaces swaps the region (hidden sessions cost nothing — architecture). Rename lives on the tab / list row / identity strip / split header (F2 or double-click); the ⋯ session menu lives on the identity strip and on tab/row context menus.
 - **Editor: right split; overlay under the threshold.** Decision + justification: the dominant gesture is reviewing an agent's diff *while the agent keeps working* — side-by-side preserves supervision, and the terminal keeps its sidebar adjacency. Clicking a file opens the editor as a right split at 45% of the center area (draggable 320px–65%). When `contentWidth < 1400px` (+ the right session list's width when visible), the editor opens as an **overlay** covering the terminal area (`--z-editor-overlay`, slides in 200ms from right, scrim over terminal at 25%); Esc closes. The mode is automatic and never a user setting. Editor tabs row is 36px and belongs to the header band.
 - Region dividers: 1px `--border`; drag handles are invisible 5px hit areas that show `--border-strong` on hover, `col-resize` cursor.
 
 ### 2.3 Project tabs (the spine)
 
-In the titlebar row, left-aligned after traffic lights (76px inset). One tab = one repo. Tab anatomy: roll-up status dot · project name · amber count badge when NEEDS_INPUT > 0. Roll-up = max urgency across the tab's sessions (attention > working > idle). Branch and dirty count do NOT live on the tab (branch lives in the Source Control view header; dirty count on the activity-bar SCM badge) — tabs stay scannable. `+` button at the end opens a project (folder picker; opening an already-open project focuses its tab — idempotent open). Far right of the titlebar: the 🔔 attention button with global count; Dock badge mirrors the same number.
+In the titlebar row, left-aligned after traffic lights (76px inset). One tab = one repo. Tab anatomy: roll-up status dot · project name · amber count badge when NEEDS_INPUT > 0. Roll-up = max urgency across the tab's sessions (attention > working > idle). Branch and dirty count do NOT live on the tab (branch lives in the Source Control view header; dirty count on the activity-bar SCM badge) — tabs stay scannable. `+` button at the end opens a project (folder picker; opening an already-open project focuses its tab — idempotent open). Tabs reorder by drag along the bar (spec S2): 2px `--accent` insertion indicator, 160ms settle; order persists app-wide and ⌘1…⌘9 always follow the visual order. Far right of the titlebar: the 🔔 attention button with global count; Dock badge mirrors the same number.
 
 ## 3. Component inventory
 
@@ -199,7 +201,7 @@ Every interactive component defines: default / hover / focus-visible / active / 
 | **SCM file row** | 24px: badge letter (mono 11, git color) · filename 12 · dimmed dir path · hover actions (stage ＋ / unstage － / discard ↩) | click = open diff (P4); staged rows sit in Staged group; hover `--bg-raised`; discard always confirms |
 | **Tree row** | 24px: chevron 12px · file-type icon 16px (§3.1) · name 12 · right: badge letter in git color | modified files: name tinted by git color; folders with dirty descendants: 4px propagation dot `--git-modified`; ignored: `--text-disabled` |
 | **Editor tab** | 36px row (lives in the header band) above Monaco: filename 13 · mode chip `[Diff \| File]` · × close | dirty dot replaces × until saved; only one editor tab row (5 tabs max, LRU-evict clean tabs) |
-| **Command modal (⌘T)** | 480px, `--r-lg`, `--shadow-3`, centered at 20vh | fields: Agent segmented control, Name (prefilled `<agent>-<n>`), Directory; Enter creates, Esc cancels; agent options show "not installed" disabled state |
+| **Command modal (⌘T)** | 480px, `--r-lg`, `--shadow-3`, centered at 20vh | fields: Agent chip grid (registry-driven, round 2), Name (prefilled `<agent>-<n>`), Directory, Options (flag presets; danger-styled) ; Enter creates, Esc cancels; agent chips show "not installed" disabled state |
 | **Attention overlay (⌘J)** | 560px panel dropped from titlebar center, `--shadow-3` | rows: dot · agent icon 16 · session · project · one-line prompt excerpt (mono 12) · age; ↑↓ + Enter jumps to tab+session; Esc closes; empty state §6.9 |
 | **Buttons** | primary: `--accent` fill, `--on-accent` text, 13/500, 28px, `--r-sm`; secondary: `--bg-raised` fill + 1px `--border-strong`; destructive: `--error` fill only inside confirms | hover lightens (`--accent-hover` / `--bg-active`); disabled: `--text-disabled` text, 50% fill, no hover |
 | **Inputs** | 28px, `--bg-surface`, 1px `--border-strong`, `--r-sm`, 13px | focus: border `--accent` + `--focus-ring`; error: border `--error` + 12px message below in `--error` |
@@ -211,6 +213,12 @@ Every interactive component defines: default / hover / focus-visible / active / 
 | **Empty state** | centered in owning region: 20/600 title, 13 `--text-secondary` body ≤ 2 lines, one primary action + shortcut hint | never bare "nothing here" — every empty state teaches the next step (§6) |
 | **Context menus** | native macOS menus via Electron `Menu.popup` — never DOM-drawn | session row, tab, SCM row, tree row all have one |
 | **Tooltip** | 11px on `--bg-raised`, `--shadow-1`, 600ms delay | shortcuts shown as keycap chips (⌘T) in the UI sans — mono letterforms make "⌘O" read as "⌘0" |
+| **Split pane header** | 24px bar atop each pane when a surface has ≥2 splits: agent icon 14 · name 12 · ⎇ worktree 12 · status dot 8 · × 14 on hover; the whole bar is the drag handle (`grab`/`grabbing` cursor) | focused pane: name `--text-primary` + 2px `--accent` left inset + 1px `--accent` inset ring around the pane; unfocused: `--text-secondary`; drag to strip/dock = pop out; right-click = session context menu + "Move to its own tab" |
+| **Drop-zone overlay** | the target half of a pane while a session is dragged over it: `--drop-wash` fill + 1px `--accent` inset border | appears/disappears instantly — never fades over live terminals; absent when the surface holds 6 splits or a resulting pane would fall under min size |
+| **Sidebar section header** | 24px sticky row: ▸/▾ chevron · 11/600 uppercase label · count · hover accessories, incl. `gripper` 14 `--text-muted` at far right | drag vertically to reorder sections (ghost of the header + 2px `--accent` drop line); order persists per view; Esc cancels; collapse (▸/▾) is independent of order |
+| **Branch row (Branches section)** | 24px: codicon `git-branch`/`cloud`/`check` 12 · name mono 12 · `↑n ↓n` 11 muted right | current: `check` in `--accent` + name 500, click inert; local click → checkout; remote click → tracking checkout; busy: 12px spinner replaces the icon; hover `--bg-raised` |
+| **Switch** | 26×16 track, radius 8px, knob 12px `--text-primary` | on: `--accent` track; off: `--bg-raised` + 1px `--border-strong`; disabled 50%, no hover; `:focus-visible` ring |
+| **Hotkey recorder** | chip `[h:22]` min-w 96 on `--bg-raised`, r-sm: "Record shortcut" 12px, or assigned chord mono 11 + × on hover | recording: 1px `--accent` border + `--focus-ring`, text "Type shortcut…"; Esc cancels, ⌫ clears; conflict → 12px `--error` line below, chord not saved |
 
 Iconography (round-1 reversal — Lucide retired): **@vscode/codicons** is the single UI-chrome set — activity bar, view toolbars, section headers, menus, chevrons, close buttons — rendered 16px (24px in the activity bar), `--text-secondary` at rest via `currentColor`. No emoji, no mixed sets: the Lucide strokes from round 0 are removed entirely, not blended. Two sanctioned exceptions carry meaning codicons cannot:
 
@@ -233,7 +241,7 @@ Focus model: one focus zone at a time (sidebar view / session strip or list / te
 | ⌘O | Open project… (new tab; idempotent — refocuses if already open) |
 | ⌘1…⌘9 | Switch to project tab 1–9 |
 | ⌃Tab / ⌃⇧Tab | Next / previous project tab |
-| ⌥⌘↓ / ⌥⌘↑ | Next / previous session in project |
+| ⌘⌥← → ↑ ↓ | Move focus across splits (geometric nearest pane); at the surface's top/bottom edge, ⌘⌥↓/↑ continue to the next / previous session — so on unsplit surfaces they cycle sessions exactly as before. ⌘⌥←/→ at an edge: no-op |
 | ⌘J | Attention overlay (all NEEDS_INPUT sessions, all projects) |
 | F2 | Rename focused item (session, project tab); in terminal focus, renames active session |
 | ⌘S | Save file in editor |
@@ -246,10 +254,13 @@ Focus model: one focus zone at a time (sidebar view / session strip or list / te
 | ⌘W | Close focused editor tab (NEVER closes sessions/projects; no-op otherwise) |
 | ⌘F | Find in editor (Monaco). Terminal search: v1 tail, reserved |
 | ⌘/ | Shortcuts overlay |
-| ⌘, | Settings |
+| ⌘, | Settings — dedicated window, single instance (S13); ⌘W closes it when focused |
+| user-recorded | New `<agent>` session in the active project (Settings → Hotkeys, e.g. ⌘⇧C → Claude Code); registered as native Session-menu accelerators |
 | ⌘Q | Quit — sessions keep running; first quit shows a one-time toast saying so |
 | ↑↓ + ↩ | Navigate any list/overlay; Enter activates (session → focus terminal; attention row → jump) |
 | Esc | Close topmost layer |
+
+User-recorded per-agent hotkeys (Settings → Hotkeys, S13) must include ⌘ or ⌃; the recorder rejects any chord already in this map, used by another row, or reserved by macOS — nothing in this table is ever silently shadowed.
 
 Reserved, not in v1: ⌘K (command palette), ⌘⇧F (project search). Ending a session is deliberately confirm-gated everywhere it exists (⋯ menu, tab/row context menu, or the tab/row × — all open the same "End session…" confirm naming the session; nothing ends silently, and ⌘W still never touches sessions). Double-click renames wherever F2 works — session tabs, right-list rows, the identity strip, and project tabs.
 
@@ -261,7 +272,8 @@ View menu (native, mirrors §2.2): "Sessions on top" / "Sessions on right" — a
 - Durations: hover/dot changes `--dur-fast`; selection/row state `--dur-base`; editor split, modal, overlay `--dur-panel`. All `--ease-out`. Nothing exceeds 250ms.
 - The one authored moment: the **needs-input pulse** — dot opacity 1 → 0.45 → 1 over 1.6s, infinite, paired with the amber count badge (which does not pulse). It is the only perpetual motion in the app. `prefers-reduced-motion`: pulse off, badge alone carries the signal.
 - Modal/overlay: fade+scale 0.98→1 in `--dur-panel`; editor split: width transition; toast: 8px slide-up + fade.
-- Terminal region: zero animation ever (no fades over live output).
+- Drag: lifted ghosts track the pointer 1:1 (no easing); insertion indicators, drop lines, and drop-zone overlays appear/disappear instantly; displaced tabs settle in `--dur-base` on drop; Esc cancels any drag with zero motion.
+- Terminal region: zero animation ever (no fades over live output) — this includes the drop-zone overlay, which snaps on/off with no transition.
 
 ## 6. Every empty & error state (copy is final; sentence case; no exclamation marks)
 
@@ -278,10 +290,12 @@ View menu (native, mirrors §2.2): "Sessions on top" / "Sessions on right" — a
 11. **Git command failed** (commit hook rejection, lock, etc.). Sticky error toast: "Commit failed — {first line of git stderr}" [Show details] (expands mono log in a modal). Commit box retains the message.
 12. **File deleted under an open editor tab.** Tab name struck through + tooltip "Deleted on disk"; editor read-only with a 36px warning banner: "This file was deleted on disk." [Close tab].
 13. **History, no commits yet.** History section shows one quiet line: "No commits yet — your first commit starts the history."
+14. **Settings — no agents detected.** Agents section shows one line: "No agent CLIs found. Install one and re-scan — sessions can always run a plain shell." + [Re-scan].
+15. **Branches — no remotes.** Not an error: the Remotes group and the fetch accessory are simply hidden. Local-only repos get the Local group alone, no explanatory copy.
 
 ## 7. Voice & copy rules
 
-Sentence case everywhere (buttons included). Verbs name the action ("Restore sessions", never "OK"). Errors name the problem and the recovery in one line each. Durability is always stated as a fact, calmly: "safe", "never interrupted", "keeps running". Banned in UI: tmux (except state 4), pane, window (multiplexer sense), attach, detach, socket, daemon, PTY, mux, prefix. The user's words: session, project, agent, restore, resume, needs input.
+Sentence case everywhere (buttons included). Verbs name the action ("Restore sessions", never "OK"). Errors name the problem and the recovery in one line each. Durability is always stated as a fact, calmly: "safe", "never interrupted", "keeps running". Banned in UI: tmux (except state 4), pane, window (multiplexer sense), attach, detach, socket, daemon, PTY, mux, prefix. The user's words: session, project, agent, restore, resume, needs input, split (splits are always "split(s)" in copy — "pane" stays banned even now that splits exist).
 
 ## 8. Round-1 revisions (dogfood, 2026-08-09) — decisions reversed or added
 
@@ -294,3 +308,17 @@ The token system (§1) is untouched. Everything below extends or reverses layout
 5. **History reaches the VS Code bar** — branch menu in the SCM header (list/checkout/create), commit list with refs badges, full per-commit context menu, rich hover card (§3, DESIGN-SPEC S3A).
 6. **Icon system** — codicons replace Lucide wholesale for UI chrome; material-icon-theme (over Seti — rationale §3.1) for the Explorer tree; licensing documented in §3.1.
 7. **Explicitly deferred, not forgotten**: session-tab drag-reorder; multi-lane commit graph (v1 history is a single topo-ordered lane with hollow merge dots).
+
+## 9. Round-2 revisions (Phase 10, 2026-08-09) — the drag round
+
+The token system gains exactly two entries (`--drop-wash` §1.2, `--font-terminal` §1.8); nothing else in §1 changes. Decisions reversed or added, from the user's reference screenshots (drag-to-split, draggable project tabs, VS Code section drag):
+
+1. **Splits arrive** (reverses §2.2's round-1 "no splits"): the terminal region shows a *surface* — one session, or a drag-built split group of up to 6. Creation is drag-only plus native-menu equivalents; quadrant hit-testing lights the target half in `--drop-wash`; dragging a split's header back to the strip/dock pops it out. Every split remains its own tmux-backed session — durability untouched. Spec: DESIGN-SPEC S4A.
+2. **Session-tab drag un-deferred** (closes §8.7's first deferral): within the strip/dock = reorder; into the terminal = drag-to-split. One gesture, two destinations.
+3. **Project tabs reorder by drag**; order persists app-wide; ⌘1…⌘9 follow the visual order (S2).
+4. **Sidebar sections reorder by header drag** (Changes / History / Branches; VS Code-style ghost + drop line); order persists per view. The changes area gains its own "CHANGES" section header to become a draggable unit (S3/S3A).
+5. **Branch management graduates from menu to section**: a BRANCHES section in Source Control — Local + Remotes groups, ✓ current, ahead/behind, one-click checkout, remote tracking-checkout, fetch. The branch menu stays for one-keystroke switching and gains "Manage branches" (S3A).
+6. **Settings gets a real surface**: a dedicated single-instance window on ⌘, (not an in-app panel — settings outlive any one project and the main window's regions are all spoken for). Sections: General (login item, default agent, terminal font), Agents (detected CLIs: path/version/re-scan/custom command), Hotkeys (per-agent recorder → native menu accelerators), Launch defaults (flag presets, danger-styled) (S13).
+7. **Terminal font becomes `--font-terminal`** with bundled JetBrains Mono leading the stack (Bug C: prompt glyphs ➜ ✗ ● λ rendered as underscores under the old stack); user-configurable in Settings → General.
+8. **⌘⌥arrows = split navigation** with edge fallthrough to session cycling — unsplit surfaces keep round-1 behavior key-for-key (§4).
+9. **⌘T agent picker scales**: the 3-option segmented control becomes a wrapping chip grid driven by the 10-agent registry; per-agent flag presets appear as an Options group, danger flags styled and confirm-gated via Settings (S6, S13).

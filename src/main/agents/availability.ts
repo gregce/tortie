@@ -1,5 +1,6 @@
 /**
- * Agent CLI availability probe (Phase 8 — §6.5 / DESIGN-SPEC S6).
+ * Agent CLI availability probe (Phase 8 — §6.5 / DESIGN-SPEC S6), moved into
+ * the agents domain when Phase 10 grew it into a directory.
  *
  * The create-session UI must never offer an agent whose CLI is missing and
  * then fail with a spawn error: main probes for `claude` and `codex` ONCE
@@ -8,15 +9,18 @@
  * `window.gmux.agentAvailability` to render unavailable agents as disabled
  * options with the install command.
  *
+ * The frozen AgentAvailability contract only covers claude/codex; the full
+ * 12-agent answer (path + version + store signal) is agents:list from
+ * ./detection. Kept separate because availability is called at renderer
+ * boot and must stay subprocess-free (detection runs versionCmds).
+ *
  * Resolution itself lives in src/main/tmux/resolve.ts (growth guardrail 3:
- * ONE resolver — this probe, session create, and Phase 10's detection
- * service all share it): captured login-shell PATH + the usual macOS
- * install dirs a GUI-launched Electron app misses.
+ * ONE resolver — this probe, session create, and the detection service all
+ * share it).
  */
 
-import type { IpcMain } from 'electron';
 import type { AgentAvailability } from '@shared/ipc';
-import { getUserPath, resolveBinaryAgainst } from './tmux/resolve';
+import { getUserPath, resolveBinaryAgainst } from '../tmux/resolve';
 
 let cached: AgentAvailability | null = null;
 
@@ -33,9 +37,4 @@ export async function getAgentAvailability(): Promise<AgentAvailability> {
     );
   }
   return cached;
-}
-
-/** Register the appended 'agents:availability' invoke channel. */
-export function registerAgentsIpc(ipc: IpcMain): void {
-  ipc.handle('agents:availability', () => getAgentAvailability());
 }

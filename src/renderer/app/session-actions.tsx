@@ -7,6 +7,7 @@
  * the surfaces can never drift apart.
  */
 
+import React, { useEffect, useRef, useState } from 'react';
 import type { Session } from '@shared/types';
 import type { MenuItemSpec } from '../state/store';
 import { useApp } from '../state/store';
@@ -119,3 +120,90 @@ export function closeSession(session: Session): void {
 
 /** Re-export for surfaces that already import from here. */
 export { statusVisual };
+
+// ---------------------------------------------------------------------------
+// Shared rename gesture (extracted by the Phase-10 integrator dup-scan —
+// guardrail 4 — from the four surfaces: dock row, tab, identity strip,
+// split header). One hook + one input so the gesture can never drift.
+// ---------------------------------------------------------------------------
+
+export interface RenameDraft {
+  /** True while THIS surface owns the rename (store key matches). */
+  renaming: boolean;
+  draft: string;
+  setDraft: (v: string) => void;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  /** Commit the draft (no-op rename is skipped) and leave rename mode. */
+  commit: () => void;
+  /** Leave rename mode without committing. */
+  cancel: () => void;
+}
+
+/**
+ * Draft state for renaming `session` on one surface. `key` is the store's
+ * renamingSessionId marker — session.id by default; surfaces that can show
+ * a second editor for the same session (the identity strip) pass a
+ * distinct marker (`strip:<id>`) so inputs never double up.
+ */
+export function useRenameDraft(
+  session: Session,
+  key: string = session.id
+): RenameDraft {
+  const renamingSessionId = useApp((s) => s.renamingSessionId);
+  const setRenaming = useApp((s) => s.setRenaming);
+  const renameSession = useApp((s) => s.renameSession);
+
+  const renaming = renamingSessionId === key;
+  const [draft, setDraft] = useState(session.name);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (renaming) {
+      setDraft(session.name);
+      requestAnimationFrame(() => inputRef.current?.select());
+    }
+  }, [renaming, session.name]);
+
+  const commit = (): void => {
+    setRenaming(null);
+    if (draft.trim().length > 0 && draft.trim() !== session.name) {
+      void renameSession(session.id, draft);
+    }
+  };
+
+  return {
+    renaming,
+    draft,
+    setDraft,
+    inputRef,
+    commit,
+    cancel: () => setRenaming(null)
+  };
+}
+
+/** The rename editor itself — Enter commits, Esc cancels, blur commits. */
+export function RenameInput({
+  rename,
+  className
+}: {
+  rename: RenameDraft;
+  className: string;
+}): React.JSX.Element {
+  return (
+    <input
+      ref={rename.inputRef}
+      className={className}
+      value={rename.draft}
+      autoFocus
+      spellCheck={false}
+      onChange={(e) => rename.setDraft(e.target.value)}
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        e.stopPropagation();
+        if (e.key === 'Enter') rename.commit();
+        if (e.key === 'Escape') rename.cancel();
+      }}
+      onBlur={rename.commit}
+    />
+  );
+}

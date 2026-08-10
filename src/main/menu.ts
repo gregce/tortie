@@ -18,12 +18,31 @@
 import { app, BrowserWindow, Menu } from 'electron';
 import type { MenuItemConstructorOptions } from 'electron';
 import { EVT_MENU_ACTION, EVT_QUIT_REQUESTED } from '@shared/ipc';
-import type { AnyMenuActionId } from '@shared/ipc';
+import type { MenuActionWithHotkeys } from '@shared/ipc';
+import type { LaunchableAgentId } from '@shared/types';
+// Direct module imports (NOT the ./settings barrel): settings/ipc.ts imports
+// rebuildAppMenu from this file — the barrel would close a require cycle.
+import { getSettings } from './settings/store';
+import {
+  closeSettingsWindowIfFocused,
+  isSettingsWindow,
+  openSettingsWindow
+} from './settings/window';
+import { getRegistryEntry } from './agents/registry';
 
-function sendAction(action: AnyMenuActionId): void {
+/**
+ * Forward a menu action to the APP window's renderer. The Settings window
+ * (S13) is a sibling BrowserWindow with no app shell, so it is never a
+ * forwarding target — while it is focused, app actions (⌘T, per-agent
+ * hotkeys, …) still land in the main window.
+ */
+function sendAction(action: MenuActionWithHotkeys): void {
+  const focused = BrowserWindow.getFocusedWindow();
   const win =
-    BrowserWindow.getFocusedWindow() ??
-    BrowserWindow.getAllWindows().find((w) => !w.isDestroyed());
+    (focused !== null && !isSettingsWindow(focused) ? focused : null) ??
+    BrowserWindow.getAllWindows().find(
+      (w) => !w.isDestroyed() && !isSettingsWindow(w)
+    );
   win?.webContents.send(EVT_MENU_ACTION, action);
 }
 
@@ -49,7 +68,7 @@ function requestQuit(): void {
 
 function item(
   label: string,
-  action: AnyMenuActionId,
+  action: MenuActionWithHotkeys,
   accelerator?: string
 ): MenuItemConstructorOptions {
   return {
@@ -57,6 +76,40 @@ function item(
     ...(accelerator !== undefined ? { accelerator } : {}),
     click: () => sendAction(action)
   };
+}
+
+/**
+ * User-recorded per-agent hotkey items (S13 Hotkeys): one Session-menu item
+ * per ASSIGNED chord — "the menu stays the source of nativeness". Pressing
+ * one forwards `launch-agent:<id>` to the main window, which creates
+ * `<agent>-<n>` in the active project (§6.2 quick-create path). Rebuilt via
+ * rebuildAppMenu() whenever settings:set changes the hotkey map.
+ */
+function agentHotkeyItems(): MenuItemConstructorOptions[] {
+  let hotkeys: Partial<Record<LaunchableAgentId, string>>;
+  try {
+    hotkeys = getSettings().hotkeys;
+  } catch {
+    return []; // settings store unreadable — menu simply has no hotkey items
+  }
+  const items: MenuItemConstructorOptions[] = [];
+  for (const [id, accelerator] of Object.entries(hotkeys)) {
+    if (typeof accelerator !== 'string' || accelerator.length === 0) continue;
+    let displayName = id;
+    try {
+      displayName = getRegistryEntry(id as LaunchableAgentId).displayName;
+    } catch {
+      continue; // unknown id survived in the file — skip, never throw
+    }
+    items.push({
+      label: `New ${displayName} Session`,
+      accelerator,
+      click: () => sendAction(`launch-agent:${id as LaunchableAgentId}`)
+    });
+  }
+  return items.length > 0
+    ? [{ type: 'separator' }, ...items]
+    : [];
 }
 
 // ---------------------------------------------------------------------------
@@ -91,14 +144,20 @@ function syncOrientationRadios(win: BrowserWindow): void {
     });
 }
 
-export function installAppMenu(): void {
+function buildTemplate(): MenuItemConstructorOptions[] {
   const template: MenuItemConstructorOptions[] = [
     {
       label: app.name, // "gmux"
       submenu: [
         { role: 'about', label: 'About gmux' },
         { type: 'separator' },
-        item('Settings…', 'settings', 'Cmd+,'),
+        // S13: ⌘, opens the dedicated single-instance Settings window
+        // straight from main — no renderer detour, works from any window.
+        {
+          label: 'Settings…',
+          accelerator: 'Cmd+,',
+          click: () => openSettingsWindow()
+        },
         { type: 'separator' },
         { role: 'services' },
         { type: 'separator' },
@@ -123,9 +182,19 @@ export function installAppMenu(): void {
         { type: 'separator' },
         item('Save', 'save-file', 'Cmd+S'),
         { type: 'separator' },
-        // ⌘W closes an editor tab ONLY — never the window, a session, or a
-        // project (DESIGN.md §4).
-        item('Close Editor Tab', 'close-editor-tab', 'Cmd+W')
+        // ⌘W closes an editor tab ONLY — never the main window, a session,
+        // or a project (DESIGN.md §4). One exception (S13): when the
+        // Settings window is focused, ⌘W closes the Settings window.
+        {
+          label: 'Close Editor Tab',
+          accelerator: 'Cmd+W',
+          click: () => {
+            if (closeSettingsWindowIfFocused(BrowserWindow.getFocusedWindow())) {
+              return;
+            }
+            sendAction('close-editor-tab');
+          }
+        }
       ]
     },
     {
@@ -151,7 +220,10 @@ export function installAppMenu(): void {
         { type: 'separator' },
         // Deliberately unaccelerated: ending a session is menu-only and
         // always confirmed (DESIGN.md §4).
-        item('End Session…', 'end-session')
+        item('End Session…', 'end-session'),
+        // User-recorded per-agent shortcuts (S13 Hotkeys) — present only
+        // when assigned; rebuilt on every hotkey change.
+        ...agentHotkeyItems()
       ]
     },
     {
@@ -208,18 +280,38 @@ export function installAppMenu(): void {
       submenu: [item('Keyboard Shortcuts', 'shortcuts', 'Cmd+/')]
     }
   ];
+  return template;
+}
 
-  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
-
-  // Keep the orientation radios honest across relaunches: whenever a window
-  // finishes loading the app, read the renderer-persisted orientation back.
-  // (Single-window app — the listener is cheap and window-count agnostic.)
-  app.on('browser-window-created', (_event, win) => {
-    win.webContents.on('did-finish-load', () => syncOrientationRadios(win));
-  });
+/** Apply the current template + re-read the orientation radio truth. */
+function applyMenu(): void {
+  Menu.setApplicationMenu(Menu.buildFromTemplate(buildTemplate()));
   for (const win of BrowserWindow.getAllWindows()) {
-    if (!win.isDestroyed() && !win.webContents.isLoading()) {
+    // The Settings window has no orientation store — never read it back.
+    if (!win.isDestroyed() && !win.webContents.isLoading() && !isSettingsWindow(win)) {
       syncOrientationRadios(win);
     }
   }
+}
+
+/**
+ * Rebuild the application menu in place — called by settings:set whenever
+ * the per-agent hotkey map changes (S13), so recorded chords become native
+ * Session-menu accelerators without a relaunch.
+ */
+export function rebuildAppMenu(): void {
+  applyMenu();
+}
+
+export function installAppMenu(): void {
+  applyMenu();
+
+  // Keep the orientation radios honest across relaunches: whenever a window
+  // finishes loading the app, read the renderer-persisted orientation back.
+  // (The Settings window is excluded — it has no orientation store.)
+  app.on('browser-window-created', (_event, win) => {
+    win.webContents.on('did-finish-load', () => {
+      if (!isSettingsWindow(win)) syncOrientationRadios(win);
+    });
+  });
 }

@@ -18,6 +18,7 @@ import { gitErrorLine, repoState, useGit } from '../state/git';
 import { displayPath } from '../app/format';
 import { Codicon } from '../icons';
 import { hasGitDepth, useGitDepth } from './depth';
+import { requestManageBranches } from './manage-branches';
 import { MiniModal } from './MiniModal';
 import type { MiniModalSpec } from './MiniModal';
 import type { GmuxGitDepthExtras } from '@shared/ipc';
@@ -100,6 +101,15 @@ export function BranchHeader(): React.JSX.Element {
       items.push({
         label: 'Create branch…',
         run: () => openCreateBranchModal(path)
+      });
+      // Round 2: the menu stays the one-keystroke switcher; the BRANCHES
+      // section is the full UI — this expands + focuses it.
+      items.push('sep', {
+        label: 'Manage branches',
+        run: () => {
+          useApp.getState().setSidebarView('scm');
+          requestManageBranches();
+        }
       });
     } catch (err) {
       toast('error', `Could not list branches — ${gitErrorLine(err)}`, {

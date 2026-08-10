@@ -28,7 +28,15 @@ export default defineConfig({
     build: {
       // monaco-editor is heavy; raise the warning ceiling rather than split
       // hairs in the scaffold. Editor stream owns real chunking later.
-      chunkSizeWarningLimit: 6000
+      chunkSizeWarningLimit: 6000,
+      rollupOptions: {
+        input: {
+          // Main window (the app shell).
+          index: resolve(__dirname, 'src/renderer/index.html'),
+          // Settings window (S13) — second BrowserWindow, own entry.
+          settings: resolve(__dirname, 'src/renderer/settings/index.html')
+        }
+      }
     }
   }
 });

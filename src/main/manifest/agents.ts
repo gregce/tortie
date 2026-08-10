@@ -10,6 +10,12 @@
  *    rollout file `~/.codex/sessions/YYYY/MM/DD/rollout-<ts>-<uuid>.jsonl[.zst]`
  *    created right after spawn (may later move into an archived_sessions dir).
  *  - shell: plain $SHELL; argv+cwd only, nothing to resume.
+ *  - all other registry agents (Phase 10, research 11): launch argv + resume
+ *    strategy come from src/main/agents/registry.ts. Their conversation ids
+ *    are only knowable by watching each agent's session store (the SpecStory
+ *    pattern); until that harvester stream lands, idCapture is 'store-watch'
+ *    and resumeArgv stays undefined — restores fall back to a fresh shell
+ *    with snapshot scrollback, never a wrong resume.
  *
  * Ownership: src/main/manifest/**. Pure Node (no Electron import) so it can
  * be unit-tested outside the app.
@@ -21,7 +27,12 @@ import { open, readdir, stat } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { basename, join } from 'node:path';
 import * as parcelWatcher from '@parcel/watcher';
-import type { AgentKind } from '@shared/types';
+import type { LaunchableAgentKind } from '@shared/types';
+import {
+  getLaunchableEntry,
+  registryLaunchArgv,
+  type ResumeStrategy
+} from '../agents/registry';
 
 // ---------------------------------------------------------------------------
 // Launch specs
@@ -33,7 +44,13 @@ export type IdCaptureMode =
   | 'preassigned'
   /** Id harvested from the agent's on-disk store after spawn (codex). */
   | 'rollout-watch'
-  /** No conversation id exists (plain shells). */
+  /**
+   * Id only knowable from a session-store watcher that gmux has not built
+   * for this agent yet (Phase-10 registry agents; the store roots live in
+   * the registry's storeDirs). resumeArgv stays undefined until then.
+   */
+  | 'store-watch'
+  /** No conversation id exists (plain shells; pi has no resume upstream). */
   | 'none';
 
 /**
@@ -41,7 +58,7 @@ export type IdCaptureMode =
  * manifest needs to resurrect it later.
  */
 export interface AgentLaunchSpec {
-  agent: AgentKind;
+  agent: LaunchableAgentKind;
   /** Full argv to launch now (argv[0] is the command). */
   argv: string[];
   /** Known at launch only for 'preassigned' agents. */
@@ -52,9 +69,16 @@ export interface AgentLaunchSpec {
    * for shells (a restore just opens a fresh shell).
    */
   resumeArgv?: string[];
-  /** Environment deltas to apply at spawn (none needed today). */
+  /** Environment deltas to apply at spawn (cursor-agent: FORCE_COLOR=1). */
   env?: Record<string, string>;
   idCapture: IdCaptureMode;
+  /**
+   * Registry agents only (Phase 10): how a future harvested id becomes a
+   * resume argv — feed both to registryResumeArgv. Mirrors the registry's
+   * resume.strategy / resume.template ('<sessionId>' is the slot).
+   */
+  resumeStrategy?: ResumeStrategy;
+  resumeTemplate?: string[];
 }
 
 /**
@@ -71,7 +95,7 @@ export interface AgentLaunchSpec {
  *                   only for tests/legacy callers.
  */
 export function buildLaunchSpec(
-  agent: AgentKind,
+  agent: LaunchableAgentKind,
   extraArgs: readonly string[] = [],
   binPath?: string
 ): AgentLaunchSpec {
@@ -104,6 +128,25 @@ export function buildLaunchSpec(
         argv: [shell, ...extraArgs],
         idCapture: 'none'
       };
+    }
+    default: {
+      // Phase-10 registry agents (cursor, gemini, droid, deepseek,
+      // antigravity, muse, qwen, pi): launch argv + resume strategy are
+      // registry DATA (research 11). Throws for capture-only ids. pi's
+      // mechanics are UNVERIFIED upstream (registry entry carries the flag)
+      // and it has no resume (strategy 'none').
+      const entry = getLaunchableEntry(agent);
+      const spec: AgentLaunchSpec = {
+        agent,
+        argv: registryLaunchArgv(agent, extraArgs, binPath),
+        idCapture: entry.resume.strategy === 'flag-uuid' ? 'store-watch' : 'none',
+        resumeStrategy: entry.resume.strategy,
+        resumeTemplate: [...entry.resume.template]
+      };
+      if (entry.launch.env !== undefined) {
+        spec.env = { ...entry.launch.env };
+      }
+      return spec;
     }
   }
 }

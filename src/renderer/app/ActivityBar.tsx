@@ -7,6 +7,7 @@
  */
 
 import React, { useMemo } from 'react';
+import type { GmuxSettingsExtras } from '@shared/ipc';
 import { dirtyCount, useGit } from '../state/git';
 import { loginItemExtras, useApp } from '../state/store';
 import type { SidebarViewId } from '../state/store';
@@ -62,14 +63,30 @@ function ViewItem({
 }
 
 /**
- * Settings gear (moved here from the titlebar — S3 pins it at the rail's
- * bottom). One menu, one setting: 'Launch gmux at login'. Hidden when the
- * bridge lacks the login-item methods; state is read fresh on every open
- * and re-read from the OS after toggling (System Settings can veto).
+ * Settings gear (S3 pins it at the rail's bottom). Phase 10 (S13): the gear
+ * opens the dedicated Settings WINDOW (feature-detected openSettings bridge
+ * method — the login-item toggle moved into Settings → General). Fallback
+ * for older preloads: the original one-item login menu, so the gear never
+ * goes dead.
  */
 function SettingsItem(): React.JSX.Element | null {
   const setMenu = useApp((s) => s.setMenu);
   const toast = useApp((s) => s.toast);
+  const settingsExtras = (window.gmux ?? {}) as unknown as GmuxSettingsExtras;
+  if (typeof settingsExtras.openSettings === 'function') {
+    const openSettings = settingsExtras.openSettings.bind(settingsExtras);
+    return (
+      <button
+        type="button"
+        className="ab-item activitybar-settings"
+        title="Settings (⌘,)"
+        aria-label="Settings (⌘,)"
+        onClick={() => void openSettings()}
+      >
+        <Codicon name="settings-gear" size={24} />
+      </button>
+    );
+  }
   const extras = loginItemExtras();
   if (
     typeof extras.getLoginItem !== 'function' ||

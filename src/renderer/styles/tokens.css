@@ -26,6 +26,9 @@
   --accent-hover: #63acf0;
   --accent-text: #82bfff;
   --accent-wash: rgba(77, 157, 232, 0.14);
+  /* Drag drop-target fill (split halves) — deliberately stronger than
+     --accent-wash: it must read over a live terminal, not a sidebar row. */
+  --drop-wash: rgba(77, 157, 232, 0.25);
   --on-accent: #0d1117;
 
   /* §1.3 Session status */

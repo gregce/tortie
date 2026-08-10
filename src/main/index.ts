@@ -32,6 +32,7 @@ import { getGmuxCore, registerIpcHandlers, shutdownGmuxCore } from './ipc';
 import type { GmuxCore } from './ipc';
 import { installAppMenu } from './menu';
 import { registerRestoreIpc, snapshotPath, stripAnsi } from './restore';
+import { openSettingsWindow, registerSettingsIpc } from './settings';
 import * as tmux from './tmux';
 
 // ---------------------------------------------------------------------------
@@ -620,6 +621,40 @@ async function runShot(outPath: string): Promise<void> {
   // executes — open a project, open a diff — so the capture shows the real
   // UI. The hook flips __gmuxShotReady; cleanup removes the driven project.
   const driveJson = process.env['GMUX_SHOT_DRIVE'];
+
+  // Settings-window capture (Phase 10 S13 harness extension): with
+  // GMUX_SHOT_SETTINGS=1 the shot targets the dedicated Settings window
+  // instead of the app shell. GMUX_SHOT_SETTINGS_JS optionally runs a
+  // renderer-side driver first (e.g. switch to a section) before capture.
+  if (process.env['GMUX_SHOT_SETTINGS'] === '1') {
+    openSettingsWindow();
+    const win = BrowserWindow.getAllWindows()[0];
+    if (!win) {
+      console.error('[gmux-shot] FAIL: settings window did not open');
+      app.exit(1);
+      return;
+    }
+    win.webContents.once('did-finish-load', () => {
+      setTimeout(async () => {
+        try {
+          const js = process.env['GMUX_SHOT_SETTINGS_JS'];
+          if (js !== undefined && js.length > 0) {
+            await win.webContents.executeJavaScript(js, true).catch(() => undefined);
+            await new Promise((r) => setTimeout(r, 600));
+          }
+          const image = await win.webContents.capturePage();
+          await writeFile(outPath, image.toPNG());
+          console.log(`[gmux-shot] wrote ${outPath}`);
+          app.exit(0);
+        } catch (err) {
+          console.error(`[gmux-shot] FAIL: ${(err as Error).message}`);
+          app.exit(1);
+        }
+      }, 2_000);
+    });
+    return;
+  }
+
   mainWindow = createWindow();
   mainWindow.webContents.once('did-finish-load', () => {
     setTimeout(async () => {
@@ -685,6 +720,9 @@ app.whenReady().then(async () => {
   registerRestoreIpc(ipcMain);
   // Phase 8: agent CLI availability probe (agents:availability).
   registerAgentsIpc(ipcMain);
+  // Phase 10 (S13): settings store + Settings window + flag-preset catalogs
+  // (settings:get/set, settings:openWindow, agents:flagPresets).
+  registerSettingsIpc(ipcMain);
   // Phase 8.2: renderer-confirmed quit (first-quit toast flow — the Quit
   // menu item forwards to the renderer, which invokes this after showing
   // the one-time §4 toast; see src/main/menu.ts for the fallback timer).

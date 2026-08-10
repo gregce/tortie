@@ -14,6 +14,7 @@ import type {
   GitFileState,
   GitFileStatus,
   GitLogEntryDetailed,
+  GitRemoteBranchInfo,
   GitStatusGroups
 } from '@shared/types';
 
@@ -272,6 +273,48 @@ export function parseForEachRefBranches(output: string): GitBranchInfo[] {
       behind: behind !== null ? Number(behind[1]) : 0,
       // A subject containing \x1f would have been split — rejoin the tail.
       subject: f.slice(6).join('\x1f')
+    });
+  }
+  return branches;
+}
+
+// ---------------------------------------------------------------------------
+// APPENDED by the branch-management stream (Phase 10 #7):
+// `git for-each-ref refs/remotes --format=REMOTE_BRANCH_FORMAT` — one line
+// per remote-tracking ref. `%(symref)` is non-empty exactly for the symbolic
+// `<remote>/HEAD` entries (they point at the remote's default branch), which
+// are presentation noise — deduped here, with a belt-and-braces name check.
+// ---------------------------------------------------------------------------
+
+export const REMOTE_BRANCH_FORMAT =
+  '%(refname:short)%1f%(objectname)%1f%(objectname:short)%1f%(symref)' +
+  '%1f%(subject)';
+
+/** Parse `git for-each-ref refs/remotes --format=REMOTE_BRANCH_FORMAT`. */
+export function parseForEachRefRemoteBranches(
+  output: string
+): GitRemoteBranchInfo[] {
+  const branches: GitRemoteBranchInfo[] = [];
+  for (const line of output.split('\n')) {
+    if (line.length === 0) continue;
+    const f = line.split('\x1f');
+    if (f.length < 5) continue;
+    const name = f[0] ?? '';
+    const symref = f[3] ?? '';
+    // Skip the symbolic <remote>/HEAD alias (dedupe origin/HEAD).
+    if (symref.length > 0) continue;
+    const slash = name.indexOf('/');
+    if (slash <= 0) continue; // refs/remotes entries are always remote/name
+    const shortName = name.slice(slash + 1);
+    if (shortName === 'HEAD') continue; // defensive: never render a HEAD row
+    branches.push({
+      name,
+      remote: name.slice(0, slash),
+      shortName,
+      sha: f[1] ?? '',
+      shortSha: f[2] ?? '',
+      // A subject containing \x1f would have been split — rejoin the tail.
+      subject: f.slice(4).join('\x1f')
     });
   }
   return branches;

@@ -4,52 +4,16 @@
  * config (signing, hooks, templates) via GIT_CONFIG_GLOBAL/SYSTEM.
  */
 
-import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import { GitService } from '../service';
+import { git, isolateGitConfig, makeRepo as makeHarnessRepo } from './harness';
 
-const ENV_ISOLATION = {
-  GIT_CONFIG_GLOBAL: '/dev/null',
-  GIT_CONFIG_SYSTEM: '/dev/null'
-} as const;
+const makeRepo = (): string => makeHarnessRepo('gmux-git-test-');
 
-function git(cwd: string, ...args: string[]): string {
-  return execFileSync('git', args, {
-    cwd,
-    encoding: 'utf8',
-    env: { ...process.env, ...ENV_ISOLATION }
-  });
-}
-
-function makeRepo(): string {
-  const dir = mkdtempSync(join(tmpdir(), 'gmux-git-test-'));
-  git(dir, 'init', '-b', 'main');
-  git(dir, 'config', 'user.name', 'gmux test');
-  git(dir, 'config', 'user.email', 'test@gmux.local');
-  git(dir, 'config', 'commit.gpgsign', 'false');
-  return dir;
-}
-
-let savedGlobal: string | undefined;
-let savedSystem: string | undefined;
-
-beforeAll(() => {
-  // GitService's runGit inherits process.env — isolate it the same way.
-  savedGlobal = process.env['GIT_CONFIG_GLOBAL'];
-  savedSystem = process.env['GIT_CONFIG_SYSTEM'];
-  process.env['GIT_CONFIG_GLOBAL'] = '/dev/null';
-  process.env['GIT_CONFIG_SYSTEM'] = '/dev/null';
-});
-
-afterAll(() => {
-  if (savedGlobal === undefined) delete process.env['GIT_CONFIG_GLOBAL'];
-  else process.env['GIT_CONFIG_GLOBAL'] = savedGlobal;
-  if (savedSystem === undefined) delete process.env['GIT_CONFIG_SYSTEM'];
-  else process.env['GIT_CONFIG_SYSTEM'] = savedSystem;
-});
+isolateGitConfig();
 
 describe('GitService against real git', () => {
   const cleanups: string[] = [];

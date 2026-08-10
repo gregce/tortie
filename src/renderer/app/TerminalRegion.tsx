@@ -1,13 +1,19 @@
 /**
- * S4 — Terminal region (round 1): the 36px HEADER BAND on top (session tab
+ * S4 — Terminal region (round 2): the 36px HEADER BAND on top (session tab
  * strip by default; identity strip in "right" orientation), the restore-all
- * bar when saved sessions await, then the xterm host. Exactly one session's
- * terminal is visible per project tab; switching swaps the pane with no
+ * bar when saved sessions await, then the active SURFACE — one session
+ * full-bleed, or a drag-built split group of up to 6 (S4A). Exactly one
+ * surface is visible per project tab; switching swaps the region with no
  * animation (terminal region never animates, §5).
  *
  * The band shares one hairline with the sidebar/editor/right-list headers
  * (S1). The single sanctioned interruption is the gap under the ACTIVE
  * session tab, where --bg-canvas runs through into the terminal.
+ *
+ * Drag round: tabs reorder by pointer drag within the strip; single tabs
+ * dragged into the terminal split it (quadrant hit-testing, --drop-wash
+ * overlay); split headers drag back to pop out. All persisted per project
+ * in the layout slice (src/renderer/state/layout.ts).
  */
 
 import React, {
@@ -27,15 +33,27 @@ import {
 } from '../state/agents';
 import { effectiveStatusOf, useApp } from '../state/store';
 import type { MenuItemSpec } from '../state/store';
-import { statusVisual } from './status';
+import {
+  deriveSurfaces,
+  focusedLeafOf,
+  surfaceOf,
+  useLayout
+} from '../state/layout';
+import type { Surface } from '../state/layout';
+import { rollupDot, statusVisual } from './status';
 import { useNow } from './format';
 import {
+  RenameInput,
   closeSession,
   isOutsideProject,
   sessionMenuItems,
-  sessionTooltip
+  sessionTooltip,
+  useRenameDraft
 } from './session-actions';
 import { AgentIcon, Codicon } from '../icons';
+import { SplitDropOverlay, SplitSurfaceView } from './split/SplitSurface';
+import { sessionGestureProps, startSurfaceDrag } from './split/surface-dnd';
+import { groupMenuItems, groupTooltip } from './split/split-menu';
 
 // ---------------------------------------------------------------------------
 // Shared: quick-create split button (＋ opens ⌘T; ˅ native quick-create menu)
@@ -97,40 +115,29 @@ function NewSessionSplitButton(): React.JSX.Element {
 
 function SessionTab({
   session,
+  surface,
+  projectId,
+  activeSurface,
+  activeLeafId,
   active,
   now
 }: {
   session: Session;
+  surface: Surface;
+  projectId: string;
+  activeSurface: Surface | null;
+  activeLeafId: string;
   active: boolean;
   now: number;
 }): React.JSX.Element {
   const overrides = useApp((s) => s.statusOverrides);
   const lastActivity = useApp((s) => s.lastActivity);
-  const renamingSessionId = useApp((s) => s.renamingSessionId);
-  const setRenaming = useApp((s) => s.setRenaming);
   const setActiveSession = useApp((s) => s.setActiveSession);
-  const renameSession = useApp((s) => s.renameSession);
-  const setMenu = useApp((s) => s.setMenu);
 
   const status = effectiveStatusOf(session, overrides);
   const visual = statusVisual(status, session.exitCode);
-  const renaming = renamingSessionId === session.id;
-  const [draft, setDraft] = useState(session.name);
-  const inputRef = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => {
-    if (renaming) {
-      setDraft(session.name);
-      requestAnimationFrame(() => inputRef.current?.select());
-    }
-  }, [renaming, session.name]);
-
-  const commit = (): void => {
-    setRenaming(null);
-    if (draft.trim().length > 0 && draft.trim() !== session.name) {
-      void renameSession(session.id, draft);
-    }
-  };
+  const rename = useRenameDraft(session);
+  const renaming = rename.renaming;
 
   const tooltip = sessionTooltip(
     session,
@@ -147,6 +154,7 @@ function SessionTab({
       aria-label={`${session.name}, ${visual.label}`}
       tabIndex={active ? 0 : -1}
       data-session-id={session.id}
+      data-surface-id={surface.id}
       title={renaming ? undefined : tooltip}
       className={[
         'stab',
@@ -156,16 +164,15 @@ function SessionTab({
       ]
         .filter(Boolean)
         .join(' ')}
-      onClick={() => setActiveSession(session.id)}
-      onDoubleClick={() => setRenaming(session.id)}
-      onContextMenu={(e) => {
-        e.preventDefault();
-        setMenu({
-          x: e.clientX,
-          y: e.clientY,
-          items: sessionMenuItems(session, session.id)
-        });
-      }}
+      {...sessionGestureProps({
+        session,
+        surface,
+        projectId,
+        home: 'strip',
+        renaming,
+        activeSurface,
+        activeLeafId
+      })}
       onKeyDown={(e) => {
         if (renaming) return;
         if (e.key === 'Enter' || e.key === ' ') {
@@ -181,21 +188,7 @@ function SessionTab({
     >
       <AgentIcon agent={session.agent} size={16} className="stab-agent" />
       {renaming ? (
-        <input
-          ref={inputRef}
-          className="stab-rename-input"
-          value={draft}
-          autoFocus
-          spellCheck={false}
-          onChange={(e) => setDraft(e.target.value)}
-          onClick={(e) => e.stopPropagation()}
-          onKeyDown={(e) => {
-            e.stopPropagation();
-            if (e.key === 'Enter') commit();
-            if (e.key === 'Escape') setRenaming(null);
-          }}
-          onBlur={commit}
-        />
+        <RenameInput rename={rename} className="stab-rename-input" />
       ) : (
         <span className="stab-name">{session.name}</span>
       )}
@@ -227,18 +220,152 @@ function SessionTab({
   );
 }
 
+/**
+ * Group tab (S4A): a surface holding ≥2 splits. split-horizontal icon ·
+ * focused leaf's name · "+n" pill · roll-up dot · no × (sessions end only
+ * from split headers). Reorders by drag but never re-enters split mode.
+ */
+function GroupTab({
+  surface,
+  members,
+  projectId,
+  focusedLeafId,
+  active
+}: {
+  surface: Surface;
+  members: Session[];
+  projectId: string;
+  focusedLeafId: string;
+  active: boolean;
+}): React.JSX.Element {
+  const overrides = useApp((s) => s.statusOverrides);
+  const setMenu = useApp((s) => s.setMenu);
+  const selectLeaf = useLayout((s) => s.selectLeaf);
+
+  const statuses = members.map((m) => effectiveStatusOf(m, overrides));
+  const dot = rollupDot(statuses);
+  const attention = statuses.includes('needs_input');
+  const focused = members.find((m) => m.id === focusedLeafId) ?? members[0];
+  const tooltip = groupTooltip(
+    members.map((m, i) => ({
+      name: m.name,
+      label: statusVisual(statuses[i] ?? 'idle', m.exitCode).label
+    }))
+  );
+
+  return (
+    <div
+      role="tab"
+      aria-selected={active}
+      aria-label={`${focused?.name ?? 'splits'} and ${members.length - 1} more`}
+      tabIndex={active ? 0 : -1}
+      data-session-id={focusedLeafId}
+      data-surface-id={surface.id}
+      title={tooltip}
+      className={[
+        'stab',
+        'stab-group',
+        active ? 'active' : '',
+        attention ? 'attention' : ''
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      onClick={() => selectLeaf(projectId, focusedLeafId)}
+      onPointerDown={(e) => {
+        if ((e.target as HTMLElement).closest('button, input') !== null) {
+          return;
+        }
+        startSurfaceDrag(
+          e.nativeEvent,
+          e.currentTarget,
+          surface,
+          projectId,
+          'strip'
+        );
+      }}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        setMenu({
+          x: e.clientX,
+          y: e.clientY,
+          items: groupMenuItems(projectId, surface, members, focusedLeafId)
+        });
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          selectLeaf(projectId, focusedLeafId);
+          document
+            .querySelector<HTMLTextAreaElement>(
+              '.gmux-terminal-mount textarea'
+            )
+            ?.focus();
+        }
+      }}
+    >
+      <Codicon name="split-horizontal" size={16} className="stab-agent" />
+      <span className="stab-name">{focused?.name ?? ''}</span>
+      <span className="stab-plus num">+{members.length - 1}</span>
+      <span className={`dot dot-${dot === 'none' ? 'idle' : dot}`} />
+    </div>
+  );
+}
+
+/** 2px accent insertion indicator between tabs (S2 spec, strip flavor). */
+function StripIndicator({
+  index,
+  listRef
+}: {
+  index: number;
+  listRef: React.RefObject<HTMLDivElement | null>;
+}): React.JSX.Element | null {
+  const [left, setLeft] = useState<number | null>(null);
+
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    if (!list) {
+      setLeft(null);
+      return;
+    }
+    const items = Array.from(
+      list.querySelectorAll<HTMLElement>('[data-surface-id]')
+    );
+    if (items.length === 0) {
+      setLeft(null);
+      return;
+    }
+    const at = items[index];
+    const last = items[items.length - 1];
+    setLeft(
+      at !== undefined
+        ? at.offsetLeft - 1
+        : (last?.offsetLeft ?? 0) + (last?.offsetWidth ?? 0) - 1
+    );
+  }, [index, listRef]);
+
+  if (left === null) return null;
+  return <div className="drop-indicator-v" style={{ left }} />;
+}
+
 function SessionTabStrip({
-  sessions,
-  activeId,
+  surfaces,
+  sessionsById,
+  projectId,
+  activeSurface,
+  activeLeafId,
   termFocused
 }: {
-  sessions: Session[];
-  activeId: string | null;
+  surfaces: Surface[];
+  sessionsById: Map<string, Session>;
+  projectId: string;
+  activeSurface: Surface | null;
+  activeLeafId: string;
   termFocused: boolean;
 }): React.JSX.Element {
   const overrides = useApp((s) => s.statusOverrides);
-  const setActiveSession = useApp((s) => s.setActiveSession);
   const setMenu = useApp((s) => s.setMenu);
+  const selectLeaf = useLayout((s) => s.selectLeaf);
+  const stripDrop = useLayout((s) => s.stripDrop);
   const now = useNow();
 
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -292,24 +419,31 @@ function SessionTabStrip({
   }, [measure]);
 
   // Keep the active tab scrolled into view when selection moves.
+  const activeSurfaceId = activeSurface?.id ?? null;
   useEffect(() => {
-    if (activeId === null) return;
+    if (activeSurfaceId === null) return;
     const el = listRef.current?.querySelector<HTMLElement>(
-      `[data-session-id="${CSS.escape(activeId)}"]`
+      `[data-surface-id="${CSS.escape(activeSurfaceId)}"]`
     );
     el?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-  }, [activeId]);
+  }, [activeSurfaceId]);
 
   const openOverflowMenu = (x: number, y: number): void => {
-    const items: MenuItemSpec[] = sessions.map((sess) => {
-      const visual = statusVisual(
-        effectiveStatusOf(sess, overrides),
-        sess.exitCode
-      );
+    const items: MenuItemSpec[] = surfaces.map((surf) => {
+      const leafId = surf.leafIds.includes(activeLeafId)
+        ? activeLeafId
+        : (surf.leafIds[0] ?? '');
+      const sess = sessionsById.get(leafId);
+      const label = surf.isGroup
+        ? `${sess?.name ?? ''} +${surf.leafIds.length - 1}`
+        : (sess?.name ?? '');
+      const visual = sess
+        ? statusVisual(effectiveStatusOf(sess, overrides), sess.exitCode)
+        : null;
       return {
-        label: `${sess.id === activeId ? '✓ ' : ''}${sess.name}`,
-        hint: visual.label,
-        run: () => setActiveSession(sess.id)
+        label: `${surf.id === activeSurfaceId ? '✓ ' : ''}${label}`,
+        ...(visual ? { hint: visual.label } : {}),
+        run: () => selectLeaf(projectId, leafId)
       };
     });
     setMenu({ x, y, items });
@@ -343,15 +477,45 @@ function SessionTabStrip({
           next?.focus();
         }}
       >
-        {sessions.map((sess) => (
-          <SessionTab
-            key={sess.id}
-            session={sess}
-            active={sess.id === activeId}
-            now={now}
-          />
-        ))}
+        {surfaces.map((surf) => {
+          if (surf.isGroup) {
+            const members = surf.leafIds
+              .map((id) => sessionsById.get(id))
+              .filter((x): x is Session => x !== undefined);
+            return (
+              <GroupTab
+                key={surf.id}
+                surface={surf}
+                members={members}
+                projectId={projectId}
+                focusedLeafId={
+                  surf.leafIds.includes(activeLeafId)
+                    ? activeLeafId
+                    : (surf.leafIds[0] ?? '')
+                }
+                active={surf.id === activeSurfaceId}
+              />
+            );
+          }
+          const session = sessionsById.get(surf.id);
+          if (!session) return null;
+          return (
+            <SessionTab
+              key={surf.id}
+              session={session}
+              surface={surf}
+              projectId={projectId}
+              activeSurface={activeSurface}
+              activeLeafId={activeLeafId}
+              active={surf.id === activeSurfaceId}
+              now={now}
+            />
+          );
+        })}
         <div className="stab-filler" />
+        {stripDrop !== null ? (
+          <StripIndicator index={stripDrop} listRef={listRef} />
+        ) : null}
       </div>
       {overflow.has ? (
         <div className="strip-cell">
@@ -387,59 +551,36 @@ function SessionTabStrip({
 
 function IdentityStrip({
   session,
+  grouped,
   termFocused
 }: {
   session: Session;
+  /** The session is the focused leaf of a split group (S4A). */
+  grouped: boolean;
   termFocused: boolean;
 }): React.JSX.Element {
   const overrides = useApp((s) => s.statusOverrides);
-  const renamingSessionId = useApp((s) => s.renamingSessionId);
   const setRenaming = useApp((s) => s.setRenaming);
-  const renameSession = useApp((s) => s.renameSession);
   const setMenu = useApp((s) => s.setMenu);
 
   const status = effectiveStatusOf(session, overrides);
   const visual = statusVisual(status, session.exitCode);
   // Marker suffix so the dock row's rename input (plain id) never doubles up.
-  const renaming = renamingSessionId === `strip:${session.id}`;
-  const [draft, setDraft] = useState(session.name);
-  const inputRef = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => {
-    if (renaming) {
-      setDraft(session.name);
-      requestAnimationFrame(() => inputRef.current?.select());
-    }
-  }, [renaming, session.name]);
-
-  const commit = (): void => {
-    setRenaming(null);
-    if (draft.trim().length > 0 && draft.trim() !== session.name) {
-      void renameSession(session.id, draft);
-    }
-  };
+  const rename = useRenameDraft(session, `strip:${session.id}`);
+  const renaming = rename.renaming;
 
   return (
     <div
       className={`term-header identity-strip${termFocused ? ' term-focused' : ''}`}
       data-session-id={session.id}
     >
-      <AgentIcon agent={session.agent} size={16} className="identity-agent" />
+      {grouped ? (
+        <Codicon name="split-horizontal" size={16} className="identity-agent" />
+      ) : (
+        <AgentIcon agent={session.agent} size={16} className="identity-agent" />
+      )}
       {renaming ? (
-        <input
-          ref={inputRef}
-          className="strip-rename-input"
-          value={draft}
-          autoFocus
-          spellCheck={false}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            e.stopPropagation();
-            if (e.key === 'Enter') commit();
-            if (e.key === 'Escape') setRenaming(null);
-          }}
-          onBlur={commit}
-        />
+        <RenameInput rename={rename} className="strip-rename-input" />
       ) : (
         <span
           className="identity-name"
@@ -571,8 +712,12 @@ export function TerminalRegion(): React.JSX.Element {
   const canRestore = useApp((s) => s.canRestore);
   const restoreSession = useApp((s) => s.restoreSession);
   const restoringIds = useApp((s) => s.restoringIds);
+  const setVisibleSessions = useApp((s) => s.setVisibleSessions);
+  const layouts = useLayout((s) => s.layouts);
+  const reconcile = useLayout((s) => s.reconcile);
 
   const [termFocused, setTermFocused] = useState(false);
+  const surfaceRootRef = useRef<HTMLDivElement | null>(null);
 
   const project = useMemo(
     () => projects.find((p) => p.id === activeProjectId) ?? null,
@@ -596,6 +741,46 @@ export function TerminalRegion(): React.JSX.Element {
     );
   }, [projectSessions, activeProjectId, activeSessionByProject]);
 
+  // ---- surfaces (layout slice, S4A) ---------------------------------------
+  const sessionIdsKey = projectSessions.map((x) => x.id).join(',');
+  const surfaces = useMemo(
+    () =>
+      deriveSurfaces(
+        project ? layouts[project.id] : undefined,
+        projectSessions.map((x) => x.id)
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [layouts, project, sessionIdsKey]
+  );
+  const activeSurface = surfaceOf(surfaces, active?.id ?? null);
+  const focusedLeafId = activeSurface
+    ? focusedLeafOf(
+        activeSurface,
+        active?.id ?? null,
+        project ? layouts[project.id] : undefined
+      )
+    : '';
+  const sessionsById = useMemo(
+    () => new Map(projectSessions.map((x) => [x.id, x])),
+    [projectSessions]
+  );
+
+  // Prune persisted layout when sessions come and go (dead leaves collapse,
+  // one-leaf groups dissolve back to plain tabs).
+  const projectId = project?.id ?? null;
+  useEffect(() => {
+    if (projectId !== null) {
+      reconcile(projectId, sessionIdsKey === '' ? [] : sessionIdsKey.split(','));
+    }
+  }, [projectId, sessionIdsKey, reconcile]);
+
+  // Report the mounted panes (active surface's leaves) so the status
+  // detector watches every visible terminal, not just the focused one.
+  const visibleKey = (activeSurface?.leafIds ?? []).join(',');
+  useEffect(() => {
+    setVisibleSessions(visibleKey === '' ? [] : visibleKey.split(','));
+  }, [visibleKey, setVisibleSessions]);
+
   if (!project) {
     // First-run state is rendered by App (full window, §6.1).
     return <main className="center" data-slot="terminal-stack" />;
@@ -616,18 +801,27 @@ export function TerminalRegion(): React.JSX.Element {
       ? active.agent
       : null;
 
+  const grouped = activeSurface !== null && activeSurface.isGroup;
+
   // The band renders in EVERY state (zero sessions included) so the S1
   // header hairline never breaks: top → tab strip (just ＋˅ when empty);
   // right → identity strip (empty band slice when no session).
   const band =
     orientation === 'top' ? (
       <SessionTabStrip
-        sessions={projectSessions}
-        activeId={active?.id ?? null}
+        surfaces={surfaces}
+        sessionsById={sessionsById}
+        projectId={project.id}
+        activeSurface={activeSurface}
+        activeLeafId={focusedLeafId}
         termFocused={termFocused}
       />
     ) : active ? (
-      <IdentityStrip session={active} termFocused={termFocused} />
+      <IdentityStrip
+        session={active}
+        grouped={grouped}
+        termFocused={termFocused}
+      />
     ) : (
       <div className="term-header identity-strip" />
     );
@@ -652,6 +846,23 @@ export function TerminalRegion(): React.JSX.Element {
       <RestoreAllBar sessions={projectSessions} />
       {projectSessions.length === 0 ? (
         <NoSessions />
+      ) : grouped && activeSurface ? (
+        // S4A: split group — every leaf its own session, panes side by side.
+        <div
+          ref={surfaceRootRef}
+          className="term-body surface-root"
+          data-surface-leaves
+          data-surface-id={activeSurface.id}
+          data-leaf-count={activeSurface.leafIds.length}
+        >
+          <SplitSurfaceView
+            surface={activeSurface}
+            projectId={project.id}
+            sessions={projectSessions}
+            focusedLeafId={focusedLeafId}
+          />
+          <SplitDropOverlay rootRef={surfaceRootRef} />
+        </div>
       ) : active && (exited || restorable) ? (
         // §6.6 / §6.8 — the tmux-side session is gone, so there is no
         // scrollback to keep under a banner; a quiet state carries the
@@ -719,12 +930,24 @@ export function TerminalRegion(): React.JSX.Element {
           </div>
         </div>
       ) : (
-        <div className="term-body">
-          <TerminalHost
-            sessions={sessions}
-            visibleSessionIds={active ? [active.id] : []}
-            focusedSessionId={active?.id ?? null}
-          />
+        <div
+          ref={surfaceRootRef}
+          className="term-body surface-root"
+          data-surface-leaves
+          data-surface-id={activeSurface?.id ?? ''}
+          data-leaf-count={1}
+        >
+          <div
+            className="surface-single"
+            data-split-leaf={active?.id ?? ''}
+          >
+            <TerminalHost
+              sessions={sessions}
+              visibleSessionIds={active ? [active.id] : []}
+              focusedSessionId={active?.id ?? null}
+            />
+          </div>
+          <SplitDropOverlay rootRef={surfaceRootRef} />
         </div>
       )}
       {/* Editor stream mounts here (S5); hidden while empty. */}

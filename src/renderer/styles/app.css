@@ -132,10 +132,6 @@
   box-shadow: var(--focus-ring);
 }
 
-.ptab-wrap.drop-target .ptab {
-  box-shadow: inset 2px 0 0 var(--accent);
-}
-
 .ptab-add {
   display: inline-flex;
   align-items: center;
@@ -1112,6 +1108,136 @@
   flex: 0 0 auto;
 }
 
+/* S6 round 2 — agent picker chip grid (the registry carries 10 launchable
+   CLIs + Shell, so the 3-option segmented control became a wrapping grid). */
+.agent-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.agent-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+}
+
+.agent-chip:hover {
+  background: var(--bg-raised);
+}
+
+.agent-chip.selected {
+  background: var(--bg-active);
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.agent-chip:focus-visible {
+  box-shadow: var(--focus-ring);
+  outline: none;
+}
+
+.agent-chip.missing {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.agent-chip.missing:hover {
+  background: none;
+}
+
+/* S6 round 2 — launch-flag preset rows ("Options") + the Phase-12 capture
+   placeholder. Danger presets carry the warning icon and error-washed chip. */
+.preset-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 24px;
+  cursor: pointer;
+}
+
+.preset-check {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  flex: 0 0 auto;
+  accent-color: var(--accent);
+}
+
+.preset-check:focus-visible {
+  box-shadow: var(--focus-ring);
+  outline: none;
+  border-radius: 2px;
+}
+
+.preset-row.danger .preset-check {
+  accent-color: var(--error);
+}
+
+.preset-warning {
+  color: var(--error);
+  flex: 0 0 auto;
+}
+
+.preset-label {
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.preset-flag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 16px;
+  height: 16px;
+  padding: 0 var(--space-2);
+  border-radius: var(--r-sm);
+  background: var(--bg-raised);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.preset-row.danger .preset-flag {
+  background: var(--error-wash);
+  color: var(--error);
+}
+
+.capture-placeholder {
+  cursor: default;
+}
+
+.capture-placeholder .preset-label {
+  color: var(--text-muted);
+}
+
+.capture-soon {
+  font-size: var(--text-xs);
+  line-height: 16px;
+  height: 16px;
+  padding: 0 var(--space-2);
+  border-radius: var(--r-sm);
+  background: var(--bg-raised);
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+
 /* Shortcuts overlay (S8). */
 .modal-shortcuts {
   width: 640px;
@@ -1525,4 +1651,328 @@
 .quick-create {
   min-width: 140px;
   width: auto;
+}
+
+/* ---------------------------------------------------------------------------
+   Round 2 — the drag round (S2 tab drag · S4 session drag · S4A splits).
+   One pointer-drag engine (app/split/pointer-drag.ts) drives every surface;
+   these are its shared visuals plus the split-surface chrome.
+--------------------------------------------------------------------------- */
+
+/* While any pointer drag is armed: grabbing cursor, no text selection. */
+body.gmux-dragging,
+body.gmux-dragging * {
+  cursor: grabbing !important;
+  user-select: none !important;
+}
+
+/* Lifted ghost: the dragged tab/row at 90% opacity, tracking the pointer
+   1:1 (§5 — no easing). Cloned into <body>; transform positions it. */
+.drag-ghost {
+  position: fixed;
+  z-index: var(--z-tooltip);
+  margin: 0;
+  opacity: 0.9;
+  box-shadow: var(--shadow-2);
+  background: var(--bg-raised);
+  border-radius: var(--r-sm);
+  pointer-events: none;
+  will-change: transform;
+}
+
+/* Insertion indicators: 2px accent bars marking the landing gap. They
+   appear/disappear instantly — only displaced tabs settle on drop (§5). */
+.drop-indicator-v {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 20px;
+  border-radius: 1px;
+  background: var(--accent);
+  pointer-events: none;
+  z-index: 3;
+}
+
+.drop-indicator-h {
+  position: absolute;
+  left: var(--space-2);
+  right: var(--space-2);
+  height: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* Hosts that position an indicator. */
+.stab-list,
+.titlebar-tabs,
+.dock-list {
+  position: relative;
+}
+
+/* Group tab / row "+n" pill (S4A): mono 10 on --bg-raised. */
+.stab-plus,
+.srow-plus {
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+  padding: 0 var(--space-2);
+  border-radius: var(--r-sm);
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  flex: 0 0 auto;
+}
+
+.stab.active .stab-plus {
+  background: var(--bg-active);
+}
+
+/* Session tabs advertise their draggability once lifted; at rest they
+   stay quiet (click = select is still the primary gesture). */
+
+/* ---- S4A split surface ---------------------------------------------------- */
+
+.surface-root {
+  display: flex;
+  min-width: 0;
+}
+
+.surface-single {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.split-root {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.split-node {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.split-node.row {
+  flex-direction: row;
+}
+
+.split-node.column {
+  flex-direction: column;
+}
+
+.split-cell {
+  display: flex;
+  flex-basis: 0;
+  flex-shrink: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.split-cell > * {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Divider: 1px --border line with an invisible 5px hit area (S4A). */
+.split-divider {
+  position: relative;
+  flex: 0 0 1px;
+  background: var(--border);
+  z-index: 2;
+}
+
+.split-divider::before {
+  content: '';
+  position: absolute;
+}
+
+.split-divider.v {
+  cursor: col-resize;
+}
+
+.split-divider.v::before {
+  top: 0;
+  bottom: 0;
+  left: -2px;
+  right: -2px;
+}
+
+.split-divider.h {
+  cursor: row-resize;
+}
+
+.split-divider.h::before {
+  left: 0;
+  right: 0;
+  top: -2px;
+  bottom: -2px;
+}
+
+.split-divider:hover,
+.split-divider.dragging {
+  background: var(--border-strong);
+}
+
+/* One split = header (24px) + content. */
+.split-pane {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--bg-canvas);
+}
+
+/* Focused split: 1px accent inset ring on the CONTENT box (drawn on the
+   container, never over xterm pixels; static — no animation, §5). */
+.split-pane.focused > .split-pane-body::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--accent);
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* Header [h:24]: whole bar is the pop-out drag handle. */
+.split-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 24px;
+  flex: 0 0 24px;
+  padding: 0 var(--space-4);
+  background: var(--bg-sidebar);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
+  cursor: grab;
+  user-select: none;
+}
+
+.split-header:active {
+  cursor: grabbing;
+}
+
+.split-header .split-agent {
+  color: inherit;
+  flex: 0 0 auto;
+}
+
+.split-name {
+  font-size: var(--text-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* Focused split's header: name steps up + 2px accent left inset (S4A). */
+.split-header.focused {
+  color: var(--text-primary);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.split-wt,
+.split-saved {
+  display: inline-flex;
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+
+.split-header-spacer {
+  flex: 1;
+}
+
+.split-close {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--r-sm);
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+
+.split-header:hover .split-close {
+  display: inline-flex;
+}
+
+.split-close:hover {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
+.split-rename-input {
+  flex: 1;
+  min-width: 0;
+  height: 18px;
+  padding: 0 var(--space-3);
+  background: var(--bg-surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--r-sm);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+}
+
+.split-pane-body {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Pane-scoped ended / ready-to-restore state (S4A "Per-split states"). */
+.split-state {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-5);
+  padding: var(--space-6);
+  text-align: center;
+}
+
+.split-state-title {
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
+}
+
+.split-state-actions {
+  display: flex;
+  gap: var(--space-4);
+}
+
+/* Compact buttons for the 24px-header world. */
+.btn.btn-sm {
+  height: 24px;
+  padding: 0 var(--space-5);
+  font-size: var(--text-sm);
+}
+
+/* Drop-zone overlay (S4A): the armed HALF of the target leaf — --drop-wash
+   fill + 1px accent inset border, with a soft accent glow pooling inward
+   (the reference's "lights up" treatment). Snaps on/off with no transition:
+   never fade over a live terminal (§5). */
+.split-drop-zone {
+  position: absolute;
+  background: var(--drop-wash);
+  border: 1px solid var(--accent);
+  box-shadow: inset 0 0 24px var(--accent-wash);
+  pointer-events: none;
+  z-index: 4;
 }

@@ -35,7 +35,19 @@ import { Codicon } from '../icons';
 import { splitPath } from './format';
 import { requestOpenFile } from './open-file';
 import { HistorySection } from './HistorySection';
+import { BranchesView } from './BranchesView';
+import { usePersistedBool, useSectionDrag, useSectionOrder } from './sections';
 import './scm.css';
+
+/** SCM view sections, default order (DESIGN-SPEC S3A round 2). */
+const SCM_SECTION_IDS = ['changes', 'history', 'branches'] as const;
+type ScmSectionId = (typeof SCM_SECTION_IDS)[number];
+
+const SCM_SECTION_LABELS: Record<ScmSectionId, string> = {
+  changes: 'Changes',
+  history: 'History',
+  branches: 'Branches'
+};
 
 // ---------------------------------------------------------------------------
 // Small local helpers
@@ -118,43 +130,6 @@ function confirmDiscardFile(
       onConfirm: () => void discard(repoPath, [file.path])
     });
   }
-}
-
-/** Collapse state persisted per project (like the shell's sections). */
-function usePersistedBool(
-  key: string,
-  fallback: boolean
-): [boolean, (v: boolean) => void] {
-  const [value, setValue] = useState<boolean>(() => {
-    try {
-      const raw = localStorage.getItem(key);
-      return raw === null ? fallback : raw === '1';
-    } catch {
-      return fallback;
-    }
-  });
-  // Re-read when the key changes (project switch).
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(key);
-      setValue(raw === null ? fallback : raw === '1');
-    } catch {
-      setValue(fallback);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
-  const update = useCallback(
-    (v: boolean): void => {
-      setValue(v);
-      try {
-        localStorage.setItem(key, v ? '1' : '0');
-      } catch {
-        /* cosmetic only */
-      }
-    },
-    [key]
-  );
-  return [value, update];
 }
 
 // ---------------------------------------------------------------------------
@@ -534,6 +509,19 @@ export function ScmSection(): React.JSX.Element | null {
   const [cursorKey, setCursorKey] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
 
+  // Section order + drag-reorder (BACKLOG #6): persisted per view app-wide;
+  // only meaningful with ≥2 sections (non-repo renders Changes alone).
+  const isRepoNow = status?.isRepo === true;
+  const { order, setOrder, moveSection } = useSectionOrder('scm', SCM_SECTION_IDS);
+  const sectionsRef = useRef<HTMLDivElement | null>(null);
+  const sectionDrag = useSectionDrag(
+    sectionsRef,
+    isRepoNow ? order : ['changes'],
+    setOrder,
+    moveSection,
+    SCM_SECTION_LABELS
+  );
+
   const activate = useCallback(
     (row: ScmRowModel): void => {
       if (repoPath === null) return;
@@ -739,36 +727,63 @@ export function ScmSection(): React.JSX.Element | null {
 
   const isRepo = status?.isRepo === true;
 
-  return (
-    <>
-      <section
-        className={`section-scm${collapsed ? ' collapsed' : ''}`}
-        onKeyDown={(e) => {
-          // ⌘↩ anywhere in the Changes section commits (S3 spec).
-          if (e.metaKey && e.key === 'Enter' && isRepo) {
-            e.preventDefault();
-            commitCtrl.doCommit();
-          }
-        }}
+  const changesSection = (
+    <section
+      className={`section-scm${collapsed ? ' collapsed' : ''}`}
+      data-section-root="changes"
+      onKeyDown={(e) => {
+        // ⌘↩ anywhere in the Changes section commits (S3 spec).
+        if (e.metaKey && e.key === 'Enter' && isRepo) {
+          e.preventDefault();
+          commitCtrl.doCommit();
+        }
+      }}
+    >
+      <div
+        className={`section-header${collapsed ? ' collapsed' : ''}`}
+        data-section="changes"
       >
-        <div className={`section-header${collapsed ? ' collapsed' : ''}`}>
-          <button
-            type="button"
-            className="section-toggle"
-            aria-expanded={!collapsed}
-            onClick={() => setCollapsed(!collapsed)}
-          >
-            <span className="section-chevron">
-              <Codicon name="chevron-down" size={12} />
-            </span>
-            Changes
-            <span className="section-count num">{total > 0 ? total : ''}</span>
-          </button>
-          <span className="section-spacer" />
-        </div>
-        {!collapsed ? <div className="section-body scm-body">{body()}</div> : null}
-      </section>
-      {isRepo ? <HistorySection key={repoPath} repoPath={repoPath} /> : null}
-    </>
+        <button
+          type="button"
+          className="section-toggle"
+          aria-expanded={!collapsed}
+          onClick={() => setCollapsed(!collapsed)}
+        >
+          <span className="section-chevron">
+            <Codicon name="chevron-down" size={12} />
+          </span>
+          Changes
+          <span className="section-count num">{total > 0 ? total : ''}</span>
+        </button>
+        <span className="section-spacer" />
+        <span className="section-gripper" aria-hidden="true">
+          <Codicon name="gripper" size={14} />
+        </span>
+      </div>
+      {!collapsed ? <div className="section-body scm-body">{body()}</div> : null}
+    </section>
+  );
+
+  const sections: Record<ScmSectionId, React.ReactNode> = {
+    changes: changesSection,
+    history: isRepo ? <HistorySection key={repoPath} repoPath={repoPath} /> : null,
+    branches: isRepo ? (
+      <BranchesView key={`branches-${repoPath}`} repoPath={repoPath} />
+    ) : null
+  };
+
+  return (
+    <div
+      ref={sectionsRef}
+      className="scm-sections"
+      {...sectionDrag.containerProps}
+    >
+      {order.map((id) => (
+        <React.Fragment key={id}>
+          {sections[id as ScmSectionId] ?? null}
+        </React.Fragment>
+      ))}
+      {sectionDrag.overlay}
+    </div>
   );
 }

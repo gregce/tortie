@@ -21,6 +21,8 @@ import type {
 } from '@shared/ipc';
 import { useApp } from '../state/store';
 import type { SidebarViewId } from '../state/store';
+import { useLayout } from '../state/layout';
+import type { NavDir } from '../state/layout';
 import { useEditor } from '../editor/store';
 import { Titlebar } from './Titlebar';
 import { ActivityBar } from './ActivityBar';
@@ -36,6 +38,10 @@ import { FirstRun, TmuxMissing } from './EmptyStates';
 // Phase 5 (editor stream): the S5 editor panel — a right split beside the
 // terminal region (overlay under 1400px). It renders null until a file opens.
 import { EditorPanel } from '../editor';
+// Phase 10 (settings+hotkeys stream, S13): warms the shared settings store
+// (⌘T preset defaults) and handles the user-recorded per-agent hotkey menu
+// actions (launch-agent:<id> → new session in the active project).
+import { useSettingsIntegration } from '../settings';
 
 // ---------------------------------------------------------------------------
 // Keyboard map (DESIGN.md §4) — one capture-phase listener; ⌘-chords and F2
@@ -211,13 +217,24 @@ function useKeyboardMap(): void {
       }
     };
 
-    // ⌥⌘↓ / ⌥⌘↑ — session cycling (separate handler branch since altKey
-    // changes e.key on letters but not on arrows).
+    // ⌘⌥ arrows — split focus navigation (S4A): geometric nearest split in
+    // that direction; at the surface's top/bottom edge ↓/↑ continue to the
+    // next/previous surface, so unsplit surfaces cycle sessions exactly as
+    // before. ←/→ at an edge: no-op. (Separate handler branch since altKey
+    // changes e.key on letters but not on arrows; the native menu owns the
+    // ⌥⌘↓/↑ accelerators — this is the fallback path.)
+    const NAV_KEYS: Record<string, NavDir> = {
+      ArrowDown: 'down',
+      ArrowUp: 'up',
+      ArrowLeft: 'left',
+      ArrowRight: 'right'
+    };
     const onKeyDownArrows = (e: KeyboardEvent): void => {
       if (!(e.metaKey && e.altKey && !e.ctrlKey)) return;
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      const dir = NAV_KEYS[e.key];
+      if (dir !== undefined) {
         e.preventDefault();
-        useApp.getState().cycleSession(e.key === 'ArrowDown' ? 1 : -1);
+        useLayout.getState().navigate(dir);
       }
     };
 
@@ -274,10 +291,13 @@ function runMenuAction(action: AnyMenuActionId): void {
       return;
     }
     case 'next-session':
-      s.cycleSession(1);
+      // ⌥⌘↓ — with splits (S4A) this moves focus to the split below,
+      // falling through to the next surface at the edge (= the round-1
+      // session cycling on unsplit surfaces).
+      useLayout.getState().navigate('down');
       return;
     case 'prev-session':
-      s.cycleSession(-1);
+      useLayout.getState().navigate('up');
       return;
     case 'open-project':
       void s.openProject();
@@ -367,16 +387,37 @@ function useMenuActions(): void {
 interface ShotLayoutExtras {
   orientation?: 'top' | 'right';
   sidebarView?: SidebarViewId;
+  /**
+   * Phase 10 (S4A): after the base drive created its real session, create
+   * three more real shell sessions and stage all four as a 2×2 split grid
+   * (real terminals, real attach flow — four visible panes at once).
+   */
+  splitGrid?: boolean;
+  /** Arm the drop overlay on the grid's last pane (left half) for capture. */
+  splitDrop?: boolean;
+  /**
+   * Flow-control verification: flood two grid panes with heavy output
+   * (`seq`) while all four are attached, then let the burst drain before
+   * capture — the acks must keep every pane alive and rendering.
+   */
+  splitStress?: boolean;
 }
 
 function useShotLayoutHook(): void {
   useEffect(() => {
     const w = window as unknown as {
       __gmuxShotDrive?: (spec: unknown) => Promise<void>;
+      __gmuxShotCleanup?: () => Promise<void>;
     };
     const prev = w.__gmuxShotDrive;
     if (typeof prev !== 'function') return;
+    const prevCleanup = w.__gmuxShotCleanup;
+    /** Extra real sessions created for splitGrid — killed by cleanup. */
+    let extraIds: string[] = [];
+
     w.__gmuxShotDrive = async (spec: unknown): Promise<void> => {
+      const wait = (ms: number): Promise<void> =>
+        new Promise((resolve) => setTimeout(resolve, ms));
       const ext = spec as ShotLayoutExtras;
       if (ext.orientation === 'right' || ext.orientation === 'top') {
         useApp.getState().setSessionOrientation(ext.orientation);
@@ -392,9 +433,72 @@ function useShotLayoutHook(): void {
         await new Promise((resolve) => setTimeout(resolve, 1200));
         window.__gmuxShotReady = true;
       }
+      if (ext.splitGrid === true) {
+        window.__gmuxShotReady = false;
+        const app = useApp.getState();
+        const before = new Set(
+          app.projectSessions().map((x) => x.id)
+        );
+        for (const name of ['split-2', 'split-3', 'split-4']) {
+          await app.createSession({ name, agent: 'shell' });
+        }
+        // Sessions land via the sessions:changed event — poll for all four.
+        let ids: string[] = [];
+        for (let i = 0; i < 40; i++) {
+          ids = useApp
+            .getState()
+            .projectSessions()
+            .filter((x) => x.status !== 'exited' && x.status !== 'restorable')
+            .map((x) => x.id);
+          if (ids.length >= 4) break;
+          await wait(250);
+        }
+        extraIds = ids.filter((id) => !before.has(id));
+        const projectId = useApp.getState().activeProjectId;
+        const four = ids.slice(0, 4);
+        if (projectId !== null && four.length === 4) {
+          useLayout.getState().stageGrid(projectId, four);
+        }
+        // Four panes attach + draw their prompts.
+        await wait(3000);
+        if (ext.splitStress === true) {
+          await wait(4000); // all four attaches settle before the flood
+          for (const id of [four[1], four[2]]) {
+            if (id !== undefined) {
+              window.gmux?.term.sendInput(id, 'seq 1 60000; echo FLOW-OK\r');
+            }
+          }
+          await wait(6000); // bursts drain through the per-session acks
+        }
+        if (ext.splitDrop === true) {
+          const target = four[3];
+          if (target !== undefined) {
+            useLayout.getState().setSplitDrop({ leafId: target, edge: 'left' });
+          }
+          await wait(200);
+        }
+        window.__gmuxShotReady = true;
+      }
     };
+
+    w.__gmuxShotCleanup = async (): Promise<void> => {
+      for (const id of extraIds) {
+        await window.gmux?.sessions.kill(id).catch(() => undefined);
+        const extras = window.gmux?.sessions as
+          | (typeof window.gmux.sessions & {
+              discard?: (id: string) => Promise<void>;
+            })
+          | undefined;
+        if (typeof extras?.discard === 'function') {
+          await extras.discard(id).catch(() => undefined);
+        }
+      }
+      await prevCleanup?.();
+    };
+
     return () => {
       w.__gmuxShotDrive = prev;
+      w.__gmuxShotCleanup = prevCleanup;
     };
   }, []);
 }
@@ -548,6 +652,7 @@ export function App(): React.JSX.Element {
 
   useKeyboardMap();
   useMenuActions();
+  useSettingsIntegration();
   useQuitRequests();
   useWindowTitle();
   useShotLayoutHook();

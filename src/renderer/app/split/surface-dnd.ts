@@ -1,0 +1,263 @@
+/**
+ * Session-surface drags (S4 shared drag spec + S4A): one gesture, two
+ * destinations. A single-session tab/row dragged WITHIN its home strip/dock
+ * reorders (2px accent insertion indicator); dragged ACROSS into the
+ * terminal region it arms a split-drop zone (quadrant hit-testing, --drop-
+ * wash overlay). Group tabs/rows reorder but never enter split mode. Split
+ * headers drag the other way: onto the strip/dock to pop the leaf out.
+ *
+ * Built on the pointer-drag primitive; all transient UI (indicators, the
+ * armed drop zone) lives in the layout store so the strip, dock, and split
+ * surface can render it wherever they are.
+ */
+
+import type React from 'react';
+import type { Session } from '@shared/types';
+import { useApp } from '../../state/store';
+import { useLayout } from '../../state/layout';
+import type { Surface } from '../../state/layout';
+import { sessionMenuItems } from '../session-actions';
+import { openInSplitItems } from './split-menu';
+import {
+  armedEdge,
+  MAX_LEAVES,
+  MIN_PANE_HEIGHT,
+  MIN_PANE_WIDTH
+} from '../../state/split-tree';
+import { armPointerDrag, createGhost, insertionIndex } from './pointer-drag';
+
+export type SurfaceHome = 'strip' | 'dock';
+
+const stripListSelector = '[data-slot="session-strip"] .stab-list';
+const dockListSelector = '[data-slot="session-dock"] .dock-list';
+const leavesSelector = '[data-surface-leaves]';
+
+function rectContains(r: DOMRect, x: number, y: number): boolean {
+  return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+}
+
+function homeSelector(home: SurfaceHome): string {
+  return home === 'strip' ? stripListSelector : dockListSelector;
+}
+
+/** The home list's draggable items, in visual order. */
+function homeItems(home: SurfaceHome): { id: string; rect: DOMRect }[] {
+  const list = document.querySelector<HTMLElement>(homeSelector(home));
+  if (!list) return [];
+  return Array.from(
+    list.querySelectorAll<HTMLElement>('[data-surface-id]')
+  ).map((el) => ({
+    id: el.dataset['surfaceId'] ?? '',
+    rect: el.getBoundingClientRect()
+  }));
+}
+
+/** Update the home indicator; returns true when the pointer is over home. */
+function trackHome(home: SurfaceHome, x: number, y: number): boolean {
+  const layout = useLayout.getState();
+  const list = document.querySelector<HTMLElement>(homeSelector(home));
+  const band = list?.getBoundingClientRect();
+  if (!list || !band || !rectContains(band, x, y)) {
+    if (home === 'strip') layout.setStripDrop(null);
+    else layout.setDockDrop(null);
+    return false;
+  }
+  // Dragging near either end auto-scrolls the strip (S2 drag spec).
+  if (home === 'strip' && list.scrollWidth > list.clientWidth) {
+    if (x < band.left + 24) list.scrollLeft -= 12;
+    else if (x > band.right - 24) list.scrollLeft += 12;
+  }
+  const axis = home === 'strip' ? 'x' : 'y';
+  const index = insertionIndex(homeItems(home), { x, y }, axis);
+  if (home === 'strip') layout.setStripDrop(index);
+  else layout.setDockDrop(index);
+  return true;
+}
+
+/**
+ * Update the S4A drop zone for a pointer over the terminal region.
+ * `draggedId` is the dragged surface's id (always a single session here).
+ * Returns true when the pointer is over the surface area at all.
+ */
+function trackSplitZone(draggedId: string, x: number, y: number): boolean {
+  const layout = useLayout.getState();
+  const root = document.querySelector<HTMLElement>(leavesSelector);
+  if (!root || !rectContains(root.getBoundingClientRect(), x, y)) {
+    layout.setSplitDrop(null);
+    return false;
+  }
+
+  // Constraint set (S4A "No overlay = no drop").
+  const app = useApp.getState();
+  const projectId = app.activeProjectId;
+  const activeCount = Number(root.dataset['leafCount'] ?? '1');
+  const activeSurfaceId = root.dataset['surfaceId'] ?? '';
+  if (
+    projectId === null ||
+    activeCount >= MAX_LEAVES ||
+    activeSurfaceId === draggedId // the dragged tab IS the surface's only leaf
+  ) {
+    layout.setSplitDrop(null);
+    return true;
+  }
+
+  const leafEl = Array.from(
+    root.querySelectorAll<HTMLElement>('[data-split-leaf]')
+  ).find((el) => rectContains(el.getBoundingClientRect(), x, y));
+  if (!leafEl) {
+    layout.setSplitDrop(null);
+    return true;
+  }
+  const r = leafEl.getBoundingClientRect();
+  const edge = armedEdge((x - r.left) / r.width, (y - r.top) / r.height);
+  // Either resulting split under min size → zone never arms.
+  const fits =
+    edge === 'left' || edge === 'right'
+      ? r.width / 2 >= MIN_PANE_WIDTH
+      : r.height / 2 >= MIN_PANE_HEIGHT;
+  if (!fits) {
+    layout.setSplitDrop(null);
+    return true;
+  }
+  layout.setSplitDrop({
+    leafId: leafEl.dataset['splitLeaf'] ?? '',
+    edge
+  });
+  return true;
+}
+
+/**
+ * Drag a session tab (strip) or row (dock). Reorder within home; single
+ * surfaces may cross into the terminal region to split (S4A).
+ */
+export function startSurfaceDrag(
+  down: { clientX: number; clientY: number; button: number },
+  source: HTMLElement,
+  surface: Surface,
+  projectId: string,
+  home: SurfaceHome
+): void {
+  let ghost: ReturnType<typeof createGhost> | null = null;
+
+  armPointerDrag(down, {
+    onStart() {
+      ghost = createGhost(source);
+    },
+    onMove(e) {
+      ghost?.move(e.clientX, e.clientY);
+      const overHome = trackHome(home, e.clientX, e.clientY);
+      if (!overHome && !surface.isGroup) {
+        trackSplitZone(surface.id, e.clientX, e.clientY);
+      } else {
+        useLayout.getState().setSplitDrop(null);
+      }
+    },
+    onDrop() {
+      const layout = useLayout.getState();
+      const { stripDrop, dockDrop, splitDrop } = layout;
+      const homeIndex = home === 'strip' ? stripDrop : dockDrop;
+      if (homeIndex !== null) {
+        layout.reorderSurface(projectId, surface.id, homeIndex);
+      } else if (splitDrop !== null && !surface.isGroup) {
+        layout.splitWith(
+          projectId,
+          splitDrop.leafId,
+          splitDrop.edge,
+          surface.id
+        );
+      }
+    },
+    onEnd() {
+      ghost?.destroy();
+      ghost = null;
+      useLayout.getState().clearDragUi();
+    }
+  });
+}
+
+/**
+ * Drag a split's header onto the tab strip (top) or dock list (right): the
+ * S2-style insertion indicator appears; drop pops the leaf out at that
+ * index (S4A "Pop out"). Anywhere else = no-op.
+ */
+export function startHeaderDrag(
+  down: { clientX: number; clientY: number; button: number },
+  source: HTMLElement,
+  sessionId: string,
+  projectId: string,
+  home: SurfaceHome
+): void {
+  let ghost: ReturnType<typeof createGhost> | null = null;
+
+  armPointerDrag(down, {
+    onStart() {
+      ghost = createGhost(source);
+    },
+    onMove(e) {
+      ghost?.move(e.clientX, e.clientY);
+      trackHome(home, e.clientX, e.clientY);
+    },
+    onDrop() {
+      const layout = useLayout.getState();
+      const homeIndex = home === 'strip' ? layout.stripDrop : layout.dockDrop;
+      if (homeIndex !== null) {
+        layout.popOut(projectId, sessionId, homeIndex);
+      }
+    },
+    onEnd() {
+      ghost?.destroy();
+      ghost = null;
+      useLayout.getState().clearDragUi();
+    }
+  });
+}
+
+/**
+ * The four gesture handlers every single-session row/tab shares — select,
+ * rename, drag-to-reorder/split, context menu (S4 "Shared behaviors").
+ * Extracted by the Phase-10 integrator dup-scan (guardrail 4) from the
+ * strip tab and dock row so the surfaces cannot drift.
+ */
+export function sessionGestureProps(args: {
+  session: Session;
+  surface: Surface;
+  projectId: string;
+  home: SurfaceHome;
+  renaming: boolean;
+  activeSurface: Surface | null;
+  activeLeafId: string;
+}): Pick<
+  React.HTMLAttributes<HTMLDivElement>,
+  'onClick' | 'onDoubleClick' | 'onPointerDown' | 'onContextMenu'
+> {
+  const { session, surface, projectId, home, renaming } = args;
+  return {
+    onClick: () => useApp.getState().setActiveSession(session.id),
+    onDoubleClick: () => useApp.getState().setRenaming(session.id),
+    onPointerDown: (e) => {
+      if (
+        renaming ||
+        (e.target as HTMLElement).closest('button, input') !== null
+      ) {
+        return;
+      }
+      startSurfaceDrag(e.nativeEvent, e.currentTarget, surface, projectId, home);
+    },
+    onContextMenu: (e) => {
+      e.preventDefault();
+      useApp.getState().setMenu({
+        x: e.clientX,
+        y: e.clientY,
+        items: [
+          ...sessionMenuItems(session, session.id),
+          ...openInSplitItems(
+            projectId,
+            session,
+            args.activeSurface,
+            args.activeLeafId
+          )
+        ]
+      });
+    }
+  };
+}

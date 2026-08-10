@@ -39,6 +39,7 @@ import type {
   SessionStatus
 } from '@shared/types';
 import { AttachHost } from './attach';
+import { agentBinaryName } from './agents';
 import { unwatchGitRepo } from './git';
 import {
   buildLaunchSpec,
@@ -576,7 +577,16 @@ export class GmuxCore {
     // AND resume_argv), so restores survive PATH drift too.
     let binPath: string | undefined;
     if (input.agent !== 'shell') {
-      const bare = input.agent;
+      // Phase 10 (settings+hotkeys stream): the binary name comes from the
+      // agent REGISTRY, not the agent id — cursor's binary is `cursor-agent`,
+      // antigravity's is `agy`. Unknown ids (never in the registry) keep the
+      // id-as-binary behavior so nothing regresses.
+      let bare: string = input.agent;
+      try {
+        bare = agentBinaryName(input.agent);
+      } catch {
+        /* not a registry id — legacy behavior */
+      }
       const abs = await tmux.resolveBinary(bare);
       if (abs === null) {
         throw gmuxError(

@@ -97,12 +97,20 @@
 }
 
 /* ---------------------------------------------------------------------------
-   Section shells — Changes is content-sized and NEGOTIATES with Files via
-   flexbox (Phase 8): it grows past the old 30% cap whenever Files has spare
-   room (so a short list like "Untracked 1" is never clipped), and shrinks
-   back (scrolling internally) when the tree needs its space — tree.css gives
-   .section-files a floor. History keeps its 25% cap (DESIGN-SPEC S3).
+   Section shells + space budget (DESIGN-SPEC S3A round 2, three sections):
+   sections stack in the user's persisted order inside .scm-sections; a
+   collapsed section costs its header. Expanded: CHANGES caps at 45% of the
+   view; the remaining height splits HISTORY 2 : BRANCHES 1, min 120px each,
+   each with its own scroll.
 --------------------------------------------------------------------------- */
+
+.scm-sections {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
 
 .section-scm {
   display: flex;
@@ -111,8 +119,13 @@
   min-height: 0;
 }
 
+.section-scm:not(.collapsed) {
+  max-height: 45%;
+}
+
 .section-scm.collapsed,
-.section-scm-history.collapsed {
+.section-scm-history.collapsed,
+.section-scm-branches.collapsed {
   max-height: none;
   flex: 0 0 auto;
 }
@@ -120,9 +133,20 @@
 .section-scm-history {
   display: flex;
   flex-direction: column;
-  max-height: 25%;
   flex: 0 1 auto;
   min-height: 0;
+}
+
+.section-scm-branches {
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 auto;
+  min-height: 0;
+}
+
+.section-scm-branches:not(.collapsed) {
+  flex: 1 1 0;
+  min-height: 120px;
 }
 
 .scm-body {
@@ -460,11 +484,11 @@
   border-radius: var(--r-md);
 }
 
-/* History fills the sidebar remainder when expanded (S3A space budget). */
+/* History takes weight 2 of the post-Changes remainder (S3A round 2). */
 .section-scm-history:not(.collapsed) {
   max-height: none;
-  flex: 1 1 auto;
-  min-height: 160px;
+  flex: 2 1 0;
+  min-height: 120px;
 }
 
 .scm-hrow {
@@ -946,4 +970,254 @@
   line-height: var(--lh-xs);
   color: var(--text-muted);
   font-family: var(--font-mono);
+}
+
+/* ---------------------------------------------------------------------------
+   BRANCHES section (round 2, DESIGN-SPEC S3A / BACKLOG Phase 10 #7)
+--------------------------------------------------------------------------- */
+
+.scm-branches-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding-bottom: var(--space-2);
+  /* The filter row stays pinned; .scm-branch-list owns the scrolling. */
+  overflow: hidden;
+}
+
+.scm-branch-list {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.scm-branch-list:focus-visible {
+  box-shadow: inset var(--focus-ring);
+  border-radius: var(--r-md);
+}
+
+/* Header accessories: hidden until hover (group-action pattern), but a
+   running fetch keeps its spinner visible regardless. */
+.scm-branch-accessory {
+  width: 18px;
+  height: 18px;
+  opacity: 0;
+  pointer-events: none;
+  flex: 0 0 auto;
+}
+
+.section-header:hover .scm-branch-accessory,
+.section-header:focus-within .scm-branch-accessory,
+.scm-branch-accessory.busy {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Last-fetched relative time beside the fetch accessory. */
+.scm-fetched {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+  text-transform: none;
+  letter-spacing: 0;
+  flex: 0 0 auto;
+}
+
+/* Filter-as-you-type row. */
+.scm-branch-filter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-2) var(--space-4) var(--space-2) var(--space-5);
+  height: 24px;
+  flex: 0 0 24px;
+  padding: 0 var(--space-3);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+}
+
+.scm-branch-filter:focus-within {
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
+
+.scm-branch-filter-icon {
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+
+.scm-branch-filter-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.scm-branch-filter-input::placeholder {
+  color: var(--text-muted);
+}
+
+/* Branch row [h:24]: icon 12 · name mono 12 · spacer · ↑n ↓n. */
+.scm-brow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 24px;
+  flex: 0 0 24px;
+  padding: 0 var(--space-4) 0 var(--space-7);
+  min-width: 0;
+  cursor: default;
+  user-select: none;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.scm-brow:hover {
+  background: var(--bg-raised);
+}
+
+.scm-brow.selected {
+  background: var(--bg-active);
+}
+
+.scm-bicon {
+  width: 14px;
+  flex: 0 0 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+}
+
+.scm-brow.current .scm-bicon {
+  color: var(--accent);
+}
+
+.scm-bname {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 0 1 auto;
+  min-width: 32px;
+}
+
+.scm-brow.current .scm-bname {
+  font-weight: var(--weight-medium);
+}
+
+/* Remote rows keep the origin/ prefix, whole name secondary (S3A). */
+.scm-bname.remote {
+  color: var(--text-secondary);
+}
+
+.scm-brow.remote:hover .scm-bname.remote,
+.scm-brow.remote.selected .scm-bname.remote {
+  color: var(--text-primary);
+}
+
+.scm-barrows {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+  flex: 0 0 auto;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+/* Contrast rule: no muted text on raised/active fills. */
+.scm-brow:hover .scm-barrows,
+.scm-brow.selected .scm-barrows {
+  color: var(--text-secondary);
+}
+
+/* Neutral 12px spinner (per-row checkout, header fetch) — the primary
+   button's spinner tints from --on-accent; this one lives on sidebar bg. */
+.scm-branch-spinner {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--text-secondary) 35%, transparent);
+  border-top-color: var(--text-secondary);
+  animation: gmux-scm-spin 0.8s linear infinite;
+  flex: 0 0 auto;
+}
+
+/* ---------------------------------------------------------------------------
+   Sidebar section drag-reorder (BACKLOG #6, S3 round 2): grab-cursor
+   headers with a hover gripper; ghost of the header row only; 2px accent
+   drop line at the candidate boundary; zero motion on cancel.
+--------------------------------------------------------------------------- */
+
+.scm-sections .section-header {
+  cursor: grab;
+}
+
+.scm-sections .section-header .icon-btn {
+  cursor: default;
+}
+
+body.scm-section-dragging,
+body.scm-section-dragging * {
+  cursor: grabbing !important;
+}
+
+.section-gripper {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-muted);
+  opacity: 0;
+  flex: 0 0 auto;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.section-header:hover .section-gripper {
+  opacity: 1;
+}
+
+/* Hide the gripper while its own ghost flies (less visual noise). */
+body.scm-section-dragging .section-gripper {
+  opacity: 0;
+}
+
+.scm-section-ghost {
+  position: fixed;
+  z-index: var(--z-tooltip);
+  display: flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 var(--space-4);
+  background: var(--bg-raised);
+  opacity: 0.9;
+  box-shadow: var(--shadow-2);
+  border-radius: var(--r-sm);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+  user-select: none;
+}
+
+.scm-section-dropline {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  height: 2px;
+  margin-top: -1px;
+  background: var(--accent);
+  z-index: 2;
+  pointer-events: none;
 }

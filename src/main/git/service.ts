@@ -9,14 +9,16 @@
 
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { rm, unlink, writeFile } from 'node:fs/promises';
+import { rm, stat, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { isAbsolute, join } from 'node:path';
 import type {
   GitBranchInfo,
   GitCherryPickResult,
   GitCommitDetail,
+  GitDeleteBranchResult,
   GitLogEntryDetailed,
+  GitRemoteBranchesResult,
   GitStatusDetailed
 } from '@shared/types';
 import { gmuxError } from '../tmux/errors';
@@ -25,10 +27,12 @@ import {
   BRANCH_FORMAT,
   COMMIT_META_FORMAT,
   LOG_FORMAT,
+  REMOTE_BRANCH_FORMAT,
   mergeCommitFiles,
   normalizeGitHubRemote,
   parseCommitMeta,
   parseForEachRefBranches,
+  parseForEachRefRemoteBranches,
   parseLog,
   parseNameStatusZ,
   parseNumstatZ,
@@ -43,6 +47,8 @@ const MISSING_AT_HEAD_RE =
 
 /** Longer leash for commits: hooks (lint, tests) run inside them. */
 const COMMIT_TIMEOUT_MS = 300_000;
+/** Longer leash for fetch: it talks to the network (never interactive). */
+const FETCH_TIMEOUT_MS = 120_000;
 /** Pathspec batches stay far below ARG_MAX. */
 const PATH_CHUNK = 500;
 
@@ -510,6 +516,153 @@ export class GitService {
         `Could not check out ${ref.slice(0, 7)} (detached).`,
         r.stderr.trim() || undefined
       );
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Branch management (Phase 10 #7): remote refs, fetch, tracking checkout,
+  // local branch deletion.
+  // -------------------------------------------------------------------------
+
+  /**
+   * Remote-tracking branches (all remotes) + the repo's last-fetch time —
+   * one `for-each-ref refs/remotes` call; the symbolic `<remote>/HEAD`
+   * aliases are deduped by the parser. Non-repo resolves to the empty
+   * result (friendly read, same discipline as branches()).
+   */
+  async remoteBranches(): Promise<GitRemoteBranchesResult> {
+    const r = await runGit(this.repoPath, [
+      'for-each-ref',
+      'refs/remotes',
+      `--format=${REMOTE_BRANCH_FORMAT}`
+    ]);
+    if (r.code !== 0) {
+      if (NOT_A_REPO_RE.test(r.stderr)) {
+        return { branches: [], lastFetchedAt: null };
+      }
+      throw gmuxError(
+        'GIT_FAILED',
+        'Could not list remote branches.',
+        r.stderr.trim() || undefined
+      );
+    }
+    return {
+      branches: parseForEachRefRemoteBranches(r.stdout.toString('utf8')),
+      lastFetchedAt: await this.lastFetchedAt()
+    };
+  }
+
+  /**
+   * `git fetch --all --prune` — long leash (network), never interactive
+   * (GIT_TERMINAL_PROMPT=0 is set by the runner, so a credential prompt
+   * fails fast instead of hanging a spinner forever).
+   */
+  async fetch(): Promise<void> {
+    await this.assertIsRepo();
+    const r = await runGit(this.repoPath, ['fetch', '--all', '--prune'], {
+      timeoutMs: FETCH_TIMEOUT_MS
+    });
+    if (r.code !== 0) {
+      throw gmuxError(
+        'GIT_FAILED',
+        'Fetch failed.',
+        r.stderr.trim() || undefined
+      );
+    }
+  }
+
+  /**
+   * Check out a remote branch (DESIGN-SPEC S3A remote-row click): when a
+   * local branch with the same short name already exists, switch to it;
+   * otherwise create a tracking local (`checkout -b <short> --track
+   * <remote>/<short>`) and switch. A create that loses the race to an
+   * "already exists" failure falls back to the plain checkout.
+   */
+  async checkoutTracking(remoteBranch: string): Promise<void> {
+    const ref = this.assertSafeRef(remoteBranch);
+    const slash = ref.indexOf('/');
+    if (slash <= 0 || slash === ref.length - 1) {
+      throw gmuxError(
+        'INVALID_INPUT',
+        'That is not a remote branch name.',
+        remoteBranch
+      );
+    }
+    const short = ref.slice(slash + 1);
+    await this.assertIsRepo();
+
+    const localExists = await runGit(this.repoPath, [
+      'show-ref',
+      '--verify',
+      '--quiet',
+      `refs/heads/${short}`
+    ]);
+    if (localExists.code === 0) {
+      await this.checkout(short);
+      return;
+    }
+
+    const r = await runGit(this.repoPath, [
+      'checkout',
+      '-q',
+      '-b',
+      short,
+      '--track',
+      ref,
+      '--'
+    ]);
+    if (r.code === 0) return;
+    // Race: the local appeared between the probe and the create — switch.
+    if (/already exists/i.test(r.stderr)) {
+      await this.checkout(short);
+      return;
+    }
+    throw gmuxError(
+      'GIT_FAILED',
+      `Could not check out '${ref}'.`,
+      r.stderr.trim() || undefined
+    );
+  }
+
+  /**
+   * Delete a local branch. `git branch -d` refusing an unmerged branch is a
+   * TYPED RESULT ({status:'unmerged'}), not an exception — the UI offers
+   * force (-D) exactly then. Deleting the current branch fails as git says.
+   */
+  async deleteBranch(
+    name: string,
+    force = false
+  ): Promise<GitDeleteBranchResult> {
+    const branch = this.assertSafeRef(name);
+    await this.assertIsRepo();
+    const r = await runGit(this.repoPath, [
+      'branch',
+      force ? '-D' : '-d',
+      branch
+    ]);
+    if (r.code === 0) return { status: 'deleted' };
+    if (!force && /not fully merged/i.test(r.stderr)) {
+      return { status: 'unmerged' };
+    }
+    throw gmuxError(
+      'GIT_FAILED',
+      `Could not delete '${branch}'.`,
+      r.stderr.trim() || undefined
+    );
+  }
+
+  /**
+   * mtime of .git/FETCH_HEAD (epoch ms) — when this clone last talked to a
+   * remote. Null before any fetch, or when the git dir is unreadable.
+   */
+  private async lastFetchedAt(): Promise<number | null> {
+    const gitDir = await this.resolveGitDir();
+    if (gitDir === null) return null;
+    try {
+      const s = await stat(join(gitDir, 'FETCH_HEAD'));
+      return Math.floor(s.mtimeMs);
+    } catch {
+      return null;
     }
   }
 
