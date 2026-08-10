@@ -34,7 +34,11 @@ import { AgentIcon, Codicon } from '../icons';
 import { isAgentAvailable, useAgentAvailability } from '../state/agents';
 import type { AgentKind } from '@shared/types';
 import type { MenuItemSpec } from '../state/store';
-import { sessionGestureProps, startSurfaceDrag } from './split/surface-dnd';
+import {
+  pressBlocksSurfaceDrag,
+  sessionGestureProps,
+  startSurfaceDrag
+} from './split/surface-dnd';
 import { groupMenuItems, groupTooltip } from './split/split-menu';
 
 const QUICK_AGENTS: { agent: AgentKind; label: string }[] = [
@@ -185,9 +189,10 @@ function GroupDockRow({
           .join(' ')}
         onClick={() => selectLeaf(projectId, focusedLeafId)}
         onPointerDown={(e) => {
-          if ((e.target as HTMLElement).closest('button, input') !== null) {
-            return;
-          }
+          // Phase 12.2 parity: group rows refuse a drag on exactly the same
+          // terms as single-session rows.
+          const anyRename = useApp.getState().renamingSessionId !== null;
+          if (pressBlocksSurfaceDrag(e, anyRename)) return;
           startSurfaceDrag(
             e.nativeEvent,
             e.currentTarget,

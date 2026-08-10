@@ -11,7 +11,10 @@
  * - the ghost tracks the pointer 1:1 (no easing);
  * - Esc cancels: onEnd(true) fires, indicators must vanish with no motion;
  * - after a real drag, the synthetic click that follows pointerup is
- *   swallowed so drop never doubles as select.
+ *   swallowed so drop never doubles as select;
+ * - a secondary (context-menu) press never arms anything, and any press that
+ *   is still pending can be revoked with `cancelPointerDrag()` — see
+ *   `isSecondaryPress` and `cancelPointerDrag` for why both are required.
  */
 
 export interface PointerDragHandlers {
@@ -25,24 +28,71 @@ export interface PointerDragHandlers {
   onEnd(canceled: boolean): void;
 }
 
+/** The press that may start a drag — a PointerEvent, narrowed to what we read. */
+export interface PointerDragInit {
+  clientX: number;
+  clientY: number;
+  button: number;
+  ctrlKey: boolean;
+}
+
+/**
+ * True for a press that opens a context menu and must therefore NEVER arm a
+ * drag (Phase 12.2). Two shapes, and missing the second one is what caused
+ * the rename bug: the obvious non-primary button, AND macOS's ctrl+click
+ * secondary click — which Chromium reports as `button === 0` with `ctrlKey`,
+ * so a plain button check waves it straight through.
+ */
+export function isSecondaryPress(press: {
+  button: number;
+  ctrlKey: boolean;
+}): boolean {
+  return press.button !== 0 || press.ctrlKey;
+}
+
 /** True while any pointer drag from this module is armed. */
 let dragActive = false;
+
+/**
+ * Teardown for every outstanding press. Only one drag can be ARMED at a time
+ * (`dragActive` sees to that), but several presses can sit PENDING — a second
+ * pointer, or a press whose pointerup was eaten — so this is a set, not a
+ * slot: cancelling has to clear all of them or the leak simply moves.
+ */
+const outstanding = new Set<() => void>();
 
 export function isDragActive(): boolean {
   return dragActive;
 }
 
 /**
- * Call from a React onPointerDown (primary button only). Listens on window
- * so the drag survives leaving the source element; arms after `threshold`
- * px of travel.
+ * Abort the outstanding drag — armed OR merely pending (pressed, still under
+ * the travel threshold). Safe to call when there is none.
+ *
+ * A pending drag normally tears itself down on pointerup, but a native macOS
+ * menu takes an OS mouse grab, so that pointerup never reaches the renderer
+ * and the listeners stay live: the next pointermove — by then the user is
+ * reaching for a rename box — arms a drag from a press made seconds ago.
+ * Anything that interrupts the pointer stream (opening a menu, starting a
+ * rename) must call this.
+ */
+export function cancelPointerDrag(): void {
+  for (const cancel of [...outstanding]) cancel();
+}
+
+/**
+ * Call from a React onPointerDown. Listens on window so the drag survives
+ * leaving the source element; arms after `threshold` px of travel.
+ *
+ * Secondary presses are refused here, at the source, so no caller can
+ * reintroduce the Phase 12.2 defect by forgetting the check.
  */
 export function armPointerDrag(
-  down: { clientX: number; clientY: number; button: number },
+  down: PointerDragInit,
   handlers: PointerDragHandlers,
   threshold = 4
 ): void {
-  if (down.button !== 0 || dragActive) return;
+  if (isSecondaryPress(down) || dragActive) return;
   const startX = down.clientX;
   const startY = down.clientY;
   let armed = false;
@@ -51,9 +101,10 @@ export function armPointerDrag(
   const finish = (canceled: boolean): void => {
     if (done) return;
     done = true;
+    outstanding.delete(cancel);
     window.removeEventListener('pointermove', onMove, true);
     window.removeEventListener('pointerup', onUp, true);
-    window.removeEventListener('pointercancel', onCancel, true);
+    window.removeEventListener('pointercancel', cancel, true);
     window.removeEventListener('keydown', onKey, true);
     if (armed) {
       dragActive = false;
@@ -91,7 +142,8 @@ export function armPointerDrag(
     finish(false);
   };
 
-  const onCancel = (): void => finish(true);
+  /** pointercancel handler AND this press's entry in `outstanding`. */
+  const cancel = (): void => finish(true);
 
   const onKey = (e: KeyboardEvent): void => {
     if (e.key === 'Escape' && armed) {
@@ -103,8 +155,9 @@ export function armPointerDrag(
 
   window.addEventListener('pointermove', onMove, true);
   window.addEventListener('pointerup', onUp, true);
-  window.addEventListener('pointercancel', onCancel, true);
+  window.addEventListener('pointercancel', cancel, true);
   window.addEventListener('keydown', onKey, true);
+  outstanding.add(cancel);
 }
 
 export interface DragGhost {

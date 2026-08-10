@@ -24,7 +24,13 @@ import {
   MIN_PANE_HEIGHT,
   MIN_PANE_WIDTH
 } from '../../state/split-tree';
-import { armPointerDrag, createGhost, insertionIndex } from './pointer-drag';
+import {
+  armPointerDrag,
+  createGhost,
+  insertionIndex,
+  isSecondaryPress
+} from './pointer-drag';
+import type { PointerDragInit } from './pointer-drag';
 
 export type SurfaceHome = 'strip' | 'dock';
 
@@ -131,7 +137,7 @@ function trackSplitZone(draggedId: string, x: number, y: number): boolean {
  * surfaces may cross into the terminal region to split (S4A).
  */
 export function startSurfaceDrag(
-  down: { clientX: number; clientY: number; button: number },
+  down: PointerDragInit,
   source: HTMLElement,
   surface: Surface,
   projectId: string,
@@ -181,7 +187,7 @@ export function startSurfaceDrag(
  * index (S4A "Pop out"). Anywhere else = no-op.
  */
 export function startHeaderDrag(
-  down: { clientX: number; clientY: number; button: number },
+  down: PointerDragInit,
   source: HTMLElement,
   sessionId: string,
   projectId: string,
@@ -213,6 +219,27 @@ export function startHeaderDrag(
 }
 
 /**
+ * The refusals every draggable session surface shares, in one place so the
+ * strip tab, dock row, and both group surfaces cannot drift apart:
+ *  - a secondary press, which is opening a context menu, not starting a drag;
+ *  - a rename in flight — the row must hold still while the user types;
+ *  - a nested interactive (close ×, the rename input) under the pointer.
+ *
+ * Group tabs/rows have no rename of their own, so they pass the store's
+ * "is ANY rename open" answer.
+ */
+export function pressBlocksSurfaceDrag(
+  e: { button: number; ctrlKey: boolean; target: EventTarget | null },
+  renaming: boolean
+): boolean {
+  return (
+    isSecondaryPress(e) ||
+    renaming ||
+    (e.target as HTMLElement | null)?.closest('button, input') != null
+  );
+}
+
+/**
  * The four gesture handlers every single-session row/tab shares — select,
  * rename, drag-to-reorder/split, context menu (S4 "Shared behaviors").
  * Extracted by the Phase-10 integrator dup-scan (guardrail 4) from the
@@ -235,12 +262,7 @@ export function sessionGestureProps(args: {
     onClick: () => useApp.getState().setActiveSession(session.id),
     onDoubleClick: () => useApp.getState().setRenaming(session.id),
     onPointerDown: (e) => {
-      if (
-        renaming ||
-        (e.target as HTMLElement).closest('button, input') !== null
-      ) {
-        return;
-      }
+      if (pressBlocksSurfaceDrag(e, renaming)) return;
       startSurfaceDrag(e.nativeEvent, e.currentTarget, surface, projectId, home);
     },
     onContextMenu: (e) => {

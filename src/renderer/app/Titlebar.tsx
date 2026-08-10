@@ -27,7 +27,8 @@ import { Codicon } from '../icons';
 import {
   armPointerDrag,
   createGhost,
-  insertionIndex
+  insertionIndex,
+  isSecondaryPress
 } from './split/pointer-drag';
 
 interface TabData {
@@ -61,6 +62,10 @@ function ProjectTab({
       className="ptab-wrap"
       data-project-id={project.id}
       onPointerDown={(e) => {
+        // Phase 12.2 audit: project tabs had the defect too — a secondary
+        // click armed a tab drag that the "Close project" menu then left
+        // tracking the pointer.
+        if (isSecondaryPress(e)) return;
         if ((e.target as HTMLElement).closest('.ptab-close') !== null) return;
         const wrap = e.currentTarget;
         const nav = wrap.closest<HTMLElement>('.titlebar-tabs');

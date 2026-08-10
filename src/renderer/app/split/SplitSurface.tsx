@@ -29,7 +29,7 @@ import {
   useRenameDraft
 } from '../session-actions';
 import { AgentIcon, Codicon } from '../../icons';
-import { armPointerDrag } from './pointer-drag';
+import { armPointerDrag, isSecondaryPress } from './pointer-drag';
 import { startHeaderDrag } from './surface-dnd';
 
 // ---------------------------------------------------------------------------
@@ -62,9 +62,10 @@ function SplitHeader({
       className={`split-header${focused ? ' focused' : ''}`}
       data-session-id={session.id}
       onPointerDown={(e) => {
-        // The whole header is the drag handle (grab → pop out). Buttons
-        // and the rename input opt out.
+        // The whole header is the drag handle (grab → pop out). Buttons,
+        // the rename input, and secondary presses opt out.
         if (
+          isSecondaryPress(e) ||
           (e.target as HTMLElement).closest('button, input') !== null ||
           renaming
         ) {
@@ -224,6 +225,9 @@ function SplitDivider({
         setSurfaceRatio(projectId, surfaceId, path, 0.5)
       }
       onPointerDown={(e) => {
+        // Phase 12.2 audit: the divider arms at 1px of travel, so a
+        // secondary press here resized the layout on the next mouse move.
+        if (isSecondaryPress(e)) return;
         const box =
           e.currentTarget.parentElement?.getBoundingClientRect() ?? null;
         if (!box) return;

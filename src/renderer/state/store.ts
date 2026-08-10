@@ -24,6 +24,7 @@ import type {
   GmuxSessionRestoreExtras
 } from '@shared/ipc';
 import { showNativeMenu } from '../app/ContextMenu';
+import { cancelPointerDrag } from '../app/split/pointer-drag';
 // Direct module import (NOT ../settings barrel): the barrel re-exports
 // integration.ts which imports this store — presets.ts itself does not.
 import { defaultLaunchArgsFor } from '../settings/presets';
@@ -883,10 +884,22 @@ export const useApp = create<AppState>((set, get) => {
       // SCM row, tree row, session strip, settings gear) funnels through
       // here into the one thin bridge helper. There is no DOM fallback;
       // null is a no-op (native menus dismiss themselves).
-      if (menu !== null) showNativeMenu(menu);
+      //
+      // Being the ONE choke point is also what makes it the right place to
+      // revoke a pending drag (Phase 12.2): the native menu takes an OS mouse
+      // grab, so the pointerup that would have torn that drag down never
+      // arrives. Cancel here and no surface can be left tracking the pointer
+      // underneath an open menu.
+      if (menu !== null) {
+        cancelPointerDrag();
+        showNativeMenu(menu);
+      }
     },
 
     setRenaming(sessionId) {
+      // Belt and braces for any path that arms a drag before a rename starts
+      // — the rename box must never be fought by a row tracking the pointer.
+      if (sessionId !== null) cancelPointerDrag();
       set({ renamingSessionId: sessionId });
     },
 
