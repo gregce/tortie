@@ -1,7 +1,7 @@
 {
   "name": "gmux",
   "version": "0.0.1",
-  "description": "Lightweight macOS shell for agentic coding: durable named terminal sessions (private tmux server), git sidebar, decorated file tree, Monaco diff editor.",
+  "description": "Lightweight macOS shell for agentic coding: durable named terminal sessions (private tmux server), git sidebar, decorated file tree, diff + edit surfaces.",
   "private": true,
   "main": "./out/main/index.js",
   "author": "SpecStory",
@@ -25,6 +25,8 @@
   },
   "dependencies": {
     "@parcel/watcher": "^2.6.0",
+    "@pierre/diffs": "1.3.5",
+    "@pierre/trees": "1.0.0-beta.6",
     "@vscode/codicons": "^0.0.46-24",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/addon-web-links": "^0.12.0",
@@ -35,7 +37,6 @@
     "monaco-editor": "^0.56.0",
     "node-pty": "^1.1.0",
     "react": "^19.2.8",
-    "react-arborist": "^3.16.0",
     "react-dom": "^19.2.8",
     "uuid": "^14.0.1",
     "zustand": "^5.0.14"

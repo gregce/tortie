@@ -33,7 +33,7 @@ Date: 2026-08-09 · version 0.0.1 · machine: macOS 15.7.9 arm64, node v22.23.1,
 
 - `Contents/Resources/gmux-tmux.conf` present (main resolves it via `process.resourcesPath` when `app.isPackaged` — `src/main/tmux/supervisor.ts`, `src/main/attach/attach-host.ts`).
 - Native addons (`*.node`) unpacked from asar (`asarUnpack`); electron-builder rebuilt node-pty / better-sqlite3 / @parcel/watcher against electron 43 headers during packaging.
-- Renderer-only production deps (monaco-editor, react, react-dom, react-arborist, @xterm/*, zustand, uuid) are **excluded** from the asar — electron-vite bundles them into `out/renderer`; the main bundle only requires node-pty, better-sqlite3, @parcel/watcher at runtime. Keeps ~100 MB of dead weight out of the app.
+- Renderer-only production deps (monaco-editor, react, react-dom, @xterm/*, zustand, uuid, and since Phase 11 @pierre/diffs, @pierre/trees + their exclusive transitives shiki/@shikijs/preact/diff/…) are **excluded** from the asar — electron-vite bundles them into `out/renderer`; the main bundle only requires node-pty, better-sqlite3, @parcel/watcher at runtime. Keeps ~135 MB of dead weight out of the app. A tail of small transitives (~4 MB: @types/*, micromark-util-*, unist-*, plus monaco's marked/dompurify) still rides along — see Phase 13's packaging item.
 - Signature: **ad-hoc** (`Signature=adhoc, linker-signed`), identifier `Electron`. Launches locally; see Deferred for real signing.
 
 ## How to run

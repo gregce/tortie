@@ -8,19 +8,12 @@
 
 export { FilesSection } from './FilesSection';
 export { FileTree } from './FileTree';
-export type { TreeNodeData } from './FileTree';
 export {
   OPEN_FILE_EVENT,
   onOpenFileRequest,
   requestOpenFile
 } from './open-file';
 export type { OpenFileRequest } from './open-file';
-export {
-  buildStatusIndex,
-  decorationFor,
-  openModeFor,
-  EMPTY_STATUS_INDEX
-} from './decorations';
-export type { StatusIndex, TreeDecoration } from './decorations';
+export { openModeFor } from './decorations';
 export { useTreeGitStatus } from './git-status';
 export { useFileTree } from './store';

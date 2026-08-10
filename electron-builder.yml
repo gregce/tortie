@@ -24,10 +24,23 @@ files:
   - "!node_modules/monaco-editor/**"
   - "!node_modules/react/**"
   - "!node_modules/react-dom/**"
-  - "!node_modules/react-arborist/**"
   - "!node_modules/@xterm/**"
   - "!node_modules/zustand/**"
   - "!node_modules/uuid/**"
+  # Phase 11 (@pierre/diffs + @pierre/trees) and their exclusive transitives.
+  # Unlike the strays above these are NOT tiny — Shiki's grammars/themes alone
+  # are ~18 MB on disk — and electron-vite code-splits every one of them into
+  # out/renderer/assets, so shipping the packages too would double-pay.
+  # `npm ls` confirms nothing outside the two Pierre packages pulls them in.
+  - "!node_modules/@pierre/**"
+  - "!node_modules/shiki/**"
+  - "!node_modules/@shikijs/**"
+  - "!node_modules/oniguruma-to-es/**"
+  - "!node_modules/diff/**"
+  - "!node_modules/lru_map/**"
+  - "!node_modules/hast-util-to-html/**"
+  - "!node_modules/preact/**"
+  - "!node_modules/preact-render-to-string/**"
 extraResources:
   # The private tmux server config rides in Contents/Resources/gmux-tmux.conf.
   # Main resolves it via process.resourcesPath when app.isPackaged

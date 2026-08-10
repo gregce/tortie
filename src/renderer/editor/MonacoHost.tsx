@@ -1,10 +1,9 @@
 /**
- * MonacoHost — owns the imperative Monaco instances for the active tab.
- *
- * One code editor + one diff editor, created lazily after the Monaco chunk
- * loads, toggled by the active tab's mode. The working ITextModel is shared:
- * plain editor and the diff's modified side edit the same buffer, so mode
- * switches never lose unsaved text.
+ * MonacoHost — owns the imperative Monaco code editor for the active tab's
+ * File (edit) mode. Phase 11: the diff half is gone — Diff mode renders
+ * PierreDiff (@pierre/diffs) instead, and Monaco remains the editing surface
+ * only. The working ITextModel lives in the monaco-loader registry, so mode
+ * switches and the live diff never lose unsaved text.
  */
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -12,7 +11,6 @@ import type * as monacoNs from 'monaco-editor';
 import type { Monaco } from './monaco-impl';
 import {
   getLoadedMonaco,
-  headModel,
   loadMonaco,
   rememberLoaded,
   saveViewState,
@@ -21,9 +19,6 @@ import {
 } from './monaco-loader';
 import { useEditor } from './store';
 import type { EditorTab } from './store';
-
-/** Below this editor width the diff renders inline instead of side-by-side. */
-const SIDE_BY_SIDE_MIN_PX = 900;
 
 function cssVar(name: string, fallback: string): string {
   const v = getComputedStyle(document.documentElement)
@@ -65,11 +60,9 @@ export function MonacoHost({ tab }: MonacoHostProps): React.JSX.Element {
   const [ready, setReady] = useState<boolean>(getLoadedMonaco() !== null);
 
   const codeContainer = useRef<HTMLDivElement | null>(null);
-  const diffContainer = useRef<HTMLDivElement | null>(null);
   const codeEditor = useRef<monacoNs.editor.IStandaloneCodeEditor | null>(null);
-  const diffEditor = useRef<monacoNs.editor.IStandaloneDiffEditor | null>(null);
   const contentListener = useRef<monacoNs.IDisposable | null>(null);
-  const prevShown = useRef<{ path: string; mode: 'diff' | 'file' } | null>(null);
+  const prevShownPath = useRef<string | null>(null);
 
   // -- load the Monaco chunk once -------------------------------------------
   useEffect(() => {
@@ -95,15 +88,9 @@ export function MonacoHost({ tab }: MonacoHostProps): React.JSX.Element {
     };
   }, [setMonacoError]);
 
-  // -- (re)wire editors whenever the shown (path, mode) changes -------------
+  // -- (re)wire the editor whenever the shown path changes ------------------
   const readOnly = tab.deleted || tab.truncated;
-  // A diff tab is not ready until its HEAD side arrived — otherwise the
-  // plain editor would flash for a frame before the diff mounts.
-  const headPending =
-    tab.mode === 'diff' && tab.canDiff && tab.headContents === null;
-  const contentReady = !tab.loading && tab.error === null && !headPending;
-  const showDiff =
-    tab.mode === 'diff' && tab.canDiff && tab.headContents !== null;
+  const contentReady = !tab.loading && tab.error === null;
 
   useEffect(() => {
     const m = getLoadedMonaco();
@@ -113,61 +100,26 @@ export function MonacoHost({ tab }: MonacoHostProps): React.JSX.Element {
     const model = workingModel(m, tab.path, tab.savedContents, language);
 
     // Save the outgoing file's view state.
-    const prev = prevShown.current;
-    if (prev !== null && prev.path !== tab.path) {
-      const source =
-        prev.mode === 'diff'
-          ? diffEditor.current?.getModifiedEditor()
-          : codeEditor.current;
-      saveViewState(prev.path, source?.saveViewState() ?? null);
+    const prev = prevShownPath.current;
+    if (prev !== null && prev !== tab.path) {
+      saveViewState(prev, codeEditor.current?.saveViewState() ?? null);
     }
 
     contentListener.current?.dispose();
     contentListener.current = null;
 
-    let focusTarget: monacoNs.editor.ICodeEditor | null = null;
-
-    if (showDiff) {
-      const original = headModel(m, tab.path, tab.headContents ?? '', language);
-      if (diffEditor.current === null && diffContainer.current !== null) {
-        diffEditor.current = m.editor.createDiffEditor(diffContainer.current, {
-          ...baseOptions(),
-          theme: 'gmux-dark',
-          originalEditable: false,
-          ignoreTrimWhitespace: false,
-          renderSideBySide:
-            (diffContainer.current.clientWidth || 0) >= SIDE_BY_SIDE_MIN_PX,
-          diffWordWrap: 'off',
-          // The default diff overview ruler paints a light slider that
-          // fights the dark scrollbar vocabulary; the themed scrollbar +
-          // gutter colors already carry the where-are-the-changes signal.
-          renderOverviewRuler: false
-        });
-      }
-      const de = diffEditor.current;
-      if (de !== null) {
-        de.setModel({ original, modified: model });
-        de.updateOptions({ readOnly });
-        const modified = de.getModifiedEditor();
-        const state = takeViewState(tab.path);
-        if (state !== null) modified.restoreViewState(state);
-        focusTarget = modified;
-      }
-    } else {
-      if (codeEditor.current === null && codeContainer.current !== null) {
-        codeEditor.current = m.editor.create(codeContainer.current, {
-          ...baseOptions(),
-          theme: 'gmux-dark'
-        });
-      }
-      const ce = codeEditor.current;
-      if (ce !== null) {
-        ce.setModel(model);
-        ce.updateOptions({ readOnly });
-        const state = takeViewState(tab.path);
-        if (state !== null) ce.restoreViewState(state);
-        focusTarget = ce;
-      }
+    if (codeEditor.current === null && codeContainer.current !== null) {
+      codeEditor.current = m.editor.create(codeContainer.current, {
+        ...baseOptions(),
+        theme: 'gmux-dark'
+      });
+    }
+    const ce = codeEditor.current;
+    if (ce !== null) {
+      ce.setModel(model);
+      ce.updateOptions({ readOnly });
+      const state = takeViewState(tab.path);
+      if (state !== null) ce.restoreViewState(state);
     }
 
     // Dirty tracking: buffer text vs last saved contents (store truth).
@@ -181,64 +133,37 @@ export function MonacoHost({ tab }: MonacoHostProps): React.JSX.Element {
 
     // Opening a file is an attention switch — the editor takes focus so
     // ⌘F / arrows / typing work immediately (Esc hands it back).
-    if (prev === null || prev.path !== tab.path) {
-      focusTarget?.focus();
+    if (prev !== tab.path) {
+      ce?.focus();
     }
 
-    prevShown.current = { path: tab.path, mode: showDiff ? 'diff' : 'file' };
-    // NOTE deps: savedContents/headContents are deliberately absent — a save
-    // or HEAD refresh must NOT re-run setModel (the diff editor resets its
-    // scroll position on setModel). Content updates flow through the model
-    // registry instead (resetWorkingModel / the head-sync effect below).
+    prevShownPath.current = tab.path;
+    // NOTE deps: savedContents is deliberately absent — a save must NOT
+    // re-run setModel (which resets scroll). Content updates flow through
+    // the model registry instead (resetWorkingModel).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, contentReady, showDiff, readOnly, tab.path, markDirty]);
-
-  // Keep the diff's HEAD side honest when the base moves (commit from a
-  // session terminal, stage/discard) — headModel() setValue's in place.
-  useEffect(() => {
-    const m = getLoadedMonaco();
-    if (!ready || m === null || tab.headContents === null) return;
-    headModel(m, tab.path, tab.headContents, languageFor(m, tab.path));
-  }, [ready, tab.path, tab.headContents]);
-
-  // -- responsive diff layout: side-by-side ≥900px, inline below ------------
-  useEffect(() => {
-    const el = diffContainer.current;
-    if (!ready || el === null) return;
-    const ro = new ResizeObserver(() => {
-      diffEditor.current?.updateOptions({
-        renderSideBySide: el.clientWidth >= SIDE_BY_SIDE_MIN_PX
-      });
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [ready]);
+  }, [ready, contentReady, readOnly, tab.path, markDirty]);
 
   // -- teardown on unmount ----------------------------------------------------
+  // Mode toggles (File → Diff) unmount this host: keep the cursor/scroll so
+  // toggling back restores the exact position.
   useEffect(
     () => () => {
+      const path = prevShownPath.current;
+      if (path !== null) {
+        saveViewState(path, codeEditor.current?.saveViewState() ?? null);
+      }
       contentListener.current?.dispose();
       codeEditor.current?.dispose();
-      diffEditor.current?.dispose();
       codeEditor.current = null;
-      diffEditor.current = null;
-      prevShown.current = null;
+      prevShownPath.current = null;
     },
     []
   );
 
   return (
     <div className="ed-host">
-      <div
-        ref={diffContainer}
-        className="ed-mount"
-        style={{ display: showDiff ? 'block' : 'none' }}
-      />
-      <div
-        ref={codeContainer}
-        className="ed-mount"
-        style={{ display: showDiff ? 'none' : 'block' }}
-      />
+      <div ref={codeContainer} className="ed-mount" />
       {!ready || !contentReady ? <OpeningSkeleton /> : null}
     </div>
   );

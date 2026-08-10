@@ -1,11 +1,15 @@
 /**
  * gmux icon system — the one import site for downstream UI:
  *
- *   import { AgentIcon, Codicon, getFileIcon } from '@renderer/icons';
+ *   import { AgentIcon, Codicon } from '@renderer/icons';
  *
  * - AgentIcon  — vendor logo per agent kind; terminal glyph for shell/unknown.
  * - Codicon    — VS Code codicon glyphs for app chrome (activity bar, SCM…).
- * - getFileIcon — material-icon-theme file/folder icons for the Files tree.
+ *
+ * The material-icon-theme file icons (file-icons.generated.ts) are NOT
+ * re-exported here: since Phase 11 they have exactly one consumer, the
+ * @pierre/trees sprite sheet built in src/renderer/tree/pierre-icons.ts,
+ * which imports the generated maps directly.
  *
  * Licenses: @vscode/codicons CC-BY-4.0 (© Microsoft — credit in About);
  * material-icon-theme MIT (© Philipp Kief); agent marks are the vendors'
@@ -17,5 +21,3 @@ export { AgentIcon } from './AgentIcon';
 export type { AgentIconProps } from './AgentIcon';
 export { Codicon } from './Codicon';
 export type { CodiconProps } from './Codicon';
-export { getFileIcon } from './fileIcon';
-export type { FileIconOptions, FileIconProps } from './fileIcon';

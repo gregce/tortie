@@ -76,7 +76,7 @@ export function FilesSection({
   const setRoot = useFileTree((s) => s.setRoot);
   const refreshLoaded = useFileTree((s) => s.refreshLoaded);
 
-  const statusIndex = useTreeGitStatus((s) => s.index);
+  const storeFiles = useTreeGitStatus((s) => s.files);
   const setRepo = useTreeGitStatus((s) => s.setRepo);
   const refreshStatus = useTreeGitStatus((s) => s.refresh);
   const applyExternal = useTreeGitStatus((s) => s.applyExternal);
@@ -167,7 +167,13 @@ export function FilesSection({
     } else if (!rootLoaded || rootPath !== project.path) {
       body = <TreeSkeleton />;
     } else {
-      body = <FileTree rootPath={project.path} statusIndex={statusIndex} />;
+      body = (
+        <FileTree
+          key={project.path}
+          rootPath={project.path}
+          statusFiles={statusFiles ?? storeFiles}
+        />
+      );
     }
   }
 

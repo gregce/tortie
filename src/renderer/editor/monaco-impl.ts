@@ -116,16 +116,9 @@ monaco.editor.defineTheme(GMUX_MONACO_THEME, {
     'scrollbarSlider.hoverBackground': '#2A2E36CC',
     'scrollbarSlider.activeBackground': '#3A3E48CC',
     'scrollbar.shadow': '#00000000',
-    'editorOverviewRuler.border': '#00000000',
-    // Diff — the P4 hero surface. Green/red from the git/feedback families.
-    'diffEditor.insertedTextBackground': '#6BC46D26',
-    'diffEditor.removedTextBackground': '#E5655E26',
-    'diffEditor.insertedLineBackground': '#6BC46D14',
-    'diffEditor.removedLineBackground': '#E5655E14',
-    'diffEditorGutter.insertedLineBackground': '#6BC46D1F',
-    'diffEditorGutter.removedLineBackground': '#E5655E1F',
-    'diffEditor.diagonalFill': '#22252B',
-    'diffEditor.border': '#2A2D34'
+    'editorOverviewRuler.border': '#00000000'
+    // (Diff colors left with the Monaco diff editor in Phase 11 — diff
+    // theming lives in src/renderer/pierre/theme-bridge.ts now.)
   }
 });
 

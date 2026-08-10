@@ -1,7 +1,8 @@
 /**
- * S5 — Editor panel: tabs row [h:32] + Monaco, right split of the center
- * region (45% default, draggable) or an overlay under 1400px window width
- * (automatic, never a setting — DESIGN.md §2.2).
+ * S5 — Editor panel: tabs row [h:32] + editor body, right split of the
+ * center region (45% default, draggable) or an overlay under 1400px window
+ * width (automatic, never a setting — DESIGN.md §2.2). The body renders
+ * PierreDiff for Diff mode (read-only, Phase 11) and Monaco for File mode.
  *
  * Also owns the editor slice of the DESIGN.md §4 keyboard map:
  *   ⌘S save · ⌘E toggle panel · ⌘W close tab · ⌘⇧]/⌘⇧[ cycle tabs ·
@@ -22,6 +23,7 @@ import { useApp } from '../state/store';
 import { useEditor } from './store';
 import type { EditorTab } from './store';
 import { MonacoHost } from './MonacoHost';
+import { PierreDiff } from './PierreDiff';
 import { Codicon } from '../icons';
 import { installShotHook } from './shot-hook';
 import './editor.css';
@@ -148,6 +150,7 @@ function ModeToggle({ tab }: { tab: EditorTab }): React.JSX.Element {
         role="radio"
         aria-checked={tab.mode === 'diff'}
         className={`ed-mode-opt${tab.mode === 'diff' ? ' on' : ''}`}
+        title="Changes vs HEAD (read-only)"
         onClick={() => setMode(tab.path, 'diff')}
       >
         Diff
@@ -157,6 +160,7 @@ function ModeToggle({ tab }: { tab: EditorTab }): React.JSX.Element {
         role="radio"
         aria-checked={tab.mode === 'file'}
         className={`ed-mode-opt${tab.mode === 'file' ? ' on' : ''}`}
+        title="Edit the file"
         onClick={() => setMode(tab.path, 'file')}
       >
         File
@@ -412,6 +416,10 @@ export function EditorPanel(): React.JSX.Element | null {
                 Close tab
               </button>
             </div>
+          ) : activeTab.mode === 'diff' && activeTab.canDiff ? (
+            // Diff mode renders without Monaco (Pierre owns diff viewing) —
+            // a Monaco chunk failure only blocks File mode.
+            <PierreDiff tab={activeTab} />
           ) : monacoError !== null ? (
             <div className="ed-state">
               <div className="ed-state-title">The editor failed to load</div>

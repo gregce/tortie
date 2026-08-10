@@ -17,7 +17,14 @@
  * then emits (a) the SVG source of every reachable icon and (b) the FULL
  * name/extension maps filtered to those icons — so every alias the theme
  * knows about (e.g. `.jshintrc` → json) keeps working for free. Unknown
- * files fall back to the theme's own `file` icon; folders to folder/-open.
+ * files fall back to the theme's own `file` icon.
+ *
+ * FILES ONLY (Phase 11): @pierre/trees renders a chevron in the row's
+ * leading icon slot for directories and exposes no per-folder icon surface
+ * (FileTreeIconConfig has byFileName / byFileExtension / byFileNameContains
+ * and nothing folder-shaped), so the theme's 122 folder SVGs were dead
+ * weight — 48% of the emitted payload. If a folder-icon surface ever exists,
+ * restore the seeds and maps from this file's history.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -81,21 +88,7 @@ const SEED_FILENAMES = [
   'codeowners', '.vscodeignore', 'browserslist', 'nodemon.json', 'lerna.json', 'turbo.json', 'nx.json'
 ];
 
-/** Folder names we guarantee coverage for (both closed and open variants). */
-const SEED_FOLDERS = [
-  'src', 'app', 'node_modules', 'public', 'static', 'assets', 'resources', 'images', 'fonts', 'media',
-  'components', 'hooks', 'utils', 'helpers', 'lib', 'types', 'interfaces', 'styles', 'themes', 'css',
-  'api', 'routes', 'controllers', 'services', 'middleware', 'models', 'database', 'migrations',
-  'dist', 'build', 'out', 'release', 'bin', 'coverage',
-  'test', 'tests', '__tests__', '__mocks__', 'e2e', 'cypress',
-  'docs', 'examples', 'scripts', 'tools', 'config', 'ci',
-  '.git', '.github', '.vscode', '.idea', 'workflows', 'packages', 'shared', 'core', 'common',
-  'vendor', 'tmp', 'temp', 'logs', 'backup', 'archive', 'downloads', 'secrets', 'keys', 'docker',
-  'server', 'client', 'views', 'layouts', 'pages', 'store', 'state', 'context', 'plugins', 'i18n',
-  'locales', 'functions', 'jobs', 'tasks', 'terminal'
-];
-
-const wanted = new Set([theme.file, theme.folder, theme.folderExpanded]);
+const wanted = new Set([theme.file]);
 
 const misses = [];
 for (const ext of SEED_EXTENSIONS) {
@@ -108,13 +101,6 @@ for (const name of SEED_FILENAMES) {
   if (icon) wanted.add(icon);
   // seed misses fall through to extension matching at runtime — fine.
 }
-for (const dir of SEED_FOLDERS) {
-  const closed = theme.folderNames[dir];
-  const open = theme.folderNamesExpanded[dir];
-  if (closed) wanted.add(closed);
-  if (open) wanted.add(open);
-}
-
 /** Namespace every id inside an icon so two icons in one document can't cross-link. */
 function namespaceIds(svg, iconName) {
   const prefix = `mi-${iconName.replace(/[^a-z0-9-]/gi, '')}-`;
@@ -149,8 +135,6 @@ function filterMap(map) {
 
 const extMap = filterMap(theme.fileExtensions);
 const nameMap = filterMap(theme.fileNames);
-const folderMap = filterMap(theme.folderNames);
-const folderOpenMap = filterMap(theme.folderNamesExpanded);
 
 const themeVersion = require('material-icon-theme/package.json').version;
 const banner = `/**
@@ -160,7 +144,9 @@ const banner = `/**
  * Curated subset of material-icon-theme v${themeVersion} (npm, MIT license —
  * © Philipp Kief, https://github.com/material-extensions/vscode-material-icon-theme).
  * See generate-file-icons.mjs for why this theme and how the subset is chosen.
- * ${Object.keys(svgs).length} icons · ${Object.keys(extMap).length} extension aliases · ${Object.keys(nameMap).length} filename aliases · ${Object.keys(folderMap).length} folder aliases.
+ * Files only — folder rows render @pierre/trees' chevron (see the header of
+ * generate-file-icons.mjs).
+ * ${Object.keys(svgs).length} icons · ${Object.keys(extMap).length} extension aliases · ${Object.keys(nameMap).length} filename aliases.
  */
 
 `;
@@ -171,13 +157,7 @@ export const EXT_TO_ICON: Record<string, string> = ${JSON.stringify(extMap)};
 
 export const NAME_TO_ICON: Record<string, string> = ${JSON.stringify(nameMap)};
 
-export const FOLDER_NAME_TO_ICON: Record<string, string> = ${JSON.stringify(folderMap)};
-
-export const FOLDER_OPEN_NAME_TO_ICON: Record<string, string> = ${JSON.stringify(folderOpenMap)};
-
 export const DEFAULT_FILE_ICON = ${JSON.stringify(theme.file)};
-export const DEFAULT_FOLDER_ICON = ${JSON.stringify(theme.folder)};
-export const DEFAULT_FOLDER_OPEN_ICON = ${JSON.stringify(theme.folderExpanded)};
 `;
 
 const outPath = join(here, 'file-icons.generated.ts');

@@ -1,240 +1,128 @@
 /**
- * The virtualized project file tree (react-arborist) — S3 "Tree row" spec.
+ * The project file tree (@pierre/trees) — S3 "Tree row" spec, Phase 11 swap.
  *
- * Rows [h:24], indent 12px/level: chevron (folders) · file-type icon 16px
- * (material-icon-theme via getFileIcon — DESIGN.md §3.1) · name 12px ·
- * right: git status letter. Decorated files tint the name to the git color
- * (the letter badge is the redundant channel); folders with dirty
- * descendants carry a 4px `--git-modified` dot. Click / Enter on a file
- * emits an open-in-editor request (diff mode when the file has tracked
- * changes). No inline file ops in v1 — context menu: Reveal in Finder,
- * Copy path.
+ * Rows [h:24] render inside Pierre's shadow DOM: chevron (folders) ·
+ * material file-type icon 16px (Phase 9 subset via a custom sprite sheet —
+ * see pierre-icons.ts) · name · built-in git lane (status letter + color,
+ * folder dot propagation — previously hand-rolled). Conflicted files add a
+ * '!' row decoration in --git-conflict (Pierre has no conflict status).
+ * Click / Enter on a file emits an open-in-editor request (diff mode when
+ * the file has tracked changes). No inline file ops in v1 — context menu
+ * (native, ui:popupMenu): Reveal in Finder, Copy path, Copy relative path.
+ *
+ * The Pierre model is path-first and imperative: lazy fs:readDir listings
+ * from tree/store.ts are diffed into it via `batch`, expansion is watched
+ * through `subscribe` to drive on-expand listing + per-project persistence,
+ * and git status is fed with `setGitStatus` (aggregation is built in).
+ * Theming crosses the shadow boundary only through the theme bridge
+ * (src/renderer/pierre/theme-bridge.ts) — mount this component fresh per
+ * project root (FilesSection keys it by rootPath).
  */
 
-import React, {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState
-} from 'react';
-import { Tree } from 'react-arborist';
-import type { NodeApi, NodeRendererProps, TreeApi } from 'react-arborist';
-import type { FsDirEntry } from '@shared/types';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import type {
+  FileTreeBatchOperation,
+  FileTreeDirectoryHandle,
+  FileTreeItemHandle,
+  FileTreeRowDecoration,
+  FileTreeRowDecorationContext,
+  GitStatusEntry
+} from '@pierre/trees';
+import {
+  FileTree as PierreTree,
+  useFileTree as usePierreModel
+} from '@pierre/trees/react';
+import type { FsDirEntry, GitFileStatus } from '@shared/types';
 import { useApp } from '../state/store';
-import { Codicon, getFileIcon } from '../icons';
-import { decorationFor, isIgnored, openModeFor } from './decorations';
-import type { StatusIndex } from './decorations';
+import { treeStyles } from '../pierre/theme-bridge';
+import { isConflicted, openModeFor, pierreGitStatus } from './decorations';
 import { canReveal, reveal } from './fs-bridge';
 import { requestOpenFile } from './open-file';
+import { getPierreTreeIcons } from './pierre-icons';
 import { useFileTree } from './store';
 
 // ---------------------------------------------------------------------------
-// Node data
+// Persisted expansion state (per project root)
 // ---------------------------------------------------------------------------
-
-export interface TreeNodeData {
-  /** Absolute path — doubles as the react-arborist node id. */
-  id: string;
-  name: string;
-  kind: FsDirEntry['kind'];
-  /** Path relative to the project root. */
-  relPath: string;
-  /** null = leaf; [] = directory not yet listed (or empty); else children. */
-  children: TreeNodeData[] | null;
-}
-
-function toRelPath(rootPath: string, absPath: string): string {
-  return absPath.length > rootPath.length + 1
-    ? absPath.slice(rootPath.length + 1)
-    : '';
-}
-
-function buildLevel(
-  dirPath: string,
-  rootPath: string,
-  entriesByDir: Record<string, FsDirEntry[]>
-): TreeNodeData[] {
-  const entries = entriesByDir[dirPath];
-  if (entries === undefined) return [];
-  return entries.map((e) => ({
-    id: e.path,
-    name: e.name,
-    kind: e.kind,
-    relPath: toRelPath(rootPath, e.path),
-    children:
-      e.kind === 'dir' ? buildLevel(e.path, rootPath, entriesByDir) : null
-  }));
-}
-
-// ---------------------------------------------------------------------------
-// Persisted open state (per project root)
-// ---------------------------------------------------------------------------
-
-type OpenMap = Record<string, boolean>;
 
 const LS_OPEN_PREFIX = 'gmux.treeOpen.';
 
-function loadOpenMap(rootPath: string): OpenMap {
+/**
+ * Read the persisted expanded-dir list: canonical Pierre paths (root-relative,
+ * trailing '/'). Tolerates the pre-Phase-11 arborist format (absolute path →
+ * true) so existing expansion state survives the swap.
+ */
+function loadExpanded(rootPath: string): string[] {
   try {
     const raw = localStorage.getItem(LS_OPEN_PREFIX + rootPath);
-    return raw === null ? {} : (JSON.parse(raw) as OpenMap);
+    if (raw === null) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed.filter((p): p is string => typeof p === 'string');
+    }
+    if (parsed !== null && typeof parsed === 'object') {
+      return Object.entries(parsed as Record<string, unknown>)
+        .filter(([abs, open]) => open === true && abs.startsWith(rootPath + '/'))
+        .map(([abs]) => abs.slice(rootPath.length + 1) + '/');
+    }
   } catch {
-    return {};
+    /* cosmetic only */
   }
+  return [];
 }
 
-function saveOpenMap(rootPath: string, open: OpenMap): void {
+function saveExpanded(rootPath: string, expanded: readonly string[]): void {
   try {
-    // Persist only open dirs; cap so one deep spelunk can't bloat storage.
-    const openOnly: OpenMap = {};
-    let n = 0;
-    for (const [id, isOpen] of Object.entries(open)) {
-      if (isOpen && n < 500) {
-        openOnly[id] = true;
-        n++;
-      }
-    }
-    localStorage.setItem(LS_OPEN_PREFIX + rootPath, JSON.stringify(openOnly));
+    // Cap so one deep spelunk can't bloat storage.
+    localStorage.setItem(
+      LS_OPEN_PREFIX + rootPath,
+      JSON.stringify(expanded.slice(0, 500))
+    );
   } catch {
     /* cosmetic only */
   }
 }
 
 // ---------------------------------------------------------------------------
-// Row renderer
+// Shadow-DOM row lookup (Pierre rows carry data-item-path / data-item-type)
 // ---------------------------------------------------------------------------
 
-interface RowContext {
-  statusIndex: StatusIndex;
-  onOpenFile: (node: TreeNodeData) => void;
-  onContextMenu: (node: TreeNodeData, x: number, y: number) => void;
+/** Narrow an item handle to its directory variant (TS can't via the union). */
+function asDirectory(
+  item: FileTreeItemHandle | null
+): FileTreeDirectoryHandle | null {
+  return item !== null && item.isDirectory()
+    ? (item as FileTreeDirectoryHandle)
+    : null;
 }
 
-const RowCtx = React.createContext<RowContext | null>(null);
+interface RowHit {
+  /** Canonical Pierre path — root-relative, dirs end with '/'. */
+  rel: string;
+  type: 'file' | 'folder';
+}
 
-function TreeRow({
-  node,
-  style
-}: NodeRendererProps<TreeNodeData>): React.JSX.Element {
-  const ctx = React.useContext(RowCtx);
-  const data = node.data;
-  const isDir = data.kind === 'dir';
-  const status = ctx?.statusIndex.byPath.get(data.relPath);
-  const deco = isDir ? null : decorationFor(status);
-  const ignored = status !== undefined && isIgnored(status);
-  const dirtyDir =
-    isDir && (ctx?.statusIndex.dirtyDirs.has(data.relPath) ?? false);
-  const openable = data.kind === 'file' || data.kind === 'symlink';
-
-  const onClick = (e: React.MouseEvent): void => {
-    if (isDir) {
-      node.toggle();
-      node.focus();
-      return;
+function rowFromEvent(event: Event): RowHit | null {
+  for (const target of event.composedPath()) {
+    if (!(target instanceof HTMLElement)) continue;
+    const rel = target.dataset['itemPath'];
+    if (rel !== undefined) {
+      return { rel, type: target.dataset['itemType'] === 'folder' ? 'folder' : 'file' };
     }
-    node.handleClick(e);
-    if (openable) ctx?.onOpenFile(data);
-  };
-
-  const nameStyle: React.CSSProperties | undefined =
-    deco !== null ? { color: `var(${deco.colorVar})` } : undefined;
-
-  // File-type icon (material-icon-theme): folders resolve by basename with
-  // closed/open variants; files by name → dotted suffix → extension.
-  const TypeIcon = getFileIcon(data.name, {
-    dir: isDir,
-    expanded: isDir && node.isOpen
-  });
-
-  return (
-    <div
-      style={style}
-      className={[
-        'tree-row',
-        node.isSelected ? 'selected' : '',
-        node.isFocused ? 'focused' : '',
-        data.kind === 'other' ? 'inert' : ''
-      ]
-        .filter(Boolean)
-        .join(' ')}
-      title={data.relPath}
-      onClick={onClick}
-      onContextMenu={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        node.focus();
-        ctx?.onContextMenu(data, e.clientX, e.clientY);
-      }}
-    >
-      {isDir ? (
-        <span className={`tree-chevron${node.isOpen ? ' open' : ''}`}>
-          <Codicon name="chevron-right" size={12} />
-        </span>
-      ) : (
-        <span className="tree-chevron-spacer" />
-      )}
-      <span className={`tree-type-icon${ignored ? ' dim' : ''}`}>
-        <TypeIcon size={16} />
-      </span>
-      <span
-        className={[
-          'tree-name',
-          ignored ? 'dim' : '',
-          deco?.strike === true ? 'strike' : ''
-        ]
-          .filter(Boolean)
-          .join(' ')}
-        {...(nameStyle !== undefined ? { style: nameStyle } : {})}
-      >
-        {data.name}
-      </span>
-      {dirtyDir ? <span className="tree-dirty-dot" aria-hidden="true" /> : null}
-      <span className="tree-row-space" />
-      {deco !== null ? (
-        <span
-          className="tree-badge"
-          style={{ color: `var(${deco.colorVar})` }}
-          aria-label={`git status ${deco.letter}`}
-        >
-          {deco.letter}
-        </span>
-      ) : null}
-    </div>
-  );
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------
-// Container size (react-arborist needs pixel height)
+// Styling that must live inside the shadow root
 // ---------------------------------------------------------------------------
 
-function useElementSize<T extends HTMLElement>(): {
-  ref: React.RefObject<T | null>;
-  width: number;
-  height: number;
-} {
-  const ref = useRef<T | null>(null);
-  const [size, setSize] = useState({ width: 0, height: 0 });
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const update = (): void => {
-      const rect = el.getBoundingClientRect();
-      setSize((prev) =>
-        prev.width === Math.floor(rect.width) &&
-        prev.height === Math.floor(rect.height)
-          ? prev
-          : { width: Math.floor(rect.width), height: Math.floor(rect.height) }
-      );
-    };
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-  return { ref, ...size };
+/** Deleted files keep their strikethrough (old .tree-name.strike rule). */
+const TREE_UNSAFE_CSS = `
+[data-item-git-status="deleted"] [data-item-section="content"] {
+  text-decoration: line-through;
 }
+`;
 
 // ---------------------------------------------------------------------------
 // FileTree
@@ -242,10 +130,10 @@ function useElementSize<T extends HTMLElement>(): {
 
 export function FileTree({
   rootPath,
-  statusIndex
+  statusFiles
 }: {
   rootPath: string;
-  statusIndex: StatusIndex;
+  statusFiles: readonly GitFileStatus[];
 }): React.JSX.Element {
   const entriesByDir = useFileTree((s) => s.entriesByDir);
   const rootLoaded = useFileTree((s) => s.rootLoaded);
@@ -253,48 +141,232 @@ export function FileTree({
   const setMenu = useApp((s) => s.setMenu);
   const toast = useApp((s) => s.toast);
 
-  // ForwardedRef<TreeApi | undefined> — the union must include undefined
-  // AND null for React's MutableRefObject variance.
-  const treeRef = useRef<TreeApi<TreeNodeData> | undefined | null>(null);
-  const { ref: boxRef, width, height } = useElementSize<HTMLDivElement>();
+  // Canonical path set + kind lookup derived from the lazy listing cache.
+  const treeInput = useMemo(() => {
+    const paths = new Set<string>();
+    const kinds = new Map<string, FsDirEntry['kind']>();
+    for (const [dirAbs, entries] of Object.entries(entriesByDir)) {
+      if (dirAbs !== rootPath && !dirAbs.startsWith(rootPath + '/')) continue;
+      for (const entry of entries) {
+        const rel = entry.path.slice(rootPath.length + 1);
+        if (rel.length === 0) continue;
+        kinds.set(rel, entry.kind);
+        paths.add(entry.kind === 'dir' ? rel + '/' : rel);
+      }
+    }
+    return { paths, kinds };
+  }, [entriesByDir, rootPath]);
 
-  const data = useMemo(
-    () => buildLevel(rootPath, rootPath, entriesByDir),
-    [rootPath, entriesByDir]
+  // Pierre git-lane entries + the conflict overlay set.
+  const gitState = useMemo(() => {
+    const entries: GitStatusEntry[] = [];
+    const conflicts = new Set<string>();
+    const byPath = new Map<string, GitFileStatus>();
+    for (const file of statusFiles) {
+      byPath.set(file.path, file);
+      const status = pierreGitStatus(file);
+      if (status === null) continue;
+      entries.push({ path: file.path, status });
+      if (isConflicted(file)) conflicts.add(file.path);
+    }
+    return { entries, conflicts, byPath };
+  }, [statusFiles]);
+
+  const conflictsRef = useRef(gitState.conflicts);
+  conflictsRef.current = gitState.conflicts;
+
+  // Conflict '!' rides the custom decoration lane next to the git lane.
+  // Captured once by the model at construction — reads through the ref.
+  const renderConflictDecoration = useCallback(
+    (ctx: FileTreeRowDecorationContext): FileTreeRowDecoration | null => {
+      if (ctx.item.kind !== 'file') return null;
+      if (!conflictsRef.current.has(ctx.item.path)) return null;
+      return {
+        text: '!',
+        title: 'Merge conflict',
+        parts: [{ text: '!', color: 'var(--git-conflict)' }]
+      };
+    },
+    []
   );
 
-  const initialOpen = useMemo(() => loadOpenMap(rootPath), [rootPath]);
+  // Model construction snapshot: usePierreModel captures options on first
+  // render only; later listings/status flow through the effects below.
+  const initialRef = useRef<{ paths: string[]; expanded: string[] } | null>(
+    null
+  );
+  initialRef.current ??= {
+    paths: [...treeInput.paths],
+    expanded: loadExpanded(rootPath)
+  };
+  const initial = initialRef.current;
+
+  const { model } = usePierreModel({
+    paths: initial.paths,
+    initialExpandedPaths: initial.expanded,
+    gitStatus: gitState.entries,
+    icons: getPierreTreeIcons(),
+    itemHeight: 24,
+    overscan: 8,
+    renderRowDecoration: renderConflictDecoration,
+    unsafeCSS: TREE_UNSAFE_CSS
+  });
+
+  // ----- listings → model (diff the fed path set, batch the delta) --------
+  const fedRef = useRef<Set<string>>(new Set(initial.paths));
+  const restoredRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const fed = fedRef.current;
+    const next = treeInput.paths;
+    const ops: FileTreeBatchOperation[] = [];
+    const removedDirs: string[] = [];
+    for (const path of fed) {
+      if (next.has(path)) continue;
+      // A recursive dir removal already covers its descendants.
+      if (removedDirs.some((dir) => path !== dir && path.startsWith(dir))) {
+        continue;
+      }
+      if (path.endsWith('/')) removedDirs.push(path);
+      ops.push({ type: 'remove', path, recursive: true });
+    }
+    for (const path of next) {
+      if (!fed.has(path)) ops.push({ type: 'add', path });
+    }
+    if (ops.length > 0) {
+      try {
+        model.batch(ops);
+      } catch {
+        // Divergence recovery: rebuild from the canonical listing cache,
+        // preserving what is currently expanded.
+        const expanded = [...fedRef.current].filter((p) => {
+          if (!p.endsWith('/')) return false;
+          return asDirectory(model.getItem(p))?.isExpanded() === true;
+        });
+        model.resetPaths([...next], { initialExpandedPaths: expanded });
+      }
+      fedRef.current = new Set(next);
+    }
+    // Re-open persisted dirs as their paths materialize (deep restores).
+    for (const dir of initial.expanded) {
+      if (restoredRef.current.has(dir) || !next.has(dir)) continue;
+      restoredRef.current.add(dir);
+      const item = asDirectory(model.getItem(dir));
+      if (item !== null && !item.isExpanded()) item.expand();
+    }
+  }, [model, treeInput, initial]);
 
   // Re-list directories that were open in a previous run (persisted state)
   // so restored folders show their children, not empty shells.
   useEffect(() => {
     if (!rootLoaded) return;
-    for (const id of Object.keys(initialOpen)) {
-      if (initialOpen[id] === true && id.startsWith(rootPath + '/')) {
-        void loadDir(id);
-      }
+    for (const dir of initial.expanded) {
+      if (dir.endsWith('/')) void loadDir(rootPath + '/' + dir.slice(0, -1));
     }
-  }, [rootLoaded, initialOpen, rootPath, loadDir]);
+  }, [rootLoaded, initial, rootPath, loadDir]);
 
-  const openFile = useCallback(
-    (node: TreeNodeData): void => {
+  // ----- git status → model ------------------------------------------------
+  useEffect(() => {
+    model.setGitStatus(gitState.entries);
+  }, [model, gitState]);
+
+  // ----- expansion watch: lazy listing + persistence ----------------------
+  const expandedRef = useRef<Set<string>>(new Set(initial.expanded));
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    let scheduled = false;
+    const check = (): void => {
+      scheduled = false;
+      const expanded: string[] = [];
+      for (const path of fedRef.current) {
+        if (!path.endsWith('/')) continue;
+        if (asDirectory(model.getItem(path))?.isExpanded() === true) {
+          expanded.push(path);
+        }
+      }
+      for (const dir of expanded) {
+        if (!expandedRef.current.has(dir)) {
+          void loadDir(rootPath + '/' + dir.slice(0, -1));
+        }
+      }
+      expandedRef.current = new Set(expanded);
+      if (saveTimer.current !== null) clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(() => {
+        saveTimer.current = null;
+        saveExpanded(rootPath, expanded);
+      }, 250);
+    };
+    const unsubscribe = model.subscribe(() => {
+      if (!scheduled) {
+        scheduled = true;
+        queueMicrotask(check);
+      }
+    });
+    check();
+    return () => {
+      unsubscribe();
+      if (saveTimer.current !== null) {
+        clearTimeout(saveTimer.current);
+        saveTimer.current = null;
+        saveExpanded(rootPath, [...expandedRef.current]);
+      }
+    };
+  }, [model, rootPath, loadDir]);
+
+  // ----- gestures ----------------------------------------------------------
+
+  const openRel = useCallback(
+    (rel: string): void => {
+      const kind = treeInput.kinds.get(rel);
+      if (kind === 'other') return; // sockets/FIFOs/devices stay inert
       requestOpenFile({
-        path: node.id,
-        relPath: node.relPath,
         repoPath: rootPath,
+        relPath: rel,
+        path: rootPath + '/' + rel,
         // Canonical bus mode: 'file' is the plain-open gesture.
-        mode:
-          openModeFor(statusIndex.byPath.get(node.relPath)) === 'diff'
-            ? 'diff'
-            : 'file',
+        mode: openModeFor(gitState.byPath.get(rel)) === 'diff' ? 'diff' : 'file',
         source: 'tree'
       });
     },
-    [rootPath, statusIndex]
+    [rootPath, treeInput, gitState]
   );
 
-  const openContextMenu = useCallback(
-    (node: TreeNodeData, x: number, y: number): void => {
+  // Pierre selects/focuses on click internally; opening is ours. Directory
+  // clicks toggle inside the shadow DOM — the expansion watcher lists them.
+  const onClick = useCallback(
+    (e: React.MouseEvent): void => {
+      const row = rowFromEvent(e.nativeEvent);
+      if (row !== null && row.type === 'file') openRel(row.rel);
+    },
+    [openRel]
+  );
+
+  // ↩ activates (Pierre leaves Enter unhandled outside search/rename, both
+  // of which are disabled here — the key bubbles out of the shadow root).
+  const onKeyDown = useCallback(
+    (e: React.KeyboardEvent): void => {
+      if (e.key !== 'Enter') return;
+      const rel = model.getFocusedPath();
+      if (rel === null) return;
+      e.preventDefault();
+      const dir = asDirectory(model.getItem(rel));
+      if (dir !== null) {
+        dir.toggle();
+      } else {
+        openRel(rel);
+      }
+    },
+    [model, openRel]
+  );
+
+  const onContextMenu = useCallback(
+    (e: React.MouseEvent): void => {
+      const row = rowFromEvent(e.nativeEvent);
+      if (row === null) return;
+      e.preventDefault();
+      e.stopPropagation();
+      model.focusPath(row.rel);
+      const rel = row.rel.endsWith('/') ? row.rel.slice(0, -1) : row.rel;
+      const abs = rootPath + '/' + rel;
       const copy = (text: string, done: string): void => {
         void navigator.clipboard.writeText(text).then(
           () => toast('info', done),
@@ -302,114 +374,62 @@ export function FileTree({
         );
       };
       setMenu({
-        x,
-        y,
+        x: e.clientX,
+        y: e.clientY,
         items: [
           ...(canReveal()
             ? [
                 {
                   label: 'Reveal in Finder',
                   run: () => {
-                    void reveal(node.id).catch(() =>
+                    void reveal(abs).catch(() =>
                       toast('error', 'Could not reveal the file in Finder')
                     );
                   }
                 }
               ]
             : []),
-          {
-            label: 'Copy path',
-            run: () => copy(node.id, 'Path copied')
-          },
+          { label: 'Copy path', run: () => copy(abs, 'Path copied') },
           {
             label: 'Copy relative path',
-            run: () => copy(node.relPath, 'Relative path copied')
+            run: () => copy(rel, 'Relative path copied')
           }
         ]
       });
     },
-    [setMenu, toast]
+    [model, rootPath, setMenu, toast]
   );
 
-  const rowCtx = useMemo<RowContext>(
-    () => ({
-      statusIndex,
-      onOpenFile: openFile,
-      onContextMenu: openContextMenu
-    }),
-    [statusIndex, openFile, openContextMenu]
+  // Host styles: the theme bridge's --trees-theme-* vars plus gmux type
+  // tokens (fonts/sizes inherit as custom properties across the shadow
+  // boundary — rules do not, values do).
+  const hostStyle = useMemo(
+    () =>
+      ({
+        ...treeStyles,
+        '--trees-font-family': 'var(--font-ui)',
+        '--trees-font-size': 'var(--text-sm)',
+        '--trees-padding-inline': 'var(--space-2)'
+      }) as React.CSSProperties,
+    []
   );
-
-  const onToggle = useCallback(
-    (id: string): void => {
-      const tree = treeRef.current;
-      if (tree && tree.isOpen(id)) void loadDir(id);
-      if (tree) saveOpenMap(rootPath, tree.openState);
-    },
-    [rootPath, loadDir]
-  );
-
-  const onActivate = useCallback(
-    (node: NodeApi<TreeNodeData>): void => {
-      if (
-        node.isLeaf &&
-        (node.data.kind === 'file' || node.data.kind === 'symlink')
-      ) {
-        openFile(node.data);
-      }
-    },
-    [openFile]
-  );
-
-  // ↩ activates per DESIGN.md §4 (arborist reserves Enter for renames,
-  // which the tree doesn't do — v1 has no inline file ops).
-  const onKeyDown = (e: React.KeyboardEvent): void => {
-    if (e.key !== 'Enter') return;
-    const node = treeRef.current?.focusedNode;
-    if (!node) return;
-    e.preventDefault();
-    if (node.isInternal) {
-      node.toggle();
-    } else {
-      onActivate(node);
-    }
-  };
 
   const rootEmpty = rootLoaded && (entriesByDir[rootPath]?.length ?? 0) === 0;
 
   return (
-    <div className="files-tree" onKeyDown={onKeyDown}>
-      <div className="files-tree-size" ref={boxRef}>
+    <div className="files-tree">
       {rootEmpty ? (
         <div className="section-stub">This folder is empty.</div>
-      ) : height > 0 ? (
-        <RowCtx.Provider value={rowCtx}>
-          <Tree<TreeNodeData>
-            key={rootPath}
-            ref={treeRef}
-            data={data}
-            width={width}
-            height={height}
-            rowHeight={24}
-            indent={12}
-            overscanCount={8}
-            openByDefault={false}
-            initialOpenState={initialOpen}
-            disableMultiSelection
-            disableDrag
-            disableDrop
-            disableEdit
-            onToggle={onToggle}
-            onActivate={onActivate}
-            className="tree-viewport"
-            rowClassName="tree-row-outer"
-            aria-label="Project files"
-          >
-            {TreeRow}
-          </Tree>
-        </RowCtx.Provider>
-      ) : null}
-      </div>
+      ) : (
+        <PierreTree
+          model={model}
+          style={hostStyle}
+          onClick={onClick}
+          onKeyDown={onKeyDown}
+          onContextMenu={onContextMenu}
+          aria-label="Project files"
+        />
+      )}
     </div>
   );
 }

@@ -224,7 +224,7 @@
 }
 
 /* ---------------------------------------------------------------------------
-   Body + Monaco mounts
+   Body + editor surfaces (Monaco mount for File mode, Pierre for Diff mode)
 --------------------------------------------------------------------------- */
 
 .ed-body {
@@ -236,10 +236,33 @@
 
 .ed-host,
 .ed-mount,
+.ed-pierre,
 .ed-skeleton,
 .ed-state {
   position: absolute;
   inset: 0;
+}
+
+/* Pierre diff host (Phase 11). The diff renders in shadow DOM — colors come
+   from the theme bridge (src/renderer/pierre/theme-bridge.ts); the custom
+   properties below inherit across the shadow boundary and keep the diff on
+   the same type ramp as Monaco's File mode. */
+.ed-pierre {
+  overflow: auto;
+  background: var(--bg-canvas);
+
+  --diffs-font-family: var(--font-mono);
+  --diffs-font-size: 12px;
+}
+
+.ed-pierre:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.ed-pierre diffs-container {
+  display: block;
+  min-height: 100%;
 }
 
 /* ---------------------------------------------------------------------------

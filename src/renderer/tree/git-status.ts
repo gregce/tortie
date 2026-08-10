@@ -10,19 +10,23 @@
  *   (b) replace the fetch below with a subscription to that store.
  * Until then this store pulls git:status itself and FilesSection refreshes
  * it on git:changed, so the tree is fully functional standalone.
+ *
+ * Phase 11: state is the raw porcelain list — PierreFileTree maps it onto
+ * @pierre/trees GitStatusEntry[] itself (folder aggregation is built in).
  */
 
 import { create } from 'zustand';
 import type { GitFileStatus } from '@shared/types';
-import { buildStatusIndex, EMPTY_STATUS_INDEX } from './decorations';
-import type { StatusIndex } from './decorations';
+
+const NO_FILES: readonly GitFileStatus[] = [];
 
 interface TreeGitStatusState {
-  /** Repo the current index belongs to (active project path). */
+  /** Repo the current list belongs to (active project path). */
   repoPath: string | null;
   /** False when the folder is not a git repository (tree renders plain). */
   isRepo: boolean;
-  index: StatusIndex;
+  /** Porcelain-v2 status list (empty when not a repo / fetch failed). */
+  files: readonly GitFileStatus[];
 
   /** Point at a new repo (clears immediately, then fetches). */
   setRepo(repoPath: string | null): Promise<void>;
@@ -44,26 +48,24 @@ export const useTreeGitStatus = create<TreeGitStatusState>((set, get) => {
       if (seq !== fetchSeq || get().repoPath !== repoPath) return; // stale
       set({
         isRepo: result.isRepo,
-        index: result.isRepo
-          ? buildStatusIndex(result.files)
-          : EMPTY_STATUS_INDEX
+        files: result.isRepo ? result.files : NO_FILES
       });
     } catch {
       // Decorations are an enhancement — a failed status read must never
       // break file browsing. Render undecorated instead.
       if (seq !== fetchSeq || get().repoPath !== repoPath) return;
-      set({ isRepo: false, index: EMPTY_STATUS_INDEX });
+      set({ isRepo: false, files: NO_FILES });
     }
   };
 
   return {
     repoPath: null,
     isRepo: false,
-    index: EMPTY_STATUS_INDEX,
+    files: NO_FILES,
 
     async setRepo(repoPath) {
       if (get().repoPath === repoPath) return;
-      set({ repoPath, isRepo: false, index: EMPTY_STATUS_INDEX });
+      set({ repoPath, isRepo: false, files: NO_FILES });
       if (repoPath !== null) await fetchFor(repoPath);
     },
 
@@ -74,7 +76,7 @@ export const useTreeGitStatus = create<TreeGitStatusState>((set, get) => {
 
     applyExternal(repoPath, files) {
       fetchSeq++; // invalidate any in-flight fetch
-      set({ repoPath, isRepo: true, index: buildStatusIndex(files) });
+      set({ repoPath, isRepo: true, files });
     }
   };
 });

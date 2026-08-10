@@ -40,6 +40,17 @@ export interface ShotDriveSpec {
    * rich hover card (round 1, change 5) to open before capture.
    */
   hoverHistory?: boolean;
+  /**
+   * Switch the sidebar view before capture ('explorer' shows the Pierre
+   * file tree; readiness waits for shadow-DOM rows to render).
+   */
+  sidebarView?: 'scm' | 'explorer';
+  /**
+   * Explorer only: expand directories by clicking their real rows
+   * (canonical tree paths, trailing '/' — e.g. "src/"). Exercises the
+   * expand → lazy fs:readDir → batch pipeline, not just the paint.
+   */
+  expandRels?: string[];
   /** Open a UI layer before capture. */
   ui?: 'shortcuts' | 'create' | 'attention';
   /** Show a toast before capture (kind defaults to info). */
@@ -177,15 +188,54 @@ export function installShotHook(): void {
         mode: spec.mode ?? 'diff',
         source: 'worktree'
       });
-      // Ready when Monaco is mounted and the loading skeleton is gone.
+      // Ready when the mode's surface is mounted and the loading skeleton is
+      // gone: Pierre's shadow-DOM host with rendered rows for diff mode,
+      // Monaco for file mode.
+      const wantDiff = (spec.mode ?? 'diff') === 'diff';
       for (let i = 0; i < 120; i++) {
+        const surface = wantDiff
+          ? (document.querySelector('diffs-container')?.shadowRoot?.querySelector(
+              'pre'
+            ) ?? null)
+          : document.querySelector('.monaco-editor');
         const mounted =
-          document.querySelector('.monaco-editor') !== null &&
-          document.querySelector('.ed-skeleton') === null;
+          surface !== null && document.querySelector('.ed-skeleton') === null;
         if (mounted) break;
         await wait(250);
       }
-      await wait(600); // syntax highlight + diff decorations settle
+      // Syntax highlight settles async (Shiki streams tokens in diff mode).
+      await wait(wantDiff ? 1200 : 600);
+    }
+
+    if (spec.sidebarView !== undefined) {
+      useApp.getState().setSidebarView(spec.sidebarView);
+      if (spec.sidebarView === 'explorer') {
+        // Ready when the Pierre tree host has rendered rows in its shadow root.
+        for (let i = 0; i < 40; i++) {
+          const host = document.querySelector('file-tree-container');
+          if (host?.shadowRoot?.querySelector('[data-item-path]') != null) {
+            break;
+          }
+          await wait(250);
+        }
+        for (const rel of spec.expandRels ?? []) {
+          const row = document
+            .querySelector('file-tree-container')
+            ?.shadowRoot?.querySelector<HTMLElement>(
+              `[data-item-path="${rel}"]`
+            );
+          row?.click();
+          // Children render once the lazy fs:readDir listing lands.
+          for (let i = 0; i < 20; i++) {
+            const child = document
+              .querySelector('file-tree-container')
+              ?.shadowRoot?.querySelector(`[data-item-parent-path="${rel}"]`);
+            if (child !== null && child !== undefined) break;
+            await wait(250);
+          }
+        }
+        await wait(400);
+      }
     }
 
     if (spec.ui !== undefined) {

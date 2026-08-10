@@ -1,6 +1,8 @@
 /**
- * Files section + tree rows (S3 tree spec). Tokens only — no raw values
- * except the spec'd micro-dimensions (4px dot, 12px chevron box).
+ * Files section shell (S3 tree spec). Tokens only — the rows themselves
+ * render inside @pierre/trees' shadow DOM (Phase 11) and are themed through
+ * the theme bridge (src/renderer/pierre/theme-bridge.ts) + host-level
+ * --trees-* custom properties, never from this stylesheet.
  */
 
 /* The section flexes into the sidebar space left under Sessions/Changes.
@@ -15,11 +17,8 @@
 }
 
 .section-files.collapsed {
-  min-height: 0;
-}
-
-.section-files.collapsed {
   flex: 0 0 auto;
+  min-height: 0;
 }
 
 /* Refresh accessory appears on header hover / keyboard focus (spec). */
@@ -39,127 +38,12 @@
   cursor: default;
 }
 
-/* Tree viewport — react-arborist owns scrolling inside this box. */
+/* Tree viewport — the Pierre host owns scrolling inside this box
+   (:host([data-file-tree-virtualized]) is height:100%). */
 .files-tree {
   flex: 1;
   min-height: 0;
   padding: 0 var(--space-2) var(--space-2);
-}
-
-/* Unpadded measurement box: react-window gets exactly this content size. */
-.files-tree-size {
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-}
-
-.files-tree .tree-viewport {
-  /* react-window focus outline is replaced by the row cursor below. */
-  outline: none;
-}
-
-/* Row [h:24]: chevron 12 · file-type icon 16 · name 12 · right status letter. */
-.tree-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  height: 24px;
-  padding: 0 var(--space-4) 0 var(--space-2);
-  border-radius: var(--r-sm);
-  font-size: var(--text-sm);
-  line-height: var(--lh-sm);
-  color: var(--text-primary);
-  cursor: default;
-  user-select: none;
-  transition: background var(--dur-fast) var(--ease-out);
-}
-
-.tree-row:hover {
-  background: var(--bg-raised);
-}
-
-.tree-row.selected {
-  background: var(--bg-active);
-}
-
-/* Keyboard cursor: visible whenever the tree owns focus. */
-.files-tree:focus-within .tree-row.focused {
-  box-shadow: inset 0 0 0 1px var(--accent);
-}
-
-.tree-row.inert {
-  color: var(--text-muted);
-}
-
-.tree-chevron {
-  display: inline-flex;
-  width: 12px;
-  height: 12px;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 12px;
-  color: var(--text-secondary);
-  transition: transform var(--dur-fast) var(--ease-out);
-}
-
-.tree-chevron.open {
-  transform: rotate(90deg);
-}
-
-.tree-chevron-spacer {
-  flex: 0 0 12px;
-}
-
-/* File-type icon slot (16px, material-icon-theme — DESIGN.md §3.1). The
-   theme's per-type colors are a sanctioned const; ignored files dim the
-   icon with the name so the whole row reads as inert. */
-.tree-type-icon {
-  display: inline-flex;
-  width: 16px;
-  height: 16px;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 16px;
-}
-
-.tree-type-icon.dim {
-  opacity: 0.45;
-}
-
-.tree-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tree-name.dim {
-  color: var(--text-disabled);
-}
-
-.tree-name.strike {
-  text-decoration: line-through;
-}
-
-/* Folder-with-dirty-descendants propagation dot (4px, spec). */
-.tree-dirty-dot {
-  flex: 0 0 4px;
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--git-modified);
-}
-
-.tree-row-space {
-  flex: 1;
-}
-
-/* Status letter badge — mono 11, colored like the SCM row. */
-.tree-badge {
-  flex: 0 0 auto;
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  line-height: var(--lh-xs);
-  font-weight: var(--weight-semibold);
 }
 
 /* Loading skeleton: three shimmer lines, no spinner (OPERATE). */

@@ -34,8 +34,10 @@ Spec inputs: docs/research/11-agent-registry.md (12 agents), user screenshots be
 7. **Full branch management**: view ALL branches — local AND remote — in a proper branch UI (current indicator, ahead/behind, click local → checkout, click remote → create tracking local + checkout, refresh/fetch affordance). Extends Phase 9's branch menu; git service needs refs/remotes enumeration + tracking-checkout.
 8. **Per-agent launch-flag presets**: INSPECT each installed CLI's --help (claude, codex, gemini, droid, amp, etc. — run `<bin> --help` for every detected agent) to catalog its autonomy/convenience flags (claude `--dangerously-skip-permissions`, codex `--yolo` / sandbox/approval flags, gemini's yolo/auto-accept equivalent, and any model/profile flags worth surfacing). Registry gains flagPresets: [{flag, label, description, danger: bool}]. UX: toggles in the create-session modal (danger-styled for permission-skipping flags, off by default) + per-agent defaults configurable in Settings ("always launch codex with --yolo"). Presets must compose with resume argv (flags recorded in manifest resume_argv where the CLI requires them on resume too — verify per CLI).
 
-## Phase 11 — Pierre swap (spec ready: docs/research/12-pierre-diffs.md)
-@pierre/diffs 1.3.5 replaces all diff viewing (Monaco stays editor-only); @pierre/trees 1.0.0-beta.6 replaces react-arborist; theme bridge from gmux tokens (shadow DOM); delete ~505 LOC per inventory.
+## Phase 11 — Pierre swap ✅ SHIPPED (spec: docs/research/12-pierre-diffs.md)
+@pierre/diffs 1.3.5 replaced all diff viewing (Monaco is editor-only); @pierre/trees 1.0.0-beta.6 replaced react-arborist; theme bridge from gmux tokens (shadow DOM, src/renderer/pierre/theme-bridge.ts).
+Carried into later phases: **Diff mode is read-only** (edit is one toggle away in File mode) — revisit when `@pierre/diffs/edit` leaves beta. Folder rows lost their material folder icons: @pierre/trees renders a chevron in the leading icon slot and has no per-folder icon surface (see DESIGN-SPEC S3B).
+Deferred to **Phase 12** as originally specced: delete monaco-editor (98 MB node_modules, ~43 MB of built assets, ~480 LOC), blocked on Pierre `/edit` GA or a CodeMirror 6 swap.
 
 ## Phase 12 — SpecStory bundling (research: docs/research/13-specstory-integration.md)
 Bundle specstory-cli into gmux.app; per-session capture toggle (watch-wrap preserving resume argv); sync-at-session-end affordance; Settings: cloud login status / device auth / last sync.
@@ -55,7 +57,10 @@ User-identified growth pressure to resolve (line counts as of Phase 9-in-flight)
 - SCM components > 700 lines → decompose (header/branch menu, groups, history, hover card as separate files).
 - Preload: collapse the four wrapper generations into the single typed bridge (if not already done under guardrail 1).
 - tmux resolve dedup (if not already done under guardrail 3).
-- Dead-code sweep after Pierre swap (knip or ts-prune run; delete unreferenced exports, unused CSS, orphaned assets).
+- Dead-code sweep after Pierre swap (knip or ts-prune run; delete unreferenced exports, unused CSS, orphaned assets). Phase 11 already took the swap-orphaned ones (fileIcon.ts, the 122 material folder icons, decorations render logic, arborist CSS).
+- Pre-existing dup-scan hits Phase 11 left alone (all predate the swap): `app/split/surface-dnd.ts` self-dup, the `deriveSurfaces` import block in SessionDock/TerminalRegion, the end-session button JSX in SplitSurface/TerminalRegion, the `section-toggle` header JSX across HistorySection/ScmSection/BranchesView, `app.css` 36px row rule, `scm.css` text rule, and the `handle<C>` IPC wrapper duplicated in main/fs/ipc.ts + main/git/ipc.ts.
+- **electron-builder `files` should become an allowlist.** The denylist has to name each renderer-only package; ~4 MB of transitive strays (@types/*, micromark-util-*, unist-*, oniguruma-parser, regex, plus monaco's marked/dompurify and material-icon-theme's chroma-js) still ship. Since main only requires node-pty, better-sqlite3 and @parcel/watcher at runtime, `!node_modules/**` + three re-includes is both smaller and self-maintaining. Gate it on the packaged-app smoke, not just `out/`.
+- **material-icon-theme is a build-time-only dep** (read by `src/renderer/icons/generate-file-icons.mjs`, whose output is committed) but sits in `dependencies` and ships 6 MB into the asar — move it to devDependencies.
 - Gate: full test/smoke battery green; zero behavior changes intended — snapshot screenshots before/after must match except where CSS colocation shifts nothing visible.
 
 ## Phase 14 — FINAL: current version installed for daily use

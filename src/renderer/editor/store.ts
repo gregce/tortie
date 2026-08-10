@@ -6,8 +6,9 @@
  * tree rows emit OpenFileRequests; this store turns them into tabs.
  *
  * S5 rules implemented here:
- *  - modified files open as DIFF vs HEAD by default (`mode: 'diff'`),
- *    untracked/clean open plain (`mode: 'file'`)
+ *  - modified files open as DIFF vs HEAD by default (`mode: 'diff'`,
+ *    rendered read-only by PierreDiff since Phase 11), untracked/clean open
+ *    plain (`mode: 'file'`, Monaco)
  *  - single preview tab (italic) reused until the file is edited
  *  - max 5 tabs, LRU-evicting clean tabs
  *  - ⌘S saves via fs:writeFile; dirty dot until saved
@@ -68,7 +69,8 @@ interface EditorState {
   panelOpen: boolean;
   /** Last open request — ⌘E reopens it when every tab was closed. */
   lastRequest: OpenFileRequest | null;
-  /** Monaco chunk failed to load (retryable). */
+  /** Monaco chunk failed to load (retryable; blocks File mode only —
+   *  Diff mode renders via @pierre/diffs without Monaco). */
   monacoError: string | null;
 
   init(): void;

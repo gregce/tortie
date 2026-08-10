@@ -197,7 +197,9 @@ Behaviors: Open Changes = expand the row + open the first file's diff. Open on G
 ### S3B — Explorer view
 
 - View header (band): "EXPLORER" 11px/600 uppercase tracking +0.04em `--text-muted` · spacer · `collapse-all` codicon 16 · `refresh` on hover.
-- **Tree row `[h:24]`** (react-arborist, indent 12px/level): chevron 12px (folders) · **file-type icon 16px** (material-icon-theme via `fileIcon.ts` — DESIGN.md §3.1; folders get closed/open variants; unmatched → theme default; icons keep their own colors) · name 12px · right: status letter as SCM row. File with git state: name tinted to the git color (letter badge is the redundant channel). Folder with dirty descendants: 4px dot `--git-modified` after the name. Ignored: name `--text-disabled`, no badge, icon at 50% opacity. Click file → modified → diff, clean → plain file (S5). No inline file ops in v1 (context menu: Reveal in Finder, Copy path).
+- **Tree row `[h:24]`** (@pierre/trees since Phase 11, indent 12px/level): chevron 12px (folders) · **file-type icon 16px** (material-icon-theme subset injected as a shadow-DOM sprite sheet — `tree/pierre-icons.ts`; unmatched → theme default; icons keep their own colors) · name 12px · right: status letter as SCM row. File with git state: name tinted to the git color (letter badge is the redundant channel). Folder with dirty descendants: dot `--git-modified` after the name. Ignored: name dimmed, no badge. Click file → modified → diff, clean → plain file (S5). No inline file ops in v1 (context menu, native: Reveal in Finder, Copy path, Copy relative path).
+  - Rows live in @pierre/trees' shadow root, so `tree.css` cannot reach them — all row colors come from the theme bridge (`renderer/pierre/theme-bridge.ts`) via `themeToTreeStyles` + host `--trees-*` vars, and the git lane (letter, tint, folder aggregation) is the library's, not ours.
+  - **Deviation from the round-0 spec:** folders no longer get material closed/open icons. @pierre/trees owns the leading icon slot for directories (chevron) and exposes no per-folder icon mapping, so the theme's folder art was dropped from the generated subset.
 
 ## S4 — Terminal region & session surfaces
 

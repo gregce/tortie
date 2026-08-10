@@ -6,9 +6,10 @@
  * and memoizes. Everything else in the editor stream goes through this
  * module so there is exactly one loading story.
  *
- * Model registry: one working ITextModel per open file (shared between the
- * plain editor and the diff editor's modified side) and one HEAD model per
- * file in diff mode (original side, updated in place when HEAD moves).
+ * Model registry: one working ITextModel per open file — the File-mode
+ * buffer, and the live "new" side PierreDiff subscribes to in Diff mode.
+ * (HEAD contents are plain strings on the tab since Phase 11; the Monaco
+ * HEAD-model registry went with the Monaco diff editor.)
  */
 
 import type { Monaco } from './monaco-impl';
@@ -27,11 +28,6 @@ export function loadMonaco(): Promise<Monaco> {
   return loadPromise;
 }
 
-/** True once Monaco has finished loading (render-safe, no await). */
-export function isMonacoLoaded(): boolean {
-  return loaded !== null;
-}
-
 let loaded: Monaco | null = null;
 export function rememberLoaded(m: Monaco): void {
   loaded = m;
@@ -45,12 +41,9 @@ export function getLoadedMonaco(): Monaco | null {
 // ---------------------------------------------------------------------------
 
 const workingModels = new Map<string, monacoNs.editor.ITextModel>();
-const headModels = new Map<string, monacoNs.editor.ITextModel>();
 
-function uriFor(m: Monaco, path: string, head: boolean): monacoNs.Uri {
-  // Distinct schemes keep the HEAD snapshot from colliding with the working
-  // copy (and out of the TS worker's project graph).
-  return m.Uri.from({ scheme: head ? 'gmux-head' : 'gmux', path });
+function uriFor(m: Monaco, path: string): monacoNs.Uri {
+  return m.Uri.from({ scheme: 'gmux', path });
 }
 
 /** Get-or-create the working model for a file. */
@@ -62,25 +55,8 @@ export function workingModel(
 ): monacoNs.editor.ITextModel {
   const existing = workingModels.get(path);
   if (existing !== undefined && !existing.isDisposed()) return existing;
-  const model = m.editor.createModel(contents, language, uriFor(m, path, false));
+  const model = m.editor.createModel(contents, language, uriFor(m, path));
   workingModels.set(path, model);
-  return model;
-}
-
-/** Get-or-create the HEAD (diff original) model for a file. */
-export function headModel(
-  m: Monaco,
-  path: string,
-  contents: string,
-  language: string
-): monacoNs.editor.ITextModel {
-  const existing = headModels.get(path);
-  if (existing !== undefined && !existing.isDisposed()) {
-    if (existing.getValue() !== contents) existing.setValue(contents);
-    return existing;
-  }
-  const model = m.editor.createModel(contents, language, uriFor(m, path, true));
-  headModels.set(path, model);
   return model;
 }
 
@@ -99,12 +75,10 @@ export function resetWorkingModel(path: string, contents: string): void {
   }
 }
 
-/** Dispose both models for a closed tab. */
+/** Dispose the working model for a closed tab. */
 export function disposeModels(path: string): void {
   workingModels.get(path)?.dispose();
   workingModels.delete(path);
-  headModels.get(path)?.dispose();
-  headModels.delete(path);
 }
 
 // ---------------------------------------------------------------------------
