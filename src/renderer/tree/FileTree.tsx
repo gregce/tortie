@@ -323,8 +323,13 @@ export function FileTree({
 
   // ----- gestures ----------------------------------------------------------
 
+  /**
+   * `keep` is VS Code's preview-tab distinction (Phase 12 item 5): a single
+   * click opens a PREVIEW tab that the next single click recycles, while a
+   * double-click or ↩ opens the file for keeps and the strip accumulates.
+   */
   const openRel = useCallback(
-    (rel: string): void => {
+    (rel: string, keep = false): void => {
       const kind = treeInput.kinds.get(rel);
       if (kind === 'other') return; // sockets/FIFOs/devices stay inert
       requestOpenFile({
@@ -333,7 +338,8 @@ export function FileTree({
         path: rootPath + '/' + rel,
         // Canonical bus mode: 'file' is the plain-open gesture.
         mode: openModeFor(gitState.byPath.get(rel)) === 'diff' ? 'diff' : 'file',
-        source: 'tree'
+        source: 'tree',
+        preview: !keep
       });
     },
     [rootPath, treeInput, gitState]
@@ -345,6 +351,14 @@ export function FileTree({
     (e: React.MouseEvent): void => {
       const row = rowFromEvent(e.nativeEvent);
       if (row !== null && row.type === 'file') openRel(row.rel);
+    },
+    [openRel]
+  );
+
+  const onDoubleClick = useCallback(
+    (e: React.MouseEvent): void => {
+      const row = rowFromEvent(e.nativeEvent);
+      if (row !== null && row.type === 'file') openRel(row.rel, true);
     },
     [openRel]
   );
@@ -361,7 +375,7 @@ export function FileTree({
       if (dir !== null) {
         dir.toggle();
       } else {
-        openRel(rel);
+        openRel(rel, true);
       }
     },
     [model, openRel]
@@ -434,6 +448,7 @@ export function FileTree({
           model={model}
           style={hostStyle}
           onClick={onClick}
+          onDoubleClick={onDoubleClick}
           onKeyDown={onKeyDown}
           onContextMenu={onContextMenu}
           aria-label="Project files"

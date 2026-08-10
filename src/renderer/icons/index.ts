@@ -5,11 +5,11 @@
  *
  * - AgentIcon  — vendor logo per agent kind; terminal glyph for shell/unknown.
  * - Codicon    — VS Code codicon glyphs for app chrome (activity bar, SCM…).
- *
- * The material-icon-theme file icons (file-icons.generated.ts) are NOT
- * re-exported here: since Phase 11 they have exactly one consumer, the
- * @pierre/trees sprite sheet built in src/renderer/tree/pierre-icons.ts,
- * which imports the generated maps directly.
+ * - FileIcon   — material-icon-theme glyph for a filename, in ordinary DOM
+ *                (editor tabs). The tree resolves the same maps through the
+ *                @pierre/trees sprite sheet because it renders in shadow DOM;
+ *                both go through the generated maps so one file never wears
+ *                two icons.
  *
  * Licenses: @vscode/codicons CC-BY-4.0 (© Microsoft — credit in About);
  * material-icon-theme MIT (© Philipp Kief); agent marks are the vendors'
@@ -21,3 +21,5 @@ export { AgentIcon } from './AgentIcon';
 export type { AgentIconProps } from './AgentIcon';
 export { Codicon } from './Codicon';
 export type { CodiconProps } from './Codicon';
+export { FileIcon, fileIconIdFor } from './FileIcon';
+export type { FileIconProps } from './FileIcon';

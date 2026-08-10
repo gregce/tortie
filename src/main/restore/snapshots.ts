@@ -41,24 +41,10 @@ export function existingSnapshotPath(sessionId: string): string | null {
   return existsSync(path) ? path : null;
 }
 
-/**
- * Resolve a session reference to its immutable `$-id` before capture.
- *
- * VERIFIED on tmux 3.6a: `capture-pane -t '=name'` fails with "can't find
- * pane" — the `=` exact-match prefix is honored in target-SESSION resolution
- * (has-session, kill-session) but NOT in target-PANE resolution. So bare
- * names must be resolved to `$-ids` here. (Latent sibling bug noted for the
- * tmux stream: tmux.capturePane('=name') has the same problem.)
- */
-async function resolvePaneTarget(target: string): Promise<string> {
-  if (target.startsWith('$')) return target;
-  const live = await tmux.listSessions({ includeControl: true });
-  const found = live.find((s) => s.tmuxName === target);
-  if (found === undefined) {
-    throw new Error(`no live tmux session named "${target}"`);
-  }
-  return found.sessionId;
-}
+// Pane-target resolution (`=name` is not a valid target-PANE on tmux 3.6a)
+// now lives in src/main/tmux/sessions.ts — promoted there when terminal
+// capture became its second caller (standing guardrail 3: one copy).
+const resolvePaneTarget = tmux.resolvePaneTarget;
 
 /**
  * Capture one live session's scrollback into its snapshot file.

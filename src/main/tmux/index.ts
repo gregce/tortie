@@ -57,8 +57,11 @@ export {
   killSession,
   hasSession,
   capturePane,
+  clearPaneHistory,
+  resolvePaneTarget,
   setSessionOption,
   getSessionOption,
+  type CapturePaneOptions,
   type TmuxSessionInfo,
   type CreateTmuxSessionInput,
   type ListSessionsOptions

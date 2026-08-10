@@ -13,30 +13,13 @@
  */
 
 import { shell } from 'electron';
-import type { IpcMain, IpcMainInvokeEvent } from 'electron';
+import type { IpcMain } from 'electron';
 import { open as openFile, readdir, writeFile } from 'node:fs/promises';
 import { basename, resolve as resolvePath } from 'node:path';
-import type {
-  ExtendedInvokeChannel,
-  ExtendedInvokeReq,
-  ExtendedInvokeRes
-} from '@shared/ipc';
 import type { FsDirEntry, ReadFileResult } from '@shared/types';
 import { gmuxError } from '../tmux/errors';
+import { handle } from '../typed-ipc';
 
-/** Typed ipcMain.handle wrapper over the combined (frozen + appended) map. */
-function handle<C extends ExtendedInvokeChannel>(
-  ipc: IpcMain,
-  channel: C,
-  fn: (
-    event: IpcMainInvokeEvent,
-    ...args: ExtendedInvokeReq<C>
-  ) => Promise<ExtendedInvokeRes<C>> | ExtendedInvokeRes<C>
-): void {
-  ipc.handle(channel, (event, ...args) =>
-    fn(event, ...(args as ExtendedInvokeReq<C>))
-  );
-}
 
 function entryKind(d: {
   isDirectory(): boolean;

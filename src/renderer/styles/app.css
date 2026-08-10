@@ -1020,6 +1020,12 @@
   margin-top: var(--space-7);
 }
 
+/* Three-answer confirms (Save / Don't Save / Cancel): the discard answer sits
+   apart from the pair on the right so it can't be hit on the way to Cancel. */
+.modal-action-alt {
+  margin-right: auto;
+}
+
 .modal-error {
   margin-top: var(--space-5);
   font-size: var(--text-sm);

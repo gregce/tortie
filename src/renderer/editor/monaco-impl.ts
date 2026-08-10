@@ -116,7 +116,21 @@ monaco.editor.defineTheme(GMUX_MONACO_THEME, {
     'scrollbarSlider.hoverBackground': '#2A2E36CC',
     'scrollbarSlider.activeBackground': '#3A3E48CC',
     'scrollbar.shadow': '#00000000',
-    'editorOverviewRuler.border': '#00000000'
+    'editorOverviewRuler.border': '#00000000',
+    // Minimap (Phase 12 item 6). Monaco derives the slider at roughly α.30,
+    // which is invisible on this ground — these pin it to the token ramp.
+    'minimap.background': '#131417', // --bg-canvas, one material
+    'minimap.selectionHighlight': '#4D9DE84D',
+    'minimap.findMatchHighlight': '#F5B84A66', // --warning, as the find ruler
+    'minimap.errorHighlight': '#E5655E99', // --error
+    'minimap.warningHighlight': '#F5B84A99', // --warning
+    // One step up the neutral ramp from the real scrollbar's slider: over a
+    // dense picture of text, the scrollbar's own value derives to invisible.
+    'minimapSlider.background': '#2A2E36CC',
+    'minimapSlider.hoverBackground': '#3A3E48CC',
+    'minimapSlider.activeBackground': '#3A3E48EE',
+    // Alpha only: how solid the miniature text renders.
+    'minimap.foregroundOpacity': '#000000CC'
     // (Diff colors left with the Monaco diff editor in Phase 11 — diff
     // theming lives in src/renderer/pierre/theme-bridge.ts now.)
   }

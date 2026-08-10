@@ -8,6 +8,13 @@
    Branch header extras (the .branch-header shell lives in app.css)
 --------------------------------------------------------------------------- */
 
+/* The band sizes its own contents against the sidebar width (the sidebar is
+   user-resizable), so the Publish label can stand down before the branch
+   name has to. Declared here beside the controls that query it. */
+.branch-header {
+  container-type: inline-size;
+}
+
 .branch-copy {
   font-family: var(--font-mono);
   font-size: var(--text-sm);
@@ -94,6 +101,74 @@
 
 .scm-chip-merge {
   color: var(--git-conflict);
+}
+
+/* Sync control (Phase 12 item 3) — the ahead/behind readout IS the button,
+   so the number you read is the thing you click. [h:24] to match the branch
+   button beside it; the counter keeps the spec's mono/tabular treatment. */
+.scm-sync-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 24px;
+  padding: 0 var(--space-3);
+  border-radius: var(--r-sm);
+  color: var(--text-secondary);
+  flex: 0 0 auto;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+.scm-sync-btn:hover:not(:disabled) {
+  background: var(--bg-raised);
+  color: var(--text-primary);
+}
+
+/* Nothing to pull or push: present (so the action stays findable) but quiet
+   until hovered — the band's color budget belongs to state, not to chrome. */
+.scm-sync-btn.quiet {
+  color: var(--text-muted);
+}
+
+.scm-sync-btn:disabled {
+  color: var(--text-disabled);
+}
+
+.scm-sync-btn .branch-arrows {
+  color: inherit;
+}
+
+/* Publish: the one case where the control carries a label — a branch that
+   exists nowhere else needs the verb spelled out. */
+.scm-sync-btn.publish {
+  color: var(--accent-text);
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.scm-sync-btn.publish:hover:not(:disabled) {
+  background: var(--accent-wash);
+  color: var(--accent-text);
+}
+
+/* The label is all-or-nothing: a truncated verb ("Pu…") is worse than the
+   glyph alone, and the ⋯ menu always carries the spelled-out
+   "Publish Branch…". It appears only once the band is wide enough to hold it
+   beside a full branch name — a widened sidebar, never at the cost of the
+   branch identity. */
+.scm-sync-label {
+  display: none;
+  flex: 0 0 auto;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  white-space: nowrap;
+}
+
+@container (min-width: 340px) {
+  .scm-sync-label {
+    display: inline;
+  }
 }
 
 /* ---------------------------------------------------------------------------
@@ -1012,6 +1087,36 @@
 .scm-branch-accessory.busy {
   opacity: 1;
   pointer-events: auto;
+}
+
+/* Remote group row = the remotes list (Phase 12 item 3): name · tracking
+   chip · URL, which truncates first because the name is the identity. */
+.scm-remote-url {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.scm-chip-tracking {
+  color: var(--accent-text);
+  background: var(--accent-wash);
+}
+
+/* A configured remote with nothing fetched yet — a state, not an error. */
+.scm-brow-empty {
+  display: flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 var(--space-4) 0 var(--space-7);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-muted);
 }
 
 /* Last-fetched relative time beside the fetch accessory. */

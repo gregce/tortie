@@ -51,6 +51,8 @@ import {
   useRenameDraft
 } from './session-actions';
 import { AgentIcon, Codicon } from '../icons';
+// §6.2 lives with the other full-window empty states (./EmptyStates).
+import { NoSessions } from './EmptyStates';
 import { SplitDropOverlay, SplitSurfaceView } from './split/SplitSurface';
 import { sessionGestureProps, startSurfaceDrag } from './split/surface-dnd';
 import { groupMenuItems, groupTooltip } from './split/split-menu';
@@ -651,51 +653,6 @@ function RestoreAllBar({
 }
 
 // ---------------------------------------------------------------------------
-// §6.2 — project with no sessions
-// ---------------------------------------------------------------------------
-
-function NoSessions(): React.JSX.Element {
-  const quickCreate = useApp((s) => s.quickCreate);
-  const avail = useAgentAvailability();
-  return (
-    <div className="empty">
-      <div className="empty-inner">
-        <h2 className="empty-title">No sessions yet</h2>
-        <p className="empty-body">
-          A session is a named terminal that survives quits, crashes, and
-          restarts.
-        </p>
-        <div className="empty-actions">
-          {QUICK_AGENTS.map(({ agent, label }) => {
-            const available = isAgentAvailable(avail, agent);
-            return (
-              <div key={agent} className="quick-create-item">
-                <button
-                  type="button"
-                  className="btn btn-secondary quick-create"
-                  disabled={!available}
-                  title={available ? undefined : `${agent} is not installed`}
-                  onClick={() => void quickCreate(agent)}
-                >
-                  <AgentIcon agent={agent} size={16} />
-                  {label}
-                </button>
-                {!available ? (
-                  <span className="quick-create-note">not installed</span>
-                ) : null}
-              </div>
-            );
-          })}
-        </div>
-        <div className="empty-hint">
-          or press <span className="key">⌘T</span> to customize
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Terminal region
 // ---------------------------------------------------------------------------
 
@@ -870,7 +827,9 @@ export function TerminalRegion(): React.JSX.Element {
         // offer the real §2.4 Step 3 restore: saved scrollback replayed,
         // resume command armed — you press Enter.
         <div className={`empty${failedExit !== null ? ' empty-failed' : ''}`}>
-          <div className="empty-inner">
+          {/* onb-inner: one rhythm across every full-window state (§6.2/§6.6
+              share the type scale and action spacing — app/empty-states.css). */}
+          <div className="empty-inner onb-inner">
             <h2 className="empty-title">
               {commandNotFound !== null
                 ? `${commandNotFound} could not be found`

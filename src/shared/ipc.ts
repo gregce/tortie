@@ -804,7 +804,10 @@ export type MenuActionWithHotkeys = AnyMenuActionId | AgentLaunchActionId;
  */
 export type GmuxInvokeChannelMap = RegistryInvokeChannelMap &
   SettingsInvokeChannelMap &
-  GitBranchesInvokeChannelMap;
+  GitBranchesInvokeChannelMap &
+  GitSyncInvokeChannelMap &
+  DropInvokeChannelMap &
+  TerminalCaptureInvokeChannelMap;
 
 export type GmuxInvokeChannel = keyof GmuxInvokeChannelMap;
 
@@ -885,3 +888,255 @@ export type BranchesInvokeReq<C extends BranchesInvokeChannel> =
   BranchesInvokeChannelMap[C]['req'];
 export type BranchesInvokeRes<C extends BranchesInvokeChannel> =
   BranchesInvokeChannelMap[C]['res'];
+
+// ---------------------------------------------------------------------------
+// APPENDED by the Phase-12 git stream — new channels/types only, nothing
+// above was modified. Two capabilities:
+//
+//   git:commitFileDiff — BACKLOG 12 item 4: the `<sha>^ → <sha>` content pair
+//     for one file of one commit (read-only, never broadcasts).
+//   git:remotes / git:push / git:pull / git:sync — BACKLOG 12 item 3.
+//
+// Main handlers are registered by registerGitDepthIpc (src/main/git/
+// depth-ipc.ts — the existing git registration point), sharing the per-repo
+// GitService + watcher registries. No new superset alias and no new preload
+// wrapper generation (standing guardrail 1): this map is intersected straight
+// into GmuxInvokeChannelMap above (declarations hoist, same forward reference
+// the branch-management stream already uses), so the ONE typed invoke in
+// src/preload/index.ts spans it, and the renderer feature-detects each method
+// (`typeof window.gmux.git.commitFileDiff === 'function'`).
+// ---------------------------------------------------------------------------
+
+import type {
+  GitCommitFileDiff,
+  GitCommitFileDiffInput,
+  GitPullInput,
+  GitPullResult,
+  GitPushInput,
+  GitPushResult,
+  GitRemotesResult,
+  GitSyncInput,
+  GitSyncResult
+} from './types';
+
+/** New invoke channels appended by the Phase-12 git stream. */
+export interface GitSyncInvokeChannelMap {
+  /**
+   * Parent→commit content pair for ONE file of ONE commit. A null side means
+   * the file does not exist there (added / deleted); the caller renders that
+   * as an all-green / all-red diff rather than an error.
+   */
+  'git:commitFileDiff': {
+    req: [input: GitCommitFileDiffInput];
+    res: GitCommitFileDiff;
+  };
+  /** Configured remotes (name + fetch/push URL) + the tracking context. */
+  'git:remotes': { req: [repoPath: string]; res: GitRemotesResult };
+  /**
+   * `git push` (optionally `-u <remote> <branch>` to publish). A branch with
+   * no upstream resolves (not rejects!) with `{status:'no-upstream'}` so the
+   * UI offers Publish instead of inventing a remote.
+   */
+  'git:push': { req: [input: GitPushInput]; res: GitPushResult };
+  /** `git pull` honouring the user's pull.rebase; conflicts are typed. */
+  'git:pull': { req: [input: GitPullInput]; res: GitPullResult };
+  /** Sync = pull, then push (VS Code's Sync Changes). */
+  'git:sync': { req: [input: GitSyncInput]; res: GitSyncResult };
+}
+
+/**
+ * OPTIONAL extensions to GmuxApi['git'], feature-detected by the renderer
+ * (`typeof window.gmux.git.sync === 'function'`, etc.).
+ */
+export interface GmuxGitSyncExtras {
+  commitFileDiff?(input: GitCommitFileDiffInput): Promise<GitCommitFileDiff>;
+  remotes?(repoPath: string): Promise<GitRemotesResult>;
+  push?(input: GitPushInput): Promise<GitPushResult>;
+  pull?(input: GitPullInput): Promise<GitPullResult>;
+  sync?(input: GitSyncInput): Promise<GitSyncResult>;
+}
+
+// ---------------------------------------------------------------------------
+// APPENDED by the image-drop stream (Phase 12 item 8, research 16) — new
+// channels/types only. The one existing line touched above is the
+// GmuxInvokeChannelMap intersection, exactly as its own comment prescribes
+// ("future streams intersect their appended map here").
+//
+// drop:strategies — the per-agent file-reference table, read straight off the
+//   main-process agent registry (the table exists ONCE, guardrail 3). Static
+//   per build; the renderer primes it at mount and caches it.
+// drop:prepare    — stat + classify absolute paths the renderer resolved with
+//   webUtils. Directories are branched HERE, not guessed in the renderer, and
+//   a filename carrying a newline is copied to a safe name in the drop store.
+// drop:persist    — write bytes that have no path of their own (⌘V of raw
+//   image data, browser drags) to <userData>/gmux/dropped-images and hand
+//   back the absolute path.
+//
+// PRELOAD (already wired in src/preload/index.ts, guardrail 1 — appended to
+// the single typed bridge, no new wrapper generation):
+//   pathForFile: (file) => webUtils.getPathForFile(file)   // '' when pathless
+//   drop: { strategies, prepare, persist }
+// `webUtils` is renderer-side only (it does not exist in main), so
+// pathForFile MUST live in the preload. Renderers feature-detect
+// `typeof window.gmux.pathForFile === 'function'`.
+// ---------------------------------------------------------------------------
+
+import type {
+  DropPersistInput,
+  DropPersistResult,
+  DropPrepareResult,
+  ImageDropTable
+} from './types';
+
+export interface DropInvokeChannelMap {
+  /** Per-agent image/file drop strategies from the agent registry. */
+  'drop:strategies': { req: []; res: ImageDropTable };
+  /** Classify dropped absolute paths (dir vs file, image sniff, safe copy). */
+  'drop:prepare': { req: [paths: string[]]; res: DropPrepareResult };
+  /** Persist pathless bytes to the drop store; resolves the absolute path. */
+  'drop:persist': { req: [input: DropPersistInput]; res: DropPersistResult };
+}
+
+/**
+ * OPTIONAL top-level extras on window.gmux, feature-detected by the renderer
+ * (`typeof window.gmux.pathForFile === 'function'`).
+ */
+export interface GmuxDropExtras {
+  /**
+   * Absolute path of a dropped/pasted File via Electron's webUtils; '' when
+   * the File has no filesystem path (browser drag, synthesized File) or the
+   * lookup throws. NEVER copy, wrap, or re-`new File()` a dropped File before
+   * calling this — that is what breaks path resolution (research 16 §4.2).
+   */
+  pathForFile?(file: File): string;
+  drop?: {
+    strategies(): Promise<ImageDropTable>;
+    prepare(paths: string[]): Promise<DropPrepareResult>;
+    persist(input: DropPersistInput): Promise<DropPersistResult>;
+  };
+}
+
+// ---------------------------------------------------------------------------
+// APPENDED by the terminal stream (Phase 12 items 1 + 2) — new channels/types
+// only, nothing above was modified. Powers the terminal context menu's copy
+// surface and CleanShot-style capture (docs/research/17-terminal-capture.md).
+//
+// Division of labour: the RENDERER owns pixels and markup (it is the only
+// side that can measure xterm's real cell box and serialize a buffer); MAIN
+// owns the clipboard, the save dialog and tmux. Bytes cross as `Uint8Array`,
+// never as a data URL — a 2,000-line capture measured 47 MB of PNG and 79 MB
+// as a data-URL string (research 17 §5.6).
+//
+// Main handlers: registerCaptureIpc() (src/main/capture/ipc.ts).
+// INTEGRATOR wiring (preload; guardrail 1 — fold into the ONE typed bridge,
+// no new wrapper generation):
+//   capture: {
+//     viewport: (input) => invoke('capture:viewport', input),
+//     image:    (input) => invoke('capture:image', input),
+//     saveLast: ()      => invoke('capture:saveLast'),
+//     pane:     (input) => invoke('capture:pane', input),
+//     writeRich:(input) => invoke('clipboard:writeRich', input),
+//     clearHistory: (tmuxName) => invoke('terminal:clearHistory', tmuxName)
+//   }
+// Renderer feature-detects `window.gmux.capture` and hides the capture items
+// when it is absent (older preload / non-Electron test environments).
+// ---------------------------------------------------------------------------
+
+/** A CSS-pixel rectangle in window/page coordinates (what capturePage takes). */
+export interface CaptureRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface CaptureViewportInput {
+  /** Rect to grab — measured from the live `.xterm-screen` bounding box. */
+  rect: CaptureRect;
+  /** Basename without extension, proposed by a later Save… */
+  suggestedName: string;
+}
+
+export interface CaptureImageInput {
+  /** Already-rasterized PNG bytes from the renderer. */
+  png: Uint8Array;
+  suggestedName: string;
+}
+
+/** What landed on the clipboard (CSS-pixel size; the PNG itself is @2x). */
+export interface CaptureResult {
+  width: number;
+  height: number;
+  bytes: number;
+}
+
+export interface CaptureSaveResult {
+  /** Absolute path written, or null when the user cancelled the dialog. */
+  path: string | null;
+}
+
+export interface CapturePaneInput {
+  /** tmux-side session name (`Session.tmuxName`); main resolves it to a $-id. */
+  tmuxName: string;
+  /**
+   * Lines of HISTORY to take from above the visible screen. The capture always
+   * runs to the bottom of the screen (no `-E`), so "last N lines" is
+   * `Math.max(0, N - term.rows)` (research 17 §2.1: `-E -1` would *exclude*
+   * the visible screen).
+   */
+  historyLines: number;
+}
+
+export interface CapturePaneResult {
+  /** Raw pane text with SGR escapes intact (`capture-pane -e`, never `-J`). */
+  ansi: string;
+}
+
+export interface ClipboardRichInput {
+  /** Plain-text flavor (what a terminal or editor pastes). */
+  text: string;
+  /**
+   * HTML flavor (what Notion/Slack/Word pastes). Empty string = text only —
+   * plain Copy goes through this same channel rather than a second one, and
+   * an empty flavor must never be written (it would blank the rich paste).
+   */
+  html: string;
+}
+
+/** New invoke channels appended by the terminal capture stream. */
+export interface TerminalCaptureInvokeChannelMap {
+  /** Grab a rect of the live window; writes a PNG to the clipboard. */
+  'capture:viewport': { req: [input: CaptureViewportInput]; res: CaptureResult };
+  /** Take renderer-rasterized PNG bytes; writes them to the clipboard. */
+  'capture:image': { req: [input: CaptureImageInput]; res: CaptureResult };
+  /** Save the most recent capture to disk (Save… action on the toast). */
+  'capture:saveLast': { req: []; res: CaptureSaveResult };
+  /** `tmux capture-pane -e` for scrollback beyond the visible screen. */
+  'capture:pane': { req: [input: CapturePaneInput]; res: CapturePaneResult };
+  /** Write text + HTML flavors together (Copy as HTML). */
+  'clipboard:writeRich': { req: [input: ClipboardRichInput]; res: void };
+  /**
+   * Run the browser paste command in the calling window — the same path the
+   * Edit menu's `role:'paste'` takes, so xterm's own paste handler applies
+   * bracketed paste instead of us re-implementing it.
+   */
+  'clipboard:paste': { req: []; res: void };
+  /** Drop a session's server-side history so Clear means cleared. */
+  'terminal:clearHistory': { req: [tmuxName: string]; res: void };
+}
+
+/**
+ * OPTIONAL top-level extra on window.gmux, feature-detected by the terminal
+ * renderer (`window.gmux.capture !== undefined`).
+ */
+export interface GmuxCaptureExtras {
+  capture?: {
+    viewport(input: CaptureViewportInput): Promise<CaptureResult>;
+    image(input: CaptureImageInput): Promise<CaptureResult>;
+    saveLast(): Promise<CaptureSaveResult>;
+    pane(input: CapturePaneInput): Promise<CapturePaneResult>;
+    writeRich(input: ClipboardRichInput): Promise<void>;
+    paste(): Promise<void>;
+    clearHistory(tmuxName: string): Promise<void>;
+  };
+}

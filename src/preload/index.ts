@@ -11,7 +11,7 @@
  * methods here; they never add another wrapper generation.
  */
 
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import type { IpcRendererEvent } from 'electron';
 import type {
   EventChannel,
@@ -19,10 +19,13 @@ import type {
   GmuxAgentExtras,
   GmuxAgentRegistryExtras,
   GmuxApi,
+  GmuxCaptureExtras,
+  GmuxDropExtras,
   GmuxFsExtras,
   GmuxGitBranchExtras,
   GmuxGitDepthExtras,
   GmuxGitExtras,
+  GmuxGitSyncExtras,
   GmuxInvokeChannel,
   GmuxInvokeReq,
   GmuxInvokeRes,
@@ -109,13 +112,15 @@ const term: GmuxApi['term'] & GmuxTermStreamExtras = {
  * git surface = frozen GmuxApi['git'] + the appended optional git:init
  * (the SCM UI feature-detects it for the §6.3 [Initialize repository] state)
  * + the git-depth extras (branch switching, commit context menu, hover card)
- * + the branch-management extras (remotes, fetch, tracking checkout, delete),
- * all feature-detected by the renderer.
+ * + the branch-management extras (remotes, fetch, tracking checkout, delete)
+ * + the Phase-12 sync extras (historical commit diffs, remotes list, push /
+ * pull / sync), all feature-detected by the renderer.
  */
 const git: GmuxApi['git'] &
   GmuxGitExtras &
   GmuxGitDepthExtras &
-  GmuxGitBranchExtras = {
+  GmuxGitBranchExtras &
+  GmuxGitSyncExtras = {
   status: (repoPath) => invoke('git:status', repoPath),
   stage: (input) => invoke('git:stage', input),
   unstage: (input) => invoke('git:unstage', input),
@@ -136,7 +141,12 @@ const git: GmuxApi['git'] &
   remoteBranches: (repoPath) => invoke('git:remoteBranches', repoPath),
   fetch: (repoPath) => invoke('git:fetch', repoPath),
   checkoutTracking: (input) => invoke('git:checkoutTracking', input),
-  deleteBranch: (input) => invoke('git:deleteBranch', input)
+  deleteBranch: (input) => invoke('git:deleteBranch', input),
+  commitFileDiff: (input) => invoke('git:commitFileDiff', input),
+  remotes: (repoPath) => invoke('git:remotes', repoPath),
+  push: (input) => invoke('git:push', input),
+  pull: (input) => invoke('git:pull', input),
+  sync: (input) => invoke('git:sync', input)
 };
 
 /**
@@ -171,6 +181,36 @@ const sessions: GmuxApi['sessions'] &
   restore: (sessionId) => invoke('sessions:restore', sessionId)
 };
 
+/**
+ * drop surface (Phase 12 item 8) — file/image drop + ⌘V.
+ *
+ * `pathForFile` MUST live here: `webUtils` is a renderer-side module and does
+ * not exist in main. It returns '' (never throws) for a File with no
+ * filesystem path — a browser drag or a synthesized File — which is exactly
+ * the discriminator the renderer's acquisition ladder branches on.
+ * Never copy/wrap/re-`new File()` a dropped File before calling this.
+ */
+const drop: NonNullable<GmuxDropExtras['drop']> = {
+  strategies: () => invoke('drop:strategies'),
+  prepare: (paths) => invoke('drop:prepare', paths),
+  persist: (input) => invoke('drop:persist', input)
+};
+
+/**
+ * capture surface (Phase 12 items 1 + 2) — terminal screenshots, the rich
+ * clipboard behind Copy as HTML, and the server-side half of Clear. Pixels
+ * cross as `Uint8Array`; a data URL of a long capture measured 79 MB.
+ */
+const capture: NonNullable<GmuxCaptureExtras['capture']> = {
+  viewport: (input) => invoke('capture:viewport', input),
+  image: (input) => invoke('capture:image', input),
+  saveLast: () => invoke('capture:saveLast'),
+  pane: (input) => invoke('capture:pane', input),
+  writeRich: (input) => invoke('clipboard:writeRich', input),
+  paste: () => invoke('clipboard:paste'),
+  clearHistory: (tmuxName) => invoke('terminal:clearHistory', tmuxName)
+};
+
 const api: GmuxApi &
   GmuxLoginItemExtras &
   GmuxMenuExtras &
@@ -178,7 +218,9 @@ const api: GmuxApi &
   GmuxAgentRegistryExtras &
   GmuxPopupMenuExtras &
   GmuxQuitExtras &
-  GmuxSettingsExtras = {
+  GmuxSettingsExtras &
+  GmuxDropExtras &
+  GmuxCaptureExtras = {
   sessions,
   projects: {
     add: (path) => invoke('projects:add', path),
@@ -189,6 +231,15 @@ const api: GmuxApi &
   git,
   fs,
   term,
+  drop,
+  capture,
+  pathForFile: (file: File): string => {
+    try {
+      return webUtils.getPathForFile(file);
+    } catch {
+      return '';
+    }
+  },
   meta: {
     platform: process.platform,
     versions: {

@@ -1,0 +1,48 @@
+/* ---------------------------------------------------------------------------
+   Attach-drop overlay (Phase 12 item 8)
+
+   Sibling of .split-drop-zone: same material, different geometry and
+   different promise. The split zone lights the armed HALF of a leaf; this one
+   covers the WHOLE leaf, because a dropped file goes to the session, not to a
+   position inside it.
+
+   No transition, deliberately. DESIGN.md §5: never fade over a live terminal.
+   Snapping on and off is also what makes prefers-reduced-motion a non-issue —
+   there is no motion to reduce.
+--------------------------------------------------------------------------- */
+
+.attach-drop-zone {
+  position: fixed;
+  background: var(--drop-wash);
+  border: 1px solid var(--accent);
+  box-shadow: inset 0 0 24px var(--accent-wash);
+  /* Load-bearing: elementFromPoint must keep seeing the leaf, not the wash. */
+  pointer-events: none;
+  z-index: var(--z-tooltip);
+  display: grid;
+  place-items: center;
+}
+
+/* A pane whose session is not running still lights, so the drop is not a
+   silent no-op — but in muted grey, promising nothing. */
+.attach-drop-zone[data-promise='blocked'] {
+  background: var(--bg-scrim);
+  border-color: var(--border-strong);
+  box-shadow: none;
+}
+
+.attach-drop-label {
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  color: var(--accent-text);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--space-3) var(--space-5);
+  box-shadow: var(--shadow-2);
+}
+
+.attach-drop-zone[data-promise='blocked'] .attach-drop-label {
+  color: var(--text-secondary);
+}

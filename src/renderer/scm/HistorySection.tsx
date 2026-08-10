@@ -14,9 +14,13 @@
  * badges — noted for the next git-depth pass.
  *
  * "Open Changes" / file clicks emit the canonical open-file bus with
- * `source: 'history'` — the editor currently renders its diff-vs-HEAD (the
- * feasible minimum today); that source value is the sanctioned seam for a
- * true parent→commit base once a ref-content channel exists.
+ * `source: 'history'` AND the commit block (sha / shortSha / status /
+ * origPath) — Phase 12 item 4. Carrying the SHA is what makes the editor
+ * render `<sha>^ → <sha>` (DESIGN-SPEC S3A) instead of HEAD-vs-worktree;
+ * before it, every historical file showed the wrong diff and deleted files
+ * refused to open at all. Deleted files now open (all red, right side
+ * empty), renames read `origPath → path`, and "Open Changes" emits ONE
+ * request per changed file so a multi-file commit opens as a set.
  */
 
 import React, {
@@ -326,33 +330,45 @@ export function HistorySection({
     [depth, repoPath]
   );
 
+  /**
+   * Open one file OF ONE COMMIT. `entry` is not optional decoration — it
+   * carries the SHA that decides which two blobs get diffed, so every call
+   * site must have the commit in hand.
+   */
   const openCommitFile = useCallback(
-    (file: GitCommitFileChange): void => {
-      const { base } = splitPath(file.path);
-      if (file.status === 'D') {
-        toast('info', `'${base}' was deleted in this commit`);
-        return;
-      }
+    (file: GitCommitFileChange, entry: GitLogEntry, preview = true): void => {
       requestOpenFile({
         repoPath,
         relPath: file.path,
         path: `${repoPath}/${file.path}`,
         mode: 'diff',
-        source: 'history'
+        source: 'history',
+        preview,
+        commit: {
+          sha: entry.hash,
+          shortSha: shortSha(entry.hash),
+          status: file.status,
+          ...(file.origPath !== undefined ? { origPath: file.origPath } : {}),
+          subject: entry.subject
+        }
       });
     },
-    [repoPath, toast]
+    [repoPath]
   );
 
+  /** Open Changes = the WHOLE commit: one request per changed file, each
+   *  pinned (not preview) so they accumulate as tabs instead of replacing
+   *  one another. */
   const openChanges = useCallback(
     (entry: GitLogEntry): void => {
       setExpanded((prev) => new Set(prev).add(entry.hash));
       void depth.detail(repoPath, entry.hash).then((detail) => {
-        const first = detail?.files[0];
-        if (first !== undefined) openCommitFile(first);
-        else if (detail !== null) {
+        if (detail === null) return;
+        if (detail.files.length === 0) {
           toast('info', 'This commit changed no files');
+          return;
         }
+        for (const file of detail.files) openCommitFile(file, entry, false);
       });
     },
     [depth, repoPath, openCommitFile, toast]
@@ -523,7 +539,11 @@ export function HistorySection({
       else if (current.kind === 'file') {
         const detail = details[detailKey(repoPath, current.sha)];
         const file = detail?.files[current.index];
-        if (file !== undefined) openCommitFile(file);
+        const entry = entryBySha.get(current.sha);
+        // ↩ is an explicit activation (VS Code pins on it), so preview:false.
+        if (file !== undefined && entry !== undefined) {
+          openCommitFile(file, entry, false);
+        }
       } else void depth.loadMore(repoPath);
     } else if (e.key === 'ArrowRight' && current.kind === 'commit') {
       e.preventDefault();
@@ -643,7 +663,11 @@ export function HistorySection({
                       onClick={(e) => {
                         e.stopPropagation();
                         setCursor(fid);
-                        openCommitFile(file);
+                        openCommitFile(file, entry);
+                      }}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        openCommitFile(file, entry, false);
                       }}
                     >
                       <span

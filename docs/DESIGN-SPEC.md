@@ -142,7 +142,7 @@ Cherry Pick
 Copy Commit ID
 Copy Commit Message
 ```
-Behaviors: Open Changes = expand the row + open the first file's diff. Open on GitHub = `https://github.com/<owner>/<repo>/commit/<sha>` in the browser (parse any remote whose URL host is github.com; prefer `origin`). Checkout (Detached) = `git checkout <sha>` (failure → §6.11 toast; success → branch button enters detached state). Create Branch… = mini-modal, caption "from a1b2c3d", runs `git branch <name> <sha>` + checkout. Create Tag… = mini-modal with name + optional message → `git tag`. Cherry Pick = `git cherry-pick <sha>` (conflict → sticky toast + Merge group appears). Copy Commit ID = full SHA, toast "Commit ID copied". Copy Commit Message = full message, toast "Commit message copied".
+Behaviors: Open Changes = expand the row + open **every** file the commit touched, each as a kept (non-preview) tab in commit order — round 2 made tabs accumulate (S5A), so "open the changes" can finally mean the whole changeset the way VS Code's multi-file diff does. A commit that changed nothing says so in a toast rather than opening an empty editor. Open on GitHub = `https://github.com/<owner>/<repo>/commit/<sha>` in the browser (parse any remote whose URL host is github.com; prefer `origin`). Checkout (Detached) = `git checkout <sha>` (failure → §6.11 toast; success → branch button enters detached state). Create Branch… = mini-modal, caption "from a1b2c3d", runs `git branch <name> <sha>` + checkout. Create Tag… = mini-modal with name + optional message → `git tag`. Cherry Pick = `git cherry-pick <sha>` (conflict → sticky toast + Merge group appears). Copy Commit ID = full SHA, toast "Commit ID copied". Copy Commit Message = full message, toast "Commit message copied".
 
 **Mini-modal (Create branch / Create tag):** w:360, same chrome as S6 (r `--r-lg`, `--shadow-3`, scrim, 20vh); one mono-12 input (+ optional message input for tags), caption 11px `--text-muted` when created from a commit; inline 12px `--error` validation; [Cancel] [Create]; ↩ creates, Esc cancels.
 
@@ -193,6 +193,16 @@ Behaviors: Open Changes = expand the row + open the first file's diff. Open on G
 - **Current row**: name weight 500, `check` in `--accent`; click is inert. **Local row click (or ↩)** → `git checkout <name>`: the row's icon swaps to a 12px spinner; failure (dirty tree etc.) → §6.11 sticky toast, nothing changes. **Remote row click (or ↩)** → if a local branch with the same short name exists, checkout that; else `git checkout -b <short> --track <remote>/<short>`; same busy/failure treatment.
 - After any checkout: branch button, ahead/behind, groups, and HISTORY refresh together; detached HEAD renders on the branch button (round-1 spec), never as a ✓ row.
 - Hover `--bg-raised`; ↑↓ ↩ keyboard like every list. Context menus (native): local row — Checkout · Copy branch name; remote row — Checkout as local branch · Copy branch name. (Delete/rename: deliberately out of Phase 10.)
+
+### S3C — Push / pull / remotes (round 2, BACKLOG item 3)
+
+The 36px view header gains exactly **two** controls, because a band that grows a verb per feature stops being a band.
+
+- **The ahead/behind readout became the button.** `[⟳ ↑2 ↓1]` — one click = Sync (pull, then push), the counter lives *inside* the control so the number you read is the thing you click, and at 0/0 it renders quiet (glyph only) rather than disappearing. Tooltip states the operation in full: "Pull 1 commit from origin/main, then push 2".
+- **No upstream → `[☁︎ Publish]`**, never a dead counter. One remote publishes to it; several ask which. Publishing sets the upstream, so the control becomes Sync afterwards. No remotes at all → no control (DESIGN.md §6.15: a state, not an error). Detached HEAD → no control.
+- **⋯ menu** (native, flat): Pull · Push · Sync — Fetch — Publish Branch… (only without an upstream) — then a disabled **Remotes** caption and one row per remote: `✓ origin — Copy URL` with the shortened URL in the hint column, ✓ marking the one the current branch tracks. That is item 3's "visible list of remotes" without a second panel.
+- **In flight:** the running verb's glyph becomes a 12px spinner, `aria-busy`, and every other network verb disables — one network operation per repo at a time.
+- **Failures are sticky toasts carrying git's own words** (auth prompt, unreachable host, rejected non-fast-forward) with the recovery named. Never a silent no-op; never a bare exit code.
 
 ### S3B — Explorer view
 
@@ -285,6 +295,40 @@ Sessions render on the terminal region in one of two user-selectable orientation
 
 **Durability.** The manifest/tmux layer never learns about splits. Restore rebuilds the persisted layout; each saved leaf shows its own Ready-to-restore state in place; Restore-all counts leaves, not surfaces.
 
+### S4B — Session context menu + capture (round 2, BACKLOG items 1 + 2)
+
+Right-click anywhere in a session → the native `ui:popupMenu`, flat like every gmux menu:
+
+```
+New Session…            ⌘T
+Split Session
+────────────
+Copy                    ⌘C      (needs a selection)
+Copy as HTML                    (needs a selection)
+Paste                   ⌘V
+Select All              ⌘A
+────────────
+Capture Screen
+Capture Selection               (needs a selection)
+Capture Last 250 Lines          ┐ off in a full-screen app —
+Capture Last 1,000 Lines        ┘ no history exists there
+────────────
+Clear                   ⌘K
+```
+
+- **gmux's nouns, not VS Code's.** "New Session… / Split Session", because PRODUCT.md's vocabulary is sessions and the app menu already ships "New Session… ⌘T"; two names for one thing would be the defect. Split inherits the agent you split from (VS Code's profile behavior).
+- **⌘C is decided in the renderer, not by a menu role.** With a selection it copies; with none it sends `` — SIGINT, the thing a terminal's ⌘C must never stop being. This works because the renderer sees the keydown *before* the app menu's accelerator and `preventDefault()` suppresses it (measured; the two code comments claiming the opposite were wrong and are corrected). ⌘V is deliberately *not* intercepted so xterm's own bracketed-paste handler runs.
+- **Everything unavailable is disabled with the reason, never hidden**: an ended or saved session leaves only New Session live; no selection greys Copy / Copy as HTML / Capture Selection; a full-screen app greys the two "Last N" items.
+- **Capture** puts a PNG on the clipboard and raises a **sticky** success toast whose action is **Save…** — sticky because that toast is the only place Save… lives, and the bytes are cached in main so saving never re-shoots a terminal that has scrolled since. Selection highlight is cleared for a pixel capture and restored afterwards (otherwise `capturePage` composites a blue wash over the image). Clear = `term.clear()` **and** tmux `clear-history`, so "capture the last 250 lines" agrees with what the user just cleared.
+- **Known fidelity deltas** (documented, not defects): scrollback captures re-render through xterm's public cell API, so Powerline/Nerd-Font private-use glyphs come out as tofu there (viewport capture is pixel-exact); curly and dotted underlines flatten to plain; the cursor, selection and link overlays are absent from HTML-path captures; captures cap at 1,000 rows. Copy as HTML uses the light rendition (black on white, ANSI colors kept) so it pastes into a document rather than a terminal.
+
+### S4C — Drop a file onto a session (round 2, BACKLOG item 8)
+
+- **One router owns every file drag in the window** (`terminal/drop/router.ts`), dispatching by hit-test, so the "add a project" frame and the "attach to this session" zone can never both arm. It replaced `useFolderDrop`, which read `File.path` — removed in Electron 32 — and had been silently degrading every folder drop to the picker.
+- **Over a session leaf**: that leaf lights with the split drop-zone treatment and a promise that matches the outcome — "Drop to attach" for an agent that takes real attachments, "Drop to insert path" for everything else, "Session not running" when it cannot accept. Anywhere else: the §6.1 dashed whole-window frame, and a folder dropped there adds a project.
+- **The mechanism is one bracket-paste of an absolute path**, which the agent's own paste parser turns into its native attachment (Claude Code's `[Image #N]`) — no clipboard write, no temp file, nothing of the user's pasteboard disturbed. Per-agent behavior is DATA in the main-process agent registry; anything unverified inserts a shell-quoted path, which every CLI can read. ⌘V of image bytes takes the same path.
+- The pane focuses itself first if the drop landed on a pane that was not focused; insertion lands at the cursor because the agent's own line editor puts it there. Respects `prefers-reduced-motion`.
+
 ## S5 — Editor panel
 
 ```
@@ -292,8 +336,8 @@ Sessions render on the terminal region in one of two user-selectable orientation
 │ auth.ts ●    db.ts ×                              [ Diff | File ]          │
 ├────────────────────────────────────────────────────────────────────────────┤
 │ File mode: Monaco · bg --bg-canvas · font SF Mono 12 · minimap off        │
-│ Diff mode: @pierre/diffs, read-only, virtualized (split ≥ 900px, stacked  │
-│ below) — same font ramp, same syntax colors, same gutter weight           │
+│ Diff mode: @pierre/diffs, read-only, virtualized (two columns ≥ 640px of  │
+│ panel, one below) — same font ramp, colors and gutter weight              │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -304,6 +348,35 @@ Sessions render on the terminal region in one of two user-selectable orientation
 - Diff mode renders through one Pierre `Virtualizer` bound to the panel's own scroll region (`editor/PierreDiff.tsx`), so a 10k-line diff materializes ~150 line elements instead of 40k and keeps ~17ms scroll steps. Gutter numbers: context `--text-disabled`, additions/deletions keep Pierre's green/red tint.
 - Monaco lazy-loads on first file open; until loaded show the region bg with a 1-line 12px `--text-muted` centered "Opening editor…" (skeleton, not spinner, if longer than 300ms: 3 shimmer lines 60%/80%/40% width).
 - Open behavior from SCM/tree click: split mode per S1; repeated clicks reuse the single preview tab (italic filename) until the file is edited — VS Code preview-tab behavior.
+
+### S5A — Tabs accumulate (round 2, BACKLOG item 5)
+
+- **Preview vs kept.** Single click = preview tab (italic, one at a time, recycled by the next single click). Double-click, ↩ on the row, the first edit, or "Keep Open" makes it permanent and the strip **accumulates**. Emitters say which through `OpenFileRequest.preview`; re-opening the same file within 500 ms also pins it, so a double-click works from an emitter that only fires clicks.
+- Max **10** tabs (was 5), LRU-evicting the stalest tab that is neither dirty nor on screen. Strip scrolls horizontally; the active tab is always scrolled into view.
+- Tab anatomy: material-icon-theme icon 14 · filename 13 · one 16px slot that carries **either** the 6px `--accent` dirty dot **or** the close ×, so hovering never reflows the strip. × shows on hover, and on the active tab when it is clean.
+- Keys: ⌘W close · **⌘⌥← / ⌘⌥→** and ⌘⇧[ / ⌘⇧] walk the strip · **⌃Tab / ⌃⇧Tab** walk most-recently-used (only while focus is inside the panel — ⌃Tab is a real character to a terminal), committing the new order when ⌃ is released.
+- Tab context menu (native, flat, `ui:popupMenu`): Close · Close Others · Close to the Right · Close Saved · Close All — Keep Open (preview tabs only) — Copy Path · Copy Relative Path · Reveal in Finder.
+- Closing a dirty tab asks **Save / Don't Save / Cancel** (the only three-answer confirm in gmux; `ConfirmSpec.altLabel`). A multi-tab close prompts once per dirty tab and Cancel — or a failed write — stops the run.
+
+### S5B — Markdown preview + minimap (round 2, BACKLOG item 6)
+
+- `.md` tabs get a **Preview | Source | Split** radiogroup (plus a leading Diff when the file has tracked changes); the choice lives on the tab and the last one picked becomes the default for the next `.md` opened. Preview is the default for a clean `.md`; **Diff still wins** for one with changes.
+- The control keeps text labels while they fit and drops to codicon glyphs below `300 + 65 × options` px of panel width. Split needs ≥ 480px of panel, the minimap ≥ 420px; below their floor both stay visible and **disabled with the reason**, never silently absent.
+- Preview: rendered by react-markdown (never an HTML string), GFM tables/task lists/footnotes, fences highlighted by the **same Shiki instance and gmux-dark theme as the diff viewer**. Measure 68ch, body 13/1.65, h2 with a hairline rule. Preview imports nothing from Monaco; only Split subscribes to the unsaved buffer.
+- Images resolve relative to the file through the privileged `gmux-asset:` scheme (`img-src` in the renderer CSP). **Remote `https:` images stay blocked** — a badge is the shape of a tracking pixel and gmux opens arbitrary repositories — and render as a dashed "not loaded" chip. Links: external → system browser, repo-relative → opens that file for keeps, `#anchor` → scrolls the pane.
+- Minimap: ONE app-wide toggle (codicon `map`, persisted) beside the mode control. On an editing surface it is Monaco's built-in, themed by `GMUX_MONACO_THEME`'s `minimap*` entries; on Preview it is a 12px **heading ruler** — a tick per heading (10/7/4px wide, opacity 1/.7/.45 by depth) with a grabbable viewport block, re-measured on resize and on every image that decodes late. Diff mode has neither: `@pierre/diffs` ships no minimap or overview ruler, so the toggle is hidden there.
+- **If Monaco is ever replaced**, only the editing surface loses its minimap: the toggle is store state, the ruler is independent, and Preview never touched Monaco. The replacement owes the edit surface a minimap; nothing else moves.
+
+### S5C — Two kinds of diff tab, and who decides the layout (round 2 integration)
+
+**A tab is either the working tree or a commit.** `commit === null` → LEFT is HEAD (`git:showHead`), RIGHT is the live buffer, editable, refreshed by the git watcher. `commit !== null` → both sides come from `git:commitFileDiff` (`<sha>^ → <sha>`, empty side for an add / a delete / a root commit) and the tab is **immutable**: read-only in Monaco, never saved by ⌘S, never touched by a `git:changed` refresh, never reading the worktree. Identity is `${sha}:${relPath}`, so the same file at two commits is two tabs and neither collides with the live file's tab. The strip shows the short SHA beside the filename (11px `--font-mono` `--text-muted`) — without it two tabs read as one file twice — and the tooltip is `<relPath> — <shortSha> · <subject>`.
+
+**Renames diff against the old path.** The LEFT side of a rename lives at `origPath`, from `GitFileStatus.origPath` for the working tree and from the commit's `-M` name-status for history. Asking HEAD for the *new* path returns nothing and renders the whole file as an addition — the round-1 defect this closes. The old side is labelled with its old basename, which is the only place the rename is visible once two blobs are on screen.
+
+**The panel owns the diff's layout.** The two-column threshold used to be 900px measured inside the diff component, which the panel could never reach: `MAX_FRACTION` caps the split at 65% of the center area, so at the 1440px default window the widest possible panel is ~754px and the two-column diff — the gesture this product is built around — was unreachable without an external monitor. Fixed three ways at once:
+- **The floor is 640px of panel width, not 900.** Measured, not guessed: 12px `--font-mono` is 7.2px per character and Pierre spends ~34px a side on line numbers, so 640px leaves ~38 characters a side (754px leaves ~47). Below 640 the columns stop being readable and one column is genuinely better.
+- **It is a user preference, not a hidden constant.** A `split-horizontal` icon-button sits beside the minimap toggle in diff mode, persisted app-wide, default on. Below the floor it stays visible and disabled with "drag the editor wider to use it" — the same treatment Split and the minimap already get, because a control that vanishes reads as a bug and its fix is invisible.
+- **One number, one measurement.** The threshold and the control live in `EditorPanel`, which is the only thing that knows the panel's width; `PierreDiff` takes `sideBySide` as a prop. The 45% default open width is unchanged (DESIGN.md §2.2) — supervising the terminal is still the default posture; two columns are one drag away and the control says so.
 
 ## S6 — New session modal (⌘T)
 

@@ -26,6 +26,12 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { registerAgentsIpc } from './agents';
+import {
+  registerAssetProtocol,
+  registerAssetSchemePrivileged
+} from './assets';
+import { registerCaptureIpc } from './capture';
+import { registerDropIpc, startDropStorePruning } from './drop';
 import { registerFsIpc } from './fs';
 import { disposeGitIpc, registerGitIpc } from './git';
 import { getGmuxCore, registerIpcHandlers, shutdownGmuxCore } from './ipc';
@@ -34,6 +40,11 @@ import { installAppMenu } from './menu';
 import { registerRestoreIpc, snapshotPath, stripAnsi } from './restore';
 import { openSettingsWindow, registerSettingsIpc } from './settings';
 import * as tmux from './tmux';
+
+// `gmux-asset:` (markdown images) must be declared before the app is ready —
+// Electron throws if registerSchemesAsPrivileged runs later. The handler
+// itself is installed in the whenReady block below.
+registerAssetSchemePrivileged();
 
 // ---------------------------------------------------------------------------
 // Native-module proof (node-pty + better-sqlite3 must load inside Electron)
@@ -131,6 +142,17 @@ function createWindow(): BrowserWindow {
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:/i.test(url)) void shell.openExternal(url);
     return { action: 'deny' };
+  });
+
+  // setWindowOpenHandler only covers window.open / target=_blank. A plain
+  // <a href="https://…"> — which rendered markdown is full of — would
+  // navigate THIS renderer away from the app, tearing down every terminal
+  // attachment with it. gmux is a single fixed document: nothing may
+  // navigate it except the initial load and a dev-server reload.
+  win.webContents.on('will-navigate', (event, url) => {
+    if (url === win.webContents.getURL()) return; // reload
+    event.preventDefault();
+    if (/^https?:/i.test(url)) void shell.openExternal(url);
   });
 
   // electron-vite: dev server URL in dev, bundled file otherwise.
@@ -661,19 +683,53 @@ async function runShot(outPath: string): Promise<void> {
       try {
         const wc = mainWindow!.webContents;
         if (driveJson !== undefined && driveJson.length > 0) {
+          // Wait for the hook to EXIST before calling it. `?.()` on a
+          // renderer that has not finished evaluating its bundle is a silent
+          // no-op, and the harness would then capture a correct-looking but
+          // completely undriven app — which is exactly how a cold start
+          // (first run after a build) produced a first-run screenshot where
+          // a driven one was expected. A capture that quietly shows the
+          // wrong thing is worse than one that fails.
+          const hookDeadline = Date.now() + 30_000;
+          let hooked = false;
+          while (Date.now() < hookDeadline) {
+            hooked = (await wc.executeJavaScript(
+              "typeof window.__gmuxShotDrive === 'function'"
+            )) as boolean;
+            if (hooked) break;
+            await new Promise((r) => setTimeout(r, 250));
+          }
+          if (!hooked) {
+            console.error('[gmux-shot] FAIL: drive hook never appeared');
+            app.exit(1);
+            return;
+          }
           await wc.executeJavaScript(
             `(async () => {
-               try { await window.__gmuxShotDrive?.(${driveJson}); }
-               catch (err) { console.error('[gmux-shot] drive failed', err); }
+               try { await window.__gmuxShotDrive(${driveJson}); }
+               catch (err) {
+                 window.__gmuxShotError = String(err && err.stack || err);
+               }
              })()`,
             true
           );
-          const deadline = Date.now() + 30_000;
-          while (Date.now() < deadline) {
-            const ready = (await wc.executeJavaScript(
-              'window.__gmuxShotReady === true'
-            )) as boolean;
-            if (ready) break;
+          const deadline = Date.now() + 60_000;
+          for (;;) {
+            const state = (await wc.executeJavaScript(
+              '({ ready: window.__gmuxShotReady === true,' +
+                ' error: window.__gmuxShotError ?? null })'
+            )) as { ready: boolean; error: string | null };
+            if (state.error !== null) {
+              console.error(`[gmux-shot] FAIL: drive threw — ${state.error}`);
+              app.exit(1);
+              return;
+            }
+            if (state.ready) break;
+            if (Date.now() > deadline) {
+              console.error('[gmux-shot] FAIL: drive never finished');
+              app.exit(1);
+              return;
+            }
             await new Promise((r) => setTimeout(r, 250));
           }
         }
@@ -707,6 +763,9 @@ app.whenReady().then(async () => {
   // window). Installed in every mode — harness windows are unaffected.
   installAppMenu();
 
+  // `gmux-asset:` handler — images referenced by rendered markdown (item 6).
+  registerAssetProtocol();
+
   // Handlers are lazy (each awaits getGmuxCore()), so registering them in
   // every mode is free and keeps harness renderers from hitting
   // "No handler registered" noise.
@@ -723,6 +782,13 @@ app.whenReady().then(async () => {
   // Phase 10 (S13): settings store + Settings window + flag-preset catalogs
   // (settings:get/set, settings:openWindow, agents:flagPresets).
   registerSettingsIpc(ipcMain);
+  // Phase 12 item 8: file/image drop (drop:strategies/prepare/persist) and
+  // the userData drop store's prune-at-ready + daily timer.
+  registerDropIpc(ipcMain);
+  startDropStorePruning();
+  // Phase 12 items 1 + 2: terminal capture + rich clipboard + Clear
+  // (capture:*, clipboard:writeRich, terminal:clearHistory).
+  registerCaptureIpc(ipcMain);
   // Phase 8.2: renderer-confirmed quit (first-quit toast flow — the Quit
   // menu item forwards to the renderer, which invokes this after showing
   // the one-time §4 toast; see src/main/menu.ts for the fallback timer).

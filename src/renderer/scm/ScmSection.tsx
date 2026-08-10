@@ -530,6 +530,10 @@ export function ScmSection(): React.JSX.Element | null {
         repoPath,
         relPath: row.file.path,
         path: `${repoPath}/${row.file.path}`,
+        // A rename's HEAD side is at the OLD path (carried finding (a)).
+        ...(row.file.origPath !== undefined
+          ? { origPath: row.file.origPath }
+          : {}),
         mode:
           row.group === 'untracked' || row.group === 'merge' ? 'file' : 'diff',
         source:

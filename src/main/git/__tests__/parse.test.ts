@@ -3,6 +3,8 @@ import {
   LOG_FORMAT,
   parseLog,
   parsePorcelainV2Status,
+  parseRemoteVerbose,
+  remoteOfUpstream,
   STATUS_LIMIT
 } from '../parse';
 import {
@@ -201,5 +203,78 @@ describe('watcher helpers', () => {
       readGitdirPointer('/repo/sub/.git', 'gitdir: ../.git/modules/sub\n')
     ).toBe('/repo/.git/modules/sub');
     expect(readGitdirPointer('/repo/.git', 'not a pointer')).toBeNull();
+  });
+});
+
+describe('parseRemoteVerbose (Phase 12 item 3)', () => {
+  it('pairs fetch/push lines into one remote each, origin first', () => {
+    const out = parseRemoteVerbose(
+      [
+        'upstream\thttps://github.com/other/gmux.git (fetch)',
+        'upstream\thttps://github.com/other/gmux.git (push)',
+        'origin\tgit@github.com:specstory/gmux.git (fetch)',
+        'origin\tgit@github.com:specstory/gmux.git (push)',
+        ''
+      ].join('\n')
+    );
+    expect(out).toEqual([
+      {
+        name: 'origin',
+        fetchUrl: 'git@github.com:specstory/gmux.git',
+        pushUrl: 'git@github.com:specstory/gmux.git'
+      },
+      {
+        name: 'upstream',
+        fetchUrl: 'https://github.com/other/gmux.git',
+        pushUrl: 'https://github.com/other/gmux.git'
+      }
+    ]);
+  });
+
+  it('keeps a distinct pushurl', () => {
+    const out = parseRemoteVerbose(
+      [
+        'origin\thttps://github.com/o/r.git (fetch)',
+        'origin\tgit@github.com:o/r.git (push)'
+      ].join('\n')
+    );
+    expect(out[0]).toEqual({
+      name: 'origin',
+      fetchUrl: 'https://github.com/o/r.git',
+      pushUrl: 'git@github.com:o/r.git'
+    });
+  });
+
+  it('survives URLs with spaces and skips junk lines', () => {
+    const out = parseRemoteVerbose(
+      ['origin\t/tmp/my remotes/bare.git (fetch)', 'garbage', ''].join('\n')
+    );
+    expect(out).toEqual([
+      {
+        name: 'origin',
+        fetchUrl: '/tmp/my remotes/bare.git',
+        pushUrl: '/tmp/my remotes/bare.git'
+      }
+    ]);
+  });
+
+  it('is empty for a repo with no remotes', () => {
+    expect(parseRemoteVerbose('')).toEqual([]);
+  });
+});
+
+describe('remoteOfUpstream', () => {
+  it('matches the longest configured remote name, not the first slash', () => {
+    expect(remoteOfUpstream('origin/main', ['origin'])).toBe('origin');
+    expect(remoteOfUpstream('origin/feat/x', ['origin'])).toBe('origin');
+    // A remote whose own name contains a slash must win over the prefix.
+    expect(remoteOfUpstream('team/fork/main', ['team', 'team/fork'])).toBe(
+      'team/fork'
+    );
+  });
+
+  it('is null when no configured remote owns the ref', () => {
+    expect(remoteOfUpstream('origin/main', ['upstream'])).toBeNull();
+    expect(remoteOfUpstream('origin/main', [])).toBeNull();
   });
 });

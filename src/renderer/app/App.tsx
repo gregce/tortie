@@ -7,12 +7,16 @@
  * topmost layer (§4).
  *
  * The native macOS menu (src/main/menu.ts) registers the ⌘-chord
- * accelerators and forwards them here as menu actions (useMenuActions) —
- * menu accelerators fire before window keydown, so the keydown map below is
- * the fallback for chords the menu does not register (⌘1…⌘9, ⌘⇧]/⌘⇧[, ⌘↩).
+ * accelerators and forwards them here as menu actions (useMenuActions).
+ * MEASURED ORDER (Electron 43; the old comment here had it backwards): this
+ * keydown map runs FIRST and the accelerator arrives ~5 ms later, so a
+ * branch that calls preventDefault() suppresses its menu item and is the
+ * only path that runs — which is why a chord handled in both places must
+ * not do its work twice. Chords the menu does not register at all (⌘1…⌘9,
+ * ⌘⇧]/⌘⇧[, ⌘↩) live here alone.
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect } from 'react';
 import type {
   AnyMenuActionId,
   GmuxMenuExtras,
@@ -38,6 +42,12 @@ import { FirstRun, TmuxMissing } from './EmptyStates';
 // Phase 5 (editor stream): the S5 editor panel — a right split beside the
 // terminal region (overlay under 1400px). It renders null until a file opens.
 import { EditorPanel } from '../editor';
+// Phase 12 item 8 (drop stream): THE window-level file-drag router — one set
+// of listeners for "attach to this session" AND the §6.1 "add a project"
+// frame, dispatched by hit-test. It replaces the old useFolderDrop hook,
+// which read `File.path` (removed in Electron 32) and so had silently
+// degraded every folder drop to the picker.
+import { FileDropOverlay, useFileDropRouter } from '../terminal/drop';
 // Phase 10 (settings+hotkeys stream, S13): warms the shared settings store
 // (⌘T preset defaults) and handles the user-recorded per-agent hotkey menu
 // actions (launch-agent:<id> → new session in the active project).
@@ -143,8 +153,9 @@ function useKeyboardMap(): void {
         return;
       }
 
-      // ⌃⇧G — Source Control view (the menu owns the accelerator; this is
-      // the fallback path, mirroring the menu's 'show-scm').
+      // ⌃⇧G — Source Control view. This branch is what actually runs (the
+      // renderer precedes the accelerator); the menu item mirrors it as
+      // 'show-scm' so the shortcut is discoverable.
       if (
         e.ctrlKey &&
         e.shiftKey &&
@@ -159,7 +170,7 @@ function useKeyboardMap(): void {
 
       if (!meta) return;
 
-      // ⌘⇧E — Explorer view (fallback for the menu's 'show-explorer').
+      // ⌘⇧E — Explorer view (mirrored by the menu's 'show-explorer').
       if (e.shiftKey && e.key.toLowerCase() === 'e') {
         e.preventDefault();
         showViewAction('explorer');
@@ -221,8 +232,13 @@ function useKeyboardMap(): void {
     // that direction; at the surface's top/bottom edge ↓/↑ continue to the
     // next/previous surface, so unsplit surfaces cycle sessions exactly as
     // before. ←/→ at an edge: no-op. (Separate handler branch since altKey
-    // changes e.key on letters but not on arrows; the native menu owns the
-    // ⌥⌘↓/↑ accelerators — this is the fallback path.)
+    // changes e.key on letters but not on arrows.)
+    //
+    // THE FOCUSED SURFACE OWNS ITS ARROWS. Phase 12 gave the editor ⌘⌥←/→
+    // for its tab strip; this handler is capture-phase, so without the
+    // guard below one ⌘⌥→ would move split focus AND cycle a tab. While the
+    // keyboard is inside the editor panel the chord is the editor's; ⌘⇧[/]
+    // still cycles tabs from anywhere.
     const NAV_KEYS: Record<string, NavDir> = {
       ArrowDown: 'down',
       ArrowUp: 'up',
@@ -232,10 +248,11 @@ function useKeyboardMap(): void {
     const onKeyDownArrows = (e: KeyboardEvent): void => {
       if (!(e.metaKey && e.altKey && !e.ctrlKey)) return;
       const dir = NAV_KEYS[e.key];
-      if (dir !== undefined) {
-        e.preventDefault();
-        useLayout.getState().navigate(dir);
-      }
+      if (dir === undefined) return;
+      const el = document.activeElement;
+      if (el instanceof Element && el.closest('.ed-panel') !== null) return;
+      e.preventDefault();
+      useLayout.getState().navigate(dir);
     };
 
     window.addEventListener('keydown', onKeyDown, { capture: true });
@@ -581,64 +598,6 @@ function useWindowTitle(): void {
 }
 
 // ---------------------------------------------------------------------------
-// Folder drop (§6.1) — dashed accent overlay while dragging a folder.
-// ---------------------------------------------------------------------------
-
-function useFolderDrop(): boolean {
-  const [dropping, setDropping] = useState(false);
-  const depth = useRef(0);
-
-  useEffect(() => {
-    const hasFiles = (e: DragEvent): boolean =>
-      Array.from(e.dataTransfer?.types ?? []).includes('Files');
-
-    const onDragEnter = (e: DragEvent): void => {
-      if (!hasFiles(e)) return;
-      depth.current++;
-      setDropping(true);
-    };
-    const onDragOver = (e: DragEvent): void => {
-      if (!hasFiles(e)) return;
-      e.preventDefault();
-    };
-    const onDragLeave = (e: DragEvent): void => {
-      if (!hasFiles(e)) return;
-      depth.current = Math.max(0, depth.current - 1);
-      if (depth.current === 0) setDropping(false);
-    };
-    const onDrop = (e: DragEvent): void => {
-      if (!hasFiles(e)) return;
-      e.preventDefault();
-      depth.current = 0;
-      setDropping(false);
-      const s = useApp.getState();
-      const file = e.dataTransfer?.files[0];
-      // Electron ≥32 removed File.path; without a preload webUtils bridge
-      // the path may be unavailable — fall back to the picker.
-      const path = (file as unknown as { path?: string } | undefined)?.path;
-      if (path !== undefined && path.length > 0) {
-        void s.addProjectPath(path);
-      } else {
-        void s.openProject();
-      }
-    };
-
-    window.addEventListener('dragenter', onDragEnter);
-    window.addEventListener('dragover', onDragOver);
-    window.addEventListener('dragleave', onDragLeave);
-    window.addEventListener('drop', onDrop);
-    return () => {
-      window.removeEventListener('dragenter', onDragEnter);
-      window.removeEventListener('dragover', onDragOver);
-      window.removeEventListener('dragleave', onDragLeave);
-      window.removeEventListener('drop', onDrop);
-    };
-  }, []);
-
-  return dropping;
-}
-
-// ---------------------------------------------------------------------------
 // App
 // ---------------------------------------------------------------------------
 
@@ -656,7 +615,7 @@ export function App(): React.JSX.Element {
   useQuitRequests();
   useWindowTitle();
   useShotLayoutHook();
-  const dropping = useFolderDrop();
+  useFileDropRouter();
 
   useEffect(() => {
     void boot();
@@ -712,7 +671,7 @@ export function App(): React.JSX.Element {
       <AttentionOverlay />
       <ConfirmDialog />
       <Toasts />
-      {dropping ? <div className="drop-overlay" /> : null}
+      <FileDropOverlay />
     </div>
   );
 }

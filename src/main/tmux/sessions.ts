@@ -211,20 +211,58 @@ export async function hasSession(target: string): Promise<boolean> {
 }
 
 /**
- * Capture the last `lines` of a session's active pane, ANSI colors intact,
- * wrapped lines joined (`-e -J`). This backfills xterm.js after reattach
- * (T1) and feeds scrollback snapshots at quit (FINAL-REPORT §2.4 Step 1).
+ * Resolve a session reference to its immutable `$-id` before a PANE command.
+ *
+ * VERIFIED on tmux 3.6a: `capture-pane -t '=name'` fails with "can't find
+ * pane" — the `=` exact-match prefix is honored in target-SESSION resolution
+ * (has-session, kill-session) but NOT in target-PANE resolution. Promoted
+ * here from src/main/restore/snapshots.ts (standing guardrail 3: one copy)
+ * because terminal capture is the second caller.
+ */
+export async function resolvePaneTarget(target: string): Promise<string> {
+  if (target.startsWith('$')) return target;
+  const live = await listSessions({ includeControl: true });
+  const found = live.find((s) => s.tmuxName === target);
+  if (found === undefined) {
+    throw new Error(`no live tmux session named "${target}"`);
+  }
+  return found.sessionId;
+}
+
+export interface CapturePaneOptions {
+  /**
+   * `-J` joins wrapped lines. Right for snapshot replay (the default, kept
+   * for every existing caller); WRONG for a screenshot, which must reproduce
+   * the on-screen wrapping — pass `false` there (research 17 §2.1).
+   */
+  join?: boolean;
+}
+
+/**
+ * Capture the last `lines` of a session's active pane, ANSI colors intact
+ * (`-e`). This backfills xterm.js after reattach (T1), feeds scrollback
+ * snapshots at quit (FINAL-REPORT §2.4 Step 1) and sources beyond-viewport
+ * terminal captures (Phase 12 item 2).
+ *
+ * Range: `-S -<lines>` with NO `-E`, so the capture runs to the bottom of the
+ * VISIBLE screen. (`-E -1` ends at the last history line and excludes the
+ * screen entirely — measured on tmux 3.6a.)
+ *
+ * `target` must already be a pane-addressable target — a `$-id` or a bare
+ * name, never `=name`. Use resolvePaneTarget() above.
  */
 export async function capturePane(
   target: string,
-  lines = 10_000
+  lines = 10_000,
+  options: CapturePaneOptions = {}
 ): Promise<string> {
+  const { join = true } = options;
   return execTmux(
     [
       'capture-pane',
       '-p',
       '-e',
-      '-J',
+      ...(join ? ['-J'] : []),
       '-t',
       formatSessionTarget(target),
       '-S',
@@ -233,6 +271,11 @@ export async function capturePane(
     // Big captures (50k colored lines) can take a moment.
     { timeoutMs: 30_000 }
   );
+}
+
+/** Drop a session's server-side scrollback (the Clear action, Phase 12 #1). */
+export async function clearPaneHistory(target: string): Promise<void> {
+  await execTmux(['clear-history', '-t', formatSessionTarget(target)]);
 }
 
 /**

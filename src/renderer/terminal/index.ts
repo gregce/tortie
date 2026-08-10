@@ -17,3 +17,19 @@ export type { TerminalHostProps } from './TerminalHost';
 export { TerminalPane } from './TerminalPane';
 export type { TerminalPaneProps } from './TerminalPane';
 export { terminalTheme, resolveTerminalTheme } from './theme';
+
+// Phase 12 items 1 + 2 — the session context menu and its capture actions.
+// Exported so other surfaces (a session tab, a command) can serve the same
+// menu instead of assembling a second one.
+export {
+  canSplit,
+  showTerminalMenu,
+  terminalMenuItems
+} from './terminal-menu';
+export type { TerminalMenuOptions } from './terminal-menu';
+export {
+  captureHistory,
+  captureSelection,
+  captureVisible,
+  CAPTURE_PRESETS
+} from './capture';

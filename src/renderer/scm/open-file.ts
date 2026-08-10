@@ -12,4 +12,4 @@ export {
   onOpenFile,
   requestOpenFile
 } from '../state/open-file';
-export type { OpenFileRequest } from '../state/open-file';
+export type { OpenFileCommitRef, OpenFileRequest } from '../state/open-file';

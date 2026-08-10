@@ -565,3 +565,204 @@ export interface GmuxErrorPayload {
   message: string;
   detail?: string;
 }
+
+// ---------------------------------------------------------------------------
+// APPENDED by the Phase-12 git stream — new types only, nothing above was
+// modified. Two capabilities:
+//
+//  (a) BACKLOG 12 item 4 — historical commit diffs. Opening a file from the
+//      HISTORY section must render `<sha>^ → <sha>` (DESIGN-SPEC S3A), not
+//      HEAD → worktree. git:commitFileDiff returns that pair for ONE file of
+//      ONE commit, with a null side for adds/deletes (VS Code's semantics,
+//      and @pierre/diffs' DiffFileInput accepts null directly).
+//  (b) BACKLOG 12 item 3 — push / pull / sync + the remotes list.
+// ---------------------------------------------------------------------------
+
+/** What the renderer knows about a file row in a commit (the click gesture). */
+export interface GitCommitFileDiffInput {
+  repoPath: string;
+  /** The commit to show (full or abbreviated SHA). */
+  sha: string;
+  /** Path AS OF this commit (the NEW path for renames), repo-root relative. */
+  path: string;
+  /** Pre-rename path for R/C entries — the left side's path. */
+  origPath?: string;
+  /**
+   * name-status letter from the commit's file list. A HINT only: whether a
+   * side exists is decided by whether git can read that blob, so a stale
+   * letter degrades to a correct add/delete instead of a wrong diff.
+   */
+  status: GitCommitFileState;
+}
+
+/** The parent→commit content pair for one file (git:commitFileDiff). */
+export interface GitCommitFileDiff {
+  /** Full SHA of the commit being shown. */
+  sha: string;
+  shortSha: string;
+  /** First parent's full SHA; null for a ROOT commit (left side is empty). */
+  parentSha: string | null;
+  /** Left path; null when the file did not exist in the parent (added). */
+  oldPath: string | null;
+  /** Right path; null when the file is gone at this commit (deleted). */
+  newPath: string | null;
+  /** Left contents; null when that side is absent OR the file is binary. */
+  oldContents: string | null;
+  /** Right contents; null when that side is absent OR the file is binary. */
+  newContents: string | null;
+  /** Either side contains NUL in its first 8000 bytes (git's own heuristic). */
+  binary: boolean;
+}
+
+/** One configured remote (`git remote -v`), with its tracking marker. */
+export interface GitRemoteInfo {
+  /** Remote name, e.g. "origin". */
+  name: string;
+  /** URL git fetches from. */
+  fetchUrl: string;
+  /** URL git pushes to (equals fetchUrl unless a pushurl is configured). */
+  pushUrl: string;
+  /** True when the CURRENT branch's upstream lives on this remote. */
+  tracked: boolean;
+}
+
+/** git:remotes result — the configured remotes plus the tracking context. */
+export interface GitRemotesResult {
+  /** Configured remotes, name-sorted; empty for a repo with no remotes. */
+  remotes: GitRemoteInfo[];
+  /** Current branch name; null when detached, unborn, or not a repo. */
+  branch: string | null;
+  /** Upstream ref of the current branch ("origin/main"); null when none. */
+  upstream: string | null;
+}
+
+export interface GitPushInput {
+  repoPath: string;
+  /**
+   * Publish: run `git push -u <remote> <branch>` and set the upstream. Only
+   * meaningful when the branch has none — that case otherwise resolves with
+   * `{status:'no-upstream'}` so the UI can offer "Publish Branch" instead of
+   * guessing a remote behind the user's back.
+   */
+  setUpstream?: boolean;
+  /** Remote to publish to; defaults to the repo's only/origin remote. */
+  remote?: string;
+}
+
+/**
+ * Push outcome. "This branch has no upstream" is a TYPED STATE, not an
+ * exception — it is the normal state of a fresh branch, and the answer is a
+ * Publish affordance, not an error toast.
+ */
+export type GitPushResult =
+  | { status: 'pushed'; remote: string; branch: string }
+  | { status: 'up-to-date'; remote: string; branch: string }
+  | { status: 'no-upstream'; branch: string; remote: string | null };
+
+export interface GitPullInput {
+  repoPath: string;
+}
+
+/**
+ * Pull outcome. Conflicts are a typed state (the repo is left mid-merge on
+ * purpose, exactly as on the CLI — the Changes section shows the conflicts),
+ * and "no upstream" mirrors GitPushResult.
+ */
+export type GitPullResult =
+  | { status: 'pulled'; upstream: string }
+  | { status: 'up-to-date'; upstream: string }
+  | { status: 'no-upstream'; branch: string }
+  | { status: 'conflict'; detail?: string };
+
+export interface GitSyncInput {
+  repoPath: string;
+}
+
+/** Sync = pull, then push (VS Code's Sync Changes). */
+export interface GitSyncResult {
+  pull: GitPullResult;
+  /** null when the pull did not succeed — a broken pull is never pushed over. */
+  push: GitPushResult | null;
+}
+
+// ---------------------------------------------------------------------------
+// APPENDED by the image-drop stream (Phase 12 item 8, research 16) — new types
+// only, nothing above was modified. Dropping (or ⌘V-ing) a file onto a session
+// inserts a reference to it at the caret; how that reference is inserted is
+// per-agent DATA that lives once, in the main-process agent registry.
+// ---------------------------------------------------------------------------
+
+/**
+ * How a file reference reaches one agent's prompt (research 16 §2):
+ *  - 'paste-path'       bracket-paste the absolute path; the agent turns it
+ *                       into a real attachment (Claude's `[Image #N]`).
+ *  - 'clipboard-attach' the agent only reads IMAGE DATA off the system
+ *                       pasteboard (deepseek, antigravity). ⌘V works as-is;
+ *                       a drop degrades to path text until the guarded
+ *                       pasteboard write ships (research 16 §7, Stage 2).
+ *  - 'path-text'        insert the path as ordinary text. No attachment, but
+ *                       every CLI can read it. The default for anything
+ *                       unverified, for shells, and for non-image files.
+ */
+export type ImageDropStrategy = 'paste-path' | 'clipboard-attach' | 'path-text';
+
+/** One agent's file-reference behavior. */
+export interface AgentImageDrop {
+  strategy: ImageDropStrategy;
+  /**
+   * How path TEXT is inserted when we insert path text at all. 'type' exists
+   * solely for antigravity, whose completion popup swallows the next
+   * keystroke after a bracketed paste (research 16 §2).
+   */
+  insert: 'paste' | 'type';
+  /** true = observed hands-on 2026-08-10 (research 16); false = inherited. */
+  verified: boolean;
+  notes?: string;
+}
+
+/** drop:strategies — the whole per-agent table (static per build). */
+export interface ImageDropTable {
+  /** Registry agents that carry an explicit strategy. */
+  agents: Partial<Record<AgentRegistryId, AgentImageDrop>>;
+  /** Used for shells and for any agent absent from `agents`. */
+  fallback: AgentImageDrop;
+}
+
+/** One dropped path after main classified it (drop:prepare). */
+export interface DropPreparedItem {
+  /** The path the renderer resolved (webUtils, or the drop store). */
+  sourcePath: string;
+  kind: 'file' | 'dir' | 'missing';
+  /**
+   * The path to reference in the prompt. Identical to `sourcePath` except
+   * when the original filename contained a newline — those are copied into
+   * the drop store under a safe name, because a CR inside a bracketed paste
+   * can submit half a prompt (research 16 §3).
+   */
+  refPath: string;
+  /** True when `refPath` is a copy main made in the drop store. */
+  copied: boolean;
+  /** Magic-byte sniff — drives "Drop to attach" vs "Drop to insert path". */
+  isImage: boolean;
+  /** Size in bytes; 0 for directories and missing paths. */
+  bytes: number;
+}
+
+export interface DropPrepareResult {
+  items: DropPreparedItem[];
+}
+
+/** drop:persist — bytes with no filesystem path of their own (⌘V, browser drags). */
+export interface DropPersistInput {
+  /** Suggested filename from the DataTransfer; may be junk or empty. */
+  name: string;
+  /** Claimed MIME type. The extension comes from magic bytes regardless. */
+  mime: string;
+  bytes: Uint8Array;
+}
+
+export interface DropPersistResult {
+  /** Absolute path inside <userData>/gmux/dropped-images. */
+  path: string;
+  isImage: boolean;
+}

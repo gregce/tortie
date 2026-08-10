@@ -23,20 +23,16 @@
  */
 
 import { BrowserWindow } from 'electron';
-import type { IpcMain, IpcMainInvokeEvent } from 'electron';
+import type { IpcMain } from 'electron';
 import { existsSync, statSync } from 'node:fs';
 import { resolve as resolvePath } from 'node:path';
-import type {
-  ExtendedInvokeChannel,
-  ExtendedInvokeReq,
-  ExtendedInvokeRes
-} from '@shared/ipc';
 import { EVT_GIT_CHANGED } from '@shared/ipc';
 import { gmuxError } from '../tmux/errors';
 import { RepoWatcher } from '../watcher';
 import { registerGitDepthIpc } from './depth-ipc';
 import { runGitOrThrow } from './exec';
 import { GitService } from './service';
+import { handle } from '../typed-ipc';
 
 // ---------------------------------------------------------------------------
 // Per-repo registries
@@ -137,22 +133,6 @@ export async function disposeGitIpc(): Promise<void> {
 // Handler registration
 // ---------------------------------------------------------------------------
 
-/**
- * Typed ipcMain.handle wrapper over the combined contract map (frozen
- * channels + the appended optional extensions like git:init).
- */
-function handle<C extends ExtendedInvokeChannel>(
-  ipc: IpcMain,
-  channel: C,
-  fn: (
-    event: IpcMainInvokeEvent,
-    ...args: ExtendedInvokeReq<C>
-  ) => Promise<ExtendedInvokeRes<C>> | ExtendedInvokeRes<C>
-): void {
-  ipc.handle(channel, (event, ...args) =>
-    fn(event, ...(args as ExtendedInvokeReq<C>))
-  );
-}
 
 /**
  * Register every git:* invoke handler. Self-contained: safe to call exactly

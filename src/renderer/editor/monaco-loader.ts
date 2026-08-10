@@ -6,8 +6,9 @@
  * and memoizes. Everything else in the editor stream goes through this
  * module so there is exactly one loading story.
  *
- * Model registry: one working ITextModel per open file — the File-mode
- * buffer, and the live "new" side PierreDiff subscribes to in Diff mode.
+ * Model registry: one working ITextModel per open TAB (keyed by `tab.id`,
+ * not by path) — the File-mode buffer, and the live "new" side PierreDiff
+ * subscribes to in Diff mode.
  * (HEAD contents are plain strings on the tab since Phase 11; the Monaco
  * HEAD-model registry went with the Monaco diff editor.)
  */
@@ -42,64 +43,73 @@ export function getLoadedMonaco(): Monaco | null {
 
 const workingModels = new Map<string, monacoNs.editor.ITextModel>();
 
-function uriFor(m: Monaco, path: string): monacoNs.Uri {
-  return m.Uri.from({ scheme: 'gmux', path });
+/**
+ * One URI per TAB IDENTITY, not per path. A historical commit tab
+ * (`<sha>:<relPath>`) and the worktree tab for the same file are two buffers,
+ * and Monaco keys models by URI — sharing one would let a read-only blob and
+ * an editable file overwrite each other.
+ */
+function uriFor(m: Monaco, key: string): monacoNs.Uri {
+  return m.Uri.from({
+    scheme: 'gmux',
+    path: key.startsWith('/') ? key : `/${key}`
+  });
 }
 
-/** Get-or-create the working model for a file. */
+/** Get-or-create the working model for a tab. */
 export function workingModel(
   m: Monaco,
-  path: string,
+  key: string,
   contents: string,
   language: string
 ): monacoNs.editor.ITextModel {
-  const existing = workingModels.get(path);
+  const existing = workingModels.get(key);
   if (existing !== undefined && !existing.isDisposed()) return existing;
-  const model = m.editor.createModel(contents, language, uriFor(m, path));
-  workingModels.set(path, model);
+  const model = m.editor.createModel(contents, language, uriFor(m, key));
+  workingModels.set(key, model);
   return model;
 }
 
 export function getWorkingModel(
-  path: string
+  key: string
 ): monacoNs.editor.ITextModel | null {
-  const model = workingModels.get(path);
+  const model = workingModels.get(key);
   return model !== undefined && !model.isDisposed() ? model : null;
 }
 
 /** Replace the working model's text in place (external reload, not dirty). */
-export function resetWorkingModel(path: string, contents: string): void {
-  const model = getWorkingModel(path);
+export function resetWorkingModel(key: string, contents: string): void {
+  const model = getWorkingModel(key);
   if (model !== null && model.getValue() !== contents) {
     model.setValue(contents);
   }
 }
 
 /** Dispose the working model for a closed tab. */
-export function disposeModels(path: string): void {
-  workingModels.get(path)?.dispose();
-  workingModels.delete(path);
+export function disposeModels(key: string): void {
+  workingModels.get(key)?.dispose();
+  workingModels.delete(key);
 }
 
 // ---------------------------------------------------------------------------
-// Per-file view state (scroll/cursor restore across tab switches)
+// Per-tab view state (scroll/cursor restore across tab switches)
 // ---------------------------------------------------------------------------
 
 const viewStates = new Map<string, monacoNs.editor.ICodeEditorViewState>();
 
 export function saveViewState(
-  path: string,
+  key: string,
   state: monacoNs.editor.ICodeEditorViewState | null
 ): void {
-  if (state !== null) viewStates.set(path, state);
+  if (state !== null) viewStates.set(key, state);
 }
 
 export function takeViewState(
-  path: string
+  key: string
 ): monacoNs.editor.ICodeEditorViewState | null {
-  return viewStates.get(path) ?? null;
+  return viewStates.get(key) ?? null;
 }
 
-export function dropViewState(path: string): void {
-  viewStates.delete(path);
+export function dropViewState(key: string): void {
+  viewStates.delete(key);
 }

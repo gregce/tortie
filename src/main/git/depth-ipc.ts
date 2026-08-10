@@ -16,16 +16,15 @@
  * Phase 10 #7 appended the branch-management channels (git:remoteBranches /
  * git:fetch / git:checkoutTracking / git:deleteBranch) here — same
  * registration point, same shared registries.
+ *
+ * Phase 12 appended git:commitFileDiff (historical commit diffs — read-only)
+ * and the sync channels (git:remotes / git:push / git:pull / git:sync), and
+ * collapsed the two identical typed handle() wrappers into one.
  */
 
-import type { IpcMain, IpcMainInvokeEvent } from 'electron';
-import type {
-  DepthInvokeReq,
-  DepthInvokeRes,
-  GitBranchesInvokeChannelMap,
-  GitDepthInvokeChannelMap
-} from '@shared/ipc';
+import type { IpcMain } from 'electron';
 import type { GitService } from './service';
+import { handle } from '../typed-ipc';
 
 /** What the host registration (ipc.ts) lends us. */
 export interface GitDepthDeps {
@@ -37,39 +36,6 @@ export interface GitDepthDeps {
   broadcast(repoPath: string): void;
 }
 
-type DepthChannel = keyof GitDepthInvokeChannelMap;
-
-/** Typed ipcMain.handle wrapper over the git-depth channels. */
-function handle<C extends DepthChannel>(
-  ipc: IpcMain,
-  channel: C,
-  fn: (
-    event: IpcMainInvokeEvent,
-    ...args: DepthInvokeReq<C>
-  ) => Promise<DepthInvokeRes<C>> | DepthInvokeRes<C>
-): void {
-  ipc.handle(channel, (event, ...args) =>
-    fn(event, ...(args as DepthInvokeReq<C>))
-  );
-}
-
-type BranchChannel = keyof GitBranchesInvokeChannelMap;
-
-/** Same wrapper over the branch-management channels (Phase 10 #7). */
-function handleBranch<C extends BranchChannel>(
-  ipc: IpcMain,
-  channel: C,
-  fn: (
-    event: IpcMainInvokeEvent,
-    ...args: GitBranchesInvokeChannelMap[C]['req']
-  ) =>
-    | Promise<GitBranchesInvokeChannelMap[C]['res']>
-    | GitBranchesInvokeChannelMap[C]['res']
-): void {
-  ipc.handle(channel, (event, ...args) =>
-    fn(event, ...(args as GitBranchesInvokeChannelMap[C]['req']))
-  );
-}
 
 /**
  * Register the git-depth invoke handlers. Called exactly once, from
@@ -125,27 +91,63 @@ export function registerGitDepthIpc(ipc: IpcMain, deps: GitDepthDeps): void {
 
   // Branch-management channels (Phase 10 #7) — same service/watcher sharing.
 
-  handleBranch(ipc, 'git:remoteBranches', (_e, repoPath) =>
+  handle(ipc, 'git:remoteBranches', (_e, repoPath) =>
     svcFor(repoPath).remoteBranches()
   );
 
-  handleBranch(ipc, 'git:fetch', async (_e, repoPath) => {
+  handle(ipc, 'git:fetch', async (_e, repoPath) => {
     const svc = svcFor(repoPath);
     await svc.fetch();
     // Fetch moves remote refs (and prunes) — refresh ahead/behind everywhere.
     deps.broadcast(svc.repoPath);
   });
 
-  handleBranch(ipc, 'git:checkoutTracking', async (_e, input) => {
+  handle(ipc, 'git:checkoutTracking', async (_e, input) => {
     const svc = svcFor(input.repoPath);
     await svc.checkoutTracking(input.remoteBranch);
     deps.broadcast(svc.repoPath);
   });
 
-  handleBranch(ipc, 'git:deleteBranch', async (_e, input) => {
+  handle(ipc, 'git:deleteBranch', async (_e, input) => {
     const svc = svcFor(input.repoPath);
     const result = await svc.deleteBranch(input.name, input.force ?? false);
     if (result.status === 'deleted') deps.broadcast(svc.repoPath);
+    return result;
+  });
+
+  // Phase 12 item 4 — historical commit diffs. READ-ONLY: no broadcast, no
+  // mutation; the answer is immutable for a given (sha, path), so the
+  // renderer caches it freely.
+  handle(ipc, 'git:commitFileDiff', (_e, input) =>
+    svcFor(input.repoPath).commitFileDiff(input)
+  );
+
+  // Phase 12 item 3 — remotes + push / pull / sync.
+
+  handle(ipc, 'git:remotes', (_e, repoPath) => svcFor(repoPath).remotes());
+
+  handle(ipc, 'git:push', async (_e, input) => {
+    const svc = svcFor(input.repoPath);
+    const result = await svc.push(input);
+    // A push moves the remote-tracking ref → ahead/behind changes. Nothing
+    // moved when the branch has no upstream yet.
+    if (result.status !== 'no-upstream') deps.broadcast(svc.repoPath);
+    return result;
+  });
+
+  handle(ipc, 'git:pull', async (_e, input) => {
+    const svc = svcFor(input.repoPath);
+    const result = await svc.pull();
+    // Pulled, up-to-date OR conflicted: the worktree/index may have moved in
+    // every case except "no upstream" — refresh.
+    if (result.status !== 'no-upstream') deps.broadcast(svc.repoPath);
+    return result;
+  });
+
+  handle(ipc, 'git:sync', async (_e, input) => {
+    const svc = svcFor(input.repoPath);
+    const result = await svc.sync();
+    deps.broadcast(svc.repoPath);
     return result;
   });
 }

@@ -24,6 +24,12 @@ export function ConfirmDialog(): React.JSX.Element | null {
     onConfirm();
   };
 
+  const runAlt = (): void => {
+    const { onAlt } = confirm;
+    setConfirm(null);
+    onAlt?.();
+  };
+
   return (
     <div
       className="modal-scrim"
@@ -56,6 +62,15 @@ export function ConfirmDialog(): React.JSX.Element | null {
         <h2 className="modal-title">{confirm.title}</h2>
         <p className="modal-body">{confirm.body}</p>
         <div className="modal-actions">
+          {confirm.altLabel !== undefined ? (
+            <button
+              type="button"
+              className="btn btn-secondary modal-action-alt"
+              onClick={runAlt}
+            >
+              {confirm.altLabel}
+            </button>
+          ) : null}
           <button
             type="button"
             className="btn btn-secondary"

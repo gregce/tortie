@@ -66,3 +66,47 @@ export function fullMessage(subject: string, body: string): string {
   const rest = body.replace(/\s+$/, '');
   return rest.length > 0 ? `${subject}\n\n${rest}` : subject;
 }
+
+/** "1 commit" / "3 commits" — sync affordances count commits, not "changes". */
+export function commitCount(n: number): string {
+  return `${n} commit${n === 1 ? '' : 's'}`;
+}
+
+/**
+ * Tooltip for the Sync control (Phase 12 item 3): says exactly what the click
+ * will do, in commits, naming the upstream — never a bare "Sync".
+ */
+export function syncTooltip(
+  ahead: number,
+  behind: number,
+  upstream: string | null
+): string {
+  const where = upstream ?? 'the remote';
+  if (ahead > 0 && behind > 0) {
+    return `Sync — pull ${commitCount(behind)} from ${where}, then push ${commitCount(ahead)}`;
+  }
+  if (behind > 0) return `Pull ${commitCount(behind)} from ${where}`;
+  if (ahead > 0) return `Push ${commitCount(ahead)} to ${where}`;
+  return `Sync with ${where} — nothing to pull or push right now`;
+}
+
+/**
+ * A remote URL as a human reads it: host + owner/repo, no protocol, no
+ * credentials, no `.git`. Both URL forms and scp-like `git@host:owner/repo`
+ * collapse to the same shape; anything unparseable is returned unchanged
+ * (a URL we don't recognise is still the truth about that remote).
+ */
+export function shortenRemoteUrl(url: string): string {
+  const trimmed = url.trim();
+  const scp = /^[^\s/@]+@([^\s:/]+):(.+)$/.exec(trimmed);
+  if (scp !== null) {
+    return `${scp[1]}/${(scp[2] ?? '').replace(/\.git$/i, '')}`;
+  }
+  try {
+    const u = new URL(trimmed);
+    const path = u.pathname.replace(/\.git$/i, '').replace(/\/+$/, '');
+    return u.host.length > 0 ? `${u.host}${path}` : path;
+  } catch {
+    return trimmed;
+  }
+}

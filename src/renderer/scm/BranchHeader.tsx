@@ -2,10 +2,19 @@
  * S3A Source Control view header [h:36] — round 1: the branch is a MENU.
  *
  * ⎇ branch ˅ (click → native menu: local branches with the current one
- * checked, then "Create branch…") · ↑n ↓n ahead/behind (hidden at 0/0) ·
- * spacer · refresh. Detached HEAD renders the git-commit glyph + short SHA
- * in the warning color. Right-click on the button copies the branch name
+ * checked, then "Create branch…") · the SYNC control (↑n ↓n) · spacer ·
+ * ⋯ actions · refresh. Detached HEAD renders the git-commit glyph + short
+ * SHA in the warning color. Right-click on the button copies the branch name
  * (round 0's click-to-copy moved here — click now opens the menu).
+ *
+ * Phase 12 item 3 turned the ahead/behind readout into the primary network
+ * affordance (VS Code parity): one click syncs (pull, then push), and a
+ * branch with no upstream shows Publish Branch instead of a dead counter.
+ * Everything else — pull, push, fetch, and the remotes list with URLs and
+ * the tracking marker — lives in the ⋯ menu, so the 36px band gains exactly
+ * two controls. A network verb in flight swaps its glyph for a spinner and
+ * disables the others; failures are sticky toasts carrying git's own words
+ * (auth, unreachable host, rejected push) — never a silent no-op.
  *
  * The dirty count moved to the activity bar's SCM badge (round 1); it no
  * longer renders here. Non-git folders show the folder name, muted.
@@ -17,7 +26,8 @@ import type { MenuItemSpec } from '../state/store';
 import { gitErrorLine, repoState, useGit } from '../state/git';
 import { displayPath } from '../app/format';
 import { Codicon } from '../icons';
-import { hasGitDepth, useGitDepth } from './depth';
+import { depthRepoState, hasGitDepth, hasGitSync, useGitDepth } from './depth';
+import { shortenRemoteUrl, syncTooltip } from './format';
 import { requestManageBranches } from './manage-branches';
 import { MiniModal } from './MiniModal';
 import type { MiniModalSpec } from './MiniModal';
@@ -37,10 +47,17 @@ export function BranchHeader(): React.JSX.Element {
   const checkoutBranch = useGitDepth((s) => s.checkoutBranch);
   const createBranch = useGitDepth((s) => s.createBranch);
   const refreshDepth = useGitDepth((s) => s.refresh);
+  const loadRemotes = useGitDepth((s) => s.loadRemotes);
+  const runSync = useGitDepth((s) => s.sync);
+  const runPush = useGitDepth((s) => s.push);
+  const runPull = useGitDepth((s) => s.pull);
+  const runPublish = useGitDepth((s) => s.publish);
+  const fetchAll = useGitDepth((s) => s.fetchAll);
 
   const [modal, setModal] = useState<MiniModalSpec | null>(null);
   const [menuBusy, setMenuBusy] = useState(false);
   const depthAvailable = useMemo(() => hasGitDepth(), []);
+  const syncAvailable = useMemo(() => hasGitSync(), []);
 
   const project = useMemo(
     () => projects.find((p) => p.id === activeProjectId) ?? null,
@@ -50,10 +67,23 @@ export function BranchHeader(): React.JSX.Element {
   const repo = repoState(repos, repoPath);
   const status = repo.status;
 
+  const depthRepo = depthRepoState(
+    useGitDepth((s) => s.repos),
+    repoPath
+  );
+  const syncOp = depthRepo.syncOp;
+  const remotes = depthRepo.remotes ?? [];
+
   useEffect(() => {
     init();
     if (repoPath !== null) ensureStatus(repoPath);
   }, [init, ensureStatus, repoPath]);
+
+  // The remotes list powers the ⋯ menu and the Publish affordance, so the
+  // header loads it itself rather than waiting for HISTORY to be expanded.
+  useEffect(() => {
+    if (repoPath !== null && syncAvailable) void loadRemotes(repoPath);
+  }, [repoPath, syncAvailable, loadRemotes]);
 
   const copyBranch = (name: string): void => {
     void navigator.clipboard.writeText(name).then(
@@ -122,6 +152,87 @@ export function BranchHeader(): React.JSX.Element {
     setMenu({ x: rect.left, y: rect.bottom + 2, items });
   };
 
+  const copyRemoteUrl = (name: string, url: string): void => {
+    void navigator.clipboard.writeText(url).then(
+      () => toast('info', `${name} URL copied`),
+      () => toast('error', 'Could not copy the remote URL')
+    );
+  };
+
+  /** Publish: `git push -u`. One remote → go; several → ask which. */
+  const publishBranch = (path: string): void => {
+    if (remotes.length <= 1) {
+      void runPublish(path);
+      return;
+    }
+    setMenu({
+      x: Math.round(window.innerWidth / 2),
+      y: 120,
+      items: remotes.map((r) => ({
+        label: `Publish to ${r.name}`,
+        hint: shortenRemoteUrl(r.pushUrl),
+        run: () => void runPublish(path, r.name)
+      }))
+    });
+  };
+
+  /**
+   * The ⋯ menu: every network verb the header doesn't have room for, plus
+   * the remotes themselves (name + URL in the hint column, ✓ on the one this
+   * branch tracks) — BACKLOG 12 item 3's "visible list of remotes reachable
+   * from the branch UI". Flat by necessity: ui:popupMenu has no submenus.
+   */
+  const openActionsMenu = (e: React.MouseEvent, path: string): void => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const busy = syncOp !== null;
+    const hasUpstream = status?.upstream !== undefined;
+    const items: (MenuItemSpec | 'sep')[] = [
+      {
+        label: 'Pull',
+        disabled: busy || !hasUpstream,
+        run: () => void runPull(path)
+      },
+      {
+        label: 'Push',
+        disabled: busy || !hasUpstream,
+        run: () => {
+          void runPush(path).then((result) => {
+            if (result?.status === 'no-upstream') publishBranch(path);
+          });
+        }
+      },
+      {
+        label: 'Sync',
+        disabled: busy || !hasUpstream,
+        run: () => void runSync(path)
+      },
+      'sep',
+      {
+        label: 'Fetch',
+        disabled: busy || depthRepo.fetching || remotes.length === 0,
+        run: () => void fetchAll(path)
+      }
+    ];
+    if (!hasUpstream && remotes.length > 0) {
+      items.push({
+        label: 'Publish Branch…',
+        disabled: busy,
+        run: () => publishBranch(path)
+      });
+    }
+    if (remotes.length > 0) {
+      items.push('sep', { label: 'Remotes', disabled: true, run: () => {} });
+      for (const r of remotes) {
+        items.push({
+          label: `${r.tracked ? '✓ ' : '  '}${r.name} — Copy URL`,
+          hint: shortenRemoteUrl(r.fetchUrl),
+          run: () => copyRemoteUrl(r.name, r.fetchUrl)
+        });
+      }
+    }
+    setMenu({ x: rect.right - 8, y: rect.bottom + 2, items });
+  };
+
   if (!project) {
     return (
       <div className="branch-header" data-slot="branch-header">
@@ -146,6 +257,81 @@ export function BranchHeader(): React.JSX.Element {
 
   const detached = status.branch === undefined;
   const branchLabel = status.branch ?? status.detachedAt ?? 'HEAD';
+
+  /**
+   * The one network control in the band. Three shapes, never two at once:
+   * Sync (has an upstream) · Publish Branch (has remotes, no upstream) ·
+   * nothing (no remotes, or detached HEAD — pushing a detached HEAD is not a
+   * gesture this header offers). The counter lives INSIDE the button, so the
+   * number the user reads is the thing they click.
+   */
+  const syncControl = (path: string): React.JSX.Element | null => {
+    if (!syncAvailable || detached) return null;
+    const busy = syncOp !== null;
+    const busyWord =
+      syncOp === 'pull'
+        ? 'Pulling…'
+        : syncOp === 'push'
+          ? 'Pushing…'
+          : syncOp === 'publish'
+            ? 'Publishing…'
+            : 'Syncing…';
+
+    if (status.upstream === undefined) {
+      if (remotes.length === 0) return null; // no remote is a state, not an error
+      const target = remotes.find((r) => r.name === 'origin') ?? remotes[0];
+      const where = remotes.length === 1 && target ? ` to ${target.name}` : '';
+      return (
+        <button
+          type="button"
+          className={`scm-sync-btn publish${busy ? ' busy' : ''}`}
+          disabled={busy}
+          aria-busy={busy}
+          aria-label={busy ? busyWord : `Publish branch ${branchLabel}${where}`}
+          title={
+            busy
+              ? busyWord
+              : `Publish '${branchLabel}'${where} — pushes it and tracks it from now on`
+          }
+          onClick={() => publishBranch(path)}
+        >
+          {busy ? (
+            <span className="scm-branch-spinner" aria-hidden="true" />
+          ) : (
+            <Codicon name="cloud-upload" size={12} />
+          )}
+          <span className="scm-sync-label">Publish</span>
+        </button>
+      );
+    }
+
+    const what = syncTooltip(status.ahead, status.behind, status.upstream);
+    const counts = status.ahead > 0 || status.behind > 0;
+    return (
+      <button
+        type="button"
+        className={`scm-sync-btn${busy ? ' busy' : ''}${counts ? '' : ' quiet'}`}
+        disabled={busy}
+        aria-busy={busy}
+        aria-label={busy ? busyWord : what}
+        title={busy ? busyWord : what}
+        onClick={() => void runSync(path)}
+      >
+        {busy ? (
+          <span className="scm-branch-spinner" aria-hidden="true" />
+        ) : (
+          <Codicon name="sync" size={12} />
+        )}
+        {counts ? (
+          <span className="branch-arrows num">
+            {status.ahead > 0 ? `↑${status.ahead}` : ''}
+            {status.ahead > 0 && status.behind > 0 ? ' ' : ''}
+            {status.behind > 0 ? `↓${status.behind}` : ''}
+          </span>
+        ) : null}
+      </button>
+    );
+  };
 
   return (
     <div className="branch-header" data-slot="branch-header">
@@ -185,26 +371,20 @@ export function BranchHeader(): React.JSX.Element {
       {status.merging ? (
         <span className="chip chip-sm scm-chip-merge">merging</span>
       ) : null}
-      {status.ahead > 0 || status.behind > 0 ? (
-        <span
-          className="branch-arrows num"
-          title={[
-            status.ahead > 0
-              ? `${status.ahead} to push${status.upstream !== undefined ? ` to ${status.upstream}` : ''}`
-              : null,
-            status.behind > 0
-              ? `${status.behind} to pull${status.upstream !== undefined ? ` from ${status.upstream}` : ''}`
-              : null
-          ]
-            .filter(Boolean)
-            .join(' · ')}
-        >
-          {status.ahead > 0 ? `↑${status.ahead}` : ''}
-          {status.ahead > 0 && status.behind > 0 ? ' ' : ''}
-          {status.behind > 0 ? `↓${status.behind}` : ''}
-        </span>
-      ) : null}
+      {syncControl(project.path)}
       <span className="branch-spacer" />
+      {syncAvailable ? (
+        <button
+          type="button"
+          className="icon-btn branch-refresh"
+          aria-label="Git actions"
+          aria-haspopup="menu"
+          title="Pull, push, fetch, remotes"
+          onClick={(e) => openActionsMenu(e, project.path)}
+        >
+          <Codicon name="ellipsis" size={14} />
+        </button>
+      ) : null}
       <button
         type="button"
         className={`icon-btn branch-refresh${repo.refreshing ? ' busy' : ''}`}

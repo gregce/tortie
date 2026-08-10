@@ -6,7 +6,11 @@
  *     chips, click/↩ → checkout with a per-row spinner; failures → §6.11
  *     sticky toast, nothing changes.
  *   - Remotes grouped by remote: click/↩ → tracking checkout (existing
- *     local with the same short name wins — the git service decides).
+ *     local with the same short name wins — the git service decides). The
+ *     group row IS the remotes list (Phase 12 item 3): name · "tracking"
+ *     chip on the one the current branch follows · URL, host/owner/repo form
+ *     with the full URL in the tooltip · right-click copies it. Every
+ *     CONFIGURED remote gets a row, including one with no fetched refs yet.
  *   - Header accessories: Fetch (`git fetch --all --prune`, spinner while
  *     running, last-fetched relative time beside it) + network-free refresh.
  *   - Filter-as-you-type across both groups.
@@ -37,7 +41,11 @@ import {
   hasGitDepth,
   useGitDepth
 } from './depth';
-import { formatRelative, formatRelativeLong } from './format';
+import {
+  formatRelative,
+  formatRelativeLong,
+  shortenRemoteUrl
+} from './format';
 import { onManageBranches } from './manage-branches';
 import { usePersistedBool } from './sections';
 
@@ -97,6 +105,8 @@ export function BranchesView({
 
   const locals = repo.branches ?? [];
   const remotes = repo.remoteBranches ?? [];
+  /** Configured remotes (name + URL + tracking marker) — `git remote -v`. */
+  const remoteList = repo.remotes ?? [];
   const busy = repo.busyRef;
 
   const needle = filter.trim().toLowerCase();
@@ -115,16 +125,29 @@ export function BranchesView({
     [remotes, needle]
   );
 
-  /** Remotes grouped by remote name, remotes sorted, branch order kept. */
+  /**
+   * Remotes grouped by remote name, in git's own order (origin first), branch
+   * order kept. Every configured remote gets a group even with zero fetched
+   * refs — a remote you have never fetched is still a remote you have — but
+   * an active filter hides the empty ones (they match nothing).
+   */
   const remoteGroups = useMemo(() => {
     const map = new Map<string, GitRemoteBranchInfo[]>();
+    if (needle === '') {
+      for (const r of remoteList) map.set(r.name, []);
+    }
     for (const b of filteredRemotes) {
       const list = map.get(b.remote);
       if (list === undefined) map.set(b.remote, [b]);
       else list.push(b);
     }
-    return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
-  }, [filteredRemotes]);
+    const order = new Map(remoteList.map((r, i) => [r.name, i]));
+    return [...map.entries()].sort(([a], [b]) => {
+      const ia = order.get(a) ?? Number.MAX_SAFE_INTEGER;
+      const ib = order.get(b) ?? Number.MAX_SAFE_INTEGER;
+      return ia !== ib ? ia - ib : a.localeCompare(b);
+    });
+  }, [filteredRemotes, remoteList, needle]);
 
   /** Flattened keyboard-navigation order: locals, then remotes per group. */
   const rows = useMemo<BranchRow[]>(() => {
@@ -148,6 +171,16 @@ export function BranchesView({
       void navigator.clipboard.writeText(name).then(
         () => toast('info', 'Branch name copied'),
         () => toast('error', 'Could not copy the branch name')
+      );
+    },
+    [toast]
+  );
+
+  const copyUrl = useCallback(
+    (name: string, url: string): void => {
+      void navigator.clipboard.writeText(url).then(
+        () => toast('info', `${name} URL copied`),
+        () => toast('error', 'Could not copy the remote URL')
       );
     },
     [toast]
@@ -352,7 +385,9 @@ export function BranchesView({
     );
   };
 
-  const hasRemotes = remotes.length > 0;
+  // A configured remote counts even before its first fetch — that is exactly
+  // when the Fetch accessory is most useful.
+  const hasRemotes = remotes.length > 0 || remoteList.length > 0;
   const loaded = repo.branches !== null;
 
   return (
@@ -469,15 +504,61 @@ export function BranchesView({
                 </div>
               ) : null}
               {filteredLocals.map(renderLocalRow)}
-              {remoteGroups.map(([remote, group]) => (
-                <React.Fragment key={remote}>
-                  <div className="scm-group-row">
-                    <span className="scm-group-label">{remote}</span>
-                    <span className="scm-group-count num">{group.length}</span>
-                  </div>
-                  {group.map(renderRemoteRow)}
-                </React.Fragment>
-              ))}
+              {remoteGroups.map(([remote, group]) => {
+                const info = remoteList.find((r) => r.name === remote);
+                return (
+                  <React.Fragment key={remote}>
+                    <div
+                      className="scm-group-row scm-remote-group"
+                      onContextMenu={
+                        info === undefined
+                          ? undefined
+                          : (e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              const items: MenuItemSpec[] = [
+                                {
+                                  label: 'Copy Remote URL',
+                                  run: () => copyUrl(info.name, info.fetchUrl)
+                                }
+                              ];
+                              if (info.pushUrl !== info.fetchUrl) {
+                                items.push({
+                                  label: 'Copy Push URL',
+                                  run: () => copyUrl(info.name, info.pushUrl)
+                                });
+                              }
+                              setMenu({ x: e.clientX, y: e.clientY, items });
+                            }
+                      }
+                    >
+                      <span className="scm-group-label">{remote}</span>
+                      {info?.tracked === true ? (
+                        <span
+                          className="chip chip-sm scm-chip-tracking"
+                          title="The current branch tracks this remote"
+                        >
+                          tracking
+                        </span>
+                      ) : null}
+                      {info !== undefined ? (
+                        <span className="scm-remote-url" title={info.fetchUrl}>
+                          {shortenRemoteUrl(info.fetchUrl)}
+                        </span>
+                      ) : null}
+                      <span className="scm-row-space" />
+                      <span className="scm-group-count num">{group.length}</span>
+                    </div>
+                    {group.length === 0 ? (
+                      <div className="scm-brow-empty">
+                        Nothing fetched from {remote} yet
+                      </div>
+                    ) : (
+                      group.map(renderRemoteRow)
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </div>
           )}
         </div>

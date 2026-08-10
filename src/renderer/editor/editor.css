@@ -78,18 +78,28 @@
 }
 
 /* ---------------------------------------------------------------------------
-   Tabs row [h:32], bg --bg-sidebar
+   Tabs row [h:36] (DESIGN-SPEC S5), bg --bg-sidebar
 --------------------------------------------------------------------------- */
 
 .ed-tabs {
   display: flex;
   align-items: center;
-  height: 32px;
-  flex: 0 0 32px;
+  height: 36px;
+  flex: 0 0 36px;
   background: var(--bg-sidebar);
   border-bottom: 1px solid var(--border);
   padding-right: var(--space-4);
   user-select: none;
+}
+
+/* Mode control + minimap toggle. Never shrinks: with ten tabs open the strip
+   scrolls, the controls stay put. */
+.ed-tabs-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: none;
+  padding-left: var(--space-4);
 }
 
 .ed-tabs-list {
@@ -100,6 +110,28 @@
   min-width: 0;
   overflow-x: auto;
   scrollbar-width: none;
+
+  /* Scroll affordance: the end(s) with tabs hidden behind them fade out, so
+     a clipped filename reads as "there is more this way" instead of as a
+     glitch. data-fade-* is set from measured overflow (EditorTabs.tsx) — a
+     permanent gradient would dim the first tab even when the strip fits. */
+  --ed-fade: 20px;
+  --ed-fade-start: 0px;
+  --ed-fade-end: 0px;
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 var(--ed-fade-start),
+    #000 calc(100% - var(--ed-fade-end)),
+    transparent 100%
+  );
+  transition: none;
+}
+.ed-tabs-list[data-fade-start='on'] {
+  --ed-fade-start: var(--ed-fade);
+}
+.ed-tabs-list[data-fade-end='on'] {
+  --ed-fade-end: var(--ed-fade);
 }
 
 .ed-tabs-list::-webkit-scrollbar {
@@ -136,6 +168,11 @@
   box-shadow: inset 0 2px 0 var(--accent);
 }
 
+.ed-tab-icon {
+  flex: none;
+  opacity: 0.9;
+}
+
 .ed-tab-name {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -151,16 +188,22 @@
   color: var(--text-muted);
 }
 
-/* Dirty: 6px accent dot replaces × until saved (S5). */
-.ed-tab-dot {
+/* History tabs (Phase 12 item 4): the short SHA rides beside the filename,
+   because a commit's file and the live file are two tabs with one name. Same
+   monospace treatment the SCM history rows use for a SHA. */
+.ed-tab-sha {
   flex: none;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
 }
 
+/* One 16px slot carries BOTH the dirty dot and the close ×, so the strip
+   never reflows on hover (S5: the dot replaces × until saved). Rules:
+   dot while unsaved, × on hover or on the active clean tab. */
 .ed-tab-close {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -186,6 +229,33 @@
   box-shadow: var(--focus-ring);
 }
 
+.ed-tab-dot,
+.ed-tab-x {
+  position: absolute;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.ed-tab-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.ed-tab-close.dirty .ed-tab-dot {
+  opacity: 1;
+}
+
+.ed-tab:hover .ed-tab-x,
+.ed-tab.active .ed-tab-close:not(.dirty) .ed-tab-x {
+  opacity: 1;
+}
+
+.ed-tab:hover .ed-tab-close.dirty .ed-tab-dot {
+  opacity: 0;
+}
+
 /* ---------------------------------------------------------------------------
    Mode toggle: segmented [h:22] Diff | File (tracked-modified files only)
 --------------------------------------------------------------------------- */
@@ -194,19 +264,36 @@
   display: inline-flex;
   flex: none;
   height: 22px;
-  margin-left: var(--space-4);
   border: 1px solid var(--border-strong);
   border-radius: var(--r-sm);
   overflow: hidden;
 }
 
 .ed-mode-opt {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 0 8px;
   border: none;
   background: transparent;
   font-size: var(--text-xs);
   line-height: 20px;
   color: var(--text-secondary);
+}
+
+/* Narrow panel: the same control, labels traded for their glyphs. Four text
+   segments would leave the tab strip ~100px wide at the 320px drag floor. */
+.ed-mode.compact .ed-mode-opt {
+  width: 26px;
+  padding: 0;
+}
+
+.ed-mode-opt:disabled {
+  color: var(--text-disabled);
+}
+
+.ed-mode-opt:disabled:hover {
+  background: transparent;
 }
 
 .ed-mode-opt.on {
@@ -219,6 +306,37 @@
 }
 
 .ed-mode-opt:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* Header icon toggle (minimap). Same 22px optical height as the mode
+   control so the two read as one row of controls. */
+.ed-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.ed-icon-btn:hover {
+  background: var(--bg-raised);
+  color: var(--text-primary);
+}
+
+.ed-icon-btn.on {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
+.ed-icon-btn:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
 }
@@ -237,10 +355,28 @@
 .ed-host,
 .ed-mount,
 .ed-diff,
+.ed-split,
 .ed-skeleton,
 .ed-state {
   position: absolute;
   inset: 0;
+}
+
+/* Split view (markdown): source left, rendered right, one hairline between.
+   Equal halves — a third drag handle inside a 320px-floor panel would be
+   more chrome than pane. */
+.ed-split {
+  display: flex;
+}
+
+.ed-split-pane {
+  position: relative;
+  flex: 1 1 50%;
+  min-width: 0;
+}
+
+.ed-split-pane + .ed-split-pane {
+  border-left: 1px solid var(--border);
 }
 
 /* Diff mode is the scroller plus an optional note strip under it (Phase

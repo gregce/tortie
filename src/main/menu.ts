@@ -8,11 +8,20 @@
  *  - A standard Edit menu (native roles) so ⌘C/⌘V/⌘X/⌘A work inside the
  *    terminal and every input.
  *
- * Menu accelerators fire before the renderer sees the keydown, so every
- * registered item forwards a MenuActionId over EVT_MENU_ACTION; the
- * renderer's own keydown map stays as fallback for chords not registered
- * here (⌘1…⌘9, ⌘⇧]/⌘⇧[, ⌘↩ commit — those stay renderer-side on purpose:
- * they are context-sensitive or would bloat the menu).
+ * ORDER (measured on Electron 43, real keystrokes — this file used to claim
+ * the opposite): the RENDERER's keydown runs FIRST and an accelerator fires
+ * ~5 ms later; a renderer `preventDefault()` suppresses the accelerator
+ * entirely. So the renderer's own keydown map is not a fallback — for any
+ * chord it handles, it is the path that runs, and the menu item is what
+ * makes the shortcut discoverable and what fires when focus is outside the
+ * app's own handlers. Every registered item still forwards a MenuActionId
+ * over EVT_MENU_ACTION so both routes end in the same action.
+ *
+ * This ordering is load-bearing for the terminal: ⌘C with no selection must
+ * send SIGINT, which only works because src/renderer/terminal/keys.ts sees
+ * the key before the Edit menu's `role:'copy'` and can suppress it.
+ * Renderer-only chords (⌘1…⌘9, ⌘⇧]/⌘⇧[, ⌘↩ commit) stay off the menu on
+ * purpose: they are context-sensitive or would bloat it.
  */
 
 import { app, BrowserWindow, Menu } from 'electron';

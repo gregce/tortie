@@ -1,0 +1,233 @@
+/**
+ * Empty-state styles, colocated with EmptyStates.tsx (S9 / §6.1–§6.2).
+ *
+ * The shared primitives (.empty, .empty-title, .empty-body, .empty-actions)
+ * stay in styles/app.css — every empty surface in the app uses them. What
+ * lives here is the FLEET launcher: the no-sessions-in-a-project state, the
+ * first thing a user sees in a new project — plus the shared column rhythm
+ * (.onb-inner) and hint row every other full-window state now adopts, so
+ * §6.1, §6.2, §6.4 and §6.6 read as one family.
+ *
+ * Every override is qualified with an extra class (.empty-inner.onb-inner,
+ * .onb-inner .empty-body) so it outranks app.css on SPECIFICITY, never on
+ * bundle order — Vite is free to emit these stylesheets in either order.
+ */
+
+/* The type-only states read at 420px; the fleet grid needs a wider column.
+   width:100% is load-bearing — .empty centers its child, so without it the
+   column shrink-wraps the paragraph and the grid loses a track. */
+.empty-inner.onb-inner {
+  width: 100%;
+  max-width: 660px;
+  gap: 0;
+}
+
+/* --text-md is the token's documented empty-state body size (§1.8); the
+   measure stays a comfortable ~55ch even though the column is wider. */
+.onb-inner .empty-body {
+  max-width: 460px;
+  margin-top: var(--space-4);
+  font-size: var(--text-md);
+  line-height: var(--lh-md);
+  text-wrap: balance;
+}
+
+/* ---------------------------------------------------------------------------
+   The fleet — every launchable agent in the registry's own order, Shell last.
+   Installed ones are real launchers; the rest are present but recessive, so
+   the board reads "here is what gmux runs" without becoming a wall.
+--------------------------------------------------------------------------- */
+
+.onb-fleet {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-3);
+  margin-top: var(--space-8);
+}
+
+.onb-tile {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  text-align: left;
+  min-width: 0;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+  /* Welcome beat: the board settles in once, 4px and done (§5 keeps the
+     terminal itself animation-free — this state has no terminal in it). */
+  animation: onb-tile-in var(--dur-panel) var(--ease-out) both;
+  animation-delay: calc(var(--onb-i, 0) * 16ms);
+}
+
+.onb-tile:hover {
+  background: var(--bg-raised);
+  border-color: var(--border-strong);
+}
+
+.onb-tile:active {
+  background: var(--bg-active);
+}
+
+.onb-tile:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.onb-tile-icon {
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+.onb-tile:hover .onb-tile-icon {
+  color: var(--text-primary);
+}
+
+.onb-tile-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Right slot: assigned hotkey (keycap), "not installed", or "early". */
+.onb-tile-meta {
+  flex: 0 0 auto;
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+}
+
+.onb-tile .key {
+  flex: 0 0 auto;
+}
+
+/* Not installed: no fill, no border, muted label — visibly secondary, never
+   struck through or reddened. gmux picks the CLI up the moment it appears. */
+.onb-tile.missing {
+  background: none;
+  border-color: transparent;
+  color: var(--text-muted);
+  font-weight: var(--weight-regular);
+  cursor: default;
+}
+
+.onb-tile.missing .onb-tile-icon {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+.onb-tile.missing:hover {
+  background: var(--bg-surface);
+  border-color: var(--border);
+}
+
+.onb-tile.missing:hover .onb-tile-icon {
+  color: var(--text-muted);
+}
+
+/* The default agent (Settings → General, claude out of the box) is where the
+   eye should land first — one accent hairline, no fill, no badge. */
+.onb-tile.primary {
+  border-color: var(--accent);
+}
+
+.onb-tile.primary .onb-tile-icon {
+  color: var(--text-primary);
+}
+
+/* The tile the user just clicked, for the beat before the session paints. */
+.onb-tile.starting {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+  color: var(--text-primary);
+}
+
+.onb-fleet[aria-busy='true'] .onb-tile:not(.starting) {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+@keyframes onb-tile-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onb-tile {
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Hint + caption rows (shared by all three full-window states)
+--------------------------------------------------------------------------- */
+
+/* Sentence-shaped hint with inline keycaps — .empty-hint is a flex row for
+   two-token hints ("or press ⌘O") and spaces a full sentence oddly. */
+.onb-hint {
+  margin: var(--space-6) 0 0;
+  max-width: 560px;
+  font-size: var(--text-xs);
+  line-height: 18px;
+  color: var(--text-muted);
+  text-wrap: balance;
+}
+
+/* No side margins: the sentence's own spaces set the rhythm, so a chip
+   followed by a comma doesn't float away from it. */
+.onb-hint .key {
+  margin: 0;
+  vertical-align: middle;
+}
+
+.onb-hint-strong {
+  color: var(--text-secondary);
+}
+
+/* Reserved so revealing an install line never nudges the centered column. */
+.onb-caption {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  min-height: 22px;
+  margin-top: var(--space-2);
+  max-width: 100%;
+}
+
+/* ---------------------------------------------------------------------------
+   First run + tmux missing — same rhythm as the fleet state.
+--------------------------------------------------------------------------- */
+
+.onb-inner .empty-actions {
+  margin-top: var(--space-7);
+}
+
+/* §6.6's "command not found" state prints the install line between the body
+   and its actions; gap:0 means it carries its own space. */
+.onb-inner > .agent-missing-cmd {
+  margin-top: var(--space-5);
+}
+
+/* The install command sits directly above [Check again] as one group. */
+.onb-inner .empty-actions + .empty-actions {
+  margin-top: var(--space-5);
+}

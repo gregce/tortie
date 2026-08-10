@@ -1,0 +1,335 @@
+/**
+ * Rendered markdown — the one READING surface in an app of dense operational
+ * chrome. It keeps the app's material (canvas ground, the same type ramp) but
+ * gives prose the two things prose needs and nothing else here has: a measure
+ * (~68ch) and vertical rhythm. Tokens only.
+ */
+
+.md-preview {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  min-height: 0;
+  background: var(--bg-canvas);
+}
+
+.md-scroll {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .md-scroll {
+    scroll-behavior: auto;
+  }
+}
+
+.md-scroll:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.md-content {
+  max-width: 68ch;
+  padding: var(--space-7) var(--space-8) var(--space-10);
+  font-size: var(--text-base);
+  line-height: 1.65;
+  color: var(--text-primary);
+  overflow-wrap: break-word;
+}
+
+/* ---------------------------------------------------------------------------
+   Blocks — more space above a heading than below it (DESIGN.md §1.7)
+--------------------------------------------------------------------------- */
+
+.md-content > :first-child {
+  margin-top: 0;
+}
+
+.md-content h1,
+.md-content h2,
+.md-content h3,
+.md-content h4,
+.md-content h5,
+.md-content h6 {
+  margin: var(--space-8) 0 var(--space-3);
+  font-weight: var(--weight-semibold);
+  line-height: 1.3;
+  scroll-margin-top: var(--space-5);
+}
+
+.md-content h1 {
+  font-size: 24px;
+  letter-spacing: -0.01em;
+}
+
+.md-content h2 {
+  font-size: 19px;
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.md-content h3 {
+  font-size: 16px;
+}
+
+.md-content h4,
+.md-content h5,
+.md-content h6 {
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+}
+
+.md-content p,
+.md-content ul,
+.md-content ol,
+.md-content blockquote,
+.md-content .md-table-scroll,
+.md-content pre {
+  margin: 0 0 var(--space-5);
+}
+
+.md-content ul,
+.md-content ol {
+  padding-left: var(--space-7);
+}
+
+.md-content li {
+  margin-bottom: var(--space-2);
+}
+
+.md-content li > ul,
+.md-content li > ol {
+  margin: var(--space-2) 0 0;
+}
+
+.md-content hr {
+  height: 1px;
+  margin: var(--space-8) 0;
+  border: 0;
+  background: var(--border);
+}
+
+/* A quote is a voice change, not an alert: one hairline rule, never a slab. */
+.md-content blockquote {
+  padding-left: var(--space-5);
+  border-left: 1px solid var(--border-strong);
+  color: var(--text-secondary);
+}
+
+.md-content blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   Inline
+--------------------------------------------------------------------------- */
+
+.md-content a {
+  color: var(--accent-text);
+  text-decoration: none;
+}
+
+.md-content a:hover {
+  text-decoration: underline;
+}
+
+.md-content a:focus-visible {
+  outline: none;
+  border-radius: var(--r-sm);
+  box-shadow: var(--focus-ring);
+}
+
+.md-content strong {
+  font-weight: var(--weight-semibold);
+}
+
+.md-content code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+/* Inline code only — Shiki's block output styles itself. */
+.md-content :not(pre) > code {
+  padding: 1px 4px;
+  border-radius: var(--r-sm);
+  background: var(--bg-raised);
+  color: var(--text-primary);
+}
+
+.md-content kbd {
+  padding: 1px 5px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  background: var(--bg-raised);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+/* ---------------------------------------------------------------------------
+   Code fences (Shiki) — same font ramp and gutter weight as Diff and File
+--------------------------------------------------------------------------- */
+
+.md-content pre {
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.55;
+  tab-size: 2;
+}
+
+/* Shiki writes the theme background inline; the border above is ours. */
+.md-content pre code {
+  display: block;
+  font-size: inherit;
+}
+
+/* ---------------------------------------------------------------------------
+   Tables (GFM) — wide ones scroll in their own box; the document never does
+--------------------------------------------------------------------------- */
+
+.md-table-scroll {
+  overflow-x: auto;
+}
+
+.md-content table {
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.md-content th,
+.md-content td {
+  padding: var(--space-3) var(--space-5);
+  border: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.md-content th {
+  background: var(--bg-sidebar);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------------------
+   Task lists, images, footnotes
+--------------------------------------------------------------------------- */
+
+.md-content li:has(> .md-task) {
+  list-style: none;
+  margin-left: calc(-1 * var(--space-6));
+}
+
+.md-task {
+  margin-right: var(--space-3);
+  accent-color: var(--accent);
+  vertical-align: baseline;
+}
+
+.md-img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--r-sm);
+}
+
+/* Remote images are blocked by CSP on purpose (a badge and a tracking pixel
+   are the same object). Say so where the image would have been. */
+.md-blocked {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r-sm);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.md-content .footnotes {
+  margin-top: var(--space-8);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--border);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+/* GFM's own "Footnotes" heading is apparatus, not part of the author's
+   outline: the section rule above already separates it, so it drops to a
+   quiet label instead of arriving as a second h2 with its own rule. */
+.md-content .footnotes > h2 {
+  margin: 0 0 var(--space-3);
+  padding-bottom: 0;
+  border-bottom: 0;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.md-content sup a {
+  font-size: var(--text-xs);
+}
+
+/* ---------------------------------------------------------------------------
+   Heading ruler — the preview's answer to the minimap
+--------------------------------------------------------------------------- */
+
+.md-ruler {
+  position: relative;
+  flex: 0 0 12px;
+  align-self: stretch;
+  background: var(--bg-canvas);
+  border-left: 1px solid var(--border);
+  cursor: pointer;
+  touch-action: none;
+}
+
+.md-ruler:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.md-ruler-tick {
+  position: absolute;
+  right: 1px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--text-secondary);
+  pointer-events: none;
+}
+
+.md-ruler-tick.depth-1 {
+  width: 10px;
+  opacity: 1;
+}
+
+.md-ruler-tick.depth-2 {
+  width: 7px;
+  opacity: 0.7;
+}
+
+.md-ruler-tick.depth-3 {
+  width: 4px;
+  opacity: 0.45;
+}
+
+.md-ruler-thumb {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-radius: var(--r-sm);
+  background: var(--accent-wash);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+  pointer-events: none;
+}
+
+.md-ruler:hover .md-ruler-thumb,
+.md-ruler:active .md-ruler-thumb {
+  background: var(--drop-wash);
+}

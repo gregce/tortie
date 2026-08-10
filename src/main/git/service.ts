@@ -16,10 +16,18 @@ import type {
   GitBranchInfo,
   GitCherryPickResult,
   GitCommitDetail,
+  GitCommitFileDiff,
+  GitCommitFileDiffInput,
   GitDeleteBranchResult,
   GitLogEntryDetailed,
+  GitPullResult,
+  GitPushInput,
+  GitPushResult,
   GitRemoteBranchesResult,
-  GitStatusDetailed
+  GitRemoteInfo,
+  GitRemotesResult,
+  GitStatusDetailed,
+  GitSyncResult
 } from '@shared/types';
 import { gmuxError } from '../tmux/errors';
 import { runGit, runGitOrThrow } from './exec';
@@ -36,14 +44,23 @@ import {
   parseLog,
   parseNameStatusZ,
   parseNumstatZ,
-  parsePorcelainV2Status
+  parsePorcelainV2Status,
+  parseRemoteVerbose,
+  remoteOfUpstream
 } from './parse';
 
 const NOT_A_REPO_RE = /not a git repository/i;
 const UNBORN_HEAD_RE =
   /(?:could not resolve|invalid object name|unknown revision|bad default revision|ambiguous argument) '?HEAD'?|does not have any commits yet/i;
-const MISSING_AT_HEAD_RE =
-  /(?:does not exist in|exists on disk, but not in) '?HEAD'?|invalid object name 'HEAD'|bad revision 'HEAD/i;
+/**
+ * "That path is not in that revision" — rev-AGNOSTIC (Phase 12 item 4). The
+ * round-0 regex required a literal `HEAD` after "does not exist in", so
+ * `fatal: path 'x' does not exist in '<sha>'` fell through and threw instead
+ * of resolving null. Every caller validates the revision separately (see
+ * resolveCommit), so a genuinely bad rev is still an error, never a null side.
+ */
+const MISSING_IN_REV_RE =
+  /does not exist in|exists on disk, but not in|invalid object name|unknown revision|bad revision|does not exist \(neither on disk nor in the index\)/i;
 
 /** Longer leash for commits: hooks (lint, tests) run inside them. */
 const COMMIT_TIMEOUT_MS = 300_000;
@@ -51,6 +68,32 @@ const COMMIT_TIMEOUT_MS = 300_000;
 const FETCH_TIMEOUT_MS = 120_000;
 /** Pathspec batches stay far below ARG_MAX. */
 const PATH_CHUNK = 500;
+/** git's own binary heuristic: a NUL byte in the first 8000 bytes. */
+const BINARY_SNIFF_BYTES = 8000;
+
+// --- remote-operation failure classification (push / pull / fetch) ---------
+// Every one of these surfaces as a REAL message; nothing about a network or
+// credential failure is ever swallowed (BACKLOG 12 item 3).
+
+/** Unambiguous credential failures — git names them outright. */
+const AUTH_FAILURE_RE =
+  /could not read (username|password)|authentication failed|permission denied \(publickey\)|terminal prompts disabled|invalid username or password|403 forbidden|401 unauthorized|access denied|support for password authentication was removed/i;
+/**
+ * The catch-all git prints under BOTH a credential failure and a bad URL, so
+ * it is only consulted after NO_REMOTE_REPO_RE has had its say — otherwise a
+ * typo'd path reads as "authenticate", which sends the user hunting for the
+ * wrong problem.
+ */
+const AUTH_MAYBE_RE = /could not read from remote repository/i;
+const NETWORK_FAILURE_RE =
+  /could not resolve host|connection refused|connection timed out|network is unreachable|operation timed out|failed to connect|temporary failure in name resolution|ssl|proxy/i;
+const NON_FAST_FORWARD_RE =
+  /non-fast-forward|updates were rejected|fetch first|behind its remote counterpart|\[rejected\]/i;
+const DIVERGED_RE =
+  /need to specify how to reconcile divergent branches|divergent branches|not possible to fast-forward/i;
+const DIRTY_TREE_RE =
+  /cannot pull with rebase|you have unstaged changes|local changes to the following files would be overwritten|please commit your changes or stash them/i;
+const NO_REMOTE_REPO_RE = /does not appear to be a git repository|repository not found/i;
 
 export class GitService {
   /** Absolute, resolved repo root this service operates on. */
@@ -142,15 +185,17 @@ export class GitService {
   }
 
   /**
-   * Contents of `path` at HEAD as raw bytes (binary-safe), or null when the
-   * file did not exist at HEAD (new file, or unborn branch, or non-repo).
+   * Contents of `path` at any revision as raw bytes (binary-safe), or null
+   * when the file does not exist there. ONE reader for every rev — HEAD, a
+   * commit, a commit's first parent (guardrail 3: showHeadBuffer is a
+   * one-liner over this, and the historical-diff path reuses it verbatim).
    */
-  async showHeadBuffer(path: string): Promise<Buffer | null> {
+  async showAtRefBuffer(ref: string, path: string): Promise<Buffer | null> {
     const rel = this.assertRelPath(path);
-    const r = await runGit(this.repoPath, ['show', `HEAD:${rel}`]);
+    const r = await runGit(this.repoPath, ['show', `${ref}:${rel}`]);
     if (r.code === 0) return r.stdout;
     if (
-      MISSING_AT_HEAD_RE.test(r.stderr) ||
+      MISSING_IN_REV_RE.test(r.stderr) ||
       UNBORN_HEAD_RE.test(r.stderr) ||
       NOT_A_REPO_RE.test(r.stderr)
     ) {
@@ -158,9 +203,17 @@ export class GitService {
     }
     throw gmuxError(
       'GIT_FAILED',
-      'Could not read the file at HEAD.',
+      `Could not read the file at ${ref}.`,
       r.stderr.trim() || undefined
     );
+  }
+
+  /**
+   * Contents of `path` at HEAD as raw bytes (binary-safe), or null when the
+   * file did not exist at HEAD (new file, or unborn branch, or non-repo).
+   */
+  async showHeadBuffer(path: string): Promise<Buffer | null> {
+    return this.showAtRefBuffer('HEAD', path);
   }
 
   /** UTF-8 decode of showHeadBuffer (Monaco diff input). Missing → null. */
@@ -453,11 +506,17 @@ export class GitService {
       throw gmuxError('GIT_FAILED', 'Could not read the commit.', ref);
     }
 
+    // `-M` (Phase 12 item 4): pair renames explicitly instead of inheriting
+    // the user's `diff.renames` — with renames off, a rename degrades to
+    // D+A and the history rows lose their `old → new` pairing. Both
+    // --name-status and --numstat go through here, so mergeCommitFiles' keys
+    // stay aligned.
     const showArgs = (mode: string): string[] => [
       'show',
       ref,
       '-z',
       mode,
+      '-M',
       '--format=',
       '--diff-merges=first-parent',
       '--'
@@ -486,6 +545,63 @@ export class GitService {
       insertions: counts.insertions,
       deletions: counts.deletions
     };
+  }
+
+  /**
+   * BACKLOG 12 item 4 — the content pair a HISTORY file row must render:
+   * `<sha>^ → <sha>` (DESIGN-SPEC S3A), never HEAD → worktree.
+   *
+   * Semantics follow VS Code's `toMultiFileDiffEditorUris`: LEFT is the file
+   * at the FIRST parent (empty for adds and for a root commit's files), RIGHT
+   * is the file at the commit (empty for deletes), and a rename reads
+   * `origPath → path`. The caller's `status` letter is only a hint — which
+   * side EXISTS is decided by whether git can read that blob, so a stale
+   * letter degrades to a correct add/delete instead of a wrong diff.
+   */
+  async commitFileDiff(input: GitCommitFileDiffInput): Promise<GitCommitFileDiff> {
+    const sha = await this.resolveCommit(input.sha);
+    const newRel = this.assertRelPath(input.path);
+    const oldRel =
+      input.origPath !== undefined && input.origPath.length > 0
+        ? this.assertRelPath(input.origPath)
+        : newRel;
+    const parentSha = await this.firstParent(sha);
+
+    const [oldBuf, newBuf] = await Promise.all([
+      parentSha === null
+        ? Promise.resolve(null)
+        : this.showAtRefBuffer(parentSha, oldRel),
+      this.showAtRefBuffer(sha, newRel)
+    ]);
+
+    const binary = isBinaryBuffer(oldBuf) || isBinaryBuffer(newBuf);
+    return {
+      sha,
+      shortSha: sha.slice(0, 7),
+      parentSha,
+      oldPath: oldBuf === null ? null : oldRel,
+      newPath: newBuf === null ? null : newRel,
+      oldContents: oldBuf === null || binary ? null : oldBuf.toString('utf8'),
+      newContents: newBuf === null || binary ? null : newBuf.toString('utf8'),
+      binary
+    };
+  }
+
+  /**
+   * Full SHA of a commit's FIRST parent, or null for a root commit.
+   * `<root>^` is `fatal: invalid object name` — never build that string;
+   * `rev-parse --verify --quiet <sha>^1` answers empty + non-zero instead.
+   */
+  async firstParent(sha: string): Promise<string | null> {
+    const ref = this.assertSha(sha);
+    const r = await runGit(this.repoPath, [
+      'rev-parse',
+      '--verify',
+      '--quiet',
+      `${ref}^1`
+    ]);
+    const out = r.stdout.toString('utf8').trim();
+    return r.code === 0 && out.length > 0 ? out : null;
   }
 
   /**
@@ -563,11 +679,9 @@ export class GitService {
       timeoutMs: FETCH_TIMEOUT_MS
     });
     if (r.code !== 0) {
-      throw gmuxError(
-        'GIT_FAILED',
-        'Fetch failed.',
-        r.stderr.trim() || undefined
-      );
+      // Phase 12 item 3: same classification as push/pull — a credential or
+      // network failure says which, and always carries git's own words.
+      throw remoteOpError('fetch', 'the remote', null, r);
     }
   }
 
@@ -649,6 +763,187 @@ export class GitService {
       `Could not delete '${branch}'.`,
       r.stderr.trim() || undefined
     );
+  }
+
+  // -------------------------------------------------------------------------
+  // Sync (Phase 12 item 3): remotes, push, pull, sync. Everything that talks
+  // to a network gets the fetch leash, runs with GIT_TERMINAL_PROMPT=0 (a
+  // credential prompt fails fast instead of hanging a spinner forever), and
+  // reports failures as a CLASSIFIED message with git's own stderr attached —
+  // never a silent no-op.
+  // -------------------------------------------------------------------------
+
+  /**
+   * Configured remotes (name + fetch/push URL) plus the tracking context:
+   * which branch is checked out and which remote-tracking ref it follows, so
+   * the UI can mark the remote the current branch pushes to. Non-repo and
+   * no-remote repos resolve to the empty result (friendly read).
+   */
+  async remotes(): Promise<GitRemotesResult> {
+    const r = await runGit(this.repoPath, ['remote', '-v']);
+    if (r.code !== 0) {
+      if (NOT_A_REPO_RE.test(r.stderr)) {
+        return { remotes: [], branch: null, upstream: null };
+      }
+      throw gmuxError(
+        'GIT_FAILED',
+        'Could not list remotes.',
+        r.stderr.trim() || undefined
+      );
+    }
+    const parsed = parseRemoteVerbose(r.stdout.toString('utf8'));
+    const [branch, upstream] = await Promise.all([
+      this.currentBranch(),
+      this.upstreamRef()
+    ]);
+    const trackedRemote =
+      upstream === null
+        ? null
+        : remoteOfUpstream(upstream, parsed.map((p) => p.name));
+    const remotes: GitRemoteInfo[] = parsed.map((p) => ({
+      name: p.name,
+      fetchUrl: p.fetchUrl,
+      pushUrl: p.pushUrl,
+      tracked: p.name === trackedRemote
+    }));
+    return { remotes, branch, upstream };
+  }
+
+  /**
+   * `git push`. A branch with NO upstream is a typed state, not a failure —
+   * publishing is an explicit gesture (`setUpstream`), so gmux never invents
+   * a remote behind the user's back.
+   */
+  async push(input: GitPushInput = { repoPath: this.repoPath }): Promise<GitPushResult> {
+    await this.assertIsRepo();
+    const branch = await this.currentBranch();
+    if (branch === null) {
+      throw gmuxError(
+        'GIT_FAILED',
+        'You are not on a branch — check one out before pushing.',
+        'HEAD is detached or the branch has no commits yet.'
+      );
+    }
+    const upstream = await this.upstreamRef();
+
+    if (upstream === null) {
+      const fallback = input.remote ?? (await this.defaultRemote());
+      if (input.setUpstream !== true) {
+        return { status: 'no-upstream', branch, remote: fallback };
+      }
+      if (fallback === null) {
+        throw gmuxError(
+          'GIT_FAILED',
+          'This repository has no remote to publish to.',
+          'Add one with `git remote add origin <url>`.'
+        );
+      }
+      const remote = this.assertSafeRef(fallback);
+      const r = await runGit(
+        this.repoPath,
+        ['push', '--set-upstream', remote, branch],
+        { timeoutMs: FETCH_TIMEOUT_MS }
+      );
+      if (r.code !== 0) throw remoteOpError('push', remote, branch, r);
+      return { status: 'pushed', remote, branch };
+    }
+
+    const remote =
+      remoteOfUpstream(upstream, await this.remoteNames()) ?? 'origin';
+    const r = await runGit(this.repoPath, ['push'], {
+      timeoutMs: FETCH_TIMEOUT_MS
+    });
+    if (r.code !== 0) throw remoteOpError('push', remote, branch, r);
+    const noise = r.stderr + r.stdout.toString('utf8');
+    return {
+      status: /everything up-to-date/i.test(noise) ? 'up-to-date' : 'pushed',
+      remote,
+      branch
+    };
+  }
+
+  /**
+   * `git pull` — honours the user's own `pull.rebase` / `pull.ff` config
+   * (same discipline as commit: git behaves exactly as it does in their
+   * terminal). Conflicts are a TYPED RESULT: the repo is deliberately left
+   * mid-merge, which the Changes section already renders.
+   */
+  async pull(): Promise<GitPullResult> {
+    await this.assertIsRepo();
+    const branch = await this.currentBranch();
+    const upstream = await this.upstreamRef();
+    if (upstream === null) {
+      return { status: 'no-upstream', branch: branch ?? 'HEAD' };
+    }
+    const remote = remoteOfUpstream(upstream, await this.remoteNames()) ?? 'origin';
+    const r = await runGit(this.repoPath, ['pull'], {
+      timeoutMs: FETCH_TIMEOUT_MS
+    });
+    const noise = r.stderr + r.stdout.toString('utf8');
+    if (r.code !== 0) {
+      if (/conflict/i.test(noise) || (await this.sequencerInProgress())) {
+        const detail = noise.trim();
+        return {
+          status: 'conflict',
+          ...(detail.length > 0 ? { detail } : {})
+        };
+      }
+      throw remoteOpError('pull', remote, branch ?? 'HEAD', r);
+    }
+    return {
+      status: /already up to date/i.test(noise) ? 'up-to-date' : 'pulled',
+      upstream
+    };
+  }
+
+  /** Sync = pull, then push (VS Code's Sync Changes). A pull that conflicts
+   *  is never pushed over. */
+  async sync(): Promise<GitSyncResult> {
+    const pull = await this.pull();
+    if (pull.status === 'conflict') return { pull, push: null };
+    const push = await this.push({ repoPath: this.repoPath });
+    return { pull, push };
+  }
+
+  /** Current branch name; null when detached, unborn, or not a repo. */
+  async currentBranch(): Promise<string | null> {
+    const r = await runGit(this.repoPath, ['symbolic-ref', '--quiet', '--short', 'HEAD']);
+    const name = r.stdout.toString('utf8').trim();
+    return r.code === 0 && name.length > 0 ? name : null;
+  }
+
+  /** Upstream of the current branch ("origin/main"); null when it has none. */
+  async upstreamRef(): Promise<string | null> {
+    const r = await runGit(this.repoPath, [
+      'rev-parse',
+      '--abbrev-ref',
+      '--symbolic-full-name',
+      '@{upstream}'
+    ]);
+    const name = r.stdout.toString('utf8').trim();
+    return r.code === 0 && name.length > 0 ? name : null;
+  }
+
+  /** Remote names only (`git remote`), in git's order. */
+  private async remoteNames(): Promise<string[]> {
+    const r = await runGit(this.repoPath, ['remote']);
+    if (r.code !== 0) return [];
+    return r.stdout
+      .toString('utf8')
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
+  }
+
+  /**
+   * The remote a fresh branch should publish to: `origin` when it exists,
+   * otherwise the only remote; null when there are none or the choice is
+   * ambiguous (the UI then asks instead of guessing).
+   */
+  private async defaultRemote(): Promise<string | null> {
+    const names = await this.remoteNames();
+    if (names.includes('origin')) return 'origin';
+    return names.length === 1 ? (names[0] ?? null) : null;
   }
 
   /**
@@ -735,6 +1030,31 @@ export class GitService {
     return r;
   }
 
+  /**
+   * Validate a SHA argument AND prove the commit exists in this repo,
+   * resolving it to its full 40-char id. Doing this up front is what lets
+   * `showAtRefBuffer` treat "invalid object name" as "the path isn't in that
+   * revision" (null side) without ever masking a bogus commit id.
+   */
+  private async resolveCommit(sha: string): Promise<string> {
+    const ref = this.assertSha(sha);
+    const r = await runGit(this.repoPath, [
+      'rev-parse',
+      '--verify',
+      '--quiet',
+      `${ref}^{commit}`
+    ]);
+    const full = r.stdout.toString('utf8').trim();
+    if (r.code !== 0 || full.length === 0) {
+      throw gmuxError(
+        'INVALID_INPUT',
+        'That commit is not in this repository.',
+        sha
+      );
+    }
+    return full;
+  }
+
   /** Validate a commit SHA argument (full or abbreviated hex). */
   private assertSha(sha: string): string {
     const s = sha.trim();
@@ -769,6 +1089,75 @@ export class GitService {
 
 function literalSpec(relPath: string): string {
   return `:(literal)${relPath}`;
+}
+
+/** git's own heuristic: a NUL byte in the first 8000 bytes means binary. */
+function isBinaryBuffer(buf: Buffer | null): boolean {
+  return buf !== null && buf.subarray(0, BINARY_SNIFF_BYTES).includes(0);
+}
+
+/**
+ * Turn a failed push/pull/fetch into a message that names the PROBLEM and the
+ * RECOVERY (DESIGN.md §6.11), with git's own stderr always attached as the
+ * detail. Auth is the case that must never read as a generic failure: gmux
+ * runs git with no terminal, so "it silently did nothing" is exactly the
+ * experience this replaces.
+ */
+function remoteOpError(
+  op: 'push' | 'pull' | 'fetch',
+  remote: string,
+  branch: string | null,
+  r: { stderr: string; stdout: Buffer }
+): Error {
+  const noise = `${r.stderr}\n${r.stdout.toString('utf8')}`;
+  const detail = (r.stderr.trim() || r.stdout.toString('utf8').trim()) || undefined;
+  const verb = op === 'push' ? 'Push' : op === 'pull' ? 'Pull' : 'Fetch';
+
+  const authFailure = (): Error =>
+    gmuxError(
+      'GIT_FAILED',
+      `Couldn’t authenticate with ${remote}. gmux runs git without a terminal, so it can’t ask for a password — set up an SSH key or a credential helper, then try again.`,
+      detail
+    );
+
+  if (AUTH_FAILURE_RE.test(noise)) return authFailure();
+  if (NO_REMOTE_REPO_RE.test(noise)) {
+    return gmuxError(
+      'GIT_FAILED',
+      `Couldn’t find a repository at ${remote} — check the URL, and that your account has access to it.`,
+      detail
+    );
+  }
+  if (AUTH_MAYBE_RE.test(noise)) return authFailure();
+  if (NETWORK_FAILURE_RE.test(noise)) {
+    return gmuxError(
+      'GIT_FAILED',
+      `Couldn’t reach ${remote}. Check your connection and try again.`,
+      detail
+    );
+  }
+  if (op === 'push' && NON_FAST_FORWARD_RE.test(noise)) {
+    return gmuxError(
+      'GIT_FAILED',
+      `Push rejected — ${remote} has commits ${branch ?? 'this branch'} doesn’t. Pull first, then push.`,
+      detail
+    );
+  }
+  if (op === 'pull' && DIRTY_TREE_RE.test(noise)) {
+    return gmuxError(
+      'GIT_FAILED',
+      'Pull needs a clean working tree — commit or stash your changes first.',
+      detail
+    );
+  }
+  if (op === 'pull' && DIVERGED_RE.test(noise)) {
+    return gmuxError(
+      'GIT_FAILED',
+      `${branch ?? 'This branch'} and ${remote} have diverged. Git needs to know whether to merge or rebase: set \`pull.rebase\` in your git config, then pull again.`,
+      detail
+    );
+  }
+  return gmuxError('GIT_FAILED', `${verb} failed.`, detail);
 }
 
 function chunked<T>(items: T[], size: number): T[][] {

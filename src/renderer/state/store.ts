@@ -74,6 +74,14 @@ export interface ConfirmSpec {
   confirmLabel: string;
   destructive?: boolean;
   onConfirm: () => void;
+  /**
+   * Optional THIRD choice, for the one dialog shape where two answers can
+   * only lose work: "Save / Don't Save / Cancel" when closing a dirty editor
+   * tab. Rendered leading-left, away from the confirm button. Omit it and the
+   * dialog stays the two-button destructive confirm it has always been.
+   */
+  altLabel?: string;
+  onAlt?: () => void;
 }
 
 export interface MenuItemSpec {
@@ -195,7 +203,9 @@ interface AppState {
      */
     extraArgs?: string[];
   }): Promise<boolean>;
-  quickCreate(agent: AgentKind): Promise<void>;
+  /** §6.2 one-click create. Widened with createSession (Phase 12): the
+   *  no-sessions fleet launches ANY launchable registry agent, not the trio. */
+  quickCreate(agent: LaunchableAgentKind): Promise<void>;
   renameSession(sessionId: string, name: string): Promise<void>;
   endSession(sessionId: string): void;
   restartSession(sessionId: string): Promise<void>;
@@ -449,16 +459,28 @@ export const useApp = create<AppState>((set, get) => {
           gmux.projects.list(),
           gmux.sessions.list()
         ]);
+        // A project added WHILE this list was in flight is also main's truth
+        // — it went through projects:add and is in the manifest; it is just
+        // newer than the snapshot. Overwriting would silently drop it, which
+        // is what a ⌘O (or the screenshot harness) in the first second used
+        // to do. Union, keeping the manifest's order and appending the ones
+        // this read could not have seen.
+        const known = new Set(projects.map((p) => p.id));
+        const merged = [
+          ...projects,
+          ...get().projects.filter((p) => !known.has(p.id))
+        ];
         const savedActive = loadLocal<string | null>(LS_ACTIVE_PROJECT, null);
         const activeProjectId =
-          projects.find((p) => p.id === savedActive)?.id ??
-          projects[0]?.id ??
+          get().activeProjectId ??
+          merged.find((p) => p.id === savedActive)?.id ??
+          merged[0]?.id ??
           null;
         set({
           ready: true,
           bootBlock: null,
           bootErrorDetail: null,
-          projects,
+          projects: merged,
           activeProjectId
         });
         applySessions(sessions);

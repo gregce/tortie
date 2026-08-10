@@ -27,6 +27,32 @@ function cssVar(name: string, fallback: string): string {
   return v.length > 0 ? v : fallback;
 }
 
+/**
+ * Minimap options (BACKLOG item 6). Toggling is `updateOptions()` — no
+ * re-create, no model churn, no lost scroll position. `showSlider: 'always'`
+ * because gmux is a supervision tool and a hidden affordance is worse than a
+ * visible one; colours come from GMUX_MONACO_THEME's `minimap*` entries.
+ *
+ * The git added/modified/deleted stripes people remember from VS Code are a
+ * workbench contribution, not a standalone-Monaco feature — there is no
+ * `minimapGutter.*` to theme, so this minimap shows text, not change lanes.
+ *
+ * DELETING MONACO LATER (the BACKLOG note): this is the only minimap that
+ * exists today, and it covers the editing surfaces only — @pierre/diffs has
+ * no minimap or overview ruler at all, and rendered markdown gets a heading
+ * ruler instead (editor/markdown/HeadingRuler.tsx). If Monaco is replaced,
+ * the replacement owes the editing surface a minimap; nothing else changes,
+ * because `minimapEnabled` lives in the store and the ruler is independent.
+ */
+const MINIMAP_ON: monacoNs.editor.IEditorMinimapOptions = {
+  enabled: true,
+  renderCharacters: true,
+  showSlider: 'always',
+  size: 'proportional',
+  maxColumn: 100,
+  autohide: 'none'
+};
+
 function baseOptions(): monacoNs.editor.IStandaloneEditorConstructionOptions {
   return {
     fontFamily: cssVar('--font-mono', '"SF Mono", ui-monospace, Menlo, monospace'),
@@ -51,9 +77,14 @@ function baseOptions(): monacoNs.editor.IStandaloneEditorConstructionOptions {
 
 export interface MonacoHostProps {
   tab: EditorTab;
+  /** Show Monaco's minimap (store-level toggle, off below a narrow panel). */
+  minimap: boolean;
 }
 
-export function MonacoHost({ tab }: MonacoHostProps): React.JSX.Element {
+export function MonacoHost({
+  tab,
+  minimap
+}: MonacoHostProps): React.JSX.Element {
   const setMonacoError = useEditor((s) => s.setMonacoError);
   const markDirty = useEditor((s) => s.markDirty);
 
@@ -62,7 +93,7 @@ export function MonacoHost({ tab }: MonacoHostProps): React.JSX.Element {
   const codeContainer = useRef<HTMLDivElement | null>(null);
   const codeEditor = useRef<monacoNs.editor.IStandaloneCodeEditor | null>(null);
   const contentListener = useRef<monacoNs.IDisposable | null>(null);
-  const prevShownPath = useRef<string | null>(null);
+  const prevShownId = useRef<string | null>(null);
 
   // -- load the Monaco chunk once -------------------------------------------
   useEffect(() => {
@@ -89,7 +120,10 @@ export function MonacoHost({ tab }: MonacoHostProps): React.JSX.Element {
   }, [setMonacoError]);
 
   // -- (re)wire the editor whenever the shown path changes ------------------
-  const readOnly = tab.deleted || tab.truncated;
+  // A history tab shows a file as it was at one commit — the past is not an
+  // edit surface (VS Code opens commit contents read-only for the same
+  // reason: a save would write an old revision over the live file).
+  const readOnly = tab.deleted || tab.truncated || tab.commit !== null;
   const contentReady = !tab.loading && tab.error === null;
 
   useEffect(() => {
@@ -97,11 +131,11 @@ export function MonacoHost({ tab }: MonacoHostProps): React.JSX.Element {
     if (!ready || m === null || !contentReady) return;
 
     const language = languageFor(m, tab.path);
-    const model = workingModel(m, tab.path, tab.savedContents, language);
+    const model = workingModel(m, tab.id, tab.savedContents, language);
 
-    // Save the outgoing file's view state.
-    const prev = prevShownPath.current;
-    if (prev !== null && prev !== tab.path) {
+    // Save the outgoing tab's view state.
+    const prev = prevShownId.current;
+    if (prev !== null && prev !== tab.id) {
       saveViewState(prev, codeEditor.current?.saveViewState() ?? null);
     }
 
@@ -118,45 +152,51 @@ export function MonacoHost({ tab }: MonacoHostProps): React.JSX.Element {
     if (ce !== null) {
       ce.setModel(model);
       ce.updateOptions({ readOnly });
-      const state = takeViewState(tab.path);
+      const state = takeViewState(tab.id);
       if (state !== null) ce.restoreViewState(state);
     }
 
     // Dirty tracking: buffer text vs last saved contents (store truth).
     contentListener.current = model.onDidChangeContent(() => {
-      const current = useEditor
-        .getState()
-        .tabs.find((t) => t.path === tab.path);
+      const current = useEditor.getState().tabs.find((t) => t.id === tab.id);
       if (current === undefined) return;
-      markDirty(tab.path, model.getValue() !== current.savedContents);
+      markDirty(tab.id, model.getValue() !== current.savedContents);
     });
 
     // Opening a file is an attention switch — the editor takes focus so
     // ⌘F / arrows / typing work immediately (Esc hands it back).
-    if (prev !== tab.path) {
+    if (prev !== tab.id) {
       ce?.focus();
     }
 
-    prevShownPath.current = tab.path;
+    prevShownId.current = tab.id;
     // NOTE deps: savedContents is deliberately absent — a save must NOT
     // re-run setModel (which resets scroll). Content updates flow through
     // the model registry instead (resetWorkingModel).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, contentReady, readOnly, tab.path, markDirty]);
+  }, [ready, contentReady, readOnly, tab.id, tab.path, markDirty]);
+
+  // Minimap toggles in place — updateOptions keeps the model and the scroll
+  // position, which a re-create would throw away.
+  useEffect(() => {
+    codeEditor.current?.updateOptions({
+      minimap: minimap ? MINIMAP_ON : { enabled: false }
+    });
+  }, [minimap, ready, contentReady]);
 
   // -- teardown on unmount ----------------------------------------------------
   // Mode toggles (File → Diff) unmount this host: keep the cursor/scroll so
   // toggling back restores the exact position.
   useEffect(
     () => () => {
-      const path = prevShownPath.current;
-      if (path !== null) {
-        saveViewState(path, codeEditor.current?.saveViewState() ?? null);
+      const id = prevShownId.current;
+      if (id !== null) {
+        saveViewState(id, codeEditor.current?.saveViewState() ?? null);
       }
       contentListener.current?.dispose();
       codeEditor.current?.dispose();
       codeEditor.current = null;
-      prevShownPath.current = null;
+      prevShownId.current = null;
     },
     []
   );

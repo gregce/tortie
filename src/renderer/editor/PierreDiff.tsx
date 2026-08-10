@@ -2,16 +2,24 @@
  * PierreDiff — the Diff-mode surface (Phase 11: @pierre/diffs replaces the
  * Monaco diff editor; Monaco stays for File-mode editing only).
  *
- * Read-only by design: old side = HEAD contents (git:showHead, IPC
- * unchanged), new side = the working buffer. When a Monaco working model
- * exists (the file was edited in File mode) the diff subscribes to it, so
- * unsaved edits show live; otherwise the last on-disk contents are shown.
+ * Read-only by design, and it renders BOTH kinds of tab the store produces:
+ *   worktree — old side = HEAD contents (git:showHead), new side = the
+ *     working buffer. When a Monaco working model exists (the file was
+ *     edited in File mode) the diff subscribes to it so unsaved edits show
+ *     live; otherwise the last on-disk contents are shown.
+ *   history  — old and new both come from `git:commitFileDiff` and are
+ *     already in the tab (`headContents` / `savedContents`). The working
+ *     model is deliberately NOT consulted: a commit's contents cannot drift.
+ * A rename shows the old side under its OLD name, which is the only place
+ * the rename is visible once the two blobs are on screen.
+ *
  * Theming flows exclusively through the shadow-DOM theme bridge
  * (src/renderer/pierre/theme-bridge.ts) — page CSS cannot reach in.
  *
- * Layout keeps the Monaco-era rule: side-by-side ≥900px, stacked below.
- * Hunk context expansion is on (Pierre's line-info separators, default),
- * inline diffs are word-level.
+ * Layout (one column or two) is decided by EditorPanel and arrives as a prop
+ * — the panel is the only thing that knows its own width, and the user-facing
+ * control lives up there beside the minimap toggle. Hunk context expansion is
+ * on (Pierre's line-info separators, default), inline diffs are word-level.
  *
  * VIRTUALIZATION (research 12 §2.1): @pierre/diffs only virtualizes when a
  * Virtualizer instance is in context; without one it materializes every line.
@@ -46,22 +54,28 @@ import {
   isPlainTextDiff,
   loadHighlightPool
 } from '../pierre/highlight-pool';
-import { getWorkingModel, loadMonaco, rememberLoaded } from './monaco-loader';
+import { useLiveTabText } from './live-text';
+import { loadMonaco, rememberLoaded } from './monaco-loader';
 import { OpeningSkeleton } from './MonacoHost';
+import { baseName } from './paths';
 import type { EditorTab } from './store';
-
-/** Below this width the diff renders stacked instead of side-by-side. */
-const SIDE_BY_SIDE_MIN_PX = 900;
-/** Model → diff re-render debounce while an agent (or the user) types. */
-const MODEL_SYNC_DEBOUNCE_MS = 150;
 
 type DiffOptions = NonNullable<FileDiffProps<undefined>['options']>;
 
 export interface PierreDiffProps {
   tab: EditorTab;
+  /**
+   * Two columns or one. Decided by the PANEL, which owns every width rule in
+   * this stack and already knows its own — one threshold, in one place,
+   * agreeing with the control the user flips (EditorPanel.DIFF_SPLIT_MIN_PX).
+   */
+  sideBySide: boolean;
 }
 
-export function PierreDiff({ tab }: PierreDiffProps): React.JSX.Element {
+export function PierreDiff({
+  tab,
+  sideBySide
+}: PierreDiffProps): React.JSX.Element {
   // Diff mode no longer needs Monaco, but the dominant gesture is "glance at
   // diff → maybe tweak" — warm the File-mode chunk in the background so the
   // toggle stays instant. Failures stay silent here; MonacoHost owns retry
@@ -72,53 +86,19 @@ export function PierreDiff({ tab }: PierreDiffProps): React.JSX.Element {
       .catch(() => undefined);
   }, []);
 
-  // Live working text: the Monaco model is truth while it exists (unsaved
-  // edits, external reloads via resetWorkingModel); before File mode ever
-  // mounted there is no model and savedContents is already current.
-  const [modelText, setModelText] = useState<string | null>(
-    () => getWorkingModel(tab.path)?.getValue() ?? null
-  );
+  // The RIGHT side. A history tab has no live buffer to track (and must not
+  // adopt one) — its contents came from the commit and cannot change.
+  const historical = tab.commit !== null;
+  const workingText = useLiveTabText(tab.id, tab.savedContents, !historical);
 
-  useEffect(() => {
-    const model = getWorkingModel(tab.path);
-    setModelText(model?.getValue() ?? null);
-    if (model === null) return;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const sub = model.onDidChangeContent(() => {
-      if (timer !== null) clearTimeout(timer);
-      timer = setTimeout(() => {
-        timer = null;
-        setModelText(model.getValue());
-      }, MODEL_SYNC_DEBOUNCE_MS);
-    });
-    return () => {
-      if (timer !== null) clearTimeout(timer);
-      sub.dispose();
-    };
-  }, [tab.path]);
-
-  const workingText = modelText ?? tab.savedContents;
-
-  // -- responsive layout: side-by-side ≥900px, stacked below -----------------
   const hostRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
-  const [sideBySide, setSideBySide] = useState(true);
-  useEffect(() => {
-    const el = hostRef.current;
-    if (el === null) return;
-    const update = (): void =>
-      setSideBySide(el.clientWidth >= SIDE_BY_SIDE_MIN_PX);
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
 
   // Opening a diff is an attention switch — focus the (scrollable) region so
   // arrows/PageDown work immediately and Esc can close the panel.
   useEffect(() => {
     hostRef.current?.focus({ preventScroll: true });
-  }, [tab.path]);
+  }, [tab.id]);
 
   // -- virtualization --------------------------------------------------------
   // One virtualizer per mounted diff, bound to the host as scroll root. The
@@ -155,21 +135,22 @@ export function PierreDiff({ tab }: PierreDiffProps): React.JSX.Element {
   // Stable FileContents identities — the diff is re-parsed when these object
   // references change, and Pierre treats two diffs with the same cacheKey as
   // the same diff, so the key has to follow the contents.
+  const oldName = tab.origRelPath !== null ? baseName(tab.origRelPath) : tab.name;
   const oldFile = useMemo<FileContents>(() => {
     const contents = tab.headContents ?? '';
     return {
-      name: tab.name,
+      name: oldName,
       contents,
-      cacheKey: fileCacheKey('head', tab.path, contents)
+      cacheKey: fileCacheKey('head', tab.id, contents)
     };
-  }, [tab.name, tab.path, tab.headContents]);
+  }, [oldName, tab.id, tab.headContents]);
   const newFile = useMemo<FileContents>(
     () => ({
       name: tab.name,
       contents: workingText,
-      cacheKey: fileCacheKey('work', tab.path, workingText)
+      cacheKey: fileCacheKey('work', tab.id, workingText)
     }),
-    [tab.name, tab.path, workingText]
+    [tab.name, tab.id, workingText]
   );
 
   const { meta, exact } = useDiffMetadata(oldFile, newFile);
@@ -186,8 +167,11 @@ export function PierreDiff({ tab }: PierreDiffProps): React.JSX.Element {
     [sideBySide]
   );
 
-  // HEAD still in flight (the store kicks loadHead on open/mode switch).
+  // The old side is still in flight (loadHead / loadCommitDiff).
   const contentsLoading = tab.loading || tab.headContents === null;
+  /** What the two sides are, in one phrase — used by the label and states. */
+  const against =
+    tab.commit !== null ? `commit ${tab.commit.shortSha}` : 'HEAD';
   const unchanged = !contentsLoading && meta === null && exact;
   // Diff still being computed, or the pool has not resolved yet — the diff
   // instance must not be created before the pool is in context.
@@ -212,7 +196,11 @@ export function PierreDiff({ tab }: PierreDiffProps): React.JSX.Element {
         className="ed-pierre"
         tabIndex={0}
         role="region"
-        aria-label={`Changes vs HEAD — ${tab.name}`}
+        aria-label={
+          tab.commit !== null
+            ? `Changes in commit ${tab.commit.shortSha} — ${tab.name}`
+            : `Changes vs HEAD — ${tab.name}`
+        }
       >
         <div className="ed-pierre-content" ref={contentRef}>
           {contentsLoading || waiting ? (
@@ -221,8 +209,11 @@ export function PierreDiff({ tab }: PierreDiffProps): React.JSX.Element {
             <div className="ed-state">
               <div className="ed-state-title">No changes</div>
               <div className="ed-state-body">
-                {tab.name} matches HEAD. Edits made in File mode will show up
-                here.
+                {tab.commit !== null
+                  ? tab.origRelPath !== null
+                    ? `${tab.name} was renamed from ${tab.origRelPath} in ${against} — its contents did not change.`
+                    : `${tab.name} is identical either side of ${against}.`
+                  : `${tab.name} matches HEAD. Edits made in File mode will show up here.`}
               </div>
             </div>
           ) : meta !== null ? (

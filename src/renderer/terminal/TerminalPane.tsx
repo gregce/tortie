@@ -28,6 +28,9 @@ import './terminal.css';
 import type { GmuxApi, GmuxTermStreamExtras } from '@shared/ipc';
 import type { GmuxErrorPayload, SessionStatus } from '@shared/types';
 import { useApp } from '../state/store';
+import { registerTerminal } from './drop/registry';
+import { terminalKeyHandler } from './keys';
+import { canSplit, showTerminalMenu } from './terminal-menu';
 import {
   resolveTerminalFontFamily,
   resolveTerminalTheme,
@@ -145,6 +148,23 @@ export function TerminalPane({
       macOptionClickForcesSelection: true
     });
     termRef.current = term;
+
+    // Published for the features that must reach a terminal they do not own:
+    // capture + the context menu (Phase 12 #1/#2) and file drop (#8).
+    const unregister = registerTerminal(sessionId, term);
+
+    // ⌘C / ⌘A / ⌘K. ⌘C with a selection copies; with NO selection it sends
+    // SIGINT — the renderer sees the key before the app menu (see ./keys.ts),
+    // so this handler, not `role:'copy'`, decides which.
+    term.attachCustomKeyEventHandler(
+      terminalKeyHandler(
+        sessionId,
+        term,
+        () =>
+          useApp.getState().sessions.find((s) => s.id === sessionId)
+            ?.tmuxName ?? ''
+      )
+    );
 
     const fit = new FitAddon();
     term.loadAddon(fit);
@@ -290,6 +310,7 @@ export function TerminalPane({
 
     return () => {
       disposed = true;
+      unregister();
       document.fonts?.removeEventListener('loadingdone', onFontsLoaded);
       cancelAnimationFrame(raf);
       observer.disconnect();
@@ -315,8 +336,29 @@ export function TerminalPane({
     if (focused) termRef.current?.focus();
   }, [focused, attachEpoch]);
 
+  // Right-click anywhere in the session → the native menu (DESIGN.md §3).
+  // Right-clicking inside a selection keeps it, so Copy still has something
+  // to act on; right-clicking elsewhere behaves like a click.
+  const onContextMenu = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      const session = useApp
+        .getState()
+        .sessions.find((s) => s.id === sessionId);
+      if (session === undefined) return;
+      showTerminalMenu(session, event.clientX, event.clientY, {
+        splittable: !restorable && canSplit(session)
+      });
+    },
+    [sessionId, restorable]
+  );
+
   return (
-    <div className="gmux-terminal-pane" data-session-id={sessionId}>
+    <div
+      className="gmux-terminal-pane"
+      data-session-id={sessionId}
+      onContextMenu={onContextMenu}
+    >
       <div ref={mountRef} className="gmux-terminal-mount" />
       {restorable ? (
         <div className="gmux-terminal-overlay">

@@ -8,32 +8,74 @@
  * S5 rules implemented here:
  *  - modified files open as DIFF vs HEAD by default (`mode: 'diff'`,
  *    rendered read-only by PierreDiff since Phase 11), untracked/clean open
- *    plain (`mode: 'file'`, Monaco)
- *  - single preview tab (italic) reused until the file is edited
- *  - max 5 tabs, LRU-evicting clean tabs
+ *    plain (`mode: 'file'`, Monaco), .md opens rendered (`mode: 'preview'`)
+ *  - single preview tab (italic) reused until the file is edited or the row
+ *    is opened for keeps; everything else ACCUMULATES (Phase 12 item 5)
+ *  - max 10 tabs, LRU-evicting clean, non-active tabs
  *  - ⌘S saves via fs:writeFile; dirty dot until saved
  *  - §6.12 file-deleted-under-tab state (read-only + banner)
+ *
+ * TAB IDENTITY (`tab.id`, not `tab.path`). Every action, the Monaco model
+ * registry and the view-state registry are keyed by `id`. For a worktree tab
+ * `id` is the absolute path; for a HISTORY tab it is `${sha}:${relPath}`, so
+ * the same file seen at two commits is two tabs, neither of which shares (or
+ * disposes) the live file's buffer. The rule itself is ./tab-identity.
+ *
+ * TWO KINDS OF TAB (Phase 12 integration, DESIGN-SPEC S5C):
+ *  - worktree (`commit === null`) — LEFT is HEAD (`git:showHead`), RIGHT is
+ *    the live buffer; editable, refreshed by the git watcher.
+ *  - history  (`commit !== null`) — LEFT and RIGHT both come from
+ *    `git:commitFileDiff` (`<sha>^ → <sha>`); IMMUTABLE, so it never reads
+ *    the worktree, never saves, and the watcher skips it.
+ * `origRelPath` is the path the LEFT side lives at, which differs from
+ * `relPath` for a rename. Without it a renamed file diffs against nothing at
+ * its new path and renders as a whole-file addition (Phase 11 carried
+ * finding (a)) — that is why it is a first-class field and not a detail of
+ * either loader.
+ *
+ * WHAT LIVES ELSEWHERE. This file is the state machine over the tab LIST.
+ * Loading, saving and watcher refresh are ./tab-io; identity and left-path
+ * are ./tab-identity; the strip's chrome is ./EditorTabs. They were one
+ * 770-line file until the Phase-12 cohesion pass.
  */
 
 import { create } from 'zustand';
-import { errorText, useApp } from '../state/store';
+import { useApp } from '../state/store';
 import { onOpenFile } from '../state/open-file';
-import type { OpenFileRequest } from '../state/open-file';
-import type { GmuxFsExtras } from '@shared/ipc';
-import {
-  disposeModels,
-  dropViewState,
-  getWorkingModel,
-  resetWorkingModel
-} from './monaco-loader';
+import type { OpenFileCommitRef, OpenFileRequest } from '../state/open-file';
+import { disposeModels, dropViewState } from './monaco-loader';
+import { leftPathFor, tabIdFor } from './tab-identity';
+import { createTabIo } from './tab-io';
+// Direct module import, not the ./markdown barrel: the barrel re-exports the
+// preview component, whose skeleton comes from MonacoHost, which imports this
+// store — a cycle for the sake of one predicate.
+import { isMarkdownPath } from './markdown/markdown-path';
+import { baseName } from './paths';
 
-export type EditorMode = 'diff' | 'file';
+/**
+ * What the body renders.
+ *  - `diff`    @pierre/diffs, read-only (tracked files with changes)
+ *  - `file`    Monaco — the edit surface; for a .md tab this is "Source"
+ *  - `preview` rendered markdown, no Monaco (.md only)
+ *  - `split`   Source and Preview side by side (.md only)
+ */
+export type EditorMode = 'diff' | 'file' | 'preview' | 'split';
+
+/** The three views a markdown tab toggles between, in control order. */
+export const MARKDOWN_MODES: readonly EditorMode[] = ['preview', 'file', 'split'];
 
 export interface EditorTab {
-  /** Absolute file path — the tab's identity. */
+  /** Tab identity — see the file header. Absolute path for a file tab. */
+  id: string;
+  /** Absolute file path. */
   path: string;
   /** Path relative to repoPath (git:showHead input). */
   relPath: string;
+  /**
+   * Repo-relative path of the LEFT side when it differs — a rename's
+   * pre-rename path. null for the overwhelmingly common non-rename case.
+   */
+  origRelPath: string | null;
   /** Absolute repo/project root. */
   repoPath: string;
   /** Basename, shown on the tab. */
@@ -41,8 +83,16 @@ export interface EditorTab {
   mode: EditorMode;
   /** True when a HEAD version exists to diff against (mode chip visible). */
   canDiff: boolean;
-  /** Preview tab (italic): replaced by the next open until edited. */
+  /** Renders as markdown (drives the Preview/Source/Split control). */
+  markdown: boolean;
+  /** Preview tab (italic): replaced by the next open until edited/pinned. */
   preview: boolean;
+  /**
+   * Set for a HISTORY tab (Phase 12 item 4): this tab shows one file as it
+   * was at one commit. Non-null implies read-only in every surface — no
+   * save, no watcher refresh, no worktree read.
+   */
+  commit: OpenFileCommitRef | null;
   dirty: boolean;
   /** §6.12 — deleted on disk under the open tab. */
   deleted: boolean;
@@ -60,11 +110,29 @@ export interface EditorTab {
   lastUsed: number;
 }
 
-const MAX_TABS = 5;
+/**
+ * VS Code's opt-in limit. Its shipped default is unlimited, but this editor
+ * is a side panel next to live terminals: past ten the strip is a scroll
+ * exercise, and each tab holds a Monaco model. Dirty tabs are never evicted.
+ */
+const MAX_TABS = 10;
+
+/**
+ * Re-opening the same file inside this window counts as a double-click and
+ * pins the tab. Emitters that send `preview: false` explicitly (a row's
+ * double-click or ↩) do not depend on it; this is what makes a double-click
+ * pin even from a plain-click emitter. macOS's own double-click interval is
+ * 500 ms at the slider's midpoint.
+ */
+const DOUBLE_OPEN_MS = 500;
+
+const LS_MINIMAP = 'gmux.minimap';
+const LS_MARKDOWN_MODE = 'gmux.markdownMode';
+const LS_DIFF_SPLIT = 'gmux.diffSideBySide';
 
 interface EditorState {
   tabs: EditorTab[];
-  activePath: string | null;
+  activeId: string | null;
   /** Panel visible (tabs survive a hidden panel; ⌘E/Esc toggle). */
   panelOpen: boolean;
   /** Last open request — ⌘E reopens it when every tab was closed. */
@@ -72,20 +140,39 @@ interface EditorState {
   /** Monaco chunk failed to load (retryable; blocks File mode only —
    *  Diff mode renders via @pierre/diffs without Monaco). */
   monacoError: string | null;
+  /** Minimap / preview scroll ruler, app-wide (persisted). */
+  minimapEnabled: boolean;
+  /**
+   * Prefer the two-column diff (persisted, app-wide). The panel still forces
+   * one column when it is too narrow for two — this is a preference, not an
+   * override of what fits.
+   */
+  diffSideBySide: boolean;
 
   init(): void;
   openFromRequest(req: OpenFileRequest): void;
-  activate(path: string): void;
-  /** Close with dirty-confirm. */
-  closeTab(path: string): void;
-  forceCloseTab(path: string): void;
+  activate(id: string): void;
+  /** Close with a Save / Don't Save / Cancel prompt when dirty. */
+  closeTab(id: string): void;
+  forceCloseTab(id: string): void;
   closeActive(): void;
+  closeOthers(id: string): void;
+  closeToRight(id: string): void;
+  closeSaved(): void;
+  closeAll(): void;
+  /** Left/right through the strip. */
   cycleTab(delta: 1 | -1): void;
-  setMode(path: string, mode: EditorMode): void;
-  /** Preview → permanent (first edit, or double-click on the tab). */
-  pin(path: string): void;
-  markDirty(path: string, dirty: boolean): void;
+  /** ⌃Tab: through the most-recently-used order WITHOUT restamping it. */
+  cycleMru(delta: 1 | -1): void;
+  /** Release of the ⌃Tab modifier — the landed tab becomes most recent. */
+  commitMru(): void;
+  setMode(id: string, mode: EditorMode): void;
+  /** Preview → permanent (first edit, double-click, or an explicit open). */
+  pin(id: string): void;
+  markDirty(id: string, dirty: boolean): void;
   save(): Promise<void>;
+  setMinimapEnabled(on: boolean): void;
+  setDiffSideBySide(on: boolean): void;
   hidePanel(): void;
   /** ⌘E — show if hidden (reopening the last file if none), else hide. */
   togglePanel(): void;
@@ -94,13 +181,33 @@ interface EditorState {
   activeTab(): EditorTab | null;
 }
 
-function baseName(path: string): string {
-  return path.slice(path.lastIndexOf('/') + 1);
+function readMinimapPref(): boolean {
+  try {
+    return localStorage.getItem(LS_MINIMAP) === '1';
+  } catch {
+    return false;
+  }
 }
 
-function dirName(path: string): string {
-  const i = path.lastIndexOf('/');
-  return i <= 0 ? '/' : path.slice(0, i);
+/** Two columns when they fit, unless the user turned that off. */
+function readDiffSideBySidePref(): boolean {
+  try {
+    return localStorage.getItem(LS_DIFF_SPLIT) !== '0';
+  } catch {
+    return true;
+  }
+}
+
+/** Default view for a newly opened .md tab: the last one the user picked. */
+function readMarkdownMode(): EditorMode {
+  try {
+    const raw = localStorage.getItem(LS_MARKDOWN_MODE);
+    return MARKDOWN_MODES.includes(raw as EditorMode)
+      ? (raw as EditorMode)
+      : 'preview';
+  } catch {
+    return 'preview';
+  }
 }
 
 let initialized = false;
@@ -110,114 +217,91 @@ const GIT_REFRESH_DEBOUNCE_MS = 300;
 
 export const useEditor = create<EditorState>((set, get) => {
   const gmux = window.gmux as typeof window.gmux | undefined;
-  const fsExtras = gmux
-    ? (gmux.fs as typeof gmux.fs & GmuxFsExtras)
-    : null;
 
-  const patchTab = (path: string, patch: Partial<EditorTab>): void => {
+  const patchTab = (id: string, patch: Partial<EditorTab>): void => {
     set((s) => ({
-      tabs: s.tabs.map((t) => (t.path === path ? { ...t, ...patch } : t))
+      tabs: s.tabs.map((t) => (t.id === id ? { ...t, ...patch } : t))
     }));
   };
 
-  const loadContents = async (path: string): Promise<void> => {
-    if (!gmux) return;
-    try {
-      const result = await gmux.fs.readFile(path);
-      patchTab(path, {
-        savedContents: result.contents,
-        truncated: result.truncated,
-        loading: false,
-        error: null,
-        deleted: false
-      });
-    } catch (err) {
-      patchTab(path, { loading: false, error: errorText(err) });
-    }
+  const tabById = (id: string): EditorTab | undefined =>
+    get().tabs.find((t) => t.id === id);
+
+  // Loading, saving and watcher-driven refresh live in ./tab-io — this store
+  // is the state machine over the tab LIST; that module is the IO it
+  // schedules.
+  const io = createTabIo({
+    patch: patchTab,
+    byId: tabById,
+    worktreeTabsIn: (repoPath) =>
+      get().tabs.filter((t) => t.repoPath === repoPath && t.commit === null)
+  });
+
+  // -- closing ---------------------------------------------------------------
+
+  /**
+   * The one dialog in gmux with three answers. A two-button destructive
+   * confirm on a dirty buffer can only lose work; VS Code offers the save,
+   * and `save()` already exists. Cancel abandons the whole close run.
+   */
+  const promptDirtyClose = (tab: EditorTab, next: () => void): void => {
+    useApp.getState().setConfirm({
+      title: `Save changes to '${tab.name}'?`,
+      body: "Your changes will be lost if you don't save them.",
+      confirmLabel: 'Save',
+      onConfirm: () => {
+        void io.save(tab.id).then((saved) => {
+          // A failed write already raised a sticky toast; do not march on
+          // through the rest of a Close All and lose the next buffer too.
+          if (!saved) return;
+          get().forceCloseTab(tab.id);
+          next();
+        });
+      },
+      altLabel: "Don't Save",
+      onAlt: () => {
+        get().forceCloseTab(tab.id);
+        next();
+      }
+    });
   };
 
-  const loadHead = async (path: string): Promise<void> => {
-    const tab = get().tabs.find((t) => t.path === path);
-    if (!gmux || tab === undefined) return;
-    try {
-      const head = await gmux.git.showHead({
-        repoPath: tab.repoPath,
-        path: tab.relPath
-      });
-      patchTab(path, { headContents: head });
-    } catch (err) {
-      // Diff base unavailable (repo vanished, git failed): fall back to a
-      // plain editor rather than a broken diff.
-      patchTab(path, { mode: 'file', canDiff: false });
-      useApp
-        .getState()
-        .toast('error', `Could not load the HEAD version — ${errorText(err)}`);
-    }
+  /**
+   * Close a run of tabs, prompting for each dirty one in turn (VS Code's
+   * behavior: Cancel on any prompt stops the run and keeps the rest open).
+   */
+  const closeMany = (ids: string[]): void => {
+    const rest = [...ids];
+    const step = (): void => {
+      for (;;) {
+        const id = rest.shift();
+        if (id === undefined) return;
+        const tab = tabById(id);
+        if (tab === undefined) continue;
+        if (!tab.dirty) {
+          get().forceCloseTab(id);
+          continue;
+        }
+        promptDirtyClose(tab, step);
+        return;
+      }
+    };
+    step();
   };
-
-  // -- external change handling (git watcher drives this) -------------------
 
   const refreshTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
-  const refreshRepoTabs = async (repoPath: string): Promise<void> => {
-    if (!gmux) return;
-    const tabs = get().tabs.filter((t) => t.repoPath === repoPath);
-    for (const tab of tabs) {
-      // Existence check (feature-detected; skipped without fs:readDir).
-      if (typeof fsExtras?.readDir === 'function') {
-        try {
-          const dir = await fsExtras.readDir(dirName(tab.path));
-          const exists = dir.entries.some((e) => e.name === tab.name);
-          if (!exists) {
-            patchTab(tab.path, { deleted: true });
-            continue;
-          }
-          if (tab.deleted) patchTab(tab.path, { deleted: false });
-        } catch {
-          /* parent unreadable — leave the tab as-is */
-        }
-      }
-      // Reload clean buffers so the editor tracks the agent's edits.
-      if (!tab.dirty) {
-        try {
-          const result = await gmux.fs.readFile(tab.path);
-          if (result.contents !== tab.savedContents) {
-            patchTab(tab.path, {
-              savedContents: result.contents,
-              truncated: result.truncated
-            });
-            resetWorkingModel(tab.path, result.contents);
-          }
-        } catch {
-          /* transient read failure — keep the buffer */
-        }
-      }
-      // Keep the diff base honest (HEAD moves on commit) and let a
-      // freshly-modified file grow its Diff|File toggle.
-      try {
-        const head = await gmux.git.showHead({
-          repoPath: tab.repoPath,
-          path: tab.relPath
-        });
-        const current = get().tabs.find((t) => t.path === tab.path);
-        if (current === undefined) continue;
-        const patch: Partial<EditorTab> = { headContents: head };
-        if (!current.canDiff && head !== current.savedContents) {
-          patch.canDiff = true;
-        }
-        patchTab(tab.path, patch);
-      } catch {
-        /* non-repo or git failure — plain mode keeps working */
-      }
-    }
-  };
+  /** Last open gesture, for double-open → pin (see DOUBLE_OPEN_MS). */
+  let lastOpen: { id: string; at: number } = { id: '', at: 0 };
 
   return {
     tabs: [],
-    activePath: null,
+    activeId: null,
     panelOpen: false,
     lastRequest: null,
     monacoError: null,
+    minimapEnabled: readMinimapPref(),
+    diffSideBySide: readDiffSideBySidePref(),
 
     init() {
       if (initialized || !gmux) return;
@@ -231,7 +315,7 @@ export const useEditor = create<EditorState>((set, get) => {
           repoPath,
           setTimeout(() => {
             refreshTimers.delete(repoPath);
-            void refreshRepoTabs(repoPath);
+            void io.refreshRepo(repoPath);
           }, GIT_REFRESH_DEBOUNCE_MS)
         );
       });
@@ -239,21 +323,45 @@ export const useEditor = create<EditorState>((set, get) => {
 
     openFromRequest(req) {
       set({ lastRequest: req });
-      const existing = get().tabs.find((t) => t.path === req.path);
+      const id = tabIdFor(req);
+      const now = Date.now();
+      const redoubled = lastOpen.id === id && now - lastOpen.at < DOUBLE_OPEN_MS;
+      lastOpen = { id, at: now };
+
+      const existing = tabById(id);
       if (existing !== undefined) {
-        get().activate(req.path);
+        get().activate(id);
+        if (req.preview === false || redoubled) get().pin(id);
         return;
       }
 
-      const now = Date.now();
+      // `preview: false` = "open this for keeps" (double-click / ↩), so it
+      // must not consume the preview slot the next single click wants.
+      const keep = req.preview === false;
+      const markdown = isMarkdownPath(req.path);
+      const commit = req.commit ?? null;
+      const origRelPath = leftPathFor(req);
       const tab: EditorTab = {
+        id,
         path: req.path,
         relPath: req.relPath,
+        origRelPath,
         repoPath: req.repoPath,
         name: baseName(req.path),
-        mode: req.mode,
-        canDiff: req.mode === 'diff',
-        preview: true,
+        // A .md file with tracked changes still opens as a diff — that is
+        // the P4 gesture, and it is why the file was clicked. Everything
+        // else markdown opens rendered. A history open is ALWAYS a diff:
+        // clicking a file in a commit means "what did this commit do to it".
+        mode:
+          req.mode === 'diff' || commit !== null
+            ? 'diff'
+            : markdown
+              ? readMarkdownMode()
+              : 'file',
+        canDiff: req.mode === 'diff' || commit !== null,
+        markdown,
+        preview: !keep,
+        commit,
         dirty: false,
         deleted: false,
         truncated: false,
@@ -266,123 +374,184 @@ export const useEditor = create<EditorState>((set, get) => {
 
       set((s) => {
         let tabs = [...s.tabs];
-        // Reuse the single preview tab (VS Code behavior).
-        const preview = tabs.find((t) => t.preview && !t.dirty);
-        if (preview !== undefined) {
-          disposeModels(preview.path);
-          dropViewState(preview.path);
-          tabs = tabs.map((t) => (t.path === preview.path ? tab : t));
+        const slot = keep
+          ? undefined
+          : tabs.find((t) => t.preview && !t.dirty);
+        if (slot !== undefined) {
+          // Reuse the single preview tab (VS Code behavior).
+          disposeModels(slot.id);
+          dropViewState(slot.id);
+          tabs = tabs.map((t) => (t.id === slot.id ? tab : t));
         } else {
           tabs.push(tab);
-          // LRU-evict the stalest clean tab past the cap (never the new one).
+          // LRU-evict the stalest clean tab past the cap — never the new
+          // one, never the one on screen, never unsaved work.
           if (tabs.length > MAX_TABS) {
-            const candidates = tabs
-              .filter((t) => !t.dirty && t.path !== tab.path)
-              .sort((a, b) => a.lastUsed - b.lastUsed);
-            const evict = candidates[0];
+            const evict = tabs
+              .filter(
+                (t) => !t.dirty && t.id !== tab.id && t.id !== s.activeId
+              )
+              .sort((a, b) => a.lastUsed - b.lastUsed)[0];
             if (evict !== undefined) {
-              disposeModels(evict.path);
-              dropViewState(evict.path);
-              tabs = tabs.filter((t) => t.path !== evict.path);
+              disposeModels(evict.id);
+              dropViewState(evict.id);
+              tabs = tabs.filter((t) => t.id !== evict.id);
             }
           }
         }
-        return { tabs, activePath: tab.path, panelOpen: true };
+        return { tabs, activeId: tab.id, panelOpen: true };
       });
 
-      void loadContents(req.path);
-      if (req.mode === 'diff') void loadHead(req.path);
+      if (commit !== null) {
+        // One call fills BOTH sides. The worktree loaders are deliberately
+        // not run: reading the live file here is exactly the bug item 4 is.
+        void io.loadCommitDiff(id, commit);
+      } else {
+        void io.loadContents(id, req.path);
+        if (req.mode === 'diff') void io.loadHead(id);
+      }
     },
 
-    activate(path) {
-      const tab = get().tabs.find((t) => t.path === path);
-      if (tab === undefined) return;
-      patchTab(path, { lastUsed: Date.now() });
-      set({ activePath: path, panelOpen: true });
+    activate(id) {
+      if (tabById(id) === undefined) return;
+      patchTab(id, { lastUsed: Date.now() });
+      set({ activeId: id, panelOpen: true });
     },
 
-    closeTab(path) {
-      const tab = get().tabs.find((t) => t.path === path);
+    closeTab(id) {
+      const tab = tabById(id);
       if (tab === undefined) return;
       if (tab.dirty) {
-        useApp.getState().setConfirm({
-          title: `Close '${tab.name}'?`,
-          body: 'Its unsaved changes will be lost. This cannot be undone.',
-          confirmLabel: 'Close tab',
-          destructive: true,
-          onConfirm: () => get().forceCloseTab(path)
-        });
+        promptDirtyClose(tab, () => undefined);
         return;
       }
-      get().forceCloseTab(path);
+      get().forceCloseTab(id);
     },
 
-    forceCloseTab(path) {
-      disposeModels(path);
-      dropViewState(path);
+    forceCloseTab(id) {
+      disposeModels(id);
+      dropViewState(id);
       set((s) => {
-        const idx = s.tabs.findIndex((t) => t.path === path);
-        const tabs = s.tabs.filter((t) => t.path !== path);
-        let activePath = s.activePath;
-        if (s.activePath === path) {
+        const idx = s.tabs.findIndex((t) => t.id === id);
+        const tabs = s.tabs.filter((t) => t.id !== id);
+        let activeId = s.activeId;
+        if (s.activeId === id) {
           const next = tabs[Math.min(idx, tabs.length - 1)];
-          activePath = next?.path ?? null;
+          activeId = next?.id ?? null;
         }
         return {
           tabs,
-          activePath,
+          activeId,
           panelOpen: tabs.length === 0 ? false : s.panelOpen
         };
       });
     },
 
     closeActive() {
-      const path = get().activePath;
-      if (path !== null) get().closeTab(path);
+      const id = get().activeId;
+      if (id !== null) get().closeTab(id);
+    },
+
+    closeOthers(id) {
+      closeMany(get().tabs.filter((t) => t.id !== id).map((t) => t.id));
+    },
+
+    closeToRight(id) {
+      const tabs = get().tabs;
+      const idx = tabs.findIndex((t) => t.id === id);
+      if (idx === -1) return;
+      closeMany(tabs.slice(idx + 1).map((t) => t.id));
+    },
+
+    closeSaved() {
+      closeMany(get().tabs.filter((t) => !t.dirty).map((t) => t.id));
+    },
+
+    closeAll() {
+      closeMany(get().tabs.map((t) => t.id));
     },
 
     cycleTab(delta) {
-      const { tabs, activePath } = get();
+      const { tabs, activeId } = get();
       if (tabs.length < 2) return;
-      const idx = tabs.findIndex((t) => t.path === activePath);
+      const idx = tabs.findIndex((t) => t.id === activeId);
       const next = tabs[(idx + delta + tabs.length) % tabs.length];
-      if (next !== undefined) get().activate(next.path);
+      if (next !== undefined) get().activate(next.id);
     },
 
-    setMode(path, mode) {
-      const tab = get().tabs.find((t) => t.path === path);
+    cycleMru(delta) {
+      const { tabs, activeId } = get();
+      if (tabs.length < 2) return;
+      const order = [...tabs].sort((a, b) => b.lastUsed - a.lastUsed);
+      const idx = order.findIndex((t) => t.id === activeId);
+      const next = order[(idx + delta + order.length) % order.length];
+      // No lastUsed stamp: holding ⌃ and tabbing again must keep walking
+      // back through history, not ping-pong between two tabs.
+      if (next !== undefined) set({ activeId: next.id, panelOpen: true });
+    },
+
+    commitMru() {
+      const id = get().activeId;
+      if (id !== null && tabById(id) !== undefined) {
+        patchTab(id, { lastUsed: Date.now() });
+      }
+    },
+
+    setMode(id, mode) {
+      const tab = tabById(id);
       if (tab === undefined || tab.mode === mode) return;
-      patchTab(path, { mode });
-      if (mode === 'diff' && tab.headContents === null) void loadHead(path);
+      patchTab(id, { mode });
+      // A history tab's LEFT side only ever comes from its commit — never
+      // fall back to HEAD for it.
+      if (mode === 'diff' && tab.headContents === null && tab.commit === null) {
+        void io.loadHead(id);
+      }
+      if (tab.markdown && mode !== 'diff') {
+        try {
+          localStorage.setItem(LS_MARKDOWN_MODE, mode);
+        } catch {
+          /* cosmetic preference only */
+        }
+      }
     },
 
-    pin(path) {
-      const tab = get().tabs.find((t) => t.path === path);
-      if (tab !== undefined && tab.preview) patchTab(path, { preview: false });
+    pin(id) {
+      const tab = tabById(id);
+      if (tab !== undefined && tab.preview) patchTab(id, { preview: false });
     },
 
-    markDirty(path, dirty) {
-      const tab = get().tabs.find((t) => t.path === path);
+    markDirty(id, dirty) {
+      const tab = tabById(id);
       if (tab === undefined || tab.dirty === dirty) return;
+      // Monaco is read-only on a history tab, so this should never fire —
+      // but a dirty commit tab would prompt to save an old revision over the
+      // live file on close, which is not a risk worth leaving open.
+      if (tab.commit !== null) return;
       const patch: Partial<EditorTab> = { dirty };
       if (dirty && tab.preview) patch.preview = false; // edited → permanent
-      patchTab(path, patch);
+      patchTab(id, patch);
     },
 
     async save() {
-      const tab = get().activeTab();
-      if (!gmux || tab === null) return;
-      if (tab.deleted || tab.truncated || tab.error !== null) return;
-      const model = getWorkingModel(tab.path);
-      if (model === null) return;
-      const value = model.getValue();
+      const id = get().activeId;
+      if (id !== null) await io.save(id);
+    },
+
+    setMinimapEnabled(on) {
+      set({ minimapEnabled: on });
       try {
-        await gmux.fs.writeFile(tab.path, value);
-        patchTab(tab.path, { savedContents: value, dirty: false });
-      } catch (err) {
-        useApp
-          .getState()
-          .toast('error', `Save failed — ${errorText(err)}`, { sticky: true });
+        localStorage.setItem(LS_MINIMAP, on ? '1' : '0');
+      } catch {
+        /* cosmetic preference only */
+      }
+    },
+
+    setDiffSideBySide(on) {
+      set({ diffSideBySide: on });
+      try {
+        localStorage.setItem(LS_DIFF_SPLIT, on ? '1' : '0');
+      } catch {
+        /* cosmetic preference only */
       }
     },
 
@@ -409,7 +578,7 @@ export const useEditor = create<EditorState>((set, get) => {
 
     activeTab() {
       const s = get();
-      return s.tabs.find((t) => t.path === s.activePath) ?? null;
+      return s.tabs.find((t) => t.id === s.activeId) ?? null;
     }
   };
 });

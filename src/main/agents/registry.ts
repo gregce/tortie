@@ -29,7 +29,12 @@
  *    (SpecStory's bare-run bug picks antigravity on dev).
  */
 
-import type { AgentRegistryId, LaunchableAgentId } from '@shared/types';
+import type {
+  AgentImageDrop,
+  AgentRegistryId,
+  ImageDropTable,
+  LaunchableAgentId
+} from '@shared/types';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -145,8 +150,26 @@ export interface AgentRegistryEntry {
   unverified: boolean;
   /** Per-agent launch-flag presets (populated by the presets stream). */
   flagPresets?: AgentFlagPreset[];
+  /**
+   * How a dropped/pasted file reference reaches this agent's prompt
+   * (Phase 12 item 8, research 16 §2 — every row observed hands-on on
+   * 2026-08-10 unless its own `verified` says otherwise). Absent = the
+   * capture-only IDE pair, which has no prompt to drop into.
+   */
+  imageDrop?: AgentImageDrop;
   notes?: string;
 }
+
+/**
+ * What an agent with no `imageDrop` row gets, and what a plain shell gets:
+ * insert the path as text. Never an attachment, always readable — the
+ * BACKLOG's "default any unverified agent to the path fallback".
+ */
+export const DEFAULT_IMAGE_DROP: AgentImageDrop = {
+  strategy: 'path-text',
+  insert: 'paste',
+  verified: false
+};
 
 /** The slot replaced by the conversation id in resume templates. */
 export const SESSION_ID_SLOT = '<sessionId>';
@@ -186,6 +209,13 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     reconstructionTarget: true,
     iconKey: 'claude',
     defaultHotkeyHint: 'c',
+    imageDrop: {
+      strategy: 'paste-path',
+      insert: 'paste',
+      verified: true,
+      notes:
+        'Bracket-pasting the bare absolute path yields the same [Image #N] chip as the clipboard route — no pasteboard write, no temp file. Paste the path ALONE: prose sharing the paste is reordered around the chip.'
+    },
     unverified: false
   },
   {
@@ -214,6 +244,13 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     reconstructionTarget: true,
     iconKey: 'cursor',
     defaultHotkeyHint: 'u',
+    imageDrop: {
+      strategy: 'path-text',
+      insert: 'paste',
+      verified: false,
+      notes:
+        'Blocked at the sign-in gate during research 16; the CLI docs mention no attachment support. Path text is the safe default.'
+    },
     unverified: false
   },
   {
@@ -242,6 +279,13 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     reconstructionTarget: true,
     iconKey: 'codex',
     defaultHotkeyHint: 'x',
+    imageDrop: {
+      strategy: 'paste-path',
+      insert: 'paste',
+      verified: true,
+      notes:
+        'Strictest matcher: exactly ONE path per paste, no surrounding prose, and a space in the path must be backslash-escaped or it degrades to literal text.'
+    },
     unverified: false
   },
   {
@@ -266,6 +310,13 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     reconstructionTarget: true,
     iconKey: 'gemini',
     defaultHotkeyHint: 'g',
+    imageDrop: {
+      strategy: 'paste-path',
+      insert: 'paste',
+      verified: false,
+      notes:
+        'INFERRED from upstream clipboardUtils.ts/parsePastedPaths() and from qwen (its fork) behaving exactly as that source predicts; auth-blocked during research 16.'
+    },
     unverified: false
   },
   {
@@ -290,6 +341,12 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     reconstructionTarget: true,
     iconKey: 'droid',
     defaultHotkeyHint: 'd',
+    imageDrop: {
+      strategy: 'path-text',
+      insert: 'paste',
+      verified: false,
+      notes: 'Not installed on the research machine — unverified, so path text.'
+    },
     unverified: false
   },
   {
@@ -314,6 +371,13 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     reconstructionTarget: true,
     iconKey: 'deepseek',
     defaultHotkeyHint: 'k',
+    imageDrop: {
+      strategy: 'clipboard-attach',
+      insert: 'paste',
+      verified: true,
+      notes:
+        'Attaches ONLY from pasteboard image data (0x16), which ⌘V already provides. Pasted and typed paths both stay literal, so a file DROP inserts path text until the guarded pasteboard write ships (research 16 §7).'
+    },
     unverified: false
   },
   {
@@ -345,6 +409,13 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     reconstructionTarget: false,
     iconKey: 'antigravity',
     defaultHotkeyHint: 'a',
+    imageDrop: {
+      strategy: 'clipboard-attach',
+      insert: 'type',
+      verified: true,
+      notes:
+        'Attaches only from pasteboard image data (0x16). Path text must be TYPED, not bracket-pasted: a pasted path opens a "No matches" completion popup that swallows the next keystroke.'
+    },
     unverified: false
   },
   {
@@ -373,6 +444,13 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     reconstructionTarget: true,
     iconKey: 'muse',
     defaultHotkeyHint: 'm',
+    imageDrop: {
+      strategy: 'paste-path',
+      insert: 'paste',
+      verified: true,
+      notes:
+        'Verified with space-free paths ([Image 1]); its tolerance for escaped spaces is untested, so backslash escaping is the guess.'
+    },
     unverified: false
   },
   {
@@ -400,6 +478,13 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     reconstructionTarget: true,
     iconKey: 'qwen',
     defaultHotkeyHint: 'q',
+    imageDrop: {
+      strategy: 'paste-path',
+      insert: 'paste',
+      verified: true,
+      notes:
+        'Attachment lands in a tray ("Attachments: [clipboard-<ts>-0.png]"), not inline; a pasted NON-image path is auto-rewritten to @<abspath>.'
+    },
     unverified: false
   },
   {
@@ -434,6 +519,13 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     reconstructionTarget: false,
     iconKey: 'pi',
     defaultHotkeyHint: null,
+    imageDrop: {
+      strategy: 'path-text',
+      insert: 'paste',
+      verified: true,
+      notes:
+        'VERIFIED NEGATIVE: 0x16 writes the pasteboard image to its own temp file and inserts that path as plain text — no attachment either way, so gmux inserts the real path.'
+    },
     unverified: true,
     notes: 'Launchable per BACKLOG Phase-10 item 1, but every mechanic is UNVERIFIED upstream.'
   },
@@ -575,4 +667,23 @@ export function registryResumeArgv(
     ...entry.resume.template.map((t) => (t === SESSION_ID_SLOT ? sessionId : t)),
     ...extraArgs
   ];
+}
+
+/**
+ * The per-agent file-reference table for the renderer (drop:strategies).
+ * Derived from AGENT_REGISTRY so the table exists exactly once (guardrail 3);
+ * agents with no row — and every shell pane — take the fallback.
+ */
+export function imageDropTable(): ImageDropTable {
+  const agents: ImageDropTable['agents'] = {};
+  for (const entry of AGENT_REGISTRY) {
+    if (entry.imageDrop !== undefined) agents[entry.id] = entry.imageDrop;
+  }
+  return { agents, fallback: DEFAULT_IMAGE_DROP };
+}
+
+/** One agent's strategy, falling back for shells and unknown ids. */
+export function imageDropFor(id: string): AgentImageDrop {
+  const entry = AGENT_REGISTRY.find((e) => e.id === id);
+  return entry?.imageDrop ?? DEFAULT_IMAGE_DROP;
 }

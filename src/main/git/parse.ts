@@ -550,3 +550,80 @@ export function normalizeGitHubRemote(url: string): string | null {
   if (!/^[^/]+\/[^/]+$/.test(cleaned)) return null;
   return `https://github.com/${cleaned}`;
 }
+
+// ---------------------------------------------------------------------------
+// `git remote -v` (Phase 12 item 3)
+// ---------------------------------------------------------------------------
+
+/** One remote as git prints it, before the tracking marker is applied. */
+export interface ParsedRemote {
+  name: string;
+  fetchUrl: string;
+  pushUrl: string;
+}
+
+/**
+ * Parse `git remote -v`:
+ *
+ *     origin\thttps://github.com/o/r.git (fetch)
+ *     origin\thttps://github.com/o/r.git (push)
+ *
+ * Two lines per remote (more when a `pushurl` differs); the name and URL are
+ * TAB-separated and the role is a trailing parenthesised word. Remotes are
+ * returned name-sorted with `origin` first — the order the UI lists them in.
+ * A remote with no URL for one role reuses the other (git never prints both
+ * empty). Unparseable lines are skipped rather than throwing: an odd remote
+ * must not take down the remotes list.
+ */
+export function parseRemoteVerbose(stdout: string): ParsedRemote[] {
+  const byName = new Map<string, { fetchUrl: string; pushUrl: string }>();
+  for (const raw of stdout.split('\n')) {
+    const line = raw.trimEnd();
+    if (line.length === 0) continue;
+    const tab = line.indexOf('\t');
+    if (tab <= 0) continue;
+    const name = line.slice(0, tab);
+    const rest = line.slice(tab + 1);
+    const roleMatch = /\s+\((fetch|push)\)$/.exec(rest);
+    const url = (roleMatch === null ? rest : rest.slice(0, roleMatch.index)).trim();
+    if (url.length === 0) continue;
+    const entry = byName.get(name) ?? { fetchUrl: '', pushUrl: '' };
+    if (roleMatch === null || roleMatch[1] === 'fetch') {
+      entry.fetchUrl = url;
+      if (entry.pushUrl === '') entry.pushUrl = url;
+    } else {
+      entry.pushUrl = url;
+      if (entry.fetchUrl === '') entry.fetchUrl = url;
+    }
+    byName.set(name, entry);
+  }
+  return [...byName.entries()]
+    .map(([name, urls]) => ({ name, ...urls }))
+    .sort((a, b) =>
+      a.name === b.name
+        ? 0
+        : a.name === 'origin'
+          ? -1
+          : b.name === 'origin'
+            ? 1
+            : a.name.localeCompare(b.name)
+    );
+}
+
+/**
+ * Which remote an upstream ref belongs to: `origin/feat/x` → `origin`.
+ * Matched against the repo's ACTUAL remote names (longest first), because a
+ * remote name may itself contain a slash — splitting on the first `/` would
+ * mis-attribute `team/fork/main`. Null when no configured remote owns it.
+ */
+export function remoteOfUpstream(
+  upstream: string,
+  remoteNames: string[]
+): string | null {
+  let best: string | null = null;
+  for (const name of remoteNames) {
+    if (!upstream.startsWith(`${name}/`)) continue;
+    if (best === null || name.length > best.length) best = name;
+  }
+  return best;
+}
