@@ -14,13 +14,16 @@ Tortie carries it for them.
 
 ## The shell is a promise
 
-A turtle carries continuity with it. Its shell is shelter, structure and home:
-the stable thing around a changing journey.
+Tortie lives in the shell, and the shell outlives the window.
 
-That is the promise behind Tortie. Sessions belong to the work, not to the
-window displaying them. Closing the app should feel safe. A crash should be an
-interruption to the interface, not to the work. After a restart, the important
-thing is not that Tortie recovered. It is that the work was never abandoned.
+Sessions belong to the work, not to the application displaying them. They run
+where they were started and keep running once the interface is gone. Closing
+the app should feel safe. A crash should be an interruption to the interface,
+not to the work.
+
+What comes back matters more than the fact that something came back. A
+recovered process is table stakes. A conversation that resumes — the agent
+still knowing what it was doing and why — is the promise.
 
 The application may come and go. The session continues.
 
@@ -39,17 +42,21 @@ The interface should answer one question at a glance:
 
 Everything else can keep moving in the background.
 
-## Familiarity is a feature
+## Give every thread a place
 
-Tortie does not ask developers to forget how they already work.
+Agentic coding is not one conversation. It is a collection of parallel threads:
+an implementation, a test run, a review, a migration, a question waiting for an
+answer.
 
-Projects look like projects. Files look like files. Source control behaves as
-expected. Editors, terminals, tabs and shortcuts live where practiced hands go
-looking for them. The shape is intentionally familiar because attention spent
-learning the tool is attention taken from the work.
+A tortie is one animal in several colours. The patches stay distinct — you can
+always tell them apart — and not one of them is a separate cat.
 
-Tortie should feel less like entering a new IDE and more like discovering that
-the one you already know can finally remember, persist and pay attention.
+That is the shape Tortie gives to work. Each thread gets a durable name, each
+project a clear boundary, and the whole body of work stays one coherent thing
+instead of a wall of terminals and a pile of editor windows.
+
+One window is not the goal by itself. A coherent place for the whole body of
+work is.
 
 ## Hide the machinery
 
@@ -62,18 +69,23 @@ them alive and brings them back.
 Complexity belongs beneath the surface. The stronger the machinery becomes,
 the quieter the product should feel.
 
-## Give every thread a place
+## Borrow the shape, not the feature list
 
-Agentic coding is not one conversation. It is a collection of parallel threads:
-an implementation, a test run, a review, a migration, a question waiting for an
-answer.
+Tortie does not ask developers to forget how they already work.
 
-Tortie gives each thread a durable name and each project a clear boundary. Work
-can continue in parallel without dissolving into a wall of terminals or a pile
-of editor windows.
+Projects look like projects. Files look like files. Source control behaves as
+expected. Editors, terminals, tabs and shortcuts live where practiced hands go
+looking for them. The shape is intentionally familiar because attention spent
+learning the tool is attention taken from the work.
 
-One window is not the goal by itself. A coherent place for the whole body of
-work is.
+Familiarity is a starting posture, not a roadmap. Everything borrowed is the
+price of admission, not the product, so anything proposed because an IDE has it
+must first answer whether it serves the work agents actually do. Where
+something is genuinely needed, assemble it from what already exists rather than
+reinventing it. The code Tortie owns should be the part nothing else provides.
+
+Tortie should feel less like entering a new IDE and more like discovering that
+the one you already know can finally remember, persist and pay attention.
 
 ## Protect human attention
 
@@ -87,15 +99,32 @@ the human is ready to return.
 The product succeeds when the developer can look away without anxiety and come
 back without reconstruction.
 
+## What Tortie is not
+
+A principle that forbids nothing is decoration. These are the refusals:
+
+- **Not a dashboard.** No counters, no activity feeds, no progress theatre. A
+  number that rises on its own is not a signal, it is noise in a nicer font.
+- **Not an IDE rebuilt from scratch.** Search across projects earns its place,
+  because agents rewrite code faster than a human can track it. Structural
+  search, replace-in-files, language servers, debuggers, task runners and
+  extensions do not.
+- **Not a supervisor's console.** Tortie never asks the human to watch an agent
+  work.
+- **Not a tool that teaches its own internals.** No prefix keys, no attach
+  ritual, no vocabulary borrowed from the layer underneath.
+- **Not clever where it could be dull.** Anything durability-critical should be
+  boring, inspectable and older than this product.
+
 ## Move patiently, never lose the path
 
-Tortie values continuity over spectacle, clear state over animation, and
-reliability over cleverness. It should be fast, but it should never feel
-frantic. It should be powerful, but it should never feel busy.
+Tortie should be fast, but it should never feel frantic. Powerful, but never
+busy. Continuity over spectacle, clear state over animation, reliability over
+cleverness.
 
 Like its namesake, Tortie is patient, watchful and difficult to dislodge. It
-carries the work forward, keeps every thread protected and quietly signals when
-it is time for the human to act.
+keeps its place, notices everything, and speaks only when something is worth
+the human's attention.
 
 That is the Zen of Tortie:
 
