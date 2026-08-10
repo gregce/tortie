@@ -117,6 +117,16 @@ REQUIRED BEHAVIOR:
 5. Keyboard parity: ⇧PageUp/PageDown and ⌘↑/↓ (or the documented map) scroll the same history; document in the ⌘/ overlay.
 VERIFY: on a claude pane with a long transcript, a codex pane, and a plain shell — wheel up reveals prior output in all three; the scrollbar is visible at rest and tracks position; typing returns to live; selection+copy still work; an inner mouse-tracking app (e.g. run `vim` or an agent picker) still receives its own wheel events. Also confirm no interaction with Phase 12's drop router, capture, or right-click menu.
 
+## Phase 12.5 — Shift+Enter newline in the prompt, for EVERY supported CLI (ships right after 12.3)
+User ask: pressing Shift+Enter should expand the agent's prompt box to a new line instead of submitting — for all supported CLIs, not just Claude.
+WHY IT DOESN'T WORK TODAY (confirm in research): a terminal sends a bare `CR` for both Enter and Shift+Enter unless the modifier is encoded. That is precisely why Claude Code ships `/terminal-setup` to patch iTerm2/VS Code keymaps. gmux owns its terminal, so it can do this natively and correctly — no user setup, no editing anyone's config.
+Design constraints:
+- Likely mechanism: an xterm `attachCustomKeyEventHandler` (or keybinding layer) that maps Shift+Enter to whatever sequence the TARGET AGENT understands — commonly `ESC CR` (\x1b\r, i.e. meta-enter) or CSI-u `ESC[13;2u`. resources/gmux-tmux.conf already sets `extended-keys on`, so CSI-u should survive tmux — VERIFY that end to end on the wire, and check whether xterm 6 needs its keyboard-protocol mode enabled.
+- **Per-agent mapping in the registry** (`multilineKey`), same pattern as imageDrop/activitySignal: verified sequence per agent, with a sane default for unknown agents and a documented fallback if an agent has no multiline support at all (do NOT silently submit — if we cannot produce a newline, leave Enter behavior untouched rather than breaking submit).
+- Must not break: plain Enter still submits everywhere; ⌥Enter / ⌃J and any existing agent multiline binding keep working; shells are unaffected (Shift+Enter in zsh should behave as it does today); copy-mode cancel-then-write helper from 12.3 applies if the pane is scrolled.
+- Discoverability: mention it in the ⌘/ shortcuts overlay.
+VERIFY per CLI, hands-on in scratch sessions: press Shift+Enter and confirm a NEWLINE appears in the prompt (not a submit) for claude and codex at minimum, then every other installed agent; for agents not installed, record the sequence from their docs/source and mark UNVERIFIED. Matrix in the research doc: agent x {sequence, verified?, fallback}.
+
 ## Phase 12.4 — teach the preview/pinned tab model from the explorer (small UX)
 Problem: Phase 12 shipped VS Code's preview-tab model (single-click = reusable italic preview slot, double-click or edit = kept tab) and it is completely invisible — a user single-clicking through files sees one tab recycling and assumes multi-file opening is broken.
 Build:
