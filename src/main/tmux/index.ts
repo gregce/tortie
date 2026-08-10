@@ -47,8 +47,22 @@ export {
   TmuxControlClient,
   CONTROL_SESSION_NAME,
   isControlSession,
+  quoteTmuxArg,
   type ControlClientEvents
 } from './control-client';
+
+// Scrollback over tmux history (Phase 12.3) — the only scroll surface a
+// tmux-attached pane has, since `tmux attach` parks xterm.js in its
+// alternate buffer where it has no scrollback of its own.
+export {
+  readPaneScroll,
+  anchorPaneScroll,
+  scrollPaneBy,
+  scrollPaneTo,
+  exitPaneScroll,
+  type PaneScrollState,
+  type TmuxScrollRunner
+} from './scroll';
 
 export {
   createSession,

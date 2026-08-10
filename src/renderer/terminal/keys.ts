@@ -27,10 +27,14 @@
  * `role:'paste'` runs xterm's own paste handler, which applies bracketed
  * paste correctly for both shells and agents. Re-implementing that would be
  * a bug factory.
+ *
+ * ⇧PageUp/⇧PageDown (Phase 12.3) are the keyboard half of the wheel: they
+ * scroll the session's tmux history, and plain PageUp still goes to the app.
  */
 
 import type { Terminal } from '@xterm/xterm';
 import { clearSession, copySelection, selectAll } from './capture';
+import type { ScrollSurface } from './scroll/surface';
 
 /** ASCII end-of-text — what ⌃C sends, and what SIGINT is made of. */
 const ETX = '\u0003';
@@ -47,10 +51,29 @@ function isPlainMeta(event: KeyboardEvent): boolean {
 export function terminalKeyHandler(
   sessionId: string,
   term: Terminal,
-  tmuxName: () => string
+  tmuxName: () => string,
+  surface: ScrollSurface
 ): (event: KeyboardEvent) => boolean {
   return (event: KeyboardEvent): boolean => {
-    if (event.type !== 'keydown' || !isPlainMeta(event)) return true;
+    if (event.type !== 'keydown') return true;
+
+    // ⇧PageUp / ⇧PageDown — the terminal convention for "scroll the
+    // scrollback", and the keyboard half of the wheel. Plain PageUp still
+    // belongs to the app inside the pane.
+    if (
+      event.shiftKey &&
+      !event.metaKey &&
+      !event.ctrlKey &&
+      !event.altKey &&
+      (event.key === 'PageUp' || event.key === 'PageDown')
+    ) {
+      if (!surface.view.owned) return true;
+      event.preventDefault();
+      surface.scrollPages(event.key === 'PageUp' ? 1 : -1);
+      return false;
+    }
+
+    if (!isPlainMeta(event)) return true;
 
     switch (event.key) {
       case 'c':

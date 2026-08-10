@@ -807,7 +807,8 @@ export type GmuxInvokeChannelMap = RegistryInvokeChannelMap &
   GitBranchesInvokeChannelMap &
   GitSyncInvokeChannelMap &
   DropInvokeChannelMap &
-  TerminalCaptureInvokeChannelMap;
+  TerminalCaptureInvokeChannelMap &
+  TerminalScrollInvokeChannelMap;
 
 export type GmuxInvokeChannel = keyof GmuxInvokeChannelMap;
 
@@ -1138,5 +1139,100 @@ export interface GmuxCaptureExtras {
     writeRich(input: ClipboardRichInput): Promise<void>;
     paste(): Promise<void>;
     clearHistory(tmuxName: string): Promise<void>;
+  };
+}
+
+// ---------------------------------------------------------------------------
+// APPENDED by the scrollback stream (Phase 12.3) — new channels/types only,
+// nothing above was modified.
+//
+// `tmux attach` puts the CLIENT in the alternate buffer, so xterm.js has no
+// scrollback of its own for ANY gmux pane and its wheel handler degrades to
+// emitting cursor keys. The real 50k-line history lives server-side, so the
+// scroll surface is tmux copy-mode and the renderer drives it from here.
+// Everything is by sessionId; main resolves the tmux target.
+//
+// Main handlers: registerScrollIpc-equivalent block in src/main/ipc.ts,
+// backed by src/main/tmux/scroll.ts over the long-lived control client
+// (~1 ms per command; a `tmux` process spawn would be ~20 ms).
+// ---------------------------------------------------------------------------
+
+/** Live scroll geometry for one pane; drives both the wheel and the bar. */
+export interface TerminalScrollState {
+  /** Lines scrolled above the live bottom. 0 = live output. */
+  position: number;
+  /** Scrollback lines tmux holds above the screen. */
+  history: number;
+  /** Visible rows. */
+  rows: number;
+  /** tmux copy-mode is active on this pane. */
+  inMode: boolean;
+  /**
+   * The app INSIDE the pane owns the alternate screen (vim, a picker). Its
+   * drawing never enters tmux history, so `history` is reported as 0 and the
+   * renderer must leave the wheel to the app.
+   */
+  innerAlt: boolean;
+  /** The app INSIDE the pane asked for mouse reporting. */
+  innerMouse: boolean;
+}
+
+export interface TerminalScrollPollInput {
+  sessionId: string;
+  /**
+   * History the caller last rendered. New output pushes a scrolled pane
+   * forward (`scroll_position` is relative to the LIVE bottom), so main adds
+   * the growth back to the offset and the reader keeps their place.
+   */
+  anchorFrom?: number;
+}
+
+export interface TerminalScrollByInput {
+  sessionId: string;
+  /** Whole lines; positive scrolls back in time, negative toward live. */
+  lines: number;
+}
+
+export interface TerminalScrollToInput {
+  sessionId: string;
+  /** Absolute offset above the live bottom; 0 returns to live output. */
+  position: number;
+}
+
+/** New invoke channels appended by the scrollback stream. */
+export interface TerminalScrollInvokeChannelMap {
+  /** Read the pane's scroll geometry (optionally re-anchoring it). */
+  'terminal:scrollState': {
+    req: [input: TerminalScrollPollInput];
+    res: TerminalScrollState;
+  };
+  /** Wheel / keyboard scrolling, in whole lines. */
+  'terminal:scrollBy': {
+    req: [input: TerminalScrollByInput];
+    res: TerminalScrollState;
+  };
+  /** Scrollbar drag: scrub to an absolute offset. */
+  'terminal:scrollTo': {
+    req: [input: TerminalScrollToInput];
+    res: TerminalScrollState;
+  };
+  /** Return to live output — what typing does. */
+  'terminal:scrollLive': {
+    req: [sessionId: string];
+    res: TerminalScrollState;
+  };
+}
+
+/**
+ * OPTIONAL top-level extra on window.gmux, feature-detected by the terminal
+ * renderer (`window.gmux.scroll !== undefined`). Without it the pane simply
+ * has no gmux scroll surface — nothing else regresses.
+ */
+export interface GmuxScrollExtras {
+  scroll?: {
+    state(input: TerminalScrollPollInput): Promise<TerminalScrollState>;
+    by(input: TerminalScrollByInput): Promise<TerminalScrollState>;
+    to(input: TerminalScrollToInput): Promise<TerminalScrollState>;
+    live(sessionId: string): Promise<TerminalScrollState>;
   };
 }

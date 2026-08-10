@@ -1,0 +1,66 @@
+/* Session scrollbar (Phase 12.3) — gmux draws this; xterm's own is inert in
+   a tmux-attached pane. It lives in the lane xterm 6's fit addon already
+   reserves on the right (its 14px overview-ruler allowance, which gmux
+   registers no decorations in), so the bar costs no terminal columns. */
+
+.gmux-terminal-scrollbar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: var(--scroll-lane);
+  z-index: 1;
+  /* No track fill: over a live terminal a track reads as a seam. The thumb
+     alone carries the affordance. */
+  background: transparent;
+  cursor: default;
+  touch-action: none;
+}
+
+/* The thumb is anchored to the right edge and grows leftward, the way macOS
+   scrollbars do — a centered thumb that widens would wobble. */
+.gmux-terminal-scrollbar-thumb {
+  position: absolute;
+  top: 0;
+  right: var(--scroll-thumb-inset);
+  width: var(--scroll-thumb-w);
+  border-radius: calc(var(--scroll-thumb-w) / 2);
+  background: var(--scroll-thumb);
+  transition:
+    width var(--dur-fast) var(--ease-out),
+    border-radius var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out);
+}
+
+/* Scrolled away from live output: the bar stops being a hint and becomes the
+   orientation cue — "you are reading history, and here is where". This is the
+   honest replacement for tmux's amber [38/261] box, which gmux suppresses. */
+.gmux-terminal-scrollbar[data-away] .gmux-terminal-scrollbar-thumb {
+  width: var(--scroll-thumb-w-away);
+  border-radius: calc(var(--scroll-thumb-w-away) / 2);
+  background: var(--scroll-thumb-away);
+}
+
+/* Hover thickens and brightens; dragging holds that state. The whole lane is
+   the hover target, so the pointer finds it without pixel-hunting. */
+.gmux-terminal-scrollbar:hover .gmux-terminal-scrollbar-thumb,
+.gmux-terminal-scrollbar[data-dragging] .gmux-terminal-scrollbar-thumb {
+  width: var(--scroll-thumb-w-hover);
+  border-radius: calc(var(--scroll-thumb-w-hover) / 2);
+  background: var(--scroll-thumb-hover);
+}
+
+.gmux-terminal-scrollbar[data-dragging] .gmux-terminal-scrollbar-thumb {
+  background: var(--scroll-thumb-active);
+}
+
+/* With no history there is nothing to scrub, so the lane must not absorb the
+   click that focuses the pane — the bar still draws (full-height thumb, the
+   honest "all of it is on screen"), it just stops being a target. */
+.gmux-terminal-scrollbar:not([data-scrollable]) {
+  pointer-events: none;
+}
+
+.gmux-terminal-scrollbar[data-scrollable] {
+  cursor: pointer;
+}

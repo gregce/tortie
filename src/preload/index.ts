@@ -33,6 +33,7 @@ import type {
   GmuxMenuExtras,
   GmuxPopupMenuExtras,
   GmuxQuitExtras,
+  GmuxScrollExtras,
   GmuxSessionExtras,
   GmuxSessionRestoreExtras,
   GmuxSettingsExtras,
@@ -211,6 +212,18 @@ const capture: NonNullable<GmuxCaptureExtras['capture']> = {
   clearHistory: (tmuxName) => invoke('terminal:clearHistory', tmuxName)
 };
 
+/**
+ * scroll surface (Phase 12.3) — tmux copy-mode over the session's real
+ * history. `tmux attach` parks xterm.js in its alternate buffer, where it has
+ * no scrollback of its own, so this is the ONLY scroll surface a pane has.
+ */
+const scroll: NonNullable<GmuxScrollExtras['scroll']> = {
+  state: (input) => invoke('terminal:scrollState', input),
+  by: (input) => invoke('terminal:scrollBy', input),
+  to: (input) => invoke('terminal:scrollTo', input),
+  live: (sessionId) => invoke('terminal:scrollLive', sessionId)
+};
+
 const api: GmuxApi &
   GmuxLoginItemExtras &
   GmuxMenuExtras &
@@ -220,7 +233,8 @@ const api: GmuxApi &
   GmuxQuitExtras &
   GmuxSettingsExtras &
   GmuxDropExtras &
-  GmuxCaptureExtras = {
+  GmuxCaptureExtras &
+  GmuxScrollExtras = {
   sessions,
   projects: {
     add: (path) => invoke('projects:add', path),
@@ -233,6 +247,7 @@ const api: GmuxApi &
   term,
   drop,
   capture,
+  scroll,
   pathForFile: (file: File): string => {
     try {
       return webUtils.getPathForFile(file);

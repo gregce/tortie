@@ -20,7 +20,11 @@ const GROUPS: { title: string; rows: Row[] }[] = [
       { keys: ['⌘T'], action: 'New session in current project' },
       { keys: ['⌥⌘↓', '⌥⌘↑'], action: 'Next / previous session' },
       { keys: ['F2'], action: 'Rename session' },
-      { keys: ['↑↓', '↩'], action: 'Navigate list, focus terminal' }
+      { keys: ['↑↓', '↩'], action: 'Navigate list, focus terminal' },
+      {
+        keys: ['⇧⇞', '⇧⇟'],
+        action: 'Scroll back through output (typing returns to live)'
+      }
     ]
   },
   {

@@ -327,6 +327,27 @@ export class TmuxControlClient extends EventEmitter<ControlClientEvents> {
 }
 
 /**
+ * Render one argv element for a control-mode command line.
+ *
+ * `sendCommand` speaks tmux's own line syntax, not argv — and MEASURED on
+ * 3.6a, a `;`-joined sequence emits ONE %begin/%end block PER COMMAND, which
+ * would desync the single-pending-per-command queue above. So callers send
+ * one command at a time and quote their arguments through here: tmux's lexer
+ * takes single-quoted strings literally, which is exactly right for format
+ * strings full of `#{…}`.
+ */
+export function quoteTmuxArg(arg: string): string {
+  if (/^[A-Za-z0-9_%$@=:.,/-]+$/.test(arg)) return arg;
+  if (arg.includes("'")) {
+    throw gmuxError(
+      'INVALID_INPUT',
+      'control-mode arguments cannot contain a single quote'
+    );
+  }
+  return `'${arg}'`;
+}
+
+/**
  * True for the pinned control session — session listings must filter it out
  * so it never appears in the UI (sessions.ts uses this).
  */

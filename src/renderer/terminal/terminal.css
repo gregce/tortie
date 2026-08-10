@@ -37,6 +37,15 @@
   height: 100%;
 }
 
+/* xterm's own scrollbar can never show a thumb here: `tmux attach` puts the
+   client in the alternate buffer, where the viewport is exactly one screen
+   tall. Hide its chrome but KEEP the 10px lane — the fit addon sizes columns
+   from `offsetWidth - clientWidth`, so removing the width would reflow every
+   pane — and let gmux's own bar (scroll/scrollbar.css) live in that lane. */
+.gmux-terminal-mount .xterm-viewport::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+
 /* Empty state: no visible session. */
 .gmux-terminal-empty {
   flex: 1;

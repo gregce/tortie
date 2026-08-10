@@ -30,6 +30,8 @@ import type { GmuxErrorPayload, SessionStatus } from '@shared/types';
 import { useApp } from '../state/store';
 import { registerTerminal } from './drop/registry';
 import { terminalKeyHandler } from './keys';
+import { ScrollSurface } from './scroll/surface';
+import { TerminalScrollbar } from './scroll/TerminalScrollbar';
 import { canSplit, showTerminalMenu } from './terminal-menu';
 import {
   resolveTerminalFontFamily,
@@ -112,6 +114,9 @@ export function TerminalPane({
   const [overlay, setOverlay] = useState<OverlayState | null>(null);
   // Bumping the epoch tears the terminal down and attaches fresh (retry).
   const [attachEpoch, setAttachEpoch] = useState(0);
+  // The pane's scroll surface (tmux history). Published to state so the
+  // scrollbar renders alongside the terminal it belongs to.
+  const [surface, setSurface] = useState<ScrollSurface | null>(null);
 
   const retry = useCallback(() => {
     setOverlay(null);
@@ -170,6 +175,15 @@ export function TerminalPane({
     // capture + the context menu (Phase 12 #1/#2) and file drop (#8).
     const unregister = registerTerminal(sessionId, term);
 
+    // ---- scrollback (Phase 12.3) ------------------------------------------
+    // `tmux attach` puts this client in the ALTERNATE buffer, so xterm has no
+    // scrollback of its own and its wheel handler degrades to emitting cursor
+    // keys — which agents read as prompt-history navigation. The session's
+    // real history is tmux's, and this surface drives it.
+    const scroll = new ScrollSurface(sessionId, term);
+    setSurface(scroll);
+    term.attachCustomWheelEventHandler((event) => scroll.handleWheel(event));
+
     // ⌘C / ⌘A / ⌘K. ⌘C with a selection copies; with NO selection it sends
     // SIGINT — the renderer sees the key before the app menu (see ./keys.ts),
     // so this handler, not `role:'copy'`, decides which.
@@ -179,7 +193,8 @@ export function TerminalPane({
         term,
         () =>
           useApp.getState().sessions.find((s) => s.id === sessionId)
-            ?.tmuxName ?? ''
+            ?.tmuxName ?? '',
+        scroll
       )
     );
 
@@ -204,13 +219,16 @@ export function TerminalPane({
     // noteTerminalInput: the status detector must know about EVERY byte the
     // user sends — including mouse reports, which never reach keydown — so
     // an echoed BEL right after a click is not mistaken for "needs input".
+    // Typing ALWAYS returns to live output first (scroll.sendInput): tmux
+    // copy-mode has its own key table, so a keystroke sent while scrolled
+    // would be eaten by it instead of reaching the agent.
     const dataSub = term.onData((d) => {
       useApp.getState().noteTerminalInput(sessionId);
-      gmux.term.sendInput(sessionId, d);
+      scroll.sendInput(d);
     });
     const binarySub = term.onBinary((d) => {
       useApp.getState().noteTerminalInput(sessionId);
-      gmux.term.sendInput(sessionId, d);
+      scroll.sendInput(d);
     });
 
     // ---- single resize path: fit → xterm onResize → tmux client ----------
@@ -320,6 +338,7 @@ export function TerminalPane({
           .resize({ sessionId, cols: term.cols, rows: term.rows })
           .catch(() => undefined);
         if (focusedRef.current) term.focus();
+        scroll.start();
       } catch (err) {
         if (!disposed) setOverlay(friendlyAttachError(err));
       }
@@ -327,6 +346,8 @@ export function TerminalPane({
 
     return () => {
       disposed = true;
+      scroll.dispose();
+      setSurface(null);
       unregister();
       container.removeEventListener('mousedown', swallowRightButton, true);
       container.removeEventListener('mouseup', swallowRightButton, true);
@@ -384,6 +405,7 @@ export function TerminalPane({
       onContextMenu={onContextMenu}
     >
       <div ref={mountRef} className="gmux-terminal-mount" />
+      {surface !== null ? <TerminalScrollbar surface={surface} /> : null}
       {restorable ? (
         <div className="gmux-terminal-overlay">
           <div className="gmux-terminal-overlay-title">

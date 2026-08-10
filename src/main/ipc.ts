@@ -24,10 +24,14 @@ import { basename, resolve as resolvePath } from 'node:path';
 import type {
   EventChannel,
   EventPayloadMap,
-  InvokeChannel,
-  InvokeReq,
-  InvokeRes,
-  PopupMenuInput
+  GmuxInvokeChannel,
+  GmuxInvokeReq,
+  GmuxInvokeRes,
+  PopupMenuInput,
+  TerminalScrollByInput,
+  TerminalScrollPollInput,
+  TerminalScrollState,
+  TerminalScrollToInput
 } from '@shared/ipc';
 import { EVT_SESSIONS_CHANGED, EVT_STATUS_CHANGED } from '@shared/ipc';
 import type {
@@ -55,6 +59,7 @@ import { restoreSessionInTmux } from './restore/restore';
 import { captureSessionSnapshot, deleteSnapshot } from './restore/snapshots';
 import * as tmux from './tmux';
 import { gmuxError, isGmuxError } from './tmux';
+import { handle as handleTyped } from './typed-ipc';
 
 // ---------------------------------------------------------------------------
 // Broadcast helper — every event goes to every window (single-window app,
@@ -94,10 +99,16 @@ const MAIN_IDLE_AFTER_MS = 15_000;
  *    on, which hands every click to the tmux server — a right-click then
  *    opens tmux's pane menu on top of gmux's native one, and a plain drag
  *    becomes a tmux copy-mode selection instead of an xterm one.
+ *  - copy-mode-position-format '' and a neutral mode-style (Phase 12.3):
+ *    gmux scrolls a session by driving copy-mode, and tmux would otherwise
+ *    paint its own amber "[38/261]" box over the transcript's top-right
+ *    corner — tmux chrome and tmux vocabulary, in a UI that shows neither.
  */
 const BOOT_SERVER_OPTIONS: readonly (readonly [string, string])[] = [
   ['remain-on-exit', 'failed'],
-  ['mouse', 'off']
+  ['mouse', 'off'],
+  ['copy-mode-position-format', ''],
+  ['mode-style', 'noattr,bg=default,fg=default']
 ];
 
 async function assertServerOptions(): Promise<void> {
@@ -555,6 +566,73 @@ export class GmuxCore {
   }
 
   // -------------------------------------------------------------------------
+  // Scrollback (Phase 12.3) — tmux copy-mode over the session's real history
+  // -------------------------------------------------------------------------
+
+  /**
+   * Run one tmux command for the scroll controller.
+   *
+   * Over the CONTROL CLIENT while it is up: a wheel notch then costs ~1 ms
+   * round trip, where spawning a `tmux` process costs ~20 ms — the difference
+   * between scrolling and dragging a slideshow. One command per call: a
+   * `;`-joined sequence emits one %begin/%end block per command and would
+   * desync the control client's pending queue (measured on 3.6a).
+   */
+  private readonly runScrollCommand: tmux.TmuxScrollRunner = async (args) => {
+    if (this.control.connected) {
+      const lines = await this.control.sendCommand(
+        args.map(tmux.quoteTmuxArg).join(' ')
+      );
+      return lines.join('\n');
+    }
+    return tmux.execTmux([...args]);
+  };
+
+  /**
+   * Pane-addressable tmux target for a session. `=name` is honored for
+   * target-SESSION resolution but NOT for target-PANE resolution (see
+   * tmux/sessions.ts), so an unmapped session resolves through its $-id.
+   */
+  private async scrollTarget(sessionId: string): Promise<string> {
+    const live = this.liveIds.get(sessionId);
+    if (live !== undefined) return live;
+    const rec = this.mustGetSession(sessionId);
+    return tmux.resolvePaneTarget(rec.tmuxName);
+  }
+
+  async scrollState(
+    input: TerminalScrollPollInput
+  ): Promise<TerminalScrollState> {
+    const target = await this.scrollTarget(input.sessionId);
+    return input.anchorFrom === undefined
+      ? tmux.readPaneScroll(this.runScrollCommand, target)
+      : tmux.anchorPaneScroll(this.runScrollCommand, target, input.anchorFrom);
+  }
+
+  async scrollBy(input: TerminalScrollByInput): Promise<TerminalScrollState> {
+    return tmux.scrollPaneBy(
+      this.runScrollCommand,
+      await this.scrollTarget(input.sessionId),
+      input.lines
+    );
+  }
+
+  async scrollTo(input: TerminalScrollToInput): Promise<TerminalScrollState> {
+    return tmux.scrollPaneTo(
+      this.runScrollCommand,
+      await this.scrollTarget(input.sessionId),
+      input.position
+    );
+  }
+
+  async scrollLive(sessionId: string): Promise<TerminalScrollState> {
+    return tmux.exitPaneScroll(
+      this.runScrollCommand,
+      await this.scrollTarget(sessionId)
+    );
+  }
+
+  // -------------------------------------------------------------------------
   // Sessions API (used by IPC handlers AND the smoke harness)
   // -------------------------------------------------------------------------
 
@@ -938,17 +1016,20 @@ export async function shutdownGmuxCore(): Promise<void> {
 // IPC handler registration
 // ---------------------------------------------------------------------------
 
-/** Typed ipcMain.handle wrapper pinned to the frozen contract. */
-function handle<C extends InvokeChannel>(
+/**
+ * `ipcMain.handle` for this module's channels — the ipcMain-bound shorthand
+ * over the ONE typed wrapper in ./typed-ipc (guardrail 3/4: this file used to
+ * carry a fifth copy of that ten-line body). Typed over the SUPERSET map, so
+ * appended channels — terminal:scroll* below — register here too.
+ */
+function handle<C extends GmuxInvokeChannel>(
   channel: C,
   fn: (
     event: IpcMainInvokeEvent,
-    ...args: InvokeReq<C>
-  ) => Promise<InvokeRes<C>> | InvokeRes<C>
+    ...args: GmuxInvokeReq<C>
+  ) => Promise<GmuxInvokeRes<C>> | GmuxInvokeRes<C>
 ): void {
-  ipcMain.handle(channel, (event, ...args) =>
-    fn(event, ...(args as InvokeReq<C>))
-  );
+  handleTyped(ipcMain, channel, fn);
 }
 
 // ---------------------------------------------------------------------------
@@ -1044,6 +1125,22 @@ export function registerIpcHandlers(): void {
   );
   handle('sessions:resize', async (_e, input) =>
     (await getGmuxCore()).resizeSession(input)
+  );
+
+  // Scrollback (Phase 12.3). The renderer polls state while a pane is
+  // scrolled and after output arrives, so these must stay cheap — they run
+  // over the control client, not a process spawn.
+  handle('terminal:scrollState', async (_e, input) =>
+    (await getGmuxCore()).scrollState(input)
+  );
+  handle('terminal:scrollBy', async (_e, input) =>
+    (await getGmuxCore()).scrollBy(input)
+  );
+  handle('terminal:scrollTo', async (_e, input) =>
+    (await getGmuxCore()).scrollTo(input)
+  );
+  handle('terminal:scrollLive', async (_e, sessionId) =>
+    (await getGmuxCore()).scrollLive(sessionId)
   );
 
   handle('projects:add', async (_e, path) =>

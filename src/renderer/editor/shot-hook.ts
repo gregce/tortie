@@ -17,6 +17,7 @@ import { requestOpenFile } from '../state/open-file';
 // is that the REAL capture action runs, not a mock of it.
 import { captureHistory, captureVisible } from '../terminal/capture';
 import { getTerminal } from '../terminal/drop';
+import { scrollBridge } from '../terminal/scroll/surface';
 import { setStoredEditorWidth } from './panel-width';
 import { useEditor } from './store';
 
@@ -95,6 +96,38 @@ export interface ShotDriveSpec {
     command: string;
     selectRows?: number;
     historyLines?: number;
+  };
+  /**
+   * Phase 12.3 scrollback, end to end: fill the session the spec created with
+   * real output, then drive REAL wheel events at its `.xterm-screen` so the
+   * capture proves the whole path — xterm's custom wheel handler → the
+   * ScrollSurface → tmux copy-mode — rather than a store poke. The observed
+   * `{position, history, …}` is logged for the harness (GMUX_SHOT_VERBOSE=1);
+   * that number, not the pixels, is what says the wheel moved history.
+   */
+  scrollback?: {
+    /** Typed into the session (each followed by Enter) to build a transcript. */
+    commands?: string[];
+    /** Milliseconds to wait after each command (agents answer slowly). */
+    settleMs?: number;
+    /** Wait (up to 40 s) until tmux holds this much history before scrolling. */
+    minHistory?: number;
+    /** Wheel notches scrolled BACK. 0 captures the bar at rest. */
+    notches?: number;
+    /** ⇧PageUp presses (the documented keyboard half of the wheel). */
+    pageUps?: number;
+    /**
+     * Typed through the TERMINAL after scrolling (term.input → onData → the
+     * surface), to assert the must-not-regress rule that typing returns a
+     * scrolled pane to live output instead of feeding tmux copy-mode.
+     */
+    typeAfter?: string;
+    /**
+     * Pasted through the TERMINAL after `typeAfter` (term.paste → bracketed
+     * paste → onData → the surface): the same must-not-regress rule for ⌘V
+     * and the image-drop pipeline, which both write through term.paste.
+     */
+    pasteAfter?: string;
   };
   /**
    * Switch the sidebar view before capture ('explorer' shows the Pierre
@@ -248,6 +281,116 @@ export function installShotHook(): void {
         await wait(200);
         await captureVisible(session);
         await wait(600);
+      }
+    }
+
+    if (spec.scrollback !== undefined && drivenSessionId !== null) {
+      const sessionId = drivenSessionId;
+      const settle = spec.scrollback.settleMs ?? 2500;
+      for (const command of spec.scrollback.commands ?? []) {
+        step(`scrollback: typing ${command}`);
+        // Type the first character on its own, and give the TUI a beat to
+        // react. Claude Code treats a leading `/` or `!` as a MODE switch
+        // (command palette, shell mode) and only recognises it as one when it
+        // arrives before the rest of the line — a single-chunk paste lands as
+        // literal prompt text. Shells do not care either way.
+        window.gmux?.term.sendInput(sessionId, command.slice(0, 1));
+        await wait(800);
+        window.gmux?.term.sendInput(sessionId, command.slice(1));
+        await wait(300);
+        // CR, not LF: a real Return key sends \r, and Claude Code's input
+        // only submits on that (a shell accepts either).
+        window.gmux?.term.sendInput(sessionId, '\r');
+        await wait(settle);
+      }
+      // Wait for the transcript to actually EXIST before scrolling. An agent
+      // renders shell output into its own transcript asynchronously, and a
+      // wheel that arrives first enters copy-mode over an empty history,
+      // scrolls nothing, and then gets dropped back to live by the next line
+      // of output — a green log and a useless capture.
+      const wantHistory = spec.scrollback.minHistory ?? 0;
+      for (let i = 0; i < 80; i++) {
+        const seen = await scrollBridge()?.state({ sessionId });
+        if ((seen?.history ?? 0) >= wantHistory) break;
+        await wait(500);
+      }
+      await wait(1200);
+      const screen = document.querySelector<HTMLElement>(
+        `.gmux-terminal-pane[data-session-id="${CSS.escape(sessionId)}"] ` +
+          `.xterm-screen`
+      );
+      step(
+        `scrollback: before wheel screen=${screen !== null} ` +
+          `${JSON.stringify(await scrollBridge()?.state({ sessionId }))}`
+      );
+      const notches = spec.scrollback.notches ?? 0;
+      const before = await scrollBridge()?.state({ sessionId });
+      for (let i = 0; i < notches; i++) {
+        screen?.dispatchEvent(
+          new WheelEvent('wheel', {
+            deltaY: -120,
+            deltaMode: 0,
+            bubbles: true,
+            cancelable: true
+          })
+        );
+        await wait(80);
+      }
+      // ⇧PageUp goes through xterm's custom KEY handler, a different door
+      // from the wheel — dispatch it at the textarea xterm actually listens
+      // on, not at the screen.
+      const textarea = document.querySelector<HTMLTextAreaElement>(
+        `.gmux-terminal-pane[data-session-id="${CSS.escape(sessionId)}"] ` +
+          `.xterm-helper-textarea`
+      );
+      for (let i = 0; i < (spec.scrollback.pageUps ?? 0); i++) {
+        textarea?.dispatchEvent(
+          new KeyboardEvent('keydown', {
+            key: 'PageUp',
+            code: 'PageUp',
+            shiftKey: true,
+            bubbles: true,
+            cancelable: true
+          })
+        );
+        await wait(150);
+      }
+
+      // Wait for the dispatched scroll to LAND. The surface batches wheel
+      // deltas on a timer, and Chromium throttles timers hard in a window
+      // that is not producing frames — which the capture window frequently is
+      // not. Real scrolling is never in that state (you cannot wheel a hidden
+      // window); this poll just keeps the harness from reading too early.
+      const wantScroll =
+        (notches > 0 || (spec.scrollback.pageUps ?? 0) > 0) &&
+        (before?.history ?? 0) > 0;
+      for (let i = 0; i < 24 && wantScroll; i++) {
+        const seen = await scrollBridge()?.state({ sessionId });
+        if ((seen?.position ?? 0) > 0) break;
+        await wait(250);
+      }
+      await wait(600);
+      const state = await scrollBridge()?.state({ sessionId });
+      step(`scrollback result ${JSON.stringify(state ?? null)}`);
+
+      if (spec.scrollback.typeAfter !== undefined) {
+        // One xterm input event PER CHARACTER, fired back to back with no
+        // await between them: the return-to-live is in flight while the rest
+        // arrive, which is exactly the race that would swallow or reorder the
+        // first keystroke. The pane must end up with the whole string.
+        for (const ch of [...spec.scrollback.typeAfter]) {
+          getTerminal(sessionId)?.input(ch);
+        }
+        await wait(1500);
+        const after = await scrollBridge()?.state({ sessionId });
+        step(`scrollback after typing ${JSON.stringify(after ?? null)}`);
+      }
+
+      if (spec.scrollback.pasteAfter !== undefined) {
+        getTerminal(sessionId)?.paste(spec.scrollback.pasteAfter);
+        await wait(1500);
+        const after = await scrollBridge()?.state({ sessionId });
+        step(`scrollback after paste ${JSON.stringify(after ?? null)}`);
       }
     }
 

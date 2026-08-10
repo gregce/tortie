@@ -115,6 +115,21 @@
   --z-toast: 700;
   --z-tooltip: 800;
 
+  /* Session scrollbar (Phase 12.3) — gmux draws its own bar over live
+     terminal output, so the thumb is translucent from the neutral ramp
+     (--text-muted / --text-secondary / --text-primary) rather than an opaque
+     fill that would read as chrome sitting on the transcript. The lane is the
+     width xterm's fit addon already reserves, so the bar costs no columns. */
+  --scroll-lane: 14px;
+  --scroll-thumb-inset: 3px;
+  --scroll-thumb-w: 3px;
+  --scroll-thumb-w-away: 5px;
+  --scroll-thumb-w-hover: 6px;
+  --scroll-thumb: rgba(131, 137, 150, 0.42);
+  --scroll-thumb-away: rgba(168, 173, 184, 0.58);
+  --scroll-thumb-hover: rgba(200, 205, 214, 0.72);
+  --scroll-thumb-active: rgba(232, 234, 237, 0.88);
+
   /* §1.10 Focus & motion */
   --focus-ring: 0 0 0 2px rgba(77, 157, 232, 0.6);
   --dur-fast: 120ms;
