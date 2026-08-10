@@ -13,12 +13,20 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import type { GmuxMenuExtras, GmuxQuitExtras, MenuActionId } from '@shared/ipc';
+import type {
+  AnyMenuActionId,
+  GmuxMenuExtras,
+  GmuxQuitExtras,
+  MenuActionId
+} from '@shared/ipc';
 import { useApp } from '../state/store';
+import type { SidebarViewId } from '../state/store';
 import { useEditor } from '../editor/store';
 import { Titlebar } from './Titlebar';
+import { ActivityBar } from './ActivityBar';
 import { Sidebar } from './Sidebar';
 import { TerminalRegion } from './TerminalRegion';
+import { SessionDock } from './SessionDock';
 import { CreateSessionModal } from './CreateSessionModal';
 import { ShortcutsOverlay } from './ShortcutsOverlay';
 import { AttentionOverlay } from './AttentionOverlay';
@@ -35,16 +43,37 @@ import { EditorPanel } from '../editor';
 // ---------------------------------------------------------------------------
 
 /**
- * The session row the keyboard is "on" right now: any focused element inside
- * a sidebar row (the row's ⋯ button, the row itself) resolves to that row's
- * session; focus on the sessions listbox itself resolves to its selected row
- * (== the active session). Null when focus is elsewhere (terminal, editor…)
- * — callers fall back to the active session, per §4 "rename focused item".
+ * The session surface the keyboard is "on" right now: any focused element
+ * inside a session tab (top orientation), a dock row or the identity strip
+ * (right orientation) resolves to that surface's session via its
+ * data-session-id. Null when focus is elsewhere (terminal, editor…) —
+ * callers fall back to the active session, per §4 "rename focused item".
  */
 function focusedSessionRowId(): string | null {
   const el = document.activeElement;
   if (!(el instanceof HTMLElement)) return null;
   return el.closest<HTMLElement>('[data-session-id]')?.dataset['sessionId'] ?? null;
+}
+
+/**
+ * ⌘⇧E / ⌃⇧G (S3): show + focus the view; pressed again while the view is
+ * focused → focus returns to the terminal.
+ */
+function showViewAction(view: SidebarViewId): void {
+  const s = useApp.getState();
+  const viewEl = document.querySelector<HTMLElement>('.sidebar-view');
+  const focusInside =
+    viewEl !== null && viewEl.contains(document.activeElement);
+  if (s.sidebarVisible && s.activeSidebarView() === view && focusInside) {
+    document
+      .querySelector<HTMLTextAreaElement>('.gmux-terminal-mount textarea')
+      ?.focus();
+    return;
+  }
+  s.showSidebarView(view);
+  requestAnimationFrame(() => {
+    document.querySelector<HTMLElement>('.sidebar-view')?.focus();
+  });
 }
 
 function useKeyboardMap(): void {
@@ -108,7 +137,28 @@ function useKeyboardMap(): void {
         return;
       }
 
+      // ⌃⇧G — Source Control view (the menu owns the accelerator; this is
+      // the fallback path, mirroring the menu's 'show-scm').
+      if (
+        e.ctrlKey &&
+        e.shiftKey &&
+        !e.metaKey &&
+        !e.altKey &&
+        e.key.toLowerCase() === 'g'
+      ) {
+        e.preventDefault();
+        showViewAction('scm');
+        return;
+      }
+
       if (!meta) return;
+
+      // ⌘⇧E — Explorer view (fallback for the menu's 'show-explorer').
+      if (e.shiftKey && e.key.toLowerCase() === 'e') {
+        e.preventDefault();
+        showViewAction('explorer');
+        return;
+      }
 
       // Never act on ⌘-chords while a text field is being edited, except
       // the layer togglers that make sense anywhere.
@@ -194,7 +244,7 @@ function focusTerminal(): void {
     ?.focus();
 }
 
-function runMenuAction(action: MenuActionId): void {
+function runMenuAction(action: AnyMenuActionId): void {
   const s = useApp.getState();
   const layerOpen =
     s.confirm !== null || s.createOpen || s.shortcutsOpen || s.attentionOpen;
@@ -269,11 +319,24 @@ function runMenuAction(action: MenuActionId): void {
     case 'shortcuts':
       s.setShortcutsOpen(!s.shortcutsOpen);
       return;
+    // Round-1 View menu additions (src/main/menu.ts).
+    case 'show-explorer':
+      showViewAction('explorer');
+      return;
+    case 'show-scm':
+      showViewAction('scm');
+      return;
+    case 'sessions-top':
+      s.setSessionOrientation('top');
+      return;
+    case 'sessions-right':
+      s.setSessionOrientation('right');
+      return;
     case 'settings':
-      // The settings surface is the titlebar gear's menu (one setting in
-      // v1); ⌘, routes through it so the shortcut stays honest.
+      // The settings surface is the activity-bar gear's menu (one setting
+      // in v1); ⌘, routes through it so the shortcut stays honest.
       document
-        .querySelector<HTMLButtonElement>('.titlebar-settings')
+        .querySelector<HTMLButtonElement>('.activitybar-settings')
         ?.click();
       return;
   }
@@ -285,7 +348,54 @@ function useMenuActions(): void {
       | (typeof window.gmux & GmuxMenuExtras)
       | undefined;
     if (typeof bridge?.onMenuAction !== 'function') return;
-    return bridge.onMenuAction(runMenuAction);
+    // The preload's callback type predates the round-1 View-menu ids; the
+    // channel carries plain strings, so widening here is honest.
+    return bridge.onMenuAction((action: MenuActionId) =>
+      runMenuAction(action as AnyMenuActionId)
+    );
+  }, []);
+}
+
+// ---------------------------------------------------------------------------
+// Screenshot-harness extension (round 1): the editor stream's shot hook
+// (src/renderer/editor/shot-hook.ts) drives project/session/editor state;
+// this wrapper adds the layout stream's knobs — session-surface orientation
+// and sidebar view — read from extra fields on the same GMUX_SHOT_DRIVE JSON.
+// Inert outside the harness.
+// ---------------------------------------------------------------------------
+
+interface ShotLayoutExtras {
+  orientation?: 'top' | 'right';
+  sidebarView?: SidebarViewId;
+}
+
+function useShotLayoutHook(): void {
+  useEffect(() => {
+    const w = window as unknown as {
+      __gmuxShotDrive?: (spec: unknown) => Promise<void>;
+    };
+    const prev = w.__gmuxShotDrive;
+    if (typeof prev !== 'function') return;
+    w.__gmuxShotDrive = async (spec: unknown): Promise<void> => {
+      const ext = spec as ShotLayoutExtras;
+      if (ext.orientation === 'right' || ext.orientation === 'top') {
+        useApp.getState().setSessionOrientation(ext.orientation);
+      }
+      await prev(spec);
+      if (ext.sidebarView === 'scm' || ext.sidebarView === 'explorer') {
+        // The base drive already flipped __gmuxShotReady — pull it back
+        // down while the view swaps so main never captures mid-switch.
+        window.__gmuxShotReady = false;
+        useApp.getState().showSidebarView(ext.sidebarView);
+        // Let the freshly mounted view settle (tree listing, git status)
+        // before main captures the page.
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+        window.__gmuxShotReady = true;
+      }
+    };
+    return () => {
+      w.__gmuxShotDrive = prev;
+    };
   }, []);
 }
 
@@ -434,11 +544,13 @@ export function App(): React.JSX.Element {
   const boot = useApp((s) => s.boot);
   const projects = useApp((s) => s.projects);
   const sidebarVisible = useApp((s) => s.sidebarVisible);
+  const orientation = useApp((s) => s.sessionOrientation);
 
   useKeyboardMap();
   useMenuActions();
   useQuitRequests();
   useWindowTitle();
+  useShotLayoutHook();
   const dropping = useFolderDrop();
 
   useEffect(() => {
@@ -480,9 +592,13 @@ export function App(): React.JSX.Element {
         <FirstRun />
       ) : (
         <div className="shell-body">
+          {/* S1 region order: activity bar · sidebar (one view) · center ·
+              editor split · right session list ("right" orientation). */}
+          <ActivityBar />
           {sidebarVisible ? <Sidebar /> : null}
           <TerminalRegion />
           <EditorPanel />
+          {orientation === 'right' ? <SessionDock /> : null}
         </div>
       )}
 

@@ -32,6 +32,15 @@ const GROUPS: { title: string; rows: Row[] }[] = [
     ]
   },
   {
+    title: 'Views',
+    rows: [
+      { keys: ['⌘⇧E'], action: 'Explorer view' },
+      { keys: ['⌃⇧G'], action: 'Source control view' },
+      { keys: ['⌘B'], action: 'Toggle sidebar' },
+      { keys: [], action: 'View menu: Sessions on top / right' }
+    ]
+  },
+  {
     title: 'Git',
     rows: [
       { keys: ['⌘↩'], action: 'Commit staged' },
@@ -53,7 +62,6 @@ const GROUPS: { title: string; rows: Row[] }[] = [
     title: 'App',
     rows: [
       { keys: ['⌘J'], action: 'Show sessions that need input' },
-      { keys: ['⌘B'], action: 'Toggle sidebar' },
       { keys: ['⌘/'], action: 'Keyboard shortcuts' },
       { keys: ['⌘,'], action: 'Settings' },
       { keys: ['Esc'], action: 'Close topmost layer' },

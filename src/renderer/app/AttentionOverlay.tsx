@@ -8,6 +8,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import type { Session } from '@shared/types';
 import { effectiveStatusOf, useApp } from '../state/store';
 import { formatAge, useNow } from './format';
+import { AgentIcon } from '../icons';
 
 export function AttentionOverlay(): React.JSX.Element | null {
   const open = useApp((s) => s.attentionOpen);
@@ -102,6 +103,11 @@ export function AttentionOverlay(): React.JSX.Element | null {
                   onClick={() => jump(session)}
                 >
                   <span className="dot dot-attention" />
+                  <AgentIcon
+                    agent={session.agent}
+                    size={16}
+                    className="attention-agent"
+                  />
                   <span className="attention-session">{session.name}</span>
                   <span className="attention-project">
                     {projectNameFor(session)}

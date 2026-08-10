@@ -6,8 +6,8 @@
  * Merge / Staged / Changes / Untracked with letter badges and hover actions
  * (stage ＋ / unstage － / discard ↩ with confirm) · row click emits the
  * open-diff event for the editor (src/renderer/scm/open-file.ts). History
- * is a second, default-collapsed section: subject · shortSha (click copies)
- * · relative age.
+ * is a second section, round 1: the VS Code-bar commit list lives in
+ * ./HistorySection.tsx (refs badges, context menu, rich hover card).
  *
  * INTEGRATOR: in src/renderer/app/Sidebar.tsx replace
  * `<div data-slot="scm" />` with `<ScmSection />`.
@@ -20,7 +20,7 @@ import React, {
   useRef,
   useState
 } from 'react';
-import type { GitFileState, GitFileStatus, GitLogEntry } from '@shared/types';
+import type { GitFileState, GitFileStatus } from '@shared/types';
 import type { GmuxGitExtras } from '@shared/ipc';
 import { useApp } from '../state/store';
 import type { ConfirmSpec, MenuItemSpec } from '../state/store';
@@ -31,11 +31,10 @@ import {
   useGit
 } from '../state/git';
 import type { PendingOp, ScmGroups } from '../state/git';
-import { ChevronDownIcon, CopyIcon, PlusIcon } from '../app/icons';
-import { useNow } from '../app/format';
-import { MinusIcon, UndoIcon } from './icons';
-import { formatRelative, shortSha, splitPath } from './format';
+import { Codicon } from '../icons';
+import { splitPath } from './format';
 import { requestOpenFile } from './open-file';
+import { HistorySection } from './HistorySection';
 import './scm.css';
 
 // ---------------------------------------------------------------------------
@@ -276,7 +275,7 @@ function ScmFileRow({
               void unstage(repoPath, [file.path]);
             }}
           >
-            <MinusIcon size={14} />
+            <Codicon name="remove" size={14} />
           </button>
         ) : (
           <>
@@ -294,7 +293,7 @@ function ScmFileRow({
                   confirmDiscard();
                 }}
               >
-                <UndoIcon size={14} />
+                <Codicon name="discard" size={14} />
               </button>
             ) : null}
             <button
@@ -310,7 +309,7 @@ function ScmFileRow({
                 void stage(repoPath, [file.path]);
               }}
             >
-              <PlusIcon size={14} />
+              <Codicon name="add" size={14} />
             </button>
           </>
         )}
@@ -431,109 +430,7 @@ function CommitBox({ ctrl }: { ctrl: CommitController }): React.JSX.Element {
 }
 
 // ---------------------------------------------------------------------------
-// History section
-// ---------------------------------------------------------------------------
-
-function HistoryRow({
-  entry,
-  now
-}: {
-  entry: GitLogEntry;
-  now: number;
-}): React.JSX.Element {
-  const toast = useApp((s) => s.toast);
-  const sha = shortSha(entry.hash);
-
-  const copySha = (e: React.MouseEvent): void => {
-    e.stopPropagation();
-    void navigator.clipboard.writeText(sha).then(
-      () => toast('info', `${sha} copied`),
-      () => toast('error', 'Could not copy the commit SHA')
-    );
-  };
-
-  return (
-    <div
-      className="scm-history-row"
-      title={`${entry.subject}\n${entry.authorName} · ${new Date(entry.authorDate).toLocaleString()}`}
-    >
-      <span className="scm-history-subject">{entry.subject}</span>
-      <span className="scm-row-space" />
-      <button
-        type="button"
-        className="scm-sha num"
-        aria-label={`Copy commit SHA ${sha}`}
-        title="Copy SHA"
-        onClick={copySha}
-      >
-        {sha}
-        <CopyIcon size={11} className="scm-sha-copy" />
-      </button>
-      <span className="scm-history-age num">
-        {formatRelative(entry.authorDate, now)}
-      </span>
-    </div>
-  );
-}
-
-function HistorySection({ repoPath }: { repoPath: string }): React.JSX.Element {
-  const repo = useGit((s) => repoState(s.repos, repoPath));
-  const refreshLog = useGit((s) => s.refreshLog);
-  const [collapsed, setCollapsed] = usePersistedBool(
-    `gmux.scm.historyCollapsed.${repoPath}`,
-    true
-  );
-  const now = useNow();
-
-  // Lazy-load on first expand; git:changed keeps it fresh afterwards.
-  useEffect(() => {
-    if (!collapsed && repo.log === null && !repo.logLoading) {
-      void refreshLog(repoPath);
-    }
-  }, [collapsed, repo.log, repo.logLoading, refreshLog, repoPath]);
-
-  return (
-    <section className={`section-scm-history${collapsed ? ' collapsed' : ''}`}>
-      <div className={`section-header${collapsed ? ' collapsed' : ''}`}>
-        <button
-          type="button"
-          className="section-toggle"
-          aria-expanded={!collapsed}
-          onClick={() => setCollapsed(!collapsed)}
-        >
-          <span className="section-chevron">
-            <ChevronDownIcon size={12} />
-          </span>
-          History
-          <span className="section-count num">
-            {repo.log !== null && repo.log.length > 0 ? repo.log.length : ''}
-          </span>
-        </button>
-        <span className="section-spacer" />
-      </div>
-      {!collapsed ? (
-        <div className="section-body scm-history-body">
-          {repo.logLoading && repo.log === null ? (
-            <div className="scm-skeleton" aria-hidden="true">
-              <div className="scm-skeleton-row" style={{ width: '72%' }} />
-              <div className="scm-skeleton-row" style={{ width: '58%' }} />
-              <div className="scm-skeleton-row" style={{ width: '80%' }} />
-            </div>
-          ) : repo.log === null || repo.log.length === 0 ? (
-            <div className="section-stub">No commits yet.</div>
-          ) : (
-            repo.log.map((entry) => (
-              <HistoryRow key={entry.hash} entry={entry} now={now} />
-            ))
-          )}
-        </div>
-      ) : null}
-    </section>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Changes section (the SCM heart)
+// Changes section (the SCM heart) — History lives in ./HistorySection.tsx
 // ---------------------------------------------------------------------------
 
 function InitRepoStub({ repoPath }: { repoPath: string }): React.JSX.Element {
@@ -717,7 +614,7 @@ export function ScmSection(): React.JSX.Element | null {
             void unstage(repoPath, groups.staged.map((f) => f.path))
           }
         >
-          <MinusIcon size={14} />
+          <Codicon name="remove" size={14} />
         </button>
       );
     }
@@ -731,7 +628,7 @@ export function ScmSection(): React.JSX.Element | null {
           title="Stage all"
           onClick={() => void stage(repoPath, files)}
         >
-          <PlusIcon size={14} />
+          <Codicon name="add" size={14} />
         </button>
       );
     }
@@ -752,7 +649,7 @@ export function ScmSection(): React.JSX.Element | null {
             });
           }}
         >
-          <PlusIcon size={14} />
+          <Codicon name="add" size={14} />
         </button>
       );
     }
@@ -862,7 +759,7 @@ export function ScmSection(): React.JSX.Element | null {
             onClick={() => setCollapsed(!collapsed)}
           >
             <span className="section-chevron">
-              <ChevronDownIcon size={12} />
+              <Codicon name="chevron-down" size={12} />
             </span>
             Changes
             <span className="section-count num">{total > 0 ? total : ''}</span>
@@ -871,7 +768,7 @@ export function ScmSection(): React.JSX.Element | null {
         </div>
         {!collapsed ? <div className="section-body scm-body">{body()}</div> : null}
       </section>
-      {isRepo ? <HistorySection repoPath={repoPath} /> : null}
+      {isRepo ? <HistorySection key={repoPath} repoPath={repoPath} /> : null}
     </>
   );
 }

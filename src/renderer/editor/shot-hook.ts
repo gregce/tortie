@@ -28,6 +28,18 @@ export interface ShotDriveSpec {
    * the manifest — pure store injection for visual capture.
    */
   fakeRestore?: boolean;
+  /**
+   * Inject two renderer-only fake agent sessions (claude working, codex
+   * needs-input) so the session tab strip / right list shows the full
+   * round-1 vocabulary: agent icons, status dots, needs-input emphasis.
+   * Pure store injection — nothing reaches main or the manifest.
+   */
+  fakeTabs?: boolean;
+  /**
+   * Hover the HEAD commit row in the SCM History section and wait for the
+   * rich hover card (round 1, change 5) to open before capture.
+   */
+  hoverHistory?: boolean;
   /** Open a UI layer before capture. */
   ui?: 'shortcuts' | 'create' | 'attention';
   /** Show a toast before capture (kind defaults to info). */
@@ -100,14 +112,21 @@ export function installShotHook(): void {
     await wait(700);
 
     if (spec.session !== undefined) {
+      const sessionName = spec.session.name ?? 'shot-shell';
       await useApp.getState().createSession({
-        name: spec.session.name ?? 'shot-shell',
+        name: sessionName,
         agent: spec.session.agent ?? 'shell'
       });
-      const created = useApp
-        .getState()
-        .sessions.find((x) => x.name === (spec.session?.name ?? 'shot-shell'));
-      drivenSessionId = created?.id ?? null;
+      // The created session reaches the store via the sessions:changed
+      // event, which races this hook — poll for it so drivenSessionId is
+      // always recorded and cleanup never leaks the session.
+      for (let i = 0; i < 40 && drivenSessionId === null; i++) {
+        const created = useApp
+          .getState()
+          .sessions.find((x) => x.name === sessionName);
+        drivenSessionId = created?.id ?? null;
+        if (drivenSessionId === null) await wait(250);
+      }
       // Wait for the prompt to render (bytes flow → xterm paints).
       for (let i = 0; i < 40; i++) {
         if (document.querySelector('.gmux-terminal-mount .xterm') !== null) break;
@@ -120,6 +139,33 @@ export function installShotHook(): void {
       useApp.setState((s) => ({
         sessions: [...s.sessions, ...fakeRestorableSessions(spec.projectPath)]
       }));
+      await wait(300);
+    }
+
+    if (spec.fakeTabs === true) {
+      const now = Date.now();
+      const base = { projectPath: spec.projectPath, cwd: spec.projectPath };
+      const fakes: Session[] = [
+        {
+          ...base,
+          id: 'shot-tab-1',
+          name: 'api-refactor',
+          tmuxName: 'api-refactor',
+          agent: 'claude',
+          status: 'running',
+          createdAt: now - 42 * 60_000
+        },
+        {
+          ...base,
+          id: 'shot-tab-2',
+          name: 'tests',
+          tmuxName: 'tests',
+          agent: 'codex',
+          status: 'needs_input',
+          createdAt: now - 12 * 60_000
+        }
+      ];
+      useApp.setState((s) => ({ sessions: [...s.sessions, ...fakes] }));
       await wait(300);
     }
 
@@ -153,6 +199,32 @@ export function installShotHook(): void {
     if (spec.toast !== undefined) {
       useApp.getState().toast(spec.toast.kind ?? 'info', spec.toast.text);
       await wait(200);
+    }
+
+    if (spec.hoverHistory === true) {
+      // History rows live in the SCM view (default). Wait for the log to
+      // land, then synthesize the hover; React derives onMouseEnter from a
+      // bubbling mouseover with an outside relatedTarget.
+      let row: Element | null = null;
+      for (let i = 0; i < 40 && row === null; i++) {
+        row = document.querySelector('.scm-hrow');
+        if (row === null) await wait(250);
+      }
+      if (row !== null) {
+        row.dispatchEvent(
+          new MouseEvent('mouseover', {
+            bubbles: true,
+            relatedTarget: document.body
+          })
+        );
+        // Card opens after the 600ms hover delay; give the commit detail
+        // (files/stat line) time to fill in from the prefetch.
+        for (let i = 0; i < 20; i++) {
+          if (document.querySelector('.scm-card') !== null) break;
+          await wait(250);
+        }
+        await wait(600);
+      }
     }
 
     window.__gmuxShotReady = true;

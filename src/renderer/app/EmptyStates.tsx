@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { useApp } from '../state/store';
-import { CopyIcon } from './icons';
+import { Codicon } from '../icons';
 
 export function FirstRun(): React.JSX.Element {
   const openProject = useApp((s) => s.openProject);
@@ -64,7 +64,7 @@ export function TmuxMissing(): React.JSX.Element {
                 );
               }}
             >
-              <CopyIcon size={14} />
+              <Codicon name="copy" size={14} />
             </button>
           </span>
         </div>

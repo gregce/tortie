@@ -13,16 +13,14 @@ import {
 } from '../state/agents';
 import { errorPayload, errorText, nextOrdinal, useApp } from '../state/store';
 import { trapTabKey } from './focus-trap';
-import { CodeIcon, CopyIcon, SparkIcon, TerminalIcon } from './icons';
+import { AgentIcon, Codicon } from '../icons';
 
-const AGENT_OPTIONS: {
-  agent: AgentKind;
-  label: string;
-  Icon: React.FC<{ size?: number }>;
-}[] = [
-  { agent: 'claude', label: 'Claude Code', Icon: SparkIcon },
-  { agent: 'codex', label: 'Codex', Icon: CodeIcon },
-  { agent: 'shell', label: 'Shell', Icon: TerminalIcon }
+// Agent options carry the real vendor mark (round 1 — AgentIcon renders the
+// registry logo; shell/unknown fall back to the terminal glyph).
+const AGENT_OPTIONS: { agent: AgentKind; label: string }[] = [
+  { agent: 'claude', label: 'Claude Code' },
+  { agent: 'codex', label: 'Codex' },
+  { agent: 'shell', label: 'Shell' }
 ];
 
 export function CreateSessionModal(): React.JSX.Element | null {
@@ -173,7 +171,7 @@ export function CreateSessionModal(): React.JSX.Element | null {
             Agent
           </span>
           <div className="seg" role="radiogroup" aria-labelledby="agent-label">
-            {AGENT_OPTIONS.map(({ agent: a, label, Icon }) => {
+            {AGENT_OPTIONS.map(({ agent: a, label }) => {
               const available = isAgentAvailable(avail, a);
               return (
                 <button
@@ -186,7 +184,7 @@ export function CreateSessionModal(): React.JSX.Element | null {
                   className={`seg-option${agent === a ? ' selected' : ''}`}
                   onClick={() => setAgent(a)}
                 >
-                  <Icon size={14} />
+                  <AgentIcon agent={a} size={16} />
                   {label}
                 </button>
               );
@@ -218,7 +216,7 @@ export function CreateSessionModal(): React.JSX.Element | null {
                       );
                   }}
                 >
-                  <CopyIcon size={12} />
+                  <Codicon name="copy" size={12} />
                 </button>
               </div>
             ))}

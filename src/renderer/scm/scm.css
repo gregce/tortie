@@ -51,8 +51,45 @@
   height: 22px;
 }
 
-.branch-refresh.busy svg {
+.branch-refresh.busy .codicon {
   animation: gmux-scm-spin 0.9s linear infinite;
+}
+
+/* Branch MENU button (round 1) — [h:24] pill, click opens the native
+   branch menu; detached HEAD renders in the warning color. */
+.branch-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 24px;
+  padding: 0 var(--space-3);
+  border-radius: var(--r-sm);
+  color: var(--text-secondary);
+  min-width: 0;
+  flex: 0 1 auto;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+.branch-menu-btn:hover {
+  background: var(--bg-raised);
+}
+
+.branch-menu-btn .branch-name {
+  color: var(--text-primary);
+  max-width: 140px;
+}
+
+.branch-menu-btn .branch-caret {
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+
+.branch-menu-btn.detached,
+.branch-menu-btn.detached .branch-name,
+.branch-menu-btn.detached .branch-caret {
+  color: var(--warning);
 }
 
 .scm-chip-merge {
@@ -410,30 +447,113 @@
 }
 
 /* ---------------------------------------------------------------------------
-   History rows
+   HISTORY (round 1, DESIGN-SPEC S3A) — commit rows: rail + dot · chevron ·
+   subject · author · refs badges · age; inline file expansion; load-more.
 --------------------------------------------------------------------------- */
 
 .scm-history-body {
   padding-bottom: var(--space-2);
 }
 
-.scm-history-row {
+.scm-history-body:focus-visible {
+  box-shadow: inset var(--focus-ring);
+  border-radius: var(--r-md);
+}
+
+/* History fills the sidebar remainder when expanded (S3A space budget). */
+.section-scm-history:not(.collapsed) {
+  max-height: none;
+  flex: 1 1 auto;
+  min-height: 160px;
+}
+
+.scm-hrow {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
   height: 24px;
   flex: 0 0 24px;
-  padding: 0 var(--space-4) 0 var(--space-5);
+  padding-right: var(--space-4);
   min-width: 0;
+  cursor: default;
   user-select: none;
   transition: background var(--dur-fast) var(--ease-out);
 }
 
-.scm-history-row:hover {
+.scm-hrow:hover {
   background: var(--bg-raised);
 }
 
-.scm-history-subject {
+.scm-hrow.selected {
+  background: var(--bg-active);
+}
+
+/* Rail column w:20 — a continuous 1px lane behind 8px dots. */
+.scm-hrail {
+  position: relative;
+  width: 20px;
+  flex: 0 0 20px;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.scm-hrail::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  margin-left: -0.5px;
+  background: var(--border-strong);
+}
+
+.scm-hdot {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  flex: 0 0 auto;
+}
+
+.scm-hrail.head .scm-hdot {
+  background: var(--accent);
+}
+
+/* Merge commits: hollow ring; the fill masks the rail behind it. */
+.scm-hrail.merge .scm-hdot {
+  background: var(--bg-sidebar);
+  border: 1.5px solid var(--text-muted);
+}
+
+.scm-hrow:hover .scm-hrail.merge .scm-hdot {
+  background: var(--bg-raised);
+}
+
+.scm-hrow.selected .scm-hrail.merge .scm-hdot {
+  background: var(--bg-active);
+}
+
+.scm-hchevron {
+  width: 12px;
+  flex: 0 0 12px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.scm-hrow:hover .scm-hchevron,
+.scm-hrow.selected .scm-hchevron,
+.scm-hrow.expanded .scm-hchevron {
+  opacity: 1;
+}
+
+.scm-hsubject {
   font-size: var(--text-sm);
   line-height: var(--lh-sm);
   color: var(--text-primary);
@@ -441,44 +561,30 @@
   overflow: hidden;
   text-overflow: ellipsis;
   flex: 0 1 auto;
+  min-width: 32px;
 }
 
-.scm-sha {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  height: 18px;
-  padding: 0 var(--space-2);
-  border-radius: var(--r-sm);
-  font-family: var(--font-mono);
+.scm-hauthor {
   font-size: var(--text-xs);
   line-height: var(--lh-xs);
   color: var(--text-muted);
-  flex: 0 0 auto;
-  transition:
-    color var(--dur-fast) var(--ease-out),
-    background var(--dur-fast) var(--ease-out);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 0 4 auto;
+  min-width: 0;
+  transition: color var(--dur-fast) var(--ease-out);
 }
 
-/* Contrast rule: no muted text on raised fills (row hover). */
-.scm-history-row:hover .scm-sha {
+/* Contrast rule: no muted text on raised/active fills. */
+.scm-hrow:hover .scm-hauthor,
+.scm-hrow.selected .scm-hauthor,
+.scm-hrow:hover .scm-hage,
+.scm-hrow.selected .scm-hage {
   color: var(--text-secondary);
 }
 
-.scm-sha:hover {
-  background: var(--bg-active);
-  color: var(--text-primary);
-}
-
-.scm-sha-copy {
-  display: none;
-}
-
-.scm-history-row:hover .scm-sha-copy {
-  display: inline;
-}
-
-.scm-history-age {
+.scm-hage {
   font-size: var(--text-xs);
   line-height: var(--lh-xs);
   color: var(--text-muted);
@@ -486,6 +592,358 @@
   transition: color var(--dur-fast) var(--ease-out);
 }
 
-.scm-history-row:hover .scm-history-age {
+/* Refs badges — [h:16] pills; the HEAD branch pill wears the accent wash. */
+.scm-refs {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.scm-ref-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: var(--r-sm);
+  background: var(--bg-raised);
+  border: 1px solid var(--border-strong);
   color: var(--text-secondary);
+  max-width: 96px;
+  overflow: hidden;
+}
+
+.scm-ref-pill .codicon {
+  flex: 0 0 auto;
+}
+
+.scm-ref-name {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scm-ref-head {
+  background: var(--accent-wash);
+  border-color: transparent;
+  color: var(--accent-text);
+}
+
+.scm-ref-more {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 14px;
+}
+
+/* Inline file expansion — SCM-style rows indented to the message x. */
+.scm-hfile {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 24px;
+  flex: 0 0 24px;
+  padding: 0 var(--space-4) 0 32px;
+  min-width: 0;
+  cursor: default;
+  user-select: none;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.scm-hfile:hover {
+  background: var(--bg-raised);
+}
+
+.scm-hfile.selected {
+  background: var(--bg-active);
+}
+
+.scm-hfile:hover .scm-row-dir,
+.scm-hfile.selected .scm-row-dir {
+  color: var(--text-secondary);
+}
+
+.scm-hfile-loading,
+.scm-hfile-empty {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+}
+
+.scm-hfile-loading .scm-skeleton-row {
+  flex: 0 1 auto;
+  width: 56%;
+}
+
+/* "Load 50 more" — [h:24], 12px accent text, aligned to the message x. */
+.scm-load-more {
+  display: block;
+  width: 100%;
+  height: 24px;
+  padding: 0 var(--space-4) 0 32px;
+  text-align: left;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--accent-text);
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.scm-load-more:hover {
+  background: var(--bg-raised);
+}
+
+.scm-load-more.selected {
+  background: var(--bg-active);
+}
+
+.scm-load-more:disabled {
+  color: var(--text-disabled);
+  background: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Commit hover card (S3A) — w:520, max-h:60vh, body scrolls, interactive.
+--------------------------------------------------------------------------- */
+
+.scm-card {
+  position: fixed;
+  z-index: var(--z-tooltip);
+  display: flex;
+  flex-direction: column;
+  max-height: 60vh;
+  padding: var(--space-6);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-3);
+  animation: gmux-scm-card-in var(--dur-fast) var(--ease-out);
+}
+
+@keyframes gmux-scm-card-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scm-card {
+    animation: none;
+  }
+}
+
+.scm-card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding-bottom: var(--space-5);
+  min-width: 0;
+  flex: 0 0 auto;
+}
+
+.scm-card-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-strong);
+  color: var(--text-secondary);
+  font-size: 9px;
+  font-weight: var(--weight-semibold);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.scm-card-author {
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.scm-card-age {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.scm-card-date {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.scm-card-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.scm-card-message {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.scm-card-subject {
+  margin: 0;
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  font-weight: var(--weight-medium);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.scm-card-para {
+  margin: 0;
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.scm-card-bullets {
+  margin: 0;
+  padding-left: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.scm-card-bullets li {
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.scm-card-bullets li::marker {
+  color: var(--text-muted);
+}
+
+.scm-card-code {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  background: var(--bg-raised);
+  border-radius: var(--r-sm);
+  padding: 1px 4px;
+  color: var(--text-primary);
+}
+
+.scm-card-link {
+  color: var(--accent-text);
+  text-decoration: none;
+}
+
+.scm-card-link:hover {
+  text-decoration: underline;
+}
+
+.scm-card-skeleton {
+  padding: var(--space-4) 0 0;
+}
+
+.scm-card-stat {
+  flex: 0 0 auto;
+  margin-top: var(--space-5);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--border);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-secondary);
+}
+
+.scm-card-stat-add {
+  color: var(--success);
+}
+
+.scm-card-stat-del {
+  color: var(--error);
+}
+
+.scm-card-sha-row {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+.scm-card-sha {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 24px;
+  padding: 0 var(--space-2);
+  border-radius: var(--r-sm);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+.scm-card-sha:hover {
+  background: var(--bg-raised);
+  color: var(--text-primary);
+}
+
+.scm-card-github {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 24px;
+  padding: 0 var(--space-2);
+  border-radius: var(--r-sm);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--accent-text);
+  text-decoration: none;
+}
+
+.scm-card-github:hover {
+  text-decoration: underline;
+}
+
+/* ---------------------------------------------------------------------------
+   Mini-modal (Create branch / Create tag) — S6 chrome at w:360.
+--------------------------------------------------------------------------- */
+
+.scm-mini-modal {
+  width: 360px;
+}
+
+.scm-mini-modal .scm-mini-input {
+  margin-top: var(--space-5);
+}
+
+.scm-mini-note {
+  margin: var(--space-2) 0 0;
+}
+
+.scm-mini-caption {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
 }

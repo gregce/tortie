@@ -18,9 +18,9 @@
 import { app, BrowserWindow, Menu } from 'electron';
 import type { MenuItemConstructorOptions } from 'electron';
 import { EVT_MENU_ACTION, EVT_QUIT_REQUESTED } from '@shared/ipc';
-import type { MenuActionId } from '@shared/ipc';
+import type { AnyMenuActionId } from '@shared/ipc';
 
-function sendAction(action: MenuActionId): void {
+function sendAction(action: AnyMenuActionId): void {
   const win =
     BrowserWindow.getFocusedWindow() ??
     BrowserWindow.getAllWindows().find((w) => !w.isDestroyed());
@@ -49,7 +49,7 @@ function requestQuit(): void {
 
 function item(
   label: string,
-  action: MenuActionId,
+  action: AnyMenuActionId,
   accelerator?: string
 ): MenuItemConstructorOptions {
   return {
@@ -57,6 +57,38 @@ function item(
     ...(accelerator !== undefined ? { accelerator } : {}),
     click: () => sendAction(action)
   };
+}
+
+// ---------------------------------------------------------------------------
+// Session-surface orientation (round 1): a View-menu radio pair. The renderer
+// owns the persisted truth (localStorage 'gmux.sessionOrientation', written by
+// the app store); Electron flips the radio check on click, and on every page
+// load we read the persisted value back so the menu opens honest after a
+// relaunch. There is no other writer — the menu is the only orientation
+// control (DESIGN.md §4 View menu).
+// ---------------------------------------------------------------------------
+
+const MENU_ID_SESSIONS_TOP = 'view-sessions-top';
+const MENU_ID_SESSIONS_RIGHT = 'view-sessions-right';
+const LS_ORIENTATION = 'gmux.sessionOrientation';
+
+function syncOrientationRadios(win: BrowserWindow): void {
+  win.webContents
+    .executeJavaScript(`localStorage.getItem(${JSON.stringify(LS_ORIENTATION)})`)
+    .then((raw: unknown) => {
+      // Store writes JSON — '"right"' / '"top"'; anything else means top.
+      const right = typeof raw === 'string' && raw.includes('right');
+      const menu = Menu.getApplicationMenu();
+      const top = menu?.getMenuItemById(MENU_ID_SESSIONS_TOP);
+      const rightItem = menu?.getMenuItemById(MENU_ID_SESSIONS_RIGHT);
+      if (top && rightItem) {
+        top.checked = !right;
+        rightItem.checked = right;
+      }
+    })
+    .catch(() => {
+      /* menu keeps its default (top) — cosmetic only */
+    });
 }
 
 export function installAppMenu(): void {
@@ -134,6 +166,27 @@ export function installAppMenu(): void {
     {
       label: 'View',
       submenu: [
+        // Activity-bar views (round 1): the sidebar hosts one view at a time.
+        item('Explorer', 'show-explorer', 'Cmd+Shift+E'),
+        item('Source Control', 'show-scm', 'Ctrl+Shift+G'),
+        { type: 'separator' },
+        // Session-surface orientation — radio pair, persisted app-wide by the
+        // renderer; initial checked state synced from localStorage on load.
+        {
+          id: MENU_ID_SESSIONS_TOP,
+          label: 'Sessions on Top',
+          type: 'radio',
+          checked: true,
+          click: () => sendAction('sessions-top')
+        },
+        {
+          id: MENU_ID_SESSIONS_RIGHT,
+          label: 'Sessions on Right',
+          type: 'radio',
+          checked: false,
+          click: () => sendAction('sessions-right')
+        },
+        { type: 'separator' },
         item('Toggle Sidebar', 'toggle-sidebar', 'Cmd+B'),
         item('Toggle Editor', 'toggle-editor', 'Cmd+E'),
         { type: 'separator' },
@@ -157,4 +210,16 @@ export function installAppMenu(): void {
   ];
 
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+
+  // Keep the orientation radios honest across relaunches: whenever a window
+  // finishes loading the app, read the renderer-persisted orientation back.
+  // (Single-window app — the listener is cheap and window-count agnostic.)
+  app.on('browser-window-created', (_event, win) => {
+    win.webContents.on('did-finish-load', () => syncOrientationRadios(win));
+  });
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (!win.isDestroyed() && !win.webContents.isLoading()) {
+      syncOrientationRadios(win);
+    }
+  }
 }

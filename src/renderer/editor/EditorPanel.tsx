@@ -22,7 +22,7 @@ import { useApp } from '../state/store';
 import { useEditor } from './store';
 import type { EditorTab } from './store';
 import { MonacoHost } from './MonacoHost';
-import { XIcon } from '../app/icons';
+import { Codicon } from '../icons';
 import { installShotHook } from './shot-hook';
 import './editor.css';
 
@@ -128,7 +128,7 @@ function TabButton({
             closeTab(tab.path);
           }}
         >
-          <XIcon size={12} />
+          <Codicon name="close" size={12} />
         </button>
       )}
     </div>

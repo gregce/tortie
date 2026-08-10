@@ -186,7 +186,81 @@
 }
 
 /* ---------------------------------------------------------------------------
-   S3 — Sidebar (stacked sections)
+   S3 — Activity bar (48px icon rail, full height below the titlebar; the
+   round-1 header band never crosses it)
+--------------------------------------------------------------------------- */
+
+.activitybar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 48px;
+  flex: 0 0 48px;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
+  user-select: none;
+}
+
+.ab-item {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  color: var(--text-muted);
+  flex: 0 0 auto;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+.ab-item:hover {
+  color: var(--text-secondary);
+}
+
+.ab-item.active {
+  color: var(--text-primary);
+}
+
+/* Active view marker: 2px accent inset bar on the item's LEFT edge. */
+.ab-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--accent);
+}
+
+.ab-item:focus-visible {
+  box-shadow: inset var(--focus-ring);
+}
+
+/* Dirty-count badge on the Source Control item — accent, never amber. */
+.ab-badge {
+  position: absolute;
+  right: 4px;
+  bottom: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 16px;
+  min-width: 16px;
+  padding: 0 var(--space-2);
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  font-weight: var(--weight-semibold);
+}
+
+.ab-spacer {
+  flex: 1;
+}
+
+/* ---------------------------------------------------------------------------
+   S3 — Sidebar (one view at a time: Source Control or Explorer)
 --------------------------------------------------------------------------- */
 
 .sidebar {
@@ -217,7 +291,44 @@
   background: var(--border-strong);
 }
 
-/* Branch header [h:36] — branch slot is a stub until the git stream lands. */
+/* The one view host (activity bar decides which). Focusable for ⌘⇧E/⌃⇧G. */
+.sidebar-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  outline: none;
+}
+
+/* Explorer view header — this region's slice of the 36px HEADER BAND. */
+.view-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 36px;
+  flex: 0 0 36px;
+  padding: 0 var(--space-5);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  user-select: none;
+}
+
+.view-header-spacer {
+  flex: 1;
+}
+
+/* The band header above replaces FilesSection's internal 28px section
+   header — exactly one label and one hairline in the band (S1/S3B). */
+.sidebar-view .section-files > .section-header {
+  display: none;
+}
+
+/* Branch header [h:36] — the SCM view's band slice (SCM stream component). */
 .branch-header {
   display: flex;
   align-items: center;
@@ -308,18 +419,6 @@
   flex: 1;
 }
 
-.section-sessions {
-  display: flex;
-  flex-direction: column;
-  max-height: 40%;
-  flex-shrink: 0;
-  min-height: 0;
-}
-
-.section-sessions.collapsed {
-  max-height: none;
-}
-
 .section-body {
   overflow-y: auto;
   min-height: 0;
@@ -342,112 +441,8 @@
   overflow: hidden;
 }
 
-/* Session rows [h:32], radius r-md, inset 4px horizontally. */
-.session-list {
-  margin: 0;
-  padding: 0 var(--space-2) var(--space-2);
-  list-style: none;
-}
-
-.session-row {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  height: 32px;
-  padding: 0 var(--space-4) 0 10px;
-  border-radius: var(--r-md);
-  cursor: default;
-  transition: background var(--dur-base) var(--ease-out);
-}
-
-.session-row:hover {
-  background: var(--bg-raised);
-}
-
-.session-row.selected {
-  background: var(--bg-active);
-}
-
-.session-row.selected::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 4px;
-  bottom: 4px;
-  width: 2px;
-  border-radius: 1px;
-  background: var(--accent);
-}
-
-.session-name {
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: var(--text-base);
-  color: var(--text-primary);
-}
-
-.session-row.attention .session-name {
-  font-weight: var(--weight-medium);
-}
-
-.session-row.ended .session-name {
-  color: var(--text-muted);
-}
-
-.session-row-space {
-  flex: 1;
-}
-
-.session-age {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-  flex: 0 0 auto;
-}
-
-/* Contrast rule (§1.1): never muted text on raised/active fills. */
-.session-row.selected .session-age {
-  color: var(--text-secondary);
-}
-
-.session-row .session-more {
-  display: none;
-}
-
-.session-row:hover .session-age,
-.session-row:focus-within .session-age {
-  display: none;
-}
-
-.session-row:hover .session-more,
-.session-row:focus-within .session-more {
-  display: inline-flex;
-}
-
-.session-rename-input {
-  flex: 1;
-  min-width: 0;
-  height: 24px;
-  padding: 0 var(--space-3);
-  background: var(--bg-surface);
-  border: 1px solid var(--accent);
-  border-radius: var(--r-sm);
-  color: var(--text-primary);
-  font-size: var(--text-base);
-}
-
-/* Sessions list keyboard-focus surface. */
-.session-listbox:focus-visible {
-  box-shadow: inset var(--focus-ring);
-  border-radius: var(--r-md);
-}
-
 /* ---------------------------------------------------------------------------
-   S4 — Terminal region & session strip
+   S4 — Terminal region: HEADER BAND (session tab strip / identity strip)
 --------------------------------------------------------------------------- */
 
 .center {
@@ -459,23 +454,202 @@
   background: var(--bg-canvas);
 }
 
-.strip {
+/* The band [h:36]: its hairline is drawn by its CHILDREN (cells and tabs)
+   so the ACTIVE tab can interrupt it — the one sanctioned break (S1).
+   --bandline flips to accent while the terminal owns the keyboard (S4). */
+.term-header {
+  --bandline: var(--border);
   display: flex;
+  align-items: stretch;
+  height: 36px;
+  flex: 0 0 36px;
+  background: var(--bg-sidebar);
+  user-select: none;
+  min-width: 0;
+}
+
+.term-header.term-focused {
+  --bandline: var(--accent);
+}
+
+/* Every band cell carries the shared hairline… */
+.strip-tabs > * {
+  border-bottom: 1px solid var(--bandline);
+}
+
+/* …except the tab list, whose tabs+filler draw it themselves (a border on
+   the scroll container would double the line one pixel above). */
+.strip-tabs > .stab-list {
+  border-bottom: none;
+}
+
+/* Tab list scrolls horizontally; no visible scrollbar (S4). */
+.stab-list {
+  display: flex;
+  align-items: stretch;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.stab-list::-webkit-scrollbar {
+  display: none;
+}
+
+.stab-filler {
+  flex: 1 1 auto;
+  min-width: 0;
+  border-bottom: 1px solid var(--bandline);
+}
+
+/* Session tab: agent icon 16 · name 13 · ⎇wt 12 · dot 8 · × 16 (S4). */
+.stab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 120px;
+  max-width: 200px;
+  flex: 0 1 auto;
+  padding: 0 10px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--bandline);
+  color: var(--text-secondary);
+  font-size: var(--text-base);
+  white-space: nowrap;
+  cursor: default;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.stab:hover {
+  background: var(--bg-raised);
+}
+
+.stab:focus-visible {
+  box-shadow: inset var(--focus-ring);
+  z-index: 1;
+}
+
+/* Active tab melts into the terminal: canvas fill, 2px accent top inset,
+   and a transparent bottom border — the sanctioned hairline interruption. */
+.stab.active {
+  background: var(--bg-canvas);
+  color: var(--text-primary);
+  border-bottom-color: transparent;
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+
+.stab-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Needs-input survives without color: name steps up even when inactive. */
+.stab.attention .stab-name {
+  font-weight: var(--weight-medium);
+  color: var(--text-primary);
+}
+
+.stab.ended .stab-name {
+  color: var(--text-muted);
+}
+
+/* Contrast rule (§1.1): never muted text on raised fills. */
+.stab.ended:hover .stab-name {
+  color: var(--text-secondary);
+}
+
+.stab-wt,
+.stab-saved {
+  display: inline-flex;
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+
+/* × reserves its slot (no width jump on hover); shown on active + hover. */
+.stab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--r-sm);
+  color: var(--text-muted);
+  flex: 0 0 auto;
+  visibility: hidden;
+}
+
+.stab.active .stab-close,
+.stab:hover .stab-close,
+.stab-close:focus-visible {
+  visibility: visible;
+}
+
+.stab-close:hover {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
+.stab-rename-input {
+  flex: 1;
+  min-width: 0;
+  height: 22px;
+  padding: 0 var(--space-3);
+  background: var(--bg-surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--r-sm);
+  color: var(--text-primary);
+  font-size: var(--text-base);
+}
+
+/* Band cells for the pinned controls (» overflow · ＋˅ split button). */
+.strip-cell,
+.strip-new {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-2);
+  flex: 0 0 auto;
+}
+
+.term-header .strip-new-main {
+  width: 24px;
+  height: 24px;
+}
+
+.term-header .strip-new-menu {
+  width: 18px;
+  height: 24px;
+}
+
+.term-header .strip-overflow {
+  position: relative;
+  width: 24px;
+  height: 24px;
+}
+
+.term-header .strip-overflow .badge-attention {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+}
+
+/* Identity strip ("right" orientation): icon · name · status label · ⋯. */
+.identity-strip {
   align-items: center;
   gap: var(--space-4);
-  height: 28px;
-  flex: 0 0 28px;
   padding: 0 var(--space-5);
-  background: var(--bg-sidebar);
-  border-bottom: 1px solid var(--border);
-  user-select: none;
+  border-bottom: 1px solid var(--bandline);
 }
 
-.strip.term-focused {
-  border-bottom-color: var(--accent);
+.identity-agent {
+  color: var(--text-secondary);
 }
 
-.strip-name {
+.identity-name {
   font-size: var(--text-sm);
   font-weight: var(--weight-medium);
   color: var(--text-primary);
@@ -502,6 +676,208 @@
 .strip-rename-input {
   height: 20px;
   width: 180px;
+  padding: 0 var(--space-3);
+  background: var(--bg-surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--r-sm);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+}
+
+/* Restore-all bar [h:32] — docked directly under the band (S4). */
+.restore-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  height: 32px;
+  flex: 0 0 32px;
+  padding: 0 var(--space-5);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.restore-strip-text {
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------------------
+   S4 — Right-docked session list ("right" orientation only)
+--------------------------------------------------------------------------- */
+
+.session-dock {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  min-width: 160px;
+  max-width: 320px;
+  background: var(--bg-sidebar);
+  border-left: 1px solid var(--border);
+  min-height: 0;
+}
+
+.dock-resizer {
+  position: absolute;
+  top: 0;
+  left: -3px;
+  width: 5px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 2;
+}
+
+.dock-resizer:hover,
+.dock-resizer.dragging {
+  background: var(--border-strong);
+}
+
+/* List toolbar — this region's slice of the band ([h:36], S4). */
+.dock-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 36px;
+  flex: 0 0 36px;
+  padding: 0 var(--space-5);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  user-select: none;
+}
+
+.dock-count {
+  font-weight: var(--weight-regular);
+}
+
+.dock-spacer {
+  flex: 1;
+}
+
+.dock-stub {
+  padding: var(--space-3) var(--space-5);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-muted);
+}
+
+.dock-list {
+  margin: 0;
+  padding: var(--space-2);
+  list-style: none;
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1;
+}
+
+.dock-list:focus-visible {
+  box-shadow: inset var(--focus-ring);
+  border-radius: var(--r-md);
+}
+
+/* Row [h:24] — VS Code terminal-list density on our 4px grid (S4). */
+.srow {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 24px;
+  padding: 0 var(--space-4);
+  border-radius: var(--r-md);
+  cursor: default;
+  transition: background var(--dur-base) var(--ease-out);
+}
+
+.srow:hover {
+  background: var(--bg-raised);
+}
+
+.srow.selected {
+  background: var(--bg-active);
+}
+
+.srow.selected::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 3px;
+  bottom: 3px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+}
+
+.srow-agent {
+  color: var(--text-secondary);
+}
+
+.srow-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-base);
+  color: var(--text-primary);
+}
+
+.srow.attention .srow-name {
+  font-weight: var(--weight-medium);
+}
+
+.srow.ended .srow-name {
+  color: var(--text-muted);
+}
+
+/* Contrast rule (§1.1): never muted text on raised/active fills. */
+.srow.ended:hover .srow-name,
+.srow.ended.selected .srow-name {
+  color: var(--text-secondary);
+}
+
+.srow-space {
+  flex: 1;
+}
+
+.srow-saved {
+  display: inline-flex;
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+
+.srow-close {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--r-sm);
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+
+.srow:hover .srow-close,
+.srow:focus-within .srow-close {
+  display: inline-flex;
+}
+
+.srow-close:hover {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
+.srow-rename-input {
+  flex: 1;
+  min-width: 0;
+  height: 20px;
   padding: 0 var(--space-3);
   background: var(--bg-surface);
   border: 1px solid var(--accent);
@@ -1098,19 +1474,9 @@
 }
 
 /* ---------------------------------------------------------------------------
-   Phase 6 — restore UI states (restorable rows, Restore buttons, restore-all
-   bar) + titlebar settings gear.
+   Phase 6 — restore UI (Restore buttons; the restore-all bar lives on the
+   terminal region as .restore-strip since round 1).
 --------------------------------------------------------------------------- */
-
-/* Restorable rows read as "saved, waiting" — dimmed like ended, but the
-   accent-tinted Restore affordance says they come back. */
-.session-row.restorable .session-name {
-  color: var(--text-muted);
-}
-
-.session-row.restorable .dot {
-  opacity: 0.5;
-}
 
 .btn-restore {
   display: inline-flex;
@@ -1138,28 +1504,25 @@
   cursor: default;
 }
 
-.restore-all-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  margin: 0 var(--space-2) var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  background: var(--bg-raised);
+/* ---------------------------------------------------------------------------
+   Round 1 — header band alignment across the OTHER regions (S1).
+--------------------------------------------------------------------------- */
+
+/* The editor tabs row joins the 36px band (S5; round-0 32px is gone). The
+   selector outranks .ed-tabs in editor.css, which loads later. */
+.shell-body .ed-tabs {
+  height: 36px;
+  flex: 0 0 36px;
 }
 
-.restore-all-bar .restore-all-text {
-  font-size: var(--text-xs);
+/* Agent marks on ⌘J attention rows (round 1 — logos everywhere a session
+   appears). */
+.attention-agent {
   color: var(--text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-/* Titlebar settings gear sits right of the bell; both are no-drag. */
-.titlebar-settings {
-  -webkit-app-region: no-drag;
-  margin-right: var(--space-3);
+/* Quick-create buttons now carry the agent mark before the label (§6.2). */
+.quick-create {
+  min-width: 140px;
+  width: auto;
 }

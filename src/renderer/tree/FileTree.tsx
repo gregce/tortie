@@ -1,12 +1,14 @@
 /**
  * The virtualized project file tree (react-arborist) — S3 "Tree row" spec.
  *
- * Rows [h:24], indent 12px/level: chevron (folders) · name 12px · right:
- * git status letter. Decorated files tint the name to the git color (the
- * letter badge is the redundant channel); folders with dirty descendants
- * carry a 4px `--git-modified` dot. Click / Enter on a file emits an
- * open-in-editor request (diff mode when the file has tracked changes).
- * No inline file ops in v1 — context menu: Reveal in Finder, Copy path.
+ * Rows [h:24], indent 12px/level: chevron (folders) · file-type icon 16px
+ * (material-icon-theme via getFileIcon — DESIGN.md §3.1) · name 12px ·
+ * right: git status letter. Decorated files tint the name to the git color
+ * (the letter badge is the redundant channel); folders with dirty
+ * descendants carry a 4px `--git-modified` dot. Click / Enter on a file
+ * emits an open-in-editor request (diff mode when the file has tracked
+ * changes). No inline file ops in v1 — context menu: Reveal in Finder,
+ * Copy path.
  */
 
 import React, {
@@ -21,7 +23,7 @@ import { Tree } from 'react-arborist';
 import type { NodeApi, NodeRendererProps, TreeApi } from 'react-arborist';
 import type { FsDirEntry } from '@shared/types';
 import { useApp } from '../state/store';
-import { ChevronRightIcon } from '../app/icons';
+import { Codicon, getFileIcon } from '../icons';
 import { decorationFor, isIgnored, openModeFor } from './decorations';
 import type { StatusIndex } from './decorations';
 import { canReveal, reveal } from './fs-bridge';
@@ -139,6 +141,13 @@ function TreeRow({
   const nameStyle: React.CSSProperties | undefined =
     deco !== null ? { color: `var(${deco.colorVar})` } : undefined;
 
+  // File-type icon (material-icon-theme): folders resolve by basename with
+  // closed/open variants; files by name → dotted suffix → extension.
+  const TypeIcon = getFileIcon(data.name, {
+    dir: isDir,
+    expanded: isDir && node.isOpen
+  });
+
   return (
     <div
       style={style}
@@ -161,11 +170,14 @@ function TreeRow({
     >
       {isDir ? (
         <span className={`tree-chevron${node.isOpen ? ' open' : ''}`}>
-          <ChevronRightIcon size={12} />
+          <Codicon name="chevron-right" size={12} />
         </span>
       ) : (
         <span className="tree-chevron-spacer" />
       )}
+      <span className={`tree-type-icon${ignored ? ' dim' : ''}`}>
+        <TypeIcon size={16} />
+      </span>
       <span
         className={[
           'tree-name',

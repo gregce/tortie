@@ -13,6 +13,9 @@ import type {
   CompleteInvokeChannel,
   CompleteInvokeReq,
   CompleteInvokeRes,
+  DepthInvokeChannel,
+  DepthInvokeReq,
+  DepthInvokeRes,
   EventChannel,
   EventPayloadMap,
   FullInvokeChannel,
@@ -21,6 +24,7 @@ import type {
   GmuxAgentExtras,
   GmuxApi,
   GmuxFsExtras,
+  GmuxGitDepthExtras,
   GmuxGitExtras,
   GmuxLoginItemExtras,
   GmuxMenuExtras,
@@ -72,6 +76,14 @@ function invokeComplete<C extends CompleteInvokeChannel>(
   return ipcRenderer.invoke(channel, ...args) as Promise<CompleteInvokeRes<C>>;
 }
 
+/** Same wrapper over the git-depth superset map (git:branches, …). */
+function invokeDepth<C extends DepthInvokeChannel>(
+  channel: C,
+  ...args: DepthInvokeReq<C>
+): Promise<DepthInvokeRes<C>> {
+  return ipcRenderer.invoke(channel, ...args) as Promise<DepthInvokeRes<C>>;
+}
+
 /** Typed wrapper over ipcRenderer.on with unsubscribe. */
 function on<C extends EventChannel>(
   channel: C,
@@ -116,9 +128,11 @@ const term: GmuxApi['term'] & GmuxTermStreamExtras = {
 
 /**
  * git surface = frozen GmuxApi['git'] + the appended optional git:init
- * (the SCM UI feature-detects it for the §6.3 [Initialize repository] state).
+ * (the SCM UI feature-detects it for the §6.3 [Initialize repository] state)
+ * + the git-depth extras (branch switching, commit context menu, hover card),
+ * all feature-detected by the renderer.
  */
-const git: GmuxApi['git'] & GmuxGitExtras = {
+const git: GmuxApi['git'] & GmuxGitExtras & GmuxGitDepthExtras = {
   status: (repoPath) => invoke('git:status', repoPath),
   stage: (input) => invoke('git:stage', input),
   unstage: (input) => invoke('git:unstage', input),
@@ -127,7 +141,15 @@ const git: GmuxApi['git'] & GmuxGitExtras = {
   log: (input) => invoke('git:log', input),
   showHead: (input) => invoke('git:showHead', input),
   onChanged: (cb) => on(EVT_GIT_CHANGED, cb),
-  init: (repoPath) => invoke('git:init', repoPath)
+  init: (repoPath) => invoke('git:init', repoPath),
+  branches: (repoPath) => invokeDepth('git:branches', repoPath),
+  checkout: (input) => invokeDepth('git:checkout', input),
+  createBranch: (input) => invokeDepth('git:createBranch', input),
+  createTag: (input) => invokeDepth('git:createTag', input),
+  cherryPick: (input) => invokeDepth('git:cherryPick', input),
+  commitDetail: (input) => invokeDepth('git:commitDetail', input),
+  remoteUrl: (repoPath) => invokeDepth('git:remoteUrl', repoPath),
+  checkoutDetached: (input) => invokeDepth('git:checkoutDetached', input)
 };
 
 /**

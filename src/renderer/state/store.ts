@@ -89,6 +89,16 @@ export interface MenuSpec {
 /** Boot-blocking failures (S9 §6.4). */
 export type BootBlock = 'tmux-missing' | null;
 
+/**
+ * Where the session surface lives (round 1, DESIGN.md §2.2): a tab strip
+ * across the top of the terminal region (default) or a VS Code-style list
+ * docked at its right. View-menu radio, persisted app-wide.
+ */
+export type SessionOrientation = 'top' | 'right';
+
+/** The sidebar hosts ONE view at a time (round 1, activity bar). */
+export type SidebarViewId = 'scm' | 'explorer';
+
 const detectorToSession: Record<DetectedStatus, SessionStatus> = {
   working: 'running',
   needs_input: 'needs_input',
@@ -124,7 +134,12 @@ interface AppState {
   toasts: Toast[];
   sidebarVisible: boolean;
   sidebarWidth: number;
-  sessionsCollapsed: boolean;
+  /** Session-surface orientation (View menu radio; persisted app-wide). */
+  sessionOrientation: SessionOrientation;
+  /** Right-docked session list width (persisted app-wide, 160–320). */
+  rightListWidth: number;
+  /** Active sidebar view per project id (activity bar; persisted). */
+  sidebarViewByProject: Record<string, SidebarViewId>;
 
   createOpen: boolean;
   shortcutsOpen: boolean;
@@ -190,7 +205,14 @@ interface AppState {
   setRenaming(sessionId: string | null): void;
   toggleSidebar(): void;
   setSidebarWidth(width: number): void;
-  toggleSessionsCollapsed(): void;
+  setSessionOrientation(orientation: SessionOrientation): void;
+  setRightListWidth(width: number): void;
+  /** Set the active project's sidebar view (persisted per project). */
+  setSidebarView(view: SidebarViewId): void;
+  /** ⌘⇧E / ⌃⇧G: open the sidebar if collapsed and show the view. */
+  showSidebarView(view: SidebarViewId): void;
+  /** The active project's sidebar view ('scm' by default). */
+  activeSidebarView(): SidebarViewId;
 
   // -- derived helpers ------------------------------------------------------
   orderedProjects(): Project[];
@@ -207,6 +229,11 @@ let toastSeq = 1;
 const LS_TAB_ORDER = 'gmux.tabOrder';
 const LS_ACTIVE_PROJECT = 'gmux.activeProject';
 const LS_SIDEBAR_WIDTH = 'gmux.sidebarWidth';
+// Round-1 layout: orientation is read back by src/main/menu.ts (radio sync) —
+// key name is part of that contract.
+const LS_ORIENTATION = 'gmux.sessionOrientation';
+const LS_RIGHT_LIST_WIDTH = 'gmux.rightListWidth';
+const LS_SIDEBAR_VIEW = 'gmux.sidebarView';
 
 function loadLocal<T>(key: string, fallback: T): T {
   try {
@@ -352,7 +379,18 @@ export const useApp = create<AppState>((set, get) => {
     toasts: [],
     sidebarVisible: true,
     sidebarWidth: loadLocal<number>(LS_SIDEBAR_WIDTH, 280),
-    sessionsCollapsed: false,
+    sessionOrientation:
+      loadLocal<SessionOrientation>(LS_ORIENTATION, 'top') === 'right'
+        ? 'right'
+        : 'top',
+    rightListWidth: Math.min(
+      320,
+      Math.max(160, loadLocal<number>(LS_RIGHT_LIST_WIDTH, 200))
+    ),
+    sidebarViewByProject: loadLocal<Record<string, SidebarViewId>>(
+      LS_SIDEBAR_VIEW,
+      {}
+    ),
 
     createOpen: false,
     shortcutsOpen: false,
@@ -757,8 +795,37 @@ export const useApp = create<AppState>((set, get) => {
       saveLocal(LS_SIDEBAR_WIDTH, clamped);
     },
 
-    toggleSessionsCollapsed() {
-      set((s) => ({ sessionsCollapsed: !s.sessionsCollapsed }));
+    setSessionOrientation(orientation) {
+      set({ sessionOrientation: orientation });
+      saveLocal(LS_ORIENTATION, orientation);
+    },
+
+    setRightListWidth(width) {
+      const clamped = Math.min(320, Math.max(160, width));
+      set({ rightListWidth: clamped });
+      saveLocal(LS_RIGHT_LIST_WIDTH, clamped);
+    },
+
+    setSidebarView(view) {
+      const { activeProjectId } = get();
+      if (activeProjectId === null) return;
+      const sidebarViewByProject = {
+        ...get().sidebarViewByProject,
+        [activeProjectId]: view
+      };
+      set({ sidebarViewByProject });
+      saveLocal(LS_SIDEBAR_VIEW, sidebarViewByProject);
+    },
+
+    showSidebarView(view) {
+      if (!get().sidebarVisible) set({ sidebarVisible: true });
+      get().setSidebarView(view);
+    },
+
+    activeSidebarView() {
+      const { activeProjectId, sidebarViewByProject } = get();
+      if (activeProjectId === null) return 'scm';
+      return sidebarViewByProject[activeProjectId] ?? 'scm';
     },
 
     // -- derived --------------------------------------------------------------

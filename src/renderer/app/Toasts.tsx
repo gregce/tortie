@@ -5,12 +5,13 @@
 
 import React from 'react';
 import { useApp } from '../state/store';
-import { CircleAlertIcon, CircleCheckIcon, InfoIcon, XIcon } from './icons';
+import { Codicon } from '../icons';
 
+/* Codicon ids per toast kind (round 1 — codicons carry all UI chrome). */
 const ICONS = {
-  info: InfoIcon,
-  success: CircleCheckIcon,
-  error: CircleAlertIcon
+  info: 'info',
+  success: 'pass',
+  error: 'error'
 } as const;
 
 export function Toasts(): React.JSX.Element | null {
@@ -28,12 +29,11 @@ export function Toasts(): React.JSX.Element | null {
         <div className="toast-overflow num">+{hidden} more</div>
       ) : null}
       {visible.map((toast) => {
-        const Icon = ICONS[toast.kind];
         const sticky = toast.sticky ?? toast.kind === 'error';
         return (
           <div key={toast.id} className="toast">
             <span className={`toast-icon ${toast.kind}`}>
-              <Icon size={16} />
+              <Codicon name={ICONS[toast.kind]} size={16} />
             </span>
             <span className="toast-text">{toast.text}</span>
             {toast.action ? (
@@ -55,7 +55,7 @@ export function Toasts(): React.JSX.Element | null {
                 aria-label="Dismiss"
                 onClick={() => dismissToast(toast.id)}
               >
-                <XIcon size={14} />
+                <Codicon name="close" size={14} />
               </button>
             ) : null}
           </div>

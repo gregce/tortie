@@ -58,7 +58,7 @@
   outline: none;
 }
 
-/* Row [h:24]: chevron 12 · name 12 · right status letter. */
+/* Row [h:24]: chevron 12 · file-type icon 16 · name 12 · right status letter. */
 .tree-row {
   display: flex;
   align-items: center;
@@ -108,6 +108,22 @@
 
 .tree-chevron-spacer {
   flex: 0 0 12px;
+}
+
+/* File-type icon slot (16px, material-icon-theme — DESIGN.md §3.1). The
+   theme's per-type colors are a sanctioned const; ignored files dim the
+   icon with the name so the whole row reads as inert. */
+.tree-type-icon {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 16px;
+}
+
+.tree-type-icon.dim {
+  opacity: 0.45;
 }
 
 .tree-name {

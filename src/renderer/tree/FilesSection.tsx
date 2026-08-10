@@ -13,7 +13,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { GitFileStatus } from '@shared/types';
 import { useApp } from '../state/store';
-import { ChevronDownIcon, RotateCcwIcon } from '../app/icons';
+import { Codicon } from '../icons';
 import { useTreeGitStatus } from './git-status';
 import { useFileTree } from './store';
 import { FileTree } from './FileTree';
@@ -184,7 +184,7 @@ export function FilesSection({
           onClick={toggleCollapsed}
         >
           <span className="section-chevron">
-            <ChevronDownIcon size={12} />
+            <Codicon name="chevron-down" size={12} />
           </span>
           Files
         </button>
@@ -197,7 +197,7 @@ export function FilesSection({
           disabled={!project || bridgeMissing}
           onClick={refresh}
         >
-          <RotateCcwIcon size={14} />
+          <Codicon name="refresh" size={14} />
         </button>
       </div>
       {body}

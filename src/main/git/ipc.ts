@@ -34,6 +34,7 @@ import type {
 import { EVT_GIT_CHANGED } from '@shared/ipc';
 import { gmuxError } from '../tmux/errors';
 import { RepoWatcher } from '../watcher';
+import { registerGitDepthIpc } from './depth-ipc';
 import { runGitOrThrow } from './exec';
 import { GitService } from './service';
 
@@ -216,5 +217,14 @@ export function registerGitIpc(ipc: IpcMain): void {
     // answer is never cached), so the existing service just starts working.
     ensureWatcher(abs); // idempotent; late `git init` is picked up either way
     broadcastGitChanged(abs);
+  });
+
+  // git-depth channels (dogfood round 1): branches / checkout / createBranch
+  // / createTag / cherryPick / commitDetail / remoteUrl / checkoutDetached.
+  // Shares this module's per-repo service + watcher registries.
+  registerGitDepthIpc(ipc, {
+    getService: getGitService,
+    ensureWatcher,
+    broadcast: broadcastGitChanged
   });
 }

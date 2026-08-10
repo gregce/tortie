@@ -278,6 +278,138 @@ export interface ReadDirResult {
   entries: FsDirEntry[];
 }
 
+// ---------------------------------------------------------------------------
+// APPENDED by the git-depth stream (dogfood round 1) — new types only, nothing
+// above was modified. Powers branch switching, the per-commit context menu,
+// and the rich commit hover card (git:branches / git:checkout /
+// git:createBranch / git:createTag / git:cherryPick / git:commitDetail /
+// git:remoteUrl / git:checkoutDetached).
+// ---------------------------------------------------------------------------
+
+/** One local branch, from `git for-each-ref refs/heads`. */
+export interface GitBranchInfo {
+  /** Short branch name (e.g. "main", "feature/x"). */
+  name: string;
+  /** True for the branch HEAD points at (`%(HEAD)` marker). */
+  current: boolean;
+  /** Full OID of the branch tip. */
+  sha: string;
+  /** Abbreviated tip OID. */
+  shortSha: string;
+  /** Upstream short name (e.g. "origin/main"); absent when none is set. */
+  upstream?: string;
+  /** True when the configured upstream branch no longer exists ("gone"). */
+  upstreamGone?: boolean;
+  /** Commits ahead of upstream (0 when no upstream). */
+  ahead: number;
+  /** Commits behind upstream (0 when no upstream). */
+  behind: number;
+  /** Subject line of the tip commit. */
+  subject: string;
+}
+
+export interface GitCheckoutInput {
+  repoPath: string;
+  /** Local branch name to switch to. */
+  branch: string;
+}
+
+export interface GitCreateBranchInput {
+  repoPath: string;
+  /** New branch name (validated by git itself). */
+  name: string;
+  /** Start point (SHA/branch/tag); defaults to HEAD. */
+  fromRef?: string;
+}
+
+export interface GitCreateTagInput {
+  repoPath: string;
+  /** New (lightweight) tag name. */
+  name: string;
+  /** The commit to tag (SHA/branch). */
+  ref: string;
+}
+
+export interface GitCherryPickInput {
+  repoPath: string;
+  /** Commit SHA to cherry-pick onto HEAD. */
+  sha: string;
+}
+
+export interface GitCommitDetailInput {
+  repoPath: string;
+  /** Commit SHA (full or abbreviated). */
+  sha: string;
+}
+
+export interface GitCheckoutDetachedInput {
+  repoPath: string;
+  /** Commit SHA to check out detached. */
+  sha: string;
+}
+
+/**
+ * Cherry-pick outcome — conflicts are a TYPED STATE, not an exception.
+ * On conflict gmux always runs `git cherry-pick --abort` first (the repo is
+ * never left mid-cherry-pick); `aborted` is false only when even the abort
+ * failed (detail then carries git's own text so the user can recover).
+ */
+export type GitCherryPickResult =
+  | { status: 'applied'; sha: string }
+  | { status: 'conflict'; aborted: boolean; detail?: string };
+
+/**
+ * Per-file status letter within one commit (`--name-status`):
+ * A=added, M=modified, D=deleted, R=renamed, C=copied, T=typechange,
+ * U=unmerged, X=unknown.
+ */
+export type GitCommitFileState =
+  | 'A'
+  | 'M'
+  | 'D'
+  | 'R'
+  | 'C'
+  | 'T'
+  | 'U'
+  | 'X';
+
+/** One changed file within a commit (hover card / Open Changes). */
+export interface GitCommitFileChange {
+  /** Path relative to the repo root (the NEW path for renames). */
+  path: string;
+  /** Original path when renamed/copied. */
+  origPath?: string;
+  status: GitCommitFileState;
+  /** Lines added in this file (0 for binary files). */
+  insertions: number;
+  /** Lines removed in this file (0 for binary files). */
+  deletions: number;
+  /** True when git reported the file as binary (`-` numstat counts). */
+  binary?: boolean;
+}
+
+/** Everything the rich commit hover card needs, in one response. */
+export interface GitCommitDetail {
+  /** Full 40-char SHA. */
+  sha: string;
+  shortSha: string;
+  /** Author name. */
+  author: string;
+  /** Author email. */
+  email: string;
+  /** Author date, strict ISO-8601 (`%aI`). */
+  dateISO: string;
+  /** First line of the commit message. */
+  subject: string;
+  /** Rest of the message after the subject (may be empty). */
+  body: string;
+  files: GitCommitFileChange[];
+  /** Total insertions across all files (binary files count 0). */
+  insertions: number;
+  /** Total deletions across all files (binary files count 0). */
+  deletions: number;
+}
+
 /**
  * Structured error shape. Main-process handlers throw Error whose `message`
  * is `JSON.stringify(GmuxErrorPayload)` when they can classify the failure;

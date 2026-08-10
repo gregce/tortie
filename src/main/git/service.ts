@@ -13,12 +13,27 @@ import { rm, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { isAbsolute, join } from 'node:path';
 import type {
+  GitBranchInfo,
+  GitCherryPickResult,
+  GitCommitDetail,
   GitLogEntryDetailed,
   GitStatusDetailed
 } from '@shared/types';
 import { gmuxError } from '../tmux/errors';
 import { runGit, runGitOrThrow } from './exec';
-import { LOG_FORMAT, parseLog, parsePorcelainV2Status } from './parse';
+import {
+  BRANCH_FORMAT,
+  COMMIT_META_FORMAT,
+  LOG_FORMAT,
+  mergeCommitFiles,
+  normalizeGitHubRemote,
+  parseCommitMeta,
+  parseForEachRefBranches,
+  parseLog,
+  parseNameStatusZ,
+  parseNumstatZ,
+  parsePorcelainV2Status
+} from './parse';
 
 const NOT_A_REPO_RE = /not a git repository/i;
 const UNBORN_HEAD_RE =
@@ -287,6 +302,218 @@ export class GitService {
   }
 
   // -------------------------------------------------------------------------
+  // Git depth (dogfood round 1): branches, checkout, tags, cherry-pick,
+  // commit detail, GitHub remote.
+  // -------------------------------------------------------------------------
+
+  /**
+   * Local branches with current-branch marker, upstream, and ahead/behind —
+   * one `for-each-ref` call. Non-repo and unborn-HEAD repos resolve to []
+   * (friendly read, same discipline as log()).
+   */
+  async branches(): Promise<GitBranchInfo[]> {
+    const r = await runGit(this.repoPath, [
+      'for-each-ref',
+      'refs/heads',
+      `--format=${BRANCH_FORMAT}`
+    ]);
+    if (r.code !== 0) {
+      if (NOT_A_REPO_RE.test(r.stderr)) return [];
+      throw gmuxError(
+        'GIT_FAILED',
+        'Could not list branches.',
+        r.stderr.trim() || undefined
+      );
+    }
+    return parseForEachRefBranches(r.stdout.toString('utf8'));
+  }
+
+  /** Switch to a local branch (`git checkout <branch>`). */
+  async checkout(branch: string): Promise<void> {
+    const ref = this.assertSafeRef(branch);
+    await this.assertIsRepo();
+    const r = await runGit(this.repoPath, ['checkout', '-q', ref, '--']);
+    if (r.code !== 0) {
+      throw gmuxError(
+        'GIT_FAILED',
+        `Could not switch to '${ref}'.`,
+        r.stderr.trim() || undefined
+      );
+    }
+  }
+
+  /**
+   * Create a branch AND switch to it (VS Code's "Create Branch…" semantics),
+   * optionally from a start ref (commit context menu → Create Branch…).
+   */
+  async createBranch(name: string, fromRef?: string): Promise<void> {
+    const branch = this.assertSafeRef(name);
+    const from = fromRef !== undefined ? this.assertSafeRef(fromRef) : null;
+    await this.assertIsRepo();
+    const args = [
+      'checkout',
+      '-q',
+      '-b',
+      branch,
+      ...(from !== null ? [from] : []),
+      '--'
+    ];
+    const r = await runGit(this.repoPath, args);
+    if (r.code !== 0) {
+      throw gmuxError(
+        'GIT_FAILED',
+        `Could not create branch '${branch}'.`,
+        r.stderr.trim() || undefined
+      );
+    }
+  }
+
+  /** Create a lightweight tag at `ref` (commit context menu → Create Tag…). */
+  async createTag(name: string, ref: string): Promise<void> {
+    const tag = this.assertSafeRef(name);
+    const at = this.assertSafeRef(ref);
+    await this.assertIsRepo();
+    const r = await runGit(this.repoPath, ['tag', tag, at]);
+    if (r.code !== 0) {
+      throw gmuxError(
+        'GIT_FAILED',
+        `Could not create tag '${tag}'.`,
+        r.stderr.trim() || undefined
+      );
+    }
+  }
+
+  /**
+   * Cherry-pick `sha` onto HEAD. Conflicts are a TYPED RESULT, not an
+   * exception — and the repo is NEVER left mid-cherry-pick: any sequencer
+   * state from a failed pick is aborted before this resolves. Other failures
+   * (bad sha, empty commit, …) throw GIT_FAILED after the same cleanup.
+   */
+  async cherryPick(sha: string): Promise<GitCherryPickResult> {
+    const ref = this.assertSha(sha);
+    await this.assertIsRepo();
+    const r = await runGit(this.repoPath, ['cherry-pick', ref], {
+      timeoutMs: COMMIT_TIMEOUT_MS
+    });
+    if (r.code === 0) {
+      const head = await runGitOrThrow(
+        this.repoPath,
+        ['rev-parse', 'HEAD'],
+        'Cherry-pick succeeded but the new hash could not be read.'
+      );
+      return { status: 'applied', sha: head.stdout.toString('utf8').trim() };
+    }
+
+    const stdout = r.stdout.toString('utf8');
+    const detail = (r.stderr.trim() || stdout.trim()) || undefined;
+
+    // Never leave the repo mid-cherry-pick: abort any sequencer state.
+    let aborted = true;
+    if (await this.sequencerInProgress()) {
+      const ab = await runGit(this.repoPath, ['cherry-pick', '--abort']);
+      aborted = ab.code === 0;
+    }
+
+    if (/conflict/i.test(r.stderr) || /conflict/i.test(stdout)) {
+      return { status: 'conflict', aborted, ...(detail ? { detail } : {}) };
+    }
+    throw gmuxError('GIT_FAILED', 'Cherry-pick failed.', detail);
+  }
+
+  /**
+   * Everything the rich hover card needs: author/email/ISO date, subject +
+   * full body, per-file status letters, and insertions/deletions counts.
+   * Merge commits show their diff against the FIRST parent (VS Code's view).
+   */
+  async commitDetail(sha: string): Promise<GitCommitDetail> {
+    const ref = this.assertSha(sha);
+    const meta = await runGit(this.repoPath, [
+      'log',
+      '-1',
+      '-z',
+      `--format=${COMMIT_META_FORMAT}`,
+      ref,
+      '--'
+    ]);
+    if (meta.code !== 0) {
+      throw gmuxError(
+        'GIT_FAILED',
+        'Could not read the commit.',
+        meta.stderr.trim() || undefined
+      );
+    }
+    const parsed = parseCommitMeta(meta.stdout.toString('utf8'));
+    if (parsed === null) {
+      throw gmuxError('GIT_FAILED', 'Could not read the commit.', ref);
+    }
+
+    const showArgs = (mode: string): string[] => [
+      'show',
+      ref,
+      '-z',
+      mode,
+      '--format=',
+      '--diff-merges=first-parent',
+      '--'
+    ];
+    const [nameStatus, numstat] = await Promise.all([
+      runGitOrThrow(
+        this.repoPath,
+        showArgs('--name-status'),
+        'Could not read the commit’s changed files.'
+      ),
+      runGitOrThrow(
+        this.repoPath,
+        showArgs('--numstat'),
+        'Could not read the commit’s change counts.'
+      )
+    ]);
+
+    const counts = parseNumstatZ(numstat.stdout.toString('utf8'));
+    const files = mergeCommitFiles(
+      parseNameStatusZ(nameStatus.stdout.toString('utf8')),
+      counts
+    );
+    return {
+      ...parsed,
+      files,
+      insertions: counts.insertions,
+      deletions: counts.deletions
+    };
+  }
+
+  /**
+   * `https://github.com/owner/repo` when origin points at GitHub (ssh/scp/
+   * git protocol forms normalized); null for non-GitHub remotes, no origin,
+   * or not a repo — the caller hides "Open on GitHub".
+   */
+  async remoteUrl(): Promise<string | null> {
+    const r = await runGit(this.repoPath, ['remote', 'get-url', 'origin']);
+    if (r.code !== 0) return null;
+    return normalizeGitHubRemote(r.stdout.toString('utf8').trim());
+  }
+
+  /** Check out a commit detached (commit context menu → Checkout (Detached)). */
+  async checkoutDetached(sha: string): Promise<void> {
+    const ref = this.assertSha(sha);
+    await this.assertIsRepo();
+    const r = await runGit(this.repoPath, [
+      'checkout',
+      '-q',
+      '--detach',
+      ref,
+      '--'
+    ]);
+    if (r.code !== 0) {
+      throw gmuxError(
+        'GIT_FAILED',
+        `Could not check out ${ref.slice(0, 7)} (detached).`,
+        r.stderr.trim() || undefined
+      );
+    }
+  }
+
+  // -------------------------------------------------------------------------
   // Internals
   // -------------------------------------------------------------------------
 
@@ -338,6 +565,30 @@ export class GitService {
         this.repoPath
       );
     }
+  }
+
+  /**
+   * Validate a ref/branch/tag name argument: non-empty, no leading `-`
+   * (option injection), no whitespace or control characters. Git itself
+   * remains the authority on full refname validity — this guard only keeps
+   * user input from being read as flags.
+   */
+  private assertSafeRef(ref: string): string {
+    const r = ref.trim();
+    // eslint-disable-next-line no-control-regex
+    if (r.length === 0 || r.startsWith('-') || /[\s\x00-\x1f\x7f]/.test(r)) {
+      throw gmuxError('INVALID_INPUT', 'That is not a valid git name.', ref);
+    }
+    return r;
+  }
+
+  /** Validate a commit SHA argument (full or abbreviated hex). */
+  private assertSha(sha: string): string {
+    const s = sha.trim();
+    if (!/^[0-9a-f]{4,40}$/i.test(s)) {
+      throw gmuxError('INVALID_INPUT', 'That is not a valid commit id.', sha);
+    }
+    return s;
   }
 
   /** Validate a repo-relative path (no absolute paths, no `..` escapes). */

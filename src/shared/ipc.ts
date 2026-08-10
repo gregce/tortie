@@ -569,3 +569,104 @@ export type CompleteInvokeReq<C extends CompleteInvokeChannel> =
   CompleteInvokeChannelMap[C]['req'];
 export type CompleteInvokeRes<C extends CompleteInvokeChannel> =
   CompleteInvokeChannelMap[C]['res'];
+
+// ---------------------------------------------------------------------------
+// APPENDED by the git-depth stream (dogfood round 1) — new channels/types
+// only, nothing above was modified. Powers the VS Code-bar git history:
+// branch switching from the SCM header, the per-commit context menu
+// (Checkout (Detached) / Create Branch… / Create Tag… / Cherry Pick /
+// Open on GitHub), and the rich commit hover card.
+//
+// Wiring (done by this stream): main registers the channels in
+// src/main/git/depth-ipc.ts via registerGitDepthIpc, called from
+// registerGitIpc (the existing git registration point); preload appends the
+// methods to the `git` object. All OPTIONAL bridge extensions — the renderer
+// feature-detects each (`typeof window.gmux.git.branches === 'function'`).
+// ---------------------------------------------------------------------------
+
+import type {
+  GitBranchInfo,
+  GitCheckoutDetachedInput,
+  GitCheckoutInput,
+  GitCherryPickInput,
+  GitCherryPickResult,
+  GitCommitDetail,
+  GitCommitDetailInput,
+  GitCreateBranchInput,
+  GitCreateTagInput
+} from './types';
+
+/** New invoke channels appended by the git-depth stream. */
+export interface GitDepthInvokeChannelMap {
+  /** Local branches with current/upstream/ahead/behind (for-each-ref). */
+  'git:branches': { req: [repoPath: string]; res: GitBranchInfo[] };
+  /** Switch to a local branch (`git checkout <branch>`). */
+  'git:checkout': { req: [input: GitCheckoutInput]; res: void };
+  /** Create a branch (and switch to it), optionally from a start ref. */
+  'git:createBranch': { req: [input: GitCreateBranchInput]; res: void };
+  /** Create a lightweight tag at a commit. */
+  'git:createTag': { req: [input: GitCreateTagInput]; res: void };
+  /**
+   * Cherry-pick a commit onto HEAD. Conflicts resolve (not reject!) with a
+   * typed `{status:'conflict'}` result after an automatic abort — the repo
+   * is never left mid-cherry-pick.
+   */
+  'git:cherryPick': { req: [input: GitCherryPickInput]; res: GitCherryPickResult };
+  /** Everything the rich hover card needs (message, files, +/− counts). */
+  'git:commitDetail': { req: [input: GitCommitDetailInput]; res: GitCommitDetail };
+  /**
+   * https://github.com/... URL for origin when it is a GitHub remote (ssh
+   * forms normalized); null for non-GitHub or missing origin ("Open on
+   * GitHub" hides itself).
+   */
+  'git:remoteUrl': { req: [repoPath: string]; res: string | null };
+  /** Check out a commit detached (`git checkout --detach <sha>`). */
+  'git:checkoutDetached': { req: [input: GitCheckoutDetachedInput]; res: void };
+}
+
+/**
+ * OPTIONAL extensions to GmuxApi['git'], feature-detected by the renderer
+ * (`typeof window.gmux.git.branches === 'function'`, etc.).
+ */
+export interface GmuxGitDepthExtras {
+  branches?(repoPath: string): Promise<GitBranchInfo[]>;
+  checkout?(input: GitCheckoutInput): Promise<void>;
+  createBranch?(input: GitCreateBranchInput): Promise<void>;
+  createTag?(input: GitCreateTagInput): Promise<void>;
+  cherryPick?(input: GitCherryPickInput): Promise<GitCherryPickResult>;
+  commitDetail?(input: GitCommitDetailInput): Promise<GitCommitDetail>;
+  remoteUrl?(repoPath: string): Promise<string | null>;
+  checkoutDetached?(input: GitCheckoutDetachedInput): Promise<void>;
+}
+
+/** CompleteInvokeChannelMap + the git-depth appends (superset alias). */
+export type DepthInvokeChannelMap = CompleteInvokeChannelMap &
+  GitDepthInvokeChannelMap;
+
+export type DepthInvokeChannel = keyof DepthInvokeChannelMap;
+
+export type DepthInvokeReq<C extends DepthInvokeChannel> =
+  DepthInvokeChannelMap[C]['req'];
+export type DepthInvokeRes<C extends DepthInvokeChannel> =
+  DepthInvokeChannelMap[C]['res'];
+
+// ---------------------------------------------------------------------------
+// APPENDED by the round-1 layout stream (Phase 9) — new types only, nothing
+// above was modified.
+//
+// The View menu grew four items: the activity-bar views (Explorer ⌘⇧E /
+// Source Control ⌃⇧G) and the session-surface orientation radio pair
+// ("Sessions on Top" / "Sessions on Right", persisted app-wide in the
+// renderer's localStorage). They ride the existing EVT_MENU_ACTION channel;
+// older renderers simply ignore ids they don't know.
+// ---------------------------------------------------------------------------
+
+/** View-menu actions added in round 1 (activity bar + orientation). */
+export type LayoutMenuActionId =
+  | 'show-explorer'
+  | 'show-scm'
+  | 'sessions-top'
+  | 'sessions-right';
+
+/** Every action the native menu can forward after the round-1 additions. */
+export type AnyMenuActionId = MenuActionId | LayoutMenuActionId;

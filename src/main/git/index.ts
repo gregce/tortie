@@ -25,3 +25,21 @@ export {
   LOG_FORMAT,
   type ParsedStatus
 } from './parse';
+export {
+  registerGitDepthIpc,
+  type GitDepthDeps
+} from './depth-ipc';
+export {
+  BRANCH_FORMAT,
+  COMMIT_META_FORMAT,
+  parseForEachRefBranches,
+  parseCommitMeta,
+  parseNameStatusZ,
+  parseNumstatZ,
+  mergeCommitFiles,
+  normalizeGitHubRemote,
+  type ParsedCommitMeta,
+  type NameStatusEntry,
+  type NumstatEntry,
+  type ParsedNumstat
+} from './parse';
