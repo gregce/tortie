@@ -136,11 +136,10 @@ function SessionTab({
   active: boolean;
   now: number;
 }): React.JSX.Element {
-  const overrides = useApp((s) => s.statusOverrides);
   const lastActivity = useApp((s) => s.lastActivity);
   const setActiveSession = useApp((s) => s.setActiveSession);
 
-  const status = effectiveStatusOf(session, overrides);
+  const status = effectiveStatusOf(session);
   const visual = statusVisual(status, session.exitCode);
   const rename = useRenameDraft(session);
   const renaming = rename.renaming;
@@ -244,11 +243,10 @@ function GroupTab({
   focusedLeafId: string;
   active: boolean;
 }): React.JSX.Element {
-  const overrides = useApp((s) => s.statusOverrides);
   const setMenu = useApp((s) => s.setMenu);
   const selectLeaf = useLayout((s) => s.selectLeaf);
 
-  const statuses = members.map((m) => effectiveStatusOf(m, overrides));
+  const statuses = members.map((m) => effectiveStatusOf(m));
   const dot = rollupDot(statuses);
   const attention = statuses.includes('needs_input');
   const focused = members.find((m) => m.id === focusedLeafId) ?? members[0];
@@ -369,7 +367,6 @@ function SessionTabStrip({
   activeLeafId: string;
   termFocused: boolean;
 }): React.JSX.Element {
-  const overrides = useApp((s) => s.statusOverrides);
   const setMenu = useApp((s) => s.setMenu);
   const selectLeaf = useLayout((s) => s.selectLeaf);
   const stripDrop = useLayout((s) => s.stripDrop);
@@ -445,7 +442,7 @@ function SessionTabStrip({
         ? `${sess?.name ?? ''} +${surf.leafIds.length - 1}`
         : (sess?.name ?? '');
       const visual = sess
-        ? statusVisual(effectiveStatusOf(sess, overrides), sess.exitCode)
+        ? statusVisual(effectiveStatusOf(sess), sess.exitCode)
         : null;
       return {
         label: `${surf.id === activeSurfaceId ? '✓ ' : ''}${label}`,
@@ -566,11 +563,10 @@ function IdentityStrip({
   grouped: boolean;
   termFocused: boolean;
 }): React.JSX.Element {
-  const overrides = useApp((s) => s.statusOverrides);
   const setRenaming = useApp((s) => s.setRenaming);
   const setMenu = useApp((s) => s.setMenu);
 
-  const status = effectiveStatusOf(session, overrides);
+  const status = effectiveStatusOf(session);
   const visual = statusVisual(status, session.exitCode);
   // Marker suffix so the dock row's rename input (plain id) never doubles up.
   const rename = useRenameDraft(session, `strip:${session.id}`);
@@ -666,7 +662,6 @@ export function TerminalRegion(): React.JSX.Element {
   const projects = useApp((s) => s.projects);
   const activeProjectId = useApp((s) => s.activeProjectId);
   const activeSessionByProject = useApp((s) => s.activeSessionByProject);
-  const overrides = useApp((s) => s.statusOverrides);
   const orientation = useApp((s) => s.sessionOrientation);
   const restartSession = useApp((s) => s.restartSession);
   const removeSession = useApp((s) => s.removeSession);
@@ -748,7 +743,7 @@ export function TerminalRegion(): React.JSX.Element {
     return <main className="center" data-slot="terminal-stack" />;
   }
 
-  const status = active ? effectiveStatusOf(active, overrides) : null;
+  const status = active ? effectiveStatusOf(active) : null;
   const exited = active !== null && status === 'exited';
   const restorable = active !== null && status === 'restorable';
   // §6.6 exit-code truth: a recorded non-zero exit renders the failed state.

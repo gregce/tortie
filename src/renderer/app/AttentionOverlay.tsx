@@ -14,7 +14,6 @@ export function AttentionOverlay(): React.JSX.Element | null {
   const open = useApp((s) => s.attentionOpen);
   const setOpen = useApp((s) => s.setAttentionOpen);
   const sessions = useApp((s) => s.sessions);
-  const overrides = useApp((s) => s.statusOverrides);
   const attentionSince = useApp((s) => s.attentionSince);
   const excerpts = useApp((s) => s.excerpts);
   const projects = useApp((s) => s.projects);
@@ -25,13 +24,13 @@ export function AttentionOverlay(): React.JSX.Element | null {
   const rows = useMemo<Session[]>(
     () =>
       sessions
-        .filter((x) => effectiveStatusOf(x, overrides) === 'needs_input')
+        .filter((x) => effectiveStatusOf(x) === 'needs_input')
         .sort(
           (a, b) =>
             (attentionSince[b.id] ?? b.createdAt) -
             (attentionSince[a.id] ?? a.createdAt)
         ),
-    [sessions, overrides, attentionSince]
+    [sessions, attentionSince]
   );
 
   const [selected, setSelected] = useState(0);

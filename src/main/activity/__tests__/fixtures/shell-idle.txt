@@ -1,0 +1,43 @@
+AGENTS.md          LICENSE            packages           pi-test.sh         SECURITY.md        tsconfig.json
+biome.json         package-lock.json  pi-test.bat        README.md          test.sh            tui-plan.md
+CONTRIBUTING.md    package.json       pi-test.ps1        scripts            tsconfig.base.json vitest.base.ts
+➜  pi git:(main) ✗ pi update
+Updated packages
+Updating pi with npm --prefix /Users/gdc/.npm-global install -g --ignore-scripts --min-release-age=0 @earendil-works
+/pi-coding-agent...
+npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+
+added 7 packages, removed 1 package, and changed 137 packages in 3s
+
+18 packages are looking for funding
+  run `npm fund` for details
+Updated pi
+➜  pi git:(main) ✗
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

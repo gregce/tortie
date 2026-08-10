@@ -20,10 +20,11 @@ import type {
 } from 'electron';
 import { randomUUID } from 'node:crypto';
 import { existsSync, statSync } from 'node:fs';
-import { basename, resolve as resolvePath } from 'node:path';
+import { readdir, rm } from 'node:fs/promises';
+import { basename, join, resolve as resolvePath } from 'node:path';
 import type {
-  EventChannel,
-  EventPayloadMap,
+  AllEventChannel,
+  AllEventPayloadMap,
   GmuxInvokeChannel,
   GmuxInvokeReq,
   GmuxInvokeRes,
@@ -33,7 +34,11 @@ import type {
   TerminalScrollState,
   TerminalScrollToInput
 } from '@shared/ipc';
-import { EVT_SESSIONS_CHANGED, EVT_STATUS_CHANGED } from '@shared/ipc';
+import {
+  EVT_ACTIVITY_CHANGED,
+  EVT_SESSIONS_CHANGED,
+  EVT_STATUS_CHANGED
+} from '@shared/ipc';
 import type {
   CreateSessionInput,
   Project,
@@ -42,6 +47,18 @@ import type {
   Session,
   SessionStatus
 } from '@shared/types';
+import {
+  claudeHookDir,
+  claudeHookSettingsPath,
+  ensureClaudeHookSettings,
+  GmuxHookServer,
+  hooksEnabled,
+  readPreferredHookPort,
+  SessionActivityMonitor,
+  withClaudeSettingsFlag,
+  writePreferredHookPort,
+  type ActivitySession
+} from './activity';
 import { AttachHost } from './attach';
 import { agentBinaryName } from './agents';
 import { unwatchGitRepo } from './git';
@@ -66,9 +83,9 @@ import { handle as handleTyped } from './typed-ipc';
 // but reloads/devtools can briefly hold more than one).
 // ---------------------------------------------------------------------------
 
-function broadcast<C extends EventChannel>(
+function broadcast<C extends AllEventChannel>(
   channel: C,
-  ...payload: EventPayloadMap[C]
+  ...payload: AllEventPayloadMap[C]
 ): void {
   for (const win of BrowserWindow.getAllWindows()) {
     if (!win.isDestroyed()) {
@@ -83,10 +100,13 @@ function broadcast<C extends EventChannel>(
 
 const REFRESH_DEBOUNCE_MS = 150;
 
-/** Cadence of the all-sessions status poll (bell / activity / dead panes). */
-const STATUS_POLL_MS = 2_000;
-/** No output for this long (and no bell) → the session reads as 'idle'. */
-const MAIN_IDLE_AFTER_MS = 15_000;
+/**
+ * Cadence of the all-sessions activity poll. 1 Hz while a window has focus —
+ * measured at 2.75 ms CPU for 16 panes, i.e. 0.28 % of one core — and half
+ * that when nothing is focused, because nobody is looking at the dots.
+ */
+const STATUS_POLL_MS = 1_000;
+const STATUS_POLL_IDLE_MS = 2_000;
 
 /**
  * Server options resources/gmux-tmux.conf sets that gmux cannot afford to
@@ -137,8 +157,15 @@ export class GmuxCore {
   /** Session ids with a restore in flight ("Restore all" double-clicks). */
   private readonly restoresInFlight = new Set<string>();
 
+  /** Phase 13: per-agent activity detection (src/main/activity). */
+  readonly activity: SessionActivityMonitor;
+  /** Loopback channel for injected agent hooks (claude only, §3). */
+  readonly hookServer: GmuxHookServer;
+
   private refreshTimer: NodeJS.Timeout | null = null;
   private statusTimer: NodeJS.Timeout | null = null;
+  private sessionsBroadcastTimer: NodeJS.Timeout | null = null;
+  private statusPollMs = STATUS_POLL_MS;
   private statusPollBusy = false;
   private disposed = false;
 
@@ -163,7 +190,74 @@ export class GmuxCore {
       }
     });
     this.control = new tmux.TmuxControlClient();
+    this.hookServer = new GmuxHookServer({
+      onEvent: (sessionId, state) => {
+        this.activity.noteHookEvent(sessionId, state);
+      },
+      onSessionEnd: (sessionId) => {
+        this.activity.forget(sessionId);
+      }
+    });
+    this.activity = new SessionActivityMonitor({
+      sessions: () => this.activitySessions(),
+      exec: tmux.execTmux,
+      run: this.runScrollCommand,
+      onStatus: (sessionId, status) => {
+        this.applyDetectedStatus(sessionId, status);
+      },
+      onActivity: (updates) => {
+        broadcast(EVT_ACTIVITY_CHANGED, updates);
+      },
+      onDead: (sessionId, exitCode) => {
+        void this.reapDeadSession(sessionId, exitCode).then(() => {
+          this.scheduleSessionsBroadcast();
+        });
+      }
+    });
     this.wireControlEvents();
+  }
+
+  /**
+   * The live sessions the activity monitor evaluates: manifest rows that are
+   * neither exited nor restorable AND currently mapped to a live tmux id.
+   */
+  private activitySessions(): ActivitySession[] {
+    const out: ActivitySession[] = [];
+    for (const rec of this.manifest.listSessions()) {
+      if (rec.status === 'exited' || rec.status === 'restorable') continue;
+      const tmuxId = this.liveIds.get(rec.id);
+      if (tmuxId === undefined) continue;
+      out.push({ id: rec.id, tmuxId, agent: rec.agent, cwd: rec.cwd });
+    }
+    return out;
+  }
+
+  /**
+   * One verdict from the monitor. The manifest is the record of truth, so it
+   * is written first and the cheap per-session event follows — and only when
+   * something actually changed (the poll runs every second).
+   */
+  private applyDetectedStatus(sessionId: string, status: SessionStatus): void {
+    const rec = this.manifest.getSession(sessionId);
+    if (!rec || rec.status === 'exited' || rec.status === 'restorable') return;
+    if (rec.status === status) return;
+    this.manifest.setStatus(sessionId, status);
+    broadcast(EVT_STATUS_CHANGED, sessionId, status);
+    this.scheduleSessionsBroadcast();
+  }
+
+  /**
+   * Coalesce full-list broadcasts. A 1 Hz poll can flip several sessions in
+   * the same tick and each flip already sent its own cheap status:changed —
+   * the list only needs to go out once.
+   */
+  private scheduleSessionsBroadcast(): void {
+    if (this.disposed || this.sessionsBroadcastTimer !== null) return;
+    this.sessionsBroadcastTimer = setTimeout(() => {
+      this.sessionsBroadcastTimer = null;
+      if (!this.disposed) this.broadcastSessions();
+    }, 0);
+    this.sessionsBroadcastTimer.unref?.();
   }
 
   /** Boot the whole durable core. Throws structured GmuxErrors on failure. */
@@ -180,9 +274,53 @@ export class GmuxCore {
       );
     }
     await assertServerOptions();
+    await core.startHookChannel();
     await core.refresh();
     core.startStatusWatcher();
     return core;
+  }
+
+  /**
+   * Bring up the loopback hook channel and re-arm every claude session that
+   * outlived the last gmux run.
+   *
+   * The port is persisted and re-bound so a claude started by a PREVIOUS gmux
+   * keeps posting to the same place; its token is recovered from the settings
+   * file gmux wrote for it. Rewriting those files here is also the durability
+   * guarantee — `claude --settings <path>` refuses to start when the file is
+   * missing, and that path rides the armed resumeArgv.
+   *
+   * Every failure here is silent by design: no hook channel simply means
+   * claude falls back to its pid file, which is what actually carries the
+   * feature (research 18 §3).
+   */
+  private async startHookChannel(): Promise<void> {
+    if (!hooksEnabled()) return;
+    const preferred = readPreferredHookPort();
+    const port = await this.hookServer.start(preferred).catch(() => 0);
+    if (port === 0) return;
+    // Only claim the preference when we actually got it. Falling back to an
+    // ephemeral port means something else (a second gmux, a smoke run) owns
+    // the persisted one — overwriting it would point every existing session's
+    // baked-in hook URL at a port that dies with this process.
+    if (preferred === 0 || port === preferred) writePreferredHookPort(port);
+    const known = new Set<string>();
+    for (const rec of this.manifest.listSessions()) {
+      known.add(rec.id);
+      if (rec.agent !== 'claude' || rec.status === 'exited') continue;
+      ensureClaudeHookSettings(this.hookServer, rec.id);
+    }
+    // Sweep settings files whose session row is gone (killed and removed in a
+    // previous run). Nothing reads them and nothing can resume them.
+    void readdir(claudeHookDir())
+      .then((names) =>
+        Promise.all(
+          names
+            .filter((n) => n.endsWith('.json') && !known.has(n.slice(0, -5)))
+            .map((n) => rm(join(claudeHookDir(), n), { force: true }))
+        )
+      )
+      .catch(() => undefined);
   }
 
   // -------------------------------------------------------------------------
@@ -341,6 +479,12 @@ export class GmuxCore {
     }
     this.restoresInFlight.add(sessionId);
     try {
+      // The armed resume command may carry `--settings <path>`, and claude
+      // refuses to start when that file is gone. Re-write it (recovering the
+      // session's existing token) before the command is typed into the pane.
+      if (rec.agent === 'claude') {
+        ensureClaudeHookSettings(this.hookServer, sessionId);
+      }
       const outcome = await restoreSessionInTmux(rec);
       const { info } = outcome;
 
@@ -453,85 +597,53 @@ export class GmuxCore {
   }
 
   // -------------------------------------------------------------------------
-  // All-sessions status watcher (Phase 8 — attention coverage, Principle 3)
+  // All-sessions activity watcher (Phase 13 — research 18)
   // -------------------------------------------------------------------------
 
   /**
-   * Watch EVERY running session, not just the visible one. The renderer's
-   * StatusDetector only sees bytes for the attached pane, so bell coverage
-   * (⌘J, Dock badge, tab roll-ups) for hidden sessions comes from here: one
-   * cheap `list-panes -a` poll reads, for all sessions at once,
-   *   - #{window_bell_flag}   BEL rang and was not yet seen → needs_input
-   *     (verified on tmux 3.6a: the flag sets for unattached sessions and
-   *     clears when the user views the session through an attach client);
-   *   - #{window_activity}    recent output → running; sustained quiet → idle;
-   *   - #{pane_dead}/#{pane_dead_status}  the process exited non-zero
-   *     (`remain-on-exit failed` keeps only failed panes) → reap: record the
-   *     REAL exit code in the manifest (§6.6 exit-code truth), then kill.
-   * The visible session is polled too — harmless, because the renderer's
-   * finer per-byte detection overrides main's status for the session it
-   * watches (see store.ts effectiveStatus).
+   * Watch EVERY session, attached or not. This file owns the TIMER and the
+   * BROADCAST; src/main/activity owns the tiers and the state machine.
+   *
+   * What changed in Phase 13, and why the old body is gone rather than
+   * tuned: the poll used to read `#{window_bell_flag}` as `needs_input` (a
+   * BEL is an OSC string terminator in practice — 133/133 captured, and
+   * codex fires one ~10 times a second WHILE WORKING) and a flat 15 s
+   * output-silence rule as `idle`, and then conceded priority to a renderer
+   * byte detector that could only see the VISIBLE pane and never released
+   * its verdict. Detection now lives entirely here, reads each agent's own
+   * state where one exists, and works identically for hidden sessions.
    */
   startStatusWatcher(): void {
     if (this.statusTimer !== null || this.disposed) return;
+    this.activity.start();
+    this.armStatusTimer(this.statusPollMs);
+  }
+
+  private armStatusTimer(intervalMs: number): void {
+    if (this.statusTimer !== null) clearInterval(this.statusTimer);
+    this.statusPollMs = intervalMs;
     this.statusTimer = setInterval(() => {
       if (this.statusPollBusy) return;
       this.statusPollBusy = true;
-      void this.pollSessionStatus()
+      void this.activity
+        .tick()
         .catch(() => undefined) // unreachable server — next tick retries
         .finally(() => {
           this.statusPollBusy = false;
         });
-    }, STATUS_POLL_MS);
+    }, intervalMs);
     // Never hold the process open just for the poll (smoke harness exits).
     this.statusTimer.unref?.();
   }
 
-  private async pollSessionStatus(): Promise<void> {
-    const out = await tmux.execTmux([
-      'list-panes',
-      '-a',
-      '-F',
-      '#{session_id}\t#{window_bell_flag}\t#{window_activity}\t#{pane_dead}\t#{pane_dead_status}'
-    ]);
-    if (this.disposed) return;
-    const now = Date.now();
-    let changed = false;
-    for (const line of out.split('\n')) {
-      if (line.length === 0) continue;
-      const [tmuxId, bell, activity, dead, deadStatus] = line.split('\t');
-      if (tmuxId === undefined) continue;
-      const sessionId = this.byTmuxId.get(tmuxId);
-      if (sessionId === undefined) continue; // control session / unmanaged
-      const rec = this.manifest.getSession(sessionId);
-      if (!rec || rec.status === 'exited' || rec.status === 'restorable') {
-        continue;
-      }
-
-      if (dead === '1') {
-        const code =
-          deadStatus !== undefined && /^\d+$/.test(deadStatus)
-            ? parseInt(deadStatus, 10)
-            : undefined;
-        await this.reapDeadSession(sessionId, code);
-        changed = true;
-        continue;
-      }
-
-      const activityMs = Number(activity) * 1000;
-      const next: SessionStatus =
-        bell === '1'
-          ? 'needs_input'
-          : now - activityMs <= MAIN_IDLE_AFTER_MS
-            ? 'running'
-            : 'idle';
-      if (next !== rec.status) {
-        this.manifest.setStatus(sessionId, next);
-        broadcast(EVT_STATUS_CHANGED, sessionId, next);
-        changed = true;
-      }
-    }
-    if (changed) this.broadcastSessions();
+  /**
+   * Drop to a 2 s cadence when no window has focus — nobody is watching the
+   * status dots, and the floor is already only 0.28 % of one core.
+   */
+  setPollFocused(focused: boolean): void {
+    if (this.disposed || this.statusTimer === null) return;
+    const next = focused ? STATUS_POLL_MS : STATUS_POLL_IDLE_MS;
+    if (next !== this.statusPollMs) this.armStatusTimer(next);
   }
 
   /**
@@ -558,6 +670,8 @@ export class GmuxCore {
       lastSeen: Date.now(),
       ...(exitCode !== undefined ? { exitCode } : {})
     });
+    this.activity.forget(sessionId);
+    this.hookServer.revoke(sessionId);
     broadcast(EVT_STATUS_CHANGED, sessionId, 'exited');
   }
 
@@ -696,8 +810,21 @@ export class GmuxCore {
       binPath = abs;
     }
 
-    const spec = buildLaunchSpec(input.agent, input.extraArgs ?? [], binPath);
     const id = randomUUID();
+    const spec = buildLaunchSpec(input.agent, input.extraArgs ?? [], binPath);
+    // Phase 13: claude's deterministic hook channel. Purely a latency
+    // upgrade over its pid file, so a failure to write the settings file
+    // just means no flag — never a failed create (and never a `claude
+    // --settings <missing>` that would refuse to start).
+    if (input.agent === 'claude') {
+      const settingsPath = ensureClaudeHookSettings(this.hookServer, id);
+      if (settingsPath !== null) {
+        spec.argv = withClaudeSettingsFlag(spec.argv, settingsPath);
+        if (spec.resumeArgv !== undefined) {
+          spec.resumeArgv = withClaudeSettingsFlag(spec.resumeArgv, settingsPath);
+        }
+      }
+    }
     const now = Date.now();
     const record: ManifestSessionRecord = {
       id,
@@ -831,6 +958,8 @@ export class GmuxCore {
     if (live !== undefined) this.byTmuxId.delete(live);
     this.liveIds.delete(sessionId);
     this.manifest.setStatus(sessionId, 'exited');
+    this.activity.forget(sessionId);
+    this.hookServer.revoke(sessionId);
     broadcast(EVT_STATUS_CHANGED, sessionId, 'exited');
     this.broadcastSessions();
   }
@@ -841,8 +970,14 @@ export class GmuxCore {
     const live = this.liveIds.get(sessionId);
     if (live !== undefined) this.byTmuxId.delete(live);
     this.liveIds.delete(sessionId);
-    // The row is gone — its snapshot is unreachable garbage now.
+    this.activity.forget(sessionId);
+    this.hookServer.revoke(sessionId);
+    // The row is gone — its snapshot and its hook settings are unreachable
+    // garbage now.
     void deleteSnapshot(sessionId).catch(() => undefined);
+    rm(claudeHookSettingsPath(sessionId), { force: true }).catch(
+      () => undefined
+    );
   }
 
   /** Start streaming a session into `sender` (visible pane mount). */
@@ -941,8 +1076,14 @@ export class GmuxCore {
       clearInterval(this.statusTimer);
       this.statusTimer = null;
     }
+    if (this.sessionsBroadcastTimer !== null) {
+      clearTimeout(this.sessionsBroadcastTimer);
+      this.sessionsBroadcastTimer = null;
+    }
     for (const watch of this.rolloutWatches.values()) watch.cancel();
     this.rolloutWatches.clear();
+    this.activity.dispose();
+    this.hookServer.stop();
     this.attachHost.disposeAll();
     this.control.stop();
     try {
@@ -1142,6 +1283,14 @@ export function registerIpcHandlers(): void {
   handle('terminal:scrollLive', async (_e, sessionId) =>
     (await getGmuxCore()).scrollLive(sessionId)
   );
+
+  // Phase 13: the user typed into a session, so whatever it was blocked on
+  // has an answer. Clears needs_input without waiting for echo — the Phase
+  // 9.2 rule that a session may never demand attention because of the user's
+  // OWN input to it. (Replaces the renderer detector's noteUserInput.)
+  handle('activity:noteInput', async (_e, sessionId) => {
+    (await getGmuxCore()).activity.noteUserInput(sessionId);
+  });
 
   handle('projects:add', async (_e, path) =>
     (await getGmuxCore()).addProject(path)

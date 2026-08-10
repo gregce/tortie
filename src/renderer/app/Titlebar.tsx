@@ -199,7 +199,6 @@ export function Titlebar(): React.JSX.Element {
     for (const p of projects) ensureStatus(p.path);
   }, [projects, gitInit, ensureStatus]);
   const sessions = useApp((s) => s.sessions);
-  const overrides = useApp((s) => s.statusOverrides);
   const activeProjectId = useApp((s) => s.activeProjectId);
   const openProject = useApp((s) => s.openProject);
   const setAttentionOpen = useApp((s) => s.setAttentionOpen);
@@ -215,19 +214,19 @@ export function Titlebar(): React.JSX.Element {
       let attentionCount = 0;
       for (const sess of sessions) {
         if (sess.projectPath !== project.path) continue;
-        const status = effectiveStatusOf(sess, overrides);
+        const status = effectiveStatusOf(sess);
         statuses.push(status);
         if (status === 'needs_input') attentionCount++;
       }
       return { project, dot: rollupDot(statuses), attentionCount };
     });
-  }, [projects, tabOrder, sessions, overrides]);
+  }, [projects, tabOrder, sessions]);
 
   const attentionTotal = useMemo(
     () =>
-      sessions.filter((x) => effectiveStatusOf(x, overrides) === 'needs_input')
+      sessions.filter((x) => effectiveStatusOf(x) === 'needs_input')
         .length,
-    [sessions, overrides]
+    [sessions]
   );
 
   return (

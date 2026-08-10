@@ -16,6 +16,7 @@ import type { IpcRendererEvent } from 'electron';
 import type {
   EventChannel,
   EventPayloadMap,
+  GmuxActivityExtras,
   GmuxAgentExtras,
   GmuxAgentRegistryExtras,
   GmuxApi,
@@ -39,10 +40,12 @@ import type {
   GmuxSettingsExtras,
   GmuxTermStreamExtras,
   MenuActionId,
+  SessionActivityInfo,
   TermExitPayload,
   Unsubscribe
 } from '../shared/ipc';
 import {
+  EVT_ACTIVITY_CHANGED,
   EVT_GIT_CHANGED,
   EVT_MENU_ACTION,
   EVT_QUIT_REQUESTED,
@@ -234,7 +237,8 @@ const api: GmuxApi &
   GmuxSettingsExtras &
   GmuxDropExtras &
   GmuxCaptureExtras &
-  GmuxScrollExtras = {
+  GmuxScrollExtras &
+  GmuxActivityExtras = {
   sessions,
   projects: {
     add: (path) => invoke('projects:add', path),
@@ -294,6 +298,20 @@ const api: GmuxApi &
   },
   // Phase 10 (S13) optional extras: persisted settings + Settings window +
   // per-agent launch-flag catalogs, feature-detected by both renderers.
+  // Phase 13 optional extras: per-session activity facts that are not the
+  // status (⌘J excerpt, last-output time) now that detection lives in main,
+  // plus the self-inflicted-input notice that clears needs_input.
+  onActivityChanged: (cb) => {
+    const listener = (
+      _e: IpcRendererEvent,
+      updates: SessionActivityInfo[]
+    ): void => {
+      cb(updates);
+    };
+    ipcRenderer.on(EVT_ACTIVITY_CHANGED, listener);
+    return () => ipcRenderer.removeListener(EVT_ACTIVITY_CHANGED, listener);
+  },
+  noteTerminalInput: (sessionId) => invoke('activity:noteInput', sessionId),
   settingsGet: () => invoke('settings:get'),
   settingsSet: (patch) => invoke('settings:set', patch),
   openSettings: () => invoke('settings:openWindow'),

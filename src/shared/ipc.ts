@@ -808,7 +808,8 @@ export type GmuxInvokeChannelMap = RegistryInvokeChannelMap &
   GitSyncInvokeChannelMap &
   DropInvokeChannelMap &
   TerminalCaptureInvokeChannelMap &
-  TerminalScrollInvokeChannelMap;
+  TerminalScrollInvokeChannelMap &
+  ActivityInvokeChannelMap;
 
 export type GmuxInvokeChannel = keyof GmuxInvokeChannelMap;
 
@@ -1236,3 +1237,66 @@ export interface GmuxScrollExtras {
     live(sessionId: string): Promise<TerminalScrollState>;
   };
 }
+
+// ---------------------------------------------------------------------------
+// APPENDED by the activity stream (Phase 13, research 18) — new channels and
+// types only, plus the one existing line the GmuxInvokeChannelMap comment
+// invites streams to intersect into.
+//
+// Activity detection moved ENTIRELY into the main process. The renderer used
+// to derive working / needs-input / idle from the `term:data:<id>` byte
+// stream, which only exists for the VISIBLE pane, and then pinned that value
+// through a sticky override that outranked main — a session could read
+// "working" for hours after going quiet. Main now reads agent-native oracles
+// and tmux formats for EVERY session, attached or not, and these two channels
+// carry the two things the byte stream used to supply on the side:
+//
+//   activity:changed  (main → renderer)  ⌘J excerpt + last-output timestamp,
+//     batched to at most one message per poll tick. Status itself still
+//     travels on the existing EVT_STATUS_CHANGED.
+//   activity:noteInput (renderer → main) the user typed into a session, so
+//     whatever it was blocked on has an answer — clears needs_input without
+//     waiting for echo (the Phase 9.2 self-inflicted-input rule).
+// ---------------------------------------------------------------------------
+
+/** Main → renderer: per-session activity facts that are not the status. */
+export const EVT_ACTIVITY_CHANGED = 'activity:changed' as const;
+
+export interface SessionActivityInfo {
+  sessionId: string;
+  /** Last non-empty line of the session's screen (⌘J excerpt). */
+  excerpt?: string;
+  /** Epoch ms of the last output tmux saw in that pane. */
+  lastActivityAt?: number;
+}
+
+/** New event channel appended by the activity stream. */
+export interface ActivityEventPayloadMap {
+  'activity:changed': [updates: SessionActivityInfo[]];
+}
+
+/** New invoke channel appended by the activity stream. */
+export interface ActivityInvokeChannelMap {
+  /** The user sent input to this session (clears needs_input immediately). */
+  'activity:noteInput': { req: [sessionId: string]; res: void };
+}
+
+/**
+ * OPTIONAL top-level extras on window.gmux, feature-detected by the renderer
+ * (`typeof window.gmux.onActivityChanged === 'function'`). Without them the
+ * shell simply shows no excerpts and no ages — status is unaffected.
+ */
+export interface GmuxActivityExtras {
+  onActivityChanged?(cb: (updates: SessionActivityInfo[]) => void): Unsubscribe;
+  noteTerminalInput?(sessionId: string): Promise<void>;
+}
+
+/**
+ * Every event channel main can broadcast: the frozen three plus the appends.
+ * Event channels added after the freeze (menu actions, quit requests,
+ * settings changes) are wired bespoke in the preload, exactly as this one is
+ * — EventPayloadMap itself is never edited.
+ */
+export type AllEventPayloadMap = EventPayloadMap & ActivityEventPayloadMap;
+
+export type AllEventChannel = keyof AllEventPayloadMap;

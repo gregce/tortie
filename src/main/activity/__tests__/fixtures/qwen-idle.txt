@@ -1,0 +1,43 @@
+   ▄▄▄▄▄▄  ▄▄     ▄▄ ▄▄▄▄▄▄▄ ▄▄▄    ▄▄   ┌──────────────────────────────────────────────────────────┐
+
+   ▄▄▄▄▄▄  ▄▄     ▄▄ ▄▄▄▄▄▄▄ ▄▄▄    ▄▄   ┌──────────────────────────────────────────────────────────┐
+  ██╔═══██╗██║    ██║██╔════╝████╗  ██║  │ >_ Qwen Code (v0.21.7)                                   │
+
+   ▄▄▄▄▄▄  ▄▄     ▄▄ ▄▄▄▄▄▄▄ ▄▄▄    ▄▄   ┌──────────────────────────────────────────────────────────┐
+  ██╔═══██╗██║    ██║██╔════╝████╗  ██║  │ >_ Qwen Code (v0.21.7)                                   │
+
+   ▄▄▄▄▄▄  ▄▄     ▄▄ ▄▄▄▄▄▄▄ ▄▄▄    ▄▄   ┌──────────────────────────────────────────────────────────┐
+  ██╔═══██╗██║    ██║██╔════╝████╗  ██║  │ >_ Qwen Code (v0.21.7)                                   │
+  ██║   ██║██║ █╗ ██║█████╗  ██╔██╗ ██║  │                                                          │
+  ██║▄▄ ██║██║███╗██║██╔══╝  ██║╚██╗██║  │ DeepSeek API Key | [DeepSeek] deepseek-v4-pro            │
+  ╚██████╔╝╚███╔███╔╝███████╗██║ ╚████║  │ ~/pi                                                     │
+   ╚══▀▀═╝  ╚══╝╚══╝ ╚══════╝╚═╝  ╚═══╝  └──────────────────────────────────────────────────────────┘
+
+  Tips: Add a QWEN.md file to give Qwen Code persistent project context.
+  ●︎ Qwen Code update available! 0.21.7 → 0.21.9
+    The update will be installed after you exit this session.
+
+  > what is up
+
+  ∴︎ Thought for 1s (click or ctrl+o to expand)
+
+  ◆︎ The working tree is clean on main. What do you need?
+
+  > c00l
+
+  ∴︎ Thought briefly (click or ctrl+o to expand)
+
+  ◆︎ Want to look at something in the codebase?
+
+  > eh i dunno
+
+  ∴︎ Thought briefly (click or ctrl+o to expand)
+
+  ◆︎ No problem. I'm here when you have something in mind — bug, feature, code review, or just exploring.
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+> show me the project structure
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ➜ pi · git:(main) · deepseek-v4-pro · 1.0m Context 4% used                                     4.0% context used
+  Auto mode (shift + tab to cycle)
+

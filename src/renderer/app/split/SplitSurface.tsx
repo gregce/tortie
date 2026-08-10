@@ -45,13 +45,12 @@ function SplitHeader({
   projectId: string;
   focused: boolean;
 }): React.JSX.Element {
-  const overrides = useApp((s) => s.statusOverrides);
   const setRenaming = useApp((s) => s.setRenaming);
   const setMenu = useApp((s) => s.setMenu);
   const orientation = useApp((s) => s.sessionOrientation);
   const popOut = useLayout((s) => s.popOut);
 
-  const status = effectiveStatusOf(session, overrides);
+  const status = effectiveStatusOf(session);
   const visual = statusVisual(status, session.exitCode);
   const ended = status === 'exited' || status === 'restorable';
   const rename = useRenameDraft(session);

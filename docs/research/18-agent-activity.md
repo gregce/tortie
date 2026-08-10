@@ -920,3 +920,89 @@ before the scratchpad is reaped.
   `-c` overrides, or tmux session env.
 - It does not ship OSC 133 shell injection by default (opt-in only; it cannot
   serve detached sessions, which is the whole point of Phase 13).
+
+---
+
+## 9. Implementation notes (Phase 13, shipped 2026-08-10)
+
+Written by the implementing stream. The design above was followed as
+specified; these are the three places where hands-on work sharpened it, plus
+the live evidence for the acceptance table.
+
+### 9.1 What the implementation changed about §5.4 and §6.2
+
+1. **`shell` maps to IDLE, and here is what that means in practice.**
+   §2.3 already tabulates claude idle as pid-file `idle`/`shell`, and a live
+   run confirms why: asked to run `sleep 25`, claude BACKGROUNDED it, printed
+   *"I'll report back when it finishes"*, returned to its prompt and published
+   `status: "shell"` for the whole 25 s before flipping back to `busy` to
+   report. The user can type; the turn has ended. A2's "long tool run stays
+   working" is about a FOREGROUND tool call, where claude publishes `busy`
+   throughout — verified separately over a 15 s turn with no flicker.
+
+2. **The dialog detector is ranked ABOVE the screen-hash tier, below the
+   strong ones.** §6.2 lists the screen hash inside `evidence` and the dialog
+   check after it, but a dialog APPEARING is itself a screen change, so the
+   K-tick memory masks it for its whole window: measured 6 s from prompt to
+   `needs_input` instead of 4 s. Final order is: tier 0 → copy-mode hold →
+   fresh output / CPU / tool child → dialog → screen hash → quiet. The
+   detector is by far the stronger predicate (57/57 recall, 0/386 FP), and
+   real output still outranks it, so an agent that is actually printing is
+   never called blocked.
+
+3. **"Ambiguous" means "tier 0 did not answer THIS TICK", not "this agent has
+   no oracle."** §6.5 gates the expensive tiers on `activity.tier`, which
+   would leave a claude session unexamined during the ~35 s workspace-trust
+   window §2.1 flags — exactly the window the dialog detector exists to
+   cover. Gating on whether a native verdict was actually produced arms T2/T3
+   for that window and disarms them again the moment the pid file appears.
+
+Two smaller ones: `#{window_bell_flag}` was dropped from the format entirely
+rather than kept as a corroborator (it never true-fired, and leaving it in the
+poll is what let the inverted BEL rule survive in main), and a shell's DECKPAM
+oracle is only trusted once that pane has been seen setting the flag, so a
+bash pane falls through to the floor instead of reading "working" forever
+(§8.2 item 6).
+
+### 9.2 Live acceptance evidence (private `-L gmux` server, 2026-08-10)
+
+Every session below was **DETACHED** — no client ever attached to the scratch
+sessions — so A5 is satisfied by construction rather than by a special case.
+
+| # | Evidence |
+| --- | --- |
+| A1 | claude idle at its prompt: `idle` on the first tick, with `window_activity` frozen 4 h. The user's own renamed claude pane (`zen of tortie`, pid-file still saying `claude-1`) also read idle. |
+| A2 | Enter at 18:08:59.3 → `running` at 18:09:00.0 (**+0.7 s**), via the pid file alone. |
+| A3 | A real "Do you want to make this edit to note.txt?" prompt: pid file `waiting` + `waitingFor: "permission prompt"` → `needs_input`. The generic detector fires on that capture and on the workspace-trust gate, and is silent on the screen claude leaves right after the answer. |
+| A4 | Floor tier, no oracle: a setsid'd `sleep 22` (zero CPU, zero output) held `running` for the full 22 s with no flicker — only the tool-child rule was true. |
+| A6 | codex: `⠴ gmux` observed working, bare `gmux` (= cwd basename) idle for 120 consecutive samples. shell: `sleep 6` → `running` at +1 s, back to `idle` at +1 s. |
+| A7 | A floor-tier stand-in ran the whole idle → working → needs-input → answered cycle. **Known limit:** a stand-in that leaves its answered prompt on screen (a shell script, not a TUI) re-raises `needs_input`, because a quiet screen still showing options is indistinguishable from an active one. Every real agent redraws — verified on claude's post-answer screen — and the researched detector is kept unchanged rather than tightened on unmeasured geometry. |
+| A9 | With every session settled the tick is exactly one `list-panes` exec: no `ps`, no captures (unit-asserted over 16 panes). |
+| A10 | Every write path in `src/main/activity` resolves under `app.getPath('userData')/gmux/hooks`. `~/.claude/settings.json`, `~/.codex/config.toml` and `~/.zshrc` were untouched. |
+| A11 | The reported bug: a pane whose `window_activity` froze four hours ago reads `idle`. There is no override map left for a stale value to live in. |
+
+### 9.3 The one durability hazard hooks introduce, and how it is contained
+
+`claude --settings <path>` **refuses to start** when the file is missing:
+
+```
+$ claude --settings /tmp/gone.json -p hi
+Error: Settings file not found: /tmp/gone.json
+```
+
+and gmux bakes that flag into both `argv` and the armed `resumeArgv`, which
+outlive the app. So the file is rewritten before every launch, before every
+restore, and for every live claude session at boot (recovering the existing
+token out of the old file so a claude that outlived a gmux restart keeps
+working); if it cannot be written, the flag is simply left off. The port is
+persisted and only re-claimed when the bind actually gets it, so a second
+gmux on an ephemeral port cannot repoint everyone else's baked-in URL.
+
+Verified end to end: a claude launched with exactly this settings shape POSTed
+`UserPromptSubmit` and then `Stop` to `127.0.0.1/h/<token>?e=<Event>`.
+
+**codex hooks are not implemented.** They require
+`--dangerously-bypass-hook-trust`, which paints a permanent banner in the TUI,
+and §2.2 already gives codex a perfect three-state oracle for free — so the
+opt-in would buy nothing and the code would be an unused liability.
+

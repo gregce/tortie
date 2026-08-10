@@ -139,6 +139,9 @@ Build:
 4. Same verbs where they make sense on SCM rows and (later) search results, so the model is consistent everywhere files open — coordinate with Phase 14's result-open path.
 Verify: right-click a tree row → both verbs present and correct; "Open in New Tab" pins; the tip appears exactly once ever; single-click still recycles the preview slot; double-click on a row and on a tab both pin.
 
+## Phase 13 — accurate per-agent activity detection — SHIPPED 2026-08-10
+**Landed** as `src/main/activity/*` (monitor + panes/process/screen/claude-registry/oracles/hooks); the renderer byte detector and `statusOverrides` are DELETED. Implementation notes, the three places the design was sharpened, and the live acceptance evidence are in docs/research/18-agent-activity.md §9. Residue for a later pass: codex hooks were deliberately not built (they need a `--dangerously-bypass-hook-trust` banner and codex's title oracle is already exact), and the qwen/gemini/pi/droid rows of the acceptance matrix are floor-verified by stand-in rather than live.
+
 ## Phase 13 — accurate per-agent activity detection (user-hit: status is ALWAYS "working")
 Symptom (ref shot: media_88j9nVkcw0/CleanShot 2026-08-10 at 14.34.35@2x.png): claude-1 sits at an idle prompt yet the tab reads "working" permanently.
 ROOT CAUSE — **CORRECTED BY RESEARCH (docs/research/18-agent-activity.md §1; my earlier "TUIs redraw constantly" premise was measured FALSE — idle claude/codex/qwen/gemini/agy/pi emit ZERO bytes).** Two defects compose:

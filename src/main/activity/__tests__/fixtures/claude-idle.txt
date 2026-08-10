@@ -1,0 +1,43 @@
+
+  Read 3 files, listed 1 directory (ctrl+o to expand)
+
+⏺ Real step forward from the shell plates — the seated silhouette is unmistakably a cat without a face, so it clears the mascot trap. But
+  looking at it against what we just wrote, three things are off, and one of them is the thing we set out to fix.
+
+  The blue Y-seam is a turtle shell. Three plates radiating from a center point on the back is the carapace pattern, drawn on a cat's body.
+  The folder is even called cat-shell-concepts. That's not a synthesis of the two animals, it's a chimera — and it reintroduces exactly the
+  metaphor we removed from the doc. It also carries a secondary read (Mercedes badge / beach ball segmentation) that's hard to unsee once you
+  see it.
+
+  There's no amber. The single amber detail was carrying the entire attention thesis — one patch, one signal, what needs me now. It's also the
+  tortie's actual orange. That one element does double duty better than anything else in the system, and this mark spends its only highlight
+  on a second blue. The pale patch currently says nothing.
+
+  Geometric plates aren't a tortoiseshell coat. Real tortie patches are irregular, asymmetric, non-repeating — that irregularity is what makes
+  "the patches stay distinct, and not one of them is a separate cat" land. Symmetric geometry says engineered surface, which is the opposite
+  claim.
+
+  Small sizes are where it breaks. In your own 64px comparison it collapses to a dark lump with a thin blue Y. Graphite-on-dark leaves the
+  silhouette almost no value contrast against the macOS dark dock, so the only thing carrying the mark is hairline seams — and those are the
+  first thing to go at 32 and 16. The body needs to be lighter than the dock, or the outline needs to do the work.
+
+  Minor: the pale patch sits low on the haunch where it reads as a reflection or a stain; the seam breaks where it crosses the shoulder; ears
+  are asymmetric; there's a soft drop shadow that won't survive as an app icon master.
+
+  What I'd keep and what I'd change. Keep the pose — it's the most stable of the three and the tail sweep gives it the "difficult to dislodge"
+  weight. Then: delete the Y-seam entirely, replace it with two or three irregular patches following the body's form, make exactly one of
+  them amber and put it high on the shoulder where the eye lands first, and lift the body value enough to hold against a dark dock. No seams
+  needed at all — patch edges are the drawing.
+
+  Of the three concepts, 02's profile has the cleaner silhouette read at size, if you want a second pass to compare against.
+
+  Want me to write the revised generation prompt for that, and update the brand README so the shell explorations are marked superseded?
+
+✻ Crunched for 49s
+
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯ 
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ⏵⏵ auto mode on (shift+tab to cycle) · ← for agents                                                                                    /rc
+
+

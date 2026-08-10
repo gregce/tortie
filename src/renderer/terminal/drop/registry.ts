@@ -8,8 +8,8 @@
  *
  * Why this and not `gmux.term.sendInput`: only `term.paste()` / `term.input()`
  * fire xterm's onData, and onData is where TerminalPane calls
- * `noteTerminalInput` — the suppression window that stops an agent's BEL
- * during ingestion from being misread as "needs input" (research 16 §1.5).
+ * `noteTerminalInput`, which tells main the session's question has an answer
+ * (research 16 §1.5; Phase 13 moved the verdict itself into main).
  * Writing to the pty directly would skip it.
  */
 

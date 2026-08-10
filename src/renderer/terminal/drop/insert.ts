@@ -8,14 +8,13 @@
  *    paste mode. So one call is correct for both kinds of pane, and nobody
  *    ever sees a literal `[200~` (research 16 §1.1–1.3).
  *  - both `paste()` and `input()` fire onData, which is where TerminalPane
- *    notes the input for the status detector — the suppression window that
- *    stops an agent's BEL during ingestion from being misread as "needs
- *    input" (§1.5, and CLAUDE.md's rule that the user's own input may never
- *    raise that status).
+ *    notes the input for main's activity monitor, so the drop answers a
+ *    pending prompt instead of leaving it flagged (§1.5, and CLAUDE.md's rule
+ *    that the user's own input may never raise that status).
  *
  * Fallback path, for a pane whose terminal has not registered itself: write
  * the same bytes through the term bridge and call `noteTerminalInput` by
- * hand, so the status-detector guarantee still holds. tmux's attach client
+ * hand, so the self-inflicted-input guarantee still holds. tmux's attach client
  * enables DECSET 2004 unconditionally (VERIFIED), so the markers we write are
  * byte-identical to xterm's — but xterm's version tracks the pane's real mode,
  * which is why it stays the preferred path.

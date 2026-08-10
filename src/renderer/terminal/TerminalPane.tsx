@@ -220,9 +220,11 @@ export function TerminalPane({
     let webgl: WebglAddon | null = null;
 
     // ---- keystrokes / binary → main → pty --------------------------------
-    // noteTerminalInput: the status detector must know about EVERY byte the
-    // user sends — including mouse reports, which never reach keydown — so
-    // an echoed BEL right after a click is not mistaken for "needs input".
+    // noteTerminalInput: every byte the user sends — including mouse reports,
+    // which never reach keydown — answers whatever the session was blocked
+    // on, so "needs input" clears without waiting for echo (CLAUDE.md: the
+    // user's own input may never RAISE that status either). It is a cheap
+    // no-op unless the session is currently reported as needing input.
     // Typing ALWAYS returns to live output first (scroll.sendInput): tmux
     // copy-mode has its own key table, so a keystroke sent while scrolled
     // would be eaten by it instead of reaching the agent.

@@ -846,6 +846,22 @@ app.whenReady().then(async () => {
 
   mainWindow = createWindow();
 
+  // Phase 13: the activity poll runs at 1 Hz while gmux has focus and 2 s
+  // when it does not — nobody is reading status dots in a background app,
+  // and the always-on tier is already only 0.28 % of one core.
+  const syncPollCadence = (focused: boolean): void => {
+    void getGmuxCore()
+      .then((core) => core.setPollFocused(focused))
+      .catch(() => undefined);
+  };
+  app.on('browser-window-focus', () => syncPollCadence(true));
+  app.on('browser-window-blur', () => {
+    // 'blur' also fires when focus moves BETWEEN gmux windows.
+    setTimeout(() => {
+      syncPollCadence(BrowserWindow.getAllWindows().some((w) => w.isFocused()));
+    }, 0);
+  });
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       mainWindow = createWindow();

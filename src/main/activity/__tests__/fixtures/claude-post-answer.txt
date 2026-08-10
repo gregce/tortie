@@ -1,0 +1,24 @@
+❯ Append the line HELLO to note.txt
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Update(note.txt)
+  ⎿  Added 1 line
+      1  hello
+      2 +HELLO
+
+⏺ Appended. note.txt is now:
+
+  hello
+  HELLO
+
+✻ Baked for 7s
+
+────────────────────────────────────────────────────────────────────────────────
+❯ 
+────────────────────────────────────────────────────────────────────────────────
+  ⏸ manual mode on · ? for shortcuts · ← for agents           ● high · /effort
+                                                                           /rc
+
+
+

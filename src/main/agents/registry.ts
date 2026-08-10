@@ -102,6 +102,31 @@ export interface AgentFlagPreset {
   danger: boolean;
 }
 
+/**
+ * Per-agent activity-detection capability (Phase 13, research 18 §2.3).
+ *
+ * `tier` is the HIGHEST channel with a verified implementation, not a
+ * requirement: detection is agent-agnostic by construction and the universal
+ * floor is the only thing every session actually depends on.
+ */
+export interface AgentActivityProfile {
+  /** Highest tier gmux implements for this agent. */
+  tier: 'native' | 'hooks' | 'process' | 'screen';
+  /** Which native channel, when tier === 'native'. */
+  native?: 'claude-session-registry' | 'pane-title-oracle' | 'shell-keypad';
+  /**
+   * TRUE = the agent paints at an IDLE prompt, so tmux's output clock cannot
+   * be read as "working". Measured: muse emits exactly 1 event/s and
+   * deepseek-tui 6 per 15 s while idle; every other agent measured emits
+   * ZERO bytes at an idle prompt.
+   */
+  animatesWhenIdle: boolean;
+  /** Hook-injection recipe, when gmux ships one. */
+  hooks?: 'claude-settings';
+  /** Evidence marker (BACKLOG requirement) — see research 18 §2.3. */
+  verified: 'verified' | 'partial' | 'unverified';
+}
+
 export interface AgentRegistryEntry {
   id: AgentRegistryId;
   displayName: string;
@@ -157,6 +182,14 @@ export interface AgentRegistryEntry {
    * capture-only IDE pair, which has no prompt to drop into.
    */
   imageDrop?: AgentImageDrop;
+  /**
+   * How this agent's LIVE ACTIVITY is detected (Phase 13, research 18 §2.3).
+   * Absent = the capture-only IDE pair, which gmux never runs in a pane.
+   * The floor (tiers 1–3) runs for every session regardless; this field only
+   * says which higher tier is allowed to supersede it, so a newly installed
+   * CLI gmux has never seen still reports correctly on first launch.
+   */
+  activity?: AgentActivityProfile;
   notes?: string;
 }
 
@@ -207,6 +240,8 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
         '--resume does not restore launch flags — record full original argv and re-append extras (handled by claudeResumeArgv).'
     },
     reconstructionTarget: true,
+    // pid-file registry, VERIFIED end-to-end (PROBE A + synthesis run).
+    activity: { tier: 'native', native: 'claude-session-registry', animatesWhenIdle: false, hooks: 'claude-settings', verified: 'verified' },
     iconKey: 'claude',
     defaultHotkeyHint: 'c',
     imageDrop: {
@@ -242,6 +277,8 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
         'store.db is SQLite; md5 dir name is one-way — a cwd can never be recovered from it.'
     },
     reconstructionTarget: true,
+    // Not probed — floor only until someone runs the matrix on it.
+    activity: { tier: 'screen', animatesWhenIdle: false, verified: 'unverified' },
     iconKey: 'cursor',
     defaultHotkeyHint: 'u',
     imageDrop: {
@@ -277,6 +314,8 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
         'Resume is a SUBCOMMAND, not a flag. Global date-sharded store; cwd attribution via line-1 session_meta. Bound watchers to ~7 days (fd-exhaustion lesson).'
     },
     reconstructionTarget: true,
+    // #{pane_title} 3-state oracle: 0 % FN / 0 % FP over n=156.
+    activity: { tier: 'native', native: 'pane-title-oracle', animatesWhenIdle: false, verified: 'verified' },
     iconKey: 'codex',
     defaultHotkeyHint: 'x',
     imageDrop: {
@@ -308,6 +347,8 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
         'projectDir resolution is 3-tier: .project_root marker → legacy sha256(canonicalCwd) → full scan.'
     },
     reconstructionTarget: true,
+    // Auth-blocked during research; title carries no state channel.
+    activity: { tier: 'screen', animatesWhenIdle: false, verified: 'unverified' },
     iconKey: 'gemini',
     defaultHotkeyHint: 'g',
     imageDrop: {
@@ -339,6 +380,8 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
         'Identical dash-encoding to Claude Code; sidecar <sessionId>.settings.json carries token usage.'
     },
     reconstructionTarget: true,
+    // Not installed here; hook shape is docs-only. Floor only.
+    activity: { tier: 'screen', animatesWhenIdle: false, verified: 'unverified' },
     iconKey: 'droid',
     defaultHotkeyHint: 'd',
     imageDrop: {
@@ -369,6 +412,8 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
         'Flat GLOBAL store; project identity via metadata.workspace inside the file.'
     },
     reconstructionTarget: true,
+    // Animates at idle (6 events/15 s) — the activity clock is unusable.
+    activity: { tier: 'process', animatesWhenIdle: true, verified: 'partial' },
     iconKey: 'deepseek',
     defaultHotkeyHint: 'k',
     imageDrop: {
@@ -407,6 +452,8 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
         'Resume flag is --conversation, NOT --resume. Project attribution scrapes agy logs with fragile regexes — expect breakage across releases. NOT a cross-agent resume target (real state is protobuf-in-SQLite).'
     },
     reconstructionTarget: false,
+    // Idle byte-silence VERIFIED; title is 'Mac', no state channel.
+    activity: { tier: 'screen', animatesWhenIdle: false, verified: 'partial' },
     iconKey: 'antigravity',
     defaultHotkeyHint: 'a',
     imageDrop: {
@@ -442,6 +489,8 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
         'Resume is a SUBCOMMAND, not a flag. Global date-sharded store (Codex-style); filter by stream.id to exclude subagent task-streams.'
     },
     reconstructionTarget: true,
+    // 1 output/s while idle; ~12 s pre-first-token window needs T3.
+    activity: { tier: 'process', animatesWhenIdle: true, verified: 'partial' },
     iconKey: 'muse',
     defaultHotkeyHint: 'm',
     imageDrop: {
@@ -476,6 +525,8 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
         'sanitize hashes the VERBATIM cwd (no realpath, no leading-dash rule) — differs from claude/droid encoding. Ignore sibling .runtime.json.'
     },
     reconstructionTarget: true,
+    // Title reads 'Qwen - pi' in every state — no channel there.
+    activity: { tier: 'screen', animatesWhenIdle: false, verified: 'partial' },
     iconKey: 'qwen',
     defaultHotkeyHint: 'q',
     imageDrop: {
@@ -517,6 +568,8 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
         'UNVERIFIED: resume mechanics unimplemented upstream. Env overrides honored: PI_CODING_AGENT_DIR, PI_CODING_AGENT_SESSION_DIR.'
     },
     reconstructionTarget: false,
+    // Event API read from its .d.ts, never executed. Floor only.
+    activity: { tier: 'screen', animatesWhenIdle: false, verified: 'unverified' },
     iconKey: 'pi',
     defaultHotkeyHint: null,
     imageDrop: {
@@ -686,4 +739,35 @@ export function imageDropTable(): ImageDropTable {
 export function imageDropFor(id: string): AgentImageDrop {
   const entry = AGENT_REGISTRY.find((e) => e.id === id);
   return entry?.imageDrop ?? DEFAULT_IMAGE_DROP;
+}
+
+/**
+ * What a plain shell gets, and what any agent gmux has never met gets.
+ *
+ * The floor must be good enough to ship as the ONLY signal for an unknown
+ * CLI (BACKLOG Phase 13, universality directive), so the default here is
+ * deliberately the LOWEST tier — never an allowlist gate.
+ */
+export const SHELL_ACTIVITY: AgentActivityProfile = {
+  tier: 'native',
+  native: 'shell-keypad',
+  animatesWhenIdle: false,
+  verified: 'verified'
+};
+
+export const DEFAULT_ACTIVITY: AgentActivityProfile = {
+  tier: 'screen',
+  animatesWhenIdle: false,
+  verified: 'unverified'
+};
+
+/**
+ * One agent's activity profile. Shells take the DECKPAM oracle; a registry
+ * agent takes its own row; anything else — an id this build has never heard
+ * of — takes the floor. Adding an oracle for a future agent is one module
+ * plus one registry line; no state-machine change.
+ */
+export function activityProfileFor(id: string): AgentActivityProfile {
+  if (id === 'shell') return SHELL_ACTIVITY;
+  return AGENT_REGISTRY.find((e) => e.id === id)?.activity ?? DEFAULT_ACTIVITY;
 }

@@ -2,9 +2,14 @@
  * gmux app store (zustand) — single source of renderer truth for the shell.
  *
  * Data flow: window.gmux (frozen IPC bridge) → store actions → components.
- * Live session status = main-process status (running/exited/restorable are
- * authoritative) refined by the renderer StatusDetector's overrides
- * (working / needs input / idle) for sessions it has observed.
+ *
+ * Session status is MAIN's, full stop (Phase 13). The renderer used to derive
+ * working / needs-input / idle itself from the `term:data:<id>` byte stream
+ * and hold it in a `statusOverrides` map that outranked main — but bytes only
+ * flow for the VISIBLE pane and the override was never cleared while a
+ * session lived, so a session that had once produced output read "working"
+ * forever. Detection now runs in main for every session, attached or not
+ * (src/main/activity), and this store just renders what it is told.
  */
 
 import { create } from 'zustand';
@@ -17,6 +22,7 @@ import type {
   SessionStatus
 } from '@shared/types';
 import type {
+  GmuxActivityExtras,
   GmuxAppExtras,
   GmuxLoginItemExtras,
   GmuxProjectExtras,
@@ -28,8 +34,6 @@ import { cancelPointerDrag } from '../app/split/pointer-drag';
 // Direct module import (NOT ../settings barrel): the barrel re-exports
 // integration.ts which imports this store — presets.ts itself does not.
 import { defaultLaunchArgsFor } from '../settings/presets';
-import { StatusDetector } from './status-detector';
-import type { DetectedStatus } from './status-detector';
 
 // ---------------------------------------------------------------------------
 // Error helpers
@@ -112,12 +116,6 @@ export type SessionOrientation = 'top' | 'right';
 /** The sidebar hosts ONE view at a time (round 1, activity bar). */
 export type SidebarViewId = 'scm' | 'explorer';
 
-const detectorToSession: Record<DetectedStatus, SessionStatus> = {
-  working: 'running',
-  needs_input: 'needs_input',
-  idle: 'idle'
-};
-
 // ---------------------------------------------------------------------------
 // Store
 // ---------------------------------------------------------------------------
@@ -135,8 +133,6 @@ interface AppState {
   /** Remembered selected session per project id. */
   activeSessionByProject: Record<string, string>;
 
-  /** Renderer-detected status refinements (only while main says running). */
-  statusOverrides: Record<string, SessionStatus>;
   /** When a session flipped to needs_input (epoch ms) — ⌘J sort + ages. */
   attentionSince: Record<string, number>;
   /** Last non-empty terminal line per session (⌘J excerpt). */
@@ -178,10 +174,9 @@ interface AppState {
    */
   moveProjectToIndex(projectId: string, toIndex: number): void;
   /**
-   * Terminal region reports which session panes are mounted right now
-   * (the active surface's leaves — several at once under splits, S4A) so
-   * the status detector watches every visible terminal, not just the
-   * focused one.
+   * Terminal region reports which session panes are mounted right now (the
+   * active surface's leaves — several at once under splits, S4A). Purely a
+   * layout fact since Phase 13: status no longer depends on what is visible.
    */
   visibleSessionIds: string[];
   setVisibleSessions(sessionIds: string[]): void;
@@ -226,9 +221,9 @@ interface AppState {
   /** Restore every restorable session in the active project (sequential). */
   restoreAllSessions(): Promise<void>;
   /**
-   * User input (keystrokes/mouse reports) went to a terminal — status
-   * detector hint. Pass the session id from the pty write path; omitted →
-   * the active session (keydown fallback).
+   * User input (keystrokes/mouse reports) went to a terminal: whatever it was
+   * blocked on has an answer now. Pass the session id from the pty write
+   * path; omitted → the active session (keydown fallback).
    */
   noteTerminalInput(sessionId?: string): void;
 
@@ -294,75 +289,9 @@ export function saveLocal(key: string, value: unknown): void {
 export const useApp = create<AppState>((set, get) => {
   const gmux = window.gmux as typeof window.gmux | undefined;
 
-  // ---- status detector (renderer heuristics; see status-detector.ts) ------
-  const detector = gmux
-    ? new StatusDetector(
-        { onData: (id, cb) => gmux.term.onData(id, cb) },
-        {
-          onStatus: (sessionId, status, at) => {
-            set((s) => {
-              const next: Partial<AppState> = {
-                statusOverrides: {
-                  ...s.statusOverrides,
-                  [sessionId]: detectorToSession[status]
-                }
-              };
-              if (status === 'needs_input') {
-                next.attentionSince = {
-                  ...s.attentionSince,
-                  [sessionId]: at
-                };
-              }
-              return next;
-            });
-          },
-          onExcerpt: (sessionId, line) => {
-            set((s) => ({ excerpts: { ...s.excerpts, [sessionId]: line } }));
-          },
-          onActivity: (sessionId, at) => {
-            // Throttled write: whole-minute granularity is enough for ages.
-            const prev = get().lastActivity[sessionId] ?? 0;
-            if (at - prev < 15_000) return;
-            set((s) => ({
-              lastActivity: { ...s.lastActivity, [sessionId]: at }
-            }));
-          }
-        }
-      )
+  const activityExtras = gmux
+    ? (gmux as typeof gmux & GmuxActivityExtras)
     : null;
-
-  /**
-   * Keep the detector watching exactly the visible (attached) sessions.
-   * Splits (Phase 10, S4A) can mount several panes at once — the terminal
-   * region reports its mounted leaves via setVisibleSessions; before the
-   * first report (or with no splits) this is just the active session.
-   */
-  const watchedIds = new Set<string>();
-  const watchable = (s: Session): boolean =>
-    s.status === 'running' || s.status === 'idle' || s.status === 'needs_input';
-  const syncDetector = (): void => {
-    if (!detector) return;
-    const s = get();
-    const targets = new Map<string, Session>();
-    const active = s.activeSession();
-    if (active && watchable(active)) targets.set(active.id, active);
-    for (const id of s.visibleSessionIds) {
-      const sess = s.sessions.find((x) => x.id === id);
-      if (sess && watchable(sess)) targets.set(sess.id, sess);
-    }
-    for (const id of [...watchedIds]) {
-      if (!targets.has(id)) {
-        detector.unwatch(id);
-        watchedIds.delete(id);
-      }
-    }
-    for (const [id, sess] of targets) {
-      if (!watchedIds.has(id)) {
-        detector.watch(id, sess.agent);
-        watchedIds.add(id);
-      }
-    }
-  };
 
   const sessionExtras = gmux
     ? (gmux.sessions as typeof gmux.sessions &
@@ -370,22 +299,38 @@ export const useApp = create<AppState>((set, get) => {
         GmuxSessionRestoreExtras)
     : null;
 
-  const applySessions = (sessions: Session[]): void => {
-    set((s) => {
-      // Overrides only refine live sessions; drop them when main disagrees.
-      const overrides: Record<string, SessionStatus> = {};
-      for (const sess of sessions) {
-        const o = s.statusOverrides[sess.id];
-        if (
-          o !== undefined &&
-          sess.status !== 'exited' &&
-          sess.status !== 'restorable'
-        ) {
-          overrides[sess.id] = o;
-        }
+  /**
+   * WHEN a session started needing input — ⌘J sorts by it and shows it as a
+   * "waiting 4m" age. Main owns the verdict; the renderer only has to notice
+   * the moment it arrived and forget it when the session moves on. Applied on
+   * both status paths so the full-list refresh and the cheap per-session
+   * event can never disagree.
+   */
+  const withAttention = (
+    prev: Record<string, number>,
+    sessions: readonly Session[]
+  ): Record<string, number> => {
+    const next: Record<string, number> = {};
+    const now = Date.now();
+    let changed = false;
+    for (const sess of sessions) {
+      const was = prev[sess.id];
+      if (sess.status !== 'needs_input') {
+        if (was !== undefined) changed = true;
+        continue;
       }
-      return { sessions, statusOverrides: overrides };
-    });
+      next[sess.id] = was ?? now;
+      if (was === undefined) changed = true;
+    }
+    if (Object.keys(prev).length !== Object.keys(next).length) changed = true;
+    return changed ? next : prev;
+  };
+
+  const applySessions = (sessions: Session[]): void => {
+    set((s) => ({
+      sessions,
+      attentionSince: withAttention(s.attentionSince, sessions)
+    }));
     // Keep per-project selection valid.
     const s = get();
     const { activeProjectId, activeSessionByProject } = s;
@@ -410,7 +355,6 @@ export const useApp = create<AppState>((set, get) => {
         }
       }
     }
-    syncDetector();
   };
 
   return {
@@ -424,7 +368,6 @@ export const useApp = create<AppState>((set, get) => {
     activeProjectId: null,
     activeSessionByProject: {},
 
-    statusOverrides: {},
     attentionSince: {},
     excerpts: {},
     lastActivity: {},
@@ -515,19 +458,33 @@ export const useApp = create<AppState>((set, get) => {
 
       gmux.sessions.onChanged((sessions) => applySessions(sessions));
       gmux.sessions.onStatusChanged((sessionId, status) => {
-        set((s) => ({
-          sessions: s.sessions.map((x) =>
+        set((s) => {
+          const sessions = s.sessions.map((x) =>
             x.id === sessionId ? { ...x, status } : x
-          )
-        }));
-        if (status === 'exited' || status === 'restorable') {
-          set((s) => {
-            const overrides = { ...s.statusOverrides };
-            delete overrides[sessionId];
-            return { statusOverrides: overrides };
-          });
-        }
-        syncDetector();
+          );
+          return {
+            sessions,
+            attentionSince: withAttention(s.attentionSince, sessions)
+          };
+        });
+      });
+
+      // ⌘J excerpts and last-output times (Phase 13). These used to be
+      // scraped off the visible pane's byte stream; main now sources them
+      // from the same poll that decides status, so HIDDEN sessions have
+      // them too.
+      activityExtras?.onActivityChanged?.((updates) => {
+        set((s) => {
+          const excerpts = { ...s.excerpts };
+          const lastActivity = { ...s.lastActivity };
+          for (const u of updates) {
+            if (u.excerpt !== undefined) excerpts[u.sessionId] = u.excerpt;
+            if (u.lastActivityAt !== undefined) {
+              lastActivity[u.sessionId] = u.lastActivityAt;
+            }
+          }
+          return { excerpts, lastActivity };
+        });
       });
     },
 
@@ -541,7 +498,6 @@ export const useApp = create<AppState>((set, get) => {
     setActiveProject(projectId) {
       set({ activeProjectId: projectId });
       saveLocal(LS_ACTIVE_PROJECT, projectId);
-      syncDetector();
     },
 
     setActiveProjectByIndex(index) {
@@ -567,7 +523,6 @@ export const useApp = create<AppState>((set, get) => {
           [activeProjectId]: sessionId
         }
       }));
-      syncDetector();
     },
 
     cycleSession(delta) {
@@ -610,7 +565,6 @@ export const useApp = create<AppState>((set, get) => {
         prev.length === sessionIds.length &&
         prev.every((id, i) => id === sessionIds[i]);
       if (!same) set({ visibleSessionIds: sessionIds });
-      syncDetector();
     },
 
     // -- projects ---------------------------------------------------------------
@@ -842,9 +796,16 @@ export const useApp = create<AppState>((set, get) => {
     },
 
     noteTerminalInput(sessionId) {
-      if (!detector) return;
       const id = sessionId ?? get().activeSession()?.id;
-      if (id !== undefined) detector.noteUserInput(id);
+      if (id === undefined) return;
+      // Fires from xterm's onData, i.e. once per keystroke, so it must not
+      // cross the bridge on every character. The only thing main does with
+      // it is release `needs_input` early, so nothing is lost by asking only
+      // when the session is actually flagged — the monitor's own poll
+      // handles every other case within a tick.
+      const session = get().sessions.find((x) => x.id === id);
+      if (session?.status !== 'needs_input') return;
+      void activityExtras?.noteTerminalInput?.(id).catch(() => undefined);
     },
 
     // -- ui -----------------------------------------------------------------------
@@ -985,11 +946,7 @@ export const useApp = create<AppState>((set, get) => {
     },
 
     effectiveStatus(session) {
-      const s = get();
-      if (session.status === 'exited' || session.status === 'restorable') {
-        return session.status;
-      }
-      return s.statusOverrides[session.id] ?? session.status;
+      return session.status;
     },
 
     attentionSessions() {
@@ -1015,17 +972,16 @@ export const useApp = create<AppState>((set, get) => {
 });
 
 /**
- * Pure status refinement — usable inside React render paths (unlike the
- * store methods, which build fresh arrays and belong in event handlers).
+ * The status to render for a session.
+ *
+ * Since Phase 13 this is just main's verdict — there is no renderer-side
+ * refinement left to apply, and deliberately no way for one to creep back in.
+ * It stays a named function because every surface (dock, strip, split, ⌘J,
+ * titlebar) should read status through ONE expression, and because the call
+ * sites document that they are showing main's truth rather than their own.
  */
-export function effectiveStatusOf(
-  session: Session,
-  overrides: Record<string, SessionStatus>
-): SessionStatus {
-  if (session.status === 'exited' || session.status === 'restorable') {
-    return session.status;
-  }
-  return overrides[session.id] ?? session.status;
+export function effectiveStatusOf(session: Session): SessionStatus {
+  return session.status;
 }
 
 /** Pure tab-order sort (render-safe companion to orderedProjects()). */

@@ -64,9 +64,8 @@ function DockRow({
   selected: boolean;
   now: number;
 }): React.JSX.Element {
-  const overrides = useApp((s) => s.statusOverrides);
   const lastActivity = useApp((s) => s.lastActivity);
-  const status = effectiveStatusOf(session, overrides);
+  const status = effectiveStatusOf(session);
   const visual = statusVisual(status, session.exitCode);
   const rename = useRenameDraft(session);
   const renaming = rename.renaming;
@@ -156,11 +155,10 @@ function GroupDockRow({
   focusedLeafId: string;
   selected: boolean;
 }): React.JSX.Element {
-  const overrides = useApp((s) => s.statusOverrides);
   const setMenu = useApp((s) => s.setMenu);
   const selectLeaf = useLayout((s) => s.selectLeaf);
 
-  const statuses = members.map((m) => effectiveStatusOf(m, overrides));
+  const statuses = members.map((m) => effectiveStatusOf(m));
   const dot = rollupDot(statuses);
   const attention = statuses.includes('needs_input');
   const focused = members.find((m) => m.id === focusedLeafId) ?? members[0];
