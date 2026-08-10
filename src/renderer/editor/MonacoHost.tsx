@@ -71,8 +71,32 @@ function baseOptions(): monacoNs.editor.IStandaloneEditorConstructionOptions {
       useShadows: false
     },
     dragAndDrop: false,
-    tabSize: 2
+    tabSize: 2,
+    // Monaco's rainbow brackets are gold #FFD700 / orchid #DA70D6 — colours
+    // that exist in no gmux token. Split mode puts Monaco directly beside
+    // Shiki, so the SAME fenced block renders twice on one screen. This
+    // option alone does NOT switch the feature off in standalone Monaco (see
+    // monaco-loader.ts); the theme's editorBracketHighlight.foreground1..6
+    // are what actually pin every depth to the neutral delimiter colour.
+    bracketPairColorization: { enabled: false }
   };
+}
+
+/**
+ * Per-tab options. Everything here is applied with `updateOptions()` on every
+ * tab switch, because the editor instance is created once and re-used.
+ *
+ * wordWrap: markdown SOURCE is prose, and prose must not run off the right
+ * edge — in Split at the design's widest panel the source column is ~380px,
+ * which hard-clipped lines mid-word with the horizontal scrollbar parked off
+ * the bottom of the viewport. VS Code word-wraps markdown by default for the
+ * same reason. Code keeps `off`: a wrapped line number lies about structure.
+ */
+function tabOptions(
+  tab: EditorTab,
+  readOnly: boolean
+): monacoNs.editor.IEditorOptions {
+  return { readOnly, wordWrap: tab.markdown ? 'on' : 'off' };
 }
 
 export interface MonacoHostProps {
@@ -151,7 +175,7 @@ export function MonacoHost({
     const ce = codeEditor.current;
     if (ce !== null) {
       ce.setModel(model);
-      ce.updateOptions({ readOnly });
+      ce.updateOptions(tabOptions(tab, readOnly));
       const state = takeViewState(tab.id);
       if (state !== null) ce.restoreViewState(state);
     }

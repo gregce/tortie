@@ -15,6 +15,8 @@
  *                       re-attach, receive bytes, kill it, exit 0
  *    (create → verify across two processes = the P1/T1 restart acceptance test)
  *  - GMUX_SHOT=<path>   capturePage after 3 s → PNG → quit
+ *                       (GMUX_SHOT_CAPTURE_OUT=<path> additionally writes the
+ *                       image a DRIVEN capture produced — see shot-hook.ts)
  *
  * NOTE: we run the SYSTEM tmux (3.6a at build time) — bundling a pinned tmux
  * inside gmux.app is out of scope today (docs/FINAL-REPORT.md §5 Stream A1).
@@ -30,7 +32,7 @@ import {
   registerAssetProtocol,
   registerAssetSchemePrivileged
 } from './assets';
-import { registerCaptureIpc } from './capture';
+import { registerCaptureIpc, saveLastCaptureTo } from './capture';
 import { registerDropIpc, startDropStorePruning } from './drop';
 import { registerFsIpc } from './fs';
 import { disposeGitIpc, registerGitIpc } from './git';
@@ -678,6 +680,14 @@ async function runShot(outPath: string): Promise<void> {
   }
 
   mainWindow = createWindow();
+  // GMUX_SHOT_VERBOSE=1 tees the renderer's console into the harness output —
+  // the only way to see WHERE a drive stalled, since the drive runs entirely
+  // inside the renderer.
+  if (process.env['GMUX_SHOT_VERBOSE'] === '1') {
+    mainWindow.webContents.on('console-message', (details) => {
+      console.log(`[gmux-shot][renderer] ${details.message}`);
+    });
+  }
   mainWindow.webContents.once('did-finish-load', () => {
     setTimeout(async () => {
       try {
@@ -704,15 +714,22 @@ async function runShot(outPath: string): Promise<void> {
             app.exit(1);
             return;
           }
-          await wc.executeJavaScript(
-            `(async () => {
+          // NOT awaited. The IIFE returns a promise, and awaiting it here
+          // would hand the whole harness to the drive: a drive that hangs
+          // (one bad await inside the renderer) would hang main FOREVER,
+          // never reaching the deadline loop below that exists to catch
+          // exactly that. Kick it off; the loop owns the timeout.
+          void wc
+            .executeJavaScript(
+              `(async () => {
                try { await window.__gmuxShotDrive(${driveJson}); }
                catch (err) {
                  window.__gmuxShotError = String(err && err.stack || err);
                }
-             })()`,
-            true
-          );
+             })(); undefined`,
+              true
+            )
+            .catch(() => undefined);
           const deadline = Date.now() + 60_000;
           for (;;) {
             const state = (await wc.executeJavaScript(
@@ -736,6 +753,14 @@ async function runShot(outPath: string): Promise<void> {
         const image = await wc.capturePage();
         await writeFile(outPath, image.toPNG());
         console.log(`[gmux-shot] wrote ${outPath}`);
+        // GMUX_SHOT_CAPTURE_OUT: keep the PNG the DRIVEN CAPTURE produced,
+        // not the window shot — for terminalCapture runs that is the only
+        // artifact proving the rasterizer path ran (see shot-hook.ts).
+        const captureOut = process.env['GMUX_SHOT_CAPTURE_OUT'];
+        if (captureOut !== undefined && captureOut.length > 0) {
+          const saved = await saveLastCaptureTo(captureOut);
+          console.log(`[gmux-shot] capture written to ${saved.path}`);
+        }
         if (driveJson !== undefined && driveJson.length > 0) {
           await wc
             .executeJavaScript('window.__gmuxShotCleanup?.()', true)

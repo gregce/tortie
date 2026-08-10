@@ -144,10 +144,27 @@ export function TerminalPane({
       letterSpacing: TERMINAL_LETTER_SPACING,
       theme: resolveTerminalTheme(),
       cursorBlink: true,
-      // Option-click selects text even while tmux mouse mode is on.
+      // Belt to the private server's `mouse off` brace: even if an app inside
+      // the pane turns mouse tracking on, Option-click still selects locally.
       macOptionClickForcesSelection: true
     });
     termRef.current = term;
+
+    // Right-click is a gmux gesture, never a byte on the wire (see the mouse
+    // note in resources/gmux-tmux.conf). xterm attaches its own NATIVE
+    // mousedown listener to .xterm-screen and writes an SGR button-3 report
+    // the moment an app has mouse tracking on — that is how one right-click
+    // used to open BOTH gmux's native menu and tmux's own pane menu (Split /
+    // Swap / Kill / Respawn), tmux vocabulary the user should never see. A
+    // capture-phase listener on the mount (an ancestor of .xterm-screen) runs
+    // first and stops the descent, so only React's onContextMenu below ever
+    // sees the click.
+    const swallowRightButton = (event: MouseEvent): void => {
+      if (event.button !== 2) return;
+      event.stopPropagation();
+    };
+    container.addEventListener('mousedown', swallowRightButton, true);
+    container.addEventListener('mouseup', swallowRightButton, true);
 
     // Published for the features that must reach a terminal they do not own:
     // capture + the context menu (Phase 12 #1/#2) and file drop (#8).
@@ -311,6 +328,8 @@ export function TerminalPane({
     return () => {
       disposed = true;
       unregister();
+      container.removeEventListener('mousedown', swallowRightButton, true);
+      container.removeEventListener('mouseup', swallowRightButton, true);
       document.fonts?.removeEventListener('loadingdone', onFontsLoaded);
       cancelAnimationFrame(raf);
       observer.disconnect();
@@ -342,6 +361,11 @@ export function TerminalPane({
   const onContextMenu = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
       event.preventDefault();
+      // xterm's own mousedown used to do this before we started swallowing
+      // button 3 above. Paste (clipboard:paste → webContents.paste()) lands
+      // on whatever has DOM focus, so the menu has to be opened over a
+      // focused terminal or Paste would type into the editor instead.
+      termRef.current?.focus();
       const session = useApp
         .getState()
         .sessions.find((s) => s.id === sessionId);

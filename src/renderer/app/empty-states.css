@@ -38,10 +38,16 @@
    the board reads "here is what gmux runs" without becoming a wall.
 --------------------------------------------------------------------------- */
 
+/* The track floor is what decides whether this reads as a board or as a wall.
+   180px needed 366px of region to hold two columns, so the everyday layout
+   (a 1440px window with the editor open leaves ~310px here) collapsed all
+   eleven agents into ONE stacked column — ~600px of vertical list, exactly
+   the wall §6.2 is written against. 140px keeps two columns down to 286px,
+   which is narrower than the region ever gets before the editor is closed. */
 .onb-fleet {
   width: 100%;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: var(--space-3);
   margin-top: var(--space-8);
 }
@@ -113,11 +119,15 @@
   flex: 0 0 auto;
 }
 
-/* Not installed: no fill, no border, muted label — visibly secondary, never
-   struck through or reddened. gmux picks the CLI up the moment it appears. */
+/* Not installed: visibly secondary, never struck through or reddened — gmux
+   picks the CLI up the moment it appears. It still has to hold its CELL,
+   though: dropping the border outright punched holes in the grid (one
+   uninstalled agent looked like a missing tile, four looked like damage), so
+   the outline goes dashed and recessive rather than away. */
 .onb-tile.missing {
   background: none;
-  border-color: transparent;
+  border-style: dashed;
+  border-color: var(--border);
   color: var(--text-muted);
   font-weight: var(--weight-regular);
   cursor: default;
@@ -128,8 +138,12 @@
   opacity: 0.6;
 }
 
-.onb-tile.missing:hover {
-  background: var(--bg-surface);
+/* Nothing happens on click, so nothing may brighten on hover — the old rule
+   ADDED a fill and a solid border, which made the one non-actionable tile
+   read as the most clickable thing on the board. */
+.onb-tile.missing:hover,
+.onb-tile.missing:active {
+  background: none;
   border-color: var(--border);
 }
 

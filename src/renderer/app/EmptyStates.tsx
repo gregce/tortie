@@ -79,14 +79,21 @@ export function NoSessions(): React.JSX.Element {
   // Same resolution the ⌘T modal preselects with, so the accented tile and
   // the two-keystroke path always name the same agent.
   const primaryId = defaultAgentChoice(options, defaultAgent);
-  // Last missing agent the user pointed at — drives the one caption line.
-  const [hintId, setHintId] = useState<string | null>(null);
+  // The one caption line. Pointing at a missing agent PREVIEWS it and taking
+  // the pointer away takes it back — a caption that only ever accumulates
+  // would leave an error-shaped sentence pinned under an inviting empty state
+  // after one accidental pass, inside an aria-live region at that. Clicking
+  // pins it, because for claude and codex the caption carries an install
+  // command the user has to be able to reach and select.
+  const [hint, setHint] = useState<{ id: string; pinned: boolean } | null>(
+    null
+  );
   // The tile being launched, so a double-click can't open two sessions.
   const [starting, setStarting] = useState<string | null>(null);
 
   const start = (opt: AgentPickerOption): void => {
     if (!opt.installed) {
-      setHintId(opt.id);
+      setHint({ id: opt.id, pinned: true });
       return;
     }
     if (starting !== null) return;
@@ -94,7 +101,16 @@ export function NoSessions(): React.JSX.Element {
     void quickCreate(opt.id).finally(() => setStarting(null));
   };
 
-  const hinted = options.find((o) => o.id === hintId) ?? null;
+  const point = (id: string): void => {
+    setHint((prev) =>
+      prev?.id === id && prev.pinned ? prev : { id, pinned: false }
+    );
+  };
+  const unpoint = (id: string): void => {
+    setHint((prev) => (prev?.id === id && !prev.pinned ? null : prev));
+  };
+
+  const hinted = options.find((o) => o.id === hint?.id) ?? null;
   const hintedCmd = hinted !== null ? installCommandFor(hinted.id) : null;
 
   return (
@@ -123,7 +139,8 @@ export function NoSessions(): React.JSX.Element {
               primary={opt.id === primaryId}
               starting={starting === opt.id}
               onActivate={start}
-              onPoint={setHintId}
+              onPoint={point}
+              onUnpoint={unpoint}
             />
           ))}
         </div>
@@ -165,7 +182,8 @@ function FleetTile({
   primary,
   starting,
   onActivate,
-  onPoint
+  onPoint,
+  onUnpoint
 }: {
   index: number;
   option: AgentPickerOption;
@@ -174,6 +192,7 @@ function FleetTile({
   starting: boolean;
   onActivate: (opt: AgentPickerOption) => void;
   onPoint: (id: string) => void;
+  onUnpoint: (id: string) => void;
 }): React.JSX.Element {
   // One right-hand slot, in priority order: the recorded hotkey, the honest
   // "not installed", the registry's early-support caveat (pi).
@@ -204,8 +223,14 @@ function FleetTile({
       onMouseEnter={() => {
         if (!option.installed) onPoint(option.id);
       }}
+      onMouseLeave={() => {
+        if (!option.installed) onUnpoint(option.id);
+      }}
       onFocus={() => {
         if (!option.installed) onPoint(option.id);
+      }}
+      onBlur={() => {
+        if (!option.installed) onUnpoint(option.id);
       }}
     >
       <AgentIcon

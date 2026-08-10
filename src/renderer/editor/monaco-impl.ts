@@ -117,6 +117,22 @@ monaco.editor.defineTheme(GMUX_MONACO_THEME, {
     'scrollbarSlider.activeBackground': '#3A3E48CC',
     'scrollbar.shadow': '#00000000',
     'editorOverviewRuler.border': '#00000000',
+    // Bracket pairs. Colorization is turned off at the model (monaco-loader)
+    // AND neutralised here, because vs-dark's rainbow — gold #FFD700, orchid
+    // #DA70D6, #179FFF… — exists in no gmux token, and Split renders the same
+    // fenced block twice on one screen: Monaco on the left, Shiki on the
+    // right. All six depths take the `delimiter` colour Shiki uses; only an
+    // UNMATCHED bracket is allowed to speak, in --error.
+    'editorBracketHighlight.foreground1': '#A8ADB8',
+    'editorBracketHighlight.foreground2': '#A8ADB8',
+    'editorBracketHighlight.foreground3': '#A8ADB8',
+    'editorBracketHighlight.foreground4': '#A8ADB8',
+    'editorBracketHighlight.foreground5': '#A8ADB8',
+    'editorBracketHighlight.foreground6': '#A8ADB8',
+    'editorBracketHighlight.unexpectedBracket.foreground': '#E5655E', // --error
+    // The MATCHING-bracket box, which vs-dark would otherwise draw in grey.
+    'editorBracketMatch.background': '#00000000',
+    'editorBracketMatch.border': '#3A3E48', // --border-strong
     // Minimap (Phase 12 item 6). Monaco derives the slider at roughly α.30,
     // which is invisible on this ground — these pin it to the token ramp.
     'minimap.background': '#131417', // --bg-canvas, one material

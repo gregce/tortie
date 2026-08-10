@@ -108,11 +108,6 @@ export function hasSelection(sessionId: string): boolean {
   return getTerminal(sessionId)?.hasSelection() ?? false;
 }
 
-/** True when the session is in the alternate screen — where no history exists. */
-export function isAlternateScreen(sessionId: string): boolean {
-  return getTerminal(sessionId)?.buffer.active.type === 'alternate';
-}
-
 /** Copy the selection as plain text. Returns false when nothing was selected. */
 export async function copySelection(sessionId: string): Promise<boolean> {
   const term = getTerminal(sessionId);
@@ -352,11 +347,16 @@ export async function captureHistory(
   const screen = screenElement(session.id);
   if (term === null || bridge === null || screen === null) return;
 
-  if (term.buffer.active.type === 'alternate') {
-    toast('info', 'This session is showing a full-screen app — no history.');
-    return;
-  }
-
+  // NO alternate-screen guard. `tmux attach` sends ESC[?1049h as its very
+  // FIRST bytes (measured on the wire: the attach client owns the outer
+  // terminal's alternate buffer so detaching can restore the user's screen),
+  // so xterm's `buffer.active.type` reads 'alternate' for EVERY gmux session
+  // for its whole life. Reading it told us nothing about the pane and made
+  // this — item 2's headline capability — permanently unreachable: the two
+  // menu items were always disabled and this function always bailed with
+  // "showing a full-screen app". The pane's own history lives in the tmux
+  // server either way (history-limit 50000); when there is genuinely nothing
+  // to show, `paneLines` comes back empty and says so below.
   const metrics = measureCells(term, screen);
   const fontFamily = resolveTerminalFontFamily();
   const theme = resolveTerminalTheme();

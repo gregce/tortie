@@ -15,7 +15,7 @@ import { useApp } from '../state/store';
 import { requestOpenFile } from '../state/open-file';
 // Harness-only reach into the terminal domain: the point of the item-2 shot
 // is that the REAL capture action runs, not a mock of it.
-import { captureVisible } from '../terminal/capture';
+import { captureHistory, captureVisible } from '../terminal/capture';
 import { getTerminal } from '../terminal/drop';
 import { setStoredEditorWidth } from './panel-width';
 import { useEditor } from './store';
@@ -83,8 +83,19 @@ export interface ShotDriveSpec {
    * OS-owned window and `capturePage` only sees this one. What is stageable
    * is everything the menu drives — the selection Copy/Capture act on, and
    * the toast the capture raises.
+   *
+   * `historyLines` runs the LONG capture instead (Capture Last 250 / 1,000
+   * Lines) — tmux capture-pane -e → an offscreen Terminal → serializeAsHtml
+   * → rasterizeHtml → capture:image. That middle is unreachable from a unit
+   * test (it needs a live pane, real font metrics and a real canvas), so this
+   * is where it gets exercised; pair it with GMUX_SHOT_CAPTURE_OUT to keep
+   * the PNG the run produced.
    */
-  terminalCapture?: { command: string; selectRows?: number };
+  terminalCapture?: {
+    command: string;
+    selectRows?: number;
+    historyLines?: number;
+  };
   /**
    * Switch the sidebar view before capture ('explorer' shows the Pierre
    * file tree; readiness waits for shadow-DOM rows to render).
@@ -114,6 +125,15 @@ declare global {
 
 const wait = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Stage marker. The drive runs entirely inside the renderer, so without these
+ * a stall is a black box from main's side — GMUX_SHOT_VERBOSE=1 tees the
+ * renderer console into the harness output (src/main/index.ts).
+ */
+const step = (name: string): void => {
+  console.log(`[shot-drive] ${name}`);
+};
 
 /** Project path the drive opened — removed again by the cleanup hook. */
 let drivenProjectPath: string | null = null;
@@ -166,18 +186,21 @@ export function installShotHook(): void {
     // Let boot() finish first. It is not a correctness dependency any more
     // (boot unions rather than overwrites), but driving a half-booted app
     // measures the wrong thing.
+    step('waiting for boot');
     for (let i = 0; i < 60 && !useApp.getState().ready; i++) await wait(100);
     const app = useApp.getState();
     drivenProjectPath = spec.projectPath;
     if (spec.editorWidth !== undefined) {
       setStoredEditorWidth(spec.projectPath, spec.editorWidth);
     }
+    step(`opening project ${spec.projectPath}`);
     await app.addProjectPath(spec.projectPath);
     // Let the sidebar pull git status / tree so the shot shows real chrome.
     await wait(700);
 
     if (spec.session !== undefined) {
       const sessionName = spec.session.name ?? 'shot-shell';
+      step(`creating session ${sessionName}`);
       await useApp.getState().createSession({
         name: sessionName,
         agent: spec.session.agent ?? 'shell'
@@ -198,17 +221,27 @@ export function installShotHook(): void {
         await wait(250);
       }
       await wait(1200);
+      step(`session ready (${String(drivenSessionId)})`);
     }
 
     if (spec.terminalCapture !== undefined && drivenSessionId !== null) {
       const sessionId = drivenSessionId;
+      step('sending terminal command');
       window.gmux?.term.sendInput(sessionId, `${spec.terminalCapture.command}\n`);
       await wait(1500);
       const term = getTerminal(sessionId);
       const session = useApp
         .getState()
         .sessions.find((s) => s.id === sessionId);
-      if (term !== null && session !== undefined) {
+      const historyLines = spec.terminalCapture.historyLines;
+      if (term !== null && session !== undefined && historyLines !== undefined) {
+        // Rasterizing hundreds of rows takes longer than a viewport grab —
+        // the toast is the signal that the whole path finished.
+        step(`captureHistory(${historyLines})`);
+        await captureHistory(session, historyLines);
+        step('captureHistory returned');
+        await wait(1200);
+      } else if (term !== null && session !== undefined) {
         const rows = spec.terminalCapture.selectRows ?? 8;
         const bottom = term.buffer.active.baseY + term.buffer.active.cursorY;
         term.selectLines(Math.max(0, bottom - rows), Math.max(0, bottom - 1));
@@ -413,6 +446,7 @@ export function installShotHook(): void {
       }
     }
 
+    step('ready');
     window.__gmuxShotReady = true;
   };
 

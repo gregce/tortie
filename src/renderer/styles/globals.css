@@ -136,19 +136,19 @@ textarea {
   filter: brightness(1.08);
 }
 
-.btn:disabled {
-  color: var(--text-disabled);
-  cursor: default;
-  opacity: 0.5;
-}
-
+/* Disabled is a STATE, not a dimmer. `opacity` faded the fill and the label
+   together, so a disabled PRIMARY button kept a confident blue (--accent at
+   .5 over the ground = #3C5A7F) under a #373A41 label — 1.60:1, which reads
+   as a rendering bug rather than as "not yet". Drop every variant to the
+   neutral raised surface and let --text-disabled carry the meaning; the
+   button stops inviting the click it cannot accept. */
+.btn:disabled,
 .btn:disabled:hover {
   background: var(--bg-raised);
+  color: var(--text-disabled);
+  border-color: var(--border);
+  cursor: default;
   filter: none;
-}
-
-.btn-primary:disabled:hover {
-  background: var(--accent);
 }
 
 /* Quiet text button (toast actions, banner actions). */

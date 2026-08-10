@@ -66,6 +66,19 @@ export function workingModel(
   const existing = workingModels.get(key);
   if (existing !== undefined && !existing.isDisposed()) return existing;
   const model = m.editor.createModel(contents, language, uriFor(m, key));
+  // Bracket-pair colorization also lives on the MODEL, not only on the
+  // editor: `IEditorOptions.bracketPairColorization` is read by VS Code's
+  // model service from workbench configuration, which standalone Monaco has
+  // no equivalent of, so setting it on the editor alone left the rainbow on.
+  // Measured: even with both off, Monaco still tags brackets with
+  // `bracket-highlighting-N`, so the colour that actually ships is the one
+  // monaco-impl.ts pins in the theme. Belt and braces, theme is the brace.
+  model.updateOptions({
+    bracketColorizationOptions: {
+      enabled: false,
+      independentColorPoolPerBracketType: false
+    }
+  });
   workingModels.set(key, model);
   return model;
 }

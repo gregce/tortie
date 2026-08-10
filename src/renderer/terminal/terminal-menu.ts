@@ -13,8 +13,8 @@
  *   ──────────
  *   Capture Screen                 → clipboard, with Save… on the toast
  *   Capture Selection              (needs a selection)
- *   Capture Last 250 Lines         ┐ off in the alternate screen, where no
- *   Capture Last 1000 Lines        ┘ history exists anywhere
+ *   Capture Last 250 Lines         ┐ always offered — the pane's history is
+ *   Capture Last 1000 Lines        ┘ in the tmux server, not in this client
  *   ──────────
  *   Clear                   ⌘K
  *
@@ -39,7 +39,6 @@ import {
   copySelectionAsHtml,
   hasLiveTerminal,
   hasSelection,
-  isAlternateScreen,
   pasteIntoSession,
   selectAll
 } from './capture';
@@ -78,7 +77,6 @@ export function terminalMenuItems(
   const live = hasLiveTerminal(session.id);
   const selected = live && hasSelection(session.id);
   const canCapture = live && captureBridge() !== null;
-  const alternate = isAlternateScreen(session.id);
 
   const items: (MenuItemSpec | 'sep')[] = [
     {
@@ -129,9 +127,11 @@ export function terminalMenuItems(
     });
     for (const lines of CAPTURE_PRESETS) {
       items.push({
+        // Never disabled: the history these read is the tmux server's, which
+        // exists whatever this attach client's own buffer is doing. The old
+        // `disabled: isAlternateScreen(…)` was always true, because `tmux
+        // attach` puts the CLIENT in the alternate buffer on connect.
         label: `Capture Last ${lines.toLocaleString()} Lines`,
-        // The alternate screen keeps no history — not in tmux, not in xterm.
-        disabled: alternate,
         run: () => void captureHistory(session, lines)
       });
     }

@@ -596,6 +596,19 @@ export function EditorPanel(): React.JSX.Element | null {
               read-only.
             </span>
           </div>
+        ) : activeTab.commit !== null ? (
+          // The third read-only reason (MonacoHost sets readOnly whenever
+          // tab.commit is non-null). The other two get a banner; this one used
+          // to get a tooltip and a SHA badge, so a user who opened a file from
+          // a past commit and typed just watched Monaco refuse. Not a warning
+          // — nothing is wrong — so it keeps the panel's own ground and says
+          // WHY, the way VS Code marks a read-only editor.
+          <div className="banner ed-banner-readonly">
+            <Codicon name="lock" size={14} />
+            <span className="banner-text">
+              Viewing this file as of {activeTab.commit.shortSha} — read-only.
+            </span>
+          </div>
         ) : null}
       </aside>
     </>

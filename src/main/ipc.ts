@@ -83,6 +83,35 @@ const STATUS_POLL_MS = 2_000;
 /** No output for this long (and no bell) → the session reads as 'idle'. */
 const MAIN_IDLE_AFTER_MS = 15_000;
 
+/**
+ * Server options resources/gmux-tmux.conf sets that gmux cannot afford to
+ * have wrong — a tmux server left running from an OLDER conf never re-reads
+ * the file, so every boot re-asserts them on the private socket.
+ *
+ *  - remain-on-exit failed (§6.6): keeps a failed pane alive long enough for
+ *    the reaper to read #{pane_dead_status} and record the real exit code.
+ *  - mouse off: tmux must not own the mouse. `on` turns xterm mouse reporting
+ *    on, which hands every click to the tmux server — a right-click then
+ *    opens tmux's pane menu on top of gmux's native one, and a plain drag
+ *    becomes a tmux copy-mode selection instead of an xterm one.
+ */
+const BOOT_SERVER_OPTIONS: readonly (readonly [string, string])[] = [
+  ['remain-on-exit', 'failed'],
+  ['mouse', 'off']
+];
+
+async function assertServerOptions(): Promise<void> {
+  for (const [name, value] of BOOT_SERVER_OPTIONS) {
+    await tmux
+      .execTmux(['set-option', '-g', name, value])
+      .catch((err: unknown) => {
+        console.warn(
+          `[gmux] could not set ${name}: ${(err as Error).message}`
+        );
+      });
+  }
+}
+
 export class GmuxCore {
   readonly manifest: ManifestStore;
   readonly control: tmux.TmuxControlClient;
@@ -139,16 +168,7 @@ export class GmuxCore {
         `[gmux] control client failed to start (will retry): ${(err as Error).message}`
       );
     }
-    // Exit-code truth (§6.6): the conf sets `remain-on-exit failed`, but a
-    // long-lived server started under an older conf never re-reads it —
-    // assert it here so failed panes stay readable for the reaper below.
-    await tmux
-      .execTmux(['set-option', '-g', 'remain-on-exit', 'failed'])
-      .catch((err: unknown) => {
-        console.warn(
-          `[gmux] could not set remain-on-exit: ${(err as Error).message}`
-        );
-      });
+    await assertServerOptions();
     await core.refresh();
     core.startStatusWatcher();
     return core;

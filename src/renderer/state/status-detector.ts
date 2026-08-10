@@ -11,9 +11,9 @@
  *    agent sessions (agents ring the terminal bell when they block on a
  *    permission prompt; plain shells beep on tab-completion/ZLE noise and
  *    must never demand attention), and never within
- *    BEL_INPUT_IGNORE_MS of the user's own input to that session — with
- *    tmux `mouse on`, clicks become mouse reports, zsh beeps at the
- *    un-decodable bytes, and the echoed BEL is self-inflicted, not a
+ *    BEL_INPUT_IGNORE_MS of the user's own input to that session — when an
+ *    app has mouse tracking on, clicks become mouse reports, zsh beeps at
+ *    the un-decodable bytes, and the echoed BEL is self-inflicted, not a
  *    request for attention.
  *  - any output                      → WORKING (and clears NEEDS_INPUT).
  *  - silence > 30s after a BURST     → NEEDS_INPUT for agent sessions: a

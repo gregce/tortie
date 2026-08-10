@@ -1407,20 +1407,32 @@
    S9 — Empty states (type-only, quiet)
 --------------------------------------------------------------------------- */
 
+/* `safe center` + overflow-y, not plain `center`: a centered column that
+   outgrows its box overflows in BOTH directions, and the top half is
+   unreachable — no scrollbar can move it back into view. At 1440×600 with the
+   editor open that sliced the title in half behind the terminal header and
+   pushed the hint line 119px below the fold. `safe` degrades to flex-start
+   the moment the content stops fitting, so the overflow only ever goes down,
+   where overflow-y:auto can scroll to it. */
 .empty {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: safe center;
   gap: var(--space-4);
   padding: var(--space-8);
   text-align: center;
   min-height: 0;
+  overflow-y: auto;
 }
 
+/* flex-shrink:0 is the other half of the fix above — a flex item defaults to
+   shrinking, so in a short window the column was squeezed under its own
+   content height and the paragraph painted over the buttons below it. */
 .empty-inner {
   max-width: 420px;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   align-items: center;

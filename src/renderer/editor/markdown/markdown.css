@@ -32,8 +32,12 @@
   outline-offset: -1px;
 }
 
+/* margin-inline:auto is the other half of the measure cap: without it a 68ch
+   column hugs the left edge of a wide pane and leaves the rest blank (48% of
+   a 1065px preview was dead canvas). Cap the measure, centre the column. */
 .md-content {
   max-width: 68ch;
+  margin-inline: auto;
   padding: var(--space-7) var(--space-8) var(--space-10);
   font-size: var(--text-base);
   line-height: 1.65;
@@ -226,10 +230,31 @@
   margin-left: calc(-1 * var(--space-6));
 }
 
+/* Drawn by gmux, not by the OS — see the `input` override in markdown-impl:
+   a disabled Chromium checkbox ignores accent-color and paints itself grey.
+   This is a <span role="checkbox">, so there is no widget to fight. */
 .md-task {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 13px;
+  height: 13px;
   margin-right: var(--space-3);
-  accent-color: var(--accent);
-  vertical-align: baseline;
+  vertical-align: -2px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+  color: var(--on-accent);
+}
+
+.md-task.checked {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.md-task .codicon {
+  line-height: 1;
 }
 
 .md-img {
@@ -279,6 +304,15 @@
 /* ---------------------------------------------------------------------------
    Heading ruler — the preview's answer to the minimap
 --------------------------------------------------------------------------- */
+
+/* One position indicator, not two. With the ruler mounted, .md-scroll's own
+   thumb sat immediately to its left — ~20px of stacked scroll furniture
+   telling the reader the same thing twice. Monaco's minimap absorbs the
+   scrollbar; the ruler gets the same deal, and gives it back the moment it
+   unmounts (narrow panes, documents with no headings). */
+.md-preview:has(.md-ruler) .md-scroll::-webkit-scrollbar:vertical {
+  width: 0;
+}
 
 .md-ruler {
   position: relative;

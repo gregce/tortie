@@ -23,6 +23,7 @@ import { getSharedHighlighter } from '@pierre/diffs';
 import type { Components } from 'react-markdown';
 import type { Element as HastElement, Node as HastNode } from 'hast';
 import type { HighlighterGeneric } from '@shikijs/types';
+import { Codicon } from '../../icons';
 import { GMUX_THEME_NAME } from '../../pierre/theme-bridge';
 import { markdownRehypePlugins } from './pipeline';
 import { resolveAssetSrc, resolveLinkPath } from './asset-url';
@@ -240,15 +241,23 @@ export function MarkdownDocument({
       input({ type, checked, ...rest }) {
         // GFM task lists. Read-only: the preview renders the file, it does
         // not edit it — Source mode is the edit path.
+        //
+        // NOT an <input>: Chromium ignores `accent-color` on a DISABLED
+        // checkbox, so the OS widget painted itself grey-on-grey (a #757575
+        // fill with a #3B3B3B tick, and unchecked boxes at 1.5:1 against the
+        // canvas) — the one element that made this preview read as a web page
+        // rather than as gmux. A box gmux draws, with a codicon tick.
         if (type !== 'checkbox') return <input type={type} {...rest} />;
+        const on = checked === true;
         return (
-          <input
-            type="checkbox"
-            className="md-task"
-            checked={checked === true}
-            readOnly
-            disabled
-          />
+          <span
+            className={`md-task${on ? ' checked' : ''}`}
+            role="checkbox"
+            aria-checked={on}
+            aria-disabled="true"
+          >
+            {on ? <Codicon name="check" size={11} /> : null}
+          </span>
         );
       },
 

@@ -518,3 +518,16 @@
 .ed-banner-spacer {
   flex: 1;
 }
+
+/* A history tab is read-only because the past is not an edit surface — a
+   fact, not a fault. No wash: the surface ground plus the banner's own
+   hairline, one muted line, a lock. */
+.ed-banner-readonly {
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+}
+
+.ed-banner-readonly .codicon {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+}

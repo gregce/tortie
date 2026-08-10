@@ -14,5 +14,6 @@ export {
   clearHistory,
   resetCaptureState,
   saveLastCapture,
+  saveLastCaptureTo,
   writeRichClipboard
 } from './service';

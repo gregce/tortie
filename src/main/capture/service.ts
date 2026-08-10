@@ -97,6 +97,21 @@ export function captureImage(input: CaptureImageInput): CaptureResult {
   return remember(png, input.suggestedName);
 }
 
+/**
+ * Write the last capture to an exact path, no dialog. The screenshot harness
+ * (GMUX_SHOT_CAPTURE_OUT) uses this to keep the PNG a driven capture produced
+ * — the only way to prove the offscreen-Terminal → serializeAsHtml →
+ * rasterizeHtml → capture:image path end to end without a human at a dialog.
+ */
+export async function saveLastCaptureTo(
+  filePath: string
+): Promise<CaptureSaveResult> {
+  if (lastCapture === null) throw new Error('there is no capture to save');
+  await writeFile(filePath, lastCapture.png);
+  lastSaveDir = dirname(filePath);
+  return { path: filePath };
+}
+
 /** Write the last capture to disk. Resolves `{ path: null }` when cancelled. */
 export async function saveLastCapture(
   win: BrowserWindow | null
@@ -115,9 +130,7 @@ export async function saveLastCapture(
           filters: [{ name: 'PNG image', extensions: ['png'] }]
         });
   if (result.canceled || result.filePath.length === 0) return { path: null };
-  await writeFile(result.filePath, lastCapture.png);
-  lastSaveDir = dirname(result.filePath);
-  return { path: result.filePath };
+  return saveLastCaptureTo(result.filePath);
 }
 
 /**
