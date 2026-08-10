@@ -1,63 +1,37 @@
-# Tortie icon exploration
+# Tortie icon assets
 
-These are exploratory Tortie brand assets. They do not replace the shipping
-gmux icon until a direction is selected and redrawn as a production master.
+The canonical Tortie mark is the seated sentinel: a watchful cat protected by the three-cut shell. It combines the feline meaning of “tortie” with the product promise of durable, sheltered continuity.
 
-## App and Dock icons
+The mark is intentionally freestanding. Do not place it inside a generated rounded square, badge, circle, or other outer chrome.
 
-On macOS, the application icon is also the normal Dock icon. A separate Dock
-asset is only needed if the application changes its icon at runtime.
+## Asset map
 
-All four concepts are 1024×1024 PNGs:
+| Use | Asset |
+| --- | --- |
+| Canonical transparent source | `master/tortie-master-1024.png` |
+| Packaged macOS application icon | `macos/Tortie.icns` |
+| macOS source representations | `macos/Tortie.iconset/` |
+| Dock and general application PNGs | `dock/` |
+| macOS menu-bar template images | `menu-bar/TortieTemplate.png` and `menu-bar/TortieTemplate@2x.png` |
+| Menu-bar working source | `menu-bar/TortieTemplate-source.png` |
+| Browser and touch icons | `web/` |
+| Windows application icon | `windows/Tortie.ico` |
 
-1. `app-icons/01-topographic-shell.png` — concentric shell plates, a blue
-   continuity path and one amber attention node. The clearest expression of the
-   Zen, but the most detailed at small sizes.
-2. `app-icons/02-continuity-loop.png` — one illuminated path moving through the
-   shell. The most ownable abstract mark, with some risk of reading as a maze or
-   fingerprint.
-3. `app-icons/03-sentinel-shell.png` — a low, faceted shell with one amber
-   session plate. Strong and stable, but it can drift toward armour.
-4. `app-icons/04-terminal-shell.png` — a simpler vertical shell whose seams
-   imply a prompt and stacked sessions. The strongest starting point for a
-   production icon because its silhouette survives reduction.
+The macOS Dock normally displays the application icon, so `macos/Tortie.icns` is the shipping asset. The files in `dock/` are convenient PNG exports for documentation, launchers, previews, and non-bundled uses.
 
-## Menu-bar template icons
+## Menu-bar use
 
-macOS menu-bar art is a separate monochrome template image. Each direction has:
+The menu-bar artwork is a monochrome optical adaptation of the full-color mark. It has wider negative-space seams so the cat and shell remain legible at 18 points. The `Template` filename convention allows macOS to tint it automatically; Electron callers should also mark the loaded native image as a template image.
 
-- `*Template.png` — 18×18, 1×
-- `*Template@2x.png` — 36×36, 2×
-- `*-template-source.png` — transparent high-resolution source
-- `*-source-keyed.png` — original generated source on a magenta removal key
+## Production notes
 
-Directions 01–03 preserve more of the corresponding app-icon shell. Directions
-04–06 deliberately test more aggressive reductions:
+- All PNGs use transparency and the sRGB color space.
+- The master is 1024 × 1024 pixels.
+- The `.icns` contains the standard 16, 32, 128, 256, 512, and Retina representations.
+- The Windows `.ico` contains 16, 32, 48, 64, 128, and 256 pixel representations.
+- The master SHA-256 is `43ab1cbb3924b744ad91915f050aa98af280a54ff081200ef2b9c6ab6eac6d0c`.
+- These files are the brand package only; they do not replace the current build icon automatically.
 
-1. topographic shell
-2. continuity shell
-3. terminal shell
-4. radial shell
-5. continuity spiral
-6. stacked shell
+## Provenance
 
-The generated template PNGs contain black artwork and transparency. In Electron,
-load the selected pair as template images so macOS can tint them correctly for
-light, dark and highlighted menu-bar states.
-
-## Generation notes
-
-The concepts were generated with the built-in GPT Image workflow. The prompts
-held these constraints constant while changing the shell construction:
-
-- premium, modern macOS developer-tool icon
-- graphite `#131417` / `#1b1d22`
-- restrained blue `#4d9de8`
-- exactly one amber `#f5b84a` attention detail
-- shell as the hero; no face, limbs, mascot treatment, text or terminal window
-- calm, durable, watchful and legible at small sizes
-
-Menu-bar sources were generated as flat black marks on `#ff00ff`, keyed to
-transparency locally, then resized with Lanczos filtering. Before release, the
-selected direction should be manually redrawn on a pixel grid and tested in
-both menu-bar appearances at 1× and 2×.
+The seated sentinel was made in reference-guided image-edit mode from the selected three-cut shell. Its chroma matte was removed locally, the outer alpha edge was cleaned, and all production sizes were derived deterministically from the preserved 1024-pixel master. The menu-bar template was derived from the same master with an optical monochrome treatment.
