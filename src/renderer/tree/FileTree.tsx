@@ -9,7 +9,8 @@
  * '!' row decoration in --git-conflict (Pierre has no conflict status).
  * Click / Enter on a file emits an open-in-editor request (diff mode when
  * the file has tracked changes). No inline file ops in v1 — context menu
- * (native, ui:popupMenu): Reveal in Finder, Copy path, Copy relative path.
+ * (native, ui:popupMenu): Open, Open in New Tab, Reveal in Finder, Copy path,
+ * Copy relative path.
  *
  * The Pierre model is path-first and imperative: lazy fs:readDir listings
  * from tree/store.ts are diffed into it via `batch`, expansion is watched
@@ -35,6 +36,8 @@ import {
 } from '@pierre/trees/react';
 import type { FsDirEntry, GitFileStatus } from '@shared/types';
 import { useApp } from '../state/store';
+import type { MenuItemSpec } from '../state/store';
+import { showOneTimeTip } from '../app/one-time-tip';
 import { treeStyles } from '../pierre/theme-bridge';
 import { isConflicted, openModeFor, pierreGitStatus } from './decorations';
 import { canReveal, reveal } from './fs-bridge';
@@ -396,10 +399,31 @@ export function FileTree({
           () => toast('error', 'Could not copy the path')
         );
       };
+      // The preview/pinned tab model is invisible until something says it out
+      // loud (Phase 12.4): single click recycles one italic tab, and a user
+      // who never guesses the double-click reads that as "opening files is
+      // broken". Naming both openings here is the teaching surface — and the
+      // first use of the pinned one hands over the gesture that replaces it.
+      const kind = treeInput.kinds.get(rel);
+      const openItems: (MenuItemSpec | 'sep')[] =
+        row.type === 'file' && kind !== 'other'
+          ? [
+              { label: 'Open', run: () => openRel(rel) },
+              {
+                label: 'Open in New Tab',
+                run: () => {
+                  openRel(rel, true);
+                  showOneTimeTip('open-in-new-tab');
+                }
+              },
+              'sep'
+            ]
+          : [];
       setMenu({
         x: e.clientX,
         y: e.clientY,
         items: [
+          ...openItems,
           ...(canReveal()
             ? [
                 {
@@ -420,7 +444,7 @@ export function FileTree({
         ]
       });
     },
-    [model, rootPath, setMenu, toast]
+    [model, openRel, rootPath, setMenu, toast, treeInput]
   );
 
   // Host styles: the theme bridge's --trees-theme-* vars plus gmux type

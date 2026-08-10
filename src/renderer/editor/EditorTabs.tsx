@@ -79,6 +79,9 @@ function tabMenuItems(tab: EditorTab): (MenuItemSpec | 'sep')[] {
 // Tab button
 // ---------------------------------------------------------------------------
 
+/** What the italic tab means, and both gestures that end it. */
+const PREVIEW_HINT = 'Preview — double-click the tab or start editing to keep it';
+
 function TabButton({
   tab,
   active
@@ -96,7 +99,7 @@ function TabButton({
     if (active) ref.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }, [active]);
 
-  const title =
+  const identity =
     tab.commit !== null
       ? `${tab.relPath} — ${tab.commit.shortSha}${
           tab.commit.subject !== undefined ? ` · ${tab.commit.subject}` : ''
@@ -107,11 +110,18 @@ function TabButton({
           ? `${tab.name} — changes vs HEAD`
           : tab.path;
 
+  // The italic slant is the only thing on screen saying this tab is on loan,
+  // and italics teach nobody (Phase 12.4). The tooltip says what it is AND
+  // both ways out of it; the accessible name carries the same word, because
+  // a slant is invisible to a screen reader.
+  const title = tab.preview ? `${identity}\n${PREVIEW_HINT}` : identity;
+
   return (
     <div
       ref={ref}
       role="tab"
       aria-selected={active}
+      {...(tab.preview ? { 'aria-label': `${tab.name} — preview` } : {})}
       tabIndex={0}
       className={`ed-tab${active ? ' active' : ''}`}
       title={title}

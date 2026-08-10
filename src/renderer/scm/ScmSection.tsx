@@ -32,6 +32,7 @@ import {
 } from '../state/git';
 import type { PendingOp, ScmGroups } from '../state/git';
 import { Codicon } from '../icons';
+import { showOneTimeTip } from '../app/one-time-tip';
 import { splitPath } from './format';
 import { requestOpenFile } from './open-file';
 import { HistorySection } from './HistorySection';
@@ -147,7 +148,8 @@ function ScmFileRow({
   repoPath: string;
   active: boolean;
   pendingOp: PendingOp | undefined;
-  onActivate: (row: ScmRowModel) => void;
+  /** `keep` opens a pinned tab instead of recycling the preview slot. */
+  onActivate: (row: ScmRowModel, keep?: boolean) => void;
 }): React.JSX.Element {
   const stage = useGit((s) => s.stage);
   const unstage = useGit((s) => s.unstage);
@@ -174,6 +176,16 @@ function ScmFileRow({
         label:
           group === 'untracked' || group === 'merge' ? 'Open file' : 'Open diff',
         run: () => onActivate(row)
+      },
+      // Files open the same way everywhere in gmux (Phase 12.4): one preview
+      // slot by default, a kept tab on demand. A verb the explorer has and
+      // this list does not would make the tab model look like a tree quirk.
+      {
+        label: 'Open in New Tab',
+        run: () => {
+          onActivate(row, true);
+          showOneTimeTip('open-in-new-tab');
+        }
       },
       'sep'
     ];
@@ -523,7 +535,7 @@ export function ScmSection(): React.JSX.Element | null {
   );
 
   const activate = useCallback(
-    (row: ScmRowModel): void => {
+    (row: ScmRowModel, keep = false): void => {
       if (repoPath === null) return;
       setCursorKey(row.key);
       requestOpenFile({
@@ -536,6 +548,9 @@ export function ScmSection(): React.JSX.Element | null {
           : {}),
         mode:
           row.group === 'untracked' || row.group === 'merge' ? 'file' : 'diff',
+        // Plain activation keeps the v1 behavior (the preview slot); `keep`
+        // is the "Open in New Tab" verb.
+        preview: !keep,
         source:
           row.group === 'staged'
             ? 'index'
