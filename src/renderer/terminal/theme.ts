@@ -34,7 +34,8 @@ export const terminalTheme: ITheme = {
 };
 
 /**
- * DESIGN.md §1.8: terminal runs SF Mono 13px, lineHeight 1.25, spacing 0.
+ * DESIGN.md §1.8: terminal runs `--font-terminal` at 13px, lineHeight 1.25,
+ * spacing 0 — the verified macOS-native stack below (no bundled face).
  *
  * Glyph coverage — verified in this Chromium (Phase 9.2 Bug C canvas-bitmap
  * probe): "SF Mono" is not system-registered (Terminal.app-private) and
@@ -76,8 +77,13 @@ export function resolveTerminalTheme(): ITheme {
   };
 }
 
-/** `--font-mono` token when present, else the DESIGN.md stack. */
+/**
+ * `--font-terminal` token when present, else the DESIGN.md stack. The token
+ * is xterm-only (DESIGN.md §1.8): `--font-mono` stays the UI-mono token and
+ * the two are never conflated, so the terminal face can change (deferred
+ * Settings → General control, DESIGN-SPEC S13) without touching UI chrome.
+ */
 export function resolveTerminalFontFamily(): string {
   const styles = getComputedStyle(document.documentElement);
-  return cssVar(styles, '--font-mono') ?? TERMINAL_FONT_FALLBACK;
+  return cssVar(styles, '--font-terminal') ?? TERMINAL_FONT_FALLBACK;
 }

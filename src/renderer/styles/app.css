@@ -1206,7 +1206,7 @@
   padding: 0 var(--space-2);
   border-radius: var(--r-sm);
   background: var(--bg-raised);
-  color: var(--text-muted);
+  color: var(--text-secondary); /* never muted on raised (§1.1 rule) */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1234,7 +1234,7 @@
   padding: 0 var(--space-2);
   border-radius: var(--r-sm);
   background: var(--bg-raised);
-  color: var(--text-muted);
+  color: var(--text-secondary); /* never muted on raised (§1.1 rule) */
   flex: 0 0 auto;
 }
 

@@ -74,6 +74,14 @@
     -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue',
     sans-serif;
   --font-mono: 'SF Mono', ui-monospace, Menlo, monospace;
+  /* xterm ONLY — never conflated with --font-mono (§1.8). Verified native
+     stack (Phase 9.2 Bug C): "SF Mono" is Terminal.app-private and Chromium
+     lacks ui-monospace, so Menlo is the face that actually renders — and it
+     covers the prompt-glyph gauntlet (➜ ✗ ● ▲ λ) at one cell advance. The
+     historical underscores were a missing UTF-8 locale (src/main/tmux/env.ts),
+     not glyph coverage, so no bundled face ships. The deferred Settings →
+     General terminal-font control (DESIGN-SPEC S13) retargets this token. */
+  --font-terminal: 'SF Mono', ui-monospace, Menlo, monospace;
 
   --text-xs: 11px; /* section labels (uppercase +0.04em), badges, ages */
   --lh-xs: 16px;
