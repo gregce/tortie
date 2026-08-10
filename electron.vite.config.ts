@@ -19,6 +19,15 @@ export default defineConfig({
   },
   renderer: {
     plugins: [react()],
+    // Inline workers (the only kind that can start from a file:// renderer —
+    // see src/renderer/editor/monaco-impl.ts) are emitted as one IIFE chunk,
+    // so a worker containing a dynamic import fails the build. @pierre/diffs'
+    // highlight worker has one (shiki's optional wasm engine, which we do not
+    // use); folding it in keeps every worker single-chunk. Monaco's workers
+    // have no dynamic imports and are unaffected.
+    worker: {
+      rollupOptions: { output: { inlineDynamicImports: true } }
+    },
     resolve: {
       alias: {
         '@shared': resolve(__dirname, 'src/shared'),

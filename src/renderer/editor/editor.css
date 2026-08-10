@@ -236,11 +236,18 @@
 
 .ed-host,
 .ed-mount,
-.ed-pierre,
+.ed-diff,
 .ed-skeleton,
 .ed-state {
   position: absolute;
   inset: 0;
+}
+
+/* Diff mode is the scroller plus an optional note strip under it (Phase
+   12.0), stacked the same way the panel stacks its own body and banner. */
+.ed-diff {
+  display: flex;
+  flex-direction: column;
 }
 
 /* Pierre diff host (Phase 11). The diff renders in shadow DOM — colors come
@@ -249,9 +256,12 @@
    the same type ramp as Monaco's File mode.
 
    This element is also the virtualizer's scroll root (PierreDiff.tsx): the
-   `overflow: auto` + definite height (inset:0 above) is what lets Pierre
+   `overflow: auto` + definite height (flex child of .ed-diff, which is the
+   one element in this stack with a resolved height) is what lets Pierre
    compute a render window instead of materializing every line. */
 .ed-pierre {
+  flex: 1;
+  min-height: 0;
   overflow: auto;
   background: var(--bg-canvas);
 
@@ -272,13 +282,23 @@
 
 /* The virtualizer's observed content wrapper. min-height lives here (not on
    diffs-container) because a percentage needs a parent with a resolved
-   height, and .ed-pierre is the one element in this stack that has one. */
+   height, and .ed-pierre has one. */
 .ed-pierre-content {
   min-height: 100%;
 }
 
 .ed-pierre diffs-container {
   display: block;
+}
+
+/* Note strip under a degraded diff (approximate while computing, or plain
+   text past the highlight limit). Informational, not a warning: the panel's
+   own surface, secondary text, no wash — it states a fact about this file,
+   the user has nothing to fix. */
+.ed-note {
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
 }
 
 /* ---------------------------------------------------------------------------
