@@ -117,7 +117,10 @@ REQUIRED BEHAVIOR:
 5. Keyboard parity: ⇧PageUp/PageDown and ⌘↑/↓ (or the documented map) scroll the same history; document in the ⌘/ overlay.
 VERIFY: on a claude pane with a long transcript, a codex pane, and a plain shell — wheel up reveals prior output in all three; the scrollbar is visible at rest and tracks position; typing returns to live; selection+copy still work; an inner mouse-tracking app (e.g. run `vim` or an agent picker) still receives its own wheel events. Also confirm no interaction with Phase 12's drop router, capture, or right-click menu.
 
-## Phase 12.5 — Shift+Enter newline in the prompt, for EVERY supported CLI (ships right after 12.3)
+## Phase 12.5 — Shift+Enter newline in the prompt, for EVERY supported CLI ✅ SHIPPED (spec: docs/research/20-shift-enter.md)
+SHIPPED as a single LF (0x0a): `src/renderer/terminal/keys/multiline.ts` holds the per-agent table and `keys/index.ts` the branch. Two follow-ups the owning workflow could not make itself, both trivial:
+- **⌘/ overlay** (src/renderer/app/ShortcutsOverlay.tsx was owned elsewhere): add to the "Sessions" group, next to the ⇧⇞/⇧⇟ row — `{ keys: ['⇧↩'], action: 'New line in the prompt (Enter still sends)' }`.
+- **Registry merge** (src/main/agents/registry.ts was owned by Phase 13): the table is renderer-local for now and belongs on `AgentRegistryEntry.multilineKey` beside `imageDrop`, with the same `DEFAULT_*` constant and IPC-primed renderer cache. Module header carries the instructions.
 User ask: pressing Shift+Enter should expand the agent's prompt box to a new line instead of submitting — for all supported CLIs, not just Claude.
 WHY IT DOESN'T WORK TODAY (confirm in research): a terminal sends a bare `CR` for both Enter and Shift+Enter unless the modifier is encoded. That is precisely why Claude Code ships `/terminal-setup` to patch iTerm2/VS Code keymaps. gmux owns its terminal, so it can do this natively and correctly — no user setup, no editing anyone's config.
 Design constraints:

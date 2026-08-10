@@ -30,11 +30,14 @@
  *
  * ⇧PageUp/⇧PageDown (Phase 12.3) are the keyboard half of the wheel: they
  * scroll the session's tmux history, and plain PageUp still goes to the app.
+ *
+ * ⇧↩ (Phase 12.5) inserts a newline in the agent's prompt instead of
+ * submitting — ./multiline.ts holds the bytes and why they are those bytes.
  */
 
 import type { Terminal } from '@xterm/xterm';
-import { clearSession, copySelection, selectAll } from './capture';
-import type { ScrollSurface } from './scroll/surface';
+import { clearSession, copySelection, selectAll } from '../capture';
+import type { ScrollSurface } from '../scroll/surface';
 
 /** ASCII end-of-text — what ⌃C sends, and what SIGINT is made of. */
 const ETX = '\u0003';
@@ -52,10 +55,38 @@ export function terminalKeyHandler(
   sessionId: string,
   term: Terminal,
   tmuxName: () => string,
-  surface: ScrollSurface
+  surface: ScrollSurface,
+  multiline: () => string | null
 ): (event: KeyboardEvent) => boolean {
   return (event: KeyboardEvent): boolean => {
     if (event.type !== 'keydown') return true;
+
+    // ⇧↩ — a newline in the prompt, not a submit (Phase 12.5).
+    //
+    // Delivery is `term.input()`, NOT gmux.term.sendInput: that puts the byte
+    // in the same onData queue as every typed character, so it cannot
+    // interleave around the user's own text, it feeds noteTerminalInput, and —
+    // the hard dependency — it travels TerminalPane's scroll.sendInput path,
+    // which cancels tmux copy-mode first. MEASURED: with the pane scrolled,
+    // LF is swallowed by copy-mode's key table and never reaches the agent,
+    // via a real attach client AND via `send-keys -H` (research 20 §4). A
+    // Shift+Enter that silently does nothing while scrolled would be the bug.
+    if (
+      event.key === 'Enter' &&
+      event.shiftKey &&
+      !event.metaKey &&
+      !event.ctrlKey &&
+      !event.altKey
+    ) {
+      const sequence = multiline();
+      // This agent has no multiline input: hand the key back to xterm
+      // WITHOUT preventDefault, so it sends its usual CR and submit is never
+      // broken. gmux does not invent a sequence it has not measured.
+      if (sequence === null) return true;
+      event.preventDefault();
+      term.input(sequence);
+      return false;
+    }
 
     // ⇧PageUp / ⇧PageDown — the terminal convention for "scroll the
     // scrollback", and the keyboard half of the wheel. Plain PageUp still

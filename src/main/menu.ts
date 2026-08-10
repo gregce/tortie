@@ -18,7 +18,7 @@
  * over EVT_MENU_ACTION so both routes end in the same action.
  *
  * This ordering is load-bearing for the terminal: ⌘C with no selection must
- * send SIGINT, which only works because src/renderer/terminal/keys.ts sees
+ * send SIGINT, which only works because src/renderer/terminal/keys/ sees
  * the key before the Edit menu's `role:'copy'` and can suppress it.
  * Renderer-only chords (⌘1…⌘9, ⌘⇧]/⌘⇧[, ⌘↩ commit) stay off the menu on
  * purpose: they are context-sensitive or would bloat it.

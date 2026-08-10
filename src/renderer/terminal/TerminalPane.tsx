@@ -26,10 +26,11 @@ import { WebLinksAddon } from '@xterm/addon-web-links';
 import '@xterm/xterm/css/xterm.css';
 import './terminal.css';
 import type { GmuxApi, GmuxTermStreamExtras } from '@shared/ipc';
-import type { GmuxErrorPayload, SessionStatus } from '@shared/types';
+import type { GmuxErrorPayload, Session, SessionStatus } from '@shared/types';
 import { useApp } from '../state/store';
 import { registerTerminal } from './drop/registry';
 import { terminalKeyHandler } from './keys';
+import { multilineSequenceFor } from './keys/multiline';
 import { ScrollSurface } from './scroll/surface';
 import { TerminalScrollbar } from './scroll/TerminalScrollbar';
 import { canSplit, showTerminalMenu } from './terminal-menu';
@@ -184,17 +185,20 @@ export function TerminalPane({
     setSurface(scroll);
     term.attachCustomWheelEventHandler((event) => scroll.handleWheel(event));
 
-    // ⌘C / ⌘A / ⌘K. ⌘C with a selection copies; with NO selection it sends
-    // SIGINT — the renderer sees the key before the app menu (see ./keys.ts),
-    // so this handler, not `role:'copy'`, decides which.
+    // ⌘C / ⌘A / ⌘K, ⇧PageUp/⇧PageDown and ⇧Enter. ⌘C with a selection copies;
+    // with NO selection it sends SIGINT — the renderer sees the key before the
+    // app menu (see ./keys), so this handler, not `role:'copy'`, decides which.
+    // The closures are read per keystroke, never captured: a session can be
+    // renamed, and the agent it runs is what picks the ⇧Enter newline bytes.
+    const sessionRow = (): Session | undefined =>
+      useApp.getState().sessions.find((s) => s.id === sessionId);
     term.attachCustomKeyEventHandler(
       terminalKeyHandler(
         sessionId,
         term,
-        () =>
-          useApp.getState().sessions.find((s) => s.id === sessionId)
-            ?.tmuxName ?? '',
-        scroll
+        () => sessionRow()?.tmuxName ?? '',
+        scroll,
+        () => multilineSequenceFor(sessionRow()?.agent ?? 'shell')
       )
     );
 
