@@ -5,3 +5,6 @@ release/
 .DS_Store
 *.log
 .vite/
+.specstory/
+.tmp/
+.antigravitycli/
