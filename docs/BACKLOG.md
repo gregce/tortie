@@ -109,6 +109,15 @@ REQUIRED BEHAVIOR:
 5. Keyboard parity: ⇧PageUp/PageDown and ⌘↑/↓ (or the documented map) scroll the same history; document in the ⌘/ overlay.
 VERIFY: on a claude pane with a long transcript, a codex pane, and a plain shell — wheel up reveals prior output in all three; the scrollbar is visible at rest and tracks position; typing returns to live; selection+copy still work; an inner mouse-tracking app (e.g. run `vim` or an agent picker) still receives its own wheel events. Also confirm no interaction with Phase 12's drop router, capture, or right-click menu.
 
+## Phase 12.4 — teach the preview/pinned tab model from the explorer (small UX)
+Problem: Phase 12 shipped VS Code's preview-tab model (single-click = reusable italic preview slot, double-click or edit = kept tab) and it is completely invisible — a user single-clicking through files sees one tab recycling and assumes multi-file opening is broken.
+Build:
+1. **Tree row context menu gains open verbs** (native, through the existing ui:popupMenu bridge, on src/renderer/tree row right-click): "Open" (preview, current behavior) and **"Open in New Tab"** (opens KEPT/pinned immediately). Keep the menu short — these sit above the existing items with a separator.
+2. **Teach the shortcut once, then stop**: the first time "Open in New Tab" is used, show a one-time toast — "Tip: double-clicking a file opens it in a new tab too." — persisted so it never appears again (same one-time pattern as the first-quit toast from Phase 8.3). Do NOT bake the hint into the menu label permanently.
+3. **Make the preview state self-explanatory**: the italic preview tab gets a tooltip explaining it ("Preview — double-click the tab or start editing to keep it"), and double-clicking the TAB itself pins it (VS Code parity) if that is not already wired.
+4. Same verbs where they make sense on SCM rows and (later) search results, so the model is consistent everywhere files open — coordinate with Phase 14's result-open path.
+Verify: right-click a tree row → both verbs present and correct; "Open in New Tab" pins; the tip appears exactly once ever; single-click still recycles the preview slot; double-click on a row and on a tab both pin.
+
 ## Phase 13 — accurate per-agent activity detection (user-hit: status is ALWAYS "working")
 Symptom (ref shot: media_88j9nVkcw0/CleanShot 2026-08-10 at 14.34.35@2x.png): claude-1 sits at an idle prompt yet the tab reads "working" permanently.
 ROOT CAUSE — **CORRECTED BY RESEARCH (docs/research/18-agent-activity.md §1; my earlier "TUIs redraw constantly" premise was measured FALSE — idle claude/codex/qwen/gemini/agy/pi emit ZERO bytes).** Two defects compose:
