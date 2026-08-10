@@ -6,12 +6,14 @@
  * thumb never appears. The real scrollback lives in tmux, so the bar is drawn
  * from the tmux geometry the ScrollSurface polls.
  *
- * It sits in the 10px lane the fit addon already reserves for xterm's
- * scrollbar (terminal.css hides that one's thumb but keeps its width, so cell
- * layout is unchanged). Always present — minimal at rest so the affordance is
+ * It sits in the 14px lane the fit addon already reserves for xterm's
+ * overview ruler, which terminal.css keeps clear of glyphs so the whole lane
+ * is this bar's hit target. The thumb is minimal at rest so the affordance is
  * discoverable without competing with output, thicker on hover, draggable to
- * scrub. Colors are tokens; motion is a single width/color transition, which
- * the global prefers-reduced-motion rule collapses to 1 ms.
+ * scrub — and ABSENT when the pane has no history, because a thumb that spans
+ * the whole track is a border, not a scrollbar. Colors are tokens; motion is
+ * a single width/color transition, which the global prefers-reduced-motion
+ * rule collapses to 1 ms.
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -49,6 +51,12 @@ export function TerminalScrollbar({
     return () => observer.disconnect();
   }, []);
 
+  // A thumb only ever means "there is history above you". With nothing to
+  // scroll it would size to the whole track — an unbroken 3px rule down every
+  // pane, which a split surface multiplies into a grid of meaningless lines —
+  // so the bar draws no thumb at all and the track goes pointer-events:none
+  // (scrollbar.css) rather than absorbing the click that focuses the pane.
+  const scrollable = view.history > 0;
   const total = Math.max(1, view.history + Math.max(1, view.rows));
   const thumbHeight = Math.max(
     MIN_THUMB_PX,
@@ -57,8 +65,9 @@ export function TerminalScrollbar({
   const travel = Math.max(0, trackHeight - thumbHeight);
   // position 0 (live) parks the thumb at the BOTTOM; position === history is
   // the top of the transcript.
-  const thumbTop =
-    view.history > 0 ? (1 - view.position / view.history) * travel : travel;
+  const thumbTop = scrollable
+    ? (1 - view.position / view.history) * travel
+    : travel;
 
   /** Pointer y inside the track → the offset it selects. */
   const positionAt = useCallback(
@@ -117,7 +126,7 @@ export function TerminalScrollbar({
       className="gmux-terminal-scrollbar"
       data-dragging={dragging ? '' : undefined}
       data-away={view.atLive ? undefined : ''}
-      data-scrollable={view.history > 0 ? '' : undefined}
+      data-scrollable={scrollable ? '' : undefined}
       role="scrollbar"
       aria-orientation="vertical"
       aria-valuemin={0}
@@ -129,13 +138,15 @@ export function TerminalScrollbar({
       onPointerUp={endDrag}
       onPointerCancel={endDrag}
     >
-      <div
-        className="gmux-terminal-scrollbar-thumb"
-        style={{
-          height: `${thumbHeight}px`,
-          transform: `translateY(${thumbTop}px)`
-        }}
-      />
+      {scrollable ? (
+        <div
+          className="gmux-terminal-scrollbar-thumb"
+          style={{
+            height: `${thumbHeight}px`,
+            transform: `translateY(${thumbTop}px)`
+          }}
+        />
+      ) : null}
     </div>
   );
 }

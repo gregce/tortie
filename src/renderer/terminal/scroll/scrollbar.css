@@ -1,7 +1,11 @@
 /* Session scrollbar (Phase 12.3) — gmux draws this; xterm's own is inert in
    a tmux-attached pane. It lives in the lane xterm 6's fit addon already
    reserves on the right (its 14px overview-ruler allowance, which gmux
-   registers no decorations in), so the bar costs no terminal columns. */
+   registers no decorations in), so the bar costs no terminal columns.
+   The lane is only really the bar's because terminal.css keeps the terminal's
+   own inset off the mount — z-index cannot buy it: the WebGL renderer's link
+   canvas is a z-index:2 child of .xterm-screen, so any glyph column drawn
+   under this bar also wins the hit test over it. Geometry, not stacking. */
 
 .gmux-terminal-scrollbar {
   position: absolute;
@@ -13,6 +17,10 @@
   /* No track fill: over a live terminal a track reads as a seam. The thumb
      alone carries the affordance. */
   background: transparent;
+  /* Arrow, never the pointing hand — native macOS scrollbars and VS Code's
+     keep the default cursor, and a hand over a terminal's edge is the single
+     clearest "this is a web page" tell on the surface. The width growth on
+     hover is the whole affordance. */
   cursor: default;
   touch-action: none;
 }
@@ -41,8 +49,10 @@
   background: var(--scroll-thumb-away);
 }
 
-/* Hover thickens and brightens; dragging holds that state. The whole lane is
-   the hover target, so the pointer finds it without pixel-hunting. */
+/* Hover thickens and brightens; dragging holds that state. The whole 14px
+   lane is the hover target — not just the 3px thumb — so the pointer finds it
+   without pixel-hunting, which matters most inside a split, where the pane is
+   nowhere near the screen edge to slam the pointer against. */
 .gmux-terminal-scrollbar:hover .gmux-terminal-scrollbar-thumb,
 .gmux-terminal-scrollbar[data-dragging] .gmux-terminal-scrollbar-thumb {
   width: var(--scroll-thumb-w-hover);
@@ -54,13 +64,11 @@
   background: var(--scroll-thumb-active);
 }
 
-/* With no history there is nothing to scrub, so the lane must not absorb the
-   click that focuses the pane — the bar still draws (full-height thumb, the
-   honest "all of it is on screen"), it just stops being a target. */
+/* With no history there is nothing to scrub: the component draws no thumb at
+   all (a full-height one is a border, not a scrollbar — and a 2×3 split would
+   rule the surface into a grid of them), and the empty lane must not absorb
+   the click that focuses the pane. A thumb therefore always means "there is
+   history above you". */
 .gmux-terminal-scrollbar:not([data-scrollable]) {
   pointer-events: none;
-}
-
-.gmux-terminal-scrollbar[data-scrollable] {
-  cursor: pointer;
 }

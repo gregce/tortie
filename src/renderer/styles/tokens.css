@@ -117,15 +117,20 @@
 
   /* Session scrollbar (Phase 12.3) — gmux draws its own bar over live
      terminal output, so the thumb is translucent from the neutral ramp
-     (--text-muted / --text-secondary / --text-primary) rather than an opaque
-     fill that would read as chrome sitting on the transcript. The lane is the
-     width xterm's fit addon already reserves, so the bar costs no columns. */
+     (--text-secondary / --text-primary) rather than an opaque fill that would
+     read as chrome sitting on the transcript. Every state clears the 3:1
+     floor a UI control owes, on --bg-canvas: rest 3.1:1, away 3.5:1, hover
+     6.5:1, dragging 11.9:1 — one ramp, each step visibly louder than the last.
+     (The rest value was rgba(131,137,150,.42) = 1.9:1, invisible at a glance,
+     which defeated the point of an always-present bar.)
+     --scroll-lane is the width xterm's fit addon already reserves, so the bar
+     costs no columns — terminal.css depends on it being exactly 14px. */
   --scroll-lane: 14px;
   --scroll-thumb-inset: 3px;
   --scroll-thumb-w: 3px;
   --scroll-thumb-w-away: 5px;
   --scroll-thumb-w-hover: 6px;
-  --scroll-thumb: rgba(131, 137, 150, 0.42);
+  --scroll-thumb: rgba(168, 173, 184, 0.52);
   --scroll-thumb-away: rgba(168, 173, 184, 0.58);
   --scroll-thumb-hover: rgba(200, 205, 214, 0.72);
   --scroll-thumb-active: rgba(232, 234, 237, 0.88);

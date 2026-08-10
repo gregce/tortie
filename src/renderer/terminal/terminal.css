@@ -26,22 +26,33 @@
   overflow: hidden;
 }
 
-/* xterm mounts here; small inset so glyphs don't kiss the region hairline. */
+/* xterm mounts here. The mount itself carries NO padding — see below. */
 .gmux-terminal-mount {
   position: absolute;
   inset: 0;
-  padding: 4px 0 0 6px;
 }
 
+/* Small inset so glyphs don't kiss the region hairline, and it lives on the
+   .xterm element rather than on the mount ON PURPOSE. The fit addon reads the
+   parent's WIDTH but the padding of `terminal.element` (this element), so an
+   inset on the mount is invisible to the column maths: it shifted the whole
+   screen right by its own width and slid the last column under the scrollbar
+   lane (measured before the fix: 9px of overlap at 146 cols, so the final
+   glyph cell sat inside the bar's box).
+   RIGHT PADDING STAYS 0: the lane is the 14px the fit addon already subtracts
+   for xterm's overview ruler (`options.overviewRuler?.width || 14`), which
+   gmux registers no decorations in. That reservation IS --scroll-lane, so the
+   two numbers must stay equal — adding a right inset here would reserve the
+   lane twice and eat a second column for nothing. */
 .gmux-terminal-mount .xterm {
   height: 100%;
+  padding: 4px 0 0 6px;
 }
 
 /* xterm's own scrollbar can never show a thumb here: `tmux attach` puts the
    client in the alternate buffer, where the viewport is exactly one screen
-   tall. Hide its chrome but KEEP the 10px lane — the fit addon sizes columns
-   from `offsetWidth - clientWidth`, so removing the width would reflow every
-   pane — and let gmux's own bar (scroll/scrollbar.css) live in that lane. */
+   tall and there is nothing to scroll. Keep its chrome invisible anyway; the
+   lane it would have used belongs to gmux's bar (scroll/scrollbar.css). */
 .gmux-terminal-mount .xterm-viewport::-webkit-scrollbar-thumb {
   background: transparent;
 }

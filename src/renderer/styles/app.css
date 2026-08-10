@@ -558,10 +558,23 @@
   color: var(--text-secondary);
 }
 
-.stab-wt,
-.stab-saved {
+.stab-wt {
   display: inline-flex;
   color: var(--text-muted);
+  flex: 0 0 auto;
+}
+
+/* Contrast rule (§1.1): never muted text on raised fills. */
+.stab:hover .stab-wt {
+  color: var(--text-secondary);
+}
+
+/* SAVED and IDLE share the same solid gray dot, so the ↺ is the ONLY mark
+   that tells them apart — it cannot be the dimmest thing in the tab. It reads
+   at --text-secondary in every state, like the ended name it annotates. */
+.stab-saved {
+  display: inline-flex;
+  color: var(--text-secondary);
   flex: 0 0 auto;
 }
 
@@ -843,9 +856,13 @@
   flex: 1;
 }
 
+/* SAVED and IDLE share the same solid gray dot, so the ↺ is the ONLY mark
+   that tells them apart. At --text-muted it was the dimmest thing in the row
+   and breached §1.1 outright on the selected fill (3.88:1); --text-secondary
+   holds 6.1:1 there and 7.9:1 at rest, matching the ended name beside it. */
 .srow-saved {
   display: inline-flex;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   flex: 0 0 auto;
 }
 
@@ -891,14 +908,18 @@
 }
 
 /* One material (§0): the xterm viewport must never flash its stylesheet
-   black — the sub-cell remainder at the bottom shows through it. And S1
-   gives the terminal 8px 12px padding. (Overrides terminal.css/xterm.css,
-   which load after this file — hence the !important.) */
+   black — the sub-cell remainder at the bottom shows through it.
+   (Overrides terminal.css/xterm.css, which load after this file — hence the
+   !important.) */
 .term-body .xterm-viewport {
   background-color: var(--bg-canvas) !important;
 }
 
-.center .term-body .gmux-terminal-mount {
+/* S1 gives the terminal 8px 12px of breathing room. It goes on .xterm, not on
+   the mount, because that is the only padding the fit addon subtracts (the
+   why is in terminal.css) — and the right stays 0 so the 14px lane the addon
+   already reserves stays exactly the scrollbar's, with no glyph under it. */
+.center .term-body .gmux-terminal-mount .xterm {
   padding: 8px 0 8px 12px !important;
 }
 
