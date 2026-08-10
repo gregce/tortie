@@ -139,6 +139,14 @@ Supporting detail (already researched, do not re-derive):
 3. **Normalized screen-content hashing**: hash the visible `capture-pane` content with volatile regions (spinner glyph, elapsed timer, token counter) masked out; unchanged over N samples → not working. Complements 2 and works while detached.
 4. **OSC 133 prompt marks** for shell sessions (command start/end) — exact for plain shells.
 Requirements: works for hidden/detached sessions (move detection main-side off the renderer byte stream); per-agent capability recorded in the registry (hooks vs process vs hash) with VERIFIED markers; no false "needs input" (respect the Phase 9.2 self-inflicted-input rule); cheap (sampling must not burn CPU itself — this is a battery-powered laptop).
+**UNIVERSALITY IS A REQUIREMENT, NOT A NICE-TO-HAVE (user directive):** this must work for EVERY CLI in the registry — claude, codex, cursor(-agent), gemini, droid, deepseek, antigravity, muse, qwen, pi — plus plain shells. Per-agent oracles are an optimization on top; the universal floor must be good enough to ship as the ONLY signal for any agent, and must be proven so.
+- Registry gains `activitySignal` per agent: `oracle:<name>` | `floor`, with a VERIFIED/UNVERIFIED marker and date. Default is `floor` until a hands-on check upgrades it.
+- The code path must be AGENT-AGNOSTIC by construction: the floor runs for every session and an oracle merely supersedes it. Never gate detection on an allowlist — a newly installed CLI gmux has never seen must report correctly on first launch.
+- **Verify the floor per agent** for every CLI installed on this machine; for the rest use a behavioural stand-in reproducing the same shape (CPU-burning child = working, blocking read at a prompt = idle, y/n prompt = needs input). Record results in the registry and a table in docs/research/18-agent-activity.md.
+- **Known hazard already measured: muse emits ~1 output/s and deepseek-tui ~6 per 15 s WHILE IDLE.** The normalized screen-hash (volatile regions masked) and the CPU threshold must both be tuned so those two idle correctly; if not installable, simulate a 1 Hz animating TUI and prove the floor still reports idle.
+- Adding a future agent's oracle must mean ONE oracle module + one registry line — no state-machine changes.
+ACCEPTANCE ADDITION: the verifier reports a matrix — every registry agent x {working, idle, needs-input} x {attached, hidden} — each cell marked verified-live, verified-by-stand-in, or not-applicable. No blank cells.
+
 Acceptance: with claude idle at its prompt the tab reads idle within ~2 s; submit a prompt → working within ~1 s; agent asks a question → needs input promptly; a long tool run stays working; a hidden session's status is correct when revealed; verified on at least claude + codex + a plain shell, with the fallback path exercised on an agent that has no hooks.
 
 ## Phase 14 — deep file + code search (spec from docs/research/19-search.md)
