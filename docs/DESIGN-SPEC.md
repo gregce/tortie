@@ -197,9 +197,9 @@ Behaviors: Open Changes = expand the row + open the first file's diff. Open on G
 ### S3B — Explorer view
 
 - View header (band): "EXPLORER" 11px/600 uppercase tracking +0.04em `--text-muted` · spacer · `collapse-all` codicon 16 · `refresh` on hover.
-- **Tree row `[h:24]`** (@pierre/trees since Phase 11, indent 12px/level): chevron 12px (folders) · **file-type icon 16px** (material-icon-theme subset injected as a shadow-DOM sprite sheet — `tree/pierre-icons.ts`; unmatched → theme default; icons keep their own colors) · name 12px · right: status letter as SCM row. File with git state: name tinted to the git color (letter badge is the redundant channel). Folder with dirty descendants: dot `--git-modified` after the name. Ignored: name dimmed, no badge. Click file → modified → diff, clean → plain file (S5). No inline file ops in v1 (context menu, native: Reveal in Finder, Copy path, Copy relative path).
-  - Rows live in @pierre/trees' shadow root, so `tree.css` cannot reach them — all row colors come from the theme bridge (`renderer/pierre/theme-bridge.ts`) via `themeToTreeStyles` + host `--trees-*` vars, and the git lane (letter, tint, folder aggregation) is the library's, not ours.
-  - **Deviation from the round-0 spec:** folders no longer get material closed/open icons. @pierre/trees owns the leading icon slot for directories (chevron) and exposes no per-folder icon mapping, so the theme's folder art was dropped from the generated subset.
+- **Tree row `[h:24]`** (@pierre/trees since Phase 11, indent 12px/level): chevron column 16px (folders only — files leave it empty) · **file-type icon 16px** (material-icon-theme subset injected as a shadow-DOM sprite sheet — `tree/pierre-icons.ts`; unmatched → theme default; icons keep their own colors) · name 12px · right: status letter as SCM row. File with git state: name tinted to the git color (letter badge is the redundant channel). Folder with dirty descendants: dot `--git-modified` in the right-hand git lane, same column as the letter badges and at the same full strength. Ignored: name dimmed, no badge. Click file → modified → diff, clean → plain file (S5). No inline file ops in v1 (context menu, native: Reveal in Finder, Copy path, Copy relative path).
+  - Rows live in @pierre/trees' shadow root, so `tree.css` cannot reach them — all row colors come from the theme bridge (`renderer/pierre/theme-bridge.ts`) via `themeToTreeStyles` + host `--trees-*` vars, and the git lane (letter, tint, folder aggregation) is the library's, not ours. Two library defaults are overridden through `unsafeCSS` (`tree/FileTree.tsx`): the deleted-file strikethrough, and the dirty-descendant dot, which ships at `opacity: .5` — a ~3.2:1 olive that would undercut the 9.1:1 badge letters it summarizes.
+  - **Deviation from the round-0 spec:** folder icons are the material theme's **generic closed/open pair only**, painted into the icon lane by `unsafeCSS` (`tree/pierre-icons.ts`). @pierre/trees resolves per-path icons for the file slot alone, so the theme's 122 per-basename folder variants have no surface to attach to and stay out of the generated subset.
 
 ## S4 — Terminal region & session surfaces
 
@@ -291,15 +291,17 @@ Sessions render on the terminal region in one of two user-selectable orientation
 ┌ editor tabs [h:36] — lives in the HEADER BAND (S1) · bg --bg-sidebar ──────┐
 │ auth.ts ●    db.ts ×                              [ Diff | File ]          │
 ├────────────────────────────────────────────────────────────────────────────┤
-│ Monaco · bg --bg-canvas · font SF Mono 12 · minimap off · Monaco built-in │
-│ diff renderer (side-by-side ≥ 900px wide, inline below)                   │
+│ File mode: Monaco · bg --bg-canvas · font SF Mono 12 · minimap off        │
+│ Diff mode: @pierre/diffs, read-only, virtualized (split ≥ 900px, stacked  │
+│ below) — same font ramp, same syntax colors, same gutter weight           │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
 - Tabs row `[h:36]` (round-0 32px is gone): in split mode its bottom hairline IS the band's shared hairline (S1); in overlay mode the row keeps the same 36px height inside the floating panel.
 - Tab: padding 0 10px, filename 13px with its material-icon-theme file icon 14px before it, active tab bg `--bg-canvas` (melts into editor) with 2px `--accent` top inset; inactive `--text-secondary`. Dirty: 6px dot `--accent` replaces × until saved. Max 5 tabs, LRU-evict clean tabs; ⌘⇧]/[ cycles; ⌘W closes focused.
 - Mode toggle (right, only for git-tracked modified files): segmented control `[h:22]`, 11px, options Diff/File; default Diff for modified files (P4), File otherwise. Diff title reads "auth.ts — changes vs HEAD" as the tab tooltip.
-- ⌘S saves (File mode; in Diff mode the modified side is editable and ⌘S saves it). Save errors → sticky toast.
+- ⌘S saves (File mode). Diff mode is read-only since Phase 11 — the toggle is the edit path; save errors → sticky toast.
+- Diff mode renders through one Pierre `Virtualizer` bound to the panel's own scroll region (`editor/PierreDiff.tsx`), so a 10k-line diff materializes ~150 line elements instead of 40k and keeps ~17ms scroll steps. Gutter numbers: context `--text-disabled`, additions/deletions keep Pierre's green/red tint.
 - Monaco lazy-loads on first file open; until loaded show the region bg with a 1-line 12px `--text-muted` centered "Opening editor…" (skeleton, not spinner, if longer than 300ms: 3 shimmer lines 60%/80%/40% width).
 - Open behavior from SCM/tree click: split mode per S1; repeated clicks reuse the single preview tab (italic filename) until the file is edited — VS Code preview-tab behavior.
 

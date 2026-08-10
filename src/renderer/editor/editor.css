@@ -246,13 +246,23 @@
 /* Pierre diff host (Phase 11). The diff renders in shadow DOM — colors come
    from the theme bridge (src/renderer/pierre/theme-bridge.ts); the custom
    properties below inherit across the shadow boundary and keep the diff on
-   the same type ramp as Monaco's File mode. */
+   the same type ramp as Monaco's File mode.
+
+   This element is also the virtualizer's scroll root (PierreDiff.tsx): the
+   `overflow: auto` + definite height (inset:0 above) is what lets Pierre
+   compute a render window instead of materializing every line. */
 .ed-pierre {
   overflow: auto;
   background: var(--bg-canvas);
 
   --diffs-font-family: var(--font-mono);
   --diffs-font-size: 12px;
+
+  /* Gutter numbers annotate; they never compete with the code. Pierre would
+     derive them from its foreground (~#95979A) — this pins them to the same
+     --text-disabled Monaco uses for editorLineNumber.foreground, so the
+     Diff | File toggle is a layout change, not a weight change. */
+  --diffs-fg-number-override: var(--text-disabled);
 }
 
 .ed-pierre:focus-visible {
@@ -260,9 +270,15 @@
   outline-offset: -1px;
 }
 
+/* The virtualizer's observed content wrapper. min-height lives here (not on
+   diffs-container) because a percentage needs a parent with a resolved
+   height, and .ed-pierre is the one element in this stack that has one. */
+.ed-pierre-content {
+  min-height: 100%;
+}
+
 .ed-pierre diffs-container {
   display: block;
-  min-height: 100%;
 }
 
 /* ---------------------------------------------------------------------------

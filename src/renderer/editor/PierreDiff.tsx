@@ -12,10 +12,21 @@
  * Layout keeps the Monaco-era rule: side-by-side ≥900px, stacked below.
  * Hunk context expansion is on (Pierre's line-info separators, default),
  * inline diffs are word-level.
+ *
+ * VIRTUALIZATION (the reason for the swap — research 12 §2.1): @pierre/diffs
+ * only virtualizes when a Virtualizer instance is in context; without one it
+ * materializes every line (a 10k-line diff = 40k line elements, ~9s to open).
+ * We drive the virtualizer ourselves instead of using the `<Virtualizer>`
+ * component so the scroll container stays THIS component's host element —
+ * the one that carries the focus ring, role and aria-label, and the one the
+ * arrow/PageDown keys act on. Pierre needs only two things from it: it must
+ * be the scroller (`overflow: auto` + a definite height, editor.css) and it
+ * must have a stable content wrapper to observe for size changes.
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { MultiFileDiff } from '@pierre/diffs/react';
+import { Virtualizer } from '@pierre/diffs';
+import { MultiFileDiff, VirtualizerContext } from '@pierre/diffs/react';
 import type { FileContents, MultiFileDiffProps } from '@pierre/diffs/react';
 import { diffTheme } from '../pierre/theme-bridge';
 import { getWorkingModel, loadMonaco, rememberLoaded } from './monaco-loader';
@@ -73,6 +84,7 @@ export function PierreDiff({ tab }: PierreDiffProps): React.JSX.Element {
 
   // -- responsive layout: side-by-side ≥900px, stacked below -----------------
   const hostRef = useRef<HTMLDivElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
   const [sideBySide, setSideBySide] = useState(true);
   useEffect(() => {
     const el = hostRef.current;
@@ -90,6 +102,21 @@ export function PierreDiff({ tab }: PierreDiffProps): React.JSX.Element {
   useEffect(() => {
     hostRef.current?.focus({ preventScroll: true });
   }, [tab.path]);
+
+  // -- virtualization --------------------------------------------------------
+  // One virtualizer per mounted diff, bound to the host as scroll root. The
+  // diff's line elements attach during the child's ref callback, which runs
+  // BEFORE this effect — Pierre queues those connections until setup(), so
+  // the order is safe. cleanUp() detaches the scroll/resize/intersection
+  // observers when the panel closes or the tab switches away.
+  const [virtualizer] = useState(() => new Virtualizer());
+  useEffect(() => {
+    const host = hostRef.current;
+    const content = contentRef.current;
+    if (host === null || content === null) return;
+    virtualizer.setup(host, content);
+    return () => virtualizer.cleanUp();
+  }, [virtualizer]);
 
   // Stable FileContents identities — MultiFileDiff re-parses when these
   // object references change.
@@ -133,19 +160,27 @@ export function PierreDiff({ tab }: PierreDiffProps): React.JSX.Element {
       role="region"
       aria-label={`Changes vs HEAD — ${tab.name}`}
     >
-      {loading ? (
-        <OpeningSkeleton />
-      ) : tab.headContents === workingText ? (
-        <div className="ed-state">
-          <div className="ed-state-title">No changes</div>
-          <div className="ed-state-body">
-            {tab.name} matches HEAD. Edits made in File mode will show up
-            here.
+      <div className="ed-pierre-content" ref={contentRef}>
+        {loading ? (
+          <OpeningSkeleton />
+        ) : tab.headContents === workingText ? (
+          <div className="ed-state">
+            <div className="ed-state-title">No changes</div>
+            <div className="ed-state-body">
+              {tab.name} matches HEAD. Edits made in File mode will show up
+              here.
+            </div>
           </div>
-        </div>
-      ) : (
-        <MultiFileDiff oldFile={oldFile} newFile={newFile} options={options} />
-      )}
+        ) : (
+          <VirtualizerContext.Provider value={virtualizer}>
+            <MultiFileDiff
+              oldFile={oldFile}
+              newFile={newFile}
+              options={options}
+            />
+          </VirtualizerContext.Provider>
+        )}
+      </div>
     </div>
   );
 }

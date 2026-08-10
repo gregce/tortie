@@ -19,12 +19,15 @@
  * knows about (e.g. `.jshintrc` → json) keeps working for free. Unknown
  * files fall back to the theme's own `file` icon.
  *
- * FILES ONLY (Phase 11): @pierre/trees renders a chevron in the row's
- * leading icon slot for directories and exposes no per-folder icon surface
- * (FileTreeIconConfig has byFileName / byFileExtension / byFileNameContains
- * and nothing folder-shaped), so the theme's 122 folder SVGs were dead
- * weight — 48% of the emitted payload. If a folder-icon surface ever exists,
- * restore the seeds and maps from this file's history.
+ * PER-FILE ICONS ONLY (Phase 11): @pierre/trees resolves per-path icons for
+ * the file slot alone (`file-tree-icon-file` — dist/render/iconResolver.js);
+ * a directory row's leading slot is always the chevron, and nothing in
+ * FileTreeIconConfig is folder-shaped. So the theme's 122 per-basename folder
+ * SVGs (folder-src, folder-test, …) stay out — 48% of the payload for a
+ * surface that cannot address them. What DOES ship is the generic closed/open
+ * pair below: two ~250-byte SVGs the tree paints into a second icon column
+ * with CSS (src/renderer/tree/pierre-icons.ts), which is the only folder
+ * distinction the row can express. DESIGN.md §3.1 records the same limit.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -136,6 +139,21 @@ function filterMap(map) {
 const extMap = filterMap(theme.fileExtensions);
 const nameMap = filterMap(theme.fileNames);
 
+/**
+ * The generic folder pair (`folder` / `folder-open`). Emitted raw, not
+ * namespaced: these two are painted as CSS background images, so their ids —
+ * if they ever gain any — would live in a separate document anyway.
+ */
+const folderSvgs = {};
+for (const [key, icon] of [
+  ['closed', theme.folder],
+  ['open', theme.folderExpanded]
+]) {
+  folderSvgs[key] = readFileSync(join(iconsDir, `${icon}.svg`), 'utf8')
+    .trim()
+    .replace(/<\?xml[^?]*\?>\s*/g, '');
+}
+
 const themeVersion = require('material-icon-theme/package.json').version;
 const banner = `/**
  * GENERATED FILE — do not edit by hand.
@@ -144,7 +162,8 @@ const banner = `/**
  * Curated subset of material-icon-theme v${themeVersion} (npm, MIT license —
  * © Philipp Kief, https://github.com/material-extensions/vscode-material-icon-theme).
  * See generate-file-icons.mjs for why this theme and how the subset is chosen.
- * Files only — folder rows render @pierre/trees' chevron (see the header of
+ * Per-file icons plus the generic closed/open folder pair — @pierre/trees
+ * resolves per-path icons for files only (see the header of
  * generate-file-icons.mjs).
  * ${Object.keys(svgs).length} icons · ${Object.keys(extMap).length} extension aliases · ${Object.keys(nameMap).length} filename aliases.
  */
@@ -158,6 +177,9 @@ export const EXT_TO_ICON: Record<string, string> = ${JSON.stringify(extMap)};
 export const NAME_TO_ICON: Record<string, string> = ${JSON.stringify(nameMap)};
 
 export const DEFAULT_FILE_ICON = ${JSON.stringify(theme.file)};
+
+/** Generic folder art — painted as CSS background images, not sprite symbols. */
+export const FOLDER_ICON_SVGS: { closed: string; open: string } = ${JSON.stringify(folderSvgs)};
 `;
 
 const outPath = join(here, 'file-icons.generated.ts');

@@ -2,8 +2,9 @@
  * The project file tree (@pierre/trees) — S3 "Tree row" spec, Phase 11 swap.
  *
  * Rows [h:24] render inside Pierre's shadow DOM: chevron (folders) ·
- * material file-type icon 16px (Phase 9 subset via a custom sprite sheet —
- * see pierre-icons.ts) · name · built-in git lane (status letter + color,
+ * material icon 16px — per-type for files, the generic folder pair for
+ * directories (Phase 9 subset via a custom sprite sheet + the folder CSS in
+ * pierre-icons.ts) · name · built-in git lane (status letter + color,
  * folder dot propagation — previously hand-rolled). Conflicted files add a
  * '!' row decoration in --git-conflict (Pierre has no conflict status).
  * Click / Enter on a file emits an open-in-editor request (diff mode when
@@ -38,7 +39,7 @@ import { treeStyles } from '../pierre/theme-bridge';
 import { isConflicted, openModeFor, pierreGitStatus } from './decorations';
 import { canReveal, reveal } from './fs-bridge';
 import { requestOpenFile } from './open-file';
-import { getPierreTreeIcons } from './pierre-icons';
+import { FOLDER_ICON_CSS, getPierreTreeIcons } from './pierre-icons';
 import { useFileTree } from './store';
 
 // ---------------------------------------------------------------------------
@@ -117,12 +118,20 @@ function rowFromEvent(event: Event): RowHit | null {
 // Styling that must live inside the shadow root
 // ---------------------------------------------------------------------------
 
-/** Deleted files keep their strikethrough (old .tree-name.strike rule). */
 const TREE_UNSAFE_CSS = `
+/* Deleted files keep their strikethrough (old .tree-name.strike rule). */
 [data-item-git-status="deleted"] [data-item-section="content"] {
   text-decoration: line-through;
 }
-`;
+
+/* The dirty-descendant dot is a signal, not a hint. @pierre/trees ships it at
+   opacity .5, which composites --git-modified down to ~3.2:1 on the sidebar —
+   a dull olive next to the 9.1:1 M/U badge letters on the rows it summarizes.
+   DESIGN.md §3 asks for the amber itself. */
+[data-item-contains-git-change="true"] > [data-item-section="git"] {
+  opacity: 1;
+}
+${FOLDER_ICON_CSS}`;
 
 // ---------------------------------------------------------------------------
 // FileTree

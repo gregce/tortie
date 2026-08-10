@@ -7,9 +7,13 @@
  * out of the way (its minimal sheet still supplies the chevron/dot slots);
  * the default-file slot is remapped to the material default.
  *
- * Directories: @pierre/trees renders a chevron in the leading icon slot by
- * design — there is no per-row folder icon surface, so the material folder
- * variants do not port (see the Phase 11 tree-swap notes).
+ * Directories: @pierre/trees puts the chevron in a folder row's only icon
+ * slot and resolves per-path icons for the file slot alone, so the theme's
+ * 122 per-basename folder variants have no surface to attach to. The generic
+ * closed/open pair still does — FOLDER_ICON_CSS below paints it as a second
+ * icon column in the shadow root, giving the row the chevron 12 · icon 16
+ * anatomy DESIGN.md §3 specifies. Files get a matching leading gap so both
+ * kinds keep one icon column and the indent guides stay put.
  */
 
 import type { FileTreeIconConfig, RemappedIcon } from '@pierre/trees';
@@ -17,6 +21,7 @@ import {
   DEFAULT_FILE_ICON,
   EXT_TO_ICON,
   FILE_ICON_SVGS,
+  FOLDER_ICON_SVGS,
   NAME_TO_ICON
 } from '../icons/file-icons.generated';
 
@@ -43,6 +48,44 @@ function prefixValues(map: Record<string, string>): Record<string, RemappedIcon>
   }
   return out;
 }
+
+/** `<svg …>` → a `url(...)` value usable as a CSS background-image. */
+function toCssUrl(svg: string): string {
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+}
+
+/**
+ * Folder art for the shadow root (merged into the tree's `unsafeCSS`).
+ *
+ * The icon lane widens to hold two glyphs for EVERY row: folders put the
+ * chevron left and the folder icon right; files leave the chevron position
+ * empty and right-align their icon into the same column. Both kinds therefore
+ * share one icon column and one text column, and because the change is inside
+ * the icon lane the depth-indent guides — which are measured from
+ * `--trees-icon-width`, untouched here — keep running through the chevrons.
+ */
+export const FOLDER_ICON_CSS = `
+[data-item-section="icon"] {
+  width: calc(var(--trees-icon-width) * 2 + var(--trees-item-row-gap));
+  justify-content: flex-end;
+}
+
+[data-item-type="folder"] > [data-item-section="icon"] {
+  justify-content: space-between;
+}
+
+[data-item-type="folder"] > [data-item-section="icon"]::after {
+  content: "";
+  flex: 0 0 auto;
+  width: var(--trees-icon-width);
+  height: var(--trees-icon-width);
+  background: ${toCssUrl(FOLDER_ICON_SVGS.closed)} center / contain no-repeat;
+}
+
+[data-item-type="folder"][aria-expanded="true"] > [data-item-section="icon"]::after {
+  background-image: ${toCssUrl(FOLDER_ICON_SVGS.open)};
+}
+`;
 
 let cached: FileTreeIconConfig | null = null;
 

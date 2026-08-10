@@ -14,6 +14,14 @@
  * document), so the values are mirrored, not read at runtime. If tokens.css
  * changes, change this palette in the same commit.
  *
+ * The SYNTAX ramp is a second, separate mirror: DESIGN.md §1.6 (the terminal
+ * palette), which is also what src/renderer/editor/monaco-impl.ts colors File
+ * mode with. Diff and File render the SAME file, so they must resolve the same
+ * token to the same hue — the two ramps are kept rule-for-rule identical and
+ * change together. State hues (§1.3) and git hues (§1.4) are deliberately
+ * absent here: they mean "status" and "changed", and a syntax token wearing
+ * one inside a git diff would say something it does not mean.
+ *
  * Importing this module registers the theme (idempotent: a duplicate
  * registration is swallowed by @pierre/diffs with a console.error).
  */
@@ -47,6 +55,25 @@ const P = {
   info: '#6cb6ff' //          --info
 } as const;
 
+/**
+ * Syntax ramp — DESIGN.md §1.6, mirrored from monaco-impl.ts:68-89 rule for
+ * rule so toggling Diff ⇄ File changes the layout and nothing else. Names are
+ * the §1.6 slot each value comes from.
+ */
+const S = {
+  fg: '#d8dbe2', //       foreground   — plain identifiers/variables/text
+  comment: '#6e7583', //  brBlack-ish  — comments (also --status-idle's hex)
+  string: '#6bc46d', //   green        — strings, JSON values, attr values
+  escape: '#85d488', //   brGreen      — escape sequences inside strings
+  keyword: '#6cb6ff', //  blue         — keywords, storage, tags
+  number: '#e2b340', //   yellow       — numeric literals
+  regexp: '#f07e78', //   brRed        — regular expressions
+  type: '#56c2c0', //     cyan         — types, classes, attr names, JSON keys
+  fn: '#8fc7ff', //       brBlue       — function names and calls
+  constant: '#f0c674', // brYellow     — language/other constants
+  punctuation: '#a8adb8' // white-ish  — operators and delimiters
+} as const;
+
 export const GMUX_THEME_NAME = 'gmux-dark';
 
 /**
@@ -54,19 +81,18 @@ export const GMUX_THEME_NAME = 'gmux-dark';
  * workbench keys both libraries read: diffs derives global fg/bg and the
  * addition/deletion/modified colors from editor.* + gitDecoration.*;
  * themeToTreeStyles reads sideBar.*, list.*, input.*, scrollbarSlider.*,
- * gitDecoration.*. `settings` is a restrained TextMate scope palette built
- * from the same tokens (gmux has no bespoke syntax ramp — Restrained accent
- * strategy, DESIGN.md §1.2).
+ * gitDecoration.*. `settings` is the §1.6 syntax ramp expressed as TextMate
+ * scopes — the same ramp Monaco's Monarch tokens carry in File mode.
  */
 export const gmuxDarkTheme: ThemeRegistration = {
   name: GMUX_THEME_NAME,
   displayName: 'gmux dark',
   type: 'dark',
   bg: P.bgCanvas,
-  fg: P.textPrimary,
+  fg: S.fg,
   colors: {
     'editor.background': P.bgCanvas,
-    'editor.foreground': P.textPrimary,
+    'editor.foreground': S.fg,
     'editor.selectionBackground': P.accentWash,
     'sideBar.background': P.bgSidebar,
     'sideBar.foreground': P.textPrimary,
@@ -88,49 +114,95 @@ export const gmuxDarkTheme: ThemeRegistration = {
     'gitDecoration.conflictingResourceForeground': P.gitConflict
   },
   settings: [
-    { settings: { foreground: P.textPrimary, background: P.bgCanvas } },
+    // Monaco `identifier` / `variable` / editor.foreground.
+    { settings: { foreground: S.fg, background: P.bgCanvas } },
+    // Monaco `comment`.
     {
       scope: ['comment', 'punctuation.definition.comment'],
-      settings: { foreground: P.textMuted, fontStyle: 'italic' }
+      settings: { foreground: S.comment, fontStyle: 'italic' }
     },
+    // Monaco `string`, `attribute.value`, `string.value.json`.
     {
       scope: ['string', 'string.template', 'punctuation.definition.string'],
-      settings: { foreground: P.gitAdded }
+      settings: { foreground: S.string }
     },
+    // Monaco `string.escape`.
+    {
+      scope: ['constant.character.escape'],
+      settings: { foreground: S.escape }
+    },
+    // Monaco `regexp`.
+    {
+      scope: ['string.regexp', 'punctuation.definition.string.regexp'],
+      settings: { foreground: S.regexp }
+    },
+    // Monaco `number`.
+    { scope: ['constant.numeric'], settings: { foreground: S.number } },
+    // Monaco `constant`.
     {
       scope: [
-        'constant.numeric',
         'constant.language',
-        'constant.character.escape'
+        'constant.other',
+        'variable.other.constant',
+        'support.constant'
       ],
-      settings: { foreground: P.warning }
+      settings: { foreground: S.constant }
     },
+    // Monaco `keyword` / `tag`.
     {
-      scope: ['keyword', 'storage.type', 'storage.modifier'],
-      settings: { foreground: P.accentText }
+      scope: [
+        'keyword',
+        'storage',
+        'storage.type',
+        'storage.modifier',
+        'entity.name.tag',
+        'variable.language'
+      ],
+      settings: { foreground: S.keyword }
     },
+    // Monaco `function`.
     {
-      scope: ['entity.name.function', 'support.function'],
-      settings: { foreground: P.info }
+      scope: [
+        'entity.name.function',
+        'support.function',
+        'meta.function-call.generic'
+      ],
+      settings: { foreground: S.fn }
     },
+    // Monaco `type` / `type.identifier` / `attribute.name` / `key`.
     {
       scope: [
         'entity.name.type',
         'entity.name.class',
+        'entity.name.namespace',
         'support.type',
-        'support.class'
+        'support.class',
+        'entity.other.attribute-name',
+        'support.type.property-name',
+        'meta.object-literal.key'
       ],
-      settings: { foreground: P.gitModified }
+      settings: { foreground: S.type }
     },
-    { scope: ['entity.name.tag'], settings: { foreground: P.accentText } },
-    { scope: ['entity.other.attribute-name'], settings: { foreground: P.info } },
+    // Monaco `identifier` / `variable` — restated so nested scopes that would
+    // otherwise inherit a parent rule (meta.object-literal, meta.function-call)
+    // land back on plain foreground.
+    {
+      scope: ['variable', 'variable.other', 'meta.definition.variable'],
+      settings: { foreground: S.fg }
+    },
+    // Monaco `operator` / `delimiter`.
     {
       scope: ['keyword.operator', 'punctuation'],
-      settings: { foreground: P.textSecondary }
+      settings: { foreground: S.punctuation }
     },
-    { scope: ['markup.inserted'], settings: { foreground: P.gitAdded } },
-    { scope: ['markup.deleted'], settings: { foreground: P.gitDeleted } },
-    { scope: ['markup.changed'], settings: { foreground: P.gitModified } }
+    // Markdown/patch markup — the §1.6 green/red/yellow, NOT the git tokens:
+    // inside a diff, git colors are the diff's own vocabulary.
+    { scope: ['markup.inserted'], settings: { foreground: S.string } },
+    { scope: ['markup.deleted'], settings: { foreground: S.regexp } },
+    { scope: ['markup.changed'], settings: { foreground: S.number } },
+    { scope: ['markup.heading'], settings: { foreground: S.keyword } },
+    { scope: ['markup.bold'], settings: { fontStyle: 'bold' } },
+    { scope: ['markup.italic'], settings: { fontStyle: 'italic' } }
   ]
 };
 
