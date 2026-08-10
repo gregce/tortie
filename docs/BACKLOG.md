@@ -198,6 +198,20 @@ Verify: a durable claude session no longer matches `pkill -f "$(command -v claud
    - Dropping onto a SPLIT pane targets the pane under the pointer and focuses it first; while the pane is scrolled, the write goes through the shared cancel-copy-mode-then-write helper (12.3), not a new path.
 Verify: open a png, a transparent png, an animated gif, a large jpg (over the cap), an svg (both modes), and a modified image if the HEAD comparison ships; drag an image from the tree onto a claude pane -> `[Image #N]`; drag the same file onto a folder in the tree -> it MOVES and does not attach; drag onto a shell pane -> quoted path; confirm the two overlays never appear simultaneously.
 
+## Phase 12.11 — zoom with cmd +/- , per pane where possible
+Goal: ⌘+ / ⌘- / ⌘0 enlarge text where the user is working — ideally scoped to the FOCUSED region (an agent session, the session dock, the explorer, the SCM sidebar, the editor), with universal zoom as the acceptable fallback if per-region proves messy.
+TWO MECHANISMS — a terminal does not zoom like a panel:
+1. **Terminal panes = real terminal zoom.** Change xterm `options.fontSize` (not CSS scaling — CSS-scaled terminals go blurry and break cell math), then re-fit and PUSH THE NEW SIZE TO TMUX (resize-pane / the existing resize path) so rows/cols match. Consequence to accept and document: the agent's viewport genuinely changes and it will redraw at the new width — that is what every terminal does, but it must not corrupt scroll position or the tmux pane geometry.
+2. **Panels (explorer, SCM, session dock, editor chrome) = CSS `zoom` on the panel container** (Chromium supports it; prefer it over transform:scale, which breaks layout flow and hit-testing). Monaco has its own font-size API — use it for the editor text rather than zooming the editor container.
+Scope + behavior: zoom applies to the focused region, tracked off the focus model we already have (activity-bar view / terminal focus / editor focus); ⌘0 resets the focused region, ⌘⇧0 resets everything; levels persist per region (and per orientation for the dock) in settings; sensible min/max with a quiet toast or status hint at the limits.
+HAZARDS — verify each, they are why this is not a one-liner:
+- **12.3's scrollbar measures pixel metrics** (the research specifically warned to MEASURE cell height, never compute it). Any zoom must trigger a re-measure, or the scrollbar thumb and scroll math drift.
+- **Split sizing and the drag/drop overlays compute rects**; CSS `zoom` changes pointer coordinate mapping. Verify drag-to-split, the drop-to-attach overlay, tab reorder and scrollbar dragging all still hit correctly at 150% and 75%.
+- Terminal zoom + tmux resize must not disturb a SCROLLED pane's position, and must not be mistaken for activity by Phase 13's detector.
+- Settings already promises a terminal font family/size control (DESIGN.md §9.7 / DESIGN-SPEC S13, flagged unbuilt in the Phase 11 design verification): reconcile — zoom should be a per-pane MULTIPLIER over that base size, not a competing setting, and the docs must stop promising what does not exist.
+FALLBACK (only if per-region is genuinely messy): universal `webContents.setZoomLevel` for the whole window, ⌘0 to reset — but say so explicitly and note terminals will still need their own font-size path to stay crisp.
+Verify: zoom an agent pane (text grows, tmux geometry follows, agent redraws cleanly, scrollbar still accurate, scroll position preserved); zoom the explorer and SCM independently; ⌘0 and ⌘⇧0; drag-to-split and drop-to-attach at 150% and 75%; persistence across relaunch.
+
 ## Phase 12.85 — Tortie iconography (ships early; the RENAME is separate, see Phase 16.5)
 Product philosophy: docs/ZEN-OF-TORTIE.md. Assets: docs/brand/tortie/ (production-ready — do NOT regenerate; the README records the master SHA and forbids wrapping the mark in a rounded square, badge, or any outer chrome).
 1. **App/dock icon** -> `docs/brand/tortie/macos/Tortie.icns` replaces build/icon.icns in electron-builder.yml. Verify in the packaged .app (Dock, Finder, cmd-Tab) at every size — the mark is freestanding, so check it reads at 16px in Finder lists.
