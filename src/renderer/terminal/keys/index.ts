@@ -32,7 +32,9 @@
  * scroll the session's tmux history, and plain PageUp still goes to the app.
  *
  * ⇧↩ (Phase 12.5) inserts a newline in the agent's prompt instead of
- * submitting — ./multiline.ts holds the bytes and why they are those bytes.
+ * submitting. The bytes are registry data (src/main/agents/registry.ts
+ * `multilineKey`, whose header records WHY they are those bytes);
+ * ./multiline.ts is only the renderer-side cache in front of it.
  */
 
 import type { Terminal } from '@xterm/xterm';

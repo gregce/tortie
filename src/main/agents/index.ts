@@ -9,6 +9,7 @@
 import type { IpcMain } from 'electron';
 import { getAgentAvailability } from './availability';
 import { listDetectedAgents, rescanAgents } from './detection';
+import { multilineKeyTable } from './registry';
 
 export { getAgentAvailability } from './availability';
 export {
@@ -27,11 +28,15 @@ export {
   agentBinaryName,
   DEFAULT_AGENT_ID,
   DEFAULT_IMAGE_DROP,
+  DEFAULT_MULTILINE_KEY,
   getLaunchableEntry,
   imageDropFor,
   imageDropTable,
   getRegistryEntry,
   LAUNCHABLE_AGENT_IDS,
+  LF,
+  multilineKeyFor,
+  multilineKeyTable,
   registryLaunchArgv,
   registryResumeArgv,
   SESSION_ID_SLOT,
@@ -45,12 +50,15 @@ export {
 
 /**
  * Register the agents invoke channels:
- *  - 'agents:availability' (Phase 8, frozen claude/codex shape)
- *  - 'agents:list'         (Phase 10: cached 12-agent detection scan)
- *  - 'agents:rescan'       (Phase 10: drop cache + re-probe)
+ *  - 'agents:availability'  (Phase 8, frozen claude/codex shape)
+ *  - 'agents:list'          (Phase 10: cached 12-agent detection scan)
+ *  - 'agents:rescan'        (Phase 10: drop cache + re-probe)
+ *  - 'agents:multilineKeys' (Phase 12.5: per-agent Shift+Enter table, served
+ *    off the registry exactly as drop:strategies serves `imageDrop`)
  */
 export function registerAgentsIpc(ipc: IpcMain): void {
   ipc.handle('agents:availability', () => getAgentAvailability());
   ipc.handle('agents:list', () => listDetectedAgents());
   ipc.handle('agents:rescan', () => rescanAgents());
+  ipc.handle('agents:multilineKeys', () => multilineKeyTable());
 }

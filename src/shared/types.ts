@@ -766,3 +766,30 @@ export interface DropPersistResult {
   path: string;
   isImage: boolean;
 }
+
+// ---------------------------------------------------------------------------
+// APPENDED by the Shift+Enter stream (Phase 12.5/12.6, research 20) — new
+// types only. The per-agent multiline table is registry DATA, exactly like
+// AgentImageDrop above, and reaches the renderer over `agents:multilineKeys`.
+// ---------------------------------------------------------------------------
+
+/** How Shift+Enter reaches one agent's prompt. */
+export interface AgentMultilineKey {
+  /**
+   * The literal bytes Shift+Enter writes into the pane. `null` means this
+   * agent has no multiline input, so gmux leaves the key alone rather than
+   * risk a stray submit — plain Enter must never break.
+   */
+  sequence: string | null;
+  /** true = a newline was observed hands-on (research 20 §5). */
+  verified: boolean;
+  notes?: string;
+}
+
+/** agents:multilineKeys — the whole per-agent table (static per build). */
+export interface MultilineKeyTable {
+  /** Registry agents that carry an explicit row. */
+  agents: Partial<Record<AgentRegistryId, AgentMultilineKey>>;
+  /** Used for shells and for any agent absent from `agents`. */
+  fallback: AgentMultilineKey;
+}

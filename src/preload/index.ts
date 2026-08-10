@@ -32,6 +32,7 @@ import type {
   GmuxInvokeRes,
   GmuxLoginItemExtras,
   GmuxMenuExtras,
+  GmuxMultilineExtras,
   GmuxPopupMenuExtras,
   GmuxQuitExtras,
   GmuxScrollExtras,
@@ -238,7 +239,8 @@ const api: GmuxApi &
   GmuxDropExtras &
   GmuxCaptureExtras &
   GmuxScrollExtras &
-  GmuxActivityExtras = {
+  GmuxActivityExtras &
+  GmuxMultilineExtras = {
   sessions,
   projects: {
     add: (path) => invoke('projects:add', path),
@@ -273,6 +275,10 @@ const api: GmuxApi &
   // section; cached in main, re-scan drops the cache).
   agentsList: () => invoke('agents:list'),
   agentsRescan: () => invoke('agents:rescan'),
+  // Phase 12.5 optional extra: the per-agent Shift+Enter table off the
+  // registry. The terminal primes it at mount because the lookup happens
+  // inside a keystroke handler and cannot await.
+  agentMultilineKeys: () => invoke('agents:multilineKeys'),
   // Phase 8.2 optional extra: native context menus (DESIGN.md §3 — the
   // renderer's store prefers this over the DOM fallback).
   popupMenu: (input) => invoke('ui:popupMenu', input),

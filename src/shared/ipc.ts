@@ -809,7 +809,8 @@ export type GmuxInvokeChannelMap = RegistryInvokeChannelMap &
   DropInvokeChannelMap &
   TerminalCaptureInvokeChannelMap &
   TerminalScrollInvokeChannelMap &
-  ActivityInvokeChannelMap;
+  ActivityInvokeChannelMap &
+  MultilineInvokeChannelMap;
 
 export type GmuxInvokeChannel = keyof GmuxInvokeChannelMap;
 
@@ -1300,3 +1301,38 @@ export interface GmuxActivityExtras {
 export type AllEventPayloadMap = EventPayloadMap & ActivityEventPayloadMap;
 
 export type AllEventChannel = keyof AllEventPayloadMap;
+
+// ---------------------------------------------------------------------------
+// APPENDED by the Shift+Enter stream (Phase 12.6 — the registry fold Phase
+// 12.5 could not make while Phase 13 owned the registry) — new channels/types
+// only. The one existing line touched above is the GmuxInvokeChannelMap
+// intersection, exactly as its own comment prescribes.
+//
+// agents:multilineKeys — the per-agent Shift+Enter table, read straight off
+//   the main-process agent registry (`AgentRegistryEntry.multilineKey`, so
+//   the table exists ONCE, guardrail 3 — the same shape as drop:strategies).
+//   Static per build; the renderer primes it when a terminal mounts and
+//   caches it, because the lookup happens inside a keystroke handler.
+//
+// PRELOAD (guardrail 1 — folded into the single typed bridge, no new wrapper
+// generation): `agentMultilineKeys: () => invoke('agents:multilineKeys')`.
+// Renderers feature-detect `typeof window.gmux.agentMultilineKeys ===
+// 'function'`; without it every agent takes the LF default, which is what
+// every measured agent takes anyway.
+// ---------------------------------------------------------------------------
+
+import type { MultilineKeyTable } from './types';
+
+/** New invoke channel appended by the Shift+Enter stream. */
+export interface MultilineInvokeChannelMap {
+  /** Per-agent Shift+Enter sequences from the agent registry. */
+  'agents:multilineKeys': { req: []; res: MultilineKeyTable };
+}
+
+/**
+ * OPTIONAL top-level extra on window.gmux, feature-detected by the renderer
+ * (`typeof window.gmux.agentMultilineKeys === 'function'`).
+ */
+export interface GmuxMultilineExtras {
+  agentMultilineKeys?(): Promise<MultilineKeyTable>;
+}

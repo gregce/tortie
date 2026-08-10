@@ -31,9 +31,11 @@
 
 import type {
   AgentImageDrop,
+  AgentMultilineKey,
   AgentRegistryId,
   ImageDropTable,
-  LaunchableAgentId
+  LaunchableAgentId,
+  MultilineKeyTable
 } from '@shared/types';
 
 // ---------------------------------------------------------------------------
@@ -183,6 +185,14 @@ export interface AgentRegistryEntry {
    */
   imageDrop?: AgentImageDrop;
   /**
+   * How Shift+Enter puts a NEWLINE in this agent's prompt instead of
+   * submitting (Phase 12.5, research 20 §5). Absent = the capture-only IDE
+   * pair, which has no prompt to type into; every launchable agent measured
+   * to date takes `LF`, so a row exists to carry `verified` and the traps
+   * honestly, not because the bytes differ.
+   */
+  multilineKey?: AgentMultilineKey;
+  /**
    * How this agent's LIVE ACTIVITY is detected (Phase 13, research 18 §2.3).
    * Absent = the capture-only IDE pair, which gmux never runs in a pane.
    * The floor (tiers 1–3) runs for every session regardless; this field only
@@ -201,6 +211,49 @@ export interface AgentRegistryEntry {
 export const DEFAULT_IMAGE_DROP: AgentImageDrop = {
   strategy: 'path-text',
   insert: 'paste',
+  verified: false
+};
+
+/**
+ * ASCII line feed — what ⌃J sends, and the ONE sequence that inserted a
+ * newline on 10 of 10 installed agents (docs/research/20-shift-enter.md,
+ * 2026-08-10, tmux 3.6a). Two traps are recorded here so nobody re-discovers
+ * them by shipping a regression:
+ *
+ *  - **Never send CSI-u** (`ESC[13;2u` / `ESC[27;2;13~`). For a pane that
+ *    never negotiated extended keys — `#{pane_key_mode}` = `VT10x`, which is
+ *    most of them — tmux rewrites modified-Enter to a bare `CR`, so CSI-u
+ *    SUBMITS the user's half-written prompt on 6 of 10 agents. That is the
+ *    single worst failure this feature can produce.
+ *  - **Never send `ESC CR`.** The two independent probes disagree on pi and
+ *    on deepseek, and one of each pair is a submit.
+ *
+ * Shift+Enter therefore produces the same bytes as ⌃J deliberately: ⌃J *is*
+ * the newline gesture these TUIs implement, so Shift+Enter can only ever
+ * behave exactly as ⌃J already does on that agent. Plain Enter is untouched.
+ */
+export const LF = '\n';
+
+/**
+ * What an agent with no `multilineKey` row gets, and what a plain shell gets.
+ * `verified` is false because an *unknown* agent is by definition unmeasured
+ * — the registry rows are the verified ones.
+ *
+ * Measured for a shell, though the shell has no registry row: LF at a zsh
+ * prompt is readline accept-line, identical to Enter with no stray
+ * characters, so Shift+Enter in a shell does what it has always done.
+ *
+ * FIELD LOG for two agents the registry does not carry yet (research 20 §5),
+ * both of which take this default today:
+ *  - `amp` — UNVERIFIED; the pane exits immediately unauthenticated on the
+ *    probe machine. Its only documented Shift+Enter route is a kitty-gated
+ *    CSI-u that tmux 3.6a will never deliver, so LF is likely the only thing
+ *    that can ever work. Docs say ⌃J inserts a newline in any terminal.
+ *  - `opencode` — `input_newline` already binds shift+return, ctrl+return,
+ *    alt+return and ctrl+j.
+ */
+export const DEFAULT_MULTILINE_KEY: AgentMultilineKey = {
+  sequence: LF,
   verified: false
 };
 
@@ -244,6 +297,12 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     activity: { tier: 'native', native: 'claude-session-registry', animatesWhenIdle: false, hooks: 'claude-settings', verified: 'verified' },
     iconKey: 'claude',
     defaultHotkeyHint: 'c',
+    multilineKey: {
+      sequence: LF,
+      verified: true,
+      notes:
+        'Pane negotiates Ext 2. Also has its own ctrl+j / shift+enter / \\+Enter bindings and /terminal-setup — all untouched.'
+    },
     imageDrop: {
       strategy: 'paste-path',
       insert: 'paste',
@@ -281,6 +340,12 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     activity: { tier: 'screen', animatesWhenIdle: false, verified: 'unverified' },
     iconKey: 'cursor',
     defaultHotkeyHint: 'u',
+    multilineKey: {
+      sequence: LF,
+      verified: true,
+      notes:
+        'TRAP: cursor-agent SUBMITS on CSI-u, even at forced Ext 1, and inserts the literal escape text under extended-keys always.'
+    },
     imageDrop: {
       strategy: 'path-text',
       insert: 'paste',
@@ -318,6 +383,12 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     activity: { tier: 'native', native: 'pane-title-oracle', animatesWhenIdle: false, verified: 'verified' },
     iconKey: 'codex',
     defaultHotkeyHint: 'x',
+    multilineKey: {
+      sequence: LF,
+      verified: true,
+      notes:
+        'Pane stays VT10x under the shipped extended-keys-format xterm, so its native CSI-u Shift+Enter never arrives — tmux downgrades it to CR and codex submits. LF is the route that works.'
+    },
     imageDrop: {
       strategy: 'paste-path',
       insert: 'paste',
@@ -351,6 +422,7 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     activity: { tier: 'screen', animatesWhenIdle: false, verified: 'unverified' },
     iconKey: 'gemini',
     defaultHotkeyHint: 'g',
+    multilineKey: { sequence: LF, verified: true },
     imageDrop: {
       strategy: 'paste-path',
       insert: 'paste',
@@ -384,6 +456,12 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     activity: { tier: 'screen', animatesWhenIdle: false, verified: 'unverified' },
     iconKey: 'droid',
     defaultHotkeyHint: 'd',
+    multilineKey: {
+      sequence: LF,
+      verified: false,
+      notes:
+        'UNVERIFIED — not installed on the probe machine. Docs mention Shift+Enter for new lines.'
+    },
     imageDrop: {
       strategy: 'path-text',
       insert: 'paste',
@@ -416,6 +494,11 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     activity: { tier: 'process', animatesWhenIdle: true, verified: 'partial' },
     iconKey: 'deepseek',
     defaultHotkeyHint: 'k',
+    multilineKey: {
+      sequence: LF,
+      verified: true,
+      notes: 'TRAP: submits on CSI-u at VT10x and no-ops on it at forced Ext 1.'
+    },
     imageDrop: {
       strategy: 'clipboard-attach',
       insert: 'paste',
@@ -456,6 +539,12 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     activity: { tier: 'screen', animatesWhenIdle: false, verified: 'partial' },
     iconKey: 'antigravity',
     defaultHotkeyHint: 'a',
+    multilineKey: {
+      sequence: LF,
+      verified: true,
+      notes:
+        'keybindings.json maps prompt.insert_newline to alt+enter / ctrl+j / shift+enter; gmux writes no agent config, so those keep working.'
+    },
     imageDrop: {
       strategy: 'clipboard-attach',
       insert: 'type',
@@ -493,6 +582,7 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     activity: { tier: 'process', animatesWhenIdle: true, verified: 'partial' },
     iconKey: 'muse',
     defaultHotkeyHint: 'm',
+    multilineKey: { sequence: LF, verified: true },
     imageDrop: {
       strategy: 'paste-path',
       insert: 'paste',
@@ -529,6 +619,7 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     activity: { tier: 'screen', animatesWhenIdle: false, verified: 'partial' },
     iconKey: 'qwen',
     defaultHotkeyHint: 'q',
+    multilineKey: { sequence: LF, verified: true },
     imageDrop: {
       strategy: 'paste-path',
       insert: 'paste',
@@ -572,6 +663,12 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     activity: { tier: 'screen', animatesWhenIdle: false, verified: 'unverified' },
     iconKey: 'pi',
     defaultHotkeyHint: null,
+    multilineKey: {
+      sequence: LF,
+      verified: true,
+      notes:
+        'Warns at launch that it wants extended-keys-format csi-u. LF works regardless; do not adopt that server option to appease it (research 20 §7.3).'
+    },
     imageDrop: {
       strategy: 'path-text',
       insert: 'paste',
@@ -739,6 +836,25 @@ export function imageDropTable(): ImageDropTable {
 export function imageDropFor(id: string): AgentImageDrop {
   const entry = AGENT_REGISTRY.find((e) => e.id === id);
   return entry?.imageDrop ?? DEFAULT_IMAGE_DROP;
+}
+
+/**
+ * The per-agent Shift+Enter table for the renderer (agents:multilineKeys).
+ * Derived from AGENT_REGISTRY so the table exists exactly once (guardrail 3);
+ * agents with no row — and every shell pane — take the fallback.
+ */
+export function multilineKeyTable(): MultilineKeyTable {
+  const agents: MultilineKeyTable['agents'] = {};
+  for (const entry of AGENT_REGISTRY) {
+    if (entry.multilineKey !== undefined) agents[entry.id] = entry.multilineKey;
+  }
+  return { agents, fallback: DEFAULT_MULTILINE_KEY };
+}
+
+/** One agent's Shift+Enter row, falling back for shells and unknown ids. */
+export function multilineKeyFor(id: string): AgentMultilineKey {
+  const entry = AGENT_REGISTRY.find((e) => e.id === id);
+  return entry?.multilineKey ?? DEFAULT_MULTILINE_KEY;
 }
 
 /**

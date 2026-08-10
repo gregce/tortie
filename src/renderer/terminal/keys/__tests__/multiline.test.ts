@@ -7,7 +7,7 @@
  * user-visible disaster — a half-written prompt sent to a model.
  */
 
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Terminal } from '@xterm/xterm';
 import type { ScrollSurface } from '../../scroll/surface';
 
@@ -22,6 +22,7 @@ vi.mock('../../capture', () => ({
 
 import { terminalKeyHandler } from '../index';
 import {
+  __setMultilineKeyTable,
   DEFAULT_MULTILINE_KEY,
   LF,
   multilineKeyFor,
@@ -136,7 +137,15 @@ describe('Shift+Enter', () => {
   });
 });
 
-describe('the multiline table', () => {
+/**
+ * The TABLE itself now lives in the main-process registry
+ * (src/main/agents/registry.ts `multilineKey`) and is asserted there —
+ * src/main/agents/__tests__/registry.test.ts owns the per-agent matrix. What
+ * is left here is the renderer-side CACHE in front of `agents:multilineKeys`,
+ * whose only interesting behavior is what it answers before, during and after
+ * the table arrives.
+ */
+describe('the multiline cache', () => {
   const AGENTS = [
     'claude',
     'codex',
@@ -154,7 +163,24 @@ describe('the multiline table', () => {
     'a-cli-that-does-not-exist'
   ];
 
+  afterEach(() => {
+    __setMultilineKeyTable(null);
+  });
+
+  it('answers the measured LF for everyone before the table arrives', () => {
+    // The pre-prime window is CORRECT, not merely safe: every agent measured
+    // to date takes LF, so an early ⇧↩ does the right thing.
+    for (const agent of AGENTS) {
+      expect(multilineSequenceFor(agent)).toBe(LF);
+      expect(multilineKeyFor(agent)).toBe(DEFAULT_MULTILINE_KEY);
+    }
+  });
+
   it('never hands out CSI-u or ESC CR — tmux turns both into a submit', () => {
+    __setMultilineKeyTable({
+      agents: { claude: { sequence: LF, verified: true } },
+      fallback: { sequence: LF, verified: false }
+    });
     for (const agent of AGENTS) {
       const sequence = multilineSequenceFor(agent);
       expect(sequence === null || !sequence.includes(ESC)).toBe(true);
@@ -162,21 +188,26 @@ describe('the multiline table', () => {
     }
   });
 
-  it('gives every known agent, and any unknown one, the measured LF', () => {
-    for (const agent of AGENTS) {
-      expect(multilineSequenceFor(agent)).toBe(LF);
-    }
-    expect(multilineKeyFor('a-cli-that-does-not-exist')).toBe(
-      DEFAULT_MULTILINE_KEY
-    );
+  it('serves the registry row once primed, and the table fallback otherwise', () => {
+    const claude = { sequence: LF, verified: true };
+    const fallback = { sequence: LF, verified: false };
+    __setMultilineKeyTable({ agents: { claude }, fallback });
+    expect(multilineKeyFor('claude')).toBe(claude);
+    // A shell has no registry row by construction, and an id this build has
+    // never heard of must not throw its way into a submit.
+    expect(multilineKeyFor('shell')).toBe(fallback);
+    expect(multilineKeyFor('a-cli-that-does-not-exist')).toBe(fallback);
   });
 
-  it('only claims `verified` for agents a probe actually drove', () => {
-    expect(multilineKeyFor('claude').verified).toBe(true);
-    expect(multilineKeyFor('codex').verified).toBe(true);
-    // Not installed / not authenticated on the probe machine.
-    expect(multilineKeyFor('amp').verified).toBe(false);
-    expect(multilineKeyFor('droid').verified).toBe(false);
-    expect(DEFAULT_MULTILINE_KEY.verified).toBe(false);
+  it('honors an agent with no multiline input at all', () => {
+    // No agent measured so far needs this, but the null contract is what
+    // keeps a future one from having Enter broken: no sequence → xterm's own
+    // CR, never an invented escape.
+    __setMultilineKeyTable({
+      agents: { droid: { sequence: null, verified: false } },
+      fallback: { sequence: LF, verified: false }
+    });
+    expect(multilineSequenceFor('droid')).toBeNull();
+    expect(multilineSequenceFor('claude')).toBe(LF);
   });
 });

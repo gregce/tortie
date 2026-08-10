@@ -24,7 +24,8 @@ const GROUPS: { title: string; rows: Row[] }[] = [
       {
         keys: ['⇧⇞', '⇧⇟'],
         action: 'Scroll back through output (typing returns to live)'
-      }
+      },
+      { keys: ['⇧↩'], action: 'New line in the prompt (Enter still sends)' }
     ]
   },
   {

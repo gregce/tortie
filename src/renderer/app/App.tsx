@@ -39,6 +39,9 @@ import { AttentionOverlay } from './AttentionOverlay';
 import { ConfirmDialog } from './ConfirmDialog';
 import { Toasts } from './Toasts';
 import { FirstRun, TmuxMissing } from './EmptyStates';
+// Phase 12.4/12.6: "show this once, ever" lives in exactly one place — the
+// first-quit toast below is one of its catalog entries, not a second copy.
+import { showOneTimeTip } from './one-time-tip';
 // Phase 5 (editor stream): the S5 editor panel — a right split beside the
 // terminal region (overlay under 1400px). It renders null until a file opens.
 import { EditorPanel } from '../editor';
@@ -526,9 +529,14 @@ function useShotLayoutHook(): void {
 // here instead of quitting; the FIRST ⌘Q with ≥1 live session shows the toast
 // for ~1.5s before proceeding, every later quit is immediate. Main arms a
 // fallback timer, so a broken renderer can never block quitting.
+//
+// The flag-then-toast dance is NOT inline here: it is the shared one-time-tip
+// mechanism (./one-time-tip.ts), which this toast is the original of. The
+// hold below is armed by showOneTimeTip's return value, so unreadable or
+// unwritable storage — which counts as already-shown — quits immediately
+// instead of pausing in front of a toast that never appeared.
 // ---------------------------------------------------------------------------
 
-const LS_QUIT_TOAST = 'gmux.quitToastShown';
 const QUIT_TOAST_MS = 1_500;
 
 function useQuitRequests(): void {
@@ -544,26 +552,18 @@ function useQuitRequests(): void {
     }
     const quit = bridge.quit.bind(bridge);
     return bridge.onQuitRequested(() => {
-      const s = useApp.getState();
-      const hasLiveSession = s.sessions.some(
-        (x) => x.status !== 'exited' && x.status !== 'restorable'
-      );
-      let alreadyShown = false;
-      try {
-        alreadyShown = localStorage.getItem(LS_QUIT_TOAST) === '1';
-      } catch {
-        alreadyShown = true; // storage unavailable — never delay quit twice
-      }
-      if (alreadyShown || !hasLiveSession) {
+      const hasLiveSession = useApp
+        .getState()
+        .sessions.some(
+          (x) => x.status !== 'exited' && x.status !== 'restorable'
+        );
+      // Order matters: with nothing running there is nothing to reassure the
+      // user about, and burning the one-time flag on that quit would spend
+      // the tip where it says nothing.
+      if (!hasLiveSession || !showOneTimeTip('quit-hold')) {
         void quit();
         return;
       }
-      try {
-        localStorage.setItem(LS_QUIT_TOAST, '1');
-      } catch {
-        /* cosmetic flag only */
-      }
-      s.toast('info', 'Quitting — your sessions keep running.');
       window.setTimeout(() => void quit(), QUIT_TOAST_MS);
     });
   }, []);

@@ -20,13 +20,18 @@ import {
   AGENT_REGISTRY,
   agentBinaryName,
   DEFAULT_AGENT_ID,
+  DEFAULT_MULTILINE_KEY,
   getLaunchableEntry,
   getRegistryEntry,
   LAUNCHABLE_AGENT_IDS,
+  LF,
+  multilineKeyFor,
+  multilineKeyTable,
   registryLaunchArgv,
   registryResumeArgv,
   SESSION_ID_SLOT
 } from '../registry';
+import { registerAgentsIpc } from '../index';
 
 const ALL_IDS: AgentRegistryId[] = [
   'claude',
@@ -249,5 +254,81 @@ describe('buildLaunchSpec registry wiring', () => {
       const spec = buildLaunchSpec(id, [], `/abs/${agentBinaryName(id)}`);
       expect(spec.argv[0], id).toBe(`/abs/${agentBinaryName(id)}`);
     }
+  });
+});
+
+/**
+ * Phase 12.5/12.6 — the Shift+Enter matrix, now registry data (it lived in
+ * the renderer while Phase 13 owned this file). Every way of getting these
+ * bytes wrong ends in the same user-visible disaster: a half-written prompt
+ * sent to a model.
+ */
+describe('the multiline (Shift+Enter) table', () => {
+  /** ASCII escape — the prefix of every sequence this feature must not emit. */
+  const ESC = '\u001b';
+
+  it('gives every launchable agent a row, and the IDE pair none', () => {
+    for (const id of LAUNCHABLE_AGENT_IDS) {
+      expect(getRegistryEntry(id).multilineKey, id).toBeDefined();
+    }
+    // Capture-only watchers are never run in a pane, so they have no prompt
+    // to type a newline into — exactly like imageDrop.
+    expect(getRegistryEntry('cursoride').multilineKey).toBeUndefined();
+    expect(getRegistryEntry('copilotide').multilineKey).toBeUndefined();
+  });
+
+  it('never carries CSI-u or ESC CR — tmux turns both into a submit', () => {
+    for (const entry of AGENT_REGISTRY) {
+      const sequence = entry.multilineKey?.sequence;
+      if (sequence === undefined || sequence === null) continue;
+      expect(sequence.includes(ESC), entry.id).toBe(false);
+      expect(sequence.includes('\r'), entry.id).toBe(false);
+    }
+    expect(DEFAULT_MULTILINE_KEY.sequence).toBe(LF);
+  });
+
+  it('resolves shells and unknown ids to the unverified default', () => {
+    expect(multilineKeyFor('shell')).toBe(DEFAULT_MULTILINE_KEY);
+    expect(multilineKeyFor('a-cli-that-does-not-exist')).toBe(
+      DEFAULT_MULTILINE_KEY
+    );
+    // An UNMEASURED agent may never claim to have been measured.
+    expect(DEFAULT_MULTILINE_KEY.verified).toBe(false);
+  });
+
+  it('only claims `verified` for agents a probe actually drove', () => {
+    expect(multilineKeyFor('claude').verified).toBe(true);
+    expect(multilineKeyFor('codex').verified).toBe(true);
+    // Not installed on the probe machine (research 20 §5).
+    expect(multilineKeyFor('droid').verified).toBe(false);
+  });
+
+  it('serves the same rows over IPC as the registry holds', () => {
+    const table = multilineKeyTable();
+    expect(table.fallback).toBe(DEFAULT_MULTILINE_KEY);
+    for (const id of LAUNCHABLE_AGENT_IDS) {
+      expect(table.agents[id], id).toBe(getRegistryEntry(id).multilineKey);
+    }
+    expect(table.agents.cursoride).toBeUndefined();
+  });
+});
+
+/**
+ * The one runtime risk `tsc` cannot catch in the fold: `ipc.handle` takes a
+ * bare string, so a channel-name typo in main typechecks fine and then the
+ * preload's typed `invoke` talks to nobody. Pin the wiring.
+ */
+describe('registerAgentsIpc', () => {
+  it('serves the multiline table on the channel the preload invokes', async () => {
+    const handlers = new Map<string, (...args: unknown[]) => unknown>();
+    registerAgentsIpc({
+      handle(channel: string, fn: (...args: unknown[]) => unknown) {
+        handlers.set(channel, fn);
+      }
+    } as unknown as Parameters<typeof registerAgentsIpc>[0]);
+
+    const handler = handlers.get('agents:multilineKeys');
+    expect(handler).toBeDefined();
+    expect(await handler?.({})).toEqual(multilineKeyTable());
   });
 });

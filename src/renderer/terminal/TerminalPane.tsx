@@ -30,7 +30,7 @@ import type { GmuxErrorPayload, Session, SessionStatus } from '@shared/types';
 import { useApp } from '../state/store';
 import { registerTerminal } from './drop/registry';
 import { terminalKeyHandler } from './keys';
-import { multilineSequenceFor } from './keys/multiline';
+import { multilineSequenceFor, primeMultilineKeys } from './keys/multiline';
 import { ScrollSurface } from './scroll/surface';
 import { TerminalScrollbar } from './scroll/TerminalScrollbar';
 import { canSplit, showTerminalMenu } from './terminal-menu';
@@ -141,6 +141,12 @@ export function TerminalPane({
 
     let disposed = false;
     setOverlay(null);
+
+    // The ⇧↩ table is registry data fetched once per renderer (the lookup
+    // below runs inside a keystroke handler and cannot await). Until it
+    // lands every agent takes the measured LF default, so an early keypress
+    // is right, not merely harmless.
+    void primeMultilineKeys();
 
     const term = new Terminal({
       scrollback: TERMINAL_SCROLLBACK,

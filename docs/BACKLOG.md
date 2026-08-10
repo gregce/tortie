@@ -118,9 +118,9 @@ REQUIRED BEHAVIOR:
 VERIFY: on a claude pane with a long transcript, a codex pane, and a plain shell — wheel up reveals prior output in all three; the scrollbar is visible at rest and tracks position; typing returns to live; selection+copy still work; an inner mouse-tracking app (e.g. run `vim` or an agent picker) still receives its own wheel events. Also confirm no interaction with Phase 12's drop router, capture, or right-click menu.
 
 ## Phase 12.5 — Shift+Enter newline in the prompt, for EVERY supported CLI ✅ SHIPPED (spec: docs/research/20-shift-enter.md)
-SHIPPED as a single LF (0x0a): `src/renderer/terminal/keys/multiline.ts` holds the per-agent table and `keys/index.ts` the branch. Two follow-ups the owning workflow could not make itself, both trivial:
-- **⌘/ overlay** (src/renderer/app/ShortcutsOverlay.tsx was owned elsewhere): add to the "Sessions" group, next to the ⇧⇞/⇧⇟ row — `{ keys: ['⇧↩'], action: 'New line in the prompt (Enter still sends)' }`.
-- **Registry merge** (src/main/agents/registry.ts was owned by Phase 13): the table is renderer-local for now and belongs on `AgentRegistryEntry.multilineKey` beside `imageDrop`, with the same `DEFAULT_*` constant and IPC-primed renderer cache. Module header carries the instructions.
+SHIPPED as a single LF (0x0a): `keys/index.ts` holds the branch. Both follow-ups the owning workflow could not make itself (the files belonged to other streams that day) landed in **Phase 12.6**:
+- **⌘/ overlay** — `{ keys: ['⇧↩'], action: 'New line in the prompt (Enter still sends)' }` sits in the "Sessions" group next to the ⇧⇞/⇧⇟ row, so the gesture is discoverable.
+- **Registry merge** — the table is `AgentRegistryEntry.multilineKey` beside `imageDrop` (`DEFAULT_MULTILINE_KEY`, `multilineKeyTable()`), served over `agents:multilineKeys` and cached in the renderer by `src/renderer/terminal/keys/multiline.ts`, which is now only that cache. The registry header carries the CSI-u / `ESC CR` traps; the per-agent matrix is asserted in src/main/agents/__tests__/registry.test.ts.
 User ask: pressing Shift+Enter should expand the agent's prompt box to a new line instead of submitting — for all supported CLIs, not just Claude.
 WHY IT DOESN'T WORK TODAY (confirm in research): a terminal sends a bare `CR` for both Enter and Shift+Enter unless the modifier is encoded. That is precisely why Claude Code ships `/terminal-setup` to patch iTerm2/VS Code keymaps. gmux owns its terminal, so it can do this natively and correctly — no user setup, no editing anyone's config.
 Design constraints:
@@ -130,7 +130,12 @@ Design constraints:
 - Discoverability: mention it in the ⌘/ shortcuts overlay.
 VERIFY per CLI, hands-on in scratch sessions: press Shift+Enter and confirm a NEWLINE appears in the prompt (not a submit) for claude and codex at minimum, then every other installed agent; for agents not installed, record the sequence from their docs/source and mark UNVERIFIED. Matrix in the research doc: agent x {sequence, verified?, fallback}.
 
-## Phase 12.4 — teach the preview/pinned tab model from the explorer (small UX)
+## Phase 12.4 — teach the preview/pinned tab model from the explorer (small UX) ✅ SHIPPED (877153c)
+SHIPPED: tree rows (src/renderer/tree/FileTree.tsx) and SCM rows (src/renderer/scm/ScmSection.tsx) both offer "Open" / "Open in New Tab" through the native ui:popupMenu bridge; the italic preview tab explains itself in its tooltip and its accessible name (src/renderer/editor/EditorTabs.tsx); and the first use of the verb teaches the double-click once, ever. The "show this once" mechanism was extracted, not copied — `src/renderer/app/one-time-tip.ts`, a catalog of tip text keyed by id behind a `gmux.tipShown.<id>` flag written BEFORE the toast, with unreadable/unwritable storage counting as already-shown so a tip that cannot be remembered can never nag.
+Two hand-offs the commit named, deliberately left to whoever next owned the files:
+- **Fold App.tsx's `gmux.quitToastShown` into the catalog** — the first-quit toast is the mechanism's original and was still an inline copy of the flag dance. DONE in Phase 12.6: it is the `quit-hold` tip, `showOneTimeTip` returns whether it actually toasted so ⌘Q only holds when there is something to read, and the legacy flag is still honored so nobody who has seen it sees it again.
+- **Open verbs on history commit-file rows** (src/renderer/scm/HistorySection.tsx) — STILL OPEN: those rows have click/double-click but no context menu at all. Give them the same "Open" / "Open in New Tab" pair (and the same tip) so files open identically everywhere, and unify with search results when Phase 14 lands its result-open path.
+
 Problem: Phase 12 shipped VS Code's preview-tab model (single-click = reusable italic preview slot, double-click or edit = kept tab) and it is completely invisible — a user single-clicking through files sees one tab recycling and assumes multi-file opening is broken.
 Build:
 1. **Tree row context menu gains open verbs** (native, through the existing ui:popupMenu bridge, on src/renderer/tree row right-click): "Open" (preview, current behavior) and **"Open in New Tab"** (opens KEPT/pinned immediately). Keep the menu short — these sit above the existing items with a separator.
