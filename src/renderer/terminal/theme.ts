@@ -33,7 +33,21 @@ export const terminalTheme: ITheme = {
   brightWhite: '#E8EAED'
 };
 
-/** DESIGN.md §1.8: terminal runs SF Mono 13px, lineHeight 1.25, spacing 0. */
+/**
+ * DESIGN.md §1.8: terminal runs SF Mono 13px, lineHeight 1.25, spacing 0.
+ *
+ * Glyph coverage — verified in this Chromium (Phase 9.2 Bug C canvas-bitmap
+ * probe): "SF Mono" is not system-registered (Terminal.app-private) and
+ * Chromium does not implement `ui-monospace`, so the face that actually
+ * renders is **Menlo** — which covers the whole prompt-glyph gauntlet
+ * (➜ U+279C, ✗ U+2717, ● U+25CF, ▲ U+25B2, λ U+03BB) at exactly 1 cell
+ * advance. macOS per-glyph fallback covers anything further; no bundled
+ * font is needed. (The historical "underscores instead of glyphs" bug was
+ * never fonts: a locale-less launchd env made tmux mark the attach client
+ * non-UTF-8 and substitute `_` server-side — fixed in src/main/tmux/env.ts
+ * + `tmux -u`.) Powerline PUA glyphs (U+E0B0…) are drawn by xterm.js
+ * itself (customGlyphs), independent of this stack.
+ */
 export const TERMINAL_FONT_FALLBACK =
   '"SF Mono", ui-monospace, Menlo, monospace';
 export const TERMINAL_FONT_SIZE = 13;
