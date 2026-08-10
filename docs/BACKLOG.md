@@ -37,7 +37,7 @@ Spec inputs: docs/research/11-agent-registry.md (12 agents), user screenshots be
 ## Phase 11 — Pierre swap ✅ SHIPPED (spec: docs/research/12-pierre-diffs.md)
 @pierre/diffs 1.3.5 replaced all diff viewing (Monaco is editor-only); @pierre/trees 1.0.0-beta.6 replaced react-arborist; theme bridge from gmux tokens (shadow DOM, src/renderer/pierre/theme-bridge.ts).
 Carried into later phases: **Diff mode is read-only** (edit is one toggle away in File mode) — revisit when `@pierre/diffs/edit` leaves beta. Folder rows lost their material folder icons: @pierre/trees renders a chevron in the leading icon slot and has no per-folder icon surface (see DESIGN-SPEC S3B).
-Deferred (revisit in Phase 14 refactor): delete monaco-editor (98 MB node_modules, ~43 MB of built assets, ~480 LOC), blocked on Pierre `/edit` GA or a CodeMirror 6 swap.
+Deferred (revisit in Phase 16 refactor): delete monaco-editor (98 MB node_modules, ~43 MB of built assets, ~480 LOC), blocked on Pierre `/edit` GA or a CodeMirror 6 swap.
 
 ## Phase 12 — dogfood round 2 (user feedback 2026-08-10). Reference screenshots are real files — Read them.
 
@@ -72,7 +72,76 @@ Deferred (revisit in Phase 14 refactor): delete monaco-editor (98 MB node_module
    - **⌘V image paste, not just drag-and-drop**: an image already on the system clipboard must attach the same way when pasted into a focused agent session (same strategy table, same insertion semantics). Drag-drop and paste share one code path.
    - Verify per agent (claude, codex, gemini, droid, amp, cursor-agent…) what actually works; record VERIFIED vs assumed in the registry, and default any unverified agent to the path fallback.
 
-## Phase 13 — SpecStory bundling (research: docs/research/13-specstory-integration.md)
+## Phase 12.2 — BUG: renaming a session grabs the drag handle (user-hit, small, do first)
+Symptom: starting a rename makes the row/tab immediately grabbed and movable, so typing/selecting in the rename box is fought by the drag.
+USER-CONFIRMED SCOPE: happens ONLY via right-click → Rename. **fn+F2 rename works perfectly.** That asymmetry is the tell.
+ROOT CAUSE: `src/renderer/app/split/pointer-drag.ts:36` documents itself "Call from a React onPointerDown (**primary button only**)" — but NO caller enforces it. A right-click fires pointerdown with `e.button === 2`, which starts a surface drag; the native context menu then opens over the armed drag, the user picks Rename, and the drag is still tracking the pointer. F2 never goes through pointerdown, which is exactly why it is unaffected.
+Fix (at the source, so no caller can reintroduce it):
+1. **Enforce primary-button-only inside `startSurfaceDrag` itself** (pointer-drag.ts): bail unless `e.button === 0` (and ignore non-primary `pointerType === 'mouse'` buttons generally). Belt and braces: also add `if (e.button !== 0) return;` to the three call sites — src/renderer/app/split/surface-dnd.ts:237, src/renderer/app/SessionDock.tsx:187, src/renderer/app/TerminalRegion.tsx:276 — and audit src/renderer/app/Titlebar.tsx:63 + src/renderer/app/split/SplitSurface.tsx:64,226 for the same defect (project tabs and split handles will have it too — a right-click on a project tab probably arms a tab drag as well).
+2. Make `setRenaming(id)` ABORT any in-flight drag (expose a cancel from pointer-drag.ts) — cheap insurance for any other path that arms a drag before a rename begins.
+3. Add the missing `renaming` guard to SessionDock.tsx:187 and TerminalRegion.tsx:276 for parity with surface-dnd.ts (which already has it).
+Tests: unit — startSurfaceDrag ignores button 1/2; setRenaming cancels an active drag. Probe — right-click → Rename on a dock row, a strip tab, a right-list row, and a project tab: input appears, nothing moves, typing and text selection work; then confirm left-drag reorder and fn+F2 both still work.
+
+## Phase 12.3 — P0 (TOP PRIORITY, ahead of 12.2 and Phase 13): scrollback must work in AGENT panes, with a visible scrollbar
+**USER-CONFIRMED EVIDENCE (2026-08-10, screenshot media_?/shell-3):** the scrollbar appears and scrolling works in SHELL panes; it is absent and non-functional in AGENT panes. That asymmetry is the whole diagnosis.
+MECHANISM: a shell draws in the NORMAL buffer → xterm has real scrollback → scrollbar + wheel work. An agent TUI switches to the ALTERNATE screen and enables mouse tracking → (i) the alternate screen has no scrollback by definition, (ii) content drawn there never enters tmux's history either, so `copy-mode` alone will NOT recover an alt-screen agent's transcript, and (iii) the wheel is delivered to the app (as arrow keys / SGR mouse reports), which the agent reads as input-history navigation — exactly the user's "it thinks I'm focused in the input box".
+NOT the cause (both ruled out by inspection, do not chase): the Phase-12 image-drop router (listens only to dragover/dragleave/dragend/drop/paste; overlay is pointer-events:none and unmounted unless a drag is armed), and the tmux mouse setting (still `off`, unchanged since Phase 8.1).
+THE WORK — determine per agent, EMPIRICALLY, which of these is true and implement accordingly:
+ (a) the agent runs in the alternate screen and owns its own transcript scrolling → gmux must make the agent's OWN scroll work (forward wheel as the app expects; verify claude/codex actually scroll their transcript on wheel, and if they use keys instead, map wheel → those keys) and surface the affordance;
+ (b) the agent writes to the normal buffer → tmux history exists → wheel drives `copy-mode -e` over the real 50k-line history;
+ (c) hybrid (TUI in alt screen but transcript echoed to normal buffer) → prefer (b).
+Whichever path each agent takes, THESE ARE NON-NEGOTIABLE:
+1. Wheel/trackpad scrolling reveals prior output in agent panes — the user must be able to read long output again. This is the acceptance test; a pane where the wheel does nothing (or navigates prompt history) is a FAIL.
+2. **The translucent scrollbar is always present in every pane type**, including agent panes — minimally visible when scrolled to the bottom so the affordance is discoverable, thicker on hover, draggable to scrub, themed from tokens, prefers-reduced-motion honored. Where the scroll surface is the agent's own transcript, the bar reflects that; where it is tmux history, it reflects that.
+3. Typing always returns to live output; selection and copy (Phase 12 item 1) keep working; an inner mouse-tracking app (vim, a picker) still receives its own wheel events.
+4. Keyboard parity (⇧PageUp/PageDown or the documented map) and a line in the ⌘/ overlay.
+VERIFY on: a claude pane with a long transcript, a codex pane, a plain shell, and vim-inside-a-shell. Screenshot the scrollbar at rest in an agent pane as proof.
+Symptom: clicking into a session and scrolling does nothing useful — the wheel is delivered to the agent's TUI ("it thinks I'm focused in the input box"). Scrolling back through prior responses used to work.
+**CORRECTION TO A VERIFIER CLAIM (do not act on it as written):** the Phase-12 functional verifier reported "resources/gmux-tmux.conf:27 sets `set -g mouse on`". That is a MISREAD — line 27 is inside the comment block explaining what `mouse on` *would* do; the real directive is line 38, `set -g mouse off`, and `git log -- resources/gmux-tmux.conf` shows no change since Phase 8.1 (e850011), well before Phase 12. Do NOT flip tmux mouse mode on the strength of that finding.
+What the verifier's on-the-wire measurement (ESC[?1000h/1002h/1006h) actually shows: the AGENT TUI inside the pane enables mouse tracking, tmux (correctly, with mouse off) passes the request through to the attach client, and xterm.js therefore forwards wheel events to the app. Combined with the attach client living in the alternate buffer, that is the whole bug. Also ruled out by inspection: the Phase-12 image-drop router (src/renderer/terminal/drop/router.ts) listens ONLY to dragover/dragleave/dragend/drop/paste — no wheel, scroll, or pointer handlers — so the drag-and-drop feature is NOT the cause.
+
+ARCHITECTURAL FACT that frames the fix (already noted in src/renderer/terminal/terminal-menu.ts:133): `tmux attach` puts the CLIENT in the ALTERNATE buffer, so xterm.js has NO scrollback of its own for a tmux-attached pane — the real 50k-line history lives server-side in tmux, reachable only via copy-mode. resources/gmux-tmux.conf sets `mouse off` by design (so tmux never steals clicks/selection), which leaves wheel events going to whatever app is inside the pane.
+REQUIRED BEHAVIOR:
+1. **Wheel always scrolls the session's scrollback.** On wheel-up in a tmux-attached pane, enter tmux copy-mode (`copy-mode -e`) and scroll by the wheel delta; continue scrolling within copy-mode; wheel-down at the bottom exits copy-mode cleanly back to live output. Typing must also exit copy-mode (never trap the user). Shift/modifier behavior per terminal convention.
+2. **Respect apps that legitimately own the mouse**: if the app INSIDE the pane has mouse tracking enabled AND is itself an alt-screen app (a picker, vim, a menu), forward the wheel to it instead of hijacking. Determine the inner app's mouse/alt state from tmux (`#{alternate_on}`, `#{mouse_any_flag}` / pane flags) — do NOT infer from the attach client's own alt-buffer state, which is always on.
+3. **Always-visible translucent scrollbar on the right**, gmux-drawn (xterm's own scrollbar is useless here since the client is in the alt buffer): reflects position within tmux's history when in copy-mode, and sits **minimally visible at the bottom when fully scrolled down** so the affordance is discoverable. Fades/thins at rest, thickens on hover, draggable to scrub. Themed from tokens; honors prefers-reduced-motion.
+4. **Clicking into prior output text keeps scroll working** — a click in the output area must not leave the pane in a state where the wheel is swallowed; selection and copy (Phase 12 item 1) must continue to work alongside copy-mode.
+5. Keyboard parity: ⇧PageUp/PageDown and ⌘↑/↓ (or the documented map) scroll the same history; document in the ⌘/ overlay.
+VERIFY: on a claude pane with a long transcript, a codex pane, and a plain shell — wheel up reveals prior output in all three; the scrollbar is visible at rest and tracks position; typing returns to live; selection+copy still work; an inner mouse-tracking app (e.g. run `vim` or an agent picker) still receives its own wheel events. Also confirm no interaction with Phase 12's drop router, capture, or right-click menu.
+
+## Phase 13 — accurate per-agent activity detection (user-hit: status is ALWAYS "working")
+Symptom (ref shot: media_88j9nVkcw0/CleanShot 2026-08-10 at 14.34.35@2x.png): claude-1 sits at an idle prompt yet the tab reads "working" permanently.
+ROOT CAUSE — **CORRECTED BY RESEARCH (docs/research/18-agent-activity.md §1; my earlier "TUIs redraw constantly" premise was measured FALSE — idle claude/codex/qwen/gemini/agy/pi emit ZERO bytes).** Two defects compose:
+(a) the renderer byte detector can only see the VISIBLE pane (status-detector.ts:25 says so in its own header; unwatch() leaves the last status standing), and
+(b) `statusOverrides` in src/renderer/state/store.ts:974 is a STICKY renderer override never cleared while a session lives, and it takes priority over main — which already computes the right answer and cannot displace it. Live proof: the user's claude-1 has reported `idle` in claude's own state file for 4h18m while the tab reads "working".
+Also inverted today: BEL is NOT a needs-input signal — 133/133 BELs captured off the wire were OSC string terminators, and codex emits ~10/s WHILE WORKING.
+
+THE DESIGN IS SETTLED — implement docs/research/18-agent-activity.md (all signals measured, zero injection required):
+- **claude** → `~/.claude/sessions/<pid>.json` publishes `status: busy|shell|idle|waiting` + `waitingFor`. MAPPING TRAPS (research found these; the probes' naive mapping is wrong): the file's `tmux` field session NAME goes stale on rename — map ONLY by `%N` pane id or pane_pid/subtree; older claude builds omit `status`; some entries have `"tmux": null`.
+- **codex** → `#{pane_title}` is a full 3-state oracle (`work` / `⠙ work` / `[ ! ] Action Required | work`), read in the poll gmux already runs.
+- **shell** → `#{keypad_flag}` + `#{alternate_on}` (zsh's ZLE sets DECKPAM at every prompt) — exact, works detached.
+- **Universal floor (agents with no oracle)** → tiered, highest verdict wins: T1 always-on 1 Hz `list-panes -a` reading `window_activity` (NEVER `session_activity` — it tracks clients and froze at attach), pane_title, keypad_flag, alternate_on, pane_in_mode, pane_dead; T2 only when ambiguous, one `ps -axo pid=,ppid=,time=,stat=` snapshot with subtree Δ(TIME)/Δt ≥ 5% over 2 consecutive ticks (do NOT narrow ps to specific pids — measured SLOWER on macOS); plus setsid'd-tool-child detection, normalized capture-pane hash with K-tick memory, and one generic needs-input dialog regex.
+- **Hooks are an upgrade, not the mechanism**: claude hooks via `--settings <path>` (merges with user+project, HTTP type = no subprocess) default ON for latency; codex hooks default OFF (they require a `--dangerously-bypass-hook-trust` banner).
+- **Where it runs**: MAIN process, as an upgrade to the existing `pollSessionStatus()` (src/main/ipc.ts:445). **DELETE the renderer byte detector and `statusOverrides`** — do not tune them. Measured cost: 1 exec/s, 2.75 ms CPU for 16 live panes = 0.28% of one core.
+
+Supporting detail (already researched, do not re-derive):
+1. **Agent-native hooks (deterministic, preferred where they exist)**: Claude Code hooks — UserPromptSubmit → working, Stop / SubagentStop → idle, Notification → needs input; Codex `notify`. gmux should AUTO-INJECT these per session (settings/env scoped to the session, never mutating the user's global config without consent) and receive them over a small local channel. This was scoped in Phase 10 v1 ("hook auto-injection for deterministic NEEDS_INPUT") and never landed — land it now.
+2. **Process-tree truth (universal, agent-agnostic)**: the pane PID from tmux (`#{pane_pid}`) → CPU-time delta of the process subtree sampled on an interval. A thinking/streaming agent burns CPU; one blocked on input is ~0%. Also `#{pane_current_command}` transitions and whether a child process is running. This is the floor that works for agents with no hooks (muse, qwen, droid, pi...).
+3. **Normalized screen-content hashing**: hash the visible `capture-pane` content with volatile regions (spinner glyph, elapsed timer, token counter) masked out; unchanged over N samples → not working. Complements 2 and works while detached.
+4. **OSC 133 prompt marks** for shell sessions (command start/end) — exact for plain shells.
+Requirements: works for hidden/detached sessions (move detection main-side off the renderer byte stream); per-agent capability recorded in the registry (hooks vs process vs hash) with VERIFIED markers; no false "needs input" (respect the Phase 9.2 self-inflicted-input rule); cheap (sampling must not burn CPU itself — this is a battery-powered laptop).
+Acceptance: with claude idle at its prompt the tab reads idle within ~2 s; submit a prompt → working within ~1 s; agent asks a question → needs input promptly; a long tool run stays working; a hidden session's status is correct when revealed; verified on at least claude + codex + a plain shell, with the fallback path exercised on an agent that has no hooks.
+
+## Phase 14 — deep file + code search (spec from docs/research/19-search.md)
+User ask: find things fast in the file explorer — deep FILE search and CODE (content) search, using the best 2026 ecosystem libraries rather than hand-rolling.
+Scope to design in research, then build:
+1. **Quick open (⌘P)**: fuzzy file-path search across the active project (and optionally all open projects), ranked like VS Code's, instant on large repos, keyboard-first, honoring .gitignore + sensible excludes.
+2. **Project-wide content search (⌘⇧F)**: a Search view in the activity bar — query, match count, per-file grouped results with context lines, click-to-open at the exact line, toggles for case / whole word / regex, include+exclude globs, and streaming results (never a frozen UI on a big repo).
+3. **Structural/code-aware search** where it earns its place: symbol search (go to symbol in project), and evaluate AST-level querying (tree-sitter queries / ast-grep) as a power option — recommend only if it justifies the weight.
+4. **Replace-in-files** if it falls out cheaply and safely (preview + undo); otherwise defer explicitly.
+Constraints: results must feel instant on a 50k-file repo; no indexing daemon that burns battery unless it clearly wins; must work with the existing Pierre tree + editor tab model; MIT/Apache licensing; and it must integrate with the search-open path used by the SCM/tree (one open-file bus).
+
+## Phase 15 — SpecStory bundling (research: docs/research/13-specstory-integration.md)
 Bundle specstory-cli into gmux.app; per-session capture toggle (watch-wrap preserving resume argv); sync-at-session-end affordance; Settings: cloud login status / device auth / last sync.
 
 ## STANDING GUARDRAILS — apply to EVERY phase from 10 onward (integrators enforce before commit)
@@ -82,7 +151,7 @@ User-mandated: no messy growth or duplication accrual.
 3. **No duplicated resolution/config logic.** tmux binary/config resolution goes in ONE module (src/main/tmux/resolve.ts) consumed by supervisor AND attach host. Same rule generally: search for an existing helper before writing one (grep first).
 4. **Integrator dup-scan before commit:** quick pass for copy-paste blocks introduced by parallel builders (same 10+ line block in 2+ files → extract).
 
-## Phase 14 — refactor & consolidation pass (after Phase 13; Pierre deletions land first so this is done once)
+## Phase 16 — refactor & consolidation pass (after Phase 15; Pierre deletions land first so this is done once)
 User-identified growth pressure to resolve (line counts as of Phase 9-in-flight):
 - store.ts ~950 lines → split into per-domain zustand slices (sessions, projects, git, editor, ui) with a composed store; no behavior change.
 - main/ipc.ts ~1,019 lines → per-domain registrars (sessions.ipc.ts, git.ipc.ts, fs.ipc.ts, ui.ipc.ts) composed in one registerAll.
@@ -96,5 +165,5 @@ User-identified growth pressure to resolve (line counts as of Phase 9-in-flight)
 - **material-icon-theme is a build-time-only dep** (read by `src/renderer/icons/generate-file-icons.mjs`, whose output is committed) but sits in `dependencies` and ships 6 MB into the asar — move it to devDependencies.
 - Gate: full test/smoke battery green; zero behavior changes intended — snapshot screenshots before/after must match except where CSS colocation shifts nothing visible.
 
-## Phase 15 — FINAL: current version installed for daily use
+## Phase 17 — FINAL: current version installed for daily use
 After all phases: npm run package from HEAD; quit any running gmux instance (user-coordinated, never kill silently); install fresh gmux.app to /Applications (replace old copy); relaunch; verify version/commit hash in About matches HEAD; confirm sessions survived the swap via tmux reattach (the whole point). BUILD-STATUS.md updated to final state.
