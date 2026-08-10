@@ -22,6 +22,13 @@ Two rules follow, and they bind every future round:
 - src/shared/* is append-only during parallel builds; integrators reconcile.
 - After parallel work: scan for duplicated 10+ line blocks and extract.
 
+## Verification tiers — match the check to the risk, do not default to maximum
+Heavyweight verification (driving the real app with synthetic input, screenshot reads, per-agent matrices) is expensive in wall clock and tokens. Spend it where a wrong answer costs the user their work; do not spend it on cosmetics.
+- **Tier 1 — gates only** (`typecheck`, `build`, `test`, `smoke:t1`): icons and assets, CSS/spacing, copy and labels, tooltips, menu items, additive UI with no new state, doc changes. A screenshot only if the change is visual and cheap to capture.
+- **Tier 2 — gates + one targeted probe + one screenshot read**: ordinary features touching a single subsystem (a new SCM verb, an editor affordance, a settings field). Probe the thing you changed and its nearest neighbour; do not sweep the app.
+- **Tier 3 — full treatment** (live-app driving, adversarial verifier pair, exhaustive matrix, before/after measurements): anything touching **durability** (tmux, manifest, restore, session lifecycle), anything claimed to work **universally across agents**, anything that can **lose or destroy user data**, **performance regressions with a number attached**, and **any bug the user personally reported** (they get proof, not assurance).
+When a round mixes tiers, verify per item at its own tier rather than promoting the whole round to Tier 3. State the tier chosen in the phase brief so the choice is deliberate and reviewable.
+
 ## Gates before any commit
 `npm run typecheck && npm run build && npm run smoke:t1` minimum; integrators run the full battery (test, smoke, smoke:t3, package). Commit as "Phase N[.x]: summary" with the session trailers.
 
