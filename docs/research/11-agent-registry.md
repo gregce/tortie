@@ -1,5 +1,16 @@
 # 11 — The gmux Agent Registry (synthesized from SpecStory)
 
+> **SUPERSEDED IN PART — read `docs/research/22-resume-audit.md` first.** Every
+> `resume` claim in this document was re-audited hands-on on 2026-08-10/11 and
+> **nine of the ten launchable rows were wrong**, two of them fatally (pi's "no
+> resume mechanics exist" and deepseek's `--resume`, which is a subcommand and
+> exits RC=2). The root cause is structural and worth naming before you read
+> another line: **this document was mined from specstory-cli, which is a
+> CAPTURE tool.** It knows where each agent WRITES its transcript and has never
+> needed to resume anything, so its store paths are trustworthy and its
+> *absences* prove nothing. The store halves below are still good; the resume
+> halves are corrected in research 22 and in `src/main/agents/registry.ts`.
+
 **Sources:** the three mining reports over `/Users/gdc/getspecstory` (read-only; working tree = `muse-provider`):
 `docs/research/11-specstory-provider-inventory.md` (providers), `docs/research/11-specstory-branch-deltas.md` (branch deltas), `docs/research/specstory-d3-detection-launch.md` (detection + launch mechanics).
 SpecStory ground truth lives in `specstory-cli/pkg/spi/` (SPI), `pkg/spi/factory/registry.go:52-126` (registry), `pkg/providers/*` (per-agent), and `docs/PROVIDER-SPI.md` / `SESSION-PORTABILITY.md` / `MUSE-FORMAT.md` / `ANTIGRAVITY-FORMAT.md`.
@@ -25,7 +36,7 @@ SpecStory's CLI wraps every agent the same way: it **execs the agent with inheri
 | **copilotide** ×4 (VS Code / Insiders / VSCodium / VSCodium-Insiders Copilot chat) | dev-only; variants registered only if that app has chats | **MEDIUM** — IDE watcher; there is **no Copilot CLI provider** in SpecStory |
 | **muse** (Muse Code) | **branch-only**: `muse-provider` = dev+5, in-flight PR #269 | **MEDIUM** — complete (exec, `muse resume <id>` subcommand, reconstruct target, MUSE-FORMAT.md), just unmerged |
 | **qwen** (Qwen Code) | **branch-only**: `qwen-provider-support` = dev+4, in-flight PR #268 | **MEDIUM** — verified against qwen 0.21.7; empirical floor 0.21.0+ (pre-0.21 omits `provenance`) |
-| **pi** (Pi) | **remote-only** `origin/feat/pi-provider` = dev+19, unreleased; **v1 is READ-ONLY** — run/watch/resume all return "not yet supported" | **LOW** — store format + env overrides known; binary name, version cmd, launch argv UNVERIFIED |
+| **pi** (Pi) | **remote-only** `origin/feat/pi-provider` = dev+19, unreleased; **specstory-cli's v1 provider is READ-ONLY** — its run/watch/resume return "not yet supported". That is a fact about specstory-cli, **not about pi**. | **HIGH** (corrected 2026-08-11) — binary is `pi`, `pi -v` prints 0.84.1, and `pi --session-id <id>` is an idempotent launch-and-resume verified end-to-end in tmux |
 
 **Not providers, despite appearances:** `opencode`, `amp`, `aider` exist only in SpecStory's skills matrix (`pkg/skills/agents.go:94,123`) and provenance-ignore lists — SpecStory cannot launch, watch, or resume them. "Copilot" in SpecStory means *Copilot chat inside VS Code* (an IDE watcher), never a `copilot` terminal binary.
 
@@ -35,14 +46,14 @@ SpecStory's CLI wraps every agent the same way: it **execs the agent with inheri
 - **muse**: PR #269 (`muse-provider`, dev+5). **qwen**: PR #268 (`qwen-provider-support`, dev+4). Both expected to land; gmux should treat them as first-class.
 - **antigravity**: on dev, not main; resume works via `agy --conversation <id>` but `SupportsReconstruction()==false` (agy resumes from protobuf-in-SQLite `conversations/<id>.db`, not the plaintext transcript).
 - **deepseek**: shipped on main for read/launch; dev's copy is the one to model (adds reconstruct + watcher).
-- **pi**: bonus discovery; unreleased and read-only in SpecStory v1 — registry entry included but launch/resume marked accordingly.
+- **pi**: bonus discovery; unreleased and read-only *in specstory-cli v1*. pi ITSELF has the simplest resume in the set — `pi --session-id <id>` both creates and resumes, so launch argv === resume argv (research 22 §1.3).
 
 ### Cross-cutting mechanics gmux must internalize
 
-1. **Four cwd→store encodings.** claude/droid: dash-encode the *case-correct realpath* (`[^a-zA-Z0-9-]`→`-`, leading dash). qwen: same dash idea but on the *verbatim* cwd with no leading-dash rule. cursor: `md5hex(canonical cwd)` — one-way; you cannot recover a cwd from the dir name. gemini: `.project_root` marker → legacy `sha256(canonical cwd)` → full scan. **Always canonicalize first** (SpecStory's `spi.GetCanonicalPath`).
-2. **Resume is a *subcommand* for codex and muse** (`codex resume <id>`, `muse resume <id>`); a **flag** for claude/cursor/gemini/droid/deepseek/qwen (`--resume <id>`); and a *different flag* for antigravity (`--conversation <id>`).
+1. **Five cwd→store encodings.** claude/droid: dash-encode the *case-correct realpath* (`[^a-zA-Z0-9-]`→`-`, leading dash). qwen: character substitution (`[^a-zA-Z0-9]`→`-`) on the **realpath** — NOT a hash and NOT verbatim; a symlinked launch dir keys on its target (corrected, research 22 §1.3). cursor: `md5hex(verbatim cwd, no trailing slash)` — one-way; you cannot recover a cwd from the dir name. gemini (current): the cwd **basename** plus a `.project_root` marker holding the absolute path, so dir → cwd IS recoverable; gemini (legacy): `sha256(canonical cwd)`. **Always canonicalize first.**
+2. **Resume is a *subcommand* for codex, muse and DEEPSEEK** (`codex resume <id>`, `muse resume <id>`, `deepseek resume <id>` — `deepseek --resume <id>` exits RC=2, corrected); a **flag** for claude/cursor/gemini/droid/qwen (`--resume <id>`); a *different flag* for antigravity (`--conversation <id>`); and for **pi** the same `--session-id <id>` it launches with.
 3. **Global vs per-project stores.** codex/deepseek/antigravity/muse/pi stores are global; project identity lives *inside* the session file (codex: line-1 `session_meta.cwd`; muse: `workspaceRoot` in first record; deepseek: `metadata.workspace`; antigravity: scraped logs — brittle).
-4. **Session-ID capture is asynchronous.** SpecStory learns the new session's ID from the store watcher's *first callback* (`lastRunSessionID`, `main.go:475-482`), never from the terminal stream. gmux's detection service needs the same watcher, bounded like SpecStory's (7-day fsnotify window on date-sharded stores — the Codex fd-exhaustion lesson). Claude alone allows *pre-assigning* the UUID (`claude --session-id <uuid>`, already in gmux's FINAL-REPORT plan) — that path is gmux research, **UNVERIFIED in SpecStory's code**.
+4. **Session-ID capture is asynchronous.** SpecStory learns the new session's ID from the store watcher's *first callback* (`lastRunSessionID`, `main.go:475-482`), never from the terminal stream. gmux's detection service needs the same watcher, bounded like SpecStory's (7-day fsnotify window on date-sharded stores — the Codex fd-exhaustion lesson). **CORRECTED (research 22 §2.12): claude is not alone in allowing pre-assignment.** claude, gemini and pi all pre-assign by flag (`--session-id`), and cursor pre-assigns by side command (`cursor-agent create-chat`) — four of ten, not one. specstory harvests every id asynchronously, so nothing in its code distinguishes "there is no id yet" from "there is no way to pre-assign an id"; this document inherited that flattening, and gmux's `buildLaunchSpec` then defaulted the flattened agents into a store-watch branch nobody had implemented.
 5. **No semver gating anywhere** — version commands are *identity probes* (`claude -v` output must contain "(Claude Code)"; droid strips ANSI and takes the last line; codex tries `--version` then `-V`). The "floors" (qwen 0.21.0+, antigravity 1.1.5+, deepseek 0.8.39+, muse 0.1.0+) are documented/empirical, not enforced.
 6. **Env is inherited wholesale**; the sole injection is `FORCE_COLOR=1` for cursor-agent. Honored overrides: `CODEX_HOME`, `XDG_DATA_HOME` (muse), `PI_CODING_AGENT_DIR`/`PI_CODING_AGENT_SESSION_DIR` (pi).
 7. **User command override precedence** (worth mirroring in gmux settings): explicit `-c` argv → per-provider config key (`[providers] <id>_cmd` in TOML) → detected default; tokenized with quote/escape support and tilde-expansion on argv[0].
@@ -304,14 +315,14 @@ Machine-readable. Conventions: `~` = user home; `<...>` = template slot; `$VAR` 
         "versionCmd": "UNVERIFIED"
       },
       "launch": {
-        "argv": ["UNVERIFIED — SpecStory v1 returns 'not yet supported' for run"],
-        "quirks": ["SpecStory's provider is read-only (run/watch/resume all unimplemented); gmux should treat pi as detect+browse only until upstream lands launch support"]
+        "argv": ["pi", "--session-id", "<sessionId>"],
+        "quirks": ["CORRECTED 2026-08-11: the binary is `pi` and bare launch works. specstory-cli's provider being read-only says nothing about pi's own launch/resume surface, which is documented in `pi --help` and in its shipped docs/sessions.md."]
       },
       "resume": {
-        "strategy": "none",
-        "argv": [],
+        "strategy": "flag-uuid",
+        "argv": ["--session-id", "<sessionId>"],
         "sessionStore": "~/.pi/agent/sessions/--<encodedCwd>--/<timestamp>_<uuid>.jsonl",
-        "notes": "Env overrides honored: PI_CODING_AGENT_DIR, PI_CODING_AGENT_SESSION_DIR. Resume mechanics UNVERIFIED (unimplemented upstream)."
+        "notes": "CORRECTED 2026-08-11 (was strategy 'none', argv []). --session-id both CREATES and RESUMES, so launch argv === resume argv. cwd is load-bearing: from the wrong directory it silently opens a NEW EMPTY session under the same id. Env overrides honored: PI_CODING_AGENT_DIR, PI_CODING_AGENT_SESSION_DIR (the latter is the SESSION dir; PI_CODING_AGENT_DIR is the config dir and sessions live one level down)."
       },
       "reconstructionTarget": false,
       "iconKey": null,
@@ -389,11 +400,11 @@ Machine-readable. Conventions: `~` = user home; `<...>` = template slot; `$VAR` 
 ### Gaps (things the mining could not fully answer, or that gmux must add itself)
 
 1. **Missing logos** in `src/renderer/assets/agents/`: **muse, qwen, antigravity, pi** have no SVG (present: amp, claude, codex, cursor, deepseek, droid, gemini, githubcopilot — note it is `codex.svg`, not `openai.svg`). cursoride can reuse `cursor.svg`; copilotide maps to `githubcopilot.svg`. `amp.svg` exists for an agent SpecStory cannot drive.
-2. **Pi is a stub**: binary name, version command, and launch argv are UNVERIFIED — SpecStory's own v1 provider returns "not yet supported" for run/watch/resume. Ship pi as *detect + session-browse only*.
-3. **Claude `--session-id` pre-assignment** (gmux's manifest cornerstone, FINAL-REPORT §Step-1) appears nowhere in SpecStory's code — SpecStory always harvests IDs asynchronously. Keep gmux's Phase-0 gate-2 test for it; fall back to store-watch harvesting (the SpecStory pattern) if it regresses.
+2. ~~**Pi is a stub**~~ **DELETED (research 22 §2.12).** The claim was false and it cost the user four un-resumable sessions. pi's binary is `pi`, its version command is `pi -v`, and `pi --session-id <id>` is a verified idempotent launch-and-resume. The sentence being corrected described *specstory-cli's provider*, not pi.
+3. **Claude `--session-id` pre-assignment** appears nowhere in SpecStory's code because SpecStory always harvests IDs asynchronously — keep the observation, drop the doubt: it is verified end-to-end against claude itself (the uuid gmux passes becomes the store filename).
 4. **Antigravity is structurally weaker** than the rest: project attribution scrapes `agy` logs with regexes SpecStory itself calls fragile, and its transcript cannot seed a resume (protobuf-in-SQLite is the real state). Expect breakage across `agy` releases.
 5. **No enforced version floors anywhere** — gmux gets identity probes only. Record the agent CLI version per manifest row (already planned) and pin per-agent adapter tests to CLI versions (Codex rollout drift, codex#21761, is the precedent).
-6. **`--resume` does not restore launch flags** (Claude documented; assume for all): the manifest must keep the full original argv and re-append non-session flags to the resume argv.
+6. **`--resume` does not restore launch flags** — no longer an assumption: MEASURED on claude, codex, muse and qwen (research 22 §3.4 rule 3), inconclusive on cursor and pi, so gmux re-appends the original extras for every agent. The manifest keeps the full original argv.
 7. **IDE providers don't fit tmux panes**: decide whether cursoride/copilotide appear in gmux at all (as "open in IDE" actions) or are dropped from v1; they are included in the registry so the decision is explicit.
 
 ### Recommendations for the Phase-10 build

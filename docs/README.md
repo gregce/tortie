@@ -21,6 +21,10 @@ gmux is a lightweight macOS shell for agentic coding: durable named terminal ses
 | [09-reboot-survival.md](research/09-reboot-survival.md) | The full P1 recipe: tmux server mechanics, tmux-resurrect/zellij internals, the gmux session manifest, macOS TCC/launchd landmines, lifecycle spec, and acceptance tests. |
 | [10-multi-project-ux.md](research/10-multi-project-ux.md) | The one-window multi-project IA: project tabs + attention overlay (Layout C), session naming, agent-status detection stack, worktrees aware-not-required. |
 
+## Living market map
+
+- **[24-agent-workspace-product-inventory.md](research/24-agent-workspace-product-inventory.md)** — current inventory of agent terminals, session managers, worktree control planes and converging IDEs, evaluated against Tortie’s continuity-and-attention thesis.
+
 ## designs/ — the four candidate designs
 
 | Doc | One-liner |
