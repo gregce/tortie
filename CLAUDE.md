@@ -23,6 +23,16 @@ Two rules follow, and they bind every future round:
 - src/shared/* is append-only during parallel builds; integrators reconcile.
 - After parallel work: scan for duplicated 10+ line blocks and extract.
 
+## How every remaining phase gets built (the operating contract — do not lower this bar)
+Each phase runs as ONE Workflow with the same shape that produced Phases 1-13: **spec -> parallel builders with disjoint file ownership -> integrator -> independent verifier(s) at the phase's tier -> a fix round if any verdict is needs_work -> commit per phase**. Non-negotiables:
+- **Research before building** anything whose mechanism is not already measured, and write it to docs/research/ so the next agent inherits it instead of re-deriving. Several phases (13.5, 13.7, 14, 15) already have their research banked — use it.
+- **Verifiers are independent of builders** and must produce EVIDENCE, not assurance: real app driving, measured numbers, byte-comparisons against ground truth, per-agent matrices where universality is claimed. A verifier that only reads code has not verified.
+- **Fix rounds are part of the phase**, not follow-up. A phase is not done at needs_work.
+- **Tier the verification** per the section below — do not default to maximum, do not skip Tier 3 where it is earned.
+- **Commit per phase** with the standard trailers, so the history stays a readable build story.
+- **Never leave the queue idle.** When a phase's workflow completes, immediately launch the next batch in the order recorded at the top of docs/BACKLOG.md. Do not wait to be asked. If a verdict blocks, fix it and continue.
+- **Report to the user in their terms** when a phase lands: what they can now do that they could not before, and what is still not true.
+
 ## Verification tiers — match the check to the risk, do not default to maximum
 Heavyweight verification (driving the real app with synthetic input, screenshot reads, per-agent matrices) is expensive in wall clock and tokens. Spend it where a wrong answer costs the user their work; do not spend it on cosmetics.
 - **Tier 1 — gates only** (`typecheck`, `build`, `test`, `smoke:t1`): icons and assets, CSS/spacing, copy and labels, tooltips, menu items, additive UI with no new state, doc changes. A screenshot only if the change is visual and cheap to capture.
