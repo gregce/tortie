@@ -282,6 +282,15 @@ Work (drive it from the audit doc, which lands before this phase):
 6. Extend `smoke:t3` so restore is asserted for a NON-claude agent too, not just claude — otherwise this regresses silently.
 Verification tier: 3 (durability, core promise, and a user-reported correctness error).
 
+## Phase 13.7 — configurable scrollback limits + understated diagnostics (spec: docs/research/23-scrollback-limits.md)
+Ships BEFORE the final install. Closes a gap open since day one: docs/research/01-durability-layer.md listed "scrollback memory footprint at scale (20 sessions x 50k lines)" as UNMEASURED, and both current numbers — tmux `history-limit 50000` and the renderer's ~10,000-line xterm cap — were chosen as generous guesses, never benchmarked.
+1. **Make both configurable in Settings**, with the measured cost curve turned into honest UI: each choice shows its estimated memory cost ("~X MB per busy session"), and states plainly that changing scrollback depth affects NEW sessions only — tmux applies history-limit at pane creation, so existing panes keep the depth they were born with. Include whatever remediation actually exists for existing sessions (per the research) rather than implying there is one.
+2. **Keep the two caps conceptually separate in the UI** — tmux history is what scrolling and capture can REACH; the renderer cap is only what is pre-loaded into the visible terminal on reattach. The research must confirm they are genuinely independent; if so, say so in the copy so nobody thinks lowering one loses history.
+3. **Understated diagnostics.** Per-session: scrollback lines used vs limit, approximate memory. Global: tmux server RSS, app RSS, snapshot disk usage in userData, free disk.
+   **HARD CONSTRAINT — ZEN-OF-TORTIE forbids a dashboard**: "No counters, no activity feeds, no progress theatre. A number that rises on its own is not a signal, it is noise in a nicer font." So: diagnostics are AVAILABLE, not ambient — an on-demand per-session info popover plus a Settings > Diagnostics panel — and they surface proactively ONLY when a threshold is actually crossed (a session near its scrollback limit, snapshots over N GB, low free disk), with copy written in the product's voice. No permanent readout unless the research argues one against that text and wins.
+4. **Cheap sampling**: reuse the existing 1 Hz all-sessions poll (src/main/activity, ~2.75 ms for 16 panes) rather than adding a second timer; expensive samples (RSS, disk) are lazy/on-open. Hard cost budget stated and measured.
+Verification tier: 2, except any change to the tmux conf or capture paths, which is Tier 3 (durability-adjacent).
+
 ## Phase 14 — deep file + code search (spec from docs/research/19-search.md)
 User ask: find things fast in the file explorer — deep FILE search and CODE (content) search, using the best 2026 ecosystem libraries rather than hand-rolling.
 Scope to design in research, then build:
