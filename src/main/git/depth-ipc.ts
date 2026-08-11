@@ -150,4 +150,13 @@ export function registerGitDepthIpc(ipc: IpcMain, deps: GitDepthDeps): void {
     deps.broadcast(svc.repoPath);
     return result;
   });
+
+  // Phase 14.5 — the history graph's single read. READ-ONLY: no broadcast.
+  // Every page the pane draws, including the "load 50 more" deepening, is
+  // this one call; the divergence numbers and the last-fetch age ride along
+  // with the commits so the row shading and the header cannot describe two
+  // different instants.
+  handle(ipc, 'git:graphLog', (_e, input) =>
+    svcFor(input.repoPath).graphLog(input)
+  );
 }

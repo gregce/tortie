@@ -28,6 +28,7 @@ import type {
   GmuxGitBranchExtras,
   GmuxGitDepthExtras,
   GmuxGitExtras,
+  GmuxGitGraphExtras,
   GmuxGitSyncExtras,
   GmuxImageExtras,
   GmuxInvokeChannel,
@@ -134,13 +135,16 @@ const term: GmuxApi['term'] & GmuxTermStreamExtras = {
  * + the git-depth extras (branch switching, commit context menu, hover card)
  * + the branch-management extras (remotes, fetch, tracking checkout, delete)
  * + the Phase-12 sync extras (historical commit diffs, remotes list, push /
- * pull / sync), all feature-detected by the renderer.
+ * pull / sync) + the Phase-14.5 history graph read (git:graphLog — one
+ * ref-scoped, topologically ordered page with its divergence and last-fetch
+ * age attached), all feature-detected by the renderer.
  */
 const git: GmuxApi['git'] &
   GmuxGitExtras &
   GmuxGitDepthExtras &
   GmuxGitBranchExtras &
-  GmuxGitSyncExtras = {
+  GmuxGitSyncExtras &
+  GmuxGitGraphExtras = {
   status: (repoPath) => invoke('git:status', repoPath),
   stage: (input) => invoke('git:stage', input),
   unstage: (input) => invoke('git:unstage', input),
@@ -166,7 +170,8 @@ const git: GmuxApi['git'] &
   remotes: (repoPath) => invoke('git:remotes', repoPath),
   push: (input) => invoke('git:push', input),
   pull: (input) => invoke('git:pull', input),
-  sync: (input) => invoke('git:sync', input)
+  sync: (input) => invoke('git:sync', input),
+  graphLog: (input) => invoke('git:graphLog', input)
 };
 
 /**

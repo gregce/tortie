@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  LOG_FORMAT,
-  parseLog,
   parsePorcelainV2Status,
   parseRemoteVerbose,
   remoteOfUpstream,
@@ -13,7 +11,6 @@ import {
 } from '../../watcher/repo-watcher';
 
 const NUL = '\0';
-const US = '\x1f';
 
 function z(...lines: string[]): string {
   return lines.join(NUL) + NUL;
@@ -129,50 +126,6 @@ describe('parsePorcelainV2Status', () => {
     const s = parsePorcelainV2Status('');
     expect(s.files).toEqual([]);
     expect(s.branch).toBeUndefined();
-  });
-});
-
-describe('parseLog', () => {
-  it('parses NUL-delimited records with unit-separated fields', () => {
-    const rec1 = [
-      'a'.repeat(40),
-      'aaaaaaa',
-      `${'b'.repeat(40)} ${'c'.repeat(40)}`,
-      'Grace Hopper',
-      'grace@navy.mil',
-      '1700000000',
-      'Merge: fix the compiler'
-    ].join(US);
-    const rec2 = [
-      'b'.repeat(40),
-      'bbbbbbb',
-      '',
-      'Ada Lovelace',
-      'ada@analytical.engine',
-      '1600000000',
-      'Initial commit'
-    ].join(US);
-    const entries = parseLog(rec1 + NUL + rec2 + NUL);
-    expect(entries).toHaveLength(2);
-
-    const e1 = entries[0]!;
-    expect(e1.hash).toBe('a'.repeat(40));
-    expect(e1.sha).toBe(e1.hash);
-    expect(e1.shortSha).toBe('aaaaaaa');
-    expect(e1.parents).toEqual(['b'.repeat(40), 'c'.repeat(40)]);
-    expect(e1.authorName).toBe('Grace Hopper');
-    expect(e1.author).toBe('Grace Hopper');
-    expect(e1.authorEmail).toBe('grace@navy.mil');
-    expect(e1.authorDate).toBe(1700000000000);
-    expect(e1.dateISO).toBe(new Date(1700000000000).toISOString());
-    expect(e1.subject).toBe('Merge: fix the compiler');
-
-    expect(entries[1]!.parents).toEqual([]); // root commit
-  });
-
-  it('format string and parser agree on field count', () => {
-    // 7 fields: %H %h %P %an %ae %at %s
-    expect(LOG_FORMAT.split('%x1f')).toHaveLength(7);
   });
 });
 

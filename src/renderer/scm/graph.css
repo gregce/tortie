@@ -1,0 +1,181 @@
+/* ---------------------------------------------------------------------------
+   COMMIT GRAPH GUTTER (Phase 14.5) — the SVG column left of every History row.
+
+   Colocated with CommitGraph.tsx per the growth guardrail; scm.css keeps the
+   row, this file keeps the graph. Every colour is a token: the ramp lives in
+   tokens.css §1.4b and nothing here names a hex.
+
+   NO TRANSITIONS, ANYWHERE IN THIS FILE. The graph is a diagram, not an
+   affordance — lanes appearing, the gutter widening after "Load 50 more" and
+   the hover emphasis are all instant. That is a deliberate reading of
+   DESIGN.md §5 ("no hover theatrics") and it means prefers-reduced-motion
+   needs no branch here: there is nothing to reduce.
+--------------------------------------------------------------------------- */
+
+.scm-graph {
+  display: block;
+  flex: 0 0 auto;
+  align-self: center;
+  overflow: visible;
+
+  /* Hollow merge dots punch through to the row's own fill, so the mask colour
+     has to follow the row state. One variable, set three times below, instead
+     of a fill rule per state per dot kind. */
+  --graph-row-bg: var(--bg-sidebar);
+}
+
+.scm-hrow:hover .scm-graph,
+.scm-hfile:hover .scm-graph,
+.scm-load-more:hover .scm-graph {
+  --graph-row-bg: var(--bg-raised);
+}
+
+.scm-hrow.selected .scm-graph,
+.scm-hfile.selected .scm-graph,
+.scm-load-more.selected .scm-graph {
+  --graph-row-bg: var(--bg-active);
+}
+
+/* --- the ramp -------------------------------------------------------------
+   data-hue resolves to ONE variable, which both the stroke of a lane and the
+   fill (or ring) of a dot read. Six slots, cycling: two columns sharing a hue
+   are necessarily 6 columns — 72px — apart, so they can never sit adjacent. */
+.scm-graph [data-hue='0'] {
+  --graph-hue: var(--graph-lane-1);
+}
+.scm-graph [data-hue='1'] {
+  --graph-hue: var(--graph-lane-2);
+}
+.scm-graph [data-hue='2'] {
+  --graph-hue: var(--graph-lane-3);
+}
+.scm-graph [data-hue='3'] {
+  --graph-hue: var(--graph-lane-4);
+}
+.scm-graph [data-hue='4'] {
+  --graph-hue: var(--graph-lane-5);
+}
+.scm-graph [data-hue='5'] {
+  --graph-hue: var(--graph-lane-6);
+}
+
+/* --- lanes ---------------------------------------------------------------- */
+
+.scm-graph-lane {
+  fill: none;
+  stroke: var(--graph-hue, var(--graph-bundle));
+  stroke-width: var(--graph-lane-w);
+  stroke-linecap: butt;
+  stroke-linejoin: round;
+}
+
+/* The fold marker (more topology than the pane can draw): colourless AND
+   doubled, so it reads as "several branches in here" and can never be mistaken
+   for a line of history. The row's aria-label says the same thing in words. */
+.scm-graph-bundle .scm-graph-lane {
+  stroke: var(--graph-bundle);
+  stroke-width: 1;
+}
+
+/* --- dots ----------------------------------------------------------------- */
+
+/* Sync state is a SATURATION step on the lane's own hue, never a hue swap.
+   Swapping the fill to grey (the first cut) cost more than it bought: on a
+   busy graph every dot went neutral, the lines became the only story and the
+   commits read as anonymous beads — while the payoff, the unpushed run, is a
+   handful of rows at the top of one branch.
+
+   So: full-strength hue = on no remote, yours alone; the same hue mostly
+   mixed away toward --text-muted (--graph-dot-shared-mix) = already shared.
+   The unpushed run reads as a block of bright dots above a muted history,
+   while the surviving tint still ties each dot to the lane it sits on. The
+   muted fill clears 3.8:1 on --bg-active, the worst row background.
+
+   Colour is safe to carry this ALONE, unusually, because the same fact is
+   already stated twice in words on the same screen: the `origin/main` pill
+   sits exactly at the boundary, and the header owns the ahead/behind count. */
+.scm-graph-dot {
+  --graph-dot-c: color-mix(
+    in srgb,
+    var(--graph-hue, var(--text-muted)) var(--graph-dot-shared-mix),
+    var(--text-muted)
+  );
+  fill: var(--graph-dot-c);
+  stroke: none;
+}
+
+.scm-graph-dot--mine {
+  --graph-dot-c: var(--graph-hue, var(--text-muted));
+}
+
+/* Merge commits stay hollow, exactly as the shipped rail draws them. Shape
+   carries merge-ness, fill carries sync state, so the two never collide. */
+.scm-graph-dot--merge {
+  fill: var(--graph-row-bg);
+  stroke: var(--graph-dot-c);
+  stroke-width: var(--graph-dot-ring);
+}
+
+/* HEAD's halo. A shape channel, so HEAD stays legible whatever the fill rule
+   says about it, and whatever the viewer can see of hue. Outer edge 6.6px
+   against the neighbour lane's inner edge at 11px — 4.4px of clear air. */
+.scm-graph-head {
+  fill: none;
+  stroke: var(--graph-hue, var(--text-muted));
+  stroke-width: 1.25;
+  opacity: 0.55;
+}
+
+/* --- lane emphasis (pointer over the gutter) ------------------------------
+   The scope element is the list root; CommitGraph writes data-graph-hue onto
+   it and removes it on leave. No React re-render, and no transition. */
+
+[data-graph-hue] .scm-graph-ink {
+  opacity: var(--graph-dim);
+}
+
+[data-graph-hue='0'] .scm-graph-ink[data-hue='0'],
+[data-graph-hue='1'] .scm-graph-ink[data-hue='1'],
+[data-graph-hue='2'] .scm-graph-ink[data-hue='2'],
+[data-graph-hue='3'] .scm-graph-ink[data-hue='3'],
+[data-graph-hue='4'] .scm-graph-ink[data-hue='4'],
+[data-graph-hue='5'] .scm-graph-ink[data-hue='5'] {
+  opacity: 1;
+}
+
+/* --- the end of a truncated walk ------------------------------------------
+   Lanes still open when the walk is genuinely exhausted point at commits the
+   ref filter excluded, not at commits a further page would bring in. Fading
+   the last 8px says "elsewhere"; a hard stop would say "this branch ends
+   here", which is false. */
+.scm-graph--fade {
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0,
+    #000 16px,
+    transparent 23px
+  );
+}
+
+/* --- high contrast --------------------------------------------------------
+   Under forced colours the ramp is gone, so position and shape carry the
+   whole picture — which is exactly what they were chosen to be able to do. */
+@media (forced-colors: active) {
+  .scm-graph-lane,
+  .scm-graph-head {
+    stroke: CanvasText;
+  }
+
+  .scm-graph-dot {
+    fill: CanvasText;
+  }
+
+  .scm-graph-dot--merge {
+    fill: Canvas;
+    stroke: CanvasText;
+  }
+
+  [data-graph-hue] .scm-graph-ink {
+    opacity: 1;
+  }
+}

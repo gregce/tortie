@@ -71,6 +71,46 @@ SAVED is the restorable state (post-reboot / background-server-gone): the proces
 --git-ignored:   #565B66;   /* dimmed name, no badge */
 ```
 
+### 1.4b Commit-graph lanes (SCM History gutter only)
+
+Six categorical hues for the History graph's swimlanes. All six are colour the
+app already owns — `--accent`, three §1.4 git decorations, and two chromatic
+normals from the §1.6 terminal palette — so the graph reads as gmux rather than
+as a charting library dropped into the sidebar.
+
+```css
+--graph-lane-1: var(--accent);       /* #4D9DE8  blue                        */
+--graph-lane-2: var(--git-deleted);  /* #E5655E  red                         */
+--graph-lane-3: #56C2C0;             /* terminal cyan (§1.6)                 */
+--graph-lane-4: var(--git-conflict); /* #F0883E  orange                      */
+--graph-lane-5: #D19FE8;             /* terminal brMagenta (§1.6)            */
+--graph-lane-6: var(--git-added);    /* #6BC46D  green                       */
+```
+
+Four rules, and they are the whole policy:
+
+1. **Six, then cycle.** Minimum pairwise ΔE2000 falls off a cliff at seven
+   (19.5 → 12.2, two blues colliding). The order above maximises separation
+   between *consecutive* indices — the columns that physically sit side by side
+   — at ΔE2000 42.5 minimum including the 6→1 wrap. Two columns sharing a hue
+   are therefore always six columns (72px) apart.
+2. **No yellow, ever.** `--git-modified` is ΔE2000 4.5 from
+   `--status-attention` and terminal brYellow is 6.0. A yellow lane in the
+   sidebar would read as "needs you", which is the one meaning §1.3 reserves.
+3. **Lane colour is identity, never state.** It says "this is the same line of
+   history" and nothing else. Merge-ness and HEAD-ness are carried by dot
+   shape, and sync state by dot fill strength, so the graph still reads with
+   every hue stripped out — which matters, because no six-hue categorical ramp
+   survives red-green CVD on a ground this dark.
+4. **Three roles borrow from the ramp rather than extending it.** HEAD's branch
+   → lane 1, its upstream → lane 3, the merge base → lane 4. Cyan against the
+   accent measures 64/60 protan/deutan separation, where the violet that VS
+   Code pairs with blue measures 21/27 — and those two lanes are the entire
+   point of the divergence picture.
+
+Every entry clears 4.1:1 on `--bg-active`, the worst row background, against
+the 3:1 WCAG 1.4.11 floor for non-text UI.
+
 ### 1.5 Feedback (reuses the same families — one color vocabulary app-wide)
 
 ```css

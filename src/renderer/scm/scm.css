@@ -139,6 +139,20 @@
   color: inherit;
 }
 
+/* Last-fetch honesty (BACKLOG 14.5, research 24 §6.3). "Nothing to pull" is
+   measured against a remote-tracking ref, i.e. against the last fetch — so
+   when there is no counter to show AND that snapshot is over an hour old,
+   the counter's slot carries its AGE instead of staying blank. The band
+   gains no control, and "up to date" stops being asserted about a moment we
+   cannot see. Same muted weight as the counter: a fact, not a warning. */
+.scm-sync-age {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: inherit;
+  flex: 0 0 auto;
+}
+
 /* Publish: the one case where the control carries a label — a branch that
    exists nowhere else needs the verb spelled out. */
 .scm-sync-btn.publish {
@@ -564,6 +578,18 @@
 
 .scm-history-body {
   padding-bottom: var(--space-2);
+  /* Ref pills degrade against the PANE's width, not the window's — the
+     sidebar is resizable and the window may never change (§4.4). */
+  container-type: inline-size;
+  container-name: scm-history;
+  /* THE LIST NEVER SCROLLS SIDEWAYS. `.section-body` sets only `overflow-y`,
+     and CSS computes the other axis to `auto` when its pair is not visible —
+     so a row overshooting by a few pixels used to raise a horizontal
+     scrollbar under the commit list. Measured before this line, on a 50-row
+     window with the graph gutter in place: 220px → 5px, 260 → 4, 280 → 10,
+     320 → 4. The rules below shrink the row so it rarely comes to this; this
+     is the guarantee that it can never look like a scrollable surface. */
+  overflow-x: hidden;
 }
 
 .scm-history-body:focus-visible {
@@ -599,53 +625,19 @@
   background: var(--bg-active);
 }
 
-/* Rail column w:20 — a continuous 1px lane behind 8px dots. */
-.scm-hrail {
-  position: relative;
-  width: 20px;
-  flex: 0 0 20px;
-  align-self: stretch;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+/* The rail column is now the GRAPH gutter: one <svg> per row, 20px wide for a
+   linear repo (pixel-identical to the 1px rail + 8px dot it replaces) and
+   12px wider per concurrent lane. Everything about it — width, lanes, dots,
+   HEAD's halo, the unpushed fill — lives in graph.css / CommitGraph.tsx,
+   colocated per the growth guardrail. `.scm-hrail` and `.scm-hdot` are gone
+   with it; nothing outside HISTORY used them. */
 
-.scm-hrail::before {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  margin-left: -0.5px;
-  background: var(--border-strong);
-}
-
-.scm-hdot {
-  position: relative;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--text-muted);
-  flex: 0 0 auto;
-}
-
-.scm-hrail.head .scm-hdot {
-  background: var(--accent);
-}
-
-/* Merge commits: hollow ring; the fill masks the rail behind it. */
-.scm-hrail.merge .scm-hdot {
-  background: var(--bg-sidebar);
-  border: 1.5px solid var(--text-muted);
-}
-
-.scm-hrow:hover .scm-hrail.merge .scm-hdot {
-  background: var(--bg-raised);
-}
-
-.scm-hrow.selected .scm-hrail.merge .scm-hdot {
-  background: var(--bg-active);
+/* Incoming work is deliberately NOT given a vocabulary of its own: it is on
+   a remote, so its dot stays grey and honest. What changes is presence — the
+   subject steps back to secondary, saying "fetched, not yours yet". A
+   lightness step, not a hue, so it survives greyscale and colour blindness. */
+.scm-hrow[data-sync='unpulled'] .scm-hsubject {
+  color: var(--text-secondary);
 }
 
 .scm-hchevron {
@@ -664,6 +656,13 @@
   opacity: 1;
 }
 
+/* Shrink order on a crowded row (research 24-git-graph-d3 §6.2): the age
+   sheds first, then the author, then the message — and the REF PILLS shed
+   last. That last clause is the correction Phase 14.5 had to make: with the
+   message shrinking least, flex crushed "main" and "origin/main" to bare
+   glyphs at the default 280px sidebar, which loses the one sentence the row
+   exists to say. §6.2 concedes the principle itself ("on exactly those rows
+   the ref is the more valuable content"); this is it, applied. */
 .scm-hsubject {
   font-size: var(--text-sm);
   line-height: var(--lh-sm);
@@ -671,8 +670,8 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  flex: 0 1 auto;
-  min-width: 32px;
+  flex: 0 4 auto;
+  min-width: 48px;
 }
 
 .scm-hauthor {
@@ -682,7 +681,8 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  flex: 0 4 auto;
+  /* Sheds before the message, which now shrinks at 4 (see .scm-hsubject). */
+  flex: 0 8 auto;
   min-width: 0;
   transition: color var(--dur-fast) var(--ease-out);
 }
@@ -703,15 +703,31 @@
   transition: color var(--dur-fast) var(--ease-out);
 }
 
-/* Refs badges — [h:16] pills; the HEAD branch pill wears the accent wash. */
+/* Refs badges — [h:16] pills, Phase 14.5 (research 24-git-graph-d3 §4.1).
+   A pill pinned to its own commit IS the divergence story, so the four types
+   have to be told apart at 10px in a 280px pane. FILL AND BORDER CANNOT DO
+   IT: --bg-raised on --bg-sidebar measures 1.16:1, and on a HOVERED row
+   (also --bg-raised) the old pill fill was 1.00:1 — the body vanished. The
+   fill is therefore gone, and the vocabulary is carried by four channels
+   that survive greyscale, CVD and a 10px glyph:
+     glyph      git-branch · cloud · tag · git-commit
+     border     solid (here) vs DASHED (elsewhere, i.e. remote)
+     shape      tags get a flag radius, flat on the leading edge
+     weight     the HEAD branch is 500 and wears the accent wash            */
 .scm-refs {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
   min-width: 0;
 }
 
+/* Shrink FLOORS, measured against the 280px default sidebar. Without them
+   flex crushes every pill to its glyph long before the pane is actually
+   narrow — verified in the app: at 281px "main" and "origin/main" both
+   collapsed to a 20px icon, which loses the entire divergence sentence on
+   the one row that carries it. A pill may lose characters; the two pills
+   that say where local and remote are may not lose their words. */
 .scm-ref-pill {
   display: inline-flex;
   align-items: center;
@@ -719,50 +735,173 @@
   height: 16px;
   padding: 0 5px;
   border-radius: var(--r-sm);
-  background: var(--bg-raised);
   border: 1px solid var(--border-strong);
   color: var(--text-secondary);
   max-width: 96px;
+  /* Glyph + padding: an ordinary pill degrades to its icon, never to a sliver. */
+  min-width: 20px;
   overflow: hidden;
 }
+
+/* Ranks 1 and 2 (§4.3): the branch you are on, and where its remote stands. */
+.scm-ref-head,
+.scm-ref-upstream {
+  min-width: 76px;
+}
+
 
 .scm-ref-pill .codicon {
   flex: 0 0 auto;
 }
 
+/* "Elsewhere" — a remote-tracking ref is a snapshot of another machine. */
+.scm-ref-remote {
+  border-style: dashed;
+}
+
+/* Flag shape: flat where the tag meets the commit, rounded at the tip — a
+   channel that survives greyscale and a 10px glyph. A version number is
+   short and high-value, so it also gets a floor (see above). */
+.scm-ref-tag {
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  min-width: 52px;
+}
+
 .scm-ref-name {
+  display: inline-flex;
+  align-items: baseline;
   font-family: var(--font-mono);
   font-size: 10px;
   line-height: 14px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Middle truncation without measuring: the head ellipsises, the tail never
+   shrinks — so "dependabot/…-4.37.3" keeps both the family and the version.
+   Head-truncating would destroy feat/ · fix/ · dependabot/; tail-truncating
+   destroys the part that distinguishes two refs in the same family. */
+.scm-ref-start {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.scm-ref-end {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* The remote's name is context, not identity — dimmed, but stepped up on a
+   raised fill where --text-muted would fall to 4.38:1 (same rule as the
+   row's author text). */
+.scm-ref-prefix {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+.scm-hrow:hover .scm-ref-prefix,
+.scm-hrow.selected .scm-ref-prefix {
+  color: var(--text-secondary);
 }
 
 .scm-ref-head {
   background: var(--accent-wash);
   border-color: transparent;
   color: var(--accent-text);
+  font-weight: var(--weight-medium);
 }
 
 .scm-ref-more {
   font-family: var(--font-mono);
   font-size: 10px;
   line-height: 14px;
+  flex: 0 0 auto;
 }
 
-/* Inline file expansion — SCM-style rows indented to the message x. */
+/* Under ~260px of pane the names go, not the pills: glyph, border style and
+   flag shape still separate the four types, and the full list is one hover
+   away in the card. Container query — the pane resizes, the window may not.
+   (The container itself is declared on .scm-history-body above.) */
+/* First thing to go on a crowded ref-carrying row is the AGE — §6.2's own
+   shrink order, and it is the cheapest 32px in the row because the hover
+   card and the row's accessible name both still carry it. Buying those 32px
+   here is what keeps "main" and "origin/main" whole at the default sidebar
+   width instead of overflowing the row. */
+@container scm-history (max-width: 320px) {
+  .scm-hrow:has(.scm-refs) .scm-hage {
+    display: none;
+  }
+
+  /* Then the two rank-1/2 floors relax from 76px to four characters plus the
+     glyph. Those floors were budgeted against the 20px rail; the gutter is now
+     as wide as the topology needs (68px on a real repo at the default 280px
+     sidebar), and 20 + 76 + 76 + a 48px message floor simply does not fit in
+     269px of list. Relaxing them here rather than raising GRAPH_ROW_CHROME is
+     deliberate: the divergence sentence these floors were protecting is now
+     ALSO drawn — two lanes, two fixed role colours, the unpushed dot fill and
+     origin/<branch> pinned at the boundary — so the pill can afford to lose
+     characters where it could not before. Full names stay one hover away in
+     the card, and in the row's accessible name. */
+  .scm-ref-head,
+  .scm-ref-upstream {
+    min-width: 44px;
+  }
+
+  /* Tags relax with them. A tag's floor was 52px so a version number could
+     stay whole; three refs on one commit at 269px of list is 117px of pill
+     against 113px of room, and something has to give. The flag shape and the
+     glyph still say "tag" at 40px, and `v2.6.` reads as a truncated version
+     rather than as a different ref. */
+  .scm-ref-tag {
+    min-width: 40px;
+  }
+}
+
+/* A ROW's pill strip clips itself rather than overflowing the commit row.
+   Without this the pills' overflow propagates into `.scm-hrow`'s scroll area,
+   which is how a 5px overshoot on one row in fifty turned into a scrollable
+   list. The clip boundary is the strip, so what is lost is the tail of the
+   last (lowest-ranked) pill — never the message, never the graph. Excludes
+   the hover card's copy, which wraps to full width and must not be cut. */
+.scm-refs:not(.scm-refs-full) {
+  overflow: hidden;
+}
+
+@container scm-history (max-width: 260px) {
+  .scm-ref-pill {
+    padding: 0 2px;
+    min-width: 18px;
+    max-width: 18px;
+  }
+
+  .scm-ref-name {
+    display: none;
+  }
+}
+
+/* Inline file expansion — SCM-style rows indented to the message x.
+   The indent is no longer a fixed 32px: the gutter is as wide as the graph
+   needs, so the row carries a pass-through gutter of its own and the 32px is
+   rebuilt as `gutter + 12` (6px of margin + the 6px row gap). At one lane that
+   is 20 + 12 = exactly the 32 this shipped with. */
 .scm-hfile {
   display: flex;
   align-items: center;
   gap: var(--space-3);
   height: 24px;
   flex: 0 0 24px;
-  padding: 0 var(--space-4) 0 32px;
+  padding: 0 var(--space-4) 0 0;
   min-width: 0;
   cursor: default;
   user-select: none;
   transition: background var(--dur-fast) var(--ease-out);
+}
+
+.scm-hfile > .scm-graph,
+.scm-load-more > .scm-graph {
+  margin-right: var(--space-3);
 }
 
 .scm-hfile:hover {
@@ -790,17 +929,32 @@
   width: 56%;
 }
 
-/* "Load 50 more" — [h:24], 12px accent text, aligned to the message x. */
+/* "Load 50 more" — [h:24], 12px accent text, aligned to the file rows. The
+   live lanes run straight through it, so the graph reads as continuing into
+   the next page instead of ending at the button. */
 .scm-load-more {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
   width: 100%;
   height: 24px;
-  padding: 0 var(--space-4) 0 32px;
+  padding: 0 var(--space-4) 0 0;
   text-align: left;
   font-size: var(--text-sm);
   line-height: var(--lh-sm);
   color: var(--accent-text);
   transition: background var(--dur-fast) var(--ease-out);
+}
+
+/* The walk ended but lanes are still open — they point at commits the ref
+   scope excluded. One 24px row of fading pass-throughs, no text: "elsewhere",
+   not "this branch ends here". */
+.scm-history-tail {
+  display: flex;
+  align-items: center;
+  height: 24px;
+  flex: 0 0 24px;
+  pointer-events: none;
 }
 
 .scm-load-more:hover {
@@ -988,6 +1142,36 @@
 
 .scm-card-stat-del {
   color: var(--error);
+}
+
+/* Which side of the divergence this commit is on, in words — the dot fill
+   says it fast, the card says it plainly. Muted: a fact about the commit,
+   not something the user needs to act on. */
+.scm-card-sync {
+  flex: 0 0 auto;
+  margin-top: var(--space-4);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-muted);
+}
+
+/* Where a row's "+2" resolves: every ref on the commit, whole names, no
+   truncation, wrapping (research 24-git-graph-d3 §4.5). The row's overflow
+   tooltip is a newline-joined title string — a placeholder, unreachable by
+   keyboard; this is the real surface. */
+.scm-card-refs {
+  flex: 0 0 auto;
+  margin-top: var(--space-4);
+}
+
+.scm-refs-full {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.scm-refs-full .scm-ref-pill {
+  max-width: none;
 }
 
 .scm-card-sha-row {
@@ -1337,4 +1521,37 @@ body.scm-section-dragging .section-gripper {
   background: var(--accent);
   z-index: 2;
   pointer-events: none;
+}
+
+/* ---------------------------------------------------------------------------
+   HISTORY scope control (Phase 14.5) — which refs the walk covers:
+   "This branch + upstream" (default) · "All local branches" · "Everything".
+
+   The list can now contain commits that are not ancestors of HEAD, which is
+   the whole point of the divergence work — and precisely why a widened scope
+   must SAY SO. The accessory follows the hover-revealed group-action pattern
+   at the default; off the default it stays lit and the header names the
+   scope, because a list quietly showing other branches' commits with no
+   indication why is the kind of small lie this phase exists to remove.
+--------------------------------------------------------------------------- */
+
+.scm-scope-btn.pinned {
+  opacity: 1;
+  pointer-events: auto;
+  color: var(--accent-text);
+}
+
+.scm-scope-tag {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  font-weight: var(--weight-regular);
+  color: var(--text-muted);
+  text-transform: none;
+  letter-spacing: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 0 1 auto;
 }

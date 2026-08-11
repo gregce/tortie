@@ -20,9 +20,7 @@ export {
 export { runGit, runGitOrThrow, type GitResult } from './exec';
 export {
   parsePorcelainV2Status,
-  parseLog,
   STATUS_LIMIT,
-  LOG_FORMAT,
   type ParsedStatus
 } from './parse';
 export {
@@ -36,10 +34,27 @@ export {
   parseCommitMeta,
   parseNameStatusZ,
   parseNumstatZ,
+  parseUpstreamTrack,
   mergeCommitFiles,
   normalizeGitHubRemote,
   type ParsedCommitMeta,
   type NameStatusEntry,
   type NumstatEntry,
-  type ParsedNumstat
+  type ParsedNumstat,
+  type UpstreamTrack
 } from './parse';
+// Phase 14.5 — the history graph's data layer (docs/research/24-git-graph.md).
+export {
+  GRAPH_LOG_FORMAT,
+  LOCAL_REF_FORMAT,
+  SCOPE_REF_FORMAT,
+  annotateDivergence,
+  parseDecoration,
+  parseGraphLog,
+  parseLeftRight,
+  parseLocalRefs,
+  parseScopeRefs,
+  sanitizeRefNames,
+  type ParseGraphLogOptions,
+  type ParsedLocalRef
+} from './graph-parse';

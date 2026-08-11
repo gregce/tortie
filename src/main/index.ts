@@ -31,7 +31,10 @@
  *                       GMUX_PROCID_REAP=1, which also runs the boot reap.
  *  - GMUX_SHOT=<path>   capturePage after 3 s (GMUX_SHOT_DELAY_MS) → PNG → quit
  *                       (GMUX_SHOT_CAPTURE_OUT=<path> additionally writes the
- *                       image a DRIVEN capture produced — see shot-hook.ts)
+ *                       image a DRIVEN capture produced — see shot-hook.ts;
+ *                       GMUX_SHOT_JS=<expr> evaluates one expression in the
+ *                       driven window and prints its JSON, so a verifier can
+ *                       MEASURE the running app and not only photograph it)
  *
  * NOTE: we run the SYSTEM tmux (3.6a at build time) — bundling a pinned tmux
  * inside gmux.app is out of scope today (docs/FINAL-REPORT.md §5 Stream A1).
@@ -1228,6 +1231,17 @@ async function runShot(outPath: string): Promise<void> {
             }
             await new Promise((r) => setTimeout(r, 250));
           }
+        }
+        // GMUX_SHOT_JS: one expression, evaluated in the DRIVEN window, its
+        // value printed as JSON. A screenshot proves a thing was drawn; this
+        // is how a verifier proves a thing is TRUE — that a handler is still
+        // attached, that a measured width is what the design says, that a
+        // count matches ground truth. Runs after the drive and before the
+        // capture, so it observes exactly the frame that gets photographed.
+        const probeJs = process.env['GMUX_SHOT_JS'];
+        if (probeJs !== undefined && probeJs.length > 0) {
+          const value: unknown = await wc.executeJavaScript(probeJs, true);
+          console.log(`[gmux-shot] probe ${JSON.stringify(value) ?? 'undefined'}`);
         }
         const image = await wc.capturePage();
         await writeFile(outPath, image.toPNG());

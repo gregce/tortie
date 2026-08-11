@@ -48,6 +48,43 @@
   --git-conflict: #f0883e;
   --git-ignored: #565b66;
 
+  /* §1.4b Commit-graph lanes (SCM History gutter only)
+     Six categorical hues, every one of them colour gmux already owns: --accent,
+     three §1.4 git decorations, and two chromatic normals lifted from the §1.6
+     xterm palette (the two hex literals below — S12.1 allows them here and
+     nowhere else). Ordered so CONSECUTIVE indices are maximally separated,
+     since those are the columns that physically sit side by side: min ΔE2000
+     42.5 between neighbours, including the 6→1 wrap. Every entry clears 4.1:1
+     on --bg-active, the worst row background.
+
+     Six, not more: min pairwise ΔE2000 falls off a cliff at seven (19.5 → 12.2,
+     two blues colliding). Past six the ramp CYCLES — two columns sharing a hue
+     are then 6 columns / 72px apart and can never be visually adjacent.
+
+     No yellow. --git-modified is ΔE2000 4.5 from --status-attention and xterm
+     brYellow is 6.0; a yellow lane in the sidebar would read as "needs you",
+     which is the one meaning colour is reserved for (DESIGN.md §1.3).
+
+     Lane colour is IDENTITY, never state, and never the only signal: column
+     position, the ref pill, dot shape (hollow = merge, halo = HEAD) and dot
+     fill (coloured = on no remote) all carry it too. */
+  --graph-lane-1: var(--accent); /* #4d9de8 blue — HEAD's spine            */
+  --graph-lane-2: var(--git-deleted); /* #e5655e red                       */
+  --graph-lane-3: #56c2c0; /* xterm cyan (DESIGN.md §1.6)                  */
+  --graph-lane-4: var(--git-conflict); /* #f0883e orange                   */
+  --graph-lane-5: #d19fe8; /* xterm brMagenta (DESIGN.md §1.6)             */
+  --graph-lane-6: var(--git-added); /* #6bc46d green                       */
+
+  --graph-lane-w: 2px; /* lane stroke; integer x → crisp at 1x and 2x      */
+  --graph-dot-ring: 1.5px; /* hollow merge-dot ring, as shipped            */
+  --graph-dim: 0.45; /* non-emphasised lanes while the gutter is hovered   */
+  --graph-dot-shared-mix: 25%; /* dot hue kept for an already-pushed commit;
+     the rest mixes to --text-muted. Compared 0 / 25 / 40 / 55% on a real
+     diverged repo: past ~40% the unpushed run stops reading as a block, and
+     at 0% a lone dot loses all tie to the lane it sits on. Every result
+     clears the 3:1 non-text floor (worst: 3.83:1 on --bg-active).         */
+  --graph-bundle: var(--text-muted); /* folded-lane column — no hue at all */
+
   /* §1.5 Feedback */
   --error: #e5655e;
   --warning: #f5b84a;

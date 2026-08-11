@@ -29,6 +29,15 @@ export interface RunGitOptions {
   timeoutMs?: number;
   /** Reject when stdout exceeds this many bytes. Default 64 MiB. */
   maxOutputBytes?: number;
+  /**
+   * Bytes to write to the child's stdin, then close it. Present ONLY for
+   * `git log --stdin` (Phase 14.5): a ref-scoped history walk feeds its
+   * refnames here rather than on argv, because a repo with hundreds of refs
+   * would otherwise risk ARG_MAX (VS Code's `git.ts` does the same). Absent
+   * keeps the historical `stdio: 'ignore'` behaviour verbatim, so no existing
+   * caller can hang waiting on a pipe nobody writes to.
+   */
+  stdin?: string;
 }
 
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -49,7 +58,7 @@ export function runGit(
   const maxOutput = options.maxOutputBytes ?? DEFAULT_MAX_OUTPUT;
 
   return new Promise<GitResult>((resolve, reject) => {
-    const child = spawn('git', args, {
+    const spawnOptions = {
       cwd: repoPath,
       env: {
         ...process.env,
@@ -58,9 +67,30 @@ export function runGit(
         // No TTY exists: a credential prompt would hang forever — fail fast
         // instead (only reachable via user hooks doing network calls).
         GIT_TERMINAL_PROMPT: '0'
-      },
-      stdio: ['ignore', 'pipe', 'pipe']
-    });
+      }
+    };
+    // Two literal spawns rather than one computed `stdio` tuple: it is the
+    // literal that tells the type system stdout/stderr are pipes, and callers
+    // that pass no stdin keep the historical `'ignore'` (i.e. /dev/null)
+    // exactly, with no pipe for anything to block on.
+    const child =
+      options.stdin === undefined
+        ? spawn('git', args, {
+            ...spawnOptions,
+            stdio: ['ignore', 'pipe', 'pipe']
+          })
+        : spawn('git', args, {
+            ...spawnOptions,
+            stdio: ['pipe', 'pipe', 'pipe']
+          });
+
+    if (options.stdin !== undefined && child.stdin !== null) {
+      // EPIPE is normal: git closes stdin the moment it has enough revs (a
+      // `-n` limited walk does exactly that). Swallow it — the exit code and
+      // stdout are the answer, and a write race must never reject the call.
+      child.stdin.on('error', () => undefined);
+      child.stdin.end(options.stdin);
+    }
 
     const stdoutChunks: Buffer[] = [];
     const stderrChunks: Buffer[] = [];

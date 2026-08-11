@@ -19,6 +19,8 @@ import { Codicon } from '../icons';
 import { detailKey, useGitDepth } from './depth';
 import { formatAbsolute, formatRelativeLong, shortSha } from './format';
 import { FormattedMessage } from './message-format';
+import { RefPills } from './ref-badges';
+import type { RefBadge } from './ref-badges';
 
 /** Viewport inset the card never crosses (px). */
 const EDGE = 8;
@@ -58,6 +60,9 @@ export function HoverCard({
   anchor,
   remoteUrl,
   now,
+  refs = [],
+  lastFetchedAt = null,
+  syncNote = null,
   onPointerEnter,
   onPointerLeave
 }: {
@@ -67,6 +72,20 @@ export function HoverCard({
   anchor: { top: number; bottom: number; right: number };
   remoteUrl: string | null;
   now: number;
+  /**
+   * Every ref on this commit, in priority order. The row can only show three
+   * before "+n"; the card is where the overflow resolves, at full width and
+   * with real tooltips instead of a newline-joined `title` string.
+   */
+  refs?: readonly RefBadge[];
+  /** Remote snapshot age, so the card's remote pills say when we last looked. */
+  lastFetchedAt?: number | null;
+  /**
+   * "Not pushed yet …" / "Not pulled yet …", when this commit is on only one
+   * side of the divergence. The row says it with a dot fill, which is fast to
+   * read but silent; this is where it gets words.
+   */
+  syncNote?: string | null;
   onPointerEnter: () => void;
   onPointerLeave: () => void;
 }): React.JSX.Element {
@@ -144,6 +163,19 @@ export function HoverCard({
         )}
       </div>
       {detail !== null ? <StatLine detail={detail} /> : null}
+      {syncNote !== null ? (
+        <div className="scm-card-sync">{syncNote}</div>
+      ) : null}
+      {refs.length > 0 ? (
+        <div className="scm-card-refs">
+          <RefPills
+            badges={refs}
+            lastFetchedAt={lastFetchedAt}
+            now={now}
+            full
+          />
+        </div>
+      ) : null}
       <div className="scm-card-sha-row">
         <button
           type="button"

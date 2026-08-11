@@ -19,7 +19,11 @@ import type {
   GitCommitFileDiff,
   GitCommitFileDiffInput,
   GitDeleteBranchResult,
-  GitLogEntryDetailed,
+  GitDivergenceInfo,
+  GitGraphLogEntry,
+  GitGraphLogInput,
+  GitGraphLogResult,
+  GitLogScope,
   GitPullResult,
   GitPushInput,
   GitPushResult,
@@ -32,16 +36,26 @@ import type {
 import { gmuxError } from '../tmux/errors';
 import { runGit, runGitOrThrow } from './exec';
 import {
+  GRAPH_LOG_FORMAT,
+  LOCAL_REF_FORMAT,
+  SCOPE_REF_FORMAT,
+  annotateDivergence,
+  parseGraphLog,
+  parseLeftRight,
+  parseLocalRefs,
+  parseScopeRefs,
+  sanitizeRefNames,
+  type ParsedLocalRef
+} from './graph-parse';
+import {
   BRANCH_FORMAT,
   COMMIT_META_FORMAT,
-  LOG_FORMAT,
   REMOTE_BRANCH_FORMAT,
   mergeCommitFiles,
   normalizeGitHubRemote,
   parseCommitMeta,
   parseForEachRefBranches,
   parseForEachRefRemoteBranches,
-  parseLog,
   parseNameStatusZ,
   parseNumstatZ,
   parsePorcelainV2Status,
@@ -70,6 +84,23 @@ const FETCH_TIMEOUT_MS = 120_000;
 const PATH_CHUNK = 500;
 /** git's own binary heuristic: a NUL byte in the first 8000 bytes. */
 const BINARY_SNIFF_BYTES = 8000;
+
+// --- history graph (Phase 14.5) --------------------------------------------
+
+/** Default history page (the frozen git:log contract's default). */
+const DEFAULT_LOG_COUNT = 200;
+/**
+ * Hard ceiling on one page. The fold itself is free (1.3 ms for 932 rows,
+ * research 24 §4.5) — this bounds the IPC payload and the DOM, not the maths.
+ */
+const MAX_LOG_COUNT = 20_000;
+/**
+ * Ceiling on the per-commit unpushed/unpulled classification. A branch tens of
+ * thousands of commits from its upstream is a rebase gone wrong, not a
+ * reading task; `ahead`/`behind` stay exact regardless (git counts those
+ * itself) and `divergence.truncated` says the shading is partial.
+ */
+const DIVERGENCE_SHA_CAP = 20_000;
 
 // --- remote-operation failure classification (push / pull / fetch) ---------
 // Every one of these surfaces as a REAL message; nothing about a network or
@@ -162,18 +193,189 @@ export class GitService {
     };
   }
 
-  /** History for the sidebar: newest-first, default 200 (contract). */
-  async log(maxCount = 200): Promise<GitLogEntryDetailed[]> {
-    const r = await runGit(this.repoPath, [
-      'log',
-      '-z',
-      `--max-count=${Math.max(1, Math.floor(maxCount))}`,
-      `--format=${LOG_FORMAT}`
+  /**
+   * History for the sidebar: newest-first, default 200 (contract).
+   *
+   * Phase 14.5 replaced the implicit `HEAD` walk with the REF-SCOPED,
+   * topologically ordered, decoration-carrying walk the graph needs
+   * (`graphLog` below is the same command plus the divergence read). Two
+   * consequences the callers should know about, both intentional:
+   *
+   *  - Entries now carry TYPED `refs`, so tag and remote badges no longer have
+   *    to be cross-referenced by SHA against a separate branch query.
+   *  - The default scope includes the current branch's UPSTREAM, so commits
+   *    you are behind by are present in the payload for the first time. That
+   *    is the whole point — a `HEAD`-only walk made "you are 3 behind"
+   *    unrenderable at any price (research 24 §6.2).
+   */
+  async log(
+    maxCount = DEFAULT_LOG_COUNT,
+    scope: GitLogScope = 'branch'
+  ): Promise<GitGraphLogEntry[]> {
+    const result = await this.graphLog({ maxCount, scope });
+    return result.entries;
+  }
+
+  // -------------------------------------------------------------------------
+  // History graph (Phase 14.5, docs/research/24-git-graph.md)
+  //
+  // ONE round trip answers everything the history pane draws: the commits with
+  // their parents and typed decorations, the ref set that produced them, where
+  // the current branch stands against its upstream, which individual commits
+  // are unpushed or unpulled, and HOW STALE that comparison is.
+  //
+  // They travel together deliberately. Reading ahead/behind a beat after the
+  // log is how a pane ends up printing "0 unpushed" above a row it is also
+  // shading as unpushed — the numbers and the rows must describe one instant.
+  // -------------------------------------------------------------------------
+
+  /**
+   * One page of the commit graph. Never rejects for "this isn't a repo" or
+   * "this repo has no commits yet" — both resolve to the empty result, same
+   * friendly-read discipline as status() and branches().
+   */
+  async graphLog(
+    input: Omit<GitGraphLogInput, 'repoPath'> = {}
+  ): Promise<GitGraphLogResult> {
+    const scope: GitLogScope = input.scope ?? 'branch';
+    const maxCount = Math.min(
+      MAX_LOG_COUNT,
+      Math.max(1, Math.floor(input.maxCount ?? DEFAULT_LOG_COUNT))
+    );
+
+    // Round A — everything that depends on nothing else, at once.
+    const [
+      headSha,
+      headRef,
+      localRefs,
+      allRefs,
+      remoteNames,
+      hasCommitGraph,
+      lastFetchedAt
+    ] = await Promise.all([
+      this.revParse('HEAD'),
+      this.headRefName(),
+      this.localRefs(),
+      scope === 'everything' ? this.allWalkableRefs() : Promise.resolve([]),
+      this.remoteNames(),
+      this.hasCommitGraph(),
+      this.lastFetchedAt()
     ]);
+
+    const currentRow =
+      headRef === null
+        ? null
+        : (localRefs.find((r) => r.refname === headRef) ?? null);
+    const upstreamRef = currentRow?.upstreamRef ?? null;
+
+    const refs =
+      input.refs !== undefined
+        ? sanitizeRefNames(input.refs)
+        : resolveScopeRefs({
+            scope,
+            headRef,
+            headSha,
+            upstreamRef,
+            localRefs,
+            allRefs
+          });
+
+    // Round B — the walk and the divergence detail, in parallel.
+    const [page, sides] = await Promise.all([
+      this.walk(refs, maxCount, remoteNames),
+      this.divergenceSides(headSha, currentRow)
+    ]);
+    const divergence = toDivergenceInfo(
+      headRef,
+      currentRow,
+      headSha,
+      sides,
+      lastFetchedAt
+    );
+
+    const entries = annotateDivergence(
+      page.entries,
+      sides.unpushed,
+      sides.unpulled
+    );
+
+    return {
+      repoPath: this.repoPath,
+      scope,
+      refs,
+      entries,
+      hasMore: page.hasMore,
+      divergence,
+      isRepo: headSha !== null || localRefs.length > 0 || headRef !== null,
+      hasCommitGraph
+    };
+  }
+
+  /**
+   * Where the current branch stands against its upstream, and how fresh that
+   * claim is — WITHOUT loading any commits.
+   *
+   * Deliberately not `graphLog().divergence`: the walk carries `--topo-order`,
+   * which on a large repo with no commit-graph file costs ~570 ms of full
+   * history traversal (measured on a 130 622-commit clone). A header that
+   * re-reads ahead/behind on every `git:changed` must not pay that, and with
+   * the history pane collapsed there is nothing to pay it for.
+   */
+  async divergence(): Promise<GitDivergenceInfo> {
+    const [headSha, headRef, localRefs, lastFetchedAt] = await Promise.all([
+      this.revParse('HEAD'),
+      this.headRefName(),
+      this.localRefs(),
+      this.lastFetchedAt()
+    ]);
+    const currentRow =
+      headRef === null
+        ? null
+        : (localRefs.find((r) => r.refname === headRef) ?? null);
+    const sides = await this.divergenceSides(headSha, currentRow);
+    return toDivergenceInfo(headRef, currentRow, headSha, sides, lastFetchedAt);
+  }
+
+  /**
+   * THE walk. `--stdin` carries the refnames (VS Code's `git.ts` does the
+   * same) because a repo with hundreds of refs would otherwise put ARG_MAX in
+   * play; `--ignore-missing` means a branch an agent deleted between the ref
+   * enumeration and this call narrows the graph instead of blanking it —
+   * which matters most for a PINNED ref list echoed back while paging.
+   *
+   * `maxCount + 1` is the has-more probe: one extra commit is fetched, never
+   * shown, and its existence is the only honest way to know whether the
+   * "Load more" affordance should exist at all.
+   */
+  private async walk(
+    refs: string[],
+    maxCount: number,
+    remoteNames: string[]
+  ): Promise<{ entries: GitGraphLogEntry[]; hasMore: boolean }> {
+    // Guard, not an optimisation: `git log --stdin` with NO revisions on stdin
+    // silently falls back to walking HEAD, which would quietly hand back the
+    // wrong scope for an empty ref set.
+    if (refs.length === 0) return { entries: [], hasMore: false };
+
+    const r = await runGit(
+      this.repoPath,
+      [
+        'log',
+        '-z',
+        '--topo-order',
+        '--decorate=full',
+        '--ignore-missing',
+        '--stdin',
+        `--max-count=${maxCount + 1}`,
+        `--format=${GRAPH_LOG_FORMAT}`
+      ],
+      { stdin: `${refs.join('\n')}\n` }
+    );
+
     if (r.code !== 0) {
       // Empty repo (unborn HEAD) and not-a-repo both render as "no history".
       if (UNBORN_HEAD_RE.test(r.stderr) || NOT_A_REPO_RE.test(r.stderr)) {
-        return [];
+        return { entries: [], hasMore: false };
       }
       throw gmuxError(
         'GIT_FAILED',
@@ -181,7 +383,140 @@ export class GitService {
         r.stderr.trim() || undefined
       );
     }
-    return parseLog(r.stdout.toString('utf8'));
+
+    const parsed = parseGraphLog(r.stdout.toString('utf8'), { remoteNames });
+    const hasMore = parsed.length > maxCount;
+    return {
+      entries: hasMore ? parsed.slice(0, maxCount) : parsed,
+      hasMore
+    };
+  }
+
+  /**
+   * The two sides of `HEAD...@{u}` plus the anchors the divergence drawing
+   * needs. Uses the SAME symmetric-difference git counts ahead/behind from, so
+   * a shaded row and the header's number cannot disagree.
+   *
+   * Costs nothing when the branch is level with its upstream (the common case
+   * right after a push): `ahead === 0 && behind === 0` means HEAD, the upstream
+   * tip and the merge base are provably the same commit.
+   */
+  private async divergenceSides(
+    headSha: string | null,
+    row: ParsedLocalRef | null
+  ): Promise<DivergenceSides> {
+    const empty = {
+      unpushed: new Set<string>(),
+      unpulled: new Set<string>(),
+      truncated: false
+    };
+    const upstreamRef = row?.upstreamRef ?? null;
+    if (headSha === null || upstreamRef === null || row === null || row.gone) {
+      return { ...empty, mergeBase: null, upstreamSha: null };
+    }
+    if (row.ahead === 0 && row.behind === 0) {
+      return { ...empty, mergeBase: headSha, upstreamSha: headSha };
+    }
+
+    const [upstreamSha, mergeBase, leftRight] = await Promise.all([
+      this.revParse(upstreamRef),
+      this.mergeBase(headSha, upstreamRef),
+      runGit(this.repoPath, [
+        'rev-list',
+        '--left-right',
+        `--max-count=${DIVERGENCE_SHA_CAP}`,
+        `${headSha}...${upstreamRef}`
+      ])
+    ]);
+
+    if (leftRight.code !== 0) {
+      return { ...empty, mergeBase, upstreamSha };
+    }
+    const out = leftRight.stdout.toString('utf8');
+    const sides = parseLeftRight(out);
+    return {
+      ...sides,
+      mergeBase,
+      upstreamSha,
+      truncated: sides.unpushed.size + sides.unpulled.size >= DIVERGENCE_SHA_CAP
+    };
+  }
+
+  /** Full refname HEAD points at ("refs/heads/dev"); null when detached. */
+  private async headRefName(): Promise<string | null> {
+    const r = await runGit(this.repoPath, ['symbolic-ref', '--quiet', 'HEAD']);
+    const name = r.stdout.toString('utf8').trim();
+    return r.code === 0 && name.length > 0 ? name : null;
+  }
+
+  /** Local branches with their upstream refs and tracking counts (one call). */
+  private async localRefs(): Promise<ParsedLocalRef[]> {
+    const r = await runGit(this.repoPath, [
+      'for-each-ref',
+      'refs/heads',
+      `--format=${LOCAL_REF_FORMAT}`
+    ]);
+    if (r.code !== 0) return [];
+    return parseLocalRefs(r.stdout.toString('utf8'));
+  }
+
+  /**
+   * Every refname the `everything` scope walks: local branches,
+   * remote-tracking branches and tags — and NOTHING else.
+   *
+   * This is why the scope is not `git log --all`. `--all` additionally drags
+   * in `refs/stash` and `refs/notes/*`, whose commits are gmux's and git's own
+   * bookkeeping rather than the user's history; a notes ref alone can add a
+   * second, entirely parallel line of commits to the graph.
+   */
+  private async allWalkableRefs(): Promise<string[]> {
+    const r = await runGit(this.repoPath, [
+      'for-each-ref',
+      'refs/heads',
+      'refs/remotes',
+      'refs/tags',
+      `--format=${SCOPE_REF_FORMAT}`
+    ]);
+    if (r.code !== 0) return [];
+    return parseScopeRefs(r.stdout.toString('utf8'));
+  }
+
+  /** `git rev-parse --verify --quiet <rev>^{commit}`; null when unresolvable. */
+  private async revParse(rev: string): Promise<string | null> {
+    const r = await runGit(this.repoPath, [
+      'rev-parse',
+      '--verify',
+      '--quiet',
+      `${rev}^{commit}`
+    ]);
+    const sha = r.stdout.toString('utf8').trim();
+    return r.code === 0 && sha.length > 0 ? sha : null;
+  }
+
+  /** `git merge-base a b`; null when they share no ancestor. */
+  private async mergeBase(a: string, b: string): Promise<string | null> {
+    const r = await runGit(this.repoPath, ['merge-base', a, b]);
+    const sha = r.stdout.toString('utf8').trim();
+    return r.code === 0 && sha.length > 0 ? sha : null;
+  }
+
+  /**
+   * Does this repo have a commit-graph file?
+   *
+   * `--topo-order` must walk the whole history to compute in-degrees, which
+   * measures 0.53 s on a 130k-commit repo without this file and 0.01 s with it
+   * (research 24 §9.1). gmux does NOT write one — that is a write to the
+   * user's repository and theirs to authorise — but it reports the fact, so a
+   * slow history pane can be explained instead of guessed at.
+   */
+  private async hasCommitGraph(): Promise<boolean> {
+    const gitDir = await this.resolveGitDir();
+    if (gitDir === null) return false;
+    const info = join(gitDir, 'objects', 'info');
+    return (
+      existsSync(join(info, 'commit-graph')) ||
+      existsSync(join(info, 'commit-graph-chain'))
+    );
   }
 
   /**
@@ -1089,6 +1424,95 @@ export class GitService {
 
 function literalSpec(relPath: string): string {
   return `:(literal)${relPath}`;
+}
+
+/** The commit-level half of the divergence read (Phase 14.5). */
+interface DivergenceSides {
+  /** Reachable from HEAD, not from the upstream. */
+  unpushed: ReadonlySet<string>;
+  /** Reachable from the upstream, not from HEAD. */
+  unpulled: ReadonlySet<string>;
+  mergeBase: string | null;
+  upstreamSha: string | null;
+  /** The per-commit classification hit DIVERGENCE_SHA_CAP. */
+  truncated: boolean;
+}
+
+/**
+ * Assemble the divergence contract from the two halves that produce it — the
+ * ref-level facts git already tracks (`%(upstream:track)`) and the commit-level
+ * ones we asked for. ONE assembly point, used by both `graphLog` and the
+ * commit-free `divergence`, so the two can never drift into disagreeing about
+ * the same repository.
+ */
+function toDivergenceInfo(
+  headRef: string | null,
+  row: ParsedLocalRef | null,
+  headSha: string | null,
+  sides: DivergenceSides,
+  lastFetchedAt: number | null
+): GitDivergenceInfo {
+  return {
+    branch:
+      headRef !== null && headRef.startsWith('refs/heads/')
+        ? headRef.slice('refs/heads/'.length)
+        : null,
+    upstream: row?.upstream ?? null,
+    upstreamRef: row?.upstreamRef ?? null,
+    upstreamGone: row?.gone ?? false,
+    ahead: row?.ahead ?? 0,
+    behind: row?.behind ?? 0,
+    headSha,
+    upstreamSha: sides.upstreamSha,
+    mergeBase: sides.mergeBase,
+    lastFetchedAt,
+    truncated: sides.truncated
+  };
+}
+
+/**
+ * Turn a scope into the explicit refname list the walk is fed (Phase 14.5).
+ *
+ * Three rules hold across all three scopes:
+ *
+ *  - **The current branch's upstream is always in the set.** Without it the
+ *    commits you are behind by are not in the payload, and no renderer can
+ *    draw a divergence it was never sent (research 24 §6.2). This is the one
+ *    ref that earns its place in every scope, including the narrowest.
+ *  - **A detached HEAD contributes the literal `HEAD`**, so checking out a
+ *    commit does not empty the history pane.
+ *  - **Deduped and SORTED.** `git log`'s output order depends on the order its
+ *    tips are given, so a stable set is only half of the lane-stability
+ *    promise (research 24 §4.5) — a stable ORDER is the other half.
+ */
+function resolveScopeRefs(args: {
+  scope: GitLogScope;
+  headRef: string | null;
+  headSha: string | null;
+  upstreamRef: string | null;
+  localRefs: readonly ParsedLocalRef[];
+  allRefs: readonly string[];
+}): string[] {
+  const { scope, headRef, headSha, upstreamRef, localRefs, allRefs } = args;
+  const detachedHead = headRef === null && headSha !== null ? ['HEAD'] : [];
+
+  const names =
+    scope === 'everything'
+      ? [...allRefs, ...detachedHead]
+      : scope === 'local'
+        ? [...localRefs.map((r) => r.refname), ...detachedHead]
+        : // An UNBORN branch has a symbolic HEAD with no ref behind it. Left
+          // in, it would be a refname this list claims the walk covered when
+          // the walk could not possibly have.
+          [
+            ...(headRef !== null && headSha !== null ? [headRef] : []),
+            ...detachedHead
+          ];
+
+  return sanitizeRefNames([
+    ...names,
+    ...(upstreamRef !== null ? [upstreamRef] : [])
+  ]);
 }
 
 /** git's own heuristic: a NUL byte in the first 8000 bytes means binary. */

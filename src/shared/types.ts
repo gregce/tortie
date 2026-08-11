@@ -841,3 +841,165 @@ export interface MultilineKeyTable {
  *  - `none`        — nothing to resume (plain shells).
  */
 export type ResumeCapture = 'armed' | 'capturing' | 'unavailable' | 'none';
+
+// ---------------------------------------------------------------------------
+// APPENDED by the Phase-14.5 git-graph data stream (docs/research/24-git-graph.md)
+// — new types only, nothing above was modified.
+//
+// Two things the history pane could not previously say, both blocked HERE and
+// not in the renderer:
+//
+//  1. `git log` walked HEAD only, so commits that exist on `origin/main` but
+//     not locally were absent from the payload entirely — "you are 3 behind"
+//     was unrenderable at any price. The walk is now REF-SCOPED, which is what
+//     puts the upstream on screen as its own line of history.
+//  2. Ref badges were cross-referenced by SHA against a separate branch query,
+//     so tags never appeared and the two lists could drift. Decorations now
+//     ride the walk itself (`--decorate=full` + `%D`) and arrive TYPED.
+//
+// HONESTY (BACKLOG 14.5): `lastFetchedAt` travels with the divergence numbers
+// on purpose. "Up to date" measured against a week-old remote ref is a lie,
+// and the UI cannot avoid telling it unless the age is in the same payload.
+// ---------------------------------------------------------------------------
+
+/**
+ * Which refs the history walk covers. Chosen by the user on the History
+ * header; resolved to an explicit refname list, NEVER to `git log --all`
+ * (research 24 §4.1: all-refs at depth costs 48 concurrent lanes on a real
+ * repo, and `--all` additionally drags in `refs/notes/*` and `refs/stash`,
+ * which are not history the user is looking at).
+ *
+ *  - `branch`     — the current branch and its upstream. THE DEFAULT: 3–5
+ *                   lanes at a 50-commit page, and the only scope in which the
+ *                   local/origin divergence is the picture rather than noise.
+ *  - `local`      — every local branch, plus the current branch's upstream so
+ *                   the divergence survives the widening.
+ *  - `everything` — local branches, remote-tracking branches and tags.
+ */
+export type GitLogScope = 'branch' | 'local' | 'everything';
+
+/** What a decoration on a commit row IS, so the UI never guesses from shape. */
+export type GitRefKind =
+  /** `refs/heads/x` — a local branch. */
+  | 'localBranch'
+  /** `refs/remotes/origin/x` — a remote-tracking branch. */
+  | 'remoteBranch'
+  /** `refs/tags/x`. */
+  | 'tag'
+  /** A bare `HEAD` decoration: HEAD is detached at this commit. */
+  | 'head';
+
+/** One typed ref pinned to a commit by the walk (`%D`, `--decorate=full`). */
+export interface GitDecorationRef {
+  kind: GitRefKind;
+  /** Display name: "main", "origin/main", "v1.2.0", "HEAD". */
+  name: string;
+  /** Full refname as git printed it ("refs/heads/main"); "HEAD" when detached. */
+  fullName: string;
+  /** True for the local branch HEAD points at (`HEAD -> refs/heads/main`). */
+  current?: true;
+  /** Remote name for `remoteBranch` refs ("origin"). */
+  remote?: string;
+}
+
+/**
+ * One commit row of the graph: the existing log shape, plus the refs pinned to
+ * it and its position relative to the upstream.
+ *
+ * `unpushed` / `unpulled` are LEFT/RIGHT membership of `HEAD...@{u}` — the
+ * same set git counts for ahead/behind — so a row's shading and the header's
+ * "3 ahead" can never disagree. Both absent means the commit is on both sides
+ * (or the branch has no upstream); they are never both present.
+ */
+export interface GitGraphLogEntry extends GitLogEntryDetailed {
+  /** Typed decorations on this commit; empty for the overwhelming majority. */
+  refs: GitDecorationRef[];
+  /** Reachable from HEAD, not from the upstream — local work not yet pushed. */
+  unpushed?: true;
+  /** Reachable from the upstream, not from HEAD — fetched work not yet merged. */
+  unpulled?: true;
+}
+
+/**
+ * Where the current branch stands against its upstream, with the freshness of
+ * that claim attached.
+ */
+export interface GitDivergenceInfo {
+  /** Current branch short name; null when detached or unborn. */
+  branch: string | null;
+  /** Upstream short name ("origin/dev"); null when none is configured. */
+  upstream: string | null;
+  /** Full upstream refname ("refs/remotes/origin/dev"); null when none. */
+  upstreamRef: string | null;
+  /** True when an upstream IS configured but its ref no longer exists. */
+  upstreamGone: boolean;
+  /** Commits on HEAD that the upstream does not have. */
+  ahead: number;
+  /** Commits on the upstream that HEAD does not have. */
+  behind: number;
+  /** Full SHA of HEAD; null on an unborn branch. */
+  headSha: string | null;
+  /** Full SHA of the upstream tip; null when there is none, or it is gone. */
+  upstreamSha: string | null;
+  /** `git merge-base HEAD @{u}`; null when there is no upstream or no ancestor. */
+  mergeBase: string | null;
+  /**
+   * mtime of .git/FETCH_HEAD in epoch ms — when this clone last heard from a
+   * remote. Null before any fetch. The UI MUST NOT render "up to date" without
+   * consulting this: the numbers above are only as fresh as this timestamp.
+   */
+  lastFetchedAt: number | null;
+  /**
+   * True when the per-commit unpushed/unpulled classification hit its cap and
+   * some rows carry neither flag despite belonging to one side. `ahead` and
+   * `behind` stay exact — git counts those itself.
+   */
+  truncated: boolean;
+}
+
+export interface GitGraphLogInput {
+  repoPath: string;
+  /** Commits to load. Default 200; the pane opens small and deepens on scroll. */
+  maxCount?: number;
+  /** Ref scope; default `branch`. Ignored when `refs` is supplied. */
+  scope?: GitLogScope;
+  /**
+   * PIN the walk to an exact refname list — echo back the `refs` of the first
+   * page when loading deeper ones.
+   *
+   * This is the lane-stability contract (research 24 §4.5): row *n*'s lanes are
+   * a pure function of commits 0..n, so appending a page reshuffles nothing —
+   * PROVIDED the ref set is identical between pages. Re-resolving `scope` on
+   * every page would silently break that the moment a branch is created or an
+   * agent's `git fetch` lands mid-scroll.
+   */
+  refs?: string[];
+}
+
+/** git:graphLog — everything one history render needs, in one round trip. */
+export interface GitGraphLogResult {
+  /** The resolved repo root the walk ran in. */
+  repoPath: string;
+  /** The scope that produced `refs` (echoed back for the header control). */
+  scope: GitLogScope;
+  /**
+   * The exact full refnames the walk covered, sorted. Feed this back as
+   * `GitGraphLogInput.refs` when paging (see that field).
+   */
+  refs: string[];
+  /** Newest-first, `--topo-order`: a parent NEVER precedes any of its children. */
+  entries: GitGraphLogEntry[];
+  /** True when git had at least one commit beyond `maxCount` (limit+1 probe). */
+  hasMore: boolean;
+  divergence: GitDivergenceInfo;
+  /** False for a folder that is not a git worktree; `entries` is then empty. */
+  isRepo: boolean;
+  /**
+   * Whether this repo has a commit-graph file. `--topo-order` must walk the
+   * whole history to compute in-degrees, which measures 0.53 s on a
+   * 130k-commit repo WITHOUT this file and 0.01 s with it (research 24 §9.1) —
+   * a 53× cliff. Exposed so a slow history pane can be explained rather than
+   * mistaken for a bug; gmux never writes the file behind the user's back.
+   */
+  hasCommitGraph: boolean;
+}

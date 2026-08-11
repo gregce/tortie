@@ -844,7 +844,8 @@ export type GmuxInvokeChannelMap = RegistryInvokeChannelMap &
   SearchInvokeChannelMap &
   QuickOpenInvokeChannelMap &
   SymbolsInvokeChannelMap &
-  ScrollbackInvokeChannelMap;
+  ScrollbackInvokeChannelMap &
+  GitGraphInvokeChannelMap;
 
 export type GmuxInvokeChannel = keyof GmuxInvokeChannelMap;
 
@@ -2167,4 +2168,52 @@ export interface GmuxScrollbackExtras {
     report(): Promise<string>;
     onNotice(cb: (notice: ScrollbackNotice) => void): Unsubscribe;
   };
+}
+
+// ---------------------------------------------------------------------------
+// APPENDED by the Phase-14.5 git-graph data stream (docs/research/24-git-graph.md)
+// — one new channel and its optional preload extra. The one existing line
+// touched above is the GmuxInvokeChannelMap intersection, exactly as that
+// declaration's own comment prescribes.
+//
+// WHY A NEW CHANNEL RATHER THAN A WIDER `git:log`: `git:log` is a frozen
+// channel whose response is `GitLogEntry[]` — a bare array with nowhere to put
+// the divergence numbers, the ref set the walk used, or the last-fetch age.
+// The graph needs all three in the SAME round trip as the commits, because
+// they must describe the same instant: ahead/behind read a beat after the log
+// is how a UI ends up drawing "0 unpushed" above a row it is also shading as
+// unpushed. `git:log` keeps working unchanged (its handler now serves the
+// richer entries, which are a structural superset).
+//
+// Main handler: registerGitDepthIpc (src/main/git/depth-ipc.ts), sharing the
+// existing per-repo GitService + watcher registries. No new preload wrapper
+// generation (standing guardrail 1).
+// ---------------------------------------------------------------------------
+
+import type { GitGraphLogInput, GitGraphLogResult } from './types';
+
+/** New invoke channel appended by the Phase-14.5 git-graph data stream. */
+export interface GitGraphInvokeChannelMap {
+  /**
+   * ONE ref-scoped, topologically ordered history page — commits with typed
+   * decorations, the ref set that produced them, the current branch's
+   * divergence from its upstream, and how stale that comparison is.
+   *
+   * Non-repo folders and unborn branches resolve to the empty result
+   * (`isRepo:false` / no entries), never a rejection — the same friendly-read
+   * discipline as `git:status` and `git:log`.
+   */
+  'git:graphLog': {
+    req: [input: GitGraphLogInput];
+    res: GitGraphLogResult;
+  };
+}
+
+/**
+ * OPTIONAL extension to GmuxApi['git'], feature-detected by the renderer
+ * (`typeof window.gmux.git.graphLog === 'function'`) — an older preload leaves
+ * the history pane on its flat single-column render rather than throwing.
+ */
+export interface GmuxGitGraphExtras {
+  graphLog?(input: GitGraphLogInput): Promise<GitGraphLogResult>;
 }

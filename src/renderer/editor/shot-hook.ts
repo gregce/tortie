@@ -53,6 +53,19 @@ export interface ShotDriveSpec {
    * reliable way to capture the widest layout the design permits.
    */
   editorWidth?: number;
+  /**
+   * Sidebar width in CSS px, applied before the project opens. The SCM
+   * sections degrade against the PANE's width via container queries, so a
+   * capture that cannot set it can only ever photograph one responsive tier.
+   * Clamped by the store's own 220–400 bounds.
+   */
+  sidebarWidth?: number;
+  /**
+   * localStorage entries written before the project opens — per-repo
+   * preferences (history scope, section collapse) are read on component
+   * mount, so a capture has no other way to stage them.
+   */
+  localStorage?: Record<string, string>;
   /** Turn the minimap / preview heading ruler on before capture. */
   minimap?: boolean;
   /**
@@ -424,6 +437,17 @@ export function installShotHook(): void {
     for (let i = 0; i < 60 && !useApp.getState().ready; i++) await wait(100);
     const app = useApp.getState();
     drivenProjectPath = spec.projectPath;
+    // BEFORE the project opens: per-repo preferences (section scope, collapse
+    // state…) are read by their components on mount, so writing them after
+    // would photograph the default rather than the state under test.
+    for (const [key, value] of Object.entries(spec.localStorage ?? {})) {
+      try {
+        localStorage.setItem(key, value);
+      } catch {
+        /* a capture-only knob; never worth failing the drive */
+      }
+    }
+    if (spec.sidebarWidth !== undefined) app.setSidebarWidth(spec.sidebarWidth);
     if (spec.editorWidth !== undefined) {
       setStoredEditorWidth(spec.projectPath, spec.editorWidth);
     }

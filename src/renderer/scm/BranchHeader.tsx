@@ -24,10 +24,16 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../state/store';
 import type { MenuItemSpec } from '../state/store';
 import { gitErrorLine, repoState, useGit } from '../state/git';
-import { displayPath } from '../app/format';
+import { displayPath, useNow } from '../app/format';
 import { Codicon } from '../icons';
 import { depthRepoState, hasGitDepth, hasGitSync, useGitDepth } from './depth';
-import { shortenRemoteUrl, syncTooltip } from './format';
+import { shortenRemoteUrl } from './format';
+import {
+  fetchAgeCaption,
+  fetchAgeShort,
+  fetchIsStale,
+  honestSyncTooltip
+} from './freshness';
 import { requestManageBranches } from './manage-branches';
 import { MiniModal } from './MiniModal';
 import type { MiniModalSpec } from './MiniModal';
@@ -48,6 +54,7 @@ export function BranchHeader(): React.JSX.Element {
   const createBranch = useGitDepth((s) => s.createBranch);
   const refreshDepth = useGitDepth((s) => s.refresh);
   const loadRemotes = useGitDepth((s) => s.loadRemotes);
+  const loadFetchAge = useGitDepth((s) => s.loadFetchAge);
   const runSync = useGitDepth((s) => s.sync);
   const runPush = useGitDepth((s) => s.push);
   const runPull = useGitDepth((s) => s.pull);
@@ -73,17 +80,40 @@ export function BranchHeader(): React.JSX.Element {
   );
   const syncOp = depthRepo.syncOp;
   const remotes = depthRepo.remotes ?? [];
+  const now = useNow();
+  /**
+   * When this clone last heard from a remote. Every ahead/behind number in
+   * this header is measured against a remote-tracking ref, which is a
+   * snapshot taken then — so "nothing to pull" is a claim about that moment,
+   * not about now (BACKLOG 14.5, research 24 §6.3). See freshness.ts.
+   */
+  const lastFetchedAt = depthRepo.lastFetchedAt;
+  /**
+   * `undefined` until the age has actually been read — distinct from `null`,
+   * which means "read, and this clone has never fetched". Conflating them
+   * would make the header assert "nothing fetched yet" for the first frames
+   * of every project switch.
+   */
+  const knownFetchAge: number | null | undefined =
+    depthRepo.remoteBranches !== null || depthRepo.divergence !== null
+      ? lastFetchedAt
+      : undefined;
 
   useEffect(() => {
     init();
     if (repoPath !== null) ensureStatus(repoPath);
   }, [init, ensureStatus, repoPath]);
 
-  // The remotes list powers the ⋯ menu and the Publish affordance, so the
-  // header loads it itself rather than waiting for HISTORY to be expanded.
+  // The remotes list powers the ⋯ menu and the Publish affordance, and the
+  // last-fetch age qualifies the sync counter — so the header loads both
+  // itself rather than waiting for HISTORY or BRANCHES to be expanded.
   useEffect(() => {
     if (repoPath !== null && syncAvailable) void loadRemotes(repoPath);
   }, [repoPath, syncAvailable, loadRemotes]);
+
+  useEffect(() => {
+    if (repoPath !== null) void loadFetchAge(repoPath);
+  }, [repoPath, loadFetchAge]);
 
   const copyBranch = (name: string): void => {
     void navigator.clipboard.writeText(name).then(
@@ -210,6 +240,12 @@ export function BranchHeader(): React.JSX.Element {
       {
         label: 'Fetch',
         disabled: busy || depthRepo.fetching || remotes.length === 0,
+        // The menu is where the user comes to act on the remote, so it says
+        // how old the picture they are acting on is — plainly, in the hint
+        // column, with no warning colour.
+        ...(remotes.length > 0 && knownFetchAge !== undefined
+          ? { hint: fetchAgeCaption(knownFetchAge, now) }
+          : {}),
         run: () => void fetchAll(path)
       }
     ];
@@ -305,8 +341,26 @@ export function BranchHeader(): React.JSX.Element {
       );
     }
 
-    const what = syncTooltip(status.ahead, status.behind, status.upstream);
+    const what = honestSyncTooltip(
+      status.ahead,
+      status.behind,
+      status.upstream ?? null,
+      knownFetchAge,
+      now
+    );
     const counts = status.ahead > 0 || status.behind > 0;
+    /**
+     * The one state where silence is a lie: level with the upstream, so the
+     * control shows no number at all, while the ref it was measured against
+     * is hours old. Show the age of the measurement in the slot the counter
+     * would occupy — the band gains no control, and "up to date" stops being
+     * asserted about a moment we cannot see. When there ARE counts the
+     * tooltip carries it instead; "↑2 ↓1 3h" is three numbers arguing.
+     */
+    const staleAge =
+      !counts && knownFetchAge !== undefined && fetchIsStale(knownFetchAge, now)
+        ? fetchAgeShort(knownFetchAge, now)
+        : null;
     return (
       <button
         type="button"
@@ -328,6 +382,8 @@ export function BranchHeader(): React.JSX.Element {
             {status.ahead > 0 && status.behind > 0 ? ' ' : ''}
             {status.behind > 0 ? `↓${status.behind}` : ''}
           </span>
+        ) : staleAge !== null ? (
+          <span className="scm-sync-age num">{staleAge}</span>
         ) : null}
       </button>
     );

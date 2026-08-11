@@ -13,7 +13,6 @@ import type {
   GitCommitFileState,
   GitFileState,
   GitFileStatus,
-  GitLogEntryDetailed,
   GitRemoteBranchInfo,
   GitStatusGroups
 } from '@shared/types';
@@ -195,41 +194,14 @@ function parseHeader(line: string, result: ParsedStatus): void {
 }
 
 // ---------------------------------------------------------------------------
-// `git log -z --format=%H%x1f%h%x1f%P%x1f%an%x1f%ae%x1f%at%x1f%s`
+// `git log` parsing lives in graph-parse.ts (Phase 14.5).
+//
+// The flat `LOG_FORMAT` / `parseLog` pair that stood here was superseded, not
+// supplemented: the history walk is now ref-scoped, topologically ordered and
+// decoration-carrying, and keeping a second format string for the same command
+// is exactly the duplication the growth guardrails forbid. The replacement is
+// GRAPH_LOG_FORMAT / parseGraphLog.
 // ---------------------------------------------------------------------------
-
-/** Unit separator between fields; records are NUL-separated via `-z`. */
-export const LOG_FORMAT = '%H%x1f%h%x1f%P%x1f%an%x1f%ae%x1f%at%x1f%s';
-
-export function parseLog(output: string): GitLogEntryDetailed[] {
-  const entries: GitLogEntryDetailed[] = [];
-  for (const record of output.split('\0')) {
-    if (record.length === 0) continue;
-    const f = record.split('\x1f');
-    if (f.length < 7) continue;
-    const hash = f[0] ?? '';
-    const shortSha = f[1] ?? '';
-    const parents = (f[2] ?? '').split(' ').filter((p) => p.length > 0);
-    const authorName = f[3] ?? '';
-    const authorEmail = f[4] ?? '';
-    const authorDate = Number(f[5] ?? '0') * 1000;
-    // A subject containing \x1f would have been split — rejoin the tail.
-    const subject = f.slice(6).join('\x1f');
-    entries.push({
-      hash,
-      parents,
-      authorName,
-      authorEmail,
-      authorDate,
-      subject,
-      sha: hash,
-      shortSha,
-      author: authorName,
-      dateISO: new Date(authorDate).toISOString()
-    });
-  }
-  return entries;
-}
 
 // ---------------------------------------------------------------------------
 // APPENDED by the git-depth stream (dogfood round 1): branch listing,
@@ -251,6 +223,32 @@ export const BRANCH_FORMAT =
 const TRACK_AHEAD_RE = /(?:^|, )ahead (\d+)/;
 const TRACK_BEHIND_RE = /(?:^|, )behind (\d+)/;
 
+/** How one branch stands against its upstream, per `%(upstream:track)`. */
+export interface UpstreamTrack {
+  ahead: number;
+  behind: number;
+  /** The configured upstream ref no longer exists. */
+  gone: boolean;
+}
+
+/**
+ * Parse `%(upstream:track,nobracket)` — "ahead 2, behind 3", "gone", or "".
+ *
+ * Shared by the BRANCHES listing and the Phase-14.5 divergence read, which
+ * ask git the same question about the same ref and must never be able to
+ * disagree about the answer (standing guardrail 3: one helper, grepped for
+ * before writing a second).
+ */
+export function parseUpstreamTrack(track: string): UpstreamTrack {
+  const ahead = TRACK_AHEAD_RE.exec(track);
+  const behind = TRACK_BEHIND_RE.exec(track);
+  return {
+    ahead: ahead !== null ? Number(ahead[1]) : 0,
+    behind: behind !== null ? Number(behind[1]) : 0,
+    gone: track === 'gone'
+  };
+}
+
 /** Parse the output of `git for-each-ref refs/heads --format=BRANCH_FORMAT`. */
 export function parseForEachRefBranches(output: string): GitBranchInfo[] {
   const branches: GitBranchInfo[] = [];
@@ -258,19 +256,17 @@ export function parseForEachRefBranches(output: string): GitBranchInfo[] {
     if (line.length === 0) continue;
     const f = line.split('\x1f');
     if (f.length < 7) continue;
-    const track = f[5] ?? '';
+    const track = parseUpstreamTrack(f[5] ?? '');
     const upstream = f[4] ?? '';
-    const ahead = TRACK_AHEAD_RE.exec(track);
-    const behind = TRACK_BEHIND_RE.exec(track);
     branches.push({
       name: f[0] ?? '',
       current: (f[1] ?? '') === '*',
       sha: f[2] ?? '',
       shortSha: f[3] ?? '',
       ...(upstream.length > 0 ? { upstream } : {}),
-      ...(track === 'gone' ? { upstreamGone: true } : {}),
-      ahead: ahead !== null ? Number(ahead[1]) : 0,
-      behind: behind !== null ? Number(behind[1]) : 0,
+      ...(track.gone ? { upstreamGone: true } : {}),
+      ahead: track.ahead,
+      behind: track.behind,
       // A subject containing \x1f would have been split — rejoin the tail.
       subject: f.slice(6).join('\x1f')
     });

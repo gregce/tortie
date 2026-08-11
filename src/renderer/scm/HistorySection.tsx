@@ -8,10 +8,27 @@
  *   - rich hover card after 600ms (HoverCard.tsx)
  *   - "Load 50 more" paging row
  *
- * Refs badges are derived from `git:branches` tips (local branch pills; a
- * cloud pill when the branch's upstream is exactly in sync). Tag refs have
- * no listing channel yet, so tags created here appear in git but not as
- * badges — noted for the next git-depth pass.
+ * PHASE 14.5 — the list is now a REF-SCOPED walk (`git:graphLog`), chosen on
+ * the header: "This branch + upstream" (default) / "All local branches" /
+ * "Everything". Three consequences, all of them the point:
+ *
+ *  - Commits you are BEHIND by are in the payload for the first time. The old
+ *    walk started at HEAD, so `origin/main` being ahead of you was literally
+ *    unrenderable. `entries[0]` is therefore no longer necessarily HEAD —
+ *    `divergence.headSha` is.
+ *  - Ref badges ride the walk itself (`--decorate=full`), so they are pinned
+ *    to the commits they actually decorate, tags included, and cannot drift
+ *    from the log. `main` on one row and `origin/main` two rows below it is
+ *    the whole "2 unpushed" sentence (ref-badges.tsx).
+ *  - Each row knows which side of the divergence it is on, so unpushed work
+ *    is shaded rather than merely counted in the header band.
+ *
+ * The single-column rail is also gone: `./graph` folds the walk into swimlanes
+ * and `CommitGraph` draws ONE self-contained `<svg>` per row, so merges,
+ * concurrent branches and lane colour are visible without any row needing to
+ * know about its neighbours. That last property is load-bearing — it is what
+ * keeps the list virtualizable and what makes "Load 50 more" an append that
+ * cannot reshuffle a lane already under the user's eyes.
  *
  * "Open Changes" / file clicks emit the canonical open-file bus with
  * `source: 'history'` AND the commit block (sha / shortSha / status /
@@ -31,8 +48,8 @@ import React, {
   useState
 } from 'react';
 import type {
-  GitBranchInfo,
   GitCommitFileChange,
+  GitGraphLogEntry,
   GitLogEntry
 } from '@shared/types';
 import { useApp } from '../state/store';
@@ -44,11 +61,25 @@ import {
   depthRepoState,
   detailKey,
   hasGitDepth,
+  hasGitGraph,
   useGitDepth
 } from './depth';
+import { CommitGraph, CommitGraphSpacer, useLaneCap } from './CommitGraph';
+import { GRAPH_SCOPE_ATTR } from './graph-geometry';
+import { capRow, gutterColumns, layoutGraph, makeRoleResolver } from './graph';
+import type { CappedRow, GraphLayout, GraphRow } from './graph';
 import { formatRelative, fullMessage, shortSha, splitPath } from './format';
 import { requestOpenFile } from './open-file';
 import { usePersistedBool } from './sections';
+import {
+  badgesFromRefs,
+  badgesFromTips,
+  refsAriaClause,
+  RefPills
+} from './ref-badges';
+import type { RefBadge } from './ref-badges';
+import { scopeTag, usePersistedScope } from './history-scope';
+import { HistoryScopeControl } from './HistoryScopeControl';
 import { HoverCard } from './HoverCard';
 import { MiniModal } from './MiniModal';
 import type { MiniModalSpec } from './MiniModal';
@@ -57,77 +88,25 @@ import type { MiniModalSpec } from './MiniModal';
 const HOVER_DELAY_MS = 600;
 /** Leave grace before the card closes (pointer may travel into it). */
 const HOVER_CLOSE_GRACE_MS = 100;
-/** Refs pills shown on a row before the +n overflow pill. */
-const MAX_REF_PILLS = 2;
 
-// ---------------------------------------------------------------------------
-// Refs badges (derived from branch tips)
-// ---------------------------------------------------------------------------
-
-interface RefBadge {
-  kind: 'branch' | 'remote';
-  name: string;
-  /** The HEAD branch pill gets the accent treatment. */
-  head: boolean;
-}
-
-function badgesFor(branches: GitBranchInfo[], sha: string): RefBadge[] {
-  const badges: RefBadge[] = [];
-  for (const b of branches) {
-    if (b.sha !== sha) continue;
-    badges.push({ kind: 'branch', name: b.name, head: b.current });
-    // Upstream exactly in sync → its remote ref sits on this commit too.
-    if (b.upstream !== undefined && b.upstreamGone !== true && b.ahead === 0 && b.behind === 0) {
-      badges.push({ kind: 'remote', name: b.upstream, head: false });
-    }
+/**
+ * Which side of the divergence a commit is on, in words.
+ *
+ * `unpushed` / `unpulled` are LEFT/RIGHT membership of `HEAD...@{u}` — the
+ * same symmetric difference git counts ahead/behind from, resolved in the
+ * same round trip as the commits, so a row can never disagree with the
+ * header's number. Null for the overwhelming majority of commits: both sides
+ * already have them, which needs no comment.
+ */
+function syncNoteFor(
+  entry: GitGraphLogEntry,
+  upstream: string | null
+): string | null {
+  if (entry.unpushed === true) return 'Not pushed yet — only on this machine';
+  if (entry.unpulled === true) {
+    return `Not pulled yet — on ${upstream ?? 'the remote'}, not in your branch`;
   }
-  // HEAD pill first, then locals, then remotes.
-  badges.sort((a, b) =>
-    a.head !== b.head
-      ? a.head
-        ? -1
-        : 1
-      : a.kind !== b.kind
-        ? a.kind === 'branch'
-          ? -1
-          : 1
-        : a.name.localeCompare(b.name)
-  );
-  return badges;
-}
-
-function RefPills({ badges }: { badges: RefBadge[] }): React.JSX.Element | null {
-  if (badges.length === 0) return null;
-  const shown = badges.slice(0, MAX_REF_PILLS);
-  const rest = badges.slice(MAX_REF_PILLS);
-  return (
-    <span className="scm-refs" aria-label={badges.map((b) => b.name).join(', ')}>
-      {shown.map((b) =>
-        b.kind === 'remote' ? (
-          <span key={`r-${b.name}`} className="scm-ref-pill" title={b.name}>
-            <Codicon name="cloud" size={10} />
-          </span>
-        ) : (
-          <span
-            key={`b-${b.name}`}
-            className={`scm-ref-pill${b.head ? ' scm-ref-head' : ''}`}
-            title={b.name}
-          >
-            <Codicon name="git-branch" size={10} />
-            <span className="scm-ref-name">{b.name}</span>
-          </span>
-        )
-      )}
-      {rest.length > 0 ? (
-        <span
-          className="scm-ref-pill scm-ref-more num"
-          title={rest.map((b) => b.name).join('\n')}
-        >
-          +{rest.length}
-        </span>
-      ) : null}
-    </span>
-  );
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -197,21 +176,125 @@ export function HistorySection({
     `gmux.scm.historyCollapsed.${repoPath}`,
     false
   );
+  const [scope, setScope] = usePersistedScope(repoPath);
+  const graphAvailable = useMemo(() => hasGitGraph(), []);
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [cursor, setCursor] = useState<string | null>(null);
   const [modal, setModal] = useState<MiniModalSpec | null>(null);
 
+  /**
+   * The list body, held BOTH ways on purpose: as a ref for the imperative
+   * reads (keyboard navigation's `scrollIntoView`) and as state, because the
+   * body unmounts when the section collapses and the gutter's width has to be
+   * re-measured when it comes back (see `useLaneCap`).
+   */
   const listRef = useRef<HTMLDivElement | null>(null);
+  const [listEl, setListEl] = useState<HTMLDivElement | null>(null);
+  const attachList = useCallback((node: HTMLDivElement | null): void => {
+    listRef.current = node;
+    setListEl(node);
+  }, []);
 
-  // Lazy-load on first expand of the section.
+  // Lazy-load on first expand of the section, at the persisted scope.
   useEffect(() => {
-    if (!collapsed) depth.ensure(repoPath);
+    if (!collapsed) depth.ensure(repoPath, scope);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [collapsed, repoPath]);
+
+  // Keep the walk matching what the header says it is. On mount this no-ops
+  // (ensure seeded the same value); it does the work when the user picks.
+  useEffect(() => {
+    if (!collapsed) void depth.setLogScope(repoPath, scope);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collapsed, repoPath, scope]);
 
   const entries = repo.log;
   const branches = repo.branches ?? [];
   const remoteUrl = repo.remoteUrl;
+  const divergence = repo.divergence;
+  const lastFetchedAt = repo.lastFetchedAt;
+
+  /**
+   * The current branch's upstream — used only to RANK ref pills, so that the
+   * one pill answering "where is the remote?" is never the one truncation
+   * eats (research §4.3). Three sources in falling order of authority: the
+   * walk's own divergence block, `git:remotes`, then the branch list.
+   */
+  const upstream = useMemo(
+    () =>
+      divergence?.upstream ??
+      repo.upstream ??
+      branches.find((b) => b.current)?.upstream ??
+      null,
+    [divergence, repo.upstream, branches]
+  );
+
+  // -- the graph ------------------------------------------------------------
+  //
+  // Three pure steps, in this order and nowhere else:
+  //
+  //   layoutGraph  swimlane fold over the walk        → lanes + colours
+  //   useLaneCap   how many columns this pane affords → cap
+  //   capRow       fold the surplus into one marker   → what the SVG draws
+  //
+  // The fold is what makes paging safe: row n depends only on commits 0..n, so
+  // "Load 50 more" cannot reshuffle a lane already on screen — PROVIDED the ref
+  // set is pinned between pages (depth.ts holds `logRefs` for exactly that) and
+  // `roleOf` answers the same way each render, which is why it is derived from
+  // the divergence SNAPSHOT that arrived with the page rather than re-resolved.
+
+  /** Fixes the three divergence colours; undefined when there is no upstream. */
+  const roleOf = useMemo(() => makeRoleResolver(divergence), [divergence]);
+
+  const layout: GraphLayout = useMemo(
+    () => layoutGraph(entries ?? [], roleOf === undefined ? {} : { roleOf }),
+    [entries, roleOf]
+  );
+
+  /**
+   * ONE gutter width for the whole loaded window, measured off the list's own
+   * box. Per-row widths (what VS Code does) would start every subject at a
+   * different x, and at 24px density that jitter costs more than it saves.
+   */
+  const cap = useLaneCap(listEl, layout.maxLanes);
+  const columns = gutterColumns(layout, cap);
+
+  /**
+   * The graph row for each commit, keyed by SHA because the list renders
+   * `entries` while the fold is indexed.
+   *
+   * `capped` is what the gutter draws; `full` survives alongside it for the
+   * dot's own colour (a commit folded ONTO the marker column has no output lane
+   * there to read one from, but it still wears its own hue) and for the
+   * continuation lanes an expanded commit's file rows draw.
+   */
+  const graphBySha = useMemo(() => {
+    const map = new Map<string, { full: GraphRow; capped: CappedRow }>();
+    for (const row of layout.rows) {
+      map.set(row.hash, { full: row, capped: capRow(row, columns) });
+    }
+    return map;
+  }, [layout, columns]);
+
+  /**
+   * Ref badges per commit, computed once for the window.
+   *
+   * The good path reads the walk's own typed decorations. The fallback exists
+   * for a preload without `git:graphLog` and is strictly weaker (no tags, and
+   * two reads that can drift) — but it no longer hides the remote pill behind
+   * the `ahead === 0 && behind === 0` guard that made the divergence
+   * invisible.
+   */
+  const badgesBySha = useMemo(() => {
+    const map = new Map<string, RefBadge[]>();
+    for (const entry of entries ?? []) {
+      const badges = graphAvailable
+        ? badgesFromRefs(entry.refs, upstream)
+        : badgesFromTips(branches, repo.remoteBranches, entry.hash, upstream);
+      if (badges.length > 0) map.set(entry.hash, badges);
+    }
+    return map;
+  }, [entries, graphAvailable, branches, repo.remoteBranches, upstream]);
 
   /** "You" for the author-only-when-different rule: the modal author of the
    *  loaded window (no IPC exposes git config user.name — this matches it in
@@ -502,7 +585,7 @@ export function HistorySection({
   }, [entries, expanded, details, repoPath, repo.hasMore]);
 
   const entryBySha = useMemo(() => {
-    const map = new Map<string, GitLogEntry>();
+    const map = new Map<string, GitGraphLogEntry>();
     for (const e of entries ?? []) map.set(e.hash, e);
     return map;
   }, [entries]);
@@ -564,19 +647,58 @@ export function HistorySection({
 
   // -- render ------------------------------------------------------------------
 
-  const headSha = entries?.[0]?.hash ?? null;
+  /**
+   * HEAD's row. With the ref-scoped walk `entries[0]` can be a commit you do
+   * not have yet (you are behind, and the upstream's tip sorts first), so the
+   * divergence block is the authority; the flat-walk fallback keeps the old
+   * rule, where the first row genuinely was HEAD.
+   */
+  const headSha = divergence?.headSha ?? entries?.[0]?.hash ?? null;
   const hoverEntry = hover !== null ? (entryBySha.get(hover.sha) ?? null) : null;
 
-  const renderCommitRow = (entry: GitLogEntry): React.JSX.Element => {
+  const renderCommitRow = (entry: GitGraphLogEntry): React.JSX.Element => {
     const sha = entry.hash;
     const isExpanded = expanded.has(sha);
     const isMerge = entry.parents.length > 1;
     const isHead = sha === headSha;
-    const badges = badgesFor(branches, sha);
+    const graph = graphBySha.get(sha);
+    const badges = badgesBySha.get(sha) ?? [];
     const id = itemId({ kind: 'commit', sha });
     const detail = details[detailKey(repoPath, sha)];
     const showAuthor =
       primaryAuthor !== null && entry.authorName !== primaryAuthor;
+
+    /**
+     * Which side of the divergence this commit is on — the row's shading, and
+     * the attribute the graph gutter keys its dot fill off.
+     *
+     * The two flags come from the same `HEAD...@{u}` symmetric difference git
+     * counts ahead/behind from, in the same round trip as the commits, so a
+     * shaded row and the header's "↑2" cannot describe different instants.
+     */
+    const sync =
+      entry.unpushed === true
+        ? 'unpushed'
+        : entry.unpulled === true
+          ? 'unpulled'
+          : undefined;
+    // Quiet prose, not jargon: the row says what is true about it, once.
+    const syncWord =
+      sync === 'unpushed'
+        ? 'not pushed yet'
+        : sync === 'unpulled'
+          ? 'not pulled yet'
+          : '';
+
+    /**
+     * The gutter for this commit's inline file rows: every lane still live
+     * below it, drawn as a plain pass-through. Without it, expanding a commit
+     * visibly severs the spine — which is what today's rail-less file rows do.
+     */
+    const laneSpacer =
+      graph === undefined ? null : (
+        <CommitGraphSpacer lanes={graph.full.out} columns={columns} />
+      );
 
     return (
       <React.Fragment key={sha}>
@@ -584,8 +706,22 @@ export function HistorySection({
           role="option"
           aria-selected={cursor === id}
           aria-expanded={isExpanded}
-          aria-label={`${entry.subject}, ${entry.authorName}`}
+          // The graph gutter is aria-hidden and the age can be shed for
+          // width, so the accessible name is where both of those live.
+          aria-label={`${entry.subject}, ${entry.authorName}, ${formatRelative(
+            entry.authorDate,
+            now
+          )}${isMerge ? `, merge of ${entry.parents.length} parents` : ''}${refsAriaClause(
+            badges
+          )}${sync !== undefined ? `, ${syncWord}` : ''}${
+            // The gutter is aria-hidden, so a folded lane has to say so here or
+            // the picture and the accessible name disagree about the topology.
+            graph !== undefined && graph.capped.bundleColumn >= 0
+              ? ', more branches than fit'
+              : ''
+          }`}
           data-hist={id}
+          {...(sync !== undefined ? { 'data-sync': sync } : {})}
           className={[
             'scm-hrow',
             cursor === id ? 'selected' : '',
@@ -602,18 +738,17 @@ export function HistorySection({
           onMouseEnter={(e) => rowPointerEnter(entry, e.currentTarget)}
           onMouseLeave={scheduleCardClose}
         >
-          <span
-            className={[
-              'scm-hrail',
-              isHead ? 'head' : '',
-              isMerge ? 'merge' : ''
-            ]
-              .filter(Boolean)
-              .join(' ')}
-            aria-hidden="true"
-          >
-            <span className="scm-hdot" />
-          </span>
+          {graph !== undefined ? (
+            <CommitGraph
+              row={graph.capped}
+              sha={sha}
+              parentCount={entry.parents.length}
+              columns={columns}
+              color={graph.full.color}
+              isHead={isHead}
+              unpushed={entry.unpushed === true}
+            />
+          ) : null}
           <span className="scm-hchevron" aria-hidden="true">
             <Codicon
               name={isExpanded ? 'chevron-down' : 'chevron-right'}
@@ -625,7 +760,7 @@ export function HistorySection({
             <span className="scm-hauthor">{entry.authorName}</span>
           ) : null}
           <span className="scm-row-space" />
-          <RefPills badges={badges} />
+          <RefPills badges={badges} lastFetchedAt={lastFetchedAt} now={now} />
           <span className="scm-hage num">
             {formatRelative(entry.authorDate, now)}
           </span>
@@ -634,12 +769,14 @@ export function HistorySection({
           ? detail === undefined
             ? (
               <div className="scm-hfile scm-hfile-loading" aria-hidden="true">
+                {laneSpacer}
                 <span className="scm-skeleton-row" style={{ width: '56%' }} />
               </div>
             )
             : detail.files.length === 0
               ? (
                 <div className="scm-hfile scm-hfile-empty">
+                  {laneSpacer}
                   No files changed
                 </div>
               )
@@ -670,6 +807,7 @@ export function HistorySection({
                         openCommitFile(file, entry, false);
                       }}
                     >
+                      {laneSpacer}
                       <span
                         className={`scm-badge ${badge.cls}`}
                         aria-hidden="true"
@@ -715,18 +853,35 @@ export function HistorySection({
             {entries !== null && entries.length > 0 ? entries.length : ''}
           </span>
         </button>
+        {/* A widened scope changes what this list CONTAINS — commits from
+            branches you are not on. Naming it in the header is the honesty
+            half of the control; the accessory alone would hide the fact. */}
+        {graphAvailable && scopeTag(scope) !== '' ? (
+          <span className="scm-scope-tag">{scopeTag(scope)}</span>
+        ) : null}
         <span className="section-spacer" />
+        {graphAvailable ? (
+          <HistoryScopeControl
+            scope={scope}
+            onPick={setScope}
+            disabled={repo.logLoading}
+          />
+        ) : null}
         <span className="section-gripper" aria-hidden="true">
           <Codicon name="gripper" size={14} />
         </span>
       </div>
       {!collapsed ? (
         <div
-          ref={listRef}
+          ref={attachList}
           className="section-body scm-history-body"
           role="listbox"
           aria-label="Commit history"
           tabIndex={0}
+          // Lane emphasis is written here, not on the row: pointing at a lane
+          // should hold that lane bright down the WHOLE list, which is how you
+          // follow a branch past the merges that cross it.
+          {...{ [GRAPH_SCOPE_ATTR]: '' }}
           onKeyDown={onListKeyDown}
           onScroll={closeCard}
         >
@@ -754,8 +909,27 @@ export function HistorySection({
                     void depth.loadMore(repoPath);
                   }}
                 >
+                  {/* The open lanes run THROUGH the paging row, so the graph
+                      reads as continuing into the next page rather than
+                      stopping at the button. */}
+                  <CommitGraphSpacer
+                    lanes={layout.tailLanes}
+                    columns={columns}
+                  />
                   {repo.logLoading ? 'Loading…' : 'Load 50 more'}
                 </button>
+              ) : layout.tailLanes.length > 0 ? (
+                /* The walk is genuinely exhausted and lanes are still open:
+                   they await commits the REF FILTER excluded, not commits a
+                   further page would bring in. Fading says "elsewhere"; a hard
+                   stop would say "this branch ends here", which is false. */
+                <div className="scm-history-tail" aria-hidden="true">
+                  <CommitGraphSpacer
+                    lanes={layout.tailLanes}
+                    columns={columns}
+                    fade
+                  />
+                </div>
               ) : null}
             </>
           )}
@@ -768,6 +942,14 @@ export function HistorySection({
           anchor={hover.anchor}
           remoteUrl={remoteUrl}
           now={now}
+          // Where "+2" resolves properly: full names, no truncation, and
+          // reachable without hunting for a title attribute.
+          refs={badgesBySha.get(hoverEntry.hash) ?? []}
+          lastFetchedAt={lastFetchedAt}
+          // A grey dot vs a lit one is a fast read but a silent one; the card
+          // is where it gets words. Deliberately NOT a row `title`: a native
+          // tooltip would fight the card that is already opening.
+          syncNote={syncNoteFor(hoverEntry, upstream)}
           onPointerEnter={cardPointerEnter}
           onPointerLeave={scheduleCardClose}
         />
