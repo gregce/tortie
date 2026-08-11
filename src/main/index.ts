@@ -18,6 +18,12 @@
  *                       rename, a foreign session squatting the freed name,
  *                       kill, stale-row reconcile, pane markers, and an
  *                       external SIGTERM recorded as a signal (Phase 12.7)
+ *  - GMUX_SMOKE=conformance-resume  the per-agent RESUME CONFORMANCE matrix
+ *                       (Phase 13.5): for every installed agent, create →
+ *                       plant a nonce turn → assert gmux captured the id →
+ *                       kill out-of-band → restore → prove the conversation
+ *                       came back. `npm run conformance:resume`; the harness
+ *                       itself is src/main/conformance/resume.ts.
  *  - GMUX_SHOT=<path>   capturePage after 3 s (GMUX_SHOT_DELAY_MS) → PNG → quit
  *                       (GMUX_SHOT_CAPTURE_OUT=<path> additionally writes the
  *                       image a DRIVEN capture produced — see shot-hook.ts)
@@ -38,6 +44,7 @@ import {
   registerAssetSchemePrivileged
 } from './assets';
 import { registerCaptureIpc, saveLastCaptureTo } from './capture';
+import { runResumeConformance } from './conformance';
 import { registerDropIpc, startDropStorePruning } from './drop';
 import { registerFsIpc } from './fs';
 import { disposeGitIpc, registerGitIpc } from './git';
@@ -1150,6 +1157,11 @@ app.whenReady().then(async () => {
   if (smoke === 't3-verify') return runSmokeT3Verify();
   if (smoke === 'agent') return runSmokeAgent();
   if (smoke === 'identity') return runSmokeIdentity();
+  // Phase 13.5 item 5 — `npm run conformance:resume`. Lives in
+  // src/main/conformance/ rather than here: it is a per-agent matrix with its
+  // own report format, not a pass/fail smoke, and it is the one harness meant
+  // to be run against agent CLIs that change under us.
+  if (smoke === 'conformance-resume') return runResumeConformance();
   if (shot) return runShot(shot);
 
   // Normal startup. Native-module sanity is logged (not fatal) so a broken

@@ -45,7 +45,7 @@ npm install         # postinstall runs electron-rebuild for node-pty + better-sq
 npm run dev         # electron-vite dev with HMR
 ```
 
-Smokes: `npm run smoke` (basic) · `npm run smoke:t1` (restart durability) · `npm run smoke:t3` (out-of-band kill → restorable → armed resume).
+Smokes: `npm run smoke` (basic) · `npm run smoke:t1` (restart durability) · `npm run smoke:t3` (out-of-band kill → restorable → armed resume) · `npm run smoke:identity` (bind by id, never by name) · `npm run conformance:resume` (per-agent resume matrix — see below).
 
 ### Package / DMG
 
@@ -61,6 +61,90 @@ Install: open the DMG, drag gmux to Applications. **The app is unsigned for dist
 
 Icon (Phase 12.85): the mark is the Tortie seated sentinel, and `docs/brand/tortie/` is the source of truth — an authored, production-ready package that must NOT be regenerated (its README records the master SHA-256 and forbids wrapping the mark in a rounded square, badge or any outer chrome). `build/icon.icns` is a byte-for-byte copy of `docs/brand/tortie/macos/Tortie.icns`; `resources/menu-bar/TortieTemplate.png` + `@2x` (the menu-bar status item) and `src/renderer/assets/brand/tortie-128.png` (the one in-window mark, on the first-run empty state) are copies of their brand-package originals. `npm run icon` re-copies all three. The old generated `build/icon.svg` and its rsvg pipeline are gone — nothing derives the icon from an SVG any more.
 
+## Resume conformance — which agents are covered LIVE (Phase 13.5)
+
+`npm run conformance:resume` is the standing answer to "would this session come back with its
+conversation?" It drives **gmux's own** create → capture → kill → restore path per agent, never a
+hand-typed command, so what it proves is our capture rather than the CLI's documentation. Harness:
+`src/main/conformance/` (`GMUX_SMOKE=conformance-resume`); spec: `docs/research/22-resume-audit.md`.
+
+Per agent it: creates a session in a fresh scratch cwd → plants a nonce turn → **asserts gmux wrote
+an agent session id + a resume argv into the manifest** → kills the tmux session out of band (the
+reboot) → restores through `GmuxCore.restoreSession` (scrollback replayed, resume argv ARMED but not
+fired) → presses Enter → asks the resumed agent to repeat the planted token joined to a **second
+nonce generated after the kill**. That join is the assertion: restore replays the pre-kill scrollback
+into the same pane, so "the nonce is on screen" proves nothing — only a process that still holds the
+conversation can put a token it has never seen next to one it was told before the kill.
+
+**Measured on this machine, 2026-08-11** (macOS 15.7.9 arm64, tmux 3.6a, private socket `-L gmux`,
+concurrency 3, whole matrix in **182 s**):
+
+| agent | verdict | capture route | armed at spawn | id before first turn | roundtrip |
+|---|---|---|---|---|---|
+| claude 2.1.227 | **PASS** | pre-assign `--session-id` | yes | yes | proven |
+| cursor 2026.08.04 | **PASS** | pre-assign-cmd `create-chat` | yes | yes | proven |
+| codex 0.147.0 | **PASS** | harvest cwd-newest / exact | no | no (first turn) | proven |
+| antigravity 1.1.11 | **PASS** | harvest time-only / weak | no | no — registry says session-open, see finding 2 | proven |
+| muse 0.1.0 | **PASS** | harvest tmux-pane / exact | no | **yes** | proven |
+| qwen 0.21.7 | **PASS** | harvest pid / exact | no | **yes** | proven |
+| pi 0.84.1 | **PASS** | pre-assign `--session-id` | yes | yes | proven |
+| gemini 0.54.0 | BLOCKED | pre-assign `--session-id` | yes | yes | — provider refuses every turn on this account ("This request failed"), exactly the API-400 wall research 22 §6 item 2 recorded. **Capture is proven; the roundtrip is not.** |
+| deepseek 0.8.26 | **FAIL** | harvest cwd-newest / weak | no | no (first turn) | **dead pane — see Known issues #6** |
+| droid | SKIP | — | — | — | not installed here |
+
+Live coverage is therefore **7 of 9 installed agents proven end to end**, 1 blocked by a provider
+account, 1 genuinely broken, 1 not installed. Before this phase the number was 1 (claude).
+
+Four things the harness measured on its first runs, which is the argument for keeping it:
+
+1. **deepseek restore is a dead pane whenever any launch flag was chosen** — Known issues #6. A real
+   P1 the registry could not have caught by inspection, because the verb, the id and the capture are
+   all correct and only the flag re-append is wrong.
+2. **antigravity's `availableAt: 'session-open'` is wrong** — its conversation directory does not
+   exist until the first turn (measured: nothing after 50 s idle; the id lands ~4 s after the first
+   reply). The roundtrip still PASSes, so the harness reports it as a NOTE rather than a failure —
+   but that field is what bounds how long the UI may say "capturing…", so a session with a stale
+   value sits hopeful forever. `conformance:resume:capture` reports antigravity FAIL until it is
+   corrected to `'first-turn'` in `src/main/agents/registry.ts`, and the failure line says exactly
+   which of the two causes it is.
+3. **`codex --dangerously-bypass-approvals-and-sandbox` does not skip the first-run workspace-trust
+   dialog** and codex has no flag that does, so the harness answers it — but only when it can read
+   which option is highlighted (`› 1. Yes, continue`, `▶ [a] Trust this workspace`). deepseek's
+   onboarding screen also says "trust" and has no readable default; a bare Enter into it kills the
+   pane, so the harness leaves it alone and lets the case go BLOCKED.
+4. **qwen 0.21.7 has no autonomy flag at all** — the `--yolo` / `--approval-mode yolo` presets in its
+   catalog are gemini-derived guesses (`provenance: 'RESEARCH'`, re-verified absent 2026-08-11).
+   Passing one would be a dead pane, so the harness passes nothing to qwen, and a unit test binds
+   every bypass flag it does pass to a `VERIFIED` entry in `AGENT_FLAG_PRESETS` so they cannot rot.
+
+How to run it:
+
+```sh
+npm run conformance:resume          # full matrix, ~3 min, two short real model turns per agent
+npm run conformance:resume:capture  # manifest assertion only, ~60 s, no model turns, no cost
+npm run smoke:t3:agent              # one NON-CLAUDE full roundtrip (pi), ~16 s — BACKLOG 13.5 item 6
+GMUX_CONF_AGENTS=muse,qwen npm run conformance:resume     # a subset
+```
+
+Exit code: **1 only when an agent FAILs** — that is gmux's own defect (no id captured, a resume argv
+the CLI rejects, a conversation that did not come back). SKIP (not installed) and BLOCKED (a login
+wall or provider error, which requires positive evidence on screen) are reported loudly and are not
+red, because a harness that goes red when the operator is logged out of one provider stops being run
+— and one nobody runs catches no drift. `GMUX_CONF_STRICT=1` promotes BLOCKED to red for a CI box
+where every agent is expected to work.
+
+Cadence: `conformance:resume:capture` before any commit touching `agents/registry.ts`,
+`manifest/harvest/**`, `manifest/agents.ts` or `restore/**`; the full matrix once per phase and after
+any agent-CLI upgrade. It exists because agent CLIs change under us — research 22 already caught
+codex rollout-format drift and gemini's `.json` → `.jsonl` store rename — and this catches that the
+day it happens rather than the day the user reboots.
+
+Safety, since it runs against the user's live private tmux server: every session it creates is
+`zz-conf-` prefixed and it refuses to kill a tmux session whose name lacks that prefix; it runs
+against its own `--user-data-dir`, so the user's gmux has no manifest row for any of it and its
+reconcile ignores it; it never kills the tmux server. Verified after the full run above: 0 leftover
+`zz-conf` sessions, 0 leftover scratch dirs, the user's 17 live sessions untouched.
+
 ## What's deferred (not built today, on purpose)
 
 - **Code signing & notarization** — only an Apple Development cert exists on this machine; it cannot produce a distributable signature, so `identity: null` in `electron-builder.yml` (arm64 gets an ad-hoc signature so it runs locally). A real release needs: Developer ID Application cert → `hardenedRuntime: true` + entitlements (`com.apple.security.cs.allow-jit` etc. for Electron) → notarytool + stapling.
@@ -75,6 +159,35 @@ Icon (Phase 12.85): the mark is the Tortie seated sentinel, and `docs/brand/tort
 3. **DMG is 134 MB** — Electron 43 framework + Monaco renderer chunk dominate; renderer-dep exclusion already applied. Further wins (Monaco language-worker pruning) belong to the editor stream.
 4. electron-builder warns `@electron/rebuild already used by electron-builder, consider removing from devDependencies` — harmless double-rebuild (postinstall + packaging). Leave as-is: the postinstall rebuild is what makes `npm run dev`/`smoke` work.
 5. `npm run icon` requires `rsvg-convert` (homebrew librsvg) — present on this machine, not vendored.
+6. **P1 — deepseek restore is a DEAD PANE whenever the user picked any launch flag.** Found by
+   `npm run conformance:resume`, 2026-08-11, reproduced on every run. Research 22 §3.4 rule 3 says
+   re-append the original extras to every resume argv (MEASURED: claude, codex, muse and qwen all
+   lose their permission flags across resume), and `registryResumeArgv()` does that for everyone.
+   But deepseek's resume is a SUBCOMMAND that takes **only** a session id:
+
+   ```
+   $ deepseek resume 9f027ced-… --skip-onboarding
+   error: unexpected argument '--skip-onboarding' found
+   Usage: deepseek-tui resume <SESSION_ID>
+   ```
+
+   So the capture is correct, the id is correct, the verb is correct (research 22 already fixed
+   `--resume` → `resume`), and the restore still lands the user in a shell with an error. Any
+   deepseek preset from the flag catalog triggers it. **Fix (owner: `src/main/agents/registry.ts`,
+   not this harness's file):** the re-append rule is per-agent, not universal — carry it as data on
+   `AgentResumeInfo` (e.g. `resumeAcceptsExtras: false` for deepseek) and have `registryResumeArgv()`
+   drop extras when it is false, rather than treating rule 3 as global. `flags.ts` already hedged
+   this in prose (`deepseek resume --help` documents only an opaque `[ARGS]…` pass-through, "whether
+   root flags are honored there is UNVERIFIED"); it is now verified, and the answer is no.
+   `conformance:resume` stays RED until this lands — deliberately.
+7. **@parcel/watcher SIGABRT at exit, amplified by the conformance harness.** Same root cause as #1:
+   `GmuxCore.dispose()` cancels the harvest watches but `@parcel/watcher`'s `unsubscribe()` is
+   fire-and-forget, so an FSEvents subscription can still be initialising when `app.exit()` tears the
+   env down — `napi_throw` in `RunCleanup`, SIGABRT, and an exit code that no longer reports the run.
+   The harness starts one watcher per harvest agent, so it hits the window far more often than the
+   app does; it currently works around it with a 1.5 s settle before `app.exit()`
+   (`src/main/conformance/resume.ts`). Real fix (owner: `src/main/manifest/harvest`): await
+   `unsubscribe()` in the watch's cancel path, then drop the workaround.
 
 ## Files owned by this phase
 
