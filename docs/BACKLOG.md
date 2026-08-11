@@ -291,6 +291,17 @@ Ships BEFORE the final install. Closes a gap open since day one: docs/research/0
 4. **Cheap sampling**: reuse the existing 1 Hz all-sessions poll (src/main/activity, ~2.75 ms for 16 panes) rather than adding a second timer; expensive samples (RSS, disk) are lazy/on-open. Hard cost budget stated and measured.
 Verification tier: 2, except any change to the tmux conf or capture paths, which is Tier 3 (durability-adjacent).
 
+## Phase 13.8 — process identity: gmux must be findable in Activity Monitor, and must not leak helpers
+Triggered by the user searching Activity Monitor for "gmux" and finding only *Cursor's* extension host (named for the open folder). Two distinct problems, both verified on this machine 2026-08-10.
+1. **BUG (P1, leaking now): the login-shell PATH probe never dies.** Two `/bin/zsh -lic printf '__GMUX_PATH__%s__GMUX_PATH__' "$PATH"` processes have been alive **6h43m** (pids 2395, 3067 — one per app launch). Phase 9.2 gave that probe a 3-second timeout, but the timeout abandons the promise WITHOUT killing the child, so every launch leaks a hung interactive shell. Fix at the source: kill the child on timeout (SIGTERM then SIGKILL), and reap it — do not merely stop awaiting. The `-i` flag is what makes it hang (an interactive zsh can block on the user's rc setup); evaluate whether `-lc` still captures the PATH this user needs, and if `-i` must stay, it MUST be timeout-killed. Add a test that the child is gone after a forced timeout.
+2. **Make every gmux-owned process self-identifying.**
+   - **Dev mode** (`npm run dev`): the binary is `node_modules/.../Electron`, so nothing says gmux. Set `app.setName('gmux')` / `process.title` early in main, and name the utility/attach-host processes explicitly, so a dev run is greppable as gmux too. Document what dev mode can and cannot rename (renderer helpers come from the Electron.app bundle and may resist renaming — say so honestly rather than pretending).
+   - **Packaged app**: verify in the real .app that the main process shows as `gmux` and that electron-builder renamed the helper bundles (`gmux Helper`, `gmux Helper (Renderer)`, `gmux Helper (GPU)`) rather than leaving `Electron Helper`. If they are not renamed, fix the build config.
+   - **Child processes gmux spawns** should be attributable: the tmux server already is (`tmux -L gmux -f .../gmux-tmux.conf`) and the attach clients read as `tmux -L gmux attach …` — keep that. NOTE THE TENSION WITH 12.7: agents now launch by BARE NAME so they are not uniquely `pkill`-able, which also makes them less identifiable; the compensation is the `GMUX_SESSION_ID` / `GMUX_MANAGED` env markers. Do not undo 12.7 — instead make the DIAGNOSTICS surface (Phase 13.7) able to list gmux-owned pids so the user has a supported way to see them.
+   - Name any worker/utility processes (search worker, tree-sitter pool from Phase 14) so a future CPU spike is attributable to the right subsystem.
+3. Sweep for other leaks while in here: any spawned child with a timeout that is not killed, and any temp file/scratch server left behind (a leaked research server on socket `-L zzraise` was also observed — verify gmux itself leaves nothing).
+Verification tier: 3 for the leak fix (resource leak, user-visible), 1 for the naming.
+
 ## Phase 14 — deep file + code search (spec from docs/research/19-search.md)
 User ask: find things fast in the file explorer — deep FILE search and CODE (content) search, using the best 2026 ecosystem libraries rather than hand-rolling.
 Scope to design in research, then build:
