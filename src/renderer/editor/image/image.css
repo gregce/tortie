@@ -1,0 +1,257 @@
+/* Image viewer (Phase 12.10 item 1). Colocated with its components, per the
+   growth guardrail; tokens only, no literals.
+
+   The checkerboard is built from --bg-canvas and --bg-raised rather than the
+   usual white/grey: this is a dark world, and a bright checker behind a
+   transparent PNG would be the loudest object on screen — which the amber
+   needs-input dot is supposed to be. It sits on the IMAGE element, not the
+   viewport, so it marks exactly the picture's own bounds (you can see where
+   a transparent edge ends) and travels with pan and zoom while its squares
+   stay a constant 16px on screen. */
+
+.imgv {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-canvas);
+}
+
+.imgv-viewport {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  /* Zoom lives on the wheel; the viewport must not also scroll the panel. */
+  overscroll-behavior: contain;
+}
+
+.imgv-viewport:focus-visible {
+  outline: none;
+  box-shadow: inset var(--focus-ring);
+}
+
+.imgv-viewport.pannable {
+  cursor: grab;
+}
+
+.imgv-viewport.pannable:active {
+  cursor: grabbing;
+}
+
+.imgv-img {
+  flex: none;
+  max-width: none;
+  background-color: var(--bg-canvas);
+  background-image:
+    linear-gradient(
+      45deg,
+      var(--bg-raised) 25%,
+      transparent 25%,
+      transparent 75%,
+      var(--bg-raised) 75%
+    ),
+    linear-gradient(
+      45deg,
+      var(--bg-raised) 25%,
+      transparent 25%,
+      transparent 75%,
+      var(--bg-raised) 75%
+    );
+  background-size: 16px 16px;
+  background-position:
+    0 0,
+    8px 8px;
+  /* Pan is a transform on an already-centred element, so there is nothing to
+     animate: it must track the pointer exactly. */
+  transition: none;
+}
+
+/* Quiet placeholder while the read is in flight. No spinner: an image opens
+   in a frame or two from local disk, and a spinner that flashes for 30ms is
+   noise. Only a genuinely slow read ever becomes visible. */
+.imgv-loading {
+  position: absolute;
+  inset: 0;
+  background: var(--bg-canvas);
+}
+
+/* One line under the picture: what it is, how big, how far you are zoomed,
+   and the two sizes worth naming. 11px muted on --bg-sidebar, which is where
+   --text-muted still clears 4.5:1 (DESIGN.md §1.1). */
+.imgv-foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: 26px;
+  padding: 0 var(--space-4) 0 var(--space-5);
+  border-top: 1px solid var(--border);
+  background: var(--bg-sidebar);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.imgv-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Interpuncts between metadata cells, drawn by the layout rather than typed
+   into the copy — so a missing cell never leaves a dangling dot. */
+.imgv-meta > span + span::before {
+  content: '·';
+  margin-right: var(--space-3);
+  /* A divider glyph, not text — hence a border token rather than
+     --text-disabled, which DESIGN.md §1.1 reserves for disabled controls. */
+  color: var(--border-strong);
+}
+
+.imgv-zoom {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.imgv-fit {
+  height: 18px;
+}
+
+.imgv-fit .ed-mode-opt {
+  padding: 0 var(--space-3);
+  line-height: 16px;
+}
+
+/* ------------------------------------------------------------------------
+   Compare: HEAD | working tree
+   ------------------------------------------------------------------------ */
+
+.imgc {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-canvas);
+}
+
+.imgc.side-by-side {
+  flex-direction: row;
+}
+
+.imgc-pane {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 50%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.imgc.side-by-side .imgc-pane + .imgc-pane {
+  border-left: 1px solid var(--border);
+}
+
+.imgc:not(.side-by-side) .imgc-pane + .imgc-pane {
+  border-top: 1px solid var(--border);
+}
+
+.imgc-caption {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  height: 24px;
+  padding: 0 var(--space-5);
+  font-size: var(--text-xs);
+}
+
+.imgc-caption-name {
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
+}
+
+.imgc-caption-sub {
+  color: var(--text-muted);
+}
+
+.imgc-stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4) var(--space-5);
+  overflow: hidden;
+}
+
+.imgc-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  background-color: var(--bg-canvas);
+  background-image:
+    linear-gradient(
+      45deg,
+      var(--bg-raised) 25%,
+      transparent 25%,
+      transparent 75%,
+      var(--bg-raised) 75%
+    ),
+    linear-gradient(
+      45deg,
+      var(--bg-raised) 25%,
+      transparent 25%,
+      transparent 75%,
+      var(--bg-raised) 75%
+    );
+  background-size: 16px 16px;
+  background-position:
+    0 0,
+    8px 8px;
+}
+
+.imgc-empty {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: 260px;
+  margin: 0;
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.imgc-empty-title {
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
+}
+
+.imgc-meta {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 22px;
+  padding: 0 var(--space-5) var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.imgc-meta > span + span::before {
+  content: '·';
+  margin-right: var(--space-3);
+  /* A divider glyph, not text — hence a border token rather than
+     --text-disabled, which DESIGN.md §1.1 reserves for disabled controls. */
+  color: var(--border-strong);
+}

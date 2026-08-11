@@ -71,6 +71,13 @@ function baseOptions(): monacoNs.editor.IStandaloneEditorConstructionOptions {
       useShadows: false
     },
     dragAndDrop: false,
+    // `dragAndDrop` only governs Monaco's own MOUSE-driven text drag. The
+    // separate HTML5 path (`dropIntoEditor`) accepts any drag carrying
+    // text/plain or text/uri-list and INSERTS it into the buffer — so a file
+    // dragged from Finder, or from the Phase 12.9 tree, would silently type a
+    // path into the open file. gmux decides what a drop means in one place
+    // (terminal/drop/router.ts); the editor is never a drop target.
+    dropIntoEditor: { enabled: false },
     tabSize: 2,
     // Monaco's rainbow brackets are gold #FFD700 / orchid #DA70D6 — colours
     // that exist in no gmux token. Split mode puts Monaco directly beside

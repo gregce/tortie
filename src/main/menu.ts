@@ -27,7 +27,7 @@
 import { app, BrowserWindow, Menu } from 'electron';
 import type { MenuItemConstructorOptions } from 'electron';
 import { EVT_MENU_ACTION, EVT_QUIT_REQUESTED } from '@shared/ipc';
-import type { MenuActionWithTray } from '@shared/ipc';
+import type { MenuActionWithProjects } from '@shared/ipc';
 import type { LaunchableAgentId } from '@shared/types';
 // Direct module imports (NOT the ./settings barrel): settings/ipc.ts imports
 // rebuildAppMenu from this file — the barrel would close a require cycle.
@@ -48,7 +48,7 @@ import { getRegistryEntry } from './agents/registry';
  * Exported as sendMenuAction for the Phase 12.85 status item, which is a
  * second native menu over the same channel — never a second mechanism.
  */
-export function sendMenuAction(action: MenuActionWithTray): void {
+export function sendMenuAction(action: MenuActionWithProjects): void {
   const focused = BrowserWindow.getFocusedWindow();
   const win =
     (focused !== null && !isSettingsWindow(focused) ? focused : null) ??
@@ -83,7 +83,7 @@ export function requestQuit(): void {
 
 function item(
   label: string,
-  action: MenuActionWithTray,
+  action: MenuActionWithProjects,
   accelerator?: string
 ): MenuItemConstructorOptions {
   return {
@@ -193,6 +193,9 @@ function buildTemplate(): MenuItemConstructorOptions[] {
     {
       label: 'File',
       submenu: [
+        // Phase 12.9 item 1: until now the File menu could only OPEN. New
+        // first, the way every Mac app orders them.
+        item('New Project…', 'new-project', 'Shift+Cmd+N'),
         item('Open Project…', 'open-project', 'Cmd+O'),
         { type: 'separator' },
         item('Save', 'save-file', 'Cmd+S'),

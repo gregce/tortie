@@ -72,6 +72,18 @@ export interface FsCreateInput {
   path: string;
 }
 
+/**
+ * Copy an entry beside itself. Main picks the free name (Finder's spelling:
+ * "notes copy.md", then "notes copy 2.md") rather than the renderer, because
+ * only main can stat the directory — the tree's listing cache is a snapshot
+ * and an agent may have written a colliding name a moment ago.
+ */
+export interface FsDuplicateInput {
+  root: string;
+  /** The entry to copy: absolute inside `root`, or relative to it. */
+  path: string;
+}
+
 /** Rename in place — `name` is a basename; separators are refused. */
 export interface FsRenameInput {
   root: string;

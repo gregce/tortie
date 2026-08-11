@@ -187,6 +187,7 @@ export function registerFsIpc(ipc: IpcMain, deps?: FileOpsDeps): void {
   handle(ipc, 'fs:createFile', (_e, input) => fileOps.createFile(input));
   handle(ipc, 'fs:createFolder', (_e, input) => fileOps.createFolder(input));
   handle(ipc, 'fs:rename', (_e, input) => fileOps.rename(input));
+  handle(ipc, 'fs:duplicate', (_e, input) => fileOps.duplicate(input));
   handle(ipc, 'fs:move', (_e, input) => fileOps.move(input));
   handle(ipc, 'fs:trash', (_e, input) => fileOps.trash(input));
 }

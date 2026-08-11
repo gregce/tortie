@@ -837,7 +837,9 @@ export type GmuxInvokeChannelMap = RegistryInvokeChannelMap &
   TerminalScrollInvokeChannelMap &
   ActivityInvokeChannelMap &
   MultilineInvokeChannelMap &
-  FileOpsInvokeChannelMap;
+  FileOpsInvokeChannelMap &
+  ImageProjectInvokeChannelMap &
+  FsDuplicateInvokeChannelMap;
 
 export type GmuxInvokeChannel = keyof GmuxInvokeChannelMap;
 
@@ -1450,4 +1452,132 @@ export interface GmuxFsOpsExtras {
   rename?(input: FsRenameInput): Promise<FsRenameResult>;
   move?(input: FsMoveInput): Promise<FsMoveResult>;
   trash?(input: FsTrashInput): Promise<FsTrashResult>;
+}
+
+// ---------------------------------------------------------------------------
+// APPENDED by Phase 12.10 item 1 (image preview) and Phase 12.9 item 1 (new
+// projects) — new channels and types only. The one existing line touched is
+// the GmuxInvokeChannelMap intersection, exactly as that declaration's own
+// comment prescribes.
+//
+// fs:readImage — the image path, deliberately separate from fs:readFile.
+//   That channel is UTF-8-only and refuses binary content, which is why an
+//   image tab used to read "gmux edits text files only"; nothing about an
+//   image ever goes through it again. The full rationale (including why the
+//   working copy comes back as a `gmux-asset:` URL while the HEAD side comes
+//   back as a data URL) lives in src/shared/image-types.ts, together with the
+//   extension allowlist that the viewer, this channel and the asset protocol
+//   all share.
+//   MAIN: src/main/fs/image-ipc.ts (rules in src/main/fs/image.ts).
+//
+// projects:create — make a NEW project folder, optionally `git init` it, and
+//   add it as a project, as one main-side operation. It cannot be assembled
+//   from the Phase 12.9 fs:* channels: those all prove their target is inside
+//   an ALREADY-OPEN project root, and a folder that does not exist yet is by
+//   definition outside every one of them.
+//   MAIN: src/main/projects/index.ts (rules in src/main/projects/create.ts).
+//
+// PRELOAD: `readImage` joins the existing `fs` object, `create` the existing
+// `projects` object — both feature-detected by their callers, so an older
+// preload degrades to "no image viewer" / "no New Project…" instead of
+// throwing.
+// ---------------------------------------------------------------------------
+
+import type { ImageReadInput, ImageReadResult } from './image-types';
+
+/** How a new project folder should be created (projects:create). */
+export interface CreateProjectInput {
+  /** Absolute path of the EXISTING parent directory. */
+  parentDir: string;
+  /** Name of the folder to create inside it (one path segment). */
+  name: string;
+  /** Run `git init` in the new folder. The dialog defaults this on. */
+  gitInit: boolean;
+}
+
+/** What `projects:create` made. */
+export interface CreateProjectResult {
+  project: Project;
+  /** Absolute path of the created folder. */
+  path: string;
+  /**
+   * Whether the folder ended up a git repository. False when `gitInit` was
+   * off, and false (with `gitError` set) when git itself failed — the
+   * project is still created and opened, because a folder without a repo is
+   * a perfectly good project (DESIGN.md §6.3).
+   */
+  isRepo: boolean;
+  /** Why `git init` did not run, when it was asked for and failed. */
+  gitError?: string;
+}
+
+/** New invoke channels appended by the image + new-project stream. */
+export interface ImageProjectInvokeChannelMap {
+  /** One image, by revision, capped — never the text path. */
+  'fs:readImage': { req: [input: ImageReadInput]; res: ImageReadResult };
+  /** Create a project folder (optionally a repo) and open it as a tab. */
+  'projects:create': {
+    req: [input: CreateProjectInput];
+    res: CreateProjectResult;
+  };
+}
+
+/**
+ * OPTIONAL extension to GmuxApi['fs'], feature-detected by the editor
+ * (`typeof window.gmux.fs.readImage === 'function'`).
+ */
+export interface GmuxImageExtras {
+  /** Read one image for the viewer (worktree or HEAD). */
+  readImage?(input: ImageReadInput): Promise<ImageReadResult>;
+}
+
+/**
+ * OPTIONAL extension to GmuxApi['projects'], feature-detected by the shell
+ * (`typeof window.gmux.projects.create === 'function'` hides New Project…).
+ */
+export interface GmuxProjectCreateExtras {
+  create?(input: CreateProjectInput): Promise<CreateProjectResult>;
+}
+
+/**
+ * The native File menu gained "New Project…" (⇧⌘N). Appended as its own id
+ * union rather than edited into MenuActionId, so nothing above changes.
+ */
+export type ProjectMenuActionId = 'new-project';
+
+/** Every action the native menus can forward after Phase 12.9 item 1. */
+export type MenuActionWithProjects = MenuActionWithTray | ProjectMenuActionId;
+
+/** Every action the renderer's menu dispatcher handles. */
+export type AnyMenuActionWithProjects = AnyMenuActionId | ProjectMenuActionId;
+
+// ---------------------------------------------------------------------------
+// APPENDED by Phase 12.9 items 2-4 (the explorer's file management) — one new
+// channel only. The foundations commit shipped create/rename/move/trash; the
+// context menu's DUPLICATE verb is the one it has no primitive for, and a
+// renderer-side read-then-write would corrupt every binary and could not copy
+// a folder at all.
+//
+// fs:duplicate — recursive `fs.cp` beside the original, under a name main
+//   picks by statting the directory (Finder's "notes copy.md", then "notes
+//   copy 2.md"). It goes through the same `resolveInsideRoot` guard as every
+//   other mutation, so `.git`, '..' and symlink escapes are refused
+//   identically, and it never overwrites: the free name is found first.
+//   MAIN: src/main/fs/ipc.ts → src/main/fs/file-ops.ts.
+// ---------------------------------------------------------------------------
+
+import type { FsDuplicateInput } from './fs-ops';
+
+/** New invoke channel appended by Phase 12.9's context menu. */
+export interface FsDuplicateInvokeChannelMap {
+  /** Copy an entry beside itself under the first free "copy" name. */
+  'fs:duplicate': { req: [input: FsDuplicateInput]; res: FsOpEntry };
+}
+
+/**
+ * OPTIONAL extension to GmuxApi['fs'], feature-detected by the tree
+ * (`typeof window.gmux.fs.duplicate === 'function'` hides the menu item).
+ */
+export interface GmuxFsDuplicateExtras {
+  duplicate?(input: FsDuplicateInput): Promise<FsOpEntry>;
 }

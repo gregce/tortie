@@ -22,9 +22,12 @@ import type {
   SessionStatus
 } from '@shared/types';
 import type {
+  CreateProjectInput,
+  CreateProjectResult,
   GmuxActivityExtras,
   GmuxAppExtras,
   GmuxLoginItemExtras,
+  GmuxProjectCreateExtras,
   GmuxProjectExtras,
   GmuxSessionExtras,
   GmuxSessionRestoreExtras,
@@ -156,6 +159,8 @@ interface AppState {
   sidebarViewByProject: Record<string, SidebarViewId>;
 
   createOpen: boolean;
+  /** New Project… dialog (Phase 12.9 item 1). */
+  newProjectOpen: boolean;
   shortcutsOpen: boolean;
   attentionOpen: boolean;
   confirm: ConfirmSpec | null;
@@ -190,6 +195,15 @@ interface AppState {
   openProject(): Promise<void>;
   addProjectPath(path: string): Promise<void>;
   closeProject(projectId: string): void;
+  /**
+   * Phase 12.9 item 1 — make a folder, optionally `git init` it, open it as a
+   * tab and focus it. Rejects so the dialog can put the reason on the field
+   * that caused it; a `git init` that failed resolves normally (the folder
+   * exists) and raises its own toast.
+   */
+  createProject(input: CreateProjectInput): Promise<CreateProjectResult>;
+  /** Whether the optional projects:create bridge method exists. */
+  canCreateProject(): boolean;
 
   // -- sessions -----------------------------------------------------------------
   createSession(input: {
@@ -236,6 +250,7 @@ interface AppState {
   toast(kind: ToastKind, text: string, opts?: Partial<Toast>): void;
   dismissToast(id: number): void;
   setCreateOpen(open: boolean): void;
+  setNewProjectOpen(open: boolean): void;
   setShortcutsOpen(open: boolean): void;
   setAttentionOpen(open: boolean): void;
   setConfirm(spec: ConfirmSpec | null): void;
@@ -394,6 +409,7 @@ export const useApp = create<AppState>((set, get) => {
     ),
 
     createOpen: false,
+    newProjectOpen: false,
     shortcutsOpen: false,
     attentionOpen: false,
     confirm: null,
@@ -596,6 +612,38 @@ export const useApp = create<AppState>((set, get) => {
       } catch (err) {
         get().toast('error', errorText(err), { sticky: true });
       }
+    },
+
+    canCreateProject() {
+      const projects = gmux?.projects as
+        | (NonNullable<typeof gmux>['projects'] & GmuxProjectCreateExtras)
+        | undefined;
+      return typeof projects?.create === 'function';
+    },
+
+    async createProject(input) {
+      const projects = gmux?.projects as
+        | (NonNullable<typeof gmux>['projects'] & GmuxProjectCreateExtras)
+        | undefined;
+      if (projects === undefined || typeof projects.create !== 'function') {
+        throw new Error('This build cannot create projects.');
+      }
+      const result = await projects.create(input);
+      const list = await projects.list();
+      set({ projects: list });
+      // The tab appears focused and its no-sessions state offers the whole
+      // fleet — that IS the "start a session in it now" step, so there is no
+      // success toast to write. Only the one thing that silently did not
+      // happen gets said out loud.
+      get().setActiveProject(result.project.id);
+      if (result.gitError !== undefined) {
+        get().toast(
+          'error',
+          `Created '${result.project.name}', but it is not a git repository — ${result.gitError}`,
+          { sticky: true }
+        );
+      }
+      return result;
     },
 
     closeProject(projectId) {
@@ -826,6 +874,10 @@ export const useApp = create<AppState>((set, get) => {
 
     dismissToast(id) {
       set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }));
+    },
+
+    setNewProjectOpen(open) {
+      set({ newProjectOpen: open });
     },
 
     setCreateOpen(open) {

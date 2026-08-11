@@ -29,6 +29,7 @@ import { net, protocol } from 'electron';
 import { realpath, stat } from 'node:fs/promises';
 import { extname, isAbsolute, normalize } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { IMAGE_EXTENSIONS } from '@shared/image-types';
 
 export const ASSET_SCHEME = 'gmux-asset';
 
@@ -36,22 +37,17 @@ export const ASSET_SCHEME = 'gmux-asset';
 const ASSET_HOST = 'local';
 
 /**
- * What a markdown document is allowed to reference. `<img>` cannot execute
- * SVG script, and the CSP has no `script-src` allowance for this scheme, so
- * SVG is safe here and common in READMEs (badges, diagrams).
+ * What this scheme is allowed to serve. `<img>` cannot execute SVG script,
+ * and the CSP has no `script-src` allowance for this scheme, so SVG is safe
+ * here and common in READMEs (badges, diagrams).
+ *
+ * Phase 12.10 made the list shared rather than local: the image viewer now
+ * serves its working copy through this same scheme, so "what gmux can
+ * display" and "what this handler will stream" have to be one list — two
+ * would drift into a file the editor offers to open and the protocol then
+ * refuses (or worse, the reverse).
  */
-const ALLOWED_EXTENSIONS = new Set([
-  '.apng',
-  '.avif',
-  '.bmp',
-  '.gif',
-  '.ico',
-  '.jpeg',
-  '.jpg',
-  '.png',
-  '.svg',
-  '.webp'
-]);
+const ALLOWED_EXTENSIONS = IMAGE_EXTENSIONS;
 
 /**
  * Build the URL for an absolute POSIX path. Exported for the renderer's

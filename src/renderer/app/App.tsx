@@ -18,7 +18,7 @@
 
 import React, { useEffect } from 'react';
 import type {
-  AnyMenuActionId,
+  AnyMenuActionWithProjects,
   GmuxMenuExtras,
   GmuxQuitExtras,
   MenuActionId
@@ -34,6 +34,7 @@ import { Sidebar } from './Sidebar';
 import { TerminalRegion } from './TerminalRegion';
 import { SessionDock } from './SessionDock';
 import { CreateSessionModal } from './CreateSessionModal';
+import { NewProjectModal } from './NewProjectModal';
 import { ShortcutsOverlay } from './ShortcutsOverlay';
 import { AttentionOverlay } from './AttentionOverlay';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -129,6 +130,10 @@ function useKeyboardMap(): void {
           e.preventDefault();
           e.stopPropagation();
           s.setCreateOpen(false);
+        } else if (s.newProjectOpen) {
+          e.preventDefault();
+          e.stopPropagation();
+          s.setNewProjectOpen(false);
         } else if (s.shortcutsOpen) {
           e.preventDefault();
           e.stopPropagation();
@@ -279,10 +284,14 @@ function useKeyboardMap(): void {
 /** `focus-session:<id>` — see FocusSessionActionId in src/shared/ipc.ts. */
 const FOCUS_SESSION_PREFIX = 'focus-session:';
 
-function runMenuAction(action: AnyMenuActionId): void {
+function runMenuAction(action: AnyMenuActionWithProjects): void {
   const s = useApp.getState();
   const layerOpen =
-    s.confirm !== null || s.createOpen || s.shortcutsOpen || s.attentionOpen;
+    s.confirm !== null ||
+    s.createOpen ||
+    s.newProjectOpen ||
+    s.shortcutsOpen ||
+    s.attentionOpen;
 
   switch (action) {
     case 'new-session':
@@ -319,6 +328,12 @@ function runMenuAction(action: AnyMenuActionId): void {
       return;
     case 'open-project':
       void s.openProject();
+      return;
+    case 'new-project':
+      // ⇧⌘N (File menu). The dialog is the only path that writes a folder,
+      // so an older preload without projects:create simply never opens it.
+      if (s.canCreateProject()) s.setNewProjectOpen(true);
+      else s.toast('info', 'This build cannot create projects.');
       return;
     case 'close-project':
       if (s.activeProjectId !== null) s.closeProject(s.activeProjectId);
@@ -394,7 +409,7 @@ function useMenuActions(): void {
         jumpToSession(action.slice(FOCUS_SESSION_PREFIX.length));
         return;
       }
-      runMenuAction(action as AnyMenuActionId);
+      runMenuAction(action as AnyMenuActionWithProjects);
     });
   }, []);
 }
@@ -670,6 +685,7 @@ export function App(): React.JSX.Element {
       )}
 
       <CreateSessionModal />
+      <NewProjectModal />
       <ShortcutsOverlay />
       <AttentionOverlay />
       <ConfirmDialog />

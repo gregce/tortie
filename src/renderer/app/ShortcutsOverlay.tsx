@@ -32,6 +32,7 @@ const GROUPS: { title: string; rows: Row[] }[] = [
     title: 'Projects',
     rows: [
       { keys: ['⌘O'], action: 'Open project…' },
+      { keys: ['⇧⌘N'], action: 'New project…' },
       { keys: ['⌘1', '…', '⌘9'], action: 'Switch to project tab' },
       { keys: ['⌃Tab', '⌃⇧Tab'], action: 'Next / previous project tab' }
     ]

@@ -30,6 +30,7 @@ import {
   insertionIndex,
   isSecondaryPress
 } from './split/pointer-drag';
+import { showProjectMenu } from './project-menu';
 
 interface TabData {
   project: Project;
@@ -200,7 +201,6 @@ export function Titlebar(): React.JSX.Element {
   }, [projects, gitInit, ensureStatus]);
   const sessions = useApp((s) => s.sessions);
   const activeProjectId = useApp((s) => s.activeProjectId);
-  const openProject = useApp((s) => s.openProject);
   const setAttentionOpen = useApp((s) => s.setAttentionOpen);
   const attentionOpen = useApp((s) => s.attentionOpen);
 
@@ -243,12 +243,20 @@ export function Titlebar(): React.JSX.Element {
         {dropIndex !== null ? (
           <TabIndicator index={dropIndex} navRef={navRef} />
         ) : null}
+        {/* Two verbs now live behind the +: open one that exists (⌘O) and
+            make one that does not (Phase 12.9 item 1). A native menu rather
+            than a second button — the tab strip is the one row that must
+            stay scannable, and DESIGN.md §3 has no DOM menus. */}
         <button
           type="button"
           className="ptab-add"
-          title="Open project… (⌘O)"
-          aria-label="Open project"
-          onClick={() => void openProject()}
+          title="New project, or open one"
+          aria-label="New project, or open one"
+          aria-haspopup="menu"
+          onClick={(e) => {
+            const r = e.currentTarget.getBoundingClientRect();
+            showProjectMenu(r.left, r.bottom);
+          }}
         >
           <Codicon name="add" size={16} />
         </button>

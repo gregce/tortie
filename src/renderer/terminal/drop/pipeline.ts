@@ -41,12 +41,31 @@ export async function resolveAll(files: File[]): Promise<string[]> {
   return paths;
 }
 
+export interface AttachOptions {
+  /** More paths arrived than MAX_REFERENCES allows; say so once. */
+  truncated?: boolean;
+  /**
+   * What a DIRECTORY among `paths` means.
+   *  'add-project' — the pre-existing rule for a drag from Finder or another
+   *                  app: a folder is a project, and the session pane is just
+   *                  where it happened to land.
+   *  'reference'   — a folder dragged out of the TREE is already inside an
+   *                  open project. Adding it again as a second project tab
+   *                  would be surprising and tedious to undo, and it is not
+   *                  what the gesture said: a drag from the tree to a pane
+   *                  means ATTACH. Insert its path — "look at this directory"
+   *                  is a thing every agent understands.
+   */
+  folders?: 'add-project' | 'reference';
+}
+
 /** Insert references for `paths` into a session's prompt. */
 export async function attachPaths(
   sessionId: string,
   paths: string[],
-  truncated = false
+  options: AttachOptions = {}
 ): Promise<void> {
+  const { truncated = false, folders = 'add-project' } = options;
   const app = useApp.getState();
   const session = sessionById(sessionId);
   if (!paneAccepts(session) || session === null) {
@@ -57,12 +76,14 @@ export async function attachPaths(
   const { items } = await preparePaths(paths);
   if (items.length === 0) return;
 
-  // A folder dropped on a session means "add this project", not "attach".
-  // Main decided that with one stat(); the renderer never guesses.
+  // Directory or file? Main decided that with one stat(); the renderer never
+  // guesses. What a directory MEANS is the caller's call (see AttachOptions).
   const files: DropPreparedItem[] = [];
   for (const item of items) {
-    if (item.kind === 'dir') void app.addProjectPath(item.sourcePath);
-    else if (item.kind === 'file') files.push(item);
+    if (item.kind === 'dir') {
+      if (folders === 'reference') files.push(item);
+      else void app.addProjectPath(item.sourcePath);
+    } else if (item.kind === 'file') files.push(item);
   }
   if (files.length === 0) return;
 

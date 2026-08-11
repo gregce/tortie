@@ -40,6 +40,8 @@
  */
 
 import { create } from 'zustand';
+import type { ImageReadResult } from '@shared/image-types';
+import { isImagePath, isSvgPath } from '@shared/image-types';
 import { useApp } from '../state/store';
 import { onOpenFile } from '../state/open-file';
 import type { OpenFileCommitRef, OpenFileRequest } from '../state/open-file';
@@ -54,12 +56,16 @@ import { baseName } from './paths';
 
 /**
  * What the body renders.
- *  - `diff`    @pierre/diffs, read-only (tracked files with changes)
- *  - `file`    Monaco — the edit surface; for a .md tab this is "Source"
- *  - `preview` rendered markdown, no Monaco (.md only)
- *  - `split`   Source and Preview side by side (.md only)
+ *  - `diff`    @pierre/diffs, read-only (tracked files with changes); for an
+ *              IMAGE tab it is the before/after against HEAD instead
+ *  - `file`    Monaco — the edit surface; for a .md or .svg tab this is
+ *              "Source"
+ *  - `preview` rendered markdown, or a rendered SVG — no Monaco
+ *  - `split`   Source and Preview side by side (.md / .svg only)
+ *  - `image`   the image viewer (Phase 12.10) — the only mode a raster image
+ *              has, because there is no text under it to edit
  */
-export type EditorMode = 'diff' | 'file' | 'preview' | 'split';
+export type EditorMode = 'diff' | 'file' | 'preview' | 'split' | 'image';
 
 /** The three views a markdown tab toggles between, in control order. */
 export const MARKDOWN_MODES: readonly EditorMode[] = ['preview', 'file', 'split'];
@@ -85,6 +91,31 @@ export interface EditorTab {
   canDiff: boolean;
   /** Renders as markdown (drives the Preview/Source/Split control). */
   markdown: boolean;
+  /**
+   * Renders in the image viewer (Phase 12.10). True for every displayable
+   * image INCLUDING svg; false for a raster image opened from a commit,
+   * which has no image reader for an arbitrary revision yet and keeps the
+   * honest "binary — no text diff" state rather than a comparison that would
+   * silently show HEAD-vs-worktree under a commit tab.
+   */
+  image: boolean;
+  /**
+   * SVG — the one file that is BOTH. It loads through the text path (so
+   * Source mode, ⌘S and the text diff are the same code as any other file)
+   * and previews through the image viewer, which is exactly markdown's
+   * Preview/Source split with a different renderer.
+   */
+  svg: boolean;
+  /** The `fs:readImage` reply for the working copy (raster tabs). */
+  imageData: ImageReadResult | null;
+  /** The same, read at HEAD — the BEFORE side of an image comparison. */
+  imageHead: ImageReadResult | null;
+  /**
+   * Bumped whenever the watcher says this image changed on disk. The asset
+   * URL is stable per path, so without a changing `?v=` Chromium keeps
+   * serving the cached bitmap while an agent rewrites the file underneath.
+   */
+  imageRevision: number;
   /** Preview tab (italic): replaced by the next open until edited/pinned. */
   preview: boolean;
   /**
@@ -340,6 +371,14 @@ export const useEditor = create<EditorState>((set, get) => {
       const keep = req.preview === false;
       const markdown = isMarkdownPath(req.path);
       const commit = req.commit ?? null;
+      // An image gets the image viewer — but a RASTER one opened from a
+      // commit does not: `fs:readImage` reads the working tree and HEAD, and
+      // rendering that pair under a `<sha>` tab would show the user a
+      // comparison they did not ask for. Those keep the existing honest
+      // state ("binary file — there is no text diff to show") until an
+      // arbitrary-revision image read exists.
+      const svg = isSvgPath(req.path);
+      const image = isImagePath(req.path) && (svg || commit === null);
       const origRelPath = leftPathFor(req);
       const tab: EditorTab = {
         id,
@@ -357,9 +396,20 @@ export const useEditor = create<EditorState>((set, get) => {
             ? 'diff'
             : markdown
               ? readMarkdownMode()
-              : 'file',
+              : // An SVG opens rendered, like a .md — it is a picture first
+                // and markup second. A raster image has no second view.
+                svg
+                ? 'preview'
+                : image
+                  ? 'image'
+                  : 'file',
         canDiff: req.mode === 'diff' || commit !== null,
         markdown,
+        image,
+        svg,
+        imageData: null,
+        imageHead: null,
+        imageRevision: 0,
         preview: !keep,
         commit,
         dirty: false,
@@ -406,6 +456,11 @@ export const useEditor = create<EditorState>((set, get) => {
         // One call fills BOTH sides. The worktree loaders are deliberately
         // not run: reading the live file here is exactly the bug item 4 is.
         void io.loadCommitDiff(id, commit);
+      } else if (image && !svg) {
+        // Never fs:readFile — that reader refuses binary content, which is
+        // the whole reason images could not open before Phase 12.10.
+        void io.loadImage(id, req.path);
+        if (req.mode === 'diff') void io.loadImageHead(id);
       } else {
         void io.loadContents(id, req.path);
         if (req.mode === 'diff') void io.loadHead(id);
@@ -503,8 +558,12 @@ export const useEditor = create<EditorState>((set, get) => {
       patchTab(id, { mode });
       // A history tab's LEFT side only ever comes from its commit — never
       // fall back to HEAD for it.
-      if (mode === 'diff' && tab.headContents === null && tab.commit === null) {
-        void io.loadHead(id);
+      if (mode === 'diff' && tab.commit === null) {
+        if (tab.image && !tab.svg) {
+          if (tab.imageHead === null) void io.loadImageHead(id);
+        } else if (tab.headContents === null) {
+          void io.loadHead(id);
+        }
       }
       if (tab.markdown && mode !== 'diff') {
         try {

@@ -46,12 +46,13 @@ import {
 import { registerCaptureIpc, saveLastCaptureTo } from './capture';
 import { runResumeConformance } from './conformance';
 import { registerDropIpc, startDropStorePruning } from './drop';
-import { registerFsIpc } from './fs';
+import { registerFsIpc, registerImageIpc } from './fs';
 import { disposeGitIpc, registerGitIpc } from './git';
 import { getGmuxCore, registerIpcHandlers, shutdownGmuxCore } from './ipc';
 import type { GmuxCore } from './ipc';
 import type { ManifestSessionRecord } from './manifest';
 import { installAppMenu } from './menu';
+import { registerProjectCreateIpc } from './projects';
 import { registerRestoreIpc, snapshotPath, stripAnsi } from './restore';
 import { openSettingsWindow, registerSettingsIpc } from './settings';
 import { disposeTray, installTray } from './tray';
@@ -1188,6 +1189,13 @@ app.whenReady().then(async () => {
   // fs:reveal). Both are self-contained registries, lazy per repo.
   registerGitIpc(ipcMain);
   registerFsIpc(ipcMain);
+  // Phase 12.10 item 1: the IMAGE path (fs:readImage). Registered apart from
+  // registerFsIpc on purpose — that registrar owns the text surface, and the
+  // point of the image channel is that images never share a door with text.
+  registerImageIpc(ipcMain);
+  // Phase 12.9 item 1: projects:create — the only project channel that
+  // writes to disk (mkdir + optional `git init`, then the usual add).
+  registerProjectCreateIpc(ipcMain);
   // Phase 6: restore extension channels (sessions:restore, sessions:discard,
   // app:get/setLoginItem).
   registerRestoreIpc(ipcMain);

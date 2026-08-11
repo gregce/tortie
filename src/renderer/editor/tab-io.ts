@@ -17,7 +17,11 @@
  * rely on every caller remembering.
  */
 
-import type { GmuxFsExtras, GmuxGitSyncExtras } from '@shared/ipc';
+import type {
+  GmuxFsExtras,
+  GmuxGitSyncExtras,
+  GmuxImageExtras
+} from '@shared/ipc';
 import { errorText, useApp } from '../state/store';
 import type { OpenFileCommitRef } from '../state/open-file';
 import { getWorkingModel, resetWorkingModel } from './monaco-loader';
@@ -36,6 +40,10 @@ export interface TabIo {
   loadContents(id: string, path: string): Promise<void>;
   loadHead(id: string): Promise<void>;
   loadCommitDiff(id: string, commit: OpenFileCommitRef): Promise<void>;
+  /** The working copy of an image (Phase 12.10) — never the text reader. */
+  loadImage(id: string, path: string): Promise<void>;
+  /** The same image at HEAD — the BEFORE side of the comparison. */
+  loadImageHead(id: string): Promise<void>;
   /** Write one tab to disk. Resolves false when nothing was written. */
   save(id: string): Promise<boolean>;
   refreshRepo(repoPath: string): Promise<void>;
@@ -44,6 +52,9 @@ export interface TabIo {
 export function createTabIo(deps: TabIoDeps): TabIo {
   const gmux = window.gmux as typeof window.gmux | undefined;
   const fsExtras = gmux ? (gmux.fs as typeof gmux.fs & GmuxFsExtras) : null;
+  const imageFs = gmux
+    ? (gmux.fs as typeof gmux.fs & GmuxImageExtras)
+    : null;
 
   const loadContents = async (id: string, path: string): Promise<void> => {
     if (!gmux) return;
@@ -135,6 +146,55 @@ export function createTabIo(deps: TabIoDeps): TabIo {
     }
   };
 
+  // -- images (Phase 12.10) --------------------------------------------------
+  // A separate reader, not a variant of loadContents: fs:readFile is UTF-8
+  // and refuses binary, so routing an image through it is what produced
+  // "gmux edits text files only" on every .png in the tree.
+
+  const loadImage = async (id: string, path: string): Promise<void> => {
+    if (typeof imageFs?.readImage !== 'function') {
+      deps.patch(id, {
+        loading: false,
+        error: 'This build cannot preview images.'
+      });
+      return;
+    }
+    try {
+      const data = await imageFs.readImage({ path });
+      deps.patch(id, {
+        imageData: data,
+        loading: false,
+        error: null,
+        deleted: data.status === 'missing'
+      });
+    } catch (err) {
+      deps.patch(id, { loading: false, error: errorText(err) });
+    }
+  };
+
+  const loadImageHead = async (id: string): Promise<void> => {
+    const tab = deps.byId(id);
+    if (tab === undefined || typeof imageFs?.readImage !== 'function') return;
+    try {
+      const head = await imageFs.readImage({
+        path: tab.path,
+        rev: 'HEAD',
+        repoPath: tab.repoPath,
+        // A rename's LEFT side lives at the OLD path — the same rule the
+        // text diff follows (Phase 11 carried finding (a)).
+        relPath: tab.origRelPath ?? tab.relPath
+      });
+      deps.patch(id, { imageHead: head });
+    } catch (err) {
+      // No comparison is available: fall back to the plain viewer rather
+      // than an empty half-diff, and say why once.
+      deps.patch(id, { mode: 'image', canDiff: false });
+      useApp
+        .getState()
+        .toast('error', `Could not load the HEAD version — ${errorText(err)}`);
+    }
+  };
+
   // -- saving ----------------------------------------------------------------
 
   /** Write one tab to disk. Resolves false when nothing was written. */
@@ -168,6 +228,18 @@ export function createTabIo(deps: TabIoDeps): TabIo {
     // commit's contents with the live file's.
     const tabs = deps.worktreeTabsIn(repoPath);
     for (const tab of tabs) {
+      // An image tab re-reads through the image channel and bumps its
+      // revision, which is what re-fetches the asset URL: an agent that
+      // regenerates a chart must change the picture on screen, and the URL
+      // alone is stable enough for Chromium to serve the old bitmap forever.
+      if (tab.image && !tab.svg) {
+        await loadImage(tab.id, tab.path);
+        const current = deps.byId(tab.id);
+        if (current === undefined) continue;
+        deps.patch(tab.id, { imageRevision: current.imageRevision + 1 });
+        if (current.canDiff) await loadImageHead(tab.id);
+        continue;
+      }
       // Existence check (feature-detected; skipped without fs:readDir).
       if (typeof fsExtras?.readDir === 'function') {
         try {
@@ -217,5 +289,13 @@ export function createTabIo(deps: TabIoDeps): TabIo {
     }
   };
 
-  return { loadContents, loadHead, loadCommitDiff, save, refreshRepo };
+  return {
+    loadContents,
+    loadHead,
+    loadCommitDiff,
+    loadImage,
+    loadImageHead,
+    save,
+    refreshRepo
+  };
 }

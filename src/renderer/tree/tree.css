@@ -21,7 +21,10 @@
   min-height: 0;
 }
 
-/* Refresh accessory appears on header hover / keyboard focus (spec). */
+/* Refresh accessory appears on header hover / keyboard focus (spec).
+   NOTE: inside the sidebar this whole header is hidden (app.css) — the
+   Explorer band header owns the actions, including the Phase 12.9 filter
+   toggle, so there is exactly one of each in the app. */
 .section-files .files-refresh {
   opacity: 0;
   transition: opacity var(--dur-fast) var(--ease-out);
@@ -39,11 +42,38 @@
 }
 
 /* Tree viewport — the Pierre host owns scrolling inside this box
-   (:host([data-file-tree-virtualized]) is height:100%). */
+   (:host([data-file-tree-virtualized]) is height:100%). The column is for the
+   filter's own status line, which sits under the rows. */
 .files-tree {
+  display: flex;
+  flex-direction: column;
   flex: 1;
   min-height: 0;
   padding: 0 var(--space-2) var(--space-2);
+}
+
+.files-tree > file-tree-container {
+  flex: 1;
+  min-height: 0;
+}
+
+/* ROOT DROP TARGET (Phase 12.9 item 3). Pierre only offers the project root
+   through a top-level FILE row; the empty space below the rows is where
+   anyone actually aims, so the whole viewport takes the accent ring the row
+   targets wear inside the shadow root. Same language, larger scale. */
+.files-tree.root-drop {
+  box-shadow: inset 0 0 0 1px var(--accent);
+  border-radius: var(--r-sm);
+}
+
+/* The filter's honest limit: @pierre/trees can only match rows the lazy
+   listing has already produced, and Phase 14 owns project-wide search. */
+.files-filter-note {
+  margin: 0;
+  padding: var(--space-2) var(--space-3) var(--space-1);
+  font-size: var(--text-xs);
+  line-height: var(--lh-sm);
+  color: var(--text-muted);
 }
 
 /* Loading skeleton: three shimmer lines, no spinner (OPERATE). */

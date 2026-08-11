@@ -318,6 +318,18 @@
   flex: 1;
 }
 
+/* Phase 12.9 item 4: the filter toggle reads as ON while it is narrowing the
+   tree, so a field the user opened is never a mystery. */
+.view-header-action.active {
+  color: var(--accent-text);
+}
+
+.view-header-action:disabled {
+  color: var(--text-disabled);
+  background: none;
+  cursor: default;
+}
+
 /* The band header above replaces FilesSection's internal 28px section
    header — exactly one label and one hairline in the band (S1/S3B). */
 .sidebar-view .section-files > .section-header {
@@ -1052,6 +1064,33 @@
   font-size: var(--text-sm);
   line-height: var(--lh-sm);
   color: var(--error);
+}
+
+/* New Project's path preview — the one line that says what is about to be
+   written, and where, before it is. Its height is reserved so the dialog
+   does not jump the moment a name is typed. */
+.np-target {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  min-height: var(--lh-xs);
+  margin: calc(-1 * var(--space-2)) 0 0;
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+}
+
+.np-target-label {
+  flex: none;
+}
+
+/* Middle-truncated in JS (truncateMiddle) rather than by CSS: a path clipped
+   at the right end hides the very thing being named. */
+.np-target-path {
+  min-width: 0;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  white-space: nowrap;
 }
 
 /* Segmented control (agent picker) [h:32]. */

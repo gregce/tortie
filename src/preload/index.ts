@@ -23,11 +23,13 @@ import type {
   GmuxCaptureExtras,
   GmuxDropExtras,
   GmuxFsExtras,
+  GmuxFsDuplicateExtras,
   GmuxFsOpsExtras,
   GmuxGitBranchExtras,
   GmuxGitDepthExtras,
   GmuxGitExtras,
   GmuxGitSyncExtras,
+  GmuxImageExtras,
   GmuxInvokeChannel,
   GmuxInvokeReq,
   GmuxInvokeRes,
@@ -35,6 +37,7 @@ import type {
   GmuxMenuExtras,
   GmuxMultilineExtras,
   GmuxPopupMenuExtras,
+  GmuxProjectCreateExtras,
   GmuxQuitExtras,
   GmuxScrollExtras,
   GmuxSessionExtras,
@@ -159,9 +162,15 @@ const git: GmuxApi['git'] &
  * fs surface = frozen GmuxApi['fs'] + the appended optional tree extensions
  * (fs:readDir / fs:reveal), feature-detected by the file tree, plus the
  * Phase 12.9 file operations (create/rename/move/trash), feature-detected the
- * same way (`typeof window.gmux.fs.trash === 'function'`).
+ * same way (`typeof window.gmux.fs.trash === 'function'`), plus the Phase
+ * 12.10 image read — a separate channel from readFile precisely because that
+ * one is UTF-8-only and refuses binary content.
  */
-const fs: GmuxApi['fs'] & GmuxFsExtras & GmuxFsOpsExtras = {
+const fs: GmuxApi['fs'] &
+  GmuxFsExtras &
+  GmuxFsOpsExtras &
+  GmuxFsDuplicateExtras &
+  GmuxImageExtras = {
   readFile: (path) => invoke('fs:readFile', path),
   writeFile: (path, contents) => invoke('fs:writeFile', path, contents),
   readDir: (dirPath) => invoke('fs:readDir', dirPath),
@@ -169,8 +178,10 @@ const fs: GmuxApi['fs'] & GmuxFsExtras & GmuxFsOpsExtras = {
   createFile: (input) => invoke('fs:createFile', input),
   createFolder: (input) => invoke('fs:createFolder', input),
   rename: (input) => invoke('fs:rename', input),
+  duplicate: (input) => invoke('fs:duplicate', input),
   move: (input) => invoke('fs:move', input),
-  trash: (input) => invoke('fs:trash', input)
+  trash: (input) => invoke('fs:trash', input),
+  readImage: (input) => invoke('fs:readImage', input)
 };
 
 /**
@@ -236,6 +247,19 @@ const scroll: NonNullable<GmuxScrollExtras['scroll']> = {
   live: (sessionId) => invoke('terminal:scrollLive', sessionId)
 };
 
+/**
+ * projects surface = frozen GmuxApi['projects'] + the Phase 12.9 `create`
+ * (feature-detected: without it the shell hides "New Project…" rather than
+ * offering a button that throws).
+ */
+const projects: GmuxApi['projects'] & GmuxProjectCreateExtras = {
+  add: (path) => invoke('projects:add', path),
+  list: () => invoke('projects:list'),
+  remove: (projectId) => invoke('projects:remove', projectId),
+  pickDirectory: () => invoke('projects:pickDirectory'),
+  create: (input) => invoke('projects:create', input)
+};
+
 const api: GmuxApi &
   GmuxLoginItemExtras &
   GmuxMenuExtras &
@@ -250,12 +274,7 @@ const api: GmuxApi &
   GmuxActivityExtras &
   GmuxMultilineExtras = {
   sessions,
-  projects: {
-    add: (path) => invoke('projects:add', path),
-    list: () => invoke('projects:list'),
-    remove: (projectId) => invoke('projects:remove', projectId),
-    pickDirectory: () => invoke('projects:pickDirectory')
-  },
+  projects,
   git,
   fs,
   term,

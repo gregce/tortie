@@ -56,6 +56,47 @@ function uriFor(m: Monaco, key: string): monacoNs.Uri {
   });
 }
 
+/**
+ * A URI Monaco is not already using.
+ *
+ * A model's URI is fixed for its lifetime, so a tab that CHANGES identity
+ * (`rekeyTabResources` — a rename in the tree carries the tab with it) keeps
+ * a model parked on the old name's URI. Opening a freshly created file at
+ * that old name would then hit Monaco's "model already exists" throw inside
+ * the open path. The suffix is invisible: nothing reads the URI back, it only
+ * has to be unique.
+ */
+function freeUriFor(m: Monaco, key: string): monacoNs.Uri {
+  let uri = uriFor(m, key);
+  for (let n = 2; m.editor.getModel(uri) !== null; n += 1) {
+    uri = uriFor(m, `${key}#${n}`);
+  }
+  return uri;
+}
+
+/**
+ * Move a tab's model and view state onto a new identity, in place.
+ *
+ * The bytes did not change, only the name did — so the buffer, its dirty
+ * state, its undo stack and the cursor all survive a rename. Anything already
+ * registered under `toKey` is disposed first: it belongs to the entry the
+ * rename displaced, which is in the Trash.
+ */
+export function rekeyTabResources(fromKey: string, toKey: string): void {
+  if (fromKey === toKey) return;
+  const model = workingModels.get(fromKey);
+  if (model !== undefined) {
+    workingModels.get(toKey)?.dispose();
+    workingModels.delete(fromKey);
+    workingModels.set(toKey, model);
+  }
+  const view = viewStates.get(fromKey);
+  if (view !== undefined) {
+    viewStates.delete(fromKey);
+    viewStates.set(toKey, view);
+  }
+}
+
 /** Get-or-create the working model for a tab. */
 export function workingModel(
   m: Monaco,
@@ -65,7 +106,7 @@ export function workingModel(
 ): monacoNs.editor.ITextModel {
   const existing = workingModels.get(key);
   if (existing !== undefined && !existing.isDisposed()) return existing;
-  const model = m.editor.createModel(contents, language, uriFor(m, key));
+  const model = m.editor.createModel(contents, language, freeUriFor(m, key));
   // Bracket-pair colorization also lives on the MODEL, not only on the
   // editor: `IEditorOptions.bracketPairColorization` is read by VS Code's
   // model service from workbench configuration, which standalone Monaco has

@@ -354,3 +354,59 @@ describe('trash', () => {
     expect(existsSync(root)).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// APPENDED by Phase 12.9 items 2-4: the Duplicate verb the context menu needs.
+// ---------------------------------------------------------------------------
+
+describe('duplicate', () => {
+  it('copies a file beside itself in Finder\'s spelling, twice', async () => {
+    const first = await ops.duplicate({ root, path: 'README.md' });
+    expect(first.relPath).toBe('README copy.md');
+    expect(await readFile(join(root, 'README copy.md'), 'utf8')).toBe('readme');
+
+    const second = await ops.duplicate({ root, path: 'README.md' });
+    expect(second.relPath).toBe('README copy 2.md');
+    // The original is untouched by either copy.
+    expect(await readFile(join(root, 'README.md'), 'utf8')).toBe('readme');
+  });
+
+  it('keeps a dotfile whole rather than treating it as an extension', async () => {
+    await writeFile(join(root, '.gitignore'), 'node_modules', 'utf8');
+    const entry = await ops.duplicate({ root, path: '.gitignore' });
+    expect(entry.relPath).toBe('.gitignore copy');
+  });
+
+  it('copies a folder recursively', async () => {
+    await mkdir(join(root, 'src', 'deep'), { recursive: true });
+    await writeFile(join(root, 'src', 'deep', 'a.ts'), 'a', 'utf8');
+    const entry = await ops.duplicate({ root, path: 'src' });
+    expect(entry.kind).toBe('dir');
+    expect(entry.relPath).toBe('src copy');
+    expect(await readFile(join(root, 'src copy', 'deep', 'a.ts'), 'utf8')).toBe(
+      'a'
+    );
+  });
+
+  it('never overwrites an existing copy name', async () => {
+    await writeFile(join(root, 'README copy.md'), 'mine', 'utf8');
+    await ops.duplicate({ root, path: 'README.md' });
+    expect(await readFile(join(root, 'README copy.md'), 'utf8')).toBe('mine');
+    expect(existsSync(join(root, 'README copy 2.md'))).toBe(true);
+  });
+
+  it('refuses .git and anything outside the project', async () => {
+    expect((await payloadOf(ops.duplicate({ root, path: '.git' }))).code).toBe(
+      'INVALID_INPUT'
+    );
+    expect(
+      (await payloadOf(ops.duplicate({ root, path: '../escape.txt' }))).code
+    ).toBe('INVALID_INPUT');
+  });
+
+  it('reports a missing source as a friendly ENOENT', async () => {
+    const payload = await payloadOf(ops.duplicate({ root, path: 'ghost.md' }));
+    expect(payload.detail).toBe('ENOENT');
+    expect(payload.message).toContain('ghost.md');
+  });
+});

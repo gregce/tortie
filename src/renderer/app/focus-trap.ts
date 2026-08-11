@@ -43,3 +43,44 @@ export function trapTabKey(
     first.focus();
   }
 }
+
+/**
+ * The whole keyboard contract of a gmux form modal, in one call: Tab cycles
+ * inside the dialog, Return submits, Escape closes.
+ *
+ * Extracted at the Phase 12.9/12.10 integration, because "New project"
+ * arrived as a verbatim copy of "New session" (CLAUDE.md's dup-scan
+ * guardrail). Two of these four lines are the kind that go missing in the
+ * NEXT copy and are never noticed until someone hits a key:
+ *  - Return on a focused BUTTON must run that button's own activation, or
+ *    [Cancel] / [Choose…] silently submit the form instead of doing their job;
+ *  - `isComposing` guards the IME — Return committing a Japanese candidate is
+ *    not Return submitting the dialog;
+ *  - Escape is stopped from propagating so it closes the dialog and nothing
+ *    behind it.
+ */
+export function modalKeyDown(
+  e: {
+    key: string;
+    shiftKey: boolean;
+    target: EventTarget | null;
+    nativeEvent: { isComposing: boolean };
+    preventDefault(): void;
+    stopPropagation(): void;
+  },
+  container: HTMLElement,
+  handlers: { submit: () => void; close: () => void }
+): void {
+  trapTabKey(e, container);
+  if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+    if (e.target instanceof HTMLElement && e.target.tagName === 'BUTTON') {
+      return;
+    }
+    e.preventDefault();
+    handlers.submit();
+  }
+  if (e.key === 'Escape') {
+    e.stopPropagation();
+    handlers.close();
+  }
+}

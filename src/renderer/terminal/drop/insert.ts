@@ -11,13 +11,25 @@
  *    notes the input for main's activity monitor, so the drop answers a
  *    pending prompt instead of leaving it flagged (§1.5, and CLAUDE.md's rule
  *    that the user's own input may never raise that status).
+ *  - onData is ALSO where TerminalPane hands the bytes to
+ *    `ScrollSurface.sendInput` — the 12.3 cancel-copy-mode-then-write helper.
+ *    So a drop onto a SCROLLED pane returns it to live output first and
+ *    queues the write behind that, for free and through the one shared path;
+ *    there is deliberately no copy-mode logic in this module to go stale.
+ *    (TerminalPane.tsx: `term.onData(d => { noteTerminalInput(); scroll.sendInput(d) })`.)
  *
  * Fallback path, for a pane whose terminal has not registered itself: write
  * the same bytes through the term bridge and call `noteTerminalInput` by
  * hand, so the self-inflicted-input guarantee still holds. tmux's attach client
  * enables DECSET 2004 unconditionally (VERIFIED), so the markers we write are
  * byte-identical to xterm's — but xterm's version tracks the pane's real mode,
- * which is why it stays the preferred path.
+ * which is why it stays the preferred path. A DROP can never reach it: every
+ * `[data-split-leaf]` the router can hit-test mounts a TerminalPane
+ * (TerminalHost mounts panes only for visible sessions, and SplitSurface
+ * mounts one per leaf), and a leaf whose session has ended is refused by
+ * `paneAccepts` before this module is reached. The fallback exists for
+ * programmatic callers, and it is the one write in the drop feature that does
+ * not pass through the scroll surface.
  *
  * ONE PASTE PER FILE, always: Codex matches at most one path per paste, and
  * Claude reorders prose that shares a paste with a path. Multiple files are

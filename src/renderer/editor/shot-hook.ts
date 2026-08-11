@@ -17,6 +17,10 @@ import { requestOpenFile } from '../state/open-file';
 // is that the REAL capture action runs, not a mock of it.
 import { captureHistory, captureVisible } from '../terminal/capture';
 import { getTerminal } from '../terminal/drop';
+import { driveTreeDrop } from '../terminal/drop/shot-probe';
+import type { TreeDropProbeSpec } from '../terminal/drop/shot-probe';
+import { driveTreeOps } from '../tree/shot-probe';
+import type { TreeOpsProbeSpec } from '../tree/shot-probe';
 import { scrollBridge } from '../terminal/scroll/surface';
 import { setStoredEditorWidth } from './panel-width';
 import { useEditor } from './store';
@@ -43,8 +47,11 @@ export interface ShotDriveSpec {
   editorWidth?: number;
   /** Turn the minimap / preview heading ruler on before capture. */
   minimap?: boolean;
-  /** Force the opened tab's view (markdown: 'preview' | 'file' | 'split'). */
-  editorMode?: 'diff' | 'file' | 'preview' | 'split';
+  /**
+   * Force the opened tab's view (markdown/svg: 'preview' | 'file' | 'split';
+   * a raster image: 'image' for the viewer, 'diff' for before/after).
+   */
+  editorMode?: 'diff' | 'file' | 'preview' | 'split' | 'image';
   /** Create a real durable session (killed again by the cleanup hook). */
   session?: { agent?: AgentKind; name?: string };
   /**
@@ -149,10 +156,34 @@ export interface ShotDriveSpec {
     pasteAfter?: string;
   };
   /**
+   * Phase 12.10 item 2, end to end: fire real DragEvents from a synthesized
+   * tree drag at the file tree and then at the session pane, and read back
+   * what armed and what landed. Needs `session` and `sidebarView: 'explorer'`.
+   * Owned by src/renderer/terminal/drop/shot-probe.ts; the result is logged
+   * as `[shot-drive] treeDrop result …` (GMUX_SHOT_VERBOSE=1).
+   */
+  treeDrop?: TreeDropProbeSpec;
+  /**
+   * Phase 12.9 items 2-4, end to end: run the explorer's file verbs against
+   * a scratch folder inside the driven project, through the mounted tree's
+   * own TreeOps and the real fs:* channels. Needs `sidebarView: 'explorer'`.
+   * Owned by src/renderer/tree/shot-probe.ts; the per-step table is logged
+   * as `[shot-drive] treeOps result …` (GMUX_SHOT_VERBOSE=1).
+   */
+  treeOps?: TreeOpsProbeSpec;
+  /**
    * Switch the sidebar view before capture ('explorer' shows the Pierre
    * file tree; readiness waits for shadow-DOM rows to render).
    */
   sidebarView?: 'scm' | 'explorer';
+  /**
+   * Collapse the sidebar (⌘B). The editor panel is a FRACTION of the center
+   * region, so this is the only lever the harness has on how wide the panel
+   * can get — which is what decides every two-column-vs-one threshold in
+   * DESIGN-SPEC S5C (the diff's 640px floor, and Phase 12.10's image
+   * comparison, which shares it).
+   */
+  sidebar?: boolean;
   /**
    * Explorer only: expand directories by clicking their real rows
    * (canonical tree paths, trailing '/' — e.g. "src/"). Exercises the
@@ -160,7 +191,34 @@ export interface ShotDriveSpec {
    */
   expandRels?: string[];
   /** Open a UI layer before capture. */
-  ui?: 'shortcuts' | 'create' | 'attention';
+  ui?: 'shortcuts' | 'create' | 'attention' | 'new-project';
+  /**
+   * Phase 12.9 item 1, end to end: run the REAL projects:create (mkdir +
+   * optional `git init` + projects:add + focus) and leave the new tab open
+   * for the capture. Only the native folder picker is skipped — everything
+   * downstream of it is the shipped path, including the §6.2 fleet the new
+   * project lands on. The result is logged as `[shot-drive] newProject …`.
+   */
+  newProject?: {
+    parentDir: string;
+    name: string;
+    gitInit?: boolean;
+    /**
+     * `false` opens the DIALOG and types the name into it instead of
+     * creating anything — the draft state, where the path preview and the
+     * enabled Create button live. Real input events, so the component's own
+     * onChange and validation run.
+     */
+    submit?: boolean;
+  };
+  /**
+   * Phase 12.10 item 1: dispatch REAL wheel events at the image viewport and
+   * read the zoom back out. The listener has to be attached non-passively by
+   * hand (React's root wheel listener is passive, so preventDefault there is
+   * a no-op) — a defect no screenshot can show, because the picture simply
+   * would not move. Logged as `[shot-drive] imageZoom …`.
+   */
+  imageZoom?: { notches: number };
   /** Show a toast before capture (kind defaults to info). */
   toast?: { kind?: 'info' | 'success' | 'error'; text: string };
 }
@@ -186,6 +244,22 @@ const wait = (ms: number): Promise<void> =>
 const step = (name: string): void => {
   console.log(`[shot-drive] ${name}`);
 };
+
+/**
+ * Set a controlled input's value the way a keyboard would: through the
+ * native value setter plus a real `input` event, which is what React's
+ * synthetic onChange listens for. Assigning `.value` alone is swallowed.
+ */
+function typeInto(selector: string, value: string): void {
+  const el = document.querySelector<HTMLInputElement>(selector);
+  if (el === null) return;
+  const setter = Object.getOwnPropertyDescriptor(
+    window.HTMLInputElement.prototype,
+    'value'
+  )?.set;
+  setter?.call(el, value);
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+}
 
 /** Project path the drive opened — removed again by the cleanup hook. */
 let drivenProjectPath: string | null = null;
@@ -592,6 +666,14 @@ export function installShotHook(): void {
       useEditor.getState().setMinimapEnabled(spec.minimap);
     }
 
+    if (
+      spec.sidebar !== undefined &&
+      useApp.getState().sidebarVisible !== spec.sidebar
+    ) {
+      useApp.getState().toggleSidebar();
+      await wait(250);
+    }
+
     for (const rel of spec.openRels ?? []) {
       requestOpenFile({
         repoPath: spec.projectPath,
@@ -619,11 +701,17 @@ export function installShotHook(): void {
       const wantDiff = (spec.mode ?? 'diff') === 'diff';
       for (let i = 0; i < 120; i++) {
         const surface = wantDiff
-          ? (document.querySelector('diffs-container')?.shadowRoot?.querySelector(
-              'pre'
-            ) ?? null)
-          : // A .md file opens rendered, not in Monaco (Phase 12 item 6).
-            (document.querySelector('.md-content > *') ??
+          ? // An image opened as a diff is the before/after comparison, not
+            // Pierre — same gesture, different renderer (Phase 12.10).
+            (document.querySelector('.imgc-img') ??
+              document.querySelector('diffs-container')?.shadowRoot?.querySelector(
+                'pre'
+              ) ??
+              null)
+          : // A .md file opens rendered, not in Monaco (Phase 12 item 6);
+            // an image opens in the viewer, which is neither.
+            (document.querySelector('.imgv-img') ??
+              document.querySelector('.md-content > *') ??
               document.querySelector('.monaco-editor'));
         const mounted =
           surface !== null && document.querySelector('.ed-skeleton') === null;
@@ -634,6 +722,12 @@ export function installShotHook(): void {
         const ed = useEditor.getState();
         const id = ed.activeId;
         if (id !== null) ed.setMode(id, spec.editorMode);
+        // The viewer needs one measured frame before it can fit the image.
+        for (let i = 0; i < 20; i++) {
+          const img = document.querySelector<HTMLImageElement>('.imgv-img');
+          if (img === null || img.complete) break;
+          await wait(100);
+        }
         await wait(800);
       }
       // Syntax highlight settles async (Shiki streams tokens in diff mode).
@@ -671,11 +765,98 @@ export function installShotHook(): void {
       }
     }
 
+    // After sidebarView, because the probe needs the tree on screen to prove
+    // that the pointer over it arms nothing.
+    if (spec.treeDrop !== undefined && drivenSessionId !== null) {
+      step('treeDrop: driving the tree → pane attach');
+      const result = await driveTreeDrop(spec.treeDrop, {
+        sessionId: drivenSessionId,
+        rootPath: spec.projectPath,
+        scroll: scrollBridge()
+      });
+      step(`treeDrop result ${JSON.stringify(result)}`);
+    }
+
+    // Same reason: the verbs run against the mounted tree, so the explorer
+    // has to be the visible view before this can drive anything.
+    if (spec.treeOps !== undefined) {
+      step('treeOps: driving the explorer file verbs');
+      const result = await driveTreeOps(spec.treeOps);
+      step(`treeOps result ${JSON.stringify(result)}`);
+    }
+
+    if (spec.imageZoom !== undefined) {
+      const viewport = document.querySelector<HTMLElement>('.imgv-viewport');
+      const readout = (): string =>
+        document.querySelector('.imgv-zoom')?.textContent ?? 'none';
+      const before = readout();
+      const rect = viewport?.getBoundingClientRect();
+      for (let i = 0; i < Math.abs(spec.imageZoom.notches); i++) {
+        viewport?.dispatchEvent(
+          new WheelEvent('wheel', {
+            // Negative deltaY = zoom IN, anchored under the pointer, which is
+            // parked right of centre so the anchoring is observable.
+            deltaY: spec.imageZoom.notches > 0 ? -120 : 120,
+            clientX: (rect?.left ?? 0) + (rect?.width ?? 0) * 0.7,
+            clientY: (rect?.top ?? 0) + (rect?.height ?? 0) * 0.5,
+            bubbles: true,
+            cancelable: true
+          })
+        );
+        await wait(60);
+      }
+      await wait(300);
+      const img = document.querySelector<HTMLImageElement>('.imgv-img');
+      step(
+        `imageZoom before=${before} after=${readout()} ` +
+          `imgWidth=${String(img?.getBoundingClientRect().width ?? 0)} ` +
+          `transform=${img?.style.transform ?? 'none'}`
+      );
+    }
+
+    if (spec.newProject !== undefined) {
+      // The REAL dialog, driven the way a person drives it: open, type into
+      // both fields, then press its own Create button. Only the native
+      // folder picker is skipped — everything after it (validation, the path
+      // preview, projects:create, the focused tab, the §6.2 fleet, and the
+      // keyboard handoff onto its default agent tile) is the shipped path.
+      step('newProject: opening the dialog');
+      useApp.getState().setNewProjectOpen(true);
+      await wait(300);
+      typeInto('#new-project-dir', spec.newProject.parentDir);
+      typeInto('#new-project-name', spec.newProject.name);
+      if (spec.newProject.gitInit === false) {
+        document
+          .querySelector<HTMLInputElement>('.modal .preset-check')
+          ?.click();
+      }
+      await wait(300);
+      if (spec.newProject.submit !== false) {
+        step('newProject: pressing Create project');
+        document
+          .querySelector<HTMLButtonElement>('.modal .btn-primary')
+          ?.click();
+        await wait(1500);
+        const names = useApp
+          .getState()
+          .projects.map((p) => p.name)
+          .join(',');
+        step(
+          `newProject created=${String(
+            useApp.getState().activeProject()?.path ?? 'none'
+          )} projects=[${names}] focus=${
+            document.activeElement?.className ?? 'none'
+          }`
+        );
+      }
+    }
+
     if (spec.ui !== undefined) {
       const s = useApp.getState();
       if (spec.ui === 'shortcuts') s.setShortcutsOpen(true);
       if (spec.ui === 'create') s.setCreateOpen(true);
       if (spec.ui === 'attention') s.setAttentionOpen(true);
+      if (spec.ui === 'new-project') s.setNewProjectOpen(true);
       await wait(400);
     }
 

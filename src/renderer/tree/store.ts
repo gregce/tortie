@@ -45,6 +45,24 @@ interface FileTreeState {
   loadDir(dirPath: string): Promise<void>;
   /** Re-list the root and every cached directory (refresh). */
   refreshLoaded(): Promise<void>;
+  /**
+   * Re-list specific directories NOW, cached or not (Phase 12.9).
+   *
+   * `loadDir` is a lazy-load and returns early when a listing is already
+   * cached; after a file operation the cache is exactly what is wrong. The
+   * @parcel/watcher would repair it within ~450 ms anyway (300 ms watcher
+   * debounce + 150 ms in FilesSection) — this only closes the gap so a
+   * created file appears on the frame the user asked for it, and it is the
+   * same one-directory `readDir` the watcher path uses: no locks, no
+   * full-tree rebuild, nothing for a concurrently writing agent to fight.
+   */
+  relist(dirPaths: readonly string[]): Promise<void>;
+  /**
+   * Drop cached listings at or under these absolute paths (a renamed or
+   * trashed folder). Without this the old key keeps feeding phantom rows
+   * into the tree until the watcher's failed re-list evicts it.
+   */
+  forgetUnder(dirPaths: readonly string[]): void;
 }
 
 export const useFileTree = create<FileTreeState>((set, get) => {
@@ -107,6 +125,33 @@ export const useFileTree = create<FileTreeState>((set, get) => {
       if (rootPath === null || bridgeMissing) return;
       if (entriesByDir[dirPath] !== undefined) return; // already cached
       await listInto(dirPath, rootSeq);
+    },
+
+    async relist(dirPaths) {
+      const { rootPath, bridgeMissing } = get();
+      if (rootPath === null || bridgeMissing) return;
+      const seq = rootSeq;
+      const wanted = dirPaths.filter(
+        (d) => d === rootPath || d.startsWith(rootPath + '/')
+      );
+      await Promise.all(wanted.map((d) => listInto(d, seq)));
+    },
+
+    forgetUnder(dirPaths) {
+      if (dirPaths.length === 0) return;
+      set((s) => {
+        const next = { ...s.entriesByDir };
+        let dropped = false;
+        for (const key of Object.keys(next)) {
+          const hit = dirPaths.some(
+            (dir) => key === dir || key.startsWith(dir + '/')
+          );
+          if (!hit) continue;
+          delete next[key];
+          dropped = true;
+        }
+        return dropped ? { entriesByDir: next } : {};
+      });
     },
 
     async refreshLoaded() {

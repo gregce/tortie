@@ -36,6 +36,7 @@ import { EditorTabStrip } from './EditorTabs';
 import { MonacoHost } from './MonacoHost';
 import { PierreDiff } from './PierreDiff';
 import { MarkdownPreview } from './markdown';
+import { ImageCompare, ImageView } from './image';
 import { Codicon } from '../icons';
 import { installShotHook } from './shot-hook';
 import { loadEditorWidths, saveEditorWidths } from './panel-width';
@@ -129,21 +130,26 @@ function modeOptions(tab: EditorTab, splitFits: boolean): ModeOption[] {
       title:
         tab.commit !== null
           ? `What commit ${tab.commit.shortSha} changed (read-only)`
-          : 'Changes vs HEAD (read-only)'
+          : tab.image && !tab.svg
+            ? 'This image before and after (read-only)'
+            : 'Changes vs HEAD (read-only)'
     });
   }
-  if (tab.markdown) {
+  // An SVG takes markdown's control unchanged — it is the same question
+  // ("the picture or the markup?") with a different renderer behind Preview.
+  if (tab.markdown || tab.svg) {
+    const noun = tab.svg ? 'SVG' : 'markdown';
     options.push({
       mode: 'preview',
       label: 'Preview',
       icon: 'open-preview',
-      title: 'Rendered markdown'
+      title: tab.svg ? 'The rendered image' : 'Rendered markdown'
     });
     options.push({
       mode: 'file',
       label: 'Source',
       icon: 'code',
-      title: 'Edit the markdown source'
+      title: `Edit the ${noun} source`
     });
     options.push({
       mode: 'split',
@@ -154,6 +160,17 @@ function modeOptions(tab: EditorTab, splitFits: boolean): ModeOption[] {
         : 'Source and preview together — drag the editor wider to use it',
       disabled: !splitFits
     });
+  } else if (tab.image) {
+    // A raster image has exactly one other view, and only when there is a
+    // HEAD version to compare against.
+    if (tab.canDiff) {
+      options.push({
+        mode: 'image',
+        label: 'Image',
+        icon: 'file-media',
+        title: 'The working copy on its own'
+      });
+    }
   } else if (tab.canDiff) {
     options.push({
       mode: 'file',
@@ -337,6 +354,7 @@ export function EditorPanel(): React.JSX.Element | null {
           app.attentionOpen ||
           app.confirm !== null ||
           app.createOpen ||
+          app.newProjectOpen ||
           app.shortcutsOpen ||
           app.renamingSessionId !== null
         ) {
@@ -438,7 +456,11 @@ export function EditorPanel(): React.JSX.Element | null {
   if (!panelOpen || tabs.length === 0 || activeTab === null) return null;
 
   const mode: EditorMode =
-    activeTab.mode === 'diff' && !activeTab.canDiff ? 'file' : activeTab.mode;
+    activeTab.mode === 'diff' && !activeTab.canDiff
+      ? activeTab.image && !activeTab.svg
+        ? 'image'
+        : 'file'
+      : activeTab.mode;
   // Drag the panel below the split floor and the view collapses to Source
   // rather than showing two unreadable columns; widen it and it comes back.
   const splitFits = panelWidth >= SPLIT_MIN_PX;
@@ -446,7 +468,14 @@ export function EditorPanel(): React.JSX.Element | null {
     mode === 'split' && !splitFits ? 'file' : mode;
   const minimapFits = panelWidth >= MINIMAP_MIN_PX;
   const showMinimap = minimapEnabled && minimapFits;
-  const minimapApplies = effectiveMode !== 'diff' && activeTab.error === null;
+  // Neither the image viewer nor an SVG preview has anything to summarize —
+  // the minimap belongs to text, so the toggle stays out of their chrome
+  // rather than sitting there doing nothing.
+  const minimapApplies =
+    effectiveMode !== 'diff' &&
+    effectiveMode !== 'image' &&
+    !(activeTab.svg && effectiveMode === 'preview') &&
+    activeTab.error === null;
   const diffSplitFits = panelWidth >= DIFF_SPLIT_MIN_PX;
   const showDiffSplit = diffSideBySide && diffSplitFits;
   const diffSplitApplies = effectiveMode === 'diff' && activeTab.error === null;
@@ -454,7 +483,11 @@ export function EditorPanel(): React.JSX.Element | null {
   const monaco = (
     <MonacoHost tab={activeTab} minimap={showMinimap && !activeTab.markdown} />
   );
-  const preview = (
+  // "Preview" means the rendered form of this file: markdown for a .md, the
+  // picture for an .svg. Split pairs either with Monaco unchanged.
+  const preview = activeTab.svg ? (
+    <ImageView tab={activeTab} live={effectiveMode === 'split'} />
+  ) : (
     <MarkdownPreview
       tab={activeTab}
       live={effectiveMode === 'split'}
@@ -551,8 +584,16 @@ export function EditorPanel(): React.JSX.Element | null {
             </div>
           ) : effectiveMode === 'diff' ? (
             // Diff mode renders without Monaco (Pierre owns diff viewing) —
-            // a Monaco chunk failure only blocks the editing surfaces.
-            <PierreDiff tab={activeTab} sideBySide={showDiffSplit} />
+            // a Monaco chunk failure only blocks the editing surfaces. For a
+            // raster image the same gesture means before/after pixels, under
+            // the same Side-by-side control and the same 640px floor.
+            activeTab.image && !activeTab.svg ? (
+              <ImageCompare tab={activeTab} sideBySide={showDiffSplit} />
+            ) : (
+              <PierreDiff tab={activeTab} sideBySide={showDiffSplit} />
+            )
+          ) : effectiveMode === 'image' ? (
+            <ImageView tab={activeTab} />
           ) : effectiveMode === 'preview' ? (
             preview
           ) : monacoError !== null ? (

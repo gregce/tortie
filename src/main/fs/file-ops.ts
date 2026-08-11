@@ -21,11 +21,12 @@
  * the tree's inline-rename-on-create flow wants.
  */
 
-import { lstat, mkdir, open, rename } from 'node:fs/promises';
+import { cp, lstat, mkdir, open, rename } from 'node:fs/promises';
 import type { Stats } from 'node:fs';
 import { basename, dirname, join, relative, sep } from 'node:path';
 import type {
   FsCreateInput,
+  FsDuplicateInput,
   FsMoveConflict,
   FsMoveInput,
   FsMovePair,
@@ -58,6 +59,7 @@ export interface FileOpsService {
   createFile(input: FsCreateInput): Promise<FsOpEntry>;
   createFolder(input: FsCreateInput): Promise<FsOpEntry>;
   rename(input: FsRenameInput): Promise<FsRenameResult>;
+  duplicate(input: FsDuplicateInput): Promise<FsOpEntry>;
   move(input: FsMoveInput): Promise<FsMoveResult>;
   trash(input: FsTrashInput): Promise<FsTrashResult>;
 }
@@ -96,6 +98,18 @@ function kindOf(stats: Stats): FsOpEntry['kind'] {
 function sameEntry(left: Stats | null, right: Stats | null): boolean {
   if (left === null || right === null) return false;
   return left.dev === right.dev && left.ino === right.ino;
+}
+
+/**
+ * Finder's copy naming: "notes.md" → "notes copy.md" → "notes copy 2.md".
+ * A leading dot is part of the name, not an extension separator, so
+ * ".gitignore" duplicates to ".gitignore copy" and never to " copy.gitignore".
+ */
+export function copyNameFor(name: string, n: number): string {
+  const dot = name.lastIndexOf('.');
+  const stem = dot > 0 ? name.slice(0, dot) : name;
+  const ext = dot > 0 ? name.slice(dot) : '';
+  return n < 2 ? `${stem} copy${ext}` : `${stem} copy ${n}${ext}`;
 }
 
 /** True when `candidate` is `dir` itself or lives underneath it. */
@@ -204,6 +218,60 @@ export function createFileOps(deps: FileOpsDeps): FileOpsService {
         from: entry(realRoot, from.abs, kind),
         to: entry(realRoot, to.abs, kind)
       };
+    },
+
+    async duplicate(input: FsDuplicateInput): Promise<FsOpEntry> {
+      const realRoot = await root(input.root);
+      const source = await resolveInsideRoot(realRoot, input.path);
+      const sourceStats = await statLeaf(source.abs);
+      if (sourceStats === null) {
+        throw fsOpError(
+          Object.assign(new Error('ENOENT'), { code: 'ENOENT' }),
+          'duplicate',
+          basename(source.abs)
+        );
+      }
+      const kind = kindOf(sourceStats);
+
+      // Find the free name by STATTING, not by trusting a listing: an agent
+      // may have written "notes copy.md" a second ago. Bounded so a directory
+      // full of copies cannot spin here.
+      const dir = dirname(source.abs);
+      const name = basename(source.abs);
+      let destAbs: string | null = null;
+      for (let n = 1; n <= 200; n += 1) {
+        const candidate = await resolveInsideRoot(
+          realRoot,
+          join(dir, copyNameFor(name, n))
+        );
+        if ((await statLeaf(candidate.abs)) === null) {
+          destAbs = candidate.abs;
+          break;
+        }
+      }
+      if (destAbs === null) {
+        throw gmuxError(
+          'FS_FAILED',
+          `There are already too many copies of "${name}".`,
+          'EEXIST'
+        );
+      }
+
+      try {
+        // Recursive so a folder duplicates whole; `force: false` +
+        // `errorOnExist` keeps the "never overwrite" rule true even if
+        // something lands on the name between the stat and the copy.
+        await cp(source.abs, destAbs, {
+          recursive: kind === 'dir',
+          force: false,
+          errorOnExist: true,
+          preserveTimestamps: true,
+          verbatimSymlinks: true
+        });
+      } catch (err) {
+        throw fsOpError(err, 'duplicate', name);
+      }
+      return entry(realRoot, destAbs, kind);
     },
 
     async move(input: FsMoveInput): Promise<FsMoveResult> {

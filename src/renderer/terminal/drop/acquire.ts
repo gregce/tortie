@@ -84,6 +84,17 @@ export function dragLooksLikeImage(event: DragEvent): boolean {
 }
 
 /**
+ * How many files the drag carries, at dragover time. `items` exposes kind and
+ * type throughout the drag even though `getData` is locked (protected mode),
+ * so the overlay can name the count before the user commits. 0 when the drag
+ * announces no items at all (a bare text/uri-list).
+ */
+export function dragFileCount(event: DragEvent): number {
+  const items = Array.from(event.dataTransfer?.items ?? []);
+  return items.filter((i) => i.kind === 'file').length;
+}
+
+/**
  * Resolve one File to an absolute path, writing it into the drop store when
  * it has none of its own. Returns '' when nothing usable came back.
  */

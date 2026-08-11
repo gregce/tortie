@@ -19,17 +19,34 @@ import React, { useMemo, useState } from 'react';
 import { useApp } from '../state/store';
 import { useGit } from '../state/git';
 import { BranchHeader, ScmSection } from '../scm';
-import { FilesSection, useFileTree } from '../tree';
+import { FilesSection, useFileTree, useTreeHandle } from '../tree';
 import { Codicon } from '../icons';
 
 /** Explorer view header — the band slice above the tree ([h:36], S3B). */
 function ExplorerHeader(): React.JSX.Element {
   const refreshLoaded = useFileTree((s) => s.refreshLoaded);
+  // Phase 12.9 item 4: the name filter lives inside @pierre/trees' shadow
+  // root and opens by TYPING on a focused tree — a real gesture, and an
+  // invisible one. This button is the discoverable half; the mounted tree
+  // registers what it may call (tree/tree-handle.ts).
+  const treeHandle = useTreeHandle((s) => s.handle);
+  const filterOpen = useTreeHandle((s) => s.filterOpen);
 
   return (
     <div className="view-header" data-slot="view-header">
       <span className="view-header-title">Explorer</span>
       <span className="view-header-spacer" />
+      <button
+        type="button"
+        className={`icon-btn view-header-action${filterOpen ? ' active' : ''}`}
+        aria-label="Filter files by name"
+        aria-pressed={filterOpen}
+        title="Filter files by name"
+        disabled={treeHandle === null}
+        onClick={() => treeHandle?.toggleFilter()}
+      >
+        <Codicon name="filter" size={16} />
+      </button>
       <button
         type="button"
         className="icon-btn view-header-action"

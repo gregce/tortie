@@ -29,7 +29,7 @@ import {
 } from '../state/agents';
 import { useSettingsStore } from '../settings/settings-store';
 import { errorPayload, errorText, nextOrdinal, useApp } from '../state/store';
-import { trapTabKey } from './focus-trap';
+import { modalKeyDown } from './focus-trap';
 import { AgentIcon, Codicon } from '../icons';
 
 /** Install command for the caption row, when one is known. */
@@ -297,22 +297,12 @@ export function CreateSessionModal(): React.JSX.Element | null {
         role="dialog"
         aria-modal="true"
         aria-label="New session"
-        onKeyDown={(e) => {
-          // aria-modal promises the shell behind the scrim is inert; make
-          // the keyboard honor it (Tab cycles inside the dialog).
-          trapTabKey(e, e.currentTarget);
-          if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
-            // Let a focused button run its NATIVE activation — otherwise
-            // Enter on [Cancel] (or Choose…/chips) would create a session.
-            if ((e.target as HTMLElement).tagName === 'BUTTON') return;
-            e.preventDefault();
-            submit();
-          }
-          if (e.key === 'Escape') {
-            e.stopPropagation();
-            setOpen(false);
-          }
-        }}
+        onKeyDown={(e) =>
+          modalKeyDown(e, e.currentTarget, {
+            submit,
+            close: () => setOpen(false)
+          })
+        }
       >
         <h2 className="modal-title">New session</h2>
 

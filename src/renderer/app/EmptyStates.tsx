@@ -29,6 +29,8 @@ import './empty-states.css';
 
 export function FirstRun(): React.JSX.Element {
   const openProject = useApp((s) => s.openProject);
+  const setNewProjectOpen = useApp((s) => s.setNewProjectOpen);
+  const canCreateProject = useApp((s) => s.canCreateProject());
   return (
     <div className="empty" data-slot="terminal-stack">
       <div className="empty-inner onb-inner">
@@ -50,6 +52,18 @@ export function FirstRun(): React.JSX.Element {
           >
             Open project…
           </button>
+          {/* Phase 12.9 item 1: the second way in. Secondary, because on a
+              first run the folder almost always already exists — but present,
+              because until now it simply did not exist as an option. */}
+          {canCreateProject ? (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setNewProjectOpen(true)}
+            >
+              New project…
+            </button>
+          ) : null}
         </div>
         <p className="onb-hint">
           Press <span className="key">⌘O</span>, or drop a folder anywhere in

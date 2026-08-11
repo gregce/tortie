@@ -16,7 +16,12 @@ import type { FsOpErrno } from '@shared/fs-ops';
 import { GmuxError, gmuxError } from '../tmux/errors';
 
 /** What the user asked for, in the voice used inside the messages below. */
-export type FsOpVerb = 'create' | 'rename' | 'move' | 'delete';
+export type FsOpVerb =
+  | 'create'
+  | 'rename'
+  | 'duplicate'
+  | 'move'
+  | 'delete';
 
 const KNOWN_ERRNOS: readonly FsOpErrno[] = [
   'EACCES',
@@ -77,6 +82,7 @@ function friendly(errno: FsOpErrno, verb: FsOpVerb, name: string): string {
 const FALLBACK: Record<FsOpVerb, string> = {
   create: 'Could not create',
   rename: 'Could not rename',
+  duplicate: 'Could not duplicate',
   move: 'Could not move',
   delete: 'Could not delete'
 };

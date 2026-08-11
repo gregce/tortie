@@ -1,5 +1,6 @@
 /**
- * The project file tree (@pierre/trees) — S3 "Tree row" spec, Phase 11 swap.
+ * The project file tree (@pierre/trees) — S3 "Tree row" spec, Phase 11 swap,
+ * Phase 12.9 file management.
  *
  * Rows [h:24] render inside Pierre's shadow DOM: chevron (folders) ·
  * material icon 16px — per-type for files, the generic folder pair for
@@ -8,9 +9,7 @@
  * folder dot propagation — previously hand-rolled). Conflicted files add a
  * '!' row decoration in --git-conflict (Pierre has no conflict status).
  * Click / Enter on a file emits an open-in-editor request (diff mode when
- * the file has tracked changes). No inline file ops in v1 — context menu
- * (native, ui:popupMenu): Open, Open in New Tab, Reveal in Finder, Copy path,
- * Copy relative path.
+ * the file has tracked changes).
  *
  * The Pierre model is path-first and imperative: lazy fs:readDir listings
  * from tree/store.ts are diffed into it via `batch`, expansion is watched
@@ -19,12 +18,47 @@
  * Theming crosses the shadow boundary only through the theme bridge
  * (src/renderer/pierre/theme-bridge.ts) — mount this component fresh per
  * project root (FilesSection keys it by rootPath).
+ *
+ * ── PHASE 12.9 — what this component now owns ─────────────────────────────
+ * · CONTEXT MENU (item 2) via the library's `composition.contextMenu`, opened
+ *   through `onOpen` into the NATIVE macOS menu (DESIGN.md §3 forbids a
+ *   DOM-drawn one, so the React `renderContextMenu` slot stays empty). The
+ *   verbs themselves live in tree-ops.ts; the shape lives in tree-menu.ts.
+ * · DRAG TO MOVE (item 3) with `canDrag` locking `.git` and `canDrop` locking
+ *   it as a destination, plus a ROOT drop on the empty space below the rows —
+ *   Pierre only offers the root through a top-level FILE row, which is not
+ *   where anyone aims.
+ * · NAME FILTER (item 4): the library's own field, `hide-non-matches`.
+ *
+ * ── ONE DRAG, TWO MEANINGS ────────────────────────────────────────────────
+ * A drag that starts here means MOVE over the tree and ATTACH over a terminal
+ * pane. The contract is written once in terminal/drop/tree-drag.ts; this
+ * component performs the tree's three obligations and nothing else — it arms
+ * `beginTreeDrag` on the host's bubbled dragstart, it never installs a
+ * window-level drag listener, and it never preventDefaults a dragover outside
+ * its own box. The one line that is easy to miss is `effectAllowed`: Pierre
+ * stamps 'move', and Chromium then REFUSES the pane's 'copy' outright (the
+ * drop event never fires). Widening it to 'copyMove' is what lets the cursor
+ * name which family you are in.
+ *
+ * Model options are captured ONCE (usePierreModel snapshots them on the first
+ * render), so every callback below reads the live state through a ref.
  */
 
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react';
 import type {
   FileTreeBatchOperation,
+  ContextMenuItem,
+  ContextMenuOpenContext,
   FileTreeDirectoryHandle,
+  FileTreeDropContext,
+  FileTreeDropResult,
   FileTreeItemHandle,
   FileTreeRowDecoration,
   FileTreeRowDecorationContext,
@@ -32,18 +66,30 @@ import type {
 } from '@pierre/trees';
 import {
   FileTree as PierreTree,
-  useFileTree as usePierreModel
+  useFileTree as usePierreModel,
+  useFileTreeSearch
 } from '@pierre/trees/react';
+import { isProtectedFsPath } from '@shared/fs-ops';
 import type { FsDirEntry, GitFileStatus } from '@shared/types';
 import { useApp } from '../state/store';
-import type { MenuItemSpec } from '../state/store';
 import { showOneTimeTip } from '../app/one-time-tip';
 import { treeStyles } from '../pierre/theme-bridge';
+import { beginTreeDrag } from '../terminal/drop/tree-drag';
 import { isConflicted, openModeFor, pierreGitStatus } from './decorations';
 import { canReveal, reveal } from './fs-bridge';
+import { canDuplicate, canMutate } from './fs-ops-bridge';
 import { requestOpenFile } from './open-file';
 import { FOLDER_ICON_CSS, getPierreTreeIcons } from './pierre-icons';
 import { useFileTree } from './store';
+import { useTreeHandle } from './tree-handle';
+import {
+  buildTreeMenu,
+  copiedMessage,
+  pathsForClipboard
+} from './tree-menu';
+import { createTreeOps } from './tree-ops';
+import type { TreeOps } from './tree-ops';
+import { absOf, isDirPath, parentOf, toRel } from './tree-paths';
 
 // ---------------------------------------------------------------------------
 // Persisted expansion state (per project root)
@@ -117,6 +163,22 @@ function rowFromEvent(event: Event): RowHit | null {
   return null;
 }
 
+/**
+ * True when the keystroke came out of a text field inside the tree — the
+ * rename input or the filter field. Pierre passes unhandled keys straight
+ * through from both, so without this ⌫ in a rename would delete the file
+ * being renamed.
+ */
+function fromTextField(event: Event): boolean {
+  return event
+    .composedPath()
+    .some(
+      (target) =>
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement
+    );
+}
+
 // ---------------------------------------------------------------------------
 // Styling that must live inside the shadow root
 // ---------------------------------------------------------------------------
@@ -133,6 +195,44 @@ const TREE_UNSAFE_CSS = `
    DESIGN.md §3 asks for the amber itself. */
 [data-item-contains-git-change="true"] > [data-item-section="git"] {
   opacity: 1;
+}
+
+/* MOVE TARGET (Phase 12.9). The library paints a drop target with the
+   selection background alone, which on a row that may also be selected says
+   nothing. gmux's accent ring is the same language the split drop zone and
+   the focused pane use, and it reads as "this folder will receive it" rather
+   than "this row is selected". Custom properties inherit across the shadow
+   boundary, so --accent is the app's own token, not a copy of it. */
+[data-item-drag-target="true"] {
+  box-shadow: inset 0 0 0 1px var(--accent);
+  border-radius: var(--r-sm, 3px);
+}
+
+/* NAME FILTER, not search (Phase 12.9 item 4). The library's placeholder says
+   "Search…", which is the one word this field must not say: ⌘P fuzzy-open and
+   ⌘⇧F content search are Phase 14 and live elsewhere. This filters the rows
+   already loaded in THIS explorer, so it says so. */
+[data-file-tree-search-container] {
+  position: relative;
+}
+[data-file-tree-search-input]::placeholder {
+  color: transparent;
+}
+[data-file-tree-search-container]:has(
+    [data-file-tree-search-input]:placeholder-shown
+  )::after {
+  content: 'Filter files by name';
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: calc(
+    var(--trees-padding-inline, 0px) + var(--trees-item-padding-x, 4px) + 1px
+  );
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  color: var(--text-muted);
+  font-family: var(--trees-font-family);
+  font-size: var(--trees-font-size);
 }
 ${FOLDER_ICON_CSS}`;
 
@@ -202,7 +302,54 @@ export function FileTree({
     []
   );
 
-  // Model construction snapshot: usePierreModel captures options on first
+  // ----- everything the once-captured model options reach through ----------
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const opsRef = useRef<TreeOps | null>(null);
+  /** Bumped when the verbs exist, so the handle effect can wait for them. */
+  const [opsCreated, setOpsCreated] = useState(0);
+  const openMenuRef = useRef<
+    ((item: ContextMenuItem, ctx: ContextMenuOpenContext) => void) | null
+  >(null);
+
+  /** `.git` is never a drag source, and search freezes dragging (library). */
+  const canDrag = useCallback(
+    (paths: readonly string[]): boolean =>
+      opsRef.current !== null && !paths.some(isProtectedFsPath),
+    []
+  );
+
+  /** `.git` is never a destination either — the same one shared predicate. */
+  const canDropInto = useCallback((event: FileTreeDropContext): boolean => {
+    const dir = event.target.directoryPath;
+    return dir === null || !isProtectedFsPath(dir);
+  }, []);
+
+  /** Pierre moved its own rows first; the disk is asked second. */
+  const onDropComplete = useCallback((event: FileTreeDropResult): void => {
+    opsRef.current?.drop(
+      event.draggedPaths,
+      event.target.directoryPath ?? '',
+      true
+    );
+  }, []);
+
+  /**
+   * The model REFUSED the move — in practice because the destination already
+   * holds that name, which is exactly the case that must prompt rather than
+   * clobber. Nothing moved in the model, so the verb owns both sides.
+   */
+  const onDropError = useCallback(
+    (_message: string, event: FileTreeDropContext): void => {
+      opsRef.current?.drop(
+        event.draggedPaths,
+        event.target.directoryPath ?? '',
+        false
+      );
+    },
+    []
+  );
+
+  // Model construction snapshot: usePierreModel captures options on the first
   // render only; later listings/status flow through the effects below.
   const initialRef = useRef<{ paths: string[]; expanded: string[] } | null>(
     null
@@ -213,7 +360,7 @@ export function FileTree({
   };
   const initial = initialRef.current;
 
-  const { model } = usePierreModel({
+  const model = usePierreModel({
     paths: initial.paths,
     initialExpandedPaths: initial.expanded,
     gitStatus: gitState.entries,
@@ -221,19 +368,84 @@ export function FileTree({
     itemHeight: 24,
     overscan: 8,
     renderRowDecoration: renderConflictDecoration,
-    unsafeCSS: TREE_UNSAFE_CSS
-  });
+    unsafeCSS: TREE_UNSAFE_CSS,
+    // ---- Phase 12.9 -------------------------------------------------------
+    dragAndDrop: {
+      canDrag,
+      canDrop: canDropInto,
+      onDropComplete,
+      onDropError
+    },
+    renaming: {
+      canRename: (item) =>
+        opsRef.current !== null && !isProtectedFsPath(item.path),
+      onRename: (event) => opsRef.current?.onRenameCommitted(event),
+      onError: (message) => opsRef.current?.onRenameRejected(message)
+    },
+    search: true,
+    // Show matches with their ancestor folders and nothing else — the only
+    // one of the three modes that makes a filtered tree scannable at a
+    // glance. See DESIGN-SPEC S3B for the full argument.
+    fileTreeSearchMode: 'hide-non-matches',
+    composition: {
+      contextMenu: {
+        enabled: true,
+        // No trigger button: the row is 24px and the ⋯ lane would cost the
+        // name its width. Right-click and the keyboard menu key both route
+        // through `onOpen`, which is where the NATIVE menu is raised.
+        triggerMode: 'right-click',
+        onOpen: (item, context) => openMenuRef.current?.(item, context)
+      }
+    }
+  }).model;
 
   // ----- listings → model (diff the fed path set, batch the delta) --------
   const fedRef = useRef<Set<string>>(new Set(initial.paths));
   const restoredRef = useRef<Set<string>>(new Set());
+
+  /**
+   * Paths a file operation has frozen against this diff (see `hold` in
+   * tree-ops.ts). While an operation is in flight the model and the disk
+   * legitimately disagree, and the watcher fires every ~450 ms whenever
+   * anything writes — refereeing that disagreement is how a New Folder's
+   * inline-rename row got deleted mid-type in the live probe.
+   */
+  // Counted, not a plain set: two operations can legitimately hold the same
+  // path (drop a file, then immediately drop it again), and the first release
+  // must not unlock it out from under the second.
+  const heldRef = useRef<Map<string, number>>(new Map());
+  const [syncTick, setSyncTick] = useState(0);
+  const isHeld = useCallback((path: string): boolean => {
+    for (const held of heldRef.current.keys()) {
+      if (path === held) return true;
+      if (held.endsWith('/') && path.startsWith(held)) return true;
+    }
+    return false;
+  }, []);
+  const hold = useCallback((paths: readonly string[]): (() => void) => {
+    const held = heldRef.current;
+    for (const path of paths) held.set(path, (held.get(path) ?? 0) + 1);
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      for (const path of paths) {
+        const count = (held.get(path) ?? 1) - 1;
+        if (count > 0) held.set(path, count);
+        else held.delete(path);
+      }
+      // Re-run the diff now that the two are allowed to agree again.
+      setSyncTick((n) => n + 1);
+    };
+  }, []);
+
   useEffect(() => {
     const fed = fedRef.current;
     const next = treeInput.paths;
     const ops: FileTreeBatchOperation[] = [];
     const removedDirs: string[] = [];
     for (const path of fed) {
-      if (next.has(path)) continue;
+      if (next.has(path) || isHeld(path)) continue;
       // A recursive dir removal already covers its descendants.
       if (removedDirs.some((dir) => path !== dir && path.startsWith(dir))) {
         continue;
@@ -242,9 +454,24 @@ export function FileTree({
       ops.push({ type: 'remove', path, recursive: true });
     }
     for (const path of next) {
-      if (!fed.has(path)) ops.push({ type: 'add', path });
+      if (!fed.has(path) && !isHeld(path)) ops.push({ type: 'add', path });
     }
     if (ops.length > 0) {
+      // The baseline advances by the ops we ACTUALLY emitted, not to `next`
+      // wholesale: a held path was deliberately left alone, and overwriting
+      // the baseline with the disk's answer would forget it exists.
+      const applied = new Set(fed);
+      for (const op of ops) {
+        if (op.type === 'add') {
+          applied.add(op.path);
+        } else if (op.type === 'remove') {
+          applied.delete(op.path);
+          if (!op.path.endsWith('/')) continue;
+          for (const path of [...applied]) {
+            if (path.startsWith(op.path)) applied.delete(path);
+          }
+        }
+      }
       try {
         model.batch(ops);
       } catch {
@@ -254,9 +481,9 @@ export function FileTree({
           if (!p.endsWith('/')) return false;
           return asDirectory(model.getItem(p))?.isExpanded() === true;
         });
-        model.resetPaths([...next], { initialExpandedPaths: expanded });
+        model.resetPaths([...applied], { initialExpandedPaths: expanded });
       }
-      fedRef.current = new Set(next);
+      fedRef.current = applied;
     }
     // Re-open persisted dirs as their paths materialize (deep restores).
     for (const dir of initial.expanded) {
@@ -265,7 +492,7 @@ export function FileTree({
       const item = asDirectory(model.getItem(dir));
       if (item !== null && !item.isExpanded()) item.expand();
     }
-  }, [model, treeInput, initial]);
+  }, [model, treeInput, initial, isHeld, syncTick]);
 
   // Re-list directories that were open in a previous run (persisted state)
   // so restored folders show their children, not empty shells.
@@ -281,6 +508,25 @@ export function FileTree({
     model.setGitStatus(gitState.entries);
   }, [model, gitState]);
 
+  // ----- the verbs ---------------------------------------------------------
+  // Built once per mounted root: they hold the model and the feed baseline,
+  // which are exactly the two things a file operation has to keep in step.
+  useEffect(() => {
+    opsRef.current = createTreeOps({
+      rootPath,
+      model,
+      readFed: () => fedRef.current,
+      writeFed: (next) => {
+        fedRef.current = next;
+      },
+      hold
+    });
+    setOpsCreated((n) => n + 1);
+    return () => {
+      opsRef.current = null;
+    };
+  }, [model, rootPath, hold]);
+
   // ----- expansion watch: lazy listing + persistence ----------------------
   const expandedRef = useRef<Set<string>>(new Set(initial.expanded));
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -288,6 +534,10 @@ export function FileTree({
     let scheduled = false;
     const check = (): void => {
       scheduled = false;
+      // Esc out of a New File / New Folder and the library takes the
+      // placeholder row back out with no callback at all; this is where that
+      // gesture's hold on the diff is noticed and freed.
+      opsRef.current?.settle();
       const expanded: string[] = [];
       for (const path of fedRef.current) {
         if (!path.endsWith('/')) continue;
@@ -324,6 +574,56 @@ export function FileTree({
     };
   }, [model, rootPath, loadDir]);
 
+  // ----- the name filter ---------------------------------------------------
+  const search = useFileTreeSearch(model);
+  const registerHandle = useTreeHandle((s) => s.register);
+  const setFilterOpen = useTreeHandle((s) => s.setFilterOpen);
+
+  useEffect(() => {
+    const ops = opsRef.current;
+    if (ops === null) return;
+    registerHandle({
+      rootPath,
+      toggleFilter: () => {
+        if (model.isSearchOpen()) model.closeSearch();
+        else model.openSearch();
+      },
+      filterValue: () => model.getSearchValue(),
+      ops,
+      paths: () => [...fedRef.current],
+      startRename: (canonical) => ops.startRename(canonical),
+      shadowRoot: () =>
+        hostRef.current?.querySelector('file-tree-container')?.shadowRoot ??
+        null
+    });
+    return () => registerHandle(null);
+    // opsCreated re-runs this once the verbs exist (the effect above).
+  }, [model, rootPath, registerHandle, opsCreated]);
+
+  useEffect(() => {
+    setFilterOpen(search.isOpen);
+  }, [search.isOpen, setFilterOpen]);
+
+  // The library's field carries no accessible name (it labels itself only
+  // through aria-controls). Naming it is a two-line effect, not a fork.
+  useEffect(() => {
+    if (!search.isOpen) return;
+    const input = hostRef.current
+      ?.querySelector('file-tree-container')
+      ?.shadowRoot?.querySelector('[data-file-tree-search-input]');
+    if (input instanceof HTMLInputElement) {
+      input.setAttribute('aria-label', 'Filter files by name');
+    }
+  }, [search.isOpen]);
+
+  // Pierre shows the WHOLE tree when a query matches nothing (rather than an
+  // empty void), so the only honest signal is a line that says so — and says
+  // what the filter can see, since it can only match rows already listed.
+  const filterMissed =
+    search.isOpen &&
+    search.value.trim().length > 0 &&
+    search.matchingPaths.length === 0;
+
   // ----- gestures ----------------------------------------------------------
 
   /**
@@ -332,7 +632,8 @@ export function FileTree({
    * double-click or ↩ opens the file for keeps and the strip accumulates.
    */
   const openRel = useCallback(
-    (rel: string, keep = false): void => {
+    (canonical: string, keep = false): void => {
+      const rel = toRel(canonical);
       const kind = treeInput.kinds.get(rel);
       if (kind === 'other') return; // sockets/FIFOs/devices stay inert
       requestOpenFile({
@@ -348,10 +649,12 @@ export function FileTree({
     [rootPath, treeInput, gitState]
   );
 
-  // Pierre selects/focuses on click internally; opening is ours. Directory
-  // clicks toggle inside the shadow DOM — the expansion watcher lists them.
+  // Pierre selects/focuses on click internally; opening is ours. A modified
+  // click is a SELECTION gesture (⌘ toggles, ⇧ ranges) — opening a file the
+  // user was only adding to a selection is the classic multi-select bug.
   const onClick = useCallback(
     (e: React.MouseEvent): void => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey) return;
       const row = rowFromEvent(e.nativeEvent);
       if (row !== null && row.type === 'file') openRel(row.rel);
     },
@@ -360,92 +663,235 @@ export function FileTree({
 
   const onDoubleClick = useCallback(
     (e: React.MouseEvent): void => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey) return;
       const row = rowFromEvent(e.nativeEvent);
       if (row !== null && row.type === 'file') openRel(row.rel, true);
     },
     [openRel]
   );
 
-  // ↩ activates (Pierre leaves Enter unhandled outside search/rename, both
-  // of which are disabled here — the key bubbles out of the shadow root).
+  /**
+   * ↩ activates and ⌫ deletes. Pierre handles F2 (rename), the arrows, ⌘A and
+   * type-to-filter itself and stops those keys inside the shadow root; what
+   * reaches here is what it left alone. Keys typed into the rename input or
+   * the filter field come through unhandled too, which is why `fromTextField`
+   * is a hard gate rather than a nicety.
+   */
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent): void => {
-      if (e.key !== 'Enter') return;
-      const rel = model.getFocusedPath();
-      if (rel === null) return;
-      e.preventDefault();
-      const dir = asDirectory(model.getItem(rel));
-      if (dir !== null) {
-        dir.toggle();
-      } else {
-        openRel(rel, true);
+      if (fromTextField(e.nativeEvent) || model.isSearchOpen()) return;
+
+      if (e.key === 'Enter') {
+        const rel = model.getFocusedPath();
+        if (rel === null) return;
+        e.preventDefault();
+        const dir = asDirectory(model.getItem(rel));
+        if (dir !== null) dir.toggle();
+        else openRel(rel, true);
+        return;
+      }
+
+      if (e.key === 'Backspace' || e.key === 'Delete') {
+        const selected = model.getSelectedPaths();
+        const focused = model.getFocusedPath();
+        const targets =
+          selected.length > 0 ? selected : focused === null ? [] : [focused];
+        if (targets.length === 0) return;
+        e.preventDefault();
+        opsRef.current?.trash(targets);
       }
     },
     [model, openRel]
   );
 
+  // ----- context menu (native) --------------------------------------------
+
+  const copyPaths = useCallback(
+    (canonicals: readonly string[], relative: boolean): void => {
+      const text = pathsForClipboard(rootPath, canonicals, relative);
+      void navigator.clipboard.writeText(text).then(
+        () => toast('info', copiedMessage(canonicals.length, relative)),
+        () => toast('error', 'Could not copy the path')
+      );
+    },
+    [rootPath, toast]
+  );
+
+  const revealPath = useCallback(
+    (canonical: string): void => {
+      void reveal(absOf(rootPath, canonical)).catch(() =>
+        toast('error', 'Could not reveal the file in Finder')
+      );
+    },
+    [rootPath, toast]
+  );
+
+  /**
+   * Build and raise the menu. Finder's rule decides the subject: the verbs
+   * apply to the whole selection when the clicked row is inside it, and to
+   * that row alone when it is not.
+   */
+  const showMenuAt = useCallback(
+    (canonical: string | null, x: number, y: number): void => {
+      const ops = opsRef.current;
+      const selected = canonical === null ? [] : model.getSelectedPaths();
+      const selection =
+        canonical === null
+          ? []
+          : selected.includes(canonical)
+            ? [...selected]
+            : [canonical];
+      const rel = canonical === null ? '' : toRel(canonical);
+      const destDir =
+        canonical === null
+          ? ''
+          : isDirPath(canonical)
+            ? canonical
+            : parentOf(canonical);
+
+      const items = buildTreeMenu(
+        {
+          canonical,
+          selection,
+          destDir,
+          openable: treeInput.kinds.get(rel) !== 'other'
+        },
+        {
+          mutate: ops !== null && canMutate(),
+          duplicate: canDuplicate(),
+          reveal: canReveal()
+        },
+        {
+          open: (path, keep) => {
+            openRel(path, keep);
+            if (keep) showOneTimeTip('open-in-new-tab');
+          },
+          newEntry: (dir, kind) => ops?.newEntry(dir, kind),
+          rename: (path) => ops?.startRename(path),
+          duplicate: (path) => ops?.duplicate(path),
+          reveal: revealPath,
+          copyPaths,
+          trash: (paths) => ops?.trash(paths)
+        }
+      );
+      if (items.length === 0) return;
+      setMenu({ x, y, items });
+    },
+    [model, treeInput, openRel, revealPath, copyPaths, setMenu]
+  );
+
+  openMenuRef.current = (item, context): void => {
+    // The row is already focused by the library. Close its own (empty)
+    // surface immediately: gmux's menu is the OS's, and there is nothing
+    // to render into the slot.
+    const rect = context.anchorRect;
+    showMenuAt(item.path, rect.left, rect.bottom);
+    context.close();
+  };
+
+  /**
+   * The blank area below the rows is the ROOT. Pierre's row handler already
+   * ran (and preventDefault'd) for a real row, so a hit here means empty
+   * space — the only place "New File at the top level" can be asked for
+   * without first finding a top-level row to aim at.
+   */
   const onContextMenu = useCallback(
     (e: React.MouseEvent): void => {
-      const row = rowFromEvent(e.nativeEvent);
-      if (row === null) return;
+      if (rowFromEvent(e.nativeEvent) !== null) return;
       e.preventDefault();
-      e.stopPropagation();
-      model.focusPath(row.rel);
-      const rel = row.rel.endsWith('/') ? row.rel.slice(0, -1) : row.rel;
-      const abs = rootPath + '/' + rel;
-      const copy = (text: string, done: string): void => {
-        void navigator.clipboard.writeText(text).then(
-          () => toast('info', done),
-          () => toast('error', 'Could not copy the path')
-        );
-      };
-      // The preview/pinned tab model is invisible until something says it out
-      // loud (Phase 12.4): single click recycles one italic tab, and a user
-      // who never guesses the double-click reads that as "opening files is
-      // broken". Naming both openings here is the teaching surface — and the
-      // first use of the pinned one hands over the gesture that replaces it.
-      const kind = treeInput.kinds.get(rel);
-      const openItems: (MenuItemSpec | 'sep')[] =
-        row.type === 'file' && kind !== 'other'
-          ? [
-              { label: 'Open', run: () => openRel(rel) },
-              {
-                label: 'Open in New Tab',
-                run: () => {
-                  openRel(rel, true);
-                  showOneTimeTip('open-in-new-tab');
-                }
-              },
-              'sep'
-            ]
-          : [];
-      setMenu({
-        x: e.clientX,
-        y: e.clientY,
-        items: [
-          ...openItems,
-          ...(canReveal()
-            ? [
-                {
-                  label: 'Reveal in Finder',
-                  run: () => {
-                    void reveal(abs).catch(() =>
-                      toast('error', 'Could not reveal the file in Finder')
-                    );
-                  }
-                }
-              ]
-            : []),
-          { label: 'Copy path', run: () => copy(abs, 'Path copied') },
-          {
-            label: 'Copy relative path',
-            run: () => copy(rel, 'Relative path copied')
-          }
-        ]
-      });
+      showMenuAt(null, e.clientX, e.clientY);
     },
-    [model, openRel, rootPath, setMenu, toast, treeInput]
+    [showMenuAt]
   );
+
+  // ----- drag: the tree's half of the 12.9 / 12.10 contract ---------------
+
+  const dragPathsRef = useRef<readonly string[]>([]);
+  const rootArmedRef = useRef(false);
+  const [rootArmed, setRootArmed] = useState(false);
+
+  const onDragStart = useCallback(
+    (e: React.DragEvent): void => {
+      // Bubbled: Pierre's row handler has already run, so the drag session
+      // (and its refusal) is settled and the multi-select set is resolved.
+      // A refusal shows up as a prevented default — `.git`, an out-of-root
+      // row, or a drag attempted while the filter is narrowing the tree.
+      if (e.defaultPrevented) {
+        dragPathsRef.current = [];
+        return;
+      }
+      const paths = model.getSelectedPaths();
+      const primary = rowFromEvent(e.nativeEvent)?.rel;
+      const dragged =
+        primary !== undefined && !paths.includes(primary) ? [primary] : [...paths];
+      dragPathsRef.current = dragged;
+
+      // NOTE — `effectAllowed`: Pierre stamps 'move', which makes Chromium
+      // nullify the terminal pane's 'copy' so the drop event NEVER FIRES.
+      // Widening it to 'copyMove' is what keeps ATTACH reachable, and it is
+      // deliberately NOT done here: `beginTreeDrag` owns it, so the two halves
+      // of this contract cannot disagree and neither can lose it in a
+      // refactor. Nothing else about the transfer is ours to touch.
+      beginTreeDrag(
+        e.nativeEvent,
+        dragged.map((canonical) => absOf(rootPath, canonical)),
+        rootPath
+      );
+    },
+    [model, rootPath]
+  );
+
+  const armRoot = useCallback((armed: boolean): void => {
+    if (rootArmedRef.current === armed) return;
+    rootArmedRef.current = armed;
+    setRootArmed(armed);
+  }, []);
+
+  const onDragOver = useCallback(
+    (e: React.DragEvent): void => {
+      if (dragPathsRef.current.length === 0) return;
+      // Over a row, Pierre owns the target. Only the empty space is ours.
+      if (rowFromEvent(e.nativeEvent) !== null) {
+        armRoot(false);
+        return;
+      }
+      e.preventDefault();
+      if (e.dataTransfer !== null) e.dataTransfer.dropEffect = 'move';
+      armRoot(true);
+    },
+    [armRoot]
+  );
+
+  const onDragLeave = useCallback(
+    (e: React.DragEvent): void => {
+      const next = e.relatedTarget;
+      if (next instanceof Node && hostRef.current?.contains(next) === true) {
+        return;
+      }
+      armRoot(false);
+    },
+    [armRoot]
+  );
+
+  const onDrop = useCallback(
+    (e: React.DragEvent): void => {
+      const armedForRoot = rootArmedRef.current;
+      const dragged = dragPathsRef.current;
+      armRoot(false);
+      dragPathsRef.current = [];
+      if (!armedForRoot || dragged.length === 0) return;
+      // Pierre's own drop handler already ran with a null target, so nothing
+      // moved in the model: this verb owns both sides of the move.
+      e.preventDefault();
+      opsRef.current?.drop(dragged, '', false);
+    },
+    [armRoot]
+  );
+
+  const onDragEnd = useCallback((): void => {
+    dragPathsRef.current = [];
+    armRoot(false);
+  }, [armRoot]);
 
   // Host styles: the theme bridge's --trees-theme-* vars plus gmux type
   // tokens (fonts/sizes inherit as custom properties across the shadow
@@ -464,8 +910,16 @@ export function FileTree({
   const rootEmpty = rootLoaded && (entriesByDir[rootPath]?.length ?? 0) === 0;
 
   return (
-    <div className="files-tree">
-      {rootEmpty ? (
+    <div
+      className={`files-tree${rootArmed ? ' root-drop' : ''}`}
+      ref={hostRef}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
+    >
+      {rootEmpty && !search.isOpen ? (
         <div className="section-stub">This folder is empty.</div>
       ) : (
         <PierreTree
@@ -478,6 +932,11 @@ export function FileTree({
           aria-label="Project files"
         />
       )}
+      {filterMissed ? (
+        <p className="files-filter-note">
+          No matches in the folders you have opened.
+        </p>
+      ) : null}
     </div>
   );
 }

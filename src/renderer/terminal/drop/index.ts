@@ -44,7 +44,21 @@ export {
   MAX_REFERENCES
 } from './insert';
 export { attachPaths, resolveAll } from './pipeline';
+export type { AttachOptions } from './pipeline';
 export { backslashEscape, posixQuote, referenceText } from './reference';
 export { imageDropFor, primeImageDropTable } from './strategy';
 export { useDropUi } from './state';
 export type { AttachPromise, AttachTarget } from './state';
+// The 12.9 / 12.10 contract. The file tree calls `beginTreeDrag` from its own
+// `dragstart` and touches nothing else here; ./tree-drag.ts states the rule
+// and both sides' obligations in full.
+export {
+  beginTreeDrag,
+  endTreeDrag,
+  isTreeDragEvent,
+  looksLikeImagePath,
+  treeDrag,
+  treeDragHasImage,
+  TREE_DRAG_MIME
+} from './tree-drag';
+export type { TreeDragSession } from './tree-drag';
