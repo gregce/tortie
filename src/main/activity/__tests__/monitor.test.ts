@@ -29,6 +29,8 @@ interface FakePane {
   panePid: number;
   dead?: boolean;
   deadStatus?: string;
+  /** `#{pane_dead_signal}`, e.g. "term" — empty for a real exit. */
+  deadSignal?: string;
   /** Epoch SECONDS, as tmux reports. */
   activity: number;
   keypad?: boolean;
@@ -44,7 +46,7 @@ class Harness {
   sessions: ActivitySession[] = [];
   captures = new Map<string, string>();
   readonly statuses: Array<[string, SessionStatus]> = [];
-  readonly dead: Array<[string, number | undefined]> = [];
+  readonly dead: Array<[string, number | undefined, string | undefined]> = [];
   readonly monitor: SessionActivityMonitor;
   /** Tier-2 table; hermetic — these tests never shell out to the real `ps`. */
   procTable = '';
@@ -65,6 +67,7 @@ class Harness {
               '1',
               p.dead === true ? '1' : '0',
               p.deadStatus ?? '',
+              p.deadSignal ?? '',
               String(p.activity),
               p.keypad === true ? '1' : '0',
               p.alternate === true ? '1' : '0',
@@ -84,7 +87,7 @@ class Harness {
       claudeSessionsDir: this.claudeDir,
       onStatus: (id, status) => this.statuses.push([id, status]),
       onActivity: () => undefined,
-      onDead: (id, code) => this.dead.push([id, code]),
+      onDead: (id, code, signal) => this.dead.push([id, code, signal]),
       now: () => this.now
     });
   }
@@ -370,8 +373,28 @@ describe('dead panes', () => {
       }
     ];
     await h.tick();
-    expect(h.dead).toEqual([['d', 143]]);
+    expect(h.dead).toEqual([['d', 143, undefined]]);
     expect(h.statuses).toEqual([]);
+  });
+
+  it('hands the SIGNAL to the reaper when there is no exit code at all', async () => {
+    // The Phase 12.7 case (research 21 §7): `kill -TERM` on a process that
+    // does NOT self-map signals leaves pane_dead_status empty, so the reaper
+    // used to record a death with no cause and the UI said only "exited".
+    h.sessions = [{ id: 'k', tmuxId: '$7', agent: 'shell', cwd: '/w' }];
+    h.panes = [
+      {
+        tmuxId: '$7',
+        paneId: '%7',
+        panePid: 700,
+        activity: Math.floor(h.now / 1000),
+        dead: true,
+        deadStatus: '',
+        deadSignal: 'term'
+      }
+    ];
+    await h.tick();
+    expect(h.dead).toEqual([['k', undefined, 'term']]);
   });
 });
 
@@ -391,6 +414,7 @@ describe('cost', () => {
               String(p.panePid),
               '1',
               '0',
+              '',
               '',
               String(p.activity),
               '1',

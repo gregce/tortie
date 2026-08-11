@@ -68,6 +68,7 @@ import {
   ManifestStore,
   toSession,
   watchForRollout,
+  type LiveTmuxSession,
   type ManifestSessionRecord,
   type RolloutWatch
 } from './manifest';
@@ -156,6 +157,8 @@ export class GmuxCore {
   private readonly rolloutWatches = new Map<string, RolloutWatch>();
   /** Session ids with a restore in flight ("Restore all" double-clicks). */
   private readonly restoresInFlight = new Set<string>();
+  /** Live tmux `$-id`s proven NOT to be ours — see identify(). */
+  private readonly foreignTmuxIds = new Set<string>();
 
   /** Phase 13: per-agent activity detection (src/main/activity). */
   readonly activity: SessionActivityMonitor;
@@ -208,8 +211,8 @@ export class GmuxCore {
       onActivity: (updates) => {
         broadcast(EVT_ACTIVITY_CHANGED, updates);
       },
-      onDead: (sessionId, exitCode) => {
-        void this.reapDeadSession(sessionId, exitCode).then(() => {
+      onDead: (sessionId, exitCode, deadSignal) => {
+        void this.reapDeadSession(sessionId, exitCode, deadSignal).then(() => {
           this.scheduleSessionsBroadcast();
         });
       }
@@ -360,11 +363,15 @@ export class GmuxCore {
   private async handleUnexpectedAttachExit(sessionId: string): Promise<void> {
     const rec = this.manifest.getSession(sessionId);
     if (!rec || rec.status === 'exited' || rec.status === 'restorable') return;
-    const target = this.liveIds.get(sessionId) ?? rec.tmuxName;
-    try {
-      if (await tmux.hasSession(target)) return; // server hiccup, session lives
-    } catch {
-      /* unreachable server → refresh below sorts out restorable-vs-exited */
+    // F1: no live binding ⇒ this session is not ours to ask about. Let the
+    // refresh below flip the row to 'restorable'.
+    const target = this.liveIds.get(sessionId);
+    if (target !== undefined) {
+      try {
+        if (await tmux.hasSession(target)) return; // hiccup, session lives
+      } catch {
+        /* unreachable server → refresh sorts out restorable-vs-exited */
+      }
     }
     this.scheduleRefresh();
   }
@@ -444,7 +451,11 @@ export class GmuxCore {
     const jobs: Promise<unknown>[] = [];
     for (const rec of this.manifest.listSessions()) {
       if (rec.status === 'exited' || rec.status === 'restorable') continue;
-      const target = this.liveIds.get(rec.id) ?? rec.tmuxName;
+      // F1: only capture panes we can prove are ours — a name-resolved
+      // capture would file a STRANGER's scrollback as this session's
+      // history and replay it on restore.
+      const target = this.liveIds.get(rec.id);
+      if (target === undefined) continue;
       jobs.push(
         captureSessionSnapshot(target, rec.id).catch((err: unknown) => {
           console.warn(
@@ -493,7 +504,8 @@ export class GmuxCore {
       const updated = this.manifest.updateSession(sessionId, {
         tmuxName: info.tmuxName,
         status: 'running',
-        lastSeen: Date.now()
+        lastSeen: Date.now(),
+        ...(info.panePid !== undefined ? { panePid: info.panePid } : {})
       });
 
       // Re-mirror metadata into tmux user options (best-effort, §2.4 0.2).
@@ -536,6 +548,55 @@ export class GmuxCore {
   }
 
   /**
+   * Attach an IDENTITY to every live session before reconcile sees it.
+   *
+   * `@gmux-id` rides along in the one `list-sessions` the refresh already
+   * runs (no extra exec). The `GMUX_SESSION_ID` pane-env stamp is the second
+   * source, read ONLY for a session that has no option and whose id we would
+   * otherwise never learn — one exec each, and only for the handful of
+   * sessions gmux does not already recognize.
+   *
+   * Two stamps because both are best-effort at create; a session carrying
+   * NEITHER is not ours, and gmux leaves it strictly alone.
+   */
+  private async identify(
+    liveInfos: readonly tmux.TmuxSessionInfo[]
+  ): Promise<LiveTmuxSession[]> {
+    const known = new Set(this.manifest.listSessions().map((r) => r.id));
+    const out: LiveTmuxSession[] = [];
+    for (const info of liveInfos) {
+      let gmuxId = info.gmuxId;
+      if (
+        (gmuxId === undefined || !known.has(gmuxId)) &&
+        !this.foreignTmuxIds.has(info.sessionId)
+      ) {
+        const fromEnv = await tmux.getSessionEnv(
+          info.sessionId,
+          'GMUX_SESSION_ID'
+        );
+        if (fromEnv !== null && known.has(fromEnv)) {
+          gmuxId = fromEnv;
+          // Re-stamp the option so the next refresh needs no extra exec.
+          void tmux
+            .setSessionOption(info.sessionId, '@gmux-id', fromEnv)
+            .catch(() => undefined);
+        } else {
+          // A pane's env is fixed at create, and `$-id`s are never reused, so
+          // one probe settles this session forever. Without the memo every
+          // refresh would re-probe every foreign session on the socket.
+          this.foreignTmuxIds.add(info.sessionId);
+        }
+      }
+      out.push({
+        tmuxId: info.sessionId,
+        tmuxName: info.tmuxName,
+        ...(gmuxId !== undefined ? { gmuxId } : {})
+      });
+    }
+    return out;
+  }
+
+  /**
    * Reconcile the manifest against live tmux sessions, rebuild the id maps,
    * and broadcast the refreshed list. TMUX_UNREACHABLE (server dead — T2)
    * reconciles against an empty list so rows flip to 'restorable'; any other
@@ -557,16 +618,13 @@ export class GmuxCore {
     }
 
     const before = this.statusSnapshot();
-    const result = this.manifest.reconcile(liveInfos.map((s) => s.tmuxName));
+    const result = this.manifest.reconcile(await this.identify(liveInfos));
 
     this.liveIds.clear();
     this.byTmuxId.clear();
-    for (const info of liveInfos) {
-      const rec = this.manifest.getSessionByTmuxName(info.tmuxName);
-      if (rec && rec.status !== 'exited') {
-        this.liveIds.set(rec.id, info.sessionId);
-        this.byTmuxId.set(info.sessionId, rec.id);
-      }
+    for (const [sessionId, tmuxId] of result.bindings) {
+      this.liveIds.set(sessionId, tmuxId);
+      this.byTmuxId.set(tmuxId, sessionId);
     }
 
     if (result.unknownTmuxNames.length > 0) {
@@ -647,29 +705,45 @@ export class GmuxCore {
   }
 
   /**
-   * A pane died with a non-zero exit and `remain-on-exit failed` kept it
-   * readable: record the exit code, snapshot the scrollback, kill the shell
-   * of the session, and flip the manifest to 'exited' — the renderer shows
-   * "Session ended unexpectedly (exit N)" with [Restart][Remove].
+   * A pane died and `remain-on-exit failed` kept it readable: record HOW it
+   * died, snapshot the scrollback, kill the husk of the session, and flip the
+   * manifest to 'exited' — the renderer names the cause with [Restart][Remove].
+   *
+   * Both halves of the cause are recorded (F2): `exitCode` for a real exit,
+   * `exitSignal` for a death BY a signal, which reports an empty exit status
+   * and used to leave the UI saying nothing at all.
    */
   private async reapDeadSession(
     sessionId: string,
-    exitCode: number | undefined
+    exitCode: number | undefined,
+    deadSignal: string | undefined
   ): Promise<void> {
     const rec = this.manifest.getSession(sessionId);
-    if (!rec) return;
+    if (!rec || rec.status === 'exited') return; // gmux's own kill got here first
     this.attachHost.detach(sessionId); // expected teardown, not a surprise
-    const target = this.liveIds.get(sessionId) ?? rec.tmuxName;
-    await captureSessionSnapshot(target, sessionId).catch(() => undefined);
-    await tmux.killSession(target).catch(() => undefined);
-    const live = this.liveIds.get(sessionId);
-    if (live !== undefined) this.byTmuxId.delete(live);
+    // F1: a session we cannot bind to a live tmux id is not ours. Record the
+    // death, kill NOTHING.
+    const target = this.liveIds.get(sessionId);
+    if (target !== undefined) {
+      await captureSessionSnapshot(target, sessionId).catch(() => undefined);
+      await tmux.killSession(target).catch(() => undefined);
+      this.byTmuxId.delete(target);
+    }
     this.liveIds.delete(sessionId);
     this.manifest.updateSession(sessionId, {
       status: 'exited',
       lastSeen: Date.now(),
-      ...(exitCode !== undefined ? { exitCode } : {})
+      ...(exitCode !== undefined ? { exitCode } : {}),
+      ...(deadSignal !== undefined ? { exitSignal: deadSignal } : {})
     });
+    // The manifest row is the record of truth but it dies with a discard —
+    // this line is the copy that survives in the app log (research 21 §10).
+    console.warn(
+      `[gmux] session death: id=${sessionId} name="${rec.name}" ` +
+        `agent=${rec.agent} tmux=${target ?? '(unbound)'} ` +
+        `pane_pid=${rec.panePid ?? '?'} exit=${exitCode ?? ''} ` +
+        `signal=${deadSignal ?? ''}`
+    );
     this.activity.forget(sessionId);
     this.hookServer.revoke(sessionId);
     broadcast(EVT_STATUS_CHANGED, sessionId, 'exited');
@@ -703,21 +777,29 @@ export class GmuxCore {
   };
 
   /**
-   * Pane-addressable tmux target for a session. `=name` is honored for
-   * target-SESSION resolution but NOT for target-PANE resolution (see
-   * tmux/sessions.ts), so an unmapped session resolves through its $-id.
+   * Pane-addressable tmux target for a session: its live `$-id`, which is
+   * also pane-addressable (`=name` is honored for target-SESSION resolution
+   * but NOT for target-PANE resolution — see tmux/sessions.ts).
+   *
+   * F1: no binding means no target. Driving copy-mode through a name would
+   * scroll whatever session happens to hold it.
    */
-  private async scrollTarget(sessionId: string): Promise<string> {
+  private scrollTarget(sessionId: string): string {
     const live = this.liveIds.get(sessionId);
-    if (live !== undefined) return live;
-    const rec = this.mustGetSession(sessionId);
-    return tmux.resolvePaneTarget(rec.tmuxName);
+    if (live === undefined) {
+      throw gmuxError(
+        'SESSION_NOT_FOUND',
+        'This session is not running right now.',
+        sessionId
+      );
+    }
+    return live;
   }
 
   async scrollState(
     input: TerminalScrollPollInput
   ): Promise<TerminalScrollState> {
-    const target = await this.scrollTarget(input.sessionId);
+    const target = this.scrollTarget(input.sessionId);
     return input.anchorFrom === undefined
       ? tmux.readPaneScroll(this.runScrollCommand, target)
       : tmux.anchorPaneScroll(this.runScrollCommand, target, input.anchorFrom);
@@ -726,7 +808,7 @@ export class GmuxCore {
   async scrollBy(input: TerminalScrollByInput): Promise<TerminalScrollState> {
     return tmux.scrollPaneBy(
       this.runScrollCommand,
-      await this.scrollTarget(input.sessionId),
+      this.scrollTarget(input.sessionId),
       input.lines
     );
   }
@@ -734,7 +816,7 @@ export class GmuxCore {
   async scrollTo(input: TerminalScrollToInput): Promise<TerminalScrollState> {
     return tmux.scrollPaneTo(
       this.runScrollCommand,
-      await this.scrollTarget(input.sessionId),
+      this.scrollTarget(input.sessionId),
       input.position
     );
   }
@@ -742,7 +824,7 @@ export class GmuxCore {
   async scrollLive(sessionId: string): Promise<TerminalScrollState> {
     return tmux.exitPaneScroll(
       this.runScrollCommand,
-      await this.scrollTarget(sessionId)
+      this.scrollTarget(sessionId)
     );
   }
 
@@ -788,6 +870,7 @@ export class GmuxCore {
     // never a dead pane. The manifest then stores only absolute paths (argv
     // AND resume_argv), so restores survive PATH drift too.
     let binPath: string | undefined;
+    let bareName: string | undefined;
     if (input.agent !== 'shell') {
       // Phase 10 (settings+hotkeys stream): the binary name comes from the
       // agent REGISTRY, not the agent id — cursor's binary is `cursor-agent`,
@@ -808,6 +891,7 @@ export class GmuxCore {
         );
       }
       binPath = abs;
+      bareName = bare;
     }
 
     const id = randomUUID();
@@ -849,13 +933,23 @@ export class GmuxCore {
     // §2.4 Step 0: durability record exists BEFORE the process does.
     this.manifest.insertSession(record);
 
+    // F3 (Phase 12.7, research 21 §8) — LAUNCH BY BARE NAME. The manifest
+    // keeps the absolute path (restores must survive PATH drift, Bug A), but
+    // the absolute path in argv[0] is also what made a durable gmux agent the
+    // ONE process on the machine that `pkill -f "$(command -v claude)"` hits,
+    // while every ephemeral `claude` walked away. Bug A's real fix is the
+    // login-shell PATH injected into the tmux server env (supervisor.ts), so
+    // tmux's execvp resolves the bare name just as the user's own shell does.
+    const launchArgv =
+      bareName !== undefined ? [bareName, ...spec.argv.slice(1)] : spec.argv;
+
     let info: tmux.TmuxSessionInfo;
     try {
       info = await tmux.createSession({
         displayName: input.name,
         cwd,
-        argv: spec.argv,
-        ...(spec.env !== undefined ? { env: spec.env } : {})
+        argv: launchArgv,
+        env: { ...spec.env, ...tmux.managedPaneEnv(id) }
       });
     } catch (err) {
       // Spawn never happened — a lingering row would resurrect a session
@@ -866,8 +960,16 @@ export class GmuxCore {
 
     this.liveIds.set(id, info.sessionId);
     this.byTmuxId.set(info.sessionId, id);
-    if (info.tmuxName !== record.tmuxName) {
-      this.manifest.updateSession(id, { tmuxName: info.tmuxName });
+    // tmux may have deduped the name ("foo-2"), and `new-session -P -F`
+    // hands back the pane pid — the F2 forensic anchor, recorded once here
+    // because tmux forgets it the moment the dead pane is reaped.
+    if (info.tmuxName !== record.tmuxName || info.panePid !== undefined) {
+      this.manifest.updateSession(id, {
+        ...(info.tmuxName !== record.tmuxName
+          ? { tmuxName: info.tmuxName }
+          : {}),
+        ...(info.panePid !== undefined ? { panePid: info.panePid } : {})
+      });
     }
 
     // Mirror metadata into tmux user options so the durable server is
@@ -947,15 +1049,21 @@ export class GmuxCore {
       this.rolloutWatches.delete(sessionId);
     }
     this.attachHost.detach(sessionId);
-    const target = this.liveIds.get(sessionId) ?? rec.tmuxName;
-    // Session-close snapshot (§2.4 Step 2 capture point) — best-effort,
-    // BEFORE the pane disappears.
-    if (rec.status !== 'exited' && rec.status !== 'restorable') {
-      await captureSessionSnapshot(target, sessionId).catch(() => undefined);
+    // F1 (research 21 §6): kill the session we can PROVE is this row's — the
+    // `?? rec.tmuxName` that used to stand in here aimed kill-session at a
+    // mutable, reusable NAME, and was reproduced destroying a live session
+    // gmux never created. No live binding ⇒ nothing to kill; the row still
+    // ends, because ending it is what the user asked for.
+    const target = this.liveIds.get(sessionId);
+    if (target !== undefined) {
+      // Session-close snapshot (§2.4 Step 2 capture point) — best-effort,
+      // BEFORE the pane disappears.
+      if (rec.status !== 'exited' && rec.status !== 'restorable') {
+        await captureSessionSnapshot(target, sessionId).catch(() => undefined);
+      }
+      await tmux.killSession(target); // idempotent — already-gone is fine
+      this.byTmuxId.delete(target);
     }
-    await tmux.killSession(target); // idempotent — already-gone is fine
-    const live = this.liveIds.get(sessionId);
-    if (live !== undefined) this.byTmuxId.delete(live);
     this.liveIds.delete(sessionId);
     this.manifest.setStatus(sessionId, 'exited');
     this.activity.forget(sessionId);
@@ -992,9 +1100,11 @@ export class GmuxCore {
     }
     let target = this.liveIds.get(sessionId);
     if (target === undefined) {
-      // Maps can lag one reconcile behind — resolve directly before failing.
+      // Maps can lag one reconcile behind — resolve directly before failing,
+      // BY IDENTITY (F1). Matching on the name here would stream a stranger's
+      // session into this tab and let the user type into it.
       const live = await tmux.listSessions();
-      const info = live.find((s) => s.tmuxName === rec.tmuxName);
+      const info = live.find((s) => s.gmuxId === sessionId);
       if (info === undefined) {
         this.scheduleRefresh();
         throw gmuxError(

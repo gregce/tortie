@@ -55,6 +55,7 @@ describe('parsePaneLines', () => {
         '1',
         '0',
         '',
+        '',
         '1786397944',
         '0',
         '0',
@@ -75,26 +76,40 @@ describe('parsePaneLines', () => {
 
   it('keeps everything after the last field in the title (tabs included)', () => {
     const facts = parsePaneLines(
-      line(['$1', '%1', '10', '1', '0', '', '100', '1', '0', '0', 'zsh', 'a\tb'])
+      line(['$1', '%1', '10', '1', '0', '', '', '100', '1', '0', '0', 'zsh', 'a\tb'])
     );
     expect(facts.get('$1')?.title).toBe('a\tb');
   });
 
   it('prefers the ACTIVE pane when a session has several', () => {
     const out = [
-      line(['$9', '%1', '10', '0', '0', '', '100', '0', '0', '0', 'zsh', 'first']),
-      line(['$9', '%2', '11', '1', '0', '', '101', '0', '0', '0', 'zsh', 'active']),
-      line(['$9', '%3', '12', '0', '0', '', '102', '0', '0', '0', 'zsh', 'last'])
+      line(['$9', '%1', '10', '0', '0', '', '', '100', '0', '0', '0', 'zsh', 'first']),
+      line(['$9', '%2', '11', '1', '0', '', '', '101', '0', '0', '0', 'zsh', 'active']),
+      line(['$9', '%3', '12', '0', '0', '', '', '102', '0', '0', '0', 'zsh', 'last'])
     ].join('\n');
     expect(parsePaneLines(out).get('$9')?.title).toBe('active');
   });
 
   it('reads a dead pane and its exit code', () => {
     const facts = parsePaneLines(
-      line(['$2', '%5', '0', '1', '1', '143', '99', '0', '0', '0', 'zsh', ''])
+      line(['$2', '%5', '0', '1', '1', '143', '', '99', '0', '0', '0', 'zsh', ''])
     );
     expect(facts.get('$2')?.dead).toBe(true);
     expect(facts.get('$2')?.deadStatus).toBe(143);
+    expect(facts.get('$2')?.deadSignal).toBeUndefined();
+  });
+
+  it('reads a pane killed BY a signal — empty status, signal set', () => {
+    // Measured on tmux 3.6a (research 21 §3): `kill -TERM` on a process that
+    // does not trap the signal reports dead_status EMPTY and dead_signal
+    // "term". Reading only the status is how a targeted kill became a
+    // session that "just exited".
+    const facts = parsePaneLines(
+      line(['$3', '%9', '0', '1', '1', '', 'term', '99', '0', '0', '0', 'sleep', ''])
+    );
+    expect(facts.get('$3')?.dead).toBe(true);
+    expect(facts.get('$3')?.deadStatus).toBeUndefined();
+    expect(facts.get('$3')?.deadSignal).toBe('term');
   });
 
   it('never asks tmux for window_bell_flag or session_activity', () => {

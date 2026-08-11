@@ -76,7 +76,9 @@ export async function restoreSessionInTmux(
     displayName: rec.name,
     cwd,
     argv: [shell],
-    ...(rec.env !== undefined ? { env: rec.env } : {})
+    // Same markers a fresh create stamps (Phase 12.7 F3): a restored session
+    // is just as managed, and identity must survive the round trip.
+    env: { ...rec.env, ...tmux.managedPaneEnv(rec.id) }
   });
 
   // From here on, target the immutable $-id (rename-proof addressing).

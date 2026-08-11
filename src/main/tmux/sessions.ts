@@ -39,6 +39,19 @@ export interface TmuxSessionInfo {
   attached: boolean;
   /** Number of windows (gmux uses exactly one per session). */
   windows: number;
+  /**
+   * The `@gmux-id` user option gmux stamps on every session it creates or
+   * restores — the manifest row id. THE identity (Phase 12.7 / research 21
+   * §6): names are mutable and reusable, this is not. Undefined for sessions
+   * gmux did not create (or whose stamp failed).
+   */
+  gmuxId?: string;
+  /**
+   * `#{pane_pid}` of the session's pane, captured at create only (the create
+   * format asks for it; `list-sessions` does not). Recorded in the manifest
+   * so a post-mortem can correlate a death against `ps` history.
+   */
+  panePid?: number;
 }
 
 export interface CreateTmuxSessionInput {
@@ -56,24 +69,49 @@ export interface CreateTmuxSessionInput {
 }
 
 // ---------------------------------------------------------------------------
-// list-sessions format: name LAST so embedded spaces can't break parsing.
-// Fields are space-separated; the first three never contain spaces.
+// list-sessions format: name LAST so embedded spaces can't break parsing
+// (a session really is called "zen of tortie" on this machine). Every field
+// before it is space-free: ids, counts, and `@gmux-id` (a UUID, or EMPTY for
+// a session gmux did not create — hence `(\S*)`, which matches the empty run
+// between the two spaces tmux emits for an unset option).
+//
+// CREATE_FORMAT adds `#{pane_pid}`, which only resolves against a single
+// unambiguous pane — true for `new-session -P -F`, not for `list-sessions`
+// (research 21 §10: the pid is captured at create so a death is correlatable
+// against `ps` history long after tmux has forgotten the pane).
 // ---------------------------------------------------------------------------
 
 const LIST_FORMAT =
-  '#{session_id} #{session_created} #{session_attached} #{session_windows} #{session_name}';
+  '#{session_id} #{session_created} #{session_attached} #{session_windows} #{@gmux-id} #{session_name}';
 
-function parseListLine(line: string): TmuxSessionInfo | null {
-  // <"$id"> <created-epoch-s> <attached-count> <windows> <name…>
-  const m = /^(\$\d+) (\d+) (\d+) (\d+) (.*)$/.exec(line);
+const CREATE_FORMAT =
+  '#{session_id} #{session_created} #{session_attached} #{session_windows} #{@gmux-id} #{pane_pid} #{session_name}';
+
+/** Exported for the format tests — every other caller goes through the ops. */
+export function parseListLine(
+  line: string,
+  withPanePid = false
+): TmuxSessionInfo | null {
+  // <"$id"> <created-epoch-s> <attached> <windows> <@gmux-id> [pid] <name…>
+  const re = withPanePid
+    ? /^(\$\d+) (\d+) (\d+) (\d+) (\S*) (\d*) (.*)$/
+    : /^(\$\d+) (\d+) (\d+) (\d+) (\S*) (.*)$/;
+  const m = re.exec(line);
   if (m === null) return null;
-  return {
+  const gmuxId = m[5] as string;
+  const info: TmuxSessionInfo = {
     sessionId: m[1] as string,
     createdAt: Number(m[2]) * 1000,
     attached: Number(m[3]) > 0,
     windows: Number(m[4]),
-    tmuxName: m[5] as string
+    tmuxName: (withPanePid ? m[7] : m[6]) as string
   };
+  if (gmuxId.length > 0) info.gmuxId = gmuxId;
+  if (withPanePid) {
+    const pid = Number(m[6]);
+    if (Number.isFinite(pid) && pid > 0) info.panePid = pid;
+  }
+  return info;
 }
 
 // ---------------------------------------------------------------------------
@@ -133,7 +171,7 @@ export async function createSession(
     taken
   );
 
-  const args = ['new-session', '-d', '-P', '-F', LIST_FORMAT, '-s', tmuxName];
+  const args = ['new-session', '-d', '-P', '-F', CREATE_FORMAT, '-s', tmuxName];
   args.push('-c', input.cwd);
   for (const [key, value] of Object.entries(input.env ?? {})) {
     args.push('-e', `${key}=${value}`);
@@ -147,7 +185,7 @@ export async function createSession(
 
   const stdout = await execTmux(args);
   const firstLine = stdout.split('\n')[0] ?? '';
-  const info = parseListLine(firstLine);
+  const info = parseListLine(firstLine, true);
   if (info === null) {
     throw gmuxError(
       'SPAWN_FAILED',
@@ -305,6 +343,35 @@ export async function getSessionOption(
       name
     ]);
     const value = out.replace(/\n$/, '');
+    return value.length > 0 ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Read one variable out of a session's tmux environment — the SECOND
+ * identity stamp (Phase 12.7 F3 puts `GMUX_SESSION_ID` in every managed
+ * pane's env). Used only to rescue a session whose `@gmux-id` option is
+ * missing; a session carrying neither stamp is not ours.
+ *
+ * `show-environment -t <t> NAME` prints `NAME=value`, `-NAME` when the
+ * variable is explicitly unset, and exits non-zero when it is unknown.
+ */
+export async function getSessionEnv(
+  target: string,
+  name: string
+): Promise<string | null> {
+  try {
+    const out = await execTmux([
+      'show-environment',
+      '-t',
+      formatSessionTarget(target),
+      name
+    ]);
+    const line = out.split('\n')[0] ?? '';
+    if (!line.startsWith(`${name}=`)) return null;
+    const value = line.slice(name.length + 1);
     return value.length > 0 ? value : null;
   } catch {
     return null;

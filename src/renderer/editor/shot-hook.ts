@@ -61,6 +61,13 @@ export interface ShotDriveSpec {
    */
   fakeTabs?: boolean;
   /**
+   * Inject one renderer-only session that was KILLED FROM OUTSIDE (status
+   * 'exited' with `exitSignal`, the Phase 12.7 F2 shape) and focus it, so the
+   * capture shows the honest banner — "Session terminated by SIGTERM
+   * (external)" — instead of the old "exit 143". Pure store injection.
+   */
+  fakeKilled?: boolean;
+  /**
    * Hover the HEAD commit row in the SCM History section and wait for the
    * rich hover card (round 1, change 5) to open before capture.
    */
@@ -426,6 +433,27 @@ export function installShotHook(): void {
       ];
       useApp.setState((s) => ({ sessions: [...s.sessions, ...fakes] }));
       await wait(300);
+    }
+
+    if (spec.fakeKilled === true) {
+      const killed: Session = {
+        projectPath: spec.projectPath,
+        cwd: spec.projectPath,
+        id: 'shot-killed-1',
+        name: 'claude-api',
+        tmuxName: 'claude-api',
+        agent: 'claude',
+        status: 'exited',
+        // No exitCode at all: a process that dies BY a signal reports an
+        // empty #{pane_dead_status}. This is the case that used to render as
+        // a plain, unexplained "Session ended".
+        exitSignal: 'term',
+        createdAt: Date.now() - 26 * 60_000
+      };
+      useApp.setState((s) => ({ sessions: [...s.sessions, killed] }));
+      await wait(200);
+      useApp.getState().setActiveSession(killed.id);
+      await wait(500);
     }
 
     if (spec.minimap !== undefined) {

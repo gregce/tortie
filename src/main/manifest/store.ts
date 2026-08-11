@@ -46,12 +46,32 @@ export interface ManifestSessionRecord extends Session {
   env?: Record<string, string>;
   /** Epoch ms this session was last confirmed alive in tmux. */
   lastSeen: number;
+  /**
+   * `#{pane_pid}` as tmux reported it at create (Phase 12.7 F2). Main-process
+   * only — the renderer never shows a pid; this exists so a death can be
+   * correlated against `ps`/log history after the pane is gone.
+   */
+  panePid?: number;
 }
 
 /** Fields a caller may patch after creation. */
 export type ManifestSessionPatch = Partial<
   Omit<ManifestSessionRecord, 'id' | 'createdAt'>
 >;
+
+/**
+ * One live tmux session as reconcile sees it. `gmuxId` is the identity
+ * (`@gmux-id`, or the `GMUX_SESSION_ID` pane-env stamp when the option is
+ * missing); `tmuxId` is the immutable `$-id` the caller will address it by.
+ * Names appear here for reporting only — reconcile never claims a row by
+ * one (research 21 §6: a name is mutable and reusable, so name-binding let
+ * gmux adopt — and then kill — a session it never created).
+ */
+export interface LiveTmuxSession {
+  tmuxId: string;
+  tmuxName: string;
+  gmuxId?: string;
+}
 
 /** Result of reconciling the manifest against live tmux sessions. */
 export interface ReconcileResult {
@@ -68,10 +88,17 @@ export interface ReconcileResult {
    */
   exited: ManifestSessionRecord[];
   /**
-   * Live tmux session names with no manifest row (e.g. created by hand on
-   * the private socket). gmux may adopt or ignore them — caller's call.
+   * Live tmux sessions with no manifest row (created by hand on the private
+   * socket, or belonging to another gmux install). IGNORED — gmux touches
+   * nothing it cannot prove it owns.
    */
   unknownTmuxNames: string[];
+  /**
+   * manifest session id → live tmux `$-id`, for every row claimed above.
+   * The caller's `liveIds` map is this, verbatim: one matching algorithm,
+   * in one place (growth guardrail — it used to be re-derived by name).
+   */
+  bindings: Map<string, string>;
 }
 
 // ---------------------------------------------------------------------------
@@ -94,6 +121,10 @@ interface SessionRow {
   last_seen: number;
   /** Exit status of the session's process, when known (migration 002). */
   exit_code: number | null;
+  /** Signal that killed it, e.g. "term" (migration 003). */
+  exit_signal: string | null;
+  /** `#{pane_pid}` captured at create (migration 003). */
+  pane_pid: number | null;
 }
 
 interface ProjectRow {
@@ -186,6 +217,12 @@ function rowToRecord(row: SessionRow): ManifestSessionRecord {
   if (row.exit_code !== null && row.exit_code !== undefined) {
     record.exitCode = row.exit_code;
   }
+  if (row.exit_signal !== null && row.exit_signal !== undefined) {
+    record.exitSignal = row.exit_signal;
+  }
+  if (row.pane_pid !== null && row.pane_pid !== undefined) {
+    record.panePid = row.pane_pid;
+  }
   return record;
 }
 
@@ -206,6 +243,7 @@ export function toSession(record: ManifestSessionRecord): Session {
   }
   if (record.resumeArgv !== undefined) session.resumeArgv = record.resumeArgv;
   if (record.exitCode !== undefined) session.exitCode = record.exitCode;
+  if (record.exitSignal !== undefined) session.exitSignal = record.exitSignal;
   return session;
 }
 
@@ -258,6 +296,20 @@ const MIGRATIONS: readonly Migration[] = [
     name: '002-exit-code',
     up: (db) => {
       db.exec('ALTER TABLE sessions ADD COLUMN exit_code INTEGER;');
+    }
+  },
+  {
+    // Phase 12.7 (research 21 §7): exit_code is WEXITSTATUS only — a process
+    // that dies BY a signal reports an EMPTY #{pane_dead_status} and puts the
+    // signal in #{pane_dead_signal}, so every non-self-mapping agent used to
+    // vanish with no recorded cause at all. pane_pid rides along: captured at
+    // create, it is what lets a post-mortem correlate against `ps` history.
+    name: '003-death-forensics',
+    up: (db) => {
+      db.exec(`
+        ALTER TABLE sessions ADD COLUMN exit_signal TEXT;
+        ALTER TABLE sessions ADD COLUMN pane_pid INTEGER;
+      `);
     }
   }
 ];
@@ -342,11 +394,12 @@ export class ManifestStore {
         .prepare(
           `INSERT INTO sessions
              (id, name, tmux_name, project_path, cwd, agent, agent_session_id,
-              argv, resume_argv, env, status, created_at, last_seen, exit_code)
+              argv, resume_argv, env, status, created_at, last_seen, exit_code,
+              exit_signal, pane_pid)
            VALUES
              (@id, @name, @tmuxName, @projectPath, @cwd, @agent,
               @agentSessionId, @argv, @resumeArgv, @env, @status,
-              @createdAt, @lastSeen, @exitCode)`
+              @createdAt, @lastSeen, @exitCode, @exitSignal, @panePid)`
         )
         .run({
           id: record.id,
@@ -364,7 +417,9 @@ export class ManifestStore {
           status: record.status,
           createdAt: record.createdAt,
           lastSeen: record.lastSeen,
-          exitCode: record.exitCode ?? null
+          exitCode: record.exitCode ?? null,
+          exitSignal: record.exitSignal ?? null,
+          panePid: record.panePid ?? null
         });
     } catch (err) {
       throw manifestError(
@@ -380,21 +435,6 @@ export class ManifestStore {
     const row = this.db
       .prepare<[string], SessionRow>('SELECT * FROM sessions WHERE id = ?')
       .get(id);
-    return row ? rowToRecord(row) : undefined;
-  }
-
-  /**
-   * Look up by sanitized tmux-side name. Prefers non-exited rows (an old
-   * exited row may share a tmux name with a newer live session), then the
-   * newest by creation time.
-   */
-  getSessionByTmuxName(tmuxName: string): ManifestSessionRecord | undefined {
-    const row = this.db
-      .prepare<[string], SessionRow>(
-        `SELECT * FROM sessions WHERE tmux_name = ?
-         ORDER BY (status = 'exited') ASC, created_at DESC LIMIT 1`
-      )
-      .get(tmuxName);
     return row ? rowToRecord(row) : undefined;
   }
 
@@ -441,6 +481,8 @@ export class ManifestStore {
     if (patch.status !== undefined) merged.status = patch.status;
     if (patch.lastSeen !== undefined) merged.lastSeen = patch.lastSeen;
     if (patch.exitCode !== undefined) merged.exitCode = patch.exitCode;
+    if (patch.exitSignal !== undefined) merged.exitSignal = patch.exitSignal;
+    if (patch.panePid !== undefined) merged.panePid = patch.panePid;
 
     this.db
       .prepare(
@@ -448,7 +490,8 @@ export class ManifestStore {
            name = @name, tmux_name = @tmuxName, project_path = @projectPath,
            cwd = @cwd, agent = @agent, agent_session_id = @agentSessionId,
            argv = @argv, resume_argv = @resumeArgv, env = @env,
-           status = @status, last_seen = @lastSeen, exit_code = @exitCode
+           status = @status, last_seen = @lastSeen, exit_code = @exitCode,
+           exit_signal = @exitSignal, pane_pid = @panePid
          WHERE id = @id`
       )
       .run({
@@ -464,7 +507,9 @@ export class ManifestStore {
         env: merged.env ? JSON.stringify(merged.env) : null,
         status: merged.status,
         lastSeen: merged.lastSeen,
-        exitCode: merged.exitCode ?? null
+        exitCode: merged.exitCode ?? null,
+        exitSignal: merged.exitSignal ?? null,
+        panePid: merged.panePid ?? null
       });
     return merged;
   }
@@ -516,59 +561,66 @@ export class ManifestStore {
   // -------------------------------------------------------------------------
 
   /**
-   * Compare the manifest against the tmux-side truth (list of live tmux
-   * session names on the private socket).
+   * Compare the manifest against the tmux-side truth on the private socket.
    *
-   * - Rows whose tmux session is alive: lastSeen refreshed; rows previously
-   *   'restorable'/'exited' flip back to 'running' (they demonstrably exist;
-   *   finer running/idle/needs_input state is the status detector's job).
-   * - Non-exited rows missing from tmux: marked 'restorable'.
+   * IDENTITY, NOT NAMES (Phase 12.7 F1, research 21 §6). A row is claimed by
+   * `@gmux-id`/`GMUX_SESSION_ID` — the id gmux stamped on the session when it
+   * created it — and by nothing else. The old name matching adopted any live
+   * session that happened to hold a row's name, which is how gmux could end
+   * up killing a session it never created (reproduced: a foreign session took
+   * a freed name, was adopted, and died in place of the real one).
+   *
+   * - Rows whose session is alive: lastSeen refreshed, tmux_name re-synced
+   *   (tmux is truth for names — an external rename no longer disowns the
+   *   row), and 'restorable'/'exited' flip back to 'running'.
+   * - Non-exited rows with no live session: marked 'restorable'. NOT killed,
+   *   not adopted from anything else.
    * - 'exited' rows missing from tmux: left untouched.
-   * - Live tmux names with no manifest row: reported for the caller.
+   * - Live sessions with no matching row: reported and otherwise ignored.
    *
    * Runs in a single transaction; synchronous.
    */
-  reconcile(tmuxSessionNames: readonly string[]): ReconcileResult {
-    const liveNames = new Set(tmuxSessionNames);
+  reconcile(live: readonly LiveTmuxSession[]): ReconcileResult {
     const result: ReconcileResult = {
       alive: [],
       restorable: [],
       exited: [],
-      unknownTmuxNames: []
+      unknownTmuxNames: [],
+      bindings: new Map<string, string>()
     };
 
     this.db.transaction(() => {
       const all = this.listSessions();
+      const byId = new Map(all.map((rec) => [rec.id, rec]));
       const now = Date.now();
 
-      // A tmux name can appear on several rows (old exited + current). Give
-      // each live name to the best-matching row: non-exited first, then
-      // newest. Every other non-exited row missing from tmux → restorable.
-      const claimed = new Set<string>();
-      const byPreference = [...all].sort((a, b) => {
-        const aExited = a.status === 'exited' ? 1 : 0;
-        const bExited = b.status === 'exited' ? 1 : 0;
-        if (aExited !== bExited) return aExited - bExited;
-        return b.createdAt - a.createdAt;
-      });
-
-      const aliveIds = new Set<string>();
-      for (const rec of byPreference) {
-        if (liveNames.has(rec.tmuxName) && !claimed.has(rec.tmuxName)) {
-          claimed.add(rec.tmuxName);
-          aliveIds.add(rec.id);
+      // One live session per row and one row per live session: a duplicate
+      // id (two servers, one manifest) must not double-claim.
+      const claimedRows = new Map<string, LiveTmuxSession>();
+      for (const session of live) {
+        const rec =
+          session.gmuxId !== undefined ? byId.get(session.gmuxId) : undefined;
+        if (rec === undefined || claimedRows.has(rec.id)) {
+          result.unknownTmuxNames.push(session.tmuxName);
+          continue;
         }
+        claimedRows.set(rec.id, session);
       }
 
       for (const rec of all) {
-        if (aliveIds.has(rec.id)) {
+        const session = claimedRows.get(rec.id);
+        if (session !== undefined) {
           const needsStatusFlip =
             rec.status === 'restorable' || rec.status === 'exited';
           const updated = this.updateSession(rec.id, {
             lastSeen: now,
+            ...(session.tmuxName !== rec.tmuxName
+              ? { tmuxName: session.tmuxName }
+              : {}),
             ...(needsStatusFlip ? { status: 'running' as const } : {})
           });
           result.alive.push(updated);
+          result.bindings.set(rec.id, session.tmuxId);
         } else if (rec.status === 'exited') {
           result.exited.push(rec);
         } else {
@@ -578,10 +630,6 @@ export class ManifestStore {
               : this.updateSession(rec.id, { status: 'restorable' });
           result.restorable.push(updated);
         }
-      }
-
-      for (const name of liveNames) {
-        if (!claimed.has(name)) result.unknownTmuxNames.push(name);
       }
     })();
 

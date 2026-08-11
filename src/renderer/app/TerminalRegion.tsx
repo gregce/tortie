@@ -40,7 +40,7 @@ import {
   useLayout
 } from '../state/layout';
 import type { Surface } from '../state/layout';
-import { rollupDot, statusVisual } from './status';
+import { endedBadly, endedTitle, rollupDot, statusVisual } from './status';
 import { useNow } from './format';
 import {
   RenameInput,
@@ -140,7 +140,7 @@ function SessionTab({
   const setActiveSession = useApp((s) => s.setActiveSession);
 
   const status = effectiveStatusOf(session);
-  const visual = statusVisual(status, session.exitCode);
+  const visual = statusVisual(status, session);
   const rename = useRenameDraft(session);
   const renaming = rename.renaming;
 
@@ -253,7 +253,7 @@ function GroupTab({
   const tooltip = groupTooltip(
     members.map((m, i) => ({
       name: m.name,
-      label: statusVisual(statuses[i] ?? 'idle', m.exitCode).label
+      label: statusVisual(statuses[i] ?? 'idle', m).label
     }))
   );
 
@@ -442,7 +442,7 @@ function SessionTabStrip({
         ? `${sess?.name ?? ''} +${surf.leafIds.length - 1}`
         : (sess?.name ?? '');
       const visual = sess
-        ? statusVisual(effectiveStatusOf(sess), sess.exitCode)
+        ? statusVisual(effectiveStatusOf(sess), sess)
         : null;
       return {
         label: `${surf.id === activeSurfaceId ? '✓ ' : ''}${label}`,
@@ -567,7 +567,7 @@ function IdentityStrip({
   const setMenu = useApp((s) => s.setMenu);
 
   const status = effectiveStatusOf(session);
-  const visual = statusVisual(status, session.exitCode);
+  const visual = statusVisual(status, session);
   // Marker suffix so the dock row's rename input (plain id) never doubles up.
   const rename = useRenameDraft(session, `strip:${session.id}`);
   const renaming = rename.renaming;
@@ -746,15 +746,14 @@ export function TerminalRegion(): React.JSX.Element {
   const status = active ? effectiveStatusOf(active) : null;
   const exited = active !== null && status === 'exited';
   const restorable = active !== null && status === 'restorable';
-  // §6.6 exit-code truth: a recorded non-zero exit renders the failed state.
-  const failedExit =
-    exited && active.exitCode !== undefined && active.exitCode !== 0
-      ? active.exitCode
-      : null;
+  // §6.6 exit-code truth: a recorded non-zero exit — or a recorded SIGNAL,
+  // which carries no exit code at all (Phase 12.7 F2) — renders the failed
+  // state, and endedTitle() names the cause instead of printing a number.
+  const failed = exited && endedBadly(active);
   // Bug A (Phase 9.2): exit 127 on an agent session = its command wasn't
   // found. Explain and hand over the recovery instead of a bare exit code.
   const commandNotFound =
-    failedExit === 127 && active !== null && active.agent !== 'shell'
+    exited && active.exitCode === 127 && active.agent !== 'shell'
       ? active.agent
       : null;
 
@@ -826,18 +825,16 @@ export function TerminalRegion(): React.JSX.Element {
         // same copy and actions instead. Restorable sessions (Phase 6)
         // offer the real §2.4 Step 3 restore: saved scrollback replayed,
         // resume command armed — you press Enter.
-        <div className={`empty${failedExit !== null ? ' empty-failed' : ''}`}>
+        <div className={`empty${failed ? ' empty-failed' : ''}`}>
           {/* onb-inner: one rhythm across every full-window state (§6.2/§6.6
               share the type scale and action spacing — app/empty-states.css). */}
           <div className="empty-inner onb-inner">
             <h2 className="empty-title">
               {commandNotFound !== null
                 ? `${commandNotFound} could not be found`
-                : failedExit !== null
-                  ? `Session ended unexpectedly (exit ${failedExit})`
-                  : exited
-                    ? 'Session ended'
-                    : 'Ready to restore'}
+                : exited
+                  ? endedTitle(active)
+                  : 'Ready to restore'}
             </h2>
             <p className="empty-body">
               {commandNotFound !== null

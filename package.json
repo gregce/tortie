@@ -15,6 +15,7 @@
     "smoke:verify": "GMUX_SMOKE=verify electron .",
     "smoke:t1": "npm run build && GMUX_SMOKE=create electron . && GMUX_SMOKE=verify electron .",
     "smoke:t3": "npm run build && GMUX_SMOKE=t3-prep electron . && GMUX_SMOKE=t3-verify electron .",
+    "smoke:identity": "npm run build && GMUX_SMOKE=identity electron . --user-data-dir=\"${TMPDIR:-/tmp/}gmux-smoke-identity\"",
     "test": "vitest run",
     "shot": "npm run build && GMUX_SHOT=\"${GMUX_SHOT:-out/gmux-shot.png}\" electron .",
     "start": "electron-vite preview",

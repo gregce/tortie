@@ -9,6 +9,7 @@ export {
   toSession,
   type ManifestSessionRecord,
   type ManifestSessionPatch,
+  type LiveTmuxSession,
   type ReconcileResult
 } from './store';
 

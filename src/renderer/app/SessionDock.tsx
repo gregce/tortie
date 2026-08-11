@@ -66,7 +66,7 @@ function DockRow({
 }): React.JSX.Element {
   const lastActivity = useApp((s) => s.lastActivity);
   const status = effectiveStatusOf(session);
-  const visual = statusVisual(status, session.exitCode);
+  const visual = statusVisual(status, session);
   const rename = useRenameDraft(session);
   const renaming = rename.renaming;
 
@@ -174,7 +174,7 @@ function GroupDockRow({
         title={groupTooltip(
           members.map((m, i) => ({
             name: m.name,
-            label: statusVisual(statuses[i] ?? 'idle', m.exitCode).label
+            label: statusVisual(statuses[i] ?? 'idle', m).label
           }))
         )}
         className={[

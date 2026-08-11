@@ -43,6 +43,10 @@ export {
   type CapturePathOptions
 } from './resolve';
 
+// Pane environment: the UTF-8 guard (Bug C) and the GMUX_* markers every
+// managed pane carries (Phase 12.7 F3).
+export { managedPaneEnv, withUtf8Locale } from './env';
+
 export {
   TmuxControlClient,
   CONTROL_SESSION_NAME,
@@ -75,6 +79,7 @@ export {
   resolvePaneTarget,
   setSessionOption,
   getSessionOption,
+  getSessionEnv,
   type CapturePaneOptions,
   type TmuxSessionInfo,
   type CreateTmuxSessionInput,

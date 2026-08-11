@@ -69,6 +69,16 @@ export interface Session {
    * non-zero value drives the "failed" visual (hollow red dot, error copy).
    */
   exitCode?: number;
+  /**
+   * APPENDED (Phase 12.7, research 21 §7): the SIGNAL that killed the
+   * session's process, as tmux reports it in `#{pane_dead_signal}` (lower
+   * case, no SIG prefix — e.g. "term"). A process that dies BY a signal has
+   * an empty `pane_dead_status`, so without this field a targeted `kill`
+   * looked exactly like a clean exit. Undefined for real exits (including
+   * the 128+n codes agents that self-map signals report themselves) and for
+   * rows written before this field existed.
+   */
+  exitSignal?: string;
 }
 
 /** A project tab: one repo checkout. */

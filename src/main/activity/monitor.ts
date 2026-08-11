@@ -98,8 +98,17 @@ export interface ActivityMonitorDeps {
   claudeSessionsDir?: string;
   onStatus(sessionId: string, status: SessionStatus, at: number): void;
   onActivity(updates: SessionActivityUpdate[]): void;
-  /** `#{pane_dead}` — ipc.ts owns reaping and the exit-code record. */
-  onDead(sessionId: string, exitCode: number | undefined): void;
+  /**
+   * `#{pane_dead}` — ipc.ts owns reaping and the death record. BOTH halves
+   * travel: a clean exit carries a code, a signalled death carries a signal
+   * name and NO code (research 21 §3), and neither can be inferred from the
+   * other.
+   */
+  onDead(
+    sessionId: string,
+    exitCode: number | undefined,
+    deadSignal: string | undefined
+  ): void;
   now?(): number;
 }
 
@@ -316,7 +325,7 @@ export class SessionActivityMonitor {
       const pane = facts.get(session.tmuxId);
       if (pane === undefined) continue;
       if (pane.dead) {
-        this.deps.onDead(session.id, pane.deadStatus);
+        this.deps.onDead(session.id, pane.deadStatus, pane.deadSignal);
         this.forget(session.id);
         continue;
       }

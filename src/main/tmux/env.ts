@@ -22,6 +22,24 @@
 export const DEFAULT_UTF8_LANG = 'en_US.UTF-8';
 
 /**
+ * The marker variables every gmux-managed pane carries (Phase 12.7 F3,
+ * research 21 §8). Before these, nothing on the machine distinguished a
+ * DURABLE agent from a disposable one — the only distinguishing mark gmux
+ * left was an absolute `argv[0]`, which made its sessions the single most
+ * `pkill -f`-able copy of an agent on the box. These are the honest
+ * replacement: positive, greppable, and harmless.
+ *
+ *  - GMUX_MANAGED=1        this pane belongs to a gmux session
+ *  - GMUX_SESSION_ID=<uuid> the manifest row id (also the `@gmux-id` option),
+ *                          so identity survives even if the option is lost
+ *
+ * Applied at create AND at restore, via tmux `new-session -e`.
+ */
+export function managedPaneEnv(sessionId: string): Record<string, string> {
+  return { GMUX_MANAGED: '1', GMUX_SESSION_ID: sessionId };
+}
+
+/**
  * Mirrors tmux's own client check (tmux.c): first non-empty of
  * LC_ALL → LC_CTYPE → LANG, case-insensitive match on "UTF-8"/"UTF8".
  */

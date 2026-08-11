@@ -36,6 +36,13 @@ export interface PaneFacts {
   dead: boolean;
   /** Exit code from `#{pane_dead_status}` when tmux reported a number. */
   deadStatus?: number;
+  /**
+   * `#{pane_dead_signal}` — the signal that killed the process, e.g. "term"
+   * (Phase 12.7 F2). MUTUALLY EXCLUSIVE with deadStatus: a process that dies
+   * BY a signal reports an EMPTY dead_status, which is why a targeted `kill`
+   * used to be recorded as no exit at all (measured, research 21 §3).
+   */
+  deadSignal?: string;
   /** Epoch ms of the last output tmux saw (from `#{window_activity}`). */
   activityAt: number;
   currentCommand: string;
@@ -51,7 +58,7 @@ export interface PaneFacts {
 
 /**
  * `pane_title` goes LAST: it is the one field whose content is arbitrary, so
- * everything after the 11th tab belongs to it.
+ * everything after the 12th tab belongs to it.
  */
 export const PANE_FORMAT = [
   '#{session_id}',
@@ -60,6 +67,7 @@ export const PANE_FORMAT = [
   '#{pane_active}',
   '#{pane_dead}',
   '#{pane_dead_status}',
+  '#{pane_dead_signal}',
   '#{window_activity}',
   '#{keypad_flag}',
   '#{alternate_on}',
@@ -68,7 +76,7 @@ export const PANE_FORMAT = [
   '#{pane_title}'
 ].join('\t');
 
-const TITLE_FIELD = 11;
+const TITLE_FIELD = 12;
 
 function num(value: string | undefined): number {
   const n = Number(value);
@@ -90,6 +98,7 @@ export function parsePaneLines(out: string): Map<string, PaneFacts> {
     const paneId = f[1];
     if (tmuxId === undefined || paneId === undefined) continue;
     const deadStatus = f[5];
+    const deadSignal = f[6];
     const facts: PaneFacts = {
       tmuxId,
       paneId,
@@ -99,11 +108,14 @@ export function parsePaneLines(out: string): Map<string, PaneFacts> {
       ...(deadStatus !== undefined && /^\d+$/.test(deadStatus)
         ? { deadStatus: parseInt(deadStatus, 10) }
         : {}),
-      activityAt: num(f[6]) * 1000,
-      keypad: f[7] === '1',
-      alternate: f[8] === '1',
-      inMode: f[9] === '1',
-      currentCommand: f[10] ?? '',
+      ...(deadSignal !== undefined && deadSignal.length > 0
+        ? { deadSignal }
+        : {}),
+      activityAt: num(f[7]) * 1000,
+      keypad: f[8] === '1',
+      alternate: f[9] === '1',
+      inMode: f[10] === '1',
+      currentCommand: f[11] ?? '',
       title: f.slice(TITLE_FIELD).join('\t')
     };
     const prev = bySession.get(tmuxId);

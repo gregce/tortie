@@ -20,7 +20,7 @@ import {
   MIN_PANE_WIDTH
 } from '../../state/split-tree';
 import type { SplitBranch, SplitNode } from '../../state/split-tree';
-import { statusVisual } from '../status';
+import { endedTitle, statusVisual } from '../status';
 import {
   RenameInput,
   closeSession,
@@ -51,7 +51,7 @@ function SplitHeader({
   const popOut = useLayout((s) => s.popOut);
 
   const status = effectiveStatusOf(session);
-  const visual = statusVisual(status, session.exitCode);
+  const visual = statusVisual(status, session);
   const ended = status === 'exited' || status === 'restorable';
   const rename = useRenameDraft(session);
   const renaming = rename.renaming;
@@ -147,21 +147,14 @@ function SplitPaneState({ session }: { session: Session }): React.JSX.Element {
   const restoringIds = useApp((s) => s.restoringIds);
 
   const restorable = session.status === 'restorable';
-  const failedExit =
-    session.status === 'exited' &&
-    session.exitCode !== undefined &&
-    session.exitCode !== 0
-      ? session.exitCode
-      : null;
 
   return (
     <div className="split-state">
+      {/* Same honest headline as the full-window state (Phase 12.7 F2): a
+          session killed from outside says so, instead of showing the exit
+          code its agent happened to translate the signal into. */}
       <div className="split-state-title">
-        {restorable
-          ? 'Ready to restore'
-          : failedExit !== null
-            ? `Session ended unexpectedly (exit ${failedExit})`
-            : 'Session ended'}
+        {restorable ? 'Ready to restore' : endedTitle(session)}
       </div>
       <div className="split-state-actions">
         {restorable && canRestore() ? (
