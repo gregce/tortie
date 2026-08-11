@@ -4,19 +4,28 @@
 # machine, which cannot produce a distributable signature — so identity: null
 # (electron-builder ad-hoc signs arm64 so the app still launches locally).
 # Deferred to a future packaging pass: Developer ID signing, hardened runtime
-# + entitlements, notarization/stapling, nested Mach-O signing for a bundled
-# pinned tmux (today we rely on system tmux 3.6a — see BUILD-STATUS.md),
-# auto-update feed.
+# + entitlements, notarization/stapling, and a bundled pinned tmux (today we
+# rely on system tmux 3.6a — see BUILD-STATUS.md), auto-update feed.
+# NOT deferred any more: nested Mach-O signing. Phase 15 bundles specstory-cli
+# at Contents/Resources/bin/specstory, listed in mac.binaries for the day an
+# identity exists and ad-hoc hardened by build/sign-nested-binaries.cjs today.
 appId: com.specstory.gmux
 productName: gmux
 artifactName: ${productName}-${version}-${arch}.${ext}
 directories:
   output: release
   buildResources: build
+# Phase 15: vendor the pinned specstory-cli release into build/vendor before
+# extraResources are copied — the 41 MB Mach-O is NOT in git, so without this
+# a fresh clone would silently package an app with no specstory in it.
+# Idempotent and network-free once the pinned hash is on disk.
+beforePack: build/before-pack.cjs
 # Phase 13.8: electron-builder renames the helper BUNDLES and executables from
 # productName but leaves their Info.plist CFBundleName at "Electron Helper (…)".
 # This hook makes the two agree so every gmux process answers to gmux however
-# macOS is asked. See build/after-pack.cjs.
+# macOS is asked. Phase 15 added a second step: hardening/signing the nested
+# CLI binaries, which must happen BEFORE the app is sealed (Appendix F.3,
+# inside-out). See build/after-pack.cjs.
 afterPack: build/after-pack.cjs
 files:
   - out/**
@@ -135,6 +144,20 @@ extraResources:
   # `ENOENT: web-tree-sitter.wasm` (research 19 §7.3).
   - from: node_modules/web-tree-sitter/web-tree-sitter.wasm
     to: tree-sitter/web-tree-sitter.wasm
+  # Phase 15 (SpecStory): the pinned specstory-cli arm64 binary + the sidecar
+  # that names its version, at Contents/Resources/bin/. Same mechanism as
+  # gmux-tmux.conf — src/main/specstory/resolve.ts finds it via
+  # process.resourcesPath — and the same reason it is extraResources rather
+  # than asarUnpack: one STABLE path outside the asar, because signing keys off
+  # it (mac.binaries below) and so does TCC attribution for anything the CLI
+  # spawns (research 09 Appendix F.3).
+  #
+  # 41 MB uncompressed / ~16 MB in the DMG. It buys a capture toggle that works
+  # on a machine that has never heard of SpecStory (research 13 §2.1-2.3).
+  # The directory is produced by build/fetch-specstory.cjs from the pin in
+  # build/specstory-release.json and is NOT in git; beforePack materialises it.
+  - from: build/vendor/specstory/bin
+    to: bin
 asarUnpack:
   - "**/*.node"
   # Phase 14: the vendored ripgrep Mach-O (@vscode/ripgrep-darwin-arm64) is
@@ -168,6 +191,22 @@ mac:
   identity: null
   hardenedRuntime: false
   gatekeeperAssess: false
+  # Phase 15 — the nested Mach-O list for the signing pass (Appendix F.3:
+  # notarization rejects any embedded binary that is not Developer ID-signed
+  # with hardened runtime, and signing is inside-out). Relative paths are
+  # resolved against the .app root by app-builder-lib.
+  #
+  # This list is INERT while `identity: null` — electron-builder's sign() bails
+  # at handleNullIdentity() before it ever reads `binaries`. Until an identity
+  # exists, build/sign-nested-binaries.cjs signs the same file ad-hoc with
+  # hardened runtime from the afterPack hook, so today's build already carries
+  # the shape notarization will want. Keep the two lists in step.
+  #
+  # ZERO entitlements are needed for it: CGO-free Go, no JIT, no unsigned
+  # executable memory, and `otool -L` shows only Apple system dylibs, so
+  # library validation is satisfied trivially.
+  binaries:
+    - Contents/Resources/bin/specstory
 dmg:
   # Plain drag-to-Applications layout; no signing, no license panel.
   contents:

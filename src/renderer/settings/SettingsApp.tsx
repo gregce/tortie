@@ -18,15 +18,25 @@ import { GeneralSection } from './GeneralSection';
 import { KeyboardSection } from './KeyboardSection';
 import { LaunchDefaultsSection } from './LaunchDefaultsSection';
 import { useSettingsStore } from './settings-store';
+import { SpecStorySection } from './SpecStorySection';
 import './settings.css';
 
-type SectionId = 'general' | 'agents' | 'keyboard' | 'launch-defaults';
+type SectionId =
+  | 'general'
+  | 'agents'
+  | 'keyboard'
+  | 'launch-defaults'
+  | 'specstory';
 
 const SECTIONS: { id: SectionId; label: string; icon: string }[] = [
   { id: 'general', label: 'General', icon: 'settings-gear' },
   { id: 'agents', label: 'Agents', icon: 'hubot' },
   { id: 'keyboard', label: 'Keyboard', icon: 'keyboard' },
-  { id: 'launch-defaults', label: 'Launch defaults', icon: 'rocket' }
+  { id: 'launch-defaults', label: 'Launch defaults', icon: 'rocket' },
+  // Phase 15. Last on the rail: it is the newest section and the least often
+  // visited, and inserting it mid-list would move four items people already
+  // know the position of.
+  { id: 'specstory', label: 'SpecStory', icon: 'cloud' }
 ];
 
 export function SettingsApp(): React.JSX.Element {
@@ -97,6 +107,7 @@ export function SettingsApp(): React.JSX.Element {
         {section === 'agents' ? <AgentsSection /> : null}
         {section === 'keyboard' ? <KeyboardSection /> : null}
         {section === 'launch-defaults' ? <LaunchDefaultsSection /> : null}
+        {section === 'specstory' ? <SpecStorySection /> : null}
       </main>
     </div>
   );

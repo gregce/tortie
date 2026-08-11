@@ -121,6 +121,48 @@ export type AgentIdCapture =
   /** No conversation id exists to capture (the capture-only IDE pair). */
   | { mode: 'none' };
 
+/**
+ * specstory-cli provider ids (Phase 15 capture). One per agent whose
+ * transcript specstory knows how to read; NOT every gmux agent has one, and a
+ * missing row is the honest answer "this agent cannot be captured", never a
+ * guess. Availability is a second question the registry cannot answer: the
+ * INSTALLED CLI decides which of these exist (released 2.8.0 ships nine and has
+ * never heard of `muse`), so ./specstory/resolve.ts probes the real binary and the
+ * capture toggle only lights up for the intersection.
+ */
+export type SpecstoryProviderId =
+  | 'claude'
+  | 'codex'
+  | 'cursor'
+  | 'gemini'
+  | 'droid'
+  | 'deepseek'
+  | 'antigravity'
+  | 'muse';
+
+/**
+ * How this agent behaves UNDER `specstory run` (research 13 §1.1, re-measured
+ * hands-on 2026-08-11 against the bundled specstory 2.8.0, and re-measured on every test run by specstory/__tests__/wrap.integration.test.ts).
+ */
+export interface AgentSpecstoryCapture {
+  provider: SpecstoryProviderId;
+  /**
+   * What the wrapper's own exit status says about the agent's.
+   *
+   * 'exact' — the provider mirrors the child's code (`os.Exit(code)`).
+   * 'collapsed' — ANY non-zero child exit arrives as 1. Measured: a child
+   * exiting 42 comes back 42 through claude/cursor/gemini and 1 through
+   * codex/deepseek/droid/antigravity. This is not cosmetic: Phase 12.7 death
+   * forensics and Phase 13 status detection both read exit codes, so a
+   * captured session in this group has a WEAKER death record than an
+   * uncaptured one, and gmux records that rather than pretending otherwise.
+   */
+  exitCodeFidelity: 'exact' | 'collapsed';
+  /** 'verified' = the fidelity above was measured, not read off source. */
+  verified: 'verified' | 'unverified';
+  notes?: string;
+}
+
 /** How to ask the binary who it is / what version it runs. */
 export interface VersionProbe {
   /** Args after the binary, e.g. ['-v'] or ['--version']. */
@@ -308,6 +350,12 @@ export interface AgentRegistryEntry {
    * CLI gmux has never seen still reports correctly on first launch.
    */
   activity?: AgentActivityProfile;
+  /**
+   * How this agent is CAPTURED by specstory (Phase 15). Absent = specstory
+   * has no provider for it, so gmux offers no capture toggle for it — pi and
+   * qwen today, plus the capture-only IDE pair gmux never launches.
+   */
+  specstory?: AgentSpecstoryCapture;
   notes?: string;
 }
 
@@ -406,6 +454,13 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     reconstructionTarget: true,
     // pid-file registry, VERIFIED end-to-end (PROBE A + synthesis run).
     activity: { tier: 'native', native: 'claude-session-registry', animatesWhenIdle: false, hooks: 'claude-settings', verified: 'verified' },
+    specstory: {
+      provider: 'claude',
+      exitCodeFidelity: 'exact',
+      verified: 'verified',
+      notes:
+        'MEASURED 2026-08-11 against the BUNDLED 2.8.0 (and 2.5.0 before it): children exiting 0/42/127 exit the wrapper 0/42/127, and ^C in a tmux pane leaves #{pane_dead_status}=130 — byte-identical to the unwrapped control pane. Re-measured on every run by specstory/__tests__/wrap.integration.test.ts.'
+    },
     iconKey: 'claude',
     defaultHotkeyHint: 'c',
     multilineKey: {
@@ -455,6 +510,13 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     reconstructionTarget: true,
     // Not probed — floor only until someone runs the matrix on it.
     activity: { tier: 'screen', animatesWhenIdle: false, verified: 'unverified' },
+    specstory: {
+      provider: 'cursor',
+      exitCodeFidelity: 'exact',
+      verified: 'verified',
+      notes:
+        'MEASURED 2026-08-11 (bundled 2.8.0): child exits 42/127 -> wrapper 42/127. Executable: specstory/__tests__/wrap.integration.test.ts.'
+    },
     iconKey: 'cursor',
     defaultHotkeyHint: 'u',
     multilineKey: {
@@ -516,6 +578,13 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     reconstructionTarget: true,
     // #{pane_title} 3-state oracle: 0 % FN / 0 % FP over n=156.
     activity: { tier: 'native', native: 'pane-title-oracle', animatesWhenIdle: false, verified: 'verified' },
+    specstory: {
+      provider: 'codex',
+      exitCodeFidelity: 'collapsed',
+      verified: 'verified',
+      notes:
+        'MEASURED 2026-08-11 (bundled 2.8.0): child exits 42 AND 127 both -> wrapper 1. Every non-zero death of a captured codex session records as 1, so the manifest exit code is a floor, not the truth.'
+    },
     iconKey: 'codex',
     defaultHotkeyHint: 'x',
     multilineKey: {
@@ -568,6 +637,13 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     reconstructionTarget: true,
     // Auth-blocked during research; title carries no state channel.
     activity: { tier: 'screen', animatesWhenIdle: false, verified: 'unverified' },
+    specstory: {
+      provider: 'gemini',
+      exitCodeFidelity: 'exact',
+      verified: 'verified',
+      notes:
+        'MEASURED 2026-08-11 (bundled 2.8.0): child exits 42/127 -> wrapper 42/127. Executable: specstory/__tests__/wrap.integration.test.ts.'
+    },
     iconKey: 'gemini',
     defaultHotkeyHint: 'g',
     multilineKey: { sequence: LF, verified: true },
@@ -607,6 +683,13 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     reconstructionTarget: true,
     // Not installed here; hook shape is docs-only. Floor only.
     activity: { tier: 'screen', animatesWhenIdle: false, verified: 'unverified' },
+    specstory: {
+      provider: 'droid',
+      exitCodeFidelity: 'collapsed',
+      verified: 'verified',
+      notes:
+        'MEASURED 2026-08-11 (bundled 2.8.0) at the WRAPPER, which is what this field is about: child exit 42 -> wrapper 1. droid itself is still not installed anywhere gmux has been audited.'
+    },
     iconKey: 'droid',
     defaultHotkeyHint: 'd',
     multilineKey: {
@@ -664,6 +747,13 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     reconstructionTarget: true,
     // Animates at idle (6 events/15 s) — the activity clock is unusable.
     activity: { tier: 'process', animatesWhenIdle: true, verified: 'partial' },
+    specstory: {
+      provider: 'deepseek',
+      exitCodeFidelity: 'collapsed',
+      verified: 'verified',
+      notes:
+        'MEASURED 2026-08-11 (bundled 2.8.0): child exits 42/127 both -> wrapper 1. NOTE gmux never lets specstory translate deepseek resume: the CLI builds `deepseek --resume <id>`, which exits RC=2 with "unexpected argument" (research 22). gmux wraps its OWN verified resume argv in -c instead.'
+    },
     iconKey: 'deepseek',
     defaultHotkeyHint: 'k',
     multilineKey: {
@@ -723,6 +813,13 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     reconstructionTarget: false,
     // Idle byte-silence VERIFIED; title is 'Mac', no state channel.
     activity: { tier: 'screen', animatesWhenIdle: false, verified: 'partial' },
+    specstory: {
+      provider: 'antigravity',
+      exitCodeFidelity: 'collapsed',
+      verified: 'verified',
+      notes:
+        'MEASURED 2026-08-11 (bundled 2.8.0): child exits 42/127 both -> wrapper 1.'
+    },
     iconKey: 'antigravity',
     defaultHotkeyHint: 'a',
     multilineKey: {
@@ -782,6 +879,13 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     reconstructionTarget: true,
     // 1 output/s while idle; ~12 s pre-first-token window needs T3.
     activity: { tier: 'process', animatesWhenIdle: true, verified: 'partial' },
+    specstory: {
+      provider: 'muse',
+      exitCodeFidelity: 'exact',
+      verified: 'unverified',
+      notes:
+        "Source says exact (muse_exec.go:96), but NO RELEASED CLI HAS THIS PROVIDER: measured 2026-08-11 against the bundled 2.8.0, `specstory run muse` answers \"Provider 'muse' is not a valid provider implementation\" and exits 1, and `run --help` lists nine providers without it — muse exists only on the unreleased muse-provider branch. gmux probes the real binary's provider list, so the capture toggle stays dark for muse until a CLI that actually has it is resolved."
+    },
     iconKey: 'muse',
     defaultHotkeyHint: 'm',
     multilineKey: { sequence: LF, verified: true },

@@ -1,0 +1,15 @@
+{
+  "note": "THE PIN for the specstory-cli copy bundled inside gmux.app. build/fetch-specstory.cjs is the only reader; bump version + tag + the two hashes together, never one of them. Hashes come from the release's own SpecStoryCLI_<version>_checksums.txt (assetSha256) and `shasum -a 256` of the extracted binary (binarySha256).",
+  "repo": "specstoryai/getspecstory",
+  "tag": "v2.8.0",
+  "version": "2.8.0",
+  "assets": {
+    "darwin-arm64": {
+      "name": "SpecStoryCLI_Darwin_arm64.tar.gz",
+      "member": "specstory",
+      "assetSha256": "ef70a4278ab5ef2f98618e517fc2d61b2aba192dffd42a46ea03d2de9141bf24",
+      "binarySha256": "f26e94a1c8007a2de401aa5277eae386a7401905479baf5c68d19111bad64648",
+      "binaryBytes": 43189586
+    }
+  }
+}

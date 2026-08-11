@@ -88,6 +88,53 @@ export interface Session {
    * rows written before this field existed.
    */
   exitSignal?: string;
+  /**
+   * APPENDED (Phase 15): SpecStory capture for this session, when it is on.
+   * Absent = an ordinary uncaptured session. See SessionCapture.
+   */
+  capture?: SessionCapture;
+}
+
+/**
+ * What a captured session's row tells the renderer (Phase 15).
+ *
+ * It exists as a projection rather than a boolean because two of its fields
+ * change what the UI may CLAIM:
+ *
+ *  - `exitCodeApproximate` — under `specstory run`, four of the eight
+ *    providers collapse every non-zero agent exit to 1 (measured: a child
+ *    exiting 42 comes back 1 through codex/deepseek/droid/antigravity). The
+ *    death report must not present that number as the agent's own.
+ *  - `cloud` — whether this capture could reach SpecStory Cloud at all. "Saved
+ *    locally" and "saved and uploaded" are different promises and the user
+ *    signed in (or did not) expecting one of them.
+ */
+/**
+ * A capture failure the user needs to hear about once (Phase 15).
+ *
+ * Only failures travel. `kind` distinguishes the two the user can act on:
+ * `sync-failed` is "the tail of this conversation may not be saved", and
+ * `declined` is "you asked for capture at create and it did not happen" —
+ * said at create time rather than discovered later in an empty history folder.
+ */
+export interface SessionCaptureNotice {
+  kind: 'sync-failed' | 'declined';
+  /** The session it is about, so the toast can name it. */
+  sessionId: string;
+  sessionName: string;
+  /** One plain sentence, already written for a toast. */
+  message: string;
+}
+
+export interface SessionCapture {
+  /** The `specstory run <provider>` positional this session launched under. */
+  provider: string;
+  /** Absolute path of the SpecStory binary the session was launched with. */
+  bin: string;
+  /** Version of that binary at create time, when it identified itself. */
+  binVersion?: string;
+  /** True when this session's recorded exitCode may be a collapsed 1. */
+  exitCodeApproximate: boolean;
 }
 
 /** A project tab: one repo checkout. */
@@ -113,6 +160,14 @@ export interface CreateSessionInput {
   agent: AgentKind;
   /** Extra argv appended to the agent command (e.g. --model, --add-dir). */
   extraArgs?: string[];
+  /**
+   * APPENDED (Phase 15): run this session under SpecStory capture. Omitted or
+   * false = the bare agent, exactly as before. Requesting capture is a
+   * REQUEST, not a guarantee — main declines (and says so) when there is no
+   * SpecStory CLI, no provider for this agent, or an argv that cannot survive
+   * the wrapper unchanged. See SessionCapture for what actually happened.
+   */
+  capture?: boolean;
 }
 
 export interface RenameSessionInput {

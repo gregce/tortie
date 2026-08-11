@@ -15,6 +15,7 @@
     "smoke:verify": "GMUX_SMOKE=verify electron .",
     "smoke:t1": "npm run build && GMUX_SMOKE=create electron . && GMUX_SMOKE=verify electron .",
     "smoke:t3": "npm run build && GMUX_SMOKE=t3-prep electron . && GMUX_SMOKE=t3-verify electron .",
+    "smoke:capture": "npm run build && GMUX_SMOKE=capture electron . --user-data-dir=\"${TMPDIR:-/tmp/}gmux-smoke-capture\"",
     "smoke:identity": "npm run build && GMUX_SMOKE=identity electron . --user-data-dir=\"${TMPDIR:-/tmp/}gmux-smoke-identity\"",
     "smoke:procid": "npm run build && GMUX_SMOKE=procid electron . --user-data-dir=\"${TMPDIR:-/tmp/}gmux-smoke-procid\"",
     "conformance:resume": "npm run build && GMUX_SMOKE=conformance-resume electron . --user-data-dir=\"${TMPDIR:-/tmp/}gmux-conformance-resume\"",
@@ -24,6 +25,7 @@
     "shot": "npm run build && GMUX_SHOT=\"${GMUX_SHOT:-out/gmux-shot.png}\" electron .",
     "start": "electron-vite preview",
     "postinstall": "electron-rebuild -f -w node-pty,better-sqlite3",
+    "vendor:specstory": "node build/fetch-specstory.cjs",
     "package": "electron-vite build && electron-builder --mac",
     "package:dir": "electron-vite build && electron-builder --mac --dir",
     "icon": "cp docs/brand/tortie/macos/Tortie.icns build/icon.icns && cp docs/brand/tortie/menu-bar/TortieTemplate.png docs/brand/tortie/menu-bar/TortieTemplate@2x.png resources/menu-bar/ && cp docs/brand/tortie/dock/tortie-dock-128.png src/renderer/assets/brand/tortie-128.png"

@@ -24,8 +24,10 @@ import type {
   Project,
   ResumeCapture,
   Session,
+  SessionCapture,
   SessionStatus
 } from '@shared/types';
+import type { SpecstoryCaptureRecord } from '../specstory/capture';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -53,6 +55,19 @@ export interface ManifestSessionRecord extends Session {
    * correlated against `ps`/log history after the pane is gone.
    */
   panePid?: number;
+  /**
+   * SpecStory capture (Phase 15), present only on sessions created with the
+   * capture toggle ON.
+   *
+   * THIS IS WHAT MAKES A RESTORED SESSION KEEP CAPTURING. `argv` and
+   * `resumeArgv` are stored in their WRAPPED form — they are what gmux spawns
+   * and what restore types into the pane — and this record carries the two
+   * things that cannot be recovered from them: the unwrapped agent argv
+   * (`agentArgv`, because re-splitting the `-c` string is the lossy
+   * direction) and the exact binary the session launched with, so a `brew
+   * upgrade` mid-session cannot change what an armed resume means.
+   */
+  specstory?: SpecstoryCaptureRecord;
 }
 
 /** Fields a caller may patch after creation. */
@@ -128,6 +143,8 @@ interface SessionRow {
   pane_pid: number | null;
   /** Resume-capture state (migration 004, Phase 13.5). */
   resume_capture: string | null;
+  /** SpecStory capture record as JSON (migration 005, Phase 15). */
+  specstory: string | null;
 }
 
 interface ProjectRow {
@@ -219,6 +236,43 @@ function parseJsonObject(
   }
 }
 
+/**
+ * Parse the `specstory` column. Every field is checked because this row can
+ * be years old by the time a restore reads it, and a half-parsed capture
+ * record would compose a launch argv naming a binary that is not there.
+ * Anything that fails validation is dropped whole: the session then restores
+ * UNCAPTURED, which is a visible, honest degradation.
+ */
+function parseSpecstory(text: string | null): SpecstoryCaptureRecord | undefined {
+  if (text === null) return undefined;
+  try {
+    const v: unknown = JSON.parse(text);
+    if (v === null || typeof v !== 'object' || Array.isArray(v)) return undefined;
+    const o = v as Record<string, unknown>;
+    const bin = o['bin'];
+    const provider = o['provider'];
+    const agentArgv = o['agentArgv'];
+    if (typeof bin !== 'string' || bin.length === 0) return undefined;
+    if (typeof provider !== 'string' || provider.length === 0) return undefined;
+    if (!Array.isArray(agentArgv) || agentArgv.length === 0) return undefined;
+    const version = o['binVersion'];
+    return {
+      enabled: o['enabled'] === true,
+      bin,
+      binVersion: typeof version === 'string' ? version : null,
+      provider: provider as SpecstoryCaptureRecord['provider'],
+      exitCodeFidelity: o['exitCodeFidelity'] === 'collapsed' ? 'collapsed' : 'exact',
+      agentArgv: agentArgv.map(String),
+      // Local-only capture is a property OF THE SESSION, not of today's
+      // environment: a session created under the no-cloud opt-out must come
+      // back without one, rather than gaining an upload at restore.
+      ...(o['noCloud'] === true ? { noCloud: true } : {})
+    };
+  } catch {
+    return undefined;
+  }
+}
+
 function rowToRecord(row: SessionRow): ManifestSessionRecord {
   const record: ManifestSessionRecord = {
     id: row.id,
@@ -248,7 +302,25 @@ function rowToRecord(row: SessionRow): ManifestSessionRecord {
   }
   const capture = asResumeCapture(row.resume_capture);
   if (capture !== undefined) record.resumeCapture = capture;
+  const specstory = parseSpecstory(row.specstory);
+  if (specstory !== undefined) record.specstory = specstory;
   return record;
+}
+
+/**
+ * The renderer's view of capture. Only the facts the UI may act on travel:
+ * the provider it runs under, which binary (Settings shows it), and the one
+ * caveat that changes what the death report may claim.
+ */
+export function toSessionCapture(
+  record: SpecstoryCaptureRecord
+): SessionCapture {
+  return {
+    provider: record.provider,
+    bin: record.bin,
+    ...(record.binVersion !== null ? { binVersion: record.binVersion } : {}),
+    exitCodeApproximate: record.exitCodeFidelity === 'collapsed'
+  };
 }
 
 /** Strip main-process-only fields down to the shared Session projection. */
@@ -272,6 +344,9 @@ export function toSession(record: ManifestSessionRecord): Session {
   }
   if (record.exitCode !== undefined) session.exitCode = record.exitCode;
   if (record.exitSignal !== undefined) session.exitSignal = record.exitSignal;
+  if (record.specstory?.enabled === true) {
+    session.capture = toSessionCapture(record.specstory);
+  }
   return session;
 }
 
@@ -348,6 +423,19 @@ const MIGRATIONS: readonly Migration[] = [
     name: '004-resume-capture',
     up: (db) => {
       db.exec('ALTER TABLE sessions ADD COLUMN resume_capture TEXT;');
+    }
+  },
+  {
+    // Phase 15 (research 13 §3.1): SpecStory capture, as JSON, on the sessions
+    // that asked for it. NULL — the value every pre-existing row gets — is
+    // "not captured", which is exactly what those sessions were.
+    //
+    // It is one column rather than four because the fields are meaningless
+    // apart: a provider without the binary that has it, or a binary without
+    // the unwrapped agent argv, cannot compose anything.
+    name: '005-specstory-capture',
+    up: (db) => {
+      db.exec('ALTER TABLE sessions ADD COLUMN specstory TEXT;');
     }
   }
 ];
@@ -433,12 +521,12 @@ export class ManifestStore {
           `INSERT INTO sessions
              (id, name, tmux_name, project_path, cwd, agent, agent_session_id,
               argv, resume_argv, env, status, created_at, last_seen, exit_code,
-              exit_signal, pane_pid, resume_capture)
+              exit_signal, pane_pid, resume_capture, specstory)
            VALUES
              (@id, @name, @tmuxName, @projectPath, @cwd, @agent,
               @agentSessionId, @argv, @resumeArgv, @env, @status,
               @createdAt, @lastSeen, @exitCode, @exitSignal, @panePid,
-              @resumeCapture)`
+              @resumeCapture, @specstory)`
         )
         .run({
           id: record.id,
@@ -459,7 +547,8 @@ export class ManifestStore {
           exitCode: record.exitCode ?? null,
           exitSignal: record.exitSignal ?? null,
           panePid: record.panePid ?? null,
-          resumeCapture: record.resumeCapture ?? null
+          resumeCapture: record.resumeCapture ?? null,
+          specstory: record.specstory ? JSON.stringify(record.specstory) : null
         });
     } catch (err) {
       throw manifestError(
@@ -526,6 +615,7 @@ export class ManifestStore {
     if (patch.resumeCapture !== undefined) {
       merged.resumeCapture = patch.resumeCapture;
     }
+    if (patch.specstory !== undefined) merged.specstory = patch.specstory;
 
     this.db
       .prepare(
@@ -535,7 +625,7 @@ export class ManifestStore {
            argv = @argv, resume_argv = @resumeArgv, env = @env,
            status = @status, last_seen = @lastSeen, exit_code = @exitCode,
            exit_signal = @exitSignal, pane_pid = @panePid,
-           resume_capture = @resumeCapture
+           resume_capture = @resumeCapture, specstory = @specstory
          WHERE id = @id`
       )
       .run({
@@ -554,7 +644,8 @@ export class ManifestStore {
         exitCode: merged.exitCode ?? null,
         exitSignal: merged.exitSignal ?? null,
         panePid: merged.panePid ?? null,
-        resumeCapture: merged.resumeCapture ?? null
+        resumeCapture: merged.resumeCapture ?? null,
+        specstory: merged.specstory ? JSON.stringify(merged.specstory) : null
       });
     return merged;
   }

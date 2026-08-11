@@ -132,6 +132,17 @@ export function sanitizeSettings(raw: unknown): GmuxSettings {
     }
   }
 
+  // Per-agent SpecStory capture defaults (Phase 15). Unknown ids dropped and
+  // only `true` is stored: an explicit false is the absence of the key, which
+  // keeps a hand-edited file from teaching the map a third state.
+  const capture = obj['captureDefaults'];
+  if (capture !== null && typeof capture === 'object') {
+    for (const [id, on] of Object.entries(capture as Record<string, unknown>)) {
+      if (!LAUNCHABLE_SET.has(id) || on !== true) continue;
+      out.captureDefaults[id as LaunchableAgentId] = true;
+    }
+  }
+
   const acked = obj['dangerAcknowledged'];
   if (Array.isArray(acked)) {
     out.dangerAcknowledged = [...new Set(

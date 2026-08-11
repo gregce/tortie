@@ -1270,8 +1270,9 @@
    the SHARED board now — app/agent-grid.css, drawn identically by the §6.2
    fleet state — so there is deliberately nothing left in this file. */
 
-/* S6 round 2 — launch-flag preset rows ("Options") + the Phase-12 capture
-   placeholder. Danger presets carry the warning icon and error-washed chip. */
+/* S6 round 2 — launch-flag preset rows ("Options") and the SpecStory capture
+   row, which is the same control so the sheet has ONE checkbox vocabulary.
+   Danger presets carry the warning icon and error-washed chip. */
 .preset-row {
   display: flex;
   align-items: center;
@@ -1331,25 +1332,6 @@
 .preset-row.danger .preset-flag {
   background: var(--error-wash);
   color: var(--error);
-}
-
-.capture-placeholder {
-  cursor: default;
-}
-
-.capture-placeholder .preset-label {
-  color: var(--text-muted);
-}
-
-.capture-soon {
-  font-size: var(--text-xs);
-  line-height: 16px;
-  height: 16px;
-  padding: 0 var(--space-2);
-  border-radius: var(--r-sm);
-  background: var(--bg-raised);
-  color: var(--text-secondary); /* never muted on raised (§1.1 rule) */
-  flex: 0 0 auto;
 }
 
 /* Shortcuts overlay (S8). Rendered from src/shared/keymap.ts, so the row

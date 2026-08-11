@@ -8,3 +8,7 @@ release/
 .specstory/
 .tmp/
 .antigravitycli/
+# Phase 15: the vendored specstory-cli release (41 MB Mach-O + its tarball
+# cache). Reproduced from the pin in build/specstory-release.json by
+# build/fetch-specstory.cjs — never committed.
+build/vendor/

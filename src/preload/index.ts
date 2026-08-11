@@ -48,6 +48,7 @@ import type {
   GmuxSessionExtras,
   GmuxSessionRestoreExtras,
   GmuxSettingsExtras,
+  GmuxSpecStoryExtras,
   GmuxTermStreamExtras,
   GmuxViewMenuExtras,
   MenuActionId,
@@ -60,6 +61,7 @@ import {
   searchResultsChannel,
   EVT_SYMBOLS_PROGRESS,
   EVT_ACTIVITY_CHANGED,
+  EVT_CAPTURE_NOTICE,
   EVT_GIT_CHANGED,
   EVT_MENU_ACTION,
   EVT_QUIT_REQUESTED,
@@ -75,6 +77,7 @@ import {
 import type { SymbolIndexProgress } from '../shared/symbols';
 import type { GmuxSettings } from '../shared/settings';
 import type { ScrollbackNotice } from '../shared/scrollback';
+import type { SessionCaptureNotice } from '../shared/types';
 
 /**
  * THE typed wrapper over ipcRenderer.invoke — spans every channel in
@@ -347,6 +350,29 @@ const quickOpen: NonNullable<GmuxQuickOpenExtras['quickOpen']> = {
 };
 
 /**
+ * specstory surface (Phase 15) — the Settings section's status pull and the
+ * two auth actions. Four calls, no event channel: signing in or out is a thing
+ * the user does about twice a year, so there is nothing here to subscribe to.
+ */
+const specstory: NonNullable<GmuxSpecStoryExtras['specstory']> = {
+  status: (refresh) => invoke('specstory:status', refresh),
+  beginLogin: () => invoke('specstory:beginLogin'),
+  cancelLogin: () => invoke('specstory:cancelLogin'),
+  submitCode: (code) => invoke('specstory:submitCode', code),
+  signOut: () => invoke('specstory:signOut'),
+  // The capture stream's one push: a session-end sync that failed, or a
+  // capture that was requested at create and declined. Nothing is emitted
+  // when capture is working.
+  onNotice: (cb) => {
+    const listener = (_e: IpcRendererEvent, notice: SessionCaptureNotice): void => {
+      cb(notice);
+    };
+    ipcRenderer.on(EVT_CAPTURE_NOTICE, listener);
+    return () => ipcRenderer.removeListener(EVT_CAPTURE_NOTICE, listener);
+  }
+};
+
+/**
  * projects surface = frozen GmuxApi['projects'] + the Phase 12.9 `create`
  * (feature-detected: without it the shell hides "New Project…" rather than
  * offering a button that throws).
@@ -376,9 +402,11 @@ const api: GmuxApi &
   GmuxSymbolsExtras &
   GmuxQuickOpenExtras &
   GmuxScrollbackExtras &
+  GmuxSpecStoryExtras &
   GmuxViewMenuExtras = {
   sessions,
   projects,
+  specstory,
   git,
   fs,
   term,

@@ -44,6 +44,18 @@ export interface GmuxSettings {
    */
   dangerAcknowledged: string[];
   /**
+   * Per-agent SpecStory capture default (Phase 15, research 13 §3.1): does a
+   * new session of this agent start with capture ON? Absent = OFF, which is
+   * the first-run answer for every agent — capture writes `.specstory/` into
+   * the user's repo and, when signed in, uploads transcripts, and neither
+   * should happen by surprise.
+   *
+   * This is a STICKY LAST CHOICE, not a policy: the ⌘T modal prefills from it
+   * and writes the user's flip back, and Settings → SpecStory edits the same
+   * map. Only agents SpecStory has a provider for can appear here.
+   */
+  captureDefaults: Partial<Record<LaunchableAgentId, boolean>>;
+  /**
    * How much output each session KEEPS — tmux `history-limit` for panes
    * created from now on (Phase 13.7). This is what scrolling and capture can
    * reach; it is not what the terminal preloads on reattach (that is
@@ -134,9 +146,25 @@ export function defaultGmuxSettings(): GmuxSettings {
     hotkeys: {},
     launchDefaults: {},
     dangerAcknowledged: [],
+    captureDefaults: {},
     scrollbackLines: DEFAULT_SCROLLBACK_LINES,
     savedScrollbackLines: DEFAULT_SAVED_SCROLLBACK_LINES
   };
+}
+
+/**
+ * Does a new session of this agent start with SpecStory capture on? Absent
+ * means OFF — the create paths read this one helper so "no stored answer" can
+ * never be read as "yes" by one caller and "no" by another.
+ */
+export function captureDefaultFor(
+  settings: Pick<GmuxSettings, 'captureDefaults'>,
+  agentId: string
+): boolean {
+  return (
+    (settings.captureDefaults as Record<string, boolean | undefined>)[agentId] ===
+    true
+  );
 }
 
 /** Key for the confirm-once danger acknowledgement list. */

@@ -33,6 +33,7 @@ import type {
   GmuxSessionExtras,
   GmuxSettingsExtras,
   GmuxSessionRestoreExtras,
+  GmuxSpecStoryExtras,
   GmuxSymbolsExtras,
   GmuxViewMenuExtras,
   PopupMenuIcon
@@ -43,6 +44,7 @@ import { cancelPointerDrag } from '../app/split/pointer-drag';
 // Direct module import (NOT ../settings barrel): the barrel re-exports
 // integration.ts which imports this store — presets.ts itself does not.
 import { defaultLaunchArgsFor } from '../settings/presets';
+import { captureDefaultForAgent } from './specstory';
 
 // ---------------------------------------------------------------------------
 // Error helpers
@@ -227,6 +229,16 @@ interface AppState {
      * session keeps the flags it launched with.
      */
     extraArgs?: string[];
+    /**
+     * Phase 15: run this session under SpecStory capture. It rides through to
+     * CreateSessionInput.capture, where main wraps BOTH argv and resume_argv.
+     *
+     * It is a named field rather than a spread-in extra for a reason worth
+     * keeping: object spreads bypass TypeScript's excess-property check, so a
+     * `capture` the store did not declare was accepted at the call site and
+     * dropped here in silence — the create sheet's switch did nothing at all.
+     */
+    capture?: boolean;
   }): Promise<boolean>;
   /** §6.2 one-click create. Widened with createSession (Phase 12): the
    *  no-sessions fleet launches ANY launchable registry agent, not the trio. */
@@ -331,6 +343,10 @@ export const useApp = create<AppState>((set, get) => {
 
   const scrollbackExtras = gmux
     ? (gmux as typeof gmux & GmuxScrollbackExtras).scrollback ?? null
+    : null;
+
+  const specstoryExtras = gmux
+    ? (gmux as typeof gmux & GmuxSpecStoryExtras).specstory ?? null
     : null;
 
   /**
@@ -556,6 +572,33 @@ export const useApp = create<AppState>((set, get) => {
         );
       });
 
+      // Phase 15 — SpecStory capture, failures only. Main runs the flush that
+      // recovers the tail of a captured conversation when a session ends, and
+      // says nothing when it works. These are the two cases where the user
+      // asked for capture and did not get it, and each is said ONCE.
+      //
+      // The toast carries the session and the consequence, in the two lines
+      // (~29 characters each, beside the dismiss ×) that S10 actually gives —
+      // main's longer sentence, with the CLI's own reason in it, is in the
+      // app log where a diagnosis belongs.
+      specstoryExtras?.onNotice?.((notice) => {
+        const name =
+          notice.sessionName.length > 16
+            ? `${notice.sessionName.slice(0, 15)}…`
+            : notice.sessionName;
+        if (notice.kind === 'declined') {
+          // Said at create time, next to the session it is about, because the
+          // alternative is finding an empty .specstory/history days later.
+          get().toast('info', `"${name}" is running without SpecStory capture.`);
+          return;
+        }
+        get().toast(
+          'error',
+          `SpecStory may not have saved the end of "${name}".`,
+          { sticky: true }
+        );
+      });
+
       activityExtras?.onActivityChanged?.((updates) => {
         set((s) => {
           const excerpts = { ...s.excerpts };
@@ -747,7 +790,7 @@ export const useApp = create<AppState>((set, get) => {
 
     // -- sessions -----------------------------------------------------------------
 
-    async createSession({ name, agent, cwd, extraArgs }) {
+    async createSession({ name, agent, cwd, extraArgs, capture }) {
       const project = get().activeProject();
       if (!gmux || !project) return false;
       // Silent display-name dedupe within the project (S6).
@@ -772,7 +815,10 @@ export const useApp = create<AppState>((set, get) => {
         ...(cwd !== undefined && cwd !== project.path ? { cwd } : {}),
         ...(extraArgs !== undefined && extraArgs.length > 0
           ? { extraArgs }
-          : {})
+          : {}),
+        // Only ever sent when it is ON: absent is the uncaptured session every
+        // pre-Phase-15 build created, and main reads exactly `=== true`.
+        ...(capture === true ? { capture: true } : {})
       });
       get().setActiveSession(session.id);
       return true;
@@ -787,10 +833,19 @@ export const useApp = create<AppState>((set, get) => {
         // them and sends its own final selection). Cycle-safe import: the
         // presets module never imports this store.
         const defaults = defaultLaunchArgsFor(agent);
+        // SpecStory capture follows the same rule as those flags (Phase 15,
+        // research 13 §3.1): the sheet PRE-CHECKS the sticky per-agent answer
+        // and sends its own, a no-modal create inherits it silently. Without
+        // this line the ˅ board and the per-agent hotkeys would quietly
+        // create UNcaptured sessions for an agent the user had switched on.
+        // An inheritance the CLI can no longer honour is declined by main
+        // with the reason said once, not swallowed.
+        const capture = captureDefaultForAgent(agent);
         await get().createSession({
           name: `${base}-${n}`,
           agent,
-          ...(defaults.length > 0 ? { extraArgs: defaults } : {})
+          ...(defaults.length > 0 ? { extraArgs: defaults } : {}),
+          ...(capture ? { capture: true } : {})
         });
       } catch (err) {
         get().toast('error', errorText(err), { sticky: true });

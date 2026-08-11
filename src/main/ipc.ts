@@ -37,6 +37,7 @@ import type {
 } from '@shared/ipc';
 import {
   EVT_ACTIVITY_CHANGED,
+  EVT_CAPTURE_NOTICE,
   EVT_SCROLLBACK_NOTICE,
   EVT_SESSIONS_CHANGED,
   EVT_STATUS_CHANGED
@@ -103,6 +104,14 @@ import {
 // DIRECT, not through ./settings — that barrel re-exports ./settings/ipc,
 // which imports ./menu, and this file already imports ./menu.
 import { getSettings, onSettingsUpdated } from './settings/store';
+import {
+  SYNC_QUIT_TIMEOUT_MS,
+  SyncQueue,
+  wrapForCapture,
+  wrapWithRecord,
+  type SpecstoryCaptureRecord,
+  type SyncRequest
+} from './specstory';
 import * as tmux from './tmux';
 import { gmuxError, isGmuxError } from './tmux';
 import { handle as handleTyped } from './typed-ipc';
@@ -217,6 +226,43 @@ function resumeCaptureFor(spec: AgentLaunchSpec): ResumeCapture {
   }
 }
 
+/**
+ * The launch flags this row's AGENT was started with, recovered from the
+ * manifest so a rescued harvest re-appends them to the resume argv.
+ *
+ * Under capture `argv` is the wrapper's — `run <provider> --no-version-check
+ * --silent -c "…"` — and re-appending THOSE to a resume would build nonsense.
+ * The unwrapped agent argv is recorded for exactly this reason.
+ */
+function agentExtrasOf(rec: ManifestSessionRecord): string[] {
+  const inner = rec.specstory?.agentArgv;
+  return (inner !== undefined && inner.length > 0 ? inner : rec.argv).slice(1);
+}
+
+/**
+ * The wrapped argv to actually SPAWN, with the agent's bare name inside the
+ * `-c` string (Phase 12.7 F3).
+ *
+ * F3's rule is "the manifest keeps the absolute path, the launch uses the bare
+ * name", and it exists because an absolute argv[0] made every durable gmux
+ * agent the one process on the machine that `pkill -f "$(command -v claude)"`
+ * matched while every ephemeral one walked away. Under capture the agent's
+ * path is no longer argv[0] — it is a substring of the wrapper's `-c`
+ * argument, which is exactly what `pkill -f` greps. Substituting it there is
+ * what keeps the protection.
+ *
+ * The specstory binary itself stays ABSOLUTE in both places: it is not on
+ * PATH when it is the bundled copy, and no pkill pattern is aimed at it.
+ */
+function relaunchWrapped(
+  wrapped: string[],
+  capture: SpecstoryCaptureRecord,
+  bareName: string
+): string[] {
+  const inner = [bareName, ...capture.agentArgv.slice(1)];
+  return wrapWithRecord(capture, inner) ?? wrapped;
+}
+
 async function assertServerOptions(): Promise<void> {
   for (const [name, value] of BOOT_SERVER_OPTIONS) {
     await tmux
@@ -267,6 +313,34 @@ export class GmuxCore {
       this.manifest.getSession(sessionId)?.name ?? null,
     emit: (notice) => broadcast(EVT_SCROLLBACK_NOTICE, notice)
   });
+
+  /**
+   * Phase 15. The session-end SpecStory flush (research 13 §1.2), queued so a
+   * quit with a dozen captured sessions runs two CLIs at a time instead of
+   * twelve, and so the quit path has ONE thing to wait on.
+   *
+   * Only failures speak. A successful sync is the normal case and produces
+   * nothing at all — no toast, no log line, no badge.
+   */
+  private readonly syncQueue = new SyncQueue((outcome, req) => {
+    const sessionId = this.syncOwners.get(req) ?? null;
+    this.syncOwners.delete(req);
+    if (outcome.ok) return;
+    const rec = sessionId !== null ? this.manifest.getSession(sessionId) : undefined;
+    console.warn(
+      `[gmux] specstory sync failed for ${rec?.name ?? sessionId ?? req.cwd}: ` +
+        `${outcome.message ?? 'no reason given'} (${outcome.argv.join(' ')})`
+    );
+    if (rec === undefined || outcome.message === null) return;
+    broadcast(EVT_CAPTURE_NOTICE, {
+      kind: 'sync-failed',
+      sessionId: rec.id,
+      sessionName: rec.name,
+      message: outcome.message
+    });
+  });
+  /** Which session each queued sync belongs to (the queue stays generic). */
+  private readonly syncOwners = new Map<SyncRequest, string>();
 
   private refreshTimer: NodeJS.Timeout | null = null;
   private statusTimer: NodeJS.Timeout | null = null;
@@ -545,13 +619,37 @@ export class GmuxCore {
         if (rec === undefined) return;
         // Resume with the session's recorded ABSOLUTE binary (Bug A), and
         // re-append the original extras — resume restores no launch flags.
-        const resumeArgv = registryResumeArgv(
+        //
+        // Phase 15: on a CAPTURED session, `rec.argv[0]` is the specstory
+        // wrapper, not the agent — the agent's own argv lives in the capture
+        // record, which is why it is stored verbatim. Compose the inner
+        // resume from THAT, then put the wrapper back around it, so a
+        // harvested session restores captured exactly like a pre-assigned one.
+        const capture = rec.specstory;
+        const innerBin =
+          capture?.agentArgv[0] ?? rec.argv[0] ?? agentBinaryName(agent);
+        const innerResume = registryResumeArgv(
           agent,
           harvested.sessionId,
           extraArgs,
-          rec.argv[0] ?? agentBinaryName(agent)
+          innerBin
         );
-        if (resumeArgv.length === 0) return; // never persist an id-less argv
+        if (innerResume.length === 0) return; // never persist an id-less argv
+        let resumeArgv = innerResume;
+        if (capture?.enabled === true) {
+          const rewrapped = wrapWithRecord(capture, innerResume);
+          if (rewrapped !== null) resumeArgv = rewrapped;
+          else {
+            // The wrap could not be rebuilt (an argument SpecStory cannot
+            // pass through). Arming the BARE resume is right — the
+            // conversation is what matters — but the user's capture would
+            // silently stop at the restore, so it is said out loud.
+            console.warn(
+              `[gmux] ${agent} resume for "${rec.name}" could not keep ` +
+                'SpecStory capture; the armed command runs the agent directly.'
+            );
+          }
+        }
         this.manifest.setAgentSessionId(id, harvested.sessionId, resumeArgv);
         if (harvested.viaGraceTimer || harvested.confidence === 'weak') {
           // Armed, but not PROVEN to be this pane's conversation. Said out
@@ -636,7 +734,7 @@ export class GmuxCore {
             rec.id,
             rec.agent,
             { cwd: rec.cwd, sinceTs: rec.createdAt },
-            rec.argv.slice(1),
+            agentExtrasOf(rec),
             {
               // The record either exists now or never will: no process is
               // going to write one. One scan, not a six-hour vigil.
@@ -660,7 +758,7 @@ export class GmuxCore {
           tmuxSessionId: live,
           ...(rec.panePid !== undefined ? { panePid: rec.panePid } : {})
         },
-        rec.argv.slice(1)
+        agentExtrasOf(rec)
       );
     }
   }
@@ -866,6 +964,15 @@ export class GmuxCore {
       const prev = before.get(rec.id);
       if (prev !== undefined && prev !== rec.status) {
         broadcast(EVT_STATUS_CHANGED, rec.id, rec.status);
+        // Phase 15: a captured session that was RUNNING and is now only
+        // restorable died while gmux was not watching — a reboot, a tmux
+        // server death, a `kill-pane` from outside. Nothing ran its flush, so
+        // this is the reconciliation-time backstop research 13 §3.3 asks for.
+        // Runs once per transition, not once per reconcile, because the flip
+        // itself is the trigger.
+        if (rec.status === 'restorable' && prev !== 'exited') {
+          this.queueCaptureSync(rec);
+        }
       }
     }
     this.broadcastSessions();
@@ -963,6 +1070,10 @@ export class GmuxCore {
       ...(exitCode !== undefined ? { exitCode } : {}),
       ...(deadSignal !== undefined ? { exitSignal: deadSignal } : {})
     });
+    // The wrapper's own flush is the one that did NOT happen here (a
+    // non-zero exit takes the CLI's os.Exit mirror path), so this is the
+    // sync that keeps the last turn of the conversation.
+    this.queueCaptureSync(rec);
     // The manifest row is the record of truth but it dies with a discard —
     // this line is the copy that survives in the app log (research 21 §10).
     console.warn(
@@ -974,6 +1085,42 @@ export class GmuxCore {
     this.activity.forget(sessionId);
     this.hookServer.revoke(sessionId);
     broadcast(EVT_STATUS_CHANGED, sessionId, 'exited');
+  }
+
+  /**
+   * Queue the end-of-session SpecStory flush for a captured session; a no-op
+   * for every other session.
+   *
+   * WHERE THIS IS CALLED FROM IS THE WHOLE DESIGN. `specstory run` flushes on
+   * its own way out, but not on the two exits gmux actually produces: a
+   * non-zero agent exit takes the CLI's `os.Exit(code)` mirror path, and
+   * gmux's own end-session sends SIGHUP via `kill-session`, which `run` does
+   * not handle. Both leave the tail of the conversation in the agent's native
+   * store and out of the markdown. A cwd-scoped `sync` puts it back.
+   *
+   * Fire-and-forget by construction: the caller is a UI action or a death
+   * report, and neither may wait on a CLI.
+   */
+  private queueCaptureSync(
+    rec: ManifestSessionRecord,
+    timeoutMs?: number
+  ): void {
+    const capture = rec.specstory;
+    if (capture?.enabled !== true) return;
+    const req: SyncRequest = {
+      bin: capture.bin,
+      provider: capture.provider,
+      cwd: rec.cwd,
+      agentSessionId: rec.agentSessionId,
+      ...(timeoutMs !== undefined ? { timeoutMs } : {})
+    };
+    this.syncOwners.set(req, rec.id);
+    this.syncQueue.enqueue(req);
+  }
+
+  /** Resolves when every queued capture sync has finished (tests, quit). */
+  captureSyncsIdle(): Promise<void> {
+    return this.syncQueue.idle();
   }
 
   broadcastSessions(): void {
@@ -1185,6 +1332,31 @@ export class GmuxCore {
         }
       }
     }
+    // Phase 15 — SpecStory capture. The wrap is applied to BOTH argvs and to
+    // nothing else: `spec.argv` becomes `specstory run <provider> … -c "<the
+    // same argv>"`, and an already-armed `resumeArgv` gets the identical
+    // treatment, so a pre-assigned session (claude/gemini/pi) is armed
+    // WRAPPED from the moment the row is written and a restore keeps
+    // capturing without anyone having to remember to re-wrap it.
+    //
+    // A decline is never fatal and never silent: the session launches bare
+    // and the sentence reaches the user (toast) and the log.
+    let capture: SpecstoryCaptureRecord | undefined;
+    let captureDeclined: string | null = null;
+    if (input.capture === true && input.agent !== 'shell') {
+      const wrapped = await wrapForCapture(input.agent, spec.argv);
+      if (wrapped.argv !== null && wrapped.record !== null) {
+        capture = wrapped.record;
+        spec.argv = wrapped.argv;
+        if (spec.resumeArgv !== undefined) {
+          const resumeWrapped = wrapWithRecord(wrapped.record, spec.resumeArgv);
+          if (resumeWrapped !== null) spec.resumeArgv = resumeWrapped;
+        }
+      } else {
+        captureDeclined = wrapped.declined;
+      }
+    }
+
     const now = Date.now();
     const record: ManifestSessionRecord = {
       id,
@@ -1206,7 +1378,8 @@ export class GmuxCore {
       // Phase 13.5: say NOW whether this session will come back with its
       // conversation. Written with the row, before the process exists.
       resumeCapture: resumeCaptureFor(spec),
-      ...(spec.env !== undefined ? { env: spec.env } : {})
+      ...(spec.env !== undefined ? { env: spec.env } : {}),
+      ...(capture !== undefined ? { specstory: capture } : {})
     };
 
     // §2.4 Step 0: durability record exists BEFORE the process does.
@@ -1219,8 +1392,18 @@ export class GmuxCore {
     // while every ephemeral `claude` walked away. Bug A's real fix is the
     // login-shell PATH injected into the tmux server env (supervisor.ts), so
     // tmux's execvp resolves the bare name just as the user's own shell does.
+    //
+    // A CAPTURED session gets the same treatment ONE LEVEL IN: argv[0] is the
+    // specstory binary (absolute — it is not on PATH when it is the bundled
+    // copy), and the agent's own name lives inside the `-c` string, which is
+    // exactly what `pkill -f` reads. So the bare name is substituted there
+    // instead, and F3's protection survives the wrap.
     const launchArgv =
-      bareName !== undefined ? [bareName, ...spec.argv.slice(1)] : spec.argv;
+      bareName === undefined
+        ? spec.argv
+        : capture !== undefined
+          ? relaunchWrapped(spec.argv, capture, bareName)
+          : [bareName, ...spec.argv.slice(1)];
 
     let info: tmux.TmuxSessionInfo;
     try {
@@ -1286,6 +1469,19 @@ export class GmuxCore {
         },
         input.extraArgs ?? []
       );
+    }
+
+    // A capture the user asked for and did not get is said NOW, next to the
+    // session it is about — the alternative is discovering an empty
+    // .specstory/history days later and blaming SpecStory for it.
+    if (captureDeclined !== null) {
+      console.warn(`[gmux] ${captureDeclined} (session "${input.name}")`);
+      broadcast(EVT_CAPTURE_NOTICE, {
+        kind: 'declined',
+        sessionId: id,
+        sessionName: input.name,
+        message: captureDeclined
+      });
     }
 
     this.broadcastSessions();
@@ -1357,6 +1553,9 @@ export class GmuxCore {
     }
     this.liveIds.delete(sessionId);
     this.manifest.setStatus(sessionId, 'exited');
+    // kill-session is a SIGHUP, which `specstory run` does not handle at all —
+    // without this the debounced tail of the conversation is simply lost.
+    this.queueCaptureSync(rec);
     this.activity.forget(sessionId);
     this.hookServer.revoke(sessionId);
     broadcast(EVT_STATUS_CHANGED, sessionId, 'exited');
@@ -1556,6 +1755,13 @@ export function getGmuxCore(): Promise<GmuxCore> {
  * Quit-time teardown. tmux sessions survive — that is the whole point.
  * Phase 6: scrollback snapshots are captured FIRST (app-quit capture point,
  * §2.4 Step 2), bounded so a sick tmux can never wedge quit.
+ *
+ * Phase 15 adds one more bounded wait: any SpecStory flush already queued —
+ * from a session the user closed seconds before quitting — gets a few seconds
+ * to finish. RUNNING captured sessions need nothing here: they are still
+ * running, inside tmux, with their own `specstory run` alive. The deadline is
+ * short on purpose (research 13 §3.3): losing the tail of one conversation is
+ * a smaller failure than a Dock icon that will not go away.
  */
 export async function shutdownGmuxCore(): Promise<void> {
   if (corePromise === null) return;
@@ -1566,6 +1772,10 @@ export async function shutdownGmuxCore(): Promise<void> {
     await Promise.race([
       core.snapshotAllSessions(),
       new Promise<void>((resolve) => setTimeout(resolve, 8_000))
+    ]).catch(() => undefined);
+    await Promise.race([
+      core.captureSyncsIdle(),
+      new Promise<void>((resolve) => setTimeout(resolve, SYNC_QUIT_TIMEOUT_MS))
     ]).catch(() => undefined);
     core.dispose();
   } catch {

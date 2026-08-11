@@ -35,6 +35,7 @@ Date: 2026-08-09 · version 0.0.1 · machine: macOS 15.7.9 arm64, node v22.23.1,
 - Native addons (`*.node`) unpacked from asar (`asarUnpack`); electron-builder rebuilt node-pty / better-sqlite3 / @parcel/watcher against electron 43 headers during packaging.
 - Renderer-only production deps (monaco-editor, react, react-dom, @xterm/*, zustand, uuid, and since Phase 11 @pierre/diffs, @pierre/trees + their exclusive transitives shiki/@shikijs/preact/diff/…) are **excluded** from the asar — electron-vite bundles them into `out/renderer`; the main bundle only requires node-pty, better-sqlite3, @parcel/watcher at runtime. Keeps ~135 MB of dead weight out of the app. A tail of small transitives (~4 MB: @types/*, micromark-util-*, unist-*, plus monaco's marked/dompurify) still rides along — see Phase 13's packaging item.
 - Signature: **ad-hoc** (`Signature=adhoc, linker-signed`), identifier `Electron`. Launches locally; see Deferred for real signing.
+- **Bundled specstory-cli (Phase 15)** — `Contents/Resources/bin/specstory`, 43,207,712 bytes, `2.8.0 (SpecStory)`, plus a 299-byte `specstory.json` naming the version so Settings can show it without a spawn. Verified in the shipped app AND off the mounted DMG: Mach-O arm64, exec bit intact, runs, `codesign --verify --strict` clean, `Identifier=com.specstory.gmux.specstory`, `flags=0x10002(adhoc,runtime)`. Size cost: **+42,200 KiB (41.2 MiB) on the .app, ~15.9 MB compressed**. Resolution order is bundled-first with a user-installed copy as the fallback (`src/main/specstory/resolve.ts`); nothing about the bundle forks the CLI's state, so one `specstory login` still serves both copies (all of it is `$HOME`-derived — `utils.GetAuthPath()`).
 
 ## How to run
 
@@ -55,7 +56,13 @@ npm run package     # electron-vite build + electron-builder --mac
 npm run package:dir # faster: unpacked app only → release/mac-arm64/gmux.app
 npm run icon        # re-copy the Tortie brand assets into their build /
                     # runtime / renderer homes (no generation, no tools)
+npm run vendor:specstory  # fetch the pinned specstory-cli release into
+                          # build/vendor (gitignored). Packaging runs this
+                          # itself via beforePack — this is for pre-warming
+                          # or for a network-free build machine.
 ```
+
+Packaging needs network **once** per pin: `build/before-pack.cjs` downloads the specstory release named in `build/specstory-release.json` and verifies it against two recorded SHA-256s (the tarball's and the extracted Mach-O's). After that it is cached in `build/vendor/specstory/cache` and every later build is offline and instant. Air-gapped: put the release tarball anywhere and set `GMUX_SPECSTORY_TARBALL` — it is checked against the same pin, so the escape hatch cannot substitute a different build. Bumping the version means editing `build/specstory-release.json` (tag + version + both hashes) and nothing else.
 
 Install: open the DMG, drag gmux to Applications. **The app is unsigned for distribution** — on any machine other than this one, Gatekeeper will block the first launch: right-click → Open → Open (or `xattr -dr com.apple.quarantine /Applications/gmux.app`).
 
@@ -150,7 +157,7 @@ reconcile ignores it; it never kills the tmux server. Verified after the full ru
 ## What's deferred (not built today, on purpose)
 
 - **Code signing & notarization** — only an Apple Development cert exists on this machine; it cannot produce a distributable signature, so `identity: null` in `electron-builder.yml` (arm64 gets an ad-hoc signature so it runs locally). A real release needs: Developer ID Application cert → `hardenedRuntime: true` + entitlements (`com.apple.security.cs.allow-jit` etc. for Electron) → notarytool + stapling.
-- **Bundled pinned tmux** — the app uses system tmux 3.6a today (homebrew → `/usr/bin` → PATH lookup in `src/main/tmux/`). Bundling a pinned, ad-hoc/Developer-ID-signed tmux binary under `Contents/Resources` is out of scope today; noted in code comments and `electron-builder.yml`. When it lands, it needs nested Mach-O signing.
+- **Bundled pinned tmux** — the app uses system tmux 3.6a today (homebrew → `/usr/bin` → PATH lookup in `src/main/tmux/`). Bundling a pinned, ad-hoc/Developer-ID-signed tmux binary under `Contents/Resources` is out of scope today; noted in code comments and `electron-builder.yml`. When it lands, the machinery is already here: add it to `NESTED_BINARIES` in `build/sign-nested-binaries.cjs` and to `mac.binaries`, the same two lines Phase 15's specstory took (tmux additionally needs Appendix F.1/F.2 — static libevent/ncurses and terminfo — which specstory did not).
 - **OSC-133 prompt-marking status upgrade** — status detection is heuristic (output-flow + prompt regex, `src/renderer/state/status-detector.ts`); the upgrade path to OSC 133 / agent hooks is documented at the top of that file.
 - **Auto-update feed** (`publish: null` today), SMAppService login item, x64/universal builds (arm64 only — the dev target).
 

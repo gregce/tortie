@@ -1,0 +1,211 @@
+/**
+ * Integration tests: gmux's wrap composer against the REAL SpecStory CLI.
+ *
+ * WHY THIS EXISTS AS A TEST AND NOT A ONE-OFF PROBE. Phase 15's whole risk is
+ * that capture silently changes what the agent is run with — a dropped flag, a
+ * mangled `--mcp-config`, a resume that no longer resumes. The grammar this
+ * repo quotes for lives in someone else's Go file (`spi.SplitCommandLine`),
+ * so the only honest check is to hand a real `specstory run` a real argv and
+ * read back what the child actually received. Byte-exact, in hex, so an
+ * invisible difference cannot pass.
+ *
+ * The second thing measured here is EXIT CODES, because Phase 12.7's death
+ * reporting and Phase 13's status detection both read them, and the CLI's
+ * providers do not agree: `claude` mirrors the child's code exactly, while
+ * `codex` (and droid/deepseek/antigravity) collapse every failure to 1. That
+ * is what `AgentSpecstoryCapture.exitCodeFidelity` records, and this test is
+ * the thing that makes the registry's claim executable.
+ *
+ * SAFETY. Every spawn runs with HOME pointed at a throwaway directory, so the
+ * user's `~/.specstory/cli/auth.json` is never read: the CLI is unauthenticated
+ * inside this test and cannot reach anyone's cloud. The captured "agent" is a
+ * shell script in a temp dir, and the working directory is a temp dir too.
+ *
+ * Skips itself (rather than failing) when no specstory binary is present —
+ * `npm run vendor:specstory` fetches the pinned copy this suite prefers.
+ */
+
+import { execFileSync } from 'node:child_process';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterAll, describe, expect, it } from 'vitest';
+import assert from 'node:assert/strict';
+import { wrapArgv } from '../wrap';
+import { parseProviderIds } from '../capture';
+import type { SpecstoryProviderId } from '../../agents/registry';
+
+// ---------------------------------------------------------------------------
+// Harness
+// ---------------------------------------------------------------------------
+
+function findSpecstory(): string | null {
+  const vendored = join(process.cwd(), 'build', 'vendor', 'specstory', 'bin', 'specstory');
+  if (existsSync(vendored)) return vendored;
+  for (const dir of ['/opt/homebrew/bin', '/usr/local/bin']) {
+    const p = join(dir, 'specstory');
+    if (existsSync(p)) return p;
+  }
+  return null;
+}
+
+const SPECSTORY = findSpecstory();
+const root = mkdtempSync(join(tmpdir(), 'gmux-sswrap-'));
+const HOME = join(root, 'home');
+const CWD = join(root, 'proj');
+const AGENT = join(root, 'bin', 'fakeagent');
+
+if (SPECSTORY !== null) {
+  mkdirSync(HOME, { recursive: true });
+  mkdirSync(CWD, { recursive: true });
+  mkdirSync(join(root, 'bin'), { recursive: true });
+  // Prints its argv as hex lines (invisible differences cannot survive hex),
+  // then exits with $EXITWITH so the exit-code fidelity claim is measurable.
+  writeFileSync(
+    AGENT,
+    [
+      '#!/bin/bash',
+      'echo ARGVSTART',
+      `for a in "$@"; do printf '%s\\n' "$(printf '%s' "$a" | xxd -p | tr -d '\\n')"; done`,
+      'echo ARGVEND',
+      'exit "${EXITWITH:-0}"',
+      ''
+    ].join('\n')
+  );
+  chmodSync(AGENT, 0o755);
+}
+
+afterAll(() => {
+  rmSync(root, { recursive: true, force: true });
+});
+
+interface RunResult {
+  argv: string[];
+  code: number;
+  output: string;
+}
+
+/** Run one wrapped launch and read back what the child actually received. */
+function runWrapped(
+  provider: SpecstoryProviderId,
+  innerArgs: readonly string[],
+  exitWith = 0
+): RunResult {
+  const argv = wrapArgv({
+    bin: SPECSTORY as string,
+    provider,
+    inner: [AGENT, ...innerArgs]
+  });
+  assert.notEqual(argv, null, 'wrapArgv declined an argv this test expects it to carry');
+  const [bin, ...args] = argv as string[];
+  let code = 0;
+  let output = '';
+  try {
+    output = execFileSync(bin as string, args, {
+      cwd: CWD,
+      // HOME is the whole safety story: an unauthenticated CLI in a temp home.
+      env: { ...process.env, HOME, EXITWITH: String(exitWith) },
+      encoding: 'utf8',
+      timeout: 60_000
+    });
+  } catch (err) {
+    const e = err as { status?: number; stdout?: string; stderr?: string };
+    code = e.status ?? -1;
+    output = `${e.stdout ?? ''}${e.stderr ?? ''}`;
+  }
+  const lines = output.split('\n');
+  const start = lines.indexOf('ARGVSTART');
+  const end = lines.indexOf('ARGVEND');
+  const received =
+    start >= 0 && end > start
+      ? lines
+          .slice(start + 1, end)
+          .map((hex) => Buffer.from(hex.trim(), 'hex').toString('utf8'))
+      : [];
+  return { argv: received, code, output };
+}
+
+const describeIf = SPECSTORY === null ? describe.skip : describe;
+
+// ---------------------------------------------------------------------------
+// The argv passthrough — the constraint itself
+// ---------------------------------------------------------------------------
+
+describeIf('a real `specstory run` hands the agent gmux’s argv unchanged', () => {
+  const cases: readonly (readonly string[])[] = [
+    ['--model', 'opus'],
+    ['--dangerously-skip-permissions'],
+    // THE resume case: this is what a restored captured session runs.
+    ['--resume', '550e8400-e29b-41d4-a716-446655440000', '--dangerously-skip-permissions'],
+    ['--mcp-config', '{"mcpServers":{"a":{"command":"x y","args":["--p","1"]}}}'],
+    ['--add-dir', '/Users/g/My Projects/thing'],
+    ['--append-system-prompt', 'it’s "fine" — really'],
+    ['a\\b\\\\c'],
+    ['--flag=va$lue`x`;echo pwned'],
+    ['héllo', '日本語'],
+    ['--tab\there']
+  ];
+
+  it.each(cases.map((c) => [JSON.stringify(c), c] as const))(
+    'passes %s through byte-for-byte',
+    (_label, args) => {
+      const run = runWrapped('claude', args);
+      expect(run.argv).toEqual([...args]);
+    }
+  );
+
+  it('adds nothing of its own to the child argv', () => {
+    const run = runWrapped('claude', ['--model', 'opus']);
+    expect(run.argv).toHaveLength(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Exit codes — what the registry's exitCodeFidelity actually means
+// ---------------------------------------------------------------------------
+
+describeIf('exit codes through the wrapper — the registry matrix, executable', () => {
+  // Every launchable agent whose registry row claims a fidelity, measured
+  // against the CLI this build bundles. `muse` is absent on purpose: the
+  // released 2.8.0 has no such provider (see the provider-probe test below).
+  const matrix: readonly [SpecstoryProviderId, 'exact' | 'collapsed'][] = [
+    ['claude', 'exact'],
+    ['cursor', 'exact'],
+    ['gemini', 'exact'],
+    ['codex', 'collapsed'],
+    ['droid', 'collapsed'],
+    ['deepseek', 'collapsed'],
+    ['antigravity', 'collapsed']
+  ];
+
+  it.each(matrix)('%s exits %s', (provider, fidelity) => {
+    // A clean exit is a clean exit everywhere — that half never differs.
+    expect(runWrapped(provider, [], 0).code).toBe(0);
+    // 42 is arbitrary; 127 is the one gmux's dead-pane UX reads by name
+    // ("command not found"), so it is worth its own measurement.
+    const expected = (code: number): number => (fidelity === 'exact' ? code : 1);
+    expect(runWrapped(provider, [], 42).code).toBe(expected(42));
+    expect(runWrapped(provider, [], 127).code).toBe(expected(127));
+  });
+});
+
+describeIf('the provider probe reads the CLI this build actually ships', () => {
+  it('finds the providers gmux has rows for, and does not invent muse', () => {
+    const help = execFileSync(SPECSTORY as string, ['run', '--help', '--no-version-check'], {
+      encoding: 'utf8',
+      env: { ...process.env, HOME },
+      timeout: 30_000
+    });
+    const ids = parseProviderIds(help);
+    assert.notEqual(ids, null, 'the provider marker moved — capture would fail closed');
+    const found = new Set(ids as SpecstoryProviderId[]);
+    for (const p of ['claude', 'codex', 'cursor', 'gemini', 'droid', 'deepseek', 'antigravity']) {
+      expect(found.has(p as SpecstoryProviderId)).toBe(true);
+    }
+    // MEASURED: released 2.8.0 answers `run muse` with "Provider 'muse' is not
+    // a valid provider implementation" and exit 1 — muse lives only on the
+    // unreleased branch. The probe is what keeps the toggle dark for it
+    // instead of offering a capture that dies in the pane.
+    expect(found.has('muse')).toBe(false);
+  });
+});

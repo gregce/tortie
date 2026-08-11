@@ -20,6 +20,7 @@ import type {
 import type { LaunchableAgentId } from '@shared/types';
 import { AGENT_FLAG_PRESETS } from '../agents/flags';
 import { rebuildAppMenu } from '../menu';
+import { registerSpecStoryStatusIpc } from './specstory-ipc';
 import { getSettings, updateSettings } from './store';
 import { openSettingsWindow } from './window';
 
@@ -90,4 +91,10 @@ export function registerSettingsIpc(ipc: IpcMain): void {
   });
 
   ipc.handle('agents:flagPresets', () => getFlagCatalogViews());
+
+  // Phase 15: the SpecStory section's status pull + its two auth actions. It
+  // registers here rather than from src/main/index.ts because the Settings
+  // window is its only consumer and this registrar already owns that surface;
+  // when capture grows a registrar of its own, the call moves there.
+  registerSpecStoryStatusIpc(ipc);
 }

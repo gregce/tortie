@@ -1,0 +1,115 @@
+/*
+ * Settings → SpecStory (Phase 15).
+ *
+ * Colocated with its component, like the scrollback card, rather than pushed
+ * into settings.css — that file is already the one three streams reach for at
+ * once, and this section invents only three shapes S13 has no rule for: a
+ * source chip beside a version, a short code field in a row's control slot,
+ * and prose under a card.
+ *
+ * Everything else is the S13 vocabulary as-is (.set-card, .set-row,
+ * .set-row-label/caption, .set-chip, .btn) so the section reads as part of the
+ * window rather than as a guest in it.
+ */
+
+/* The resolved binary's path. Mono because it is a path, muted because it is
+   evidence for the line above it rather than the answer itself. */
+.ss-path {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* "bundled with gmux" / "installed" — provenance, not status, so it stays the
+   neutral chip and never borrows an accent. Two classes deep because
+   settings.css loads after this file and its .set-chip sets the mono face:
+   this chip holds a WORD, and mono makes a word look like a code token. */
+.set-chip.ss-source {
+  margin-left: auto;
+  flex: 0 0 auto;
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  padding: 0 var(--space-3);
+}
+
+/* Agent rows are one line each: mark, name, switch. 36px, not the 48px of the
+   Agents section, because there is no second line to make room for. */
+.ss-capture-row {
+  gap: var(--space-4);
+}
+
+/* A row's control slot when it holds more than one control. */
+.ss-actions {
+  margin-left: auto;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+/* Six characters and a dash — the field is sized to the code so it cannot be
+   mistaken for a free-text box, and letter-spacing keeps a hand-copied code
+   legible while checking it against the browser. */
+.ss-code-field {
+  width: 96px;
+  height: 28px;
+  padding: 0 var(--space-4);
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  letter-spacing: 0.08em;
+  text-align: center;
+}
+
+.ss-code-field::placeholder {
+  color: var(--text-disabled);
+  letter-spacing: 0.08em;
+}
+
+.ss-code-field:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
+
+.ss-code-field:disabled {
+  color: var(--text-disabled);
+}
+
+/* The sign-in step sits under the account row, sharing its card: it is the
+   same conversation continued, not a second subject. */
+.ss-code-row {
+  background: var(--bg-canvas);
+}
+
+.ss-error-row {
+  padding-top: 0;
+}
+
+/* Prose under a card. Wider measure and a quieter tone than a row caption —
+   read once, in full, rather than glanced at. */
+.ss-note {
+  margin: calc(-1 * var(--space-4)) 0 var(--space-6);
+  max-width: 560px;
+  font-size: var(--text-xs);
+  line-height: var(--lh-sm);
+  color: var(--text-muted);
+}
+
+.ss-note code {
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
+.ss-note-icon {
+  margin-right: var(--space-3);
+  color: var(--text-disabled);
+  vertical-align: baseline;
+}

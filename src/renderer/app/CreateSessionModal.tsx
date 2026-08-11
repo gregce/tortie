@@ -7,8 +7,12 @@
  * bridge has it, static registry mirror otherwise) + Shell last. The selected
  * agent's launch-flag presets render as Options toggles (danger-styled per
  * DESIGN-SPEC S6, pre-seeded from Settings launch defaults) whose tokens ride
- * CreateSessionInput.extraArgs into BOTH argv and resume_argv. A disabled
- * SpecStory capture row holds the Phase-12 layout slot.
+ * CreateSessionInput.extraArgs into BOTH argv and resume_argv.
+ *
+ * Phase 15 replaced the disabled capture placeholder with the real thing: one
+ * checkbox that runs the agent under SpecStory, drawn only when this machine
+ * can honour it, remembered per agent, and captioned with where the transcript
+ * actually goes.
  *
  * Phase 12.12 item 1: the picker itself is no longer written here. It is the
  * SHARED AgentGrid (./AgentGrid.tsx) — the same board §6.2's empty state
@@ -24,6 +28,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AgentGrid } from './AgentGrid';
 import type { LaunchableAgentKind } from '@shared/types';
 import {
+  captureDefaultFor,
   presetArgvTokens,
   type AgentFlagCatalogView,
   type AgentFlagPresetView,
@@ -37,6 +42,7 @@ import {
   type AgentPickerOption
 } from '../state/agents';
 import { useSettingsStore } from '../settings/settings-store';
+import { captureAvailableFor, useSpecStoryStatus } from '../state/specstory';
 import { errorPayload, errorText, nextOrdinal, useApp } from '../state/store';
 import { modalKeyDown } from './focus-trap';
 import { Codicon } from '../icons';
@@ -107,6 +113,7 @@ export function CreateSessionModal(): React.JSX.Element | null {
   const settings = useSettingsStore((s) => s.settings);
   const catalogs = useSettingsStore((s) => s.catalogs);
   const scan = useSettingsStore((s) => s.scan);
+  const updateSettings = useSettingsStore((s) => s.update);
   useEffect(() => {
     initSettings();
   }, [initSettings]);
@@ -134,8 +141,16 @@ export function CreateSessionModal(): React.JSX.Element | null {
     {}
   );
   const [creating, setCreating] = useState(false);
+  /**
+   * SpecStory capture for THIS session. null = the user has not touched the
+   * switch, so the per-agent sticky default answers — which is what makes
+   * changing agent mid-sheet pick up that agent's remembered choice instead
+   * of carrying the previous agent's over.
+   */
+  const [captureChoice, setCaptureChoice] = useState<boolean | null>(null);
   const nameRef = useRef<HTMLInputElement | null>(null);
   const toast = useApp((s) => s.toast);
+  const specstory = useSpecStoryStatus(open);
 
   // Reset on open; prefill name `<agent>-<n>` and cwd = project root.
   // Default agent: Settings default → claude → first installed → shell.
@@ -151,6 +166,7 @@ export function CreateSessionModal(): React.JSX.Element | null {
     setNotFoundAgent(null);
     setHintAgent(null);
     setFlagSel({});
+    setCaptureChoice(null);
     setCreating(false);
     requestAnimationFrame(() => nameRef.current?.select());
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -191,6 +207,20 @@ export function CreateSessionModal(): React.JSX.Element | null {
   const checkedFlags = flagSel[agent] ?? seededFlags(agent, settings, presets);
   const selectedOption = options.find((o) => o.id === agent);
 
+  // SpecStory capture (Phase 15). Offered only where it would actually work:
+  // a resolved binary AND a provider for this agent (shells never).
+  const captureOffered = captureAvailableFor(specstory, agent);
+  const capture =
+    captureChoice ?? captureDefaultFor(settings, agent);
+  const setCapture = (on: boolean): void => setCaptureChoice(on);
+  // Where the transcript goes, in the two states that differ. Signed out says
+  // only what IS true — no "sign in to also…" pitch in a create sheet.
+  const captureCaption = specstory?.auth.signedIn === true
+    ? specstory.auth.email !== null
+      ? `Saved under .specstory/history and synced to SpecStory Cloud as ${specstory.auth.email}.`
+      : 'Saved under .specstory/history and synced to SpecStory Cloud.'
+    : 'Saved in this folder under .specstory/history.';
+
   const togglePreset = (preset: AgentFlagPresetView): void => {
     const isOn = checkedFlags.includes(preset.flag);
     let next: string[];
@@ -230,11 +260,27 @@ export function CreateSessionModal(): React.JSX.Element | null {
     const extraArgs = presets
       .filter((p) => checkedFlags.includes(p.flag))
       .flatMap((p) => presetArgvTokens(p.flag));
+    // Remember the capture answer per agent, but only when this sheet could
+    // actually ask the question and the user actually answered it — a sheet
+    // that never showed the row must not write a default, and a cancelled
+    // sheet writes nothing at all (this runs on submit, not on the flip).
+    if (captureOffered && captureChoice !== null && agent !== 'shell') {
+      const stored = captureDefaultFor(settings, agent);
+      if (stored !== captureChoice) {
+        void updateSettings({
+          captureDefaults: {
+            ...settings.captureDefaults,
+            [agent]: captureChoice
+          }
+        });
+      }
+    }
     void createSession({
       name: trimmed,
       agent,
       ...(cwd.trim().length > 0 ? { cwd: cwd.trim() } : {}),
-      ...(extraArgs.length > 0 ? { extraArgs } : {})
+      ...(extraArgs.length > 0 ? { extraArgs } : {}),
+      ...(captureOffered && capture ? { capture: true } : {})
     })
       .then((ok) => {
         if (ok) setOpen(false);
@@ -433,24 +479,29 @@ export function CreateSessionModal(): React.JSX.Element | null {
           </div>
         ) : null}
 
-        {/* Phase-12 layout slot: SpecStory capture ships with the bundling
-            round; the row is a disabled placeholder so the S6 layout is
-            already settled when it arrives. */}
-        <div className="field">
-          <span className="field-label" id="capture-label">
-            Capture
-          </span>
-          <label
-            className="preset-row capture-placeholder"
-            title="Coming in Phase 12"
-          >
-            <input type="checkbox" className="preset-check" disabled />
-            <span className="preset-label">
-              Save session history with SpecStory
+        {/* Phase 15 — SpecStory capture. The row exists only when this
+            machine can actually do it: a resolved SpecStory binary AND a
+            provider for the selected agent. An offer that would be declined
+            at spawn is worse than no offer. */}
+        {captureOffered ? (
+          <div className="field">
+            <span className="field-label" id="capture-label">
+              Capture
             </span>
-            <span className="capture-soon">soon</span>
-          </label>
-        </div>
+            <label className="preset-row">
+              <input
+                type="checkbox"
+                className="preset-check"
+                checked={capture}
+                onChange={() => setCapture(!capture)}
+              />
+              <span className="preset-label">
+                Save this session&rsquo;s history with SpecStory
+              </span>
+            </label>
+            <p className="field-caption">{captureCaption}</p>
+          </div>
+        ) : null}
 
         {genericError !== null ? (
           <div className="modal-error">{genericError}</div>

@@ -1,5 +1,15 @@
 /**
- * after-pack.cjs — finish the helper rename electron-builder starts.
+ * after-pack.cjs — the afterPack hook, and the composition point for the two
+ * things gmux must do to a freshly packed .app before it gets signed:
+ *
+ *   1. finish the helper rename electron-builder starts (below);
+ *   2. harden/sign the nested CLI binaries (build/sign-nested-binaries.cjs).
+ *
+ * Step 2 lives in its own module because it is a different domain with a
+ * different reason to change — Appendix F's signing recipe, one entry per
+ * embedded binary — and this file stays the hook, not a junk drawer.
+ *
+ * ---
  *
  * Phase 13.8. electron-builder renames the four helper BUNDLES and their
  * executables from productName (`gmux Helper`, `gmux Helper (Renderer)`,
@@ -27,10 +37,16 @@
 const { existsSync, readdirSync } = require('node:fs');
 const { execFileSync } = require('node:child_process');
 const { join } = require('node:path');
+const { signNestedBinaries } = require('./sign-nested-binaries.cjs');
 
 exports.default = async function afterPack(context) {
   if (context.electronPlatformName !== 'darwin') return;
+  renameHelpers(context);
+  signNestedBinaries(context);
+};
 
+/** Step 1: CFBundleName ← the bundle's own executable name, for all helpers. */
+function renameHelpers(context) {
   const appName = context.packager.appInfo.productFilename; // "gmux"
   const frameworks = join(
     context.appOutDir,
@@ -54,4 +70,4 @@ exports.default = async function afterPack(context) {
     ]);
     console.log(`  • after-pack: CFBundleName → ${name}`);
   }
-};
+}

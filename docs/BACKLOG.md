@@ -6,7 +6,7 @@
 3. **12.9 + 12.10 together** ✅ shipped (cb8c172) — both are tree work, and 12.10's drag-to-attach conflicts with 12.9's drag-to-move; they must be designed as one interaction.
 4. **12.11 + 12.12 together** ✅ shipped — UI polish (per-pane zoom; shared agent grid, sessions-position toggle, ⌘9-to-last, hold-⌘ tab hints). 12.12 item 5 left a standing contract: `src/shared/keymap.ts` is the ONLY shortcut list, enforced by `src/shared/__tests__/keymap-single-source.test.ts` — every later phase adds shortcuts there and nowhere else.
 5. **14** search ✅ shipped — the last parity work; **scope is now capped per CLAUDE.md**: everything from here goes to durability, the agent layer, correctness and consolidation unless the user asks otherwise.
-6. **15** SpecStory bundling · **16** refactor · **16.5** Tortie rename + migration · **17** final install.
+6. **15** SpecStory bundling ✅ shipped — specstory-cli 2.8.0 rides inside gmux.app (signed, bundled-first resolution), per-session capture wraps BOTH argv and resume_argv, a session-end sync backstops the flush tmux's SIGHUP skips, and Settings → SpecStory owns the device sign-in. · **16** refactor · **16.5** Tortie rename + migration · **17** final install.
 Research is already complete for 13.5, 14 and 15 — those are spec-complete and can start the moment their slot opens.
 
 Working queue maintained by the orchestrating session. Reference screenshots are real files — builders must Read them.
