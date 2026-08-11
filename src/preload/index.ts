@@ -23,6 +23,7 @@ import type {
   GmuxCaptureExtras,
   GmuxDropExtras,
   GmuxFsExtras,
+  GmuxFsOpsExtras,
   GmuxGitBranchExtras,
   GmuxGitDepthExtras,
   GmuxGitExtras,
@@ -156,13 +157,20 @@ const git: GmuxApi['git'] &
 
 /**
  * fs surface = frozen GmuxApi['fs'] + the appended optional tree extensions
- * (fs:readDir / fs:reveal), feature-detected by the file tree.
+ * (fs:readDir / fs:reveal), feature-detected by the file tree, plus the
+ * Phase 12.9 file operations (create/rename/move/trash), feature-detected the
+ * same way (`typeof window.gmux.fs.trash === 'function'`).
  */
-const fs: GmuxApi['fs'] & GmuxFsExtras = {
+const fs: GmuxApi['fs'] & GmuxFsExtras & GmuxFsOpsExtras = {
   readFile: (path) => invoke('fs:readFile', path),
   writeFile: (path, contents) => invoke('fs:writeFile', path, contents),
   readDir: (dirPath) => invoke('fs:readDir', dirPath),
-  reveal: (path) => invoke('fs:reveal', path)
+  reveal: (path) => invoke('fs:reveal', path),
+  createFile: (input) => invoke('fs:createFile', input),
+  createFolder: (input) => invoke('fs:createFolder', input),
+  rename: (input) => invoke('fs:rename', input),
+  move: (input) => invoke('fs:move', input),
+  trash: (input) => invoke('fs:trash', input)
 };
 
 /**

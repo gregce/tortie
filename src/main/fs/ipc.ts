@@ -1,5 +1,6 @@
 /**
- * fs:* IPC — file tree bridge (Phase 4) + editor file IO (Phase 5).
+ * fs:* IPC — file tree bridge (Phase 4) + editor file IO (Phase 5) + the
+ * file-operations service (Phase 12.9).
  *
  * Registers:
  *   - fs:readDir   one directory listing, unfiltered/unsorted (the renderer
@@ -10,6 +11,13 @@
  *                  files (NUL byte in the head) are refused with a
  *                  friendly FS_FAILED                            [editor]
  *   - fs:writeFile ⌘S save from the editor                       [editor]
+ *   - fs:createFile / fs:createFolder / fs:rename / fs:move / fs:trash
+ *                  the tree's file operations (Phase 12.9). Every path is
+ *                  proven to be inside an OPEN PROJECT root, `.git` is
+ *                  refused at any depth, delete goes to the macOS Trash via
+ *                  shell.trashItem, and a move that would overwrite resolves
+ *                  with 'would-overwrite' instead of clobbering. The rules
+ *                  live in file-ops.ts + paths.ts; this file is wiring.
  */
 
 import { shell } from 'electron';
@@ -19,6 +27,8 @@ import { basename, resolve as resolvePath } from 'node:path';
 import type { FsDirEntry, ReadFileResult } from '@shared/types';
 import { gmuxError } from '../tmux/errors';
 import { handle } from '../typed-ipc';
+import type { FileOpsDeps } from './file-ops';
+import { createFileOps } from './file-ops';
 
 
 function entryKind(d: {
@@ -77,10 +87,33 @@ async function readTextCapped(abs: string): Promise<ReadFileResult> {
 }
 
 /**
- * Register fs:readDir + fs:reveal (tree) and fs:readFile + fs:writeFile
- * (editor). Call once during main-process boot.
+ * Production dependencies for the file-operations service.
+ *
+ * `listProjectRoots` reads the manifest through the singleton core, so the
+ * authority on "what is a project root" is the same list the tabs render
+ * from. Imported lazily: the fs channels must not drag the tmux core into
+ * the module graph at boot, and by the time a user renames a file the core
+ * has long since resolved.
  */
-export function registerFsIpc(ipc: IpcMain): void {
+function defaultFileOpsDeps(): FileOpsDeps {
+  return {
+    trashItem: (path) => shell.trashItem(path),
+    listProjectRoots: async () => {
+      const { getGmuxCore } = await import('../ipc');
+      return (await getGmuxCore()).listProjects().map((p) => p.path);
+    }
+  };
+}
+
+/**
+ * Register fs:readDir + fs:reveal (tree), fs:readFile + fs:writeFile
+ * (editor) and the Phase 12.9 mutation channels. Call once during
+ * main-process boot. `deps` is for tests and for an integrator that wants to
+ * hand in its own project-root source; production passes nothing.
+ */
+export function registerFsIpc(ipc: IpcMain, deps?: FileOpsDeps): void {
+  const fileOps = createFileOps(deps ?? defaultFileOpsDeps());
+
   handle(ipc, 'fs:readDir', async (_e, dirPath) => {
     if (typeof dirPath !== 'string' || dirPath.trim().length === 0) {
       throw gmuxError('INVALID_INPUT', 'A directory path is required.');
@@ -145,4 +178,15 @@ export function registerFsIpc(ipc: IpcMain): void {
       );
     }
   });
+
+  // ----- Phase 12.9 file operations --------------------------------------
+  // Thin by design: each handler is one call into the service, which owns
+  // the guards. Rejections already carry GmuxErrorPayload with the errno in
+  // `detail` (see fs/errors.ts) — nothing is re-wrapped here.
+
+  handle(ipc, 'fs:createFile', (_e, input) => fileOps.createFile(input));
+  handle(ipc, 'fs:createFolder', (_e, input) => fileOps.createFolder(input));
+  handle(ipc, 'fs:rename', (_e, input) => fileOps.rename(input));
+  handle(ipc, 'fs:move', (_e, input) => fileOps.move(input));
+  handle(ipc, 'fs:trash', (_e, input) => fileOps.trash(input));
 }

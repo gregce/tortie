@@ -836,7 +836,8 @@ export type GmuxInvokeChannelMap = RegistryInvokeChannelMap &
   TerminalCaptureInvokeChannelMap &
   TerminalScrollInvokeChannelMap &
   ActivityInvokeChannelMap &
-  MultilineInvokeChannelMap;
+  MultilineInvokeChannelMap &
+  FileOpsInvokeChannelMap;
 
 export type GmuxInvokeChannel = keyof GmuxInvokeChannelMap;
 
@@ -1379,3 +1380,74 @@ export type FocusSessionActionId = `focus-session:${string}`;
 
 /** Every action the native menus (app menu + status item) can forward. */
 export type MenuActionWithTray = MenuActionWithHotkeys | FocusSessionActionId;
+
+// ---------------------------------------------------------------------------
+// APPENDED by Phase 12.9 (file operations in the explorer) — new channels and
+// types only. The one existing line touched above is the GmuxInvokeChannelMap
+// intersection, exactly as that declaration's own comment prescribes.
+//
+// The request/response SHAPES live in src/shared/fs-ops.ts (a new file, so
+// this contract stays append-only) together with `isProtectedFsPath` — the
+// single `.git` rule the tree's canDrag guard and the main-process guard both
+// call, so the two can never drift.
+//
+// Contract summary the builders need:
+//   - Every input carries `root`, the absolute project root. Main refuses a
+//     root that is not an OPEN PROJECT (PROJECT_NOT_FOUND), and refuses any
+//     path that leaves it — '..', an absolute path outside, or an escape
+//     through a directory symlink (INVALID_INPUT, message already friendly).
+//   - `.git` is refused at any depth, as source and as destination.
+//   - fs:trash is the ONLY deletion, and it is `shell.trashItem` — recoverable
+//     from Finder. It reports per entry (`trashed` / `failed`) instead of
+//     throwing, because a partial trash cannot be rolled back.
+//   - fs:move detects every collision BEFORE moving anything and resolves
+//     `{ status: 'would-overwrite', conflicts }`; the UI prompts and re-sends
+//     with `overwrite: true`, which trashes each displaced entry before the
+//     rename. fs:rename never overwrites at all (VS Code's rule).
+//   - Real errno failures reject with GmuxErrorPayload code 'FS_FAILED',
+//     `message` already written for a toast, and `detail` set to the bare
+//     errno token (FsOpErrno) so the UI can branch without parsing prose.
+//   - Moves/renames are plain fs.rename: git infers the rename.
+//
+// MAIN: registered in src/main/fs/ipc.ts (rules in fs/file-ops.ts + fs/paths.ts).
+// PRELOAD: five methods appended to the existing `fs` object per the GmuxApi
+// pattern — feature-detected by the tree (`typeof window.gmux.fs.trash ===
+// 'function'`), so an older preload simply hides the mutation menu items.
+// ---------------------------------------------------------------------------
+
+import type {
+  FsCreateInput,
+  FsMoveInput,
+  FsMoveResult,
+  FsOpEntry,
+  FsRenameInput,
+  FsRenameResult,
+  FsTrashInput,
+  FsTrashResult
+} from './fs-ops';
+
+/** New invoke channels appended by the file-operations stream (Phase 12.9). */
+export interface FileOpsInvokeChannelMap {
+  /** Create an empty file (parents created as needed); EEXIST is refused. */
+  'fs:createFile': { req: [input: FsCreateInput]; res: FsOpEntry };
+  /** Create a folder; an existing folder is refused rather than reused. */
+  'fs:createFolder': { req: [input: FsCreateInput]; res: FsOpEntry };
+  /** Rename in place. `name` is a basename; never overwrites. */
+  'fs:rename': { req: [input: FsRenameInput]; res: FsRenameResult };
+  /** Move entries into a folder; may resolve 'would-overwrite'. */
+  'fs:move': { req: [input: FsMoveInput]; res: FsMoveResult };
+  /** Send entries to the macOS Trash. Reports per entry. */
+  'fs:trash': { req: [input: FsTrashInput]; res: FsTrashResult };
+}
+
+/**
+ * OPTIONAL extensions to GmuxApi['fs'], feature-detected by the tree
+ * (`typeof window.gmux.fs.trash === 'function'`).
+ */
+export interface GmuxFsOpsExtras {
+  createFile?(input: FsCreateInput): Promise<FsOpEntry>;
+  createFolder?(input: FsCreateInput): Promise<FsOpEntry>;
+  rename?(input: FsRenameInput): Promise<FsRenameResult>;
+  move?(input: FsMoveInput): Promise<FsMoveResult>;
+  trash?(input: FsTrashInput): Promise<FsTrashResult>;
+}
