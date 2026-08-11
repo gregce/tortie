@@ -359,7 +359,19 @@ User-mandated: no messy growth or duplication accrual.
 3. **No duplicated resolution/config logic.** tmux binary/config resolution goes in ONE module (src/main/tmux/resolve.ts) consumed by supervisor AND attach host. Same rule generally: search for an existing helper before writing one (grep first).
 4. **Integrator dup-scan before commit:** quick pass for copy-paste blocks introduced by parallel builders (same 10+ line block in 2+ files → extract).
 
-## Phase 16 — refactor & consolidation pass (after Phase 15; Pierre deletions land first so this is done once)
+## Phase 15.5 — codebase-context research: re-baseline BEFORE refactoring (blocks Phase 16)
+**Why this exists (user directive):** Phase 16's spec was written when the tree was much smaller and names stale figures (`store.ts ~950 lines`, `main/ipc.ts ~1,019`, `app.css ~1,528`). Twelve phases have landed since, adding whole domains that did not exist when it was specced — search, symbols, quickopen, scrollback, diagnostics, proc, graph, image, drop, zoom, keymap, controls. Refactoring from that map would tidy the wrong files and miss the real accretion. Re-derive the baseline first; write it to docs/research/25-codebase-context.md.
+Must produce:
+1. **The domain model AS IT NOW IS** — every module grouped by the domain it actually serves (not the folder it happens to sit in), with each domain's public surface and its dependents. Name the boundaries that are real and the ones that leak.
+2. **Measured cohesion, not line counts** — for each large or central file, what distinct responsibilities does it hold? A cohesive 700-line domain module is fine; a 300-line file mixing three domains is not (CLAUDE.md's rule). Rank by "how many unrelated things must a reader hold at once", and say which files genuinely warrant splitting versus which merely look big.
+3. **Real duplication, found post-hoc** — many parallel agents wrote here. Scan for repeated logic (10+ line clones, parallel implementations of the same concept, second sources of truth). Two are already known: the View-menu orientation drift (Phase 14.7) and the earlier preload-wrapper generations. Find the rest; the guardrails were added mid-project and cannot have caught what preceded them.
+4. **Did the guardrails hold?** Verify empirically: is there exactly ONE typed preload bridge; is the keymap genuinely single-source (grep for any hand-written shortcut list); is tmux binary/config resolution in exactly one module; does every file-open path go through the one open-file bus (tree, SCM, search, quick-open)?
+5. **Dead code and orphans** — post-Pierre, post-search, post-Batch-D. Run knip/ts-prune, then verify by hand before condemning anything (a "dead" export may be used by a smoke harness or the packaged path only).
+6. **The Monaco question, re-decided against today's facts** — is Pierre's `/edit` GA yet? What exactly does deleting monaco-editor cost and save now (node_modules weight, built assets, LOC, and what capability is lost)? Recommend, do not assume the earlier answer.
+7. **A PRIORITIZED refactor plan for Phase 16** — ordered by reader-pain-per-unit-of-risk, with an explicit "do not touch" list for anything durability-critical (tmux, manifest, restore, activity) unless the change is provably behaviour-preserving.
+Read-only; no src changes. Runs AFTER Phase 15 lands so the baseline is final.
+
+## Phase 16 — refactor & consolidation pass (drive it from docs/research/25-codebase-context.md, NOT the stale figures below; after Phase 15.5; Pierre deletions land first so this is done once)
 User-identified growth pressure to resolve (line counts as of Phase 9-in-flight):
 - store.ts ~950 lines → split into per-domain zustand slices (sessions, projects, git, editor, ui) with a composed store; no behavior change.
 - main/ipc.ts ~1,019 lines → per-domain registrars (sessions.ipc.ts, git.ipc.ts, fs.ipc.ts, ui.ipc.ts) composed in one registerAll.
