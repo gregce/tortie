@@ -317,6 +317,14 @@ Scope to design in research, then build:
 4. **Replace-in-files** if it falls out cheaply and safely (preview + undo); otherwise defer explicitly.
 Constraints: results must feel instant on a 50k-file repo; no indexing daemon that burns battery unless it clearly wins; must work with the existing Pierre tree + editor tab model; MIT/Apache licensing; and it must integrate with the search-open path used by the SCM/tree (one open-file bus).
 
+## Phase 14.5 — true git log graph: lanes + local/origin divergence (spec: docs/research/24-git-graph.md)
+Scope justification (required by CLAUDE.md's parity guardrail): agents branch, commit and merge constantly, often across worktrees — "what has converged, and am I behind origin?" is supervision of AGENT work, not IDE furniture. It passes the test; structural search and LSP still do not.
+Today the history pane draws every commit as a flat single-column row. Two asks:
+1. **Divergence between local and origin** (ref: media_0Vi1Ch95fr — `main` and `origin/main` pills pinned to DIFFERENT commits, which instantly says "1 unpushed"). Ref badges positioned on their own commits; HEAD emphasised; remote refs visually distinct from local; tags distinct again. Per-commit unpushed/unpulled shading, and the ahead/behind summary in the branch header that already exists. **Honesty requirement:** being "up to date" against a week-old remote ref is a lie — surface last-fetch age rather than implying freshness.
+2. **True multi-lane topology** (ref: media_ZqhpfGRGSk — merges, concurrent lanes, colour carrying lane identity). Read the prior art rather than inventing the algorithm: **microsoft/vscode now ships a built-in Source Control Graph (MIT)** and **mhutchie/vscode-git-graph (MIT)** both contain tested lane-assignment implementations. Handle the awkward cases explicitly: octopus merges, parents outside the loaded window, and lane churn when a new page loads — **lanes must not reshuffle under the user's eyes as they scroll**.
+Constraints: lane colours come from OUR tokens with a documented cycling rule, colour is never the only signal (DESIGN.md), the pane can be ~300px so the graph must degrade gracefully rather than clip, and NOTHING already shipped may regress — the hover card, native context menu, copy-SHA, click-to-open and virtualization all stay.
+Verification tier: 2, except the topology correctness itself which is Tier 3-style evidence: the rendered lanes must be diffed against `git log --graph --oneline` ground truth on a repo with real merge history (getspecstory has one), not eyeballed.
+
 ## Phase 15 — SpecStory bundling (research: docs/research/13-specstory-integration.md)
 Bundle specstory-cli into gmux.app; per-session capture toggle (watch-wrap preserving resume argv); sync-at-session-end affordance; Settings: cloud login status / device auth / last sync.
 
