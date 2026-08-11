@@ -352,6 +352,18 @@ describe('the one generic needs-input dialog detector', () => {
     expect(detectDialog(fixture('claude-workspace-trust.txt'))).toBe(true);
   });
 
+  it('fires on that gate in a TALL pane, where it is drawn at the top', () => {
+    // A real gmux pane is ~42 rows, not 80x24: the gate renders at the top
+    // with blank padding under it. Counting the window up from the bottom of
+    // the raw capture landed entirely inside that padding, so the first
+    // prompt every new project shows was invisible to the status dot, ⌘J and
+    // the menu-bar sentinel while the session sat blocked.
+    const tall = fixture('claude-workspace-trust.txt') + '\n'.repeat(18);
+    expect(tall.split('\n').length).toBeGreaterThan(42);
+    expect(detectDialog(tall)).toBe(true);
+    expect(detectDialog(normalizeCapture(tall))).toBe(true);
+  });
+
   it('is silent on the screen claude leaves right AFTER the user answers', () => {
     expect(detectDialog(fixture('claude-post-answer.txt'))).toBe(false);
   });
@@ -364,6 +376,9 @@ describe('the one generic needs-input dialog detector', () => {
     ['shell-idle.txt']
   ])('is silent on a real idle screen: %s', (name) => {
     expect(detectDialog(fixture(name))).toBe(false);
+    // …and still silent once the window is measured from the last inked row,
+    // which is what lets it see a gate drawn at the top of a tall pane.
+    expect(detectDialog(fixture(name) + '\n'.repeat(18))).toBe(false);
   });
 
   it('needs options AND a hint — a numbered list alone is not a dialog', () => {

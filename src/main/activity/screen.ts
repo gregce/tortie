@@ -61,14 +61,21 @@ const HINT =
   /(enter to (confirm|select|continue)|press enter|esc to cancel|esc to quit|use enter to select|to cancel)/i;
 const QUEST = /(do you (want|trust)|would you like|how would you like)/i;
 
-/** Rows from the bottom of the screen the dialog must live in. */
+/** Rows from the bottom of the RENDERED screen the dialog must live in. */
 const DIALOG_ROWS = 24;
 
 export function detectDialog(capture: string): boolean {
-  const rows = capture
-    .split('\n')
-    .slice(-DIALOG_ROWS)
-    .map((l) => l.replace(BORDER, ''));
+  // The window is measured from the last row that has ink on it, not from the
+  // last row of the capture. A gmux pane is ~42 rows and an agent draws its
+  // first gate at the TOP with blank rows under it, so counting 24 up from the
+  // bottom of the raw capture lands entirely inside the padding and sees
+  // nothing — the workspace-trust gate, the very case this detector exists
+  // for, went undetected on any pane taller than 24 rows.
+  const lines = capture.split('\n');
+  while (lines.length > 0 && (lines[lines.length - 1] ?? '').trim() === '') {
+    lines.pop();
+  }
+  const rows = lines.slice(-DIALOG_ROWS).map((l) => l.replace(BORDER, ''));
   let opt1 = false;
   let opt2 = false;
   let hint = false;

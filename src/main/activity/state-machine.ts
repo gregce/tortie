@@ -195,10 +195,12 @@ export function inferredVerdict(
   const outputEvidence = !profile.animatesWhenIdle && !quiet;
   const cpuBusy = noteCpu(st, pane, ctx.proc, ctx.now);
   const toolChild = ctx.proc !== null && hasToolChild(ctx.proc, pane.panePid);
-  const screenChanged =
-    ctx.capture !== undefined &&
-    st.screen.note(hashScreen(normalizeCapture(ctx.capture)));
-  const dialog = ctx.capture !== undefined && detectDialog(ctx.capture);
+  // One normalized view of the screen feeds BOTH screen signals: the hash and
+  // the dialog detector must never disagree about what "the screen" is.
+  const screen =
+    ctx.capture === undefined ? null : normalizeCapture(ctx.capture);
+  const screenChanged = screen !== null && st.screen.note(hashScreen(screen));
+  const dialog = screen !== null && detectDialog(screen);
 
   // Strong evidence: the pane is producing output right now, burning CPU, or
   // waiting on a tool it setsid'd. An agent doing any of those is not blocked
