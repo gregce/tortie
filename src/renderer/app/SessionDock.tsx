@@ -31,21 +31,13 @@ import {
   useRenameDraft
 } from './session-actions';
 import { AgentIcon, Codicon } from '../icons';
-import { isAgentAvailable, useAgentAvailability } from '../state/agents';
-import type { AgentKind } from '@shared/types';
-import type { MenuItemSpec } from '../state/store';
 import {
   pressBlocksSurfaceDrag,
   sessionGestureProps,
   startSurfaceDrag
 } from './split/surface-dnd';
 import { groupMenuItems, groupTooltip } from './split/split-menu';
-
-const QUICK_AGENTS: { agent: AgentKind; label: string }[] = [
-  { agent: 'claude', label: 'Claude Code' },
-  { agent: 'codex', label: 'Codex' },
-  { agent: 'shell', label: 'Shell' }
-];
+import { useQuickCreateMenu } from './new-session-menu';
 
 function DockRow({
   session,
@@ -268,13 +260,11 @@ export function SessionDock(): React.JSX.Element | null {
   const activeSessionByProject = useApp((s) => s.activeSessionByProject);
   const setActiveSession = useApp((s) => s.setActiveSession);
   const setCreateOpen = useApp((s) => s.setCreateOpen);
-  const quickCreate = useApp((s) => s.quickCreate);
-  const setMenu = useApp((s) => s.setMenu);
   const width = useApp((s) => s.rightListWidth);
   const setWidth = useApp((s) => s.setRightListWidth);
   const layouts = useLayout((s) => s.layouts);
   const dockDrop = useLayout((s) => s.dockDrop);
-  const avail = useAgentAvailability();
+  const openQuickCreateMenu = useQuickCreateMenu();
   const now = useNow();
 
   const [dragging, setDragging] = useState(false);
@@ -387,21 +377,7 @@ export function SessionDock(): React.JSX.Element | null {
           className="icon-btn"
           aria-label="New session options"
           title="New session options"
-          onClick={(e) => {
-            const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-            const items: MenuItemSpec[] = QUICK_AGENTS.map(
-              ({ agent, label }) => {
-                const available = isAgentAvailable(avail, agent);
-                return {
-                  label,
-                  disabled: !available,
-                  ...(available ? {} : { hint: 'not installed' }),
-                  run: () => void quickCreate(agent)
-                };
-              }
-            );
-            setMenu({ x: r.left, y: r.bottom + 4, items });
-          }}
+          onClick={(e) => openQuickCreateMenu(e.currentTarget)}
         >
           <Codicon name="chevron-down" size={14} />
         </button>

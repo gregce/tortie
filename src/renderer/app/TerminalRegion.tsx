@@ -24,13 +24,9 @@ import React, {
   useRef,
   useState
 } from 'react';
-import type { AgentKind, Session } from '@shared/types';
+import type { Session } from '@shared/types';
 import { TerminalHost } from '../terminal';
-import {
-  AGENT_INSTALL_COMMANDS,
-  isAgentAvailable,
-  useAgentAvailability
-} from '../state/agents';
+import { AGENT_INSTALL_COMMANDS } from '../state/agents';
 import { effectiveStatusOf, useApp } from '../state/store';
 import type { MenuItemSpec } from '../state/store';
 import {
@@ -60,22 +56,16 @@ import {
   startSurfaceDrag
 } from './split/surface-dnd';
 import { groupMenuItems, groupTooltip } from './split/split-menu';
+import { useQuickCreateMenu } from './new-session-menu';
 
 // ---------------------------------------------------------------------------
-// Shared: quick-create split button (＋ opens ⌘T; ˅ native quick-create menu)
+// Shared: quick-create split button (＋ opens ⌘T; ˅ native quick-create menu,
+// every registry agent — src/renderer/app/new-session-menu.ts)
 // ---------------------------------------------------------------------------
-
-const QUICK_AGENTS: { agent: AgentKind; label: string }[] = [
-  { agent: 'claude', label: 'Claude Code' },
-  { agent: 'codex', label: 'Codex' },
-  { agent: 'shell', label: 'Shell' }
-];
 
 function NewSessionSplitButton(): React.JSX.Element {
   const setCreateOpen = useApp((s) => s.setCreateOpen);
-  const quickCreate = useApp((s) => s.quickCreate);
-  const setMenu = useApp((s) => s.setMenu);
-  const avail = useAgentAvailability();
+  const openQuickCreateMenu = useQuickCreateMenu();
 
   return (
     <div className="strip-new">
@@ -93,21 +83,7 @@ function NewSessionSplitButton(): React.JSX.Element {
         className="icon-btn strip-new-menu"
         aria-label="New session options"
         title="New session options"
-        onClick={(e) => {
-          const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-          const items: MenuItemSpec[] = QUICK_AGENTS.map(
-            ({ agent, label }) => {
-              const available = isAgentAvailable(avail, agent);
-              return {
-                label,
-                disabled: !available,
-                ...(available ? {} : { hint: 'not installed' }),
-                run: () => void quickCreate(agent)
-              };
-            }
-          );
-          setMenu({ x: r.left, y: r.bottom + 4, items });
-        }}
+        onClick={(e) => openQuickCreateMenu(e.currentTarget)}
       >
         <Codicon name="chevron-down" size={14} />
       </button>

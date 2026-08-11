@@ -12,7 +12,7 @@
  * every control-client event and mutation.
  */
 
-import { BrowserWindow, dialog, ipcMain, Menu } from 'electron';
+import { BrowserWindow, dialog, ipcMain, Menu, nativeImage } from 'electron';
 import type {
   IpcMainInvokeEvent,
   MenuItemConstructorOptions,
@@ -28,6 +28,7 @@ import type {
   GmuxInvokeChannel,
   GmuxInvokeReq,
   GmuxInvokeRes,
+  PopupMenuIcon,
   PopupMenuInput,
   TerminalScrollByInput,
   TerminalScrollPollInput,
@@ -1317,6 +1318,32 @@ function hintToAccelerator(hint: string | undefined): string | null {
   return /^([A-Za-z]+\+)*[A-Za-z0-9]+$/.test(acc) ? acc : null;
 }
 
+/**
+ * A renderer-rasterized menu icon → NativeImage at 16pt.
+ *
+ * The PNG arrives at 32×32 physical pixels; scaleFactor 2 is what makes it a
+ * 16pt image rather than a 32pt one. Template images let macOS tint the alpha
+ * for light/dark, highlight and disabled — which is the whole reason the
+ * monochrome marks look right greyed out.
+ */
+function menuIcon(icon: PopupMenuIcon | undefined): Electron.NativeImage | null {
+  if (icon === undefined) return null;
+  const comma = icon.dataUrl.indexOf(',');
+  if (!icon.dataUrl.startsWith('data:image/png;base64,') || comma < 0) return null;
+  try {
+    const img = nativeImage.createFromBuffer(
+      Buffer.from(icon.dataUrl.slice(comma + 1), 'base64'),
+      { scaleFactor: 2 }
+    );
+    if (img.isEmpty()) return null;
+    if (icon.template) img.setTemplateImage(true);
+    return img;
+  } catch {
+    // A bad icon must never cost the user their menu.
+    return null;
+  }
+}
+
 function registerPopupMenuHandler(): void {
   ipcMain.handle(
     'ui:popupMenu',
@@ -1334,12 +1361,15 @@ function registerPopupMenuHandler(): void {
               return { type: 'separator' as const };
             }
             const accelerator = hintToAccelerator(item.hint);
+            const icon = menuIcon(item.icon);
             return {
               label: item.label,
               enabled: item.enabled ?? true,
               // `destructive` has no native Electron menu treatment; the
               // confirm dialogs behind those items carry the red styling.
               ...(accelerator !== null ? { accelerator } : {}),
+              ...(item.sublabel !== undefined ? { sublabel: item.sublabel } : {}),
+              ...(icon !== null ? { icon } : {}),
               click: (): void => {
                 clicked = item.id;
               }

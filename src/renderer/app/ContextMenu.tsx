@@ -32,7 +32,9 @@ export function showNativeMenu(menu: MenuSpec): void {
             label: item.label,
             enabled: !(item.disabled ?? false),
             ...(item.destructive === true ? { destructive: true } : {}),
-            ...(item.hint !== undefined ? { hint: item.hint } : {})
+            ...(item.hint !== undefined ? { hint: item.hint } : {}),
+            ...(item.sublabel !== undefined ? { sublabel: item.sublabel } : {}),
+            ...(item.icon !== undefined ? { icon: item.icon } : {})
           }
     )
   };

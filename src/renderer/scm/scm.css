@@ -374,6 +374,18 @@
   background: var(--bg-active);
 }
 
+/* Multi-select (Phase 12.8): every selected row wears --bg-active, so the
+   LEAD row needs its own quiet mark or shift+arrows would move something
+   invisible. A 1px inset hairline, and only while the list holds the
+   keyboard — a selection left behind by a click should read as one block. */
+.scm-list:focus-within .scm-row.cursor {
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+.scm-list:focus-within .scm-row.cursor.selected {
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
 .scm-row.busy {
   opacity: 0.55;
 }

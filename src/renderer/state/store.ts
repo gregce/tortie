@@ -27,7 +27,8 @@ import type {
   GmuxLoginItemExtras,
   GmuxProjectExtras,
   GmuxSessionExtras,
-  GmuxSessionRestoreExtras
+  GmuxSessionRestoreExtras,
+  PopupMenuIcon
 } from '@shared/ipc';
 import { showNativeMenu } from '../app/ContextMenu';
 import { cancelPointerDrag } from '../app/split/pointer-drag';
@@ -92,6 +93,10 @@ export interface ConfirmSpec {
 export interface MenuItemSpec {
   label: string;
   hint?: string;
+  /** Grey second line under the label — prose the hint slot cannot carry. */
+  sublabel?: string;
+  /** Leading icon; see src/renderer/icons/agent-menu-icon.ts. */
+  icon?: PopupMenuIcon;
   destructive?: boolean;
   disabled?: boolean;
   run: () => void;

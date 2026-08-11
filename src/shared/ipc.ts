@@ -476,6 +476,25 @@ export interface AgentAvailability {
   codex: boolean;
 }
 
+/**
+ * Leading icon for a native menu item (Phase 12.8 — the SESSIONS quick-create
+ * menu wears the same AgentIcon the ⌘T picker does).
+ *
+ * The renderer rasterizes its own inline SVG, because main has no DOM: a
+ * 32×32 PNG data URL that main hands to nativeImage at scaleFactor 2, so it
+ * occupies 16pt and stays crisp on Retina.
+ */
+export interface PopupMenuIcon {
+  /** `data:image/png;base64,…`, 32×32 physical pixels. */
+  dataUrl: string;
+  /**
+   * True for `currentColor` marks: macOS then tints the alpha channel for the
+   * menu's appearance and for the disabled/highlighted states. False for
+   * inherently multi-tone art (droid's disc), which must keep its own colors.
+   */
+  template: boolean;
+}
+
 /** One item of a native context menu (ui:popupMenu). */
 export interface PopupMenuItem {
   /** Returned by the invoke when clicked. */
@@ -486,6 +505,13 @@ export interface PopupMenuItem {
   destructive?: boolean;
   /** Display-only shortcut hint (e.g. "F2"). */
   hint?: string;
+  /**
+   * Grey second line under the label (macOS 14.4+; silently ignored below).
+   * For prose the accelerator slot cannot carry — "not installed".
+   */
+  sublabel?: string;
+  /** Leading icon, rendered at 16pt. */
+  icon?: PopupMenuIcon;
   /** 'separator' items need no id/label. */
   type?: 'item' | 'separator';
 }

@@ -9,6 +9,11 @@
  * is a second section, round 1: the VS Code-bar commit list lives in
  * ./HistorySection.tsx (refs badges, context menu, rich hover card).
  *
+ * Phase 12.8: the list is MULTI-SELECT (click / shift-click / ⌘-click / ⌘A /
+ * shift+arrows) and every verb applies to the whole selection. The rules live
+ * in ./selection.ts as pure functions; this file only wires gestures to them,
+ * so the range/anchor/prune behavior is testable without a repo.
+ *
  * INTEGRATOR: in src/renderer/app/Sidebar.tsx replace
  * `<div data-slot="scm" />` with `<ScmSection />`.
  */
@@ -38,6 +43,24 @@ import { requestOpenFile } from './open-file';
 import { HistorySection } from './HistorySection';
 import { BranchesView } from './BranchesView';
 import { usePersistedBool, useSectionDrag, useSectionOrder } from './sections';
+import {
+  NO_SELECTION,
+  SCM_GROUP_ORDER,
+  discardCopy,
+  fileCount,
+  flattenRows,
+  moveCursor,
+  pathsOf,
+  pruneToRows,
+  selectModeFor,
+  scmRowKey,
+  selectRow,
+  selectWholeGroup,
+  selectedRows,
+  targetRows,
+  verbsFor
+} from './selection';
+import type { ScmGroupId, ScmRow, ScmSelection, ScmVerbs } from './selection';
 import './scm.css';
 
 /** SCM view sections, default order (DESIGN-SPEC S3A round 2). */
@@ -54,16 +77,7 @@ const SCM_SECTION_LABELS: Record<ScmSectionId, string> = {
 // Small local helpers
 // ---------------------------------------------------------------------------
 
-type GroupId = 'merge' | 'staged' | 'changes' | 'untracked';
-
-interface ScmRowModel {
-  group: GroupId;
-  file: GitFileStatus;
-  /** Unique within the flattened list (a file can be staged AND changed). */
-  key: string;
-}
-
-const GROUP_LABEL: Record<GroupId, string> = {
+const GROUP_LABEL: Record<ScmGroupId, string> = {
   merge: 'Merge',
   staged: 'Staged',
   changes: 'Changes',
@@ -72,7 +86,7 @@ const GROUP_LABEL: Record<GroupId, string> = {
 
 /** Letter + token color class for a row's badge (DESIGN-SPEC S3). */
 function badgeFor(
-  group: GroupId,
+  group: ScmGroupId,
   file: GitFileStatus
 ): { letter: string; cls: string; word: string } {
   if (group === 'merge') {
@@ -103,53 +117,82 @@ function badgeFor(
 }
 
 /**
- * Discard-with-confirm, shared by the row's hover action and the listbox's
- * Backspace binding (Phase 8 keyboard reachability).
+ * Discard-with-confirm for a SELECTION, shared by the row's hover action, the
+ * context menu and the listbox's Backspace binding (Phase 8 keyboard
+ * reachability). The confirm names the count — see discardCopy.
  */
-function confirmDiscardFile(
+function confirmDiscardRows(
   setConfirm: (spec: ConfirmSpec | null) => void,
   discard: (repoPath: string, paths: string[]) => Promise<void>,
   repoPath: string,
-  group: GroupId,
-  file: GitFileStatus
+  rows: readonly ScmRow[]
 ): void {
-  const { base } = splitPath(file.path);
-  if (group === 'untracked') {
-    setConfirm({
-      title: `Delete '${base}'?`,
-      body: 'This file is not tracked by git — deleting it cannot be undone.',
-      confirmLabel: 'Delete file',
-      destructive: true,
-      onConfirm: () => void discard(repoPath, [file.path])
-    });
-  } else {
-    setConfirm({
-      title: `Discard changes to '${base}'?`,
-      body: 'This cannot be undone.',
-      confirmLabel: 'Discard changes',
-      destructive: true,
-      onConfirm: () => void discard(repoPath, [file.path])
-    });
+  if (rows.length === 0) return;
+  const copy = discardCopy(rows);
+  setConfirm({
+    title: copy.title,
+    body: copy.body,
+    confirmLabel: copy.confirmLabel,
+    destructive: true,
+    onConfirm: () => void discard(repoPath, pathsOf(rows))
+  });
+}
+
+/** "Stage" / "Stage 4 files" — a verb label that never lies about its reach. */
+function verbLabel(verb: string, n: number): string {
+  return n > 1 ? `${verb} ${fileCount(n)}` : verb;
+}
+
+/**
+ * The destructive verb's label. Untracked files are DELETED, not reverted, so
+ * a selection made only of them says so; a mixed one stays "Discard changes"
+ * and lets the confirm body spell out the untracked part.
+ */
+function discardLabel(verbs: ScmVerbs, short: boolean): string {
+  const n = verbs.discard.length;
+  const allUntracked = n > 0 && verbs.untracked === n;
+  if (n > 1) {
+    return allUntracked
+      ? `Delete ${fileCount(n)}…`
+      : `Discard changes in ${fileCount(n)}…`;
   }
+  if (allUntracked) return short ? 'Delete…' : 'Delete file…';
+  return 'Discard changes…';
 }
 
 // ---------------------------------------------------------------------------
 // SCM file row
 // ---------------------------------------------------------------------------
 
+/**
+ * One changed file. Everything it does is scoped by `targets` — the rows this
+ * row's verbs will actually hit: the whole selection when this row is part of
+ * it, otherwise just itself (acting on an unselected row must never touch the
+ * selection elsewhere — Finder's rule, and VS Code's).
+ */
 function ScmFileRow({
   row,
   repoPath,
-  active,
+  selected,
+  cursor,
+  targets,
+  verbs,
   pendingOp,
+  onSelect,
   onActivate
 }: {
-  row: ScmRowModel;
+  row: ScmRow;
   repoPath: string;
-  active: boolean;
+  selected: boolean;
+  /** The lead row: what arrows move and what aria points at. */
+  cursor: boolean;
+  targets: readonly ScmRow[];
+  verbs: ScmVerbs;
   pendingOp: PendingOp | undefined;
+  /** Click with its modifiers — the selection model owns the outcome. */
+  onSelect: (row: ScmRow, e: React.MouseEvent) => void;
   /** `keep` opens a pinned tab instead of recycling the preview slot. */
-  onActivate: (row: ScmRowModel, keep?: boolean) => void;
+  onActivate: (row: ScmRow, keep?: boolean) => void;
 }): React.JSX.Element {
   const stage = useGit((s) => s.stage);
   const unstage = useGit((s) => s.unstage);
@@ -161,58 +204,82 @@ function ScmFileRow({
   const badge = badgeFor(group, file);
   const { dir, base } = splitPath(file.path);
   const busy = pendingOp !== undefined;
+  const multi = targets.length > 1;
 
-  const confirmDiscard = (): void => {
-    confirmDiscardFile(setConfirm, discard, repoPath, group, file);
+  const doStage = (): void => void stage(repoPath, pathsOf(verbs.stage));
+  const doUnstage = (): void => void unstage(repoPath, pathsOf(verbs.unstage));
+  const doDiscard = (): void => {
+    confirmDiscardRows(setConfirm, discard, repoPath, verbs.discard);
+  };
+  const openAll = (keep: boolean): void => {
+    // A multi-row open has to KEEP its tabs: the preview slot holds one file,
+    // so previewing four would leave three flashes and one survivor.
+    for (const target of targets) onActivate(target, keep || multi);
   };
 
   // Context menu (DESIGN.md §3: SCM rows have one; native via ui:popupMenu).
-  // Same verbs as the hover actions, plus Open.
+  // Same verbs as the hover actions, plus Open — all selection-scoped.
   const onContextMenu = (e: React.MouseEvent): void => {
     e.preventDefault();
     e.stopPropagation();
+    onSelect(row, e);
+    const filesWord = multi ? ` ${fileCount(targets.length)}` : '';
     const items: (MenuItemSpec | 'sep')[] = [
       {
-        label:
-          group === 'untracked' || group === 'merge' ? 'Open file' : 'Open diff',
-        run: () => onActivate(row)
-      },
-      // Files open the same way everywhere in gmux (Phase 12.4): one preview
-      // slot by default, a kept tab on demand. A verb the explorer has and
-      // this list does not would make the tab model look like a tree quirk.
-      {
+        label: multi
+          ? `Open${filesWord}`
+          : group === 'untracked' || group === 'merge'
+            ? 'Open file'
+            : 'Open diff',
+        run: () => openAll(false)
+      }
+    ];
+    // Files open the same way everywhere in gmux (Phase 12.4): one preview
+    // slot by default, a kept tab on demand. A verb the explorer has and
+    // this list does not would make the tab model look like a tree quirk.
+    // A multi-open is already "keep", so the second entry would be a no-op.
+    if (!multi) {
+      items.push({
         label: 'Open in New Tab',
         run: () => {
           onActivate(row, true);
           showOneTimeTip('open-in-new-tab');
         }
-      },
-      'sep'
-    ];
-    if (group === 'staged') {
-      items.push({
-        label: 'Unstage',
-        disabled: busy,
-        run: () => void unstage(repoPath, [file.path])
       });
-    } else if (group === 'merge') {
+    }
+    items.push('sep');
+    if (verbs.unstage.length > 0) {
       items.push({
-        label: 'Mark resolved (stage)',
+        label: verbLabel('Unstage', verbs.unstage.length),
         disabled: busy,
-        run: () => void stage(repoPath, [file.path])
+        run: doUnstage
       });
-    } else {
+    }
+    const plainStage = verbs.stage.filter((r) => r.group !== 'merge');
+    if (verbs.merge.length > 0) {
       items.push({
-        label: 'Stage',
+        label:
+          verbs.merge.length > 1
+            ? `Mark ${fileCount(verbs.merge.length)} resolved (stage)`
+            : 'Mark resolved (stage)',
         disabled: busy,
-        run: () => void stage(repoPath, [file.path])
+        run: () => void stage(repoPath, pathsOf(verbs.merge))
       });
+    }
+    if (plainStage.length > 0) {
+      items.push({
+        label: verbLabel('Stage', plainStage.length),
+        disabled: busy,
+        run: () => void stage(repoPath, pathsOf(plainStage))
+      });
+    }
+    if (verbs.discard.length > 0) {
       items.push('sep');
       items.push({
-        label: group === 'untracked' ? 'Delete file…' : 'Discard changes…',
+        label: discardLabel(verbs, false),
         destructive: true,
         disabled: busy,
-        run: confirmDiscard
+        run: doDiscard
       });
     }
     setMenu({ x: e.clientX, y: e.clientY, items });
@@ -220,15 +287,21 @@ function ScmFileRow({
 
   const renamedFrom =
     file.origPath !== undefined ? `renamed from ${file.origPath}` : null;
+  /** Hover-action copy: names the reach when a selection is behind it. */
+  const scoped = (verb: string, n: number): string =>
+    n > 1 ? `${verb} ${fileCount(n)}` : `${verb} ${base}`;
 
   return (
     <div
       role="option"
-      aria-selected={active}
+      id={`scm-row-${row.key}`}
+      data-key={row.key}
+      aria-selected={selected}
       aria-label={`${base}, ${badge.word}${dir !== '' ? `, in ${dir}` : ''}`}
       className={[
         'scm-row',
-        active ? 'selected' : '',
+        selected ? 'selected' : '',
+        cursor ? 'cursor' : '',
         busy ? 'busy' : ''
       ]
         .filter(Boolean)
@@ -236,7 +309,12 @@ function ScmFileRow({
       title={
         renamedFrom !== null ? `${file.path} — ${renamedFrom}` : file.path
       }
-      onClick={() => onActivate(row)}
+      onClick={(e) => {
+        onSelect(row, e);
+        // A ⌘-click is a selection gesture, not a navigation one — opening a
+        // diff every time someone builds a set would trash the preview tab.
+        if (!e.metaKey && !e.ctrlKey) onActivate(row);
+      }}
       onContextMenu={onContextMenu}
     >
       <span className={`scm-badge ${badge.cls}`} aria-hidden="true">
@@ -254,30 +332,33 @@ function ScmFileRow({
           <button
             type="button"
             className="icon-btn scm-action"
-            aria-label={`Unstage ${base}`}
-            title="Unstage"
+            aria-label={scoped('Unstage', verbs.unstage.length)}
+            title={verbLabel('Unstage', verbs.unstage.length)}
             disabled={busy}
             onClick={(e) => {
               e.stopPropagation();
-              void unstage(repoPath, [file.path]);
+              doUnstage();
             }}
           >
             <Codicon name="remove" size={14} />
           </button>
         ) : (
           <>
-            {group !== 'merge' ? (
+            {group !== 'merge' && verbs.discard.length > 0 ? (
               <button
                 type="button"
                 className="icon-btn scm-action"
-                aria-label={
-                  group === 'untracked' ? `Delete ${base}` : `Discard changes to ${base}`
-                }
-                title={group === 'untracked' ? 'Delete…' : 'Discard changes…'}
+                aria-label={scoped(
+                  verbs.untracked === verbs.discard.length
+                    ? 'Delete'
+                    : 'Discard changes to',
+                  verbs.discard.length
+                )}
+                title={discardLabel(verbs, true)}
                 disabled={busy}
                 onClick={(e) => {
                   e.stopPropagation();
-                  confirmDiscard();
+                  doDiscard();
                 }}
               >
                 <Codicon name="discard" size={14} />
@@ -286,14 +367,21 @@ function ScmFileRow({
             <button
               type="button"
               className="icon-btn scm-action"
-              aria-label={
-                group === 'merge' ? `Mark ${base} resolved` : `Stage ${base}`
+              aria-label={scoped(
+                group === 'merge' ? 'Mark resolved' : 'Stage',
+                verbs.stage.length
+              )}
+              title={
+                group === 'merge'
+                  ? verbs.merge.length > 1
+                    ? `Mark ${fileCount(verbs.merge.length)} resolved (stage)`
+                    : 'Mark resolved (stage)'
+                  : verbLabel('Stage', verbs.stage.length)
               }
-              title={group === 'merge' ? 'Mark resolved (stage)' : 'Stage'}
               disabled={busy}
               onClick={(e) => {
                 e.stopPropagation();
-                void stage(repoPath, [file.path]);
+                doStage();
               }}
             >
               <Codicon name="add" size={14} />
@@ -505,21 +593,31 @@ export function ScmSection(): React.JSX.Element | null {
     [status]
   );
 
-  const rows = useMemo<ScmRowModel[]>(() => {
-    const list: ScmRowModel[] = [];
-    for (const g of ['merge', 'staged', 'changes', 'untracked'] as GroupId[]) {
-      for (const f of groups[g]) list.push({ group: g, file: f, key: `${g}:${f.path}` });
-    }
-    return list;
-  }, [groups]);
+  const rows = useMemo<ScmRow[]>(() => flattenRows(groups), [groups]);
 
   // Hook order: controller must run even when no project is open.
   const commitCtrl = useCommitController(repoPath ?? '', groups);
 
-  // Keyboard cursor over the flattened row list (listbox pattern, like the
-  // sessions list). Cursor keys move it; Enter re-emits the open event.
-  const [cursorKey, setCursorKey] = useState<string | null>(null);
+  // Multi-select over the flattened row list (listbox pattern, like the
+  // sessions list). ./selection.ts owns every rule; this is only the state.
+  const [selection, setSelection] = useState<ScmSelection>(NO_SELECTION);
   const listRef = useRef<HTMLDivElement | null>(null);
+
+  // A `git:changed` refresh rebuilds `rows`: keep what still exists, drop
+  // what does not. Staging four files must not leave four ghosts selected.
+  useEffect(() => {
+    setSelection((s) => pruneToRows(s, rows));
+  }, [rows]);
+
+  const selectedSet = useMemo(
+    () => new Set(selection.keys),
+    [selection.keys]
+  );
+  const selected = useMemo(
+    () => selectedRows(selection, rows),
+    [selection, rows]
+  );
+  const selectionVerbs = useMemo(() => verbsFor(selected), [selected]);
 
   // Section order + drag-reorder (BACKLOG #6): persisted per view app-wide;
   // only meaningful with ≥2 sections (non-repo renders Changes alone).
@@ -535,9 +633,8 @@ export function ScmSection(): React.JSX.Element | null {
   );
 
   const activate = useCallback(
-    (row: ScmRowModel, keep = false): void => {
+    (row: ScmRow, keep = false): void => {
       if (repoPath === null) return;
-      setCursorKey(row.key);
       requestOpenFile({
         repoPath,
         relPath: row.file.path,
@@ -564,43 +661,71 @@ export function ScmSection(): React.JSX.Element | null {
     [repoPath]
   );
 
+  /** Click / right-click on a row → the selection model decides the outcome. */
+  const onSelect = useCallback(
+    (row: ScmRow, e: React.MouseEvent): void => {
+      setSelection((s) =>
+        // A right-click inside an existing selection keeps it (so the menu can
+        // act on all of it); anywhere else it collapses to the clicked row.
+        e.type === 'contextmenu' && s.keys.includes(row.key)
+          ? s
+          : selectRow(s, rows, row.key, selectModeFor(e))
+      );
+    },
+    [rows]
+  );
+
+  const scrollCursorIntoView = (key: string | null): void => {
+    if (key === null) return;
+    listRef.current
+      ?.querySelector(`[data-key="${CSS.escape(key)}"]`)
+      ?.scrollIntoView({ block: 'nearest' });
+  };
+
   const onListKeyDown = (e: React.KeyboardEvent): void => {
     if (rows.length === 0 || repoPath === null) return;
-    const idx = rows.findIndex((r) => r.key === cursorKey);
+    // What a keystroke acts on: the selection when the cursor sits inside it,
+    // otherwise the cursor row alone — the same rule the mouse follows.
+    const cursorRow = rows.find((r) => r.key === selection.cursor) ?? rows[0];
+    const acting =
+      cursorRow === undefined ? [] : targetRows(selection, rows, cursorRow);
+
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
-      const nextIdx =
-        e.key === 'ArrowDown'
-          ? Math.min(idx + 1, rows.length - 1)
-          : Math.max(idx <= 0 ? 0 : idx - 1, 0);
-      const next = rows[nextIdx];
-      if (next) {
-        setCursorKey(next.key);
-        listRef.current
-          ?.querySelector(`[data-key="${CSS.escape(next.key)}"]`)
-          ?.scrollIntoView({ block: 'nearest' });
-      }
+      const next = moveCursor(
+        selection,
+        rows,
+        e.key === 'ArrowDown' ? 1 : -1,
+        e.shiftKey
+      );
+      setSelection(next);
+      scrollCursorIntoView(next.cursor);
+    } else if (e.key === 'a' && (e.metaKey || e.ctrlKey)) {
+      // ⌘A takes the cursor's GROUP, not the list: Staged and Changes take
+      // opposite verbs, and one selection spanning both offers neither well.
+      e.preventDefault();
+      setSelection((s) => selectWholeGroup(s, rows));
     } else if (e.key === 'Enter' && !e.metaKey) {
       e.preventDefault();
-      const row = rows.find((r) => r.key === cursorKey) ?? rows[0];
-      if (row) activate(row);
+      if (cursorRow !== undefined) activate(cursorRow);
     } else if (e.key === ' ' || e.key === 's' || e.key === 'S') {
-      // Phase 8 keyboard staging: Space / s toggles the cursor row —
-      // staged rows unstage, everything else (incl. conflicts) stages.
+      // Phase 8 keyboard staging, now selection-wide: staged rows unstage,
+      // everything else (incl. conflicts) stages. SEQUENTIAL — a selection
+      // holding both halves of an `XY = MM` file would otherwise fire two
+      // contradictory git calls at once and land on whichever won the race.
       e.preventDefault();
-      const row = rows.find((r) => r.key === cursorKey) ?? rows[0];
-      if (!row) return;
-      if (row.group === 'staged') {
-        void unstage(repoPath, [row.file.path]);
-      } else {
-        void stage(repoPath, [row.file.path]);
-      }
+      const verbs = verbsFor(acting);
+      void (async () => {
+        if (verbs.unstage.length > 0) {
+          await unstage(repoPath, pathsOf(verbs.unstage));
+        }
+        if (verbs.stage.length > 0) await stage(repoPath, pathsOf(verbs.stage));
+      })();
     } else if (e.key === 'Backspace') {
-      // Discard the cursor row, behind the SAME confirm the ↩ action uses.
+      // Discard the selection, behind the SAME confirm the ↩ action uses.
       e.preventDefault();
-      const row = rows.find((r) => r.key === cursorKey) ?? rows[0];
-      if (!row || row.group === 'staged' || row.group === 'merge') return;
-      confirmDiscardFile(setConfirm, discard, repoPath, row.group, row.file);
+      const verbs = verbsFor(acting);
+      confirmDiscardRows(setConfirm, discard, repoPath, verbs.discard);
     }
   };
 
@@ -609,7 +734,7 @@ export function ScmSection(): React.JSX.Element | null {
   const pendingForRepo = pending[repoPath] ?? {};
   const total = status?.isRepo === true ? status.files.length : 0;
 
-  const groupHeaderAction = (g: GroupId): React.ReactNode => {
+  const groupHeaderAction = (g: ScmGroupId): React.ReactNode => {
     if (g === 'staged') {
       return (
         <button
@@ -704,39 +829,51 @@ export function ScmSection(): React.JSX.Element | null {
             className="scm-list"
             role="listbox"
             aria-label="Changed files"
+            aria-multiselectable="true"
+            {...(selection.cursor !== null
+              ? { 'aria-activedescendant': `scm-row-${selection.cursor}` }
+              : {})}
             tabIndex={0}
             onKeyDown={onListKeyDown}
           >
-            {(['merge', 'staged', 'changes', 'untracked'] as GroupId[]).map(
-              (g) =>
-                groups[g].length === 0 ? null : (
-                  <React.Fragment key={g}>
-                    <div className="scm-group-row">
-                      <span className="scm-group-label">
-                        {GROUP_LABEL[g]}
-                      </span>
-                      <span className="scm-group-count num">
-                        {groups[g].length}
-                      </span>
-                      <span className="scm-row-space" />
-                      {groupHeaderAction(g)}
-                    </div>
-                    {groups[g].map((f) => {
-                      const key = `${g}:${f.path}`;
-                      return (
-                        <div key={key} data-key={key}>
-                          <ScmFileRow
-                            row={{ group: g, file: f, key }}
-                            repoPath={repoPath}
-                            active={key === cursorKey}
-                            pendingOp={pendingForRepo[f.path]}
-                            onActivate={activate}
-                          />
-                        </div>
-                      );
-                    })}
-                  </React.Fragment>
-                )
+            {SCM_GROUP_ORDER.map((g) =>
+              groups[g].length === 0 ? null : (
+                <React.Fragment key={g}>
+                  <div className="scm-group-row">
+                    <span className="scm-group-label">{GROUP_LABEL[g]}</span>
+                    <span className="scm-group-count num">
+                      {groups[g].length}
+                    </span>
+                    <span className="scm-row-space" />
+                    {groupHeaderAction(g)}
+                  </div>
+                  {groups[g].map((f) => {
+                    const row: ScmRow = {
+                      group: g,
+                      file: f,
+                      key: scmRowKey(g, f.path)
+                    };
+                    const inSelection = selectedSet.has(row.key);
+                    // A row outside the selection acts on itself alone.
+                    const multi = inSelection && selected.length > 1;
+                    const solo = [row];
+                    return (
+                      <ScmFileRow
+                        key={row.key}
+                        row={row}
+                        repoPath={repoPath}
+                        selected={inSelection}
+                        cursor={selection.cursor === row.key}
+                        targets={multi ? selected : solo}
+                        verbs={multi ? selectionVerbs : verbsFor(solo)}
+                        pendingOp={pendingForRepo[f.path]}
+                        onSelect={onSelect}
+                        onActivate={activate}
+                      />
+                    );
+                  })}
+                </React.Fragment>
+              )
             )}
           </div>
         )}

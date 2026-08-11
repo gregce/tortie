@@ -2,15 +2,27 @@
  * AgentIcon — the real vendor mark for every place a session appears
  * (tab strip, right-docked session list, ⌘T create modal, ⌘J attention
  * overlay, Settings). Logos live in src/renderer/assets/agents/*.svg:
- * eight are normalized copies of the SpecStory sync-cloud asset set;
- * pi is normalized from the vendor's own mark; muse, qwen, and
- * antigravity are marks commissioned for Phase 10's wave-2 agents
- * (registry doc §3 — no vendor SVG existed; antigravity is traced from
- * the vendor's PNG). Monochrome marks are `currentColor` so they tint
- * with the surrounding text (rest: --text-secondary), while inherently
- * multi-tone marks (droid's disc) render as-is. Crisp at 14–16 px: all
- * marks are simple filled geometry on 24-ish grids, inlined as SVG (no
- * <img> rasterization).
+ * eight are normalized copies of the SpecStory sync-cloud asset set; pi is
+ * normalized from the vendor's own mark; antigravity is traced from the
+ * vendor's PNG.
+ *
+ * `muse` and `qwen` were flattened from the vendors' brand SVGs in Phase
+ * 12.8 (muse wears META's mark — Muse Code is Meta's CLI):
+ *  - Meta's is the silhouette union of its three gradient paths, fitted to
+ *    the box's WIDTH and centred vertically. Its native aspect is 3:2 and it
+ *    is never stretched to fill a square, so it sits 16 units tall in 24.
+ *  - Qwen's woven hexagram keeps the vendor geometry but carries a 1.2u
+ *    `currentColor` stroke that dilates every ribbon face. Measured at 8×
+ *    pixel zoom, the raw flatten's ~1px facets collapse into mush at 16px,
+ *    and keeping its own gradient is no rescue — dark indigo has almost no
+ *    contrast on --bg-canvas. The dilation is the only version that still
+ *    reads as Qwen at 16 px.
+ *
+ * Monochrome marks are `currentColor` so they tint with the surrounding text
+ * (rest: --text-secondary), while inherently multi-tone marks (droid's disc)
+ * render as-is. Crisp at 14–16 px: all marks are simple filled geometry on
+ * 24-ish grids, inlined as SVG (no <img> rasterization) — except in NATIVE
+ * menus, which take pixels; see ./agent-menu-icon.ts.
  *
  * `codex` wears the OpenAI mark (codex.svg IS the OpenAI logo — the CLI
  * has no separate logo). Plain shells and unknown agents fall back to
@@ -90,9 +102,20 @@ export interface AgentIconProps {
   className?: string;
 }
 
-export const AgentIcon: FC<AgentIconProps> = ({ agent, size = 16, className }) => {
+/**
+ * The markup `<AgentIcon agent={…}>` would render, for the surfaces that
+ * cannot mount a React node — today the native menu bridge, which rasterizes
+ * it (src/renderer/icons/agent-menu-icon.ts). One lookup, one alias table:
+ * a second copy of either would let a menu and its list disagree.
+ */
+export function agentSvgFor(agent: string): { svg: string; monochrome: boolean } {
   const key = agent.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
-  const canonical = ALIASES[key] ?? key;
-  const svg = LOGOS[canonical] ?? TERMINAL_SVG;
+  const svg = LOGOS[ALIASES[key] ?? key] ?? TERMINAL_SVG;
+  // `currentColor` is the contract for a tintable mark; droid's disc is art.
+  return { svg, monochrome: svg.includes('currentColor') };
+}
+
+export const AgentIcon: FC<AgentIconProps> = ({ agent, size = 16, className }) => {
+  const { svg } = agentSvgFor(agent);
   return <InlineSvg svg={svg} size={size} {...(className !== undefined ? { className } : {})} />;
 };

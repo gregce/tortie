@@ -17,8 +17,9 @@
  */
 import './icons.css';
 
-export { AgentIcon } from './AgentIcon';
+export { AgentIcon, agentSvgFor } from './AgentIcon';
 export type { AgentIconProps } from './AgentIcon';
+export { agentMenuIcon, warmAgentMenuIcons } from './agent-menu-icon';
 export { Codicon } from './Codicon';
 export type { CodiconProps } from './Codicon';
 export { FileIcon, fileIconIdFor } from './FileIcon';
