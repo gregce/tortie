@@ -294,6 +294,32 @@ describe('argv helpers', () => {
   });
 
   /**
+   * Re-appending the launch flags (research 22 §3.4 rule 3) holds everywhere;
+   * their POSITION does not. deepseek's usage is `deepseek [OPTIONS] <COMMAND>
+   * [ARGS]`, so `deepseek resume <id> --skip-onboarding` exits with "unexpected
+   * argument" — a DEAD restored pane — while `deepseek --skip-onboarding
+   * resume <id>` brings the conversation back. The difference is registry data
+   * (`resumeExtrasPosition`), so both composition sites — launch-time arming in
+   * manifest/agents.ts and harvest-time arming in ipc.ts — inherit it.
+   */
+  it('puts the launch extras where the CLI will accept them', () => {
+    expect(
+      registryResumeArgv('deepseek', 'ID', ['--skip-onboarding'], '/abs/deepseek')
+    ).toEqual(['/abs/deepseek', '--skip-onboarding', 'resume', 'ID']);
+    // Nobody loses their flags, whichever side of the template they land on.
+    for (const id of LAUNCHABLE_AGENT_IDS) {
+      const argv = registryResumeArgv(id, 'ID', ['--flag']);
+      if (argv.length === 0) continue;
+      expect(argv.includes('--flag'), id).toBe(true);
+      const leading = getLaunchableEntry(id).resume.resumeExtrasPosition === 'leading';
+      expect(argv.indexOf('--flag') < argv.indexOf('ID'), id).toBe(leading);
+    }
+    expect(getLaunchableEntry('deepseek').resume.resumeExtrasPosition).toBe(
+      'leading'
+    );
+  });
+
+  /**
    * gemini's bare `--resume` does not error and does not open a picker — it
    * silently attaches to the MOST RECENT session. An argv that loses its id
    * therefore opens the WRONG conversation, so one must never be built.

@@ -123,6 +123,16 @@ import {
 // Configuration
 // ---------------------------------------------------------------------------
 
+/**
+ * Quiet time between the planted turn and the out-of-band kill. Agents write
+ * their transcripts asynchronously — pi's user message reaches disk about two
+ * seconds after the keystroke, sometimes after its own reply is already on
+ * screen — so killing the instant the answer appears is a race the harness
+ * loses at random, and the case it fails is the agent's write latency rather
+ * than gmux's resume.
+ */
+const PRE_KILL_FLUSH_MS = 2_500;
+
 const envNum = (name: string, fallback: number): number => {
   const raw = process.env[name];
   const n = raw === undefined ? NaN : Number(raw);
@@ -457,6 +467,19 @@ async function runCase(
     }
 
     // --- 6. the reboot ----------------------------------------------------
+    // Let the agent finish writing the turn before pulling the power.
+    // MEASURED 2026-08-11: pi's user message reaches its JSONL about two
+    // seconds AFTER the keystroke, and the reply can land on screen first —
+    // so a kill fired the instant the answer appeared made this case a coin
+    // flip (pi PASS then FAIL on identical stage timings, with NO session
+    // file anywhere on disk for the failing run, only the one the resumed
+    // process created). That flake is the AGENT's write latency, not gmux's
+    // capture, and a gate that fails at random teaches nobody anything.
+    // It is a real property worth knowing — an agent killed a heartbeat
+    // after a turn can lose it — but the thing to measure there is the
+    // agent's durability, not gmux's resume.
+    await waitForQuiet(tmuxId, 1_500, 15_000);
+    await delay(PRE_KILL_FLUSH_MS);
     await captureSessionSnapshot(tmuxId, session.id).catch(() => false);
     await killOwnSession(session.tmuxName);
     const restorable = await waitForStatus(core, session.id, 'restorable', 30_000);

@@ -66,7 +66,8 @@ import { AttachHost } from './attach';
 import { agentBinaryName, registryResumeArgv } from './agents';
 import { unwatchGitRepo } from './git';
 import {
-  agentHarvestsId,
+  agentRescuesId,
+  agentRescuesIdAfterExit,
   ManifestStore,
   resolveLaunchSpec,
   toSession,
@@ -112,6 +113,14 @@ const REFRESH_DEBOUNCE_MS = 150;
  */
 const STATUS_POLL_MS = 1_000;
 const STATUS_POLL_IDLE_MS = 2_000;
+
+/**
+ * How long a boot rescue looks for the record of a session whose process is
+ * already gone. The store scan runs immediately and nothing will be written
+ * afterwards, so this only has to outlast a slow disk — not the hours a LIVE
+ * harvest waits for a trust prompt to be answered.
+ */
+const DEAD_ROW_RESCUE_TIMEOUT_MS = 20_000;
 
 /**
  * Server options resources/gmux-tmux.conf sets that gmux cannot afford to
@@ -429,11 +438,16 @@ export class GmuxCore {
     id: string,
     agent: LaunchableAgentKind,
     ctx: { cwd: string; sinceTs: number; panePid?: number; tmuxSessionId?: string },
-    extraArgs: readonly string[]
+    extraArgs: readonly string[],
+    options: { timeoutMs?: number; markUnavailableOnFailure?: boolean } = {}
   ): void {
-    if (agent === 'shell' || !agentHarvestsId(agent)) return;
+    if (agent === 'shell' || !agentRescuesId(agent)) return;
     if (this.idCaptureWatches.has(id)) return;
-    const watch = watchForSessionId(agent, ctx);
+    const watch = watchForSessionId(
+      agent,
+      ctx,
+      options.timeoutMs !== undefined ? { timeoutMs: options.timeoutMs } : {}
+    );
     this.idCaptureWatches.set(id, watch);
     watch.promise
       .then((harvested) => {
@@ -487,19 +501,38 @@ export class GmuxCore {
         // sessions, and resumeIdHarvests() withdraws the promise once the
         // session is gone without an id.
         console.warn(`[gmux] ${agent} session-id harvest: ${(err as Error).message}`);
+        // …EXCEPT for a rescue of a session that has already exited, where
+        // the answer really is final: no process will ever write that record
+        // now, so the row stops saying 'capturing' and says what a restore
+        // would actually give the user.
+        if (options.markUnavailableOnFailure === true) {
+          const rec = this.manifest.getSession(id);
+          if (rec?.resumeCapture === 'capturing') {
+            this.manifest.setResumeCapture(id, 'unavailable');
+          }
+        }
         this.broadcastSessions();
       });
   }
 
   /**
-   * Boot-time finalization: any LIVE harvesting session still missing its
-   * agentSessionId gets a fresh watch keyed to its original spawn time, so
-   * resume ids are recorded even across a gmux restart mid-harvest.
-   * extraArgs are recovered from the recorded launch argv.
+   * Boot-time finalization: any session still missing its agentSessionId gets
+   * a fresh watch keyed to its original spawn time, so resume ids are
+   * recorded even across a gmux restart mid-harvest. extraArgs are recovered
+   * from the recorded launch argv.
+   *
+   * Phase 13.5.1 widened this past the harvesting agents, because the rows the
+   * user reported were being skipped by the very code written to rescue them:
+   * muse-1 and qwen-1 were re-armed here, and pi-1 and pi1 were not, since pi
+   * PRE-ASSIGNS and so never had a harvester — leaving two sessions with a
+   * NULL resume argv and their transcripts sitting on disk the whole time. A
+   * row with no id is a row the launch path already failed for, whatever its
+   * agent's normal strategy is, so the question is only whether the store can
+   * still answer (see agentRescuesId / agentRescuesIdAfterExit).
    */
   private resumeIdHarvests(): void {
     for (const rec of this.manifest.listSessions()) {
-      if (rec.agent === 'shell' || !agentHarvestsId(rec.agent)) continue;
+      if (rec.agent === 'shell' || !agentRescuesId(rec.agent)) continue;
       if (rec.agentSessionId !== undefined) continue;
       const live = this.liveIds.get(rec.id);
       if (
@@ -507,9 +540,27 @@ export class GmuxCore {
         rec.status === 'restorable' ||
         live === undefined
       ) {
-        // The process is gone and the id was never captured, so nothing will
-        // ever capture it. Leaving this row 'capturing' would show a spinner
-        // forever over a session that comes back as a bare directory.
+        // The process is gone. For most agents that ends it — their stores are
+        // keyed on a pid or a tmux pane that no longer exists — so leaving the
+        // row 'capturing' would spin forever over a session that comes back as
+        // a bare directory. A cwd+start-time store (pi) outlives its pane,
+        // though, and this is exactly the post-reboot case the phase is for:
+        // give it one bounded look, then say 'unavailable' if it finds nothing.
+        if (agentRescuesIdAfterExit(rec.agent)) {
+          this.startIdCapture(
+            rec.id,
+            rec.agent,
+            { cwd: rec.cwd, sinceTs: rec.createdAt },
+            rec.argv.slice(1),
+            {
+              // The record either exists now or never will: no process is
+              // going to write one. One scan, not a six-hour vigil.
+              timeoutMs: DEAD_ROW_RESCUE_TIMEOUT_MS,
+              markUnavailableOnFailure: true
+            }
+          );
+          continue;
+        }
         if (rec.resumeCapture === 'capturing') {
           this.manifest.setResumeCapture(rec.id, 'unavailable');
         }

@@ -110,6 +110,12 @@ export interface AgentLaunchSpec {
    * TRUE when resume only works from the ORIGINAL cwd (pi, qwen). The
    * restore path must NOT substitute a fallback directory for these: qwen
    * fails loudly, pi silently opens a new EMPTY session under the same id.
+   *
+   * ADVISORY ONLY — this spec is consumed at create time and the flag is not
+   * persisted to the manifest, so restore cannot read it back. The enforcement
+   * lives in src/main/restore/restore.ts, which re-derives the answer from the
+   * registry entry for the recorded agent. Do not add a second reader here
+   * expecting it to survive a reboot.
    */
   requiresOriginalCwd?: boolean;
 }

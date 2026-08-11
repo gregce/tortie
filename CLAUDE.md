@@ -42,6 +42,7 @@ When a round mixes tiers, verify per item at its own tier rather than promoting 
 
 ## Gates before any commit
 `npm run typecheck && npm run build && npm run smoke:t1` minimum; integrators run the full battery (test, smoke, smoke:t3, package). Commit as "Phase N[.x]: summary" with the session trailers.
+**Touching resume?** Add `npm run conformance:resume:capture` (~16 s, no turns, no tokens spent) to that list for any commit under `agents/registry.ts`, `manifest/harvest/**`, `manifest/agents.ts` or `restore/**` — it is the cheap gate that makes every registry resume claim executable, and it caught a one-word `availableAt` error that the whole battery above was blind to. The full `npm run conformance:resume` roundtrip (~3 min, real turns) runs once per phase and after any agent-CLI upgrade. `smoke:t3` covers a claude AND a non-claude restore shape; neither is a substitute for the other.
 
 ## UI rules
 - All colors via tokens (src/renderer/styles/tokens.css); no hardcoded literals outside theme constant files.

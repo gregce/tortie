@@ -10,7 +10,14 @@
 
 import { afterEach, beforeEach, describe, it, vi } from 'vitest';
 import assert from 'node:assert/strict';
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync
+} from 'node:fs';
 import { tmpdir, homedir } from 'node:os';
 import { delimiter, join } from 'node:path';
 
@@ -169,6 +176,46 @@ describe('captureLoginShellPath — fallback', () => {
     const captured = await captureLoginShellPath({ shell, timeoutMs: 300 });
     assert.ok(Date.now() - started < 5_000, 'did not respect the timeout');
     assert.ok(captured.split(delimiter).includes('/usr/bin'));
+  });
+
+  /**
+   * The regression that deadlocked Phase 13.5's conformance harness for 9
+   * minutes. `sleep 30` alone was never the hard case — execFile's own
+   * timeout SIGTERMs a direct child just fine. The killer is a shell that
+   * FORKS (this machine's `zsh -lic` forks a copy of itself): the fork
+   * inherits the stdout write end, so the pipe never closes, so execFile's
+   * callback — the only path to settlement — never fires, and every
+   * resolveBinary() caller blocks forever. Two assertions, because settling
+   * while leaking is only half a fix: the promise resolves, AND the fork is
+   * gone rather than orphaned for 11 hours.
+   */
+  it('shell that forks a stdout-holding child → still settles, and kills the fork', async () => {
+    const shell = join(root, 'forking-shell');
+    const pidFile = join(root, 'grandchild.pid');
+    writeFileSync(
+      shell,
+      '#!/bin/sh\n' +
+        '# The fork inherits stdout — this is what wedges execFile.\n' +
+        'sleep 30 &\n' +
+        `echo $! > ${pidFile}\n` +
+        'sleep 30\n'
+    );
+    chmodSync(shell, 0o755);
+    const started = Date.now();
+    const captured = await captureLoginShellPath({ shell, timeoutMs: 300 });
+    const elapsed = Date.now() - started;
+    assert.ok(elapsed < 5_000, `did not settle: waited ${elapsed} ms`);
+    assert.ok(captured.split(delimiter).includes('/usr/bin'));
+
+    const grandchild = Number(readFileSync(pidFile, 'utf8').trim());
+    assert.ok(Number.isFinite(grandchild) && grandchild > 0, 'no grandchild pid');
+    // Give SIGTERM→SIGKILL escalation (500 ms) room, then prove it landed.
+    await new Promise((r) => setTimeout(r, 1_200));
+    assert.throws(
+      () => process.kill(grandchild, 0),
+      /ESRCH/,
+      `grandchild ${grandchild} survived the probe timeout`
+    );
   });
 
   it('shell that prints garbage (no markers) → fallback', async () => {

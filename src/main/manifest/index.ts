@@ -24,8 +24,11 @@ export {
 
 export {
   agentHarvestsId,
+  agentRescuesId,
+  agentRescuesIdAfterExit,
   isDescendantOf,
   resetProcessParentCache,
+  sanitizePiCwd,
   sanitizeQwenCwd,
   watchForSessionId,
   type HarvestContext,

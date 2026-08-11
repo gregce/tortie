@@ -175,6 +175,25 @@ export interface AgentResumeInfo {
    * the most recent session). Never emit the template with an empty slot.
    */
   bareResumeIsDangerous?: boolean;
+  /**
+   * WHERE the original launch flags go in the resume argv. Default 'trailing'
+   * — `<bin> <template…> <extras…>` — which is what every flag-style resume
+   * takes and what codex and muse accept after their subcommand.
+   *
+   * 'leading' for a CLI whose OPTIONS must precede its SUBCOMMAND. deepseek's
+   * usage line is literally `deepseek [OPTIONS] <COMMAND> [ARGS]`, and the
+   * difference is a DEAD PANE versus a restored conversation:
+   *   `deepseek resume <id> --skip-onboarding`
+   *      → error: unexpected argument '--skip-onboarding' found
+   *   `deepseek --skip-onboarding resume <id>`
+   *      → the conversation comes back (verified hands-on 2026-08-11)
+   * So research 22 §3.4 rule 3 ("re-append the original extra flags") holds
+   * for deepseek too; it is the POSITION that is not universal. Dropping the
+   * flags instead would also have cost something real here — it is
+   * `--skip-onboarding` that keeps the restored pane out of the first-run
+   * workspace-trust dialog.
+   */
+  resumeExtrasPosition?: 'leading' | 'trailing';
   notes: string;
 }
 
@@ -632,8 +651,12 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
         confidence: 'weak'
       },
       sessionStore: '~/.deepseek/sessions/<sessionId>.json',
+      // …and its OPTIONS precede its SUBCOMMAND (`deepseek [OPTIONS]
+      // <COMMAND> [ARGS]`), so the launch flags lead rather than trail.
+      resumeExtrasPosition: 'leading',
       notes:
         'RESUME IS A SUBCOMMAND. `deepseek --resume <id>` exits RC=2 with "error: unexpected argument \'--resume <id>\' found" — a DEAD PANE. Verified 2026-08-10 against 0.8.26 hands-on and re-confirmed 2026-08-11 from `deepseek --help` (no --resume in the top-level option list; `resume` is a Command) and `deepseek resume --help` ("Resume a saved TUI session"). ' +
+        'AND THE OPTIONS PRECEDE THE SUBCOMMAND (resumeExtrasPosition: leading). `deepseek resume <id> --skip-onboarding` dies the same way — "error: unexpected argument \'--skip-onboarding\' found" — because the usage is `deepseek [OPTIONS] <COMMAND> [ARGS]`. `deepseek --skip-onboarding resume <id>` restores the conversation, VERIFIED hands-on 2026-08-11 in tmux (the original turn and the agent\'s own reply were both back on screen). Keeping the flags is not cosmetic: --skip-onboarding is what stops the restored pane opening the first-run workspace-trust dialog, which a bare `deepseek resume <id>` does hit in a directory it has not seen. ' +
         "TRAP AT THE SOURCE: the CLI's own `deepseek sessions` output prints the broken advice \"Resume with: deepseek --resume <session-id>\" — do not copy it. " +
         'Flat GLOBAL store; project identity via metadata.workspace INSIDE the file, written on the first turn — so harvest is WEAK: two deepseek panes started together in one directory are not separable. ' +
         'New sibling checkpoints/ dir as of 0.8.26.'
@@ -682,7 +705,12 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
         mode: 'harvest',
         key: 'time-only',
         source: 'newest ~/.gemini/antigravity-cli/brain/<id>/ directory created after spawn',
-        availableAt: 'session-open',
+        // NOT session-open, however plausible that looked: reproduced twice
+        // 2026-08-11 — no brain/<id>/ directory appears in 45 s of an idle
+        // session, and one appears immediately AFTER the first turn. The
+        // wrong value also failed conformance:resume:capture, which is the
+        // zero-cost gate everything else here is asked to run.
+        availableAt: 'first-turn',
         confidence: 'weak'
       },
       sessionStore:
@@ -1045,6 +1073,14 @@ export function registryLaunchArgv(
  * does not error and does not show a picker, it silently attaches to the
  * MOST RECENT session. An argv that loses its id opens the wrong
  * conversation, so an argv that would lose its id must never be built.
+ *
+ * WHERE the extras go is data, not a branch: `resume.resumeExtrasPosition`
+ * puts them ahead of the template for a CLI whose options must precede its
+ * subcommand (deepseek — `deepseek resume <id> --skip-onboarding` exits with
+ * "unexpected argument" and leaves a DEAD PANE, while `deepseek
+ * --skip-onboarding resume <id>` resumes). Both composition sites —
+ * launch-time arming in manifest/agents.ts and harvest-time arming in ipc.ts
+ * — go through this one function, so the rule holds everywhere.
  */
 export function registryResumeArgv(
   id: LaunchableAgentId,
@@ -1062,7 +1098,9 @@ export function registryResumeArgv(
   // The template must have carried the slot; if it did not, the id is not in
   // the argv and firing it would resume someone else's conversation.
   if (!args.includes(sessionId)) return [];
-  return [argv0, ...args, ...extraArgs];
+  return entry.resume.resumeExtrasPosition === 'leading'
+    ? [argv0, ...extraArgs, ...args]
+    : [argv0, ...args, ...extraArgs];
 }
 
 /**

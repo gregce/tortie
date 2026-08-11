@@ -11,10 +11,16 @@
  *      codex resume <id>) WITHOUT Enter — ARMED, never auto-fired.
  *      Plain shells and never-harvested codex sessions arm nothing.
  *
+ * Step 1 has a precondition Phase 13.5.1 added: the recorded cwd may be gone,
+ * and quietly restoring into the project folder instead is only safe for the
+ * agents whose conversation lookup is global. See the guard below.
+ *
  * The caller (GmuxCore.restoreSession) owns manifest/status bookkeeping.
  */
 
 import { existsSync } from 'node:fs';
+import type { LaunchableAgentId } from '@shared/types';
+import { getLaunchableEntry } from '../agents/registry';
 import type { ManifestSessionRecord } from '../manifest';
 import * as tmux from '../tmux';
 import { gmuxError } from '../tmux';
@@ -47,16 +53,79 @@ async function typeIntoPane(
 }
 
 /**
+ * Whether this agent can only find its conversation from the ORIGINAL
+ * directory — registry data (`resume.requiresOriginalCwd`), not a list kept
+ * here. True for qwen ("No saved session found with ID", loud) and pi (a
+ * SILENT new empty session under the same id). Research 22 §3.5.
+ *
+ * The manifest cannot answer this: `AgentLaunchSpec.requiresOriginalCwd` is
+ * set at launch and never persisted, so restore has to ask the registry.
+ */
+function resumeNeedsOriginalCwd(agent: ManifestSessionRecord['agent']): boolean {
+  if (agent === 'shell') return false;
+  try {
+    return (
+      getLaunchableEntry(agent as LaunchableAgentId).resume.requiresOriginalCwd ===
+      true
+    );
+  } catch {
+    // An id the registry does not launch has no armed resume to protect.
+    return false;
+  }
+}
+
+/** Human name for the agent in an error the user reads. */
+function agentDisplayName(agent: ManifestSessionRecord['agent']): string {
+  if (agent === 'shell') return 'This session';
+  try {
+    return getLaunchableEntry(agent as LaunchableAgentId).displayName;
+  } catch {
+    return agent;
+  }
+}
+
+/**
  * Recreate one manifested session in tmux with replayed scrollback and an
  * armed resume command. Pure tmux side effects — no manifest writes here.
  *
  * @throws GmuxError INVALID_INPUT when the recorded cwd no longer exists
- *         (surfaced as a friendly UI state, not a crash).
+ *         (surfaced as a friendly UI state, not a crash), and when
+ *         substituting the project folder would arm a resume that quietly
+ *         opens the WRONG (empty) conversation — see below.
  */
 export async function restoreSessionInTmux(
   rec: ManifestSessionRecord
 ): Promise<RestoreOutcome> {
-  const cwd = existsSync(rec.cwd)
+  const originalCwdGone = !existsSync(rec.cwd);
+
+  // THE SUBSTITUTION IS NOT ALWAYS SAFE (research 22 §3.5, unimplemented
+  // until Phase 13.5.1). Falling back rec.cwd -> projectPath is fine for the
+  // agents whose lookup is global (claude, muse), and it is the failure this
+  // whole phase exists to prevent for the cwd-scoped ones: `pi --session-id
+  // <id>` run from the wrong project does not error, it starts an EMPTY
+  // session under the same id, so the pane LOOKS resumed and the conversation
+  // is not there. Refuse instead, and say what to do about it.
+  //
+  // Only when a resume is actually armed: with nothing to type into the pane
+  // there is no false resume to prevent, and the user should still get their
+  // directory and scrollback back rather than a refusal.
+  if (
+    originalCwdGone &&
+    (rec.resumeArgv?.length ?? 0) > 0 &&
+    resumeNeedsOriginalCwd(rec.agent)
+  ) {
+    throw gmuxError(
+      'INVALID_INPUT',
+      `"${rec.name}" was in ${rec.cwd}, and that folder is gone. ` +
+        `${agentDisplayName(rec.agent)} can only find this conversation from ` +
+        'its original folder, so restoring it somewhere else would open an ' +
+        'empty session that looks resumed. Put the folder back and restore ' +
+        'again, or start a new session.',
+      rec.cwd
+    );
+  }
+
+  const cwd = !originalCwdGone
     ? rec.cwd
     : existsSync(rec.projectPath)
       ? rec.projectPath

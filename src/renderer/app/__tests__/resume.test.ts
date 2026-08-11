@@ -109,8 +109,19 @@ describe('resumeNote', () => {
     // Audit §4.5: under the corrected registry no installed agent lacks
     // resume, so "directory only" is gmux's missing work, not the CLI's.
     const note = resumeNote(session({ agent: as('qwen'), resumeCapture: 'unavailable' }));
-    expect(note).toContain('gmux never captured');
+    expect(note).toContain('gmux never recorded');
     expect(note).not.toMatch(/qwen (cannot|does not|has no)/i);
+  });
+
+  /**
+   * The user's pi-1 and pi1 rows read "gmux never captured a conversation id
+   * for this session" — true, and it taught them nothing about what to do.
+   * A dead-end state has to name its repair.
+   */
+  it('tells the user what repairs an unrecoverable row', () => {
+    const note = resumeNote(session({ agent: as('pi'), resumeCapture: 'unavailable' }));
+    expect(note).toContain('a new Pi session in this folder');
+    expect(note).toContain('armed from the moment it starts');
   });
 
   it('is specific where the limitation is specific', () => {
@@ -174,12 +185,14 @@ describe('restoreActionCopy', () => {
     expect(copy).toContain('press Enter');
   });
 
-  it('says the conversation will not come back, and why', () => {
+  it('says the conversation will not come back, why, and what repairs it', () => {
     const copy = restoreActionCopy(
       session({ agent: as('qwen'), status: 'restorable', resumeCapture: 'unavailable' })
     );
     expect(copy).toContain('will not come back');
-    expect(copy).toContain('gmux never captured a conversation id');
+    expect(copy).toContain('never recorded a conversation id');
+    // Audit §4.4: the sentence has to leave the user with something to DO.
+    expect(copy).toContain('a new Qwen session in this folder');
   });
 
   it('offers a plain shell no apology for a conversation it never had', () => {

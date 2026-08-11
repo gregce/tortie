@@ -113,7 +113,17 @@ function resumeReason(
       if (id === 'droid') {
         return `gmux has no verified way to resume ${label} yet`;
       }
-      return 'gmux never captured a conversation id for this session';
+      // Audit §4.4: name the repair, not just the shortfall. "gmux never
+      // captured a conversation id" was true and useless — it is what the
+      // user's own pi-1 and pi1 rows said, and it left them with no idea that
+      // the fix is to start the session again. Every installed agent has a
+      // working resume and gmux arms it at launch now, so the honest,
+      // actionable version of this state is "this one is too old to repair".
+      return (
+        'gmux never recorded a conversation id for this session and can no ' +
+        `longer find one; a new ${label} session in this folder is armed ` +
+        'from the moment it starts'
+      );
     case 'conversation':
     case 'none':
       return null;

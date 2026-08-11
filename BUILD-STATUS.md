@@ -25,7 +25,7 @@ Date: 2026-08-09 · version 0.0.1 · machine: macOS 15.7.9 arm64, node v22.23.1,
 - `npm test` — 103/103 tests, 9 files, green.
 - `npm run smoke` (GMUX_SMOKE=basic, dev) — 6/6 PASS, exit 0.
 - `npm run smoke:t1` — T1 restart acceptance test green (session survives simulated app restart; manifest reconciles; re-attach flows bytes).
-- `npm run smoke:t3` — T3 reboot-restore acceptance test green (out-of-band kill → row 'restorable' → restored with replayed scrollback + armed resume line typed but NOT executed).
+- `npm run smoke:t3` — T3 reboot-restore acceptance test green, now for TWO rows (out-of-band kill → row 'restorable' → restored with replayed scrollback + armed resume line typed but NOT executed). Phase 13.5.1 added the second: a row relabelled `pi` with a `pi --session-id <id>` argv, because until then the only restore this gate had ever exercised was claude's — the exact regression BACKLOG 13.5 item 6 was written to prevent, uncovered inside the battery meant to prevent it. No agent binary is launched; the pane is a shell and the argv is planted, so what it pins is that restore arms whatever the manifest recorded rather than something claude-shaped.
 - `npm run package` — produces `release/gmux-0.0.1-arm64.dmg` (134 MB) + `release/gmux-0.0.1-arm64.zip`.
 - **Packaged-app smoke**: `GMUX_SMOKE=basic release/mac-arm64/gmux.app/Contents/MacOS/gmux` — 6/6 PASS, exit 0 (window + renderer + preload load, better-sqlite3 + node-pty native modules work from `app.asar.unpacked`, private tmux socket reachable). See Known issues for a first-launch teardown flake.
 
@@ -84,29 +84,31 @@ concurrency 3, whole matrix in **182 s**):
 | claude 2.1.227 | **PASS** | pre-assign `--session-id` | yes | yes | proven |
 | cursor 2026.08.04 | **PASS** | pre-assign-cmd `create-chat` | yes | yes | proven |
 | codex 0.147.0 | **PASS** | harvest cwd-newest / exact | no | no (first turn) | proven |
-| antigravity 1.1.11 | **PASS** | harvest time-only / weak | no | no — registry says session-open, see finding 2 | proven |
+| antigravity 1.1.11 | **PASS** | harvest time-only / weak | no | no (first turn — registry corrected in Phase 13.5.1) | proven |
 | muse 0.1.0 | **PASS** | harvest tmux-pane / exact | no | **yes** | proven |
 | qwen 0.21.7 | **PASS** | harvest pid / exact | no | **yes** | proven |
 | pi 0.84.1 | **PASS** | pre-assign `--session-id` | yes | yes | proven |
 | gemini 0.54.0 | BLOCKED | pre-assign `--session-id` | yes | yes | — provider refuses every turn on this account ("This request failed"), exactly the API-400 wall research 22 §6 item 2 recorded. **Capture is proven; the roundtrip is not.** |
-| deepseek 0.8.26 | **FAIL** | harvest cwd-newest / weak | no | no (first turn) | **dead pane — see Known issues #6** |
+| deepseek 0.8.26 | **PASS** | harvest cwd-newest / weak | no | no (first turn) | proven (Phase 13.5.1 — was a dead pane; the launch flags now LEAD the `resume` subcommand) |
 | droid | SKIP | — | — | — | not installed here |
 
-Live coverage is therefore **7 of 9 installed agents proven end to end**, 1 blocked by a provider
-account, 1 genuinely broken, 1 not installed. Before this phase the number was 1 (claude).
+Live coverage is therefore **8 of 9 installed agents proven end to end**, 1 blocked by a provider
+account, 1 not installed — `8 PASS · 0 FAIL · 1 BLOCKED · 1 SKIP in 187.7s`, re-measured after the
+Phase 13.5.1 fixes. Before this phase the number was 1 (claude).
 
 Four things the harness measured on its first runs, which is the argument for keeping it:
 
-1. **deepseek restore is a dead pane whenever any launch flag was chosen** — Known issues #6. A real
-   P1 the registry could not have caught by inspection, because the verb, the id and the capture are
-   all correct and only the flag re-append is wrong.
+1. **deepseek restore was a dead pane whenever any launch flag was chosen** — Known issues #6,
+   FIXED in Phase 13.5.1. A real P1 the registry could not have caught by inspection, because the
+   verb, the id and the capture are all correct and only the flag POSITION was wrong.
 2. **antigravity's `availableAt: 'session-open'` is wrong** — its conversation directory does not
    exist until the first turn (measured: nothing after 50 s idle; the id lands ~4 s after the first
    reply). The roundtrip still PASSes, so the harness reports it as a NOTE rather than a failure —
    but that field is what bounds how long the UI may say "capturing…", so a session with a stale
-   value sits hopeful forever. `conformance:resume:capture` reports antigravity FAIL until it is
-   corrected to `'first-turn'` in `src/main/agents/registry.ts`, and the failure line says exactly
-   which of the two causes it is.
+   value sits hopeful forever. `conformance:resume:capture` reported antigravity FAIL until it was
+   corrected to `'first-turn'` in `src/main/agents/registry.ts` (Phase 13.5.1); that gate is now
+   `6 PASS · 0 FAIL · 4 SKIP in 16s`, and its failure line says exactly which of the two causes it
+   is when it goes red again.
 3. **`codex --dangerously-bypass-approvals-and-sandbox` does not skip the first-run workspace-trust
    dialog** and codex has no flag that does, so the harness answers it — but only when it can read
    which option is highlighted (`› 1. Yes, continue`, `▶ [a] Trust this workspace`). deepseek's
@@ -159,27 +161,26 @@ reconcile ignores it; it never kills the tmux server. Verified after the full ru
 3. **DMG is 134 MB** — Electron 43 framework + Monaco renderer chunk dominate; renderer-dep exclusion already applied. Further wins (Monaco language-worker pruning) belong to the editor stream.
 4. electron-builder warns `@electron/rebuild already used by electron-builder, consider removing from devDependencies` — harmless double-rebuild (postinstall + packaging). Leave as-is: the postinstall rebuild is what makes `npm run dev`/`smoke` work.
 5. `npm run icon` requires `rsvg-convert` (homebrew librsvg) — present on this machine, not vendored.
-6. **P1 — deepseek restore is a DEAD PANE whenever the user picked any launch flag.** Found by
-   `npm run conformance:resume`, 2026-08-11, reproduced on every run. Research 22 §3.4 rule 3 says
-   re-append the original extras to every resume argv (MEASURED: claude, codex, muse and qwen all
-   lose their permission flags across resume), and `registryResumeArgv()` does that for everyone.
-   But deepseek's resume is a SUBCOMMAND that takes **only** a session id:
+6. **FIXED in Phase 13.5.1 — deepseek restore was a DEAD PANE whenever the user picked any launch
+   flag.** Found by `npm run conformance:resume`, 2026-08-11, on every run. Research 22 §3.4 rule 3
+   says re-append the original extras to every resume argv (MEASURED: claude, codex, muse and qwen
+   all lose their permission flags across resume), and `registryResumeArgv()` did that for everyone:
 
    ```
    $ deepseek resume 9f027ced-… --skip-onboarding
    error: unexpected argument '--skip-onboarding' found
-   Usage: deepseek-tui resume <SESSION_ID>
    ```
 
-   So the capture is correct, the id is correct, the verb is correct (research 22 already fixed
-   `--resume` → `resume`), and the restore still lands the user in a shell with an error. Any
-   deepseek preset from the flag catalog triggers it. **Fix (owner: `src/main/agents/registry.ts`,
-   not this harness's file):** the re-append rule is per-agent, not universal — carry it as data on
-   `AgentResumeInfo` (e.g. `resumeAcceptsExtras: false` for deepseek) and have `registryResumeArgv()`
-   drop extras when it is false, rather than treating rule 3 as global. `flags.ts` already hedged
-   this in prose (`deepseek resume --help` documents only an opaque `[ARGS]…` pass-through, "whether
-   root flags are honored there is UNVERIFIED"); it is now verified, and the answer is no.
-   `conformance:resume` stays RED until this lands — deliberately.
+   The first diagnosis — "deepseek's resume subcommand refuses extras, so drop them" — was half
+   right and would have cost something real. deepseek's usage line is `deepseek [OPTIONS] <COMMAND>
+   [ARGS]`: it is the POSITION that is wrong, not the flags. Verified hands-on in tmux 2026-08-11,
+   `deepseek --skip-onboarding resume <id>` brings the conversation back, and keeping the flag is
+   load-bearing — a bare `deepseek resume <id>` opens the first-run workspace-trust dialog in a
+   directory deepseek has not seen, which is its own kind of stuck pane. So rule 3 holds for
+   deepseek too, and the exception is carried as data: `AgentResumeInfo.resumeExtrasPosition:
+   'leading'` on the deepseek entry, honoured in `registryResumeArgv()`, which both composition
+   sites (`manifest/agents.ts`, `ipc.ts`) already go through. `conformance:resume` now reports
+   deepseek PASS with `recall=<nonce><token>` — the conversation itself came back.
 7. **@parcel/watcher SIGABRT at exit, amplified by the conformance harness.** Same root cause as #1:
    `GmuxCore.dispose()` cancels the harvest watches but `@parcel/watcher`'s `unsubscribe()` is
    fire-and-forget, so an FSEvents subscription can still be initialising when `app.exit()` tears the
@@ -188,6 +189,16 @@ reconcile ignores it; it never kills the tmux server. Verified after the full ru
    app does; it currently works around it with a 1.5 s settle before `app.exit()`
    (`src/main/conformance/resume.ts`). Real fix (owner: `src/main/manifest/harvest`): await
    `unsubscribe()` in the watch's cancel path, then drop the workaround.
+8. **Agents flush their transcripts asynchronously — an agent killed a heartbeat after a turn can
+   lose it.** MEASURED 2026-08-11 on pi 0.84.1: the user message reaches its JSONL about two seconds
+   after the keystroke, and the reply can land on screen first. The conformance harness killed the
+   pane the instant the answer appeared, which made the pi case a coin flip — PASS then FAIL on
+   identical stage timings, with **no session file anywhere on disk** for the failing run, only the
+   one the resumed process then created for itself. The harness now waits for pane quiet plus
+   `PRE_KILL_FLUSH_MS` (2.5 s) before the kill (`src/main/conformance/resume.ts`), and pi went 3/3
+   then 1/1 in the full matrix. Recorded here rather than only fixed, because the underlying fact is
+   the user's too: a machine that loses power seconds after an agent replies can come back to a
+   conversation missing its last turn, and that is the agent's durability, not gmux's.
 
 ## Files owned by this phase
 

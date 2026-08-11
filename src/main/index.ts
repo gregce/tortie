@@ -50,6 +50,7 @@ import { registerFsIpc } from './fs';
 import { disposeGitIpc, registerGitIpc } from './git';
 import { getGmuxCore, registerIpcHandlers, shutdownGmuxCore } from './ipc';
 import type { GmuxCore } from './ipc';
+import type { ManifestSessionRecord } from './manifest';
 import { installAppMenu } from './menu';
 import { registerRestoreIpc, snapshotPath, stripAnsi } from './restore';
 import { openSettingsWindow, registerSettingsIpc } from './settings';
@@ -407,12 +408,30 @@ async function runSmokeVerify(): Promise<void> {
 // ---------------------------------------------------------------------------
 
 const SMOKE_T3 = 'smoke-t3';
+/**
+ * The second T3 row, and the reason it exists: until Phase 13.5.1 the ONLY
+ * restore this gate ever exercised was claude's, so "restore works" was a
+ * claim about one tenth of the registry — the exact regression BACKLOG 13.5
+ * item 6 was written to prevent, sitting uncovered inside the battery that
+ * was supposed to prevent it. Nothing here launches a real agent: the pane is
+ * a shell, the row is relabelled, and the planted argv is a pi one, because
+ * what must not regress is that restore arms WHATEVER the manifest recorded
+ * rather than something claude-shaped. (A real per-agent roundtrip is a
+ * different, heavier test — `npm run conformance:resume`.)
+ */
+const SMOKE_T3_AGENT = 'smoke-t3-agent';
 const T3_MARKER_RE = /GMUX-T3-MARKER-\d+/;
+
+/** The two rows this gate restores, and the argv shape each must come back with. */
+const T3_CASES: readonly { name: string; agent: string; argvRe: RegExp }[] = [
+  { name: SMOKE_T3, agent: 'claude', argvRe: /^claude --resume / },
+  { name: SMOKE_T3_AGENT, agent: 'pi', argvRe: /^pi --session-id / }
+];
 
 /** Kill + discard every prior smoke-t3 trace (manifest rows AND raw tmux). */
 async function cleanupT3Leftovers(core: GmuxCore): Promise<void> {
   for (const rec of core.listSessionRecords()) {
-    if (rec.name !== SMOKE_T3) continue;
+    if (rec.name !== SMOKE_T3 && rec.name !== SMOKE_T3_AGENT) continue;
     if (rec.status !== 'exited' && rec.status !== 'restorable') {
       await core.killSession(rec.id).catch(() => undefined);
     }
@@ -429,7 +448,7 @@ async function cleanupT3Leftovers(core: GmuxCore): Promise<void> {
 
 /** GMUX_SMOKE=t3-prep — first half of the T3 acceptance test. */
 async function runSmokeT3Prep(): Promise<void> {
-  armWatchdog(45_000);
+  armWatchdog(60_000);
   try {
     const core = await getGmuxCore();
     smokeLog('1/6 core booted');
@@ -437,131 +456,172 @@ async function runSmokeT3Prep(): Promise<void> {
     await cleanupT3Leftovers(core);
     smokeLog('2/6 prior smoke-t3 traces cleaned');
 
-    const marker = `GMUX-T3-MARKER-${Date.now()}`;
     const home = homedir();
-    const session = await core.createSession({
-      name: SMOKE_T3,
-      projectPath: home,
-      cwd: home,
-      agent: 'shell',
-      extraArgs: ['-c', `echo ${marker}; while true; do date; sleep 1; done`]
-    });
-    smokeLog(`3/6 session created: ${session.tmuxName} (${session.id})`);
+    const planted: { id: string; marker: string }[] = [];
+    for (const kase of T3_CASES) {
+      const marker = `GMUX-T3-MARKER-${Date.now()}`;
+      const session = await core.createSession({
+        name: kase.name,
+        projectPath: home,
+        cwd: home,
+        agent: 'shell',
+        extraArgs: ['-c', `echo ${marker}; while true; do date; sleep 1; done`]
+      });
+      const bytes = await receiveTermBytes(core, session.id);
+      smokeLog(
+        `3/6 ${kase.name} created: ${session.tmuxName} (${session.id}), ` +
+          `${bytes} bytes of term data — marker is on screen`
+      );
 
-    const bytes = await receiveTermBytes(core, session.id);
-    smokeLog(`4/6 term data flowing (${bytes} bytes) — marker is on screen`);
-
-    // Simulated agent id: restore ARMS this command without running it, so a
-    // fake uuid exercises the full path with zero real-agent side effects.
-    const fakeId = randomUUID();
-    core.manifest.setAgentSessionId(session.id, fakeId, [
-      'claude',
-      '--resume',
-      fakeId
-    ]);
-    smokeLog(`5/6 armed resume argv planted (claude --resume ${fakeId})`);
+      // The row is relabelled to the agent under test so restore takes that
+      // agent's path (including the original-cwd guard), while the pane stays
+      // a shell — no agent binary, no network, no first-run prompt.
+      if (kase.agent !== 'shell') {
+        core.manifest.updateSession(session.id, {
+          agent: kase.agent as ManifestSessionRecord['agent']
+        });
+      }
+      // Simulated agent id: restore ARMS this command without running it, so
+      // a fake uuid exercises the full path with zero real-agent side effects.
+      const fakeId = randomUUID();
+      const resumeArgv =
+        kase.agent === 'claude'
+          ? ['claude', '--resume', fakeId]
+          : ['pi', '--session-id', fakeId];
+      core.manifest.setAgentSessionId(session.id, fakeId, resumeArgv);
+      smokeLog(`4/6 armed resume argv planted (${resumeArgv.join(' ')})`);
+      planted.push({ id: session.id, marker });
+    }
 
     // Quit path writes the app-quit snapshot; prove it landed with content.
     await shutdownGmuxCore();
-    const snapText = await readFile(snapshotPath(session.id), 'utf8');
-    if (!snapText.includes(marker)) {
-      throw new Error('app-quit snapshot missing the scrollback marker');
+    for (const p of planted) {
+      const snapText = await readFile(snapshotPath(p.id), 'utf8');
+      if (!snapText.includes(p.marker)) {
+        throw new Error(`app-quit snapshot ${p.id} missing the scrollback marker`);
+      }
     }
-    smokeLog('6/6 PASS (t3-prep) — snapshot on disk, session left RUNNING');
+    smokeLog(`5/6 ${planted.length} snapshots on disk, each with its marker`);
+    smokeLog('6/6 PASS (t3-prep) — sessions left RUNNING');
     app.exit(0);
   } catch (err) {
     smokeFail(err);
   }
 }
 
+/**
+ * One restored row, proven end to end: the manifest offers it, restore
+ * recreates it, and the pane shows the replayed scrollback with the recorded
+ * resume command TYPED but not run.
+ */
+async function verifyT3Case(
+  core: GmuxCore,
+  kase: (typeof T3_CASES)[number]
+): Promise<string> {
+  const rec = core
+    .listSessionRecords()
+    .find((r) => r.name === kase.name && r.status !== 'exited');
+  if (!rec) throw new Error(`"${kase.name}" missing from the manifest`);
+  if (rec.status !== 'restorable') {
+    throw new Error(
+      `${kase.name}: manifest status is "${rec.status}", expected ` +
+        '"restorable" — the sidebar would not offer [Restore]'
+    );
+  }
+  if (rec.agent !== kase.agent) {
+    throw new Error(`${kase.name}: row agent is "${rec.agent}"`);
+  }
+
+  const marker = T3_MARKER_RE.exec(rec.argv.join(' '))?.[0];
+  const armed = (rec.resumeArgv ?? []).join(' ');
+  if (!marker) throw new Error(`${kase.name}: marker missing from recorded argv`);
+  if (!kase.argvRe.test(armed)) {
+    throw new Error(`${kase.name}: recorded resume argv wrong: "${armed}"`);
+  }
+
+  const restored = await core.restoreSession(rec.id);
+  if (restored.status !== 'running') {
+    throw new Error(`${kase.name}: restore left status "${restored.status}"`);
+  }
+
+  // Capture by immutable $-id: on tmux 3.6a capture-pane does NOT honor
+  // the '=' exact-name prefix in target-pane resolution (verified).
+  const restoredLive = (await tmux.listSessions()).find(
+    (s) => s.tmuxName === restored.tmuxName
+  );
+  if (!restoredLive) {
+    throw new Error(`restored session "${restored.tmuxName}" not in tmux ls`);
+  }
+
+  // The pane runs the user's real interactive shell; poll capture-pane
+  // until the replayed marker AND the armed (typed, unexecuted) resume
+  // command are both visible.
+  const deadline = Date.now() + 25_000;
+  let lastCapture = '';
+  let ok = false;
+  while (Date.now() < deadline) {
+    lastCapture = stripAnsi(
+      await tmux.capturePane(restoredLive.sessionId).catch(() => '')
+    );
+    if (lastCapture.includes(marker) && lastCapture.includes(armed)) {
+      ok = true;
+      break;
+    }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  if (!ok) {
+    throw new Error(
+      `${kase.name}: capture-pane never showed marker+armed command.\n` +
+        `wanted marker: ${marker}\nwanted armed: ${armed}\n` +
+        `last capture tail:\n${lastCapture.split('\n').slice(-15).join('\n')}`
+    );
+  }
+
+  // The armed line must be TYPED, not executed — the fake uuid would have
+  // errored loudly if the agent had actually run. Cheap negative check:
+  if (/No conversation found|command not found|No project session/i.test(lastCapture)) {
+    throw new Error(`${kase.name}: armed command appears to have EXECUTED`);
+  }
+
+  await core.killSession(rec.id);
+  core.discardSession(rec.id);
+  return armed;
+}
+
 /** GMUX_SMOKE=t3-verify — second half: restorable → restore → armed. */
 async function runSmokeT3Verify(): Promise<void> {
-  armWatchdog(60_000);
+  armWatchdog(120_000);
   try {
     // OUT-OF-BAND kill BEFORE the core boots: the manifest never hears about
-    // it — exactly the state a reboot leaves behind for this session.
+    // it — exactly the state a reboot leaves behind for these sessions.
     await tmux.ensureServer();
     const preLive = await tmux.listSessions();
-    const keeper = preLive.find((s) => s.tmuxName === SMOKE_T3);
-    if (!keeper) {
-      throw new Error(`"${SMOKE_T3}" not running — run GMUX_SMOKE=t3-prep first`);
+    for (const kase of T3_CASES) {
+      const keeper = preLive.find((s) => s.tmuxName === kase.name);
+      if (!keeper) {
+        throw new Error(
+          `"${kase.name}" not running — run GMUX_SMOKE=t3-prep first`
+        );
+      }
+      await tmux.killSession(keeper.sessionId);
     }
-    await tmux.killSession(keeper.sessionId);
-    smokeLog(`1/7 killed ${SMOKE_T3} out-of-band (simulated reboot)`);
+    smokeLog(
+      `1/3 killed ${T3_CASES.length} sessions out-of-band (simulated reboot)`
+    );
 
     const core = await getGmuxCore();
-    smokeLog('2/7 core booted fresh — reconcile ran');
+    smokeLog('2/3 core booted fresh — reconcile ran');
 
-    const rec = core
-      .listSessionRecords()
-      .find((r) => r.name === SMOKE_T3 && r.status !== 'exited');
-    if (!rec) throw new Error(`"${SMOKE_T3}" missing from the manifest`);
-    if (rec.status !== 'restorable') {
-      throw new Error(
-        `manifest status is "${rec.status}", expected "restorable" — the
-         sidebar would not offer [Restore]`
+    for (const kase of T3_CASES) {
+      const armed = await verifyT3Case(core, kase);
+      smokeLog(
+        `    ${kase.agent}: restorable → restored → pane shows replayed ` +
+          `scrollback and the armed, unexecuted "${armed}"`
       );
     }
-    smokeLog(`3/7 manifest row is 'restorable' (id ${rec.id})`);
 
-    const marker = T3_MARKER_RE.exec(rec.argv.join(' '))?.[0];
-    const armed = (rec.resumeArgv ?? []).join(' ');
-    if (!marker) throw new Error('marker missing from recorded argv');
-    if (!/^claude --resume /.test(armed)) {
-      throw new Error(`recorded resume argv wrong: "${armed}"`);
-    }
-
-    const restored = await core.restoreSession(rec.id);
-    if (restored.status !== 'running') {
-      throw new Error(`restore left status "${restored.status}"`);
-    }
-    smokeLog(`4/7 restored as tmux "${restored.tmuxName}" — status running`);
-
-    // Capture by immutable $-id: on tmux 3.6a capture-pane does NOT honor
-    // the '=' exact-name prefix in target-pane resolution (verified).
-    const restoredLive = (await tmux.listSessions()).find(
-      (s) => s.tmuxName === restored.tmuxName
-    );
-    if (!restoredLive) {
-      throw new Error(`restored session "${restored.tmuxName}" not in tmux ls`);
-    }
-
-    // The pane runs the user's real interactive shell; poll capture-pane
-    // until the replayed marker AND the armed (typed, unexecuted) resume
-    // command are both visible.
-    const deadline = Date.now() + 25_000;
-    let lastCapture = '';
-    let ok = false;
-    while (Date.now() < deadline) {
-      lastCapture = stripAnsi(
-        await tmux.capturePane(restoredLive.sessionId).catch(() => '')
-      );
-      if (lastCapture.includes(marker) && lastCapture.includes(armed)) {
-        ok = true;
-        break;
-      }
-      await new Promise((r) => setTimeout(r, 500));
-    }
-    if (!ok) {
-      throw new Error(
-        `capture-pane never showed marker+armed command.\n` +
-          `wanted marker: ${marker}\nwanted armed: ${armed}\n` +
-          `last capture tail:\n${lastCapture.split('\n').slice(-15).join('\n')}`
-      );
-    }
-    smokeLog('5/7 capture-pane shows replayed scrollback AND armed resume line');
-
-    // The armed line must be TYPED, not executed — the fake uuid would have
-    // errored loudly if claude had actually run. Cheap negative check:
-    if (/No conversation found|command not found/i.test(lastCapture)) {
-      throw new Error('armed command appears to have EXECUTED');
-    }
-    smokeLog('6/7 armed command was not executed (as designed)');
-
-    await core.killSession(rec.id);
-    core.discardSession(rec.id);
     await shutdownGmuxCore();
-    smokeLog('7/7 PASS (t3-verify) — T3 reboot-restore acceptance test complete');
+    smokeLog('3/3 PASS (t3-verify) — T3 reboot-restore acceptance test complete');
     app.exit(0);
   } catch (err) {
     smokeFail(err);

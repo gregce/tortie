@@ -104,11 +104,12 @@ export function watchForSessionId(
 ): SessionIdWatch {
   const d = DESCRIPTORS[agent];
   if (d === undefined) {
-    // Asking a pre-assigning agent to harvest is a programming error, not a
-    // runtime condition — say which mode it actually uses. pi is the trap
-    // worth naming: its store stays EMPTY until the first turn, so a
-    // codex-style watch would find nothing for exactly the panes nobody has
-    // talked to yet.
+    // Asking an agent with no store descriptor to harvest is a programming
+    // error, not a runtime condition — say which mode it actually uses.
+    // (pi HAS a descriptor, but a rescueOnly one: its store stays empty until
+    // the first turn, so a codex-style watch at create time would find nothing
+    // for exactly the panes nobody has talked to yet. It is reached only by
+    // the boot rescue, for rows that never got a pre-assigned id at all.)
     const refused: Promise<HarvestedSessionId> = Promise.reject(
       new Error(
         `Agent '${agent}' does not harvest its session id ` +
@@ -203,9 +204,15 @@ export function watchForSessionId(
 
     // Freshness: a filename timestamp OR the file's own times must be at or
     // after the spawn. Either passing is enough — stat can fail after an
-    // archive move, and a filename time can lag the write.
+    // archive move, and a filename time can lag the write. Unless the
+    // descriptor says the NAME is the session's start time (pi), in which
+    // case an older name is a verdict: mtime would only re-admit a file that
+    // was touched by a later resume.
     let fresh = parsed.nameTs !== undefined && parsed.nameTs >= minTs;
+    const nameDecides =
+      d.nameTsIsAuthoritative === true && parsed.nameTs !== undefined;
     let orderTs = parsed.nameTs ?? Date.now();
+    if (!fresh && nameDecides) return;
     if (!fresh) {
       try {
         const st = await stat(path);

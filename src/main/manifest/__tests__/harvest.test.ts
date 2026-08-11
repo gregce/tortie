@@ -15,8 +15,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
+  agentHarvestsId,
+  agentRescuesId,
+  agentRescuesIdAfterExit,
   isDescendantOf,
   resetProcessParentCache,
+  sanitizePiCwd,
   sanitizeQwenCwd,
   watchForSessionId,
   type HarvestContext
@@ -263,6 +267,94 @@ describe('muse — the tmux pane it stamps into its own transcript', () => {
   });
 });
 
+/**
+ * pi is the REPAIR case, not a capture case: it pre-assigns, so a healthy
+ * session never comes near this code. It exists for the rows the user
+ * reported — pi-1 and pi1, both created 2026-08-10 in /Users/gdc/pi with a
+ * NULL agent_session_id, both skipped by a boot rescue that only looked at
+ * harvesting agents, and both with their transcript sitting on disk.
+ *
+ * The filenames below are the real shape from that machine, because the whole
+ * question is whether TWO sessions in ONE directory can be told apart. They
+ * can: the filename carries the session's start time.
+ */
+describe('pi — rescue by cwd directory + filename start time', () => {
+  const piDir = (): string =>
+    join(home, '.pi', 'agent', 'sessions', sanitizePiCwd(cwd));
+  const piFile = (iso: string, id: string): string =>
+    join(piDir(), `${iso}_${id}.jsonl`);
+  const header = (id: string, at: string, where = cwd): string =>
+    jsonl({ type: 'session', version: 3, id, timestamp: at, cwd: where });
+
+  const first = '019feca8-1218-74e5-9422-208fd4070739';
+  const second = '019fed09-e44c-7f3f-9544-16d25cfbd5a4';
+
+  it('picks the session that started with THIS pane, not the newest in the folder', async () => {
+    write(
+      piFile('2026-08-10T17-11-05-496Z', first),
+      header(first, '2026-08-10T17:11:05.496Z')
+    );
+    write(
+      piFile('2026-08-10T18-57-56-300Z', second),
+      header(second, '2026-08-10T18:57:56.300Z')
+    );
+
+    // The earlier row: both files exist, and "newest wins" would be wrong.
+    const early = watchForSessionId(
+      'pi',
+      { cwd, sinceTs: Date.parse('2026-08-10T17:11:05.000Z') },
+      { home, ...FAST }
+    );
+    await expect(early.promise).resolves.toMatchObject({
+      sessionId: first,
+      confidence: 'exact',
+      viaGraceTimer: false
+    });
+
+    // The later row: the earlier file is out of its window entirely.
+    const late = watchForSessionId(
+      'pi',
+      { cwd, sinceTs: Date.parse('2026-08-10T18:57:55.000Z') },
+      { home, ...FAST }
+    );
+    await expect(late.promise).resolves.toMatchObject({ sessionId: second });
+  });
+
+  it('refuses a file from another project sharing the store root', async () => {
+    // Only reachable via an explicit (FLAT) session dir, where every
+    // project's sessions live together — line 1 carries the cwd, so it is
+    // still a proof and not a guess.
+    const flat = join(home, 'flat-sessions');
+    write(
+      join(flat, `2026-08-10T17-11-05-496Z_${first}.jsonl`),
+      header(first, '2026-08-10T17:11:05.496Z', '/somewhere/else')
+    );
+    const watch = watchForSessionId(
+      'pi',
+      { cwd, sinceTs: Date.parse('2026-08-10T17:11:00.000Z') },
+      { home, env: { PI_CODING_AGENT_SESSION_DIR: flat }, ...FAST }
+    );
+    await expect(watch.promise).rejects.toThrow(/Timed out/);
+  });
+
+  it('is a rescue route, not a capture strategy — create time must not watch', () => {
+    // agentHarvestsId gates the create path; a pi session is armed before the
+    // process exists, and its store stays empty until the first turn.
+    expect(agentHarvestsId('pi')).toBe(false);
+    expect(agentRescuesId('pi')).toBe(true);
+    // …and it is the one agent whose store still answers after the pane dies.
+    expect(agentRescuesIdAfterExit('pi')).toBe(true);
+    for (const other of ['codex', 'muse', 'qwen', 'deepseek', 'antigravity'] as const) {
+      expect(agentHarvestsId(other), other).toBe(true);
+      expect(agentRescuesIdAfterExit(other), other).toBe(false);
+    }
+  });
+
+  it('encodes the cwd the way pi does', () => {
+    expect(sanitizePiCwd('/Users/gdc/pi')).toBe('--Users-gdc-pi--');
+  });
+});
+
 describe('the two weak harvests, honestly labelled', () => {
   it('deepseek keys on metadata.workspace inside the file', async () => {
     const id = '99999999-2222-4222-8222-aaaaaaaaaaaa';
@@ -310,13 +402,20 @@ describe('watch lifecycle', () => {
     await expect(watch.promise).rejects.toThrow(/cancelled/);
   });
 
-  it('refuses to watch for an agent that pre-assigns its id', async () => {
-    // pi is the trap: its store stays EMPTY until the first turn, so a
-    // codex-style watch would return nothing for exactly the panes nobody
-    // has talked to yet — the ones that come back blank.
-    for (const agent of ['claude', 'pi', 'gemini', 'cursor', 'droid'] as const) {
+  it('refuses to watch for an agent with no store descriptor at all', async () => {
+    for (const agent of ['claude', 'gemini', 'cursor', 'droid'] as const) {
       const watch = watchForSessionId(agent, ctx(), { home, ...FAST });
       await expect(watch.promise).rejects.toThrow(/does not harvest/);
     }
+  });
+
+  it('pi is watchable, but only as a rescue — never at create time', async () => {
+    // Its store stays EMPTY until the first turn, so a codex-style watch at
+    // create would return nothing for exactly the panes nobody has talked to
+    // yet. agentHarvestsId is the create-path gate and stays false; the watch
+    // itself works, for a row whose id the launch path never recorded.
+    expect(agentHarvestsId('pi')).toBe(false);
+    const watch = watchForSessionId('pi', ctx(), { home, ...FAST });
+    await expect(watch.promise).rejects.toThrow(/Timed out/);
   });
 });

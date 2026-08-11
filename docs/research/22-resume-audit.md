@@ -675,6 +675,16 @@ until the id is actually in the manifest. Which is exactly §4.
    resume (`bypass permissions on` → `auto mode on`, `YOLO mode` → `Auto mode`, and so on).
    cursor is inconclusive (its `--trust` writes global config). pi is unresolved — pi also
    persists last-used model in settings, so do not conclude either way.
+
+   > **CORRECTION, Phase 13.5.1 (measured by `conformance:resume`, then hands-on in tmux):**
+   > the rule holds, but *where* the flags go does not. deepseek's usage is
+   > `deepseek [OPTIONS] <COMMAND> [ARGS]`, so `deepseek resume <id> --skip-onboarding`
+   > exits with `error: unexpected argument` — a DEAD restored pane — while
+   > `deepseek --skip-onboarding resume <id>` brings the conversation back. Dropping the
+   > extras there would also have cost something real: `--skip-onboarding` is what keeps the
+   > restored pane out of the first-run workspace-trust dialog. Carried as registry data
+   > (`AgentResumeInfo.resumeExtrasPosition: 'leading'`), honoured in `registryResumeArgv()`.
+   > Before writing "the CLI refuses this flag", check whether it refuses it *in that position*.
 4. **Record the agent CLI version in the manifest row** at capture time. Two of this
    audit's corrections (gemini `.json` → `.jsonl`, codex's new SQLite index) are version
    drift in stores gmux reads. A row captured under a version gmux no longer sees should be
@@ -708,6 +718,15 @@ Recommendation: when `resume.requiresOriginalCwd` is true and `rec.cwd` no longe
 **do not substitute** `projectPath`. Restore the pane without arming resume and say why —
 and, for pi, offer the `pi --session <abs path>` repair using the stored session path from
 §3.4 rule 2.
+
+> **IMPLEMENTED, Phase 13.5.1** (`src/main/restore/restore.ts`). Two deviations from the
+> recommendation above, both deliberate: (a) the refusal is the friendly INVALID_INPUT state
+> naming the missing folder, rather than a silent unarmed restore — a pane that comes back
+> with no explanation is how this class of bug hides; (b) it fires only when a resume is
+> actually ARMED, because with nothing to type there is no false resume to prevent and the
+> user should still get their directory and scrollback. Restore re-derives the flag from the
+> registry: `AgentLaunchSpec.requiresOriginalCwd` is set at create time and never persisted,
+> so it cannot answer this question after a reboot.
 
 ---
 

@@ -115,6 +115,16 @@ export interface DescriptorEnv {
 export interface HarvestDescriptor {
   key: AgentHarvestKey;
   confidence: 'exact' | 'weak';
+  /**
+   * TRUE when this store is a REPAIR route, not a capture strategy: the agent
+   * pre-assigns its id, so a healthy session never needs a watcher, and one
+   * started at create time would find nothing (pi writes no session file
+   * until the first turn). It exists for rows that have no id and never will
+   * get one from the launch path — the ones the user reported, created before
+   * pre-assignment shipped. `agentHarvestsId()` stays FALSE for these, so the
+   * create path is untouched; only the boot rescue looks them up.
+   */
+  rescueOnly?: boolean;
   /** Directories to watch and scan. May not exist yet — that is fine. */
   roots(ctx: HarvestContext, de: DescriptorEnv): string[];
   /** Are candidates files or directories? */
@@ -125,6 +135,16 @@ export interface HarvestDescriptor {
   maxDepth: number;
   /** Full path → the id it carries, or null when it is not a candidate. */
   identify(path: string): { sessionId: string; nameTs?: number } | null;
+  /**
+   * TRUE when a filename timestamp IS the session's start time, so a name
+   * older than the spawn settles the question and the file's mtime must not
+   * get a second vote. pi needs this: resuming an old conversation rewrites
+   * that file's mtime, and the generic "name OR mtime is fresh enough" rule
+   * would then let a months-old session look like it started with this pane —
+   * and, being the earliest candidate, WIN. Off elsewhere, where a filename
+   * time can lag the write or be lost to an archive move.
+   */
+  nameTsIsAuthoritative?: boolean;
   /** Prove the candidate is THIS pane's session. */
   confirm(path: string, ctx: HarvestContext): Promise<HarvestVerdict>;
   /** Accept an unconfirmed candidate after this long with no rival. */
@@ -152,6 +172,25 @@ const ROLLOUT_RE =
 export function sanitizeQwenCwd(realCwd: string): string {
   return realCwd.replace(/[^a-zA-Z0-9]/g, '-');
 }
+
+/**
+ * pi's project-dir encoding (registry `pi.resume.sessionStore`): the cwd
+ * without its leading slash, `[/\:]` replaced by '-', wrapped in '--'.
+ * `/Users/gdc/pi` → `--Users-gdc-pi--`. Unlike qwen's, it is NOT a blanket
+ * non-alphanumeric substitution: dots and underscores in a path survive.
+ */
+export function sanitizePiCwd(cwd: string): string {
+  return `--${cwd.replace(/^\//, '').replace(/[/\\:]/g, '-')}--`;
+}
+
+/**
+ * pi filenames: `<ISO timestamp with : and . as ->_<uuid>.jsonl`, e.g.
+ * `2026-08-10T17-11-05-496Z_019feca8-1218-74e5-9422-208fd4070739.jsonl`.
+ * The timestamp is the session's START, which is what makes a rescue precise
+ * rather than a guess — two pi sessions in one directory are separable by it.
+ */
+const PI_SESSION_FILE_RE =
+  /^(\d{4})-(\d{2})-(\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z_([0-9a-fA-F-]{36})\.jsonl$/;
 
 /**
  * How long a harvest keeps watching. Deliberately long, and the reason is a
@@ -375,6 +414,72 @@ export const DESCRIPTORS: Partial<Record<LaunchableAgentId, HarvestDescriptor>> 
     pollIntervalMs: 2_000
   },
 
+  /**
+   * pi — REPAIR ONLY (rescueOnly). pi pre-assigns, so nothing here runs for a
+   * session gmux launched after Phase 13.5a. It exists for the rows the user
+   * reported: pi-1 and pi1, created 2026-08-10 with NULL agent_session_id,
+   * which the boot rescue skipped because it only looked at harvesting agents
+   * — so two sessions whose transcripts were sitting on disk the whole time
+   * were still going to come back as bare directories.
+   *
+   * The correlation is strong, not a "newest file" guess: the store directory
+   * is a pure function of the cwd, the FILENAME carries the session's start
+   * time, and line 1 of the file is `{"type":"session",…,"cwd":"…"}`. On the
+   * reported machine the two files' filename timestamps match the two
+   * manifest rows' createdAt to within a second (17:11:05.496Z vs 13:11:05
+   * local, 18:57:56.300Z vs 14:57:55), and the watcher's "earliest record at
+   * or after spawn" rule separates them cleanly.
+   */
+  pi: {
+    rescueOnly: true,
+    key: 'cwd-newest',
+    confidence: 'exact',
+    roots: (ctx, de) => {
+      // Precedence per `pi --help` (registry notes): an explicit session dir
+      // is FLAT — every project's sessions in one directory — so there is no
+      // cwd key to append there, and confirm() does the whole job.
+      const flat = de.env['PI_CODING_AGENT_SESSION_DIR'];
+      if (flat !== undefined && flat.length > 0) return [flat];
+      const cfg = de.env['PI_CODING_AGENT_DIR'];
+      const base =
+        cfg !== undefined && cfg.length > 0
+          ? join(cfg, 'sessions')
+          : join(de.home, '.pi', 'agent', 'sessions');
+      return [join(base, sanitizePiCwd(ctx.cwd))];
+    },
+    entry: 'file',
+    maxDepth: 0,
+    nameTsIsAuthoritative: true,
+    identify: (path) => {
+      const m = PI_SESSION_FILE_RE.exec(basename(path));
+      if (m === null) return null;
+      const [, y, mo, d, h, mi, s, ms, id] = m;
+      if (!y || !mo || !d || !h || !mi || !s || !ms || !id) return null;
+      if (!UUID_RE.test(id)) return null;
+      // The stamp is UTC (trailing Z), unlike codex's local-time filenames.
+      const nameTs = Date.UTC(
+        Number(y),
+        Number(mo) - 1,
+        Number(d),
+        Number(h),
+        Number(mi),
+        Number(s),
+        Number(ms)
+      );
+      return { sessionId: id, nameTs };
+    },
+    confirm: async (path, ctx) => {
+      const first = await readFirstJsonLine(path);
+      if (first === null || first['type'] !== 'session') return 'unknown';
+      const cwd = first['cwd'];
+      if (typeof cwd !== 'string') return 'unknown';
+      return (await samePath(cwd, ctx.cwd)) ? 'match' : 'mismatch';
+    },
+    graceMs: 2_000,
+    timeoutMs: HARVEST_WINDOW_MS,
+    pollIntervalMs: 1_000
+  },
+
   antigravity: {
     key: 'time-only',
     confidence: 'weak',
@@ -396,9 +501,39 @@ export const DESCRIPTORS: Partial<Record<LaunchableAgentId, HarvestDescriptor>> 
   }
 };
 
-/** TRUE when this agent's id has to be read back out of its store. */
+/**
+ * TRUE when this agent's id has to be read back out of its store — i.e. the
+ * launch path cannot know it. Deliberately FALSE for a rescueOnly descriptor:
+ * pi pre-assigns, and starting a watch at create time for an agent that
+ * writes nothing until the first turn would only invent a 'capturing' state
+ * for a session that is already armed.
+ */
 export function agentHarvestsId(agent: LaunchableAgentId): boolean {
+  const d = DESCRIPTORS[agent];
+  return d !== undefined && d.rescueOnly !== true;
+}
+
+/**
+ * TRUE when a row that somehow has NO id can still have one recovered from
+ * the store — every harvesting agent, plus the rescueOnly ones. Used by the
+ * boot rescue, which is the only caller that ever sees such a row.
+ */
+export function agentRescuesId(agent: LaunchableAgentId): boolean {
   return DESCRIPTORS[agent] !== undefined;
+}
+
+/**
+ * TRUE when the rescue works on a session whose PROCESS IS GONE. A store
+ * keyed on cwd + start time (pi) outlives the pane, so a restorable row can
+ * still be repaired — that is the whole point after a reboot. A store keyed
+ * on a pid or a tmux pane (qwen, muse) cannot be correlated once the process
+ * is dead, and one keyed on time alone (antigravity) or on a file the agent
+ * writes late (deepseek) would ride the grace timer into somebody else's
+ * conversation. Those get an honest 'unavailable' instead of a guess.
+ */
+export function agentRescuesIdAfterExit(agent: LaunchableAgentId): boolean {
+  const d = DESCRIPTORS[agent];
+  return d !== undefined && d.rescueOnly === true && d.confidence === 'exact';
 }
 
 // ---------------------------------------------------------------------------
