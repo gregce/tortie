@@ -8,6 +8,12 @@
  * (y clamped to the bar); neighbors never reflow mid-drag — a 2px accent
  * insertion indicator marks the landing gap; Esc cancels with zero motion.
  * Order persists app-wide; ⌘1…⌘9 and ⌃Tab follow the visual order.
+ *
+ * Phase 12.12 item 4: hold ⌘ and each tab reveals the digit that reaches it
+ * (⌘1-⌘8 by position, ⌘9 the last tab — src/renderer/app/project-shortcuts.ts).
+ * The glyph is overlaid in the slot the close × already reserves, so nothing
+ * moves; the gesture itself, including every way it has to be cancelled, is
+ * src/renderer/app/modifier-held.ts.
  */
 
 import React, {
@@ -18,6 +24,7 @@ import React, {
   useState
 } from 'react';
 import type { Project, SessionStatus } from '@shared/types';
+import { keyDisplay } from '@shared/keymap';
 import { effectiveStatusOf, sortProjects, useApp } from '../state/store';
 import { useGit } from '../state/git';
 import { rollupDot } from './status';
@@ -31,6 +38,8 @@ import {
   isSecondaryPress
 } from './split/pointer-drag';
 import { showProjectMenu } from './project-menu';
+import { useCommandHeld } from './modifier-held';
+import { tabDigit, tabShortcutLabel } from './project-shortcuts';
 
 interface TabData {
   project: Project;
@@ -41,12 +50,21 @@ interface TabData {
 function ProjectTab({
   data,
   selected,
-  onDragIndicate
+  hintDigit,
+  hinting,
+  onDragIndicate,
+  onDragState
 }: {
   data: TabData;
   selected: boolean;
+  /** This tab's ⌘ digit, or null when it has none (project-shortcuts.ts). */
+  hintDigit: number | null;
+  /** ⌘ is being held right now — reveal the digit. */
+  hinting: boolean;
   /** Report the live insertion index (null = drag ended/canceled). */
   onDragIndicate: (index: number | null) => void;
+  /** A tab drag started/ended (suppresses the ⌘ hint). */
+  onDragState: (dragging: boolean) => void;
 }): React.JSX.Element {
   const { project, dot, attentionCount } = data;
   const setActiveProject = useApp((s) => s.setActiveProject);
@@ -60,7 +78,9 @@ function ProjectTab({
   // children stay plain interactives.
   return (
     <div
-      className="ptab-wrap"
+      className={`ptab-wrap${selected ? ' selected' : ''}${
+        hinting && hintDigit !== null ? ' hinting' : ''
+      }`}
       data-project-id={project.id}
       onPointerDown={(e) => {
         // Phase 12.2 audit: project tabs had the defect too — a secondary
@@ -75,6 +95,7 @@ function ProjectTab({
         armPointerDrag(e.nativeEvent, {
           onStart() {
             ghost = createGhost(wrap, { lockAxis: 'x' });
+            onDragState(true);
           },
           onMove(ev) {
             ghost?.move(ev.clientX, ev.clientY);
@@ -98,6 +119,7 @@ function ProjectTab({
             ghost?.destroy();
             ghost = null;
             onDragIndicate(null);
+            onDragState(false);
           }
         });
       }}
@@ -118,7 +140,13 @@ function ProjectTab({
       <button
         type="button"
         className={`ptab${selected ? ' selected' : ''}`}
-        title={project.path}
+        // The tooltip is the fallback path to the same fact for anyone who
+        // never holds ⌘ (Phase 12.12 item 4).
+        title={
+          hintDigit !== null
+            ? `${project.path}\n${tabShortcutLabel(hintDigit)}`
+            : project.path
+        }
         onClick={() => setActiveProject(project.id)}
         aria-label={`${project.name}${
           attentionCount > 0
@@ -144,6 +172,14 @@ function ProjectTab({
       >
         <Codicon name="close" size={12} />
       </button>
+      {/* Overlaid in the slot the close × already reserves, so revealing it
+          cannot reflow the strip. Decorative: the same fact reaches assistive
+          tech through the tooltip, the ⌘/ overlay and the Settings map. */}
+      {hintDigit !== null ? (
+        <span className="ptab-hint num" aria-hidden="true">
+          {hintDigit}
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -206,6 +242,13 @@ export function Titlebar(): React.JSX.Element {
 
   const navRef = useRef<HTMLElement | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
+  // Phase 12.12 item 4: hold ⌘ and every tab says which digit reaches it.
+  // Suppressed mid-drag — a number appearing under a tab the pointer is
+  // carrying is noise, and the ghost is what the eye should be following.
+  // (Project tabs have no rename affordance today; if they gain one, it ORs
+  // into this same flag rather than growing a second reveal condition.)
+  const [draggingTab, setDraggingTab] = useState(false);
+  const hinting = useCommandHeld({ suppressed: draggingTab });
 
   const tabs = useMemo<TabData[]>(() => {
     const ordered = sortProjects(projects, tabOrder);
@@ -232,12 +275,15 @@ export function Titlebar(): React.JSX.Element {
   return (
     <header className="titlebar" data-slot="project-tabs">
       <nav className="titlebar-tabs" aria-label="Projects" ref={navRef}>
-        {tabs.map((t) => (
+        {tabs.map((t, i) => (
           <ProjectTab
             key={t.project.id}
             data={t}
             selected={t.project.id === activeProjectId}
+            hintDigit={tabDigit(i, tabs.length)}
+            hinting={hinting}
             onDragIndicate={setDropIndex}
+            onDragState={setDraggingTab}
           />
         ))}
         {dropIndex !== null ? (
@@ -265,7 +311,7 @@ export function Titlebar(): React.JSX.Element {
       <button
         type="button"
         className={`bell${attentionTotal > 0 ? ' has-attention' : ''}`}
-        title="Needs your input (⌘J)"
+        title={`Needs your input (${keyDisplay('session.attention')})`}
         aria-label={
           attentionTotal > 0
             ? `${attentionTotal} ${attentionTotal === 1 ? 'session needs' : 'sessions need'} input`

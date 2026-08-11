@@ -17,6 +17,8 @@
  *   `isSecondaryPress` and `cancelPointerDrag` for why both are required.
  */
 
+import { cssZoomOf } from '../../zoom/coords';
+
 export interface PointerDragHandlers {
   /** Travel crossed the threshold — build ghosts, mark state. */
   onStart?(e: PointerEvent): void;
@@ -177,8 +179,17 @@ export function createGhost(
   const rect = source.getBoundingClientRect();
   const ghost = source.cloneNode(true) as HTMLElement;
   ghost.classList.add('drag-ghost');
-  ghost.style.width = `${rect.width}px`;
-  ghost.style.height = `${rect.height}px`;
+  // Carry the source's effective CSS zoom (Phase 12.11): the ghost is
+  // appended to <body>, outside whatever zoomed region it was lifted from,
+  // and `rect` is already in VISUAL pixels. Without this the clone would be
+  // sized for 150% and typeset for 100% — a big box around small text.
+  // `cssZoomOf` (../../zoom/coords) is the one reader of the effective zoom in
+  // the app; it answers 1 on an unzoomed source, so every existing drag stays
+  // byte-identical.
+  const zoom = cssZoomOf(source);
+  if (zoom !== 1) ghost.style.zoom = String(zoom);
+  ghost.style.width = `${rect.width / zoom}px`;
+  ghost.style.height = `${rect.height / zoom}px`;
   ghost.style.left = '0';
   ghost.style.top = '0';
   // Grip offset: keep the grab point where the user pressed.
@@ -197,7 +208,10 @@ export function createGhost(
       }
       const gx = x - offsetX;
       const gy = opts.lockAxis === 'x' ? baseY : y - offsetY;
-      ghost.style.transform = `translate(${gx}px, ${gy}px)`;
+      // The pointer speaks viewport pixels; a zoomed ghost's own transform is
+      // resolved in its LOCAL space, so divide back out or it would run away
+      // from the cursor at 1.5× the speed.
+      ghost.style.transform = `translate(${gx / zoom}px, ${gy / zoom}px)`;
     },
     destroy() {
       ghost.remove();

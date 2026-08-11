@@ -44,6 +44,7 @@ import type {
   GmuxSessionRestoreExtras,
   GmuxSettingsExtras,
   GmuxTermStreamExtras,
+  GmuxViewMenuExtras,
   MenuActionId,
   SessionActivityInfo,
   TermExitPayload,
@@ -272,7 +273,8 @@ const api: GmuxApi &
   GmuxCaptureExtras &
   GmuxScrollExtras &
   GmuxActivityExtras &
-  GmuxMultilineExtras = {
+  GmuxMultilineExtras &
+  GmuxViewMenuExtras = {
   sessions,
   projects,
   git,
@@ -309,6 +311,10 @@ const api: GmuxApi &
   // Phase 8.2 optional extra: native context menus (DESIGN.md §3 — the
   // renderer's store prefers this over the DOM fallback).
   popupMenu: (input) => invoke('ui:popupMenu', input),
+  // Phase 12.12 optional extra: the store tells main where the session
+  // surface just moved, so the View-menu radios cannot go stale when the
+  // header's inline toggle (not the menu) is what moved it.
+  setSessionsPosition: (position) => invoke('ui:sessionsPosition', position),
   // Phase 8.2 optional extras: first-quit toast flow (DESIGN.md §4 ⌘Q).
   onQuitRequested: (cb) => {
     const listener = (_e: IpcRendererEvent): void => {

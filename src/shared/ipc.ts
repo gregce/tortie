@@ -839,7 +839,8 @@ export type GmuxInvokeChannelMap = RegistryInvokeChannelMap &
   MultilineInvokeChannelMap &
   FileOpsInvokeChannelMap &
   ImageProjectInvokeChannelMap &
-  FsDuplicateInvokeChannelMap;
+  FsDuplicateInvokeChannelMap &
+  ViewMenuInvokeChannelMap;
 
 export type GmuxInvokeChannel = keyof GmuxInvokeChannelMap;
 
@@ -1580,4 +1581,41 @@ export interface FsDuplicateInvokeChannelMap {
  */
 export interface GmuxFsDuplicateExtras {
   duplicate?(input: FsDuplicateInput): Promise<FsOpEntry>;
+}
+
+// ---------------------------------------------------------------------------
+// APPENDED by Phase 12.12 item 2 (the inline sessions-position toggle) — one
+// new channel, and it exists to preserve a guarantee rather than to add a
+// feature.
+//
+// The session surface's position has exactly ONE truth: the renderer store's
+// `sessionOrientation` (persisted to localStorage 'gmux.sessionOrientation').
+// Until now the View menu was also its only CONTROL, so main could get away
+// with reading that value back once per page load to set its radio checks.
+// The moment the header carries an inline toggle, a position can change with
+// no page load in sight — and a stale ✓ in the View menu is a second, wrong
+// answer to "where are my sessions".
+//
+// ui:sessionsPosition is therefore a notification, not a setter: the store
+// tells main which way it just went, main moves the radio marks to match. The
+// renderer never asks main what the position is, so there is still one writer
+// and one truth. MAIN: src/main/menu.ts → setSessionsPositionRadios().
+// ---------------------------------------------------------------------------
+
+/** Where the session surface lives — mirrors the renderer's store type. */
+export type SessionsPosition = 'top' | 'right';
+
+/** New invoke channel appended by Phase 12.12's sessions-position toggle. */
+export interface ViewMenuInvokeChannelMap {
+  /** The store moved the session surface; move the View-menu radios to match. */
+  'ui:sessionsPosition': { req: [position: SessionsPosition]; res: void };
+}
+
+/**
+ * OPTIONAL top-level extra on window.gmux, feature-detected by the store
+ * (`typeof window.gmux.setSessionsPosition === 'function'`) — an older
+ * preload simply leaves the menu to its once-per-load sync.
+ */
+export interface GmuxViewMenuExtras {
+  setSessionsPosition?(position: SessionsPosition): Promise<void>;
 }

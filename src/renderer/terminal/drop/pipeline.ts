@@ -9,6 +9,7 @@
  */
 
 import type { DropPreparedItem } from '@shared/types';
+import { acceleratorToDisplay } from '@shared/keymap';
 import { errorText, useApp } from '../../state/store';
 import { pathForFile, preparePaths, resolveFilePath } from './acquire';
 import { insertReferences, MAX_REFERENCES } from './insert';
@@ -113,7 +114,7 @@ export async function attachPaths(
   if (drop.strategy === 'clipboard-attach' && usable.some((i) => i.isImage)) {
     app.toast(
       'info',
-      'Inserted the file path — this agent attaches images from ⌘V only.'
+      `Inserted the file path — this agent attaches images from ${acceleratorToDisplay('Cmd+V')} only.`
     );
   }
 }

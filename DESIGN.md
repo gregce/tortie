@@ -235,12 +235,15 @@ Iconography (round-1 reversal — Lucide retired): **@vscode/codicons** is the s
 
 Focus model: one focus zone at a time (sidebar view / session strip or list / terminal / editor / overlay). Terminal focus captures all keys EXCEPT ⌘-chords and F2; ⌘-chords always reach the app. Esc closes topmost layer (tooltip → menu → overlay → modal → editor-overlay); Esc reaches the terminal only when nothing is above it.
 
+**Since Phase 12.12 this table has an executable twin: `src/shared/keymap.ts`.** The ⌘/ overlay, Settings → Keyboard, every tooltip that names a chord, and the native menu accelerators all render from that module — so adding a shortcut is a one-line data change there, and this table is the prose account of the same facts. If the two ever disagree, the module is what the user's keyboard actually does; fix the table. (§11.4.)
+
 | Shortcut | Action |
 |---|---|
 | ⌘T | New session in current project (modal) |
 | ⌘O | Open project… (new tab; idempotent — refocuses if already open) |
 | ⇧⌘N | New project… (Phase 12.9: pick a parent folder + name, optional `git init`, opens and focuses the new tab) |
-| ⌘1…⌘9 | Switch to project tab 1–9 |
+| ⌘1…⌘8 | Switch to project tab 1–8, by position in the strip |
+| ⌘9 | The LAST project tab, however many are open (Phase 12.12 — the browser convention; "the ninth" left the tail of a long strip unreachable). Hold ⌘ alone and each tab reveals its digit |
 | ⌃Tab / ⌃⇧Tab | Next / previous project tab |
 | ⌘⌥← → ↑ ↓ | Move focus across splits (geometric nearest pane); at the surface's top/bottom edge, ⌘⌥↓/↑ continue to the next / previous session — so on unsplit surfaces they cycle sessions exactly as before. ⌘⌥←/→ at an edge: no-op |
 | ⌘J | Attention overlay (all NEEDS_INPUT sessions, all projects) |
@@ -254,14 +257,16 @@ Focus model: one focus zone at a time (sidebar view / session strip or list / te
 | ⌘⇧] / ⌘⇧[ | Next / previous editor tab |
 | ⌘W | Close focused editor tab (NEVER closes sessions/projects; no-op otherwise) |
 | ⌘F | Find in editor (Monaco). Terminal search: v1 tail, reserved |
+| ⌘+ / ⌘- | Zoom the FOCUSED region — the session's terminal, the Explorer, Source Control, the right-hand session dock, or the editor. Ladder 75 %…200 %; the readout names the region it moved (S14) |
+| ⌘0 / ⌘⇧0 | Reset the focused region / every region to 100 % |
 | ⌘/ | Shortcuts overlay |
 | ⌘, | Settings — dedicated window, single instance (S13); ⌘W closes it when focused |
-| user-recorded | New `<agent>` session in the active project (Settings → Hotkeys, e.g. ⌘⇧C → Claude Code); registered as native Session-menu accelerators |
+| user-recorded | New `<agent>` session in the active project (Settings → Keyboard, e.g. ⇧⌘C → Claude Code); registered as native Session-menu accelerators |
 | ⌘Q | Quit — sessions keep running; first quit shows a one-time toast saying so |
 | ↑↓ + ↩ | Navigate any list/overlay; Enter activates (session → focus terminal; attention row → jump) |
 | Esc | Close topmost layer |
 
-User-recorded per-agent hotkeys (Settings → Hotkeys, S13) must include ⌘ or ⌃; the recorder rejects any chord already in this map, used by another row, or reserved by macOS — nothing in this table is ever silently shadowed.
+User-recorded per-agent hotkeys (Settings → Keyboard, S13) must include ⌘ or ⌃; the recorder rejects any chord already in this map, used by another row, or reserved by macOS — nothing in this table is ever silently shadowed. Since 12.12 the rejection list is DERIVED from `src/shared/keymap.ts` rather than retyped, so a shortcut added to the map becomes un-recordable the same commit.
 
 Reserved, not in v1: ⌘K (command palette), ⌘⇧F (project search). Ending a session is deliberately confirm-gated everywhere it exists (⋯ menu, tab/row context menu, or the tab/row × — all open the same "End session…" confirm naming the session; nothing ends silently, and ⌘W still never touches sessions). Double-click renames wherever F2 works — session tabs, right-list rows, the identity strip, and project tabs.
 
@@ -319,7 +324,108 @@ The token system gains exactly two entries (`--drop-wash` §1.2, `--font-termina
 3. **Project tabs reorder by drag**; order persists app-wide; ⌘1…⌘9 follow the visual order (S2).
 4. **Sidebar sections reorder by header drag** (Changes / History / Branches; VS Code-style ghost + drop line); order persists per view. The changes area gains its own "CHANGES" section header to become a draggable unit (S3/S3A).
 5. **Branch management graduates from menu to section**: a BRANCHES section in Source Control — Local + Remotes groups, ✓ current, ahead/behind, one-click checkout, remote tracking-checkout, fetch. The branch menu stays for one-keystroke switching and gains "Manage branches" (S3A).
-6. **Settings gets a real surface**: a dedicated single-instance window on ⌘, (not an in-app panel — settings outlive any one project and the main window's regions are all spoken for). Sections: General (login item, default agent, terminal font), Agents (detected CLIs: path/version/re-scan/custom command), Hotkeys (per-agent recorder → native menu accelerators), Launch defaults (flag presets, danger-styled) (S13).
-7. **Terminal font becomes `--font-terminal`** — a dedicated xterm-only token, distinct from the UI-mono `--font-mono` (§1.8). Bug C's underscores turned out to be a locale bug, not font coverage: the shipped fix is the UTF-8 locale guard (`src/main/tmux/env.ts` + `tmux -u`) plus the verified native stack (Menlo actually renders and covers ➜ ✗ ● λ), and the once-planned bundled JetBrains Mono was dropped as unnecessary. The Settings → General family/size control (S13) is deferred to a later phase; the token ships now.
+6. **Settings gets a real surface**: a dedicated single-instance window on ⌘, (not an in-app panel — settings outlive any one project and the main window's regions are all spoken for). Sections: General (login item, default agent, terminal font), Agents (detected CLIs: path/version/re-scan/custom command), Hotkeys (per-agent recorder → native menu accelerators), Launch defaults (flag presets, danger-styled) (S13). *(Hotkeys became **Keyboard** in Phase 12.12 — §11.4.)*
+7. **Terminal font becomes `--font-terminal`** — a dedicated xterm-only token, distinct from the UI-mono `--font-mono` (§1.8). Bug C's underscores turned out to be a locale bug, not font coverage: the shipped fix is the UTF-8 locale guard (`src/main/tmux/env.ts` + `tmux -u`) plus the verified native stack (Menlo actually renders and covers ➜ ✗ ● λ), and the once-planned bundled JetBrains Mono was dropped as unnecessary. **The Settings → General family/size control does not exist and this document no longer promises one** (superseded by §10.1 — the size question is answered by zoom, and a second control would fight it).
 8. **⌘⌥arrows = split navigation** with edge fallthrough to session cycling — unsplit surfaces keep round-1 behavior key-for-key (§4).
 9. **⌘T agent picker scales**: the 3-option segmented control becomes a wrapping chip grid driven by the 10-agent registry; per-agent flag presets appear as an Options group, danger flags styled and confirm-gated via Settings (S6, S13).
+
+## 10. Round-3 revisions (Phase 12.11, 2026-08-11) — the zoom round
+
+### 10.1 Zoom is per region, and the header band never moves
+
+⌘+ / ⌘- enlarge the text where the user is working, not the window. Five regions —
+the terminal, the Explorer, Source Control, the right-hand session dock, and the
+editor — each hold their own level, persisted, on a 75 %…200 % ladder. ⌘0 resets
+the focused region; ⌘⇧0 resets all five. Spec: DESIGN-SPEC S14.
+
+Three decisions carry the design, and each one is load-bearing:
+
+1. **A terminal zooms by its FONT, a panel by CSS `zoom`.** Scaling a terminal in
+   CSS resamples the WebGL glyph atlas (soft text) and lies to every piece of cell
+   arithmetic in the app. So xterm's `fontSize` changes, the pane re-fits, and the
+   new cols/rows go to tmux down the same path a window resize uses — the agent's
+   viewport genuinely changes and it redraws, which is what every terminal does.
+   Panels take CSS `zoom` rather than `transform: scale()`, which would leave the
+   layout box at its old size and break every hit-test in the region.
+2. **The 36px header band (S1) is not zoomable.** One hairline crosses the window,
+   and a region that grew its own band slice would break that line for all the
+   others. Zoom applies to what you read — the tree, the changes list, the session
+   rows, the file, the terminal — never to the chrome that labels it. Consequence,
+   stated so it reads as a decision rather than a gap: in TOP orientation the
+   session tab strip IS the band, so ⌘+ with a tab focused enlarges the session
+   that tab points at.
+3. **Zoom is a MULTIPLIER over one base size, never a competing setting.** The
+   terminal's base is the §1.8 13px; the editor's is Monaco's 12px. §9.7's
+   deferred Settings → General terminal size control is withdrawn, not postponed:
+   it would be a second answer to the same question, and the promise had already
+   outlived two phases without a control behind it. If a base-size control ever
+   ships it changes the base and every zoomed surface follows.
+
+## 11. Round-4 revisions (Phase 12.12, 2026-08-11) — the keyboard round
+
+### 11.1 One agent board, not two
+
+The ⌘T sheet had grown its own copy of §6.2's fleet tiles, and the copy was the worse
+one: cramped rows, and a single caption under the grid that could only describe one
+agent ("Droid not found") while three others had their own story. Both surfaces now
+render **one component** — `src/renderer/app/AgentGrid.tsx` — parameterized by mode
+(`select` in the sheet, `launch` in the empty state) and nothing else. Status moved ON
+to the tile ("not installed", "early"), which is the change that made one component
+possible: a caption can only speak for the grid, a tile speaks for itself. Spec:
+DESIGN-SPEC S6. The rule this encodes is the guardrail's, stated for UI: **two surfaces
+showing the same object share the component, or they will drift** — and the drift is
+never symmetric, one copy always rots.
+
+### 11.2 A layout switch belongs where the layout is
+
+Moving sessions between the top strip and the right dock was a View-menu-only verb, which
+means it was invisible to anyone who did not already know it existed. A single icon
+button now sits in the SESSIONS header in **both** orientations, naming its destination
+rather than its state ("Move sessions to the top"), and the verb is also in the chevron
+menu for discoverability. **One truth in the store**, not a second piece of state: the
+button, the chevron item and the View menu's radio pair all read and write the same
+field, so the menu's checkmark can never disagree with the layout on screen.
+
+### 11.3 ⌘9 is the last tab, and ⌘ reveals the numbers
+
+⌘1…⌘9 shipped in round 1 as literal positions, so a tenth project made the tail of the
+strip unreachable by keyboard — and nobody had ever discovered the shortcut anyway.
+Both halves are fixed, and both come from one module (`project-shortcuts.ts`) because a
+tab that shows a number the keystroke will not honour is worse than no number at all:
+⌘1-⌘8 are positions, **⌘9 is always the last tab**, and the middle of a long strip
+honestly shows nothing. Discovery is the Arc gesture — hold ⌘ alone for 220ms and each
+tab reveals its digit, release and they go. No permanent numbers: the hint appears
+exactly when the hand is already on the key, which is what §7's voice asks of any
+affordance that is not always needed. Details that make it feel built rather than
+bolted on are in DESIGN-SPEC S2.
+
+### 11.4 The keymap is data, and every surface renders it
+
+Shortcuts lived in three hand-maintained places — the ⌘/ overlay's array, the recorder's
+reserved-chord table, and the accelerator literals in the native menu — which is how the
+⇧↩ row went missing the same phase that shipped it, and how ⇧⌘N never became a chord the
+recorder would refuse. **`src/shared/keymap.ts` is now the only list.** Every entry
+carries its chords, a short `action` label, a plain-language `explain` sentence, a group,
+a scope, and whether the user may re-record it; the ⌘/ overlay, Settings → Keyboard, the
+native menus, the recorder's conflict table and every tooltip that names a chord all
+render from it.
+
+Three consequences worth stating as rules, because they are what keep it true:
+
+1. **Adding a shortcut is a one-line change to that file and nothing else.** If you find
+   yourself typing a chord into a component, a menu template or a `title=`, you are
+   creating the next drift — add the row and read it back with `accelerator()` /
+   `keyDisplay()`. The one legitimate exception is copy that names the CLASS of
+   modifiers rather than a shortcut ("a shortcut needs ⌘ or ⌃"). This is **enforced,
+   not asked for**: `src/shared/__tests__/keymap-single-source.test.ts` fails the build
+   on a ⌘⌥⇧⌃ glyph anywhere in executable source outside the keymap, with a short
+   allow-list of mechanisms (the formatter's inverse at the native-menu boundary, the
+   two modifier-class validation strings). Widening that list is never the fix.
+2. **Conflicts are surfaced, never resolved silently.** The reserved table is derived
+   from the keymap, so a new built-in makes a colliding user chord un-recordable the
+   same commit, and an already-recorded one grows a note on its row.
+3. **Settings → Keyboard is a reference people READ, not a table.** It is set as a
+   document — a sentence under every action, scope hung on the heading where a whole
+   group shares one, filter-as-you-type — because the shortcuts nobody discovers are
+   exactly the ones that need a sentence, not a denser grid. §9's item 6 "Hotkeys"
+   section, whose first two rows were a hand-typed shortcut list, is replaced by it.

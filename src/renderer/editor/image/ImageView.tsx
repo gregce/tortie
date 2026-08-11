@@ -22,6 +22,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { GmuxFsExtras } from '@shared/ipc';
+import { keyDisplay } from '@shared/keymap';
 import { useApp } from '../../state/store';
 import type { EditorTab } from '../store';
 import { useLiveTabText } from '../live-text';
@@ -404,7 +405,7 @@ export function ImageSurface({
             type="button"
             className={`ed-mode-opt${scale === null ? ' on' : ''}`}
             aria-pressed={scale === null}
-            title="Fit the whole image in the panel (⌘0)"
+            title={`Fit the whole image in the panel (${keyDisplay('view.zoomReset')})`}
             onClick={fitToPanel}
           >
             Fit

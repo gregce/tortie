@@ -25,6 +25,7 @@ import React, {
   useState
 } from 'react';
 import type { Session } from '@shared/types';
+import { keyDisplay } from '@shared/keymap';
 import { TerminalHost } from '../terminal';
 import { AGENT_INSTALL_COMMANDS } from '../state/agents';
 import { effectiveStatusOf, useApp } from '../state/store';
@@ -66,6 +67,7 @@ import {
 } from './split/surface-dnd';
 import { groupMenuItems, groupTooltip } from './split/split-menu';
 import { useQuickCreateMenu } from './new-session-menu';
+import { SessionsPositionButton } from './SessionsPositionButton';
 
 // ---------------------------------------------------------------------------
 // Shared: quick-create split button (＋ opens ⌘T; ˅ native quick-create menu,
@@ -78,11 +80,15 @@ function NewSessionSplitButton(): React.JSX.Element {
 
   return (
     <div className="strip-new">
+      {/* Phase 12.12 item 2 — same control the right dock's toolbar carries
+          (./SessionsPositionButton.tsx), so the way back exists in BOTH
+          orientations rather than only in the View menu. */}
+      <SessionsPositionButton />
       <button
         type="button"
         className="icon-btn strip-new-main"
-        aria-label="New session (⌘T)"
-        title="New session (⌘T)"
+        aria-label={`New session (${keyDisplay('session.new')})`}
+        title={`New session (${keyDisplay('session.new')})`}
         onClick={() => setCreateOpen(true)}
       >
         <Codicon name="add" size={16} />

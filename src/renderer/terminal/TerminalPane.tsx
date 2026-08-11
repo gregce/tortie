@@ -28,6 +28,9 @@ import './terminal.css';
 import type { GmuxApi, GmuxTermStreamExtras } from '@shared/ipc';
 import type { GmuxErrorPayload, Session, SessionStatus } from '@shared/types';
 import { useApp } from '../state/store';
+// Phase 12.11: a terminal zooms by changing its FONT, never by CSS scaling —
+// see src/renderer/zoom/regions.ts for why, and for the S1 band rule.
+import { zoomedFontSize, useZoom } from '../zoom';
 import { registerTerminal } from './drop/registry';
 import { terminalKeyHandler } from './keys';
 import { multilineSequenceFor, primeMultilineKeys } from './keys/multiline';
@@ -37,7 +40,7 @@ import { canSplit, showTerminalMenu } from './terminal-menu';
 import {
   resolveTerminalFontFamily,
   resolveTerminalTheme,
-  TERMINAL_FONT_SIZE,
+  terminalBaseFontSize,
   TERMINAL_LETTER_SPACING,
   TERMINAL_LINE_HEIGHT,
   TERMINAL_SCROLLBACK
@@ -109,8 +112,19 @@ export function TerminalPane({
 }: TerminalPaneProps): React.JSX.Element {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const termRef = useRef<Terminal | null>(null);
+  // Zoom re-fits an ALREADY-MOUNTED terminal, so the addon and the WebGL
+  // renderer have to outlive the mount effect's closure.
+  const fitRef = useRef<FitAddon | null>(null);
+  const webglRef = useRef<WebglAddon | null>(null);
   const focusedRef = useRef(focused);
   focusedRef.current = focused;
+
+  // Phase 12.11 — one level for the whole terminal region, not one per pane.
+  // A split grid whose panes disagreed about font size would read as a
+  // rendering fault, and ⌘0 resets "the focused region", which is the grid.
+  const zoomFactor = useZoom((s) => s.levels.terminal);
+  const zoomRef = useRef(zoomFactor);
+  zoomRef.current = zoomFactor;
 
   const [overlay, setOverlay] = useState<OverlayState | null>(null);
   // Bumping the epoch tears the terminal down and attaches fresh (retry).
@@ -151,7 +165,10 @@ export function TerminalPane({
     const term = new Terminal({
       scrollback: TERMINAL_SCROLLBACK,
       fontFamily: resolveTerminalFontFamily(),
-      fontSize: TERMINAL_FONT_SIZE,
+      // Open at the CURRENT zoom, not at 100%: a pane mounted into an
+      // already-zoomed region (a new split, a project switch, a relaunch)
+      // must never draw one frame at the base size and then jump.
+      fontSize: zoomedFontSize(terminalBaseFontSize(), zoomRef.current),
       lineHeight: TERMINAL_LINE_HEIGHT,
       letterSpacing: TERMINAL_LETTER_SPACING,
       theme: resolveTerminalTheme(),
@@ -210,6 +227,7 @@ export function TerminalPane({
 
     const fit = new FitAddon();
     term.loadAddon(fit);
+    fitRef.current = fit;
     term.loadAddon(
       new WebLinksAddon((_event, uri) => {
         // Main should route window.open → shell.openExternal
@@ -334,11 +352,14 @@ export function TerminalPane({
         addon.onContextLoss(() => {
           addon.dispose();
           webgl = null;
+          webglRef.current = null;
         });
         term.loadAddon(addon);
         webgl = addon;
+        webglRef.current = addon;
       } catch {
         webgl = null;
+        webglRef.current = null;
       }
       doFit(); // size the pty request window before the first paint lands
       try {
@@ -379,6 +400,8 @@ export function TerminalPane({
       }
       term.dispose();
       termRef.current = null;
+      fitRef.current = null;
+      webglRef.current = null;
       // Kills only the attach client; the tmux session lives on.
       void gmux.sessions.detach(sessionId).catch(() => undefined);
     };
@@ -387,6 +410,51 @@ export function TerminalPane({
   useEffect(() => {
     if (focused) termRef.current?.focus();
   }, [focused, attachEpoch]);
+
+  // ---- zoom (Phase 12.11) --------------------------------------------------
+  // REAL terminal zoom: the font changes, the pane re-fits, and the new
+  // cols/rows go to tmux through the SAME onResize path a window resize uses.
+  // Consequences we accept and the agent sees: its viewport genuinely changes
+  // and it redraws at the new width — that is what every terminal does.
+  // Consequences we do NOT accept, and handle here:
+  //
+  //  - **The scrollbar must not drift.** 12.3 draws the thumb from tmux's own
+  //    `rows`/`history`, polled once a second while live. A resize changes
+  //    `rows` immediately, so without this refresh the thumb would be sized
+  //    for the old geometry for up to a second. (The wheel's line height is
+  //    safe by construction: metrics.ts MEASURES the cell box off the DOM on
+  //    every event and never computes it from the font size.)
+  //  - **A scrolled pane must keep its place.** tmux moves the copy-mode view
+  //    with the reflow — measured A/B, a pane parked 40 lines back landed at
+  //    30 when 42 rows became 27 — so the surface re-asserts the position
+  //    once the resize lands (ScrollSurface.holdPositionAcrossResize: drift
+  //    10 lines → 0).
+  //  - **It must not read as activity.** A redraw is output, and Phase 13's
+  //    detector would score it as `working`; main is told a geometry change
+  //    happened (GmuxCore.resizeSession → activity.noteGeometryChange) and
+  //    holds its verdict across the reflow.
+  useEffect(() => {
+    const term = termRef.current;
+    const fit = fitRef.current;
+    if (term === null || fit === null) return;
+    const size = zoomedFontSize(terminalBaseFontSize(), zoomFactor);
+    if (term.options.fontSize === size) return;
+    term.options.fontSize = size;
+    // The atlas is rasterized per glyph size; xterm rebuilds it on a char-size
+    // change, and clearing is the same cheap belt the late-font path uses.
+    try {
+      webglRef.current?.clearTextureAtlas();
+    } catch {
+      /* renderer may have fallen back to DOM — nothing to clear */
+    }
+    try {
+      fit.fit();
+    } catch {
+      /* fitting a pane with no size yet is a no-op, not an error */
+    }
+    surface?.refresh();
+    surface?.holdPositionAcrossResize();
+  }, [zoomFactor, surface, attachEpoch]);
 
   // Right-click anywhere in the session → the native menu (DESIGN.md §3).
   // Right-clicking inside a selection keeps it, so Copy still has something

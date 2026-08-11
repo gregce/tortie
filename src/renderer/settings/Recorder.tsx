@@ -1,14 +1,20 @@
 /**
  * Hotkey recorder chip (DESIGN.md §3, S13 Hotkeys).
  *
- * States: unassigned → "Record shortcut"; assigned → chord glyphs (mono) +
- * × clear on hover; recording → "Type shortcut…" with accent border +
- * focus ring. Esc cancels, ⌫ clears, a valid chord commits instantly;
- * conflicts surface as a 12px --error line under the row (owned by the
- * parent — this component only reports them).
+ * States: unassigned → "Record shortcut"; assigned → the chord as a KEYCAP +
+ * × to clear; recording → "Type shortcut…" with accent border + focus ring.
+ * Esc cancels, ⌫ clears, a valid chord commits instantly; conflicts surface
+ * as a 12px --error line under the row (owned by the parent — this component
+ * only reports them).
+ *
+ * Phase 12.12: the assigned chord is drawn by the shared `Keycap`, not by a
+ * local mono span. It sits in the Settings keyboard map one row away from
+ * built-in chords, and a shortcut you recorded must not be set in a different
+ * face from the ones you did not — the whole page is one vocabulary.
  */
 
 import React, { useEffect, useRef, useState } from 'react';
+import { Keycap } from '../keys';
 import {
   acceleratorToDisplay,
   eventToAccelerator,
@@ -109,9 +115,7 @@ export function Recorder({
             Type shortcut…{hint !== undefined ? ` (${hint})` : ''}
           </span>
         ) : value !== undefined ? (
-          <span className="set-recorder-chord num">
-            {acceleratorToDisplay(value)}
-          </span>
+          <Keycap>{acceleratorToDisplay(value)}</Keycap>
         ) : (
           'Record shortcut'
         )}

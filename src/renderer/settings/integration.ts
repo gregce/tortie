@@ -16,6 +16,7 @@ import { useEffect } from 'react';
 import type { GmuxMenuExtras, MenuActionId } from '@shared/ipc';
 import type { AgentKind, CreateSessionInput } from '@shared/types';
 import { errorPayload, errorText, nextOrdinal, useApp } from '../state/store';
+import { keyDisplay } from '@shared/keymap';
 import { defaultLaunchArgsFor } from './presets';
 import { useSettingsStore } from './settings-store';
 
@@ -32,7 +33,7 @@ async function launchAgent(agentId: string): Promise<void> {
   const s = useApp.getState();
   const project = s.activeProject();
   if (!project) {
-    s.toast('info', 'Open a project first (⌘O)');
+    s.toast('info', `Open a project first (${keyDisplay('project.open')})`);
     return;
   }
   if (s.bootBlock !== null || !window.gmux) return;
@@ -56,7 +57,7 @@ async function launchAgent(agentId: string): Promise<void> {
     if (payload?.code === 'AGENT_NOT_FOUND') {
       s.toast(
         'error',
-        `${payload.message} Check Settings → Agents (⌘,).`,
+        `${payload.message} Check Settings → Agents (${keyDisplay('app.settings')}).`,
         { sticky: true }
       );
     } else {

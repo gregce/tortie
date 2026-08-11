@@ -8,9 +8,15 @@
  * buildAgentOptions). Installed agents are one-click launchers carrying any
  * hotkey the user recorded in Settings; the rest stay present but recessive
  * — gmux picks them up the moment their CLI appears on PATH.
+ *
+ * The board itself is no longer written here: Phase 12.12 item 1 made it the
+ * shared ./AgentGrid, because the ⌘T sheet had grown a second, cramped copy of
+ * the same idea. This state keeps the copy, the caption and the launch — the
+ * things that are its own.
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { keyDisplay } from '@shared/keymap';
 import { useApp } from '../state/store';
 import {
   AGENT_INSTALL_COMMANDS,
@@ -20,8 +26,10 @@ import {
   type AgentPickerOption
 } from '../state/agents';
 import { useSettingsStore } from '../settings/settings-store';
-import { acceleratorToDisplay } from '../settings/chords';
-import { AgentIcon, Codicon } from '../icons';
+// Phase 12.12 item 1: the fleet board is a shared component now — the ⌘T
+// sheet renders the identical tiles from ./AgentGrid.
+import { AgentGrid } from './AgentGrid';
+import { Codicon } from '../icons';
 // Phase 12.85: the ONE in-window Tortie mark. Copied from the brand package
 // (docs/brand/tortie/dock/tortie-dock-128.png) by `npm run icon`.
 import tortieMark from '../assets/brand/tortie-128.png';
@@ -66,7 +74,8 @@ export function FirstRun(): React.JSX.Element {
           ) : null}
         </div>
         <p className="onb-hint">
-          Press <span className="key">⌘O</span>, or drop a folder anywhere in
+          Press <span className="key">{keyDisplay('project.open')}</span>, or
+          drop a folder anywhere in
           this window.
         </p>
       </div>
@@ -144,35 +153,25 @@ export function NoSessions(): React.JSX.Element {
           restarts.
         </p>
 
-        <div
-          className="onb-fleet"
-          role="group"
-          aria-label="Start a session"
-          aria-busy={starting !== null}
-        >
-          {options.map((opt, i) => (
-            <FleetTile
-              key={opt.id}
-              index={i}
-              option={opt}
-              hotkey={
-                (hotkeys as Record<string, string | undefined>)[opt.id] ?? null
-              }
-              primary={opt.id === primaryId}
-              starting={starting === opt.id}
-              onActivate={start}
-              onPoint={point}
-              onUnpoint={unpoint}
-            />
-          ))}
-        </div>
+        <AgentGrid
+          mode="launch"
+          options={options}
+          primaryId={primaryId}
+          hotkeys={hotkeys as Record<string, string | undefined>}
+          startingId={starting}
+          onActivate={start}
+          onHint={point}
+          onUnhint={unpoint}
+          ariaLabel="Start a session"
+        />
 
         <p className="onb-hint">
           Click one to start it in{' '}
           <span className="onb-hint-strong">
             {project?.name ?? 'this project'}
           </span>
-          , or press <span className="key">⌘T</span> to name it and pick a
+          , or press <span className="key">{keyDisplay('session.new')}</span> to
+          name it and pick a
           directory.
         </p>
 
@@ -194,75 +193,6 @@ export function NoSessions(): React.JSX.Element {
         </div>
       </div>
     </div>
-  );
-}
-
-function FleetTile({
-  index,
-  option,
-  hotkey,
-  primary,
-  starting,
-  onActivate,
-  onPoint,
-  onUnpoint
-}: {
-  index: number;
-  option: AgentPickerOption;
-  hotkey: string | null;
-  primary: boolean;
-  starting: boolean;
-  onActivate: (opt: AgentPickerOption) => void;
-  onPoint: (id: string) => void;
-  onUnpoint: (id: string) => void;
-}): React.JSX.Element {
-  // One right-hand slot, in priority order: the recorded hotkey, the honest
-  // "not installed", the registry's early-support caveat (pi).
-  const meta =
-    !option.installed ? (
-      <span className="onb-tile-meta">not installed</span>
-    ) : hotkey !== null ? (
-      <span className="key">{acceleratorToDisplay(hotkey)}</span>
-    ) : option.unverified ? (
-      <span className="onb-tile-meta">early</span>
-    ) : null;
-
-  return (
-    <button
-      type="button"
-      className={`onb-tile${option.installed ? '' : ' missing'}${
-        primary && option.installed ? ' primary' : ''
-      }${starting ? ' starting' : ''}`}
-      style={{ ['--onb-i' as string]: index }}
-      aria-disabled={!option.installed}
-      aria-label={
-        option.installed
-          ? `Start ${option.label}`
-          : `${option.label} — not installed`
-      }
-      title={option.installed ? `Start ${option.label}` : undefined}
-      onClick={() => onActivate(option)}
-      onMouseEnter={() => {
-        if (!option.installed) onPoint(option.id);
-      }}
-      onMouseLeave={() => {
-        if (!option.installed) onUnpoint(option.id);
-      }}
-      onFocus={() => {
-        if (!option.installed) onPoint(option.id);
-      }}
-      onBlur={() => {
-        if (!option.installed) onUnpoint(option.id);
-      }}
-    >
-      <AgentIcon
-        agent={option.iconKey}
-        size={16}
-        className="onb-tile-icon"
-      />
-      <span className="onb-tile-name">{option.label}</span>
-      {meta}
-    </button>
   );
 }
 

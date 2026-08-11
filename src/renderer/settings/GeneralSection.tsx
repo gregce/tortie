@@ -7,6 +7,7 @@
 import React, { useEffect, useState } from 'react';
 import type { GmuxLoginItemExtras } from '@shared/ipc';
 import type { LaunchableAgentKind } from '@shared/types';
+import { keyDisplay } from '@shared/keymap';
 import { useSettingsStore } from './settings-store';
 import { Switch } from './Switch';
 
@@ -104,7 +105,7 @@ function DefaultAgentRow(): React.JSX.Element {
       <div className="set-row-text">
         <span className="set-row-label">Default agent</span>
         <span className="set-row-caption">
-          Preselected when you create a session (⌘T).
+          {`Preselected when you create a session (${keyDisplay('session.new')}).`}
         </span>
       </div>
       <select

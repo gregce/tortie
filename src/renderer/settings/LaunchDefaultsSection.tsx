@@ -12,6 +12,7 @@ import React, { useState } from 'react';
 import type { AgentFlagPresetView } from '@shared/settings';
 import { dangerKey } from '@shared/settings';
 import type { DetectedAgent, LaunchableAgentId } from '@shared/types';
+import { keyDisplay } from '@shared/keymap';
 import { AgentIcon, Codicon } from '../icons';
 import { useSettingsStore } from './settings-store';
 import { Switch } from './Switch';
@@ -246,9 +247,9 @@ export function LaunchDefaultsSection(): React.JSX.Element {
     <section aria-label="Launch defaults">
       <h1 className="set-title">Launch defaults</h1>
       <p className="set-section-caption">
-        Flags applied to every new session of an agent. Sessions created from
-        ⌘T show these pre-checked — turning one off there affects that session
-        only.
+        Flags applied to every new session of an agent. Sessions created from{' '}
+        {keyDisplay('session.new')} show these pre-checked — turning one off
+        there affects that session only.
       </p>
 
       {ordered.length === 0 ? (

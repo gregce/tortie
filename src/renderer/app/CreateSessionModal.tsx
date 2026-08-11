@@ -3,16 +3,25 @@
  * any field; Esc cancels. Total happy path: ⌘T ↩ = two keys.
  *
  * Phase 10 (create-modal stream): the 3-option segmented control became a
- * wrapping chip grid over EVERY launchable registry agent (agents:list-driven
- * when the bridge has it, static registry mirror otherwise) + Shell last.
- * Missing CLIs render disabled with a "not found" caption; the selected
+ * grid over EVERY launchable registry agent (agents:list-driven when the
+ * bridge has it, static registry mirror otherwise) + Shell last. The selected
  * agent's launch-flag presets render as Options toggles (danger-styled per
  * DESIGN-SPEC S6, pre-seeded from Settings launch defaults) whose tokens ride
  * CreateSessionInput.extraArgs into BOTH argv and resume_argv. A disabled
  * SpecStory capture row holds the Phase-12 layout slot.
+ *
+ * Phase 12.12 item 1: the picker itself is no longer written here. It is the
+ * SHARED AgentGrid (./AgentGrid.tsx) — the same board §6.2's empty state
+ * shows, in select mode. What this sheet keeps is what only it has: the name
+ * field, the directory picker, the flag presets, and the one recovery the
+ * empty state does not offer — a copyable install command for a missing CLI.
+ * Per-agent status ("not installed", "early") is on the tiles now, so the row
+ * under the grid stopped being a caption about whichever agent the pointer
+ * touched last and became purely that recovery.
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { AgentGrid } from './AgentGrid';
 import type { LaunchableAgentKind } from '@shared/types';
 import {
   presetArgvTokens,
@@ -30,7 +39,7 @@ import {
 import { useSettingsStore } from '../settings/settings-store';
 import { errorPayload, errorText, nextOrdinal, useApp } from '../state/store';
 import { modalKeyDown } from './focus-trap';
-import { AgentIcon, Codicon } from '../icons';
+import { Codicon } from '../icons';
 
 /** Install command for the caption row, when one is known. */
 function installCommandFor(id: string): string | null {
@@ -126,7 +135,6 @@ export function CreateSessionModal(): React.JSX.Element | null {
   );
   const [creating, setCreating] = useState(false);
   const nameRef = useRef<HTMLInputElement | null>(null);
-  const chipRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
   const toast = useApp((s) => s.toast);
 
   // Reset on open; prefill name `<agent>-<n>` and cwd = project root.
@@ -208,25 +216,6 @@ export function CreateSessionModal(): React.JSX.Element | null {
     setAgent(opt.id);
   };
 
-  /** Arrow-key radio semantics over the ENABLED chips (roving tabindex). */
-  const onGridKeyDown = (e: React.KeyboardEvent): void => {
-    const forward = e.key === 'ArrowRight' || e.key === 'ArrowDown';
-    const backward = e.key === 'ArrowLeft' || e.key === 'ArrowUp';
-    if (!forward && !backward) return;
-    e.preventDefault();
-    const enabled = options.filter((o) => o.installed);
-    if (enabled.length === 0) return;
-    const at = Math.max(
-      0,
-      enabled.findIndex((o) => o.id === agent)
-    );
-    const next =
-      enabled[(at + (forward ? 1 : enabled.length - 1)) % enabled.length];
-    if (next === undefined) return;
-    setAgent(next.id);
-    chipRefs.current.get(next.id)?.focus();
-  };
-
   const submit = (): void => {
     if (creating) return;
     const trimmed = name.trim();
@@ -279,11 +268,20 @@ export function CreateSessionModal(): React.JSX.Element | null {
     });
   };
 
-  // Caption row: a create-time AGENT_NOT_FOUND pins it; otherwise it echoes
-  // the last hovered/focused disabled chip. One row, 11px muted (S6).
+  // Install row: a create-time AGENT_NOT_FOUND pins it; otherwise it echoes
+  // the last hovered/focused missing tile. It renders ONLY when there is a
+  // command to hand over — the tile already said "not installed", so a row
+  // that just repeats that in a sentence is noise (Phase 12.12 item 1).
   const captionId = notFoundAgent ?? hintAgent;
   const captionOption = options.find((o) => o.id === captionId);
   const captionCmd = captionId !== null ? installCommandFor(captionId) : null;
+  // Reserve the row's height only when this machine could actually show it,
+  // so the sheet never jumps as the pointer sweeps the board — and never
+  // carries 24px of dead space on the usual machine, where every agent gmux
+  // knows an install command for is already installed.
+  const reserveInstallRow = options.some(
+    (o) => !o.installed && installCommandFor(o.id) !== null
+  );
 
   return (
     <div
@@ -310,53 +308,21 @@ export function CreateSessionModal(): React.JSX.Element | null {
           <span className="field-label" id="agent-label">
             Agent
           </span>
-          <div
-            className="agent-grid"
-            role="radiogroup"
-            aria-labelledby="agent-label"
-            onKeyDown={onGridKeyDown}
-          >
-            {options.map((opt) => {
-              const selected = agent === opt.id;
-              return (
-                <button
-                  key={opt.id}
-                  ref={(el) => {
-                    if (el !== null) chipRefs.current.set(opt.id, el);
-                    else chipRefs.current.delete(opt.id);
-                  }}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  aria-disabled={!opt.installed}
-                  tabIndex={selected ? 0 : -1}
-                  title={
-                    opt.installed ? undefined : `${opt.label} not found`
-                  }
-                  className={`agent-chip${selected ? ' selected' : ''}${
-                    opt.installed ? '' : ' missing'
-                  }`}
-                  onClick={() => selectAgent(opt)}
-                  onMouseEnter={() => {
-                    if (!opt.installed) setHintAgent(opt.id);
-                  }}
-                  onFocus={() => {
-                    if (!opt.installed) setHintAgent(opt.id);
-                  }}
-                >
-                  <AgentIcon agent={opt.iconKey} size={16} />
-                  {opt.label}
-                </button>
-              );
-            })}
-          </div>
-          {captionOption !== undefined ? (
-            <div className="agent-missing">
-              <span className="agent-missing-text">
-                {captionOption.label} not found
-              </span>
-              {captionCmd !== null ? (
+          <AgentGrid
+            mode="select"
+            options={options}
+            primaryId={agent}
+            onActivate={selectAgent}
+            onHint={setHintAgent}
+            ariaLabelledBy="agent-label"
+          />
+          {reserveInstallRow ? (
+            <div className="agent-missing" aria-live="polite">
+              {captionOption !== undefined && captionCmd !== null ? (
                 <>
+                  <span className="agent-missing-text">
+                    Install {captionOption.label}:
+                  </span>
                   <code className="agent-missing-cmd">{captionCmd}</code>
                   <button
                     type="button"

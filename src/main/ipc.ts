@@ -40,6 +40,10 @@ import {
   EVT_SESSIONS_CHANGED,
   EVT_STATUS_CHANGED
 } from '@shared/ipc';
+// Phase 12.12 item 2 — the View-menu radios render the renderer's one
+// sessions-position truth; ui:sessionsPosition below is how they hear about
+// a change that did not come from the menu itself.
+import { setSessionsPositionRadios } from './menu';
 import type {
   CreateSessionInput,
   LaunchableAgentKind,
@@ -196,6 +200,8 @@ export class GmuxCore {
   private readonly restoresInFlight = new Set<string>();
   /** Live tmux `$-id`s proven NOT to be ours — see identify(). */
   private readonly foreignTmuxIds = new Set<string>();
+  /** Last cols×rows pushed per session — see resizeSession (Phase 12.11). */
+  private readonly lastGeometry = new Map<string, string>();
 
   /** Phase 13: per-agent activity detection (src/main/activity). */
   readonly activity: SessionActivityMonitor;
@@ -1293,11 +1299,28 @@ export class GmuxCore {
   }
 
   detachSession(sessionId: string): void {
+    this.lastGeometry.delete(sessionId);
     this.attachHost.detach(sessionId);
   }
 
+  /**
+   * The renderer re-fit a pane. Two things happen: the attach client is
+   * resized (tmux follows its client), and — when the geometry ACTUALLY
+   * changed — the activity monitor is told, so the repaint that follows is
+   * scored as reflow rather than as the agent working (Phase 12.11; the rule
+   * and its window live in activity/state-machine.ts).
+   *
+   * The change test is not an optimization: FitAddon fires on every observed
+   * container resize, and a re-fit that lands on the same cols/rows repaints
+   * nothing. Spending the grace window on it would blind the detector for no
+   * reason.
+   */
   resizeSession(input: ResizeInput): void {
+    const geometry = `${String(input.cols)}x${String(input.rows)}`;
+    const changed = this.lastGeometry.get(input.sessionId) !== geometry;
+    this.lastGeometry.set(input.sessionId, geometry);
     this.attachHost.resize(input.sessionId, input.cols, input.rows);
+    if (changed) this.activity.noteGeometryChange(input.sessionId);
   }
 
   // -------------------------------------------------------------------------
@@ -1551,6 +1574,13 @@ function registerPopupMenuHandler(): void {
  */
 export function registerIpcHandlers(): void {
   registerPopupMenuHandler();
+
+  // Phase 12.12 item 2: the store moved the session surface (View menu, the
+  // SESSIONS header's inline toggle, or its ˅ menu — one setter behind all
+  // three). Main's only job is to keep the View-menu radios rendering it.
+  handle('ui:sessionsPosition', (_e, position) => {
+    setSessionsPositionRadios(position);
+  });
 
   handle('sessions:create', async (_e, input) =>
     (await getGmuxCore()).createSession(input)

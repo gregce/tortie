@@ -23,6 +23,7 @@ import type {
   GmuxQuitExtras,
   MenuActionId
 } from '@shared/ipc';
+import { acceleratorToDisplay, keyDisplay } from '@shared/keymap';
 import { useApp } from '../state/store';
 import type { SidebarViewId } from '../state/store';
 import { useLayout } from '../state/layout';
@@ -40,6 +41,9 @@ import { AttentionOverlay } from './AttentionOverlay';
 import { ConfirmDialog } from './ConfirmDialog';
 import { Toasts } from './Toasts';
 import { FirstRun, TmuxMissing } from './EmptyStates';
+// Phase 12.12 item 3: ⌘1-⌘8 by position, ⌘9 = last. One module, shared with
+// the tabs' ⌘-held hints so the two can never disagree.
+import { digitToIndex } from './project-shortcuts';
 // Shared with the ⌘J overlay: "land the user in this session" exists once.
 import { focusTerminal, jumpToSession } from './session-focus';
 // Phase 12.4/12.6: "show this once, ever" lives in exactly one place — the
@@ -58,6 +62,13 @@ import { FileDropOverlay, useFileDropRouter } from '../terminal/drop';
 // (⌘T preset defaults) and handles the user-recorded per-agent hotkey menu
 // actions (launch-agent:<id> → new session in the active project).
 import { useSettingsIntegration } from '../settings';
+// Phase 12.11: ⌘+ / ⌘- / ⌘0 / ⌘⇧0. Like ⌘1…⌘9 and ⌘⇧[ / ⌘⇧], these chords
+// are renderer-only (no menu item mirrors them), so the hook installs its own
+// capture-phase listener beside the map above instead of adding branches to
+// it — zoom's focus resolution is its own concern (src/renderer/zoom/focus.ts).
+import { useZoomKeymap, ZoomHud } from '../zoom';
+import { driveZoom } from '../zoom/shot-probe';
+import type { ZoomProbeSpec } from '../zoom/shot-probe';
 
 // ---------------------------------------------------------------------------
 // Keyboard map (DESIGN.md §4) — one capture-phase listener; ⌘-chords and F2
@@ -198,7 +209,7 @@ function useKeyboardMap(): void {
         case 't':
           e.preventDefault();
           if (s.projects.length === 0) {
-            s.toast('info', 'Open a project first (⌘O)');
+            s.toast('info', `Open a project first (${keyDisplay('project.open')})`);
           } else if (s.bootBlock === null) {
             s.setCreateOpen(true);
           }
@@ -230,10 +241,19 @@ function useKeyboardMap(): void {
           break;
       }
 
-      // ⌘1…⌘9 — project tabs.
+      // ⌘1…⌘9 — project tabs, in the visual tab order. ⌘1-⌘8 are positions
+      // and ⌘9 is the LAST tab however many are open (Phase 12.12 item 3):
+      // "the ninth" left every project past nine unreachable, which is the
+      // reason browsers settled on this convention. digitToIndex is the same
+      // module the tabs' ⌘-held hints read, so the hint cannot promise a jump
+      // this handler would not make.
       if (/^[1-9]$/.test(e.key)) {
         e.preventDefault();
-        s.setActiveProjectByIndex(parseInt(e.key, 10) - 1);
+        const index = digitToIndex(
+          parseInt(e.key, 10),
+          s.orderedProjects().length
+        );
+        if (index !== null) s.setActiveProjectByIndex(index);
         return;
       }
     };
@@ -296,7 +316,7 @@ function runMenuAction(action: AnyMenuActionWithProjects): void {
   switch (action) {
     case 'new-session':
       if (s.projects.length === 0) {
-        s.toast('info', 'Open a project first (⌘O)');
+        s.toast('info', `Open a project first (${keyDisplay('project.open')})`);
       } else if (s.bootBlock === null) {
         s.setCreateOpen(true);
       }
@@ -439,6 +459,35 @@ interface ShotLayoutExtras {
    * capture — the acks must keep every pane alive and rendering.
    */
   splitStress?: boolean;
+  /**
+   * Phase 12.12 item 4: extra project tabs (absolute paths), because the ⌘
+   * number hints are a property of the STRIP — one tab proves nothing about
+   * where the digits land or whether they reflow their neighbours. Added
+   * after the base drive so the driven project stays the active one, and
+   * removed again by cleanup.
+   */
+  extraProjects?: string[];
+  /**
+   * Phase 12.12 item 4: hold ⌘ for real (a capture-phase Meta keydown on
+   * window, exactly what the gesture listens for) and wait past the reveal
+   * dwell, so the capture shows the hints rather than a claim about them.
+   * Cleanup releases it.
+   */
+  holdCommand?: boolean;
+  /**
+   * Phase 12.12 item 3: press ⌘<digit> for real and log which tab it landed
+   * on, so "⌘9 is the LAST project" is asserted against the shipped handler
+   * and the live tab order — not only against project-shortcuts.test.ts.
+   */
+  projectDigit?: number;
+  /**
+   * Phase 12.11: drive per-region zoom with the REAL chord and report what
+   * moved — xterm's font, the tmux geometry, a scrolled pane's position, and
+   * a hit-test round trip inside every CSS-zoomed region. The findings are
+   * console lines (GMUX_SHOT_VERBOSE=1 tees them into the harness output),
+   * because none of those four is legible in a PNG.
+   */
+  zoom?: ZoomProbeSpec;
 }
 
 function useShotLayoutHook(): void {
@@ -452,6 +501,10 @@ function useShotLayoutHook(): void {
     const prevCleanup = w.__gmuxShotCleanup;
     /** Extra real sessions created for splitGrid — killed by cleanup. */
     let extraIds: string[] = [];
+    /** Extra project tabs added for the ⌘-hint capture — closed by cleanup. */
+    let extraProjectIds: string[] = [];
+    /** ⌘ is being held for the capture — released by cleanup. */
+    let commandHeld = false;
 
     w.__gmuxShotDrive = async (spec: unknown): Promise<void> => {
       const wait = (ms: number): Promise<void> =>
@@ -459,6 +512,25 @@ function useShotLayoutHook(): void {
       const ext = spec as ShotLayoutExtras;
       if (ext.orientation === 'right' || ext.orientation === 'top') {
         useApp.getState().setSessionOrientation(ext.orientation);
+        // Phase 12.12 item 2: the store also has to reach MAIN, or the View
+        // menu's radios go stale the moment the header's inline toggle is
+        // what moved the sessions. An unregistered channel rejects, and the
+        // store deliberately swallows that (a radio mark may never raise an
+        // error at the user) — so the harness makes the round trip loudly.
+        const bridge = window.gmux as typeof window.gmux & {
+          setSessionsPosition?: (p: 'top' | 'right') => Promise<void>;
+        };
+        if (typeof bridge.setSessionsPosition === 'function') {
+          await bridge.setSessionsPosition(ext.orientation).then(
+            () => console.log('[shot-drive] sessionsPosition → main: ok'),
+            (err: unknown) =>
+              console.log(
+                `[shot-drive] sessionsPosition → main: FAILED ${String(err)}`
+              )
+          );
+        } else {
+          console.log('[shot-drive] sessionsPosition → main: bridge missing');
+        }
       }
       await prev(spec);
       if (ext.sidebarView === 'scm' || ext.sidebarView === 'explorer') {
@@ -517,9 +589,95 @@ function useShotLayoutHook(): void {
         }
         window.__gmuxShotReady = true;
       }
+      // Phase 12.12 item 4 — a real strip, then a real ⌘.
+      if (Array.isArray(ext.extraProjects) && ext.extraProjects.length > 0) {
+        window.__gmuxShotReady = false;
+        const app = useApp.getState();
+        const before = new Set(app.projects.map((p) => p.id));
+        for (const path of ext.extraProjects) {
+          await app.addProjectPath(path);
+        }
+        await wait(600);
+        extraProjectIds = useApp
+          .getState()
+          .projects.filter((p) => !before.has(p.id))
+          .map((p) => p.id);
+        // The driven project stays the one on screen.
+        const driven = useApp.getState().projects.find((p) => before.has(p.id));
+        if (driven !== undefined) useApp.getState().setActiveProject(driven.id);
+        window.__gmuxShotReady = true;
+      }
+      if (typeof ext.projectDigit === 'number') {
+        window.__gmuxShotReady = false;
+        // Capture-phase keydown on window is exactly where useKeyboardMap
+        // listens, so this is the shipped path and not a call to the store.
+        window.dispatchEvent(
+          new KeyboardEvent('keydown', {
+            key: String(ext.projectDigit),
+            code: `Digit${ext.projectDigit}`,
+            metaKey: true,
+            bubbles: true
+          })
+        );
+        await wait(300);
+        const app = useApp.getState();
+        const ordered = app.orderedProjects();
+        const at = ordered.findIndex((p) => p.id === app.activeProjectId);
+        console.log(
+          `[shot-drive] projectDigit ${acceleratorToDisplay(
+            `Cmd+${String(ext.projectDigit)}`
+          )} of ${ordered.length}` +
+            ` tabs → index ${at} ("${ordered[at]?.name ?? ''}")`
+        );
+        window.__gmuxShotReady = true;
+      }
+      if (ext.holdCommand === true) {
+        window.__gmuxShotReady = false;
+        // The gesture listens on window in the CAPTURE phase for a Meta
+        // keydown; anything less than a real event would be testing the
+        // harness. Then wait past the dwell (220ms) plus the fade.
+        window.dispatchEvent(
+          new KeyboardEvent('keydown', {
+            key: 'Meta',
+            code: 'MetaLeft',
+            metaKey: true,
+            bubbles: true
+          })
+        );
+        commandHeld = true;
+        await wait(700);
+        window.__gmuxShotReady = true;
+      }
+      // Phase 12.11 — last, so it zooms whatever the earlier knobs built.
+      if (ext.zoom !== undefined) {
+        window.__gmuxShotReady = false;
+        const first = useApp
+          .getState()
+          .projectSessions()
+          .find((x) => x.status !== 'exited' && x.status !== 'restorable');
+        await driveZoom({
+          ...ext.zoom,
+          ...(ext.zoom.sessionId === undefined && first !== undefined
+            ? { sessionId: first.id }
+            : {})
+        });
+        window.__gmuxShotReady = true;
+      }
     };
 
     w.__gmuxShotCleanup = async (): Promise<void> => {
+      if (commandHeld) {
+        window.dispatchEvent(
+          new KeyboardEvent('keyup', { key: 'Meta', code: 'MetaLeft', bubbles: true })
+        );
+        commandHeld = false;
+      }
+      for (const id of extraProjectIds) {
+        // The bridge directly, not closeProject() — that one raises the
+        // §4 confirm dialog, which a cleanup pass has nobody to answer.
+        await window.gmux?.projects.remove(id).catch(() => undefined);
+      }
+      extraProjectIds = [];
       for (const id of extraIds) {
         await window.gmux?.sessions.kill(id).catch(() => undefined);
         const extras = window.gmux?.sessions as
@@ -628,6 +786,7 @@ export function App(): React.JSX.Element {
   const orientation = useApp((s) => s.sessionOrientation);
 
   useKeyboardMap();
+  useZoomKeymap();
   useMenuActions();
   useSettingsIntegration();
   useQuitRequests();
@@ -690,6 +849,7 @@ export function App(): React.JSX.Element {
       <AttentionOverlay />
       <ConfirmDialog />
       <Toasts />
+      <ZoomHud />
       <FileDropOverlay />
     </div>
   );

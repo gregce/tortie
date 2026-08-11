@@ -13,6 +13,7 @@
 
 import React from 'react';
 import type { Session } from '@shared/types';
+import { keyDisplay } from '@shared/keymap';
 import { TerminalPane } from './TerminalPane';
 import './terminal.css';
 
@@ -42,7 +43,9 @@ export function TerminalHost({
       {visible.length === 0 ? (
         <div className="gmux-terminal-empty">
           <div className="gmux-terminal-empty-title">No session selected</div>
-          <div>Press ⌘T to start a new session.</div>
+          <div>
+            Press {keyDisplay('session.new')} to start a new session.
+          </div>
         </div>
       ) : (
         visible.map((session) => (

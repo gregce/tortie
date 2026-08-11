@@ -132,6 +132,57 @@
   box-shadow: var(--focus-ring);
 }
 
+/* ⌘-held tab number (Phase 12.12 item 4). It shares the slot the close ×
+   reserves — 26px of right padding that is already there — so revealing it
+   moves nothing, and it is absolutely positioned on top of that padding
+   rather than added to the row. Muted at rest so it never competes with the
+   tab's own name; a step up to secondary on the fills where DESIGN.md §1.1
+   forbids muted text (raised on hover, active on the selected tab). */
+.ptab-hint {
+  position: absolute;
+  /* Exactly the ×'s box, so the two states sit on the same optical center. */
+  right: 6px;
+  top: 50%;
+  width: 16px;
+  transform: translateY(-50%);
+  text-align: center;
+  font-size: var(--text-xs);
+  line-height: 1;
+  color: var(--text-muted);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.ptab-wrap:hover .ptab-hint,
+.ptab-wrap.selected .ptab-hint {
+  color: var(--text-secondary);
+}
+
+.ptab-wrap.hinting .ptab-hint {
+  opacity: 1;
+}
+
+/* Two things cannot share one slot: while the numbers are up the × stands
+   down. It comes back the instant ⌘ is released — and it never disappears
+   out from under the keyboard, which is what the :not() is protecting. */
+.ptab-wrap.hinting .ptab-close:not(:focus-visible) {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* …and in that one case — the × actually focused while ⌘ goes down — the
+   number yields instead, so the focused control is never hidden. */
+.ptab-wrap.hinting:has(.ptab-close:focus-visible) .ptab-hint {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ptab-hint {
+    transition: none;
+  }
+}
+
 .ptab-add {
   display: inline-flex;
   align-items: center;
@@ -982,10 +1033,33 @@
   align-items: center;
 }
 
+/* S6's "top 20vh" is HEADROOM, not a fixed offset (Phase 12.12). It was a
+   fixed margin, which is fine while every sheet is short and a trap the
+   moment one is not: ⌘T grew an eleven-agent board, and on a 900px window
+   20vh + the sheet put Create below the fold — the one control the sheet
+   exists for, hidden on open. A shrinkable spacer gives the sheet exactly
+   20vh when the window can afford it and yields the difference when it
+   cannot, so a tall sheet slides UP rather than off the bottom. The trailing
+   gutter keeps it off the window edge in that case. */
+.modal-scrim::before {
+  content: '';
+  flex: 0 1 20vh;
+}
+
+.modal-scrim::after {
+  content: '';
+  flex: 0 0 var(--space-8);
+}
+
 .modal {
-  margin-top: 20vh;
+  /* Never the shrinking party — the spacer above is (S6 headroom). */
+  flex: 0 0 auto;
   width: 480px;
   max-width: calc(100vw - 48px);
+  /* Past this even the spacer has nothing left to give: scroll the sheet
+     rather than clip it. */
+  max-height: calc(100vh - 2 * var(--space-8));
+  overflow-y: auto;
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
@@ -1135,13 +1209,17 @@
   background: none;
 }
 
-/* §6.5 — missing-agent caption under the agent picker: fact + install
-   command + one-click copy (Phase 8). */
+/* §6.5 — the install-command row under the agent picker (Phase 8). Since
+   Phase 12.12 the TILE carries "not installed", so this row exists only to
+   hand over the recovery: command + one-click copy. It reserves its height
+   (the sheet must not jump as the pointer sweeps the board) and the modal
+   renders it at all only when some agent on this machine could fill it. */
 .agent-missing {
   display: flex;
   align-items: center;
   gap: var(--space-3);
   margin-top: var(--space-3);
+  min-height: 20px;
   min-width: 0;
 }
 
@@ -1174,53 +1252,9 @@
   flex: 0 0 auto;
 }
 
-/* S6 round 2 — agent picker chip grid (the registry carries 10 launchable
-   CLIs + Shell, so the 3-option segmented control became a wrapping grid). */
-.agent-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-}
-
-.agent-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-3);
-  height: 32px;
-  padding: 0 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-  font-size: var(--text-base);
-  font-weight: var(--weight-medium);
-  color: var(--text-secondary);
-  transition:
-    background var(--dur-fast) var(--ease-out),
-    border-color var(--dur-fast) var(--ease-out);
-}
-
-.agent-chip:hover {
-  background: var(--bg-raised);
-}
-
-.agent-chip.selected {
-  background: var(--bg-active);
-  border-color: var(--accent);
-  color: var(--text-primary);
-}
-
-.agent-chip:focus-visible {
-  box-shadow: var(--focus-ring);
-  outline: none;
-}
-
-.agent-chip.missing {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.agent-chip.missing:hover {
-  background: none;
-}
+/* The ⌘T agent picker's own chip grid lived here until Phase 12.12. It is
+   the SHARED board now — app/agent-grid.css, drawn identically by the §6.2
+   fleet state — so there is deliberately nothing left in this file. */
 
 /* S6 round 2 — launch-flag preset rows ("Options") + the Phase-12 capture
    placeholder. Danger presets carry the warning icon and error-washed chip. */
@@ -1304,18 +1338,26 @@
   flex: 0 0 auto;
 }
 
-/* Shortcuts overlay (S8). */
+/* Shortcuts overlay (S8). Rendered from src/shared/keymap.ts, so the row
+   count grows whenever the app gains a shortcut: the groups flow through
+   THREE balanced columns (CSS multi-column, groups kept whole) rather than a
+   fixed grid, which keeps the whole map on one screen without scrolling. */
 .modal-shortcuts {
-  width: 640px;
-  max-height: 70vh;
+  width: min(880px, calc(100vw - var(--space-9)));
+  max-height: 78vh;
   overflow-y: auto;
 }
 
 .shortcut-groups {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  columns: 3;
   column-gap: var(--space-8);
-  row-gap: var(--space-6);
+}
+
+.shortcut-group {
+  /* Never let a group's heading land at the foot of one column and its rows
+     at the head of the next. */
+  break-inside: avoid;
+  margin: 0 0 var(--space-6);
 }
 
 .shortcut-group-title {
@@ -1332,16 +1374,38 @@
   display: flex;
   align-items: center;
   height: 26px;
-  gap: var(--space-4);
+  gap: var(--space-3);
 }
 
 .shortcut-action {
   flex: 1;
+  min-width: 0;
   font-size: var(--text-base);
   color: var(--text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Chips never give up width to the label. */
+.shortcut-row .key {
+  flex: 0 0 auto;
+}
+
+/* Connective tissue between chips — the "…" of ⌘1 … ⌘8, and the "menu" of
+   the actions that deliberately have no chord. Text, not a chip: it is not
+   something you press. */
+.key-range {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+}
+
+@media (max-width: 900px) {
+  .shortcut-groups {
+    columns: 2;
+  }
 }
 
 /* ---------------------------------------------------------------------------

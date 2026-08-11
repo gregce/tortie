@@ -45,6 +45,18 @@ export const DIALOG_CONFIRM_TICKS = 2;
 export const DIALOG_CLEAR_TICKS = 2;
 /** A session stays "interesting" — worth `ps` and captures — this long. */
 export const AMBIGUOUS_WINDOW_MS = 60_000;
+/**
+ * How long after a pane's geometry changes its reflow is discounted (Phase
+ * 12.11). Resizing a pane — a window drag, a split, a sidebar toggle, or now
+ * a terminal zoom — makes the app inside it repaint the whole screen, which
+ * both the output timestamp and the screen hash would otherwise score as the
+ * agent working. It is the same rule Phase 9.2 wrote for keystrokes: what
+ * GMUX did to a session may never raise that session's state.
+ *
+ * Longer than QUIET_MS by one tick, because output "within the last 2 s"
+ * outlives the repaint that produced it.
+ */
+export const REFLOW_GRACE_MS = 2_500;
 
 // ---------------------------------------------------------------------------
 // Per-session state
@@ -66,6 +78,8 @@ export interface SessionState {
   lastWorkingAt: number;
   excerpt: string;
   lastActivityWrittenAt: number;
+  /** Epoch ms until which this pane's repaint is reflow, not work (12.11). */
+  reflowUntil: number;
 }
 
 export function freshState(now: number): SessionState {
@@ -82,7 +96,8 @@ export function freshState(now: number): SessionState {
     sawKeypad: false,
     lastWorkingAt: now,
     excerpt: '',
-    lastActivityWrittenAt: 0
+    lastActivityWrittenAt: 0,
+    reflowUntil: 0
   };
 }
 
@@ -188,17 +203,29 @@ export function inferredVerdict(
   // busy, and must not let it decay either (Phase 12.3).
   if (pane.inMode) return null;
 
+  // The pane was just resized (Phase 12.11): the repaint that follows is
+  // OURS, so the two signals a repaint fakes — recent output and a changed
+  // screen — are discounted for the grace window. Nothing else is: CPU, a
+  // setsid'd tool child and the dialog detector are all unaffected by a
+  // reflow, so a real prompt appearing mid-resize is still caught on time.
+  const reflowing = ctx.now < st.reflowUntil;
+
   // The screen memory is advanced unconditionally: it measures "changed
   // within the last K observations", so skipping an observation because a
   // stronger signal already answered would desync it.
   const quiet = ctx.now - pane.activityAt > QUIET_MS;
-  const outputEvidence = !profile.animatesWhenIdle && !quiet;
+  const outputEvidence = !reflowing && !profile.animatesWhenIdle && !quiet;
   const cpuBusy = noteCpu(st, pane, ctx.proc, ctx.now);
   const toolChild = ctx.proc !== null && hasToolChild(ctx.proc, pane.panePid);
   // One normalized view of the screen feeds BOTH screen signals: the hash and
   // the dialog detector must never disagree about what "the screen" is.
   const screen =
     ctx.capture === undefined ? null : normalizeCapture(ctx.capture);
+  // RESET, not "ignore the answer": the memory's predicate is "changed within
+  // the last K observations", so a suppressed change would still be inside
+  // the window five ticks later and report working then. Re-baselining makes
+  // the reflowed screen the new normal, which is what it is.
+  if (reflowing) st.screen.reset();
   const screenChanged = screen !== null && st.screen.note(hashScreen(screen));
   const dialog = screen !== null && detectDialog(screen);
 
@@ -238,6 +265,11 @@ export function inferredVerdict(
     st.quietTicks = 0;
     return { state: 'working', tier: 'inferred' };
   }
+
+  // Mid-reflow with no independent evidence: hold whatever the session
+  // already reported. Decaying a working agent to idle because we resized it
+  // would be the same mistake in the other direction.
+  if (reflowing) return null;
 
   st.quietTicks++;
   if (st.state === 'idle' || st.quietTicks >= IDLE_CONFIRM_TICKS) {

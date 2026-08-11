@@ -49,6 +49,7 @@ import {
   inferredVerdict,
   isMidDialog,
   nativeVerdict,
+  REFLOW_GRACE_MS,
   worthProbing,
   type SessionState
 } from './state-machine';
@@ -206,6 +207,21 @@ export class SessionActivityMonitor {
     st.dialogTicks = 0;
     st.clearTicks = 0;
     this.commit(sessionId, st, { state: 'working', tier: 'native' });
+  }
+
+  /**
+   * This session's pane changed size (Phase 12.11): a window resize, a split,
+   * a sidebar toggle, or a terminal zoom. Whatever the app inside repaints
+   * next is reflow, not work — discount it for `REFLOW_GRACE_MS` (the rules
+   * live in state-machine.ts; this only stamps the clock).
+   *
+   * Untracked sessions are skipped rather than created: a resize during
+   * attach, before the first tick has seen the pane, has nothing to protect.
+   */
+  noteGeometryChange(sessionId: string): void {
+    const st = this.states.get(sessionId);
+    if (st === undefined) return;
+    st.reflowUntil = this.now() + REFLOW_GRACE_MS;
   }
 
   /**

@@ -57,6 +57,21 @@ export const TERMINAL_LETTER_SPACING = 0;
 /** Renderer-side cap; tmux holds the full 50k lines server-side. */
 export const TERMINAL_SCROLLBACK = 10000;
 
+/**
+ * THE base terminal font size — the one number a terminal's size is decided
+ * from, and the number Phase 12.11's zoom MULTIPLIES.
+ *
+ * DESIGN.md §9.7 / DESIGN-SPEC S13 describe a Settings → General family+size
+ * control; it was deferred in Phase 10 and is still not built (the docs now
+ * say so instead of promising it). When it lands it changes THIS function's
+ * answer — it must never become a second, competing size next to zoom, or two
+ * controls will fight over one pane. Zoom is always a per-region multiplier
+ * over whatever this returns.
+ */
+export function terminalBaseFontSize(): number {
+  return TERMINAL_FONT_SIZE;
+}
+
 function cssVar(styles: CSSStyleDeclaration, name: string): string | undefined {
   const raw = styles.getPropertyValue(name).trim();
   return raw.length > 0 ? raw : undefined;

@@ -45,7 +45,8 @@ Conventions: `[h:28]` = height 28px. Hairlines are 1px `--border`. Every interac
 - Tab: `[h:28]`, radius `--r-sm`, padding 0 10px, gap 6px between elements, 4px between tabs; vertically centered in the 38px bar. Entire bar is `-webkit-app-region: drag`; tabs/buttons `no-drag`.
 - Anatomy: status dot 8px (roll-up: attention > working > idle across the project's sessions; attention dot pulses here too) · project name 13px/500 · attention badge (only when project NEEDS_INPUT count > 0): `[h:16]` min-w:16 pill, bg `--status-attention-badge-bg`, text 11px/600 `--status-attention-badge-fg`, tabular-nums.
 - States — selected: bg `--bg-active`, text `--text-primary`; unselected: transparent, text `--text-secondary`, dot at 80% opacity; hover (unselected): `--bg-raised`; drag-reorder per the block below.
-- Max tab width 200px, name truncates middle (keep suffix). ≥10 tabs: overflow into a native dropdown at the strip end (chevron button); ⌘1–9 map to the first nine.
+- Max tab width 200px, name truncates middle (keep suffix). ≥10 tabs: overflow into a native dropdown at the strip end (chevron button). **⌘1–⌘8 are positions and ⌘9 is the LAST tab however many are open** (Phase 12.12 item 3, the browser convention): "the ninth" left the tail of a long strip unreachable. Both directions of the rule come from one module, `src/renderer/app/project-shortcuts.ts` — what the keystroke does and what a tab claims below cannot disagree.
+- **⌘-held tab numbers (Phase 12.12 item 4, the Arc gesture).** Hold ⌘ alone for 220ms and each tab reveals its digit — 1-8 by position, 9 on the last, nothing on the unreachable middle of a long strip; release and they go. No permanent numbers: the hint appears exactly when the hand is already on the key. 11px `--text-muted` (`--text-secondary` on the selected or hovered tab, where DESIGN.md §1.1 forbids muted on a raised fill), overlaid in the 16px slot the close × already reserves so **nothing reflows**, fading in `--dur-fast` (no transition under `prefers-reduced-motion`). While the numbers are up the × stands down; if the × itself holds keyboard focus the number yields instead, so a focused control is never hidden. Suppressed while a tab is being dragged. The dwell is what keeps ⌘S and ⌘C from strobing the strip, and the reveal is cleared by keyup, window blur AND visibilitychange — a window that loses focus while ⌘ is down never gets a keyup, and that is how numbers stick. Each tab's tooltip carries the same shortcut as a fallback for anyone who never holds ⌘.
 - **Tab drag-reorder (round 2, user ref media_cWSQ48lD7j):** press + 4px pointer travel lifts the tab — ghost at 90% opacity, `--shadow-2`, follows the pointer on x only (y clamped to the bar). Neighbors do NOT reflow during the drag; instead a 2px `--accent` vertical insertion indicator `[h:20, r:1px]` marks the gap the tab will land in. Drop settles in 160ms `--ease-out`; Esc cancels (tab snaps home, no motion). Order is app-wide persisted state; ⌘1–⌘9, ⌃Tab cycling, and the ≥10-tab overflow menu all follow the visual order. Dragging past either end auto-scrolls the strip. `+` and 🔔 are never drop targets; a drag never leaves the titlebar row (project tabs cannot be dropped into the terminal).
 - `+` button: 24×24, icon 16px `--text-secondary`; opens folder picker (⌘O). Opening an already-open project focuses its tab.
 - 🔔 attention button: 28×28, right margin 12px; shows global NEEDS_INPUT count as the same amber badge; count 0 → bell at `--text-muted`, no badge. Click = ⌘J overlay. Dock badge mirrors this count via IPC.
@@ -302,12 +303,13 @@ Sessions render on the terminal region in one of two user-selectable orientation
 ```
 
 - **Right dock**: w:200 persisted (drag 160–320 on its left 1px `--border` divider), bg `--bg-sidebar`, own scroll, full height under the band.
-- **List toolbar (band)** `[h:36]`, padding 0 12px: "SESSIONS" 11px/600 uppercase +0.04em `--text-muted` · count 11px `--text-muted` · spacer · the same ＋˅ split button as top mode.
+- **List toolbar (band)** `[h:36]`, padding 0 12px: "SESSIONS" 11px/600 uppercase +0.04em `--text-muted` · count 11px `--text-muted` · spacer · the position toggle (below) · the same ＋˅ split button as top mode.
 - **Row `[h:24]`**, padding 0 8px, r `--r-md` inset 4px: agent icon 16 · name 13px (needs-input 500) · `⎇wt` chip mono 10px on `--bg-raised` `[h:16]` (when in a worktree) · spacer · status dot 8 · × 16 on hover (End-session confirm). Selected: `--bg-active` + 2px `--accent` left inset. Hover: `--bg-raised`. Saved: codicon `history` 12 after the dot. Age + status text in tooltip (density mirrors VS Code's 22px terminal list, on our 4px grid). List is focusable: ↑↓ ↩, F2, context menu.
 - **Identity strip (band over the terminal)** `[h:36]`, padding 0 12px — the visible status LABEL lives here in this orientation: agent icon 16 · session name 12px/500 `--text-primary` (F2 / double-click renames) · status label 11px ("working" `--text-muted` / "needs input" `--status-attention` / "idle" / "ended" / "failed (exit N)" / "saved") · spacer · ⋯ 20×20 (session menu).
 
 ### Both orientations
 
+- **Position toggle (Phase 12.12 item 2)** — one 24×24 icon button in the SESSIONS header, immediately before the ＋˅ pair so that pair stays one object, present in BOTH orientations (`src/renderer/app/SessionsPositionButton.tsx`). It names and draws its DESTINATION, never its current state: on top → codicon `layout-sidebar-right`, "Move sessions to the right"; on right → `layout-menubar`, "Move sessions to the top". `--text-muted` at rest, `--text-primary` on hover, focus ring, real button so Enter/Space work. The ˅ menu carries the same verb as a row under a separator, from the same pure builder (`sessions-position.ts`) so the two cannot word it differently. **One store value** (`sessionOrientation`) behind this button, that menu row and the View menu's radio pair; the store's setter notifies main over `ui:sessionsPosition` so the radios follow a change the menu did not make.
 - ⌥⌘↓/↑ cycles sessions regardless of focus; Enter on a row/tab focuses the terminal.
 - Terminal focus signal: the band's bottom hairline under the CENTER region turns `--accent` (1px) when the terminal has focus (round-0 rule, carried to the band). With splits, the signal means "the surface's focused split has keyboard focus"; the per-split ring (S4A) says which one.
 - **Restore-all bar** (DESIGN.md §3): `[h:32]`, full center width, docked directly under the band, bg `--bg-surface`, hairline bottom: "N saved sessions" 13px + [↺ Restore all] — replaces its round-0 home at the top of the removed Sessions section.
@@ -453,9 +455,9 @@ Tabs behave like any other: preview/pinned, ⌘W, LRU eviction, the strip. A wat
         │ New session                              [h:28 title]  │  padding 20
         │                                                        │
         │ Agent                                                  │  label 11/600 muted
-        │ [ ● Claude Code ] [ Codex ] [ Cursor ] [ Gemini ]      │  chip grid, h:32 chips,
-        │ [ Droid ] [ DeepSeek ] [ … ] [ Shell ]                 │  wraps (round 2)
-        │    claude is not installed — hover for install command │  (only when missing)
+        │ [ ● Claude Code    ] [ Cursor          ]               │  the SHARED agent board
+        │ [ Droid  not inst. ] [ DeepSeek        ]               │  (12.12) h:34 tiles
+        │    Install claude:  npm install -g …   [copy]          │  (only when missing)
         │ Name                                                   │
         │ [ claude-1                                    ]        │  input h:28
         │ Directory                                              │
@@ -465,8 +467,8 @@ Tabs behave like any other: preview/pinned, ⌘W, LRU eviction, the strip. A wat
         └────────────────────────────────────────────────────────┘
 ```
 
-- Centered horizontally, top at 20vh; scrim `--bg-scrim`; fade+scale 0.98→1, 200ms. Esc cancels; ↩ creates from any field. Focus lands on Agent control; Tab order: Agent → Name → Directory → Choose → Cancel → Create.
-- Agent picker (round 2 — the registry now carries 10 launchable CLIs, so the 3-option segmented control becomes a wrapping chip grid): one chip per registry agent + Shell last. Chip `[h:32]`, r-sm, padding 0 10px, gap 6px both axes: agent icon 16 (`currentColor` logo per DESIGN.md §3; Shell = codicon `terminal`) + label 13px. Radio semantics — arrow keys move, exactly one selected; selected chip: bg `--bg-active`, 1px `--accent` border; default selection = Settings → General "Default agent" (explicit claude out of the box — never alphabetical). Missing CLI → chip disabled at 50%; one caption row 11px `--text-muted` under the grid shows the hovered/focused disabled chip's install command in mono 11 + copy icon (DESIGN.md §6.5). New registry agents inherit their icon from the DESIGN.md §3 map automatically.
+- Centered horizontally; **top at 20vh is HEADROOM, not a fixed offset** (Phase 12.12): a shrinkable spacer above the sheet gives it 20vh whenever the window can afford it and yields the difference when it cannot, so a tall sheet slides UP rather than putting its primary button below the fold. Past that the sheet scrolls (`max-height: 100vh - 48px`) rather than clipping. Scrim `--bg-scrim`; fade+scale 0.98→1, 200ms. Esc cancels; ↩ creates from any field. Focus lands on Agent control; Tab order: Agent → Name → Directory → Choose → Cancel → Create.
+- **Agent picker = the SHARED agent board** (Phase 12.12 item 1, `src/renderer/app/AgentGrid.tsx` + `agent-grid.css`) — the same component and the same tiles §6.2's fleet state shows, in `mode="select"`. There is exactly one definition of this board; a change to it lands on both surfaces by construction. Tile `[h:34]`, r-sm, padding 0 10px, gap 8 inside / 6 between: agent icon 16 (`currentColor` logo per DESIGN.md §3; Shell = codicon `terminal`) + label 13px + a right-hand status slot. **Status lives ON the tile** — "not installed", or "early" for a registry-unverified agent — never in a caption that can only describe one of them. Track floor `clamp(140px, 45%, 190px)`: 190px is what the longest "name · not installed" pair measures, so a tile can always hold both; 140px is the floor that keeps a narrow terminal region at two columns. In the 480px sheet that lands on two 217px tiles; in §6.2 on three 216px ones. Radio semantics — arrow keys move across the INSTALLED tiles, exactly one selected; selected tile: bg `--bg-active`, 1px `--accent` border; default selection = Settings → General "Default agent" (explicit claude out of the box — never alphabetical). Missing CLI → dashed recessive outline, no hover brightening (nothing happens on click). One row under the board carries the only thing the tile cannot: a copyable install command for the hovered/focused missing agent, in mono 11 + copy icon (DESIGN.md §6.5) — rendered only when some agent on this machine could fill it, and reserving its height when it is. New registry agents inherit their icon from the DESIGN.md §3 map automatically.
 - Name prefills `<agent>-<n>` (next free ordinal per project), select-all on focus. Duplicate → silent `-2` suffix on create. Directory prefills project root; [Choose…] = native dialog; non-existent path → inline error 12px `--error` "Directory not found", Create disabled.
 - **Options (round 2)** — flag presets for the selected agent (registry `flagPresets`), between Directory and the buttons; the group is hidden when the agent has none (Shell always, others until Phase 10 #8 catalogs them). Label "Options" 11px/600 `--text-muted`. Preset row `[h:24]`: checkbox 14 · label 13px `--text-primary` · flag chip mono 10 `--text-secondary` on `--bg-raised` `[h:16]` r-sm padding 0 4px (never `--text-muted` on raised — DESIGN.md §1.1). Danger presets (`danger: true`): codicon `warning` 14 `--error` before the label; chip on `--error-wash` with `--error` text. Defaults: all unchecked, except presets enabled in Settings → Launch defaults (danger defaults pre-check too — the warning styling still renders). Checked flags append to the launch argv AND are recorded in the manifest so `resume_argv` keeps them (BACKLOG #8). Toggling here is per-session — it never writes back to Settings. The modal grows; 20vh anchor holds.
 - Create → modal closes, session row appears selected, terminal focused, agent launches. Total flow: ⌘T ↩ = two keys.
@@ -513,7 +515,9 @@ Tabs behave like any other: preview/pinned, ⌘W, LRU eviction, the strip. A wat
 
 ## S8 — Shortcuts overlay (⌘/)
 
-- Modal 640×auto (max-height 70vh, scroll), same chrome as S6. Title "Keyboard shortcuts". Two-column grid (24px column gap): rows `[h:26]` — action 13px `--text-secondary` left, key chips right: mono 11px on `--bg-raised`, `[h:18]`, r-sm, padding 0 5px, 2px gaps (⌘ T rendered as separate chips? No — one chip per chord: "⌘T"). Content = DESIGN.md §4 table, grouped under 11px/600 uppercase headers: Sessions, Projects, Views (⌘⇧E, ⌃⇧G, ⌘B, orientation note "View menu: Sessions on top / right"), Git, Editor, App. Esc/⌘/ closes.
+- Modal 640×auto (max-height 70vh, scroll), same chrome as S6. Title "Keyboard shortcuts". Two-column grid (24px column gap): rows `[h:26]` — action 13px `--text-secondary` left, key chips right: mono 11px on `--bg-raised`, `[h:18]`, r-sm, padding 0 5px, 2px gaps (⌘ T rendered as separate chips? No — one chip per chord: "⌘T"). Esc/⌘/ closes.
+- **Content is DATA, not a list in this component (Phase 12.12 item 5).** Every row comes from `src/shared/keymap.ts` via `keymapSections()`, grouped under 11px/600 uppercase headers in the keymap's own six groups: Sessions · Projects · Terminal & scrolling · Editor & files · Git · Views & layout. The chips are the shared `Keycap` (`src/renderer/keys/`), so this surface, the Settings map (S13 → Keyboard) and the native menu accelerators cannot spell a chord three different ways. A row with no accelerator (End session…, Close project…) renders the token "menu" rather than an empty cell. The user's ASSIGNED per-agent hotkeys fold in as Sessions rows; unassigned ones do not — an empty recorder is a Settings affordance, not a shortcut.
+- **This overlay is the fast reminder; the explanations live in Settings.** `KeymapEntry.action` is what appears here; `KeymapEntry.explain` is the plain-language sentence S13's Keyboard section has room to print.
 
 ## S9 — Empty & error states (geometry; copy from DESIGN.md §6 verbatim)
 
@@ -522,7 +526,7 @@ Shared pattern (S9 pattern): centered flex column in the owning region, max-widt
 | State | Region | Extras |
 |---|---|---|
 | First run (§6.1) | full window | single primary [Open project…]; window accepts folder drop (drop target: 2px dashed `--accent` inset 12px while dragging) |
-| No sessions (§6.2) | terminal region | three quick-create secondary buttons in a row `[h:32]` w:140 each, agent icon 16 + label + "or press ⌘T to customize" hint below |
+| No sessions (§6.2) | terminal region | the SHARED agent board (S6, `AgentGrid` in `mode="launch"`) — every launchable registry agent + Shell last, one click starts it; recorded hotkey / "not installed" / "early" in the tile's right slot; "or press ⌘T to name it and pick a directory" hint below |
 | Non-git (§6.3) | Source Control view body | 12px body + [Initialize repository] secondary `[h:26]`, left-aligned within view padding 12px |
 | No commits (§6.13) | History section body | single 12px `--text-muted` line at section padding; no button |
 | tmux missing (§6.4) | full window, blocks S2 tabs too | code row: mono 12px on `--bg-surface` border 1px `--border-strong` r-sm `[h:32]` padding 0 10px + copy icon; [Check again] primary |
@@ -573,18 +577,18 @@ Every screen's primary action is the visually loudest element and carries its sh
 │ bg --bg-sidebar           │ section title 20/600 · content max-w 560   │
 │  ⚙ General                │ groups: bg --bg-surface · 1px --border ·   │
 │  ⌂ Agents                 │ r --r-md · rows [h:36] padding 0 12px ·    │
-│  ⌨ Hotkeys                │ hairline-separated · group label 11/600    │
+│  ⌨ Keyboard               │ hairline-separated · group label 11/600    │
 │  ⚑ Launch defaults        │ uppercase --text-muted above each card     │
 └───────────────────────────┴────────────────────────────────────────────┘
 ```
 
-- **Nav rail**: rows `[h:32]` padding 0 12px — codicon 16 (`settings-gear` / `hubot` / `record-keys` / `rocket`) + label 13px; active: `--bg-active` + 2px `--accent` left inset; hover `--bg-raised`; ↑↓ switches sections; 1px `--border` divider to content.
+- **Nav rail**: rows `[h:32]` padding 0 12px — codicon 16 (`settings-gear` / `hubot` / `keyboard` / `rocket`) + label 13px; active: `--bg-active` + 2px `--accent` left inset; hover `--bg-raised`; ↑↓ switches sections; 1px `--border` divider to content.
 - **Row anatomy**: label 13px `--text-primary` left (optional caption 11px `--text-muted` below → row grows to 48); control right-aligned: Switch (DESIGN.md §3 component), dropdown `[h:24]` (native select styling per Inputs spec), size field `[h:24]` w:56 mono 12 with stepper arrows, or recorder chip. Every control: `:focus-visible` ring.
 
 ### General
 - **Open at login** — Switch; registers the macOS login item. Caption: "gmux starts in the background so sessions are ready instantly."
 - **Default agent** — dropdown of installed launchable agents + Shell; ships as Claude Code (explicit — never alphabetical; registry §1 quirk). Drives the ⌘T picker's initial selection.
-- **Terminal font** *(DEFERRED — not in the Phase 10 build: the `--font-terminal` token ships, the control does not yet)* — family dropdown of detected monospace families (the verified native default stack leads: "SF Mono", ui-monospace, Menlo — DESIGN.md §1.8; no bundled face ships, Bug C was a locale bug, not glyph coverage) + size stepper 11–16, default 13. Sets `--font-terminal`; all terminals refit immediately. Caption: "Prompt symbols render through the system's monospace fallbacks."
+- **Terminal font** — ~~family dropdown + size stepper~~ **WITHDRAWN in Phase 12.11, not deferred again.** The size half is answered by per-region zoom (S14): ⌘+ / ⌘- change the terminal's font size for real and push the new geometry to tmux, and a Settings size field beside it would be a second answer to the same question fighting the first. The `--font-terminal` token ships and remains the family lever; nothing in the UI promises a control that does not exist. If a family picker is ever built it sets that token, and zoom stays a multiplier over whatever base size it implies (DESIGN.md §10.1).
 
 ### Agents
 - Content header row: "Last scanned 2m ago" 11px `--text-muted` + [Re-scan] secondary `[h:26]` ("Scanning…" + 12px spinner while probing `pathProbe` + `extraDirs` per the registry — same resolver as session create, single source of truth per BACKLOG Bug A).
@@ -592,13 +596,51 @@ Every screen's primary action is the visually loudest element and carries its sh
 - Chevron expands the row: **Custom command** input mono 12 (placeholder = detected path; overrides argv[0]; tokenized with quote/escape + tilde expansion; precedence per registry `sharedRules`) · "Launch defaults →" link 12px `--accent-text` (jumps to that agent's group in the Launch defaults section).
 - Zero agents detected → §6.14 line + [Re-scan].
 
-### Hotkeys
-- Reference rows first, non-editable, all text `--text-muted`: "New session ⌘T" · "Settings ⌘,".
-- One row per launchable agent: agent icon 16 · "New Claude Code session" 13px · spacer · **recorder chip** (DESIGN.md §3 component): unassigned → "Record shortcut"; click → recording ("Type shortcut…", 1px `--accent` border + `--focus-ring`; Esc cancels, ⌫ clears); a valid chord commits instantly. Placeholder hint mirrors the registry `defaultHotkeyHint` ("e.g. ⌘⇧C"). Nothing is pre-assigned.
-- Validation: chord must include ⌘ or ⌃; collisions with the DESIGN.md §4 map, another row, or macOS-reserved chords → 12px `--error` line under the row, "Already used by <action>", chord not saved.
+### Keyboard — Phase 12.12 item 5 (replaces "Hotkeys")
+**Why it was renamed, and what that means for the nav rail.** S13 shipped "Hotkeys": two reference rows typed by hand ("New session ⌘T" · "Settings ⌘,") above the per-agent recorders. Those two rows were a second shortcut list, and a second list is how the ⇧↩ row went missing when 12.5 shipped it. The section is now **Keyboard** (codicon `keyboard`, third in the rail, between Agents and Launch defaults) and it holds NO list of its own — it renders `src/shared/keymap.ts` end to end, recorders folded into the rows they belong to. There is deliberately no fifth section: two shortcut surfaces in one window is the drift this phase exists to end.
+
+**It is a reference people READ, so it is built as a document, not as the card-and-hairline rows the other three sections use.** Section caption, then a filter, then groups. Group heading 15px/600 with a hairline rule; rows are action 13px/500 + one plain-language sentence 12px `--text-secondary` below it, keycaps right-aligned on a stable rail. Tight inside a row (2px), loose between rows (24px): the eye takes the grouping from rhythm instead of from 55 hairlines.
+
+- **Groups** are the keymap's six, in its order: Sessions · Projects · Terminal & scrolling · Editor & files · Git · Views & layout. The app-level chords (⌘/, ⌘,, Esc, ⌘Q) sit at the end of Views & layout rather than earning a seventh group.
+- **Scope** (`KeymapScope` → `SCOPE_LABELS`) hangs on the GROUP heading when every row shares one ("in source control"), and on the row otherwise. It is not decoration: ⌃⇥ legitimately appears twice — Next project everywhere, Recent editor tabs inside the editor — and the scope is what makes the second one read as intent rather than as a bug. "Anywhere" is the default and is never printed.
+- **Filter-as-you-type**, precision first: matches on action names and chords, and only falls back to searching the explanations when that finds nothing. Every per-agent row explains itself as "…in the project you are looking at", so an unranked search for "project" answered with eleven session rows before the Projects group. Esc clears; no match → a line naming the words that do work.
+- **Keycaps** are the shared `Keycap` component (`src/renderer/keys/`), the same chips the ⌘/ overlay draws. Ranges collapse: ⌘1 … ⌘8, never eight chips. Deliberately unaccelerated verbs render "menu", matching S8.
+- **Assignable rows stay editable in place.** One row per launchable agent, **recorder chip** (DESIGN.md §3 component): unassigned → "Record shortcut"; click → recording ("Type shortcut…", 1px `--accent` border + `--focus-ring`; Esc cancels, ⌫ clears); a valid chord commits instantly. The placeholder hint is spelled by `acceleratorToDisplay` from the registry `defaultHotkeyHint`'s letter ("e.g. ⇧⌘C"), so it cannot drift out of macOS glyph order. Nothing is pre-assigned. Built-ins are shown but not editable.
+- **Conflicts are surfaced on the row, never resolved silently** (`./keyboard-conflicts.ts`): a recorded chord that a built-in already owns, that another agent row already holds, or that macOS reserves gets a 12px `--error` line under it with a codicon `warning` — "Already used by <action>". The reserved table is DERIVED from `KEYMAP` (plus the four native Edit-menu roles ⌘V/⌘X/⌘Z/⇧⌘Z), so a shortcut added to the keymap becomes un-recordable the same commit. A live recorder error takes precedence over the standing conflict note.
+- No agents detected → a note under the Sessions group pointing at Agents → Re-scan, rather than a silently short list.
 - Assigned chords register as accelerators on native Session-menu items ("New Claude Code session ⌘⇧C") — the menu stays the source of nativeness; pressing one creates `<agent>-<n>` in the ACTIVE project's root and focuses it (§6.2 quick-create path). Persisted app-wide.
 
 ### Launch defaults
 - One group card per agent, detected agents first (icon + name as the card label; undetected collapsed at 50% opacity with "not installed"). Preset row `[h:44]`, two lines: Switch · label 13px + flag chip mono 10 on `--bg-raised` · description 12px `--text-muted` below. Danger presets (`danger: true`): codicon `warning` 14 `--error` before the label; chip on `--error-wash` with `--error` text.
 - First enable of a danger preset → confirm modal (S6 chrome, w:420): title "Skip permission prompts for Codex?", body "codex --yolo lets the agent run commands without asking. Every new Codex session will start this way.", [Cancel] [Enable] destructive. Disabling never confirms; later re-enables don't re-confirm within the same install.
 - Enabled defaults pre-check the matching ⌘T Options rows (S6) and apply to quick-create and hotkey launches; flags are recorded in manifest argv AND `resume_argv` so restores keep them (BACKLOG #8; per-CLI resume composition verified by the build, not this spec).
+
+## S14 — Zoom (⌘+ / ⌘- / ⌘0 / ⌘⇧0) — Phase 12.11
+
+Rationale and the three load-bearing decisions: DESIGN.md §10.1. This section is the build spec.
+
+**Regions and what each one actually scales.** Five levels, each persisted independently (`gmux.zoomLevels`, localStorage — a per-window reading preference, not a synced setting):
+
+| Region | Scaled surface | Mechanism |
+|---|---|---|
+| Session (`terminal`) | every attached xterm | `options.fontSize` = 13 × factor → re-fit → cols/rows to tmux |
+| Explorer | `.sidebar-view[data-view=explorer] > .sidebar-rest` | CSS `zoom` |
+| Source control | `.sidebar-view[data-view=scm] > .sidebar-rest` | CSS `zoom` |
+| Sessions | `.session-dock .dock-list` (right orientation only) | CSS `zoom` |
+| Editor | Monaco `fontSize` = 12 × factor · `.md-content` CSS `zoom` · `.ed-pierre` `--diffs-font-size` | per surface |
+
+The three editor levers are deliberate rather than one container zoom: Monaco's cursor and selection geometry must be measured in the space it lays out in; the rendered markdown sizes its headings in px, so only a box scale keeps the type scale intact; and `.ed-pierre` is the diff virtualizer's scroll root, whose render window is computed against its own height.
+
+**Ladder** 0.75 · 0.8 · 0.9 · 1 · 1.1 · 1.25 · 1.5 · 1.75 · 2. Chosen so no two stops collide once the terminal rounds them to a font size — a ⌘- that visibly does nothing reads as a broken key. A persisted level off the ladder snaps onto it.
+
+**Scope.** The chord acts on the region the keyboard is in, resolved from the keydown target by `closest()` against the region roots — no second copy of focus. Focus nowhere in particular falls back to the session. Two exceptions: the image viewer (S5) keeps its own ⌘+ / ⌘- / ⌘0 magnifier, and in TOP orientation a focused session tab resolves to the session it points at, because the strip is the band and the band does not zoom.
+
+**Readout** `[h:30]`, bottom centre, `--bg-surface` on 1px `--border`, `--r-md`, `--shadow-2`, `--text-sm`: region label `--text-secondary` + percentage `--text-primary` tabular. Fades in over `--dur-fast`, holds 1.1 s, replaces itself rather than stacking, `pointer-events: none`, its own lane so it never displaces a toast. At the ends of the ladder it appends "smallest" / "largest" in `--text-xs` `--text-muted` — that is the whole limit affordance; there is no toast. ⌘⇧0 reads "Zoom reset" with no percentage.
+
+**What zoom must not break** (measured in the build, `src/renderer/zoom/shot-probe.ts` — run it again before touching any of this):
+
+- tmux geometry follows: 13px → 19.5px took a pane from 118×42 to 77×27 and tmux reported the same 27 rows.
+- 12.3's scrollbar re-measures instead of drifting: the pane's `refresh()` runs on the same tick as the font change.
+- A scrolled pane keeps its place. tmux moves the copy-mode view with the reflow — measured A/B, a reader 40 lines back landed at 30 — so `ScrollSurface.holdPositionAcrossResize` re-asserts the position once the resize lands (drift 10 lines → 0).
+- The resize is not activity. A repaint fakes both weak signals of Phase 13's inferred tier at once, so `activity.noteGeometryChange` discounts output and the screen hash for 2.5 s while leaving CPU, tool children and the dialog detector live.
+- Pointer mapping survives CSS `zoom`: verified at 150 % and 75 % by hit-testing a rect's own centre back to itself — dock row, strip tab, split leaf, scrollbar track, and the sidebar's zoomed content all resolve correctly. A drag ghost lifted out of a zoomed region carries that region's `currentCSSZoom` so it is neither the wrong size nor twice as fast as the pointer.

@@ -19,6 +19,7 @@ import { useSettingsStore } from '../settings/settings-store';
 import { useApp } from '../state/store';
 import type { MenuItemSpec } from '../state/store';
 import { agentMenuIcon, warmAgentMenuIcons } from '../icons';
+import { sessionsPositionMenuItems } from './sessions-position';
 import type { LaunchableAgentKind } from '@shared/types';
 
 /**
@@ -58,6 +59,11 @@ export function useQuickCreateMenu(): (anchor: HTMLElement) => void {
   const avail = useAgentAvailability();
   const initSettings = useSettingsStore((s) => s.init);
   const scan = useSettingsStore((s) => s.scan);
+  // Phase 12.12 item 2: the header's own verb, in words, under a separator —
+  // the icon button beside this ˅ says the same thing, but only to someone who
+  // reads icons. Same store setter, so the two can never disagree.
+  const orientation = useApp((s) => s.sessionOrientation);
+  const setSessionOrientation = useApp((s) => s.setSessionOrientation);
 
   // The agents:list scan lives in the shared settings store; the header may
   // be the first surface to need it in a session where ⌘T never opened.
@@ -77,9 +83,12 @@ export function useQuickCreateMenu(): (anchor: HTMLElement) => void {
       setMenu({
         x: r.left,
         y: r.bottom + 4,
-        items: quickCreateMenuItems(options, (agent) => void quickCreate(agent))
+        items: [
+          ...quickCreateMenuItems(options, (agent) => void quickCreate(agent)),
+          ...sessionsPositionMenuItems(orientation, setSessionOrientation)
+        ]
       });
     },
-    [options, quickCreate, setMenu]
+    [options, quickCreate, setMenu, orientation, setSessionOrientation]
   );
 }

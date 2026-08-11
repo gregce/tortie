@@ -1,25 +1,31 @@
 /**
  * S13 — the Settings window's app shell: nav rail (w:200, --bg-sidebar) +
  * content (--bg-canvas, padding 24, max-w 560). Four sections: General /
- * Agents / Hotkeys / Launch defaults. ↑↓ on the rail switches sections;
+ * Agents / Keyboard / Launch defaults. ↑↓ on the rail switches sections;
  * every control is keyboard-reachable; changes apply immediately (no Save).
+ *
+ * S13 shipped "Hotkeys" — two reference rows typed by hand plus the per-agent
+ * recorders. Phase 12.12 replaced it with KEYBOARD, the whole map rendered
+ * from src/shared/keymap.ts with the recorders folded in where they belong.
+ * There is deliberately no second section: two shortcut lists in one window
+ * is the drift this phase exists to end.
  */
 
 import React, { useEffect, useState } from 'react';
 import { Codicon } from '../icons';
 import { AgentsSection } from './AgentsSection';
 import { GeneralSection } from './GeneralSection';
-import { HotkeysSection } from './HotkeysSection';
+import { KeyboardSection } from './KeyboardSection';
 import { LaunchDefaultsSection } from './LaunchDefaultsSection';
 import { useSettingsStore } from './settings-store';
 import './settings.css';
 
-type SectionId = 'general' | 'agents' | 'hotkeys' | 'launch-defaults';
+type SectionId = 'general' | 'agents' | 'keyboard' | 'launch-defaults';
 
 const SECTIONS: { id: SectionId; label: string; icon: string }[] = [
   { id: 'general', label: 'General', icon: 'settings-gear' },
   { id: 'agents', label: 'Agents', icon: 'hubot' },
-  { id: 'hotkeys', label: 'Hotkeys', icon: 'record-keys' },
+  { id: 'keyboard', label: 'Keyboard', icon: 'keyboard' },
   { id: 'launch-defaults', label: 'Launch defaults', icon: 'rocket' }
 ];
 
@@ -89,7 +95,7 @@ export function SettingsApp(): React.JSX.Element {
       <main className="set-content">
         {section === 'general' ? <GeneralSection /> : null}
         {section === 'agents' ? <AgentsSection /> : null}
-        {section === 'hotkeys' ? <HotkeysSection /> : null}
+        {section === 'keyboard' ? <KeyboardSection /> : null}
         {section === 'launch-defaults' ? <LaunchDefaultsSection /> : null}
       </main>
     </div>

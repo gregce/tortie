@@ -1,0 +1,190 @@
+/**
+ * The agent board (Phase 12.12 item 1) — colocated with AgentGrid.tsx and
+ * shared by the §6.2 fleet launcher and the ⌘T sheet's Agent field. Before
+ * this file the two surfaces carried two stylesheets: `.onb-tile` in
+ * app/empty-states.css and `.agent-chip` in styles/app.css. They are one rule
+ * set now, which is the whole point of the phase.
+ *
+ * Every selector is a plain single class, so nothing here depends on which
+ * stylesheet Vite emits first.
+ */
+
+/* The track floor decides whether this reads as a board or a wall, and — once
+   the tile carries its own status — whether the tile can say what it means.
+   Both floors are measured, not guessed:
+     140px is the FLOOR floor. 180px needed 366px of region to hold two
+       columns, so the everyday layout (a 1440px window with the editor open
+       leaves ~310px here) collapsed all eleven agents into ONE stacked column,
+       ~600px of vertical list. 140px keeps two columns down to 286px.
+     190px is what "Antigravity · not installed" actually measures (73px name +
+       67px label + the icon, gaps and padding = 192px). Below it the NAME is
+       what gives, and a tile reading "D…  not installed" is the cramped modal
+       this phase exists to fix. The 480px ⌘T sheet fell exactly there: three
+       140px tracks, and Droid lost its name.
+   So the floor scales with the container and stops at both ends: narrow
+   regions keep two columns, anything with room gives every tile enough to
+   hold a name AND its status. 45% is simply "two columns until 190px is
+   affordable" — the ⌘T sheet lands on two 217px tiles, the empty state on
+   three 216px ones, the same tile in both. */
+.agent-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(clamp(140px, 45%, 190px), 1fr));
+  gap: var(--space-3);
+}
+
+.agent-tile {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  text-align: left;
+  min-width: 0;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+}
+
+.agent-tile:hover {
+  background: var(--bg-raised);
+  border-color: var(--border-strong);
+}
+
+.agent-tile:active {
+  background: var(--bg-active);
+}
+
+.agent-tile:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.agent-tile-icon {
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+.agent-tile:hover .agent-tile-icon {
+  color: var(--text-primary);
+}
+
+.agent-tile-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Right slot: "not installed", the recorded hotkey, or "early". */
+.agent-tile-meta {
+  flex: 0 0 auto;
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+}
+
+.agent-tile .key {
+  flex: 0 0 auto;
+}
+
+/* Not installed: visibly secondary, never struck through or reddened — gmux
+   picks the CLI up the moment it appears. It still has to hold its CELL,
+   though: dropping the border outright punched holes in the grid (one
+   uninstalled agent looked like a missing tile, four looked like damage), so
+   the outline goes dashed and recessive rather than away. */
+.agent-tile.missing {
+  background: none;
+  border-style: dashed;
+  border-color: var(--border);
+  color: var(--text-muted);
+  font-weight: var(--weight-regular);
+  cursor: default;
+}
+
+.agent-tile.missing .agent-tile-icon {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+/* Nothing happens on click, so nothing may brighten on hover — an added fill
+   and a solid border made the one non-actionable tile read as the most
+   clickable thing on the board. */
+.agent-tile.missing:hover,
+.agent-tile.missing:active {
+  background: none;
+  border-color: var(--border);
+}
+
+.agent-tile.missing:hover .agent-tile-icon {
+  color: var(--text-muted);
+}
+
+/* launch: the default agent (Settings → General, claude out of the box) is
+   where the eye should land first — one accent hairline, no fill, no badge. */
+.agent-tile.primary {
+  border-color: var(--accent);
+}
+
+.agent-tile.primary .agent-tile-icon {
+  color: var(--text-primary);
+}
+
+/* select: the checked radio is a filled state, not a hairline — the sheet
+   creates whatever is checked when you press ↩, so it has to be unmistakable
+   rather than merely suggested. */
+.agent-tile.selected {
+  background: var(--bg-active);
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.agent-tile.selected .agent-tile-icon {
+  color: var(--text-primary);
+}
+
+/* The tile the user just clicked, for the beat before the session paints. */
+.agent-tile.starting {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+  color: var(--text-primary);
+}
+
+.agent-grid[aria-busy='true'] .agent-tile:not(.starting) {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* Welcome beat: the board settles in once, 4px and done (§5 keeps the
+   terminal itself animation-free — the fleet state has no terminal in it).
+   Launch only: inside the ⌘T sheet the modal's own entrance is the authored
+   moment, and a second staggered one underneath it is just noise. */
+.agent-grid[data-mode='launch'] .agent-tile {
+  animation: agent-tile-in var(--dur-panel) var(--ease-out) both;
+  animation-delay: calc(var(--agent-tile-i, 0) * 16ms);
+}
+
+@keyframes agent-tile-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-grid[data-mode='launch'] .agent-tile {
+    animation: none;
+  }
+}

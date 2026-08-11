@@ -1,0 +1,32 @@
+/**
+ * The SESSIONS header's position toggle (Phase 12.12 item 2), colocated with
+ * sessions-position.tsx.
+ *
+ * It is one 24px icon button in a 36px band, matching the ＋ it sits beside in
+ * both orientations. Nothing about it is emphatic: this is a layout
+ * preference, not an action on the user's work, so it stays at
+ * --text-secondary until the pointer is on it.
+ */
+
+.sessions-position {
+  width: 24px;
+  height: 24px;
+}
+
+/* Muted at rest in the top strip's band, where it sits at the end of a row of
+   session tabs and must not compete with them; the shared .icon-btn hover
+   rule brings it up to --text-primary. */
+.term-header .sessions-position,
+.dock-toolbar .sessions-position {
+  color: var(--text-muted);
+}
+
+.term-header .sessions-position:hover,
+.dock-toolbar .sessions-position:hover {
+  color: var(--text-primary);
+}
+
+.sessions-position:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}

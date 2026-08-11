@@ -428,10 +428,33 @@
   color: var(--text-primary);
 }
 
-.set-recorder.assigned .set-recorder-chord {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
+/* Assigned: the chord IS a keycap, so the button stops being one. A chip
+   inside a chip reads as a rendering fault, and the recorder's 96px minimum
+   left "⇧⌘C" adrift in an empty box. Hugging the keycap puts a recorded
+   chord on exactly the rail its built-in neighbours sit on; hover moves the
+   cap, not the box, so the affordance survives.
+
+   `:not(.recording)` matters: an assigned row being re-recorded is BOTH, and
+   the collapsed geometry would clip "Type shortcut…". While recording the
+   chip becomes a field again. */
+.set-recorder.assigned:not(.recording) {
+  min-width: 0;
+  height: 18px;
+  padding: 0;
+  background: transparent;
+}
+
+.set-recorder.assigned:not(.recording):hover {
+  background: transparent;
+}
+
+.set-recorder.assigned .key {
   color: var(--text-primary);
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.set-recorder.assigned:not(.recording):hover .key {
+  background: var(--bg-active);
 }
 
 .set-recorder:focus-visible {
@@ -463,6 +486,235 @@
 .set-recorder-clear:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
+}
+
+/* --------------------------------------------------- keyboard map (12.12)
+
+   The Keyboard section is a DOCUMENT, not a control panel: 55 rows of action
+   + sentence + keycaps. The card-and-hairline vocabulary the other sections
+   use would put 55 rules on the page, so the rhythm carries the grouping
+   instead — 2px inside a row, 24px between rows, 32px above a heading. The
+   only rules on the page are the six group headings and the filter bar.
+--------------------------------------------------------------------- */
+
+/* Filter follows the reader down a long page. The negative gutters let the
+   opaque background cover the content padding, so rows pass UNDER it rather
+   than beside it — but the RULE is drawn by a pseudo-element inset back to
+   the text column, so it lines up with the six group rules instead of
+   running 24px past them on both sides.
+
+   MEASURED: a sticky child of a padded scroll container comes to rest at the
+   CONTENT edge, 24px down (`.set-content` padding), while the scrollport
+   clips at the padding edge — so rows were still visible in the 24px strip
+   ABOVE the bar. ::before paints exactly that strip. Its height is the
+   container's padding, and the caption below carries a matching 24px bottom
+   margin so the shield only ever covers blank space when the bar is at rest. */
+.kb-filter {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0 calc(-1 * var(--space-8));
+  padding: var(--space-2) var(--space-8) var(--space-5);
+  background: var(--bg-canvas);
+}
+
+.kb .set-section-caption {
+  margin-bottom: var(--space-8);
+}
+
+.kb-filter::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: var(--space-8);
+  background: var(--bg-canvas);
+}
+
+.kb-filter::after {
+  content: '';
+  position: absolute;
+  left: var(--space-8);
+  bottom: 0;
+  width: 560px;
+  max-width: calc(100% - 2 * var(--space-8));
+  height: 1px;
+  background: var(--border);
+}
+
+.kb-filter-field {
+  position: relative;
+  max-width: 560px;
+}
+
+.kb-filter-icon {
+  position: absolute;
+  left: var(--space-4);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.kb-filter-input {
+  padding-left: 28px;
+  padding-right: 26px;
+}
+
+.kb-filter-clear {
+  position: absolute;
+  right: var(--space-2);
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--r-sm);
+  color: var(--text-muted);
+}
+
+.kb-filter-clear:hover {
+  background: var(--bg-raised);
+  color: var(--text-primary);
+}
+
+.kb-filter-clear:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* ------------------------------------------------------------- groups */
+
+/* More space above a heading than below it: 32 above, 8 to the rule. */
+.kb-group-title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin: var(--space-9) 0 0;
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
+}
+
+/* The first heading answers to the filter bar, not to a group above it. */
+.kb-filter + .kb-group .kb-group-title {
+  margin-top: var(--space-7);
+}
+
+.kb-group-name {
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* The scope a whole group shares ("Git · in source control"), so no row has
+   to repeat it. Sentence case on purpose — it is a phrase, not a label. */
+.kb-group-scope {
+  font-weight: var(--weight-regular);
+  color: var(--text-muted);
+}
+
+.kb-group-scope::before {
+  content: '·';
+  padding-right: var(--space-3);
+  color: var(--text-disabled);
+}
+
+/* --------------------------------------------------------------- rows */
+
+.kb-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-6);
+  padding: var(--space-5) 0;
+}
+
+.kb-row-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.kb-row-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  min-height: var(--lh-base);
+}
+
+.kb-action {
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  font-weight: var(--weight-medium);
+  color: var(--text-primary);
+}
+
+/* Where a chord applies, when its group does not already say. This is what
+   makes ⌃⇥ on two rows read as intent instead of as a duplicate. */
+.kb-scope {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+}
+
+.kb-scope::before {
+  content: '·';
+  padding-right: var(--space-3);
+  color: var(--text-disabled);
+}
+
+/* The explainer. --text-secondary, not muted: this is prose to read, and the
+   page is worth nothing if the sentences are the quietest thing on it. */
+.kb-explain {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-secondary);
+}
+
+.kb-conflict {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--error);
+}
+
+.kb-conflict .codicon {
+  flex: 0 0 auto;
+  margin-top: 3px;
+}
+
+/* Keycaps ride a stable right rail so the eye can run down the chords. The
+   min-width is the recorder chip's footprint — assignable rows must not make
+   the rail jump. */
+.kb-keys {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 132px;
+  min-height: var(--lh-base);
+}
+
+.kb-empty,
+.kb-note {
+  margin: var(--space-6) 0 0;
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  color: var(--text-secondary);
+}
+
+.kb-note {
+  color: var(--text-muted);
 }
 
 /* ---------------------------------------------------- launch defaults */

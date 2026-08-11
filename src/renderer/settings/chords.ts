@@ -11,7 +11,23 @@
  * DESIGN.md §4: user chords must include ⌘ or ⌃; the recorder rejects any
  * chord already in the app map, used by another row, or reserved by macOS —
  * nothing in the table is ever silently shadowed.
+ *
+ * WHAT LIVES WHERE (Phase 12.12): the app map and the accelerator↔glyph
+ * conversion are NOT here — they are derived from src/shared/keymap.ts, the
+ * one definition of every gmux shortcut, so a chord added there is
+ * un-recordable in the same commit. This module keeps only what the recorder
+ * itself needs: turning a keydown into a chord, and judging one. The two
+ * formatting helpers are re-exported unchanged so existing imports (and the
+ * ./index barrel) do not care that they moved.
  */
+
+import { RESERVED_APP_CHORDS, normalizeAccelerator } from '@shared/keymap';
+
+export {
+  RESERVED_APP_CHORDS,
+  acceleratorToDisplay,
+  normalizeAccelerator
+} from '@shared/keymap';
 
 // ---------------------------------------------------------------------------
 // Event → accelerator
@@ -91,89 +107,13 @@ export function eventToAccelerator(e: ChordKeyEvent): string | null {
   return [...mods, key].join('+');
 }
 
-/** Re-order any accelerator's modifiers into the canonical form. */
-export function normalizeAccelerator(accel: string): string {
-  const tokens = accel.split('+');
-  const key = tokens[tokens.length - 1] ?? '';
-  const mods = new Set(tokens.slice(0, -1));
-  const ordered = (['Ctrl', 'Alt', 'Shift', 'Cmd'] as const).filter((m) =>
-    mods.has(m)
-  );
-  return [...ordered, key].join('+');
-}
-
-// ---------------------------------------------------------------------------
-// Display (⌃⌥⇧⌘ glyph order)
-// ---------------------------------------------------------------------------
-
-const KEY_GLYPHS: Record<string, string> = {
-  Up: '↑',
-  Down: '↓',
-  Left: '←',
-  Right: '→',
-  Enter: '↩',
-  Space: '␣',
-  Tab: '⇥'
-};
-
-/** "Shift+Cmd+C" → "⇧⌘C" (keycap-chip text for the recorder + menus). */
-export function acceleratorToDisplay(accel: string): string {
-  const tokens = normalizeAccelerator(accel).split('+');
-  const key = tokens[tokens.length - 1] ?? '';
-  const mods = new Set(tokens.slice(0, -1));
-  let out = '';
-  if (mods.has('Ctrl')) out += '⌃';
-  if (mods.has('Alt')) out += '⌥';
-  if (mods.has('Shift')) out += '⇧';
-  if (mods.has('Cmd')) out += '⌘';
-  return out + (KEY_GLYPHS[key] ?? key);
-}
-
 // ---------------------------------------------------------------------------
 // Conflict tables
+//
+// The gmux side (RESERVED_APP_CHORDS) is derived from src/shared/keymap.ts
+// and re-exported above. Only the macOS-owned list lives here — it describes
+// the operating system, not this app, so it has no row in the keymap.
 // ---------------------------------------------------------------------------
-
-/**
- * The DESIGN.md §4 app map + native Edit-menu roles, in canonical form.
- * Value = the action name the error line reports ("Already used by <x>").
- */
-export const RESERVED_APP_CHORDS: Readonly<Record<string, string>> = {
-  'Cmd+T': 'New session',
-  'Cmd+O': 'Open project',
-  ...Object.fromEntries(
-    Array.from({ length: 9 }, (_v, i) => [
-      `Cmd+${i + 1}`,
-      `Switch to project ${i + 1}`
-    ])
-  ),
-  'Ctrl+Tab': 'Next project',
-  'Ctrl+Shift+Tab': 'Previous project',
-  'Alt+Cmd+Up': 'Previous session',
-  'Alt+Cmd+Down': 'Next session',
-  'Alt+Cmd+Left': 'Focus split left',
-  'Alt+Cmd+Right': 'Focus split right',
-  'Cmd+J': 'Sessions that need input',
-  'Cmd+S': 'Save',
-  'Cmd+Enter': 'Commit staged',
-  'Cmd+E': 'Toggle editor',
-  'Shift+Cmd+E': 'Explorer',
-  'Ctrl+Shift+G': 'Source control',
-  'Cmd+B': 'Toggle sidebar',
-  'Shift+Cmd+]': 'Next editor tab',
-  'Shift+Cmd+[': 'Previous editor tab',
-  'Cmd+W': 'Close editor tab',
-  'Cmd+F': 'Find',
-  'Cmd+/': 'Keyboard shortcuts',
-  'Cmd+,': 'Settings',
-  'Cmd+Q': 'Quit gmux',
-  // Native Edit-menu roles (menu accelerators fire before the renderer).
-  'Cmd+C': 'Copy',
-  'Cmd+V': 'Paste',
-  'Cmd+X': 'Cut',
-  'Cmd+A': 'Select all',
-  'Cmd+Z': 'Undo',
-  'Shift+Cmd+Z': 'Redo'
-};
 
 /** Chords macOS itself owns — registering them would be silently shadowed. */
 export const RESERVED_MACOS_CHORDS: Readonly<Record<string, string>> = {
@@ -225,7 +165,9 @@ export function validateChord(
   }
   const appOwner = RESERVED_APP_CHORDS[canonical];
   if (appOwner !== undefined) {
-    return { ok: false, reason: `Already used by ${appOwner}` };
+    // Keymap actions carry the menu's trailing ellipsis ("Open project…");
+    // inside a sentence it reads as a trailing-off, so drop it here only.
+    return { ok: false, reason: `Already used by ${appOwner.replace(/…$/, '')}` };
   }
   const osOwner = RESERVED_MACOS_CHORDS[canonical];
   if (osOwner !== undefined) {

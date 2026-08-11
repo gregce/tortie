@@ -1,85 +1,49 @@
 /**
- * S8 — Shortcuts overlay (⌘/). Content = DESIGN.md §4 table, grouped.
- * One chip per chord ("⌘T"), UI-sans 11 on --bg-raised — sans letterforms
- * keep ⌘O unmistakable from ⌘0 (DESIGN.md §3 keycap chips).
+ * S8 — Shortcuts overlay (⌘/).
+ *
+ * It holds no list of its own. Every row comes from src/shared/keymap.ts, so
+ * a shortcut added there appears here the same commit — the drift that lost
+ * the ⇧↩ row in Phase 12.5 has nowhere left to happen. The user's own
+ * per-agent hotkeys are folded in as Sessions rows, which is why a chord you
+ * recorded in Settings shows up in the same place you look for ⌘T.
+ *
+ * This surface is the fast reminder: group, action, chips. The plain-language
+ * explanation of each row (KeymapEntry.explain) belongs to the Settings map,
+ * which has the room to be read rather than scanned.
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
+import { keymapSections, agentKeymapEntries } from '@shared/keymap';
+import type { AssignableAgent } from '@shared/keymap';
+import type { LaunchableAgentId } from '@shared/types';
+import { Keycaps } from '../keys';
+import { useSettingsStore } from '../settings/settings-store';
 import { useApp } from '../state/store';
 import { trapTabKey } from './focus-trap';
-
-interface Row {
-  keys: string[];
-  action: string;
-}
-
-const GROUPS: { title: string; rows: Row[] }[] = [
-  {
-    title: 'Sessions',
-    rows: [
-      { keys: ['⌘T'], action: 'New session in current project' },
-      { keys: ['⌥⌘↓', '⌥⌘↑'], action: 'Next / previous session' },
-      { keys: ['F2'], action: 'Rename session' },
-      { keys: ['↑↓', '↩'], action: 'Navigate list, focus terminal' },
-      {
-        keys: ['⇧⇞', '⇧⇟'],
-        action: 'Scroll back through output (typing returns to live)'
-      },
-      { keys: ['⇧↩'], action: 'New line in the prompt (Enter still sends)' }
-    ]
-  },
-  {
-    title: 'Projects',
-    rows: [
-      { keys: ['⌘O'], action: 'Open project…' },
-      { keys: ['⇧⌘N'], action: 'New project…' },
-      { keys: ['⌘1', '…', '⌘9'], action: 'Switch to project tab' },
-      { keys: ['⌃Tab', '⌃⇧Tab'], action: 'Next / previous project tab' }
-    ]
-  },
-  {
-    title: 'Views',
-    rows: [
-      { keys: ['⌘⇧E'], action: 'Explorer view' },
-      { keys: ['⌃⇧G'], action: 'Source control view' },
-      { keys: ['⌘B'], action: 'Toggle sidebar' },
-      { keys: [], action: 'View menu: Sessions on top / right' }
-    ]
-  },
-  {
-    title: 'Git',
-    rows: [
-      { keys: ['⌘↩'], action: 'Commit staged' },
-      { keys: ['Space', 'S'], action: 'Stage / unstage selected file' },
-      { keys: ['⌫'], action: 'Discard selected file…' }
-    ]
-  },
-  {
-    title: 'Editor',
-    rows: [
-      { keys: ['⌘S'], action: 'Save file' },
-      { keys: ['⌘E'], action: 'Toggle editor panel' },
-      { keys: ['⌘⇧]', '⌘⇧['], action: 'Next / previous editor tab' },
-      { keys: ['⌘W'], action: 'Close editor tab' },
-      { keys: ['⌘F'], action: 'Find in editor' }
-    ]
-  },
-  {
-    title: 'App',
-    rows: [
-      { keys: ['⌘J'], action: 'Show sessions that need input' },
-      { keys: ['⌘/'], action: 'Keyboard shortcuts' },
-      { keys: ['⌘,'], action: 'Settings' },
-      { keys: ['Esc'], action: 'Close topmost layer' },
-      { keys: ['⌘Q'], action: 'Quit — sessions keep running' }
-    ]
-  }
-];
 
 export function ShortcutsOverlay(): React.JSX.Element | null {
   const open = useApp((s) => s.shortcutsOpen);
   const setOpen = useApp((s) => s.setShortcutsOpen);
+  const hotkeys = useSettingsStore((s) => s.settings.hotkeys);
+  const scan = useSettingsStore((s) => s.scan);
   const modalRef = useRef<HTMLDivElement | null>(null);
+
+  // Only ASSIGNED agent chords appear here — an unassigned row is a Settings
+  // affordance, not a shortcut, and would be noise in a cheat sheet.
+  const sections = useMemo(() => {
+    const assigned: AssignableAgent[] = [];
+    for (const agent of scan?.agents ?? []) {
+      if (!agent.launchable) continue;
+      const accel = hotkeys[agent.id as LaunchableAgentId];
+      if (typeof accel !== 'string' || accel === '') continue;
+      assigned.push({
+        id: agent.id,
+        displayName: agent.displayName,
+        accelerator: accel
+      });
+    }
+    return keymapSections(agentKeymapEntries(assigned));
+  }, [hotkeys, scan]);
 
   // Focus the (otherwise focusable-free) dialog so the Tab trap engages and
   // aria-modal is honest — the shell behind the scrim stays unreachable.
@@ -113,26 +77,23 @@ export function ShortcutsOverlay(): React.JSX.Element | null {
       >
         <h2 className="modal-title">Keyboard shortcuts</h2>
         <div className="shortcut-groups">
-          {GROUPS.map((group) => (
-            <div key={group.title}>
-              <h3 className="shortcut-group-title">{group.title}</h3>
-              {group.rows.map((row) => (
-                <div key={row.action} className="shortcut-row">
-                  <span className="shortcut-action">{row.action}</span>
-                  {row.keys.map((k) =>
-                    k === '…' ? (
-                      <span key={k} style={{ color: 'var(--text-muted)' }}>
-                        …
-                      </span>
-                    ) : (
-                      <span key={k} className="key">
-                        {k}
-                      </span>
-                    )
+          {sections.map((section) => (
+            <section key={section.group.id} className="shortcut-group">
+              <h3 className="shortcut-group-title">{section.group.title}</h3>
+              {section.entries.map((entry) => (
+                <div key={entry.id} className="shortcut-row">
+                  <span className="shortcut-action">{entry.action}</span>
+                  {entry.keys.length === 0 ? (
+                    // Deliberately unaccelerated (ending a session, closing a
+                    // project). Saying "menu" is the answer to the question
+                    // an empty row would otherwise raise.
+                    <span className="key-range">menu</span>
+                  ) : (
+                    <Keycaps entry={entry} />
                   )}
                 </div>
               ))}
-            </div>
+            </section>
           ))}
         </div>
       </div>

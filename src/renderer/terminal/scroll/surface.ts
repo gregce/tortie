@@ -40,6 +40,12 @@ const LIVE_POLL_MS = 1000;
 const SCROLLED_POLL_MS = 250;
 /** Wheel deltas are batched over this window into ONE tmux scroll command. */
 const WHEEL_COALESCE_MS = 16;
+/**
+ * How long a pane resize needs to land before the reader's place can be
+ * re-asserted (renderer fit → IPC → pty.resize → tmux reflow). Generous by
+ * design: re-scrolling too early would scrub against the OLD geometry.
+ */
+const RESIZE_SETTLE_MS = 300;
 
 /** What the scrollbar and the wheel router need to know. */
 export interface ScrollView {
@@ -99,6 +105,9 @@ export class ScrollSurface {
   private readonly inputQueue: string[] = [];
   private dragging = false;
   private disposed = false;
+  /** Reader's place before the current burst of resizes — see the hold below. */
+  private holdPosition = 0;
+  private holdTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     private readonly sessionId: string,
@@ -127,6 +136,7 @@ export class ScrollSurface {
     this.listeners.clear();
     if (this.timer !== null) clearTimeout(this.timer);
     if (this.flushTimer !== null) clearTimeout(this.flushTimer);
+    if (this.holdTimer !== null) clearTimeout(this.holdTimer);
   }
 
   // -- wheel ----------------------------------------------------------------
@@ -223,6 +233,45 @@ export class ScrollSurface {
       }
       return state;
     });
+  }
+
+  /**
+   * The pane's geometry changed (Phase 12.11 zoom): put the reader back.
+   *
+   * MEASURED A/B, this build, 2026-08-11 (three ⌘+ presses on a pane parked
+   * 40 lines back; 13px → 19.5px took it from 118×42 to 77×27 and reflowed
+   * the history from 362 to 378 lines):
+   *
+   *     without this hold   position 40 → 30   drift 10 lines
+   *     with it             position 40 → 40   drift  0
+   *
+   * The anchor in `refresh()` covers history GROWTH under a streaming agent;
+   * it cannot cover tmux moving the copy-mode view because the pane rewrapped
+   * under it. Re-issuing the position once the resize has landed does.
+   *
+   * THE BURST IS WHY THIS IS NOT THREE LINES. ⌘+ pressed three times is three
+   * resizes ~60 ms apart and the 250 ms poll lands in the middle of them, so
+   * a naive "capture the position on every call" would re-capture the
+   * ALREADY-MOVED value on the third press and faithfully restore the
+   * corruption. The position is captured once, on the first resize of a
+   * burst; the rest only debounce the settle timer.
+   *
+   * A live pane (position 0) has nothing to preserve and is left alone, which
+   * is also what keeps this off the hot path for every ordinary re-fit.
+   */
+  holdPositionAcrossResize(): void {
+    if (this.disposed) return;
+    if (this.holdTimer === null) {
+      if (this.state.position === 0) return;
+      this.holdPosition = this.state.position;
+    } else {
+      clearTimeout(this.holdTimer);
+    }
+    this.holdTimer = setTimeout(() => {
+      this.holdTimer = null;
+      if (this.disposed) return;
+      this.scrollTo(this.holdPosition);
+    }, RESIZE_SETTLE_MS);
   }
 
   /** Re-read the pane, holding the reader's place under new output. */

@@ -13,6 +13,7 @@
  * sentence case, which is DESIGN.md §7's rule for buttons.
  */
 
+import { keyDisplay } from '@shared/keymap';
 import type { MenuSpec } from '../state/store';
 import { useApp } from '../state/store';
 
@@ -26,14 +27,14 @@ export function projectMenuItems(canCreate: boolean): MenuSpec['items'] {
   const items: MenuSpec['items'] = [
     {
       label: 'Open Project…',
-      hint: '⌘O',
+      hint: keyDisplay('project.open'),
       run: () => void s.openProject()
     }
   ];
   if (canCreate) {
     items.push({
       label: 'New Project…',
-      hint: '⇧⌘N',
+      hint: keyDisplay('project.new'),
       run: () => s.setNewProjectOpen(true)
     });
   }

@@ -1,0 +1,114 @@
+/* ---------------------------------------------------------------------------
+   Per-region zoom (Phase 12.11)
+
+   The store writes `--zoom-<region>` on <html>; every rule below reads one of
+   them. Nothing here is conditional in JS, so a region follows its level
+   whether or not the component that owns it happens to be mounted.
+
+   WHY `zoom` AND NOT `transform: scale()`: scale paints the subtree at a new
+   size but leaves its LAYOUT BOX at the old one — neighbours do not move, the
+   panel overlaps them, and `getBoundingClientRect()` stops agreeing with
+   `clientX`, which is what every drag, drop zone and insertion indicator in
+   this app compares. `zoom` re-lays-out the subtree and Chromium reports
+   zoomed rects, so the hit-testing stays honest.
+
+   WHAT IS NOT ZOOMED, deliberately: the 36px HEADER BAND (S1) — `.view-header`,
+   `.branch-header`, `.term-header`, `.dock-toolbar`, `.ed-tabs`. One hairline
+   crosses the window; a region that grew its own band slice would break that
+   line for every other region. Zoom is for what you read, not for the chrome
+   that labels it.
+--------------------------------------------------------------------------- */
+
+/* Explorer and Source Control zoom independently — the level follows the
+   VIEW, not the sidebar, so switching views switches size with them. */
+.sidebar-view[data-view='explorer'] > .sidebar-rest {
+  zoom: var(--zoom-explorer, 1);
+}
+
+.sidebar-view[data-view='scm'] > .sidebar-rest {
+  zoom: var(--zoom-scm, 1);
+}
+
+/* The right-hand session dock's rows. In TOP orientation the tab strip IS the
+   band and has no content of its own to zoom (see zoom/regions.ts), so there
+   is deliberately no `.stab-list` rule here. */
+.session-dock .dock-list {
+  zoom: var(--zoom-sessions, 1);
+}
+
+/* Editor: three surfaces, three levers, no container zoom.
+
+   Monaco gets `updateOptions({ fontSize })` (MonacoHost) — its own API, as the
+   spec requires, and the only way its cursor/selection geometry stays exact.
+
+   The rendered markdown zooms as a box: its headings, code blocks and images
+   are sized in px, so scaling the base font alone would leave a 24px h1 next
+   to 20px body. `.md-content` is a plain flow child of the scroller, so the
+   heading ruler — which divides a zoomed child's client rect by the UNZOOMED
+   scroller's scrollHeight — keeps measuring in one coordinate space. */
+.md-content {
+  zoom: var(--zoom-editor, 1);
+}
+
+/* The diff scales by font size rather than by zoom: `.ed-pierre` is the
+   virtualizer's scroll root and its render window is computed against that
+   element's own height (editor.css says so at the point it is set up).
+   `--diffs-font-size` is the library's own lever and leaves the scroll root
+   in one coordinate space. */
+.ed-pierre {
+  --diffs-font-size: calc(12px * var(--zoom-editor, 1));
+}
+
+/* ---------------------------------------------------------------------------
+   The readout
+--------------------------------------------------------------------------- */
+
+.zoom-hud {
+  position: fixed;
+  left: 50%;
+  bottom: var(--space-6);
+  z-index: var(--z-toast);
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-2);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  animation: zoom-hud-in var(--dur-fast) var(--ease-out);
+  /* The window is the readout's frame of reference, not the region it
+     describes — translate lives here so the keyframe can own the rest. */
+  transform: translateX(-50%);
+}
+
+.zoom-hud-label {
+  color: var(--text-secondary);
+}
+
+.zoom-hud-value {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-medium);
+}
+
+.zoom-hud-note {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+@keyframes zoom-hud-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 4px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}

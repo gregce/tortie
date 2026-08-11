@@ -8,6 +8,7 @@
 
 import React, { useMemo } from 'react';
 import type { GmuxSettingsExtras } from '@shared/ipc';
+import { keyDisplay } from '@shared/keymap';
 import { dirtyCount, useGit } from '../state/git';
 import { loginItemExtras, useApp } from '../state/store';
 import type { SidebarViewId } from '../state/store';
@@ -69,6 +70,8 @@ function ViewItem({
  * for older preloads: the original one-item login menu, so the gear never
  * goes dead.
  */
+const settingsTitle = `Settings (${keyDisplay('app.settings')})`;
+
 function SettingsItem(): React.JSX.Element | null {
   const setMenu = useApp((s) => s.setMenu);
   const toast = useApp((s) => s.toast);
@@ -79,8 +82,8 @@ function SettingsItem(): React.JSX.Element | null {
       <button
         type="button"
         className="ab-item activitybar-settings"
-        title="Settings (⌘,)"
-        aria-label="Settings (⌘,)"
+        title={settingsTitle}
+        aria-label={settingsTitle}
         onClick={() => void openSettings()}
       >
         <Codicon name="settings-gear" size={24} />
@@ -143,8 +146,8 @@ function SettingsItem(): React.JSX.Element | null {
     <button
       type="button"
       className="ab-item activitybar-settings"
-      title="Settings (⌘,)"
-      aria-label="Settings (⌘,)"
+      title={settingsTitle}
+      aria-label={settingsTitle}
       onClick={(e) => {
         const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
         void openMenu(r.right + 4, r.top);
@@ -178,13 +181,13 @@ export function ActivityBar(): React.JSX.Element {
         view="explorer"
         icon="files"
         label="Explorer"
-        shortcut="⌘⇧E"
+        shortcut={keyDisplay('view.explorer')}
       />
       <ViewItem
         view="scm"
         icon="source-control"
         label="Source control"
-        shortcut="⌃⇧G"
+        shortcut={keyDisplay('view.scm')}
         badge={dirty}
       />
       <div className="ab-spacer" />

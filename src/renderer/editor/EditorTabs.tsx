@@ -13,6 +13,7 @@
  */
 
 import React, { useEffect, useRef } from 'react';
+import { keyDisplay } from '@shared/keymap';
 import { useApp } from '../state/store';
 import type { MenuItemSpec } from '../state/store';
 import { showNativeMenu } from '../app/ContextMenu';
@@ -30,7 +31,11 @@ function tabMenuItems(tab: EditorTab): (MenuItemSpec | 'sep')[] {
   const { tabs } = ed;
   const index = tabs.findIndex((t) => t.id === tab.id);
   const items: (MenuItemSpec | 'sep')[] = [
-    { label: 'Close', hint: '⌘W', run: () => ed.closeTab(tab.id) },
+    {
+      label: 'Close',
+      hint: keyDisplay('editor.close'),
+      run: () => ed.closeTab(tab.id)
+    },
     {
       label: 'Close Others',
       disabled: tabs.length < 2,

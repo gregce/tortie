@@ -27,6 +27,7 @@ import React, {
 } from 'react';
 import type { GitFileState, GitFileStatus } from '@shared/types';
 import type { GmuxGitExtras } from '@shared/ipc';
+import { keyDisplay } from '@shared/keymap';
 import { useApp } from '../state/store';
 import type { ConfirmSpec, MenuItemSpec } from '../state/store';
 import {
@@ -470,7 +471,7 @@ function CommitBox({ ctrl }: { ctrl: CommitController }): React.JSX.Element {
       <textarea
         ref={taRef}
         className="scm-commit-input"
-        placeholder="Commit message (⌘↩ to commit)"
+        placeholder={`Commit message (${keyDisplay('git.commit')} to commit)`}
         aria-label="Commit message"
         value={ctrl.message}
         rows={1}
@@ -485,8 +486,8 @@ function CommitBox({ ctrl }: { ctrl: CommitController }): React.JSX.Element {
         title={
           ctrl.disabledReason ??
           (ctrl.stageAllFirst
-            ? 'Stage everything, then commit (⌘↩)'
-            : 'Commit staged changes (⌘↩)')
+            ? `Stage everything, then commit (${keyDisplay('git.commit')})`
+            : `Commit staged changes (${keyDisplay('git.commit')})`)
         }
         onClick={ctrl.doCommit}
       >

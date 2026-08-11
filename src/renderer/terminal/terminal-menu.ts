@@ -24,6 +24,7 @@
  */
 
 import type { Session } from '@shared/types';
+import { acceleratorToDisplay, keyDisplay } from '@shared/keymap';
 import type { MenuItemSpec } from '../state/store';
 import { useApp } from '../state/store';
 import { deriveSurfaces, surfaceOf, useLayout } from '../state/layout';
@@ -81,7 +82,7 @@ export function terminalMenuItems(
   const items: (MenuItemSpec | 'sep')[] = [
     {
       label: 'New Session…',
-      hint: '⌘T',
+      hint: keyDisplay('session.new'),
       run: () => useApp.getState().setCreateOpen(true)
     },
     {
@@ -92,7 +93,7 @@ export function terminalMenuItems(
     'sep',
     {
       label: 'Copy',
-      hint: '⌘C',
+      hint: keyDisplay('terminal.copyOrInterrupt'),
       disabled: !selected,
       run: () => void copySelection(session.id)
     },
@@ -103,13 +104,13 @@ export function terminalMenuItems(
     },
     {
       label: 'Paste',
-      hint: '⌘V',
+      hint: acceleratorToDisplay('Cmd+V'),
       disabled: !canCapture,
       run: () => void pasteIntoSession()
     },
     {
       label: 'Select All',
-      hint: '⌘A',
+      hint: keyDisplay('terminal.selectAll'),
       disabled: !live,
       run: () => selectAll(session.id)
     }
@@ -139,7 +140,7 @@ export function terminalMenuItems(
 
   items.push('sep', {
     label: 'Clear',
-    hint: '⌘K',
+    hint: keyDisplay('terminal.clear'),
     disabled: !live,
     run: () => void clearSession(session.id, session.tmuxName)
   });

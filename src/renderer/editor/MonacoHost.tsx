@@ -19,6 +19,10 @@ import {
 } from './monaco-loader';
 import { useEditor } from './store';
 import type { EditorTab } from './store';
+// Phase 12.11: the editor region's zoom reaches Monaco through its OWN
+// font-size API — a CSS zoom around the editor would leave its cursor,
+// selection and hit-testing measuring a coordinate space it does not use.
+import { useZoom, zoomedFontSize } from '../zoom';
 
 function cssVar(name: string, fallback: string): string {
   const v = getComputedStyle(document.documentElement)
@@ -53,10 +57,18 @@ const MINIMAP_ON: monacoNs.editor.IEditorMinimapOptions = {
   autohide: 'none'
 };
 
-function baseOptions(): monacoNs.editor.IStandaloneEditorConstructionOptions {
+/**
+ * The editor's base font size — the number ⌘+ / ⌘- multiply, kept here so
+ * there is exactly one of it (regions.ts `zoomedFontSize` does the rest).
+ */
+const EDITOR_BASE_FONT_SIZE = 12;
+
+function baseOptions(
+  zoom: number
+): monacoNs.editor.IStandaloneEditorConstructionOptions {
   return {
     fontFamily: cssVar('--font-mono', '"SF Mono", ui-monospace, Menlo, monospace'),
-    fontSize: 12,
+    fontSize: zoomedFontSize(EDITOR_BASE_FONT_SIZE, zoom),
     minimap: { enabled: false },
     scrollBeyondLastLine: false,
     automaticLayout: true,
@@ -118,6 +130,9 @@ export function MonacoHost({
 }: MonacoHostProps): React.JSX.Element {
   const setMonacoError = useEditor((s) => s.setMonacoError);
   const markDirty = useEditor((s) => s.markDirty);
+  const zoom = useZoom((s) => s.levels.editor);
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
 
   const [ready, setReady] = useState<boolean>(getLoadedMonaco() !== null);
 
@@ -175,7 +190,9 @@ export function MonacoHost({
 
     if (codeEditor.current === null && codeContainer.current !== null) {
       codeEditor.current = m.editor.create(codeContainer.current, {
-        ...baseOptions(),
+        // Created at the CURRENT zoom so a file opened into an already-zoomed
+        // editor never paints one frame at 12px and then jumps.
+        ...baseOptions(zoomRef.current),
         theme: 'gmux-dark'
       });
     }
@@ -214,6 +231,16 @@ export function MonacoHost({
       minimap: minimap ? MINIMAP_ON : { enabled: false }
     });
   }, [minimap, ready, contentReady]);
+
+  // ⌘+ / ⌘- with the editor focused. Same reasoning as the minimap: the font
+  // size is an option, so Monaco re-measures its own line height, gutter and
+  // cursor geometry and keeps the model, the scroll position and the
+  // selection exactly where they were.
+  useEffect(() => {
+    codeEditor.current?.updateOptions({
+      fontSize: zoomedFontSize(EDITOR_BASE_FONT_SIZE, zoom)
+    });
+  }, [zoom, ready, contentReady]);
 
   // -- teardown on unmount ----------------------------------------------------
   // Mode toggles (File → Diff) unmount this host: keep the cursor/scroll so

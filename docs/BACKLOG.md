@@ -3,8 +3,8 @@
 **EXECUTION ORDER (user-approved 2026-08-10) — batch in this order, do not reshuffle without asking:**
 1. **Batch A** (running): 12.7 durability ✅ · 12.8 nits · 12.85 Tortie iconography
 2. **13.5 ALONE** — universal resume. Core promise; touches registry + manifest + restore, so it gets the tree to itself. Spec lands from docs/research/22-resume-audit.md.
-3. **12.9 + 12.10 together** — both are tree work, and 12.10's drag-to-attach conflicts with 12.9's drag-to-move; they must be designed as one interaction.
-4. **12.11 + 12.12 together** — UI polish (per-pane zoom; shared agent grid, sessions-position toggle, ⌘9-to-last, hold-⌘ tab hints).
+3. **12.9 + 12.10 together** ✅ shipped (cb8c172) — both are tree work, and 12.10's drag-to-attach conflicts with 12.9's drag-to-move; they must be designed as one interaction.
+4. **12.11 + 12.12 together** ✅ shipped — UI polish (per-pane zoom; shared agent grid, sessions-position toggle, ⌘9-to-last, hold-⌘ tab hints). 12.12 item 5 left a standing contract: `src/shared/keymap.ts` is the ONLY shortcut list, enforced by `src/shared/__tests__/keymap-single-source.test.ts` — every later phase adds shortcuts there and nowhere else.
 5. **14** search — the last parity work; scope capped after it per CLAUDE.md.
 6. **15** SpecStory bundling · **16** refactor · **16.5** Tortie rename + migration · **17** final install.
 Research is already complete for 13.5, 14 and 15 — those are spec-complete and can start the moment their slot opens.

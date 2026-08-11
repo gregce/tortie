@@ -31,6 +31,7 @@ import type {
   GmuxProjectExtras,
   GmuxSessionExtras,
   GmuxSessionRestoreExtras,
+  GmuxViewMenuExtras,
   PopupMenuIcon
 } from '@shared/ipc';
 import { showNativeMenu } from '../app/ContextMenu';
@@ -934,6 +935,19 @@ export const useApp = create<AppState>((set, get) => {
     setSessionOrientation(orientation) {
       set({ sessionOrientation: orientation });
       saveLocal(LS_ORIENTATION, orientation);
+      // ONE truth, several controls (Phase 12.12 item 2): the View-menu
+      // radios, the SESSIONS header's inline toggle and its ˅ menu all read
+      // and write THIS value — but main draws the radios, so it has to be
+      // told. Feature-detected: an older preload just keeps the once-per-load
+      // sync it always had.
+      const bridge = window.gmux as
+        | (typeof window.gmux & GmuxViewMenuExtras)
+        | undefined;
+      if (typeof bridge?.setSessionsPosition === 'function') {
+        void bridge.setSessionsPosition(orientation).catch(() => {
+          /* a radio mark is cosmetic — never surface this */
+        });
+      }
     },
 
     setRightListWidth(width) {

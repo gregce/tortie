@@ -28,6 +28,10 @@ import { app, BrowserWindow, Menu } from 'electron';
 import type { MenuItemConstructorOptions } from 'electron';
 import { EVT_MENU_ACTION, EVT_QUIT_REQUESTED } from '@shared/ipc';
 import type { MenuActionWithProjects } from '@shared/ipc';
+// Every accelerator below comes from the ONE keymap (Phase 12.12). Do not
+// type a chord string into this file — add it to src/shared/keymap.ts and
+// read it back, or the menu and the ⌘/ overlay start drifting again.
+import { accelerator as accel } from '@shared/keymap';
 import type { LaunchableAgentId } from '@shared/types';
 // Direct module imports (NOT the ./settings barrel): settings/ipc.ts imports
 // rebuildAppMenu from this file — the barrel would close a require cycle.
@@ -128,31 +132,50 @@ function agentHotkeyItems(): MenuItemConstructorOptions[] {
 }
 
 // ---------------------------------------------------------------------------
-// Session-surface orientation (round 1): a View-menu radio pair. The renderer
-// owns the persisted truth (localStorage 'gmux.sessionOrientation', written by
-// the app store); Electron flips the radio check on click, and on every page
-// load we read the persisted value back so the menu opens honest after a
-// relaunch. There is no other writer — the menu is the only orientation
-// control (DESIGN.md §4 View menu).
+// Session-surface position (round 1; extended by Phase 12.12 item 2): a
+// View-menu radio pair. The renderer owns the one truth (the app store's
+// `sessionOrientation`, persisted to localStorage 'gmux.sessionOrientation');
+// these radios only RENDER it.
+//
+// Two sync paths, because there are now two controls:
+//   - page load → read the persisted value back, so the menu opens honest
+//     after a relaunch;
+//   - ui:sessionsPosition → the store says it just moved. That channel exists
+//     because the SESSIONS header gained an inline toggle: a position can now
+//     change with no page load in sight, and a stale ✓ here would be a second,
+//     wrong answer to "where are my sessions".
 // ---------------------------------------------------------------------------
 
 const MENU_ID_SESSIONS_TOP = 'view-sessions-top';
 const MENU_ID_SESSIONS_RIGHT = 'view-sessions-right';
 const LS_ORIENTATION = 'gmux.sessionOrientation';
 
+/** Move the radio marks. The only function that writes them. */
+function markSessionsPosition(right: boolean): void {
+  const menu = Menu.getApplicationMenu();
+  const top = menu?.getMenuItemById(MENU_ID_SESSIONS_TOP);
+  const rightItem = menu?.getMenuItemById(MENU_ID_SESSIONS_RIGHT);
+  if (top && rightItem) {
+    top.checked = !right;
+    rightItem.checked = right;
+  }
+}
+
+/**
+ * The renderer store moved the session surface (View menu, the SESSIONS
+ * header's inline toggle, or its ˅ menu — all one store setter). Called from
+ * the ui:sessionsPosition handler in src/main/ipc.ts.
+ */
+export function setSessionsPositionRadios(position: 'top' | 'right'): void {
+  markSessionsPosition(position === 'right');
+}
+
 function syncOrientationRadios(win: BrowserWindow): void {
   win.webContents
     .executeJavaScript(`localStorage.getItem(${JSON.stringify(LS_ORIENTATION)})`)
     .then((raw: unknown) => {
       // Store writes JSON — '"right"' / '"top"'; anything else means top.
-      const right = typeof raw === 'string' && raw.includes('right');
-      const menu = Menu.getApplicationMenu();
-      const top = menu?.getMenuItemById(MENU_ID_SESSIONS_TOP);
-      const rightItem = menu?.getMenuItemById(MENU_ID_SESSIONS_RIGHT);
-      if (top && rightItem) {
-        top.checked = !right;
-        rightItem.checked = right;
-      }
+      markSessionsPosition(typeof raw === 'string' && raw.includes('right'));
     })
     .catch(() => {
       /* menu keeps its default (top) — cosmetic only */
@@ -170,7 +193,7 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         // straight from main — no renderer detour, works from any window.
         {
           label: 'Settings…',
-          accelerator: 'Cmd+,',
+          accelerator: accel('app.settings'),
           click: () => openSettingsWindow()
         },
         { type: 'separator' },
@@ -185,7 +208,7 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         // ("Quitting — your sessions keep running.") — see requestQuit().
         {
           label: 'Quit gmux',
-          accelerator: 'Cmd+Q',
+          accelerator: accel('app.quit'),
           click: () => requestQuit()
         }
       ]
@@ -195,17 +218,17 @@ function buildTemplate(): MenuItemConstructorOptions[] {
       submenu: [
         // Phase 12.9 item 1: until now the File menu could only OPEN. New
         // first, the way every Mac app orders them.
-        item('New Project…', 'new-project', 'Shift+Cmd+N'),
-        item('Open Project…', 'open-project', 'Cmd+O'),
+        item('New Project…', 'new-project', accel('project.new')),
+        item('Open Project…', 'open-project', accel('project.open')),
         { type: 'separator' },
-        item('Save', 'save-file', 'Cmd+S'),
+        item('Save', 'save-file', accel('editor.save')),
         { type: 'separator' },
         // ⌘W closes an editor tab ONLY — never the main window, a session,
         // or a project (DESIGN.md §4). One exception (S13): when the
         // Settings window is focused, ⌘W closes the Settings window.
         {
           label: 'Close Editor Tab',
-          accelerator: 'Cmd+W',
+          accelerator: accel('editor.close'),
           click: () => {
             if (closeSettingsWindowIfFocused(BrowserWindow.getFocusedWindow())) {
               return;
@@ -230,11 +253,11 @@ function buildTemplate(): MenuItemConstructorOptions[] {
     {
       label: 'Session',
       submenu: [
-        item('New Session…', 'new-session', 'Cmd+T'),
-        item('Rename Session', 'rename-session', 'F2'),
+        item('New Session…', 'new-session', accel('session.new')),
+        item('Rename Session', 'rename-session', accel('session.rename')),
         { type: 'separator' },
-        item('Next Session', 'next-session', 'Alt+Cmd+Down'),
-        item('Previous Session', 'prev-session', 'Alt+Cmd+Up'),
+        item('Next Session', 'next-session', accel('session.next')),
+        item('Previous Session', 'prev-session', accel('session.prev')),
         { type: 'separator' },
         // Deliberately unaccelerated: ending a session is menu-only and
         // always confirmed (DESIGN.md §4).
@@ -247,8 +270,8 @@ function buildTemplate(): MenuItemConstructorOptions[] {
     {
       label: 'Project',
       submenu: [
-        item('Next Project', 'next-project', 'Ctrl+Tab'),
-        item('Previous Project', 'prev-project', 'Ctrl+Shift+Tab'),
+        item('Next Project', 'next-project', accel('project.next')),
+        item('Previous Project', 'prev-project', accel('project.prev')),
         { type: 'separator' },
         item('Close Project…', 'close-project')
       ]
@@ -257,8 +280,8 @@ function buildTemplate(): MenuItemConstructorOptions[] {
       label: 'View',
       submenu: [
         // Activity-bar views (round 1): the sidebar hosts one view at a time.
-        item('Explorer', 'show-explorer', 'Cmd+Shift+E'),
-        item('Source Control', 'show-scm', 'Ctrl+Shift+G'),
+        item('Explorer', 'show-explorer', accel('view.explorer')),
+        item('Source Control', 'show-scm', accel('view.scm')),
         { type: 'separator' },
         // Session-surface orientation — radio pair, persisted app-wide by the
         // renderer; initial checked state synced from localStorage on load.
@@ -277,10 +300,10 @@ function buildTemplate(): MenuItemConstructorOptions[] {
           click: () => sendMenuAction('sessions-right')
         },
         { type: 'separator' },
-        item('Toggle Sidebar', 'toggle-sidebar', 'Cmd+B'),
-        item('Toggle Editor', 'toggle-editor', 'Cmd+E'),
+        item('Toggle Sidebar', 'toggle-sidebar', accel('view.sidebar')),
+        item('Toggle Editor', 'toggle-editor', accel('editor.toggle')),
         { type: 'separator' },
-        item('Sessions That Need Input', 'attention', 'Cmd+J'),
+        item('Sessions That Need Input', 'attention', accel('session.attention')),
         { type: 'separator' },
         { role: 'togglefullscreen' },
         ...(app.isPackaged
@@ -295,7 +318,7 @@ function buildTemplate(): MenuItemConstructorOptions[] {
     { role: 'windowMenu' },
     {
       role: 'help',
-      submenu: [item('Keyboard Shortcuts', 'shortcuts', 'Cmd+/')]
+      submenu: [item('Keyboard Shortcuts', 'shortcuts', accel('app.shortcuts'))]
     }
   ];
   return template;

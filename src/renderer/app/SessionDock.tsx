@@ -13,6 +13,7 @@
 
 import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Session } from '@shared/types';
+import { keyDisplay } from '@shared/keymap';
 import { effectiveStatusOf, useApp } from '../state/store';
 import {
   deriveSurfaces,
@@ -40,6 +41,10 @@ import {
 } from './split/surface-dnd';
 import { groupMenuItems, groupTooltip } from './split/split-menu';
 import { useQuickCreateMenu } from './new-session-menu';
+// Phase 12.11: the dock list is a CSS-zoomable region, so a client-rect
+// measurement written back into it has to change coordinate space first.
+import { toLocalPx } from '../zoom/coords';
+import { SessionsPositionButton } from './SessionsPositionButton';
 
 function DockRow({
   session,
@@ -239,9 +244,16 @@ function DockIndicator({
     const at = items[index];
     const last = items[items.length - 1];
     const offsetOf = (el: HTMLElement): number => {
-      // Rows nest inside <li>; measure against the list's box.
+      // Rows nest inside <li>; measure against the list's box. The two client
+      // rects are in VIEWPORT pixels and the `top` below is written back into
+      // the list, which Phase 12.11 may have CSS-zoomed — so their difference
+      // is converted to the list's own pixels before it meets `scrollTop`,
+      // which was already in them. At 100 % this is an identity.
       const listRect = list.getBoundingClientRect();
-      return el.getBoundingClientRect().top - listRect.top + list.scrollTop;
+      return (
+        toLocalPx(list, el.getBoundingClientRect().top - listRect.top) +
+        list.scrollTop
+      );
     };
     setTop(
       at !== undefined
@@ -366,11 +378,15 @@ export function SessionDock(): React.JSX.Element | null {
           <span className="dock-count num">{projectSessions.length}</span>
         ) : null}
         <span className="dock-spacer" />
+        {/* Phase 12.12 item 2 — the position toggle sits before the ＋˅ pair
+            so that pair stays one object; same component, same slot, in the
+            top strip (src/renderer/app/TerminalRegion.tsx). */}
+        <SessionsPositionButton />
         <button
           type="button"
           className="icon-btn"
-          aria-label="New session (⌘T)"
-          title="New session (⌘T)"
+          aria-label={`New session (${keyDisplay('session.new')})`}
+          title={`New session (${keyDisplay('session.new')})`}
           onClick={() => setCreateOpen(true)}
         >
           <Codicon name="add" size={16} />
@@ -386,7 +402,9 @@ export function SessionDock(): React.JSX.Element | null {
         </button>
       </div>
       {projectSessions.length === 0 ? (
-        <div className="dock-stub">No sessions yet — press ⌘T.</div>
+        <div className="dock-stub">
+          No sessions yet — press {keyDisplay('session.new')}.
+        </div>
       ) : (
         <ul
           ref={listRef}

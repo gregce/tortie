@@ -19,6 +19,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useApp } from '../state/store';
 import type { MenuItemSpec } from '../state/store';
+// Phase 12.11: Source Control is a CSS-zoomable region, so the drag ghost and
+// the drop line convert from client-rect pixels to the container's own.
+import { toLocalPx } from '../zoom/coords';
 
 /** Pointer travel (px) that turns a press into a drag (S2/S3 shared rule). */
 const DRAG_THRESHOLD_PX = 4;
@@ -209,7 +212,11 @@ export function useSectionDrag(
             ? rects[insertion]!.rect.top - containerRect.top
             : (rects[rects.length - 1]?.rect.bottom ?? containerRect.top) -
               containerRect.top;
-        return { insertion, dropLineY: lineY };
+        // The line is drawn INSIDE the container, which Phase 12.11 may have
+        // CSS-zoomed; every rect above is in viewport pixels. Measured: a
+        // child positioned at a local 100px lands 150 viewport px in at 150 %,
+        // for `absolute` and `fixed` alike, so the style needs local pixels.
+        return { insertion, dropLineY: toLocalPx(container, lineY) };
       };
 
       const update = (ev: PointerEvent): void => {
@@ -232,9 +239,14 @@ export function useSectionDrag(
           ghost: {
             id,
             label: labels[id] ?? id,
-            left: containerRect.left + 8,
-            top,
-            width: containerRect.width - 16
+            // Same conversion as the drop line: the ghost is `position:
+            // fixed`, but it still lives inside the container's subtree and
+            // Chromium scales a fixed child's used values by the inherited
+            // zoom too (measured). It therefore renders at the region's own
+            // size — a ghost of a zoomed header, which is what it is.
+            left: toLocalPx(container, containerRect.left + 8),
+            top: toLocalPx(container, top),
+            width: toLocalPx(container, containerRect.width - 16)
           },
           insertion,
           dropLineY
