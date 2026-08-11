@@ -258,6 +258,46 @@ describe('content search', () => {
     );
   });
 
+  it('reports the FILE column for a windowed line, not the window offset', async () => {
+    // What the editor navigates by is `ranges[0] + trimmed`. On a minified
+    // line that number is the only link back to the file, and getting it
+    // wrong selects unrelated text on the right line — so check it against
+    // the bytes on disk rather than against the row's own windowed text.
+    const { readFile } = await import('node:fs/promises');
+    const source = await readFile(join(root, 'src', 'bundle.min.js'), 'utf8');
+
+    const { frames } = await run({ maxLineChars: 300 });
+    const file = frames
+      .flatMap((f) => f.files)
+      .find((f) => f.relPath === 'src/bundle.min.js')!;
+    const match = file.matches[0]!;
+    expect(match.truncated).toBe(true);
+
+    const line = source.split('\n')[match.line - 1]!;
+    const column = match.ranges[0]![0] + match.trimmed;
+    const endColumn = match.ranges[0]![1] + match.trimmed;
+    expect(column).toBe(300_000); // where 'needle' actually starts
+    expect(line.slice(column, endColumn)).toBe('needle');
+  });
+
+  it('reports the FILE column for an indented line too', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const source = await readFile(join(root, 'src', 'a.ts'), 'utf8');
+    const files = (await run({})).frames.flatMap((f) => f.files);
+    const match = files
+      .filter((f) => f.relPath === 'src/a.ts')
+      .flatMap((f) => f.matches)
+      .find((m) => m.line === 3)!; // '  indented needle here'
+    const line = source.split('\n')[2]!;
+    expect(match.truncated).toBeUndefined();
+    expect(
+      line.slice(
+        match.ranges[0]![0] + match.trimmed,
+        match.ranges[0]![1] + match.trimmed
+      )
+    ).toBe('needle');
+  });
+
   it('marks a partly-searched binary file rather than implying a clean tail', async () => {
     const files = merged((await run({})).frames);
     const late = files.get('src/late.bin');

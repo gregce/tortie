@@ -319,7 +319,11 @@ export interface ContentSearchInput {
 export interface SearchMatch {
   line: number;                        // 1-based
   text: string;                        // whole line, newline stripped, ALREADY clamped
-  trimmed: number;                     // leading whitespace removed, UTF-16 units
+  trimmed: number;                     // TOTAL original-line UTF-16 units before text[0] —
+                                       // indentation PLUS the window's own left edge when
+                                       // truncated (corrected in Phase 14.1: shipping the
+                                       // indentation alone selected column 1,875 for a match
+                                       // at column 4,880 of a 5,006-char line)
   ranges: [number, number][];          // UTF-16, ALREADY converted in main
   replacements?: string[];             // one per range, only when `replace` was set
   byteOffset: number;                  // line start in the file; the replace path needs it

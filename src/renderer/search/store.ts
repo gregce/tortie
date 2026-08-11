@@ -547,11 +547,13 @@ function messageOf(err: unknown): string {
  * contract in src/renderer/state/open-file.ts).
  *
  * THE `trimmed` ADD-BACK IS NOT OPTIONAL. `match.ranges` index into
- * `match.text`, which main already stripped of leading whitespace so the
- * results list is readable. The FILE still has that whitespace, so a selection
- * built from the raw range lands `trimmed` characters to the left — on a
- * two-tab-indented line, two characters into the wrong token. `match.trimmed`
- * is carried across IPC for exactly this sum.
+ * `match.text`, which is not the file's line: main stripped the leading
+ * whitespace so the results list is readable, and on a very long line it also
+ * WINDOWED the text around the first hit. `match.trimmed` is the total of
+ * both shifts — every original-line UTF-16 unit before `match.text[0]` — so
+ * `range + trimmed` is the file column and the sum below is complete. Drop it
+ * and an indented line selects two characters into the wrong token; drop the
+ * window half and a minified line selects thousands of columns to the left.
  */
 export function openSearchResult(
   repoPath: string,

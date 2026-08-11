@@ -1756,7 +1756,16 @@ export interface SearchMatch {
    * clamped to maxLineChars. Never trust it to be the whole line.
    */
   text: string;
-  /** Leading whitespace removed, in UTF-16 units (offsets already shifted). */
+  /**
+   * The TOTAL number of ORIGINAL-line UTF-16 units that precede `text[0]` —
+   * the stripped indentation PLUS, when `truncated`, the window's own left
+   * edge (less the one-character ellipsis head standing in for it).
+   *
+   * `ranges` index into `text`; `range + trimmed` is the column in the FILE.
+   * That is the only sum an editor can navigate by, so nothing may be left
+   * out of it: reporting the indentation alone once selected column ~1,875
+   * for a match that lives at column 4,880 of a 5,006-character line.
+   */
   trimmed: number;
   /**
    * Highlight spans as [start, end) UTF-16 offsets into `text` — ripgrep's

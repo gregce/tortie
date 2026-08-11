@@ -137,6 +137,93 @@ describe('shapeLine', () => {
   });
 });
 
+/**
+ * `range + trimmed` is the column the editor reveals and SELECTS. Every test
+ * above checks the highlight against `out.text`, which stays right even when
+ * the number crossing IPC is wrong — so none of them saw a windowed line
+ * report only its indentation and send the editor ~3,000 columns to the left,
+ * onto filler text on the right line. These pin the sum itself.
+ */
+describe('shapeLine → original column arithmetic', () => {
+  /** What the renderer computes: ranges[0] + trimmed must be the file column. */
+  function columnsOf(out: {
+    ranges: [number, number][];
+    trimmed: number;
+  }): [number, number] {
+    const first = out.ranges[0]!;
+    return [first[0] + out.trimmed, first[1] + out.trimmed];
+  }
+
+  it('reports the TRUE column when the match sits past the lead window', () => {
+    // The measured case: 5,006 characters, NEEDLE at column 4,880 — far
+    // beyond the 80-character lead, so the window starts at 3,006 and the
+    // in-window offset (1,875) is nothing like the real column.
+    const needle = 'NEEDLE';
+    const raw = `${'a'.repeat(4880)}${needle}${'b'.repeat(120)}`;
+    const trueColumn = raw.indexOf(needle);
+    expect(trueColumn).toBe(4880);
+
+    const out = shapeLine(raw, [[trueColumn, trueColumn + needle.length]], 2000);
+    expect(out.truncated).toBe(true);
+    // The window really did shift: the in-window offset is NOT the column.
+    expect(out.ranges[0]![0]).not.toBe(trueColumn);
+    expect(out.text.slice(out.ranges[0]![0], out.ranges[0]![1])).toBe(needle);
+    expect(columnsOf(out)).toEqual([trueColumn, trueColumn + needle.length]);
+  });
+
+  it('composes the two shifts when a line is BOTH indented and windowed', () => {
+    const needle = 'NEEDLE';
+    const indent = '\t\t\t    ';
+    const raw = `${indent}${'x'.repeat(3000)}${needle}${'y'.repeat(500)}`;
+    const trueColumn = raw.indexOf(needle);
+
+    const out = shapeLine(raw, [[trueColumn, trueColumn + needle.length]], 2000);
+    expect(out.truncated).toBe(true);
+    expect(out.trimmed).toBeGreaterThan(indent.length); // indentation is not the whole shift
+    expect(out.text.slice(out.ranges[0]![0], out.ranges[0]![1])).toBe(needle);
+    expect(columnsOf(out)).toEqual([trueColumn, trueColumn + needle.length]);
+  });
+
+  it('holds for every window position, ASCII and not', () => {
+    const needle = 'café🎉';
+    for (const at of [0, 79, 80, 81, 500, 2_000, 4_999, 9_994]) {
+      const raw = `${'a'.repeat(at)}${needle}${'b'.repeat(10_000 - at)}`;
+      const trueColumn = raw.indexOf(needle);
+      const out = shapeLine(
+        raw,
+        [[trueColumn, trueColumn + needle.length]],
+        2000
+      );
+      expect(out.text.slice(out.ranges[0]![0], out.ranges[0]![1])).toBe(needle);
+      expect(columnsOf(out)).toEqual([
+        trueColumn,
+        trueColumn + needle.length
+      ]);
+    }
+  });
+
+  it('leaves a short line at its indentation — the shift is only the trim', () => {
+    const raw = '        const MAX_TABS = 10;';
+    const trueColumn = raw.indexOf('MAX_TABS');
+    const out = shapeLine(raw, [[trueColumn, trueColumn + 8]], 2000);
+    expect(out.truncated).toBe(false);
+    expect(out.trimmed).toBe(8);
+    expect(columnsOf(out)).toEqual([trueColumn, trueColumn + 8]);
+  });
+
+  it('carries the complete shift across into the SearchMatch row', () => {
+    const needle = 'NEEDLE';
+    const line = `  ${'a'.repeat(4880)}${needle}${'b'.repeat(120)}\n`;
+    const trueColumn = line.indexOf(needle);
+    const match = buildMatch(matchEvent(line, [byteRange(line, needle)]), 2000)!;
+    expect(match.truncated).toBe(true);
+    expect(match.ranges[0]![0] + match.trimmed).toBe(trueColumn);
+    expect(match.ranges[0]![1] + match.trimmed).toBe(
+      trueColumn + needle.length
+    );
+  });
+});
+
 describe('buildMatch', () => {
   it('produces a row with UTF-16 ranges and the byte offset for replace', () => {
     const line = '  const café = 1;\n';

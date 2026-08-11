@@ -165,7 +165,17 @@ function clampRanges(
 export interface ShiftedLine {
   text: string;
   ranges: [number, number][];
-  /** UTF-16 units of leading whitespace removed. */
+  /**
+   * The TOTAL left shift, in UTF-16 units: how many units of the ORIGINAL
+   * line precede `text[0]`. `ranges` index into `text`, so `range + trimmed`
+   * is the column in the file — that sum is the only thing the editor can
+   * navigate by, and it must be complete.
+   *
+   * Two shifts compose here, which is exactly what made this off by
+   * thousands of columns once: the stripped indentation AND, when the line
+   * is `truncated`, the window's own left edge (less the one-character
+   * ellipsis head that stands in for everything before it).
+   */
   trimmed: number;
   /** The line was windowed: `text` is a fragment with ellipses. */
   truncated: boolean;
@@ -178,6 +188,11 @@ export interface ShiftedLine {
  *
  * Order matters: trimming first means a 4,000-character line of which 3,000
  * is indentation is not "truncated" at all.
+ *
+ * BOTH shifts have to leave through `trimmed`, not just the indentation. A
+ * windowed line is a fragment starting thousands of columns into the file;
+ * report only the indentation and the editor reveals — and SELECTS — a span
+ * that far to the left, landing on unrelated text on the right line.
  */
 export function shapeLine(
   raw: string,
@@ -224,7 +239,15 @@ export function shapeLine(
     kept.push([Math.max(lo, ns), Math.min(hi, ne)]);
   }
 
-  return { text: windowed, ranges: kept, trimmed, truncated: true };
+  // `shift` maps a trimmed-text offset into the window; subtracting it maps
+  // the window back out. Adding that to the indentation gives the ONE number
+  // the consumer needs: original column = windowedOffset + trimmed.
+  return {
+    text: windowed,
+    ranges: kept,
+    trimmed: trimmed - shift,
+    truncated: true
+  };
 }
 
 // ---------------------------------------------------------------------------
