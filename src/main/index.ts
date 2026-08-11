@@ -18,7 +18,7 @@
  *                       rename, a foreign session squatting the freed name,
  *                       kill, stale-row reconcile, pane markers, and an
  *                       external SIGTERM recorded as a signal (Phase 12.7)
- *  - GMUX_SHOT=<path>   capturePage after 3 s → PNG → quit
+ *  - GMUX_SHOT=<path>   capturePage after 3 s (GMUX_SHOT_DELAY_MS) → PNG → quit
  *                       (GMUX_SHOT_CAPTURE_OUT=<path> additionally writes the
  *                       image a DRIVEN capture produced — see shot-hook.ts)
  *
@@ -46,6 +46,7 @@ import type { GmuxCore } from './ipc';
 import { installAppMenu } from './menu';
 import { registerRestoreIpc, snapshotPath, stripAnsi } from './restore';
 import { openSettingsWindow, registerSettingsIpc } from './settings';
+import { disposeTray, installTray } from './tray';
 import * as tmux from './tmux';
 
 // `gmux-asset:` (markdown images) must be declared before the app is ready —
@@ -174,6 +175,23 @@ function createWindow(): BrowserWindow {
     mainWindow = null;
   });
   return win;
+}
+
+/**
+ * Bring the app window forward — the Dock 'activate' path and the menu-bar
+ * status item's "Show gmux" are the same act, so they share one function.
+ * app.focus({steal:true}) is what makes it work from the status item: a
+ * status-item click does NOT activate the app on its own.
+ */
+function showAppWindow(): void {
+  const win =
+    mainWindow !== null && !mainWindow.isDestroyed()
+      ? mainWindow
+      : (mainWindow = createWindow());
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.focus();
+  app.focus({ steal: true });
 }
 
 // ---------------------------------------------------------------------------
@@ -942,6 +960,14 @@ async function runShot(outPath: string): Promise<void> {
   // UI. The hook flips __gmuxShotReady; cleanup removes the driven project.
   const driveJson = process.env['GMUX_SHOT_DRIVE'];
 
+  // How long to let the app settle before capturing. 3 s covers a warm boot,
+  // but an UNDRIVEN capture (no project to open — e.g. the §6.1 first-run
+  // state) has no readiness hook to wait on, and on a busy private tmux
+  // server the core takes longer than that to answer projects:list. Rather
+  // than let the harness quietly photograph a half-booted shell, the delay
+  // is a knob: GMUX_SHOT_DELAY_MS=12000.
+  const delayMs = Number(process.env['GMUX_SHOT_DELAY_MS'] ?? '') || 3_000;
+
   // Settings-window capture (Phase 10 S13 harness extension): with
   // GMUX_SHOT_SETTINGS=1 the shot targets the dedicated Settings window
   // instead of the app shell. GMUX_SHOT_SETTINGS_JS optionally runs a
@@ -1067,7 +1093,7 @@ async function runShot(outPath: string): Promise<void> {
         console.error(`[gmux-shot] FAIL: ${(err as Error).message}`);
         app.exit(1);
       }
-    }, 3000);
+    }, delayMs);
   });
 }
 
@@ -1143,6 +1169,10 @@ app.whenReady().then(async () => {
 
   mainWindow = createWindow();
 
+  // Phase 12.85: the menu-bar sentinel. Normal startup only — no harness has
+  // any business planting a status item in the user's menu bar.
+  installTray({ showWindow: showAppWindow });
+
   // Phase 13: the activity poll runs at 1 Hz while gmux has focus and 2 s
   // when it does not — nobody is reading status dots in a background app,
   // and the always-on tier is already only 0.28 % of one core.
@@ -1160,9 +1190,7 @@ app.whenReady().then(async () => {
   });
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      mainWindow = createWindow();
-    }
+    if (BrowserWindow.getAllWindows().length === 0) showAppWindow();
   });
 });
 
@@ -1183,6 +1211,7 @@ app.on('before-quit', (event) => {
       /* never block quit */
     }
     void disposeGitIpc();
+    disposeTray();
     app.quit();
   })();
 });

@@ -13,6 +13,20 @@
  * bundle order — Vite is free to emit these stylesheets in either order.
  */
 
+/* ---------------------------------------------------------------------------
+   The one in-window Tortie mark (Phase 12.85) — first run only, above the
+   title. It is deliberately the state where there is no work to look at yet:
+   identity shows itself once, then the product gets out of the way. Sized in
+   CSS px off a 128px source so it stays crisp at 2x, dimmed so it sits under
+   the title in the hierarchy, and never animated.
+--------------------------------------------------------------------------- */
+.brand-mark {
+  width: 44px;
+  height: 44px;
+  margin-bottom: var(--space-5);
+  opacity: 0.85;
+}
+
 /* The type-only states read at 420px; the fleet grid needs a wider column.
    width:100% is load-bearing — .empty centers its child, so without it the
    column shrink-wraps the paragraph and the grid loses a track. */

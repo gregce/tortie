@@ -179,6 +179,14 @@ export class GmuxCore {
    */
   onTermData: ((sessionId: string, byteLength: number) => void) | null = null;
 
+  /**
+   * Tap for the ONE surface outside the renderer that needs session truth:
+   * the menu-bar status item (Phase 12.85, src/main/tray). It sees exactly
+   * what sessions:changed carries, because broadcastSessions() is the single
+   * choke point every mutation and every activity flip funnels through.
+   */
+  onSessionsBroadcast: ((sessions: Session[]) => void) | null = null;
+
   private constructor(manifest: ManifestStore) {
     this.manifest = manifest;
     this.attachHost = new AttachHost({
@@ -750,7 +758,9 @@ export class GmuxCore {
   }
 
   broadcastSessions(): void {
-    broadcast(EVT_SESSIONS_CHANGED, this.listSessions());
+    const sessions = this.listSessions();
+    broadcast(EVT_SESSIONS_CHANGED, sessions);
+    this.onSessionsBroadcast?.(sessions);
   }
 
   // -------------------------------------------------------------------------

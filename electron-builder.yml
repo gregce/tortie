@@ -96,11 +96,19 @@ extraResources:
   # (src/main/tmux/supervisor.ts, src/main/attach/attach-host.ts).
   - from: resources/gmux-tmux.conf
     to: gmux-tmux.conf
+  # Phase 12.85: the menu-bar status item's template images (copies of
+  # docs/brand/tortie/menu-bar/, which is the authored master). They are read
+  # at runtime by src/main/tray, so they cannot live in the renderer bundle.
+  - from: resources/menu-bar
+    to: menu-bar
 asarUnpack:
   - "**/*.node"
 npmRebuild: true
 mac:
   category: public.app-category.developer-tools
+  # Phase 12.85: build/icon.icns is a byte-for-byte copy of the brand
+  # package's docs/brand/tortie/macos/Tortie.icns (the seated sentinel).
+  # `npm run icon` re-copies it; nothing generates it from an SVG any more.
   icon: build/icon.icns
   target:
     - target: dmg

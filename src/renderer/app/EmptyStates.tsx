@@ -22,6 +22,9 @@ import {
 import { useSettingsStore } from '../settings/settings-store';
 import { acceleratorToDisplay } from '../settings/chords';
 import { AgentIcon, Codicon } from '../icons';
+// Phase 12.85: the ONE in-window Tortie mark. Copied from the brand package
+// (docs/brand/tortie/dock/tortie-dock-128.png) by `npm run icon`.
+import tortieMark from '../assets/brand/tortie-128.png';
 import './empty-states.css';
 
 export function FirstRun(): React.JSX.Element {
@@ -29,6 +32,11 @@ export function FirstRun(): React.JSX.Element {
   return (
     <div className="empty" data-slot="terminal-stack">
       <div className="empty-inner onb-inner">
+        {/* Quiet identity in the one state with no work to show: low
+            contrast, never animated, freestanding (no badge or chrome —
+            docs/brand/tortie/README.md), and decorative to a screen reader
+            because the title already names the app. */}
+        <img className="brand-mark" src={tortieMark} alt="" aria-hidden="true" />
         <h2 className="empty-title">Open a project to get started</h2>
         <p className="empty-body">
           A project is any folder — a git repo gets the full sidebar. Sessions

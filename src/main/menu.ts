@@ -27,7 +27,7 @@
 import { app, BrowserWindow, Menu } from 'electron';
 import type { MenuItemConstructorOptions } from 'electron';
 import { EVT_MENU_ACTION, EVT_QUIT_REQUESTED } from '@shared/ipc';
-import type { MenuActionWithHotkeys } from '@shared/ipc';
+import type { MenuActionWithTray } from '@shared/ipc';
 import type { LaunchableAgentId } from '@shared/types';
 // Direct module imports (NOT the ./settings barrel): settings/ipc.ts imports
 // rebuildAppMenu from this file — the barrel would close a require cycle.
@@ -44,8 +44,11 @@ import { getRegistryEntry } from './agents/registry';
  * (S13) is a sibling BrowserWindow with no app shell, so it is never a
  * forwarding target — while it is focused, app actions (⌘T, per-agent
  * hotkeys, …) still land in the main window.
+ *
+ * Exported as sendMenuAction for the Phase 12.85 status item, which is a
+ * second native menu over the same channel — never a second mechanism.
  */
-function sendAction(action: MenuActionWithHotkeys): void {
+export function sendMenuAction(action: MenuActionWithTray): void {
   const focused = BrowserWindow.getFocusedWindow();
   const win =
     (focused !== null && !isSettingsWindow(focused) ? focused : null) ??
@@ -62,8 +65,11 @@ function sendAction(action: MenuActionWithHotkeys): void {
  * with ≥1 live session, then invokes 'app:quit'. A fallback timer quits
  * anyway if the renderer is hung or running an older preload — quitting can
  * never be blocked by the toast flow.
+ *
+ * Exported for the Phase 12.85 status item: Quit means the same thing from
+ * the menu bar as it does from ⌘Q, toast and all.
  */
-function requestQuit(): void {
+export function requestQuit(): void {
   const win =
     BrowserWindow.getFocusedWindow() ??
     BrowserWindow.getAllWindows().find((w) => !w.isDestroyed());
@@ -77,13 +83,13 @@ function requestQuit(): void {
 
 function item(
   label: string,
-  action: MenuActionWithHotkeys,
+  action: MenuActionWithTray,
   accelerator?: string
 ): MenuItemConstructorOptions {
   return {
     label,
     ...(accelerator !== undefined ? { accelerator } : {}),
-    click: () => sendAction(action)
+    click: () => sendMenuAction(action)
   };
 }
 
@@ -113,7 +119,7 @@ function agentHotkeyItems(): MenuItemConstructorOptions[] {
     items.push({
       label: `New ${displayName} Session`,
       accelerator,
-      click: () => sendAction(`launch-agent:${id as LaunchableAgentId}`)
+      click: () => sendMenuAction(`launch-agent:${id as LaunchableAgentId}`)
     });
   }
   return items.length > 0
@@ -201,7 +207,7 @@ function buildTemplate(): MenuItemConstructorOptions[] {
             if (closeSettingsWindowIfFocused(BrowserWindow.getFocusedWindow())) {
               return;
             }
-            sendAction('close-editor-tab');
+            sendMenuAction('close-editor-tab');
           }
         }
       ]
@@ -258,14 +264,14 @@ function buildTemplate(): MenuItemConstructorOptions[] {
           label: 'Sessions on Top',
           type: 'radio',
           checked: true,
-          click: () => sendAction('sessions-top')
+          click: () => sendMenuAction('sessions-top')
         },
         {
           id: MENU_ID_SESSIONS_RIGHT,
           label: 'Sessions on Right',
           type: 'radio',
           checked: false,
-          click: () => sendAction('sessions-right')
+          click: () => sendMenuAction('sessions-right')
         },
         { type: 'separator' },
         item('Toggle Sidebar', 'toggle-sidebar', 'Cmd+B'),

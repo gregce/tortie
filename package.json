@@ -22,7 +22,7 @@
     "postinstall": "electron-rebuild -f -w node-pty,better-sqlite3",
     "package": "electron-vite build && electron-builder --mac",
     "package:dir": "electron-vite build && electron-builder --mac --dir",
-    "icon": "cd build && rm -rf icon.iconset icon.icns && mkdir -p icon.iconset && for s in 16 32 128 256 512; do rsvg-convert -w $s -h $s icon.svg -o icon.iconset/icon_${s}x${s}.png; rsvg-convert -w $((s*2)) -h $((s*2)) icon.svg -o icon.iconset/icon_${s}x${s}@2x.png; done && iconutil -c icns icon.iconset -o icon.icns && rm -rf icon.iconset"
+    "icon": "cp docs/brand/tortie/macos/Tortie.icns build/icon.icns && cp docs/brand/tortie/menu-bar/TortieTemplate.png docs/brand/tortie/menu-bar/TortieTemplate@2x.png resources/menu-bar/ && cp docs/brand/tortie/dock/tortie-dock-128.png src/renderer/assets/brand/tortie-128.png"
   },
   "dependencies": {
     "@parcel/watcher": "^2.6.0",

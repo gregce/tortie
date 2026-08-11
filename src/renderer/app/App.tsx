@@ -39,6 +39,8 @@ import { AttentionOverlay } from './AttentionOverlay';
 import { ConfirmDialog } from './ConfirmDialog';
 import { Toasts } from './Toasts';
 import { FirstRun, TmuxMissing } from './EmptyStates';
+// Shared with the ⌘J overlay: "land the user in this session" exists once.
+import { focusTerminal, jumpToSession } from './session-focus';
 // Phase 12.4/12.6: "show this once, ever" lives in exactly one place — the
 // first-quit toast below is one of its catalog entries, not a second copy.
 import { showOneTimeTip } from './one-time-tip';
@@ -274,12 +276,8 @@ function useKeyboardMap(): void {
 // mirrors the equivalent keydown branch — the menu owns those accelerators.
 // ---------------------------------------------------------------------------
 
-/** Hand the keyboard to the visible terminal (menu-driven close flows). */
-function focusTerminal(): void {
-  document
-    .querySelector<HTMLTextAreaElement>('.gmux-terminal-mount textarea')
-    ?.focus();
-}
+/** `focus-session:<id>` — see FocusSessionActionId in src/shared/ipc.ts. */
+const FOCUS_SESSION_PREFIX = 'focus-session:';
 
 function runMenuAction(action: AnyMenuActionId): void {
   const s = useApp.getState();
@@ -390,9 +388,14 @@ function useMenuActions(): void {
     if (typeof bridge?.onMenuAction !== 'function') return;
     // The preload's callback type predates the round-1 View-menu ids; the
     // channel carries plain strings, so widening here is honest.
-    return bridge.onMenuAction((action: MenuActionId) =>
-      runMenuAction(action as AnyMenuActionId)
-    );
+    return bridge.onMenuAction((action: MenuActionId) => {
+      // Phase 12.85: the menu-bar sentinel's rows carry a session id.
+      if (action.startsWith(FOCUS_SESSION_PREFIX)) {
+        jumpToSession(action.slice(FOCUS_SESSION_PREFIX.length));
+        return;
+      }
+      runMenuAction(action as AnyMenuActionId);
+    });
   }, []);
 }
 

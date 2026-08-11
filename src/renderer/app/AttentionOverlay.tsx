@@ -8,6 +8,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import type { Session } from '@shared/types';
 import { effectiveStatusOf, useApp } from '../state/store';
 import { formatAge, useNow } from './format';
+import { jumpToSession } from './session-focus';
 import { AgentIcon } from '../icons';
 
 export function AttentionOverlay(): React.JSX.Element | null {
@@ -17,8 +18,6 @@ export function AttentionOverlay(): React.JSX.Element | null {
   const attentionSince = useApp((s) => s.attentionSince);
   const excerpts = useApp((s) => s.excerpts);
   const projects = useApp((s) => s.projects);
-  const setActiveProject = useApp((s) => s.setActiveProject);
-  const setActiveSession = useApp((s) => s.setActiveSession);
   const now = useNow(10_000);
 
   const rows = useMemo<Session[]>(
@@ -42,15 +41,8 @@ export function AttentionOverlay(): React.JSX.Element | null {
   if (!open) return null;
 
   const jump = (session: Session): void => {
-    const project = projects.find((p) => p.path === session.projectPath);
-    if (project) setActiveProject(project.id);
-    setActiveSession(session.id);
     setOpen(false);
-    requestAnimationFrame(() => {
-      document
-        .querySelector<HTMLTextAreaElement>('.gmux-terminal-mount textarea')
-        ?.focus();
-    });
+    jumpToSession(session.id);
   };
 
   const projectNameFor = (session: Session): string =>

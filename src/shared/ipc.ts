@@ -1336,3 +1336,20 @@ export interface MultilineInvokeChannelMap {
 export interface GmuxMultilineExtras {
   agentMultilineKeys?(): Promise<MultilineKeyTable>;
 }
+
+// ---------------------------------------------------------------------------
+// APPENDED by Phase 12.85 (menu-bar sentinel) — one new action id shape on the
+// EXISTING ui:menuAction channel; no new channel, no new preload wrapper.
+//
+// The status item lists the sessions that need input across every project.
+// Choosing one has to land the user IN that session, which is a renderer act
+// (project tab + session selection + terminal focus — the same jump ⌘J makes),
+// so main forwards `focus-session:<sessionId>` exactly as the per-agent
+// hotkeys forward `launch-agent:<id>`. Older renderers ignore unknown ids.
+// ---------------------------------------------------------------------------
+
+/** Menu action: reveal one specific session, wherever it lives. */
+export type FocusSessionActionId = `focus-session:${string}`;
+
+/** Every action the native menus (app menu + status item) can forward. */
+export type MenuActionWithTray = MenuActionWithHotkeys | FocusSessionActionId;

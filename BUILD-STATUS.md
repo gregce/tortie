@@ -53,13 +53,13 @@ Smokes: `npm run smoke` (basic) · `npm run smoke:t1` (restart durability) · `n
 npm run package     # electron-vite build + electron-builder --mac
                     # → release/gmux-0.0.1-arm64.dmg (+ .zip)
 npm run package:dir # faster: unpacked app only → release/mac-arm64/gmux.app
-npm run icon        # regenerate build/icon.icns from build/icon.svg
-                    # (needs rsvg-convert: brew install librsvg)
+npm run icon        # re-copy the Tortie brand assets into their build /
+                    # runtime / renderer homes (no generation, no tools)
 ```
 
 Install: open the DMG, drag gmux to Applications. **The app is unsigned for distribution** — on any machine other than this one, Gatekeeper will block the first launch: right-click → Open → Open (or `xattr -dr com.apple.quarantine /Applications/gmux.app`).
 
-Icon: `build/icon.svg` is the source of truth (graphite plate, accent-blue prompt chevron, attention-amber block cursor, muted session tallies — palette from DESIGN.md §1). `build/icon.icns` is generated from it. Both are tracked in git (verified: `.gitignore` has no icon rules — `git check-ignore` matches nothing under `build/`).
+Icon (Phase 12.85): the mark is the Tortie seated sentinel, and `docs/brand/tortie/` is the source of truth — an authored, production-ready package that must NOT be regenerated (its README records the master SHA-256 and forbids wrapping the mark in a rounded square, badge or any outer chrome). `build/icon.icns` is a byte-for-byte copy of `docs/brand/tortie/macos/Tortie.icns`; `resources/menu-bar/TortieTemplate.png` + `@2x` (the menu-bar status item) and `src/renderer/assets/brand/tortie-128.png` (the one in-window mark, on the first-run empty state) are copies of their brand-package originals. `npm run icon` re-copies all three. The old generated `build/icon.svg` and its rsvg pipeline are gone — nothing derives the icon from an SVG any more.
 
 ## What's deferred (not built today, on purpose)
 
