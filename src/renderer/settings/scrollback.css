@@ -1,0 +1,101 @@
+/*
+ * Settings → General → SCROLLBACK (Phase 13.7).
+ *
+ * Colocated with its component rather than appended to settings.css: the
+ * standing guardrail asks for per-domain modules, and settings.css is already
+ * the file three streams reach for at once.
+ *
+ * Everything here is the S13 row anatomy — this section invents no new
+ * shapes, it only adds the two things S13 has no rule for yet: a numeric
+ * depth field beside a dropdown, and a card footer that carries a sentence
+ * instead of a control.
+ */
+
+/* THE MEASURED LINE, told apart from the explanation above it.
+   Both rows carry two captions, and at one size and one colour they read as a
+   single wrapped paragraph — the live figure, the only thing in the card that
+   answers the question the user came with, disappears into prose. It gets the
+   brighter secondary tone (7:1 on this surface, against muted's 4.5:1) and
+   tabular figures, so re-picking a depth changes a number in place instead of
+   reflowing a sentence. */
+.set-row-estimate {
+  margin-top: 1px;
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The control slot holds a dropdown and, for a value the presets do not
+   offer, the field that names it. */
+.set-depth {
+  margin-left: auto;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* One rail for both dropdowns. Without a floor they size to their content,
+   so "10,000 lines" and "100,000 lines" would sit on different right edges in
+   a two-row card — and the edge moves as the user picks. 116px is what the
+   longest option ("100,000 lines") measures plus the disclosure chevron. */
+.set-depth > .set-select {
+  min-width: 116px;
+}
+
+/* S13: "size field [h:24] mono 12 with stepper arrows". 76px is what
+   "100,000" measures in the mono face plus the native spinner. */
+.set-depth-field {
+  width: 76px;
+  height: 24px;
+  padding: 0 var(--space-2);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.set-depth-field:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
+
+/* The one sentence of evidence, and the escape hatch beside it. A 36px row,
+   shorter than the two control rows above it, so it reads as the card's
+   footing rather than as a third setting. */
+.set-scrollback-total {
+  min-height: 36px;
+  gap: var(--space-4);
+}
+
+.set-scrollback-total > .set-row-caption {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Sized to the sentence it sits beside, not to the buttons in the dialogs:
+   this row is one quiet line of evidence, and a 13px accent label next to an
+   11px caption reads as the card's primary action, which it is not. */
+.set-scrollback-total > .btn-text {
+  flex: 0 0 auto;
+  height: 20px;
+  font-size: var(--text-sm);
+  margin-right: calc(-1 * var(--space-3));
+}
+
+/* Prose under a card: the standing facts about what a depth change can and
+   cannot do. Wider measure than a row caption because it is read once, in
+   full, rather than glanced at. */
+.set-note {
+  margin: calc(-1 * var(--space-4)) 0 var(--space-6);
+  max-width: 560px;
+  font-size: var(--text-xs);
+  line-height: var(--lh-sm);
+  color: var(--text-muted);
+}

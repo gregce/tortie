@@ -35,6 +35,21 @@ export interface TreeOpsProbeSpec {
    * exists to be looked at, and it is invisible at rest.
    */
   holdFilter?: string;
+  /**
+   * Phase 14.2 item 3: drive the Explorer HEADER's New File / New Folder /
+   * Collapse All by CLICKING the real buttons in the real band header, so
+   * what is proved is the whole path a person takes — the button, its
+   * disabled rule, the selection-derived destination, and the same
+   * inline-rename-on-create flow the context menu uses.
+   */
+  headerActions?: boolean;
+  /**
+   * Narrow the sidebar to this width before the capture. The Explorer header
+   * carries five actions since Phase 14.2, and whether they still fit is a
+   * question about the 220px MINIMUM, not about the 280px default — so the
+   * capture has to be able to go there. Clamped by the store's own bounds.
+   */
+  holdSidebarWidth?: number;
 }
 
 export interface TreeOpsProbeStep {
@@ -109,6 +124,137 @@ function confirmDialog(): string | null {
   spec.onConfirm();
   useApp.getState().setConfirm(null);
   return said;
+}
+
+/** A button in the Explorer's band header, found the way a person finds it. */
+function headerButton(label: string): HTMLButtonElement | null {
+  const el = document.querySelector(
+    `.view-header-action[aria-label="${label}"]`
+  );
+  return el instanceof HTMLButtonElement ? el : null;
+}
+
+/**
+ * Phase 14.2 item 3, end to end: the three new header actions, driven by real
+ * clicks on the real buttons.
+ *
+ * The point of clicking rather than calling is the wiring, which is the only
+ * part that can be wrong: that New File/New Folder reach the SAME
+ * `TreeOps.newEntry` the context menu reaches (a placeholder row you type
+ * into, not a second create implementation), that the destination follows the
+ * selection, and that Collapse All's disabled rule is a real DOM state rather
+ * than a click that quietly does nothing.
+ */
+async function driveHeaderActions(
+  handle: TreeHandle,
+  dirCanon: string,
+  record: (name: string, ok: boolean, detail: string) => void
+): Promise<void> {
+  const { rootPath } = handle;
+  const shadow = handle.shadowRoot();
+
+  const newFile = headerButton('New file');
+  const newFolder = headerButton('New folder');
+  const collapse = headerButton('Collapse all folders');
+  if (newFile === null || newFolder === null || collapse === null) {
+    record(
+      'the header carries New file / New folder / Collapse all',
+      false,
+      `newFile=${String(newFile !== null)} newFolder=${String(
+        newFolder !== null
+      )} collapseAll=${String(collapse !== null)}`
+    );
+    return;
+  }
+  record(
+    'the header carries New file / New folder / Collapse all',
+    true,
+    'all three buttons present, each with a name and a tooltip'
+  );
+
+  // Select the scratch folder by clicking its row, exactly as a person does,
+  // so the destination comes from a real selection and not from a poke.
+  const row = shadow?.querySelector(`[data-item-path="${dirCanon}"]`);
+  if (row instanceof HTMLElement) row.click();
+  await wait(200);
+
+  // Read the selection back OUT OF THE DOM rather than trusting the click:
+  // whatever ended up selected, the destination must be that row's folder.
+  // (`data-item-selected` is the library's own attribute — the same one the
+  // selected-row styling keys off.)
+  const selected = [...(shadow?.querySelectorAll('[data-item-selected]') ?? [])]
+    .map((el) => el.getAttribute('data-item-path'))
+    .filter((p): p is string => p !== null);
+  const first = selected[0] ?? '';
+  const expected = first.endsWith('/')
+    ? first
+    : first.slice(0, first.lastIndexOf('/') + 1);
+  const target = handle.newEntryTarget();
+  record(
+    'a header create follows the selected row into its folder',
+    target === expected,
+    `selected ${JSON.stringify(selected)} → newEntryTarget() ` +
+      `${JSON.stringify(target)}, expected ${JSON.stringify(expected)}`
+  );
+
+  // ---- New Folder, from the header --------------------------------------
+  // `target` is where the header says it will land, so that is where the file
+  // is looked for: a create that quietly landed somewhere else must fail here.
+  newFolder.click();
+  const typedFolder = await commitRenameInput(handle, 'from-header');
+  const folderThere =
+    typedFolder && (await until(() => listed(rootPath, `${target}from-header`)));
+  record(
+    'New folder (header) reuses the inline-rename create flow',
+    folderThere,
+    folderThere
+      ? `${target}from-header/ was typed into existence`
+      : 'no placeholder row appeared to type into'
+  );
+
+  // ---- New File, from the header ----------------------------------------
+  // Fresh target: committing the folder above moved the selection onto it,
+  // which is exactly the behaviour a second create has to follow.
+  const fileTarget = handle.newEntryTarget();
+  newFile.click();
+  const typedFile = await commitRenameInput(handle, 'from-header.md');
+  const fileThere =
+    typedFile &&
+    (await until(() => listed(rootPath, `${fileTarget}from-header.md`)));
+  record(
+    'New file (header) reuses the inline-rename create flow',
+    fileThere,
+    fileThere
+      ? `${fileTarget}from-header.md was typed into existence`
+      : `no row to type into (target was ${JSON.stringify(fileTarget)})`
+  );
+
+  // ---- Collapse All ------------------------------------------------------
+  // The button under test is the one with work to do, so make sure there is
+  // some: a folder row click is the gesture that opens one.
+  let openedBefore = useTreeHandle.getState().expandedCount;
+  if (openedBefore === 0 && row instanceof HTMLElement) {
+    row.click();
+    await wait(250);
+    openedBefore = useTreeHandle.getState().expandedCount;
+  }
+  const armed = !collapse.disabled && openedBefore > 0;
+  collapse.click();
+  await wait(250);
+  const openedAfter = useTreeHandle.getState().expandedCount;
+  record(
+    'Collapse all closes every open folder',
+    armed && openedAfter === 0,
+    `${openedBefore} open before → ${openedAfter} after` +
+      (armed ? '' : ' (button was not enabled with folders open)')
+  );
+  record(
+    'Collapse all is DISABLED with nothing open, not a no-op click',
+    collapse.disabled,
+    collapse.disabled
+      ? 'the button went disabled the moment the last folder closed'
+      : 'still enabled with nothing to collapse'
+  );
 }
 
 export async function driveTreeOps(
@@ -344,11 +490,21 @@ export async function driveTreeOps(
   );
   handle.toggleFilter();
 
+  // ---- The band header's own buttons (Phase 14.2 item 3) -----------------
+  if (spec.headerActions === true) {
+    await driveHeaderActions(handle, dirCanon, record);
+  }
+
   // ---- Clean up whatever survived ---------------------------------------
   ops.trash([dirCanon]);
   await until(() => useApp.getState().confirm !== null, 1000);
   confirmDialog();
   await until(() => !listed(rootPath, dir), 3000);
+
+  if (spec.holdSidebarWidth !== undefined) {
+    useApp.getState().setSidebarWidth(spec.holdSidebarWidth);
+    await wait(200);
+  }
 
   if (spec.holdFilter !== undefined) {
     handle.toggleFilter();

@@ -41,6 +41,7 @@ import type { execTmux as ExecTmux, TmuxScrollRunner } from '../tmux';
 import { ClaudeSessionRegistry } from './claude-registry';
 import { claudeVerdict } from './oracles';
 import { readPaneFacts, type PaneFacts } from './panes';
+import type { ScrollbackSample } from '../scrollback/watch';
 import { readProcSnapshot, type ProcSnapshot } from './process';
 import { excerptFromCapture } from './screen';
 import {
@@ -99,6 +100,14 @@ export interface ActivityMonitorDeps {
   claudeSessionsDir?: string;
   onStatus(sessionId: string, status: SessionStatus, at: number): void;
   onActivity(updates: SessionActivityUpdate[]): void;
+  /**
+   * Phase 13.7 — the depth reading the poll already has, handed to the
+   * scrollback watch. NOT a UI payload: nothing in the renderer ever receives
+   * it, and the only thing downstream can do with it is notice the moment a
+   * session starts discarding output. Optional so tests and the smoke
+   * harness need not care.
+   */
+  onScrollback?(samples: readonly ScrollbackSample[]): void;
   /**
    * `#{pane_dead}` — ipc.ts owns reaping and the death record. BOTH halves
    * travel: a clean exit carries a code, a signalled death carries a signal
@@ -326,6 +335,15 @@ export class SessionActivityMonitor {
       if (update !== null) updates.push(update);
     }
     if (updates.length > 0) this.deps.onActivity(updates);
+    // Two integers per live session, straight off the read above — no extra
+    // sample, no extra process, no extra timer (Phase 13.7).
+    this.deps.onScrollback?.(
+      live.map((e) => ({
+        sessionId: e.session.id,
+        lines: e.pane.historySize,
+        limit: e.pane.historyLimit
+      }))
+    );
   }
 
   /**

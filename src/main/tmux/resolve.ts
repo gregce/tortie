@@ -24,10 +24,11 @@
  * unit-testable outside Electron).
  */
 
-import { spawn, type ChildProcess } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { accessSync, constants, existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { delimiter, isAbsolute, join } from 'node:path';
+import { killProcessGroup, trackGuardedChild } from '../proc/guarded';
 
 // ---------------------------------------------------------------------------
 // Login-shell PATH capture
@@ -36,17 +37,19 @@ import { delimiter, isAbsolute, join } from 'node:path';
 /** How long the login shell gets to print its PATH before we fall back. */
 export const PATH_CAPTURE_TIMEOUT_MS = 3_000;
 
-/** Grace between SIGTERM and SIGKILL for a probe that overran its timeout. */
-const PATH_PROBE_KILL_GRACE_MS = 500;
-
 /** Cap on buffered probe output (a chatty rc file must not grow unbounded). */
 const PATH_PROBE_MAX_OUTPUT = 1024 * 1024;
 
 /**
  * Marker pair around the PATH so rc-file noise (echo/neofetch/etc. printed
  * by interactive shells) can never corrupt the capture.
+ *
+ * Exported because it doubles as an OWNERSHIP TAG: it appears in the probe's
+ * command line, no other program on earth spells it, and proc/orphans.ts uses
+ * exactly that to recognise a stranded probe from an older gmux as ours and
+ * safe to reap.
  */
-const PATH_MARKER = '__GMUX_PATH__';
+export const PATH_MARKER = '__GMUX_PATH__';
 const PATH_CAPTURE_RE = /__GMUX_PATH__(.*?)__GMUX_PATH__/s;
 
 /**
@@ -110,44 +113,24 @@ export interface CapturePathOptions {
 }
 
 /**
- * SIGTERM the probe's whole PROCESS GROUP, then SIGKILL what survives.
- *
- * The group, not the child, is the unit that matters: the observed leak is a
- * `zsh -lic` that FORKS A COPY OF ITSELF, and killing only the direct child
- * leaves the fork holding the inherited stdout write end open forever. The
- * probe is spawned `detached`, so its pgid is its own pid and nothing of
- * gmux's is in the blast radius — without `detached` the child would sit in
- * Electron's group and `kill(-pid)` would take down the app.
- *
- * Killing by pgid stays safe after the leader exits: a pid cannot be reused
- * while it is still a live group's id, so `-pid` can never reach a stranger.
- */
-function killProbeGroup(child: ChildProcess): void {
-  const pid = child.pid;
-  if (pid === undefined) return;
-  const signalGroup = (signal: NodeJS.Signals): void => {
-    try {
-      process.kill(-pid, signal);
-    } catch {
-      // ESRCH — the group is already gone, which is the outcome we wanted.
-    }
-  };
-  signalGroup('SIGTERM');
-  const hardKill = setTimeout(() => {
-    signalGroup('SIGKILL');
-    // Drop our ends of the pipes too: a survivor we could not signal must
-    // not keep the event loop (or an app quit) waiting on a read.
-    child.stdout?.destroy();
-    child.stderr?.destroy();
-  }, PATH_PROBE_KILL_GRACE_MS);
-  child.once('exit', () => clearTimeout(hardKill));
-}
-
-/**
  * Ask the user's login shell for its PATH. `-lic` = login + interactive +
  * command, matching what the user's terminal sessions actually see (zsh
  * sources .zprofile AND .zshrc this way; bash and fish accept the same
  * flags). Marker-delimited so rc noise can't break parsing.
+ *
+ * WHY `-i` STAYS, given `-i` is what makes the shell fork and hang (Phase
+ * 13.8 re-examined this, because dropping it would delete the whole failure
+ * class). MEASURED on the reporting machine 2026-08-11: `zsh -lc` returns in
+ * 24 ms and `zsh -lic` in 957 ms, and the two PATHs contain the IDENTICAL SET
+ * of directories — so here `-i` buys nothing but latency. It is kept anyway,
+ * because the sets are equal by luck of this user's dotfiles, not by
+ * construction: `-l` sources .zshenv/.zprofile/.zlogin, `-i` adds .zshrc, and
+ * .zshrc is where nvm/rbenv/pyenv/conda init lines conventionally live. `-lic`
+ * is a SUPERSET of `-lc` for every user; dropping `-i` can only lose PATH
+ * entries, and a lost entry means "agent CLI not found" — a correctness bug —
+ * while a slow probe costs at most `timeoutMs` and falls back cleanly. The
+ * price of keeping `-i` is that the probe MUST be reaped on the deadline,
+ * which is what killProcessGroup + the guarded-child registry are for.
  *
  * NEVER rejects, and — since Phase 13.5.1 — never HANGS either, which is the
  * same promise the docstring has always made and did not keep. The only path
@@ -207,6 +190,11 @@ export function captureLoginShellPath(
         { detached: true, stdio: ['ignore', 'pipe', 'pipe'] }
       );
 
+      // Tracked so `before-quit` reaps a probe still in flight: the five
+      // orphans on the reporting machine (oldest 19 h 41 m) were each a probe
+      // whose deadline timer died with the app that scheduled it.
+      const untrack = trackGuardedChild(child);
+
       let out = '';
       child.stdout?.setEncoding('utf8');
       child.stdout?.on('data', (chunk: string) => {
@@ -223,27 +211,40 @@ export function captureLoginShellPath(
       child.stderr?.on('data', () => undefined); // drain; rc noise is not ours
       child.stderr?.on('error', () => undefined);
 
-      // A spawn failure (missing shell) arrives as an event, not a throw.
-      child.once('error', (err) => {
-        console.warn(
-          `[gmux] login-shell PATH capture failed (${shell}): ${err.message} — using fallback`
-        );
-        finish(null);
-      });
-      child.once('close', () => finish(null));
-
       // The deadline outlives an early settle on purpose: settling is about
       // the caller, reaping is about the machine, and the leak this fixes was
       // a probe nobody was waiting for any more.
+      //
+      // It is cleared on 'close', NEVER on 'exit'. 'exit' means the shell we
+      // spawned is gone; 'close' means its stdout is gone too, which is the
+      // only evidence that no fork is still holding the pipe. Cancelling on
+      // 'exit' reopened the original bug in miniature: a shell that forks and
+      // then exits WITHOUT printing the markers would clear the deadline,
+      // never fire 'close', and leave the promise unsettled AND the fork
+      // alive — exactly the two symptoms 13.5.1 set out to kill.
       const deadline = setTimeout(() => {
         console.warn(
           `[gmux] login-shell PATH probe still running after ${timeoutMs} ms ` +
             `(${shell}) — killing its process group`
         );
-        killProbeGroup(child);
+        killProcessGroup(child);
         finish(null);
       }, timeoutMs);
-      child.once('exit', () => clearTimeout(deadline));
+      child.once('close', () => {
+        clearTimeout(deadline);
+        untrack();
+        finish(null);
+      });
+
+      // A spawn failure (missing shell) arrives as an event, not a throw.
+      child.once('error', (err) => {
+        clearTimeout(deadline);
+        untrack();
+        console.warn(
+          `[gmux] login-shell PATH capture failed (${shell}): ${err.message} — using fallback`
+        );
+        finish(null);
+      });
     } catch (err) {
       console.warn(
         `[gmux] login-shell PATH capture threw (${shell}): ${(err as Error).message} — using fallback`

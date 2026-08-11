@@ -351,7 +351,11 @@
 .view-header {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  /* Tight inside a group (DESIGN.md §1.7): the actions are ONE group, and
+     the distance from the title to the first of them is set by the spacer,
+     not by this. 4px also buys the room the Explorer's five actions need to
+     stay on the row at the 220px minimum sidebar width. */
+  gap: var(--space-2);
   height: 36px;
   flex: 0 0 36px;
   padding: 0 var(--space-5);
@@ -365,8 +369,18 @@
   user-select: none;
 }
 
+/* Squeezed before the actions are: a clipped word still says which view you
+   are in, and a wrapped or pushed-out toolbar says nothing at all. */
+.view-header-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .view-header-spacer {
   flex: 1;
+  min-width: 0;
 }
 
 /* Phase 12.9 item 4: the filter toggle reads as ON while it is narrowing the

@@ -43,6 +43,8 @@ function pane(over: Partial<PaneFacts> = {}): PaneFacts {
     keypad: true,
     alternate: false,
     inMode: false,
+    historySize: 0,
+    historyLimit: 25_000,
     title: '',
     ...over
   };

@@ -8,16 +8,22 @@
  * Runner: vitest (`npm test`).
  */
 
-import { describe, it } from 'vitest';
+import { beforeEach, describe, it } from 'vitest';
 import assert from 'node:assert/strict';
 import {
   anchorPaneScroll,
   exitPaneScroll,
   readPaneScroll,
+  resetSeekSupportForTests,
   scrollPaneBy,
   scrollPaneTo,
   type TmuxScrollRunner
 } from '../scroll';
+
+// `goto-line` support is probed once per process and latched, so every test
+// starts from "not yet probed" rather than inheriting the previous one's
+// verdict (which would make the fallback suite order-dependent).
+beforeEach(() => resetSeekSupportForTests());
 
 /** `display-message -F` output: in_mode, position, history, rows, alt, mouse. */
 function state(
@@ -122,12 +128,30 @@ describe('scrollPaneBy', () => {
 });
 
 describe('scrollPaneTo', () => {
-  it('scrubs by the difference from the current offset', async () => {
+  it('SEEKS to the absolute offset instead of walking to it', async () => {
+    // Phase 13.7. The old implementation issued one `-N <delta> scroll-up`,
+    // which tmux runs as a per-line loop: 3,958 ms at 200k lines, with the
+    // whole single-threaded server — every other session, and the 1 Hz
+    // activity poll — blocked for 3,895 ms of it.
     const { run, calls } = recorder([state('1', '20', '300')]);
     await scrollPaneTo(run, '$3', 50);
     assert.deepEqual(calls[1], ['copy-mode', '-e', '-t', '$3']);
     assert.deepEqual(calls[2], [
-      'send-keys', '-t', '$3', '-X', '-N', '30', 'scroll-up'
+      'send-keys', '-t', '$3', '-X', 'goto-line', '50'
+    ]);
+    assert.ok(!calls.some((c) => c.includes('scroll-up')));
+  });
+
+  it('costs the SAME number of commands at 200,000 lines as at 50', async () => {
+    // The whole point: constant work, so depth cannot buy latency.
+    const shallow = recorder([state('1', '0', '50')]);
+    await scrollPaneTo(shallow.run, '$3', 50);
+    resetSeekSupportForTests();
+    const deep = recorder([state('1', '0', '200000')]);
+    await scrollPaneTo(deep.run, '$3', 200000);
+    assert.equal(deep.calls.length, shallow.calls.length);
+    assert.deepEqual(deep.calls[2], [
+      'send-keys', '-t', '$3', '-X', 'goto-line', '200000'
     ]);
   });
 
@@ -135,14 +159,82 @@ describe('scrollPaneTo', () => {
     const { run, calls } = recorder([state('1', '20', '300')]);
     await scrollPaneTo(run, '$3', 9999);
     assert.deepEqual(calls[2], [
-      'send-keys', '-t', '$3', '-X', '-N', '280', 'scroll-up'
+      'send-keys', '-t', '$3', '-X', 'goto-line', '300'
     ]);
   });
 
   it('position 0 cancels copy-mode instead of scrolling', async () => {
+    // `goto-line 0` parks at the bottom but LEAVES the pane in copy-mode
+    // (verified on 3.6a: `#{pane_in_mode}` is still 1 afterwards), so the
+    // only correct way back to live output is still an explicit cancel.
     const { run, calls } = recorder([state('0', '', '300')]);
     await scrollPaneTo(run, '$3', 0);
     assert.deepEqual(calls[0], ['send-keys', '-t', '$3', '-X', 'cancel']);
+  });
+
+  it('never seeks under an alt-screen app', async () => {
+    // history reads 0 for an inner alt screen — there is nothing to reach.
+    const { run, calls } = recorder([state('0', '', '283', '40', '1', '0')]);
+    await scrollPaneTo(run, '$3', 100);
+    assert.ok(!calls.some((c) => c.includes('goto-line')));
+  });
+
+  it('does nothing when the drag re-sends the offset it is already on', async () => {
+    const { run, calls } = recorder([state('1', '50', '300')]);
+    await scrollPaneTo(run, '$3', 50);
+    assert.equal(calls.length, 1);
+  });
+});
+
+describe('scroll fallback (a tmux without goto-line)', () => {
+  /** Recorder whose `send-keys -X goto-line` always fails. */
+  function noGotoLine(out: string): { run: TmuxScrollRunner; calls: string[][] } {
+    const calls: string[][] = [];
+    const run: TmuxScrollRunner = async (args) => {
+      calls.push([...args]);
+      if (args.includes('goto-line')) throw new Error('unknown command');
+      return args[0] === 'display-message' ? out : '';
+    };
+    return { run, calls };
+  }
+
+  it('falls back to a CHUNKED relative scroll, never one huge one', async () => {
+    // Same total work, sliced, so the server gets a service window between
+    // slices instead of one multi-second freeze.
+    const { run, calls } = noGotoLine(state('1', '0', '200000'));
+    await scrollPaneTo(run, '$3', 5000);
+    const scrolls = calls.filter((c) => c.includes('scroll-up'));
+    assert.deepEqual(
+      scrolls.map((c) => c[5]),
+      ['2000', '2000', '1000']
+    );
+  });
+
+  it('probes goto-line ONCE, then stops paying for the failure', async () => {
+    const { run, calls } = noGotoLine(state('1', '0', '9000'));
+    await scrollPaneTo(run, '$3', 3000);
+    await scrollPaneTo(run, '$3', 6000);
+    assert.equal(calls.filter((c) => c.includes('goto-line')).length, 1);
+  });
+});
+
+describe('a huge relative scroll', () => {
+  it('is re-expressed as a seek rather than walked line by line', async () => {
+    // anchorPaneScroll can produce one of these when an agent dumps tens of
+    // thousands of lines between polls.
+    const { run, calls } = recorder([state('1', '100', '90000')]);
+    await scrollPaneBy(run, '$3', 40000);
+    assert.deepEqual(calls[2], [
+      'send-keys', '-t', '$3', '-X', 'goto-line', '40100'
+    ]);
+  });
+
+  it('leaves the wheel and page steps on the relative path', async () => {
+    const { run, calls } = recorder([state('1', '41', '9000')]);
+    await scrollPaneBy(run, '$3', 41);
+    assert.deepEqual(calls[1], [
+      'send-keys', '-t', '$3', '-X', '-N', '41', 'scroll-up'
+    ]);
   });
 });
 

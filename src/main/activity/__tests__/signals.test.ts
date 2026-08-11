@@ -60,6 +60,8 @@ describe('parsePaneLines', () => {
         '0',
         '0',
         '0',
+        '14867',
+        '25000',
         '2.1.226',
         '✳ Review Zen of Tortie documentation'
       ])
@@ -72,27 +74,45 @@ describe('parsePaneLines', () => {
     expect(pane?.title).toBe('✳ Review Zen of Tortie documentation');
     expect(pane?.dead).toBe(false);
     expect(pane?.deadStatus).toBeUndefined();
+    // Phase 13.7 — the two depth fields ride this same read.
+    expect(pane?.historySize).toBe(14867);
+    expect(pane?.historyLimit).toBe(25000);
   });
 
   it('keeps everything after the last field in the title (tabs included)', () => {
     const facts = parsePaneLines(
-      line(['$1', '%1', '10', '1', '0', '', '', '100', '1', '0', '0', 'zsh', 'a\tb'])
+      line([
+        '$1', '%1', '10', '1', '0', '', '', '100', '1', '0', '0',
+        '0', '25000', 'zsh', 'a\tb'
+      ])
     );
     expect(facts.get('$1')?.title).toBe('a\tb');
   });
 
   it('prefers the ACTIVE pane when a session has several', () => {
     const out = [
-      line(['$9', '%1', '10', '0', '0', '', '', '100', '0', '0', '0', 'zsh', 'first']),
-      line(['$9', '%2', '11', '1', '0', '', '', '101', '0', '0', '0', 'zsh', 'active']),
-      line(['$9', '%3', '12', '0', '0', '', '', '102', '0', '0', '0', 'zsh', 'last'])
+      line([
+        '$9', '%1', '10', '0', '0', '', '', '100', '0', '0', '0',
+        '0', '25000', 'zsh', 'first'
+      ]),
+      line([
+        '$9', '%2', '11', '1', '0', '', '', '101', '0', '0', '0',
+        '0', '25000', 'zsh', 'active'
+      ]),
+      line([
+        '$9', '%3', '12', '0', '0', '', '', '102', '0', '0', '0',
+        '0', '25000', 'zsh', 'last'
+      ])
     ].join('\n');
     expect(parsePaneLines(out).get('$9')?.title).toBe('active');
   });
 
   it('reads a dead pane and its exit code', () => {
     const facts = parsePaneLines(
-      line(['$2', '%5', '0', '1', '1', '143', '', '99', '0', '0', '0', 'zsh', ''])
+      line([
+        '$2', '%5', '0', '1', '1', '143', '', '99', '0', '0', '0',
+        '0', '25000', 'zsh', ''
+      ])
     );
     expect(facts.get('$2')?.dead).toBe(true);
     expect(facts.get('$2')?.deadStatus).toBe(143);
@@ -105,7 +125,10 @@ describe('parsePaneLines', () => {
     // "term". Reading only the status is how a targeted kill became a
     // session that "just exited".
     const facts = parsePaneLines(
-      line(['$3', '%9', '0', '1', '1', '', 'term', '99', '0', '0', '0', 'sleep', ''])
+      line([
+        '$3', '%9', '0', '1', '1', '', 'term', '99', '0', '0', '0',
+        '0', '25000', 'sleep', ''
+      ])
     );
     expect(facts.get('$3')?.dead).toBe(true);
     expect(facts.get('$3')?.deadStatus).toBeUndefined();
@@ -119,6 +142,24 @@ describe('parsePaneLines', () => {
     expect(PANE_FORMAT).not.toContain('bell');
     expect(PANE_FORMAT).not.toContain('session_activity');
     expect(PANE_FORMAT).toContain('#{window_activity}');
+  });
+
+  it('keeps pane_title LAST and the depth fields before the command', () => {
+    // The parser is POSITIONAL and `pane_title` is the one field whose
+    // content is arbitrary, so a field inserted after it silently corrupts
+    // agent state detection rather than failing loudly. Phase 13.7 inserted
+    // two; this pins the order so the next insertion cannot get it wrong.
+    const fields = PANE_FORMAT.split('\t');
+    expect(fields[fields.length - 1]).toBe('#{pane_title}');
+    expect(fields.indexOf('#{history_size}')).toBeLessThan(
+      fields.indexOf('#{pane_current_command}')
+    );
+    expect(fields.indexOf('#{history_limit}')).toBeLessThan(
+      fields.indexOf('#{pane_current_command}')
+    );
+    // #{history_bytes} is the honest memory source but nothing in the
+    // always-on tier can act on it — it is read on demand instead.
+    expect(PANE_FORMAT).not.toContain('history_bytes');
   });
 });
 

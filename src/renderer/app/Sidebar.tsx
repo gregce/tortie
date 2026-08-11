@@ -21,10 +21,18 @@ import { useApp } from '../state/store';
 import { useGit } from '../state/git';
 import { BranchHeader, ScmSection } from '../scm';
 import { SearchHeader, SearchSection } from '../search';
-import { FilesSection, useFileTree, useTreeHandle } from '../tree';
+import { canMutate, FilesSection, useFileTree, useTreeHandle } from '../tree';
 import { Codicon } from '../icons';
 
-/** Explorer view header — the band slice above the tree ([h:36], S3B). */
+/**
+ * Explorer view header — the band slice above the tree ([h:36], S3B).
+ *
+ * Five actions, in VS Code's order: the two that CREATE, then the three that
+ * change how the tree is being looked at. New File / New Folder call the same
+ * `TreeOps.newEntry` the context menu calls — the Phase 12.9
+ * inline-rename-on-create flow, not a second one — and the mounted tree
+ * decides where they land from the current selection (tree/header-actions.ts).
+ */
 function ExplorerHeader(): React.JSX.Element {
   const refreshLoaded = useFileTree((s) => s.refreshLoaded);
   // Phase 12.9 item 4: the name filter lives inside @pierre/trees' shadow
@@ -33,11 +41,42 @@ function ExplorerHeader(): React.JSX.Element {
   // registers what it may call (tree/tree-handle.ts).
   const treeHandle = useTreeHandle((s) => s.handle);
   const filterOpen = useTreeHandle((s) => s.filterOpen);
+  const expandedCount = useTreeHandle((s) => s.expandedCount);
+
+  // An older preload without the mutation channels hides nothing here — it
+  // DISABLES, because a create button that vanished would read as a missing
+  // feature rather than as a build that cannot write files.
+  const canCreate = treeHandle !== null && canMutate();
+
+  const create = (kind: 'file' | 'dir'): void => {
+    if (treeHandle === null) return;
+    treeHandle.ops.newEntry(treeHandle.newEntryTarget(), kind);
+  };
 
   return (
     <div className="view-header" data-slot="view-header">
       <span className="view-header-title">Explorer</span>
       <span className="view-header-spacer" />
+      <button
+        type="button"
+        className="icon-btn view-header-action"
+        aria-label="New file"
+        title="New file"
+        disabled={!canCreate}
+        onClick={() => create('file')}
+      >
+        <Codicon name="new-file" size={16} />
+      </button>
+      <button
+        type="button"
+        className="icon-btn view-header-action"
+        aria-label="New folder"
+        title="New folder"
+        disabled={!canCreate}
+        onClick={() => create('dir')}
+      >
+        <Codicon name="new-folder" size={16} />
+      </button>
       <button
         type="button"
         className={`icon-btn view-header-action${filterOpen ? ' active' : ''}`}
@@ -57,6 +96,18 @@ function ExplorerHeader(): React.JSX.Element {
         onClick={() => void refreshLoaded()}
       >
         <Codicon name="refresh" size={16} />
+      </button>
+      <button
+        type="button"
+        className="icon-btn view-header-action"
+        aria-label="Collapse all folders"
+        title="Collapse all folders"
+        // Nothing open is not an error, and not a click that quietly does
+        // nothing either — the control simply has no work.
+        disabled={treeHandle === null || expandedCount === 0}
+        onClick={() => treeHandle?.collapseAll()}
+      >
+        <Codicon name="collapse-all" size={16} />
       </button>
     </div>
   );

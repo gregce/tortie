@@ -278,9 +278,15 @@ export interface CapturePaneOptions {
 
 /**
  * Capture the last `lines` of a session's active pane, ANSI colors intact
- * (`-e`). This backfills xterm.js after reattach (T1), feeds scrollback
- * snapshots at quit (FINAL-REPORT §2.4 Step 1) and sources beyond-viewport
- * terminal captures (Phase 12 item 2).
+ * (`-e`). Feeds reboot snapshots at quit (FINAL-REPORT §2.4 Step 2), the
+ * beyond-viewport terminal captures (Phase 12 item 2), and the restore
+ * verification poll.
+ *
+ * It does NOT backfill xterm.js after reattach, whatever this comment said
+ * before Phase 13.7: no caller does that, and it could not work if one tried
+ * — `attach-session` parks the client in the alternate buffer, which has no
+ * scrollback. Reading back through a session goes through tmux copy-mode
+ * (src/main/tmux/scroll.ts), not through this.
  *
  * Range: `-S -<lines>` with NO `-E`, so the capture runs to the bottom of the
  * VISIBLE screen. (`-E -1` ends at the last history line and excludes the

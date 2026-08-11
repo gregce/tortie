@@ -40,6 +40,7 @@ import type {
   KeymapSection
 } from '@shared/keymap';
 import type { LaunchableAgentId } from '@shared/types';
+import { FilterField } from '../controls';
 import { Codicon } from '../icons';
 import { Keycaps } from '../keys';
 import type { ChordContext } from './chords';
@@ -254,36 +255,12 @@ export function KeyboardSection(): React.JSX.Element {
       </p>
 
       <div className="kb-filter">
-        <div className="kb-filter-field">
-          <Codicon name="search" size={14} className="kb-filter-icon" />
-          <input
-            className="input kb-filter-input"
-            type="text"
-            value={query}
-            spellCheck={false}
-            autoComplete="off"
-            placeholder="Filter shortcuts"
-            aria-label="Filter shortcuts"
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape' && query !== '') {
-                e.stopPropagation();
-                setQuery('');
-              }
-            }}
-          />
-          {query !== '' ? (
-            <button
-              type="button"
-              className="kb-filter-clear"
-              aria-label="Clear filter"
-              title="Clear filter"
-              onClick={() => setQuery('')}
-            >
-              <Codicon name="close" size={12} />
-            </button>
-          ) : null}
-        </div>
+        <FilterField
+          className="kb-filter-field"
+          value={query}
+          onChange={setQuery}
+          placeholder="Filter shortcuts"
+        />
       </div>
 
       {visible.length === 0 ? (

@@ -23,6 +23,7 @@ import { cpus } from 'node:os';
 import { join } from 'node:path';
 import { Worker } from 'node:worker_threads';
 import type { IndexedFile, SymbolWorkerData, SymbolWorkerMessage } from './worker';
+import { WORKER_NAMES } from '../proc/identity';
 
 /** Idle time after which the pool gives its threads back. */
 export const IDLE_EVICT_MS = 30 * 60 * 1000;
@@ -132,7 +133,10 @@ export class SymbolPool {
       grammarDir: this.options.grammarDir
     };
     const worker = new Worker(this.options.workerPath ?? defaultWorkerPath(), {
-      workerData
+      workerData,
+      // Phase 13.8: name the thread so a tree-sitter parse storm is
+      // attributable to symbols rather than to "the main process".
+      name: WORKER_NAMES.symbols
     });
     const slot: Slot = {
       worker,

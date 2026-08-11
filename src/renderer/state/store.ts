@@ -29,12 +29,15 @@ import type {
   GmuxLoginItemExtras,
   GmuxProjectCreateExtras,
   GmuxProjectExtras,
+  GmuxScrollbackExtras,
   GmuxSessionExtras,
+  GmuxSettingsExtras,
   GmuxSessionRestoreExtras,
   GmuxSymbolsExtras,
   GmuxViewMenuExtras,
   PopupMenuIcon
 } from '@shared/ipc';
+import { formatScrollbackBytes } from '@shared/scrollback';
 import { showNativeMenu } from '../app/ContextMenu';
 import { cancelPointerDrag } from '../app/split/pointer-drag';
 // Direct module import (NOT ../settings barrel): the barrel re-exports
@@ -326,6 +329,10 @@ export const useApp = create<AppState>((set, get) => {
         GmuxSessionRestoreExtras)
     : null;
 
+  const scrollbackExtras = gmux
+    ? (gmux as typeof gmux & GmuxScrollbackExtras).scrollback ?? null
+    : null;
+
   /**
    * WHEN a session started needing input — ⌘J sorts by it and shows it as a
    * "waiting 4m" age. Main owns the verdict; the renderer only has to notice
@@ -501,6 +508,54 @@ export const useApp = create<AppState>((set, get) => {
       // scraped off the visible pane's byte stream; main now sources them
       // from the same poll that decides status, so HIDDEN sessions have
       // them too.
+      // Phase 13.7 — the two things scrollback is allowed to say unasked.
+      // Both are durability EVENTS with an irreversible consequence, not
+      // readings: output is being thrown away, or it may not be saveable at
+      // all. Each speaks once (main latches them), names what it is about,
+      // and offers the action. There is no counterpart that reports a
+      // healthy state, by design.
+      scrollbackExtras?.onNotice((notice) => {
+        const openSettings = (): void => {
+          void (
+            gmux as (typeof gmux & GmuxSettingsExtras) | undefined
+          )?.openSettings?.();
+        };
+        if (notice.kind === 'discarding') {
+          // A toast is clamped to TWO LINES (S10, .toast-text) and beside the
+          // action button and the dismiss × that is about 29 characters a
+          // line — MEASURED in the running app, where the first two drafts of
+          // this sentence were cut off mid-word with the remedy missing
+          // entirely. So the toast carries only the session and the loss.
+          // What the user must not misunderstand — that a deeper setting
+          // helps the NEXT session, not this one — is the first sentence of
+          // the card [Change depth] opens, which is where they can act on it.
+          const name = notice.sessionName ?? '';
+          const short = name.length > 16 ? `${name.slice(0, 15)}…` : name;
+          get().toast('info', `"${short}" is discarding old output.`, {
+            sticky: true,
+            action: { label: 'Change depth', run: openSettings }
+          });
+          return;
+        }
+        if (notice.kind === 'saved-large') {
+          get().toast(
+            'info',
+            `Saved scrollback is using ${formatScrollbackBytes(notice.bytes ?? 0)}. ` +
+              'You can save less of each session.',
+            {
+              sticky: true,
+              action: { label: 'Open settings', run: openSettings }
+            }
+          );
+          return;
+        }
+        get().toast(
+          'error',
+          'Low disk space — sessions may not be saved when you quit.',
+          { sticky: true }
+        );
+      });
+
       activityExtras?.onActivityChanged?.((updates) => {
         set((s) => {
           const excerpts = { ...s.excerpts };

@@ -28,6 +28,7 @@ import type { IndexedFile } from '../worker';
 
 let root = '';
 let dbPath = '';
+let dbDir = '';
 let persistence: SymbolPersistence;
 
 /** Every path the fake pool was asked to parse, in order, across all builds. */
@@ -111,7 +112,8 @@ const AFTER_WATCH_DEBOUNCE = 700;
 
 beforeEach(() => {
   root = mkdtempSync(join(tmpdir(), 'gmux-symbols-'));
-  dbPath = join(mkdtempSync(join(tmpdir(), 'gmux-symdb-')), 'symbols.db');
+  dbDir = mkdtempSync(join(tmpdir(), 'gmux-symdb-'));
+  dbPath = join(dbDir, 'symbols.db');
   persistence = new SymbolPersistence(dbPath);
   parsed = [];
   mockListing.clear();
@@ -120,6 +122,10 @@ beforeEach(() => {
 afterEach(() => {
   persistence.close();
   rmSync(root, { recursive: true, force: true });
+  // The db lives in its OWN temp dir (SQLite writes -wal/-shm siblings), so
+  // it needs its own cleanup — without this every run left a gmux-symdb-*
+  // directory behind, 288 of them on the machine when Phase 13.8 swept.
+  rmSync(dbDir, { recursive: true, force: true });
 });
 
 describe('SymbolService', () => {

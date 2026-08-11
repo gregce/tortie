@@ -543,47 +543,11 @@
   background: var(--border);
 }
 
+/* The field itself is <FilterField/> (renderer/controls) — glyph, clear
+   button and the padding that keeps them off the text all live there. This
+   page only says how wide it is. */
 .kb-filter-field {
-  position: relative;
   max-width: 560px;
-}
-
-.kb-filter-icon {
-  position: absolute;
-  left: var(--space-4);
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-muted);
-  pointer-events: none;
-}
-
-.kb-filter-input {
-  padding-left: 28px;
-  padding-right: 26px;
-}
-
-.kb-filter-clear {
-  position: absolute;
-  right: var(--space-2);
-  top: 50%;
-  transform: translateY(-50%);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: var(--r-sm);
-  color: var(--text-muted);
-}
-
-.kb-filter-clear:hover {
-  background: var(--bg-raised);
-  color: var(--text-primary);
-}
-
-.kb-filter-clear:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
 }
 
 /* ------------------------------------------------------------- groups */

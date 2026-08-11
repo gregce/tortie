@@ -16,11 +16,11 @@
  * Pure Node (no Electron import) so the pure helpers are unit-testable.
  */
 
-import { execFile } from 'node:child_process';
 import { existsSync, readdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import type { AgentsScanResult, DetectedAgent } from '@shared/types';
+import { runGuarded } from '../proc/guarded';
 import { extraBinDirs, getUserPath, resolveBinaryAgainst } from '../tmux/resolve';
 import type { AgentRegistryEntry, VersionProbe } from './registry';
 import { AGENT_REGISTRY } from './registry';
@@ -136,33 +136,31 @@ export function extractVersion(
   return line ?? null;
 }
 
-/** Run `bin args…`; resolve combined stdout+stderr, or null on failure. */
+/**
+ * Run `bin args…`; resolve combined stdout+stderr, or null on failure.
+ *
+ * Through runGuarded, not execFile (Phase 13.8's leak sweep). An agent CLI is
+ * a node wrapper that may fork; execFile's callback fires on stdio CLOSE, so
+ * one forked child holding stdout would hang the whole availability scan
+ * forever AND leave the fork behind — the same shape as the `zsh -lic` probe
+ * that leaked for 19 hours. runGuarded always settles and kills the group.
+ */
 function execProbe(
   bin: string,
   args: readonly string[],
   pathValue: string
 ): Promise<string | null> {
-  return new Promise((resolve) => {
-    try {
-      execFile(
-        bin,
-        [...args],
-        {
-          timeout: VERSION_PROBE_TIMEOUT_MS,
-          maxBuffer: 256 * 1024,
-          // Node-shebang CLIs need a real PATH to find their interpreter.
-          env: { ...process.env, PATH: pathValue }
-        },
-        (err, stdout, stderr) => {
-          const combined = `${stdout ?? ''}\n${stderr ?? ''}`.trim();
-          // Some CLIs print the version yet exit non-zero; use any output.
-          if (combined.length > 0) resolve(combined);
-          else resolve(err ? null : combined || null);
-        }
-      );
-    } catch {
-      resolve(null);
-    }
+  return runGuarded(bin, args, {
+    timeoutMs: VERSION_PROBE_TIMEOUT_MS,
+    maxOutputBytes: 256 * 1024,
+    // Node-shebang CLIs need a real PATH to find their interpreter.
+    env: { ...process.env, PATH: pathValue }
+  }).then((r) => {
+    const combined = `${r.stdout}\n${r.stderr}`.trim();
+    // Some CLIs print the version yet exit non-zero; use any output. No
+    // output at all is a failed probe whatever the exit code said — the
+    // caller falls back to probe.fallbackArgs on null.
+    return combined.length > 0 ? combined : null;
   });
 }
 

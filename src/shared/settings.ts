@@ -43,6 +43,86 @@ export interface GmuxSettings {
    * first enable of a danger preset confirms, later re-enables don't (S13).
    */
   dangerAcknowledged: string[];
+  /**
+   * How much output each session KEEPS — tmux `history-limit` for panes
+   * created from now on (Phase 13.7). This is what scrolling and capture can
+   * reach; it is not what the terminal preloads on reattach (that is
+   * `savedScrollbackLines`, and the two are independent — see below).
+   *
+   * Applied at PANE CREATION and nowhere else: no tmux option changes the
+   * depth of a pane that already exists (`set -p history-limit` returns 0,
+   * echoes back from `show -p`, and does nothing — measured on 3.6a).
+   */
+  scrollbackLines: number;
+  /**
+   * How much of a session COMES BACK after a restart — the lines captured
+   * into its reboot snapshot. Bounded by quit latency, not disk: the captures
+   * serialise inside the single-threaded tmux server, so 16 sessions at
+   * 50,000 lines is 4.7-9.0 s of beachball on the quit path.
+   */
+  savedScrollbackLines: number;
+}
+
+// ---------------------------------------------------------------------------
+// Scrollback bounds (Phase 13.7) — measured, see docs/research/23-*.md
+// ---------------------------------------------------------------------------
+
+/**
+ * The depth range offered for `scrollbackLines`.
+ *
+ * The ceiling is set by LATENCY, not RAM. Before Phase 13.7 a scrollbar drag
+ * to the top of a deep session ran tmux's per-line copy-mode loop and froze
+ * the whole single-threaded server — 3,958 ms at 200,000 lines. That is fixed
+ * (the drag is now an O(1) absolute seek), but `capture-pane` at quit and the
+ * grid itself still scale with depth: 20 sessions × 100,000 lines of dense
+ * truecolour is 9.2 GB, which a 16 GB machine feels.
+ */
+export const MIN_SCROLLBACK_LINES = 1_000;
+export const MAX_SCROLLBACK_LINES = 100_000;
+export const DEFAULT_SCROLLBACK_LINES = 25_000;
+
+/**
+ * The range offered for `savedScrollbackLines`. The 25,000 ceiling is where
+ * two independent walls arrive together: quit latency (2.3-4.5 s across 16
+ * sessions) and the 64 MB `maxBuffer` on the capture (25.3 MB worst case).
+ */
+export const MIN_SAVED_SCROLLBACK_LINES = 500;
+export const MAX_SAVED_SCROLLBACK_LINES = 25_000;
+export const DEFAULT_SAVED_SCROLLBACK_LINES = 10_000;
+
+function clampInt(value: unknown, min: number, max: number, fallback: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
+  return Math.min(max, Math.max(min, Math.round(value)));
+}
+
+/** Depth for new sessions, clamped. */
+export function clampScrollbackLines(value: unknown): number {
+  return clampInt(
+    value,
+    MIN_SCROLLBACK_LINES,
+    MAX_SCROLLBACK_LINES,
+    DEFAULT_SCROLLBACK_LINES
+  );
+}
+
+/**
+ * Saved depth, clamped — and never deeper than the session keeps, because
+ * saving more than exists is a promise the capture cannot fulfil.
+ */
+export function clampSavedScrollbackLines(
+  value: unknown,
+  scrollbackLines: number
+): number {
+  const ceiling = Math.max(
+    MIN_SAVED_SCROLLBACK_LINES,
+    Math.min(MAX_SAVED_SCROLLBACK_LINES, scrollbackLines)
+  );
+  return clampInt(
+    value,
+    MIN_SAVED_SCROLLBACK_LINES,
+    ceiling,
+    Math.min(DEFAULT_SAVED_SCROLLBACK_LINES, ceiling)
+  );
 }
 
 /** Shallow patch — present keys replace the stored value wholesale. */
@@ -53,7 +133,9 @@ export function defaultGmuxSettings(): GmuxSettings {
     defaultAgent: 'claude',
     hotkeys: {},
     launchDefaults: {},
-    dangerAcknowledged: []
+    dangerAcknowledged: [],
+    scrollbackLines: DEFAULT_SCROLLBACK_LINES,
+    savedScrollbackLines: DEFAULT_SAVED_SCROLLBACK_LINES
   };
 }
 

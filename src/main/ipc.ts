@@ -37,9 +37,14 @@ import type {
 } from '@shared/ipc';
 import {
   EVT_ACTIVITY_CHANGED,
+  EVT_SCROLLBACK_NOTICE,
   EVT_SESSIONS_CHANGED,
   EVT_STATUS_CHANGED
 } from '@shared/ipc';
+import type {
+  ScrollbackStats,
+  SessionScrollbackFacts
+} from '@shared/scrollback';
 // Phase 12.12 item 2 — the View-menu radios render the renderer's one
 // sessions-position truth; ui:sessionsPosition below is how they hear about
 // a change that did not come from the menu itself.
@@ -83,7 +88,21 @@ import {
 } from './manifest';
 // LEAF restore modules only — ./restore/ipc imports this file (no cycles).
 import { restoreSessionInTmux } from './restore/restore';
-import { captureSessionSnapshot, deleteSnapshot } from './restore/snapshots';
+import {
+  captureSessionSnapshot,
+  deleteSnapshot,
+  snapshotsDir
+} from './restore/snapshots';
+import {
+  buildScrollbackReport,
+  readScrollbackStats,
+  readSessionScrollback,
+  ScrollbackWatch,
+  type ScrollbackServiceDeps
+} from './scrollback';
+// DIRECT, not through ./settings — that barrel re-exports ./settings/ipc,
+// which imports ./menu, and this file already imports ./menu.
+import { getSettings, onSettingsUpdated } from './settings/store';
 import * as tmux from './tmux';
 import { gmuxError, isGmuxError } from './tmux';
 import { handle as handleTyped } from './typed-ipc';
@@ -141,6 +160,10 @@ const DEAD_ROW_RESCUE_TIMEOUT_MS = 20_000;
  *    gmux scrolls a session by driving copy-mode, and tmux would otherwise
  *    paint its own amber "[38/261]" box over the transcript's top-right
  *    corner — tmux chrome and tmux vocabulary, in a UI that shows neither.
+ *  - history-limit (Phase 13.7) is the one entry sourced from SETTINGS rather
+ *    than a literal, and it is the one where drift is invisible: the conf's
+ *    number wins on a server that outlived a settings change, and the user
+ *    would see their new depth ignored for days with nothing to look at.
  */
 const BOOT_SERVER_OPTIONS: readonly (readonly [string, string])[] = [
   ['remain-on-exit', 'failed'],
@@ -148,6 +171,27 @@ const BOOT_SERVER_OPTIONS: readonly (readonly [string, string])[] = [
   ['copy-mode-position-format', ''],
   ['mode-style', 'noattr,bg=default,fg=default']
 ];
+
+/**
+ * Push the configured scrollback depth onto the private server.
+ *
+ * `set-option -g` is the ONLY lever that works. Measured on 3.6a:
+ *   - it takes effect immediately for panes created afterwards, with no
+ *     server restart and no reattach — including every session brought back
+ *     by Restore, because `restoreSession` runs `tmux new-session -d`;
+ *   - `set -p history-limit` on a live pane exits 0 AND echoes back from
+ *     `show -p`, and is completely inert. The boundary is PANE CREATION, so
+ *     nothing here can deepen or shrink a session that is already running.
+ */
+async function applyHistoryLimit(lines: number): Promise<void> {
+  await tmux
+    .execTmux(['set-option', '-g', 'history-limit', String(lines)])
+    .catch((err: unknown) => {
+      console.warn(
+        `[gmux] could not set history-limit: ${(err as Error).message}`
+      );
+    });
+}
 
 /**
  * The launch spec's capture mode, as the ONE thing the user actually cares
@@ -183,6 +227,7 @@ async function assertServerOptions(): Promise<void> {
         );
       });
   }
+  await applyHistoryLimit(getSettings().scrollbackLines);
 }
 
 export class GmuxCore {
@@ -207,6 +252,21 @@ export class GmuxCore {
   readonly activity: SessionActivityMonitor;
   /** Loopback channel for injected agent hooks (claude only, §3). */
   readonly hookServer: GmuxHookServer;
+
+  /** Depth last pushed to the server — see the settings subscription. */
+  private appliedScrollbackLines = getSettings().scrollbackLines;
+  private unwatchSettings: (() => void) | null = null;
+
+  /**
+   * Phase 13.7. Latches the one notice scrollback is allowed to volunteer:
+   * a session has started DISCARDING output. Fed by the 1 Hz poll it already
+   * runs — no timer, no extra tmux call.
+   */
+  private readonly scrollbackWatch = new ScrollbackWatch({
+    nameOf: (sessionId) =>
+      this.manifest.getSession(sessionId)?.name ?? null,
+    emit: (notice) => broadcast(EVT_SCROLLBACK_NOTICE, notice)
+  });
 
   private refreshTimer: NodeJS.Timeout | null = null;
   private statusTimer: NodeJS.Timeout | null = null;
@@ -266,9 +326,21 @@ export class GmuxCore {
         void this.reapDeadSession(sessionId, exitCode, deadSignal).then(() => {
           this.scheduleSessionsBroadcast();
         });
+      },
+      onScrollback: (samples) => {
+        this.scrollbackWatch.observe(samples);
       }
     });
     this.wireControlEvents();
+    // Phase 13.7: a depth change has to reach the live server the moment it
+    // is made. Without this the user edits the setting and observes nothing
+    // until the next app launch — for a value that only affects sessions
+    // started from now on, that reads as a broken control.
+    this.unwatchSettings = onSettingsUpdated((settings) => {
+      if (settings.scrollbackLines === this.appliedScrollbackLines) return;
+      this.appliedScrollbackLines = settings.scrollbackLines;
+      void applyHistoryLimit(settings.scrollbackLines);
+    });
   }
 
   /**
@@ -331,6 +403,13 @@ export class GmuxCore {
     await core.startHookChannel();
     await core.refresh();
     core.startStatusWatcher();
+    // Phase 13.7 — one disk check, off the boot path. Boot is the moment
+    // "sessions may not be saved when you quit" can still be acted on, and
+    // this is deliberately the ONLY unprompted sample: the alternative was an
+    // hourly timer, which is a dashboard's heartbeat with no dashboard.
+    setTimeout(() => {
+      void core.scrollbackStats().catch(() => undefined);
+    }, 5_000).unref?.();
     return core;
   }
 
@@ -979,6 +1058,47 @@ export class GmuxCore {
   }
 
   // -------------------------------------------------------------------------
+  // Scrollback facts (Phase 13.7) — pull only, over the control client
+  // -------------------------------------------------------------------------
+
+  /**
+   * What src/main/scrollback needs to answer a question, and nothing more.
+   * `nameOf` doubles as the ownership test: a session on the private socket
+   * that the manifest does not know is not the user's scrollback bill.
+   */
+  private scrollbackDeps(): ScrollbackServiceDeps {
+    return {
+      run: this.runScrollCommand,
+      tmuxIdOf: (sessionId) => this.liveIds.get(sessionId) ?? null,
+      nameOf: (tmuxId) => {
+        const sessionId = this.byTmuxId.get(tmuxId);
+        if (sessionId === undefined) return null;
+        return this.manifest.getSession(sessionId)?.name ?? null;
+      },
+      snapshotsDir,
+      settings: getSettings
+    };
+  }
+
+  async scrollbackStats(): Promise<ScrollbackStats> {
+    const stats = await readScrollbackStats(this.scrollbackDeps());
+    // The disk thresholds ride the samples Settings just paid for, rather
+    // than an hourly timer nobody asked for.
+    this.scrollbackWatch.checkDisk(stats.saved.bytes, stats.diskFreeBytes);
+    return stats;
+  }
+
+  async sessionScrollback(
+    sessionId: string
+  ): Promise<SessionScrollbackFacts | null> {
+    return readSessionScrollback(this.scrollbackDeps(), sessionId);
+  }
+
+  async scrollbackReport(): Promise<string> {
+    return buildScrollbackReport(this.scrollbackDeps());
+  }
+
+  // -------------------------------------------------------------------------
   // Sessions API (used by IPC handlers AND the smoke harness)
   // -------------------------------------------------------------------------
 
@@ -1380,6 +1500,8 @@ export class GmuxCore {
     }
     for (const watch of this.idCaptureWatches.values()) watch.cancel();
     this.idCaptureWatches.clear();
+    this.unwatchSettings?.();
+    this.unwatchSettings = null;
     this.activity.dispose();
     this.hookServer.stop();
     this.attachHost.disposeAll();
@@ -1617,6 +1739,15 @@ export function registerIpcHandlers(): void {
   handle('terminal:scrollLive', async (_e, sessionId) =>
     (await getGmuxCore()).scrollLive(sessionId)
   );
+
+  // Scrollback facts (Phase 13.7). ALL THREE ARE PULL. There is deliberately
+  // no subscription here: the Settings card asks when it opens, the session
+  // menu asks when it is opened, and Copy details asks when it is clicked.
+  handle('scrollback:stats', async () => (await getGmuxCore()).scrollbackStats());
+  handle('scrollback:session', async (_e, sessionId) =>
+    (await getGmuxCore()).sessionScrollback(sessionId)
+  );
+  handle('scrollback:report', async () => (await getGmuxCore()).scrollbackReport());
 
   // Phase 13: the user typed into a session, so whatever it was blocked on
   // has an answer. Clears needs_input without waiting for echo — the Phase

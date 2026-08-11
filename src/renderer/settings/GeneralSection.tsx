@@ -8,6 +8,7 @@ import React, { useEffect, useState } from 'react';
 import type { GmuxLoginItemExtras } from '@shared/ipc';
 import type { LaunchableAgentKind } from '@shared/types';
 import { keyDisplay } from '@shared/keymap';
+import { ScrollbackSection } from './ScrollbackSection';
 import { useSettingsStore } from './settings-store';
 import { Switch } from './Switch';
 
@@ -142,6 +143,12 @@ export function GeneralSection(): React.JSX.Element {
       <div className="set-card">
         <DefaultAgentRow />
       </div>
+
+      {/* Phase 13.7. A third GROUP, not a fourth nav section: the one figure
+          this feature shows is evidence for the choice being made in this
+          card, and a nav item called Diagnostics is a dashboard by another
+          name (ZEN-OF-TORTIE). */}
+      <ScrollbackSection />
     </section>
   );
 }

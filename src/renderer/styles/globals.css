@@ -188,12 +188,28 @@ textarea {
 
 /* ---------------------------------------------------------------------------
    Inputs (DESIGN.md §3) — 28px, bg-surface, border-strong, r-sm, 13px.
+
+   THE INLINE PADDING IS A PAIR OF TOKENS, NOT A SHORTHAND, and that is the
+   whole point (Phase 14.2). `.input { padding: 0 var(--space-4) }` is a
+   landmine for every variant that needs room for a leading glyph: a
+   `padding-left` written in another stylesheet has the SAME specificity, so
+   which one wins is decided by which file the bundler happens to put last.
+   Measured: `.kb-filter-input { padding-left: 28px }` won in the packaged
+   build (globals.css links first) and LOST under `npm run dev`, where Vite
+   injects each import as a <style> in module-evaluation order and
+   settings/main.tsx reaches settings.css before ../styles/globals.css — so
+   the Settings keyboard filter's magnifier sat on the "F" of "Filter
+   shortcuts". A custom property cannot be clobbered that way: the shorthand
+   is gone, and every variant states its intent as `--input-pad-start`.
 --------------------------------------------------------------------------- */
 
 .input {
+  --input-pad-start: var(--space-4);
+  --input-pad-end: var(--space-4);
   height: 28px;
   width: 100%;
-  padding: 0 var(--space-4);
+  padding-block: 0;
+  padding-inline: var(--input-pad-start) var(--input-pad-end);
   background: var(--bg-surface);
   border: 1px solid var(--border-strong);
   border-radius: var(--r-sm);

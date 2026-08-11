@@ -24,3 +24,10 @@ export { useFileTree } from './store';
  */
 export { useTreeHandle } from './tree-handle';
 export type { TreeHandle } from './tree-handle';
+/**
+ * Feature detection for the Phase 12.9 mutation channels — the Explorer
+ * header's New File / New Folder disable themselves on a preload that
+ * predates them, exactly as the context menu hides its verb set.
+ */
+export { canMutate } from './fs-ops-bridge';
+export { expandedDirs, headerDestDir } from './header-actions';

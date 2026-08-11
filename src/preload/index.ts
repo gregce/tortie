@@ -40,6 +40,7 @@ import type {
   GmuxProjectCreateExtras,
   GmuxQuickOpenExtras,
   GmuxQuitExtras,
+  GmuxScrollbackExtras,
   GmuxScrollExtras,
   GmuxSearchExtras,
   GmuxSymbolsExtras,
@@ -61,6 +62,7 @@ import {
   EVT_GIT_CHANGED,
   EVT_MENU_ACTION,
   EVT_QUIT_REQUESTED,
+  EVT_SCROLLBACK_NOTICE,
   EVT_SESSIONS_CHANGED,
   EVT_SETTINGS_CHANGED,
   EVT_STATUS_CHANGED,
@@ -71,6 +73,7 @@ import {
 } from '../shared/ipc';
 import type { SymbolIndexProgress } from '../shared/symbols';
 import type { GmuxSettings } from '../shared/settings';
+import type { ScrollbackNotice } from '../shared/scrollback';
 
 /**
  * THE typed wrapper over ipcRenderer.invoke — spans every channel in
@@ -256,6 +259,24 @@ const scroll: NonNullable<GmuxScrollExtras['scroll']> = {
 };
 
 /**
+ * scrollback surface (Phase 13.7). Three PULLS and one rare event — there is
+ * no poll and no subscription to a figure, because ZEN-OF-TORTIE forbids a
+ * number that rises on its own. `onNotice` carries only crossed thresholds.
+ */
+const scrollback: NonNullable<GmuxScrollbackExtras['scrollback']> = {
+  stats: () => invoke('scrollback:stats'),
+  session: (sessionId) => invoke('scrollback:session', sessionId),
+  report: () => invoke('scrollback:report'),
+  onNotice: (cb) => {
+    const listener = (_e: IpcRendererEvent, notice: ScrollbackNotice): void => {
+      cb(notice);
+    };
+    ipcRenderer.on(EVT_SCROLLBACK_NOTICE, listener);
+    return () => ipcRenderer.removeListener(EVT_SCROLLBACK_NOTICE, listener);
+  }
+};
+
+/**
  * search surface (Phase 14) — streaming ⌘⇧F.
  *
  * `onResults` takes the searchId the CALLER minted and is meant to be called
@@ -349,6 +370,7 @@ const api: GmuxApi &
   GmuxSearchExtras &
   GmuxSymbolsExtras &
   GmuxQuickOpenExtras &
+  GmuxScrollbackExtras &
   GmuxViewMenuExtras = {
   sessions,
   projects,
@@ -361,6 +383,7 @@ const api: GmuxApi &
   search,
   symbols,
   quickOpen,
+  scrollback,
   pathForFile: (file: File): string => {
     try {
       return webUtils.getPathForFile(file);

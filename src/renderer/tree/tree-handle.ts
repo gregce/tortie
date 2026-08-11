@@ -31,6 +31,14 @@ export interface TreeHandle {
   paths(): string[];
   /** Start an inline rename on a row (F2's path). */
   startRename(canonical: string): void;
+  /**
+   * Where a HEADER create lands: the selected folder, the selected file's
+   * parent, or '' for the project root. The header has no row under the
+   * pointer, so the destination comes from the selection (header-actions.ts).
+   */
+  newEntryTarget(): string;
+  /** Close every open folder. Returns how many were closed. */
+  collapseAll(): number;
   /** The tree's shadow root, for the probe's rename-input gesture. */
   shadowRoot(): ShadowRoot | null;
 }
@@ -39,17 +47,33 @@ interface TreeHandleState {
   handle: TreeHandle | null;
   /** True while the filter field is open — the header button reads as active. */
   filterOpen: boolean;
+  /**
+   * How many folders are open right now. The header's Collapse All is
+   * DISABLED at zero rather than clicking to no effect, and a count is the
+   * only thing that can say so — the mounted tree pushes it on every model
+   * emit (FileTree's expansion watch already computes the set).
+   */
+  expandedCount: number;
   register(handle: TreeHandle | null): void;
   setFilterOpen(open: boolean): void;
+  setExpandedCount(count: number): void;
 }
 
 export const useTreeHandle = create<TreeHandleState>((set) => ({
   handle: null,
   filterOpen: false,
+  expandedCount: 0,
   register(handle) {
-    set(handle === null ? { handle: null, filterOpen: false } : { handle });
+    set(
+      handle === null
+        ? { handle: null, filterOpen: false, expandedCount: 0 }
+        : { handle }
+    );
   },
   setFilterOpen(open) {
     set({ filterOpen: open });
+  },
+  setExpandedCount(count) {
+    set((s) => (s.expandedCount === count ? s : { expandedCount: count }));
   }
 }));

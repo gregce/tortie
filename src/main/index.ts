@@ -24,6 +24,11 @@
  *                       kill out-of-band → restore → prove the conversation
  *                       came back. `npm run conformance:resume`; the harness
  *                       itself is src/main/conformance/resume.ts.
+ *  - GMUX_SMOKE=procid  what the OUTSIDE world sees of gmux (Phase 13.8):
+ *                       app name, process.title, what `ps` prints, and the
+ *                       gmux-owned process list (app + helpers + private tmux
+ *                       server + sessions + strays). Read-only unless
+ *                       GMUX_PROCID_REAP=1, which also runs the boot reap.
  *  - GMUX_SHOT=<path>   capturePage after 3 s (GMUX_SHOT_DELAY_MS) → PNG → quit
  *                       (GMUX_SHOT_CAPTURE_OUT=<path> additionally writes the
  *                       image a DRIVEN capture produced — see shot-hook.ts)
@@ -60,6 +65,15 @@ import { disposeSymbolsIpc, registerSymbolsIpc } from './symbols';
 import { openSettingsWindow, registerSettingsIpc } from './settings';
 import { disposeTray, installTray } from './tray';
 import * as tmux from './tmux';
+import { applyProcessIdentity } from './proc/identity';
+import { reapGuardedChildren } from './proc/guarded';
+import { reapOrphanedTmuxClients } from './proc/orphans';
+
+// Phase 13.8: say our name before anything else runs — app.setName feeds the
+// menu bar, the About panel and app.getPath('userData'), and process.title is
+// what makes a DEV run greppable as gmux (see proc/identity.ts for the honest
+// account of what dev mode cannot rename).
+applyProcessIdentity(app);
 
 // `gmux-asset:` (markdown images) must be declared before the app is ready —
 // Electron throws if registerSchemesAsPrivileged runs later. The handler
@@ -1021,6 +1035,78 @@ async function runSmokeIdentity(): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Process-identity harness — GMUX_SMOKE=procid (Phase 13.8)
+// ---------------------------------------------------------------------------
+//
+// Prints what the OUTSIDE WORLD sees of this process, from inside it: the
+// name Electron thinks it has, the argv[0] `ps` will show, the executable
+// Activity Monitor reads its label from, and the gmux-owned process list the
+// diagnostics surface consumes. Strictly read-only — it never boots the
+// durable core, never creates or kills a session, and only ever asks tmux to
+// LIST. Safe to run against a machine full of the user's live work.
+//
+// Run it in both worlds; the answers are meant to differ:
+//   npm run smoke:procid
+//   GMUX_SMOKE=procid release/mac-arm64/gmux.app/Contents/MacOS/gmux
+async function runSmokeProcId(): Promise<void> {
+  armWatchdog(20_000);
+  try {
+    const { listGmuxProcesses } = await import('./diagnostics/owned-processes');
+    const { runGuarded } = await import('./proc/guarded');
+
+    smokeLog(`app.getName()      ${app.getName()}`);
+    smokeLog(`process.title      ${process.title}`);
+    smokeLog(`app.isPackaged     ${String(app.isPackaged)}`);
+    smokeLog(`process.execPath   ${process.execPath}`);
+
+    // What `ps` says about US — comm= is the executable (what Activity
+    // Monitor's name follows), command= is argv[0] (what pgrep -f matches).
+    const self = await runGuarded(
+      '/bin/ps',
+      ['-p', String(process.pid), '-o', 'comm=,command='],
+      { timeoutMs: 5_000 }
+    );
+    smokeLog(`ps -o comm,command ${self.stdout.trim()}`);
+
+    const rows = await listGmuxProcesses();
+    smokeLog(`owned processes    ${rows.length}`);
+    for (const r of rows) {
+      const mb = (r.rssBytes / (1024 * 1024)).toFixed(1);
+      const where = r.sessionName !== undefined ? ` [${r.sessionName}]` : '';
+      smokeLog(
+        `  ${String(r.pid).padStart(6)} ${r.role.padEnd(14)} ${mb.padStart(7)} MB${where}  ${r.command.slice(0, 96)}`
+      );
+    }
+    // Opt-in second half: run the boot reap this harness otherwise only
+    // reports on, so the destructive path is executable and observable
+    // WITHOUT starting a whole app. GMUX_PROCID_REAP=1.
+    if (process.env['GMUX_PROCID_REAP'] === '1') {
+      const { reapOrphanedTmuxClients } = await import('./proc/orphans');
+      const before = rows.filter(
+        (r) => r.role === 'orphan-client' || r.role === 'orphan-probe'
+      ).length;
+      const result = await reapOrphanedTmuxClients();
+      smokeLog(
+        `reap: ${before} stray process(es) before; found ${result.found.length} client(s) + ${result.probes.length} stranded probe(s), signalled ${result.signalled.length}${result.skipped !== undefined ? ` (skipped: ${result.skipped})` : ''}`
+      );
+      const after = (await listGmuxProcesses()).filter(
+        (r) => r.role === 'orphan-client' || r.role === 'orphan-probe'
+      ).length;
+      smokeLog(`reap: ${after} stray process(es) after`);
+    }
+
+    smokeLog(
+      process.env['GMUX_PROCID_REAP'] === '1'
+        ? 'PASS (procid) — identity printed, strays cleared'
+        : 'PASS (procid) — identity printed, nothing was signalled'
+    );
+    app.exit(0);
+  } catch (err) {
+    smokeFail(err);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Screenshot harness — GMUX_SHOT=<path>
 // ---------------------------------------------------------------------------
 
@@ -1241,6 +1327,8 @@ app.whenReady().then(async () => {
   if (smoke === 't3-verify') return runSmokeT3Verify();
   if (smoke === 'agent') return runSmokeAgent();
   if (smoke === 'identity') return runSmokeIdentity();
+  // Phase 13.8: what the outside world sees of gmux (read-only).
+  if (smoke === 'procid') return runSmokeProcId();
   // Phase 13.5 item 5 — `npm run conformance:resume`. Lives in
   // src/main/conformance/ rather than here: it is a per-agent matrix with its
   // own report format, not a pass/fail smoke, and it is the one harness meant
@@ -1262,6 +1350,13 @@ app.whenReady().then(async () => {
   getGmuxCore().catch((err: unknown) => {
     console.error(`[gmux] core boot failed: ${(err as Error).message}`);
   });
+
+  // Phase 13.8: detach tmux clients that previous runs left attached to the
+  // private server (12 of them were found alive on the reporting machine,
+  // one per launch that ended abruptly). Clients only — sessions are never
+  // touched — and only ones no live gmux owns. See proc/orphans.ts for the
+  // four safety conditions. Fire-and-forget: it must never delay the window.
+  void reapOrphanedTmuxClients().catch(() => undefined);
 
   mainWindow = createWindow();
 
@@ -1310,6 +1405,12 @@ app.on('before-quit', (event) => {
     disposeSearchIpc(); // SIGKILL any in-flight ripgrep
     void disposeQuickOpenIpc(); // terminate the ⌘P ranking worker
     void disposeSymbolsIpc(); // terminate the tree-sitter pool, close its db
+    // Phase 13.8: any question-asking child still in flight (login-shell PATH
+    // probe, an agent `--version`, cursor's create-chat) dies WITH the app.
+    // This is the hole the 19-hour `zsh -lic` orphans came through: their
+    // deadline was pending and the timer died with the process that set it.
+    const reaped = reapGuardedChildren();
+    if (reaped > 0) console.log(`[gmux] reaped ${reaped} in-flight probe(s)`);
     disposeTray();
     app.quit();
   })();

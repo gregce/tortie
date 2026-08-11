@@ -16,7 +16,18 @@
  *   Capture Last 250 Lines         ┐ always offered — the pane's history is
  *   Capture Last 1000 Lines        ┘ in the tmux server, not in this client
  *   ──────────
+ *   Scrollback  4,210 of 25,000 lines · about 1.5 MB   (informational)
  *   Clear                   ⌘K
+ *
+ * THE SCROLLBACK LINE IS THE WHOLE PER-SESSION DIAGNOSTIC (Phase 13.7). It is
+ * not a badge, a tooltip or a hover — docs/ZEN-OF-TORTIE.md refuses a number
+ * that rises on its own, and a table of every session ranked by memory is "a
+ * supervisor's console", refused by name. So the figure exists only for the
+ * one session the user explicitly right-clicked, only while that menu is
+ * open, and it sits directly above the remediation it motivates. It is read
+ * on demand — one `display-message` over the control client, ~1 ms — and if
+ * that read fails or is slow the item is simply absent, because no number is
+ * better than a stale one.
  *
  * The `ui:popupMenu` bridge renders a FLAT list — `PopupMenuItem` has no
  * submenu field — so the line-count presets ship as sibling items, exactly as
@@ -24,6 +35,9 @@
  */
 
 import type { Session } from '@shared/types';
+import type { GmuxScrollbackExtras } from '@shared/ipc';
+import type { SessionScrollbackFacts } from '@shared/scrollback';
+import { formatScrollbackSummary } from '@shared/scrollback';
 import { acceleratorToDisplay, keyDisplay } from '@shared/keymap';
 import type { MenuItemSpec } from '../state/store';
 import { useApp } from '../state/store';
@@ -65,6 +79,11 @@ async function splitSession(session: Session): Promise<void> {
 export interface TerminalMenuOptions {
   /** Whether this session can still be split (false for ended sessions). */
   splittable?: boolean;
+  /**
+   * What this session is holding, if it could be read in time (Phase 13.7).
+   * Absent → the informational row is omitted entirely.
+   */
+  scrollback?: SessionScrollbackFacts | null;
 }
 
 /** Items for the session context menu. Pure — the caller positions the menu. */
@@ -138,7 +157,18 @@ export function terminalMenuItems(
     }
   }
 
-  items.push('sep', {
+  items.push('sep');
+  const facts = options.scrollback;
+  if (facts != null && facts.limit > 0) {
+    items.push({
+      // Disabled because it is a fact, not a verb. It reads as the caption of
+      // the Clear below it, which is exactly what it is.
+      label: formatScrollbackSummary(facts),
+      disabled: true,
+      run: () => undefined
+    });
+  }
+  items.push({
     label: 'Clear',
     hint: keyDisplay('terminal.clear'),
     disabled: !live,
@@ -148,6 +178,36 @@ export function terminalMenuItems(
   return items;
 }
 
+/** The scrollback bridge, or null on a preload that predates it. */
+function scrollbackBridge():
+  | NonNullable<GmuxScrollbackExtras['scrollback']>
+  | null {
+  return (
+    (window.gmux as (Window['gmux'] & GmuxScrollbackExtras) | undefined)
+      ?.scrollback ?? null
+  );
+}
+
+/**
+ * A menu must not wait on IPC. 150 ms is far beyond the ~1 ms this read costs
+ * over the control client, and a session whose server is wedged loses the
+ * information row rather than the menu.
+ */
+const SCROLLBACK_READ_BUDGET_MS = 150;
+
+async function readScrollbackForMenu(
+  sessionId: string
+): Promise<SessionScrollbackFacts | null> {
+  const api = scrollbackBridge();
+  if (api === null) return null;
+  return Promise.race([
+    api.session(sessionId).catch(() => null),
+    new Promise<null>((resolve) =>
+      setTimeout(() => resolve(null), SCROLLBACK_READ_BUDGET_MS)
+    )
+  ]);
+}
+
 /** Open the session menu at a pointer position. */
 export function showTerminalMenu(
   session: Session,
@@ -155,9 +215,13 @@ export function showTerminalMenu(
   y: number,
   options?: TerminalMenuOptions
 ): void {
-  useApp
-    .getState()
-    .setMenu({ x, y, items: terminalMenuItems(session, options) });
+  void readScrollbackForMenu(session.id).then((scrollback) => {
+    useApp.getState().setMenu({
+      x,
+      y,
+      items: terminalMenuItems(session, { ...options, scrollback })
+    });
+  });
 }
 
 /** False once this session's surface is already holding MAX_LEAVES splits. */

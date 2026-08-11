@@ -218,6 +218,43 @@ describe('captureLoginShellPath — fallback', () => {
     );
   });
 
+  /**
+   * The variant 13.5.1 left open and Phase 13.8 closed. The 13.5.1 deadline
+   * was cancelled on the child's 'exit', which is the WRONG event: a shell
+   * that forks a stdout-holder and then exits itself (rc file runs `foo &`
+   * and the printf never happens) cancels the deadline, never reaches
+   * 'close', and so settles never and reaps nothing. Same two assertions as
+   * above, but the leader is gone before the deadline would have fired.
+   */
+  it('shell that forks then EXITS without markers → still settles, and kills the fork', async () => {
+    const shell = join(root, 'fork-and-exit-shell');
+    const pidFile = join(root, 'orphan.pid');
+    writeFileSync(
+      shell,
+      '#!/bin/sh\n' +
+        '# Fork a child that inherits stdout, then leave. The pipe stays open\n' +
+        "# because of the fork, so 'close' never fires — only 'exit' does.\n" +
+        'sleep 30 &\n' +
+        `echo $! > ${pidFile}\n` +
+        'exit 0\n'
+    );
+    chmodSync(shell, 0o755);
+    const started = Date.now();
+    const captured = await captureLoginShellPath({ shell, timeoutMs: 300 });
+    const elapsed = Date.now() - started;
+    assert.ok(elapsed < 5_000, `did not settle: waited ${elapsed} ms`);
+    assert.ok(captured.split(delimiter).includes('/usr/bin'));
+
+    const orphan = Number(readFileSync(pidFile, 'utf8').trim());
+    assert.ok(Number.isFinite(orphan) && orphan > 0, 'no forked pid');
+    await new Promise((r) => setTimeout(r, 1_200));
+    assert.throws(
+      () => process.kill(orphan, 0),
+      /ESRCH/,
+      `fork ${orphan} outlived the probe deadline`
+    );
+  });
+
   it('shell that prints garbage (no markers) → fallback', async () => {
     const shell = join(root, 'garbage-shell');
     writeFileSync(shell, '#!/bin/sh\necho "not a path in sight"\n');

@@ -15,7 +15,9 @@
  *   finishes writing it, via the optional `term.ack` bridge method — the
  *   attach host pauses the PTY when too many bytes are unacked.
  * - Theme/fonts come from CSS custom properties with DESIGN.md §1.6 dark
- *   defaults (see ./theme.ts). Scrollback 10k (tmux holds 50k server-side).
+ *   defaults (see ./theme.ts). The xterm scrollback option there is INERT —
+ *   this client lives in the alternate buffer, which has no scrollback — so
+ *   the real depth is tmux's, and it is scrolled through ./scroll/.
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';

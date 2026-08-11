@@ -364,8 +364,34 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
       });
   };
 
+  /**
+   * Open the destination and everything above it, so the placeholder row is
+   * somewhere the user can actually see.
+   *
+   * MEASURED (Phase 14.2, live probe): aim a create at a COLLAPSED folder and
+   * the row is added, `startRenaming` is accepted, and nothing appears —
+   * a collapsed folder renders no children, so the rename input is never
+   * mounted and the gesture dead-ends. It was always reachable through the
+   * context menu on a closed folder; the header's New File / New Folder made
+   * it the common case, because a toolbar button aims at whatever happens to
+   * be selected. Fixed in the shared verb, so both entry points inherit it.
+   */
+  const revealDestination = (destDirCanonical: string): void => {
+    if (destDirCanonical === '') return; // the root is always open
+    const segments = destDirCanonical.split('/').filter((s) => s.length > 0);
+    let prefix = '';
+    for (const segment of segments) {
+      prefix += segment + '/';
+      const item = ctx.model.getItem(prefix);
+      if (item === null || !item.isDirectory()) continue;
+      const dir = item as FileTreeDirectoryHandle;
+      if (!dir.isExpanded()) dir.expand();
+    }
+  };
+
   return {
     newEntry(destDirCanonical, kind) {
+      revealDestination(destDirCanonical);
       const base = kind === 'dir' ? 'untitled folder' : 'untitled';
       const name = uniqueName(base, siblingNames(destDirCanonical));
       const placeholder = destDirCanonical + toCanonical(name, kind === 'dir');

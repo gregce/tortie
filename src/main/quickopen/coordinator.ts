@@ -13,6 +13,7 @@ import { Worker } from 'node:worker_threads';
 import { resolve as resolvePath } from 'node:path';
 import type { QuickOpenQueryInput, QuickOpenResult } from '@shared/ipc';
 import type { QuickOpenRequest, QuickOpenResponse } from './protocol';
+import { WORKER_NAMES } from '../proc/identity';
 
 export interface QuickOpenDeps {
   /** Absolute path to the ripgrep binary (src/main/search/resolve.ts). */
@@ -142,6 +143,10 @@ export function createQuickOpenCoordinator(
     // main-process worker starts.
     const w = new Worker(entry, {
       workerData: { rgPath },
+      // Phase 13.8: a named thread is an attributable CPU spike. Node appends
+      // this to the worker's title, so an inspector target or a thread dump
+      // says WHICH subsystem is hot instead of "worker 1".
+      name: WORKER_NAMES.quickOpen,
       // The worker is a background helper; it must never be the reason the
       // app takes an extra beat to quit.
       stdout: false,

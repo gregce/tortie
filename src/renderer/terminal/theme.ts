@@ -54,7 +54,27 @@ export const TERMINAL_FONT_FALLBACK =
 export const TERMINAL_FONT_SIZE = 13;
 export const TERMINAL_LINE_HEIGHT = 1.25;
 export const TERMINAL_LETTER_SPACING = 0;
-/** Renderer-side cap; tmux holds the full 50k lines server-side. */
+/**
+ * INERT, and kept as insurance only (Phase 13.7, measured).
+ *
+ * `tmux attach` opens with `ESC[?1049h`, so every gmux pane's xterm lives in
+ * its ALTERNATE buffer for the whole session, and xterm's alternate buffer
+ * has no scrollback by construction. This number caps the NORMAL buffer,
+ * which never receives a line. Measured in the real app: after pushing
+ * 50,000 lines through a live pane, `bufferType` was still "alternate",
+ * `normalLength` was still 42, and renderer RSS moved 5.6 MB (transient parse
+ * churn) rather than the +125 MB retaining them would cost.
+ *
+ * It is therefore NOT a scrollback setting and is deliberately not offered in
+ * Settings — a placebo lever is the worst thing to teach a user. What the
+ * user can actually scroll back through is tmux's `history-limit`
+ * (Settings → General → Scrollback depth); what comes back after a restart is
+ * `savedScrollbackLines`. Both are independent of this constant.
+ *
+ * Left in place because xterm's CircularList grows lazily, so it allocates
+ * nothing, and it would be real insurance if a pane ever landed in the normal
+ * buffer.
+ */
 export const TERMINAL_SCROLLBACK = 10000;
 
 /**

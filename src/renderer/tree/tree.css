@@ -43,13 +43,24 @@
 
 /* Tree viewport — the Pierre host owns scrolling inside this box
    (:host([data-file-tree-virtualized]) is height:100%). The column is for the
-   filter's own status line, which sits under the rows. */
+   filter's own status line, which sits under the rows.
+
+   THE 8px AT THE TOP is Phase 14.2 item 2.
+   MEASURED: the filter field's border was landing 1 CSS px below the band's
+   hairline, welding a control to a title bar. The field is ALWAYS rendered
+   (@pierre/trees mounts its search container whenever `search: true`; the
+   header toggle only focuses it and flips `data-open`), so this padding is
+   unconditional — an earlier version gated it on the filter being open and
+   left the cramped state exactly where the user found it.
+   8px is the same step the Search view puts between its band and its query
+   box (search.css `.search-body`), so the sidebar views read as one rhythm
+   rather than three opinions. */
 .files-tree {
   display: flex;
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  padding: 0 var(--space-2) var(--space-2);
+  padding: var(--space-4) var(--space-2) var(--space-2);
 }
 
 .files-tree > file-tree-container {

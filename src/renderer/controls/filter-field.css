@@ -1,0 +1,71 @@
+/*
+ * The shared filter field (Phase 14.2) — a `.input` with a leading glyph and
+ * a clear button.
+ *
+ * ONE GEOMETRY, DERIVED, NOT GUESSED. The input's start padding is computed
+ * from the icon's own size and inset, so the glyph and the text can never
+ * drift apart: change the icon size in one place and the text moves with it.
+ * The end padding is computed the same way from the clear button, and is
+ * reserved whether or not the button is showing — an empty field has nothing
+ * to push out of the way, and a field that resized itself as you typed the
+ * first character would be worse than the 18px it saves.
+ *
+ * Both are written into `--input-pad-start` / `--input-pad-end`, the tokens
+ * `.input` reads for its padding — never as a `padding-left`, which is
+ * exactly the shorthand collision this phase exists to end (globals.css).
+ */
+
+.field {
+  /* The leading glyph: 14px on a 28px control, inset by the same 8px the
+     bare `.input` uses for its text. */
+  --field-icon-size: 14px;
+  --field-icon-inset: var(--space-4);
+  /* The trailing clear button: a 20px hit area, 4px off the border. */
+  --field-clear-size: 20px;
+  --field-clear-inset: var(--space-2);
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+.field > .input {
+  --input-pad-start: calc(
+    var(--field-icon-inset) + var(--field-icon-size) + var(--space-3)
+  );
+  --input-pad-end: calc(
+    var(--field-clear-inset) + var(--field-clear-size) + var(--space-1)
+  );
+}
+
+.field-icon {
+  position: absolute;
+  inset-inline-start: var(--field-icon-inset);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.field-clear {
+  position: absolute;
+  inset-inline-end: var(--field-clear-inset);
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--field-clear-size);
+  height: var(--field-clear-size);
+  border-radius: var(--r-sm);
+  color: var(--text-muted);
+}
+
+.field-clear:hover {
+  background: var(--bg-raised);
+  color: var(--text-primary);
+}
+
+.field-clear:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}

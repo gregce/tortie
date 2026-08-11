@@ -13,6 +13,11 @@ artifactName: ${productName}-${version}-${arch}.${ext}
 directories:
   output: release
   buildResources: build
+# Phase 13.8: electron-builder renames the helper BUNDLES and executables from
+# productName but leaves their Info.plist CFBundleName at "Electron Helper (…)".
+# This hook makes the two agree so every gmux process answers to gmux however
+# macOS is asked. See build/after-pack.cjs.
+afterPack: build/after-pack.cjs
 files:
   - out/**
   - package.json

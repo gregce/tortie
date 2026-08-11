@@ -78,6 +78,7 @@ import { beginTreeDrag } from '../terminal/drop/tree-drag';
 import { isConflicted, openModeFor, pierreGitStatus } from './decorations';
 import { canReveal, reveal } from './fs-bridge';
 import { canDuplicate, canMutate } from './fs-ops-bridge';
+import { expandedDirs, headerDestDir } from './header-actions';
 import { requestOpenFile } from './open-file';
 import { FOLDER_ICON_CSS, getPierreTreeIcons } from './pierre-icons';
 import { useFileTree } from './store';
@@ -530,6 +531,21 @@ export function FileTree({
   // ----- expansion watch: lazy listing + persistence ----------------------
   const expandedRef = useRef<Set<string>>(new Set(initial.expanded));
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const setExpandedCount = useTreeHandle((s) => s.setExpandedCount);
+  /**
+   * Every folder the model currently has open. Three callers need exactly
+   * this walk — the lazy-listing watch, the persisted expansion set, and the
+   * header's Collapse All — and they must never disagree about what "open"
+   * means, so they ask the same function.
+   */
+  const openDirs = useCallback(
+    (): string[] =>
+      expandedDirs(
+        fedRef.current,
+        (path) => asDirectory(model.getItem(path))?.isExpanded() === true
+      ),
+    [model]
+  );
   useEffect(() => {
     let scheduled = false;
     const check = (): void => {
@@ -538,13 +554,10 @@ export function FileTree({
       // placeholder row back out with no callback at all; this is where that
       // gesture's hold on the diff is noticed and freed.
       opsRef.current?.settle();
-      const expanded: string[] = [];
-      for (const path of fedRef.current) {
-        if (!path.endsWith('/')) continue;
-        if (asDirectory(model.getItem(path))?.isExpanded() === true) {
-          expanded.push(path);
-        }
-      }
+      const expanded = openDirs();
+      // What the header's Collapse All reads to know whether it has anything
+      // to do — same walk, no second source of truth.
+      setExpandedCount(expanded.length);
       for (const dir of expanded) {
         if (!expandedRef.current.has(dir)) {
           void loadDir(rootPath + '/' + dir.slice(0, -1));
@@ -572,7 +585,7 @@ export function FileTree({
         saveExpanded(rootPath, [...expandedRef.current]);
       }
     };
-  }, [model, rootPath, loadDir]);
+  }, [model, rootPath, loadDir, openDirs, setExpandedCount]);
 
   // ----- the name filter ---------------------------------------------------
   const search = useFileTreeSearch(model);
@@ -592,13 +605,22 @@ export function FileTree({
       ops,
       paths: () => [...fedRef.current],
       startRename: (canonical) => ops.startRename(canonical),
+      newEntryTarget: () => headerDestDir(model.getSelectedPaths()),
+      collapseAll: () => {
+        // Deepest first, so a parent is never closed out from under a child
+        // that is still open — Collapse All has to leave NOTHING expanded, or
+        // re-opening one folder spills a whole subtree back.
+        const open = openDirs().sort((a, b) => b.length - a.length);
+        for (const path of open) asDirectory(model.getItem(path))?.collapse();
+        return open.length;
+      },
       shadowRoot: () =>
         hostRef.current?.querySelector('file-tree-container')?.shadowRoot ??
         null
     });
     return () => registerHandle(null);
     // opsCreated re-runs this once the verbs exist (the effect above).
-  }, [model, rootPath, registerHandle, opsCreated]);
+  }, [model, rootPath, registerHandle, openDirs, opsCreated]);
 
   useEffect(() => {
     setFilterOpen(search.isOpen);

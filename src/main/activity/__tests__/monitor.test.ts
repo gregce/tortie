@@ -36,6 +36,9 @@ interface FakePane {
   keypad?: boolean;
   alternate?: boolean;
   inMode?: boolean;
+  /** `#{history_size}` / `#{history_limit}` — Phase 13.7's two extra fields. */
+  historySize?: number;
+  historyLimit?: number;
   command?: string;
   title?: string;
 }
@@ -72,6 +75,8 @@ class Harness {
               p.keypad === true ? '1' : '0',
               p.alternate === true ? '1' : '0',
               p.inMode === true ? '1' : '0',
+              String(p.historySize ?? 0),
+              String(p.historyLimit ?? 25_000),
               p.command ?? 'zsh',
               p.title ?? ''
             ].join('\t')
@@ -420,6 +425,8 @@ describe('cost', () => {
               '1',
               '0',
               '0',
+              '0',
+              '25000',
               'zsh',
               p.title ?? ''
             ].join('\t')

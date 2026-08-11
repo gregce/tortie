@@ -843,7 +843,8 @@ export type GmuxInvokeChannelMap = RegistryInvokeChannelMap &
   ViewMenuInvokeChannelMap &
   SearchInvokeChannelMap &
   QuickOpenInvokeChannelMap &
-  SymbolsInvokeChannelMap;
+  SymbolsInvokeChannelMap &
+  ScrollbackInvokeChannelMap;
 
 export type GmuxInvokeChannel = keyof GmuxInvokeChannelMap;
 
@@ -1331,7 +1332,9 @@ export interface GmuxActivityExtras {
  * settings changes) are wired bespoke in the preload, exactly as this one is
  * — EventPayloadMap itself is never edited.
  */
-export type AllEventPayloadMap = EventPayloadMap & ActivityEventPayloadMap;
+export type AllEventPayloadMap = EventPayloadMap &
+  ActivityEventPayloadMap &
+  ScrollbackEventPayloadMap;
 
 export type AllEventChannel = keyof AllEventPayloadMap;
 
@@ -2104,3 +2107,64 @@ export type FindMenuActionId = 'quick-open' | 'show-search' | 'go-to-symbol';
 
 /** Every action the native menus can forward after Phase 14. */
 export type MenuActionWithFind = MenuActionWithProjects | FindMenuActionId;
+
+// ---------------------------------------------------------------------------
+// APPENDED by Phase 13.7 (scrollback limits + understated diagnostics) — new
+// channels and one new event only; nothing above was edited except the
+// GmuxInvokeChannelMap intersection and AllEventPayloadMap, exactly as their
+// own comments prescribe.
+//
+// EVERY READ HERE IS ON DEMAND. There is deliberately no "scrollback:watch"
+// subscription and no periodic payload: ZEN-OF-TORTIE forbids a number that
+// rises on its own, so the only thing that travels unasked is the notice
+// below, which fires on a crossed threshold and speaks once.
+// ---------------------------------------------------------------------------
+
+import type {
+  ScrollbackNotice,
+  ScrollbackStats,
+  SessionScrollbackFacts
+} from './scrollback';
+
+/** Main → renderers: a scrollback threshold was crossed. Rare by design. */
+export const EVT_SCROLLBACK_NOTICE = 'scrollback:notice' as const;
+
+export interface ScrollbackEventPayloadMap {
+  'scrollback:notice': [notice: ScrollbackNotice];
+}
+
+/** New invoke channels appended by the scrollback-limits stream. */
+export interface ScrollbackInvokeChannelMap {
+  /**
+   * The evidence the Settings card shows: one `list-panes`, one directory
+   * stat, one `statfs`. Called when Settings opens and after a depth change,
+   * never on a timer.
+   */
+  'scrollback:stats': { req: []; res: ScrollbackStats };
+  /**
+   * What ONE session is holding. Read when its context menu is opened, so
+   * the number exists in the renderer only while the menu that shows it does.
+   * Null when the session is not running.
+   */
+  'scrollback:session': {
+    req: [sessionId: string];
+    res: SessionScrollbackFacts | null;
+  };
+  /** Copy details: a plain-text block for a bug report. */
+  'scrollback:report': { req: []; res: string };
+}
+
+/**
+ * OPTIONAL top-level extra on window.gmux, feature-detected by both renderers
+ * (`typeof window.gmux.scrollback?.stats === 'function'`). Without it the
+ * Settings card renders its controls with no estimate rather than dead rows,
+ * and the session menu simply has no information item.
+ */
+export interface GmuxScrollbackExtras {
+  scrollback?: {
+    stats(): Promise<ScrollbackStats>;
+    session(sessionId: string): Promise<SessionScrollbackFacts | null>;
+    report(): Promise<string>;
+    onNotice(cb: (notice: ScrollbackNotice) => void): Unsubscribe;
+  };
+}

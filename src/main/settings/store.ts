@@ -24,7 +24,11 @@ import type {
   GmuxSettings,
   GmuxSettingsPatch
 } from '@shared/settings';
-import { defaultGmuxSettings } from '@shared/settings';
+import {
+  clampSavedScrollbackLines,
+  clampScrollbackLines,
+  defaultGmuxSettings
+} from '@shared/settings';
 import type { LaunchableAgentId, LaunchableAgentKind } from '@shared/types';
 import { LAUNCHABLE_AGENT_IDS } from '../agents/registry';
 import { AGENT_FLAG_PRESETS } from '../agents/flags';
@@ -134,6 +138,17 @@ export function sanitizeSettings(raw: unknown): GmuxSettings {
       acked.filter((k): k is string => typeof k === 'string' && k.length <= 200)
     )].slice(0, 500);
   }
+
+  // Scrollback depths (Phase 13.7). These reach `tmux set-option -g
+  // history-limit` and `capture-pane -S -<n>`, so the clamp is a guard, not a
+  // nicety: a hand-edited settings.json asking for 50,000,000 lines is a
+  // memory-exhaustion footgun, and it must be caught HERE rather than after
+  // the value has been handed to tmux.
+  out.scrollbackLines = clampScrollbackLines(obj['scrollbackLines']);
+  out.savedScrollbackLines = clampSavedScrollbackLines(
+    obj['savedScrollbackLines'],
+    out.scrollbackLines
+  );
 
   return out;
 }

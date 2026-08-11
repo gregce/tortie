@@ -34,10 +34,9 @@
  * be unit-tested outside the app.
  */
 
-import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { promisify } from 'node:util';
 import type { LaunchableAgentKind } from '@shared/types';
+import { runGuarded } from '../proc/guarded';
 import {
   getLaunchableEntry,
   registryLaunchArgv,
@@ -45,8 +44,6 @@ import {
   type AgentHarvestKey,
   type ResumeStrategy
 } from '../agents/registry';
-
-const execFileAsync = promisify(execFile);
 
 // ---------------------------------------------------------------------------
 // Launch specs
@@ -210,19 +207,26 @@ export async function resolveLaunchSpec(
   const capture = getLaunchableEntry(agent).resume.idCapture;
   if (capture.mode !== 'pre-assign-cmd') return spec;
   const bin = binPath ?? getLaunchableEntry(agent).launch.argv[0] ?? agent;
+  // runGuarded, not execFile (Phase 13.8): this runs on the SESSION-CREATE
+  // path, and execFile's callback fires on stdio CLOSE — a create-chat that
+  // forks anything holding stdout would hang session creation forever and
+  // orphan the fork. runGuarded always settles and kills the process group.
+  const probe = await runGuarded(bin, capture.argv, {
+    timeoutMs: PRE_ASSIGN_CMD_TIMEOUT_MS,
+    ...(spec.env !== undefined ? { env: { ...process.env, ...spec.env } } : {})
+  });
   try {
-    const { stdout } = await execFileAsync(bin, capture.argv, {
-      timeout: PRE_ASSIGN_CMD_TIMEOUT_MS,
-      ...(spec.env !== undefined ? { env: { ...process.env, ...spec.env } } : {})
-    });
-    const id = stdout.trim().split('\n').pop()?.trim() ?? '';
+    if (probe.spawnError !== null || probe.timedOut || probe.code !== 0) {
+      return spec; // create-chat unavailable (offline, signed out) — bare launch
+    }
+    const id = probe.stdout.trim().split('\n').pop()?.trim() ?? '';
     if (!isPlausibleSessionId(id)) return spec;
     spec.agentSessionId = id;
     // Cursor's launch argv IS its resume argv: start into the empty chat.
     spec.argv = registryResumeArgv(agent, id, extraArgs, bin);
     spec.resumeArgv = registryResumeArgv(agent, id, extraArgs, bin);
   } catch {
-    /* create-chat unavailable (offline, signed out) — bare launch stands */
+    /* an unusable id or argv rewrite — the bare launch still stands */
   }
   return spec;
 }

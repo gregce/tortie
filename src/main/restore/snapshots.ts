@@ -20,10 +20,35 @@ import { existsSync } from 'node:fs';
 import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import * as tmux from '../tmux';
+// DIRECT, not through ../settings — that barrel re-exports its own ipc module,
+// which pulls in the menu; a leaf on the quit path must not drag that in.
+import { getSettings } from '../settings/store';
 import { trimSnapshotText } from './command';
 
-/** Renderer scrollback cap — same figure as reattach backfill (§2.4 Step 1). */
+/**
+ * Fallback saved depth. The live value is Settings → "Saved scrollback"
+ * (`GmuxSettings.savedScrollbackLines`, Phase 13.7); this constant is what a
+ * caller gets when settings cannot be read at all.
+ *
+ * NOT the same number as tmux's `history-limit`, and not derived from it: the
+ * two are independent. `history-limit` is how far scrolling and capture can
+ * REACH; this is only how much is written into the reboot snapshot. Raising
+ * one does not move the other.
+ *
+ * The cost of raising this is QUIT LATENCY, not disk. Snapshots run under
+ * `Promise.allSettled` but serialise inside the single-threaded tmux server:
+ * 16 sessions at 10,000 lines is 0.9-1.9 s, at 50,000 it is 4.7-9.0 s.
+ */
 export const SNAPSHOT_LINES = 10_000;
+
+/** Lines to write into a snapshot, from settings, clamped. */
+function savedLines(): number {
+  try {
+    return getSettings().savedScrollbackLines;
+  } catch {
+    return SNAPSHOT_LINES;
+  }
+}
 
 /** <userData>/gmux/snapshots — sibling of the manifest DB. */
 export function snapshotsDir(): string {
@@ -60,7 +85,7 @@ export async function captureSessionSnapshot(
 ): Promise<boolean> {
   const paneTarget = await resolvePaneTarget(target);
   const text = trimSnapshotText(
-    await tmux.capturePane(paneTarget, SNAPSHOT_LINES)
+    await tmux.capturePane(paneTarget, savedLines())
   );
   if (text.length === 0) return false; // nothing worth replaying
   const dir = snapshotsDir();
