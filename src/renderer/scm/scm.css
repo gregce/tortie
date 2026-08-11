@@ -777,11 +777,44 @@
   overflow: hidden;
 }
 
-/* Middle truncation without measuring: the head ellipsises, the tail never
-   shrinks — so "dependabot/…-4.37.3" keeps both the family and the version.
+/* Middle truncation without measuring: the head ellipsises, the tail goes
+   last — so "dependabot/…-4.37.3" keeps both the family and the version.
    Head-truncating would destroy feat/ · fix/ · dependabot/; tail-truncating
-   destroys the part that distinguishes two refs in the same family. */
+   destroys the part that distinguishes two refs in the same family.
+
+   In a 280–320px sidebar the strip routinely hands a pill less width than its
+   name needs, so the three spans are a LADDER and the order in which they are
+   spent IS the design: prefix first (the cloud glyph and the dashed border
+   already say "remote", so "origin/" is the cheapest thing in the pill), then
+   the middle of the name, and the tail last — those are the characters that
+   tell two refs in a family apart. Every rung ellipsises, so a squeezed pill
+   degrades to a legible "…" and never to a severed glyph. It used to do
+   exactly that: prefix and end were both `flex: 0 0 auto`, the name box shrank
+   underneath them, and the pill's overflow cut whatever hung out with no
+   ellipsis — on a 100-ref repo, 4/22 pills at a 280px sidebar and 7/26 at 300
+   and 320, worst case 90px of unshrinkable prefix+tail in a 6.6px box. Worse,
+   it spent the box on the CONTEXT: at 280 `origin/dev` painted "origin" plus
+   half a slash and dropped `dev`, the identity, entirely.
+
+   The ladder needs two different mechanisms, which is worth explaining
+   because the obvious one is a trap. Flex distributes shrink in PROPORTION,
+   never in order, so a rung can only be put FIRST by a ratio wide enough that
+   the rung above loses a sub-pixel: at `flex-shrink: 100000` the start's share
+   of the loss is its width/1e5, which quantizes away at Chromium's 1/64px
+   layout unit, and `dev` measures untouched while `origin/` ellipsises above
+   it. Putting a rung LAST that way would need a factor below one — and CSS
+   Flexbox §9.7.4 caps such an item at `initial free space × factor`, so it
+   stops shrinking while still overflowing: `flex-shrink: 0.0001` measured all
+   48px of `93-266-1` still hanging out of a 6.7px box, the severed glyph
+   again. So the tail keeps `flex-shrink: 0` and is bounded by `max-width:
+   100%` instead — it never shrinks to make room for a neighbour, it is only
+   ever CAPPED by the box it lives in, which makes overflow arithmetically
+   impossible (both neighbours can reach zero) with no dependence on rounding.
+   Measured over name boxes of 6.7–150px on all three pill shapes: zero severed
+   spans, and natural widths unchanged, so nothing moved in the hover card or
+   at a wide sidebar. */
 .scm-ref-start {
+  flex: 0 1 auto;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -789,14 +822,23 @@
 
 .scm-ref-end {
   flex: 0 0 auto;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 /* The remote's name is context, not identity — dimmed, but stepped up on a
    raised fill where --text-muted would fall to 4.38:1 (same rule as the
-   row's author text). */
+   row's author text). Being context is also why it is the first rung of the
+   ladder above: `…dev` under a cloud glyph still says everything `origin/dev`
+   did, and the whole name stays in the pill's title, the hover card and the
+   row's accessible name. */
 .scm-ref-prefix {
-  flex: 0 0 auto;
+  flex: 0 100000 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--text-muted);
   transition: color var(--dur-fast) var(--ease-out);
 }
@@ -852,8 +894,10 @@
   /* Tags relax with them. A tag's floor was 52px so a version number could
      stay whole; three refs on one commit at 269px of list is 117px of pill
      against 113px of room, and something has to give. The flag shape and the
-     glyph still say "tag" at 40px, and `v2.6.` reads as a truncated version
-     rather than as a different ref. */
+     glyph still say "tag" at 40px. The floor is a PILL width, not a name
+     width — 24px of it is border, padding and glyph — so what the name box
+     actually holds at the floor is `v2…`: a truncated version, ellipsised by
+     the ladder above, rather than a different ref. */
   .scm-ref-tag {
     min-width: 40px;
   }
