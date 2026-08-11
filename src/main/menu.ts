@@ -27,7 +27,7 @@
 import { app, BrowserWindow, Menu } from 'electron';
 import type { MenuItemConstructorOptions } from 'electron';
 import { EVT_MENU_ACTION, EVT_QUIT_REQUESTED } from '@shared/ipc';
-import type { MenuActionWithProjects } from '@shared/ipc';
+import type { MenuActionWithFind } from '@shared/ipc';
 // Every accelerator below comes from the ONE keymap (Phase 12.12). Do not
 // type a chord string into this file — add it to src/shared/keymap.ts and
 // read it back, or the menu and the ⌘/ overlay start drifting again.
@@ -52,7 +52,7 @@ import { getRegistryEntry } from './agents/registry';
  * Exported as sendMenuAction for the Phase 12.85 status item, which is a
  * second native menu over the same channel — never a second mechanism.
  */
-export function sendMenuAction(action: MenuActionWithProjects): void {
+export function sendMenuAction(action: MenuActionWithFind): void {
   const focused = BrowserWindow.getFocusedWindow();
   const win =
     (focused !== null && !isSettingsWindow(focused) ? focused : null) ??
@@ -87,7 +87,7 @@ export function requestQuit(): void {
 
 function item(
   label: string,
-  action: MenuActionWithProjects,
+  action: MenuActionWithFind,
   accelerator?: string
 ): MenuItemConstructorOptions {
   return {
@@ -248,6 +248,23 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         { role: 'copy' },
         { role: 'paste' },
         { role: 'selectAll' }
+      ]
+    },
+    // Phase 14. Between Edit and Session, which is where a macOS app puts
+    // Find and where the muscle memory already is. The menu is the
+    // discoverability half of ⌘⇧F / ⌘⇧O: the renderer's capture-phase handler
+    // is what actually runs (it precedes the accelerator by ~5 ms and calls
+    // preventDefault), so each item must perform its action EXACTLY ONCE —
+    // the same discipline show-explorer / show-scm already follow.
+    {
+      label: 'Find',
+      submenu: [
+        // ⌘P first: it is the one people reach for constantly, and it is the
+        // only way anybody discovers the chord exists.
+        item('Go to File…', 'quick-open', accel('view.quickOpen')),
+        { type: 'separator' },
+        item('Find in Project…', 'show-search', accel('view.search')),
+        item('Go to Symbol…', 'go-to-symbol', accel('view.symbols'))
       ]
     },
     {

@@ -67,8 +67,26 @@ import { useSettingsIntegration } from '../settings';
 // capture-phase listener beside the map above instead of adding branches to
 // it — zoom's focus resolution is its own concern (src/renderer/zoom/focus.ts).
 import { useZoomKeymap, ZoomHud } from '../zoom';
+// Phase 14: the ⌘P palette. It is always mounted (it renders null when
+// closed) because it also owns the recently-opened list, which records
+// every file opened from ANY surface, not just the ones found through it.
+import { QuickOpenPalette, useQuickOpen } from '../quickopen';
+// Phase 14: the ⌘⇧F Search view's imperative surface and the ⌘⇧O palette.
+import {
+  focusInsideSearch,
+  focusResultsList,
+  focusSearchInput,
+  selectionSeed,
+  SymbolPalette,
+  useSearch,
+  useSymbols
+} from '../search';
 import { driveZoom } from '../zoom/shot-probe';
 import type { ZoomProbeSpec } from '../zoom/shot-probe';
+import { driveQuickOpen } from '../quickopen/shot-probe';
+import type { QuickOpenProbeSpec } from '../quickopen/shot-probe';
+import { driveSearch, driveSymbols } from '../search/shot-probe';
+import type { SearchProbeSpec, SymbolProbeSpec } from '../search/shot-probe';
 
 // ---------------------------------------------------------------------------
 // Keyboard map (DESIGN.md §4) — one capture-phase listener; ⌘-chords and F2
@@ -109,6 +127,24 @@ function showViewAction(view: SidebarViewId): void {
   });
 }
 
+/**
+ * ⌘⇧F: show the Search view and put the caret in the box.
+ *
+ * Pressed again while the caret is already there it SELECTS the query rather
+ * than toggling the view away — the gesture people make is "search for
+ * something else", and losing the view instead is the kind of surprise that
+ * stops you using a shortcut at all. That is why this is not `showViewAction`.
+ */
+function showSearchAction(): void {
+  const inBox =
+    document.activeElement instanceof HTMLInputElement &&
+    document.activeElement.dataset['slot'] === 'search-input';
+  useApp.getState().showSidebarView('search');
+  // A one-line selection is a seed; a paragraph is not (selectionSeed refuses
+  // multi-line and very long text).
+  focusSearchInput(inBox ? undefined : selectionSeed());
+}
+
 function useKeyboardMap(): void {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {
@@ -129,7 +165,17 @@ function useKeyboardMap(): void {
       // Esc — close the topmost layer only (overlay → modals). Native
       // context menus swallow their own Esc before the renderer sees it.
       if (e.key === 'Escape') {
-        if (s.attentionOpen) {
+        // ⌘P sits on top of the ladder: it is the only layer that can be
+        // opened from inside another one (you can ⌘P while a modal is up).
+        if (useSymbols.getState().open) {
+          e.preventDefault();
+          e.stopPropagation();
+          useSymbols.getState().close();
+        } else if (useQuickOpen.getState().open) {
+          e.preventDefault();
+          e.stopPropagation();
+          useQuickOpen.getState().close();
+        } else if (s.attentionOpen) {
           e.preventDefault();
           e.stopPropagation();
           s.setAttentionOpen(false);
@@ -149,6 +195,22 @@ function useKeyboardMap(): void {
           e.preventDefault();
           e.stopPropagation();
           s.setShortcutsOpen(false);
+        } else if (focusInsideSearch()) {
+          // The Search view extends the same ladder INSIDE itself: clear the
+          // query if there is one, else hand the keyboard to the results, else
+          // give it back to the session. Three Escs from the box get you all
+          // the way out, and none of them closes the view — losing your
+          // results to a stray Esc is the thing this ordering prevents.
+          e.preventDefault();
+          e.stopPropagation();
+          const search = useSearch.getState();
+          const inBox =
+            document.activeElement instanceof HTMLInputElement &&
+            document.activeElement.dataset['slot'] === 'search-input';
+          if (inBox && search.query.length > 0) search.clear();
+          else if (inBox && focusResultsList()) {
+            /* focus moved into the list */
+          } else focusTerminal();
         }
         // else: Esc belongs to the terminal / focused control.
         return;
@@ -165,6 +227,44 @@ function useKeyboardMap(): void {
           s.setRenaming(renameId);
         }
         return;
+      }
+
+      // F4 / ⇧F4 — walk the search results from ANYWHERE, previewing each.
+      // Only claimed when there is a result set to walk, so the key stays
+      // available to whatever else might want it in an empty app.
+      if (e.key === 'F4' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        if (useSearch.getState().stepResult(e.shiftKey ? -1 : 1)) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        return;
+      }
+
+      // ⌥⌘C / ⌥⌘W / ⌥⌘R — the three search modifiers, ONLY while the keyboard
+      // is inside the Search view. Scoped deliberately: they are ⌥⌘ chords
+      // that would otherwise fire while someone is typing into a session.
+      if (e.metaKey && e.altKey && !e.ctrlKey && focusInsideSearch()) {
+        const search = useSearch.getState();
+        const key = e.key.toLowerCase();
+        // ⌥ rewrites e.key on letters (⌥C is 'ç'), so match on the physical
+        // key as well — the same reason the split-navigation handler below is
+        // a separate branch.
+        const code = e.code;
+        if (key === 'c' || code === 'KeyC') {
+          e.preventDefault();
+          search.toggleCaseSensitive();
+          return;
+        }
+        if (key === 'w' || code === 'KeyW') {
+          e.preventDefault();
+          search.toggleWholeWord();
+          return;
+        }
+        if (key === 'r' || code === 'KeyR') {
+          e.preventDefault();
+          search.toggleRegex();
+          return;
+        }
       }
 
       // ⌃Tab / ⌃⇧Tab — next / previous project tab.
@@ -190,6 +290,23 @@ function useKeyboardMap(): void {
       }
 
       if (!meta) return;
+
+      // ⌘⇧F — Search view. Registered HERE, above the inEditable guard,
+      // for the reason the guard exists: the search box IS a text field, and
+      // ⌘⇧F pressed inside it must still work (it selects what is there so
+      // you can retype). Same placement as ⌘⇧E, same reason.
+      if (e.shiftKey && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        showSearchAction();
+        return;
+      }
+
+      // ⌘⇧O — go to symbol. `@` when a file is open, `#` otherwise.
+      if (e.shiftKey && e.key.toLowerCase() === 'o') {
+        e.preventDefault();
+        useSymbols.getState().openPalette();
+        return;
+      }
 
       // ⌘⇧E — Explorer view (mirrored by the menu's 'show-explorer').
       if (e.shiftKey && e.key.toLowerCase() === 'e') {
@@ -221,6 +338,16 @@ function useKeyboardMap(): void {
         case 'j':
           e.preventDefault();
           s.setAttentionOpen(!s.attentionOpen);
+          return;
+        case 'p':
+          // ⌘P — quick open. Registered ABOVE the `inEditable` guard's users
+          // on purpose: the palette's own input is a text field, and pressing
+          // ⌘P again inside it must widen the scope rather than do nothing.
+          // (The palette handles the in-field case itself; this branch is the
+          // one that opens it from anywhere else, terminal included.)
+          if (e.shiftKey) return;
+          e.preventDefault();
+          useQuickOpen.getState().toggleOrOpen();
           return;
         case '/':
           e.preventDefault();
@@ -393,11 +520,27 @@ function runMenuAction(action: AnyMenuActionWithProjects): void {
       s.setShortcutsOpen(!s.shortcutsOpen);
       return;
     // Round-1 View menu additions (src/main/menu.ts).
+    case 'quick-open':
+      // The menu item exists for discoverability; the renderer's keydown map
+      // is what actually runs when the chord is pressed (it precedes the
+      // accelerator and preventDefaults it), so this path only fires on a
+      // real mouse click in the Find menu.
+      useQuickOpen.getState().toggleOrOpen();
+      return;
     case 'show-explorer':
       showViewAction('explorer');
       return;
     case 'show-scm':
       showViewAction('scm');
+      return;
+    // Phase 14 Find menu.
+    case 'show-search':
+      if (layerOpen) return;
+      showSearchAction();
+      return;
+    case 'go-to-symbol':
+      if (layerOpen) return;
+      useSymbols.getState().openPalette();
       return;
     case 'sessions-top':
       s.setSessionOrientation('top');
@@ -488,6 +631,30 @@ interface ShotLayoutExtras {
    * because none of those four is legible in a PNG.
    */
   zoom?: ZoomProbeSpec;
+  /**
+   * Phase 14: press ⌘P for real, type a query one character at a time
+   * through the shipped handler, and report what came back — the rows,
+   * their highlighted characters, and the per-keystroke round trip. None
+   * of that is legible in a PNG, and "the palette opened" is the one
+   * part of it that is.
+   */
+  quickOpen?: QuickOpenProbeSpec;
+  /**
+   * Phase 14: drive ⌘⇧F for real — press the chord, type through the input's
+   * own handler, measure time-to-first-painted-row, and open a result. The
+   * one thing research 19 §7.3 admits was never measured is time-to-first
+   * PAINT with React and virtualization in the loop; this is where it gets
+   * measured.
+   */
+  search?: SearchProbeSpec;
+  /** Phase 14: drive ⌘⇧O, including the cold-index state at 200 ms. */
+  symbols?: SymbolProbeSpec;
+  /**
+   * Open the ⌘/ shortcuts overlay for capture. Phase 14 added a seventh
+   * KEYMAP group and the overlay is a three-column flow, so "does the new
+   * group land somewhere sane" is a question only a picture answers.
+   */
+  shortcuts?: boolean;
 }
 
 function useShotLayoutHook(): void {
@@ -661,6 +828,29 @@ function useShotLayoutHook(): void {
             ? { sessionId: first.id }
             : {})
         });
+        window.__gmuxShotReady = true;
+      }
+      // Phase 14 — after everything else, so the palette opens over the
+      // finished layout and the capture shows it in its real surroundings.
+      if (ext.quickOpen !== undefined) {
+        window.__gmuxShotReady = false;
+        await driveQuickOpen(ext.quickOpen);
+        window.__gmuxShotReady = true;
+      }
+      if (ext.shortcuts === true) {
+        window.__gmuxShotReady = false;
+        useApp.getState().setShortcutsOpen(true);
+        await wait(400);
+        window.__gmuxShotReady = true;
+      }
+      if (ext.search !== undefined) {
+        window.__gmuxShotReady = false;
+        await driveSearch(ext.search);
+        window.__gmuxShotReady = true;
+      }
+      if (ext.symbols !== undefined) {
+        window.__gmuxShotReady = false;
+        await driveSymbols(ext.symbols);
         window.__gmuxShotReady = true;
       }
     };
@@ -847,6 +1037,8 @@ export function App(): React.JSX.Element {
       <NewProjectModal />
       <ShortcutsOverlay />
       <AttentionOverlay />
+      <QuickOpenPalette />
+      <SymbolPalette />
       <ConfirmDialog />
       <Toasts />
       <ZoomHud />

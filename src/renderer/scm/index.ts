@@ -13,4 +13,4 @@
 export { BranchHeader } from './BranchHeader';
 export { ScmSection } from './ScmSection';
 export { OPEN_FILE_EVENT, onOpenFile, requestOpenFile } from './open-file';
-export type { OpenFileRequest } from './open-file';
+export type { OpenFileRequest, OpenFileSelection } from './open-file';

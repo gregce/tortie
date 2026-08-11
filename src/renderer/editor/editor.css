@@ -362,6 +362,37 @@
   inset: 0;
 }
 
+/* Arrival flash (Phase 14). A search hit, a symbol pick or a `foo.ts:412`
+   reveals AND selects its range; this wash fades over the same range so the
+   answer to "which of the six `foo` on this screen did I click" needs no
+   reading. Monaco applies the class to the decorated content spans.
+
+   Under prefers-reduced-motion the wash holds instead of fading — the flash
+   is information, not decoration, and the 600ms removal timer in MonacoHost
+   takes it away either way. (The global reduced-motion block collapses
+   --dur-* to 1ms, which is why this duration is literal.) */
+@keyframes ed-flash-fade {
+  from {
+    background-color: var(--accent-wash);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+.ed-flash {
+  background-color: var(--accent-wash);
+  border-radius: 2px;
+  animation: ed-flash-fade 600ms ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ed-flash {
+    animation: none;
+    background-color: var(--accent-wash);
+  }
+}
+
 /* Split view (markdown): source left, rendered right, one hairline between.
    Equal halves — a third drag handle inside a 320px-floor panel would be
    more chrome than pane. */

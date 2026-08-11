@@ -1,9 +1,10 @@
 /**
  * S3 — Sidebar (round 1): hosts ONE view at a time, chosen from the
  * activity bar — Source Control (branch header + Changes/History, the SCM
- * stream's components) or Explorer (the tree stream's git-decorated file
- * tree). Sessions moved OUT of the sidebar onto the terminal region
- * (TerminalRegion tab strip / SessionDock right list).
+ * stream's components), Explorer (the tree stream's git-decorated file
+ * tree), or Search (Phase 14: the ⌘⇧F content-search view). Sessions moved
+ * OUT of the sidebar onto the terminal region (TerminalRegion tab strip /
+ * SessionDock right list).
  *
  * The view header is the sidebar's slice of the 36px HEADER BAND (S1): the
  * SCM view's header IS <BranchHeader/> (already 36px with the shared
@@ -19,6 +20,7 @@ import React, { useMemo, useState } from 'react';
 import { useApp } from '../state/store';
 import { useGit } from '../state/git';
 import { BranchHeader, ScmSection } from '../scm';
+import { SearchHeader, SearchSection } from '../search';
 import { FilesSection, useFileTree, useTreeHandle } from '../tree';
 import { Codicon } from '../icons';
 
@@ -99,6 +101,14 @@ export function Sidebar(): React.JSX.Element {
           <div className="sidebar-rest">
             <ScmSection />
           </div>
+        </div>
+      ) : view === 'search' ? (
+        // Phase 14. No `.sidebar-rest` wrapper: the results list IS the
+        // scroller, and nesting it inside another one would give the view two
+        // scrollbars and break the sticky "Show more" footer.
+        <div className="sidebar-view" data-view="search" tabIndex={-1}>
+          <SearchHeader />
+          <SearchSection />
         </div>
       ) : (
         <div className="sidebar-view" data-view="explorer" tabIndex={-1}>

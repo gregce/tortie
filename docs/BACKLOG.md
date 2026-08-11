@@ -5,7 +5,7 @@
 2. **13.5 ALONE** — universal resume. Core promise; touches registry + manifest + restore, so it gets the tree to itself. Spec lands from docs/research/22-resume-audit.md.
 3. **12.9 + 12.10 together** ✅ shipped (cb8c172) — both are tree work, and 12.10's drag-to-attach conflicts with 12.9's drag-to-move; they must be designed as one interaction.
 4. **12.11 + 12.12 together** ✅ shipped — UI polish (per-pane zoom; shared agent grid, sessions-position toggle, ⌘9-to-last, hold-⌘ tab hints). 12.12 item 5 left a standing contract: `src/shared/keymap.ts` is the ONLY shortcut list, enforced by `src/shared/__tests__/keymap-single-source.test.ts` — every later phase adds shortcuts there and nowhere else.
-5. **14** search — the last parity work; scope capped after it per CLAUDE.md.
+5. **14** search ✅ shipped — the last parity work; **scope is now capped per CLAUDE.md**: everything from here goes to durability, the agent layer, correctness and consolidation unless the user asks otherwise.
 6. **15** SpecStory bundling · **16** refactor · **16.5** Tortie rename + migration · **17** final install.
 Research is already complete for 13.5, 14 and 15 — those are spec-complete and can start the moment their slot opens.
 
@@ -308,7 +308,9 @@ Triggered by the user searching Activity Monitor for "gmux" and finding only *Cu
 3. Sweep for other leaks while in here: any spawned child with a timeout that is not killed, and any temp file/scratch server left behind (a leaked research server on socket `-L zzraise` was also observed — verify gmux itself leaves nothing).
 Verification tier: 3 for the leak fix (resource leak, user-visible), 1 for the naming.
 
-## Phase 14 — deep file + code search (spec from docs/research/19-search.md)
+## Phase 14 — deep file + code search (spec from docs/research/19-search.md) — SHIPPED 2026-08-11
+Delivered: ⌘P quick open (fuzzysort gate → VS Code fuzzyScorer rerank, one resident worker), ⌘⇧F streaming content search (vendored ripgrep 15.0.0, NDJSON on the main thread), ⌘⇧O go to symbol (web-tree-sitter, six WASM grammars, indexed per project in the existing SQLite db). Items 1-3 built; **item 4 (replace-in-files) deferred** — the engine streams a replace PREVIEW for free, but nothing writes. AST/structural search evaluated and declined per the parity guardrail.
+Verified from the PACKAGED .app, not just `out/`: ⌘P panel in 52 ms with 5.1 ms median keystroke round trips through the unpacked ripgrep; ⌘⇧F view in 8 ms, first row at 160 ms, cancel-on-retype clean; ⌘⇧O palette in 41 ms, 387-file index built from the extraResources WASM grammars with honest progress copy. Both main-process workers load straight from inside app.asar (measured; see electron.vite.config.ts).
 User ask: find things fast in the file explorer — deep FILE search and CODE (content) search, using the best 2026 ecosystem libraries rather than hand-rolling.
 Scope to design in research, then build:
 1. **Quick open (⌘P)**: fuzzy file-path search across the active project (and optionally all open projects), ranked like VS Code's, instant on large repos, keyboard-first, honoring .gitignore + sensible excludes.

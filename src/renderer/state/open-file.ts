@@ -15,6 +15,13 @@
  * still compiles: `preview` (item 5, tab semantics) and `commit` (item 4,
  * the commit identity a historical diff needs). A request WITHOUT `commit`
  * means exactly what it always meant — the working tree.
+ *
+ * PHASE 14 grew it once more, the same way: `selection` (research 19 §2.6).
+ * Until now a request could say WHICH file to open but not WHERE in it, so a
+ * search hit, a symbol pick or a `foo.ts:412` could open the file and then
+ * strand the user at line 1. `source` gained the three gestures that carry
+ * one. Both changes are additive: every existing emitter still compiles, and
+ * a request without `selection` behaves exactly as it did before.
  */
 
 import type { GitCommitFileState } from '@shared/types';
@@ -40,6 +47,39 @@ export interface OpenFileCommitRef {
   origPath?: string;
   /** Commit subject, for the tab tooltip ("auth.ts — a1b2c3d"). */
   subject?: string;
+}
+
+/**
+ * WHERE in the file to land (Phase 14). A request carrying one is a
+ * NAVIGATION, not merely an open: the editor reveals the range, SELECTS it,
+ * and flashes it once. Scrolling near the line is not enough — a 240-hit
+ * search means the user is scanning, and "which of these six `foo` on screen
+ * did I click" has to be answerable without reading.
+ *
+ * COORDINATES, stated once so no emitter has to guess:
+ *  - `line` / `endLine` are **1-based** — ripgrep's `line_number`, Monaco's
+ *    `lineNumber` and every "file.ts:412" the user types already agree.
+ *  - `column` / `endColumn` are **0-based UTF-16 offsets** into that line —
+ *    what `String.prototype.indexOf`, a JS regex `match.index` and a decoded
+ *    ripgrep submatch all hand you. The editor adds the +1 Monaco's Range
+ *    wants in exactly ONE place, so no emitter should pre-adjust.
+ *  - `endColumn` is EXCLUSIVE: a 3-char match at offset 10 is
+ *    `column: 10, endColumn: 13`.
+ *
+ * Emitting `{ line }` alone is legal and means "line 412, whole-line-ish" —
+ * the caret lands at column 0 with an empty selection.
+ */
+export interface OpenFileSelection {
+  /** 1-based line to reveal. */
+  line: number;
+  /** 0-based UTF-16 start column. Omitted = start of line. */
+  column?: number;
+  /** 1-based last line of a multi-line range. Omitted = `line`. */
+  endLine?: number;
+  /** 0-based UTF-16 end column, EXCLUSIVE. Omitted = `column`. */
+  endColumn?: number;
+  /** Flash the range once on arrival. Omitted = true. */
+  highlight?: boolean;
 }
 
 export interface OpenFileRequest {
@@ -69,8 +109,22 @@ export interface OpenFileRequest {
   /**
    * Where the gesture came from — lets the editor refine the diff base
    * later (e.g. staged rows diff index-vs-HEAD). Safe to ignore in v1.
+   *
+   * Phase 14 added the three search gestures. `'search'` is the one the
+   * editor acts on: a PREVIEW open from the results list must not steal
+   * keyboard focus, because ↑↓ have to keep walking the list while the
+   * editor previews each hit behind it.
    */
-  source: 'worktree' | 'index' | 'untracked' | 'merge' | 'history' | 'tree';
+  source:
+    | 'worktree'
+    | 'index'
+    | 'untracked'
+    | 'merge'
+    | 'history'
+    | 'tree'
+    | 'search'
+    | 'symbol'
+    | 'quickopen';
   /**
    * VS Code preview-tab semantics (Phase 12 item 5). Omitted/`true` = a
    * PREVIEW open: italic tab, reused by the next preview open until the
@@ -95,6 +149,23 @@ export interface OpenFileRequest {
    * filename, icon and language detection need no special case.
    */
   commit?: OpenFileCommitRef;
+  /**
+   * Land HERE (Phase 14). Present ⇒ the editor treats this as a navigation
+   * and three things follow, all of them implemented in
+   * src/renderer/editor/store.ts + MonacoHost.tsx so no emitter has to:
+   *
+   *  1. **It opens as `mode: 'file'`, whatever `mode` says.** Diff
+   *     (@pierre/diffs), rendered markdown and the image viewer are all
+   *     line-less surfaces — there is nowhere to put line 412 on any of them.
+   *     `canDiff` is left alone, so the mode chip still offers the diff.
+   *     (The one exception is a raster image: it has no text under it at all,
+   *     so it keeps the image viewer and ignores the selection.)
+   *  2. **Re-opening an ALREADY-OPEN tab still lands.** The second hit in a
+   *     file the first hit opened moves the caret; it does not just re-raise
+   *     a tab that is already on screen.
+   *  3. **The range is revealed AND selected AND flashed**, not scrolled near.
+   */
+  selection?: OpenFileSelection;
 }
 
 /** Emit an open request (fire-and-forget). */

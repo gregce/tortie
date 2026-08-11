@@ -13,4 +13,7 @@ export {
   onOpenFileRequest,
   requestOpenFile
 } from '../state/open-file';
-export type { OpenFileRequest } from '../state/open-file';
+export type {
+  OpenFileRequest,
+  OpenFileSelection
+} from '../state/open-file';

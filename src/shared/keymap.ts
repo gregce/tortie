@@ -110,6 +110,11 @@ export const KEYMAP_GROUPS = [
   { id: 'terminal', title: 'Terminal & scrolling' },
   { id: 'editor', title: 'Editor & files' },
   { id: 'git', title: 'Git' },
+  // Phase 14. Search earns its own group rather than being scattered through
+  // "Views & layout" and "Editor & files": ⌘⇧F, ⌘⇧O, the three modifiers and
+  // F4 are one mental model, and a cheat sheet that splits them across two
+  // columns is a cheat sheet you have to read twice.
+  { id: 'search', title: 'Search' },
   { id: 'views', title: 'Views & layout' }
 ] as const satisfies readonly { id: string; title: string }[];
 
@@ -128,7 +133,9 @@ export type KeymapScope =
   | 'terminal'
   | 'editor'
   | 'explorer'
-  | 'git';
+  | 'git'
+  | 'search'
+  | 'palette';
 
 export const SCOPE_LABELS: Readonly<Record<KeymapScope, string>> = {
   app: 'Anywhere',
@@ -136,7 +143,9 @@ export const SCOPE_LABELS: Readonly<Record<KeymapScope, string>> = {
   terminal: 'In a session',
   editor: 'In the editor',
   explorer: 'In the file tree',
-  git: 'In source control'
+  git: 'In source control',
+  search: 'In the search view',
+  palette: 'In the go-to-file palette'
 };
 
 export interface KeymapChord {
@@ -611,6 +620,120 @@ export const KEYMAP = [
       'Throws away the working-tree changes in the selected files. Always confirmed, because this one is not recoverable.',
     group: 'git',
     scope: 'git',
+    assignable: false,
+    source: 'built-in'
+  },
+
+  // -- Search ---------------------------------------------------------------
+  {
+    id: 'view.quickOpen',
+    keys: [k('Cmd+P')],
+    action: 'Go to file',
+    explain:
+      'Finds a file anywhere in the project by name or path — type the parts you remember, in order, and the matched letters are highlighted so you can see why a row is there. Enter opens it in the reusable preview tab, ⌘Enter keeps it. Add :412 to land on a line. Press ⌘P again to widen the search to every open project.',
+    group: 'search',
+    scope: 'app',
+    assignable: false,
+    source: 'built-in',
+    menuAction: 'quick-open'
+  },
+  {
+    id: 'quickOpen.open',
+    keys: [k('Enter')],
+    action: 'Open the highlighted file',
+    explain:
+      'Opens it in the reusable preview tab — the one that gets recycled by the next preview open — so walking a list of candidates does not leave a tab behind for each one.',
+    group: 'search',
+    scope: 'palette',
+    assignable: false,
+    source: 'built-in'
+  },
+  {
+    id: 'quickOpen.keep',
+    keys: [k('Cmd+Enter')],
+    action: 'Open in a new tab',
+    explain:
+      'Opens the highlighted file for keeps instead of into the preview slot. Holding ⌘ while clicking the row does the same thing.',
+    group: 'search',
+    scope: 'palette',
+    assignable: false,
+    source: 'built-in'
+  },
+  {
+    id: 'view.search',
+    keys: [k('Shift+Cmd+F')],
+    action: 'Search in project',
+    explain:
+      'Opens the Search view and puts the cursor in the box, seeded from whatever you had selected. Press it again inside the box to select what is there rather than closing the view.',
+    group: 'search',
+    scope: 'app',
+    assignable: false,
+    source: 'built-in',
+    menuAction: 'show-search'
+  },
+  {
+    id: 'view.symbols',
+    keys: [k('Shift+Cmd+O')],
+    action: 'Go to symbol',
+    explain:
+      'Jumps to a definition by name — functions, types, classes, struct fields. Starts on the file you are looking at; type # to search the whole project. The first use of a project builds its index in the background and says so.',
+    group: 'search',
+    scope: 'app',
+    assignable: false,
+    source: 'built-in',
+    menuAction: 'go-to-symbol'
+  },
+  {
+    id: 'search.matchCase',
+    keys: [k('Alt+Cmd+C')],
+    action: 'Match case',
+    explain:
+      'Makes the search case-sensitive. Only while the keyboard is inside the Search view, so it cannot fire while you are typing in a session.',
+    group: 'search',
+    scope: 'search',
+    assignable: false,
+    source: 'built-in'
+  },
+  {
+    id: 'search.wholeWord',
+    keys: [k('Alt+Cmd+W')],
+    action: 'Match whole word',
+    explain:
+      'Only matches the query when it stands alone as a word, not inside a longer one.',
+    group: 'search',
+    scope: 'search',
+    assignable: false,
+    source: 'built-in'
+  },
+  {
+    id: 'search.regex',
+    keys: [k('Alt+Cmd+R')],
+    action: 'Use regular expression',
+    explain:
+      'Treats the query as a regular expression. A one-character query is allowed in this mode, because a one-character pattern is a real one.',
+    group: 'search',
+    scope: 'search',
+    assignable: false,
+    source: 'built-in'
+  },
+  {
+    id: 'search.nextResult',
+    keys: [k('F4')],
+    action: 'Next result',
+    explain:
+      'Steps to the next search result from anywhere and previews it, so you can walk a result set without leaving the editor.',
+    group: 'search',
+    scope: 'app',
+    assignable: false,
+    source: 'built-in'
+  },
+  {
+    id: 'search.prevResult',
+    keys: [k('Shift+F4')],
+    action: 'Previous result',
+    explain: 'Steps back to the previous search result and previews it.',
+    group: 'search',
+    scope: 'app',
     assignable: false,
     source: 'built-in'
   },

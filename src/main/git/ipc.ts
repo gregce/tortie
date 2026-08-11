@@ -28,7 +28,7 @@ import { existsSync, statSync } from 'node:fs';
 import { resolve as resolvePath } from 'node:path';
 import { EVT_GIT_CHANGED } from '@shared/ipc';
 import { gmuxError } from '../tmux/errors';
-import { RepoWatcher } from '../watcher';
+import { emitRepoChanged, onRepoChanged, RepoWatcher } from '../watcher';
 import { registerGitDepthIpc } from './depth-ipc';
 import { runGitOrThrow } from './exec';
 import { GitService } from './service';
@@ -87,6 +87,15 @@ function broadcastGitChanged(repoPath: string): void {
   }
 }
 
+// Phase 14 (research 19 §2.5, O3): the watcher callback below now feeds the
+// repo-changed BUS instead of calling broadcastGitChanged directly, and git
+// re-enters through the front door as one subscriber among several. Purely a
+// re-plumbing — every watcher event still produces exactly one
+// EVT_GIT_CHANGED, in the same order, on the same debounce — but it is what
+// lets quick open's path index stay fresh WITHOUT a second FSEvents
+// subscription on a 95k-file tree.
+onRepoChanged(broadcastGitChanged);
+
 /**
  * Lazily start the two-part VS Code-recipe watcher for a repo. Failures are
  * logged, cached as null (so we don't retry-spam), and never surface to the
@@ -96,7 +105,7 @@ function ensureWatcher(repoPath: string): void {
   const key = repoPath; // already normalized by callers
   if (watchers.has(key)) return;
   const promise = RepoWatcher.watch(key, {
-    onChange: (p) => broadcastGitChanged(p)
+    onChange: emitRepoChanged
   }).catch((err: unknown) => {
     console.warn(
       `[gmux] could not watch ${key}: ${(err as Error).message}`

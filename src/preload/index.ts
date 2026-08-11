@@ -38,19 +38,25 @@ import type {
   GmuxMultilineExtras,
   GmuxPopupMenuExtras,
   GmuxProjectCreateExtras,
+  GmuxQuickOpenExtras,
   GmuxQuitExtras,
   GmuxScrollExtras,
+  GmuxSearchExtras,
+  GmuxSymbolsExtras,
   GmuxSessionExtras,
   GmuxSessionRestoreExtras,
   GmuxSettingsExtras,
   GmuxTermStreamExtras,
   GmuxViewMenuExtras,
   MenuActionId,
+  SearchProgress,
   SessionActivityInfo,
   TermExitPayload,
   Unsubscribe
 } from '../shared/ipc';
 import {
+  searchResultsChannel,
+  EVT_SYMBOLS_PROGRESS,
   EVT_ACTIVITY_CHANGED,
   EVT_GIT_CHANGED,
   EVT_MENU_ACTION,
@@ -63,6 +69,7 @@ import {
   termExitChannel,
   termInputChannel
 } from '../shared/ipc';
+import type { SymbolIndexProgress } from '../shared/symbols';
 import type { GmuxSettings } from '../shared/settings';
 
 /**
@@ -249,6 +256,71 @@ const scroll: NonNullable<GmuxScrollExtras['scroll']> = {
 };
 
 /**
+ * search surface (Phase 14) — streaming ⌘⇧F.
+ *
+ * `onResults` takes the searchId the CALLER minted and is meant to be called
+ * BEFORE `start()`, which is why the id is an input rather than something you
+ * learn from the response: ripgrep produces its first result in ~3 ms, and a
+ * subscription set up after the invoke resolves can miss the first frame.
+ * Passing the same id in `start({ searchId })` closes the window entirely.
+ */
+const search: NonNullable<GmuxSearchExtras['search']> = {
+  onResults: (searchId, cb) => {
+    const channel = searchResultsChannel(searchId);
+    const listener = (_e: IpcRendererEvent, progress: SearchProgress): void => {
+      cb(progress);
+    };
+    ipcRenderer.on(channel, listener);
+    return () => ipcRenderer.removeListener(channel, listener);
+  },
+  start: (input) => invoke('search:start', input),
+  cancel: (searchId) => invoke('search:cancel', searchId),
+  context: (input) => invoke('search:context', input)
+};
+
+/**
+ * symbols surface (Phase 14) — ⌘⇧O and the palette's `@` / `#` modes.
+ *
+ * `query` deliberately does NOT build an index; `ensure` is the only thing
+ * that does, and the palette calls it when the user actually asks for
+ * symbols. That split is what keeps "never build an index nobody asked for"
+ * a property of the contract rather than a habit of the caller.
+ *
+ * `onProgress` exists because a build outlives the invoke that started it: on
+ * a large repo the user is typing for seconds while it runs, and the palette
+ * has to be able to say how far it has got.
+ */
+const symbols: NonNullable<GmuxSymbolsExtras['symbols']> = {
+  query: (input) => invoke('symbols:query', input),
+  ensure: (repoPath) => invoke('symbols:ensure', repoPath),
+  release: (repoPath) => invoke('symbols:release', repoPath),
+  onProgress: (cb) => {
+    const listener = (
+      _e: IpcRendererEvent,
+      progress: SymbolIndexProgress
+    ): void => {
+      cb(progress);
+    };
+    ipcRenderer.on(EVT_SYMBOLS_PROGRESS, listener);
+    return () => ipcRenderer.removeListener(EVT_SYMBOLS_PROGRESS, listener);
+  }
+};
+
+/**
+ * quickOpen surface (Phase 14) — ⌘P.
+ *
+ * Two calls and no event channel: the ranking round trip is p50 2 ms at
+ * 60,000 files, so there is nothing to stream. `warm` is fire-and-forget
+ * indexing — the palette calls it at first idle and again each time it opens,
+ * because fuzzysort's per-path cost is lazy and would otherwise land on the
+ * user's first keystroke.
+ */
+const quickOpen: NonNullable<GmuxQuickOpenExtras['quickOpen']> = {
+  query: (input) => invoke('quickopen:query', input),
+  warm: (repoPath) => invoke('quickopen:warm', repoPath)
+};
+
+/**
  * projects surface = frozen GmuxApi['projects'] + the Phase 12.9 `create`
  * (feature-detected: without it the shell hides "New Project…" rather than
  * offering a button that throws).
@@ -274,6 +346,9 @@ const api: GmuxApi &
   GmuxScrollExtras &
   GmuxActivityExtras &
   GmuxMultilineExtras &
+  GmuxSearchExtras &
+  GmuxSymbolsExtras &
+  GmuxQuickOpenExtras &
   GmuxViewMenuExtras = {
   sessions,
   projects,
@@ -283,6 +358,9 @@ const api: GmuxApi &
   drop,
   capture,
   scroll,
+  search,
+  symbols,
+  quickOpen,
   pathForFile: (file: File): string => {
     try {
       return webUtils.getPathForFile(file);

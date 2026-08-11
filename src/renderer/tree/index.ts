@@ -13,7 +13,7 @@ export {
   onOpenFileRequest,
   requestOpenFile
 } from './open-file';
-export type { OpenFileRequest } from './open-file';
+export type { OpenFileRequest, OpenFileSelection } from './open-file';
 export { openModeFor } from './decorations';
 export { useTreeGitStatus } from './git-status';
 export { useFileTree } from './store';

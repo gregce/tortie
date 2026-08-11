@@ -4,6 +4,12 @@
  * PierreDiff (@pierre/diffs) instead, and Monaco remains the editing surface
  * only. The working ITextModel lives in the monaco-loader registry, so mode
  * switches and the live diff never lose unsaved text.
+ *
+ * Phase 14 added the LANDING: a tab that arrives with `pendingSelection`
+ * came from a search hit, a symbol pick or a `foo.ts:412`, and this host owes
+ * it a reveal, a real selection and one flash. It is a second effect rather
+ * than a few lines inside the wiring effect for a reason that is easy to get
+ * wrong — see the comment on it.
  */
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -62,6 +68,15 @@ const MINIMAP_ON: monacoNs.editor.IEditorMinimapOptions = {
  * there is exactly one of it (regions.ts `zoomedFontSize` does the rest).
  */
 const EDITOR_BASE_FONT_SIZE = 12;
+
+/**
+ * How long the arrival flash stays on the matched range. The fade itself is
+ * CSS (`.ed-flash`, editor.css); under prefers-reduced-motion that rule drops
+ * the animation and the wash simply holds for this long instead — the point
+ * of the flash is "the thing you clicked is HERE", and that survives having
+ * no motion. Removing the decoration is this timer either way.
+ */
+const FLASH_MS = 600;
 
 function baseOptions(
   zoom: number
@@ -130,6 +145,7 @@ export function MonacoHost({
 }: MonacoHostProps): React.JSX.Element {
   const setMonacoError = useEditor((s) => s.setMonacoError);
   const markDirty = useEditor((s) => s.markDirty);
+  const clearPendingSelection = useEditor((s) => s.clearPendingSelection);
   const zoom = useZoom((s) => s.levels.editor);
   const zoomRef = useRef(zoom);
   zoomRef.current = zoom;
@@ -140,6 +156,10 @@ export function MonacoHost({
   const codeEditor = useRef<monacoNs.editor.IStandaloneCodeEditor | null>(null);
   const contentListener = useRef<monacoNs.IDisposable | null>(null);
   const prevShownId = useRef<string | null>(null);
+  const flash = useRef<monacoNs.editor.IEditorDecorationsCollection | null>(
+    null
+  );
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // -- load the Monaco chunk once -------------------------------------------
   useEffect(() => {
@@ -188,6 +208,15 @@ export function MonacoHost({
     contentListener.current?.dispose();
     contentListener.current = null;
 
+    // A landing flash belongs to the model it was set on. Drop it before the
+    // model swaps, or a fast tab switch leaves a wash sitting on whatever
+    // text happens to occupy those coordinates in the next file.
+    if (flashTimer.current !== null) {
+      clearTimeout(flashTimer.current);
+      flashTimer.current = null;
+    }
+    flash.current?.clear();
+
     if (codeEditor.current === null && codeContainer.current !== null) {
       codeEditor.current = m.editor.create(codeContainer.current, {
         // Created at the CURRENT zoom so a file opened into an already-zoomed
@@ -213,16 +242,81 @@ export function MonacoHost({
 
     // Opening a file is an attention switch — the editor takes focus so
     // ⌘F / arrows / typing work immediately (Esc hands it back).
-    if (prev !== tab.id) {
+    //
+    // …with one exception (Phase 14): while the user is walking a search
+    // results list with ↑↓, every step previews a different file here. Taking
+    // focus on each of those would kill the arrow keys after the first hit,
+    // which makes the list unusable. `pendingFocus` is the store's answer for
+    // this one gesture and is true for every other open.
+    if (prev !== tab.id && tab.pendingFocus) {
       ce?.focus();
     }
 
     prevShownId.current = tab.id;
     // NOTE deps: savedContents is deliberately absent — a save must NOT
     // re-run setModel (which resets scroll). Content updates flow through
-    // the model registry instead (resetWorkingModel).
+    // the model registry instead (resetWorkingModel). pendingFocus is absent
+    // for the same class of reason: it is read at open time, not watched.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, contentReady, readOnly, tab.id, tab.path, markDirty]);
+
+  // -- land a navigation: reveal + select + flash (Phase 14) -----------------
+  //
+  // A SEPARATE effect, declared after the wiring one, and both facts are
+  // load-bearing:
+  //
+  //  - **After**, because React runs effects in declaration order within a
+  //    commit, and the wiring effect's `restoreViewState` would silently
+  //    overwrite a reveal issued before it. (research 19 §2.6 rule 3.)
+  //  - **Separate**, because re-opening a tab that is already active, already
+  //    mounted and already loaded changes NONE of the wiring effect's deps —
+  //    so the second search hit in the same file would never land. This one
+  //    is keyed on the pending selection itself, which is a fresh object per
+  //    request, so clicking the same match twice re-reveals and re-flashes.
+  const pending = tab.pendingSelection;
+  useEffect(() => {
+    const m = getLoadedMonaco();
+    const ce = codeEditor.current;
+    if (pending === null || m === null || ce === null || !contentReady) return;
+
+    // Bus coordinates are 1-based lines and 0-based UTF-16 columns; Monaco
+    // is 1-based on both axes. That +1 is applied here and nowhere else.
+    const model = ce.getModel();
+    const lastLine = model?.getLineCount() ?? pending.line;
+    // A stale index (the file shrank since it was searched) must not throw or
+    // scroll to nothing — clamp to the end of the file, which is where the
+    // content the user asked about used to be.
+    const startLine = Math.min(Math.max(pending.line, 1), lastLine);
+    const endLine = Math.min(
+      Math.max(pending.endLine ?? pending.line, startLine),
+      lastLine
+    );
+    const startCol = (pending.column ?? 0) + 1;
+    const endCol = (pending.endColumn ?? pending.column ?? 0) + 1;
+    const range = new m.Range(startLine, startCol, endLine, endCol);
+
+    ce.setSelection(range);
+    // "In center if outside viewport": a hit that is already on screen must
+    // not jump the page under the user — it is already where they can see it.
+    ce.revealRangeInCenterIfOutsideViewport(
+      range,
+      m.editor.ScrollType.Immediate
+    );
+
+    if (pending.highlight !== false) {
+      if (flashTimer.current !== null) clearTimeout(flashTimer.current);
+      flash.current ??= ce.createDecorationsCollection();
+      flash.current.set([{ range, options: { className: 'ed-flash' } }]);
+      flashTimer.current = setTimeout(() => {
+        flashTimer.current = null;
+        flash.current?.clear();
+      }, FLASH_MS);
+    }
+
+    if (tab.pendingFocus) ce.focus();
+    clearPendingSelection(tab.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pending, contentReady, ready, tab.id]);
 
   // Minimap toggles in place — updateOptions keeps the model and the scroll
   // position, which a re-create would throw away.
@@ -251,6 +345,9 @@ export function MonacoHost({
       if (id !== null) {
         saveViewState(id, codeEditor.current?.saveViewState() ?? null);
       }
+      if (flashTimer.current !== null) clearTimeout(flashTimer.current);
+      flashTimer.current = null;
+      flash.current = null; // owned by the editor; disposed with it
       contentListener.current?.dispose();
       codeEditor.current?.dispose();
       codeEditor.current = null;

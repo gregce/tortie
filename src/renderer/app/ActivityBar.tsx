@@ -1,9 +1,13 @@
 /**
  * S3 — Activity bar (round 1): a 48px VS Code-style icon rail at the far
- * left, full height below the titlebar. Two views — Explorer (⌘⇧E) and
- * Source Control (⌃⇧G) — the sidebar hosts one at a time; the Settings gear
- * is pinned at the bottom. Click the active view's icon to collapse the
- * sidebar (= ⌘B), VS Code behavior. The rail itself never hides.
+ * left, full height below the titlebar. Three views — Explorer, Search
+ * (Phase 14) and Source Control — the sidebar hosts one at a time; the
+ * Settings gear is pinned at the bottom. Click the active view's icon to
+ * collapse the sidebar (= ⌘B), VS Code behavior. The rail itself never hides.
+ *
+ * Chords are never spelled here: every label reads its own chord out of
+ * KEYMAP via keyDisplay(), which is what stops the rail's tooltips drifting
+ * from the menu and the ⌘/ overlay.
  */
 
 import React, { useMemo } from 'react';
@@ -12,6 +16,7 @@ import { keyDisplay } from '@shared/keymap';
 import { dirtyCount, useGit } from '../state/git';
 import { loginItemExtras, useApp } from '../state/store';
 import type { SidebarViewId } from '../state/store';
+import { useSearch } from '../search';
 import { Codicon } from '../icons';
 
 function ViewItem({
@@ -19,13 +24,16 @@ function ViewItem({
   icon,
   label,
   shortcut,
-  badge
+  badge,
+  badgeNoun = 'changed'
 }: {
   view: SidebarViewId;
   icon: string;
   label: string;
   shortcut: string;
   badge?: number;
+  /** Word before "file(s)" in the accessible label ("3 changed files"). */
+  badgeNoun?: string;
 }): React.JSX.Element {
   const sidebarVisible = useApp((s) => s.sidebarVisible);
   const activeProjectId = useApp((s) => s.activeProjectId);
@@ -45,7 +53,7 @@ function ViewItem({
       title={`${label} (${shortcut})`}
       aria-label={`${label} (${shortcut})${
         badge !== undefined && badge > 0
-          ? `, ${badge} changed ${badge === 1 ? 'file' : 'files'}`
+          ? `, ${badge} ${badgeNoun} ${badge === 1 ? 'file' : 'files'}`
           : ''
       }`}
       aria-pressed={active}
@@ -167,6 +175,11 @@ export function ActivityBar(): React.JSX.Element {
     [projects, activeProjectId]
   );
 
+  // Files with at least one hit in the live result set (Phase 14).
+  const resultFiles = useSearch((s) =>
+    s.repoPath !== null && s.repoPath === project?.path ? s.totalFiles : 0
+  );
+
   // Dirty-file count badge on the Source Control item — accent, never amber
   // (amber is attention-only, S3).
   const dirty = useGit((s) => {
@@ -182,6 +195,17 @@ export function ActivityBar(): React.JSX.Element {
         icon="files"
         label="Explorer"
         shortcut={keyDisplay('view.explorer')}
+      />
+      {/* Phase 14. The badge is the FILE count of a live result set, in accent
+          — never amber, which this app reserves entirely for "an agent needs
+          you" and would otherwise be competing with. */}
+      <ViewItem
+        view="search"
+        icon="search"
+        label="Search"
+        shortcut={keyDisplay('view.search')}
+        badge={resultFiles}
+        badgeNoun="matching"
       />
       <ViewItem
         view="scm"

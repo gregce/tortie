@@ -13,6 +13,7 @@ import type { AgentKind, Session } from '@shared/types';
 import type { GmuxSessionExtras } from '@shared/ipc';
 import { useApp } from '../state/store';
 import { requestOpenFile } from '../state/open-file';
+import type { OpenFileSelection } from '../state/open-file';
 // Harness-only reach into the terminal domain: the point of the item-2 shot
 // is that the REAL capture action runs, not a mock of it.
 import { captureHistory, captureVisible } from '../terminal/capture';
@@ -31,6 +32,13 @@ export interface ShotDriveSpec {
   /** Repo-relative file to open (as a diff by default). */
   openRel?: string;
   mode?: 'diff' | 'file';
+  /**
+   * Open `openRel` as a NAVIGATION (Phase 14): the same request a search hit
+   * emits, so a capture can prove the reveal + selection actually happened
+   * instead of asserting it from the code. 1-based line, 0-based columns —
+   * the bus contract, unmodified.
+   */
+  selection?: OpenFileSelection;
   /**
    * Extra repo-relative files opened FOR KEEPS before `openRel`, so a capture
    * can show the accumulating tab strip (Phase 12 item 5) rather than the one
@@ -692,13 +700,18 @@ export function installShotHook(): void {
         relPath: spec.openRel,
         path: `${spec.projectPath}/${spec.openRel}`,
         mode: spec.mode ?? 'diff',
-        source: 'worktree',
-        preview: false
+        // A selection makes this the search gesture, not the tree gesture —
+        // including the `source`, because the focus rule keys off it.
+        source: spec.selection !== undefined ? 'search' : 'worktree',
+        preview: false,
+        ...(spec.selection !== undefined ? { selection: spec.selection } : {})
       });
       // Ready when the mode's surface is mounted and the loading skeleton is
       // gone: Pierre's shadow-DOM host with rendered rows for diff mode,
-      // Monaco for file mode.
-      const wantDiff = (spec.mode ?? 'diff') === 'diff';
+      // Monaco for file mode. A navigation is always Monaco — the bus forces
+      // File mode for it, whatever `mode` asked for.
+      const wantDiff =
+        spec.selection === undefined && (spec.mode ?? 'diff') === 'diff';
       for (let i = 0; i < 120; i++) {
         const surface = wantDiff
           ? // An image opened as a diff is the before/after comparison, not

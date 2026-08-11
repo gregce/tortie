@@ -101,8 +101,49 @@ extraResources:
   # at runtime by src/main/tray, so they cannot live in the renderer bundle.
   - from: resources/menu-bar
     to: menu-bar
+  # Phase 14 (symbols): SIX tree-sitter grammars and the web-tree-sitter
+  # runtime, read at runtime by src/main/symbols/paths.ts from
+  # process.resourcesPath/tree-sitter.
+  #
+  # WHY extraResources AND NOT asarUnpack: a .wasm is not a .node, so the
+  # `**/*.node` rule above does not cover it, and `out/` resolves these out of
+  # node_modules and passes WITHOUT this entry — the packaged app is the only
+  # place a mistake here shows up (research 19 §2.8, §7.2). This is the
+  # go/no-go check the symbols work is gated on.
+  #
+  # SIX, not sixteen: typescript 1,381 KB, tsx 1,412 KB, rust 1,088 KB,
+  # python 447 KB, javascript 402 KB, go 212 KB = 4.8 MB. The package also
+  # carries cpp (5.1 MB), c-sharp (4.9 MB), ruby (2.0 MB), bash, java, php,
+  # powershell, css, ini and regex — ~14 MB for languages nobody in these
+  # repos writes. Adding a seventh is a deliberate act with a size cost.
+  - from: node_modules/@vscode/tree-sitter-wasm/wasm
+    to: tree-sitter
+    filter:
+      - "tree-sitter-typescript.wasm"
+      - "tree-sitter-tsx.wasm"
+      - "tree-sitter-javascript.wasm"
+      - "tree-sitter-go.wasm"
+      - "tree-sitter-python.wasm"
+      - "tree-sitter-rust.wasm"
+  # web-tree-sitter's OWN runtime wasm. Never @vscode/tree-sitter-wasm's older
+  # bundled tree-sitter.wasm — letting emscripten find that one yields
+  # `ENOENT: web-tree-sitter.wasm` (research 19 §7.3).
+  - from: node_modules/web-tree-sitter/web-tree-sitter.wasm
+    to: tree-sitter/web-tree-sitter.wasm
 asarUnpack:
   - "**/*.node"
+  # Phase 14: the vendored ripgrep Mach-O (@vscode/ripgrep-darwin-arm64) is
+  # not a .node file, so the line above does not cover it. Unpacking is
+  # required for CORRECTNESS today and for SIGNING later:
+  #   - spawning from inside the asar works only because Electron's shim
+  #     copies all 4,528,512 bytes to /tmp on first spawn, unsigned — which
+  #     fails library validation the moment this app gets a real identity and
+  #     a hardened runtime;
+  #   - electron-builder re-signs nested Mach-O binaries only for files it has
+  #     unpacked.
+  # src/main/search/resolve.ts rewrites app.asar → app.asar.unpacked to match.
+  # `out/` passes WITHOUT this line; only the packaged app catches its absence.
+  - "**/@vscode/ripgrep-*/bin/*"
 npmRebuild: true
 mac:
   category: public.app-category.developer-tools

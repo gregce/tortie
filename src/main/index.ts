@@ -53,7 +53,10 @@ import type { GmuxCore } from './ipc';
 import type { ManifestSessionRecord } from './manifest';
 import { installAppMenu } from './menu';
 import { registerProjectCreateIpc } from './projects';
+import { disposeQuickOpenIpc, registerQuickOpenIpc } from './quickopen';
 import { registerRestoreIpc, snapshotPath, stripAnsi } from './restore';
+import { disposeSearchIpc, registerSearchIpc } from './search';
+import { disposeSymbolsIpc, registerSymbolsIpc } from './symbols';
 import { openSettingsWindow, registerSettingsIpc } from './settings';
 import { disposeTray, installTray } from './tray';
 import * as tmux from './tmux';
@@ -1211,6 +1214,19 @@ app.whenReady().then(async () => {
   // Phase 12 items 1 + 2: terminal capture + rich clipboard + Clear
   // (capture:*, clipboard:writeRich, terminal:clearHistory).
   registerCaptureIpc(ipcMain);
+  // Phase 14: project-wide content search (search:start/cancel/context). The
+  // vendored ripgrep is spawned per query and streamed; nothing is indexed,
+  // nothing runs in the background, so registering it costs one closure.
+  registerSearchIpc(ipcMain);
+  // Phase 14: quick open (quickopen:warm/query). The resident ranking worker
+  // is created on the FIRST ⌘P, never at boot — registering it costs one
+  // closure, and a user who never opens the palette never pays for it.
+  registerQuickOpenIpc(ipcMain);
+  // Phase 14: go to symbol (symbols:query/ensure/release). The tree-sitter
+  // worker pool, the six wasm grammars and the symbol database are ALL created
+  // on the first ⌘⇧O for a project and never at boot — "never on project
+  // open" is the lifecycle rule this registration exists to keep enforceable.
+  registerSymbolsIpc(ipcMain);
   // Phase 8.2: renderer-confirmed quit (first-quit toast flow — the Quit
   // menu item forwards to the renderer, which invokes this after showing
   // the one-time §4 toast; see src/main/menu.ts for the fallback timer).
@@ -1291,6 +1307,9 @@ app.on('before-quit', (event) => {
       /* never block quit */
     }
     void disposeGitIpc();
+    disposeSearchIpc(); // SIGKILL any in-flight ripgrep
+    void disposeQuickOpenIpc(); // terminate the ⌘P ranking worker
+    void disposeSymbolsIpc(); // terminate the tree-sitter pool, close its db
     disposeTray();
     app.quit();
   })();

@@ -14,6 +14,10 @@
  *  - max 10 tabs, LRU-evicting clean, non-active tabs
  *  - ⌘S saves via fs:writeFile; dirty dot until saved
  *  - §6.12 file-deleted-under-tab state (read-only + banner)
+ *  - Phase 14: a request carrying an `OpenFileSelection` is a NAVIGATION —
+ *    it forces File mode (the only surface with lines on it), it lands on
+ *    RE-open of an already-open tab and not just on first open, and it hands
+ *    MonacoHost a `pendingSelection` to reveal + select + flash exactly once
  *
  * TAB IDENTITY (`tab.id`, not `tab.path`). Every action, the Monaco model
  * registry and the view-state registry are keyed by `id`. For a worktree tab
@@ -44,7 +48,11 @@ import type { ImageReadResult } from '@shared/image-types';
 import { isImagePath, isSvgPath } from '@shared/image-types';
 import { useApp } from '../state/store';
 import { onOpenFile } from '../state/open-file';
-import type { OpenFileCommitRef, OpenFileRequest } from '../state/open-file';
+import type {
+  OpenFileCommitRef,
+  OpenFileRequest,
+  OpenFileSelection
+} from '../state/open-file';
 import { disposeModels, dropViewState } from './monaco-loader';
 import { leftPathFor, tabIdFor } from './tab-identity';
 import { createTabIo } from './tab-io';
@@ -124,6 +132,29 @@ export interface EditorTab {
    * save, no watcher refresh, no worktree read.
    */
   commit: OpenFileCommitRef | null;
+  /**
+   * Phase 14 — where a NAVIGATION open (search hit, symbol, `foo.ts:412`)
+   * asked to land, waiting for Monaco to consume it.
+   *
+   * It has to live on the TAB rather than be applied at open time, for two
+   * reasons that both bit in earlier phases: at `openFromRequest` the editor
+   * usually is not mounted yet (the Monaco chunk is still loading, the file
+   * is still being read), and re-opening an already-open tab has to land too
+   * — that path never touched the editor at all before.
+   *
+   * MonacoHost consumes it exactly once (reveal → select → flash) and calls
+   * `clearPendingSelection`. `pendingFocus` travels with it and is only
+   * meaningful while it is non-null; the pair is set and cleared together.
+   */
+  pendingSelection: OpenFileSelection | null;
+  /**
+   * Whether landing that selection should also move KEYBOARD FOCUS into the
+   * editor. False for a preview open from the search list: focus must stay
+   * on the list so ↑↓ keep walking hits while the editor previews each one
+   * behind them. True for a pinned open (double-click / ⌘↩) and for every
+   * gesture that is not a search result.
+   */
+  pendingFocus: boolean;
   dirty: boolean;
   /** §6.12 — deleted on disk under the open tab. */
   deleted: boolean;
@@ -200,6 +231,12 @@ interface EditorState {
   setMode(id: string, mode: EditorMode): void;
   /** Preview → permanent (first edit, double-click, or an explicit open). */
   pin(id: string): void;
+  /**
+   * MonacoHost calls this after it has revealed, selected and flashed the
+   * range — a landing happens once per request, never again on the next
+   * re-render or mode toggle.
+   */
+  clearPendingSelection(id: string): void;
   markDirty(id: string, dirty: boolean): void;
   save(): Promise<void>;
   setMinimapEnabled(on: boolean): void;
@@ -239,6 +276,35 @@ function readMarkdownMode(): EditorMode {
   } catch {
     return 'preview';
   }
+}
+
+/**
+ * Rule (a) of research 19 §2.6, asked as a question about the SURFACE: can a
+ * line number mean anything here?
+ *
+ * Diff (@pierre/diffs), rendered markdown and the image viewer are all
+ * line-less — there is nowhere on any of them to put line 412 — so a request
+ * that carries a selection is forced into File mode. `canDiff` is untouched,
+ * so the mode chip still offers the diff one click away.
+ *
+ * The exception is a RASTER image: there is no text under it at all, and
+ * forcing File mode would push a binary file through the text reader and
+ * replace the picture with "binary file — there is no text diff to show".
+ * Those keep the image viewer and ignore the selection. (An SVG is text, so
+ * it lands in Source like any other file.)
+ */
+function landsInText(image: boolean, svg: boolean): boolean {
+  return !image || svg;
+}
+
+/**
+ * Rule (d): a PREVIEW open from the search results list must not steal
+ * keyboard focus — the list owns ↑↓ while the user scans, and the editor is
+ * previewing behind it. Every other gesture (including a pinned search open,
+ * which is the user saying "I'm going there now") does focus the editor.
+ */
+function shouldFocusFor(req: OpenFileRequest): boolean {
+  return req.source !== 'search' || req.preview === false;
 }
 
 let initialized = false;
@@ -359,10 +425,26 @@ export const useEditor = create<EditorState>((set, get) => {
       const redoubled = lastOpen.id === id && now - lastOpen.at < DOUBLE_OPEN_MS;
       lastOpen = { id, at: now };
 
+      const selection = req.selection ?? null;
+
       const existing = tabById(id);
       if (existing !== undefined) {
         get().activate(id);
         if (req.preview === false || redoubled) get().pin(id);
+        // Rule (b). This path used to only raise the tab, which is exactly
+        // right for a tree click and exactly wrong for a search hit: the
+        // second match in a file the first match opened would silently do
+        // nothing at all. Hand the landing to MonacoHost, and switch a
+        // line-less surface (a diff, a rendered .md) back to File first —
+        // otherwise the tab shows a view with no line 412 on it and the
+        // pending selection has no consumer.
+        if (selection !== null && landsInText(existing.image, existing.svg)) {
+          patchTab(id, {
+            pendingSelection: selection,
+            pendingFocus: shouldFocusFor(req),
+            ...(existing.mode === 'file' ? {} : { mode: 'file' as EditorMode })
+          });
+        }
         return;
       }
 
@@ -380,6 +462,9 @@ export const useEditor = create<EditorState>((set, get) => {
       const svg = isSvgPath(req.path);
       const image = isImagePath(req.path) && (svg || commit === null);
       const origRelPath = leftPathFor(req);
+      // Rule (a): a navigation lands in File mode, whatever the request or
+      // the file extension would otherwise have chosen.
+      const navigate = selection !== null && landsInText(image, svg);
       const tab: EditorTab = {
         id,
         path: req.path,
@@ -391,8 +476,9 @@ export const useEditor = create<EditorState>((set, get) => {
         // the P4 gesture, and it is why the file was clicked. Everything
         // else markdown opens rendered. A history open is ALWAYS a diff:
         // clicking a file in a commit means "what did this commit do to it".
-        mode:
-          req.mode === 'diff' || commit !== null
+        mode: navigate
+          ? 'file'
+          : req.mode === 'diff' || commit !== null
             ? 'diff'
             : markdown
               ? readMarkdownMode()
@@ -412,6 +498,10 @@ export const useEditor = create<EditorState>((set, get) => {
         imageRevision: 0,
         preview: !keep,
         commit,
+        pendingSelection: navigate ? selection : null,
+        // Only ever false while there is a selection waiting to be consumed,
+        // so a tab can never get stuck refusing focus: the landing resets it.
+        pendingFocus: navigate ? shouldFocusFor(req) : true,
         dirty: false,
         deleted: false,
         truncated: false,
@@ -577,6 +667,14 @@ export const useEditor = create<EditorState>((set, get) => {
     pin(id) {
       const tab = tabById(id);
       if (tab !== undefined && tab.preview) patchTab(id, { preview: false });
+    },
+
+    clearPendingSelection(id) {
+      const tab = tabById(id);
+      if (tab === undefined || tab.pendingSelection === null) return;
+      // `pendingFocus` returns to its default with it: the flag describes one
+      // gesture, and the next tab activation must be free to focus normally.
+      patchTab(id, { pendingSelection: null, pendingFocus: true });
     },
 
     markDirty(id, dirty) {

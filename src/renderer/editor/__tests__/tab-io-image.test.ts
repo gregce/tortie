@@ -67,6 +67,8 @@ function imageTab(over: Partial<EditorTab> = {}): EditorTab {
     imageRevision: 0,
     preview: false,
     commit: null,
+    pendingSelection: null,
+    pendingFocus: true,
     dirty: false,
     deleted: false,
     truncated: false,

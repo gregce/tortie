@@ -31,6 +31,7 @@ import type {
   GmuxProjectExtras,
   GmuxSessionExtras,
   GmuxSessionRestoreExtras,
+  GmuxSymbolsExtras,
   GmuxViewMenuExtras,
   PopupMenuIcon
 } from '@shared/ipc';
@@ -122,8 +123,13 @@ export type BootBlock = 'tmux-missing' | null;
  */
 export type SessionOrientation = 'top' | 'right';
 
-/** The sidebar hosts ONE view at a time (round 1, activity bar). */
-export type SidebarViewId = 'scm' | 'explorer';
+/**
+ * The sidebar hosts ONE view at a time (round 1, activity bar).
+ *
+ * Phase 14 added 'search'. It sits BETWEEN explorer and scm in the rail, which
+ * is VS Code's order and also the order of how often you reach for them.
+ */
+export type SidebarViewId = 'scm' | 'explorer' | 'search';
 
 // ---------------------------------------------------------------------------
 // Store
@@ -658,6 +664,16 @@ export const useApp = create<AppState>((set, get) => {
           void (async () => {
             try {
               await gmux.projects.remove(projectId);
+              // Phase 14: give the project's symbol index its memory back.
+              // Feature-detected, fire-and-forget, and never a reason a
+              // project fails to close — the index rebuilds from SQLite if
+              // the project is reopened, and evicts itself after 30 idle
+              // minutes even if this call never happens.
+              void (
+                window.gmux as (typeof window.gmux & GmuxSymbolsExtras) | undefined
+              )?.symbols
+                ?.release(project.path)
+                .catch(() => undefined);
               const projects = await gmux.projects.list();
               set((s) => {
                 const next: Partial<AppState> = { projects };

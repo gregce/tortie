@@ -1,0 +1,686 @@
+/**
+ * Search view + symbol palette.
+ *
+ * Tokens only (DESIGN.md §1) and the app's existing vocabulary (.input,
+ * .icon-btn, .btn-text, .num, .attention-panel) — this view adds no new
+ * material, only the two densities it genuinely needs:
+ *
+ *   22 px rows, one below the tree's 24. A match row is ONE LINE OF CODE, and
+ *   the thing being scanned is the code, not the chrome; giving each line the
+ *   tree's breathing room would fit six fewer results on a laptop screen for
+ *   no gain in legibility, because the mono face is already smaller than the
+ *   UI face.
+ *
+ * Everything animated here is one property (opacity or transform) driven by
+ * an existing duration token, and the only moving element is the 2 px progress
+ * line — which stops the moment the search does.
+ */
+
+/* ---------------------------------------------------------------------------
+   Query block
+--------------------------------------------------------------------------- */
+
+.search-body {
+  flex: 0 0 auto;
+  padding: var(--space-4) var(--space-5) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.search-query {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.search-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.search-input {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+.search-input:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
+
+/* A regex the engine refused. The hairline is the signal; the sentence below
+   is ripgrep's own words, because a paraphrase of a regex error is worse than
+   the error. */
+.search-input.invalid {
+  border-color: var(--error);
+}
+
+.search-invalid {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--error);
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
+.search-toggle {
+  color: var(--text-muted);
+}
+
+.search-toggle.on {
+  background: var(--bg-active);
+  color: var(--accent-text);
+}
+
+.search-toggle.on:hover {
+  background: var(--bg-active);
+  color: var(--accent-hover);
+}
+
+/* The "…" sits hard right, tucked up against the query row it belongs to.
+   The negative margin is what keeps it from reading as an orphan on a line of
+   its own — measured on screen, the untucked version left 20 px of empty
+   sidebar above and below three dots. */
+.search-details-toggle {
+  align-self: flex-end;
+  height: 18px;
+  margin-top: calc(-1 * var(--space-2));
+  color: var(--text-muted);
+}
+
+.search-details-toggle.on {
+  color: var(--accent-text);
+}
+
+.search-details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-bottom: var(--space-2);
+}
+
+.search-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.search-field-label {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+}
+
+.search-glob {
+  height: 24px;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+.search-ignore {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  align-self: flex-start;
+  height: 22px;
+  padding: 0 var(--space-3) 0 var(--space-2);
+  border-radius: var(--r-sm);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.search-ignore:hover {
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+}
+
+/* Searching ignored files is 12–80× slower and can surface build output as if
+   it were source. It is a legitimate thing to want and a bad default, so the
+   ON state is the loud one. */
+.search-ignore.off {
+  color: var(--warning);
+}
+
+/* ---------------------------------------------------------------------------
+   Progress + summary
+--------------------------------------------------------------------------- */
+
+.search-progress {
+  height: 2px;
+  margin: var(--space-3) calc(-1 * var(--space-5)) 0;
+  overflow: hidden;
+}
+
+.search-progress.on::after {
+  content: '';
+  display: block;
+  height: 2px;
+  width: 40%;
+  background: var(--accent);
+  animation: gmux-search-sweep 1.1s var(--ease-out) infinite;
+}
+
+@keyframes gmux-search-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(350%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* No sweep. The count in the summary is already saying "still going", and
+     it says it with a number rather than with movement. */
+  .search-progress.on::after {
+    width: 100%;
+    animation: none;
+    opacity: 0.5;
+  }
+}
+
+.search-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 26px;
+  padding: var(--space-2) 0;
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+}
+
+.search-summary-spacer {
+  flex: 1;
+}
+
+.search-stale {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 20px;
+  padding: 0 var(--space-3);
+  border-radius: var(--r-sm);
+  background: var(--warning-wash);
+  color: var(--warning);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.search-stale:hover {
+  background: var(--bg-raised);
+}
+
+.search-stale-action {
+  color: var(--accent-text);
+  font-weight: var(--weight-medium);
+}
+
+/* ---------------------------------------------------------------------------
+   Results — virtualized, every row exactly 22px
+--------------------------------------------------------------------------- */
+
+.search-results {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  outline: none;
+  padding-bottom: var(--space-4);
+}
+
+.search-results:focus-visible {
+  box-shadow: inset var(--focus-ring);
+}
+
+.search-row-wrap {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 22px;
+}
+
+.search-row-wrap.selected {
+  background: var(--bg-active);
+}
+
+.search-row-wrap:hover:not(.selected) {
+  background: var(--bg-raised);
+}
+
+.search-file,
+.search-match {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  height: 22px;
+  padding: 0 var(--space-5) 0 var(--space-3);
+  text-align: left;
+  min-width: 0;
+}
+
+.search-file {
+  color: var(--text-secondary);
+}
+
+.search-file .codicon {
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+
+/* Name and directory BOTH shrink, and the spacer between them and the count
+   is what grows. Pinning the name at its natural width instead left a long
+   filename with a one-character directory beside it ("docs/research" rendered
+   as "d…"), which is noise rather than information. Sharing the squeeze means
+   a tight row loses a little of each and still says which file it is. */
+.search-file-name {
+  /* shrink-factor 1 against the directory's 100: the directory gives up its
+     width almost entirely before the FILENAME loses a character. Equal
+     shrink was tried and truncated `shot-hook.ts` to `shot-hook…` while
+     `src/renderer/editor` still had room — exactly backwards, since the name
+     is the thing being looked for. */
+  flex: 0 1 auto;
+  min-width: 6ch;
+  font-size: var(--text-base);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.search-file-dir {
+  flex: 0 100 auto;
+  min-width: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.search-file-spacer {
+  flex: 1 1 auto;
+  min-width: var(--space-3);
+}
+/* `direction: rtl` was tried here to keep the LEAF directory visible on a long
+   path, and it is wrong for paths: bidi reordering moves the `/` and `.` runs,
+   so `src/renderer/editor` can render with its separators in the wrong places,
+   and the truncation lands mid-word with no ellipsis at all. Plain end
+   truncation is less clever and always readable; the full path is one hover
+   away in the row's title. */
+
+.search-file-note {
+  flex: 0 0 auto;
+  font-size: var(--text-xs);
+  color: var(--warning);
+}
+
+.search-file-count {
+  flex: 0 0 auto;
+  min-width: 18px;
+  padding: 0 var(--space-2);
+  border-radius: var(--r-sm);
+  background: var(--bg-raised);
+  font-size: var(--text-xs);
+  line-height: 16px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.search-row-wrap.selected .search-file-dir,
+.search-row-wrap.selected .search-file-count {
+  color: var(--text-secondary);
+}
+
+.search-match {
+  padding-left: var(--space-2);
+}
+
+.search-match-body {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex: 1;
+  min-width: 0;
+  height: 22px;
+  text-align: left;
+}
+
+.search-context-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  border-radius: var(--r-sm);
+  color: var(--text-disabled);
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+/* The context affordance appears on hover or when it is already in use —
+   a permanently visible chevron on every one of 10,000 rows would be the
+   loudest thing in the view. */
+.search-row-wrap:hover .search-context-toggle,
+.search-row-wrap.selected .search-context-toggle,
+.search-context-toggle.on,
+.search-context-toggle:focus-visible {
+  opacity: 1;
+}
+
+.search-context-toggle:hover,
+.search-context-toggle.on {
+  color: var(--text-secondary);
+}
+
+/* Context is fetched from disk on expand, so the row can sit in a loading
+   state for a frame or two on a cold cache. A still spinner glyph reads as a
+   broken icon. */
+.search-context-toggle .codicon-loading {
+  animation: gmux-search-spin 1s linear infinite;
+}
+
+@keyframes gmux-search-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .search-context-toggle .codicon-loading {
+    animation: none;
+    opacity: 0.5;
+  }
+}
+
+.search-line {
+  flex: 0 0 auto;
+  min-width: 34px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-disabled);
+}
+
+.search-text {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: 22px;
+  color: var(--text-secondary);
+  white-space: pre;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.search-row-wrap.selected .search-text,
+.search-row-wrap.selected .search-line {
+  color: var(--text-primary);
+}
+
+/* <mark> rather than a span: the highlight has to survive high-contrast and
+   forced-colors modes, where a background token does not. */
+.search-hit {
+  background: var(--accent-wash);
+  color: var(--accent-text);
+  border-radius: 2px;
+}
+
+.search-truncated {
+  color: var(--text-disabled);
+}
+
+.search-context {
+  opacity: 0.75;
+}
+
+.search-context-gutter {
+  width: 16px;
+  flex: 0 0 auto;
+}
+
+.search-clipped {
+  display: flex;
+  align-items: center;
+  height: 22px;
+  padding-left: calc(var(--space-2) + 16px + var(--space-4) + 34px);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.search-capped {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  background: var(--bg-sidebar);
+  border-top: 1px solid var(--border);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.search-inline-action {
+  height: 20px;
+  font-size: var(--text-xs);
+}
+
+/* ---------------------------------------------------------------------------
+   Empty / idle states
+--------------------------------------------------------------------------- */
+
+.search-empty {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-6) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.search-empty-title {
+  margin: 0;
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+}
+
+.search-empty-body {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-base);
+  color: var(--text-muted);
+}
+
+/* ---------------------------------------------------------------------------
+   Symbol palette (⌘⇧O) — the ⌘J panel's chrome, a denser body
+--------------------------------------------------------------------------- */
+
+.symbol-palette {
+  width: 620px;
+  display: flex;
+  flex-direction: column;
+  max-height: min(70vh, 640px);
+}
+
+.symbol-input-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: 40px;
+  padding: 0 var(--space-6);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+
+.symbol-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+}
+
+.symbol-input::placeholder {
+  color: var(--text-disabled);
+  font-family: var(--font-ui);
+}
+
+.symbol-scope {
+  flex: 0 0 auto;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.symbol-status {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-6);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+
+.symbol-status-error {
+  color: var(--error);
+}
+
+.symbol-progress-line {
+  display: block;
+  height: 2px;
+  width: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--accent) 50%,
+    transparent 100%
+  );
+  background-size: 40% 100%;
+  background-repeat: no-repeat;
+  animation: gmux-symbol-sweep 1.1s var(--ease-out) infinite;
+}
+
+@keyframes gmux-symbol-sweep {
+  from {
+    background-position: -40% 0;
+  }
+  to {
+    background-position: 140% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .symbol-progress-line {
+    animation: none;
+    background: var(--accent);
+    opacity: 0.4;
+  }
+}
+
+.symbol-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-2) 0;
+}
+
+.symbol-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  height: 26px;
+  padding: 0 var(--space-6);
+  text-align: left;
+  min-width: 0;
+  color: var(--text-secondary);
+}
+
+.symbol-row.selected {
+  background: var(--bg-active);
+}
+
+.symbol-row .codicon {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+}
+
+.symbol-row.selected .codicon {
+  color: var(--accent-text);
+}
+
+.symbol-name {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.symbol-container {
+  flex: 0 0 auto;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.symbol-spacer {
+  flex: 1;
+  min-width: var(--space-4);
+}
+
+.symbol-path {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.symbol-dir {
+  color: var(--text-disabled);
+}
+
+.symbol-line {
+  flex: 0 0 auto;
+  min-width: 34px;
+  text-align: right;
+  font-size: var(--text-xs);
+  color: var(--text-disabled);
+}
+
+.symbol-row.selected .symbol-container,
+.symbol-row.selected .symbol-path,
+.symbol-row.selected .symbol-line {
+  color: var(--text-secondary);
+}
+
+.symbol-empty {
+  padding: var(--space-5) var(--space-6);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.symbol-footer-hint {
+  color: var(--text-disabled);
+}
