@@ -40,12 +40,21 @@ import { endedBadly, endedTitle, rollupDot, statusVisual } from './status';
 import { useNow } from './format';
 import {
   RenameInput,
+  ResumeMark,
   closeSession,
   isOutsideProject,
+  sessionAriaLabel,
   sessionMenuItems,
   sessionTooltip,
   useRenameDraft
 } from './session-actions';
+import {
+  restoreActionCopy,
+  restoreSummary,
+  resumeMarkLabel,
+  resumeNote,
+  resumeReadiness
+} from './resume';
 import { AgentIcon, Codicon } from '../icons';
 // §6.2 lives with the other full-window empty states (./EmptyStates).
 import { NoSessions } from './EmptyStates';
@@ -132,7 +141,7 @@ function SessionTab({
     <div
       role="tab"
       aria-selected={active}
-      aria-label={`${session.name}, ${visual.label}`}
+      aria-label={sessionAriaLabel(session, visual)}
       tabIndex={active ? 0 : -1}
       data-session-id={session.id}
       data-surface-id={surface.id}
@@ -178,6 +187,7 @@ function SessionTab({
           <Codicon name="git-branch" size={12} />
         </span>
       ) : null}
+      <ResumeMark session={session} />
       <span className={`dot dot-${visual.dot}`} />
       {status === 'restorable' ? (
         <span className="stab-saved" title="Saved — ready to restore">
@@ -544,6 +554,7 @@ function IdentityStrip({
 
   const status = effectiveStatusOf(session);
   const visual = statusVisual(status, session);
+  const resumeMark = resumeMarkLabel(resumeReadiness(session));
   // Marker suffix so the dock row's rename input (plain id) never doubles up.
   const rename = useRenameDraft(session, `strip:${session.id}`);
   const renaming = rename.renaming;
@@ -574,6 +585,14 @@ function IdentityStrip({
       >
         {visual.label}
       </span>
+      {/* The strip has room the 24px rows do not, so here the resume state is
+          words rather than a glyph — DESIGN.md §1.3's own split. */}
+      {resumeMark !== null ? (
+        <span className="strip-resume" title={resumeNote(session) ?? undefined}>
+          <Codicon name="folder" size={12} />
+          {resumeMark}
+        </span>
+      ) : null}
       <span className="strip-spacer" />
       <button
         type="button"
@@ -613,9 +632,10 @@ function RestoreAllBar({
 
   return (
     <div className="restore-strip" role="status">
-      <span className="restore-strip-text">
-        {restorable.length} saved sessions
-      </span>
+      {/* Phase 13.5: the count alone ("6 saved sessions") let the user press
+          Restore all and only then discover which conversations were never
+          coming back. The split is stated before the button, not after. */}
+      <span className="restore-strip-text">{restoreSummary(restorable)}</span>
       <button
         type="button"
         className="btn-restore"
@@ -820,10 +840,10 @@ export function TerminalRegion(): React.JSX.Element {
                 : exited
                   ? 'Restarting opens a fresh session with the same name and directory.'
                   : canRestore()
-                  ? (active.resumeArgv?.length ?? 0) > 0
-                    ? 'Restore brings back its saved scrollback and types the resume command for you — nothing runs until you press Enter.'
-                    : 'Restore reopens it in the same directory with its saved scrollback above a fresh prompt.'
-                  : 'This session is saved but not running — restart it to pick up in the same directory.'}
+                    ? // Phase 13.5 — the same honesty the row mark carries,
+                      // said in full at the moment the user is about to act.
+                      restoreActionCopy(active)
+                    : 'This session is saved but not running — restart it to pick up in the same directory.'}
             </p>
             {commandNotFound !== null ? (
               <code className="agent-missing-cmd">

@@ -25,8 +25,10 @@ import { rollupDot, statusVisual } from './status';
 import { useNow } from './format';
 import {
   RenameInput,
+  ResumeMark,
   closeSession,
   isOutsideProject,
+  sessionAriaLabel,
   sessionTooltip,
   useRenameDraft
 } from './session-actions';
@@ -69,7 +71,7 @@ function DockRow({
       <div
         role="option"
         aria-selected={selected}
-        aria-label={`${session.name}, ${visual.label}`}
+        aria-label={sessionAriaLabel(session, visual)}
         data-session-id={session.id}
         data-surface-id={surface.id}
         title={
@@ -107,6 +109,7 @@ function DockRow({
           </span>
         ) : null}
         <span className="srow-space" />
+        <ResumeMark session={session} />
         <span className={`dot dot-${visual.dot}`} />
         {status === 'restorable' ? (
           <span className="srow-saved" title="Saved — ready to restore">

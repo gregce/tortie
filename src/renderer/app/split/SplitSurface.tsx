@@ -23,11 +23,14 @@ import type { SplitBranch, SplitNode } from '../../state/split-tree';
 import { endedTitle, statusVisual } from '../status';
 import {
   RenameInput,
+  ResumeMark,
   closeSession,
   isOutsideProject,
+  sessionAriaLabel,
   sessionMenuItems,
   useRenameDraft
 } from '../session-actions';
+import { resumeMarkLabel, resumeNote, resumeReadiness } from '../resume';
 import { AgentIcon, Codicon } from '../../icons';
 import { armPointerDrag, isSecondaryPress } from './pointer-drag';
 import { startHeaderDrag } from './surface-dnd';
@@ -106,10 +109,11 @@ function SplitHeader({
           <Codicon name="git-branch" size={12} />
         </span>
       ) : null}
+      <ResumeMark session={session} />
       <span
         className={`dot dot-${visual.dot}`}
         title={visual.label}
-        aria-label={`${session.name}, ${visual.label}`}
+        aria-label={sessionAriaLabel(session, visual)}
       />
       {status === 'restorable' ? (
         <span className="split-saved" title="Saved — ready to restore">
@@ -147,14 +151,28 @@ function SplitPaneState({ session }: { session: Session }): React.JSX.Element {
   const restoringIds = useApp((s) => s.restoringIds);
 
   const restorable = session.status === 'restorable';
+  const resumeShort = resumeMarkLabel(resumeReadiness(session));
 
   return (
     <div className="split-state">
       {/* Same honest headline as the full-window state (Phase 12.7 F2): a
           session killed from outside says so, instead of showing the exit
           code its agent happened to translate the signal into. */}
-      <div className="split-state-title">
-        {restorable ? 'Ready to restore' : endedTitle(session)}
+      <div className="split-state-head">
+        <div className="split-state-title">
+          {restorable ? 'Ready to restore' : endedTitle(session)}
+        </div>
+        {/* Phase 13.5: a split is too narrow for the full-window body copy,
+            so the action says the short truth and the tooltip carries the
+            reason. Nobody should press Restore expecting a conversation. */}
+        {restorable && resumeShort !== null ? (
+          <div
+            className="split-state-note"
+            title={resumeNote(session) ?? undefined}
+          >
+            {resumeShort}
+          </div>
+        ) : null}
       </div>
       <div className="split-state-actions">
         {restorable && canRestore() ? (

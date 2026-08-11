@@ -1670,6 +1670,64 @@
 }
 
 /* ---------------------------------------------------------------------------
+   Phase 13.5 — resume honesty (docs/research/22-resume-audit.md §4).
+
+   Which sessions come back WITH THEIR CONVERSATION has to be legible before
+   a reboot, not discovered after one. The rule for how loud that may be is
+   ZEN-OF-TORTIE's: this is information, not an alarm. So the mark is a muted
+   12px folder — no status color, because coming back to a directory is not
+   an error state (it is the whole of what a plain shell has), and no badge,
+   because the loudest object in this interface is reserved for "needs you".
+
+   It marks only the EXCEPTION. An armed session is the promise being kept
+   and gets nothing; a shell gets nothing. The count both ways is stated once,
+   in the restore bar, where the user is about to act.
+--------------------------------------------------------------------------- */
+
+.resume-mark {
+  display: inline-flex;
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+
+/* Contrast rule (§1.1): raised and active fills lift it off muted, matching
+   the ⎇ mark it sits beside on every one of these surfaces. */
+.stab:hover .resume-mark,
+.stab.active .resume-mark,
+.srow:hover .resume-mark,
+.srow.selected .resume-mark,
+.split-header.focused .resume-mark {
+  color: var(--text-secondary);
+}
+
+/* Identity strip has room the 24px rows do not, so it says the state in
+   words next to the status label instead of relying on a glyph alone. */
+.strip-resume {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+/* Per-split ready-to-restore state: the short truth under the headline, so
+   the Restore button below it never promises a conversation it cannot bring
+   back. Grouped with the title (4px) and away from the actions (12px). */
+.split-state-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.split-state-note {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* ---------------------------------------------------------------------------
    Round 1 — header band alignment across the OTHER regions (S1).
 --------------------------------------------------------------------------- */
 

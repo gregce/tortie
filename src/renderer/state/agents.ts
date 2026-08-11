@@ -134,6 +134,15 @@ const SHORT_LABELS: Record<string, string> = Object.fromEntries(
 );
 
 /**
+ * The registry's short display label for an agent id ("pi" → "Pi"), for copy
+ * that puts the agent's name in a sentence. Unknown ids pass through, so a
+ * newly registered agent reads as itself rather than disappearing.
+ */
+export function agentShortLabel(id: string): string {
+  return SHORT_LABELS[id] ?? (id === 'shell' ? 'Shell' : id);
+}
+
+/**
  * The ⌘T picker options: every launchable agent (scan-driven when available,
  * static registry mirror otherwise) + Shell last. Installed is optimistic —
  * false only on a positive miss (scan row, or the Phase-8 probe for

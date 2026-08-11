@@ -14,6 +14,8 @@ import { useApp } from '../state/store';
 import { statusVisual } from './status';
 import type { StatusVisual } from './status';
 import { displayPath, formatAge } from './format';
+import { resumeMarkLabel, resumeNote, resumeReadiness } from './resume';
+import { Codicon } from '../icons';
 
 /**
  * True when the session runs outside the project checkout (a git worktree
@@ -26,7 +28,13 @@ export function isOutsideProject(session: Session): boolean {
   );
 }
 
-/** Tab / row tooltip: "claude-auth — claude · needs input · 4m" (S4). */
+/**
+ * Tab / row tooltip: "claude-auth — claude · needs input · 4m" (S4), with
+ * the Phase-13.5 resume sentence on a second line ("Its conversation comes
+ * back after a restart."). The dense surfaces can only carry a 12px mark, so
+ * the tooltip is where the mark's meaning — and the agent-specific reason —
+ * actually reaches the user.
+ */
 export function sessionTooltip(
   session: Session,
   visual: StatusVisual,
@@ -36,7 +44,48 @@ export function sessionTooltip(
   const age = formatAge(lastActivity ?? session.createdAt, now);
   const parts = [session.agent, visual.label, age];
   if (isOutsideProject(session)) parts.push(displayPath(session.cwd));
-  return `${session.name} — ${parts.join(' · ')}`;
+  const head = `${session.name} — ${parts.join(' · ')}`;
+  const note = resumeNote(session);
+  return note === null ? head : `${head}\n${note}`;
+}
+
+/**
+ * The accessible name for a session on any surface: "auth, working" plus the
+ * resume mark's meaning when it is showing. An `aria-label` on the row
+ * REPLACES its descendants' names, so the mark cannot carry its own — the
+ * label has to be assembled here or the indicator is invisible to a screen
+ * reader.
+ */
+export function sessionAriaLabel(
+  session: Session,
+  visual: StatusVisual
+): string {
+  const mark = resumeMarkLabel(resumeReadiness(session));
+  return `${session.name}, ${visual.label}${mark === null ? '' : `, ${mark}`}`;
+}
+
+/**
+ * The resume mark (Phase 13.5): a 12px folder beside the status dot on a
+ * session that would come back as a directory rather than a conversation.
+ *
+ * Deliberately marks only the EXCEPTION. An armed session is the product's
+ * promise being kept and needs no decoration; a plain shell has no
+ * conversation to lose and must not be made to look deficient. Muted, never
+ * colored — "directory only" is a fact, not an error (ZEN-OF-TORTIE), and
+ * the count both ways lives in the restore bar. Its accessible name rides on
+ * the surface's own aria-label (above); the glyph itself is decorative.
+ */
+export function ResumeMark({
+  session
+}: {
+  session: Session;
+}): React.JSX.Element | null {
+  if (resumeMarkLabel(resumeReadiness(session)) === null) return null;
+  return (
+    <span className="resume-mark">
+      <Codicon name="folder" size={12} />
+    </span>
+  );
 }
 
 /**

@@ -54,6 +54,18 @@ export interface ShotDriveSpec {
    */
   fakeRestore?: boolean;
   /**
+   * Phase 13.5: inject one LIVE session per resume-capture state (armed,
+   * capturing, unavailable, shell) so a capture shows the pre-reboot answer
+   * to "which of these comes back with its conversation". Pure store
+   * injection. `orientation` additionally flips the session surface, since
+   * the dense tab strip carries a glyph while the identity strip has room
+   * for the words.
+   */
+  fakeResume?: boolean;
+  orientation?: 'top' | 'right';
+  /** Select an injected fixture row by NAME before capture. */
+  focusSession?: string;
+  /**
    * Inject two renderer-only fake agent sessions (claude working, codex
    * needs-input) so the session tab strip / right list shows the full
    * round-1 vocabulary: agent icons, status dots, needs-input emphasis.
@@ -179,6 +191,22 @@ const step = (name: string): void => {
 let drivenProjectPath: string | null = null;
 /** Real session created by the drive — killed again by the cleanup hook. */
 let drivenSessionId: string | null = null;
+/** Timer re-asserting renderer-only fixtures over main's session list. */
+let fakeReinject: number | null = null;
+
+/** Add `rows` to the store and keep them there until cleanup. */
+function holdFakes(rows: Session[]): void {
+  const inject = (): void => {
+    useApp.setState((s) => {
+      const known = new Set(s.sessions.map((x) => x.id));
+      const missing = rows.filter((x) => !known.has(x.id));
+      return missing.length === 0 ? s : { sessions: [...s.sessions, ...missing] };
+    });
+  };
+  inject();
+  if (fakeReinject !== null) window.clearInterval(fakeReinject);
+  fakeReinject = window.setInterval(inject, 200);
+}
 
 function fakeRestorableSessions(projectPath: string): Session[] {
   const base = {
@@ -209,12 +237,96 @@ function fakeRestorableSessions(projectPath: string): Session[] {
       createdAt: now - 3 * 60 * 60_000
     },
     {
+      // Phase 13.5: the restore bar has to state the SPLIT, so the fixture
+      // has to contain one. This is the row the phase exists for — a qwen
+      // session whose conversation id was never captured, which used to look
+      // exactly like the claude rows above it.
+      ...base,
+      id: 'shot-fake-4',
+      name: 'qwen-1',
+      tmuxName: 'qwen-1',
+      agent: 'qwen' as AgentKind,
+      resumeCapture: 'unavailable',
+      createdAt: now - 55 * 60_000
+    },
+    {
       ...base,
       id: 'shot-fake-3',
       name: 'shell-1',
       tmuxName: 'shell-1',
       agent: 'shell',
+      resumeCapture: 'none',
       createdAt: now - 25 * 60 * 60_000
+    }
+  ];
+}
+
+/**
+ * Phase 13.5 — one LIVE session per resume-capture state, so a capture can
+ * show what the user sees BEFORE a reboot rather than after one. The names
+ * are the user's own live manifest rows from the bug report: muse-1, qwen-1
+ * and pi-1 all had no resume armed and no way to find that out.
+ *
+ * Renderer-only injection; nothing reaches main or the manifest.
+ */
+function fakeResumeSpectrum(projectPath: string): Session[] {
+  const base = { projectPath, cwd: projectPath };
+  const now = Date.now();
+  const agent = (id: string): AgentKind => id as AgentKind;
+  return [
+    {
+      ...base,
+      id: 'shot-res-1',
+      name: 'claude-api',
+      tmuxName: 'claude-api',
+      agent: 'claude',
+      status: 'running',
+      agentSessionId: 'f9d3f6f2-0000-4000-8000-000000000001',
+      resumeArgv: ['claude', '--resume', 'f9d3f6f2…'],
+      resumeCapture: 'armed',
+      createdAt: now - 42 * 60_000
+    },
+    {
+      ...base,
+      id: 'shot-res-2',
+      name: 'pi-1',
+      tmuxName: 'pi-1',
+      agent: agent('pi'),
+      status: 'idle',
+      agentSessionId: '019ed309-0000-7000-8000-000000000002',
+      resumeArgv: ['pi', '--session-id', '019ed309…'],
+      resumeCapture: 'armed',
+      createdAt: now - 31 * 60_000
+    },
+    {
+      ...base,
+      id: 'shot-res-3',
+      name: 'muse-1',
+      tmuxName: 'muse-1',
+      agent: agent('muse'),
+      status: 'running',
+      resumeCapture: 'capturing',
+      createdAt: now - 4 * 60_000
+    },
+    {
+      ...base,
+      id: 'shot-res-4',
+      name: 'qwen-1',
+      tmuxName: 'qwen-1',
+      agent: agent('qwen'),
+      status: 'idle',
+      resumeCapture: 'unavailable',
+      createdAt: now - 18 * 60_000
+    },
+    {
+      ...base,
+      id: 'shot-res-5',
+      name: 'shell-1',
+      tmuxName: 'shell-1',
+      agent: 'shell',
+      status: 'idle',
+      resumeCapture: 'none',
+      createdAt: now - 9 * 60_000
     }
   ];
 }
@@ -401,11 +513,31 @@ export function installShotHook(): void {
       }
     }
 
-    if (spec.fakeRestore === true) {
-      useApp.setState((s) => ({
-        sessions: [...s.sessions, ...fakeRestorableSessions(spec.projectPath)]
-      }));
-      await wait(300);
+    const fixture =
+      spec.fakeResume === true
+        ? fakeResumeSpectrum(spec.projectPath)
+        : spec.fakeRestore === true
+          ? fakeRestorableSessions(spec.projectPath)
+          : null;
+    if (fixture !== null) {
+      // HELD, not injected once: main owns `sessions`, and any
+      // sessions:changed that lands between here and the capture replaces
+      // the array wholesale, taking renderer-only rows with it. The first
+      // "right"-orientation run photographed exactly that — an empty dock
+      // behind a perfectly correct component.
+      holdFakes(fixture);
+      await wait(400);
+    }
+
+    if (spec.focusSession !== undefined) {
+      const focus = (fixture ?? []).find((x) => x.name === spec.focusSession);
+      if (focus !== undefined) useApp.getState().setActiveSession(focus.id);
+      await wait(400);
+    }
+
+    if (spec.orientation !== undefined) {
+      useApp.getState().setSessionOrientation(spec.orientation);
+      await wait(500);
     }
 
     if (spec.fakeTabs === true) {
@@ -622,6 +754,10 @@ export function installShotHook(): void {
   };
 
   window.__gmuxShotCleanup = async (): Promise<void> => {
+    if (fakeReinject !== null) {
+      window.clearInterval(fakeReinject);
+      fakeReinject = null;
+    }
     if (!window.gmux) return;
     // Fake sessions are renderer-only; nothing to clean up in main.
     if (drivenSessionId !== null) {
