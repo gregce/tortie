@@ -32,6 +32,13 @@ import type { MenuActionWithFind } from '@shared/ipc';
 // type a chord string into this file — add it to src/shared/keymap.ts and
 // read it back, or the menu and the ⌘/ overlay start drifting again.
 import { accelerator as accel } from '@shared/keymap';
+// The View-menu radio pair as DATA (ids, labels, actions) — shared with the
+// renderer's controls so the three cannot name different things.
+import {
+  DEFAULT_SESSIONS_POSITION,
+  SESSIONS_POSITION_RADIOS
+} from '@shared/sessions-position';
+import type { SessionsPosition } from '@shared/sessions-position';
 import type { LaunchableAgentId } from '@shared/types';
 // Direct module imports (NOT the ./settings barrel): settings/ipc.ts imports
 // rebuildAppMenu from this file — the barrel would close a require cycle.
@@ -44,22 +51,54 @@ import {
 import { getRegistryEntry } from './agents/registry';
 
 /**
- * Forward a menu action to the APP window's renderer. The Settings window
- * (S13) is a sibling BrowserWindow with no app shell, so it is never a
- * forwarding target — while it is focused, app actions (⌘T, per-agent
- * hotkeys, …) still land in the main window.
+ * Can this window act on a menu action? The Settings window (S13) is a
+ * sibling BrowserWindow with no app shell, so it is never a forwarding
+ * target — while it is focused, app actions (⌘T, per-agent hotkeys, …) still
+ * land in the main window. A torn-down window is not a target either: its
+ * webContents can outlive `isDestroyed()` being false for the window itself
+ * during teardown, and `send()` on it throws.
+ */
+function canReceiveMenuAction(win: BrowserWindow | null): win is BrowserWindow {
+  return (
+    win !== null &&
+    !win.isDestroyed() &&
+    !win.webContents.isDestroyed() &&
+    !isSettingsWindow(win)
+  );
+}
+
+/**
+ * The window a menu action goes to: the focused one when it is eligible,
+ * otherwise the app window itself. Phase 14.7: the old version took the FIRST
+ * eligible window, which is fine today (the main window is created first) but
+ * silently prefers the smoke harness's hidden BrowserWindow if window order
+ * ever changes. Visible windows win.
+ */
+function menuActionTarget(): BrowserWindow | null {
+  const focused = BrowserWindow.getFocusedWindow();
+  if (canReceiveMenuAction(focused)) return focused;
+  const eligible = BrowserWindow.getAllWindows().filter(canReceiveMenuAction);
+  return eligible.find((w) => w.isVisible()) ?? eligible[0] ?? null;
+}
+
+/**
+ * Forward a menu action to the APP window's renderer.
+ *
+ * Returns whether it was delivered, and says so out loud when it was not: a
+ * menu item that quietly does nothing (Phase 14.7, the "doesn't always work"
+ * half) is the one failure mode a menu must never have.
  *
  * Exported as sendMenuAction for the Phase 12.85 status item, which is a
  * second native menu over the same channel — never a second mechanism.
  */
-export function sendMenuAction(action: MenuActionWithFind): void {
-  const focused = BrowserWindow.getFocusedWindow();
-  const win =
-    (focused !== null && !isSettingsWindow(focused) ? focused : null) ??
-    BrowserWindow.getAllWindows().find(
-      (w) => !w.isDestroyed() && !isSettingsWindow(w)
-    );
-  win?.webContents.send(EVT_MENU_ACTION, action);
+export function sendMenuAction(action: MenuActionWithFind): boolean {
+  const win = menuActionTarget();
+  if (win === null) {
+    console.warn(`[menu] "${action}" had no window to act on — dropped`);
+    return false;
+  }
+  win.webContents.send(EVT_MENU_ACTION, action);
+  return true;
 }
 
 /**
@@ -132,54 +171,51 @@ function agentHotkeyItems(): MenuItemConstructorOptions[] {
 }
 
 // ---------------------------------------------------------------------------
-// Session-surface position (round 1; extended by Phase 12.12 item 2): a
-// View-menu radio pair. The renderer owns the one truth (the app store's
-// `sessionOrientation`, persisted to localStorage 'gmux.sessionOrientation');
-// these radios only RENDER it.
+// Session-surface position: a View-menu radio pair that RENDERS the renderer
+// store's `sessionOrientation` and nothing else.
 //
-// Two sync paths, because there are now two controls:
-//   - page load → read the persisted value back, so the menu opens honest
-//     after a relaunch;
-//   - ui:sessionsPosition → the store says it just moved. That channel exists
-//     because the SESSIONS header gained an inline toggle: a position can now
-//     change with no page load in sight, and a stale ✓ here would be a second,
-//     wrong answer to "where are my sessions".
+// ONE direction only (Phase 14.7). The store pushes over `ui:sessionsPosition`
+// on every change and once as the app loads; main caches that value below and
+// builds the template FROM it. Main never reads localStorage, never runs
+// executeJavaScript, and never sniffs a string to guess the position.
+//
+// The cache is what makes a rebuild safe. `rebuildAppMenu()` runs on every
+// hotkey change (settings:set), and the template used to hardcode
+// `checked: true` on Top — so recording a hotkey silently moved the checkmark
+// to Top while the sessions stayed on the right. Now a rebuild reproduces the
+// last known truth, and there is nothing asynchronous to lose a race with.
 // ---------------------------------------------------------------------------
 
-const MENU_ID_SESSIONS_TOP = 'view-sessions-top';
-const MENU_ID_SESSIONS_RIGHT = 'view-sessions-right';
-const LS_ORIENTATION = 'gmux.sessionOrientation';
-
-/** Move the radio marks. The only function that writes them. */
-function markSessionsPosition(right: boolean): void {
-  const menu = Menu.getApplicationMenu();
-  const top = menu?.getMenuItemById(MENU_ID_SESSIONS_TOP);
-  const rightItem = menu?.getMenuItemById(MENU_ID_SESSIONS_RIGHT);
-  if (top && rightItem) {
-    top.checked = !right;
-    rightItem.checked = right;
-  }
-}
+/** Last position the renderer store announced. A cache, never an authority. */
+let sessionsPosition: SessionsPosition = DEFAULT_SESSIONS_POSITION;
 
 /**
  * The renderer store moved the session surface (View menu, the SESSIONS
  * header's inline toggle, or its ˅ menu — all one store setter). Called from
  * the ui:sessionsPosition handler in src/main/ipc.ts.
  */
-export function setSessionsPositionRadios(position: 'top' | 'right'): void {
-  markSessionsPosition(position === 'right');
+export function setSessionsPositionRadios(position: SessionsPosition): void {
+  sessionsPosition = position;
+  const menu = Menu.getApplicationMenu();
+  if (menu === null) return; // no menu yet — the next build reads the cache
+  // MARK THE WINNER, NEVER UNMARK THE LOSER. Measured on Electron 43
+  // (scratchpad radio probe, both the AX mark char and the JS getter agree):
+  // assigning `checked = false` to a radio item that is ALREADY unchecked
+  // CHECKS it. The previous code did `top.checked = !right; right.checked =
+  // right`, so every sync to Top ended with Right marked — the whole "the
+  // menu does not reflect the toggle" symptom, hiding behind a line that
+  // reads as obviously correct. Marking one item of a radio group unmarks
+  // its siblings, which is all we ever need.
+  for (const radio of SESSIONS_POSITION_RADIOS) {
+    if (radio.position !== position) continue;
+    const item = menu.getMenuItemById(radio.id);
+    if (item !== null) item.checked = true;
+  }
 }
 
-function syncOrientationRadios(win: BrowserWindow): void {
-  win.webContents
-    .executeJavaScript(`localStorage.getItem(${JSON.stringify(LS_ORIENTATION)})`)
-    .then((raw: unknown) => {
-      // Store writes JSON — '"right"' / '"top"'; anything else means top.
-      markSessionsPosition(typeof raw === 'string' && raw.includes('right'));
-    })
-    .catch(() => {
-      /* menu keeps its default (top) — cosmetic only */
-    });
+/** The cached position the radios are drawn from (exported for tests). */
+export function sessionsPositionRadioState(): SessionsPosition {
+  return sessionsPosition;
 }
 
 function buildTemplate(): MenuItemConstructorOptions[] {
@@ -300,22 +336,19 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         item('Explorer', 'show-explorer', accel('view.explorer')),
         item('Source Control', 'show-scm', accel('view.scm')),
         { type: 'separator' },
-        // Session-surface orientation — radio pair, persisted app-wide by the
-        // renderer; initial checked state synced from localStorage on load.
-        {
-          id: MENU_ID_SESSIONS_TOP,
-          label: 'Sessions on Top',
-          type: 'radio',
-          checked: true,
-          click: () => sendMenuAction('sessions-top')
-        },
-        {
-          id: MENU_ID_SESSIONS_RIGHT,
-          label: 'Sessions on Right',
-          type: 'radio',
-          checked: false,
-          click: () => sendMenuAction('sessions-right')
-        },
+        // Session-surface orientation — a radio pair drawn from the cached
+        // store value, so a rebuild reproduces the truth instead of resetting
+        // it. Clicking one does NOT set the mark: it forwards to the store,
+        // which moves the surface and pushes the new position back here.
+        ...SESSIONS_POSITION_RADIOS.map(
+          (radio): MenuItemConstructorOptions => ({
+            id: radio.id,
+            label: radio.label,
+            type: 'radio',
+            checked: radio.position === sessionsPosition,
+            click: () => sendMenuAction(radio.action)
+          })
+        ),
         { type: 'separator' },
         item('Toggle Sidebar', 'toggle-sidebar', accel('view.sidebar')),
         item('Toggle Editor', 'toggle-editor', accel('editor.toggle')),
@@ -341,15 +374,14 @@ function buildTemplate(): MenuItemConstructorOptions[] {
   return template;
 }
 
-/** Apply the current template + re-read the orientation radio truth. */
+/**
+ * Build and install the menu. Synchronous and complete: the template already
+ * carries the orientation radios' state, so there is no follow-up sync — and
+ * therefore no window in which the menu is lying, and nothing for a per-window
+ * pass to race or overwrite.
+ */
 function applyMenu(): void {
   Menu.setApplicationMenu(Menu.buildFromTemplate(buildTemplate()));
-  for (const win of BrowserWindow.getAllWindows()) {
-    // The Settings window has no orientation store — never read it back.
-    if (!win.isDestroyed() && !win.webContents.isLoading() && !isSettingsWindow(win)) {
-      syncOrientationRadios(win);
-    }
-  }
 }
 
 /**
@@ -363,13 +395,4 @@ export function rebuildAppMenu(): void {
 
 export function installAppMenu(): void {
   applyMenu();
-
-  // Keep the orientation radios honest across relaunches: whenever a window
-  // finishes loading the app, read the renderer-persisted orientation back.
-  // (The Settings window is excluded — it has no orientation store.)
-  app.on('browser-window-created', (_event, win) => {
-    win.webContents.on('did-finish-load', () => {
-      if (!isSettingsWindow(win)) syncOrientationRadios(win);
-    });
-  });
 }

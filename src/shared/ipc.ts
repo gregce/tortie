@@ -1616,6 +1616,14 @@ export interface GmuxFsDuplicateExtras {
 // tells main which way it just went, main moves the radio marks to match. The
 // renderer never asks main what the position is, so there is still one writer
 // and one truth. MAIN: src/main/menu.ts → setSessionsPositionRadios().
+//
+// PHASE 14.7 made this channel the ONLY path. Main's page-load read-back
+// (executeJavaScript against localStorage) is deleted: it raced this push,
+// string-sniffed raw JSON for 'right', and fell back to top whenever it
+// failed. The store now pushes on every change AND once as it loads, and main
+// caches the last value so rebuilding the menu cannot reset the radios. The
+// radio pair's ids, labels and actions live in src/shared/sessions-position.ts
+// so main's radios and the renderer's controls read one table.
 // ---------------------------------------------------------------------------
 
 /** Where the session surface lives — mirrors the renderer's store type. */
@@ -1628,12 +1636,15 @@ export interface ViewMenuInvokeChannelMap {
 }
 
 /**
- * OPTIONAL top-level extra on window.gmux, feature-detected by the store
- * (`typeof window.gmux.setSessionsPosition === 'function'`) — an older
- * preload simply leaves the menu to its once-per-load sync.
+ * Top-level extra on window.gmux — REQUIRED, unlike the older optional
+ * extras (Phase 14.7). It was feature-detected, and "an older preload keeps
+ * the once-per-load sync it always had" was a fiction: the preload ships in
+ * the same asar as the store, so a missing method is our own bug, and
+ * degrading silently to a menu that lies is worse than a loud failure. Making
+ * it required means the compiler proves the preload wires it.
  */
 export interface GmuxViewMenuExtras {
-  setSessionsPosition?(position: SessionsPosition): Promise<void>;
+  setSessionsPosition(position: SessionsPosition): Promise<void>;
 }
 
 // ---------------------------------------------------------------------------

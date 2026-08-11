@@ -12,14 +12,19 @@
  * piece of state, and this module never reads or writes it.
  */
 
+import { otherSessionsPosition } from '@shared/sessions-position';
 import type { SessionOrientation } from '../state/store';
 import type { MenuItemSpec } from '../state/store';
 
-/** Where the surface goes when the control is used. */
+/**
+ * Where the surface goes when the control is used. Delegated to the shared
+ * table so this control, the ˅ menu row and the View menu's radios flip
+ * against ONE definition (Phase 14.7).
+ */
 export function otherPosition(
   current: SessionOrientation
 ): SessionOrientation {
-  return current === 'top' ? 'right' : 'top';
+  return otherSessionsPosition(current);
 }
 
 /**

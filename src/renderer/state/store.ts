@@ -1009,16 +1009,8 @@ export const useApp = create<AppState>((set, get) => {
       // ONE truth, several controls (Phase 12.12 item 2): the View-menu
       // radios, the SESSIONS header's inline toggle and its ˅ menu all read
       // and write THIS value — but main draws the radios, so it has to be
-      // told. Feature-detected: an older preload just keeps the once-per-load
-      // sync it always had.
-      const bridge = window.gmux as
-        | (typeof window.gmux & GmuxViewMenuExtras)
-        | undefined;
-      if (typeof bridge?.setSessionsPosition === 'function') {
-        void bridge.setSessionsPosition(orientation).catch(() => {
-          /* a radio mark is cosmetic — never surface this */
-        });
-      }
+      // told, every single time (Phase 14.7).
+      pushSessionsPositionToMenu(orientation);
     },
 
     setRightListWidth(width) {
@@ -1149,6 +1141,48 @@ export function nextOrdinal(sessions: Session[], base: string): number {
     if (m && m[1] !== undefined) max = Math.max(max, parseInt(m[1], 10));
   }
   return max + 1;
+}
+
+// ---------------------------------------------------------------------------
+// Sessions position → the View menu (Phase 14.7)
+//
+// THIS STORE IS THE ONLY AUTHORITY on where the session surface lives. Main
+// draws the View-menu radios and holds nothing but a cache of what it was last
+// told, so this push is the whole contract: on every change, and once as the
+// app loads (main boots knowing nothing, and its default is a guess).
+//
+// Not feature-detected. The preload ships in the same bundle as this file, so
+// a missing method is our own bug — the type in src/shared/ipc.ts is required
+// and a failure is logged loudly rather than degrading into a menu that lies.
+// ---------------------------------------------------------------------------
+
+let sessionsPositionPush: Promise<void> = Promise.resolve();
+
+/** Tell main where the sessions are now. Fire-and-forget; never throws. */
+export function pushSessionsPositionToMenu(
+  position: SessionOrientation
+): void {
+  const bridge = window.gmux as typeof window.gmux & GmuxViewMenuExtras;
+  sessionsPositionPush = Promise.resolve()
+    .then(() => bridge.setSessionsPosition(position))
+    .catch((err: unknown) => {
+      console.error(
+        '[sessions-position] the View menu did not hear the store',
+        err
+      );
+    });
+}
+
+/** Resolves once the latest push has settled (screenshot harness, tests). */
+export function whenSessionsPositionPushed(): Promise<void> {
+  return sessionsPositionPush;
+}
+
+// The load-time announcement. Guarded on `window` only so importing this
+// module in node (tests) is inert — never on the bridge method, which must be
+// there.
+if (typeof window !== 'undefined') {
+  pushSessionsPositionToMenu(useApp.getState().sessionOrientation);
 }
 
 /** Optional bridge extras, feature-detected (see src/shared/ipc.ts). */

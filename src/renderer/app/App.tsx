@@ -24,7 +24,8 @@ import type {
   MenuActionId
 } from '@shared/ipc';
 import { acceleratorToDisplay, keyDisplay } from '@shared/keymap';
-import { useApp } from '../state/store';
+import { sessionsPositionForMenuAction } from '@shared/sessions-position';
+import { useApp, whenSessionsPositionPushed } from '../state/store';
 import type { SidebarViewId } from '../state/store';
 import { useLayout } from '../state/layout';
 import type { NavDir } from '../state/layout';
@@ -543,11 +544,14 @@ function runMenuAction(action: AnyMenuActionWithProjects): void {
       useSymbols.getState().openPalette();
       return;
     case 'sessions-top':
-      s.setSessionOrientation('top');
+    case 'sessions-right': {
+      // Which position each radio names is decided ONCE, in the same table
+      // main built the radios from (src/shared/sessions-position.ts) — never
+      // re-typed here, where it could drift from the label the user clicked.
+      const position = sessionsPositionForMenuAction(action);
+      if (position !== null) s.setSessionOrientation(position);
       return;
-    case 'sessions-right':
-      s.setSessionOrientation('right');
-      return;
+    }
     case 'settings':
       // The settings surface is the activity-bar gear's menu (one setting
       // in v1); ⌘, routes through it so the shortcut stays honest.
@@ -679,25 +683,12 @@ function useShotLayoutHook(): void {
       const ext = spec as ShotLayoutExtras;
       if (ext.orientation === 'right' || ext.orientation === 'top') {
         useApp.getState().setSessionOrientation(ext.orientation);
-        // Phase 12.12 item 2: the store also has to reach MAIN, or the View
-        // menu's radios go stale the moment the header's inline toggle is
-        // what moved the sessions. An unregistered channel rejects, and the
-        // store deliberately swallows that (a radio mark may never raise an
-        // error at the user) — so the harness makes the round trip loudly.
-        const bridge = window.gmux as typeof window.gmux & {
-          setSessionsPosition?: (p: 'top' | 'right') => Promise<void>;
-        };
-        if (typeof bridge.setSessionsPosition === 'function') {
-          await bridge.setSessionsPosition(ext.orientation).then(
-            () => console.log('[shot-drive] sessionsPosition → main: ok'),
-            (err: unknown) =>
-              console.log(
-                `[shot-drive] sessionsPosition → main: FAILED ${String(err)}`
-              )
-          );
-        } else {
-          console.log('[shot-drive] sessionsPosition → main: bridge missing');
-        }
+        // The setter above already pushed the new position to main (that is
+        // the ONLY path — Phase 14.7). The harness just waits for the round
+        // trip so the capture never races the View menu's radios; it does not
+        // repeat the call, which would be a second mechanism.
+        await whenSessionsPositionPushed();
+        console.log('[shot-drive] sessionsPosition → main: settled');
       }
       await prev(spec);
       if (ext.sidebarView === 'scm' || ext.sidebarView === 'explorer') {
