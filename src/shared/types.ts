@@ -57,6 +57,15 @@ export interface Session {
    * auto-fired, per product decision.
    */
   resumeArgv?: string[];
+  /**
+   * APPENDED (Phase 13.5): how the conversation id for this session was — or
+   * was not — obtained, so the UI can distinguish "comes back with its
+   * conversation" from "comes back as a folder" while the session is still
+   * running. See ResumeCapture at the foot of this file. Undefined on rows
+   * written before the field existed; treat that as "derive it from
+   * resumeArgv".
+   */
+  resumeCapture?: ResumeCapture;
   status: SessionStatus;
   /** Epoch milliseconds. */
   createdAt: number;
@@ -803,3 +812,32 @@ export interface MultilineKeyTable {
   /** Used for shells and for any agent absent from `agents`. */
   fallback: AgentMultilineKey;
 }
+
+// ---------------------------------------------------------------------------
+// APPENDED by the Phase-13.5 resume stream (docs/research/22-resume-audit.md)
+// — new types only, and one optional field on Session (below the fold, so
+// nothing above changed). This is the data the UI needs to tell the user
+// BEFORE a reboot which sessions come back with their conversation and which
+// come back as a bare directory. Discovering that afterwards is the failure
+// mode the phase exists to prevent.
+// ---------------------------------------------------------------------------
+
+/**
+ * Whether this session's conversation can be brought back, as of now.
+ *
+ *  - `armed`       — a validated conversation id is recorded and `resumeArgv`
+ *                    will replay the conversation.
+ *  - `capturing`   — the agent only reveals its id after the fact and gmux is
+ *                    watching its store. Transient by construction: every
+ *                    harvest either lands or times out into `unavailable`.
+ *                    It must NEVER be a permanent resting state — a hopeful
+ *                    indeterminate is how this bug hid for a whole phase.
+ *  - `unavailable` — gmux has no capture route for this agent (droid, which
+ *                    nobody has been able to install and verify) or the
+ *                    harvest gave up. The session still restores its
+ *                    directory and scrollback; the conversation is not armed.
+ *                    NOTE this is a statement about gmux, not the agent:
+ *                    every installed CLI does have a deterministic resume.
+ *  - `none`        — nothing to resume (plain shells).
+ */
+export type ResumeCapture = 'armed' | 'capturing' | 'unavailable' | 'none';

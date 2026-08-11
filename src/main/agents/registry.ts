@@ -16,17 +16,27 @@
  * Pure data + pure helpers (no Electron, no I/O) — unit-testable anywhere.
  *
  * Registry rules internalized from the research:
- *  - Resume is a SUBCOMMAND for codex/muse, a flag for the rest, and the
- *    different `--conversation` flag for antigravity — all encoded in
- *    `resume.template`, no special casing anywhere.
+ *  - Resume is a SUBCOMMAND for codex/muse/DEEPSEEK, a flag for the rest, the
+ *    different `--conversation` flag for antigravity, and for pi the SAME
+ *    `--session-id` flag it launches with — all encoded in `resume.template`,
+ *    no special casing anywhere.
  *  - cursoride/copilotide are IDE watchers (capture-only): NEVER launchable
  *    in a tmux pane.
- *  - pi is launchable per BACKLOG Phase-10 item 1, but its binary name,
- *    version cmd, and launch argv are UNVERIFIED upstream (SpecStory v1 is
- *    read-only for pi) — flagged so the UI can caveat it.
  *  - Version commands are IDENTITY PROBES, not semver gates.
  *  - Default agent must be explicit (claude) — never alphabetical
  *    (SpecStory's bare-run bug picks antigravity on dev).
+ *
+ * PHASE 13.5 — the resume column was re-audited hands-on and NINE of the ten
+ * launchable rows were wrong (docs/research/22-resume-audit.md, which
+ * supersedes every resume claim in research 11). Two produced a DEAD PANE
+ * (pi's "no resume mechanics exist", deepseek's `--resume` flag that is
+ * really a subcommand). Root cause, worth keeping in front of the next
+ * editor: **the registry was mined from specstory-cli, a CAPTURE tool.** It
+ * knows where each agent WRITES its transcript; it has never needed to resume
+ * anything, so a mined *absence* of a resume capability says nothing about
+ * the agent. Trust a mined store path; never a mined absence. Run
+ * `<bin> --help` before writing UNVERIFIED — it would have caught four of the
+ * five substantive corrections.
  */
 
 import type {
@@ -44,12 +54,72 @@ import type {
 
 /** How a session id is fed back to the agent to resume a conversation. */
 export type ResumeStrategy =
-  /** `<bin> [--resume|resume|--conversation] <sessionId>` per template. */
+  /**
+   * `<bin> [--resume|resume|--conversation|--session-id] <sessionId>` per
+   * template — the verb lives in `resume.template`, never in code.
+   */
   | 'flag-uuid'
-  /** No resume mechanics exist (pi v1). */
+  /**
+   * No conversation id exists for this agent at all. As of 2026-08-11 NO
+   * launchable agent is in this state — every installed CLI has a working
+   * deterministic resume (docs/research/22-resume-audit.md). Reserved for a
+   * future agent that genuinely has none; do NOT use it to mean "gmux has not
+   * implemented capture yet" — that is what `resume.idCapture` records.
+   */
   | 'none'
   /** IDE store row-insert; not driveable from a terminal (cursoride/copilotide). */
   | 'session-file-harvest';
+
+/** How a harvested store record is PROVEN to be this pane's session. */
+export type AgentHarvestKey =
+  /** The agent stamps the tmux pane it runs in into its own transcript. */
+  | 'tmux-pane'
+  /** The agent records its own pid; gmux matches it against the pane's tree. */
+  | 'pid'
+  /** The record carries a cwd; newest cwd-matching record after spawn wins. */
+  | 'cwd-newest'
+  /** An index (SQLite) carries id + cwd in one row. */
+  | 'sqlite-index'
+  /** Nothing on disk links the id to a directory — time correlation only. */
+  | 'time-only';
+
+/**
+ * How the id in `resume.template` is OBTAINED. Phase 13.5 added this field
+ * because its absence is what caused the bug: muse and qwen were typed
+ * `'flag-uuid'`, indistinguishable from claude's pre-assigned `--session-id`,
+ * so `buildLaunchSpec` could only conclude "resume exists but I have no id"
+ * and drop them into a `store-watch` branch nobody had implemented. A
+ * distinction with nowhere to live gets guessed in a default branch where
+ * nobody reviews it (research 22 §5 rule 5).
+ */
+export type AgentIdCapture =
+  /** gmux fixes the id before spawn and passes it on the launch argv. */
+  | { mode: 'pre-assign'; launchFlag: string[] }
+  /** gmux fixes the id by running a side command whose stdout is the id. */
+  | { mode: 'pre-assign-cmd'; argv: string[]; parse: 'stdout-trim' }
+  /** The id only exists once the agent has written it; read it back out. */
+  | {
+      mode: 'harvest';
+      key: AgentHarvestKey;
+      /** Human-readable pointer to the field that carries the key. */
+      source: string;
+      /** When the record first becomes readable. */
+      availableAt: 'session-open' | 'first-turn';
+      /**
+       * 'exact' = the key is a true identity (pane, pid) or an unambiguous
+       * cwd match; 'weak' = two panes started together in one directory are
+       * NOT separable, so the UI must say so (research 22 §3.3).
+       */
+      confidence: 'exact' | 'weak';
+    }
+  /**
+   * A capture route probably exists but has never been exercised on a real
+   * machine, so gmux refuses to guess one (droid is not installed here).
+   * Honest "not yet", never conflated with 'none'.
+   */
+  | { mode: 'unverified'; note: string }
+  /** No conversation id exists to capture (the capture-only IDE pair). */
+  | { mode: 'none' };
 
 /** How to ask the binary who it is / what version it runs. */
 export interface VersionProbe {
@@ -90,6 +160,21 @@ export interface AgentResumeInfo {
   template: string[];
   /** Where the agent's session files live (template form, for reference). */
   sessionStore: string;
+  /** How the id in `template` is obtained (research 22 §2.0b). */
+  idCapture: AgentIdCapture;
+  /**
+   * TRUE when resume only finds the conversation from the ORIGINAL cwd
+   * (qwen: hard failure "No saved session found with ID"; pi: a SILENT new
+   * empty session under the same id). Restore must not substitute a fallback
+   * directory for these agents (research 22 §3.5).
+   */
+  requiresOriginalCwd?: boolean;
+  /**
+   * TRUE when a resume argv that LOSES its id attaches to the wrong
+   * conversation instead of failing (gemini's bare `--resume` silently opens
+   * the most recent session). Never emit the template with an empty slot.
+   */
+  bareResumeIsDangerous?: boolean;
   notes: string;
 }
 
@@ -135,9 +220,8 @@ export interface AgentRegistryEntry {
   /** 'cli' = tmux-launchable terminal agent; 'ide' = app watcher. */
   kind: 'cli' | 'ide';
   /**
-   * Can gmux spawn it in a tmux pane? IDE entries are capture-only
-   * (false); every CLI including pi is launchable per BACKLOG item 1
-   * (pi's mechanics carry `unverified`).
+   * Can gmux spawn it in a tmux pane? IDE entries are capture-only (false);
+   * every CLI is launchable.
    */
   launchable: boolean;
   /** Where the provider lives in SpecStory's branch topology (provenance). */
@@ -158,7 +242,7 @@ export interface AgentRegistryEntry {
    * session-id harvest). `~/` and `$VARS` allowed.
    */
   storeDirs: string[];
-  /** null when there is no safe subprocess probe (IDEs, pi UNVERIFIED). */
+  /** null when there is no safe subprocess probe (the capture-only IDEs). */
   versionProbe: VersionProbe | null;
   /** null when not launchable in a pane. */
   launch: AgentLaunchInfo | null;
@@ -173,7 +257,12 @@ export interface AgentRegistryEntry {
   iconKey: string;
   /** gmux proposal for a per-agent hotkey mnemonic (Phase-10 item 3). */
   defaultHotkeyHint: string | null;
-  /** True when core mechanics are UNVERIFIED upstream (pi). */
+  /**
+   * True when core mechanics have never been exercised on a real machine.
+   * After the Phase-13.5 audit this is droid alone (not installed anywhere
+   * gmux has run); pi — the field's original occupant — is now the
+   * best-documented resume surface in the set.
+   */
   unverified: boolean;
   /** Per-agent launch-flag presets (populated by the presets stream). */
   flagPresets?: AgentFlagPreset[];
@@ -282,15 +371,18 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     launch: {
       argv: ['claude'],
       quirks: [
-        'gmux pre-assigns the session UUID with --session-id <uuid> (gmux FINAL-REPORT plan; UNVERIFIED in SpecStory code — fall back to store-watch harvest if it regresses)'
+        'PRE-ASSIGN: `claude --session-id <uuid>` — VERIFIED end-to-end 2026-08-10 (2.1.227): the uuid gmux passes becomes the store filename. (It appears nowhere in specstory-cli, which always harvests; that is a fact about specstory, not about claude.)'
       ]
     },
     resume: {
       strategy: 'flag-uuid',
       template: ['--resume', SESSION_ID_SLOT],
+      idCapture: { mode: 'pre-assign', launchFlag: ['--session-id'] },
       sessionStore: '~/.claude/projects/<dashEncode(realpath(cwd))>/<sessionId>.jsonl',
       notes:
-        '--resume does not restore launch flags — record full original argv and re-append extras (handled by claudeResumeArgv).'
+        '--resume does not restore launch flags — MEASURED: --dangerously-skip-permissions gives "bypass permissions on"; after --resume it reads "auto mode on". Record the full original argv and re-append extras (claudeResumeArgv). ' +
+        'Resume works from a DIFFERENT cwd (id lookup is global) — claude is the only agent with no cwd constraint. ' +
+        'TRAP: `-r/--resume [value]` takes an OPTIONAL value; bare `--resume` opens a picker.'
     },
     reconstructionTarget: true,
     // pid-file registry, VERIFIED end-to-end (PROBE A + synthesis run).
@@ -326,14 +418,20 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     launch: {
       argv: ['cursor-agent'],
       env: { FORCE_COLOR: '1' },
-      quirks: ['FORCE_COLOR=1 is the sole env injection SpecStory makes for any agent']
+      quirks: [
+        'FORCE_COLOR=1 is the sole env injection SpecStory makes for any agent',
+        'PRE-ASSIGN via a SIDE COMMAND: `cursor-agent create-chat` prints a fresh chat id on stdout ("Create a new empty chat and return its ID"); launching `cursor-agent --resume <that id>` starts INTO it, so the first launch and every later restore use the SAME argv. Re-verified 2026-08-11: RC=0, one bare uuid on stdout, sub-second, no store dir written until the chat has content.'
+      ]
     },
     resume: {
       strategy: 'flag-uuid',
       template: ['--resume', SESSION_ID_SLOT],
-      sessionStore: '~/.cursor/chats/<md5hex(canonicalCwd)>/<sessionId>/store.db',
+      idCapture: { mode: 'pre-assign-cmd', argv: ['create-chat'], parse: 'stdout-trim' },
+      sessionStore: '~/.cursor/chats/<md5hex(cwd)>/<sessionId>/store.db',
       notes:
-        'store.db is SQLite; md5 dir name is one-way — a cwd can never be recovered from it.'
+        'VERIFIED 2026-08-10 (2026.08.04). store.db is SQLite; the md5 is of the VERBATIM cwd string with NO trailing slash (confirmed byte-for-byte) and is one-way — a cwd can never be recovered from the dir name, so pre-assignment is the only clean capture. ' +
+        'TRAP: `--resume [chatId]` takes an OPTIONAL value; bare `--resume` opens a picker. ' +
+        'Flag restoration inconclusive: `--force --trust` state persisted across resume, but --trust writes to GLOBAL config, so that is config stickiness, not flag restoration. Keep re-appending extras.'
     },
     reconstructionTarget: true,
     // Not probed — floor only until someone runs the matrix on it.
@@ -373,10 +471,28 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     resume: {
       strategy: 'flag-uuid',
       template: ['resume', SESSION_ID_SLOT],
+      idCapture: {
+        mode: 'harvest',
+        key: 'cwd-newest',
+        source:
+          'rollout filename uuid + line-1 session_meta cwd under ${CODEX_HOME:-~/.codex}/sessions (what gmux watches). FAST PATH AVAILABLE, NOT YET USED: ~/.codex/state_5.sqlite → threads(id, cwd, rollout_path, created_at_ms) carries id and cwd in ONE row.',
+        // CORRECTION to research 22 §1.1, MEASURED 2026-08-11 on 0.147.0: a
+        // trusted, fully painted codex TUI has NO rollout file and NO
+        // state_5.sqlite row. Both appear tens of seconds later or at the
+        // first turn — so the shipped 120 s harvest window gave up on
+        // exactly the panes the user had not started talking to yet.
+        availableAt: 'first-turn',
+        confidence: 'exact'
+      },
       sessionStore:
         '${CODEX_HOME:-~/.codex}/sessions/<YYYY>/<MM>/<DD>/rollout-<timestamp>-<uuid>.jsonl',
       notes:
-        'Resume is a SUBCOMMAND, not a flag. Global date-sharded store; cwd attribution via line-1 session_meta. Bound watchers to ~7 days (fd-exhaustion lesson).'
+        'Resume is a SUBCOMMAND, not a flag; SESSION_ID may be a UUID or a session NAME (UUIDs take precedence). Global date-sharded store; cwd attribution via line-1 session_meta. Bound watchers to ~7 days (fd-exhaustion lesson). ' +
+        'NEW 2026-08-10 (0.147.0): ~/.codex/state_5.sqlite has a `threads` table carrying id, cwd, rollout_path, created_at_ms in ONE row — no JSONL parse and no cwd-attribution grace timer. gmux has NOT adopted it: the filename is version-stamped (state_5) and undocumented, so the rollout watch stays the implementation and the index is a future fast path with a schema probe in front of it. ' +
+        'MEASURED, not assumed: launch flags are NOT restored — launched with --dangerously-bypass-approvals-and-sandbox the header reads "permissions: YOLO mode"; after `codex resume` that row is gone. Re-append extras. ' +
+        'FIRST-RUN TRUST GATE (measured 2026-08-11, and it applies to muse too): in a directory codex has never seen it opens "Do you trust the contents of this directory?" and writes NOTHING to its store until that is answered. A harvest window has to outlive a prompt the user may not answer for an hour — gmux watches for 6 h with a backing-off poll rather than the old 120 s. ' +
+        'Once the rollout exists, gmux matches it in ~12 ms (measured against a live pane). ' +
+        'Fallbacks: bare `codex resume` (picker), `--last` (most recent), `--all` (disables cwd filtering).'
     },
     reconstructionTarget: true,
     // #{pane_title} 3-state oracle: 0 % FN / 0 % FP over n=156.
@@ -409,13 +525,26 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     extraProbeDirs: [],
     storeDirs: ['~/.gemini/tmp'],
     versionProbe: { args: ['--version'] },
-    launch: { argv: ['gemini'], quirks: [] },
+    launch: {
+      argv: ['gemini'],
+      quirks: [
+        'PRE-ASSIGN: `--session-id <uuid>` — "Start a new session with a manually provided UUID." Verified in --help and hands-on: re-run 2026-08-11 in a fresh dir wrote ~/.gemini/tmp/<basename>/chats/session-<ts>-<first8 of OUR uuid>.jsonl.'
+      ]
+    },
     resume: {
       strategy: 'flag-uuid',
       template: ['--resume', SESSION_ID_SLOT],
-      sessionStore: '~/.gemini/tmp/<projectDir>/chats/session-*.json',
+      idCapture: { mode: 'pre-assign', launchFlag: ['--session-id'] },
+      bareResumeIsDangerous: true,
+      sessionStore: '~/.gemini/tmp/<projectDir>/chats/session-<ts>-<first8>.jsonl',
       notes:
-        'projectDir resolution is 3-tier: .project_root marker → legacy sha256(canonicalCwd) → full scan.'
+        'STORE GLOB CORRECTED: 0.54.0 writes .jsonl, not .json — a watcher on session-*.json sees NOTHING. Both extensions coexist on disk: 11 legacy .json (all <= 2026-05, under 64-hex sha256 dirs) and 10+ .jsonl (2026-08, under basename dirs). ' +
+        'projectDir is now the cwd BASENAME with a `.project_root` marker file holding the plain absolute cwd — so unlike cursor, dir -> cwd IS recoverable. Legacy sha256(canonicalCwd) dirs remain; keep the 3-tier resolution for reads. ' +
+        'The FILENAME carries only the first 8 chars of the uuid; the full id is the `sessionId` field on line 1. ' +
+        'TRAP: `--help` documents only "latest" or an index for --resume, but findSession() matches a FULL UUID first — the uuid template is correct despite the docs. ' +
+        'WORST TRAP IN THE REGISTRY: bare `--resume` with NO value silently attaches to the MOST RECENT session instead of erroring or showing a picker. A resume argv that loses its id opens the WRONG conversation — hence bareResumeIsDangerous. ' +
+        '`--session-file <path>` loads a session from an explicit file — a cwd-proof repair fallback. ' +
+        'STILL OPEN (research 22 §6.2): that `--resume <uuid>` actually REPLAYS the conversation is source-verified only — the probe account returns API 400, so no marker round-trip exists yet.'
     },
     reconstructionTarget: true,
     // Auth-blocked during research; title carries no state channel.
@@ -447,9 +576,14 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     resume: {
       strategy: 'flag-uuid',
       template: ['--resume', SESSION_ID_SLOT],
+      idCapture: {
+        mode: 'unverified',
+        note:
+          'Docs suggest `-s/--session-id <id>` pre-assignment (which would make droid the fifth Tier-1 agent), but droid is NOT INSTALLED on any machine gmux has been audited on — `command -v droid` fails and ~/.factory holds only skills/. gmux will not put an unverified flag on a launch argv: a wrong one is a dead pane. Close it by installing droid and confirming --resume/-s/--fork hands-on (research 22 §6.1).'
+      },
       sessionStore: '~/.factory/sessions/<dashEncode(realpath(cwd))>/<sessionId>.jsonl',
       notes:
-        'Identical dash-encoding to Claude Code; sidecar <sessionId>.settings.json carries token usage.'
+        'DOCS-ONLY, never exercised: identical dash-encoding to Claude Code is CLAIMED, not measured; sidecar <sessionId>.settings.json carries token usage. Every field here is upstream documentation.'
     },
     reconstructionTarget: true,
     // Not installed here; hook shape is docs-only. Floor only.
@@ -468,7 +602,11 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
       verified: false,
       notes: 'Not installed on the research machine — unverified, so path text.'
     },
-    unverified: false
+    // The ONLY docs-only row left after the Phase-13.5 audit: droid is not
+    // installed on any machine gmux has been audited on.
+    unverified: true,
+    notes:
+      'Every field is upstream documentation. `command -v droid` fails here and ~/.factory holds only skills/, so nothing below has been exercised. Its docs suggest `-s/--session-id` pre-assignment, which would make it the fifth arm-at-launch agent — until someone installs it, gmux captures nothing for droid rather than guessing a flag.'
   },
   {
     id: 'deepseek',
@@ -484,10 +622,21 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     launch: { argv: ['deepseek'], quirks: ['documented floor 0.8.39+, not enforced'] },
     resume: {
       strategy: 'flag-uuid',
-      template: ['--resume', SESSION_ID_SLOT],
+      // SUBCOMMAND, not a flag — `--resume <id>` exits RC=2 (a dead pane).
+      template: ['resume', SESSION_ID_SLOT],
+      idCapture: {
+        mode: 'harvest',
+        key: 'cwd-newest',
+        source: 'metadata.workspace inside ~/.deepseek/sessions/<id>.json',
+        availableAt: 'first-turn',
+        confidence: 'weak'
+      },
       sessionStore: '~/.deepseek/sessions/<sessionId>.json',
       notes:
-        'Flat GLOBAL store; project identity via metadata.workspace inside the file.'
+        'RESUME IS A SUBCOMMAND. `deepseek --resume <id>` exits RC=2 with "error: unexpected argument \'--resume <id>\' found" — a DEAD PANE. Verified 2026-08-10 against 0.8.26 hands-on and re-confirmed 2026-08-11 from `deepseek --help` (no --resume in the top-level option list; `resume` is a Command) and `deepseek resume --help` ("Resume a saved TUI session"). ' +
+        "TRAP AT THE SOURCE: the CLI's own `deepseek sessions` output prints the broken advice \"Resume with: deepseek --resume <session-id>\" — do not copy it. " +
+        'Flat GLOBAL store; project identity via metadata.workspace INSIDE the file, written on the first turn — so harvest is WEAK: two deepseek panes started together in one directory are not separable. ' +
+        'New sibling checkpoints/ dir as of 0.8.26.'
     },
     reconstructionTarget: true,
     // Animates at idle (6 events/15 s) — the activity clock is unusable.
@@ -529,10 +678,19 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     resume: {
       strategy: 'flag-uuid',
       template: ['--conversation', SESSION_ID_SLOT],
+      idCapture: {
+        mode: 'harvest',
+        key: 'time-only',
+        source: 'newest ~/.gemini/antigravity-cli/brain/<id>/ directory created after spawn',
+        availableAt: 'session-open',
+        confidence: 'weak'
+      },
       sessionStore:
         '~/.gemini/antigravity-cli/brain/<conversationId>/.system_generated/logs/transcript_full.jsonl',
       notes:
-        'Resume flag is --conversation, NOT --resume. Project attribution scrapes agy logs with fragile regexes — expect breakage across releases. NOT a cross-agent resume target (real state is protobuf-in-SQLite).'
+        'Resume flag is --conversation, NOT --resume — VERIFIED hands-on 2026-08-10 (1.1.11). ' +
+        'HARVEST IS WEAK AND MUST BE LABELLED AS SUCH IN THE UI: nothing on disk links a conversation id to a cwd. history.jsonl has workspace+timestamp but no id; conversation_summaries.db has conversation_id + workspace_uris but is STALE SINCE MAY with workspace_uris EMPTY. Time-correlation only — two agy sessions started together are not separable. ' +
+        'NOT a cross-agent resume target (real state is protobuf-in-SQLite conversations/<id>.db).'
     },
     reconstructionTarget: false,
     // Idle byte-silence VERIFIED; title is 'Mac', no state channel.
@@ -559,8 +717,8 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     displayName: 'Muse Code',
     kind: 'cli',
     launchable: true,
-    status: 'branch-only (muse-provider = dev+5, PR #269 in flight)',
-    confidence: 'medium',
+    status: 'branch-only in specstory (muse-provider = dev+5, PR #269) — but resume+capture are VERIFIED hands-on for gmux',
+    confidence: 'high',
     binaries: ['muse'],
     extraProbeDirs: [],
     storeDirs: ['$XDG_DATA_HOME/muse/sessions', '~/.local/share/muse/sessions'],
@@ -572,10 +730,26 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     resume: {
       strategy: 'flag-uuid',
       template: ['resume', SESSION_ID_SLOT],
+      idCapture: {
+        mode: 'harvest',
+        key: 'tmux-pane',
+        source:
+          'payload.record.tmux_pane + tmux_socket_path in the runtime.session.route_facts record (line 2) of session.jsonl',
+        availableAt: 'session-open',
+        confidence: 'exact'
+      },
       sessionStore:
         '${XDG_DATA_HOME:-~/.local/share}/muse/sessions/<YYYY>/<MM>/<DD>/<sessionId>/session.jsonl',
       notes:
-        'Resume is a SUBCOMMAND, not a flag. Global date-sharded store (Codex-style); filter by stream.id to exclude subagent task-streams.'
+        'VERIFIED HANDS-ON 2026-08-10 (0.1.0). Resume is a SUBCOMMAND; root flags may sit on EITHER side of it (`muse --provider echo --yolo resume <id>` works). ' +
+        'NO PRE-ASSIGNMENT on the path gmux uses: `muse exec --session-id <uuid>` is the HEADLESS subcommand; the interactive TUI rejects the flag with "invalid TUI options: error: unexpected argument \'--session-id\' found". An implementer reading only `muse exec --help` would wire a pre-assignment that cannot work in a pane. ' +
+        'HARVEST KEY IS EXACT AND GMUX-SPECIFIC: muse stamps tmux_pane ("$371:@371.%372") and tmux_socket_path ("/private/tmp/tmux-501/gmux") into its own transcript at session OPEN, before any prompt — re-confirmed 2026-08-11 against six real sessions including a live gmux one, where tmux_pane matched #{session_id}:#{window_id}.#{pane_id} exactly and route_facts.pid equalled #{pane_pid}. gmux therefore correlates on the pane it spawned into, with no ambiguity even when several muse sessions share one cwd; specstory only ever matches workspace_root, which cannot. ' +
+        'Session id == directory name == stream.id; cwd is payload.record.workspace_root on line 1. Exclude subagent/ subdirs. ' +
+        'FULL UUID ONLY — `muse resume ec346a09` → "invalid resume session uuid". ' +
+        'Resume works from ANY cwd (global store), BUT muse ADOPTS the launch cwd as the new workspace — relaunch in the original directory or the workspace silently rebinds. ' +
+        'MEASURED END-TO-END 2026-08-11 through gmux\'s own watcher: id captured 261 ms after the pane was created, on the tmux_pane key, with no grace timer. ' +
+        'FIRST-RUN TRUST GATE: in an unseen directory muse asks "Do you trust this workspace?" and writes NO session.jsonl until it is answered — so the harvest window must outlive an unanswered prompt. ' +
+        'Fallbacks: `muse resume --last` (workspace-scoped most recent, no picker), bare `muse resume` (picker).'
     },
     reconstructionTarget: true,
     // 1 output/s while idle; ~12 s pre-first-token window needs T3.
@@ -597,8 +771,8 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     displayName: 'Qwen Code',
     kind: 'cli',
     launchable: true,
-    status: 'branch-only (qwen-provider-support = dev+4, PR #268 in flight)',
-    confidence: 'medium',
+    status: 'branch-only in specstory (qwen-provider-support = dev+4, PR #268) — but resume+capture are VERIFIED hands-on for gmux',
+    confidence: 'high',
     binaries: ['qwen'],
     extraProbeDirs: [],
     storeDirs: ['~/.qwen/projects'],
@@ -610,9 +784,27 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     resume: {
       strategy: 'flag-uuid',
       template: ['--resume', SESSION_ID_SLOT],
-      sessionStore: '~/.qwen/projects/<sanitize(cwd)>/chats/<sessionId>.jsonl',
+      idCapture: {
+        mode: 'harvest',
+        key: 'pid',
+        source:
+          '~/.qwen/projects/<dir>/chats/<sessionId>.runtime.json → {pid, session_id, work_dir}; pid is a DESCENDANT of the pane pid, not the pane pid itself',
+        availableAt: 'session-open',
+        confidence: 'exact'
+      },
+      requiresOriginalCwd: true,
+      sessionStore: '~/.qwen/projects/<charSubstitute(realpath(cwd))>/chats/<sessionId>.jsonl',
       notes:
-        'sanitize hashes the VERBATIM cwd (no realpath, no leading-dash rule) — differs from claude/droid encoding. Ignore sibling .runtime.json.'
+        'VERIFIED HANDS-ON 2026-08-10 (0.21.7). ' +
+        'CORRECTION 1 — NOT A HASH: SanitizeQwenCwd replaces every char outside [a-zA-Z0-9] with "-". Real dir names are plainly readable ("-Users-gdc-painpoints"). ' +
+        'CORRECTION 2 — REALPATH, NOT VERBATIM: qwen sanitizes process.cwd(), which is OS-resolved. Launched from a symlink pb-link -> pb-real, the dir created was "…-pb-real". Key on the realpath. ' +
+        'CORRECTION 3 — the sibling .runtime.json is NOT noise for gmux. Ignoring it is right for RECONSTRUCTION and exactly backwards for RESUME CAPTURE: it carries {pid, session_id, work_dir} and is written at session open (measured 1.7 s after the tmux session was created). ' +
+        'CORRECTION 4 (research 22 said "exact pid correlation"; MEASURED 2026-08-11 and refined): the recorded pid is NOT #{pane_pid}. qwen\'s launcher forks twice — pane_pid 1615 (cli-entry.js) -> 1622 (cli.js) -> 1644, and 1644 is what lands in runtime.json. Matching pid EQUALITY finds nothing; gmux walks the ppid chain and matches any DESCENDANT of the pane pid. ' +
+        'HARD CONSTRAINT: --resume is CWD-SCOPED. From the wrong directory it fails outright ("No saved session found with ID <uuid>"). Unlike muse, the id alone is not sufficient. ' +
+        'FULL UUID ONLY, and a non-id string is matched BY TITLE — a truncated id can silently resume the wrong conversation. ' +
+        '`qwen sessions list` is a built-in cwd-scoped index, usable mid-session as a harvest cross-check. Fallback: `-c/--continue`; bare `-r` shows a picker. ' +
+        'MEASURED END-TO-END 2026-08-11 through gmux\'s own watcher: id captured 1059 ms after the pane was created, on the descendant-pid key, with no grace timer. ' +
+        'CAVEAT: `--chat-recording false` disables recording and, per its own help, "--continue/--resume will not work" — never add it to a preset.'
     },
     reconstructionTarget: true,
     // Title reads 'Qwen - pi' in every state — no channel there.
@@ -634,35 +826,56 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     displayName: 'Pi',
     kind: 'cli',
     launchable: true,
-    status: 'remote-branch-unreleased (origin/feat/pi-provider = dev+19; SpecStory v1 is READ-ONLY)',
-    confidence: 'low',
+    status:
+      'upstream-verified-hands-on (pi 0.84.1). SpecStory v1 is READ-ONLY for pi — that is a fact about specstory-cli, NOT about pi.',
+    confidence: 'high',
     binaries: ['pi'],
-    extraProbeDirs: [],
+    extraProbeDirs: ['~/.npm-global/bin', '~/.local/bin'],
     storeDirs: [
       '$PI_CODING_AGENT_SESSION_DIR',
-      '$PI_CODING_AGENT_DIR',
+      // $PI_CODING_AGENT_DIR is the CONFIG dir (default ~/.pi/agent);
+      // sessions live one level down. Verified in `pi --help`.
+      '$PI_CODING_AGENT_DIR/sessions',
       '~/.pi/agent/sessions'
     ],
-    // UNVERIFIED: no version command is confirmed upstream — no subprocess probe.
-    versionProbe: null,
+    // `pi -v` prints a BARE semver ("0.84.1") with no product token, so there
+    // is no identitySubstring to gate on; identity comes from storeDirs.
+    versionProbe: { args: ['-v'] },
     launch: {
       argv: ['pi'],
       quirks: [
-        "UNVERIFIED: binary name and launch argv are gmux's best guess — SpecStory v1 returns 'not yet supported' for run/watch/resume"
+        'PRE-ASSIGN: --session-id accepts ANY [A-Za-z0-9][A-Za-z0-9._-]*[A-Za-z0-9] id, not just a uuid.',
+        'Post-spawn harvest is NOT viable: the project dir is created at launch but NO session file is written until the first turn (measured: nothing after 30 s idle; the file appears ~1.9 s after the first keystroke). A codex-style "newest file" watch would return nothing for exactly the panes nobody has talked to yet — the panes that come back empty. Pre-assignment is the only strategy that can work.',
+        'First launch with a fresh id prints a yellow "Warning: No project session found with id …; creating a new session with that id." to stderr. Cosmetic — screen-scrapers must not treat it as an error.',
+        'Ctrl-D quits; double Ctrl-C does NOT. "/exit" is not a command and is sent to the model.',
+        '--session-id cannot be combined with --session/--continue/--resume (hard exit 1).'
       ]
     },
     resume: {
-      strategy: 'none',
-      template: [],
-      sessionStore: '~/.pi/agent/sessions/--<encodedCwd>--/<timestamp>_<uuid>.jsonl',
+      strategy: 'flag-uuid',
+      // IDENTICAL to the launch flag: --session-id is idempotent, so launch
+      // argv === resume argv. The simplest case in the whole registry.
+      template: ['--session-id', SESSION_ID_SLOT],
+      idCapture: { mode: 'pre-assign', launchFlag: ['--session-id'] },
+      requiresOriginalCwd: true,
+      sessionStore:
+        '~/.pi/agent/sessions/--<cwd sans leading /, [/\\:]→->--/<ISO ts, :.→->_<sessionId>.jsonl',
       notes:
-        'UNVERIFIED: resume mechanics unimplemented upstream. Env overrides honored: PI_CODING_AGENT_DIR, PI_CODING_AGENT_SESSION_DIR.'
+        'VERIFIED HANDS-ON, TWICE (2026-08-10 PROBE A; re-run end-to-end 2026-08-11 on pi 0.84.1 in tmux: launch with a fresh uuid -> marker turn -> kill the pane -> relaunch the IDENTICAL argv -> the marker was replayed and the "no project session" warning was gone). --session-id is BOTH pre-assignment and resume: launch argv === resume argv, idempotent. ' +
+        'Model + thinking level are restored FROM the session (model_change / thinking_level_change entries) — unlike claude, they need no re-appending. ' +
+        'CWD IS LOAD-BEARING: --session-id searches only the current project, so a drifted cwd silently starts an EMPTY session under the same id (the original file is untouched, but the pane looks resumed and is not). Hence requiresOriginalCwd. `pi --session <abs path>` bypasses lookup entirely and is the cwd-proof repair route. ' +
+        'NEVER pass a partial id: ids are UUIDv7 whose first 8 hex chars are the top 32 bits of a 48-bit ms clock, so the prefix only changes every ~65.5 s and any two same-minute sessions in a project collide; pi resolves ties with .find(startsWith) -> most-recent-last-message, SILENTLY, and the winner can change over time. A real collision already exists in the user store. ' +
+        'Interactive fallbacks only: `pi -r` / `/resume` picker, `pi -c` (most recent by mtime). `pi --session <id>` resolved in ANOTHER project BLOCKS on "Fork this session into current directory? [y/N]" — never use it in a restored pane. ' +
+        'Store root precedence: --session-dir > $PI_CODING_AGENT_SESSION_DIR > $PI_CODING_AGENT_DIR/sessions > ~/.pi/agent/sessions (the first two are FLAT — no per-cwd key). ' +
+        'STILL OPEN (research 22 §6.3): whether resume restores LAUNCH FLAGS is unresolved — pi also persists last-used model in settings, so the two explanations are not separated. gmux re-appends extras regardless, which is safe either way.'
     },
-    reconstructionTarget: false,
+    // The JSONL format is documented in pi's shipped docs/session-format.md
+    // and is writable, so cross-agent reconstruction can target it.
+    reconstructionTarget: true,
     // Event API read from its .d.ts, never executed. Floor only.
     activity: { tier: 'screen', animatesWhenIdle: false, verified: 'unverified' },
     iconKey: 'pi',
-    defaultHotkeyHint: null,
+    defaultHotkeyHint: 'p',
     multilineKey: {
       sequence: LF,
       verified: true,
@@ -676,8 +889,7 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
       notes:
         'VERIFIED NEGATIVE: 0x16 writes the pasteboard image to its own temp file and inserts that path as plain text — no attachment either way, so gmux inserts the real path.'
     },
-    unverified: true,
-    notes: 'Launchable per BACKLOG Phase-10 item 1, but every mechanic is UNVERIFIED upstream.'
+    unverified: false
   },
   {
     id: 'cursoride',
@@ -694,6 +906,7 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     resume: {
       strategy: 'session-file-harvest',
       template: [],
+      idCapture: { mode: 'none' },
       sessionStore:
         '~/Library/Application Support/Cursor/User/globalStorage/state.vscdb (cursorDiskKV composerData:<id>)',
       notes:
@@ -724,6 +937,7 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     resume: {
       strategy: 'session-file-harvest',
       template: [],
+      idCapture: { mode: 'none' },
       sessionStore:
         '~/Library/Application Support/<app>/User/workspaceStorage/<hash>/chatSessions/<sessionId>.{jsonl,json}',
       notes:
@@ -784,24 +998,53 @@ export function agentBinaryName(id: AgentRegistryId): string {
 }
 
 /**
+ * The pre-assignment flag for an agent whose id gmux fixes before spawn
+ * (`['--session-id']` for claude / gemini / pi), or null for everyone else.
+ * ONE place owns id injection — the registry's `launch.argv` stays slot-free
+ * so nothing can ever launch a literal `--session-id '<sessionId>'`, which
+ * pi's permissive id regex would happily accept and then share between every
+ * pane (research 22 §2.10).
+ */
+export function preAssignFlag(id: LaunchableAgentId): string[] | null {
+  const capture = getRegistryEntry(id).resume.idCapture;
+  return capture.mode === 'pre-assign' ? [...capture.launchFlag] : null;
+}
+
+/**
  * Launch argv for a registry agent: resolved binary (or the registry's bare
- * name) + registry args + user extras.
+ * name) + the pre-assignment flag when the agent takes one + registry args +
+ * user extras.
+ *
+ * @param sessionId  id to pre-assign. Ignored unless the agent's idCapture is
+ *                   'pre-assign' — a harvest agent must never be handed one.
  */
 export function registryLaunchArgv(
   id: LaunchableAgentId,
   extraArgs: readonly string[] = [],
-  bin?: string
+  bin?: string,
+  sessionId?: string
 ): string[] {
   const entry = getLaunchableEntry(id);
   const argv0 = bin ?? entry.launch.argv[0] ?? agentBinaryName(id);
-  return [argv0, ...entry.launch.argv.slice(1), ...extraArgs];
+  const flag = preAssignFlag(id);
+  const preAssign =
+    flag !== null && sessionId !== undefined && sessionId.length > 0
+      ? [...flag, sessionId]
+      : [];
+  return [argv0, ...entry.launch.argv.slice(1), ...preAssign, ...extraArgs];
 }
 
 /**
  * Resume argv for a registry agent from its template. Extras are re-appended
- * because `--resume` does not restore launch flags (research gap #6 —
- * documented for Claude, assumed for all). Returns [] when the agent has no
- * resume mechanics (pi).
+ * because resume does not restore launch flags (MEASURED on claude, codex,
+ * muse and qwen — research 22 §3.4 rule 3). Returns [] when the agent has no
+ * resume mechanics, and — the hardening that matters — when the id is empty
+ * or the substitution failed to place it.
+ *
+ * The empty-id guard is not defensive programming: gemini's bare `--resume`
+ * does not error and does not show a picker, it silently attaches to the
+ * MOST RECENT session. An argv that loses its id opens the wrong
+ * conversation, so an argv that would lose its id must never be built.
  */
 export function registryResumeArgv(
   id: LaunchableAgentId,
@@ -811,12 +1054,15 @@ export function registryResumeArgv(
 ): string[] {
   const entry = getLaunchableEntry(id);
   if (entry.resume.strategy !== 'flag-uuid') return [];
+  if (sessionId.length === 0) return [];
   const argv0 = bin ?? agentBinaryName(id);
-  return [
-    argv0,
-    ...entry.resume.template.map((t) => (t === SESSION_ID_SLOT ? sessionId : t)),
-    ...extraArgs
-  ];
+  const args = entry.resume.template.map((t) =>
+    t === SESSION_ID_SLOT ? sessionId : t
+  );
+  // The template must have carried the slot; if it did not, the id is not in
+  // the argv and firing it would resume someone else's conversation.
+  if (!args.includes(sessionId)) return [];
+  return [argv0, ...args, ...extraArgs];
 }
 
 /**

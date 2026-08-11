@@ -42,9 +42,11 @@ import {
 } from '@shared/ipc';
 import type {
   CreateSessionInput,
+  LaunchableAgentKind,
   Project,
   RenameSessionInput,
   ResizeInput,
+  ResumeCapture,
   Session,
   SessionStatus
 } from '@shared/types';
@@ -61,17 +63,18 @@ import {
   type ActivitySession
 } from './activity';
 import { AttachHost } from './attach';
-import { agentBinaryName } from './agents';
+import { agentBinaryName, registryResumeArgv } from './agents';
 import { unwatchGitRepo } from './git';
 import {
-  buildLaunchSpec,
-  codexResumeArgv,
+  agentHarvestsId,
   ManifestStore,
+  resolveLaunchSpec,
   toSession,
-  watchForRollout,
+  watchForSessionId,
+  type AgentLaunchSpec,
   type LiveTmuxSession,
   type ManifestSessionRecord,
-  type RolloutWatch
+  type SessionIdWatch
 } from './manifest';
 // LEAF restore modules only — ./restore/ipc imports this file (no cycles).
 import { restoreSessionInTmux } from './restore/restore';
@@ -133,6 +136,30 @@ const BOOT_SERVER_OPTIONS: readonly (readonly [string, string])[] = [
   ['mode-style', 'noattr,bg=default,fg=default']
 ];
 
+/**
+ * The launch spec's capture mode, as the ONE thing the user actually cares
+ * about: does this session come back with its conversation? Pre-assigned
+ * agents are armed before the process exists; harvesters start 'capturing'
+ * and flip to 'armed' when their watcher lands; anything gmux has no verified
+ * route for says 'unavailable' rather than leaving the question open.
+ */
+function resumeCaptureFor(spec: AgentLaunchSpec): ResumeCapture {
+  switch (spec.idCapture) {
+    case 'preassigned':
+      return 'armed';
+    case 'preassigned-cmd':
+      // The side command either produced an id or it did not; no watcher
+      // follows, so there is nothing left to wait for either way.
+      return spec.resumeArgv !== undefined ? 'armed' : 'unavailable';
+    case 'store-harvest':
+      return 'capturing';
+    case 'unsupported':
+      return 'unavailable';
+    case 'none':
+      return 'none';
+  }
+}
+
 async function assertServerOptions(): Promise<void> {
   for (const [name, value] of BOOT_SERVER_OPTIONS) {
     await tmux
@@ -154,8 +181,8 @@ export class GmuxCore {
   private readonly liveIds = new Map<string, string>();
   /** live tmux `$-id` → manifest session id. */
   private readonly byTmuxId = new Map<string, string>();
-  /** Pending Codex rollout watches, cancelled on kill/shutdown. */
-  private readonly rolloutWatches = new Map<string, RolloutWatch>();
+  /** Pending session-id harvests (Phase 13.5), cancelled on kill/shutdown. */
+  private readonly idCaptureWatches = new Map<string, SessionIdWatch>();
   /** Session ids with a restore in flight ("Restore all" double-clicks). */
   private readonly restoresInFlight = new Set<string>();
   /** Live tmux `$-id`s proven NOT to be ours — see identify(). */
@@ -386,64 +413,119 @@ export class GmuxCore {
   }
 
   // -------------------------------------------------------------------------
-  // Codex rollout harvest (create time + boot resume)
+  // Session-id harvest (create time + boot resume) — Phase 13.5
   // -------------------------------------------------------------------------
 
   /**
-   * Watch ~/.codex/sessions for the rollout file that identifies a codex
-   * session's conversation id; record it (with the armed `codex resume`
-   * argv) the moment it appears. Used at create time AND re-armed on boot
-   * for codex sessions that were spawned but never harvested (e.g. gmux
-   * quit within the harvest window).
+   * Watch a harvesting agent's session store for the record that identifies
+   * this pane's conversation, and arm the resume argv the moment it appears.
+   * Used at create time AND re-armed on boot for sessions that were spawned
+   * but never harvested (e.g. gmux quit within the harvest window).
+   *
+   * Was codex-only until Phase 13.5; the per-agent store paths, filename
+   * patterns and correlation keys are now data in src/main/manifest/harvest.
    */
-  private startRolloutWatch(
+  private startIdCapture(
     id: string,
-    cwd: string,
-    sinceTs: number,
+    agent: LaunchableAgentKind,
+    ctx: { cwd: string; sinceTs: number; panePid?: number; tmuxSessionId?: string },
     extraArgs: readonly string[]
   ): void {
-    if (this.rolloutWatches.has(id)) return;
-    const watch = watchForRollout(cwd, sinceTs);
-    this.rolloutWatches.set(id, watch);
+    if (agent === 'shell' || !agentHarvestsId(agent)) return;
+    if (this.idCaptureWatches.has(id)) return;
+    const watch = watchForSessionId(agent, ctx);
+    this.idCaptureWatches.set(id, watch);
     watch.promise
-      .then((rollout) => {
-        this.rolloutWatches.delete(id);
+      .then((harvested) => {
+        this.idCaptureWatches.delete(id);
+        // dispose() cancels every watch and then closes the manifest, so a
+        // settle that lands after teardown must touch nothing.
+        if (this.disposed) return;
         // The session may have been killed/discarded while we watched.
         const rec = this.manifest.getSession(id);
         if (rec === undefined) return;
-        // Resume with the session's recorded ABSOLUTE binary (Bug A).
-        this.manifest.setAgentSessionId(
-          id,
-          rollout.sessionId,
-          codexResumeArgv(rollout.sessionId, extraArgs, rec.argv[0] ?? 'codex')
+        // Resume with the session's recorded ABSOLUTE binary (Bug A), and
+        // re-append the original extras — resume restores no launch flags.
+        const resumeArgv = registryResumeArgv(
+          agent,
+          harvested.sessionId,
+          extraArgs,
+          rec.argv[0] ?? agentBinaryName(agent)
         );
+        if (resumeArgv.length === 0) return; // never persist an id-less argv
+        this.manifest.setAgentSessionId(id, harvested.sessionId, resumeArgv);
+        if (harvested.viaGraceTimer || harvested.confidence === 'weak') {
+          // Armed, but not PROVEN to be this pane's conversation. Said out
+          // loud in the log because the alternative is a confident restore
+          // into somebody else's session.
+          console.warn(
+            `[gmux] ${agent} resume id ${harvested.sessionId} matched on ` +
+              `'${harvested.key}'${harvested.viaGraceTimer ? ' via the grace timer' : ''} ` +
+              `(${harvested.confidence}) — ${harvested.storePath}`
+          );
+        }
         const live = this.liveIds.get(id);
         if (live !== undefined) {
           void tmux
-            .setSessionOption(live, '@gmux-session-id', rollout.sessionId)
+            .setSessionOption(live, '@gmux-session-id', harvested.sessionId)
             .catch(() => undefined);
         }
         this.broadcastSessions();
       })
       .catch((err: unknown) => {
-        this.rolloutWatches.delete(id);
-        console.warn(`[gmux] codex rollout harvest: ${(err as Error).message}`);
+        this.idCaptureWatches.delete(id);
+        if (this.disposed) return; // teardown cancelled us; the DB is closed
+        // A TIMEOUT IS NOT A SUCCESS. It is not terminal either, and that is
+        // a deliberate change from research 22 §4.1 point 2, which assumed a
+        // harvest "resolves within seconds for every Tier-2 agent". MEASURED
+        // 2026-08-11: codex and muse sit behind a first-run trust prompt and
+        // write nothing until it is answered, and codex writes no rollout at
+        // all until the first turn. Flipping to "directory only" while gmux
+        // is still watching — and will arm the moment the user types — would
+        // be a worse lie than the one this phase is fixing. The state goes
+        // terminal where the answer really is final: refresh() re-arms live
+        // sessions, and resumeIdHarvests() withdraws the promise once the
+        // session is gone without an id.
+        console.warn(`[gmux] ${agent} session-id harvest: ${(err as Error).message}`);
+        this.broadcastSessions();
       });
   }
 
   /**
-   * Boot-time finalization: any LIVE codex session still missing its
-   * agentSessionId gets a fresh rollout watch keyed to its original spawn
-   * time, so resume ids are recorded even across a gmux restart mid-harvest.
-   * extraArgs are recovered from the recorded launch argv (["codex", ...]).
+   * Boot-time finalization: any LIVE harvesting session still missing its
+   * agentSessionId gets a fresh watch keyed to its original spawn time, so
+   * resume ids are recorded even across a gmux restart mid-harvest.
+   * extraArgs are recovered from the recorded launch argv.
    */
-  private resumeRolloutHarvests(): void {
+  private resumeIdHarvests(): void {
     for (const rec of this.manifest.listSessions()) {
-      if (rec.agent !== 'codex') continue;
+      if (rec.agent === 'shell' || !agentHarvestsId(rec.agent)) continue;
       if (rec.agentSessionId !== undefined) continue;
-      if (rec.status === 'exited' || rec.status === 'restorable') continue;
-      if (!this.liveIds.has(rec.id)) continue;
-      this.startRolloutWatch(rec.id, rec.cwd, rec.createdAt, rec.argv.slice(1));
+      const live = this.liveIds.get(rec.id);
+      if (
+        rec.status === 'exited' ||
+        rec.status === 'restorable' ||
+        live === undefined
+      ) {
+        // The process is gone and the id was never captured, so nothing will
+        // ever capture it. Leaving this row 'capturing' would show a spinner
+        // forever over a session that comes back as a bare directory.
+        if (rec.resumeCapture === 'capturing') {
+          this.manifest.setResumeCapture(rec.id, 'unavailable');
+        }
+        continue;
+      }
+      this.startIdCapture(
+        rec.id,
+        rec.agent,
+        {
+          cwd: rec.cwd,
+          sinceTs: rec.createdAt,
+          tmuxSessionId: live,
+          ...(rec.panePid !== undefined ? { panePid: rec.panePid } : {})
+        },
+        rec.argv.slice(1)
+      );
     }
   }
 
@@ -652,9 +734,9 @@ export class GmuxCore {
     }
     this.broadcastSessions();
 
-    // Phase 6: codex sessions that outlived a gmux restart mid-harvest get
-    // their rollout watch re-armed (no-op when the id is already recorded).
-    this.resumeRolloutHarvests();
+    // Phase 6/13.5: harvesting sessions that outlived a gmux restart
+    // mid-capture get their watch re-armed (no-op once the id is recorded).
+    this.resumeIdHarvests();
   }
 
   private statusSnapshot(): Map<string, SessionStatus> {
@@ -906,7 +988,13 @@ export class GmuxCore {
     }
 
     const id = randomUUID();
-    const spec = buildLaunchSpec(input.agent, input.extraArgs ?? [], binPath);
+    // resolveLaunchSpec (not buildLaunchSpec): cursor's id comes from a side
+    // command that has to run BEFORE the pane exists.
+    const spec = await resolveLaunchSpec(
+      input.agent,
+      input.extraArgs ?? [],
+      binPath
+    );
     // Phase 13: claude's deterministic hook channel. Purely a latency
     // upgrade over its pid file, so a failure to write the settings file
     // just means no flag — never a failed create (and never a `claude
@@ -938,6 +1026,9 @@ export class GmuxCore {
         ? { agentSessionId: spec.agentSessionId }
         : {}),
       ...(spec.resumeArgv !== undefined ? { resumeArgv: spec.resumeArgv } : {}),
+      // Phase 13.5: say NOW whether this session will come back with its
+      // conversation. Written with the row, before the process exists.
+      resumeCapture: resumeCaptureFor(spec),
       ...(spec.env !== undefined ? { env: spec.env } : {})
     };
 
@@ -1002,10 +1093,22 @@ export class GmuxCore {
       );
     }
 
-    // Codex has no --session-id equivalent: harvest the rollout uuid from
-    // ~/.codex/sessions after spawn and record the armed resume argv.
-    if (spec.idCapture === 'rollout-watch') {
-      this.startRolloutWatch(id, cwd, now, input.extraArgs ?? []);
+    // Agents with no pre-assignment (codex, muse, qwen, deepseek,
+    // antigravity): read the id back out of their store after spawn and
+    // record the armed resume argv. The pane pid and tmux session id are the
+    // correlation keys — qwen writes a descendant pid, muse writes the pane.
+    if (spec.idCapture === 'store-harvest') {
+      this.startIdCapture(
+        id,
+        input.agent,
+        {
+          cwd,
+          sinceTs: now,
+          tmuxSessionId: info.sessionId,
+          ...(info.panePid !== undefined ? { panePid: info.panePid } : {})
+        },
+        input.extraArgs ?? []
+      );
     }
 
     this.broadcastSessions();
@@ -1054,10 +1157,10 @@ export class GmuxCore {
   /** Kill: attach client, tmux session, then manifest status → 'exited'. */
   async killSession(sessionId: string): Promise<void> {
     const rec = this.mustGetSession(sessionId);
-    const watch = this.rolloutWatches.get(sessionId);
+    const watch = this.idCaptureWatches.get(sessionId);
     if (watch !== undefined) {
       watch.cancel();
-      this.rolloutWatches.delete(sessionId);
+      this.idCaptureWatches.delete(sessionId);
     }
     this.attachHost.detach(sessionId);
     // F1 (research 21 §6): kill the session we can PROVE is this row's — the
@@ -1201,8 +1304,8 @@ export class GmuxCore {
       clearTimeout(this.sessionsBroadcastTimer);
       this.sessionsBroadcastTimer = null;
     }
-    for (const watch of this.rolloutWatches.values()) watch.cancel();
-    this.rolloutWatches.clear();
+    for (const watch of this.idCaptureWatches.values()) watch.cancel();
+    this.idCaptureWatches.clear();
     this.activity.dispose();
     this.hookServer.stop();
     this.attachHost.disposeAll();

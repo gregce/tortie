@@ -22,6 +22,7 @@ import { dirname, join } from 'node:path';
 import type {
   GmuxErrorPayload,
   Project,
+  ResumeCapture,
   Session,
   SessionStatus
 } from '@shared/types';
@@ -125,6 +126,8 @@ interface SessionRow {
   exit_signal: string | null;
   /** `#{pane_pid}` captured at create (migration 003). */
   pane_pid: number | null;
+  /** Resume-capture state (migration 004, Phase 13.5). */
+  resume_capture: string | null;
 }
 
 interface ProjectRow {
@@ -165,6 +168,26 @@ function asStatus(s: string): SessionStatus {
   // A row written by a future schema shouldn't crash the app; degrade to
   // the safest interpretation ("we only know it from the manifest").
   return 'restorable';
+}
+
+const RESUME_CAPTURES: readonly ResumeCapture[] = [
+  'armed',
+  'capturing',
+  'unavailable',
+  'none'
+];
+
+/**
+ * A row written before migration 004 has no capture state. It is left
+ * UNDEFINED rather than guessed: the renderer already knows how to read
+ * `resumeArgv`, and inventing 'unavailable' here would tell a user their
+ * armed claude session will come back as a folder.
+ */
+function asResumeCapture(s: string | null): ResumeCapture | undefined {
+  if (s === null) return undefined;
+  return (RESUME_CAPTURES as readonly string[]).includes(s)
+    ? (s as ResumeCapture)
+    : undefined;
 }
 
 function parseJsonArray(text: string | null): string[] | undefined {
@@ -223,6 +246,8 @@ function rowToRecord(row: SessionRow): ManifestSessionRecord {
   if (row.pane_pid !== null && row.pane_pid !== undefined) {
     record.panePid = row.pane_pid;
   }
+  const capture = asResumeCapture(row.resume_capture);
+  if (capture !== undefined) record.resumeCapture = capture;
   return record;
 }
 
@@ -242,6 +267,9 @@ export function toSession(record: ManifestSessionRecord): Session {
     session.agentSessionId = record.agentSessionId;
   }
   if (record.resumeArgv !== undefined) session.resumeArgv = record.resumeArgv;
+  if (record.resumeCapture !== undefined) {
+    session.resumeCapture = record.resumeCapture;
+  }
   if (record.exitCode !== undefined) session.exitCode = record.exitCode;
   if (record.exitSignal !== undefined) session.exitSignal = record.exitSignal;
   return session;
@@ -310,6 +338,16 @@ const MIGRATIONS: readonly Migration[] = [
         ALTER TABLE sessions ADD COLUMN exit_signal TEXT;
         ALTER TABLE sessions ADD COLUMN pane_pid INTEGER;
       `);
+    }
+  },
+  {
+    // Phase 13.5 (research 22 §4): whether this session's CONVERSATION comes
+    // back, not just its directory. Derivable from resumeArgv for the armed
+    // case, but not for the other two the user needs to see: a harvest still
+    // in flight, and a harvest that gave up. NULL for pre-existing rows.
+    name: '004-resume-capture',
+    up: (db) => {
+      db.exec('ALTER TABLE sessions ADD COLUMN resume_capture TEXT;');
     }
   }
 ];
@@ -395,11 +433,12 @@ export class ManifestStore {
           `INSERT INTO sessions
              (id, name, tmux_name, project_path, cwd, agent, agent_session_id,
               argv, resume_argv, env, status, created_at, last_seen, exit_code,
-              exit_signal, pane_pid)
+              exit_signal, pane_pid, resume_capture)
            VALUES
              (@id, @name, @tmuxName, @projectPath, @cwd, @agent,
               @agentSessionId, @argv, @resumeArgv, @env, @status,
-              @createdAt, @lastSeen, @exitCode, @exitSignal, @panePid)`
+              @createdAt, @lastSeen, @exitCode, @exitSignal, @panePid,
+              @resumeCapture)`
         )
         .run({
           id: record.id,
@@ -419,7 +458,8 @@ export class ManifestStore {
           lastSeen: record.lastSeen,
           exitCode: record.exitCode ?? null,
           exitSignal: record.exitSignal ?? null,
-          panePid: record.panePid ?? null
+          panePid: record.panePid ?? null,
+          resumeCapture: record.resumeCapture ?? null
         });
     } catch (err) {
       throw manifestError(
@@ -483,6 +523,9 @@ export class ManifestStore {
     if (patch.exitCode !== undefined) merged.exitCode = patch.exitCode;
     if (patch.exitSignal !== undefined) merged.exitSignal = patch.exitSignal;
     if (patch.panePid !== undefined) merged.panePid = patch.panePid;
+    if (patch.resumeCapture !== undefined) {
+      merged.resumeCapture = patch.resumeCapture;
+    }
 
     this.db
       .prepare(
@@ -491,7 +534,8 @@ export class ManifestStore {
            cwd = @cwd, agent = @agent, agent_session_id = @agentSessionId,
            argv = @argv, resume_argv = @resumeArgv, env = @env,
            status = @status, last_seen = @lastSeen, exit_code = @exitCode,
-           exit_signal = @exitSignal, pane_pid = @panePid
+           exit_signal = @exitSignal, pane_pid = @panePid,
+           resume_capture = @resumeCapture
          WHERE id = @id`
       )
       .run({
@@ -509,7 +553,8 @@ export class ManifestStore {
         lastSeen: merged.lastSeen,
         exitCode: merged.exitCode ?? null,
         exitSignal: merged.exitSignal ?? null,
-        panePid: merged.panePid ?? null
+        panePid: merged.panePid ?? null,
+        resumeCapture: merged.resumeCapture ?? null
       });
     return merged;
   }
@@ -528,15 +573,30 @@ export class ManifestStore {
   }
 
   /**
-   * Record a harvested agent conversation id (e.g. a Codex rollout uuid)
-   * together with the resume argv it enables.
+   * Record a harvested agent conversation id together with the resume argv
+   * it enables. Arming the argv and flipping the capture state are ONE write:
+   * a row that has an id but still reads 'capturing' would leave the user's
+   * indicator spinning forever over a session that is in fact resumable.
    */
   setAgentSessionId(
     id: string,
     agentSessionId: string,
     resumeArgv: string[]
   ): ManifestSessionRecord {
-    return this.updateSession(id, { agentSessionId, resumeArgv });
+    return this.updateSession(id, {
+      agentSessionId,
+      resumeArgv,
+      resumeCapture: resumeArgv.length > 0 ? 'armed' : 'unavailable'
+    });
+  }
+
+  /**
+   * A harvest that ended without an id. NOT a silent no-op: 'capturing' is a
+   * promise to the user, and a promise that cannot be kept has to be
+   * withdrawn where they can see it (research 22 §4.1 point 2).
+   */
+  setResumeCapture(id: string, state: ResumeCapture): ManifestSessionRecord {
+    return this.updateSession(id, { resumeCapture: state });
   }
 
   /** Heartbeat: refresh last_seen without touching anything else. */

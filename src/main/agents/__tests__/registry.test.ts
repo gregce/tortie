@@ -27,6 +27,7 @@ import {
   LF,
   multilineKeyFor,
   multilineKeyTable,
+  preAssignFlag,
   registryLaunchArgv,
   registryResumeArgv,
   SESSION_ID_SLOT
@@ -100,25 +101,39 @@ describe('launchable entries', () => {
     }
   });
 
-  it('every launchable entry except UNVERIFIED pi has a version probe', () => {
+  it('every launchable entry has a version probe — including pi', () => {
     for (const id of LAUNCHABLE_AGENT_IDS) {
-      const entry = getLaunchableEntry(id);
-      if (id === 'pi') expect(entry.versionProbe).toBeNull();
-      else expect(entry.versionProbe, id).not.toBeNull();
+      expect(getLaunchableEntry(id).versionProbe, id).not.toBeNull();
     }
+    // `pi -v` → "0.84.1". The registry claimed "no version command is
+    // confirmed upstream"; one --help would have caught it (research 22 §5).
+    expect(getRegistryEntry('pi').versionProbe?.args).toEqual(['-v']);
   });
 
-  it('pi is flagged UNVERIFIED with no resume mechanics', () => {
+  it('pi resumes by re-passing the SAME --session-id it launched with', () => {
     const pi = getRegistryEntry('pi');
-    expect(pi.unverified).toBe(true);
-    expect(pi.resume.strategy).toBe('none');
-    expect(pi.resume.template).toEqual([]);
+    // The headline correction: `/** No resume mechanics exist (pi v1). */`
+    // was false. --session-id is idempotent, so launch argv === resume argv.
+    expect(pi.resume.strategy).toBe('flag-uuid');
+    expect(pi.resume.template).toEqual(['--session-id', SESSION_ID_SLOT]);
+    expect(pi.resume.idCapture).toEqual({
+      mode: 'pre-assign',
+      launchFlag: ['--session-id']
+    });
+    expect(pi.unverified).toBe(false);
+    // Its cwd is load-bearing: from the wrong directory --session-id opens a
+    // new EMPTY session under the same id, silently.
+    expect(pi.resume.requiresOriginalCwd).toBe(true);
   });
 
-  it('only pi is UNVERIFIED', () => {
+  it('droid is the only docs-only row left', () => {
     for (const entry of AGENT_REGISTRY) {
-      expect(entry.unverified, entry.id).toBe(entry.id === 'pi');
+      expect(entry.unverified, entry.id).toBe(entry.id === 'droid');
     }
+    // …and an unverified row must not guess a pre-assignment flag onto a
+    // launch argv: a wrong one is a dead pane.
+    expect(getRegistryEntry('droid').resume.idCapture.mode).toBe('unverified');
+    expect(preAssignFlag('droid')).toBeNull();
   });
 
   it('identity/version quirks match the research', () => {
@@ -140,18 +155,100 @@ describe('resume templates', () => {
     }
   });
 
-  it('codex + muse resume via SUBCOMMAND, antigravity via --conversation', () => {
-    expect(getRegistryEntry('codex').resume.template[0]).toBe('resume');
-    expect(getRegistryEntry('muse').resume.template[0]).toBe('resume');
-    expect(getRegistryEntry('antigravity').resume.template[0]).toBe('--conversation');
-    for (const id of ['claude', 'cursor', 'gemini', 'droid', 'deepseek', 'qwen'] as const) {
-      expect(getRegistryEntry(id).resume.template[0], id).toBe('--resume');
+  /**
+   * The audit found TWO templates that produce a DEAD PANE, and both were
+   * verb errors a shape check waves through: pi's empty template and
+   * deepseek's `--resume`, which exits RC=2 because resume is a SUBCOMMAND.
+   * So assert the literal first token per agent, not "it has a slot".
+   */
+  it('pins the resume VERB per agent — a wrong one is a dead pane', () => {
+    const VERB: Record<string, string> = {
+      claude: '--resume',
+      cursor: '--resume',
+      codex: 'resume', // subcommand
+      gemini: '--resume',
+      droid: '--resume',
+      deepseek: 'resume', // subcommand — `--resume <id>` exits RC=2
+      antigravity: '--conversation',
+      muse: 'resume', // subcommand
+      qwen: '--resume',
+      pi: '--session-id' // idempotent: the flag it launched with
+    };
+    for (const id of LAUNCHABLE_AGENT_IDS) {
+      expect(getRegistryEntry(id).resume.template[0], id).toBe(VERB[id]);
     }
   });
 
-  it('antigravity and pi are NOT reconstruction targets', () => {
+  /**
+   * The invariant that would have failed on pi from day one. Under the
+   * corrected data NO installed agent genuinely lacks resume — 'none' means
+   * "this agent has no conversation id at all", never "gmux has not built
+   * capture yet", which is what idCapture records.
+   */
+  it('no launchable agent claims resume strategy none', () => {
+    const GENUINELY_NONE: readonly string[] = []; // empty, and should stay so
+    for (const id of LAUNCHABLE_AGENT_IDS) {
+      if (GENUINELY_NONE.includes(id)) continue;
+      expect(getRegistryEntry(id).resume.strategy, id).toBe('flag-uuid');
+    }
+  });
+
+  /**
+   * The schema gap that CAUSED the bug: muse and qwen were 'flag-uuid',
+   * indistinguishable from claude's pre-assigned --session-id, so
+   * buildLaunchSpec had no data to act on and defaulted them into a branch
+   * nobody had implemented. Every launchable row must now say how its id is
+   * obtained, and only a row that has never been exercised may say 'no idea'.
+   */
+  it('every launchable agent records HOW its id is obtained', () => {
+    for (const id of LAUNCHABLE_AGENT_IDS) {
+      const capture = getRegistryEntry(id).resume.idCapture;
+      expect(capture.mode, id).not.toBe('none');
+      if (capture.mode === 'unverified') {
+        // Only droid, and only because it is not installed anywhere.
+        expect(id).toBe('droid');
+        expect(capture.note.length).toBeGreaterThan(0);
+      }
+      if (capture.mode === 'harvest') {
+        expect(capture.source.length, id).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('labels the two harvests that cannot separate two panes in one dir', () => {
+    const weak = LAUNCHABLE_AGENT_IDS.filter((id) => {
+      const c = getRegistryEntry(id).resume.idCapture;
+      return c.mode === 'harvest' && c.confidence === 'weak';
+    });
+    expect([...weak].sort()).toEqual(['antigravity', 'deepseek']);
+  });
+
+  it('marks the cwd-scoped agents so restore cannot drift their directory', () => {
+    // qwen fails loudly from the wrong cwd; pi opens a new EMPTY session
+    // under the same id and looks resumed. Both must pin their directory.
+    const scoped = LAUNCHABLE_AGENT_IDS.filter(
+      (id) => getRegistryEntry(id).resume.requiresOriginalCwd === true
+    );
+    expect([...scoped].sort()).toEqual(['pi', 'qwen']);
+    // claude is the one agent whose id lookup is global.
+    expect(getRegistryEntry('claude').resume.requiresOriginalCwd).toBeUndefined();
+  });
+
+  it('flags gemini as the agent whose bare --resume opens the WRONG chat', () => {
+    expect(getRegistryEntry('gemini').resume.bareResumeIsDangerous).toBe(true);
+    for (const id of LAUNCHABLE_AGENT_IDS) {
+      if (id === 'gemini') continue;
+      expect(
+        getRegistryEntry(id).resume.bareResumeIsDangerous,
+        id
+      ).toBeUndefined();
+    }
+  });
+
+  it('antigravity is NOT a reconstruction target; pi now is', () => {
     expect(getRegistryEntry('antigravity').reconstructionTarget).toBe(false);
-    expect(getRegistryEntry('pi').reconstructionTarget).toBe(false);
+    // pi's JSONL format is documented in its own shipped docs and writable.
+    expect(getRegistryEntry('pi').reconstructionTarget).toBe(true);
   });
 });
 
@@ -185,7 +282,28 @@ describe('argv helpers', () => {
       '--conversation',
       'ID'
     ]);
-    expect(registryResumeArgv('pi', 'ID')).toEqual([]);
+    // Was []: the registry said pi had no resume mechanics. It has the
+    // simplest one in the set.
+    expect(registryResumeArgv('pi', 'ID')).toEqual(['pi', '--session-id', 'ID']);
+    // deepseek's verb is a SUBCOMMAND; `--resume <id>` exits RC=2.
+    expect(registryResumeArgv('deepseek', 'ID')).toEqual([
+      'deepseek',
+      'resume',
+      'ID'
+    ]);
+  });
+
+  /**
+   * gemini's bare `--resume` does not error and does not open a picker — it
+   * silently attaches to the MOST RECENT session. An argv that loses its id
+   * therefore opens the WRONG conversation, so one must never be built.
+   */
+  it('never builds a resume argv without the id in it', () => {
+    for (const id of LAUNCHABLE_AGENT_IDS) {
+      expect(registryResumeArgv(id, ''), id).toEqual([]);
+    }
+    expect(registryResumeArgv('gemini', '')).toEqual([]);
+    expect(registryResumeArgv('gemini', 'ID')).toContain('ID');
   });
 
   it('registryLaunchArgv substitutes the resolved binary', () => {
@@ -194,6 +312,35 @@ describe('argv helpers', () => {
       '--y'
     ]);
     expect(registryLaunchArgv('gemini')).toEqual(['gemini']);
+  });
+
+  /**
+   * The registry's launch argv stays SLOT-FREE and id injection happens in
+   * exactly one place, because pi's id regex is permissive enough to accept
+   * the literal string "<sessionId>" and hand every pane the same session.
+   */
+  it('injects a pre-assigned id only for agents that take one', () => {
+    for (const entry of AGENT_REGISTRY) {
+      if (entry.launch === null) continue;
+      expect(entry.launch.argv, entry.id).not.toContain(SESSION_ID_SLOT);
+    }
+    expect(registryLaunchArgv('pi', [], '/abs/pi', 'ID')).toEqual([
+      '/abs/pi',
+      '--session-id',
+      'ID'
+    ]);
+    expect(registryLaunchArgv('gemini', ['--x'], undefined, 'ID')).toEqual([
+      'gemini',
+      '--session-id',
+      'ID',
+      '--x'
+    ]);
+    // codex harvests; handing it an id must change nothing.
+    expect(registryLaunchArgv('codex', [], '/abs/codex', 'ID')).toEqual([
+      '/abs/codex'
+    ]);
+    expect(preAssignFlag('claude')).toEqual(['--session-id']);
+    expect(preAssignFlag('codex')).toBeNull();
   });
 });
 
@@ -218,42 +365,118 @@ describe('buildLaunchSpec registry wiring', () => {
     ]);
   });
 
-  it('codex keeps its rollout-watch mechanics untouched', () => {
+  it('codex keeps its harvest mechanics untouched', () => {
     const spec = buildLaunchSpec('codex', [], '/abs/codex');
-    expect(spec.idCapture).toBe('rollout-watch');
+    expect(spec.idCapture).toBe('store-harvest');
+    expect(spec.harvestKey).toBe('cwd-newest');
+    expect(spec.harvestConfidence).toBe('exact');
     expect(spec.argv).toEqual(['/abs/codex']);
-    expect(spec.resumeArgv).toBeUndefined();
-  });
-
-  it('registry agents launch from registry data with store-watch capture', () => {
-    const spec = buildLaunchSpec('gemini', ['--x'], '/abs/gemini');
-    expect(spec.argv).toEqual(['/abs/gemini', '--x']);
-    expect(spec.idCapture).toBe('store-watch');
-    expect(spec.resumeStrategy).toBe('flag-uuid');
-    expect(spec.resumeTemplate).toEqual(['--resume', SESSION_ID_SLOT]);
     expect(spec.resumeArgv).toBeUndefined(); // id unknown until harvested
-    expect(spec.env).toBeUndefined();
   });
 
-  it('cursor carries the FORCE_COLOR=1 env injection', () => {
+  /**
+   * THE PHASE-13.5 REGRESSION GUARD. gemini used to launch bare, get
+   * `idCapture: 'store-watch'` — a TODO with a strategy's name — and never
+   * arm a resume argv, so the pane came back as a bare directory. It now
+   * arms both at spawn, with no watcher and no race.
+   */
+  it('gemini arms its resume at launch (was: store-watch forever)', () => {
+    const spec = buildLaunchSpec('gemini', ['--x'], '/abs/gemini');
+    expect(spec.idCapture).toBe('preassigned');
+    expect(spec.agentSessionId).toBeDefined();
+    expect(spec.argv).toEqual([
+      '/abs/gemini',
+      '--session-id',
+      spec.agentSessionId,
+      '--x'
+    ]);
+    expect(spec.resumeArgv).toEqual([
+      '/abs/gemini',
+      '--resume',
+      spec.agentSessionId,
+      '--x'
+    ]);
+  });
+
+  it('pi launch argv IS its resume argv — the simplest case in the set', () => {
+    const spec = buildLaunchSpec('pi', ['--model', 'x'], '/abs/pi');
+    expect(spec.idCapture).toBe('preassigned');
+    expect(spec.agentSessionId).toBeDefined();
+    expect(spec.argv).toEqual([
+      '/abs/pi',
+      '--session-id',
+      spec.agentSessionId,
+      '--model',
+      'x'
+    ]);
+    expect(spec.resumeArgv).toEqual(spec.argv);
+    // pi's --session-id only searches the CURRENT project.
+    expect(spec.requiresOriginalCwd).toBe(true);
+  });
+
+  it('cursor carries FORCE_COLOR=1 and waits for its side-command id', () => {
     const spec = buildLaunchSpec('cursor', [], '/abs/cursor-agent');
     expect(spec.env).toEqual({ FORCE_COLOR: '1' });
     expect(spec.argv).toEqual(['/abs/cursor-agent']);
+    // The sync builder cannot run `cursor-agent create-chat`; it says so
+    // rather than pretending the id will appear from somewhere.
+    expect(spec.idCapture).toBe('preassigned-cmd');
+    expect(spec.agentSessionId).toBeUndefined();
   });
 
-  it('pi launches but has nothing to resume (UNVERIFIED upstream)', () => {
-    const spec = buildLaunchSpec('pi', [], '/abs/pi');
-    expect(spec.argv).toEqual(['/abs/pi']);
-    expect(spec.idCapture).toBe('none');
-    expect(spec.resumeStrategy).toBe('none');
+  it('muse and qwen harvest, and say which key proves the record is theirs', () => {
+    const muse = buildLaunchSpec('muse', [], '/abs/muse');
+    expect(muse.idCapture).toBe('store-harvest');
+    expect(muse.harvestKey).toBe('tmux-pane');
+    const qwen = buildLaunchSpec('qwen', [], '/abs/qwen');
+    expect(qwen.idCapture).toBe('store-harvest');
+    expect(qwen.harvestKey).toBe('pid');
+    expect(qwen.requiresOriginalCwd).toBe(true);
   });
 
-  it('every launchable registry agent builds a spec without throwing', () => {
+  it('droid says "unsupported" out loud instead of guessing a flag', () => {
+    const spec = buildLaunchSpec('droid', [], '/abs/droid');
+    expect(spec.argv).toEqual(['/abs/droid']);
+    expect(spec.idCapture).toBe('unsupported');
+    expect(spec.agentSessionId).toBeUndefined();
+    expect(spec.resumeArgv).toBeUndefined();
+  });
+
+  /**
+   * The coverage claim, executable. Every installed agent must have a real
+   * capture route; the ONE that does not is droid, which is not installed
+   * anywhere gmux has run. If a future edit quietly drops an agent back into
+   * "no capture", this fails.
+   */
+  it('captures an id for every launchable agent except docs-only droid', () => {
+    const uncaptured: string[] = [];
     for (const id of LAUNCHABLE_AGENT_IDS) {
-      if (id === 'claude' || id === 'codex') continue; // covered above
       const spec = buildLaunchSpec(id, [], `/abs/${agentBinaryName(id)}`);
       expect(spec.argv[0], id).toBe(`/abs/${agentBinaryName(id)}`);
+      if (spec.idCapture === 'unsupported' || spec.idCapture === 'none') {
+        uncaptured.push(id);
+      }
     }
+    expect(uncaptured).toEqual(['droid']);
+  });
+
+  it('arms resume at spawn for 4 of the 10 launchable agents', () => {
+    const armed = LAUNCHABLE_AGENT_IDS.filter(
+      (id) => buildLaunchSpec(id, [], agentBinaryName(id)).resumeArgv !== undefined
+    );
+    // Tier 1 (research 22 §3.1): coverage went 1/10 → 4/10 with no watcher.
+    expect([...armed].sort()).toEqual(['claude', 'gemini', 'pi']);
+    // cursor is the fourth, via a side command resolveLaunchSpec must run.
+    expect(buildLaunchSpec('cursor', [], 'cursor-agent').idCapture).toBe(
+      'preassigned-cmd'
+    );
+  });
+
+  it('shells have nothing to resume and say so', () => {
+    const spec = buildLaunchSpec('shell', [], '/bin/zsh');
+    expect(spec.argv).toEqual(['/bin/zsh']);
+    expect(spec.idCapture).toBe('none');
+    expect(spec.resumeArgv).toBeUndefined();
   });
 });
 

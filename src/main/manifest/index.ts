@@ -17,10 +17,20 @@ export {
   buildLaunchSpec,
   claudeResumeArgv,
   codexResumeArgv,
-  watchForRollout,
+  resolveLaunchSpec,
   type AgentLaunchSpec,
-  type IdCaptureMode,
-  type CodexRolloutInfo,
-  type RolloutWatch,
-  type RolloutWatchOptions
+  type IdCaptureMode
 } from './agents';
+
+export {
+  agentHarvestsId,
+  isDescendantOf,
+  resetProcessParentCache,
+  sanitizeQwenCwd,
+  watchForSessionId,
+  type HarvestContext,
+  type HarvestedSessionId,
+  type HarvestOptions,
+  type HarvestVerdict,
+  type SessionIdWatch
+} from './harvest';

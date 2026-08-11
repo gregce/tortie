@@ -1,0 +1,568 @@
+/**
+ * What each harvesting agent's session store LOOKS LIKE — the per-agent data
+ * half of Phase 13.5's single store watcher (docs/research/22-resume-audit.md
+ * §3.2/§3.3). The generic watch/settle algorithm that consumes this lives
+ * next door in ./watch.ts; nothing here knows how to watch anything.
+ *
+ * WHY THE SEAM IS HERE. Until Phase 13.5 exactly one agent had a harvester:
+ * codex, hand-written as `watchForRollout`. Every other agent hit a
+ * `default:` branch in buildLaunchSpec that set `idCapture: 'store-watch'`
+ * and left `resumeArgv` undefined forever, because no store watcher existed.
+ * `'store-watch'` read like a strategy and was a TODO with a nice name — the
+ * user's live manifest (muse-1, qwen-1, pi-1, pi1 with no resume armed) is
+ * what that costs after a reboot. The fix is deliberately NOT "one bespoke
+ * harvester per agent": every store in the field is the same shape — a
+ * directory tree, a filename or directory name that carries the id, and one
+ * record inside that proves whose session it is — so adding an agent is a
+ * HarvestDescriptor here, never a new watcher.
+ *
+ * WHAT "PROVE" MEANS, per agent (all measured; see the registry notes):
+ *  - muse  — stamps the tmux pane it runs in (`$371:@371.%372`) into its own
+ *            transcript at session OPEN. gmux spawned that pane, so the match
+ *            is an identity, not a heuristic: it survives two muse sessions
+ *            in one directory, which cwd-matching never can.
+ *  - qwen  — writes `<id>.runtime.json` next to the transcript carrying
+ *            `{pid, session_id, work_dir}`. The pid is NOT the pane pid: the
+ *            launcher forks twice (measured 1615 -> 1622 -> 1644, and 1644 is
+ *            what lands in the file), so gmux matches any DESCENDANT of the
+ *            pane pid.
+ *  - codex — filename uuid + line-1 `session_meta.cwd`, with a grace timer
+ *            for records that cannot be classified yet (.zst, not flushed).
+ *  - deepseek / antigravity — WEAK by construction. deepseek's only cwd
+ *            signal is inside a file it does not write until the first turn;
+ *            nothing on antigravity's disk links a conversation id to a
+ *            directory at all. Both are labelled 'weak' so the UI can say so
+ *            instead of promising a conversation that may be the wrong one.
+ *
+ * Ownership: src/main/manifest/**. Pure Node (no Electron import).
+ */
+
+import { execFile } from 'node:child_process';
+import { open, realpath } from 'node:fs/promises';
+import { basename, dirname, join } from 'node:path';
+import { promisify } from 'node:util';
+import type { LaunchableAgentId } from '@shared/types';
+import type { AgentHarvestKey } from '../../agents/registry';
+
+const execFileAsync = promisify(execFile);
+
+// ---------------------------------------------------------------------------
+// Public shapes
+// ---------------------------------------------------------------------------
+
+/** What gmux knows about the pane it just spawned into. */
+export interface HarvestContext {
+  /** The launch cwd, ALREADY realpath'd (qwen keys on the resolved path). */
+  cwd: string;
+  /** Epoch ms captured just before spawn — nothing older can be ours. */
+  sinceTs: number;
+  /** `#{pane_pid}` as tmux reported it at create. */
+  panePid?: number;
+  /** The pane's tmux session id, e.g. "$371" (muse's exact key). */
+  tmuxSessionId?: string;
+}
+
+/** A conversation id, plus how strongly it was tied to this pane. */
+export interface HarvestedSessionId {
+  agent: LaunchableAgentId;
+  sessionId: string;
+  /** Absolute path of the store record that carried it. */
+  storePath: string;
+  key: AgentHarvestKey;
+  confidence: 'exact' | 'weak';
+  /**
+   * TRUE when the record was accepted on the grace timer without its key ever
+   * confirming (an unflushed file, a .zst rollout, antigravity's missing
+   * id→cwd link). The id is probably right; it is not proven right.
+   */
+  viaGraceTimer: boolean;
+}
+
+export interface SessionIdWatch {
+  /** Resolves with the harvested id; rejects on timeout or cancel(). */
+  promise: Promise<HarvestedSessionId>;
+  /** Stop watching. The promise rejects with a 'cancelled' error. */
+  cancel(): void;
+}
+
+export interface HarvestOptions {
+  /** Override the whole timeout (default is per-agent, see DESCRIPTORS). */
+  timeoutMs?: number;
+  /** Polling fallback interval at the start (default is per-agent). */
+  pollIntervalMs?: number;
+  /** Ceiling the poll interval backs off to. Default 10 s. */
+  maxPollIntervalMs?: number;
+  /** How long an unconfirmable candidate waits (default is per-agent). */
+  graceMs?: number;
+  /** Env override hook for tests — defaults to process.env. */
+  env?: NodeJS.ProcessEnv;
+  /** Home override hook for tests — defaults to os.homedir(). */
+  home?: string;
+}
+
+/** 'match' = proven ours; 'unknown' = cannot tell YET; 'mismatch' = not ours. */
+export type HarvestVerdict = 'match' | 'mismatch' | 'unknown';
+
+// ---------------------------------------------------------------------------
+// Descriptors — one per harvesting agent, no code per agent
+// ---------------------------------------------------------------------------
+
+export interface DescriptorEnv {
+  home: string;
+  env: NodeJS.ProcessEnv;
+}
+
+export interface HarvestDescriptor {
+  key: AgentHarvestKey;
+  confidence: 'exact' | 'weak';
+  /** Directories to watch and scan. May not exist yet — that is fine. */
+  roots(ctx: HarvestContext, de: DescriptorEnv): string[];
+  /** Are candidates files or directories? */
+  entry: 'file' | 'dir';
+  /** Descend into this directory? Depth 0 = a direct child of a root. */
+  recurse?(name: string, depth: number, path: string): boolean;
+  /** Deepest directory level to walk. */
+  maxDepth: number;
+  /** Full path → the id it carries, or null when it is not a candidate. */
+  identify(path: string): { sessionId: string; nameTs?: number } | null;
+  /** Prove the candidate is THIS pane's session. */
+  confirm(path: string, ctx: HarvestContext): Promise<HarvestVerdict>;
+  /** Accept an unconfirmed candidate after this long with no rival. */
+  graceMs: number;
+  timeoutMs: number;
+  pollIntervalMs: number;
+}
+
+const UUID_RE =
+  /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+/**
+ * rollout-YYYY-MM-DDThh-mm-ss-<uuid>.jsonl or .jsonl.zst
+ * (filename layout documented in codex-rs rollout/src/list.rs).
+ */
+const ROLLOUT_RE =
+  /^rollout-(\d{4})-(\d{2})-(\d{2})T(\d{2})-(\d{2})-(\d{2})-([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\.jsonl(\.zst)?$/;
+
+/**
+ * qwen's project-dir encoding: every character outside [a-zA-Z0-9] becomes
+ * '-'. It is CHARACTER SUBSTITUTION, not a hash (the registry used to say
+ * "hashes"; the real dir names are plainly readable), and it is applied to
+ * the RESOLVED cwd — a symlinked launch dir keys on its target.
+ */
+export function sanitizeQwenCwd(realCwd: string): string {
+  return realCwd.replace(/[^a-zA-Z0-9]/g, '-');
+}
+
+/**
+ * How long a harvest keeps watching. Deliberately long, and the reason is a
+ * MEASUREMENT, not caution: codex and muse both open a "do you trust this
+ * directory?" gate in a directory they have never seen, and neither writes
+ * anything to its store until it is answered. codex 0.147.0 goes further —
+ * even trusted and fully painted, it writes NO rollout and NO row in
+ * state_5.sqlite until the FIRST TURN. The shipped 120 s window therefore
+ * gave up on exactly the sessions this phase exists for: the ones the user
+ * opened, left at a prompt, and came back to after lunch.
+ *
+ * Cost of watching this long is one FSEvents subscription plus a readdir that
+ * backs off to once every 10 s. Cost of not watching is the conversation.
+ */
+const HARVEST_WINDOW_MS = 6 * 60 * 60 * 1_000;
+
+/**
+ * How far back a date-sharded store is walked. codex's `sessions/` holds
+ * every session the user has ever run (nine months of day-directories here),
+ * and a poll that walks all of them every few seconds is the fd-exhaustion
+ * lesson from research 02 waiting to happen. Nothing older than this window
+ * can belong to a spawn that just happened.
+ */
+const DATE_SHARD_WINDOW_MS = 8 * 24 * 60 * 60 * 1_000;
+
+/**
+ * Recursion filter for a `<root>/<YYYY>/<MM>/<DD>/` store: descend only into
+ * shards that could contain something newer than DATE_SHARD_WINDOW_MS.
+ * `path` is the candidate directory, so its parents name the coarser fields.
+ */
+function withinDateShardWindow(
+  name: string,
+  depth: number,
+  path: string
+): boolean {
+  const cutoff = Date.now() - DATE_SHARD_WINDOW_MS;
+  const n = Number(name);
+  if (!Number.isFinite(n)) return false;
+  if (depth === 0) {
+    if (!/^\d{4}$/.test(name)) return false;
+    return n >= new Date(cutoff).getFullYear();
+  }
+  if (depth === 1) {
+    if (!/^\d{2}$/.test(name)) return false;
+    const year = Number(basename(dirname(path)));
+    // End of that month: the shard is live if ANY day in it is in window.
+    return new Date(year, n, 1).getTime() >= cutoff;
+  }
+  if (depth === 2) {
+    if (!/^\d{2}$/.test(name)) return false;
+    const month = Number(basename(dirname(path)));
+    const year = Number(basename(dirname(dirname(path))));
+    return new Date(year, month - 1, n + 1).getTime() >= cutoff;
+  }
+  return false;
+}
+
+/** `${XDG_DATA_HOME:-~/.local/share}` — muse's store root. */
+function xdgDataHome(de: DescriptorEnv): string {
+  const xdg = de.env['XDG_DATA_HOME'];
+  return xdg !== undefined && xdg.length > 0
+    ? xdg
+    : join(de.home, '.local', 'share');
+}
+
+export const DESCRIPTORS: Partial<Record<LaunchableAgentId, HarvestDescriptor>> = {
+  codex: {
+    key: 'cwd-newest',
+    confidence: 'exact',
+    roots: (_ctx, de) => {
+      const codexHome = de.env['CODEX_HOME'] ?? join(de.home, '.codex');
+      return [join(codexHome, 'sessions'), join(codexHome, 'archived_sessions')];
+    },
+    entry: 'file',
+    // sessions/YYYY/MM/DD, bounded to the recent shards, plus an
+    // archived_sessions dir at any level (a rollout can be MOVED into one,
+    // and the uuid lives in the filename so the move never loses it).
+    recurse: (name, depth, path) =>
+      name === 'archived_sessions' || withinDateShardWindow(name, depth, path),
+    maxDepth: 4,
+    identify: (path) => {
+      const m = ROLLOUT_RE.exec(basename(path));
+      if (m === null) return null;
+      const [, y, mo, d, h, mi, s, uuid] = m;
+      if (!y || !mo || !d || !h || !mi || !s || !uuid) return null;
+      // Filename timestamps are the agent host's LOCAL time.
+      const nameTs = new Date(
+        Number(y),
+        Number(mo) - 1,
+        Number(d),
+        Number(h),
+        Number(mi),
+        Number(s)
+      ).getTime();
+      return { sessionId: uuid, nameTs };
+    },
+    // .zst cannot be parsed without a zstd dep; an empty file has not been
+    // flushed yet. Both stay 'unknown' and ride the grace timer.
+    confirm: async (path, ctx) => {
+      if (path.endsWith('.zst')) return 'unknown';
+      const first = await readFirstJsonLine(path);
+      if (first === null) return 'unknown';
+      const payload = first['payload'];
+      const cwdRaw =
+        payload !== null && typeof payload === 'object'
+          ? (payload as Record<string, unknown>)['cwd']
+          : first['cwd'];
+      if (typeof cwdRaw !== 'string') return 'unknown';
+      return (await samePath(cwdRaw, ctx.cwd)) ? 'match' : 'mismatch';
+    },
+    graceMs: 3_000,
+    // MEASURED 2026-08-11 (0.147.0): codex writes NEITHER a rollout file NOR
+    // a state_5.sqlite `threads` row at session open — a trusted, fully
+    // painted TUI still has an empty store. Both appear on the FIRST TURN.
+    // research 22 §1.1 says 'session-open'; that is wrong for this version,
+    // and the 120 s window it justified is why an idle codex pane could lose
+    // its resume id even though the harvester worked perfectly.
+    timeoutMs: HARVEST_WINDOW_MS,
+    pollIntervalMs: 1_000
+  },
+
+  qwen: {
+    key: 'pid',
+    confidence: 'exact',
+    // ONE deterministic directory, a pure function of the cwd — no scan.
+    roots: (ctx, de) => [
+      join(de.home, '.qwen', 'projects', sanitizeQwenCwd(ctx.cwd), 'chats')
+    ],
+    entry: 'file',
+    maxDepth: 0,
+    identify: (path) => {
+      const m = /^([0-9a-fA-F-]{36})\.runtime\.json$/.exec(basename(path));
+      const id = m?.[1];
+      if (id === undefined || !UUID_RE.test(id)) return null;
+      return { sessionId: id };
+    },
+    confirm: async (path, ctx) => {
+      const doc = await readJsonFile(path);
+      if (doc === null) return 'unknown';
+      const workDir = doc['work_dir'];
+      if (typeof workDir === 'string' && !(await samePath(workDir, ctx.cwd))) {
+        return 'mismatch';
+      }
+      const pid = doc['pid'];
+      if (typeof pid !== 'number' || ctx.panePid === undefined) return 'unknown';
+      // MEASURED: qwen's launcher forks twice, so the recorded pid is a
+      // GRANDCHILD of the pane pid, never equal to it.
+      return (await isDescendantOf(pid, ctx.panePid)) ? 'match' : 'unknown';
+    },
+    graceMs: 2_500,
+    timeoutMs: HARVEST_WINDOW_MS,
+    pollIntervalMs: 500
+  },
+
+  muse: {
+    key: 'tmux-pane',
+    confidence: 'exact',
+    roots: (_ctx, de) => [join(xdgDataHome(de), 'muse', 'sessions')],
+    entry: 'file',
+    // sessions/<YYYY>/<MM>/<DD>/<sessionId>/session.jsonl — and never
+    // subagent/, whose task-streams are not resumable sessions.
+    recurse: (name, depth, path) => {
+      if (name === 'subagent') return false;
+      if (depth === 3) return UUID_RE.test(name);
+      return withinDateShardWindow(name, depth, path);
+    },
+    maxDepth: 4,
+    identify: (path) => {
+      if (basename(path) !== 'session.jsonl') return null;
+      const id = basename(dirname(path));
+      return UUID_RE.test(id) ? { sessionId: id } : null;
+    },
+    confirm: async (path, ctx) => {
+      const facts = await readMuseRouteFacts(path);
+      if (facts === null) return 'unknown'; // not written yet
+      const pane = facts['tmux_pane'];
+      if (typeof pane === 'string' && ctx.tmuxSessionId !== undefined) {
+        // "$371:@371.%372" — gmux gives every session exactly one pane, so
+        // the session-id prefix is a complete identity.
+        return pane.startsWith(`${ctx.tmuxSessionId}:`) ? 'match' : 'mismatch';
+      }
+      const pid = facts['pid'];
+      if (typeof pid === 'number' && ctx.panePid !== undefined) {
+        return (await isDescendantOf(pid, ctx.panePid)) ? 'match' : 'mismatch';
+      }
+      const workspace = facts['workspace_root'] ?? facts['cwd'];
+      if (typeof workspace === 'string') {
+        return (await samePath(workspace, ctx.cwd)) ? 'match' : 'mismatch';
+      }
+      return 'unknown';
+    },
+    graceMs: 3_000,
+    timeoutMs: HARVEST_WINDOW_MS,
+    pollIntervalMs: 1_000
+  },
+
+  deepseek: {
+    key: 'cwd-newest',
+    confidence: 'weak',
+    roots: (_ctx, de) => [join(de.home, '.deepseek', 'sessions')],
+    entry: 'file',
+    maxDepth: 0,
+    identify: (path) => {
+      const m = /^([0-9a-fA-F-]{36})\.json$/.exec(basename(path));
+      const id = m?.[1];
+      if (id === undefined || !UUID_RE.test(id)) return null;
+      return { sessionId: id };
+    },
+    confirm: async (path, ctx) => {
+      const doc = await readJsonFile(path);
+      const meta = doc?.['metadata'];
+      if (meta === null || typeof meta !== 'object') return 'unknown';
+      const workspace = (meta as Record<string, unknown>)['workspace'];
+      if (typeof workspace !== 'string') return 'unknown';
+      return (await samePath(workspace, ctx.cwd)) ? 'match' : 'mismatch';
+    },
+    // Flat GLOBAL store and the file only appears on the first turn, so the
+    // window is long and the accept must never be a bare "newest file".
+    graceMs: 5_000,
+    timeoutMs: HARVEST_WINDOW_MS,
+    pollIntervalMs: 2_000
+  },
+
+  antigravity: {
+    key: 'time-only',
+    confidence: 'weak',
+    roots: (_ctx, de) => [join(de.home, '.gemini', 'antigravity-cli', 'brain')],
+    entry: 'dir',
+    maxDepth: 0,
+    identify: (path) => {
+      const id = basename(path);
+      return UUID_RE.test(id) ? { sessionId: id } : null;
+    },
+    // NOTHING on disk links a conversation id to a cwd: history.jsonl has a
+    // workspace and no id, conversation_summaries.db has an id and an empty
+    // workspace_uris. Time correlation is the whole mechanism, and two agy
+    // sessions started together are genuinely not separable.
+    confirm: async () => 'unknown',
+    graceMs: 5_000,
+    timeoutMs: HARVEST_WINDOW_MS,
+    pollIntervalMs: 1_000
+  }
+};
+
+/** TRUE when this agent's id has to be read back out of its store. */
+export function agentHarvestsId(agent: LaunchableAgentId): boolean {
+  return DESCRIPTORS[agent] !== undefined;
+}
+
+// ---------------------------------------------------------------------------
+// Small readers (shared by the descriptors — never duplicated per agent)
+// ---------------------------------------------------------------------------
+
+/** Read up to 64 KiB and JSON.parse the first line. */
+async function readFirstJsonLine(
+  path: string
+): Promise<Record<string, unknown> | null> {
+  const lines = await readLeadingJsonLines(path, 1);
+  return lines[0] ?? null;
+}
+
+/** Read the first `max` parseable JSON lines of a JSONL file. */
+async function readLeadingJsonLines(
+  path: string,
+  max: number
+): Promise<Record<string, unknown>[]> {
+  let fh;
+  try {
+    fh = await open(path, 'r');
+    const buf = Buffer.alloc(256 * 1024);
+    const { bytesRead } = await fh.read(buf, 0, buf.length, 0);
+    if (bytesRead === 0) return [];
+    const text = buf.subarray(0, bytesRead).toString('utf8');
+    const out: Record<string, unknown>[] = [];
+    let cut = 0;
+    while (out.length < max) {
+      const nl = text.indexOf('\n', cut);
+      // A truncated trailing line is not parseable — stop rather than guess.
+      if (nl === -1) break;
+      const line = text.slice(cut, nl);
+      cut = nl + 1;
+      if (line.trim().length === 0) continue;
+      try {
+        const parsed: unknown = JSON.parse(line);
+        if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          out.push(parsed as Record<string, unknown>);
+        }
+      } catch {
+        break; // format drift — the caller degrades to 'unknown'
+      }
+    }
+    return out;
+  } catch {
+    return [];
+  } finally {
+    await fh?.close().catch(() => undefined);
+  }
+}
+
+async function readJsonFile(
+  path: string
+): Promise<Record<string, unknown> | null> {
+  let fh;
+  try {
+    fh = await open(path, 'r');
+    const buf = Buffer.alloc(256 * 1024);
+    const { bytesRead } = await fh.read(buf, 0, buf.length, 0);
+    if (bytesRead === 0) return null;
+    const parsed: unknown = JSON.parse(buf.subarray(0, bytesRead).toString('utf8'));
+    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return null;
+    }
+    return parsed as Record<string, unknown>;
+  } catch {
+    return null; // still being written, or not JSON
+  } finally {
+    await fh?.close().catch(() => undefined);
+  }
+}
+
+/**
+ * muse stamps the pane into `runtime.session.route_facts`, which is line 2 of
+ * session.jsonl and written at session OPEN, before any prompt.
+ */
+async function readMuseRouteFacts(
+  path: string
+): Promise<Record<string, unknown> | null> {
+  const lines = await readLeadingJsonLines(path, 8);
+  for (const line of lines) {
+    if (line['payload_type'] !== 'runtime.session.route_facts') continue;
+    const payload = line['payload'];
+    if (payload === null || typeof payload !== 'object') continue;
+    const record = (payload as Record<string, unknown>)['record'];
+    if (record === null || typeof record !== 'object') continue;
+    return record as Record<string, unknown>;
+  }
+  return null;
+}
+
+/**
+ * Compare two paths that may differ only by symlink resolution (/tmp vs
+ * /private/tmp is the everyday case on macOS and would otherwise turn every
+ * scratch-dir match into a mismatch).
+ */
+async function samePath(a: string, b: string): Promise<boolean> {
+  if (a === b) return true;
+  try {
+    return (await realpath(a)) === (await realpath(b));
+  } catch {
+    return false;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// pid ancestry (qwen's key, and muse's fallback)
+// ---------------------------------------------------------------------------
+
+interface ParentTable {
+  parents: Map<number, number>;
+  readAt: number;
+}
+
+let parentTable: ParentTable | null = null;
+const PARENT_TABLE_TTL_MS = 1_000;
+
+/** pid → ppid for every process, refreshed at most once a second. */
+async function processParents(): Promise<Map<number, number>> {
+  const now = Date.now();
+  if (parentTable !== null && now - parentTable.readAt < PARENT_TABLE_TTL_MS) {
+    return parentTable.parents;
+  }
+  const parents = new Map<number, number>();
+  try {
+    const { stdout } = await execFileAsync('ps', ['-Ao', 'pid=,ppid='], {
+      timeout: 5_000,
+      maxBuffer: 8 * 1024 * 1024
+    });
+    for (const line of stdout.split('\n')) {
+      const m = /^\s*(\d+)\s+(\d+)\s*$/.exec(line);
+      if (m === null) continue;
+      parents.set(Number(m[1]), Number(m[2]));
+    }
+  } catch {
+    /* ps unavailable — callers degrade to 'unknown', never to a wrong match */
+  }
+  parentTable = { parents, readAt: now };
+  return parents;
+}
+
+/** Test hook: forget the cached ps snapshot. */
+export function resetProcessParentCache(): void {
+  parentTable = null;
+}
+
+/**
+ * Is `pid` the pane's process or any descendant of it? Agents that fork a
+ * launcher (qwen forks twice) record an inner pid, so equality finds nothing.
+ */
+export async function isDescendantOf(
+  pid: number,
+  ancestor: number
+): Promise<boolean> {
+  if (pid === ancestor) return true;
+  const parents = await processParents();
+  let cur = pid;
+  // Bounded: a pid whose chain is longer than this is not our child tree.
+  for (let hop = 0; hop < 24; hop += 1) {
+    const parent = parents.get(cur);
+    if (parent === undefined || parent <= 1) return false;
+    if (parent === ancestor) return true;
+    cur = parent;
+  }
+  return false;
+}
