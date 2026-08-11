@@ -24,6 +24,7 @@ gmux is a lightweight macOS shell for agentic coding: durable named terminal ses
 ## Living market map
 
 - **[24-agent-workspace-product-inventory.md](research/24-agent-workspace-product-inventory.md)** — current inventory of agent terminals, session managers, worktree control planes and converging IDEs, evaluated against Tortie’s continuity-and-attention thesis.
+- **[26-tortie-durability-architecture-and-recovery.md](research/26-tortie-durability-architecture-and-recovery.md)** — scored audit of Tortie’s current promise, exact failure boundaries, 30 architecture/mechanism/backup improvements, adversarial keep/defer/cut review, and release fault matrix.
 
 ## designs/ — the four candidate designs
 
