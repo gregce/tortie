@@ -334,6 +334,21 @@ Data layer (measured 2026-08-11 on getspecstory, 752 commits / 132 refs): ONE co
 Constraints: lane colours come from OUR tokens with a documented cycling rule, colour is never the only signal (DESIGN.md), the pane can be ~300px so the graph must degrade gracefully rather than clip, and NOTHING already shipped may regress — the hover card, native context menu, copy-SHA, click-to-open and virtualization all stay.
 Verification tier: 2, except the topology correctness itself which is Tier 3-style evidence: the rendered lanes must be diffed against `git log --graph --oneline` ground truth on a repo with real merge history (getspecstory has one), not eyeballed.
 
+## Phase 14.7 — View-menu orientation radios are a second source of truth (user-hit)
+Symptoms (refs: media_JBgs5xzfee menu, media_2y93N6A6Es right dock, media_xwjoMylc3g top strip): the View menu's "Sessions on Top / on Right" items **(1) do not always work** and **(2) do not reflect what the in-UI toggle did**. The inline toggle and dock/strip themselves work well — the menu is what drifts.
+DIAGNOSIS (read-only, at HEAD 2d75408) — FOUR defects compose, all in src/main/menu.ts:
+1. **The template hardcodes the radio state**: `MENU_ID_SESSIONS_TOP` is built with `checked: true` and RIGHT with `checked: false` (menu.ts:305-318). Every `applyMenu()` — and `rebuildAppMenu()` calls it whenever a hotkey changes (settings:set) — therefore RESETS the radios to Top, then re-syncs asynchronously. Between those two moments the menu is lying, and if the resync fails it stays wrong.
+2. **The sync is a PULL that races a PUSH.** `syncOrientationRadios()` (menu.ts) reads the renderer's localStorage via `executeJavaScript`, fired only on `did-finish-load` and inside `applyMenu()`. Meanwhile store.ts:1007 `setSessionOrientation` PUSHES to main over a **feature-detected** bridge whose own comment admits "an older preload just keeps the once-per-load sync it always had". Two mechanisms, one of them optional, no single authority.
+3. **Per-window sync mutates one app-wide menu**: `applyMenu()` loops every window and each calls `markSessionsPosition(...)` on the single application menu — last window wins. The Settings window is excluded by name, but any other window is not.
+4. **String sniffing**: `markSessionsPosition(typeof raw === 'string' && raw.includes('right'))` — a substring test on raw JSON, with a silent default to Top on any parse/read failure. Also investigate why the click sometimes does nothing: `sendMenuAction('sessions-top'|'sessions-right')` presumably targets a focused/main window — if focus is on another window (or none), the action is dropped, which is the "doesn't always work" half.
+FIX — ONE source of truth, main never guesses:
+- The RENDERER store is the authority. It pushes orientation to main on every change AND once on load; main **never reads localStorage** and never string-sniffs. Remove the executeJavaScript pull entirely.
+- Main keeps the last-known orientation in a variable and builds the template FROM it, so a rebuild cannot reset the radios.
+- Make the push path non-optional (it is our own preload — drop the feature detection, or fail loudly rather than silently degrading).
+- Fix action delivery so a menu click always reaches the right window; if no eligible window exists, say so rather than no-op.
+- The ˅ chevron menu verb, the inline toggle and the View radios must all be provably one value — add a test.
+Verification tier: 2, but prove BOTH directions live: toggle in the UI → menu checkmark follows; choose in the menu → dock/strip moves; then change a hotkey (forcing rebuildAppMenu) and confirm the radios did NOT reset; then relaunch and confirm persistence.
+
 ## Phase 15 — SpecStory bundling (research: docs/research/13-specstory-integration.md)
 Bundle specstory-cli into gmux.app; per-session capture toggle (watch-wrap preserving resume argv); sync-at-session-end affordance; Settings: cloud login status / device auth / last sync.
 
