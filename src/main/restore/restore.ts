@@ -24,6 +24,12 @@ import { getLaunchableEntry } from '../agents/registry';
 import type { ManifestSessionRecord } from '../manifest';
 import * as tmux from '../tmux';
 import { gmuxError } from '../tmux';
+import {
+  isWrappedArgv,
+  resolveSpecstory,
+  unwrapArgv,
+  wrapWithRecord
+} from '../specstory';
 import { buildArmedCommand, buildSnapshotReplayCommand } from './command';
 import { existingSnapshotPath } from './snapshots';
 
@@ -82,6 +88,86 @@ function agentDisplayName(agent: ManifestSessionRecord['agent']): string {
   } catch {
     return agent;
   }
+}
+
+/**
+ * The resume argv to ARM, with a captured session's dead SpecStory binary
+ * healed first.
+ *
+ * WHY THIS EXISTS. A captured session records its resume argv wrapped in the
+ * ABSOLUTE path of the specstory binary it launched under
+ * (`specstory.bin`), and restore types that argv verbatim. The path is a
+ * promise about the future that gmux cannot keep:
+ *
+ *  - renaming the app (Phase 16.5, gmux.app → Tortie.app) invalidates the
+ *    recorded `/Applications/gmux.app/Contents/Resources/bin/specstory` for
+ *    EVERY captured session at once;
+ *  - a `git clean` removes `build/vendor/specstory`, which is the bin every
+ *    dev-created row recorded;
+ *  - an uninstalled Homebrew copy does the same for anyone who resolved to
+ *    `installed`.
+ *
+ * Measured, the armed line then answers `…/specstory: No such file or
+ * directory` and exits 127, so the user presses Enter on their restored
+ * session and their conversation does not come back. That is the one thing a
+ * restore may not do, and it is worth healing rather than reporting.
+ *
+ * The ladder, in order of how much it preserves:
+ *
+ *  1. bin still there → the recorded argv, untouched (the normal path).
+ *  2. bin gone, a specstory resolvable now → RE-WRAP the same inner resume
+ *     command with today's binary. Capture continues, under the session's own
+ *     recorded provider and no-cloud choice — never a freshly re-read one.
+ *  3. no specstory at all → arm the BARE agent resume. The conversation comes
+ *     back, capture does not continue, and the log says so.
+ *
+ * The inner command comes from {@link unwrapArgv} because the resume argv is
+ * composed after the fact (the harvest arms it once the agent's id exists) and
+ * the manifest's verbatim copy — `specstory.agentArgv` — is the LAUNCH argv,
+ * not this one. Re-splitting is the lossy direction (see specstory/wrap.ts),
+ * but every alternative here is "the resume does not run at all".
+ */
+async function armableResumeArgv(rec: ManifestSessionRecord): Promise<string[]> {
+  const recorded = [...(rec.resumeArgv ?? [])];
+  const capture = rec.specstory;
+  if (
+    recorded.length === 0 ||
+    capture?.enabled !== true ||
+    !isWrappedArgv(recorded) ||
+    existsSync(capture.bin)
+  ) {
+    return recorded;
+  }
+
+  const inner = unwrapArgv(recorded);
+  if (inner.length === 0) {
+    // Not a shape this function can take apart; arming the recorded line at
+    // least fails loudly in the pane rather than silently arming nothing.
+    console.warn(
+      `[gmux] "${rec.name}": recorded SpecStory binary is gone (${capture.bin}) ` +
+        'and its resume command could not be unwrapped — arming it as recorded'
+    );
+    return recorded;
+  }
+
+  const { active } = await resolveSpecstory();
+  if (active !== null) {
+    const rewrapped = wrapWithRecord({ ...capture, bin: active.path }, inner);
+    if (rewrapped !== null) {
+      console.warn(
+        `[gmux] "${rec.name}": recorded SpecStory binary is gone ` +
+          `(${capture.bin}) — re-armed under ${active.path}, capture continues`
+      );
+      return rewrapped;
+    }
+  }
+
+  console.warn(
+    `[gmux] "${rec.name}": recorded SpecStory binary is gone (${capture.bin}) ` +
+      'and no SpecStory CLI is available — armed the agent directly, so this ' +
+      'session resumes but is no longer captured'
+  );
+  return inner;
 }
 
 /**
@@ -170,7 +256,7 @@ export async function restoreSessionInTmux(
 
   // Step 3 — arm the resume command (typed, NOT executed).
   let armedCommand: string | null = null;
-  const armed = buildArmedCommand(rec.resumeArgv ?? []);
+  const armed = buildArmedCommand(await armableResumeArgv(rec));
   if (armed.length > 0) {
     try {
       await typeIntoPane(target, armed, false);

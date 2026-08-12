@@ -58,6 +58,22 @@ describe('endedTitle', () => {
     expect(endedTitle({ exitCode: 0 })).toBe('Session ended');
     expect(endedTitle(undefined)).toBe('Session ended');
   });
+
+  it('drops the number when a capture wrapper collapsed it', () => {
+    // A captured codex exiting 7 reaches gmux as 1 (research 13 §4.2), so the
+    // banner must not state that 1 as the agent's own status.
+    expect(
+      endedTitle({ exitCode: 1, capture: { exitCodeApproximate: true } })
+    ).toBe('Session ended unexpectedly');
+    // The signal half is still exact — tmux reaped the process it names.
+    expect(
+      endedTitle({ exitSignal: 'term', capture: { exitCodeApproximate: true } })
+    ).toBe('Session terminated by SIGTERM (external)');
+    // An EXACT capture provider (claude) keeps the number.
+    expect(
+      endedTitle({ exitCode: 7, capture: { exitCodeApproximate: false } })
+    ).toBe('Session ended unexpectedly (exit 7)');
+  });
 });
 
 describe('statusVisual', () => {
@@ -75,6 +91,12 @@ describe('statusVisual', () => {
       dot: 'failed',
       label: 'failed (exit 1)'
     });
+  });
+
+  it('says only "failed" when the capture wrapper collapsed the code', () => {
+    expect(
+      statusVisual('exited', { exitCode: 1, capture: { exitCodeApproximate: true } })
+    ).toEqual({ dot: 'failed', label: 'failed' });
   });
 
   it('leaves a clean exit quiet', () => {

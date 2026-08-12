@@ -112,6 +112,34 @@ describe('syncSession', () => {
     assert.equal(out.message, null);
   });
 
+  it('carries the SESSION’s recorded no-cloud choice into an app run without the env', async () => {
+    // The failure this pins: a session created under GMUX_SPECSTORY_NO_CLOUD=1
+    // ends in a later run (a restore in the user's normal gmux) that no longer
+    // has the variable. Re-reading only the ambient env there would upload a
+    // scratch transcript to a signed-in user's SpecStory Cloud.
+    delete process.env['GMUX_SPECSTORY_NO_CLOUD'];
+    const out = await syncSession({
+      bin: BIN,
+      provider: 'claude',
+      cwd,
+      noCloud: true
+    });
+    assert.equal(out.ok, true);
+    assert.equal(calls[0]?.args.includes('--no-cloud-sync'), true);
+    assert.equal(out.cloud, false);
+  });
+
+  it('still honours the ambient opt-out for a session that never recorded one', async () => {
+    process.env['GMUX_SPECSTORY_NO_CLOUD'] = '1';
+    await syncSession({ bin: BIN, provider: 'claude', cwd });
+    assert.equal(calls[0]?.args.includes('--no-cloud-sync'), true);
+  });
+
+  it('uploads normally when neither the session nor the environment opted out', async () => {
+    await syncSession({ bin: BIN, provider: 'claude', cwd });
+    assert.equal(calls[0]?.args.includes('--no-cloud-sync'), false);
+  });
+
   it('never syncs from the wrong directory when the session’s is gone', async () => {
     rmSync(cwd, { recursive: true, force: true });
     const out = await syncSession({ bin: BIN, provider: 'claude', cwd });

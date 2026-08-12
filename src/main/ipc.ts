@@ -107,6 +107,7 @@ import { getSettings, onSettingsUpdated } from './settings/store';
 import {
   SYNC_QUIT_TIMEOUT_MS,
   SyncQueue,
+  cloudDisabledByEnv,
   wrapForCapture,
   wrapWithRecord,
   type SpecstoryCaptureRecord,
@@ -1112,6 +1113,12 @@ export class GmuxCore {
       provider: capture.provider,
       cwd: rec.cwd,
       agentSessionId: rec.agentSessionId,
+      // The session's RECORDED opt-out, not just this run's environment: a
+      // session created under GMUX_SPECSTORY_NO_CLOUD=1 can end in an app run
+      // that no longer has the variable (a restore in the user's normal gmux),
+      // and re-reading only the ambient env there would upload that scratch
+      // conversation to their SpecStory Cloud.
+      noCloud: capture.noCloud === true || cloudDisabledByEnv(),
       ...(timeoutMs !== undefined ? { timeoutMs } : {})
     };
     this.syncOwners.set(req, rec.id);

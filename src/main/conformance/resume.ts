@@ -51,6 +51,11 @@
  * Env knobs (all optional):
  *   GMUX_CONF_AGENTS=claude,pi   subset; default = every launchable agent
  *   GMUX_CONF_MODE=capture       stop after the manifest assertion (fast)
+ *   GMUX_CONF_CAPTURE=1          launch every case under SpecStory capture
+ *                                (`npm run conformance:resume:specstory`) —
+ *                                the phrase "a restored session KEEPS
+ *                                capturing" is only executable when the argv
+ *                                under test is the wrapped one
  *   GMUX_CONF_CONCURRENCY=3      agents in flight at once
  *   GMUX_CONF_BYPASS=0           do not pass first-run bypass flags
  *   GMUX_CONF_STRICT=1           BLOCKED counts as red
@@ -74,6 +79,7 @@ import { getGmuxCore, shutdownGmuxCore, type GmuxCore } from '../ipc';
 import type { ManifestSessionRecord } from '../manifest';
 import { buildArmedCommand } from '../restore/command';
 import { captureSessionSnapshot } from '../restore/snapshots';
+import { captureSupportFor } from '../specstory';
 import * as tmux from '../tmux';
 import {
   ARGV_REJECTED_PATTERNS,
@@ -147,6 +153,20 @@ const envFlag = (name: string, fallback: boolean): boolean => {
 interface Config {
   agents: LaunchableAgentId[];
   mode: 'full' | 'capture';
+  /**
+   * Create every case with SpecStory capture ON (`GMUX_CONF_CAPTURE=1`).
+   *
+   * Named for the FEATURE, not for `mode: 'capture'` above — that one is
+   * about capturing the agent's session ID, this one is about SpecStory
+   * capture, and the two words collide in this file only.
+   *
+   * It is what makes Phase 15's central claim executable: with capture on,
+   * the argv this harness kills, restores, arms and fires is the WRAPPED one,
+   * so "a restored session keeps capturing" is proven by the same steps that
+   * already prove the conversation comes back — instead of by a verifier
+   * doing it once by hand.
+   */
+  specstoryCapture: boolean;
   concurrency: number;
   bypass: boolean;
   strict: boolean;
@@ -176,6 +196,7 @@ function readConfig(): Config {
   return {
     agents,
     mode: process.env['GMUX_CONF_MODE'] === 'capture' ? 'capture' : 'full',
+    specstoryCapture: envFlag('GMUX_CONF_CAPTURE', false),
     concurrency: Math.max(1, Math.floor(envNum('GMUX_CONF_CONCURRENCY', 3))),
     bypass: envFlag('GMUX_CONF_BYPASS', true),
     strict: envFlag('GMUX_CONF_STRICT', false),
@@ -302,14 +323,45 @@ async function runCase(
       // note in src/shared/types.ts). buildLaunchSpec already accepts every
       // launchable id.
       agent: agent as AgentKind,
-      ...(extraArgs.length > 0 ? { extraArgs } : {})
+      ...(extraArgs.length > 0 ? { extraArgs } : {}),
+      ...(cfg.specstoryCapture ? { capture: true } : {})
     });
     const created = core
       .listSessionRecords()
       .find((r) => r.id === session?.id) as ManifestSessionRecord | undefined;
     result.launchArgv = created?.argv ?? [];
     const tmuxId = await tmuxIdFor(session.tmuxName);
-    stages.add('create', true, `tmux "${session.tmuxName}" ${tmuxId ?? '(gone)'}`);
+    // With capture requested, whether it was actually APPLIED is part of the
+    // case: a session that quietly launched bare would sail through every
+    // later stage and prove nothing about capture surviving a restore. An
+    // agent SpecStory cannot capture here is not a failure — it is said out
+    // loud in the stage detail and the case continues uncaptured.
+    const wrapped = created?.specstory?.enabled === true;
+    const captureNote = !cfg.specstoryCapture
+      ? ''
+      : wrapped
+        ? ` specstory=${created?.specstory?.provider ?? '?'}`
+        : ' specstory=DECLINED';
+    stages.add(
+      'create',
+      true,
+      `tmux "${session.tmuxName}" ${tmuxId ?? '(gone)'}${captureNote}`
+    );
+    if (cfg.specstoryCapture && !wrapped) {
+      const support = await captureSupportFor(agent);
+      if (support.supported) {
+        stages.add('launch', false, 'capture requested but not applied');
+        return finish(
+          'FAIL',
+          'SpecStory capture is available for this agent here, but the ' +
+            'session launched unwrapped — the manifest row has no capture record'
+        );
+      }
+      (result.notes ??= []).push(
+        `SpecStory capture is not available for ${agent} on this machine ` +
+          `(${support.reason}); this case ran uncaptured`
+      );
+    }
     if (tmuxId === null) {
       stages.add('launch', false, 'session vanished immediately after create');
       return finish('FAIL', 'the pane was gone before the harness could read it');
@@ -648,6 +700,7 @@ export async function runResumeConformance(): Promise<void> {
     console.log(
       `[gmux-conf] resume conformance — mode=${cfg.mode} ` +
         `concurrency=${cfg.concurrency} bypass=${cfg.bypass ? 'on' : 'off'} ` +
+        `specstory=${cfg.specstoryCapture ? 'capture' : 'off'} ` +
         `socket=-L ${tmux.TMUX_SOCKET}`
     );
     console.log(

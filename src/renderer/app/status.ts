@@ -22,6 +22,27 @@ export interface StatusVisual {
 export interface SessionEnd {
   exitCode?: number;
   exitSignal?: string;
+  /**
+   * The session's SpecStory capture, when it had one — read for one field.
+   *
+   * `exitCodeApproximate` is set for the four providers whose wrapper
+   * COLLAPSES the agent's exit status to 1 (codex, droid, deepseek,
+   * antigravity — research 13 §4.2). A captured codex that exits 7 reaches
+   * gmux as a 1, so printing "exit 1" states as fact a number nobody
+   * measured. Structurally satisfied by a whole `Session` (its `capture`
+   * carries more fields), like `SessionEnd` itself.
+   */
+  capture?: { exitCodeApproximate: boolean };
+}
+
+/**
+ * True when this session's recorded exit CODE is a floor, not a fact — the
+ * SpecStory wrapper mirrored a collapsed 1 instead of the agent's own status.
+ * The signal half is unaffected: a signal death is reported by tmux about the
+ * process it actually reaped, not mirrored by the wrapper.
+ */
+function exitCodeIsApproximate(end: SessionEnd | undefined): boolean {
+  return end?.capture?.exitCodeApproximate === true;
 }
 
 /**
@@ -84,7 +105,11 @@ export function endedTitle(end: SessionEnd | undefined): string {
   }
   const code = end?.exitCode;
   if (code !== undefined && code !== 0) {
-    return `Session ended unexpectedly (exit ${code})`;
+    // Under a collapsing capture wrapper the number is not the agent's own,
+    // so the headline says what IS known and drops what is not.
+    return exitCodeIsApproximate(end)
+      ? 'Session ended unexpectedly'
+      : `Session ended unexpectedly (exit ${code})`;
   }
   return 'Session ended';
 }
@@ -112,7 +137,9 @@ export function statusVisual(
         label:
           signal !== null
             ? `killed (SIG${signal})`
-            : `failed (exit ${end?.exitCode})`
+            : exitCodeIsApproximate(end)
+              ? 'failed'
+              : `failed (exit ${end?.exitCode})`
       };
     }
     case 'restorable':

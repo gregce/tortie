@@ -57,6 +57,19 @@ export interface SyncRequest {
   cwd: string;
   /** The agent conversation id, when gmux captured one. */
   agentSessionId?: string | undefined;
+  /**
+   * This SESSION captures locally and never uploads — the recorded
+   * `specstory.noCloud` from the manifest row, not today's environment.
+   *
+   * It has to travel with the request because the two ends of a session's
+   * life happen in different app runs: a session created under
+   * `GMUX_SPECSTORY_NO_CLOUD=1` can END in a run without it (a restore in the
+   * user's normal gmux, the next dev launch), and re-reading only the ambient
+   * env there would sync that scratch conversation to a signed-in user's
+   * SpecStory Cloud — the one side effect this feature may not have. The
+   * ambient opt-out is still honoured, on top of this one, never instead.
+   */
+  noCloud?: boolean;
   /** Deadline; defaults to {@link SYNC_TIMEOUT_MS}. */
   timeoutMs?: number;
 }
@@ -133,7 +146,10 @@ async function runSync(
   req: SyncRequest,
   agentSessionId: string | undefined
 ): Promise<SyncOutcome> {
-  const noCloud = cloudDisabledByEnv();
+  // Either source disables the upload, and neither can re-enable it: the
+  // session's own recorded opt-out (it launched with `--no-cloud-sync` and
+  // must die the same way) OR the ambient dev opt-out in this app run.
+  const noCloud = req.noCloud === true || cloudDisabledByEnv();
   const cloud = !noCloud && readAuthFacts().signedIn;
   const argv = syncArgv({ ...req, agentSessionId }, { noCloud });
 
