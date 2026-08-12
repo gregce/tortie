@@ -99,6 +99,74 @@ import { reapOrphanedTmuxClients } from './proc/orphans';
 // account of what dev mode cannot rename).
 applyProcessIdentity(app);
 
+// ---------------------------------------------------------------------------
+// One Tortie per user data directory (Phase 18.5 item 4)
+// ---------------------------------------------------------------------------
+//
+// Two copies of the app against one manifest (SQLite, WAL) and one tmux server
+// is a manifest-corruption hazard and a double-adoption hazard. It is also not
+// hypothetical. Every updater ends by relaunching the app, and that relaunch
+// races the old process's exit, so the first update to ship would walk straight
+// into it (docs/research/27-release-and-updates.md section 2.7).
+//
+// The lock is taken HERE, above the rename migration, so a second copy can
+// never copy a user data directory that the first copy is already reading. The
+// app name has to be set first, because that is what Electron derives the
+// userData path from, and the lock lives inside it.
+//
+// A refused copy exits with app.exit rather than app.quit. app.quit lets
+// whenReady still run, which would boot a second core against the manifest we
+// are protecting. app.exit ends the process where it is called, so nothing
+// below this block runs in a second copy.
+//
+// Measured on Electron 43.3.0 against an isolated profile:
+//  - the second launch gets false, and app.exit at module scope ends it before
+//    the next statement, exit code 0;
+//  - the first launch gets the 'second-instance' event and brings its window
+//    forward;
+//  - a holder killed with SIGKILL leaves SingletonLock, SingletonSocket and
+//    SingletonCookie behind in the profile, and the next launch still takes the
+//    lock. A dead holder does not lock the user out. The same held with
+//    SingletonLock pointed at a live pid that was not an app.
+//
+// The harnesses never take the lock. Each already runs under its own
+// --user-data-dir, and several of them run at the same time as each other, so a
+// lock would make one exit instead of doing its job.
+//
+// GMUX_ALLOW_SECOND_INSTANCE=1 starts a second copy anyway. It is there for the
+// case the measurements above did not reach, e.g. a profile on a volume where
+// the lock files cannot be created. A forced copy still takes the lock when it
+// can get it, so it is itself protected against a third copy.
+const harnessLaunch =
+  (process.env['GMUX_SMOKE'] ?? '') !== '' ||
+  (process.env['GMUX_SHOT'] ?? '') !== '';
+if (!harnessLaunch) {
+  if (!app.requestSingleInstanceLock()) {
+    const profile = app.getPath('userData');
+    if (process.env['GMUX_ALLOW_SECOND_INSTANCE'] === '1') {
+      console.warn(
+        `[gmux] Tortie is already running on ${profile}. ` +
+          'GMUX_ALLOW_SECOND_INSTANCE=1 is set, so this second copy is starting anyway.'
+      );
+    } else {
+      console.log(
+        `[gmux] Tortie is already running on ${profile}. ` +
+          'Bringing that window forward and exiting. ' +
+          'Set GMUX_ALLOW_SECOND_INSTANCE=1 to start a second copy anyway.'
+      );
+      app.exit(0);
+    }
+  }
+  // Fires in the copy that HOLDS the lock, once per refused launch. A launch
+  // that arrives during our own quit is ignored, because reopening the window
+  // there would rebuild everything the quit flow is tearing down.
+  app.on('second-instance', () => {
+    if (quitFlowStarted) return;
+    console.log('[gmux] a second launch was refused; showing this window');
+    showAppWindow();
+  });
+}
+
 // Phase 16.5a: the app name we just stated is also what Electron derives
 // userData from, so the FIRST launch after a rename points at an empty
 // directory — manifest, snapshots, settings and hotkeys all apparently gone,

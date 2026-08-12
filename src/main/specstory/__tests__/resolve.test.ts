@@ -17,7 +17,14 @@
 
 import { afterEach, beforeEach, describe, it, vi } from 'vitest';
 import assert from 'node:assert/strict';
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync
+} from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -28,18 +35,18 @@ import { dirname, join } from 'node:path';
 // `process.resourcesPath`; the packaged-app smoke is what proves that one.)
 let cwdSpy: { mockRestore: () => void };
 
-// The two PATH inputs, under test control. resolveBinaryAgainst stays real.
-let userPath = '';
-let extraDirs: string[] = [];
-vi.mock('../../tmux/resolve', async (importActual) => {
-  const actual = await importActual<typeof import('../../tmux/resolve')>();
-  return {
-    ...actual,
-    getUserPath: () => Promise.resolve(userPath),
-    extraBinDirs: () => extraDirs
-  };
-});
+// The two PATH inputs, under test control. The replacement module and the
+// object the tests steer it with live in ./path-sources, shared with
+// capture.test.ts; only this call stays here, because vitest hoists `vi.mock`
+// per module and it cannot be issued on another file's behalf. The dynamic
+// import is not decoration either — the hoist puts this above every static
+// import below, so the factory must fetch the helper rather than close over a
+// binding that is not initialised yet.
+vi.mock('../../tmux/resolve', async () =>
+  (await import('./path-sources')).tmuxResolveMock()
+);
 
+import { pathSources } from './path-sources';
 import {
   bundledSpecstoryPath,
   bundledSpecstoryVersion,
@@ -63,8 +70,8 @@ function writeFakeCli(path: string, version: string): void {
 beforeEach(() => {
   root = mkdtempSync(join(tmpdir(), 'gmux-specstory-'));
   cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(root);
-  userPath = join(root, 'empty');
-  extraDirs = [];
+  pathSources.userPath = join(root, 'empty');
+  pathSources.extraDirs = [];
   resetSpecstoryResolutionCache();
 });
 
@@ -110,7 +117,7 @@ describe('resolveSpecstory', () => {
     const installedDir = join(root, 'usr-bin');
     writeFakeCli(join(installedDir, 'specstory'), '2.5.0');
     writeFakeCli(bundledSpecstoryPath(), '2.8.0');
-    userPath = installedDir;
+    pathSources.userPath = installedDir;
 
     const r = await resolveSpecstory();
     assert.equal(r.active?.source, 'bundled');
@@ -124,7 +131,7 @@ describe('resolveSpecstory', () => {
   it('finds an installed copy in extraBinDirs even when PATH misses it', async () => {
     const brew = join(root, 'opt-homebrew-bin');
     writeFakeCli(join(brew, 'specstory'), '2.5.0');
-    extraDirs = [brew];
+    pathSources.extraDirs = [brew];
 
     const r = await resolveSpecstory();
     assert.equal(r.active?.source, 'installed');
@@ -143,7 +150,7 @@ describe('resolveSpecstory', () => {
   it('falls back to the installed copy when nothing is bundled (the dev case)', async () => {
     const installedDir = join(root, 'usr-bin');
     writeFakeCli(join(installedDir, 'specstory'), '2.5.0');
-    userPath = installedDir;
+    pathSources.userPath = installedDir;
 
     const r = await resolveSpecstory();
     assert.equal(r.bundled, null);
@@ -159,7 +166,7 @@ describe('resolveSpecstory', () => {
     writeFileSync(bundled, 'not a mach-o', { mode: 0o644 });
     const installedDir = join(root, 'usr-bin');
     writeFakeCli(join(installedDir, 'specstory'), '2.5.0');
-    userPath = installedDir;
+    pathSources.userPath = installedDir;
 
     const r = await resolveSpecstory();
     assert.equal(r.bundled, null);
@@ -171,6 +178,69 @@ describe('resolveSpecstory', () => {
     assert.equal(r.active, null);
     assert.equal(r.bundled, null);
     assert.equal(r.installed, null);
+    assert.deepEqual(r.copies, []);
+  });
+
+  /**
+   * The measured reason this exists: on the operator's Mac the first PATH hit
+   * is 2.5.0 and the copy it SHADOWS is 2.6.0, with a bundled 2.8.0 on top.
+   * A resolver that reports one binary cannot explain why the same command in
+   * a terminal behaves differently.
+   */
+  it('reports every copy with its own version, not only the winner', async () => {
+    const brew = join(root, 'opt-homebrew-bin');
+    const usrLocal = join(root, 'usr-local-bin');
+    writeFakeCli(join(brew, 'specstory'), '2.5.0');
+    writeFakeCli(join(usrLocal, 'specstory'), '2.6.0');
+    writeFakeCli(bundledSpecstoryPath(), '2.8.0');
+    pathSources.userPath = [brew, usrLocal].join(':');
+
+    const r = await resolveSpecstory();
+    assert.deepEqual(
+      r.copies.map((c) => [c.source, c.path, c.version]),
+      [
+        ['bundled', bundledSpecstoryPath(), '2.8.0'],
+        ['installed', join(brew, 'specstory'), '2.5.0'],
+        ['installed', join(usrLocal, 'specstory'), '2.6.0']
+      ]
+    );
+    // The winner is unchanged: bundled first, then PATH ORDER — never
+    // "whichever is newest", which would be a different decision than the one
+    // every already-running session was launched with.
+    assert.equal(r.active?.path, bundledSpecstoryPath());
+    assert.equal(r.installed?.path, join(brew, 'specstory'));
+  });
+
+  it('lists a copy that will not identify itself, and does not let it win', async () => {
+    const brew = join(root, 'opt-homebrew-bin');
+    const usrLocal = join(root, 'usr-local-bin');
+    mkdirSync(brew, { recursive: true });
+    writeFileSync(join(brew, 'specstory'), '#!/bin/sh\nexit 9\n', { mode: 0o755 });
+    chmodSync(join(brew, 'specstory'), 0o755);
+    writeFakeCli(join(usrLocal, 'specstory'), '2.6.0');
+    pathSources.userPath = [brew, usrLocal].join(':');
+
+    const r = await resolveSpecstory();
+    assert.deepEqual(
+      r.copies.map((c) => c.version),
+      [null, '2.6.0']
+    );
+    // Found, reported, and skipped — the same liveness rule the bundled copy
+    // has always been held to, now applied to every candidate.
+    assert.equal(r.active?.path, join(usrLocal, 'specstory'));
+  });
+
+  it('counts a symlinked duplicate once', async () => {
+    const brew = join(root, 'opt-homebrew-bin');
+    const usrLocal = join(root, 'usr-local-bin');
+    writeFakeCli(join(brew, 'specstory'), '2.5.0');
+    mkdirSync(usrLocal, { recursive: true });
+    symlinkSync(join(brew, 'specstory'), join(usrLocal, 'specstory'));
+    pathSources.userPath = [brew, usrLocal].join(':');
+
+    const r = await resolveSpecstory();
+    assert.equal(r.copies.length, 1);
+    assert.equal(r.copies[0]?.path, join(brew, 'specstory'));
   });
 
   it('resolves once and caches', async () => {
@@ -189,7 +259,7 @@ describe('shared auth (one login serves bundled + installed)', () => {
   });
 
   it('specstoryEnv changes PATH and nothing else — HOME rides through', async () => {
-    userPath = '/fresh/path';
+    pathSources.userPath = '/fresh/path';
     const base = { HOME: '/Users/someone', FOO: 'bar', PATH: '/stale' };
     const env = await specstoryEnv(base);
     assert.equal(env['HOME'], '/Users/someone');

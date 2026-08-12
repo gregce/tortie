@@ -27,6 +27,27 @@
  * the manifest records `bin` + `bin_version` per session so a restore after a
  * mid-flight `brew upgrade` replays the same binary it launched with).
  *
+ * ## Why EVERY copy is reported, not just those two (Phase 18.5)
+ *
+ * "The one on the PATH" is not one thing. Measured on this machine on
+ * 2026-08-12 (docs/research/30 §0.2), and re-measured before this change:
+ * `/opt/homebrew/bin/specstory` is **2.5.0** and wins `command -v`,
+ * `/usr/local/bin/specstory` is **2.6.0** and is shadowed by it — newer,
+ * invisible to `brew upgrade`, and invisible to a first-hit resolver — and the
+ * bundled copy is **2.8.0**. Three versions spanning three minors, on the
+ * machine the app is being built for.
+ *
+ * So {@link SpecstoryResolution} now carries `copies`: every specstory found,
+ * each with its own version. Settings shows which one won AND what else is
+ * lying around, because "SpecStory 2.8.0" next to a pane that a shell-launched
+ * `specstory` would handle at 2.5.0 is a half-truth the user cannot debug.
+ *
+ * The WINNER IS UNCHANGED — bundled first, then the first copy in PATH order.
+ * The only refinement: a copy that will not identify itself is skipped rather
+ * than ending the search, which is the liveness rule `probeBundled` already
+ * applied to the bundled copy ("a bundled binary that cannot exec must lose to
+ * the installed one"), now applied consistently to all of them.
+ *
  * ## The double-login trap (research §2.4, verified in the CLI source)
  *
  * A bundled CLI must not make the user log in twice. It does not, *by
@@ -55,12 +76,12 @@
  * no override at all. Unset — the shipped default — it changes nothing.
  */
 
-import { existsSync, readFileSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { accessSync, constants, existsSync, mkdirSync, readFileSync, realpathSync } from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
+import { delimiter, join } from 'node:path';
 import { parseSpecStoryVersionOutput } from '@shared/specstory-status';
 import { runGuarded } from '../proc/guarded';
-import { extraBinDirs, getUserPath, resolveBinaryAgainst } from '../tmux/resolve';
+import { extraBinDirs, getUserPath } from '../tmux/resolve';
 
 /** Where the bundled copy sits inside the app, relative to Resources. */
 const BUNDLED_SUBPATH = ['bin', 'specstory'] as const;
@@ -77,6 +98,13 @@ export const NO_VERSION_CHECK = '--no-version-check';
 
 /** How long a `--version` probe gets before we call the binary unusable. */
 const VERSION_PROBE_TIMEOUT_MS = 5_000;
+
+/**
+ * Ceiling on how many copies are probed. One spawn each (~120 ms, parallel),
+ * and three is the most any real machine has shown; the cap exists so a
+ * pathological PATH cannot turn app start into a process storm.
+ */
+const MAX_CANDIDATES = 8;
 
 export type SpecstorySource = 'bundled' | 'installed';
 
@@ -95,6 +123,14 @@ export interface SpecstoryResolution {
   readonly bundled: SpecstoryBinary | null;
   /** The copy on the user's PATH, if any. */
   readonly installed: SpecstoryBinary | null;
+  /**
+   * EVERY specstory found on this machine, bundled first and then in PATH
+   * order, each with its own version — including copies that lost, and
+   * copies that would not identify themselves (`version: null`). This is what
+   * Settings lists under the winner; see the file header for why one line is
+   * not enough.
+   */
+  readonly copies: readonly SpecstoryBinary[];
 }
 
 // ---------------------------------------------------------------------------
@@ -102,13 +138,26 @@ export interface SpecstoryResolution {
 // ---------------------------------------------------------------------------
 
 /** Lazy electron import — keeps this module loadable in plain-node tests. */
-function electronApp(): { isPackaged: boolean; getAppPath(): string } | null {
+function electronApp(): {
+  isPackaged: boolean;
+  getAppPath(): string;
+  userData(): string | null;
+} | null {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { app } = require('electron') as typeof import('electron');
-    return typeof app?.getAppPath === 'function'
-      ? { isPackaged: app.isPackaged, getAppPath: () => app.getAppPath() }
-      : null;
+    if (typeof app?.getAppPath !== 'function') return null;
+    return {
+      isPackaged: app.isPackaged,
+      getAppPath: () => app.getAppPath(),
+      userData: () => {
+        try {
+          return app.getPath('userData');
+        } catch {
+          return null;
+        }
+      }
+    };
   } catch {
     return null;
   }
@@ -147,6 +196,37 @@ export function bundledSpecstoryVersion(): string | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * The directory EVERY specstory probe runs in, and it is one gmux owns.
+ *
+ * A probe inherits the Electron main process's working directory unless it is
+ * told otherwise — `/` under launchd, but the terminal's directory when the
+ * app is started from a shell, i.e. very plausibly one of the user's
+ * repositories. That is fine for a read-only probe and not fine for the next
+ * one somebody adds: `specstory run <anything>` calls
+ * `config.EnsureDefaultProjectConfig()` and writes `.specstory/cli/config.toml`
+ * into its cwd (measured twice, docs/research/30 §0.1). So the cwd is pinned
+ * here rather than at each call site, and an uninvited config file lands in
+ * gmux's own state directory instead of in a repo the user is working in.
+ *
+ * `<userData>/gmux/` is the inner directory the rest of the app already writes
+ * to (snapshots, dropped-images); the temp dir is the fallback for a plain-node
+ * test with no Electron around.
+ */
+export function specstoryProbeCwd(): string {
+  const userData = electronApp()?.userData() ?? null;
+  if (userData !== null) {
+    const dir = join(userData, 'gmux');
+    try {
+      mkdirSync(dir, { recursive: true });
+      return dir;
+    } catch {
+      /* fall through to the temp dir */
+    }
+  }
+  return tmpdir();
 }
 
 /**
@@ -193,6 +273,7 @@ async function probeVersion(path: string, pathValue: string): Promise<string | n
   const run = await runGuarded(path, [NO_VERSION_CHECK, '--version'], {
     timeoutMs: VERSION_PROBE_TIMEOUT_MS,
     maxOutputBytes: 64 * 1024,
+    cwd: specstoryProbeCwd(),
     env: { ...process.env, PATH: pathValue }
   });
   if (run.spawnError !== null || run.timedOut) return null;
@@ -203,38 +284,93 @@ async function probeVersion(path: string, pathValue: string): Promise<string | n
 // Resolution
 // ---------------------------------------------------------------------------
 
-async function probeBundled(pathValue: string): Promise<SpecstoryBinary | null> {
-  const path = bundledSpecstoryPath();
-  if (!existsSync(path)) return null;
-  // The sidecar is authoritative and free; the probe is the honest fallback
-  // AND the liveness check — a bundled binary that cannot exec (bad copy,
-  // stripped exec bit, wrong arch) must lose to the installed one.
-  const declared = bundledSpecstoryVersion();
-  const probed = await probeVersion(path, pathValue);
-  if (probed === null) return null;
-  return { source: 'bundled', path, version: declared ?? probed };
+/** X_OK, the same test `tmux/resolve.ts` applies — not merely "the file is there". */
+function executableAt(path: string): boolean {
+  try {
+    accessSync(path, constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
-async function probeInstalled(pathValue: string): Promise<SpecstoryBinary | null> {
-  // extraBinDirs() passed explicitly (it is also the default) so the dirs a
-  // GUI-launched app's PATH misses — /opt/homebrew/bin, ~/.local/bin — are
-  // named at the call site, and so a test can control them.
-  const path = resolveBinaryAgainst('specstory', pathValue, extraBinDirs());
-  if (path === null) return null;
-  const version = await probeVersion(path, pathValue);
-  if (version === null) return null;
-  return { source: 'installed', path, version };
+/** Follow symlinks so `/usr/local/bin` and a Cellar path are not two copies. */
+function sameFileKey(path: string): string {
+  try {
+    return realpathSync(path);
+  } catch {
+    return path;
+  }
+}
+
+/**
+ * Every distinct specstory on this machine, in preference order: the bundled
+ * copy, then PATH order, then the install dirs a GUI-launched app's PATH
+ * misses (`extraBinDirs()` — `/opt/homebrew/bin`, `~/.local/bin`, …).
+ *
+ * This is deliberately NOT `resolveBinaryAgainst`, which answers a different
+ * question — "the first hit" — and is right for every other caller. Here the
+ * ones that lost are the point: on this machine the first hit is 2.5.0 and the
+ * copy it shadows is 2.6.0.
+ */
+function candidatePaths(pathValue: string): { source: SpecstorySource; path: string }[] {
+  const out: { source: SpecstorySource; path: string }[] = [];
+  const seen = new Set<string>();
+  const add = (source: SpecstorySource, path: string): void => {
+    const key = sameFileKey(path);
+    if (seen.has(key) || out.length >= MAX_CANDIDATES) return;
+    seen.add(key);
+    out.push({ source, path });
+  };
+  // `existsSync` for the bundled copy, `executableAt` for the rest, and the
+  // asymmetry is deliberate: a file named `specstory` in a PATH dir that is
+  // not executable is not a copy of specstory in any sense a shell would
+  // recognise, while a bundled file that cannot exec is a PACKAGING BUG worth
+  // showing — it is listed, with a null version, and it does not win.
+  const bundled = bundledSpecstoryPath();
+  if (existsSync(bundled)) add('bundled', bundled);
+  for (const dir of [...pathValue.split(delimiter), ...extraBinDirs()]) {
+    if (dir.length === 0) continue;
+    const candidate = join(dir, 'specstory');
+    if (executableAt(candidate)) add('installed', candidate);
+  }
+  return out;
+}
+
+async function probeCopy(
+  candidate: { source: SpecstorySource; path: string },
+  pathValue: string
+): Promise<SpecstoryBinary> {
+  const probed = await probeVersion(candidate.path, pathValue);
+  if (candidate.source !== 'bundled') {
+    return { source: 'installed', path: candidate.path, version: probed };
+  }
+  // For the bundled copy the sidecar written by build/fetch-specstory.cjs is
+  // authoritative and free; the probe is the honest fallback AND the liveness
+  // check — a bundled binary that cannot exec (bad copy, stripped exec bit,
+  // wrong arch) must lose to an installed one, so a failed probe stays null
+  // even when the sidecar has an opinion.
+  const declared = bundledSpecstoryVersion();
+  return {
+    source: 'bundled',
+    path: candidate.path,
+    version: probed === null ? null : (declared ?? probed)
+  };
 }
 
 let cached: Promise<SpecstoryResolution> | null = null;
 
 async function resolveOnce(): Promise<SpecstoryResolution> {
   const pathValue = await getUserPath();
-  const [bundled, installed] = await Promise.all([
-    probeBundled(pathValue),
-    probeInstalled(pathValue)
-  ]);
-  return { active: bundled ?? installed, bundled, installed };
+  const copies = await Promise.all(
+    candidatePaths(pathValue).map((c) => probeCopy(c, pathValue))
+  );
+  // A copy that would not say what it is does not get to be the winner, and
+  // does not end the search either — the next one down is asked.
+  const usable = copies.filter((c) => c.version !== null);
+  const bundled = usable.find((c) => c.source === 'bundled') ?? null;
+  const installed = usable.find((c) => c.source === 'installed') ?? null;
+  return { active: bundled ?? installed, bundled, installed, copies };
 }
 
 /**

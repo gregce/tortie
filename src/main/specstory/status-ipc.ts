@@ -52,7 +52,6 @@ import type { IpcMain } from 'electron';
 import type {
   SpecStoryAuthActionResult,
   SpecStoryBinaryInfo,
-  SpecStoryCaptureAgent,
   SpecStoryLoginStart,
   SpecStoryStatus
 } from '@shared/specstory-status';
@@ -64,7 +63,7 @@ import {
 import { runGuarded } from '../proc/guarded';
 import { handle } from '../typed-ipc';
 import { invalidateAuthCache, readAuthFacts } from './auth';
-import { capturableAgents, specstoryRowFor } from './capture';
+import { captureMatrix, resetProviderCache, type CaptureMatrix } from './capture';
 import {
   cancelLoginSession,
   startLoginSession,
@@ -90,6 +89,19 @@ function cloudBaseUrl(): string {
 // Binary resolution
 // ---------------------------------------------------------------------------
 
+/** What the resolver found: the copy that runs, and every copy that does not. */
+export interface SpecStoryBinaryReading {
+  /** The copy a capture would run; null when there is none. */
+  active: SpecStoryBinaryInfo | null;
+  /**
+   * Every OTHER copy found. There is rarely none: this Mac has three, at
+   * 2.5.0, 2.6.0 and 2.8.0 (docs/research/30 §0.2), and the one that wins
+   * `command -v` in the user's own terminal is the OLDEST of them. A Settings
+   * panel that shows a single version cannot be reconciled with that.
+   */
+  others: SpecStoryBinaryInfo[];
+}
+
 /**
  * How Settings learns which copy of specstory a capture would run.
  *
@@ -104,24 +116,27 @@ function cloudBaseUrl(): string {
  * fallback that can name a DIFFERENT binary than the one a capture will spawn
  * is worse than a Settings panel that says "not available" for the seconds a
  * real failure lasts.
+ *
+ * Each half owns its own cache, and `refresh` — the Settings re-check button —
+ * drops both: the resolution and the provider probe are cached separately, and
+ * a re-check that dropped only the first would re-resolve to an upgraded
+ * binary and still report the old one's provider list.
  */
 export interface SpecStoryStatusDeps {
-  /** Resolve the binary a capture would run; null when there is none. */
-  resolveBinary(refresh: boolean): Promise<SpecStoryBinaryInfo | null>;
-  /** The agents this build can capture, in registry order. */
-  captureAgents(): Promise<SpecStoryCaptureAgent[]> | SpecStoryCaptureAgent[];
+  /** Resolve the binary a capture would run, and everything else on disk. */
+  resolveBinary(refresh: boolean): Promise<SpecStoryBinaryReading>;
+  /** Capturable agents, blocked agents with reasons, and the probed providers. */
+  captureMatrix(refresh: boolean): Promise<CaptureMatrix> | CaptureMatrix;
 }
 
-let binaryCache: SpecStoryBinaryInfo | null = null;
-let binaryResolved = false;
+let binaryCache: SpecStoryBinaryReading | null = null;
 
 async function resolveBinaryInfo(
   deps: SpecStoryStatusDeps,
   refresh: boolean
-): Promise<SpecStoryBinaryInfo | null> {
-  if (binaryResolved && !refresh) return binaryCache;
+): Promise<SpecStoryBinaryReading> {
+  if (binaryCache !== null && !refresh) return binaryCache;
   binaryCache = await deps.resolveBinary(refresh);
-  binaryResolved = true;
   return binaryCache;
 }
 
@@ -133,10 +148,16 @@ async function buildStatus(
   deps: SpecStoryStatusDeps,
   refresh: boolean
 ): Promise<SpecStoryStatus> {
+  const binaries = await resolveBinaryInfo(deps, refresh);
+  const matrix = await deps.captureMatrix(refresh);
   return {
-    binary: await resolveBinaryInfo(deps, refresh),
+    binary: binaries.active,
+    otherBinaries: binaries.others,
     auth: readAuthFacts(),
-    captureAgents: await deps.captureAgents(),
+    captureAgents: matrix.supported,
+    blockedCaptureAgents: matrix.blocked,
+    providers: matrix.providers,
+    providerSource: matrix.providerSource,
     loginUrl: `${cloudBaseUrl()}/cli-login`,
     authPath: specstoryAuthPath()
   };
@@ -256,31 +277,46 @@ export function defaultSpecStoryStatusDeps(): SpecStoryStatusDeps {
     resolveBinary: async (refresh) => {
       if (refresh) resetSpecstoryResolutionCache();
       try {
-        const { active } = await resolveSpecstory();
-        return active === null
-          ? null
-          : { path: active.path, version: active.version, source: active.source };
+        const { active, copies } = await resolveSpecstory();
+        return {
+          active:
+            active === null
+              ? null
+              : { path: active.path, version: active.version, source: active.source },
+          others: copies
+            .filter((c) => c.path !== active?.path)
+            .map((c) => ({ path: c.path, version: c.version, source: c.source }))
+        };
       } catch {
         // The resolver never rejects by contract ("no specstory" is
         // `active: null`), so this is the impossible branch. It reports
         // "not available", which is the truthful reading — NOT a second
         // resolution that could name a binary a capture would not use.
-        return null;
+        return { active: null, others: [] };
       }
     },
-    captureAgents: async () => {
+    captureMatrix: async (refresh) => {
+      // Each half of the re-check drops its OWN cache. The provider list is
+      // cached separately from the resolution, and dropping only the latter
+      // was the shape that let a `brew upgrade` while Tortie is open
+      // re-resolve to the new binary and still report the OLD binary's
+      // provider list (docs/research/30 §4.7 gap 1). A re-check that
+      // half-checks is worse than none: the user now believes the number.
+      if (refresh) resetProviderCache();
       try {
-        const ids = await capturableAgents();
-        if (ids.length > 0) {
-          return ids.flatMap((agentId) => {
-            const provider = specstoryRowFor(agentId)?.provider ?? null;
-            return provider === null ? [] : [{ agentId, provider }];
-          });
-        }
+        const matrix = await captureMatrix();
+        if (matrix.supported.length > 0 || matrix.blocked.length > 0) return matrix;
       } catch {
         /* fall through to the table below */
       }
-      return defaultCaptureAgents();
+      // The probe stream threw, or answered nothing at all. The renderer still
+      // gets a list — the measured §1.1 table — and is told it is a fallback.
+      return {
+        supported: defaultCaptureAgents(),
+        blocked: [],
+        providers: [],
+        providerSource: 'fallback'
+      };
     }
   };
 }

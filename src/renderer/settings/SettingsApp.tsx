@@ -12,7 +12,18 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { Codicon } from '../icons';
+import { Codicon, InlineSvg } from '../icons';
+// SpecStory's own book mark, monochrome. Derived in Phase 18.5 from the
+// vendor's 380x550 export, whose four source paths are recorded in
+// docs/research/30 §4.2. Two steps: drop path 4, which is a white knockout
+// and would paint an opaque wedge on a dark rail, then fit the long axis to
+// 24 and bake the transform (§4.4). Dropping path 4 is what SpecStory itself
+// does in its 12x16 menu bar template. The file lives in assets/brand/ and
+// not in assets/agents/, because SpecStory is not a launchable agent and a
+// non-agent key does not belong in AgentIcon's LOGOS map. No attribution
+// line is needed. It is SpecStory's own mark and this app ships as
+// com.specstory.tortie.
+import specstorySvg from '../assets/brand/specstory.svg?raw';
 import { AgentsSection } from './AgentsSection';
 import { GeneralSection } from './GeneralSection';
 import { KeyboardSection } from './KeyboardSection';
@@ -28,15 +39,36 @@ type SectionId =
   | 'launch-defaults'
   | 'specstory';
 
-const SECTIONS: { id: SectionId; label: string; icon: string }[] = [
-  { id: 'general', label: 'General', icon: 'settings-gear' },
-  { id: 'agents', label: 'Agents', icon: 'hubot' },
-  { id: 'keyboard', label: 'Keyboard', icon: 'keyboard' },
-  { id: 'launch-defaults', label: 'Launch defaults', icon: 'rocket' },
+/**
+ * A rail entry wears either a codicon, which is what app chrome uses, or a
+ * bundled brand SVG for the one section named after a product. Keeping both
+ * in one union is why the rail no longer hardcodes Codicon.
+ */
+type RailIcon = { codicon: string } | { svg: string };
+
+const SECTIONS: { id: SectionId; label: string; icon: RailIcon }[] = [
+  { id: 'general', label: 'General', icon: { codicon: 'settings-gear' } },
+  { id: 'agents', label: 'Agents', icon: { codicon: 'hubot' } },
+  { id: 'keyboard', label: 'Keyboard', icon: { codicon: 'keyboard' } },
+  {
+    id: 'launch-defaults',
+    label: 'Launch defaults',
+    icon: { codicon: 'rocket' }
+  },
   // Phase 15. Last on the rail: it is the newest section and the least often
   // visited, and inserting it mid-list would move four items people already
   // know the position of.
-  { id: 'specstory', label: 'SpecStory', icon: 'cloud' }
+  //
+  // Phase 18.5 replaced the `cloud` codicon here with SpecStory's book. The
+  // old glyph was ambiguous, because `cloud` already means "this branch is on
+  // a remote" at scm/ref-badges.tsx and scm/BranchesView.tsx. Those two sites
+  // keep `cloud`, which is the right glyph there. The book is a solid slab and
+  // carries about 2.4 times the ink of the codicons beside it, measured in
+  // docs/research/30 §4.5. It ships at the house scale anyway, because it is a
+  // brand mark rather than UI furniture, and because this entry sits at the
+  // end of the rail. §4.5 also records a 22-of-24 inset variant if review ever
+  // judges the weight too heavy.
+  { id: 'specstory', label: 'SpecStory', icon: { svg: specstorySvg } }
 ];
 
 export function SettingsApp(): React.JSX.Element {
@@ -97,7 +129,11 @@ export function SettingsApp(): React.JSX.Element {
             aria-current={section === s.id ? 'page' : undefined}
             onClick={() => setSection(s.id)}
           >
-            <Codicon name={s.icon} size={16} />
+            {'svg' in s.icon ? (
+              <InlineSvg svg={s.icon.svg} size={16} />
+            ) : (
+              <Codicon name={s.icon.codicon} size={16} />
+            )}
             {s.label}
           </button>
         ))}

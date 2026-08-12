@@ -6,6 +6,15 @@
  *
  * Enabled defaults pre-check the ⌘T Options rows (shared selector in
  * ./presets.ts) and apply to quick-create + hotkey launches.
+ *
+ * THIS WINDOW IS THE ONLY WAY IN for a danger preset (Phase 18.5). Both
+ * things this section writes for a danger preset — the launch default and the
+ * confirm-once acknowledgement — are sealed by main when they are written and
+ * checked when they are read (src/main/settings/store.ts, "The danger seal").
+ * A value that turns a safeguard off cannot arrive from an edit to
+ * settings.json, which any agent running on the machine could make. That is
+ * why the confirm-once behaviour below can still trust `dangerAcknowledged`,
+ * and why the section says so in its caption.
  */
 
 import React, { useState } from 'react';
@@ -250,6 +259,11 @@ export function LaunchDefaultsSection(): React.JSX.Element {
         Flags applied to every new session of an agent. Sessions created from{' '}
         {keyDisplay('session.new')} show these pre-checked — turning one off
         there affects that session only.
+      </p>
+      <p className="set-section-caption">
+        An option marked with a warning can only be switched on here. Tortie
+        ignores one that was added by editing its settings file, because the
+        agents you run can write that file too.
       </p>
 
       {ordered.length === 0 ? (

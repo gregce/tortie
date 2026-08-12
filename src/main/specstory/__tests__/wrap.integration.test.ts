@@ -26,13 +26,21 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  rmSync,
+  writeFileSync
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import assert from 'node:assert/strict';
 import { wrapArgv } from '../wrap';
-import { parseProviderIds } from '../capture';
+import { parseProviderIds, parseProviderList } from '../capture';
 import type { SpecstoryProviderId } from '../../agents/registry';
 
 // ---------------------------------------------------------------------------
@@ -207,5 +215,52 @@ describeIf('the provider probe reads the CLI this build actually ships', () => {
     // unreleased branch. The probe is what keeps the toggle dark for it
     // instead of offering a capture that dies in the pane.
     expect(found.has('muse')).toBe(false);
+  });
+
+  /**
+   * The rung the ladder prefers (Phase 18.5), against the shipped CLI.
+   *
+   * Two properties no unit test can establish: that a REAL specstory answers
+   * this in the shape the parse expects, and that asking it writes NOTHING
+   * into the working directory. The second is the reason the probe is `list`
+   * and not `run`: `run`'s RunE calls `config.EnsureDefaultProjectConfig()`
+   * and drops `.specstory/cli/config.toml` wherever it was invoked, which for
+   * a probe that inherits the app's cwd is one of the user's repositories.
+   */
+  it('answers `list <sentinel>` with one provider per line, and writes nothing', () => {
+    const probeCwd = mkdtempSync(join(root, 'probe-'));
+    let stderr = '';
+    let code = 0;
+    try {
+      execFileSync(
+        SPECSTORY as string,
+        [
+          'list',
+          '__tortie_provider_probe__',
+          '--no-version-check',
+          '--no-usage-analytics'
+        ],
+        { cwd: probeCwd, env: { ...process.env, HOME }, encoding: 'utf8', timeout: 30_000 }
+      );
+    } catch (err) {
+      const e = err as { status?: number; stderr?: string };
+      code = e.status ?? -1;
+      stderr = e.stderr ?? '';
+    }
+    // Non-zero AND the sentinel echoed back: the two guards that stop a future
+    // version which ACCEPTS the argument from being read as a provider list.
+    expect(code).not.toBe(0);
+    expect(stderr).toContain('__tortie_provider_probe__');
+
+    const parsed = parseProviderList(stderr);
+    assert.notEqual(parsed, null, 'the per-line provider surface moved');
+    const byId = new Map((parsed ?? []).map((p) => [p.id, p.displayName]));
+    for (const p of ['claude', 'codex', 'cursor', 'gemini', 'droid', 'deepseek', 'antigravity']) {
+      expect(byId.has(p)).toBe(true);
+    }
+    // The display name is what this rung buys over the help paragraph, which
+    // wraps mid-name at ~120 columns.
+    expect(byId.get('claude')).toBe('Claude Code');
+    expect(readdirSync(probeCwd)).toEqual([]);
   });
 });

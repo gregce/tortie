@@ -926,6 +926,17 @@ export const useApp = create<AppState>((set, get) => {
         // defaults apply here directly (S13; the modal instead PRE-CHECKS
         // them and sends its own final selection). Cycle-safe import: the
         // presets module never imports this store.
+        //
+        // No confirmation is asked for here, and that is deliberate: a flag
+        // that turns a safeguard off can only be in this list because the
+        // user switched it on in the Settings window, which is enforced
+        // where the settings are read rather than here (Phase 18.5 — the
+        // danger seal in src/main/settings/store.ts). Enforcing it at the
+        // launch path would have covered this function and missed the two
+        // other modal-less paths: the per-agent hotkey in
+        // settings/integration.ts and the ⌘T sheet's pre-checks. Main strips
+        // an unsealed danger flag before any renderer sees it, so all three
+        // are covered by one check and a fourth cannot be added by mistake.
         const defaults = defaultLaunchArgsFor(agent);
         // SpecStory capture follows the same rule as those flags (Phase 15,
         // research 13 §3.1): the sheet PRE-CHECKS the sticky per-agent answer

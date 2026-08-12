@@ -36,10 +36,33 @@
   padding: 0 var(--space-3);
 }
 
+/* Re-check sits alone on its toolbar row. The Agents section keeps a "last
+   scanned" age to the left of its button; this one deliberately does not, so
+   the row has nothing to push the button rightwards and says so here. */
+.ss-toolbar {
+  justify-content: flex-end;
+}
+
+/* The row listing the copies of specstory that did not win has no rule of its
+   own. It is .set-row.tall with a muted label over .ss-path lines, which is
+   what makes it read as context for the row above rather than as a second
+   answer to the same question. Its class is in the markup only as a hook for
+   verification. */
+
 /* Agent rows are one line each: mark, name, switch. 36px, not the 48px of the
-   Agents section, because there is no second line to make room for. */
+   Agents section, because there is no second line to make room for. A row
+   that carries a reason takes .tall and grows to 48px, like every other
+   two-line row in this window. */
 .ss-capture-row {
   gap: var(--space-4);
+}
+
+/* An agent this Mac cannot capture. The disabled switch and the sentence
+   under the name carry the meaning; the muted label keeps the row from
+   reading as one of the live ones. The vendor mark is left alone — fading a
+   logo makes the whole row look like a rendering fault. */
+.ss-capture-row.blocked .set-row-label {
+  color: var(--text-muted);
 }
 
 /* A row's control slot when it holds more than one control. */

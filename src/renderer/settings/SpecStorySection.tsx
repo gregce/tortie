@@ -23,12 +23,31 @@
  * leaves memory. The only durable trace of cloud contact is the refresh
  * token's `lastValidAt`, so that is what this section shows and what it calls
  * it. See src/shared/specstory-status.ts for the full account.
+ *
+ * PHASE 18.5 — THREE THINGS THIS SECTION USED TO KNOW AND NOT SAY
+ * (spec: docs/research/30-specstory-distribution.md §3.1 and §4.7).
+ *
+ *   1. There can be more than one specstory on a Mac, at different versions,
+ *      and only one of them runs. This section now names the one that runs and
+ *      lists the others, because it is the only place a user can see that.
+ *   2. `captureSupportFor()` already computes WHY an agent cannot be captured
+ *      here. The list used to drop that answer and drop the agent with it, so
+ *      an absent row looked like a bug. A blocked agent now gets its row, with
+ *      its switch off and the reason under its name.
+ *   3. The provider probe is cached for the whole app run, so upgrading
+ *      specstory in a terminal left this list stale until Tortie restarted.
+ *      The Re-check button asks again.
+ *
+ * STILL NOT A DASHBOARD. Re-check is a button a person presses, not a timer,
+ * and nothing added here counts or climbs.
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
 import type { GmuxSpecStoryExtras } from '@shared/ipc';
 import type {
+  SpecStoryBinaryInfo,
   SpecStoryCaptureAgent,
+  SpecStoryCaptureBlocked,
   SpecStoryStatus
 } from '@shared/specstory-status';
 import { defaultCaptureAgents } from '@shared/specstory-status';
@@ -126,6 +145,48 @@ function BinaryRow({ status }: { status: SpecStoryStatus }): React.JSX.Element {
   );
 }
 
+/** Why the copy above is the one that runs. Today's rule, not a guess at it. */
+function chosenBecause(binary: SpecStoryBinaryInfo): string {
+  return binary.source === 'bundled'
+    ? 'Tortie uses the copy it ships with, so a capture runs the version this build was tested against.'
+    : 'Tortie uses the copy it found on your PATH.';
+}
+
+/**
+ * The copies that did NOT win.
+ *
+ * A second specstory is not a fault and this row does not treat it as one. It
+ * is here because the versions can differ, a provider can exist in one and not
+ * the other, and until now this section showed one path and implied it was the
+ * only one on the machine.
+ */
+function OtherBinariesRow({
+  status
+}: {
+  status: SpecStoryStatus;
+}): React.JSX.Element | null {
+  const others = status.otherBinaries;
+  const active = status.binary;
+  if (others.length === 0 || active === null) return null;
+  return (
+    <div className="set-row tall ss-others">
+      <div className="set-row-text">
+        <span className="set-row-label muted">
+          {others.length === 1
+            ? 'One other copy on this Mac'
+            : `${others.length} other copies on this Mac`}
+        </span>
+        {others.map((other) => (
+          <span key={other.path} className="ss-path" title={other.path}>
+            {`${other.version ?? 'version unknown'} · ${truncateMiddle(displayPath(other.path), 46)}`}
+          </span>
+        ))}
+        <span className="set-row-caption">{chosenBecause(active)}</span>
+      </div>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Per-agent capture defaults
 // ---------------------------------------------------------------------------
@@ -134,6 +195,10 @@ interface CaptureRowProps {
   agent: DetectedAgent;
   on: boolean;
   disabled: boolean;
+  /** One line under the name. Null keeps the row on one line, as before. */
+  note?: string | null;
+  /** Draw as unavailable rather than merely switched off. */
+  blocked?: boolean;
   onChange: (next: boolean) => void;
 }
 
@@ -141,14 +206,27 @@ function CaptureRow({
   agent,
   on,
   disabled,
+  note = null,
+  blocked = false,
   onChange
 }: CaptureRowProps): React.JSX.Element {
+  const label = <span className="set-row-label">{agent.displayName}</span>;
   return (
-    <div className="set-row ss-capture-row" data-agent-id={agent.id}>
+    <div
+      className={`set-row ss-capture-row${note === null ? '' : ' tall'}${blocked ? ' blocked' : ''}`}
+      data-agent-id={agent.id}
+    >
       <span className="set-agent-icon" aria-hidden="true">
         <AgentIcon agent={agent.iconKey} size={16} />
       </span>
-      <span className="set-row-label">{agent.displayName}</span>
+      {note === null ? (
+        label
+      ) : (
+        <div className="set-row-text">
+          {label}
+          <span className="set-row-caption">{note}</span>
+        </div>
+      )}
       <Switch
         checked={on}
         disabled={disabled}
@@ -157,6 +235,45 @@ function CaptureRow({
       />
     </div>
   );
+}
+
+/**
+ * The sentence for an agent this Mac cannot capture, in the user's terms.
+ *
+ * `no-binary` returns null on purpose. When there is no specstory at all the
+ * card at the top of the section has already said so once, and repeating it
+ * on every row would be the same news six times.
+ */
+function blockedNote(
+  blocked: SpecStoryCaptureBlocked,
+  agent: DetectedAgent,
+  binary: SpecStoryBinaryInfo | null
+): string | null {
+  switch (blocked.reason) {
+    case 'no-binary':
+      return null;
+    case 'no-provider-for-agent':
+      return `Tortie can’t capture ${agent.displayName} with SpecStory yet.`;
+    case 'provider-missing-from-cli':
+      return binary === null || binary.version === null
+        ? `This copy of SpecStory can’t capture ${agent.displayName} yet.`
+        : `SpecStory ${binary.version} can’t capture ${agent.displayName} yet.`;
+    default:
+      return null;
+  }
+}
+
+/**
+ * A provider the binary reports that Tortie has never measured (research
+ * §3.5). Capture works. What its exit code means does not, and the death
+ * report reads that number, so the row says which half is unverified.
+ */
+const DISCOVERED_NOTE =
+  'New in this version of SpecStory. Capture works, but Tortie hasn’t measured how it reports exit codes.';
+
+/** That note, for a capture entry that carries the flag. Null for the rest. */
+function discoveredNote(entry: SpecStoryCaptureAgent | undefined): string | null {
+  return entry?.discovered === true ? DISCOVERED_NOTE : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -398,35 +515,67 @@ export function SpecStorySection(): React.JSX.Element {
   const scan = useSettingsStore((s) => s.scan);
   const [reading, setReading] = useState<Reading | null>(null);
   const [unavailable, setUnavailable] = useState(false);
+  const [rechecking, setRechecking] = useState(false);
 
-  const load = useCallback((refresh: boolean): void => {
+  const load = useCallback(async (refresh: boolean): Promise<void> => {
     const api = bridge();
     if (api === null) {
       setUnavailable(true);
       return;
     }
-    void api
-      .status(refresh)
-      .then((status) => setReading({ status, at: Date.now() }))
-      .catch(() => setUnavailable(true));
+    try {
+      const status = await api.status(refresh);
+      setReading({ status, at: Date.now() });
+    } catch {
+      setUnavailable(true);
+    }
   }, []);
 
   // On mount, and again when the window returns to the front — a sign-in done
   // in a terminal is exactly the change this section must not miss, and focus
   // is the moment the user is looking at it. No timer: see the file header.
   useEffect(() => {
-    load(false);
-    const onFocus = (): void => load(false);
+    void load(false);
+    const onFocus = (): void => void load(false);
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
   }, [load]);
 
+  /**
+   * The one path in this section that passes `refresh`. It drops main's cached
+   * binary resolution AND its cached provider probe, which is what makes a
+   * `brew upgrade specstory` done in a terminal visible without restarting
+   * Tortie. Focus reloads deliberately do not: re-probing a binary every time
+   * a window comes forward is the polling this section refuses to do.
+   */
+  const recheck = useCallback((): void => {
+    if (rechecking) return;
+    setRechecking(true);
+    void load(true).finally(() => setRechecking(false));
+  }, [load, rechecking]);
+
   const captureAgents: SpecStoryCaptureAgent[] =
     reading?.status.captureAgents ?? defaultCaptureAgents();
-  const capturable = new Set(captureAgents.map((a) => a.agentId as string));
-  const rows = (scan?.agents ?? []).filter(
-    (a) => capturable.has(a.id) && a.installed
+  const capturable = new Map(
+    captureAgents.map((a) => [a.agentId as string, a])
   );
+  const installed = (scan?.agents ?? []).filter(
+    (a) => a.launchable && a.installed
+  );
+  const rows = installed.filter((a) => capturable.has(a.id));
+
+  // Agents this Mac cannot capture. They used to be absent, which read as an
+  // omission; each one now keeps its row and says which of the three reasons
+  // main gave applies to it.
+  const blockedById = new Map(
+    (reading?.status.blockedCaptureAgents ?? []).map((b) => [b.agentId as string, b])
+  );
+  const blockedRows = installed.flatMap((agent) => {
+    if (capturable.has(agent.id)) return [];
+    const blocked = blockedById.get(agent.id);
+    return blocked === undefined ? [] : [{ agent, blocked }];
+  });
+
   const captureDisabled = reading === null || reading.status.binary === null;
 
   const setCaptureDefault = (agentId: string, on: boolean): void => {
@@ -459,11 +608,36 @@ export function SpecStorySection(): React.JSX.Element {
         in.
       </p>
 
+      {/* Right-aligned and alone, the same shape the Agents section uses for
+          Re-scan. There is no "last checked" age beside it, because an age
+          that climbs while you watch it is the one thing this section has
+          refused since Phase 15. */}
+      <div className="set-section-toolbar ss-toolbar">
+        <button
+          type="button"
+          className="btn btn-secondary set-rescan"
+          disabled={rechecking}
+          onClick={recheck}
+        >
+          {rechecking ? (
+            <>
+              <span className="set-spinner" aria-hidden="true" />
+              Checking…
+            </>
+          ) : (
+            'Re-check'
+          )}
+        </button>
+      </div>
+
       <div className="set-card">
         {reading === null ? (
           <div className="set-empty-line">Looking for SpecStory…</div>
         ) : (
-          <BinaryRow status={reading.status} />
+          <>
+            <BinaryRow status={reading.status} />
+            <OtherBinariesRow status={reading.status} />
+          </>
         )}
       </div>
 
@@ -496,24 +670,43 @@ export function SpecStorySection(): React.JSX.Element {
       <div className="set-card">
         {scan === null ? (
           <div className="set-empty-line">Looking for installed agents…</div>
-        ) : rows.length === 0 ? (
+        ) : rows.length === 0 && blockedRows.length === 0 ? (
           <div className="set-empty-line">
             None of the agents SpecStory can capture are installed here.
           </div>
         ) : (
-          rows.map((agent) => (
-            <CaptureRow
-              key={agent.id}
-              agent={agent}
-              // Through the shared helper, not `=== true` written again here:
-              // it is the one place "no stored answer means OFF" is decided,
-              // and this switch must read the same rule the ⌘T sheet prefills
-              // from and main's create path obeys.
-              on={captureDefaultFor(settings, agent.id)}
-              disabled={captureDisabled}
-              onChange={(next) => setCaptureDefault(agent.id, next)}
-            />
-          ))
+          <>
+            {rows.map((agent) => (
+              <CaptureRow
+                key={agent.id}
+                agent={agent}
+                // Through the shared helper, not `=== true` written again here:
+                // it is the one place "no stored answer means OFF" is decided,
+                // and this switch must read the same rule the ⌘T sheet prefills
+                // from and main's create path obeys.
+                on={captureDefaultFor(settings, agent.id)}
+                disabled={captureDisabled}
+                note={discoveredNote(capturable.get(agent.id))}
+                onChange={(next) => setCaptureDefault(agent.id, next)}
+              />
+            ))}
+            {/* Blocked agents come last, so the list a user can act on stays
+                at the top of the card. The switch is drawn OFF whatever is
+                stored for it: the honest answer to "will this start captured"
+                is no, and the stored preference comes back the day the agent
+                becomes capturable again. */}
+            {blockedRows.map(({ agent, blocked }) => (
+              <CaptureRow
+                key={agent.id}
+                agent={agent}
+                on={false}
+                disabled
+                blocked
+                note={blockedNote(blocked, agent, reading?.status.binary ?? null)}
+                onChange={() => undefined}
+              />
+            ))}
+          </>
         )}
       </div>
       <p className="ss-note">

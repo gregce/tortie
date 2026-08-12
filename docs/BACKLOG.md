@@ -5,21 +5,36 @@ Everything above Phase 18 is HISTORY and is kept because each entry records the 
 reference screenshots and the decisions behind a phase — that context is why later agents got things
 right. How this queue is run: docs/method/HOW-WE-BUILT-THIS.md and HOW-WE-DROVE-THIS.md.
 
-**ACTIVE QUEUE (2026-08-12):**
-- **Phase 18 — chrome layout constraints** (user-reported, specced below). ✅ SHIPPED 2026-08-12.
-- **Phase 19 — specstory hybrid resolution, agent drift, open-vocabulary providers, the book mark.**
-  Spec-complete in docs/research/30-specstory-distribution.md §5 (which numbers itself "18" — it was
-  written before Phase 18 was claimed; it is **19**).
-- Research in flight for further phases: docs/research/27 (release/self-update/CI), 28 (durability
-  gaps + remote sessions), 29 (context sidebar). Each ends with a backlog-ready spec.
-- **RESEARCH PHASE R31 — extensibility (running).** The single biggest architectural question left:
-  should Tortie have an extension system, and if so what KIND. Deep-reads three live prior arts on
-  this machine — `/Users/gdc/bb` (typed TS plugin SDK + contracts + registry, agentic IDE),
-  `/Users/gdc/zed` (WASM/WIT sandbox with a capability model), `/Users/gdc/pi` (a *self-extensible*
-  agent) — then proposes competing architectures, attacks each adversarially, and recommends one.
-  **Explicitly biased away from the VS Code model**, which Tortie has never followed. Output:
-  docs/research/31-extensions.md. **Must remain first-class and unweakened by whatever is chosen:
-  explorer, SCM, search, durable sessions, paned projects, and Context (docs/research/29).**
+**ACTIVE QUEUE, rewritten 2026-08-12. Run it in this order and do not reshuffle without asking.**
+
+The repository now exists at github.com/gregce/tortie. It is private until the operator decides
+otherwise, and docs/research/34 lists what would become public.
+
+| # | Phase | State | Gated on |
+| --- | --- | --- | --- |
+| 1 | **18** chrome layout constraints | SHIPPED `6fd9ff9` | — |
+| 2 | **18.5** book icon, specstory settings, provider vocabulary, single instance lock, launch flag, stale docs | ✅ SHIPPED 2026-08-12 | — |
+| 3 | **18.55** zoom does not reach the search view, user reported | SPECCED BELOW | nothing, 18.5 is committed |
+| 4 | **18.6** home screen: open, create and clone, with the Tortie.sh wordmark | SPEC PENDING | R35, then 18.55 |
+| 4 | **19** durability, with the harness that proves it | SPECCED BELOW | **18.6 landing first** |
+| 5 | **20** the verified backup ring | queued | Phase 19 |
+| 6 | **21** versioned agent recovery contracts, as one migration with resume provenance | queued | Phase 20 |
+| — | **Release lane** version scheme, changelog, four CI lanes, compatibility number | ready to start | nothing. Touches no source file, so it runs beside any phase |
+| — | Release lane, second half: signing, notarization, the updater | blocked | the operator's App Store Connect issuer identifier |
+
+**Why 19 waits for 18.6.** Both touch `src/renderer/state/store.ts`. Phase 19's restart fix would be
+written against a file that 18.6 then rewrites. Doing the renderer work together, then the main
+process durability work, means each is written once.
+
+**Research, all complete unless marked.** 26 durability assessment, 27 release and updates, 28 remote
+sessions, 29 the Context sidebar, 30 specstory distribution, 31 extensibility, 33 the durability
+reconciliation which supersedes 26 and 28, 34 the OSS survey which decides how Phase 19 gets built,
+and **35 the home screen, still running**.
+
+**Decisions those documents settled, so no later round re-litigates them.** Do not build remote
+session infrastructure, ever. Do not build an extension system that loads third party code. Keep
+bundling specstory rather than downloading it at runtime. Use semver rather than CalVer, because the
+updater throws on anything else.
 
 **Carried forward, deliberately not done** (see BUILD-STATUS.md for the full list):
 - Delete monaco-editor — re-decided at Phase 15.5 against today's evidence: Pierre `/edit` is still
@@ -702,3 +717,293 @@ never reflow a live pane to 2 columns.
 app launch used its own `--user-data-dir` under the scratchpad. No session created, killed, renamed
 or adopted; `tmux -L gmux` only; no `pkill` at any point; `/Applications/Tortie.app` untouched and
 still running.
+
+---
+
+## Phase 18.5 — small work that does not wait on R34 (2026-08-12) ✅ SHIPPED
+
+Six items. None of them touches a file that Phase 19, 20 or 21 will touch, so this phase can run
+while the OSS survey (R34, docs/research/34) is still deciding how the durability phases get built.
+Every item has a written spec already. Nothing here is designed in this phase.
+
+**What must NOT be touched by this phase**, because the durability phases own them:
+`src/main/sessions/core.ts`, `src/main/restore/**`, `src/main/db/sqlite.ts`, `src/main/migrate/**`,
+`src/main/manifest/**`, `src/main/tmux/supervisor.ts`, and `src/shared/types.ts`.
+
+### Item 1 — the book icon replaces the cloud glyph
+Spec: docs/research/30-specstory-distribution.md section 4.4, which carries the baked 24 by 24 path.
+`SettingsApp.tsx:39` currently renders `icon: 'cloud'` through `Codicon`. The rail needs to accept
+either a codicon name or a brand SVG, rendered through the existing `InlineSvg`.
+This also removes a collision. `cloud` is already the git remote branch glyph at
+`scm/ref-badges.tsx:229` and `scm/BranchesView.tsx:380`. Those two stay on `cloud`, which is correct
+there. Monochrome is the vendor's own treatment and the white path is dropped rather than recoloured,
+for the reasons measured in section 4.3. File the asset at `src/renderer/assets/brand/`, not under
+`assets/agents/`, because SpecStory is not a launchable agent. Tier 1.
+
+### Item 2 — Settings tells the truth about which specstory it is using
+Spec: docs/research/30 sections 3.1 and 4.7. Three separate gaps, all with the data already computed.
+1. There are three copies of specstory on this machine at three different versions. Settings shows
+   one binary and says nothing about the others. Show the chosen path and version, and list the
+   others found.
+2. `captureSupportFor()` computes a precise reason an agent cannot be captured, and the UI discards
+   it, so the agent simply does not appear. Render the row disabled with the reason instead.
+3. The provider probe is cached for the whole app run, so upgrading specstory while Tortie is open
+   leaves the list stale. `resetProviderCache()` already exists and is commented as the seam for a
+   re-check button. Wire a button to it. Tier 2.
+
+### Item 3 — an unknown provider id is no longer discarded in silence
+Spec: docs/research/30 sections 3.2 and 3.5. `parseProviderIds()` keeps only ids Tortie has a row
+for, so a provider SpecStory adds that Tortie has never heard of vanishes with no trace. Today that
+is `qwen`. Open the vocabulary and surface the unknown id honestly rather than dropping it.
+If this needs a registry row, note that CLAUDE.md requires `conformance:resume:capture` on any commit
+under `agents/registry.ts`. It costs about 16 seconds and no agent turns. Tier 2.
+
+### Item 4 — a second copy of the app can no longer start
+Spec: docs/research/27-release-and-updates.md section 2.7. There is no single instance lock anywhere
+in `src/main/`, verified by grep. Electron provides `app.requestSingleInstanceLock()`. Every updater
+ends by relaunching, so this must exist before any update ever ships. Focus the existing window on a
+second launch. Tier 2.
+
+### Item 5 — an agent can no longer disarm the launch confirmation
+Spec: docs/research/31-extensions.md section 5.4. `sanitizeSettings` correctly filters
+`launchDefaults` against `catalogedFlags(id)`, so arbitrary argv cannot be injected. But
+`quickCreate` at `renderer/state/store.ts` bypasses the create sheet and applies launch defaults
+directly, so an agent that can write settings.json makes every later hotkey create for that agent run
+with its safety flag on, silently and durably. `dangerAcknowledged` is never read at launch, so
+validating it would fix nothing. The fix belongs at the launch path or at the settings write
+boundary. Tier 2, and it is small but it is not cosmetic.
+
+### Item 6 — two stale claims in our own documentation
+Spec: docs/research/27 section 1.1. `BUILD-STATUS.md` section 6 and the header of
+`electron-builder.yml` both state that only an Apple Development certificate exists. A Developer ID
+Application certificate has been on this machine since June and is valid to 2031. That stale claim
+was the only recorded blocker on notarization. Correct both, and state what is actually still
+missing, which is the App Store Connect issuer identifier. Tier 1.
+
+### Verification
+Items 1 and 6 are Tier 1, so gates plus one screenshot read for the icon. Items 2, 3, 4 and 5 are
+Tier 2, so gates plus a targeted probe of the thing changed and one screenshot read where there is
+something to see. Item 4 needs a real second launch against an isolated user data directory. Item 5
+needs a probe proving that a written settings file cannot cause a launch with the flag set.
+
+### What must not regress
+The 44 live sessions and their pane geometry. The two SCM uses of the `cloud` glyph. The existing
+capture behaviour for the six providers that work today. Phase 18's layout work, which touched
+`renderer/state/store.ts` and is only three commits old.
+
+### What actually landed, shipped 2026-08-12
+
+All six items landed. Two verifiers ran independently of the builders and both returned a pass.
+Nothing was deferred out of the phase.
+
+| Item | What landed | Tier and evidence |
+|---|---|---|
+| 1 book icon | `src/renderer/assets/brand/specstory.svg`, 356 bytes, the path baked in research 30 section 4.4. The Settings rail entry is now a union of a codicon name or a bundled SVG, rendered through the existing `InlineSvg`, which `renderer/icons/index.ts` now exports. | Tier 1 plus a screenshot read. Measured glyph box 11.0 by 16.0 logical pixels against a designed 11.10 by 16.00, so it is not stretched. |
+| 2 which specstory won | The Settings card names the winning copy with its version and its path, lists every other copy found with its own version, gives a re-check button, and draws a capture row that cannot work as disabled with the reason on it. | Tier 2. Driven live. Three copies on this Mac at 2.5.0, 2.6.0 and 2.8.0, and the card named all three. |
+| 3 unknown provider id | `SpecstoryProviderId` is a `string` guarded by shape rather than an eight member allowlist, so an id the CLI reports and Tortie has no row for is surfaced instead of dropped. A discovered row is marked as unverified for exit code reporting. | Tier 2, plus `conformance:resume:capture` because `agents/registry.ts` changed. |
+| 4 single instance lock | `app.requestSingleInstanceLock()` in `src/main/index.ts`, taken above the rename migration. A refused copy prints one line and calls `app.exit(0)`. The holder brings its window forward. Harness launches are exempt, and `GMUX_ALLOW_SECOND_INSTANCE=1` is the escape hatch. | Tier 2. A real second launch was run against an isolated profile. A holder killed with SIGKILL leaves the lock files behind and the next launch still starts. |
+| 5 launch confirmation | A danger preset written into settings.json by anything other than the Settings window is stripped in main before any renderer sees it. The check sits at the settings read boundary in `src/main/settings/store.ts`, so it covers `quickCreate`, the per-agent hotkey and the ⌘T pre-checks at once. | Tier 2, plus a new test suite at `src/main/settings/__tests__/danger-seal.test.ts`. |
+| 6 stale doc claims | The `electron-builder.yml` header and BUILD-STATUS section 6 both said only an Apple Development certificate exists. A Developer ID Application certificate has been here since June and is valid to 2031. Both were rewritten, and both now name the one thing still missing. | Tier 1. Re-measured with `security find-identity -v -p codesigning` at integration time. |
+
+**What is still not true.** Notarization has never run from this machine, and it still cannot. The
+App Store Connect key is on disk but the issuer id is not, and notarytool needs both. Nothing in this
+phase changed the signing configuration itself, so `identity: null` still stands and the packaged app
+still will not launch on another Mac. Item 1 also left the book mark heavier than the codicons beside
+it, measured at about twice their ink over the same box. It reads correctly and it is not stretched,
+but it does draw the eye. Research 30 section 4.5 has the inset variant if the operator wants it
+toned down.
+
+### Gates on the final tree
+
+| gate | result |
+|---|---|
+| `npm run typecheck` | clean, both projects, zero errors |
+| `npm run build` | `✓ built in 19.77s` |
+| `npm run test` | **126 passed, 1 skipped (127 files); 1610 passed, 2 skipped (1612 tests)**, up from 1575 at Phase 18 |
+| `npm run smoke:t1` | `5/5 PASS (create)`, `6/6 PASS (verify)` |
+| `npm run smoke:t3` | `6/6 PASS (t3-prep)`, `3/3 PASS (t3-verify)`, a claude and a pi restore shape |
+| `npm run conformance:resume:capture` | `6 PASS · 0 FAIL · 0 BLOCKED · 4 SKIP in 16.8s` |
+
+`conformance:resume:capture` was required here, because item 3 changed `src/main/agents/registry.ts`.
+
+**Safety.** 46 sessions on the private socket before the phase and 46 after, and `diff` on the two
+lists is empty. That is 45 live sessions plus `gmux-control`, and every harness boot logged all 45 as
+having no manifest row and ignored them. Every app launch used its own `--user-data-dir` under the
+scratchpad. No session was
+created, killed, renamed or adopted. Only `tmux -L gmux` was used. `pkill` was never run.
+`/Applications/Tortie.app` was left alone and is still running.
+
+---
+
+## Phase 18.55 — zoom does not reach the search view (user reported, 2026-08-12)
+
+Runs immediately after Phase 18.5 and before Phase 18.6. It is small, it is self contained, and it
+touches none of the files the other phases own.
+
+**Symptom.** You cannot zoom the search pane. Per pane zoom shipped in Phase 12.11 and is meant to be
+first class in every pane.
+
+**Root cause, and it is worse than the symptom.** The mapping from a focused element to a zoom region
+in `src/renderer/zoom/focus.ts` is a two way branch rather than a lookup:
+
+```ts
+const view = closest('.sidebar-view');
+if (view !== null) return view.view === 'explorer' ? 'explorer' : 'scm';
+```
+
+The sidebar hosts three views. `SidebarViewId` in the renderer store is `'scm' | 'explorer' |
+'search'`. Anything that is not the explorer therefore resolves to source control. So zooming while
+search is focused does not do nothing. **It silently zooms the source control pane instead**, and
+changes a level the user did not ask to change.
+
+The region list itself is the second half of the cause. `ZOOM_REGIONS` in
+`src/renderer/zoom/regions.ts` has five members and `search` is not one of them, so there is no
+`--zoom-search` custom property in `zoom.css` and no label for the readout.
+
+This is drift rather than an oversight in one place. Search arrived in Phase 14, after zoom shipped in
+12.11, and the zoom side was never extended. The comment directly above the branch says the ordering
+"is the part that can silently rot", which is exactly what happened.
+
+**The fix must be structural, because the Context sidebar is next.** A third branch would work today
+and break again when Context lands as a fourth view. Derive the zoom region from the sidebar view
+identifier so that any first class view added later is zoomable by construction. Add `search` to the
+region list, its custom property, its label and its CSS rule.
+
+**Add the guard that would have caught this.** A test asserting that every member of `SidebarViewId`
+has a zoom region, a label and a custom property. Without it the same defect returns with Context.
+
+**Verification: Tier 3.** CLAUDE.md gives a user reported bug proof rather than assurance. Drive the
+real application, focus each sidebar view in turn, press the zoom chord, and read the resulting
+`--zoom-*` custom properties from the running renderer. Screenshot the search pane at more than one
+level and read the image. Then the part that proves the real defect: zoom the search view and assert
+the source control level **did not move**.
+
+**What must not regress.** Zoom in the explorer, source control, editor, terminal and the right hand
+session dock. The chord itself, which the image viewer and the editor legitimately handle themselves.
+Phase 18's layout work, since the sidebar was rebuilt three commits ago.
+
+---
+
+## Phase 19 — durability, with the harness that proves it (2026-08-12)
+
+**Do not start this until Phase 18.6 has landed.** Item 8 below edits `restartSession` in
+`src/renderer/state/store.ts`, and Phase 18.6 rewrites that file to add the home screen and the clone
+action. Writing item 8 first means writing it twice. Phase 18.6 is itself gated on research 35
+returning and on Phase 18.5 committing, so the chain is 18.5, then 18.6, then this.
+
+Thirteen items. Every one of them fixes behaviour that is wrong at HEAD. None of them adds a feature
+you can see.
+
+Specifications: docs/research/33-durability-reconciliation.md for the ranked queue and the defects,
+and docs/research/34-phase19-oss-survey.md for how each one gets built. Read 34 before writing any
+code, because it overturns three things earlier documents assert.
+
+**Line numbers in the research documents are stale.** Phase 18 rewrote the renderer state and Phase
+18.5 is editing further. Find each defect by its symbol name rather than by the line it was on.
+
+### Order matters, and it is not the order the research ranked them in
+R33 ranked the crash harness eleventh. It goes first here. Several items below cannot be proven
+without killing the app, and building the proof after the fix means the fix ships unverified. The
+harness is affordable because half of it already exists as the `GMUX_SMOKE` pattern.
+
+### Part 1, the two tools everything else uses
+
+**Item 1, the general fault harness.** Nothing anywhere kills the app. Every existing harness quits
+politely, so the crash safety story is untested, and crash safety is what the product is sold on. One
+harness that kills the app at a random moment and relaunches covers seven rows of the fault matrix at
+once. Design in research 34.
+Two traps, both measured. **Playwright cannot drive Electron 43.** It times out on the current
+release and on today's alpha, and the identical script works against Electron 35, so do not reach for
+it. **SIGTERM is not a crash in Electron.** It runs the full graceful quit and honours a cancel, and
+a Node level handler never fires because Chromium owns the signal. Only SIGKILL is a crash. A harness
+built on SIGTERM tests the happy path and proves nothing. Extend `GMUX_SMOKE` instead. Tier 3.
+
+**Item 2, the durable write module.** About 70 lines, in one module, owned by one place. Snapshots
+need it now and the backup ring needs it in Phase 20, so two copies of the most safety critical code
+in the product is the failure to avoid.
+Do not add a dependency. Five candidate libraries were read from their published tarballs rather than
+their documentation, and all five stop at flushing the file and renaming it. The best of them meets
+two of the seven requirements.
+Two facts change the sequence from the textbook one. **`fs.fsync()` on macOS already performs the
+strong flush**, because libuv escalates it, so no native module is needed. And **flushing does not
+prove the write succeeded**. On a full disk the write failed, the flush reported success, the rename
+reported success, and a zero byte file was published. An explicit size and hash check between writing
+and renaming is therefore a required step, not a refinement. Tier 3.
+
+### Part 2, the fixes that need those tools
+
+**Item 3, power loss safe snapshots.** `snapshots.ts` writes to a fixed temporary name and renames,
+with no flush, no hash, no generation and a destructive replace. A badly timed power cut can leave
+neither the old copy nor the new one. Use the module from item 2 and keep more than one generation.
+Carry the capsule metadata that Phase 20's reconstruction will need, because reconstruction cannot be
+built later without it. Tier 3.
+
+**Item 4, the silent disk full.** `snapshotAllSessions` catches the out of space error and emits a
+console warning. Protection stops and the user is told nothing, so they quit believing their
+scrollback was saved. Emit one notice through the channel in item 9. Tier 2.
+
+**Item 5, database integrity and quarantine.** There is no integrity check anywhere before the
+manifest is opened, so SQLite opens a damaged file and writes over the copy the user still needs. Add
+the check, and set the damaged file aside rather than overwriting it. For the last resort repair path
+use `/usr/bin/sqlite3 .recover`, which is already on macOS, adds nothing to the bundle and adds
+nothing to signing. Tier 3.
+
+### Part 3, independent and mostly small
+
+**Item 6, restore reports success falsely.** The restore path computes whether the transcript was
+replayed and whether the resume was armed, then discards both and writes `running`. A restore where
+both stages failed reads as healthy.
+`SessionStatus` in `src/shared/types.ts` is five string literals today. Three separate queue entries
+across Phase 19 and later phases all need to change it. **Design the full member set once, in this
+phase, even if this phase's code can only produce some of them.** Touching that union in three
+separate migrations of meaning is the outcome to avoid. Tier 2.
+
+**Item 7, the restore journal.** The attempt is not recorded before it is acted on, so a crash part
+way through a restore neither resumes nor rolls back. Journal it in the manifest rather than in a
+separate file, because a second durability domain can disagree with the first, and detecting exactly
+that disagreement is the reason the journal exists. Tier 3, verified by item 1.
+
+**Item 8, restart discards before creating.** `restartSession` calls discard before create, and drops
+the launch flags and the capture choice on the way. If create fails you have lost the session and its
+settings. Nothing may be discarded until the replacement exists. Tier 3.
+
+**Item 9, the notice channel.** Four separate items post messages to a surface that does not exist.
+Extend the existing scrollback notice event with one kind per degraded state. Keep it quiet. Per the
+Zen document this is a notice, not a dashboard. Tier 2.
+
+**Item 10, the migration failure path.** When the data migration fails it returns a failed status, but
+the notice the user would see is gated on success, so nothing is said. The app boots anyway and
+creates the directory that makes every later launch report that the target already has data. The
+state is permanent, even after the original cause is fixed. Proven by probe in research 33.
+Fix this before Phase 20 reuses that module as the backup engine, or the backup engine inherits it.
+Tier 2.
+
+**Item 11, sleep and wake.** No power event is wired anywhere in the app. Force a capture when the
+machine suspends, and clear the terminal texture atlas on resume, which is the same public function
+VS Code calls from the same event. About 40 lines. This is not the full checkpoint scheduler, which
+is a later phase and a larger piece of work. Tier 2.
+
+**Item 12, claims about protection it has not observed.** Tortie must not assert that an off device
+backup exists without having checked. On the one machine we can measure, automatic backups are off,
+the last snapshot reference is four months old and the destination will not mount. Tier 1.
+
+**Item 13, the config path inside the bundle.** The tmux supervisor passes a config path that lives
+inside the application bundle, which an update replaces. On a cold start with that file missing, tmux
+silently starts a server with a scrollback of 2000 lines instead of 25000, and exits zero with no
+error. Assert the path exists and read back the value tmux actually set. Tier 2.
+
+### Not in this phase, and why
+The single instance lock and the launch flag defect were both in the earlier plan and both landed in
+Phase 18.5. Do not build either a second time.
+The adaptive checkpoint scheduler, the background host process and the full authority matrix are all
+larger and sit later.
+
+### What must not regress
+The 44 live sessions, their pane geometry and their scrollback depth. The existing restore path for
+both a claude shaped and a non claude shaped session, which `smoke:t3` covers. Phase 18's layout work
+and Phase 18.5's six items, both of which are recent. The protected identifiers in CLAUDE.md, none of
+which this phase has any reason to touch.
+
+### Gates
+The usual battery, plus `npm run conformance:resume:capture` if anything under `agents/registry.ts`,
+`manifest/harvest/**`, `manifest/agents.ts` or `restore/**` changes, which items 6 and 7 will.

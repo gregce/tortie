@@ -65,6 +65,21 @@ That is convenient and it is also the one footgun: every smoke and conformance
 harness therefore passes its own `--user-data-dir` and never boots into the real
 profile.
 
+Since Phase 18.5 a second copy on the same profile refuses to start. It prints
+one line, brings the window of the copy that is already running to the front,
+and exits 0. So `npm run dev` while `/Applications/Tortie.app` is open now stops
+instead of opening a second app on the same manifest. Two ways past it:
+
+- run the built app on its own profile, which is the safe one and is what this
+  phase verified against:
+  `npm run build && electron . --user-data-dir=/tmp/tortie-dev`;
+- or set `GMUX_ALLOW_SECOND_INSTANCE=1`, which starts the second copy on the
+  real profile anyway. That is the state the lock exists to prevent, so use it
+  only when you know why you need it.
+
+The harnesses are exempt from the lock. Each already runs on its own profile,
+and several of them run at the same time as each other.
+
 ### Package
 
 ```sh
@@ -182,7 +197,14 @@ mounted DMG:
 - ripgrep unpacked from the asar at
   `app.asar.unpacked/node_modules/@vscode/ripgrep-darwin-arm64/bin/rg`
   (4,528,512 bytes) — required for correctness today and for signing later.
-- Signature: **ad-hoc** (`identity: null`). Launches locally; see §6.
+- Signature: **none on the bundle**. This line used to say "ad-hoc", which
+  overstated it. With `identity: null` electron-builder does not sign the app,
+  so there is no `Contents/_CodeSignature` and `codesign -dv` on the installed
+  copy reports `Identifier=Electron`, `flags=0x20002(adhoc,linker-signed)` and
+  `Sealed Resources=none`. That signature is the linker's, one per Mach-O, not
+  one electron-builder applied. The app launches here because it was built here
+  and never carried a quarantine flag. It would not launch on another machine.
+  Re-measured 2026-08-12. See §6 for the certificate that is now available.
 
 Sizes: `.app` **450.8 MB** · DMG **168,450,071 B (160.6 MB)** · ZIP
 **167,911,660 B (160.1 MB)**.
@@ -287,12 +309,35 @@ would mean if it did not.
 Named here so the next agent inherits the decision instead of re-deriving it.
 
 ### Code signing & notarization
-Only an Apple Development cert exists on this machine and it cannot produce a
-distributable signature, so `identity: null` and arm64 gets an ad-hoc signature
-that runs locally. **Reopen when** a Developer ID Application cert exists. The
-work then is: `hardenedRuntime: true` + Electron entitlements
-(`com.apple.security.cs.allow-jit` and friends) → notarytool → staple. The
-inside-out nested-binary machinery is already in place —
+
+This section used to say that only an Apple Development certificate exists on
+this machine, so a distributable signature was impossible. That was false, and
+because it was written down as the reason, it stood as the only recorded blocker
+on notarization. Corrected in Phase 18.5 from research 27 section 1.1, and
+measured again on 2026-08-12 with `security find-identity -v -p codesigning`.
+
+What is actually here:
+
+| Thing | State on 2026-08-12 |
+|---|---|
+| Developer ID Application certificate | present, `Gregory Ceccarelli (4GRQMF5T5U)`, valid 2026-06-01 to 2031-06-02 |
+| Apple Development certificate | present, a second identity, not the one distribution needs |
+| notarytool and stapler | present, both from Xcode, notarytool 1.1.0 |
+| App Store Connect key | present, `~/.appstoreconnect/private_keys/AuthKey_8NH6JLTWBN.p8`, key id `8NH6JLTWBN` |
+| App Store Connect **issuer id** | **missing**, and it is what still blocks notarization |
+
+The issuer id is a UUID that `notarytool` needs next to the key. It is not in
+the shell rc files, and there is no saved `notarytool store-credentials`
+keychain profile, so no notarization round trip has ever run from this machine.
+It is one copy and paste from App Store Connect, under Users and Access, then
+Integrations, then Keys.
+
+So the honest state is that signing is switched off, not unavailable. **Reopen**
+as soon as the issuer id is to hand. The work is then four changes, written out
+in `docs/research/27-release-and-updates.md` section 6.2: set `identity` in
+`electron-builder.yml`, turn on `hardenedRuntime`, add the Electron entitlements
+(`com.apple.security.cs.allow-jit` and its neighbours), and notarize, then
+staple. The inside out nested binary machinery is already in place.
 `build/sign-nested-binaries.cjs` ad-hoc hardens `Resources/bin/specstory` today
 in exactly the shape notarization will want, and `mac.binaries` already lists it
 (inert while identity is null). Keep the two lists in step.

@@ -10,6 +10,11 @@
  *                @pierre/trees sprite sheet because it renders in shadow DOM;
  *                both go through the generated maps so one file never wears
  *                two icons.
+ * - InlineSvg  — the renderer underneath AgentIcon and FileIcon, exported for
+ *                the few places that hold a bundled SVG string of their own
+ *                (today: the SpecStory brand mark on the Settings rail, which
+ *                is not an agent and so has no AgentIcon key). Trusted,
+ *                build-time-bundled markup only — see InlineSvg.tsx.
  *
  * Licenses: @vscode/codicons CC-BY-4.0 (© Microsoft — credit in About);
  * material-icon-theme MIT (© Philipp Kief); agent marks are the vendors'
@@ -24,3 +29,5 @@ export { Codicon } from './Codicon';
 export type { CodiconProps } from './Codicon';
 export { FileIcon, fileIconIdFor } from './FileIcon';
 export type { FileIconProps } from './FileIcon';
+export { InlineSvg } from './InlineSvg';
+export type { InlineSvgProps } from './InlineSvg';

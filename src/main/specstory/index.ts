@@ -31,6 +31,7 @@ export {
   specstoryAuthPath,
   specstoryEnv,
   specstoryHome,
+  specstoryProbeCwd,
   type SpecstoryBinary,
   type SpecstoryResolution,
   type SpecstorySource
@@ -52,13 +53,20 @@ export {
 export {
   availableProviders,
   capturableAgents,
+  captureMatrix,
   captureSupportFor,
   parseProviderIds,
+  parseProviderList,
+  providerCatalog,
+  providerIdFor,
   resetProviderCache,
   wrapWithRecord,
   specstoryRowFor,
   wrapForCapture,
+  type CaptureMatrix,
   type CaptureSupport,
+  type ProbedProvider,
+  type ProviderCatalog,
   type SpecstoryCaptureRecord,
   type WrapResult
 } from './capture';

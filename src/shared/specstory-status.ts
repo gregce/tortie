@@ -166,7 +166,51 @@ export interface SpecStoryCaptureAgent {
   agentId: LaunchableAgentId;
   /** The `specstory run <provider>` positional for this agent. */
   provider: string;
+  /**
+   * True when the id came from the CLI and matched an agent gmux can launch,
+   * but no verified registry row backs it — so nobody has measured how that
+   * provider reports exit codes. Capture still works; the death report is the
+   * part gmux cannot vouch for, and the row says so. Optional because the
+   * pre-IPC fallback table is all-measured by construction.
+   */
+  discovered?: boolean;
+  /** Display name as the CLI printed it (`claude - Claude Code`), if known. */
+  providerName?: string | null;
 }
+
+/** Why an agent cannot be captured here. Computed in main, rendered in Settings. */
+export type SpecStoryCaptureReason =
+  | 'ok'
+  | 'no-binary'
+  | 'no-provider-for-agent'
+  | 'provider-missing-from-cli';
+
+/**
+ * An agent gmux can launch but cannot capture, with the reason it computed.
+ *
+ * The reason was always computed and always thrown away — the agent simply did
+ * not appear in the list, and "why is Muse not here?" had no answer anywhere in
+ * the UI (docs/research/30 §4.7 gap 2). These rows are what the disabled
+ * entries are drawn from.
+ */
+export interface SpecStoryCaptureBlocked {
+  agentId: LaunchableAgentId;
+  /** The provider id gmux would have asked for; null when it has none. */
+  provider: string | null;
+  reason: SpecStoryCaptureReason;
+}
+
+/** One provider the resolved binary reports, whether or not gmux knows it. */
+export interface SpecStoryProvider {
+  id: string;
+  /** `Claude Code`; null when only the id could be parsed. */
+  displayName: string | null;
+  /** True when gmux has a launchable agent bound to this provider. */
+  matchedAgent: boolean;
+}
+
+/** Where the provider list came from — probed from the binary, or assumed. */
+export type SpecStoryProviderSource = 'probed' | 'fallback';
 
 /** The capture-capable agents, in the order the table above declares them. */
 export function defaultCaptureAgents(): SpecStoryCaptureAgent[] {
@@ -194,6 +238,29 @@ export interface SpecStoryStatus {
   loginUrl: string;
   /** The file the account facts were read from (shown as a tooltip). */
   authPath: string;
+  /**
+   * Every copy of specstory found on this Mac EXCEPT `binary`, the one that
+   * runs. Deduplicated by resolved path, in preference order. Empty when there
+   * is only one — which, measured on the operator's Mac on 2026-08-12, is not
+   * the common case: `/opt/homebrew/bin` 2.5.0 (the first PATH hit, and the
+   * one a shell runs), `/usr/local/bin` 2.6.0 (newer, shadowed, invisible to
+   * `brew upgrade`) and the bundled 2.8.0 that wins.
+   */
+  otherBinaries: SpecStoryBinaryInfo[];
+  /**
+   * Agents gmux can launch and cannot capture, with the reason. Empty when
+   * there is no specstory at all: the section already says so in one line, and
+   * repeating it once per agent would be noise, not information.
+   */
+  blockedCaptureAgents: SpecStoryCaptureBlocked[];
+  /** Every provider the winning copy reports, including ids gmux has no agent for. */
+  providers: SpecStoryProvider[];
+  /**
+   * 'fallback' ⇒ the binary would not list its providers and this is the set
+   * this build was tested against. Capture still works for everything listed;
+   * the list may just be short (docs/research/30 §3.6).
+   */
+  providerSource: SpecStoryProviderSource;
 }
 
 /** `specstory:beginLogin` — we opened the browser (or could not). */

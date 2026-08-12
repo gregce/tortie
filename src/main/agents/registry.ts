@@ -123,23 +123,30 @@ export type AgentIdCapture =
   | { mode: 'none' };
 
 /**
- * specstory-cli provider ids (Phase 15 capture). One per agent whose
+ * A specstory-cli provider id (Phase 15 capture). One per agent whose
  * transcript specstory knows how to read; NOT every gmux agent has one, and a
  * missing row is the honest answer "this agent cannot be captured", never a
  * guess. Availability is a second question the registry cannot answer: the
  * INSTALLED CLI decides which of these exist (released 2.8.0 ships nine and has
- * never heard of `muse`), so ./specstory/resolve.ts probes the real binary and the
- * capture toggle only lights up for the intersection.
+ * never heard of `muse`), so ./specstory/capture.ts probes the real binary and
+ * the capture toggle only lights up for the intersection.
+ *
+ * **It is a `string`, and that is the point (Phase 18.5).** This was an
+ * eight-member union, and `capture.ts` filtered the probed ids against it as an
+ * allowlist — so a provider specstory added that gmux had never heard of was
+ * discarded in silence, with no trace anywhere. That is not hypothetical:
+ * specstory's `qwen-provider-support` branch registers `qwen`, gmux has had a
+ * launchable `qwen` agent since Phase 10, and the two would never have met
+ * until someone shipped a gmux release (docs/research/30 §3.2).
+ *
+ * The fail-closed property the union provided is kept, by a SHAPE guard on the
+ * parse (`/^[a-z][a-z0-9_-]{0,31}$/`) rather than a membership one: a
+ * formatting change in the CLI's output still cannot invent an id, but a new
+ * id is no longer thrown away. What the registry rows below still decide is
+ * something the probe cannot — whether gmux has MEASURED how that provider
+ * reports exit codes.
  */
-export type SpecstoryProviderId =
-  | 'claude'
-  | 'codex'
-  | 'cursor'
-  | 'gemini'
-  | 'droid'
-  | 'deepseek'
-  | 'antigravity'
-  | 'muse';
+export type SpecstoryProviderId = string;
 
 /**
  * How this agent behaves UNDER `specstory run` (research 13 §1.1, re-measured

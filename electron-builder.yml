@@ -1,14 +1,40 @@
-# Tortie packaging — local unsigned arm64 DMG + ZIP.
+# Tortie packaging. A local unsigned arm64 DMG and ZIP.
 #
-# Deliberately unsigned today: only an Apple Development cert is on this
-# machine, which cannot produce a distributable signature — so identity: null
-# (electron-builder ad-hoc signs arm64 so the app still launches locally).
-# Deferred to a future packaging pass: Developer ID signing, hardened runtime
-# + entitlements, notarization/stapling, and a bundled pinned tmux (today we
-# rely on system tmux 3.6a — see BUILD-STATUS.md), auto-update feed.
-# NOT deferred any more: nested Mach-O signing. Phase 15 bundles specstory-cli
-# at Contents/Resources/bin/specstory, listed in mac.binaries for the day an
-# identity exists and ad-hoc hardened by build/sign-nested-binaries.cjs today.
+# This header used to say that only an Apple Development certificate is on this
+# machine. That is false, and it was the only recorded blocker on notarization.
+# Measured again on 2026-08-12 with `security find-identity -v -p codesigning`:
+#
+#   Developer ID Application: Gregory Ceccarelli (4GRQMF5T5U)
+#   valid 2026-06-01 to 2031-06-02
+#
+# So `identity: null` below is a build that has not been switched on yet, not a
+# build that cannot be signed. One credential is still missing, and it is the
+# App Store Connect ISSUER id, a UUID that notarytool needs next to the key. The
+# key itself is on disk at ~/.appstoreconnect/private_keys/AuthKey_8NH6JLTWBN.p8.
+# The issuer id is not in the shell rc files and there is no saved notarytool
+# keychain profile, so nothing here has ever run a notarization round trip. It
+# is one copy and paste from App Store Connect, under Users and Access, then
+# Integrations, then Keys.
+#
+# Here is what `identity: null` actually produces, measured on the installed
+# app rather than assumed. electron-builder does not sign the bundle at all.
+# There is no Contents/_CodeSignature. `codesign -dv` reports
+# `Identifier=Electron`, `flags=0x20002(adhoc,linker-signed)` and
+# `Sealed Resources=none`. That is the linker's own signature on each Mach-O,
+# not a signature electron-builder applied. The app runs here because it was
+# built here and never carried a quarantine flag. It would not run on another
+# machine.
+#
+# Switching signing on is four changes, spelled out in
+# docs/research/27-release-and-updates.md section 6.2: an identity here,
+# hardenedRuntime, the Electron entitlements, and notarize with the notarytool
+# credentials above.
+#
+# Still deferred: a bundled pinned tmux (the app uses system tmux 3.6a today,
+# see BUILD-STATUS.md) and an auto-update feed.
+# No longer deferred: nested Mach-O signing. Phase 15 bundles specstory-cli at
+# Contents/Resources/bin/specstory. It is listed in mac.binaries for the day an
+# identity is set, and build/sign-nested-binaries.cjs ad-hoc hardens it today.
 appId: com.specstory.tortie
 productName: Tortie
 artifactName: ${productName}-${version}-${arch}.${ext}
