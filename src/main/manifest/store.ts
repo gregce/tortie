@@ -94,6 +94,50 @@ export interface LiveTmuxSession {
   gmuxId?: string;
 }
 
+/**
+ * Why reconcile refused to judge a row this pass. All three mean the same
+ * thing: the `live` snapshot is OLDER than the row's own evidence, so its
+ * silence about the row proves nothing.
+ */
+export type ReconcileSkipReason =
+  /** Row inserted after the snapshot was taken (a create in progress). */
+  | 'created-after-snapshot'
+  /** Caller says this row's tmux side is being created right now. */
+  | 'in-flight'
+  /** Something proved the row live after the snapshot (restore, activity). */
+  | 'touched-after-snapshot';
+
+/** A row reconcile deliberately left alone, with the reason it did. */
+export interface ReconcileSkip {
+  record: ManifestSessionRecord;
+  reason: ReconcileSkipReason;
+}
+
+/**
+ * What the caller knows about the snapshot it is handing in.
+ *
+ * reconcile() is the function that decides a session is unreachable, so it
+ * must not act on rows the snapshot could not possibly have seen (Phase
+ * 16.5.1): the caller takes the tmux list, then awaits identity probes for
+ * every foreign session on the socket — dozens of execs — and a session
+ * created during those awaits is absent from the list purely because the
+ * list predates it.
+ */
+export interface ReconcileOptions {
+  /**
+   * `Date.now()` from immediately BEFORE the list-sessions exec that produced
+   * `live`. Omitted (tests, migration smoke) = no exemption, old behaviour.
+   */
+  snapshotAt?: number;
+  /**
+   * Session ids whose tmux side is mid-create or mid-restore. Needed on top
+   * of `snapshotAt` because the manifest row is written BEFORE the process
+   * exists (§2.4 Step 0): a row inserted just before the snapshot can have
+   * its tmux session appear just after it.
+   */
+  inFlightIds?: ReadonlySet<string>;
+}
+
 /** Result of reconciling the manifest against live tmux sessions. */
 export interface ReconcileResult {
   /** Manifest rows with a live tmux session (lastSeen refreshed). */
@@ -114,6 +158,12 @@ export interface ReconcileResult {
    * nothing it cannot prove it owns.
    */
   unknownTmuxNames: string[];
+  /**
+   * Rows the snapshot could not have seen, left EXACTLY as they were — no
+   * status write, no binding, no claim. The caller keeps whatever binding it
+   * already recorded for a row skipped for a creation reason.
+   */
+  skipped: ReconcileSkip[];
   /**
    * manifest session id → live tmux `$-id`, for every row claimed above.
    * The caller's `liveIds` map is this, verbatim: one matching algorithm,
@@ -353,6 +403,30 @@ export function toSession(record: ManifestSessionRecord): Session {
     session.capture = toSessionCapture(record.specstory);
   }
   return session;
+}
+
+/**
+ * Is this row NEWER than the snapshot that is about to be used against it?
+ * (Phase 16.5.1 — see ReconcileOptions.) Returns the reason, or null when the
+ * snapshot really is entitled to an opinion about the row.
+ *
+ * `lastSeen` counts as evidence because every writer of it — reconcile's own
+ * alive branch, restoreSession, and the activity monitor's setStatus, which
+ * only ever runs for a session bound to a live tmux id — writes it having
+ * just seen the session alive.
+ */
+function skipReason(
+  rec: ManifestSessionRecord,
+  snapshotAt: number | undefined,
+  inFlightIds: ReadonlySet<string> | undefined
+): ReconcileSkipReason | null {
+  if (inFlightIds?.has(rec.id) === true) return 'in-flight';
+  if (snapshotAt === undefined) return null;
+  // `>=`, not `>`: same-millisecond means the order cannot be proven, and the
+  // safe answer is to leave a possibly-live session alone for one more pass.
+  if (rec.createdAt >= snapshotAt) return 'created-after-snapshot';
+  if (rec.lastSeen >= snapshotAt) return 'touched-after-snapshot';
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -683,6 +757,13 @@ export class ManifestStore {
    *   not adopted from anything else.
    * - 'exited' rows missing from tmux: left untouched.
    * - Live sessions with no matching row: reported and otherwise ignored.
+   * - Rows NEWER than the snapshot (`options`): skipped, not judged. See
+   *   ReconcileOptions — the caller's list is taken before a long identity
+   *   pass, so a session created during that pass is missing from it for a
+   *   reason that has nothing to do with being unreachable. Marking it
+   *   'restorable' made a just-created session refuse to attach
+   *   (SESSION_NOT_FOUND / "status: restorable", 3 of 5 smoke runs on a
+   *   socket with 44 foreign sessions).
    *
    * Runs in a single IMMEDIATE transaction; synchronous. Immediate because it
    * reads (`listSessions`) and then writes (`updateSession`): a deferred
@@ -692,14 +773,19 @@ export class ManifestStore {
    * as `[gmux] refresh failed: database is locked`, i.e. a manifest left
    * unreconciled with tmux.
    */
-  reconcile(live: readonly LiveTmuxSession[]): ReconcileResult {
+  reconcile(
+    live: readonly LiveTmuxSession[],
+    options: ReconcileOptions = {}
+  ): ReconcileResult {
     const result: ReconcileResult = {
       alive: [],
       restorable: [],
       exited: [],
       unknownTmuxNames: [],
+      skipped: [],
       bindings: new Map<string, string>()
     };
+    const { snapshotAt, inFlightIds } = options;
 
     immediateTransaction(this.db, () => {
       const all = this.listSessions();
@@ -721,6 +807,7 @@ export class ManifestStore {
 
       for (const rec of all) {
         const session = claimedRows.get(rec.id);
+        const skip = skipReason(rec, snapshotAt, inFlightIds);
         if (session !== undefined) {
           const needsStatusFlip =
             rec.status === 'restorable' || rec.status === 'exited';
@@ -735,6 +822,9 @@ export class ManifestStore {
           result.bindings.set(rec.id, session.tmuxId);
         } else if (rec.status === 'exited') {
           result.exited.push(rec);
+        } else if (skip !== null) {
+          // Newer than the evidence against it — leave it exactly as it is.
+          result.skipped.push({ record: rec, reason: skip });
         } else {
           const updated =
             rec.status === 'restorable'

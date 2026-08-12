@@ -137,6 +137,9 @@ const STATUS_POLL_IDLE_MS = 2_000;
  */
 const DEAD_ROW_RESCUE_TIMEOUT_MS = 20_000;
 
+/** How long a create may claim to still be in flight — see createsInFlight. */
+const CREATE_IN_FLIGHT_MAX_MS = 60_000;
+
 /**
  * Server options resources/gmux-tmux.conf sets that gmux cannot afford to
  * have wrong — a tmux server left running from an OLDER conf never re-reads
@@ -272,6 +275,16 @@ export class GmuxCore {
   private readonly idCaptureWatches = new Map<string, SessionIdWatch>();
   /** Session ids with a restore in flight ("Restore all" double-clicks). */
   private readonly restoresInFlight = new Set<string>();
+  /**
+   * Session id → the instant its create started, for creates whose manifest
+   * row exists but whose tmux session does not yet (§2.4 Step 0 writes the
+   * row FIRST). A reconcile running in that window finds no live session for
+   * the row and would mark it 'restorable' — the just-created session then
+   * refuses to attach. Timestamped rather than a bare set so a create that
+   * dies between the row and the spawn cannot exempt its row FOREVER; see
+   * pruneStaleCreates().
+   */
+  private readonly createsInFlight = new Map<string, number>();
   /** Live tmux `$-id`s proven NOT to be ours — see identify(). */
   private readonly foreignTmuxIds = new Set<string>();
   /** Last cols×rows pushed per session — see resizeSession (Phase 12.11). */
@@ -925,6 +938,14 @@ export class GmuxCore {
   async refresh(): Promise<void> {
     if (this.disposed) return;
     let liveInfos: tmux.TmuxSessionInfo[] = [];
+    // Phase 16.5.1: the instant the snapshot below is taken. Everything after
+    // this line is asynchronous — the list exec, then one `show-environment`
+    // per unrecognized session on the socket (44 of them on the author's
+    // machine) — so by the time reconcile runs, the list can be hundreds of
+    // milliseconds stale and a session created in between is missing from it
+    // for a reason that has nothing to do with being unreachable. reconcile()
+    // needs this instant to tell "gone" apart from "not born yet".
+    const snapshotAt = Date.now();
     try {
       liveInfos = await tmux.listSessions();
     } catch (err) {
@@ -938,13 +959,32 @@ export class GmuxCore {
     }
 
     const before = this.statusSnapshot();
-    const result = this.manifest.reconcile(await this.identify(liveInfos));
+    const identified = await this.identify(liveInfos);
+    this.pruneStaleCreates();
+    const result = this.manifest.reconcile(identified, {
+      snapshotAt,
+      inFlightIds: new Set([
+        ...this.createsInFlight.keys(),
+        ...this.restoresInFlight
+      ])
+    });
 
+    const previousLive = new Map(this.liveIds);
     this.liveIds.clear();
     this.byTmuxId.clear();
     for (const [sessionId, tmuxId] of result.bindings) {
       this.liveIds.set(sessionId, tmuxId);
       this.byTmuxId.set(tmuxId, sessionId);
+    }
+    // A row reconcile refused to judge keeps the binding createSession /
+    // restoreSession already recorded for it: this map is the one thing that
+    // answers "which tmux session do I attach to", and dropping it would fail
+    // the attach just as surely as the 'restorable' flip did.
+    for (const { record } of result.skipped) {
+      const tmuxId = previousLive.get(record.id);
+      if (tmuxId === undefined || this.byTmuxId.has(tmuxId)) continue;
+      this.liveIds.set(record.id, tmuxId);
+      this.byTmuxId.set(tmuxId, record.id);
     }
 
     if (result.unknownTmuxNames.length > 0) {
@@ -975,6 +1015,21 @@ export class GmuxCore {
     // Phase 6/13.5: harvesting sessions that outlived a gmux restart
     // mid-capture get their watch re-armed (no-op once the id is recorded).
     this.resumeIdHarvests();
+  }
+
+  /**
+   * Forget creates that can no longer be in progress. `tmux new-session`
+   * answers in milliseconds, so a minute is generous by orders of magnitude —
+   * this exists only so a create that threw between writing the row and
+   * spawning the process cannot exempt that row from reconcile for the rest
+   * of the app's life, which would leave a dead session reading 'running' and
+   * never offer it for restore.
+   */
+  private pruneStaleCreates(): void {
+    const cutoff = Date.now() - CREATE_IN_FLIGHT_MAX_MS;
+    for (const [id, startedAt] of this.createsInFlight) {
+      if (startedAt < cutoff) this.createsInFlight.delete(id);
+    }
   }
 
   private statusSnapshot(): Map<string, SessionStatus> {
@@ -1383,7 +1438,10 @@ export class GmuxCore {
       ...(capture !== undefined ? { specstory: capture } : {})
     };
 
-    // §2.4 Step 0: durability record exists BEFORE the process does.
+    // §2.4 Step 0: durability record exists BEFORE the process does — which
+    // is exactly the window a concurrent reconcile must not judge (16.5.1).
+    // Held until the row is bound to a live tmux id below.
+    this.createsInFlight.set(id, now);
     this.manifest.insertSession(record);
 
     // F3 (Phase 12.7, research 21 §8) — LAUNCH BY BARE NAME. The manifest
@@ -1417,12 +1475,14 @@ export class GmuxCore {
     } catch (err) {
       // Spawn never happened — a lingering row would resurrect a session
       // the user never got.
+      this.createsInFlight.delete(id);
       this.manifest.deleteSession(id);
       throw err;
     }
 
     this.liveIds.set(id, info.sessionId);
     this.byTmuxId.set(info.sessionId, id);
+    this.createsInFlight.delete(id);
     // tmux may have deduped the name ("foo-2"), and `new-session -P -F`
     // hands back the pane pid — the F2 forensic anchor, recorded once here
     // because tmux forgets it the moment the dead pane is reaped.

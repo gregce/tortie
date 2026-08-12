@@ -138,6 +138,108 @@ describe('reconcile — statuses', () => {
   });
 });
 
+/**
+ * Phase 16.5.1. reconcile() is the function that decides a session is
+ * unreachable, and its evidence — the caller's tmux list — is taken BEFORE a
+ * long identity pass (one `show-environment` per foreign session; 44 of them
+ * on the author's machine). A session created during that pass is absent from
+ * the list because the list predates it, not because it is gone. Measured
+ * before the fix: `GMUX_SMOKE=create` failed 3 of 5 runs with
+ * SESSION_NOT_FOUND / "status: restorable" on a demonstrably live session.
+ */
+describe('reconcile — rows newer than the snapshot', () => {
+  const rowAt = (
+    id: string,
+    tmuxName: string,
+    createdAt: number,
+    lastSeen = createdAt
+  ): ManifestSessionRecord =>
+    store.insertSession({
+      id,
+      name: tmuxName,
+      tmuxName,
+      projectPath: '/w',
+      cwd: '/w',
+      agent: 'shell',
+      status: 'running',
+      createdAt,
+      argv: ['/bin/zsh'],
+      lastSeen
+    });
+
+  it('does NOT mark a row created after the snapshot restorable', () => {
+    const snapshotAt = 1_000_000;
+    rowAt('id-new', 'brand-new', snapshotAt + 5);
+
+    const result = store.reconcile([], { snapshotAt });
+
+    expect(store.getSession('id-new')?.status).toBe('running');
+    expect(result.restorable).toEqual([]);
+    expect(result.skipped.map((s) => [s.record.id, s.reason])).toEqual([
+      ['id-new', 'created-after-snapshot']
+    ]);
+  });
+
+  it('treats the same millisecond as unproven and skips it', () => {
+    const snapshotAt = 1_000_000;
+    rowAt('id-tie', 'tie', snapshotAt);
+
+    store.reconcile([], { snapshotAt });
+
+    expect(store.getSession('id-tie')?.status).toBe('running');
+  });
+
+  it('does NOT mark a row proven live after the snapshot restorable', () => {
+    const snapshotAt = 1_000_000;
+    rowAt('id-restored', 'restored', snapshotAt - 5_000, snapshotAt + 5);
+
+    const result = store.reconcile([], { snapshotAt });
+
+    expect(store.getSession('id-restored')?.status).toBe('running');
+    expect(result.skipped.map((s) => s.reason)).toEqual([
+      'touched-after-snapshot'
+    ]);
+  });
+
+  it('does NOT judge a row the caller says is mid-create', () => {
+    // The row was written BEFORE the snapshot (§2.4 Step 0 writes it first)
+    // and its tmux session appears after — createdAt alone cannot save it.
+    const snapshotAt = 1_000_000;
+    rowAt('id-creating', 'creating', snapshotAt - 5);
+
+    const result = store.reconcile([], {
+      snapshotAt,
+      inFlightIds: new Set(['id-creating'])
+    });
+
+    expect(store.getSession('id-creating')?.status).toBe('running');
+    expect(result.skipped.map((s) => s.reason)).toEqual(['in-flight']);
+  });
+
+  it('still marks an older, untouched, unclaimed row restorable', () => {
+    const snapshotAt = 1_000_000;
+    rowAt('id-old', 'old', snapshotAt - 60_000);
+
+    const result = store.reconcile([], { snapshotAt });
+
+    expect(store.getSession('id-old')?.status).toBe('restorable');
+    expect(result.restorable.map((r) => r.id)).toEqual(['id-old']);
+    expect(result.skipped).toEqual([]);
+  });
+
+  it('claims a new row normally when it IS in the snapshot', () => {
+    const snapshotAt = 1_000_000;
+    rowAt('id-new', 'brand-new', snapshotAt + 5);
+
+    const result = store.reconcile([live('$7', 'brand-new', 'id-new')], {
+      snapshotAt
+    });
+
+    expect(result.bindings.get('id-new')).toBe('$7');
+    expect(result.skipped).toEqual([]);
+  });
+});
+
 describe('death forensics (migration 003)', () => {
   it('round-trips exit_signal and pane_pid', () => {
     row('id-a', 'work');
