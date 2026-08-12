@@ -40,6 +40,7 @@ import { getTerminal } from '../terminal/drop';
 import { cssZoomOf } from './coords';
 import { scrollBridge } from '../terminal/scroll/surface';
 import type { ZoomRegionId } from './regions';
+import { isSidebarViewId } from '../state/sidebar-views';
 import { useLayout } from '../state/layout';
 import { useZoom } from './store';
 
@@ -76,35 +77,59 @@ function log(line: string): void {
   console.log(`[zoom-probe] ${line}`);
 }
 
+/**
+ * The sidebar view a region belongs to, or null. Asking by ATTRIBUTE rather
+ * than taking the first `.sidebar-view` on the page is what lets the probe
+ * prove the Phase 18.55 claim: press the chord over Search and read Source
+ * Control, which is exactly what the old rule did.
+ */
+function sidebarViewEl(region: ZoomRegionId): HTMLElement | null {
+  if (!isSidebarViewId(region)) return null;
+  return document.querySelector<HTMLElement>(
+    `.sidebar-view[data-view="${region}"]`
+  );
+}
+
 /** Where a region's keyboard focus lives, for dispatching the real chord. */
 function focusTargetFor(region: ZoomRegionId): HTMLElement | null {
+  const view = sidebarViewEl(region);
+  if (view !== null) return view;
   switch (region) {
     case 'terminal':
       return document.querySelector<HTMLElement>(
         '.gmux-terminal-mount textarea'
       );
-    case 'explorer':
-    case 'scm':
-      return document.querySelector<HTMLElement>('.sidebar-view');
     case 'sessions':
       return document.querySelector<HTMLElement>('.session-dock .dock-list');
     case 'editor':
       return document.querySelector<HTMLElement>('.ed-panel');
+    default:
+      // A sidebar view that is not the one on screen: nothing to press on.
+      return null;
   }
 }
 
 /** The element a region's CSS zoom actually lands on. */
 function zoomedElementFor(region: ZoomRegionId): HTMLElement | null {
+  const view = sidebarViewEl(region);
+  if (view !== null) {
+    // Search has no `.sidebar-rest` — zoom lands on the results scroller, or
+    // on the query block while the list is empty (zoom.css says why).
+    return (
+      view.querySelector<HTMLElement>('.sidebar-rest') ??
+      view.querySelector<HTMLElement>('.search-results') ??
+      view.querySelector<HTMLElement>('.search-body')
+    );
+  }
   switch (region) {
-    case 'explorer':
-    case 'scm':
-      return document.querySelector<HTMLElement>('.sidebar-view .sidebar-rest');
     case 'sessions':
       return document.querySelector<HTMLElement>('.session-dock .dock-list');
     case 'editor':
       return document.querySelector<HTMLElement>('.md-content');
     case 'terminal':
       return null; // by design — the terminal changes its font, not its box
+    default:
+      return null; // a sidebar view that is not the one on screen
   }
 }
 

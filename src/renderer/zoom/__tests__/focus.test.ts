@@ -1,4 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import {
+  SIDEBAR_VIEW_DEFAULT,
+  SIDEBAR_VIEW_IDS
+} from '../../state/sidebar-views';
 import { zoomTargetFor } from '../focus';
 import type { ClosestProbe, SessionSurfaceOrientation } from '../focus';
 import { zoomVerbFor } from '../chord';
@@ -25,11 +29,25 @@ describe('which region a zoom press belongs to', () => {
     expect(target(['.gmux-terminal-pane'])).toBe('terminal');
   });
 
-  it('separates Explorer from Source Control by the view attribute', () => {
-    expect(target(['.sidebar-view'], 'top', 'explorer')).toBe('explorer');
-    expect(target(['.sidebar-view'], 'top', 'scm')).toBe('scm');
-    // An unlabelled sidebar view is the SCM default the sidebar itself uses.
-    expect(target(['.sidebar-view'])).toBe('scm');
+  it('sends every sidebar view to its OWN region', () => {
+    // Phase 18.55: the rule used to be `explorer ? 'explorer' : 'scm'`, so
+    // Search resolved to Source Control and ⌘+ over the results list moved a
+    // level the user had not asked to change. Asserted for every view the
+    // sidebar has, so the view added after this one is covered on arrival.
+    for (const view of SIDEBAR_VIEW_IDS) {
+      expect(target(['.sidebar-view'], 'top', view)).toBe(view);
+    }
+    // And the one that matters, said in its own words rather than in a loop.
+    expect(target(['.sidebar-view'], 'top', 'search')).toBe('search');
+    expect(target(['.sidebar-view'], 'top', 'search')).not.toBe('scm');
+  });
+
+  it('falls back to the sidebar default for an unlabelled view', () => {
+    expect(target(['.sidebar-view'])).toBe(SIDEBAR_VIEW_DEFAULT);
+    // A stale or hand-edited attribute is not a region of its own either.
+    expect(target(['.sidebar-view'], 'top', 'timeline')).toBe(
+      SIDEBAR_VIEW_DEFAULT
+    );
   });
 
   it('sends the editor panel to the editor region', () => {

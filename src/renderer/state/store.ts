@@ -54,6 +54,7 @@ import {
   sidebarMaxWidth,
   workAreaWidth
 } from './chrome-geometry';
+import type { SidebarViewId } from './sidebar-views';
 import { captureDefaultForAgent } from './specstory';
 
 // ---------------------------------------------------------------------------
@@ -141,10 +142,14 @@ export type SessionOrientation = 'top' | 'right';
 /**
  * The sidebar hosts ONE view at a time (round 1, activity bar).
  *
- * Phase 14 added 'search'. It sits BETWEEN explorer and scm in the rail, which
- * is VS Code's order and also the order of how often you reach for them.
+ * The views themselves are DATA, in ./sidebar-views, and this is a re-export
+ * so every existing `import type { SidebarViewId } from '../state/store'`
+ * keeps working. Phase 18.55 moved them there because subsystems outside the
+ * store have to enumerate the views — zoom is one — and a union typed out by
+ * hand gave them nothing to enumerate, so they copied the list and one copy
+ * went stale.
  */
-export type SidebarViewId = 'scm' | 'explorer' | 'search';
+export type { SidebarViewId };
 
 /**
  * The layout fill mode put away, so it can be put back exactly (Phase 18

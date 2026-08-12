@@ -14,12 +14,20 @@
  *    handler runs in the capture phase and would otherwise swallow the chord
  *    before the viewer's own bubble-phase handler ever saw it. `'defer'`
  *    means "not ours — let it through untouched".
+ *  - **A sidebar view is its own region, whichever view it is.** The region
+ *    comes from the view's own identifier rather than from a branch that
+ *    names the views it knows, so the sidebar's next view zooms on the day it
+ *    ships instead of quietly moving another view's level.
  *  - **A focused session tab is not the sessions region in TOP orientation.**
  *    There the strip IS the 36px band, which never zooms (regions.ts). The
  *    tab points at a session, so ⌘+ enlarges that session — the text the user
  *    is actually reading — instead of doing nothing.
  */
 
+import {
+  isSidebarViewId,
+  SIDEBAR_VIEW_DEFAULT
+} from '../state/sidebar-views';
 import type { ZoomRegionId } from './regions';
 
 /** Right-hand dock vs. top tab strip; mirrors the store's SessionOrientation. */
@@ -29,6 +37,24 @@ export type ZoomTarget = ZoomRegionId | 'defer';
 
 /** `Element.closest`, narrowed to what the rule below actually needs. */
 export type ClosestProbe = (selector: string) => { view?: string } | null;
+
+/**
+ * A sidebar view zooms as ITSELF: the `data-view` attribute the sidebar
+ * already writes IS the region name, because regions.ts spreads the view ids
+ * into its region list. The line this replaces was
+ * `view === 'explorer' ? 'explorer' : 'scm'`, which meant that focusing Search
+ * and pressing ⌘+ moved the Source Control level instead — a level the user
+ * had not asked to change (Phase 18.55).
+ *
+ * The fallback is the sidebar's own default view, for an element that carries
+ * no `data-view` at all. This return also types the promise the phase makes:
+ * a `SidebarViewId` is assignable to `ZoomRegionId` only for as long as the
+ * region list keeps deriving from the view list, so breaking that derivation
+ * breaks the build here rather than going quiet.
+ */
+function sidebarZoomRegion(view: string | undefined): ZoomRegionId {
+  return isSidebarViewId(view) ? view : SIDEBAR_VIEW_DEFAULT;
+}
 
 /**
  * The rule, as a pure function of "what does an ancestor match?". Kept apart
@@ -46,7 +72,7 @@ export function zoomTargetFor(
   if (closest('.gmux-terminal-pane') !== null) return 'terminal';
 
   const view = closest('.sidebar-view');
-  if (view !== null) return view.view === 'explorer' ? 'explorer' : 'scm';
+  if (view !== null) return sidebarZoomRegion(view.view);
 
   // The right-hand dock has a real list under its band slice; the top strip
   // does not (see the header note), so a tab there defers to its session.

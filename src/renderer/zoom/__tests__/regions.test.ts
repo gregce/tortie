@@ -1,4 +1,11 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import {
+  SIDEBAR_VIEW_IDS,
+  SIDEBAR_VIEW_LABELS
+} from '../../state/sidebar-views';
+import { ZOOM_REGION_LABELS } from '../regions';
 import {
   allAtDefault,
   clampZoom,
@@ -126,6 +133,42 @@ describe('the CSS contract', () => {
     expect(Object.keys(defaultZoomLevels()).sort()).toEqual(
       [...ZOOM_REGIONS].sort()
     );
+  });
+});
+
+/**
+ * The guard that would have caught Phase 18.55. Search shipped in Phase 14,
+ * three phases after zoom, and every check in this file still passed while
+ * zooming Search moved the Source Control level. These assertions fail
+ * instead — including the CSS half, which no amount of typing can see.
+ */
+describe('every sidebar view is a zoomable region', () => {
+  const zoomCss = readFileSync(
+    join(__dirname, '..', 'zoom.css'),
+    'utf8'
+  );
+
+  it.each([...SIDEBAR_VIEW_IDS])('%s has a region, a label and a rule', (view) => {
+    // A region, so it has a level of its own that ⌘+ and ⌘⇧0 can reach.
+    expect(ZOOM_REGIONS).toContain(view);
+    // A label, so the readout names the view the user just zoomed. It is the
+    // view's own name — the readout and the activity rail cannot drift.
+    expect(ZOOM_REGION_LABELS[view]).toBe(SIDEBAR_VIEW_LABELS[view]);
+    // A custom property, and a rule in zoom.css that actually reads it. The
+    // store writes the property for every region either way, so without this
+    // the view would report a level it never applied to anything.
+    expect(zoomCss).toContain(`var(${zoomVarName(view)}, 1)`);
+    expect(zoomCss).toMatch(
+      new RegExp(`\\[data-view='${view}'\\][^{]*\\{[^}]*zoom:`)
+    );
+  });
+
+  it('starts every view at 100% and resets it with ⌘⇧0', () => {
+    const levels = defaultZoomLevels();
+    for (const view of SIDEBAR_VIEW_IDS) {
+      expect(levels[view]).toBe(1);
+      expect(allAtDefault({ ...levels, [view]: 1.5 })).toBe(false);
+    }
   });
 });
 

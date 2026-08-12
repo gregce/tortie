@@ -32,14 +32,26 @@
  * and that list is the `sessions` region.
  */
 
+import {
+  SIDEBAR_VIEW_IDS,
+  SIDEBAR_VIEW_LABELS
+} from '../state/sidebar-views';
+import type { SidebarViewId } from '../state/sidebar-views';
+
 /**
  * The zoomable regions. `sessions` exists only in the right-dock orientation
  * (see the header note); every other region is present in both.
+ *
+ * EVERY SIDEBAR VIEW IS A REGION, and the list says so by spreading the view
+ * ids rather than repeating them (Phase 18.55). Written out by hand, this list
+ * had five members and Search was not among them: Search shipped in Phase 14,
+ * three phases after zoom, and nothing here failed when it did. Spreading the
+ * ids means the next view the sidebar gains is zoomable on the day it lands,
+ * with its own level, its own custom property and its own place in ⌘⇧0.
  */
 export const ZOOM_REGIONS = [
   'terminal',
-  'explorer',
-  'scm',
+  ...SIDEBAR_VIEW_IDS,
   'sessions',
   'editor'
 ] as const;
@@ -48,13 +60,22 @@ export type ZoomRegionId = (typeof ZOOM_REGIONS)[number];
 
 export type ZoomLevels = Record<ZoomRegionId, number>;
 
-/** What the readout calls each region — the user's words, not the DOM's. */
-export const ZOOM_REGION_LABELS: Readonly<Record<ZoomRegionId, string>> = {
+/**
+ * The regions that are not sidebar views. Split out so the labels below can be
+ * assembled rather than listed: a view names itself once, beside its id.
+ */
+const OTHER_REGION_LABELS: Readonly<
+  Record<Exclude<ZoomRegionId, SidebarViewId>, string>
+> = {
   terminal: 'Session',
-  explorer: 'Explorer',
-  scm: 'Source control',
   sessions: 'Sessions',
   editor: 'Editor'
+};
+
+/** What the readout calls each region — the user's words, not the DOM's. */
+export const ZOOM_REGION_LABELS: Readonly<Record<ZoomRegionId, string>> = {
+  ...OTHER_REGION_LABELS,
+  ...SIDEBAR_VIEW_LABELS
 };
 
 /**
@@ -137,14 +158,16 @@ export function zoomVarName(region: ZoomRegionId): string {
   return `--zoom-${region}`;
 }
 
+/**
+ * Every region at 100%. Built from the region list for the same reason the
+ * list is built from the view ids: a defaults map typed out by hand is one
+ * more place a new region can be forgotten, and forgetting it here would give
+ * that region an `undefined` level rather than a visible failure.
+ */
 export function defaultZoomLevels(): ZoomLevels {
-  return {
-    terminal: ZOOM_DEFAULT,
-    explorer: ZOOM_DEFAULT,
-    scm: ZOOM_DEFAULT,
-    sessions: ZOOM_DEFAULT,
-    editor: ZOOM_DEFAULT
-  };
+  return Object.fromEntries(
+    ZOOM_REGIONS.map((region) => [region, ZOOM_DEFAULT])
+  ) as ZoomLevels;
 }
 
 /** Read persisted levels defensively — anything unrecognized falls back to 1. */

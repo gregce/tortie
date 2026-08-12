@@ -14,8 +14,16 @@ otherwise, and docs/research/34 lists what would become public.
 | --- | --- | --- | --- |
 | 1 | **18** chrome layout constraints | SHIPPED `6fd9ff9` | — |
 | 2 | **18.5** book icon, specstory settings, provider vocabulary, single instance lock, launch flag, stale docs | ✅ SHIPPED 2026-08-12 | — |
-| 3 | **18.55** zoom does not reach the search view, user reported | SPECCED BELOW | nothing, 18.5 is committed |
-| 4 | **18.6** home screen: open, create and clone, with the Tortie.sh wordmark | SPEC PENDING | R35, then 18.55 |
+| 3 | **18.55** zoom does not reach the search view, user reported | ✅ SHIPPED 2026-08-12 | — |
+| 4 | **18.6** home screen: open, create and clone | SPEC IN docs/research/35 | nothing, 18.55 is committed |
+
+**Decided for Phase 18.6, 2026-08-12.** The wordmark is **TORTIE.sh**, set as research 35 specifies:
+capitals for the name, lowercase for the suffix, 28 px on 32, weight 600 with the suffix at 400.
+Research 35 raised it as an open question because the domain served nothing when checked. The
+operator owns tortie.sh, which answers the objection. The site returning 404 today is a deployment
+matter and not a reason to change the application.
+The About panel and the installer keep saying **Tortie**, because that is the application's name and
+the wordmark is a wordmark. Revisit only if the operator asks.
 | 4 | **19** durability, with the harness that proves it | SPECCED BELOW | **18.6 landing first** |
 | 5 | **20** the verified backup ring | queued | Phase 19 |
 | 6 | **21** versioned agent recovery contracts, as one migration with resume provenance | queued | Phase 20 |
@@ -835,7 +843,50 @@ created, killed, renamed or adopted. Only `tmux -L gmux` was used. `pkill` was n
 
 ---
 
-## Phase 18.55 — zoom does not reach the search view (user reported, 2026-08-12)
+## Phase 18.55 — zoom does not reach the search view ✅ SHIPPED 2026-08-12 (user reported)
+
+### What landed
+The zoom region now comes from the sidebar view's own identifier, so a view added later is zoomable
+on the day it ships. The specification below is kept as written, because it names the root cause.
+
+- **`src/renderer/state/sidebar-views.ts` is new.** It owns the sidebar's view identity as data:
+  `SIDEBAR_VIEW_IDS`, the `SidebarViewId` type derived from it, `SIDEBAR_VIEW_LABELS`,
+  `SIDEBAR_VIEW_DEFAULT` and `isSidebarViewId`. It imports nothing, because `zoom/regions.ts` is a
+  pure module and `state/store.ts` pulls in the bridge, the settings presets and the context menu.
+- **`src/renderer/state/store.ts` re-exports the type**, so every existing
+  `import type { SidebarViewId } from '../state/store'` keeps working untouched.
+- **`ZOOM_REGIONS` is now `['terminal', ...SIDEBAR_VIEW_IDS, 'sessions', 'editor']`**, which makes
+  `ZoomRegionId` a superset of `SidebarViewId` by construction. The labels are assembled from the
+  three non-view regions plus `SIDEBAR_VIEW_LABELS`, and `defaultZoomLevels()` is built from the
+  region list rather than typed out.
+- **The two way branch in `focus.ts` is gone.** It is now
+  `if (view !== null) return sidebarZoomRegion(view.view)`, which narrows the `data-view` attribute
+  and falls back to `SIDEBAR_VIEW_DEFAULT`. The rule is still a pure function of the `closest` probe,
+  so the whole decision table is still testable without a layout engine.
+- **The CSS rule is `.sidebar-view[data-view='search'] > :not(.view-header)`.** Search is the only
+  view with no `.sidebar-rest`, because the results list is itself the scroller. Naming the band as
+  the exception means the query block, the summary, the results list and all four empty states follow
+  one level.
+- **The guard is in `zoom/__tests__/regions.test.ts`.** It asserts, for every member of
+  `SIDEBAR_VIEW_IDS`, that the view has a region, a label matching the rail's own label, a custom
+  property and a rule in `zoom.css` that reads it. Adding a fourth view with no CSS fails only that
+  guard, which was checked by mutation.
+
+### Measured proof, Tier 3, independent verifier
+The verifier reverted the fix, rebuilt, and reproduced the user's report over CDP: `--zoom-search`
+did not exist, two presses of the zoom chord with focus in the results list moved `--zoom-scm` from
+1 to 1.25, and the readout said "Source control 110%" while the user was looking at Search. On the
+fixed build the same script moved `--zoom-search` from 1 to 1.25 with `--zoom-scm` unchanged at 1,
+and the readout said "Search 110%". Screenshots at 75%, 100% and 175% show the rows, the summary and
+the sticky footer scaling together while the 36 px header band stays fixed. The virtualizer was the
+risk, and it was measured rather than assumed: with `zoom` on the scroller, `clientHeight`,
+`scrollTop` and `scrollHeight` all stay in the element's own coordinate space, so the render window
+arithmetic stays correct. No regression in the explorer, source control, editor, terminal or session
+dock, and the image viewer still handles the chord itself.
+
+---
+
+### The specification, as written before the phase
 
 Runs immediately after Phase 18.5 and before Phase 18.6. It is small, it is self contained, and it
 touches none of the files the other phases own.
@@ -1007,3 +1058,84 @@ which this phase has any reason to touch.
 ### Gates
 The usual battery, plus `npm run conformance:resume:capture` if anything under `agents/registry.ts`,
 `manifest/harvest/**`, `manifest/agents.ts` or `restore/**` changes, which items 6 and 7 will.
+
+---
+
+## Phase 18.6 — the home screen, and cloning a repository (2026-08-12)
+
+Full specification in docs/research/35-home-screen.md, which carries the wireframes, the exact copy,
+the eleven URL rules and the ten failure messages. Read it before building. This entry records the
+decisions and the boundaries.
+
+Runs after Phase 18.55. Both edit `src/renderer/state/store.ts`, and Phase 19 waits on this one for
+the same reason.
+
+### Decided by the operator, 2026-08-12
+1. **The wordmark is TORTIE.sh.** Research 35 raised this as an open question because the domain
+   served nothing when probed. The operator owns tortie.sh, which answers it. The site returning 404
+   today is a deployment matter, not a reason to change the application. About and the installer keep
+   saying Tortie.
+2. **Cloning spawns the system git.** This overturns the operator's earlier preference for adopting a
+   package, and they chose it after seeing the measurements. Do not add a git dependency. The reasons
+   each candidate failed are in research 35 and are not to be re-litigated without new evidence.
+
+### The screen
+A single column 460 px wide, centred in the window, contents left aligned inside it. In order: the
+brand lockup, the promise sentence, three action rows, up to five recent projects, one drop hint.
+
+Actions are rows rather than cards. A card layout forces one action to look primary, and DESIGN.md
+forbids marking a primary with an accent fill at rest. Clone also needs a sentence rather than a
+label, because it does not exist in the product yet.
+
+The left alignment deliberately breaks the centred empty state family in the design specification,
+because the screen now contains a list and a centred list has no stable left edge. That break is
+recorded rather than slipped in.
+
+Recent projects live in a JSON file under the user data directory. **Not the manifest**, which holds
+session restore state and must not carry disposable data. Cap at five, dropping to three in a short
+window.
+
+### Cloning
+The command, the environment and the sequence are specified exactly in research 35. The parts that
+will be got wrong if skimmed:
+
+- **Four credential switches are needed, not one.** `GIT_TERMINAL_PROMPT=0` on its own is beaten by
+  two other mechanisms, both proven by measurement.
+- **`HOME` must be real.** The same private clone went from succeeding in 603 ms to failing when only
+  `HOME` changed.
+- **Never suppress the system git configuration.** The macOS keychain helper is configured there and
+  nowhere else, so suppressing it breaks every private clone.
+- **Full clone, not shallow.** A depth of one left 1 commit and 2 branches on a repository that has
+  36,770 and 372.
+- Clone into a temporary sibling directory and rename it into place, so a failure leaves nothing
+  half formed where the project should be.
+- Cancel with the polite signal on a child that is not detached, and cancel again on quit. Never the
+  hard kill, which leaves the repository mid write.
+- A preflight runs before the clone, and **not when the dialog opens**, because that would fire a
+  network call and a keychain prompt at whatever happened to be on the clipboard.
+
+**Progress is one bar per git phase, showing that phase's own number, reset when the phase changes.**
+There is no overall percentage and no byte denominator. Git prints a cumulative byte figure and never
+a total, so a denominator would be invented. A synthesized overall bar was cut because its weighting
+would have spread the last fifteen percent over 192 of 505 frames.
+
+### Cut, and not to be added back without a reason
+The status dot and the count badge on recent projects. This is the one place the draft crossed the
+Zen document: a number that rises on its own, on a screen where the user cannot act on it, with
+motion on the state DESIGN.md says must be still. The menu bar already carries that information
+completely. Also cut: the synthesized progress bar, the byte denominator, a hardcoded sentence
+claiming nothing was left on disk, and the submodule controls in the dialog.
+
+### Verification
+Tier 2 for the screen, being gates plus screenshot reads at a wide and a narrow window, including the
+first launch state with no recents.
+**Tier 3 for cloning**, because it writes to the filesystem and touches credentials. Prove each of
+these against a real repository: a public clone succeeds and opens as a project; a private clone
+succeeds using the keychain; a private clone with no credential fails with a readable message rather
+than hanging; cancelling leaves nothing behind; and a destination that already exists is refused
+before anything is written.
+
+### What must not regress
+The promise sentence, which is the only line on the screen that says why Tortie exists. Dropping a
+folder onto the window, and the open shortcut. The other full window states that share this file.
+Phase 18's layout work, Phase 18.5's six items and Phase 18.55's zoom fix, all of which are recent.

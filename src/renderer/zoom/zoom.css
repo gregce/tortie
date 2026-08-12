@@ -29,6 +29,28 @@
   zoom: var(--zoom-scm, 1);
 }
 
+/* Search (Phase 18.55). It is the one view with no `.sidebar-rest`: the
+   results list IS the scroller, and SearchView.tsx records why wrapping it in
+   another one is not an option — two scrollbars, and a "Show more" footer
+   that stops sticking. So this rule names the BAND as the exception instead
+   of naming the content, which also means the empty states, the query block
+   and the results list all follow one level without being listed here.
+
+   ZOOM LANDS ON THE SCROLLER ITSELF, which is new for this app and was
+   measured rather than assumed (Electron 43, Chromium 150): with `zoom` on
+   `.search-results`, `clientHeight`, `scrollTop` and `scrollHeight` are all
+   reported in the element's OWN coordinate space — 400/220/2200 local px at
+   0.75 where the on-screen box is still 300 — while only
+   `getBoundingClientRect()` reports the zoomed box. The virtualizer's window
+   is `scrollTop / 22` against `clientHeight`, so both sides of that
+   arithmetic stay in one space and every 22px row stays where the list
+   thinks it is. Zooming the inner spacer instead would put the rows in one
+   space and `scrollTop` in another, and the list would render the wrong
+   window entirely. */
+.sidebar-view[data-view='search'] > :not(.view-header) {
+  zoom: var(--zoom-search, 1);
+}
+
 /* The right-hand session dock's rows. In TOP orientation the tab strip IS the
    band and has no content of its own to zoom (see zoom/regions.ts), so there
    is deliberately no `.stab-list` rule here. */
