@@ -2,6 +2,8 @@
 
 Session: `https://claude.ai/code/session_012PYAqFDkfSKXpwqMpYhySa` — empty directory to installed app, 17 phases, ~40 hours.
 
+This doc covers the phase loop. Its companion [HOW-WE-DROVE-THIS.md](HOW-WE-DROVE-THIS.md) covers how agents opened and verified the real app.
+
 ## The mode
 
 `/effort ultracode` — xhigh reasoning plus multi-agent orchestration, set once at the start and left on. That is what makes the Workflow tool the default rather than an exception: every phase fans out 4–15 agents, and token cost stops being the constraint. Model: Opus 5 (1M context), which matters because a phase brief carries the backlog, the research doc, `CLAUDE.md` and several screenshots.
@@ -32,18 +34,7 @@ Two supporting habits: `/impeccable` loaded before any UI work so design agents 
 
 ## How the app got verified live
 
-Agents drove the real application, not a mock. The techniques that produced the good findings, in rough order of how often they earned their keep:
-
-- **Launch a real instance with an isolated `--user-data-dir`** and drive it over the Chrome DevTools Protocol (`--remote-debugging-port`). Isolation is what made it safe to run this against a machine with 45 live sessions of the operator's real work.
-- **Dispatch real input**, not synthetic state changes: `Input.dispatchKeyEvent` at the focused element, real `PointerEvent` drags, actual `mouseWheel`. That is how Shift+Enter was proven on nine agents and how drag-to-split was checked at 150% and 75% zoom.
-- **Read ground truth from outside the app.** The renderer can lie; `tmux capture-pane`, `display -p '#{pane_width}'`, `ps`, `git show`, and reading `~/.Trash/.DS_Store` for Finder's Put-Back records cannot.
-- **Diff against an authority rather than eyeballing**: rendered git lanes against `git log --graph`, historical diffs against `git show <sha>^:path`, 898 of 898 parent edges, 16 of 16 file-views byte-identical.
-- **Screenshot and then actually look at it.** `GMUX_SHOT` capture, crop with `sips`, read the PNG. Several defects were only visible that way — an icon sitting on a placeholder's first letter, a scrollbar measured at 1.96:1 contrast and genuinely unfindable at 1×.
-- **Measure with numbers, before and after.** 23,000 ms → 567 ms on diffs; a 6,259 ms server stall → 37 ms; 3 ms time-to-first-search-result on an 83,000-file tree.
-- **Build permanent harnesses for what will drift.** `smoke:t1` (restart survival), `smoke:t3` (reboot restore), `conformance:resume` (every agent's resume claim, executable). Agent CLIs change under you; a harness catches it the day it happens instead of the day you reboot.
-- **A gotcha worth inheriting:** Chromium clamps timers to ~1 Hz in a non-frontmost window. One probe reported 996 ms for something that actually took 47 ms. Pass `--disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows`.
-
-Safety rules that made all of this survivable: private tmux socket only, `zz-`prefixed scratch sessions, never `pkill`, never touch a session the agent did not create, and list the operator's sessions before and after to prove nothing moved.
+Agents drove the **real** app — self-driving `GMUX_SMOKE` harness modes, `GMUX_SHOT` screenshots that were actually looked at, and live CDP driving with real input — always under an isolated `--user-data-dir`, always checking ground truth from outside the app (tmux, git, ps, the filesystem). Full detail, including the safety rules that made it survivable on a machine with 45 live sessions: **[HOW-WE-DROVE-THIS.md](HOW-WE-DROVE-THIS.md)**.
 
 ## Three rules learned the hard way
 
