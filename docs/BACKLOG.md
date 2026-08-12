@@ -1,4 +1,21 @@
-# gmux build backlog (queued rounds)
+# Tortie build backlog — COMPLETE
+
+**All 17 phases shipped. Tortie is installed at /Applications/Tortie.app (Phase 17, 2026-08-12).**
+This file is now a HISTORY, not a queue. It is kept because each entry records the root cause, the
+reference screenshots and the decisions behind a phase — that context is why later agents got things
+right. How this queue was run: docs/method/HOW-WE-BUILT-THIS.md and HOW-WE-DROVE-THIS.md.
+
+**Carried forward, deliberately not done** (see BUILD-STATUS.md for the full list):
+- Delete monaco-editor — re-decided at Phase 15.5 against today's evidence: Pierre `/edit` is still
+  experimental at 1.3.5 with the API liable to shift. Trigger to revisit: `/edit` reaches GA.
+- Notarization (Developer ID enrolment), and the operator's own acceptance run: docs/ACCEPTANCE.md.
+
+**To add new work:** append a `## Phase N — <title>` section with the root cause (not just the
+symptom), the reference screenshots as real paths, the verification tier, and what must NOT regress.
+Then record it in the execution order below.
+
+---
+
 
 **EXECUTION ORDER (user-approved 2026-08-10) — batch in this order, do not reshuffle without asking:**
 1. **Batch A** (running): 12.7 durability ✅ · 12.8 nits · 12.85 Tortie iconography
@@ -11,7 +28,7 @@ Research is already complete for 13.5, 14 and 15 — those are spec-complete and
 
 Working queue maintained by the orchestrating session. Reference screenshots are real files — builders must Read them.
 
-## IMMEDIATE — Phase 9.2 bugfixes (standalone commit as soon as Phase 9's workflow finishes)
+## Phase 9.2 bugfixes ✅ SHIPPED (de31057, 86c8f01)
 
 **Bug A (P0, user-hit): agent sessions die at launch — "zsh:1: command not found: codex", pane dead status 127** (ref shot: media_xcreHz54fc/CleanShot 2026-08-09 at 22.13.56@2x.png).
 **Root cause:** gmux.app spawns the tmux server with the GUI launchd environment (PATH=/usr/bin:/bin:...). Agent CLIs live in ~/.local/bin (verified: /Users/gdc/.local/bin/{claude,codex}); non-interactive `zsh -c` doesn't source .zshrc, so PATH never gains them.
@@ -30,7 +47,7 @@ Working queue maintained by the orchestrating session. Reference screenshots are
 1. BEL → needs_input ONLY for agent sessions (agent kind !== 'shell'); shell beeps (tab-completion, ZLE) must never demand attention.
 2. Add noteUserInput(sessionId) to the detector, called from the term input path (where keystrokes/mouse reports are written to the pty); any BEL within ~2000ms after user input to that session is self-inflicted → ignored (applies to agent sessions too). Export the window constant for tests; extend status-detector unit tests: shell+BEL → no needs_input; agent+BEL after user input → no flip; agent+BEL cold → needs_input.
 
-## Phase 10 — agent launching + interaction round (launches when Phase 9 lands)
+## Phase 10 — agent launching + interaction round ✅ SHIPPED (6f34bd2, 38571b1)
 
 Spec inputs: docs/research/11-agent-registry.md (12 agents), user screenshots below.
 
@@ -48,7 +65,7 @@ Spec inputs: docs/research/11-agent-registry.md (12 agents), user screenshots be
 Carried into later phases: **Diff mode is read-only** (edit is one toggle away in File mode) — revisit when `@pierre/diffs/edit` leaves beta. Folder rows lost their material folder icons: @pierre/trees renders a chevron in the leading icon slot and has no per-folder icon surface (see DESIGN-SPEC S3B).
 Deferred (revisit in Phase 16 refactor): delete monaco-editor (98 MB node_modules, ~43 MB of built assets, ~480 LOC), blocked on Pierre `/edit` GA or a CodeMirror 6 swap.
 
-## Phase 12 — dogfood round 2 (user feedback 2026-08-10). Reference screenshots are real files — Read them.
+## Phase 12 — dogfood round 2 ✅ SHIPPED (7499d98 perf, a7a9a7b, 20d7a70)
 
 0. **P0 REGRESSION — large diffs take ~23 SECONDS to open** (user-hit: "the big changeset isn't opening well"). MEASURED by the Phase 11.1 verifier's own probe harness (keep it: /private/tmp/claude-501/-Users-gdc-gmux/ecc455c7-2dc3-4598-9927-35e8f3a31c15/scratchpad/vperf/, probe2.mjs + out-*.json):
    - big file (contentH 400,016px ≈ 20k lines): **openMs 22,954 / 23,372 / 22,093** across three runs — a hard hang on open.
@@ -81,7 +98,7 @@ Deferred (revisit in Phase 16 refactor): delete monaco-editor (98 MB node_module
    - **⌘V image paste, not just drag-and-drop**: an image already on the system clipboard must attach the same way when pasted into a focused agent session (same strategy table, same insertion semantics). Drag-drop and paste share one code path.
    - Verify per agent (claude, codex, gemini, droid, amp, cursor-agent…) what actually works; record VERIFIED vs assumed in the registry, and default any unverified agent to the path fallback.
 
-## Phase 12.2 — BUG: renaming a session grabs the drag handle (user-hit, small, do first)
+## Phase 12.2 — BUG: renaming a session grabs the drag handle ✅ SHIPPED (239a188)
 Symptom: starting a rename makes the row/tab immediately grabbed and movable, so typing/selecting in the rename box is fought by the drag.
 USER-CONFIRMED SCOPE: happens ONLY via right-click → Rename. **fn+F2 rename works perfectly.** That asymmetry is the tell.
 ROOT CAUSE: `src/renderer/app/split/pointer-drag.ts:36` documents itself "Call from a React onPointerDown (**primary button only**)" — but NO caller enforces it. A right-click fires pointerdown with `e.button === 2`, which starts a surface drag; the native context menu then opens over the armed drag, the user picks Rename, and the drag is still tracking the pointer. F2 never goes through pointerdown, which is exactly why it is unaffected.
@@ -91,7 +108,7 @@ Fix (at the source, so no caller can reintroduce it):
 3. Add the missing `renaming` guard to SessionDock.tsx:187 and TerminalRegion.tsx:276 for parity with surface-dnd.ts (which already has it).
 Tests: unit — startSurfaceDrag ignores button 1/2; setRenaming cancels an active drag. Probe — right-click → Rename on a dock row, a strip tab, a right-list row, and a project tab: input appears, nothing moves, typing and text selection work; then confirm left-drag reorder and fn+F2 both still work.
 
-## Phase 12.3 — P0 (TOP PRIORITY, ahead of 12.2 and Phase 13): scrollback must work in AGENT panes, with a visible scrollbar
+## Phase 12.3 — scrollback in AGENT panes + visible scrollbar ✅ SHIPPED (e08c20c)
 **USER-CONFIRMED EVIDENCE (2026-08-10, screenshot media_?/shell-3):** the scrollbar appears and scrolling works in SHELL panes; it is absent and non-functional in AGENT panes. That asymmetry is the whole diagnosis.
 MECHANISM: a shell draws in the NORMAL buffer → xterm has real scrollback → scrollbar + wheel work. An agent TUI switches to the ALTERNATE screen and enables mouse tracking → (i) the alternate screen has no scrollback by definition, (ii) content drawn there never enters tmux's history either, so `copy-mode` alone will NOT recover an alt-screen agent's transcript, and (iii) the wheel is delivered to the app (as arrow keys / SGR mouse reports), which the agent reads as input-history navigation — exactly the user's "it thinks I'm focused in the input box".
 NOT the cause (both ruled out by inspection, do not chase): the Phase-12 image-drop router (listens only to dragover/dragleave/dragend/drop/paste; overlay is pointer-events:none and unmounted unless a drag is armed), and the tmux mouse setting (still `off`, unchanged since Phase 8.1).
@@ -156,7 +173,7 @@ Verify: right-click a tree row → both verbs present and correct; "Open in New 
 ## Phase 13 — accurate per-agent activity detection — SHIPPED 2026-08-10
 **Landed** as `src/main/activity/*` (monitor + panes/process/screen/claude-registry/oracles/hooks); the renderer byte detector and `statusOverrides` are DELETED. Implementation notes, the three places the design was sharpened, and the live acceptance evidence are in docs/research/18-agent-activity.md §9. Residue for a later pass: codex hooks were deliberately not built (they need a `--dangerously-bypass-hook-trust` banner and codex's title oracle is already exact), and the qwen/gemini/pi/droid rows of the acceptance matrix are floor-verified by stand-in rather than live.
 
-## Phase 13 — accurate per-agent activity detection (user-hit: status is ALWAYS "working")
+## Phase 13 — accurate per-agent activity detection ✅ SHIPPED (69bd2ac, 1c18539) — spec retained below
 Symptom (ref shot: media_88j9nVkcw0/CleanShot 2026-08-10 at 14.34.35@2x.png): claude-1 sits at an idle prompt yet the tab reads "working" permanently.
 ROOT CAUSE — **CORRECTED BY RESEARCH (docs/research/18-agent-activity.md §1; my earlier "TUIs redraw constantly" premise was measured FALSE — idle claude/codex/qwen/gemini/agy/pi emit ZERO bytes).** Two defects compose:
 (a) the renderer byte detector can only see the VISIBLE pane (status-detector.ts:25 says so in its own header; unwatch() leaves the last status standing), and
@@ -201,12 +218,12 @@ Context: the exit-143 death was an EXTERNAL targeted `kill -TERM`, not gmux (10 
 **F2 — make the next occurrence diagnosable.** Add `#{pane_dead_signal}` to the poll format (src/main/ipc.ts:495), parse at :508-518, thread deadSignal into reapDeadSession and persist via a new `exit_signal` column (src/main/manifest/store.ts); capture `#{pane_pid}` at create through the existing `new-session -P -F`. Then LABEL it honestly in the UI: src/renderer/app/TerminalRegion.tsx:757 and split/SplitSurface.tsx:151 should say "Session terminated by SIGTERM (external)" rather than the ambiguous "exit 143".
 Verify: a durable claude session no longer matches `pkill -f "$(command -v claude)"` (run the pgrep check, do NOT run pkill); env markers present in the pane; a deliberately externally-killed zz scratch session records its signal and shows the honest label; reconcile with a stale row marks restorable and kills nothing.
 
-## Phase 12.8 — three dogfood nits (icons, agent dropdown, multi-select staging)
+## Phase 12.8 — three dogfood nits ✅ SHIPPED (5301247, 24104bd)
 1. **Replace two agent icons.** Sources: `/Users/gdc/Downloads/qwen.svg` -> `src/renderer/assets/agents/qwen.svg`, and `/Users/gdc/Downloads/meta-icon.svg` (the Meta infinity mark) -> `src/renderer/assets/agents/muse.svg`. They CANNOT be copied as-is: qwen.svg is 200x200 with radial gradients + white fills; meta-icon.svg is 256x171 (wide, non-square) with linear gradients and #0081FB. The existing system is a 24x24 viewBox, single monochrome path, `fill="currentColor"`, rendered crisply at 16px (verified at 3x zoom in Phase 10). Work: flatten each to a recognizable monochrome silhouette, normalize to a 24x24 square viewBox with the Meta mark CENTERED (never stretched — its native aspect is 3:2), keep strokes/counters legible at 16px, and verify at 16px AND 3x zoom in every surface an agent icon appears (tab strip, right dock, create modal, attention overlay, empty state, Settings, hotkey rows). If a monochrome flatten loses the mark's identity, say so and propose keeping brand color for that one rather than shipping mush.
 2. **BUG — the SESSIONS chevron dropdown only offers 3 agents** (ref shot: media_pWjxHbNnNe — "Claude Code / Codex / Shell"). It must list EVERY supported agent, exactly like the create modal does: driven from the registry with detection state (installed = actionable, not-installed = disabled with the same quiet treatment used elsewhere), correct AgentIcon per row, in both the top-strip and right-dock orientations. Root-cause it — the dropdown is almost certainly a hardcoded array rather than a registry read; delete the hardcoded list, do not extend it.
 3. **Multi-select staging/discarding in the SCM Changes list** (ref shot: media_4wrv5WZbyA — today only one file at a time). VS Code parity: click selects; shift-click selects a RANGE; cmd-click toggles individual rows; cmd-A selects all within the group; the row actions and the native context menu then apply to the WHOLE selection (Stage / Unstage / Discard / Open diff), with the discard confirmation naming the count ("Discard changes in 4 files?"). Selection must be keyboard-reachable (shift+arrows extends), survive a git:changed refresh where the files still exist, and clear sensibly when they do not. Applies to every resource group (Staged / Changes / Untracked / Merge).
 
-## Phase 12.10 — image preview, and drag images from the TREE into an agent
+## Phase 12.10 — image preview + tree-to-agent drag ✅ SHIPPED (cb8c172)
 1. **Preview every common image type in the editor pane.** Today images cannot open at all: `fs:readFile` refuses binary content (src/main/fs/ipc.ts:82) and the tab shows "gmux edits text files only". Add a real image viewer for png, jpg/jpeg, gif (animated), webp, avif, bmp, ico, tiff where the platform supports it, and svg.
    - New main-side channel returning bytes/data-URL (append-only to src/shared/ipc.ts) with a SIZE CAP and a friendly over-cap state; never route images through the text path.
    - Viewer: fit-to-pane by default, actual-size toggle, zoom (scroll/⌘+/⌘-/⌘0) and pan when zoomed, a transparency checkerboard, and a quiet metadata line (dimensions, file size, type). Honors prefers-reduced-motion; no animation beyond the image's own.
@@ -219,7 +236,7 @@ Verify: a durable claude session no longer matches `pkill -f "$(command -v claud
    - Dropping onto a SPLIT pane targets the pane under the pointer and focuses it first; while the pane is scrolled, the write goes through the shared cancel-copy-mode-then-write helper (12.3), not a new path.
 Verify: open a png, a transparent png, an animated gif, a large jpg (over the cap), an svg (both modes), and a modified image if the HEAD comparison ships; drag an image from the tree onto a claude pane -> `[Image #N]`; drag the same file onto a folder in the tree -> it MOVES and does not attach; drag onto a shell pane -> quoted path; confirm the two overlays never appear simultaneously.
 
-## Phase 12.11 — zoom with cmd +/- , per pane where possible
+## Phase 12.11 — per-pane zoom ✅ SHIPPED (f343c1b)
 Goal: ⌘+ / ⌘- / ⌘0 enlarge text where the user is working — ideally scoped to the FOCUSED region (an agent session, the session dock, the explorer, the SCM sidebar, the editor), with universal zoom as the acceptable fallback if per-region proves messy.
 TWO MECHANISMS — a terminal does not zoom like a panel:
 1. **Terminal panes = real terminal zoom.** Change xterm `options.fontSize` (not CSS scaling — CSS-scaled terminals go blurry and break cell math), then re-fit and PUSH THE NEW SIZE TO TMUX (resize-pane / the existing resize path) so rows/cols match. Consequence to accept and document: the agent's viewport genuinely changes and it will redraw at the new width — that is what every terminal does, but it must not corrupt scroll position or the tmux pane geometry.
@@ -233,7 +250,7 @@ HAZARDS — verify each, they are why this is not a one-liner:
 FALLBACK (only if per-region is genuinely messy): universal `webContents.setZoomLevel` for the whole window, ⌘0 to reset — but say so explicitly and note terminals will still need their own font-size path to stay crisp.
 Verify: zoom an agent pane (text grows, tmux geometry follows, agent redraws cleanly, scrollbar still accurate, scroll position preserved); zoom the explorer and SCM independently; ⌘0 and ⌘⇧0; drag-to-split and drop-to-attach at 150% and 75%; persistence across relaunch.
 
-## Phase 12.12 — unify the New Session grid, add an inline sessions-position toggle, fix cmd+9
+## Phase 12.12 — shared agent grid, sessions toggle, cmd+9, keymap reference ✅ SHIPPED (f343c1b)
 1. **Unify the ⌘T "New session" agent grid with the empty state's** (refs: modal media_ZFo6nDFygm vs the better empty state media_gAobYLR8AA). The empty state is the target: roomier tiles, per-tile inline status labels ("not installed" on Droid, "early" on Pi) instead of a single caption below the grid, generous hit areas, and a dashed recessive outline on unavailable agents. The modal today is cramped and pushes "Droid not found" into a caption that only describes one agent. Extract ONE shared AgentGrid component used by both surfaces (guardrail: do not clone the markup — the two drifting apart is exactly how this happened), parameterized only by density if the modal genuinely needs to be tighter. Keep the modal's own concerns (name field, directory picker, flag presets) around it.
 2. **Inline toggle for sessions position** (refs: right dock media_imnRxiesrg, top strip media_V8W4UFhMBx). Switching currently requires the View menu. Put a small control in the SESSIONS header beside + and the chevron: a single icon button that swaps between Top and Right, with a tooltip naming the destination ("Move sessions to the top"). Present in BOTH orientations, keyboard reachable, and it must stay in sync with the View menu's radio items (one source of truth in the store — no second piece of state). Also add the verb to the chevron menu for discoverability.
 3. **⌘9 should jump to the LAST project, not the ninth.** ⌘1…⌘9 already exists and already follows visual tab order (App.tsx:228 -> setActiveProjectByIndex; Titlebar.tsx:10 documents it) — the only defect is that with more than nine projects the tail is unreachable. Adopt the browser convention: ⌘1-⌘8 = positions 1-8, ⌘9 = LAST project regardless of count. Update the ⌘/ overlay wording accordingly ("⌘1…⌘8 switch to project, ⌘9 last project"). ⌃Tab MRU cycling already covers the middle.
@@ -247,14 +264,14 @@ Verify: zoom an agent pane (text grows, tmux geometry follows, agent redraws cle
    - Impeccable treatment — this is a reference people read, so typography and rhythm matter more than density; it should be pleasant to scan, not a spreadsheet.
 Verification tier: 2 (single-subsystem UI; one screenshot of the unified grid in both surfaces, one probe that the toggle and ⌘9 behave, no full sweep).
 
-## Phase 12.85 — Tortie iconography (ships early; the RENAME is separate, see Phase 16.5)
+## Phase 12.85 — Tortie iconography ✅ SHIPPED (349a5a0)
 Product philosophy: docs/ZEN-OF-TORTIE.md. Assets: docs/brand/tortie/ (production-ready — do NOT regenerate; the README records the master SHA and forbids wrapping the mark in a rounded square, badge, or any outer chrome).
 1. **App/dock icon** -> `docs/brand/tortie/macos/Tortie.icns` replaces build/icon.icns in electron-builder.yml. Verify in the packaged .app (Dock, Finder, cmd-Tab) at every size — the mark is freestanding, so check it reads at 16px in Finder lists.
 2. **Menu-bar presence** -> a macOS status item using `menu-bar/TortieTemplate.png` + `@2x`. Electron must mark the NativeImage as a template image (`setTemplateImage(true)`) so macOS tints it for light/dark and highlight states. Content per the Zen doc's "What needs me now?": the menu lists sessions needing input across ALL projects (reuse the attention-overlay data), plus Show app / New Session / Quit. NO counters or activity feeds — "a number that rises on its own is not a signal, it is noise in a nicer font."
 3. **Understated in-window presence** — ONE place only, quiet: candidates are the no-projects empty state or a small mark in the titlebar's leading area. Pick one, low contrast, never animated. Propose with a screenshot before adding a second location.
 Verify: icon at all sizes incl. Retina; template image tints correctly in both menu-bar appearances; the status menu reflects real attention state; the in-window mark holds at 1x and 2x without disturbing layout.
 
-## Phase 12.9 — project + file management in the explorer (built on @pierre/trees capabilities)
+## Phase 12.9 — project + file management ✅ SHIPPED (8c32c00 foundations, cb8c172)
 Use the library's own features rather than hand-rolling — read the installed @pierre/trees docs/types first and confirm each API exists at 1.0.0-beta.6 before designing around it.
 1. **Create NEW projects, not just open existing ones.** Today cmd+O (open folder) is the only path. Add "New Project…": pick a parent directory + name, create the folder, optionally `git init` (checkbox, default on), add it as a project tab and focus it, and offer to start a session in it immediately. Also surface "Open Folder…" and "New Project…" together in the + tab menu and the no-projects empty state.
 2. **File operations from the tree via CONTEXT MENU COMPOSITION.** Pierre exposes `composition.contextMenu` + a React `renderContextMenu` prop with trigger modes (right-click / trigger button / both). **Wire it to our EXISTING native menu bridge (ui:popupMenu) — do NOT adopt Shadcn or any DOM-drawn menu; DESIGN.md §3 forbids it.** Actions: New File, New Folder (inline-rename the new row on create, VS Code-style), Rename, Duplicate, Reveal in Finder, Copy Path / Copy Relative Path, and Delete.
@@ -266,7 +283,7 @@ Use the library's own features rather than hand-rolling — read the installed @
 Interactions to get right: every mutation must be reflected by the existing @parcel/watcher + git decorations without a manual refresh; operations must not fight agents writing files concurrently (no long locks, no full-tree rebuilds); renames of open editor tabs should follow the file (tab identity is path-keyed — check src/renderer/editor/tab-identity.ts); and a rename/move of a tracked file must leave git status sane (plain fs rename is correct — git infers the rename).
 Verify: create a project from scratch (with and without git init) and start a session in it; create/rename/duplicate/trash files and folders incl. nested; drag a file into a folder, into a flattened folder, and to the root; attempt a locked drag (.git) and an out-of-root drop and confirm both are refused; trash something and restore it from Finder; filter the tree and confirm dragging is disabled during search; confirm decorations and open tabs stay correct throughout.
 
-## Phase 13.5 — universal RESUME (the other half of the core promise) — spec: docs/research/22-resume-audit.md
+## Phase 13.5 — universal RESUME ✅ SHIPPED (90f9d46, a3dd057, b9b737d, 2951a60)
 **Why this is P1, not a nit:** gmux's promise is that a session comes back WITH ITS CONVERSATION. Today only claude delivers that. The user's live manifest shows muse-1, qwen-1, pi-1 and pi1 with NO resume command armed — after a reboot they return as bare directories. Phase 13 made STATUS universal; resume is still claude-first.
 **The registry is factually wrong and the whole resume column is suspect.** registry.ts claims "No resume mechanics exist (pi v1)"; pi in fact ships `pi --session <path|id>` (deterministic, by full or partial UUID), plus `-c/--continue`, `-r/--resume` (interactive picker), `--fork`, `--no-session`, with JSONL sessions under `~/.pi/agent/sessions/` keyed by working directory and entries carrying id + parentId. ROOT CAUSE of the bad data: the registry was synthesized from specstory-cli, a CAPTURE tool — it knows where transcripts are STORED, not how to RESUME them. Do not trust any resume entry that has not been re-verified hands-on.
 Work (drive it from the audit doc, which lands before this phase):
@@ -282,7 +299,7 @@ Work (drive it from the audit doc, which lands before this phase):
 6. Extend `smoke:t3` so restore is asserted for a NON-claude agent too, not just claude — otherwise this regresses silently.
 Verification tier: 3 (durability, core promise, and a user-reported correctness error).
 
-## Phase 13.7 — configurable scrollback limits + understated diagnostics (spec: docs/research/23-scrollback-limits.md)
+## Phase 13.7 — configurable scrollback limits + diagnostics ✅ SHIPPED inside Batch D (2d75408; src/main/scrollback, src/main/diagnostics, ScrollbackSection.tsx)
 Ships BEFORE the final install. Closes a gap open since day one: docs/research/01-durability-layer.md listed "scrollback memory footprint at scale (20 sessions x 50k lines)" as UNMEASURED, and both current numbers — tmux `history-limit 50000` and the renderer's ~10,000-line xterm cap — were chosen as generous guesses, never benchmarked.
 **MEASURED (docs/research/23-scrollback-limits.md) — use these, do not re-derive:**
 - Cost model, validated to <=1 byte across 12 content shapes: `bytes/line = 40 + 5*stored_cells + 23*extended_cells`. Plain ASCII @162 cols = 850 B; **truecolour @162 = 4,576 B — 5.4x, and truecolour is the COMMON case for agent output**; 256-palette colour is FREE; a blank line is 40 B.
@@ -297,7 +314,7 @@ Ships BEFORE the final install. Closes a gap open since day one: docs/research/0
 4. **Cheap sampling**: reuse the existing 1 Hz all-sessions poll (src/main/activity, ~2.75 ms for 16 panes) rather than adding a second timer; expensive samples (RSS, disk) are lazy/on-open. Hard cost budget stated and measured.
 Verification tier: 2, except any change to the tmux conf or capture paths, which is Tier 3 (durability-adjacent).
 
-## Phase 13.8 — process identity: gmux must be findable in Activity Monitor, and must not leak helpers
+## Phase 13.8 — process identity + PATH-probe leak ✅ SHIPPED inside Batch D (2d75408; src/main/proc, build/after-pack.cjs)
 Triggered by the user searching Activity Monitor for "gmux" and finding only *Cursor's* extension host (named for the open folder). Two distinct problems, both verified on this machine 2026-08-10.
 1. ~~**BUG (P1, leaking now): the login-shell PATH probe never dies.**~~ **DONE in Phase 13.5.1** (`src/main/tmux/resolve.ts`) — it was pulled forward because it stopped being a leak and became a deadlock: `captureLoginShellPath()` could hang FOREVER, and it wedged 13.5's conformance harness for 9 minutes with zero cases started. execFile's callback fires on stdio CLOSE and its `timeout` SIGTERMs only the direct child; this machine's `zsh -lic` forks a copy of itself that inherits stdout, so the pipe never closed and every `resolveBinary()` caller — session create, agent detection, the harness — blocked behind it. Three changes: settle on the MARKERS rather than on close (which also turned "hang 3 s then use the fallback PATH" into "capture the user's real PATH in ~890 ms" on this machine — the leak was costing correctness, not just time), an independent deadline that resolves whatever the child does, and `spawn(..., { detached: true })` so the probe owns its process group and can be killed as a group. It has to be spawn: **execFile forwards only a whitelist of options and silently DROPS `detached`** — verified here, the probe kept gmux's own pgid, where `kill(-pid)` would have signalled the app itself. Regression test reproduces the fork (`resolve.test.ts` — "shell that forks a stdout-holding child"), and asserts both that the promise settles AND that the fork is dead afterwards. NOTE: five orphaned probes from earlier app launches (oldest 12 h) were still alive on this machine when the fix landed; they predate it and were deliberately left alone rather than pkill'd.
 2. **Make every gmux-owned process self-identifying.**
@@ -319,7 +336,7 @@ Scope to design in research, then build:
 4. **Replace-in-files** if it falls out cheaply and safely (preview + undo); otherwise defer explicitly.
 Constraints: results must feel instant on a 50k-file repo; no indexing daemon that burns battery unless it clearly wins; must work with the existing Pierre tree + editor tab model; MIT/Apache licensing; and it must integrate with the search-open path used by the SCM/tree (one open-file bus).
 
-## Phase 14.2 — filter-field and explorer-header nits (small; ships right after 14)
+## Phase 14.2 — filter-field and explorer-header nits ✅ SHIPPED inside Batch D (2d75408; src/renderer/controls)
 1. **The magnifier icon overlaps the placeholder text** in filter inputs (ref: media_cCNxQGXzlY — the glyph sits on top of the "F" in "Filter shortcuts"). The input needs left padding that accounts for the leading icon, not just an absolutely-positioned glyph over unpadded text. **Fix it in the SHARED input component, not per-instance** — it affects at least the Settings keyboard filter (12.12) and the explorer file filter (12.9), and any future filter will inherit the same bug otherwise. Check every filter/search field in the app after the fix, incl. the Phase 14 search view's query box.
 2. **Too little space between the explorer header and the filter field** (ref: media_PYbOpnUjQ5 — the field is crammed against the EXPLORER title bar). Give it the spacing the token scale calls for, and check the same header/field rhythm in the SCM and Search views so the three panes agree.
 3. **Explorer header gains three actions** (VS Code parity, and all three are things the user reaches for constantly now that file operations exist): **New File**, **New Folder**, and **Collapse All Folders**. Icons from codicons, matching the existing header accessory treatment; tooltips; keyboard reachable; New File/New Folder create inline-renaming rows in the current folder (reusing the 12.9 create flow, not a second implementation); Collapse All collapses every expanded folder in one action and is a no-op (disabled, not error) when nothing is expanded.
@@ -352,7 +369,7 @@ FIX — ONE source of truth, main never guesses:
 - The ˅ chevron menu verb, the inline toggle and the View radios must all be provably one value — add a test.
 Verification tier: 2, but prove BOTH directions live: toggle in the UI → menu checkmark follows; choose in the menu → dock/strip moves; then change a hotkey (forcing rebuildAppMenu) and confirm the radios did NOT reset; then relaunch and confirm persistence.
 
-## Phase 15 — SpecStory bundling (research: docs/research/13-specstory-integration.md)
+## Phase 15 — SpecStory bundling ✅ SHIPPED (77e4434, 3f064d1)
 Bundle specstory-cli into gmux.app; per-session capture toggle (watch-wrap preserving resume argv); sync-at-session-end affordance; Settings: cloud login status / device auth / last sync.
 
 ## STANDING GUARDRAILS — apply to EVERY phase from 10 onward (integrators enforce before commit)
@@ -362,7 +379,7 @@ User-mandated: no messy growth or duplication accrual.
 3. **No duplicated resolution/config logic.** tmux binary/config resolution goes in ONE module (src/main/tmux/resolve.ts) consumed by supervisor AND attach host. Same rule generally: search for an existing helper before writing one (grep first).
 4. **Integrator dup-scan before commit:** quick pass for copy-paste blocks introduced by parallel builders (same 10+ line block in 2+ files → extract).
 
-## Phase 15.5 — codebase-context research: re-baseline BEFORE refactoring (blocks Phase 16)
+## Phase 15.5 — codebase re-baseline ✅ SHIPPED (81a1658 → docs/research/25-codebase-context.md)
 **Why this exists (user directive):** Phase 16's spec was written when the tree was much smaller and names stale figures (`store.ts ~950 lines`, `main/ipc.ts ~1,019`, `app.css ~1,528`). Twelve phases have landed since, adding whole domains that did not exist when it was specced — search, symbols, quickopen, scrollback, diagnostics, proc, graph, image, drop, zoom, keymap, controls. Refactoring from that map would tidy the wrong files and miss the real accretion. Re-derive the baseline first; write it to docs/research/25-codebase-context.md.
 Must produce:
 1. **The domain model AS IT NOW IS** — every module grouped by the domain it actually serves (not the folder it happens to sit in), with each domain's public surface and its dependents. Name the boundaries that are real and the ones that leak.
@@ -374,7 +391,7 @@ Must produce:
 7. **A PRIORITIZED refactor plan for Phase 16** — ordered by reader-pain-per-unit-of-risk, with an explicit "do not touch" list for anything durability-critical (tmux, manifest, restore, activity) unless the change is provably behaviour-preserving.
 Read-only; no src changes. Runs AFTER Phase 15 lands so the baseline is final.
 
-## Phase 16 — refactor & consolidation pass (drive it from docs/research/25-codebase-context.md, NOT the stale figures below; after Phase 15.5; Pierre deletions land first so this is done once)
+## Phase 16 — refactor & consolidation ✅ SHIPPED (ec5ded2 defects, b650966, 07969f7) — drove from docs/research/25-codebase-context.md, NOT the stale figures below; after Phase 15.5; Pierre deletions land first so this is done once)
 User-identified growth pressure to resolve (line counts as of Phase 9-in-flight):
 - store.ts ~950 lines → split into per-domain zustand slices (sessions, projects, git, editor, ui) with a composed store; no behavior change.
 - main/ipc.ts ~1,019 lines → per-domain registrars (sessions.ipc.ts, git.ipc.ts, fs.ipc.ts, ui.ipc.ts) composed in one registerAll.
@@ -388,7 +405,7 @@ User-identified growth pressure to resolve (line counts as of Phase 9-in-flight)
 - **material-icon-theme is a build-time-only dep** (read by `src/renderer/icons/generate-file-icons.mjs`, whose output is committed) but sits in `dependencies` and ships 6 MB into the asar — move it to devDependencies.
 - Gate: full test/smoke battery green; zero behavior changes intended — snapshot screenshots before/after must match except where CSS colocation shifts nothing visible.
 
-## Phase 16.5 — rename gmux -> Tortie (AFTER the refactor, BEFORE the final install)
+## Phase 16.5 — rename gmux -> Tortie ✅ SHIPPED (8346d64 migration, 3e54812, 09b216e)
 Sequenced here deliberately: it is invasive, so do it once on a settled codebase. Philosophy + naming: docs/ZEN-OF-TORTIE.md.
 Rename productName, appId (com.specstory.gmux -> com.specstory.tortie), window title, menus, About, README/BUILD-STATUS and user-facing copy. Internal identifiers stay unless they leak to the user.
 **MIGRATION HAZARDS — each can destroy the user's work if handled carelessly:**
