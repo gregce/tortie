@@ -14,8 +14,8 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import type { IpcRendererEvent } from 'electron';
 import type {
-  EventChannel,
-  EventPayloadMap,
+  AllEventChannel,
+  AllEventPayloadMap,
   GmuxActivityExtras,
   GmuxAgentExtras,
   GmuxAgentRegistryExtras,
@@ -51,9 +51,7 @@ import type {
   GmuxSpecStoryExtras,
   GmuxTermStreamExtras,
   GmuxViewMenuExtras,
-  MenuActionId,
   SearchProgress,
-  SessionActivityInfo,
   TermExitPayload,
   Unsubscribe
 } from '../shared/ipc';
@@ -74,10 +72,6 @@ import {
   termExitChannel,
   termInputChannel
 } from '../shared/ipc';
-import type { SymbolIndexProgress } from '../shared/symbols';
-import type { GmuxSettings } from '../shared/settings';
-import type { ScrollbackNotice } from '../shared/scrollback';
-import type { SessionCaptureNotice } from '../shared/types';
 
 /**
  * THE typed wrapper over ipcRenderer.invoke — spans every channel in
@@ -90,13 +84,26 @@ function invoke<C extends GmuxInvokeChannel>(
   return ipcRenderer.invoke(channel, ...args) as Promise<GmuxInvokeRes<C>>;
 }
 
-/** Typed wrapper over ipcRenderer.on with unsubscribe. */
-function on<C extends EventChannel>(
+/**
+ * THE typed wrapper over ipcRenderer.on — the event-half mirror of `invoke`
+ * above, and the only place a static event channel is subscribed.
+ *
+ * Typed over `AllEventPayloadMap` (guardrail 1, Phase 16): it used to span
+ * only the frozen `EventPayloadMap` three, so the other seven channels were
+ * hand-written blocks here with the payload asserted by annotation. Every
+ * static channel now states its payload once, in src/shared/ipc.ts, and both
+ * ends are checked against it.
+ *
+ * The four per-session/per-search TEMPLATE channels (term:data/exit, the
+ * search stream) stay bespoke below: their channel name is computed at call
+ * time, so there is no key for a map to hold.
+ */
+function on<C extends AllEventChannel>(
   channel: C,
-  cb: (...payload: EventPayloadMap[C]) => void
+  cb: (...payload: AllEventPayloadMap[C]) => void
 ): Unsubscribe {
   const listener = (_e: IpcRendererEvent, ...payload: unknown[]): void => {
-    cb(...(payload as EventPayloadMap[C]));
+    cb(...(payload as AllEventPayloadMap[C]));
   };
   ipcRenderer.on(channel, listener);
   return () => ipcRenderer.removeListener(channel, listener);
@@ -275,13 +282,7 @@ const scrollback: NonNullable<GmuxScrollbackExtras['scrollback']> = {
   stats: () => invoke('scrollback:stats'),
   session: (sessionId) => invoke('scrollback:session', sessionId),
   report: () => invoke('scrollback:report'),
-  onNotice: (cb) => {
-    const listener = (_e: IpcRendererEvent, notice: ScrollbackNotice): void => {
-      cb(notice);
-    };
-    ipcRenderer.on(EVT_SCROLLBACK_NOTICE, listener);
-    return () => ipcRenderer.removeListener(EVT_SCROLLBACK_NOTICE, listener);
-  }
+  onNotice: (cb) => on(EVT_SCROLLBACK_NOTICE, cb)
 };
 
 /**
@@ -323,16 +324,7 @@ const symbols: NonNullable<GmuxSymbolsExtras['symbols']> = {
   query: (input) => invoke('symbols:query', input),
   ensure: (repoPath) => invoke('symbols:ensure', repoPath),
   release: (repoPath) => invoke('symbols:release', repoPath),
-  onProgress: (cb) => {
-    const listener = (
-      _e: IpcRendererEvent,
-      progress: SymbolIndexProgress
-    ): void => {
-      cb(progress);
-    };
-    ipcRenderer.on(EVT_SYMBOLS_PROGRESS, listener);
-    return () => ipcRenderer.removeListener(EVT_SYMBOLS_PROGRESS, listener);
-  }
+  onProgress: (cb) => on(EVT_SYMBOLS_PROGRESS, cb)
 };
 
 /**
@@ -363,13 +355,7 @@ const specstory: NonNullable<GmuxSpecStoryExtras['specstory']> = {
   // The capture stream's one push: a session-end sync that failed, or a
   // capture that was requested at create and declined. Nothing is emitted
   // when capture is working.
-  onNotice: (cb) => {
-    const listener = (_e: IpcRendererEvent, notice: SessionCaptureNotice): void => {
-      cb(notice);
-    };
-    ipcRenderer.on(EVT_CAPTURE_NOTICE, listener);
-    return () => ipcRenderer.removeListener(EVT_CAPTURE_NOTICE, listener);
-  }
+  onNotice: (cb) => on(EVT_CAPTURE_NOTICE, cb)
 };
 
 /**
@@ -450,52 +436,25 @@ const api: GmuxApi &
   // header's inline toggle (not the menu) is what moved it.
   setSessionsPosition: (position) => invoke('ui:sessionsPosition', position),
   // Phase 8.2 optional extras: first-quit toast flow (DESIGN.md §4 ⌘Q).
-  onQuitRequested: (cb) => {
-    const listener = (_e: IpcRendererEvent): void => {
-      cb();
-    };
-    ipcRenderer.on(EVT_QUIT_REQUESTED, listener);
-    return () => ipcRenderer.removeListener(EVT_QUIT_REQUESTED, listener);
-  },
+  onQuitRequested: (cb) => on(EVT_QUIT_REQUESTED, cb),
   quit: () => invoke('app:quit'),
   // Phase 6 optional extras (top-level, feature-detected): login item.
   getLoginItem: () => invoke('app:getLoginItem'),
   setLoginItem: (openAtLogin) => invoke('app:setLoginItem', openAtLogin),
   // Native app-menu actions (top-level, feature-detected by the shell).
-  onMenuAction: (cb) => {
-    const listener = (_e: IpcRendererEvent, action: MenuActionId): void => {
-      cb(action);
-    };
-    ipcRenderer.on(EVT_MENU_ACTION, listener);
-    return () => ipcRenderer.removeListener(EVT_MENU_ACTION, listener);
-  },
+  onMenuAction: (cb) => on(EVT_MENU_ACTION, cb),
   // Phase 10 (S13) optional extras: persisted settings + Settings window +
   // per-agent launch-flag catalogs, feature-detected by both renderers.
   // Phase 13 optional extras: per-session activity facts that are not the
   // status (⌘J excerpt, last-output time) now that detection lives in main,
   // plus the self-inflicted-input notice that clears needs_input.
-  onActivityChanged: (cb) => {
-    const listener = (
-      _e: IpcRendererEvent,
-      updates: SessionActivityInfo[]
-    ): void => {
-      cb(updates);
-    };
-    ipcRenderer.on(EVT_ACTIVITY_CHANGED, listener);
-    return () => ipcRenderer.removeListener(EVT_ACTIVITY_CHANGED, listener);
-  },
+  onActivityChanged: (cb) => on(EVT_ACTIVITY_CHANGED, cb),
   noteTerminalInput: (sessionId) => invoke('activity:noteInput', sessionId),
   settingsGet: () => invoke('settings:get'),
   settingsSet: (patch) => invoke('settings:set', patch),
   openSettings: () => invoke('settings:openWindow'),
   agentFlagPresets: () => invoke('agents:flagPresets'),
-  onSettingsChanged: (cb) => {
-    const listener = (_e: IpcRendererEvent, settings: GmuxSettings): void => {
-      cb(settings);
-    };
-    ipcRenderer.on(EVT_SETTINGS_CHANGED, listener);
-    return () => ipcRenderer.removeListener(EVT_SETTINGS_CHANGED, listener);
-  }
+  onSettingsChanged: (cb) => on(EVT_SETTINGS_CHANGED, cb)
 };
 
 contextBridge.exposeInMainWorld('gmux', api);

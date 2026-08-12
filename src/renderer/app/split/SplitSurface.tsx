@@ -24,7 +24,8 @@ import { endedTitle, statusVisual } from '../status';
 import {
   RenameInput,
   ResumeMark,
-  closeSession,
+  EndSessionButton,
+  SavedMark,
   isOutsideProject,
   sessionAriaLabel,
   sessionMenuItems,
@@ -115,25 +116,9 @@ function SplitHeader({
         title={visual.label}
         aria-label={sessionAriaLabel(session, visual)}
       />
-      {status === 'restorable' ? (
-        <span className="split-saved" title="Saved — ready to restore">
-          <Codicon name="history" size={12} />
-        </span>
-      ) : null}
+      {status === 'restorable' ? <SavedMark className="split-saved" /> : null}
       <span className="split-header-spacer" />
-      <button
-        type="button"
-        className="split-close"
-        tabIndex={-1}
-        aria-label={ended ? `Remove ${session.name}` : `End ${session.name}`}
-        title={ended ? 'Remove session' : 'End session…'}
-        onClick={(e) => {
-          e.stopPropagation();
-          closeSession(session);
-        }}
-      >
-        <Codicon name="close" size={14} />
-      </button>
+      <EndSessionButton session={session} ended={ended} className="split-close" />
     </div>
   );
 }

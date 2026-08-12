@@ -13,7 +13,7 @@
  */
 
 import { spawn } from 'node:child_process';
-import { gmuxError } from '../tmux/errors';
+import { gmuxError } from '../errors';
 
 export interface GitResult {
   /** Process exit code (-1 when killed by signal). */

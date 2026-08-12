@@ -24,7 +24,7 @@
 import { realpath } from 'node:fs/promises';
 import { basename, dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { isProtectedFsPath } from '@shared/fs-ops';
-import { gmuxError } from '../tmux/errors';
+import { gmuxError } from '../errors';
 
 /** A path that has been proven to live inside the project root. */
 export interface ResolvedFsPath {

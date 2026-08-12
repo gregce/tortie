@@ -53,7 +53,7 @@ vi.mock('../../proc/guarded', () => ({
 
 // The account facts and the PATH probe are the two things sync.ts reaches
 // outside itself for; neither is what these tests are about.
-vi.mock('../../settings/specstory-ipc', () => ({
+vi.mock('../status-ipc', () => ({
   readAuthFacts: () => ({ signedIn: false, email: null })
 }));
 vi.mock('../resolve', async (importActual) => {

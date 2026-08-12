@@ -7,6 +7,7 @@
 import { describe, expect, it } from 'vitest';
 import type { AgentsScanResult, DetectedAgent } from '@shared/types';
 import { buildAgentOptions, defaultAgentChoice } from '../agents';
+import { LAUNCHABLE_AGENT_IDS } from '../../../main/agents/registry';
 
 function row(over: Partial<DetectedAgent> & Pick<DetectedAgent, 'id'>): DetectedAgent {
   return {
@@ -63,6 +64,23 @@ describe('buildAgentOptions', () => {
     const scan = scanOf([row({ id: 'droid', displayName: 'Factory Droid CLI' })]);
     const options = buildAgentOptions(scan, BOTH);
     expect(options[0]?.label).toBe('Droid');
+  });
+});
+
+describe('the static picker list mirrors main', () => {
+  /**
+   * `LAUNCHABLE_OPTIONS` in state/agents.ts is a hand-written copy of main's
+   * launchable registry — ids AND order — that nothing type-checks, so an
+   * eleventh agent added to the registry would silently never appear in ⌘T
+   * until someone edited the renderer too (research 25 §3, Tier 3). The
+   * labels are a DELIBERATE difference ("Cursor" vs the registry's "Cursor
+   * CLI"), so what is asserted here is the part that must not differ.
+   */
+  it('offers exactly main\'s launchable agents, in registry order', () => {
+    const ids = buildAgentOptions(null, BOTH)
+      .map((o) => o.id)
+      .filter((id) => id !== 'shell');
+    expect(ids).toEqual([...LAUNCHABLE_AGENT_IDS]);
   });
 });
 

@@ -102,4 +102,3 @@ export {
   type BlockGuard
 } from './control-parser';
 
-export { GmuxError, gmuxError, isGmuxError } from './errors';

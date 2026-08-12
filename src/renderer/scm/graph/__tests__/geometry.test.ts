@@ -10,10 +10,10 @@ import {
   pathMergeOut,
   pathShift,
   laneCap
-} from '../graph-geometry';
-import { DEFAULT_LANE_CAP } from '../graph/cap';
-import { LANE_COLOR_VARS } from '../graph/colors';
-import type { GraphLane, GraphRowLayout } from '../graph-geometry';
+} from '../geometry';
+import { DEFAULT_LANE_CAP } from '../cap';
+import { LANE_COLOR_VARS } from '../colors';
+import type { GraphLane, GraphRowLayout } from '../geometry';
 
 const lane = (sha: string, color?: number): GraphLane =>
   color === undefined ? { sha } : { sha, color };

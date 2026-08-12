@@ -10,6 +10,8 @@
  * Ownership: src/main/conformance/**.
  */
 
+import { stripAnsi } from '../ansi';
+
 // ---------------------------------------------------------------------------
 // Result shapes
 // ---------------------------------------------------------------------------
@@ -161,14 +163,6 @@ export function makeNonce(length = 8, rand: () => number = Math.random): string 
   return out;
 }
 
-/** CSI/OSC/two-byte escapes — the same shapes restore/command.ts strips. */
-// eslint-disable-next-line no-control-regex
-const CSI_RE = /\x1b\[[0-9;:?]*[ -/]*[@-~]/g;
-// eslint-disable-next-line no-control-regex
-const OSC_RE = /\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g;
-// eslint-disable-next-line no-control-regex
-const ESC2_RE = /\x1b[@-_]/g;
-
 /**
  * Reduce a pane capture to bare lowercase alphanumerics.
  *
@@ -180,10 +174,7 @@ const ESC2_RE = /\x1b[@-_]/g;
  * hex nonces make an accidental 16-char collision a non-event.
  */
 export function normalizeForToken(text: string): string {
-  return text
-    .replace(OSC_RE, '')
-    .replace(CSI_RE, '')
-    .replace(ESC2_RE, '')
+  return stripAnsi(text)
     .toLowerCase()
     .replace(/[^0-9a-z]/g, '');
 }

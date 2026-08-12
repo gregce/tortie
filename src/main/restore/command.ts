@@ -7,6 +7,15 @@
  * runner (see __tests__/command.test.ts).
  */
 
+import { stripAnsi } from '../ansi';
+
+/**
+ * Re-exported so restore's own import sites (and `restore/index.ts`) keep the
+ * name they have always used; the implementation lives in `main/ansi.ts`,
+ * which is now the only one in the process (research 25 §3 B1).
+ */
+export { stripAnsi };
+
 /** Argument characters that never need quoting in POSIX shells. */
 const SAFE_ARG = /^[A-Za-z0-9_\-./=:@%+,]+$/;
 
@@ -59,23 +68,6 @@ export function buildSnapshotReplayCommand(snapshotPath: string): string {
   return ` cat ${shellQuoteArg(snapshotPath)}; printf '${SEPARATOR}'`;
 }
 
-/** CSI sequences (colors, cursor) — enough for capture-pane -e output. */
-// eslint-disable-next-line no-control-regex
-const CSI_RE = /\x1b\[[0-9;:?]*[ -/]*[@-~]/g;
-/** OSC sequences (titles, hyperlinks), BEL- or ST-terminated. */
-// eslint-disable-next-line no-control-regex
-const OSC_RE = /\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g;
-/** Bare two-byte escapes (RIS, charset shifts, ST leftovers). */
-// eslint-disable-next-line no-control-regex
-const ESC2_RE = /\x1b[@-_]/g;
-
-/**
- * Strip ANSI escape sequences for plain-text assertions (smoke harness) and
- * blank-line detection. Handles CSI and OSC (BEL- or ST-terminated).
- */
-export function stripAnsi(text: string): string {
-  return text.replace(OSC_RE, '').replace(CSI_RE, '').replace(ESC2_RE, '');
-}
 
 /**
  * Trim a capture-pane snapshot for storage: drop trailing blank lines (the

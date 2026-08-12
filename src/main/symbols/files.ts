@@ -22,11 +22,6 @@ import { buildListFilesArgs } from '../search/files-args';
 import { rgBinaryPath } from '../search/resolve';
 import { grammarFor } from './languages';
 
-export interface ListedFile {
-  /** Repo-root relative, forward slashes. */
-  relPath: string;
-}
-
 /**
  * Every file in `repoPath` that gmux can extract symbols from.
  *

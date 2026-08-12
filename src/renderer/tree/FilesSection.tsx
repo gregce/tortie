@@ -10,9 +10,10 @@
  * module's own git:status fetcher (see git-status.ts).
  */
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import type { GitFileStatus } from '@shared/types';
 import { useApp } from '../state/store';
+import { onRepoChanged } from '../state/repo-changed';
 import { Codicon } from '../icons';
 import { useTreeGitStatus } from './git-status';
 import { useFileTree } from './store';
@@ -107,26 +108,17 @@ export function FilesSection({
 
   // Refresh listings + decorations when the repo changes on disk
   // (git:changed fires on worktree/index/HEAD changes — branch flips too).
-  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    const gmux = window.gmux as typeof window.gmux | undefined;
-    if (!gmux || !project) return;
-    const unsubscribe = gmux.git.onChanged((repoPath) => {
+    if (!project) return;
+    // The 150 ms coalescing window (checkout touches many files) is now the
+    // renderer-wide one in state/repo-changed.ts, which every other surface
+    // shares — so the tree, Changes, History and the editor all repaint in
+    // the same tick instead of over 150 ms of visible disagreement.
+    return onRepoChanged((repoPath) => {
       if (repoPath !== project.path) return;
-      if (refreshTimer.current !== null) clearTimeout(refreshTimer.current);
-      refreshTimer.current = setTimeout(() => {
-        refreshTimer.current = null;
-        void refreshLoaded();
-        if (!externalStatus) void refreshStatus();
-      }, 150); // coalesce bursts (checkout touches many files)
+      void refreshLoaded();
+      if (!externalStatus) void refreshStatus();
     });
-    return () => {
-      unsubscribe();
-      if (refreshTimer.current !== null) {
-        clearTimeout(refreshTimer.current);
-        refreshTimer.current = null;
-      }
-    };
   }, [project, refreshLoaded, refreshStatus, externalStatus]);
 
   const toggleCollapsed = (): void => {

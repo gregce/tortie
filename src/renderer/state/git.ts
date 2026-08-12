@@ -11,6 +11,7 @@ import { create } from 'zustand';
 import type { GitLogEntry, GitStatusResult } from '@shared/types';
 import { groupFiles } from '../scm/groups';
 import { errorPayload, errorText, useApp } from './store';
+import { onRepoChanged } from './repo-changed';
 
 // Re-export the pure grouping module so SCM components can keep importing
 // everything git-shaped from this store module.
@@ -113,16 +114,12 @@ export function gitErrorLine(err: unknown): string {
 // Store
 // ---------------------------------------------------------------------------
 
-/** git:changed debounce — watcher bursts (branch flips) cost one status. */
-const CHANGED_DEBOUNCE_MS = 200;
-
 let initialized = false;
 
 export const useGit = create<GitState>((set, get) => {
   const gmux = window.gmux as typeof window.gmux | undefined;
 
   // Non-reactive bookkeeping (not in state: no renders on timer churn).
-  const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
   const inflightStatus = new Map<string, Promise<void>>();
   const rerunAfter = new Set<string>();
 
@@ -192,23 +189,18 @@ export const useGit = create<GitState>((set, get) => {
     init() {
       if (initialized || !gmux) return;
       initialized = true;
-      gmux.git.onChanged((repoPath) => {
+      // Debounced once for the whole renderer (state/repo-changed.ts): this
+      // store used to keep its own 200 ms timer map, one of four windows that
+      // made the sidebar contradict itself for 150 ms after every commit.
+      onRepoChanged((repoPath) => {
         // Only repos something has looked at — ignore unknown paths.
         if (get().repos[repoPath] === undefined) return;
-        const existing = debounceTimers.get(repoPath);
-        if (existing !== undefined) clearTimeout(existing);
-        debounceTimers.set(
-          repoPath,
-          setTimeout(() => {
-            debounceTimers.delete(repoPath);
-            void get().refreshStatus(repoPath);
-            // HEAD may have moved (commit from a session terminal) — keep
-            // History honest when it has been loaded.
-            if (get().repos[repoPath]?.log !== null) {
-              void get().refreshLog(repoPath);
-            }
-          }, CHANGED_DEBOUNCE_MS)
-        );
+        void get().refreshStatus(repoPath);
+        // HEAD may have moved (commit from a session terminal) — keep
+        // History honest when it has been loaded.
+        if (get().repos[repoPath]?.log !== null) {
+          void get().refreshLog(repoPath);
+        }
       });
     },
 

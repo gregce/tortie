@@ -37,15 +37,21 @@ import type {
 } from '@shared/symbols';
 import type { ExtractedSymbol } from './extract';
 import { listIndexableFiles } from './files';
-import { BATCH_SIZE, SymbolPool } from './pool';
+import { BATCH_SIZE, IDLE_EVICT_MS, SymbolPool } from './pool';
 import type { FileStamp, SymbolPersistence } from './persist';
 import { SymbolTable } from './store';
 
 /** Coalescing window for watcher-driven refreshes. */
 const WATCH_DEBOUNCE_MS = 300;
 
-/** In-memory tables idle this long give their memory back. */
-export const IDLE_EVICT_MS = 30 * 60 * 1000;
+/**
+ * In-memory tables idle this long give their memory back — the same window
+ * after which the worker pool gives its threads back, which is why it is
+ * `pool.ts`'s constant rather than a second copy of the number here: the two
+ * halves of "an idle project costs nothing" have to expire together
+ * (research 25 §3, Tier 3). Re-exported for `symbols/index.ts`.
+ */
+export { IDLE_EVICT_MS };
 
 /**
  * At most one progress message per repo per this many ms.

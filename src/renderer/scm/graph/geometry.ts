@@ -22,9 +22,9 @@
  * costs width when there is topology to show.
  */
 
-import { DEFAULT_LANE_CAP } from './graph/cap';
-import { hueKeyOf } from './graph/colors';
-import { CYCLE_LENGTH } from './graph/types';
+import { DEFAULT_LANE_CAP } from './cap';
+import { hueKeyOf } from './colors';
+import { CYCLE_LENGTH } from './types';
 
 // ---------------------------------------------------------------------------
 // Constants (research 24-d3 §3.1)

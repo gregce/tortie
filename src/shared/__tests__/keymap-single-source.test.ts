@@ -17,11 +17,10 @@
  * documentation naming a shortcut is what we want. Only code is scanned.
  */
 
-import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { join, relative, resolve, sep } from 'node:path';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-
-const SRC = resolve(__dirname, '..', '..');
+// The scanner this guardrail shares with ipc-single-bridge.test.ts.
+import { SRC, relPath, sourceFiles, stripComments } from './source-scan';
 
 /** The modifier glyphs. A bare ↩ or ⇥ is punctuation; a modifier is not. */
 const MODIFIER_GLYPHS = /[⌘⌥⇧⌃]/;
@@ -43,69 +42,16 @@ const ALLOWED: Readonly<Record<string, string>> = {
   // The inverse of acceleratorToDisplay, at the native-menu boundary: a
   // display hint (already produced by the keymap) back to an Electron
   // accelerator for Menu.popup. It reads glyphs; it does not author them.
-  'main/ipc.ts': 'glyph → accelerator parser for native popup menus',
+  'main/menu-popup.ts': 'glyph → accelerator parser for native popup menus',
   // Harness console output, never user-visible.
   'renderer/zoom/shot-probe.ts': 'screenshot-probe logging'
 };
-
-function sourceFiles(dir: string, out: string[] = []): string[] {
-  for (const name of readdirSync(dir)) {
-    const full = join(dir, name);
-    if (statSync(full).isDirectory()) {
-      if (name === '__tests__') continue;
-      sourceFiles(full, out);
-    } else if (name.endsWith('.ts') || name.endsWith('.tsx')) {
-      out.push(full);
-    }
-  }
-  return out;
-}
-
-/**
- * Blank out comments so only executable text is scanned. Block comments are
- * tracked across lines; a line comment counts only when the `//` is not
- * inside a string on that line, which is conservative in the right direction
- * — an unrecognised comment is scanned, never skipped.
- */
-function stripComments(source: string): string {
-  const out: string[] = [];
-  let inBlock = false;
-  for (const line of source.split('\n')) {
-    let text = line;
-    if (inBlock) {
-      const end = text.indexOf('*/');
-      if (end < 0) {
-        out.push('');
-        continue;
-      }
-      text = text.slice(end + 2);
-      inBlock = false;
-    }
-    for (;;) {
-      const start = text.indexOf('/*');
-      if (start < 0) break;
-      const end = text.indexOf('*/', start + 2);
-      if (end < 0) {
-        text = text.slice(0, start);
-        inBlock = true;
-        break;
-      }
-      text = text.slice(0, start) + text.slice(end + 2);
-    }
-    const slashes = text.indexOf('//');
-    if (slashes >= 0 && !/['"`]/.test(text.slice(0, slashes))) {
-      text = text.slice(0, slashes);
-    }
-    out.push(text);
-  }
-  return out.join('\n');
-}
 
 describe('the keymap is the only place a chord is spelled', () => {
   it('finds no modifier glyph in code outside src/shared/keymap.ts', () => {
     const offenders: string[] = [];
     for (const file of sourceFiles(SRC)) {
-      const rel = relative(SRC, file).split(sep).join('/');
+      const rel = relPath(file);
       if (ALLOWED[rel] !== undefined) continue;
       const lines = stripComments(readFileSync(file, 'utf8')).split('\n');
       lines.forEach((line, i) => {
@@ -118,9 +64,7 @@ describe('the keymap is the only place a chord is spelled', () => {
   });
 
   it('keeps the allow-list honest — every entry still exists', () => {
-    const present = new Set(
-      sourceFiles(SRC).map((f) => relative(SRC, f).split(sep).join('/'))
-    );
+    const present = new Set(sourceFiles(SRC).map(relPath));
     for (const rel of Object.keys(ALLOWED)) {
       expect(present.has(rel), `${rel} is allow-listed but gone`).toBe(true);
     }

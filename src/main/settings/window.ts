@@ -14,6 +14,7 @@
 
 import { join } from 'node:path';
 import { app, BrowserWindow } from 'electron';
+import { WINDOW_BACKGROUND } from '@shared/window-chrome';
 import {
   getSettingsWindowBounds,
   saveSettingsWindowBounds
@@ -44,7 +45,7 @@ export function openSettingsWindow(): void {
     title: 'Settings',
     show: false,
     // Same pre-paint material as the app (--bg-canvas) — no launch flash.
-    backgroundColor: '#131417',
+    backgroundColor: WINDOW_BACKGROUND,
     // Native titled window (standard traffic lights) — deliberately NOT the
     // main window's hiddenInset chrome.
     webPreferences: {

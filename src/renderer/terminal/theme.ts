@@ -8,10 +8,23 @@
 
 import type { ITheme } from '@xterm/xterm';
 
+/**
+ * The two colours the capture path needs as a NON-optional `string`.
+ *
+ * `ITheme` types every field `string | undefined`, so every `theme.background
+ * ?? …` in src/renderer/terminal/capture/** had been ending in a literal —
+ * seven copies of the two values below, and a silent second source of truth
+ * for the terminal's material (guardrail 5, Phase 16). They are named here,
+ * in the one file DESIGN.md §1.6 sanctions as a token mirror, and the capture
+ * path imports them instead of retyping them.
+ */
+export const TERMINAL_BACKGROUND = '#131417'; //  mirrors --bg-canvas
+export const TERMINAL_FOREGROUND = '#D8DBE2'; //  DESIGN.md §1.6 foreground
+
 /** DESIGN.md §1.6 “Terminal palette (ships as `terminalTheme` const)”. */
 export const terminalTheme: ITheme = {
-  background: '#131417',
-  foreground: '#D8DBE2',
+  background: TERMINAL_BACKGROUND,
+  foreground: TERMINAL_FOREGROUND,
   cursor: '#E8EAED',
   cursorAccent: '#131417',
   selectionBackground: 'rgba(77, 157, 232, 0.30)',

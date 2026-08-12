@@ -28,7 +28,7 @@
 
 import type { ContentSearchInput } from '@shared/ipc';
 import { SEARCH_LIMITS } from '@shared/ipc';
-import { gmuxError } from '../tmux/errors';
+import { gmuxError } from '../errors';
 
 /**
  * One user glob → the ripgrep globs it means, VS Code-style.

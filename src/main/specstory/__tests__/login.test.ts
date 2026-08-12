@@ -29,7 +29,7 @@ import {
   loginSessionActive,
   startLoginSession,
   submitLoginCode
-} from '../specstory-login';
+} from '../login';
 
 const STUB = join(__dirname, 'fake-specstory-login.cjs');
 

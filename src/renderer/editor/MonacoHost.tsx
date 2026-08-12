@@ -15,6 +15,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type * as monacoNs from 'monaco-editor';
 import type { Monaco } from './monaco-impl';
+import { GMUX_MONACO_THEME } from './monaco-theme-name';
 import {
   getLoadedMonaco,
   loadMonaco,
@@ -222,7 +223,7 @@ export function MonacoHost({
         // Created at the CURRENT zoom so a file opened into an already-zoomed
         // editor never paints one frame at 12px and then jumps.
         ...baseOptions(zoomRef.current),
-        theme: 'gmux-dark'
+        theme: GMUX_MONACO_THEME
       });
     }
     const ce = codeEditor.current;

@@ -22,7 +22,7 @@ import type { IpcMain, WebContents } from 'electron';
 import { randomUUID } from 'node:crypto';
 import { searchResultsChannel } from '@shared/ipc';
 import type { SearchProgress } from '@shared/ipc';
-import { gmuxError } from '../tmux/errors';
+import { gmuxError } from '../errors';
 import { resolveProjectRoot } from '../fs/paths';
 import { handle } from '../typed-ipc';
 import { readSearchContext } from './context';

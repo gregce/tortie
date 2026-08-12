@@ -19,7 +19,7 @@ import { rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Session } from '@shared/types';
-import type { GmuxCore } from '../ipc';
+import type { GmuxCore } from '../sessions';
 import type { ManifestSessionRecord } from '../manifest';
 import { deleteSnapshot } from '../restore/snapshots';
 import * as tmux from '../tmux';

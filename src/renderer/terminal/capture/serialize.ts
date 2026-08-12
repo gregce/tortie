@@ -23,6 +23,7 @@
  */
 
 import type { IBufferCell, ITheme, Terminal } from '@xterm/xterm';
+import { TERMINAL_BACKGROUND, TERMINAL_FOREGROUND } from '../theme';
 
 export interface HtmlRange {
   /** Absolute buffer line index, inclusive. */
@@ -99,7 +100,7 @@ export function paletteColor(theme: ITheme, index: number): string {
     const v = 8 + (index - 232) * 10;
     return hex(v, v, v);
   }
-  return theme.foreground ?? '#D8DBE2';
+  return theme.foreground ?? TERMINAL_FOREGROUND;
 }
 
 function rgbColor(value: number): string {
@@ -167,8 +168,8 @@ function readStyle(cell: IBufferCell, theme: ITheme): CellStyle {
   if (cell.isInverse() !== 0) {
     // Swap the RESOLVED colors — the live renderer inverts the real theme,
     // so hardcoding a gray (as the upstream serializer does) is a visible lie.
-    const fgWas = fg ?? theme.foreground ?? '#D8DBE2';
-    const bgWas = bg ?? theme.background ?? '#131417';
+    const fgWas = fg ?? theme.foreground ?? TERMINAL_FOREGROUND;
+    const bgWas = bg ?? theme.background ?? TERMINAL_BACKGROUND;
     fg = bgWas;
     bg = fgWas;
   }
@@ -335,10 +336,10 @@ export function serializeAsHtml(
 
   const wrapper: string[] = [
     `color:${
-      includeGlobalBackground ? (theme.foreground ?? '#D8DBE2') : '#000000'
+      includeGlobalBackground ? (theme.foreground ?? TERMINAL_FOREGROUND) : '#000000'
     }`,
     `background-color:${
-      includeGlobalBackground ? (theme.background ?? '#131417') : '#ffffff'
+      includeGlobalBackground ? (theme.background ?? TERMINAL_BACKGROUND) : '#ffffff'
     }`,
     `font-family:${fontFamily}`,
     `font-size:${fontSizePx}px`,

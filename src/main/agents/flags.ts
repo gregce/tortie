@@ -74,7 +74,8 @@ export type ResumeRepass =
 export interface FlagPreset {
   /**
    * Exact argv token(s), space-separated when the flag takes a fixed value
-   * (e.g. "--sandbox danger-full-access"). Split with presetArgs().
+   * (e.g. "--sandbox danger-full-access"); one preset can therefore be more
+   * than one argv token.
    */
   flag: string;
   /** Short toggle label for the create-session modal / Settings. */
@@ -614,39 +615,19 @@ export const NON_REGISTRY_FLAG_PRESETS: Record<string, AgentFlagCatalog> = {
 };
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Why there are no helpers here
 // ---------------------------------------------------------------------------
-
-/** Catalog lookup across registry and non-registry agents. */
-export function getFlagCatalog(agentId: string): AgentFlagCatalog | null {
-  return (
-    (AGENT_FLAG_PRESETS as Record<string, AgentFlagCatalog>)[agentId] ??
-    NON_REGISTRY_FLAG_PRESETS[agentId] ??
-    null
-  );
-}
-
-/**
- * Presets safe to OFFER in the UI: verified against the installed build.
- * RESEARCH presets stay in the data (and in Settings' "unverified" section)
- * but must not be silently appended to an argv.
- */
-export function verifiedPresets(catalog: AgentFlagCatalog): FlagPreset[] {
-  return catalog.presets.filter((p) => p.provenance === 'VERIFIED');
-}
-
-/** Split a preset's `flag` field into argv tokens (fixed values included). */
-export function presetArgs(preset: FlagPreset): string[] {
-  return preset.flag.split(' ');
-}
-
-/**
- * Append the selected presets' tokens to a launch OR resume argv.
- * Every cataloged CLI accepts its options after the (sub)command, so
- * appending at the end is correct for both `claude --resume <id>` and
- * `codex resume <id>` shapes; see each catalog's resumeRepass/resumeNote for
- * whether that acceptance is verified.
- */
-export function appendPresets(argv: readonly string[], presets: readonly FlagPreset[]): string[] {
-  return [...argv, ...presets.flatMap((p) => presetArgs(p))];
-}
+//
+// This file used to end with four exported helpers — `getFlagCatalog`,
+// `verifiedPresets`, `presetArgs` and `appendPresets` — and NOTHING in the app
+// called any of them (research 25 §5.1). They were a second, dead
+// implementation of "checked presets → argv": the live one is in the renderer
+// (CreateSessionModal builds `extraArgs`, state/store.ts passes them), and
+// main's real surface over this data is `getFlagCatalogViews()` in
+// settings/ipc.ts, which builds its own wire view. Deleting them removes the
+// copy that could have disagreed with the shipping one.
+//
+// `NON_REGISTRY_FLAG_PRESETS` above stays deliberately: it is parked data for
+// BACKLOG item 8 (the day amp et al. become launchable), not a dead symbol.
+// It lost its only reader with `getFlagCatalog`, which is why this note is
+// here rather than a `knip` entry telling a future agent to delete it.

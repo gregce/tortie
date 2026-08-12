@@ -1,5 +1,11 @@
-/* Terminal pane + host. Tokens with dark fallbacks so the pane renders
-   correctly before the design stream's tokens.css lands. */
+/* Terminal pane + host.
+   Guardrail 5 (Phase 16): every colour here is a bare token reference. This
+   file used to carry a `var(--token, #literal)` fallback on thirteen
+   declarations, from the parallel build when the design stream's tokens.css
+   had not landed yet. It has landed — styles/globals.css imports it, and both
+   BrowserWindow entries import globals.css — so a fallback could never fire
+   as anything but a WRONG colour if a token were ever renamed or retuned.
+   A silent second copy of the dark ramp is worse than a missing colour. */
 
 .gmux-terminal-host {
   display: flex;
@@ -8,7 +14,7 @@
   height: 100%;
   min-width: 0;
   min-height: 0;
-  background: var(--bg-canvas, #131417);
+  background: var(--bg-canvas);
 }
 
 .gmux-terminal-host > .gmux-terminal-pane {
@@ -22,7 +28,7 @@
   height: 100%;
   min-width: 0;
   min-height: 0;
-  background: var(--bg-canvas, #131417);
+  background: var(--bg-canvas);
   overflow: hidden;
 }
 
@@ -65,14 +71,14 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  color: var(--text-muted, #838996);
+  color: var(--text-muted);
   font-size: 13px;
   line-height: 20px;
   user-select: none;
 }
 
 .gmux-terminal-empty-title {
-  color: var(--text-secondary, #a8adb8);
+  color: var(--text-secondary);
   font-size: 15px;
   line-height: 22px;
   font-weight: 600;
@@ -89,15 +95,15 @@
   gap: 8px;
   text-align: center;
   padding: 24px;
-  background: var(--bg-scrim, rgba(9, 10, 12, 0.55));
-  color: var(--text-secondary, #a8adb8);
+  background: var(--bg-scrim);
+  color: var(--text-secondary);
   font-size: 13px;
   line-height: 20px;
   z-index: 2;
 }
 
 .gmux-terminal-overlay .gmux-terminal-overlay-title {
-  color: var(--text-primary, #e8eaed);
+  color: var(--text-primary);
   font-size: 15px;
   line-height: 22px;
   font-weight: 600;
@@ -106,7 +112,7 @@
 .gmux-terminal-overlay .gmux-terminal-overlay-detail {
   max-width: 420px;
   overflow-wrap: anywhere;
-  color: var(--text-muted, #838996);
+  color: var(--text-muted);
   font-size: 12px;
   line-height: 18px;
 }
@@ -114,20 +120,20 @@
 .gmux-terminal-overlay button {
   margin-top: 4px;
   padding: 4px 14px;
-  border: 1px solid var(--border-strong, #3a3e48);
+  border: 1px solid var(--border-strong);
   border-radius: var(--r-sm, 4px);
-  background: var(--bg-raised, #22252b);
-  color: var(--text-primary, #e8eaed);
+  background: var(--bg-raised);
+  color: var(--text-primary);
   font-size: 13px;
   font-family: inherit;
   cursor: pointer;
 }
 
 .gmux-terminal-overlay button:hover {
-  background: var(--bg-active, #2a2e36);
+  background: var(--bg-active);
 }
 
 .gmux-terminal-overlay button:focus-visible {
   outline: none;
-  box-shadow: var(--focus-ring, 0 0 0 2px rgba(77, 157, 232, 0.6));
+  box-shadow: var(--focus-ring);
 }

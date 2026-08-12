@@ -89,6 +89,59 @@ export function ResumeMark({
 }
 
 /**
+ * The × that ends (or, for an ended session, removes) a session.
+ *
+ * All three surfaces render exactly this button and used to render three
+ * copies of it — 20 identical lines in the tab strip, the split header and
+ * the dock row, differing ONLY in the class name (research 25 §3, Tier 2).
+ * What was duplicated is not markup, it is two pieces of user-facing
+ * vocabulary: the verb flips between End and Remove on `ended`, and the
+ * accessible name and the tooltip have to flip together. Three copies is
+ * three chances for a screen reader to be told "End" while the pointer is
+ * told "Remove".
+ *
+ * The class stays a prop because the three surfaces genuinely size and place
+ * the button differently; the behaviour does not vary and so is not a prop.
+ */
+export function EndSessionButton({
+  session,
+  ended,
+  className
+}: {
+  session: Session;
+  ended: boolean;
+  className: string;
+}): React.JSX.Element {
+  return (
+    <button
+      type="button"
+      className={className}
+      tabIndex={-1}
+      aria-label={ended ? `Remove ${session.name}` : `End ${session.name}`}
+      title={ended ? 'Remove session' : 'End session…'}
+      onClick={(e) => {
+        e.stopPropagation();
+        closeSession(session);
+      }}
+    >
+      <Codicon name="close" size={14} />
+    </button>
+  );
+}
+
+/**
+ * The "saved — ready to restore" glyph, rendered by the same three surfaces
+ * under three class names and one shared tooltip.
+ */
+export function SavedMark({ className }: { className: string }): React.JSX.Element {
+  return (
+    <span className={className} title="Saved — ready to restore">
+      <Codicon name="history" size={12} />
+    </span>
+  );
+}
+
+/**
  * The one session context menu (S4): Rename, Restore/Restart when ended,
  * Copy directory path, End session… / Remove. `renameTarget` is the
  * renamingSessionId value the calling surface listens for (rows use the

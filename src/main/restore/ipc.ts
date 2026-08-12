@@ -15,24 +15,10 @@
  * cycle.
  */
 
-import type { IpcMain, IpcMainInvokeEvent } from 'electron';
-import type { AllInvokeChannel, AllInvokeReq, AllInvokeRes } from '@shared/ipc';
-import { getGmuxCore } from '../ipc';
+import type { IpcMain } from 'electron';
+import { getGmuxCore } from '../sessions';
+import { handle } from '../typed-ipc';
 import { getLoginItemState, setLoginItemState } from './login-item';
-
-/** Typed ipcMain.handle wrapper over the full (frozen + appended) map. */
-function handle<C extends AllInvokeChannel>(
-  ipc: IpcMain,
-  channel: C,
-  fn: (
-    event: IpcMainInvokeEvent,
-    ...args: AllInvokeReq<C>
-  ) => Promise<AllInvokeRes<C>> | AllInvokeRes<C>
-): void {
-  ipc.handle(channel, (event, ...args) =>
-    fn(event, ...(args as AllInvokeReq<C>))
-  );
-}
 
 export function registerRestoreIpc(ipc: IpcMain): void {
   handle(ipc, 'sessions:restore', async (_e, sessionId) =>

@@ -81,13 +81,13 @@ import {
   gutterWidth,
   hueSlot,
   laneCap
-} from './graph-geometry';
+} from './geometry';
 import type {
   GraphLane,
   GraphLaneColor,
   GraphRowLayout,
   GraphSegment
-} from './graph-geometry';
+} from './geometry';
 import './graph.css';
 
 // ---------------------------------------------------------------------------

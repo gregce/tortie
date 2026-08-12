@@ -20,6 +20,7 @@ import { existsSync, readdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import type { AgentsScanResult, DetectedAgent } from '@shared/types';
+import { stripAnsi } from '../ansi';
 import { runGuarded } from '../proc/guarded';
 import { extraBinDirs, getUserPath, resolveBinaryAgainst } from '../tmux/resolve';
 import type { AgentRegistryEntry, VersionProbe } from './registry';
@@ -111,12 +112,16 @@ export function expandDirs(
 // Version probe (exported pure parts for tests)
 // ---------------------------------------------------------------------------
 
-/** Strip ANSI escape sequences (droid colors its --version output). */
-export function stripAnsi(text: string): string {
-  // CSI sequences + bare escapes; covers SGR colors and cursor movement.
-  // eslint-disable-next-line no-control-regex
-  return text.replace(/\u001b\[[0-9;?]*[ -/]*[@-~]|\u001b[@-Z\\-_]/g, '');
-}
+/**
+ * Strip ANSI escape sequences (droid colors its --version output).
+ *
+ * Re-exported from `main/ansi.ts` — this module used to carry its own weaker
+ * copy with no OSC branch and no `:` in the CSI parameter class, so an agent
+ * whose `--version` output used colon-SGR or an OSC title left escape residue
+ * in `extractVersion()`'s answer, and therefore in the `helpVerifiedVersion`
+ * comparand and the text in Settings → Agents (research 25 §3 B1).
+ */
+export { stripAnsi };
 
 /**
  * Distill a version string from raw probe output. Default: first non-empty

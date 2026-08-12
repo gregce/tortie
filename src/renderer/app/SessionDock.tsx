@@ -27,7 +27,8 @@ import { useNow } from './format';
 import {
   RenameInput,
   ResumeMark,
-  closeSession,
+  EndSessionButton,
+  SavedMark,
   isOutsideProject,
   sessionAriaLabel,
   sessionTooltip,
@@ -116,26 +117,8 @@ function DockRow({
         <span className="srow-space" />
         <ResumeMark session={session} />
         <span className={`dot dot-${visual.dot}`} />
-        {status === 'restorable' ? (
-          <span className="srow-saved" title="Saved — ready to restore">
-            <Codicon name="history" size={12} />
-          </span>
-        ) : null}
-        <button
-          type="button"
-          className="srow-close"
-          tabIndex={-1}
-          aria-label={
-            ended ? `Remove ${session.name}` : `End ${session.name}`
-          }
-          title={ended ? 'Remove session' : 'End session…'}
-          onClick={(e) => {
-            e.stopPropagation();
-            closeSession(session);
-          }}
-        >
-          <Codicon name="close" size={14} />
-        </button>
+        {status === 'restorable' ? <SavedMark className="srow-saved" /> : null}
+        <EndSessionButton session={session} ended={ended} className="srow-close" />
       </div>
     </li>
   );

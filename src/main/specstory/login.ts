@@ -37,7 +37,7 @@ import { killProcessGroup, trackGuardedChild } from '../proc/guarded';
 // Non-negotiable on EVERY specstory invocation (see its declaration): without
 // it each run blocks ~2.5 s on a GitHub HEAD and prints an update banner —
 // here, that banner would land on top of the device-code prompt.
-import { NO_VERSION_CHECK } from '../specstory';
+import { NO_VERSION_CHECK } from './resolve';
 
 /** A sign-in nobody finished. Long enough to find the email, then read it. */
 export const LOGIN_IDLE_TIMEOUT_MS = 10 * 60_000;

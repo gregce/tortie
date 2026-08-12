@@ -8,19 +8,19 @@
  * ⌘T-modal defaults and the Settings window stay in lockstep.
  */
 
-import { BrowserWindow } from 'electron';
 import type { IpcMain } from 'electron';
 import { EVT_SETTINGS_CHANGED } from '@shared/ipc';
 import type {
   AgentFlagCatalogs,
   AgentFlagCatalogView,
-  GmuxSettings,
-  GmuxSettingsPatch
+  GmuxSettings
 } from '@shared/settings';
 import type { LaunchableAgentId } from '@shared/types';
 import { AGENT_FLAG_PRESETS } from '../agents/flags';
 import { rebuildAppMenu } from '../menu';
-import { registerSpecStoryStatusIpc } from './specstory-ipc';
+import { handle } from '../typed-ipc';
+import { broadcastEvent } from '../typed-events';
+import { registerSpecStoryStatusIpc } from '../specstory';
 import { getSettings, updateSettings } from './store';
 import { openSettingsWindow } from './window';
 
@@ -59,11 +59,7 @@ export function getFlagCatalogViews(): AgentFlagCatalogs {
 // ---------------------------------------------------------------------------
 
 function broadcastSettings(settings: GmuxSettings): void {
-  for (const win of BrowserWindow.getAllWindows()) {
-    if (!win.isDestroyed()) {
-      win.webContents.send(EVT_SETTINGS_CHANGED, settings);
-    }
-  }
+  broadcastEvent(EVT_SETTINGS_CHANGED, settings);
 }
 
 /** Did the patch change the persisted hotkey map? (menu rebuild trigger) */
@@ -72,9 +68,9 @@ function hotkeysChanged(before: GmuxSettings, after: GmuxSettings): boolean {
 }
 
 export function registerSettingsIpc(ipc: IpcMain): void {
-  ipc.handle('settings:get', () => getSettings());
+  handle(ipc, 'settings:get', () => getSettings());
 
-  ipc.handle('settings:set', (_e, patch: GmuxSettingsPatch) => {
+  handle(ipc, 'settings:set', (_e, patch) => {
     const before = getSettings();
     const next = updateSettings(patch);
     if (hotkeysChanged(before, next)) {
@@ -86,11 +82,11 @@ export function registerSettingsIpc(ipc: IpcMain): void {
     return next;
   });
 
-  ipc.handle('settings:openWindow', () => {
+  handle(ipc, 'settings:openWindow', () => {
     openSettingsWindow();
   });
 
-  ipc.handle('agents:flagPresets', () => getFlagCatalogViews());
+  handle(ipc, 'agents:flagPresets', () => getFlagCatalogViews());
 
   // Phase 15: the SpecStory section's status pull + its two auth actions. It
   // registers here rather than from src/main/index.ts because the Settings

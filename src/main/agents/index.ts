@@ -7,6 +7,7 @@
  */
 
 import type { IpcMain } from 'electron';
+import { handle } from '../typed-ipc';
 import { getAgentAvailability } from './availability';
 import { listDetectedAgents, rescanAgents } from './detection';
 import { multilineKeyTable } from './registry';
@@ -60,8 +61,8 @@ export {
  *    off the registry exactly as drop:strategies serves `imageDrop`)
  */
 export function registerAgentsIpc(ipc: IpcMain): void {
-  ipc.handle('agents:availability', () => getAgentAvailability());
-  ipc.handle('agents:list', () => listDetectedAgents());
-  ipc.handle('agents:rescan', () => rescanAgents());
-  ipc.handle('agents:multilineKeys', () => multilineKeyTable());
+  handle(ipc, 'agents:availability', () => getAgentAvailability());
+  handle(ipc, 'agents:list', () => listDetectedAgents());
+  handle(ipc, 'agents:rescan', () => rescanAgents());
+  handle(ipc, 'agents:multilineKeys', () => multilineKeyTable());
 }

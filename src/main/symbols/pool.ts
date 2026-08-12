@@ -93,11 +93,6 @@ export class SymbolPool {
     });
   }
 
-  /** Threads currently alive. Zero before the first query, zero after eviction. */
-  get workerCount(): number {
-    return this.slots.length;
-  }
-
   private pump(): void {
     while (this.queue.length > 0) {
       const slot = this.freeSlot();

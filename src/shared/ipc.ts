@@ -64,8 +64,6 @@ export interface InvokeChannelMap {
 
 export type InvokeChannel = keyof InvokeChannelMap;
 
-export type InvokeReq<C extends InvokeChannel> = InvokeChannelMap[C]['req'];
-export type InvokeRes<C extends InvokeChannel> = InvokeChannelMap[C]['res'];
 
 // ---------------------------------------------------------------------------
 // Event channels (main → renderer, via webContents.send)
@@ -84,8 +82,6 @@ export interface EventPayloadMap {
   /** One session's status flipped (cheap, no full list). */
   'status:changed': [sessionId: string, status: SessionStatus];
 }
-
-export type EventChannel = keyof EventPayloadMap;
 
 /**
  * Per-session terminal output stream (main → renderer).
@@ -336,27 +332,6 @@ export interface GmuxFsExtras {
 }
 
 // ---------------------------------------------------------------------------
-// APPENDED by the Phase-4 integrator — new types only, nothing above was
-// modified. The optional channel maps appended by the Phase-3 streams
-// (Shell/Scm/Tree) become registrable through one combined map, so main-side
-// modules can write typed ipcMain.handle wrappers for the extension channels
-// exactly like the frozen ones.
-// ---------------------------------------------------------------------------
-
-/** Frozen channels + every appended optional extension channel. */
-export type ExtendedInvokeChannelMap = InvokeChannelMap &
-  ShellInvokeChannelMap &
-  ScmInvokeChannelMap &
-  TreeInvokeChannelMap;
-
-export type ExtendedInvokeChannel = keyof ExtendedInvokeChannelMap;
-
-export type ExtendedInvokeReq<C extends ExtendedInvokeChannel> =
-  ExtendedInvokeChannelMap[C]['req'];
-export type ExtendedInvokeRes<C extends ExtendedInvokeChannel> =
-  ExtendedInvokeChannelMap[C]['res'];
-
-// ---------------------------------------------------------------------------
 // APPENDED by the restore stream (Phase 6) — new channels/types only, nothing
 // above was modified. All OPTIONAL bridge extensions, feature-detected by the
 // renderer (`typeof window.gmux.sessions.restore === 'function'`), so the app
@@ -433,22 +408,23 @@ export type MenuActionId =
   | 'shortcuts'
   | 'settings';
 
+/**
+ * Payload of EVT_MENU_ACTION, folded into AllEventPayloadMap (Phase 16, G1c).
+ *
+ * The tuple is typed `MenuActionWithFind` — the union `sendMenuAction` in
+ * src/main/menu.ts actually sends — NOT the `MenuActionId` sixteen this
+ * channel was born with. Both subscribers had been annotating the narrow type
+ * and widening it back with a cast; the channel now states the truth once.
+ */
+export interface MenuEventPayloadMap {
+  'ui:menuAction': [action: MenuActionWithFind];
+}
+
 /** OPTIONAL top-level extra on window.gmux, feature-detected by the shell. */
 export interface GmuxMenuExtras {
   /** Subscribe to native app-menu actions. */
-  onMenuAction?(cb: (action: MenuActionId) => void): Unsubscribe;
+  onMenuAction?(cb: (action: MenuActionWithFind) => void): Unsubscribe;
 }
-
-/** Every channel this build's preload can invoke (frozen + all appends). */
-export type AllInvokeChannelMap = ExtendedInvokeChannelMap &
-  RestoreInvokeChannelMap;
-
-export type AllInvokeChannel = keyof AllInvokeChannelMap;
-
-export type AllInvokeReq<C extends AllInvokeChannel> =
-  AllInvokeChannelMap[C]['req'];
-export type AllInvokeRes<C extends AllInvokeChannel> =
-  AllInvokeChannelMap[C]['res'];
 
 // ---------------------------------------------------------------------------
 // APPENDED by the Phase-8 hardening pass — new channels/types only, nothing
@@ -545,17 +521,6 @@ export interface GmuxPopupMenuExtras {
   popupMenu?(input: PopupMenuInput): Promise<string | null>;
 }
 
-/** AllInvokeChannelMap + the Phase-8 appends (superset alias, same pattern). */
-export type FullInvokeChannelMap = AllInvokeChannelMap &
-  HardeningInvokeChannelMap;
-
-export type FullInvokeChannel = keyof FullInvokeChannelMap;
-
-export type FullInvokeReq<C extends FullInvokeChannel> =
-  FullInvokeChannelMap[C]['req'];
-export type FullInvokeRes<C extends FullInvokeChannel> =
-  FullInvokeChannelMap[C]['res'];
-
 // ---------------------------------------------------------------------------
 // APPENDED by the Phase-8.2 hardening pass — first-quit toast (DESIGN.md §4:
 // "⌘Q | Quit — sessions keep running; first quit shows a one-time toast
@@ -571,6 +536,11 @@ export type FullInvokeRes<C extends FullInvokeChannel> =
 /** Main → renderer: the user asked to quit (⌘Q / Quit menu item). */
 export const EVT_QUIT_REQUESTED = 'app:quitRequested' as const;
 
+/** Payload of EVT_QUIT_REQUESTED: none — the event IS the message. */
+export interface QuitEventPayloadMap {
+  'app:quitRequested': [];
+}
+
 /** New invoke channel appended by the quit-toast flow. */
 export interface QuitInvokeChannelMap {
   /** Renderer-confirmed quit — main calls app.quit(). */
@@ -584,17 +554,6 @@ export interface GmuxQuitExtras {
   /** Proceed with quitting (after the one-time §4 toast, or immediately). */
   quit?(): Promise<void>;
 }
-
-/** FullInvokeChannelMap + the Phase-8.2 appends (superset alias). */
-export type CompleteInvokeChannelMap = FullInvokeChannelMap &
-  QuitInvokeChannelMap;
-
-export type CompleteInvokeChannel = keyof CompleteInvokeChannelMap;
-
-export type CompleteInvokeReq<C extends CompleteInvokeChannel> =
-  CompleteInvokeChannelMap[C]['req'];
-export type CompleteInvokeRes<C extends CompleteInvokeChannel> =
-  CompleteInvokeChannelMap[C]['res'];
 
 // ---------------------------------------------------------------------------
 // APPENDED by the git-depth stream (dogfood round 1) — new channels/types
@@ -665,17 +624,6 @@ export interface GmuxGitDepthExtras {
   checkoutDetached?(input: GitCheckoutDetachedInput): Promise<void>;
 }
 
-/** CompleteInvokeChannelMap + the git-depth appends (superset alias). */
-export type DepthInvokeChannelMap = CompleteInvokeChannelMap &
-  GitDepthInvokeChannelMap;
-
-export type DepthInvokeChannel = keyof DepthInvokeChannelMap;
-
-export type DepthInvokeReq<C extends DepthInvokeChannel> =
-  DepthInvokeChannelMap[C]['req'];
-export type DepthInvokeRes<C extends DepthInvokeChannel> =
-  DepthInvokeChannelMap[C]['res'];
-
 // ---------------------------------------------------------------------------
 // APPENDED by the round-1 layout stream (Phase 9) — new types only, nothing
 // above was modified.
@@ -739,17 +687,6 @@ export interface GmuxAgentRegistryExtras {
   agentsRescan?(): Promise<AgentsScanResult>;
 }
 
-/** DepthInvokeChannelMap + the Phase-10 agent appends (superset alias). */
-export type RegistryInvokeChannelMap = DepthInvokeChannelMap &
-  AgentsInvokeChannelMap;
-
-export type RegistryInvokeChannel = keyof RegistryInvokeChannelMap;
-
-export type RegistryInvokeReq<C extends RegistryInvokeChannel> =
-  RegistryInvokeChannelMap[C]['req'];
-export type RegistryInvokeRes<C extends RegistryInvokeChannel> =
-  RegistryInvokeChannelMap[C]['res'];
-
 // ---------------------------------------------------------------------------
 // APPENDED by the Phase-10 settings+hotkeys stream (S13) — new channels/types
 // only, nothing above was modified.
@@ -781,6 +718,11 @@ import type { LaunchableAgentId } from './types';
 
 /** Main → renderers (ALL windows): the persisted settings changed. */
 export const EVT_SETTINGS_CHANGED = 'settings:changed' as const;
+
+/** Payload of EVT_SETTINGS_CHANGED (broadcast to EVERY window). */
+export interface SettingsEventPayloadMap {
+  'settings:changed': [settings: GmuxSettings];
+}
 
 /** New invoke channels appended by the settings+hotkeys stream. */
 export interface SettingsInvokeChannelMap {
@@ -817,18 +759,33 @@ export interface GmuxSettingsExtras {
  */
 export type AgentLaunchActionId = `launch-agent:${LaunchableAgentId}`;
 
-/** Every action the native menu can forward after the settings stream. */
-export type MenuActionWithHotkeys = AnyMenuActionId | AgentLaunchActionId;
-
 /**
  * THE preload bridge map (standing guardrail 1): every channel this build's
- * preload can invoke. Future streams intersect their appended map here (or
- * alias a new superset) — the single typed wrapper in src/preload/index.ts
- * spans whatever this resolves to. (GitBranchesInvokeChannelMap is declared
- * by the parallel branch-management stream further down this file — type
- * declarations hoist, so the forward reference is sound.)
+ * preload can invoke, as ONE flat intersection of per-domain maps.
+ *
+ * Phase 16 (G9) flattened it. Fifteen phases of parallel streams had each
+ * appended a channel map AND a new superset alias over the previous superset —
+ * Extended ⊂ All ⊂ Full ⊂ Complete ⊂ Depth ⊂ Registry ⊂ Branches ⊂ Gmux, nine
+ * levels, each with its own `<X>InvokeChannel` / `Req` / `Res` trio. Every one
+ * of those aliases was referenced only by the next alias in the chain (the
+ * `Req`/`Res` trios were referenced by nothing at all), so reading the bridge
+ * meant walking eight indirections to learn a set union. The set is unchanged
+ * — the same 77 channels, verified key-for-key before and after — and it is
+ * now readable in one screen.
+ *
+ * A future stream adds ONE line here: its own `<Domain>InvokeChannelMap`. It
+ * does not alias a new superset. (Type declarations hoist, so intersecting a
+ * map declared further down this file is sound.)
  */
-export type GmuxInvokeChannelMap = RegistryInvokeChannelMap &
+export type GmuxInvokeChannelMap = InvokeChannelMap &
+  ShellInvokeChannelMap &
+  ScmInvokeChannelMap &
+  TreeInvokeChannelMap &
+  RestoreInvokeChannelMap &
+  HardeningInvokeChannelMap &
+  QuitInvokeChannelMap &
+  GitDepthInvokeChannelMap &
+  AgentsInvokeChannelMap &
   SettingsInvokeChannelMap &
   GitBranchesInvokeChannelMap &
   GitSyncInvokeChannelMap &
@@ -916,17 +873,6 @@ export interface GmuxGitBranchExtras {
   checkoutTracking?(input: GitCheckoutTrackingInput): Promise<void>;
   deleteBranch?(input: GitDeleteBranchInput): Promise<GitDeleteBranchResult>;
 }
-
-/** RegistryInvokeChannelMap + the branch-management appends (superset alias). */
-export type BranchesInvokeChannelMap = RegistryInvokeChannelMap &
-  GitBranchesInvokeChannelMap;
-
-export type BranchesInvokeChannel = keyof BranchesInvokeChannelMap;
-
-export type BranchesInvokeReq<C extends BranchesInvokeChannel> =
-  BranchesInvokeChannelMap[C]['req'];
-export type BranchesInvokeRes<C extends BranchesInvokeChannel> =
-  BranchesInvokeChannelMap[C]['res'];
 
 // ---------------------------------------------------------------------------
 // APPENDED by the Phase-12 git stream — new channels/types only, nothing
@@ -1337,7 +1283,11 @@ export interface GmuxActivityExtras {
 export type AllEventPayloadMap = EventPayloadMap &
   ActivityEventPayloadMap &
   ScrollbackEventPayloadMap &
-  CaptureEventPayloadMap;
+  CaptureEventPayloadMap &
+  SymbolsEventPayloadMap &
+  MenuEventPayloadMap &
+  QuitEventPayloadMap &
+  SettingsEventPayloadMap;
 
 export type AllEventChannel = keyof AllEventPayloadMap;
 
@@ -1389,9 +1339,6 @@ export interface GmuxMultilineExtras {
 
 /** Menu action: reveal one specific session, wherever it lives. */
 export type FocusSessionActionId = `focus-session:${string}`;
-
-/** Every action the native menus (app menu + status item) can forward. */
-export type MenuActionWithTray = MenuActionWithHotkeys | FocusSessionActionId;
 
 // ---------------------------------------------------------------------------
 // APPENDED by Phase 12.9 (file operations in the explorer) — new channels and
@@ -1554,9 +1501,6 @@ export interface GmuxProjectCreateExtras {
  * union rather than edited into MenuActionId, so nothing above changes.
  */
 export type ProjectMenuActionId = 'new-project';
-
-/** Every action the native menus can forward after Phase 12.9 item 1. */
-export type MenuActionWithProjects = MenuActionWithTray | ProjectMenuActionId;
 
 /**
  * Every action the renderer's menu dispatcher handles.
@@ -2119,8 +2063,26 @@ export interface GmuxQuickOpenExtras {
 /** Find-menu actions added by Phase 14. */
 export type FindMenuActionId = 'quick-open' | 'show-search' | 'go-to-symbol';
 
-/** Every action the native menus can forward after Phase 14. */
-export type MenuActionWithFind = MenuActionWithProjects | FindMenuActionId;
+/**
+ * Every action the native menus (app menu + status item) can forward — the
+ * payload type of EVT_MENU_ACTION, and what `sendMenuAction` accepts.
+ *
+ * Phase 16 (G10) made it DERIVED rather than parallel. There were two ladders
+ * over the same ids: `MenuActionId → AnyMenuActionId → …WithProjects` (what
+ * the renderer's dispatcher is typed against) and `…WithHotkeys →
+ * …WithTray → …WithProjects → …WithFind` (what main sends), and they could
+ * drift — a new id folded into one and not the other would type-check on both
+ * sides and simply never be handled. There is now one union of dispatchable
+ * ids plus the two TEMPLATE families that are handled by prefix before the
+ * dispatcher ever sees them: `launch-agent:*` (Settings, which launches an
+ * agent) and `focus-session:*` (the shell, which jumps to a session).
+ *
+ * Same set as the four-alias chain it replaces, member for member.
+ */
+export type MenuActionWithFind =
+  | AnyMenuActionWithProjects
+  | AgentLaunchActionId
+  | FocusSessionActionId;
 
 // ---------------------------------------------------------------------------
 // APPENDED by Phase 13.7 (scrollback limits + understated diagnostics) — new
@@ -2267,7 +2229,7 @@ export interface SpecStoryStatusInvokeChannelMap {
    * itself and then waits on its stdin. `opened: false` means that child could
    * not be started at all, and the URL is shown so the user is never stuck.
    * gmux deliberately does not open the page as well — see
-   * src/main/settings/specstory-login.ts for the double-tab that avoids.
+   * src/main/specstory/login.ts for the double-tab that avoids.
    */
   'specstory:beginLogin': { req: []; res: SpecStoryLoginStart };
   /** Abandon a sign-in in progress, killing the waiting CLI. */

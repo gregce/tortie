@@ -43,6 +43,7 @@ import type { TermExitPayload } from '@shared/ipc';
 import type { GmuxErrorPayload } from '@shared/types';
 import { withUtf8Locale } from '../tmux/env';
 import { findTmuxBinary, resolveConfPath } from '../tmux/resolve';
+import { TMUX_SOCKET } from '../tmux/supervisor';
 
 // ---------------------------------------------------------------------------
 // Tuning constants
@@ -150,11 +151,6 @@ export class AttachHost {
     this.opts = options;
   }
 
-  /** True when a live attach client exists for the session. */
-  isAttached(sessionId: string): boolean {
-    return this.clients.has(sessionId);
-  }
-
   /**
    * Attach a renderer to a tmux session. Idempotent: an existing client for
    * the same sessionId is killed first (fresh attach → full tmux redraw).
@@ -173,7 +169,10 @@ export class AttachHost {
       );
     }
     const confPath = this.opts.confPath ?? resolveConfPath();
-    const socketName = this.opts.socketName ?? 'gmux';
+    // The socket name is the supervisor's constant, never a second literal:
+    // an attach client on a different socket would attach to a DIFFERENT tmux
+    // server — the user's own, in the worst case (research 25 §3, Tier 3).
+    const socketName = this.opts.socketName ?? TMUX_SOCKET;
 
     let pty: IPty;
     try {

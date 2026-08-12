@@ -29,7 +29,7 @@ import type {
 } from '@shared/image-types';
 import { IMAGE_CAP_BYTES, imageMediaType } from '@shared/image-types';
 import { assetUrlForPath } from '../assets';
-import { gmuxError } from '../tmux/errors';
+import { gmuxError } from '../errors';
 
 /** What the reader needs from the outside world (swapped in tests). */
 export interface ImageReaderDeps {

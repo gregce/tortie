@@ -13,7 +13,7 @@
  */
 
 import { useEffect } from 'react';
-import type { GmuxMenuExtras, MenuActionId } from '@shared/ipc';
+import type { GmuxMenuExtras, MenuActionWithFind } from '@shared/ipc';
 import type { AgentKind, CreateSessionInput } from '@shared/types';
 import { errorPayload, errorText, nextOrdinal, useApp } from '../state/store';
 import { keyDisplay } from '@shared/keymap';
@@ -78,7 +78,7 @@ export function useSettingsIntegration(): void {
     if (typeof bridge?.onMenuAction !== 'function') return;
     // Second EVT_MENU_ACTION subscription (the shell owns the first) —
     // each handles disjoint action ids, so there is no double-handling.
-    return bridge.onMenuAction((action: MenuActionId) => {
+    return bridge.onMenuAction((action: MenuActionWithFind) => {
       const raw = action as string;
       if (!raw.startsWith(LAUNCH_PREFIX)) return;
       void launchAgent(raw.slice(LAUNCH_PREFIX.length));

@@ -6,6 +6,9 @@
 
 :root {
   /* §1.1 Neutrals (cool graphite ramp, hue ≈ 222°, low sat) */
+  /* Also mirrored by WINDOW_BACKGROUND in src/shared/window-chrome.ts: the
+     BrowserWindow pre-paint fill, which main cannot read from this file.
+     Retune this and you must retune that. */
   --bg-canvas: #131417; /* window base AND xterm background — one material */
   --bg-sidebar: #17181c; /* sidebar, tab bar, editor gutter zone            */
   --bg-surface: #1b1d22; /* modals, overlays, toasts, inputs                */

@@ -2,10 +2,12 @@
  * SpecStory status + auth actions for Settings → SpecStory (Phase 15,
  * research docs/research/13-specstory-integration.md §3.4).
  *
- * WHY THIS LIVES UNDER src/main/settings. The Settings window is its only
- * consumer, and src/main/specstory/** is owned this phase by the capture
- * stream (wrap / resolve / sync). Keeping the status registrar here is what
- * let two parallel builders finish without writing the same file twice.
+ * WHERE IT LIVES. Under src/main/specstory, with the capture stream whose
+ * answers it reports. It spent Phase 15 under src/main/settings — its only
+ * consumer is the Settings window, and writing it there is what let two
+ * parallel builders finish without touching the same folder twice — and
+ * Phase 16 (L2) moved it back verbatim once that blocker was fifteen phases
+ * gone. Only the imports, this paragraph and the filename changed.
  *
  * HOW IT READS THE TRUTH — and every piece of it is BORROWED, not rebuilt:
  *
@@ -34,7 +36,7 @@
  * private API (`/api/v1/device-login`) stays entirely inside the CLI, which is
  * the coupling the research warned against reimplementing. The child's
  * lifetime — one process for the whole flow, because the CLI opens the browser
- * itself — lives in ./specstory-login.ts; that file's header has the measured
+ * itself — lives in ./login.ts; that file's header has the measured
  * reason it is shaped that way.
  *
  * VERIFICATION OVERRIDE. `GMUX_SPECSTORY_HOME` stands in for `$HOME` for both
@@ -60,22 +62,21 @@ import {
   normalizeSpecStoryDeviceCode
 } from '@shared/specstory-status';
 import { runGuarded } from '../proc/guarded';
-import {
-  NO_VERSION_CHECK,
-  capturableAgents,
-  invalidateAuthCache,
-  readAuthFacts,
-  resetSpecstoryResolutionCache,
-  resolveSpecstory,
-  specstoryAuthPath,
-  specstoryEnv,
-  specstoryRowFor
-} from '../specstory';
+import { handle } from '../typed-ipc';
+import { invalidateAuthCache, readAuthFacts } from './auth';
+import { capturableAgents, specstoryRowFor } from './capture';
 import {
   cancelLoginSession,
   startLoginSession,
   submitLoginCode
-} from './specstory-login';
+} from './login';
+import {
+  NO_VERSION_CHECK,
+  resetSpecstoryResolutionCache,
+  resolveSpecstory,
+  specstoryAuthPath,
+  specstoryEnv
+} from './resolve';
 
 /** The CLI's own precedence: SPECSTORY_CLOUD_URL, else production. */
 function cloudBaseUrl(): string {
@@ -95,7 +96,7 @@ function cloudBaseUrl(): string {
  * The wiring (see {@link defaultSpecStoryStatusDeps}) delegates to the capture
  * stream's own resolver, so Settings and a real capture can never name
  * different binaries. The interface stays because it is the TEST SEAM — it is
- * what lets specstory-ipc be exercised without a CLI on the machine.
+ * what lets this registrar be exercised without a CLI on the machine.
  *
  * There is deliberately no second resolver behind it any more. This file
  * carried one through the parallel build ("bundled candidates, then PATH"),
@@ -151,7 +152,7 @@ const LOGOUT_TIMEOUT_MS = 30_000;
 /**
  * Begin the device flow: start ONE `specstory login`, which opens the browser
  * itself and then blocks reading its stdin. gmux does NOT open the page too —
- * see src/main/settings/specstory-login.ts for the double-tab this avoids.
+ * see src/main/specstory/login.ts for the double-tab this avoids.
  */
 async function beginLogin(
   deps: SpecStoryStatusDeps
@@ -292,27 +293,20 @@ export function registerSpecStoryStatusIpc(
   ipc: IpcMain,
   deps: SpecStoryStatusDeps = defaultSpecStoryStatusDeps()
 ): void {
-  ipc.handle('specstory:status', (_e, refresh?: boolean) =>
+  handle(ipc, 'specstory:status', (_e, refresh) =>
     buildStatus(deps, refresh === true)
   );
 
-  ipc.handle('specstory:beginLogin', () => beginLogin(deps));
+  handle(ipc, 'specstory:beginLogin', () => beginLogin(deps));
 
-  ipc.handle('specstory:submitCode', (_e, code: string) => finishLogin(deps, code));
+  handle(ipc, 'specstory:submitCode', (_e, code) => finishLogin(deps, code));
 
   // Cancel is a real verb, not a UI state: it kills the `specstory login` the
   // Sign in button started, so closing the row cannot leave a process sitting
   // on a pipe for ten minutes.
-  ipc.handle('specstory:cancelLogin', () => {
+  handle(ipc, 'specstory:cancelLogin', () => {
     cancelLoginSession();
   });
 
-  ipc.handle('specstory:signOut', () => signOut(deps));
-}
-
-/** Test seam: forget the resolved binary (and the auth read). */
-export function resetSpecStoryStatusCache(): void {
-  binaryCache = null;
-  binaryResolved = false;
-  invalidateAuthCache();
+  handle(ipc, 'specstory:signOut', () => signOut(deps));
 }

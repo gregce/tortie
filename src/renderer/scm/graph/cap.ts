@@ -25,7 +25,7 @@ import type { GraphLayout, GraphRow, Lane } from './types';
 /**
  * Columns to show before folding, when the caller does not compute one.
  *
- * In the app it always does: `graph-geometry.ts`'s `laneCap(maxLanes, width)`
+ * In the app it always does: `geometry.ts`'s `laneCap(maxLanes, width)`
  * derives the cap from the pane's measured width, which is the right answer at
  * 220 px as well as at 400 px. This exists so `capRow` is usable and testable
  * on its own — and `laneCap` imports it rather than restating the 6, so the

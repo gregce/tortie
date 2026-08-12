@@ -48,6 +48,7 @@ import type { ImageReadResult } from '@shared/image-types';
 import { isImagePath, isSvgPath } from '@shared/image-types';
 import { useApp } from '../state/store';
 import { onOpenFile } from '../state/open-file';
+import { onRepoChanged } from '../state/repo-changed';
 import type {
   OpenFileCommitRef,
   OpenFileRequest,
@@ -309,9 +310,6 @@ function shouldFocusFor(req: OpenFileRequest): boolean {
 
 let initialized = false;
 
-/** git:changed refresh debounce per repo (watcher bursts → one pass). */
-const GIT_REFRESH_DEBOUNCE_MS = 300;
-
 export const useEditor = create<EditorState>((set, get) => {
   const gmux = window.gmux as typeof window.gmux | undefined;
 
@@ -386,7 +384,6 @@ export const useEditor = create<EditorState>((set, get) => {
     step();
   };
 
-  const refreshTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   /** Last open gesture, for double-open → pin (see DOUBLE_OPEN_MS). */
   let lastOpen: { id: string; at: number } = { id: '', at: 0 };
@@ -404,17 +401,11 @@ export const useEditor = create<EditorState>((set, get) => {
       if (initialized || !gmux) return;
       initialized = true;
       onOpenFile((req) => get().openFromRequest(req));
-      gmux.git.onChanged((repoPath) => {
+      // Shared debounce (state/repo-changed.ts): the editor's own 300 ms
+      // window made open tabs the LAST surface to agree with the repo.
+      onRepoChanged((repoPath) => {
         if (!get().tabs.some((t) => t.repoPath === repoPath)) return;
-        const existing = refreshTimers.get(repoPath);
-        if (existing !== undefined) clearTimeout(existing);
-        refreshTimers.set(
-          repoPath,
-          setTimeout(() => {
-            refreshTimers.delete(repoPath);
-            void io.refreshRepo(repoPath);
-          }, GIT_REFRESH_DEBOUNCE_MS)
-        );
+        void io.refreshRepo(repoPath);
       });
     },
 

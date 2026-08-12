@@ -34,6 +34,7 @@ import type {
 } from '@shared/ipc';
 import { gitErrorLine, useGit } from '../state/git';
 import { useApp } from '../state/store';
+import { onRepoChanged } from '../state/repo-changed';
 import { shortSha } from './format';
 
 // ---------------------------------------------------------------------------
@@ -299,13 +300,9 @@ export const detailKey = (repoPath: string, sha: string): string =>
 // Store
 // ---------------------------------------------------------------------------
 
-/** git:changed debounce — mirrors useGit so bursts cost one log+branches. */
-const CHANGED_DEBOUNCE_MS = 250;
-
 let subscribed = false;
 
 export const useGitDepth = create<DepthState>((set, get) => {
-  const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
   const inflightDetails = new Map<string, Promise<GitCommitDetail | null>>();
 
   const patchRepo = (
@@ -333,18 +330,12 @@ export const useGitDepth = create<DepthState>((set, get) => {
     const gmux = window.gmux as typeof window.gmux | undefined;
     if (!gmux) return;
     subscribed = true;
-    gmux.git.onChanged((repoPath) => {
+    // One debounce for every surface (state/repo-changed.ts) — this store's
+    // own 250 ms window was why History reloaded 50 ms after Changes cleared.
+    onRepoChanged((repoPath) => {
       // Only repos the history UI has ensured — unknown paths are free.
       if (get().repos[repoPath] === undefined) return;
-      const existing = debounceTimers.get(repoPath);
-      if (existing !== undefined) clearTimeout(existing);
-      debounceTimers.set(
-        repoPath,
-        setTimeout(() => {
-          debounceTimers.delete(repoPath);
-          void get().refresh(repoPath);
-        }, CHANGED_DEBOUNCE_MS)
-      );
+      void get().refresh(repoPath);
     });
   };
 

@@ -23,7 +23,7 @@ import type { LaunchableAgentId } from '@shared/types';
 import { getLaunchableEntry } from '../agents/registry';
 import type { ManifestSessionRecord } from '../manifest';
 import * as tmux from '../tmux';
-import { gmuxError } from '../tmux';
+import { gmuxError } from '../errors';
 import {
   isWrappedArgv,
   resolveSpecstory,

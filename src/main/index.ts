@@ -57,8 +57,11 @@ import { runResumeConformance } from './conformance';
 import { registerDropIpc, startDropStorePruning } from './drop';
 import { registerFsIpc, registerImageIpc } from './fs';
 import { disposeGitIpc, registerGitIpc } from './git';
-import { getGmuxCore, registerIpcHandlers, shutdownGmuxCore } from './ipc';
-import type { GmuxCore } from './ipc';
+import { registerIpcHandlers } from './ipc';
+import { getGmuxCore, shutdownGmuxCore } from './sessions';
+import type { GmuxCore } from './sessions';
+import { handle } from './typed-ipc';
+import { WINDOW_BACKGROUND } from '@shared/window-chrome';
 import type { ManifestSessionRecord } from './manifest';
 import type { CreateSessionInput } from '@shared/types';
 import { installAppMenu } from './menu';
@@ -169,7 +172,7 @@ function createWindow(): BrowserWindow {
     show: false,
     // --bg-canvas: pre-paint fill must match the app so launch/resize never
     // flashes a foreign color (DESIGN.md §0: one material).
-    backgroundColor: '#131417',
+    backgroundColor: WINDOW_BACKGROUND,
     titleBarStyle: 'hiddenInset',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -1549,7 +1552,7 @@ app.whenReady().then(async () => {
   // Phase 8.2: renderer-confirmed quit (first-quit toast flow — the Quit
   // menu item forwards to the renderer, which invokes this after showing
   // the one-time §4 toast; see src/main/menu.ts for the fallback timer).
-  ipcMain.handle('app:quit', () => {
+  handle(ipcMain, 'app:quit', () => {
     app.quit();
   });
 

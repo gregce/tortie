@@ -10,6 +10,10 @@
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; worker-src 'self' blob:"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Pre-paint ground, same material as the app window. HTML cannot import
+         a token, so this mirrors WINDOW_BACKGROUND (src/shared/
+         window-chrome.ts); canvas-color-single-source.test.ts holds the three
+         copies to one value. -->
     <style>
       html {
         background: #131417;

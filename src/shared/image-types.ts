@@ -102,6 +102,21 @@ export function imageMediaType(path: string): string | null {
  */
 export const IMAGE_CAP_BYTES = 32 * 1024 * 1024;
 
+/**
+ * Largest single file gmux will copy into the drop store — the cap on a
+ * dropped or pasted image that has no file of its own, checked on BOTH sides:
+ * the renderer refuses before it reads the bytes, main refuses before it
+ * writes them (src/main/drop/store.ts, src/renderer/terminal/drop/acquire.ts).
+ * Both sides used to declare it, and a cap enforced twice at two different
+ * numbers is a renderer that ships 25 MB main then rejects — or worse, a
+ * renderer that accepts what main will not store (research 25 §3, Tier 3).
+ *
+ * Deliberately SMALLER than IMAGE_CAP_BYTES: that one bounds a decode of a
+ * file the user already has, this one bounds a copy gmux is about to own the
+ * lifetime of, in userData, for as long as a conversation can be resumed.
+ */
+export const MAX_DROP_BYTES = 25 * 1024 * 1024;
+
 /** Which revision of an image to read. */
 export type ImageRev = 'worktree' | 'HEAD';
 

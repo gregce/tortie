@@ -15,7 +15,7 @@
 
 import { existsSync } from 'node:fs';
 import { isControlSession } from './control-client';
-import { gmuxError, isGmuxError } from './errors';
+import { gmuxError, isGmuxError } from '../errors';
 import {
   dedupeSessionName,
   formatSessionTarget,

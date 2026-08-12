@@ -13,7 +13,7 @@
  */
 
 import type { FsOpErrno } from '@shared/fs-ops';
-import { GmuxError, gmuxError } from '../tmux/errors';
+import { GmuxError, gmuxError } from '../errors';
 
 /** What the user asked for, in the voice used inside the messages below. */
 export type FsOpVerb =

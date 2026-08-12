@@ -27,7 +27,7 @@
 import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join, sep } from 'node:path';
-import { gmuxError } from '../tmux/errors';
+import { gmuxError } from '../errors';
 
 /** `rg` inside an asar lives unpacked next to it — see the header. */
 function unpacked(path: string): string {

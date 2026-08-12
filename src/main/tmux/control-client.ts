@@ -26,7 +26,7 @@ import {
   parseControlLine,
   type ControlEvent
 } from './control-parser';
-import { gmuxError } from './errors';
+import { gmuxError } from '../errors';
 import { ensureServer, tmuxArgs } from './supervisor';
 
 /** Name of the pinned control session (never shown in the UI). */

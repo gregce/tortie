@@ -542,15 +542,6 @@ export class ManifestStore {
       .map(rowToRecord);
   }
 
-  listSessionsForProject(projectPath: string): ManifestSessionRecord[] {
-    return this.db
-      .prepare<[string], SessionRow>(
-        'SELECT * FROM sessions WHERE project_path = ? ORDER BY created_at ASC'
-      )
-      .all(projectPath)
-      .map(rowToRecord);
-  }
-
   /**
    * Patch any mutable fields of a session row.
    * @throws SESSION_NOT_FOUND when the id has no row.
@@ -658,15 +649,6 @@ export class ManifestStore {
     return this.updateSession(id, { resumeCapture: state });
   }
 
-  /** Heartbeat: refresh last_seen without touching anything else. */
-  touchSession(id: string): void {
-    this.db
-      .prepare<[number, string]>(
-        'UPDATE sessions SET last_seen = ? WHERE id = ?'
-      )
-      .run(Date.now(), id);
-  }
-
   /**
    * Hard-delete a row. Prefer setStatus(id,'exited') for normal ends —
    * delete only when the user explicitly discards a restorable session.
@@ -770,13 +752,6 @@ export class ManifestStore {
     // Path conflicts keep the ORIGINAL row id — return the row as stored.
     const stored = this.getProjectByPath(project.path);
     return stored ?? project;
-  }
-
-  getProject(id: string): Project | undefined {
-    const row = this.db
-      .prepare<[string], ProjectRow>('SELECT * FROM projects WHERE id = ?')
-      .get(id);
-    return row ? { id: row.id, path: row.path, name: row.name } : undefined;
   }
 
   getProjectByPath(path: string): Project | undefined {

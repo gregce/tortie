@@ -15,7 +15,8 @@
 import type { IpcMain } from 'electron';
 import type { DropPersistInput } from '@shared/types';
 import { imageDropTable } from '../agents/registry';
-import { gmuxError } from '../tmux/errors';
+import { handle } from '../typed-ipc';
+import { gmuxError } from '../errors';
 import { preparePaths } from './prepare';
 import { persistDroppedBytes } from './store';
 
@@ -38,11 +39,12 @@ function toPersistInput(value: unknown): DropPersistInput {
 }
 
 export function registerDropIpc(ipc: IpcMain): void {
-  ipc.handle('drop:strategies', () => imageDropTable());
-  ipc.handle('drop:prepare', (_event, paths: unknown) =>
-    preparePaths(toPaths(paths))
-  );
-  ipc.handle('drop:persist', (_event, input: unknown) =>
+  handle(ipc, 'drop:strategies', () => imageDropTable());
+  // The two validators below still take `unknown` on purpose: the declared
+  // channel types are a compile-time contract with the preload, not a promise
+  // about what an actual IPC frame carries.
+  handle(ipc, 'drop:prepare', (_event, paths) => preparePaths(toPaths(paths)));
+  handle(ipc, 'drop:persist', (_event, input) =>
     persistDroppedBytes(toPersistInput(input))
   );
 }

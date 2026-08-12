@@ -22,17 +22,17 @@
  *    isRepo:false; mutations throw NOT_A_GIT_REPO (structured GmuxError).
  */
 
-import { BrowserWindow } from 'electron';
 import type { IpcMain } from 'electron';
 import { existsSync, statSync } from 'node:fs';
 import { resolve as resolvePath } from 'node:path';
 import { EVT_GIT_CHANGED } from '@shared/ipc';
-import { gmuxError } from '../tmux/errors';
+import { gmuxError } from '../errors';
 import { emitRepoChanged, onRepoChanged, RepoWatcher } from '../watcher';
 import { registerGitDepthIpc } from './depth-ipc';
 import { runGitOrThrow } from './exec';
 import { GitService } from './service';
 import { handle } from '../typed-ipc';
+import { broadcastEvent } from '../typed-events';
 
 // ---------------------------------------------------------------------------
 // Per-repo registries
@@ -80,11 +80,7 @@ function isDirectory(path: string): boolean {
 }
 
 function broadcastGitChanged(repoPath: string): void {
-  for (const win of BrowserWindow.getAllWindows()) {
-    if (!win.isDestroyed()) {
-      win.webContents.send(EVT_GIT_CHANGED, repoPath);
-    }
-  }
+  broadcastEvent(EVT_GIT_CHANGED, repoPath);
 }
 
 // Phase 14 (research 19 §2.5, O3): the watcher callback below now feeds the

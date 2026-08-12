@@ -11,7 +11,6 @@
 import { useEffect, useState } from 'react';
 import type { AgentAvailability, GmuxAgentExtras } from '@shared/ipc';
 import type {
-  AgentKind,
   AgentsScanResult,
   LaunchableAgentKind
 } from '@shared/types';
@@ -68,20 +67,6 @@ export function useAgentAvailability(): AgentAvailability {
     };
   }, []);
   return avail;
-}
-
-export function isAgentAvailable(
-  avail: AgentAvailability,
-  agent: AgentKind
-): boolean {
-  return agent === 'shell' ? true : avail[agent];
-}
-
-/** Best default agent for ⌘T: claude → codex → shell. */
-export function firstAvailableAgent(avail: AgentAvailability): AgentKind {
-  if (avail.claude) return 'claude';
-  if (avail.codex) return 'codex';
-  return 'shell';
 }
 
 // ---------------------------------------------------------------------------

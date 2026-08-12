@@ -24,6 +24,7 @@ import { getTerminal } from '../drop/registry';
 import {
   resolveTerminalFontFamily,
   resolveTerminalTheme,
+  TERMINAL_BACKGROUND,
   TERMINAL_FONT_SIZE,
   TERMINAL_LETTER_SPACING,
   TERMINAL_LINE_HEIGHT
@@ -324,7 +325,7 @@ export async function captureSelection(session: Session): Promise<void> {
       html,
       widthCss: metrics.cellWidth * metrics.cols,
       heightCss: metrics.cellHeight * rowCount,
-      background: resolveTerminalTheme().background ?? '#131417'
+      background: resolveTerminalTheme().background ?? TERMINAL_BACKGROUND
     });
     await bridge.image({ png, suggestedName: suggestedName(session) });
     captured('Captured your selection to the clipboard.');
@@ -429,7 +430,7 @@ export async function captureHistory(
       html,
       widthCss: metrics.cellWidth * metrics.cols,
       heightCss: metrics.cellHeight * drawnRows,
-      background: theme.background ?? '#131417'
+      background: theme.background ?? TERMINAL_BACKGROUND
     });
     await bridge.image({ png, suggestedName: suggestedName(session) });
     captured(`Captured the last ${rows.length} lines to the clipboard.`);

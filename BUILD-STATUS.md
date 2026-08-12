@@ -33,7 +33,7 @@ Date: 2026-08-09 · version 0.0.1 · machine: macOS 15.7.9 arm64, node v22.23.1,
 
 - `Contents/Resources/gmux-tmux.conf` present (main resolves it via `process.resourcesPath` when `app.isPackaged` — `src/main/tmux/supervisor.ts`, `src/main/attach/attach-host.ts`).
 - Native addons (`*.node`) unpacked from asar (`asarUnpack`); electron-builder rebuilt node-pty / better-sqlite3 / @parcel/watcher against electron 43 headers during packaging.
-- Renderer-only production deps (monaco-editor, react, react-dom, @xterm/*, zustand, uuid, and since Phase 11 @pierre/diffs, @pierre/trees + their exclusive transitives shiki/@shikijs/preact/diff/…) are **excluded** from the asar — electron-vite bundles them into `out/renderer`; the main bundle only requires node-pty, better-sqlite3, @parcel/watcher at runtime. Keeps ~135 MB of dead weight out of the app. A tail of small transitives (~4 MB: @types/*, micromark-util-*, unist-*, plus monaco's marked/dompurify) still rides along — see Phase 13's packaging item.
+- Renderer-only production deps (monaco-editor, react, react-dom, @xterm/*, zustand, and since Phase 11 @pierre/diffs, @pierre/trees + their exclusive transitives shiki/@shikijs/preact/diff/…) are **excluded** from the asar — electron-vite bundles them into `out/renderer`; the main bundle only requires node-pty, better-sqlite3, @parcel/watcher at runtime. Keeps ~135 MB of dead weight out of the app. A tail of small transitives (~4 MB: @types/*, micromark-util-*, unist-*, plus monaco's marked/dompurify) still rides along — see Phase 13's packaging item.
 - Signature: **ad-hoc** (`Signature=adhoc, linker-signed`), identifier `Electron`. Launches locally; see Deferred for real signing.
 - **Bundled specstory-cli (Phase 15)** — `Contents/Resources/bin/specstory`, 43,207,712 bytes, `2.8.0 (SpecStory)`, plus a 299-byte `specstory.json` naming the version so Settings can show it without a spawn. Verified in the shipped app AND off the mounted DMG: Mach-O arm64, exec bit intact, runs, `codesign --verify --strict` clean, `Identifier=com.specstory.gmux.specstory`, `flags=0x10002(adhoc,runtime)`. Size cost: **+42,200 KiB (41.2 MiB) on the .app, ~15.9 MB compressed**. Resolution order is bundled-first with a user-installed copy as the fallback (`src/main/specstory/resolve.ts`); nothing about the bundle forks the CLI's state, so one `specstory login` still serves both copies (all of it is `$HOME`-derived — `utils.GetAuthPath()`).
 
@@ -154,6 +154,79 @@ against its own `--user-data-dir`, so the user's gmux has no manifest row for an
 reconcile ignores it; it never kills the tmux server. Verified after the full run above: 0 leftover
 `zz-conf` sessions, 0 leftover scratch dirs, the user's 17 live sessions untouched.
 
+## Phase 16 — consolidation (2026-08-11)
+
+Spec: `docs/research/25-codebase-context.md` (the Phase 15.5 re-baseline). The goal was **zero
+behaviour change**, so every step had to be a pure move, a type-only deletion, or a change covered by
+a named test run before and after. Three parallel streams, reconciled by the integrator.
+
+### Landed
+
+| §7 step | What | Proof |
+|---|---|---|
+| 0 | `busy_timeout` pragma, `.filter-field` rename | committed separately as `ec5ded2` |
+| 1 | 17 dead type aliases deleted; the nine-level alias ladder in `shared/ipc.ts` flattened to one intersection | channel key set parsed before/after — **77 channels, identical** |
+| 2 | Guardrail 1 closed on the main side: second `handle` wrapper generation deleted, 18 raw `ipc.handle` calls converted, event half went 3/10 → 10/10 typed channels, new `main/typed-events.ts` for the send half | `typecheck` + `smoke:t1` + `smoke:t3` (restore rides `restore/ipc.ts`) |
+| 4 | The four `git:changed` subscribers collapsed to one `state/repo-changed.ts` | **test written first** — `state/__tests__/repo-changed.test.ts` |
+| 6 | `class GmuxCore` → `main/sessions/core.ts`, popup bridge → `main/menu-popup.ts`; `main/ipc.ts` 1,998 → **136 lines** | pure move — `diff` of the moved range against HEAD is clean; full battery + `conformance:resume:capture` |
+| 9 | `tmux/errors.ts` → `main/errors.ts`; `settings/specstory-*.ts` → `main/specstory/`; `scm/graph-geometry.ts` + `CommitGraph.tsx` → `scm/graph/`; `attach-host.ts` imports `TMUX_SOCKET`; keymap display-hint fixes | pure moves — `typecheck`, the moved tests, `smoke:capture`, `smoke:t3` |
+| 10 | `uuid` + `@types/uuid` **deleted** (replaced by stdlib `node:crypto` `randomUUID`); the four phantom deps (`unified`, `unist-util-visit`, `@types/hast`, `@shikijs/types`) pinned into `devDependencies`; `material-icon-theme` demoted to `devDependencies` (build-script-only); 29 dead symbols removed | `typecheck`; the three `ManifestStore` members rode `smoke:t3` + `conformance:resume:capture` |
+| 11 | `<EndSessionButton>` + the shared agent-option builder extracted from `TerminalRegion`/`SessionDock`/`SplitSurface` | component tests + `typecheck` |
+| — | B1 `stripAnsi` divergence fixed (`main/ansi.ts` + test); the §6 Monaco defect fixed (`GMUX_MONACO_THEME` was exported *and* hardcoded — now `editor/monaco-theme-name.ts`) | new unit tests |
+
+**Three standing guardrails became executable**, which is the part that stops this rotting:
+`shared/__tests__/ipc-single-bridge.test.ts` (6 tests: nothing registers an invoke handler outside
+`typed-ipc.ts`, nothing sends a static event outside `typed-events.ts`, no `ipcRenderer` outside the
+preload, every `EVT_*` has a payload type, every channel in `AllEventPayloadMap` is subscribed,
+allow-list honesty) and `shared/__tests__/canvas-color-single-source.test.ts` (binds `--bg-canvas`
+across `tokens.css`, `WINDOW_BACKGROUND` and both `index.html` pre-paint grounds). Both are
+**negative-controlled** — a planted violation fails them. Their shared scanner is
+`shared/__tests__/source-scan.ts`, extracted by the integrator when the post-parallel clone scan
+found the walker duplicated verbatim between the two.
+
+### Deliberately NOT landed in Phase 16
+
+Named here so the next agent inherits the decision rather than re-deriving it:
+
+- **§7 step 3** (segregate the ~6,100 harness lines out of production bundles) — a mistake here
+  silently disarms the T3 gate; wants its own phase with the smoke scripts as the acceptance test.
+- **§7 step 5** (the command layer) and **step 7** (`renderer/state/store.ts` into slices) — the spec
+  itself calls step 7 "the weakest-covered step in the plan" (61 importers, no store test). Both need
+  a test that does not exist yet, and this phase's rule was *write the test first or skip the step*.
+- **§7 step 8** (`app.css` colocation) — there is still no CSS regression harness, and cascade order
+  changes when files move. Screenshots are a weak instrument for a 2,174-line move.
+- **§6.1's ~45 MB of packaging wins** (the second `@vscode/tree-sitter-wasm` copy, `better-sqlite3`'s
+  seven unusable prebuilds, `web-tree-sitter`'s `debug/`) and renderer `build.minify`. These are real
+  and still on the table, but each one gates on the **packaged-app smoke**, not `out/` — that is a
+  measurement round, not a refactor, and mixing it into a behaviour-preserving phase would have made
+  the "zero behaviour change" claim unfalsifiable.
+
+### Monaco stays — decided on today's evidence, not inherited
+
+The BACKLOG carried "swap Monaco for Pierre `/edit`" as blocked on Pierre `/edit` reaching GA. The
+re-baseline re-checked it and the blocker **has not cleared**: `@pierre/diffs` `latest` is 1.3.5 and
+`/edit` is physically shipped and functional, but the v1.3.0 release notes say verbatim *"Edit mode is
+experimental in 1.3 — the API may still shift"*, diffs.com/edit still labels it experimental, and five
+patches landed in six days. gmux's editing surface is **the user's unsaved buffer** — precisely the
+class CLAUDE.md reserves Tier 3 for, and precisely the class not to build on a moving API.
+
+The size case is also weaker than the BACKLOG implied. Monaco is 42.2 MB raw / 7.1 MB gzip of
+renderer JS — but that is ~9% of a 451 MB `.app`, and §6.1 found ~45 MB of shipped bytes no code
+reads, reclaimable by config changes alone. Spending a library swap to win less than the config
+changes win is the wrong order.
+
+**Trigger condition for reopening** (mechanical, so the re-check costs nothing):
+
+1. Pierre `/edit` drops the "experimental" label, **or** two consecutive `@pierre/diffs` minors ship
+   with no breaking change to the `Editor` API; **and**
+2. the phase that does the swap delivers a **minimap** and a **diagnostics/marker source** for
+   ts/js/json/css/html (the four language workers are 18.7 MB of the 42.2 — the half whose
+   replacement costs the most), **or** explicitly retires them with the user's agreement.
+
+Re-check on the next `@pierre/diffs` minor. The seam is good and not degrading — 722 deletable lines
+across three modules, six consumers, no CSS anywhere names a Monaco class — so nothing is lost by
+waiting except disk.
+
 ## What's deferred (not built today, on purpose)
 
 - **Code signing & notarization** — only an Apple Development cert exists on this machine; it cannot produce a distributable signature, so `identity: null` in `electron-builder.yml` (arm64 gets an ad-hoc signature so it runs locally). A real release needs: Developer ID Application cert → `hardenedRuntime: true` + entitlements (`com.apple.security.cs.allow-jit` etc. for Electron) → notarytool + stapling.
@@ -165,7 +238,7 @@ reconcile ignores it; it never kills the tmux server. Verified after the full ru
 
 1. **First-launch teardown flake (packaged smoke only)**: on the very first launch of a freshly built gmux.app, one run crashed AFTER printing `6/6 cleanup done — PASS` — `FATAL ERROR: Error::ThrowAsJavaScriptException napi_throw` inside `@parcel/watcher-darwin-arm64/watcher.node` during `node::Environment::RunCleanup()` (i.e., during `app.exit(0)`). 3/3 subsequent runs exit 0 cleanly; dev smoke always exits 0. Root cause: a `@parcel/watcher` FSEvents subscription (agent-session discovery watches `~/.codex/sessions` — `src/main/manifest/agents.ts`) is still initializing/active when `app.exit()` tears the env down. **Fix for the integrator (owner: main/)**: await `unsubscribe()` on all parcel watcher subscriptions (repo-watcher + agents) in a `before-quit`/smoke-exit path before calling `app.exit()`. Cosmetic for users (app already exited), but it can turn a green smoke exit code red in CI.
 2. **Unsigned build**: Gatekeeper warning on other machines (see How to run). Not fixable without a Developer ID cert.
-3. **DMG is 134 MB** — Electron 43 framework + Monaco renderer chunk dominate; renderer-dep exclusion already applied. Further wins (Monaco language-worker pruning) belong to the editor stream.
+3. **DMG is 160.6 MB** (`.app` 451 MB) — measured by the Phase 16 integrator; the older 134 MB figure predates Phase 15's 41 MiB bundled specstory-cli. Electron 43's framework + the Monaco renderer chunk dominate; renderer-dep exclusion is already applied. The next wins are **not** a Monaco swap: research 25 §6.1 measured ~45 MB of shipped bytes no code reads (a second `@vscode/tree-sitter-wasm` copy at 21 MB, `better-sqlite3`'s seven unusable prebuilds + `deps/` at ~24 MB, `web-tree-sitter`'s sourcemaps and `debug/`), reclaimable by turning `electron-builder.yml`'s `files` into an allowlist, plus renderer `build.minify`. All of it gates on the packaged-app smoke, never on `out/` — which is exactly why it survived fifteen phases.
 4. electron-builder warns `@electron/rebuild already used by electron-builder, consider removing from devDependencies` — harmless double-rebuild (postinstall + packaging). Leave as-is: the postinstall rebuild is what makes `npm run dev`/`smoke` work.
 5. `npm run icon` requires `rsvg-convert` (homebrew librsvg) — present on this machine, not vendored.
 6. **FIXED in Phase 13.5.1 — deepseek restore was a DEAD PANE whenever the user picked any launch

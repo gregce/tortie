@@ -16,9 +16,6 @@
 
 import { acceleratorToDisplay, keymapEntry } from '@shared/keymap';
 
-/** Digits that address a project tab. */
-export const PROJECT_SHORTCUT_DIGITS = 9;
-
 /** The digit ⌘9 is bound to: the last tab, never the ninth. */
 const LAST_DIGIT = 9;
 

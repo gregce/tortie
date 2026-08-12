@@ -75,7 +75,7 @@ import {
   agentBinaryName,
   getLaunchableEntry
 } from '../agents/registry';
-import { getGmuxCore, shutdownGmuxCore, type GmuxCore } from '../ipc';
+import { getGmuxCore, shutdownGmuxCore, type GmuxCore } from '../sessions';
 import type { ManifestSessionRecord } from '../manifest';
 import { buildArmedCommand } from '../restore/command';
 import { captureSessionSnapshot } from '../restore/snapshots';

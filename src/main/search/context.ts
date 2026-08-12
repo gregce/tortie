@@ -16,7 +16,7 @@
 import { createReadStream } from 'node:fs';
 import { SEARCH_LIMITS } from '@shared/ipc';
 import type { SearchContextInput, SearchContextResult } from '@shared/ipc';
-import { gmuxError } from '../tmux/errors';
+import { gmuxError } from '../errors';
 import { resolveInsideRoot, resolveProjectRoot } from '../fs/paths';
 import { LineSplitter } from './parser';
 

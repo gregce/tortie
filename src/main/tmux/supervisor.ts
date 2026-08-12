@@ -25,7 +25,8 @@ import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { promisify } from 'node:util';
 import { DEFAULT_UTF8_LANG, hasUtf8Locale } from './env';
-import { classifyTmuxFailure, gmuxError } from './errors';
+import { gmuxError } from '../errors';
+import { classifyTmuxFailure } from './errors';
 import { findTmuxBinary, getUserPath, resolveConfPath } from './resolve';
 
 // Re-exported so the barrel (index.ts) and existing callers keep one import

@@ -19,9 +19,13 @@
 
 import type { GmuxDropExtras } from '@shared/ipc';
 import type { DropPersistResult, DropPrepareResult } from '@shared/types';
+import { MAX_DROP_BYTES } from '@shared/image-types';
 
-/** Mirror of the main-side cap (src/main/drop/store.ts MAX_DROP_BYTES). */
-export const MAX_DROP_BYTES = 25 * 1024 * 1024;
+/**
+ * The cap is declared once, in `@shared/image-types`, and enforced on both
+ * sides; this was a hand-copied mirror of main's number (research 25 §3).
+ */
+export { MAX_DROP_BYTES };
 
 /** The optional drop surface on the preload bridge (feature-detected). */
 export function dropBridge(): NonNullable<GmuxDropExtras['drop']> | null {

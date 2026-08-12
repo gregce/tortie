@@ -33,7 +33,7 @@ import type {
   GitStatusDetailed,
   GitSyncResult
 } from '@shared/types';
-import { gmuxError } from '../tmux/errors';
+import { gmuxError } from '../errors';
 import { runGit, runGitOrThrow } from './exec';
 import {
   GRAPH_LOG_FORMAT,

@@ -25,7 +25,7 @@ import type { IpcMain } from 'electron';
 import { open as openFile, readdir, writeFile } from 'node:fs/promises';
 import { basename, resolve as resolvePath } from 'node:path';
 import type { FsDirEntry, ReadFileResult } from '@shared/types';
-import { gmuxError } from '../tmux/errors';
+import { gmuxError } from '../errors';
 import { handle } from '../typed-ipc';
 import type { FileOpsDeps } from './file-ops';
 import { createFileOps } from './file-ops';
@@ -99,7 +99,7 @@ function defaultFileOpsDeps(): FileOpsDeps {
   return {
     trashItem: (path) => shell.trashItem(path),
     listProjectRoots: async () => {
-      const { getGmuxCore } = await import('../ipc');
+      const { getGmuxCore } = await import('../sessions');
       return (await getGmuxCore()).listProjects().map((p) => p.path);
     }
   };

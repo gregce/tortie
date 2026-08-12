@@ -16,11 +16,11 @@
  * pays nothing for this module beyond three `ipcMain.handle` calls.
  */
 
-import { BrowserWindow } from 'electron';
 import type { IpcMain } from 'electron';
 import { EVT_SYMBOLS_PROGRESS } from '@shared/ipc';
 import type { SymbolIndexProgress } from '@shared/symbols';
 import { handle } from '../typed-ipc';
+import { broadcastEvent } from '../typed-events';
 import { onRepoChanged } from '../watcher';
 import { assetProblem, grammarDir, runtimeWasmPath } from './paths';
 import { SymbolPersistence } from './persist';
@@ -31,11 +31,7 @@ let service: SymbolService | null = null;
 let persistence: SymbolPersistence | null = null;
 
 function broadcast(progress: SymbolIndexProgress): void {
-  for (const win of BrowserWindow.getAllWindows()) {
-    if (!win.isDestroyed()) {
-      win.webContents.send(EVT_SYMBOLS_PROGRESS, progress);
-    }
-  }
+  broadcastEvent(EVT_SYMBOLS_PROGRESS, progress);
 }
 
 /** The service, created on first use. */

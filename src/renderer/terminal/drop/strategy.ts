@@ -12,14 +12,17 @@
  */
 
 import type { AgentImageDrop, ImageDropTable } from '@shared/types';
+import { DEFAULT_IMAGE_DROP } from '@shared/agent-defaults';
 import { dropBridge } from './acquire';
 
-/** Shipped default: insert the path as text. Matches main's DEFAULT_IMAGE_DROP. */
-export const FALLBACK_IMAGE_DROP: AgentImageDrop = {
-  strategy: 'path-text',
-  insert: 'paste',
-  verified: false
-};
+/**
+ * The path-text default comes from `@shared/agent-defaults` — the same
+ * declaration main's registry serves as the table's `fallback`. It used to be
+ * a second copy of those three fields under a second name
+ * (`FALLBACK_IMAGE_DROP`), which is how a renderer fallback quietly stops
+ * matching main's (research 25 §3, Tier 3).
+ */
+export { DEFAULT_IMAGE_DROP };
 
 let table: ImageDropTable | null = null;
 let inflight: Promise<void> | null = null;
@@ -50,12 +53,7 @@ export function primeImageDropTable(): Promise<void> {
  * parameter and the tolerant lookup.
  */
 export function imageDropFor(agent: string): AgentImageDrop {
-  if (agent === 'shell') return table?.fallback ?? FALLBACK_IMAGE_DROP;
+  if (agent === 'shell') return table?.fallback ?? DEFAULT_IMAGE_DROP;
   const row = table?.agents[agent as keyof ImageDropTable['agents']];
-  return row ?? table?.fallback ?? FALLBACK_IMAGE_DROP;
-}
-
-/** Test seam: install a table without IPC. */
-export function __setImageDropTable(next: ImageDropTable | null): void {
-  table = next;
+  return row ?? table?.fallback ?? DEFAULT_IMAGE_DROP;
 }

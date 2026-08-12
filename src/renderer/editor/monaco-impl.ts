@@ -17,6 +17,7 @@ import JsonWorker from 'monaco-editor/language/json/json.worker?worker&inline';
 import CssWorker from 'monaco-editor/language/css/css.worker?worker&inline';
 import HtmlWorker from 'monaco-editor/language/html/html.worker?worker&inline';
 import TsWorker from 'monaco-editor/language/typescript/ts.worker?worker&inline';
+import { GMUX_MONACO_THEME } from './monaco-theme-name';
 
 self.MonacoEnvironment = {
   getWorker(_workerId: string, label: string): Worker {
@@ -60,7 +61,7 @@ monaco.typescript.javascriptDefaults.setDiagnosticsOptions({
 // as one color vocabulary.
 // ---------------------------------------------------------------------------
 
-export const GMUX_MONACO_THEME = 'gmux-dark';
+export { GMUX_MONACO_THEME };
 
 monaco.editor.defineTheme(GMUX_MONACO_THEME, {
   base: 'vs-dark',

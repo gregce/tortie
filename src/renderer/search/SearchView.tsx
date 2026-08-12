@@ -159,6 +159,11 @@ export function SearchSection(): React.JSX.Element {
 
   // Staleness rides the SAME repo watcher git already uses — one FSEvents
   // subscription per repo, two consumers (src/main/watcher/bus.ts).
+  //
+  // Deliberately the RAW bridge and not `state/repo-changed`'s debounced bus:
+  // that bus exists to stop four surfaces spending four git calls at four
+  // different instants, and this handler spends nothing — it flips a "results
+  // may be stale" flag, which should not be held back for 150 ms.
   useEffect(() => {
     const git = (window.gmux as GmuxApi | undefined)?.git;
     if (git === undefined) return;

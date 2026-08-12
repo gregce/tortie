@@ -120,7 +120,7 @@ const CONFUSABLE_WITH: ReadonlyMap<HueKey, readonly number[]> = new Map([
 /**
  * The hue a colour actually paints — role aliasing collapsed.
  *
- * DUP NOTE for the integrator: `../graph-geometry.ts`'s `hueSlot()` computes
+ * DUP NOTE for the integrator: `./geometry.ts`'s `hueSlot()` computes
  * the same mapping (it independently arrived at the same local→0 / remote→2 /
  * base→3 assignment, for the same measured reasons). It should call this
  * instead; it carries the extra job of defaulting a colourless lane to its

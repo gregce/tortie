@@ -13,7 +13,7 @@
 
 import { BrowserWindow } from 'electron';
 import type { IpcMain, IpcMainInvokeEvent } from 'electron';
-import { gmuxError } from '../tmux/errors';
+import { gmuxError } from '../errors';
 import { handle } from '../typed-ipc';
 import {
   captureImage,

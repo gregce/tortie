@@ -38,7 +38,7 @@ import type {
   FsTrashInput,
   FsTrashResult
 } from '@shared/fs-ops';
-import { gmuxError } from '../tmux/errors';
+import { gmuxError } from '../errors';
 import { fsOpError, fsOpMessage } from './errors';
 import type { ResolvedFsPath } from './paths';
 import { assertBasename, resolveInsideRoot, resolveProjectRoot } from './paths';

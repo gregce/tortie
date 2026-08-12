@@ -40,7 +40,6 @@ files:
   - "!node_modules/react-dom/**"
   - "!node_modules/@xterm/**"
   - "!node_modules/zustand/**"
-  - "!node_modules/uuid/**"
   # Phase 11 (@pierre/diffs + @pierre/trees) and their exclusive transitives.
   # Unlike the strays above these are NOT tiny — Shiki's grammars/themes alone
   # are ~18 MB on disk — and electron-vite code-splits every one of them into

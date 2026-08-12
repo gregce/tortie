@@ -43,6 +43,7 @@ import type { LaunchableAgentId } from '@shared/types';
 // Direct module imports (NOT the ./settings barrel): settings/ipc.ts imports
 // rebuildAppMenu from this file — the barrel would close a require cycle.
 import { getSettings } from './settings/store';
+import { sendEvent } from './typed-events';
 import {
   closeSettingsWindowIfFocused,
   isSettingsWindow,
@@ -97,7 +98,7 @@ export function sendMenuAction(action: MenuActionWithFind): boolean {
     console.warn(`[menu] "${action}" had no window to act on — dropped`);
     return false;
   }
-  win.webContents.send(EVT_MENU_ACTION, action);
+  sendEvent(win.webContents, EVT_MENU_ACTION, action);
   return true;
 }
 
@@ -120,7 +121,7 @@ export function requestQuit(): void {
     app.quit();
     return;
   }
-  win.webContents.send(EVT_QUIT_REQUESTED);
+  sendEvent(win.webContents, EVT_QUIT_REQUESTED);
   setTimeout(() => app.quit(), 3_000);
 }
 

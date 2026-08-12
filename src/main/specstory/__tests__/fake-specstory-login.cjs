@@ -10,7 +10,7 @@
  *    rather than exiting (five attempts);
  *  - a good code writes $HOME/.specstory/cli/auth.json and exits 0.
  *
- * Used by specstory-login.test.ts so the child-lifetime rules can be tested
+ * Used by login.test.ts so the child-lifetime rules can be tested
  * without a network, a browser, or anybody's real SpecStory account.
  */
 

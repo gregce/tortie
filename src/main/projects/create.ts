@@ -26,7 +26,7 @@
 import type { CreateProjectInput, CreateProjectResult } from '@shared/ipc';
 import { projectPathFor, validateProjectName } from '@shared/project-create';
 import type { Project } from '@shared/types';
-import { gmuxError } from '../tmux/errors';
+import { gmuxError } from '../errors';
 
 /** What creating a project needs from the outside world. */
 export interface ProjectCreateDeps {

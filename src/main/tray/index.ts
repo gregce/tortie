@@ -22,7 +22,7 @@ import { app, Menu, Tray, nativeImage } from 'electron';
 import type { MenuItemConstructorOptions } from 'electron';
 import { join } from 'node:path';
 import type { Project, Session } from '@shared/types';
-import { getGmuxCore } from '../ipc';
+import { getGmuxCore } from '../sessions';
 import { requestQuit, sendMenuAction } from '../menu';
 import { attentionRows, blockedSince } from './attention';
 

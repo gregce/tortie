@@ -73,12 +73,6 @@ interface LoadedGrammar {
   parser: Parser;
 }
 
-/** How the extractor explains a file it could not read or parse. */
-export interface ExtractFailure {
-  relPath: string;
-  reason: string;
-}
-
 export class SymbolExtractor {
   private readonly grammars = new Map<GrammarId, LoadedGrammar | null>();
 

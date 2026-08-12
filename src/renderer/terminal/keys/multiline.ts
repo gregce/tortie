@@ -17,21 +17,17 @@
 
 import type { AgentMultilineKey, MultilineKeyTable } from '@shared/types';
 import type { GmuxMultilineExtras } from '@shared/ipc';
+import { DEFAULT_MULTILINE_KEY, LF } from '@shared/agent-defaults';
 
 /**
- * ASCII line feed — what ⌃J sends, and the only sequence measured to insert a
- * newline on every installed agent (docs/research/20-shift-enter.md).
+ * `LF` and the default row come from `@shared/agent-defaults`, which is also
+ * where main's registry gets them: the renderer used to declare its own copies
+ * — one of them under the SAME exported name as main's — and two constants
+ * that must be equal, declared twice, diverge the day someone edits one
+ * (research 25 §3, Tier 3). Re-exported so this module's import sites and its
+ * test are unchanged.
  */
-export const LF = '\n';
-
-/**
- * Shipped default: the measured LF. Matches main's DEFAULT_MULTILINE_KEY, and
- * `verified` is false because an agent with no row is by definition unmeasured.
- */
-export const DEFAULT_MULTILINE_KEY: AgentMultilineKey = {
-  sequence: LF,
-  verified: false
-};
+export { DEFAULT_MULTILINE_KEY, LF };
 
 let table: MultilineKeyTable | null = null;
 let inflight: Promise<void> | null = null;

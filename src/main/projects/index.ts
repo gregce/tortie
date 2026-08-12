@@ -51,7 +51,7 @@ function defaultDeps(): ProjectCreateDeps {
     addProject: async (path) => {
       // Lazy, like every other main module that needs the core: a project
       // channel must not drag tmux into the boot module graph.
-      const { getGmuxCore } = await import('../ipc');
+      const { getGmuxCore } = await import('../sessions');
       return (await getGmuxCore()).addProject(path);
     }
   };

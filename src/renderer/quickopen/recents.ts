@@ -29,7 +29,6 @@ export interface RecentFile {
 }
 
 let entries: RecentFile[] = load();
-const listeners = new Set<() => void>();
 
 function load(): RecentFile[] {
   try {
@@ -81,14 +80,6 @@ export function noteOpened(repoPath: string, relPath: string): void {
     ...entries.filter((e) => !(e.repoPath === repoPath && e.relPath === relPath))
   ].slice(0, MAX_RECENTS);
   persist();
-  for (const cb of listeners) cb();
-}
-
-export function onRecentsChanged(cb: () => void): () => void {
-  listeners.add(cb);
-  return () => {
-    listeners.delete(cb);
-  };
 }
 
 let started = false;
@@ -111,16 +102,4 @@ export function startRecordingRecents(): () => void {
     started = false;
     off();
   };
-}
-
-/** Test seam. */
-export function resetRecents(): void {
-  entries = [];
-  started = false;
-  listeners.clear();
-  try {
-    window.localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    /* ignore */
-  }
 }

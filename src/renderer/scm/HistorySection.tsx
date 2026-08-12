@@ -64,8 +64,8 @@ import {
   hasGitGraph,
   useGitDepth
 } from './depth';
-import { CommitGraph, CommitGraphSpacer, useLaneCap } from './CommitGraph';
-import { GRAPH_SCOPE_ATTR } from './graph-geometry';
+import { CommitGraph, CommitGraphSpacer, useLaneCap } from './graph/CommitGraph';
+import { GRAPH_SCOPE_ATTR } from './graph/geometry';
 import { capRow, gutterColumns, layoutGraph, makeRoleResolver } from './graph';
 import type { CappedRow, GraphLayout, GraphRow } from './graph';
 import { formatRelative, fullMessage, shortSha, splitPath } from './format';

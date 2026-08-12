@@ -21,7 +21,7 @@ import type {
   AnyMenuActionWithProjects,
   GmuxMenuExtras,
   GmuxQuitExtras,
-  MenuActionId
+  MenuActionWithFind
 } from '@shared/ipc';
 import { acceleratorToDisplay, keyDisplay } from '@shared/keymap';
 import { sessionsPositionForMenuAction } from '@shared/sessions-position';
@@ -568,14 +568,18 @@ function useMenuActions(): void {
       | (typeof window.gmux & GmuxMenuExtras)
       | undefined;
     if (typeof bridge?.onMenuAction !== 'function') return;
-    // The preload's callback type predates the round-1 View-menu ids; the
-    // channel carries plain strings, so widening here is honest.
-    return bridge.onMenuAction((action: MenuActionId) => {
+    // ui:menuAction is typed `MenuActionWithFind` — the union main's
+    // sendMenuAction actually sends (Phase 16, G1c; it used to say
+    // MenuActionId here and widen it back with a cast).
+    return bridge.onMenuAction((action: MenuActionWithFind) => {
       // Phase 12.85: the menu-bar sentinel's rows carry a session id.
       if (action.startsWith(FOCUS_SESSION_PREFIX)) {
         jumpToSession(action.slice(FOCUS_SESSION_PREFIX.length));
         return;
       }
+      // Still a NARROWING cast, and now visibly so: what survives the
+      // focus-session branch is this union minus `launch-agent:*`, which the
+      // Settings integration owns (src/renderer/settings/integration.ts).
       runMenuAction(action as AnyMenuActionWithProjects);
     });
   }, []);

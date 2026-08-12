@@ -21,10 +21,16 @@ import { app } from 'electron';
 import { randomUUID } from 'node:crypto';
 import { mkdir, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { extname, join } from 'node:path';
-import { gmuxError } from '../tmux/errors';
+import { MAX_DROP_BYTES } from '@shared/image-types';
+import { gmuxError } from '../errors';
 
-/** Largest single file we will copy into the store (one image, not a corpus). */
-export const MAX_DROP_BYTES = 25 * 1024 * 1024;
+/**
+ * Largest single file we will copy into the store (one image, not a corpus).
+ * Declared in `@shared/image-types` because the renderer enforces the same cap
+ * before it reads the bytes; re-exported here so `main/drop/index.ts` and this
+ * module's callers are unchanged.
+ */
+export { MAX_DROP_BYTES };
 
 /** Files older than this are pruned. Long enough to survive a resume. */
 const MAX_AGE_MS = 7 * 24 * 3600_000;

@@ -25,10 +25,8 @@ import type {
   CreateProjectInput,
   CreateProjectResult,
   GmuxActivityExtras,
-  GmuxAppExtras,
   GmuxLoginItemExtras,
   GmuxProjectCreateExtras,
-  GmuxProjectExtras,
   GmuxScrollbackExtras,
   GmuxSessionExtras,
   GmuxSettingsExtras,
@@ -1238,15 +1236,6 @@ export function whenSessionsPositionPushed(): Promise<void> {
 // there.
 if (typeof window !== 'undefined') {
   pushSessionsPositionToMenu(useApp.getState().sessionOrientation);
-}
-
-/** Optional bridge extras, feature-detected (see src/shared/ipc.ts). */
-export function projectExtras(): GmuxProjectExtras {
-  return (window.gmux?.projects ?? {}) as GmuxProjectExtras;
-}
-
-export function appExtras(): GmuxAppExtras {
-  return (window.gmux ?? {}) as unknown as GmuxAppExtras;
 }
 
 /** Optional login-item bridge extras (Phase 6), feature-detected. */
