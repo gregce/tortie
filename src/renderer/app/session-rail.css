@@ -1,0 +1,219 @@
+/* ---------------------------------------------------------------------------
+   The collapsed session dock (Phase 18 item 4) — a 48px rail + hover card.
+
+   Colocated with SessionRail.tsx. The rail is EXACTLY the activity bar's
+   width, so a collapsed dock reads as the window's right bookend rather than
+   as a panel that failed to open, and it is the same material as the expanded
+   dock (--bg-sidebar, one 1px --border edge) so nothing new is introduced.
+
+   No width transition, here or on the dock: every animated frame of a resize
+   is a ResizeObserver fit and therefore a tmux resize of live sessions
+   (DESIGN.md §5 — the terminal region never animates). Collapse and expand
+   land in one frame, exactly like ⌘B.
+--------------------------------------------------------------------------- */
+
+.session-dock.collapsed {
+  width: 48px;
+  min-width: 48px;
+  max-width: 48px;
+  flex: 0 0 48px;
+}
+
+/* The rail's slice of the 36px band: one centred chevron. The ＋ and ˅ pair
+   is dropped rather than squeezed — two 24px buttons do not fit at 48px, and
+   ⌘T plus the native Session menu already create sessions from anywhere.
+   The chevron itself never goes: losing the way back would be a trap. */
+.session-dock.collapsed .dock-toolbar {
+  justify-content: center;
+  padding: 0;
+  gap: 0;
+}
+
+/* Rows are SURFACES, exactly as in the expanded list — a split group is one
+   item there and one item here. Density is the only difference. */
+.rail-list {
+  margin: 0;
+  padding: var(--space-2) 0;
+  list-style: none;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  flex: 1;
+  /* The `sessions` zoom region (Phase 12.11) covers the dock's list in both
+     densities, so ⌘+ with the rail focused still moves what the user is
+     looking at. The band above is deliberately excluded, as everywhere else —
+     see src/renderer/zoom/zoom.css for the rule this mirrors. */
+  zoom: var(--zoom-sessions, 1);
+}
+
+/* Pinned to the rail's foot, mirroring the activity bar's settings gear at
+   the window's other 48px edge. `margin-top: auto` rather than a spacer
+   element, so the empty state (no sessions, hence no .rail-list) still puts
+   it in the same place instead of letting it float under the band. */
+.rail-footer {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  flex: 0 0 36px;
+  /* The rail's own hairline, so the control reads as belonging to the rail
+     rather than floating over the last session. */
+  border-top: 1px solid var(--border);
+}
+
+.rail-list:focus-visible {
+  outline: none;
+  box-shadow: inset var(--focus-ring);
+}
+
+.rail-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  width: 100%;
+  cursor: default;
+  color: var(--text-secondary);
+  transition: background var(--dur-base) var(--ease-out);
+}
+
+.rail-item:hover {
+  background: var(--bg-raised);
+  color: var(--text-primary);
+}
+
+.rail-item.selected {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
+/* The same 2px accent marker the expanded row carries. */
+.rail-item.selected::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+}
+
+.rail-glyph {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+
+/* 6px rather than the list's 8px, and ringed in the rail's own background so
+   it separates from the glyph it overlaps. */
+.rail-dot {
+  position: absolute;
+  right: -3px;
+  bottom: -2px;
+  width: 6px;
+  height: 6px;
+  outline: 1px solid var(--bg-sidebar);
+}
+
+.rail-item:hover .rail-dot {
+  outline-color: var(--bg-raised);
+}
+
+.rail-item.selected .rail-dot {
+  outline-color: var(--bg-active);
+}
+
+/* Reduced motion turns the needs-input pulse off app-wide (globals.css). On
+   surfaces that carry a name, the static signal is the weight bump; the rail
+   has no name to bump, so the dot itself becomes the heavier object — same
+   amber, same meaning, no new signal. */
+@media (prefers-reduced-motion: reduce) {
+  .rail-item.attention .rail-dot {
+    width: 8px;
+    height: 8px;
+    right: -4px;
+    bottom: -3px;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   The hover card
+
+   The commit hover card's material at a quarter of its size, so it belongs to
+   a world the user has already met. It is portalled to <body> and positioned
+   in raw viewport px — the rail's own list is zoomable, and a fixed card
+   inside a zoomed ancestor resolves in the zoomed coordinate space.
+--------------------------------------------------------------------------- */
+
+.rail-card {
+  position: fixed;
+  /* The rail is flush to the window edge, so the offset needs no measurement. */
+  right: calc(48px + var(--space-4));
+  z-index: var(--z-tooltip);
+  max-width: 240px;
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-2);
+  /* Cannot be hovered, cannot be clicked, cannot take focus: the card is a
+     reveal, never a target. */
+  pointer-events: none;
+  user-select: none;
+  animation: rail-card-in var(--dur-fast) var(--ease-out);
+}
+
+.rail-card-name {
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  font-weight: var(--weight-medium);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rail-card-detail {
+  margin-top: var(--space-1);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-secondary);
+}
+
+/* The resume sentence: a paragraph under the scan line, not part of it.
+   --text-muted clears 4.5:1 on --bg-surface (DESIGN §1.1's own limit — it is
+   raised/active fills that muted may not sit on). */
+.rail-card-note {
+  margin-top: var(--space-3);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+}
+
+@keyframes rail-card-in {
+  from {
+    opacity: 0;
+    transform: translateX(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes rail-card-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}

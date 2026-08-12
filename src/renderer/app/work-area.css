@@ -1,0 +1,46 @@
+/* ---------------------------------------------------------------------------
+   The work area (Phase 18 item 3)
+
+   `shell-body` used to be one flat flex ROW —
+   activity bar · sidebar · terminal · editor · session dock — which made the
+   session tab strip (the terminal region's own header band) a sibling of the
+   editor panel. The editor's width came straight out of the strip's, so
+   opening a file cost the app its primary navigation: ten sessions rendered
+   as three tabs and an overflow chevron.
+
+   Two wrappers fix it structurally. `.work-area` is a COLUMN holding the
+   strip above `.work-row`; `.work-row` is the old flex row of terminal +
+   editor. The strip therefore spans both regions and no editor width can
+   reach it, at any split, including the unbounded drag and the fill mode
+   item 2 adds.
+
+   Both wrappers are UNCONDITIONAL — only the strip inside them is
+   orientation-dependent. Rendering either of them conditionally would re-key
+   the terminal subtree on every orientation switch, tearing down xterm and
+   its WebGL context for every visible pane.
+
+   NO WIDTH TRANSITIONS live in here, and none may be added: every animated
+   frame of a resize is a ResizeObserver fit, and every fit pushes new
+   cols/rows to real sessions (DESIGN.md §5 — the terminal region never
+   animates).
+--------------------------------------------------------------------------- */
+
+.work-area {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.work-row {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  /* The containing block for anything that fills the work row instead of
+     sharing it — the editor's fill mode, and (Phase 18 item 3's follow-on)
+     the sub-1400px editor overlay, which must start BELOW the hoisted band
+     rather than covering it. */
+  position: relative;
+}

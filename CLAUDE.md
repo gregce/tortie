@@ -36,6 +36,36 @@ Each phase runs as ONE Workflow with the same shape that produced Phases 1-13: *
 - **Never leave the queue idle.** When a phase's workflow completes, immediately launch the next batch in the order recorded at the top of docs/BACKLOG.md. Do not wait to be asked. If a verdict blocks, fix it and continue.
 - **Report to the user in their terms** when a phase lands: what they can now do that they could not before, and what is still not true.
 
+## How to write to the operator (every report, not only when a phase lands)
+The operator gave these rules directly. They are requirements, not preferences. They apply to chat replies, commit messages, backlog entries and research documents.
+
+**Words and sentences**
+- Use simple, everyday words. Prefer the common word over the fancy one. Write "use" rather than "leverage". Short familiar words are faster to read.
+- Write complete sentences. Each sentence states one clear thing and has a subject and a verb. Do not write fragments. Do not stitch several ideas into one dense line. If a sentence is doing two jobs, split it into two.
+- Do not use em dashes or en dashes anywhere, including in number ranges. Join clauses with a period, or with a word such as "and". Write ranges with the word "to", e.g., "0.94 to 0.96".
+- Use a colon only to introduce a list. Do not use a colon to join two clauses. Do not use a colon to set up a point.
+- Do not use jargon. If a technical term is needed, say it once and explain it in plain words. Avoid a word such as "calibrated" unless you define it simply.
+- Do not use analogies, metaphors or imagery. Do not explain one thing by comparing it to a different thing. Describe the actual thing in literal terms.
+- Cut filler. Drop a phrase such as "it is worth noting that". Every sentence should add something the reader needs.
+- Do not give inanimate things human actions. Name the person who acts. Write "the authors argue" rather than "the paper argues". A plain factual verb for an inanimate subject is fine, e.g., "the table shows the scores".
+- Do not invent hyphenated adjectives. A common compound that people already use is fine, e.g., "well-crafted". If you catch yourself coining one, write it out in plain words instead.
+- Do not pad with empty emphasis. Drop "really" and "real". Do not say that something "matters" or "carries weight". State the actual point, or cut the sentence.
+- Do not write a three-part series inside a sentence. It sounds practiced. When you have items to list, use a bullet list. Do not pad a list to three for rhythm.
+- When you use an example, give one example and introduce it with "e.g.". Do not stack several examples for the same point.
+
+**Length**
+- Plain does not mean terse. If an idea is compressed into one cramped sentence, expand it so each point gets its own sentence and the reader can follow it.
+- When you have several distinct things to list, give each one its own sentence or its own bullet. Do not run them together in one long line.
+- Clarity comes before shortness. Clarity also comes before length.
+
+**Shape of a report**
+- Lead with the answer. State the verdict, the number or the decision in the first sentence. Put the reasoning after it.
+- Use a table when there are three or more of anything, e.g., a set of options with a verdict on each.
+- When you recommend one option, show the rejected options in the same table, with the deciding reason on each row.
+- Draw a diagram when the thing has a shape, e.g., how data moves between two processes. Use plain text drawings, because they survive in a terminal.
+- Say what is not true. Name what did not land. Name what is unverified. Name what you assumed.
+- Use numbers rather than adjectives. Write "0.57 s, from 23 s" rather than "much faster".
+
 ## Verification tiers — match the check to the risk, do not default to maximum
 Heavyweight verification (driving the real app with synthetic input, screenshot reads, per-agent matrices) is expensive in wall clock and tokens. Spend it where a wrong answer costs the user their work; do not spend it on cosmetics.
 - **Tier 1 — gates only** (`typecheck`, `build`, `test`, `smoke:t1`): icons and assets, CSS/spacing, copy and labels, tooltips, menu items, additive UI with no new state, doc changes. A screenshot only if the change is visual and cheap to capture.

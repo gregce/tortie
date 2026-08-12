@@ -310,19 +310,28 @@
    S3 — Sidebar (one view at a time: Source Control or Explorer)
 --------------------------------------------------------------------------- */
 
+/* Phase 18 item 1: neither the width nor the ceiling is written here any more.
+   The ceiling is a fraction of the LIVE window (state/chrome-geometry.ts), so
+   a constant in CSS would be a second, silent limit the drag could not see —
+   which is exactly how the 400px cap outlived the reason for it, and the
+   280px default beside it was the same duplication waiting to go stale. Both
+   arrive as an inline style from the store. Only the FLOOR stays, because it
+   is structural: the view host must never be laid out under SIDEBAR_MIN. */
 .sidebar {
   position: relative;
   display: flex;
   flex-direction: column;
-  width: 280px;
   min-width: 220px;
-  max-width: 400px;
   background: var(--bg-sidebar);
   border-right: 1px solid var(--border);
   flex: 0 0 auto;
   min-height: 0;
 }
 
+/* Invisible 5px hit area over the 1px region divider (DESIGN §2.2). It is a
+   real `role="separator"` tab stop since Phase 18, so it needs a focus state
+   like every other control in the app — a divider that can be driven from the
+   keyboard but cannot be SEEN from the keyboard is half a control. */
 .sidebar-resizer {
   position: absolute;
   top: 0;
@@ -331,11 +340,22 @@
   height: 100%;
   cursor: col-resize;
   z-index: 2;
+  /* Pointer capture owns the gesture; stop the platform claiming it first. */
+  touch-action: none;
 }
 
 .sidebar-resizer:hover,
 .sidebar-resizer.dragging {
   background: var(--border-strong);
+}
+
+/* Focused, the divider lights in accent rather than wearing a ring: a 5px bar
+   inside a 2px halo is 9px of glow leaking over the terminal, and the app
+   already says "this is the thing you are acting on" in accent everywhere
+   else. Hover keeps --border-strong, so the two states stay distinct. */
+.sidebar-resizer:focus-visible {
+  outline: none;
+  background: var(--accent);
 }
 
 /* The one view host (activity bar decides which). Focusable for ⌘⇧E/⌃⇧G. */
@@ -1865,6 +1885,21 @@ body.gmux-dragging,
 body.gmux-dragging * {
   cursor: grabbing !important;
   user-select: none !important;
+}
+
+/* …except a DIVIDER drag, which is sizing a region, not carrying an object:
+   it keeps the resize cursor for the whole gesture. Phase 18 put the sidebar
+   on the shared drag engine, which is what brought the grabbing hand with it;
+   the rule is keyed on the separator ROLE rather than on any one region's
+   class so every divider — sidebar, editor, dock, splits — reads the same. */
+body.gmux-dragging:has([role='separator'][aria-orientation='vertical'].dragging),
+body.gmux-dragging:has([role='separator'][aria-orientation='vertical'].dragging) * {
+  cursor: col-resize !important;
+}
+
+body.gmux-dragging:has([role='separator'][aria-orientation='horizontal'].dragging),
+body.gmux-dragging:has([role='separator'][aria-orientation='horizontal'].dragging) * {
+  cursor: row-resize !important;
 }
 
 /* Lifted ghost: the dragged tab/row at 90% opacity, tracking the pointer

@@ -629,7 +629,7 @@ export const useGitDepth = create<DepthState>((set, get) => {
     async createBranch(repoPath, name, fromRef) {
       const bridge = depthBridge();
       if (typeof bridge?.createBranch !== 'function') {
-        return 'Branch creation needs a newer gmux build';
+        return 'Branch creation needs a newer Tortie build';
       }
       try {
         await bridge.createBranch(
@@ -647,7 +647,7 @@ export const useGitDepth = create<DepthState>((set, get) => {
     async createTag(repoPath, name, ref) {
       const bridge = depthBridge();
       if (typeof bridge?.createTag !== 'function') {
-        return 'Tag creation needs a newer gmux build';
+        return 'Tag creation needs a newer Tortie build';
       }
       try {
         await bridge.createTag({ repoPath, name, ref });

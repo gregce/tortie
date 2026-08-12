@@ -473,7 +473,7 @@ export function BranchesView({
           ) : null}
           {!depthAvailable ? (
             <div className="section-stub">
-              Branch management needs a newer gmux build.
+              Branch management needs a newer Tortie build.
             </div>
           ) : !loaded ? (
             <div className="scm-skeleton" aria-label="Loading branches">

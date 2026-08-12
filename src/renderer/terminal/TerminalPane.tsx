@@ -149,8 +149,15 @@ export function TerminalPane({
     const gmux: GmuxApi | undefined = window.gmux;
     if (!gmux) {
       setOverlay({
+        // The old detail read "window.gmux is missing — preload did not
+        // load.", which named an identifier the user cannot act on and put
+        // the pre-rename product name on screen. What they need instead is
+        // the reassurance that this is a broken WINDOW, not lost work: the
+        // sessions are in the private server either way (PRODUCT.md, P1).
         title: 'Terminal bridge unavailable',
-        detail: 'window.gmux is missing — preload did not load.'
+        detail:
+          'This window did not finish loading, so it cannot show your ' +
+          'sessions. They are still running — quit Tortie and open it again.'
       });
       return undefined;
     }

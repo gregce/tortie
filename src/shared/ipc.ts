@@ -1512,7 +1512,8 @@ export type ProjectMenuActionId = 'new-project';
 export type AnyMenuActionWithProjects =
   | AnyMenuActionId
   | ProjectMenuActionId
-  | FindMenuActionId;
+  | FindMenuActionId
+  | ChromeMenuActionId;
 
 // ---------------------------------------------------------------------------
 // APPENDED by Phase 12.9 items 2-4 (the explorer's file management) — one new
@@ -2062,6 +2063,16 @@ export interface GmuxQuickOpenExtras {
 
 /** Find-menu actions added by Phase 14. */
 export type FindMenuActionId = 'quick-open' | 'show-search' | 'go-to-symbol';
+
+// ---------------------------------------------------------------------------
+// APPENDED by Phase 18 (chrome layout constraints) — one new id, folded into
+// AnyMenuActionWithProjects above by the same one-line edit FindMenuActionId
+// documents. The View menu is where ⌘B already lives, so its mnemonic pair
+// ⇧⌘B belongs beside it rather than in a mode of its own.
+// ---------------------------------------------------------------------------
+
+/** View-menu action added by Phase 18: fill the chrome with the open file. */
+export type ChromeMenuActionId = 'toggle-editor-fill';
 
 /**
  * Every action the native menus (app menu + status item) can forward — the

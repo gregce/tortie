@@ -34,7 +34,12 @@ import { Titlebar } from './Titlebar';
 import { ActivityBar } from './ActivityBar';
 import { Sidebar } from './Sidebar';
 import { TerminalRegion } from './TerminalRegion';
+// Phase 18 item 3: the session tab strip is the work area's own band, not the
+// terminal region's — see the layout comment in the shell body below.
+import { SessionStrip } from './SessionStrip';
+import { termFocusHandlers } from './term-focus';
 import { SessionDock } from './SessionDock';
+import './work-area.css';
 import { CreateSessionModal } from './CreateSessionModal';
 import { NewProjectModal } from './NewProjectModal';
 import { ShortcutsOverlay } from './ShortcutsOverlay';
@@ -52,7 +57,7 @@ import { focusTerminal, jumpToSession } from './session-focus';
 import { showOneTimeTip } from './one-time-tip';
 // Phase 5 (editor stream): the S5 editor panel — a right split beside the
 // terminal region (overlay under 1400px). It renders null until a file opens.
-import { EditorPanel } from '../editor';
+import { EditorPanel, toggleEditorFill } from '../editor';
 // Phase 12 item 8 (drop stream): THE window-level file-drag router — one set
 // of listeners for "attach to this session" AND the §6.1 "add a project"
 // frame, dispatched by hit-test. It replaces the old useFolderDrop hook,
@@ -513,6 +518,11 @@ function runMenuAction(action: AnyMenuActionWithProjects): void {
     }
     case 'toggle-sidebar':
       s.toggleSidebar();
+      return;
+    // Phase 18. The guard (no file open, or overlay mode) lives inside
+    // toggleEditorFill so the button, ⇧⌘B and this menu item cannot drift.
+    case 'toggle-editor-fill':
+      toggleEditorFill();
       return;
     case 'attention':
       s.setAttentionOpen(!s.attentionOpen);
@@ -1018,12 +1028,29 @@ export function App(): React.JSX.Element {
         <FirstRun />
       ) : (
         <div className="shell-body">
-          {/* S1 region order: activity bar · sidebar (one view) · center ·
-              editor split · right session list ("right" orientation). */}
+          {/* S1 region order: activity bar · sidebar (one view) · work area ·
+              right session list ("right" orientation).
+
+              The work area is a COLUMN (Phase 18 item 3): the session tab
+              strip on top, spanning the whole area, and under it the row of
+              terminal + editor. Sessions are the app's primary navigation, so
+              opening a file must not be able to subtract width from them —
+              before this the strip was the terminal region's own band and
+              therefore the editor's flex sibling.
+
+              Both wrappers render UNCONDITIONALLY; only the strip inside them
+              depends on orientation. A conditional wrapper would re-key
+              <TerminalRegion /> on every orientation switch and tear down
+              xterm's WebGL context for every visible pane. */}
           <ActivityBar />
           {sidebarVisible ? <Sidebar /> : null}
-          <TerminalRegion />
-          <EditorPanel />
+          <div className="work-area" {...termFocusHandlers}>
+            {orientation === 'top' ? <SessionStrip /> : null}
+            <div className="work-row">
+              <TerminalRegion />
+              <EditorPanel />
+            </div>
+          </div>
           {orientation === 'right' ? <SessionDock /> : null}
         </div>
       )}

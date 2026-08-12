@@ -7,6 +7,6 @@
  * the canonical bus in src/renderer/state/open-file.ts.
  */
 
-export { EditorPanel } from './EditorPanel';
+export { EditorPanel, toggleEditorFill } from './EditorPanel';
 export { useEditor } from './store';
 export type { EditorMode, EditorTab } from './store';

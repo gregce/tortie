@@ -1540,7 +1540,7 @@ function remoteOpError(
   const authFailure = (): Error =>
     gmuxError(
       'GIT_FAILED',
-      `Couldn’t authenticate with ${remote}. gmux runs git without a terminal, so it can’t ask for a password — set up an SSH key or a credential helper, then try again.`,
+      `Couldn’t authenticate with ${remote}. Tortie runs git without a terminal, so it can’t ask for a password — set up an SSH key or a credential helper, then try again.`,
       detail
     );
 

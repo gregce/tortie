@@ -81,7 +81,12 @@ export function getTmuxContext(): TmuxContext {
   if (!existsSync(confPath)) {
     throw gmuxError(
       'TMUX_NOT_FOUND',
-      'gmux-tmux.conf is missing from the application bundle.',
+      // Reaches a toast verbatim through errorText() (renderer store), so it
+      // is product copy, not a log line: it names Tortie, not the protected
+      // filename. The path still travels in `detail`, where a bug report can
+      // find it.
+      "Tortie's tmux configuration is missing from the application bundle. " +
+        'Reinstalling Tortie will restore it.',
       `expected at ${confPath}`
     );
   }

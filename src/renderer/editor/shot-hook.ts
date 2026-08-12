@@ -57,7 +57,9 @@ export interface ShotDriveSpec {
    * Sidebar width in CSS px, applied before the project opens. The SCM
    * sections degrade against the PANE's width via container queries, so a
    * capture that cannot set it can only ever photograph one responsive tier.
-   * Clamped by the store's own 220–400 bounds.
+   * Clamped by the store's own bounds — since Phase 18 that is
+   * `[SIDEBAR_MIN, sidebarMaxWidth(window)]`, i.e. 220px up to half the LIVE
+   * window, not the old fixed 220–400.
    */
   sidebarWidth?: number;
   /**

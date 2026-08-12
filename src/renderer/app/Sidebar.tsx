@@ -14,11 +14,38 @@
  *
  * Tree decorations are fed FROM the SCM store's status list so the tree and
  * the Changes section can never disagree (Phase 4 integration).
+ *
+ * Phase 18 (item 1) — the sidebar SIZES itself against the live window, and
+ * can be dragged shut. Three things make that generic rather than per-view,
+ * and they are the reason a Context view (docs/research/29) will inherit all
+ * of it for free:
+ *
+ *   - the resizer is a sibling of the view host, not part of any view;
+ *   - the ceiling is a FUNCTION of the live window (chrome-geometry's
+ *     `sidebarMaxWidth`), not the 400px constant it used to be, so a wide
+ *     display gives the tree half the glass and a narrow one still leaves
+ *     the terminal its floor;
+ *   - dragging below the snap threshold calls `toggleSidebar` — the exact
+ *     action the activity bar's icon calls — so "hidden" stays ONE truth and
+ *     the icon's selected state, the View-menu radio and ⌘B cannot disagree
+ *     with what is on screen (the Phase 14.7 lesson).
+ *
+ * The stored width is the user's INTENT and is never rewritten by a window
+ * resize; what renders is `clampSidebarWidth(stored, liveWindow)`. Shrink the
+ * window and grow it back and the chosen width returns exactly.
  */
 
-import React, { useMemo, useState } from 'react';
-import { useApp } from '../state/store';
+import React, { useMemo, useRef } from 'react';
+import { liveChromeGeometry, useApp } from '../state/store';
+import {
+  clampSidebarWidth,
+  dockRenderedWidth,
+  SIDEBAR_MIN,
+  SIDEBAR_SNAP,
+  useWindowWidth
+} from '../state/chrome-geometry';
 import { useGit } from '../state/git';
+import { useResizeHandle } from '../controls';
 import { BranchHeader, ScmSection } from '../scm';
 import { SearchHeader, SearchSection } from '../search';
 import { canMutate, FilesSection, useFileTree, useTreeHandle } from '../tree';
@@ -117,8 +144,11 @@ export function Sidebar(): React.JSX.Element {
   const projects = useApp((s) => s.projects);
   const activeProjectId = useApp((s) => s.activeProjectId);
   const viewByProject = useApp((s) => s.sidebarViewByProject);
-  const sidebarWidth = useApp((s) => s.sidebarWidth);
+  const storedWidth = useApp((s) => s.sidebarWidth);
   const setSidebarWidth = useApp((s) => s.setSidebarWidth);
+  // The activity bar's own action, reused verbatim: drag-to-hide must land in
+  // the identical state a click on the active view's icon produces.
+  const toggleSidebar = useApp((s) => s.toggleSidebar);
 
   const view =
     (activeProjectId !== null ? viewByProject[activeProjectId] : undefined) ??
@@ -137,13 +167,47 @@ export function Sidebar(): React.JSX.Element {
     return status?.isRepo === true ? status.files : null;
   });
 
-  const [dragging, setDragging] = useState(false);
+  const asideRef = useRef<HTMLElement | null>(null);
+
+  // "At least 50% of the window", re-evaluated on every window resize through
+  // the app's ONE resize subscription. Presentation clamps; the store keeps
+  // what the user asked for.
+  //
+  // The ceiling also yields to whatever the session dock is occupying. That is
+  // not bookkeeping: without it, half of a 1400px window plus a 320px dock
+  // leaves the terminal 12 CSS pixels, and a 12px terminal is a live tmux pane
+  // reflowed to two columns (chrome-geometry.ts, rule 2).
+  const windowWidth = useWindowWidth();
+  const orientation = useApp((s) => s.sessionOrientation);
+  const dockCollapsed = useApp((s) => s.dockCollapsed);
+  const dockWidth = useApp((s) => s.rightListWidth);
+  const dockReserved = dockRenderedWidth(
+    { orientation, dockCollapsed, dockWidth },
+    windowWidth
+  );
+  const renderedWidth = clampSidebarWidth(storedWidth, windowWidth, dockReserved);
+
+  const handle = useResizeHandle({
+    anchor: 'left',
+    panelRef: asideRef,
+    width: renderedWidth,
+    min: SIDEBAR_MIN,
+    // A function, not a number: a window resize — or a dock collapsing —
+    // MID-DRAG must move the ceiling under the drag rather than leave a stale
+    // one behind.
+    max: () => liveChromeGeometry().sidebarMax,
+    onWidth: setSidebarWidth,
+    snapAt: SIDEBAR_SNAP,
+    onSnap: toggleSidebar,
+    label: 'Resize sidebar'
+  });
 
   return (
     <aside
+      ref={asideRef}
       className={`sidebar sidebar-view-${view}`}
       data-slot="sidebar"
-      style={{ width: sidebarWidth, flexBasis: sidebarWidth }}
+      style={{ width: renderedWidth, flexBasis: renderedWidth }}
     >
       {view === 'scm' ? (
         <div className="sidebar-view" data-view="scm" tabIndex={-1}>
@@ -175,24 +239,11 @@ export function Sidebar(): React.JSX.Element {
         </div>
       )}
 
+      {/* Outside the view switch on purpose: every view the sidebar will ever
+          host gets the same edge, with no per-view wiring. */}
       <div
-        className={`sidebar-resizer${dragging ? ' dragging' : ''}`}
-        onMouseDown={(e) => {
-          e.preventDefault();
-          setDragging(true);
-          const startX = e.clientX;
-          const startW = sidebarWidth;
-          const onMove = (ev: MouseEvent): void => {
-            setSidebarWidth(startW + (ev.clientX - startX));
-          };
-          const onUp = (): void => {
-            setDragging(false);
-            window.removeEventListener('mousemove', onMove);
-            window.removeEventListener('mouseup', onUp);
-          };
-          window.addEventListener('mousemove', onMove);
-          window.addEventListener('mouseup', onUp);
-        }}
+        className={`sidebar-resizer${handle.dragging ? ' dragging' : ''}`}
+        {...handle.props}
       />
     </aside>
   );

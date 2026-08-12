@@ -353,6 +353,7 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         ),
         { type: 'separator' },
         item('Toggle Sidebar', 'toggle-sidebar', accel('view.sidebar')),
+        item('Fill the Window', 'toggle-editor-fill', accel('view.fillEditor')),
         item('Toggle Editor', 'toggle-editor', accel('editor.toggle')),
         { type: 'separator' },
         item('Sessions That Need Input', 'attention', accel('session.attention')),

@@ -311,7 +311,7 @@ export function ImageSurface({
       <div className="ed-state">
         <div className="ed-state-title">This image is too large to preview</div>
         <div className="ed-state-body">
-          {name} is {formatBytes(source.bytes)}. gmux previews images up to{' '}
+          {name} is {formatBytes(source.bytes)}. Tortie previews images up to{' '}
           {formatBytes(source.capBytes)}, so opening it here would stall the
           window rather than show you anything.
         </div>

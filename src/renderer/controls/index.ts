@@ -12,3 +12,16 @@
 
 export { FilterField } from './FilterField';
 export type { FilterFieldProps } from './FilterField';
+
+/**
+ * The divider drag lands here for the same reason (Phase 18): three regions
+ * each grew their own, and all three drifted from the cursor differently.
+ * It is a hook rather than a component because the handle's placement is the
+ * region's business and its BEHAVIOUR is not.
+ */
+export { useResizeHandle } from './resizer';
+export type {
+  ResizeAnchor,
+  ResizeHandle,
+  ResizeHandleSpec
+} from './resizer';

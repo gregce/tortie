@@ -775,6 +775,18 @@ export const KEYMAP = [
     menuAction: 'toggle-sidebar'
   },
   {
+    id: 'view.fillEditor',
+    keys: [k('Cmd+Shift+B')],
+    action: 'Fill the window',
+    explain:
+      'Puts the sidebar and the session list away so the open file has the whole window, then brings them back exactly as they were. The session names stay on screen throughout.',
+    group: 'views',
+    scope: 'app',
+    assignable: false,
+    source: 'built-in',
+    menuAction: 'toggle-editor-fill'
+  },
+  {
     id: 'view.sessionsPosition',
     keys: [],
     action: 'Sessions top or right',
@@ -886,7 +898,7 @@ const BY_ID = new Map<string, KeymapEntry>(
 /** The entry for an id. Throws on an unknown id — ids are compile-time. */
 export function keymapEntry(id: KeymapId): KeymapEntry {
   const entry = BY_ID.get(id);
-  if (entry === undefined) throw new Error(`gmux keymap: no entry "${id}"`);
+  if (entry === undefined) throw new Error(`Tortie keymap: no entry "${id}"`);
   return entry;
 }
 
@@ -898,7 +910,7 @@ export function keymapEntry(id: KeymapId): KeymapEntry {
 export function accelerator(id: KeymapId): string {
   const first = keymapEntry(id).keys.find((c) => c.accelerator !== null);
   if (first?.accelerator == null) {
-    throw new Error(`gmux keymap: "${id}" has no accelerator`);
+    throw new Error(`Tortie keymap: "${id}" has no accelerator`);
   }
   return first.accelerator;
 }

@@ -1,9 +1,25 @@
-# Tortie build backlog — COMPLETE
+# Tortie build backlog — REOPENED at Phase 18
 
-**All 17 phases shipped. Tortie is installed at /Applications/Tortie.app (Phase 17, 2026-08-12).**
-This file is now a HISTORY, not a queue. It is kept because each entry records the root cause, the
+**Phases 1–17 shipped. Tortie is installed at /Applications/Tortie.app (Phase 17, 2026-08-12).**
+Everything above Phase 18 is HISTORY and is kept because each entry records the root cause, the
 reference screenshots and the decisions behind a phase — that context is why later agents got things
-right. How this queue was run: docs/method/HOW-WE-BUILT-THIS.md and HOW-WE-DROVE-THIS.md.
+right. How this queue is run: docs/method/HOW-WE-BUILT-THIS.md and HOW-WE-DROVE-THIS.md.
+
+**ACTIVE QUEUE (2026-08-12):**
+- **Phase 18 — chrome layout constraints** (user-reported, specced below). ✅ SHIPPED 2026-08-12.
+- **Phase 19 — specstory hybrid resolution, agent drift, open-vocabulary providers, the book mark.**
+  Spec-complete in docs/research/30-specstory-distribution.md §5 (which numbers itself "18" — it was
+  written before Phase 18 was claimed; it is **19**).
+- Research in flight for further phases: docs/research/27 (release/self-update/CI), 28 (durability
+  gaps + remote sessions), 29 (context sidebar). Each ends with a backlog-ready spec.
+- **RESEARCH PHASE R31 — extensibility (running).** The single biggest architectural question left:
+  should Tortie have an extension system, and if so what KIND. Deep-reads three live prior arts on
+  this machine — `/Users/gdc/bb` (typed TS plugin SDK + contracts + registry, agentic IDE),
+  `/Users/gdc/zed` (WASM/WIT sandbox with a capability model), `/Users/gdc/pi` (a *self-extensible*
+  agent) — then proposes competing architectures, attacks each adversarially, and recommends one.
+  **Explicitly biased away from the VS Code model**, which Tortie has never followed. Output:
+  docs/research/31-extensions.md. **Must remain first-class and unweakened by whatever is chosen:
+  explorer, SCM, search, durable sessions, paned projects, and Context (docs/research/29).**
 
 **Carried forward, deliberately not done** (see BUILD-STATUS.md for the full list):
 - Delete monaco-editor — re-decided at Phase 15.5 against today's evidence: Pierre `/edit` is still
@@ -421,3 +437,268 @@ Verify: upgrade from a POPULATED gmux install — manifest, sessions, settings, 
 After all phases: npm run package from HEAD; quit any running gmux instance (user-coordinated, never kill silently); install fresh gmux.app to /Applications (replace old copy); relaunch; verify version/commit hash in About matches HEAD; confirm sessions survived the swap via tmux reattach (the whole point). BUILD-STATUS.md updated to final state.
 
 Landed: `/Applications/Tortie.app` packaged from HEAD and verified before it replaced anything (bundle id, four renamed helper bundles, specstory Mach-O signed at `Resources/bin/specstory` and re-checked off the mounted DMG, `gmux-tmux.conf`, tree-sitter wasm, unpacked ripgrep, packaged-app smoke exit 0 twice). The About panel now carries the build commit — `src/main/build-info.ts` + a `define` in `electron.vite.config.ts`, so About reads `0.0.1 (<sha>)` with `-dirty` when the tree was edited; that was the one piece of the phase brief the code had left a TODO for (`menu.ts`: "this is also where Phase 17's commit stamp will go"). The switchover was the durability proof: 44 live sessions and 40 manifest rows before, the whole gate battery run against the live socket with the sessions up and the id list byte-identical afterwards, the old app quit through its own quit path, and all 44 still alive after. **BUILD-STATUS.md is the final state; docs/ACCEPTANCE.md is the script the user runs from their own seat.** Everything still outstanding is named in BUILD-STATUS §6 (deferred, each with the condition that reopens it) and §7 (known limitations) rather than here.
+
+---
+
+## Phase 18 — chrome layout constraints ✅ SHIPPED 2026-08-12 (user-reported; spec + fix round retained below)
+
+The window's three resizable regions each carry a constraint that made sense when they were built
+alone and is wrong now that all three are used together. All six items below are ONE phase because
+they share a single geometry model: `shell-body` is a flex row of
+`ActivityBar · Sidebar · TerminalRegion · EditorPanel · SessionDock` (`src/renderer/app/App.tsx:1023–1028`),
+and every symptom here is a consequence of what that row permits.
+
+**Reference screenshots (real paths — builders must Read them):**
+- `/Users/gdc/Library/Application Support/CleanShot/media/media_lTnQxayxmd/CleanShot 2026-08-12 at 11.25.50@2x.png`
+  — an open file clipping the session tab strip: three tabs and a `>` overflow chevron where ten
+  sessions exist.
+- `/Users/gdc/Library/Application Support/CleanShot/media/media_lOeh3xrbWv/CleanShot 2026-08-12 at 11.27.47@2x.png`
+  — the right-docked session list at its current fixed width, 10 sessions.
+
+### Item 1 — the sidebar cannot be made wide, and cannot be dragged shut
+**Root cause:** `setSidebarWidth` hard-clamps to `[220, 400]` px
+(`src/renderer/state/store.ts:1054`), a constant pair with no relation to window width. So a
+1440 px window gives the explorer at most 28% and never less than 220 px, and the ONLY way to hide
+it is the activity-bar icon.
+**Wanted:** any first-class left view (explorer, search, SCM today; **the Context sidebar from
+docs/research/29 tomorrow — build this generically, not per-view**) expands rightward to **at least
+50% of the window**, and when dragged below the minimum it **snaps to hidden**, in the same state
+the activity-bar toggle produces (so re-clicking the icon restores it, and the icon's selected
+state stays truthful). Max must be a fraction of the live window, re-evaluated on resize, not a
+constant.
+
+### Item 2 — an open file cannot fill the window
+**Root cause:** `MAX_FRACTION = 0.65` (`src/renderer/editor/EditorPanel.tsx:55`) caps the editor
+split at 65% of the centre region, enforced in both the initial width and the drag handler
+(`:274`, `:278`, `:303`).
+**Wanted:** drag the divider left to expand the editor past that cap, **plus a subtle top-bar
+action that instantly fills the chrome** — collapsing the left sidebar and the session dock if they
+are open — and a way back that restores the previous layout exactly (remember the pre-fill widths;
+do not restore to defaults). This is a focus mode, not a new window: no new concepts, no modal.
+
+### Item 3 — an open file clips the session tabs (the bad UX in shot 1)
+**Root cause — structural, not cosmetic:** the top session strip is rendered INSIDE
+`TerminalRegion` (`src/renderer/app/TerminalRegion.tsx:753`, `orientation === 'top' ? strip : dock`),
+and `TerminalRegion` is a flex SIBLING of `EditorPanel`. The editor's width is therefore subtracted
+directly from the strip's, so opening a file at the 65% cap leaves the tab strip ~35% of the window
+and it overflows into a chevron. Session tabs are the app's primary navigation; the file viewer is
+secondary, and today the secondary thing evicts the primary one.
+**Wanted:** opening a file must not cost session tabs their room. Decide the fix in the spec stage —
+the two candidates are (a) hoist the strip out of `TerminalRegion` so it spans the full width above
+both regions, or (b) make the filling editor an overlay rather than a flex sibling. **(a) changes
+terminal geometry and therefore tmux pane size — see the tier note.**
+
+### Item 4 — right-docked sessions cannot be collapsed (shot 2)
+**Root cause:** `setRightListWidth` clamps to `[160, 320]` (`src/renderer/state/store.ts:1072`)
+with no collapsed state in the model at all.
+**Wanted:** collapse the dock fully to the right edge, leaving a narrow rail of **agent icons** that
+reveals **name plus useful status on hover** (status dot and attention state already exist per
+session — reuse them, invent no new signals). Hover reveal must not steal focus from a terminal and
+must obey the standing rule that "needs input" is never triggered by the user's own input.
+
+### Item 5 — pointer drift: a grabbed divider does not stay under the cursor
+**Root cause — two different bugs with the same symptom.**
+(a) The sidebar resizer is **delta-accumulating**: `setSidebarWidth(startW + (ev.clientX - startX))`
+(`src/renderer/app/Sidebar.tsx:187`) recomputes from the grab origin, but the setter clamps. Drag
+past the clamp and reverse, and the edge no longer tracks the cursor for the rest of that drag —
+the clamped travel is lost. This gets worse under Item 1's wider range, so it must be fixed with it.
+(b) The editor divider is **absolute but offset-blind**: `window.innerWidth - e.clientX`
+(`src/renderer/editor/EditorPanel.tsx:305`) treats the cursor as the edge, ignoring where inside the
+handle the user actually grabbed, so the panel jumps by up to the handle's width the instant a drag
+starts.
+**Wanted, for every divider in the app (sidebar, editor, dock, splits):** record the grab offset at
+pointerdown, drive width from `clientX − grabOffset`, clamp the RESULT only, and use pointer capture
+so the drag survives the cursor leaving the handle. One shared helper — grep before writing a second.
+**Prove it with a number:** cursor-to-edge delta in px across a drag that hits both clamps, before
+and after. "Feels better" is not a result.
+
+**ACCEPTANCE CRITERION — no unexpected cursor jump, stated exactly (user, 2026-08-12).** The edge
+stays welded to the point the user grabbed, for the whole drag. Three separate conditions, all
+required, because they fail independently:
+1. **No jump at grab.** The cursor-to-edge delta on the FIRST move sample must equal the delta at
+   rest, within 1 px. This is bug (b): grabbing the handle anywhere but its exact centre currently
+   teleports the edge to the cursor. Measure the first sample specifically — a max/mean across the
+   whole drag can hide a one-frame jump.
+2. **No drift in free travel.** Away from the clamps, the delta must stay within 1 px of its
+   value at grab for every sample.
+3. **Clamps must not create catch-up.** While clamped the cursor and edge MUST diverge — the edge
+   physically cannot move — and that is correct, not a defect. What is a defect is the edge failing
+   to **re-engage the instant the cursor returns within range**. With an absolute mapping there is
+   no lost travel to recover; with today's delta-accumulating sidebar there is, and the edge trails
+   the cursor by however far it was dragged past the clamp. Test explicitly: drag 200 px past a
+   clamp, reverse, and assert the edge starts moving on the first sample back inside the range.
+Report the three numbers per divider. Any of the three failing is a FAIL, not a nit.
+
+### Item 6 — audit user-visible text for the old name
+Per CLAUDE.md, "user-visible copy is the only place the name may appear, and there it is always
+Tortie". A scan of `src/renderer` and `src/main` on 2026-08-12 found **no `gmux` in rendered strings
+already** — every hit was prose in comments or one of the protected identifier strands. So this item
+is **an evidenced audit, not a find-and-replace**: drive the real app and enumerate what a user can
+actually read — window and Settings chrome, About, native menus, the ⌘K palette, empty states,
+tooltips, toasts, confirm dialogs, error and diagnostics surfaces, notifications, Dock/app menu, and
+the packaged bundle's Info.plist strings — and produce the evidence that none of them say gmux.
+**NEVER rename**, per CLAUDE.md: the tmux socket `-L gmux`, `resources/gmux-tmux.conf`, the
+`@gmux-*` session options, `GMUX_SESSION_ID`/`GMUX_MANAGED`, the inner `<userData>/gmux/`,
+`window.gmux`, `gmux-asset:`, `gmux.*` localStorage keys, `gmux-*` CSS classes. Renaming any of the
+first five strands sessions that are running right now. One legitimate exception to decide in the
+spec: Diagnostics / copy-debug-info may print the literal `tmux -L gmux …` command, because that is
+a command the user would type, not a product name.
+
+### Verification tier — per item, deliberately mixed
+- **Items 1, 2, 4, 6 → Tier 2.** Layout and copy: gates, a targeted probe of the thing changed, and
+  a screenshot READ (not just captured) at the sizes that matter. Item 4 needs a hover-state capture.
+- **Items 3 and 5 → Tier 3-lite, and this is the deliberate part.** Item 3's candidate (a) moves the
+  region hierarchy, which changes the terminal's box and therefore the tmux pane size for every live
+  session — a wrong answer resizes real work. Verify against ground truth outside the app:
+  `tmux -L gmux display -p '#{pane_width}x#{pane_height}'` before and after, at several window
+  widths and in both orientations. Item 5 ships with the measured cursor-to-edge delta above.
+- Drive it per docs/method/HOW-WE-DROVE-THIS.md: isolated `--user-data-dir` on every launch, CDP
+  with real `PointerEvent` sequences for the drags, the timer-throttling flags, and the operator's
+  live sessions listed before and after and diffed.
+
+### What must NOT regress
+- The 45 live sessions on the private socket, and their pane geometry.
+- The activity-bar toggle and `sidebarVisible` staying ONE truth with the new drag-to-hide — no
+  second source (the Phase 14.7 lesson: View-menu radios, header toggle and UI must all read one value).
+- Orientation switching top↔right, and the persisted widths in `gmux.*` localStorage keys (keys keep
+  their names; only their permitted RANGES change — write a migration for out-of-range stored values).
+- ⌘1–⌘9 project switching, ⌘J attention, per-pane zoom, and the editor's preview/pinned tab model.
+- `src/shared/keymap.ts` remains the only shortcut list if Item 2's fill action gets a shortcut.
+
+### Fix round (2026-08-12) — three verifiers, five findings, all fixed at source
+
+**F1 (BLOCKING) — the terminal reached 12px, i.e. a live pane reflowed to 2 columns.**
+`TERMINAL_FLOOR` had been written as a term inside one function instead of a budget across the
+whole row. Two holes composed: `sidebarMaxWidth` reserved the activity bar and the floor but
+**not the dock** (its own comment said it "deliberately does not know about" the dock — the spec's
+prose, which said the term bites "below ~976px", only comes out if you reserve a 200px dock, so
+the prose was right and the code had dropped it), and `editorMaxWidth` floored at `EDITOR_MIN`
+so a min-wins clamp handed the editor its 320px out of a 332px row.
+
+The budget is now three rules that compose to one invariant — *the terminal is laid out at 0
+(`display:none`) or at ≥ 240px, never between*:
+1. `sidebarMaxWidth(window, reservedRight)` reserves the activity bar, the **rendered dock width**
+   and the floor. The 50% ceiling is untouched at every window ≥ ~976px with a default dock.
+2. `editorIsOverlay(window, workArea)` — a row that cannot seat `EDITOR_MIN + TERMINAL_FLOOR`
+   does not get a split; the editor uses the overlay it already uses on narrow windows, which
+   **covers** the terminal (`position:absolute` in `.work-row`) instead of shrinking it. Provably
+   unreachable in `top` orientation, so it can never cover the hoisted session strip (item 3).
+3. `clampEditorWidth` is the one clamp in the file where **max wins over min**, so the arithmetic
+   is safe even if a caller's condition is wrong. The editor's minimum is a comfort; the
+   terminal's floor is a promise about work in flight.
+
+Re-measured with the verifier's own driver (`squeeze.mjs`), same controls, real OS window sizes,
+`tmux -L gmux` for ground truth:
+
+| window | sidebar | dock | before | after |
+|---|---|---|---|---|
+| 1400 | 700 | 320 | terminal 12px → **tmux 2x43** | overlay, terminal 332px → **tmux 40x43** |
+| 1440 | 720 | 320 | 32px → **2x43** | 352px → **43x43** |
+| 1500 | 750 | 320 | 62px → 4x43 | 382px → 47x43 |
+| 1600 | 800 | 320 | 112px → 11x43 | 432px → 54x43 |
+
+**F2 — no executable invariant.** `chrome-geometry.test.ts` gains `terminalLayoutWidth()` driven
+over a 2000+ cell grid (window × orientation × dock × sidebar × editor × fill), plus the four
+squeeze rows replayed. Falsified before trusted: reverting the two formulas fails 5 tests; the
+first failure it reports is a 232px terminal at a 960px window **with no editor open at all**,
+which is a case nobody had measured.
+
+**F3 / Failure Set 2 — dragging a region shut destroyed the chosen width.** `onMove` clamped every
+sample to `min` and persisted it, so a 400px sidebar dragged shut stored 220, and the stored value
+depended on the pointer's sampling rate. Snapping now rewinds to the pre-drag width before
+collapsing: one gesture, one outcome. Pinned by `resizeStep()`, a pure function the hook actually
+calls, tested for both regions in both directions. Re-measured live: sidebar at 800 → drag shut →
+activity-bar click → **800** (was 220).
+
+**F4 — the sessions-position control vanished with the dock collapsed.** It now sits at the foot of
+the 48px rail, mirroring the activity bar's settings gear at the window's other 48px edge; the two
+bookends answer their own placement the same way. Verified live: on the rail it is present, labelled
+"Move sessions to the top", third in tab order, and clicking it moves the sessions (orientation →
+`top`, strip 1034px) without expanding the dock first.
+
+**Failure Set 3 — the name audit had a false negative that hid a live string.** Its JSX regex could
+not see text between two interpolations, so `ImageView.tsx:314` ("gmux previews images up to 32 MB")
+passed 4/4 while being on screen. The scanner is now a TypeScript AST walk; two further strings
+(`supervisor.ts`, `TerminalPane.tsx`) were fixed by hand because a legitimate TECHNICAL pattern
+exempts them and always will. Full write-up and the falsification table:
+docs/research/32-phase18-name-audit.md §7.
+
+No protected identifier strand was touched. Live sessions: **44 before, 44 after, byte-identical.**
+
+### SHIPPED — what actually landed, per item
+
+All six items landed. One geometry model now owns every limit in the window's three resizable
+regions: `src/renderer/state/chrome-geometry.ts`. Nothing in it is a magic constant any more —
+each number is either a floor with a reason or a fraction of the LIVE window.
+
+| # | Wanted | Landed | Where |
+|---|---|---|---|
+| 1 | Left view to ≥50% of the live window; drag below min snaps to hidden | Yes. `sidebarMaxWidth()` = 50% of the live window, re-evaluated every move and on resize, reserving the activity bar, the rendered dock and the terminal floor. Drag-to-hide calls the activity bar's OWN toggle, so there is one truth and one stored width | `chrome-geometry.ts`, `app/Sidebar.tsx`, `state/store.ts` |
+| 2 | Editor past the 0.65 cap + a subtle fill action with exact restore | Yes. `MAX_FRACTION` deleted; ceiling is `workArea − TERMINAL_FLOOR` (872px at the 1440 default, vs 723 before). **Fill the window** = ⇧⌘B, View menu, and a `screen-full` button in the editor's tab row. Fill writes nothing, so leaving it restores the prior layout byte-for-byte | `editor/EditorPanel.tsx`, `shared/keymap.ts`, `main/menu.ts`, `app/App.tsx` |
+| 3 | An open file must not clip the session tabs | Yes, by candidate **(a)** — the strip is hoisted out of `TerminalRegion` and spans the whole work area above both regions. Measured at 1440 with a file open: strip 1112px (was 590px), terminal 612px, editor 500px, editor tab row 36px BELOW the strip | `app/SessionStrip.tsx`, `app/work-area.css`, `app/TerminalRegion.tsx` |
+| 4 | Dock collapses to a rail of agent icons with hover status | Yes. 48px rail, agent icons, hover card portalled to `document.body` (`aria-hidden`, `pointer-events:none`) reading name · agent · state · age. The sessions-position control moved to the foot of the rail | `app/SessionRail.tsx`, `app/session-rail.css` |
+| 5 | One divider helper; no pointer drift; prove it with numbers | Yes. `controls/resizer.ts` is the single implementation for all four dividers: grab offset from the PANEL's own rect, absolute mapping every move, clamp the result only, pointer capture, Esc-cancel, keyboard separator | `controls/resizer.ts` |
+| 6 | Evidenced audit that no user-visible text says "gmux" | Yes, and it found three live strings the first scan missed. The scanner is now a TypeScript AST walk and ships as a test | `docs/research/32-phase18-name-audit.md`, `renderer/__tests__/user-visible-name.test.ts` |
+
+**Item 5, the three acceptance numbers.** Final tree, real Electron over CDP, isolated
+`--user-data-dir`, throttling flags on, real `PointerEvent` sequences, 1440×887. Every drag runs
+past its clamp and back:
+
+| divider | orientation | grab offset | 1. first-sample delta | 2. free-travel max / mean | 3. re-engage after the clamp |
+|---|---|---|---|---|---|
+| sidebar | top | −2 px | **0 px** | **0 / 0** over 21 samples | 262 px past the clamp → **0 px** on the first sample back in range |
+| editor | top | +2 px | **0 px** | **0 / 0** over 22 samples | 604 px past → **0 px** |
+| editor | right | +2 px | **0 px** | **0 / 0** over 18 samples | 710 px past → **0 px** |
+| dock | right | +1 px | **0 px** | **0 / 0** over 18 samples | 281 px past → **0 px** |
+
+All three conditions pass on all four dividers. Before: the sidebar lost every pixel of clamped
+travel for the rest of the gesture, and the editor divider in `right` orientation jumped by the
+session dock's whole width the instant it was grabbed.
+
+**Item 3's decision and its consequence.** Candidate (a) was chosen, which moves the region
+hierarchy and therefore the terminal's box — the one change in this phase that could resize real
+work. It does not: a Phase 17 build and the Phase 18 build were driven side by side over 12 cells
+(3 window widths × 2 orientations × sidebar shown/hidden) and **every cell is byte-identical**,
+including `tmux -L gmux` pane geometry (e.g. 1440/top/280: `144x43`, mount `1112x826@y74` in both).
+Across 66 measured cells the app-to-tmux ratio held constant at 7.50 px per column and 18.51 px per
+row. Fill mode gives the terminal `display:none`, never `width:0`, so xterm's `Math.max(2, …)` can
+never reflow a live pane to 2 columns.
+
+### What is NOT true
+
+- **The Context view (docs/research/29) does not exist yet.** Item 1 is generic by CONSTRUCTION —
+  the resize and the snap live on the sidebar host, not on Explorer/Search/SCM — but that
+  genericity has not been exercised against a second kind of view, because there isn't one.
+- **The editor now covers the terminal instead of splitting it on narrow rows.** `editorIsOverlay()`
+  is the fix for the F1 blocker: a work row that cannot seat 320 + 240 px gets no split at all. On
+  a small window with a wide sidebar and dock, opening a file now overlays where it used to split.
+  This is deliberate — the terminal is laid out at 0 or at ≥240px, never between — but it is a
+  behaviour change, not just a limit change. Proven unreachable in `top` orientation, so it can
+  never cover the hoisted strip.
+- **One anomalous drift run, unexplained.** An early run of the `right`-orientation drift probe
+  showed the editor panel AHEAD of the cursor (max |delta| 85 px in free travel). Five subsequent
+  runs across three probe shapes on fresh profiles all returned 0 px. In both anomalous samples the
+  panel was ahead of the cursor, never behind, which is the signature of buffered CDP input on a
+  contended machine rather than of the app. Recorded rather than dismissed.
+- **`docs/research/33-durability-reconciliation.md` is NOT part of this commit.** It was written by
+  a concurrent research workflow and belongs to the durability queue, not to Phase 18.
+- Fill mode is remembered for the session only; it is an override that writes nothing, so quitting
+  in fill mode reopens unfilled. That was the design decision that buys exact restore.
+
+### Gates on the final tree
+
+| gate | result |
+|---|---|
+| `npm run typecheck` | clean, both projects, zero errors |
+| `npm run build` | `✓ built in 20.78s` (main 360ms, preload 13ms, renderer 20.78s) |
+| `npm run test` | **124 passed, 1 skipped (125 files); 1575 passed, 2 skipped (1577 tests)** |
+| `npm run smoke:t1` | `5/5 PASS (create)`, `6/6 PASS (verify)` |
+| `npm run smoke:t3` | `6/6 PASS (t3-prep)`, `3/3 PASS (t3-verify)` — a claude AND a pi restore shape |
+
+`conformance:resume:capture` not required: no file under `agents/registry.ts`, `manifest/harvest/**`,
+`manifest/agents.ts` or `restore/**` changed in this phase.
+
+**Safety.** 44 sessions on the private socket before this phase and 44 after, `diff` empty. Every
+app launch used its own `--user-data-dir` under the scratchpad. No session created, killed, renamed
+or adopted; `tmux -L gmux` only; no `pkill` at any point; `/Applications/Tortie.app` untouched and
+still running.

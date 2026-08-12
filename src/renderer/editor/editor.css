@@ -18,14 +18,60 @@
   border-left: 1px solid var(--border);
 }
 
+/* Overlay mode is positioned inside `.work-row` (App.tsx gives it
+   position:relative), NOT fixed to the window. It used to be `fixed; top:38px`
+   — measured from under the titlebar — which after Phase 18 hoisted the
+   session strip out of the terminal region would have covered the tabs. The
+   overlay's job is to cover the TERMINAL; the session strip is the app's
+   primary navigation and nothing may sit on top of it. */
 .ed-panel.ed-overlay {
-  position: fixed;
-  top: 38px; /* under the titlebar */
+  position: absolute;
+  top: 0;
   right: 0;
   bottom: 0;
   z-index: var(--z-editor-overlay);
   box-shadow: var(--shadow-3);
   animation: ed-slide-in var(--dur-panel) var(--ease-out);
+}
+
+/* ---------------------------------------------------------------------------
+   Fill mode (Phase 18 item 2): the file takes the whole work row while the
+   sidebar and the session dock are put away. It is a POSITION change, never a
+   width write — see EditorPanel.tsx's header for why that is what makes the
+   way back exact.
+
+   No transition, on purpose (DESIGN §5 + the terminal rule below): an
+   animated collapse is a stream of ResizeObserver fits and therefore a stream
+   of resizes sent to live sessions. Fill enters and leaves in one frame,
+   exactly like ⌘B.
+--------------------------------------------------------------------------- */
+
+.ed-panel.ed-fill {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  /* The activity bar already draws this hairline (border-right); a second one
+     here would double it, since nothing sits between them while filling. */
+  border-left: none;
+}
+
+/* THE TERMINAL ZERO-WIDTH RULE. @xterm/addon-fit's proposeDimensions() floors
+   columns at Math.max(2, …), so a terminal container at 0 CSS width proposes
+   TWO COLUMNS and fit() resizes the real session — every visible pane of the
+   user's work reflows. `display:none` is the only safe vanish: the computed
+   width becomes "auto", parseInt gives NaN, and fit() bails on its own
+   isNaN check. Never width:0, never flex:0, never a transition into either.
+
+   Two selectors, one rule. The :has() form is what fires today: it reads the
+   panel's own class, so the guarantee holds without App.tsx (builder C's
+   file) having to pass anything down. The attribute form is the hook the
+   Phase 18 spec named, kept so that marking `.work-row` with data-fill later
+   is a no-op rather than a second mechanism. This is the rule that protects
+   live sessions from a 2-column reflow, so it does not depend on a prop being
+   wired correctly in another component. */
+.work-row[data-fill='on'] > .center,
+.work-row:has(> .ed-panel.ed-fill) > .center {
+  display: none;
 }
 
 @keyframes ed-slide-in {
@@ -41,18 +87,23 @@
 }
 
 /* S1: "25% black scrim over the terminal (click scrim or Esc closes)".
-   --bg-scrim (0.55α) diluted to ~25% via color-mix — no hardcoded colors. */
+   --bg-scrim (0.55α) diluted to ~25% via color-mix — no hardcoded colors.
+
+   Absolute inside `.work-row`, which is exactly the region the scrim is meant
+   to cover: the terminal and nothing else. That geometry used to be measured
+   in JS (the terminal stack's left edge, fed into `left`) because the scrim
+   was fixed to the window; the measurement, its state and its layout effect
+   are all deleted — the box is now the box. */
 .ed-scrim {
-  position: fixed;
-  top: 38px;
-  right: 0;
-  bottom: 0;
+  position: absolute;
+  inset: 0;
   z-index: calc(var(--z-editor-overlay) - 1);
   background: color-mix(in srgb, var(--bg-scrim) 45%, transparent);
 }
 
 /* Drag handle: invisible 5px hit area on the panel's left edge; hover shows
-   the divider at --border-strong (S1). */
+   the divider at --border-strong (S1). It is a real role="separator" tab stop
+   (the shared resizer supplies the keyboard path), so it gets a focus ring. */
 .ed-divider {
   position: absolute;
   top: 0;
@@ -61,6 +112,12 @@
   width: 5px;
   z-index: 2;
   cursor: col-resize;
+}
+
+/* Filling: the panel's left edge IS the work row's left edge, so the handle
+   sits inside it rather than 3px over the activity bar. */
+.ed-fill .ed-divider {
+  left: 0;
 }
 
 .ed-divider::after {
@@ -73,20 +130,33 @@
 }
 
 .ed-divider:hover::after,
-.ed-divider:active::after {
+.ed-divider:active::after,
+.ed-divider.dragging::after {
   background: var(--border-strong);
+}
+
+.ed-divider:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 /* ---------------------------------------------------------------------------
    Tabs row [h:36] (DESIGN-SPEC S5), bg --bg-sidebar
 --------------------------------------------------------------------------- */
 
+/* Since Phase 18 this row no longer sits IN the S1 band — the session strip
+   spans the work area above it, and the editor's tabs start 36px lower. The
+   top hairline is what closes the editor's own box: without it the active
+   tab's canvas-coloured fill would run straight into the strip above when
+   many tabs push it right. box-sizing is border-box globally, so the row
+   stays exactly 36px tall. */
 .ed-tabs {
   display: flex;
   align-items: center;
   height: 36px;
   flex: 0 0 36px;
   background: var(--bg-sidebar);
+  border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
   padding-right: var(--space-4);
   user-select: none;

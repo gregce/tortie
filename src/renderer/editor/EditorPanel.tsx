@@ -20,16 +20,41 @@
  * The listeners run at bubble phase so Monaco (and the app shell's
  * capture-phase layer handling) act first; `defaultPrevented` marks keys
  * they consumed.
+ *
+ * WIDTH, since Phase 18. Two rules, and everything below follows from them:
+ *
+ *  1. **Every limit comes from src/renderer/state/chrome-geometry.ts.** The
+ *     old `MAX_FRACTION = 0.65` is gone. The ceiling is now "the work row
+ *     minus a terminal that can still be read" (`editorMaxWidth`), so a file
+ *     can be dragged as wide as the user wants, while the terminal is never
+ *     laid out in the 1–239px band where xterm's fit addon would propose 2
+ *     columns and reflow every live pane.
+ *  2. **Persist intent, clamp presentation.** The per-project width is stored
+ *     verbatim and RENDERED as `min(stored, max)`; nothing rewrites it when
+ *     the window shrinks, so growing the window back returns the exact width
+ *     the user chose.
+ *
+ * FILL MODE (⇧⌘B, or the screen-full button in the tabs row) is an OVERRIDE,
+ * never a write: entering captures `{sidebarVisible, dockCollapsed}` in the
+ * app store and puts both away; the panel takes the whole work row by CSS,
+ * not by width; leaving replays the memento. Because no width was ever
+ * written, leaving restores the previous layout exactly rather than a
+ * default. Any manual layout gesture — ⌘B, an activity-bar click, expanding
+ * the dock, dragging this divider — drops fill WITHOUT replaying it, because
+ * the user has just said what they want the layout to be.
  */
 
-import React, {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState
-} from 'react';
-import { useApp } from '../state/store';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { keyDisplay } from '@shared/keymap';
+import { liveChromeGeometry, useApp } from '../state/store';
+import {
+  EDITOR_MIN,
+  editorIsOverlay,
+  editorMaxWidth,
+  useWindowWidth,
+  workAreaWidth
+} from '../state/chrome-geometry';
+import { useResizeHandle } from '../controls';
 import { useEditor } from './store';
 import type { EditorMode, EditorTab } from './store';
 import { EditorTabStrip } from './EditorTabs';
@@ -39,7 +64,11 @@ import { MarkdownPreview } from './markdown';
 import { ImageCompare, ImageView } from './image';
 import { Codicon } from '../icons';
 import { installShotHook } from './shot-hook';
-import { loadEditorWidths, saveEditorWidths } from './panel-width';
+import {
+  loadEditorWidths,
+  renderedEditorWidth,
+  saveEditorWidths
+} from './panel-width';
 import './editor.css';
 
 // Screenshot-harness hook: registered at module load so GMUX_SHOT_DRIVE can
@@ -47,12 +76,8 @@ import './editor.css';
 // outside the harness.
 installShotHook();
 
-/** Below this window width the split no longer fits — overlay mode (S1). */
-const OVERLAY_BREAKPOINT_PX = 1400;
-/** Drag floor (DESIGN.md §2.2); default open width is 45% of center ≥480. */
-const MIN_DRAG_PX = 320;
-const DEFAULT_OPEN_MIN_PX = 480;
-const MAX_FRACTION = 0.65;
+/** Read from THE keymap, never typed here (src/shared/keymap.ts's contract). */
+const FILL_CHORD = keyDisplay('view.fillEditor');
 
 /**
  * Width floors, measured against the panel rather than the window — the panel
@@ -68,11 +93,12 @@ const SPLIT_MIN_PX = 480;
 const MINIMAP_MIN_PX = 420;
 /**
  * Two-column diff floor. It used to be 900px, measured inside PierreDiff —
- * which the panel could never reach: MAX_FRACTION caps the split at 65% of
+ * which the panel could not reach at the time: the split was capped at 65% of
  * the center area, so at the design's own 1440px default window the widest
- * possible panel is ~754px and the two-column diff the product is built
+ * possible panel was ~754px and the two-column diff the product is built
  * around was unreachable without an external monitor (Phase 11 carried
- * finding (b)).
+ * finding (b)). Phase 18 removed that cap; 640 stays because it is a
+ * READABILITY floor, and it is the number the control's disabled copy means.
  *
  * 640px is the measured floor for this stack, not a guess: the diff renders
  * at 12px `--font-mono` (7.2px per character) and Pierre spends ~34px per
@@ -106,6 +132,45 @@ function focusTerminal(): void {
   document
     .querySelector<HTMLElement>('[data-slot="terminal-stack"]')
     ?.focus();
+}
+
+// ---------------------------------------------------------------------------
+// Fill mode (Phase 18 item 2)
+// ---------------------------------------------------------------------------
+
+/**
+ * The width of the row the editor shares with the terminal — the box every
+ * editor limit is measured against, read live for a drag's ceiling.
+ *
+ * Deliberately computed from state rather than measured from the DOM: the
+ * render-time clamp below uses the SAME function on the same inputs, and a
+ * divider whose two clamps disagree by a pixel is exactly the drift item 5
+ * exists to kill.
+ */
+function workRowWidthNow(): number {
+  return liveChromeGeometry().workArea;
+}
+
+/**
+ * The one implementation of "fill / restore", so the button, ⇧⌘B and the
+ * View menu cannot drift apart. Exported for src/main/menu.ts's
+ * `toggle-editor-fill` action, dispatched in App.tsx.
+ *
+ * With no file open it is a no-op: there is nothing to fill the window with,
+ * and a layout change with no visible subject reads as a bug. Same in overlay
+ * mode, where the editor already covers the terminal area.
+ */
+export function toggleEditorFill(): void {
+  const app = useApp.getState();
+  if (app.editorFill !== null) {
+    app.exitEditorFill();
+    return;
+  }
+  const ed = useEditor.getState();
+  if (!ed.panelOpen || ed.tabs.length === 0) return;
+  const { windowWidth, workArea } = liveChromeGeometry();
+  if (editorIsOverlay(windowWidth, workArea)) return;
+  app.enterEditorFill();
 }
 
 // ---------------------------------------------------------------------------
@@ -241,6 +306,10 @@ export function EditorPanel(): React.JSX.Element | null {
 
   const sidebarVisible = useApp((s) => s.sidebarVisible);
   const sidebarWidth = useApp((s) => s.sidebarWidth);
+  const orientation = useApp((s) => s.sessionOrientation);
+  const dockCollapsed = useApp((s) => s.dockCollapsed);
+  const dockWidth = useApp((s) => s.rightListWidth);
+  const editorFill = useApp((s) => s.editorFill);
   const activeProjectId = useApp((s) => s.activeProjectId);
   const projects = useApp((s) => s.projects);
 
@@ -252,36 +321,54 @@ export function EditorPanel(): React.JSX.Element | null {
   }, [init]);
 
   // -- responsive mode -------------------------------------------------------
-  const [winW, setWinW] = useState<number>(window.innerWidth);
-  useEffect(() => {
-    const onResize = (): void => setWinW(window.innerWidth);
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
-  const overlay = winW < OVERLAY_BREAKPOINT_PX;
+  // ONE window-resize subscription for the whole chrome (chrome-geometry) —
+  // the sidebar, the dock and this panel re-render from the same value in the
+  // same pass, instead of three listeners racing each other.
+  const winW = useWindowWidth();
+
+  const workArea = workAreaWidth({
+    windowWidth: winW,
+    sidebarVisible,
+    sidebarWidth,
+    orientation,
+    dockCollapsed,
+    dockWidth
+  });
+
+  // Two reasons to overlay rather than split, and the second one protects
+  // live sessions: a narrow WINDOW (taste), or a work row that cannot seat
+  // this panel's minimum AND the terminal's floor (safety — the alternative
+  // is a terminal laid out in the 2-column reflow band, which is what a 50%
+  // sidebar plus a 320px dock produced at 1400px before the fix round).
+  // Overlaying covers the terminal instead of shrinking it, so no fit runs
+  // and no tmux resize is issued.
+  const overlay = editorIsOverlay(winW, workArea);
   const overlayRef = useRef(overlay);
   overlayRef.current = overlay;
 
-  const centerWidth = winW - (sidebarVisible ? sidebarWidth : 0);
+  /** Filling is a split-mode state; the overlay already covers the terminal. */
+  const filling = editorFill !== null && !overlay;
 
   // -- split width (persisted per project) -----------------------------------
   const [widths, setWidths] = useState<Record<string, number>>(
     loadEditorWidths
   );
-  const storedWidth = widths[projectPath];
-  const defaultWidth = Math.min(
-    Math.max(Math.round(centerWidth * 0.45), DEFAULT_OPEN_MIN_PX),
-    Math.round(centerWidth * MAX_FRACTION)
-  );
-  const splitWidth = Math.min(
-    Math.max(storedWidth ?? defaultWidth, MIN_DRAG_PX),
-    Math.max(Math.round(centerWidth * MAX_FRACTION), MIN_DRAG_PX)
-  );
-  const overlayWidth = Math.min(720, Math.round(centerWidth * 0.85));
-  const panelWidth = overlay ? overlayWidth : splitWidth;
+  // Persist intent, clamp presentation: `widths[projectPath]` is never
+  // rewritten to fit the window (panel-width.ts owns both halves of the rule).
+  const splitWidth = renderedEditorWidth(widths[projectPath], workArea);
+  const overlayWidth = Math.min(720, Math.round(workArea * 0.85));
+  // While filling, the width is the work row itself — and it is applied by
+  // CSS (inset:0), not by this number, so nothing is written and leaving fill
+  // returns the stored width byte for byte. The value still drives the panel's
+  // own fit decisions (split view, minimap, two-column diff).
+  const panelWidth = overlay ? overlayWidth : filling ? workArea : splitWidth;
 
   const setProjectWidth = useCallback(
     (px: number): void => {
+      // Dragging the divider IS the user stating the layout, so it leaves fill
+      // mode without replaying the memento — the store's fifth escape hatch,
+      // alongside ⌘B, the activity bar and expanding the dock.
+      useApp.getState().forgetEditorFill();
       setWidths((prev) => {
         const next = { ...prev, [projectPath]: px };
         saveEditorWidths(next);
@@ -291,48 +378,45 @@ export function EditorPanel(): React.JSX.Element | null {
     [projectPath]
   );
 
-  // -- drag-to-resize (split mode) -------------------------------------------
-  const dragging = useRef(false);
-  const onDividerPointerDown = (e: React.PointerEvent): void => {
-    dragging.current = true;
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-  };
-  const onDividerPointerMove = (e: React.PointerEvent): void => {
-    if (!dragging.current) return;
-    const max = Math.round(
-      (window.innerWidth - (sidebarVisible ? sidebarWidth : 0)) * MAX_FRACTION
-    );
-    const next = Math.min(
-      Math.max(Math.round(window.innerWidth - e.clientX), MIN_DRAG_PX),
-      Math.max(max, MIN_DRAG_PX)
-    );
-    setProjectWidth(next);
-  };
-  const onDividerPointerUp = (e: React.PointerEvent): void => {
-    dragging.current = false;
-    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-  };
-
-  // -- scrim geometry (overlay mode covers the terminal area only) -----------
-  const [scrimLeft, setScrimLeft] = useState(0);
-  useLayoutEffect(() => {
-    if (!overlay) return;
-    const region = document.querySelector('[data-slot="terminal-stack"]');
-    setScrimLeft(
-      region !== null
-        ? Math.round(region.getBoundingClientRect().left)
-        : sidebarVisible
-          ? sidebarWidth
-          : 0
-    );
-  }, [overlay, sidebarVisible, sidebarWidth, winW, panelOpen]);
-
   const panelRef = useRef<HTMLElement | null>(null);
+
+  // -- drag-to-resize (split mode) -------------------------------------------
+  // The app's one divider implementation (src/renderer/controls/resizer.ts):
+  // grab offset captured from THIS panel's rect, absolute geometry every move,
+  // clamp the result only, pointer capture, Esc-cancel, keyboard separator.
+  // The old handler drove width from `window.innerWidth - clientX`, which in
+  // "right" orientation measured across the session dock and jumped the panel
+  // by the dock's whole width the instant a drag began.
+  const divider = useResizeHandle({
+    anchor: 'right',
+    panelRef,
+    // The SPLIT width, never the filled one: this is the value the handle can
+    // write, so it is also the value Esc must restore. Cancelling a drag that
+    // began in fill mode has to give the user their stored width back, not
+    // overwrite it with the width of the whole row. (Pointer geometry never
+    // reads this — it comes off the panel's own rect.)
+    width: splitWidth,
+    min: EDITOR_MIN,
+    max: () => editorMaxWidth(workRowWidthNow()),
+    onWidth: setProjectWidth,
+    label: 'Resize editor'
+  });
 
   const closeToTerminal = useCallback((): void => {
     hidePanel();
     focusTerminal();
   }, [hidePanel]);
+
+  // Fill mode cannot outlive the thing it was filling with. Closing the panel
+  // (⌘E, ⌘W on the last tab, the scrim) and shrinking the window into overlay
+  // mode both RESTORE the remembered layout — the user never asked to lose
+  // their sidebar, and a mode with no visible exit is a trap.
+  const noPanel = !panelOpen || tabs.length === 0;
+  useEffect(() => {
+    if (!noPanel && !overlay) return;
+    const app = useApp.getState();
+    if (app.editorFill !== null) app.exitEditorFill();
+  }, [noPanel, overlay]);
 
   // -- keyboard map (bubble phase; see file header) ---------------------------
   useEffect(() => {
@@ -366,10 +450,37 @@ export function EditorPanel(): React.JSX.Element | null {
         // the topmost layer — Esc closes it from anywhere.
         const inPanel =
           panelRef.current?.contains(document.activeElement) ?? false;
-        if (!overlayRef.current && !inPanel) return;
+        // Fill mode is a layer, exactly like overlay mode, so Esc reaches it
+        // from anywhere: the terminal is hidden while filling, so there is no
+        // session next door whose Esc this could be stealing.
+        const filled = app.editorFill !== null;
+        if (!overlayRef.current && !inPanel && !filled) return;
         e.preventDefault();
+        // Esc closes the topmost layer (DESIGN §4): the first Esc gives the
+        // sidebar and the dock back, the second closes the editor. Same model
+        // as leaving VS Code's Zen mode.
+        if (filled) {
+          app.exitEditorFill();
+          return;
+        }
         ed.hidePanel();
         focusTerminal();
+        return;
+      }
+
+      // ⇧⌘B — `view.fillEditor`. The mnemonic pair with ⌘B: ⌘B hides the
+      // sidebar, ⇧⌘B hides everything. Handled here rather than in the shell
+      // because the action's subject is the open file.
+      if (
+        e.metaKey &&
+        e.shiftKey &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        e.code === 'KeyB'
+      ) {
+        if (!ed.panelOpen) return;
+        e.preventDefault();
+        toggleEditorFill();
         return;
       }
 
@@ -497,28 +608,24 @@ export function EditorPanel(): React.JSX.Element | null {
 
   return (
     <>
-      {overlay ? (
-        <div
-          className="ed-scrim"
-          style={{ left: scrimLeft }}
-          onClick={closeToTerminal}
-        />
-      ) : null}
+      {/* The scrim covers the work row it lives in, so it stops short of the
+          hoisted session strip above it — an overlay that covered the tabs
+          would be the very bug item 3 exists to kill. */}
+      {overlay ? <div className="ed-scrim" onClick={closeToTerminal} /> : null}
       <aside
         ref={panelRef}
-        className={`ed-panel${overlay ? ' ed-overlay' : ''}`}
-        style={{ width: panelWidth }}
+        className={`ed-panel${overlay ? ' ed-overlay' : ''}${
+          filling ? ' ed-fill' : ''
+        }`}
+        // Filling is CSS (inset:0 in the work row), never a width — that is
+        // what makes leaving it exact.
+        style={filling ? undefined : { width: panelWidth }}
         aria-label="Editor"
       >
         {!overlay ? (
           <div
-            className="ed-divider"
-            role="separator"
-            aria-orientation="vertical"
-            aria-label="Resize editor"
-            onPointerDown={onDividerPointerDown}
-            onPointerMove={onDividerPointerMove}
-            onPointerUp={onDividerPointerUp}
+            className={`ed-divider${divider.dragging ? ' dragging' : ''}`}
+            {...divider.props}
           />
         ) : null}
 
@@ -564,6 +671,30 @@ export function EditorPanel(): React.JSX.Element | null {
                 onClick={() => setMinimapEnabled(!minimapEnabled)}
               >
                 <Codicon name="map" size={14} />
+              </button>
+            ) : null}
+            {/* Fill the window. The fourth answer to the question this
+                cluster already asks — "how should this file be shown" — so it
+                costs one glyph in a row the eye already parses, and it keeps
+                the file's controls in the file's own chrome. Absent in
+                overlay mode, where the editor already covers the terminal. */}
+            {!overlay ? (
+              <button
+                type="button"
+                className={`ed-icon-btn${filling ? ' on' : ''}`}
+                aria-pressed={filling}
+                aria-label="Fill the window"
+                title={
+                  filling
+                    ? `Restore the layout (${FILL_CHORD})`
+                    : `Fill the window (${FILL_CHORD})`
+                }
+                onClick={toggleEditorFill}
+              >
+                <Codicon
+                  name={filling ? 'screen-normal' : 'screen-full'}
+                  size={14}
+                />
               </button>
             ) : null}
           </div>

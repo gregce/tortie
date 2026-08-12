@@ -52,7 +52,7 @@ export function shortcutConflictNote(
   const mods = new Set(canonical.split('+').slice(0, -1));
 
   if (!mods.has('Cmd') && !mods.has('Ctrl')) {
-    return 'A shortcut needs ⌘ or ⌃ to reach gmux. Record a different one.';
+    return 'A shortcut needs ⌘ or ⌃ to reach Tortie. Record a different one.';
   }
 
   const builtIn = builtInOwner(canonical);
