@@ -16,7 +16,11 @@ export {
   deleteSnapshot
 } from './snapshots';
 
-export { restoreSessionInTmux, type RestoreOutcome } from './restore';
+export {
+  armableResumeArgv,
+  restoreSessionInTmux,
+  type RestoreOutcome
+} from './restore';
 
 export {
   shellQuoteArg,

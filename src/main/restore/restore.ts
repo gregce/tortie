@@ -126,8 +126,14 @@ function agentDisplayName(agent: ManifestSessionRecord['agent']): string {
  * the manifest's verbatim copy — `specstory.agentArgv` — is the LAUNCH argv,
  * not this one. Re-splitting is the lossy direction (see specstory/wrap.ts),
  * but every alternative here is "the resume does not run at all".
+ *
+ * Exported so the rename migration's harness can PROVE the first bullet
+ * (`GMUX_SMOKE=migrate`, Phase 16.5a) against a row recorded under the old
+ * bundle path, rather than asserting that it is handled.
  */
-async function armableResumeArgv(rec: ManifestSessionRecord): Promise<string[]> {
+export async function armableResumeArgv(
+  rec: ManifestSessionRecord
+): Promise<string[]> {
   const recorded = [...(rec.resumeArgv ?? [])];
   const capture = rec.specstory;
   if (

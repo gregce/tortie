@@ -14,6 +14,11 @@
  *  - GMUX_SMOKE=verify  assert smoke-keeper survived (tmux ls + manifest),
  *                       re-attach, receive bytes, kill it, exit 0
  *    (create → verify across two processes = the P1/T1 restart acceptance test)
+ *  - GMUX_SMOKE=migrate the gmux -> Tortie userData migration, against a
+ *                       POPULATED fixture and real live tmux sessions: rows,
+ *                       settings, hotkeys, tip flags, snapshots, adoption from
+ *                       the migrated manifest, and the captured session whose
+ *                       recorded specstory bin the rename kills (Phase 16.5a)
  *  - GMUX_SMOKE=identity  sessions bind by @gmux-id, never by name: external
  *                       rename, a foreign session squatting the freed name,
  *                       kill, stale-row reconcile, pane markers, and an
@@ -65,6 +70,8 @@ import { WINDOW_BACKGROUND } from '@shared/window-chrome';
 import type { ManifestSessionRecord } from './manifest';
 import type { CreateSessionInput } from '@shared/types';
 import { installAppMenu } from './menu';
+import { migrateUserDataIfNeeded } from './migrate';
+import { runMigrateSmoke } from './migrate/smoke';
 import { registerProjectCreateIpc } from './projects';
 import { disposeQuickOpenIpc, registerQuickOpenIpc } from './quickopen';
 import { registerRestoreIpc, snapshotPath, stripAnsi } from './restore';
@@ -86,6 +93,15 @@ import { reapOrphanedTmuxClients } from './proc/orphans';
 // what makes a DEV run greppable as gmux (see proc/identity.ts for the honest
 // account of what dev mode cannot rename).
 applyProcessIdentity(app);
+
+// Phase 16.5a: the app name we just stated is also what Electron derives
+// userData from, so the FIRST launch after a rename points at an empty
+// directory — manifest, snapshots, settings and hotkeys all apparently gone,
+// every durable session unrestorable. Carry them over before anything can
+// read (or create) that directory: synchronous, guarded against every
+// harness's --user-data-dir, a no-op while the name is unchanged, and it
+// leaves the original in place as the backup. See migrate/userdata.ts.
+migrateUserDataIfNeeded(app);
 
 // `gmux-asset:` (markdown images) must be declared before the app is ready —
 // Electron throws if registerSchemesAsPrivileged runs later. The handler
@@ -1565,6 +1581,10 @@ app.whenReady().then(async () => {
   // Phase 15: the captured-launch acceptance test (wrap + resume + flush).
   if (smoke === 'capture') return runSmokeCapture();
   if (smoke === 'identity') return runSmokeIdentity();
+  // Phase 16.5a: the rename upgrade, driven against a populated fixture and
+  // REAL live tmux sessions (src/main/migrate/smoke.ts). Never reads the real
+  // userData; the guard it asserts first is what keeps it that way.
+  if (smoke === 'migrate') return runMigrateSmoke();
   // Phase 13.8: what the outside world sees of gmux (read-only).
   if (smoke === 'procid') return runSmokeProcId();
   // Phase 13.5 item 5 — `npm run conformance:resume`. Lives in
