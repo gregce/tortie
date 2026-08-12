@@ -27,7 +27,9 @@ the wordmark is a wordmark. Revisit only if the operator asks.
 | 4 | **19** durability, with the harness that proves it | SPECCED BELOW | **18.6 landing first** |
 | 5 | **20** the verified backup ring | queued | Phase 19 |
 | 6 | **21** versioned agent recovery contracts, as one migration with resume provenance | queued | Phase 20 |
-| — | **Release lane** version scheme, changelog, four CI lanes, compatibility number | ready to start | nothing. Touches no source file, so it runs beside any phase |
+| 7 | **22** the Context sidebar, with installing enabled | SPECCED BELOW | 21, and it runs **before** the release lane by operator instruction |
+| 8 | **23** Tortie Config, configuration not code, plus the authoring prompt | SPECCED BELOW | 22, and **never before 21**. Opens with a re-baseline of the code |
+| — | **Release lane** Itavero identity, signing, notarization, version scheme, four CI lanes | ready | after Phase 23. Its CI half touches no source file and could run beside a phase if wanted |
 | — | Release lane, second half: signing, notarization, the updater | blocked | the operator's App Store Connect issuer identifier |
 
 **Why 19 waits for 18.6.** Both touch `src/renderer/state/store.ts`. Phase 19's restart fix would be
@@ -935,6 +937,78 @@ Phase 18's layout work, since the sidebar was rebuilt three commits ago.
 
 ---
 
+## Release lane — signing and notarization, following deadreckon (2026-08-12)
+
+The operator instruction is to use the same keys and the same bundle identifier approach as
+`/Users/gdc/deadreckon`, which already ships signed and notarized macOS builds. Read that repository
+before building this. The relevant files are `.github/workflows/release.yml` and
+`release/trust/sign-macos-artifacts.mjs`.
+
+**This removes the blocker we recorded.** Research 27 said the one missing credential was the App
+Store Connect issuer identifier. Deadreckon does not use the App Store Connect key at all. It calls
+`xcrun notarytool` with an Apple ID, a team identifier and an app specific password. Nothing else is
+required, so notarization is unblocked today.
+
+### What deadreckon does, and what Tortie copies
+| Piece | Deadreckon | What Tortie does |
+| --- | --- | --- |
+| Certificate | A p12 imported into a temporary keychain in CI | Same. Do not reuse the login keychain in CI |
+| Notarization credentials | `--apple-id`, `--team-id`, `--password` with an app specific password | Same |
+| Secrets | `APPLE_CERT_P12`, `APPLE_CERT_PWD`, `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PWD` | Same five names, so both repositories stay consistent |
+| Signing helper | One script that signs every native executable, submits the assembled payload, then repacks the exact archive that gets checksummed | Tortie already has `build/after-pack.cjs` doing the per binary signing. Extend it rather than adding a second path |
+| Bundle prefix | `com.itavero`, giving `com.itavero.deadreckon` | **Decision needed, see below** |
+
+### DECIDED 2026-08-12: Tortie ships under Itavero, not SpecStory
+The operator instruction is that Tortie belongs to Itavero, their personal LLC, and lives under their
+`gregce` GitHub account rather than the SpecStory organisation. So the vendor identity changes.
+
+| Field | From | To |
+| --- | --- | --- |
+| Bundle identifier | `com.specstory.tortie` | `com.itavero.tortie` |
+| package.json author | `SpecStory` | Itavero |
+| Nested binary identifiers | `com.specstory.tortie.specstory` | Derived automatically, no edit needed |
+
+**The distinction that must never be lost, and it is exactly parallel to the gmux rule in CLAUDE.md.**
+Tortie's own vendor identity becomes Itavero. **The SpecStory integration stays SpecStory**, because
+that is a separate product Tortie talks to. That means `specstory-cli` and its bundled binary, the
+`src/main/specstory/` module, the Settings section, the book mark and every capture path keep their
+names. A later cleanup agent must not "finish off" this rename by sweeping through those.
+
+**Why this is smaller than it looks, verified in the code rather than assumed.**
+- The data directory follows `app.setName`, which is Tortie, and **not** the bundle identifier. The
+  comment at `src/main/index.ts:101` states it and `app.getPath('userData')` confirms it. So the
+  manifest, the snapshots, the hooks and the dropped images all stay exactly where they are. **No
+  data migration is required.** Your sessions are not at risk.
+- The nested binary identifier is built from `context.packager.appInfo.id` at
+  `build/sign-nested-binaries.cjs:61` and `:93`, so it follows the change with no edit.
+- The private tmux socket, the manifest and every running session are unaffected, because none of
+  them is keyed to the bundle identifier.
+
+**What genuinely changes, and it is already handled.**
+- macOS keys permission grants to the bundle identifier, so anything previously granted starts empty
+  and macOS asks again once per permission.
+- The login item is registered through SMAppService, which keys on the bundle identifier. Phase 16.5
+  built `reconcileLoginItem()` in `src/main/restore/login-item.ts` for precisely this case, and a one
+  time notice already exists in `src/main/migrate/notice.ts`. **Reuse both. Do not write a second
+  path.** Research 33 found a defect in that notice's failure gating, which Phase 19 item 10 is
+  fixing, so land this after Phase 19.
+
+**Do it now rather than later.** The cost rises the moment a signed build has been installed anywhere
+other than this machine, because from then on it is a migration for other people too.
+
+Also update the identity line in CLAUDE.md, README.md and BUILD-STATUS.md, all of which currently
+name `com.specstory.tortie` as the product identifier.
+
+### Repository ownership
+The remote is already `github.com/gregce/tortie` and private. Nothing to change there. When the
+operator makes it public it needs a LICENSE file, and research 34 lists what else becomes visible.
+
+### Order
+This lane touches no source file outside `build/` and `.github/`, so it runs beside any phase without
+a collision. It is the one piece of parallel capacity currently unused.
+
+---
+
 ## Phase 19 — durability, with the harness that proves it (2026-08-12)
 
 **Do not start this until Phase 18.6 has landed.** Item 8 below edits `restartSession` in
@@ -1217,3 +1291,469 @@ before anything is written.
 The promise sentence, which is the only line on the screen that says why Tortie exists. Dropping a
 folder onto the window, and the open shortcut. The other full window states that share this file.
 Phase 18's layout work, Phase 18.5's six items and Phase 18.55's zoom fix, all of which are recent.
+
+---
+
+## Phase 22 — the Context sidebar, with installing enabled (2026-08-12)
+
+Full specification in docs/research/29-context-sidebar.md, 2,681 lines, which carries the per agent
+substrate matrix, the scope model, the wireframes at three widths and the final copy. Build from that
+document. **Read its section 13 first**, because the operator changed its staging.
+
+Runs before the release lane. It is the largest remaining feature and the only queued work that makes
+Tortie more than a good shell.
+
+### Why this belongs in Tortie, since the scope guardrail requires the question answered
+The agent registry already answers how a session starts, being the binary, the arguments, the resume
+arguments, the icon and the launch flags. **Nothing in Tortie answers what a session can do once it
+starts.** That lives entirely in sidecar configuration and is invisible from inside the app today.
+This is agent layer work, not IDE furniture. Two of the eight tabs in the reference panel, being
+Tools and Overview, are refused rather than copied.
+
+### The operator decision, 2026-08-12
+Research 29 staged this as a local view first and the source layer one phase later. **That staging is
+superseded. Installing ships with the view, in this phase.**
+
+The reason for the original staging is not withdrawn. It is converted into requirements, and these
+are not negotiable within the phase:
+1. The install path gets its **own independent verifier at Tier 3**, separate from the verifier for
+   the view.
+2. **Pin and re-check is required, not optional.** Record the resolved hash at install, re-hash on
+   refresh, and a changed hash disables the item and asks again. Shipping install without this ships
+   the risk without the control.
+3. Nothing installs without a human confirming it, and the confirm shows the full command line.
+4. The executable-content scan runs and is shown **before** the install control, not after.
+
+**The risk the operator has accepted, stated plainly so nobody rediscovers it.** A SKILL.md body can
+carry executable placeholders that run before the model ever sees the file. The documented incident
+corpus is 1,184 malicious skills on one hub, and 36.82% of 3,984 scanned skills carrying a flaw with
+13.4% critical, and it includes the registry this document recommends as the default.
+
+### The hardest part of the build, and it is not the interface
+There is one real standard and eleven bespoke filesystems. Agent Skills standardises the file and
+nothing else, not the location, not the scopes and not who wins a collision. **There are at least
+seven mutually incompatible precedence models across twelve agents, and two of them run in opposite
+directions inside one product**, because in Claude Code project settings beat personal settings while
+personal skills beat project skills. A panel that draws one scope axis and orders it once will be
+wrong about half of what it shows. Research 29 section 2 has the verified matrix. Use it rather than
+inferring.
+
+### Sources
+skills.sh for skills, chosen because it is the only source in the survey that hands a third party
+client a free unauthenticated content audit that can be rendered before the install control. The
+official MCP registry for servers, with Smithery second. Plugins go through each agent's own CLI.
+**Hooks get no marketplace, and that is a refusal rather than a gap.** Bring your own source is first
+class, meaning a local directory, a private repository or an alternate registry base address.
+
+### The skills CLI, and how it is distributed (operator decision, 2026-08-12)
+
+The operator asked that `npx skills` be the single interface for all skill management, and that Tortie
+shell out to it invisibly. Four investigations measured `skills@1.5.22` on 2026-08-12, three of them
+building the case and one attacking it. This section is what a builder implements from.
+
+**The decision, first.** Every skill operation that changes state goes through the `skills` CLI, with
+no exceptions. Tortie never creates a skill directory, never creates or removes a symlink in an agent
+directory, and never edits a lock file by hand. The CLI is bundled and pinned inside the app rather
+than fetched through `npx`, which the operator's own instruction left open. **One operation departs
+from the instruction, and it is the local list.** Tortie reads the installed set from the filesystem.
+
+**Why the list departs.** Two facts decide it, and either one alone would decide it.
+
+1. `skills list --json` returns seven fields, being `name`, `path`, `scope`, `agents`, `source`,
+   `sourceUrl` and `sourceType`. Verified by running it. It does not return the description, which
+   research 29 section 5 puts on every row of the panel. It does not return the `skillFolderHash`,
+   which requirement 2 above depends on. Both of those live on disk. So a CLI-driven view still has to
+   read the files, and it has paid for a process spawn and gained nothing.
+2. It is about 120 times slower.
+
+| Path | Median | Entries | Descriptions | Hashes |
+|---|---|---|---|---|
+| Direct filesystem read, in process | **2.3 to 2.8 ms** | 36 | 35 | 21 |
+| `skills ls -g --json`, system node | 329 to 390 ms | 28 | 0 | 0 |
+| `skills ls -g --json`, Electron node with `ELECTRON_RUN_AS_NODE=1` | 290 to 379 ms | 28 | 0 | 0 |
+| Same, first run after boot, cold page cache | 7.1 s, measured once | 28 | 0 | 0 |
+| `npx skills@1.5.22 ls -g --json`, warm cache, default flags | 270 to 390 ms on top of the row above, plus one request to `registry.npmjs.org` | | | |
+
+Electron's Node and system Node are inside each other's spread, so the runtime choice does not change
+the cost. The 329 ms is the directory walk itself, and it grows with the number of agent directories
+rather than the number of skills. The operator's machine has 27 of them.
+
+**This departure does not create a second source of truth, and that is why it is safe.** `skills list`
+is itself a filesystem walk. It reads no lock file and it holds no knowledge that the files do not.
+Tortie reading the same directories is the same walk with the frontmatter kept, not a reimplementation
+of the CLI's resolution model. Every operation that could make two views disagree is a write, and
+every write goes through the CLI.
+
+Three further reasons the read stays local. A skill with broken frontmatter is dropped from the CLI's
+output entirely rather than flagged, and a broken skill is exactly what the panel should show. Global
+and project scope are two separate invocations. `skills find` has no `--json` at all and it sends the
+user's query string to `add-skill.vercel.sh/t`, so discovery uses `GET skills.sh/api/search` instead,
+which research 29 section 3.2 already measured returning clean JSON.
+
+#### The spawn contract, shared by every CLI call
+
+- Executable: `process.execPath`, which is the Electron binary in a packaged app.
+- First argument: `<resourcesPath>/skills-cli/node_modules/skills/bin/cli.mjs`.
+- Environment: `ELECTRON_RUN_AS_NODE=1` on every call, without exception. Nothing runs without it.
+- Environment, inherited: pass the recovered login-shell environment through, not a scrubbed one. The
+  CLI reads 31 variables and several of them move the directories it writes to. `CLAUDE_CONFIG_DIR`,
+  `CODEX_HOME`, `GROK_HOME`, `VIBE_HOME`, `HERMES_HOME` and `AUTOHAND_HOME` relocate an agent's
+  configuration directory. `XDG_STATE_HOME` moves the global lock file from `~/.agents/.skill-lock.json`
+  to `$XDG_STATE_HOME/skills/.skill-lock.json`. `GH_TOKEN`, `GITHUB_TOKEN`, `GH_HOST` and
+  `GIT_SSH_COMMAND` are how a private source is reached. **Tortie's filesystem reader must resolve
+  those same variables**, or the view and the CLI will point at different directories on any machine
+  where one is set. None of them is set on the operator's machine today, so a bug here would not show
+  up in local testing.
+- Environment, added: `DO_NOT_TRACK=1` only when the user's usage-data switch is off. `SKILLS_API_URL`
+  and `SKILLS_DOWNLOAD_URL` only when the user has configured their own source.
+- Working directory: the project root for project scope, and the user's home directory for global scope.
+- Standard streams: `['ignore', 'pipe', 'pipe']`. Never allocate a pseudo-terminal. With `-y` and the
+  flags below fully specified, the CLI completes without prompting.
+- Success is the exit code, never the text. Measured exit codes are 0 for success, 0 for removing a
+  skill that does not exist, and 1 for a bad source, a bad skill name, a bad agent name or an unknown
+  command. Only two outputs are ever parsed, being `list --json` and `--version`. Everything else is
+  box-drawing characters and ANSI escapes.
+
+#### The exact command for every skill operation
+
+| Operation | How Tortie does it |
+|---|---|
+| Probe a copy of the CLI | `--version`, which prints a bare version string and exits 0 |
+| List installed skills, global | Direct filesystem read. Not the CLI. |
+| List installed skills, project | Direct filesystem read under the project root. Not the CLI. |
+| Search for something to install | `GET https://skills.sh/api/search?q=<query>&limit=<n>`, with `&owner=<owner>` when the user filters. Not the CLI. |
+| Show the safety scan before the install control | `GET https://add-skill.vercel.sh/audit?source=<owner/repo>&skills=<a,b>`. Not the CLI. |
+| Enumerate the skills a source contains | `skills add <source> -l` |
+| Install, global | `skills add <source> -g -y -s <name> [<name>…] -a <agent> [<agent>…]` |
+| Install, project | `skills add <source> -y -s <name> [<name>…] -a <agent> [<agent>…]`, with the working directory at the project root |
+| Remove a skill everywhere | `skills remove -g -y -s <name>` |
+| Remove a skill from one agent that uses symlinks | `skills remove -g -y -s <name> -a <agent>` |
+| Update one skill | `skills update -g -y <name>` |
+| Update every global skill | `skills update -g -y` |
+| Restore a project's skills from its lock file | `skills experimental_install`, with the working directory at the project root |
+| Read the pin for a skill | Direct read of the lock file. Not the CLI. |
+
+Three argument traps, all read out of the parser at `dist/cli.mjs` line 5045. A builder who does not
+know them will write a command that runs successfully and does the wrong thing.
+
+1. **The source must come immediately after `add`.** `-s` and `-a` are variadic and greedily consume
+   every following argument that does not begin with `-`. A source placed after either flag is
+   swallowed as a skill name or an agent name.
+2. **Never use the `--flag=value` form.** The parser matches exact flag tokens only, so `--skill=foo`
+   matches nothing, begins with `-` so it is not treated as a source, and is silently discarded. The
+   command then runs with a wider meaning than intended.
+3. **`-a '*'` works for `add` and fails for `remove`.** `removeCommand` has no wildcard branch, so it
+   reports `Invalid agents: *` and exits 1. Use `--all` where an everything operation is wanted, and
+   an explicit agent list otherwise.
+
+#### What the CLI cannot do, and what Tortie does instead
+
+| Thing the panel might want | Status, and the substitute |
+|---|---|
+| Ask whether an update exists without applying it | Not possible. `check` is a plain alias for `update` in the dispatch switch. The panel offers an update action, not an update indicator. |
+| Report which skills an update run skipped | Unreliable. When at least one skill is checkable and none has an update, the CLI prints "All global skills are up to date" and returns at line 6568, before it reaches the skipped list at line 6621. Tortie reads the lock itself and shows which skills carry no pin. On the operator's machine 10 of 25 canonical skills have no lock entry at all, so this is the common case rather than an edge. |
+| Enable a skill for exactly one agent | Do not offer it. With one target directory the CLI switches from a symlink to a full copy, and re-adding from the canonical path with two or more targets is a silent no-op that reports success. |
+| Disable a skill for one agent that reads the shared directory | Not possible, and this is correct rather than a defect. Research 29 section 2.7 verified that 10 of 12 agents read `~/.agents/skills` directly. One canonical directory serves all of them, so the only per-agent toggle that means anything is for the agents that need a symlink, of which Claude Code is the one that matters here. Show those agents as covered by the shared directory and give them no toggle. |
+| Give a description or a content hash for an installed skill | Not possible. Both are read from disk. |
+| MCP servers, plugins, hooks and subagents | Out of scope for this CLI entirely. There is no MCP management anywhere in it. The other four categories keep the design in research 29 and this decision does not widen to them. |
+
+#### Distribution: bundle the npm package, do not use npx
+
+The package is pure JavaScript. A search of the installed tree for `.node`, `.dylib`, `.so`, `.wasm`
+and `binding.gyp` returns zero hits across all 8 packages, so unlike the specstory binary it adds no
+nested Mach-O, no `mac.binaries` row, no `build/sign-nested-binaries.cjs` row and no new signing work.
+The constraint that decided research 30 does not apply here, and that was checked rather than assumed.
+Electron 43.3.0 ships Node 24.18.1 and the package declares `"engines": { "node": ">=22.20.0" }`, so
+Electron's own runtime satisfies it. This was proven live. With `node`, `npm` and `npx` all absent from
+`PATH`, an Electron process with `ELECTRON_RUN_AS_NODE=1` installed a skill, produced the canonical
+copy plus one symlink per agent, and then ran `skills update` through the CLI's own child re-spawn and
+applied the update. The re-spawn at line 6588 calls `spawnSync(process.execPath, …)` and the child
+inherits the environment, so `ELECTRON_RUN_AS_NODE` carries into it and no injection is needed.
+
+| Option | Verdict | Deciding reason |
+|---|---|---|
+| Bundle the npm package, run under Electron's Node | **chosen** | 5.5 MB installed, or 2.3 MB after trimming documentation and type files, and it still ran after the trim. No native code, so no new signing obligation. Works with no Node on the machine and no network for the local view. |
+| `npx` on demand | rejected | It needs Node on the machine, which a user running native-binary agents may not have. Warm `npx` with an exact pinned version still issues `GET registry.npmjs.org/skills` on every call, confirmed under `npm_config_loglevel=http`. With the registry unreachable, npm's default retry policy takes 70 seconds to fail. An unpinned `npx skills` can change its output shape between two app launches, and the CLI publishes roughly every 5 to 8 days. |
+| Bundle a compiled binary | rejected | There is nothing to compile. Building one would manufacture the nested Mach-O that the chosen option avoids, and take 2.3 MB to tens of megabytes. |
+
+`ELECTRON_RUN_AS_NODE` is a standing constraint on this design. There is no `electronFuses` key in
+`electron-builder.yml` and no `@electron/fuses` in the repository today, so the fuse is not disabled.
+Turning on the `runAsNode` fuse as a hardening measure would break every skill write silently. Anyone
+who proposes it must read this line first.
+
+#### The pin, and the process that keeps it from rotting
+
+The pin lives in `build/skills-release.json`, in the same shape as `build/specstory-release.json`. It
+holds the version, the registry `integrity` string, the `shasum` and a `compatBand`, which is the
+version range the resolver below enforces. Keeping the band in the pin file stops the two from drifting
+into separate files. For 1.5.22, read live on 2026-08-12, the integrity string is
+`sha512-cHiLjwZEawWFvudIqeeMZlvZayTLbRouydMbblyrdiyH7ZLbqUrSrEEr+Tg+X265iztRlVMsyOYRwpD5JxBsvg==` and
+the shasum is `ec0a7897ba2ef06e01f3b41007886f3a92cf4d05`. 1.5.22 is also `latest` today.
+
+`build/fetch-skills.cjs` runs from the existing `beforePack` hook next to `ensureSpecstoryBinary`. It
+installs with `--omit=dev --ignore-scripts` into `build/vendor/skills`, verifies the result against the
+pin, applies the trim and writes a version sidecar so the resolver can name the bundled version without
+spawning anything. `--ignore-scripts` is not optional, because 8 packages with no native build step
+have no legitimate reason to run an install script inside our build. The tree ships as
+`extraResources`, for the same reason the specstory binary does, being one stable path outside the
+asar. **The vendored tree must keep a directory literally named `node_modules`**, because `dist/cli.mjs`
+imports `yaml` and `tar` by bare name and Node walks up looking for that exact directory name. Renaming
+it produces `ERR_MODULE_NOT_FOUND` at run time and passes every check at pack time.
+
+Three triggers keep the pin current, and each one is a gate rather than an intention.
+
+1. A check in the release lane runs `npm view skills version` and fails the job when the published
+   version falls outside `compatBand`, or when it is more than four minor releases ahead of the pin.
+2. A version bump is an ordinary Tier 2 change. Change the fields, re-vendor, run
+   `npm run typecheck && npm run build && npm run smoke:t1`, and add one probe that `skills list --json`
+   still parses into the seven expected fields.
+3. A `compatBand` change is Tier 3 with an independent verifier, because widening the band is what lets
+   an unreviewed CLI version drive writes into the user's agent directories.
+
+#### The lock file guard, and its direction, which is the opposite of what it looks like
+
+A newer lock is safe. A CLI at schema 3 reading a lock at schema 99 preserves the version, preserves
+unknown top-level keys and preserves unknown fields inside each skill entry. Measured in an isolated
+home. **An older lock is the destructive one.** `readSkillLock` at `dist/cli.mjs` line 3490 reads
+`if (parsed.version < CURRENT_VERSION) return createEmptyLockFile()`, with `CURRENT_VERSION = 3`. One
+`skills add` against a lock at version 2 destroyed three tracked entries and left one. The skill
+folders survive on disk, but every `source` and `skillFolderHash` in the discarded entries is gone, and
+a skill with no hash can never be checked for an update again.
+
+So the rule is this. Before any write, read the global lock at the path the CLI would use, which honours
+`XDG_STATE_HOME` and otherwise is `~/.agents/.skill-lock.json`. If its `version` is **below** what the
+bundled CLI writes, do not run the write. Tell the user that Tortie's bundled skills CLI is newer than
+the tool that last wrote their file, and that continuing would drop the update pins. The same rule
+applies to the project lock, `skills-lock.json` at the project root, which has its own version counter
+currently at 1 and the same discard behaviour at line 911. The operator's lock is at version 3 today
+with 15 tracked skills, which is the version the pinned CLI writes, so nothing is at risk right now.
+The guard is for the next pin bump, which is when it fires.
+
+#### Resolution across copies, and what offline means
+
+The bundled copy is the default. A copy found on the recovered login `PATH` wins only when its version
+is at or above the pin and below the next major version. A user who needs a newer CLI is therefore not
+blocked by a Tortie release, and a version whose output Tortie has never parsed is never silently
+trusted. Candidates are deduplicated by real path and capped at 8, the same shape as `candidatePaths`
+in `src/main/specstory/resolve.ts`. Settings reports every copy found and its version, the way it
+already does for specstory. There is no `skills` on the operator's `PATH` today, so this is insurance
+and it changes nothing on day one. **Say so plainly in Settings.** A fix published upstream on a Tuesday
+waits for a Tortie release unless the user installs their own copy, and the panel must not imply that
+it heals itself.
+
+Offline behaviour splits cleanly by operation, because the bundled copy needs no network to exist.
+
+| Operation | With no network |
+|---|---|
+| The local list | Works. It is a filesystem read and it makes no request. |
+| The pin shown on each row | Works. It is a lock file read. |
+| `skills --version` probe | Works. |
+| Search and the safety scan | Fail. Both are HTTP. The section shows the local list with one line saying discovery needs a connection. |
+| Install and update | Fail, because they fetch the skill from its source. This is inherent to the operation and not a property of how the CLI is distributed. |
+
+#### Failure design, because a wrapped CLI that breaks quietly is worse than no wrap
+
+Five failures, each with what the user sees and what the panel still does. Every one of them keeps the
+Skills section readable, because the local list never depends on the CLI.
+
+| Failure | What Tortie does |
+|---|---|
+| The bundled CLI is missing or will not start | The list still renders from disk. Every write control is disabled with one line saying skill installing is unavailable in this build, and Settings names the path that was tried. This is the packaging-mistake case and it must be loud. |
+| A command exits non-zero | Show the failure with the exact command line that was run and the last lines of stderr, in the same place the confirmation showed that command line before it ran. Never report success from parsed text. Nothing in the panel changes state until the exit code is 0 and a fresh filesystem read confirms it. |
+| A command hangs | Time out at 120 seconds for `add` and `update`, and at 15 seconds for `--version` and `-l`. Kill the child, say the command was stopped, and re-read from disk so the panel shows what actually landed rather than what was asked for. |
+| The output format changes under us | Only two outputs are parsed. If `list --json` ever needs to be parsed and does not yield an array of objects carrying `name` and `path`, treat it as a failed probe rather than an empty list, because an empty list looks like the user has no skills. If `--version` does not parse as a version, the copy is not a candidate. A copy outside `compatBand` is reported in Settings by name and version and is not used. |
+| There is no network | Per the table above. The panel says which operations need a connection in one line, and does not disable the whole section. |
+
+Two rules bind all five. The panel never shows a state it has not re-read from disk, so the filesystem
+is the only thing that decides what a row says. Every failure names the command that produced it,
+because a hidden subprocess that fails without naming itself is unfixable by the person looking at it.
+
+**Telemetry.** Reads send nothing, confirmed by intercepting `fetch`, `http.request`, `https.request`
+and `dns.lookup` around `list`, `ls --json` and `--version`. `skills find` sends the user's query
+string, which is the second reason discovery uses the search API directly. Install, remove and update
+send the source and the target agents to `add-skill.vercel.sh/t`, and `add` separately calls
+`add-skill.vercel.sh/audit` for the risk panel. Research 29 section 3.2 already decided the policy,
+being leave it on, disclose it in one line, and honour a single switch that exports `DO_NOT_TRACK=1`
+to every child process.
+
+**What is not verified, so nobody inherits it as settled.** No packaged `.app` has been built with the
+vendored tree in it, and every Electron measurement used the development binary at
+`node_modules/electron/dist`. Nothing has been run under a hardened runtime with a real Developer ID,
+because `identity: null` today and no notarization round trip has ever run on this machine. The claim
+is narrow, being that the vendored tree adds no new Mach-O so it adds no new signing obligation.
+Everything measured is macOS arm64 on one machine. Whether Zed, Warp, Replit and GitHub Copilot
+actually load a skill from the shared directory is unchecked in both directions, because they are in
+the CLI's universal set and not in research 29's verified table.
+
+### The session connection, kept quiet
+A transcript does not record what context it loaded, verified at 443 system records across a 12 MB
+session with none carrying a manifest. But Tortie owns the launch, so it is the only thing on the
+machine that can know. Record the resolved set at launch, measured at about 15 ms.
+Four rules keep this away from durability. It is advisory and must never fail a launch, block a
+restore or change a resume argument. It is written once at launch and never updated for a live
+session. A restore re-snapshots. Deleting it is always safe.
+
+### Live reload is registry data, not prose
+The table of what a running session picks up changed underneath the research while it was being
+written, when hooks moved from needing a restart to being reloaded live. Each agent and category pair
+carries one of three values in the registry, being live, next session, or unknown. **Unknown is a
+first class value with its own honest sentence.** Guessing here is worse than saying nothing.
+
+### Verification
+Tier 2 for the view, being gates plus screenshot reads at the three responsive widths and a check
+that the scope and precedence display matches the verified matrix for at least three agents with
+different models.
+**Tier 3 for the install path, with its own verifier.** Prove by doing: an install from the default
+source succeeds and the item appears with the correct scope; the confirm shows the real command line;
+a changed hash on refresh disables the item and asks again; a removal leaves nothing behind; and an
+install is refused when the executable-content scan finds something, rather than warning after the
+fact. Every test uses a scratch directory and must never write to the operator's own agent
+configuration.
+Add `conformance:context`, the cheap capture gate that keeps the substrate matrix executable rather
+than documented.
+Five checks come from the CLI decision above and all five are Tier 3, because each one can destroy
+data the user did not ask Tortie to touch or hide a failure from them.
+- **Packaging is a gate, not an assumption.** Build the real `.app` and run the vendored CLI out of
+  `Contents/Resources` with `ELECTRON_RUN_AS_NODE=1`. `out/` passing proves nothing here, which is the
+  same trap research 19 section 7.2 recorded for the tree-sitter wasm files.
+- **The lock guard runs in both directions.** A lock at a higher version must be written back
+  unchanged with its unknown keys intact. A lock at a lower version must stop the write and show the
+  sentence, and the verifier must confirm no entry was lost.
+- **A single-agent enable is refused.** Prove the panel never issues an `add` with one target
+  directory, because that call silently produces a full copy instead of a symlink.
+- **Every failure is visible and named.** Drive all five rows of the failure table. Rename the
+  vendored tree so the CLI is missing. Force a non-zero exit with a bad source. Force a timeout.
+  Feed a `list --json` that is not an array of objects. Cut the network. In every case the local list
+  must still render, the message must name the command that was run, and no row may claim a state
+  that a fresh filesystem read does not support.
+- **The command shapes are exact.** Assert the argument order and the flag form for every row of the
+  command table, because a source placed after `-s` is swallowed and a `--flag=value` form is dropped
+  without an error. A wrong shape here exits 0 and does the wrong thing, so a passing exit code is not
+  evidence.
+
+### What must not regress
+Explorer, source control and search stay first class and unchanged. The activity bar and the sidebar
+geometry from Phase 18. Zoom, which Phase 18.55 made derive from the view list, so **the Context view
+must be zoomable the day it ships with no extra work**. If it is not, the derivation is wrong and
+that is a defect in this phase.
+Never build a rail badge counting context, an ambient notification when a file changes under a
+running session, or any surface that is featured or trending. Research 29 section 13.4 lists these
+and the reasons.
+
+---
+
+## Phase 23 — Tortie Config: configuration, not code (2026-08-12)
+
+The outcome of docs/research/31-extensions.md, which examined bb, Zed and pi, wrote four competing
+architectures and had three adversaries attack each one. Eleven of the twelve reviews came back fatal.
+The verdict was that **Tortie never loads third party code into any of its processes**, and instead
+opens the declarative tables it already ships as data.
+
+Scope, the boundary and the staged rungs are in research 31 sections 6 and 7. Build from there.
+
+Runs after Phase 22, and it must not start before Phase 21.
+
+### Step zero, and it is not optional: re-baseline before designing anything
+Research 31 was written on 2026-08-12, **before** Phases 18.5, 18.55, 18.6, 19, 20 and 21 landed.
+Every one of those touched something this phase depends on. The agent registry gained rows. The
+manifest gained columns. The renderer state was rewritten twice. The settings sanitiser changed. The
+restore path changed shape.
+
+So the first agent in this phase does what Phase 15.5 did before the refactor. **Read the code as it
+is and write down where it differs from research 31**, then hand that to the builders. Specifically
+re-check: the registry entry shape and its field list, the manifest schema and its migration count,
+the settings sanitiser and where it is called, `renderer/state/agents.ts` and whether the mirror
+defect described in research 31 C2 is still there, the token list and its current count, and the
+keymap source and its current count. Research 31 quotes numbers for several of these. **Treat every
+one of them as stale until re-measured.**
+
+### What ships
+The smallest useful version is one file, being `<userData>/gmux/config/agents.json`, user scope only,
+launch and resume only, behind the confirm gate. Everything after that is additive.
+
+| Step | What | Tier |
+| --- | --- | --- |
+| C1 | The overlay type, a generated JSON Schema, worked examples, load and validate and merge, the confirm gate bound to a row hash, and `conformance:agents` | 3 |
+| C2 | The renderer registry mirror, which nothing type checks today and which a user supplied agent makes an immediate defect rather than a latent one | 2 |
+| C3 | Theme overlays over the colour tokens, validated against the token list | 2 |
+| C4 | Keymap overlays that rebind existing command ids and cannot introduce new ones | 2 |
+| C5 | Project scope, being a separate smaller type with its own trust gate | 3 |
+| C6 | The import boundary test, the content security policy test, and the refusals written into CLAUDE.md | 1 |
+
+### The boundary, quoted because it is the whole design
+> Configuration selects from choices the compiled world already contains, or names an executable the
+> user has personally confirmed.
+
+Fields that can cause a program to run, being the arguments, the binary, the resume template, the
+environment and the identifier capture, require a human confirming once, **out of band of any agent
+turn**, with the confirmation bound to a hash of that row. Change the row and it asks again.
+
+The merge is read at boot, on an explicit reload, and on a file watcher debounce. **Never on the path
+that creates a session and never on the path that restores one.**
+
+An invalid row is dropped whole and surfaces as a visible error naming the field and the reason. Never
+partially merged, never silently dropped, never a crash.
+
+The project file is a **different and smaller type**, not a filtered view of the user one. It carries
+no field that can hold arguments, a binary, an environment variable or a path outside the project. A
+repository the user clones cannot cause a process to start.
+
+### Why the confirm gate is not theatre, stated so a later round does not remove it for convenience
+Every product cited as precedent for trusting configuration has a human as the only routine writer of
+that configuration. Tortie runs many agent processes at once under one user account, several
+deliberately with their safeguards off, all able to write to the home directory. A configuration
+directory Tortie reads and an agent can write is an increase in privilege rather than a convenience.
+
+### The authoring story, added by the operator 2026-08-12
+Research 31's lesson from pi was **publish the contract, not the toolkit**. Tortie's users have twelve
+coding agents one keystroke away, so making authoring cheap is already solved. What is scarce is a
+contract an agent can read without guessing.
+
+So this phase ships an **authoring prompt** as a real deliverable, not a documentation afterthought.
+It must be good enough that a user opens a session in the configuration directory, pastes the prompt,
+says what they want, and gets a valid file. Requirements:
+1. It is written for an agent to act on and for a human to read. One document, not two.
+2. It states the contract, points at the generated JSON Schema by path, and carries the worked
+   examples from C1.
+3. It states the confirm gate plainly, so an agent that writes an execution bearing field tells the
+   user a confirmation is coming rather than appearing to have failed.
+4. It states what configuration **cannot** do, so an agent does not attempt the impossible and produce
+   a broken file.
+5. It is validated the way the schema is. **A worked example that does not load is a defect.** Add a
+   test that parses every example in the prompt against the schema.
+
+### Discoverability, and the operator constraint on it
+The operator's instruction is that this is discoverable **subtly**, and that the guidance itself must
+not be baked into the application chrome.
+
+So the guide lives on disk, next to the thing it describes, and the application's footprint is one
+affordance. When Tortie first creates the configuration directory it writes the guide, the schema and
+the examples into it. In the app, a single item reveals that folder. Recommended placement is the
+existing Settings surface or the application menu, decided at the spec stage. **Do not build a
+configuration editor, a template gallery or an onboarding flow.** The file is one click away and the
+agents are already here.
+
+**Do not merge this with the Context sidebar.** Phase 22 manages what agents can do, meaning skills,
+servers and hooks. This manages Tortie itself. They are different things with different trust models
+and a shared surface would blur both.
+
+### Verification
+C1 and C5 are Tier 3. C1 because it touches the registry, resume and the launch path, and because
+universality across agents is claimed. C5 because it introduces a new trust boundary.
+C1 needs the full battery plus `conformance:resume:capture`, plus **a per agent matrix proving a
+synthetic thirteenth agent launches, resumes and restores across a real quit**, plus an adversarial
+verifier proving an unconfirmed row cannot start a process.
+C5 needs an adversarial verifier proving a hostile project file cannot alter arguments, name a binary,
+set an environment variable or start anything, and that the trust gate survives a restart and a
+project rename.
+
+### What must not regress
+The twelve compiled agents keep working with no configuration file present, which is the ordinary
+case. Resume and restore for every one of them. The settings sanitiser, which stays the authority for
+what it already covers. The single keymap source, which C4 must extend rather than bypass.
+
+### Ordering
+Must not start before Phase 21. Restore currently asks the live registry for `requiresOriginalCwd`
+rather than the manifest, and its error path returns the permissive answer. That is latent today
+because the registry always holds all twelve agents. **A user added agent that later leaves the file
+makes it immediate**, and for one agent the failure is a silent empty session that looks resumed.

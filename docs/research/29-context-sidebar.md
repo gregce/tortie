@@ -988,6 +988,66 @@ knows 76 agent targets — including `.factory/skills` for droid, `.pi/skills`,
 **Two of Tortie's ten launchable agents — muse and deepseek — are absent from
 that table entirely.**
 
+**Amendment, 2026-08-12.** The operator asked that the `skills` CLI be the single interface for all
+skill management inside Tortie, and asked whether it should be reached through `npx` or bundled. Four
+investigations measured `skills@1.5.22` against that question on the same day. The decision now lives
+in the Phase 22 entry in docs/BACKLOG.md, and the parts of this section it changes are recorded here so
+the research and the plan do not disagree. The scope is unchanged, being skills only. Nothing here
+touches the other four categories.
+
+What changed.
+
+1. **Every write goes through the CLI. The local list does not.** This section measured the CLI and
+   recommended it for installing. Phase 22 now states the split explicitly. Tortie never creates a
+   skill directory, never creates or removes a symlink, and never edits a lock file by hand. It reads
+   the installed set from the filesystem, because `skills list --json` returns seven fields and gives
+   neither the description that section 5 puts on every row nor the `skillFolderHash` that section 3.7
+   rule 4 depends on, and because the read is 2.3 to 2.8 ms against 329 to 390 ms for the spawn on a
+   machine with 27 agent directories. This is not a second source of truth. `skills list` is itself a
+   filesystem walk that reads no lock file.
+2. **The CLI is bundled and pinned, not fetched through `npx`.** The package is pure JavaScript with
+   two runtime dependencies, and a search of the installed tree for `.node`, `.dylib`, `.so`, `.wasm`
+   and `binding.gyp` returns zero hits across all 8 packages. So it adds no nested Mach-O and no new
+   signing work, which is the constraint research 30 found for the specstory binary and which does not
+   apply here. Electron 43.3.0 ships Node 24.18.1 and the package requires 22.20.0 or newer, so it runs
+   under `ELECTRON_RUN_AS_NODE=1` with no Node on the machine, proven live with `node`, `npm` and `npx`
+   absent from `PATH`.
+3. **Discovery uses `GET skills.sh/api/search` rather than `skills find`.** Two reasons were added to
+   the one this section already had. `find` has no `--json` and emits ANSI escapes, and it sends the
+   user's query string to `add-skill.vercel.sh/t`.
+4. **A new hazard, not known when this section was written.** `readSkillLock` at `dist/cli.mjs` line
+   3490 discards the whole lock when `parsed.version < CURRENT_VERSION`, where `CURRENT_VERSION` is 3.
+   One `skills add` against a lock at version 2 destroyed three tracked entries and left one, measured
+   in an isolated home. The folders survive and the pins do not, and a skill with no `skillFolderHash`
+   can never be checked for an update again. A newer lock is safe, since a schema 3 CLI reading a
+   version 99 lock preserved the version and every unknown key. So the guard runs in the direction that
+   looks wrong at first, being refuse to write when the lock is older than what the bundled CLI writes.
+5. **The lock path is not always `~/.agents/.skill-lock.json`.** `getSkillLockPath` honours
+   `XDG_STATE_HOME` and returns `$XDG_STATE_HOME/skills/.skill-lock.json` when it is set. The CLI reads
+   31 environment variables in total, and `CLAUDE_CONFIG_DIR`, `CODEX_HOME`, `GROK_HOME`, `VIBE_HOME`,
+   `HERMES_HOME` and `AUTOHAND_HOME` each relocate an agent's configuration directory. Tortie's
+   filesystem reader must resolve the same variables, or the view and the CLI point at different
+   directories. None is set on this machine, so a mistake here would not appear in local testing.
+6. **Three capability limits are now stated as refusals rather than gaps.** There is no way to ask
+   whether an update exists without applying it, since `check` is a plain alias for `update`. An update
+   run can report success for skills it never checked, because line 6568 returns before the skipped
+   list is printed at line 6621. A single-agent install produces a full copy instead of a symlink, and
+   re-adding from the canonical path with two or more targets is a silent no-op, so Tortie never offers
+   a one-agent enable.
+7. **The universal agent model in section 2.7 was attacked and held.** One investigation read the
+   CLI's `agents` array as conflating two facts and reported 25 of 28 skills disagreeing with the agent
+   directories. The adversarial pass overturned that. Section 2.7 verified that 10 of 12 agents read
+   `~/.agents/skills` directly, so one shared directory genuinely serves all of them, and the agents
+   that need symlinks matched exactly at Claude Code 22 of 22, Windsurf 10 of 10 and Droid 3 of 3. The
+   disagreement was measured against the wrong directory. Zed, Warp, Replit and GitHub Copilot are in
+   the CLI's universal set and not in this section's verified table, so for those four the claim is
+   unchecked in both directions.
+
+The telemetry policy in this section is unchanged, being leave it on, disclose it in one line, and
+honour a single switch that exports `DO_NOT_TRACK=1`. Reads were confirmed to send nothing, by
+intercepting `fetch`, `http.request`, `https.request` and `dns.lookup` around `list`, `ls --json` and
+`--version`.
+
 ### 3.3 The alternatives, assessed rather than listed
 
 **Official MCP registry** (`registry.modelcontextprotocol.io`) — measured live,
@@ -2234,6 +2294,42 @@ launched with N skills" — the readout's header always names the launch time.
 ---
 
 ## 13. v1 versus deferred
+
+> ### OPERATOR DECISION, 2026-08-12: install ships with the view
+>
+> The staging below is **superseded**. The operator has decided that the Context
+> sidebar ships with installing enabled, in one phase, rather than holding the
+> source layer back to a second one. Sections 13.1 and 13.2 are merged into a
+> single scope. Section 13.3 (deferred) and 13.4 (never) are unchanged and still
+> bind.
+>
+> **The reason the staging existed is not withdrawn, it is converted into
+> requirements.** The original argument was that installing is the only part of
+> this feature that can execute someone else's code, and so it deserved its own
+> spec, its own verifier and its own Tier 3. All three of those survive inside
+> the merged phase:
+>
+> - The install path gets its **own independent verifier** at **Tier 3**,
+>   separate from the verifier for the view.
+> - The trust primitives stop being latent and become load bearing. The
+>   executable-content scan in 13.1 item 7 and the `hash` field in the object
+>   model were carried in v1 precisely so this merge would be additive rather
+>   than a redesign. They are now on the critical path.
+> - **Pin and re-check is not optional.** 13.2 item 5 records the resolved hash
+>   at install, re-hashes on refresh, and a changed hash disables the item and
+>   asks again. Shipping install without it would ship the risk without the
+>   control.
+> - Nothing may be installed without a human confirming it, and the confirm
+>   shows the full command line, per 13.2 item 4.
+>
+> **What has not changed.** A `SKILL.md` body can carry executable placeholders
+> that run before the model sees the file (section 3.7). The documented incident
+> corpus is 1,184 malicious skills on one hub, 36.82% of 3,984 scanned skills
+> carrying a flaw and 13.4% critical, and it includes the registry this document
+> recommends. That is the risk the operator has accepted, with the controls above
+> as the mitigation.
+
+
 
 The three passes disagreed about one line: the design pass put "marketplace
 browsing and one-click install from a registry" in *deferred*, the marketplace
