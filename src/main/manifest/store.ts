@@ -15,10 +15,10 @@
  * (tmux stream) composes records and calls this store.
  */
 
-import Database from 'better-sqlite3';
+import type Database from 'better-sqlite3';
 import { app } from 'electron';
-import { mkdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
+import { openGmuxDatabase, runMigrations, type SqliteMigration } from '../db/sqlite';
 import type {
   GmuxErrorPayload,
   Project,
@@ -354,12 +354,7 @@ export function toSession(record: ManifestSessionRecord): Session {
 // Migrations
 // ---------------------------------------------------------------------------
 
-interface Migration {
-  name: string;
-  up: (db: Database.Database) => void;
-}
-
-const MIGRATIONS: readonly Migration[] = [
+const MIGRATIONS: readonly SqliteMigration[] = [
   {
     name: '001-initial',
     up: (db) => {
@@ -464,44 +459,17 @@ export class ManifestStore {
    */
   constructor(dbPath: string = defaultManifestDbPath()) {
     try {
-      mkdirSync(dirname(dbPath), { recursive: true });
-      this.db = new Database(dbPath);
-      // WAL: crash-safe, and readers never block the (single) writer.
-      this.db.pragma('journal_mode = WAL');
-      this.db.pragma('synchronous = NORMAL');
-      this.migrate();
+      // Pragmas (WAL, synchronous, busy_timeout) live in ONE opener shared with
+      // the symbol index — they had already drifted apart once, and the copy
+      // that lost the busy_timeout was this one (research 25 §3 B2).
+      this.db = openGmuxDatabase(dbPath);
+      runMigrations(this.db, MIGRATIONS);
     } catch (err) {
       throw manifestError(
         'FS_FAILED',
         `Could not open the session manifest at ${dbPath}`,
         (err as Error).message
       );
-    }
-  }
-
-  private migrate(): void {
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS migrations (
-        id         INTEGER PRIMARY KEY AUTOINCREMENT,
-        name       TEXT NOT NULL UNIQUE,
-        applied_at INTEGER NOT NULL
-      );
-    `);
-    const applied = new Set(
-      this.db
-        .prepare<[], { name: string }>('SELECT name FROM migrations')
-        .all()
-        .map((r) => r.name)
-    );
-    const insert = this.db.prepare<[string, number]>(
-      'INSERT INTO migrations (name, applied_at) VALUES (?, ?)'
-    );
-    for (const m of MIGRATIONS) {
-      if (applied.has(m.name)) continue;
-      this.db.transaction(() => {
-        m.up(this.db);
-        insert.run(m.name, Date.now());
-      })();
     }
   }
 

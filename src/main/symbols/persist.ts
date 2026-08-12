@@ -31,11 +31,11 @@
  * would be a second thing to keep in step.
  */
 
-import Database from 'better-sqlite3';
-import { mkdirSync } from 'node:fs';
+import type Database from 'better-sqlite3';
 import { createRequire } from 'node:module';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import type { SymbolKind } from '@shared/symbols';
+import { openGmuxDatabase, runMigrations, type SqliteMigration } from '../db/sqlite';
 import type { ExtractedSymbol } from './extract';
 
 /** The one line to change if this should live inside manifest.db after all. */
@@ -62,12 +62,7 @@ export interface FileStamp {
   size: number;
 }
 
-interface Migration {
-  name: string;
-  up: (db: Database.Database) => void;
-}
-
-const MIGRATIONS: readonly Migration[] = [
+const MIGRATIONS: readonly SqliteMigration[] = [
   {
     name: '001-symbol-index',
     up: (db) => {
@@ -117,41 +112,10 @@ export class SymbolPersistence {
   private readonly db: Database.Database;
 
   constructor(dbPath?: string) {
-    const path = dbPath ?? defaultSymbolDbPath();
-    mkdirSync(dirname(path), { recursive: true });
-    this.db = new Database(path);
-    this.db.pragma('journal_mode = WAL');
-    this.db.pragma('synchronous = NORMAL');
-    // A concurrent writer is not an error, it is a wait. Without this a
-    // parallel build in a second window throws SQLITE_BUSY and loses a batch.
-    this.db.pragma('busy_timeout = 5000');
-    this.migrate();
-  }
-
-  private migrate(): void {
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS migrations (
-        id         INTEGER PRIMARY KEY AUTOINCREMENT,
-        name       TEXT NOT NULL UNIQUE,
-        applied_at INTEGER NOT NULL
-      );
-    `);
-    const applied = new Set(
-      this.db
-        .prepare<[], { name: string }>('SELECT name FROM migrations')
-        .all()
-        .map((r) => r.name)
-    );
-    const insert = this.db.prepare<[string, number]>(
-      'INSERT INTO migrations (name, applied_at) VALUES (?, ?)'
-    );
-    for (const m of MIGRATIONS) {
-      if (applied.has(m.name)) continue;
-      this.db.transaction(() => {
-        m.up(this.db);
-        insert.run(m.name, Date.now());
-      })();
-    }
+    // Same opener, same pragmas, same migration runner as the manifest — see
+    // src/main/db/sqlite.ts for why that is now enforced rather than copied.
+    this.db = openGmuxDatabase(dbPath ?? defaultSymbolDbPath());
+    runMigrations(this.db, MIGRATIONS);
   }
 
   /** The freshness key for every file gmux has indexed in this repo. */

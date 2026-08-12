@@ -43,8 +43,10 @@ export function FilterField({
   className
 }: FilterFieldProps): React.JSX.Element {
   return (
-    <div className={`field${className !== undefined ? ` ${className}` : ''}`}>
-      <Codicon name={icon} size={14} className="field-icon" />
+    <div
+      className={`filter-field${className !== undefined ? ` ${className}` : ''}`}
+    >
+      <Codicon name={icon} size={14} className="filter-field-icon" />
       <input
         className="input"
         type="text"
@@ -67,7 +69,7 @@ export function FilterField({
       {value !== '' ? (
         <button
           type="button"
-          className="field-clear"
+          className="filter-field-clear"
           aria-label="Clear filter"
           title="Clear filter"
           onClick={() => onChange('')}

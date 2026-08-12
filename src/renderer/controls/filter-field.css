@@ -2,6 +2,19 @@
  * The shared filter field (Phase 14.2) — a `.input` with a leading glyph and
  * a clear button.
  *
+ * NAMED `.filter-field`, NOT `.field`, AND THAT IS LOAD-BEARING. `.field` is
+ * already taken: styles/app.css uses it for the modal form-field wrapper (New
+ * Project, the ⌘T sheet), and it ships in globals.css — i.e. in EVERY window.
+ * While this file was also called `.field` the two meanings collided wherever
+ * both stylesheets were loaded: in the Settings window the filter field picked
+ * up the modal wrapper's `margin-bottom`, and the far worse direction was one
+ * import away — any main-window surface that used <FilterField/> would have
+ * pulled this file into the shell bundle, and `.field > .input` (specificity
+ * 0,2,0) would then have added 20px of leading and 18px of trailing padding to
+ * every modal text input, reserving room for a search glyph and a clear button
+ * that are not there (research 25 §3 B3). The prefix is what keeps the two
+ * vocabularies apart.
+ *
  * ONE GEOMETRY, DERIVED, NOT GUESSED. The input's start padding is computed
  * from the icon's own size and inset, so the glyph and the text can never
  * drift apart: change the icon size in one place and the text moves with it.
@@ -15,57 +28,59 @@
  * exactly the shorthand collision this phase exists to end (globals.css).
  */
 
-.field {
+.filter-field {
   /* The leading glyph: 14px on a 28px control, inset by the same 8px the
      bare `.input` uses for its text. */
-  --field-icon-size: 14px;
-  --field-icon-inset: var(--space-4);
+  --filter-field-icon-size: 14px;
+  --filter-field-icon-inset: var(--space-4);
   /* The trailing clear button: a 20px hit area, 4px off the border. */
-  --field-clear-size: 20px;
-  --field-clear-inset: var(--space-2);
+  --filter-field-clear-size: 20px;
+  --filter-field-clear-inset: var(--space-2);
   position: relative;
   display: block;
   width: 100%;
 }
 
-.field > .input {
+.filter-field > .input {
   --input-pad-start: calc(
-    var(--field-icon-inset) + var(--field-icon-size) + var(--space-3)
+    var(--filter-field-icon-inset) + var(--filter-field-icon-size) +
+      var(--space-3)
   );
   --input-pad-end: calc(
-    var(--field-clear-inset) + var(--field-clear-size) + var(--space-1)
+    var(--filter-field-clear-inset) + var(--filter-field-clear-size) +
+      var(--space-1)
   );
 }
 
-.field-icon {
+.filter-field-icon {
   position: absolute;
-  inset-inline-start: var(--field-icon-inset);
+  inset-inline-start: var(--filter-field-icon-inset);
   top: 50%;
   transform: translateY(-50%);
   color: var(--text-muted);
   pointer-events: none;
 }
 
-.field-clear {
+.filter-field-clear {
   position: absolute;
-  inset-inline-end: var(--field-clear-inset);
+  inset-inline-end: var(--filter-field-clear-inset);
   top: 50%;
   transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: var(--field-clear-size);
-  height: var(--field-clear-size);
+  width: var(--filter-field-clear-size);
+  height: var(--filter-field-clear-size);
   border-radius: var(--r-sm);
   color: var(--text-muted);
 }
 
-.field-clear:hover {
+.filter-field-clear:hover {
   background: var(--bg-raised);
   color: var(--text-primary);
 }
 
-.field-clear:focus-visible {
+.filter-field-clear:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
 }

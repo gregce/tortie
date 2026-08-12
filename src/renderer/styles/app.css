@@ -1107,6 +1107,11 @@
   color: var(--text-secondary);
 }
 
+/* The MODAL form-field wrapper (New Project, the ⌘T sheet): a label, a
+   control, an optional caption, and the space to the next one. The filter
+   input with the leading glyph is a different thing and is called
+   `.filter-field` (renderer/controls) — the two shared this name until Phase
+   16.0 and quietly styled each other wherever both stylesheets loaded. */
 .field {
   margin-bottom: var(--space-6);
 }
