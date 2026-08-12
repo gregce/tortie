@@ -1,16 +1,26 @@
 # Tortie durability, architecture and recovery assessment
 
-Date: 2026-08-11  
-Decision: Tortie has the right process substrate, but it does not yet earn the whole promise in [The Zen of Tortie](../ZEN-OF-TORTIE.md).  
-Scope: the committed Phase 13.5a product at `90f9d46` and the path to a trustworthy daily driver for 100,000 users.
+| Assessment fact | Value |
+| --- | --- |
+| First assessment | 11 August 2026 at `90f9d46` |
+| Current assessment | 11 August 2026 at `07969f7` |
+| Decision | Tortie has proved much more of conversation recovery, but it still does not earn the whole promise in [The Zen of Tortie](../ZEN-OF-TORTIE.md). |
+| Scope | Committed product code only. The unrelated scheduled-task lock change receives no score credit. |
 
 ## Executive verdict
 
 Tortie already does one difficult thing unusually well. A tmux server, rather than the Electron window, owns the live processes. Closing or crashing the interface can leave shells, agents and servers running. Session intent is written before spawn. Sessions are reconciled by immutable identity rather than display name. Those choices make the foundation credible.
 
-The complete promise is not yet credible.
+The complete promise is not yet credible enough for a 100,000-user daily driver.
 
-The current product scores 51 out of 100 against the Zen. Phase 13.5a materially broadened agent session-ID capture, but it has not yet passed real agent-resume conformance. T1 process continuity alone scores about 85 out of 100. The gap is everything around it: watchfulness while the UI is absent, exact conversation recovery, honest restore outcomes, spatial restoration, database integrity, generational backup, upgrade safety and user-visible repair.
+The current product scores 63 out of 100 against the Zen, up from 51. T1 process continuity still scores about 85 out of 100. The increase is earned by real work rather than broader claims:
+
+- the resume-conformance harness now proves semantic conversation recall through Tortie's real create, capture, kill and restore path
+- 8 of 9 installed agents passed that end-to-end check; Gemini was blocked by its provider account and Droid was not installed
+- Pi and Qwen now fail closed when their original working directory is missing
+- the interface now distinguishes conversation recovery, capture in progress and directory-only recovery before reboot
+
+The remaining gap is structural. Watchfulness still ends with Electron. Restore can still report `running` after transcript replay or command arming failed. Spatial state remains browser-local. The manifest and snapshots still lack verified recovery generations, integrity checks and disaster recovery.
 
 The central architectural problem is simple:
 
@@ -45,7 +55,7 @@ The report recommends 30 changes:
 - 10 product and technology mechanisms
 - 10 backup and recovery-sanctity changes
 
-The highest-priority work is not another visible feature. It is a typed restore state machine, a stable storage and socket boundary, verified agent resume, continuous recovery checkpoints, SQLite integrity and recovery copies, and a calm repair path that never reports success after partial failure.
+The highest-priority work is not another visible feature. It is a typed restore state machine, a durable Host, a stable storage and socket boundary, SQLite integrity and recovery copies, and a calm repair path that never reports success after partial failure.
 
 ## 1. What is being scored
 
@@ -96,7 +106,11 @@ Three independent reviews covered:
 
 The recommendations then went through an adversarial keep, defer and cut pass. A mechanism survived only if it improved a stated continuity layer without turning Tortie into a dashboard, a new multiplexer, a general backup product or a cloud fleet manager.
 
-The full restricted-environment test run passed 566 of 569 tests. Two FSEvents tests could not start their streams, and one process-ancestry test could not observe its parent chain. Type checking passed. Focused backup tests passed 40 cases. These results support the ordinary code paths but do not prove reboot, power-loss, corruption or real-provider resume behavior. There is no isolated fault-injection or resume-conformance release gate today.
+The current committed tree passed type checking. It passed 1,430 of 1,433 runnable unit and integration tests, with 2 more skipped. Two FSEvents tests could not start their streams, and one process-ancestry test could not observe its parent chain. A focused recovery and database run passed 58 tests.
+
+The recorded live resume matrix passed 8 installed agents end to end. It proved recall with a second nonce created after the simulated reboot. This is stronger evidence than replayed text containing the first nonce. The harness is still opt-in, shares the live private tmux server, and does not make blocked providers fail unless strict mode is enabled.
+
+Phase 16.1 landed during this assessment. It fixes an observed `SQLITE_BUSY_SNAPSHOT` race by taking write locks before read-then-write transactions. It also lets boot continue with a warning if initial reconciliation fails. Deterministic worker-thread tests cover both the race and the real reconcile path.
 
 ## 3. Named exemplars and what to extract
 
@@ -151,18 +165,75 @@ Tortie should extract those properties for its small continuity corpus. It shoul
 
 The score is a decision aid, not telemetry. It is weighted by the product promise, not by code volume.
 
-| Dimension | Weight | Current | Reason |
-| --- | ---: | ---: | --- |
-| Live process continuity | 20 | 17 | tmux owns processes and the GUI detaches cleanly, but packaging and socket location remain fragile. |
-| Exact conversation recovery | 20 | 11 | Phase 13.5a broadens capture, but provenance and real resume proof are missing. |
-| Attention protection | 15 | 10 | The tiered detector is strong while Electron runs. It stops watching when the app quits. |
-| Spatial continuity | 10 | 4 | Important project and split state remains renderer `localStorage`, not the durable core. |
-| Integrity and disaster recovery | 15 | 3 | Single database, overwritten snapshots, no checks, generations, restore drill or off-device mode. |
-| Packaging and upgrade safety | 10 | 2 | System tmux, temporary socket, unsigned package and no live-server migration protocol. |
-| Restore honesty and repair | 10 | 4 | Capture state is persisted but not rendered, partial restore can still be labelled successful, and the recovery UI is absent. |
-| Total | 100 | 51 | This is conditional on adapter and harvester assumptions plus limited hands-on probes; no marker-turn conformance gate exists. |
+| Dimension | Weight | Previous | Current | Change | Reason |
+| --- | ---: | ---: | ---: | ---: | --- |
+| Live process continuity | 20 | 17 | 17 | 0 | tmux still owns processes, but system tmux and the temporary socket remain. |
+| Exact conversation recovery | 20 | 11 | 17 | +6 | Semantic recall now passes for 8 installed agents. Weak provenance and release enforcement remain open. |
+| Attention protection | 15 | 10 | 10 | 0 | Detection remains strong while Electron runs and absent when it quits. |
+| Spatial continuity | 10 | 4 | 4 | 0 | Layout, focus and much editor state remain renderer `localStorage`. |
+| Integrity and disaster recovery | 15 | 3 | 5 | +2 | SQLite locking and boot degradation improved. There are still no verified generations or repair path. |
+| Packaging and upgrade safety | 10 | 2 | 3 | +1 | SpecStory is pinned, verified and bundled. tmux, signing, notarisation, the rename migration and socket transition remain open. |
+| Restore honesty and repair | 10 | 4 | 7 | +3 | Recovery readiness and cwd safety are visible. Partial restore and destructive restart still overstate safety. |
+| Total | 100 | 51 | 63 | +12 | The score rose mainly because conversation recovery is now executable and user-visible. |
 
 The product therefore has an unusual shape: a strong foundation under an under-proven promise. That is a better problem than a polished interface over a disposable process model, but it still blocks a daily-driver durability claim.
+
+### 4.1 Progress against the 30 recommendations
+
+The status below assesses committed behavior at `07969f7`.
+
+| Item | Status | Current evidence |
+| --- | --- | --- |
+| A1 stable durability root and rename migration | Open | `userData` remains app-name-derived. Phase 16.5 is still backlog work. |
+| A2 pinned tmux and durable `-S` socket | Open | Tortie still finds system tmux and uses `-L gmux`. |
+| A3 headless Tortie Host | Prepared | Phase 16 extracted `sessions/core.ts`, but its lifecycle still belongs to Electron. |
+| A4 Host as sole mutation authority | Prepared | Typed IPC and events are centralised. There is no independent Host protocol or reconnect sequence. |
+| A5 authority matrix | Partial | UUID reconciliation is strong. Provider evidence and recovery copies still lack explicit authority rules in code. |
+| A6 durable restore state machine | Open | Restore still jumps from `restorable` to `running` after partial side effects. |
+| A7 durable spatial state | Open | Layout, project selection and editor presentation remain browser-local. |
+| A8 versioned adapter contracts | Partial | The registry is richer and conformance-tested. Adapter version and evidence are not stored per session. |
+| A9 recovery-safe upgrades | Partial | Migrations are transactional and share one opener. There is no verified pre-migration copy or rollback generation. |
+| A10 isolated fault boundaries | Partial | Test coverage grew greatly and conformance isolates `userData`. It still shares the live `-L gmux` server. |
+| M1 continuity certificate | Partial | Broad recovery readiness is visible. Exact, weak and grace evidence still collapse into `armed`. |
+| M2 resume-conformance laboratory | Substantially landed | The real semantic round trip passes 8 installed agents. Persistence, isolation and mandatory release enforcement remain. |
+| M3 adaptive checkpoint scheduler | Open | Phase 13.7 added scrollback diagnostics and loss notices, not timed snapshots. |
+| M4 self-describing continuity capsules | Open | Snapshots remain one mutable text file per session. |
+| M5 resume provenance chain | Open | Confidence, source path and grace acceptance are not persisted. |
+| M6 restore preflight and verified handoff | Partial | Original-cwd and missing SpecStory paths now fail or heal safely. Restore stages and post-Enter confirmation are not durable. |
+| M7 Agent Attention Contract | Partial | The layered detector and registry are strong. There is no provider-neutral structured contract with causal IDs. |
+| M8 attention leases and causal deduplication | Open | Current state remains heuristic and process-local. |
+| M9 safe environment fingerprint | Partial | Absolute binary resolution and SpecStory re-resolution handle some drift. No persisted fingerprint exists. |
+| M10 deterministic repair and reconstruction | Open | A missing manifest still strands live Tortie sessions as foreign. |
+| B1 critical SQLite hardening | Partial | `busy_timeout`, immediate transactions and guarded boot landed. `NORMAL`, no integrity gate and no quarantine remain. |
+| B2 online database recovery copies | Open | No `db.backup()` recovery ring exists. |
+| B3 power-loss-safe recovery objects | Open | Snapshot replacement has no hash, `fsync`, unique generation or retained predecessor. |
+| B4 immutable retention | Open | One snapshot is overwritten. |
+| B5 sensitive-data protection | Partial | SpecStory packaging and diagnostics are careful. Recovery data still lacks a complete permissions, redaction and encryption policy. |
+| B6 reversible remove and restart | Open | Restart is delete-first and drops original flags and capture choice. |
+| B7 calm Recovery Centre | Partial | Ready-to-restore UI is much clearer. Corruption, generation preview and restore-as-copy remain absent. |
+| B8 selective continuity journal | Open | SQLite WAL is still the only journal-like state and is not recovery history. |
+| B9 encrypted portable recovery bundle | Open | No export or import path exists. |
+| B10 user-owned off-device protection | Open | No verified off-device generation path exists. |
+
+The distribution is revealing. Most visible resume work has landed or partially landed. Almost every disaster-recovery item remains open. The next score increase will require deeper durability work rather than more recovery copy or more supported agents.
+
+### 4.2 What moved the score
+
+Exact conversation recovery rose from 11 to 17 because the harness now proves semantic recall. It generates a marker before the simulated reboot and a second marker afterwards. The resumed agent must join them. Replayed scrollback cannot satisfy that assertion.
+
+Restore honesty rose from 4 to 7 because users can now see whether a session will restore its conversation, is still capturing an ID, or will return only to its directory. The original-cwd guard also prevents a convincing but empty Pi or Qwen session.
+
+Integrity rose from 3 to 5. The shared SQLite opener, explicit write timeout and immediate read-then-write transactions remove 2 observed concurrency failure modes. Guarded boot stops a reconcile error from hiding every session. These changes do not provide power-loss durability, corruption detection or recovery copies.
+
+Packaging rose from 2 to 3. The bundled SpecStory binary is pinned, hash-verified and treated as a required package input. Restore can re-resolve a missing recorded SpecStory path. This is real continuity work. The app itself remains unsuitable for broad external distribution.
+
+### 4.3 What did not move
+
+Live process continuity stays at 17. tmux still keeps work alive, but Tortie still depends on whichever system tmux it finds and a temporary `-L` socket.
+
+Attention protection stays at 10. The detector is capable while Electron runs. Closing the final window still shuts down the observer, hook receiver, harvesters and reconciler.
+
+Spatial continuity stays at 4. More spatial features exist, including richer splits and editor surfaces, but their meaningful state still lives outside the durable core. More browser-local state does not improve recovery sanctity.
 
 ## 5. What already works and should be preserved
 
@@ -172,7 +243,7 @@ The [tmux supervisor](../../src/main/tmux/supervisor.ts#L41) attaches clients to
 
 ### 5.2 Intent is written before spawn
 
-The manifest row is inserted before process creation in [the session creation path](../../src/main/ipc.ts#L994), then removed if spawn fails. A crash cannot easily leave an unrecorded process that was successfully declared. This is a good transactional boundary.
+The manifest row is inserted before process creation in [the session creation path](../../src/main/sessions/core.ts#L1349), then removed if spawn fails. A crash cannot easily leave an unrecorded process that was successfully declared. This is a good transactional boundary.
 
 ### 5.3 Identity is stronger than display names
 
@@ -190,6 +261,18 @@ The [restore command builder](../../src/main/restore/command.ts#L18) arms the na
 
 Schema migrations run transactionally. Text snapshots use temporary-write then rename in [the snapshot store](../../src/main/restore/snapshots.ts#L57). These protect against some app-crash failure modes. They are useful primitives, although neither is yet a complete durability or backup design.
 
+### 5.7 Conversation recovery is now tested semantically
+
+The [resume-conformance harness](../../src/main/conformance/resume.ts) uses Tortie's real session path. It creates an agent session, plants a nonce, captures the provider identity, kills the tmux session, restores the recorded command and asks the resumed agent to join the old nonce with a new one.
+
+That final step matters. Replayed terminal text contains the old nonce, so searching the pane would create a false pass. Only an agent holding the original conversation can answer with both values. The recorded matrix in [BUILD-STATUS.md](../../BUILD-STATUS.md) reports 8 end-to-end passes, one provider-account block and one agent not installed.
+
+The harness is opt-in and version results are not yet stored with sessions. It also uses the shared `-L gmux` server. It proves today's tested matrix, not a permanent guarantee.
+
+### 5.8 Recovery readiness is visible before reboot
+
+The [resume presentation model](../../src/renderer/app/resume.ts) now distinguishes conversation recovery, capture in progress, directory-only recovery and plain shells. Restore-all tells the user how many conversations will return before acting. This closes a major honesty gap from the first assessment.
+
 ## 6. Precise current failure boundaries
 
 ### 6.1 Closing Tortie preserves processes but ends watchfulness
@@ -200,11 +283,11 @@ This contradicts the emotional promise that the user can look away without anxie
 
 ### 6.2 Output produced after quit can vanish at reboot
 
-Snapshots are taken on orderly quit, explicit close and detected server exit. [The snapshot module](../../src/main/restore/snapshots.ts#L1) documents the hard-crash window. If an agent continues after Tortie quits and the machine then loses power, the new terminal output has no disk checkpoint.
+Snapshots are taken on orderly quit, explicit close and detected server exit. [The snapshot module](../../src/main/restore/snapshots.ts#L1) still documents the hard-crash window. Phase 13.7 added scrollback diagnostics and honest loss notices, not timed checkpoints. If an agent continues after Tortie quits and the machine then loses power, the new terminal output has no disk checkpoint.
 
 ### 6.3 Server-exit snapshotting happens after the useful moment
 
-The server-exit handler begins snapshotting after the tmux control connection reports exit in [ipc.ts](../../src/main/ipc.ts#L375). At that point `capture-pane` will normally be unavailable. T2 recovery therefore depends on the older snapshot.
+The server-exit handler begins snapshotting after the tmux control connection reports exit in [sessions/core.ts](../../src/main/sessions/core.ts#L520). At that point `capture-pane` will normally be unavailable. T2 recovery therefore depends on the older snapshot.
 
 ### 6.4 A clean process exit while Tortie is absent can be misclassified
 
@@ -212,21 +295,23 @@ The tmux configuration uses `remain-on-exit failed` in [gmux-tmux.conf](../../re
 
 ### 6.5 Restore can fail partly and still report success
 
-[restore.ts](../../src/main/restore/restore.ts#L59) can catch snapshot replay or resume-command arming failures and return partial results. The caller in [ipc.ts](../../src/main/ipc.ts#L550) does not preserve those outcomes before setting the session to `running`. The renderer can therefore show reassuring copy because an old `resumeArgv` exists, even though the command was not armed.
+[restore.ts](../../src/main/restore/restore.ts#L242) can catch snapshot replay or resume-command arming failures and return partial results. The caller in [sessions/core.ts](../../src/main/sessions/core.ts#L796) does not preserve those outcomes before setting the session to `running`. The renderer can therefore show reassuring copy because an old `resumeArgv` exists, even though the command was not armed.
 
 This is the most serious truthfulness defect. A recovery product must fail closed.
 
-### 6.6 The working-directory fallback can resume the wrong conversation
+### 6.6 Working-directory recovery now fails closed
 
-Restore falls back from a missing original `cwd` to the project root. The Phase 13.5a registry records that Qwen and Pi require the original working directory, and [the launch contract](../../src/main/manifest/agents.ts#L110) says restore must enforce this. That constraint is not persisted through the current restore path. Pi can create a new empty conversation under a superficially plausible command.
+Phase 13.5.1 fixed the most dangerous provider-specific restore defect. [The restore preflight](../../src/main/restore/restore.ts#L185) now consults the registry for agents that require their original working directory. If a Qwen or Pi conversation has an armed resume and its original directory is missing, restore stops with an actionable error. It no longer falls back to the project root and creates an empty lookalike conversation.
+
+The rule is still derived from the current registry rather than persisted with the session's adapter version. A future registry change can reinterpret an old row. That remaining risk belongs to the versioned adapter contract in A8.
 
 ### 6.7 Resume evidence is flattened into an optimistic state
 
-Phase 13.5a harvest results include source path, confidence and whether a grace timer was used in [the harvester store contract](../../src/main/manifest/harvest/stores.ts#L72). The capture path in [ipc.ts](../../src/main/ipc.ts#L428) persists the session ID, resume arguments and broad `armed` state, but not the evidence. Exact, weak and grace-accepted results can therefore become the same `armed` state.
+Phase 13.5a harvest results include source path, confidence and whether a grace timer was used in [the harvester store contract](../../src/main/manifest/harvest/stores.ts#L72). The capture path in [sessions/core.ts](../../src/main/sessions/core.ts#L636) persists the session ID, resume arguments and broad `armed` state, but not the evidence. Exact, weak and grace-accepted results can therefore become the same `armed` state.
 
-The new shared `ResumeCapture` type is not yet rendered into a user-visible honesty boundary. Code comments promise more fidelity than the interface provides.
+Phase 13.5b now renders the broad `ResumeCapture` states. The interface distinguishes conversation recovery, capture in progress, directory-only recovery and plain shells. Restore-all states the exact split before the user acts.
 
-The type calls `armed` a validated ID even though weak and grace-timer matches also become `armed`. It also says a harvester eventually becomes armed or unavailable, while a live timed-out watcher deliberately remains `capturing` until a later refresh can re-arm it. The implementation's caution is defensible; the coarse stored and documented state is not.
+The remaining honesty gap sits within `armed`. The type calls it a validated ID even though weak and grace-timer matches also become `armed`. Harvest provenance is logged but not persisted. A timed-out live watcher can also remain `capturing` until a later refresh re-arms it. The broad UI state is now useful; the evidence beneath the strongest state is still too coarse.
 
 ### 6.8 Manifest loss can strand live sessions
 
@@ -252,9 +337,19 @@ The build still uses system tmux and a fixed `-L gmux` label in [supervisor.ts](
 
 The current `-L` socket sits under tmux's temporary-directory convention. macOS cleanup can remove the pathname while a server still lives, leaving it unreachable. A product rename can also split state if Electron derives a new `userData` directory before migration.
 
+Packaging has improved around SpecStory. The bundled binary is version-pinned, hash-verified, mandatory at package time and prepared for nested signing. Restore can replace a dead recorded bundle path with the current bundled or installed binary. This earns the packaging score increase.
+
+It does not solve public distribution. The app remains ad-hoc signed, without hardened runtime, notarisation, stapling or an update feed. The gmux-to-Tortie `userData` migration and legacy socket adoption are still backlog items.
+
 ### 6.13 Login restoration is visible and manual
 
 [login-item.ts](../../src/main/restore/login-item.ts#L27) registers the main app at login. Ordinary startup creates and shows the window. Sessions remain ready for manual restoration. This does not match the documented hidden recovery flow, and it does not supply a background continuity service.
+
+### 6.14 Restart is still destructive and lossy
+
+[The renderer restart path](../../src/renderer/state/store.ts#L880) deletes the old row and snapshot before creating the replacement. A creation failure removes the user's recovery path. The replacement also keeps only name, project, cwd and agent. It drops original launch flags and the SpecStory capture choice.
+
+Restart must use the transactional replacement described in B6. The current behavior is not a safe recovery action.
 
 ## 7. Target invariants
 
@@ -492,11 +587,11 @@ Examples:
 
 Proof required: copy tests that forbid stronger language when any prerequisite is weak or stale.
 
-### M2. Build a deterministic resume-conformance laboratory
+### M2. Make resume conformance a persisted release gate
 
 Priority: P0
 
-For each supported provider and installed CLI version:
+The deterministic laboratory now exists. For each supported provider and installed CLI version it:
 
 1. launch through Tortie's real creation path
 2. submit a unique marker
@@ -506,11 +601,13 @@ For each supported provider and installed CLI version:
 6. submit or query a second marker
 7. prove the resumed agent retains the first marker's context
 
-Record provider version, adapter version, capture source, result and timestamp. If a previously passing version fails, downgrade the capability instead of continuing to promise exact resume.
+The committed evidence records 8 end-to-end passes. It also distinguishes provider blockage from a Tortie failure.
+
+The remaining work is to record provider version, adapter version, capture source, result and timestamp as product evidence. If a previously passing version fails, downgrade the capability instead of continuing to promise exact resume. Run the harness on an isolated `-S` socket rather than the shared live server. Make strict coverage part of the release decision for every advertised provider.
 
 Cheap fake-store and argv fixtures belong in ordinary CI. Real providers belong in isolated, explicit canaries because they may consume paid resources or change accounts.
 
-This is not technically novel. It can still become Tortie's strongest trust moat.
+This is already Tortie's strongest trust evidence. Release enforcement and per-session evidence can turn it into a durable trust moat.
 
 ### M3. Add an adaptive terminal checkpoint scheduler
 
@@ -850,7 +947,7 @@ Verdict: keep adaptive rendered checkpoints, with user-only permissions, bounded
 
 Objection: a valid hash proves that bytes did not change. It does not prove that the bytes describe the right provider conversation or a restorable state.
 
-Evidence: current Phase 13.5a capture can accept weak correlation through a grace timer. Hashing that result would preserve the ambiguity perfectly.
+Evidence: current capture can accept weak correlation through a grace timer. Hashing that result would preserve the ambiguity perfectly.
 
 Verdict: keep hashes for accidental corruption, but make semantic verification separate. Provider identity needs exact correlation or marker-turn conformance. A recovery generation is trusted only after file checks, database checks and semantic invariants all pass.
 
@@ -858,7 +955,7 @@ Verdict: keep hashes for accidental corruption, but make semantic verification s
 
 Objection: providers can change local stores, remote account behavior and CLI flags without notice. Tortie cannot guarantee another product's persistence.
 
-Evidence: the registry already contains provider-specific assumptions. Phase 13.5a broadens coverage but lacks a real conformance command. Treating static knowledge as permanent is the failure.
+Evidence: the registry contains provider-specific assumptions, but the real conformance command now checks them. The remaining failure would be treating one recorded pass as permanent or letting a blocked provider retain an unconditional claim.
 
 Verdict: keep provider-native resume, but make support empirical and versioned. Capability expires when the installed CLI changes or a conformance result becomes stale. “Recovered context” remains a separate degraded mode and is never called resume.
 
@@ -928,7 +1025,7 @@ These form the minimum honest public durability release:
 2. bundled pinned tmux with a no-kill socket transition
 3. authority matrix and typed restore state machine
 4. versioned adapter recovery contracts and preserved provenance
-5. real marker-turn resume conformance
+5. persisted, isolated and release-enforced marker-turn conformance
 6. adaptive rendered checkpoints and versioned capsules
 7. restore preflight, staged outcomes and confirmed handoff
 8. `synchronous=FULL` for critical transactions plus integrity checks
@@ -1020,9 +1117,8 @@ Real agent conformance adds one provider-specific assertion: a unique marker fro
 
 Time horizon: immediate
 
-- distinguish live reattachment, exact conversation resume, transcript restoration and degraded recovery in copy and types
+- keep the shipped distinction between live reattachment, exact conversation resume, capture in progress and directory-only recovery
 - stop marking partial restore as `running`
-- enforce original-cwd constraints
 - persist capture provenance
 - correct documentation that currently claims bundled tmux, app-support sockets, self-description, stored layout or hidden login restoration
 - update the Phase 13.5 backlog and shared type comments so shipped capture paths, missing UI and timeout behavior are described accurately
@@ -1040,7 +1136,7 @@ Time horizon: before the public daily-driver claim
 - critical SQLite durability and integrity checks
 - online recovery-copy ring and retained generations
 - reversible deletion, transactional restart and Recovery Centre
-- isolated fault harness and real resume canaries
+- isolate the shipped resume canaries and add the remaining fault harness
 
 Exit test: every P0 row in the fault matrix passes, including restore from a sampled generation and exact marker-turn resume for every advertised provider/version.
 
@@ -1123,7 +1219,7 @@ Project evidence:
 - [tmux supervisor](../../src/main/tmux/supervisor.ts)
 - [tmux configuration](../../resources/gmux-tmux.conf)
 - [manifest store](../../src/main/manifest/store.ts)
-- [session lifecycle and restore orchestration](../../src/main/ipc.ts)
+- [session lifecycle and restore orchestration](../../src/main/sessions/core.ts)
 - [snapshot store](../../src/main/restore/snapshots.ts)
 - [restore service](../../src/main/restore/restore.ts)
 - [activity monitor](../../src/main/activity/monitor.ts)
