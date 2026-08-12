@@ -35,7 +35,12 @@ import type Database from 'better-sqlite3';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import type { SymbolKind } from '@shared/symbols';
-import { openGmuxDatabase, runMigrations, type SqliteMigration } from '../db/sqlite';
+import {
+  immediateTransaction,
+  openGmuxDatabase,
+  runMigrations,
+  type SqliteMigration
+} from '../db/sqlite';
 import type { ExtractedSymbol } from './extract';
 
 /** The one line to change if this should live inside manifest.db after all. */
@@ -194,7 +199,7 @@ export class SymbolPersistence {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     );
     const now = Date.now();
-    this.db.transaction(() => {
+    immediateTransaction(this.db, () => {
       for (const file of files) {
         deleteSymbols.run(repoPath, file.relPath);
         upsertFile.run(repoPath, file.relPath, file.mtimeMs, file.size, now);
@@ -211,7 +216,7 @@ export class SymbolPersistence {
           );
         }
       }
-    })();
+    });
   }
 
   /** Forget files that no longer exist (a rename, a deletion, a branch flip). */
@@ -223,24 +228,24 @@ export class SymbolPersistence {
     const dropFile = this.db.prepare<[string, string]>(
       'DELETE FROM symbol_file WHERE repo_path = ? AND rel_path = ?'
     );
-    this.db.transaction(() => {
+    immediateTransaction(this.db, () => {
       for (const relPath of relPaths) {
         dropSymbols.run(repoPath, relPath);
         dropFile.run(repoPath, relPath);
       }
-    })();
+    });
   }
 
   /** Drop a whole project (its tab was closed for good). */
   forgetRepo(repoPath: string): void {
-    this.db.transaction(() => {
+    immediateTransaction(this.db, () => {
       this.db
         .prepare('DELETE FROM symbol_index WHERE repo_path = ?')
         .run(repoPath);
       this.db
         .prepare('DELETE FROM symbol_file WHERE repo_path = ?')
         .run(repoPath);
-    })();
+    });
   }
 
   close(): void {

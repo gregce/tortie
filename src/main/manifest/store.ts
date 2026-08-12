@@ -18,7 +18,12 @@
 import type Database from 'better-sqlite3';
 import { app } from 'electron';
 import { join } from 'node:path';
-import { openGmuxDatabase, runMigrations, type SqliteMigration } from '../db/sqlite';
+import {
+  immediateTransaction,
+  openGmuxDatabase,
+  runMigrations,
+  type SqliteMigration
+} from '../db/sqlite';
 import type {
   GmuxErrorPayload,
   Project,
@@ -679,7 +684,13 @@ export class ManifestStore {
    * - 'exited' rows missing from tmux: left untouched.
    * - Live sessions with no matching row: reported and otherwise ignored.
    *
-   * Runs in a single transaction; synchronous.
+   * Runs in a single IMMEDIATE transaction; synchronous. Immediate because it
+   * reads (`listSessions`) and then writes (`updateSession`): a deferred
+   * transaction would take a read snapshot first and fail the write upgrade
+   * with SQLITE_BUSY_SNAPSHOT if any other connection committed in between —
+   * an error `busy_timeout` does not retry (see db/sqlite.ts). That surfaced
+   * as `[gmux] refresh failed: database is locked`, i.e. a manifest left
+   * unreconciled with tmux.
    */
   reconcile(live: readonly LiveTmuxSession[]): ReconcileResult {
     const result: ReconcileResult = {
@@ -690,7 +701,7 @@ export class ManifestStore {
       bindings: new Map<string, string>()
     };
 
-    this.db.transaction(() => {
+    immediateTransaction(this.db, () => {
       const all = this.listSessions();
       const byId = new Map(all.map((rec) => [rec.id, rec]));
       const now = Date.now();
@@ -732,7 +743,7 @@ export class ManifestStore {
           result.restorable.push(updated);
         }
       }
-    })();
+    });
 
     return result;
   }

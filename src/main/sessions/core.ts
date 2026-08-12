@@ -458,7 +458,19 @@ export class GmuxCore {
     }
     await assertServerOptions();
     await core.startHookChannel();
-    await core.refresh();
+    // Same catch-and-warn every OTHER reconcile caller gets via
+    // scheduleRefresh(). Unguarded, a transient manifest lock at launch does
+    // not degrade to a stale first paint — it rejects boot(), which rejects
+    // getGmuxCore(), and the window that asked for the core comes up empty.
+    // A first paint from the last known manifest rows is strictly better, and
+    // the next tmux control event (or any caller's scheduleRefresh) reconciles
+    // again. refresh() itself already treats an unreachable tmux this way —
+    // warn and carry on; this makes a locked manifest match.
+    await core.refresh().catch((err: unknown) => {
+      console.warn(
+        `[gmux] initial refresh failed (showing last known sessions): ${(err as Error).message}`
+      );
+    });
     core.startStatusWatcher();
     // Phase 13.7 — one disk check, off the boot path. Boot is the moment
     // "sessions may not be saved when you quit" can still be acted on, and

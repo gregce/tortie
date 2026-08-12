@@ -54,6 +54,40 @@ export function openGmuxDatabase(dbPath: string): Database.Database {
   return db;
 }
 
+/**
+ * Run `fn` inside ONE transaction that takes the write lock up front, and
+ * return whatever it returns.
+ *
+ * The default `db.transaction(fn)()` issues a DEFERRED `BEGIN`: the
+ * transaction starts as a reader and only tries to become a writer at its
+ * first write. In WAL mode that upgrade FAILS — `SQLITE_BUSY_SNAPSHOT`, whose
+ * message is the innocuous-looking "database is locked" — whenever another
+ * connection committed between this transaction's read snapshot and that
+ * first write, because committing on a snapshot that is already stale would
+ * produce a state no serial order could have produced.
+ *
+ * Crucially, `sqlite3_busy_timeout` does NOT retry that error class: it is not
+ * a lock that will free up in a moment, the snapshot is already gone. So the
+ * `busy_timeout` set in `openGmuxDatabase` above — which does make an ordinary
+ * concurrent WRITE a wait rather than an error — gives read-then-write
+ * transactions no protection at all. This was observed, not theorised: a
+ * `smoke:t3` run printed `[gmux] refresh failed: database is locked` out of
+ * `reconcile()`, and a worker thread committing mid-transaction reproduces it
+ * deterministically (see `__tests__/sqlite.test.ts`).
+ *
+ * `BEGIN IMMEDIATE` takes the write lock before the first read, so the
+ * snapshot cannot go stale underneath the transaction and the only contention
+ * left is a plain lock wait — which busy_timeout does cover. Every gmux
+ * transaction goes through here for the same reason every gmux pragma does:
+ * this is a durability decision, and it is made once.
+ */
+export function immediateTransaction<T>(
+  db: Database.Database,
+  fn: () => T
+): T {
+  return db.transaction(fn).immediate();
+}
+
 /** One schema step. `up` runs inside a transaction with its bookkeeping row. */
 export interface SqliteMigration {
   name: string;
@@ -87,9 +121,9 @@ export function runMigrations(
   );
   for (const m of migrations) {
     if (applied.has(m.name)) continue;
-    db.transaction(() => {
+    immediateTransaction(db, () => {
       m.up(db);
       insert.run(m.name, Date.now());
-    })();
+    });
   }
 }
