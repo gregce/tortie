@@ -68,7 +68,7 @@ function LoginItemRow(): React.JSX.Element | null {
       <div className="set-row-text">
         <span className="set-row-label">Open at login</span>
         <span className="set-row-caption">
-          gmux starts in the background so sessions are ready instantly.
+          Tortie starts in the background so sessions are ready instantly.
         </span>
         {error !== null ? <span className="set-row-error">{error}</span> : null}
       </div>

@@ -1,4 +1,4 @@
-# DESIGN.md — the gmux visual world
+# DESIGN.md — the Tortie visual world
 
 Authority order: PRODUCT.md (product truth) → this file (visual world, durable rules) → docs/DESIGN-SPEC.md (per-screen build spec). UI agents implement DESIGN-SPEC.md verbatim and resolve anything it doesn't cover from this file. Mode: **OPERATE** — scanability, keyboard flow, and native-macOS expectations outrank expression.
 

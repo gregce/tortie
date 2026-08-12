@@ -309,7 +309,7 @@ export const AGENT_FLAG_PRESETS: Record<RegistryAgentId, AgentFlagCatalog> = {
         flag: '--skip-trust',
         label: 'Skip trust prompt',
         description:
-          'Trust the current workspace for this session — suppresses the interactive trust dialog (useful inside gmux panes, but silently extends trust).',
+          'Trust the current workspace for this session — suppresses the interactive trust dialog (useful inside Tortie panes, but silently extends trust).',
         danger: false,
         provenance: 'VERIFIED'
       }

@@ -111,7 +111,7 @@ function resumeReason(
         return `nothing on disk ties an ${label} conversation to a directory`;
       }
       if (id === 'droid') {
-        return `gmux has no verified way to resume ${label} yet`;
+        return `Tortie has no verified way to resume ${label} yet`;
       }
       // Audit §4.4: name the repair, not just the shortfall. "gmux never
       // captured a conversation id" was true and useless — it is what the
@@ -120,7 +120,7 @@ function resumeReason(
       // working resume and gmux arms it at launch now, so the honest,
       // actionable version of this state is "this one is too old to repair".
       return (
-        'gmux never recorded a conversation id for this session and can no ' +
+        'Tortie never recorded a conversation id for this session and can no ' +
         `longer find one; a new ${label} session in this folder is armed ` +
         'from the moment it starts'
       );
@@ -143,9 +143,9 @@ export function resumeNote(
   }
   const reason = resumeReason(session);
   if (reason === null) return null;
-  // The consequence leads and the reason follows, so the sentence never has
-  // to capitalize its first word — "gmux" is lowercase always (PRODUCT.md
-  // brand commitments), and a sentence starting with it would break that.
+  // The consequence leads and the reason follows: the reason is a fragment,
+  // not a sentence, and reads as one clause of the tooltip rather than a
+  // second sentence starting mid-thought.
   return (
     'A restart brings back the directory and its scrollback, not the ' +
     `conversation — ${reason}.`

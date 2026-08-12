@@ -13,6 +13,14 @@ import {
 } from './userdata';
 
 export {
+  NOTICE_STAMP,
+  renameNoticeDetail,
+  showRenameNoticeOnce,
+  type RenameNoticeInput,
+  type RenameNoticeOutcome
+} from './notice';
+
+export {
   LEGACY_APP_NAME,
   MIGRATION_MARKER,
   decideMigrationSite,

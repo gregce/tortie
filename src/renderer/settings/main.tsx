@@ -11,7 +11,7 @@ import '../styles/globals.css';
 
 const rootEl = document.getElementById('root');
 if (!rootEl) {
-  throw new Error('gmux settings renderer: #root element missing');
+  throw new Error('Tortie settings renderer: #root element missing');
 }
 
 createRoot(rootEl).render(

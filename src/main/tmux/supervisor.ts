@@ -39,7 +39,17 @@ const execFileP = promisify(execFile);
 // Context: binary + socket + conf
 // ---------------------------------------------------------------------------
 
-/** Private socket name. NEVER touch the user's default tmux server. */
+/**
+ * Private socket name. NEVER touch the user's default tmux server.
+ *
+ * **It stays `gmux` forever — the Tortie rename did not touch it, and nothing
+ * later may** (Phase 16.5 hazard 2, CLAUDE.md). This string is not a name, it
+ * is an ADDRESS: every session the user has running is on `/tmp/tmux-<uid>/gmux`
+ * right now. Change it and the app starts a second, empty server, reports no
+ * sessions, and leaves hours of agent work alive but unreachable on a socket
+ * nothing connects to any more. There is no upside to weigh against that —
+ * the socket name is never shown in the UI.
+ */
 export const TMUX_SOCKET = 'gmux';
 
 export interface TmuxContext {
@@ -63,7 +73,7 @@ export function getTmuxContext(): TmuxContext {
   if (bin === null) {
     throw gmuxError(
       'TMUX_NOT_FOUND',
-      'tmux is not installed. gmux needs tmux to keep sessions alive — install it with: brew install tmux',
+      'tmux is not installed. Tortie needs tmux to keep sessions alive — install it with: brew install tmux',
       'probed /opt/homebrew/bin, /usr/local/bin, /usr/bin and PATH'
     );
   }
@@ -203,7 +213,7 @@ export function ensureServer(): Promise<TmuxContext> {
     }
     throw gmuxError(
       'TMUX_UNREACHABLE',
-      'Could not start the gmux session server.',
+      'Could not start the Tortie session server.',
       lastFailure
     );
   })();

@@ -45,7 +45,7 @@ function outside(input: string): Error {
 function protectedPath(input: string): Error {
   return gmuxError(
     'INVALID_INPUT',
-    'gmux does not touch the .git folder.',
+    'Tortie does not touch the .git folder.',
     input
   );
 }

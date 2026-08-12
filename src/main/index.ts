@@ -1,5 +1,5 @@
 /**
- * gmux main process entry.
+ * Tortie main process entry.
  *
  * Boot sequence (Phase 2, FINAL-REPORT §2.4): register IPC handlers → boot
  * the durable core (private tmux server on socket -L gmux → SQLite manifest →
@@ -70,11 +70,16 @@ import { WINDOW_BACKGROUND } from '@shared/window-chrome';
 import type { ManifestSessionRecord } from './manifest';
 import type { CreateSessionInput } from '@shared/types';
 import { installAppMenu } from './menu';
-import { migrateUserDataIfNeeded } from './migrate';
+import { migrateUserDataIfNeeded, showRenameNoticeOnce } from './migrate';
 import { runMigrateSmoke } from './migrate/smoke';
 import { registerProjectCreateIpc } from './projects';
 import { disposeQuickOpenIpc, registerQuickOpenIpc } from './quickopen';
-import { registerRestoreIpc, snapshotPath, stripAnsi } from './restore';
+import {
+  reconcileLoginItem,
+  registerRestoreIpc,
+  snapshotPath,
+  stripAnsi
+} from './restore';
 // Phase 15 capture smoke: the resolver answers WHICH specstory a captured
 // session should be running under, and unwrapArgv reads the inner command
 // back out of a wrap for the assertion that the resume survived it.
@@ -101,7 +106,10 @@ applyProcessIdentity(app);
 // read (or create) that directory: synchronous, guarded against every
 // harness's --user-data-dir, a no-op while the name is unchanged, and it
 // leaves the original in place as the backup. See migrate/userdata.ts.
-migrateUserDataIfNeeded(app);
+// Kept, not discarded: the one-time rename notice below is driven from it,
+// and it carries the warnings (old app still running, databases verified) a
+// support answer needs.
+const userDataMigration = migrateUserDataIfNeeded(app);
 
 // `gmux-asset:` (markdown images) must be declared before the app is ready —
 // Electron throws if registerSchemesAsPrivileged runs later. The handler
@@ -184,7 +192,8 @@ function createWindow(): BrowserWindow {
     // DESIGN.md §2.1: "Min window 960×600. Default 1440×900."
     minWidth: 960,
     minHeight: 600,
-    title: 'gmux',
+    title: app.name, // "Tortie" — stated once, in proc/identity.ts
+
     show: false,
     // --bg-canvas: pre-paint fill must match the app so launch/resize never
     // flashes a foreign color (DESIGN.md §0: one material).
@@ -233,7 +242,7 @@ function createWindow(): BrowserWindow {
 
 /**
  * Bring the app window forward — the Dock 'activate' path and the menu-bar
- * status item's "Show gmux" are the same act, so they share one function.
+ * status item's "Show Tortie" are the same act, so they share one function.
  * app.focus({steal:true}) is what makes it work from the status item: a
  * status-item click does NOT activate the app on its own.
  */
@@ -1621,6 +1630,20 @@ app.whenReady().then(async () => {
   // Phase 12.85: the menu-bar sentinel. Normal startup only — no harness has
   // any business planting a status item in the user's menu bar.
   installTray({ showWindow: showAppWindow });
+
+  // Phase 16.5, rename hazard 3. SMAppService keys the login item on the
+  // BUNDLE ID, so com.specstory.gmux's registration means nothing to
+  // com.specstory.tortie: the toggle silently reads back off and sessions
+  // stop coming back after a reboot. Re-register from the recorded
+  // preference where there is one, then — once, ever — say out loud what
+  // macOS is about to re-ask for. Both are deliberately non-fatal.
+  const loginReconcile = reconcileLoginItem();
+  mainWindow.once('show', () => {
+    void showRenameNoticeOnce({
+      result: userDataMigration,
+      login: loginReconcile
+    });
+  });
 
   // Phase 13: the activity poll runs at 1 Hz while gmux has focus and 2 s
   // when it does not — nobody is reading status dots in a background app,

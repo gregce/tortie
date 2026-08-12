@@ -18,7 +18,7 @@ Developers who run many CLI coding agents (Claude Code, Codex, plain shells) acr
 
 ## Product Purpose
 
-gmux is a lightweight macOS shell for agentic coding: one window where named terminal sessions host coding agents, survive app quit/crash/update (private tmux server) and reboots (SQLite manifest + armed `--resume` commands), surrounded by a VS Code-grade git sidebar, a git-decorated file tree, and a Monaco editor whose default gesture is diff-vs-HEAD. Success: the user closes their 4–6 editor windows and lives in gmux; no session or agent conversation is ever silently lost.
+Tortie is a calm, durable place for agentic work: one window where named terminal sessions host coding agents, survive app quit/crash/update (private tmux server) and reboots (SQLite manifest + armed `--resume` commands), surrounded by a VS Code-grade git sidebar, a git-decorated file tree, and a Monaco editor whose default gesture is diff-vs-HEAD. Success: the user closes their 4–6 editor windows and lives in Tortie; no session or agent conversation is ever silently lost.
 
 ## Positioning
 
@@ -30,7 +30,7 @@ The only tool that combines durable named terminals + VS Code-grade SCM + decora
 - Agent CLIs (`claude`, `codex`) installed by the user on PATH; git via Xcode CLT.
 - One project tab = one repo checkout (worktree-aware, not worktree-required).
 - tmux is INVISIBLE: no tmux concept, term, or keybinding ever reaches the UI. Sessions have names; that is the entire model the user learns.
-- The app is a "disposable client" over the durable server: quitting gmux must feel safe, and the UI must say so.
+- The app is a "disposable client" over the durable server: quitting Tortie must feel safe, and the UI must say so.
 
 ## Capabilities and Constraints
 
@@ -49,7 +49,7 @@ Constraints: single BrowserWindow forever; no cloud component; session kill is a
 
 ## Brand Commitments
 
-- Name: **gmux**, always lowercase.
+- Name: **Tortie**, capitalised as a proper noun (Phase 16.5; it was `gmux`, always lowercase, before the rename). The private tmux socket is still `-L gmux` and always will be — see README, "What is still called gmux, and why".
 - Native-macOS feel over web-app expressiveness; brand lives in precise details (status dots, restore moments, copy), not decoration.
 - Dark-first (terminal-centric tool; DESIGN.md commits the final call).
 - Vocabulary ban: "tmux", "pane", "attach", "detach", "socket", "daemon", "PTY", "mux" never appear in UI copy (single exception: the tmux-missing install error, where naming the dependency is honesty).

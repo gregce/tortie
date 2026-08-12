@@ -135,13 +135,23 @@ const state: {
   applicationMenu: FakeMenu | null;
   focused: FakeWindow | null;
   windows: FakeWindow[];
-} = { applicationMenu: null, focused: null, windows: [] };
+  aboutPanel: unknown;
+} = {
+  applicationMenu: null,
+  focused: null,
+  windows: [],
+  aboutPanel: null
+};
 
 vi.mock('electron', () => ({
   app: {
-    name: 'gmux',
+    name: 'Tortie',
     isPackaged: true,
     getPath: () => join(tmpdir(), 'gmux-menu-test'),
+    getVersion: () => '0.0.1',
+    setAboutPanelOptions: (o: unknown) => {
+      state.aboutPanel = o;
+    },
     on: () => undefined,
     quit: () => undefined
   },
@@ -216,6 +226,50 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+describe('the app menu says the app’s name (Phase 16.5)', () => {
+  /** The first submenu — the one macOS titles with the app name. */
+  function appSubmenu(): { label?: string; role?: string }[] {
+    const menu = state.applicationMenu;
+    if (menu === null) throw new Error('no application menu');
+    const first = menu.template[0];
+    if (!Array.isArray(first?.submenu)) throw new Error('no app submenu');
+    return first.submenu as { label?: string; role?: string }[];
+  }
+
+  it('titles About / Hide / Quit from app.name, never a literal', () => {
+    installAppMenu();
+    expect(state.applicationMenu?.template[0]?.label).toBe('Tortie');
+    const labelFor = (role: string): string | undefined =>
+      appSubmenu().find((it) => it.role === role)?.label;
+    expect(labelFor('about')).toBe('About Tortie');
+    expect(labelFor('hide')).toBe('Hide Tortie');
+    // Quit is a click handler, not a role — it routes through requestQuit()
+    // for the first-quit toast.
+    expect(appSubmenu().some((it) => it.label === 'Quit Tortie')).toBe(true);
+  });
+
+  it('leaves no menu label spelling the old name', () => {
+    installAppMenu();
+    const labels: string[] = [];
+    const walk = (items: FakeItem[]): void => {
+      for (const it of items) {
+        if (typeof it.label === 'string') labels.push(it.label);
+        if (Array.isArray(it.submenu)) walk(it.submenu);
+      }
+    };
+    walk(state.applicationMenu?.template ?? []);
+    expect(labels.filter((l) => /gmux/i.test(l))).toEqual([]);
+  });
+
+  it('names the About panel rather than inheriting Electron’s', () => {
+    installAppMenu();
+    expect(state.aboutPanel).toMatchObject({
+      applicationName: 'Tortie',
+      applicationVersion: '0.0.1'
+    });
+  });
 });
 
 describe('the radios render the store, and only the store', () => {

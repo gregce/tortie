@@ -71,7 +71,7 @@ export function createImageReader(deps: ImageReaderDeps): ImageReader {
       // rather than "unsupported", so the toast is actionable.
       throw gmuxError(
         'FS_FAILED',
-        `gmux cannot display ${abs.slice(abs.lastIndexOf('/') + 1)}.`
+        `Tortie cannot display ${abs.slice(abs.lastIndexOf('/') + 1)}.`
       );
     }
 

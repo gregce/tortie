@@ -24,7 +24,7 @@
   text-overflow: ellipsis;
 }
 
-/* "bundled with gmux" / "installed" — provenance, not status, so it stays the
+/* "bundled with Tortie" / "installed" — provenance, not status, so it stays the
    neutral chip and never borrows an accent. Two classes deep because
    settings.css loads after this file and its .set-chip sets the mono face:
    this chip holds a WORD, and mono makes a word look like a code token. */

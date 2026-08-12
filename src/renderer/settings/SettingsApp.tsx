@@ -73,7 +73,7 @@ export function SettingsApp(): React.JSX.Element {
           <h1 className="set-title">Settings</h1>
           <div className="set-card">
             <div className="set-empty-line">
-              Settings are not available in this build — quit and reopen gmux;
+              Settings are not available in this build — quit and reopen Tortie;
               if this keeps happening, reinstall it.
             </div>
           </div>

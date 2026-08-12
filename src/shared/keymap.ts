@@ -863,7 +863,7 @@ export const KEYMAP = [
   {
     id: 'app.quit',
     keys: [k('Cmd+Q')],
-    action: 'Quit gmux',
+    action: 'Quit Tortie',
     explain:
       'Quits the app. Your sessions keep running and come back exactly as you left them when you reopen it.',
     group: 'views',

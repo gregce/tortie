@@ -3,11 +3,11 @@
  * (§6.2) and tmux missing (§6.4). Titles and bodies are DESIGN.md §6 copy.
  *
  * §6.2 is the first thing a user sees inside a new project, so it does more
- * than name the absence: it shows the whole fleet gmux can run, in the
+ * than name the absence: it shows the whole fleet Tortie can run, in the
  * registry's own order (src/main/agents/registry.ts, mirrored by
  * buildAgentOptions). Installed agents are one-click launchers carrying any
  * hotkey the user recorded in Settings; the rest stay present but recessive
- * — gmux picks them up the moment their CLI appears on PATH.
+ * — Tortie picks them up the moment their CLI appears on PATH.
  *
  * The board itself is no longer written here: Phase 12.12 item 1 made it the
  * shared ./AgentGrid, because the ⌘T sheet had grown a second, cramped copy of
@@ -50,7 +50,7 @@ export function FirstRun(): React.JSX.Element {
         <h2 className="empty-title">Open a project to get started</h2>
         <p className="empty-body">
           A project is any folder — a git repo gets the full sidebar. Sessions
-          you start keep running even when gmux is closed.
+          you start keep running even when Tortie is closed.
         </p>
         <div className="empty-actions">
           <button
@@ -87,7 +87,7 @@ export function FirstRun(): React.JSX.Element {
 // §6.2 — project with no sessions: the fleet
 // ---------------------------------------------------------------------------
 
-/** Install command for the caption line, when gmux knows one. */
+/** Install command for the caption line, when Tortie knows one. */
 function installCommandFor(id: string): string | null {
   return id === 'claude' || id === 'codex' ? AGENT_INSTALL_COMMANDS[id] : null;
 }
@@ -181,7 +181,7 @@ export function NoSessions(): React.JSX.Element {
               <span className="agent-missing-text">
                 {hintedCmd !== null
                   ? `${hinted.label} isn’t installed. Install it with`
-                  : `${hinted.label} isn’t installed — gmux picks it up as soon as it’s on your PATH.`}
+                  : `${hinted.label} isn’t installed — Tortie picks it up as soon as it’s on your PATH.`}
               </span>
               {hintedCmd !== null ? (
                 // The ⌘T modal carries the copy affordance for this command;
@@ -210,9 +210,9 @@ export function TmuxMissing(): React.JSX.Element {
   return (
     <div className="empty">
       <div className="empty-inner onb-inner">
-        <h2 className="empty-title">gmux needs tmux to keep sessions alive</h2>
+        <h2 className="empty-title">Tortie needs tmux to keep sessions alive</h2>
         <p className="empty-body">
-          gmux runs sessions on a private tmux server so they survive quits
+          Tortie runs sessions on a private tmux server so they survive quits
           and crashes. It never touches your own tmux setup.
         </p>
         <div className="empty-actions">

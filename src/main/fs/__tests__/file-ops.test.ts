@@ -294,7 +294,7 @@ describe('move', () => {
     expect(
       (await payloadOf(ops.move({ root, paths: ['.git/'], destDir: 'docs' })))
         .message
-    ).toBe('gmux does not touch the .git folder.');
+    ).toBe('Tortie does not touch the .git folder.');
     expect(
       (await payloadOf(
         ops.move({ root, paths: ['README.md'], destDir: '../' })
@@ -335,7 +335,7 @@ describe('trash', () => {
     });
     expect(result.trashed.map((t) => t.relPath)).toEqual(['README.md']);
     expect(result.failed.map((f) => f.message)).toEqual([
-      'gmux does not touch the .git folder.',
+      'Tortie does not touch the .git folder.',
       '"ghost.txt" is no longer there.'
     ]);
     expect(result.failed[1]?.errno).toBe('ENOENT');

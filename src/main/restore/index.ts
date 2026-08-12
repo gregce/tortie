@@ -33,7 +33,9 @@ export {
 
 export {
   getLoginItemState,
+  reconcileLoginItem,
   setLoginItemState,
+  type LoginItemReconcile,
   type LoginItemState
 } from './login-item';
 

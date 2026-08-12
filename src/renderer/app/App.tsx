@@ -942,7 +942,7 @@ function useWindowTitle(): void {
 
   useEffect(() => {
     const project = projects.find((p) => p.id === activeProjectId) ?? null;
-    let title = 'gmux';
+    let title = 'Tortie';
     if (project) {
       const inProject = sessions.filter(
         (x) => x.projectPath === project.path
@@ -990,10 +990,10 @@ export function App(): React.JSX.Element {
         <div className="titlebar" />
         <div className="empty">
           <div className="empty-inner">
-            <h2 className="empty-title">gmux could not start</h2>
+            <h2 className="empty-title">Tortie could not start</h2>
             <p className="empty-body">
-              The window bridge failed to load. Quit and reopen gmux; if this
-              keeps happening, reinstall it.
+              The window bridge failed to load. Quit and reopen Tortie; if
+              this keeps happening, reinstall it.
             </p>
           </div>
         </div>

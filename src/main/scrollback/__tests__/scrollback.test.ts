@@ -282,7 +282,7 @@ describe('Copy details — the gmux-owned process list (Phase 13.8 item 2)', () 
     ]);
     // Header + one line per process. Nothing summarised away.
     expect(lines).toHaveLength(3);
-    expect(lines[0]).toContain('2 owned by gmux');
+    expect(lines[0]).toContain('2 owned by Tortie');
     expect(lines[1]).toContain('900');
     expect(lines[1]).toContain('app');
     expect(lines[2]).toContain('901');

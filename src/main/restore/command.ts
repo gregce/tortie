@@ -51,7 +51,7 @@ export function buildArmedCommand(resumeArgv: readonly string[]): string {
  * LITERAL text typed into the pane.
  */
 const SEPARATOR =
-  '\\n\\033[2m-- gmux : scrollback above was restored from a snapshot --\\033[0m\\n\\n';
+  '\\n\\033[2m-- Tortie : scrollback above was restored from a snapshot --\\033[0m\\n\\n';
 
 /**
  * The snapshot-replay command executed (WITH Enter) in the restored pane:

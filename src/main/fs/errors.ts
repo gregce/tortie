@@ -63,7 +63,7 @@ function friendly(errno: FsOpErrno, verb: FsOpVerb, name: string): string {
     case 'ENOSPC':
       return 'There is no space left on the disk.';
     case 'EXDEV':
-      return `"${name}" is on a different volume — gmux cannot move it there.`;
+      return `"${name}" is on a different volume — Tortie cannot move it there.`;
     case 'EISDIR':
       return `"${name}" is a folder.`;
     case 'ENOTDIR':

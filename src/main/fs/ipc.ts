@@ -72,7 +72,7 @@ async function readTextCapped(abs: string): Promise<ReadFileResult> {
     if (head.includes(0)) {
       throw gmuxError(
         'FS_FAILED',
-        `${basename(abs)} is a binary file — gmux edits text files only.`
+        `${basename(abs)} is a binary file — Tortie edits text files only.`
       );
     }
     return {

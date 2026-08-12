@@ -69,7 +69,7 @@ function buildMenu(sessions: readonly Session[], projects: readonly Project[]): 
   return Menu.buildFromTemplate([
     ...attention,
     { type: 'separator' },
-    { label: 'Show gmux', click: () => deps?.showWindow() },
+    { label: `Show ${app.name}`, click: () => deps?.showWindow() },
     {
       label: 'New Session',
       click: () => {
@@ -82,7 +82,7 @@ function buildMenu(sessions: readonly Session[], projects: readonly Project[]): 
     { type: 'separator' },
     // The same forwarded quit ⌘Q takes, so the one-time "sessions keep
     // running" toast still gets its chance (DESIGN.md §4).
-    { label: 'Quit gmux', click: () => requestQuit() }
+    { label: `Quit ${app.name}`, click: () => requestQuit() }
   ]);
 }
 
@@ -112,7 +112,7 @@ export function installTray(trayDeps: TrayDeps): void {
   image.setTemplateImage(true);
 
   tray = new Tray(image);
-  tray.setToolTip('gmux');
+  tray.setToolTip(app.name);
   tray.setContextMenu(buildMenu([], []));
 
   // Live data as soon as the durable core is up, then on every full-list

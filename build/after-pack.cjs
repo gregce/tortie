@@ -1,6 +1,6 @@
 /**
  * after-pack.cjs — the afterPack hook, and the composition point for the two
- * things gmux must do to a freshly packed .app before it gets signed:
+ * things Tortie must do to a freshly packed .app before it gets signed:
  *
  *   1. finish the helper rename electron-builder starts (below);
  *   2. harden/sign the nested CLI binaries (build/sign-nested-binaries.cjs).
@@ -12,14 +12,14 @@
  * ---
  *
  * Phase 13.8. electron-builder renames the four helper BUNDLES and their
- * executables from productName (`gmux Helper`, `gmux Helper (Renderer)`,
- * `gmux Helper (GPU)`, `gmux Helper (Plugin)`) but leaves each helper's
+ * executables from productName (`Tortie Helper`, `Tortie Helper (Renderer)`,
+ * `Tortie Helper (GPU)`, `Tortie Helper (Plugin)`) but leaves each helper's
  * Info.plist `CFBundleName` at Electron's default:
  *
- *   $ PlistBuddy -c 'Print :CFBundleName'    …/gmux Helper (Renderer).app/…
+ *   $ PlistBuddy -c 'Print :CFBundleName'    …/Tortie Helper (Renderer).app/…
  *   Electron Helper (Renderer)               ← before this hook
  *   $ PlistBuddy -c 'Print :CFBundleExecutable' …
- *   gmux Helper (Renderer)
+ *   Tortie Helper (Renderer)
  *
  * Two names for one process is one too many: macOS reads the app's display
  * name from the bundle and the process name from the executable, and which
@@ -30,7 +30,7 @@
  * exactly the mismatch we are removing.
  *
  * The hook rewrites CFBundleName to match the bundle's own executable, so
- * every helper answers "gmux" however you ask. Idempotent, and a no-op on
+ * every helper answers "Tortie" however you ask. Idempotent, and a no-op on
  * non-macOS targets.
  */
 
@@ -47,7 +47,7 @@ exports.default = async function afterPack(context) {
 
 /** Step 1: CFBundleName ← the bundle's own executable name, for all helpers. */
 function renameHelpers(context) {
-  const appName = context.packager.appInfo.productFilename; // "gmux"
+  const appName = context.packager.appInfo.productFilename; // "Tortie"
   const frameworks = join(
     context.appOutDir,
     `${appName}.app`,

@@ -120,7 +120,7 @@ function SettingsItem(): React.JSX.Element | null {
       y,
       items: [
         {
-          label: `${on ? '✓ ' : ''}Launch gmux at login`,
+          label: `${on ? '✓ ' : ''}Launch Tortie at login`,
           run: () => {
             void (async () => {
               try {
@@ -130,8 +130,8 @@ function SettingsItem(): React.JSX.Element | null {
                   toast(
                     'success',
                     next.openAtLogin
-                      ? 'gmux will launch at login and offer to restore your sessions.'
-                      : 'gmux will no longer launch at login.'
+                      ? 'Tortie will launch at login and offer to restore your sessions.'
+                      : 'Tortie will no longer launch at login.'
                   );
                 } else {
                   toast(

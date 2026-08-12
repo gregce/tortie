@@ -86,7 +86,7 @@ export const GMUX_THEME_NAME = 'gmux-dark';
  */
 export const gmuxDarkTheme: ThemeRegistration = {
   name: GMUX_THEME_NAME,
-  displayName: 'gmux dark',
+  displayName: 'Tortie dark',
   type: 'dark',
   bg: P.bgCanvas,
   fg: S.fg,

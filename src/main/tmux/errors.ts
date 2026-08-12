@@ -21,7 +21,7 @@ export function classifyTmuxFailure(
   if (/no server running|error connecting to/i.test(text)) {
     return gmuxError(
       'TMUX_UNREACHABLE',
-      'The gmux session server is not running.',
+      'The Tortie session server is not running.',
       text
     );
   }

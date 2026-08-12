@@ -392,7 +392,7 @@ describe('watch lifecycle', () => {
       timeoutMs: 200
     });
     await expect(watch.promise).rejects.toThrow(
-      /The session runs fine, but gmux could not record its resume id/
+      /The session runs fine, but Tortie could not record its resume id/
     );
   });
 

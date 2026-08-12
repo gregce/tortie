@@ -146,6 +146,42 @@ describe('restore of a captured session', () => {
     expect(out.armedCommand).toContain('abc-123');
   });
 
+  // ---------------------------------------------------------------------
+  // Phase 16.5 hazard 4, stated as its own case rather than inferred from
+  // the one above. The RENAME is not "a missing binary" in general: it is the
+  // exact shape old-bundle-gone / new-bundle-present, it hits EVERY captured
+  // row on the same launch, and the new path differs from the old one only in
+  // the app-name component — which is precisely the substring a careless
+  // re-resolution could match and keep.
+  // ---------------------------------------------------------------------
+  it('heals the RENAME: /Applications/gmux.app is gone, Tortie.app is there', async () => {
+    const oldBundleBin = join(
+      root,
+      'Applications',
+      'gmux.app',
+      'Contents',
+      'Resources',
+      'bin',
+      'specstory'
+    );
+    // The same binary, at the path the renamed bundle resolves to.
+    resolved = fakeBin('specstory'); // stands in for Tortie.app/…/bin/specstory
+
+    const out = await restoreSessionInTmux(rec(oldBundleBin));
+
+    // No trace of the dead bundle anywhere in the armed line…
+    expect(out.armedCommand).not.toContain('gmux.app');
+    expect(out.armedCommand).not.toContain(oldBundleBin);
+    // …it runs the resolvable copy…
+    expect(out.armedCommand).toContain(`${resolved} run claude`);
+    // …capture is still on (still a `run … -c` wrap, not a bare agent)…
+    expect(out.armedCommand).toContain(' -c ');
+    // …and the conversation id survived the re-wrap, which is the only thing
+    // the user actually cares about.
+    expect(out.armedCommand).toContain('abc-123');
+    expect(armedText()).toContain('abc-123');
+  });
+
   it('falls back to the bare agent resume when there is no SpecStory at all', async () => {
     const dead = join(root, 'Applications', 'gmux.app', 'specstory');
     resolved = null;

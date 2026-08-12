@@ -1,4 +1,36 @@
-# gmux — build & packaging status
+# Tortie — build & packaging status
+
+> **Phase 16.5 renamed the app from `gmux` to `Tortie`** (appId
+> `com.specstory.gmux` -> `com.specstory.tortie`, productName `gmux` ->
+> `Tortie`). Everything measured BELOW this line was measured before the
+> rename and still carries the old artifact names — `release/gmux-0.0.1-arm64.dmg`,
+> `/Applications/gmux.app`, `Identifier=com.specstory.gmux.specstory`. Those
+> numbers are still true of that build; the names are not. Packaging now emits
+> `release/Tortie-0.0.1-arm64.dmg` / `.zip` and `release/mac-arm64/Tortie.app`,
+> and Phase 17 re-measures the whole set under the new name.
+>
+> Three things the rename deliberately did NOT change, because live data is
+> bound to them: the private tmux socket (`-L gmux`), the bundled tmux config
+> (`Contents/Resources/gmux-tmux.conf`), and the inner data directory
+> (`<userData>/gmux/`). The userData ROOT did change — Electron derives it from
+> the app name — and `src/main/migrate/` copies the old one across on first
+> launch and leaves the original in place as a backup. See README, "What is
+> still called gmux, and why".
+>
+> Two macOS consequences of the new bundle id, both handled in code and both
+> worth knowing before Phase 17 installs the app: TCC grants do not carry
+> across (macOS re-asks), and the SMAppService login item was registered under
+> the OLD id. `reconcileLoginItem()` re-registers it from a recorded
+> preference, and a one-time dialog (`src/main/migrate/notice.ts`) says both
+> things plainly the first time the renamed app opens.
+>
+> Two smoke scripts changed with it: `smoke`/`smoke:t1`/`smoke:t3`/`shot` now
+> run against their own `--user-data-dir` instead of the default profile. They
+> used to boot into the user's real userData; after the rename that directory
+> is the one the migration is waiting to populate, and a harness booting there
+> first would leave a `gmux/manifest.db` behind that makes the migration's
+> "target already has data" guard refuse — costing the user their real
+> manifest. A test harness must never be the thing that performs the upgrade.
 
 Date: 2026-08-09 · version 0.0.1 · machine: macOS 15.7.9 arm64, node v22.23.1, electron 43.3.0, electron-builder 26.15.3, system tmux 3.6a (`/opt/homebrew/bin/tmux`).
 
@@ -52,8 +84,8 @@ Smokes: `npm run smoke` (basic) · `npm run smoke:t1` (restart durability) · `n
 
 ```sh
 npm run package     # electron-vite build + electron-builder --mac
-                    # → release/gmux-0.0.1-arm64.dmg (+ .zip)
-npm run package:dir # faster: unpacked app only → release/mac-arm64/gmux.app
+                    # → release/Tortie-0.0.1-arm64.dmg (+ .zip)
+npm run package:dir # faster: unpacked app only → release/mac-arm64/Tortie.app
 npm run icon        # re-copy the Tortie brand assets into their build /
                     # runtime / renderer homes (no generation, no tools)
 npm run vendor:specstory  # fetch the pinned specstory-cli release into
@@ -64,7 +96,7 @@ npm run vendor:specstory  # fetch the pinned specstory-cli release into
 
 Packaging needs network **once** per pin: `build/before-pack.cjs` downloads the specstory release named in `build/specstory-release.json` and verifies it against two recorded SHA-256s (the tarball's and the extracted Mach-O's). After that it is cached in `build/vendor/specstory/cache` and every later build is offline and instant. Air-gapped: put the release tarball anywhere and set `GMUX_SPECSTORY_TARBALL` — it is checked against the same pin, so the escape hatch cannot substitute a different build. Bumping the version means editing `build/specstory-release.json` (tag + version + both hashes) and nothing else.
 
-Install: open the DMG, drag gmux to Applications. **The app is unsigned for distribution** — on any machine other than this one, Gatekeeper will block the first launch: right-click → Open → Open (or `xattr -dr com.apple.quarantine /Applications/gmux.app`).
+Install: open the DMG, drag Tortie to Applications. **The app is unsigned for distribution** — on any machine other than this one, Gatekeeper will block the first launch: right-click → Open → Open (or `xattr -dr com.apple.quarantine /Applications/Tortie.app`).
 
 Icon (Phase 12.85): the mark is the Tortie seated sentinel, and `docs/brand/tortie/` is the source of truth — an authored, production-ready package that must NOT be regenerated (its README records the master SHA-256 and forbids wrapping the mark in a rounded square, badge or any outer chrome). `build/icon.icns` is a byte-for-byte copy of `docs/brand/tortie/macos/Tortie.icns`; `resources/menu-bar/TortieTemplate.png` + `@2x` (the menu-bar status item) and `src/renderer/assets/brand/tortie-128.png` (the one in-window mark, on the first-run empty state) are copies of their brand-package originals. `npm run icon` re-copies all three. The old generated `build/icon.svg` and its rsvg pipeline are gone — nothing derives the icon from an SVG any more.
 

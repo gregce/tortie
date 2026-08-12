@@ -250,7 +250,7 @@ export function KeyboardSection(): React.JSX.Element {
     <section className="kb" aria-label="Keyboard">
       <h1 className="set-title">Keyboard</h1>
       <p className="set-section-caption">
-        Every shortcut gmux knows, and what each one does. The per-agent
+        Every shortcut Tortie knows, and what each one does. The per-agent
         session shortcuts are yours to record; the rest are built in.
       </p>
 

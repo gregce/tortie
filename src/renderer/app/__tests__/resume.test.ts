@@ -109,7 +109,7 @@ describe('resumeNote', () => {
     // Audit §4.5: under the corrected registry no installed agent lacks
     // resume, so "directory only" is gmux's missing work, not the CLI's.
     const note = resumeNote(session({ agent: as('qwen'), resumeCapture: 'unavailable' }));
-    expect(note).toContain('gmux never recorded');
+    expect(note).toContain('Tortie never recorded');
     expect(note).not.toMatch(/qwen (cannot|does not|has no)/i);
   });
 

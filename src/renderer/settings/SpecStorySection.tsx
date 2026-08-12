@@ -3,7 +3,7 @@
  * .md §3.4). Three questions and their answers, in the order a user asks them:
  *
  *   1. Can this Mac capture at all?      the resolved binary, its version, and
- *                                        whether it came with gmux or with brew
+ *                                        whether it came with Tortie or brew
  *   2. Which agents start captured?      the per-agent sticky default the ⌘T
  *                                        modal prefills from
  *   3. Where do transcripts end up?      signed in ⇒ the project AND the cloud;
@@ -101,8 +101,8 @@ function BinaryRow({ status }: { status: SpecStoryStatus }): React.JSX.Element {
         <div className="set-row-text">
           <span className="set-row-label">SpecStory isn’t available</span>
           <span className="set-row-caption">
-            gmux couldn’t find the SpecStory command, so new sessions can’t be
-            captured. Everything else works as usual.
+            Tortie couldn’t find the SpecStory command, so new sessions can’t
+            be captured. Everything else works as usual.
           </span>
         </div>
       </div>
@@ -120,7 +120,7 @@ function BinaryRow({ status }: { status: SpecStoryStatus }): React.JSX.Element {
         </span>
       </div>
       <span className="set-chip ss-source">
-        {binary.source === 'bundled' ? 'bundled with gmux' : 'installed'}
+        {binary.source === 'bundled' ? 'bundled with Tortie' : 'installed'}
       </span>
     </div>
   );
@@ -324,13 +324,13 @@ function CloudCard({ reading, onChanged }: CloudCardProps): React.JSX.Element {
           <div className="set-row-text">
             <span className="set-row-label">Enter the code from your browser</span>
             <span className="set-row-caption">
-              {/* The address is in the line because gmux cannot know whether
+              {/* The address is in the line because Tortie cannot know whether
                   the browser actually opened — the CLI opens it and only
                   warns to a log if it fails. One sentence that works either
                   way beats two that guess. */}
               {started
                 ? `Sign in at ${loginHost(loginUrl)} — it shows a 6-character code.`
-                : 'gmux couldn’t start SpecStory sign-in. Check the SpecStory command above, then try again.'}
+                : 'Tortie couldn’t start SpecStory sign-in. Check the SpecStory command above, then try again.'}
             </span>
           </div>
           <div className="ss-actions">
@@ -442,8 +442,8 @@ export function SpecStorySection(): React.JSX.Element {
         <h1 className="set-title">SpecStory</h1>
         <div className="set-card">
           <div className="set-empty-line">
-            This build can’t report on SpecStory — quit and reopen gmux; if it
-            keeps happening, reinstall it.
+            This build can’t report on SpecStory — quit and reopen Tortie; if
+            it keeps happening, reinstall it.
           </div>
         </div>
       </section>
@@ -488,7 +488,7 @@ export function SpecStorySection(): React.JSX.Element {
         <p className="ss-note">
           <Codicon name="info" size={12} className="ss-note-icon" />
           Signing in opens SpecStory Cloud in your browser and asks for the code
-          it shows you. gmux never sees your password.
+          it shows you. Tortie never sees your password.
         </p>
       ) : null}
 

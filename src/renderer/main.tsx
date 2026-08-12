@@ -5,7 +5,7 @@ import './styles/globals.css';
 
 const rootEl = document.getElementById('root');
 if (!rootEl) {
-  throw new Error('gmux renderer: #root element missing from index.html');
+  throw new Error('Tortie renderer: #root element missing from index.html');
 }
 
 createRoot(rootEl).render(

@@ -315,7 +315,7 @@ export function watchForSessionId(
       null,
       new Error(
         `Timed out after ${timeoutMs} ms waiting for a ${agent} session record in ` +
-          `${roots.join(', ')} (cwd ${ctx.cwd}). The session runs fine, but gmux ` +
+          `${roots.join(', ')} (cwd ${ctx.cwd}). The session runs fine, but Tortie ` +
           'could not record its resume id.'
       )
     );

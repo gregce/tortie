@@ -1,4 +1,4 @@
-# gmux packaging — local unsigned arm64 DMG + ZIP.
+# Tortie packaging — local unsigned arm64 DMG + ZIP.
 #
 # Deliberately unsigned today: only an Apple Development cert is on this
 # machine, which cannot produce a distributable signature — so identity: null
@@ -9,8 +9,8 @@
 # NOT deferred any more: nested Mach-O signing. Phase 15 bundles specstory-cli
 # at Contents/Resources/bin/specstory, listed in mac.binaries for the day an
 # identity exists and ad-hoc hardened by build/sign-nested-binaries.cjs today.
-appId: com.specstory.gmux
-productName: gmux
+appId: com.specstory.tortie
+productName: Tortie
 artifactName: ${productName}-${version}-${arch}.${ext}
 directories:
   output: release
@@ -22,8 +22,8 @@ directories:
 beforePack: build/before-pack.cjs
 # Phase 13.8: electron-builder renames the helper BUNDLES and executables from
 # productName but leaves their Info.plist CFBundleName at "Electron Helper (…)".
-# This hook makes the two agree so every gmux process answers to gmux however
-# macOS is asked. Phase 15 added a second step: hardening/signing the nested
+# This hook makes the two agree so every Tortie process answers to Tortie
+# however macOS is asked. Phase 15 added a second step: hardening/signing the nested
 # CLI binaries, which must happen BEFORE the app is sealed (Appendix F.3,
 # inside-out). See build/after-pack.cjs.
 afterPack: build/after-pack.cjs

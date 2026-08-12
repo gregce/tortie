@@ -189,19 +189,43 @@ export async function runMigrateSmoke(): Promise<void> {
       `the guard would have migrated the REAL profile: ${JSON.stringify(live)}`
     );
     log(`      → ${live.migrate ? '' : live.reason}: ${live.migrate ? '' : live.detail}`);
-    // …and it refuses for the OTHER reason too — the one that holds for an
-    // ordinary launch, where userData is the default location. Until the
-    // rename lands, the legacy directory IS the target.
+    // …and, now that the rename has LANDED (Phase 16.5), the arithmetic goes
+    // the other way for an ordinary launch: same app name, but userData at its
+    // default location. This is the assertion that the rename is really wired
+    // up — if `app.getName()` ever drifts back to the legacy name, or someone
+    // "helpfully" pins userData, the user's manifest silently stops crossing
+    // over and only this line notices. Pure path arithmetic; nothing is moved.
+    const realAppData = app.getPath('appData');
+    const ordinary = decideMigrationSite({
+      appDataDir: realAppData,
+      appName: app.getName(),
+      userDataDir: join(realAppData, app.getName())
+    });
+    check(
+      app.getName() !== LEGACY_APP_NAME,
+      `the app still calls itself "${LEGACY_APP_NAME}" — the rename is not wired up`
+    );
+    check(
+      ordinary.migrate &&
+        ordinary.site.legacyDir === join(realAppData, LEGACY_APP_NAME) &&
+        ordinary.site.targetDir === join(realAppData, app.getName()),
+      `an ordinary launch would NOT carry the data across: ${JSON.stringify(ordinary)}`
+    );
+    log(
+      `      → an ordinary launch: ${LEGACY_APP_NAME} -> ${app.getName()}, ` +
+        'the real profile would be carried across (not run here)'
+    );
+    // The legacy name must ALSO still be recognised as a no-op for anyone
+    // running an un-renamed build against the same data.
     const unrenamed = decideMigrationSite({
-      appDataDir: app.getPath('appData'),
+      appDataDir: realAppData,
       appName: LEGACY_APP_NAME,
-      userDataDir: join(app.getPath('appData'), LEGACY_APP_NAME)
+      userDataDir: join(realAppData, LEGACY_APP_NAME)
     });
     check(
       !unrenamed.migrate && unrenamed.reason === 'name-unchanged',
-      `an ordinary launch would migrate today: ${JSON.stringify(unrenamed)}`
+      `an un-renamed build would migrate onto itself: ${JSON.stringify(unrenamed)}`
     );
-    log(`      → an ordinary launch: ${unrenamed.migrate ? '' : unrenamed.detail}`);
 
     // -----------------------------------------------------------------------
     log('2/10 building a populated legacy install (never a copy of the real one)');

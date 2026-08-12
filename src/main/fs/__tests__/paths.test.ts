@@ -159,7 +159,7 @@ describe('resolveInsideRoot — escapes that must be refused', () => {
   it('refuses .git at any depth, and its contents', async () => {
     for (const path of ['.git', '.git/', '.git/config', 'src/.git/hooks']) {
       const payload = await refusal(resolveInsideRoot(root, path));
-      expect(payload.message).toBe('gmux does not touch the .git folder.');
+      expect(payload.message).toBe('Tortie does not touch the .git folder.');
     }
   });
 

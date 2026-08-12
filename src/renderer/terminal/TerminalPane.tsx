@@ -82,7 +82,7 @@ function friendlyAttachError(err: unknown): OverlayState {
       return {
         title: 'tmux is not installed',
         detail:
-          'gmux needs tmux to keep sessions alive. Install it with ' +
+          'Tortie needs tmux to keep sessions alive. Install it with ' +
           '"brew install tmux", then try again.',
         action: 'Try again'
       };

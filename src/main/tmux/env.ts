@@ -29,11 +29,21 @@ export const DEFAULT_UTF8_LANG = 'en_US.UTF-8';
  * `pkill -f`-able copy of an agent on the box. These are the honest
  * replacement: positive, greppable, and harmless.
  *
- *  - GMUX_MANAGED=1        this pane belongs to a gmux session
+ *  - GMUX_MANAGED=1        this pane belongs to one of our sessions
  *  - GMUX_SESSION_ID=<uuid> the manifest row id (also the `@gmux-id` option),
  *                          so identity survives even if the option is lost
  *
  * Applied at create AND at restore, via tmux `new-session -e`.
+ *
+ * **KEPT AS `GMUX_*` THROUGH THE TORTIE RENAME, deliberately** (Phase 16.5,
+ * hazard 5). These are not cosmetics, they are the second half of session
+ * IDENTITY: every pane that is alive on the private socket RIGHT NOW carries
+ * this spelling, and a renamed app that only looked for `TORTIE_*` would fail
+ * to recognise its own running sessions — the same class of loss as renaming
+ * the socket. Emitting both was considered and rejected: two names for one
+ * fact is two things to keep in step, and the old one can never be retired
+ * while a session started under it is still running. The user never sees
+ * them; the user's own tooling might.
  */
 export function managedPaneEnv(sessionId: string): Record<string, string> {
   return { GMUX_MANAGED: '1', GMUX_SESSION_ID: sessionId };

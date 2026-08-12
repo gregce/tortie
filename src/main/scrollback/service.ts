@@ -266,8 +266,8 @@ function clip(text: string, max: number): string {
 export function formatOwnedProcessLines(rows: readonly GmuxProcess[]): string[] {
   if (rows.length === 0) return [];
   const out: string[] = [
-    `processes: ${rows.length} owned by gmux — by OWNERSHIP, not by name ` +
-      `(agents launch bare, so their command line never says gmux)`
+    `processes: ${rows.length} owned by Tortie — by OWNERSHIP, not by name ` +
+      `(agents launch bare, so their command line never says Tortie)`
   ];
   for (const r of rows) {
     const where =
@@ -302,7 +302,7 @@ export async function buildScrollbackReport(
   const rss = await tmuxServerRssBytes(deps.run);
 
   const lines: string[] = [];
-  lines.push(`gmux scrollback report — ${new Date().toISOString()}`);
+  lines.push(`Tortie scrollback report — ${new Date().toISOString()}`);
   lines.push(
     `settings: depth ${settings.scrollbackLines.toLocaleString()} lines · ` +
       `saved ${settings.savedScrollbackLines.toLocaleString()} lines`
@@ -336,7 +336,7 @@ export async function buildScrollbackReport(
   for (const m of app.getAppMetrics()) {
     if (m.type !== 'Browser' && m.type !== 'Tab') continue;
     lines.push(
-      `gmux ${m.type === 'Browser' ? 'main' : 'renderer'} rss ` +
+      `Tortie ${m.type === 'Browser' ? 'main' : 'renderer'} rss ` +
         `${mb((m.memory?.workingSetSize ?? 0) * 1024)}`
     );
   }

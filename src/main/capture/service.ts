@@ -50,10 +50,10 @@ function timestamp(): string {
   );
 }
 
-/** `gmux-<session>-<stamp>.png`, sanitized for a filesystem. */
+/** `tortie-<session>-<stamp>.png`, sanitized for a filesystem. */
 function defaultFileName(suggestedName: string): string {
   const safe = suggestedName.replace(/[/\\:]+/g, '-').trim();
-  return `gmux-${safe.length > 0 ? safe : 'terminal'}-${timestamp()}.png`;
+  return `tortie-${safe.length > 0 ? safe : 'terminal'}-${timestamp()}.png`;
 }
 
 function remember(png: Buffer, suggestedName: string): CaptureResult {

@@ -1,5 +1,5 @@
 /**
- * gmux native macOS application menu (DESIGN.md §2.1: the menu bar mirrors
+ * Tortie's native macOS application menu (DESIGN.md §2.1: the menu bar mirrors
  * every shortcut — shortcuts must exist in the menu to be native).
  *
  * Two hard requirements this menu exists to satisfy:
@@ -103,7 +103,7 @@ export function sendMenuAction(action: MenuActionWithFind): boolean {
 }
 
 /**
- * ⌘Q / Quit gmux — DESIGN.md §4: "first quit shows a one-time toast saying
+ * ⌘Q / Quit — DESIGN.md §4: "first quit shows a one-time toast saying
  * so". The renderer owns the one-time flag (localStorage) and the toast, so
  * quit is FORWARDED: the renderer shows the toast when it's the first quit
  * with ≥1 live session, then invokes 'app:quit'. A fallback timer quits
@@ -222,9 +222,9 @@ export function sessionsPositionRadioState(): SessionsPosition {
 function buildTemplate(): MenuItemConstructorOptions[] {
   const template: MenuItemConstructorOptions[] = [
     {
-      label: app.name, // "gmux"
+      label: app.name, // "Tortie" — set in proc/identity.ts
       submenu: [
-        { role: 'about', label: 'About gmux' },
+        { role: 'about', label: `About ${app.name}` },
         { type: 'separator' },
         // S13: ⌘, opens the dedicated single-instance Settings window
         // straight from main — no renderer detour, works from any window.
@@ -236,7 +236,7 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         { type: 'separator' },
         { role: 'services' },
         { type: 'separator' },
-        { role: 'hide', label: 'Hide gmux' },
+        { role: 'hide', label: `Hide ${app.name}` },
         { role: 'hideOthers' },
         { role: 'unhide' },
         { type: 'separator' },
@@ -244,7 +244,7 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         // Routed through the renderer for the one-time §4 first-quit toast
         // ("Quitting — your sessions keep running.") — see requestQuit().
         {
-          label: 'Quit gmux',
+          label: `Quit ${app.name}`,
           accelerator: accel('app.quit'),
           click: () => requestQuit()
         }
@@ -395,5 +395,20 @@ export function rebuildAppMenu(): void {
 }
 
 export function installAppMenu(): void {
+  // The About panel reads CFBundleName/CFBundleShortVersionString from the
+  // bundle in a packaged build and Electron's own values in dev, so a dev run
+  // would otherwise open an "About Electron" panel. State it once instead —
+  // this is also where Phase 17's commit stamp will go.
+  try {
+    app.setAboutPanelOptions({
+      applicationName: app.name,
+      applicationVersion: app.getVersion(),
+      copyright: 'SpecStory'
+    });
+  } catch (err) {
+    // Cosmetic: an About panel that falls back to the bundle's own strings is
+    // a worse panel, not a broken app. Never let it cost us the menu bar.
+    console.warn(`[gmux] About panel: ${(err as Error).message}`);
+  }
   applyMenu();
 }
