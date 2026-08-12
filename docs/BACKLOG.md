@@ -15,7 +15,7 @@ otherwise, and docs/research/34 lists what would become public.
 | 1 | **18** chrome layout constraints | SHIPPED `6fd9ff9` | — |
 | 2 | **18.5** book icon, specstory settings, provider vocabulary, single instance lock, launch flag, stale docs | ✅ SHIPPED 2026-08-12 | — |
 | 3 | **18.55** zoom does not reach the search view, user reported | ✅ SHIPPED 2026-08-12 | — |
-| 4 | **18.6** home screen: open, create and clone | SPEC IN docs/research/35 | nothing, 18.55 is committed |
+| 4 | **18.6** home screen: open, create and clone | ✅ SHIPPED 2026-08-12 | — |
 
 **Decided for Phase 18.6, 2026-08-12.** The wordmark is **TORTIE.sh**, set as research 35 specifies:
 capitals for the name, lowercase for the suffix, 28 px on 32, weight 600 with the suffix at 400.
@@ -1061,7 +1061,57 @@ The usual battery, plus `npm run conformance:resume:capture` if anything under `
 
 ---
 
-## Phase 18.6 — the home screen, and cloning a repository (2026-08-12)
+## Phase 18.6 — the home screen, and cloning a repository ✅ SHIPPED 2026-08-12
+
+### What landed
+| Item | State | Evidence |
+| --- | --- | --- |
+| The home screen, one 460 px column | shipped | `src/renderer/app/HomeScreen.tsx`, `home-screen.css`. Copy matches research 35 §1.11 word for word, read off the pixels. |
+| The TORTIE.sh lockup | shipped | Measured in the running renderer. 28 px on 32, weight 600 with the suffix at 400, letter spacing 1.68 px and 0.56 px, wordmark 142.82 px against the specified 143, lockup 206.82 px against 207. `getAnimations()` returns 0, so the screen is still. |
+| Centring, the operator's acceptance criterion | shipped | deltaX = 0.0 px at 960, 1440 and 1920. The column top is 224 px at 1440x900 in the five recent, three recent and no recent states, so the mark does not move. |
+| Up to five recent projects, three in a short window | shipped | `src/main/recents/`, a JSON file at `<userData>/recents.json` at version 1. It survives a quit and a relaunch. The section label stays visible when rows are hidden. |
+| Open Recent and Clone Repository… in the native File menu | shipped | Read out of Electron's own `Menu.getApplicationMenu()` in the running main process. |
+| Cloning, spawning the system git | shipped | `src/main/projects/clone.ts`, `clone-parse.ts`, `src/shared/clone-url.ts`. No git package was added. |
+| One progress bar per git phase | shipped | `src/renderer/state/clone.ts` keeps the current phase's own number and drops it when the phase word changes. There is no overall percentage and no byte denominator. |
+| Two new tokens and no more | shipped | `--text-brand: 28px` and `--lh-brand: 32px`. The diff of tokens.css is those two lines and a comment. |
+
+### The Tier 3 clone proofs, each one measured
+| Requirement | Result |
+| --- | --- |
+| A public clone succeeds and opens as a project | octocat/Hello-World in 437 ms through the real dialog. `.git` on disk, the dialog closed itself, the tab reads "Hello-World", and the project reached `projects.list()` and the recents file. |
+| A private clone succeeds using the keychain | github.com/gregce/tortie in 1,396 ms, driven through `CloneEngine`. 108 commits and 2 remote branches, so it is a full clone and not a shallow one. `HOME` was the real `/Users/gdc` and `GIT_CONFIG_NOSYSTEM` was never set. |
+| A private clone with no credential fails readably rather than hanging | The same repository, with `HOME` pointed at an empty directory and `GIT_CONFIG_NOSYSTEM=1`, failed in 118 ms with "could not read Username for 'https://github.com': terminal prompts disabled". Nothing hung and nothing was stored. |
+| Cancelling leaves nothing behind | A clone of nodejs/node was cancelled 1.5 s in. The temporary directory `.tortie-clone-euEotW` existed during the clone. After the cancel the parent folder was empty, the final folder was never created, and the terminal frame reported `cancelled: true`. |
+| A destination that already exists is refused before anything is written | The dialog refused with "'Hello-World' already exists in that folder.", stayed editable, and wrote nothing. Zero `.tortie-clone-*` directories were left. |
+
+### A defect found by the verifier and fixed inside the phase
+A failed address check left `checkedAddress` at null, so every mousedown in the dialog blurred the
+address field, re-ran the check, and unmounted the `[Show details]` button before the mouseup landed.
+The user could never open the details. One bad address cost 10 network round trips. The fix records
+the string that was answered, so a repeat blur is a no operation. The same probe now spends 1 round
+trip, three real clicks on `[Show details]` spend 0, and the raw git stderr appears on the first
+click. Four regression tests were added.
+
+### What is not true
+- The tortie.sh site returns 404 today. That is a deployment matter and the operator knows it.
+- The status dot and the count badge on recent projects were cut, along with the synthesized overall
+  progress bar, the byte denominator and the submodule controls. These were cut for the reasons
+  recorded below and are not oversights.
+- The clone dialog was driven over CDP rather than by a person, so the feel of the progress bar under
+  a slow network is unmeasured. Only the numbers it prints were checked.
+- No clone was tested against a non GitHub host. The URL rules cover GitLab, Bitbucket and a bare SSH
+  host by unit test only.
+
+### Gates at the commit
+`npm run typecheck` clean. `npm run build` in 20.98 s. `npm test` 131 files passed and 1 skipped,
+1,690 tests passed and 2 skipped. `npm run smoke:t1` 5/5 create and 6/6 verify, tmux and manifest
+both clean. `conformance:resume:capture` was not required, because nothing under `agents/registry.ts`,
+`manifest/harvest/**`, `manifest/agents.ts` or `restore/**` is touched.
+The operator's live tmux sessions were counted before and after the whole phase. 41 both times, with
+byte identical name lists. Every clone went under the scratchpad. Their git config, keychain and
+credentials were read and never written.
+
+### The specification, kept for the record
 
 Full specification in docs/research/35-home-screen.md, which carries the wireframes, the exact copy,
 the eleven URL rules and the ten failure messages. Read it before building. This entry records the
@@ -1126,9 +1176,37 @@ motion on the state DESIGN.md says must be still. The menu bar already carries t
 completely. Also cut: the synthesized progress bar, the byte denominator, a hardcoded sentence
 claiming nothing was left on disk, and the submodule controls in the dialog.
 
+### Centring, added by the operator 2026-08-12 after seeing a build in progress
+Reference: `/Users/gdc/Library/Application Support/CleanShot/media/media_bKSpvfcoXM/CleanShot 2026-08-12 at 16.49.00@2x.png`.
+In that build the column sits well left of the window's centre with a large empty area below it. The
+operator's instruction is that the finished screen must be **well centred**. This is an acceptance
+criterion, not a preference, and both conditions below are measurable.
+
+**Horizontal.** The column's horizontal centre must equal the window's horizontal centre, within 2 px.
+Measure it by reading the bounding rectangle out of the running renderer at three window widths, being
+960, 1440 and 1920. Research 35 already says the column is centred horizontally with its contents left
+aligned inside it, so a build that is off centre is a defect against the specification rather than a
+new requirement.
+
+**Vertical, and this one needs a decision rather than a rule.** Research 35 anchored the column near
+the top deliberately, so the mark sits at the same height on the first launch and the hundredth. That
+reasoning is sound and must not be thrown away by simply centring the column, because then the whole
+screen would move up and down as recent projects appear and disappear.
+Resolve it this way: choose the top offset so that **the tallest state is vertically centred**, and let
+every shorter state keep that same top edge. Research 35 measured the three heights as 490 px with five
+recents, 434 px with three and 296 px with none. So the offset is computed from 490, and the mark never
+moves.
+Optical centring slightly above the true middle is acceptable if it reads better, but the amount must
+be stated as a number in the code with a one line reason, not left as an unexplained constant.
+
+**What the verifier must report.** The measured window centre and column centre at each of the three
+widths, and the top edge of the column in the empty, three recent and five recent states, showing it
+does not move.
+
 ### Verification
 Tier 2 for the screen, being gates plus screenshot reads at a wide and a narrow window, including the
-first launch state with no recents.
+first launch state with no recents. **The centring criterion above is part of this tier and a failure
+on it is a failure of the phase.**
 **Tier 3 for cloning**, because it writes to the filesystem and touches credentials. Prove each of
 these against a real repository: a public clone succeeds and opens as a project; a private clone
 succeeds using the keychain; a private clone with no credential fails with a readable message rather

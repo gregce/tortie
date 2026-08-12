@@ -84,3 +84,30 @@ export function modalKeyDown(
     handlers.close();
   }
 }
+
+/**
+ * Hand the keyboard to the fleet a just-created project is now showing, so
+ * Return starts a session without touching the mouse.
+ *
+ * Queued past the render that mounts the fleet, and harmless if the user has
+ * already moved somewhere else — `?.focus()` on nothing does nothing.
+ *
+ * It lives beside the modal keyboard contract because it IS the last step of
+ * that contract: a dialog that closes without saying where the keyboard went
+ * leaves it on a removed element, and then the next keystroke goes nowhere.
+ * Extracted at the Phase 18.6 integration, when the clone dialog arrived
+ * carrying a second copy of the same four lines (research 35 §4.1).
+ */
+export function focusFleetPrimary(): void {
+  setTimeout(() => {
+    document.querySelector<HTMLButtonElement>('.onb-tile.primary')?.focus();
+  }, FLEET_FOCUS_DELAY_MS);
+}
+
+/**
+ * How long to wait before the handoff above. 120 ms, which is the value the
+ * New Project dialog has shipped since Phase 12.9: long enough for the project
+ * list round trip and the render that mounts the fleet, short enough that the
+ * keyboard is there before a person can reach for it.
+ */
+const FLEET_FOCUS_DELAY_MS = 120;

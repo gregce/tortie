@@ -26,7 +26,11 @@
 
 import { app, BrowserWindow, Menu } from 'electron';
 import type { MenuItemConstructorOptions } from 'electron';
-import { EVT_MENU_ACTION, EVT_QUIT_REQUESTED } from '@shared/ipc';
+import {
+  EVT_MENU_ACTION,
+  EVT_QUIT_REQUESTED,
+  OPEN_RECENT_PREFIX
+} from '@shared/ipc';
 import type { MenuActionWithFind } from '@shared/ipc';
 // Every accelerator below comes from the ONE keymap (Phase 12.12). Do not
 // type a chord string into this file — add it to src/shared/keymap.ts and
@@ -51,6 +55,10 @@ import {
 } from './settings/window';
 import { getRegistryEntry } from './agents/registry';
 import { BUILD_COMMIT } from './build-info';
+// Phase 18.6. The recents domain hands over the whole `Open Recent` item as
+// DATA and knows nothing about how a click reaches the renderer, which is the
+// one decision this file keeps.
+import { clearRecents, onRecentsChanged, openRecentMenuItem } from './recents';
 
 /**
  * Can this window act on a menu action? The Settings window (S13) is a
@@ -258,6 +266,17 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         // first, the way every Mac app orders them.
         item('New Project…', 'new-project', accel('project.new')),
         item('Open Project…', 'open-project', accel('project.open')),
+        // Phase 18.6. The third project verb, in the same order the + menu
+        // lists them (src/renderer/app/project-menu.ts). No accelerator.
+        item('Clone Repository…', 'clone-repository'),
+        // Phase 18.6. Directly under the three verbs, which is where macOS
+        // puts it. The rows are built from <userData>/recents.json at the
+        // moment the menu is built, and `rebuildAppMenu()` runs on every
+        // change to that file, so the submenu cannot go stale.
+        openRecentMenuItem({
+          open: (path) => sendMenuAction(`${OPEN_RECENT_PREFIX}${path}`),
+          clear: () => clearRecents()
+        }),
         { type: 'separator' },
         item('Save', 'save-file', accel('editor.save')),
         { type: 'separator' },
@@ -396,6 +415,21 @@ export function rebuildAppMenu(): void {
   applyMenu();
 }
 
+/** True once the recents subscription exists, so a second install is a no-op. */
+let watchingRecents = false;
+
+/**
+ * Rebuild whenever the recents file changes, so `File > Open Recent` is never
+ * a list of where the user used to be. The template reads the rows
+ * synchronously as it is built, which is what makes this the whole mechanism:
+ * there is no second pass to race and no cached submenu to invalidate.
+ */
+function watchRecentsForMenu(): void {
+  if (watchingRecents) return;
+  watchingRecents = true;
+  onRecentsChanged(() => applyMenu());
+}
+
 export function installAppMenu(): void {
   // The About panel reads CFBundleName/CFBundleShortVersionString from the
   // bundle in a packaged build and Electron's own values in dev, so a dev run
@@ -418,5 +452,6 @@ export function installAppMenu(): void {
     // a worse panel, not a broken app. Never let it cost us the menu bar.
     console.warn(`[gmux] About panel: ${(err as Error).message}`);
   }
+  watchRecentsForMenu();
   applyMenu();
 }

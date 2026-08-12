@@ -39,6 +39,9 @@ import type {
 import { formatScrollbackBytes } from '@shared/scrollback';
 import { showNativeMenu } from '../app/ContextMenu';
 import { cancelPointerDrag } from '../app/split/pointer-drag';
+// A pure string helper with no imports of its own, so this does not close a
+// cycle back through the shell.
+import { parentDir } from '../app/format';
 // Direct module import (NOT ../settings barrel): the barrel re-exports
 // integration.ts which imports this store — presets.ts itself does not.
 import { defaultLaunchArgsFor } from '../settings/presets';
@@ -1396,6 +1399,26 @@ export function sortProjects(
     if (ra !== rb) return ra - rb;
     return a.name.localeCompare(b.name);
   });
+}
+
+/**
+ * The folder a new project should be put in, guessed from the open ones.
+ *
+ * Where the last project came from is overwhelmingly where the next one goes,
+ * because people keep their repositories in one place. With nothing open there
+ * is nothing to guess from and this returns '', which both dialogs read as
+ * "ask, do not invent a path".
+ *
+ * ONE definition, in the projects domain that already owns `projects` and
+ * `addProjectPath`. It arrived twice in the Phase 18.6 parallel build, in
+ * NewProjectModal.tsx and in state/clone.ts, and two guesses that drift is a
+ * dialog that opens at a different folder depending on which one you used.
+ */
+export function suggestedProjectParent(): string {
+  const s = useApp.getState();
+  const reference =
+    s.projects.find((p) => p.id === s.activeProjectId) ?? s.projects[0];
+  return reference === undefined ? '' : parentDir(reference.path);
 }
 
 /** Next free `<base>-<n>` ordinal within a session list (S6 name prefill). */

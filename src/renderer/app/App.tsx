@@ -23,10 +23,12 @@ import type {
   GmuxQuitExtras,
   MenuActionWithFind
 } from '@shared/ipc';
+import { OPEN_RECENT_PREFIX } from '@shared/ipc';
 import { acceleratorToDisplay, keyDisplay } from '@shared/keymap';
 import { sessionsPositionForMenuAction } from '@shared/sessions-position';
 import { useApp, whenSessionsPositionPushed } from '../state/store';
 import type { SidebarViewId } from '../state/store';
+import { cloneAction } from '../state/clone';
 import { useLayout } from '../state/layout';
 import type { NavDir } from '../state/layout';
 import { useEditor } from '../editor/store';
@@ -42,6 +44,7 @@ import { SessionDock } from './SessionDock';
 import './work-area.css';
 import { CreateSessionModal } from './CreateSessionModal';
 import { NewProjectModal } from './NewProjectModal';
+import { CloneRepoModal } from './CloneRepoModal';
 import { ShortcutsOverlay } from './ShortcutsOverlay';
 import { AttentionOverlay } from './AttentionOverlay';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -488,6 +491,15 @@ function runMenuAction(action: AnyMenuActionWithProjects): void {
       if (s.canCreateProject()) s.setNewProjectOpen(true);
       else s.toast('info', 'This build cannot create projects.');
       return;
+    // Phase 18.6. The third project verb. `cloneAction()` is undefined on a
+    // preload with no projects:clone, and the same guard the New Project case
+    // uses says so out loud rather than doing nothing.
+    case 'clone-repository': {
+      const clone = cloneAction();
+      if (clone === undefined) s.toast('info', 'This build cannot clone repositories.');
+      else clone();
+      return;
+    }
     case 'close-project':
       if (s.activeProjectId !== null) s.closeProject(s.activeProjectId);
       return;
@@ -585,6 +597,16 @@ function useMenuActions(): void {
       // Phase 12.85: the menu-bar sentinel's rows carry a session id.
       if (action.startsWith(FOCUS_SESSION_PREFIX)) {
         jumpToSession(action.slice(FOCUS_SESSION_PREFIX.length));
+        return;
+      }
+      // Phase 18.6: File > Open Recent > a row. The path travels on the id
+      // because it cannot be a union member, and it goes to the same
+      // addProjectPath every other route to a project ends at — so a folder
+      // that has since gone fails with the one sentence that case already has.
+      if (action.startsWith(OPEN_RECENT_PREFIX)) {
+        void useApp
+          .getState()
+          .addProjectPath(action.slice(OPEN_RECENT_PREFIX.length));
         return;
       }
       // Still a NARROWING cast, and now visibly so: what survives the
@@ -1057,6 +1079,11 @@ export function App(): React.JSX.Element {
 
       <CreateSessionModal />
       <NewProjectModal />
+      {/* Phase 18.6. Mounted beside New Project because it is reachable from
+          the same three places (the home row, the + menu, File) and, unlike
+          the home screen, those two of them work from INSIDE a project. It
+          renders null unless the clone store says it is open. */}
+      <CloneRepoModal />
       <ShortcutsOverlay />
       <AttentionOverlay />
       <QuickOpenPalette />

@@ -21,6 +21,7 @@ import type {
 // a change that did not come from the menu itself.
 import { setSessionsPositionRadios } from './menu';
 import { registerPopupMenuHandler } from './menu-popup';
+import { rememberProject } from './recents';
 import { getGmuxCore } from './sessions';
 import { handle as handleTyped } from './typed-ipc';
 
@@ -112,13 +113,25 @@ export function registerIpcHandlers(): void {
     (await getGmuxCore()).activity.noteUserInput(sessionId);
   });
 
-  handle('projects:add', async (_e, path) =>
-    (await getGmuxCore()).addProject(path)
-  );
+  // Phase 18.6 item 2: the recents file is written HERE, at the two moments
+  // that mean "the user was just in this project". Every route into a project
+  // ends at projects:add, which is the folder picker, a window drop, New
+  // Project, Clone and the home screen's own recent rows, so a route added
+  // later cannot forget to record itself. The rules and the file are in
+  // ./recents; these two lines are the whole call site.
+  handle('projects:add', async (_e, path) => {
+    const project = (await getGmuxCore()).addProject(path);
+    rememberProject(project);
+    return project;
+  });
   handle('projects:list', async () => (await getGmuxCore()).listProjects());
-  handle('projects:remove', async (_e, projectId) =>
-    (await getGmuxCore()).removeProject(projectId)
-  );
+  handle('projects:remove', async (_e, projectId) => {
+    const core = await getGmuxCore();
+    // Read the row BEFORE it is deleted, so the recents entry keeps the name
+    // the user gave the project rather than falling back to the folder name.
+    rememberProject(core.listProjects().find((p) => p.id === projectId));
+    core.removeProject(projectId);
+  });
   handle('projects:pickDirectory', async (e) => {
     const win = BrowserWindow.fromWebContents(e.sender);
     const options = {

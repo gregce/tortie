@@ -1,31 +1,27 @@
 /**
- * Empty-state styles, colocated with EmptyStates.tsx (S9 / §6.1–§6.2).
+ * Empty-state styles, colocated with EmptyStates.tsx (S9 / §6.2, §6.4, §6.6).
  *
  * The shared primitives (.empty, .empty-title, .empty-body, .empty-actions)
  * stay in styles/app.css — every empty surface in the app uses them. What
  * lives here is the FLEET launcher: the no-sessions-in-a-project state, the
  * first thing a user sees in a new project — plus the shared column rhythm
  * (.onb-inner) and hint row every other full-window state now adopts, so
- * §6.1, §6.2, §6.4 and §6.6 read as one family.
+ * §6.2, §6.4 and §6.6 read as one family.
+ *
+ * §6.1 left this family in Phase 18.6. The state with no project open is the
+ * home screen now, it is left aligned in a 460px column of its own, and its
+ * styles are in app/home-screen.css. .onb-inner MUST STAY at 660px: widening
+ * it here would silently reflow the two states above.
  *
  * Every override is qualified with an extra class (.empty-inner.onb-inner,
  * .onb-inner .empty-body) so it outranks app.css on SPECIFICITY, never on
  * bundle order — Vite is free to emit these stylesheets in either order.
  */
 
-/* ---------------------------------------------------------------------------
-   The one in-window Tortie mark (Phase 12.85) — first run only, above the
-   title. It is deliberately the state where there is no work to look at yet:
-   identity shows itself once, then the product gets out of the way. Sized in
-   CSS px off a 128px source so it stays crisp at 2x, dimmed so it sits under
-   the title in the hierarchy, and never animated.
---------------------------------------------------------------------------- */
-.brand-mark {
-  width: 44px;
-  height: 44px;
-  margin-bottom: var(--space-5);
-  opacity: 0.85;
-}
+/* The in-window Tortie mark left this file in Phase 18.6. It was a 44px
+   dimmed mark above the first-run title, and its one caller is gone: the
+   state with no project open is now the home screen, which sets the mark at
+   48px at full opacity inside the TORTIE.sh lockup (app/home-screen.css). */
 
 /* The type-only states read at 420px; the fleet grid needs a wider column.
    width:100% is load-bearing — .empty centers its child, so without it the

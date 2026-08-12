@@ -1,0 +1,336 @@
+/**
+ * The home screen, colocated with HomeScreen.tsx.
+ * Specification: docs/research/35-home-screen.md §1. Phase 18.6 item 1.
+ *
+ * Every class here is new and belongs to this one surface, so nothing in this
+ * file overrides app.css. The rule the empty-states header states still binds
+ * it: if a rule ever does need to beat a shared one, qualify it with a second
+ * class so it wins on SPECIFICITY and never on bundle order. Vite is free to
+ * emit these stylesheets in either order.
+ *
+ * The screen brings its own 460px container rather than widening .onb-inner,
+ * which stays at 660px because NoSessions and TmuxMissing are measured
+ * against it.
+ *
+ * Two literals appear below and neither is a colour. They are the two letter
+ * spacing values in the wordmark. The design system has no tracking tokens,
+ * and adding two for one element would be worse than the literals (§1.12).
+ * Everything else is a token.
+ */
+
+/* ---------------------------------------------------------------------------
+   The column (§1.1, §1.5), and the operator's centring criterion
+
+   Centred horizontally, contents left aligned inside it.
+
+   VERTICALLY, THE TALLEST STATE IS WHAT IS CENTRED, and every shorter state
+   keeps that same top edge. Two requirements pull against each other here and
+   this is the resolution the operator settled on, so do not simplify it to
+   either half:
+
+     - §1.1 anchors the column near the top so the mark sits at the same height
+       on the first launch and on the hundredth. Plainly centring the column
+       would move the whole screen up and down as recent projects appear and
+       disappear.
+     - The operator's acceptance criterion, added after seeing a build with the
+       column high and a large empty area under it, is that the screen must be
+       well centred.
+
+   `min-height: 490px` is how both are true at once. 490 px is the measured
+   height of the tallest state, which is the one with five recents (§1.5, the
+   other two are 434 px and 296 px). The BOX is always 490 px tall and always
+   centred, and the content sits at the top of it, so the mark's y depends only
+   on the window and never on how many recents exist. It is the true middle and
+   not an optical one: the content's own mass already sits in the top half of
+   the box in every state but the tallest, which reads high rather than low.
+
+   `margin: auto 0` and not `align-items: center`. Both centre; only auto
+   margins collapse to zero when the free space goes negative, so a window
+   shorter than the content scrolls from the top instead of clipping the
+   wordmark above the scroll origin. The padding on the scroll container is the
+   breathing room in that case.
+
+   The container scrolls. A window shorter than the content must scroll rather
+   than clip, and it must never shrink the type.
+--------------------------------------------------------------------------- */
+.home {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  overflow-y: auto;
+  padding: var(--space-7) 0;
+}
+
+.home-col {
+  width: 460px;
+  flex: 0 0 auto;
+  /* The tallest state (§1.5). See the note above before changing it. */
+  min-height: 490px;
+  margin: auto 0;
+}
+
+/* ---------------------------------------------------------------------------
+   The lockup (§1.6)
+
+   The mark is 48px and the wordmark is 28px on 32px, which makes the mark
+   2.39 times the measured cap height of 20.07px. TORTIE is semibold and
+   --text-primary; .sh is regular and --text-secondary, one step down the
+   neutral ramp, because the name is the product and the suffix is its
+   address. Both halves stay the same size: at 28px the ascender of the h
+   measures 19.73px and lands on the cap line, which locks the two into one
+   object. A smaller suffix would hang off the end like a trademark mark.
+
+   Never animated. DESIGN.md §5 forbids anything on app load.
+--------------------------------------------------------------------------- */
+.home-lockup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.home-mark {
+  display: block;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+}
+
+.home-word {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: var(--text-brand);
+  line-height: var(--lh-brand);
+  font-weight: var(--weight-semibold);
+  /* 1.68px at this size. Tracking 0 reads as a bold heading rather than a
+     wordmark, and 0.12em takes the letters apart. */
+  letter-spacing: 0.06em;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.home-word-suffix {
+  font-weight: var(--weight-regular);
+  /* Less than the name's tracking: ".sh" is three glyphs and inherits the
+     name's spacing badly at 0.06em. */
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+}
+
+/* ---------------------------------------------------------------------------
+   The promise (§1.10)
+
+   15px, secondary. Larger than everything except the wordmark, so its size
+   carries its rank without borrowing the primary colour from the action
+   titles, which are the things the user has to click.
+--------------------------------------------------------------------------- */
+.home-promise {
+  margin: var(--space-5) 0 0;
+  font-size: var(--text-md);
+  line-height: var(--lh-md);
+  color: var(--text-secondary);
+}
+
+/* ---------------------------------------------------------------------------
+   Groups and rows (§1.8, §1.9)
+--------------------------------------------------------------------------- */
+.home-group {
+  margin-top: var(--space-9);
+}
+
+.home-group-label {
+  margin-bottom: var(--space-3);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* The shared row vocabulary. Actions and recents share it so one set of
+   arrow keys walks the whole screen as one list. */
+.home-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  width: 100%;
+  margin: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+  cursor: default;
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+
+.home-row:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.home-row:hover {
+  background: var(--bg-raised);
+}
+
+.home-row:active {
+  background: var(--bg-active);
+}
+
+/* -- action rows ---------------------------------------------------------- */
+
+.home-action {
+  height: 48px;
+  padding: 0 var(--space-4);
+  border-radius: var(--r-md);
+}
+
+.home-row-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  /* --text-secondary, drawn with currentColor. DESIGN.md §1.2 forbids accent
+     on an icon at rest, which is also why no row is marked primary. */
+  color: var(--text-secondary);
+}
+
+.home-row-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.home-row-title,
+.home-row-subtitle {
+  display: block;
+  /* One line each, so the row is 48px whatever the face measures. The two
+     longest subtitles set at about 330px inside a 372px slot. */
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.home-row-title {
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  font-weight: var(--weight-medium);
+  color: var(--text-primary);
+}
+
+.home-row-subtitle {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-muted);
+}
+
+/* Not cosmetic. --text-muted on --bg-raised measures 4.38:1, below the 4.5:1
+   floor, and --text-secondary on --bg-raised measures 6.83:1. DESIGN.md §1.1
+   already says secondary information steps up on a raised fill. A builder who
+   applies only the fill ships a contrast failure on every hover. */
+.home-action:hover .home-row-subtitle {
+  color: var(--text-secondary);
+}
+
+/* The keycap's rest fill IS --bg-raised, so on a raised row it would vanish. */
+.home-action:hover .key {
+  background: var(--bg-active);
+}
+
+/* -- recent rows ---------------------------------------------------------- */
+
+/* 8px of row padding plus a 32px indent puts the name 40px from the column's
+   left edge, which is exactly where an action row's title starts. Without it
+   the two lists have two left edges 16px apart, which reads as a mistake
+   (§1.14). The first draft got the same alignment from a reserved dot slot;
+   the dot is cut, so the alignment is padding. */
+.home-recent {
+  height: 28px;
+  padding: 0 var(--space-4) 0 calc(var(--space-4) + var(--space-9));
+  border-radius: var(--r-sm);
+}
+
+.home-recent-name {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  color: var(--text-primary);
+}
+
+/* Mono, because DESIGN.md §1.8 reserves mono for terminal adjacent truth and
+   names a path shown as a path as one of its cases. */
+.home-recent-path {
+  margin-left: auto;
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.home-recent:hover .home-recent-path {
+  color: var(--text-secondary);
+}
+
+/* Reserved on EVERY row, empty unless the folder is missing, so the warning
+   can appear without moving anything. */
+.home-recent-warn {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 0 0 auto;
+  width: 16px;
+  color: var(--text-muted);
+}
+
+/* A folder that has moved or been deleted. Three redundant channels: the name
+   steps down to --text-muted at 5.25:1, the path is struck through, and the
+   warning icon appears. No state is ever carried by colour alone. Hiding the
+   row was rejected, because a row that disappears without explanation makes
+   the user doubt their own memory. */
+.home-recent[data-missing='true'] .home-recent-name {
+  color: var(--text-muted);
+}
+
+.home-recent[data-missing='true'] .home-recent-path {
+  text-decoration: line-through;
+}
+
+/* ---------------------------------------------------------------------------
+   The hint (§1.13)
+--------------------------------------------------------------------------- */
+.home-hint {
+  margin: var(--space-7) 0 0;
+  font-size: var(--text-xs);
+  line-height: 18px;
+  color: var(--text-muted);
+}
+
+/* ---------------------------------------------------------------------------
+   The short-window cap (§1.5)
+
+   Five rows plus the rest of the column is 490px of content, which does not
+   fit the 562px content area of the 960 by 600 minimum window once the
+   padding is usable. Three rows is 434px and fits with 44px to spare.
+
+   nth-of-type and NOT nth-child: the section label is the first child, so
+   nth-child(n+4) would hide one row too many. That was caught in the
+   prototype. The rows are the only buttons in this group, so counting by type
+   counts rows.
+
+   This is a CSS rule and not a JavaScript branch, and the arrow-key walk in
+   HomeScreen.tsx steps over anything with no offsetParent, so a hidden row
+   cannot be focused.
+--------------------------------------------------------------------------- */
+@media (max-height: 760px) {
+  .home-recents .home-recent:nth-of-type(n + 4) {
+    display: none;
+  }
+}

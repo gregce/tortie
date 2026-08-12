@@ -72,8 +72,13 @@ import type { CreateSessionInput } from '@shared/types';
 import { installAppMenu } from './menu';
 import { migrateUserDataIfNeeded, showRenameNoticeOnce } from './migrate';
 import { runMigrateSmoke } from './migrate/smoke';
-import { registerProjectCreateIpc } from './projects';
+import {
+  disposeProjectCloneIpc,
+  registerProjectCloneIpc,
+  registerProjectCreateIpc
+} from './projects';
 import { disposeQuickOpenIpc, registerQuickOpenIpc } from './quickopen';
+import { registerRecentsIpc } from './recents';
 import {
   reconcileLoginItem,
   registerRestoreIpc,
@@ -1614,6 +1619,14 @@ app.whenReady().then(async () => {
   // Phase 12.9 item 1: projects:create — the only project channel that
   // writes to disk (mkdir + optional `git init`, then the usual add).
   registerProjectCreateIpc(ipcMain);
+  // Phase 18.6 item 5: cloning (projects:clonePreflight/clone/cancelClone).
+  // The second project channel that writes to disk, and the only one that
+  // writes for as long as a download takes.
+  registerProjectCloneIpc(ipcMain);
+  // Phase 18.6 item 2: recent projects (recents:list/missing/remove), read
+  // from <userData>/recents.json. Written by the two projects handlers in
+  // ./ipc.ts, one on open and one on close.
+  registerRecentsIpc(ipcMain);
   // Phase 6: restore extension channels (sessions:restore, sessions:discard,
   // app:get/setLoginItem).
   registerRestoreIpc(ipcMain);
@@ -1745,6 +1758,16 @@ app.on('before-quit', (event) => {
   quitFlowStarted = true;
   event.preventDefault();
   void (async () => {
+    // Phase 18.6: a clone in flight is cancelled the same way pressing
+    // Cancel cancels it, with SIGTERM and never SIGKILL, because a hard kill
+    // leaves a repository mid write. Awaited first and bounded inside, so
+    // git gets its moment to remove its own destination and quit still
+    // cannot wedge on a network.
+    try {
+      await disposeProjectCloneIpc();
+    } catch {
+      /* never block quit */
+    }
     try {
       await shutdownGmuxCore(); // snapshots first, then dispose
     } catch {

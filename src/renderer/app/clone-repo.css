@@ -1,0 +1,168 @@
+/**
+ * Clone dialog styles, colocated with CloneRepoModal.tsx (Phase 18.6).
+ *
+ * The dialog itself is the shared S6 sheet: `.modal-scrim`, `.modal`,
+ * `.field`, `.input`, `.btn` and the `.np-target` preview all come from
+ * styles/app.css and styles/globals.css and are not restated here. What lives
+ * in this file is the running state, which no other surface has.
+ *
+ * Every override is qualified with a second class (.modal.clone-modal,
+ * .field-caption.clone-resolved) so it outranks the shared sheet on
+ * SPECIFICITY and never on bundle order — Vite is free to emit these
+ * stylesheets in either order. That rule is written in the header of
+ * app/empty-states.css and it binds this file too.
+ *
+ * No new tokens. Research 35 adds exactly two, both for the wordmark, and
+ * neither is used here.
+ */
+
+/* The clone dialog is the same 480 px sheet as New Project. The class exists
+   so the rules below have something to qualify against, and so a later change
+   to this dialog cannot reach the other two by accident. */
+.modal.clone-modal {
+  width: 480px;
+}
+
+/* ---------------------------------------------------------------------------
+   The address field's quiet lines: what Tortie will actually clone, and the
+   two things it changed about what was pasted.
+--------------------------------------------------------------------------- */
+
+/* Height for one line is reserved, so resolving an address does not move the
+   fields under it. A second or third note grows the block, which only happens
+   after the user has acted. */
+.clone-notes {
+  min-height: calc(var(--lh-xs) + var(--space-2));
+}
+
+/* The resolved address is an address, and §1.8 sets addresses in mono. It
+   steps up from --text-muted because it is the value, not the caption. */
+.field-caption.clone-resolved {
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------------------
+   Failure
+--------------------------------------------------------------------------- */
+
+/* Git's own last line, under the heading for a failure nothing classified.
+   Verbatim and in mono, because inventing a diagnosis is the one thing this
+   flow must not do. */
+.clone-verbatim {
+  margin-top: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+/* The second sentence under a credential failure. Not an error colour: it is
+   the way out, not the problem. */
+.clone-hint {
+  margin-top: var(--space-3);
+  color: var(--text-secondary);
+}
+
+.clone-details-toggle {
+  margin-top: var(--space-3);
+  margin-left: calc(-1 * var(--space-3)); /* optical: align the label, not the pad */
+}
+
+/* Git's raw stderr, the same mono block DESIGN.md §6.11 already uses for a
+   failed commit. Bounded, because a failed clone can print a great deal. */
+.clone-details {
+  margin: var(--space-3) 0 0;
+  max-height: 160px;
+  overflow: auto;
+  padding: var(--space-4);
+  background: var(--bg-canvas);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* What main reported it did on disk after a cancel. A statement of fact, so it
+   is neutral rather than an error. */
+.clone-cancelled {
+  margin-top: var(--space-5);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-secondary);
+}
+
+/* ---------------------------------------------------------------------------
+   Running
+--------------------------------------------------------------------------- */
+
+.clone-run {
+  margin-bottom: var(--space-7);
+}
+
+.clone-run-url {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clone-run-into {
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The phase word. It is the label the bar belongs to, and it is the thing that
+   tells the user the bar reset, so it sits directly above it and is the
+   loudest text in the block. */
+.clone-phase {
+  margin-top: var(--space-7);
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  color: var(--text-primary);
+}
+
+.clone-bar {
+  margin-top: var(--space-4);
+  height: var(--space-2);
+  border-radius: var(--r-sm);
+  background: var(--bg-raised);
+  overflow: hidden;
+}
+
+/* NO TRANSITION, deliberately. Git emits about thirty frames a second, so an
+   easing on the width would always be chasing a value that had already moved,
+   and the bar would lag behind the number it is drawing. This is a readout,
+   not an animation. */
+.clone-bar-fill {
+  height: 100%;
+  background: var(--accent);
+}
+
+/* Git's cumulative byte figure during Downloading, in git's own unit. There is
+   no denominator because git never prints one. The row keeps its height when
+   the figure is absent, so the sheet does not resize as phases change. */
+.clone-bytes {
+  min-height: var(--lh-xs);
+  margin-top: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+}

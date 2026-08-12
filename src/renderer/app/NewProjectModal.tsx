@@ -20,35 +20,18 @@
  * empty state that already exists rather than a second modal.
  */
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { projectPathFor, validateProjectName } from '@shared/project-create';
-import { errorText, useApp } from '../state/store';
-import { displayPath, truncateMiddle } from './format';
-import { modalKeyDown } from './focus-trap';
-
-/** Directory part of an absolute path, no trailing slash. */
-function parentOf(path: string): string {
-  const i = path.lastIndexOf('/');
-  return i <= 0 ? '/' : path.slice(0, i);
-}
+// `suggestedProjectParent` is the ONE guess at where a new project goes; the
+// clone dialog calls the same function (Phase 18.6 dedup).
+import { errorText, suggestedProjectParent, useApp } from '../state/store';
+import { TargetPathLine } from './TargetPathLine';
+import { focusFleetPrimary, modalKeyDown } from './focus-trap';
 
 export function NewProjectModal(): React.JSX.Element | null {
   const open = useApp((s) => s.newProjectOpen);
   const setOpen = useApp((s) => s.setNewProjectOpen);
   const createProject = useApp((s) => s.createProject);
-  const projects = useApp((s) => s.projects);
-  const activeProjectId = useApp((s) => s.activeProjectId);
-
-  /**
-   * Where the last project came from is overwhelmingly where the next one
-   * goes — people keep their repos in one place. With nothing open there is
-   * nothing to guess from, so the dialog asks instead of inventing a path.
-   */
-  const suggestedParent = useMemo(() => {
-    const active = projects.find((p) => p.id === activeProjectId);
-    const reference = active ?? projects[0];
-    return reference === undefined ? '' : parentOf(reference.path);
-  }, [projects, activeProjectId]);
 
   const [parentDir, setParentDir] = useState('');
   const [name, setName] = useState('');
@@ -61,6 +44,10 @@ export function NewProjectModal(): React.JSX.Element | null {
 
   useEffect(() => {
     if (!open) return;
+    // Read once, as the dialog opens. It was a useMemo over the project list
+    // before, which recomputed on every tab change behind an open dialog and
+    // was never read again after this line.
+    const suggestedParent = suggestedProjectParent();
     setParentDir(suggestedParent);
     setName('');
     setTouched(false);
@@ -116,14 +103,7 @@ export function NewProjectModal(): React.JSX.Element | null {
     void createProject({ parentDir: parentDir.trim(), name: name.trim(), gitInit })
       .then(() => {
         setOpen(false);
-        // Hand the keyboard to the fleet the new project is now showing, so
-        // ↩ starts a session without touching the mouse. Queued past the
-        // render that mounts it; harmless if the user is already elsewhere.
-        setTimeout(() => {
-          document
-            .querySelector<HTMLButtonElement>('.onb-tile.primary')
-            ?.focus();
-        }, 120);
+        focusFleetPrimary();
       })
       .catch((err: unknown) => {
         setCreating(false);
@@ -216,19 +196,7 @@ export function NewProjectModal(): React.JSX.Element | null {
           </label>
         </div>
 
-        {/* The safety line: exactly what will be made, exactly where, before
-            anything is written. Reserved height so the dialog never jumps as
-            it appears. */}
-        <p className="np-target" aria-live="polite">
-          {target !== null ? (
-            <>
-              <span className="np-target-label">Creates</span>
-              <code className="np-target-path" title={target}>
-                {truncateMiddle(displayPath(target), 52)}
-              </code>
-            </>
-          ) : null}
-        </p>
+        <TargetPathLine target={target} />
 
         {error !== null ? <div className="modal-error">{error}</div> : null}
 

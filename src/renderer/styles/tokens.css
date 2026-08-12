@@ -134,6 +134,15 @@
   --text-lg: 20px; /* modal titles, empty-state titles */
   --lh-lg: 28px;
 
+  /* The wordmark, and nothing else (Phase 18.6, research 35 §1.6/§1.12).
+     --text-lg at 20px is the largest step in the scale above, and 20px is not
+     a wordmark. The step from 20 to 28 is 1.4, which sits outside the scale's
+     1.18 ratio ON PURPOSE: this is a mark, not a level in the text hierarchy.
+     It has exactly one user in the whole application, the TORTIE.sh lockup on
+     the home screen. Do not reach for it for a heading. */
+  --text-brand: 28px;
+  --lh-brand: 32px;
+
   --weight-regular: 400;
   --weight-medium: 500;
   --weight-semibold: 600;

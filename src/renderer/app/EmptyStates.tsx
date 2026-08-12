@@ -1,6 +1,12 @@
 /**
- * S9 — full-window states: first run (§6.1), the project with no sessions
- * (§6.2) and tmux missing (§6.4). Titles and bodies are DESIGN.md §6 copy.
+ * S9 — full-window states: the project with no sessions (§6.2) and tmux
+ * missing (§6.4). Titles and bodies are DESIGN.md §6 copy.
+ *
+ * §6.1, the state with no project open, is no longer written here. Phase 18.6
+ * turned it into the home screen, which carries the product's name, its own
+ * data and its own three verbs, so it lives in ./HomeScreen. `FirstRun` stays
+ * as the thin wrapper App renders, and it is the ONE place the home screen is
+ * wired to the rest of the app.
  *
  * §6.2 is the first thing a user sees inside a new project, so it does more
  * than name the absence: it shows the whole fleet Tortie can run, in the
@@ -26,61 +32,29 @@ import {
   type AgentPickerOption
 } from '../state/agents';
 import { useSettingsStore } from '../settings/settings-store';
+import { cloneAction } from '../state/clone';
 // Phase 12.12 item 1: the fleet board is a shared component now — the ⌘T
 // sheet renders the identical tiles from ./AgentGrid.
 import { AgentGrid } from './AgentGrid';
 import { Codicon } from '../icons';
-// Phase 12.85: the ONE in-window Tortie mark. Copied from the brand package
-// (docs/brand/tortie/dock/tortie-dock-128.png) by `npm run icon`.
-import tortieMark from '../assets/brand/tortie-128.png';
+import { HomeScreen } from './HomeScreen';
 import './empty-states.css';
 
+/**
+ * §6.1 — no project open. The whole screen is ./HomeScreen, and this wrapper
+ * is only the wiring.
+ *
+ * `cloneAction()` is the Clone verb on a build that can clone and undefined on
+ * one that cannot, so an older preload hides the Clone row rather than
+ * offering a button that throws (research 35 §3.14). It is a module function
+ * with a stable identity, so calling it during render costs nothing.
+ *
+ * Recents need no wiring here. The screen reads state/recents itself, and that
+ * store reports an empty list on a build with no recents bridge, which draws
+ * the first-launch state.
+ */
 export function FirstRun(): React.JSX.Element {
-  const openProject = useApp((s) => s.openProject);
-  const setNewProjectOpen = useApp((s) => s.setNewProjectOpen);
-  const canCreateProject = useApp((s) => s.canCreateProject());
-  return (
-    <div className="empty" data-slot="terminal-stack">
-      <div className="empty-inner onb-inner">
-        {/* Quiet identity in the one state with no work to show: low
-            contrast, never animated, freestanding (no badge or chrome —
-            docs/brand/tortie/README.md), and decorative to a screen reader
-            because the title already names the app. */}
-        <img className="brand-mark" src={tortieMark} alt="" aria-hidden="true" />
-        <h2 className="empty-title">Open a project to get started</h2>
-        <p className="empty-body">
-          A project is any folder — a git repo gets the full sidebar. Sessions
-          you start keep running even when Tortie is closed.
-        </p>
-        <div className="empty-actions">
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => void openProject()}
-          >
-            Open project…
-          </button>
-          {/* Phase 12.9 item 1: the second way in. Secondary, because on a
-              first run the folder almost always already exists — but present,
-              because until now it simply did not exist as an option. */}
-          {canCreateProject ? (
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => setNewProjectOpen(true)}
-            >
-              New project…
-            </button>
-          ) : null}
-        </div>
-        <p className="onb-hint">
-          Press <span className="key">{keyDisplay('project.open')}</span>, or
-          drop a folder anywhere in
-          this window.
-        </p>
-      </div>
-    </div>
-  );
+  return <HomeScreen onClone={cloneAction()} />;
 }
 
 // ---------------------------------------------------------------------------

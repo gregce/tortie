@@ -16,6 +16,8 @@ import type { IpcRendererEvent } from 'electron';
 import type {
   AllEventChannel,
   AllEventPayloadMap,
+  CloneDone,
+  CloneProgress,
   GmuxActivityExtras,
   GmuxAgentExtras,
   GmuxAgentRegistryExtras,
@@ -38,9 +40,11 @@ import type {
   GmuxMenuExtras,
   GmuxMultilineExtras,
   GmuxPopupMenuExtras,
+  GmuxProjectCloneExtras,
   GmuxProjectCreateExtras,
   GmuxQuickOpenExtras,
   GmuxQuitExtras,
+  GmuxRecentsExtras,
   GmuxScrollbackExtras,
   GmuxScrollExtras,
   GmuxSearchExtras,
@@ -56,6 +60,7 @@ import type {
   Unsubscribe
 } from '../shared/ipc';
 import {
+  cloneProgressChannel,
   searchResultsChannel,
   EVT_SYMBOLS_PROGRESS,
   EVT_ACTIVITY_CHANGED,
@@ -63,6 +68,7 @@ import {
   EVT_GIT_CHANGED,
   EVT_MENU_ACTION,
   EVT_QUIT_REQUESTED,
+  EVT_RECENTS_CHANGED,
   EVT_SCROLLBACK_NOTICE,
   EVT_SESSIONS_CHANGED,
   EVT_SETTINGS_CHANGED,
@@ -359,16 +365,54 @@ const specstory: NonNullable<GmuxSpecStoryExtras['specstory']> = {
 };
 
 /**
- * projects surface = frozen GmuxApi['projects'] + the Phase 12.9 `create`
- * (feature-detected: without it the shell hides "New Project…" rather than
- * offering a button that throws).
+ * recents surface (Phase 18.6). The home screen's recent projects list.
+ *
+ * Three calls and one subscription. The list is read once when the renderer
+ * loads, the missing check runs after the home screen's first paint, and the
+ * event fires when main writes the file, which is when a project is opened or
+ * closed and when a row is removed.
  */
-const projects: GmuxApi['projects'] & GmuxProjectCreateExtras = {
+const recents: NonNullable<GmuxRecentsExtras['recents']> = {
+  list: () => invoke('recents:list'),
+  missing: () => invoke('recents:missing'),
+  remove: (path) => invoke('recents:remove', path),
+  onChanged: (cb) => on(EVT_RECENTS_CHANGED, cb)
+};
+
+/**
+ * projects surface = frozen GmuxApi['projects'] + the Phase 12.9 `create`
+ * and the Phase 18.6 clone (both feature-detected: without them the shell
+ * hides "New Project…" and "Clone Repository…" rather than offering a button
+ * that throws).
+ *
+ * `onCloneProgress` takes the cloneId the CALLER minted and is meant to be
+ * called BEFORE `clone()`, for the same reason `search.onResults` is: a
+ * validation failure is reported on the stream within a tick of the call, so
+ * a subscription set up after the invoke resolves can miss the only frame
+ * that ever arrives.
+ */
+const projects: GmuxApi['projects'] &
+  GmuxProjectCreateExtras &
+  GmuxProjectCloneExtras = {
   add: (path) => invoke('projects:add', path),
   list: () => invoke('projects:list'),
   remove: (projectId) => invoke('projects:remove', projectId),
   pickDirectory: () => invoke('projects:pickDirectory'),
-  create: (input) => invoke('projects:create', input)
+  create: (input) => invoke('projects:create', input),
+  clonePreflight: (input) => invoke('projects:clonePreflight', input),
+  clone: (input) => invoke('projects:clone', input),
+  cancelClone: (cloneId) => invoke('projects:cancelClone', cloneId),
+  onCloneProgress: (cloneId, cb) => {
+    const channel = cloneProgressChannel(cloneId);
+    const listener = (
+      _e: IpcRendererEvent,
+      frame: CloneProgress | CloneDone
+    ): void => {
+      cb(frame);
+    };
+    ipcRenderer.on(channel, listener);
+    return () => ipcRenderer.removeListener(channel, listener);
+  }
 };
 
 const api: GmuxApi &
@@ -389,9 +433,11 @@ const api: GmuxApi &
   GmuxQuickOpenExtras &
   GmuxScrollbackExtras &
   GmuxSpecStoryExtras &
+  GmuxRecentsExtras &
   GmuxViewMenuExtras = {
   sessions,
   projects,
+  recents,
   specstory,
   git,
   fs,

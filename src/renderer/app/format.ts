@@ -32,6 +32,19 @@ export function truncateMiddle(text: string, max: number): string {
   return `${text.slice(0, head)}…${text.slice(text.length - tail)}`;
 }
 
+/**
+ * The folder a path sits in, with no trailing slash and `/` at the root.
+ *
+ * Phase 18.6 dedup: this arrived a third time in the parallel build (the New
+ * Project dialog, the clone store and the home screen's recent rows each wrote
+ * it), and the home screen's copy returned '' rather than '/' for a path at
+ * the filesystem root. One line, one behaviour.
+ */
+export function parentDir(path: string): string {
+  const i = path.lastIndexOf('/');
+  return i <= 0 ? '/' : path.slice(0, i);
+}
+
 /** Home-relative path for display ("~/src/webapp"). */
 export function displayPath(path: string): string {
   const m = /^\/Users\/[^/]+(\/.*)?$/.exec(path);

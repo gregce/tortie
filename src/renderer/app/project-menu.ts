@@ -1,11 +1,18 @@
 /**
- * The two ways to get a project (Phase 12.9 item 1), in one list.
+ * The three ways to get a project (Phase 12.9 item 1, third verb Phase 18.6),
+ * in one list and in one order.
  *
- * Both entry points — the + at the end of the tab strip and the native File
- * menu — offer exactly these two verbs, and this module is the only place
- * either is spelled. Before this phase the + went straight to the folder
- * picker, which is why "you can only open something that already exists" was
- * invisible rather than merely true.
+ * This module is the only place the + at the end of the tab strip spells them.
+ * Before Phase 12.9 the + went straight to the folder picker, which is why
+ * "you can only open something that already exists" was invisible rather than
+ * merely true.
+ *
+ * THE FILE MENU IS NOT FED FROM HERE, and research 35 §1.8 is wrong about the
+ * tree when it says it is. The native menu is built in main (src/main/menu.ts)
+ * from ids, because main owns the accelerators and the renderer is not running
+ * when the menu is first installed. So the ORDER below is the contract those
+ * two surfaces share, and File carries the same three verbs in the same order
+ * by matching it. If a fourth verb is ever added, add it in both.
  *
  * Native menu, per DESIGN.md §3: gmux never draws a menu in the DOM. Labels
  * are Title Case because that is what every other native menu in the app
@@ -14,13 +21,19 @@
  */
 
 import { keyDisplay } from '@shared/keymap';
+import { cloneAction } from '../state/clone';
 import type { MenuSpec } from '../state/store';
 import { useApp } from '../state/store';
 
 /**
  * Items for the + menu. `canCreate` false (an older preload with no
  * projects:create) hides New Project… rather than offering a verb that
- * cannot work.
+ * cannot work, and `cloneAction()` returning undefined hides Clone the same
+ * way for a preload with no projects:clone.
+ *
+ * Clone carries no hint because it has no chord, and it never gets one: every
+ * built-in chord is one the user can no longer record as a per-agent hotkey,
+ * which is a bad trade for a weekly action (research 35 §0).
  */
 export function projectMenuItems(canCreate: boolean): MenuSpec['items'] {
   const s = useApp.getState();
@@ -37,6 +50,10 @@ export function projectMenuItems(canCreate: boolean): MenuSpec['items'] {
       hint: keyDisplay('project.new'),
       run: () => s.setNewProjectOpen(true)
     });
+  }
+  const clone = cloneAction();
+  if (clone !== undefined) {
+    items.push({ label: 'Clone Repository…', run: clone });
   }
   return items;
 }
