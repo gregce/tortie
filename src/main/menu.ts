@@ -50,6 +50,7 @@ import {
   openSettingsWindow
 } from './settings/window';
 import { getRegistryEntry } from './agents/registry';
+import { BUILD_COMMIT } from './build-info';
 
 /**
  * Can this window act on a menu action? The Settings window (S13) is a
@@ -397,12 +398,18 @@ export function rebuildAppMenu(): void {
 export function installAppMenu(): void {
   // The About panel reads CFBundleName/CFBundleShortVersionString from the
   // bundle in a packaged build and Electron's own values in dev, so a dev run
-  // would otherwise open an "About Electron" panel. State it once instead —
-  // this is also where Phase 17's commit stamp will go.
+  // would otherwise open an "About Electron" panel. State it once instead.
+  //
+  // Phase 17: `version` is macOS's BUILD version — the part in parentheses
+  // after the marketing version — so About reads "Version 0.0.1 (09b216e)".
+  // Now that Tortie is the installed daily driver, that line is how the user
+  // (or an agent) answers "is what I am running what is in git?" without a
+  // build log.
   try {
     app.setAboutPanelOptions({
       applicationName: app.name,
       applicationVersion: app.getVersion(),
+      version: BUILD_COMMIT,
       copyright: 'SpecStory'
     });
   } catch (err) {

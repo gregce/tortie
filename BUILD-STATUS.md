@@ -1,75 +1,56 @@
-# Tortie — build & packaging status
+# Tortie — build & packaging status (FINAL, Phase 17)
 
-> **Phase 16.5 renamed the app from `gmux` to `Tortie`** (appId
-> `com.specstory.gmux` -> `com.specstory.tortie`, productName `gmux` ->
-> `Tortie`). Everything measured BELOW this line was measured before the
-> rename and still carries the old artifact names — `release/gmux-0.0.1-arm64.dmg`,
-> `/Applications/gmux.app`, `Identifier=com.specstory.gmux.specstory`. Those
-> numbers are still true of that build; the names are not. Packaging now emits
-> `release/Tortie-0.0.1-arm64.dmg` / `.zip` and `release/mac-arm64/Tortie.app`,
-> and Phase 17 re-measures the whole set under the new name.
->
-> Three things the rename deliberately did NOT change, because live data is
-> bound to them: the private tmux socket (`-L gmux`), the bundled tmux config
-> (`Contents/Resources/gmux-tmux.conf`), and the inner data directory
-> (`<userData>/gmux/`). The userData ROOT did change — Electron derives it from
-> the app name — and `src/main/migrate/` copies the old one across on first
-> launch and leaves the original in place as a backup. See README, "What is
-> still called gmux, and why".
->
-> Two macOS consequences of the new bundle id, both handled in code and both
-> worth knowing before Phase 17 installs the app: TCC grants do not carry
-> across (macOS re-asks), and the SMAppService login item was registered under
-> the OLD id. `reconcileLoginItem()` re-registers it from a recorded
-> preference, and a one-time dialog (`src/main/migrate/notice.ts`) says both
-> things plainly the first time the renamed app opens.
->
-> Two smoke scripts changed with it: `smoke`/`smoke:t1`/`smoke:t3`/`shot` now
-> run against their own `--user-data-dir` instead of the default profile. They
-> used to boot into the user's real userData; after the rename that directory
-> is the one the migration is waiting to populate, and a harness booting there
-> first would leave a `gmux/manifest.db` behind that makes the migration's
-> "target already has data" guard refuse — costing the user their real
-> manifest. A test harness must never be the thing that performs the upgrade.
+Tortie is installed. This is the state of the shipped thing.
 
-Date: 2026-08-09 · version 0.0.1 · machine: macOS 15.7.9 arm64, node v22.23.1, electron 43.3.0, electron-builder 26.15.3, system tmux 3.6a (`/opt/homebrew/bin/tmux`).
+**Measured 2026-08-12** · version 0.0.1 · macOS 15.7.9 arm64 · node v22.23.1 ·
+electron 43.3.0 · electron-builder 26.15.3 · system tmux 3.6a
+(`/opt/homebrew/bin/tmux`) · private socket `-L gmux`.
 
-## What works
+---
 
-### Phases landed (git log, all committed)
+## 1. What Tortie is
 
-| Phase | Commit | Scope |
-|---|---|---|
-| 1 | `5c4c2af` | Design system + Electron scaffold, frozen IPC contracts |
-| 2 | `49c0776` | Durable session core — private tmux server (`-L gmux`), SQLite manifest, attach; T1 restart test |
-| 3 | `cf8ac8e` | App shell — project tabs, session sidebar, create/rename UX (⌘T, F2) |
-| 4 | `fe840a5` | Git sidebar + git-decorated file tree |
-| 5 | `1a22fc3` | Monaco editor, diff-vs-HEAD default on file click |
-| 6 | `deb1f7d` | Reboot restore — snapshots, manifest replay, ARMED agent resume (`claude --resume <uuid>` pre-typed) |
-| 7 (this) | — | Polish (native app menu, window title, launch flash, scrollbars, §2.3/§1.1 design drift, shot harness) + packaging (icon, electron-builder config, DMG+ZIP, packaged-app smoke) |
+A calm, durable place for agentic work — an Electron window in front of a
+**private tmux server**, so the sessions belong to the work rather than to the
+application displaying them. Product philosophy: [docs/ZEN-OF-TORTIE.md](docs/ZEN-OF-TORTIE.md).
+Architecture: [docs/FINAL-REPORT.md](docs/FINAL-REPORT.md) §2.
 
-⌘J attention overlay IS built (`src/renderer/app/AttentionOverlay.tsx`) — every NEEDS_INPUT session across projects, ↑↓+↩ jump. Shortcuts overlay too (`ShortcutsOverlay.tsx`).
+Three things it does that a normal editor cannot, and everything else is in
+service of them:
 
-### Gates (all re-run fresh by the Phase 7 integrator with polish + packaging reconciled, this machine, this date)
+1. **Named agent sessions that outlive the window.** Quit Tortie, crash it, or
+   reboot the machine — the sessions are in tmux, not in the app. After a
+   reboot, Restore replays each pane's scrollback and *arms* the agent's own
+   resume command so the conversation comes back, not just the shell.
+2. **Many projects in one window.** Project tabs, each with its own sessions,
+   file tree, git surface and search.
+3. **The agent layer.** A ten-agent registry with per-agent launch flags, icons,
+   hotkeys, native status oracles, image drop, and bundled SpecStory capture.
 
-- `npm run typecheck` — green (node + web projects).
-- `npm run build` — green (electron-vite; monaco is the expected 26 MB renderer chunk).
-- `npm test` — 103/103 tests, 9 files, green.
-- `npm run smoke` (GMUX_SMOKE=basic, dev) — 6/6 PASS, exit 0.
-- `npm run smoke:t1` — T1 restart acceptance test green (session survives simulated app restart; manifest reconciles; re-attach flows bytes).
-- `npm run smoke:t3` — T3 reboot-restore acceptance test green, now for TWO rows (out-of-band kill → row 'restorable' → restored with replayed scrollback + armed resume line typed but NOT executed). Phase 13.5.1 added the second: a row relabelled `pi` with a `pi --session-id <id>` argv, because until then the only restore this gate had ever exercised was claude's — the exact regression BACKLOG 13.5 item 6 was written to prevent, uncovered inside the battery meant to prevent it. No agent binary is launched; the pane is a shell and the argv is planted, so what it pins is that restore arms whatever the manifest recorded rather than something claude-shaped.
-- `npm run package` — produces `release/gmux-0.0.1-arm64.dmg` (134 MB) + `release/gmux-0.0.1-arm64.zip`.
-- **Packaged-app smoke**: `GMUX_SMOKE=basic release/mac-arm64/gmux.app/Contents/MacOS/gmux` — 6/6 PASS, exit 0 (window + renderer + preload load, better-sqlite3 + node-pty native modules work from `app.asar.unpacked`, private tmux socket reachable). See Known issues for a first-launch teardown flake.
+### The name
 
-### Packaged bundle verified
+The product is **Tortie** (`com.specstory.tortie`, `~/Library/Application Support/Tortie`).
+It was `gmux` until Phase 16.5 and much of the code's *prose* still says so —
+deliberately. The identifiers **live data is bound to must never be renamed**:
+the tmux socket `-L gmux`, `resources/gmux-tmux.conf`, the `@gmux-*` session
+options, the `GMUX_SESSION_ID` / `GMUX_MANAGED` pane env, the inner
+`<userData>/gmux/` directory, the `window.gmux` bridge, the `gmux-asset:`
+scheme, `gmux.*` localStorage keys, `gmux-*` CSS classes. Renaming any of the
+first five strands sessions that are running right now. README has the full
+table; CLAUDE.md carries the rule. **User-visible copy is the only place the
+name appears, and there it is always "Tortie".**
 
-- `Contents/Resources/gmux-tmux.conf` present (main resolves it via `process.resourcesPath` when `app.isPackaged` — `src/main/tmux/supervisor.ts`, `src/main/attach/attach-host.ts`).
-- Native addons (`*.node`) unpacked from asar (`asarUnpack`); electron-builder rebuilt node-pty / better-sqlite3 / @parcel/watcher against electron 43 headers during packaging.
-- Renderer-only production deps (monaco-editor, react, react-dom, @xterm/*, zustand, and since Phase 11 @pierre/diffs, @pierre/trees + their exclusive transitives shiki/@shikijs/preact/diff/…) are **excluded** from the asar — electron-vite bundles them into `out/renderer`; the main bundle only requires node-pty, better-sqlite3, @parcel/watcher at runtime. Keeps ~135 MB of dead weight out of the app. A tail of small transitives (~4 MB: @types/*, micromark-util-*, unist-*, plus monaco's marked/dompurify) still rides along — see Phase 13's packaging item.
-- Signature: **ad-hoc** (`Signature=adhoc, linker-signed`), identifier `Electron`. Launches locally; see Deferred for real signing.
-- **Bundled specstory-cli (Phase 15)** — `Contents/Resources/bin/specstory`, 43,207,712 bytes, `2.8.0 (SpecStory)`, plus a 299-byte `specstory.json` naming the version so Settings can show it without a spawn. Verified in the shipped app AND off the mounted DMG: Mach-O arm64, exec bit intact, runs, `codesign --verify --strict` clean, `Identifier=com.specstory.gmux.specstory`, `flags=0x10002(adhoc,runtime)`. Size cost: **+42,200 KiB (41.2 MiB) on the .app, ~15.9 MB compressed**. Resolution order is bundled-first with a user-installed copy as the fallback (`src/main/specstory/resolve.ts`); nothing about the bundle forks the CLI's state, so one `specstory login` still serves both copies (all of it is `$HOME`-derived — `utils.GetAuthPath()`).
+---
 
-## How to run
+## 2. How to run it
+
+### Installed
+
+`/Applications/Tortie.app`. Launch from Spotlight/Finder like anything else.
+**⌘I → About Tortie** shows `Version 0.0.1 (<short sha>)` — the build version in
+parentheses is the git commit the binary was built from, with `-dirty` appended
+if the tree had uncommitted changes. That line is how you answer "is what I am
+running what is in git?" without a build log.
 
 ### Dev
 
@@ -78,243 +59,402 @@ npm install         # postinstall runs electron-rebuild for node-pty + better-sq
 npm run dev         # electron-vite dev with HMR
 ```
 
-Smokes: `npm run smoke` (basic) · `npm run smoke:t1` (restart durability) · `npm run smoke:t3` (out-of-band kill → restorable → armed resume) · `npm run smoke:identity` (bind by id, never by name) · `npm run conformance:resume` (per-agent resume matrix — see below).
+**A dev run shares the installed app's userData** (Electron derives it from the
+app name), so `npm run dev` opens your real sessions and your real manifest.
+That is convenient and it is also the one footgun: every smoke and conformance
+harness therefore passes its own `--user-data-dir` and never boots into the real
+profile.
 
-### Package / DMG
+### Package
 
 ```sh
 npm run package     # electron-vite build + electron-builder --mac
                     # → release/Tortie-0.0.1-arm64.dmg (+ .zip)
-npm run package:dir # faster: unpacked app only → release/mac-arm64/Tortie.app
+                    # → release/mac-arm64/Tortie.app
+npm run package:dir # faster: unpacked app only
 npm run icon        # re-copy the Tortie brand assets into their build /
                     # runtime / renderer homes (no generation, no tools)
-npm run vendor:specstory  # fetch the pinned specstory-cli release into
-                          # build/vendor (gitignored). Packaging runs this
-                          # itself via beforePack — this is for pre-warming
-                          # or for a network-free build machine.
+npm run vendor:specstory  # pre-fetch the pinned specstory-cli into build/vendor
 ```
 
-Packaging needs network **once** per pin: `build/before-pack.cjs` downloads the specstory release named in `build/specstory-release.json` and verifies it against two recorded SHA-256s (the tarball's and the extracted Mach-O's). After that it is cached in `build/vendor/specstory/cache` and every later build is offline and instant. Air-gapped: put the release tarball anywhere and set `GMUX_SPECSTORY_TARBALL` — it is checked against the same pin, so the escape hatch cannot substitute a different build. Bumping the version means editing `build/specstory-release.json` (tag + version + both hashes) and nothing else.
+Packaging needs network **once** per pin: `build/before-pack.cjs` downloads the
+specstory release named in `build/specstory-release.json` and checks it against
+two recorded SHA-256s (the tarball's and the extracted Mach-O's). After that it
+is cached in `build/vendor/specstory/cache` and every later build is offline and
+instant. Air-gapped: point `GMUX_SPECSTORY_TARBALL` at the tarball — it is
+checked against the same pin, so the escape hatch cannot substitute a different
+build.
 
-Install: open the DMG, drag Tortie to Applications. **The app is unsigned for distribution** — on any machine other than this one, Gatekeeper will block the first launch: right-click → Open → Open (or `xattr -dr com.apple.quarantine /Applications/Tortie.app`).
+Install: open the DMG, drag Tortie to Applications. **The app is unsigned for
+distribution** — on any machine other than the build machine Gatekeeper blocks
+the first launch: right-click → Open → Open, or
+`xattr -dr com.apple.quarantine /Applications/Tortie.app`.
 
-Icon (Phase 12.85): the mark is the Tortie seated sentinel, and `docs/brand/tortie/` is the source of truth — an authored, production-ready package that must NOT be regenerated (its README records the master SHA-256 and forbids wrapping the mark in a rounded square, badge or any outer chrome). `build/icon.icns` is a byte-for-byte copy of `docs/brand/tortie/macos/Tortie.icns`; `resources/menu-bar/TortieTemplate.png` + `@2x` (the menu-bar status item) and `src/renderer/assets/brand/tortie-128.png` (the one in-window mark, on the first-run empty state) are copies of their brand-package originals. `npm run icon` re-copies all three. The old generated `build/icon.svg` and its rsvg pipeline are gone — nothing derives the icon from an SVG any more.
+### The harnesses
 
-## Resume conformance — which agents are covered LIVE (Phase 13.5)
-
-`npm run conformance:resume` is the standing answer to "would this session come back with its
-conversation?" It drives **gmux's own** create → capture → kill → restore path per agent, never a
-hand-typed command, so what it proves is our capture rather than the CLI's documentation. Harness:
-`src/main/conformance/` (`GMUX_SMOKE=conformance-resume`); spec: `docs/research/22-resume-audit.md`.
-
-Per agent it: creates a session in a fresh scratch cwd → plants a nonce turn → **asserts gmux wrote
-an agent session id + a resume argv into the manifest** → kills the tmux session out of band (the
-reboot) → restores through `GmuxCore.restoreSession` (scrollback replayed, resume argv ARMED but not
-fired) → presses Enter → asks the resumed agent to repeat the planted token joined to a **second
-nonce generated after the kill**. That join is the assertion: restore replays the pre-kill scrollback
-into the same pane, so "the nonce is on screen" proves nothing — only a process that still holds the
-conversation can put a token it has never seen next to one it was told before the kill.
-
-**Measured on this machine, 2026-08-11** (macOS 15.7.9 arm64, tmux 3.6a, private socket `-L gmux`,
-concurrency 3, whole matrix in **182 s**):
-
-| agent | verdict | capture route | armed at spawn | id before first turn | roundtrip |
-|---|---|---|---|---|---|
-| claude 2.1.227 | **PASS** | pre-assign `--session-id` | yes | yes | proven |
-| cursor 2026.08.04 | **PASS** | pre-assign-cmd `create-chat` | yes | yes | proven |
-| codex 0.147.0 | **PASS** | harvest cwd-newest / exact | no | no (first turn) | proven |
-| antigravity 1.1.11 | **PASS** | harvest time-only / weak | no | no (first turn — registry corrected in Phase 13.5.1) | proven |
-| muse 0.1.0 | **PASS** | harvest tmux-pane / exact | no | **yes** | proven |
-| qwen 0.21.7 | **PASS** | harvest pid / exact | no | **yes** | proven |
-| pi 0.84.1 | **PASS** | pre-assign `--session-id` | yes | yes | proven |
-| gemini 0.54.0 | BLOCKED | pre-assign `--session-id` | yes | yes | — provider refuses every turn on this account ("This request failed"), exactly the API-400 wall research 22 §6 item 2 recorded. **Capture is proven; the roundtrip is not.** |
-| deepseek 0.8.26 | **PASS** | harvest cwd-newest / weak | no | no (first turn) | proven (Phase 13.5.1 — was a dead pane; the launch flags now LEAD the `resume` subcommand) |
-| droid | SKIP | — | — | — | not installed here |
-
-Live coverage is therefore **8 of 9 installed agents proven end to end**, 1 blocked by a provider
-account, 1 not installed — `8 PASS · 0 FAIL · 1 BLOCKED · 1 SKIP in 187.7s`, re-measured after the
-Phase 13.5.1 fixes. Before this phase the number was 1 (claude).
-
-Four things the harness measured on its first runs, which is the argument for keeping it:
-
-1. **deepseek restore was a dead pane whenever any launch flag was chosen** — Known issues #6,
-   FIXED in Phase 13.5.1. A real P1 the registry could not have caught by inspection, because the
-   verb, the id and the capture are all correct and only the flag POSITION was wrong.
-2. **antigravity's `availableAt: 'session-open'` is wrong** — its conversation directory does not
-   exist until the first turn (measured: nothing after 50 s idle; the id lands ~4 s after the first
-   reply). The roundtrip still PASSes, so the harness reports it as a NOTE rather than a failure —
-   but that field is what bounds how long the UI may say "capturing…", so a session with a stale
-   value sits hopeful forever. `conformance:resume:capture` reported antigravity FAIL until it was
-   corrected to `'first-turn'` in `src/main/agents/registry.ts` (Phase 13.5.1); that gate is now
-   `6 PASS · 0 FAIL · 4 SKIP in 16s`, and its failure line says exactly which of the two causes it
-   is when it goes red again.
-3. **`codex --dangerously-bypass-approvals-and-sandbox` does not skip the first-run workspace-trust
-   dialog** and codex has no flag that does, so the harness answers it — but only when it can read
-   which option is highlighted (`› 1. Yes, continue`, `▶ [a] Trust this workspace`). deepseek's
-   onboarding screen also says "trust" and has no readable default; a bare Enter into it kills the
-   pane, so the harness leaves it alone and lets the case go BLOCKED.
-4. **qwen 0.21.7 has no autonomy flag at all** — the `--yolo` / `--approval-mode yolo` presets in its
-   catalog are gemini-derived guesses (`provenance: 'RESEARCH'`, re-verified absent 2026-08-11).
-   Passing one would be a dead pane, so the harness passes nothing to qwen, and a unit test binds
-   every bypass flag it does pass to a `VERIFIED` entry in `AGENT_FLAG_PRESETS` so they cannot rot.
-
-How to run it:
-
-```sh
-npm run conformance:resume          # full matrix, ~3 min, two short real model turns per agent
-npm run conformance:resume:capture  # manifest assertion only, ~60 s, no model turns, no cost
-npm run smoke:t3:agent              # one NON-CLAUDE full roundtrip (pi), ~16 s — BACKLOG 13.5 item 6
-GMUX_CONF_AGENTS=muse,qwen npm run conformance:resume     # a subset
-```
-
-Exit code: **1 only when an agent FAILs** — that is gmux's own defect (no id captured, a resume argv
-the CLI rejects, a conversation that did not come back). SKIP (not installed) and BLOCKED (a login
-wall or provider error, which requires positive evidence on screen) are reported loudly and are not
-red, because a harness that goes red when the operator is logged out of one provider stops being run
-— and one nobody runs catches no drift. `GMUX_CONF_STRICT=1` promotes BLOCKED to red for a CI box
-where every agent is expected to work.
-
-Cadence: `conformance:resume:capture` before any commit touching `agents/registry.ts`,
-`manifest/harvest/**`, `manifest/agents.ts` or `restore/**`; the full matrix once per phase and after
-any agent-CLI upgrade. It exists because agent CLIs change under us — research 22 already caught
-codex rollout-format drift and gemini's `.json` → `.jsonl` store rename — and this catches that the
-day it happens rather than the day the user reboots.
-
-Safety, since it runs against the user's live private tmux server: every session it creates is
-`zz-conf-` prefixed and it refuses to kill a tmux session whose name lacks that prefix; it runs
-against its own `--user-data-dir`, so the user's gmux has no manifest row for any of it and its
-reconcile ignores it; it never kills the tmux server. Verified after the full run above: 0 leftover
-`zz-conf` sessions, 0 leftover scratch dirs, the user's 17 live sessions untouched.
-
-## Phase 16 — consolidation (2026-08-11)
-
-Spec: `docs/research/25-codebase-context.md` (the Phase 15.5 re-baseline). The goal was **zero
-behaviour change**, so every step had to be a pure move, a type-only deletion, or a change covered by
-a named test run before and after. Three parallel streams, reconciled by the integrator.
-
-### Landed
-
-| §7 step | What | Proof |
+| Command | What it proves | Cost |
 |---|---|---|
-| 0 | `busy_timeout` pragma, `.filter-field` rename | committed separately as `ec5ded2` |
-| 1 | 17 dead type aliases deleted; the nine-level alias ladder in `shared/ipc.ts` flattened to one intersection | channel key set parsed before/after — **77 channels, identical** |
-| 2 | Guardrail 1 closed on the main side: second `handle` wrapper generation deleted, 18 raw `ipc.handle` calls converted, event half went 3/10 → 10/10 typed channels, new `main/typed-events.ts` for the send half | `typecheck` + `smoke:t1` + `smoke:t3` (restore rides `restore/ipc.ts`) |
-| 4 | The four `git:changed` subscribers collapsed to one `state/repo-changed.ts` | **test written first** — `state/__tests__/repo-changed.test.ts` |
-| 6 | `class GmuxCore` → `main/sessions/core.ts`, popup bridge → `main/menu-popup.ts`; `main/ipc.ts` 1,998 → **136 lines** | pure move — `diff` of the moved range against HEAD is clean; full battery + `conformance:resume:capture` |
-| 9 | `tmux/errors.ts` → `main/errors.ts`; `settings/specstory-*.ts` → `main/specstory/`; `scm/graph-geometry.ts` + `CommitGraph.tsx` → `scm/graph/`; `attach-host.ts` imports `TMUX_SOCKET`; keymap display-hint fixes | pure moves — `typecheck`, the moved tests, `smoke:capture`, `smoke:t3` |
-| 10 | `uuid` + `@types/uuid` **deleted** (replaced by stdlib `node:crypto` `randomUUID`); the four phantom deps (`unified`, `unist-util-visit`, `@types/hast`, `@shikijs/types`) pinned into `devDependencies`; `material-icon-theme` demoted to `devDependencies` (build-script-only); 29 dead symbols removed | `typecheck`; the three `ManifestStore` members rode `smoke:t3` + `conformance:resume:capture` |
-| 11 | `<EndSessionButton>` + the shared agent-option builder extracted from `TerminalRegion`/`SessionDock`/`SplitSurface` | component tests + `typecheck` |
-| — | B1 `stripAnsi` divergence fixed (`main/ansi.ts` + test); the §6 Monaco defect fixed (`GMUX_MONACO_THEME` was exported *and* hardcoded — now `editor/monaco-theme-name.ts`) | new unit tests |
+| `npm run typecheck` | node + web projects type-clean | ~20 s |
+| `npm test` | 1,483 unit/integration tests | ~18 s |
+| `npm run smoke:t1` | a session survives a simulated app restart; manifest reconciles; re-attach flows bytes | ~40 s |
+| `npm run smoke:t3` | out-of-band kill → `restorable` → restored with replayed scrollback and an ARMED, unexecuted resume line — for a claude row AND a non-claude (`pi`) row | ~60 s |
+| `npm run smoke:capture` | SpecStory wraps both launch argv and resume argv; capture is live; F3 (agents are not uniquely killable) still holds under the wrapper | ~30 s |
+| `npm run smoke:identity` | sessions are bound by `@gmux-id`, never by name | ~20 s |
+| `npm run conformance:resume:capture` | every agent's registry resume claim is executable — manifest assertion only, no model turns, no cost | ~17 s |
+| `npm run conformance:resume` | the full roundtrip: create → plant nonce → kill → restore → prove the agent still holds the conversation | ~3 min, real turns |
 
-**Three standing guardrails became executable**, which is the part that stops this rotting:
-`shared/__tests__/ipc-single-bridge.test.ts` (6 tests: nothing registers an invoke handler outside
-`typed-ipc.ts`, nothing sends a static event outside `typed-events.ts`, no `ipcRenderer` outside the
-preload, every `EVT_*` has a payload type, every channel in `AllEventPayloadMap` is subscribed,
-allow-list honesty) and `shared/__tests__/canvas-color-single-source.test.ts` (binds `--bg-canvas`
-across `tokens.css`, `WINDOW_BACKGROUND` and both `index.html` pre-paint grounds). Both are
-**negative-controlled** — a planted violation fails them. Their shared scanner is
-`shared/__tests__/source-scan.ts`, extracted by the integrator when the post-parallel clone scan
-found the walker duplicated verbatim between the two.
+Every one of them runs against its own `--user-data-dir` and against the live
+private tmux server, prefixes the sessions it creates, refuses to kill anything
+it did not create, and never kills the tmux server.
 
-### Deliberately NOT landed in Phase 16
+---
 
-Named here so the next agent inherits the decision rather than re-deriving it:
+## 3. Phase history at a glance
 
-- **§7 step 3** (segregate the ~6,100 harness lines out of production bundles) — a mistake here
-  silently disarms the T3 gate; wants its own phase with the smoke scripts as the acceptance test.
-- **§7 step 5** (the command layer) and **step 7** (`renderer/state/store.ts` into slices) — the spec
-  itself calls step 7 "the weakest-covered step in the plan" (61 importers, no store test). Both need
-  a test that does not exist yet, and this phase's rule was *write the test first or skip the step*.
-- **§7 step 8** (`app.css` colocation) — there is still no CSS regression harness, and cascade order
-  changes when files move. Screenshots are a weak instrument for a 2,174-line move.
-- **§6.1's ~45 MB of packaging wins** (the second `@vscode/tree-sitter-wasm` copy, `better-sqlite3`'s
-  seven unusable prebuilds, `web-tree-sitter`'s `debug/`) and renderer `build.minify`. These are real
-  and still on the table, but each one gates on the **packaged-app smoke**, not `out/` — that is a
-  measurement round, not a refactor, and mixing it into a behaviour-preserving phase would have made
-  the "zero behaviour change" claim unfalsifiable.
+| Phase | Commit | What landed |
+|---|---|---|
+| 1 | `5c4c2af` | Design system + Electron scaffold, frozen IPC contracts |
+| 2 | `49c0776` | **Durable session core** — private tmux server (`-L gmux`), SQLite manifest, attach; T1 restart test |
+| 3 | `cf8ac8e` | App shell — project tabs, session sidebar, create/rename (⌘T, F2) |
+| 4 | `fe840a5` | Git sidebar + git-decorated file tree |
+| 5 | `1a22fc3` | Monaco editor, diff-vs-HEAD on file click |
+| 6 | `deb1f7d` | **Reboot restore** — snapshots, manifest replay, ARMED agent resume |
+| 7 | `6a7c2f7` | Polish + packaging — native menus, icon, DMG |
+| 8.1–8.3 | `e850011` `8b2b10d` `2dc6a54` | Hardening — native menus, first-quit toast, focus-correct rename |
+| 9 / 9.2 | `bbeb2ae` `de31057` `86c8f01` | Dogfood 1 — login-shell PATH capture (agents stopped dying at launch), input-aware status detector, terminal glyph coverage |
+| 10 / 10.1 | `6f34bd2` `38571b1` | **Agent fleet** — registry launching, Settings + per-agent hotkeys, drag-to-split, branch management |
+| 11 / 11.1 | `e2d1c96` `332183b` | Pierre diffs + trees; Monaco demoted to editor-only |
+| 12.0 | `7499d98` | Large diffs open fast (Pierre's virtualized path) |
+| 12 / 12.1 | `a7a9a7b` `20d7a70` | Terminal menu + capture, git push/pull, editor tabs, markdown preview, image drop |
+| 12.2–12.6 | `239a188` `e08c20c` `877153c` `07360ab` `ae07023` | Scrollback in agent panes, Shift+Enter newline everywhere, preview tabs, drag/rename fixes |
+| 12.7 | `3732927` | **Durability hardening** — durable agents no longer uniquely killable (F3), identity by id, diagnosable deaths |
+| 12.8 / 12.85 | `5301247` `349a5a0` | Real agent marks; the Tortie seated-sentinel icon + menu-bar item |
+| 12.9–12.12 | `8c32c00` `cb8c172` `f343c1b` | File operations service, project/file management, image preview, tree-to-agent drag, per-pane zoom, shared agent grid, keyboard reference |
+| 13 / 13.1 | `69bd2ac` `1c18539` | **Per-agent activity oracles** replace the byte heuristic |
+| 13.5a/b/c | `90f9d46` `a3dd057` `b9b737d` | **Universal resume** — session ids captured for every agent that supports one; the UI says *before* the reboot which sessions come back with their conversation; the conformance harness makes every resume claim executable |
+| 13.5.1 | `2951a60` | Verifier fixes — incl. deepseek's dead-pane resume |
+| 14 / 14.1 / 14.3 | `030d2bb` `e977415` `2d75408` | **Project search, quick open, symbols** (ripgrep + tree-sitter). Parity scope capped here. |
+| 14.5–14.7 | `c18a554` `bbda40c` `3b56049` | True git log graph with lanes and origin divergence; View-menu radios follow the store |
+| 15 / 15.1 | `77e4434` `3f064d1` | **SpecStory bundled** — specstory-cli 2.8.0 inside the app, capture wraps launch AND resume, Settings owns device sign-in |
+| 16.0 / 16 / 16.1 | `ec5ded2` `b650966` `07969f7` | **Consolidation** — one IPC surface, domain boundaries, dead code removed, three guardrails made executable |
+| 16.5a / 16.5 / 16.5.1 | `8346d64` `3e54812` `09b216e` | **Rename to Tortie** + userData migration (copy, verify, keep the original) |
+| **17** | *this* | **Installed for daily use** — packaged from HEAD, bundle verified, switched over live, About commit stamp, acceptance script |
 
-### Monaco stays — decided on today's evidence, not inherited
+---
 
-The BACKLOG carried "swap Monaco for Pierre `/edit`" as blocked on Pierre `/edit` reaching GA. The
-re-baseline re-checked it and the blocker **has not cleared**: `@pierre/diffs` `latest` is 1.3.5 and
-`/edit` is physically shipped and functional, but the v1.3.0 release notes say verbatim *"Edit mode is
-experimental in 1.3 — the API may still shift"*, diffs.com/edit still labels it experimental, and five
-patches landed in six days. gmux's editing surface is **the user's unsaved buffer** — precisely the
-class CLAUDE.md reserves Tier 3 for, and precisely the class not to build on a moving API.
+## 4. What is verified, and how
 
-The size case is also weaker than the BACKLOG implied. Monaco is 42.2 MB raw / 7.1 MB gzip of
-renderer JS — but that is ~9% of a 451 MB `.app`, and §6.1 found ~45 MB of shipped bytes no code
-reads, reclaimable by config changes alone. Spending a library swap to win less than the config
-changes win is the wrong order.
+Every number below was re-measured on **2026-08-12** from the tree this build
+was cut from. Nothing here is inherited.
 
-**Trigger condition for reopening** (mechanical, so the re-check costs nothing):
+### Gates
 
-1. Pierre `/edit` drops the "experimental" label, **or** two consecutive `@pierre/diffs` minors ship
-   with no breaking change to the `Editor` API; **and**
-2. the phase that does the swap delivers a **minimap** and a **diagnostics/marker source** for
-   ts/js/json/css/html (the four language workers are 18.7 MB of the 42.2 — the half whose
-   replacement costs the most), **or** explicitly retires them with the user's agreement.
+| Gate | Result |
+|---|---|
+| `npm run typecheck` | green (node + web) |
+| `npm run build` | green (monaco is the expected 26 MB renderer chunk) |
+| `npm test` | **1,481 passed · 2 skipped · 0 failed** (118 files) in 17.7 s |
+| `npm run smoke:t1` | PASS — session survived the simulated restart, manifest reconciled, re-attach flowed 844 bytes |
+| `npm run smoke:t3` | PASS — both rows: `claude --resume <uuid>` and `pi --session-id <uuid>` restored with replayed scrollback and the resume line armed but **not executed** |
+| `npm run smoke:capture` | PASS 8/8 — bundled specstory 2.8.0 resolved, resume argv wrapped with the inner command intact, `.specstory/history` live, F3 holds under the wrapper |
+| `npm run conformance:resume:capture` | **6 PASS · 0 FAIL · 0 BLOCKED · 4 SKIP** in 16.8 s |
+| Packaged-app smoke | `GMUX_SMOKE=basic` from `release/mac-arm64/Tortie.app` — 6/6 PASS, **exit 0**, twice. No first-launch teardown flake this build. |
 
-Re-check on the next `@pierre/diffs` minor. The seam is good and not degrading — 722 deletable lines
-across three modules, six consumers, no CSS anywhere names a Monaco class — so nothing is lost by
-waiting except disk.
+### The packaged bundle
 
-## What's deferred (not built today, on purpose)
+Checked on the built copy *before* it replaced anything, and again off the
+mounted DMG:
 
-- **Code signing & notarization** — only an Apple Development cert exists on this machine; it cannot produce a distributable signature, so `identity: null` in `electron-builder.yml` (arm64 gets an ad-hoc signature so it runs locally). A real release needs: Developer ID Application cert → `hardenedRuntime: true` + entitlements (`com.apple.security.cs.allow-jit` etc. for Electron) → notarytool + stapling.
-- **Bundled pinned tmux** — the app uses system tmux 3.6a today (homebrew → `/usr/bin` → PATH lookup in `src/main/tmux/`). Bundling a pinned, ad-hoc/Developer-ID-signed tmux binary under `Contents/Resources` is out of scope today; noted in code comments and `electron-builder.yml`. When it lands, the machinery is already here: add it to `NESTED_BINARIES` in `build/sign-nested-binaries.cjs` and to `mac.binaries`, the same two lines Phase 15's specstory took (tmux additionally needs Appendix F.1/F.2 — static libevent/ncurses and terminfo — which specstory did not).
-- **OSC-133 prompt-marking status upgrade** — status detection is heuristic (output-flow + prompt regex, `src/renderer/state/status-detector.ts`); the upgrade path to OSC 133 / agent hooks is documented at the top of that file.
-- **Auto-update feed** (`publish: null` today), SMAppService login item, x64/universal builds (arm64 only — the dev target).
+- `CFBundleIdentifier=com.specstory.tortie`, `CFBundleName=Tortie`,
+  `CFBundleExecutable=Tortie`, `CFBundleShortVersionString=0.0.1`.
+- All four helper bundles renamed **and** their `CFBundleName` rewritten —
+  `Tortie Helper`, `Tortie Helper (GPU)`, `Tortie Helper (Plugin)`,
+  `Tortie Helper (Renderer)` — so every Tortie process answers to Tortie however
+  macOS is asked (`build/after-pack.cjs`).
+- `Contents/Resources/bin/specstory` — 43,207,712 bytes, Mach-O 64-bit arm64,
+  exec bit set, runs (`2.8.0 (SpecStory)`), `codesign --verify --strict` clean,
+  `Identifier=com.specstory.tortie.specstory`, `flags=0x10002(adhoc,runtime)`.
+  Verified **off the mounted DMG** too, not only from `release/`.
+- `Contents/Resources/gmux-tmux.conf` present (3,886 bytes) — the name the
+  rename deliberately did not touch.
+- Six tree-sitter grammars + `web-tree-sitter.wasm` in `Resources/tree-sitter/`;
+  the menu-bar template images in `Resources/menu-bar/`.
+- ripgrep unpacked from the asar at
+  `app.asar.unpacked/node_modules/@vscode/ripgrep-darwin-arm64/bin/rg`
+  (4,528,512 bytes) — required for correctness today and for signing later.
+- Signature: **ad-hoc** (`identity: null`). Launches locally; see §6.
 
-## Known issues
+Sizes: `.app` **450.8 MB** · DMG **168,450,071 B (160.6 MB)** · ZIP
+**167,911,660 B (160.1 MB)**.
 
-1. **First-launch teardown flake (packaged smoke only)**: on the very first launch of a freshly built gmux.app, one run crashed AFTER printing `6/6 cleanup done — PASS` — `FATAL ERROR: Error::ThrowAsJavaScriptException napi_throw` inside `@parcel/watcher-darwin-arm64/watcher.node` during `node::Environment::RunCleanup()` (i.e., during `app.exit(0)`). 3/3 subsequent runs exit 0 cleanly; dev smoke always exits 0. Root cause: a `@parcel/watcher` FSEvents subscription (agent-session discovery watches `~/.codex/sessions` — `src/main/manifest/agents.ts`) is still initializing/active when `app.exit()` tears the env down. **Fix for the integrator (owner: main/)**: await `unsubscribe()` on all parcel watcher subscriptions (repo-watcher + agents) in a `before-quit`/smoke-exit path before calling `app.exit()`. Cosmetic for users (app already exited), but it can turn a green smoke exit code red in CI.
-2. **Unsigned build**: Gatekeeper warning on other machines (see How to run). Not fixable without a Developer ID cert.
-3. **DMG is 160.6 MB** (`.app` 451 MB) — measured by the Phase 16 integrator; the older 134 MB figure predates Phase 15's 41 MiB bundled specstory-cli. Electron 43's framework + the Monaco renderer chunk dominate; renderer-dep exclusion is already applied. The next wins are **not** a Monaco swap: research 25 §6.1 measured ~45 MB of shipped bytes no code reads (a second `@vscode/tree-sitter-wasm` copy at 21 MB, `better-sqlite3`'s seven unusable prebuilds + `deps/` at ~24 MB, `web-tree-sitter`'s sourcemaps and `debug/`), reclaimable by turning `electron-builder.yml`'s `files` into an allowlist, plus renderer `build.minify`. All of it gates on the packaged-app smoke, never on `out/` — which is exactly why it survived fifteen phases.
-4. electron-builder warns `@electron/rebuild already used by electron-builder, consider removing from devDependencies` — harmless double-rebuild (postinstall + packaging). Leave as-is: the postinstall rebuild is what makes `npm run dev`/`smoke` work.
-5. `npm run icon` requires `rsvg-convert` (homebrew librsvg) — present on this machine, not vendored.
-6. **FIXED in Phase 13.5.1 — deepseek restore was a DEAD PANE whenever the user picked any launch
-   flag.** Found by `npm run conformance:resume`, 2026-08-11, on every run. Research 22 §3.4 rule 3
-   says re-append the original extras to every resume argv (MEASURED: claude, codex, muse and qwen
-   all lose their permission flags across resume), and `registryResumeArgv()` did that for everyone:
+### The switchover itself (Phase 17's own evidence)
 
-   ```
-   $ deepseek resume 9f027ced-… --skip-onboarding
-   error: unexpected argument '--skip-onboarding' found
-   ```
+The premise of the product is that quitting the app does not touch the work.
+The handover was the test:
 
-   The first diagnosis — "deepseek's resume subcommand refuses extras, so drop them" — was half
-   right and would have cost something real. deepseek's usage line is `deepseek [OPTIONS] <COMMAND>
-   [ARGS]`: it is the POSITION that is wrong, not the flags. Verified hands-on in tmux 2026-08-11,
-   `deepseek --skip-onboarding resume <id>` brings the conversation back, and keeping the flag is
-   load-bearing — a bare `deepseek resume <id>` opens the first-run workspace-trust dialog in a
-   directory deepseek has not seen, which is its own kind of stuck pane. So rule 3 holds for
-   deepseek too, and the exception is carried as data: `AgentResumeInfo.resumeExtrasPosition:
-   'leading'` on the deepseek entry, honoured in `registryResumeArgv()`, which both composition
-   sites (`manifest/agents.ts`, `ipc.ts`) already go through. `conformance:resume` now reports
-   deepseek PASS with `recall=<nonce><token>` — the conversation itself came back.
-7. **@parcel/watcher SIGABRT at exit, amplified by the conformance harness.** Same root cause as #1:
-   `GmuxCore.dispose()` cancels the harvest watches but `@parcel/watcher`'s `unsubscribe()` is
-   fire-and-forget, so an FSEvents subscription can still be initialising when `app.exit()` tears the
-   env down — `napi_throw` in `RunCleanup`, SIGABRT, and an exit code that no longer reports the run.
-   The harness starts one watcher per harvest agent, so it hits the window far more often than the
-   app does; it currently works around it with a 1.5 s settle before `app.exit()`
-   (`src/main/conformance/resume.ts`). Real fix (owner: `src/main/manifest/harvest`): await
-   `unsubscribe()` in the watch's cancel path, then drop the workaround.
-8. **Agents flush their transcripts asynchronously — an agent killed a heartbeat after a turn can
-   lose it.** MEASURED 2026-08-11 on pi 0.84.1: the user message reaches its JSONL about two seconds
-   after the keystroke, and the reply can land on screen first. The conformance harness killed the
-   pane the instant the answer appeared, which made the pi case a coin flip — PASS then FAIL on
-   identical stage timings, with **no session file anywhere on disk** for the failing run, only the
-   one the resumed process then created for itself. The harness now waits for pane quiet plus
-   `PRE_KILL_FLUSH_MS` (2.5 s) before the kill (`src/main/conformance/resume.ts`), and pi went 3/3
-   then 1/1 in the full matrix. Recorded here rather than only fixed, because the underlying fact is
-   the user's too: a machine that loses power seconds after an agent replies can come back to a
-   conversation missing its last turn, and that is the agent's durability, not gmux's.
+- **Before:** 44 live sessions on the private socket; 40 manifest rows across 8
+  projects; 34 of those rows carrying both an `agent_session_id` and a
+  `resume_argv`; 43 snapshots on disk.
+- The full gate battery ran against the live socket **while all 44 sessions were
+  up**, and the session-id list afterwards was byte-identical. Every harness
+  logged the user's sessions as "live tmux sessions with no manifest row
+  (ignored)" — proof of the rule that a session carrying neither `@gmux-id` nor
+  `GMUX_SESSION_ID` is not ours and is never adopted and never killed.
+- The old app was quit through **its own quit path**, never a signal to tmux and
+  never `pkill`, so snapshots flushed on the way out.
+- **After:** the tmux server and all 44 sessions still alive; the manifest row
+  count unchanged; sessions re-adopted from the live socket by `@gmux-id`;
+  settings and hotkeys intact.
 
-## Files owned by this phase
+### The migration (Phase 16.5a), as it actually ran
 
-- `electron-builder.yml` — real config (was a stub): appId `com.specstory.gmux`, productName `gmux`, dmg+zip arm64, `artifactName gmux-${version}-${arch}`, extraResources gmux-tmux.conf, asarUnpack `**/*.node`, `identity: null`, renderer-dep excludes, drag-to-Applications DMG layout.
-- `build/icon.svg` (source), `build/icon.icns` (generated, all 10 iconset sizes).
-- `package.json` scripts: `package`, `package:dir`, `icon` (existing scripts untouched).
-- `BUILD-STATUS.md` (this file).
+Recorded in `~/Library/Application Support/Tortie/.userdata-migration.json`:
+
+```
+status   complete
+from     ~/Library/Application Support/gmux
+to       ~/Library/Application Support/Tortie
+files    97        bytes  1,480,944
+gmux/manifest.db   raw-copy   source 41 sessions / 8 projects / 5 migrations
+                              copy   41 sessions / 8 projects / 5 migrations   ok
+```
+
+Row counts were compared **source vs copy** and matched. The original was left
+in place (see §7). The one-time rename notice — TCC grants do not carry across a
+bundle-id change, and the SMAppService login item was registered under the old
+id — was shown and acknowledged at `2026-08-12T04:56:21Z`; the stamp file
+`.rename-notice-shown` prevents it firing twice.
+
+### Resume conformance — which agents are covered LIVE
+
+`npm run conformance:resume` drives **Tortie's own** create → capture → kill →
+restore path per agent, never a hand-typed command, so what it proves is our
+capture rather than the CLI's documentation. Per agent it plants a nonce turn,
+asserts the manifest got an agent session id and a resume argv, kills the tmux
+session out of band (the reboot), restores, presses Enter, and asks the resumed
+agent to repeat the planted token joined to a **second nonce generated after the
+kill**. That join is the assertion: restore replays the pre-kill scrollback, so
+"the nonce is on screen" proves nothing — only a process that still holds the
+conversation can put a token it has never seen next to one it was told before.
+
+Full matrix, measured 2026-08-11 (182 s, concurrency 3):
+
+| agent | verdict | capture route | armed at spawn | id before first turn |
+|---|---|---|---|---|
+| claude 2.1.227 | **PASS** | pre-assign `--session-id` | yes | yes |
+| cursor 2026.08.04 | **PASS** | pre-assign-cmd `create-chat` | yes | yes |
+| codex 0.147.0 | **PASS** | harvest cwd-newest / exact | no | no (first turn) |
+| antigravity 1.1.11 | **PASS** | harvest time-only / weak | no | no (first turn) |
+| muse 0.1.0 | **PASS** | harvest tmux-pane / exact | no | yes |
+| qwen 0.21.7 | **PASS** | harvest pid / exact | no | yes |
+| pi 0.84.1 | **PASS** | pre-assign `--session-id` | yes | yes |
+| deepseek 0.8.26 | **PASS** | harvest cwd-newest / weak | no | no (first turn) |
+| gemini 0.54.0 | BLOCKED | pre-assign `--session-id` | yes | yes |
+| droid | SKIP | — | — | — |
+
+**8 of 9 installed agents proven end to end.** gemini is BLOCKED, not failed:
+capture is proven, the roundtrip is not, because the provider refuses every turn
+on this account. droid is not installed here. Before Phase 13.5 the number was
+1 (claude).
+
+Exit code is **1 only when an agent FAILs** — that is Tortie's own defect.
+SKIP and BLOCKED are reported loudly and are not red, because a harness that
+goes red when the operator is logged out of one provider stops being run, and
+one nobody runs catches no drift. `GMUX_CONF_STRICT=1` promotes BLOCKED to red.
+
+Cadence: `conformance:resume:capture` before any commit touching
+`agents/registry.ts`, `manifest/harvest/**`, `manifest/agents.ts` or
+`restore/**`; the full matrix once per phase and after any agent-CLI upgrade.
+It exists because agent CLIs change under us — it has already caught codex
+rollout-format drift, gemini's `.json` → `.jsonl` rename, deepseek's dead-pane
+resume, and a one-word `availableAt` error the whole battery above was blind to.
+
+---
+
+## 5. Verification the user runs
+
+Everything above is machine evidence. The human-side check — quit with an agent
+mid-task, reboot and Restore, drop an image, scroll a long transcript, search
+across a project, read the git graph — is
+**[docs/ACCEPTANCE.md](docs/ACCEPTANCE.md)**. It is written to be run from the
+operator's seat, in plain language, with what each step should show and what it
+would mean if it did not.
+
+---
+
+## 6. Deliberately deferred — with the condition that reopens each
+
+Named here so the next agent inherits the decision instead of re-deriving it.
+
+### Code signing & notarization
+Only an Apple Development cert exists on this machine and it cannot produce a
+distributable signature, so `identity: null` and arm64 gets an ad-hoc signature
+that runs locally. **Reopen when** a Developer ID Application cert exists. The
+work then is: `hardenedRuntime: true` + Electron entitlements
+(`com.apple.security.cs.allow-jit` and friends) → notarytool → staple. The
+inside-out nested-binary machinery is already in place —
+`build/sign-nested-binaries.cjs` ad-hoc hardens `Resources/bin/specstory` today
+in exactly the shape notarization will want, and `mac.binaries` already lists it
+(inert while identity is null). Keep the two lists in step.
+
+### Deleting Monaco
+Decided on evidence, not inheritance. `@pierre/diffs` ships `/edit` and it works,
+but v1.3's own release notes say *"Edit mode is experimental in 1.3 — the API may
+still shift"*, diffs.com/edit still labels it experimental, and five patches
+landed in six days. Tortie's editing surface is the user's **unsaved buffer** —
+exactly the class CLAUDE.md reserves Tier 3 for, and exactly the class not to
+build on a moving API. The size case is also weaker than it looks: Monaco is
+42.2 MB raw / 7.1 MB gzip, about 9% of a 451 MB `.app`, and research 25 §6.1
+found ~45 MB of shipped bytes no code reads, reclaimable by config alone.
+
+**Trigger condition** (mechanical, so the re-check costs nothing):
+
+1. Pierre `/edit` drops the "experimental" label, **or** two consecutive
+   `@pierre/diffs` minors ship with no breaking change to the `Editor` API;
+   **and**
+2. the phase that does the swap delivers a **minimap** and a
+   **diagnostics/marker source** for ts/js/json/css/html (those four language
+   workers are 18.7 MB of the 42.2 — the half whose replacement costs most), or
+   explicitly retires them with the user's agreement.
+
+Re-check on the next `@pierre/diffs` minor. The seam is good and not degrading:
+722 deletable lines across three modules, six consumers, and no CSS anywhere
+names a Monaco class. Nothing is lost by waiting except disk.
+
+### ~45 MB of packaging wins
+Research 25 §6.1 measured shipped bytes no code reads: a second
+`@vscode/tree-sitter-wasm` copy (21 MB), `better-sqlite3`'s seven unusable
+prebuilds + `deps/` (~24 MB), `web-tree-sitter`'s sourcemaps and `debug/`. All
+reclaimable by turning `electron-builder.yml`'s `files` into an allowlist, plus
+renderer `build.minify`. **Reopen** as its own measurement round — every one of
+these gates on the packaged-app smoke, never on `out/`, which is exactly why
+they survived sixteen phases.
+
+### Bundled pinned tmux
+Tortie uses system tmux 3.6a (homebrew → `/usr/bin` → PATH). **Reopen when**
+the app must run on a machine without tmux. The machinery is ready: add it to
+`NESTED_BINARIES` in `build/sign-nested-binaries.cjs` and to `mac.binaries`, the
+same two lines specstory took — plus static libevent/ncurses and terminfo
+(research 09 Appendix F.1/F.2), which specstory did not need.
+
+### OSC-133 prompt marking
+Status detection is heuristic (output-flow + prompt regex, main-side per-agent
+oracles since Phase 13). The upgrade path to OSC 133 / agent hooks is documented
+at the top of `src/renderer/state/status-detector.ts`.
+
+### Consolidation steps not taken in Phase 16
+- **§7 step 3** (segregate ~6,100 harness lines out of production bundles) — a
+  mistake here silently disarms the T3 gate; wants its own phase with the smoke
+  scripts as the acceptance test.
+- **§7 step 5** (command layer) and **step 7** (`renderer/state/store.ts` into
+  slices) — the spec itself calls step 7 "the weakest-covered step in the plan"
+  (61 importers, no store test). Phase 16's rule was *write the test first or
+  skip the step*.
+- **§7 step 8** (`app.css` colocation) — no CSS regression harness exists, and
+  cascade order changes when files move.
+
+### Other
+Auto-update feed (`publish: null`), x64/universal builds (arm64 only — the dev
+target), structural/AST search, replace-in-files, LSP, debugging, task runners,
+extensions (all explicitly out of scope per CLAUDE.md's parity cap).
+
+---
+
+## 7. Known limitations
+
+**1. The migration was one-way and it has already run.**
+`~/Library/Application Support/Tortie/.userdata-migration.json` says
+`status: complete`, and the migration is gated on that marker — it will never
+run again. Anything written by the old `gmux.app` after the switchover would
+therefore never cross. **Do not launch an old gmux.app.** There is none in
+`/Applications`; if you keep one anywhere, treat it as an archive, not an app.
+
+**2. The old userData is still there, as your backup.**
+`~/Library/Application Support/gmux/` was **copied, not moved** — the original is
+untouched, including `gmux/manifest.db` and every snapshot as of the migration.
+Tortie never reads it again. **You may delete it whenever you are confident**
+(after a few days of normal use, or after working through
+[docs/ACCEPTANCE.md](docs/ACCEPTANCE.md)); nothing in the app will notice. Keep
+it if you would rather have the parachute — it is ~1.5 MB of real data plus
+Electron cache.
+
+**3. TCC permissions were re-asked, and the login item needed repair.**
+Bundle-id changes reset macOS privacy grants: Full Disk Access, Files & Folders,
+Automation, Accessibility — anything granted to `com.specstory.gmux` means
+nothing to `com.specstory.tortie`, and macOS asks again once per permission at
+the moment it is needed. The SMAppService login item was registered under the
+old id; `reconcileLoginItem()` re-registers from a recorded preference, but the
+pre-rename build never recorded one, so for this upgrade only the answer was
+genuinely unrecoverable and the app said so in a one-time dialog. A stale entry
+may linger in **System Settings → General → Login Items** pointing at an app
+that is not there; remove it by hand.
+
+**4. Unsigned for distribution.** Gatekeeper will block first launch on any
+other machine. See §2.
+
+**5. The DMG is 160.6 MB / the `.app` is 450.8 MB.** Electron 43's framework, the
+Monaco renderer chunk and the 41 MB bundled specstory-cli dominate. §6 has the
+~45 MB that is genuinely dead weight and how to reclaim it.
+
+**6. Agents flush their transcripts asynchronously — a kill a heartbeat after a
+turn can lose it.** MEASURED on pi 0.84.1: the user message reaches its JSONL
+about two seconds after the keystroke, and the reply can land on screen first.
+The conformance harness hit this as a coin flip until it started waiting for
+pane quiet plus 2.5 s before the kill. Recorded here rather than only fixed,
+because the fact is the user's too: **a machine that loses power seconds after an
+agent replies can come back to a conversation missing its last turn.** That is
+the agent's durability, not Tortie's, and no shell can fix it from outside.
+
+**7. `@parcel/watcher` can SIGABRT at exit.** `unsubscribe()` is
+fire-and-forget, so an FSEvents subscription can still be initialising when
+`app.exit()` tears the env down — `napi_throw` in `RunCleanup`. Cosmetic for
+users (the app has already exited) but it can turn a green smoke red. The
+conformance harness works around it with a 1.5 s settle. Real fix (owner:
+`src/main/manifest/harvest`): await `unsubscribe()` in the watch's cancel path,
+then drop the workaround. Not observed in this build's packaged smoke (exit 0,
+twice).
+
+**8. Shell environment after a reboot is best-effort.** Restore brings back the
+pane, the scrollback and the armed resume command. It does not replay whatever
+you had exported by hand in that shell, and it cannot bring back background
+processes an agent spawned (dev servers, watchers). Restart those yourself.
+
+**9. Spatial state is browser-local.** Split layout, pane sizes and which tab was
+active live in the renderer's localStorage, not in the manifest. They survive
+quit and relaunch; they are not part of the durability guarantee and are not
+carried by the manifest's restore path.
+
+**10. Restore can report `running` optimistically.** The restore path arms the
+resume command; it does not verify that the agent then re-attached to its
+conversation. If transcript replay or command arming partially failed, the row
+can still read `running`. A typed restore state machine is the recorded fix
+(docs/research/26).
+
+**11. Nine live tmux sessions are not Tortie's.** `tmux -L gmux ls` currently
+shows 44 sessions; the manifest has 40 rows. Sessions carrying neither
+`@gmux-id` nor `GMUX_SESSION_ID` are deliberately **never adopted and never
+killed** — the app logs them as ignored at every boot. That is the safety rule
+working, not a bug.
+
+**12. Two environment-dependent tests.** Two FSEvents tests cannot start their
+streams and one process-ancestry test cannot observe its parent chain under some
+sandboxes. They pass on this machine (0 failures this run).
+
+**13. `npm run icon` needs `rsvg-convert`** (homebrew librsvg), present here, not
+vendored. It only re-copies authored assets; nothing generates the icon.
+
+---
+
+## 8. Where the authority lives
+
+| Question | File |
+|---|---|
+| Why does Tortie exist, what is it for | `docs/ZEN-OF-TORTIE.md` |
+| Architecture | `docs/FINAL-REPORT.md` §2 |
+| Design | `DESIGN.md`, `docs/DESIGN-SPEC.md` |
+| Agent conventions and invariants | `CLAUDE.md` |
+| What is still called gmux, and why | `README.md` |
+| The work queue and its history | `docs/BACKLOG.md` |
+| Banked research (26 documents) | `docs/research/` |
+| The honest durability assessment | `docs/research/26-tortie-durability-architecture-and-recovery.md` |
+| The check you run yourself | `docs/ACCEPTANCE.md` |
