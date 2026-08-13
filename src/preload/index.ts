@@ -42,6 +42,7 @@ import type {
   GmuxNoticeExtras,
   GmuxPopupMenuExtras,
   GmuxPowerExtras,
+  GmuxPreviewExtras,
   GmuxProjectCloneExtras,
   GmuxProjectCreateExtras,
   GmuxQuickOpenExtras,
@@ -309,6 +310,28 @@ const notice: NonNullable<GmuxNoticeExtras['notice']> = {
 };
 
 /**
+ * preview surface (Phase 20.5) — the HTML tab's Preview mode.
+ *
+ * TWO calls, and the size of this object is the security property. Main mints
+ * the frame URL because only main can resolve the real path of a request and
+ * the real path of a project root and compare them. `stats` reads back the
+ * counts main kept while serving that document, because the line under the
+ * frame is the reader's only explanation for a page that renders wrong, and
+ * the renderer cannot see a refusal main made. Nothing here reads a file,
+ * nothing here opens anything, and neither call takes an address.
+ *
+ * There is no channel a previewed DOCUMENT can reach. This preload is not
+ * loaded into the preview frame at all: that frame is `sandbox=""` with an
+ * opaque origin, so it has no `window.gmux` and no parent access. Every call
+ * on this object comes from Tortie's own renderer, about a tab the user
+ * opened.
+ */
+const preview: NonNullable<GmuxPreviewExtras['preview']> = {
+  url: (input) => invoke('preview:url', input),
+  stats: (input) => invoke('preview:stats', input)
+};
+
+/**
  * search surface (Phase 14) — streaming ⌘⇧F.
  *
  * `onResults` takes the searchId the CALLER minted and is meant to be called
@@ -453,6 +476,7 @@ const api: GmuxApi &
   GmuxRecentsExtras &
   GmuxNoticeExtras &
   GmuxPowerExtras &
+  GmuxPreviewExtras &
   GmuxViewMenuExtras = {
   sessions,
   projects,
@@ -469,6 +493,7 @@ const api: GmuxApi &
   quickOpen,
   scrollback,
   notice,
+  preview,
   pathForFile: (file: File): string => {
     try {
       return webUtils.getPathForFile(file);

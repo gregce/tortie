@@ -806,7 +806,8 @@ export type GmuxInvokeChannelMap = InvokeChannelMap &
   SpecStoryStatusInvokeChannelMap &
   CloneInvokeChannelMap &
   RecentsInvokeChannelMap &
-  DurabilityInvokeChannelMap;
+  DurabilityInvokeChannelMap &
+  PreviewInvokeChannelMap;
 
 export type GmuxInvokeChannel = keyof GmuxInvokeChannelMap;
 
@@ -2721,4 +2722,85 @@ export interface PowerEventPayloadMap {
  */
 export interface GmuxPowerExtras {
   onPowerResume?(cb: () => void): Unsubscribe;
+}
+
+// ---------------------------------------------------------------------------
+// APPENDED by Phase 20.5 (the HTML preview) — one new invoke channel and one
+// optional preload extra. The one existing line touched above is the
+// GmuxInvokeChannelMap intersection, exactly as that declaration's own comment
+// prescribes.
+//
+// preview:url — mint the frame URL for one HTML document, and start that
+//   document's request budget. It is a GET-shaped call with no side effect the
+//   user can see, and it is the ONLY thing the renderer may ask about a
+//   preview.
+//
+//   WHY THE RENDERER DOES NOT BUILD THE URL. Containment is decided by
+//   resolving the real path of the request and the real path of the project
+//   root and comparing them, and only main can do that. A prefix check over
+//   joined paths was measured serving the real /etc/passwd through a symlink
+//   named docs/notes.html. If this process could spell its own preview URL
+//   there would be two opinions about which bytes belong to a project.
+//
+//   WHAT DOES NOT EXIST HERE, and its absence is the point. There is no
+//   channel that a previewed DOCUMENT can reach. An earlier draft of this
+//   phase rewrote external links to a sentinel URL so main could open them in
+//   a browser, and a one pixel nested iframe fired that on load, with no
+//   script and no click, carrying an address the page author chose. Nothing
+//   inside the frame can call anything: the frame is `sandbox=""`, it has no
+//   preload, and its own response policy is `default-src 'none'`. Every call
+//   on this channel comes from Tortie's own renderer, about a tab the user
+//   opened.
+//   MAIN: src/main/preview/ipc.ts (rules in src/main/preview/protocol.ts).
+//
+// PRELOAD: a new top-level `preview` object, feature-detected by the viewer
+// (`typeof window.gmux.preview?.url === 'function'`). Without it the HTML tab
+// shows "Preview is not available" and the Source pane is unaffected.
+// ---------------------------------------------------------------------------
+
+// preview:stats — read back what the handler refused while serving the
+//   document this renderer opened. Added in the Phase 20.5 fix round, and it
+//   is a correctness fix rather than a feature. The line under the frame is
+//   the reader's only explanation for a page that renders wrong, and before
+//   this channel the renderer wrote that line from patterns over the source
+//   text. Three cases were measured in the app where it read "Nothing in this
+//   page was blocked" while the handler had refused 501 requests, 12
+//   subresources, or the whole document.
+//
+//   It is read only. It takes a token and a generation and returns six
+//   numbers. It opens nothing, reads no file and acts on no address. As with
+//   `preview:url`, nothing inside a previewed DOCUMENT can reach it, because
+//   that frame is `sandbox=""` with an opaque origin, has no preload and
+//   carries `default-src 'none'`.
+//   MAIN: src/main/preview/ipc.ts (rules in src/main/preview/protocol.ts).
+
+import type {
+  PreviewStats,
+  PreviewStatsInput,
+  PreviewUrlInput,
+  PreviewUrlResult
+} from './preview-types';
+
+/** The two channels the HTML preview needs. */
+export interface PreviewInvokeChannelMap {
+  /** Mint a `gmux-preview:` URL for one document, or say why not. */
+  'preview:url': { req: [input: PreviewUrlInput]; res: PreviewUrlResult };
+  /** What the handler refused for that document. Null once superseded. */
+  'preview:stats': {
+    req: [input: PreviewStatsInput];
+    res: PreviewStats | null;
+  };
+}
+
+/**
+ * OPTIONAL top-level extra on window.gmux, feature-detected by the HTML
+ * viewer. It is top-level rather than folded into `fs` on purpose: `fs` is the
+ * text and file-management surface, and nothing about a preview is a file
+ * operation.
+ */
+export interface GmuxPreviewExtras {
+  preview?: {
+    url(input: PreviewUrlInput): Promise<PreviewUrlResult>;
+    stats(input: PreviewStatsInput): Promise<PreviewStats | null>;
+  };
 }

@@ -3,9 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <title>Tortie</title>
+    <!-- Phase 20.5 added exactly one directive, `frame-src gmux-preview:`,
+         and it is a net tightening rather than a widening. `frame-src` was
+         unset, so it fell back to `default-src 'self'` and this document
+         could frame its own files. It now frames one read-only scheme and
+         not its own origin, and there were zero <iframe> and zero <webview>
+         elements in the renderer before the HTML preview, so nothing lost a
+         capability. It grants no fetch reach, no script source and no image
+         source: research 37 §8.1 still holds, and the proof is a fetch() to
+         a live local sink returning "Failed to fetch" with 0 requests
+         logged. csp.test.ts pins this string so a second directive cannot
+         arrive without someone deciding to add one. -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: gmux-asset:; font-src 'self' data:; worker-src 'self' blob:"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: gmux-asset:; font-src 'self' data:; worker-src 'self' blob:; frame-src gmux-preview:"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- Pre-paint ground: --bg-canvas before any stylesheet arrives, so

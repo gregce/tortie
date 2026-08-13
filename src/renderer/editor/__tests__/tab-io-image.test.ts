@@ -62,6 +62,8 @@ function imageTab(over: Partial<EditorTab> = {}): EditorTab {
     markdown: false,
     image: true,
     svg: false,
+    // Phase 20.5 added `html` to EditorTab. A .png is not a page.
+    html: false,
     imageData: null,
     imageHead: null,
     imageRevision: 0,

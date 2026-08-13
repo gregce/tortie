@@ -62,6 +62,7 @@ import { MonacoHost } from './MonacoHost';
 import { PierreDiff } from './PierreDiff';
 import { MarkdownPreview } from './markdown';
 import { ImageCompare, ImageView } from './image';
+import { HtmlPreview, tabRendersHtml } from './html';
 import { Codicon } from '../icons';
 import { installShotHook } from './shot-hook';
 import {
@@ -185,6 +186,19 @@ interface ModeOption {
   disabled?: boolean;
 }
 
+/**
+ * Does this file have a rendered form?
+ *
+ * ONE question, asked once, for every type that answers yes. It used to be
+ * `tab.markdown || tab.svg` written out at each site, and Phase 20.5's HTML
+ * preview would have made that a three-way test in three places. The
+ * segmented control is the same control for all of them — Preview, Source,
+ * Split — so no new `EditorMode` value exists and Split comes free.
+ */
+function hasRenderedForm(tab: EditorTab): boolean {
+  return tab.markdown || tab.svg || tabRendersHtml(tab);
+}
+
 function modeOptions(tab: EditorTab, splitFits: boolean): ModeOption[] {
   const options: ModeOption[] = [];
   if (tab.canDiff) {
@@ -202,13 +216,19 @@ function modeOptions(tab: EditorTab, splitFits: boolean): ModeOption[] {
   }
   // An SVG takes markdown's control unchanged — it is the same question
   // ("the picture or the markup?") with a different renderer behind Preview.
-  if (tab.markdown || tab.svg) {
-    const noun = tab.svg ? 'SVG' : 'markdown';
+  // So does an HTML file, where the question is "the page or the source?".
+  if (hasRenderedForm(tab)) {
+    const html = !tab.markdown && !tab.svg;
+    const noun = tab.svg ? 'SVG' : html ? 'HTML' : 'markdown';
     options.push({
       mode: 'preview',
       label: 'Preview',
       icon: 'open-preview',
-      title: tab.svg ? 'The rendered image' : 'Rendered markdown'
+      title: tab.svg
+        ? 'The rendered image'
+        : html
+          ? 'The rendered page. No script in it runs.'
+          : 'Rendered markdown'
     });
     options.push({
       mode: 'file',
@@ -579,13 +599,15 @@ export function EditorPanel(): React.JSX.Element | null {
     mode === 'split' && !splitFits ? 'file' : mode;
   const minimapFits = panelWidth >= MINIMAP_MIN_PX;
   const showMinimap = minimapEnabled && minimapFits;
-  // Neither the image viewer nor an SVG preview has anything to summarize —
-  // the minimap belongs to text, so the toggle stays out of their chrome
-  // rather than sitting there doing nothing.
+  // Neither the image viewer, an SVG preview nor a rendered page has
+  // anything to summarize — the minimap belongs to text, and the heading
+  // ruler behind the same toggle is markdown's. The toggle stays out of
+  // their chrome rather than sitting there doing nothing. Split keeps it,
+  // because Split has Monaco in its left pane.
   const minimapApplies =
     effectiveMode !== 'diff' &&
     effectiveMode !== 'image' &&
-    !(activeTab.svg && effectiveMode === 'preview') &&
+    (effectiveMode !== 'preview' || activeTab.markdown) &&
     activeTab.error === null;
   const diffSplitFits = panelWidth >= DIFF_SPLIT_MIN_PX;
   const showDiffSplit = diffSideBySide && diffSplitFits;
@@ -595,15 +617,22 @@ export function EditorPanel(): React.JSX.Element | null {
     <MonacoHost tab={activeTab} minimap={showMinimap && !activeTab.markdown} />
   );
   // "Preview" means the rendered form of this file: markdown for a .md, the
-  // picture for an .svg. Split pairs either with Monaco unchanged.
+  // picture for an .svg, the page itself for an .html. Split pairs any of
+  // them with Monaco unchanged.
+  // The last arm is the HTML page. It is the fallback rather than a fourth
+  // test because this value is only ever mounted for a tab that answered yes
+  // to `hasRenderedForm`, and HTML is the one kind left after markdown and
+  // SVG have taken theirs.
   const preview = activeTab.svg ? (
     <ImageView tab={activeTab} live={effectiveMode === 'split'} />
-  ) : (
+  ) : activeTab.markdown ? (
     <MarkdownPreview
       tab={activeTab}
       live={effectiveMode === 'split'}
       ruler={showMinimap}
     />
+  ) : (
+    <HtmlPreview tab={activeTab} live={effectiveMode === 'split'} />
   );
 
   return (

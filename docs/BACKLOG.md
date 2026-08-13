@@ -26,7 +26,7 @@ The About panel and the installer keep saying **Tortie**, because that is the ap
 the wordmark is a wordmark. Revisit only if the operator asks.
 | 4 | **19** durability, with the harness that proves it | ✅ SHIPPED 2026-08-12 | — |
 | 5 | **20** the verified backup ring | ✅ SHIPPED 2026-08-13 | Phase 19 ✅ |
-| 5b | **20.5** file preview beyond markdown, starting with HTML | RESEARCH RUNNING, R39 | Phase 20 |
+| 5b | **20.5** file preview beyond markdown, starting with HTML | ✅ SHIPPED 2026-08-13 | Phase 20 ✅ |
 | 6 | **21** versioned agent recovery contracts, as one migration with resume provenance | queued | Phase 20 |
 | 7 | **22** the Context sidebar, with installing enabled | SPECCED BELOW | 21, and it runs **before** the release lane by operator instruction |
 | 8 | **23** Tortie Config, configuration not code, plus the authoring prompt | SPECCED BELOW | 22, and **never before 21**. Opens with a re-baseline of the code |
@@ -2318,3 +2318,97 @@ too weak rather than the claim being wrong. Research 34 §3.2 and its gaps list 
   `npm run conformance:resume` roundtrip ran with real turns: 8 PASS, 0 FAIL, 1 BLOCKED, 1 SKIP in
   187.2 s. `gemini` is the BLOCKED row and its CLI answered "This request failed", which is the
   agent's own service and not Tortie. `droid` is the SKIP row and is not installed on this machine.
+
+## Phase 20.5, the HTML preview ✅ SHIPPED 2026-08-13
+
+Spec: docs/research/39-file-preview.md and its part 2. Verification tier 3, because this renders
+content the user did not write inside the application that holds their source and their sessions.
+
+### What landed
+
+An `.html` or `.htm` tab now carries the same segmented control markdown and SVG already had, which
+is Preview, Source and Split. Preview shows the page. Source is Monaco. Split puts them side by side.
+
+| Piece | Where |
+| --- | --- |
+| The eligibility gate and the refusal list, shared by main and the renderer | `src/shared/preview-types.ts` |
+| The read-only `gmux-preview:` handler, containment, the request budget | `src/main/preview/protocol.ts` |
+| The parse5 anchor rewrite that makes an external link inert | `src/main/preview/anchors.ts` |
+| `preview:url` and `preview:stats`, the only two questions the renderer may ask | `src/main/preview/ipc.ts` |
+| The frame, the blank state and the line that says what was refused | `src/renderer/editor/html/` |
+| The build-time gate that asserts the containment strings survive bundling | `build/assert-preview-containment.mjs` |
+
+### The decisions, and the measurements behind them
+
+**Source is the default, not Preview.** Of 1,052 HTML files tracked in 233 repositories on this
+machine, 63 percent render blank or nearly blank without JavaScript. 884 contain a script element and
+535 reference an external address. A preview that opens blank looks broken rather than safe, so the
+tab opens in Source and the reader chooses Preview.
+
+**The frame attribute is exactly `sandbox=""`.** Neither `allow-scripts` nor `allow-same-origin` is
+present, and a test asserts the literal string in the source rather than the rendered DOM, because
+the failure that happens is a later refactor widening the attribute by one keyword. With
+`allow-same-origin` a probe read the parent bridge and 9,196 bytes of /etc/passwd. With
+`allow-scripts` 11 of 11 probes reached a local sink, because the sandbox attribute has never been a
+network control.
+
+**Containment resolves the real path on both sides.** A prefix check over joined paths was measured
+serving the real /etc/passwd through a symlink named `docs/notes.html`. The handler calls `realpath`
+on the request and on the root, and asks the type question a second time after resolution, so a
+symlink named `logo.png` pointing at `id_rsa` is refused on the name it resolves to.
+
+**One directive was added to the application policy, `frame-src gmux-preview:`, and it is a net
+tightening.** `frame-src` was unset and fell back to `default-src 'self'`, so the renderer could
+frame its own files. It now frames one read-only scheme and not its own origin, and there were zero
+iframe and zero webview elements in the renderer before this phase. Research 37 section 8.1 still
+holds: a `fetch()` from the renderer to a live local sink returns "Failed to fetch" and the sink logs
+nothing.
+
+**Nothing inside a previewed page can reach the main process.** An earlier draft routed external
+links through a main process open call, and a one pixel nested iframe fired it with an attacker
+chosen address on load, with no script and no click, accepting a file address as readily as a web
+one. That path was removed. External anchors lose their `href` and keep the address in `title`, so
+they are visible and inert.
+
+**Zero new runtime dependencies.** parse5 was already present transitively and is now a direct
+dependency. The rewrite needs a real parse, because a regex is fooled by an `href` inside a comment.
+
+### What never gets a preview, and it is a refusal rather than a backlog item
+
+`NEVER_PREVIEW` in `src/shared/preview-types.ts` holds six rules with the reason written beside each
+one: dotenv files in every spelling, key material by extension, SSH key files by name, Java and
+Spring properties files, netrc files and htpasswd files. Every one of them is already refused by the
+extension allowlist, which is exactly why the list is written down in the file somebody would edit to
+add a line. Tracked in git on this machine: 79 `.env.*`, 10 `.env`, 8 `.key`, 8 named `id_rsa`, 6
+`.pem`, 2 `.cer` and 1 `.keystore`. Eligibility is granted by extension and is never inferred from
+content, because a private key in JSON Web Key form is valid JSON and content sniffing would hand it
+a rendered view.
+
+### What the verifiers tried and could not do
+
+Two independent verifiers drove the built app, one of them 22 launches with a local HTTP sink
+listening on 127.0.0.1:8721. Across every hostile run the sink logged 0 requests. A page carrying a
+remote script, a remote stylesheet, a preload font, an `@font-face`, a favicon, a prefetch, a
+preconnect, a CSS background image, a tracking pixel, `srcset`, `picture`, a nested iframe, video,
+poster, audio, object, embed, track, a form action, `fetch`, XHR, WebSocket and `sendBeacon` produced
+0 arrivals, each refused with a named directive. A `base` tag was refused by `base-uri 'none'`. A
+meta refresh was refused because `allow-scripts` is not set. `javascript:`, `data:` and `blob:`
+frames were refused. Seven real mouse clicks delivered through the debugger navigated nothing, while
+the control click on a legitimate same-project link did navigate, which proves the clicks arrived.
+Script injected over the debugger, which bypasses the script lock entirely, found `window.gmux`,
+`require`, `process` and `module` all undefined, an origin of "null", and `SecurityError` on
+`window.parent.gmux`, `document.cookie`, `localStorage` and `indexedDB`.
+
+### What is NOT true after Phase 20.5
+
+- **A page that needs JavaScript still shows nothing.** That is the design and it is why Source is
+  the default. The blank state is titled "Nothing to show without JavaScript" and it names the count.
+- **Only HTML got a preview.** Mermaid, PDF and CSV are deferred to their own phases, and each needs
+  its own decision about where its content runs. None of them is one line away from being added.
+- **`.xhtml` is deliberately absent** from the allowlist. A browser parses it as XML, the anchor
+  rewrite uses an HTML parser, and showing a quietly reshaped document is worse than showing source.
+- **The request budget is a cost bound and not a containment boundary.** It is 1,000 requests per
+  minted URL and it resets when the renderer asks for a new one.
+- **Two preview tabs on one project share a token**, so they share one counter. Every mint counts a
+  generation up, and main answers null rather than the wrong counts, which makes the renderer print
+  nothing rather than a wrong line.

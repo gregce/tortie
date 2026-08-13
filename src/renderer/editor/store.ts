@@ -61,6 +61,9 @@ import { createTabIo } from './tab-io';
 // preview component, whose skeleton comes from MonacoHost, which imports this
 // store — a cycle for the sake of one predicate.
 import { isMarkdownPath } from './markdown/markdown-path';
+// Phase 20.5: the eligibility gate for a rendered page, shared with main's
+// `gmux-preview:` handler so the tab and the handler cannot disagree.
+import { canPreviewPath } from '@shared/preview-types';
 import { baseName } from './paths';
 
 /**
@@ -115,6 +118,23 @@ export interface EditorTab {
    * Preview/Source split with a different renderer.
    */
   svg: boolean;
+  /**
+   * Renders as a web page (Phase 20.5). Same control as markdown and SVG,
+   * which is Preview, Source and Split, with the `gmux-preview:` frame behind
+   * Preview.
+   *
+   * Computed once here from `canPreviewPath` in `@shared/preview-types`, the
+   * same predicate main's protocol handler uses as its allowlist. One
+   * predicate, so a tab cannot offer Preview for a file the handler will
+   * refuse to serve. That file also holds the six patterns that must never
+   * get a rendered view whatever the allowlist says, and it runs them first.
+   *
+   * Unlike an SVG, an HTML tab opens in SOURCE. 63% of the 1,052 HTML files
+   * tracked in 233 repositories on this machine render blank or nearly blank
+   * without script, and a preview that opens blank looks broken rather than
+   * safe (research 39 part 2).
+   */
+  html: boolean;
   /** The `fs:readImage` reply for the working copy (raster tabs). */
   imageData: ImageReadResult | null;
   /** The same, read at HEAD — the BEFORE side of an image comparison. */
@@ -452,6 +472,10 @@ export const useEditor = create<EditorState>((set, get) => {
       // arbitrary-revision image read exists.
       const svg = isSvgPath(req.path);
       const image = isImagePath(req.path) && (svg || commit === null);
+      // Phase 20.5. The predicate is shared with main's preview handler, so
+      // "this tab offers Preview" and "the handler will serve it" are one
+      // answer. An HTML tab still opens in Source: see the flag's comment.
+      const html = canPreviewPath(req.path);
       const origRelPath = leftPathFor(req);
       // Rule (a): a navigation lands in File mode, whatever the request or
       // the file extension would otherwise have chosen.
@@ -484,6 +508,7 @@ export const useEditor = create<EditorState>((set, get) => {
         markdown,
         image,
         svg,
+        html,
         imageData: null,
         imageHead: null,
         imageRevision: 0,

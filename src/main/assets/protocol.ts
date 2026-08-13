@@ -67,8 +67,25 @@ export function assetUrlForPath(absPath: string): string {
  * late throws. `standard` gives the URL a parseable host/path; `secure` keeps
  * the renderer a secure context; `supportFetchAPI`/`stream` let `protocol.handle`
  * answer with a streamed Response.
+ *
+ * THIS IS THE APPLICATION'S ONLY `registerSchemesAsPrivileged` CALL, AND IT
+ * HAS TO STAY THAT WAY. Phase 20.5 measured what a second call does on
+ * Electron 43.3.0: with two calls of one scheme each, `standard` and `stream`
+ * were kept for both schemes, and `secure`, `supportFetchAPI` and
+ * `corsEnabled` were kept only for the scheme in the LAST call. A page then
+ * fetched the second scheme successfully and failed to fetch the first.
+ * Nothing throws and nothing is logged, so a second call would have quietly
+ * broken markdown images. That is why `gmux-preview:` arrives here as a
+ * descriptor in `extra` rather than as a registration function of its own,
+ * and why `src/main/preview/__tests__/privileged-schemes.test.ts` fails the
+ * moment a second call site appears anywhere under src/main.
+ *
+ * @param extra Descriptors other schemes contribute. Each one owns its own
+ *   privileges and the reasons for them; this function only makes the call.
  */
-export function registerAssetSchemePrivileged(): void {
+export function registerAssetSchemePrivileged(
+  extra: readonly Electron.CustomScheme[] = []
+): void {
   protocol.registerSchemesAsPrivileged([
     {
       scheme: ASSET_SCHEME,
@@ -80,7 +97,8 @@ export function registerAssetSchemePrivileged(): void {
         bypassCSP: false,
         corsEnabled: true
       }
-    }
+    },
+    ...extra
   ]);
 }
 

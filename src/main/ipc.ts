@@ -21,6 +21,9 @@ import type {
 // a change that did not come from the menu itself.
 import { setSessionsPositionRadios } from './menu';
 import { registerPopupMenuHandler } from './menu-popup';
+// LEAF import: the ./preview barrel also re-exports the parse5 anchor
+// rewrite, and this file needs one function that touches no parser.
+import { releasePreviewRoot } from './preview/protocol';
 import { rememberProject } from './recents';
 import { getGmuxCore } from './sessions';
 import { handle as handleTyped } from './typed-ipc';
@@ -129,8 +132,16 @@ export function registerIpcHandlers(): void {
     const core = await getGmuxCore();
     // Read the row BEFORE it is deleted, so the recents entry keeps the name
     // the user gave the project rather than falling back to the folder name.
-    rememberProject(core.listProjects().find((p) => p.id === projectId));
+    const row = core.listProjects().find((p) => p.id === projectId);
+    rememberProject(row);
     core.removeProject(projectId);
+    // Phase 20.5: drop this project's `gmux-preview:` token, so a page still
+    // held in a closed tab stops resolving. Nothing breaks if it is skipped,
+    // because the map holds one small row per project, but a closed project
+    // should not keep a live door open. Failure is ignored on purpose: a
+    // project that has already been deleted from disk still had its row
+    // removed above, and the close must not fail because of a token.
+    if (row) await releasePreviewRoot(row.path).catch(() => undefined);
   });
   handle('projects:pickDirectory', async (e) => {
     const win = BrowserWindow.fromWebContents(e.sender);

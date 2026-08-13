@@ -87,6 +87,12 @@ import { registerDropIpc, startDropStorePruning } from './drop';
 import { registerFsIpc, registerImageIpc } from './fs';
 import { disposeGitIpc, registerGitIpc } from './git';
 import { registerIpcHandlers } from './ipc';
+import {
+  PREVIEW_PRIVILEGED_SCHEME,
+  registerPreviewIpc,
+  registerPreviewProtocol,
+  rewriteExternalAnchors
+} from './preview';
 import { getGmuxCore, shutdownGmuxCore } from './sessions';
 import type { GmuxCore } from './sessions';
 import { handle } from './typed-ipc';
@@ -219,10 +225,16 @@ if (!harnessLaunch) {
 // support answer needs.
 const userDataMigration = migrateUserDataIfNeeded(app);
 
-// `gmux-asset:` (markdown images) must be declared before the app is ready —
-// Electron throws if registerSchemesAsPrivileged runs later. The handler
-// itself is installed in the whenReady block below.
-registerAssetSchemePrivileged();
+// `gmux-asset:` (markdown images) and `gmux-preview:` (the Phase 20.5 HTML
+// preview frame) must both be declared before the app is ready — Electron
+// throws if registerSchemesAsPrivileged runs later. The handlers themselves
+// are installed in the whenReady block below.
+//
+// ONE CALL, BOTH SCHEMES. A second call does not add a scheme, it strips
+// `secure`, `supportFetchAPI` and `corsEnabled` from whichever scheme was
+// registered first, silently. The measurement is on
+// `registerAssetSchemePrivileged` and a test fails on a second call site.
+registerAssetSchemePrivileged([PREVIEW_PRIVILEGED_SCHEME]);
 
 // ---------------------------------------------------------------------------
 // Native-module proof (node-pty + better-sqlite3 must load inside Electron)
@@ -1660,6 +1672,15 @@ app.whenReady().then(async () => {
 
   // `gmux-asset:` handler — images referenced by rendered markdown (item 6).
   registerAssetProtocol();
+  // `gmux-preview:` handler (Phase 20.5) — the bytes behind the HTML preview
+  // frame. It is read-only, it serves paths below ONE project root, and every
+  // response it builds carries `default-src 'none'`.
+  //
+  // The anchor rewrite is passed in rather than imported by the handler, and
+  // the field is required, so a document cannot be served with its external
+  // links left pointing at addresses the application policy refuses. Refusing
+  // them is what turns the frame blank, which is why the rewrite exists.
+  registerPreviewProtocol({ rewriteHtml: rewriteExternalAnchors });
 
   // Handlers are lazy (each awaits getGmuxCore()), so registering them in
   // every mode is free and keeps harness renderers from hitting
@@ -1673,6 +1694,10 @@ app.whenReady().then(async () => {
   // registerFsIpc on purpose — that registrar owns the text surface, and the
   // point of the image channel is that images never share a door with text.
   registerImageIpc(ipcMain);
+  // Phase 20.5: preview:url — the one question the renderer may ask about a
+  // preview. Nothing inside a previewed page can reach it, because that frame
+  // has no preload and no parent access. See src/main/preview/ipc.ts.
+  registerPreviewIpc(ipcMain);
   // Phase 12.9 item 1: projects:create — the only project channel that
   // writes to disk (mkdir + optional `git init`, then the usual add).
   registerProjectCreateIpc(ipcMain);
