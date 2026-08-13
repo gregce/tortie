@@ -3048,3 +3048,42 @@ every name in the operator's screenshot renders whole.
 (bundled entries are already excluded from counts and must stay excluded), and the no secret
 rendering rule. The 24 px row rhythm and the three width tiers, including T3 where the summary
 moves to the hover card.
+
+---
+
+## Phase 26.3 — an ended session can be restored, not only restarted (user requested, 2026-08-13)
+
+**The request.** When a session ends, the surface offers Restart, which is a fresh session with the
+same name and directory, and Close. The operator wants a third verb: Restore, which brings the
+session back entirely, meaning replayed scrollback and the agent's own resume command armed, exactly
+what reboot restore already does.
+
+**The plumbing exists, the state does not reach it.** `restoreSession` in the renderer store already
+restores any row whose status is `restorable`, and the whole Phase 19 to 21 restore machinery sits
+behind it. But an ended session never becomes restorable today. Two paths to check at spec time:
+1. **Manual end.** The `endSession` confirm says "its scrollback will be discarded", and the row is
+   discarded with it. To restore later, ending must first capture a snapshot capsule and preserve
+   the row with its resume argv, which is exactly what the Phase 19 capture and Phase 20 capsule
+   machinery are for. The confirm copy then changes, because the promise "this cannot be undone"
+   stops being true.
+2. **Natural exit.** A session whose process ended carries status `exited` with the row intact.
+   Decide whether `exited` rows with a capsule and a resume argv simply offer Restore, which may be
+   nearly free.
+
+**Scope guard.** Reuse `restoreSession` and the existing capsule write. Do not build a second
+restore path. The Phase 21 rule holds: restore obeys the manifest row, and the honest status model
+from Phase 19 applies, so a restore whose replay or arming fails must say so, never claim `running`.
+
+**One design question to settle at spec time, not silently.** Ending a session kills a live
+process. Restore does not resurrect the process state, only the conversation and the scrollback.
+The verb copy must say what comes back, e.g. "Restore replays the scrollback and arms the agent's
+resume", so nobody thinks a long-running build they killed resumes mid-compile.
+
+**Verification.** Tier 3, because it touches end, capture and restore, and the operator asked for
+it personally. Prove by driving: end an agent session manually, restore it, and confirm the
+scrollback replayed and the resume argv is armed and unexecuted, for a claude shape and a pi shape.
+Confirm a plain shell restores as a shell in the right directory. Confirm the fault harness still
+passes, and run conformance:resume:capture since restore paths are touched.
+
+**What must not regress.** The Phase 19 restart fix, where nothing is discarded until the
+replacement exists. The honest restore statuses. The 24 px surfaces that carry the verbs.
