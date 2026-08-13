@@ -763,6 +763,28 @@ export const KEYMAP = [
     menuAction: 'show-scm'
   },
   {
+    // Phase 22. ⌃⇧C sits beside ⌃⇧G on purpose, and ⇧⌘C is deliberately left
+    // free: DESIGN.md §4 uses it as the worked example of a user-recorded
+    // per-agent hotkey, so taking it would make the documented example
+    // un-recordable.
+    //
+    // NO `menuAction` YET. The native View menu is built in src/main/menu.ts
+    // from an id union in src/shared/ipc.ts, and both of those are outside this
+    // builder's files. Adding `show-context` there is the one-line change that
+    // puts Context in the View menu; until it lands the chord works and the
+    // menu simply does not list it. See the integration note in the phase
+    // report.
+    id: 'view.context',
+    keys: [k('Ctrl+Shift+C')],
+    action: 'Context',
+    explain:
+      'Shows what your agents are configured to run on in this project: skills, MCP servers, hooks, plugins and the instruction files that load with them. Press it again while the list has focus to hand the keyboard back to the session.',
+    group: 'views',
+    scope: 'app',
+    assignable: false,
+    source: 'built-in'
+  },
+  {
     id: 'view.sidebar',
     keys: [k('Cmd+B')],
     action: 'Toggle sidebar',

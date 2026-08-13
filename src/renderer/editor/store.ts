@@ -191,6 +191,21 @@ export interface EditorTab {
   headContents: string | null;
   /** LRU stamp. */
   lastUsed: number;
+  /**
+   * Phase 22 — the Context row this tab was opened from, or null.
+   *
+   * Non-null turns the tab into the `context:<id>` DETAIL tab: the panel draws
+   * the header card above the body and the body is whatever this file would
+   * normally render as. It is a field rather than a tab kind because everything
+   * else about the tab is unchanged, and a second tab kind would have needed its
+   * own loader, its own identity rule and its own close semantics to end up
+   * behaving exactly like this one.
+   *
+   * Typed `unknown` for the same reason the request field is: this store is
+   * imported by every surface in the renderer, and the detail card is the only
+   * thing that needs the shape.
+   */
+  contextEntry: unknown;
 }
 
 /**
@@ -525,7 +540,8 @@ export const useEditor = create<EditorState>((set, get) => {
         error: null,
         savedContents: '',
         headContents: null,
-        lastUsed: now
+        lastUsed: now,
+        contextEntry: req.contextEntry ?? null
       };
 
       set((s) => {

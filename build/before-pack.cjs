@@ -13,13 +13,20 @@
  * It is idempotent and network-free once the pinned hash is already on disk.
  *
  * macOS only, because the bundle is arm64-mac only.
+ *
+ * Phase 22 adds a second tree on the same terms: the pinned `skills` CLI, which
+ * `electron-builder.yml` copies from `build/vendor/skills` and which
+ * `build/fetch-skills.cjs` materialises from `build/skills-release.json`. Same
+ * reasoning, same gitignored directory, same "the .app is the only place a
+ * mistake shows up".
  */
 
 const { ensureSpecstoryBinary } = require('./fetch-specstory.cjs');
+const { ensureSkillsCli } = require('./fetch-skills.cjs');
 
 exports.default = async function beforePack(context) {
   if (context.electronPlatformName !== 'darwin') return;
-  await ensureSpecstoryBinary({
-    log: (line) => console.log(line.replace(/^ {2}• /, '  • before-pack: '))
-  });
+  const log = (line) => console.log(line.replace(/^ {2}• /, '  • before-pack: '));
+  await ensureSpecstoryBinary({ log });
+  await ensureSkillsCli({ log });
 };

@@ -46,6 +46,7 @@ import {
 } from '../state/chrome-geometry';
 import { useGit } from '../state/git';
 import { useResizeHandle } from '../controls';
+import { ContextHeader, ContextSection, useContextActions } from '../context';
 import { BranchHeader, ScmSection } from '../scm';
 import { SearchHeader, SearchSection } from '../search';
 import { canMutate, FilesSection, useFileTree, useTreeHandle } from '../tree';
@@ -149,6 +150,10 @@ export function Sidebar(): React.JSX.Element {
   // The activity bar's own action, reused verbatim: drag-to-hide must land in
   // the identical state a click on the active view's icon produces.
   const toggleSidebar = useApp((s) => s.toggleSidebar);
+  // The Context view's write verbs. The hook is called unconditionally, which
+  // is the rule for hooks; the object only reaches a menu when the Context view
+  // is the one showing.
+  const contextActions = useContextActions();
 
   const view =
     (activeProjectId !== null ? viewByProject[activeProjectId] : undefined) ??
@@ -224,6 +229,22 @@ export function Sidebar(): React.JSX.Element {
         <div className="sidebar-view" data-view="search" tabIndex={-1}>
           <SearchHeader />
           <SearchSection />
+        </div>
+      ) : view === 'context' ? (
+        // Phase 22. It keeps `.sidebar-rest`, which is not cosmetic: that
+        // wrapper is the element zoom.css binds `--zoom-context` to and the
+        // element the zoom shot-probe looks for, so the view zooms with the
+        // same one-line rule Explorer and Source Control use rather than with
+        // Search's exception.
+        <div className="sidebar-view" data-view="context" tabIndex={-1}>
+          <ContextHeader />
+          <div className="sidebar-rest">
+            {/* SEAM 3, closed. Pass an object and the write verbs appear in
+                the row menus; pass nothing and they do not exist. Phase 22
+                shipped this with nothing, so no user could install, remove or
+                update a skill from the app. */}
+            <ContextSection actions={contextActions} />
+          </div>
         </div>
       ) : (
         <div className="sidebar-view" data-view="explorer" tabIndex={-1}>

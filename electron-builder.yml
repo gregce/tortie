@@ -183,6 +183,48 @@ extraResources:
   # build/specstory-release.json and is NOT in git; beforePack materialises it.
   - from: build/vendor/specstory/bin
     to: bin
+  # Phase 22 (the Context sidebar): the pinned `skills` CLI, at
+  # Contents/Resources/skills-cli/. src/main/skills/resolve.ts finds it via
+  # process.resourcesPath and runs it with Electron's own Node
+  # (ELECTRON_RUN_AS_NODE=1), so the machine needs no node, npm or npx.
+  #
+  # 2.4 MB after build/fetch-skills.cjs trims the documentation, the type
+  # declarations and the source maps. It is PURE JAVASCRIPT — the fetch script
+  # fails the build if a .node, .dylib, .so, .wasm or binding.gyp ever appears
+  # — so unlike the specstory binary above it needs no mac.binaries row, no
+  # sign-nested-binaries.cjs row and no entitlements.
+  #
+  # THE DIRECTORY NAME IS LOAD BEARING. `skills-cli/node_modules` must stay
+  # literally that: dist/cli.mjs imports `yaml` and `tar` by bare name and Node
+  # walks up looking for a directory with exactly that name. Renaming it gives
+  # ERR_MODULE_NOT_FOUND at run time and passes every check at pack time.
+  #
+  # WHY THIS COPIES THE node_modules DIRECTORY ITSELF rather than its parent,
+  # which is not a style choice. app-builder-lib/out/util/filter.js line 43 is
+  # `if (relative === "node_modules") return false`, so a directory whose path
+  # relative to the copy root is exactly `node_modules` is dropped
+  # unconditionally, and no `filter:` can re-include it. Measured, not guessed:
+  # a single `from: build/vendor/skills` entry produced a Resources/skills-cli
+  # holding package.json, package-lock.json and skills.json, 12 KB, and no CLI
+  # at all. `out/` passed. `npm run typecheck`, `npm run build` and every unit
+  # test passed. The only thing that caught it was running the entry point out
+  # of the packed .app, which build/assert-skills-cli.cjs now does on every
+  # build (research 19 section 7.2, the same trap as the tree-sitter wasm).
+  #
+  # Making the copy root the node_modules directory itself means the relative
+  # paths inside it are `skills`, `yaml`, `tar` and so on, and the rule never
+  # fires.
+  #
+  # extraResources rather than asarUnpack for the same reason as the two above:
+  # one stable path outside the asar. The tree is produced by
+  # build/fetch-skills.cjs from the pin in build/skills-release.json and is NOT
+  # in git; beforePack materialises it.
+  - from: build/vendor/skills/node_modules
+    to: skills-cli/node_modules
+  # The spawn-free version sidecar, read by src/main/skills/resolve.ts so
+  # Settings can name the bundled version without starting anything.
+  - from: build/vendor/skills/skills.json
+    to: skills-cli/skills.json
 asarUnpack:
   - "**/*.node"
   # Phase 14: the vendored ripgrep Mach-O (@vscode/ripgrep-darwin-arm64) is

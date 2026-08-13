@@ -28,7 +28,7 @@ the wordmark is a wordmark. Revisit only if the operator asks.
 | 5 | **20** the verified backup ring | ✅ SHIPPED 2026-08-13 | Phase 19 ✅ |
 | 5b | **20.5** file preview beyond markdown, starting with HTML | ✅ SHIPPED 2026-08-13 | Phase 20 ✅ |
 | 6 | **21** versioned agent recovery contracts, as one migration with resume provenance | ✅ SHIPPED 2026-08-13 | Phase 20 ✅ |
-| 7 | **22** the Context sidebar, with installing enabled | SPECCED BELOW | 21, and it runs **before** the release lane by operator instruction |
+| 7 | **22** the Context sidebar, with installing enabled | ✅ SHIPPED 2026-08-13 | — |
 | 8 | **23** Tortie Config, configuration not code, plus the authoring prompt | SPECCED BELOW | 22, and **never before 21**. Opens with a re-baseline of the code |
 | — | ~~**25** downloads and usage measurement~~ | **DEFERRED 2026-08-12 by the operator.** Spec kept below and stays valid. Note it must ship IN a released build, so reopening it after a release means the first cohort is unmeasurable |
 | 9 | **25.5** the DeepSeek CLI renamed itself and detection is broken | SPECCED BELOW | nothing. Small, and can run beside any phase |
@@ -1429,7 +1429,10 @@ Phase 18's layout work, Phase 18.5's six items and Phase 18.55's zoom fix, all o
 
 ---
 
-## Phase 22 — the Context sidebar, with installing enabled (2026-08-12)
+## Phase 22 — the Context sidebar, with installing enabled ✅ SHIPPED 2026-08-13
+
+**The record of what actually landed is at the end of this file, under "Phase 22, what shipped".**
+The specification below is kept because it carries the decisions, and it is history now.
 
 Full specification in docs/research/29-context-sidebar.md, 2,681 lines, which carries the per agent
 substrate matrix, the scope model, the wireframes at three widths and the final copy. Build from that
@@ -1574,6 +1577,12 @@ know them will write a command that runs successfully and does the wrong thing.
 1. **The source must come immediately after `add`.** `-s` and `-a` are variadic and greedily consume
    every following argument that does not begin with `-`. A source placed after either flag is
    swallowed as a skill name or an agent name.
+   **Measured in Phase 22 against the bundled CLI at 1.5.22, and it is half of what was written
+   here.** `add -g -y -s find-skills vercel-labs/skills -a claude-code codex` exits 1 with "Missing
+   required argument: source", so this trap is loud rather than silent. Trap 2 below is the silent
+   one, and it did exit 0 with the `-s` filter discarded. Both shapes are refused before a spawn by
+   `checkPlanShape` in `src/renderer/context/surface/command-line.ts`, which returns
+   `["missing-source"]` and `["equals-form"]`.
 2. **Never use the `--flag=value` form.** The parser matches exact flag tokens only, so `--skill=foo`
    matches nothing, begins with `-` so it is not treated as a source, and is silently discarded. The
    command then runs with a wider meaning than intended.
@@ -2571,3 +2580,138 @@ written to. No `pkill`. No `kill-server`.
   the drift research 30 measured.
 - **Capture mode asserts the manifest only.** No turn was planted and no conversation was proven.
   The full `npm run conformance:resume` roundtrip is the one that proves a conversation comes back.
+
+---
+
+## Phase 22, what shipped ✅ 2026-08-13
+
+The fourth sidebar view is in the app, and installing shipped with it as the operator decided. The
+specification is above and in docs/research/29-context-sidebar.md. The command shapes came from
+research 36. This entry records what landed, what was proven and what is still not true.
+
+### What a person can now see and do
+
+| Thing | Where it is | State |
+| --- | --- | --- |
+| Five sections, being skills, MCP servers, hooks, plugins and instructions | the Context view in the left rail | reads the real files on disk |
+| Filter the whole view to one agent | the view header | works, and it changes the order and the wording, not only the rows |
+| Open a row and read its detail | the editor area, as a tab | works, including the file it came from |
+| Install a skill from a GitHub source | the install sheet, opened from the skills section | works, and every write goes through the bundled skills CLI |
+| Remove and Update a skill | the row context menu | works, skills only |
+| Re-check an installed skill against its pin | every refresh of the view | works, and a changed file switches the row off |
+| See what one session loaded at launch | the session context menu, "Show what it loaded…" | works, and the header pill shows the session name |
+
+### The precedence work, and the four agents proven in the running app
+
+There is one standard and eleven bespoke layouts, and at least seven precedence models across twelve
+agents. Two of them run in opposite directions inside Claude Code, because project settings beat
+personal settings while personal skills beat project skills. The panel therefore takes the order and
+the sentence from the registry per agent, in `precedenceReadoutFor`, derived from the declared
+location ranks. Nothing in a component states a rule.
+
+Four agents were read out of the running app and each said something different.
+
+| Agent | What the skills section says |
+| --- | --- |
+| gemini | "This project" is drawn first, and the project copy wins |
+| codex | both copies stay, and neither one is discarded |
+| cursor | Tortie has not established which copy wins |
+| claude | the personal copy wins over the project copy |
+
+The three models that name no winner, being `no-override`, `cli-reported` and `unknown`, now carry
+the registry's own sentence in the detail card. Before the fix round they crossed the bridge and no
+renderer code read them.
+
+`npm run conformance:context` is the new gate on this. It reports 38 agent-and-category pairs across
+10 agents, and it fails if any declared pair is missing a model, an order or a live reload answer.
+
+### What the install path refuses
+
+The scan runs before the install control is drawn, at child index 2 against the control at index 8,
+read out of the running DOM. Two findings are hard and cannot be cleared.
+
+| Finding | Behaviour | Why it is hard or soft |
+| --- | --- | --- |
+| `executable-content` | hard refusal, the button is disabled | the file body can run with the user's permissions before any model reads it |
+| `not-scanned` | hard refusal, the button is disabled | Tortie could not read the file, so it has nothing to judge |
+| `audit-risk` | soft, the user acknowledges it | a scanner rating is somebody else's judgement, and "nobody scanned this" is the common case |
+
+A real skill shipping 8 files under `scripts/` was refused in the app, with the reason on screen. The
+whole command line is still shown with a copy control, so a person who wants that skill runs it in
+their own terminal and owns the decision there.
+
+Three more refusals sit in front of a write. A plan whose rebuilt command line differs from the one
+shown is refused, because a command line the user did not see is not one they approved. A source that
+is not `owner/repo` is refused with the reason. An install naming a single agent, or the wildcard
+agent on remove, throws rather than running.
+
+The build now asserts 5 skills-write refusals in the main bundle, beside the 21 durability refusals
+Phase 19 put there.
+
+### Pin and re-check, and the evidence
+
+`src/main/skills/pins.ts` writes Tortie's own sha256 of the installed folder on the success path
+only. Every refresh re-hashes and compares, in `context:skillPins`.
+
+The lock file's `skillFolderHash` is a 40 character git tree id and Tortie's hash is 64 characters.
+Wiring the re-check to the lock would have reported "changed" for every GitHub skill forever, so it
+is never compared against.
+
+The proof was driven in the app. One HTML comment was appended to an installed skill, the view was
+refreshed, and the row struck itself through with the sentence naming what Tortie did and did not do.
+It is switched off in Tortie's list, it is still on disk, the agents still load it, and removing it is
+the thing that stops that.
+
+### The launch snapshot is advisory, and the proof
+
+The snapshot is written once at launch, a restore writes a new one, and deleting it is always safe.
+It never fails a launch, never blocks a restore and never changes a resume argument. `smoke:t3`
+passed both restore shapes, claude and pi, each coming back with replayed scrollback and an armed
+unexecuted resume, with the snapshot present. `smoke:fault` passed 20 cases with every invariant
+holding, which includes kills before the snapshots are written.
+
+### Gates, on the final tree
+
+| Gate | Result |
+| --- | --- |
+| `typecheck` | clean, both projects |
+| `build` | passes, with 21 durability refusals and 5 skills-write refusals asserted, and the preview containment check |
+| `test` | 208 files passed, 1 skipped. 2,874 tests passed, 2 skipped |
+| `smoke:t1` | PASS, 6/6 on verify |
+| `smoke:t3` | PASS, both restore shapes |
+| `smoke:fault` | PASS, 20 cases |
+| `smoke:migrate` | PASS, and the migrated manifest reports migrations=9 |
+| `conformance:context` | PASS, 38 pairs across 10 agents |
+| `conformance:resume:capture` | 6 PASS, 0 FAIL, 0 BLOCKED, 4 SKIP in 17.0 s |
+| `package:dir` | passes, and afterPack reports "skills 1.5.22 runs from Contents/Resources/skills-cli under the packed Electron with no node on PATH" |
+
+Operator tmux sessions: 37 before, 37 after, and the two lists are identical. No `pkill` was used.
+Every app launch used its own `--user-data-dir`. Every write test ran with `HOME` under the
+scratchpad, and the operator's real agent configuration was never modified.
+
+### What is still not true
+
+- `Disable` and `Check connection…` are not offered. The first means editing an agent's own settings
+  file. The second means starting somebody else's MCP server. Neither is built.
+- The write verbs are skills only. The skills CLI has no MCP, hook, plugin or instruction management
+  in it, so nothing else can be installed, removed or updated from Tortie.
+- Only an `owner/repo` GitHub source can be previewed, so only such a source can be installed from
+  the sheet. A git URL and a local directory are both refused with the reason.
+- Tortie cannot stop an agent loading a file that is on disk. A changed pin switches the row off in
+  Tortie's own list and says so, and removing the skill is the only thing that stops the agent.
+- The preview's description is the first line of the fetched body, because the search API returns no
+  description. The licence always reads "unknown".
+- The usage-data switch was not added to settings, so the bundled CLI keeps its own default.
+- An update run can report success for skills it never checked, which is a CLI limitation recorded in
+  research 36. The check command is a plain alias for update, so the panel offers an action rather
+  than an indicator.
+- The full `npm run conformance:resume` roundtrip was not run in this phase. Capture mode asserts the
+  manifest and plants no turn.
+
+### One safety fix that belongs to Phase 19's family
+
+A `GMUX_SHOT` launch was a harness launch for the single instance check and not for the tmux socket
+override, so a shot run that created a session put it beside the operator's 37 live ones while
+printing that the override had been ignored. `activeTmuxSocket` now honours `GMUX_SHOT`, which is
+what `index.ts` always meant. There is a test for it. This is the same class of mistake that
+destroyed the operator's sessions on 2026-08-12.

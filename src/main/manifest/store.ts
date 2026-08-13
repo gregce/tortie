@@ -43,7 +43,12 @@ import {
   serializeAgentContract,
   serializeResumeProvenance
 } from './contract';
+import {
+  parseContextSnapshot,
+  serializeContextSnapshot
+} from './context-snapshot';
 import type { AgentRecoveryContract, ResumeProvenance } from './agents';
+import type { ContextSnapshot } from '@shared/context-snapshot';
 import { postDurabilityNotice } from '../notice';
 import {
   RESUME_CAPTURES,
@@ -135,6 +140,29 @@ export interface ManifestSessionRecord extends Session {
    * ./contract.ts, which names that case rather than handing back undefined.
    */
   resumeProvenance?: ResumeProvenance;
+  /**
+   * What this agent's configuration was at the moment the session launched
+   * (Phase 22, research 29 §8.2). The skills, MCP servers, hooks, plugins and
+   * instruction files that had resolved for this agent in this directory, each
+   * with a content hash.
+   *
+   * ADVISORY, AND NOTHING DURABILITY-CRITICAL MAY READ IT. It exists so a user
+   * can be told "that agent started before you wrote that skill" instead of
+   * spending twenty minutes finding out. A missing one must never fail a
+   * launch, block a restore or change a resume argument, and deleting one is
+   * always safe.
+   *
+   * WRITTEN ONCE, AT LAUNCH. `recordLaunchContext` in
+   * `src/main/context/snapshot.ts` is the only writer, and it is called from
+   * exactly two places, being the session create path and the restore path. A
+   * restore re-snapshots, because a restored session genuinely re-reads its
+   * configuration and carrying the old record forward would be a lie with a
+   * timestamp on it. Nothing else writes it, and no refresh in the panel does.
+   *
+   * UNDEFINED MEANS UNRECORDED, and the readout says so in its own sentence.
+   * It is not an empty configuration.
+   */
+  contextSnapshot?: ContextSnapshot;
 }
 
 /** Fields a caller may patch after creation. */
@@ -270,6 +298,11 @@ interface SessionRow {
   agent_contract: string | null;
   /** Where the conversation id came from, as JSON (migration 008, Phase 21). */
   resume_provenance: string | null;
+  /**
+   * What the agent's configuration was at launch, as JSON (migration 009,
+   * Phase 22). ADVISORY. Nothing on the restore path reads it.
+   */
+  context_snapshot: string | null;
 }
 
 interface ProjectRow {
@@ -541,6 +574,11 @@ function rowToRecord(row: SessionRow): ManifestSessionRecord {
   if (contract !== undefined) record.agentContract = contract;
   const provenance = parseResumeProvenance(row.resume_provenance ?? null);
   if (provenance !== undefined) record.resumeProvenance = provenance;
+  // Phase 22. Absent rather than defaulted, for the same reason the three
+  // above are: an empty snapshot would tell the user this session loaded
+  // nothing, and NULL means nobody looked.
+  const context = parseContextSnapshot(row.context_snapshot ?? null);
+  if (context !== undefined) record.contextSnapshot = context;
   return record;
 }
 
@@ -804,6 +842,48 @@ const MIGRATIONS: readonly SqliteMigration[] = [
       addColumnIfMissing(db, 'sessions', 'agent_contract', 'TEXT');
       addColumnIfMissing(db, 'sessions', 'resume_provenance', 'TEXT');
     }
+  },
+  {
+    // Phase 22 (research 29 §8.2): what the agent's CONFIGURATION was when
+    // this session launched. The skills, MCP servers, hooks, plugins and
+    // instruction files that had resolved for this agent in this directory at
+    // that moment, each with a content hash.
+    //
+    // WHAT IT ANSWERS. No agent records what context it loaded. Research 29
+    // §8.1 read 443 `system` records across a 12 MB Claude Code session and
+    // not one carries a manifest of it. Tortie owns the launch, so it is the
+    // only thing on the machine that can know, and the question it lets a user
+    // answer is "why did that agent not use the skill I just wrote".
+    //
+    // ADDITIVE, NOT BREAKING, and that is a decision rather than a default.
+    // Migration 008 was breaking under the rule in research 27 §4.3, which
+    // says to bump the minimum whenever a new column is REQUIRED for correct
+    // restore. This column is required for nothing. It is advisory by design:
+    // a missing snapshot must never fail a launch, block a restore or change a
+    // resume argument, and no code on the restore path reads it. An older
+    // build inserting a session into this manifest leaves `context_snapshot`
+    // NULL, and NULL is not a wrong answer here, it is the true one. That
+    // session really did launch without Tortie recording what it loaded, and
+    // the readout has a sentence that says exactly that. So
+    // MANIFEST_SCHEMA_VERSION moves to 9 and
+    // MANIFEST_MIN_COMPATIBLE_VERSION stays at 8.
+    //
+    // The test of that claim is not the SQL shape, which was additive for 008
+    // as well. It is whether an old build writing a NULL here produces a row
+    // the new build reads WRONGLY. It does not: it produces a row the new
+    // build reads as unrecorded, which is what it is.
+    //
+    // ONE COLUMN AND NOT A TABLE. Research 29 §12 puts it on the session row,
+    // and pruning is the reason to keep it there. Rule 4 of §8.2 is that
+    // deleting a snapshot is always safe, and a column is deleted with its
+    // session by `deleteSession` with no second delete to write, no foreign
+    // key to declare and no orphan to sweep. Its size is capped in
+    // ./context-snapshot.ts, because an unbounded advisory blob inside a
+    // durability-critical database is a hazard whatever its typical size.
+    name: '009-context-snapshot',
+    up: (db) => {
+      addColumnIfMissing(db, 'sessions', 'context_snapshot', 'TEXT');
+    }
   }
 ];
 
@@ -825,18 +905,24 @@ export const MANIFEST_APPLICATION_ID = 0x54525445;
  * one. Keep it that way: a number that has to be reasoned about is a number
  * that gets set wrong under time pressure.
  */
-export const MANIFEST_SCHEMA_VERSION = 8;
+export const MANIFEST_SCHEMA_VERSION = 9;
 
 /**
  * The oldest schema version whose code may still write this manifest.
  *
- * EQUAL TO THE SCHEMA VERSION, because migration 008 is breaking by the rule
- * in research 27 §4.3. A build at schema 7 can open this file and can insert
- * sessions into it, and every session it inserted would carry a NULL
- * `agent_contract`. Those rows restore by asking the live registry, which is
- * the defect Phase 21 removes, and for pi the visible result is an empty
- * session that looks resumed. SQLite would allow that write. This number is
- * what stops it.
+ * IT IS 8, WHICH IS ONE BEHIND THE SCHEMA VERSION, and the gap is the point.
+ * Migration 008 is breaking by the rule in research 27 §4.3. A build at schema
+ * 7 can open this file and can insert sessions into it, and every session it
+ * inserted would carry a NULL `agent_contract`. Those rows restore by asking
+ * the live registry, which is the defect Phase 21 removes, and for pi the
+ * visible result is an empty session that looks resumed. SQLite would allow
+ * that write. This number is what stops it.
+ *
+ * Migration 009 is ADDITIVE by that same rule, so it moved
+ * MANIFEST_SCHEMA_VERSION and left this number alone. `context_snapshot` is
+ * advisory: nothing on the restore path reads it, and a build at schema 8
+ * writing NULL into it produces a session with no record of what it loaded,
+ * which is exactly what that session is. Reasoning is at migration 009.
  *
  * The honest limit of it: a build that shipped before the refusal existed has
  * no code to read this number, so it will still open the file. The protection
@@ -1193,13 +1279,15 @@ export class ManifestStore {
              (id, name, tmux_name, project_path, cwd, agent, agent_session_id,
               argv, resume_argv, env, status, created_at, last_seen, exit_code,
               exit_signal, pane_pid, resume_capture, specstory, restore,
-              agent_version, agent_contract, resume_provenance)
+              agent_version, agent_contract, resume_provenance,
+              context_snapshot)
            VALUES
              (@id, @name, @tmuxName, @projectPath, @cwd, @agent,
               @agentSessionId, @argv, @resumeArgv, @env, @status,
               @createdAt, @lastSeen, @exitCode, @exitSignal, @panePid,
               @resumeCapture, @specstory, @restore,
-              @agentVersion, @agentContract, @resumeProvenance)`
+              @agentVersion, @agentContract, @resumeProvenance,
+              @contextSnapshot)`
         )
         .run({
           id: record.id,
@@ -1225,7 +1313,11 @@ export class ManifestStore {
           restore: record.restore ? JSON.stringify(record.restore) : null,
           agentVersion: record.agentVersion ?? null,
           agentContract: serializeAgentContract(record.agentContract),
-          resumeProvenance: serializeResumeProvenance(record.resumeProvenance)
+          resumeProvenance: serializeResumeProvenance(record.resumeProvenance),
+          // Normally NULL at insert. The snapshot is written a moment later,
+          // by `recordLaunchContext`, off the create path, so that resolving
+          // the configuration cannot delay or fail the launch it describes.
+          contextSnapshot: serializeContextSnapshot(record.contextSnapshot)
         });
     } catch (err) {
       throw manifestError(
@@ -1302,6 +1394,16 @@ export class ManifestStore {
     if (patch.resumeProvenance !== undefined) {
       merged.resumeProvenance = patch.resumeProvenance;
     }
+    // The snapshot is NOT write once, because a restore genuinely re-reads the
+    // configuration and the record has to move with it (research 29 §8.2 rule
+    // 3). What keeps it from drifting is that there is one writer,
+    // `recordLaunchContext`, called from the create path and the restore path
+    // and nowhere else. A patch that reaches here from any other caller is a
+    // mistake in that caller rather than something this merge should second
+    // guess, and refusing it here would break the restore case.
+    if (patch.contextSnapshot !== undefined) {
+      merged.contextSnapshot = patch.contextSnapshot;
+    }
 
     this.db
       .prepare(
@@ -1314,7 +1416,8 @@ export class ManifestStore {
            resume_capture = @resumeCapture, specstory = @specstory,
            restore = @restore, agent_version = @agentVersion,
            agent_contract = @agentContract,
-           resume_provenance = @resumeProvenance
+           resume_provenance = @resumeProvenance,
+           context_snapshot = @contextSnapshot
          WHERE id = @id`
       )
       .run({
@@ -1338,9 +1441,40 @@ export class ManifestStore {
         restore: merged.restore ? JSON.stringify(merged.restore) : null,
         agentVersion: merged.agentVersion ?? null,
         agentContract: serializeAgentContract(merged.agentContract),
-        resumeProvenance: serializeResumeProvenance(merged.resumeProvenance)
+        resumeProvenance: serializeResumeProvenance(merged.resumeProvenance),
+        contextSnapshot: serializeContextSnapshot(merged.contextSnapshot)
       });
     return merged;
+  }
+
+  /**
+   * Record what this session's configuration was at launch (Phase 22).
+   *
+   * NOT A DURABLE COMMIT, and that is the whole point of it. Every promoted
+   * write in this file is promoted because losing it costs the user a session
+   * or a conversation. Losing this one costs an explanation of a session that
+   * is still running and still resumable, and the explanation can be missing
+   * without anything being wrong. Paying 4 ms of drive flush per launch for a
+   * value nothing depends on would be spending the durability budget on the
+   * one row that does not need it. 0.064 ms, the ordinary `updateSession`
+   * figure.
+   *
+   * It is deliberately the only method that writes the column, so that "one
+   * writer, called from two places" is a fact about this file rather than a
+   * convention someone has to remember. Its caller is
+   * `recordLaunchContext` in `src/main/context/snapshot.ts`.
+   *
+   * @throws SESSION_NOT_FOUND when the row is gone, which a caller that
+   * snapshots off the create path must catch. The session can be discarded
+   * between the launch and the scan finishing, and a snapshot arriving for a
+   * row that no longer exists is an ordinary outcome rather than an error the
+   * user should ever hear about.
+   */
+  setContextSnapshot(
+    id: string,
+    snapshot: ContextSnapshot
+  ): ManifestSessionRecord {
+    return this.updateSession(id, { contextSnapshot: snapshot });
   }
 
   /** Rename (display + sanitized tmux name) — F2 flow and %session-renamed. */

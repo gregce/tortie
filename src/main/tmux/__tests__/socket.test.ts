@@ -63,6 +63,27 @@ describe('activeTmuxSocket', () => {
     ).toBe('gmux-fault-1');
   });
 
+  /**
+   * A shot run IS a harness launch. `src/main/index.ts` has always said so for
+   * the single-instance lock, and this function did not, so a shot drive that
+   * created a session put it on the socket carrying the user's live work. A
+   * Phase 22 verifier hit that and removed the session by hand.
+   */
+  it('moves the socket for a shot launch too, which index.ts already calls a harness', () => {
+    expect(
+      activeTmuxSocket({
+        GMUX_SHOT: 'context-view',
+        GMUX_TMUX_SOCKET: 'gmux-shot-1'
+      })
+    ).toBe('gmux-shot-1');
+  });
+
+  it("refuses the user's own default server by name on a shot launch as well", () => {
+    expect(
+      activeTmuxSocket({ GMUX_SHOT: 'context-view', GMUX_TMUX_SOCKET: 'default' })
+    ).toBe(TMUX_SOCKET);
+  });
+
   it("refuses the user's own default server by name", () => {
     expect(
       activeTmuxSocket({ GMUX_SMOKE: 'fault-work', GMUX_TMUX_SOCKET: 'default' })

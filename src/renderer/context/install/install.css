@@ -1,0 +1,243 @@
+/* The dialog uses the same small vocabulary as the card it was opened from
+   (`ctxd-mono`, `ctxd-muted`, `ctxd-card-label`, `ctxd-error`), and it can be
+   mounted from a surface that never rendered the card. Importing the surface
+   stylesheet here means the modal is styled wherever it opens, and Vite folds
+   the duplicate away at build time. */
+@import '../surface/surface.css';
+
+/* ---------------------------------------------------------------------------
+   The install confirm — S6 modal chrome, widened for one reason.
+
+   The command line has to be shown in full and wrap rather than truncate. A
+   truncated command is a description of a command, and requirement 3 of this
+   phase is that the person approving it sees the thing that will run.
+--------------------------------------------------------------------------- */
+
+.ctxd-install-modal {
+  width: 560px;
+}
+
+.ctxd-install-modal .modal-body + .modal-body {
+  margin-top: var(--space-4);
+}
+
+/* §9.1 rule 1 — what runs and when, in the user's words. */
+.ctxd-runs {
+  width: 100%;
+  margin: var(--space-6) 0 0;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.ctxd-runs td {
+  padding: var(--space-2) 0;
+  vertical-align: baseline;
+}
+
+.ctxd-runs-when {
+  width: 160px;
+  padding-right: var(--space-5);
+  color: var(--text-secondary);
+}
+
+.ctxd-runs-script {
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+/* §9.1 rule 2 — where it came from, down to the commit. */
+.ctxd-provenance {
+  margin-top: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.ctxd-provenance p {
+  margin: 0;
+}
+
+.ctxd-command {
+  margin-top: var(--space-6);
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-canvas);
+}
+
+.ctxd-command-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-3);
+}
+
+.ctxd-command-line {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+}
+
+.ctxd-command-short {
+  margin: var(--space-3) 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--lh-sm);
+  overflow-wrap: anywhere;
+}
+
+.ctxd-command p {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+}
+
+/* §9.1 rule 5 — the blast radius, from registry data. */
+.ctxd-blast {
+  margin-top: var(--space-6);
+}
+
+/* The failure, in the same place the command line was shown before it ran. */
+.ctxd-failure {
+  margin-top: var(--space-6);
+  padding: var(--space-5);
+  border: 1px solid var(--error);
+  border-radius: var(--r-md);
+  background: var(--error-wash);
+}
+
+.ctxd-failure p {
+  margin: 0 0 var(--space-3);
+}
+
+.ctxd-failure pre {
+  margin: 0 0 var(--space-4);
+}
+
+.ctxd-stderr {
+  color: var(--text-secondary);
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+/* ---------------------------------------------------------------------------
+   The install sheet — find a skill, read it, then decide.
+
+   It is wider than a confirm because the thing a reader has to check is a
+   command line, and it is a modal because installing someone else's code is a
+   decision with its own attention. Everything in it is one column, top to
+   bottom, in the order the argument is made.
+   --------------------------------------------------------------------------- */
+
+.ctx-install-sheet {
+  width: min(720px, calc(100vw - var(--space-8) * 2));
+  max-height: calc(100vh - var(--space-8) * 2);
+  overflow-y: auto;
+}
+
+.ctx-sheet-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+.ctx-sheet-head .modal-title {
+  margin: 0;
+  flex: 1 1 auto;
+}
+
+.ctx-sheet-search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-input);
+  margin-bottom: var(--space-5);
+}
+
+.ctx-sheet-search input {
+  flex: 1 1 auto;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  outline: none;
+}
+
+.ctx-sheet-hits {
+  list-style: none;
+  margin: 0 0 var(--space-5);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+/* One row per result, in the order the search returned them. Nothing here is
+   promoted, featured or trending (§13.4). The install count is printed because
+   it is a fact about the row, and it sorts nothing. */
+.ctx-sheet-hit {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ctx-sheet-hit:hover {
+  background: var(--bg-hover);
+}
+
+.ctx-sheet-hit-name {
+  font-weight: var(--weight-medium);
+}
+
+.ctx-sheet-hit-source {
+  flex: 1 1 auto;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.ctx-sheet-hit-installs {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The telemetry disclosure. One line, always present, never a modal. */
+.ctx-sheet-note {
+  margin: var(--space-5) 0 0;
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+}
+
+.ctx-sheet-scope {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  margin-bottom: var(--space-5);
+}
+
+.ctx-sheet-scope label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.ctx-sheet-scope label.is-unavailable {
+  opacity: 0.5;
+}

@@ -149,17 +149,24 @@ describe('migration 008', () => {
     }
   });
 
-  it('is the eighth migration, and the schema version says so', () => {
+  it('is the eighth migration, and the schema version counts it', () => {
     expect(MANIFEST_MIGRATION_NAMES).toHaveLength(MANIFEST_SCHEMA_VERSION);
-    expect(MANIFEST_MIGRATION_NAMES.at(-1)).toBe('008-agent-recovery-contract');
+    expect(MANIFEST_MIGRATION_NAMES[7]).toBe('008-agent-recovery-contract');
   });
 
-  it('is declared BREAKING, so the minimum moved with the version', () => {
+  it('is declared BREAKING, so the minimum moved to 8 with it', () => {
     // The SQL shape is additive and the compatibility statement is not. See
     // research 27 §4.3: bump the minimum whenever a new column is required for
     // correct restore, even where SQLite would let an old build write without
     // it. `agent_contract` is that column.
-    expect(MANIFEST_MIN_COMPATIBLE_VERSION).toBe(MANIFEST_SCHEMA_VERSION);
+    //
+    // THE NUMBER IS LITERAL, AND IT USED TO BE `MANIFEST_SCHEMA_VERSION`.
+    // Written that way it only said "008 is breaking" for as long as 008 was
+    // the last migration. Phase 22 added 009, which is ADDITIVE and therefore
+    // moved the version and not the minimum, and the old form failed as though
+    // that were a defect. The claim this case exists to keep is that migration
+    // 008 raised the floor to 8, and 8 is how you write it.
+    expect(MANIFEST_MIN_COMPATIBLE_VERSION).toBe(8);
   });
 
   it('stamps the three numbers on the file it migrated', () => {
@@ -487,8 +494,12 @@ describe('what the PREVIOUS release does with this manifest', () => {
         unknown
       >[];
       expect(rows).toHaveLength(1);
+      // Three from migration 008, one from 009. The point of the case is that
+      // an old build's `SELECT *` neither throws nor mis-reads the row it
+      // gets, so the number moves with every additive migration after this one
+      // and is deliberately spelled out rather than hidden behind a constant.
       expect(Object.keys(rows[0] ?? {})).toHaveLength(
-        SCHEMA_7_COLUMNS.length + 3
+        SCHEMA_7_COLUMNS.length + 3 + 1
       );
     } finally {
       old.close();

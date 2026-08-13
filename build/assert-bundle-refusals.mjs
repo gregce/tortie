@@ -212,6 +212,64 @@ const REFUSALS = [
   }
 ];
 
+/**
+ * Phase 22's skills refusals, counted SEPARATELY from the 21 above.
+ *
+ * They belong in this artifact for the same reason: a refusal that the bundler
+ * removed is a refusal the product only claims to have. They are not folded into
+ * `REFUSALS` because that number is quoted in the phase records as the count of
+ * DURABILITY refusals, being the ones whose loss costs a user their sessions or
+ * their manifest. These cost something different. A skills refusal that vanishes
+ * lets a write discard the user's update pins, run a command whose arguments the
+ * CLI silently drops, or spawn a command line that is not the one a person read
+ * and agreed to. That is worth its own line in the log rather than a bigger
+ * number on the old one.
+ */
+const SKILLS_REFUSALS = [
+  {
+    id: 'skills.lock-unreadable',
+    source: 'src/main/skills/lock.ts',
+    why:
+      'a lock file the CLI cannot parse is one it OVERWRITES, and the write ' +
+      'has to stop before that rather than report success afterwards',
+    fragments: ['could not be read as a skills lock file']
+  },
+  {
+    id: 'skills.lock-would-lose-pins',
+    source: 'src/main/skills/lock.ts',
+    why:
+      'a CLI that writes an older lock version discards the entries it does ' +
+      'not understand, and those entries are the pins update depends on',
+    fragments: ['drop the update pins for ']
+  },
+  {
+    id: 'skills.single-agent-becomes-a-copy',
+    source: 'src/main/skills/commands.ts',
+    why:
+      'an add with exactly one target switches the CLI from a symlink to a ' +
+      'full copy and the re-add afterwards is a silent no-op that reports ' +
+      'success, so there is no such thing as enabling a skill for one agent',
+    fragments: ['full copy instead of a symlink']
+  },
+  {
+    id: 'skills.equals-form-is-discarded',
+    source: 'src/main/skills/commands.ts',
+    why:
+      'the parser matches exact flag tokens, so --skill=foo matches nothing, ' +
+      'is dropped, and the command runs with a wider meaning and exits 0',
+    fragments: ['which the CLI discards silently']
+  },
+  {
+    id: 'skills.plan-changed-after-the-confirm',
+    source: 'src/main/skills/run.ts',
+    why:
+      'the confirm is only worth anything if the command that runs is the ' +
+      'command that was read, and a confirm sits on screen while a person ' +
+      'reads it',
+    fragments: ['the command changed after it was shown']
+  }
+];
+
 function main() {
   if (!existsSync(bundlePath)) {
     console.error(
@@ -224,7 +282,7 @@ function main() {
   const staleTable = [];
   const missingFromBundle = [];
 
-  for (const refusal of REFUSALS) {
+  for (const refusal of [...REFUSALS, ...SKILLS_REFUSALS]) {
     const sourcePath = join(repoRoot, refusal.source);
     if (!sources.has(refusal.source)) {
       sources.set(
@@ -277,6 +335,9 @@ function main() {
 
   console.log(
     `[refusals] ${String(REFUSALS.length)} durability refusals are in out/main/index.js.`
+  );
+  console.log(
+    `[refusals] ${String(SKILLS_REFUSALS.length)} skills-write refusals are in out/main/index.js.`
   );
 }
 

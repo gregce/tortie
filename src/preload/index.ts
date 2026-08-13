@@ -41,6 +41,8 @@ import type {
   GmuxMultilineExtras,
   GmuxNoticeExtras,
   GmuxPopupMenuExtras,
+  GmuxContextExtras,
+  GmuxContextSnapshotExtras,
   GmuxPowerExtras,
   GmuxPreviewExtras,
   GmuxProjectCloneExtras,
@@ -355,6 +357,32 @@ const search: NonNullable<GmuxSearchExtras['search']> = {
 };
 
 /**
+ * context surface (Phase 22) — what an agent will LOAD once it starts.
+ *
+ * Eleven methods behind one object, feature-detected together, and exactly one
+ * of them can change anything. `scan`, `hashSkill`, `skillsSearch`,
+ * `skillsAudit`, `skillsPreview` and `skillPins` read. `skillsPlan` builds a
+ * command and does not run it. `skillPinRecord` and `skillPinForget` write one
+ * file inside Tortie's own userData directory and nothing else. `skillsRun` is
+ * the only method in this bridge that spawns the skills CLI, and main rebuilds
+ * the command from the typed operation before it runs, so the renderer says
+ * what it wants done and never how to do it.
+ */
+const context: NonNullable<GmuxContextExtras['context']> = {
+  scan: (input) => invoke('context:scan', input),
+  skillsCapability: () => invoke('context:skillsCapability'),
+  skillsPlan: (input) => invoke('context:skillsPlan', input),
+  skillsRun: (input) => invoke('context:skillsRun', input),
+  hashSkill: (path) => invoke('context:hashSkill', path),
+  skillsSearch: (input) => invoke('context:skillsSearch', input),
+  skillsAudit: (input) => invoke('context:skillsAudit', input),
+  skillsPreview: (input) => invoke('context:skillsPreview', input),
+  skillPins: (paths) => invoke('context:skillPins', paths),
+  skillPinRecord: (input) => invoke('context:skillPinRecord', input),
+  skillPinForget: (path) => invoke('context:skillPinForget', path)
+};
+
+/**
  * symbols surface (Phase 14) — ⌘⇧O and the palette's `@` / `#` modes.
  *
  * `query` deliberately does NOT build an index; `ensure` is the only thing
@@ -477,6 +505,8 @@ const api: GmuxApi &
   GmuxNoticeExtras &
   GmuxPowerExtras &
   GmuxPreviewExtras &
+  GmuxContextSnapshotExtras &
+  GmuxContextExtras &
   GmuxViewMenuExtras = {
   sessions,
   projects,
@@ -489,6 +519,7 @@ const api: GmuxApi &
   capture,
   scroll,
   search,
+  context,
   symbols,
   quickOpen,
   scrollback,
@@ -550,7 +581,13 @@ const api: GmuxApi &
   // its WebGL glyph atlas on this, because a texture atlas does not survive
   // the GPU process losing its context across a sleep. Nothing else
   // subscribes, and nothing is sent at any other time.
-  onPowerResume: (cb) => on(EVT_POWER_RESUME, cb)
+  onPowerResume: (cb) => on(EVT_POWER_RESUME, cb),
+  // Phase 22 optional extra: what one session's configuration was when Tortie
+  // launched it. Read only, and the session readout is the only caller. The
+  // comparison against what the configuration is now happens in the renderer,
+  // against rows the Context view has already resolved, so this call walks
+  // nothing and returns one stored record.
+  contextSnapshot: (sessionId) => invoke('context:sessionSnapshot', sessionId)
 };
 
 contextBridge.exposeInMainWorld('gmux', api);

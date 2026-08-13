@@ -20,7 +20,12 @@
  * Every first-class sidebar view. The order is the rail's order (VS Code's,
  * and also the order of how often you reach for them); nothing depends on it.
  */
-export const SIDEBAR_VIEW_IDS = ['explorer', 'search', 'scm'] as const;
+export const SIDEBAR_VIEW_IDS = [
+  'explorer',
+  'search',
+  'scm',
+  'context'
+] as const;
 
 export type SidebarViewId = (typeof SIDEBAR_VIEW_IDS)[number];
 
@@ -32,7 +37,14 @@ export type SidebarViewId = (typeof SIDEBAR_VIEW_IDS)[number];
 export const SIDEBAR_VIEW_LABELS: Readonly<Record<SidebarViewId, string>> = {
   explorer: 'Explorer',
   search: 'Search',
-  scm: 'Source control'
+  scm: 'Source control',
+  // Phase 22. The view of what the agents actually run on — skills, MCP
+  // servers, hooks, plugins and the instruction chain. Adding the id above is
+  // what makes it zoomable, focusable and reachable from ⌘⇧0 on the day it
+  // ships; the ONE thing that does not follow is the CSS rule binding
+  // `--zoom-context` to a selector, which zoom.css maps by hand because it is
+  // the only part that has to know the view's DOM shape.
+  context: 'Context'
 };
 
 /**

@@ -79,6 +79,7 @@ function imageTab(over: Partial<EditorTab> = {}): EditorTab {
     savedContents: '',
     headContents: null,
     lastUsed: 0,
+    contextEntry: null,
     ...over
   };
 }

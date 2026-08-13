@@ -214,6 +214,27 @@ export function ActivityBar(): React.JSX.Element {
         shortcut={keyDisplay('view.scm')}
         badge={dirty}
       />
+      {/* Phase 22 — Context, fourth, after source-control and before the
+          spacer.
+
+          `layers` because the subject of the view IS stacked scopes resolving
+          to one winner. `plug` was the runner-up and names only one of the
+          five categories; `extensions` was refused outright, because
+          "extensions" is on the scope guardrail's refused list and the icon
+          would promise a marketplace.
+
+          NO BADGE, EVER. Source Control badges a dirty count and Search badges
+          a live match count, and both are actionable and transient. A context
+          count is inventory — "43" would sit there forever, which is exactly
+          the number that rises on its own that the Zen refuses. The one number
+          that could earn a badge is drift, and research 29 §8.4 refuses that
+          too: the drift information exists only where it is asked for. */}
+      <ViewItem
+        view="context"
+        icon="layers"
+        label="Context"
+        shortcut={keyDisplay('view.context')}
+      />
       <div className="ab-spacer" />
       <SettingsItem />
     </nav>

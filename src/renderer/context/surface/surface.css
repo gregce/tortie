@@ -1,0 +1,395 @@
+/* ---------------------------------------------------------------------------
+   Context detail surface — the header card over the artifact's own content
+   (research 29 §7), and preview mode (§7.6).
+
+   Every colour is a token. Nothing here hardcodes a literal, per the UI rules.
+   The card wraps rather than truncates: a skill's description is routinely 800
+   characters and the whole reason the detail lives in the editor panel rather
+   than inside a 300px sidebar is that there is room to read it here.
+
+   The prefix is `ctxd-`, not `ctx-`. The sidebar view's own stylesheet owns
+   `ctx-`, and both stylesheets load into one document, so `.ctx-card` there is
+   a fixed-position hover card with pointer events off. Sharing the name would
+   have made this card unclickable in a way no test would have caught.
+--------------------------------------------------------------------------- */
+
+.ctxd-detail {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+  background: var(--bg-canvas);
+}
+
+.ctxd-card {
+  flex: 0 0 auto;
+  padding: var(--space-6) var(--space-7);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-sidebar);
+}
+
+.ctxd-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-5);
+  margin-bottom: var(--space-4);
+}
+
+.ctxd-card-title {
+  margin: 0;
+  font-size: var(--text-md);
+  line-height: var(--lh-md);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.ctxd-card-line {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-secondary);
+}
+
+.ctxd-card-provenance {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.ctxd-dot {
+  color: var(--text-muted);
+}
+
+/* Label + value, on a grid so every value in the card starts at one column.
+   Collapses to stacked rows below the 300px tier, where a two-column grid
+   leaves nothing for the value. */
+.ctxd-card-row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: var(--space-2) var(--space-5);
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-primary);
+}
+
+.ctxd-card-label {
+  font-size: var(--text-xs);
+  line-height: var(--lh-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ctxd-card-value {
+  min-width: 0;
+}
+
+.ctxd-card-note {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.ctxd-card-note p {
+  margin: 0;
+}
+
+.ctxd-muted {
+  color: var(--text-muted);
+}
+
+.ctxd-warning {
+  color: var(--warning);
+}
+
+.ctxd-error {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--error);
+}
+
+.ctxd-mono {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--lh-sm);
+}
+
+.ctxd-wrap {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.ctxd-path {
+  overflow-wrap: anywhere;
+  color: var(--text-secondary);
+}
+
+/* Agents that will load this, by realpath dedupe (§2.2). */
+.ctxd-agents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+}
+
+.ctxd-agent {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+}
+
+.ctxd-agent-name {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+}
+
+/* The shadowing mark: a losing duplicate is a line here, never its own row. */
+.ctxd-shadow {
+  color: var(--text-muted);
+}
+
+.ctxd-shadow .ctxd-card-value {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+}
+
+/* Names both ends and the direction. With skills the direction is the
+   surprising half, because a personal skill beats a project one while a
+   project setting beats a personal one in the same product. */
+.ctxd-shadow-reason {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+/* Each line carries `ctxd-reload-live`, `ctxd-reload-next-session` or
+   `ctxd-reload-unknown`. They share a colour today and carry no rule of their
+   own. They are there so a verifier can select a row by its answer, and so a
+   later round that wants to mark `unknown` has somewhere to attach. */
+.ctxd-reload p {
+  margin: 0 0 var(--space-2);
+}
+
+/* Who the line applies to. It reads as a label rather than as the first words
+   of the sentence, because it is not part of the sentence: the sentence comes
+   from the registry and this is the set of agents that gave that answer. */
+.ctxd-reload-who {
+  margin-right: var(--space-2);
+  color: var(--text-primary);
+  font-weight: var(--weight-medium);
+}
+
+.ctxd-reload,
+.ctxd-precedence,
+.ctxd-session {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+/* The rule sentence for a model that names no winner. Same shape as the reload
+   block above, and for the same reason: the sentence is the registry's, the
+   agent name is a label on it, and each line carries its model as a class so a
+   verifier can select `ctxd-precedence-no-override` rather than match prose. */
+.ctxd-precedence p {
+  margin: 0 0 var(--space-2);
+}
+
+.ctxd-precedence-who {
+  margin-right: var(--space-2);
+  color: var(--text-primary);
+  font-weight: var(--weight-medium);
+}
+
+/* Preview mode reads top to bottom as one argument, so its sections need more
+   air between them than the installed card's dense label/value rows. */
+.ctxd-preview .ctxd-card-title {
+  margin-bottom: var(--space-2);
+}
+
+/* --- the secrets rule, §7.3 -------------------------------------------------
+   The mask is not selectable and not copyable. Four bullets, never a truncated
+   value, and no reveal control anywhere on this surface. */
+.ctxd-env {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.ctxd-env-pair {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+}
+
+.ctxd-mask {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.12em;
+  color: var(--text-disabled);
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
+}
+
+.ctxd-check-age {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+}
+
+.ctxd-tools {
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+/* --- the body under the card ----------------------------------------------- */
+
+.ctxd-detail-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  /* MANDATORY, and it is not cosmetic. The body is a SLOT filled by whoever
+     owns the artifact's renderer, and the renderer it is filled with is the
+     editor's markdown preview, which is `position: absolute; inset: 0`. Without
+     a containing block here that preview resolves against the editor panel
+     instead, fills the whole panel and covers the header card completely — the
+     card is in the DOM, it measures 751x432, and none of it is on screen.
+     Measured, not reasoned about: the preview's rect started at the card's own
+     top edge rather than at this slot's. Any future body renderer that positions
+     itself absolutely gets the same containment from this one line. */
+  position: relative;
+}
+
+.ctxd-detail-empty {
+  margin: 0;
+  padding: var(--space-7);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+/* --- preview mode, §7.6 -----------------------------------------------------
+   The section order is data (./preview-sections) and the install control is
+   rendered after the whole list, so no stylesheet can reorder them. */
+
+.ctxd-preview-section {
+  padding: var(--space-5) 0;
+  border-top: 1px solid var(--border);
+}
+
+.ctxd-preview-label {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ctxd-preview-line {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-primary);
+}
+
+.ctxd-tone-muted {
+  color: var(--text-muted);
+}
+
+/* Executable content is the most decision-relevant fact about a skill and it
+   is invisible everywhere else, so it is the one thing on this card that
+   carries a colour. */
+.ctxd-tone-warning {
+  color: var(--warning);
+}
+
+.ctxd-targets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-5);
+  margin-bottom: var(--space-4);
+}
+
+.ctxd-target {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-primary);
+}
+
+.ctxd-target.is-unavailable {
+  color: var(--text-disabled);
+}
+
+.ctxd-install-control {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding: var(--space-6) 0 0;
+  border-top: 1px solid var(--border-strong);
+}
+
+.ctxd-ack {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--warning);
+}
+
+/* Registry text is attacker-controlled. It renders as plain text with no
+   markdown, no links and no images, so it gets no typographic affordances that
+   would make it look like Tortie's own copy. */
+.ctxd-remote-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--text-secondary);
+}
+
+.ctxd-remote-body {
+  margin: 0;
+  padding: var(--space-6) var(--space-7);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--text-secondary);
+  background: var(--bg-canvas);
+}
+
+/* --- responsive, down to the 220px sidebar minimum --------------------------
+   The detail lives in the editor panel, which can be narrow when the panel is
+   split. Below 420px the label column has nothing left to give. */
+@media (max-width: 420px) {
+  .ctxd-card-row {
+    grid-template-columns: 1fr;
+    gap: var(--space-1);
+  }
+
+  .ctxd-card {
+    padding: var(--space-5);
+  }
+}

@@ -166,6 +166,25 @@ export interface OpenFileRequest {
    *  3. **The range is revealed AND selected AND flashed**, not scrolled near.
    */
   selection?: OpenFileSelection;
+  /**
+   * Present ONLY for a CONTEXT DETAIL open (Phase 22, research 29 §7.1). The
+   * row that was clicked in the Context view, carried whole.
+   *
+   * The tab is an ordinary file tab and this field is the only difference: the
+   * editor keys it `context:<entry id>` so it never collides with the same file
+   * opened from the tree, and it draws the detail header card above whatever
+   * body that file would normally get. That is why this is a field on an open
+   * request rather than a new tab kind. The body under the card is the file's
+   * own content, which for a skill is a `SKILL.md` the markdown preview already
+   * renders, so a second renderer would be a second answer to a question the
+   * editor has answered since Phase 5.
+   *
+   * Typed as `unknown` here on purpose. This module is the renderer's open bus
+   * and it is imported by the tree, SCM, search, symbols and quick open, none of
+   * which know what a context entry is. The editor narrows it once, where it
+   * draws the card.
+   */
+  contextEntry?: unknown;
 }
 
 /** Emit an open request (fire-and-forget). */

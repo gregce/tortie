@@ -28,6 +28,7 @@ import { acceleratorToDisplay, keyDisplay } from '@shared/keymap';
 import { sessionsPositionForMenuAction } from '@shared/sessions-position';
 import { useApp, whenSessionsPositionPushed } from '../state/store';
 import type { SidebarViewId } from '../state/store';
+import { isSidebarViewId } from '../state/sidebar-views';
 import { cloneAction } from '../state/clone';
 import { useLayout } from '../state/layout';
 import type { NavDir } from '../state/layout';
@@ -48,6 +49,7 @@ import { CloneRepoModal } from './CloneRepoModal';
 import { ShortcutsOverlay } from './ShortcutsOverlay';
 import { AttentionOverlay } from './AttentionOverlay';
 import { ConfirmDialog } from './ConfirmDialog';
+import { ContextInstallHost } from '../context';
 import { Toasts } from './Toasts';
 import { FirstRun, TmuxMissing } from './EmptyStates';
 // Phase 12.12 item 3: ⌘1-⌘8 by position, ⌘9 = last. One module, shared with
@@ -96,6 +98,9 @@ import { driveQuickOpen } from '../quickopen/shot-probe';
 import type { QuickOpenProbeSpec } from '../quickopen/shot-probe';
 import { driveSearch, driveSymbols } from '../search/shot-probe';
 import type { SearchProbeSpec, SymbolProbeSpec } from '../search/shot-probe';
+import { installContextDetailHost } from '../context/detail-host';
+import { driveContext } from '../context/shot-probe';
+import type { ContextProbeSpec } from '../context/shot-probe';
 
 // ---------------------------------------------------------------------------
 // Keyboard map (DESIGN.md §4) — one capture-phase listener; ⌘-chords and F2
@@ -295,6 +300,23 @@ function useKeyboardMap(): void {
       ) {
         e.preventDefault();
         showViewAction('scm');
+        return;
+      }
+
+      // ⌃⇧C — Context view (Phase 22). Registered beside ⌃⇧G because it is the
+      // same gesture on the same rail. ⇧⌘C is deliberately NOT used: DESIGN.md
+      // §4 uses it as the worked example of a per-agent hotkey the user records
+      // for themselves, and taking it would make the documented example
+      // un-recordable.
+      if (
+        e.ctrlKey &&
+        e.shiftKey &&
+        !e.metaKey &&
+        !e.altKey &&
+        e.key.toLowerCase() === 'c'
+      ) {
+        e.preventDefault();
+        showViewAction('context');
         return;
       }
 
@@ -690,6 +712,13 @@ interface ShotLayoutExtras {
   /** Phase 14: drive ⌘⇧O, including the cold-index state at 200 ms. */
   symbols?: SymbolProbeSpec;
   /**
+   * Phase 22: stage the Context view and MEASURE what its row is carrying.
+   * Research 29 §5.9 makes three responsive claims — what survives at 340px,
+   * at 260px and at 220px — and each of them is a claim about the shipped
+   * stylesheet under a live layout engine, which no unit test can see.
+   */
+  context?: ContextProbeSpec;
+  /**
    * Open the ⌘/ shortcuts overlay for capture. Phase 14 added a seventh
    * KEYMAP group and the overlay is a three-column flow, so "does the new
    * group land somewhere sane" is a question only a picture answers.
@@ -727,7 +756,10 @@ function useShotLayoutHook(): void {
         console.log('[shot-drive] sessionsPosition → main: settled');
       }
       await prev(spec);
-      if (ext.sidebarView === 'scm' || ext.sidebarView === 'explorer') {
+      // Phase 18.55's rule applied to the harness too: the views are DATA, so
+      // this asks the list rather than naming the two it happened to know.
+      // Written out by hand it excluded Search from the day Search shipped.
+      if (isSidebarViewId(ext.sidebarView)) {
         // The base drive already flipped __gmuxShotReady — pull it back
         // down while the view swaps so main never captures mid-switch.
         window.__gmuxShotReady = false;
@@ -880,6 +912,16 @@ function useShotLayoutHook(): void {
         await driveSymbols(ext.symbols);
         window.__gmuxShotReady = true;
       }
+      if (ext.context !== undefined) {
+        window.__gmuxShotReady = false;
+        useApp.getState().showSidebarView('context');
+        if (ext.context.width !== undefined) {
+          useApp.getState().setSidebarWidth(ext.context.width);
+        }
+        await wait(300);
+        await driveContext(ext.context);
+        window.__gmuxShotReady = true;
+      }
     };
 
     w.__gmuxShotCleanup = async (): Promise<void> => {
@@ -1016,6 +1058,12 @@ export function App(): React.JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Phase 22. Route Context row activations into the editor as `context:<id>`
+  // detail tabs. Until this is registered, `open-detail.ts` opens the file that
+  // DEFINES the row instead, which is the honest majority of the detail tab, so
+  // this call adds the header card rather than switching the gesture on.
+  useEffect(() => installContextDetailHost(), []);
+
   if (!window.gmux) {
     return (
       <div className="shell">
@@ -1089,6 +1137,11 @@ export function App(): React.JSX.Element {
       <QuickOpenPalette />
       <SymbolPalette />
       <ConfirmDialog />
+      {/* Phase 22. The install sheet and its confirm, mounted with the other
+          modals rather than inside the Context view: `.sidebar-rest` is an
+          overflow scroller, so a scrim drawn inside it would be clipped to a
+          220px column. */}
+      <ContextInstallHost />
       <Toasts />
       <ZoomHud />
       <FileDropOverlay />

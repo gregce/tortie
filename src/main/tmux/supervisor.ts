@@ -60,14 +60,23 @@ export const TMUX_SOCKET = 'gmux';
  * The socket this process will actually use.
  *
  * It is `TMUX_SOCKET` for every launch a user ever makes. `GMUX_TMUX_SOCKET`
- * moves it, and ONLY on a harness launch (`GMUX_SMOKE` set), because the fault
- * harness has to be able to crash the app mid-write without a single one of
- * the user's live sessions being on the server it is crashing against.
+ * moves it, and ONLY on a harness launch, because the fault harness has to be
+ * able to crash the app mid-write without a single one of the user's live
+ * sessions being on the server it is crashing against.
  *
  * The harness gate is the safety property. A `GMUX_TMUX_SOCKET` left in a shell
  * profile would otherwise start the real app against a second, empty server:
  * no sessions listed, hours of agent work alive and unreachable. A normal
  * launch ignores the variable entirely, so that cannot happen.
+ *
+ * A HARNESS LAUNCH IS `GMUX_SMOKE` OR `GMUX_SHOT`, and that is the same
+ * definition `src/main/index.ts` uses for the single-instance lock. The two
+ * disagreed until Phase 22: this function honoured only `GMUX_SMOKE`, so a
+ * shot-harness run that created a session put it on the socket carrying the
+ * user's live work while printing that the override had been ignored. A Phase
+ * 22 verifier hit exactly that and had to remove a session from the real
+ * server by hand. `src/renderer/context/shot-probe.ts` ships a shot driver for
+ * this view, so the two definitions have to agree from here on.
  *
  * `default` is refused by name. That is the socket of the user's OWN tmux
  * server, which this app never touches.
@@ -77,7 +86,9 @@ export function activeTmuxSocket(
 ): string {
   const want = (env['GMUX_TMUX_SOCKET'] ?? '').trim();
   if (want === '') return TMUX_SOCKET;
-  if ((env['GMUX_SMOKE'] ?? '') === '') {
+  const harnessLaunch =
+    (env['GMUX_SMOKE'] ?? '') !== '' || (env['GMUX_SHOT'] ?? '') !== '';
+  if (!harnessLaunch) {
     console.warn(
       '[gmux] GMUX_TMUX_SOCKET is set but this is not a harness launch, so it is ignored.'
     );

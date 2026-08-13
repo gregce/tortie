@@ -24,6 +24,7 @@
     "smoke:power": "npm run build && GMUX_POWER_ROOT=\"${TMPDIR:-/tmp/}gmux-smoke-power\" GMUX_TMUX_SOCKET=\"gmux-power-$$\" GMUX_SMOKE=power electron . --user-data-dir=\"${TMPDIR:-/tmp/}gmux-smoke-power/profile\"",
     "smoke:procid": "npm run build && node build/harness-socket.mjs gmux-smoke-procid 'GMUX_SMOKE=procid electron . --user-data-dir=\"${TMPDIR:-/tmp/}gmux-smoke-procid\"'",
     "smoke:refusal": "npm run build && rm -rf \"${TMPDIR:-/tmp/}gmux-smoke-refusal\" && GMUX_TMUX_SOCKET=gmux-smoke-refusal GMUX_REFUSAL_ROOT=\"${TMPDIR:-/tmp/}gmux-smoke-refusal\" GMUX_SMOKE=refusal electron . --user-data-dir=\"${TMPDIR:-/tmp/}gmux-smoke-refusal/profile\"",
+    "conformance:context": "node build/conformance-context.mjs",
     "conformance:resume": "npm run build && node build/harness-socket.mjs gmux-conformance 'GMUX_SMOKE=conformance-resume electron . --user-data-dir=\"${TMPDIR:-/tmp/}gmux-conformance-resume\"'",
     "conformance:resume:capture": "GMUX_CONF_MODE=capture npm run conformance:resume",
     "conformance:resume:specstory": "GMUX_CONF_CAPTURE=1 GMUX_SPECSTORY_NO_CLOUD=1 GMUX_CONF_AGENTS=\"${GMUX_CONF_AGENTS:-claude,codex,cursor,antigravity}\" npm run conformance:resume",
@@ -33,6 +34,8 @@
     "start": "electron-vite preview",
     "postinstall": "electron-rebuild -f -w node-pty,better-sqlite3",
     "vendor:specstory": "node build/fetch-specstory.cjs",
+    "vendor:skills": "node build/fetch-skills.cjs",
+    "pin:skills:check": "node build/check-skills-pin.cjs",
     "package": "electron-vite build && node build/assert-bundle-refusals.mjs && node build/assert-preview-containment.mjs && electron-builder --mac",
     "package:dir": "electron-vite build && node build/assert-bundle-refusals.mjs && node build/assert-preview-containment.mjs && electron-builder --mac --dir",
     "icon": "cp docs/brand/tortie/macos/Tortie.icns build/icon.icns && cp docs/brand/tortie/menu-bar/TortieTemplate.png docs/brand/tortie/menu-bar/TortieTemplate@2x.png resources/menu-bar/ && cp docs/brand/tortie/dock/tortie-dock-128.png src/renderer/assets/brand/tortie-128.png"

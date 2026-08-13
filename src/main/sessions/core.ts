@@ -105,6 +105,10 @@ import {
 // owner of the once-per-run latch (Phase 19 item 9). Never broadcast a
 // DurabilityNotice directly — the latch is the point of the module.
 import { postDurabilityNotice } from '../notice';
+// Phase 22 (research 29 §8.2). ADVISORY, and the import is one function that
+// returns void so that nothing on either launch path can await it, fail on it
+// or branch on it. See the module header for the four rules.
+import { recordLaunchContext } from '../context/snapshot';
 // LEAF restore modules only — ../restore/ipc imports this file (no cycles).
 import { restoreRecordOf, restoreSessionInTmux } from '../restore/restore';
 import {
@@ -1330,6 +1334,22 @@ export class GmuxCore {
       this.manifest.finishRestoreAttempt(attempt, result.kind);
       attemptId = null;
 
+      // Phase 22 (research 29 §8.2 rule 3): a restore RE-SNAPSHOTS. The
+      // session that just came back genuinely re-read its configuration, so
+      // carrying the record from its first launch forward would be a lie with
+      // a timestamp on it. This overwrites the old record, which is the one
+      // case where the snapshot is not write once.
+      //
+      // Placed after the journal is closed, and not awaited, for the same
+      // reason as the create path: everything that decides whether the
+      // conversation came back has already been committed above it.
+      recordLaunchContext(this.manifest, {
+        sessionId,
+        reason: 'restore',
+        agent: rec.agent,
+        cwd: rec.cwd
+      });
+
       broadcast(EVT_STATUS_CHANGED, sessionId, status);
       this.broadcastSessions();
       return toSession(updated);
@@ -2224,6 +2244,25 @@ export class GmuxCore {
         message: captureDeclined
       });
     }
+
+    // Phase 22 (research 29 §8.2): record what this agent's configuration was
+    // at this moment, so that "why did that agent not use the skill I just
+    // wrote" has an answer later. No agent writes this down for itself, and
+    // Tortie owns the launch, so this is the only place it can be recorded.
+    //
+    // NOT AWAITED, AND THAT IS THE DESIGN RATHER THAN AN OMISSION. It returns
+    // void so nobody can await it. The scan walks configuration directories,
+    // which is about 15 ms warm and was measured at 7.1 s on a cold page cache
+    // for the equivalent walk, and a launch must never wait on either. It is
+    // last in this method for the same reason: every durability-critical
+    // effect above it has already happened, so nothing it does or fails to do
+    // can reach them.
+    recordLaunchContext(this.manifest, {
+      sessionId: id,
+      reason: 'create',
+      agent: input.agent,
+      cwd: cwdReal
+    });
 
     this.broadcastSessions();
     const stored = this.manifest.getSession(id);

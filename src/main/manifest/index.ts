@@ -34,6 +34,16 @@ export {
   serializeResumeProvenance
 } from './contract';
 
+/**
+ * The persistence half of the launch context snapshot (Phase 22, migration
+ * 009). The SHAPE is in `src/shared/context-snapshot.ts`, because the renderer
+ * compares it.
+ */
+export {
+  parseContextSnapshot,
+  serializeContextSnapshot
+} from './context-snapshot';
+
 export {
   buildLaunchSpec,
   buildRecoveryContract,

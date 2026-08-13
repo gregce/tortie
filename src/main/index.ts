@@ -87,6 +87,8 @@ import { registerDropIpc, startDropStorePruning } from './drop';
 import { registerFsIpc, registerImageIpc } from './fs';
 import { disposeGitIpc, registerGitIpc } from './git';
 import { registerIpcHandlers } from './ipc';
+import { registerContextIpc } from './context/ipc';
+import { installLaunchContextResolver } from './context/launch-resolver';
 import {
   PREVIEW_PRIVILEGED_SCHEME,
   registerPreviewIpc,
@@ -1703,6 +1705,22 @@ app.whenReady().then(async () => {
   // preview. Nothing inside a previewed page can reach it, because that frame
   // has no preload and no parent access. See src/main/preview/ipc.ts.
   registerPreviewIpc(ipcMain);
+  // Phase 22: the ONE `context:*` registrar (research 29 §12). Six channels —
+  // the configuration scan, the launch snapshot, the pin re-check, and the
+  // three that drive the bundled skills CLI. Only `context:skillsRun` spawns
+  // anything, and only after a person has confirmed the command line it is
+  // about to run. It takes a getter because the manifest is opened during boot
+  // and the registrars are installed before that finishes.
+  registerContextIpc(ipcMain, async () => {
+    const core = await getGmuxCore();
+    return core.manifest;
+  });
+  // Phase 22: turn the launch snapshot on. Without this call every session gets
+  // a NULL snapshot and the readout shows its unrecorded sentence, which is
+  // correct behaviour and not a stub, so the feature simply does nothing. The
+  // resolver cannot fail a launch: `recordLaunchContext` is detached, deadlined
+  // and wrapped, and a throw inside it becomes a missing record.
+  installLaunchContextResolver();
   // Phase 12.9 item 1: projects:create — the only project channel that
   // writes to disk (mkdir + optional `git init`, then the usual add).
   registerProjectCreateIpc(ipcMain);

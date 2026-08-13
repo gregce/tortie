@@ -16,6 +16,7 @@ import type { StatusVisual } from './status';
 import { displayPath, formatAge } from './format';
 import { resumeMarkLabel, resumeNote, resumeReadiness } from './resume';
 import { Codicon } from '../icons';
+import { openSessionContext } from '../context/open-session';
 
 /**
  * True when the session runs outside the project checkout (a git worktree
@@ -177,6 +178,15 @@ export function sessionMenuItems(
           }
         ]
       : []),
+    {
+      // Phase 22 §8.3 — the readout. This is the launch snapshot's only entry
+      // point, and it is why the snapshot is written at all: no agent records
+      // what configuration it loaded, and Tortie owns the launch, so it is the
+      // one thing on the machine that can answer. It is offered for a shell
+      // too, because "nothing was loaded" is a real answer to the question.
+      label: 'Show what it loaded…',
+      run: () => openSessionContext(session)
+    },
     {
       label: 'Copy directory path',
       run: () => {

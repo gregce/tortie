@@ -1,0 +1,30 @@
+{
+  "note": "THE PIN for the skills CLI bundled inside Tortie.app. build/fetch-skills.cjs is the only reader at build time; src/main/skills/resolve.ts reads the sidecar that script writes, never this file. Bump version + integrity + shasum + tree together, never one of them. The hashes come from `npm view skills@<version> dist.integrity dist.shasum`.",
+  "package": "skills",
+  "version": "1.5.22",
+  "entry": "node_modules/skills/bin/cli.mjs",
+  "integrity": "sha512-cHiLjwZEawWFvudIqeeMZlvZayTLbRouydMbblyrdiyH7ZLbqUrSrEEr+Tg+X265iztRlVMsyOYRwpD5JxBsvg==",
+  "shasum": "ec0a7897ba2ef06e01f3b41007886f3a92cf4d05",
+  "engines": { "node": ">=22.20.0" },
+
+  "compatBandNote": "A copy found on the user's PATH is used only when its version sits in [min, belowMajor.0.0). Widening this is a Tier 3 change with an independent verifier, because a CLI version whose output Tortie has never parsed would otherwise drive writes into the user's agent directories.",
+  "compatBand": { "min": "1.5.22", "belowMajor": 2 },
+
+  "maxMinorDriftNote": "build/check-skills-pin.cjs fails when the published version leaves compatBand, or when it is more than this many minor releases ahead of the pin.",
+  "maxMinorDrift": 4,
+
+  "lockVersionsNote": "What THIS CLI version writes. Read out of dist/cli.mjs on 2026-08-12: CURRENT_VERSION = 3 at line 3478 for the global lock, CURRENT_VERSION$1 = 1 at line 900 for the project lock. src/main/skills/lock.ts carries the same two numbers and a test asserts the two agree. Both readers DISCARD a lock whose version is below theirs, which is the whole reason the guard exists.",
+  "lockVersions": { "global": 3, "project": 1 },
+
+  "treeNote": "Every package the install is allowed to produce, with its exact resolved version. The build fails on a missing package, an extra package or a changed version, so a drifted or compromised transitive cannot enter the bundle unnoticed. Measured 2026-08-12.",
+  "tree": {
+    "@isaacs/fs-minipass": "4.0.1",
+    "chownr": "3.0.0",
+    "minipass": "7.1.3",
+    "minizlib": "3.1.0",
+    "skills": "1.5.22",
+    "tar": "7.5.22",
+    "yallist": "5.0.0",
+    "yaml": "2.9.0"
+  }
+}

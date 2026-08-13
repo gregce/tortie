@@ -1,13 +1,16 @@
 /**
- * after-pack.cjs — the afterPack hook, and the composition point for the two
- * things Tortie must do to a freshly packed .app before it gets signed:
+ * after-pack.cjs — the afterPack hook, and the composition point for the three
+ * things Tortie must do to a freshly packed .app before it gets sealed:
  *
  *   1. finish the helper rename electron-builder starts (below);
- *   2. harden/sign the nested CLI binaries (build/sign-nested-binaries.cjs).
+ *   2. harden/sign the nested CLI binaries (build/sign-nested-binaries.cjs);
+ *   3. prove the bundled skills CLI is there and runs
+ *      (build/assert-skills-cli.cjs).
  *
- * Step 2 lives in its own module because it is a different domain with a
- * different reason to change — Appendix F's signing recipe, one entry per
- * embedded binary — and this file stays the hook, not a junk drawer.
+ * Steps 2 and 3 live in their own modules because each is a different domain
+ * with a different reason to change — Appendix F's signing recipe, one entry
+ * per embedded binary, and Phase 22's packaging gate — and this file stays the
+ * hook, not a junk drawer.
  *
  * ---
  *
@@ -38,11 +41,16 @@ const { existsSync, readdirSync } = require('node:fs');
 const { execFileSync } = require('node:child_process');
 const { join } = require('node:path');
 const { signNestedBinaries } = require('./sign-nested-binaries.cjs');
+const { assertSkillsCli } = require('./assert-skills-cli.cjs');
 
 exports.default = async function afterPack(context) {
   if (context.electronPlatformName !== 'darwin') return;
   renameHelpers(context);
   signNestedBinaries(context);
+  // Runs last, and it THROWS. A packed app with no working skills CLI is a
+  // broken build, not a warning: the failure is invisible until a user tries to
+  // install a skill. See build/assert-skills-cli.cjs for the one that shipped.
+  assertSkillsCli(context);
 };
 
 /** Step 1: CFBundleName ← the bundle's own executable name, for all helpers. */

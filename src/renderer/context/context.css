@@ -1,0 +1,617 @@
+/**
+ * Context view styles. Tokens only (DESIGN.md §1); the shared vocabulary
+ * (`.section-header`, `.section-toggle`, `.section-count`, `.section-gripper`,
+ * `.section-body`, `.section-stub`, `.icon-btn`) comes from app.css and
+ * globals.css, so this file styles what is NEW and nothing that already exists.
+ *
+ * THE RESPONSIVE LADDER IS A CONTAINER QUERY, not a media query and not a
+ * ResizeObserver. The sidebar is user-resizable and the window may never
+ * change, so the row has to degrade against the PANE (the same reason the SCM
+ * ref pills do, scm.css). Three tiers, from §5.9:
+ *
+ *   T1  ≥340px   icon · name · summary (flex, ≥140px) · agent chip · state
+ *   T2  260-339  icon · name · summary (flex, ≥80px)  · agent chip · state
+ *   T3  220-259  icon · name · state — summary and chip move to the hover card
+ *
+ * The summary is DROPPED, never wrapped. Rows are 24px everywhere else in this
+ * app, and a two-line context row would break the one rhythm the sidebar has.
+ *
+ * NEVER DROPPED AT ANY WIDTH: the row's name, its group membership and its
+ * state marks. Those three are the feature (§6.6).
+ *
+ * ONE MORE THING THE TIERS DO NOT DO: they never change a colour. Scope is
+ * carried by position, then words, then shape. A chip that turned blue for
+ * "global" would be the first decoration in the product (§6.2).
+ */
+
+/* ---------------------------------------------------------------------------
+   The band's agent pill (§5.2)
+--------------------------------------------------------------------------- */
+
+.ctx-agent-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 24px;
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 0 var(--space-2);
+  border-radius: var(--r-sm);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  /* The band is uppercase; the pill names an agent, and an agent's name is
+     not a label. It opts out rather than inheriting. */
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: var(--weight-regular);
+}
+
+.ctx-agent-pill:hover:not(:disabled) {
+  background: var(--bg-raised);
+  color: var(--text-primary);
+}
+
+.ctx-agent-pill:disabled {
+  color: var(--text-disabled);
+  cursor: default;
+}
+
+.ctx-agent-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   Filter + the lines around the list
+--------------------------------------------------------------------------- */
+
+/* The rhythm Phase 14.2 item 2 fixed: --space-4 above, --space-3 below, and
+   the same field from `controls/` rather than a second implementation. */
+.ctx-filter {
+  padding: var(--space-4) var(--space-5) var(--space-3);
+  flex: 0 0 auto;
+}
+
+.ctx-no-match,
+.ctx-group-stub {
+  padding: var(--space-2) var(--space-5) var(--space-3);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-muted);
+}
+
+.ctx-error {
+  color: var(--error);
+}
+
+/* §8.3 — session mode only. The sentences WRAP rather than truncate: this is
+   the one line in the view whose job is to be read, and half of "2 things have
+   changed since" is worse than two lines. */
+.ctx-drift-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-secondary);
+  background: var(--bg-raised);
+  flex: 0 0 auto;
+}
+
+.ctx-empty {
+  padding: var(--space-6) var(--space-5);
+}
+
+.ctx-empty-title {
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  color: var(--text-primary);
+  margin-bottom: var(--space-3);
+}
+
+.ctx-empty-body {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-muted);
+}
+
+.ctx-empty-action {
+  margin-top: var(--space-5);
+}
+
+/* ---------------------------------------------------------------------------
+   Section shells + space budget (§5.4)
+
+   A collapsed section costs its header. An expanded one takes the height its
+   rows need, up to 60% of the view, and scrolls inside itself past that. The
+   container scrolls as the backstop.
+
+   EQUAL WEIGHT WAS TRIED FIRST AND IS WRONG, which a capture showed and the
+   code could not: with `flex: 1 1 0` two expanded sections holding three rows
+   each split the pane down the middle and left two blocks of empty space
+   between them and the collapsed headers below. The wireframes in §5.7 to §5.9
+   draw the sections stacked tight from the top, which is what content sizing
+   gives. The 60% cap is what keeps §5.4's real promise: a 33-row Skills
+   section cannot push MCP servers off the bottom, because it stops at 60% and
+   scrolls inside its own body.
+--------------------------------------------------------------------------- */
+
+.ctx-sections {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  outline: none;
+  /* The row degrades against the PANE. Declared on the scroller because that
+     is the box whose inline size actually tracks the sidebar. */
+  container-type: inline-size;
+  container-name: ctx;
+}
+
+.ctx-sections:focus-visible {
+  box-shadow: inset var(--focus-ring);
+  border-radius: var(--r-md);
+}
+
+.section-ctx {
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 auto;
+  min-height: 0;
+}
+
+.section-ctx:not(.collapsed) {
+  max-height: 60%;
+}
+
+.section-ctx.collapsed {
+  flex: 0 0 auto;
+}
+
+.ctx-body {
+  padding-bottom: var(--space-2);
+  /* The list never scrolls sideways. `.section-body` sets only `overflow-y`,
+     and CSS computes the other axis to `auto` when its pair is not visible, so
+     a row overshooting by a few pixels would raise a horizontal scrollbar
+     under the list. The rules below shrink the row so it rarely comes to
+     this; this is the guarantee that it can never look scrollable. */
+  overflow-x: hidden;
+}
+
+/* The section header is a drag handle here for the same reason it is in SCM
+   (S3's section-drag block applies to any view with two or more sections). */
+.ctx-sections .section-header {
+  cursor: grab;
+}
+
+.ctx-sections .section-header .icon-btn {
+  cursor: default;
+}
+
+/* ---------------------------------------------------------------------------
+   Group rows [h:24] (§5.6) — the same geometry as SCM's Staged/Changes rows,
+   so this view inherits a shape instead of describing a new one.
+--------------------------------------------------------------------------- */
+
+.ctx-group-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 24px;
+  flex: 0 0 24px;
+  padding: 0 var(--space-4) 0 var(--space-5);
+  user-select: none;
+}
+
+.ctx-group-row.bundled {
+  cursor: pointer;
+}
+
+.ctx-group-row.bundled:hover {
+  background: var(--bg-raised);
+}
+
+.ctx-group-chevron {
+  display: inline-flex;
+  color: var(--text-muted);
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+
+.ctx-group-chevron.open {
+  transform: rotate(90deg);
+}
+
+.ctx-group-label {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.ctx-group-space {
+  flex: 1;
+  min-width: 0;
+}
+
+.ctx-group-count {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  flex: 0 0 auto;
+}
+
+/* §11.6 — one line under the managed group, and no verb that could write. */
+.ctx-group-note {
+  padding: 0 var(--space-5) var(--space-2) var(--space-5);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+}
+
+/* ---------------------------------------------------------------------------
+   Rows [h:24] (§5.5)
+--------------------------------------------------------------------------- */
+
+.ctx-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 24px;
+  flex: 0 0 24px;
+  padding: 0 var(--space-4) 0 var(--space-5);
+  cursor: default;
+  user-select: none;
+  min-width: 0;
+  /* The accent inset lives on a transparent border so the selected state does
+     not move the row's contents by 2px. */
+  border-left: 2px solid transparent;
+}
+
+.ctx-row:hover {
+  background: var(--bg-raised);
+}
+
+.ctx-row.selected {
+  background: var(--bg-active);
+  border-left-color: var(--accent);
+}
+
+.ctx-row:focus-visible {
+  box-shadow: inset var(--focus-ring);
+}
+
+.ctx-row-icon {
+  color: var(--text-secondary);
+  flex: 0 0 auto;
+}
+
+.ctx-name {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /* The name never disappears at any width (§6.6), so it keeps a floor and
+     the summary beside it gives way first. */
+  flex: 0 1 auto;
+  min-width: 40px;
+}
+
+.ctx-summary {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1 1 auto;
+  min-width: 0;
+  /* T3 by default, so the narrowest pane is what this file describes first
+     and every wider tier is an addition rather than a rescue. */
+  display: none;
+}
+
+/* Mono only where the artifact IS a path or a command (DESIGN.md §1.8: mono is
+   terminal-adjacent truth, never a technical costume). An MCP server's NAME is
+   sans; its command is mono, and it is the command that lands here. */
+.ctx-summary.mono {
+  font-family: var(--font-mono);
+}
+
+.ctx-agents {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  height: 16px;
+  min-width: 16px;
+  padding: 0 var(--space-2);
+  border-radius: var(--r-sm);
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  flex: 0 0 auto;
+}
+
+.ctx-marks {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 0 0 auto;
+}
+
+/* The element that carries each mark's sentence. Codicon sets aria-hidden and
+   takes no title, so the wrapper is what a pointer hovers and what a screen
+   reader reads. It adds no box of its own. */
+.ctx-mark {
+  display: inline-flex;
+  align-items: center;
+}
+
+.ctx-mark-shadowing,
+.ctx-mark-drift {
+  color: var(--text-secondary);
+}
+
+.ctx-mark-off {
+  color: var(--text-muted);
+}
+
+/* --error, NOT --warning. --warning is the same #F5B84A as
+   --status-attention, and a permanent amber glyph in the sidebar would compete
+   with the one colour this product reserves for "an agent needs you". A hook
+   whose script is missing is an error, so it takes the error colour and the
+   amber budget stays intact (§5.5). */
+.ctx-mark-broken {
+  color: var(--error);
+}
+
+/* §11 item 4 — a file that would not parse. It keeps the row geometry, because
+   it IS a row: it sits in its own section, it opens the editor at the line the
+   parser named, and everything that did read stays on screen beside it. The
+   message wraps to two lines at most, since a parse error that is ellipsised
+   at 24px tells the reader nothing. */
+.ctx-row-problem {
+  height: auto;
+  min-height: 24px;
+  flex: 0 0 auto;
+  align-items: flex-start;
+  padding-top: var(--space-1);
+  padding-bottom: var(--space-1);
+  cursor: pointer;
+}
+
+.ctx-problem-text {
+  color: var(--error);
+  white-space: normal;
+  overflow: visible;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+/* ---------------------------------------------------------------------------
+   The scope chip (§6.2) — filtered state only.
+
+   Grouping is the resting-state channel; the chip is the filtered-state one.
+   Never both. Both would be 8px of noise on every row for a fact the group
+   header already stated.
+--------------------------------------------------------------------------- */
+
+.ctx-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+  padding: 0 var(--space-2);
+  border-radius: var(--r-sm);
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  font-weight: var(--weight-semibold);
+  flex: 0 0 auto;
+}
+
+.ctx-chip-word {
+  display: none;
+}
+
+/* TWO CLASSES, NOT ONE, and it is not style. `@vscode/codicons/dist/codicon.css`
+   declares `.codicon { display: inline-block }` at the same 0-1-0 specificity as
+   a bare `.ctx-chip-glyph`, and it is bundled after this file, so the bare
+   selector loses and the glyph shows at every width — measured, not reasoned:
+   the probe reported chipWord AND chipGlyph both visible at 400px. This is the
+   same failure mode the FilterField component was extracted to end, where a
+   `padding-left` lost to `.input`'s `padding` shorthand for the same reason.
+   Qualifying by the parent is what makes these rules win their own element. */
+.ctx-chip .ctx-chip-glyph {
+  display: inline-flex;
+}
+
+/* ---------------------------------------------------------------------------
+   T2 — 260px and up: the summary and the agent chip come back, the chip keeps
+   its glyph because the word costs more than the glyph saves at this width.
+--------------------------------------------------------------------------- */
+
+@container ctx (min-width: 260px) {
+  .ctx-summary {
+    display: block;
+    min-width: 80px;
+  }
+
+  .ctx-agents {
+    display: inline-flex;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   T1 — 340px and up: the summary gets its full floor and the scope chip says
+   its word. A word is a stronger channel than a glyph, so it is the last thing
+   given up and the first thing given back.
+--------------------------------------------------------------------------- */
+
+@container ctx (min-width: 340px) {
+  .ctx-summary {
+    min-width: 140px;
+  }
+
+  .ctx-chip-word {
+    display: inline;
+  }
+
+  .ctx-chip .ctx-chip-glyph {
+    display: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   The glance (§7.1) — 420px, in a body portal so `fixed` escapes the
+   sidebar's overflow. It is the ONLY place a 220px pane can read a summary,
+   which is why its geometry is not optional.
+--------------------------------------------------------------------------- */
+
+.ctx-card {
+  position: fixed;
+  z-index: var(--z-tooltip);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-2);
+  pointer-events: none;
+  user-select: none;
+}
+
+.ctx-card-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--text-secondary);
+}
+
+.ctx-card-name {
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ctx-card-summary {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-secondary);
+  /* Up to four lines (§7.1). A skill description is routinely 800 characters,
+     and the whole reason the card exists rather than an inline row expansion
+     is that 800 characters inside a 300px sidebar pushes every other row off
+     the screen to read one. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  overflow: hidden;
+}
+
+.ctx-card-scope,
+.ctx-card-shadow {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+}
+
+.ctx-card-problem {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--error);
+}
+
+.ctx-card-agents {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.ctx-card-agents-label {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+}
+
+.ctx-card-logos {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--text-secondary);
+}
+
+.ctx-card-logo {
+  display: inline-flex;
+}
+
+.ctx-card-path {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+  text-align: left;
+  min-width: 0;
+}
+
+.ctx-card-path-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   Requirement 2 — a row whose bytes no longer match what was approved.
+
+   It is DIMMED rather than hidden, because the file is still on disk and the
+   agents still load it. Tortie has switched it off in its own list and says so
+   in the row's title; pretending it had stopped the agent would be worse than
+   having no control. --error carries the mark, and the amber reserved for "an
+   agent needs you" is untouched.
+   --------------------------------------------------------------------------- */
+.ctx-row.pin-changed .ctx-name,
+.ctx-row.pin-changed .ctx-summary {
+  color: var(--text-muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--text-muted);
+}
+
+/* The one row of storefront this design allows: a query with nothing local
+   offers to look for it. There is no featured row anywhere (§13.4). */
+.ctx-no-match {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.ctx-search-source {
+  text-align: left;
+}

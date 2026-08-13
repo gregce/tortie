@@ -51,6 +51,15 @@
   zoom: var(--zoom-search, 1);
 }
 
+/* Context (Phase 22). Its level, its custom property, its label and its place
+   in ⌘⇧0 all came for free from `SIDEBAR_VIEW_IDS` — this rule is the one
+   thing that did not, because it is the only part that has to know the view's
+   DOM shape. The view keeps a `.sidebar-rest`, so the binding is the same
+   shape as Explorer's and Source Control's. */
+.sidebar-view[data-view='context'] > .sidebar-rest {
+  zoom: var(--zoom-context, 1);
+}
+
 /* The right-hand session dock's rows. In TOP orientation the tab strip IS the
    band and has no content of its own to zoom (see zoom/regions.ts), so there
    is deliberately no `.stab-list` rule here. */

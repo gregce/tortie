@@ -15,9 +15,30 @@ import type { OpenFileRequest } from '../state/open-file';
  * dispose the other's model.
  */
 export function tabIdFor(req: OpenFileRequest): string {
+  // Phase 22. A context detail open is keyed by the ENTRY, not by the file, for
+  // the same reason history is keyed by the commit: the same `SKILL.md` reached
+  // from the tree and reached from the Context view are two different readings
+  // of one file, and only one of them wears the header card. `entry.id` is
+  // already `${category}|${identity}` and is stable across scans.
+  const entryId = contextEntryId(req.contextEntry);
+  if (entryId !== null) return `context:${entryId}`;
   return req.commit !== undefined
     ? `${req.commit.sha}:${req.relPath}`
     : req.path;
+}
+
+/**
+ * The `id` of a context entry carried on a request, or null when there is none.
+ *
+ * The request types this field as `unknown`, because the open bus is shared with
+ * five emitters that have never heard of a context entry. This is the one place
+ * that narrows it, and it narrows by reading the one field identity depends on
+ * rather than by asserting a shape.
+ */
+export function contextEntryId(value: unknown): string | null {
+  if (value === null || typeof value !== 'object') return null;
+  const id = (value as { id?: unknown }).id;
+  return typeof id === 'string' && id.length > 0 ? id : null;
 }
 
 /**

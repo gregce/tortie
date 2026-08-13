@@ -58,6 +58,8 @@ import { useResizeHandle } from '../controls';
 import { useEditor } from './store';
 import type { EditorMode, EditorTab } from './store';
 import { EditorTabStrip } from './EditorTabs';
+import { ContextDetailTab } from '../context/ContextDetailTab';
+import type { ContextEntry } from '../context/model';
 import { MonacoHost } from './MonacoHost';
 import { PierreDiff } from './PierreDiff';
 import { MarkdownPreview } from './markdown';
@@ -309,6 +311,23 @@ function ModeToggle({
 // ---------------------------------------------------------------------------
 // Panel
 // ---------------------------------------------------------------------------
+
+/**
+ * The context entry a tab was opened with, or null.
+ *
+ * The store types it `unknown` so that a field only the Context view fills does
+ * not put its object model in front of every surface that imports the editor.
+ * This narrows by reading the two fields the card cannot render without, which
+ * is a check about THIS value rather than a cast that would be believed whatever
+ * arrived.
+ */
+function asContextEntry(value: unknown): ContextEntry | null {
+  if (value === null || typeof value !== 'object') return null;
+  const candidate = value as Partial<ContextEntry>;
+  return typeof candidate.id === 'string' && typeof candidate.category === 'string'
+    ? (value as ContextEntry)
+    : null;
+}
 
 export function EditorPanel(): React.JSX.Element | null {
   const init = useEditor((s) => s.init);
@@ -613,6 +632,11 @@ export function EditorPanel(): React.JSX.Element | null {
   const showDiffSplit = diffSideBySide && diffSplitFits;
   const diffSplitApplies = effectiveMode === 'diff' && activeTab.error === null;
 
+  // Phase 22. Narrowed once, here. The tab carries the entry as `unknown`
+  // because the editor store is imported by every surface in the renderer and
+  // none of the others has heard of a context entry.
+  const contextEntry = asContextEntry(activeTab.contextEntry);
+
   const monaco = (
     <MonacoHost tab={activeTab} minimap={showMinimap && !activeTab.markdown} />
   );
@@ -633,6 +657,55 @@ export function EditorPanel(): React.JSX.Element | null {
     />
   ) : (
     <HtmlPreview tab={activeTab} live={effectiveMode === 'split'} />
+  );
+
+  const body = (
+activeTab.error !== null ? (
+            <div className="ed-state">
+              <div className="ed-state-title">Could not open this file</div>
+              <div className="ed-state-body">{activeTab.error}</div>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => forceCloseTab(activeTab.id)}
+              >
+                Close tab
+              </button>
+            </div>
+          ) : effectiveMode === 'diff' ? (
+            // Diff mode renders without Monaco (Pierre owns diff viewing) —
+            // a Monaco chunk failure only blocks the editing surfaces. For a
+            // raster image the same gesture means before/after pixels, under
+            // the same Side-by-side control and the same 640px floor.
+            activeTab.image && !activeTab.svg ? (
+              <ImageCompare tab={activeTab} sideBySide={showDiffSplit} />
+            ) : (
+              <PierreDiff tab={activeTab} sideBySide={showDiffSplit} />
+            )
+          ) : effectiveMode === 'image' ? (
+            <ImageView tab={activeTab} />
+          ) : effectiveMode === 'preview' ? (
+            preview
+          ) : monacoError !== null ? (
+            <div className="ed-state">
+              <div className="ed-state-title">The editor failed to load</div>
+              <div className="ed-state-body">{monacoError}</div>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setMonacoError(null)}
+              >
+                Try again
+              </button>
+            </div>
+          ) : effectiveMode === 'split' ? (
+            <div className="ed-split">
+              <div className="ed-split-pane">{monaco}</div>
+              <div className="ed-split-pane">{preview}</div>
+            </div>
+          ) : (
+            monaco
+          )
   );
 
   return (
@@ -730,51 +803,19 @@ export function EditorPanel(): React.JSX.Element | null {
         </div>
 
         <div className="ed-body">
-          {activeTab.error !== null ? (
-            <div className="ed-state">
-              <div className="ed-state-title">Could not open this file</div>
-              <div className="ed-state-body">{activeTab.error}</div>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => forceCloseTab(activeTab.id)}
-              >
-                Close tab
-              </button>
-            </div>
-          ) : effectiveMode === 'diff' ? (
-            // Diff mode renders without Monaco (Pierre owns diff viewing) —
-            // a Monaco chunk failure only blocks the editing surfaces. For a
-            // raster image the same gesture means before/after pixels, under
-            // the same Side-by-side control and the same 640px floor.
-            activeTab.image && !activeTab.svg ? (
-              <ImageCompare tab={activeTab} sideBySide={showDiffSplit} />
-            ) : (
-              <PierreDiff tab={activeTab} sideBySide={showDiffSplit} />
-            )
-          ) : effectiveMode === 'image' ? (
-            <ImageView tab={activeTab} />
-          ) : effectiveMode === 'preview' ? (
-            preview
-          ) : monacoError !== null ? (
-            <div className="ed-state">
-              <div className="ed-state-title">The editor failed to load</div>
-              <div className="ed-state-body">{monacoError}</div>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => setMonacoError(null)}
-              >
-                Try again
-              </button>
-            </div>
-          ) : effectiveMode === 'split' ? (
-            <div className="ed-split">
-              <div className="ed-split-pane">{monaco}</div>
-              <div className="ed-split-pane">{preview}</div>
-            </div>
+          {/* Phase 22. A tab opened from the Context view wears the detail
+              header card, and the body below it is whatever this file would
+              have rendered as anyway. That is the whole difference between a
+              detail tab and a file tab, which is why there is no second tab
+              kind: the card is a wrapper, not a renderer. */}
+          {contextEntry !== null ? (
+            <ContextDetailTab
+              entry={contextEntry}
+              repoPath={activeTab.repoPath}
+              renderBody={() => body}
+            />
           ) : (
-            monaco
+            body
           )}
         </div>
 
