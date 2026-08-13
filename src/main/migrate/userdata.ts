@@ -112,6 +112,18 @@
  * cannot see an `UPDATE`. The comparison is now a sha256 per table over the
  * rows in a fixed order, from ../db/digest.ts. Counts are still recorded,
  * because they are what a person reads in the log.
+ *
+ * ## Phase 20 — the copy engine moved out of this file
+ *
+ * The `VACUUM INTO` from a read only connection, and the read that turns a
+ * database into counts and content hashes, now live in
+ * ../manifest/recovery.ts. This module calls them. Research 33 §4 named this
+ * file as the place the engine already existed and said to generalise it into
+ * `manifest/recovery.ts` rather than write a second copy path for the backup
+ * ring, and the engine had already been run against the operator's real user
+ * data. What stays here is the migration's own business: which strategy to use
+ * for a given file, how a failure is reported, and what a failure means for the
+ * upgrade.
  */
 
 import Database from 'better-sqlite3';
@@ -131,11 +143,7 @@ import {
   writeFileSync
 } from 'node:fs';
 import { dirname, join, resolve as resolvePath } from 'node:path';
-import {
-  digestDifferences,
-  tableDigests,
-  tableRowCounts
-} from '../db/digest';
+import { readDatabaseEvidence, snapshotDatabase } from '../manifest/recovery';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -715,6 +723,10 @@ function copyEntry(
  *
  * Either way, `openGmuxDatabase()` re-establishes WAL mode the first time the
  * app opens the copy.
+ *
+ * The snapshot itself is `snapshotDatabase` in ../manifest/recovery.ts. The
+ * choice between the two strategies stays here, because it is a property of a
+ * one time upgrade rather than of copying a database.
  */
 function copyDatabase(
   src: string,
@@ -752,42 +764,40 @@ function copyDatabase(
     return;
   }
 
-  let source: Database.Database | null = null;
   try {
-    source = new Database(src, { readonly: true, fileMustExist: true });
-    const counts = tableRowCounts(source);
-    const sourceDigests = tableDigests(source);
-    source.exec(`VACUUM INTO ${quoteSqlString(dest)}`);
-    source.close();
-    source = null;
-
-    const copy = new Database(dest, { readonly: true, fileMustExist: true });
-    const copied = tableRowCounts(copy);
-    const copyDigests = tableDigests(copy);
-    copy.close();
-    rmSync(`${dest}-shm`, { force: true });
-
-    // Content, not counts. A count cannot see an UPDATE, and this manifest's
-    // churn is almost entirely UPDATE against `last_seen` and `status`.
-    const differences = digestDifferences(sourceDigests, copyDigests);
+    // Phase 20 moved this engine into ../manifest/recovery.ts, where the backup
+    // ring is its second caller. Research 33 §4 named this module as the place
+    // the engine already existed and said to generalise it rather than write a
+    // second copy path. What arrives back is the same evidence this module
+    // recorded before, plus one improvement: a source that is still being
+    // written is retried instead of failing the migration on the first
+    // disagreement.
+    const snapshot = snapshotDatabase({ from: src, to: dest });
     ctx.databases.push({
       file: rel,
       method: 'vacuum-into',
-      source: counts,
-      copy: copied,
-      sourceDigests,
-      copyDigests,
-      differences,
-      ok: differences.length === 0
+      source: snapshot.source,
+      copy: snapshot.copy,
+      sourceDigests: snapshot.sourceDigests,
+      copyDigests: snapshot.copyDigests,
+      differences: snapshot.differences,
+      // Content, not counts. A count cannot see an UPDATE, and this manifest's
+      // churn is almost entirely UPDATE against `last_seen` and `status`.
+      ok: snapshot.ok
     });
+    if (snapshot.drifted) {
+      ctx.warnings.push(
+        `${rel} was still being written after ${String(snapshot.attempts)} ` +
+          'attempts, so the copy could not be compared with its source'
+      );
+    }
     ctx.files += 1;
-    ctx.bytes += statSync(dest).size;
+    ctx.bytes += snapshot.bytes;
     // Folded in — do not then copy stale sidecars next to the snapshot, and do
     // not hold the verifier to files that intentionally did not travel.
     ctx.handled.add(`${rel}-wal`);
     ctx.handled.add(`${rel}-shm`);
   } catch (err) {
-    source?.close();
     rmSync(dest, { force: true });
     ctx.warnings.push(
       `${rel} could not be snapshotted (${(err as Error).message}) — ` +
@@ -807,21 +817,17 @@ function readEvidence(
   rel: string,
   ctx: CopyContext
 ): { counts: Record<string, number>; digests: Record<string, string> } {
-  let db: Database.Database | null = null;
-  const hadShm = existsSync(`${path}-shm`);
-  try {
-    db = new Database(path, { readonly: true, fileMustExist: true });
-    return { counts: tableRowCounts(db), digests: tableDigests(db) };
-  } catch (err) {
+  // The read and its `-shm` cleanup are ../manifest/recovery.ts's, so the two
+  // callers that need evidence out of a database do it the same way. What stays
+  // here is the migration's own reaction to a file that is not one.
+  const evidence = readDatabaseEvidence(path);
+  if (evidence.error !== undefined) {
     ctx.warnings.push(
-      `${rel} is not a readable SQLite database (${(err as Error).message}) — ` +
+      `${rel} is not a readable SQLite database (${evidence.error}) — ` +
         'copied byte-for-byte anyway'
     );
-    return { counts: {}, digests: {} };
-  } finally {
-    db?.close();
-    if (!hadShm) rmSync(`${path}-shm`, { force: true });
   }
+  return { counts: evidence.counts, digests: evidence.digests };
 }
 
 /** Copy one file and prove the bytes landed (hash, or size past the cap). */
@@ -1077,11 +1083,6 @@ function recordFailedAttempt(opts: {
 
 function sha256(path: string): string {
   return createHash('sha256').update(readFileSync(path)).digest('hex');
-}
-
-
-function quoteSqlString(value: string): string {
-  return `'${value.replace(/'/g, "''")}'`;
 }
 
 function formatBytes(bytes: number): string {

@@ -268,6 +268,32 @@ describe('recoverDatabase', () => {
     expect(out.rows.lost_and_found).toBeGreaterThan(0);
   });
 
+  it('counts unplaced rows apart from the total, and says so in the sentence', () => {
+    // A recovery report is read as a promise about what came back. Until Phase
+    // 20 the rows `.recover` could not attribute to any table were added to the
+    // total, so a rebuild that placed 500 of 540 rows said "rebuilt 540 rows"
+    // and nothing in the log could tell a person otherwise.
+    const path = build();
+    smashIndexRootPage(path);
+    const wreck = quarantineDatabase(path).path;
+    const out = recoverDatabase({ damagedPath: wreck, intoPath: path });
+
+    expect(out.ok).toBe(true);
+    expect(out.unplacedRows).toBe(out.rows.lost_and_found);
+    expect(out.unplacedRows).toBeGreaterThan(0);
+    // The total names only the rows that landed in a table the app knows.
+    expect(out.detail).toContain('rebuilt 500 rows across 1 tables');
+    expect(out.detail).toContain('could not be placed');
+  });
+
+  it('says nothing about unplaced rows when there are none', () => {
+    const path = build('clean-report.db', 20);
+    const wreck = quarantineDatabase(path).path;
+    const out = recoverDatabase({ damagedPath: wreck, intoPath: path });
+    expect(out.unplacedRows).toBe(0);
+    expect(out.detail).toBe('rebuilt 20 rows across 1 tables');
+  });
+
   it('drops lost_and_found when it is empty, so it is not noise in every later check', () => {
     // A healthy source recovers cleanly, which is when the tool's holding
     // table has nothing in it.

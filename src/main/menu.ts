@@ -59,6 +59,10 @@ import { BUILD_COMMIT } from './build-info';
 // DATA and knows nothing about how a click reaches the renderer, which is the
 // one decision this file keeps.
 import { clearRecents, onRecentsChanged, openRecentMenuItem } from './recents';
+// Phase 20 fix round. Reconstruction had no door: no menu item, no channel, no
+// flag. This is the door, and it runs entirely in main behind two native
+// dialogs, so there is no renderer surface to keep in step with it.
+import { runOperatorReconstruction } from './manifest/reconstruct-operator';
 
 /**
  * Can this window act on a menu action? The Settings window (S13) is a
@@ -241,6 +245,18 @@ function buildTemplate(): MenuItemConstructorOptions[] {
           label: 'Settings…',
           accelerator: accel('app.settings'),
           click: () => openSettingsWindow()
+        },
+        { type: 'separator' },
+        // Phase 20 fix round: the one way a person can reach reconstruction.
+        // It surveys, shows the plan, and writes only after the person says
+        // yes. It never writes over the session list they have now, and it
+        // never adopts a running session that is not Tortie's. It is in this
+        // menu rather than behind a flag because the day it is needed is the
+        // day the session list is gone, and a person looking for a way out
+        // opens menus.
+        {
+          label: 'Rebuild the Session List…',
+          click: () => void runOperatorReconstruction()
         },
         { type: 'separator' },
         { role: 'services' },

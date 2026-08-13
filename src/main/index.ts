@@ -42,6 +42,14 @@
  *                       events are injected, because the only way to make
  *                       macOS send them is to sleep a machine holding live
  *                       agent work. `npm run smoke:power`.
+ *  - GMUX_SMOKE=reconstruct  rebuilding a lost session list from the snapshot
+ *                       capsules and the identity stamps on live tmux sessions
+ *                       (Phase 20 item 5). Creates two managed sessions and one
+ *                       session carrying no identity, surveys, applies, and
+ *                       asserts the foreign session was never a candidate and
+ *                       the live manifest never changed. Isolated profile AND
+ *                       isolated socket, refused without both.
+ *                       `npm run smoke:reconstruct`.
  *  - GMUX_SMOKE=procid  what the OUTSIDE world sees of gmux (Phase 13.8):
  *                       app name, process.title, what `ps` prints, and the
  *                       gmux-owned process list (app + helpers + private tmux
@@ -88,6 +96,7 @@ import type { CreateSessionInput } from '@shared/types';
 import { installAppMenu } from './menu';
 import { migrateUserDataIfNeeded, showRenameNoticeOnce } from './migrate';
 import { runMigrateSmoke } from './migrate/smoke';
+import { runReconstructSmoke } from './manifest/reconstruct-smoke';
 import {
   disposeProjectCloneIpc,
   registerProjectCloneIpc,
@@ -1742,6 +1751,11 @@ app.whenReady().then(async () => {
   // REAL live tmux sessions (src/main/migrate/smoke.ts). Never reads the real
   // userData; the guard it asserts first is what keeps it that way.
   if (smoke === 'migrate') return runMigrateSmoke();
+  // Phase 20 item 5: reconstruction, driven in a real Electron process against
+  // real capsules and a real tmux server. It builds its own foreign session on
+  // its own socket, so the "not ours, untouched" claim is proved rather than
+  // asserted. Same isolation guard as the fault harness.
+  if (smoke === 'reconstruct') return runReconstructSmoke();
   // Phase 13.8: what the outside world sees of gmux (read-only).
   if (smoke === 'procid') return runSmokeProcId();
   // Phase 13.5 item 5 — `npm run conformance:resume`. Lives in

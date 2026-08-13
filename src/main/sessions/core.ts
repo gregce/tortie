@@ -76,13 +76,18 @@ import {
   agentRescuesId,
   agentRescuesIdAfterExit,
   ManifestStore,
+  defaultManifestDbPath,
+  prepareManifestForBoot,
   resolveLaunchSpec,
+  startManifestRing,
   toSession,
   watchForSessionId,
   type AgentLaunchSpec,
   type LiveTmuxSession,
+  type ManifestRingSchedule,
   type ManifestSessionRecord,
   type RestoreAttemptRecord,
+  type RingTakeResult,
   type SessionIdWatch
 } from '../manifest';
 // The one channel main uses to say a durability layer is degraded, and the
@@ -441,6 +446,16 @@ export class GmuxCore {
    * pruneStaleCreates().
    */
   private readonly createsInFlight = new Map<string, number>();
+  /**
+   * The manifest backup ring's timer (Phase 20 item 2), or null when boot has
+   * not reached it yet.
+   *
+   * The core owns it because the core owns the two things it needs: the open
+   * manifest connection the change test reads, and the knowledge of whether a
+   * create or a restore is in flight. Its poll is unref'd, so it can never hold
+   * the process open.
+   */
+  private ringSchedule: ManifestRingSchedule | null = null;
   /** Live tmux `$-id`s proven NOT to be ours — see identify(). */
   private readonly foreignTmuxIds = new Set<string>();
   /** Last cols×rows pushed per session — see resizeSession (Phase 12.11). */
@@ -617,10 +632,43 @@ export class GmuxCore {
     this.sessionsBroadcastTimer.unref?.();
   }
 
+  /**
+   * Take a generation of the manifest because the machine is going to sleep
+   * (Phase 20 item 2).
+   *
+   * Sleep and quit are the two moments with no next tick, so both skip the five
+   * minute floor and keep the change test. Null means the manifest has not
+   * changed since the last generation, which is the common case and is not a
+   * failure.
+   */
+  async takeManifestGenerationOnSuspend(): Promise<RingTakeResult | null> {
+    return (await this.ringSchedule?.onSuspend()) ?? null;
+  }
+
+  /** The same, on the way out. Stops the poll first. */
+  async takeManifestGenerationOnQuit(): Promise<RingTakeResult | null> {
+    return (await this.ringSchedule?.onQuit()) ?? null;
+  }
+
   /** Boot the whole durable core. Throws structured GmuxErrors on failure. */
   static async boot(): Promise<GmuxCore> {
     await tmux.ensureServer();
-    const core = new GmuxCore(new ManifestStore());
+    // Phase 20. Two things happen to the manifest before it is opened: a
+    // verified generation is put back when the file is missing or damaged, and
+    // a generation of the OLD schema is taken when a migration is pending. Both
+    // have to be here rather than inside the store, because writing a file is
+    // async and the store's constructor is not. See manifest/boot.ts for the
+    // order and for why the ring is asked before `.recover`.
+    const dbPath = defaultManifestDbPath();
+    await prepareManifestForBoot(dbPath).catch((err: unknown) => {
+      // It already swallows its own failures. This catch is for the one thing
+      // it cannot answer for, which is a bug in it: a backup step must never be
+      // the reason a user cannot open their sessions.
+      console.warn(
+        `[gmux] preparing the manifest failed: ${(err as Error).message}`
+      );
+    });
+    const core = new GmuxCore(new ManifestStore(dbPath));
     try {
       await core.control.start();
     } catch (err) {
@@ -646,6 +694,16 @@ export class GmuxCore {
       );
     });
     core.startStatusWatcher();
+    // Phase 20 item 2. The poll starts and the launch generation is taken here,
+    // after reconcile, so the copy holds statuses that agree with tmux rather
+    // than the ones the last run left behind. It is awaited because 21 ms is
+    // invisible beside the tmux work above and a take that has definitely
+    // happened is one a harness can assert on. Nothing in it can throw.
+    core.ringSchedule = await startManifestRing({
+      store: core.manifest,
+      busy: () => core.createsInFlight.size > 0 || core.restoresInFlight.size > 0,
+      dbPath
+    });
     // Phase 13.7 — one disk check, off the boot path. Boot is the moment
     // "sessions may not be saved when you quit" can still be acted on, and
     // this is deliberately the ONLY unprompted sample: the alternative was an
@@ -1066,8 +1124,10 @@ export class GmuxCore {
       if (outcome.kind === 'failed') {
         // No session was created, so the row keeps the status it already has,
         // which is 'restorable'. Writing a live status here would be this
-        // item's own defect pointed the other way.
-        this.manifest.updateSession(sessionId, { restore: result });
+        // item's own defect pointed the other way. The commit is durable
+        // (Phase 20 item 4) and deliberately does not touch `lastSeen`,
+        // because nothing was confirmed alive.
+        this.manifest.recordRestoreOutcome(sessionId, result);
         this.reportRestoreStages(rec, result);
         this.manifest.finishRestoreAttempt(attempt, result.kind);
         attemptId = null;
@@ -1087,11 +1147,13 @@ export class GmuxCore {
 
       this.liveIds.set(sessionId, info.sessionId);
       this.byTmuxId.set(info.sessionId, sessionId);
-      const updated = this.manifest.updateSession(sessionId, {
+      // ONE DURABLE COMMIT (Phase 20 item 4). The restore record, the status
+      // it implies and the two facts tmux only reports once the session
+      // exists go to the drive together, between the journal's durable intent
+      // row and its durable resolution. 0.056 ms before, 4.87 ms after,
+      // against a restore that costs hundreds of milliseconds in tmux.
+      const updated = this.manifest.setRestoreResult(sessionId, result, status, {
         tmuxName: info.tmuxName,
-        status,
-        restore: result,
-        lastSeen: Date.now(),
         ...(info.panePid !== undefined ? { panePid: info.panePid } : {})
       });
       faultPoint('restore.after-status-write');
@@ -1389,7 +1451,12 @@ export class GmuxCore {
         // launch has no row to annotate, and the attempt still has to close.
         const row = this.manifest.getSession(r.sessionId);
         if (r.write && row !== undefined) {
-          this.manifest.updateSession(r.sessionId, { restore: r.record });
+          // Durable (Phase 20 item 4), and it must not touch `lastSeen`: this
+          // is annotating a row about a restore that ran in a process which is
+          // gone. It was an ordinary commit immediately followed by the
+          // durable `finishRestoreAttempt`, so a power loss between the two
+          // left the journal closed and the row's record lost.
+          this.manifest.recordRestoreOutcome(r.sessionId, r.record);
         }
         this.manifest.finishRestoreAttempt(r.attemptId, r.record.kind);
         // Items 7 and 9. Two of the five outcomes leave the session still not
@@ -2173,6 +2240,8 @@ export class GmuxCore {
       clearTimeout(this.sessionsBroadcastTimer);
       this.sessionsBroadcastTimer = null;
     }
+    // Stop the backup poll before the connection it fingerprints is closed.
+    this.ringSchedule?.stop();
     for (const watch of this.idCaptureWatches.values()) watch.cancel();
     this.idCaptureWatches.clear();
     this.unwatchSettings?.();
@@ -2255,6 +2324,11 @@ export async function shutdownGmuxCore(): Promise<void> {
       core.captureSyncsIdle(),
       new Promise<void>((resolve) => setTimeout(resolve, SYNC_QUIT_TIMEOUT_MS))
     ]).catch(() => undefined);
+    // Phase 20 item 2. Last, and before dispose closes the connection, so the
+    // generation holds everything the quit itself wrote. It costs 21 ms, it
+    // skips the five minute floor because there is no next tick, and it takes
+    // nothing at all when the manifest has not changed.
+    await core.takeManifestGenerationOnQuit().catch(() => null);
     core.dispose();
   } catch {
     /* boot never finished — nothing to tear down */

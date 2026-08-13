@@ -29,6 +29,29 @@
  * so each of the two steps has its own timeout and the output has a size cap.
  * Exceeding either is a failed recovery, not a crash, and a failed recovery
  * leaves the app starting with an empty manifest and the wreck still on disk.
+ *
+ * ## This is the SECOND choice, and Phase 20 is what made that true
+ *
+ * A page walk is a best effort. It reads what it can still read, it puts rows
+ * it cannot attribute into `lost_and_found`, and nothing it produces was ever
+ * checked against the database as it was before the damage. The backup ring in
+ * ../manifest/recovery.ts holds something strictly better: a copy that was
+ * proved complete at the moment it was taken, by `integrity_check` on the copy
+ * and by a per table content hash against the source.
+ *
+ * So the order on the manifest's boot path is the ring first and this second,
+ * and the two answers are not the same kind of answer. `restoreFromBackup`
+ * gives back every row of an earlier instant. This gives back as much as could
+ * be read of the latest instant, with no way to say what is missing.
+ *
+ * INTEGRATION SEAM, because that ordering crosses three files this module does
+ * not own. The boot path in main/index.ts calls the ring's restore BEFORE it
+ * constructs `ManifestStore`, in the same place it calls
+ * `takePreMigrationGeneration`, and only when the manifest is absent or fails
+ * `checkDatabaseIntegrity`. `openGmuxDatabase` then finds a healthy file and
+ * this module is never reached. Nothing here changes: the fallback has to keep
+ * working for the case where the ring is empty, which is every profile that
+ * has not launched since Phase 20.
  */
 
 import Database from 'better-sqlite3';
@@ -46,6 +69,9 @@ const SIDECAR_SUFFIXES = ['-wal', '-shm', '-journal'] as const;
 
 /** Apple ships this. Nothing is bundled and nothing is signed for it. */
 export const SYSTEM_SQLITE3 = '/usr/bin/sqlite3';
+
+/** The table `.recover` puts rows in when it cannot say which table they came from. */
+const LOST_AND_FOUND = 'lost_and_found';
 
 /** Per step. The whole path only runs on a file already found damaged. */
 const STEP_TIMEOUT_MS = 20_000;
@@ -89,6 +115,18 @@ export interface RecoverySummary {
   sqlBytes: number;
   /** table -> row count, read from the rebuilt database. Empty on failure. */
   rows: Record<string, number>;
+  /**
+   * Rows `.recover` read but could not attribute to a table. They are in
+   * `lost_and_found`, they are the user's, and they are NOT part of the
+   * recovered total.
+   *
+   * SEPARATE FROM THE TOTAL BECAUSE THE TOTAL IS READ AS A PROMISE. Until
+   * Phase 20 these rows were counted with everything else, so a rebuild that
+   * could not place 40 of 500 rows reported "rebuilt 500 rows" and a person
+   * reading the log had no way to learn otherwise. A recovery is the one place
+   * a report may not round in its own favour.
+   */
+  unplacedRows: number;
   ms: number;
 }
 
@@ -112,7 +150,14 @@ export function recoverDatabase(opts: RecoveryOptions): RecoverySummary {
   const fail = (detail: string, sqlBytes = 0): RecoverySummary => {
     sweep(staging);
     sweep(wreckCopy);
-    return { ok: false, detail, sqlBytes, rows: {}, ms: Date.now() - started };
+    return {
+      ok: false,
+      detail,
+      sqlBytes,
+      rows: {},
+      unplacedRows: 0,
+      ms: Date.now() - started
+    };
   };
 
   if (!existsSync(sqlite3)) {
@@ -247,12 +292,23 @@ export function recoverDatabase(opts: RecoveryOptions): RecoverySummary {
   // stays exactly where `quarantineDatabase` left it.
   sweep(wreckCopy);
 
-  const total = Object.values(rows).reduce((a, b) => a + b, 0);
+  // `lost_and_found` is counted apart from the rest. See `unplacedRows`.
+  const unplacedRows = Math.max(rows[LOST_AND_FOUND] ?? 0, 0);
+  const placed = Object.entries(rows)
+    .filter(([table]) => table !== LOST_AND_FOUND)
+    .reduce((a, [, count]) => a + count, 0);
+  const tables = Object.keys(rows).filter((t) => t !== LOST_AND_FOUND).length;
   return {
     ok: true,
-    detail: `rebuilt ${total} rows across ${Object.keys(rows).length} tables`,
+    detail:
+      `rebuilt ${placed} rows across ${tables} tables` +
+      (unplacedRows > 0
+        ? `, and ${unplacedRows} more rows that could not be placed in any ` +
+          `table are in ${LOST_AND_FOUND}`
+        : ''),
     sqlBytes: sql.length,
     rows,
+    unplacedRows,
     ms: Date.now() - started
   };
 }

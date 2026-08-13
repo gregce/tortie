@@ -39,7 +39,16 @@ import {
   assertHarnessIsolation,
   type HarnessIsolation
 } from '../harness/isolation';
-import { defaultManifestDbPath } from '../manifest';
+import {
+  BACKUP_GENERATIONS,
+  backupBodyVerifies,
+  backupsDir,
+  captureManifestBackup,
+  defaultManifestDbPath,
+  describeBackupRing,
+  listBackupBodies,
+  readBackupIndex
+} from '../manifest';
 import {
   classifySnapshotFile,
   resolveSnapshot,
@@ -204,6 +213,17 @@ export async function runFaultWork(): Promise<void> {
     faultPoint('work.after-snapshots');
     log('snapshots written');
 
+    // Phase 20. The launch generation was already taken inside `getGmuxCore`
+    // above, so `backup.before-copy`, `backup.after-copy`, `backup.after-body`
+    // and `backup.after-record` are reachable by then. `prune.before-unlink` is
+    // not: a prune only unlinks once there are more generations than the ring
+    // keeps, and two takes never get there.
+    //
+    // So the workload forces one. It takes generations until the ring is over
+    // its limit, which makes the pruning invariant reachable by a real SIGKILL
+    // rather than only by a test that stops deleting part way through.
+    await forceBackupPrune();
+
     // One session is then killed out of band and restored, which is the only
     // way the restore stages become reachable. It is also what widens the
     // writing phase: without it the whole workload is about 80 ms wide and a
@@ -218,6 +238,41 @@ export async function runFaultWork(): Promise<void> {
   } catch (err) {
     fail(err);
   }
+}
+
+/**
+ * Take generations until the ring has to prune one, so the pruning invariant
+ * can be interrupted by a real crash.
+ *
+ * `BACKUP_GENERATIONS + 1` takes past the two the app has already made is more
+ * than enough, and each take is about 21 ms. The ring's own lock serialises
+ * them, so these run one after another rather than racing.
+ *
+ * The reason is `unknown` and not a schedule reason. This is a harness asking
+ * for a copy, not a moment in the app's life, and `BackupReason` has the member
+ * precisely so a caller outside the schedule does not have to borrow one.
+ *
+ * A failure here is logged and does not fail the workload. The generations are
+ * a means to reach a fault point, and a disk that will not take them is a
+ * different failure from the one under test.
+ */
+async function forceBackupPrune(): Promise<void> {
+  const takes = BACKUP_GENERATIONS + 1;
+  for (let i = 0; i < takes; i += 1) {
+    try {
+      const out = await captureManifestBackup({
+        reason: 'unknown',
+        onPoint: faultPoint
+      });
+      if (out.removed.length > 0) {
+        log(`generation ${String(out.capsule.generation)} pruned ${String(out.removed.length)}`);
+      }
+    } catch (err) {
+      log(`a forced generation failed: ${(err as Error).message}`);
+      return;
+    }
+  }
+  log(`${String(takes)} forced generations; the ring has pruned`);
 }
 
 /**
@@ -332,6 +387,30 @@ export interface SurveySnapshotFile {
   sha256: string;
 }
 
+/**
+ * What the manifest backup ring holds after the crash (Phase 20 item 3).
+ *
+ * This is the evidence behind the pruning invariant. `verifiedGenerations` is
+ * what a reader would actually accept: a body whose length and sha256 match the
+ * completion record that names it. `unrecordedBodies` are bodies on disk that
+ * no record names, which is exactly what a crash inside a capture leaves and
+ * which a reader must ignore rather than trust.
+ *
+ * THE ASSERTION THE SUPERVISOR MAKES ON IT: after a crash at any backup point,
+ * `verifiedGenerations` is not empty. A ring that can be emptied by one badly
+ * timed crash protects nothing.
+ */
+export interface SurveyRing {
+  /** Generations the completion record names, newest first. */
+  recordedGenerations: number[];
+  /** Of those, the ones whose bytes match the record. */
+  verifiedGenerations: number[];
+  /** Bodies on disk that the record does not name. Never trusted by a reader. */
+  unrecordedBodies: number[];
+  /** One sentence, from the ring's own reader. */
+  detail: string;
+}
+
 export interface SurveyState {
   /** `ok`, the SQLite verdict, or the error that stopped us reading it. */
   manifestIntegrity: string;
@@ -341,6 +420,8 @@ export interface SurveyState {
   snapshots: SurveySnapshotFile[];
   /** `.<name>.<stamp>.part` files, the debris of a crash inside a write. */
   snapshotTemporaries: string[];
+  /** The manifest backup ring. See SurveyRing. */
+  ring: SurveyRing;
 }
 
 export interface SurveyReport {
@@ -439,7 +520,32 @@ async function readState(): Promise<SurveyState> {
     rows,
     liveSessions: live,
     snapshots: snaps,
-    snapshotTemporaries: temporaries
+    snapshotTemporaries: temporaries,
+    ring: await readRing()
+  };
+}
+
+/**
+ * Read the ring the way a reader on the recovery path would, and never the way
+ * a writer would.
+ *
+ * Nothing here opens a body, writes a record or prunes anything. The whole
+ * point of surveying after a crash is that the survey must not be able to
+ * repair what it is measuring.
+ */
+async function readRing(): Promise<SurveyRing> {
+  const dir = backupsDir();
+  const capsules = readBackupIndex(dir);
+  const recorded = capsules.map((c) => c.generation);
+  const verified = capsules
+    .filter((c) => backupBodyVerifies(c, dir))
+    .map((c) => c.generation);
+  const onDisk = await listBackupBodies(dir).catch(() => [] as number[]);
+  return {
+    recordedGenerations: recorded,
+    verifiedGenerations: verified,
+    unrecordedBodies: onDisk.filter((g) => !recorded.includes(g)),
+    detail: describeBackupRing(dir)
   };
 }
 

@@ -66,6 +66,20 @@ export const FAULT_POINTS = [
   'restore.after-replay',
   'restore.after-arm',
   'restore.after-status-write',
+  // The manifest backup ring (Phase 20 item 3). One point per window in which
+  // a crash can leave the ring in a state a reader has to survive. They are
+  // named by `BackupFaultPoint` in ../manifest/recovery.ts, which is a separate
+  // union rather than an import of this one so the ring stays a leaf that a
+  // test can drive with its own hook.
+  //
+  // `prune.before-unlink` is the one the pruning invariant rests on: the record
+  // is already durable and one body is about to go, so a crash there is exactly
+  // the interrupted prune research 33 asks to be proved survivable.
+  'backup.before-copy',
+  'backup.after-copy',
+  'backup.after-body',
+  'backup.after-record',
+  'backup.prune.before-unlink',
   // Quit — the app-quit capture point, which is where scrollback is saved.
   'quit.before-snapshots',
   'quit.after-snapshots',

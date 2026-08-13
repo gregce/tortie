@@ -9,7 +9,7 @@
   "license": "Apache-2.0",
   "scripts": {
     "dev": "electron-vite dev",
-    "build": "electron-vite build",
+    "build": "electron-vite build && node build/assert-bundle-refusals.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "smoke": "npm run build && GMUX_TMUX_SOCKET=\"${GMUX_TMUX_SOCKET:-gmux-smoke-t1}\" GMUX_SMOKE=basic electron . --user-data-dir=\"${TMPDIR:-/tmp/}gmux-smoke-t1\"",
     "smoke:create": "GMUX_TMUX_SOCKET=\"${GMUX_TMUX_SOCKET:-gmux-smoke-t1}\" GMUX_SMOKE=create electron . --user-data-dir=\"${TMPDIR:-/tmp/}gmux-smoke-t1\"",
@@ -19,6 +19,7 @@
     "smoke:capture": "npm run build && node build/harness-socket.mjs gmux-smoke-capture 'GMUX_SMOKE=capture electron . --user-data-dir=\"${TMPDIR:-/tmp/}gmux-smoke-capture\"'",
     "smoke:migrate": "npm run build && node build/harness-socket.mjs gmux-smoke-migrate 'GMUX_SMOKE=migrate electron . --user-data-dir=\"${TMPDIR:-/tmp/}gmux-smoke-migrate\"'",
     "smoke:identity": "npm run build && node build/harness-socket.mjs gmux-smoke-identity 'GMUX_SMOKE=identity electron . --user-data-dir=\"${TMPDIR:-/tmp/}gmux-smoke-identity\"'",
+    "smoke:reconstruct": "npm run build && rm -rf \"${TMPDIR:-/tmp/}gmux-smoke-reconstruct\" && node build/harness-socket.mjs gmux-smoke-reconstruct 'GMUX_RECONSTRUCT_ROOT=\"${TMPDIR:-/tmp/}gmux-smoke-reconstruct\" GMUX_SMOKE=reconstruct electron . --user-data-dir=\"${TMPDIR:-/tmp/}gmux-smoke-reconstruct/profile\"'",
     "smoke:fault": "npm run build && node build/fault-harness.mjs",
     "smoke:power": "npm run build && GMUX_POWER_ROOT=\"${TMPDIR:-/tmp/}gmux-smoke-power\" GMUX_TMUX_SOCKET=\"gmux-power-$$\" GMUX_SMOKE=power electron . --user-data-dir=\"${TMPDIR:-/tmp/}gmux-smoke-power/profile\"",
     "smoke:procid": "npm run build && node build/harness-socket.mjs gmux-smoke-procid 'GMUX_SMOKE=procid electron . --user-data-dir=\"${TMPDIR:-/tmp/}gmux-smoke-procid\"'",
@@ -31,8 +32,8 @@
     "start": "electron-vite preview",
     "postinstall": "electron-rebuild -f -w node-pty,better-sqlite3",
     "vendor:specstory": "node build/fetch-specstory.cjs",
-    "package": "electron-vite build && electron-builder --mac",
-    "package:dir": "electron-vite build && electron-builder --mac --dir",
+    "package": "electron-vite build && node build/assert-bundle-refusals.mjs && electron-builder --mac",
+    "package:dir": "electron-vite build && node build/assert-bundle-refusals.mjs && electron-builder --mac --dir",
     "icon": "cp docs/brand/tortie/macos/Tortie.icns build/icon.icns && cp docs/brand/tortie/menu-bar/TortieTemplate.png docs/brand/tortie/menu-bar/TortieTemplate@2x.png resources/menu-bar/ && cp docs/brand/tortie/dock/tortie-dock-128.png src/renderer/assets/brand/tortie-128.png"
   },
   "dependencies": {

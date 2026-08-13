@@ -25,7 +25,7 @@ matter and not a reason to change the application.
 The About panel and the installer keep saying **Tortie**, because that is the application's name and
 the wordmark is a wordmark. Revisit only if the operator asks.
 | 4 | **19** durability, with the harness that proves it | ✅ SHIPPED 2026-08-12 | — |
-| 5 | **20** the verified backup ring | SPECCED BELOW, RUNNING | Phase 19 ✅ |
+| 5 | **20** the verified backup ring | ✅ SHIPPED 2026-08-13 | Phase 19 ✅ |
 | 5b | **20.5** file preview beyond markdown, starting with HTML | RESEARCH RUNNING, R39 | Phase 20 |
 | 6 | **21** versioned agent recovery contracts, as one migration with resume provenance | queued | Phase 20 |
 | 7 | **22** the Context sidebar, with installing enabled | SPECCED BELOW | 21, and it runs **before** the release lane by operator instruction |
@@ -2151,7 +2151,7 @@ where that binary is still present. SpecStory capture for DeepSeek, which maps o
 
 ---
 
-## Phase 20 — the verified backup ring (2026-08-12)
+## Phase 20 — the verified backup ring ✅ SHIPPED 2026-08-13
 
 Sources: docs/research/33-durability-reconciliation.md entry 8, which merges G2 steps 2 to 4 with B2
 and M10, and docs/research/34-phase19-oss-survey.md section 2 for how SQLite copies are made safely.
@@ -2228,3 +2228,93 @@ The manifest itself, which is the point. The integrity gate, quarantine and dura
 just landed. Restore for both a claude shaped and a non claude shaped session. The identity rule,
 which reconstruction must not weaken in order to make reconstruction easier. Research 33 names that as
 one of five things a well meaning cleanup must not re-litigate.
+
+### Fix round, 2026-08-13, from Verifier B's needs_work
+
+Verifier B found one defect and named two things that were not true. All three are fixed, and each
+one was re-measured with the check that found it.
+
+**The defect. The acknowledgement refusal was in the source and not in the shipped bundle.**
+`applyReconstruction` refuses to run unless the caller passes the exact acknowledgement sentence.
+Rollup deleted that `if` statement from `out/main/index.js`. Rollup tracks the value of a parameter
+when a function has exactly one call site it can see, there was one call site, it passed the
+constant, so rollup proved the branch dead. Nothing misbehaved, because the one caller was correct.
+What was false was the claim. Vitest runs the TypeScript source, so no test in this repository could
+see it.
+
+At the start of this round the state was worse than the report. `GMUX_SMOKE=reconstruct` was never
+wired into `src/main/index.ts`, so the whole reconstruction module was absent from the bundle and all
+eight of its refusals were gone.
+
+| What was wrong | What fixed it | How it was re-measured |
+| --- | --- | --- |
+| The acknowledgement refusal is not in the bundle | Two more call sites, one of which builds its argument at runtime, plus the menu door below | `node build/assert-bundle-refusals.mjs`: 17 refusals present, and the `if` statement is back in the bundle text |
+| No gate can see this class of defect | `build/assert-bundle-refusals.mjs`, run by `npm run build`, so `npm run package` cannot skip it. It checks each refusal is in its source file AND in the built bundle | It failed on the broken bundle, naming all eight missing fragments. It fails again when one refusal is deleted from a good bundle by hand |
+| A person has no way to reach reconstruction | `src/main/manifest/reconstruct-operator.ts` and the app menu item "Rebuild the Session List…", which surveys, shows the plan in a native dialog, and applies only after the person confirms | The reconstruct smoke now clicks the real menu item. Cancel showed one box and wrote nothing. Confirm showed two boxes and rebuilt 2 rows. The live manifest stayed byte identical |
+| The rebuild was written as `manifest.db` inside the profile, and `migrate/userdata.ts` copies every `*.db` it walks | `RECONSTRUCTION_BODY_NAME` is `manifest.db.rebuilt`, the same choice `recovery.ts` made for the ring bodies and documented one file away | The smoke asserts no file in the output folder ends in `.db`, and a unit test pins the name |
+| `GMUX_SMOKE=reconstruct` had no dispatch, so `npm run smoke:reconstruct` could not run | The dispatch and the import in `src/main/index.ts` | The harness runs and passes on socket `gmux-smoke-reconstruct` |
+
+**The asar was opened this time.** Verifier B said they confirmed `out/main/index.js` rather than a
+built `.asar`. `npm run package:dir` was run, `out/main/index.js` was extracted from
+`release/mac-arm64/Tortie.app/Contents/Resources/app.asar`, and the two files are byte identical at
+815,934 bytes. Every refusal and the menu item are in it.
+
+**Operator sessions.** 37 before, 37 after. The `#{session_id} #{session_name} #{session_created}`
+listings differ by nothing. No harness in this round resolved to socket `gmux`.
+
+**What is still not true.** The menu door cannot include a candidate that has no launch recipe. Such
+a candidate needs a name, a project root, a working directory and an agent typed in by hand, and a
+message box has nowhere to type them. Those candidates are counted in the dialog with the reason, and
+the survey and apply API can still write them. A later round can give them a form.
+
+### SHIPPED 2026-08-13. What landed
+
+Every item in the spec above landed. The five things a person now has that they did not have
+yesterday are listed here, each with the file that owns it.
+
+| Item | What landed | Where |
+| --- | --- | --- |
+| 1. One copy engine | `VACUUM INTO` from a read only connection was generalised out of `migrate/userdata.ts`. There is one copy path and both callers use it | `src/main/manifest/recovery.ts`, `src/main/migrate/userdata.ts` |
+| 2. The ring | Five verified generations beside the manifest, taken at launch, every 5 minutes at most, on sleep, on quit and before a migration. A take is skipped when the content hash has not changed | `src/main/manifest/recovery.ts`, `src/main/manifest/ring-schedule.ts` |
+| 3. The pruning invariant | Pruning is its own step and stops as soon as the newest generation and its last verified predecessor are both protected. Proved by a real SIGKILL inside the unlink loop | `src/main/manifest/recovery.ts` `pruneGenerations`, `build/fault-harness.mjs` |
+| 4. `synchronous=FULL` on five commits | The five session writes whose loss strands a live agent commit with `F_FULLFSYNC`. Every other write stays at `NORMAL`. Both pragmas are raised and lowered around the one transaction | `src/main/db/sqlite.ts` `durableTransaction`, `src/main/manifest/store.ts` |
+| 5. Reconstruction | Rebuilds a session list from the snapshot capsules and the `@gmux-id` stamps on live tmux sessions, into a new file in a directory a person names. Reached through the menu item "Rebuild the Session List…" | `src/main/manifest/reconstruct.ts`, `src/main/manifest/reconstruct-operator.ts` |
+
+**The recovery ordering, which no builder owned and which decides whether any of this helps.** When
+the manifest is missing or fails its integrity check, the newest verified generation is put back
+BEFORE the store is constructed. Phase 19's `.recover` page walk stays the last resort, because a
+page walk returns whatever it could read and cannot say what is missing, while a generation was
+proved complete table by table when it was taken. A damaged file is quarantined and never deleted.
+The file is `src/main/manifest/boot.ts`.
+
+**The Phase 19 recovery defect named above is fixed at HEAD, and it is now pinned.** A manifest
+rebuilt by the system `sqlite3 .recover` arrives with the final schema and a migrations table holding
+one row, and the migration runner then re-ran an early step whose `ALTER TABLE` threw on a duplicate
+column. Every column migration goes through `addColumnIfMissing`, and
+`src/main/db/__tests__/recover-migrations.test.ts` rebuilds a real recovered database and asserts the
+runner completes.
+
+**One correction to research 34, made by this phase.** Section 3.2 recorded as unverified the claim
+that `integrity_check` throws rather than returning a row on a damaged file. It is verified now.
+Smashing the cell pointer array on a table root page produces that throw. The earlier injection was
+too weak rather than the claim being wrong. Research 34 §3.2 and its gaps list are corrected.
+
+### What is NOT true after Phase 20
+
+- **The ring is on the same disk as the thing it copies.** It does nothing about a failed drive, a
+  stolen machine or a deleted profile directory. Exporting a verified copy off the device is a later
+  and separate item, deliberately gated behind this one.
+- **The ring spans minutes to a day, not weeks.** Five generations are taken at most every 5 minutes
+  and only when the content changed, so a busy hour leaves the oldest generation about twenty minutes
+  old. Damage that goes unnoticed for longer than the span is copied into every generation in turn.
+- **Reconstruction cannot include a candidate with no launch recipe from the menu.** That candidate
+  needs a name, a project root, a working directory and an agent typed in by hand, and a message box
+  has nowhere to type them. The dialog counts them and gives the reason. The survey and apply API can
+  still write them.
+- **Putting a rebuilt manifest into place is still a manual copy.** Reconstruction writes
+  `manifest.db.rebuilt` into a directory a person names and refuses any path in the live manifest's
+  directory. Nobody automated the last step, on purpose.
+- **One agent is unproven this round, and it is not this phase's doing.** The full
+  `npm run conformance:resume` roundtrip ran with real turns: 8 PASS, 0 FAIL, 1 BLOCKED, 1 SKIP in
+  187.2 s. `gemini` is the BLOCKED row and its CLI answered "This request failed", which is the
+  agent's own service and not Tortie. `droid` is the SKIP row and is not installed on this machine.

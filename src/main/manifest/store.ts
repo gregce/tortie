@@ -28,6 +28,7 @@ import {
   type IntegrityGateReport,
   type SqliteMigration
 } from '../db/sqlite';
+import { databaseFingerprint } from '../db/digest';
 import { postDurabilityNotice } from '../notice';
 import {
   RESUME_CAPTURES,
@@ -691,6 +692,18 @@ const MIGRATIONS: readonly SqliteMigration[] = [
   }
 ];
 
+/**
+ * Every migration name this build will apply, in order.
+ *
+ * Read by the pre-migration copy (./ring-schedule.ts), which opens the manifest
+ * READ ONLY before the store is constructed and asks which of these the file has
+ * no bookkeeping row for. It is derived from `MIGRATIONS` rather than written out
+ * again, so a migration added above cannot be missed here.
+ */
+export const MANIFEST_MIGRATION_NAMES: readonly string[] = MIGRATIONS.map(
+  (m) => m.name
+);
+
 // ---------------------------------------------------------------------------
 // Store
 // ---------------------------------------------------------------------------
@@ -810,12 +823,125 @@ export class ManifestStore {
     this.db.close();
   }
 
+  /**
+   * One hash over the content of every user table, or null when it cannot be
+   * read (Phase 20 item 2).
+   *
+   * The backup schedule's change test. It lives here because the schedule must
+   * not open a second connection to a database this process already holds open
+   * for writing, and because `databaseFingerprint` needs the connection rather
+   * than the path. 0.334 ms, measured against the operator's 38 session
+   * manifest.
+   *
+   * Null means "cannot be read", and the schedule treats that as a reason to
+   * take a copy rather than a reason to skip one.
+   */
+  contentFingerprint(): string | null {
+    try {
+      return databaseFingerprint(this.db);
+    } catch {
+      return null;
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // The durable commits (Phase 20 item 4)
+  //
+  // Five session writes commit at `synchronous=FULL` with `fullfsync=1`, and
+  // every other write in this file stays at the connection's `NORMAL`. The
+  // pragmas are raised around the one transaction and lowered again after it,
+  // which costs nothing anywhere else on the connection (db/sqlite.ts
+  // `durableTransaction`, and research 34 §1.1 for why both pragmas or
+  // neither).
+  //
+  // WHAT THE PROMOTION BUYS, LITERALLY. At `NORMAL` in WAL mode a commit is in
+  // the operating system's page cache. It survives the app being killed. It
+  // does not survive power loss or a kernel panic, which can discard the last
+  // run of commits. At `FULL` with `fullfsync=1` the commit is a
+  // `F_FULLFSYNC`, which asks the drive to flush its own cache before the call
+  // returns. Research 28 §G2 names the case this exists for: the declaration
+  // row is written before the process is spawned, so a power loss that
+  // discards it leaves a live agent with no manifest row, and Tortie correctly
+  // refuses to adopt a session it has no record of. The process keeps running
+  // and the app cannot reach it.
+  //
+  // MEASURED. Each figure is the median of 200 calls, and the table takes the
+  // middle of three such runs. Both columns were measured in the same process
+  // against the same on-disk manifest, with the "before" column running the
+  // statement the unpromoted method ran, so the two columns differ only in the
+  // pragmas. APFS on the internal NVMe disk, better-sqlite3 13.0.3.
+  //
+  // | Commit                 | Before   | After   | How often it runs            |
+  // | ---------------------- | -------- | ------- | ---------------------------- |
+  // | `insertSession`        | 0.036 ms | 4.16 ms | once per session created     |
+  // | `setAgentSessionId`    | 0.046 ms | 4.83 ms | once per session, at harvest |
+  // | `setRestoreResult`     | 0.056 ms | 4.87 ms | once per restore             |
+  // | `recordRestoreOutcome` | 0.055 ms | 4.20 ms | once per restore             |
+  // | `deleteSession`        | 0.021 ms | 4.27 ms | once per discard             |
+  //
+  // Read the "after" column as 4 ms to 5 ms rather than as an exact figure.
+  // Across the three runs the per-commit median moved between 4.05 ms and
+  // 5.00 ms and single calls ranged from 3.62 ms to 6.13 ms, because what is
+  // being timed is a drive flush and not arithmetic. The `before` column is
+  // stable to about a hundredth of a millisecond.
+  //
+  // The frequent writes were measured too and are DELIBERATELY LEFT ALONE. The
+  // cost of a promotion is paid on every call, and what each of these loses is
+  // recomputed at the next launch anyway.
+  //
+  // | Left at NORMAL  | Measured | Why it stays                                 |
+  // | --------------- | -------- | -------------------------------------------- |
+  // | `setStatus`     | 0.075 ms | The activity monitor calls it per verdict per session, and reconcile recomputes every status from tmux at each launch |
+  // | `updateSession` | 0.064 ms | The general patch, and the one reconcile calls for every row inside a single transaction |
+  // | `upsertProject` | 0.033 ms | A lost project row costs a tab, not a session. Session rows carry their own `project_path` |
+  //
+  // So each promoted commit adds about 4 ms to an operation that already costs
+  // hundreds of milliseconds in tmux, or waits on the agent's own store, or
+  // follows a click. None of them is on a path a person can perceive, and the
+  // paths a person can perceive were not touched.
+  // -------------------------------------------------------------------------
+
+  /**
+   * `updateSession`, committed durably. The read and the write are inside the
+   * same `BEGIN IMMEDIATE` as well, which is the second reason to route these
+   * through one helper: `updateSession` reads the row and then writes it, and
+   * a deferred transaction would fail that upgrade under contention with
+   * `SQLITE_BUSY_SNAPSHOT` (db/sqlite.ts).
+   */
+  private updateSessionDurably(
+    id: string,
+    patch: ManifestSessionPatch
+  ): ManifestSessionRecord {
+    return durableTransaction(this.db, () => this.updateSession(id, patch));
+  }
+
   // -------------------------------------------------------------------------
   // Sessions — CRUD
   // -------------------------------------------------------------------------
 
-  /** Insert a full record. Call BEFORE spawning the process (§2.4 Step 0). */
+  /**
+   * Insert a full record. Call BEFORE spawning the process (§2.4 Step 0).
+   *
+   * A DURABLE COMMIT, and the one the whole promotion exists for. This row is
+   * the only record that a session about to exist belongs to Tortie. The
+   * process outlives the app by design, so a row that reaches the page cache
+   * and not the drive strands a live agent on the next power loss.
+   */
   insertSession(record: ManifestSessionRecord): ManifestSessionRecord {
+    durableTransaction(this.db, () => {
+      this.insertSessionRow(record);
+    });
+    return record;
+  }
+
+  /**
+   * The statement and its error wrapping, split out so that both sit INSIDE
+   * the transaction. `durableTransaction` refuses to nest, and that refusal is
+   * a programming error rather than a bad record: wrapping it in the
+   * `INVALID_INPUT` payload below would tell the user their session name was
+   * rejected.
+   */
+  private insertSessionRow(record: ManifestSessionRecord): void {
     try {
       this.db
         .prepare(
@@ -859,7 +985,6 @@ export class ManifestStore {
         (err as Error).message
       );
     }
-    return record;
   }
 
   getSession(id: string): ManifestSessionRecord | undefined {
@@ -964,13 +1089,20 @@ export class ManifestStore {
    * it enables. Arming the argv and flipping the capture state are ONE write:
    * a row that has an id but still reads 'capturing' would leave the user's
    * indicator spinning forever over a session that is in fact resumable.
+   *
+   * A DURABLE COMMIT (Phase 20 item 4). The harvest that produced this id runs
+   * once, in the first seconds of the session's life, by watching the agent's
+   * own store for a file that appears exactly once. Nothing re-runs it later.
+   * So a lost commit here is not a lost millisecond of bookkeeping, it is a
+   * session that comes back as a folder instead of a conversation, and the
+   * user cannot tell why. 0.046 ms before, 4.83 ms after.
    */
   setAgentSessionId(
     id: string,
     agentSessionId: string,
     resumeArgv: string[]
   ): ManifestSessionRecord {
-    return this.updateSession(id, {
+    return this.updateSessionDurably(id, {
       agentSessionId,
       resumeArgv,
       resumeCapture: resumeArgv.length > 0 ? 'armed' : 'unavailable'
@@ -981,6 +1113,13 @@ export class ManifestStore {
    * A harvest that ended without an id. NOT a silent no-op: 'capturing' is a
    * promise to the user, and a promise that cannot be kept has to be
    * withdrawn where they can see it (research 22 §4.1 point 2).
+   *
+   * CONSIDERED FOR PROMOTION IN PHASE 20 AND LEFT AT NORMAL. Its sibling
+   * `setAgentSessionId` was promoted because losing it loses a conversation.
+   * Losing this one loses a withdrawal, so the row keeps saying 'capturing'
+   * and the indicator keeps spinning over a session that will not resume. That
+   * is a wrong label rather than lost work, and the session is no worse off
+   * than it already was.
    */
   setResumeCapture(id: string, state: ResumeCapture): ManifestSessionRecord {
     return this.updateSession(id, { resumeCapture: state });
@@ -989,9 +1128,19 @@ export class ManifestStore {
   /**
    * Hard-delete a row. Prefer setStatus(id,'exited') for normal ends —
    * delete only when the user explicitly discards a restorable session.
+   *
+   * A DURABLE COMMIT (Phase 20 item 4), and the reason is ordering rather than
+   * the row itself. The caller deletes the session's snapshot file and its
+   * hook settings straight after this returns. Those deletes go to the file
+   * system immediately, while a `NORMAL` commit can still be discarded by a
+   * power loss, so the row can come back pointing at a scrollback that is
+   * already gone. Committing the removal to the drive first means the two
+   * sides can only be lost in the safe order. 0.021 ms before, 4.27 ms after.
    */
   deleteSession(id: string): void {
-    this.db.prepare<[string]>('DELETE FROM sessions WHERE id = ?').run(id);
+    durableTransaction(this.db, () => {
+      this.db.prepare<[string]>('DELETE FROM sessions WHERE id = ?').run(id);
+    });
   }
 
   /**
@@ -1002,13 +1151,54 @@ export class ManifestStore {
    * that says `running` with no restore record next to it is the defect this
    * item exists to fix, and a row that carries a `failed` restore record while
    * its status says `running` would be the same defect wearing the fix.
+   *
+   * `bind` carries the two things tmux only reports once the session exists,
+   * so the whole transition is one commit rather than a durable one followed
+   * by an ordinary one.
+   *
+   * A DURABLE COMMIT (Phase 20 item 4). It sits between two commits that Phase
+   * 19 already made durable, the journal's intent row and its resolution, and
+   * an ordinary commit between two durable ones is the weakest link of the
+   * three. 0.056 ms before, 4.87 ms after, against a restore that costs
+   * hundreds of milliseconds in tmux.
    */
   setRestoreResult(
     id: string,
     restore: SessionRestore,
-    status: SessionStatus
+    status: SessionStatus,
+    bind: { tmuxName?: string; panePid?: number } = {}
   ): ManifestSessionRecord {
-    return this.updateSession(id, { restore, status, lastSeen: Date.now() });
+    return this.updateSessionDurably(id, {
+      restore,
+      status,
+      lastSeen: Date.now(),
+      ...(bind.tmuxName !== undefined ? { tmuxName: bind.tmuxName } : {}),
+      ...(bind.panePid !== undefined ? { panePid: bind.panePid } : {})
+    });
+  }
+
+  /**
+   * Record what a restore achieved WITHOUT touching the row's status or its
+   * `lastSeen` (Phase 20 item 4).
+   *
+   * Two callers need exactly this and must not use `setRestoreResult`. A
+   * restore that failed before tmux was asked for anything leaves the row at
+   * `restorable`, which is already correct. And the journal resolution at the
+   * next launch is annotating a row about a restore that happened in a process
+   * that is gone.
+   *
+   * `lastSeen` is the reason this is a separate method rather than an optional
+   * argument. It means "last confirmed alive in tmux", and reconcile reads it
+   * as evidence that a row is newer than the snapshot being judged against it.
+   * Refreshing it for a restore that produced no session would make reconcile
+   * leave a dead row alone for a pass on the strength of a liveness claim
+   * nothing supports. 0.055 ms before, 4.20 ms after.
+   */
+  recordRestoreOutcome(
+    id: string,
+    restore: SessionRestore
+  ): ManifestSessionRecord {
+    return this.updateSessionDurably(id, { restore });
   }
 
   // -------------------------------------------------------------------------

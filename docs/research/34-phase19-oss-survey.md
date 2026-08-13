@@ -567,9 +567,16 @@ row counts cannot see an `UPDATE`. Replace `sameCounts()` with a per-table sha25
 rows. Measured on the real manifest that costs 0.30 ms including the `integrity_check`, against a
 `VACUUM INTO` that costs 0.72 ms.
 
-**A draft claim that did not reproduce, reported as unverified.** One draft states that on a damaged
-file `quick_check` throws rather than returning a row, so any gate written as an `if` misses the case
-it exists for. Injecting 360 bytes of `0x5a` into page 3 of a freshly vacuumed copy gave a file that
+**CORRECTED ON 2026-08-13 BY PHASE 20. The draft claim was right and this section was wrong.** The
+original text is kept below because the reason it was wrong is the useful part. One draft states that
+on a damaged file `quick_check` throws rather than returning a row, so any gate written as an `if`
+misses the case it exists for. Phase 20 reproduced it: smashing the cell pointer array on the
+`migrations` table root page produces a file on which `integrity_check` **throws** `database disk
+image is malformed`. So the throwing behaviour is reachable, not merely possible, and
+`db/integrity.ts` already covers both. Read the paragraph below as a record of an injection that was
+too weak rather than as a finding about SQLite.
+
+*Original text.* Injecting 360 bytes of `0x5a` into page 3 of a freshly vacuumed copy gave a file that
 opened, both checks returning `ok`, and all 40 rows reading back. That injection was too weak,
 because it landed in a region the checker does not walk. This is a failure to reproduce rather than a
 refutation, and it carries its own lesson, which is that a byte-level difference from the original is
@@ -1124,8 +1131,9 @@ Stated plainly, because a survey that hides its gaps is worth less than one that
 
 - Whether `npm/write-file-atomic#64` has had any maintainer replies. The state and the dates were
   checked, and the authorship of the 5 comments was not.
-- The precise SQLite fault class that makes `quick_check` throw rather than return a row. The
-  injection attempted did not reproduce it, and the gate must cover both behaviours regardless.
+- ~~The precise SQLite fault class that makes `quick_check` throw rather than return a row.~~
+  **SETTLED BY PHASE 20 on 2026-08-13.** Smashing the cell pointer array on a table's root page makes
+  `integrity_check` throw `database disk image is malformed`. See §3.2, which has been corrected.
 - The exact Electron major at which Playwright's `_electron.launch` broke. Only two data points are
   established, which are that 35.7.5 works and 43.3.0 does not, on this machine.
 - Litestream, LiteFS and macFUSE were rejected on constraints without being installed.

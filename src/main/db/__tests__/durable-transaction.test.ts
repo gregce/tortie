@@ -19,7 +19,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type BetterSqlite3 from 'better-sqlite3';
-import { durableTransaction, openGmuxDatabase } from '../sqlite';
+import {
+  durableTransaction,
+  immediateTransaction,
+  openGmuxDatabase
+} from '../sqlite';
 
 let dir: string;
 let db: BetterSqlite3.Database;
@@ -81,5 +85,42 @@ describe('durableTransaction', () => {
     );
     expect(id).toBe(1);
     expect(db.prepare('SELECT v FROM t WHERE id = 1').get()).toEqual({ v: 'a' });
+  });
+});
+
+/**
+ * Phase 20 item 4. Promoting the manifest's critical commits made nesting
+ * reachable for the first time: `setRestoreResult` is a durable commit and
+ * `reconcile` is an ordinary transaction, and both write session rows.
+ */
+describe('durableTransaction refuses to nest', () => {
+  it('throws rather than committing a write that is not durable', () => {
+    expect(() =>
+      immediateTransaction(db, () =>
+        durableTransaction(db, () =>
+          db.prepare("INSERT INTO t (v) VALUES ('a')").run()
+        )
+      )
+    ).toThrow(/inside another transaction/);
+  });
+
+  it('says what the caller should do instead', () => {
+    expect(() =>
+      immediateTransaction(db, () => durableTransaction(db, () => 1))
+    ).toThrow(/Call it at the top level/);
+  });
+
+  it('leaves the outer transaction able to roll back cleanly', () => {
+    expect(() =>
+      immediateTransaction(db, () => {
+        db.prepare("INSERT INTO t (v) VALUES ('outer')").run();
+        return durableTransaction(db, () => 1);
+      })
+    ).toThrow();
+    // The refusal happens before either pragma is raised, so the connection is
+    // untouched and the outer write rolled back with the throw.
+    expect(pragma('synchronous')).toBe(NORMAL);
+    expect(pragma('fullfsync')).toBe(0);
+    expect(db.prepare('SELECT COUNT(*) AS n FROM t').get()).toEqual({ n: 0 });
   });
 });

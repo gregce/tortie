@@ -755,6 +755,16 @@ export const useApp = create<AppState>((set, get) => {
           );
           return;
         }
+        if (notice.kind === 'backup-failing') {
+          // Two lines of about 29 characters with no button beside it. The
+          // sentence has to say that the copies stopped, and NOT that the
+          // session list is damaged, because it is not: what has been lost is
+          // the copy that would bring it back. 38 characters.
+          get().toast('error', 'Session list backups are failing.', {
+            sticky: true
+          });
+          return;
+        }
         if (notice.kind === 'restore-incomplete') {
           get().toast(
             'error',

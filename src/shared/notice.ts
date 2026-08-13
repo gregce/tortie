@@ -154,8 +154,28 @@ export interface ManifestUnreadableNotice {
   path: string;
 }
 
+/**
+ * The verified copies of the session list are failing. Phase 20 item 2.
+ *
+ * Tortie keeps five verified generations of the session list beside it, and
+ * takes a new one at launch, every few minutes, on sleep and on quit. When
+ * those stop working the user still has the session list they always had, so
+ * nothing is lost yet. What they have lost is the copy that would bring it
+ * back, and that is a state only they can act on, e.g. by clearing a full disk.
+ *
+ * Said once per app run, on the FIRST failure of a run of them, because a disk
+ * that is full fails every tick and a toast per tick is a toast people learn to
+ * dismiss. `detail` is for the log, not for the toast.
+ */
+export interface BackupFailingNotice {
+  kind: 'backup-failing';
+  /** Why the take failed, in the ring's own words. */
+  detail: string;
+}
+
 /** Every degraded state Tortie can report. One kind per state, no free text. */
 export type DurabilityNotice =
+  | BackupFailingNotice
   | SnapshotFailedNotice
   | SnapshotRepairedNotice
   | ManifestQuarantinedNotice
@@ -172,6 +192,7 @@ export type GmuxNotice = ScrollbackNotice | DurabilityNotice;
 
 /** The degraded-state kinds, for the latch and for exhaustiveness tests. */
 export const DURABILITY_NOTICE_KINDS = [
+  'backup-failing',
   'snapshot-failed',
   'snapshot-repaired',
   'manifest-quarantined',

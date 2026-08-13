@@ -24,7 +24,15 @@
  *                                                    restore.after-status-write
  *   Row 17 Electron crash, kill renderer and main    every case here
  *
- * All seven rows are exercised by a bare invocation, and every stage of row 12
+ * Phase 20 added a row of its own, and it is the one the pruning invariant
+ * rests on:
+ *
+ *   Ring   During a manifest backup, kill the app    points backup.after-copy,
+ *                                                    backup.after-body,
+ *                                                    backup.after-record and
+ *                                                    backup.prune.before-unlink
+ *
+ * All eight rows are exercised by a bare invocation, and every stage of row 12
  * is its own case. The workload opens a real renderer and then kills one
  * session out of band and restores it, so the SIGKILL takes a renderer down
  * with the main process and the five restore stages are reachable. Every row is
@@ -136,6 +144,24 @@ const DEFAULT_POINTS = [
   'restore.after-replay',
   'restore.after-arm',
   'restore.after-status-write',
+  // Phase 20. Four of the ring's five points, and the fifth (`before-copy`) is
+  // left out because nothing has been written at it, which the control case
+  // already covers. `after-copy` is a staged file nothing records, `after-body`
+  // is a published body nothing records, `after-record` is a durable record
+  // with the prune still to run, and `prune.before-unlink` is the interrupted
+  // prune the invariant rests on. The workload forces the ring over its limit
+  // so the last one is reachable at all.
+  // The ORDINAL is load-bearing and was corrected after the first battery ran.
+  // Arrival 1 at each of these is the LAUNCH take, which happens before the
+  // workload has created a session or recorded a second generation, so a crash
+  // there leaves an empty ring and the invariant below has nothing to assert.
+  // Arrival 5 lands inside the forced sequence with four generations already on
+  // record, which is the state a crash actually has to survive. Measured: at
+  // arrival 1 all three cases reported 0 rows, 0 live sessions and 0 snapshots.
+  'backup.after-copy#5',
+  'backup.after-body#5',
+  'backup.after-record#5',
+  'backup.prune.before-unlink',
   'quit.before-snapshots'
 ];
 
@@ -550,7 +576,29 @@ function judge(r, { expectKill }) {
     }
   }
 
-  // 6. A chosen point that was never reached means the run proved nothing.
+  // 6. The manifest backup ring survived (Phase 20 item 3), and this is the
+  //    pruning invariant stated as an assertion rather than as a paragraph.
+  //
+  //    A crash at any point in a capture or a prune must leave at least one
+  //    generation whose bytes still match the record that names it. That is
+  //    what a reader on the recovery path will accept, so a ring with none is a
+  //    ring that protects nothing. The workload forces the ring over its limit
+  //    on purpose, so every case here has pruned at least once.
+  //
+  //    `before`, not `after`: the survey boots the app to produce `after`, and
+  //    that launch takes a generation of its own. Judging the recovery would be
+  //    judging the repair rather than the damage.
+  if (s.before.ring.recordedGenerations.length > 0) {
+    if (s.before.ring.verifiedGenerations.length === 0) {
+      bad(
+        `the backup ring records ${s.before.ring.recordedGenerations.join(', ')} and none of them verify`
+      );
+    }
+  } else if (!expectKill) {
+    bad('a clean quit left no recorded backup generation at all');
+  }
+
+  // 7. A chosen point that was never reached means the run proved nothing.
   if (r.fault !== null && r.work.signal === 'SIGKILL') {
     const wanted = r.fault.includes('#') ? r.fault : `${r.fault}#1`;
     if (!r.pointsReached.includes(wanted)) {

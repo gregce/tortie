@@ -180,6 +180,16 @@ vi.mock('../settings/window', () => ({
 // test off the user's real settings.json.
 vi.mock('../settings/store', () => ({ getSettings: () => ({ hotkeys: {} }) }));
 
+// Phase 20 fix round: the reconstruction door. Mocked so the test can prove the
+// item reaches it without a survey reading a real profile.
+const reconstructionRuns: number[] = [];
+vi.mock('../manifest/reconstruct-operator', () => ({
+  runOperatorReconstruction: () => {
+    reconstructionRuns.push(Date.now());
+    return Promise.resolve();
+  }
+}));
+
 const {
   installAppMenu,
   rebuildAppMenu,
@@ -269,6 +279,25 @@ describe('the app menu says the app’s name (Phase 16.5)', () => {
       applicationName: 'Tortie',
       applicationVersion: '0.0.1'
     });
+  });
+
+  /**
+   * The reconstruction door (Phase 20 fix round).
+   *
+   * Reconstruction shipped with no way in: no menu item, no channel, no flag.
+   * A verifier's summary was that on the day the operator loses their session
+   * list they cannot run the feature built for that day. This item is the way
+   * in, so its absence is a test failure rather than a discovery.
+   */
+  it('offers a way to rebuild the session list, and it reaches the door', () => {
+    installAppMenu();
+    reconstructionRuns.length = 0;
+    const entry = appSubmenu().find(
+      (it) => it.label === 'Rebuild the Session List…'
+    ) as FakeItem | undefined;
+    expect(entry).toBeDefined();
+    entry?.click?.();
+    expect(reconstructionRuns.length).toBe(1);
   });
 });
 

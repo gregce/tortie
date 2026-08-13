@@ -254,7 +254,8 @@ export function immediateTransaction<T>(
  * `immediateTransaction`, with the two pragmas that make the commit survive an
  * application crash raised for this one transaction and lowered again after
  * it. For the handful of writes whose whole purpose is to be readable by the
- * NEXT launch (Phase 19 item 7, the restore journal).
+ * NEXT launch (Phase 19 item 7, the restore journal; Phase 20 item 4, the five
+ * manifest commits listed in manifest/store.ts under "The durable commits").
  *
  * The numbers, measured with better-sqlite3 13.0.3 in WAL mode as the median
  * of 20 to 25 single-row `BEGIN IMMEDIATE` commits (research 34 §1.1).
@@ -286,8 +287,37 @@ export function immediateTransaction<T>(
  *
  * The pragmas are lowered in a `finally`, so a throwing `fn` cannot leave the
  * connection paying 4 ms on every later write.
+ *
+ * WHY MIGRATION COMMITS ARE NOT ROUTED THROUGH HERE. Research 28 lists them as
+ * a promotion candidate alongside the declaration write. They do not need it,
+ * for two reasons that can both be stated. A WAL loses a contiguous run of
+ * commits off the END, because recovery reads frames in order and stops at the
+ * first bad checksum, so a lost migration cannot leave rows written against
+ * the new schema behind it. And every schema step goes through
+ * `addColumnIfMissing`, so the next launch simply runs it again. Paying 4.2 ms
+ * for a commit whose loss repairs itself is a cost with nothing on the other
+ * side of it.
+ *
+ * @throws when the connection is ALREADY inside a transaction. See the guard.
  */
 export function durableTransaction<T>(db: Database.Database, fn: () => T): T {
+  // A nested call cannot deliver what its name promises. better-sqlite3 turns
+  // an inner transaction into a SAVEPOINT, so the commit that reaches the disk
+  // is the OUTER one, and the `finally` below lowers both pragmas before that
+  // outer commit happens. The write would be an ordinary commit wearing the
+  // name of a durable one, which is worse than an ordinary commit: a later
+  // reader of the call site would believe the row is on the drive.
+  //
+  // Refusing is the right answer rather than degrading quietly, because every
+  // caller is in this repository and the fix is always the same one line.
+  if (db.inTransaction) {
+    throw new Error(
+      'durableTransaction was called inside another transaction. The pragmas ' +
+        'it raises are lowered again before the outer transaction commits, so ' +
+        'the write would not be durable. Call it at the top level, or make ' +
+        'the outer transaction the durable one.'
+    );
+  }
   db.pragma('synchronous = FULL');
   db.pragma('fullfsync = 1');
   try {
