@@ -14,6 +14,7 @@ export {
   toSession,
   type ManifestSessionRecord,
   type ManifestSessionPatch,
+  type UpdateSessionOptions,
   type LiveTmuxSession,
   type ReconcileResult,
   type RestoreAttemptRecord

@@ -45,6 +45,18 @@ export interface SnapshotFailedNotice {
   sessions: number;
   /** True when the cause was a full disk. */
   outOfSpace: boolean;
+  /**
+   * APPENDED (Phase 26.3): set when the failed capture was about exactly one
+   * session, so the sentence can name it. The quit pass keeps sending counts.
+   */
+  sessionName?: string;
+  /**
+   * APPENDED (Phase 26.3): true when the capture ran because the user ended
+   * the session. The end confirm promises "saved first", so this failure gets
+   * its own sentence: the scrollback was not saved, and a later Restore
+   * brings back the conversation only. Absent on every other capture pass.
+   */
+  atSessionEnd?: boolean;
 }
 
 /**

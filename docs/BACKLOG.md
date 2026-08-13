@@ -3063,7 +3063,7 @@ moves to the hover card.
 
 ---
 
-## Phase 26.3 — an ended session can be restored, not only restarted (user requested, 2026-08-13)
+## Phase 26.3 — an ended session can be restored, not only restarted (user requested, 2026-08-13) ✅ SHIPPED 2026-08-13
 
 **The request.** When a session ends, the surface offers Restart, which is a fresh session with the
 same name and directory, and Close. The operator wants a third verb: Restore, which brings the
@@ -3099,3 +3099,11 @@ passes, and run conformance:resume:capture since restore paths are touched.
 
 **What must not regress.** The Phase 19 restart fix, where nothing is discarded until the
 replacement exists. The honest restore statuses. The 24 px surfaces that carry the verbs.
+
+**Shipped 2026-08-13.** An ended session now offers Restore beside Restart and Remove. Manual end
+captures a snapshot capsule and preserves the row before tmux kills anything, which the fault
+harness proved with a real crash between the capture and the kill. The session survived. Restore
+goes through the existing `restoreSession` path, obeys the manifest row, and leaves an exited row
+exited when it fails. Live drives restored a claude shape and a pi shape with the resume command
+armed and unexecuted, and a plain shell in its recorded directory. The end confirm no longer says
+"cannot be undone" on any end path, including the group end. Tier 3 verified, one fix round.

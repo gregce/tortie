@@ -11,6 +11,7 @@
 import type { Session } from '@shared/types';
 import type { MenuItemSpec } from '../../state/store';
 import { useApp } from '../../state/store';
+import { resumeReadiness } from '../resume';
 import { useLayout } from '../../state/layout';
 import type { Surface } from '../../state/layout';
 import { MAX_LEAVES } from '../../state/split-tree';
@@ -81,9 +82,21 @@ export function groupMenuItems(
       disabled: live.length === 0,
       run: () => {
         const names = live.map((x) => `'${x.name}'`).join(', ');
+        // Phase 26.3 — same rule as the single-session confirm in
+        // store.ts endSession: killSession captures a snapshot capsule and
+        // keeps each manifest row before it kills anything, so "scrollback
+        // will be discarded. This cannot be undone" stopped being true.
+        // The conversations sentence is offered only when EVERY member has
+        // a resumable conversation; a mixed group gets the scrollback-only
+        // variant so the promise holds for each session in it.
+        const allResumable = live.every(
+          (x) => resumeReadiness(x) === 'conversation'
+        );
         useApp.getState().setConfirm({
           title: `End ${live.length} sessions?`,
-          body: `${names} will stop and their scrollback will be discarded. This cannot be undone.`,
+          body: allResumable
+            ? `This stops what is running in ${names}. The scrollback and the conversations are saved first, so you can restore each session later.`
+            : `This stops what is running in ${names}. The scrollback is saved first, so you can restore each session later.`,
           confirmLabel: 'End sessions',
           destructive: true,
           onConfirm: () => {

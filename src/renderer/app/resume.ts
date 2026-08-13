@@ -173,6 +173,44 @@ export function restoreSummary(sessions: readonly Session[]): string {
 }
 
 /**
+ * Phase 26.3, the material rule. An ended session offers Restore only when
+ * something exists to bring back. Material means a saved scrollback capsule
+ * (main projects `hasSavedScrollback` from the snapshot store) or an armed
+ * resume command. An exited row with neither offers only Restart and Remove,
+ * because restoring it would produce an empty shell and the verb would lie.
+ * Main accepts a restore for any exited row without checking material, since
+ * the restore machinery is already honest about missing pieces; this renderer
+ * gate exists to keep the offered verb truthful.
+ */
+export function hasRestoreMaterial(session: Session): boolean {
+  return (
+    session.hasSavedScrollback === true ||
+    (session.resumeArgv?.length ?? 0) > 0
+  );
+}
+
+/**
+ * Body copy for an exited session that offers Restore (Phase 26.3). The verb
+ * copy says what comes back and names what does not: the process that was
+ * killed stays gone, so nobody expects a stopped build to resume mid-compile.
+ * The full-window ended surface renders this as body text; splits are too
+ * narrow for body copy and carry the sentence in the Restore tooltip instead.
+ */
+export function restoreExitedCopy(session: Session): string {
+  if ((session.resumeArgv?.length ?? 0) > 0) {
+    return (
+      'Restore brings back the saved scrollback and arms the resume ' +
+      'command. It does not bring back what was running when the session ' +
+      'ended. Restart opens a fresh session with the same name and directory.'
+    );
+  }
+  return (
+    'Restore reopens the saved scrollback in the same directory. Restart ' +
+    'opens a fresh session with the same name and directory.'
+  );
+}
+
+/**
  * Body copy for the "Ready to restore" state — the honest version of the
  * armed/not-armed branch that used to be the ONLY place this was said.
  */

@@ -13,7 +13,9 @@
 import { describe, expect, it } from 'vitest';
 import type { Session } from '@shared/types';
 import {
+  hasRestoreMaterial,
   restoreActionCopy,
+  restoreExitedCopy,
   restoreSummary,
   resumeMarkLabel,
   resumeNote,
@@ -201,5 +203,55 @@ describe('restoreActionCopy', () => {
     );
     expect(copy).toContain('same directory');
     expect(copy).not.toContain('conversation');
+  });
+});
+
+/**
+ * Phase 26.3 — the material rule. Restore is offered on an ended session
+ * only when something exists to bring back; a row with neither a saved
+ * scrollback capsule nor an armed resume command must not carry the verb,
+ * because restoring it would produce an empty shell.
+ */
+describe('hasRestoreMaterial', () => {
+  it('accepts a saved scrollback capsule alone', () => {
+    expect(
+      hasRestoreMaterial(
+        session({ status: 'exited', hasSavedScrollback: true })
+      )
+    ).toBe(true);
+  });
+
+  it('accepts an armed resume command alone', () => {
+    expect(
+      hasRestoreMaterial(
+        session({ status: 'exited', resumeArgv: ['claude', '-r', 'u'] })
+      )
+    ).toBe(true);
+  });
+
+  it('refuses a row with nothing to bring back', () => {
+    expect(hasRestoreMaterial(session({ status: 'exited' }))).toBe(false);
+    expect(
+      hasRestoreMaterial(session({ status: 'exited', resumeArgv: [] }))
+    ).toBe(false);
+  });
+});
+
+describe('restoreExitedCopy', () => {
+  it('says what comes back and that the killed process does not', () => {
+    const copy = restoreExitedCopy(
+      session({ status: 'exited', resumeArgv: ['claude', '-r', 'u'] })
+    );
+    expect(copy).toContain('saved scrollback');
+    expect(copy).toContain('arms the resume command');
+    expect(copy).toContain('does not bring back what was running');
+    expect(copy).toContain('Restart opens a fresh session');
+  });
+
+  it('promises no conversation when none is armed', () => {
+    const copy = restoreExitedCopy(session({ status: 'exited' }));
+    expect(copy).toContain('saved scrollback');
+    expect(copy).toContain('same directory');
+    expect(copy).not.toContain('resume command');
   });
 });

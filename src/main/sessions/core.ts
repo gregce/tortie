@@ -422,13 +422,17 @@ export function snapshotFailureNotice(
  * `Session.restore`, which is why it does not multiply this alphabet.
  *
  * `failed` and `interrupted` never reach here. Nothing was created for them,
- * so the row keeps the `restorable` it already had. The switch has no
- * `default`, so a new member of `RestoreResultKind` is a compile error here
- * rather than a silent fall through to a status nobody chose.
+ * so the row keeps the status it already had — 'restorable', or 'exited' for
+ * an ended session restored under Phase 26.3 (the caller records the outcome
+ * without touching status on that path). The switch has no `default`, so a
+ * new member of `RestoreResultKind` is a compile error here rather than a
+ * silent fall through to a status nobody chose.
  */
 export function restoredStatus(result: SessionRestore): SessionStatus {
   switch (result.kind) {
-    // Nothing was created. The caller throws before this is asked.
+    // Nothing was created. The caller throws before this is asked, and the
+    // row keeps its own status (recordRestoreOutcome writes no status), so
+    // this arm's value is never stored over an 'exited' row.
     case 'failed':
     case 'interrupted':
       return 'restorable';
@@ -1236,10 +1240,21 @@ export class GmuxCore {
   }
 
   /**
-   * Restore a 'restorable' session (§2.4 Step 3): recreate it in tmux with
-   * $SHELL, replay the scrollback snapshot as inert history, and TYPE the
-   * recorded resume command without Enter (armed). Idempotent for sessions
-   * that are already live again.
+   * Restore a 'restorable' or 'exited' session (§2.4 Step 3): recreate it in
+   * tmux with $SHELL, replay the scrollback snapshot as inert history, and
+   * TYPE the recorded resume command without Enter (armed). Idempotent for
+   * sessions that are already live again.
+   *
+   * 'exited' is accepted since Phase 26.3. An ended session's row survives
+   * with its resume argv, and both the manual end and the reaper capture a
+   * snapshot before anything is killed, so the same machinery that brings a
+   * session back after a reboot brings one back after an end. Main does not
+   * check that material exists: the restore path is already honest about
+   * missing pieces (shell_only / transcript / armed, with recorded
+   * failures), and the renderer's material rule is what keeps the OFFERED
+   * verb truthful. A failed restore leaves the row exactly the status it
+   * had, so an exited row that fails to come back still reads 'exited' and
+   * never claims running.
    *
    * The status it stores is DERIVED from the stage the restore reached, never
    * assigned (Phase 19 item 6). See {@link restoredStatus} for why `running`
@@ -1247,14 +1262,7 @@ export class GmuxCore {
    */
   async restoreSession(sessionId: string): Promise<Session> {
     const rec = this.mustGetSession(sessionId);
-    if (rec.status === 'exited') {
-      throw gmuxError(
-        'INVALID_INPUT',
-        'This session ended — restart it instead of restoring.',
-        sessionId
-      );
-    }
-    if (rec.status !== 'restorable') {
+    if (rec.status !== 'restorable' && rec.status !== 'exited') {
       return toSession(rec); // already live — nothing to do (Restore-all race)
     }
     if (this.restoresInFlight.has(sessionId)) {
@@ -1284,11 +1292,13 @@ export class GmuxCore {
       });
       const result = restoreRecordOf(outcome);
       if (outcome.kind === 'failed') {
-        // No session was created, so the row keeps the status it already has,
-        // which is 'restorable'. Writing a live status here would be this
-        // item's own defect pointed the other way. The commit is durable
-        // (Phase 20 item 4) and deliberately does not touch `lastSeen`,
-        // because nothing was confirmed alive.
+        // No session was created, so the row keeps the status it already has:
+        // 'restorable', or 'exited' for an ended session (Phase 26.3), which
+        // honestly keeps offering the same verbs it offered before the
+        // attempt. Writing a live status here would be this item's own defect
+        // pointed the other way. The commit is durable (Phase 20 item 4) and
+        // deliberately does not touch `lastSeen`, because nothing was
+        // confirmed alive.
         this.manifest.recordRestoreOutcome(sessionId, result);
         this.reportRestoreStages(rec, result);
         this.manifest.finishRestoreAttempt(attempt, result.kind);
@@ -2367,7 +2377,17 @@ export class GmuxCore {
     return toSession(updated);
   }
 
-  /** Kill: attach client, tmux session, then manifest status → 'exited'. */
+  /**
+   * Kill: attach client, tmux session, then manifest status → 'exited'.
+   *
+   * THE ORDER IS THE PROMISE (Phase 19 rule, restated for Phase 26.3). The
+   * end confirm now tells the user "the scrollback is saved first, so you
+   * can restore this session later", and the sentence is true only because
+   * the capture below runs — and its durable write RETURNS — before
+   * `tmux.killSession` is issued. The row itself is preserved ('exited',
+   * never deleted), with its resume argv, so Restore stays possible after a
+   * manual end. Nothing here may be reordered to kill first.
+   */
   async killSession(sessionId: string): Promise<void> {
     const rec = this.mustGetSession(sessionId);
     const watch = this.idCaptureWatches.get(sessionId);
@@ -2384,12 +2404,30 @@ export class GmuxCore {
     const target = this.liveIds.get(sessionId);
     if (target !== undefined) {
       // Session-close snapshot (§2.4 Step 2 capture point) — best-effort,
-      // BEFORE the pane disappears.
+      // BEFORE the pane disappears. Best-effort means a full disk can never
+      // block ending a session; it no longer means silent (Phase 26.3). The
+      // confirm the user just accepted promised the save, so a capture that
+      // could not write is reported through the notice channel: the
+      // scrollback was not saved, and Restore will bring back the
+      // conversation only. The renderer writes the sentence; `sessionName`
+      // and `atSessionEnd` are the facts it needs.
       if (rec.status !== 'exited' && rec.status !== 'restorable') {
         await captureSessionSnapshot(target, sessionId, {
           reason: 'session-close',
           session: snapshotRecipeOf(rec)
-        }).catch(() => undefined);
+        }).catch((err: unknown) => {
+          console.warn(
+            `[gmux] end-time snapshot failed for "${rec.name}": ` +
+              `${(err as Error).message}`
+          );
+          postDurabilityNotice({
+            kind: 'snapshot-failed',
+            sessions: 1,
+            outOfSpace: err instanceof DurableWriteError && isOutOfSpace(err),
+            sessionName: rec.name,
+            atSessionEnd: true
+          });
+        });
       }
       await tmux.killSession(target); // idempotent — already-gone is fine
       this.byTmuxId.delete(target);

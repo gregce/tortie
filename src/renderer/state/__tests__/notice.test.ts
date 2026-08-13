@@ -114,6 +114,34 @@ describe('each degraded state says one plain thing', () => {
     ).toBe('1 session could not be saved.');
   });
 
+  it('an end-time failure names the session and what Restore still does', () => {
+    // Phase 26.3: the end confirm promised "saved first", so this failure
+    // does not hide behind the generic count. The sentence carries the
+    // scrollback loss ("was not saved") and the half that still works
+    // ("Restore resumes it").
+    const out = say({
+      kind: 'snapshot-failed',
+      sessions: 1,
+      outOfSpace: false,
+      sessionName: 'auth',
+      atSessionEnd: true
+    });
+    expect(out.text).toBe('"auth" was not saved. Restore resumes it.');
+    expect(out.kind).toBe('error');
+  });
+
+  it('a full disk at session end still names the cause the user can clear', () => {
+    expect(
+      say({
+        kind: 'snapshot-failed',
+        sessions: 1,
+        outOfSpace: true,
+        sessionName: 'auth',
+        atSessionEnd: true
+      }).text
+    ).toBe('The disk is full. Your sessions are not being saved.');
+  });
+
   it('a repaired snapshot names the session and the loss', () => {
     const out = say({ kind: 'snapshot-repaired', sessionName: 'auth' });
     expect(out.text).toBe('"auth" came back from an earlier save.');
@@ -183,6 +211,13 @@ describe('every line fits the toast it has to fit in', () => {
   const CASES: GmuxNotice[] = [
     { kind: 'snapshot-failed', sessions: 43, outOfSpace: true },
     { kind: 'snapshot-failed', sessions: 43, outOfSpace: false },
+    {
+      kind: 'snapshot-failed',
+      sessions: 1,
+      outOfSpace: false,
+      sessionName: 'a-very-long-session-name',
+      atSessionEnd: true
+    },
     { kind: 'snapshot-repaired', sessionName: 'a-very-long-session-name' },
     {
       kind: 'manifest-quarantined',

@@ -498,6 +498,35 @@ export function existingSnapshotPath(sessionId: string): string | null {
 }
 
 /**
+ * Does saved scrollback MATERIAL exist for this session at all? (Phase 26.3)
+ *
+ * Presence, not proof. This is two statSync calls — the completion record, or
+ * failing that the pre-Phase-19 body — with no read and no hash, because it
+ * runs for every ended row on every sessions broadcast. The renderer uses it
+ * to decide whether an ended session may OFFER Restore; whether the recorded
+ * bytes actually verify stays where it belongs, inside `resolveSnapshot`
+ * during the restore itself, which is already honest about a body that fails
+ * its hash.
+ *
+ * Any error is `false`, including a stat that failed for a reason other than
+ * absence: material that cannot be stat-ed is material a restore cannot
+ * replay, and a session with a recorded resume argv still offers Restore on
+ * the strength of the argv alone.
+ */
+export function snapshotMaterialExists(sessionId: string): boolean {
+  try {
+    if (statSync(capsuleIndexPath(sessionId)).size > 0) return true;
+  } catch {
+    /* no completion record — fall through to the legacy layout */
+  }
+  try {
+    return statSync(legacySnapshotPath(sessionId)).size > 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * The path a reader should open for this session.
  *
  * Kept because callers outside this module already had it. It answers with the

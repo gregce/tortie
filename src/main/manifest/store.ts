@@ -50,6 +50,11 @@ import {
 import type { AgentRecoveryContract, ResumeProvenance } from './agents';
 import type { ContextSnapshot } from '@shared/context-snapshot';
 import { postDurabilityNotice } from '../notice';
+// Phase 26.3: presence-only probe (two statSync calls, no read, no hash) so
+// the projection can tell the renderer whether an ended row has anything to
+// restore. snapshots.ts is a leaf — it never imports the manifest — so this
+// direction is cycle-free.
+import { snapshotMaterialExists } from '../restore/snapshots';
 import {
   RESUME_CAPTURES,
   SESSION_STATUSES,
@@ -169,6 +174,20 @@ export interface ManifestSessionRecord extends Session {
 export type ManifestSessionPatch = Partial<
   Omit<ManifestSessionRecord, 'id' | 'createdAt'>
 >;
+
+/**
+ * The one thing a patch cannot say (Phase 26.3). A patch merges field by
+ * field and skips `undefined`, so no patch can REMOVE a value — and a
+ * successful restore has to remove `exitCode` and `exitSignal`, because they
+ * describe a death that a new live pane has just superseded. Without the
+ * removal, a restored session that later dies quietly shows the stale code
+ * from its earlier death, since the reaper only writes an exit cause when it
+ * has one.
+ */
+export interface UpdateSessionOptions {
+  /** Delete `exitCode` and `exitSignal` from the row after the patch merges. */
+  clearExitCause?: boolean;
+}
 
 /**
  * One live tmux session as reconcile sees it. `gmuxId` is the identity
@@ -626,6 +645,14 @@ export function toSession(record: ManifestSessionRecord): Session {
   // without its history", so the restore result travels with the projection
   // rather than staying a main-process fact.
   if (record.restore !== undefined) session.restore = record.restore;
+  // Phase 26.3: an ended row may offer Restore only when material exists, and
+  // whether a snapshot is on disk is a main-process fact the renderer cannot
+  // stat for itself. Projected for 'exited' rows only — live rows have their
+  // scrollback in tmux, and 'restorable' rows already offer Restore
+  // unconditionally because that status MEANS "saved while unwatched".
+  if (record.status === 'exited') {
+    session.hasSavedScrollback = snapshotMaterialExists(record.id);
+  }
   return session;
 }
 
@@ -1240,9 +1267,12 @@ export class ManifestStore {
    */
   private updateSessionDurably(
     id: string,
-    patch: ManifestSessionPatch
+    patch: ManifestSessionPatch,
+    opts: UpdateSessionOptions = {}
   ): ManifestSessionRecord {
-    return durableTransaction(this.db, () => this.updateSession(id, patch));
+    return durableTransaction(this.db, () =>
+      this.updateSession(id, patch, opts)
+    );
   }
 
   // -------------------------------------------------------------------------
@@ -1346,7 +1376,11 @@ export class ManifestStore {
    * Patch any mutable fields of a session row.
    * @throws SESSION_NOT_FOUND when the id has no row.
    */
-  updateSession(id: string, patch: ManifestSessionPatch): ManifestSessionRecord {
+  updateSession(
+    id: string,
+    patch: ManifestSessionPatch,
+    opts: UpdateSessionOptions = {}
+  ): ManifestSessionRecord {
     const existing = this.getSession(id);
     if (!existing) {
       throw manifestError(
@@ -1403,6 +1437,14 @@ export class ManifestStore {
     // guess, and refusing it here would break the restore case.
     if (patch.contextSnapshot !== undefined) {
       merged.contextSnapshot = patch.contextSnapshot;
+    }
+    // Phase 26.3: removal, which a patch cannot express. See
+    // UpdateSessionOptions. Runs after the merge so a caller cannot both
+    // clear and set in one call without the set losing, which is the only
+    // order that cannot resurrect a stale death.
+    if (opts.clearExitCause === true) {
+      delete merged.exitCode;
+      delete merged.exitSignal;
     }
 
     this.db
@@ -1593,6 +1635,17 @@ export class ManifestStore {
    * an ordinary commit between two durable ones is the weakest link of the
    * three. 0.056 ms before, 4.87 ms after, against a restore that costs
    * hundreds of milliseconds in tmux.
+   *
+   * WHEN THE SESSION CAME BACK, THE OLD DEATH IS ERASED (Phase 26.3). A
+   * restored 'exited' row was carrying the exit code or signal of the process
+   * that ended it, and a new live pane makes both stale: if the restored
+   * session later dies BY a signal, the reaper records no code, and the row
+   * would keep showing the code from the earlier death as if it were this
+   * one's. The clear rides inside the same durable commit as the status, so
+   * no crash can leave a live status beside a dead process's exit cause. The
+   * kinds that clear are exactly the kinds where tmux created a session;
+   * `failed` and `interrupted` never reach this method from the restore path,
+   * and if one ever does, the death it describes is still the truth.
    */
   setRestoreResult(
     id: string,
@@ -1600,13 +1653,21 @@ export class ManifestStore {
     status: SessionStatus,
     bind: { tmuxName?: string; panePid?: number } = {}
   ): ManifestSessionRecord {
-    return this.updateSessionDurably(id, {
-      restore,
-      status,
-      lastSeen: Date.now(),
-      ...(bind.tmuxName !== undefined ? { tmuxName: bind.tmuxName } : {}),
-      ...(bind.panePid !== undefined ? { panePid: bind.panePid } : {})
-    });
+    const cameBack =
+      restore.kind === 'shell_only' ||
+      restore.kind === 'transcript' ||
+      restore.kind === 'armed';
+    return this.updateSessionDurably(
+      id,
+      {
+        restore,
+        status,
+        lastSeen: Date.now(),
+        ...(bind.tmuxName !== undefined ? { tmuxName: bind.tmuxName } : {}),
+        ...(bind.panePid !== undefined ? { panePid: bind.panePid } : {})
+      },
+      { clearExitCause: cameBack }
+    );
   }
 
   /**

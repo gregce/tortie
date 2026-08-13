@@ -2196,6 +2196,10 @@ body.gmux-dragging:has([role='separator'][aria-orientation='horizontal'].draggin
 
 .split-state-actions {
   display: flex;
+  /* Phase 26.3: an exited leaf can carry three verbs (Restore, Restart,
+     Remove); at the 200px minimum pane width they wrap instead of clipping. */
+  flex-wrap: wrap;
+  justify-content: center;
   gap: var(--space-4);
 }
 

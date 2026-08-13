@@ -31,7 +31,13 @@ import {
   sessionMenuItems,
   useRenameDraft
 } from '../session-actions';
-import { resumeMarkLabel, resumeNote, resumeReadiness } from '../resume';
+import {
+  hasRestoreMaterial,
+  restoreExitedCopy,
+  resumeMarkLabel,
+  resumeNote,
+  resumeReadiness
+} from '../resume';
 import { AgentIcon, Codicon } from '../../icons';
 import { armPointerDrag, isSecondaryPress } from './pointer-drag';
 import { startHeaderDrag } from './surface-dnd';
@@ -136,6 +142,12 @@ function SplitPaneState({ session }: { session: Session }): React.JSX.Element {
   const restoringIds = useApp((s) => s.restoringIds);
 
   const restorable = session.status === 'restorable';
+  // Phase 26.3: an exited leaf offers Restore under the same material rule
+  // as the full-window surface (resume.ts hasRestoreMaterial).
+  const offersRestore =
+    canRestore() &&
+    (restorable ||
+      (session.status === 'exited' && hasRestoreMaterial(session)));
   const resumeShort = resumeMarkLabel(resumeReadiness(session));
 
   return (
@@ -150,7 +162,7 @@ function SplitPaneState({ session }: { session: Session }): React.JSX.Element {
         {/* Phase 13.5: a split is too narrow for the full-window body copy,
             so the action says the short truth and the tooltip carries the
             reason. Nobody should press Restore expecting a conversation. */}
-        {restorable && resumeShort !== null ? (
+        {offersRestore && resumeShort !== null ? (
           <div
             className="split-state-note"
             title={resumeNote(session) ?? undefined}
@@ -160,24 +172,36 @@ function SplitPaneState({ session }: { session: Session }): React.JSX.Element {
         ) : null}
       </div>
       <div className="split-state-actions">
-        {restorable && canRestore() ? (
+        {offersRestore ? (
           <button
             type="button"
             className="btn btn-primary btn-sm"
             disabled={restoringIds[session.id] === true}
+            // Phase 26.3: the split has no room for body copy, so the verb
+            // sentence rides the tooltip. It says what comes back and that
+            // the killed process does not.
+            title={
+              session.status === 'exited'
+                ? restoreExitedCopy(session)
+                : undefined
+            }
             onClick={() => void restoreSession(session.id)}
           >
             {restoringIds[session.id] === true ? 'Restoring…' : 'Restore'}
           </button>
-        ) : (
+        ) : null}
+        {/* Restart drops to secondary beside Restore on an exited leaf and
+            stays primary when Restore is absent. The restorable leaf keeps
+            its Restore-and-Remove pair unchanged. */}
+        {!offersRestore || session.status === 'exited' ? (
           <button
             type="button"
-            className="btn btn-primary btn-sm"
+            className={`btn ${offersRestore ? 'btn-secondary' : 'btn-primary'} btn-sm`}
             onClick={() => void restartSession(session.id)}
           >
             Restart
           </button>
-        )}
+        ) : null}
         {canDiscard() ? (
           <button
             type="button"

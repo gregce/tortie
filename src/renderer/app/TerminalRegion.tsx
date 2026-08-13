@@ -30,7 +30,9 @@ import {
   useRenameDraft
 } from './session-actions';
 import {
+  hasRestoreMaterial,
   restoreActionCopy,
+  restoreExitedCopy,
   restoreSummary,
   resumeMarkLabel,
   resumeNote,
@@ -225,6 +227,15 @@ export function TerminalRegion(): React.JSX.Element {
     exited && active.exitCode === 127 && active.agent !== 'shell'
       ? active.agent
       : null;
+  // Phase 26.3: an exited session offers Restore beside Restart when it
+  // still has material to bring back (resume.ts hasRestoreMaterial). The
+  // exit-127 branch keeps its install guidance instead, because a Restore
+  // that re-arms a missing binary helps nobody.
+  const offersRestore =
+    active !== null &&
+    canRestore() &&
+    commandNotFound === null &&
+    (restorable || (exited && hasRestoreMaterial(active)));
 
   const grouped = activeSurface !== null && activeSurface.isGroup;
 
@@ -272,7 +283,8 @@ export function TerminalRegion(): React.JSX.Element {
         // scrollback to keep under a banner; a quiet state carries the
         // same copy and actions instead. Restorable sessions (Phase 6)
         // offer the real §2.4 Step 3 restore: saved scrollback replayed,
-        // resume command armed — you press Enter.
+        // resume command armed — you press Enter. Since Phase 26.3 an
+        // exited session with material offers the same restore too.
         <div className={`empty${failed ? ' empty-failed' : ''}`}>
           {/* onb-inner: one rhythm across every full-window state (§6.2/§6.6
               share the type scale and action spacing — app/empty-states.css). */}
@@ -290,7 +302,11 @@ export function TerminalRegion(): React.JSX.Element {
                   'command is not installed (or not where your shell expects ' +
                   'it). Install it, then restart the session.'
                 : exited
-                  ? 'Restarting opens a fresh session with the same name and directory.'
+                  ? offersRestore
+                    ? // Phase 26.3 — the verb copy says what comes back and
+                      // names what does not (the killed process stays gone).
+                      restoreExitedCopy(active)
+                    : 'Restarting opens a fresh session with the same name and directory.'
                   : canRestore()
                     ? // Phase 13.5 — the same honesty the row mark carries,
                       // said in full at the moment the user is about to act.
@@ -303,7 +319,7 @@ export function TerminalRegion(): React.JSX.Element {
               </code>
             ) : null}
             <div className="empty-actions">
-              {restorable && canRestore() ? (
+              {offersRestore ? (
                 <button
                   type="button"
                   className="btn btn-primary"
@@ -312,15 +328,20 @@ export function TerminalRegion(): React.JSX.Element {
                 >
                   {restoringIds[active.id] === true ? 'Restoring…' : 'Restore'}
                 </button>
-              ) : (
+              ) : null}
+              {/* Phase 26.3 layout rule: Restore is primary when offered and
+                  Restart drops to secondary beside it. Without Restore,
+                  Restart stays primary as before. The restorable state keeps
+                  its Restore-and-Remove pair unchanged. */}
+              {!offersRestore || exited ? (
                 <button
                   type="button"
-                  className="btn btn-primary"
+                  className={`btn ${offersRestore ? 'btn-secondary' : 'btn-primary'}`}
                   onClick={() => void restartSession(active.id)}
                 >
                   Restart
                 </button>
-              )}
+              ) : null}
               {canDiscard() ? (
                 <button
                   type="button"

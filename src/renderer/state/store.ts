@@ -47,6 +47,9 @@ import { cancelPointerDrag } from '../app/split/pointer-drag';
 // A pure string helper with no imports of its own, so this does not close a
 // cycle back through the shell.
 import { parentDir } from '../app/format';
+// Pure over Session fields; resume.ts imports only types and state/agents,
+// and agents.ts does not import this store, so no cycle closes here.
+import { resumeReadiness } from '../app/resume';
 // Direct module import (NOT ../settings barrel): the barrel re-exports
 // integration.ts which imports this store — presets.ts itself does not.
 import { defaultLaunchArgsFor } from '../settings/presets';
@@ -658,11 +661,34 @@ export const useApp = create<AppState>((set, get) => {
       // `kind` rather than being a discriminated union.
       const showDegraded = (notice: DurabilityNotice): void => {
         if (notice.kind === 'snapshot-failed') {
+          // Disk full first: it is the one cause the user can clear, and the
+          // sentence tells them what to do regardless of which pass failed.
+          if (notice.outOfSpace) {
+            get().toast(
+              'error',
+              'The disk is full. Your sessions are not being saved.',
+              { sticky: true }
+            );
+            return;
+          }
+          // Phase 26.3 — the end confirm promised "saved first", so when the
+          // end-time capture fails the sentence must name the session and
+          // say what a later Restore still does. The full sentence ("its
+          // scrollback could not be saved. Restore will bring back the
+          // conversation only") is 111 characters and the toast physically
+          // holds 58, so it is compressed: "was not saved" is the scrollback
+          // loss, and "Restore resumes it" is the half that still works.
+          if (notice.atSessionEnd === true && notice.sessionName !== undefined) {
+            get().toast(
+              'error',
+              `"${shortName(notice.sessionName)}" was not saved. Restore resumes it.`,
+              { sticky: true }
+            );
+            return;
+          }
           get().toast(
             'error',
-            notice.outOfSpace
-              ? 'The disk is full. Your sessions are not being saved.'
-              : `${notice.sessions === 1 ? '1 session' : `${notice.sessions} sessions`} could not be saved.`,
+            `${notice.sessions === 1 ? '1 session' : `${notice.sessions} sessions`} could not be saved.`,
             { sticky: true }
           );
           return;
@@ -1142,9 +1168,20 @@ export const useApp = create<AppState>((set, get) => {
     endSession(sessionId) {
       const session = get().sessions.find((x) => x.id === sessionId);
       if (!session || !gmux) return;
+      // Phase 26.3 — the old body promised "its scrollback will be discarded.
+      // This cannot be undone", and both halves stopped being true once
+      // manual end writes a snapshot capsule and keeps the manifest row, so
+      // the session can be restored. The first sentence keeps the one fact
+      // that IS irreversible in front of the user: the running process dies
+      // and does not resume mid-task. "First" is the Phase 19 ordering
+      // promise (main captures before it kills); main's capture-failure
+      // notice is what keeps that word honest on a full disk.
+      const resumable = resumeReadiness(session) === 'conversation';
       get().setConfirm({
         title: `End '${session.name}'?`,
-        body: 'Its process will stop and its scrollback will be discarded. This cannot be undone.',
+        body: resumable
+          ? 'This stops what is running in it. The scrollback and the conversation are saved first, so you can restore this session later.'
+          : 'This stops what is running in it. The scrollback is saved first, so you can restore this session later.',
         confirmLabel: 'End session',
         destructive: true,
         onConfirm: () => {

@@ -69,6 +69,7 @@ const {
   resetPaneCwdCacheForTests,
   resolveSnapshot,
   snapshotBodyPath,
+  snapshotMaterialExists,
   snapshotPath,
   snapshotsDir,
   CAPSULE_VERSION,
@@ -487,6 +488,51 @@ describe('the per-session write lock', () => {
 
     await expect(captureSessionSnapshot('$1', SESSION)).resolves.toBe(true);
     expect(bodies()).toEqual([`${SESSION}.txt.000001`]);
+  });
+});
+
+describe('material presence (Phase 26.3)', () => {
+  // The contract is PRESENCE, NOT PROOF. The probe answers "may an ended row
+  // offer Restore", runs per ended row per broadcast, and therefore stats
+  // without reading or hashing. Whether the recorded bytes verify stays in
+  // resolveSnapshot, inside the restore itself.
+  it('is false when the session has never been captured', () => {
+    expect(snapshotMaterialExists(SESSION)).toBe(false);
+  });
+
+  it('is true once a capture has published a completion record', async () => {
+    await captureSessionSnapshot('$1', SESSION);
+    expect(snapshotMaterialExists(SESSION)).toBe(true);
+  });
+
+  it('is true for a pre-Phase-19 body with no record', () => {
+    writeFileSync(legacySnapshotPath(SESSION), 'scrollback from the old layout\n');
+    expect(snapshotMaterialExists(SESSION)).toBe(true);
+  });
+
+  it('is false for an empty legacy body, which resolve also refuses', () => {
+    writeFileSync(legacySnapshotPath(SESSION), '');
+    expect(snapshotMaterialExists(SESSION)).toBe(false);
+  });
+
+  it('answers presence even when the record would not verify', async () => {
+    // A damaged body still counts as material here: the verb may be offered,
+    // and the restore itself is the layer that is honest about what replays.
+    await captureSessionSnapshot('$1', SESSION);
+    writeFileSync(snapshotBodyPath(SESSION, 1), 'rewritten behind our back');
+    expect(resolveSnapshot(SESSION)).toBe(null);
+    expect(snapshotMaterialExists(SESSION)).toBe(true);
+  });
+
+  it('is false again after the session snapshots are deleted', async () => {
+    await captureSessionSnapshot('$1', SESSION);
+    await deleteSnapshot(SESSION);
+    expect(snapshotMaterialExists(SESSION)).toBe(false);
+  });
+
+  it('never confuses one session material with another', async () => {
+    await captureSessionSnapshot('$1', SESSION);
+    expect(snapshotMaterialExists(OTHER)).toBe(false);
   });
 });
 

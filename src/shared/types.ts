@@ -225,6 +225,16 @@ export interface Session {
    * that session's life and is the answer to "where did my scrollback go".
    */
   restore?: SessionRestore;
+  /**
+   * APPENDED (Phase 26.3): true when a saved scrollback exists on disk for
+   * this session. Main projects it for 'exited' rows only, from the snapshot
+   * store's completion record (presence, not proof — verification stays
+   * inside the restore itself). The renderer offers Restore on an ended
+   * session only when this is true or a resume argv exists, so the verb never
+   * promises material that is not there. Absent on live rows and on
+   * projections written before this field existed.
+   */
+  hasSavedScrollback?: boolean;
 }
 
 /**

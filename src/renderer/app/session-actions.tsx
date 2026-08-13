@@ -14,7 +14,12 @@ import { useApp } from '../state/store';
 import { statusVisual } from './status';
 import type { StatusVisual } from './status';
 import { displayPath, formatAge } from './format';
-import { resumeMarkLabel, resumeNote, resumeReadiness } from './resume';
+import {
+  hasRestoreMaterial,
+  resumeMarkLabel,
+  resumeNote,
+  resumeReadiness
+} from './resume';
 import { Codicon } from '../icons';
 import { openSessionContext } from '../context/open-session';
 
@@ -155,6 +160,14 @@ export function sessionMenuItems(
   const s = useApp.getState();
   const status = s.effectiveStatus(session);
   const ended = status === 'exited' || status === 'restorable';
+  // Phase 26.3: Restore extends from restorable rows to exited rows that
+  // still have material to bring back (saved scrollback or an armed resume
+  // command). Main accepts a restore for any exited row; this gate is what
+  // keeps the offered verb truthful.
+  const offersRestore =
+    s.canRestore() &&
+    (status === 'restorable' ||
+      (status === 'exited' && hasRestoreMaterial(session)));
 
   return [
     {
@@ -162,7 +175,7 @@ export function sessionMenuItems(
       hint: 'F2',
       run: () => useApp.getState().setRenaming(renameTarget)
     },
-    ...(status === 'restorable' && s.canRestore()
+    ...(offersRestore
       ? [
           {
             label: 'Restore',
