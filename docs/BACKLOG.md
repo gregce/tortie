@@ -25,13 +25,14 @@ matter and not a reason to change the application.
 The About panel and the installer keep saying **Tortie**, because that is the application's name and
 the wordmark is a wordmark. Revisit only if the operator asks.
 | 4 | **19** durability, with the harness that proves it | ✅ SHIPPED 2026-08-12 | — |
-| 5 | **20** the verified backup ring | queued | Phase 19 |
+| 5 | **20** the verified backup ring | SPECCED BELOW, RUNNING | Phase 19 ✅ |
+| 5b | **20.5** file preview beyond markdown, starting with HTML | RESEARCH RUNNING, R39 | Phase 20 |
 | 6 | **21** versioned agent recovery contracts, as one migration with resume provenance | queued | Phase 20 |
 | 7 | **22** the Context sidebar, with installing enabled | SPECCED BELOW | 21, and it runs **before** the release lane by operator instruction |
 | 8 | **23** Tortie Config, configuration not code, plus the authoring prompt | SPECCED BELOW | 22, and **never before 21**. Opens with a re-baseline of the code |
-| 9 | **25** downloads and usage measurement | SPECCED BELOW | must ship **in** the released build, so it lands before the release lane |
-| 9b | **25.5** the DeepSeek CLI renamed itself and detection is broken | SPECCED BELOW | nothing. Small, and can run beside any phase |
-| 10 | **Release lane** Itavero identity, signing, notarization, version scheme, four CI lanes | ready | after Phase 25 |
+| — | ~~**25** downloads and usage measurement~~ | **DEFERRED 2026-08-12 by the operator.** Spec kept below and stays valid. Note it must ship IN a released build, so reopening it after a release means the first cohort is unmeasurable |
+| 9 | **25.5** the DeepSeek CLI renamed itself and detection is broken | SPECCED BELOW | nothing. Small, and can run beside any phase |
+| 10 | **Release lane** Itavero identity, signing, notarization, version scheme, four CI lanes | ready | after Phase 25.5 |
 | 11 | **24** self update | SPECCED BELOW | the release lane. Impossible before the app is signed |
 | — | Release lane, second half: signing, notarization, the updater | blocked | the operator's App Store Connect issuer identifier |
 
@@ -2147,3 +2148,83 @@ Prove detection against a machine state where the old binary is absent. The obvi
 ### What must not regress
 Existing DeepSeek sessions in the manifest, which record the old binary. Their resume must still work
 where that binary is still present. SpecStory capture for DeepSeek, which maps on the provider id.
+
+---
+
+## Phase 20 — the verified backup ring (2026-08-12)
+
+Sources: docs/research/33-durability-reconciliation.md entry 8, which merges G2 steps 2 to 4 with B2
+and M10, and docs/research/34-phase19-oss-survey.md section 2 for how SQLite copies are made safely.
+
+**The manifest is the only single file whose loss is total across every project.** There is one copy
+of it today. If it goes, every session is stranded, because Tortie correctly refuses to adopt a
+session it has no record of. The processes keep running and the app cannot reach them. That happened
+in a different form on 2026-08-12, when a harness defect killed the tmux server, and the reason the
+sessions were recoverable at all is that the manifest survived.
+
+### What Phase 19 already did, so this phase does not redo it
+| Already landed | Where |
+| --- | --- |
+| The content hash that replaces row count comparison | `src/main/db/digest.ts`, measured at 0.30 ms |
+| Integrity check and quarantine before opening | `src/main/db/integrity.ts` |
+| Last resort repair through the system sqlite3 | `src/main/db/recover.ts` |
+| Durable writes with a size and hash check before the rename | `src/main/durable/` |
+Research 33 lists the content hash as this phase's mandatory first step. **It is done.** Confirm it
+rather than repeat it.
+
+### What this phase builds
+1. **Generalise the copy engine out of `migrate/userdata.ts` into `manifest/recovery.ts`.** The
+   `VACUUM INTO` from a read only connection already exists and has been run against real user data.
+   Research 33 is explicit that this is scheduling rather than new code. Do not write a second copy
+   path from scratch.
+2. **The ring.** Several verified generations rather than one copy. Each is produced by `VACUUM INTO`,
+   which reads through the write ahead log and therefore yields one consistent file. That matters
+   here: the manifest is 68 KB while its log is currently 2.5 MB, so a plain file copy of the three
+   files would capture three different instants and produce exactly the torn copy this machinery
+   exists to avoid.
+3. **The pruning invariant, from research 33.** Pruning is a separate transaction and can never remove
+   the current generation and its last verified predecessor together. **Prove it by interrupting the
+   prune and asserting at least one verified predecessor survives.**
+4. **`synchronous=FULL` on critical commits only**, not globally. Record the before and after latency
+   for every commit promoted, because this is a durability and speed trade and the number is the
+   argument.
+5. **Reconstruction.** Rebuild a manifest from the snapshot capsules and the `@gmux-id` stamps on live
+   tmux sessions, into an empty manifest. **It requires an explicit human decision and must never run
+   automatically**, because a wrong reconstruction adopts sessions that are not ours, and the identity
+   rule exists precisely to prevent that.
+
+### One defect Phase 19 found in this area, to confirm rather than assume
+Phase 19's fix round reported that the system sqlite3 recovery rebuilds from the final schema, so a
+recovered manifest arrives with every column present while its migrations table can come back holding
+one row. The migration runner then concluded an early migration had not run and its `ALTER TABLE`
+threw on a duplicate column. **Confirm that is fixed at HEAD before building on the recovery path**,
+and say so with evidence either way.
+
+### What this phase does not do
+No off device copy. The ring sits on the same disk as the thing it copies, so it does nothing about a
+failed drive or a stolen machine. Exporting a verified copy is a later and separate item, deliberately
+gated behind this one, because exporting unverified generations converts an integrity gap into a
+portable one.
+No scrollback backup. Snapshots are a different mechanism and Phase 19 hardened them.
+
+### Verification
+**Tier 3 throughout.** This is the code that protects everything else.
+Prove by doing: interrupt the prune and assert a verified predecessor survives; corrupt a fixture
+manifest and restore from a generation into a temporary root; reconstruct into an empty manifest from
+capsules and tmux stamps and assert **foreign sessions are untouched**; and measure the latency of
+every commit promoted to `FULL`.
+Extend the Phase 19 fault harness rather than writing a second one. It already kills the app with
+SIGKILL at named points and it is the tool for proving a ring survives a crash mid write.
+
+### SAFETY, and this is not boilerplate after what happened today
+On 2026-08-12 a Phase 19 harness ran `tmux kill-server` against the operator's live socket from a
+failure path that had already refused to run, and destroyed their working sessions. Phase 19 shipped
+two independent refusals and moved every harness onto its own socket. **Inherit those. Never weaken
+them, never add a code path that sends `kill-server` to socket `gmux`, and never run a harness that
+resolves to the operator's socket.** Nine sessions remain and they are not replaceable.
+
+### What must not regress
+The manifest itself, which is the point. The integrity gate, quarantine and durable writes Phase 19
+just landed. Restore for both a claude shaped and a non claude shaped session. The identity rule,
+which reconstruction must not weaken in order to make reconstruction easier. Research 33 names that as
+one of five things a well meaning cleanup must not re-litigate.
