@@ -35,7 +35,8 @@ import {
   type GmuxSettings
 } from '@shared/settings';
 import {
-  AGENT_INSTALL_COMMANDS,
+  agentBlockedReason,
+  agentInstallCommand,
   buildAgentOptions,
   defaultAgentChoice,
   useAgentAvailability,
@@ -46,13 +47,6 @@ import { captureAvailableFor, useSpecStoryStatus } from '../state/specstory';
 import { errorPayload, errorText, nextOrdinal, useApp } from '../state/store';
 import { modalKeyDown } from './focus-trap';
 import { Codicon } from '../icons';
-
-/** Install command for the caption row, when one is known. */
-function installCommandFor(id: string): string | null {
-  return id === 'claude' || id === 'codex'
-    ? AGENT_INSTALL_COMMANDS[id]
-    : null;
-}
 
 /**
  * Two DIFFERENT presets sharing the same leading token are alternative
@@ -243,6 +237,16 @@ export function CreateSessionModal(): React.JSX.Element | null {
       setHintAgent(opt.id);
       return;
     }
+    // Phase 23 fix round. A configured agent the gate will refuse cannot be
+    // checked, for the same reason a missing one cannot: the create would fail
+    // and the person would have spent a name and a click finding out. The
+    // reason goes in the caption row under the board, which is where this
+    // sheet already puts recovery copy.
+    const blocked = agentBlockedReason(opt);
+    if (blocked !== null) {
+      setHintAgent(opt.id);
+      return;
+    }
     setAgent(opt.id);
   };
 
@@ -320,14 +324,20 @@ export function CreateSessionModal(): React.JSX.Element | null {
   // that just repeats that in a sentence is noise (Phase 12.12 item 1).
   const captionId = notFoundAgent ?? hintAgent;
   const captionOption = options.find((o) => o.id === captionId);
-  const captionCmd = captionId !== null ? installCommandFor(captionId) : null;
+  const captionCmd = captionId !== null ? agentInstallCommand(captionId) : null;
   // Reserve the row's height only when this machine could actually show it,
   // so the sheet never jumps as the pointer sweeps the board — and never
   // carries 24px of dead space on the usual machine, where every agent gmux
   // knows an install command for is already installed.
   const reserveInstallRow = options.some(
-    (o) => !o.installed && installCommandFor(o.id) !== null
+    (o) => !o.installed && agentInstallCommand(o.id) !== null
   );
+  // Phase 23 fix round. The confirm gate's sentence for whichever configured
+  // tile the pointer or the keyboard last reached. It has its own row rather
+  // than sharing the install row, because the two say different things and the
+  // install row only renders when there is a command to hand over.
+  const blockedCaption =
+    captionOption !== undefined ? agentBlockedReason(captionOption) : null;
 
   return (
     <div
@@ -386,6 +396,11 @@ export function CreateSessionModal(): React.JSX.Element | null {
                   </button>
                 </>
               ) : null}
+            </div>
+          ) : null}
+          {blockedCaption !== null ? (
+            <div className="field-caption warn" aria-live="polite">
+              {blockedCaption}
             </div>
           ) : null}
           {selectedOption?.unverified === true ? (

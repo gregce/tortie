@@ -188,3 +188,12 @@
     animation: none;
   }
 }
+
+/* PHASE 23. A configured agent whose row nobody has confirmed. It borrows the
+   missing tile's recessive shape, because it is equally not-choosable, and
+   adds one warning-coloured word so the two are not read as the same problem.
+   "not installed" means there is no program. "confirm first" means there is
+   one and Tortie will not run it yet. */
+.agent-tile.blocked .agent-tile-meta {
+  color: var(--warning);
+}

@@ -39,14 +39,18 @@
  *      A second gmux running right now keeps its own client at ppid = its
  *      pid, so a concurrent instance is never in the blast radius;
  *   4. it is not the SERVER pid, which we ask tmux for rather than infer. If
- *      that question cannot be answered, the reap does nothing at all.
- * And the consequence is bounded even if all four were wrong: killing a tmux
- * CLIENT detaches it. Sessions live in the server (`exit-empty off`), so no
- * session, no scrollback and no agent is at risk.
+ *      that question cannot be answered, the reap does nothing at all;
+ *   5. it is not a tmux SERVER by its own command line, on any socket. Added in
+ *      the Phase 23 fix round, after condition 2 and condition 4 were found to
+ *      be reading two DIFFERENT sockets. See `findOrphanedClients`.
+ * The old note here claimed the consequence was bounded even if the conditions
+ * were wrong, because killing a tmux client only detaches it. That was not
+ * true, and a harness proved it by killing a server. Condition 5 is what makes
+ * the claim true, so it must not be removed.
  */
 
 import { PATH_MARKER } from '../tmux/resolve';
-import { execTmux, TMUX_SOCKET } from '../tmux/supervisor';
+import { activeTmuxSocket, execTmux } from '../tmux/supervisor';
 import { readPsTable, type ProcRow } from './ps';
 
 export interface OrphanReapResult {
@@ -68,19 +72,62 @@ function isTmuxCommand(command: string): boolean {
 }
 
 /**
+ * Is this row a tmux SERVER rather than a client?
+ *
+ * A server is started as `tmux -L <socket> -f <conf> start-server`, and the
+ * verb survives in the process table. Nothing in this module may ever signal
+ * one, because a server holds every session inside it.
+ */
+function isTmuxServer(command: string): boolean {
+  return /(^|\s)start-server(\s|$)/.test(command);
+}
+
+/**
  * The pure matcher: which rows are OUR orphaned tmux clients?
- * Exported so the four safety conditions are testable without a live server.
+ * Exported so the safety conditions are testable without a live server.
+ *
+ * PHASE 23 FIX ROUND, and this is the defect that cost the operator 36 live
+ * sessions on 2026-08-12.
+ *
+ * The socket used to come from the CONSTANT `TMUX_SOCKET`, while `serverPid`
+ * was asked of the socket this process is actually on. Those are the same
+ * string for every launch a user makes, and they are DIFFERENT the moment a
+ * harness sets `GMUX_TMUX_SOCKET`. In that state the real `-L gmux` server has
+ * ppid 1, carries `-L gmux` in its command, and is not the pid the reap was
+ * told to spare, so all four conditions passed and it was sent SIGTERM with
+ * every session inside it.
+ *
+ * The module's old safety note said the blast radius was bounded because
+ * "killing a tmux CLIENT detaches it". That was the wrong claim. The matcher
+ * never excluded servers. It excluded ONE server, being the one it had just
+ * asked about.
+ *
+ * Two changes, and either one alone would have prevented it.
+ *  1. `socket` is now the socket THIS process is on, so a reap can only ever
+ *     match processes on the server it is talking to.
+ *  2. A tmux server is never a candidate, whatever socket it is on and whether
+ *     or not it is the pid we were told to spare. The reap detaches clients. It
+ *     has no business signalling a server at all.
  */
 export function findOrphanedClients(
   rows: Iterable<ProcRow>,
-  serverPid: number
+  serverPid: number,
+  socketName: string = activeTmuxSocket()
 ): number[] {
-  const socket = `-L ${TMUX_SOCKET}`;
+  // The socket name must match WHOLE. A plain substring test made `-L gmux`
+  // match `-L gmux-verifa` as well, so a reap on the ordinary socket could
+  // signal a harness's clients and a harness's reap could signal ours. The
+  // token ends at a space or at the end of the line, which is what the process
+  // table gives us.
+  const onOurSocket = new RegExp(
+    `-L ${socketName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\s|$)`
+  );
   const orphans: number[] = [];
   for (const row of rows) {
-    if (row.pid === serverPid) continue; // never the server
+    if (row.pid === serverPid) continue; // never the server we asked about
+    if (isTmuxServer(row.command)) continue; // never ANY server
     if (row.ppid !== 1) continue; // someone live is managing it
-    if (!row.command.includes(socket)) continue; // not our socket
+    if (!onOurSocket.test(row.command)) continue; // not the socket we are on
     if (!isTmuxCommand(row.command)) continue; // not a tmux process
     orphans.push(row.pid);
   }

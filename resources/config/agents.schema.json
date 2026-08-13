@@ -1,0 +1,267 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tortie.app/schema/agents-v1.json",
+  "title": "Tortie agents.json (schema 1)",
+  "description": "Agents Tortie can launch, added or patched by the user. Tortie never loads code from this file. Fields that can cause a program to run need a confirmation from you before Tortie will launch the agent.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "agents"
+  ],
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "agents": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "$ref": "#/$defs/agent"
+      }
+    }
+  },
+  "$defs": {
+    "agent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{0,31}$",
+          "not": {
+            "enum": [
+              "shell"
+            ]
+          },
+          "description": "Unique id. A new id adds an agent and then displayName, binaries and launch are required. An id this build already ships patches that agent instead."
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "binaries": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "description": "Executable names, most canonical first. A bare name is looked up on your login shell PATH. A path must be absolute or start with ~/. Execution bearing."
+        },
+        "extraProbeDirs": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "$ref": "#/$defs/pathTemplate"
+          },
+          "description": "Extra directories to look in for the binary. Execution bearing."
+        },
+        "storeDirs": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "$ref": "#/$defs/pathTemplate"
+          },
+          "description": "Where this agent keeps its own session files. Read only."
+        },
+        "launch": {
+          "$ref": "#/$defs/launch"
+        },
+        "resume": {
+          "$ref": "#/$defs/resume"
+        },
+        "versionProbe": {
+          "$ref": "#/$defs/versionProbe"
+        },
+        "iconKey": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{0,31}$",
+          "maxLength": 32,
+          "description": "One of the icons this build ships. An unknown key draws the terminal glyph. Configuration cannot supply an image."
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 512
+        }
+      }
+    },
+    "pathTemplate": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "launch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "argv"
+      ],
+      "properties": {
+        "argv": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {
+            "$ref": "#/$defs/arg"
+          },
+          "description": "The command line. argv[0] must be the first entry of binaries. It must not contain <sessionId>. Execution bearing."
+        },
+        "env": {
+          "type": "object",
+          "maxProperties": 16,
+          "propertyNames": {
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "maxLength": 1024
+          },
+          "description": "Environment for this pane only. Names that decide which code runs, and the names Tortie uses to identify its own panes, are refused. Execution bearing."
+        }
+      }
+    },
+    "resume": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "template",
+        "idCapture"
+      ],
+      "properties": {
+        "template": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "items": {
+            "$ref": "#/$defs/arg"
+          },
+          "description": "Arguments that resume a conversation. Exactly one entry must be the string <sessionId>. Execution bearing."
+        },
+        "sessionStore": {
+          "type": "string",
+          "maxLength": 512
+        },
+        "idCapture": {
+          "$ref": "#/$defs/idCapture"
+        },
+        "requiresOriginalCwd": {
+          "type": "boolean"
+        },
+        "bareResumeIsDangerous": {
+          "type": "boolean"
+        },
+        "resumeExtrasPosition": {
+          "enum": [
+            "leading",
+            "trailing"
+          ]
+        }
+      }
+    },
+    "idCapture": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "launchFlag"
+          ],
+          "properties": {
+            "mode": {
+              "const": "pre-assign"
+            },
+            "launchFlag": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 4,
+              "items": {
+                "$ref": "#/$defs/arg"
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "argv"
+          ],
+          "properties": {
+            "mode": {
+              "const": "pre-assign-cmd"
+            },
+            "argv": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 32,
+              "items": {
+                "$ref": "#/$defs/arg"
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode"
+          ],
+          "properties": {
+            "mode": {
+              "const": "none"
+            }
+          }
+        }
+      ],
+      "description": "How Tortie gets the conversation id. harvest is not offered, because reading an agent store needs a reader compiled into Tortie."
+    },
+    "versionProbe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "args"
+      ],
+      "properties": {
+        "args": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "$ref": "#/$defs/arg"
+          }
+        },
+        "fallbackArgs": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "$ref": "#/$defs/arg"
+          }
+        },
+        "identitySubstring": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "postProcess": {
+          "enum": [
+            "first-line",
+            "strip-ansi-last-line"
+          ]
+        }
+      },
+      "description": "Runs the binary to read its version. Execution bearing."
+    },
+    "arg": {
+      "type": "string",
+      "maxLength": 512
+    }
+  }
+}

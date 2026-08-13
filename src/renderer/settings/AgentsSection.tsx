@@ -11,6 +11,7 @@ import React, { useState } from 'react';
 import type { DetectedAgent } from '@shared/types';
 import { formatAge, truncateMiddle, useNow, displayPath } from '../app/format';
 import { AgentIcon, Codicon } from '../icons';
+import { ConfiguredAgents } from './ConfiguredAgents';
 import { useSettingsStore } from './settings-store';
 
 /**
@@ -157,6 +158,11 @@ export function AgentsSection(): React.JSX.Element {
           ) : null}
         </div>
       )}
+
+      {/* Phase 23. The confirm gate's only surface. It draws nothing at all on
+          a machine with no configuration file, which is almost every machine,
+          so the section above is unchanged for the ordinary user. */}
+      <ConfiguredAgents />
     </section>
   );
 }

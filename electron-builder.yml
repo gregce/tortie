@@ -140,6 +140,19 @@ extraResources:
   # at runtime by src/main/tray, so they cannot live in the renderer bundle.
   - from: resources/menu-bar
     to: menu-bar
+  # Phase 23 (Tortie Config): the configuration folder's own documentation.
+  # The guide, the generated JSON Schema and the six worked examples ride in
+  # Contents/Resources/config/ and are copied into
+  # <userData>/gmux/config/ the first time that folder is created, and again
+  # after an update whenever the bytes differ. src/main/config/guide.ts
+  # resolves it via process.resourcesPath, the same mechanism as
+  # gmux-tmux.conf above.
+  #
+  # It is DOCUMENTATION AND DATA, never code. The seeder copies `.md` and
+  # `.json` only, so this entry cannot become a way to place an executable
+  # file in a folder Tortie tells people to open.
+  - from: resources/config
+    to: config
   # Phase 14 (symbols): SIX tree-sitter grammars and the web-tree-sitter
   # runtime, read at runtime by src/main/symbols/paths.ts from
   # process.resourcesPath/tree-sitter.

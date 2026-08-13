@@ -1119,9 +1119,46 @@ export function registryLaunchArgv(
   bin?: string,
   sessionId?: string
 ): string[] {
-  const entry = getLaunchableEntry(id);
-  const argv0 = bin ?? entry.launch.argv[0] ?? agentBinaryName(id);
-  const flag = preAssignFlag(id);
+  return launchArgvFor(getLaunchableEntry(id), extraArgs, bin, sessionId);
+}
+
+/**
+ * An entry that can be launched, with its id widened.
+ *
+ * PHASE 23. This exists so the two argv builders below can compose an argv for
+ * an agent the user's `agents.json` supplied, without this module importing
+ * anything from src/main/config/. The compiled `AgentRegistryEntry` satisfies
+ * it, and so does the merged entry the configuration store produces.
+ */
+export type LaunchableEntryLike = Omit<AgentRegistryEntry, 'id'> & {
+  id: string;
+  launch: AgentLaunchInfo;
+};
+
+/**
+ * PHASE 23: the body {@link registryLaunchArgv} always had, taking the entry
+ * instead of looking it up.
+ *
+ * Splitting it is the whole of what let a configured agent launch. The id
+ * taking function above is now four lines and every existing caller reaches
+ * exactly the same code, so the argv bytes for the ten compiled agents cannot
+ * have moved. `npm run conformance:agents` and
+ * `npm run conformance:resume:capture` both check that they did not.
+ *
+ * Note what is read off the entry rather than looked up by id. The binary name
+ * comes from `entry.binaries[0]`, and the pre-assignment flag comes from
+ * `entry.resume.idCapture`. Neither can be resolved from an id that the
+ * compiled registry has never heard of, which is why the lookups moved out.
+ */
+export function launchArgvFor(
+  entry: LaunchableEntryLike,
+  extraArgs: readonly string[] = [],
+  bin?: string,
+  sessionId?: string
+): string[] {
+  const argv0 = bin ?? entry.launch.argv[0] ?? entry.binaries[0] ?? entry.id;
+  const capture = entry.resume.idCapture;
+  const flag = capture.mode === 'pre-assign' ? [...capture.launchFlag] : null;
   const preAssign =
     flag !== null && sessionId !== undefined && sessionId.length > 0
       ? [...flag, sessionId]
@@ -1155,10 +1192,27 @@ export function registryResumeArgv(
   extraArgs: readonly string[] = [],
   bin?: string
 ): string[] {
-  const entry = getLaunchableEntry(id);
+  return resumeArgvFor(getLaunchableEntry(id), sessionId, extraArgs, bin);
+}
+
+/**
+ * PHASE 23: the body {@link registryResumeArgv} always had, taking the entry.
+ *
+ * Every guard above is still here and none of them was relaxed for a
+ * configured agent. The empty id guard, the strategy guard and the "the
+ * template must have carried the slot" guard all apply the same way, which
+ * matters more for a configured row than for a compiled one: a template a
+ * person typed is exactly the template most likely to have lost its slot.
+ */
+export function resumeArgvFor(
+  entry: LaunchableEntryLike,
+  sessionId: string,
+  extraArgs: readonly string[] = [],
+  bin?: string
+): string[] {
   if (entry.resume.strategy !== 'flag-uuid') return [];
   if (sessionId.length === 0) return [];
-  const argv0 = bin ?? agentBinaryName(id);
+  const argv0 = bin ?? entry.binaries[0] ?? entry.id;
   const args = entry.resume.template.map((t) =>
     t === SESSION_ID_SLOT ? sessionId : t
   );

@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "agents": [
+    {
+      "id": "cinder",
+      "displayName": "Cinder TUI",
+      "binaries": ["cinder"],
+      "storeDirs": ["~/.cinder/sessions"],
+      "versionProbe": {
+        "args": ["--version"]
+      },
+      "launch": {
+        "argv": ["cinder", "--skip-onboarding"]
+      },
+      "resume": {
+        "template": ["resume", "<sessionId>"],
+        "idCapture": {
+          "mode": "pre-assign",
+          "launchFlag": ["--session-id"]
+        },
+        "sessionStore": "~/.cinder/sessions/<sessionId>.json",
+        "requiresOriginalCwd": true,
+        "resumeExtrasPosition": "leading"
+      },
+      "iconKey": "cinder",
+      "notes": "Two traps in one row. Resume is a SUBCOMMAND, so `cinder --resume <id>` exits 2 with \"unexpected argument\" and leaves a dead pane. And the usage is `cinder [OPTIONS] <COMMAND>`, so the launch flags have to lead. `cinder resume <id> --skip-onboarding` dies the same way. Keeping the flag matters, because it is what stops a restored pane opening the first run dialog."
+    }
+  ]
+}

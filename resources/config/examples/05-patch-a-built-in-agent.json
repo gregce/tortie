@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "agents": [
+    {
+      "id": "claude",
+      "displayName": "Claude Code (work)",
+      "storeDirs": ["~/work/claude-home/.claude/projects"],
+      "notes": "A patch, not a new agent. `claude` already exists, so every field left out here keeps the value Tortie ships, including the whole launch and resume blocks. This machine keeps its Claude conversations under a work home, so the store directory is the only thing that is wrong out of the box. Nothing in this row can cause a program to run, so Tortie applies it without asking you to confirm anything."
+    }
+  ]
+}

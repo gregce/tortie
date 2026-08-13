@@ -29,7 +29,7 @@ the wordmark is a wordmark. Revisit only if the operator asks.
 | 5b | **20.5** file preview beyond markdown, starting with HTML | ✅ SHIPPED 2026-08-13 | Phase 20 ✅ |
 | 6 | **21** versioned agent recovery contracts, as one migration with resume provenance | ✅ SHIPPED 2026-08-13 | Phase 20 ✅ |
 | 7 | **22** the Context sidebar, with installing enabled | ✅ SHIPPED 2026-08-13 | — |
-| 8 | **23** Tortie Config, configuration not code, plus the authoring prompt | SPECCED BELOW | 22, and **never before 21**. Opens with a re-baseline of the code |
+| 8 | **23** Tortie Config, configuration not code, plus the authoring prompt | ✅ SHIPPED 2026-08-13 | 22 ✅, and **never before 21** ✅ |
 | — | ~~**25** downloads and usage measurement~~ | **DEFERRED 2026-08-12 by the operator.** Spec kept below and stays valid. Note it must ship IN a released build, so reopening it after a release means the first cohort is unmeasurable |
 | 9 | **25.5** the DeepSeek CLI renamed itself and detection is broken | SPECCED BELOW | nothing. Small, and can run beside any phase |
 | 10 | **Release lane** Itavero identity, signing, notarization, version scheme, four CI lanes | ready | after Phase 25.5 |
@@ -1786,7 +1786,10 @@ and the reasons.
 
 ---
 
-## Phase 23 — Tortie Config: configuration, not code (2026-08-12)
+## Phase 23 — Tortie Config: configuration, not code ✅ SHIPPED 2026-08-13
+
+**The record of what actually landed is at the end of this file, under "Phase 23, what shipped".**
+The specification below is kept because it carries the decisions, and it is history now.
 
 The outcome of docs/research/31-extensions.md, which examined bb, Zed and pi, wrote four competing
 architectures and had three adversaries attack each one. Eleven of the twelve reviews came back fatal.
@@ -1901,6 +1904,26 @@ Must not start before Phase 21. Restore currently asks the live registry for `re
 rather than the manifest, and its error path returns the permissive answer. That is latent today
 because the registry always holds all twelve agents. **A user added agent that later leaves the file
 makes it immediate**, and for one agent the failure is a silent empty session that looks resumed.
+
+### The fix round (2026-08-13)
+Two verifiers drove the real app and returned needs_work. Between them they found eight defects. All
+eight are fixed, and each one has the exact failing probe re-run against it.
+
+| # | What was wrong | What was done |
+| --- | --- | --- |
+| 1 | Main registered `config:rows`, `config:confirm` and `config:forget` and nothing could reach them. The preload had no `config` member and there was no renderer surface, so every configured row was stuck at "never confirmed" for ever. The only way to confirm one was a Node inspector attached to main. | Added the `config` member to `src/preload/index.ts` and a real surface at Settings, then Agents, in `src/renderer/settings/ConfiguredAgents.tsx`. It shows every row, its state, the exact lines, the honesty sentence, an "Enable <name>" button and a "Withdraw confirmation" button. |
+| 2 | An invalid row reached `console.warn` and nothing else, so "dropped whole and surfaced visibly" was half done. | The same surface draws every dropped row in red, naming the field and the reason, with a "Check the file again" button. |
+| 3 | `extraProbeDirs` was honoured by detection and ignored by launch. An agent showed as installed and then threw `AGENT_NOT_FOUND`. The shipped example `02-resume-with-a-flag.json` was one of these. | `resolveBinary` takes the entry's dirs, and the create path passes them. Then a driver run found the second half: tmux resolves a bare argv[0] against the SERVER environment and ignores the per-pane `-e PATH`, so the pane still died with status 1. argv[0] now stays absolute for exactly the case where the login-shell PATH cannot find the binary. F3 is untouched for every other agent, and a driver run proves `claude` still starts by bare name. |
+| 4 | The picker offered an unconfirmed configured agent with the same chip and the same enabled state as Claude Code. A person picked it, typed a name, pressed Create and got a modal error. | `DetectedAgent` carries `configState`, stamped onto every scan by the `agents:*` registrar. The tile is drawn unpickable and marked "confirm first", the caption under the board says where to fix it, and `defaultAgentChoice` will never select one. |
+| 5 | The confirm sheet printed `Also runs by itself: --session-id` for every `pre-assign` row. Tortie does not run that flag by itself. A false line on the consent screen is a defect rather than a typo. | `describeExecution` renders a `pre-assign` flag as `Adds to the start command`, and keeps the side-command wording for `pre-assign-cmd`. The hash did not move, so nobody is asked again. |
+| 6 | C6's refusals were only in a research document. | Research 31 section 6.7's eight permanent refusals are now a section of CLAUDE.md, with the reason the confirm gate is not theatre written next to them. |
+| 7 | `findOrphanedClients` matched the hardcoded `TMUX_SOCKET` while the server it spared came from the ACTIVE socket. A verifier hit that state and SIGTERMed the operator's real `-L gmux` server, destroying 36 live sessions. | The matcher keys on `activeTmuxSocket()`, refuses to signal any tmux SERVER on any socket, and matches the socket name whole. The last of those is a second defect the new test found: `-L gmux` matched `-L gmux-verifa` as a substring. |
+| 8 | `npm run shot` returned before `initAgentOverlay`, so no screenshot of any Phase 23 behaviour was obtainable. | The shot harness awaits the boot read. The confirm surface and the gated picker are both captured in this round. |
+
+Added along the way: a build-time reachability gate in `build/assert-bundle-refusals.mjs`. It fails
+the build when a `config:*` channel is registered in main and is not in the preload bundle, or when
+the confirm surface's copy is in no renderer bundle. Defect 1 was invisible to every unit test,
+because each half was correct on its own and only the artifacts hold the join.
 
 ---
 
@@ -2715,3 +2738,164 @@ override, so a shot run that created a session put it beside the operator's 37 l
 printing that the override had been ignored. `activeTmuxSocket` now honours `GMUX_SHOT`, which is
 what `index.ts` always meant. There is a test for it. This is the same class of mistake that
 destroyed the operator's sessions on 2026-08-12.
+
+---
+
+## Phase 23, what shipped ✅ 2026-08-13
+
+Tortie now reads one configuration file, being `agents.json` in the configuration folder. It can add
+an agent the build never heard of, and it can patch one it ships. **No third party code runs in any
+Tortie process**, and none ever will, because the eight permanent refusals from research 31 section
+6.7 are now a section of CLAUDE.md next to the tmux safety rules.
+
+### What a person can now change without a rebuild
+
+| Thing | Where | State |
+| --- | --- | --- |
+| Add a thirteenth agent, with its binary, its launch arguments, its resume template and its id capture | `agents.json` in the configuration folder | works, and it launches, resumes and restores |
+| Rename a compiled agent, or point it at a different binary or directory | the same file, using an id the build already ships | works |
+| Open the folder, with the guide, the schema and six examples already in it | the Tortie menu, "Open Configuration Folder" | works, and it writes the folder if it is not there |
+| Confirm what a configured row will run, and withdraw that agreement | Settings, then Agents | works, and it is the only surface that can do it |
+| Read why a row was refused, naming the field and the reason | the same surface, in red | works |
+
+The file is read at boot, on an explicit reload, and on a file watcher with a debounce. It is never
+read on the path that creates a session and never on the path that restores one. A test asserts the
+second half by importing the create path and the restore path and failing if either reaches the
+configuration modules.
+
+### What the re-baseline found, and it is the reason this phase did not follow research 31 literally
+
+Research 31 was written on 2026-08-12. 330 files under `src/` changed between its commit and the
+start of this phase. Five of its concrete instructions were stale, and one of them would have
+produced a build that could not work.
+
+| Research 31 item | What was true on the day | What was done |
+| --- | --- | --- |
+| P0, complete the manifest before C1 | already shipped, by Phase 21 and migration 008 | deleted from the plan |
+| G4, the import boundary test file list | wrong. `src/main/manifest/agents.ts` is on the create path and **must** read the overlay | the forbidden list was re-derived by measurement |
+| C6, a content security policy test | already shipped, by Phase 20.5's `assert-preview-containment.mjs` | the existing gate was extended rather than duplicated |
+| C4, keymap overlays that rebind existing command ids | not buildable. There is no command dispatch layer to rebind | cut |
+| the `dangerAcknowledged` bug to file "this week" | already fixed, by the Phase 18.5 danger seal | the seal was reused as the confirm gate's own mechanism |
+
+### The thirteenth agent, proved in the running application
+
+A verifier wrote one row into `agents.json` naming a script that records its own argv, then drove the
+real app with its own `--user-data-dir` and its own tmux socket. No Tortie source file was edited at
+any point in that run.
+
+| Step | Evidence |
+| --- | --- |
+| it appears | `agentsList()` returned 13 agents, and the new session sheet drew a "Tortie Verifier" chip beside Claude Code |
+| a row added while the app ran | the watcher picked it up in under 2.5 s, and the next scan returned 15 ids |
+| it launches | tmux itself reported `.../bin/tortiever --verifier --session-id 6f8d5b43-…`, and the process recorded the same argv, its cwd, `GMUX_SESSION_ID`, `GMUX_MANAGED=1` and the row's own environment variable from its own side |
+| the manifest row carries the Phase 21 contract | `agent_contract` came back with all 15 fields, every value taken from the row rather than from a compiled agent, and `resume_provenance` read `preassigned`/`exact` |
+| it restores across a real quit | the app was quit, the tmux session was gone, the row reported `restorable`, and `restore` returned `armed` with the replayed scrollback and the unexecuted resume line on the prompt |
+| the armed line is executable | pressing Enter with `send-keys` started the agent again with `--resume 6f8d5b43-…`, in the original cwd |
+
+### What the confirm gate refuses
+
+Six refusals are asserted in the built main bundle at build time, beside the 21 durability refusals
+from Phase 19 and the 5 skills-write refusals from Phase 22.
+
+| Case | What happens |
+| --- | --- |
+| a row nobody confirmed | the launch throws and names the row. Nothing is started |
+| a confirmed row whose execution bearing fields changed | the state moves to `changed` and the launch throws. The hash moved, so it asks again |
+| a row that changed while the confirm sheet was open | the confirmation is refused |
+| a confirmation call without the exact acknowledgement constant | refused, and no file is written at all |
+| a record forged with a correct hash, or sealed by another key | refused, and the real confirmation beside it is untouched |
+| a launch asked for from inside the configuration read | refused. A configuration change never starts anything on its own |
+
+Seven fields can cause a program to run, being `binaries`, `extraProbeDirs`, `launch.argv`,
+`launch.env`, `versionProbe`, `resume.template` and `resume.idCapture`. The hash covers those and
+nothing else, so renaming an agent does not ask again. `npm run conformance:agents` proves that in
+both directions.
+
+The seal is the Phase 18.5 danger seal, moved into `src/main/config/seal.ts` and reused rather than
+reinvented. `safeStorage` encrypts the record under a key the macOS keychain holds against Tortie's
+own identity, so another process running as the same user cannot forge it. `npm run smoke:config`
+exercises all of this against the real keychain in a real Electron process.
+
+### The type is hand written and narrow
+
+`src/shared/agent-overlay.ts` declares 10 fields on a row. The registry entry carries 23. The
+internal type is not re-exported and never will be, which is research 31 section 6.6 and bb's lesson
+about freezing 65 prop types into a public contract and deleting it the next day. Tortie's own
+honesty vocabulary, being `status`, `confidence`, `unverified`, `reconstructionTarget` and
+`specstory`, means nothing when a user writes it, so none of it is in the file.
+
+An invalid row is dropped whole. It never partially merges, it never disappears quietly and it never
+crashes the read. The error names the field and the reason, e.g. `agents[2].binaries[0] is a
+relative path (relative/path/x). A path must be absolute or start with ~/…`.
+
+### The authoring prompt, and whether it works
+
+It works. The guide, the generated schema and six worked examples are written into the folder the
+first time Tortie creates it, and again after an update when the bytes differ. They also ride in the
+packaged app at `Contents/Resources/config/`.
+
+A verifier pasted the prompt from the guide into a coding agent, gave it a description of a CLI it
+had never seen, and the agent wrote a file with a new agent and a patch of a compiled one. That file
+validates against the shipped `agents.schema.json` and loads through the runtime validator with zero
+problems. The agent also wrote itself a `notes` field recording which fields it had not measured,
+which is what the guide asks for.
+
+A test parses every example in the guide against the schema, so a worked example that does not load
+fails the build.
+
+### Gates, on the final tree
+
+| Gate | Result |
+| --- | --- |
+| `typecheck` | clean, both projects |
+| `build` | passes, asserting 21 durability refusals, 5 skills-write refusals, 6 config confirm-gate refusals, 3 reachable config channels and the preview containment check |
+| `test` | 215 files passed, 1 skipped. 3,079 tests passed, 2 skipped |
+| `smoke:t1` | PASS, 6/6 on verify |
+| `smoke:t3` | PASS, both restore shapes, claude and pi |
+| `smoke:config` | PASS, against the real macOS keychain, and no process was started at any point in the run |
+| `smoke:fault` | PASS, 20 cases, every invariant held |
+| `smoke:migrate` | PASS, 11/11 |
+| `conformance:agents` | PASS. 12 compiled rows, 10 launchable, 11 in the table including one of configuration origin |
+| `conformance:context` | PASS, 38 pairs across 10 agents |
+| `conformance:resume:capture` | 6 PASS, 0 FAIL, 0 BLOCKED, 4 SKIP in 16.4 s |
+| `package` | passes, and `Contents/Resources/config/` carries the guide, the schema and all six examples |
+
+### The fix round found a durability defect that had nothing to do with configuration
+
+`findOrphanedClients` matched the hardcoded socket name while the server it spared came from the
+active socket. A verifier reached that state and SIGTERMed the operator's real `-L gmux` server,
+destroying 36 live sessions. The matcher now keys on `activeTmuxSocket()`, refuses to signal any
+tmux **server** on any socket, and matches the socket name whole rather than as a substring. That
+last part is a second defect the new test found, because `-L gmux` matched `-L gmux-verifa`.
+
+This is the third time this class of mistake has cost the operator work. It is in the same family as
+Phase 19's harness and Phase 22's `GMUX_SHOT` socket override.
+
+### What is still not true
+
+- **Project scope did not ship, and that was the plan.** C5 introduces a second trust boundary and
+  research 31 gates it behind the confirm gate existing first. It now does.
+- **Theme overlays did not ship.** C3 was cut for time after C1 grew a confirm surface it did not
+  originally have.
+- **Keymap overlays are cut, not deferred.** There is no command dispatch layer to rebind, so C4 as
+  written cannot be built. Any future attempt needs that layer first.
+- The overlay covers launch and resume only. Nothing in a configuration file can implement, replace,
+  decorate or intercept Explorer, SCM, search, the terminal, the tab spine, the manifest, the tmux
+  layer or the Context view, and nothing in it can set a session's status.
+- `Session.agent` and `CreateSessionInput.agent` are still the narrow `AgentKind` union, a gap open
+  since Phase 10. A wider string flows at runtime, which is how cursor and gemini already launch, so
+  a configured agent rides the create bridge untyped. Closing it is a separate round.
+- `settings/store.ts` still holds its own private copy of the seal. Migrating it is three call sites
+  and no behaviour change, and it was held rather than churned.
+- A `resume.idCapture.mode` of `none` inside a `resume` block is still accepted, and it describes a
+  command Tortie can never fill. The guide warns against it. The validator does not refuse it.
+- The seal does not stop replay. Someone holding an old sealed record, from a time the person really
+  did agree, can put it back. Closing that needs a second secret kept outside the file.
+- The full `npm run conformance:resume` roundtrip was not run. Capture mode asserts the manifest and
+  plants no turn.
+
+Operator tmux sessions: 15 before this integration and 15 after, read only with `list-sessions` on
+the `gmux` socket. The count is 15 rather than 37 because of the defect above. The operator's own app
+restored 14 of them from the 46 manifest rows at 10:30, which is the durability layer doing exactly
+what it exists for. No `pkill` was used at any point. Every app launch in this phase used its own
+`--user-data-dir` and its own tmux socket.

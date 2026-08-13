@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "agents": [
+    {
+      "id": "acme",
+      "displayName": "Acme CLI",
+      "binaries": ["acme"],
+      "launch": {
+        "argv": ["acme"]
+      },
+      "notes": "The smallest file that adds a working agent. There is no resume block, because Acme has none. Checked with `acme --help` against 1.4.0. Tortie restores the directory and the scrollback and says the conversation is not coming back, rather than opening an empty session that looks resumed."
+    }
+  ]
+}

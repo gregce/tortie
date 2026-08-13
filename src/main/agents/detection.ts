@@ -14,6 +14,22 @@
  * like SpecStory.
  *
  * Pure Node (no Electron import) so the pure helpers are unit-testable.
+ *
+ * ## Phase 23: which table is scanned
+ *
+ * The list of agents to probe is no longer `AGENT_REGISTRY` directly. It comes
+ * from {@link setAgentTableSource}, which defaults to the compiled registry and
+ * which boot replaces with the merged table from src/main/config/store.ts.
+ *
+ * The dependency is inverted on purpose. The overlay store imports Electron
+ * (for `app.getPath`) and a file watcher, and this module must not, because its
+ * helpers are unit-tested as plain Node. So the store pushes its table in
+ * rather than this module pulling it out. It is the same seam
+ * `setConfigRowSource` uses in src/main/config/ipc.ts.
+ *
+ * The provider returns MEMORY. It is called once per scan and it must never
+ * read the disk, which is what keeps the configuration file off every path
+ * that reaches a scan.
  */
 
 import { existsSync, readdirSync } from 'node:fs';
@@ -28,6 +44,41 @@ import { AGENT_REGISTRY } from './registry';
 
 /** How long a versionCmd may run before it is killed and version stays null. */
 export const VERSION_PROBE_TIMEOUT_MS = 4_000;
+
+/**
+ * A registry entry as detection needs it: everything the compiled entry has,
+ * with the id widened so a configured agent fits.
+ *
+ * This is NOT the overlay type and it is not exported to the renderer. It is
+ * the smallest shape this module actually reads, written here so the module
+ * keeps compiling against the compiled registry alone.
+ */
+export type DetectableAgentEntry = Omit<AgentRegistryEntry, 'id'> & { id: string };
+
+/** The table a scan walks. Memory only — a provider must never read the disk. */
+export type AgentTableSource = () => readonly DetectableAgentEntry[];
+
+const COMPILED_TABLE: AgentTableSource = () => AGENT_REGISTRY;
+
+let agentTable: AgentTableSource = COMPILED_TABLE;
+
+/**
+ * Point detection at the merged agent table. Called once during boot, by
+ * `initAgentOverlay`, after its first read.
+ *
+ * Before that call, and in every test and harness that never makes it, a scan
+ * walks exactly the compiled twelve. That is the correct answer for a machine
+ * with no configuration file, so nothing has to be wired for the ordinary case
+ * to be right.
+ */
+export function setAgentTableSource(next: AgentTableSource): void {
+  agentTable = next;
+}
+
+/** Put detection back on the compiled registry. Tests only. */
+export function resetAgentTableSource(): void {
+  agentTable = COMPILED_TABLE;
+}
 
 // ---------------------------------------------------------------------------
 // Pure path helpers (exported for tests)
@@ -197,7 +248,7 @@ async function runVersionProbe(
 // ---------------------------------------------------------------------------
 
 async function detectOne(
-  entry: AgentRegistryEntry,
+  entry: DetectableAgentEntry,
   userPath: string
 ): Promise<DetectedAgent> {
   const storeDetected = expandDirs(entry.storeDirs).some((dir) => existsSync(dir));
@@ -251,7 +302,7 @@ async function detectOne(
 async function scanAgents(): Promise<AgentsScanResult> {
   const userPath = await getUserPath();
   const agents = await Promise.all(
-    AGENT_REGISTRY.map((entry) => detectOne(entry, userPath))
+    agentTable().map((entry) => detectOne(entry, userPath))
   );
   const installed = agents.filter((a) => a.installed).map((a) => a.id);
   console.log(

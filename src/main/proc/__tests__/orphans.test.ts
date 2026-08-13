@@ -130,6 +130,41 @@ describe('findOrphanedClients — the four safety conditions', () => {
     );
     assert.deepEqual(findOrphanedClients(rows.values(), server), [6994, 72010]);
   });
+
+  // PHASE 23 FIX ROUND. The two conditions below are the ones that were
+  // missing on 2026-08-12, when a harness running on its own socket reaped the
+  // operator's real `-L gmux` server and destroyed 36 live sessions.
+  //
+  // The mechanism was that the socket came from a CONSTANT while the spared
+  // server pid came from the socket the process was actually on. Set
+  // GMUX_TMUX_SOCKET and the two disagree, and the real server matches every
+  // condition the matcher had.
+
+  it('never signals a tmux SERVER, even on another socket and even when it is not the spared pid', () => {
+    const rows = parsePsTable(
+      [
+        // The operator's real server. ppid 1, our socket name in its command,
+        // argv[0] is tmux, and NOT the pid we were told to spare, because we
+        // asked a different socket for that.
+        psLine(47416, 1, `/opt/homebrew/bin/tmux -L gmux -f ${CONF} start-server`),
+        // The harness's own server, which is the one we asked.
+        psLine(server, 1, `/opt/homebrew/bin/tmux -L gmux-harness -f ${CONF} start-server`)
+      ].join('\n')
+    );
+    assert.deepEqual(findOrphanedClients(rows.values(), server, 'gmux'), []);
+    assert.deepEqual(findOrphanedClients(rows.values(), server, 'gmux-harness'), []);
+  });
+
+  it('matches the socket name WHOLE, so `gmux` never matches `gmux-harness`', () => {
+    const rows = parsePsTable(
+      [
+        psLine(6994, 1, `/opt/homebrew/bin/tmux -L gmux -f ${CONF} -C new-session -A -s gmux-control`),
+        psLine(6995, 1, `/opt/homebrew/bin/tmux -L gmux-harness -f ${CONF} -C new-session -A -s gmux-control`)
+      ].join('\n')
+    );
+    assert.deepEqual(findOrphanedClients(rows.values(), server, 'gmux-harness'), [6995]);
+    assert.deepEqual(findOrphanedClients(rows.values(), server, 'gmux'), [6994]);
+  });
 });
 
 describe('findStrandedPathProbes', () => {

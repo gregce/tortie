@@ -23,6 +23,7 @@ import type {
   GmuxAgentRegistryExtras,
   GmuxApi,
   GmuxCaptureExtras,
+  GmuxConfigExtras,
   GmuxDropExtras,
   GmuxFsExtras,
   GmuxFsDuplicateExtras,
@@ -383,6 +384,28 @@ const context: NonNullable<GmuxContextExtras['context']> = {
 };
 
 /**
+ * config surface (Phase 23) — the configuration file's rows, and the one
+ * confirmation a person gives before Tortie will start what a row names.
+ *
+ * Three methods, and none of them starts a process. `rows` reads what the file
+ * says and what is on record for each row, from memory in main. `confirm`
+ * writes ONE record, being that a person read the lines and agreed to them.
+ * `forget` deletes that record so the row asks again. There is deliberately no
+ * `launch` and no `reload that then does something`: a configured agent starts
+ * through the ordinary session create path, which asks the gate in main first.
+ *
+ * The renderer never supplies the acknowledgement sentence and never supplies
+ * the hash it wants recorded. It sends back the hash the sheet was drawn from
+ * and the lines that were on it, and main refuses a stale hash, so "a person
+ * agreed to THESE bytes" cannot be forged from this side of the bridge.
+ */
+const config: NonNullable<GmuxConfigExtras['config']> = {
+  rows: () => invoke('config:rows'),
+  confirm: (input) => invoke('config:confirm', input),
+  forget: (id) => invoke('config:forget', id)
+};
+
+/**
  * symbols surface (Phase 14) — ⌘⇧O and the palette's `@` / `#` modes.
  *
  * `query` deliberately does NOT build an index; `ensure` is the only thing
@@ -507,6 +530,7 @@ const api: GmuxApi &
   GmuxPreviewExtras &
   GmuxContextSnapshotExtras &
   GmuxContextExtras &
+  GmuxConfigExtras &
   GmuxViewMenuExtras = {
   sessions,
   projects,
@@ -520,6 +544,7 @@ const api: GmuxApi &
   scroll,
   search,
   context,
+  config,
   symbols,
   quickOpen,
   scrollback,

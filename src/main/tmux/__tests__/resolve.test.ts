@@ -33,6 +33,7 @@ import {
   fallbackPath,
   mergePathDirs,
   resetUserPathCache,
+  resolveBinary,
   resolveBinaryAgainst
 } from '../resolve';
 
@@ -276,5 +277,29 @@ describe('mergePathDirs / fallbackPath', () => {
     const fp = fallbackPath({ PATH: '/first/dir:/usr/bin' });
     assert.ok(fp.startsWith('/first/dir'));
     assert.ok(fp.split(delimiter).includes(join(homedir(), '.local', 'bin')));
+  });
+});
+
+// PHASE 23 FIX ROUND. `resolveBinary` is what session create calls, and it used
+// to know nothing about an agent's own `extraProbeDirs`. Detection did, and
+// resolved against them, so an agent installed outside the login-shell PATH was
+// reported installed and then threw AGENT_NOT_FOUND on the next create. The
+// second argument is the fix, and these two tests are the before and the after.
+describe('resolveBinary — an agent\'s own probe dirs', () => {
+  it('finds a binary that is ONLY in a dir the entry named', async () => {
+    const dir = join(root, 'agentbin');
+    const bin = makeBin(dir, 'tortiever');
+    // Nothing seeds this name into the login-shell PATH, so without the second
+    // argument there is nothing to find.
+    assert.equal(await resolveBinary('tortiever'), null);
+    assert.equal(await resolveBinary('tortiever', [dir]), bin);
+  });
+
+  it('leaves every other caller alone: no dirs means the old behaviour', async () => {
+    assert.equal(await resolveBinary('definitely-not-a-real-binary-xyz'), null);
+    assert.equal(
+      await resolveBinary('definitely-not-a-real-binary-xyz', []),
+      null
+    );
   });
 });

@@ -6,8 +6,13 @@
 
 import { describe, expect, it } from 'vitest';
 import type { AgentsScanResult, DetectedAgent } from '@shared/types';
-import { buildAgentOptions, defaultAgentChoice } from '../agents';
-import { LAUNCHABLE_AGENT_IDS } from '../../../main/agents/registry';
+import {
+  agentBlockedReason,
+  agentShortLabel,
+  buildAgentOptions,
+  defaultAgentChoice
+} from '../agents';
+import { AGENT_REGISTRY, LAUNCHABLE_AGENT_IDS } from '../../../main/agents/registry';
 
 function row(over: Partial<DetectedAgent> & Pick<DetectedAgent, 'id'>): DetectedAgent {
   return {
@@ -67,20 +72,139 @@ describe('buildAgentOptions', () => {
   });
 });
 
-describe('the static picker list mirrors main', () => {
+describe('the pre-scan seed agrees with main', () => {
   /**
-   * `LAUNCHABLE_OPTIONS` in state/agents.ts is a hand-written copy of main's
+   * `SEED_AGENTS` in state/agents.ts is a hand-written copy of main's
    * launchable registry — ids AND order — that nothing type-checks, so an
    * eleventh agent added to the registry would silently never appear in ⌘T
    * until someone edited the renderer too (research 25 §3, Tier 3). The
    * labels are a DELIBERATE difference ("Cursor" vs the registry's "Cursor
    * CLI"), so what is asserted here is the part that must not differ.
+   *
+   * These two run again inside `npm run conformance:agents`, alongside the
+   * checks that need the create and restore paths. They are duplicated here
+   * because `npm run test` is in the commit battery and catches the drift a
+   * few seconds sooner.
    */
   it('offers exactly main\'s launchable agents, in registry order', () => {
     const ids = buildAgentOptions(null, BOTH)
       .map((o) => o.id)
       .filter((id) => id !== 'shell');
     expect(ids).toEqual([...LAUNCHABLE_AGENT_IDS]);
+  });
+
+  /**
+   * Phase 23 C2. The seed used to compute this as `unverified: id === 'pi'`,
+   * and both halves of that were wrong: droid is the unverified row and pi
+   * has not been one since the Phase 13.5 audit. The picker labelled the
+   * wrong agent "early" every time it drew before the scan landed.
+   */
+  it('marks the same agents unverified that the registry does', () => {
+    const seeded = new Map(
+      buildAgentOptions(null, BOTH)
+        .filter((o) => o.id !== 'shell')
+        .map((o) => [String(o.id), o.unverified])
+    );
+    for (const entry of AGENT_REGISTRY) {
+      if (!entry.launchable) continue;
+      expect([entry.id, seeded.get(entry.id)]).toEqual([
+        entry.id,
+        entry.unverified === true
+      ]);
+    }
+  });
+});
+
+describe('an agent main compiled in nowhere', () => {
+  /**
+   * The Phase 23 case. A user-added agent exists only at run time, in main,
+   * and reaches the renderer inside the `agents:list` scan. Nothing in this
+   * module may filter it out, and its name has to survive into the copy that
+   * puts an agent in a sentence.
+   */
+  const overlayRow = row({
+    id: 'tortie-conformance-agent',
+    displayName: 'Tortie Conformance Agent',
+    iconKey: 'terminal'
+  });
+
+  it('becomes a picker chip with no edit to the renderer', () => {
+    const options = buildAgentOptions(scanOf([row({ id: 'claude' }), overlayRow]), BOTH);
+    const chip = options.find((o) => String(o.id) === 'tortie-conformance-agent');
+    expect(chip?.label).toBe('Tortie Conformance Agent');
+    expect(chip?.iconKey).toBe('terminal');
+  });
+
+  it('reads as its own name once a scan has carried it', () => {
+    expect(agentShortLabel('never-scanned-agent')).toBe('never-scanned-agent');
+    buildAgentOptions(scanOf([overlayRow]), BOTH);
+    expect(agentShortLabel('tortie-conformance-agent')).toBe('Tortie Conformance Agent');
+    // A scan must not overwrite the chosen chip copy for a compiled agent.
+    expect(agentShortLabel('cursor')).toBe('Cursor');
+  });
+});
+
+/**
+ * PHASE 23 FIX ROUND. A verifier drove the real app and found the picker
+ * offering an unconfirmed configured agent beside Claude Code, with the same
+ * chip and the same enabled state. A person picked it, typed a name, pressed
+ * Create and got a modal error. The scan says what is INSTALLED. The gate says
+ * what may START. The picker has to read both.
+ */
+describe('a configured agent the confirm gate will refuse', () => {
+  const configured = (state: DetectedAgent['configState']): DetectedAgent =>
+    row({ id: 'owl', displayName: 'Owl', configState: state });
+
+  /**
+   * `AgentPickerOption.id` is still the closed `LaunchableAgentKind` union, so
+   * a configured id is compared through `String` here exactly as the test
+   * above does. Widening that union is a separate change with 130 call sites
+   * behind it, and the option is built by a cast today, which is what the
+   * re-baseline decided: the WIRE row carries any id, the compiled tables keep
+   * their twelve literals.
+   */
+  const pick = (options: ReturnType<typeof buildAgentOptions>, id: string) =>
+    options.find((o) => String(o.id) === id)!;
+
+  it('carries the gate state onto the option', () => {
+    const options = buildAgentOptions(scanOf([configured('never')]), BOTH);
+    expect(pick(options, 'owl').configState).toBe('never');
+  });
+
+  it('leaves every compiled agent with no state at all', () => {
+    const options = buildAgentOptions(scanOf([row({ id: 'claude' })]), BOTH);
+    const claude = options.find((o) => o.id === 'claude');
+    expect(claude?.configState).toBeNull();
+    expect(agentBlockedReason(claude!)).toBeNull();
+    // …and so does Shell, which is appended rather than scanned.
+    expect(agentBlockedReason(options.find((o) => o.id === 'shell')!)).toBeNull();
+  });
+
+  it('gives a reason for each state that cannot start, and names where to fix it', () => {
+    for (const state of ['never', 'changed', 'unknown'] as const) {
+      const options = buildAgentOptions(scanOf([configured(state)]), BOTH);
+      const reason = agentBlockedReason(pick(options, 'owl'));
+      expect(reason).not.toBeNull();
+      expect(reason).toContain('Owl');
+    }
+    const confirmed = buildAgentOptions(scanOf([configured('confirmed')]), BOTH);
+    expect(agentBlockedReason(pick(confirmed, 'owl'))).toBeNull();
+  });
+
+  it('is never chosen as the default, even when it is the only agent installed', () => {
+    const scan = scanOf([
+      row({ id: 'claude', installed: false, binPath: null }),
+      configured('never')
+    ]);
+    expect(defaultAgentChoice(buildAgentOptions(scan, BOTH), 'claude')).toBe('shell');
+  });
+
+  it('IS chosen once it has been confirmed', () => {
+    const scan = scanOf([
+      row({ id: 'claude', installed: false, binPath: null }),
+      configured('confirmed')
+    ]);
+    expect(String(defaultAgentChoice(buildAgentOptions(scan, BOTH), 'claude'))).toBe('owl');
   });
 });
 

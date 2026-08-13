@@ -312,9 +312,27 @@ export function resolveBinaryAgainst(
 /**
  * Resolve a binary against the captured login-shell PATH + install dirs.
  * The one call sites use at session-create time (and Phase 10 detection).
+ *
+ * PHASE 23 FIX ROUND. `probeFirst` is an agent's own `extraProbeDirs`, and
+ * passing it here is what makes detection and launch answer the same question.
+ * Before this they did not: detection resolved against
+ * `[...entry.extraProbeDirs, ...extraBinDirs()]` and reported the agent
+ * installed, then session create called this function with no knowledge of the
+ * row, failed to find the same file, and threw AGENT_NOT_FOUND. A configured
+ * agent installed anywhere but the login-shell PATH showed as ready and then
+ * refused to start.
+ *
+ * The order matters and it matches detection exactly. The dirs the entry names
+ * are searched after PATH and before the install dirs Tortie knows, so the
+ * FILE detection found is the file that runs.
  */
-export async function resolveBinary(bin: string): Promise<string | null> {
-  return resolveBinaryAgainst(bin, await getUserPath());
+export async function resolveBinary(
+  bin: string,
+  probeFirst: readonly string[] = []
+): Promise<string | null> {
+  const extras =
+    probeFirst.length === 0 ? extraBinDirs() : [...probeFirst, ...extraBinDirs()];
+  return resolveBinaryAgainst(bin, await getUserPath(), extras);
 }
 
 // ---------------------------------------------------------------------------

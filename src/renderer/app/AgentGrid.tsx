@@ -26,6 +26,12 @@
 
 import React, { useRef } from 'react';
 import type { AgentPickerOption } from '../state/agents';
+// PHASE 23 FIX ROUND. An agent from `agents.json` that nobody has confirmed is
+// installed and still cannot start. The board is where a person chooses, so it
+// is where that has to be said. Before this, the tile looked exactly like a
+// working agent and the refusal arrived as a modal error after the name field
+// and the Create button.
+import { agentBlockedReason } from '../state/agents';
 import { AcceleratorKeycap } from '../keys';
 import { AgentIcon } from '../icons';
 import './agent-grid.css';
@@ -78,7 +84,9 @@ export function AgentGrid({
     const backward = e.key === 'ArrowLeft' || e.key === 'ArrowUp';
     if (!forward && !backward) return;
     e.preventDefault();
-    const enabled = options.filter((o) => o.installed);
+    const enabled = options.filter(
+      (o) => o.installed && agentBlockedReason(o) === null
+    );
     if (enabled.length === 0) return;
     const at = Math.max(
       0,
@@ -148,11 +156,24 @@ function AgentTile({
   onUnhint?: (id: string) => void;
   registerRef: (el: HTMLButtonElement | null) => void;
 }): React.JSX.Element {
+  // Phase 23. Null for every compiled agent. A sentence for a configured row
+  // that the confirm gate will not let start.
+  const blocked = agentBlockedReason(option);
+  // Two ways to be unusable, and they are different things. "not installed"
+  // means there is no program. `blocked` means the program is there and Tortie
+  // will not run it until a person has agreed to what it runs.
+  const unusable = !option.installed || blocked !== null;
+
   // One right-hand slot, in priority order: the honest "not installed", the
-  // recorded hotkey, the registry's early-support caveat (pi). The status
-  // outranks the keycap — a chord for a CLI that is not there is a lie.
+  // confirm gate's answer, the recorded hotkey, the registry's early-support
+  // caveat (droid). The status outranks the keycap — a chord for a CLI that is
+  // not there, or that will refuse to start, is a lie.
   const meta = !option.installed ? (
     <span className="agent-tile-meta">not installed</span>
+  ) : blocked !== null ? (
+    <span className="agent-tile-meta">
+      {option.configState === 'changed' ? 'changed' : 'confirm first'}
+    </span>
   ) : hotkey !== null ? (
     <AcceleratorKeycap accelerator={hotkey} />
   ) : option.unverified ? (
@@ -160,10 +181,10 @@ function AgentTile({
   ) : null;
 
   const hint = (): void => {
-    if (!option.installed) onHint?.(option.id);
+    if (unusable) onHint?.(option.id);
   };
   const unhint = (): void => {
-    if (!option.installed) onUnhint?.(option.id);
+    if (unusable) onUnhint?.(option.id);
   };
 
   const selected = mode === 'select' && primary;
@@ -182,26 +203,30 @@ function AgentTile({
       type="button"
       className={[
         'agent-tile',
-        option.installed ? '' : 'missing',
+        unusable ? 'missing' : '',
+        blocked !== null ? 'blocked' : '',
         selected ? 'selected' : '',
-        mode === 'launch' && primary && option.installed ? 'primary' : '',
+        mode === 'launch' && primary && !unusable ? 'primary' : '',
         starting ? 'starting' : ''
       ]
         .filter(Boolean)
         .join(' ')}
       style={{ ['--agent-tile-i' as string]: index }}
-      aria-disabled={!option.installed}
+      aria-disabled={unusable}
       aria-label={
-        option.installed
-          ? mode === 'launch'
-            ? `Start ${option.label}`
-            : option.label
-          : `${option.label} — not installed`
+        !option.installed
+          ? `${option.label} — not installed`
+          : blocked !== null
+            ? `${option.label} — ${blocked}`
+            : mode === 'launch'
+              ? `Start ${option.label}`
+              : option.label
       }
       title={
-        option.installed && mode === 'launch'
+        blocked ??
+        (option.installed && mode === 'launch'
           ? `Start ${option.label}`
-          : undefined
+          : undefined)
       }
       {...radioProps}
       onClick={() => onActivate(option)}

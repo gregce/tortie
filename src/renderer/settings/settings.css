@@ -774,3 +774,139 @@
   line-height: var(--lh-base);
   color: var(--text-secondary);
 }
+
+/* ------------------------------------ configured agents (Phase 23 C1) */
+
+.set-config-row {
+  padding: var(--space-4) var(--space-5);
+}
+
+.set-config-row + .set-config-row {
+  border-top: 1px solid var(--border);
+}
+
+.set-config-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-5);
+}
+
+.set-config-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.set-config-id {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* The state chip carries the answer, so it carries the colour. A row that
+   cannot launch must not read the same as one that can. */
+.set-chip.cfg-confirmed {
+  background: var(--success-wash);
+  color: var(--success);
+}
+
+.set-chip.cfg-never,
+.set-chip.cfg-unknown {
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+}
+
+.set-chip.cfg-changed {
+  background: var(--error-wash);
+  color: var(--error);
+}
+
+.set-config-caption {
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-muted);
+}
+
+.set-config-detail {
+  margin-top: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--space-4) var(--space-5);
+  background: var(--bg-raised);
+}
+
+.set-config-lines {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.set-config-lines li {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--lh-sm);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.set-config-warning {
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-secondary);
+}
+
+.set-config-actions {
+  margin-top: var(--space-4);
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.set-config-hash {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-disabled);
+}
+
+.set-config-errors {
+  border-color: var(--error);
+  padding: var(--space-4) var(--space-5);
+}
+
+.set-config-errors-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-base);
+  color: var(--error);
+}
+
+.set-config-error {
+  margin-top: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.set-config-error-field {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.set-config-error-reason {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-primary);
+}
+
+.set-config-errors-foot {
+  margin-top: var(--space-4);
+}

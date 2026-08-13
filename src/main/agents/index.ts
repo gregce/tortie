@@ -7,7 +7,15 @@
  */
 
 import type { IpcMain } from 'electron';
+import type { AgentsScanResult } from '@shared/types';
 import { handle } from '../typed-ipc';
+// PHASE 23. The scan says what is INSTALLED. The gate says what may START.
+// They are different questions and the picker needs both, so the answer to the
+// second is stamped onto each row here rather than inside detection, which is
+// pure Node and has no keychain. A machine with no configuration file reads
+// nothing extra: every row answers "nothing to confirm" before any file is
+// opened.
+import { withConfigState } from '../config/store';
 import { getAgentAvailability } from './availability';
 import { listDetectedAgents, rescanAgents } from './detection';
 import { multilineKeyTable } from './registry';
@@ -60,9 +68,14 @@ export {
  *  - 'agents:multilineKeys' (Phase 12.5: per-agent Shift+Enter table, served
  *    off the registry exactly as drop:strategies serves `imageDrop`)
  */
+/** One scan, with the confirm gate's answer stamped onto every row. */
+function gated(scan: AgentsScanResult): AgentsScanResult {
+  return { ...scan, agents: withConfigState(scan.agents) };
+}
+
 export function registerAgentsIpc(ipc: IpcMain): void {
   handle(ipc, 'agents:availability', () => getAgentAvailability());
-  handle(ipc, 'agents:list', () => listDetectedAgents());
-  handle(ipc, 'agents:rescan', () => rescanAgents());
+  handle(ipc, 'agents:list', async () => gated(await listDetectedAgents()));
+  handle(ipc, 'agents:rescan', async () => gated(await rescanAgents()));
   handle(ipc, 'agents:multilineKeys', () => multilineKeyTable());
 }

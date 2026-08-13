@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "agents": [
+    {
+      "id": "everest",
+      "displayName": "Everest",
+      "binaries": ["everest", "ev"],
+      "extraProbeDirs": ["~/.everest/bin", "$HOME/.local/share/everest/*/bin"],
+      "storeDirs": ["~/.everest/conversations"],
+      "versionProbe": {
+        "args": ["--version"],
+        "fallbackArgs": ["-V"],
+        "identitySubstring": "Everest",
+        "postProcess": "first-line"
+      },
+      "launch": {
+        "argv": ["everest", "--no-banner"],
+        "env": {
+          "EVEREST_COLOR": "always"
+        }
+      },
+      "resume": {
+        "template": ["--conversation", "<sessionId>"],
+        "idCapture": {
+          "mode": "pre-assign",
+          "launchFlag": ["--conversation-id"]
+        },
+        "sessionStore": "~/.everest/conversations/<sessionId>/log.jsonl",
+        "requiresOriginalCwd": false,
+        "bareResumeIsDangerous": false,
+        "resumeExtrasPosition": "trailing"
+      },
+      "iconKey": "everest",
+      "notes": "Every field the contract allows, in one row. Most agents need far less. Verified by hand against 3.0.2. Resume finds the conversation from any directory because the lookup is global, and `--conversation` with no value exits 2 rather than attaching to something else, so both defaults are turned off here on evidence. There is no field for a hotkey, a flag preset, a paste behaviour or a newline key, because those are yours to choose in Settings."
+    }
+  ]
+}

@@ -63,6 +63,12 @@ import { clearRecents, onRecentsChanged, openRecentMenuItem } from './recents';
 // flag. This is the door, and it runs entirely in main behind two native
 // dialogs, so there is no renderer surface to keep in step with it.
 import { runOperatorReconstruction } from './manifest/reconstruct-operator';
+// Phase 23. The whole of Tortie's configuration interface is the one item this
+// import serves. It creates the folder if it is not there, writes the guide,
+// the schema and the examples into it, and opens it. There is no configuration
+// editor and no onboarding flow, because the file is one click away and the
+// user's agents are already here.
+import { revealConfigFolder } from './config/guide';
 
 /**
  * Can this window act on a menu action? The Settings window (S13) is a
@@ -245,6 +251,14 @@ function buildTemplate(): MenuItemConstructorOptions[] {
           label: 'Settings…',
           accelerator: accel('app.settings'),
           click: () => openSettingsWindow()
+        },
+        // Phase 23: the one affordance for the configuration folder. It sits
+        // next to Settings because both answer "where do I change Tortie",
+        // and it has no accelerator on purpose — a folder a person opens
+        // twice a year does not earn a chord.
+        {
+          label: 'Open Configuration Folder',
+          click: () => void revealConfigFolder()
         },
         { type: 'separator' },
         // Phase 20 fix round: the one way a person can reach reconstruction.

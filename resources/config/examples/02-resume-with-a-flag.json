@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "agents": [
+    {
+      "id": "bolt",
+      "displayName": "Bolt",
+      "binaries": ["bolt"],
+      "extraProbeDirs": ["~/.bolt/bin"],
+      "storeDirs": ["~/.bolt/sessions"],
+      "versionProbe": {
+        "args": ["--version"],
+        "identitySubstring": "Bolt"
+      },
+      "launch": {
+        "argv": ["bolt"]
+      },
+      "resume": {
+        "template": ["--resume", "<sessionId>"],
+        "idCapture": {
+          "mode": "pre-assign",
+          "launchFlag": ["--session-id"]
+        },
+        "sessionStore": "~/.bolt/sessions/<sessionId>.jsonl",
+        "requiresOriginalCwd": false,
+        "bareResumeIsDangerous": true
+      },
+      "iconKey": "bolt",
+      "notes": "The common case. `bolt --session-id <uuid>` makes the uuid the store filename, so Tortie knows the id before Bolt has written anything. Resume was verified from a different directory, which is why requiresOriginalCwd is false here. Bare `--resume` with no id opens a picker, so the flag is marked dangerous without its id."
+    }
+  ]
+}

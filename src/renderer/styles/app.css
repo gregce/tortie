@@ -1154,6 +1154,12 @@
   color: var(--text-muted);
 }
 
+/* Phase 23. A caption that says a chosen agent will not start. It has to
+   outrank the muted default, because it is the reason the click did nothing. */
+.field-caption.warn {
+  color: var(--warning);
+}
+
 .field-row {
   display: flex;
   gap: var(--space-4);

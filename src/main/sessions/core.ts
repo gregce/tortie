@@ -67,9 +67,15 @@ import {
 import { AttachHost } from '../attach';
 import {
   agentBinaryName,
+  expandDirs,
   listDetectedAgents,
   registryResumeArgv
 } from '../agents';
+// PHASE 23. One lookup, into the merged agent table, in memory. It is used to
+// find a configured agent's binary NAME when the compiled registry has never
+// heard of the id. It grants nothing: the confirm gate lives in
+// src/main/manifest/agents.ts and is asked on the same create path.
+import { agentEntry, launchableAgentEntry } from '../config/store';
 // The durable writer's own failure type and its own out-of-space test
 // (Phase 19 item 2). Do not write a second copy of either.
 import { DurableWriteError, isOutOfSpace } from '../durable';
@@ -1988,18 +1994,42 @@ export class GmuxCore {
     // AND resume_argv), so restores survive PATH drift too.
     let binPath: string | undefined;
     let bareName: string | undefined;
+    // PHASE 23 FIX ROUND. Where to LOOK for the binary, which is as load
+    // bearing as its name and is on the confirm sheet as "Looks for it in".
+    // Declared out here because BOTH halves of the fix need it: the resolve
+    // below, and the pane env at the spawn.
+    let probeDirs: string[] = [];
     if (input.agent !== 'shell') {
       // Phase 10 (settings+hotkeys stream): the binary name comes from the
       // agent REGISTRY, not the agent id — cursor's binary is `cursor-agent`,
       // antigravity's is `agy`. Unknown ids (never in the registry) keep the
       // id-as-binary behavior so nothing regresses.
       let bare: string = input.agent;
+      // Detection has always searched these dirs. Launch did not, so an agent
+      // that reported installed threw AGENT_NOT_FOUND on the very next create.
+      // This reads the merged table in MEMORY, like every other configuration
+      // read on this path, and it grants nothing: the confirm gate is asked
+      // below, inside resolveLaunchSpec.
+      probeDirs = expandDirs(agentEntry(input.agent)?.extraProbeDirs ?? []);
       try {
         bare = agentBinaryName(input.agent);
       } catch {
-        /* not a registry id — legacy behavior */
+        // PHASE 23: not a COMPILED registry id, so ask the merged agent table
+        // before falling back. Without this a configured agent whose id is not
+        // also its binary name resolves the id as a program, finds nothing and
+        // fails with "not found" instead of launching. `owl` with a binary of
+        // `owl-cli` is the case, and it is the ordinary one: the compiled
+        // registry already has three agents whose binary is not their id.
+        //
+        // This reads MEMORY, like every other configuration read on this path.
+        // It reads a NAME, not a permission: the confirm gate is asked a few
+        // lines below, inside resolveLaunchSpec, and it is what decides whether
+        // this session is allowed to start at all.
+        const configured = launchableAgentEntry(input.agent);
+        if (configured !== null) bare = configured.binaries[0] ?? input.agent;
+        /* still nothing — legacy id-as-binary behavior */
       }
-      const abs = await tmux.resolveBinary(bare);
+      const abs = await tmux.resolveBinary(bare, probeDirs);
       if (abs === null) {
         throw gmuxError(
           'AGENT_NOT_FOUND',
@@ -2008,7 +2038,30 @@ export class GmuxCore {
         );
       }
       binPath = abs;
-      bareName = bare;
+      // PHASE 23 FIX ROUND, the second half of the `extraProbeDirs` fix, and
+      // this is the half a driver run found rather than a reading.
+      //
+      // The pane is spawned by BARE NAME (F3 above). tmux resolves that name
+      // against the SERVER environment's PATH and ignores the per-pane
+      // `-e PATH=` entirely. Measured on tmux 3.6a: the same session created
+      // with an absolute argv[0] runs, and created with the bare name plus
+      // `-e PATH=<dir>` dies at once with "Pane is dead (status 1)".
+      //
+      // So an agent whose binary exists ONLY in a directory its own entry names
+      // cannot be launched by its bare name at all. Detection found it, the
+      // resolve above found it, the manifest recorded the absolute path, and
+      // the pane still died. For exactly that case, and nothing else, argv[0]
+      // stays absolute.
+      //
+      // It costs F3 nothing, and the reason is F3's own. F3 protects an agent a
+      // user might end with `pkill -f "$(command -v claude)"`, and `command -v`
+      // reads the same login-shell PATH the tmux server was given. A binary
+      // that PATH cannot find is one that command substitution cannot name
+      // either, so there is no pattern for that pkill to match and nothing for
+      // the bare name to protect.
+      const onLoginPath =
+        probeDirs.length === 0 ? abs : await tmux.resolveBinary(bare);
+      bareName = onLoginPath === null ? undefined : bare;
     }
 
     const id = randomUUID();

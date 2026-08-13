@@ -656,9 +656,34 @@ export type LaunchableAgentId = Exclude<AgentRegistryId, 'cursoride' | 'copiloti
 /** AgentKind widened with the new launchable registry agents (Phase 10). */
 export type LaunchableAgentKind = AgentKind | LaunchableAgentId;
 
-/** One row of the agents:list / agents:rescan detection result. */
+/**
+ * One row of the agents:list / agents:rescan detection result.
+ *
+ * PHASE 23 DECISION, and it is the one the re-baseline called the largest in
+ * the phase. `id` is a `string` here and `AgentRegistryId` everywhere else.
+ *
+ * The reason for the split is that the two kinds of site want opposite things.
+ *
+ *  - This is a WIRE row. It carries whatever the merged agent table holds,
+ *    which is the twelve compiled agents plus any the user's `agents.json`
+ *    adds. A closed union here would mean a configured agent could not be
+ *    described to the renderer at all, so the picker could never offer it.
+ *  - `ImageDropTable.agents`, `MultilineKeyTable.agents`, and the three
+ *    settings maps keyed on `LaunchableAgentId` are COMPILED tables. Their
+ *    keys name rows that exist in the build. Widening those would turn a typo
+ *    into a silently empty lookup, and `Partial<Record<string, T>>` says
+ *    nothing that `Record<string, T | undefined>` does not already say.
+ *
+ * So `AgentRegistryId` keeps its twelve literals and keeps its meaning, which
+ * is "an agent this build ships". It is a documented subset of the ids that
+ * can appear on this field, not the whole set.
+ *
+ * A configured agent reaching a compiled table gets `undefined` and the
+ * fallback, which is the behaviour those tables already had for `shell` and
+ * for every agent with no row. Nothing new can go wrong there.
+ */
 export interface DetectedAgent {
-  id: AgentRegistryId;
+  id: string;
   displayName: string;
   /** 'cli' = tmux-launchable terminal agent; 'ide' = app watcher. */
   kind: 'cli' | 'ide';
@@ -679,6 +704,20 @@ export interface DetectedAgent {
   iconKey: string;
   /** True when the registry marks this agent's mechanics UNVERIFIED (pi). */
   unverified: boolean;
+  /**
+   * PHASE 23. Whether this agent came from `agents.json` and can cause a
+   * program to run, and if so what the confirm gate says about it right now.
+   *
+   * Undefined for every compiled agent and for a configuration row that only
+   * renames one, because those rows have nothing to confirm and a state on
+   * them would tell a user their working agent is blocked when it is not.
+   *
+   * The picker MUST read this. A row that is not 'confirmed' cannot start, so
+   * offering it as an ordinary choice sends a person through a name field and
+   * a Create button to a modal error. The field exists so the picker can say
+   * so before the click rather than after it.
+   */
+  configState?: 'confirmed' | 'never' | 'changed' | 'unknown';
 }
 
 /** Full detection result (agents:list / agents:rescan). */

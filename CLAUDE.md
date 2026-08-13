@@ -12,6 +12,25 @@ The product is **Tortie** (`com.specstory.tortie`, `~/Library/Application Suppor
 - Sessions are addressed by IDENTITY, never by name: `@gmux-id` (plus the `GMUX_SESSION_ID` pane-env stamp as the second source). A live session that carries neither is NOT OURS — never adopt it, never kill it.
 - tmux SAFETY: only ever `tmux -L gmux`. Never touch the user's default tmux server, ~/.tmux.conf, or kill sessions you didn't create.
 
+## Tortie never loads third party code (Phase 23) — the permanent refusals
+These bind every future round the way the tmux safety rules above do. They are the outcome of docs/research/31-extensions.md, which examined bb, Zed and pi, wrote four competing architectures and had three adversaries attack each one. Eleven of the twelve reviews came back fatal. The single line that ended all of them is the first refusal.
+
+The boundary, and it is the whole design:
+> Configuration selects from choices the compiled world already contains, or names an executable the user has personally confirmed.
+
+1. **No third-party JavaScript, TypeScript, WebAssembly or native code executes in any Tortie process.** Not main, not the renderers, not the preload, not a worker, not a `utilityProcess`.
+2. **No `tortie.d.ts`, no SDK package, no contribution-point registry.** If a proposal begins "we will expose an interface so extensions can…", it is this refusal. bb froze 65 component prop types into a public contract and deleted it the next day.
+3. **No marketplace, no store UI, no in-app browse-and-install, no update badge, no extension count on the activity rail.**
+4. **No configuration mechanism may implement, replace, decorate or intercept** Explorer, SCM, search, the terminal, the tab spine, the manifest, the tmux layer, or Context's own data.
+5. **No configuration mechanism may set a session's status.** Status semantics are in the UI rules below and they do not move.
+6. **No third-party native code inside the signed bundle.** It would need `com.apple.security.cs.disable-library-validation` app-wide and permanently, against a configuration whose note reads "ZERO entitlements are needed".
+7. **The main renderer's CSP is never relaxed.** Third-party HTML, if ever hosted, gets its own `session` partition and its own served CSP. `build/assert-preview-containment.mjs` asserts this at build time.
+8. **Nothing may cause a process to start on a configuration change alone.** A human confirms the bytes, out of band of any agent turn, and the agreement is bound to a hash of the fields that decide what runs.
+
+**Why refusal 8 is not theatre, stated so a later round does not remove it for convenience.** Every product cited as precedent for trusting configuration has a human as the only routine writer of that configuration, being Obsidian Restricted Mode, VS Code Workspace Trust, Zed, Raycast and pi. Tortie runs many agent processes at once under one user account, several deliberately launchable with their safeguards off, all with write access to the home directory. A configuration directory Tortie reads and an agent can write is an increase in privilege rather than a convenience. The gate has exactly one surface, being Settings then Agents, and removing that surface makes every configured agent unusable rather than making it convenient.
+
+Two mechanical rules follow. The overlay type is hand written and narrow, and the internal registry type is never re-exported to it. An invalid row is dropped whole and surfaces as a visible error naming the field and the reason, never partially merged, never silently dropped, never a crash.
+
 ## Scope guardrail — gmux is not a VS Code reimplementation
 gmux exists for what VS Code cannot do: durable named agent sessions (survive quit/crash/reboot with conversation resume), multi-project tabs in ONE window (VS Code refused this upstream — vscode#322745), and the agent layer (registry, per-agent icons/hotkeys/launch flags, agent-native status oracles, image drop, SpecStory capture). IDE furniture — git sidebar, decorated tree, editor tabs, markdown preview, minimap, search — is the price of admission, not the product.
 Two rules follow, and they bind every future round:
@@ -77,6 +96,7 @@ When a round mixes tiers, verify per item at its own tier rather than promoting 
 `npm run typecheck && npm run build && npm run smoke:t1` minimum; integrators run the full battery (test, smoke, smoke:t3, package). Commit as "Phase N[.x]: summary" with the session trailers.
 **Touching the Context view's substrate table?** Add `npm run conformance:context` (about 1 s, spawns nothing, makes no request) for any commit under `src/main/context/agent-context.ts` or `src/renderer/context/groups.ts`. It prints the per-agent precedence matrix the panel actually draws from and fails when a row loses its model, its scope order or its reload answer. It is what keeps research 29 §2 executable rather than documented, and it is the gate that would have caught the panel stating Claude Code's ordering rule for every agent.
 **Touching resume?** Add `npm run conformance:resume:capture` (~16 s, no turns, no tokens spent) to that list for any commit under `agents/registry.ts`, `manifest/harvest/**`, `manifest/agents.ts` or `restore/**` — it is the cheap gate that makes every registry resume claim executable, and it caught a one-word `availableAt` error that the whole battery above was blind to. The full `npm run conformance:resume` roundtrip (~3 min, real turns) runs once per phase and after any agent-CLI upgrade. `smoke:t3` covers a claude AND a non-claude restore shape; neither is a substitute for the other.
+**Touching the agent table?** Add `npm run conformance:agents` (~2 s, spawns nothing, opens no manifest, launches no Electron) for any commit under `agents/registry.ts`, `manifest/agents.ts`, `main/config/**` or `renderer/state/agents.ts`. It proves four things the unit tests do not: the create path composes an absolute argv, a resume argv built from the parsed manifest row alone equals the registry's byte for byte, the renderer's seed list agrees with the registry, and the confirm hash moves for every execution bearing field and for none of the presentation ones.
 
 ## UI rules
 - All colors via tokens (src/renderer/styles/tokens.css); no hardcoded literals outside theme constant files.

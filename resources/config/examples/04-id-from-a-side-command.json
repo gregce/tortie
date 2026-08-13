@@ -1,0 +1,32 @@
+{
+  "schema": 1,
+  "agents": [
+    {
+      "id": "dart",
+      "displayName": "Dart Agent",
+      "binaries": ["dart-agent"],
+      "extraProbeDirs": ["~/.dart/bin"],
+      "storeDirs": ["~/.dart/chats"],
+      "versionProbe": {
+        "args": ["--version"]
+      },
+      "launch": {
+        "argv": ["dart-agent"],
+        "env": {
+          "FORCE_COLOR": "1"
+        }
+      },
+      "resume": {
+        "template": ["--resume", "<sessionId>"],
+        "idCapture": {
+          "mode": "pre-assign-cmd",
+          "argv": ["create-chat"]
+        },
+        "sessionStore": "~/.dart/chats/<a hash of the directory>/<sessionId>/store.db",
+        "requiresOriginalCwd": true
+      },
+      "iconKey": "dart",
+      "notes": "`dart-agent create-chat` prints one fresh chat id and writes nothing until the chat has content, and `dart-agent --resume <that id>` starts into it. So the first launch and every later restore use the same command line. The id is `dart` and the binary is `dart-agent`, which is allowed. Note that argv[0] is the binary, and idCapture.argv is only the arguments Tortie adds to that same binary."
+    }
+  ]
+}

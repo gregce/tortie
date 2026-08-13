@@ -50,6 +50,12 @@
  *                       the live manifest never changed. Isolated profile AND
  *                       isolated socket, refused without both.
  *                       `npm run smoke:reconstruct`.
+ *  - GMUX_SMOKE=config  the configuration confirm gate (Phase 23), driven
+ *                       against the real OS keychain and real forged records on
+ *                       disk. Nine refusals and two confirmations, and no
+ *                       process is started at any point. Isolated profile AND
+ *                       isolated socket, refused without both.
+ *                       `npm run smoke:config`.
  *  - GMUX_SMOKE=procid  what the OUTSIDE world sees of gmux (Phase 13.8):
  *                       app name, process.title, what `ps` prints, and the
  *                       gmux-owned process list (app + helpers + private tmux
@@ -88,6 +94,12 @@ import { registerFsIpc, registerImageIpc } from './fs';
 import { disposeGitIpc, registerGitIpc } from './git';
 import { registerIpcHandlers } from './ipc';
 import { registerContextIpc } from './context/ipc';
+import { registerConfigIpc } from './config/ipc';
+import { runConfigConfirmSmoke } from './config/confirm-smoke';
+// Phase 23: the configuration file is read at boot, on an explicit reload and
+// on a watcher debounce, and nowhere else. `initAgentOverlay` is the boot read.
+// `stopAgentOverlayWatch` is the matching teardown on quit.
+import { initAgentOverlay, stopAgentOverlayWatch } from './config/store';
 import { installLaunchContextResolver } from './context/launch-resolver';
 import {
   PREVIEW_PRIVILEGED_SCHEME,
@@ -1721,6 +1733,13 @@ app.whenReady().then(async () => {
   // resolver cannot fail a launch: `recordLaunchContext` is detached, deadlined
   // and wrapped, and a throw inside it becomes a missing record.
   installLaunchContextResolver();
+  // Phase 23: the ONE `config:*` registrar. Three channels, and none of them
+  // spawns: the list reads, the confirm writes one record, and the withdrawal
+  // deletes one. A configured agent starts through the ordinary session create
+  // path, which asks the gate first. Until the overlay loader is wired in, the
+  // default source reports no rows, which is what a machine with no
+  // configuration file has.
+  registerConfigIpc(ipcMain);
   // Phase 12.9 item 1: projects:create — the only project channel that
   // writes to disk (mkdir + optional `git init`, then the usual add).
   registerProjectCreateIpc(ipcMain);
@@ -1808,6 +1827,11 @@ app.whenReady().then(async () => {
   // touch their session list. Real Electron process, real refusal, and the one
   // thing replaced is the person clicking the buttons.
   if (smoke === 'refusal') return runRefusalSmoke();
+  // Phase 23: the confirm gate, driven in a real Electron process against the
+  // real OS keychain and real forged records on disk. It is also the second
+  // caller two of its refusals need, because rollup deletes a branch whose one
+  // caller passes a constant, and that is what the refusal gate caught here.
+  if (smoke === 'config') return runConfigConfirmSmoke();
   // Phase 13.8: what the outside world sees of gmux (read-only).
   if (smoke === 'procid') return runSmokeProcId();
   // Phase 13.5 item 5 — `npm run conformance:resume`. Lives in
@@ -1815,7 +1839,25 @@ app.whenReady().then(async () => {
   // own report format, not a pass/fail smoke, and it is the one harness meant
   // to be run against agent CLIs that change under us.
   if (smoke === 'conformance-resume') return runResumeConformance();
-  if (shot) return runShot(shot);
+  if (shot) {
+    // PHASE 23 FIX ROUND. The screenshot harness used to return here, before
+    // the boot read below, so `npm run shot` photographed a build that had
+    // never opened `agents.json`. A verifier noticed and had to state that no
+    // screenshot of any Phase 23 behaviour was obtainable through the harness,
+    // which means a whole class of evidence was closed off for this phase and
+    // for every phase after it that touches the configured agents.
+    //
+    // The read is cheap and it is the same one normal startup does. It is
+    // awaited here rather than fired and forgotten, because a capture that
+    // races the read would be worse than no capture at all: it would show
+    // whichever of the two answers won.
+    await initAgentOverlay().catch((err: unknown) => {
+      console.error(
+        `[gmux] the configuration file was not read: ${(err as Error).message}`
+      );
+    });
+    return runShot(shot);
+  }
 
   // PHASE 21 FIX ROUND, and it is the FIRST thing normal startup does.
   //
@@ -1836,6 +1878,25 @@ app.whenReady().then(async () => {
     await presentManifestRefusal(refusal);
     return;
   }
+
+  // PHASE 23: the boot read of `<userData>/gmux/config/agents.json`, and it
+  // happens BEFORE the core boots and before the first agent scan, so the
+  // merged table is already in memory by the time anything asks for it.
+  //
+  // It is deliberately not awaited. Everything that matters here is
+  // synchronous and has already run by the time this line returns: the
+  // directory is created, the guide is seeded, the file is read, validated and
+  // merged, and the gate is handed its row source. The only thing behind the
+  // await is the file watcher, and a window must not wait on a watcher.
+  //
+  // A throw here can never stop Tortie starting. A configuration file is an
+  // addition to the compiled twelve agents, so the failure direction is
+  // "you get the agents the build ships" rather than "the app does not open".
+  void initAgentOverlay().catch((err: unknown) => {
+    console.error(
+      `[gmux] the configuration file was not read: ${(err as Error).message}`
+    );
+  });
 
   // Normal startup. Native-module sanity is logged (not fatal) so a broken
   // rebuild is visible immediately in dev consoles.
@@ -1970,6 +2031,10 @@ app.on('before-quit', (event) => {
       /* never block quit */
     }
     void disposeGitIpc();
+    // Phase 23: stop watching the configuration directory. One FSEvents
+    // subscription and one pending debounce timer, both released here so a
+    // quit does not leave a watcher holding a handle on the user's folder.
+    void stopAgentOverlayWatch();
     disposeSearchIpc(); // SIGKILL any in-flight ripgrep
     void disposeQuickOpenIpc(); // terminate the ⌘P ranking worker
     void disposeSymbolsIpc(); // terminate the tree-sitter pool, close its db

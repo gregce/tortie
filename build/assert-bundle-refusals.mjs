@@ -40,7 +40,7 @@
  * including `npm run package`.
  */
 
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -270,6 +270,193 @@ const SKILLS_REFUSALS = [
   }
 ];
 
+/**
+ * Phase 23's confirm-gate refusals, counted SEPARATELY again, for the same
+ * reason the skills ones are.
+ *
+ * What these cost if the bundler removes one is different from both lists
+ * above. A configuration file can name a program, and Tortie runs it as the
+ * user, with the user's files and the user's credentials. Every product that is
+ * cited as precedent for trusting a configuration file has a human as the only
+ * routine writer of it. Tortie does not: it runs many agent processes at once
+ * under one account, several of them deliberately launchable with their
+ * safeguards off, and all of them can write to the home directory. If one of
+ * these four sentences disappears, a file an agent can write decides which
+ * program starts, and the confirmation a person gave becomes a formality.
+ */
+const CONFIG_REFUSALS = [
+  {
+    id: 'config.row-nobody-confirmed',
+    source: 'src/main/config/confirm.ts',
+    why: 'a configured row that no person has agreed to must not start a process',
+    fragments: [
+      'Tortie will not start ',
+      ' from a configuration file that nobody has ',
+      'confirmed. Read what it will run and confirm it in Tortie first. '
+    ]
+  },
+  {
+    id: 'config.row-changed-since-the-confirmation',
+    source: 'src/main/config/confirm.ts',
+    why:
+      'without this the first confirmation is a permanent key and the argv ' +
+      'behind it can be swapped afterwards',
+    fragments: [
+      ', because its configuration changed after you ',
+      'confirmed it. Read the change and confirm it again if it is what you '
+    ]
+  },
+  {
+    id: 'config.seal-unreadable',
+    source: 'src/main/config/confirm.ts',
+    why:
+      'a record of what a person approved that cannot be read is not consent, ' +
+      'so the gate fails closed rather than open',
+    fragments: [
+      'Tortie could not read its record of what you confirmed, so it will not ',
+      'start '
+    ]
+  },
+  {
+    id: 'config.change-never-starts-anything',
+    source: 'src/main/config/confirm.ts',
+    why:
+      'reading configuration must never be a way to start a process, because ' +
+      'a file changing is not a person deciding',
+    fragments: [
+      'A configuration change never starts anything on its own. Reading ',
+      'from the configuration file asked to launch it. Nothing was started.'
+    ]
+  },
+  {
+    id: 'config.confirmed-by-a-person-not-a-file',
+    source: 'src/main/config/confirm.ts',
+    why:
+      'the acknowledgement sentence is what stops a later convenience path ' +
+      'from confirming rows on the user behalf',
+    fragments: [
+      'A configuration row is confirmed by a person, not by a file. Pass ',
+      'CONFIG_CONFIRM_ACKNOWLEDGEMENT exactly. Nothing was confirmed.'
+    ]
+  },
+  {
+    id: 'config.row-changed-while-the-sheet-was-open',
+    source: 'src/main/config/confirm.ts',
+    why:
+      'a confirmation is only worth anything if the row that is recorded is ' +
+      'the row that was read, and a sheet sits on screen while a person reads',
+    fragments: [
+      ', because the row changed after it was ',
+      'shown. Read it again and confirm what it says now. Nothing was '
+    ]
+  }
+];
+
+/**
+ * PHASE 23 FIX ROUND — a gate is not a gate if nobody can pass it.
+ *
+ * ## The defect that made this check exist
+ *
+ * Main registered `config:rows`, `config:confirm` and `config:forget`, and all
+ * three were live in the running app. Nothing exposed them. The preload had no
+ * `config` member, so `window.gmux.config` was `undefined`, and there was no
+ * renderer surface at all. `grep -c "config:rows" out/preload/index.js`
+ * returned 0.
+ *
+ * The consequence was that every configured row was stuck at "never confirmed"
+ * for ever and every create of one was refused. The only way to confirm a row
+ * on the whole machine was to attach a Node inspector to main and call the
+ * handler by hand. The phase's stated deliverable could not be used.
+ *
+ * Nothing in the unit tests could see this. Vitest runs the source, and each
+ * half was correct on its own. What was missing was the join between them, and
+ * a join only exists in the shipped artifacts.
+ *
+ * ## What this checks
+ *
+ * For every channel: the string is in the MAIN bundle, so a handler exists, and
+ * the string is in the PRELOAD bundle, so a renderer can reach it. Then one
+ * piece of copy from the confirm surface must be in a renderer bundle, so the
+ * button a person presses is actually shipped.
+ *
+ * The renderer bundles are searched by content rather than by name because the
+ * settings window's chunk carries a content hash.
+ */
+const REACHABLE_CHANNELS = [
+  {
+    channel: 'config:rows',
+    why: 'the list of configured rows, and the errors for rows Tortie dropped'
+  },
+  {
+    channel: 'config:confirm',
+    why: 'the one place a person can agree to what a configured row will run'
+  },
+  {
+    channel: 'config:forget',
+    why: 'withdrawing an agreement, so the row asks again'
+  }
+];
+
+/** Copy that only exists on the confirm surface. */
+const CONFIRM_SURFACE_COPY = [
+  'From your configuration file',
+  'Show what it runs'
+];
+
+function assertReachable(bundle) {
+  const preloadPath = join(repoRoot, 'out', 'preload', 'index.js');
+  const rendererDir = join(repoRoot, 'out', 'renderer', 'assets');
+  const problems = [];
+
+  if (!existsSync(preloadPath)) {
+    problems.push(`${preloadPath} is not there.`);
+  } else {
+    const preload = readFileSync(preloadPath, 'utf8');
+    for (const { channel, why } of REACHABLE_CHANNELS) {
+      if (!bundle.includes(channel)) {
+        problems.push(`${channel} has no handler in out/main/index.js (${why}).`);
+      }
+      if (!preload.includes(channel)) {
+        problems.push(
+          `${channel} is registered in main and is NOT in out/preload/index.js, ` +
+            `so no renderer can reach it (${why}).`
+        );
+      }
+    }
+  }
+
+  if (!existsSync(rendererDir)) {
+    problems.push(`${rendererDir} is not there.`);
+  } else {
+    const files = readdirSync(rendererDir)
+      .filter((name) => name.endsWith('.js'))
+      .map((name) => readFileSync(join(rendererDir, name), 'utf8'));
+    for (const copy of CONFIRM_SURFACE_COPY) {
+      if (!files.some((text) => text.includes(copy))) {
+        problems.push(
+          `no renderer bundle contains ${JSON.stringify(copy)}, so the confirm ` +
+            `gate has no surface a person can use.`
+        );
+      }
+    }
+  }
+
+  if (problems.length > 0) {
+    console.error(
+      '[reachable] a channel or a surface the product depends on did not reach ' +
+        'the shipped artifacts. A gate nobody can pass is not a gate, it is a ' +
+        'feature nobody can use.'
+    );
+    for (const line of problems) console.error(`  ${line}`);
+    process.exit(1);
+  }
+
+  console.log(
+    `[reachable] ${String(REACHABLE_CHANNELS.length)} config channels reach the ` +
+      `preload, and the confirm surface is in the renderer.`
+  );
+}
+
 function main() {
   if (!existsSync(bundlePath)) {
     console.error(
@@ -282,7 +469,7 @@ function main() {
   const staleTable = [];
   const missingFromBundle = [];
 
-  for (const refusal of [...REFUSALS, ...SKILLS_REFUSALS]) {
+  for (const refusal of [...REFUSALS, ...SKILLS_REFUSALS, ...CONFIG_REFUSALS]) {
     const sourcePath = join(repoRoot, refusal.source);
     if (!sources.has(refusal.source)) {
       sources.set(
@@ -339,6 +526,11 @@ function main() {
   console.log(
     `[refusals] ${String(SKILLS_REFUSALS.length)} skills-write refusals are in out/main/index.js.`
   );
+  console.log(
+    `[refusals] ${String(CONFIG_REFUSALS.length)} config confirm-gate refusals are in out/main/index.js.`
+  );
+
+  assertReachable(bundle);
 }
 
 main();

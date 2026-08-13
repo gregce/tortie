@@ -25,7 +25,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { keyDisplay } from '@shared/keymap';
 import { useApp } from '../state/store';
 import {
-  AGENT_INSTALL_COMMANDS,
+  agentInstallCommand,
   buildAgentOptions,
   defaultAgentChoice,
   useAgentAvailability,
@@ -60,11 +60,6 @@ export function FirstRun(): React.JSX.Element {
 // ---------------------------------------------------------------------------
 // §6.2 — project with no sessions: the fleet
 // ---------------------------------------------------------------------------
-
-/** Install command for the caption line, when Tortie knows one. */
-function installCommandFor(id: string): string | null {
-  return id === 'claude' || id === 'codex' ? AGENT_INSTALL_COMMANDS[id] : null;
-}
 
 export function NoSessions(): React.JSX.Element {
   const quickCreate = useApp((s) => s.quickCreate);
@@ -116,7 +111,7 @@ export function NoSessions(): React.JSX.Element {
   };
 
   const hinted = options.find((o) => o.id === hint?.id) ?? null;
-  const hintedCmd = hinted !== null ? installCommandFor(hinted.id) : null;
+  const hintedCmd = hinted !== null ? agentInstallCommand(hinted.id) : null;
 
   return (
     <div className="empty">

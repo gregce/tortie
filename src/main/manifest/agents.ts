@@ -40,12 +40,82 @@ import { runGuarded } from '../proc/guarded';
 import { AGENT_FLAG_PRESETS } from '../agents/flags';
 import {
   getLaunchableEntry,
-  registryLaunchArgv,
+  launchArgvFor,
   registryResumeArgv,
+  resumeArgvFor,
   type AgentHarvestKey,
+  type LaunchableEntryLike,
   type ResumeStrategy
 } from '../agents/registry';
+// PHASE 23. These two imports are the create path's whole relationship with
+// the configuration file, and it is worth saying exactly what they are.
+//
+// `launchableAgentEntry` reads MEMORY. It is a lookup in the merged table the
+// configuration store built at boot, and it has no code that could open a
+// file. The rule this phase is built on is that `agents.json` is read at boot,
+// on an explicit reload and on a watcher debounce, and never on the path that
+// creates a session. Calling this here does not break that rule, and
+// `agentOverlayDiskReads()` is the counter a test uses to prove it.
+//
+// `assertConfigRowMayLaunch` throws when a person has not agreed to the exact
+// bytes that are about to run. It is asked here, immediately before the launch
+// spec is built, because this is the last place that still knows the launch is
+// about to happen.
+import { assertConfigRowMayLaunch } from '../config/confirm';
+import { executionFieldsOf } from '../config/overlay';
+import { launchableAgentEntry } from '../config/store';
 import type { HarvestedSessionId } from './harvest/stores';
+
+// ---------------------------------------------------------------------------
+// The one door onto the configured agent table
+// ---------------------------------------------------------------------------
+
+/**
+ * The entry a launch is about to be composed from, and the confirm gate asked
+ * before it is handed back.
+ *
+ * PHASE 23. This is the single place the create path resolves an agent, and
+ * every rule the phase makes about launching lives in these few lines.
+ *
+ * There are three cases and they are deliberately not symmetrical.
+ *
+ *  1. **A compiled agent nobody configured.** The merged table returns the same
+ *     object the compiled registry holds, `executionHash` is null, and the gate
+ *     is never asked. This is what happens on every machine with no
+ *     `agents.json`, which is nearly all of them, and nothing about it changed.
+ *  2. **A row that only renames a compiled agent.** `executionHash` is still
+ *     null, because nothing the row supplied can cause a program to run. Giving
+ *     Claude Code a nickname must not stop Claude Code launching.
+ *  3. **A row that supplies anything executable.** `executionHash` is a value,
+ *     and {@link assertConfigRowMayLaunch} throws unless a person has agreed to
+ *     that exact value. Change one byte of the argv and the hash moves, so the
+ *     old agreement no longer covers it and Tortie asks again.
+ *
+ * The fallback to the compiled registry is not belt and braces. It is what runs
+ * before boot has finished, in every test that never initialises the store, and
+ * in the smoke harnesses. `getLaunchableEntry` throws for an unknown id, which
+ * is the same loud failure the create path had before this phase.
+ */
+function launchEntryFor(
+  // Not `LaunchableAgentKind`: every caller has already dealt with 'shell',
+  // which has no registry entry and no configuration row. Excluding it here
+  // leaves exactly `LaunchableAgentId`, so the compiled fallback below needs no
+  // cast. A configured id is a string outside that union and reaches this
+  // function at runtime through the same widened path every registry agent
+  // after claude and codex already takes — see the note on `AgentKind` in
+  // src/shared/types.ts, which has been open since Phase 10 and is not this
+  // phase's to close.
+  agent: Exclude<LaunchableAgentKind, 'shell'>
+): LaunchableEntryLike {
+  const merged = launchableAgentEntry(agent);
+  if (merged === null) return getLaunchableEntry(agent);
+  // Null means the row supplied nothing that can run, so there is nothing for
+  // a person to have agreed to and nothing to refuse.
+  if (merged.executionHash !== null) {
+    assertConfigRowMayLaunch(merged.id, executionFieldsOf(merged));
+  }
+  return merged;
+}
 
 // ---------------------------------------------------------------------------
 // Launch specs
@@ -392,11 +462,17 @@ export function buildRecoveryContract(
       flagsVerifiedAgainst: 'never'
     };
   }
-  const entry = getLaunchableEntry(agent);
+  // PHASE 23: the same entry the launch spec was composed from, so a session
+  // created by a configured agent records ITS resume mechanics rather than a
+  // compiled agent's. This is what makes Phase 21's promise hold for a
+  // configured agent too: restore reads the row, and the row has to be right.
+  const entry = launchEntryFor(agent);
   // Keyed on the id that was asked for, not on `entry.id`: the flag catalogue
   // covers the ten LAUNCHABLE agents, while a registry entry's id spans all
-  // twelve and includes the capture-only IDE pair.
-  const catalog = AGENT_FLAG_PRESETS[agent];
+  // twelve and includes the capture-only IDE pair. A configured id is in
+  // neither, so `catalog` is undefined and the contract records 'never'
+  // verified, which is the honest answer for flags Tortie has not checked.
+  const catalog = AGENT_FLAG_PRESETS[agent as keyof typeof AGENT_FLAG_PRESETS];
   const verifiedVersion = catalog?.helpVerifiedVersion ?? null;
   return {
     ...base,
@@ -529,13 +605,17 @@ export function buildLaunchSpec(
     return { agent, argv: [shell, ...extraArgs], idCapture: 'none' };
   }
 
-  const entry = getLaunchableEntry(agent);
+  // PHASE 23: this is the confirm gate's call site. `launchEntryFor` throws
+  // with the refusal sentence when a configured row supplies something
+  // executable that nobody has agreed to, and it throws BEFORE any argv is
+  // composed, so a refused row never becomes a command line at all.
+  const entry = launchEntryFor(agent);
   const capture = entry.resume.idCapture;
   const bin = binPath ?? entry.launch.argv[0] ?? agent;
 
   const spec: AgentLaunchSpec = {
     agent,
-    argv: registryLaunchArgv(agent, extraArgs, binPath),
+    argv: launchArgvFor(entry, extraArgs, binPath),
     idCapture: 'unsupported',
     resumeStrategy: entry.resume.strategy,
     resumeTemplate: [...entry.resume.template]
@@ -546,11 +626,13 @@ export function buildLaunchSpec(
   switch (capture.mode) {
     case 'pre-assign': {
       // The strongest primitive in the field. One place owns id injection:
-      // registryLaunchArgv reads the flag off the same idCapture record.
+      // launchArgvFor reads the flag off the same idCapture record. The gate
+      // is not asked again here, because `entry` is the object it already
+      // cleared and re-asking would only add a second chance to disagree.
       const id = randomUUID();
       spec.agentSessionId = id;
-      spec.argv = registryLaunchArgv(agent, extraArgs, binPath, id);
-      spec.resumeArgv = registryResumeArgv(agent, id, extraArgs, bin);
+      spec.argv = launchArgvFor(entry, extraArgs, binPath, id);
+      spec.resumeArgv = resumeArgvFor(entry, id, extraArgs, bin);
       spec.idCapture = 'preassigned';
       break;
     }
@@ -588,9 +670,15 @@ export async function resolveLaunchSpec(
   const spec = buildLaunchSpec(agent, extraArgs, binPath);
   if (agent === 'shell' || spec.idCapture !== 'preassigned-cmd') return spec;
 
-  const capture = getLaunchableEntry(agent).resume.idCapture;
+  // PHASE 23: the same entry again, so the side command that mints an id comes
+  // off the row that was confirmed. `buildLaunchSpec` above already asked the
+  // gate and would have thrown, so reaching this line means the row is cleared.
+  // The pre-assignment command's own argv is one of the twelve fields the hash
+  // covers, which is why running it here is inside what a person agreed to.
+  const entry = launchEntryFor(agent);
+  const capture = entry.resume.idCapture;
   if (capture.mode !== 'pre-assign-cmd') return spec;
-  const bin = binPath ?? getLaunchableEntry(agent).launch.argv[0] ?? agent;
+  const bin = binPath ?? entry.launch.argv[0] ?? agent;
   // runGuarded, not execFile (Phase 13.8): this runs on the SESSION-CREATE
   // path, and execFile's callback fires on stdio CLOSE — a create-chat that
   // forks anything holding stdout would hang session creation forever and
@@ -607,8 +695,8 @@ export async function resolveLaunchSpec(
     if (!isPlausibleSessionId(id)) return spec;
     spec.agentSessionId = id;
     // Cursor's launch argv IS its resume argv: start into the empty chat.
-    spec.argv = registryResumeArgv(agent, id, extraArgs, bin);
-    spec.resumeArgv = registryResumeArgv(agent, id, extraArgs, bin);
+    spec.argv = resumeArgvFor(entry, id, extraArgs, bin);
+    spec.resumeArgv = resumeArgvFor(entry, id, extraArgs, bin);
   } catch {
     /* an unusable id or argv rewrite — the bare launch still stands */
   }
