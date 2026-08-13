@@ -2993,6 +2993,18 @@ All four items landed in one commit, and none of the Phase 22 install requiremen
 
 ---
 
+## Phase 26.1 — align the Enable for picker and tighten its reasons (user reported, 2026-08-13) ✅ SHIPPED 2026-08-13
+
+The operator screenshotted the "Enable copywriting for..." dialog and asked for aligned
+checkboxes and fixed spacing. The agent rows now lay out on the same fixed grid the install
+sheet fleet uses, so the checkbox columns align instead of drifting with label length. The
+dialog widens to 560px so three columns fit. The disabled row reasons render as one block
+with a small fixed gap and no stacked paragraph margins. Agents that share the same reason
+are named together in one sentence, and no fact is dropped. Tier 1 with a driven capture on
+an isolated socket. Measured checkbox columns at x 465, 640 and 816 on every row.
+
+---
+
 ## Phase 26.2 — naming disagreements, handled by ownership (user decided, 2026-08-13)
 
 Reference screenshots:

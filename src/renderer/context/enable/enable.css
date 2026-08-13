@@ -12,7 +12,9 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  width: min(440px, calc(100vw - var(--space-8) * 2));
+  /* Wide enough for three 160px grid columns inside the modal's padding, so
+     ten agents read as a short block rather than a tall one. */
+  width: min(560px, calc(100vw - var(--space-8) * 2));
 }
 
 .ctx-enable-head {
@@ -23,6 +25,7 @@
 }
 
 .ctx-enable-source {
+  margin: 0;
   font-size: var(--text-sm);
   line-height: var(--lh-sm);
   color: var(--text-secondary);
@@ -32,10 +35,15 @@
   font-family: var(--font-mono);
 }
 
+/* The same fleet treatment the install sheet uses (`.ctxd-preview
+   .ctxd-targets` in install.css): fixed grid tracks so the checkbox columns
+   align vertically instead of drifting with label length. The install rule is
+   scoped under its preview container, so this surface restates the four lines
+   rather than inheriting a container-query context it does not have. */
 .ctx-enable-targets {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3) var(--space-5);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--space-3) var(--space-4);
 }
 
 .ctx-enable-target {
@@ -51,15 +59,25 @@
   color: var(--text-disabled);
 }
 
+/* One quiet block for the disabled-row reasons: a small fixed gap between
+   lines and no default paragraph margins stacking on top of the dialog gap. */
+.ctx-enable-reasons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
 .ctx-enable-reason {
+  margin: 0;
   font-size: var(--text-xs);
   line-height: var(--lh-xs);
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 
 /* Why the primary control cannot be pressed, as a sentence on the surface.
    Not --error: nothing failed, the surface is stating a rule. */
 .ctx-enable-blocker {
+  margin: 0;
   font-size: var(--text-sm);
   line-height: var(--lh-sm);
   color: var(--text-secondary);

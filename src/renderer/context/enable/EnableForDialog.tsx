@@ -20,7 +20,12 @@ import { trapTabKey } from '../../app/focus-trap';
 import { AgentIcon } from '../../icons';
 import { enableBlocker } from './enable-model';
 import { useEnableFlow } from './enable-store';
+import { registerEnableShotProbe } from './shot-probe';
 import './enable.css';
+
+// Harness-only (Phase 26.1): an inert window global the GMUX_SHOT harness can
+// call to open this dialog, because its real entry point is a native menu.
+registerEnableShotProbe();
 
 export function EnableForDialog(): React.JSX.Element | null {
   const flow = useEnableFlow();
@@ -42,6 +47,20 @@ export function EnableForDialog(): React.JSX.Element | null {
 
   const known = flow.source !== null;
   const blocker = known ? enableBlocker(flow.targets) : null;
+
+  // Agents that share the exact same unavailable reason are named together in
+  // one sentence. The fact is printed once per distinct reason, never dropped.
+  const reasonGroups: Array<{ reason: string; names: string[] }> = [];
+  for (const t of flow.targets) {
+    if (t.unavailableReason === null) continue;
+    const group = reasonGroups.find((g) => g.reason === t.unavailableReason);
+    if (group) group.names.push(t.agentName);
+    else reasonGroups.push({ reason: t.unavailableReason, names: [t.agentName] });
+  }
+  const nameList = (names: string[]): string =>
+    names.length <= 1
+      ? (names[0] ?? '')
+      : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
 
   return createPortal(
     <div
@@ -104,13 +123,15 @@ export function EnableForDialog(): React.JSX.Element | null {
         {/* The reason treatment the install sheet has: the row is disabled
             AND the reason is printed, because a fact behind a tooltip is a
             fact most people never meet. */}
-        {flow.targets
-          .filter((t) => t.unavailableReason !== null)
-          .map((t) => (
-            <p key={t.agentId} className="ctx-enable-reason">
-              {t.agentName}: {t.unavailableReason}
-            </p>
-          ))}
+        {reasonGroups.length > 0 ? (
+          <div className="ctx-enable-reasons">
+            {reasonGroups.map((g) => (
+              <p key={g.reason} className="ctx-enable-reason">
+                {nameList(g.names)}: {g.reason}
+              </p>
+            ))}
+          </div>
+        ) : null}
 
         {known ? (
           <>
