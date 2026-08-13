@@ -3031,6 +3031,20 @@ both, crop and read: the bundled one must take no section row and show the quiet
 user owned one must show the actionable warning with both fixes and Open Folder. Confirm the
 consequence sentence names real agents from the registry rather than a hardcoded pair.
 
+**Item added by the operator, 2026-08-13: the skill name gets more room.**
+Reference: /Users/gdc/Library/Application Support/CleanShot/media/media_Sy0AfdClVM sibling shot at
+13.40, showing names crushed to about ten characters while summaries keep most of a wide row.
+Root cause, read from context.css around line 337: the name is flex 0 1 auto with a 40 px floor, so
+when a row overflows, name and summary shrink proportionally to their natural widths. A long summary
+has a huge natural width, so it keeps hundreds of pixels while the name hits its floor. The comment
+above that rule says the summary gives way first, and the flex arithmetic does the opposite, so the
+code disagrees with its own comment.
+The fix: the name renders whole up to a generous cap that scales with the pane (a ch based cap, not
+a pixel constant), the summary truncates first, and the name only truncates when the name alone
+cannot fit the row. Prove it with a screenshot read at a wide pane and at 300 px: at the wide pane
+every name in the operator's screenshot renders whole.
+
 **What must not regress.** The hover card and detail surfaces from Phase 22, the section counts
 (bundled entries are already excluded from counts and must stay excluded), and the no secret
-rendering rule.
+rendering rule. The 24 px row rhythm and the three width tiers, including T3 where the summary
+moves to the hover card.
