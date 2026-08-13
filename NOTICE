@@ -1,0 +1,74 @@
+Tortie
+Copyright 2026 Itavero LLC
+
+This product includes software developed by third parties. The notices below
+are the attribution those licences require. Each dependency's full licence text
+ships inside its own package under node_modules, and inside the application
+bundle where the dependency is bundled.
+
+--------------------------------------------------------------------------------
+Codicons
+--------------------------------------------------------------------------------
+Tortie's interface icons are the Codicon set from Microsoft.
+
+  @vscode/codicons
+  Copyright (c) Microsoft Corporation
+  Icons are licensed under CC BY 4.0: https://creativecommons.org/licenses/by/4.0/
+  Source code in that package is licensed under the MIT Licence.
+
+CC BY 4.0 requires attribution, which is the reason this entry exists and the
+reason the same credit appears in the application's About panel.
+
+--------------------------------------------------------------------------------
+Code copied from Visual Studio Code
+--------------------------------------------------------------------------------
+Two files contain algorithms copied or adapted from microsoft/vscode rather than
+reimplemented, which is deliberate under the project rule to assemble rather than
+reinvent.
+
+  src/main/quickopen/scorer.ts        adapted from VS Code's fuzzyScorer
+  src/renderer/scm/graph/layout.ts    the commit graph swimlane fold
+
+  Copyright (c) Microsoft Corporation
+  Licensed under the MIT Licence.
+
+--------------------------------------------------------------------------------
+Bundled and linked dependencies
+--------------------------------------------------------------------------------
+Apache Licence 2.0
+
+  @pierre/diffs                       Pierre Computer
+  @pierre/trees                       Pierre Computer
+
+MIT Licence
+
+  monaco-editor                       Microsoft Corporation
+  @xterm/xterm and its addons         The xterm.js authors
+  node-pty                            Microsoft Corporation
+  better-sqlite3                      Joshua Wise
+  react, react-dom                    Meta Platforms, Inc. and affiliates
+  zustand                             Paul Henschel
+  web-tree-sitter                     Max Brunsfeld
+  @vscode/tree-sitter-wasm            Microsoft Corporation
+  @vscode/ripgrep                     Microsoft Corporation
+  fuzzysort                           Stephen Kamenar
+  react-markdown, remark-gfm,
+  rehype-raw, rehype-sanitize         Titus Wormer
+  @shikijs/rehype                     Pine Wu and Anthony Fu
+  @parcel/watcher                     Devon Govett
+
+--------------------------------------------------------------------------------
+Bundled binaries
+--------------------------------------------------------------------------------
+The macOS application bundle carries two executables that are not built from this
+repository.
+
+  ripgrep, through @vscode/ripgrep     Andrew Gallant, MIT or Unlicense
+  specstory                            SpecStory, bundled under a pinned release
+
+--------------------------------------------------------------------------------
+tmux
+--------------------------------------------------------------------------------
+Tortie does not bundle tmux. It runs the tmux already installed on the machine,
+as a separate process on a private socket, and never modifies the user's own tmux
+configuration or their default server. tmux is licensed under the ISC Licence.

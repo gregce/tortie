@@ -30,6 +30,7 @@ the wordmark is a wordmark. Revisit only if the operator asks.
 | 7 | **22** the Context sidebar, with installing enabled | SPECCED BELOW | 21, and it runs **before** the release lane by operator instruction |
 | 8 | **23** Tortie Config, configuration not code, plus the authoring prompt | SPECCED BELOW | 22, and **never before 21**. Opens with a re-baseline of the code |
 | 9 | **25** downloads and usage measurement | SPECCED BELOW | must ship **in** the released build, so it lands before the release lane |
+| 9b | **25.5** the DeepSeek CLI renamed itself and detection is broken | SPECCED BELOW | nothing. Small, and can run beside any phase |
 | 10 | **Release lane** Itavero identity, signing, notarization, version scheme, four CI lanes | ready | after Phase 25 |
 | 11 | **24** self update | SPECCED BELOW | the release lane. Impossible before the app is signed |
 | — | Release lane, second half: signing, notarization, the updater | blocked | the operator's App Store Connect issuer identifier |
@@ -1994,3 +1995,44 @@ assurance. Also Tier 3 for the specstory wrap fix, with the same network sink pr
 The content security policy, which today prevents the renderer reaching any network host and which is
 why the renderer holding the project tree and terminal buffers cannot leak. The main process posts and
 holds none of that. Keep it that way.
+
+---
+
+## Phase 25.5 — the DeepSeek CLI renamed itself and detection is broken (2026-08-12)
+
+Found by research 38 while surveying licences, unrelated to licensing, and verified twice.
+
+**The defect.** `deepseek-tui` at version 0.8.47 publishes an **empty bin field**, so installing it
+installs no executable at all. The successor package is `codewhale` at 0.9.6, which installs two
+binaries named `codewhale` and `codew`. Tortie's registry probes `binaries: ['deepseek']`.
+
+**Why nobody noticed.** Detection works on this machine only because an older 0.8.26 is still
+installed from before the rename. **A fresh install today is not detected**, and every existing
+DeepSeek session in the manifest records a binary path that a new machine will not have.
+
+### What to do
+Probe for the new names as well as the old one, oldest last, so an existing install keeps working and
+a new one is found. Decide at the spec stage whether the registry entry keeps the id `deepseek` and
+gains new binary names, or whether the display name changes too. **The id is the safer thing to keep**,
+because it is written into every manifest row for a DeepSeek session and into the SpecStory provider
+mapping.
+
+Check the rest of the registry while you are there. If one agent renamed its package without anyone
+noticing, another may have. Research 30 measured five of nine installed agents drifting in three days,
+so this is the second finding of the same kind and the phase should say whether it is a pattern.
+
+### The wider question this raises, worth one paragraph rather than a phase
+Tortie has no mechanism that would have caught this. There is a version drift check specified in
+research 30 as part of Phase 21, but it compares versions of a binary it already found. **A binary
+that disappears entirely, because the package renamed, is a different failure and nothing looks for
+it.** Say in the phase report whether the Phase 21 drift work covers it, and if not, what would.
+
+### Verification
+Tier 2, plus the resume conformance capture, which CLAUDE.md requires for any commit touching
+`agents/registry.ts` and which costs about 16 seconds and no agent turns.
+Prove detection against a machine state where the old binary is absent. The obvious way is a scratch
+`PATH` that excludes it, since removing the operator's installed copy is not acceptable.
+
+### What must not regress
+Existing DeepSeek sessions in the manifest, which record the old binary. Their resume must still work
+where that binary is still present. SpecStory capture for DeepSeek, which maps on the provider id.
