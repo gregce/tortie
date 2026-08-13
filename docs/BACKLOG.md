@@ -2990,3 +2990,47 @@ All four items landed in one commit, and none of the Phase 22 install requiremen
   decision now fits one screen. The preview stays a modal. At the 300 px panel tier that span
   measures 960 px against a 760 px viewport, so the verdict and the confirm can never share a
   screen there under the no-loss rule.
+
+---
+
+## Phase 26.2 — naming disagreements, handled by ownership (user decided, 2026-08-13)
+
+Reference screenshots:
+- /Users/gdc/Library/Application Support/CleanShot/media/media_Sy0AfdClVM/CleanShot 2026-08-13 at 13.37.18@2x.png
+  shows the red banner row the bundled case currently takes at the top of the skills section.
+- /Users/gdc/Library/Application Support/CleanShot/media/media_1NvnD7c2Sf area screenshots show the
+  hover and detail surfaces where the quiet note belongs.
+
+**The defect.** A skill whose folder name and frontmatter name disagree gets a red error banner row
+in the skills section. For the case that triggered this, the skill ships inside Antigravity's own
+installation under ~/.gemini/antigravity-cli/builtin/, so the user cannot act on it. Red demands an
+action that does not exist, and the banner spends a full row of a 220 to 400 px panel on it.
+
+**The operator decision.** Severity and placement follow ownership.
+1. **Bundled or vendor owned: no row in the skills section at all.** The inconsistency appears only
+   in the hover card and the detail view, as one quiet informational sentence that names the owner,
+   e.g. "This inconsistency is inside Antigravity's own installation. Tortie will not edit vendor
+   files." Secondary text token, no error icon, no red.
+2. **User owned** (~/.claude/skills, ~/.agents/skills, project skills): the warning stays visible in
+   the section, and becomes actionable. State the two fixes plainly, being rename the folder to
+   match the name, or edit the name to match the folder, with an Open Folder affordance beside it.
+3. **Everywhere, replace the category sentence with the consequence**, drawn from the per agent
+   verdicts the resolver already keeps (src/main/context/resolve.ts keeps every verdict when agents
+   disagree): "claude will call this antigravity_guide, gemini will call it antigravity-guide."
+4. **No one click fix.** Research 36 drew the line that Tortie never hand edits skill files or
+   directories, and this phase does not cross it. Reopen only if the operator asks after living with
+   the guided fix.
+
+**Grounding, already verified in the code.** Ownership is computed in the same module that produces
+the warning (agent-context.ts carries bundled on the entry), so conditioning severity on it needs no
+new plumbing. The per agent name verdicts already exist in the resolver.
+
+**Verification.** Tier 2. Drive the real app with an isolated HOME containing one bundled shaped
+inconsistency and one user owned inconsistency. Screenshot the section, the hover and the detail for
+both, crop and read: the bundled one must take no section row and show the quiet note on hover, the
+user owned one must show the actionable warning with both fixes and Open Folder. Confirm the
+consequence sentence names real agents from the registry rather than a hardcoded pair.
+
+**What must not regress.** The hover card and detail surfaces from Phase 22, the section counts
+(bundled entries are already excluded from counts and must stay excluded), and the no secret
+rendering rule.
