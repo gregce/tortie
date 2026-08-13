@@ -15,22 +15,32 @@
  * (tmux stream) composes records and calls this store.
  */
 
-import type Database from 'better-sqlite3';
+import Database from 'better-sqlite3';
 import { app } from 'electron';
 import { join } from 'node:path';
 import {
+  addColumnIfMissing,
+  durableTransaction,
   immediateTransaction,
   openGmuxDatabase,
+  reportDatabaseGate,
   runMigrations,
+  type IntegrityGateReport,
   type SqliteMigration
 } from '../db/sqlite';
-import type {
-  GmuxErrorPayload,
-  Project,
-  ResumeCapture,
-  Session,
-  SessionCapture,
-  SessionStatus
+import { postDurabilityNotice } from '../notice';
+import {
+  RESUME_CAPTURES,
+  SESSION_STATUSES,
+  type GmuxErrorPayload,
+  type Project,
+  type ResumeCapture,
+  type RestoreResultKind,
+  type RestoreStage,
+  type Session,
+  type SessionCapture,
+  type SessionRestore,
+  type SessionStatus
 } from '@shared/types';
 import type { SpecstoryCaptureRecord } from '../specstory/capture';
 
@@ -200,12 +210,58 @@ interface SessionRow {
   resume_capture: string | null;
   /** SpecStory capture record as JSON (migration 005, Phase 15). */
   specstory: string | null;
+  /** What the last restore achieved, as JSON (migration 006, Phase 19). */
+  restore: string | null;
 }
 
 interface ProjectRow {
   id: string;
   path: string;
   name: string;
+}
+
+/** One row of `restore_attempts` (migration 007, Phase 19 item 7). */
+interface RestoreAttemptRow {
+  id: number;
+  session_id: string;
+  started_at: number;
+  tmux_id: string | null;
+  outcome: string | null;
+  finished_at: number | null;
+}
+
+/**
+ * One recorded restore attempt.
+ *
+ * `outcome === null` means the attempt never finished, which is the only
+ * signal the journal exists to produce. `tmuxId === null` on such a row means
+ * no tmux session was recorded, which is NOT the same as "no tmux session
+ * exists": the app can stop between `new-session` returning and the id being
+ * written. Only tmux can settle that, so the resolution asks it.
+ */
+export interface RestoreAttemptRecord {
+  id: number;
+  sessionId: string;
+  startedAt: number;
+  tmuxId: string | null;
+  outcome: RestoreResultKind | null;
+  finishedAt: number | null;
+}
+
+function toRestoreAttempt(row: RestoreAttemptRow): RestoreAttemptRecord {
+  const outcome =
+    row.outcome !== null &&
+    (RESTORE_KINDS as readonly string[]).includes(row.outcome)
+      ? (row.outcome as RestoreResultKind)
+      : null;
+  return {
+    id: row.id,
+    sessionId: row.session_id,
+    startedAt: row.started_at,
+    tmuxId: row.tmux_id,
+    outcome,
+    finishedAt: row.finished_at
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -225,29 +281,30 @@ function manifestError(
 // Serialization helpers
 // ---------------------------------------------------------------------------
 
-const SESSION_STATUSES: readonly SessionStatus[] = [
-  'running',
-  'idle',
-  'needs_input',
-  'exited',
-  'restorable'
-];
-
+/**
+ * The parse whitelists are the SAME lists the types are derived from
+ * (`SESSION_STATUSES`, `RESUME_CAPTURES` in shared/types.ts), imported rather
+ * than copied. They used to be two local copies typed `readonly Session-
+ * Status[]` and `readonly ResumeCapture[]`, and that type accepts a SHORTER
+ * array: adding a member to either union and forgetting the copy here compiled
+ * cleanly, and every row carrying the new member then degraded silently on
+ * read (research 34 §3.5). One list, one place, and a missing member is now a
+ * compile error at the declaration instead.
+ */
 function asStatus(s: string): SessionStatus {
   if ((SESSION_STATUSES as readonly string[]).includes(s)) {
     return s as SessionStatus;
   }
   // A row written by a future schema shouldn't crash the app; degrade to
   // the safest interpretation ("we only know it from the manifest").
+  //
+  // A LATER PHASE ADDING A MEMBER MUST CHECK THIS LINE. `restorable` is safe
+  // for every member that exists today, because every one of them is either
+  // live (and reconcile will see it live) or a restore candidate. It would NOT
+  // be safe for a member that means "do not act on this row", so a member of
+  // that kind needs its own answer here, not this default.
   return 'restorable';
 }
-
-const RESUME_CAPTURES: readonly ResumeCapture[] = [
-  'armed',
-  'capturing',
-  'unavailable',
-  'none'
-];
 
 /**
  * A row written before migration 004 has no capture state. It is left
@@ -328,6 +385,61 @@ function parseSpecstory(text: string | null): SpecstoryCaptureRecord | undefined
   }
 }
 
+/** The five kinds, as the parse whitelist. Derived from the type, not copied. */
+const RESTORE_KINDS: readonly RestoreResultKind[] = [
+  'failed',
+  'interrupted',
+  'shell_only',
+  'transcript',
+  'armed'
+];
+
+const RESTORE_STAGES: readonly RestoreStage[] = [
+  'preflight',
+  'create',
+  'replay',
+  'arm'
+];
+
+/**
+ * Parse the `restore` column (Phase 19 item 6).
+ *
+ * An unreadable value is dropped whole and the session reads as one that has
+ * never been restored. That is the safe direction: the alternative is half a
+ * record, and a half-read record could claim a conversation came back when
+ * nothing did.
+ */
+function parseRestore(text: string | null): SessionRestore | undefined {
+  if (text === null) return undefined;
+  try {
+    const v: unknown = JSON.parse(text);
+    if (v === null || typeof v !== 'object' || Array.isArray(v)) return undefined;
+    const o = v as Record<string, unknown>;
+    const kind = o['kind'];
+    const at = o['at'];
+    if (typeof kind !== 'string') return undefined;
+    if (!(RESTORE_KINDS as readonly string[]).includes(kind)) return undefined;
+    if (typeof at !== 'number' || !Number.isFinite(at)) return undefined;
+    const stage = o['stage'];
+    const reason = o['reason'];
+    const replayFailure = o['replayFailure'];
+    const armFailure = o['armFailure'];
+    return {
+      kind: kind as RestoreResultKind,
+      at,
+      ...(typeof stage === 'string' &&
+      (RESTORE_STAGES as readonly string[]).includes(stage)
+        ? { stage: stage as RestoreStage }
+        : {}),
+      ...(typeof reason === 'string' ? { reason } : {}),
+      ...(typeof replayFailure === 'string' ? { replayFailure } : {}),
+      ...(typeof armFailure === 'string' ? { armFailure } : {})
+    };
+  } catch {
+    return undefined;
+  }
+}
+
 function rowToRecord(row: SessionRow): ManifestSessionRecord {
   const record: ManifestSessionRecord = {
     id: row.id,
@@ -359,6 +471,8 @@ function rowToRecord(row: SessionRow): ManifestSessionRecord {
   if (capture !== undefined) record.resumeCapture = capture;
   const specstory = parseSpecstory(row.specstory);
   if (specstory !== undefined) record.specstory = specstory;
+  const restore = parseRestore(row.restore);
+  if (restore !== undefined) record.restore = restore;
   return record;
 }
 
@@ -402,6 +516,10 @@ export function toSession(record: ManifestSessionRecord): Session {
   if (record.specstory?.enabled === true) {
     session.capture = toSessionCapture(record.specstory);
   }
+  // Phase 19 item 6: the renderer has to be able to say "this came back
+  // without its history", so the restore result travels with the projection
+  // rather than staying a main-process fact.
+  if (record.restore !== undefined) session.restore = record.restore;
   return session;
 }
 
@@ -472,7 +590,7 @@ const MIGRATIONS: readonly SqliteMigration[] = [
     // migration.
     name: '002-exit-code',
     up: (db) => {
-      db.exec('ALTER TABLE sessions ADD COLUMN exit_code INTEGER;');
+      addColumnIfMissing(db, 'sessions', 'exit_code', 'INTEGER');
     }
   },
   {
@@ -483,10 +601,8 @@ const MIGRATIONS: readonly SqliteMigration[] = [
     // create, it is what lets a post-mortem correlate against `ps` history.
     name: '003-death-forensics',
     up: (db) => {
-      db.exec(`
-        ALTER TABLE sessions ADD COLUMN exit_signal TEXT;
-        ALTER TABLE sessions ADD COLUMN pane_pid INTEGER;
-      `);
+      addColumnIfMissing(db, 'sessions', 'exit_signal', 'TEXT');
+      addColumnIfMissing(db, 'sessions', 'pane_pid', 'INTEGER');
     }
   },
   {
@@ -496,7 +612,7 @@ const MIGRATIONS: readonly SqliteMigration[] = [
     // in flight, and a harvest that gave up. NULL for pre-existing rows.
     name: '004-resume-capture',
     up: (db) => {
-      db.exec('ALTER TABLE sessions ADD COLUMN resume_capture TEXT;');
+      addColumnIfMissing(db, 'sessions', 'resume_capture', 'TEXT');
     }
   },
   {
@@ -509,7 +625,68 @@ const MIGRATIONS: readonly SqliteMigration[] = [
     // the unwrapped agent argv, cannot compose anything.
     name: '005-specstory-capture',
     up: (db) => {
-      db.exec('ALTER TABLE sessions ADD COLUMN specstory TEXT;');
+      addColumnIfMissing(db, 'sessions', 'specstory', 'TEXT');
+    }
+  },
+  {
+    // Phase 19 item 6: what the last restore of this session ACHIEVED. The
+    // restore path computed whether the scrollback was replayed and whether
+    // the resume was armed, then discarded both and wrote 'running', so a
+    // restore whose two stages had failed read as a healthy session.
+    //
+    // One JSON column rather than three, for the same reason `specstory` is
+    // one: the fields are meaningless apart. A failure string without the
+    // kind it belongs to cannot be rendered, and a kind without its failure
+    // strings cannot tell "this shell had no conversation" from "this
+    // session's conversation could not be armed".
+    //
+    // NULL — what every pre-existing row gets — reads as "never restored",
+    // which is what those rows are.
+    name: '006-restore-outcome',
+    up: (db) => {
+      addColumnIfMissing(db, 'sessions', 'restore', 'TEXT');
+    }
+  },
+  {
+    // Phase 19 item 7: the restore journal, in the manifest.
+    //
+    // WHY IT IS A TABLE IN THIS DATABASE AND NOT A FILE OF ITS OWN. A second
+    // durability domain can disagree with the first, and detecting exactly
+    // that disagreement is the reason the journal exists. If the journal is a
+    // file, "the journal and the manifest disagree" has two possible causes,
+    // being a real interrupted restore or a torn journal file, and no way to
+    // tell them apart. In the same database the intent row and the row it is
+    // about commit under the same transaction machinery, so a disagreement
+    // means what it says.
+    //
+    // WHAT `outcome IS NULL` MEANS AT THE NEXT LAUNCH. Tortie stopped between
+    // starting a restore and finishing it. `tmux_id` tells the next launch
+    // whether a tmux session was created before it stopped. Neither field is
+    // taken as proof on its own: the resolution asks tmux what is actually
+    // there and compares. See restore/journal.ts.
+    //
+    // better-sqlite3 is synchronous, so the intent row is written before the
+    // first side effect with no `await` between them and therefore no window.
+    // An async journal would put that window back.
+    name: '007-restore-attempts',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS restore_attempts (
+          id         INTEGER PRIMARY KEY AUTOINCREMENT,
+          session_id TEXT    NOT NULL,
+          started_at INTEGER NOT NULL,
+          -- Filled the instant tmux new-session returns. NULL means no
+          -- session was created, or Tortie stopped before it could be
+          -- recorded, and only tmux can say which.
+          tmux_id     TEXT,
+          -- NULL means the attempt never finished. Otherwise a
+          -- RestoreResultKind.
+          outcome     TEXT,
+          finished_at INTEGER
+        );
+        CREATE INDEX IF NOT EXISTS idx_restore_attempts_open
+          ON restore_attempts(outcome) WHERE outcome IS NULL;
+      `);
     }
   }
 ];
@@ -524,6 +701,66 @@ const MIGRATIONS: readonly SqliteMigration[] = [
  */
 export function defaultManifestDbPath(): string {
   return join(app.getPath('userData'), 'gmux', 'manifest.db');
+}
+
+/**
+ * Say out loud that the session list was damaged and where the damaged copy
+ * went (items 5 and 9).
+ *
+ * A quarantine the user cannot find is indistinguishable from a delete, so the
+ * path travels with the notice and the renderer offers a Finder reveal on it.
+ * `recoveredAt` is the moment the copy now in use was rebuilt, and it is null
+ * when the rebuild produced nothing and Tortie is starting empty.
+ *
+ * The log line the opener writes is kept as well. This adds a reader, it does
+ * not replace one.
+ */
+function reportManifestGate(report: IntegrityGateReport): void {
+  reportDatabaseGate(report);
+  // A file nothing could read is not a file that was damaged, and the two need
+  // opposite reactions from the user. See ManifestUnreadableNotice.
+  if (report.outcome === 'unreadable') {
+    postDurabilityNotice({ kind: 'manifest-unreadable', path: report.path });
+    return;
+  }
+  if (report.outcome !== 'quarantined' || report.quarantinedTo === undefined) {
+    return;
+  }
+  postDurabilityNotice({
+    kind: 'manifest-quarantined',
+    quarantinePath: report.quarantinedTo,
+    recoveredAt: report.recovery?.ok === true ? Date.now() : null
+  });
+}
+
+/**
+ * Open a candidate manifest exactly the way the constructor below opens the
+ * real one, and throw if anything about it refuses.
+ *
+ * Handed to the recovery step as `verifyRebuilt`, which will not publish a
+ * rebuild that does not survive this. WHY IT HAS TO BE THIS FUNCTION AND NOT A
+ * PRAGMA. `/usr/bin/sqlite3 .recover` rebuilds from the FINAL schema, so a
+ * recovered manifest already carries every column, while the `migrations`
+ * bookkeeping table can come back holding one row. `integrity_check` says the
+ * file is perfect. The migration runner then decides `002-exit-code` has not
+ * run and its `ALTER TABLE` throws `duplicate column name: exit_code`.
+ * Measured: the rebuilt file was published, the app could not open it, and
+ * EVERY later launch on that profile failed the same way with no notice at all.
+ *
+ * The migrations are idempotent as well now (`addColumnIfMissing`), so this
+ * gate and that change close the same hole from both ends.
+ */
+function verifyManifestOpenable(dbPath: string): void {
+  const db = new Database(dbPath, { fileMustExist: true });
+  try {
+    db.pragma('journal_mode = WAL');
+    runMigrations(db, MIGRATIONS);
+    // One read through the real query surface. A schema that migrates and then
+    // cannot be selected from is still a manifest the app cannot use.
+    db.prepare('SELECT COUNT(*) AS c FROM sessions').get();
+  } finally {
+    db.close();
+  }
 }
 
 export class ManifestStore {
@@ -541,13 +778,30 @@ export class ManifestStore {
       // Pragmas (WAL, synchronous, busy_timeout) live in ONE opener shared with
       // the symbol index — they had already drifted apart once, and the copy
       // that lost the busy_timeout was this one (research 25 §3 B2).
-      this.db = openGmuxDatabase(dbPath);
+      // Phase 19 items 5 and 9. The gate's own default only writes to the log,
+      // which nobody in the shipped app can read. The notice is posted HERE
+      // rather than inside the opener because the opener is shared with the
+      // symbol index, and "your session list was damaged" is false about a
+      // file the app rebuilds by walking the repository.
+      this.db = openGmuxDatabase(dbPath, {
+        onGate: reportManifestGate,
+        // A rebuild the app cannot open is a FAILED rebuild. See
+        // verifyManifestOpenable for the permanent failure this closes.
+        verifyRebuilt: verifyManifestOpenable
+      });
       runMigrations(this.db, MIGRATIONS);
+      // Bound the journal on open (Phase 19 item 7). Unfinished attempts are
+      // never pruned: the launch that is starting right now has not yet had
+      // its chance to act on them.
+      this.pruneRestoreAttempts();
     } catch (err) {
+      // The message reaches a toast verbatim, so it is product copy. The path
+      // travels in `detail`, where a bug report finds it: a truncated absolute
+      // path in a two-line toast tells the user nothing and looks like a crash.
       throw manifestError(
         'FS_FAILED',
-        `Could not open the session manifest at ${dbPath}`,
-        (err as Error).message
+        'Tortie could not open your session list.',
+        `${dbPath}: ${(err as Error).message}`
       );
     }
   }
@@ -568,12 +822,12 @@ export class ManifestStore {
           `INSERT INTO sessions
              (id, name, tmux_name, project_path, cwd, agent, agent_session_id,
               argv, resume_argv, env, status, created_at, last_seen, exit_code,
-              exit_signal, pane_pid, resume_capture, specstory)
+              exit_signal, pane_pid, resume_capture, specstory, restore)
            VALUES
              (@id, @name, @tmuxName, @projectPath, @cwd, @agent,
               @agentSessionId, @argv, @resumeArgv, @env, @status,
               @createdAt, @lastSeen, @exitCode, @exitSignal, @panePid,
-              @resumeCapture, @specstory)`
+              @resumeCapture, @specstory, @restore)`
         )
         .run({
           id: record.id,
@@ -595,7 +849,8 @@ export class ManifestStore {
           exitSignal: record.exitSignal ?? null,
           panePid: record.panePid ?? null,
           resumeCapture: record.resumeCapture ?? null,
-          specstory: record.specstory ? JSON.stringify(record.specstory) : null
+          specstory: record.specstory ? JSON.stringify(record.specstory) : null,
+          restore: record.restore ? JSON.stringify(record.restore) : null
         });
     } catch (err) {
       throw manifestError(
@@ -654,6 +909,7 @@ export class ManifestStore {
       merged.resumeCapture = patch.resumeCapture;
     }
     if (patch.specstory !== undefined) merged.specstory = patch.specstory;
+    if (patch.restore !== undefined) merged.restore = patch.restore;
 
     this.db
       .prepare(
@@ -663,7 +919,8 @@ export class ManifestStore {
            argv = @argv, resume_argv = @resumeArgv, env = @env,
            status = @status, last_seen = @lastSeen, exit_code = @exitCode,
            exit_signal = @exitSignal, pane_pid = @panePid,
-           resume_capture = @resumeCapture, specstory = @specstory
+           resume_capture = @resumeCapture, specstory = @specstory,
+           restore = @restore
          WHERE id = @id`
       )
       .run({
@@ -683,7 +940,8 @@ export class ManifestStore {
         exitSignal: merged.exitSignal ?? null,
         panePid: merged.panePid ?? null,
         resumeCapture: merged.resumeCapture ?? null,
-        specstory: merged.specstory ? JSON.stringify(merged.specstory) : null
+        specstory: merged.specstory ? JSON.stringify(merged.specstory) : null,
+        restore: merged.restore ? JSON.stringify(merged.restore) : null
       });
     return merged;
   }
@@ -734,6 +992,140 @@ export class ManifestStore {
    */
   deleteSession(id: string): void {
     this.db.prepare<[string]>('DELETE FROM sessions WHERE id = ?').run(id);
+  }
+
+  /**
+   * Record what the last restore of this session achieved, and the liveness
+   * status that follows from it, as ONE write (Phase 19 item 6).
+   *
+   * They are one write because they are one fact seen from two sides. A row
+   * that says `running` with no restore record next to it is the defect this
+   * item exists to fix, and a row that carries a `failed` restore record while
+   * its status says `running` would be the same defect wearing the fix.
+   */
+  setRestoreResult(
+    id: string,
+    restore: SessionRestore,
+    status: SessionStatus
+  ): ManifestSessionRecord {
+    return this.updateSession(id, { restore, status, lastSeen: Date.now() });
+  }
+
+  // -------------------------------------------------------------------------
+  // The restore journal (Phase 19 item 7)
+  //
+  // Three writes per restore, and all three are durable commits: the intent
+  // before anything is created, the tmux id the instant the session exists,
+  // and the resolution. Durable here means `synchronous=FULL` plus
+  // `fullfsync=1` for that commit only, measured at 4.24 ms against 0.011 ms
+  // for an ordinary one (research 34 §1.1). A restore already costs hundreds
+  // of milliseconds in tmux, and these three rows are the only record of it
+  // that a machine which loses power mid-restore will have.
+  // -------------------------------------------------------------------------
+
+  /**
+   * Write the intent to restore `sessionId`, BEFORE any side effect, and
+   * return the attempt id.
+   *
+   * Synchronous by construction. better-sqlite3 does not await, so there is no
+   * window between this row committing and the caller taking its first action.
+   */
+  beginRestoreAttempt(sessionId: string, at: number = Date.now()): number {
+    return durableTransaction(this.db, () => {
+      const info = this.db
+        .prepare<[string, number]>(
+          'INSERT INTO restore_attempts (session_id, started_at) VALUES (?, ?)'
+        )
+        .run(sessionId, at);
+      return Number(info.lastInsertRowid);
+    });
+  }
+
+  /**
+   * Record the tmux session id the instant `new-session` returns.
+   *
+   * This is the row that tells the next launch a process may exist. It is
+   * written as its own durable commit rather than being folded into the
+   * resolution, because the gap it covers is precisely the one where Tortie
+   * dies holding a session it has no record of creating.
+   */
+  noteRestoreTmuxId(attemptId: number, tmuxId: string): void {
+    durableTransaction(this.db, () => {
+      this.db
+        .prepare<[string, number]>(
+          'UPDATE restore_attempts SET tmux_id = ? WHERE id = ?'
+        )
+        .run(tmuxId, attemptId);
+    });
+  }
+
+  /** Close an attempt with what it achieved. */
+  finishRestoreAttempt(
+    attemptId: number,
+    outcome: RestoreResultKind,
+    at: number = Date.now()
+  ): void {
+    durableTransaction(this.db, () => {
+      this.db
+        .prepare<[string, number, number]>(
+          'UPDATE restore_attempts SET outcome = ?, finished_at = ? WHERE id = ?'
+        )
+        .run(outcome, at, attemptId);
+    });
+  }
+
+  /**
+   * Every attempt that never finished. `outcome IS NULL` is the whole signal:
+   * Tortie stopped between starting a restore and finishing it.
+   */
+  listUnfinishedRestoreAttempts(): RestoreAttemptRecord[] {
+    return this.db
+      .prepare<[], RestoreAttemptRow>(
+        `SELECT * FROM restore_attempts WHERE outcome IS NULL
+         ORDER BY started_at ASC`
+      )
+      .all()
+      .map(toRestoreAttempt);
+  }
+
+  /** One attempt by id. Reading a row back is what the tests assert on. */
+  getRestoreAttempt(attemptId: number): RestoreAttemptRecord | undefined {
+    const row = this.db
+      .prepare<[number], RestoreAttemptRow>(
+        'SELECT * FROM restore_attempts WHERE id = ?'
+      )
+      .get(attemptId);
+    return row ? toRestoreAttempt(row) : undefined;
+  }
+
+  /**
+   * Drop finished attempts beyond the newest `keep`, and every attempt whose
+   * session no longer has a row.
+   *
+   * Called on open. Without it the table grows for the life of the install,
+   * and a journal that costs disk forever to answer one question at launch is
+   * not worth having. Unfinished attempts are never pruned here, because the
+   * next launch has not yet had its chance to act on them.
+   */
+  pruneRestoreAttempts(keep = 200): void {
+    immediateTransaction(this.db, () => {
+      this.db.exec(
+        `DELETE FROM restore_attempts
+          WHERE session_id NOT IN (SELECT id FROM sessions)
+            AND outcome IS NOT NULL`
+      );
+      this.db
+        .prepare<[number]>(
+          `DELETE FROM restore_attempts
+            WHERE outcome IS NOT NULL
+              AND id NOT IN (
+                SELECT id FROM restore_attempts
+                 WHERE outcome IS NOT NULL
+                 ORDER BY id DESC LIMIT ?
+              )`
+        )
+        .run(keep);
+    });
   }
 
   // -------------------------------------------------------------------------
@@ -789,7 +1181,14 @@ export class ManifestStore {
 
     immediateTransaction(this.db, () => {
       const all = this.listSessions();
-      const byId = new Map(all.map((rec) => [rec.id, rec]));
+      // Tombstones are not claimable (Phase 19 item 6). Leaving them out of
+      // the id map here, rather than only skipping them in the loop below, is
+      // what makes a live session that carries a tombstone's identity get
+      // REPORTED as an unknown session instead of quietly disappearing from
+      // every bucket.
+      const byId = new Map(
+        all.filter((rec) => rec.status !== 'discarded').map((rec) => [rec.id, rec])
+      );
       const now = Date.now();
 
       // One live session per row and one row per live session: a duplicate
@@ -808,9 +1207,19 @@ export class ManifestStore {
       for (const rec of all) {
         const session = claimedRows.get(rec.id);
         const skip = skipReason(rec, snapshotAt, inFlightIds);
+        // A tombstone is terminal (Phase 19 item 6). The user removed this
+        // session, and the row exists only so the removal can be undone. It
+        // is never claimed, never revived by a live session that happens to
+        // carry its identity, and never marked restorable. Nothing writes
+        // 'discarded' yet; the guard is here so that a row written by a later
+        // build cannot be resurrected by an older one.
+        if (rec.status === 'discarded') continue;
         if (session !== undefined) {
           const needsStatusFlip =
-            rec.status === 'restorable' || rec.status === 'exited';
+            rec.status === 'restorable' ||
+            rec.status === 'exited' ||
+            // Seeing it alive is exactly the evidence 'unknown' was missing.
+            rec.status === 'unknown';
           const updated = this.updateSession(rec.id, {
             lastSeen: now,
             ...(session.tmuxName !== rec.tmuxName

@@ -144,10 +144,30 @@ export function statusVisual(
     }
     case 'restorable':
       return { dot: 'idle', label: 'saved' };
+    // The two members added in Phase 19 item 6. Nothing writes either of them
+    // yet, and they are rendered anyway: this switch has no `default`, so a
+    // member with no case here is a compile error, which is exactly how the
+    // union is meant to behave when a later phase starts producing them.
+    case 'unknown':
+      // A hollow dot, because hollow is what the other two "not working right
+      // now" states use, and no new colour is invented for a state the user
+      // cannot act on. The label is the honest word: Tortie cannot see this
+      // session and cannot prove it is gone.
+      return { dot: 'ended', label: 'unknown' };
+    case 'discarded':
+      return { dot: 'ended', label: 'removed' };
   }
 }
 
-/** Roll-up for a project tab: attention > working > idle; none → hollow. */
+/**
+ * Roll-up for a project tab: attention > working > idle; none → hollow.
+ *
+ * `exited`, `restorable`, `unknown` and `discarded` contribute nothing. A tab
+ * must not light up for a session that is not doing anything, and `unknown`
+ * in particular must never be rolled up as activity: it means Tortie could
+ * not see the session, and a dot claiming otherwise would be the lie the
+ * member exists to prevent.
+ */
 export function rollupDot(statuses: SessionStatus[]): DotKind | 'none' {
   let saw: DotKind | 'none' = 'none';
   for (const s of statuses) {

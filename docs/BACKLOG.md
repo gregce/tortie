@@ -24,7 +24,7 @@ operator owns tortie.sh, which answers the objection. The site returning 404 tod
 matter and not a reason to change the application.
 The About panel and the installer keep saying **Tortie**, because that is the application's name and
 the wordmark is a wordmark. Revisit only if the operator asks.
-| 4 | **19** durability, with the harness that proves it | SPECCED BELOW | **18.6 landing first** |
+| 4 | **19** durability, with the harness that proves it | ✅ SHIPPED 2026-08-12 | — |
 | 5 | **20** the verified backup ring | queued | Phase 19 |
 | 6 | **21** versioned agent recovery contracts, as one migration with resume provenance | queued | Phase 20 |
 | 7 | **22** the Context sidebar, with installing enabled | SPECCED BELOW | 21, and it runs **before** the release lane by operator instruction |
@@ -1032,12 +1032,86 @@ a collision. It is the one piece of parallel capacity currently unused.
 
 ---
 
-## Phase 19 — durability, with the harness that proves it (2026-08-12)
+## Phase 19 — durability, with the harness that proves it ✅ SHIPPED 2026-08-12
 
-**Do not start this until Phase 18.6 has landed.** Item 8 below edits `restartSession` in
-`src/renderer/state/store.ts`, and Phase 18.6 rewrites that file to add the home screen and the clone
-action. Writing item 8 first means writing it twice. Phase 18.6 is itself gated on research 35
-returning and on Phase 18.5 committing, so the chain is 18.5, then 18.6, then this.
+All thirteen items landed, and a fix round closed fifteen more defects that the verifiers found.
+Nothing here adds a feature you can see. Every item was behaviour that was wrong at HEAD.
+
+### What landed, item by item
+| Item | State | Evidence |
+| --- | --- | --- |
+| 1, the general fault harness | shipped | `build/fault-harness.mjs` and `src/main/fault/`. It kills the app with SIGKILL, relaunches it and reports what survived as JSON. The default battery is 16 cases and 32 launches. `npm run smoke:fault` on the final tree: 16 of 16 pass in 67.6 s. SIGTERM appears nowhere in it. |
+| 2, the durable write module | shipped | `src/main/durable/`, no new dependency. Stage, size check, flush, read back and hash, rename, then one directory flush per directory per batch. 382 lines of tests in `write.test.ts`, driven through a probe filesystem that fails one call at a time. |
+| 3, power loss safe snapshots | shipped | `src/main/restore/snapshots.ts`. Bodies are never overwritten. Each capture writes the next generation, the ring keeps several, and a completion record names the ones a reader can trust. The capsule carries the whole recipe, so Phase 20 can rebuild a session from it. |
+| 4, the silent disk full | shipped | `snapshotAllSessions` posts a `snapshot-failed` notice (`src/main/sessions/core.ts:351`). The user is told the capture did not happen rather than quitting in the belief that it did. |
+| 5, database integrity and quarantine | shipped | `src/main/db/integrity.ts`, `recover.ts` and `digest.ts`. The manifest is checked before it is opened, a damaged file is set aside rather than written over, and the last resort repair is `/usr/bin/sqlite3 .recover`, which is already on macOS and adds nothing to signing. |
+| 6, restore reports success falsely | shipped | `restoredStatus` in `src/main/sessions/core.ts` derives the stored status from the restore result, and `running` is unreachable from it. The rules are in `src/shared/restore-status.ts`, used by main, by the notice channel and by the renderer. `SESSION_STATUSES` is one list of seven members in `src/shared/types.ts`, designed once, with the type derived from it. |
+| 7, the restore journal | shipped | `src/main/restore/journal.ts`, in the manifest and not in a second file. Driven at all five restore stages with a real SIGKILL and a real relaunch. No duplicate session and no duplicate row in any of the five. |
+| 8, restart discards before creating | shipped | `src/main/restart/restart.ts`, in main rather than in the renderer. It reads the old row, creates the replacement, kills the old tmux session and only then discards. The launch flags and the capture choice come across. A create that throws leaves the row, the snapshot and the hook settings untouched. |
+| 9, the notice channel | shipped | `src/shared/notice.ts` and `src/main/notice/`. Seven degraded kinds on the existing `scrollback:notice` event, each posted from one place. It is a notice and not a dashboard. |
+| 10, the migration failure path | shipped | `src/main/migrate/notice.ts` and `userdata.ts`. A failed migration tells the user, keeps the original as the backup and stays armed for the next attempt. `smoke:migrate` gained stage 10, which fails a migration on purpose and then retries it. |
+| 11, sleep and wake | shipped | `src/main/power/index.ts`. Suspend forces a capture, and resume clears the terminal glyph atlas through the same public call VS Code makes from the same event. `npm run smoke:power` PASS: the capture wrote in 103 ms, the marker is in it and the capsule reason reads `system-sleep`. |
+| 12, claims about protection it has not observed | shipped | `src/main/diagnostics/off-device.ts`. It answers by checking, and it answers "unknown" when the check cannot answer. `tmutil latestbackup` exits 0 with no backup, so reading the exit code alone was the false claim this module prevents. |
+| 13, the config path inside the bundle | shipped | `assertConfUsable` in `src/main/tmux/supervisor.ts` now tests readability as well as presence, and `verifyHistoryLimitWith` reads back the depth tmux actually set. `exit-empty` is re-asserted at every boot through `BOOT_SERVER_OPTIONS`. |
+
+### The two faults that cost the user work, and what was measured
+**A full disk.** The old sequence published a zero byte file over a good snapshot and reported
+success at every step. That was measured on a 6 MB sparse APFS image filled to ENOSPC, not reasoned
+about: `write` returned ENOSPC, `fsync` returned OK, `rename` returned OK, the directory flush
+returned OK, and what stood under the final name was 0 bytes against an intended 524,288 (research
+34 §3.1). The new sequence checks the size and the hash between writing and renaming, so it reports
+the failure and publishes nothing. The cost at the operator's real shape of 43 files at 25 KB is
+104 ms at the chosen concurrency of 32, against 3.99 ms for the old `writeFile` and `rename`. The
+integrity half of that is 2 ms of the total. Quit already spends 0.9 s to 1.9 s in `capture-pane`.
+
+**A power cut in the middle of a write.** `point-snapshot.after-write` in the fault harness sends
+SIGKILL between the write and the rename. The run leaves a staged `.part` file and no published
+body for that session, the other sessions keep theirs, and the relaunch finds every manifest row
+present and every live session alive. Bodies are never overwritten, so the generation before the
+torn one is still readable. The old code had one generation and a destructive replace, which is the
+shape where neither the old copy nor the new one survives.
+
+### The fault matrix rows the harness now covers
+Rows are from research 33 §7, which scored the matrix at 2 covered, 6 partial, 20 unexercised.
+
+| Row | What it is | Covered by |
+| --- | --- | --- |
+| 1 to 4 | kill the creator at each create boundary | `create.before-declaration`, `create.after-declaration`, `create.after-spawn`, `create.after-launch-record` |
+| 9 | kill during a checkpoint write | `snapshot.before-write` and `snapshot.after-write` |
+| 12 | kill during each restore stage | all five of `restore.before-spawn`, `after-spawn`, `after-replay`, `after-arm`, `after-status-write` |
+| 17 | Electron crash, main and renderer together | every case. The workload opens a real renderer, so the SIGKILL takes both down |
+| 22 | manifest corruption | item 5, driven on a scratch manifest of 40 rows with page 2 smashed |
+| 24 | disk full | item 2, driven on a real APFS image filled to ENOSPC |
+
+Twelve named points, three random moments and one control run. The random moments are drawn from
+the intervals the control run recorded fault points in, because a uniform draw across the whole run
+lands in the workload's own waiting 84.7 per cent of the time and reached one state eight times out
+of eight.
+
+### What is not true
+- The snapshot completion record is a JSON file beside the bodies and not a manifest row. Research
+  34 step 9 says it belongs in the manifest. This is a recorded deviation and not an oversight, the
+  reasoning is in the header of `src/main/restore/snapshots.ts`, and Phase 20 owns the move.
+- No real machine suspend was triggered. Item 11 is driven through the `PowerMonitorLike` seam, so
+  the capture, the bridge and the dispose are real and the delivery of the macOS event is not.
+- The cold start history limit repair fires only when the conf disappears between the check and
+  `start-server`. That race is exercised through its injected seam rather than through a whole app
+  run. What is proven in a real run is the `exit-empty` repair.
+- Matrix rows 5, 6, 8, 13, 14, 15, 16, 19, 20, 21, 23, 25, 27, 28 and 29 are still uncovered or
+  partial. This phase moved the score, it did not finish the matrix.
+
+### Gates at the commit
+`npm run typecheck` clean on both projects in 3.8 s. `npm run build` clean in 19.0 s. `npm test`
+155 files passed and 1 skipped, 2,060 tests passed and 2 skipped, 0 failed. `npm run smoke:t1` 5/5
+create and 6/6 verify. `npm run smoke:t3` PASS on both shapes, claude and pi each restored with
+replayed scrollback and an armed, unexecuted resume. `npm run conformance:resume:capture` 6 PASS,
+0 FAIL, 0 BLOCKED, 4 SKIP in 16.7 s, required because `restore/**` changed. `npm run smoke:fault`
+16 of 16 in 67.6 s. `npm run smoke:power` PASS. `npm run smoke:migrate` 11 of 11.
+The operator's live tmux sessions were listed before the gates and after them. Nine both times, with
+identical name lists. No `pkill` was run at any point. Every harness ran on its own socket, and each
+one ended its own server.
+
+### The specification, kept for the record
 
 Thirteen items. Every one of them fixes behaviour that is wrong at HEAD. None of them adds a feature
 you can see.
@@ -1155,6 +1229,43 @@ which this phase has any reason to touch.
 ### Gates
 The usual battery, plus `npm run conformance:resume:capture` if anything under `agents/registry.ts`,
 `manifest/harvest/**`, `manifest/agents.ts` or `restore/**` changes, which items 6 and 7 will.
+
+### The fix round, and what it changed
+Three verifiers returned `needs_work`. Two of them found the same defect and it was the worst thing
+this phase produced. Everything below landed in the fix round.
+
+**The one that destroyed live sessions.** `src/main/power/smoke.ts` ran `tmux kill-server` from its
+own failure path and checked the socket name afterwards, on the line that unlinks the socket file. A
+harness that had already printed "refusing to run" then ended the server it was refusing to touch.
+Both verifiers reproduced it on decoy servers, and the operator's 48 live sessions were destroyed the
+same evening. There are now two independent refusals. `execTmux` refuses `kill-server` on socket
+`gmux` for every caller in the product, and `teardownHarnessServer` checks the socket before it sends
+anything. The power harness also tears nothing down when the isolation guard is what threw.
+
+**Every smoke harness moved off the operator's server.** Only `smoke:power` and the fault harness had
+their own socket. `smoke:t1`, `smoke:t3`, `smoke:capture`, `smoke:migrate`, `smoke:identity`,
+`smoke:procid` and `conformance:resume` all created and killed sessions on socket `gmux`, beside the
+operator's live agents. Each has its own socket now, and `build/harness-socket.mjs` ends that server
+afterwards.
+
+**The recovery path published a manifest the app could not open, permanently.**
+`/usr/bin/sqlite3 .recover` rebuilds from the final schema while the `migrations` bookkeeping table
+can come back holding one row, so the migration runner re-ran an early step and threw `duplicate
+column name: exit_code` on every launch. Two changes close it from both ends. The column migrations
+are idempotent, and `recoverDatabase` will not publish a rebuild that the real `ManifestStore` cannot
+open.
+
+**The other nine.** The prune took ring slots from recorded generations and gave them to crash
+orphans. The capsule carried nothing Phase 20 can rebuild a session from. A healthy manifest in an
+unwritable directory was reported to the user as damaged. The wreck was opened read-write during
+recovery. The quarantine toast was cut off mid-sentence. The sleep capture recorded its reason as
+`app-quit`. The migration failure dialog carried an em dash. Item 6 stored the truth about a restore
+and showed it to nobody. `assertConfUsable` did not test readability, and `exit-empty` was never
+repaired.
+
+**Deliberately not done, and recorded rather than hidden.** The snapshot completion record is still a
+JSON file beside the bodies rather than a manifest row, which is a deviation from research 34 step 9.
+The reasoning is written into the header of `src/main/restore/snapshots.ts`. Phase 20 owns the move.
 
 ---
 

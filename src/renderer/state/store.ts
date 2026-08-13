@@ -25,10 +25,13 @@ import type {
   CreateProjectInput,
   CreateProjectResult,
   GmuxActivityExtras,
+  GmuxFsExtras,
   GmuxLoginItemExtras,
+  GmuxNoticeExtras,
   GmuxProjectCreateExtras,
   GmuxScrollbackExtras,
   GmuxSessionExtras,
+  GmuxSessionRestartExtras,
   GmuxSettingsExtras,
   GmuxSessionRestoreExtras,
   GmuxSpecStoryExtras,
@@ -36,6 +39,8 @@ import type {
   GmuxViewMenuExtras,
   PopupMenuIcon
 } from '@shared/ipc';
+import type { DurabilityNotice, GmuxNotice } from '@shared/notice';
+import { isDurabilityNotice } from '@shared/notice';
 import { formatScrollbackBytes } from '@shared/scrollback';
 import { showNativeMenu } from '../app/ContextMenu';
 import { cancelPointerDrag } from '../app/split/pointer-drag';
@@ -429,7 +434,8 @@ export const useApp = create<AppState>((set, get) => {
   const sessionExtras = gmux
     ? (gmux.sessions as typeof gmux.sessions &
         GmuxSessionExtras &
-        GmuxSessionRestoreExtras)
+        GmuxSessionRestoreExtras &
+        GmuxSessionRestartExtras)
     : null;
 
   const scrollbackExtras = gmux
@@ -438,6 +444,12 @@ export const useApp = create<AppState>((set, get) => {
 
   const specstoryExtras = gmux
     ? (gmux as typeof gmux & GmuxSpecStoryExtras).specstory ?? null
+    : null;
+
+  // Phase 19 item 9. Only the backlog drain lives here; the notices themselves
+  // arrive on scrollback.onNotice, which is the channel they all share.
+  const noticeExtras = gmux
+    ? (gmux as typeof gmux & GmuxNoticeExtras).notice ?? null
     : null;
 
   /**
@@ -632,7 +644,136 @@ export const useApp = create<AppState>((set, get) => {
       // all. Each speaks once (main latches them), names what it is about,
       // and offers the action. There is no counterpart that reports a
       // healthy state, by design.
-      scrollbackExtras?.onNotice((notice) => {
+      //
+      // Phase 19 item 9 widened this one subscription to carry the degraded
+      // durability states as well (src/shared/notice.ts). The rule is the same
+      // rule, which is why they share a channel rather than getting a second
+      // one: a notice exists only when a layer is degraded, it speaks once,
+      // and there is nothing that reports a healthy state.
+      const shortName = (name: string): string =>
+        name.length > 16 ? `${name.slice(0, 15)}…` : name;
+      // The degraded states, kept in their own function so the `never` at the
+      // foot of it is a real exhaustiveness check. It cannot cover the three
+      // scrollback kinds below, which share one interface with a union-typed
+      // `kind` rather than being a discriminated union.
+      const showDegraded = (notice: DurabilityNotice): void => {
+        if (notice.kind === 'snapshot-failed') {
+          get().toast(
+            'error',
+            notice.outOfSpace
+              ? 'The disk is full. Your sessions are not being saved.'
+              : `${notice.sessions === 1 ? '1 session' : `${notice.sessions} sessions`} could not be saved.`,
+            { sticky: true }
+          );
+          return;
+        }
+        if (notice.kind === 'snapshot-repaired') {
+          get().toast(
+            'info',
+            `"${shortName(notice.sessionName)}" came back from an earlier save.`,
+            { sticky: true }
+          );
+          return;
+        }
+        if (notice.kind === 'manifest-unreadable') {
+          // NOT the damaged sentence. The file is intact and Tortie could not
+          // open it, which is a permission or a read only volume, and the user
+          // needs to look at the folder rather than hunt for a quarantine.
+          const fsExtras = gmux
+            ? (gmux.fs as typeof gmux.fs & GmuxFsExtras)
+            : null;
+          const reveal = fsExtras?.reveal;
+          get().toast('error', 'Tortie cannot read your session list.', {
+            sticky: true,
+            ...(typeof reveal === 'function'
+              ? {
+                  action: {
+                    label: 'Show the file',
+                    run: () => void reveal(notice.path)
+                  }
+                }
+              : {})
+          });
+          return;
+        }
+        if (notice.kind === 'restore-shortfall') {
+          // Two lines beside no button, so about 29 characters a line. The
+          // session name is shortened first and the sentence names the ONE
+          // thing that did not come back.
+          const short = shortName(notice.sessionName);
+          get().toast(
+            'error',
+            notice.stage === 'both'
+              ? `"${short}" came back empty.`
+              : notice.stage === 'scrollback'
+                ? `"${short}" lost its saved output.`
+                : `"${short}" came back without its agent.`,
+            { sticky: true }
+          );
+          return;
+        }
+        if (notice.kind === 'manifest-quarantined') {
+          // The path is the point of this one. A quarantine the user cannot
+          // find reads exactly like a delete, so the toast carries the reveal
+          // rather than the path, which would not fit in two lines.
+          //
+          // THE SENTENCES ARE SHORT BECAUSE THE COLUMN IS NARROW. With the
+          // action button beside it the text column measured 182 px, which is
+          // two lines of about 26 characters. The first drafts were 57 and 56
+          // characters and both clamped, so the user read "Your session list
+          // was damaged. An earlier copy is…" and never saw the outcome. These
+          // are 42 and 39.
+          const fsExtras = gmux
+            ? (gmux.fs as typeof gmux.fs & GmuxFsExtras)
+            : null;
+          const reveal = fsExtras?.reveal;
+          get().toast(
+            'error',
+            notice.recoveredAt !== null
+              ? 'Session list damaged. It was rebuilt.'
+              : 'Session list damaged. None came back.',
+            {
+              sticky: true,
+              ...(typeof reveal === 'function'
+                ? {
+                    action: {
+                      label: 'Show the file',
+                      run: () => void reveal(notice.quarantinePath)
+                    }
+                  }
+                : {})
+            }
+          );
+          return;
+        }
+        if (notice.kind === 'depth-degraded') {
+          get().toast(
+            'error',
+            `Sessions are keeping ${notice.actualLines.toLocaleString()} lines, ` +
+              `not ${notice.requestedLines.toLocaleString()}.`,
+            { sticky: true }
+          );
+          return;
+        }
+        if (notice.kind === 'restore-incomplete') {
+          get().toast(
+            'error',
+            `"${shortName(notice.sessionName)}" did not finish coming back.`,
+            { sticky: true }
+          );
+          return;
+        }
+        // A kind added to the shared union without a sentence here fails the
+        // build, rather than shipping a degraded state nobody is told about.
+        const unhandled: never = notice;
+        return unhandled;
+      };
+
+      const showNotice = (notice: GmuxNotice): void => {
+        if (isDurabilityNotice(notice)) {
+          showDegraded(notice);
+          return;
+        }
         const openSettings = (): void => {
           void (
             gmux as (typeof gmux & GmuxSettingsExtras) | undefined
@@ -647,8 +788,7 @@ export const useApp = create<AppState>((set, get) => {
           // What the user must not misunderstand — that a deeper setting
           // helps the NEXT session, not this one — is the first sentence of
           // the card [Change depth] opens, which is where they can act on it.
-          const name = notice.sessionName ?? '';
-          const short = name.length > 16 ? `${name.slice(0, 15)}…` : name;
+          const short = shortName(notice.sessionName ?? '');
           get().toast('info', `"${short}" is discarding old output.`, {
             sticky: true,
             action: { label: 'Change depth', run: openSettings }
@@ -669,10 +809,23 @@ export const useApp = create<AppState>((set, get) => {
         }
         get().toast(
           'error',
-          'Low disk space — sessions may not be saved when you quit.',
+          'Low disk space. Sessions may not be saved when you quit.',
           { sticky: true }
         );
-      });
+      };
+      scrollbackExtras?.onNotice(showNotice);
+      // Drain the notices main had to post before this window existed. The
+      // manifest integrity check is the reason: it runs while the database is
+      // being opened, which is before there is anything to broadcast to. The
+      // drain is destructive and happens once, so nothing is ever said twice.
+      if (typeof noticeExtras?.pending === 'function') {
+        void noticeExtras.pending().then(
+          (pending) => {
+            for (const notice of pending) showNotice(notice);
+          },
+          () => undefined
+        );
+      }
 
       // Phase 15 — SpecStory capture, failures only. Main runs the flush that
       // recovers the tail of a captured conversation when a session ends, and
@@ -992,21 +1145,47 @@ export const useApp = create<AppState>((set, get) => {
       });
     },
 
+    /**
+     * Phase 19 item 8. NOTHING IS DISCARDED UNTIL THE REPLACEMENT EXISTS.
+     *
+     * This used to call `discard(sessionId)` first and create second, with a
+     * comment saying it was so the replacement could take back its display
+     * name. Discard deletes the manifest row, the scrollback snapshot and the
+     * hook settings file, so a create that then failed — the agent binary gone
+     * after an upgrade, the project folder unmounted, a full disk — left the
+     * user with nothing, from a button that has no undo. The name collision it
+     * was avoiding lasts for the length of one create and is invisible: both
+     * rows carry the same display name for that moment, and the sanitized tmux
+     * name, which no part of the UI shows, is the only thing that differs.
+     *
+     * The whole operation is one main-side call when the bridge offers it,
+     * because main is the only side that can read the original launch flags
+     * (they live in the manifest row's argv, not in the Session projection)
+     * and because a renderer cannot hold an ordering invariant across a
+     * window reload. The fallback below keeps the ordering right against an
+     * older preload but cannot carry the flags.
+     */
     async restartSession(sessionId) {
       const session = get().sessions.find((x) => x.id === sessionId);
       if (!session || !gmux) return;
       try {
-        // Clear the old row first when the bridge supports it, so the
-        // restarted session takes back its name.
-        if (typeof sessionExtras?.discard === 'function') {
-          await sessionExtras.discard(sessionId);
+        if (typeof sessionExtras?.restart === 'function') {
+          const created = await sessionExtras.restart(sessionId);
+          get().setActiveSession(created.id);
+          return;
         }
         const created = await gmux.sessions.create({
           name: session.name,
           projectPath: session.projectPath,
           cwd: session.cwd,
-          agent: session.agent
+          agent: session.agent,
+          // The capture choice is the one setting the projection does carry.
+          ...(session.capture !== undefined ? { capture: true } : {})
         });
+        // Only now. A discard before this line is the defect.
+        if (typeof sessionExtras?.discard === 'function') {
+          await sessionExtras.discard(sessionId);
+        }
         get().setActiveSession(created.id);
       } catch (err) {
         get().toast('error', errorText(err), { sticky: true });

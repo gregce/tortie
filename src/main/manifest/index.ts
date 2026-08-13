@@ -10,7 +10,8 @@ export {
   type ManifestSessionRecord,
   type ManifestSessionPatch,
   type LiveTmuxSession,
-  type ReconcileResult
+  type ReconcileResult,
+  type RestoreAttemptRecord
 } from './store';
 
 export {

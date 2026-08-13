@@ -72,6 +72,46 @@
  *   this machine. Rewriting rows here would guess at that answer while holding
  *   a lock on the file we least want to be wrong about. Instead the migration
  *   AUDITS them and says out loud how many rows are affected.
+ *
+ * ## Phase 19 item 10 — the failure path, which used to be one-way
+ *
+ * Everything above describes the success path, and the success path was
+ * shipped and tested. The failure path was silent and permanent, and research
+ * 33 §3.1 proved it with a probe rather than arguing it. One file at mode 000
+ * in the legacy root made the copy throw. The run correctly published nothing
+ * and left the original intact, and then three things happened in order. The
+ * user was never told, because the notice was gated on success. The app booted
+ * anyway and created `<userData>/gmux/`, which is one of the two things
+ * `hasOwnPayload` looks for. Every launch after that returned
+ * `skipped` / `target-has-data`, forever, even once the permission was fixed.
+ * The 41 session manifest would have stayed in the old root for good.
+ *
+ * Three changes close it, and they are all in this file and ./notice.ts.
+ *
+ * 1. A failure now WRITES a marker recording the failure, before the app can
+ *    create its own payload. It is written first because the app creates
+ *    `<userData>/gmux/` at its first boot and there is no later moment at
+ *    which the target still looks untouched.
+ * 2. A marker that says `failed` or `in-progress` beats `hasOwnPayload`, so
+ *    the next launch retries instead of standing down. The mechanism stays
+ *    armed rather than disabling itself.
+ * 3. The user is told, in ./notice.ts, with its own words and its own stamp.
+ *
+ * The retry publishes the same way an interrupted run does. Anything already
+ * in the target is MOVED ASIDE into `<userData>/.pre-migration-<ts>/` and
+ * nothing is deleted, so a user who worked under the new name between the
+ * failure and the retry keeps that work as well as getting their old data
+ * back. The notice says where it went.
+ *
+ * ## Phase 19 item 10 — row counts were never verification
+ *
+ * A copy was verified by comparing per table row counts. Research 34 §3.2
+ * measured a copy of the real manifest that had identical counts in every
+ * table, passed an integrity check, and was stale on all 40 rows, because this
+ * manifest's churn is `UPDATE` against `last_seen` and `status` and a count
+ * cannot see an `UPDATE`. The comparison is now a sha256 per table over the
+ * rows in a fixed order, from ../db/digest.ts. Counts are still recorded,
+ * because they are what a person reads in the log.
  */
 
 import Database from 'better-sqlite3';
@@ -91,6 +131,11 @@ import {
   writeFileSync
 } from 'node:fs';
 import { dirname, join, resolve as resolvePath } from 'node:path';
+import {
+  digestDifferences,
+  tableDigests,
+  tableRowCounts
+} from '../db/digest';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -169,12 +214,16 @@ export type MigrationReason =
  * and both meanings are strong:
  *
  * - `raw-copy` (the source has no live WAL): every file of the database —
- *   `.db`, `-wal`, `-shm` — is byte-identical, proved by sha256. Row counts
- *   are read from the copy and reported for the log.
+ *   `.db`, `-wal`, `-shm` — is byte-identical, proved by sha256. Row counts and
+ *   digests are read from the copy and reported for the log, and nothing opens
+ *   the original at all.
  * - `vacuum-into` (the source HAS unmerged WAL content, i.e. another process
  *   is writing or the last one exited unclean): the copy is a consistent
- *   snapshot, so byte-identity is not the claim — equal per-table row counts,
- *   read separately from the original and from the copy, is.
+ *   snapshot, so byte-identity is not the claim. A sha256 per table over the
+ *   rows in a fixed order, read separately from the original and from the
+ *   copy, is. Row counts are recorded alongside because they are what a person
+ *   reads, but they are NOT what decides `ok` — research 34 §3.2 measured a
+ *   stale copy that matched on every count.
  */
 export interface DbVerification {
   /** Path relative to the userData root, e.g. `gmux/manifest.db`. */
@@ -185,6 +234,12 @@ export interface DbVerification {
   source: Record<string, number>;
   /** table → row count, read from the COPY. */
   copy: Record<string, number>;
+  /** table → sha256 over its rows, read from the SOURCE. */
+  sourceDigests: Record<string, string>;
+  /** table → sha256 over its rows, read from the COPY. */
+  copyDigests: Record<string, string>;
+  /** Tables the two sides disagree about. Empty when they hold the same rows. */
+  differences: string[];
   ok: boolean;
 }
 
@@ -209,13 +264,31 @@ export interface MigrationResult {
   warnings: string[];
   /** Human-readable summary — the line printed to the console. */
   summary: string;
+  /**
+   * The underlying failure on its own, with no path and no framing. Only set
+   * when `status` is `failed`.
+   *
+   * It exists because the migration failure DIALOG needs a sentence and
+   * `summary` is a log line. The dialog was printing `summary` verbatim, so a
+   * person read "migration failed: … — your data is still at /Users/…" inside
+   * a modal that had already told them where their data was, with an em dash
+   * in it. A log line and a sentence for a person are two different strings.
+   */
+  cause?: string;
   /** Milliseconds the whole run took. */
   ms: number;
 }
 
+/**
+ * What the target directory records about the migration.
+ *
+ * `failed` is the Phase 19 item 10 addition, and its job is to exist BEFORE the
+ * app can create its own payload. Without it the app's first boot makes
+ * `hasOwnPayload` true and the migration stands down for good.
+ */
 export interface MarkerFile {
   version: 1;
-  status: 'in-progress' | 'complete';
+  status: 'in-progress' | 'complete' | 'failed';
   from: string;
   to: string;
   startedAt: number;
@@ -225,6 +298,14 @@ export interface MarkerFile {
   bytes?: number;
   databases?: DbVerification[];
   app: { legacyName: string };
+  /** Why the last attempt failed. Only on a `failed` marker. */
+  reason?: MigrationReason;
+  /** The sentence the user is shown. Only on a `failed` marker. */
+  error?: string;
+  /** How many attempts have been made, including the one being recorded. */
+  attempts?: number;
+  /** When the last attempt ran, whatever its outcome. */
+  lastAttemptAt?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -341,6 +422,22 @@ export function migrateUserData(opts: MigrateOptions): MigrationResult {
       summary,
       ms: Date.now() - started
     };
+    // Phase 19 item 10. A failure records itself in the target BEFORE the app
+    // gets to create `<userData>/gmux/`, which is the moment `hasOwnPayload`
+    // would otherwise start winning and never stop. Written here rather than at
+    // each return so no future failure branch can forget it.
+    if (status === 'failed') {
+      recordFailedAttempt({
+        targetDir,
+        legacyDir,
+        reason,
+        // The marker carries the CAUSE, because the next launch reads it back
+        // into the dialog. See MigrationResult.cause.
+        summary: result.cause ?? summary,
+        now,
+        log
+      });
+    }
     log(summary);
     return result;
   };
@@ -364,7 +461,12 @@ export function migrateUserData(opts: MigrateOptions): MigrationResult {
       );
     }
 
+    // Phase 19 item 10. Both of these beat `hasOwnPayload`, and for the same
+    // reason: the target's payload may be nothing more than the empty database
+    // the app created on the boot that followed the failure. Standing down
+    // because of it is how a recoverable failure became a permanent one.
     const resuming = marker?.status === 'in-progress';
+    const retryingAfterFailure = marker?.status === 'failed';
     if (resuming) {
       base.warnings.push(
         `resuming an interrupted migration started ${new Date(marker.startedAt).toISOString()}`
@@ -372,6 +474,17 @@ export function migrateUserData(opts: MigrateOptions): MigrationResult {
       log(
         `an earlier migration was interrupted — redoing it from ${legacyDir}, ` +
           'which was never modified'
+      );
+    } else if (retryingAfterFailure) {
+      const attempts = marker.attempts ?? 1;
+      base.warnings.push(
+        `attempt ${attempts + 1}: the previous attempt failed ` +
+          `(${marker.reason ?? 'error'}) on ` +
+          `${new Date(marker.lastAttemptAt ?? marker.startedAt).toISOString()}`
+      );
+      log(
+        `an earlier migration failed (${marker.reason ?? 'error'}). Trying ` +
+          `again from ${legacyDir}, which was never modified.`
       );
     } else if (hasOwnPayload(targetDir)) {
       // Spec rule: both directories populated ⇒ do nothing, prefer the new.
@@ -452,7 +565,9 @@ export function migrateUserData(opts: MigrateOptions): MigrationResult {
       to: targetDir,
       startedAt,
       entries: copyList,
-      app: { legacyName: LEGACY_APP_NAME }
+      app: { legacyName: LEGACY_APP_NAME },
+      attempts: (marker?.attempts ?? 0) + 1,
+      lastAttemptAt: startedAt
     };
 
     if (!existsSync(targetDir)) {
@@ -511,8 +626,8 @@ export function migrateUserData(opts: MigrateOptions): MigrationResult {
     return done(
       'failed',
       'error',
-      `migration failed: ${message} — your data is still at ${legacyDir}`,
-      { warnings: [...base.warnings, message] }
+      `migration failed: ${message}. Your data is still at ${legacyDir}.`,
+      { cause: message, warnings: [...base.warnings, message] }
     );
   }
 }
@@ -620,12 +735,18 @@ function copyDatabase(
       ctx.handled.add(`${rel}${suffix}`);
       identical &&= sha256(sidecar) === sha256(`${dest}${suffix}`);
     }
-    const counts = readCounts(dest, rel, ctx);
+    // Read from the COPY on purpose. Every byte of it was just proved equal to
+    // the original, and this is the branch whose whole claim is that nothing
+    // opened the original at all.
+    const evidence = readEvidence(dest, rel, ctx);
     ctx.databases.push({
       file: rel,
       method: 'raw-copy',
-      source: counts,
-      copy: counts,
+      source: evidence.counts,
+      copy: evidence.counts,
+      sourceDigests: evidence.digests,
+      copyDigests: evidence.digests,
+      differences: [],
       ok: identical
     });
     return;
@@ -635,21 +756,29 @@ function copyDatabase(
   try {
     source = new Database(src, { readonly: true, fileMustExist: true });
     const counts = tableRowCounts(source);
+    const sourceDigests = tableDigests(source);
     source.exec(`VACUUM INTO ${quoteSqlString(dest)}`);
     source.close();
     source = null;
 
     const copy = new Database(dest, { readonly: true, fileMustExist: true });
     const copied = tableRowCounts(copy);
+    const copyDigests = tableDigests(copy);
     copy.close();
     rmSync(`${dest}-shm`, { force: true });
 
+    // Content, not counts. A count cannot see an UPDATE, and this manifest's
+    // churn is almost entirely UPDATE against `last_seen` and `status`.
+    const differences = digestDifferences(sourceDigests, copyDigests);
     ctx.databases.push({
       file: rel,
       method: 'vacuum-into',
       source: counts,
       copy: copied,
-      ok: sameCounts(counts, copied)
+      sourceDigests,
+      copyDigests,
+      differences,
+      ok: differences.length === 0
     });
     ctx.files += 1;
     ctx.bytes += statSync(dest).size;
@@ -668,23 +797,27 @@ function copyDatabase(
   }
 }
 
-/** Row counts read from a copy we just wrote; null when it is not a database. */
-function readCounts(
+/**
+ * Counts and per-table digests read from a copy we just wrote. Both are empty
+ * when the file is not a SQLite database at all, which is not an error: a
+ * `.db` that is something else is copied byte for byte and verified that way.
+ */
+function readEvidence(
   path: string,
   rel: string,
   ctx: CopyContext
-): Record<string, number> {
+): { counts: Record<string, number>; digests: Record<string, string> } {
   let db: Database.Database | null = null;
   const hadShm = existsSync(`${path}-shm`);
   try {
     db = new Database(path, { readonly: true, fileMustExist: true });
-    return tableRowCounts(db);
+    return { counts: tableRowCounts(db), digests: tableDigests(db) };
   } catch (err) {
     ctx.warnings.push(
       `${rel} is not a readable SQLite database (${(err as Error).message}) — ` +
         'copied byte-for-byte anyway'
     );
-    return {};
+    return { counts: {}, digests: {} };
   } finally {
     db?.close();
     if (!hadShm) rmSync(`${path}-shm`, { force: true });
@@ -751,12 +884,12 @@ function verifyStaging(
   const problems: string[] = [];
 
   for (const db of ctx.databases) {
-    if (!db.ok) {
-      problems.push(
-        `${db.file}: row counts differ — source ${JSON.stringify(db.source)}, ` +
-          `copy ${JSON.stringify(db.copy)}`
-      );
-    }
+    if (db.ok) continue;
+    problems.push(
+      db.differences.length > 0
+        ? `${db.file}: the copy does not hold the same rows — ${db.differences.join(', ')}`
+        : `${db.file}: the copy does not match the original byte for byte`
+    );
   }
 
   const walk = (rel: string): void => {
@@ -893,34 +1026,59 @@ function writeMarker(dir: string, marker: MarkerFile): void {
   writeFileSync(join(dir, MIGRATION_MARKER), JSON.stringify(marker, null, 2));
 }
 
+/**
+ * Record a failed attempt in the target directory (Phase 19 item 10).
+ *
+ * Two things make this worth its own function rather than a line at each
+ * failure return. It must run BEFORE the app creates `<userData>/gmux/`, which
+ * means it runs at the moment of failure rather than at the next launch. And
+ * it must never throw, because a migration that failed and then crashed the
+ * app trying to say so is strictly worse than the silence it replaces.
+ *
+ * It creates the target directory. That is not a side effect worth avoiding:
+ * Electron creates the same directory a few milliseconds later, and an empty
+ * directory holding one marker is exactly what `hasOwnPayload` is written not
+ * to count as data.
+ */
+function recordFailedAttempt(opts: {
+  targetDir: string;
+  legacyDir: string;
+  reason: MigrationReason;
+  summary: string;
+  now: () => number;
+  log: (line: string) => void;
+}): void {
+  try {
+    const previous = readMarker(opts.targetDir);
+    // A completed migration is never overwritten by a later failure. Whatever
+    // failed after that, the user's data is already across.
+    if (previous?.status === 'complete') return;
+    const at = opts.now();
+    writeMarker(opts.targetDir, {
+      version: 1,
+      status: 'failed',
+      from: opts.legacyDir,
+      to: opts.targetDir,
+      startedAt: previous?.startedAt ?? at,
+      entries: previous?.entries ?? [],
+      app: { legacyName: LEGACY_APP_NAME },
+      reason: opts.reason,
+      error: opts.summary,
+      attempts: (previous?.attempts ?? 0) + 1,
+      lastAttemptAt: at
+    });
+  } catch (err) {
+    opts.log(
+      `could not record the failed attempt: ${(err as Error).message}. The ` +
+        'next launch will try the migration again from scratch.'
+    );
+  }
+}
+
 function sha256(path: string): string {
   return createHash('sha256').update(readFileSync(path)).digest('hex');
 }
 
-function tableRowCounts(db: Database.Database): Record<string, number> {
-  const tables = db
-    .prepare<[], { name: string }>(
-      "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
-    )
-    .all();
-  const out: Record<string, number> = {};
-  for (const { name } of tables) {
-    const row = db
-      .prepare<[], { c: number }>(`SELECT COUNT(*) AS c FROM "${name.replace(/"/g, '""')}"`)
-      .get();
-    out[name] = row?.c ?? -1;
-  }
-  return out;
-}
-
-function sameCounts(
-  a: Record<string, number>,
-  b: Record<string, number>
-): boolean {
-  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
-  for (const k of keys) if (a[k] !== b[k]) return false;
-  return true;
-}
 
 function quoteSqlString(value: string): string {
   return `'${value.replace(/'/g, "''")}'`;

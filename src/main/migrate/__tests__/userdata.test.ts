@@ -15,6 +15,7 @@
 
 import Database from 'better-sqlite3';
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -493,5 +494,161 @@ describe('refusing, resuming and never destroying', () => {
     expect(existsSync(join(targetDir, 'DevToolsActivePort'))).toBe(false);
     expect(isRegenerableEntry('SingletonLock')).toBe(true);
     expect(isRegenerableEntry('settings.json')).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 19 item 10 — the failure path, which used to be silent and one-way
+// ---------------------------------------------------------------------------
+
+/**
+ * The probe from research 33 §3.1, made executable.
+ *
+ * One file at mode 000 in the legacy root is enough to fail the copy. That is
+ * not an exotic fixture: it is a Chromium file with odd permissions, or a
+ * partial restore from a backup. Everything that used to follow is what these
+ * tests pin down. The user was told nothing, the app booted and created
+ * `<userData>/gmux/`, and from then on every launch answered
+ * `skipped` / `target-has-data` for good.
+ */
+function breakTheCopy(): string {
+  const victim = join(legacyDir, 'Preferences');
+  chmodSync(victim, 0o000);
+  return victim;
+}
+
+/** What the app's first boot after a failure creates, and nothing more. */
+function simulateOneBoot(): void {
+  mkdirSync(join(targetDir, LEGACY_APP_NAME), { recursive: true });
+  writeFileSync(join(targetDir, LEGACY_APP_NAME, 'manifest.db'), '');
+}
+
+const rootless = process.getuid?.() !== 0;
+
+describe.runIf(rootless)('a failed migration says so, and stays armed', () => {
+  it('records the failure in the target BEFORE the app can create its own payload', () => {
+    buildLegacyInstall();
+    breakTheCopy();
+
+    const result = migrateUserData({ legacyDir, targetDir, log: () => {} });
+
+    expect(result.status).toBe('failed');
+    const marker = readMigrationMarker(targetDir);
+    expect(marker?.status).toBe('failed');
+    expect(marker?.reason).toBe('error');
+    expect(marker?.attempts).toBe(1);
+    // The marker holds the CAUSE, which is what the dialog reads back. It is a
+    // sentence for a person, so it carries no folder path and no em dash.
+    expect(marker?.error).toContain('EACCES');
+    expect(marker?.error).not.toContain('your data is still at');
+    expect(marker?.error).not.toContain('\u2014');
+    expect(result.cause).toBe(marker?.error);
+    expect(result.summary).toContain('Your data is still at');
+    // Nothing was published, and the original is untouched.
+    expect(existsSync(join(targetDir, LEGACY_APP_NAME, 'manifest.db'))).toBe(false);
+    expect(existsSync(join(legacyDir, LEGACY_APP_NAME, 'manifest.db'))).toBe(true);
+  });
+
+  it('RETRIES on the next launch once the cause is fixed, which it never used to', () => {
+    // This is the whole defect in one test. Before Phase 19 the second run
+    // returned skipped / target-has-data and did so forever.
+    buildLegacyInstall();
+    const victim = breakTheCopy();
+
+    const first = migrateUserData({ legacyDir, targetDir, log: () => {} });
+    expect(first.status).toBe('failed');
+
+    simulateOneBoot();
+    chmodSync(victim, 0o644);
+
+    const second = migrateUserData({ legacyDir, targetDir, log: () => {} });
+
+    expect(second.status).toBe('migrated');
+    expect(readMigrationMarker(targetDir)?.status).toBe('complete');
+    expect(readSessions(join(targetDir, LEGACY_APP_NAME, 'manifest.db'))).toHaveLength(
+      3
+    );
+  });
+
+  it('moves what the app wrote in between aside rather than deleting it', () => {
+    buildLegacyInstall();
+    const victim = breakTheCopy();
+    migrateUserData({ legacyDir, targetDir, log: () => {} });
+    simulateOneBoot();
+    writeFileSync(join(targetDir, LEGACY_APP_NAME, 'manifest.db'), 'made after the failure');
+    chmodSync(victim, 0o644);
+
+    const second = migrateUserData({ legacyDir, targetDir, log: () => {} });
+
+    expect(second.movedAside).toContain(LEGACY_APP_NAME);
+    const aside = readdirSync(targetDir).filter((n) => n.startsWith('.pre-migration-'));
+    expect(aside).toHaveLength(1);
+    expect(
+      readFileSync(
+        join(targetDir, aside[0] as string, LEGACY_APP_NAME, 'manifest.db'),
+        'utf8'
+      )
+    ).toBe('made after the failure');
+  });
+
+  it('counts the attempts, so a repeating failure is visible', () => {
+    buildLegacyInstall();
+    breakTheCopy();
+    migrateUserData({ legacyDir, targetDir, log: () => {} });
+    migrateUserData({ legacyDir, targetDir, log: () => {} });
+    migrateUserData({ legacyDir, targetDir, log: () => {} });
+    expect(readMigrationMarker(targetDir)?.attempts).toBe(3);
+  });
+
+  it('never turns a completed migration back into a failed one', () => {
+    buildLegacyInstall();
+    migrateUserData({ legacyDir, targetDir, log: () => {} });
+    expect(readMigrationMarker(targetDir)?.status).toBe('complete');
+
+    // A later launch fails for some new reason. The data is already across,
+    // and the marker must not start claiming otherwise.
+    migrateUserData({
+      legacyDir,
+      targetDir: join(targetDir, 'Preferences'),
+      log: () => {}
+    });
+    expect(readMigrationMarker(targetDir)?.status).toBe('complete');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 19 item 10 — row counts were never verification
+// ---------------------------------------------------------------------------
+
+describe('what the copy is verified against', () => {
+  it('records a per-table content digest for every database it carries', () => {
+    buildLegacyInstall();
+    const result = migrateUserData({ legacyDir, targetDir, log: () => {} });
+
+    const manifest = result.databases.find((d) => d.file.endsWith('manifest.db'));
+    expect(manifest?.ok).toBe(true);
+    expect(manifest?.differences).toEqual([]);
+    // Named rather than listed exhaustively: the manifest gains tables in
+    // other phases, and this test is about the digests rather than the schema.
+    expect(Object.keys(manifest?.sourceDigests ?? {})).toEqual(
+      expect.arrayContaining(['migrations', 'projects', 'sessions'])
+    );
+    for (const digest of Object.values(manifest?.sourceDigests ?? {})) {
+      expect(digest).toMatch(/^[0-9a-f]{64}$/);
+    }
+  });
+
+  it('compares content, not counts, on the snapshot path', () => {
+    // A live writer forces the `vacuum-into` branch, which is the one whose
+    // claim used to be "equal row counts" and is now "the same rows".
+    const fixture = buildLegacyInstall({ keepStoreOpen: true });
+    const result = migrateUserData({ legacyDir, targetDir, log: () => {} });
+    fixture.store?.close();
+
+    const manifest = result.databases.find((d) => d.file.endsWith('manifest.db'));
+    expect(manifest?.method).toBe('vacuum-into');
+    expect(manifest?.differences).toEqual([]);
+    expect(manifest?.sourceDigests).toEqual(manifest?.copyDigests);
+    expect(manifest?.ok).toBe(true);
   });
 });

@@ -48,7 +48,7 @@ vi.mock('../../tmux', async () => {
   };
 });
 
-vi.mock('../snapshots', () => ({ existingSnapshotPath: () => null }));
+vi.mock('../snapshots', () => ({ resolveSnapshot: () => null }));
 
 /** What `resolveSpecstory()` answers for the case under test. */
 let resolved: string | null = null;
@@ -115,6 +115,18 @@ function rec(bin: string): ManifestSessionRecord {
   };
 }
 
+/**
+ * The `armed` arm of the outcome union (Phase 19 item 6). Every case in this
+ * file is about what a captured session arms, so anything else is a failure
+ * of the test's own setup and should say so loudly.
+ */
+function armed(out: Awaited<ReturnType<typeof restoreSessionInTmux>>) {
+  if (out.kind !== 'armed') {
+    throw new Error(`expected an armed restore, got ${out.kind}`);
+  }
+  return out;
+}
+
 /** The text typed into the pane WITHOUT Enter — the armed resume command. */
 function armedText(): string {
   const typed = sent.filter((a) => a[0] === 'send-keys' && a.includes('-l'));
@@ -130,7 +142,7 @@ beforeEach(() => {
 describe('restore of a captured session', () => {
   it('arms the recorded argv verbatim while its binary is still there', async () => {
     const bin = fakeBin('specstory');
-    const out = await restoreSessionInTmux(rec(bin));
+    const out = armed(await restoreSessionInTmux(rec(bin)));
     expect(out.armedCommand).toContain(bin);
     expect(armedText()).toContain(`${bin} run claude`);
   });
@@ -138,7 +150,7 @@ describe('restore of a captured session', () => {
   it('re-wraps under today’s binary when the recorded one is gone', async () => {
     const dead = join(root, 'Applications', 'gmux.app', 'specstory');
     resolved = fakeBin('specstory-new');
-    const out = await restoreSessionInTmux(rec(dead));
+    const out = armed(await restoreSessionInTmux(rec(dead)));
     expect(out.armedCommand).not.toContain(dead);
     expect(out.armedCommand).toContain(`${resolved} run claude`);
     // The conversation id still rides inside the -c string: a re-wrap that
@@ -167,7 +179,7 @@ describe('restore of a captured session', () => {
     // The same binary, at the path the renamed bundle resolves to.
     resolved = fakeBin('specstory'); // stands in for Tortie.app/…/bin/specstory
 
-    const out = await restoreSessionInTmux(rec(oldBundleBin));
+    const out = armed(await restoreSessionInTmux(rec(oldBundleBin)));
 
     // No trace of the dead bundle anywhere in the armed line…
     expect(out.armedCommand).not.toContain('gmux.app');
@@ -185,7 +197,7 @@ describe('restore of a captured session', () => {
   it('falls back to the bare agent resume when there is no SpecStory at all', async () => {
     const dead = join(root, 'Applications', 'gmux.app', 'specstory');
     resolved = null;
-    const out = await restoreSessionInTmux(rec(dead));
+    const out = armed(await restoreSessionInTmux(rec(dead)));
     expect(out.armedCommand).toBe('claude --resume abc-123');
     expect(out.armedCommand).not.toContain('specstory');
   });

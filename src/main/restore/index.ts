@@ -9,18 +9,42 @@
 
 export {
   SNAPSHOT_LINES,
+  SNAPSHOT_GENERATIONS,
+  CAPSULE_VERSION,
   snapshotsDir,
+  snapshotStem,
+  snapshotBodyPath,
   snapshotPath,
+  capsuleIndexPath,
+  legacySnapshotPath,
+  classifySnapshotFile,
   existingSnapshotPath,
+  readCapsules,
+  resolveSnapshot,
   captureSessionSnapshot,
-  deleteSnapshot
+  deleteSnapshot,
+  type CaptureSnapshotOptions,
+  type SnapshotCapsule,
+  type SnapshotFileKind,
+  type SnapshotReason,
+  type SnapshotResolution
 } from './snapshots';
 
 export {
   armableResumeArgv,
+  restoreRecordOf,
   restoreSessionInTmux,
-  type RestoreOutcome
+  type RestoreOutcome,
+  type RestoreSessionOptions,
+  type RestoreSuccess
 } from './restore';
+
+export {
+  isUnrecordedSession,
+  resolveRestoreJournal,
+  type JournalResolution,
+  type LiveIdentity
+} from './journal';
 
 export {
   shellQuoteArg,

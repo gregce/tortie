@@ -24,6 +24,14 @@ export {
   execTmux,
   tmuxArgs,
   TMUX_SOCKET,
+  activeTmuxSocket,
+  // Phase 19 item 13: the conf inside the bundle, and the proof it applied.
+  assertConfUsable,
+  declaredHistoryLimit,
+  lastConfVerification,
+  verifyHistoryLimit,
+  TMUX_BUILTIN_HISTORY_LIMIT,
+  type ConfVerification,
   type TmuxContext,
   type ExecTmuxOptions
 } from './supervisor';

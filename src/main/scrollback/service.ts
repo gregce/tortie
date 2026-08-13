@@ -33,6 +33,7 @@ import { app } from 'electron';
 import { readdir, stat, statfs } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { GmuxProcess } from '../diagnostics/owned-processes';
+import { classifySnapshotFile } from '../restore/snapshots';
 import type {
   PaneScrollbackFacts,
   SavedScrollbackFacts,
@@ -115,7 +116,13 @@ export async function readSavedFacts(dir: string): Promise<SavedScrollbackFacts>
   }
   const out = { ...empty };
   for (const name of names) {
-    if (!name.endsWith('.txt')) continue; // skip in-flight `.<id>.tmp` writes
+    // Phase 19 item 3: a body is `<id>.txt.000003` and no body ends in `.txt`
+    // any more, so the old suffix test would total zero. Counting every body
+    // also makes the number honest, because the card now reports the whole
+    // ring rather than one file per session. Staged `.part` writes, the
+    // capsule records and anything else are left out.
+    const kind = classifySnapshotFile(name).kind;
+    if (kind !== 'body' && kind !== 'legacy') continue;
     try {
       const s = await stat(join(dir, name));
       if (!s.isFile()) continue;
@@ -339,6 +346,23 @@ export async function buildScrollbackReport(
       `Tortie ${m.type === 'Browser' ? 'main' : 'renderer'} rss ` +
         `${mb((m.memory?.workingSetSize ?? 0) * 1024)}`
     );
+  }
+
+  // Phase 19 item 12. Every line above this one describes copies of the user's
+  // work that live on THIS machine. The obvious next question is whether
+  // anything else holds one, and Tortie must answer it by checking rather than
+  // by assuming. It is here rather than on a visible surface for the same
+  // reason RSS is: it answers a bug report, not a question somebody has while
+  // choosing a scrollback depth. Lazy for the same reason as the process list,
+  // and it cannot claim protection it did not observe.
+  try {
+    const { readOffDeviceProtection, offDeviceReportLines } = await import(
+      '../diagnostics/off-device'
+    );
+    lines.push(...offDeviceReportLines(await readOffDeviceProtection()));
+  } catch {
+    // The check refused. Saying nothing is the honest outcome, because the
+    // one thing that must never appear here is an unearned reassurance.
   }
 
   // Imported lazily for the same reason `ps` is: nothing about the process

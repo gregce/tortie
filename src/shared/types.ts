@@ -5,26 +5,149 @@
  * against these shapes. Existing declarations must not be changed; new types
  * may be APPENDED. If you believe an existing shape is wrong, note it for the
  * integrator instead of editing it.
+ *
+ * TWO DECLARATIONS WERE EDITED IN PLACE IN PHASE 19 ITEM 6, on the operator's
+ * instruction, and this is the record of it.
+ *
+ *  1. `SessionStatus` gained `unknown` and `discarded`. Three separate entries
+ *     in the durability queue each need a member added to it, and changing the
+ *     meaning of a persisted alphabet three times is how a row written by one
+ *     version gets misread by the next. The whole member set is designed at
+ *     once, and later phases add producers rather than members.
+ *  2. `SessionStatus` and `ResumeCapture` are now derived from a `const` list
+ *     instead of being written as bare literals. The manifest kept its own
+ *     copy of each list as a parse whitelist, and the type it used accepted a
+ *     shorter copy, so adding a member without updating the copy compiled
+ *     cleanly and silently degraded every row carrying it. Both unions are
+ *     byte-identical to what they were.
  */
 
 /** Which agent (if any) a session runs. Plain shells are first-class. */
 export type AgentKind = 'claude' | 'codex' | 'shell';
 
 /**
- * Session lifecycle status.
+ * Session lifecycle status. THIS ONE FIELD ANSWERS ONE QUESTION: what is this
+ * session doing right now, as far as Tortie can prove. How the session got
+ * here is a different fact and lives in {@link SessionRestore}.
+ *
  * - running:     the pane's process is alive and producing output / working
  * - idle:        alive but quiet (prompt sitting, agent finished a turn)
  * - needs_input: agent is blocked waiting on the user (bell / hook / heuristic)
  * - exited:      process ended; tmux session may be gone
  * - restorable:  known only from the manifest (e.g. after reboot) — can be
  *                recreated with an ARMED resume command
+ * - unknown:     Tortie cannot see the session and cannot prove it is gone.
+ *                Losing the control connection is not the same event as
+ *                losing the process, and an attention verdict that has run
+ *                out of evidence is not the same thing as an idle session.
+ *                Nothing may act on this status: it is never a restore
+ *                candidate and it never starts a second agent.
+ * - discarded:   the user removed this session and the row is a tombstone
+ *                kept so the removal can be undone. Terminal. Reconcile never
+ *                claims it, never revives it and never marks it restorable.
+ *
+ * WHY THE LAST TWO MEMBERS EXIST WITH NOTHING WRITING THEM YET (Phase 19
+ * item 6). Three separate entries in the durability queue each need this
+ * union changed: the honest restore (this phase), transport loss and
+ * attention-lease expiry (research 33 entry 9, which needs `unknown`), and
+ * the reversible remove (research 33 entry 21, which needs the tombstone).
+ * Changing the meaning of a persisted alphabet three times is how rows
+ * written by one version get misread by the next, so the member set is
+ * designed once, here, and each later phase adds a producer rather than a
+ * member. Reconcile already refuses to touch `discarded`, so a row written
+ * by a later build cannot be resurrected by this one.
+ *
+ * WHAT IS DELIBERATELY NOT A MEMBER. A degraded restore, e.g. the folder came
+ * back but the scrollback did not. That is provenance, not liveness, and a
+ * session can be both "working" and "came back without its history" at the
+ * same time. Flattening the two into one alphabet multiplies the members and
+ * is what makes people reach for a state machine library (research 34 §3.5).
+ * It is carried by `Session.restore` instead.
+ *
+ * The list is the single source and the type is derived from it, so a member
+ * added above without adding it here is a compile error rather than a row
+ * that silently degrades on read (research 34 §3.5, last defect).
  */
-export type SessionStatus =
-  | 'running'
-  | 'idle'
-  | 'needs_input'
-  | 'exited'
-  | 'restorable';
+export const SESSION_STATUSES = [
+  'running',
+  'idle',
+  'needs_input',
+  'exited',
+  'restorable',
+  'unknown',
+  'discarded'
+] as const;
+
+export type SessionStatus = (typeof SESSION_STATUSES)[number];
+
+/**
+ * The stage of a restore that stopped it. The order is the order they run in.
+ *
+ * - preflight: checked before anything is created, e.g. the recorded folder
+ *              is gone and substituting another one would arm a resume that
+ *              opens an empty conversation.
+ * - create:    `tmux new-session` itself failed. Nothing came back.
+ * - replay:    the scrollback snapshot could not be typed into the pane.
+ * - arm:       the resume command could not be typed into the pane.
+ */
+export type RestoreStage = 'preflight' | 'create' | 'replay' | 'arm';
+
+/**
+ * What a restore of this session actually achieved, in order of how much of
+ * the session came back.
+ *
+ * - failed:      nothing was created. The row is still `restorable` and the
+ *                user can try again.
+ * - interrupted: Tortie stopped part way through the restore, so what came
+ *                back is not known. Written by the restore journal at the
+ *                next launch, never by the restore itself.
+ * - shell_only:  the folder and a shell came back. Neither the scrollback nor
+ *                a resume command did.
+ * - transcript:  the scrollback came back. No resume command is waiting.
+ * - armed:       the resume command is typed into the pane, waiting for the
+ *                user to press Enter.
+ *
+ * THE KIND NAMES THE BEST THING THAT CAME BACK, and the two failure strings
+ * say what did not. The scrollback replay and the resume arming are
+ * independent stages: a session with no saved snapshot can arm its resume
+ * perfectly, and that one is `armed`, not `shell_only`.
+ *
+ * Three of the kinds are each two different situations, and only the failure
+ * strings tell them apart. A plain shell has no conversation to resume, so
+ * `transcript` with no `armFailure` is a complete restore. A session with no
+ * saved snapshot has no scrollback to replay, so `armed` with no
+ * `replayFailure` is a complete restore too. Use `restoreShortfall()` in
+ * shared/restore-status.ts rather than deciding this again at each call site.
+ */
+export type RestoreResultKind =
+  | 'failed'
+  | 'interrupted'
+  | 'shell_only'
+  | 'transcript'
+  | 'armed';
+
+/**
+ * The record of the last restore of a session (Phase 19 item 6).
+ *
+ * WHY IT IS PERSISTED. The restore path already computed whether the
+ * transcript was replayed and whether the resume was armed, and then threw
+ * both away and wrote `running`. A restore where both stages failed read as a
+ * healthy working session. Storing the stage results is what makes the status
+ * derived from evidence rather than assigned.
+ */
+export interface SessionRestore {
+  kind: RestoreResultKind;
+  /** Epoch ms this result was decided. */
+  at: number;
+  /** Set on `failed`: the stage that stopped it. */
+  stage?: RestoreStage;
+  /** Set on `failed` and `interrupted`: one plain sentence about why. */
+  reason?: string;
+  /** Set when a snapshot existed and typing it into the pane threw. */
+  replayFailure?: string;
+  /** Set when a resume command existed and typing it into the pane threw. */
+  armFailure?: string;
+}
 
 /**
  * A named terminal session. The user-visible `name` is the primary UX key;
@@ -93,6 +216,15 @@ export interface Session {
    * Absent = an ordinary uncaptured session. See SessionCapture.
    */
   capture?: SessionCapture;
+  /**
+   * APPENDED (Phase 19 item 6): what the LAST restore of this session
+   * achieved. Absent means this session has never been restored, which is
+   * the normal state of a session that has simply been running since it was
+   * created. It is not cleared when the session is later working normally,
+   * because "this came back without its history" stays true for the rest of
+   * that session's life and is the answer to "where did my scrollback go".
+   */
+  restore?: SessionRestore;
 }
 
 /**
@@ -894,8 +1026,24 @@ export interface MultilineKeyTable {
  *                    NOTE this is a statement about gmux, not the agent:
  *                    every installed CLI does have a deterministic resume.
  *  - `none`        — nothing to resume (plain shells).
+ *
+ * The list is the single source and the type is derived from it (Phase 19
+ * item 6). The union it produces is byte-identical to the four literals that
+ * were written here before, so this is a same-shape substitution rather than
+ * an edit to the alphabet. It is made because the manifest kept its own copy
+ * of the same four strings as the parse whitelist, typed `readonly
+ * ResumeCapture[]`, and that type accepts a SHORTER list: adding a member here
+ * and forgetting the copy compiled cleanly and made every row carrying the new
+ * member parse as undefined (research 34 §3.5).
  */
-export type ResumeCapture = 'armed' | 'capturing' | 'unavailable' | 'none';
+export const RESUME_CAPTURES = [
+  'armed',
+  'capturing',
+  'unavailable',
+  'none'
+] as const;
+
+export type ResumeCapture = (typeof RESUME_CAPTURES)[number];
 
 // ---------------------------------------------------------------------------
 // APPENDED by the Phase-14.5 git-graph data stream (docs/research/24-git-graph.md)

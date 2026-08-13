@@ -805,7 +805,8 @@ export type GmuxInvokeChannelMap = InvokeChannelMap &
   GitGraphInvokeChannelMap &
   SpecStoryStatusInvokeChannelMap &
   CloneInvokeChannelMap &
-  RecentsInvokeChannelMap;
+  RecentsInvokeChannelMap &
+  DurabilityInvokeChannelMap;
 
 export type GmuxInvokeChannel = keyof GmuxInvokeChannelMap;
 
@@ -1290,7 +1291,8 @@ export type AllEventPayloadMap = EventPayloadMap &
   MenuEventPayloadMap &
   QuitEventPayloadMap &
   SettingsEventPayloadMap &
-  RecentsEventPayloadMap;
+  RecentsEventPayloadMap &
+  PowerEventPayloadMap;
 
 export type AllEventChannel = keyof AllEventPayloadMap;
 
@@ -2114,17 +2116,20 @@ export type MenuActionWithFind =
 // below, which fires on a crossed threshold and speaks once.
 // ---------------------------------------------------------------------------
 
-import type {
-  ScrollbackNotice,
-  ScrollbackStats,
-  SessionScrollbackFacts
-} from './scrollback';
+import type { ScrollbackStats, SessionScrollbackFacts } from './scrollback';
+import type { DurabilityNotice, GmuxNotice } from './notice';
 
 /** Main → renderers: a scrollback threshold was crossed. Rare by design. */
 export const EVT_SCROLLBACK_NOTICE = 'scrollback:notice' as const;
 
+// WIDENED by Phase 19 item 9. The payload is now GmuxNotice, which is the
+// three scrollback events plus one kind per degraded durability state
+// (src/shared/notice.ts). ScrollbackNotice is a member of that union, so every
+// existing emitter and every existing test still type-checks unchanged. The
+// channel name is deliberately left alone: it is a live wire string, and the
+// only thing renaming it would produce is churn.
 export interface ScrollbackEventPayloadMap {
-  'scrollback:notice': [notice: ScrollbackNotice];
+  'scrollback:notice': [notice: GmuxNotice];
 }
 
 /** New invoke channels appended by the scrollback-limits stream. */
@@ -2159,7 +2164,12 @@ export interface GmuxScrollbackExtras {
     stats(): Promise<ScrollbackStats>;
     session(sessionId: string): Promise<SessionScrollbackFacts | null>;
     report(): Promise<string>;
-    onNotice(cb: (notice: ScrollbackNotice) => void): Unsubscribe;
+    /**
+     * WIDENED by Phase 19 item 9 — see ScrollbackEventPayloadMap above. The
+     * renderer switches on `kind`, and `ScrollbackNotice` is still one of the
+     * shapes that arrives.
+     */
+    onNotice(cb: (notice: GmuxNotice) => void): Unsubscribe;
   };
 }
 
@@ -2615,3 +2625,100 @@ export type OpenRecentActionId = `open-recent:${string}`;
 
 /** The prefix above, so main and the renderer split the id the same way. */
 export const OPEN_RECENT_PREFIX = 'open-recent:' as const;
+
+// ---------------------------------------------------------------------------
+// APPENDED by Phase 19 items 8 and 9 (durability) — two new channels and their
+// preload extras. The existing lines touched above are the
+// GmuxInvokeChannelMap intersection, the `scrollback:notice` payload and the
+// `onNotice` callback signature, and each is annotated where it sits.
+//
+// WHY A PULL CHANNEL FOR NOTICES AT ALL: the loudest notice of the five fires
+// while the manifest is being opened, which is BEFORE any window exists, so a
+// broadcast at that instant reaches nobody. Main queues those and the renderer
+// drains the queue once, immediately after it subscribes. Everything posted
+// after that point is broadcast normally and is never queued, so a notice can
+// never be shown twice.
+// ---------------------------------------------------------------------------
+
+/** New invoke channels appended by the durability stream. */
+export interface DurabilityInvokeChannelMap {
+  /**
+   * Degraded-state notices that were posted before any renderer could hear
+   * them. Called ONCE per renderer boot, right after `scrollback.onNotice` is
+   * subscribed. Draining is destructive: the queue is empty afterwards.
+   */
+  'notice:pending': { req: []; res: DurabilityNotice[] };
+  /**
+   * Restart an ended session: create the replacement FIRST, and only then
+   * remove the old row. Phase 19 item 8.
+   *
+   * This is one main-side call rather than the renderer's old
+   * discard-then-create pair because the ordering is a durability invariant
+   * and the renderer cannot hold it across a reload. It is also the only side
+   * that can read the original launch flags, which live in the manifest row's
+   * argv and are dropped by any caller that rebuilds the session from the
+   * Session projection.
+   *
+   * Resolves to the replacement. Rejects with the create's own typed error and
+   * nothing removed, which is the whole point.
+   */
+  'sessions:restart': { req: [sessionId: string]; res: RestoreSession };
+}
+
+/**
+ * OPTIONAL top-level extra on window.gmux, feature-detected by the renderer
+ * (`typeof window.gmux.notice?.pending === 'function'`). Without it the app
+ * simply never hears a notice that was posted before the window existed, which
+ * is the behaviour every build before Phase 19 had.
+ */
+export interface GmuxNoticeExtras {
+  notice?: {
+    pending(): Promise<DurabilityNotice[]>;
+  };
+}
+
+/**
+ * OPTIONAL extension to GmuxApi['sessions'], feature-detected by the shell
+ * (`typeof window.gmux.sessions.restart === 'function'`). Without it the
+ * renderer falls back to its own create-then-discard sequence, which keeps the
+ * ordering right but cannot carry the launch flags.
+ */
+export interface GmuxSessionRestartExtras {
+  restart?(sessionId: string): Promise<RestoreSession>;
+}
+
+// ---------------------------------------------------------------------------
+// APPENDED by Phase 19 item 11 (sleep and wake) — one new EVENT channel, its
+// payload map, and one optional preload extra. The one existing line touched
+// above is the AllEventPayloadMap intersection, exactly the one-line fold that
+// declaration's own comment prescribes.
+//
+// WHY MAIN HAS TO ASK THE RENDERER. A WebGL texture atlas is a GPU resource
+// owned by the renderer, and it does not survive the GPU process losing its
+// context across a machine sleep. What the user sees on wake is a pane of
+// wrong or blank glyphs that only a resize repairs. Main is the only process
+// that receives `powerMonitor`'s resume event, and the renderer is the only
+// process that can call `clearTextureAtlas()`. So the event exists to carry
+// one fact across that gap, and it carries nothing else.
+//
+// This is the same handler VS Code wires in `terminalNativeContribution.ts`,
+// to the same event, calling the same public function from `@xterm/xterm@6`.
+// ---------------------------------------------------------------------------
+
+/** Main → renderers: the machine woke up. Rare by definition. */
+export const EVT_POWER_RESUME = 'power:resume' as const;
+
+export interface PowerEventPayloadMap {
+  /** No payload. The event IS the message, like `app:quitRequested`. */
+  'power:resume': [];
+}
+
+/**
+ * OPTIONAL top-level extra on window.gmux, feature-detected by the terminal
+ * (`typeof window.gmux.onPowerResume === 'function'`). Without it the pane
+ * keeps its stale atlas until the next resize, which is the behaviour before
+ * Phase 19 and not a broken one.
+ */
+export interface GmuxPowerExtras {
+  onPowerResume?(cb: () => void): Unsubscribe;
+}

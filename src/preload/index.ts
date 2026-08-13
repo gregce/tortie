@@ -39,7 +39,9 @@ import type {
   GmuxLoginItemExtras,
   GmuxMenuExtras,
   GmuxMultilineExtras,
+  GmuxNoticeExtras,
   GmuxPopupMenuExtras,
+  GmuxPowerExtras,
   GmuxProjectCloneExtras,
   GmuxProjectCreateExtras,
   GmuxQuickOpenExtras,
@@ -50,6 +52,7 @@ import type {
   GmuxSearchExtras,
   GmuxSymbolsExtras,
   GmuxSessionExtras,
+  GmuxSessionRestartExtras,
   GmuxSessionRestoreExtras,
   GmuxSettingsExtras,
   GmuxSpecStoryExtras,
@@ -67,6 +70,7 @@ import {
   EVT_CAPTURE_NOTICE,
   EVT_GIT_CHANGED,
   EVT_MENU_ACTION,
+  EVT_POWER_RESUME,
   EVT_QUIT_REQUESTED,
   EVT_RECENTS_CHANGED,
   EVT_SCROLLBACK_NOTICE,
@@ -223,7 +227,8 @@ const fs: GmuxApi['fs'] &
  */
 const sessions: GmuxApi['sessions'] &
   GmuxSessionExtras &
-  GmuxSessionRestoreExtras = {
+  GmuxSessionRestoreExtras &
+  GmuxSessionRestartExtras = {
   create: (input) => invoke('sessions:create', input),
   list: () => invoke('sessions:list'),
   rename: (input) => invoke('sessions:rename', input),
@@ -234,7 +239,10 @@ const sessions: GmuxApi['sessions'] &
   onChanged: (cb) => on(EVT_SESSIONS_CHANGED, cb),
   onStatusChanged: (cb) => on(EVT_STATUS_CHANGED, cb),
   discard: (sessionId) => invoke('sessions:discard', sessionId),
-  restore: (sessionId) => invoke('sessions:restore', sessionId)
+  restore: (sessionId) => invoke('sessions:restore', sessionId),
+  // Phase 19 item 8. One call, because the ordering inside it is a durability
+  // invariant: the replacement is created before anything is removed.
+  restart: (sessionId) => invoke('sessions:restart', sessionId)
 };
 
 /**
@@ -289,6 +297,15 @@ const scrollback: NonNullable<GmuxScrollbackExtras['scrollback']> = {
   session: (sessionId) => invoke('scrollback:session', sessionId),
   report: () => invoke('scrollback:report'),
   onNotice: (cb) => on(EVT_SCROLLBACK_NOTICE, cb)
+};
+
+/**
+ * notice surface (Phase 19 item 9). One call and no subscription: the notices
+ * themselves arrive on `scrollback.onNotice`, and this exists only to collect
+ * the ones main had to post before any window was open to hear them.
+ */
+const notice: NonNullable<GmuxNoticeExtras['notice']> = {
+  pending: () => invoke('notice:pending')
 };
 
 /**
@@ -434,6 +451,8 @@ const api: GmuxApi &
   GmuxScrollbackExtras &
   GmuxSpecStoryExtras &
   GmuxRecentsExtras &
+  GmuxNoticeExtras &
+  GmuxPowerExtras &
   GmuxViewMenuExtras = {
   sessions,
   projects,
@@ -449,6 +468,7 @@ const api: GmuxApi &
   symbols,
   quickOpen,
   scrollback,
+  notice,
   pathForFile: (file: File): string => {
     try {
       return webUtils.getPathForFile(file);
@@ -500,7 +520,12 @@ const api: GmuxApi &
   settingsSet: (patch) => invoke('settings:set', patch),
   openSettings: () => invoke('settings:openWindow'),
   agentFlagPresets: () => invoke('agents:flagPresets'),
-  onSettingsChanged: (cb) => on(EVT_SETTINGS_CHANGED, cb)
+  onSettingsChanged: (cb) => on(EVT_SETTINGS_CHANGED, cb),
+  // Phase 19 item 11 optional extra: the machine woke up. The terminal clears
+  // its WebGL glyph atlas on this, because a texture atlas does not survive
+  // the GPU process losing its context across a sleep. Nothing else
+  // subscribes, and nothing is sent at any other time.
+  onPowerResume: (cb) => on(EVT_POWER_RESUME, cb)
 };
 
 contextBridge.exposeInMainWorld('gmux', api);

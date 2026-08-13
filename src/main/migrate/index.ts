@@ -13,7 +13,9 @@ import {
 } from './userdata';
 
 export {
+  FAILURE_STAMP,
   NOTICE_STAMP,
+  renameFailureDetail,
   renameNoticeDetail,
   showRenameNoticeOnce,
   type RenameNoticeInput,

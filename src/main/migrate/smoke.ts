@@ -36,6 +36,7 @@
 import { app } from 'electron';
 import { createHash } from 'node:crypto';
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -177,7 +178,7 @@ export async function runMigrateSmoke(): Promise<void> {
 
   try {
     // -----------------------------------------------------------------------
-    log('1/10 the production guard still refuses to migrate on this machine');
+    log('1/11 the production guard still refuses to migrate on this machine');
     const live = decideMigrationSite({
       appDataDir: app.getPath('appData'),
       appName: app.getName(),
@@ -228,7 +229,7 @@ export async function runMigrateSmoke(): Promise<void> {
     );
 
     // -----------------------------------------------------------------------
-    log('2/10 building a populated legacy install (never a copy of the real one)');
+    log('2/11 building a populated legacy install (never a copy of the real one)');
     mkdirSync(join(legacyDir, LEGACY_APP_NAME, 'snapshots'), { recursive: true });
     mkdirSync(join(legacyDir, 'Local Storage', 'leveldb'), { recursive: true });
     mkdirSync(join(legacyDir, 'Cache', 'Cache_Data'), { recursive: true });
@@ -276,6 +277,12 @@ export async function runMigrateSmoke(): Promise<void> {
       '11111111-2222-3333-4444-555555555555'
     ]);
     check(capturedResume !== null, 'could not compose a wrapped resume argv');
+
+    // The server has to exist before a session can be created on it. This used
+    // to be true by accident, because this harness ran on the operator's own
+    // socket and that server is always up. It has its own socket now, so it
+    // starts its own server, exactly as the app does.
+    await tmux.ensureServer();
 
     const rows: ManifestSessionRecord[] = [];
     const now = Date.now();
@@ -334,12 +341,12 @@ export async function runMigrateSmoke(): Promise<void> {
     }
     store.close();
     log(
-      `      → 3 manifest rows (2 live on -L ${tmux.TMUX_SOCKET}, 1 restorable, ` +
+      `      → 3 manifest rows (2 live on -L ${tmux.activeTmuxSocket()}, 1 restorable, ` +
         '1 captured), snapshots, settings, hotkeys, tip flags, 256 KB of cache'
     );
 
     // -----------------------------------------------------------------------
-    log('3/10 migrating');
+    log('3/11 migrating');
     const sourceRows = readAllSessions(dbPath);
     const before = fingerprint(legacyDir);
     const result = migrateUserData({ legacyDir, targetDir });
@@ -350,7 +357,7 @@ export async function runMigrateSmoke(): Promise<void> {
     log(`      → ${result.summary}`);
 
     // -----------------------------------------------------------------------
-    log('4/10 the original is intact and kept as the backup');
+    log('4/11 the original is intact and kept as the backup');
     const after = fingerprint(legacyDir);
     const shm = `${LEGACY_APP_NAME}/manifest.db-shm`;
     before.delete(shm);
@@ -363,7 +370,7 @@ export async function runMigrateSmoke(): Promise<void> {
     log(`      → ${after.size} files byte-identical, mtimes unchanged`);
 
     // -----------------------------------------------------------------------
-    log('5/10 every manifest row survived with identical values');
+    log('5/11 every manifest row survived with identical values');
     const targetDb = join(targetDir, LEGACY_APP_NAME, 'manifest.db');
     const copiedRows = readAllSessions(targetDb);
     check(
@@ -388,7 +395,7 @@ export async function runMigrateSmoke(): Promise<void> {
     );
 
     // -----------------------------------------------------------------------
-    log('6/10 the live tmux sessions are still adoptable from the migrated copy');
+    log('6/11 the live tmux sessions are still adoptable from the migrated copy');
     const migrated = new ManifestStore(targetDb);
     const liveInfos = await tmux.listSessions();
     const liveList: LiveTmuxSession[] = liveInfos.map((info) => ({
@@ -422,7 +429,7 @@ export async function runMigrateSmoke(): Promise<void> {
     );
 
     // -----------------------------------------------------------------------
-    log('7/10 settings, hotkeys and one-time-tip flags came across');
+    log('7/11 settings, hotkeys and one-time-tip flags came across');
     const settings = JSON.parse(
       readFileSync(join(targetDir, 'settings.json'), 'utf8')
     ) as { settings: { hotkeys: Record<string, string>; defaultAgent: string } };
@@ -453,7 +460,7 @@ export async function runMigrateSmoke(): Promise<void> {
     log('      → hotkeys, default agent, tip flags and snapshots intact; cache left behind');
 
     // -----------------------------------------------------------------------
-    log('8/10 the captured session heals the dead bundle path (hazard 4)');
+    log('8/11 the captured session heals the dead bundle path (hazard 4)');
     check(
       !existsSync(OLD_BUNDLE_BIN),
       `${OLD_BUNDLE_BIN} exists on this machine — the rename case cannot be proved here`
@@ -490,7 +497,7 @@ export async function runMigrateSmoke(): Promise<void> {
     migrated.close();
 
     // -----------------------------------------------------------------------
-    log('9/10 the second launch is a no-op');
+    log('9/11 the second launch is a no-op');
     const second = migrateUserData({ legacyDir, targetDir, log: () => {} });
     check(
       second.status === 'skipped' && second.reason === 'already-migrated',
@@ -505,6 +512,99 @@ export async function runMigrateSmoke(): Promise<void> {
     log(`      → ${second.reason}; marker records ${marker?.entries.length} entries`);
 
     // -----------------------------------------------------------------------
+    // Phase 19 item 10. Everything above this line drives the SUCCESS path,
+    // and until now so did every case in the unit suite. Research 33 §3.1
+    // proved by probe that the failure path was silent and one-way: the copy
+    // threw, the user was told nothing, the app's first boot created
+    // `<userData>/gmux/`, and every launch after that answered
+    // skipped / target-has-data for good. This stage drives the whole shape.
+    log('10/11 a failed migration records itself and stays armed');
+    const failRoot = join(scratch, 'failure-path');
+    const failLegacy = join(failRoot, LEGACY_APP_NAME);
+    const failTarget = join(failRoot, NEW_APP_NAME);
+    mkdirSync(join(failLegacy, LEGACY_APP_NAME), { recursive: true });
+    writeFileSync(join(failLegacy, 'settings.json'), '{"version":1}');
+    const failStore = new ManifestStore(
+      join(failLegacy, LEGACY_APP_NAME, 'manifest.db')
+    );
+    failStore.insertSession({
+      id: `zzmig-${process.pid}-failpath`,
+      name: `zz-migrate-${process.pid}-failpath`,
+      tmuxName: `zz-migrate-${process.pid}-failpath`,
+      projectPath: home,
+      cwd: home,
+      agent: 'claude',
+      status: 'restorable',
+      createdAt: Date.now(),
+      lastSeen: Date.now(),
+      argv: ['claude'],
+      resumeArgv: ['claude', '--resume', 'failpath']
+    });
+    failStore.close();
+
+    // One unreadable file is all it takes, and it is not an exotic fixture: a
+    // Chromium file with odd permissions or a partial backup restore does it.
+    const unreadable = join(failLegacy, 'Preferences');
+    writeFileSync(unreadable, '{"profile":{}}');
+    chmodSync(unreadable, 0o000);
+    let readable = true;
+    try {
+      readFileSync(unreadable);
+    } catch {
+      readable = false;
+    }
+    if (readable) {
+      log('      → skipped: this process can read a mode 000 file, so the copy cannot be made to fail');
+    } else {
+      const failed = migrateUserData({
+        legacyDir: failLegacy,
+        targetDir: failTarget,
+        log: () => {}
+      });
+      check(
+        failed.status === 'failed',
+        `the copy did not fail as arranged: ${failed.status}/${failed.reason}`
+      );
+      const failMarker = readMigrationMarker(failTarget);
+      check(
+        failMarker?.status === 'failed' && failMarker.attempts === 1,
+        'the failure was not recorded in the target, so the retry cannot be armed'
+      );
+      check(
+        !existsSync(join(failTarget, LEGACY_APP_NAME, 'manifest.db')),
+        'a failed migration published something'
+      );
+
+      // The app boots anyway and creates its own payload. This is the moment
+      // that used to make the state permanent.
+      mkdirSync(join(failTarget, LEGACY_APP_NAME), { recursive: true });
+      writeFileSync(join(failTarget, LEGACY_APP_NAME, 'manifest.db'), '');
+      chmodSync(unreadable, 0o644);
+
+      const retry = migrateUserData({
+        legacyDir: failLegacy,
+        targetDir: failTarget,
+        log: () => {}
+      });
+      check(
+        retry.status === 'migrated',
+        `the retry stood down instead of running: ${retry.status}/${retry.reason}`
+      );
+      check(
+        readAllSessions(join(failTarget, LEGACY_APP_NAME, 'manifest.db')).length === 1,
+        'the retry published a manifest without the session row'
+      );
+      check(
+        retry.movedAside.includes(LEGACY_APP_NAME),
+        'what the app wrote between the failure and the retry was not kept'
+      );
+      log(
+        `      → failed (${failed.reason}), recorded, retried, ` +
+          'and the session row came across with the earlier payload set aside'
+      );
+    }
+
+    // -----------------------------------------------------------------------
     // Optional real-scale rehearsal. `GMUX_MIGRATE_FIXTURE=<dir>` points the
     // migration at an ACTUAL install — the real one is fine, and is the point:
     // the copy only ever READS its source, so this measures the upgrade
@@ -517,7 +617,7 @@ export async function runMigrateSmoke(): Promise<void> {
     }
 
     // -----------------------------------------------------------------------
-    log('10/10 cleanup');
+    log('11/11 cleanup');
     for (const id of created) {
       await tmux.killSession(id).catch(() => undefined);
     }

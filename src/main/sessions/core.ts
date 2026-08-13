@@ -34,6 +34,8 @@ import {
   EVT_SESSIONS_CHANGED,
   EVT_STATUS_CHANGED
 } from '@shared/ipc';
+import type { SnapshotFailedNotice } from '@shared/notice';
+import { restoreShortfall } from '@shared/restore-status';
 import type {
   ScrollbackStats,
   SessionScrollbackFacts
@@ -46,6 +48,7 @@ import type {
   ResizeInput,
   ResumeCapture,
   Session,
+  SessionRestore,
   SessionStatus
 } from '@shared/types';
 import {
@@ -62,6 +65,12 @@ import {
 } from '../activity';
 import { AttachHost } from '../attach';
 import { agentBinaryName, registryResumeArgv } from '../agents';
+// The durable writer's own failure type and its own out-of-space test
+// (Phase 19 item 2). Do not write a second copy of either.
+import { DurableWriteError, isOutOfSpace } from '../durable';
+// Named crash points for the fault harness. A no-op on every launch that is
+// not a harness launch — see fault/inject.ts.
+import { faultPoint } from '../fault/inject';
 import { unwatchGitRepo } from '../git';
 import {
   agentRescuesId,
@@ -73,14 +82,25 @@ import {
   type AgentLaunchSpec,
   type LiveTmuxSession,
   type ManifestSessionRecord,
+  type RestoreAttemptRecord,
   type SessionIdWatch
 } from '../manifest';
+// The one channel main uses to say a durability layer is degraded, and the
+// owner of the once-per-run latch (Phase 19 item 9). Never broadcast a
+// DurabilityNotice directly — the latch is the point of the module.
+import { postDurabilityNotice } from '../notice';
 // LEAF restore modules only — ../restore/ipc imports this file (no cycles).
-import { restoreSessionInTmux } from '../restore/restore';
+import { restoreRecordOf, restoreSessionInTmux } from '../restore/restore';
+import {
+  resolveRestoreJournal,
+  type LiveIdentity
+} from '../restore/journal';
 import {
   captureSessionSnapshot,
   deleteSnapshot,
-  snapshotsDir
+  snapshotsDir,
+  type SnapshotReason,
+  type SnapshotSessionRecipe
 } from '../restore/snapshots';
 import {
   buildScrollbackReport,
@@ -155,6 +175,15 @@ const CREATE_IN_FLIGHT_MAX_MS = 60_000;
  *    gmux scrolls a session by driving copy-mode, and tmux would otherwise
  *    paint its own amber "[38/261]" box over the transcript's top-right
  *    corner — tmux chrome and tmux vocabulary, in a UI that shows neither.
+ *  - exit-empty off: the private server must outlive its last session. tmux's
+ *    own default is `on`, so a server that came up without our conf ends the
+ *    moment the user closes their last session, and with it the socket every
+ *    later launch expects to find. This was measured and then left unhandled
+ *    until the Phase 19 fix round: a server started without the conf runs
+ *    `exit-empty on`, and setting `history-limit` on it afterwards left
+ *    `exit-empty` on. It is re-asserted here, warm server or cold, because
+ *    unlike history-limit it is never a user preference and there is no value
+ *    other than `off` that Tortie can work with.
  *  - history-limit (Phase 13.7) is the one entry sourced from SETTINGS rather
  *    than a literal, and it is the one where drift is invisible: the conf's
  *    number wins on a server that outlived a settings change, and the user
@@ -162,10 +191,37 @@ const CREATE_IN_FLIGHT_MAX_MS = 60_000;
  */
 const BOOT_SERVER_OPTIONS: readonly (readonly [string, string])[] = [
   ['remain-on-exit', 'failed'],
+  ['exit-empty', 'off'],
   ['mouse', 'off'],
   ['copy-mode-position-format', ''],
   ['mode-style', 'noattr,bg=default,fg=default']
 ];
+
+/**
+ * The manifest row as a snapshot capsule carries it.
+ *
+ * Phase 20 rebuilds a lost manifest from the capsules, so it cannot read the
+ * manifest to learn whose scrollback a body is. Everything it needs to launch
+ * the session again travels in the capsule at capture time or it is not
+ * recoverable at all. See SnapshotSessionRecipe in ../restore/snapshots.
+ *
+ * `argv` is the manifest's own form, with the ABSOLUTE binary path, which is
+ * the form the manifest is the source of truth for. The bare-name launch rule
+ * (Phase 12.7 F3) is applied at spawn, not stored.
+ */
+function snapshotRecipeOf(rec: ManifestSessionRecord): SnapshotSessionRecipe {
+  return {
+    name: rec.name,
+    tmuxName: rec.tmuxName,
+    projectPath: rec.projectPath,
+    cwd: rec.cwd,
+    agent: rec.agent,
+    agentSessionId: rec.agentSessionId ?? null,
+    argv: rec.argv,
+    resumeArgv: rec.resumeArgv ?? null,
+    agentVersion: rec.specstory?.binVersion ?? null
+  };
+}
 
 /**
  * Push the configured scrollback depth onto the private server.
@@ -262,6 +318,100 @@ async function assertServerOptions(): Promise<void> {
   await applyHistoryLimit(getSettings().scrollbackLines);
 }
 
+// ---------------------------------------------------------------------------
+// Phase 19 item 4 — a capture pass that could not write says so once
+// ---------------------------------------------------------------------------
+
+/** One session a capture pass could not write, and why. */
+export interface UnwrittenSnapshot {
+  /** The session's display name. For the log line, never for the notice. */
+  name: string;
+  /** True when the durable writer reported the volume was full. */
+  outOfSpace: boolean;
+}
+
+/**
+ * The notice one capture pass owes the user, or null when it owes none.
+ *
+ * Exported and pure because the decision is the part worth pinning: how many
+ * failures become how many notices, and when the notice may claim the volume
+ * is full. The posting and the logging are the caller's.
+ *
+ * ONE notice for the whole pass. A full volume fails every session in the pass
+ * with the same error, and forty three copies of one sentence is a dashboard.
+ * `outOfSpace` is true when ANY failure in the pass was out of space, because
+ * that is the one cause the user can clear, and a pass that hit it has hit the
+ * end of the disk whatever else also failed.
+ */
+export function snapshotFailureNotice(
+  unwritten: readonly UnwrittenSnapshot[]
+): SnapshotFailedNotice | null {
+  if (unwritten.length === 0) return null;
+  return {
+    kind: 'snapshot-failed',
+    sessions: unwritten.length,
+    outOfSpace: unwritten.some((one) => one.outOfSpace)
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Phase 19 item 6 — what a restore achieved, and what it may therefore claim
+//
+// `restoreSessionInTmux` runs three stages that fail independently: create the
+// tmux session, replay the saved scrollback, and arm the resume command. Two of
+// them only warn when they throw. This file used to destructure `info` out of
+// the result, drop the other two fields on that line, and write
+// `status: 'running'`. A restore whose replay and arming had both thrown was
+// stored and broadcast as a healthy working session.
+//
+// The result now arrives as the discriminated union in restore.ts, whose failed
+// arm carries no `info`, so dropping the stage results is a compile error. The
+// record stored on the row is `SessionRestore` from src/shared/types.ts, which
+// is the same shape the renderer reads. There is one description of a restore
+// rather than three.
+// ---------------------------------------------------------------------------
+
+/**
+ * The status a restored session is allowed to claim, derived from the stage it
+ * reached rather than assigned.
+ *
+ * `running` is not in the range of this function, and that is the point of it.
+ * A restored pane holds a fresh interactive shell sitting at a prompt. Nothing
+ * is executing. The resume command is TYPED and deliberately not sent, so even
+ * the best case has not started the conversation. `running` was a claim about
+ * work in progress, and it was made just as loudly when every stage had
+ * thrown.
+ *
+ * `idle` is what the pane is: alive and quiet. The activity oracles move the
+ * row to `running` a tick later if the session starts behaving like it, and
+ * that observation is the only evidence the word is allowed to rest on. How
+ * much of the session came back is a different fact and rides on
+ * `Session.restore`, which is why it does not multiply this alphabet.
+ *
+ * `failed` and `interrupted` never reach here. Nothing was created for them,
+ * so the row keeps the `restorable` it already had. The switch has no
+ * `default`, so a new member of `RestoreResultKind` is a compile error here
+ * rather than a silent fall through to a status nobody chose.
+ */
+export function restoredStatus(result: SessionRestore): SessionStatus {
+  switch (result.kind) {
+    // Nothing was created. The caller throws before this is asked.
+    case 'failed':
+    case 'interrupted':
+      return 'restorable';
+    // Alive with no scrollback replayed. The user got their folder back.
+    case 'shell_only':
+      return 'idle';
+    // The scrollback replayed as inert text above a fresh prompt.
+    case 'transcript':
+      return 'idle';
+    // The scrollback replayed and the resume command is typed, waiting on
+    // Enter. Still not running: the user has not pressed it.
+    case 'armed':
+      return 'idle';
+  }
+}
+
 export class GmuxCore {
   readonly manifest: ManifestStore;
   readonly control: tmux.TmuxControlClient;
@@ -275,6 +425,12 @@ export class GmuxCore {
   private readonly idCaptureWatches = new Map<string, SessionIdWatch>();
   /** Session ids with a restore in flight ("Restore all" double-clicks). */
   private readonly restoresInFlight = new Set<string>();
+  /**
+   * Whether the restore journal has been resolved this launch (item 7). Once,
+   * on the first refresh: after that the journal only holds attempts this
+   * process made, and this process closes its own.
+   */
+  private journalResolved = false;
   /**
    * Session id → the instant its create started, for creates whose manifest
    * row exists but whose tmux session does not yet (§2.4 Step 0 writes the
@@ -365,7 +521,12 @@ export class GmuxCore {
     this.attachHost = new AttachHost({
       tmuxBin: tmux.getTmuxContext().bin,
       confPath: tmux.resolveConfPath(),
-      socketName: tmux.TMUX_SOCKET,
+      // The socket the supervisor RESOLVED, not the constant. They are the
+      // same string for every launch a user makes, and the fault harness moves
+      // it on purpose so it can crash the app against a server that holds none
+      // of the user's work. An attach client left on the constant would then be
+      // talking to a different tmux server than the rest of the app.
+      socketName: tmux.getTmuxContext().socket,
       onData: (sessionId, byteLength) => {
         this.onTermData?.(sessionId, byteLength);
       },
@@ -554,7 +715,9 @@ export class GmuxCore {
       // non-exited row flips to 'restorable'. Snapshot first, best-effort:
       // if the server still lives (clean detach) the captures succeed; if it
       // is truly dead they fail harmlessly (research 09 §B.4 capture point).
-      void this.snapshotAllSessions().finally(() => this.scheduleRefresh());
+      void this.snapshotAllSessions('server-exit').finally(() =>
+        this.scheduleRefresh()
+      );
     });
     this.control.on('error', (err) => {
       console.warn(`[gmux] control client: ${err.message}`);
@@ -779,9 +942,21 @@ export class GmuxCore {
    * Snapshot every live manifested session's scrollback to
    * <userData>/gmux/snapshots/<id>.txt. Best-effort and parallel — quit
    * paths call this and must never hang on a sick server.
+   *
+   * Best-effort is not the same as silent (Phase 19 item 4). A pass whose
+   * WRITES failed has stopped protecting the user's work, and the pass says so
+   * once. See {@link reportUnwrittenSnapshots}.
+   *
+   * `reason` is recorded in each snapshot's capsule (Phase 19 item 3), because
+   * Phase 20 reconstruction cannot tell a capture taken on the way to sleep
+   * from one taken as the tmux server died, and the two are worth different
+   * amounts. It defaults to 'app-quit' because that is what an unqualified
+   * "snapshot everything" has always meant here.
    */
-  async snapshotAllSessions(): Promise<void> {
+  async snapshotAllSessions(reason: SnapshotReason = 'app-quit'): Promise<void> {
     const jobs: Promise<unknown>[] = [];
+    /** Sessions whose scrollback this pass could not write. */
+    const unwritten: UnwrittenSnapshot[] = [];
     for (const rec of this.manifest.listSessions()) {
       if (rec.status === 'exited' || rec.status === 'restorable') continue;
       // F1: only capture panes we can prove are ours — a name-resolved
@@ -790,7 +965,20 @@ export class GmuxCore {
       const target = this.liveIds.get(rec.id);
       if (target === undefined) continue;
       jobs.push(
-        captureSessionSnapshot(target, rec.id).catch((err: unknown) => {
+        captureSessionSnapshot(target, rec.id, {
+          reason,
+          session: snapshotRecipeOf(rec)
+        }).catch((err: unknown) => {
+          // A failed WRITE is the failure that means protection stopped, and
+          // the durable writer's own error type is what identifies one. Every
+          // other failure here is a pane that went away, and the %exit path
+          // calls this with a dying tmux server, which produces a whole pass
+          // of those. Announcing on those would be a false alarm on the one
+          // channel that must never cry wolf.
+          if (err instanceof DurableWriteError) {
+            unwritten.push({ name: rec.name, outOfSpace: isOutOfSpace(err) });
+            return;
+          }
           console.warn(
             `[gmux] snapshot failed for "${rec.name}": ${(err as Error).message}`
           );
@@ -798,6 +986,33 @@ export class GmuxCore {
       );
     }
     await Promise.allSettled(jobs);
+    this.reportUnwrittenSnapshots(unwritten);
+  }
+
+  /**
+   * Say once that scrollback is no longer being saved (Phase 19 item 4).
+   *
+   * The whole pass produces at most one notice. A full volume fails every
+   * session in the pass with the same error, and forty three copies of one
+   * sentence is a dashboard. `postDurabilityNotice` owns the latch that also
+   * silences the next pass, so the count below is this pass's own.
+   *
+   * The names stay in the log, because that is where a person debugging wants
+   * them and it is not a surface the user reads. The log line is written even
+   * when the notice is swallowed as a repeat, which is what the returned
+   * boolean is for.
+   */
+  private reportUnwrittenSnapshots(
+    unwritten: readonly UnwrittenSnapshot[]
+  ): void {
+    const notice = snapshotFailureNotice(unwritten);
+    if (notice === null) return;
+    console.warn(
+      `[gmux] ${notice.sessions} session(s) were not saved` +
+        `${notice.outOfSpace ? ' because the volume is full' : ''}: ` +
+        unwritten.map((one) => one.name).join(', ')
+    );
+    postDurabilityNotice(notice);
   }
 
   /**
@@ -805,6 +1020,10 @@ export class GmuxCore {
    * $SHELL, replay the scrollback snapshot as inert history, and TYPE the
    * recorded resume command without Enter (armed). Idempotent for sessions
    * that are already live again.
+   *
+   * The status it stores is DERIVED from the stage the restore reached, never
+   * assigned (Phase 19 item 6). See {@link restoredStatus} for why `running`
+   * is not one of the answers.
    */
   async restoreSession(sessionId: string): Promise<Session> {
     const rec = this.mustGetSession(sessionId);
@@ -822,6 +1041,8 @@ export class GmuxCore {
       return toSession(rec); // double-click guard; caller re-renders on event
     }
     this.restoresInFlight.add(sessionId);
+    /** The open journal entry, or null once it has been closed (item 7). */
+    let attemptId: number | null = null;
     try {
       // The armed resume command may carry `--settings <path>`, and claude
       // refuses to start when that file is gone. Re-write it (recovering the
@@ -829,17 +1050,51 @@ export class GmuxCore {
       if (rec.agent === 'claude') {
         ensureClaudeHookSettings(this.hookServer, sessionId);
       }
-      const outcome = await restoreSessionInTmux(rec);
+      // Item 7: the intent is on disk, in a durable commit, before any side
+      // effect. `attemptId` is what closes it again on every path out.
+      attemptId = this.manifest.beginRestoreAttempt(sessionId);
+      const attempt = attemptId;
+      const outcome = await restoreSessionInTmux(rec, {
+        // The instant new-session returns, and before anything is typed into
+        // the pane. This is the window where a crash used to leave Tortie
+        // holding a session it had no record of creating.
+        onCreated: (created) => {
+          this.manifest.noteRestoreTmuxId(attempt, created.sessionId);
+        }
+      });
+      const result = restoreRecordOf(outcome);
+      if (outcome.kind === 'failed') {
+        // No session was created, so the row keeps the status it already has,
+        // which is 'restorable'. Writing a live status here would be this
+        // item's own defect pointed the other way.
+        this.manifest.updateSession(sessionId, { restore: result });
+        this.reportRestoreStages(rec, result);
+        this.manifest.finishRestoreAttempt(attempt, result.kind);
+        attemptId = null;
+        // The original error, not a rebuilt one: the renderer already knows
+        // how to show it, and the preflight refusal's wording is the same
+        // sentence it has always been.
+        throw outcome.error;
+      }
+      // `info` is unreachable on the failed arm, which is what makes dropping
+      // the stage results a compile error rather than a silent regression.
       const { info } = outcome;
+      // DERIVED, never assigned. See restoredStatus: 'running' is not one of
+      // the answers, and the record of what came back is stored beside it so
+      // the renderer never has to infer it from the presence of resumeArgv.
+      const status = restoredStatus(result);
+      this.reportRestoreStages(rec, result);
 
       this.liveIds.set(sessionId, info.sessionId);
       this.byTmuxId.set(info.sessionId, sessionId);
       const updated = this.manifest.updateSession(sessionId, {
         tmuxName: info.tmuxName,
-        status: 'running',
+        status,
+        restore: result,
         lastSeen: Date.now(),
         ...(info.panePid !== undefined ? { panePid: info.panePid } : {})
       });
+      faultPoint('restore.after-status-write');
 
       // Re-mirror metadata into tmux user options (best-effort, §2.4 0.2).
       try {
@@ -858,12 +1113,73 @@ export class GmuxCore {
         );
       }
 
-      broadcast(EVT_STATUS_CHANGED, sessionId, 'running');
+      this.manifest.finishRestoreAttempt(attempt, result.kind);
+      attemptId = null;
+
+      broadcast(EVT_STATUS_CHANGED, sessionId, status);
       this.broadcastSessions();
       return toSession(updated);
     } finally {
       this.restoresInFlight.delete(sessionId);
+      // An attempt still open here means something threw between the two
+      // durable commits. Close it as interrupted rather than leaving a row
+      // that makes the next launch believe the app died mid-restore, which
+      // would be a second, invented disagreement.
+      if (attemptId !== null) {
+        try {
+          this.manifest.finishRestoreAttempt(attemptId, 'interrupted');
+        } catch (err) {
+          console.warn(
+            `[gmux] could not close the restore journal entry: ${(err as Error).message}`
+          );
+        }
+      }
     }
+  }
+
+  /**
+   * Tell the user what a restore did not get back, and write the same thing to
+   * the log.
+   *
+   * THE NOTICE IS THE POINT, and the log line is the copy a person debugging
+   * can find. Until the Phase 19 fix round this method wrote the log line only,
+   * so a restore that came back with neither its scrollback nor its resume
+   * command showed a row reading "idle" and then "working", and the loss lived
+   * in a database column with no reader. A record the user cannot see is not
+   * honesty.
+   *
+   * `restoreShortfall` decides what counts as a shortfall, because a plain
+   * shell with no conversation and a session with no saved snapshot are both
+   * COMPLETE restores and must not be reported as losses. That rule lives in
+   * one place for main, the notice channel and the renderer.
+   *
+   * The notice speaks once per app run, which is the right bound here. A
+   * restore-all after a reboot can bring back forty three sessions, and forty
+   * three toasts saying the same thing is not a notice, it is a dashboard.
+   */
+  private reportRestoreStages(
+    rec: ManifestSessionRecord,
+    result: SessionRestore
+  ): void {
+    const shortfall = restoreShortfall(result);
+    if (shortfall === null) return;
+    console.warn(`[gmux] restore of "${rec.name}" (${result.kind}): ${shortfall}`);
+    // 'failed' and 'interrupted' are not this notice. The first is a restore
+    // that did not happen and the caller already reports it, and the second is
+    // the journal's own state with its own notice kind.
+    if (result.kind === 'failed' || result.kind === 'interrupted') return;
+    const lostScrollback = result.replayFailure !== undefined;
+    const lostResume = result.armFailure !== undefined;
+    postDurabilityNotice({
+      kind: 'restore-shortfall',
+      sessionName: rec.name,
+      stage:
+        lostScrollback && lostResume
+          ? 'both'
+          : lostScrollback
+            ? 'scrollback'
+            : 'resume'
+    });
   }
 
   // -------------------------------------------------------------------------
@@ -960,6 +1276,9 @@ export class GmuxCore {
 
     const before = this.statusSnapshot();
     const identified = await this.identify(liveInfos);
+    // Item 7. Once per launch, and before reconcile, so both are judging the
+    // same list of live sessions.
+    this.resolveRestoreJournalOnce(identified);
     this.pruneStaleCreates();
     const result = this.manifest.reconcile(identified, {
       snapshotAt,
@@ -1015,6 +1334,89 @@ export class GmuxCore {
     // Phase 6/13.5: harvesting sessions that outlived a gmux restart
     // mid-capture get their watch re-armed (no-op once the id is recorded).
     this.resumeIdHarvests();
+  }
+
+  /**
+   * Close every restore attempt the last run of Tortie never finished
+   * (Phase 19 item 7).
+   *
+   * Runs once per launch, on the first refresh, because that is the first
+   * moment there is a list of live tmux sessions to compare the journal
+   * against. Comparing the two is the whole point: the journal says what was
+   * attempted and tmux says what is actually there, and the three situations
+   * that used to be indistinguishable are exactly the ones where those two
+   * disagree. `resolveRestoreJournal` holds the policy and is a pure function,
+   * so every cell of the matrix is tested without a tmux server.
+   *
+   * It writes a restore RECORD and never a status. Claiming a live session is
+   * reconcile's job, by identity, and a second adoption path would give Tortie
+   * two answers to "is this session mine".
+   */
+  private resolveRestoreJournalOnce(live: readonly LiveTmuxSession[]): void {
+    if (this.journalResolved) return;
+    this.journalResolved = true;
+
+    let open: RestoreAttemptRecord[];
+    try {
+      open = this.manifest.listUnfinishedRestoreAttempts();
+    } catch (err) {
+      console.warn(
+        `[gmux] could not read the restore journal: ${(err as Error).message}`
+      );
+      return;
+    }
+    if (open.length === 0) return;
+
+    const identities: LiveIdentity[] = [];
+    for (const s of live) {
+      if (s.gmuxId !== undefined) {
+        identities.push({ gmuxId: s.gmuxId, tmuxId: s.tmuxId });
+      }
+    }
+
+    // What each row already says about its last restore. A crash after the
+    // record was written and before the attempt was closed must keep the
+    // accurate record, not have "not known" written over it.
+    const existing = new Map<string, SessionRestore>();
+    for (const rec of this.manifest.listSessions()) {
+      if (rec.restore !== undefined) existing.set(rec.id, rec.restore);
+    }
+
+    for (const r of resolveRestoreJournal(open, identities, existing)) {
+      console.warn(`[gmux] ${r.note}`);
+      try {
+        // The row may be gone: a session discarded between the crash and this
+        // launch has no row to annotate, and the attempt still has to close.
+        const row = this.manifest.getSession(r.sessionId);
+        if (r.write && row !== undefined) {
+          this.manifest.updateSession(r.sessionId, { restore: r.record });
+        }
+        this.manifest.finishRestoreAttempt(r.attemptId, r.record.kind);
+        // Items 7 and 9. Two of the five outcomes leave the session still not
+        // back, and those are the only two a person has to act on. The other
+        // three end with a live session or with a row that already reported
+        // itself, and the Zen rule is that nothing is said when nothing needs
+        // a human.
+        //
+        // The notice latch speaks once per app run, so with several
+        // unfinished attempts the user hears about the first one and reads
+        // the rest off the session list, which already shows them as
+        // restorable.
+        if (
+          row !== undefined &&
+          (r.kind === 'nothing-came-back' || r.kind === 'session-lost')
+        ) {
+          postDurabilityNotice({
+            kind: 'restore-incomplete',
+            sessionName: row.name
+          });
+        }
+      } catch (err) {
+        console.warn(
+          `[gmux] could not close restore attempt ${r.attemptId}: ${(err as Error).message}`
+        );
+      }
+    }
   }
 
   /**
@@ -1109,7 +1511,10 @@ export class GmuxCore {
     // death, kill NOTHING.
     const target = this.liveIds.get(sessionId);
     if (target !== undefined) {
-      await captureSessionSnapshot(target, sessionId).catch(() => undefined);
+      await captureSessionSnapshot(target, sessionId, {
+        reason: 'session-death',
+        session: snapshotRecipeOf(rec)
+      }).catch(() => undefined);
       await tmux.killSession(target).catch(() => undefined);
       this.byTmuxId.delete(target);
     }
@@ -1442,7 +1847,9 @@ export class GmuxCore {
     // is exactly the window a concurrent reconcile must not judge (16.5.1).
     // Held until the row is bound to a live tmux id below.
     this.createsInFlight.set(id, now);
+    faultPoint('create.before-declaration');
     this.manifest.insertSession(record);
+    faultPoint('create.after-declaration');
 
     // F3 (Phase 12.7, research 21 §8) — LAUNCH BY BARE NAME. The manifest
     // keeps the absolute path (restores must survive PATH drift, Bug A), but
@@ -1480,6 +1887,8 @@ export class GmuxCore {
       throw err;
     }
 
+    faultPoint('create.after-spawn');
+
     this.liveIds.set(id, info.sessionId);
     this.byTmuxId.set(info.sessionId, id);
     this.createsInFlight.delete(id);
@@ -1495,11 +1904,14 @@ export class GmuxCore {
       });
     }
 
+    faultPoint('create.after-launch-record');
+
     // Mirror metadata into tmux user options so the durable server is
     // self-describing even if the manifest is lost (§2.4 Step 0.2).
     // Best-effort: a failed mirror must not fail the create.
     try {
       await tmux.setSessionOption(info.sessionId, '@gmux-id', id);
+      faultPoint('create.after-identity-stamp');
       await tmux.setSessionOption(info.sessionId, '@gmux-agent', input.agent);
       if (spec.agentSessionId !== undefined) {
         await tmux.setSessionOption(
@@ -1607,7 +2019,10 @@ export class GmuxCore {
       // Session-close snapshot (§2.4 Step 2 capture point) — best-effort,
       // BEFORE the pane disappears.
       if (rec.status !== 'exited' && rec.status !== 'restorable') {
-        await captureSessionSnapshot(target, sessionId).catch(() => undefined);
+        await captureSessionSnapshot(target, sessionId, {
+          reason: 'session-close',
+          session: snapshotRecipeOf(rec)
+        }).catch(() => undefined);
       }
       await tmux.killSession(target); // idempotent — already-gone is fine
       this.byTmuxId.delete(target);
@@ -1830,10 +2245,12 @@ export async function shutdownGmuxCore(): Promise<void> {
   corePromise = null;
   try {
     const core = await pending;
+    faultPoint('quit.before-snapshots');
     await Promise.race([
       core.snapshotAllSessions(),
       new Promise<void>((resolve) => setTimeout(resolve, 8_000))
     ]).catch(() => undefined);
+    faultPoint('quit.after-snapshots');
     await Promise.race([
       core.captureSyncsIdle(),
       new Promise<void>((resolve) => setTimeout(resolve, SYNC_QUIT_TIMEOUT_MS))

@@ -27,7 +27,11 @@ import { WebglAddon } from '@xterm/addon-webgl';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import '@xterm/xterm/css/xterm.css';
 import './terminal.css';
-import type { GmuxApi, GmuxTermStreamExtras } from '@shared/ipc';
+import type {
+  GmuxApi,
+  GmuxPowerExtras,
+  GmuxTermStreamExtras
+} from '@shared/ipc';
 import type { GmuxErrorPayload, Session, SessionStatus } from '@shared/types';
 import { useApp } from '../state/store';
 // Phase 12.11: a terminal zooms by changing its FONT, never by CSS scaling —
@@ -464,6 +468,31 @@ export function TerminalPane({
     surface?.refresh();
     surface?.holdPositionAcrossResize();
   }, [zoomFactor, surface, attachEpoch]);
+
+  // ---- the machine woke up (Phase 19 item 11) -------------------------------
+  // A WebGL texture atlas is a GPU resource, and it does not survive the GPU
+  // process losing its context across a machine sleep. The pane comes back
+  // drawing wrong or blank glyphs, and until now only a resize repaired it.
+  //
+  // This is the same handler VS Code wires in `terminalNativeContribution.ts`,
+  // to the same event, calling the same public function from `@xterm/xterm@6`.
+  // Main owns the event because only main receives `powerMonitor`; this
+  // renderer owns the atlas. Feature-detected, so an older preload simply
+  // leaves the behaviour as it was.
+  useEffect(() => {
+    const bridge = window.gmux as typeof window.gmux & GmuxPowerExtras;
+    const subscribe = bridge.onPowerResume;
+    if (typeof subscribe !== 'function') return;
+    return subscribe(() => {
+      const term = termRef.current;
+      try {
+        webglRef.current?.clearTextureAtlas();
+      } catch {
+        /* renderer may have fallen back to DOM — nothing to clear */
+      }
+      if (term !== null && term.rows > 0) term.refresh(0, term.rows - 1);
+    });
+  }, []);
 
   // Right-click anywhere in the session → the native menu (DESIGN.md §3).
   // Right-clicking inside a selection keeps it, so Copy still has something

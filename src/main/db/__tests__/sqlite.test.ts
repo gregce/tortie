@@ -19,7 +19,12 @@ import { join } from 'node:path';
 import { Worker } from 'node:worker_threads';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { ManifestStore, type ManifestSessionRecord } from '../../manifest/store';
-import { immediateTransaction, openGmuxDatabase, runMigrations } from '../sqlite';
+import {
+  addColumnIfMissing,
+  immediateTransaction,
+  openGmuxDatabase,
+  runMigrations
+} from '../sqlite';
 
 let dir: string;
 
@@ -344,5 +349,87 @@ describe('read-then-write transactions under a writer that commits mid-flight', 
     expect(result.restorable.map((r) => r.id)).toEqual(['other']);
     expect(store.getSession('other')?.status).toBe('restorable');
     store.close();
+  });
+});
+
+/**
+ * A migration step that describes the schema it wants can run against a
+ * database that is already in that state.
+ *
+ * This is what makes a recovered manifest openable. `/usr/bin/sqlite3
+ * .recover` rebuilds from the FINAL schema while the `migrations` bookkeeping
+ * table can come back holding one row, so the runner re-runs early steps
+ * against columns that are already there. A plain `ALTER TABLE` throws
+ * `duplicate column name` and the app can never open that file again.
+ */
+describe('addColumnIfMissing', () => {
+  let dir: string;
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'gmux-idem-'));
+  });
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('adds the column once and is silent the second time', () => {
+    const db = new Database(join(dir, 'a.db'));
+    db.exec('CREATE TABLE sessions (id TEXT PRIMARY KEY)');
+    addColumnIfMissing(db, 'sessions', 'exit_code', 'INTEGER');
+    addColumnIfMissing(db, 'sessions', 'exit_code', 'INTEGER');
+    const names = (db.pragma('table_info(sessions)') as { name: string }[]).map(
+      (c) => c.name
+    );
+    expect(names).toEqual(['id', 'exit_code']);
+    db.close();
+  });
+
+  it('reproduces the recovered-manifest shape and survives it', () => {
+    const path = join(dir, 'recovered.db');
+    const db = new Database(path);
+    // The final schema, exactly as `.recover` would rebuild it...
+    db.exec('CREATE TABLE sessions (id TEXT PRIMARY KEY, exit_code INTEGER)');
+    // ...and a bookkeeping table that only remembers the first step.
+    db.exec(
+      'CREATE TABLE migrations (id INTEGER PRIMARY KEY AUTOINCREMENT, ' +
+        'name TEXT NOT NULL UNIQUE, applied_at INTEGER NOT NULL)'
+    );
+    db.prepare('INSERT INTO migrations (name, applied_at) VALUES (?, ?)').run(
+      '001-initial',
+      Date.now()
+    );
+
+    const plain = [
+      { name: '001-initial', up: () => undefined },
+      {
+        name: '002-exit-code',
+        up: (d: Database.Database) => {
+          d.exec('ALTER TABLE sessions ADD COLUMN exit_code INTEGER;');
+        }
+      }
+    ];
+    expect(() => runMigrations(db, plain)).toThrow(/duplicate column name/);
+
+    const idempotent = [
+      { name: '001-initial', up: () => undefined },
+      {
+        name: '002-exit-code',
+        up: (d: Database.Database) => {
+          addColumnIfMissing(d, 'sessions', 'exit_code', 'INTEGER');
+        }
+      }
+    ];
+    expect(() => runMigrations(db, idempotent)).not.toThrow();
+    db.close();
+  });
+
+  it('a real ManifestStore opens a recovered-shape file', () => {
+    const path = join(dir, 'manifest.db');
+    // Build it once through the store, then rewind the bookkeeping table the
+    // way a recovery does.
+    new ManifestStore(path).close();
+    const raw = new Database(path);
+    raw.exec("DELETE FROM migrations WHERE name != '001-initial'");
+    raw.close();
+    expect(() => new ManifestStore(path).close()).not.toThrow();
   });
 });

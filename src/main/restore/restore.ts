@@ -16,11 +16,21 @@
  * agents whose conversation lookup is global. See the guard below.
  *
  * The caller (GmuxCore.restoreSession) owns manifest/status bookkeeping.
+ *
+ * PHASE 19 ITEM 6 CHANGED WHAT THIS MODULE RETURNS, and it is the point of
+ * the change rather than a detail of it. Steps 2 and 3 can each fail on their
+ * own, and both used to be reported as a boolean and a nullable string that
+ * the caller was free to ignore. It did ignore them, on one line, and every
+ * failed restore was stored as a healthy running session. The return type is
+ * now a union whose failure arm carries no tmux session at all, so the caller
+ * cannot read the session without first handling the failure. See
+ * {@link RestoreOutcome}.
  */
 
 import { existsSync } from 'node:fs';
-import type { LaunchableAgentId } from '@shared/types';
+import type { LaunchableAgentId, SessionRestore } from '@shared/types';
 import { getLaunchableEntry } from '../agents/registry';
+import { faultPoint } from '../fault/inject';
 import type { ManifestSessionRecord } from '../manifest';
 import * as tmux from '../tmux';
 import { gmuxError } from '../errors';
@@ -31,15 +41,143 @@ import {
   wrapWithRecord
 } from '../specstory';
 import { buildArmedCommand, buildSnapshotReplayCommand } from './command';
-import { existingSnapshotPath } from './snapshots';
+import { resolveSnapshot } from './snapshots';
+import { postDurabilityNotice } from '../notice';
 
-export interface RestoreOutcome {
-  /** The freshly created tmux session (immutable $-id + applied name). */
-  info: tmux.TmuxSessionInfo;
-  /** True when a scrollback snapshot was replayed into the pane. */
-  replayed: boolean;
-  /** The armed (typed, unexecuted) command line, or null when none. */
-  armedCommand: string | null;
+/**
+ * What a restore attempt achieved (Phase 19 item 6).
+ *
+ * THE SHAPE IS THE FIX. This used to be one interface with three fields, and
+ * the caller wrote `const { info } = outcome;` and then `status: 'running'`.
+ * Both stage results were computed and then dropped on that line, so a restore
+ * whose scrollback replay AND resume arming had both thrown was stored and
+ * broadcast as a healthy working session.
+ *
+ * A discriminated union whose failure arm carries no `info` makes that same
+ * line fail to compile. The caller cannot reach the tmux session without first
+ * saying what it intends to do about the failure. No runtime library fixes a
+ * typing defect, which is why this is four type declarations and not a state
+ * machine dependency (research 34 §3.5).
+ *
+ * The `failed` arm carries the original error rather than a message, so the
+ * caller can rethrow the exact `GmuxError` the renderer already knows how to
+ * show. Failures are RETURNED rather than thrown for one reason: a thrown
+ * failure is a value the caller can forget to record, and the journal entry
+ * for this attempt has to be closed either way.
+ */
+export type RestoreOutcome =
+  | {
+      kind: 'failed';
+      /** Where it stopped. `preflight` means no side effect was taken. */
+      stage: 'preflight' | 'create';
+      /** One plain sentence, safe to store and to show. */
+      reason: string;
+      /** The original error. Rethrow this; do not rebuild it. */
+      error: unknown;
+    }
+  | {
+      kind: 'shell_only';
+      info: tmux.TmuxSessionInfo;
+      /**
+       * Why the scrollback did not come back. UNDEFINED means there was no
+       * snapshot to replay, which is not a failure — it is a session that had
+       * nothing saved yet.
+       */
+      replayFailure?: string;
+      /** Why the resume was not armed. Undefined means there was none. */
+      armFailure?: string;
+    }
+  | {
+      kind: 'transcript';
+      info: tmux.TmuxSessionInfo;
+      /** Why the resume was not armed. Undefined means there was none. */
+      armFailure?: string;
+    }
+  | {
+      kind: 'armed';
+      info: tmux.TmuxSessionInfo;
+      /** The armed (typed, unexecuted) command line. */
+      armedCommand: string;
+      /**
+       * Why the scrollback did not come back, on the session whose resume WAS
+       * armed. The two stages are independent, so the best case for the
+       * conversation and the worst case for the history can happen together.
+       */
+      replayFailure?: string;
+    };
+
+/** The three arms that created a tmux session. */
+export type RestoreSuccess = Extract<
+  RestoreOutcome,
+  { info: tmux.TmuxSessionInfo }
+>;
+
+/** Options for {@link restoreSessionInTmux}. */
+export interface RestoreSessionOptions {
+  /**
+   * Called with the tmux session the INSTANT `new-session` returns, before
+   * anything else is done to it.
+   *
+   * This exists for the restore journal (Phase 19 item 7): the window between
+   * a session existing and the manifest knowing it exists is exactly the
+   * window where a crash leaves Tortie holding a session it has no record of
+   * creating. Kept as a callback so that this module stays pure tmux side
+   * effects with no manifest writes of its own.
+   *
+   * A throwing hook does not fail the restore. The session is already there,
+   * and losing the restore over a bookkeeping error would be the larger loss.
+   */
+  onCreated?: (info: tmux.TmuxSessionInfo) => void;
+}
+
+/**
+ * The record to store for a restore outcome.
+ *
+ * The liveness status that goes with it is derived by `restoredStatus` in
+ * sessions/core.ts and is deliberately NOT computed here. One question gets
+ * one answer in one place, and that one is the caller's, because the caller is
+ * what owns the row.
+ */
+export function restoreRecordOf(
+  outcome: RestoreOutcome,
+  at: number = Date.now()
+): SessionRestore {
+  switch (outcome.kind) {
+    case 'failed':
+      return {
+        kind: 'failed',
+        at,
+        stage: outcome.stage,
+        reason: outcome.reason
+      };
+    case 'shell_only':
+      return {
+        kind: 'shell_only',
+        at,
+        ...(outcome.replayFailure !== undefined
+          ? { replayFailure: outcome.replayFailure }
+          : {}),
+        ...(outcome.armFailure !== undefined
+          ? { armFailure: outcome.armFailure }
+          : {})
+      };
+    case 'transcript':
+      return {
+        kind: 'transcript',
+        at,
+        ...(outcome.armFailure !== undefined
+          ? { armFailure: outcome.armFailure }
+          : {})
+      };
+    case 'armed':
+      return {
+        kind: 'armed',
+        at,
+        ...(outcome.replayFailure !== undefined
+          ? { replayFailure: outcome.replayFailure }
+          : {})
+      };
+  }
 }
 
 /**
@@ -180,13 +318,14 @@ export async function armableResumeArgv(
  * Recreate one manifested session in tmux with replayed scrollback and an
  * armed resume command. Pure tmux side effects — no manifest writes here.
  *
- * @throws GmuxError INVALID_INPUT when the recorded cwd no longer exists
- *         (surfaced as a friendly UI state, not a crash), and when
- *         substituting the project folder would arm a resume that quietly
- *         opens the WRONG (empty) conversation — see below.
+ * NEVER THROWS FOR A RESTORE THAT FAILED. It returns the `failed` arm carrying
+ * the original error, and the caller rethrows it after recording the attempt.
+ * The `GmuxError` the renderer shows is the same object it was before, so the
+ * friendly "that folder is gone" state is unchanged.
  */
 export async function restoreSessionInTmux(
-  rec: ManifestSessionRecord
+  rec: ManifestSessionRecord,
+  options: RestoreSessionOptions = {}
 ): Promise<RestoreOutcome> {
   const originalCwdGone = !existsSync(rec.cwd);
 
@@ -206,15 +345,18 @@ export async function restoreSessionInTmux(
     (rec.resumeArgv?.length ?? 0) > 0 &&
     resumeNeedsOriginalCwd(rec.agent)
   ) {
-    throw gmuxError(
-      'INVALID_INPUT',
+    const reason =
       `"${rec.name}" was in ${rec.cwd}, and that folder is gone. ` +
-        `${agentDisplayName(rec.agent)} can only find this conversation from ` +
-        'its original folder, so restoring it somewhere else would open an ' +
-        'empty session that looks resumed. Put the folder back and restore ' +
-        'again, or start a new session.',
-      rec.cwd
-    );
+      `${agentDisplayName(rec.agent)} can only find this conversation from ` +
+      'its original folder, so restoring it somewhere else would open an ' +
+      'empty session that looks resumed. Put the folder back and restore ' +
+      'again, or start a new session.';
+    return {
+      kind: 'failed',
+      stage: 'preflight',
+      reason,
+      error: gmuxError('INVALID_INPUT', reason, rec.cwd)
+    };
   }
 
   const cwd = !originalCwdGone
@@ -223,56 +365,128 @@ export async function restoreSessionInTmux(
       ? rec.projectPath
       : null;
   if (cwd === null) {
-    throw gmuxError(
-      'INVALID_INPUT',
-      `The folder for "${rec.name}" no longer exists.`,
-      rec.cwd
-    );
+    const reason = `The folder for "${rec.name}" no longer exists.`;
+    return {
+      kind: 'failed',
+      stage: 'preflight',
+      reason,
+      error: gmuxError('INVALID_INPUT', reason, rec.cwd)
+    };
   }
 
   // GUI-launched Electron inherits a minimal env; SHELL may be unset.
   const shell = process.env['SHELL'] ?? '/bin/zsh';
 
-  const info = await tmux.createSession({
-    displayName: rec.name,
-    cwd,
-    argv: [shell],
-    // Same markers a fresh create stamps (Phase 12.7 F3): a restored session
-    // is just as managed, and identity must survive the round trip.
-    env: { ...rec.env, ...tmux.managedPaneEnv(rec.id) }
-  });
+  faultPoint('restore.before-spawn');
+  let info: tmux.TmuxSessionInfo;
+  try {
+    info = await tmux.createSession({
+      displayName: rec.name,
+      cwd,
+      argv: [shell],
+      // Same markers a fresh create stamps (Phase 12.7 F3): a restored session
+      // is just as managed, and identity must survive the round trip.
+      env: { ...rec.env, ...tmux.managedPaneEnv(rec.id) }
+    });
+  } catch (err) {
+    return {
+      kind: 'failed',
+      stage: 'create',
+      reason: `"${rec.name}" could not be recreated: ${(err as Error).message}`,
+      error: err
+    };
+  }
+
+  // The journal's second write, before anything else touches the pane. A
+  // failure here is logged and swallowed: the session exists, and the restore
+  // is worth more than the bookkeeping.
+  try {
+    options.onCreated?.(info);
+  } catch (err) {
+    console.warn(
+      `[gmux] could not record the restore of "${rec.name}": ${(err as Error).message}`
+    );
+  }
+
+  faultPoint('restore.after-spawn');
 
   // From here on, target the immutable $-id (rename-proof addressing).
   const target = info.sessionId;
 
   // Step 2 — replay the snapshot as inert history (executed).
   let replayed = false;
-  const snapshot = existingSnapshotPath(rec.id);
+  let replayFailure: string | undefined;
+  const resolved = resolveSnapshot(rec.id);
+  const snapshot = resolved?.path ?? null;
+  if (resolved !== null && resolved.rejected > 0) {
+    // Items 3 and 9. The newest capture did not prove out and the ring gave
+    // an earlier one instead. The restore succeeds, so nothing else on this
+    // path would say a word, and the user is about to look at scrollback that
+    // stops earlier than the one they remember.
+    console.warn(
+      `[gmux] "${rec.name}" restored from an earlier snapshot: ` +
+        `${String(resolved.rejected)} newer generation(s) did not verify`
+    );
+    postDurabilityNotice({ kind: 'snapshot-repaired', sessionName: rec.name });
+  }
   if (snapshot !== null) {
     try {
       await typeIntoPane(target, buildSnapshotReplayCommand(snapshot), true);
       replayed = true;
     } catch (err) {
-      // A failed replay must not lose the restore itself.
+      // A failed replay must not lose the restore itself. It must not be
+      // forgotten either, which is what used to happen one line below this
+      // one: the boolean was dropped and the session was stored as 'running'.
+      replayFailure = (err as Error).message;
       console.warn(
-        `[gmux] snapshot replay failed for "${rec.name}": ${(err as Error).message}`
+        `[gmux] snapshot replay failed for "${rec.name}": ${replayFailure}`
       );
     }
   }
 
+  faultPoint('restore.after-replay');
+
   // Step 3 — arm the resume command (typed, NOT executed).
   let armedCommand: string | null = null;
+  let armFailure: string | undefined;
   const armed = buildArmedCommand(await armableResumeArgv(rec));
   if (armed.length > 0) {
     try {
       await typeIntoPane(target, armed, false);
       armedCommand = armed;
     } catch (err) {
+      armFailure = (err as Error).message;
       console.warn(
-        `[gmux] could not arm resume for "${rec.name}": ${(err as Error).message}`
+        `[gmux] could not arm resume for "${rec.name}": ${armFailure}`
       );
     }
   }
 
-  return { info, replayed, armedCommand };
+  faultPoint('restore.after-arm');
+
+  // The kind names the BEST thing that came back, and the two failure fields
+  // say what did not. The two stages are independent: a session with no saved
+  // snapshot can still arm its resume perfectly, and reporting that one as
+  // `shell_only` would hide the one thing the user cares about most.
+  if (armedCommand !== null) {
+    return {
+      kind: 'armed',
+      info,
+      armedCommand,
+      ...(replayFailure !== undefined ? { replayFailure } : {})
+    };
+  }
+  if (replayed) {
+    return {
+      kind: 'transcript',
+      info,
+      ...(armFailure !== undefined ? { armFailure } : {})
+    };
+  }
+  return {
+    kind: 'shell_only',
+    info,
+    ...(replayFailure !== undefined ? { replayFailure } : {}),
+    ...(armFailure !== undefined ? { armFailure } : {})
+  };
 }

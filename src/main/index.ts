@@ -29,6 +29,19 @@
  *                       kill out-of-band → restore → prove the conversation
  *                       came back. `npm run conformance:resume`; the harness
  *                       itself is src/main/conformance/resume.ts.
+ *  - GMUX_SMOKE=fault-work / fault-survey  the general fault harness (Phase
+ *                       19 item 1). The work phase builds durable state and is
+ *                       SIGKILLed part way through it; the survey phase
+ *                       relaunches and reports what survived as JSON. Both run
+ *                       under an isolated profile AND an isolated tmux socket,
+ *                       and refuse to start without both. Driven by
+ *                       build/fault-harness.mjs — `npm run smoke:fault`.
+ *  - GMUX_SMOKE=power   the sleep and wake handlers (Phase 19 item 11): a real
+ *                       session, a real snapshot on disk and a real renderer
+ *                       subscribing through the real preload. The two macOS
+ *                       events are injected, because the only way to make
+ *                       macOS send them is to sleep a machine holding live
+ *                       agent work. `npm run smoke:power`.
  *  - GMUX_SMOKE=procid  what the OUTSIDE world sees of gmux (Phase 13.8):
  *                       app name, process.title, what `ps` prints, and the
  *                       gmux-owned process list (app + helpers + private tmux
@@ -58,6 +71,9 @@ import {
   registerAssetSchemePrivileged
 } from './assets';
 import { registerCaptureIpc, saveLastCaptureTo } from './capture';
+// LEAF import: ./fault/harness pulls in the session core, so it is imported
+// directly rather than through ./fault, which production code imports.
+import { runFaultSurvey, runFaultWork } from './fault/harness';
 import { runResumeConformance } from './conformance';
 import { registerDropIpc, startDropStorePruning } from './drop';
 import { registerFsIpc, registerImageIpc } from './fs';
@@ -77,8 +93,10 @@ import {
   registerProjectCloneIpc,
   registerProjectCreateIpc
 } from './projects';
+import { registerNoticeIpc } from './notice/ipc';
 import { disposeQuickOpenIpc, registerQuickOpenIpc } from './quickopen';
 import { registerRecentsIpc } from './recents';
+import { registerRestartIpc } from './restart';
 import {
   reconcileLoginItem,
   registerRestoreIpc,
@@ -93,6 +111,14 @@ import { disposeSearchIpc, registerSearchIpc } from './search';
 import { disposeSymbolsIpc, registerSymbolsIpc } from './symbols';
 import { openSettingsWindow, registerSettingsIpc } from './settings';
 import { disposeTray, installTray } from './tray';
+// Phase 19 item 11: the two power handlers. Normal startup only.
+// LEAF import for the smoke, the same reason ./fault/harness is imported
+// directly: it pulls in the session core, and going through ./power would
+// make production code carry that edge.
+import { installPowerHandlers } from './power';
+import { runPowerSmoke } from './power/smoke';
+import { broadcastEvent } from './typed-events';
+import { EVT_POWER_RESUME } from '@shared/ipc';
 import * as tmux from './tmux';
 import { applyProcessIdentity } from './proc/identity';
 import { reapGuardedChildren } from './proc/guarded';
@@ -386,7 +412,7 @@ async function runSmokeBasic(): Promise<void> {
       argv: ['sleep', '30']
     });
     await tmux.killSession(probe.sessionId);
-    smokeLog(`5/6 tmux server reachable on private socket -L ${tmux.TMUX_SOCKET}`);
+    smokeLog(`5/6 tmux server reachable on private socket -L ${tmux.activeTmuxSocket()}`);
 
     // Cleanup: if the private server holds ZERO sessions (incl. the control
     // session), kill it so repeated smoke runs don't leak servers. Any real
@@ -668,8 +694,30 @@ async function verifyT3Case(
   }
 
   const restored = await core.restoreSession(rec.id);
-  if (restored.status !== 'running') {
-    throw new Error(`${kase.name}: restore left status "${restored.status}"`);
+  // Phase 19 item 6 changed what a restore may claim, and this gate changed
+  // with it. The old assertion was `=== 'running'`, which is the exact word
+  // the item removed: a restored pane holds a fresh shell at a prompt with
+  // nothing executing, and that word was written just as loudly when every
+  // stage had thrown. What the gate asserts now is the property that matters,
+  // which is that the row is LIVE and carries a record of what came back.
+  if (restored.status !== 'idle' && restored.status !== 'running') {
+    throw new Error(
+      `${kase.name}: restore left status "${restored.status}", expected a live one`
+    );
+  }
+  if (restored.restore === undefined) {
+    throw new Error(`${kase.name}: restore stored no record of what came back`);
+  }
+  if (restored.restore.kind !== 'armed') {
+    throw new Error(
+      `${kase.name}: restore recorded "${restored.restore.kind}", expected ` +
+        '"armed" — this case plants a resume argv and a snapshot'
+    );
+  }
+  if (restored.restore.replayFailure !== undefined) {
+    throw new Error(
+      `${kase.name}: the scrollback replay failed: ${restored.restore.replayFailure}`
+    );
   }
 
   // Capture by immutable $-id: on tmux 3.6a capture-pane does NOT honor
@@ -1630,6 +1678,14 @@ app.whenReady().then(async () => {
   // Phase 6: restore extension channels (sessions:restore, sessions:discard,
   // app:get/setLoginItem).
   registerRestoreIpc(ipcMain);
+  // Phase 19 item 8: sessions:restart. The replacement is created before the
+  // original is removed, which is why it is one main-side call and not the
+  // renderer's old discard-then-create pair.
+  registerRestartIpc(ipcMain);
+  // Phase 19 item 9: notice:pending. The degraded-state notices themselves ride
+  // the existing scrollback:notice event; this hands over the ones posted
+  // before a window existed to hear them, which is when the manifest is opened.
+  registerNoticeIpc(ipcMain);
   // Phase 8: agent CLI availability probe (agents:availability).
   registerAgentsIpc(ipcMain);
   // Phase 10 (S13): settings store + Settings window + flag-preset catalogs
@@ -1671,6 +1727,17 @@ app.whenReady().then(async () => {
   // Phase 15: the captured-launch acceptance test (wrap + resume + flush).
   if (smoke === 'capture') return runSmokeCapture();
   if (smoke === 'identity') return runSmokeIdentity();
+  // Phase 19 item 1: the general fault harness. `fault-work` builds durable
+  // state and is SIGKILLed part way through it; `fault-survey` relaunches and
+  // reports what survived. Both refuse to run unless the profile and the tmux
+  // socket are isolated. The supervisor is build/fault-harness.mjs.
+  if (smoke === 'fault-work') return runFaultWork();
+  if (smoke === 'fault-survey') return runFaultSurvey();
+  // Phase 19 item 11: the sleep and wake handlers, driven against a real
+  // session, a real snapshot and a real renderer. The two macOS events are
+  // injected, because the only way to make macOS send them is to sleep a
+  // machine that is holding the operator's live work.
+  if (smoke === 'power') return runPowerSmoke();
   // Phase 16.5a: the rename upgrade, driven against a populated fixture and
   // REAL live tmux sessions (src/main/migrate/smoke.ts). Never reads the real
   // userData; the guard it asserts first is what keeps it that way.
@@ -1740,6 +1807,40 @@ app.whenReady().then(async () => {
     setTimeout(() => {
       syncPollCadence(BrowserWindow.getAllWindows().some((w) => w.isFocused()));
     }, 0);
+  });
+
+  // Phase 19 item 11: sleep and wake. `powerMonitor` appeared nowhere in the
+  // app before this, so a lid closing was a durability gap Tortie never saw.
+  //
+  // Suspend forces the same capture the quit path runs. Sleep is the other
+  // moment the app is told in advance that it is about to stop, and without
+  // this the newest snapshot on disk could be hours older than the pane when
+  // a machine goes down and does not come back.
+  //
+  // Resume does two things. It asks every terminal to clear its WebGL glyph
+  // atlas, because a texture atlas does not survive the GPU process losing
+  // its context across a sleep and the pane comes back drawing wrong or blank
+  // glyphs. And it reconciles, because a session can die while the machine is
+  // asleep and the 1 Hz status poll would otherwise take until its next tick
+  // to notice. Both are the handler VS Code wires from the same event.
+  //
+  // Normal startup only. No harness has any business reacting to the
+  // operator's machine going to sleep.
+  installPowerHandlers({
+    captureAll: async () => {
+      const core = await getGmuxCore();
+      // 'system-sleep', not the 'app-quit' default. The reason is recorded in
+      // every capsule so Phase 20 can tell a capture taken on the way to sleep
+      // from one taken as the app closed, and this is the call site that
+      // creates the sleep case.
+      await core.snapshotAllSessions('system-sleep');
+    },
+    onResume: () => {
+      broadcastEvent(EVT_POWER_RESUME);
+      void getGmuxCore()
+        .then((core) => core.scheduleRefresh())
+        .catch(() => undefined);
+    }
   });
 
   app.on('activate', () => {

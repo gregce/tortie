@@ -532,7 +532,9 @@ async function runCase(
     // agent's durability, not gmux's resume.
     await waitForQuiet(tmuxId, 1_500, 15_000);
     await delay(PRE_KILL_FLUSH_MS);
-    await captureSessionSnapshot(tmuxId, session.id).catch(() => false);
+    await captureSessionSnapshot(tmuxId, session.id, {
+      reason: 'conformance'
+    }).catch(() => false);
     await killOwnSession(session.tmuxName);
     const restorable = await waitForStatus(core, session.id, 'restorable', 30_000);
     if (!restorable) {
@@ -701,7 +703,7 @@ export async function runResumeConformance(): Promise<void> {
       `[gmux-conf] resume conformance — mode=${cfg.mode} ` +
         `concurrency=${cfg.concurrency} bypass=${cfg.bypass ? 'on' : 'off'} ` +
         `specstory=${cfg.specstoryCapture ? 'capture' : 'off'} ` +
-        `socket=-L ${tmux.TMUX_SOCKET}`
+        `socket=-L ${tmux.activeTmuxSocket()}`
     );
     console.log(
       `[gmux-conf] userData=${app.getPath('userData')} ` +
@@ -721,7 +723,7 @@ export async function runResumeConformance(): Promise<void> {
       finishedAt: Date.now(),
       mode: cfg.mode,
       bypassFlags: cfg.bypass,
-      tmuxSocket: tmux.TMUX_SOCKET,
+      tmuxSocket: tmux.activeTmuxSocket(),
       results
     };
 
