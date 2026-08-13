@@ -32,6 +32,7 @@ the wordmark is a wordmark. Revisit only if the operator asks.
 | 8 | **23** Tortie Config, configuration not code, plus the authoring prompt | ✅ SHIPPED 2026-08-13 | 22 ✅, and **never before 21** ✅ |
 | — | ~~**25** downloads and usage measurement~~ | **DEFERRED 2026-08-12 by the operator.** Spec kept below and stays valid. Note it must ship IN a released build, so reopening it after a release means the first cohort is unmeasurable |
 | 9 | **25.5** the DeepSeek CLI renamed itself and detection is broken | SPECCED BELOW | nothing. Small, and can run beside any phase |
+| 9b | **26** Context sidebar dogfood round, user reported | SPECCED BELOW | 25.5 |
 | 10 | **Release lane** Itavero identity, signing, notarization, version scheme, four CI lanes | ready | after Phase 25.5 |
 | 11 | **24** self update | SPECCED BELOW | the release lane. Impossible before the app is signed |
 | — | Release lane, second half: signing, notarization, the updater | blocked | the operator's App Store Connect issuer identifier |
@@ -2899,3 +2900,69 @@ the `gmux` socket. The count is 15 rather than 37 because of the defect above. T
 restored 14 of them from the 46 manifest rows at 10:30, which is the durability layer doing exactly
 what it exists for. No `pkill` was used at any point. Every app launch in this phase used its own
 `--user-data-dir` and its own tmux socket.
+
+---
+
+## Phase 26 — Context sidebar dogfood round (user reported, 2026-08-13)
+
+The operator used Phase 22's Context sidebar for a morning and found four defects. Per CLAUDE.md,
+bugs the operator personally reports get proof rather than assurance, so the interface items are
+Tier 2 with screenshot reads and the error item is Tier 3.
+
+Reference screenshots, real paths, builders must Read them:
+- /Users/gdc/Library/Application Support/CleanShot/media/media_rmrbxMNs8O/CleanShot 2026-08-13 at 11.55.01@2x.png
+  which shows the skills section and the naming warning row.
+- /Users/gdc/Library/Application Support/CleanShot/media/media_LqnQpdFHgN/CleanShot 2026-08-13 at 11.55.34@2x.png
+  which shows the install preview sheet at full length.
+
+### Item 1 — opening a global skill throws a raw git error the user cannot dismiss
+**Symptom.** Opening the skill at ~/.claude/skills/benchmark-against-a-named-exemplar/SKILL.md
+produced a raw error titled "Error occurred in handler for 'git:showHead'" carrying a GmuxError JSON
+body, and the operator could not close the broken surface.
+**Root cause, read from the code.** src/main/context/detail-host.ts states the design: a context
+detail tab IS a file tab. File tabs assume they live inside the project repository. loadHead in
+src/renderer/editor/tab-io.ts then calls git.showHead with a path that is not relative to the
+repository, because a global skill lives under the home directory, and GitService.assertRelPath
+correctly refuses the absolute path. Two further failures compound it. The catch in loadHead toasts
+the raw error text instead of a sentence a person can read. And the failed state left the operator
+with no way to dismiss it.
+**Fix at the source, not the symptom.** A file outside the active repository must never enter the
+diff path at all. Open it as a plain file with no diff offered, decided where the tab is created
+rather than recovered after git refuses. Any error a person can see must be a sentence, never a JSON
+body or a stack. And every failed tab state must be closable. Tier 3, because the operator hit it:
+drive the real app, open a global skill, confirm it opens plain, confirm no git call is made for it,
+and confirm a deliberately broken tab can always be closed.
+
+### Item 2 — finding a new skill requires a right click
+**Wanted.** A search affordance in the skills section header that searches the registry directly,
+sitting beside the existing filter. The filter narrows what is installed. The search finds what is
+not. Research 29 section 13 already specified this shape, being one row offering "Search skills.sh
+for X" when the filter has no local match, plus the section affordance. Keep the two visually
+distinct so filtering never silently becomes a network search. Tier 2.
+
+### Item 3 — "Enable for…" opens the wrong surface
+**Symptom.** The row verb "Enable for…" opens the install search sheet.
+**Root cause.** src/renderer/context/actions.ts routes Enable for through the same sheet as install,
+because research 36 found the skills CLI re-runs add to widen agents. The plumbing is right and the
+surface is wrong.
+**Wanted.** "Enable for…" shows the agents this skill IS enabled for, as checkboxes over the detected
+fleet, pre-checked from disk, with the same disabled-with-reason treatment the install sheet already
+has for agents the CLI cannot target. Confirming re-runs add through the existing plumbing. No
+search field anywhere in that surface. Tier 2.
+
+### Item 4 — the install preview is too long
+**Symptom.** The preview sheet at media_LqnQpdFHgN scrolls well past one screen before the decision.
+**Wanted.** The decision must fit one view. Collapse the sections that are detail rather than
+decision: the full command line becomes an expandable row that is collapsed by default but always
+present, the per-agent "cannot install" sentences collapse into the disabled checkbox reasons, and
+WHERE IT LANDS stays at top. The scan verdict and the agent picker are the decision and stay
+visible. **The operator also asked to explore rendering the preview inside the Context panel rather
+than a modal.** Assess it honestly at spec time: the panel is 220 to 400 px wide and the research 29
+argument for a modal was that a command line needs width and installing deserves its own attention.
+If the panel version cannot show the scan and the command honestly at 300 px, keep the modal and say
+so, but make it short. Tier 2 with screenshot reads at both widths.
+
+### What must not regress
+The four install requirements from Phase 22: scan before the control, pin and re-check, human
+confirm with the real command, refusals that cannot be cleared. The precedence readouts. Zoom in the
+Context view. The 5 skills-write refusals in the bundle gate.
