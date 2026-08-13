@@ -2934,11 +2934,13 @@ drive the real app, open a global skill, confirm it opens plain, confirm no git 
 and confirm a deliberately broken tab can always be closed.
 
 ### Item 2 — finding a new skill requires a right click
-**Wanted.** A search affordance in the skills section header that searches the registry directly,
-sitting beside the existing filter. The filter narrows what is installed. The search finds what is
-not. Research 29 section 13 already specified this shape, being one row offering "Search skills.sh
-for X" when the filter has no local match, plus the section affordance. Keep the two visually
-distinct so filtering never silently becomes a network search. Tier 2.
+**Wanted, and the operator named the pattern to follow.** The global filter field stays where it is,
+above the sections, filtering everything by name. The skill search is a separate entry box that
+lives INSIDE the skills section, the way the commit message box lives inside the source control
+pane (ScmSection, DESIGN-SPEC S3: sticky section header, then the box, then the rows). Typing there
+searches the registry and pressing return opens results. The two boxes never share a surface, so
+filtering what is installed can never silently become a network search. Reuse the S3 in-section box
+anatomy rather than inventing a second shape. Tier 2.
 
 ### Item 3 — "Enable for…" opens the wrong surface
 **Symptom.** The row verb "Enable for…" opens the install search sheet.
@@ -2950,17 +2952,23 @@ fleet, pre-checked from disk, with the same disabled-with-reason treatment the i
 has for agents the CLI cannot target. Confirming re-runs add through the existing plumbing. No
 search field anywhere in that surface. Tier 2.
 
-### Item 4 — the install preview is too long
+### Item 4 — the install preview needs a redesign, losing nothing
 **Symptom.** The preview sheet at media_LqnQpdFHgN scrolls well past one screen before the decision.
-**Wanted.** The decision must fit one view. Collapse the sections that are detail rather than
-decision: the full command line becomes an expandable row that is collapsed by default but always
-present, the per-agent "cannot install" sentences collapse into the disabled checkbox reasons, and
-WHERE IT LANDS stays at top. The scan verdict and the agent picker are the decision and stay
-visible. **The operator also asked to explore rendering the preview inside the Context panel rather
-than a modal.** Assess it honestly at spec time: the panel is 220 to 400 px wide and the research 29
-argument for a modal was that a command line needs width and installing deserves its own attention.
-If the panel version cannot show the scan and the command honestly at 300 px, keep the modal and say
-so, but make it short. Tier 2 with screenshot reads at both widths.
+**The constraint the operator set, 2026-08-13: no information may be lost.** Every fact the sheet
+shows today survives the redesign. What runs, where it comes from, the licence, the scan verdict
+with its date and all four scanners, the cost, every agent with its reason when it cannot be
+targeted, and the full command line. Hiding a fact behind a collapse that a person would have to
+know to open counts as losing it for the decision, so the redesign is layout work, not triage.
+**The problem is arrangement, not volume.** Today it is one narrow column where every section gets a
+full-width band, so seven short facts cost seven screens of scroll. Redesign so the decision fits:
+use the width (the sheet is a modal and can be wide, e.g. two columns, with the facts on one side
+and WHO GETS IT plus the command on the other), tighten the vertical rhythm, and put the confirm
+within reach of the scan verdict. Invoke the impeccable skill for this design, and prove the result
+with a screenshot read showing every fact from the current sheet present in the new one.
+**The operator also asked to explore rendering the preview inside the Context panel rather than a
+modal.** Assess it honestly: the panel is 220 to 400 px wide, and no-information-lost is now the
+bar the panel version must also clear. If it cannot, keep the modal and say so with the measured
+reason. Tier 2 with screenshot reads at both widths.
 
 ### What must not regress
 The four install requirements from Phase 22: scan before the control, pin and re-check, human
