@@ -1,0 +1,73 @@
+/**
+ * The "Enable for…" picker (Phase 26 item 3). Tokens only.
+ *
+ * The modal chrome (`.modal-scrim`, `.modal`, `.modal-title`, `.btn`) is the
+ * shared S6 vocabulary from app.css. What is here is only the picker's own
+ * anatomy. The agent-row look intentionally matches the install sheet's
+ * picker: a checkbox, the agent icon, the name, and disabled rows greyed with
+ * their reason printed below the grid.
+ */
+
+.ctx-enable-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: min(440px, calc(100vw - var(--space-8) * 2));
+}
+
+.ctx-enable-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.ctx-enable-source {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-secondary);
+}
+
+.ctx-enable-mono {
+  font-family: var(--font-mono);
+}
+
+.ctx-enable-targets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-5);
+}
+
+.ctx-enable-target {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-primary);
+}
+
+.ctx-enable-target.is-unavailable {
+  color: var(--text-disabled);
+}
+
+.ctx-enable-reason {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+}
+
+/* Why the primary control cannot be pressed, as a sentence on the surface.
+   Not --error: nothing failed, the surface is stating a rule. */
+.ctx-enable-blocker {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-secondary);
+}
+
+.ctx-enable-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
+}

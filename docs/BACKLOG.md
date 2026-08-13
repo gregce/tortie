@@ -32,7 +32,7 @@ the wordmark is a wordmark. Revisit only if the operator asks.
 | 8 | **23** Tortie Config, configuration not code, plus the authoring prompt | ✅ SHIPPED 2026-08-13 | 22 ✅, and **never before 21** ✅ |
 | — | ~~**25** downloads and usage measurement~~ | **DEFERRED 2026-08-12 by the operator.** Spec kept below and stays valid. Note it must ship IN a released build, so reopening it after a release means the first cohort is unmeasurable |
 | 9 | **25.5** the DeepSeek CLI renamed itself and detection is broken | ✅ SHIPPED 2026-08-13 | nothing. Small, and can run beside any phase |
-| 9b | **26** Context sidebar dogfood round, user reported | SPECCED BELOW | 25.5 |
+| 9b | **26** Context sidebar dogfood round, user reported | ✅ SHIPPED 2026-08-13 | 25.5 ✅ |
 | 10 | **Release lane** Itavero identity, signing, notarization, version scheme, four CI lanes | ready | after Phase 25.5 |
 | 11 | **24** self update | SPECCED BELOW | the release lane. Impossible before the app is signed |
 | — | Release lane, second half: signing, notarization, the updater | blocked | the operator's App Store Connect issuer identifier |
@@ -2903,7 +2903,7 @@ what it exists for. No `pkill` was used at any point. Every app launch in this p
 
 ---
 
-## Phase 26 — Context sidebar dogfood round (user reported, 2026-08-13)
+## Phase 26 — Context sidebar dogfood round (user reported, 2026-08-13) ✅ SHIPPED 2026-08-13
 
 The operator used Phase 22's Context sidebar for a morning and found four defects. Per CLAUDE.md,
 bugs the operator personally reports get proof rather than assurance, so the interface items are
@@ -2974,3 +2974,19 @@ reason. Tier 2 with screenshot reads at both widths.
 The four install requirements from Phase 22: scan before the control, pin and re-check, human
 confirm with the real command, refusals that cannot be cleared. The precedence readouts. Zoom in the
 Context view. The 5 skills-write refusals in the bundle gate.
+
+### Shipped 2026-08-13
+All four items landed in one commit, and none of the Phase 22 install requirements regressed.
+- A file outside the active repository opens as a plain file and never enters the diff path. The
+  verifier drove the real app, opened a global skill, and logged zero git calls for it. A failed
+  tab shows one sentence and can always be closed.
+- The skill search is an entry box inside the skills section, following the commit box anatomy.
+  The global filter stays above the sections and never searches the network.
+- "Enable for…" shows the detected fleet as checkboxes, pre-checked from disk, with the
+  disabled-with-reason rows. Confirming re-runs add and removes nothing.
+- The preview reads as two columns above one control. The no-loss audit found all 28 facts from
+  the old sheet in the new one, none behind a disclosure. At a 900 px window the content went from
+  1171 px to 987 px and the scan-verdict-to-confirm span went from 538 px to 336 px, so the
+  decision now fits one screen. The preview stays a modal. At the 300 px panel tier that span
+  measures 960 px against a 760 px viewport, so the verdict and the confirm can never share a
+  screen there under the no-loss rule.

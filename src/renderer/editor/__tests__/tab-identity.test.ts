@@ -10,7 +10,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { OpenFileRequest } from '../../state/open-file';
-import { leftPathFor, tabIdFor } from '../tab-identity';
+import { fileInRepo, leftPathFor, tabIdFor } from '../tab-identity';
 
 const SHA = 'a6bd13e4f1c2d3b4a5968778695a4b3c2d1e0f9a';
 
@@ -100,5 +100,34 @@ describe('leftPathFor', () => {
     expect(
       leftPathFor(req({ commit: commitRef({ origPath: '' }) }))
     ).toBeNull();
+  });
+});
+
+describe('fileInRepo — the Phase 26 diff-eligibility rule', () => {
+  it('answers yes for a file inside the repository', () => {
+    expect(fileInRepo('/repo', '/repo/src/auth.ts')).toBe(true);
+  });
+
+  it('answers no for a global skill under the home directory', () => {
+    expect(
+      fileInRepo(
+        '/Users/op/project',
+        '/Users/op/.claude/skills/some-skill/SKILL.md'
+      )
+    ).toBe(false);
+  });
+
+  it('is not fooled by a sibling directory sharing the prefix', () => {
+    // "/repo2/…" starts with "/repo" as a string; it is not inside "/repo".
+    expect(fileInRepo('/repo', '/repo2/src/auth.ts')).toBe(false);
+  });
+
+  it('tolerates a trailing slash on the repository path', () => {
+    expect(fileInRepo('/repo/', '/repo/src/auth.ts')).toBe(true);
+  });
+
+  it('answers no for the repository root itself and for an empty repo path', () => {
+    expect(fileInRepo('/repo', '/repo')).toBe(false);
+    expect(fileInRepo('', '/repo/src/auth.ts')).toBe(false);
   });
 });

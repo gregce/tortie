@@ -55,7 +55,7 @@ import type {
   OpenFileSelection
 } from '../state/open-file';
 import { disposeModels, dropViewState } from './monaco-loader';
-import { leftPathFor, tabIdFor } from './tab-identity';
+import { fileInRepo, leftPathFor, tabIdFor } from './tab-identity';
 import { createTabIo } from './tab-io';
 // Direct module import, not the ./markdown barrel: the barrel re-exports the
 // preview component, whose skeleton comes from MonacoHost, which imports this
@@ -479,6 +479,15 @@ export const useEditor = create<EditorState>((set, get) => {
       const keep = req.preview === false;
       const markdown = isMarkdownPath(req.path);
       const commit = req.commit ?? null;
+      // Phase 26 item 1. A file OUTSIDE this project's repository has no HEAD
+      // version, so the diff path does not exist for it: it opens plain, no
+      // diff is offered, and no git call is ever made for it. Decided HERE,
+      // where the tab is created, so no reader downstream has to catch git
+      // refusing an absolute path — the operator saw that refusal raw when a
+      // context detail tab opened a global skill (`~/.claude/skills/…`).
+      // History tabs are untouched: their content comes from this repo's own
+      // history, so their paths are repo-relative by construction.
+      const wantsDiff = req.mode === 'diff' && fileInRepo(req.repoPath, req.path);
       // An image gets the image viewer — but a RASTER one opened from a
       // commit does not: `fs:readImage` reads the working tree and HEAD, and
       // rendering that pair under a `<sha>` tab would show the user a
@@ -508,7 +517,7 @@ export const useEditor = create<EditorState>((set, get) => {
         // clicking a file in a commit means "what did this commit do to it".
         mode: navigate
           ? 'file'
-          : req.mode === 'diff' || commit !== null
+          : wantsDiff || commit !== null
             ? 'diff'
             : markdown
               ? readMarkdownMode()
@@ -519,7 +528,7 @@ export const useEditor = create<EditorState>((set, get) => {
                 : image
                   ? 'image'
                   : 'file',
-        canDiff: req.mode === 'diff' || commit !== null,
+        canDiff: wantsDiff || commit !== null,
         markdown,
         image,
         svg,
@@ -582,10 +591,10 @@ export const useEditor = create<EditorState>((set, get) => {
         // Never fs:readFile — that reader refuses binary content, which is
         // the whole reason images could not open before Phase 12.10.
         void io.loadImage(id, req.path);
-        if (req.mode === 'diff') void io.loadImageHead(id);
+        if (wantsDiff) void io.loadImageHead(id);
       } else {
         void io.loadContents(id, req.path);
-        if (req.mode === 'diff') void io.loadHead(id);
+        if (wantsDiff) void io.loadHead(id);
       }
     },
 
@@ -677,6 +686,17 @@ export const useEditor = create<EditorState>((set, get) => {
     setMode(id, mode) {
       const tab = tabById(id);
       if (tab === undefined || tab.mode === mode) return;
+      // Phase 26 item 1, second half: the rule decided at creation holds for
+      // the tab's whole life. A worktree tab outside the repository can never
+      // enter diff mode, whoever asks — such a tab never has `canDiff`, so no
+      // control offers this, but the state machine refuses it anyway.
+      if (
+        mode === 'diff' &&
+        tab.commit === null &&
+        !fileInRepo(tab.repoPath, tab.path)
+      ) {
+        return;
+      }
       patchTab(id, { mode });
       // A history tab's LEFT side only ever comes from its commit — never
       // fall back to HEAD for it.

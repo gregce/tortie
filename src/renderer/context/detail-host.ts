@@ -40,7 +40,8 @@ export function installContextDetailHost(): () => void {
     // `openFileAt` rather than `requestOpenFile`, so the rule about which paths
     // are relative is written once for this directory. Most configuration lives
     // OUTSIDE the project: `~/.claude/skills/…` is the common case here, not the
-    // edge one.
+    // edge one. Since Phase 26 the editor honours that at tab creation: an
+    // out-of-repo file opens plain, is offered no diff, and never reaches git.
     openFileAt(entry.sourcePath, repoPath, {
       preview,
       contextEntry: entry,

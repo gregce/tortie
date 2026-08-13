@@ -78,6 +78,13 @@ export function requestOpenContext(req: OpenContextRequest): void {
  * common case here, not the edge one — so `relPath` is only relative when it
  * actually is. That is the same rule the markdown preview applies to a link
  * that escapes its document's root, and it is stated once, here.
+ *
+ * PHASE 26 item 1: every open from this module is a PLAIN open (`mode:
+ * 'file'`), and the editor guarantees the rest at tab creation — a file
+ * outside the active repository never enters the diff path, no diff is
+ * offered for it, and no git call is ever made for it
+ * (`fileInRepo` in src/renderer/editor/tab-identity.ts). Opening a global
+ * skill used to reach git with an absolute path and surface the refusal raw.
  */
 export function openFileAt(
   path: string,

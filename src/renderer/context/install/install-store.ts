@@ -57,11 +57,18 @@ import type {
   PreviewSubject
 } from '../surface/model';
 import { skillsBridge, contextBridge } from '../bridge';
+// One sentence, one home: the picker in ../enable shows the same words as
+// this sheet's disabled rows, and the shared constant lives in the module
+// with no side effects so tests can read it without a DOM.
+import { NO_CLI_NAME_REASON } from '../enable/enable-model';
 import { useContext } from '../store';
+
+export { NO_CLI_NAME_REASON };
 import type { BlockerCode } from './install-gate';
 import type { InstallDialogSpec } from './InstallDialog';
 import { toInstallPlan } from './plan-adapter';
 import {
+  enableSkillCopy,
   installSkillCopy,
   removeSkillCopy,
   changedAfterApprovalCopy,
@@ -179,6 +186,23 @@ export interface InstallFlowState {
   requestInstall(): void;
   /** Open the confirm for removing an installed skill. */
   requestRemove(entry: ContextEntry): Promise<void>;
+  /**
+   * Open the confirm for widening an installed skill to more agents (Phase 26
+   * item 3). The picker in `../enable/` decided WHO; this builds the plan and
+   * opens the same confirm every other write goes through. `agents` is the
+   * full widened set — the agents already on disk plus the ones being added —
+   * because the CLI re-run names them all.
+   */
+  requestEnable(input: {
+    name: string;
+    source: string;
+    scope: 'global' | 'project';
+    projectRoot: string | null;
+    /** Tortie id and CLI name for every agent the command will name. */
+    agents: readonly { id: string; cliName: string }[];
+    /** Display names of the agents being ADDED, for the confirm's sentence. */
+    addedNames: readonly string[];
+  }): Promise<void>;
   /** Open the confirm for updating one installed skill. */
   requestUpdate(entry: ContextEntry): Promise<void>;
   /** Ask again about a skill whose bytes no longer match what was approved. */
@@ -212,10 +236,7 @@ function targetsFrom(
     agentId: agent.id,
     agentName: agent.name,
     selected: agent.cliName !== null && chosen.has(agent.id),
-    unavailableReason:
-      agent.cliName === null
-        ? 'The skills CLI has no name for this agent, so a skill cannot be installed for it.'
-        : null
+    unavailableReason: agent.cliName === null ? NO_CLI_NAME_REASON : null
   }));
 }
 
@@ -548,6 +569,53 @@ export const useInstallFlow = create<InstallFlowState>((set, get) => {
         },
         confirmOperation: built.mismatch === null ? operation : null,
         confirmPin: null
+      });
+    },
+
+    async requestEnable(input) {
+      // The scope and the project root feed two later reads: `buildPlan`
+      // attaches the root to the plan call, and `runConfirmed` records the pin
+      // from `get().scope`. Both must describe THIS operation, not whatever
+      // the sheet was last opened on.
+      set({ scope: input.scope, projectRoot: input.projectRoot });
+      const operation: SkillsOperation = {
+        kind: 'install',
+        scope: input.scope,
+        source: input.source,
+        skills: [input.name],
+        agents: input.agents.map((agent) => agent.cliName)
+      };
+      const built = await buildPlan(operation, input.name);
+      const problem = built.problem ?? built.mismatch;
+      set({
+        confirm: {
+          copy: enableSkillCopy(input.name, input.source, input.addedNames),
+          plan: built.plan,
+          provenance: [input.source],
+          failure:
+            problem === null
+              ? null
+              : {
+                  operation: 'enable',
+                  commandLine: '',
+                  exitCode: null,
+                  timedOut: false,
+                  stderr: problem
+                },
+          running: false
+        },
+        // A plan that failed to build, or a shown line that is not the line
+        // that would run, leaves nothing to confirm. Same rule as remove.
+        confirmOperation:
+          built.plan !== null && built.mismatch === null ? operation : null,
+        confirmPin:
+          built.plan === null
+            ? null
+            : {
+                name: input.name,
+                source: input.source,
+                agents: input.agents.map((agent) => agent.id)
+              }
       });
     },
 

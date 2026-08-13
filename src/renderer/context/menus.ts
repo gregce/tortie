@@ -32,7 +32,10 @@ export interface MenuAt {
 export interface ContextRowActions {
   /** §7.4 — one connect, on demand. A verb, never a refresh. */
   checkConnection?(entry: ContextEntry): void;
-  /** §9.2 — the cross-agent symlink verb, with its shared-target warning. */
+  /**
+   * §9.2 — the cross-agent symlink verb. Phase 26 item 3: it opens the fleet
+   * picker in `./enable/`, never the search sheet.
+   */
   enableFor?(entry: ContextEntry): void;
   /** §9.1 — flip a JSON-backed entry off, behind the confirm. */
   setEnabled?(entry: ContextEntry, enabled: boolean): void;

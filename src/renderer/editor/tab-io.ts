@@ -26,7 +26,32 @@ import { errorText, useApp } from '../state/store';
 import type { OpenFileCommitRef } from '../state/open-file';
 import { getWorkingModel, resetWorkingModel } from './monaco-loader';
 import { dirOf } from './paths';
+import { fileInRepo } from './tab-identity';
 import type { EditorTab } from './store';
+
+/**
+ * One plain sentence for a person, never a JSON body and never a stack
+ * (Phase 26 item 1).
+ *
+ * `errorText` unwraps main's structured GmuxError payload, and that message
+ * is already a sentence. But a rejection can arrive UNCLASSIFIED — Electron
+ * wraps a thrown handler error as "Error occurred in handler for
+ * 'git:showHead': …{json}…" — and when the unwrap fails, the raw wrapper used
+ * to reach the operator's screen whole. Every error this module shows goes
+ * through here: keep a clean first line, and fall back to the caller's own
+ * sentence for anything that still looks like machinery.
+ */
+export function errorSentence(err: unknown, fallback: string): string {
+  const first = errorText(err).split('\n', 1)[0]?.trim() ?? '';
+  const machinery =
+    first.length === 0 ||
+    first.length > 160 ||
+    first.includes('{') ||
+    first.includes('Error invoking remote method') ||
+    first.includes('Error occurred in handler');
+  if (machinery) return fallback;
+  return /[.!?]$/.test(first) ? first : `${first}.`;
+}
 
 /** What the store lends the IO layer: read a tab, write a tab. */
 export interface TabIoDeps {
@@ -68,13 +93,25 @@ export function createTabIo(deps: TabIoDeps): TabIo {
         deleted: false
       });
     } catch (err) {
-      deps.patch(id, { loading: false, error: errorText(err) });
+      deps.patch(id, {
+        loading: false,
+        error: errorSentence(err, 'The file could not be read.')
+      });
     }
   };
 
   const loadHead = async (id: string): Promise<void> => {
     const tab = deps.byId(id);
     if (!gmux || tab === undefined) return;
+    // Phase 26 item 1: a file outside the repository has no HEAD version and
+    // git is never asked about it. The rule is decided where the tab is
+    // created (store.openFromRequest / setMode), so reaching this line is
+    // already a caller's mistake — fall back to the plain view without a git
+    // call and without a toast, because nothing is wrong with the file.
+    if (!fileInRepo(tab.repoPath, tab.path)) {
+      deps.patch(id, { mode: tab.markdown ? 'preview' : 'file', canDiff: false });
+      return;
+    }
     try {
       const head = await gmux.git.showHead({
         repoPath: tab.repoPath,
@@ -86,11 +123,18 @@ export function createTabIo(deps: TabIoDeps): TabIo {
       deps.patch(id, { headContents: head });
     } catch (err) {
       // Diff base unavailable (repo vanished, git failed): fall back to a
-      // plain editor rather than a broken diff.
+      // plain editor rather than a broken diff, and say so in sentences a
+      // person can read (Phase 26 item 1).
       deps.patch(id, { mode: tab.markdown ? 'preview' : 'file', canDiff: false });
       useApp
         .getState()
-        .toast('error', `Could not load the HEAD version — ${errorText(err)}`);
+        .toast(
+          'error',
+          `Could not load the last committed version of this file. ${errorSentence(
+            err,
+            'Showing it on its own.'
+          )}`
+        );
     }
   };
 
@@ -142,7 +186,10 @@ export function createTabIo(deps: TabIoDeps): TabIo {
         error: null
       });
     } catch (err) {
-      deps.patch(id, { loading: false, error: errorText(err) });
+      deps.patch(id, {
+        loading: false,
+        error: errorSentence(err, 'The commit could not be read.')
+      });
     }
   };
 
@@ -168,13 +215,22 @@ export function createTabIo(deps: TabIoDeps): TabIo {
         deleted: data.status === 'missing'
       });
     } catch (err) {
-      deps.patch(id, { loading: false, error: errorText(err) });
+      deps.patch(id, {
+        loading: false,
+        error: errorSentence(err, 'The image could not be read.')
+      });
     }
   };
 
   const loadImageHead = async (id: string): Promise<void> => {
     const tab = deps.byId(id);
     if (tab === undefined || typeof imageFs?.readImage !== 'function') return;
+    // Phase 26 item 1: same rule as loadHead — no HEAD version exists for a
+    // file outside the repository, so git is never asked.
+    if (!fileInRepo(tab.repoPath, tab.path)) {
+      deps.patch(id, { mode: 'image', canDiff: false });
+      return;
+    }
     try {
       const head = await imageFs.readImage({
         path: tab.path,
@@ -191,7 +247,13 @@ export function createTabIo(deps: TabIoDeps): TabIo {
       deps.patch(id, { mode: 'image', canDiff: false });
       useApp
         .getState()
-        .toast('error', `Could not load the HEAD version — ${errorText(err)}`);
+        .toast(
+          'error',
+          `Could not load the last committed version of this image. ${errorSentence(
+            err,
+            'Showing it on its own.'
+          )}`
+        );
     }
   };
 
@@ -215,7 +277,11 @@ export function createTabIo(deps: TabIoDeps): TabIo {
     } catch (err) {
       useApp
         .getState()
-        .toast('error', `Save failed — ${errorText(err)}`, { sticky: true });
+        .toast(
+          'error',
+          `Could not save this file. ${errorSentence(err, 'The write failed.')}`,
+          { sticky: true }
+        );
       return false;
     }
   };
@@ -271,6 +337,13 @@ export function createTabIo(deps: TabIoDeps): TabIo {
       }
       // Keep the diff base honest (HEAD moves on commit) and let a
       // freshly-modified file grow its Diff|File toggle.
+      // Phase 26 item 1: never for a file outside this repository. It has no
+      // HEAD version, and asking git for one with an absolute path is exactly
+      // the refusal that reached the operator raw — this loop used to issue
+      // that doomed call on every watcher tick for an open context detail
+      // tab. Its buffer still refreshes above; it has no diff base to keep
+      // honest.
+      if (!fileInRepo(tab.repoPath, tab.path)) continue;
       try {
         const head = await gmux.git.showHead({
           repoPath: tab.repoPath,

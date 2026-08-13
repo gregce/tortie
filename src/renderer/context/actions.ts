@@ -13,7 +13,7 @@
  * | --- | --- |
  * | Move to Trash… | `skills remove -g -y -s <name>`, behind the confirm |
  * | Update… | `skills update -g -y <name>`, behind the confirm |
- * | Enable for… | re-runs `add` with more agents, through the same sheet |
+ * | Enable for… | the fleet picker (`../enable/`), then `add` re-run behind the same confirm (Phase 26 item 3) |
  * | New skill… | opens the sheet on an empty query |
  * | Disable | **not offered.** It means editing an agent's own settings file, and Tortie never writes into an agent's configuration. |
  * | Check connection… | **not offered.** It means starting someone else's MCP server, which Tortie does not do yet. Research 29 §7.4 calls it a verb rather than a refresh, and a verb that is not built is better absent than pretending. |
@@ -36,6 +36,7 @@ import { useApp } from '../state/store';
 import type { ContextEntry } from './model';
 import type { ContextRowActions } from './menus';
 import { useContext } from './store';
+import { useEnableFlow } from './enable/enable-store';
 import { useInstallFlow } from './install/install-store';
 import type { AgentChoice } from './install/install-store';
 
@@ -79,18 +80,20 @@ export function useContextActions(): ContextRowActions {
 
   const enableFor = useCallback(
     (entry: ContextEntry) => {
-      // The source is not on the row, because a skill on disk does not record
-      // where it came from. Opening the sheet on the skill's NAME as a query is
-      // the honest version: the user picks the source they actually want, and
-      // the same scan, the same audit and the same confirm apply.
-      openSheet({
-        query: entry.name,
-        projectRoot: cwd,
+      // Phase 26 item 3. The question is "which of my agents get this skill",
+      // so the surface is the fleet picker, not the search sheet. The source
+      // comes from Tortie's own pin when this install was approved here; when
+      // there is no pin the picker says so and offers the sheet as the
+      // explicit way to pick a source, which was the old default behavior.
+      const pin = useContext.getState().pins.get(entry.id);
+      useEnableFlow.getState().openFor({
+        entry,
         agents: agentChoices(),
-        preselect: entry.agents
+        source: pin === undefined || pin.source === '' ? null : pin.source,
+        projectRoot: cwd
       });
     },
-    [cwd, openSheet]
+    [cwd]
   );
 
   const remove = useCallback(

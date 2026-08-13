@@ -80,6 +80,7 @@ import type {
   PrecedenceView
 } from './groups';
 import { ContextRow } from './ContextRow';
+import { EnableForDialog } from './enable/EnableForDialog';
 import { ContextHoverCard } from './HoverCard';
 import { toSnapshotRow } from './model';
 import type {
@@ -114,6 +115,65 @@ function pinChanged(check: ContextSkillPinCheck | undefined): boolean {
   return check.currentHash === null || check.currentHash !== check.pinnedHash;
 }
 
+/**
+ * Phase 26 item 2 — the skill search box, INSIDE the skills section.
+ *
+ * The anatomy is the commit box's (ScmSection, DESIGN-SPEC S3): sticky section
+ * header, then the box, then the rows. It is a separate surface from the
+ * global filter above the sections, deliberately: this box searches the
+ * REGISTRY, the filter narrows what is installed, and the two never share a
+ * field, so filtering can never silently become a network search.
+ *
+ * Pressing return hands the query to the existing search plumbing from Phase
+ * 22 — the sheet opens, runs the search at once, and its results lead into
+ * the same preview and confirm flow. Nothing new touches the network here.
+ */
+function SkillSearchBox({
+  onSearch
+}: {
+  onSearch: (query: string) => void;
+}): React.JSX.Element {
+  const [query, setQuery] = useState('');
+  return (
+    <form
+      className="ctx-skill-search"
+      // The sections container is a listbox with its own key bindings
+      // (arrows, space, enter). Keys typed into this box belong to the box.
+      onKeyDown={(e) => e.stopPropagation()}
+      onSubmit={(e) => {
+        e.preventDefault();
+        const q = query.trim();
+        if (q !== '') onSearch(q);
+      }}
+    >
+      {/* The shared `.input` from globals.css — the same class the global
+          filter above the sections wears. The box's own class carries only
+          its placement inside the section. */}
+      <input
+        type="text"
+        className="input"
+        placeholder="Search skills.sh (⏎ to see results)"
+        aria-label="Search skills.sh for a new skill"
+        value={query}
+        spellCheck={false}
+        onChange={(e) => setQuery(e.target.value)}
+      />
+      <button
+        type="submit"
+        className="btn btn-secondary btn-sm ctx-skill-search-btn"
+        disabled={query.trim() === ''}
+        title={
+          query.trim() === ''
+            ? 'Type a skill name first'
+            : `Search skills.sh for "${query.trim()}"`
+        }
+      >
+        Search skills.sh
+      </button>
+    </form>
+  );
+}
+
 interface SectionProps {
   id: ContextSectionId;
   entries: readonly ContextEntry[];
@@ -122,6 +182,11 @@ interface SectionProps {
   problems: readonly ContextProblem[];
   cwd: string;
   filter: string;
+  /**
+   * Phase 26 item 2 — present only when the write channels are wired, and
+   * only the skills section renders it. Absent means no box, never a dead one.
+   */
+  onSearchRegistry?: (query: string) => void;
   agentId: string | null;
   /** How the SELECTED agent orders and explains this category (§2.9, R4). */
   precedence: PrecedenceView;
@@ -145,6 +210,7 @@ function Section({
   problems,
   cwd,
   filter,
+  onSearchRegistry,
   agentId,
   precedence,
   selected,
@@ -211,6 +277,11 @@ function Section({
       </div>
       {collapsed ? null : (
         <div className="section-body ctx-body">
+          {/* Phase 26 item 2 — the registry search box, skills only, above
+              the rows the way the commit box sits above the changed files. */}
+          {id === 'skills' && onSearchRegistry !== undefined ? (
+            <SkillSearchBox onSearch={onSearchRegistry} />
+          ) : null}
           {/* §11 item 4 — the section still renders. One bad file is one row
               in --error that opens the editor at the line the parser named; it
               is never a blank panel, and it is never a reason to hide the
@@ -643,6 +714,9 @@ export function ContextSection({
             )}
             cwd={cwd ?? ''}
             filter={filter}
+            {...(actions.searchFor !== undefined
+              ? { onSearchRegistry: actions.searchFor }
+              : {})}
             agentId={agentId}
             precedence={precedence[id as ContextSectionId]}
             selected={selected}
@@ -715,6 +789,10 @@ export function ContextSection({
           onCopyPath={(path) => menuDeps.copyText(path)}
         />
       ) : null}
+      {/* Phase 26 item 3 — the "Enable for…" picker. A body portal, because a
+          scrim clipped to the sidebar column is not a modal. The confirm it
+          hands off to is the InstallDialog already mounted in App. */}
+      <EnableForDialog />
     </>
   );
 }

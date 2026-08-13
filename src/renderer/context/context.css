@@ -125,6 +125,34 @@
 }
 
 /* ---------------------------------------------------------------------------
+   Phase 26 item 2 — the registry search box inside the skills section.
+
+   The commit box's anatomy (scm.css .scm-commit): sticky at the top of the
+   section's own scroll, an input, a full-width control under it. It is NOT
+   the FilterField: the filter above the sections narrows what is installed,
+   this box asks the registry for something new, and the two never share a
+   surface.
+--------------------------------------------------------------------------- */
+
+.ctx-skill-search {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-5) var(--space-4);
+  background: var(--bg-sidebar);
+}
+
+/* The input itself is the shared `.input` from globals.css — the same class
+   the global filter wears — so the box invents no second input look. */
+
+.ctx-skill-search-btn {
+  width: 100%;
+}
+
+/* ---------------------------------------------------------------------------
    Section shells + space budget (§5.4)
 
    A collapsed section costs its header. An expanded one takes the height its

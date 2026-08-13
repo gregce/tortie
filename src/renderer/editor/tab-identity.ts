@@ -42,6 +42,27 @@ export function contextEntryId(value: unknown): string | null {
 }
 
 /**
+ * Is this file INSIDE the repository the request names? (Phase 26 item 1.)
+ *
+ * This is the question that decides, at tab creation, whether the diff path
+ * exists for a tab at all. Most context artifacts live OUTSIDE the project —
+ * `~/.claude/skills/…` is the common case — and a file outside the repository
+ * has no HEAD version: asking git about it can only produce a refusal, and
+ * that refusal reached the operator raw. So the answer is computed once from
+ * the request's own two paths, and every git-facing reader honours it instead
+ * of catching git's refusal later.
+ *
+ * Deliberately NOT stored on the tab: `repoPath` and `path` are the source
+ * facts and both live on the tab already, so a stored copy could only ever
+ * drift from them (e.g. across a retarget after a move).
+ */
+export function fileInRepo(repoPath: string, path: string): boolean {
+  if (repoPath.length === 0) return false;
+  const root = repoPath.endsWith('/') ? repoPath : `${repoPath}/`;
+  return path.startsWith(root);
+}
+
+/**
  * Where the diff's LEFT side lives, when that is not `relPath` — i.e. a
  * rename's pre-rename path. Two emitters know about renames and they say so
  * differently: history carries it on `commit.origPath` (from the commit's

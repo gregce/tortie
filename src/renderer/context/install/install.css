@@ -128,12 +128,13 @@
 
    It is wider than a confirm because the thing a reader has to check is a
    command line, and it is a modal because installing someone else's code is a
-   decision with its own attention. Everything in it is one column, top to
-   bottom, in the order the argument is made.
+   decision with its own attention. Since Phase 26 the preview inside it reads
+   as two columns above one control (see the block at the end of this file);
+   the search step is still one column, top to bottom.
    --------------------------------------------------------------------------- */
 
 .ctx-install-sheet {
-  width: min(720px, calc(100vw - var(--space-8) * 2));
+  width: min(880px, calc(100vw - var(--space-8) * 2));
   max-height: calc(100vh - var(--space-8) * 2);
   overflow-y: auto;
 }
@@ -240,4 +241,78 @@
 
 .ctx-sheet-scope label.is-unavailable {
   opacity: 0.5;
+}
+
+/* ---------------------------------------------------------------------------
+   Phase 26 item 4 — the preview reads as two columns above one control.
+
+   The dogfood finding was seven short facts costing seven screens of scroll,
+   because every section was a full-width band in one narrow column. The fix
+   is arrangement, not triage: nothing is removed and nothing goes behind a
+   disclosure. The facts column (what runs, where it comes from, the scan
+   verdict, the cost) sits beside the plan column (the agent fleet, the exact
+   command), and the install control renders under both, so the scan verdict
+   and the confirm share one screen.
+
+   The split is a container query on the card, not on the window, because the
+   same component renders in this sheet (about 800px of content) and in the
+   editor panel, which can be any width down to the 300px tier. Below the
+   threshold the columns stack in the data order and the surface reads exactly
+   as it did before this phase. This file is a global stylesheet once bundled,
+   so these rules reach the card wherever it renders.
+--------------------------------------------------------------------------- */
+
+.ctxd-preview {
+  container-type: inline-size;
+  container-name: ctxd-preview;
+}
+
+/* Registry text is wrapped, not truncated (surface.css). Capping the measure
+   keeps an 800-character description readable at the sheet's full width. */
+.ctxd-preview > .ctxd-remote-text {
+  max-width: 72ch;
+}
+
+/* The fleet reads as aligned columns rather than a ragged wrap, so ten agents
+   scan as one list and the checked set is countable at a glance. */
+.ctxd-preview .ctxd-targets {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--space-3) var(--space-4);
+}
+
+@container ctxd-preview (min-width: 680px) {
+  .ctxd-preview-body {
+    display: grid;
+    /* 5/7, not half and half: the facts are short sentences, the plan column
+       holds ten agent names and an absolute-path command line. The extra
+       width keeps the command from breaking inside path tokens. */
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    column-gap: var(--space-9);
+    border-top: 1px solid var(--border);
+  }
+
+  /* The body carries the one hairline that opens the grid; the first section
+     of each column starts level with the other rather than redrawing it. */
+  .ctxd-preview-col > .ctxd-preview-section:first-child {
+    border-top: 0;
+  }
+
+  /* Acknowledgements and refusals keep the full width; the confirm sits at
+     the right edge, where a macOS sheet puts its primary action, directly
+     under the command it approves and one section below the scan verdict. */
+  .ctxd-install-control {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .ctxd-install-control .ctxd-ack,
+  .ctxd-install-control .ctxd-error {
+    flex: 1 1 100%;
+  }
+
+  .ctxd-install-control .btn-primary {
+    margin-left: auto;
+  }
 }

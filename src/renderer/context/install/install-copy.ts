@@ -60,6 +60,37 @@ export function installSkillCopy(
 }
 
 /**
+ * "Enable impeccable for Codex CLI and Gemini CLI?"
+ *
+ * The widening confirm (Phase 26 item 3). The skill is already on disk and was
+ * already approved once; what is new is WHO loads it. The body says exactly
+ * what the command does, including the part a reader would not guess: the CLI
+ * fetches the source again rather than copying what is local.
+ */
+export function enableSkillCopy(
+  name: string,
+  source: string,
+  addedNames: readonly string[]
+): ConfirmCopy {
+  const who =
+    addedNames.length === 0
+      ? 'more agents'
+      : addedNames.length <= 2
+        ? addedNames.join(' and ')
+        : `${addedNames.length} more agents`;
+  return {
+    title: `Enable ${name} for ${who}?`,
+    body: [
+      `This runs the skills CLI again with the wider agent list. It fetches ${source} again and links the skill into each agent's folder.`,
+      'Agents that already have it keep it. Nothing is removed.'
+    ],
+    confirmLabel: 'Enable',
+    cancelLabel: 'Cancel',
+    destructive: false
+  };
+}
+
+/**
  * "Add the supabase server?"
  * "An MCP server runs on your machine and can see whatever you give it access
  *  to. It needs SUPABASE_ACCESS_TOKEN."

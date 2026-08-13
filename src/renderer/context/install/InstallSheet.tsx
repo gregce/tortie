@@ -11,7 +11,10 @@
  * renders its primary control after the map. What runs comes first, then where
  * it came from, then what has scanned it, then the cost, then the agents, then
  * the exact command. There is no arrangement of that component in which the
- * scan appears below the button, and this sheet does not reorder it.
+ * scan appears below the button, and this sheet does not reorder it. Since
+ * Phase 26 the card lays those sections out as two columns above the control
+ * when it is wide enough (install.css), which is arrangement only: the order
+ * of the data, the DOM and the reading flow are unchanged.
  *
  * ## Three refusals kept from research 29 §13.4
  *
