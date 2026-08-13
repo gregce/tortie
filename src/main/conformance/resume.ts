@@ -73,7 +73,7 @@ import type { AgentKind, LaunchableAgentId, Session } from '@shared/types';
 import { listDetectedAgents } from '../agents/detection';
 import {
   LAUNCHABLE_AGENT_IDS,
-  agentBinaryName,
+  agentBinaryCandidates,
   getLaunchableEntry
 } from '../agents/registry';
 import { getGmuxCore, shutdownGmuxCore, type GmuxCore } from '../sessions';
@@ -301,19 +301,35 @@ async function runCase(
   };
 
   // --- 1. installed? -------------------------------------------------------
-  const bare = agentBinaryName(agent);
-  const binPath = await tmux.resolveBinary(bare);
+  // Phase 25.5: walk the WHOLE candidate list, first hit wins — the same
+  // order detection and session create use. On this machine deepseek's row
+  // resolves its legacy third name; on a fresh machine it resolves codewhale.
+  const candidates = agentBinaryCandidates(agent);
+  let resolvedName: string | null = null;
+  let binPath: string | null = null;
+  for (const candidate of candidates) {
+    binPath = await tmux.resolveBinary(candidate);
+    if (binPath !== null) {
+      resolvedName = candidate;
+      break;
+    }
+  }
   if (binPath === null) {
-    stages.add('install', true, `${bare} not on PATH`);
-    log(agent, `SKIP — ${bare} is not installed`);
-    return finish('SKIP', `${bare} not installed on this machine`);
+    const names = candidates.join(', ');
+    stages.add('install', true, `${names} not on PATH`);
+    log(agent, `SKIP — ${names} is not installed`);
+    return finish('SKIP', `${names} not installed on this machine`);
   }
   result.binary = binPath;
   const detectedVersion = ctx.versions[agent];
   if (detectedVersion !== undefined && detectedVersion !== null) {
     result.agentVersion = detectedVersion;
   }
-  stages.add('install', true);
+  stages.add(
+    'install',
+    true,
+    resolvedName === candidates[0] ? undefined : `resolved fallback name ${resolvedName}`
+  );
 
   await mkdir(SCRATCH_ROOT, { recursive: true });
   // realpath: qwen and pi key their store on the RESOLVED cwd (research 22

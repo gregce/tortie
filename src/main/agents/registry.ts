@@ -674,17 +674,38 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
       'Every field is upstream documentation. `command -v droid` fails here and ~/.factory holds only skills/, so nothing below has been exercised. Its docs suggest `-s/--session-id` pre-assignment, which would make it the fifth arm-at-launch agent — until someone installs it, gmux captures nothing for droid rather than guessing a flag.'
   },
   {
+    // THE ID STAYS 'deepseek' (Phase 25.5). It is written into every manifest
+    // row for one of these sessions and into the SpecStory provider mapping
+    // ('deepseek' is what the bundled specstory-cli 2.8.0 answers to). Only
+    // the names Tortie PROBES and the user-visible copy change.
     id: 'deepseek',
-    displayName: 'DeepSeek TUI',
+    displayName: 'CodeWhale',
     kind: 'cli',
     launchable: true,
     status: 'shipped-main (read/launch); dev adds reconstruct+watch',
     confidence: 'high',
-    binaries: ['deepseek'],
+    // PHASE 25.5 — THE PACKAGE RENAMED ITSELF AND THE OLD ONE WENT EMPTY.
+    // npm `deepseek-tui` 0.8.47 publishes NO bin field at all (verified live
+    // 2026-08-13: `npm view deepseek-tui bin` prints nothing), so a fresh
+    // install of the old package installs no executable. The successor is
+    // npm `codewhale` (0.9.7 at edit time), which installs `codewhale` and
+    // `codew`. Order is NEWEST FIRST, OLDEST LAST: a machine with only the
+    // old 0.8.26 install still resolves `deepseek` (nothing regresses), a
+    // fresh machine resolves `codewhale`, and a machine with both prefers
+    // the binary that still receives releases. Detection, session create and
+    // the resume conformance harness all walk this list in this order.
+    binaries: ['codewhale', 'codew', 'deepseek'],
     extraProbeDirs: [],
-    storeDirs: ['~/.deepseek/sessions'],
+    // codewhale writes ~/.codewhale/sessions and keeps ~/.deepseek/sessions
+    // as a legacy fallback (its own binary carries the migration text
+    // "Restored legacy `.deepseek/sessions` visibility for upgraded
+    // installs"). Probe both; either existing means installed-and-in-use.
+    storeDirs: ['~/.codewhale/sessions', '~/.deepseek/sessions'],
     versionProbe: { args: ['--version'] },
-    launch: { argv: ['deepseek'], quirks: ['documented floor 0.8.39+, not enforced'] },
+    // argv[0] mirrors binaries[0] by invariant (registry.test.ts pins it);
+    // every real launch passes the RESOLVED absolute path, which on an old
+    // install is still .../deepseek.
+    launch: { argv: ['codewhale'], quirks: ['documented floor 0.8.39+, not enforced'] },
     resume: {
       strategy: 'flag-uuid',
       // SUBCOMMAND, not a flag — `--resume <id>` exits RC=2 (a dead pane).
@@ -696,11 +717,14 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
         availableAt: 'first-turn',
         confidence: 'weak'
       },
-      sessionStore: '~/.deepseek/sessions/<sessionId>.json',
+      sessionStore:
+        '~/.codewhale/sessions/<sessionId>.json (legacy installs: ~/.deepseek/sessions/<sessionId>.json)',
       // …and its OPTIONS precede its SUBCOMMAND (`deepseek [OPTIONS]
       // <COMMAND> [ARGS]`), so the launch flags lead rather than trail.
       resumeExtrasPosition: 'leading',
       notes:
+        'PHASE 25.5 RENAME: the product is now CodeWhale (repo Hmbown/CodeWhale; author moved off the DeepSeek name). ' +
+        'codewhale 0.9.7 keeps the SAME surface, checked against a scratch install 2026-08-13: usage is `codewhale [OPTIONS] <COMMAND> [ARGS]`, `resume` is still a subcommand with an opaque [ARGS] pass-through, and --skip-onboarding is still a root option — so every trap below still binds, with `codewhale` in place of `deepseek`. ' +
         'RESUME IS A SUBCOMMAND. `deepseek --resume <id>` exits RC=2 with "error: unexpected argument \'--resume <id>\' found" — a DEAD PANE. Verified 2026-08-10 against 0.8.26 hands-on and re-confirmed 2026-08-11 from `deepseek --help` (no --resume in the top-level option list; `resume` is a Command) and `deepseek resume --help` ("Resume a saved TUI session"). ' +
         'AND THE OPTIONS PRECEDE THE SUBCOMMAND (resumeExtrasPosition: leading). `deepseek resume <id> --skip-onboarding` dies the same way — "error: unexpected argument \'--skip-onboarding\' found" — because the usage is `deepseek [OPTIONS] <COMMAND> [ARGS]`. `deepseek --skip-onboarding resume <id>` restores the conversation, VERIFIED hands-on 2026-08-11 in tmux (the original turn and the agent\'s own reply were both back on screen). Keeping the flags is not cosmetic: --skip-onboarding is what stops the restored pane opening the first-run workspace-trust dialog, which a bare `deepseek resume <id>` does hit in a directory it has not seen. ' +
         "TRAP AT THE SOURCE: the CLI's own `deepseek sessions` output prints the broken advice \"Resume with: deepseek --resume <session-id>\" — do not copy it. " +
@@ -1090,6 +1114,26 @@ export function agentBinaryName(id: AgentRegistryId): string {
     throw new Error(`Agent '${id}' has no binary name in the registry.`);
   }
   return bin;
+}
+
+/**
+ * Every binary name an id may wear, in probe order (Phase 25.5).
+ *
+ * Detection has always walked the whole `binaries` list; the launch path and
+ * the conformance harness used to resolve `binaries[0]` alone. That was fine
+ * while every launchable agent had exactly one name. It stopped being fine
+ * when deepseek's package renamed itself: the successor installs `codewhale`
+ * and `codew`, an old install still has `deepseek`, and a resolver that only
+ * knows one of those names fails on machines that have the other. Everyone
+ * who turns a registry id into a program to run must try these IN ORDER and
+ * take the first hit.
+ */
+export function agentBinaryCandidates(id: AgentRegistryId): readonly string[] {
+  const bins = getRegistryEntry(id).binaries;
+  if (bins.length === 0) {
+    throw new Error(`Agent '${id}' has no binary name in the registry.`);
+  }
+  return bins;
 }
 
 /**

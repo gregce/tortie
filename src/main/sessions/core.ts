@@ -2004,37 +2004,44 @@ export class GmuxCore {
       // agent REGISTRY, not the agent id — cursor's binary is `cursor-agent`,
       // antigravity's is `agy`. Unknown ids (never in the registry) keep the
       // id-as-binary behavior so nothing regresses.
-      let bare: string = input.agent;
-      // Detection has always searched these dirs. Launch did not, so an agent
-      // that reported installed threw AGENT_NOT_FOUND on the very next create.
-      // This reads the merged table in MEMORY, like every other configuration
-      // read on this path, and it grants nothing: the confirm gate is asked
-      // below, inside resolveLaunchSpec.
+      //
+      // PHASE 25.5: the WHOLE candidate list, not `binaries[0]` alone.
+      // deepseek's npm package renamed itself to codewhale, so one registry
+      // row now names three binaries — `codewhale`, `codew`, and the legacy
+      // `deepseek`. Detection already walked the list; launch resolved only
+      // the first name, which would have thrown AGENT_NOT_FOUND on every
+      // machine that has the old install and not the new one. Launch now
+      // walks the same list in the same order and takes the first hit.
+      //
+      // The list comes from the MERGED agent table (memory, never the disk),
+      // which is also what detection scans. For a compiled id with no overlay
+      // that is exactly the registry row; for a patched row it is the user's
+      // own `binaries`, which makes agents.json the working escape hatch for
+      // the next silent package rename. The confirm gate is still asked
+      // below, inside resolveLaunchSpec — a name is not a permission.
       probeDirs = expandDirs(agentEntry(input.agent)?.extraProbeDirs ?? []);
-      try {
-        bare = agentBinaryName(input.agent);
-      } catch {
-        // PHASE 23: not a COMPILED registry id, so ask the merged agent table
-        // before falling back. Without this a configured agent whose id is not
-        // also its binary name resolves the id as a program, finds nothing and
-        // fails with "not found" instead of launching. `owl` with a binary of
-        // `owl-cli` is the case, and it is the ordinary one: the compiled
-        // registry already has three agents whose binary is not their id.
-        //
-        // This reads MEMORY, like every other configuration read on this path.
-        // It reads a NAME, not a permission: the confirm gate is asked a few
-        // lines below, inside resolveLaunchSpec, and it is what decides whether
-        // this session is allowed to start at all.
-        const configured = launchableAgentEntry(input.agent);
-        if (configured !== null) bare = configured.binaries[0] ?? input.agent;
-        /* still nothing — legacy id-as-binary behavior */
+      const merged = launchableAgentEntry(input.agent);
+      const candidates: readonly string[] =
+        merged !== null && merged.binaries.length > 0
+          ? merged.binaries
+          : [input.agent]; // legacy id-as-binary behavior
+      let abs: string | null = null;
+      let bare: string = candidates[0] ?? input.agent;
+      for (const candidate of candidates) {
+        const hit = await tmux.resolveBinary(candidate, probeDirs);
+        if (hit !== null) {
+          abs = hit;
+          bare = candidate;
+          break;
+        }
       }
-      const abs = await tmux.resolveBinary(bare, probeDirs);
       if (abs === null) {
+        const also =
+          candidates.length > 1 ? ` (also tried ${candidates.slice(1).join(', ')})` : '';
         throw gmuxError(
           'AGENT_NOT_FOUND',
-          `${bare} not found — install it, or make sure your shell PATH includes it.`,
-          bare
+          `${candidates[0]} not found${also} — install it, or make sure your shell PATH includes it.`,
+          candidates[0] ?? input.agent
         );
       }
       binPath = abs;

@@ -31,7 +31,7 @@ the wordmark is a wordmark. Revisit only if the operator asks.
 | 7 | **22** the Context sidebar, with installing enabled | ✅ SHIPPED 2026-08-13 | — |
 | 8 | **23** Tortie Config, configuration not code, plus the authoring prompt | ✅ SHIPPED 2026-08-13 | 22 ✅, and **never before 21** ✅ |
 | — | ~~**25** downloads and usage measurement~~ | **DEFERRED 2026-08-12 by the operator.** Spec kept below and stays valid. Note it must ship IN a released build, so reopening it after a release means the first cohort is unmeasurable |
-| 9 | **25.5** the DeepSeek CLI renamed itself and detection is broken | SPECCED BELOW | nothing. Small, and can run beside any phase |
+| 9 | **25.5** the DeepSeek CLI renamed itself and detection is broken | ✅ SHIPPED 2026-08-13 | nothing. Small, and can run beside any phase |
 | 9b | **26** Context sidebar dogfood round, user reported | SPECCED BELOW | 25.5 |
 | 10 | **Release lane** Itavero identity, signing, notarization, version scheme, four CI lanes | ready | after Phase 25.5 |
 | 11 | **24** self update | SPECCED BELOW | the release lane. Impossible before the app is signed |
@@ -2143,7 +2143,7 @@ holds none of that. Keep it that way.
 
 ---
 
-## Phase 25.5 — the DeepSeek CLI renamed itself and detection is broken (2026-08-12)
+## Phase 25.5 — the DeepSeek CLI renamed itself and detection is broken ✅ SHIPPED 2026-08-13
 
 Found by research 38 while surveying licences, unrelated to licensing, and verified twice.
 

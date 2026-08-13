@@ -34,6 +34,7 @@ export {
 export {
   AGENT_IDS,
   AGENT_REGISTRY,
+  agentBinaryCandidates,
   agentBinaryName,
   DEFAULT_AGENT_ID,
   DEFAULT_IMAGE_DROP,

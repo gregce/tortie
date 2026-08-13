@@ -432,7 +432,14 @@ export const DESCRIPTORS: Partial<Record<LaunchableAgentId, HarvestDescriptor>> 
   deepseek: {
     key: 'cwd-newest',
     confidence: 'weak',
-    roots: (_ctx, de) => [join(de.home, '.deepseek', 'sessions')],
+    // Phase 25.5: the package renamed itself to codewhale, and the successor
+    // binary writes ~/.codewhale/sessions, keeping ~/.deepseek/sessions only
+    // as a legacy fallback for upgraded installs. Watch both roots; the file
+    // shape (<uuid>.json with metadata.workspace) is carried over.
+    roots: (_ctx, de) => [
+      join(de.home, '.codewhale', 'sessions'),
+      join(de.home, '.deepseek', 'sessions')
+    ],
     entry: 'file',
     maxDepth: 0,
     identify: (path) => {

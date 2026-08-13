@@ -6,7 +6,7 @@
  * dirs like $CODEX_HOME, nvm's starred bin dirs).
  */
 
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -17,6 +17,8 @@ import {
   extractVersion,
   stripAnsi
 } from '../detection';
+import { getRegistryEntry } from '../registry';
+import { resolveBinaryAgainst } from '../../tmux/resolve';
 
 const HOME = '/Users/probe';
 
@@ -95,5 +97,61 @@ describe('version output distillation', () => {
 
   it('stripAnsi removes CSI color sequences', () => {
     expect(stripAnsi('\u001b[2mdim\u001b[0m plain')).toBe('dim plain');
+  });
+});
+
+/**
+ * PHASE 25.5 — the candidate walk that survives a package rename.
+ *
+ * npm `deepseek-tui` 0.8.47 publishes an empty bin field, so a fresh install
+ * of the old package installs NO executable; the successor `codewhale`
+ * installs `codewhale` and `codew`. Detection and launch both walk the
+ * registry row's `binaries` in order and take the first hit. These tests
+ * drive that exact loop against three synthetic machine states, using the
+ * REAL registry row and the REAL resolver — a scratch PATH is the machine
+ * state, per the phase spec ("prove detection against a machine state where
+ * the old binary is absent").
+ */
+describe('deepseek → codewhale rename (Phase 25.5)', () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'gmux-cw-'));
+  afterAll(() => rmSync(scratch, { recursive: true, force: true }));
+
+  /** A dir carrying the named fake executables, as one PATH entry. */
+  function binDir(name: string, bins: string[]): string {
+    const dir = join(scratch, name);
+    mkdirSync(dir, { recursive: true });
+    for (const bin of bins) {
+      writeFileSync(join(dir, bin), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+    }
+    return dir;
+  }
+
+  /** detectOne's binary loop, verbatim: first candidate on the PATH wins. */
+  function resolveFirst(pathValue: string): string | null {
+    for (const bin of getRegistryEntry('deepseek').binaries) {
+      const hit = resolveBinaryAgainst(bin, pathValue, []);
+      if (hit !== null) return hit;
+    }
+    return null;
+  }
+
+  it('a fresh machine (codewhale only, no legacy binary) is detected', () => {
+    const dir = binDir('fresh', ['codewhale', 'codew']);
+    expect(resolveFirst(dir)).toBe(join(dir, 'codewhale'));
+  });
+
+  it('an existing install (legacy deepseek only) keeps working', () => {
+    const dir = binDir('legacy', ['deepseek']);
+    expect(resolveFirst(dir)).toBe(join(dir, 'deepseek'));
+  });
+
+  it('a machine with both prefers the successor binary', () => {
+    const dir = binDir('both', ['codewhale', 'codew', 'deepseek']);
+    expect(resolveFirst(dir)).toBe(join(dir, 'codewhale'));
+  });
+
+  it('a machine with neither reports nothing — no id-as-binary guess', () => {
+    const dir = binDir('empty', []);
+    expect(resolveFirst(dir)).toBeNull();
   });
 });

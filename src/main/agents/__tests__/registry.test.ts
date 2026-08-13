@@ -18,6 +18,7 @@ import {
 import {
   AGENT_IDS,
   AGENT_REGISTRY,
+  agentBinaryCandidates,
   agentBinaryName,
   DEFAULT_AGENT_ID,
   DEFAULT_MULTILINE_KEY,
@@ -257,6 +258,33 @@ describe('argv helpers', () => {
     expect(agentBinaryName('cursor')).toBe('cursor-agent');
     expect(agentBinaryName('antigravity')).toBe('agy');
     expect(agentBinaryName('claude')).toBe('claude');
+    // Phase 25.5: deepseek's package renamed itself; the canonical name is
+    // the successor's.
+    expect(agentBinaryName('deepseek')).toBe('codewhale');
+  });
+
+  /**
+   * PHASE 25.5 — the rename that broke fresh installs. npm `deepseek-tui`
+   * 0.8.47 publishes an EMPTY bin field, so installing it installs no
+   * executable; the successor `codewhale` installs `codewhale` and `codew`.
+   * The probe order is NEWEST FIRST, OLDEST LAST: a machine with only the
+   * old install still resolves `deepseek` (its name is still on the list),
+   * a fresh machine resolves `codewhale`, and a machine with both prefers
+   * the binary that still receives releases. Every resolver — detection,
+   * session create, the conformance harness — walks this exact list.
+   */
+  it('deepseek probes the codewhale successor names first, legacy name last', () => {
+    expect(agentBinaryCandidates('deepseek')).toEqual([
+      'codewhale',
+      'codew',
+      'deepseek'
+    ]);
+    // The legacy name must never be dropped: existing installs and every
+    // manifest row recorded before the rename still point at it.
+    expect(agentBinaryCandidates('deepseek')).toContain('deepseek');
+    // For every other agent the candidate list is unchanged single-name data.
+    expect(agentBinaryCandidates('claude')).toEqual(['claude']);
+    expect(agentBinaryCandidates('cursor')).toEqual(['cursor-agent']);
   });
 
   it('registryResumeArgv agrees with the hand-written claude/codex builders', () => {
@@ -285,9 +313,12 @@ describe('argv helpers', () => {
     // Was []: the registry said pi had no resume mechanics. It has the
     // simplest one in the set.
     expect(registryResumeArgv('pi', 'ID')).toEqual(['pi', '--session-id', 'ID']);
-    // deepseek's verb is a SUBCOMMAND; `--resume <id>` exits RC=2.
+    // deepseek's verb is a SUBCOMMAND; `--resume <id>` exits RC=2. Since
+    // Phase 25.5 the bare fallback name is the successor binary; every real
+    // call site passes the RESOLVED absolute path, which on a legacy install
+    // is still .../deepseek.
     expect(registryResumeArgv('deepseek', 'ID')).toEqual([
-      'deepseek',
+      'codewhale',
       'resume',
       'ID'
     ]);

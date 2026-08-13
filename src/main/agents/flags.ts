@@ -327,8 +327,13 @@ export const AGENT_FLAG_PRESETS: Record<RegistryAgentId, AgentFlagCatalog> = {
   },
 
   deepseek: {
-    binary: 'deepseek',
-    helpVerifiedVersion: 'v0.8.26 (npm wrapper, Hmbown/DeepSeek-TUI)',
+    // Phase 25.5: registry binaries[0] is now `codewhale`; the machine this
+    // catalog was help-verified on still runs the legacy `deepseek` name.
+    // Every preset below was re-checked against codewhale 0.9.7's --help
+    // (scratch install, 2026-08-13): --skip-onboarding, --approval-policy,
+    // --model and --provider are all still root options.
+    binary: 'codewhale',
+    helpVerifiedVersion: 'v0.8.26 (npm wrapper, Hmbown/DeepSeek-TUI); root options re-checked on codewhale 0.9.7',
     resumeRepass: 'required-unverified',
     resumeNote:
       '`deepseek resume --help` documents only an opaque [ARGS]... pass-through to the TUI binary; whether root flags like --approval-policy are honored there is UNVERIFIED.',

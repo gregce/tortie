@@ -204,7 +204,9 @@ const SEED_AGENTS: readonly SeedAgent[] = [
   { id: 'codex', label: 'Codex', unverified: false },
   { id: 'gemini', label: 'Gemini', unverified: false },
   { id: 'droid', label: 'Droid', unverified: true },
-  { id: 'deepseek', label: 'DeepSeek', unverified: false },
+  // Phase 25.5: the product renamed itself; the id stays 'deepseek' because
+  // it is in every manifest row and the SpecStory provider mapping.
+  { id: 'deepseek', label: 'CodeWhale', unverified: false },
   { id: 'antigravity', label: 'Antigravity', unverified: false },
   { id: 'muse', label: 'Muse', unverified: false },
   { id: 'qwen', label: 'Qwen', unverified: false },
