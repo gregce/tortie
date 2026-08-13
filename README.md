@@ -1,83 +1,87 @@
-# Tortie
+# TORTIE.sh
 
-A calm, durable place for agentic work: **durable named terminal sessions**
-(backed by a private tmux server that survives app quit/crash/update), project
-tabs, a VS Code-grade git sidebar, a git-decorated file tree, and a Monaco
-editor with diff-vs-HEAD — in one window. tmux is invisible: the GUI is the
-whole interface.
+**A calm, durable home for your coding agents.**
 
-Philosophy and naming: [`docs/ZEN-OF-TORTIE.md`](docs/ZEN-OF-TORTIE.md).
-Architecture authority: [`docs/FINAL-REPORT.md`](docs/FINAL-REPORT.md) (§2).
+Tortie is a macOS shell for agentic work. You open your projects, you start
+Claude Code or Codex or Gemini or any of twelve agents by hotkey, and the work
+keeps running whether the window is open or not. Close the app, update it,
+reboot the machine. Your sessions come back, with their conversations.
 
-> **The app was called `gmux` until Phase 16.5.** The product name, bundle id
-> (`com.specstory.tortie`) and data directory (`~/Library/Application
-> Support/Tortie`) all changed; the first launch under the new name copies the
-> old `~/Library/Application Support/gmux` across and leaves the original in
-> place as a backup (`src/main/migrate/`). Several INTERNAL identifiers keep
-> the old spelling ON PURPOSE — most importantly the private tmux socket
-> `-L gmux`, which live sessions are bound to and which must never be renamed.
-> See "What is still called gmux, and why" below.
+![Tortie](docs/brand/tortie/dock/tortie-dock-128.png)
 
-## Dev quickstart
+## One window for your projects
 
-Requirements: macOS (arm64), Node 22+, system `tmux` (3.6+ via Homebrew:
-`brew install tmux`), Xcode Command Line Tools (for native module builds), and
-`git` on PATH.
+Every project is a tab in one window. Switch with `⌘1` through `⌘9`. No more
+one editor window per repository, no more hunting through a window switcher to
+find the agent you left working. The file tree, the git sidebar and the
+terminal sessions all scope to the project you are looking at.
 
-```sh
-npm install        # postinstall runs electron-rebuild for node-pty + better-sqlite3
-npm run dev        # electron-vite dev server + Electron with HMR
-```
+## Durable agent sessions
 
-### Scripts
+This is the reason Tortie exists. Sessions live in a private terminal server
+that runs outside the app, so the app is just a window onto them.
 
-| Script              | What it does                                                        |
-| ------------------- | ------------------------------------------------------------------- |
-| `npm run dev`       | Dev mode with HMR (renderer) and hot restart (main/preload)          |
-| `npm run build`     | Production bundles into `out/`                                       |
-| `npm run typecheck` | Strict `tsc --noEmit` over node (main/preload/shared) + web configs  |
-| `npm run smoke`     | Build, then headless boot check: window + native modules + private tmux server reachable, exits 0 in <15 s |
-| `npm run shot`      | Build, then screenshot the window after 3 s (`GMUX_SHOT=/path.png npm run shot`) |
-| `npm run package`   | electron-builder `--dir` build (unsigned dev packaging stub)         |
+- Quit Tortie. The agents keep working.
+- Tortie crashes or updates itself. The agents never notice.
+- Reboot the Mac. Tortie restores every session, replays its scrollback, and
+  arms each agent's own resume command so one keypress continues the
+  conversation where it stopped.
 
-## tmux safety
+Your session list is copied and verified continuously, five generations deep,
+so even the record of your work has spares.
 
-Tortie only ever talks to its **private** tmux server:
+## Intuitive multiplexing
 
-```sh
-tmux -L gmux -f resources/gmux-tmux.conf <command>
-```
+Name a session and it keeps that name. Split panes by dragging one session
+onto another. Zoom any pane. Drag an image from the file tree into an agent.
+See at a glance which session needs your input, and jump to it with `⌘J`.
 
-It never reads `~/.tmux.conf`, never touches the default `tmux` server, and
-its config keeps the private server alive with zero sessions (`exit-empty off`)
-— that server, not the GUI, is the durability boundary. The system tmux is the
-dev target today; a pinned, bundled tmux is planned (FINAL-REPORT §5, Stream A1).
+There is a full terminal multiplexer underneath, and you never see it. No
+prefix keys, no detach commands, no configuration files. Sessions have names,
+and the window is the whole interface.
 
-## Layout
+## Feels like VS Code
 
-```
-src/main/       Electron main: window, (later) tmux/, manifest/, attach/, git/, watcher/, fs/, ipc.ts
-src/preload/    The typed window.gmux bridge (contextBridge, isolation on)
-src/shared/     FROZEN contracts: types.ts (domain), ipc.ts (channels + GmuxApi)
-src/renderer/   React app: app/ (shell), terminal/, scm/, tree/, editor/, styles/
-resources/      gmux-tmux.conf (private server config)
-```
+The furniture you already know, so there is nothing to relearn.
 
-`src/shared/` is the contract every work stream codes against: append new
-types/channels, never change existing declarations.
+- A git sidebar with staging, history, branches and a real commit graph.
+- A file tree with git status colouring and the icons you are used to.
+- Click a file to read it, edit it with Monaco, diff it against HEAD.
+- Project-wide search on ripgrep, fast on very large trees.
+- Markdown and HTML preview, with untrusted pages locked in a frame that can
+  reach nothing.
 
-## What is still called gmux, and why
+## The agents
 
-The Phase 16.5 rename changed what the USER sees. It deliberately changed none
-of the identifiers that live data is already bound to, because renaming those
-would strand it:
+Claude Code, Codex, Cursor, Gemini, Qwen, Muse, Pi, DeepSeek, Antigravity,
+Droid, Amp and plain shells. Each with its own icon, its own hotkey, its own
+launch flags, and its own resume strategy, verified by an executable
+conformance harness rather than asserted.
 
-| Still `gmux` | Why it can never change |
-| --- | --- |
-| tmux socket `-L gmux` | Every live session is on that socket. Rename it and the app starts a second, empty server while the user's work sits unreachable on the first. |
-| `resources/gmux-tmux.conf` | Passed as `-f` to the running server; paired with the socket above. |
-| tmux session options `@gmux-id`, `@gmux-agent`, `@gmux-session-id` | Stamped into sessions that are running RIGHT NOW. They are how the app proves a live session is its own — and, by the same rule, how it knows not to touch anyone else's. |
-| `GMUX_SESSION_ID`, `GMUX_MANAGED` pane env | Same argument, plus users' own tooling may read them. |
-| `<userData>/gmux/` (manifest, snapshots, hooks, dropped images) | Copied wholesale by the migration; renaming it inside the copy would be a second migration for no gain. |
-| `window.gmux` preload bridge, `gmux-asset:` scheme, `gmux.*` localStorage keys, `gmux-*` CSS classes | Private to the process. The localStorage keys in particular carry the user's tab order, layouts and one-time-tip flags. |
-| `GMUX_*` env vars and `[gmux]` log prefixes | Developer surface: harness switches and greppable log lines, never shown in the UI. |
+A new agent Tortie has never heard of? Add it yourself with one JSON file. No
+rebuild, nothing runs as code, and anything that could start a program asks
+you once, out loud.
+
+## What Tortie refuses to do
+
+- It never touches your own tmux server or `~/.tmux.conf`.
+- It never adopts a terminal session it did not create.
+- It sends nothing anywhere. There is no telemetry, and the app's own
+  content-security policy makes the window unable to reach the network.
+- It never renders a `.env`, a key file or anything that looks like a secret
+  as a friendly preview.
+
+## Install
+
+macOS on Apple silicon. Download the latest release, drag Tortie to
+Applications, open it, and point it at a project folder. A git repository gets
+the full sidebar; any folder works.
+
+## More
+
+- Philosophy: [`docs/ZEN-OF-TORTIE.md`](docs/ZEN-OF-TORTIE.md)
+- Building from source and contributing: [`DEVELOPMENT.md`](DEVELOPMENT.md)
+- Licence: Apache 2.0, see [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE)
+
+Made by [Itavero](https://github.com/gregce). The sessions were never
+interrupted.
