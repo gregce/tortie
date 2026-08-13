@@ -162,16 +162,27 @@ async function readOneSkill(input: SkillDirInput): Promise<Candidate | null> {
   payload.trigger = triggerSentence({ name, ...payload });
   payload.startupTokens = Math.ceil(payload.startupBytes / 4);
 
-  if (!payload.nameMatchesDirectory) {
-    const mismatch: ContextProblem = {
-      path: sourcePath,
-      line: null,
-      message: `This skill is named ${declaredName} but its folder is ${directoryName}. Agents disagree about which name to use.`,
-      kind: 'invalid',
-      category: 'skill'
-    };
-    ctx.addProblem(mismatch);
-    problem = problem ?? mismatch;
+  // Phase 26.2 — ownership decides what a name-folder disagreement becomes.
+  // The two names are kept as data, because the final sentence needs the
+  // per-agent verdicts and those do not exist until the resolver has run.
+  // A mismatch inside a vendor's own installation produces no problem at all:
+  // the user cannot act on it, so it becomes a quiet note in
+  // `routeNamingMismatch` (resolve.ts). A user-owned mismatch is a real
+  // problem whose message is finished in the same place, and it reaches the
+  // section list from `scan.ts` once the message is final, which is why
+  // nothing here calls `ctx.addProblem`.
+  if (!payload.nameMatchesDirectory && declaredName !== null) {
+    payload.namingMismatch = { declared: declaredName, folder: directoryName };
+    if (location.bundled !== true) {
+      const mismatch: ContextProblem = {
+        path: sourcePath,
+        line: null,
+        message: `This skill is named ${declaredName} but its folder is ${directoryName}.`,
+        kind: 'invalid',
+        category: 'skill'
+      };
+      problem = problem ?? mismatch;
+    }
   }
 
   const candidate: Candidate = {

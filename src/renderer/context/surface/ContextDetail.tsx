@@ -41,6 +41,8 @@ interface InstalledProps {
   check?: McpCheckResult | null;
   onOpenPath(path: string, line?: number): void;
   onCheckConnection?: () => void;
+  /** Phase 26.2 — the Open Folder affordance beside a guided fix. */
+  onRevealPath?(path: string): void;
   /** The artifact's own content, rendered by whoever owns that renderer. */
   renderBody?: () => React.ReactNode;
 }
@@ -70,6 +72,7 @@ export function ContextDetail(props: ContextDetailProps): React.JSX.Element {
     check,
     onOpenPath,
     onCheckConnection,
+    onRevealPath,
     renderBody
   } = props;
 
@@ -84,6 +87,7 @@ export function ContextDetail(props: ContextDetailProps): React.JSX.Element {
         {...(check !== undefined ? { check } : {})}
         onOpenPath={onOpenPath}
         {...(onCheckConnection !== undefined ? { onCheckConnection } : {})}
+        {...(onRevealPath !== undefined ? { onRevealPath } : {})}
       />
       <div className="ctxd-detail-body">
         {renderBody !== undefined ? (

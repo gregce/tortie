@@ -173,6 +173,17 @@ export interface ContextProblem {
   kind: 'parse' | 'missing' | 'invalid' | 'unreadable';
   /** Which category the file was being read for. */
   category: ContextCategory | null;
+  /**
+   * Phase 26.2 — the guided fix for a problem the user can act on, as one
+   * plain sentence. Only user-owned problems carry one. Tortie states the fix
+   * and never applies it, because Tortie does not edit skill files.
+   */
+  fix?: string;
+  /**
+   * Phase 26.2 — the folder the Open Folder affordance reveals. Present only
+   * when `fix` is, and only on user-owned problems.
+   */
+  revealDir?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -246,6 +257,18 @@ export interface SkillPayload {
    * agents disagree about which one they address it by.
    */
   nameMatchesDirectory: boolean;
+  /**
+   * Phase 26.2 — the two names, kept when they disagree, so the consequence
+   * sentence can be composed from data once the per-agent verdicts exist.
+   * `declared` is the frontmatter name and `folder` is the directory name.
+   */
+  namingMismatch?: { declared: string; folder: string };
+  /**
+   * Phase 26.2 — for a mismatch inside a vendor's own installation, the quiet
+   * sentence naming the owner. Rendered in the hover card and the detail view
+   * only. It never takes a section row and never wears an error icon.
+   */
+  namingNote?: string;
   /** Bytes of name + description, which is what loads at startup. */
   startupBytes: number;
   /** startupBytes / 4, the ~100-tokens-per-skill budget made concrete. */

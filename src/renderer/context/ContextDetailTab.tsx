@@ -36,6 +36,9 @@ import { ContextDetail } from './surface';
 import type { AgentPrecedenceNote, AgentReload } from './surface';
 import { useContext } from './store';
 import { openFileAt } from './open-detail';
+// The one reveal-in-Finder helper the renderer already owns (tree/fs-bridge),
+// reused per the guardrail rather than a second window.gmux cast.
+import { canReveal, reveal } from '../tree/fs-bridge';
 
 /**
  * The models that name no winner. `resolve.ts` returns two rows for each of
@@ -109,6 +112,13 @@ export function ContextDetailTab({
           ...(line !== undefined ? { line } : {})
         });
       }}
+      {...(canReveal()
+        ? {
+            onRevealPath: (path: string) => {
+              void reveal(path).catch(() => undefined);
+            }
+          }
+        : {})}
       {...(renderBody !== undefined ? { renderBody } : {})}
     />
   );

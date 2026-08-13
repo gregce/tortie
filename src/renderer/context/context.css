@@ -7,11 +7,18 @@
  * THE RESPONSIVE LADDER IS A CONTAINER QUERY, not a media query and not a
  * ResizeObserver. The sidebar is user-resizable and the window may never
  * change, so the row has to degrade against the PANE (the same reason the SCM
- * ref pills do, scm.css). Three tiers, from §5.9:
+ * ref pills do, scm.css). Three tiers, from §5.9, revised in Phase 26.2:
  *
- *   T1  ≥340px   icon · name · summary (flex, ≥140px) · agent chip · state
- *   T2  260-339  icon · name · summary (flex, ≥80px)  · agent chip · state
+ *   T1  ≥340px   icon · name · summary (leftover) · agent chip · scope word
+ *   T2  260-339  icon · name · summary (leftover) · agent chip · scope glyph
  *   T3  220-259  icon · name · state — summary and chip move to the hover card
+ *
+ * INSIDE A ROW, THE NAME WINS (Phase 26.2). The name renders whole up to a
+ * generous ch cap that scales with the pane; the summary has a zero flex
+ * basis, takes only the leftover width, and truncates first. The name
+ * truncates only when it alone cannot fit the row. The old summary floors
+ * (80px at T2, 140px at T1) are gone. They were reservations, and a
+ * reservation is what crushed a name to 40px whenever a summary ran long.
  *
  * The summary is DROPPED, never wrapped. Rows are 24px everywhere else in this
  * app, and a two-line context row would break the one rhythm the sidebar has.
@@ -332,10 +339,21 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  /* The name never disappears at any width (§6.6), so it keeps a floor and
-     the summary beside it gives way first. */
+  /* THE NAME WINS THE ROW (Phase 26.2). It sits at its natural width up to
+     the cap below. The summary beside it has a zero flex basis, so it holds
+     no shrink weight against the name: when the row overflows, the summary
+     gives way to nothing before the name loses a pixel. The name shrinks only
+     when it ALONE cannot fit beside the row's fixed lanes, and even then the
+     40px floor keeps it from disappearing (§6.6). */
   flex: 0 1 auto;
   min-width: 40px;
+  /* The cap is ch based so it scales with the row's own type, never a pixel
+     constant. 44ch seats every skill name in the operator's corpus whole.
+     The second term scales the cap with the pane: 100cqi is the container's
+     width, and 64px is the row's fixed furniture (padding, accent border,
+     icon, gaps and the state lane), so at a narrow pane the cap is simply
+     what the row can actually give. */
+  max-width: min(44ch, 100cqi - 64px);
 }
 
 .ctx-summary {
@@ -345,7 +363,14 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  flex: 1 1 auto;
+  /* Zero basis, on purpose (Phase 26.2): the summary claims none of the
+     row's width up front, grows into whatever the name and the fixed lanes
+     left over, and is therefore the first thing to truncate. No floor. A
+     floor here is a reservation against the name, which is the exact
+     arithmetic that used to crush names to 40px under a long summary. At the
+     widths where a summary would be unreadable anyway, the hover card
+     carries it (§7.1). */
+  flex: 1 1 0;
   min-width: 0;
   /* T3 by default, so the narrowest pane is what this file describes first
      and every wider tier is an addition rather than a rescue. */
@@ -424,14 +449,36 @@
   cursor: pointer;
 }
 
+/* The message, the fix and the Open Folder affordance stack inside the row.
+   Deliberately NOT `.ctx-name`: the name's width rules are for entry rows,
+   and a cap meant for a skill name must never clip a sentence. */
+.ctx-problem-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+}
+
 .ctx-problem-text {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
   color: var(--error);
   white-space: normal;
   overflow: visible;
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   overflow: hidden;
+}
+
+/* Phase 26.2 — the guided fix under a user-owned naming problem. Secondary
+   tone: the message carries the warning, the fix carries the way out. */
+.ctx-problem-fix {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-secondary);
+  white-space: normal;
 }
 
 /* ---------------------------------------------------------------------------
@@ -479,8 +526,9 @@
 
 @container ctx (min-width: 260px) {
   .ctx-summary {
+    /* No floor comes back with it (Phase 26.2). The summary takes the
+       leftover width only, so a long name is never crushed for its sake. */
     display: block;
-    min-width: 80px;
   }
 
   .ctx-agents {
@@ -489,16 +537,14 @@
 }
 
 /* ---------------------------------------------------------------------------
-   T1 — 340px and up: the summary gets its full floor and the scope chip says
-   its word. A word is a stronger channel than a glyph, so it is the last thing
-   given up and the first thing given back.
+   T1 — 340px and up: the scope chip says its word. A word is a stronger
+   channel than a glyph, so it is the last thing given up and the first thing
+   given back. The summary gains nothing here any more: since Phase 26.2 it
+   holds no floor at any tier, and only the leftover width separates T1 from
+   T2 for it.
 --------------------------------------------------------------------------- */
 
 @container ctx (min-width: 340px) {
-  .ctx-summary {
-    min-width: 140px;
-  }
-
   .ctx-chip-word {
     display: inline;
   }
@@ -560,7 +606,8 @@
 }
 
 .ctx-card-scope,
-.ctx-card-shadow {
+.ctx-card-shadow,
+.ctx-card-quiet {
   font-size: var(--text-xs);
   line-height: var(--lh-xs);
   color: var(--text-muted);

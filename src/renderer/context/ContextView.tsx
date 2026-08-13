@@ -201,6 +201,8 @@ interface SectionProps {
   onGroupMenu(group: ContextGroup, at: { x: number; y: number }): void;
   onHover(entry: ContextEntry | null, el: HTMLElement | null): void;
   onOpenProblem(problem: ContextProblem): void;
+  /** Phase 26.2 — the Open Folder affordance beside a guided fix. */
+  onRevealDir(path: string): void;
 }
 
 function Section({
@@ -222,7 +224,8 @@ function Section({
   onMenu,
   onGroupMenu,
   onHover,
-  onOpenProblem
+  onOpenProblem,
+  onRevealDir
 }: SectionProps): React.JSX.Element {
   const category = CONTEXT_SECTION_CATEGORY[id];
   // Collapse state is per project, so a repo whose hooks matter opens with
@@ -296,8 +299,27 @@ function Section({
               onClick={() => onOpenProblem(problem)}
             >
               <Codicon name="error" size={16} className="ctx-mark-broken" />
-              <span className="ctx-name ctx-problem-text">
-                {problem.message}
+              <span className="ctx-problem-body">
+                <span className="ctx-problem-text">{problem.message}</span>
+                {/* Phase 26.2 — a user-owned naming problem is actionable:
+                    both fixes stated, and Open Folder beside them. Tortie
+                    never applies a fix itself; it opens the folder and the
+                    file and stops. */}
+                {problem.fix !== undefined ? (
+                  <span className="ctx-problem-fix">{problem.fix}</span>
+                ) : null}
+                {problem.revealDir !== undefined ? (
+                  <button
+                    type="button"
+                    className="btn-text ctx-problem-open"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRevealDir(problem.revealDir ?? '');
+                    }}
+                  >
+                    Open Folder
+                  </button>
+                ) : null}
               </span>
             </div>
           ))}
@@ -731,6 +753,7 @@ export function ContextSection({
             onGroupMenu={onGroupMenu}
             onHover={onHover}
             onOpenProblem={onOpenProblem}
+            onRevealDir={menuDeps.revealPath}
           />
         ))}
         {sectionDrag.overlay}

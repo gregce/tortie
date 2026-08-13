@@ -19,8 +19,9 @@
  *
  * The fixture set is deliberately the awkward one: a global skill that beats a
  * project skill of the same name, an MCP server in each of the two project
- * scopes, a broken hook and a vendor bundle. Those are the five things the
- * design has to get right, so they are the five things the picture shows.
+ * scopes, a broken hook, a vendor bundle, and (Phase 26.2) a long name beside
+ * a long summary. Those are the six things the design has to get right, so
+ * they are the six things the picture shows.
  */
 
 import type { ContextEntry, ContextScanResult } from '@shared/context';
@@ -169,6 +170,16 @@ function fixtures(): ContextScanResult {
       'Use when the user wants to design, redesign, shape, critique or polish a frontend interface.'
     ),
     skill('agent-browser', 'project', 'Drive a headless browser to verify a page.'),
+    // Phase 26.2 — the crush case the operator reported: a long name beside a
+    // long summary. Under the old flex arithmetic the summary's natural width
+    // took the shrink budget and this name landed at its 40px floor. The fix
+    // says the name renders whole and the summary truncates first, and this
+    // row is the one that proves it in every capture.
+    skill(
+      'antigravity-code-review-guide',
+      'project',
+      'Walks a reviewer through the antigravity conventions for diffs, commit shape, naming, and the boundaries an agent must not cross while editing.'
+    ),
     skill('skills-cursor', 'bundled', 'Shipped with Cursor.'),
     mcp('everything', 'project', 'npx @modelcontextprotocol/server-everything'),
     mcp('playwright', 'project-local', 'npx @playwright/mcp'),
@@ -290,6 +301,35 @@ function measureRow(): Record<string, unknown> | null {
 }
 
 /**
+ * Phase 26.2 — the name-first claim, measured per row.
+ *
+ * The claim is arithmetic, so the evidence has to be numbers: every name's
+ * rendered width, whether the ellipsis actually fired on it, and what the
+ * summary beside it kept. "NAME-CUT" appearing on a row whose name would fit
+ * the pane alone is the regression this line exists to catch, and a wide
+ * capture where no row says NAME-CUT is the fix demonstrated.
+ */
+function measureNames(): string {
+  const w = (el: HTMLElement | null): number =>
+    el === null ? 0 : Math.round(el.getBoundingClientRect().width);
+  const cut = (el: HTMLElement | null): boolean =>
+    el !== null && el.scrollWidth > el.clientWidth + 1;
+  return [...document.querySelectorAll<HTMLElement>('.ctx-row:not(.ctx-row-problem)')]
+    .map((row) => {
+      const name = row.querySelector<HTMLElement>('.ctx-name');
+      const summary = row.querySelector<HTMLElement>('.ctx-summary');
+      const sum =
+        w(summary) > 0
+          ? ` sum:${String(w(summary))}px${cut(summary) ? ' cut' : ''}`
+          : '';
+      return `${name?.textContent ?? '?'}:${String(w(name))}px${
+        cut(name) ? ' NAME-CUT' : ''
+      }${sum}`;
+    })
+    .join(' | ');
+}
+
+/**
  * Drive the view and report what the layout engine did.
  *
  * The width is set through the store's own setter, which is what a drag does,
@@ -361,6 +401,7 @@ export async function driveContext(spec: ContextProbeSpec): Promise<void> {
   );
   log(`groups top to bottom: ${groups.join(' | ')}`);
   log(`row: ${JSON.stringify(measureRow())}`);
+  log(`names: ${measureNames()}`);
 
   const counts = [...document.querySelectorAll('.section-header')].map((el) => {
     const label = el.querySelector('.section-toggle')?.textContent ?? '';

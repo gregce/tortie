@@ -98,7 +98,23 @@ export function ContextHoverCard({
       ) : null}
 
       {entry.problem !== null ? (
-        <p className="ctx-card-problem">{entry.problem.message}</p>
+        <>
+          <p className="ctx-card-problem">{entry.problem.message}</p>
+          {/* Phase 26.2 — the guided fix rides with the warning. The card is
+              not interactive, so the Open Folder affordance lives on the
+              section row and in the detail view, and this line carries the
+              words. */}
+          {entry.problem.fix !== undefined ? (
+            <p className="ctx-card-quiet">{entry.problem.fix}</p>
+          ) : null}
+        </>
+      ) : null}
+
+      {/* Phase 26.2 — a vendor-owned naming disagreement. One quiet sentence
+          naming the owner, secondary tone, no error icon, because the user
+          cannot act on someone else's installation. */}
+      {entry.payload.kind === 'skill' && entry.payload.namingNote !== undefined ? (
+        <p className="ctx-card-quiet">{entry.payload.namingNote}</p>
       ) : null}
 
       {entry.agents.length > 0 ? (

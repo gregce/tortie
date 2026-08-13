@@ -236,7 +236,16 @@ export async function scanContext(
     (a, b) => AGENT_LEAD_ORDER.indexOf(a.agent) - AGENT_LEAD_ORDER.indexOf(b.agent)
   );
 
-  const merged = mergeAcrossAgents(resolutions, AGENT_LEAD_ORDER);
+  const merged = mergeAcrossAgents(resolutions, AGENT_LEAD_ORDER, displayName);
+  // Phase 26.2 — a user-owned naming problem takes its section row only now,
+  // because its message names the agents that load the skill and those come
+  // from the verdicts the merge just produced. Vendor-owned mismatches never
+  // reach this list: they are a quiet note on the payload instead.
+  for (const entry of merged) {
+    if (entry.problem !== null && entry.problem.revealDir !== undefined) {
+      problems.push(entry.problem);
+    }
+  }
   const targetsById = new Map<string, { kind: 'file' | 'dir'; path: string }>();
   for (const entry of merged) {
     const identity = entry.id.slice(entry.id.indexOf('|') + 1);

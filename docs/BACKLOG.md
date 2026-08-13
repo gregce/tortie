@@ -3005,7 +3005,7 @@ an isolated socket. Measured checkbox columns at x 465, 640 and 816 on every row
 
 ---
 
-## Phase 26.2 — naming disagreements, handled by ownership (user decided, 2026-08-13)
+## Phase 26.2 — naming disagreements, handled by ownership (user decided, 2026-08-13) ✅ SHIPPED 2026-08-13
 
 Reference screenshots:
 - /Users/gdc/Library/Application Support/CleanShot/media/media_Sy0AfdClVM/CleanShot 2026-08-13 at 13.37.18@2x.png
@@ -3060,6 +3060,22 @@ every name in the operator's screenshot renders whole.
 (bundled entries are already excluded from counts and must stay excluded), and the no secret
 rendering rule. The 24 px row rhythm and the three width tiers, including T3 where the summary
 moves to the hover card.
+
+**Shipped 2026-08-13.** All three items landed, verified by driving the real dev build with an
+isolated HOME on the harness socket.
+- A bundled naming mismatch takes no row in the skills section. Its note is one secondary-token
+  sentence on the hover card and the detail view, with no error icon. It names the owner and says
+  Tortie will not edit vendor files.
+- A user owned mismatch keeps the visible warning and states both fixes, being rename the folder
+  or edit the name in SKILL.md, with an Open Folder button in the section, the hover card and the
+  detail header. No one click fix exists.
+- The consequence sentence is built from the resolver's live verdicts, e.g. "claude and cursor
+  will call this gov_style" for a ~/.claude/skills case and antigravity alone for the vendor case.
+  7 unit tests pin the composition.
+- The skill name renders whole up to a ch based cap that scales with the pane. At 400 px and
+  300 px no name was cut while every long summary truncated. At 220 px the T3 tier held and only
+  names longer than the row alone were cut. Row height stayed 24 px at every width.
+- Section counts still exclude bundled entries, and zoom still reaches the Context view.
 
 ---
 

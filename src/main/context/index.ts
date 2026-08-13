@@ -45,6 +45,7 @@ export { HASH_ALGORITHM, hashDirectory } from './hash';
 export {
   countSections,
   mergeAcrossAgents,
+  namingConsequence,
   resolveForAgent,
   shadowSentence,
   sortEntries,

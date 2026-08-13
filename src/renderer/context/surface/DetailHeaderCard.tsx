@@ -72,6 +72,11 @@ export interface DetailHeaderCardProps {
   check?: McpCheckResult | null;
   onOpenPath(path: string, line?: number): void;
   onCheckConnection?: () => void;
+  /**
+   * Phase 26.2 — reveals a folder in the Finder, for the Open Folder
+   * affordance beside a guided fix. Absent means no button, never a dead one.
+   */
+  onRevealPath?(path: string): void;
 }
 
 function relativeAge(then: number, now: number): string {
@@ -102,7 +107,8 @@ export function DetailHeaderCard({
   drift,
   check,
   onOpenPath,
-  onCheckConnection
+  onCheckConnection,
+  onRevealPath
 }: DetailHeaderCardProps): React.JSX.Element {
   const trigger = triggerOf(entry.payload);
   const reload = reloadLines(agentReload);
@@ -132,10 +138,29 @@ export function DetailHeaderCard({
       </p>
 
       {entry.problem !== null ? (
-        <p className="ctxd-error">
-          <Codicon name="error" size={14} />
-          {entry.problem.message}
-        </p>
+        <>
+          <p className="ctxd-error">
+            <Codicon name="error" size={14} />
+            {entry.problem.message}
+          </p>
+          {/* Phase 26.2 — a user-owned naming problem carries its way out:
+              both fixes in one sentence, and Open Folder beside them. Tortie
+              states the fix and never applies it. */}
+          {entry.problem.fix !== undefined ? (
+            <p className="ctxd-muted ctxd-problem-fix">
+              <span>{entry.problem.fix}</span>
+              {entry.problem.revealDir !== undefined && onRevealPath !== undefined ? (
+                <button
+                  type="button"
+                  className="btn-text"
+                  onClick={() => onRevealPath(entry.problem?.revealDir ?? '')}
+                >
+                  Open Folder
+                </button>
+              ) : null}
+            </p>
+          ) : null}
+        </>
       ) : null}
 
       {entry.agents.length > 0 ? (

@@ -233,11 +233,13 @@ export function CategoryRows({
               once it touches a file in that subtree.
             </p>
           ) : null}
-          {!payload.nameMatchesDirectory ? (
-            <p className="ctxd-warning ctxd-card-note">
-              Its name does not match its directory, so agents disagree about
-              what to call it.
-            </p>
+          {/* Phase 26.2 — a vendor-owned naming disagreement is one quiet
+              sentence naming the owner, never a warning: the user cannot act
+              on someone else's installation. The user-owned case renders
+              nothing here, because the header card above already carries the
+              problem, the consequence and the guided fix. */}
+          {payload.namingNote !== undefined ? (
+            <p className="ctxd-muted ctxd-card-note">{payload.namingNote}</p>
           ) : null}
         </>
       );

@@ -122,6 +122,17 @@
   color: var(--error);
 }
 
+/* Phase 26.2 — the guided fix under a user-owned naming problem: the fix
+   sentence and the Open Folder affordance on one quiet line. */
+.ctxd-problem-fix {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
 .ctxd-mono {
   font-family: var(--font-mono);
   font-size: var(--text-xs);

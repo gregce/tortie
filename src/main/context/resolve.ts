@@ -30,6 +30,7 @@
  * Pure functions over candidates. No disk, no clock, no Electron.
  */
 
+import { basename, dirname } from 'node:path';
 import type {
   ContextAgentVerdict,
   ContextCategory,
@@ -37,6 +38,7 @@ import type {
   ContextEvidence,
   ContextPayload,
   ContextPrecedenceModel,
+  ContextProblem,
   ContextResolution,
   ContextScope,
   ContextSectionCount,
@@ -160,6 +162,131 @@ export function resolveForAgent(
 }
 
 // ---------------------------------------------------------------------------
+// Naming disagreements, handled by ownership (Phase 26.2)
+// ---------------------------------------------------------------------------
+
+/** "claude and gemini" — registry ids joined the way a sentence needs them. */
+function joinAgents(agents: readonly string[]): string {
+  if (agents.length <= 1) return agents[0] ?? '';
+  return `${agents.slice(0, -1).join(', ')} and ${agents[agents.length - 1] ?? ''}`;
+}
+
+/**
+ * The concrete per-agent outcome of a name that does not match its folder.
+ *
+ * Each agent is paired with the folder name it reaches the skill through,
+ * because that folder is the entry in the agent's own directory listing. The
+ * agents come from the verdicts the resolver keeps, never from a hardcoded
+ * pair. With `fileClaim`, a run of agents that all see the same folder still
+ * gets the file's own claim, so the sentence always shows both names. The
+ * caller passes false when the sentence sits after one that already names
+ * both, which is the user-owned problem message.
+ */
+export function namingConsequence(
+  verdicts: readonly Pick<ContextAgentVerdict, 'agent' | 'viaPath'>[],
+  naming: { declared: string; folder: string },
+  fileClaim: boolean
+): string {
+  const byFolder = new Map<string, string[]>();
+  for (const verdict of verdicts) {
+    const folder = basename(dirname(verdict.viaPath));
+    const list = byFolder.get(folder) ?? [];
+    if (!list.includes(verdict.agent)) list.push(verdict.agent);
+    byFolder.set(folder, list);
+  }
+  if (byFolder.size === 0) {
+    return `Some agents will call this ${naming.folder} and others ${naming.declared}.`;
+  }
+  const parts = [...byFolder.entries()].map(([folder, agents], index) =>
+    index === 0
+      ? `${joinAgents(agents)} will call this ${folder}`
+      : `${joinAgents(agents)} will call it ${folder}`
+  );
+  if (fileClaim && !byFolder.has(naming.declared)) {
+    return `${parts.join(', ')}, and the file names it ${naming.declared}.`;
+  }
+  return `${parts.join(', ')}.`;
+}
+
+/** One quiet sentence naming who owns the file Tortie will not edit. */
+function ownerSentence(
+  scope: ContextScope,
+  verdicts: readonly ContextAgentVerdict[],
+  name: string,
+  ownerName: (agent: AgentRegistryId) => string
+): string {
+  if (scope === 'plugin') {
+    const cut = name.indexOf(':');
+    const plugin = cut > 0 ? name.slice(0, cut) : null;
+    return plugin === null
+      ? "This inconsistency is inside a plugin's own files. Tortie will not edit plugin files."
+      : `This inconsistency is inside the ${plugin} plugin's own files. Tortie will not edit plugin files.`;
+  }
+  if (scope === 'managed') {
+    return "This inconsistency is inside your organisation's managed configuration. Tortie will not edit managed files.";
+  }
+  const owner =
+    verdicts.find((verdict) => verdict.scope === 'bundled')?.agent ?? verdicts[0]?.agent;
+  const who = owner === undefined ? 'the vendor' : ownerName(owner);
+  return `This inconsistency is inside ${who}'s own installation. Tortie will not edit vendor files.`;
+}
+
+/**
+ * Ownership decides what a name-folder disagreement becomes (Phase 26.2, the
+ * operator's decision).
+ *
+ * Vendor-owned — bundled, plugin and managed scopes — takes no problem at
+ * all. The user cannot act on someone else's installation, and red demands an
+ * action that does not exist. The whole finding becomes one quiet note on the
+ * payload, which only the hover card and the detail view render.
+ *
+ * User-owned keeps the problem and makes it actionable: the message gains the
+ * per-agent consequence, and the fix states both ways out. Tortie never
+ * applies either fix itself, which is the line research 36 drew.
+ */
+function routeNamingMismatch(input: {
+  scope: ContextScope;
+  verdicts: readonly ContextAgentVerdict[];
+  name: string;
+  sourcePath: string;
+  payload: ContextPayload;
+  problem: ContextProblem | null;
+  ownerName: (agent: AgentRegistryId) => string;
+}): { payload: ContextPayload; problem: ContextProblem | null } {
+  if (input.payload.kind !== 'skill' || input.payload.namingMismatch === undefined) {
+    return { payload: input.payload, problem: input.problem };
+  }
+  const naming = input.payload.namingMismatch;
+  const vendor =
+    input.scope === 'bundled' || input.scope === 'plugin' || input.scope === 'managed';
+  if (vendor) {
+    const note = `${namingConsequence(input.verdicts, naming, true)} ${ownerSentence(
+      input.scope,
+      input.verdicts,
+      input.name,
+      input.ownerName
+    )}`;
+    // Only the naming problem is dissolved. A parse problem on the same file
+    // stays, because an unreadable vendor file is still unreadable.
+    const problem =
+      input.problem !== null && input.problem.kind === 'invalid' ? null : input.problem;
+    return { payload: { ...input.payload, namingNote: note }, problem };
+  }
+  if (input.problem === null || input.problem.kind !== 'invalid') {
+    return { payload: input.payload, problem: input.problem };
+  }
+  return {
+    payload: input.payload,
+    problem: {
+      ...input.problem,
+      message: `This skill is named ${naming.declared} but its folder is ${naming.folder}. ${namingConsequence(input.verdicts, naming, false)}`,
+      fix: `Rename the folder to ${naming.declared}, or edit the name in SKILL.md to ${naming.folder}.`,
+      revealDir: dirname(input.sourcePath)
+    }
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Cross-agent merge
 // ---------------------------------------------------------------------------
 
@@ -197,10 +324,15 @@ function stateOf(input: {
  * `agentOrder` decides which agent's verdict a row leads with when several
  * reach the same thing and disagree. Every verdict is kept, so the detail view
  * can show the disagreement rather than hiding it behind one answer.
+ *
+ * `ownerName` turns a registry id into the name a sentence uses for a vendor,
+ * e.g. "Antigravity CLI". It defaults to the id so the pure tests need no
+ * registry.
  */
 export function mergeAcrossAgents(
   resolutions: readonly AgentResolution[],
-  agentOrder: readonly AgentRegistryId[]
+  agentOrder: readonly AgentRegistryId[],
+  ownerName: (agent: AgentRegistryId) => string = (agent) => agent
 ): ContextEntry[] {
   const rank = new Map(agentOrder.map((agent, index) => [agent, index]));
   interface Bucket {
@@ -261,14 +393,27 @@ export function mergeAcrossAgents(
     }
 
     const agents = [...new Set(ordered.map((item) => item.candidate.agent))];
-    const problem = ordered.map((item) => item.candidate.problem).find((value) => value) ?? null;
-    const payload: ContextPayload = primary.candidate.payload;
+    const scope = pickScope(ordered.map((item) => item.candidate.scope));
+    // Phase 26.2 — a name-folder disagreement is routed by ownership here,
+    // where the scope, the verdicts and the problem are all in hand, so the
+    // state below is computed from what the row actually carries.
+    const routed = routeNamingMismatch({
+      scope,
+      verdicts,
+      name: primary.candidate.name,
+      sourcePath: primary.candidate.sourcePath,
+      payload: primary.candidate.payload,
+      problem: ordered.map((item) => item.candidate.problem).find((value) => value) ?? null,
+      ownerName
+    });
+    const problem = routed.problem;
+    const payload: ContextPayload = routed.payload;
     entries.push({
       id: key,
       category: bucket.category,
       name: primary.candidate.name,
       summary: primary.candidate.summary,
-      scope: pickScope(ordered.map((item) => item.candidate.scope)),
+      scope,
       sourcePath: primary.candidate.sourcePath,
       realPath: primary.candidate.realPath,
       agents,
