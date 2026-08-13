@@ -29,7 +29,9 @@ the wordmark is a wordmark. Revisit only if the operator asks.
 | 6 | **21** versioned agent recovery contracts, as one migration with resume provenance | queued | Phase 20 |
 | 7 | **22** the Context sidebar, with installing enabled | SPECCED BELOW | 21, and it runs **before** the release lane by operator instruction |
 | 8 | **23** Tortie Config, configuration not code, plus the authoring prompt | SPECCED BELOW | 22, and **never before 21**. Opens with a re-baseline of the code |
-| — | **Release lane** Itavero identity, signing, notarization, version scheme, four CI lanes | ready | after Phase 23. Its CI half touches no source file and could run beside a phase if wanted |
+| 9 | **25** downloads and usage measurement | SPECCED BELOW | must ship **in** the released build, so it lands before the release lane |
+| 10 | **Release lane** Itavero identity, signing, notarization, version scheme, four CI lanes | ready | after Phase 25 |
+| 11 | **24** self update | SPECCED BELOW | the release lane. Impossible before the app is signed |
 | — | Release lane, second half: signing, notarization, the updater | blocked | the operator's App Store Connect issuer identifier |
 
 **Why 19 waits for 18.6.** Both touch `src/renderer/state/store.ts`. Phase 19's restart fix would be
@@ -999,9 +1001,29 @@ other than this machine, because from then on it is a migration for other people
 Also update the identity line in CLAUDE.md, README.md and BUILD-STATUS.md, all of which currently
 name `com.specstory.tortie` as the product identifier.
 
-### Repository ownership
-The remote is already `github.com/gregce/tortie` and private. Nothing to change there. When the
-operator makes it public it needs a LICENSE file, and research 34 lists what else becomes visible.
+### Going public, decided 2026-08-12, and the short list that comes first
+The operator has decided the repository at `github.com/gregce/tortie` becomes **public**. That unlocks
+the GitHub update feed for Phase 24 and takes continuous integration from about 55 dollars a month to
+zero.
+
+Four things to settle before flipping it, in order of how much they matter. A scan of every tracked
+file on 2026-08-12 found **no API keys, no private keys and no tokens**, so none of this is urgent
+remediation. It is housekeeping and one judgement call.
+
+| # | Item | What it is | Recommendation |
+| --- | --- | --- | --- |
+| 1 | **No LICENSE file** | A public repository with no licence means nobody may legally use, copy or contribute to it. `package.json` already says MIT, so the file is missing rather than the decision | Add MIT, matching what package.json already declares |
+| 2 | **The bb teardown in research 31** | `docs/research/31-extensions.md` contains a detailed analysis of `/Users/gdc/bb`, including its line counts, an internal design document that admits an open permission question, and the two migration filenames that created and dropped its marketplace table. It is fair technical analysis and it is also more than bb has published about itself | **The operator decides.** It concerns a third party product. The options are to publish as is, to redact the internal specifics while keeping the architectural lesson, or to keep that one document out of the public tree |
+| 3 | **Apple identifiers** | The team identifier and the App Store Connect key identifier appear in three files. The team identifier is readable from any signed application, and the key identifier is one part of a three part credential whose key file is not in the repository | Low risk. Leave them, or redact for tidiness |
+| 4 | **Local paths** | 96 markdown files contain `/Users/gdc` paths, which reveals the username and the names of other local repositories | Cosmetic. Leave them, since the research documents are more useful with real paths |
+
+Also worth knowing rather than acting on. 103 commit messages carry the private session URL in a
+trailer. Rewriting history to remove it would be more disruptive than the exposure warrants, and the
+URL is not accessible to anyone else.
+
+Attribution is already handled. The codicon set is CC-BY-4.0 and is credited in the About panel.
+Confirm that credit satisfies the licence once a LICENSE file exists and the surrounding terms are
+clear.
 
 ### Order
 This lane touches no source file outside `build/` and `.github/`, so it runs beside any phase without
@@ -1757,3 +1779,218 @@ Must not start before Phase 21. Restore currently asks the live registry for `re
 rather than the manifest, and its error path returns the permissive answer. That is latent today
 because the registry always holds all twelve agents. **A user added agent that later leaves the file
 makes it immediate**, and for one agent the failure is a silent empty session that looks resumed.
+
+---
+
+## Phase 24 — self update (2026-08-12)
+
+Specification in docs/research/27-release-and-updates.md section 5, which canvassed six options and
+carries the mechanism, the interface, the failure envelope and the honest answer about rollback.
+
+**Runs after the release lane, and cannot run before it.** Section 5 opens by saying everything in it
+is downstream of the signature. The installed app has no signature at all today, which makes its
+designated requirement a literal hash of this exact build, and the updater verifies every update
+against that. **No future build can satisfy a hash of a past one.** Signing is not a step before
+updates. Signing is the update feature.
+
+### The mechanism
+`electron-updater` 6.x, publishing a ZIP and a manifest, with Squirrel doing the install underneath.
+On macOS the library fetches the manifest, downloads the ZIP, stands up a loopback HTTP server on a
+random port behind basic auth with a per run random password, and points Electron's own updater at
+that. It is a feed client in front of the thing that performs the security check.
+
+Delta updates work on macOS, contrary to most search results. They landed in 6.2.0 and re-landed in
+6.3.0, and the build already emits the block map files they need. Staged rollout works, bucketed by a
+stored identifier so a user never flaps in and out of a rollout.
+
+**Write the integration against the version 26 interface and keep it in ONE module.** Version 27 is a
+breaking release and is close. It renames two of the exact calls this phase makes. Confining it to
+one file makes that migration one file rather than a search.
+
+### The feed, decided 2026-08-12
+**The repository will be public**, by operator decision. So the GitHub provider against GitHub
+Releases is the feed, with no token on any user's machine and no separate hosting to run.
+
+Two consequences follow, and both are improvements.
+Electron's free hosted feed becomes available as a fallback, since it requires a public repository.
+Research 27 rejects it as the primary choice because it has no delta updates, no staged rollout and no
+channels, but it is worth recording as the thing to fall back to if the provider ever becomes a
+problem.
+And continuous integration becomes free. Research 27 priced a private repository at about 55 dollars a
+month for the runner minutes at the planned volumes, because macOS runners carry a ten times
+multiplier. A public repository is zero.
+
+### When it checks, and what the user is told
+Thirty seconds after launch, never at launch, because boot is when restore is replaying scrollback and
+re-adopting sessions. Then every six hours while running, because sessions are long lived and the app
+may go days without a relaunch. And whenever the user asks.
+
+**The announcement is one menu item and nothing else.** No toast, no modal, no badge, no counter.
+
+```
+Tortie
+  About Tortie
+  Update to 0.19.0 — installs when you quit      ← appears only when staged
+  Check for Updates…
+```
+
+Only a check the user asked for may report success or a failure, because only then is somebody
+waiting for an answer. A failed background check writes to the log and says nothing.
+Settings may carry a fuller line for a user who goes looking. Settings is a place you go rather than a
+thing that shouts. **Do not show release notes in a window. If they matter they are a link.**
+
+### Installing
+On quit, automatically. That is only defensible because of what Tortie is, and research 27 measured it
+rather than assuming it. The tmux server runs a binary from outside the bundle, the manifest and the
+snapshots live in the user data directory, nothing has been written inside the bundle since install,
+and a running process survives its bundle being moved aside and deleted.
+**So replacing the application does not touch the work.** That property should be stated in the
+release notes for the first self updating build, because no other class of desktop application can
+say it.
+
+### Four things must be true before the first update ships
+| Requirement | State |
+| --- | --- |
+| A single instance lock, since every updater relaunches | **Shipped in Phase 18.5** |
+| The tmux config path assertion and the scrollback read back | Phase 19 item 13 |
+| A Developer ID signature, hardened runtime, notarized and stapled | The release lane |
+| `codesign --verify --deep --strict` as a release gate | The release lane |
+
+**This phase adds a fifth: the post update self check.** On the first boot after the version changes,
+verify the bundle's runtime resources actually resolve, being the tmux config, the bundled specstory
+binary, the unpacked search binary and the tree-sitter files. Surface one quiet failure if any is
+missing. This is the single case in the whole design where something should rise above the surface,
+because it is a failure rather than news.
+
+### Rollback, stated honestly
+There is none, and no macOS updater has one. If a release is bad the answer is another release, plus a
+halt script that stops the manifest serving the bad version to anyone who has not taken it yet. Build
+the halt script in this phase, because the moment it is needed is the moment there is no time to write
+it.
+
+### Verification
+**Tier 3**, and it is the highest risk phase in the queue, because a wrong answer replaces the
+application on a machine holding live work.
+Prove by doing, on a real machine with real sessions: an end to end update installed over a running
+copy, **twice**, with the session identifier list byte identical afterwards. An interrupted download
+resuming or failing cleanly. A corrupted artifact refused rather than installed. The post update self
+check firing when a bundled resource is removed. And the first cold start after an update confirming
+the scrollback limit is the configured value rather than the silent default.
+
+### What must not regress
+The live sessions and their scrollback depth, which is the whole point. The single instance lock. The
+bundled specstory signature surviving the swap. The login item, which is keyed to the bundle
+identifier and which the release lane changes to Itavero in the same window of time.
+
+### One interaction worth knowing
+An update check is a request from an installed copy, so it is a rough count of active installs as a
+side effect. Research 37 on telemetry is examining whether that is a legitimate measure or a sneaky
+one. **Do not build any counting on top of the update check in this phase.** Whatever 37 concludes
+gets designed on its own terms.
+
+---
+
+## Phase 25 — downloads and usage measurement (2026-08-12)
+
+Specification in docs/research/37-telemetry.md. **Read its section 1 first**, because the operator
+changed its staging. The document recommended shipping downloads only and gating usage behind a 240
+install trigger. The operator wants both from the first public release, and the reason is sound:
+instrumentation cannot be applied retroactively, so a product that ships uninstrumented can never
+learn anything about its first hundred users.
+
+Runs **before the release lane**, because it has to be in the build that gets released.
+
+### What the operator gets
+Two questions answered, and nothing else. **How many active users there are**, daily, weekly and
+monthly, with a return rate curve. **How long they spend in Tortie**, honestly defined.
+
+### Part 1, downloads, which needs no code in the application
+| Source | What it gives |
+| --- | --- |
+| GitHub release asset counts | Per asset, so the DMG count is new downloads and the ZIP count is applied auto updates. That split arrives free from the normal build output |
+| A Homebrew tap the operator owns | 30, 90 and 365 day counts refreshed daily. The published analytics API covers third party taps, which the documentation does not say and research 37 confirmed by fetching the file |
+| The update manifest, which is a release asset | Every update check increments a counter already being read |
+
+All three need the repository public, which is decided. A scheduled job appends one row per asset per
+day to a file in the repository, because the GitHub counter is a running total with no history.
+**Read it no more than once a day.** Research 37 measured the counter frozen across an eleven minute
+window on an asset taking 23,273 downloads in 29 hours, so a faster poll produces noise rather than
+resolution.
+Accept that a Homebrew count is public from day one, including when it reads four.
+
+### Part 2, usage, which is one event per install per day
+Seven fields, about 190 bytes, no event name because a name is a string field.
+
+```
+v, install, day, app, os, open_s, focus_s
+```
+
+Distinct install and day values give the active user counts and the retention curve from a single
+event type. The app version is there so a fall in actives can be told apart from a bad release. The
+operating system version is the only input to deciding when to drop support for a macOS version.
+
+**Two time numbers, because one would be dishonest.** `open_s` is seconds with the process running
+and the machine awake, and the clock stops on suspend. `focus_s` is seconds with a window holding
+focus. The normal state of this product is an unfocused window with an agent working behind it, so a
+single number would either flatter or understate depending on which one it was.
+State what both exclude, in the privacy page and in the code: time after the window is closed while
+tmux sessions keep running, time while the machine is asleep, and any notion of work done. An agent
+running three hours behind an unfocused window adds 10,800 to one number and 0 to the other, and
+neither says whether that was productive.
+
+### Refusals, which are permanent and not preferences
+Nothing describing what a person did inside Tortie. No feature usage, no agent launched, no panel
+opened, no project or session counts, no funnels.
+**No error or failure events, ever.** This one is structural. The most likely leak in the whole design
+imports nothing and passes any reachability test:
+`catch (e) { post({ error: String(e) }) }` yields a message containing an absolute repository path.
+So the guarantee sits at the encoder rather than at the import list. Four string fields with fixed
+forms, everything else a bounded integer, and **one committed test asserting the entire serialised
+body against a single regular expression**, so any free text field fails the build.
+The Worker must not read the location fields the platform attaches to every request. Research 37
+verified they are present on all plans and cannot be switched off, so not reading them is the control.
+
+### The endpoint
+A Cloudflare Worker the operator owns, serving the update manifest and recording the ping in the same
+request. No vendor. PostHog is free at this scale so cost was never the argument. The argument is that
+a product analytics platform bought to store one number per install per day also installs the ability
+to answer the behavioural questions just refused.
+Aptabase was the obvious first guess for a desktop application and fails on question one, because its
+own documentation states it cannot report monthly active users.
+
+### Consent
+A forced choice on first run with no pre-selected answer. Not silently on, and not a setting the user
+must discover. A settings switch, a reset button for the identifier, and a local log viewer so a user
+can read exactly what was sent.
+The identifier is a version 4 UUID in a plain readable file, never derived from hardware, a hostname,
+a username or a path, and resettable by deleting the file.
+
+### Three rules that must appear as comments in the code
+Each is a real failure that has happened to other people.
+1. **The request is never awaited** on any path that leads to a window appearing or the app quitting.
+   A machine behind a captive portal hangs on DNS, and a flush wired into quit turns a dead endpoint
+   into an application that will not quit.
+2. **The Worker needs an uptime check.** A Worker returning errors for a week produces a chart reading
+   "actives fell to zero", and the first reading of that chart is churn rather than an outage.
+3. **Nothing is queued to disk beyond the current day.** A backlog of pings is user data sitting on a
+   machine for no benefit.
+
+### Two defects to close in this phase, both verified 2026-08-12
+1. **Tortie already sends repository paths to PostHog through a subprocess.** `WRAP_FLAGS` in
+   `src/main/specstory/wrap.ts` omits `--no-usage-analytics`, and the bundled specstory binary carries
+   posthog-go. Capture is off by default so this is not firing today, and it is the operator's own
+   product reporting to itself, but the claim that Tortie sends nothing is false while it stands, and
+   that claim belongs in a public privacy page.
+2. **The updater sends a stable per install identifier to GitHub by default.** Decide in writing what
+   happens to it when Phase 24 lands, rather than discovering it later.
+
+### Verification
+Tier 2 for the client, because it touches no durability path and cannot lose user data.
+**Tier 3 for exactly one thing**, which is proving with a network sink that the bytes on the wire match
+the schema exactly. That is the claim the entire design rests on, so it gets evidence rather than
+assurance. Also Tier 3 for the specstory wrap fix, with the same network sink proof.
+
+### What must not regress
+The content security policy, which today prevents the renderer reaching any network host and which is
+why the renderer holding the project tree and terminal buffers cannot leak. The main process posts and
+holds none of that. Keep it that way.
