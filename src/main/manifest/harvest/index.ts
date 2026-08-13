@@ -24,4 +24,10 @@ export {
   type SessionIdWatch
 } from './stores';
 
-export { watchForSessionId } from './watch';
+export {
+  claimConversationId,
+  conversationClaimant,
+  forgetConversationClaims,
+  releaseConversationClaims,
+  watchForSessionId
+} from './watch';

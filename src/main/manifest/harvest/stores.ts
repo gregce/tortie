@@ -62,13 +62,27 @@ export interface HarvestContext {
   tmuxSessionId?: string;
 }
 
-/** A conversation id, plus how strongly it was tied to this pane. */
+/**
+ * A conversation id, plus how strongly it was tied to this pane.
+ *
+ * PHASE 21 MADE THIS THE PROVENANCE RECORD. Until then the caller kept the id
+ * and dropped everything else, so an exact correlation and a timing guess
+ * reached the manifest as the same value. Every field below now travels into
+ * `ResumeProvenance` (../agents.ts) and is persisted with the row.
+ */
 export interface HarvestedSessionId {
   agent: LaunchableAgentId;
   sessionId: string;
   /** Absolute path of the store record that carried it. */
   storePath: string;
+  /** The descriptor root that record was found under. */
+  storeRoot: string;
   key: AgentHarvestKey;
+  /**
+   * The DESCRIPTOR's rating of the key, before rivals are counted. It says
+   * how good this agent's key is in general, not how good this answer is.
+   * `deriveResumeConfidence` turns the two into the claim that gets stored.
+   */
   confidence: 'exact' | 'weak';
   /**
    * TRUE when the record was accepted on the grace timer without its key ever
@@ -76,6 +90,24 @@ export interface HarvestedSessionId {
    * id→cwd link). The id is probably right; it is not proven right.
    */
   viaGraceTimer: boolean;
+  /**
+   * How many candidates were still in play when this one was accepted, this
+   * one included. Records the watcher had already ruled out are not counted.
+   *
+   * 1 means there was nothing to confuse the answer with. Anything above 1
+   * means the winner was chosen by being the EARLIEST record at or after the
+   * spawn, and for a directory keyed store that is a timing guess: two codex
+   * sessions started in one folder both carry that folder, so both confirm.
+   * That is the case G6 names, and it cannot be seen after the fact unless
+   * this number is kept.
+   *
+   * It is what was known AT ACCEPTANCE. A confirmed candidate wins
+   * immediately, so a rival that would have appeared a second later is not
+   * counted, and this number can only understate the ambiguity.
+   */
+  rivals: number;
+  /** Epoch ms the watcher settled on this record. */
+  acceptedAt: number;
 }
 
 export interface SessionIdWatch {
@@ -98,6 +130,16 @@ export interface HarvestOptions {
   env?: NodeJS.ProcessEnv;
   /** Home override hook for tests — defaults to os.homedir(). */
   home?: string;
+  /**
+   * Who this watch is harvesting FOR, normally the Tortie session id.
+   *
+   * It decides one thing: a conversation another session in this process has
+   * already taken is not a candidate here, and the same claimant may retake
+   * its own id when the watch is started again (the boot rescue). A caller
+   * that omits it gets a distinct claimant of its own, so the protection is
+   * on by default. See `claimedConversations` in ./watch.ts.
+   */
+  claimant?: string;
 }
 
 /** 'match' = proven ours; 'unknown' = cannot tell YET; 'mismatch' = not ours. */

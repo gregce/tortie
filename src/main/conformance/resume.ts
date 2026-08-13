@@ -70,6 +70,7 @@ import { app } from 'electron';
 import { mkdtemp, mkdir, realpath, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import type { AgentKind, LaunchableAgentId, Session } from '@shared/types';
+import { listDetectedAgents } from '../agents/detection';
 import {
   LAUNCHABLE_AGENT_IDS,
   agentBinaryName,
@@ -230,6 +231,15 @@ function log(agent: string, line: string): void {
 interface CaseContext {
   core: GmuxCore;
   cfg: Config;
+  /**
+   * Agent id to the CLI version detected for this run (Phase 21).
+   *
+   * Read ONCE, before the pool starts, from the same cached detection scan the
+   * create path records from. Doing it per case would run the same probes
+   * three times over and, worse, would let two cases in one run disagree about
+   * what version they proved against.
+   */
+  versions: Record<string, string | null>;
 }
 
 /** Accumulates stage timings so the report can show where the time went. */
@@ -299,6 +309,10 @@ async function runCase(
     return finish('SKIP', `${bare} not installed on this machine`);
   }
   result.binary = binPath;
+  const detectedVersion = ctx.versions[agent];
+  if (detectedVersion !== undefined && detectedVersion !== null) {
+    result.agentVersion = detectedVersion;
+  }
   stages.add('install', true);
 
   await mkdir(SCRATCH_ROOT, { recursive: true });
@@ -714,8 +728,32 @@ export async function runResumeConformance(): Promise<void> {
     const swept = await sweepLeftovers(core);
     if (swept > 0) console.log(`[gmux-conf] swept ${swept} leftover(s)`);
 
+    // Phase 21. The report has to be able to say WHICH BUILD it passed
+    // against, so the versions are read before any case runs and the same
+    // answer is used by every case. The scan is the cached one the create path
+    // already uses, so this costs one parallel sweep of `--version` probes,
+    // measured at about 0.7 s for the whole fleet (research 30 §2.3).
+    const versions: Record<string, string | null> = {};
+    for (const agent of cfg.agents) versions[agent] = null;
+    try {
+      const scan = await listDetectedAgents();
+      const wanted = new Set<string>(cfg.agents);
+      for (const detected of scan.agents) {
+        if (wanted.has(detected.id)) versions[detected.id] = detected.version;
+      }
+    } catch (err) {
+      console.warn(
+        `[gmux-conf] could not read agent versions: ${(err as Error).message}`
+      );
+    }
+    console.log(
+      `[gmux-conf] versions ${cfg.agents
+        .map((a) => `${a}=${versions[a] ?? '?'}`)
+        .join(' ')}`
+    );
+
     const results = await runPool(cfg.agents, cfg.concurrency, (agent) =>
-      withTimeout(runCase(agent, { core, cfg }), cfg.agentMs, agent)
+      withTimeout(runCase(agent, { core, cfg, versions }), cfg.agentMs, agent)
     );
 
     const run: ConformanceRun = {
@@ -724,6 +762,7 @@ export async function runResumeConformance(): Promise<void> {
       mode: cfg.mode,
       bypassFlags: cfg.bypass,
       tmuxSocket: tmux.activeTmuxSocket(),
+      versions,
       results
     };
 

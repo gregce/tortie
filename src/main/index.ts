@@ -103,6 +103,11 @@ import { installAppMenu } from './menu';
 import { migrateUserDataIfNeeded, showRenameNoticeOnce } from './migrate';
 import { runMigrateSmoke } from './migrate/smoke';
 import { runReconstructSmoke } from './manifest/reconstruct-smoke';
+import { runRefusalSmoke } from './manifest/refusal-smoke';
+// Phase 21 fix round: the refusal, and the screen that says it in words.
+import { manifestRefusal } from './manifest/refusal';
+import { isSchemaRefusal } from './db/schema-version';
+import { presentManifestRefusal } from './notice/refusal-screen';
 import {
   disposeProjectCloneIpc,
   registerProjectCloneIpc,
@@ -1781,6 +1786,10 @@ app.whenReady().then(async () => {
   // its own socket, so the "not ours, untouched" claim is proved rather than
   // asserted. Same isolation guard as the fault harness.
   if (smoke === 'reconstruct') return runReconstructSmoke();
+  // Phase 21 fix round: the screen a person is shown when this build must not
+  // touch their session list. Real Electron process, real refusal, and the one
+  // thing replaced is the person clicking the buttons.
+  if (smoke === 'refusal') return runRefusalSmoke();
   // Phase 13.8: what the outside world sees of gmux (read-only).
   if (smoke === 'procid') return runSmokeProcId();
   // Phase 13.5 item 5 — `npm run conformance:resume`. Lives in
@@ -1789,6 +1798,26 @@ app.whenReady().then(async () => {
   // to be run against agent CLIs that change under us.
   if (smoke === 'conformance-resume') return runResumeConformance();
   if (shot) return runShot(shot);
+
+  // PHASE 21 FIX ROUND, and it is the FIRST thing normal startup does.
+  //
+  // A session list a newer Tortie has already upgraded is one this build must
+  // not write to, and research 27 §4.4 says what the person sees: a blocking,
+  // plain language screen with Quit and Reveal data folder. The check has to
+  // be here rather than at the first IPC call because the renderer's first
+  // paint asks for the session list, and a window that opens and then
+  // apologises has already told the user their sessions are gone. A verifier
+  // drove exactly that: the empty home screen offering "New project", with the
+  // real reason truncated inside a corner toast.
+  //
+  // The probe opens the file READ ONLY and returns null for anything it cannot
+  // prove, so a missing or damaged manifest carries on to the recovery path
+  // below and only a file that says it needs a newer build stops here.
+  const refusal = manifestRefusal();
+  if (refusal !== null) {
+    await presentManifestRefusal(refusal);
+    return;
+  }
 
   // Normal startup. Native-module sanity is logged (not fatal) so a broken
   // rebuild is visible immediately in dev consoles.
@@ -1802,6 +1831,15 @@ app.whenReady().then(async () => {
   // Kick the core boot now so the window opens onto live data; failures are
   // retried per-IPC-call and surfaced as friendly renderer states.
   getGmuxCore().catch((err: unknown) => {
+    // …except a refusal, which is not a failure to boot. The probe above
+    // already caught the case that exists today. This is the second door: a
+    // file that became newer between the probe and the open, and any future
+    // caller that reaches the store without passing the probe. Both end at the
+    // same screen rather than at a toast in the corner of an empty window.
+    if (isSchemaRefusal(err)) {
+      void presentManifestRefusal(err);
+      return;
+    }
     console.error(`[gmux] core boot failed: ${(err as Error).message}`);
   });
 

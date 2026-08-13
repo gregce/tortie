@@ -169,7 +169,8 @@ async function capture(
             agentSessionId: recipe.agentSessionId ?? null,
             argv: recipe.argv,
             resumeArgv: recipe.resumeArgv ?? null,
-            agentVersion: null
+            agentVersion: null,
+            specstoryVersion: null
           }
         })
   });
@@ -468,6 +469,10 @@ describe('rebuilding from capsules and stamps', () => {
     expect(report.plan.candidates).toHaveLength(1);
     expect(report.result.gaps.join(' ')).toMatch(/environment/);
     expect(Object.keys(report.result.digests).sort()).toEqual([
+      // Phase 21. `meta` carries the schema version and the minimum
+      // compatible version, so it is a user table like the rest and the
+      // digest covers it.
+      'meta',
       'migrations',
       'projects',
       'restore_attempts',

@@ -4,7 +4,11 @@
  */
 
 export {
+  MANIFEST_APPLICATION_ID,
   MANIFEST_MIGRATION_NAMES,
+  MANIFEST_MIN_COMPATIBLE_VERSION,
+  MANIFEST_SCHEMA_IDENTITY,
+  MANIFEST_SCHEMA_VERSION,
   ManifestStore,
   defaultManifestDbPath,
   toSession,
@@ -15,13 +19,38 @@ export {
   type RestoreAttemptRecord
 } from './store';
 
+/**
+ * The persistence half of the recovery contract (Phase 21, migration 008).
+ * The SHAPES are exported from './agents' just below, beside the code that
+ * composes them.
+ */
+export {
+  UNRECORDED_PROVENANCE,
+  isUnrecordedProvenance,
+  parseAgentContract,
+  parseResumeProvenance,
+  provenanceOf,
+  serializeAgentContract,
+  serializeResumeProvenance
+} from './contract';
+
 export {
   buildLaunchSpec,
+  buildRecoveryContract,
   claudeResumeArgv,
   codexResumeArgv,
+  deriveResumeConfidence,
+  harvestProvenance,
+  launchProvenance,
   resolveLaunchSpec,
+  SESSION_CONTRACT_VERSION,
   type AgentLaunchSpec,
-  type IdCaptureMode
+  type AgentRecoveryContract,
+  type IdCaptureMode,
+  type RecoveryContractInput,
+  type ResumeConfidence,
+  type ResumeIdSource,
+  type ResumeProvenance
 } from './agents';
 
 export {
@@ -71,6 +100,7 @@ export {
 export {
   prepareManifestForBoot,
   startManifestRing,
+  type KeptPreSchemaCopy,
   type ManifestBootReport
 } from './boot';
 
@@ -93,6 +123,9 @@ export {
   agentRescuesIdAfterExit,
   isDescendantOf,
   resetProcessParentCache,
+  claimConversationId,
+  conversationClaimant,
+  releaseConversationClaims,
   sanitizePiCwd,
   sanitizeQwenCwd,
   watchForSessionId,

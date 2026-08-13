@@ -27,7 +27,7 @@ the wordmark is a wordmark. Revisit only if the operator asks.
 | 4 | **19** durability, with the harness that proves it | ✅ SHIPPED 2026-08-12 | — |
 | 5 | **20** the verified backup ring | ✅ SHIPPED 2026-08-13 | Phase 19 ✅ |
 | 5b | **20.5** file preview beyond markdown, starting with HTML | ✅ SHIPPED 2026-08-13 | Phase 20 ✅ |
-| 6 | **21** versioned agent recovery contracts, as one migration with resume provenance | queued | Phase 20 |
+| 6 | **21** versioned agent recovery contracts, as one migration with resume provenance | ✅ SHIPPED 2026-08-13 | Phase 20 ✅ |
 | 7 | **22** the Context sidebar, with installing enabled | SPECCED BELOW | 21, and it runs **before** the release lane by operator instruction |
 | 8 | **23** Tortie Config, configuration not code, plus the authoring prompt | SPECCED BELOW | 22, and **never before 21**. Opens with a re-baseline of the code |
 | — | ~~**25** downloads and usage measurement~~ | **DEFERRED 2026-08-12 by the operator.** Spec kept below and stays valid. Note it must ship IN a released build, so reopening it after a release means the first cohort is unmeasurable |
@@ -2412,3 +2412,162 @@ Script injected over the debugger, which bypasses the script lock entirely, foun
 - **Two preview tabs on one project share a token**, so they share one counter. Every mint counts a
   generation up, and main answers null rather than the wrong counts, which makes the renderer print
   nothing rather than a wrong line.
+
+---
+
+## Phase 21, versioned agent recovery contracts ✅ SHIPPED 2026-08-13
+
+Sources: docs/research/33-durability-reconciliation.md section 2.1, which is items A8 and G6 and
+requires that they land as ONE migration. docs/research/30-specstory-distribution.md section 2 for
+the measured drift. docs/research/27-release-and-updates.md section 4 for the compatibility numbers.
+
+### The defect this closes
+
+Restore asked the LIVE REGISTRY whether an agent can find its conversation from a different folder.
+The registry is a live object. A release changes it, a user added agent file changes it, and a
+deleted entry removes it. The `catch` around that lookup returned `false`, which means "go ahead and
+restore into a different folder", for any agent id the registry no longer launches.
+
+For a pi shaped agent `false` is the answer that loses the conversation. pi does not complain when it
+cannot find a session under the id it was given. It starts a new empty one under the same id. The
+user sees a restored pane, the scrollback replays, and the conversation behind it is gone.
+
+### What the migration persists
+
+One migration, `008-agent-recovery-contract`, adding three nullable TEXT columns to `sessions`.
+
+| Column | What it holds | Which research item |
+| --- | --- | --- |
+| `agent_version` | the agent version at launch, read from the detection cache so no subprocess runs on the create path | A8 |
+| `agent_contract` | `requiresOriginalCwd`, the resume strategy and template, the id capture route, the session store shape, the binary, and the conformance stamp | A8 |
+| `resume_provenance` | where the conversation id came from, how confident the capture was, and the directory it was captured in | G6 |
+
+G7, spatial state, is a third migration on the same table and it was deliberately left out.
+
+### What restore now obeys
+
+The ladder in `originalCwdRule`, in `src/main/restore/restore.ts`.
+
+| Rung | Condition | Answer |
+| --- | --- | --- |
+| 1 | the agent is `shell` | nothing to resume, so nothing to protect |
+| 2 | the row recorded a contract | use the row and stop, because a registry that changed its mind does not get a vote on a session that already exists |
+| 3 | no contract, and the registry still launches this id | ask the registry, which is every row created before the migration and is still the best answer available |
+| 4 | no contract, and the registry does not launch this id | refuse, where the old code returned the permissive `false` |
+
+The display name is the one thing restore still asks a live object for. It is cosmetic and its
+fallback is the bare agent id, which is a true thing to show rather than a wrong one.
+
+### The compatibility decision went breaking, and why
+
+`application_id` is now 1414681669, the ASCII bytes of "TRTE". `user_version` is 8.
+`min_compatible_version` is 8. All three were 0 or unset before this phase.
+
+Research 27 section 4.2 measured that the SQL shape here is additive. Three nullable columns, no
+table rebuild, no rename, and an older build's `INSERT` still runs. That was confirmed against the
+real schema rather than against the table in the document. A schema 7 column list inserted into the
+migrated file without throwing and left `agent_contract` NULL.
+
+Research 27 section 4.3 sets the stricter rule that decided it. Bump the minimum whenever a new
+column is REQUIRED for correct restore, even where SQLite would let an old build write without it.
+These columns are exactly that. An old build writing NULL into `agent_contract` produces a row that
+looks like a pre migration row forever, and rung 3 of the ladder then guesses for a session that had
+a recorded answer. The quiet success is the hazard, so the refusal is the answer.
+
+**Consequence the operator will meet.** Once a build carrying this migration opens their manifest,
+the older installed Tortie refuses to open it and says so on a screen with Quit and Reveal Data
+Folder. Their sessions keep running in the private tmux server, because Tortie does not own those
+processes. A refusal costs visibility and not work.
+
+### The drift, recorded per session rather than only in a document
+
+Research 30 re-probed every installed agent three days after the flag catalogue was written and five
+of nine had drifted. Every load bearing flag survived that time, so nothing broke. Nothing in the
+build would have told the user if one had.
+
+The contract now carries `flagsVerifiedVersion`, the version the catalogue was written against, and
+`flagsVerifiedAgainst`, which is `this-version`, `other-version`, `never` or `unknown`. The
+conformance report also records a version per agent and a top level `versions` block, so a passing
+report can say which build it passed against. It could not before.
+
+Measured on 2026-08-13, all three agents driven read `other-version`.
+
+| Agent | version at launch | flags verified against | reads |
+| --- | --- | --- | --- |
+| claude | 2.1.231 (Claude Code) | 2.1.226 (Claude Code) | other-version |
+| pi | 0.84.1 | 0.79.1 | other-version |
+| qwen | 0.21.9 | 0.21.7 | other-version |
+
+claude read 2.1.229 earlier the same day and 2.1.231 by the evening, which is the drift happening
+during the phase that measures it.
+
+### The question Phase 25.5 asked, answered here
+
+Phase 25.5 asks whether this drift work covers a binary that disappears entirely, because a package
+renamed itself. **It does not, and the code is honest about it rather than wrong.** The comparison
+needs a version, and a version needs a binary that detection found. When there is no binary the
+contract records `flagsVerifiedAgainst: 'unknown'`, which is a true statement and not a false pass.
+
+What Phase 21 does give that case is the last rung of the ladder. A session whose agent id no longer
+launches is now refused instead of restored into the permissive answer. That protects the existing
+sessions of a renamed agent. It does not find the rename. Finding it needs a probe for the new
+binary names, and that stays Phase 25.5's job.
+
+### Four defects the verifier found, and how they were fixed
+
+| Defect | Fix |
+| --- | --- |
+| a crash during the keepsake copy left a torn file that was kept forever and reported as good | verify the occupant opens before honouring `already-kept`, and write to `*.partial` then rename on top after it verifies |
+| the refusal protected the data and presented it as loss | `manifest/refusal.ts` decides and holds the words, `notice/refusal-screen.ts` shows them, wired before the window is created |
+| the stamp and the migration were two transactions | `runMigrations` takes a `seal` that runs inside the last applied step's transaction |
+| the harvest watch tests flaked | `decide()` no longer runs while the first listing is still registering what it found |
+
+Before the keepsake fix, 60 SIGKILL boots left 1 unreadable copy at 0 bytes. After it, 60 boots left
+0 unreadable copies and 4 partials under a name nothing reads.
+
+### Verification, at Tier 3
+
+Durability, restore and a migration on the sessions table are all Tier 3 by the table in CLAUDE.md.
+
+| Gate | Result |
+| --- | --- |
+| `npm run typecheck` | clean, both projects |
+| `npm run build` | clean, and 21 durability refusals are in the bundle |
+| `npx vitest run` | 180 files passed, 1 skipped. 2457 tests passed, 2 skipped, 0 failed. Four consecutive runs |
+| `npm run smoke:t1` | PASS, 6 of 6 |
+| `npm run smoke:t3` | PASS, both shapes. claude armed `--resume`, pi armed `--session-id` |
+| `npm run smoke:fault` | PASS, 20 cases |
+| `npm run smoke:migrate` | PASS, 11 of 11 |
+| `npm run smoke:refusal` | PASS, Quit and Reveal both work and the file is byte identical |
+| `npm run conformance:resume:capture` | PASS, 6 PASS, 0 FAIL, 0 BLOCKED, 4 SKIP in 17.4 s |
+
+Against a copy of the operator's real manifest, never the file itself. Before: 38 sessions, 7
+migrations, `user_version` 0, no `meta` table. After: 38 sessions, 8 migrations, `user_version` 8,
+`min_compatible_version` 8, integrity ok. All 19 pre-existing columns for all 38 rows were dumped
+before and after and `diff` reported no difference. All three new columns are NULL on all 38 rows.
+
+113 SIGKILL trials at delays from 8 ms to 90 ms all left a file that was integrity ok, held 38 rows,
+carried 8 migrations and both numbers. Never half.
+
+Operator sessions before: 37. Operator sessions after: 37. Socket `-L gmux` was listed and never
+written to. No `pkill`. No `kill-server`.
+
+### What is NOT true after Phase 21
+
+- **No row created before this migration gained a contract.** Nothing is backfilled, and that is
+  deliberate. Filling one in from today's registry is the same guess the phase removes, and afterwards
+  it would be indistinguishable from a contract that was genuinely recorded. Those rows keep using
+  rung 3 of the ladder.
+- **A build that shipped before this migration has no refusal in it.** It will still open a newer
+  manifest and write NULLs. The protection starts with the first build carrying this code and runs
+  forward. There is no way to fix that backwards.
+- **Nothing looks for an agent whose package renamed itself.** See the Phase 25.5 answer above.
+- **The dialog was never photographed.** `screencapture` returned a black frame because the process
+  has no screen recording permission, and System Events could not enumerate the Electron windows
+  without accessibility permission. `npm run smoke:refusal` asserts what was drawn instead, including
+  that two boxes exist so Reveal does not dismiss the screen, and that there is no "Open anyway".
+- **`flagsVerifiedAgainst` is information and not a verdict.** `other-version` means the catalogue
+  was written against a different build, not that resume is broken. Every load bearing flag survived
+  the drift research 30 measured.
+- **Capture mode asserts the manifest only.** No turn was planted and no conversation was proven.
+  The full `npm run conformance:resume` roundtrip is the one that proves a conversation comes back.

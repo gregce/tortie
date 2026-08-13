@@ -37,6 +37,7 @@
 import { randomUUID } from 'node:crypto';
 import type { LaunchableAgentKind } from '@shared/types';
 import { runGuarded } from '../proc/guarded';
+import { AGENT_FLAG_PRESETS } from '../agents/flags';
 import {
   getLaunchableEntry,
   registryLaunchArgv,
@@ -44,6 +45,7 @@ import {
   type AgentHarvestKey,
   type ResumeStrategy
 } from '../agents/registry';
+import type { HarvestedSessionId } from './harvest/stores';
 
 // ---------------------------------------------------------------------------
 // Launch specs
@@ -108,13 +110,395 @@ export interface AgentLaunchSpec {
    * restore path must NOT substitute a fallback directory for these: qwen
    * fails loudly, pi silently opens a new EMPTY session under the same id.
    *
-   * ADVISORY ONLY — this spec is consumed at create time and the flag is not
-   * persisted to the manifest, so restore cannot read it back. The enforcement
-   * lives in src/main/restore/restore.ts, which re-derives the answer from the
-   * registry entry for the recorded agent. Do not add a second reader here
-   * expecting it to survive a reboot.
+   * PHASE 21 CHANGED WHAT THIS FIELD IS FOR. It used to be advisory, because
+   * it was read at create time and thrown away, and restore re-derived the
+   * answer by asking the live registry for the recorded agent id. That is the
+   * A8 defect: the registry answers for the agent Tortie launches TODAY, and
+   * its `catch` returned `false` for any id the registry no longer launches.
+   * For a pi shaped agent `false` means restore opens an empty session that
+   * looks resumed. The flag now travels into {@link AgentRecoveryContract} and
+   * is persisted with the row, so restore reads what was true at create.
    */
   requiresOriginalCwd?: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// The recovery contract and the resume provenance — A8 and G6, one shape
+// version, one migration (docs/research/33 §2.1)
+// ---------------------------------------------------------------------------
+
+/**
+ * Shape version of {@link AgentRecoveryContract} and {@link ResumeProvenance}.
+ *
+ * Both records are written by the same migration and read by the same restore
+ * path, so one number covers both. It is stamped on each record rather than
+ * held only in the schema, because a row read on its own (a reconstruction, a
+ * support dump, a backup capsule) has to be able to say what it may assume.
+ */
+export const SESSION_CONTRACT_VERSION = 1;
+
+/**
+ * How a session's conversation id was obtained, as a fact about THIS session
+ * rather than a fact about the agent.
+ */
+export type ResumeIdSource =
+  /** Tortie generated the id and put it on the launch argv. */
+  | 'preassigned'
+  /** A side command printed a fresh id before spawn (cursor create-chat). */
+  | 'preassign-command'
+  /** A watcher started at create read the id out of the agent's store. */
+  | 'store-harvest'
+  /**
+   * The same watcher, started at a LATER launch against a remembered spawn
+   * time rather than a fresh one. Weaker by construction, and kept separate
+   * from 'store-harvest' for that reason: the pane it would have correlated
+   * against is gone, so a cwd keyed store is being separated by time alone.
+   */
+  | 'boot-rescue'
+  /** No conversation id exists for this session (plain shells). */
+  | 'none'
+  /** Tortie has no verified capture route for this agent, so nothing tried. */
+  | 'unavailable';
+
+/**
+ * How strongly the recorded conversation id is tied to THIS session.
+ *
+ * The invariant this type exists to carry: **ambiguity produces 'weak' or
+ * 'unknown', never 'exact'.** See {@link deriveResumeConfidence}, which is the
+ * only function allowed to produce it from harvest evidence.
+ */
+export type ResumeConfidence =
+  /** Proven. An id Tortie chose, or a key that is a true identity. */
+  | 'exact'
+  /** Armed, not proven. The tie was broken by time, or the key is weak. */
+  | 'weak'
+  /** Nothing ever confirmed the record; a timer accepted it. */
+  | 'grace-accepted'
+  /** An id exists and how it was obtained was not recorded. */
+  | 'unknown'
+  /** No id, so no claim is being made about one. */
+  | 'none';
+
+/**
+ * The keys that are a true identity, so a second candidate cannot be this
+ * pane's session.
+ *
+ *  - 'tmux-pane' — the agent stamps the pane it runs in, and Tortie spawned
+ *    that pane. Two muse sessions in one directory stay separable.
+ *  - 'pid' — the record's pid is a descendant of the pane pid.
+ *
+ * Everything else ('cwd-newest', 'sqlite-index', 'time-only') keys on the
+ * DIRECTORY or on nothing, and a directory is not an identity: two sessions of
+ * one agent started in one directory both match, and only their timing
+ * separates them. That is the case G6 names, and it is why rivals matter.
+ */
+const IDENTITY_HARVEST_KEYS: ReadonlySet<AgentHarvestKey> = new Set<AgentHarvestKey>([
+  'tmux-pane',
+  'pid'
+]);
+
+/**
+ * The confidence a harvest may claim, from the evidence it actually had.
+ *
+ * Three ways to fall short of 'exact', in the order they are checked:
+ *
+ *  1. A grace timer accepted the record. Nothing confirmed it, so the answer
+ *     is 'grace-accepted' whatever the key would have been worth.
+ *  2. The descriptor's key is weak by construction (deepseek, antigravity).
+ *  3. The key confirmed, but more than one candidate was still in play and
+ *     the key is not an identity. Two codex rollouts in one directory both
+ *     carry that directory, so both confirm, and the winner was chosen by
+ *     being the earliest record at or after the spawn. That is a timing
+ *     guess wearing a confirmed key, and it is exactly the case where a
+ *     restore hands the user somebody else's conversation with full
+ *     confidence.
+ */
+export function deriveResumeConfidence(evidence: {
+  key: AgentHarvestKey;
+  /** The descriptor's own rating of the key. */
+  keyConfidence: 'exact' | 'weak';
+  viaGraceTimer: boolean;
+  /** Candidates still in play when the winner was accepted, winner included. */
+  rivals: number;
+}): ResumeConfidence {
+  if (evidence.viaGraceTimer) return 'grace-accepted';
+  if (evidence.keyConfidence === 'weak') return 'weak';
+  if (evidence.rivals > 1 && !IDENTITY_HARVEST_KEYS.has(evidence.key)) {
+    return 'weak';
+  }
+  return 'exact';
+}
+
+/**
+ * Where the conversation id came from, persisted with the row (G6).
+ *
+ * The raw evidence is kept ALONGSIDE the derived confidence rather than being
+ * collapsed into it. `confidence` is what copy and preflight read;
+ * `key`, `keyConfidence`, `viaGraceTimer` and `rivals` are what a later
+ * investigation reads, and they are the difference between "this was an exact
+ * correlation" and "this was the earliest of two files in one folder".
+ */
+export interface ResumeProvenance {
+  v: number;
+  source: ResumeIdSource;
+  confidence: ResumeConfidence;
+  /** Epoch ms the id was fixed (create, or the moment the harvest landed). */
+  at: number;
+  /** The cwd the correlation was made against, realpath'd. */
+  cwd: string;
+  /** Which key proved the record. Absent for the pre-assigned sources. */
+  key?: AgentHarvestKey;
+  /** The descriptor's own rating of that key, before rivals were counted. */
+  keyConfidence?: 'exact' | 'weak';
+  /** TRUE when a timer accepted a record no key ever confirmed. */
+  viaGraceTimer?: boolean;
+  /**
+   * Candidates still in play when the winner was accepted, winner included.
+   * 1 means there was nothing to confuse it with. Anything above 1 with a
+   * directory key means the answer was separated by time.
+   */
+  rivals?: number;
+  /** Absolute path of the store record that carried the id. */
+  storePath?: string;
+  /** The store root that record was found under. */
+  storeRoot?: string;
+  /** The agent CLI version in force when the id was fixed. */
+  agentVersion?: string;
+}
+
+/**
+ * What was true about the agent when this session was created, persisted so
+ * restore never has to ask the live registry (A8, plus M9's residue).
+ *
+ * Every field here is one restore reads for CORRECTNESS. The display name is
+ * deliberately absent: it is cosmetic, its fallback is the agent id, and an
+ * agent id is an honest thing to show.
+ */
+export interface AgentRecoveryContract {
+  v: number;
+  /** Epoch ms this contract was recorded (session create). */
+  at: number;
+  /** Absolute path of the agent binary this session launched. */
+  bin: string;
+  /**
+   * TRUE when resume only finds the conversation from the ORIGINAL cwd.
+   * The field the A8 defect is named for.
+   */
+  requiresOriginalCwd: boolean;
+  /**
+   * TRUE when a resume argv that LOST its id attaches to the wrong
+   * conversation instead of failing (gemini's bare `--resume` opens the most
+   * recent session). A composed resume must never emit an empty slot.
+   */
+  bareResumeIsDangerous: boolean;
+  /** How a conversation id becomes a resume argv. */
+  resumeStrategy: ResumeStrategy;
+  /** The resume template in force at launch, SESSION_ID_SLOT included. */
+  resumeTemplate: string[];
+  /**
+   * WHERE the original launch flags go in a composed resume argv. deepseek
+   * needs 'leading', and the difference is a dead pane versus a restored
+   * conversation.
+   */
+  resumeExtrasPosition: 'leading' | 'trailing';
+  /** How this session's id was to be obtained, as decided at launch. */
+  idCapture: IdCaptureMode;
+  /**
+   * The agent's session store in the registry's template form. This is the
+   * user's own backstop, and naming it is what makes a drift warning
+   * actionable: "the conversation is still in ~/.claude/projects".
+   */
+  sessionStore: string;
+  /** realpath() of the launch cwd — the store key for five of eleven agents. */
+  cwdReal: string;
+  /**
+   * realpath() of the project root at launch. A moved or re-cloned checkout
+   * changes this, which is the most likely resume failure after version drift.
+   * It is NOT a repository identity: a re-clone at the SAME path is
+   * indistinguishable here, and recording a remote URL was left out of this
+   * migration deliberately rather than overlooked.
+   */
+  projectReal: string;
+  /**
+   * FALSE when the registry says this agent's core mechanics have never been
+   * exercised on a real machine. The honest, shipped conformance stamp: the
+   * `conformance:resume` report is a build artefact and is not in the bundle,
+   * so a session cannot carry its verdict yet.
+   */
+  captureRouteVerified: boolean;
+  /**
+   * The build the flag catalogue was read against, or null when nothing was
+   * ever verified for this agent.
+   */
+  flagsVerifiedVersion: string | null;
+  /**
+   * Whether the flag catalogue had been verified against the build that
+   * actually launched this session. 'other-version' is information, not an
+   * error: five of nine agents drifted in three days and every load bearing
+   * flag survived. Note that two agents print their version in more than one
+   * format, so a format change alone can read as 'other-version'.
+   */
+  flagsVerifiedAgainst: 'this-version' | 'other-version' | 'never' | 'unknown';
+}
+
+/** Everything the contract needs that the registry cannot supply. */
+export interface RecoveryContractInput {
+  /** Absolute path of the agent binary, or the shell. */
+  bin: string;
+  /** realpath() of the launch cwd. */
+  cwdReal: string;
+  /** realpath() of the project root. */
+  projectReal: string;
+  /** The detected agent CLI version, or null when the scan had no answer. */
+  agentVersion: string | null;
+  /** Epoch ms. */
+  at: number;
+}
+
+/**
+ * Record what was true about the agent at create time.
+ *
+ * Reading the live registry HERE is correct and is the whole point: the
+ * registry describes the agent Tortie is launching in this moment, and this is
+ * that moment. Reading it later, on the restore path, is the defect.
+ *
+ * A plain shell gets a contract too. It costs one small JSON value and it
+ * means no reader ever has to fall back to code for any row.
+ */
+export function buildRecoveryContract(
+  agent: LaunchableAgentKind,
+  input: RecoveryContractInput,
+  spec?: AgentLaunchSpec
+): AgentRecoveryContract {
+  const base = {
+    v: SESSION_CONTRACT_VERSION,
+    at: input.at,
+    bin: input.bin,
+    cwdReal: input.cwdReal,
+    projectReal: input.projectReal
+  };
+  if (agent === 'shell') {
+    return {
+      ...base,
+      requiresOriginalCwd: false,
+      bareResumeIsDangerous: false,
+      resumeStrategy: 'none',
+      resumeTemplate: [],
+      resumeExtrasPosition: 'trailing',
+      idCapture: 'none',
+      sessionStore: '',
+      captureRouteVerified: true,
+      flagsVerifiedVersion: null,
+      flagsVerifiedAgainst: 'never'
+    };
+  }
+  const entry = getLaunchableEntry(agent);
+  // Keyed on the id that was asked for, not on `entry.id`: the flag catalogue
+  // covers the ten LAUNCHABLE agents, while a registry entry's id spans all
+  // twelve and includes the capture-only IDE pair.
+  const catalog = AGENT_FLAG_PRESETS[agent];
+  const verifiedVersion = catalog?.helpVerifiedVersion ?? null;
+  return {
+    ...base,
+    requiresOriginalCwd: entry.resume.requiresOriginalCwd === true,
+    bareResumeIsDangerous: entry.resume.bareResumeIsDangerous === true,
+    resumeStrategy: entry.resume.strategy,
+    resumeTemplate: [...entry.resume.template],
+    resumeExtrasPosition: entry.resume.resumeExtrasPosition ?? 'trailing',
+    idCapture: spec?.idCapture ?? 'unsupported',
+    sessionStore: entry.resume.sessionStore,
+    captureRouteVerified: entry.unverified !== true,
+    flagsVerifiedVersion: verifiedVersion,
+    flagsVerifiedAgainst: flagVerificationState(verifiedVersion, input.agentVersion)
+  };
+}
+
+function flagVerificationState(
+  verifiedVersion: string | null,
+  liveVersion: string | null
+): AgentRecoveryContract['flagsVerifiedAgainst'] {
+  if (verifiedVersion === null) return 'never';
+  if (liveVersion === null) return 'unknown';
+  return verifiedVersion === liveVersion ? 'this-version' : 'other-version';
+}
+
+/**
+ * The provenance of an id fixed BEFORE the process existed, or the honest
+ * record that no id was fixed at all.
+ *
+ * `preassigned` and `preassign-command` are 'exact' and nothing else could be
+ * right: Tortie generated the uuid, or a side command minted a fresh chat that
+ * has never held anyone else's conversation. A pre-assign command that came
+ * back with nothing leaves `idCapture: 'preassigned-cmd'` and no id, and that
+ * is recorded as 'unavailable' rather than as a weak claim.
+ */
+export function launchProvenance(
+  spec: AgentLaunchSpec,
+  input: { cwd: string; at: number; agentVersion: string | null }
+): ResumeProvenance {
+  const base = {
+    v: SESSION_CONTRACT_VERSION,
+    at: input.at,
+    cwd: input.cwd,
+    ...(input.agentVersion !== null ? { agentVersion: input.agentVersion } : {})
+  };
+  switch (spec.idCapture) {
+    case 'preassigned':
+      return { ...base, source: 'preassigned', confidence: 'exact' };
+    case 'preassigned-cmd':
+      return spec.agentSessionId !== undefined
+        ? { ...base, source: 'preassign-command', confidence: 'exact' }
+        : { ...base, source: 'unavailable', confidence: 'none' };
+    case 'store-harvest':
+      // The watcher has not landed. No id, so no claim — harvestProvenance
+      // replaces this record the moment there is something to say.
+      return {
+        ...base,
+        source: 'store-harvest',
+        confidence: 'none',
+        ...(spec.harvestKey !== undefined ? { key: spec.harvestKey } : {}),
+        ...(spec.harvestConfidence !== undefined
+          ? { keyConfidence: spec.harvestConfidence }
+          : {})
+      };
+    case 'unsupported':
+      return { ...base, source: 'unavailable', confidence: 'none' };
+    case 'none':
+      return { ...base, source: 'none', confidence: 'none' };
+  }
+}
+
+/**
+ * The provenance of an id the store watcher found.
+ *
+ * `atCreate` distinguishes the watcher started with the pane from the one a
+ * later launch starts against a remembered spawn time. The second cannot
+ * correlate against a live process, so it is recorded as 'boot-rescue' and a
+ * reader can tell the two apart forever.
+ */
+export function harvestProvenance(
+  harvested: HarvestedSessionId,
+  input: { cwd: string; agentVersion: string | null; atCreate: boolean }
+): ResumeProvenance {
+  return {
+    v: SESSION_CONTRACT_VERSION,
+    source: input.atCreate ? 'store-harvest' : 'boot-rescue',
+    confidence: deriveResumeConfidence({
+      key: harvested.key,
+      keyConfidence: harvested.confidence,
+      viaGraceTimer: harvested.viaGraceTimer,
+      rivals: harvested.rivals
+    }),
+    at: harvested.acceptedAt,
+    cwd: input.cwd,
+    key: harvested.key,
+    keyConfidence: harvested.confidence,
+    viaGraceTimer: harvested.viaGraceTimer,
+    rivals: harvested.rivals,
+    storePath: harvested.storePath,
+    storeRoot: harvested.storeRoot,
+    ...(input.agentVersion !== null ? { agentVersion: input.agentVersion } : {})
+  };
 }
 
 /**

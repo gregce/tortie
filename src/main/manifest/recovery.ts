@@ -1085,8 +1085,14 @@ function noPoint(): void {
   /* the default hook does nothing and costs one call */
 }
 
-/** A database and every file SQLite may keep beside it. */
-function removeDatabaseFiles(path: string): void {
+/**
+ * A database and every file SQLite may keep beside it.
+ *
+ * Exported for the keepsake copy in ./boot.ts, which writes to a temporary
+ * name and has to clear it when the copy does not verify. One definition of
+ * "the database and its sidecars", not two.
+ */
+export function removeDatabaseFiles(path: string): void {
   for (const suffix of ['', '-wal', '-shm', '-journal']) {
     rmSync(`${path}${suffix}`, { force: true });
   }

@@ -51,19 +51,24 @@
  * store's own constructor stays the one place that can refuse to open.
  */
 
-import { existsSync } from 'node:fs';
+import { existsSync, renameSync, statSync, type Stats } from 'node:fs';
+import { basename, dirname, join } from 'node:path';
 import {
   checkDatabaseIntegrity,
   isUnreadable,
   quarantineDatabase
 } from '../db/integrity';
+import { readSchemaStateAt } from '../db/schema-version';
 import { faultPoint, type FaultPointName } from '../fault';
 import { postDurabilityNotice } from '../notice';
 import {
   backupsDir,
   describeBackupRing,
+  readDatabaseEvidence,
+  removeDatabaseFiles,
   resolveVerifiedBackup,
   restoreFromBackup,
+  snapshotDatabase,
   type BackupFaultPoint
 } from './recovery';
 import {
@@ -110,8 +115,49 @@ export interface ManifestBootReport {
   quarantinedTo: string | null;
   /** What the pre-migration copy did. */
   preMigration: PreMigrationOutcome;
+  /** What the kept copy of the old schema did. See keepPreSchemaCopy. */
+  keptPreSchema: KeptPreSchemaCopy;
   /** One sentence per step, in order. */
   lines: string[];
+}
+
+/**
+ * Migrations that change the session list in a way an older build cannot
+ * safely write, by the rule in research 27 §4.3.
+ *
+ * The rule is stricter than SQLite's tolerance. A migration is on this list
+ * whenever a new column is REQUIRED for correct restore, even in the case
+ * where SQLite would happily let an older build insert rows without it. That
+ * quiet case is the dangerous one: the insert works, the column is NULL, and
+ * the rows cannot be restored correctly afterwards with no error anywhere.
+ *
+ * Adding a name here is what makes the keepsake copy happen. It is a
+ * deliberate, reviewable act and it belongs beside the reasoning rather than
+ * inside the migration list, where it would read as a detail.
+ */
+const BREAKING_MIGRATIONS: ReadonlySet<string> = new Set([
+  // Phase 21. `agent_contract` is what the restore path reads to decide
+  // whether a conversation comes back. A build that does not know the column
+  // leaves it NULL, and those rows fall back to asking the live registry,
+  // which is the defect Phase 21 removes.
+  '008-agent-recovery-contract'
+]);
+
+/** What happened to the kept copy of the last openable schema. */
+export interface KeptPreSchemaCopy {
+  taken: boolean;
+  /**
+   * - `breaking`: a breaking migration was pending and a copy was kept.
+   * - `additive`: the pending migrations are all additive, so none is needed.
+   * - `nothing-pending`: the schema is already current.
+   * - `already-kept`: a copy for this schema number is already there AND it
+   *   opens, so the older file is the one worth having. One that does not open
+   *   is not a copy, and it is taken again as `breaking`.
+   * - `failed`: the copy could not be taken or did not verify.
+   */
+  why: 'breaking' | 'additive' | 'nothing-pending' | 'already-kept' | 'failed';
+  /** Where the copy is, when there is one. */
+  path: string | null;
 }
 
 /**
@@ -144,6 +190,7 @@ export async function prepareManifestForBoot(
       pending: [],
       detail: 'not reached'
     },
+    keptPreSchema: { taken: false, why: 'nothing-pending', path: null },
     lines
   };
 
@@ -186,7 +233,188 @@ export async function prepareManifestForBoot(
     }
   });
 
+  // ---- Step 2b: the kept copy, for a BREAKING migration only --------------
+  report.keptPreSchema = keepPreSchemaCopy(dbPath, report.preMigration, say);
+
   return report;
+}
+
+/**
+ * Keep one copy of the last schema an older build can open, before a BREAKING
+ * migration runs (research 27 §4.5).
+ *
+ * WHY THE RING IS NOT ENOUGH ON ITS OWN. Step 2 above takes a verified
+ * generation and that generation is the right protection against a migration
+ * that goes wrong. It is the wrong protection against a DOWNGRADE, because the
+ * ring is a ring: it keeps five generations and prunes the oldest, and it takes
+ * one at launch, every five minutes, on sleep and on quit. Twenty five minutes
+ * after the upgrade the copy of the old schema has been rotated out. The
+ * downgrade story needs a file that is still there next month.
+ *
+ * So this is a second copy with a different lifetime, and the difference is the
+ * whole reason it exists.
+ *
+ *  - It is taken ONLY for a breaking migration. Additive migrations do not need
+ *    it, measured: research 27 §4.2 ran an older build's INSERT against a
+ *    manifest with an added nullable column and it worked.
+ *  - A copy that OPENS is never overwritten. If a readable file for this schema
+ *    number is already there, the older one is the one worth keeping, because
+ *    it is the one from before the first upgrade. One that cannot be opened is
+ *    not a copy of anything and is taken again. See the note at that check.
+ *  - It is NEVER deleted automatically. Nothing in Tortie removes it. Deleting
+ *    the user's last openable copy on their behalf is the move this whole
+ *    section exists to avoid.
+ *  - It appears at its final name complete, or it does not appear. The copy is
+ *    written to a temporary name and renamed on top after it verifies.
+ *
+ * It never throws. A boot that refuses to start because a copy failed is worse
+ * than the failure it is reporting.
+ */
+function keepPreSchemaCopy(
+  dbPath: string,
+  preMigration: PreMigrationOutcome,
+  say: (line: string) => void
+): KeptPreSchemaCopy {
+  if (preMigration.pending.length === 0) {
+    return { taken: false, why: 'nothing-pending', path: null };
+  }
+
+  const breaking = preMigration.pending.filter((name) =>
+    BREAKING_MIGRATIONS.has(name)
+  );
+  if (breaking.length === 0) {
+    return { taken: false, why: 'additive', path: null };
+  }
+
+  // The number the file is AT, which is the number an older build understands.
+  // Not the number this build is about to write.
+  //
+  // `user_version` is preferred and the migration count is the fallback,
+  // because every manifest written before Phase 21 carries `user_version 0`:
+  // the pragma existed and nothing had ever written it. Measured on the
+  // operator's own 38 session manifest, which is at seven migrations and says
+  // 0. Naming its keepsake `pre-schema-0` would be a filename that tells the
+  // user nothing about which build can open it.
+  const stamped = readSchemaStateAt(dbPath)?.userVersion ?? 0;
+  const applied = MANIFEST_MIGRATION_NAMES.length - preMigration.pending.length;
+  const from = stamped > 0 ? stamped : applied;
+
+  // Named after the file it is a copy OF, not after the string "manifest".
+  // In the shipping app those are the same word, because the path is always
+  // `<userData>/gmux/manifest.db`. They are not the same word for a caller
+  // that passes another path, and a keepsake named for a file it is not a
+  // copy of is the kind of quiet wrongness this phase exists to remove.
+  const stem = basename(dbPath).replace(/\.db$/, '');
+  const path = join(dirname(dbPath), `${stem}.pre-schema-${String(from)}.db`);
+
+  // A regular file, specifically. Something else sitting at that path is not
+  // a copy of anything, and reporting it as one would tell the user they have
+  // a downgrade route they do not have.
+  const occupant = statOrNull(path);
+  if (occupant !== null && !occupant.isFile()) {
+    say(
+      `${path} is not a file, so no copy of the session list could be kept ` +
+        'there. It was left exactly as it is and the migration still runs.'
+    );
+    return { taken: false, why: 'failed', path: null };
+  }
+  // A FILE IS NOT A COPY UNTIL IT READS. This is the fix round's correction,
+  // and a verifier measured why it was needed. `already-kept` used to be
+  // decided by `statSync().isFile()` alone, so a copy torn by a crash part way
+  // through passed the check, was reported as "already there and left exactly
+  // as it is", and was never replaced, by design, because nothing here ever
+  // deletes a keepsake. Out of 60 boots killed at a random point between 50 ms
+  // and 70 ms the keepsake was present 39 times and 3 of those 39 could not be
+  // opened. The user was then told they had a downgrade route that did not
+  // exist, and the ring rotates the old schema away about 25 minutes later.
+  if (occupant !== null) {
+    if (keepsakeReads(path)) {
+      say(
+        `a copy of the session list from before schema ${String(from)} is ` +
+          `already at ${path}, and it was left exactly as it is`
+      );
+      return { taken: false, why: 'already-kept', path };
+    }
+    // Replacing it is safe here in a way it would not be at any other moment.
+    // Reaching this line means a breaking migration is still PENDING, so the
+    // file being copied is still at the old schema, and a fresh copy of it is
+    // the same thing the torn one was trying to be. The rule that the older
+    // copy is the one worth keeping applies to copies that can be opened.
+    say(
+      `the copy of the session list at ${path} cannot be opened, so it is ` +
+        'being taken again from the session list as it is now.'
+    );
+  }
+
+  // ONE FILE APPEARS AT THE FINAL NAME, AND IT IS ALREADY COMPLETE. The copy
+  // goes to a temporary name and is renamed on top only after it has been
+  // verified against the source, so a crash during the copy leaves a partial
+  // file with a name nothing believes in, and the next boot takes the copy
+  // again. `renameSync` within one directory is atomic.
+  const partial = `${path}.partial`;
+  // Clearing the temporary file must never be the reason a boot fails. It is
+  // best effort by construction: whatever is left behind carries a name no
+  // later boot reads, and the next attempt writes over it.
+  const discardPartial = (): void => {
+    try {
+      removeDatabaseFiles(partial);
+    } catch {
+      /* something else is at that name; the next attempt will say so */
+    }
+  };
+  try {
+    const result = snapshotDatabase({ from: dbPath, to: partial });
+    if (!result.ok) {
+      discardPartial();
+      say(
+        `the keepsake copy at ${path} did not match the session list ` +
+          `(${result.differences.join('; ')}), so it is not being relied on. ` +
+          'The migration still runs, because refusing to launch is worse.'
+      );
+      return { taken: false, why: 'failed', path: null };
+    }
+    renameSync(partial, path);
+    say(
+      `${breaking.join(', ')} changes the session list in a way an older ` +
+        `Tortie cannot write. A copy of it as it is now was kept at ${path}, ` +
+        'and nothing will ever delete it.'
+    );
+    return { taken: true, why: 'breaking', path };
+  } catch (err) {
+    discardPartial();
+    say(
+      `the keepsake copy of the session list could not be taken ` +
+        `(${(err as Error).message}). The migration still runs.`
+    );
+    return { taken: false, why: 'failed', path: null };
+  }
+}
+
+/**
+ * Can this keepsake still be opened and read as a session list?
+ *
+ * Two questions, because a torn SQLite file can fail either. The pages have to
+ * hold together, and the one table the copy exists for has to be selectable.
+ * A file that passes both is a file an older Tortie can open, which is the
+ * whole promise being made about it.
+ */
+function keepsakeReads(path: string): boolean {
+  if (!checkDatabaseIntegrity(path).ok) return false;
+  // The same read the ring uses to prove a generation, so there is one way in
+  // this codebase to ask whether a copy of the manifest opens. `counts` comes
+  // from the file's own table list, so a missing `sessions` means the bytes
+  // are readable and are not a session list.
+  const evidence = readDatabaseEvidence(path);
+  return evidence.error === undefined && evidence.counts.sessions !== undefined;
+}
+
+/** `statSync`, with "there is nothing there" as a value rather than a throw. */
+function statOrNull(path: string): Stats | null {
+  try {
+    return statSync(path);
+  } catch {
+    return null;
+  }
 }
 
 /**

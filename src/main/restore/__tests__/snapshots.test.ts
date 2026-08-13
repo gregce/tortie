@@ -71,6 +71,7 @@ const {
   snapshotBodyPath,
   snapshotPath,
   snapshotsDir,
+  CAPSULE_VERSION,
   SNAPSHOT_GENERATIONS
 } = await import('../snapshots');
 
@@ -197,7 +198,10 @@ describe('the capsule', () => {
     const capsule = readCapsules(SESSION)[0];
     const body = readFileSync(snapshotBodyPath(SESSION, 1));
     expect(capsule).toMatchObject({
-      version: 1,
+      // Derived, not written out again. The number is the record shape and it
+      // moves whenever a field changes meaning, so a test that hardcodes it
+      // fails for a reason that has nothing to do with what it is checking.
+      version: CAPSULE_VERSION,
       sessionId: SESSION,
       generation: 1,
       parent: null,
@@ -209,6 +213,75 @@ describe('the capsule', () => {
       sha256: sha(body)
     });
     expect(capsule?.capturedAt).toBeGreaterThan(0);
+  });
+
+  // Phase 21 changed what `agentVersion` means. In a version 1 capsule it held
+  // the SpecStory wrapper's version under a name that said agent. The manifest
+  // now records the agent's own version, so the capsule carries two versions
+  // and each one is named for the binary it describes. These two cases are the
+  // meaning change and the old records it has to keep reading.
+  it('keeps the agent version and the wrapper version apart', async () => {
+    await captureSessionSnapshot('$1', SESSION, {
+      cwd: '/opt/known',
+      session: {
+        name: 'work',
+        tmuxName: 'work',
+        projectPath: '/opt/known',
+        cwd: '/opt/known',
+        agent: 'claude',
+        agentSessionId: null,
+        argv: ['/Users/gdc/.local/bin/claude'],
+        resumeArgv: null,
+        agentVersion: '2.1.229',
+        specstoryVersion: '0.6.1'
+      }
+    });
+
+    expect(readCapsules(SESSION)[0]?.session).toMatchObject({
+      agentVersion: '2.1.229',
+      specstoryVersion: '0.6.1'
+    });
+  });
+
+  it('reads a version 1 recipe, which has no wrapper version field, as null', () => {
+    mkdirSync(snapshotsDir(), { recursive: true });
+    writeFileSync(
+      capsuleIndexPath(SESSION),
+      JSON.stringify({
+        version: 1,
+        sessionId: SESSION,
+        capsules: [
+        {
+          version: 1,
+          sessionId: SESSION,
+          generation: 1,
+          parent: null,
+          reason: 'app-quit',
+          path: snapshotBodyPath(SESSION, 1),
+          cwd: '/opt/known',
+          session: {
+            name: 'work',
+            tmuxName: 'work',
+            projectPath: '/opt/known',
+            cwd: '/opt/known',
+            agent: 'claude',
+            agentSessionId: null,
+            argv: ['/Users/gdc/.local/bin/claude'],
+            resumeArgv: null,
+            agentVersion: '0.6.1'
+          },
+          lines: 1,
+          bytes: 1,
+          sha256: '0'.repeat(64),
+          capturedAt: 1
+        }
+        ]
+      })
+    );
+
+    const capsule = readCapsules(SESSION)[0];
+    expect(capsule?.version).toBe(1);
+    expect(capsule?.session?.specstoryVersion).toBeNull();
   });
 
   it('takes the working directory the caller already knows without asking tmux', async () => {

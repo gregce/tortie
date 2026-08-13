@@ -137,8 +137,16 @@ export const SNAPSHOT_LINES = 10_000;
  */
 export const SNAPSHOT_GENERATIONS = 3;
 
-/** Record shape of one capsule. Bumped when a field changes meaning. */
-export const CAPSULE_VERSION = 1;
+/**
+ * Record shape of one capsule. Bumped when a field changes meaning.
+ *
+ * 2 (Phase 21): `session.agentVersion` now holds the AGENT's version. In
+ * version 1 it held the SpecStory wrapper's version, which was the only
+ * version the manifest recorded at the time. The manifest now records both, so
+ * the capsule carries both, and each field is named for the binary it
+ * describes. See `SnapshotSessionRecipe`.
+ */
+export const CAPSULE_VERSION = 2;
 
 /** Extension every body carries, before its generation suffix. */
 const BODY_EXTENSION = '.txt';
@@ -206,11 +214,24 @@ export interface SnapshotSessionRecipe {
   /** Full resume argv, or null when this session has no armed resume. */
   resumeArgv: string[] | null;
   /**
-   * The version of the binary this session launched with, when a capture
-   * recorded one. A `brew upgrade` mid-session changes what a resume means,
-   * and a reconstruction that cannot see the version cannot know that.
+   * The version of the AGENT binary this session launched with, when a
+   * detection scan recorded one. A `brew upgrade` mid-session changes what a
+   * resume means, and a reconstruction that cannot see the version cannot know
+   * that.
+   *
+   * In a version 1 capsule this field held the SpecStory WRAPPER's version
+   * instead, under a name that said agent. Phase 21 gave the manifest an
+   * `agent_version` column of its own, so the field now carries what it is
+   * named for and the wrapper's version has its own field below. Check
+   * `SnapshotCapsule.version` before trusting an old one.
    */
   agentVersion: string | null;
+  /**
+   * The version of the SpecStory wrapper this session launched under, when it
+   * launched under one. Recorded so a reconstruction replays the same wrapper
+   * binary, which is the reason `sessions.specstory.binVersion` exists.
+   */
+  specstoryVersion: string | null;
 }
 
 /** Everything Phase 20 reconstruction needs about one body. */
@@ -800,7 +821,8 @@ function sanitizeRecipe(value: unknown): SnapshotSessionRecipe | null {
       Array.isArray(resumeArgv) && resumeArgv.every((a) => typeof a === 'string')
         ? (resumeArgv as string[])
         : null,
-    agentVersion: optional('agentVersion')
+    agentVersion: optional('agentVersion'),
+    specstoryVersion: optional('specstoryVersion')
   };
 }
 

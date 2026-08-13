@@ -167,6 +167,48 @@ const REFUSALS = [
     source: 'src/main/durable/write.ts',
     why: 'a durable write is published only after its hash matches',
     fragments: [' read back with sha256 ']
+  },
+  {
+    id: 'schema.refuse-a-file-that-is-too-new',
+    source: 'src/main/db/schema-version.ts',
+    why:
+      'an older build must refuse a newer manifest rather than write NULLs ' +
+      'into a column the restore path reads',
+    fragments: [
+      'This copy of Tortie is older than your ',
+      'are safe and they are still running. This copy understands format ',
+      ' or newer. Open the newer Tortie '
+    ]
+  },
+  {
+    id: 'schema.refuse-another-application-database',
+    source: 'src/main/db/schema-version.ts',
+    why: 'a wrong file is refused rather than migrated, which cannot be undone',
+    fragments: [' is not a Tortie ', 'It carries ', 'application id ']
+  },
+  {
+    id: 'schema.the-screen-that-says-the-refusal',
+    source: 'src/main/manifest/refusal.ts',
+    why:
+      'a refusal the user is never shown is a refusal that reads to them as ' +
+      'their sessions being gone',
+    fragments: [
+      'This copy of Tortie is older than your session list.',
+      'Your sessions are safe and they are still running.',
+      'Open the newer Tortie to see your sessions again.',
+      'Reveal Data Folder'
+    ]
+  },
+  {
+    id: 'schema.version-matches-the-migration-count',
+    source: 'src/main/manifest/store.ts',
+    why:
+      'a manifest that lies about which schema it is at is a manifest the ' +
+      'refusal cannot protect',
+    fragments: [
+      'MANIFEST_SCHEMA_VERSION is ',
+      ' migrations. They are the same number. '
+    ]
   }
 ];
 

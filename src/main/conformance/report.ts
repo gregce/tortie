@@ -74,6 +74,21 @@ export interface AgentConformanceResult {
   reason?: string;
   /** Resolved absolute binary, when installed. */
   binary?: string;
+  /**
+   * The agent CLI version this case ran against (Phase 21, research 30 §2.4
+   * D5).
+   *
+   * WHY A PATH WAS NOT ENOUGH. The report recorded `binary` and nothing else,
+   * so a green run could not say which BUILD it was green against. Research 30
+   * §2.1 re-probed the installed agents three days after the flag catalogue
+   * was written and five of nine had moved, which makes "this passed last
+   * week" a statement about a binary that may no longer exist at that path.
+   *
+   * Absent when the agent is not installed here, or when the detection scan
+   * had no answer for it. Absent is not a failure and must not be rendered as
+   * one.
+   */
+  agentVersion?: string;
   /** Registry capture route, rendered: 'pre-assign', 'harvest pid/exact', … */
   captureMode: string;
   /** The conversation id gmux actually recorded in the manifest. */
@@ -119,6 +134,19 @@ export interface ConformanceRun {
   /** Bypass flags were passed to keep first-run prompts out of the way. */
   bypassFlags: boolean;
   tmuxSocket: string;
+  /**
+   * The agent CLI version each agent in this run was on, keyed by agent id.
+   * `null` means the version could not be read, which is the honest answer for
+   * an agent that is not installed here.
+   *
+   * At the TOP of the report and not only per result, because the question it
+   * answers is asked about the run as a whole. "Is this report still valid?"
+   * is a comparison between these versions and the versions on the machine
+   * now, and it must be answerable for an agent that SKIPped as well as one
+   * that passed (research 30 §2.4 D5). Nothing in this build performs that
+   * comparison yet; recording the numbers is the part that has to exist first.
+   */
+  versions: Record<string, string | null>;
   results: AgentConformanceResult[];
 }
 
@@ -278,6 +306,12 @@ export function renderDetail(results: readonly AgentConformanceResult[]): string
   for (const r of results) {
     out.push(`${r.agent} — ${r.verdict}${r.reason === undefined ? '' : `: ${r.reason}`}`);
     if (r.binary !== undefined) out.push(`  binary       ${r.binary}`);
+    // Directly under the binary, because the two are one fact: this file, at
+    // this version. A human reading a stale report needs both to know whether
+    // it still describes the machine in front of them.
+    if (r.agentVersion !== undefined) {
+      out.push(`  version      ${r.agentVersion}`);
+    }
     if (r.launchArgv !== undefined) {
       out.push(`  launch argv  ${r.launchArgv.join(' ')}`);
     }

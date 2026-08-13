@@ -25,10 +25,32 @@
  * now a union whose failure arm carries no tmux session at all, so the caller
  * cannot read the session without first handling the failure. See
  * {@link RestoreOutcome}.
+ *
+ * PHASE 21 CHANGED WHERE THIS MODULE GETS ITS ANSWERS, and that is also the
+ * point rather than a detail. Restore used to ask the LIVE REGISTRY whether an
+ * agent can find its conversation from another folder. The registry describes
+ * the agent Tortie launches TODAY; the question is about the session that was
+ * created months ago. The two are the same object only by luck, and the old
+ * `catch` handed back the PERMISSIVE answer for any id the registry no longer
+ * launches. For a pi shaped agent the permissive answer opens an empty session
+ * that looks resumed, which is the one outcome this module exists to prevent.
+ *
+ * So the ladder is now the ROW first, the registry second, and a refusal last.
+ * See {@link originalCwdRule}. The display name stays registry backed because
+ * it is cosmetic and its fallback is the agent id, which is honest.
+ *
+ * The same phase added one sentence to the armed resume. When the agent build
+ * recorded on the row is not the build installed now, or the binary the armed
+ * line names is no longer on disk, the pane says so above the command, before
+ * the user presses Enter. Research 30 §2.4 D4 fixes the rule: still arm it,
+ * never refuse, never rewrite the argv, and name the agent's own session store
+ * so the sentence is something the user can act on.
  */
 
 import { existsSync } from 'node:fs';
+import { isAbsolute } from 'node:path';
 import type { LaunchableAgentId, SessionRestore } from '@shared/types';
+import { listDetectedAgents } from '../agents/detection';
 import { getLaunchableEntry } from '../agents/registry';
 import { faultPoint } from '../fault/inject';
 import type { ManifestSessionRecord } from '../manifest';
@@ -40,7 +62,11 @@ import {
   unwrapArgv,
   wrapWithRecord
 } from '../specstory';
-import { buildArmedCommand, buildSnapshotReplayCommand } from './command';
+import {
+  buildArmedCommand,
+  buildSnapshotReplayCommand,
+  shellQuoteArg
+} from './command';
 import { resolveSnapshot } from './snapshots';
 import { postDurabilityNotice } from '../notice';
 
@@ -104,6 +130,18 @@ export type RestoreOutcome =
        * conversation and the worst case for the history can happen together.
        */
       replayFailure?: string;
+      /**
+       * One plain sentence about the agent build behind this armed command
+       * (Phase 21). Present only when the build recorded on the row is not the
+       * build installed now, or when the binary the command names is gone.
+       *
+       * It is already printed into the pane directly above the armed command,
+       * which is where research 30 §2.4 D4 puts it, so a caller that ignores
+       * this field still leaves the user informed. It is returned as well so
+       * a caller can record or re-show it. Nothing persists it today, and
+       * `SessionRestore` would be where that goes.
+       */
+      versionDrift?: string;
     };
 
 /** The three arms that created a tmux session. */
@@ -196,36 +234,350 @@ async function typeIntoPane(
   }
 }
 
+// ---------------------------------------------------------------------------
+// The recovery contract — what the row recorded, read instead of the registry
+// (Phase 21 / A8, docs/research/33-durability-reconciliation.md §2.1)
+// ---------------------------------------------------------------------------
+
 /**
- * Whether this agent can only find its conversation from the ORIGINAL
- * directory — registry data (`resume.requiresOriginalCwd`), not a list kept
- * here. True for qwen ("No saved session found with ID", loud) and pi (a
+ * WHY RESTORE READS THE ROW AND NOT THE REGISTRY.
+ *
+ * Every fact in `ManifestSessionRecord.agentContract` is a fact about the
+ * session that was created, not about the agent Tortie ships today. The
+ * registry is a live object. A release, a user added agent file, or a deleted
+ * entry can change it under a row that has been sitting in the manifest for
+ * months. Asking it a correctness question about an old session is asking the
+ * wrong object, and the failure is silent.
+ *
+ * The contract is parsed and validated on the way out of the manifest, in
+ * `manifest/contract.ts`, which drops an unreadable value WHOLE rather than in
+ * pieces. So a contract this module can see is a contract it can trust, and
+ * `undefined` means exactly one thing: nothing was recorded. It is not a
+ * licence to go and ask the registry for a permissive answer.
+ */
+
+/** Where the answer to "does this agent need its original folder" came from. */
+type CwdRuleBasis =
+  /** A plain shell. There is no conversation to lose. */
+  | 'shell'
+  /** The row recorded it. The only source that is a fact about this session. */
+  | 'row'
+  /** No contract on the row, and the registry still launches this agent. */
+  | 'registry'
+  /** No contract, and the registry does not know this agent at all. */
+  | 'unknown-agent';
+
+interface CwdRule {
+  needsOriginalCwd: boolean;
+  basis: CwdRuleBasis;
+}
+
+/**
+ * Whether this session can only find its conversation from the ORIGINAL
+ * directory. True for qwen ("No saved session found with ID", loud) and pi (a
  * SILENT new empty session under the same id). Research 22 §3.5.
  *
- * The manifest cannot answer this: `AgentLaunchSpec.requiresOriginalCwd` is
- * set at launch and never persisted, so restore has to ask the registry.
+ * THE LADDER, and the last rung is the Phase 21 fix:
+ *
+ *  1. `shell` has nothing to resume, so nothing to protect.
+ *  2. The row recorded the answer. Use it and stop. A registry that has since
+ *     changed its mind about this agent does not get a vote on a session that
+ *     already exists.
+ *  3. No contract on the row, which is every session created before the
+ *     migration. Ask the registry, which is what this function did for all
+ *     rows until Phase 21 and is still the best available answer.
+ *  4. No contract AND the registry does not launch this id. Refuse. The old
+ *     code returned `false` here, and `false` means "go ahead and restore into
+ *     a different folder". For a pi shaped agent that is a pane that looks
+ *     resumed with an empty conversation behind it. Tortie does not know what
+ *     this agent needs, so it says so instead of guessing in the direction
+ *     that loses the user's work.
  */
-function resumeNeedsOriginalCwd(agent: ManifestSessionRecord['agent']): boolean {
-  if (agent === 'shell') return false;
+export function originalCwdRule(rec: ManifestSessionRecord): CwdRule {
+  if (rec.agent === 'shell') return { needsOriginalCwd: false, basis: 'shell' };
+  const contract = rec.agentContract;
+  if (contract !== undefined) {
+    return { needsOriginalCwd: contract.requiresOriginalCwd, basis: 'row' };
+  }
   try {
-    return (
-      getLaunchableEntry(agent as LaunchableAgentId).resume.requiresOriginalCwd ===
-      true
-    );
+    const entry = getLaunchableEntry(rec.agent as LaunchableAgentId);
+    return {
+      needsOriginalCwd: entry.resume.requiresOriginalCwd === true,
+      basis: 'registry'
+    };
   } catch {
-    // An id the registry does not launch has no armed resume to protect.
-    return false;
+    return { needsOriginalCwd: true, basis: 'unknown-agent' };
   }
 }
 
-/** Human name for the agent in an error the user reads. */
-function agentDisplayName(agent: ManifestSessionRecord['agent']): string {
-  if (agent === 'shell') return 'This session';
+/**
+ * Human name for the agent in an error the user reads.
+ *
+ * THE ONE THING RESTORE STILL ASKS A LIVE OBJECT FOR, and it stays that way on
+ * purpose. It is cosmetic, and its fallback is the bare agent id, which is a
+ * true thing to show a user rather than a wrong one. The recovery contract
+ * leaves the display name out for the same reason.
+ */
+function agentDisplayName(rec: ManifestSessionRecord): string {
+  if (rec.agent === 'shell') return 'This session';
   try {
-    return getLaunchableEntry(agent as LaunchableAgentId).displayName;
+    return getLaunchableEntry(rec.agent as LaunchableAgentId).displayName;
   } catch {
-    return agent;
+    return rec.agent;
   }
+}
+
+/**
+ * The literal directory prefix of a session-store template.
+ *
+ * The registry records where an agent keeps its conversations in template form,
+ * e.g. `~/.claude/projects/<dashEncode(realpath(cwd))>/<sessionId>.jsonl`. A
+ * user reading a sentence in a pane needs the part of that they can open, so
+ * the segments are taken until the first one that is a placeholder or an
+ * environment variable. Returns null when nothing literal is left.
+ *
+ * Exported for tests, because getting this wrong puts a path with angle
+ * brackets in it into the user's terminal.
+ */
+export function storeRootOfTemplate(template: string): string | null {
+  const literal: string[] = [];
+  for (const segment of template.split('/')) {
+    if (/[<>$*]/.test(segment)) break;
+    literal.push(segment);
+  }
+  const root = literal.join('/');
+  return root.length === 0 || root === '~' ? null : root;
+}
+
+/**
+ * Root of the agent's own session store, e.g. `~/.claude/projects`.
+ *
+ * The row's recorded template wins, because it is the store this session was
+ * actually written into. The registry fallback takes the first `storeDirs`
+ * entry that is a literal path, because several entries lead with an
+ * environment variable (`$PI_CODING_AGENT_SESSION_DIR`) that means nothing to
+ * a user reading a sentence in a pane.
+ */
+function agentStoreRoot(rec: ManifestSessionRecord): string | null {
+  const recorded = rec.agentContract?.sessionStore;
+  if (recorded !== undefined) {
+    const root = storeRootOfTemplate(recorded);
+    if (root !== null) return root;
+  }
+  if (rec.agent === 'shell') return null;
+  try {
+    const dirs = getLaunchableEntry(rec.agent as LaunchableAgentId).storeDirs;
+    return dirs.find((dir) => !/[<>$*]/.test(dir)) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Agent drift — one sentence, on the armed resume (Phase 21, research 30 D4)
+// ---------------------------------------------------------------------------
+
+/** How much the agent build moved between launch and now. */
+export type AgentVersionChange =
+  /** The same build, or a version string that only changed its formatting. */
+  | 'same'
+  /** A patch bump with the major and minor unchanged. Deliberately silent. */
+  | 'patch'
+  /** A major or minor change, a calendar dated build, or an unreadable pair. */
+  | 'significant';
+
+/** First dotted number group in a version string, as [major, minor, patch]. */
+function parseVersionTriple(text: string): [number, number, number] | null {
+  const m = /(\d+)\.(\d+)(?:\.(\d+))?/.exec(text);
+  if (m === null) return null;
+  return [Number(m[1]), Number(m[2]), Number(m[3] ?? '0')];
+}
+
+/**
+ * A four digit leading number in the 2000s is a year, not a major version.
+ * cursor ships `2026.08.11-e8db854`, so its "patch" component is a day and a
+ * one day move is a whole build. Research 30 §2.4 D4 says to treat any
+ * difference in a date stamped version as worth saying.
+ */
+function looksLikeCalendarYear(major: number): boolean {
+  return major >= 2000 && major <= 2999;
+}
+
+/**
+ * How much two version strings differ, and therefore whether the user hears
+ * about it.
+ *
+ * PATCH BUMPS ARE SILENT, and that is a product decision with a measurement
+ * behind it. Research 30 §2.1 re-probed the installed agents three days after
+ * the flag catalogue was written and five of nine had moved. A sentence on
+ * every patch bump is a sentence the user learns to skip, and then the one
+ * that matters is skipped with it.
+ *
+ * A pair that cannot be parsed is treated as significant when the strings
+ * differ. Not being able to compare two builds is a reason to say something,
+ * not a reason to stay quiet.
+ */
+export function agentVersionChange(
+  recorded: string,
+  live: string
+): AgentVersionChange {
+  const a = parseVersionTriple(recorded);
+  const b = parseVersionTriple(live);
+  if (a === null || b === null) {
+    return recorded.trim() === live.trim() ? 'same' : 'significant';
+  }
+  if (a[0] === b[0] && a[1] === b[1] && a[2] === b[2]) return 'same';
+  if (a[0] !== b[0] || a[1] !== b[1]) return 'significant';
+  if (looksLikeCalendarYear(a[0]) || looksLikeCalendarYear(b[0])) {
+    return 'significant';
+  }
+  return 'patch';
+}
+
+/**
+ * The version string with the agent's own name taken back out of it.
+ *
+ * The recorded version is the raw `--version` output, which several agents
+ * decorate with their own name. claude answers `2.1.229 (Claude Code)` and
+ * muse answers `Muse Code 0.1.0 (0.1.0-R708.1)`. A sentence that already says
+ * "Claude Code" and then says it again inside the version reads as a mistake.
+ *
+ * Deliberately narrow. Only an exact leading `<name> ` or an exact trailing
+ * ` (<name>)` is removed, and if that leaves nothing the original is kept.
+ * Anything cleverer would start editing version strings it does not
+ * understand, and a wrong version in this sentence is worse than a clumsy one.
+ */
+export function trimVersionLabel(version: string, displayName: string): string {
+  let out = version.trim();
+  const suffix = ` (${displayName})`;
+  if (out.endsWith(suffix)) out = out.slice(0, -suffix.length).trim();
+  const prefix = `${displayName} `;
+  if (out.startsWith(prefix)) out = out.slice(prefix.length).trim();
+  return out.length === 0 ? version.trim() : out;
+}
+
+/** What the drift sentence is built from. All of it is already in hand. */
+export interface DriftFacts {
+  /** What to call the agent in the sentence. */
+  displayName: string;
+  /** The agent binary the armed command names, when it is an absolute path. */
+  binary: string | null;
+  /** True when `binary` is absolute and is not on disk. */
+  binaryMissing: boolean;
+  /** The build recorded on the row, or null on a pre-migration row. */
+  recordedVersion: string | null;
+  /** The build detected now, or null when nothing could be detected. */
+  liveVersion: string | null;
+  /** e.g. `~/.claude/projects`, or null when it is not known. */
+  storeRoot: string | null;
+}
+
+/**
+ * The one sentence, or null when there is nothing worth saying.
+ *
+ * Two things get said and nothing else does. The binary the armed command
+ * names is gone, which means the line will answer "no such file or directory"
+ * the moment it is fired. Or the build has moved far enough that the resume
+ * semantics may have moved with it. Both end by naming the agent's own session
+ * store, because that is the user's real backstop and a sentence they can act
+ * on beats a sentence they can only read.
+ *
+ * Pure, and exported, so the wording is testable without a tmux server.
+ */
+export function agentDriftSentence(facts: DriftFacts): string | null {
+  const store =
+    facts.storeRoot === null
+      ? ''
+      : ` The conversation is still in ${facts.storeRoot}.`;
+
+  if (facts.binaryMissing && facts.binary !== null) {
+    return (
+      `This session ran ${facts.binary}, and that file is not there now. ` +
+      `The command below will not run until ${facts.displayName} is ` +
+      `installed again.${store}`
+    );
+  }
+
+  if (facts.recordedVersion === null || facts.liveVersion === null) return null;
+  if (agentVersionChange(facts.recordedVersion, facts.liveVersion) !== 'significant') {
+    return null;
+  }
+  const was = trimVersionLabel(facts.recordedVersion, facts.displayName);
+  const now = trimVersionLabel(facts.liveVersion, facts.displayName);
+  return (
+    `This session ran under ${facts.displayName} ${was}. Version ${now} is ` +
+    'installed now. If the conversation does not come back, it is still in ' +
+    `${facts.storeRoot ?? "the agent's own store"}.`
+  );
+}
+
+/**
+ * How long the detection scan gets to answer before restore stops waiting.
+ *
+ * Research 30 §2.3 measured one version probe at 26 ms to 673 ms and the whole
+ * fleet in parallel at about 0.7 s, so this budget is generous. It exists
+ * because a restore must never be held up by a probe: an agent CLI that hangs
+ * is exactly the kind of thing that would otherwise stall the one path the
+ * user is waiting on.
+ */
+export const LIVE_VERSION_BUDGET_MS = 2_000;
+
+/**
+ * The version detected for this agent right now, or null.
+ *
+ * Reads the detection CACHE (`listDetectedAgents`), which is the same source
+ * the create path records from, so no subprocess is started here on the normal
+ * path. NOT VERIFIED FRESH, and the limitation is worth naming: an agent
+ * upgraded in a terminal while Tortie stayed open reports its old version
+ * until the next scan. That is a missed sentence and never a wrong one,
+ * because both sides of the comparison come from the same cache. Refreshing
+ * the cache on a trigger is research 30's D2 and is not this phase.
+ */
+async function liveAgentVersion(
+  agent: ManifestSessionRecord['agent']
+): Promise<string | null> {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    const scan = await Promise.race([
+      listDetectedAgents(),
+      new Promise<null>((resolve) => {
+        timer = setTimeout(() => resolve(null), LIVE_VERSION_BUDGET_MS);
+      })
+    ]);
+    if (scan === null) return null;
+    return scan.agents.find((a) => a.id === agent)?.version ?? null;
+  } catch {
+    return null;
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
+/**
+ * The AGENT binary an armed command will actually run.
+ *
+ * A captured session's argv[0] is the SpecStory wrapper, and the agent it
+ * wraps is inside the `-c` string, so the naive read tests the wrong file.
+ * `armableResumeArgv` has already healed the wrapper itself by the time this
+ * is called; this answers the other half, which nothing checked before Phase
+ * 21 (research 33 §2.2, M6 check 2).
+ */
+function armedAgentBinary(argv: readonly string[]): string | null {
+  const inner = isWrappedArgv(argv) ? unwrapArgv([...argv]) : [...argv];
+  const bin = inner[0];
+  return bin === undefined || bin.length === 0 ? null : bin;
+}
+
+/**
+ * The line printed into the pane above the armed command.
+ *
+ * Executed with Enter, so it becomes inert history exactly like the snapshot
+ * separator, and the armed command is still the last thing on the screen with
+ * the cursor on it. It will be captured into the next snapshot and replayed by
+ * the next restore, which is the same deal the separator already makes.
+ */
+function buildDriftNoticeCommand(sentence: string): string {
+  return ` printf 'Tortie: %s\\n\\n' ${shellQuoteArg(sentence)}`;
 }
 
 /**
@@ -340,17 +692,27 @@ export async function restoreSessionInTmux(
   // Only when a resume is actually armed: with nothing to type into the pane
   // there is no false resume to prevent, and the user should still get their
   // directory and scrollback back rather than a refusal.
+  //
+  // Phase 21: the answer comes from the ROW when the row has one. See
+  // originalCwdRule for the whole ladder.
+  const cwdRule = originalCwdRule(rec);
   if (
     originalCwdGone &&
     (rec.resumeArgv?.length ?? 0) > 0 &&
-    resumeNeedsOriginalCwd(rec.agent)
+    cwdRule.needsOriginalCwd
   ) {
     const reason =
-      `"${rec.name}" was in ${rec.cwd}, and that folder is gone. ` +
-      `${agentDisplayName(rec.agent)} can only find this conversation from ` +
-      'its original folder, so restoring it somewhere else would open an ' +
-      'empty session that looks resumed. Put the folder back and restore ' +
-      'again, or start a new session.';
+      cwdRule.basis === 'unknown-agent'
+        ? `"${rec.name}" was in ${rec.cwd}, and that folder is gone. Tortie ` +
+          `has no record of how ${rec.agent} finds a conversation, so ` +
+          'restoring it somewhere else could open an empty session that looks ' +
+          'resumed. Put the folder back and restore again, or start a new ' +
+          'session.'
+        : `"${rec.name}" was in ${rec.cwd}, and that folder is gone. ` +
+          `${agentDisplayName(rec)} can only find this ` +
+          'conversation from its original folder, so restoring it somewhere ' +
+          'else would open an empty session that looks resumed. Put the ' +
+          'folder back and restore again, or start a new session.';
     return {
       kind: 'failed',
       stage: 'preflight',
@@ -449,8 +811,42 @@ export async function restoreSessionInTmux(
   // Step 3 — arm the resume command (typed, NOT executed).
   let armedCommand: string | null = null;
   let armFailure: string | undefined;
-  const armed = buildArmedCommand(await armableResumeArgv(rec));
+  let versionDrift: string | undefined;
+  const armableArgv = await armableResumeArgv(rec);
+  const armed = buildArmedCommand(armableArgv);
   if (armed.length > 0) {
+    // Phase 21, research 30 §2.4 D4. One sentence, printed above the armed
+    // command, before the user's one keypress. The resume is still armed
+    // exactly as recorded: nothing here refuses a restore or rewrites an argv.
+    const binary = armedAgentBinary(armableArgv);
+    const facts: DriftFacts = {
+      displayName: agentDisplayName(rec),
+      binary,
+      binaryMissing:
+        binary !== null && isAbsolute(binary) && !existsSync(binary),
+      recordedVersion: rec.agentVersion ?? null,
+      // The scan is only worth waiting for when there is a recorded version to
+      // compare it against. A pre-migration row has nothing to compare, so it
+      // costs nothing and starts nothing.
+      liveVersion:
+        rec.agentVersion === undefined ? null : await liveAgentVersion(rec.agent),
+      storeRoot: agentStoreRoot(rec)
+    };
+    const sentence = agentDriftSentence(facts);
+    if (sentence !== null) {
+      versionDrift = sentence;
+      console.warn(`[gmux] "${rec.name}": ${sentence}`);
+      try {
+        await typeIntoPane(target, buildDriftNoticeCommand(sentence), true);
+      } catch (err) {
+        // Best effort by design. Losing the restore over a warning would cost
+        // the user more than the warning is worth.
+        console.warn(
+          `[gmux] could not print the agent notice for "${rec.name}": ` +
+            (err as Error).message
+        );
+      }
+    }
     try {
       await typeIntoPane(target, armed, false);
       armedCommand = armed;
@@ -473,7 +869,8 @@ export async function restoreSessionInTmux(
       kind: 'armed',
       info,
       armedCommand,
-      ...(replayFailure !== undefined ? { replayFailure } : {})
+      ...(replayFailure !== undefined ? { replayFailure } : {}),
+      ...(versionDrift !== undefined ? { versionDrift } : {})
     };
   }
   if (replayed) {

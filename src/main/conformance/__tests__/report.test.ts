@@ -229,4 +229,25 @@ describe('rendering', () => {
     expect(text).toContain('captured id  019ed309-1111-2222-3333-444455556666');
     expect(text).toContain('droid — SKIP: droid not installed on this machine');
   });
+
+  // Phase 21. A report that names a path and no version cannot say which
+  // build it passed against, and five of nine agents drifted in three days.
+  it('detail names the agent BUILD, not only the path', () => {
+    const text = renderDetail([
+      result({
+        agent: 'claude',
+        binary: '/opt/homebrew/bin/claude',
+        agentVersion: '2.1.228 (Claude Code)'
+      })
+    ]);
+    expect(text).toContain('binary       /opt/homebrew/bin/claude');
+    expect(text).toContain('version      2.1.228 (Claude Code)');
+  });
+
+  it('an unknown version prints nothing rather than a guess', () => {
+    const text = renderDetail([
+      result({ agent: 'droid', verdict: 'SKIP', binary: undefined })
+    ]);
+    expect(text).not.toContain('version');
+  });
 });

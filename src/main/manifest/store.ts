@@ -29,6 +29,21 @@ import {
   type SqliteMigration
 } from '../db/sqlite';
 import { databaseFingerprint } from '../db/digest';
+import {
+  assertDatabaseUsableAt,
+  describeSchemaState,
+  readSchemaState,
+  stampSchemaVersion,
+  type SchemaIdentity,
+  type SchemaStateOnDisk
+} from '../db/schema-version';
+import {
+  parseAgentContract,
+  parseResumeProvenance,
+  serializeAgentContract,
+  serializeResumeProvenance
+} from './contract';
+import type { AgentRecoveryContract, ResumeProvenance } from './agents';
 import { postDurabilityNotice } from '../notice';
 import {
   RESUME_CAPTURES,
@@ -84,6 +99,42 @@ export interface ManifestSessionRecord extends Session {
    * upgrade` mid-session cannot change what an armed resume means.
    */
   specstory?: SpecstoryCaptureRecord;
+  /**
+   * The agent CLI version at launch, as the detection scan reported it
+   * (Phase 21, research 30 §2.4 D1).
+   *
+   * UNDEFINED MEANS UNKNOWN, and that is the honest reading for two different
+   * rows: one created before this column existed, and one whose agent has no
+   * safe version probe. Neither may be reported as a version.
+   *
+   * The manifest already recorded the SpecStory WRAPPER's version, so that a
+   * restore after a mid flight upgrade replays the same binary. It did not
+   * record the agent's, and the agent's resume semantics are the half that
+   * actually changes: five of nine installed agents drifted in the three days
+   * research 30 measured.
+   */
+  agentVersion?: string;
+  /**
+   * What was true about the agent when this session was created (Phase 21,
+   * research 33 §2.1 and §2.3). Written once, with the row, never rewritten.
+   * Composed by `buildRecoveryContract` in ./agents.ts, which is the one place
+   * where reading the live registry is the right thing to do.
+   *
+   * UNDEFINED MEANS NO CONTRACT WAS RECORDED. It is not a licence to ask the
+   * live registry for the answer instead, and it is not `false`. For a pi
+   * shaped agent the permissive answer opens an empty session that looks
+   * resumed.
+   */
+  agentContract?: AgentRecoveryContract;
+  /**
+   * Where this row's conversation id came from and how strongly it was tied to
+   * this pane (Phase 21, 28's G6). Written whenever the id is, which is at
+   * create for a pre-assigned agent and seconds later for a harvested one.
+   *
+   * UNDEFINED MEANS NOTHING IS RECORDED. Read it through `provenanceOf` in
+   * ./contract.ts, which names that case rather than handing back undefined.
+   */
+  resumeProvenance?: ResumeProvenance;
 }
 
 /** Fields a caller may patch after creation. */
@@ -213,6 +264,12 @@ interface SessionRow {
   specstory: string | null;
   /** What the last restore achieved, as JSON (migration 006, Phase 19). */
   restore: string | null;
+  /** Agent CLI version at launch (migration 008, Phase 21). */
+  agent_version: string | null;
+  /** The frozen recovery contract as JSON (migration 008, Phase 21). */
+  agent_contract: string | null;
+  /** Where the conversation id came from, as JSON (migration 008, Phase 21). */
+  resume_provenance: string | null;
 }
 
 interface ProjectRow {
@@ -474,6 +531,16 @@ function rowToRecord(row: SessionRow): ManifestSessionRecord {
   if (specstory !== undefined) record.specstory = specstory;
   const restore = parseRestore(row.restore);
   if (restore !== undefined) record.restore = restore;
+  // Phase 21. All three are absent rather than defaulted when the column is
+  // NULL, which is the state of every row written before migration 008. A
+  // default here would be a guess about a session nobody observed.
+  if (row.agent_version !== null && row.agent_version !== undefined) {
+    record.agentVersion = row.agent_version;
+  }
+  const contract = parseAgentContract(row.agent_contract ?? null);
+  if (contract !== undefined) record.agentContract = contract;
+  const provenance = parseResumeProvenance(row.resume_provenance ?? null);
+  if (provenance !== undefined) record.resumeProvenance = provenance;
   return record;
 }
 
@@ -689,8 +756,121 @@ const MIGRATIONS: readonly SqliteMigration[] = [
           ON restore_attempts(outcome) WHERE outcome IS NULL;
       `);
     }
+  },
+  {
+    // Phase 21: what was TRUE about the agent when the session was created.
+    //
+    // WHAT IT FIXES. `restore/restore.ts` asked the LIVE REGISTRY whether an
+    // agent's resume needs its original directory, and the `catch` under that
+    // call answered `false` for any id the registry no longer launches. For a
+    // pi shaped agent `false` is the worst possible wrong answer: the restore
+    // opens a NEW EMPTY session under the recorded id, the pane looks resumed,
+    // and the conversation is gone. The registry describes the software that
+    // is installed right now. Restore is asking about the past.
+    //
+    // WHY THREE COLUMNS AND NOT ONE. They are written at different moments and
+    // they answer different questions. `agent_contract` is written once, with
+    // the row, before the process exists, and is never rewritten.
+    // `resume_provenance` is written whenever the conversation id is, which is
+    // at create for a pre-assigned agent and seconds later for a harvested
+    // one. `agent_version` is a scalar because it is the field that gets asked
+    // about on its own, by the drift check and by a support answer, and it is
+    // deliberately not repeated inside the contract JSON.
+    //
+    // WHY IT CARRIES G6 AS WELL. Research 33 §2.1 requires it. Both halves are
+    // "persist what the capture actually knew", both land on this table, and
+    // two migrations on a manifest are two chances to be wrong. G7, spatial
+    // state, is a third migration on this same table and is NOT here.
+    //
+    // WHAT AN EXISTING ROW GETS. NULL, in all three, and nothing is
+    // backfilled. A row created before Tortie kept a contract has no contract,
+    // and filling one in from today's registry would be the same guess this
+    // migration exists to remove. Unknown is a real answer.
+    //
+    // BREAKING, NOT ADDITIVE, and the two words mean different things here.
+    // The SQL shape is additive: three nullable columns, no table rebuild, no
+    // rename, and research 27 §4.2 measured that an older build's INSERT keeps
+    // working against exactly this shape. The COMPATIBILITY STATEMENT is
+    // breaking, because research 27 §4.3 sets a stricter rule than SQLite's
+    // tolerance: bump the minimum whenever a new column is REQUIRED for
+    // correct restore, even where SQLite would let an old build write without
+    // it. An older build creating sessions in this manifest would leave
+    // `agent_contract` NULL and produce exactly the rows this phase exists to
+    // stop producing. So MANIFEST_MIN_COMPATIBLE_VERSION moves with
+    // MANIFEST_SCHEMA_VERSION. See ../db/schema-version.ts.
+    name: '008-agent-recovery-contract',
+    up: (db) => {
+      addColumnIfMissing(db, 'sessions', 'agent_version', 'TEXT');
+      addColumnIfMissing(db, 'sessions', 'agent_contract', 'TEXT');
+      addColumnIfMissing(db, 'sessions', 'resume_provenance', 'TEXT');
+    }
   }
 ];
+
+/**
+ * `PRAGMA application_id` for the manifest: the ASCII bytes of "TRTE".
+ *
+ * Set once and never changed. It is what lets `file`, a forensic tool, or
+ * Tortie itself tell a manifest from some other SQLite database that happens
+ * to be at the same path. A wrong file is then refused rather than migrated,
+ * and a migration that adds Tortie's columns to somebody else's database is a
+ * change nothing can undo.
+ */
+export const MANIFEST_APPLICATION_ID = 0x54525445;
+
+/**
+ * The schema version this build writes into `PRAGMA user_version`.
+ *
+ * It is the count of migrations, which is the same as the number on the last
+ * one. Keep it that way: a number that has to be reasoned about is a number
+ * that gets set wrong under time pressure.
+ */
+export const MANIFEST_SCHEMA_VERSION = 8;
+
+/**
+ * The oldest schema version whose code may still write this manifest.
+ *
+ * EQUAL TO THE SCHEMA VERSION, because migration 008 is breaking by the rule
+ * in research 27 §4.3. A build at schema 7 can open this file and can insert
+ * sessions into it, and every session it inserted would carry a NULL
+ * `agent_contract`. Those rows restore by asking the live registry, which is
+ * the defect Phase 21 removes, and for pi the visible result is an empty
+ * session that looks resumed. SQLite would allow that write. This number is
+ * what stops it.
+ *
+ * The honest limit of it: a build that shipped before the refusal existed has
+ * no code to read this number, so it will still open the file. The protection
+ * starts with the first build that carries it.
+ */
+export const MANIFEST_MIN_COMPATIBLE_VERSION = 8;
+
+/** The three numbers, paired with the file they describe. */
+export const MANIFEST_SCHEMA_IDENTITY: SchemaIdentity = {
+  label: 'session list',
+  applicationId: MANIFEST_APPLICATION_ID,
+  version: MANIFEST_SCHEMA_VERSION,
+  minCompatible: MANIFEST_MIN_COMPATIBLE_VERSION
+};
+
+// The migration count and MANIFEST_SCHEMA_VERSION are the same fact stated
+// twice, so a migration added without moving the version has to fail here.
+//
+// It throws at module load rather than in a test, because the failure it
+// prevents is a file that lies about which schema it is at, and a file that
+// lies about that is a file the refusal cannot protect. MIGRATIONS is a static
+// array in this file, so the only way to reach this line is a mistake made
+// while editing it, and then every test and every launch stops at once with
+// the sentence that says what to change.
+if (MIGRATIONS.length !== MANIFEST_SCHEMA_VERSION) {
+  throw new Error(
+    `MANIFEST_SCHEMA_VERSION is ${String(MANIFEST_SCHEMA_VERSION)} and there ` +
+      `are ${String(MIGRATIONS.length)} migrations. They are the same number. ` +
+      'Set the version to the migration count, and decide whether the new ' +
+      'migration is additive or breaking: additive leaves ' +
+      'MANIFEST_MIN_COMPATIBLE_VERSION alone, breaking moves it too. See ' +
+      '../db/schema-version.ts.'
+  );
+}
 
 /**
  * Every migration name this build will apply, in order.
@@ -768,11 +948,31 @@ function verifyManifestOpenable(dbPath: string): void {
   try {
     db.pragma('journal_mode = WAL');
     runMigrations(db, MIGRATIONS);
+    // The rebuilt file gets the same three numbers the real one gets. A
+    // manifest that carries every column and no compatibility statement is a
+    // manifest an older build would open without refusing, and a rebuild is
+    // exactly the moment where that would go unnoticed.
+    stampSchemaVersion(db, MANIFEST_SCHEMA_IDENTITY, currentAppVersion());
     // One read through the real query surface. A schema that migrates and then
     // cannot be selected from is still a manifest the app cannot use.
     db.prepare('SELECT COUNT(*) AS c FROM sessions').get();
   } finally {
     db.close();
+  }
+}
+
+/**
+ * The app version, for the `last_opened_by` row.
+ *
+ * Wrapped because this module is unit tested outside Electron, where importing
+ * `electron` yields a path string and `app` is undefined. A test profile
+ * recording 'unknown' is correct: no version of Tortie opened it.
+ */
+function currentAppVersion(): string {
+  try {
+    return app.getVersion();
+  } catch {
+    return 'unknown';
   }
 }
 
@@ -787,6 +987,20 @@ export class ManifestStore {
    *         cannot be created/opened — surface as a friendly UI state.
    */
   constructor(dbPath: string = defaultManifestDbPath()) {
+    // Phase 21. BEFORE the writable open, and outside the try below, because a
+    // refusal is not a failure to open and must not be reported as one.
+    //
+    // WHY IT IS HERE AND NOT INSIDE THE TRY. The `catch` turns everything into
+    // "Tortie could not open your session list", which is the right sentence
+    // for a permission error and the wrong one for a file that is simply newer
+    // than this build. The user's sessions are fine, they are still running in
+    // tmux, and the fix is to open the newer Tortie. Wrapping that in a
+    // generic failure would send them looking for damage that is not there.
+    //
+    // The probe behind this opens the file READ ONLY and never migrates. See
+    // ../db/schema-version.ts for the numbers and for the one thing this
+    // cannot protect against, which is a build that shipped before it existed.
+    assertDatabaseUsableAt(dbPath, MANIFEST_SCHEMA_IDENTITY);
     try {
       // Pragmas (WAL, synchronous, busy_timeout) live in ONE opener shared with
       // the symbol index — they had already drifted apart once, and the copy
@@ -802,7 +1016,20 @@ export class ManifestStore {
         // verifyManifestOpenable for the permanent failure this closes.
         verifyRebuilt: verifyManifestOpenable
       });
-      runMigrations(this.db, MIGRATIONS);
+      // Phase 21. The compatibility statement describes the schema the file is
+      // now at, so it goes in with the last migration rather than after it.
+      // The fix round moved it INSIDE that transaction: the columns and the
+      // number that says an older build may not write them are now one commit,
+      // and no crash can separate them. `runMigrations` says whether it had a
+      // transaction to put it in; nothing pending means the file is already at
+      // this schema and the stamp is written on its own.
+      //
+      // It writes nothing when nothing changed, which keeps the backup ring
+      // from taking a generation on every launch for a value that never moves.
+      const stamp = (db: Database.Database): void => {
+        stampSchemaVersion(db, MANIFEST_SCHEMA_IDENTITY, currentAppVersion());
+      };
+      if (!runMigrations(this.db, MIGRATIONS, stamp)) stamp(this.db);
       // Bound the journal on open (Phase 19 item 7). Unfinished attempts are
       // never pruned: the launch that is starting right now has not yet had
       // its chance to act on them.
@@ -842,6 +1069,23 @@ export class ManifestStore {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * The three numbers this file carries, for the diagnostics block (Phase 21,
+   * research 27 §4.7).
+   *
+   * They belong in the copyable support text rather than in About. A user does
+   * not need to know their schema number. The first support question about a
+   * manifest that will not open is answerable with one line of it.
+   */
+  schemaState(): SchemaStateOnDisk {
+    return readSchemaState(this.db);
+  }
+
+  /** That state as one sentence, e.g. the line a bug report pastes. */
+  describeSchema(): string {
+    return describeSchemaState('session list', this.schemaState());
   }
 
   // -------------------------------------------------------------------------
@@ -948,12 +1192,14 @@ export class ManifestStore {
           `INSERT INTO sessions
              (id, name, tmux_name, project_path, cwd, agent, agent_session_id,
               argv, resume_argv, env, status, created_at, last_seen, exit_code,
-              exit_signal, pane_pid, resume_capture, specstory, restore)
+              exit_signal, pane_pid, resume_capture, specstory, restore,
+              agent_version, agent_contract, resume_provenance)
            VALUES
              (@id, @name, @tmuxName, @projectPath, @cwd, @agent,
               @agentSessionId, @argv, @resumeArgv, @env, @status,
               @createdAt, @lastSeen, @exitCode, @exitSignal, @panePid,
-              @resumeCapture, @specstory, @restore)`
+              @resumeCapture, @specstory, @restore,
+              @agentVersion, @agentContract, @resumeProvenance)`
         )
         .run({
           id: record.id,
@@ -976,7 +1222,10 @@ export class ManifestStore {
           panePid: record.panePid ?? null,
           resumeCapture: record.resumeCapture ?? null,
           specstory: record.specstory ? JSON.stringify(record.specstory) : null,
-          restore: record.restore ? JSON.stringify(record.restore) : null
+          restore: record.restore ? JSON.stringify(record.restore) : null,
+          agentVersion: record.agentVersion ?? null,
+          agentContract: serializeAgentContract(record.agentContract),
+          resumeProvenance: serializeResumeProvenance(record.resumeProvenance)
         });
     } catch (err) {
       throw manifestError(
@@ -1035,6 +1284,24 @@ export class ManifestStore {
     }
     if (patch.specstory !== undefined) merged.specstory = patch.specstory;
     if (patch.restore !== undefined) merged.restore = patch.restore;
+    if (patch.agentVersion !== undefined) {
+      merged.agentVersion = patch.agentVersion;
+    }
+    // THE CONTRACT IS WRITE ONCE, and this is where that is enforced. It
+    // records what was true when the session was created, so a later patch
+    // that overwrote it would destroy the only evidence of what the session
+    // actually launched under and leave a row claiming today's registry as its
+    // own history. A row that somehow has none can still receive one, which is
+    // what makes a repair possible without making a rewrite possible.
+    if (patch.agentContract !== undefined && merged.agentContract === undefined) {
+      merged.agentContract = patch.agentContract;
+    }
+    // The provenance is NOT write once. A harvest lands seconds after create
+    // and a boot rescue can land launches later, and each of those is a
+    // stronger statement than the one before it.
+    if (patch.resumeProvenance !== undefined) {
+      merged.resumeProvenance = patch.resumeProvenance;
+    }
 
     this.db
       .prepare(
@@ -1045,7 +1312,9 @@ export class ManifestStore {
            status = @status, last_seen = @lastSeen, exit_code = @exitCode,
            exit_signal = @exitSignal, pane_pid = @panePid,
            resume_capture = @resumeCapture, specstory = @specstory,
-           restore = @restore
+           restore = @restore, agent_version = @agentVersion,
+           agent_contract = @agentContract,
+           resume_provenance = @resumeProvenance
          WHERE id = @id`
       )
       .run({
@@ -1066,7 +1335,10 @@ export class ManifestStore {
         panePid: merged.panePid ?? null,
         resumeCapture: merged.resumeCapture ?? null,
         specstory: merged.specstory ? JSON.stringify(merged.specstory) : null,
-        restore: merged.restore ? JSON.stringify(merged.restore) : null
+        restore: merged.restore ? JSON.stringify(merged.restore) : null,
+        agentVersion: merged.agentVersion ?? null,
+        agentContract: serializeAgentContract(merged.agentContract),
+        resumeProvenance: serializeResumeProvenance(merged.resumeProvenance)
       });
     return merged;
   }
@@ -1096,17 +1368,43 @@ export class ManifestStore {
    * So a lost commit here is not a lost millisecond of bookkeeping, it is a
    * session that comes back as a folder instead of a conversation, and the
    * user cannot tell why. 0.046 ms before, 4.83 ms after.
+   *
+   * Phase 21 added `provenance` to the SAME write for the same reason the two
+   * fields above share it. Where the id came from is a fact about that id, so
+   * a commit that stored the id and lost its provenance would leave a row
+   * saying `armed` with nothing to say how strongly, and G6 exists precisely
+   * because "armed" was one word covering a proven correlation and a three
+   * second guess. It is optional so that a caller with nothing to say writes
+   * nothing rather than writing a placeholder.
    */
   setAgentSessionId(
     id: string,
     agentSessionId: string,
-    resumeArgv: string[]
+    resumeArgv: string[],
+    provenance?: ResumeProvenance
   ): ManifestSessionRecord {
     return this.updateSessionDurably(id, {
       agentSessionId,
       resumeArgv,
-      resumeCapture: resumeArgv.length > 0 ? 'armed' : 'unavailable'
+      resumeCapture: resumeArgv.length > 0 ? 'armed' : 'unavailable',
+      ...(provenance !== undefined ? { resumeProvenance: provenance } : {})
     });
+  }
+
+  /**
+   * Record where a conversation id came from, on its own.
+   *
+   * For the callers that have provenance to store without an id to store with
+   * it: a harvest that gave up, or a repair pass that learned something about
+   * an id the row already had. Not a durable commit, for the same reason
+   * `setResumeCapture` is not. Losing it loses a description of the id, not
+   * the id, and the session is no worse off than it already was.
+   */
+  setResumeProvenance(
+    id: string,
+    provenance: ResumeProvenance
+  ): ManifestSessionRecord {
+    return this.updateSession(id, { resumeProvenance: provenance });
   }
 
   /**

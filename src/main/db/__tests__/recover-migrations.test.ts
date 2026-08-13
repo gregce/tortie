@@ -45,7 +45,18 @@ vi.mock('../../typed-events', () => ({
   broadcastEvent: () => undefined
 }));
 
-const { ManifestStore } = await import('../../manifest/store');
+const { MANIFEST_MIGRATION_NAMES, ManifestStore } = await import(
+  '../../manifest/store'
+);
+
+/**
+ * How many steps the runner should have recorded after a rebuild.
+ *
+ * Derived rather than written out, because the number moves every time a
+ * migration is added and the assertion is about "every step ran and recorded
+ * itself", not about the number 7.
+ */
+const ALL_MIGRATIONS = MANIFEST_MIGRATION_NAMES.length;
 
 /** SQLite's default page size, and the one every file here is written at. */
 const PAGE_SIZE = 4096;
@@ -222,7 +233,7 @@ describe('a recovered manifest whose bookkeeping table came back short', () => {
     } finally {
       store.close();
     }
-    expect(migrationNames(dbPath)).toHaveLength(7);
+    expect(migrationNames(dbPath)).toHaveLength(ALL_MIGRATIONS);
   });
 });
 
@@ -263,7 +274,7 @@ describe('the whole recovery path, end to end, through real damage', () => {
     // Every step ran against a schema that already had every column, and every
     // one recorded itself. Before Phase 19's fix this is where the app threw
     // `duplicate column name: exit_code` on every launch, permanently.
-    expect(migrationNames(dbPath)).toHaveLength(7);
+    expect(migrationNames(dbPath)).toHaveLength(ALL_MIGRATIONS);
 
     const second = new ManifestStore(dbPath);
     try {

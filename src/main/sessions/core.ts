@@ -19,7 +19,7 @@
 import type { WebContents } from 'electron';
 import { randomUUID } from 'node:crypto';
 import { existsSync, statSync } from 'node:fs';
-import { readdir, rm } from 'node:fs/promises';
+import { readdir, realpath, rm } from 'node:fs/promises';
 import { basename, join, resolve as resolvePath } from 'node:path';
 import type {
   TerminalScrollByInput,
@@ -41,6 +41,7 @@ import type {
   SessionScrollbackFacts
 } from '@shared/scrollback';
 import type {
+  AgentsScanResult,
   CreateSessionInput,
   LaunchableAgentKind,
   Project,
@@ -64,7 +65,11 @@ import {
   type ActivitySession
 } from '../activity';
 import { AttachHost } from '../attach';
-import { agentBinaryName, registryResumeArgv } from '../agents';
+import {
+  agentBinaryName,
+  listDetectedAgents,
+  registryResumeArgv
+} from '../agents';
 // The durable writer's own failure type and its own out-of-space test
 // (Phase 19 item 2). Do not write a second copy of either.
 import { DurableWriteError, isOutOfSpace } from '../durable';
@@ -75,7 +80,13 @@ import { unwatchGitRepo } from '../git';
 import {
   agentRescuesId,
   agentRescuesIdAfterExit,
+  buildRecoveryContract,
+  claimConversationId,
+  conversationClaimant,
+  harvestProvenance,
+  launchProvenance,
   ManifestStore,
+  releaseConversationClaims,
   defaultManifestDbPath,
   prepareManifestForBoot,
   resolveLaunchSpec,
@@ -213,6 +224,12 @@ const BOOT_SERVER_OPTIONS: readonly (readonly [string, string])[] = [
  * `argv` is the manifest's own form, with the ABSOLUTE binary path, which is
  * the form the manifest is the source of truth for. The bare-name launch rule
  * (Phase 12.7 F3) is applied at spawn, not stored.
+ *
+ * The two versions are two different binaries and each goes under its own
+ * name. Until Phase 21 the capsule's `agentVersion` was fed from the SpecStory
+ * wrapper's version, because that was the only version the manifest had. The
+ * manifest now has an `agent_version` column, so the agent's version goes in
+ * the field named for it and the wrapper keeps its own.
  */
 function snapshotRecipeOf(rec: ManifestSessionRecord): SnapshotSessionRecipe {
   return {
@@ -224,7 +241,8 @@ function snapshotRecipeOf(rec: ManifestSessionRecord): SnapshotSessionRecipe {
     agentSessionId: rec.agentSessionId ?? null,
     argv: rec.argv,
     resumeArgv: rec.resumeArgv ?? null,
-    agentVersion: rec.specstory?.binVersion ?? null
+    agentVersion: rec.agentVersion ?? null,
+    specstoryVersion: rec.specstory?.binVersion ?? null
   };
 }
 
@@ -460,6 +478,18 @@ export class GmuxCore {
   private readonly foreignTmuxIds = new Set<string>();
   /** Last cols×rows pushed per session — see resizeSession (Phase 12.11). */
   private readonly lastGeometry = new Map<string, string>();
+
+  /**
+   * The last agent detection scan, kept so the create path can stamp the
+   * agent's version on the row (Phase 21, A8).
+   *
+   * `listDetectedAgents()` memoises its scan for the life of the process, so
+   * awaiting it on the create path runs no new subprocess. This field exists
+   * for the second reason: Settings' Re-scan replaces that memoised promise,
+   * and holding the resolved value here means a create always has an answer
+   * even while a re-scan is in flight.
+   */
+  private agentScan: AgentsScanResult | null = null;
 
   /** Phase 13: per-agent activity detection (src/main/activity). */
   readonly activity: SessionActivityMonitor;
@@ -704,6 +734,13 @@ export class GmuxCore {
       busy: () => core.createsInFlight.size > 0 || core.restoresInFlight.size > 0,
       dbPath
     });
+    // Phase 21 (A8). Warm the agent detection scan so the create path can
+    // record the agent's version without waiting for one. It is the same
+    // memoised scan the renderer asks for at startup, so this adds no probes
+    // to a normal launch; it removes the create path's dependence on the
+    // renderer having got there first. Unawaited, and a failure is nothing:
+    // the version is then recorded as unknown, which is what it is.
+    core.refreshAgentScan();
     // Phase 13.7 — one disk check, off the boot path. Boot is the moment
     // "sessions may not be saved when you quit" can still be acted on, and
     // this is deliberately the ONLY unprompted sample: the alternative was an
@@ -810,6 +847,56 @@ export class GmuxCore {
   }
 
   // -------------------------------------------------------------------------
+  // The agent version at launch — Phase 21 (A8, research 30 §2.4 D1)
+  // -------------------------------------------------------------------------
+
+  /** Pull the memoised detection scan into `agentScan`. Never throws. */
+  private refreshAgentScan(): void {
+    void listDetectedAgents()
+      .then((scan) => {
+        this.agentScan = scan;
+      })
+      .catch(() => undefined);
+  }
+
+  /**
+   * The installed version of `agent`, or null when nothing can say.
+   *
+   * NO NEW SUBPROCESS RUNS HERE. `listDetectedAgents()` returns the scan the
+   * process already ran, memoised for its whole life. The await is for the one
+   * launch where a create arrives before the boot warm has resolved, and it
+   * waits on that same in-flight scan rather than starting another.
+   *
+   * The manifest records the SpecStory wrapper's version already, explicitly
+   * so a restore after a mid-flight upgrade replays the same binary. The agent
+   * is the thing whose resume semantics actually change, and five of nine
+   * installed agents drifted in the three days between research 30 being
+   * written and being re-measured, so this is the version that matters more.
+   */
+  private async detectedAgentVersion(
+    agent: LaunchableAgentKind
+  ): Promise<string | null> {
+    if (agent === 'shell') return null;
+    await listDetectedAgents()
+      .then((scan) => {
+        this.agentScan = scan;
+      })
+      .catch(() => undefined);
+    return this.cachedAgentVersion(agent);
+  }
+
+  /**
+   * The same answer without waiting, for the harvest callback. A harvest can
+   * land hours after the create, and blocking a settle on a scan would be the
+   * wrong trade there: the id is what matters and the version is a note
+   * beside it.
+   */
+  private cachedAgentVersion(agent: LaunchableAgentKind): string | null {
+    if (agent === 'shell') return null;
+    return this.agentScan?.agents.find((a) => a.id === agent)?.version ?? null;
+  }
+
+  // -------------------------------------------------------------------------
   // Session-id harvest (create time + boot resume) — Phase 13.5
   // -------------------------------------------------------------------------
 
@@ -827,15 +914,31 @@ export class GmuxCore {
     agent: LaunchableAgentKind,
     ctx: { cwd: string; sinceTs: number; panePid?: number; tmuxSessionId?: string },
     extraArgs: readonly string[],
-    options: { timeoutMs?: number; markUnavailableOnFailure?: boolean } = {}
+    options: {
+      timeoutMs?: number;
+      markUnavailableOnFailure?: boolean;
+      /**
+       * TRUE when the watch was started with the pane (Phase 21, G6). FALSE
+       * means a later launch started it against a REMEMBERED spawn time, with
+       * no live process to correlate against, and the provenance records that
+       * difference permanently rather than letting the two look alike.
+       */
+      atCreate?: boolean;
+    } = {}
   ): void {
     if (agent === 'shell' || !agentRescuesId(agent)) return;
     if (this.idCaptureWatches.has(id)) return;
-    const watch = watchForSessionId(
-      agent,
-      ctx,
-      options.timeoutMs !== undefined ? { timeoutMs: options.timeoutMs } : {}
-    );
+    const watch = watchForSessionId(agent, ctx, {
+      // PHASE 21 fix round. The session this watch is FOR. Two panes started
+      // seconds apart in one folder can both see the first record, and the
+      // freshness window is two seconds wide on purpose, so without this the
+      // second pane could arm the first pane's conversation and record the
+      // answer as proven. A record another session already has is not a
+      // candidate here, and the same session may retake its own id when the
+      // watch is started again.
+      claimant: id,
+      ...(options.timeoutMs !== undefined ? { timeoutMs: options.timeoutMs } : {})
+    });
     this.idCaptureWatches.set(id, watch);
     watch.promise
       .then((harvested) => {
@@ -879,15 +982,35 @@ export class GmuxCore {
             );
           }
         }
-        this.manifest.setAgentSessionId(id, harvested.sessionId, resumeArgv);
-        if (harvested.viaGraceTimer || harvested.confidence === 'weak') {
+        // PHASE 21 (G6) — persist how good the evidence was, not just the id.
+        //
+        // The watcher knows which key proved the record, whether a timer
+        // accepted it, and how many candidates were still in play. All of it
+        // used to end at the console line below, so an exact correlation and
+        // a timing guess reached the manifest as the same armed session.
+        const provenance = harvestProvenance(harvested, {
+          cwd: ctx.cwd,
+          agentVersion: this.cachedAgentVersion(agent),
+          atCreate: options.atCreate !== false
+        });
+        // ONE durable write, not two. The id and the claim about the id go
+        // into the same transaction, so no power cut can leave a row that is
+        // armed and silent about where the id came from.
+        this.manifest.setAgentSessionId(
+          id,
+          harvested.sessionId,
+          resumeArgv,
+          provenance
+        );
+        if (provenance.confidence !== 'exact') {
           // Armed, but not PROVEN to be this pane's conversation. Said out
           // loud in the log because the alternative is a confident restore
           // into somebody else's session.
           console.warn(
             `[gmux] ${agent} resume id ${harvested.sessionId} matched on ` +
               `'${harvested.key}'${harvested.viaGraceTimer ? ' via the grace timer' : ''} ` +
-              `(${harvested.confidence}) — ${harvested.storePath}`
+              `with ${harvested.rivals} candidate(s) in play ` +
+              `(${provenance.confidence}) — ${harvested.storePath}`
           );
         }
         const live = this.liveIds.get(id);
@@ -943,6 +1066,28 @@ export class GmuxCore {
    * still answer (see agentRescuesId / agentRescuesIdAfterExit).
    */
   private resumeIdHarvests(): void {
+    // PHASE 21 fix round, and it has to happen before the first watch starts.
+    // The in-process record of who owns which conversation is empty at boot,
+    // so a rescue watch would be free to hand session A's conversation to
+    // session B. The manifest already knows. Every id it holds is claimed by
+    // the row that holds it, and the rescues below then look for a record
+    // nobody has.
+    for (const rec of this.manifest.listSessions()) {
+      if (rec.agentSessionId === undefined) continue;
+      if (claimConversationId(rec.agentSessionId, rec.id)) continue;
+      // Two rows already record one conversation. This build cannot make that
+      // happen any more, and it cannot undo one that a previous build wrote:
+      // there is no way to know which row is right. It is said out loud
+      // because restoring both resumes the same conversation twice, and that
+      // is worth knowing before it surprises someone. MEASURED in the T1 smoke
+      // profile the moment this landed: codex-1 and codex-2 both carry
+      // 019febf5-e7fa-7e32-8fd5-c4a56e10a859.
+      console.warn(
+        `[gmux] sessions ${String(conversationClaimant(rec.agentSessionId))} ` +
+          `and ${rec.id} both record ${rec.agent} conversation ` +
+          `${rec.agentSessionId}. Restoring both resumes the same conversation.`
+      );
+    }
     for (const rec of this.manifest.listSessions()) {
       if (rec.agent === 'shell' || !agentRescuesId(rec.agent)) continue;
       if (rec.agentSessionId !== undefined) continue;
@@ -968,7 +1113,9 @@ export class GmuxCore {
               // The record either exists now or never will: no process is
               // going to write one. One scan, not a six-hour vigil.
               timeoutMs: DEAD_ROW_RESCUE_TIMEOUT_MS,
-              markUnavailableOnFailure: true
+              markUnavailableOnFailure: true,
+              // No live pane to correlate against — this is time alone.
+              atCreate: false
             }
           );
           continue;
@@ -987,7 +1134,12 @@ export class GmuxCore {
           tmuxSessionId: live,
           ...(rec.panePid !== undefined ? { panePid: rec.panePid } : {})
         },
-        agentExtrasOf(rec)
+        agentExtrasOf(rec),
+        // The pane is still alive, so the pane and pid keys still work, but
+        // the watch was started by a LATER launch against a remembered spawn
+        // time. That is weaker than a watch started with the pane, and the
+        // record says so.
+        { atCreate: false }
       );
     }
   }
@@ -1885,6 +2037,27 @@ export class GmuxCore {
       }
     }
 
+    // PHASE 21 (A8 + G6) — record the contract, not a pointer to the registry.
+    //
+    // Restore used to ask the LIVE registry whether this agent's resume needs
+    // its original directory, and the registry answers for the agent Tortie
+    // launches today. For an id it no longer launches the answer was `false`,
+    // and for a pi shaped agent `false` means restore opens an empty session
+    // that looks resumed. Everything restore reads for correctness is written
+    // here instead, while it is still true.
+    //
+    // Three awaits, none of which spawns anything: the detection scan is
+    // memoised for the life of the process and warmed at boot, and the two
+    // realpath calls are one fs lookup each. The resolved cwd is recorded
+    // because it is the store key for five of the eleven agents, so a moved
+    // or re-cloned checkout is the difference between finding the
+    // conversation and not.
+    const agentVersion = await this.detectedAgentVersion(input.agent);
+    const cwdReal = await realpath(cwd).catch(() => cwd);
+    const projectReal = await realpath(input.projectPath).catch(
+      () => input.projectPath
+    );
+
     const now = Date.now();
     const record: ManifestSessionRecord = {
       id,
@@ -1907,7 +2080,34 @@ export class GmuxCore {
       // conversation. Written with the row, before the process exists.
       resumeCapture: resumeCaptureFor(spec),
       ...(spec.env !== undefined ? { env: spec.env } : {}),
-      ...(capture !== undefined ? { specstory: capture } : {})
+      ...(capture !== undefined ? { specstory: capture } : {}),
+      // Phase 21 (A8 + G6). The three fields migration 008 adds, written with
+      // the row, before the process exists — same moment and same transaction
+      // as everything else a restore depends on.
+      ...(agentVersion !== null ? { agentVersion } : {}),
+      agentContract: buildRecoveryContract(
+        input.agent,
+        {
+          // The AGENT's binary, never the SpecStory wrapper's. `binPath` is
+          // set for every non-shell agent above or the create has already
+          // thrown, so `spec.argv[0]` is only reached for a plain shell, and
+          // a shell is never wrapped.
+          bin: binPath ?? spec.argv[0] ?? input.agent,
+          cwdReal,
+          projectReal,
+          agentVersion,
+          at: now
+        },
+        spec
+      ),
+      // The launch half of the provenance chain. A harvesting agent has no id
+      // yet, so this records the route and makes no claim; the watcher
+      // replaces it with the evidence it actually had. See startIdCapture.
+      resumeProvenance: launchProvenance(spec, {
+        cwd: cwdReal,
+        at: now,
+        agentVersion
+      })
     };
 
     // §2.4 Step 0: durability record exists BEFORE the process does — which
@@ -2007,7 +2207,8 @@ export class GmuxCore {
           tmuxSessionId: info.sessionId,
           ...(info.panePid !== undefined ? { panePid: info.panePid } : {})
         },
-        input.extraArgs ?? []
+        input.extraArgs ?? [],
+        { atCreate: true }
       );
     }
 
@@ -2107,6 +2308,12 @@ export class GmuxCore {
 
   /** Remove a session row entirely (discard a restorable / smoke cleanup). */
   discardSession(sessionId: string): void {
+    // The row is going, so its hold on its conversation goes with it. Anything
+    // else would keep a discarded session's claim alive for the rest of the
+    // run and stop a new session in that folder from recording an id. A row
+    // that still exists keeps its claim, including an exited one, because a
+    // restore of it resumes that conversation.
+    releaseConversationClaims(sessionId);
     this.manifest.deleteSession(sessionId);
     const live = this.liveIds.get(sessionId);
     if (live !== undefined) this.byTmuxId.delete(live);

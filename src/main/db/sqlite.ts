@@ -365,11 +365,28 @@ export function addColumnIfMissing(
  * Apply every migration this database has not seen, each one atomically with
  * the `migrations` row that records it — so a crash mid-step can never leave a
  * half-applied schema that the next boot believes is done.
+ *
+ * `seal` runs inside the transaction of the LAST step that is applied, and the
+ * return value says whether it ran. Phase 21's fix round added it to close a
+ * window a verifier measured, and the window is small enough to be worth
+ * stating exactly. The compatibility statement (`PRAGMA user_version` and the
+ * `meta` row) used to be written in a SECOND transaction after this function
+ * returned, so a crash in between left a file carrying the new columns and no
+ * statement about them. An older build would not refuse that file, because
+ * there is nothing in it to refuse on. No trial out of 113 landed in the gap
+ * and the next launch of the same build re-stamps, so it was never going to be
+ * seen. It is also two lines to close, and a compatibility number that is
+ * written by the same commit as the columns it describes cannot disagree with
+ * them.
+ *
+ * @returns true when `seal` was given a transaction to run in. False means
+ *          nothing was pending, and the caller writes the stamp itself.
  */
 export function runMigrations(
   db: Database.Database,
-  migrations: readonly SqliteMigration[]
-): void {
+  migrations: readonly SqliteMigration[],
+  seal?: (db: Database.Database) => void
+): boolean {
   db.exec(`
     CREATE TABLE IF NOT EXISTS migrations (
       id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -386,11 +403,18 @@ export function runMigrations(
   const insert = db.prepare<[string, number]>(
     'INSERT INTO migrations (name, applied_at) VALUES (?, ?)'
   );
-  for (const m of migrations) {
-    if (applied.has(m.name)) continue;
+  const pending = migrations.filter((m) => !applied.has(m.name));
+  const last = pending.at(-1);
+  let sealed = false;
+  for (const m of pending) {
     immediateTransaction(db, () => {
       m.up(db);
       insert.run(m.name, Date.now());
+      if (m === last && seal !== undefined) {
+        seal(db);
+        sealed = true;
+      }
     });
   }
+  return sealed;
 }
