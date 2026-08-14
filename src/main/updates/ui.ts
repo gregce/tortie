@@ -125,6 +125,10 @@ function ensureArmWatch(): void {
  */
 async function showReadyDialog(version: string): Promise<void> {
   try {
+    // The log line rides beside the dialog so updates.log records the
+    // moment the promise was made, and so a driven rehearsal can assert
+    // the dialog call happened (Phase 31 fix round).
+    logUpdateEvent('info', `showing the ready dialog for ${version}`);
     await showOkDialog(
       'info',
       `Tortie ${version} is ready`,
@@ -156,6 +160,9 @@ export async function announceRefusedInstallIfAny(): Promise<void> {
       refused.reason === 'another-copy'
         ? `The update to ${refused.version} did not install because another copy of Tortie was running. It installs the next time you quit.`
         : `The update to ${refused.version} did not install. It installs the next time you quit.`;
+    // Same reason as the ready dialog's line: updates.log must record
+    // that the failure was said out loud, not only that it was detected.
+    logUpdateEvent('info', `showing the refusal dialog for ${refused.version}`);
     await showOkDialog('warning', 'The update did not install', detail);
   } catch (err) {
     logUpdateEvent(

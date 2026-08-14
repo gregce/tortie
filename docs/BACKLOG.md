@@ -3408,7 +3408,9 @@ refused with exit 2 before any launch and named the operator's waiting ShipIt pi
 sessions read 22 before and 22 after. The two instance probes could not run in the integration
 round because that refusal was still standing.
 
-**Fix round (this commit).** The verifier found the precondition over refused for ever after the
+**Fix round, shipped 2026-08-14 (this commit).** An earlier copy of this entry rode in a
+concurrent commit by accident. The fix round's own changes land in this commit. The verifier
+found the precondition over refused for ever after the
 operator's install landed. Squirrel leaves ShipItState.plist behind on SUCCESS, still naming
 /Applications/Tortie.app as its target, and only consumes the staged bundle directory the plist
 names in updateBundleURL. The corrected in flight test is both at once: the plist targets

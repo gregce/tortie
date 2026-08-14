@@ -43,21 +43,33 @@
  * instance running from the SAME app path exactly the way it counted the
  * operator's relaunch on 2026-08-14. Probe R1 reproduces that abort
  * (SQRLInstallerErrorDomain code -9) and then proves the install completes
- * once the counted instance is gone. Probe R2 launches a third instance
+ * once the counted instance is gone. The recovery relaunch is also the
+ * live proof of the refusal dialog: the first launch after the abort must
+ * show it, and the probe reads it off the screen through the
+ * accessibility tree and dismisses it, because the windowless dialog
+ * freezes boot until someone answers it. Probe R2 launches a third instance
  * from the PRISTINE copy, the same bundle id at a DIFFERENT path, and
  * proves the install completes while it keeps running, which confirms live
  * that the bundle URL is half of ShipIt's counting rule.
  *
- * SHARED SHIPIT STATE (Phase 31 preconditions). Because the rehearsal
- * builds carry the production bundle id, Squirrel gives them the SAME
- * ShipIt cache directory and launchd job label as the installed app.
- * Staging a rehearsal update while the operator has an install waiting
- * could replace the operator's pending job. So before any launch, in every
- * mode, this script refuses when a ShipIt process for the bundle id is
- * running, and refuses when ShipItState.plist targets /Applications or
- * cannot be parsed. It also snapshots the ShipIt directory, removes only
- * entries created during the run, and never truncates or deletes
- * ShipIt_stderr.log, whose lines are shared evidence.
+ * SHARED SHIPIT STATE (Phase 31 preconditions, corrected in the fix
+ * round). Because the rehearsal builds carry the production bundle id,
+ * Squirrel gives them the SAME ShipIt cache directory and launchd job
+ * label as the installed app. Staging a rehearsal update while the
+ * operator has an install waiting could replace the operator's pending
+ * job. So before any launch, in every mode, this script refuses when a
+ * ShipIt process for the bundle id is running, and refuses when
+ * ShipItState.plist cannot be parsed. The plist alone is NOT the test.
+ * Squirrel leaves ShipItState.plist behind after a SUCCESSFUL install
+ * too, still naming /Applications/Tortie.app as its target, which was
+ * observed on this machine on 2026-08-14 after the operator's install
+ * completed. What a successful install consumes is the staged bundle
+ * directory the plist names in updateBundleURL. So the honest in flight
+ * test is BOTH at once: the plist targets /Applications/Tortie.app AND
+ * the staged bundle it names still exists on disk. The script also
+ * snapshots the ShipIt directory, removes only entries created during
+ * the run, and never truncates or deletes ShipIt_stderr.log, whose lines
+ * are shared evidence.
  *
  * Usage:
  *   node build/update-rehearsal.mjs [--scratch <dir>] [--skip-package]
@@ -74,6 +86,13 @@
  *                     is gone, which is deliberate.
  *   --two-instance    run probes R1 and R2 instead of the plain roundtrip.
  *                     Combine with --skip-package to reuse the packages.
+ *   --ready-dialog    drive a user initiated check through the app's real
+ *                     menu with System Events, read both dialogs off the
+ *                     screen through the accessibility tree, then quit and
+ *                     prove the install lands. This is the live proof of
+ *                     Phase 31 item 1. Combine with --skip-package to
+ *                     reuse the packages. Needs accessibility permission
+ *                     for the terminal running this script.
  */
 
 import { spawn, spawnSync, execFileSync } from 'node:child_process';
@@ -131,6 +150,7 @@ const skipPackage = flag('--skip-package');
 const packageOnly = flag('--package-only');
 const keepServer = flag('--keep-server');
 const twoInstance = flag('--two-instance');
+const readyDialog = flag('--ready-dialog');
 
 const pristineDir = join(scratch, 'pristine');
 const pristineApp = join(pristineDir, 'Tortie.app');
@@ -216,6 +236,30 @@ function killRecordedPids() {
       process.kill(pid, 'SIGTERM');
     } catch {
       // Already gone.
+    }
+  }
+  if (livePids.size === 0) return;
+  // SIGTERM alone is not enough. A windowless dialog freezes an Electron
+  // app's main event loop until it is dismissed (observed live in the
+  // Phase 31 fix round: the refusal dialog held r1-recovery frozen and it
+  // outlived a SIGTERM), and a frozen app never runs its quit handler. A
+  // leaked instance carrying the production bundle id is the one thing
+  // this script must never leave behind, so after a short grace anything
+  // still alive is killed hard.
+  try {
+    execFileSync('/bin/sleep', ['3']);
+  } catch {
+    // sleep does not fail.
+  }
+  for (const pid of livePids) {
+    try {
+      process.kill(pid, 0);
+      process.kill(pid, 'SIGKILL');
+      console.log(
+        `[rehearsal] pid ${pid} ignored SIGTERM (a dialog freezes the event loop) and was killed with SIGKILL.`
+      );
+    } catch {
+      // Exited during the grace.
     }
   }
 }
@@ -598,11 +642,36 @@ function refuseIfInstalledUpdateInFlight() {
     );
   }
   const target = String(parsed?.targetBundleURL ?? '');
-  if (target.includes('/Applications/Tortie.app')) {
+  if (!target.includes('/Applications/Tortie.app')) return;
+  // The plist alone proves nothing. Squirrel leaves ShipItState.plist
+  // behind after a SUCCESSFUL install too, still naming /Applications as
+  // its target. Observed on this machine on 2026-08-14: the operator's
+  // install completed at 16:32:36 ("Installation completed successfully"
+  // in ShipIt_stderr.log), the staged bundle directory update.c1wRw4m was
+  // consumed, and the plist stayed, unchanged since 15:19. An in flight
+  // install is the plist target AND the staged bundle both present.
+  const updateUrl = String(parsed?.updateBundleURL ?? '');
+  if (updateUrl === '') {
     refuse(
-      `${statePlist} targets /Applications/Tortie.app. The installed Tortie has an update staged. Quit Tortie once, let it install, and run the rehearsal again.`
+      `${statePlist} targets /Applications/Tortie.app and names no updateBundleURL. Failing safe, because the installed app may have an install in flight. Look at the file before running the rehearsal.`
     );
   }
+  let stagedBundle = null;
+  try {
+    stagedBundle = fileURLToPath(updateUrl);
+  } catch {
+    refuse(
+      `${statePlist} targets /Applications/Tortie.app and its updateBundleURL (${updateUrl}) cannot be read as a path. Failing safe. Look at the file before running the rehearsal.`
+    );
+  }
+  if (existsSync(stagedBundle)) {
+    refuse(
+      `${statePlist} targets /Applications/Tortie.app and the staged bundle at ${stagedBundle} is still on disk. The installed Tortie has an update waiting to install. Quit Tortie once, let it install, and run the rehearsal again.`
+    );
+  }
+  log(
+    `ShipItState.plist targets /Applications/Tortie.app but the staged bundle it names (${stagedBundle}) is gone, so that install already completed. Squirrel leaves the plist behind on success. Proceeding.`
+  );
 }
 
 /**
@@ -696,6 +765,20 @@ async function roundtrip(feedUrl) {
   const native = await run1.waitFor(/nativeUpdater\.update-downloaded/, 300_000, 'Squirrel staging the update natively');
   log(`Squirrel finished staging natively at ${(native.at / 1000).toFixed(1)} s after launch. A quit from here installs.`);
 
+  // Phase 31, the silence half of item 1. Nobody clicked anything in this
+  // run, so the whole download and staging came from the background timer,
+  // and a background staging must surface nothing. Assert it two ways: the
+  // app never logged showing a dialog, and the accessibility tree shows no
+  // window carrying either dialog's words.
+  if (run1.sawLine(/showing the (ready|refusal) dialog/)) {
+    fail('the background staging showed a dialog. Background checks must stay silent.');
+  }
+  const silentTexts = dialogTexts(run1.pid);
+  if (silentTexts.includes('is downloading') || silentTexts.includes('is ready')) {
+    fail(`a dialog is on screen after a background staging. The windows read:\n${silentTexts}`);
+  }
+  log('the background staging stayed silent. No dialog line in the log and no dialog text in the accessibility tree.');
+
   const listBefore = harnessSessionList();
   writeFileSync(join(logsDir, 'sessions-before-quit.txt'), listBefore);
   log(`harness sessions before quit.\n${listBefore.trim()}`);
@@ -772,6 +855,183 @@ async function roundtrip(feedUrl) {
   log('final run exited after SIGTERM');
 
   return { gapSeconds, stagedAtSeconds: staged.at / 1000, swapMoment };
+}
+
+// -- the accessibility tree, for driving and reading real dialogs -------------
+
+/**
+ * These helpers target the app process by its unix pid, never by name,
+ * because the operator's installed Tortie may be running and System Events
+ * would otherwise pick whichever "Tortie" it finds first.
+ */
+function osa(script, what) {
+  const r = spawnSync('osascript', ['-e', script], { encoding: 'utf8' });
+  if (r.status !== 0) {
+    fail(`osascript failed while ${what}. ${(r.stderr ?? '').trim()}`);
+  }
+  return (r.stdout ?? '').trim();
+}
+
+/** Click the real "Check for Updates…" item in the app's own menu. */
+function clickCheckForUpdates(pid) {
+  osa(
+    `tell application "System Events"
+  tell (first process whose unix id is ${pid})
+    click menu item "Check for Updates…" of menu 1 of menu bar item "Tortie" of menu bar 1
+  end tell
+end tell`,
+    'clicking the Check for Updates menu item'
+  );
+}
+
+/**
+ * Every static text of every window of the process, one line per text,
+ * windows separated by a ---- line. A dialog from dialog.showMessageBox
+ * exposes its message and its detail as static texts; the main window
+ * exposes none at the top level. Never fails the run: while a dialog is
+ * mid animation the tree can be momentarily unreadable, and the callers
+ * poll.
+ */
+function dialogTexts(pid) {
+  const r = spawnSync(
+    'osascript',
+    [
+      '-e',
+      `set out to ""
+tell application "System Events"
+  tell (first process whose unix id is ${pid})
+    repeat with w in windows
+      repeat with t in static texts of w
+        set out to out & (value of t) & linefeed
+      end repeat
+      set out to out & "----" & linefeed
+    end repeat
+  end tell
+end tell
+return out`
+    ],
+    { encoding: 'utf8' }
+  );
+  return r.status === 0 ? (r.stdout ?? '').trim() : '';
+}
+
+/** Poll the tree until a window's text contains needle. Returns the texts. */
+async function waitForDialogOnScreen(pid, needle, timeoutMs, what) {
+  const started = Date.now();
+  for (;;) {
+    const texts = dialogTexts(pid);
+    if (texts.includes(needle)) return texts;
+    if (Date.now() - started > timeoutMs) {
+      fail(
+        `timed out after ${timeoutMs / 1000} s waiting for ${what}. The windows read:\n${texts || '(no readable text)'}`
+      );
+    }
+    await sleep(1000);
+  }
+}
+
+/** Click the named button of the window whose text contains needle. */
+function clickDialogButton(pid, needle, button) {
+  const answer = osa(
+    `tell application "System Events"
+  tell (first process whose unix id is ${pid})
+    repeat with w in windows
+      set msg to ""
+      repeat with t in static texts of w
+        set msg to msg & (value of t) & " "
+      end repeat
+      if msg contains "${needle}" then
+        click button "${button}" of w
+        return "clicked"
+      end if
+    end repeat
+  end tell
+end tell
+return "no window matched"`,
+    `clicking ${button} on the dialog containing "${needle}"`
+  );
+  if (answer !== 'clicked') {
+    fail(`no dialog containing "${needle}" was on screen to click ${button} on`);
+  }
+}
+
+/** Best effort screenshot. The accessibility read is the assertion. */
+function screenshot(name) {
+  const path = join(logsDir, name);
+  const r = spawnSync('screencapture', ['-x', path], { encoding: 'utf8' });
+  if (r.status === 0) {
+    log(`screenshot saved to ${path}. It shows the active space, which may not be the app's space.`);
+  } else {
+    log(`screencapture failed (${(r.stderr ?? '').trim()}). The accessibility reads above are the evidence.`);
+  }
+}
+
+// -- the ready dialog probe (Phase 31 item 1, fix round) ----------------------
+
+/**
+ * Drive the exact flow the operator ran on 2026-08-14, against the local
+ * feed: click "Check for Updates…" in the real menu, get told "downloading",
+ * dismiss, get told "ready" when Squirrel finishes staging, dismiss, quit,
+ * and this time the install must land. Both dialogs are read off the screen
+ * through the accessibility tree, verbatim, so the evidence is the pixels'
+ * own source and not the code's intent.
+ */
+async function probeReadyDialog(feedUrl) {
+  log('ready dialog probe. A user initiated check, both dialogs, then the install.');
+  freshV1Copy();
+  const run = new AppRun('ready-a', feedUrl);
+  await run.waitFor(/tmux conf verified/, 120_000, 'the app booting its tmux server');
+  // Give the menu bar a moment to exist, then click the real item well
+  // before the 30 second background timer, so the check that follows can
+  // only be the user initiated one.
+  await sleep(3_000);
+  clickCheckForUpdates(run.pid);
+  const clickedAtS = (Date.now() - run.startedAt) / 1000;
+  log(`clicked "Check for Updates…" through the real menu ${clickedAtS.toFixed(1)} s after launch`);
+  const checking = await run.waitFor(/Checking for update/, 30_000, 'the user initiated check starting');
+  if (checking.at / 1000 >= 25) {
+    fail(`the check began ${(checking.at / 1000).toFixed(1)} s after launch, late enough to be the background timer, so the probe proves nothing`);
+  }
+  log(`the check began ${(checking.at / 1000).toFixed(1)} s after launch, before the 30 s background timer. It is the user's check.`);
+
+  // Dialog one, the downloading answer.
+  const foundTexts = await waitForDialogOnScreen(run.pid, 'is downloading', 180_000, 'the Update found dialog');
+  log(`the Update found dialog is on screen. The window reads, verbatim:\n${foundTexts}`);
+  screenshot('ready-probe-update-found.png');
+  clickDialogButton(run.pid, 'is downloading', 'OK');
+  log('dismissed the Update found dialog with its OK button');
+
+  // Dialog two, the ready answer, with no further input from anyone. The
+  // needle is the whole title sentence, because the Update found dialog's
+  // body also contains the words "is ready".
+  const readyTitle = `Tortie ${V2} is ready`;
+  const readyTexts = await waitForDialogOnScreen(run.pid, readyTitle, 300_000, 'the ready dialog');
+  const readyBody = 'It installs when you quit. To install it now, use the Tortie menu.';
+  if (!readyTexts.includes(readyBody)) {
+    fail(`the ready dialog is on screen but its text is wrong. It reads:\n${readyTexts}`);
+  }
+  log(`the ready dialog is on screen with the pinned copy. The window reads, verbatim:\n${readyTexts}`);
+  if (!run.sawLine(/showing the ready dialog for/)) {
+    fail('the ready dialog is on screen but the app never logged showing it, so the updates.log record is incomplete');
+  }
+  log('the app logged the dialog moment, so updates.log carries it in packaged builds');
+  screenshot('ready-probe-ready.png');
+  clickDialogButton(run.pid, readyTitle, 'OK');
+  log('dismissed the ready dialog with its OK button');
+
+  // The dialog promised "it installs when you quit". Hold it to that.
+  const offset = shipItStderrSize();
+  const quitAtMs = Date.now();
+  await run.quit(45_000);
+  const result = await watchInstallAfterQuit(offset, 60_000, 'ready probe');
+  if (result.outcome !== 'completed') {
+    fail(`the install did not complete after the quit the ready dialog promised. Outcome ${result.outcome}${result.line !== undefined ? `, line ${result.line}` : ''}`);
+  }
+  const after = plistVersion(appPath);
+  if (after !== V2) fail(`after the quit Info.plist reads ${after}, expected ${V2}`);
+  const quitToSwapS = (result.completedAtMs - quitAtMs) / 1000;
+  log(`the quit installed ${V2} in ${quitToSwapS.toFixed(1)} s, exactly what the dialog promised`);
+  return { checkAtS: checking.at / 1000, quitToSwapS };
 }
 
 // -- the two instance probes (Phase 31) ---------------------------------------
@@ -943,11 +1203,30 @@ async function probeR1(feedUrl) {
   log(`  quit to abort: ${((result.abortAtMs - quitAtMs) / 1000).toFixed(1)} s`);
   log(`  Info.plist still reads ${held} through the abort`);
 
-  // Recovery. Quit the counted instance, relaunch A's profile from the same
-  // app path, let the background check restage from the cached zip, and
-  // quit with nothing else running. The install must complete.
+  // Recovery, which is also the live proof of item 2. Quit the counted
+  // instance, then relaunch A's profile from the same app path. That
+  // relaunch is the first launch after a refused install, so the refusal
+  // dialog MUST appear, and it appears before the window: a windowless
+  // message box freezes the main event loop until it is dismissed, so the
+  // tmux server does not come up while the dialog waits. The probe reads
+  // the dialog off the screen verbatim, keeps a screenshot, clicks OK,
+  // lets boot finish and the background check restage from the cached
+  // zip, and quits with nothing else running. The install must complete.
   await runB.quit(45_000);
-  const recovery = await stageOnPrimary(feedUrl, 'r1-recovery');
+  const recovery = new AppRun('r1-recovery', feedUrl);
+  await recovery.waitFor(/showing the refusal dialog for/, 90_000, 'the refusal dialog log line');
+  log('the relaunch detected the refused install and logged showing the dialog');
+  const refusalNeedle = 'did not install because another copy of Tortie was running';
+  const refusalTexts = await waitForDialogOnScreen(recovery.pid, refusalNeedle, 60_000, 'the refusal dialog');
+  log(`the refusal dialog is on screen. The window reads, verbatim:\n${refusalTexts}`);
+  screenshot('r1-refusal-dialog.png');
+  clickDialogButton(recovery.pid, refusalNeedle, 'OK');
+  log('dismissed the refusal dialog with its OK button. Boot continues.');
+  await recovery.waitFor(/tmux conf verified/, 120_000, 'r1-recovery booting after the dialog');
+  await recovery.waitFor(/is downloaded and staging has started/, 300_000, `r1-recovery downloading ${V2} again`);
+  await recovery.waitFor(/is staged and installs when you quit/, 300_000, `r1-recovery restaging ${V2}`);
+  await recovery.waitFor(/nativeUpdater\.update-downloaded/, 60_000, 'r1-recovery native staged event');
+  log('r1-recovery restaged from the cache, the "It installs the next time you quit" promise under test');
   offset = shipItStderrSize();
   const recoveryQuitAtMs = Date.now();
   await recovery.quit(45_000);
@@ -1019,16 +1298,31 @@ async function twoInstanceProbes(feedUrl) {
 /**
  * A leaked instance carrying the production bundle id is one suspect in the
  * incident this phase answers, so the run ends by proving it left none.
- * Assert only; this never kills anything.
+ * Assert only; this never kills anything. Helpers of an app that just quit
+ * can take a few seconds to finish exiting (the ready dialog probe hit
+ * exactly this: a helper pid was alive at the assert and gone two seconds
+ * later), so the assert polls for up to ten seconds and fails only on a
+ * process that stays.
  */
-function assertNoScratchProcesses() {
-  for (const path of [appPath, pristineApp]) {
-    const r = spawnSync('pgrep', ['-f', path], { encoding: 'utf8' });
-    if (r.status === 0 && r.stdout.trim() !== '') {
-      fail(`a process is still running from ${path}. pids ${r.stdout.trim().split('\n').join(', ')}`);
+async function assertNoScratchProcesses() {
+  const deadline = Date.now() + 10_000;
+  for (;;) {
+    const holdouts = [];
+    for (const path of [appPath, pristineApp]) {
+      const r = spawnSync('pgrep', ['-f', path], { encoding: 'utf8' });
+      if (r.status === 0 && r.stdout.trim() !== '') {
+        holdouts.push(`${path}: pids ${r.stdout.trim().split('\n').join(', ')}`);
+      }
     }
+    if (holdouts.length === 0) {
+      log('no process is left running from either scratch app path');
+      return;
+    }
+    if (Date.now() > deadline) {
+      fail(`a process is still running from the scratch paths after a 10 s grace. ${holdouts.join('; ')}`);
+    }
+    await sleep(1_000);
   }
-  log('no process is left running from either scratch app path');
 }
 
 // -- main -----------------------------------------------------------------------
@@ -1097,7 +1391,11 @@ async function main() {
 
   let result;
   try {
-    result = twoInstance ? await twoInstanceProbes(feedUrl) : await roundtrip(feedUrl);
+    result = twoInstance
+      ? await twoInstanceProbes(feedUrl)
+      : readyDialog
+        ? await probeReadyDialog(feedUrl)
+        : await roundtrip(feedUrl);
   } finally {
     feedServer.close();
     feedServer = null;
@@ -1109,7 +1407,7 @@ async function main() {
     rmSync(profileCDir, { recursive: true, force: true });
   }
 
-  assertNoScratchProcesses();
+  await assertNoScratchProcesses();
 
   const operatorAfter = operatorSessionCount();
   log(`operator sessions on socket ${OPERATOR_SOCKET} after the rehearsal. ${operatorAfter}`);
@@ -1117,12 +1415,19 @@ async function main() {
     fail(`the operator session count moved from ${operatorBefore} to ${operatorAfter}. Something touched the real server.`);
   }
 
-  if (twoInstance) {
+  if (readyDialog) {
+    log('PASS. Ready dialog probe.');
+    log(`  the user's check began ${result.checkAtS.toFixed(1)} s after launch`);
+    log('  the Update found dialog and the ready dialog were both read off the screen');
+    log(`  the quit installed ${V2} in ${result.quitToSwapS.toFixed(1)} s`);
+    log(`  operator sessions ${operatorBefore} before and ${operatorAfter} after`);
+  } else if (twoInstance) {
     log('PASS. Two instance probes.');
     log(`  R1 produced the abort with the ${result.r1.strategy} strategy`);
     log(`  R1 abort line. ${result.r1.abortLine}`);
     log(`  R1 counted ${result.r1.count} running instances`);
     log(`  R1 Beginning to abort ${result.r1.beginningToAbortS === null ? 'was not observed' : `${result.r1.beginningToAbortS.toFixed(1)} s`}`);
+    log('  R1 relaunch showed the refusal dialog, read off the screen, and the probe dismissed it');
     log(`  R1 recovery swapped ${result.r1.quitToSwapS.toFixed(1)} s after the quit`);
     log(`  R2 swapped ${result.r2.quitToSwapS.toFixed(1)} s after the quit with the different path instance running`);
     log(`  operator sessions ${operatorBefore} before and ${operatorAfter} after`);
