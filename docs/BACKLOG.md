@@ -36,11 +36,11 @@ the wordmark is a wordmark. Revisit only if the operator asks.
 | 10 | **Release lane (Phase 27)** Itavero identity, signing, notarization, version scheme, four CI lanes | ✅ SHIPPED 2026-08-13 | after Phase 25.5 ✅ |
 | 11 | **24** self update | ✅ SHIPPED 2026-08-13 | the release lane ✅. The app is now signed, so this is unblocked |
 | — | ~~Release lane, second half: signing, notarization, the updater~~ | signing and notarization shipped with Phase 27. The updater is Phase 24 | the issuer identifier was never needed. Notarization uses the Apple ID, the team id and an app specific password, the deadreckon shape |
-| 12 | **28** process observability after the lid close diagnosis | ✅ SHIPPED 2026-08-14 (this commit) | — |
+| 12 | **28** process observability after the lid close diagnosis | ✅ SHIPPED `e9a8731` | — |
 | 13 | **29** session history: browse and restore removed sessions | QUEUED | spec is docs/research/39-session-history.md |
-| 14 | **30** skill removal through the skills CLI | ✅ SHIPPED 2026-08-14 (this commit) | — |
-| 15 | **32** the antigravity claim race (operator hit it live, 2026-08-14) | ✅ SHIPPED 2026-08-14 (this commit) | — |
-| 16 | **31** updater honesty after the operator's first live update (operator reported, 2026-08-14) | ✅ SHIPPED 2026-08-14 (this commit) | Phase 24 ✅ |
+| 14 | **30** skill removal through the skills CLI | ✅ SHIPPED `f33599b` | — |
+| 15 | **32** the antigravity claim race (operator hit it live, 2026-08-14) | ✅ SHIPPED `ecdfcad` | — |
+| 16 | **31** updater honesty after the operator's first live update (operator reported, 2026-08-14) | ✅ SHIPPED `aa4e456` + `a63ec76` | Phase 24 ✅ |
 
 **Why 19 waits for 18.6.** Both touch `src/renderer/state/store.ts`. Phase 19's restart fix would be
 written against a file that 18.6 then rewrites. Doing the renderer work together, then the main
@@ -3138,7 +3138,7 @@ armed and unexecuted, and a plain shell in its recorded directory. The end confi
 
 ---
 
-## Phase 28. Process observability after the lid close diagnosis (2026-08-14) ✅ SHIPPED 2026-08-14 (this commit)
+## Phase 28. Process observability after the lid close diagnosis (2026-08-14) ✅ SHIPPED 2026-08-14 (`e9a8731`)
 
 **The event.** On 2026-08-14 the operator closed the laptop lid. On wake, the GPU driver dropped
 the Chromium GPU helper's graphics context. Chromium ended that helper on purpose with code 34 and
@@ -3289,7 +3289,7 @@ stays byte equal. conformance:resume:capture on every commit, the full conforman
 live pane evidence with a test variable proving the value is present in the pane and absent from
 show-environment -g and from the manifest, and smoke:t3 on both restore shapes.
 
-## Phase 30. Skill removal through the skills CLI (user requested, 2026-08-14) ✅ SHIPPED 2026-08-14 (this commit)
+## Phase 30. Skill removal through the skills CLI (user requested, 2026-08-14) ✅ SHIPPED 2026-08-14 (`f33599b`)
 
 **The request.** The skills verb in the Context view should remove a skill fully through the
 skills CLI, instead of sending a file to the Trash. The Phase 22 decision stands behind it. The
@@ -3364,7 +3364,7 @@ gaps around the command.
   agent outside the registry that also links the skill is not listed.
 
 ---
-## Phase 31. Updater honesty after the operator's first live update (operator reported, 2026-08-14) ✅ SHIPPED 2026-08-14 (this commit)
+## Phase 31. Updater honesty after the operator's first live update (operator reported, 2026-08-14) ✅ SHIPPED 2026-08-14 (`aa4e456`, fix round `a63ec76`)
 
 **The incident.** The operator ran Check for Updates on installed 0.19.0. The dialog said 0.19.1
 was downloading and would install on quit. The download completed and Squirrel staged it. ShipIt
@@ -3438,7 +3438,7 @@ on the operator machine, and every number is banked in research 42 section 5.
 
 ---
 
-## Phase 32. The antigravity claim race (operator hit it live, 2026-08-14) ✅ SHIPPED 2026-08-14 (this commit)
+## Phase 32. The antigravity claim race (operator hit it live, 2026-08-14) ✅ SHIPPED 2026-08-14 (`ecdfcad`)
 
 **The race, in 3 sentences.** Two antigravity sessions were open, the first created with no
 turn and the second taking the first turn, so the only conversation directory on disk belonged
@@ -3529,3 +3529,37 @@ reproduction for CodeWhale in an isolated environment. Tier 2 for the tiebreak a
 in documentation rather than code.
 
 **Depends on Phase 32** for the claim transfer semantics and the race test harness.
+
+## Phase 35 — uniform logging with a footprint budget (research 42, 2026-08-14) QUEUED
+
+**Specification.** docs/research/42-logging.md. The research holds the measured peers table, the
+framework decision, the three record schemas and the budget arithmetic.
+
+**The gap.** A packaged build keeps one log file, for the updater only. 184 main process console
+call sites write to a console the shipped app does not have. An uncaught renderer exception is
+fully silent. Five packaged Tortie SIGABRT crash reports dated 2026-08-14 exist only in macOS
+DiagnosticReports with no record inside Tortie. Both of this week's incidents were diagnosed from
+records other processes kept.
+
+**The work.**
+- One bounded NDJSON file per profile at `<userData>/logs/app.log`, written through electron-log 5
+  behind a single wrapper module (src/main/log/index.ts), with write time redaction of the home
+  directory and a 2 MiB plus 2 MiB rotation pair. The first hour is the format function spike
+  named in research 42 section 8, with the fallback named there.
+- crashReporter with uploadToServer false. The run.json sentinel, the next boot Crashpad readdir
+  diff, one boot.unclean_exit record, one quiet durability notice, and a sweep to the newest 5
+  dumps and 30 days.
+- Settings affordances: runtime level switch to debug, Open Logs Folder, and Copy Diagnostics
+  (boot snapshot plus app.log tail plus dump inventory as names, sizes and dates, never dump
+  bytes).
+- Migration: updates.log retires into scope "updates", process gone goes structured, durability
+  notices are mirrored, and the renderer gains window.onerror, unhandledrejection and one error
+  boundary over a typed log:append channel. Harness stdout protocols stay on console untouched.
+- Hard footprint ceiling 13 MB per profile, typical under 4.5 MB. No transmission code path
+  exists, per research 37 and the research 42 section 13 refusals.
+
+**Verification. Tier 2** (no durability path touched). Gates plus unit tests for rotation,
+redaction, the three schemas and the sentinel lifecycle. Probe 1 kills its own instance's GPU
+helper and reads the process.gone record back out of app.log with one jq expression. Probe 2
+sends kill -ABRT to a scratch profile run and confirms the boot.unclean_exit record, the one
+quiet notice, and the dump count. One screenshot read of the notice line.
