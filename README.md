@@ -25,31 +25,38 @@
 If you run coding agents in VS Code or Cursor terminals, but you're tired of
 cmd+\`'ing between windows and losing running agents to every restart,
 Tortie is for you. I built it to scratch my own itch. I don't want an agent
-super app, and I don't want to think about tmux. I just want my agents in
-one window, and I don't want a restart to cost me anything.
+super app, and I don't want to think about tmux. I just want all of my
+projects in one window and be able to easily organize and not lose my agent
+sessions.
 
-## Durable agent sessions
+<p align="center">
+  <img src="tortie.png" alt="The Tortie window: project tabs, session list, terminal and git sidebar" width="900" />
+</p>
+
+## Features
+
+### Durable agent sessions
 
 - **Quit the app and the agents keep working.** Sessions live outside the app process, so the window is just a view.
 - **Reboot and everything comes back.** Scrollback replayed, and each agent's own resume command typed and waiting for your Enter.
 - **Your session list keeps five verified backups of itself,** refreshed automatically as it changes.
 - **If a session didn't come back, Tortie says so.** No green dot on a dead session.
 
-## One window for your projects
+### One window for your projects
 
 - **Every project is a tab.** Switch with `⌘1` through `⌘9`, and each tab scopes its own sessions, git state, tree and editor.
 - **See who needs you at a glance.** Status dots on every session, and `⌘J` jumps to whichever one is waiting on you.
 - **Split, zoom and drag.** Drop one session onto another to split, zoom any pane, drag an image from the tree into an agent.
 - **Nothing new to learn.** Sessions have names. No prefix keys, no detach commands, no config files.
 
-## The agents
+### The agents
 
 - **Twelve agents supported out of the box.** Claude Code, Codex, Cursor, Gemini, Qwen, Muse, Pi, CodeWhale, Antigravity, Droid and plain shells, each with its own icon, hotkey and launch flags.
 - **Add your own with one JSON file.** No rebuild, nothing in the file runs as code, and anything that could start a process asks you first.
 - **See what your agents actually load.** The Context view lists every skill, MCP server, hook, plugin and instruction file on your machine, per agent, and installs skills from GitHub.
 - **Conversations are captured.** The bundled SpecStory integration records each session's conversation as it happens.
 
-## Familiar IDE features
+### Familiar IDE features
 
 - **A full git sidebar.** Staging, history, branches and a commit graph, built from VS Code's own parsers.
 - **Click a file, see the diff.** Monaco opens modified files as a diff against HEAD by default, and plain editing is one toggle away.
