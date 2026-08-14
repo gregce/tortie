@@ -3744,3 +3744,26 @@ a unit test: no filesystem write of any kind happens before Enter commits a vali
 - The live probe drove 23 steps through the real app on a harness socket, including a
   screenshot read of the open editor with the refusal reason under the box. After Escape and
   after every refusal the scratch repo held only `.git` and `README.md`.
+
+## Phase 38 — a session group survives closing its project (user reported, 2026-08-14) QUEUED
+
+**The report, operator verbatim in substance.** Drag one session onto another and a multiplexed
+group exists. Close the project and reopen it: every session is still there, but the grouped
+orientation is gone. The sessions outlive the project tab and the layout does not.
+
+**The research question, answered inside the phase before any code.** Where does split and group
+state live (renderer store slice, localStorage, the manifest, or nowhere), what key holds it (a
+stable project path or an ephemeral tab id), and what exactly clears it on project close versus
+app restart. The diagnosis must reproduce the loss live in an isolated instance before the spec
+is written, and the fix must follow the architecture rule: layout is UI state, never
+durability-critical state, so it belongs in app storage keyed by something that survives, never
+in the tmux layer.
+
+**Verification. Tier 2 plus one Tier 3 shaped probe.** Live in an isolated instance: build a
+group of 3 real sessions with two split orientations, close the project, reopen it, and prove
+the orientation is byte-equal in the persisted record and visually equal in a screenshot read.
+Then quit the app entirely and relaunch, same proof, because restart is the neighbor case users
+hit next. A regression test pins the persistence key so a later refactor cannot silently move it
+back to an ephemeral id.
+
+**Semver.** fix, patch bump.
