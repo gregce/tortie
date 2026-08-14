@@ -3201,7 +3201,7 @@ targeted probe and one screenshot read.
 
 ---
 
-## Phase 29 — session history: browse and restore removed sessions (user requested, 2026-08-14) ✅ SHIPPED 2026-08-14 (this commit)
+## Phase 29 — session history: browse and restore removed sessions (user requested, 2026-08-14) ✅ SHIPPED 2026-08-14 (`d08ab00`)
 
 **Specification.** docs/research/39-session-history.md. The research holds the verified facts, the
 three competing designs, the adversarial verdicts and the winning interaction in full.
@@ -3313,7 +3313,7 @@ The browse surface is Tier 2, one targeted probe and one screenshot read of the 
 | smoke:t3 | pass, claude and pi shapes restored with armed, unexecuted resume commands |
 | conformance:resume:capture | 6 pass, 0 fail, 0 blocked, 4 skip in 20.1 s |
 | conformance:agents | pass |
-| operator tmux sessions | 21 before, 21 after, read only |
+| operator tmux sessions | 21 before the build and 23 after it; the operator created the two extra sessions in the live app during the run. Verification counted 23 before and 23 after, read only |
 
 **What is not true.** The live panel roundtrip in a running window, being remove, browse, search
 and restore from the tombstone in a real pane, is the verifier's evidence to produce, not the
