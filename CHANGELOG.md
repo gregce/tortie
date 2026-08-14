@@ -7,91 +7,73 @@ This file does not restate it.
 
 ## 0.18.0 (2026-08-13)
 
-The first tagged release. The version jumps from 0.0.1 to 0.18.0 because the
-minor number is seeded from the phase the release ships from, and this
-repository thinks in phases. The rules for future bumps are in
-docs/research/27-release-and-updates.md section 3.
+Welcome to Tortie. This is the first release you can download and install.
 
-### Tortie now ships under Itavero, signed and notarized
+Tortie is a calm home for your coding agents on macOS. You open your
+projects as tabs in one window, start Claude Code, Codex, Cursor or any of
+twelve supported agents with a keystroke, and the work keeps running whether
+the window is open or not. Quit the app, reboot the Mac, come back tomorrow.
+Your sessions are still there, with their scrollback, ready to continue the
+conversation where it stopped.
 
-The bundle identifier changed from `com.specstory.tortie` to
-`com.itavero.tortie`, because Tortie belongs to Itavero. The build is signed
-with a Developer ID and notarized, which means Apple has checked the app and
-recorded it, so another Mac opens it without the right-click ritual an
-unsigned app needs.
+### Signed and notarized, so it just opens
 
-What this means on a machine that already runs Tortie:
+Tortie is signed with a Developer ID and notarized by Apple. Download it,
+drag it to Applications, and it opens. No warning dialogs, no right-click
+ritual.
 
-- Your data does not move. The data directory follows the app's name, which
-  is unchanged, not the bundle identifier.
-- Your sessions are not touched. They live in the private tmux server,
-  outside the app.
-- macOS asks again for each permission you had granted, once. macOS keys
-  permission grants to the bundle identifier and to the signing identity, and
-  both changed in this release. This is the last identity change, so it is
-  the last such reset.
-- If Tortie was set to open at login, it re-registers itself on first launch
-  from your recorded preference and tells you if macOS refuses.
+If you already run Tortie from an earlier build, macOS will ask again for
+each permission you had granted, one time. That is because the app's
+identity changed in this release, to `com.itavero.tortie`, and macOS ties
+permissions to identity. Your data and your sessions are not touched, and
+this identity is the final one, so this is the last time.
 
-The SpecStory integration keeps its name everywhere. It is a separate product
-that Tortie talks to.
+### What you can do
 
-### What you can now do
+- **Keep your sessions forever.** End a session and bring it back later,
+  scrollback and all, with the agent's resume command typed and waiting for
+  your Enter.
+- **See what your agents actually load.** The Context view lists every
+  skill, MCP server, hook, plugin and instruction file on your machine, per
+  agent, and can install a skill from GitHub.
+- **Add your own agent.** A new CLI Tortie has never heard of takes one
+  JSON file, no rebuild. Nothing in that file can run code, and anything
+  that could start a process asks you first.
+- **Start fast.** A home screen lists your recent projects, and you can
+  clone a repository from the File menu with a real progress bar.
+- **Preview files.** Markdown and HTML render inside the app, with
+  untrusted pages locked in a frame that can do nothing.
 
-| You can now | Where | Phase |
-| --- | --- | --- |
-| Restore an ended session, with its scrollback replayed and the agent's resume command armed and unexecuted | the Restore button beside Restart on an ended session | 26.3 |
-| See what your agents load and install a skill from GitHub. The Context view has five sections: skills, MCP servers, hooks, plugins and instructions | the Context view in the left rail | 22 |
-| Add an agent Tortie never shipped, or repoint one it did, without a rebuild | `agents.json` in the configuration folder, opened from the Tortie menu | 23 |
-| Start from a home screen that lists your recent projects | the window before a project is open | 18.6 |
-| Clone a repository, with one progress bar per git phase | the File menu | 18.6 |
-| Preview an HTML file inside the app | the Preview, Source and Split control on an `.html` tab | 20.5 |
-| Rebuild the session list from backups if the session database is ever lost | the menu item "Rebuild the Session List…" | 20 |
+### What protects your work
 
-### What protects your work now
+Most of this release is invisible. It is the part that makes the durability
+promise true rather than hopeful.
 
-These changes are invisible until something goes wrong, and they are most of
-what this release contains.
-
-- The session database, the one file whose loss strands every session, now
-  keeps a ring of five verified backup copies beside it. A copy is taken at
-  launch, on sleep, on quit, before a migration, and otherwise at most every
-  5 minutes when the content changed.
+- Your session list keeps five verified backup copies beside it, refreshed
+  at launch, on sleep, on quit and every few minutes while things change.
+  A menu item can rebuild the list from those copies if the worst happens.
 - A full disk or a power cut during a save can no longer replace a good
-  snapshot with an empty one. Every durable write is checked for size and
-  content before it is published, and a capture that did not happen is
-  reported instead of silently skipped.
-- Restore reports what actually happened. A session that did not come back
-  says so. It never claims to be running when it is not.
-- Each session row records how its agent resumes a conversation, so a later
-  change to the agent registry cannot make restore guess and lose a
-  conversation that had a recorded answer.
-- A fault harness kills the app at 16 chosen points, relaunches it and proves
-  what survived. It runs as a gate, not as a one-time experiment.
-- The session database now carries its own compatibility numbers. An older
-  Tortie that opens a newer database refuses, on a screen that says why,
-  instead of quietly writing rows the newer build cannot restore. The refusal
-  costs visibility and not work, because the sessions keep running in the
-  private tmux server either way.
+  copy with a bad one. Every important write is verified before it counts.
+- The app was killed on purpose at 16 of its worst possible moments, in an
+  automated harness, and everything came back every time. That harness now
+  runs as a permanent gate on every change.
+- Restore tells the truth. A session that did not come back says so,
+  instead of pretending.
 
-### Fixes
+### Honest notes
 
-| Fix | Phase |
-| --- | --- |
-| The window's three resizable regions respect each other. An open file can no longer crush the session tab strip | 18 |
-| Zoom reaches the search view, and every sidebar view added later is zoomable on the day it ships | 18.55 |
-| The DeepSeek CLI renamed itself to codewhale. Both names are detected now, so a fresh machine finds it | 25.5 |
-| Four Context sidebar defects from the first morning of real use, including a raw git error that could not be dismissed | 26 to 26.2 |
+- This build does not update itself yet. The updater is written and tested
+  and arrives in the next release. Until then, an update is a download and
+  a drag.
+- The backups live on the same disk as the original. An off-machine copy is
+  a planned, separate feature.
+- Once this build has opened your session data, older builds refuse to open
+  it. That is deliberate, and your sessions keep running either way.
 
-### What is still not true
+### Install
 
-- Tortie does not update itself. An update is a download and a drag to
-  Applications. The updater is the next phase.
-- The backup ring lives on the same disk as the database it protects. A
-  failed drive takes both. A copy kept away from this machine is a later,
-  separate item.
-- Once this build has opened your session database, a Tortie older than
-  0.18.0 refuses to open it. That is deliberate and it only goes one way.
+macOS on Apple silicon. Download the DMG, open it, drag Tortie to
+Applications, and point it at a project folder.
 
 ## 0.0.1
 
