@@ -3767,3 +3767,29 @@ hit next. A regression test pins the persistence key so a later refactor cannot 
 back to an ephemeral id.
 
 **Semver.** fix, patch bump.
+
+## Phase 39 — Open With on every file row (user requested, 2026-08-14) QUEUED
+
+**The request.** Right clicking a file in the explorer should offer what Finder offers: open the
+file in an app of the user's choice. The operator's screenshot shows Finder's Open With submenu
+with the default app marked and the registered apps listed.
+
+**Why this passes the parity guardrail.** Agents produce artifacts that are not code, e.g. a DMG,
+a PNG or a transcript. Opening one in the right app today means leaving Tortie for Finder, which
+breaks the one window promise.
+
+**The design boundary.** Native menus via the ui:popupMenu bridge, never DOM drawn. The submenu
+lists the apps macOS registers for that file, with the default first and marked, then
+"Other..." which must hand off to the system's own chooser rather than rebuilding it. Launch is
+by spawning the system open command with the chosen app, never by loading anything into a Tortie
+process. The app list discovery mechanism is the spec's one research question: it must use only
+system binaries the OS ships, add zero dependencies and zero native code, and degrade to a plain
+"Open in Default App" item plus "Other..." if enumeration proves unreliable or slow. Measure the
+enumeration cost and cache per extension for the session.
+
+**Verification. Tier 2.** A live probe right clicks a real file in an isolated instance,
+captures the submenu items, opens the file with a chosen non default app, and proves the child
+process spawned with the expected argv. One screenshot read. The menu build must stay under 150
+ms on first use for a common extension, measured.
+
+**Semver.** feat, minor bump.
