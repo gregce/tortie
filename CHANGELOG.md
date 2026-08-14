@@ -5,6 +5,15 @@ says what you can now do that you could not before, and what is still not
 true. The build story itself lives in the git history and in docs/BACKLOG.md.
 This file does not restate it.
 
+## 0.19.1 (2026-08-14)
+
+A small one, and the first release Tortie delivers to you by itself. If you
+are running 0.19.0, this update announces itself in the Tortie menu and
+installs when you quit. Your sessions keep running the whole time.
+
+- The About panel now credits gregce, with the repository address, instead
+  of reading SpecStory.
+
 ## 0.19.0 (2026-08-14)
 
 This is the last release you install by hand.
