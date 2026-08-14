@@ -37,6 +37,7 @@ the wordmark is a wordmark. Revisit only if the operator asks.
 | 11 | **24** self update | ✅ SHIPPED 2026-08-13 | the release lane ✅. The app is now signed, so this is unblocked |
 | — | ~~Release lane, second half: signing, notarization, the updater~~ | signing and notarization shipped with Phase 27. The updater is Phase 24 | the issuer identifier was never needed. Notarization uses the Apple ID, the team id and an app specific password, the deadreckon shape |
 | 12 | **28** process observability after the lid close diagnosis | ✅ SHIPPED 2026-08-14 (this commit) | — |
+| 13 | **29** session history: browse and restore removed sessions | QUEUED | spec is docs/research/39-session-history.md |
 
 **Why 19 waits for 18.6.** Both touch `src/renderer/state/store.ts`. Phase 19's restart fix would be
 written against a file that 18.6 then rewrites. Doing the renderer work together, then the main
@@ -3180,3 +3181,71 @@ targeted probe and one screenshot read.
 - Not verified, stated plainly. The retry failure branch never ran live, because a healthy GPU
   grants the new context. A real renderer death was not observed live. Nothing here persists
   stdout in a packaged build. The lines go to the same stream the rest of main already uses.
+
+---
+
+## Phase 29 — session history: browse and restore removed sessions (user requested, 2026-08-14) QUEUED
+
+**Specification.** docs/research/39-session-history.md. The research holds the verified facts, the
+three competing designs, the adversarial verdicts and the winning interaction in full.
+
+**The request.** A user who removes a session cannot get back to it today, even though the
+manifest stored its conversation id. The operator wants to browse what past sessions were, by
+name, and restore one, whether the removal was a mistake or a choice.
+
+**The root cause.** Remove ends in `deleteSession` (`src/main/manifest/store.ts:1614`), a hard SQL
+DELETE. Every field a restore needs dies with the row. The status alphabet already reserves
+`'discarded'` as the tombstone for a reversible remove (`src/shared/types.ts:53`), and reconcile
+already refuses to resurrect such a row (`store.ts:1867`), but nothing writes it. On the operator
+machine 25 sessions were removed in about 2 days, and every removed non-shell row carried a
+conversation id and a resume argv when it was removed. The only durable survivors of a removal
+today are the SpecStory markdown and the agent's own transcript store, and neither is a
+restorable session.
+
+**What ships.**
+- Migration 010 adds one nullable `removed_at` column. `last_seen` means "last confirmed alive in
+  tmux", so it cannot order a removal list honestly.
+- `discardSession` (`src/main/sessions/core.ts:2447`) writes `status = 'discarded'` and
+  `removed_at` instead of deleting. It still releases the conversation claim. It still deletes
+  the snapshot generations and the hook settings file, so restore returns the conversation and
+  not the screen, and the panel says so.
+- Restart (`src/main/restart/restart.ts:123`) and failed-create cleanup (`core.ts:2242`) keep the
+  hard delete. A tombstoned restart leftover would put two rows with one name and one
+  conversation id in play.
+- A prune at manifest open hard deletes discarded rows whose `removed_at` is older than 90 days,
+  through the existing `deleteSession`. There is no Delete Forever verb.
+- A "Past Sessions…" item at the bottom of the Session menu opens a panel shaped like the create
+  modal. Rows come from every project, newest first by `removed_at`, with a search field for name
+  and project. Each row states before the click whether Restore continues the conversation or
+  starts fresh, computed from `agent_session_id` and `resume_argv` both being present.
+- Restore runs the Phase 26.3 path. The first build task is proving that path accepts a row
+  arriving from `'discarded'` and re-acquires the conversation claim that removal released
+  (`src/main/manifest/harvest/watch.ts:161`). No design traced this, and it is the one unknown
+  that could force rework.
+- The Remove confirm stays. Its copy becomes "Remove 'name'? It moves to Past Sessions and you
+  can restore it from there."
+
+**Refusals that bind the build.**
+- No reopen shortcut. Restoring starts a process, and the user reads the name first.
+- No badge and no count anywhere. Nothing notifies.
+- No backfill from the backup ring or the keepsake file. Rows removed before this ships stay
+  unrecoverable.
+- Discarded rows never appear in the session list. They never appear in search or in Context.
+  They never signal.
+
+**Verification.** Split tier, stated per CLAUDE.md. The data layer is Tier 3, because it touches
+the manifest and the restore path.
+- Drive a real cycle in a live shot instance. Remove an agent session, find it in Past Sessions,
+  restore it, and prove the resume command is armed and unexecuted, for a claude shape and a
+  non-claude shape.
+- Prove the prune with a row whose `removed_at` is set 91 days back, and prove a row at 89 days
+  survives.
+- Run `conformance:resume:capture` and `conformance:agents`, because restore and manifest code is
+  touched.
+The browse surface is Tier 2, one targeted probe and one screenshot read of the panel.
+
+**What must not regress.**
+- Phase 26.3 Restore for an ended session that is still listed.
+- The Phase 19 restart ordering, where nothing is discarded until the replacement exists.
+- Status semantics. A discarded row never sets "needs input".
+- The reconcile refusal at `store.ts:1867`, which must keep ignoring discarded rows.
