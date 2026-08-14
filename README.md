@@ -1,86 +1,82 @@
-# TORTIE.sh
+<p align="center">
+  <img src="docs/brand/tortie/dock/tortie-dock-256.png" width="128" alt="Tortie" />
+</p>
 
-**A calm, durable home for your coding agents.**
+<h1 align="center">Tortie</h1>
 
-Tortie is a macOS shell for agentic work. You open your projects, you start
-Claude Code or Codex or Cursor or any of twelve supported agents by hotkey, and the work
-keeps running whether the window is open or not. Close the app, update it,
-reboot the machine. Your sessions come back, with their conversations.
+<p align="center"><b>A calm agent multiplexer with familiar IDE features, for macOS.</b></p>
 
-![Tortie](docs/brand/tortie/dock/tortie-dock-128.png)
+<p align="center">
+  <a href="https://github.com/gregce/tortie/releases/latest">
+    <img src="https://img.shields.io/badge/Download_for_macOS-Apple_silicon-4D9DE8?style=for-the-badge&logo=apple&logoColor=white" alt="Download for macOS" />
+  </a>
+</p>
 
-## One window for your projects
+<p align="center">
+  <a href="https://github.com/gregce/tortie/releases/latest"><img src="https://img.shields.io/github/v/release/gregce/tortie?style=flat-square&label=release&color=4D9DE8" alt="Latest release" /></a>
+  <a href="https://github.com/gregce/tortie/releases"><img src="https://img.shields.io/github/downloads/gregce/tortie/total?style=flat-square&label=downloads&color=2A2E36" alt="Downloads" /></a>
+  <a href="https://github.com/gregce/tortie/actions/workflows/gates.yml"><img src="https://img.shields.io/github/actions/workflow/status/gregce/tortie/gates.yml?style=flat-square&label=gates" alt="Gates" /></a>
+  <a href="https://github.com/gregce/tortie/actions/workflows/durability.yml"><img src="https://img.shields.io/github/actions/workflow/status/gregce/tortie/durability.yml?style=flat-square&label=durability" alt="Durability" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/gregce/tortie?style=flat-square&label=license&color=2A2E36" alt="License" /></a>
+</p>
 
-Every project is a tab in one window. Switch with `⌘1` through `⌘9`. No more
-one editor window per repository, no more hunting through a window switcher to
-find the agent you left working. The file tree, the git sidebar and the
-terminal sessions all scope to the project you are looking at.
+---
 
-## Durable agent sessions
+You run six coding agents across four repos, and every one of them dies when
+the window closes. Tortie is one calm window where named sessions host your
+agents, and the sessions outlive the app. Quit Tortie, update it, reboot the
+Mac. The work keeps running, and what ended comes back with its scrollback
+and its conversation, one keypress from continuing.
 
-This is the reason Tortie exists. Sessions started in Tortie live in a private tmux server
-that runs outside the app, so the app is just a window projecting them.
+## Sessions that refuse to die
 
-- Quit Tortie. The agents keep working.
-- Tortie crashes or updates itself. The agents keep working.
-- Reboot your Mac. Tortie will restore every session, replays its scrollback, and
-  arms each agent's own resume command so one keypress continues the
-  conversation where it stopped.
+- **Quit the app and the agents keep working.** Sessions live outside the app process, so the window is just a view.
+- **Reboot and everything comes back.** Scrollback replayed, and each agent's own resume command typed and waiting for your Enter.
+- **Your session list keeps five verified backups of itself,** refreshed on launch, sleep, quit and change.
+- **Restore tells the truth.** A session that did not come back says so, instead of pretending.
 
-Your session list is copied and verified continuously, generations deep, so even the record of your work has a backup.
+## One window for everything
 
-## Intuitive multiplexing
+- **Every project is a tab.** Switch with `⌘1` through `⌘9`, and each tab scopes its own sessions, git state, tree and editor.
+- **See who needs you at a glance.** Status dots on sessions, roll-ups on tabs, `⌘J` to jump to the session waiting on you.
+- **Split, zoom and drag.** Drop one session onto another to split, zoom any pane, drag an image from the tree into an agent.
+- **No multiplexer vocabulary.** Sessions have names. That is the entire model you learn.
 
-Name a long running session and Tortie will retain it. Split panes by dragging one session
-onto another. Zoom any pane. Drag an image from the file tree into an agent.
-See at a glance which session needs your input, and jump to it with `⌘J`.
+## Your agents, first class
 
-There is a full terminal multiplexer underneath, and you don't need to learn it. No
-prefix keys, no detach commands, no configuration files. Sessions have names,
-and the Tortie window is the whole interface.
+- **Twelve agents ship supported.** Claude Code, Codex, Cursor, Gemini, Qwen, Muse, Pi, CodeWhale, Antigravity, Droid and plain shells, each with its own icon, hotkey and launch flags.
+- **Add your own with one JSON file.** No rebuild, nothing in the file runs as code, and anything that could start a process asks you first.
+- **See what your agents actually load.** The Context view lists every skill, MCP server, hook, plugin and instruction file on your machine, per agent, and installs skills from GitHub.
+- **Conversations are captured.** The bundled SpecStory integration records each session's conversation as it happens.
 
-## Feels like VS Code
+## The IDE you already know
 
-Tortie has the IDE features you already know, so there is little to nothing to learn.
-
-- A rich git sidebar with staging, history, branches and a commit graph.
-- A file tree based on @pierre/trees with git status colouring and the icons like you are used to. 
-- Click a file to read it, edit it with Monaco, diff it with @pierre/diffs against HEAD. 
-- Project-wide search on ripgrep, fast on very large trees.
-- Search is available against all open projects in your Tortie window so you can easily find files across your projects.
-
-### Agent Era Specific Features
-- A full context menu so that you can easily see all of the Skills, MCP Servers, Hooks, Plugins and Instruction files installed across your machine and manage them.
-  - You can easily 
-- Markdown and HTML files offer rich preview by default in Tortie. Untrusted pages are locked in a frame.
-
-## The agents
-
-Claude Code, Codex, Cursor, Qwen, Muse, Pi, Codewhale, Antigravity, Gemini
-Droid and plain shells. Each with its own icon, its own hotkey, its own
-launch flags, and its own resume strategy.
-
-A new agent Tortie has never heard of? Add it yourself with one JSON file. 
-
-No rebuild, nothing runs as code, and anything that could start an agent you add will ask you directly.
+- **A real git sidebar.** Staging, history, branches and a commit graph, built from VS Code's own parsers.
+- **Click a file, see the diff.** Monaco opens modified files as a diff against HEAD by default, and plain editing is one toggle away.
+- **A decorated file tree** with git status colors and the icons you are used to.
+- **Search everything at once.** ripgrep across every open project, fast on large trees.
+- **Rich previews.** Markdown and HTML render in place, and untrusted pages are locked in a frame that can do nothing.
 
 ## What Tortie refuses to do
 
 - It never touches your own tmux server or `~/.tmux.conf`.
 - It never adopts a terminal session it did not create.
-- It never renders a `.env`, a key file or anything that looks like a secret as a friendly preview.
+- It never renders a key file or anything that looks like a secret as a friendly preview.
+- It never runs third party code inside its own processes. Configuration selects, it never executes.
 
 ## Install
 
-macOS on Apple silicon. Download the latest release, drag Tortie to
-Applications, open it, and point it at a project folder. A git repository gets
-the full sidebar; any folder works.
+macOS on Apple silicon.
+
+1. [Download the latest release](https://github.com/gregce/tortie/releases/latest) and open the DMG.
+2. Drag **Tortie** to Applications and open it.
+3. Point it at a project folder. A git repository gets the full sidebar; any folder works.
 
 ## More
 
 - Philosophy: [`docs/ZEN-OF-TORTIE.md`](docs/ZEN-OF-TORTIE.md)
+- Release notes: [`CHANGELOG.md`](CHANGELOG.md)
 - Building from source and contributing: [`DEVELOPMENT.md`](DEVELOPMENT.md)
-- Licence: Apache 2.0, see [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE)
+- License: Apache 2.0, see [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE)
 
-Made by [Itavero](https://github.com/gregce). The sessions were never
-interrupted.
+<p align="center">Made by <a href="https://github.com/gregce">Itavero</a>.<br /><i>The sessions were never interrupted.</i></p>
