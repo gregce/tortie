@@ -22,47 +22,47 @@
 
 ---
 
-You run six coding agents across four repos, and every one of them dies when
-the window closes. Tortie is one calm window where named sessions host your
-agents, and the sessions outlive the app. Quit Tortie, update it, reboot the
-Mac. The work keeps running, and what ended comes back with its scrollback
-and its conversation, one keypress from continuing.
+If you run coding agents in VS Code or Cursor terminals, but you're tired of
+cmd+\`'ing between windows and losing running agents to every restart,
+Tortie is for you. I built it to scratch my own itch. I don't want an agent
+super app, and I don't want to think about tmux. I just want my agents in
+one window, and I don't want a restart to cost me anything.
 
 ## Durable agent sessions
 
 - **Quit the app and the agents keep working.** Sessions live outside the app process, so the window is just a view.
 - **Reboot and everything comes back.** Scrollback replayed, and each agent's own resume command typed and waiting for your Enter.
-- **Your session list keeps five verified backups of itself,** refreshed on launch, sleep, quit and change.
-- **Restore tells the truth.** A session that did not come back says so, instead of pretending.
+- **Your session list keeps five verified backups of itself,** refreshed automatically as it changes.
+- **If a session didn't come back, Tortie says so.** No green dot on a dead session.
 
 ## One window for your projects
 
 - **Every project is a tab.** Switch with `⌘1` through `⌘9`, and each tab scopes its own sessions, git state, tree and editor.
-- **See who needs you at a glance.** Status dots on sessions, roll-ups on tabs, `⌘J` to jump to the session waiting on you.
+- **See who needs you at a glance.** Status dots on every session, and `⌘J` jumps to whichever one is waiting on you.
 - **Split, zoom and drag.** Drop one session onto another to split, zoom any pane, drag an image from the tree into an agent.
-- **No multiplexer vocabulary.** Sessions have names. That is the entire model you learn.
+- **Nothing new to learn.** Sessions have names. No prefix keys, no detach commands, no config files.
 
 ## The agents
 
-- **Twelve agents ship supported.** Claude Code, Codex, Cursor, Gemini, Qwen, Muse, Pi, CodeWhale, Antigravity, Droid and plain shells, each with its own icon, hotkey and launch flags.
+- **Twelve agents supported out of the box.** Claude Code, Codex, Cursor, Gemini, Qwen, Muse, Pi, CodeWhale, Antigravity, Droid and plain shells, each with its own icon, hotkey and launch flags.
 - **Add your own with one JSON file.** No rebuild, nothing in the file runs as code, and anything that could start a process asks you first.
 - **See what your agents actually load.** The Context view lists every skill, MCP server, hook, plugin and instruction file on your machine, per agent, and installs skills from GitHub.
 - **Conversations are captured.** The bundled SpecStory integration records each session's conversation as it happens.
 
 ## Familiar IDE features
 
-- **A real git sidebar.** Staging, history, branches and a commit graph, built from VS Code's own parsers.
+- **A full git sidebar.** Staging, history, branches and a commit graph, built from VS Code's own parsers.
 - **Click a file, see the diff.** Monaco opens modified files as a diff against HEAD by default, and plain editing is one toggle away.
 - **A decorated file tree** with git status colors and the icons you are used to.
 - **Search everything at once.** ripgrep across every open project, fast on large trees.
-- **Rich previews.** Markdown and HTML render in place, and untrusted pages are locked in a frame that can do nothing.
+- **Rich previews.** Markdown and HTML render in place. Untrusted pages open in a sandboxed frame with no scripts and no network.
 
 ## What Tortie refuses to do
 
 - It never touches your own tmux server or `~/.tmux.conf`.
 - It never adopts a terminal session it did not create.
 - It never renders a key file or anything that looks like a secret as a friendly preview.
-- It never runs third party code inside its own processes. Configuration selects, it never executes.
+- It never runs third party plugin code inside its own processes. Adding an agent is configuration, not code.
 
 ## Install
 
@@ -71,6 +71,25 @@ macOS on Apple silicon.
 1. [Download the latest release](https://github.com/gregce/tortie/releases/latest) and open the DMG.
 2. Drag **Tortie** to Applications and open it.
 3. Point it at a project folder. A git repository gets the full sidebar; any folder works.
+
+## Built with
+
+Tortie is deliberately assembled from open source rather than written from
+scratch. The code it owns is the durability layer and the glue.
+
+- [tmux](https://github.com/tmux/tmux) holds the sessions. It is the reason your agents survive.
+- [Electron](https://www.electronjs.org/) is the window.
+- [xterm.js](https://github.com/xtermjs/xterm.js) draws the terminals.
+- [Monaco](https://github.com/microsoft/monaco-editor) is the editor, the same one inside VS Code.
+- [Pierre](https://pierre.co/)'s [@pierre/trees](https://www.npmjs.com/package/@pierre/trees) and [@pierre/diffs](https://www.npmjs.com/package/@pierre/diffs) render the file tree and the diffs.
+- [ripgrep](https://github.com/BurntSushi/ripgrep) runs the search.
+- [VS Code](https://github.com/microsoft/vscode) is the source of the vendored git parsers, fuzzy scorer, commit graph layout and [codicons](https://github.com/microsoft/vscode-codicons), all with attribution.
+- [material-icon-theme](https://github.com/material-extensions/vscode-material-icon-theme) supplies the file icons.
+- [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) stores the session manifest.
+- [node-pty](https://github.com/microsoft/node-pty) connects the shells.
+- [SpecStory](https://specstory.com/) captures agent conversations.
+
+The full list with licenses is in [`NOTICE`](NOTICE).
 
 ## More
 
