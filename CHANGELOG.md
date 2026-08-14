@@ -5,6 +5,35 @@ says what you can now do that you could not before, and what is still not
 true. The build story itself lives in the git history and in docs/BACKLOG.md.
 This file does not restate it.
 
+## 0.19.0 (2026-08-14)
+
+This is the last release you install by hand.
+
+### Tortie now updates itself
+
+From this version on, Tortie checks for updates on its own, 30 seconds
+after launch and then every 6 hours. When one is ready, a single menu item
+appears under the Tortie menu reading "Update to X.Y.Z, installs when you
+quit". No popup, no badge. The update installs when you quit, and your
+sessions keep running through the swap, because they live outside the app.
+You can also check any time with "Check for Updates" under About Tortie.
+
+A few honest details:
+
+- A copy of 0.18.0 cannot update itself, because the updater arrived after
+  it shipped. Install this version by hand, and it is the last time.
+- A corrupted or tampered download is refused and nothing changes.
+- After an update, Tortie checks its own bundled files on first launch and
+  tells you once if anything is missing.
+
+### Better behavior around sleep and wake
+
+Closing the laptop lid could leave a terminal pane drawing on a slower
+path until you restarted the pane. Now every wake retries the fast
+renderer, and the pane recovers on its own. Tortie also writes one log
+line whenever a helper process dies, with the reason and the decoded exit
+code, so a rare crash leaves a record instead of a mystery.
+
 ## 0.18.0 (2026-08-13)
 
 Welcome to Tortie. This is the first release you can download and install.
