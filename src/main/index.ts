@@ -165,6 +165,9 @@ import { reapOrphanedTmuxClients } from './proc/orphans';
 import { initUpdater } from './updates/updater';
 import { runPostUpdateSelfCheck } from './updates/self-check';
 import { registerUpdatesIpc } from './updates/ipc';
+// Phase 31: the refusal surface. The first launch after a failed install
+// says why, once, from the evidence Squirrel left on disk.
+import { announceRefusedInstallIfAny } from './updates/ui';
 
 // Phase 13.8: say our name before anything else runs — app.setName feeds the
 // menu bar, the About panel and app.getPath('userData'), and process.title is
@@ -1954,6 +1957,14 @@ app.whenReady().then(async () => {
     }
     console.error(`[gmux] core boot failed: ${(err as Error).message}`);
   });
+
+  // Phase 31: the refusal surface. If the last run promised an install and
+  // this launch still runs the old version, one dialog names the reason.
+  // This call must come BEFORE the self check below. The refusal decision
+  // reads lastSeenVersion to tell "no install happened" apart from "some
+  // other install happened", and the self check rewrites that field on the
+  // same launch. Fire and forget; it never rejects.
+  void announceRefusedInstallIfAny();
 
   // Phase 24: the post update self check. On the first boot after the
   // version changes it verifies the bundled resources resolve on disk and

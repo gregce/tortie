@@ -10,7 +10,7 @@
  * quitAndInstall call below passes zero arguments, so the argument rename
  * costs nothing.
  *
- * THE THREE REFUSALS THIS MODULE ENFORCES.
+ * THE RULES THIS MODULE AND ITS SURFACES ENFORCE.
  *
  * 1. Never check at launch. Boot is when restore replays scrollback, and an
  *    update check has no business competing for that moment. The first check
@@ -21,6 +21,27 @@
  *    itself. An app that restarts itself is an app that decides for you. The
  *    single sanctioned call site is installStagedUpdateNow, reached only from
  *    the staged dialog's Update Now button.
+ * 4. Staged means STAGED BY THE OS UPDATER, not downloaded (Phase 31). The
+ *    library's public update-downloaded event fires when its own download
+ *    finishes, about 1.6 seconds BEFORE Squirrel has verified, staged and
+ *    submitted the ShipIt job. A quit in that gap installs nothing, which is
+ *    measured, not guessed (build/update-rehearsal.mjs). So stagedVersion
+ *    flips only when Electron's native autoUpdater emits update-downloaded,
+ *    and the menu item and the ready dialog both appear at that honest
+ *    moment. The ready dialog in ./ui.ts is a sanctioned surface, shown once
+ *    and only after a check the user started.
+ * 5. A failed install is said out loud once (Phase 31). The library event
+ *    records the promise (pendingVersion, pendingRecordedAt) in updates.json,
+ *    and the first launch after a broken promise shows one dialog naming the
+ *    reason read from ShipIt's own log. That surface is ./refusal-check.ts
+ *    plus ./ui.ts, and it is the second sanctioned dialog outside a user
+ *    initiated check, allowed because it reports a failure.
+ *
+ * LOGGING (Phase 31). Every line this module logs, including everything
+ * electron-updater says through the logger hook below, goes through
+ * ./log.ts, which also appends it to <userData>/logs/updates.log in
+ * packaged builds. The next incident must not depend on Squirrel's cache
+ * being the only record.
  *
  * THE FEED OVERRIDE GATE, for the update rehearsal and for nothing else.
  * TORTIE_UPDATE_FEED points the updater at a generic feed, and the URL is
@@ -58,10 +79,15 @@
  * Ownership: src/main/updates/updater.ts (Builder A, Phase 24).
  */
 
-import { app } from 'electron';
+// autoUpdater from 'electron' is the ELECTRON BUILTIN wrapping Squirrel.Mac,
+// not electron-updater, so the one module rule for electron-updater holds.
+// The native staged listener below rides beside the library's own listener
+// on the same ordinary EventEmitter, so neither disturbs the other.
+import { app, autoUpdater as nativeUpdater } from 'electron';
 import type { UpdateInfo } from 'electron-updater';
 import { autoUpdater } from 'electron-updater';
 import type { UpdateUiState } from '@shared/ipc';
+import { logUpdateEvent } from './log';
 import { readUpdateState, writeUpdateState } from './state';
 import { activeTmuxSocket, TMUX_SOCKET } from '../tmux/supervisor';
 
@@ -86,11 +112,11 @@ const FIRST_CHECK_DELAY_MS = 30_000;
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
 function logInfo(message: string): void {
-  console.log(`[gmux-updates] ${message}`);
+  logUpdateEvent('info', message);
 }
 
 function logWarn(message: string): void {
-  console.warn(`[gmux-updates] ${message}`);
+  logUpdateEvent('warn', message);
 }
 
 /** Renders whatever electron-updater hands its logger into one line. */
@@ -136,7 +162,13 @@ export function feedOverrideDecision(
 // State this module holds for the surfaces (menu, dialogs, Settings row)
 // ---------------------------------------------------------------------------
 
-/** Version of the update that is downloaded and staged, or null. */
+/**
+ * Version the library finished downloading, before Squirrel stages it.
+ * Internal, drives nothing visible. It exists because the native staged
+ * event carries no version, so the pairing is ours.
+ */
+let downloadedVersion: string | null = null;
+/** Version staged by the OS updater. A quit from here installs it. */
 let stagedVersion: string | null = null;
 /** When a check last completed in this run; falls back to updates.json. */
 let lastCheckedAt: number | null = null;
@@ -238,12 +270,39 @@ export function initUpdater(): void {
     logInfo(`rehearsal feed override accepted: ${decision.url}`);
   }
 
-  // update-downloaded is what flips the staged state and tells the menu.
+  // The library's update-downloaded fires when its zip is verified and its
+  // loopback proxy is up. Squirrel has NOT staged anything yet, and a quit
+  // here installs nothing (Phase 24 measured about 1.6 seconds between this
+  // event and the native one, and a quit 0.2 seconds after this one
+  // installed nothing). So this event flips nothing visible. It records the
+  // pending promise to disk, which is what the next launch reads if the
+  // install never happens (Phase 31, the refusal check).
   // update-available deliberately surfaces nothing, because the announcement
   // is the staged menu item and an undownloaded update is not staged.
   autoUpdater.on('update-downloaded', (info: UpdateInfo) => {
-    stagedVersion = info.version;
-    logInfo(`update ${info.version} is downloaded and installs when you quit`);
+    downloadedVersion = info.version;
+    writeUpdateState({
+      pendingVersion: info.version,
+      pendingRecordedAt: Date.now()
+    });
+    logInfo(`update ${info.version} is downloaded and staging has started`);
+  });
+
+  // Electron's own native autoUpdater emits update-downloaded when Squirrel
+  // has verified the signature, staged the bundle and submitted the ShipIt
+  // job. THIS is the honest ready moment: a quit from here installs. The
+  // native event carries no version this module trusts, so it is paired
+  // with the version the library event above recorded. The staged menu item
+  // and the ready dialog in ./ui.ts both follow the notify below.
+  nativeUpdater.on('update-downloaded', () => {
+    if (downloadedVersion === null) {
+      logWarn(
+        'the OS updater reported a staged update this run never downloaded, so it is ignored'
+      );
+      return;
+    }
+    stagedVersion = downloadedVersion;
+    logInfo(`update ${stagedVersion} is staged and installs when you quit`);
     notifyStateChanged();
   });
 
@@ -292,8 +351,10 @@ export async function checkForUpdatesNow(): Promise<UpdateCheckOutcome> {
     }
     const version = result.updateInfo.version;
     if (stagedVersion === version) return { kind: 'staged', version };
-    // autoDownload is on, so the download is already in flight. When it
-    // lands, update-downloaded flips the staged state and the menu follows.
+    // autoDownload is on, so the download is already in flight. Between the
+    // library's download finishing and Squirrel staging it, "downloading" is
+    // the literal truth, and the native staged event flips the state and
+    // tells the menu when a quit really installs.
     return { kind: 'downloading', version };
   } catch {
     // The 'error' listener logged the detail. The dialog uses fixed copy.

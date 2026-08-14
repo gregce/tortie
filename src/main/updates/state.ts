@@ -1,7 +1,8 @@
 /**
- * The updater's own small store, kept at `<userData>/updates.json` (Phase 24).
+ * The updater's own small store, kept at `<userData>/updates.json` (Phase 24,
+ * two fields added in Phase 31).
  *
- * Three fields live here and nothing else does:
+ * Five fields live here and nothing else does:
  *
  * - `lastSeenVersion` is the version the app last booted as. The post update
  *   self check compares it to `app.getVersion()` to know when an update has
@@ -16,6 +17,13 @@
  *   menu item, and only the exact boolean `true` counts.
  * - `lastCheckedAt` is when an update check last completed, in milliseconds
  *   since the epoch. The Settings row reads it through `updates:state`.
+ * - `pendingVersion` and `pendingRecordedAt` (Phase 31) record the promise an
+ *   update download makes. They are written together when electron-updater
+ *   finishes a download, and the next launch reads them to decide whether the
+ *   promised install happened. The two fields only mean something as a pair,
+ *   because the refusal check compares Squirrel's abort timestamps against
+ *   `pendingRecordedAt`. So the sanitizer treats them as a pair: if either
+ *   reads malformed, both read as null.
  *
  * settings.json is deliberately not used. Its sanitizer whitelists fields and
  * the Settings window rewrites the file, so a hidden preference would either
@@ -41,12 +49,18 @@ export interface UpdateState {
   allowDowngrade: boolean;
   /** When an update check last completed, or null when none has run. */
   lastCheckedAt: number | null;
+  /** The version a finished download promised to install, or null. */
+  pendingVersion: string | null;
+  /** When that promise was recorded, epoch milliseconds, or null. */
+  pendingRecordedAt: number | null;
 }
 
 const DEFAULTS: UpdateState = {
   lastSeenVersion: null,
   allowDowngrade: false,
-  lastCheckedAt: null
+  lastCheckedAt: null,
+  pendingVersion: null,
+  pendingRecordedAt: null
 };
 
 function updatesPath(): string {
@@ -63,6 +77,23 @@ export function sanitizeUpdateState(raw: unknown): UpdateState {
   const row = raw as Record<string, unknown>;
   const version = row['lastSeenVersion'];
   const checked = row['lastCheckedAt'];
+  const pendingV = row['pendingVersion'];
+  const pendingAt = row['pendingRecordedAt'];
+  // The pending pair is only meaningful together: a version with no
+  // timestamp cannot be checked against Squirrel's abort log, and a
+  // timestamp with no version promises nothing. If either is malformed,
+  // both read as null.
+  const pendingVersionClean =
+    typeof pendingV === 'string' && pendingV.trim().length > 0
+      ? pendingV.trim()
+      : null;
+  const pendingRecordedAtClean =
+    typeof pendingAt === 'number' &&
+    Number.isFinite(pendingAt) &&
+    pendingAt > 0
+      ? pendingAt
+      : null;
+  const pairValid = pendingVersionClean !== null && pendingRecordedAtClean !== null;
   return {
     lastSeenVersion:
       typeof version === 'string' && version.trim().length > 0
@@ -74,7 +105,9 @@ export function sanitizeUpdateState(raw: unknown): UpdateState {
     lastCheckedAt:
       typeof checked === 'number' && Number.isFinite(checked) && checked > 0
         ? checked
-        : null
+        : null,
+    pendingVersion: pairValid ? pendingVersionClean : null,
+    pendingRecordedAt: pairValid ? pendingRecordedAtClean : null
   };
 }
 

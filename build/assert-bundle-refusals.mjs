@@ -371,10 +371,19 @@ const CONFIG_REFUSALS = [
  * a stray TORTIE_UPDATE_FEED variable from redirecting a production launch's
  * checks. Squirrel would still refuse foreign bytes at install time, so what
  * the gate protects is narrower and still worth having: where the check
- * itself goes. The second is the post update self check's one log line, the
- * single failure the whole update flow may raise above the surface. If the
- * bundler drops it, a bundle swap that lost the tmux config degrades every
- * session's scrollback and nothing anywhere says so.
+ * itself goes. The second is the post update self check's one log line, a
+ * failure the update flow may raise above the surface. If the bundler drops
+ * it, a bundle swap that lost the tmux config degrades every session's
+ * scrollback and nothing anywhere says so.
+ *
+ * Phase 31 added the third and the fourth, after the operator's first live
+ * update installed nothing and said nothing. The third is the ready dialog's
+ * promise sentence: a user who was told "downloading" must later be told
+ * "ready", or the quit promise is a guess, because the download event and
+ * the staged event are seconds apart and only the second one is true. The
+ * fourth is the refusal sentence: an install the OS updater refused must be
+ * said out loud once with its reason, or it reads to the user as an update
+ * that never existed.
  */
 const UPDATER_REFUSALS = [
   {
@@ -395,6 +404,27 @@ const UPDATER_REFUSALS = [
       'a bundle swap that lost a resource must be said out loud once, or it ' +
       'reads as every downstream feature quietly breaking',
     fragments: ['the update left resources missing: ']
+  },
+  {
+    id: 'updater.ready-after-user-check',
+    source: 'src/main/updates/ui.ts',
+    why:
+      'a user who was told "downloading" must be told "ready", or the quit ' +
+      'promise is a guess',
+    fragments: [
+      'It installs when you quit. To install it now, use the Tortie menu.'
+    ]
+  },
+  {
+    id: 'updater.refused-install-says-why',
+    source: 'src/main/updates/ui.ts',
+    why:
+      'an install Squirrel refused must be said out loud once with its ' +
+      'reason, or it reads as an update that never existed',
+    fragments: [
+      'The update to ',
+      ' did not install because another copy of Tortie was running. It installs the next time you quit.'
+    ]
   }
 ];
 

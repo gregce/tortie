@@ -3194,10 +3194,13 @@ export interface GmuxConfigExtras {
 // ---------------------------------------------------------------------------
 
 /**
- * What the Settings row reads. `stagedVersion` is non null only when an
- * update is downloaded, verified by the updater library, and waiting for the
- * user's own quit. `lastCheckedAt` is epoch ms of the last completed check,
- * or null when no check has run yet on this install.
+ * What the Settings row reads. `stagedVersion` is non null only when the OS
+ * updater has finished staging the update, so a quit from that moment really
+ * installs it. Phase 31 moved the flip from the library's downloaded event
+ * to the native staged event, because about 1.6 seconds separate the two and
+ * a quit inside that gap installs nothing. `lastCheckedAt` is epoch ms of
+ * the last completed check, or null when no check has run yet on this
+ * install.
  */
 export interface UpdateUiState {
   currentVersion: string;

@@ -38,9 +38,31 @@
  * back at the end, and it prints a reminder that mac-arm64/Tortie.app is a
  * rehearsal build afterwards.
  *
+ * THE TWO INSTANCE PROBES (Phase 31, --two-instance). The rehearsal builds
+ * carry the production bundle id, so ShipIt counts a second rehearsal
+ * instance running from the SAME app path exactly the way it counted the
+ * operator's relaunch on 2026-08-14. Probe R1 reproduces that abort
+ * (SQRLInstallerErrorDomain code -9) and then proves the install completes
+ * once the counted instance is gone. Probe R2 launches a third instance
+ * from the PRISTINE copy, the same bundle id at a DIFFERENT path, and
+ * proves the install completes while it keeps running, which confirms live
+ * that the bundle URL is half of ShipIt's counting rule.
+ *
+ * SHARED SHIPIT STATE (Phase 31 preconditions). Because the rehearsal
+ * builds carry the production bundle id, Squirrel gives them the SAME
+ * ShipIt cache directory and launchd job label as the installed app.
+ * Staging a rehearsal update while the operator has an install waiting
+ * could replace the operator's pending job. So before any launch, in every
+ * mode, this script refuses when a ShipIt process for the bundle id is
+ * running, and refuses when ShipItState.plist targets /Applications or
+ * cannot be parsed. It also snapshots the ShipIt directory, removes only
+ * entries created during the run, and never truncates or deletes
+ * ShipIt_stderr.log, whose lines are shared evidence.
+ *
  * Usage:
  *   node build/update-rehearsal.mjs [--scratch <dir>] [--skip-package]
  *                                   [--package-only] [--keep-server]
+ *                                   [--two-instance]
  *
  *   --scratch <dir>   where packages, the feed, profiles and logs live.
  *                     Defaults to <os tmpdir>/tortie-update-rehearsal.
@@ -50,6 +72,8 @@
  *   --keep-server     leave the harness tmux server running at the end, so
  *                     a probe can inspect it. The next run refuses until it
  *                     is gone, which is deliberate.
+ *   --two-instance    run probes R1 and R2 instead of the plain roundtrip.
+ *                     Combine with --skip-package to reuse the packages.
  */
 
 import { spawn, spawnSync, execFileSync } from 'node:child_process';
@@ -73,9 +97,15 @@ import { fileURLToPath } from 'node:url';
 
 const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const REHEARSAL_SOCKET = 'gmux-update-rehearsal';
+/** Extra instances in the two instance probes get sockets of their own. */
+const SOCKET_B = 'gmux-update-rehearsal-b';
+const SOCKET_C = 'gmux-update-rehearsal-c';
+const ALL_SOCKETS = [REHEARSAL_SOCKET, SOCKET_B, SOCKET_C];
 const OPERATOR_SOCKET = 'gmux';
 const V1 = '0.18.1';
 const V2 = '0.18.2';
+/** The production bundle id the rehearsal builds carry (electron-builder.yml appId). */
+const BUNDLE_ID = 'com.itavero.tortie';
 
 // -- arguments ---------------------------------------------------------------
 
@@ -100,16 +130,24 @@ const scratch = option('--scratch', join(tmpdir(), 'tortie-update-rehearsal'));
 const skipPackage = flag('--skip-package');
 const packageOnly = flag('--package-only');
 const keepServer = flag('--keep-server');
+const twoInstance = flag('--two-instance');
 
 const pristineDir = join(scratch, 'pristine');
 const pristineApp = join(pristineDir, 'Tortie.app');
+const pristineBinary = join(pristineApp, 'Contents', 'MacOS', 'Tortie');
 const appDir = join(scratch, 'app');
 const appPath = join(appDir, 'Tortie.app');
 const appBinary = join(appPath, 'Contents', 'MacOS', 'Tortie');
 const feedDir = join(scratch, 'feed');
 const profileDir = join(scratch, 'profile');
+const profileBDir = join(scratch, 'profile-b');
+const profileCDir = join(scratch, 'profile-c');
 const logsDir = join(scratch, 'logs');
 const ymlBackup = join(scratch, 'latest-mac.yml.release-backup');
+
+/** Squirrel's shared per bundle id state. See the header note. */
+const shipItDir = join(homedir(), 'Library', 'Caches', `${BUNDLE_ID}.ShipIt`);
+const shipItStderrLog = join(shipItDir, 'ShipIt_stderr.log');
 
 const t0 = Date.now();
 function elapsed() {
@@ -135,7 +173,9 @@ function fail(why) {
 const livePids = new Set();
 /** The feed server, when running. */
 let feedServer = null;
-/** True once this run has created the harness tmux server. */
+/** Sockets this run has launched instances against. */
+const usedSockets = new Set();
+/** True once this run has created any harness tmux server. */
 let createdHarnessServer = false;
 /** The original package.json version, restored on every exit path. */
 let originalVersion = null;
@@ -143,6 +183,10 @@ let originalVersion = null;
 let cacheBefore;
 /** True once the cache has been cleaned, so no exit path cleans it twice. */
 let cacheCleaned = false;
+/** The ShipIt directory before the launches. undefined until snapshotted. */
+let shipItBefore;
+/** True once the ShipIt entries have been cleaned. */
+let shipItCleaned = false;
 
 function restoreVersion() {
   if (originalVersion === null) return;
@@ -176,35 +220,44 @@ function killRecordedPids() {
   }
 }
 
-function endHarnessServer() {
+function endHarnessServers() {
   if (!createdHarnessServer || keepServer) return;
-  try {
-    const path = execFileSync(
-      'tmux',
-      ['-L', REHEARSAL_SOCKET, 'display-message', '-p', '#{socket_path}'],
-      { encoding: 'utf8' }
-    ).trim();
-    execFileSync('tmux', ['-L', REHEARSAL_SOCKET, 'kill-server'], {
-      stdio: 'ignore'
-    });
-    if (path.endsWith(`/${REHEARSAL_SOCKET}`)) rmSync(path, { force: true });
-    console.log(
-      `[rehearsal] ended the harness tmux server on -L ${REHEARSAL_SOCKET}.`
-    );
-  } catch {
-    // No server left on the harness socket. Nothing to end.
+  for (const socket of usedSockets) {
+    try {
+      const path = execFileSync(
+        'tmux',
+        ['-L', socket, 'display-message', '-p', '#{socket_path}'],
+        { encoding: 'utf8' }
+      ).trim();
+      execFileSync('tmux', ['-L', socket, 'kill-server'], {
+        stdio: 'ignore'
+      });
+      if (path.endsWith(`/${socket}`)) rmSync(path, { force: true });
+      console.log(
+        `[rehearsal] ended the harness tmux server on -L ${socket}.`
+      );
+    } catch {
+      // No server left on this harness socket. Nothing to end.
+    }
   }
 }
 
 function cleanupAndExit(code) {
   killRecordedPids();
   if (feedServer !== null) feedServer.close();
-  endHarnessServer();
+  endHarnessServers();
   if (cacheBefore !== undefined && !cacheCleaned) {
     try {
       cleanCache(cacheBefore);
     } catch (err) {
       console.error(`[rehearsal] cache cleanup failed. ${err.message}`);
+    }
+  }
+  if (shipItBefore !== undefined && !shipItCleaned) {
+    try {
+      cleanShipIt(shipItBefore);
+    } catch (err) {
+      console.error(`[rehearsal] ShipIt cleanup failed. ${err.message}`);
     }
   }
   restoreVersion();
@@ -276,7 +329,16 @@ function run(cmd, args, logName, env) {
 // -- the launched app, with timestamped log capture and pattern waits ---------
 
 class AppRun {
-  constructor(name, feedUrl) {
+  /**
+   * opts.binary, opts.profile and opts.socket default to the primary
+   * instance's values. The two instance probes pass their own, so instance
+   * B shares the app path but not the profile or the tmux server, and
+   * instance C shares neither the path nor the profile.
+   */
+  constructor(name, feedUrl, opts = {}) {
+    const binary = opts.binary ?? appBinary;
+    const profile = opts.profile ?? profileDir;
+    const socket = opts.socket ?? REHEARSAL_SOCKET;
     this.name = name;
     this.startedAt = Date.now();
     this.logPath = join(logsDir, `${name}.log`);
@@ -293,9 +355,11 @@ class AppRun {
     delete env.APPLE_TEAM_ID;
     delete env.APPLE_KEYCHAIN_PROFILE;
     env.GMUX_UPDATE_REHEARSAL = '1';
-    env.GMUX_TMUX_SOCKET = REHEARSAL_SOCKET;
+    env.GMUX_TMUX_SOCKET = socket;
     env.TORTIE_UPDATE_FEED = feedUrl;
-    this.child = spawn(appBinary, [`--user-data-dir=${profileDir}`], {
+    usedSockets.add(socket);
+    createdHarnessServer = true;
+    this.child = spawn(binary, [`--user-data-dir=${profile}`], {
       env,
       stdio: ['ignore', 'pipe', 'pipe']
     });
@@ -467,18 +531,23 @@ function startFeedServer() {
 
 const updaterCacheDir = join(homedir(), 'Library', 'Caches', 'tortie-updater');
 
-function cacheSnapshot() {
-  if (!existsSync(updaterCacheDir)) return null;
+/** Every path under dir, parents before children, or null when dir is absent. */
+function snapshotTree(dir) {
+  if (!existsSync(dir)) return null;
   const out = [];
-  const walk = (dir) => {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      const p = join(dir, entry.name);
+  const walk = (d) => {
+    for (const entry of readdirSync(d, { withFileTypes: true })) {
+      const p = join(d, entry.name);
       out.push(p);
       if (entry.isDirectory()) walk(p);
     }
   };
-  walk(updaterCacheDir);
+  walk(dir);
   return out;
+}
+
+function cacheSnapshot() {
+  return snapshotTree(updaterCacheDir);
 }
 
 function cleanCache(before) {
@@ -499,6 +568,86 @@ function cleanCache(before) {
   log(`the updater cache at ${updaterCacheDir} existed before this run. ${created.length} entries created during the rehearsal were removed and nothing else was.`);
 }
 
+// -- the shared ShipIt directory: preconditions, snapshot, careful cleanup ----
+
+/**
+ * The rehearsal builds carry the production bundle id, so Squirrel gives
+ * them the operator's own ShipIt cache directory and launchd job label.
+ * Staging a rehearsal update while the operator has an install waiting
+ * could replace the operator's pending job. These two refusals run before
+ * any launch, in every mode.
+ */
+function refuseIfInstalledUpdateInFlight() {
+  const r = spawnSync('pgrep', ['-lf', `${BUNDLE_ID}.ShipIt`], {
+    encoding: 'utf8'
+  });
+  if (r.status === 0 && r.stdout.trim() !== '') {
+    refuse(
+      `a ShipIt process for ${BUNDLE_ID} is running (${r.stdout.trim().split('\n')[0]}). The installed Tortie has an update waiting to install. Quit Tortie once, let it install, and run the rehearsal again.`
+    );
+  }
+  const statePlist = join(shipItDir, 'ShipItState.plist');
+  if (!existsSync(statePlist)) return;
+  let parsed = null;
+  try {
+    // The file parses as JSON despite its name.
+    parsed = JSON.parse(readFileSync(statePlist, 'utf8'));
+  } catch {
+    refuse(
+      `${statePlist} exists and cannot be parsed. Failing safe, because the installed app may have an install in flight. Look at the file before running the rehearsal.`
+    );
+  }
+  const target = String(parsed?.targetBundleURL ?? '');
+  if (target.includes('/Applications/Tortie.app')) {
+    refuse(
+      `${statePlist} targets /Applications/Tortie.app. The installed Tortie has an update staged. Quit Tortie once, let it install, and run the rehearsal again.`
+    );
+  }
+}
+
+/**
+ * Remove only the ShipIt entries this run created, and never the shared
+ * ShipIt_stderr.log. The rehearsal's ShipIt lines do land in that log; that
+ * is inherent to sharing the bundle id, and the app's refusal parser
+ * filters by recency against its own pending record for exactly this
+ * reason.
+ */
+function cleanShipIt(before) {
+  shipItCleaned = true;
+  if (!existsSync(shipItDir)) {
+    log('the ShipIt directory does not exist, nothing to clean');
+    return;
+  }
+  const keep = new Set(before ?? []);
+  const after = snapshotTree(shipItDir) ?? [];
+  const created = after.filter(
+    (p) => !keep.has(p) && !p.endsWith('ShipIt_stderr.log')
+  );
+  for (const p of created.reverse()) rmSync(p, { recursive: true, force: true });
+  log(
+    `removed ${created.length} entries the run created under ${shipItDir}. ShipIt_stderr.log was preserved.`
+  );
+}
+
+/** Current byte size of the shared ShipIt stderr log. */
+function shipItStderrSize() {
+  try {
+    return statSync(shipItStderrLog).size;
+  } catch {
+    return 0;
+  }
+}
+
+/** The log's bytes from offset onward, as text. */
+function shipItStderrSince(offset) {
+  try {
+    const buf = readFileSync(shipItStderrLog);
+    return buf.subarray(Math.min(offset, buf.length)).toString('utf8');
+  } catch {
+    return '';
+  }
+}
+
 // -- the roundtrip ---------------------------------------------------------------
 
 async function roundtrip(feedUrl) {
@@ -513,7 +662,6 @@ async function roundtrip(feedUrl) {
 
   // Run 1. Boot, plant keepers, watch the timers, watch the download stage.
   const run1 = new AppRun('run1', feedUrl);
-  createdHarnessServer = true;
   await run1.waitFor(/tmux conf verified/, 120_000, 'the app booting its tmux server');
   log('run1 booted and its tmux server is up');
 
@@ -532,14 +680,19 @@ async function roundtrip(feedUrl) {
   log(`first check began ${gapSeconds.toFixed(1)} s after launch. The floor is 25 s.`);
   if (gapSeconds < 25) fail(`the first check ran ${gapSeconds.toFixed(1)} s after launch, under the 25 s floor`);
 
-  const staged = await run1.waitFor(/is downloaded and installs when you quit/, 300_000, `the staged line for ${V2}`);
-  log(`staged evidence at ${(staged.at / 1000).toFixed(1)} s after launch. ${staged.line.trim()}`);
+  const downloaded = await run1.waitFor(/is downloaded and staging has started/, 300_000, `the downloaded line for ${V2}`);
+  log(`download evidence at ${(downloaded.at / 1000).toFixed(1)} s after launch. ${downloaded.line.trim()}`);
 
   // The line above is electron-updater's own download finishing. With
   // autoInstallOnAppQuit the library then has native Squirrel.Mac fetch the
   // file from a loopback proxy and stage it, and only after the native
   // update-downloaded event does a quit install anything. Measured on the
-  // first harness run. A quit 0.2 s after the staged line installed nothing.
+  // first harness run. A quit 0.2 s after the download line installed
+  // nothing. Since Phase 31 the app logs its own staged line at the native
+  // moment, and the rehearsal waits on that line as the staged evidence,
+  // keeping the library's debug line beside it.
+  const staged = await run1.waitFor(/is staged and installs when you quit/, 300_000, `the staged line for ${V2}`);
+  log(`staged evidence at ${(staged.at / 1000).toFixed(1)} s after launch. ${staged.line.trim()}`);
   const native = await run1.waitFor(/nativeUpdater\.update-downloaded/, 300_000, 'Squirrel staging the update natively');
   log(`Squirrel finished staging natively at ${(native.at / 1000).toFixed(1)} s after launch. A quit from here installs.`);
 
@@ -621,6 +774,263 @@ async function roundtrip(feedUrl) {
   return { gapSeconds, stagedAtSeconds: staged.at / 1000, swapMoment };
 }
 
+// -- the two instance probes (Phase 31) ---------------------------------------
+
+function freshProfile(dir) {
+  rmSync(dir, { recursive: true, force: true });
+  return dir;
+}
+
+/** A fresh V1 app copy at appPath and a fresh primary profile. */
+function freshV1Copy() {
+  rmSync(appDir, { recursive: true, force: true });
+  mkdirSync(appDir, { recursive: true });
+  execFileSync('ditto', [pristineApp, appPath]);
+  rmSync(profileDir, { recursive: true, force: true });
+  const v = plistVersion(appPath);
+  if (v !== V1) fail(`the app under test reads ${v}, expected ${V1}`);
+  log(`fresh ${V1} copy at ${appPath}, fresh profile at ${profileDir}`);
+}
+
+/**
+ * Launch the primary instance against the live feed and wait through the
+ * whole staging sequence: boot, download line, the app's staged line, and
+ * the library's native debug line beside it. Returns the running AppRun,
+ * staged and ready for a quit.
+ */
+async function stageOnPrimary(feedUrl, runName) {
+  const run = new AppRun(runName, feedUrl);
+  await run.waitFor(/tmux conf verified/, 120_000, `${runName} booting its tmux server`);
+  await run.waitFor(/is downloaded and staging has started/, 300_000, `${runName} downloading ${V2}`);
+  const staged = await run.waitFor(/is staged and installs when you quit/, 300_000, `${runName} staging ${V2}`);
+  await run.waitFor(/nativeUpdater\.update-downloaded/, 60_000, `${runName} native staged event`);
+  log(`${runName} staged ${V2} at ${(staged.at / 1000).toFixed(1)} s after launch`);
+  return run;
+}
+
+const ABORT_TEXT = /Aborting update attempt because there are (\d+) running instances of the target app/;
+
+/**
+ * After a quit, watch the shared ShipIt log from `offset` and the app under
+ * test's Info.plist. Resolves with one of:
+ *   { outcome: 'aborted', line, count, beginningAtMs, abortAtMs }
+ *   { outcome: 'completed', beginningAtMs, completedAtMs }
+ *   { outcome: 'no-beginning' }  nothing began before beginningDeadlineMs
+ * `knownBeginningAtMs` carries a Beginning the caller already observed, so
+ * the numbers stay honest when the watch starts late.
+ */
+async function watchInstallAfterQuit(offset, beginningDeadlineMs, label, knownBeginningAtMs = null) {
+  const started = Date.now();
+  let beginningAtMs = knownBeginningAtMs;
+  for (;;) {
+    const chunk = shipItStderrSince(offset);
+    if (beginningAtMs === null && /Beginning installation/.test(chunk)) {
+      beginningAtMs = Date.now();
+      log(`${label}: ShipIt logged "Beginning installation" ${((beginningAtMs - started) / 1000).toFixed(1)} s after the quit`);
+    }
+    const abortLine = chunk.split('\n').find((l) => ABORT_TEXT.test(l));
+    if (abortLine !== undefined) {
+      return {
+        outcome: 'aborted',
+        line: abortLine,
+        count: Number(ABORT_TEXT.exec(abortLine)[1]),
+        beginningAtMs,
+        abortAtMs: Date.now()
+      };
+    }
+    if (plistVersion(appPath) === V2) {
+      return { outcome: 'completed', beginningAtMs, completedAtMs: Date.now() };
+    }
+    if (beginningAtMs === null && Date.now() - started > beginningDeadlineMs) {
+      return { outcome: 'no-beginning' };
+    }
+    if (beginningAtMs !== null && Date.now() - beginningAtMs > 180_000) {
+      fail(`${label}: ShipIt began the install and then neither aborted nor completed within 180 s`);
+    }
+    await sleep(500);
+  }
+}
+
+/**
+ * Probe R1. Reproduce the operator's code -9 abort with a second instance
+ * from the SAME app path, then prove the install completes once the counted
+ * instance is gone.
+ */
+async function probeR1(feedUrl) {
+  log('probe R1. The abort and the recovery.');
+  freshV1Copy();
+  const deadFeed = `${feedUrl}/absent`;
+  const entriesBefore = existsSync(shipItDir) ? readdirSync(shipItDir) : [];
+  let runA = await stageOnPrimary(feedUrl, 'r1-a');
+  const entriesAfter = existsSync(shipItDir) ? readdirSync(shipItDir) : [];
+  const newEntries = entriesAfter.filter((n) => !entriesBefore.includes(n));
+  log(`ShipIt entries created by staging: ${newEntries.join(', ') || '(none visible at the top level)'}`);
+
+  // Primary strategy. Instance B comes up from the SAME app path before A
+  // quits. ShipIt snapshotted its wait list when it started, at staging
+  // time, before B existed. If the wait gate does not re-enumerate, A's
+  // exit starts the install and the post verification abort check counts B.
+  let runB = new AppRun('r1-b', deadFeed, {
+    profile: freshProfile(profileBDir),
+    socket: SOCKET_B
+  });
+  await runB.waitFor(/tmux conf verified/, 120_000, 'instance B booting');
+  log('instance B is up from the same app path, own profile and socket, dead feed');
+  let offset = shipItStderrSize();
+  let quitAtMs = Date.now();
+  await runA.quit(45_000);
+  log('r1-a exited after SIGTERM. Watching the ShipIt log.');
+  let result = await watchInstallAfterQuit(offset, 30_000, 'primary');
+  let strategy = 'primary';
+
+  if (result.outcome === 'completed') {
+    fail('the install completed while instance B ran from the same path. Instance B was invisible to the count. The fix round switches the B launch to open -n with a reachable 404 feed.');
+  }
+
+  if (result.outcome === 'no-beginning') {
+    // FINDING: the wait gate re-enumerated and is now waiting on B too.
+    // Fall back to the incident's own shape: quit everything, let the
+    // pending install land, restage, quit, and spawn B inside the install
+    // window that follows the quit.
+    strategy = 'fallback';
+    log('no Beginning line within 30 s of the quit. The wait gate re-enumerated and waits on instance B. Switching to the incident shape.');
+    await runB.quit(45_000);
+    let swapped = false;
+    for (let waited = 0; waited < 120_000; waited += 2_000) {
+      if (plistVersion(appPath) === V2) {
+        swapped = true;
+        break;
+      }
+      await sleep(2_000);
+    }
+    if (!swapped) fail('after quitting both instances the pending install never completed');
+    log('the pending install completed once both instances were gone. Resetting for the incident shape.');
+    freshV1Copy();
+    runA = await stageOnPrimary(feedUrl, 'r1-a2');
+    offset = shipItStderrSize();
+    quitAtMs = Date.now();
+    await runA.quit(45_000);
+    let beganAtMs = null;
+    while (Date.now() - quitAtMs < 120_000) {
+      if (/Beginning installation/.test(shipItStderrSince(offset))) {
+        beganAtMs = Date.now();
+        break;
+      }
+      await sleep(250);
+    }
+    if (beganAtMs === null) fail('ShipIt never logged Beginning installation after the quit');
+    log(`Beginning installation ${((beganAtMs - quitAtMs) / 1000).toFixed(1)} s after the quit. Spawning instance B inside the install window, the operator timeline.`);
+    runB = new AppRun('r1-b2', deadFeed, {
+      profile: freshProfile(profileBDir),
+      socket: SOCKET_B
+    });
+    result = await watchInstallAfterQuit(offset, 120_000, 'fallback', beganAtMs);
+    if (result.outcome === 'completed') {
+      fail('the install completed before instance B was counted. The local install window is too short for the incident shape.');
+    }
+    if (result.outcome !== 'aborted') {
+      fail('the fallback produced neither an abort nor a completion');
+    }
+  }
+
+  const held = plistVersion(appPath);
+  if (held !== V1) fail(`after the abort Info.plist reads ${held}, expected ${V1}`);
+  const beginningToAbortS =
+    result.beginningAtMs === null ? null : (result.abortAtMs - result.beginningAtMs) / 1000;
+  log(`ABORT CAPTURED, ${strategy} strategy. ${result.line.trim()}`);
+  log(`  running instances counted: ${result.count}`);
+  log(`  Beginning to abort: ${beginningToAbortS === null ? 'Beginning not observed' : `${beginningToAbortS.toFixed(1)} s`}`);
+  log(`  quit to abort: ${((result.abortAtMs - quitAtMs) / 1000).toFixed(1)} s`);
+  log(`  Info.plist still reads ${held} through the abort`);
+
+  // Recovery. Quit the counted instance, relaunch A's profile from the same
+  // app path, let the background check restage from the cached zip, and
+  // quit with nothing else running. The install must complete.
+  await runB.quit(45_000);
+  const recovery = await stageOnPrimary(feedUrl, 'r1-recovery');
+  offset = shipItStderrSize();
+  const recoveryQuitAtMs = Date.now();
+  await recovery.quit(45_000);
+  const rec = await watchInstallAfterQuit(offset, 60_000, 'recovery');
+  if (rec.outcome !== 'completed') {
+    fail(`the recovery leg did not complete the install. Outcome ${rec.outcome}${rec.line !== undefined ? `, line ${rec.line}` : ''}`);
+  }
+  const after = plistVersion(appPath);
+  if (after !== V2) fail(`after the recovery Info.plist reads ${after}, expected ${V2}`);
+  const quitToSwapS = (rec.completedAtMs - recoveryQuitAtMs) / 1000;
+  log(`RECOVERY PROVED. Info.plist reads ${V2}. Quit to swap ${quitToSwapS.toFixed(1)} s.`);
+  return {
+    strategy,
+    abortLine: result.line.trim(),
+    count: result.count,
+    beginningToAbortS,
+    quitToSwapS
+  };
+}
+
+/**
+ * Probe R2. The same bundle id at a DIFFERENT path must not be counted.
+ * This is the live confirmation of the URL half of the counting rule that
+ * docs/research/42-shipit-instance-counting.md established from
+ * disassembly.
+ */
+async function probeR2(feedUrl) {
+  log('probe R2. Same bundle id at a different path.');
+  freshV1Copy();
+  const runA = await stageOnPrimary(feedUrl, 'r2-a');
+  const runC = new AppRun('r2-c', `${feedUrl}/absent`, {
+    binary: pristineBinary,
+    profile: freshProfile(profileCDir),
+    socket: SOCKET_C
+  });
+  await runC.waitFor(/tmux conf verified/, 120_000, 'instance C booting from the pristine copy');
+  log('instance C is up from the PRISTINE copy. It carries the same bundle id at a different path.');
+  const offset = shipItStderrSize();
+  const quitAtMs = Date.now();
+  await runA.quit(45_000);
+  const result = await watchInstallAfterQuit(offset, 60_000, 'R2');
+  if (result.outcome === 'aborted') {
+    fail(`the install aborted while only instance C ran from a different path. ${result.line}. The URL half of the counting rule did not hold live.`);
+  }
+  if (result.outcome !== 'completed') {
+    fail('ShipIt never began the install in probe R2');
+  }
+  if (runC.exited) {
+    fail('instance C exited during the R2 install, so the probe proves nothing');
+  }
+  if (/Aborting update attempt/.test(shipItStderrSince(offset))) {
+    fail('an abort line was appended during probe R2');
+  }
+  const swapped = plistVersion(appPath);
+  if (swapped !== V2) fail(`probe R2 completed but Info.plist reads ${swapped}`);
+  const quitToSwapS = (result.completedAtMs - quitAtMs) / 1000;
+  log(`R2 PROVED. The install completed to ${swapped} while instance C kept running from ${pristineApp} (still ${plistVersion(pristineApp)}). No abort line was appended.`);
+  log(`  quit to swap with C running: ${quitToSwapS.toFixed(1)} s`);
+  await runC.quit(45_000);
+  return { quitToSwapS };
+}
+
+async function twoInstanceProbes(feedUrl) {
+  const r1 = await probeR1(feedUrl);
+  const r2 = await probeR2(feedUrl);
+  return { r1, r2 };
+}
+
+/**
+ * A leaked instance carrying the production bundle id is one suspect in the
+ * incident this phase answers, so the run ends by proving it left none.
+ * Assert only; this never kills anything.
+ */
+function assertNoScratchProcesses() {
+  for (const path of [appPath, pristineApp]) {
+    const r = spawnSync('pgrep', ['-f', path], { encoding: 'utf8' });
+    if (r.status === 0 && r.stdout.trim() !== '') {
+      fail(`a process is still running from ${path}. pids ${r.stdout.trim().split('\n').join(', ')}`);
+    }
+  }
+  log('no process is left running from either scratch app path');
+}
+
 // -- main -----------------------------------------------------------------------
 
 async function main() {
@@ -628,14 +1038,16 @@ async function main() {
 
   // Refuse to reuse a harness server this run did not create. A leftover
   // server belongs to a run that did not clean up, and a human should look
-  // at it before anything kills it.
-  const leftover = spawnSync('tmux', ['-L', REHEARSAL_SOCKET, 'list-sessions'], {
-    encoding: 'utf8'
-  });
-  if (leftover.status === 0) {
-    refuse(
-      `a tmux server is already running on -L ${REHEARSAL_SOCKET}. Inspect it, then end it with "tmux -L ${REHEARSAL_SOCKET} kill-server" and run again.`
-    );
+  // at it before anything kills it. All three probe sockets are checked.
+  for (const socket of ALL_SOCKETS) {
+    const leftover = spawnSync('tmux', ['-L', socket, 'list-sessions'], {
+      encoding: 'utf8'
+    });
+    if (leftover.status === 0) {
+      refuse(
+        `a tmux server is already running on -L ${socket}. Inspect it, then end it with "tmux -L ${socket} kill-server" and run again.`
+      );
+    }
   }
 
   mkdirSync(logsDir, { recursive: true });
@@ -660,11 +1072,22 @@ async function main() {
     process.exit(0);
   }
 
+  // Phase 31 preconditions. Never stage a rehearsal update while the
+  // installed app has an install of its own in flight; the two share the
+  // ShipIt directory and the launchd job label.
+  refuseIfInstalledUpdateInFlight();
+
   cacheBefore = cacheSnapshot();
   if (cacheBefore === null) {
     log(`the updater cache at ${updaterCacheDir} does not exist before the rehearsal`);
   } else {
     log(`the updater cache at ${updaterCacheDir} exists before the rehearsal with ${cacheBefore.length} entries. Only entries created during the rehearsal will be removed.`);
+  }
+  shipItBefore = snapshotTree(shipItDir);
+  if (shipItBefore === null) {
+    log(`the ShipIt directory at ${shipItDir} does not exist before the run`);
+  } else {
+    log(`the ShipIt directory at ${shipItDir} exists with ${shipItBefore.length} entries. Only entries created during the run will be removed, and ShipIt_stderr.log is never touched.`);
   }
 
   feedServer = await startFeedServer();
@@ -674,14 +1097,19 @@ async function main() {
 
   let result;
   try {
-    result = await roundtrip(feedUrl);
+    result = twoInstance ? await twoInstanceProbes(feedUrl) : await roundtrip(feedUrl);
   } finally {
     feedServer.close();
     feedServer = null;
-    endHarnessServer();
+    endHarnessServers();
     cleanCache(cacheBefore);
+    cleanShipIt(shipItBefore);
     rmSync(profileDir, { recursive: true, force: true });
+    rmSync(profileBDir, { recursive: true, force: true });
+    rmSync(profileCDir, { recursive: true, force: true });
   }
+
+  assertNoScratchProcesses();
 
   const operatorAfter = operatorSessionCount();
   log(`operator sessions on socket ${OPERATOR_SOCKET} after the rehearsal. ${operatorAfter}`);
@@ -689,11 +1117,22 @@ async function main() {
     fail(`the operator session count moved from ${operatorBefore} to ${operatorAfter}. Something touched the real server.`);
   }
 
-  log('PASS. One full update roundtrip.');
-  log(`  first check ${result.gapSeconds.toFixed(1)} s after launch (floor 25 s)`);
-  log(`  staged ${result.stagedAtSeconds.toFixed(1)} s after launch`);
-  log(`  bundle swap ${result.swapMoment}`);
-  log(`  operator sessions ${operatorBefore} before and ${operatorAfter} after`);
+  if (twoInstance) {
+    log('PASS. Two instance probes.');
+    log(`  R1 produced the abort with the ${result.r1.strategy} strategy`);
+    log(`  R1 abort line. ${result.r1.abortLine}`);
+    log(`  R1 counted ${result.r1.count} running instances`);
+    log(`  R1 Beginning to abort ${result.r1.beginningToAbortS === null ? 'was not observed' : `${result.r1.beginningToAbortS.toFixed(1)} s`}`);
+    log(`  R1 recovery swapped ${result.r1.quitToSwapS.toFixed(1)} s after the quit`);
+    log(`  R2 swapped ${result.r2.quitToSwapS.toFixed(1)} s after the quit with the different path instance running`);
+    log(`  operator sessions ${operatorBefore} before and ${operatorAfter} after`);
+  } else {
+    log('PASS. One full update roundtrip.');
+    log(`  first check ${result.gapSeconds.toFixed(1)} s after launch (floor 25 s)`);
+    log(`  staged ${result.stagedAtSeconds.toFixed(1)} s after launch`);
+    log(`  bundle swap ${result.swapMoment}`);
+    log(`  operator sessions ${operatorBefore} before and ${operatorAfter} after`);
+  }
   restoreVersion();
   process.exit(0);
 }

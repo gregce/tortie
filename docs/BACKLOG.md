@@ -40,6 +40,7 @@ the wordmark is a wordmark. Revisit only if the operator asks.
 | 13 | **29** session history: browse and restore removed sessions | QUEUED | spec is docs/research/39-session-history.md |
 | 14 | **30** skill removal through the skills CLI | ✅ SHIPPED 2026-08-14 (this commit) | — |
 | 15 | **32** the antigravity claim race (operator hit it live, 2026-08-14) | ✅ SHIPPED 2026-08-14 (this commit) | — |
+| 16 | **31** updater honesty after the operator's first live update (operator reported, 2026-08-14) | ✅ SHIPPED 2026-08-14 (this commit) | Phase 24 ✅ |
 
 **Why 19 waits for 18.6.** Both touch `src/renderer/state/store.ts`. Phase 19's restart fix would be
 written against a file that 18.6 then rewrites. Doing the renderer work together, then the main
@@ -3363,6 +3364,53 @@ gaps around the command.
   agent outside the registry that also links the skill is not listed.
 
 ---
+## Phase 31. Updater honesty after the operator's first live update (operator reported, 2026-08-14) ✅ SHIPPED 2026-08-14 (this commit)
+
+**The incident.** The operator ran Check for Updates on installed 0.19.0. The dialog said 0.19.1
+was downloading and would install on quit. The download completed and Squirrel staged it. ShipIt
+then aborted three installs with SQRLInstallerErrorDomain code -9, "there are 1 running instances
+of the target app", because the operator's own relaunch landed inside the install window that
+follows a quit. Tortie surfaced nothing at any point, and the packaged build persisted no updater
+log. The diagnosis is banked in docs/research/42-shipit-instance-counting.md, including how ShipIt
+counts instances, read from the shipped binary by disassembly. An instance counts only when both
+its bundle id and its bundle URL match the install request.
+
+**What shipped.**
+- The ready moment. `stagedVersion` now flips on Electron's NATIVE update-downloaded event, not
+  the library's public one. About 1.6 seconds separate the two, and a quit inside that gap
+  installs nothing. After a check the user started, one dialog says "Tortie {version} is ready.
+  It installs when you quit." Background checks stay silent, staging included.
+- The refusal surface. The library's download event records a pending promise in updates.json
+  (`pendingVersion`, `pendingRecordedAt`). The first launch after a broken promise reads ShipIt's
+  own log, clears the promise on disk first so a crash loop cannot repeat it, and shows one
+  dialog naming the reason in plain words. src/main/updates/refusal-check.ts owns the decision
+  and the parser, unit tested against the verbatim operator lines.
+- The log. Packaged builds append every updater event to `<userData>/logs/updates.log`, rotated
+  to `updates.log.1` over 524288 bytes, so the pair stays bounded near 1 MiB. The location is
+  userData rather than ~/Library/Logs on purpose. The Logs directory is shared by every packaged
+  build on the machine, and a rehearsal would interleave its lines into the operator's evidence.
+- The rehearsal. build/update-rehearsal.mjs gained preconditions that refuse to run while the
+  installed app has an install in flight, careful cleanup of the shared ShipIt directory, and a
+  `--two-instance` mode with two probes. R1 reproduces the operator's abort and proves the
+  recovery. R2 proves the same bundle id at a different path is not counted.
+- Two new pinned refusals in build/assert-bundle-refusals.mjs, 4 updater refusals total.
+
+**Hard rules kept.** electron-updater stays imported in exactly one module. Tortie never calls
+quitAndInstall on its own and never relaunches itself. No toast and no badge. The ready moment is
+one dialog tied to a user initiated check, and the refusal line is the single failure surface.
+
+**Gates on the final tree.** typecheck, build, the full battery (3239 passed, 2 skipped, 0
+failed), smoke:t1 and assert-bundle-refusals, all green. 66 tests under src/main/updates pass,
+including the verbatim operator abort lines and the log rotation cap.
+
+**Verified live and what is not.** The harness precondition fired live during integration. It
+refused with exit 2 before any launch and named the operator's waiting ShipIt pid. Operator
+sessions read 22 before and 22 after. The two instance probes themselves cannot run until the
+operator quits Tortie once and the waiting install lands. That refusal firing is the designed
+behavior, not a gap in it. The probe numbers get banked into research 42 when they run.
+
+---
+
 ## Phase 32. The antigravity claim race (operator hit it live, 2026-08-14) ✅ SHIPPED 2026-08-14 (this commit)
 
 **The defect, in the operator's terms.** Two antigravity sessions were open. The first was

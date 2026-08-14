@@ -38,6 +38,7 @@ import { resolveConfPath } from '../tmux';
 import { bundledSpecstoryPath } from '../specstory/resolve';
 import { rgBinaryPath } from '../search/resolve';
 import { missingGrammars, runtimeWasmPath } from '../symbols/paths';
+import { logUpdateEvent } from './log';
 import { readUpdateState, writeUpdateState } from './state';
 
 /** One named resource and the question "is it on disk right now". */
@@ -140,9 +141,12 @@ export async function runPostUpdateSelfCheck(): Promise<void> {
     writeUpdateState({ lastSeenVersion: current });
     if (missing.length === 0) return;
     // The log line is pinned by build/assert-bundle-refusals.mjs. Reword it
-    // there first or the build fails, which is the gate working.
-    console.error(
-      `[gmux-updates] the update left resources missing: ${missing.join(', ')}`
+    // there first or the build fails, which is the gate working. It goes
+    // through logUpdateEvent (Phase 31) so packaged builds keep it on disk;
+    // the console output is unchanged.
+    logUpdateEvent(
+      'error',
+      `the update left resources missing: ${missing.join(', ')}`
     );
     postDurabilityNotice({
       kind: 'update-incomplete',
@@ -152,8 +156,9 @@ export async function runPostUpdateSelfCheck(): Promise<void> {
   } catch (err) {
     // The check is about a broken bundle. It must never become the thing
     // that breaks a working boot.
-    console.warn(
-      `[gmux-updates] the post update self check did not finish: ${(err as Error).message}`
+    logUpdateEvent(
+      'warn',
+      `the post update self check did not finish: ${(err as Error).message}`
     );
   }
 }

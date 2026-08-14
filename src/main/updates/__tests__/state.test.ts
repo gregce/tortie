@@ -57,22 +57,22 @@ const statePath = (): string => join(userDataDir, 'updates.json');
 // The store
 // ---------------------------------------------------------------------------
 
+const DEFAULT_STATE = {
+  lastSeenVersion: null,
+  allowDowngrade: false,
+  lastCheckedAt: null,
+  pendingVersion: null,
+  pendingRecordedAt: null
+};
+
 describe('readUpdateState', () => {
   it('returns the defaults when the file is missing', () => {
-    expect(readUpdateState()).toEqual({
-      lastSeenVersion: null,
-      allowDowngrade: false,
-      lastCheckedAt: null
-    });
+    expect(readUpdateState()).toEqual(DEFAULT_STATE);
   });
 
   it('returns the defaults when the file is corrupt', () => {
     writeFileSync(statePath(), '{not json', 'utf8');
-    expect(readUpdateState()).toEqual({
-      lastSeenVersion: null,
-      allowDowngrade: false,
-      lastCheckedAt: null
-    });
+    expect(readUpdateState()).toEqual(DEFAULT_STATE);
   });
 
   it('reads a valid file back field for field', () => {
@@ -81,14 +81,18 @@ describe('readUpdateState', () => {
       JSON.stringify({
         lastSeenVersion: '0.18.2',
         allowDowngrade: true,
-        lastCheckedAt: 1765600000000
+        lastCheckedAt: 1765600000000,
+        pendingVersion: '0.18.3',
+        pendingRecordedAt: 1765600100000
       }),
       'utf8'
     );
     expect(readUpdateState()).toEqual({
       lastSeenVersion: '0.18.2',
       allowDowngrade: true,
-      lastCheckedAt: 1765600000000
+      lastCheckedAt: 1765600000000,
+      pendingVersion: '0.18.3',
+      pendingRecordedAt: 1765600100000
     });
   });
 
@@ -103,8 +107,7 @@ describe('readUpdateState', () => {
       'utf8'
     );
     expect(readUpdateState()).toEqual({
-      lastSeenVersion: null,
-      allowDowngrade: false,
+      ...DEFAULT_STATE,
       lastCheckedAt: 1765600000000
     });
   });
@@ -146,15 +149,70 @@ describe('sanitizeUpdateState, the allowDowngrade rule', () => {
   });
 });
 
+describe('sanitizeUpdateState, the pending pair (Phase 31)', () => {
+  it('reads a valid pair back as written', () => {
+    const state = sanitizeUpdateState({
+      pendingVersion: '0.19.1',
+      pendingRecordedAt: 1765600000000
+    });
+    expect(state.pendingVersion).toBe('0.19.1');
+    expect(state.pendingRecordedAt).toBe(1765600000000);
+  });
+
+  it('nulls BOTH fields when the version is malformed', () => {
+    const state = sanitizeUpdateState({
+      pendingVersion: '   ',
+      pendingRecordedAt: 1765600000000
+    });
+    expect(state.pendingVersion).toBe(null);
+    expect(state.pendingRecordedAt).toBe(null);
+  });
+
+  it('nulls BOTH fields when the timestamp is malformed', () => {
+    for (const bad of [-1, NaN, '1765600000000', null, undefined]) {
+      const state = sanitizeUpdateState({
+        pendingVersion: '0.19.1',
+        pendingRecordedAt: bad
+      });
+      expect(state.pendingVersion).toBe(null);
+      expect(state.pendingRecordedAt).toBe(null);
+    }
+  });
+
+  it('a malformed pair leaves the other fields alone', () => {
+    const state = sanitizeUpdateState({
+      lastSeenVersion: '0.19.0',
+      lastCheckedAt: 1765600000000,
+      pendingVersion: 7,
+      pendingRecordedAt: 1765600000000
+    });
+    expect(state.lastSeenVersion).toBe('0.19.0');
+    expect(state.lastCheckedAt).toBe(1765600000000);
+    expect(state.pendingVersion).toBe(null);
+    expect(state.pendingRecordedAt).toBe(null);
+  });
+});
+
 describe('writeUpdateState', () => {
   it('merges the patch over what is on disk', () => {
     writeUpdateState({ lastSeenVersion: '0.18.1' });
     writeUpdateState({ lastCheckedAt: 1765600000000 });
     expect(readUpdateState()).toEqual({
+      ...DEFAULT_STATE,
       lastSeenVersion: '0.18.1',
-      allowDowngrade: false,
       lastCheckedAt: 1765600000000
     });
+  });
+
+  it('records and clears the pending pair across merges', () => {
+    writeUpdateState({
+      pendingVersion: '0.19.1',
+      pendingRecordedAt: 1765600000000
+    });
+    expect(readUpdateState().pendingVersion).toBe('0.19.1');
+    writeUpdateState({ pendingVersion: null, pendingRecordedAt: null });
+    expect(readUpdateState().pendingVersion).toBe(null);
+    expect(readUpdateState().pendingRecordedAt).toBe(null);
   });
 
   it('preserves a hand written allowDowngrade across unrelated writes', () => {
