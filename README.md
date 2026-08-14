@@ -39,7 +39,7 @@ sessions.
 
 - **Quit the app and the agents keep working.** Sessions live outside the app process, so the window is just a view.
 - **Reboot and everything comes back.** Scrollback replayed, and each agent's own resume command typed and waiting for your Enter.
-- **Your session list keeps five verified backups of itself,** refreshed automatically as it changes.
+- **Your session list keeps verified backups of itself,** refreshed automatically as it changes.
 - **If a session didn't come back, Tortie says so.** No green dot on a dead session.
 
 ### One window for your projects
