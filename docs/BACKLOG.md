@@ -33,9 +33,9 @@ the wordmark is a wordmark. Revisit only if the operator asks.
 | — | ~~**25** downloads and usage measurement~~ | **DEFERRED 2026-08-12 by the operator.** Spec kept below and stays valid. Note it must ship IN a released build, so reopening it after a release means the first cohort is unmeasurable |
 | 9 | **25.5** the DeepSeek CLI renamed itself and detection is broken | ✅ SHIPPED 2026-08-13 | nothing. Small, and can run beside any phase |
 | 9b | **26** Context sidebar dogfood round, user reported | ✅ SHIPPED 2026-08-13 | 25.5 ✅ |
-| 10 | **Release lane** Itavero identity, signing, notarization, version scheme, four CI lanes | ready | after Phase 25.5 |
-| 11 | **24** self update | SPECCED BELOW | the release lane. Impossible before the app is signed |
-| — | Release lane, second half: signing, notarization, the updater | blocked | the operator's App Store Connect issuer identifier |
+| 10 | **Release lane (Phase 27)** Itavero identity, signing, notarization, version scheme, four CI lanes | ✅ SHIPPED 2026-08-13 | after Phase 25.5 ✅ |
+| 11 | **24** self update | SPECCED BELOW | the release lane ✅. The app is now signed, so this is unblocked |
+| — | ~~Release lane, second half: signing, notarization, the updater~~ | signing and notarization shipped with Phase 27. The updater is Phase 24 | the issuer identifier was never needed. Notarization uses the Apple ID, the team id and an app specific password, the deadreckon shape |
 
 **Why 19 waits for 18.6.** Both touch `src/renderer/state/store.ts`. Phase 19's restart fix would be
 written against a file that 18.6 then rewrites. Doing the renderer work together, then the main
@@ -942,7 +942,14 @@ Phase 18's layout work, since the sidebar was rebuilt three commits ago.
 
 ---
 
-## Release lane — signing and notarization, following deadreckon (2026-08-12)
+## Release lane — signing and notarization, following deadreckon (2026-08-12) ✅ SHIPPED 2026-08-13 as Phase 27
+
+Shipped in full. The identity is `com.itavero.tortie`, the version is 0.18.0 with a hand-written
+CHANGELOG.md, the app is signed with the Developer ID and the hardened runtime, notarization was
+accepted by Apple (submission 0130dfee-75ac-4c89-be79-50d876cedbb8, 77 s), and
+`build/verify-signed.mjs` gates the DMG, the ZIP and the loose app. Four CI lanes exist under
+`.github/workflows/`. The CI lanes are unproven until the first push runs them. The rest of this
+section is the record of the decisions as they were made.
 
 The operator instruction is to use the same keys and the same bundle identifier approach as
 `/Users/gdc/deadreckon`, which already ships signed and notarized macOS builds. Read that repository

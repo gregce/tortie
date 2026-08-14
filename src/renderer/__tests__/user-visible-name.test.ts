@@ -287,7 +287,9 @@ describe('the product is called Tortie wherever the user can read it', () => {
     expect(pkg.productName).toBe('Tortie');
 
     const builder = readFileSync(join(REPO, 'electron-builder.yml'), 'utf8');
-    expect(builder).toMatch(/^appId:\s*com\.specstory\.tortie\s*$/m);
+    // Phase 27: Tortie ships under Itavero, the operator's LLC. The SpecStory
+    // INTEGRATION keeps its name; the app's own vendor identity is Itavero.
+    expect(builder).toMatch(/^appId:\s*com\.itavero\.tortie\s*$/m);
     expect(builder).toMatch(/^productName:\s*Tortie\s*$/m);
   });
 

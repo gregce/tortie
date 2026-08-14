@@ -1,11 +1,11 @@
 {
   "name": "tortie",
   "productName": "Tortie",
-  "version": "0.0.1",
+  "version": "0.18.0",
   "description": "Tortie — a calm, durable place for agentic work: named terminal sessions that outlive the window (private tmux server), git sidebar, decorated file tree, diff + edit surfaces.",
   "private": true,
   "main": "./out/main/index.js",
-  "author": "SpecStory",
+  "author": "Itavero",
   "license": "Apache-2.0",
   "scripts": {
     "dev": "electron-vite dev",
@@ -38,8 +38,9 @@
     "vendor:specstory": "node build/fetch-specstory.cjs",
     "vendor:skills": "node build/fetch-skills.cjs",
     "pin:skills:check": "node build/check-skills-pin.cjs",
-    "package": "electron-vite build && node build/assert-bundle-refusals.mjs && node build/assert-preview-containment.mjs && electron-builder --mac",
+    "package": "electron-vite build && node build/assert-bundle-refusals.mjs && node build/assert-preview-containment.mjs && electron-builder --mac --publish never",
     "package:dir": "electron-vite build && node build/assert-bundle-refusals.mjs && node build/assert-preview-containment.mjs && electron-builder --mac --dir",
+    "verify:signed": "node build/verify-signed.mjs",
     "icon": "cp docs/brand/tortie/macos/Tortie.icns build/icon.icns && cp docs/brand/tortie/menu-bar/TortieTemplate.png docs/brand/tortie/menu-bar/TortieTemplate@2x.png resources/menu-bar/ && cp docs/brand/tortie/dock/tortie-dock-128.png src/renderer/assets/brand/tortie-128.png"
   },
   "dependencies": {

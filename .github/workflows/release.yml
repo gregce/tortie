@@ -1,0 +1,205 @@
+# The release lane. It runs on v* tags only, and it publishes a DRAFT.
+#
+# The shape follows docs/research/27-release-and-updates.md sections 3.7.1 and
+# 7.9, and the signing steps follow the working precedent at
+# /Users/gdc/deadreckon/.github/workflows/release.yml: import the p12 into a
+# temporary keychain, sign, notarize with an Apple ID and an app specific
+# password, staple, verify, then publish. The five secrets carry the same
+# names in both repositories: APPLE_CERT_P12, APPLE_CERT_PWD, APPLE_ID,
+# APPLE_TEAM_ID, APPLE_APP_PWD.
+#
+# Draft-first is the point. Promotion is the one human gate, and it turns
+# "halt" into "do not promote" rather than an emergency (research 27 section
+# 3.7.1). Nothing here marks a release published.
+#
+# Seams with the rest of the phase, stated rather than assumed:
+#   - electron-builder.yml (the signing builder's file) must carry the
+#     Developer ID identity, hardenedRuntime and the entitlements. This
+#     workflow does not name the identity; electron-builder finds it in the
+#     temporary keychain via CSC_KEYCHAIN.
+#   - notarize and the publish provider are forced from the command line
+#     below, so this lane does not depend on the yml for either. If the yml
+#     also sets them, the values agree.
+#   - if a codesign gate script lands under build/, the inline verify step
+#     below should be replaced by a call to it.
+#
+# No secret is ever echoed. GitHub masks secret values in logs, and every
+# secret below is only ever passed through env into a command that does not
+# print it.
+name: release
+on:
+  push:
+    tags: ['v*']
+concurrency:
+  # Never cancel a half-finished notarization; a duplicate is cheaper than a
+  # torn one (research 27 section 7.7).
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+jobs:
+  release:
+    runs-on: macos-15 # never macos-latest (research 27 section 7.3)
+    timeout-minutes: 60 # the notary queue is 2 to 15 min and has no SLA
+    env:
+      NODE_OPTIONS: --max-old-space-size=5120
+      # A release build from an edited tree must fail, not annotate
+      # (research 27 section 3.5).
+      TORTIE_RELEASE: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Fail closed when a signing secret is missing
+        env:
+          APPLE_CERT_P12: ${{ secrets.APPLE_CERT_P12 }}
+          APPLE_CERT_PWD: ${{ secrets.APPLE_CERT_PWD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PWD: ${{ secrets.APPLE_APP_PWD }}
+        run: |
+          missing=""
+          for name in APPLE_CERT_P12 APPLE_CERT_PWD APPLE_ID APPLE_TEAM_ID APPLE_APP_PWD; do
+            eval "value=\${$name:-}"
+            if [ -z "$value" ]; then
+              missing="$missing $name"
+            fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::missing required secrets:$missing"
+            exit 1
+          fi
+      - name: The tag and package.json must agree on the version
+        run: |
+          tag_version="${GITHUB_REF_NAME#v}"
+          pkg_version="$(node -p "require('./package.json').version")"
+          if [ "$tag_version" != "$pkg_version" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match package.json version $pkg_version"
+            exit 1
+          fi
+      - uses: ./.github/actions/setup
+      - name: Cache the electron-builder toolsets (dmg-builder, 96 MB)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/Library/Caches/electron-builder
+          key: ebuilder-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      # The gate battery runs before anything irreversible (research 27
+      # section 3.7.1). A tag on a tree that fails its own gates must never
+      # produce artifacts.
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build # ONCE per lane; every later step reuses out/
+      - name: T1, a session survives a restart
+        run: |
+          node build/harness-socket.mjs gmux-smoke-t1 \
+            "GMUX_SMOKE=create npx electron . --user-data-dir='$RUNNER_TEMP/t1' && GMUX_SMOKE=verify npx electron . --user-data-dir='$RUNNER_TEMP/t1'"
+      - name: T3, restorable to restored to armed
+        run: |
+          node build/harness-socket.mjs gmux-smoke-t3 \
+            "GMUX_SMOKE=t3-prep npx electron . --user-data-dir='$RUNNER_TEMP/t3' && GMUX_SMOKE=t3-verify npx electron . --user-data-dir='$RUNNER_TEMP/t3'"
+      # The deadreckon temporary keychain import, adapted only in names. The
+      # keychain lives in RUNNER_TEMP and dies with the VM. CSC_KEYCHAIN
+      # tells electron-builder exactly where to look.
+      - name: Import the Developer ID certificate into a temporary keychain
+        env:
+          APPLE_CERT_P12: ${{ secrets.APPLE_CERT_P12 }}
+          APPLE_CERT_PWD: ${{ secrets.APPLE_CERT_PWD }}
+        run: |
+          cert="$RUNNER_TEMP/developer-id.p12"
+          keychain="$RUNNER_TEMP/tortie-signing.keychain-db"
+          echo "$APPLE_CERT_P12" | base64 -D > "$cert"
+          security create-keychain -p "" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "" "$keychain"
+          security import "$cert" -k "$keychain" -P "$APPLE_CERT_PWD" -T /usr/bin/codesign
+          security list-keychains -d user -s "$keychain" login.keychain-db
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" "$keychain"
+          rm -f "$cert"
+          echo "CSC_KEYCHAIN=$keychain" >> "$GITHUB_ENV"
+      - name: Package, sign, notarize and staple
+        timeout-minutes: 45
+        env:
+          # electron-builder's Apple ID credential set for notarization. The
+          # local machine uses the keychain profile tortie-notary instead;
+          # these three are the CI equivalent of that profile.
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_PWD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          # Never point a publish step at a release/ this run did not create
+          # (research 27 section 7.9).
+          rm -rf release
+          # --publish never: electron-builder still writes latest-mac.yml and
+          # the blockmaps because a publish provider is configured (verified
+          # in PublishManager.js: update info files are written outside the
+          # isPublish guard), but it uploads nothing. The draft release below
+          # is the only mutation.
+          #
+          # Notarization is driven by the three APPLE_* env vars above
+          # (MacTargetHelper.getNotarizeOptions reads exactly those names).
+          # The notarize flag here only guards against a config that sets
+          # notarize false.
+          npx electron-builder --mac --publish never \
+            -c.mac.notarize=true \
+            -c.publish.provider=github \
+            -c.publish.owner=gregce \
+            -c.publish.repo=tortie
+      - name: The packaged app launches and passes the basic smoke
+        run: |
+          node build/harness-socket.mjs gmux-smoke-pkg \
+            "GMUX_SMOKE=basic './release/mac-arm64/Tortie.app/Contents/MacOS/Tortie' --user-data-dir='$RUNNER_TEMP/pkg'"
+      # Verify, do not assume. Research 27 section 1.2 measured that the
+      # unsigned build FAILS these checks, so a lane that skipped them would
+      # ship exactly the defect this phase exists to close.
+      # build/verify-signed.mjs is the gate: it checks the loose app, the app
+      # inside the ZIP and the app on the mounted DMG (the ZIP is what the
+      # updater consumes), and with --expect-notarized it requires the spctl
+      # verdict "Notarized Developer ID" and a stapled ticket. Because this
+      # lane notarizes inline (the .app is stapled BEFORE the DMG and ZIP are
+      # cut), the gate must pass with ZERO warnings; the grep enforces that.
+      - name: Release gates on the signed artifacts
+        run: |
+          set -euxo pipefail
+          test -f release/latest-mac.yml
+          dmg="$(ls release/Tortie-*-arm64.dmg)"
+          zip="$(ls release/Tortie-*-arm64.zip)"
+          test -f "$dmg.blockmap"
+          test -f "$zip.blockmap"
+          node build/verify-signed.mjs --expect-notarized --artifacts | tee "$RUNNER_TEMP/verify-signed.log"
+          if grep -q 'WARN' "$RUNNER_TEMP/verify-signed.log"; then
+            echo "::error::verify-signed reported warnings; the inline notarization path must produce zero"
+            exit 1
+          fi
+      - name: Attest build provenance for the DMG and ZIP
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            release/*.dmg
+            release/*.zip
+      - name: Publish the DRAFT release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="$GITHUB_REF_NAME"
+          # Never cut two artifacts at one version (research 27 section 3.5).
+          # A draft does not claim the tag, so a bare create would happily
+          # make a second draft for the same version. Refuse instead.
+          if gh release list --limit 100 --json tagName --jq '.[].tagName' | grep -Fxq "$tag"; then
+            echo "::error::a release or draft for $tag already exists; delete it or bump the version"
+            exit 1
+          fi
+          notes="Draft created by the release workflow. Before promoting: copy the CHANGELOG.md entry for ${tag#v} into these notes, run the candidate checks from docs/research/27-release-and-updates.md section 3.7, then promote by hand."
+          gh release create "$tag" \
+            --draft \
+            --verify-tag \
+            --title "Tortie ${tag#v}" \
+            --notes "$notes" \
+            release/*.dmg release/*.zip release/*.blockmap release/latest-mac.yml
+      - if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-logs
+          path: |
+            release/builder-debug.yml
+            ${{ runner.temp }}/**/*.log
+          retention-days: 3

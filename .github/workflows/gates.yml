@@ -1,0 +1,69 @@
+# The gate lane. It runs on every pull request and every push to main, and it
+# must stay fast (research 27 section 7: about 6 minutes warm).
+#
+# What it holds: typecheck, the unit tests, one build, and the packaged-dir
+# smoke. The packaged-dir smoke is the only gate that catches the
+# extraResources and asarUnpack class of bug, because out/ is structurally
+# blind to it (research 19 section 7.2). The deeper tmux smokes run in the
+# nightly durability lane.
+#
+# What is deliberately NOT here, and must never be added:
+#   - conformance:resume:capture. On a runner with no agent CLIs it reports
+#     SKIP for every agent and exits 0. A gate that passes because nothing was
+#     tested is worse than no gate (research 27 section 7.2).
+#   - smoke:capture and conformance:resume. Both need real agent CLIs and live
+#     credentials. They stay local.
+#
+# The paths-ignore filter has a known trap: if this workflow is ever made a
+# REQUIRED check, a docs-only push never reports and the PR blocks forever.
+# The fix at that point is a twin workflow with the same job name and the
+# inverse filter that does nothing and succeeds (research 27 section 7.7).
+name: gates
+on:
+  pull_request:
+    paths-ignore: ['docs/**', '**/*.md']
+  push:
+    branches: [main]
+    paths-ignore: ['docs/**', '**/*.md']
+concurrency:
+  # Keyed on the PR number so a force-push and a normal push to the same PR
+  # collapse into one group.
+  group: gates-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  gates:
+    runs-on: macos-15 # never macos-latest; it moves (research 27 section 7.3)
+    timeout-minutes: 25
+    env:
+      # The build peaks at 3.76 GB resident. On a 7 GB runner this makes an
+      # overflow a legible V8 heap error rather than a SIGKILL.
+      NODE_OPTIONS: --max-old-space-size=5120
+      # This lane never signs. The signing identity lives only in the release
+      # lane's temporary keychain.
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build # ONCE per lane; every later step reuses out/
+      - name: The packaged bundle contains what it claims
+        run: |
+          # -c.mac.identity=null is coerced to a real null by electron-builder
+          # (builder.js coerceValue), which skips signing entirely, and
+          # notarization is unreachable once signing is skipped
+          # (macPackager.js handleNullIdentity). Verified in the installed
+          # electron-builder 26.15.3, not assumed.
+          npx electron-builder --mac --dir -c.mac.identity=null
+          node build/harness-socket.mjs gmux-smoke-pkg \
+            "GMUX_SMOKE=basic './release/mac-arm64/Tortie.app/Contents/MacOS/Tortie' --user-data-dir='$RUNNER_TEMP/pkg'"
+      - if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: gates-logs
+          path: |
+            ${{ runner.temp }}/**/*.log
+            out/*.png
+          retention-days: 3

@@ -29,7 +29,12 @@ service of them:
 
 ### The name
 
-The product is **Tortie** (`com.specstory.tortie`, `~/Library/Application Support/Tortie`).
+The product is **Tortie** (`com.itavero.tortie` since Phase 27,
+`com.specstory.tortie` from Phase 16.5 to Phase 27,
+`~/Library/Application Support/Tortie` throughout — the data directory follows
+`app.setName`, not the bundle id, so the Phase 27 change moved no data).
+Tortie ships under Itavero, the operator's LLC; the SpecStory integration
+keeps its name because it is a separate product Tortie talks to.
 It was `gmux` until Phase 16.5 and much of the code's *prose* still says so —
 deliberately. The identifiers **live data is bound to must never be renamed**:
 the tmux socket `-L gmux`, `resources/gmux-tmux.conf`, the `@gmux-*` session
@@ -177,18 +182,23 @@ was cut from. Nothing here is inherited.
 
 ### The packaged bundle
 
-Checked on the built copy *before* it replaced anything, and again off the
-mounted DMG:
+Re-measured **2026-08-13** from the Phase 27 release rehearsal (version
+0.18.0, signed and notarized). The installed `/Applications/Tortie.app` is
+still the Phase 17 build of 0.0.1; nothing below replaced it. Checked on the
+built copy, the app inside the ZIP and the app off the mounted DMG
+(`build/verify-signed.mjs --artifacts`):
 
-- `CFBundleIdentifier=com.specstory.tortie`, `CFBundleName=Tortie`,
-  `CFBundleExecutable=Tortie`, `CFBundleShortVersionString=0.0.1`.
+- `CFBundleIdentifier=com.itavero.tortie`, `CFBundleName=Tortie`,
+  `CFBundleExecutable=Tortie`, `CFBundleShortVersionString=0.18.0`.
 - All four helper bundles renamed **and** their `CFBundleName` rewritten —
   `Tortie Helper`, `Tortie Helper (GPU)`, `Tortie Helper (Plugin)`,
   `Tortie Helper (Renderer)` — so every Tortie process answers to Tortie however
   macOS is asked (`build/after-pack.cjs`).
-- `Contents/Resources/bin/specstory` — 43,207,712 bytes, Mach-O 64-bit arm64,
+- `Contents/Resources/bin/specstory` — 43,207,904 bytes, Mach-O 64-bit arm64,
   exec bit set, runs (`2.8.0 (SpecStory)`), `codesign --verify --strict` clean,
-  `Identifier=com.specstory.tortie.specstory`, `flags=0x10002(adhoc,runtime)`.
+  `Identifier=com.itavero.tortie.specstory`, `flags=0x10000(runtime)`, signed
+  `Developer ID Application: Gregory Ceccarelli (4GRQMF5T5U)`. The unpacked
+  ripgrep carries `Identifier=com.itavero.tortie.rg` with the same identity.
   Verified **off the mounted DMG** too, not only from `release/`.
 - `Contents/Resources/gmux-tmux.conf` present (3,886 bytes) — the name the
   rename deliberately did not touch.
@@ -197,17 +207,27 @@ mounted DMG:
 - ripgrep unpacked from the asar at
   `app.asar.unpacked/node_modules/@vscode/ripgrep-darwin-arm64/bin/rg`
   (4,528,512 bytes) — required for correctness today and for signing later.
-- Signature: **none on the bundle**. This line used to say "ad-hoc", which
-  overstated it. With `identity: null` electron-builder does not sign the app,
-  so there is no `Contents/_CodeSignature` and `codesign -dv` on the installed
-  copy reports `Identifier=Electron`, `flags=0x20002(adhoc,linker-signed)` and
-  `Sealed Resources=none`. That signature is the linker's, one per Mach-O, not
-  one electron-builder applied. The app launches here because it was built here
-  and never carried a quarantine flag. It would not launch on another machine.
-  Re-measured 2026-08-12. See §6 for the certificate that is now available.
+- Signature (Phase 27): **Developer ID with the hardened runtime**, and Apple
+  notarized it. `codesign --verify --deep --strict` passes on all three
+  copies. The designated requirement is
+  `identifier "com.itavero.tortie" and anchor apple generic ... subject.OU =
+  "4GRQMF5T5U"` — an identity requirement, not a cdhash, which is the
+  precondition for self-update (research 27 section 1.3). `spctl -a -vv` says
+  `accepted, source=Notarized Developer ID`. Notarization submissions
+  94a1db5b (first signed build), d35b08de and 0130dfee (the rehearsal builds,
+  76 to 86 s each), all **Accepted**. Until Phase 27 this line read "none on
+  the bundle" — the 0.0.1 build was unsigned and would not launch on another
+  machine. This one would.
+- The rehearsal also caught a boot crash no repo gate saw: main imports
+  parse5 since Phase 20.5, and electron-builder.yml still excluded it, so the
+  packed app died in its first JavaScript tick behind a modal dialog.
+  parse5 + entities now ship, and `build/assert-main-requires.cjs` fails any
+  build whose main/preload bundles require an excluded package. The packaged
+  `GMUX_SMOKE=basic` smoke passes 6/6 in 2.6 s from the signed app.
 
-Sizes: `.app` **450.8 MB** · DMG **168,450,071 B (160.6 MB)** · ZIP
-**167,911,660 B (160.1 MB)**.
+Sizes (0.18.0): DMG **172,088,555 B (164.1 MB)** · ZIP **171,088,500 B
+(163.2 MB)**, both with blockmaps, plus `release/latest-mac.yml` (the updater
+feed, ZIP first).
 
 ### The switchover itself (Phase 17's own evidence)
 

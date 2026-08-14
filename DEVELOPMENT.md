@@ -10,13 +10,21 @@ Philosophy and naming: [`docs/ZEN-OF-TORTIE.md`](docs/ZEN-OF-TORTIE.md).
 Architecture authority: [`docs/FINAL-REPORT.md`](docs/FINAL-REPORT.md) (§2).
 
 > **The app was called `gmux` until Phase 16.5.** The product name, bundle id
-> (`com.specstory.tortie`) and data directory (`~/Library/Application
-> Support/Tortie`) all changed; the first launch under the new name copies the
-> old `~/Library/Application Support/gmux` across and leaves the original in
+> and data directory (`~/Library/Application Support/Tortie`) all changed; the
+> first launch under the new name copies the old
+> `~/Library/Application Support/gmux` across and leaves the original in
 > place as a backup (`src/main/migrate/`). Several INTERNAL identifiers keep
 > the old spelling ON PURPOSE — most importantly the private tmux socket
 > `-L gmux`, which live sessions are bound to and which must never be renamed.
 > See "What is still called gmux, and why" below.
+>
+> **The bundle id changed again in Phase 27**: `com.itavero.tortie`, because
+> Tortie ships under Itavero, the operator's LLC, not SpecStory. The data
+> directory follows `app.setName` ("Tortie"), not the bundle id, so nothing
+> moved. macOS keys privacy grants and the login item on the bundle id, so
+> permissions are asked again once and `reconcileLoginItem()` re-registers the
+> login item from the recorded preference. The SpecStory integration keeps its
+> name everywhere; it is a separate product Tortie talks to.
 
 ## Dev quickstart
 

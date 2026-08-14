@@ -31,6 +31,14 @@
  * shipped before this file existed never wrote the stamp, so its login-item
  * setting genuinely cannot be recovered. That is what the one-time rename
  * notice (src/main/migrate/notice.ts) tells the user in plain words.
+ *
+ * Phase 27 changed the bundle id a second time, `com.specstory.tortie` ->
+ * `com.itavero.tortie`. Nothing here needed a new path for that: the stamp is
+ * keyed on the USER'S ANSWER, not on a bundle-id pair, and every build since
+ * Phase 16.5 writes it. The reconcile below sees the OS report `openAtLogin:
+ * false` for the new id, reads the remembered ON, and re-registers. Only the
+ * diagnostic `bundleId()` literal moves with the id; keep it equal to the
+ * `appId` in electron-builder.yml.
  */
 
 import { app } from 'electron';
@@ -96,7 +104,9 @@ function writeStamp(openAtLogin: boolean): void {
 function bundleId(): string {
   try {
     // Only defined for a packaged .app; dev runs report Electron's own id.
-    return app.isPackaged ? 'com.specstory.tortie' : 'dev';
+    // Must equal electron-builder.yml's appId (com.itavero.tortie since
+    // Phase 27). Diagnostic only: the reconcile logic never compares it.
+    return app.isPackaged ? 'com.itavero.tortie' : 'dev';
   } catch {
     return 'unknown';
   }

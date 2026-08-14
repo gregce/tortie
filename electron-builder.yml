@@ -1,41 +1,62 @@
-# Tortie packaging. A local unsigned arm64 DMG and ZIP.
+# Tortie packaging. A signed arm64 DMG and ZIP (Phase 27, the release lane).
 #
-# This header used to say that only an Apple Development certificate is on this
-# machine. That is false, and it was the only recorded blocker on notarization.
-# Measured again on 2026-08-12 with `security find-identity -v -p codesigning`:
+# SIGNING, and where the identity comes from. There is no `identity` key below
+# on purpose. electron-builder discovers a "Developer ID Application"
+# certificate in the keychain search list, which resolves differently in each
+# of the three places a package is built, and every one of them is intended:
 #
-#   Developer ID Application: Gregory Ceccarelli (4GRQMF5T5U)
-#   valid 2026-06-01 to 2031-06-02
+#   - the dev machine: the login keychain holds
+#     "Developer ID Application: Gregory Ceccarelli (4GRQMF5T5U)", valid to
+#     2031-06-02, so every local `npm run package` produces a really signed,
+#     hardened-runtime app. Notarization does NOT run unless credentials are
+#     in the env (see NOTARIZATION below), so the dev loop stays offline.
+#   - the CI release lane: the workflow imports the APPLE_CERT_P12 secret into
+#     a temporary keychain first (the deadreckon pattern), and discovery finds
+#     it there. Do NOT use CSC_LINK: it imports the certificate only at
+#     signApp time, which is AFTER the afterPack hook has already signed the
+#     nested binaries, so the hook would fall back to ad-hoc and notarization
+#     would reject the build. build/sign-nested-binaries.cjs fails fast if it
+#     sees CSC_LINK with no keychain identity.
+#   - the CI gates/durability/compat lanes: no certificate. Set
+#     CSC_IDENTITY_AUTO_DISCOVERY=false there so the build is deterministically
+#     unsigned (electron-builder also skips signing on PR builds by itself);
+#     the afterPack hook then ad-hoc hardens the nested binaries exactly as
+#     the pre-Phase-27 build did, and the packaged-dir smoke still runs.
 #
-# So `identity: null` below is a build that has not been switched on yet, not a
-# build that cannot be signed. One credential is still missing, and it is the
-# App Store Connect ISSUER id, a UUID that notarytool needs next to the key. The
-# key itself is on disk at ~/.appstoreconnect/private_keys/AuthKey_8NH6JLTWBN.p8.
-# The issuer id is not in the shell rc files and there is no saved notarytool
-# keychain profile, so nothing here has ever run a notarization round trip. It
-# is one copy and paste from App Store Connect, under Users and Access, then
-# Integrations, then Keys.
+# NOTARIZATION is env-gated, never forced. electron-builder 26.15.3 notarizes
+# (and staples the .app, before the DMG and ZIP are cut — the order research
+# 27 section 6.3 requires) when one of these credential sets is in the env,
+# and skips with a warning otherwise:
+#   - APPLE_KEYCHAIN_PROFILE=tortie-notary       <- the local release path;
+#     the profile holds the credentials, no password ever touches a script
+#   - APPLE_ID + APPLE_APP_SPECIFIC_PASSWORD + APPLE_TEAM_ID  <- the CI path,
+#     from the five GitHub secrets (APPLE_APP_PWD maps to
+#     APPLE_APP_SPECIFIC_PASSWORD in the workflow env)
+# For an already-built release/ there is also the post-hoc path,
+# build/notarize-local.mjs (submit DMG, wait, staple). The release gate either
+# way is build/verify-signed.mjs; run it with --expect-notarized --artifacts
+# before anything is published.
 #
-# Here is what `identity: null` actually produces, measured on the installed
-# app rather than assumed. electron-builder does not sign the bundle at all.
-# There is no Contents/_CodeSignature. `codesign -dv` reports
-# `Identifier=Electron`, `flags=0x20002(adhoc,linker-signed)` and
-# `Sealed Resources=none`. That is the linker's own signature on each Mach-O,
-# not a signature electron-builder applied. The app runs here because it was
-# built here and never carried a quarantine flag. It would not run on another
-# machine.
-#
-# Switching signing on is four changes, spelled out in
-# docs/research/27-release-and-updates.md section 6.2: an identity here,
-# hardenedRuntime, the Electron entitlements, and notarize with the notarytool
-# credentials above.
+# NESTED BINARIES (specstory, the unpacked ripgrep) are signed inside-out by
+# build/sign-nested-binaries.cjs at afterPack, with the real identity when one
+# is discoverable and with stable reverse-DNS identifiers
+# (<appId>.specstory, <appId>.rg). The signIgnore list under `mac:` keeps
+# @electron/osx-sign's whole-bundle walk from re-signing them, because a
+# codesign --force without -i replaces a stable identifier with a
+# filename-derived one (measured 2026-08-13). The signIgnore list and
+# NESTED_BINARIES in build/sign-nested-binaries.cjs MUST stay in step; each
+# file says so.
 #
 # Still deferred: a bundled pinned tmux (the app uses system tmux 3.6a today,
-# see BUILD-STATUS.md) and an auto-update feed.
-# No longer deferred: nested Mach-O signing. Phase 15 bundles specstory-cli at
-# Contents/Resources/bin/specstory. It is listed in mac.binaries for the day an
-# identity is set, and build/sign-nested-binaries.cjs ad-hoc hardens it today.
-appId: com.specstory.tortie
+# see BUILD-STATUS.md) and the electron-updater wiring (Phase 24).
+# Phase 27: Tortie ships under Itavero, the operator's LLC, not SpecStory
+# (docs/BACKLOG.md, "Release lane", decided 2026-08-12). The data directory
+# follows app.setName ("Tortie"), not this id, so no data migration happens.
+# The SpecStory INTEGRATION keeps its name: the bundled specstory binary, the
+# src/main/specstory module and the capture surfaces are a separate product
+# Tortie talks to. The nested binary identifier below it is derived from this
+# id by build/sign-nested-binaries.cjs, so it follows with no edit.
+appId: com.itavero.tortie
 productName: Tortie
 artifactName: ${productName}-${version}-${arch}.${ext}
 directories:
@@ -80,6 +101,13 @@ files:
   - "!node_modules/hast-util-to-html/**"
   - "!node_modules/preact/**"
   - "!node_modules/preact-render-to-string/**"
+  # parse5 and its one dependency (entities) were on this denylist until the
+  # Phase 27 release rehearsal: Phase 20.5 imported parse5 into MAIN (the
+  # preview anchor rewrite in src/main/preview), so the packed 0.18.0 app
+  # crashed in its first JavaScript tick with "Cannot find module 'parse5'" —
+  # shown as a modal dialog, not a log line. Both now ship (~0.9 MB), and
+  # build/assert-main-requires.cjs fails any future build whose main/preload
+  # bundles require a package this file excludes.
   # Phase 12 (markdown preview): react-markdown + the remark/rehype/micromark
   # stack, ~80 packages, ALL renderer-only and all already bundled into
   # out/renderer/assets/markdown-impl-*.js. Main requires node-pty,
@@ -96,7 +124,6 @@ files:
   - "!node_modules/hastscript/**"
   - "!node_modules/unist-util-*/**"
   - "!node_modules/vfile*/**"
-  - "!node_modules/parse5/**"
   - "!node_modules/property-information/**"
   - "!node_modules/style-to-js/**"
   - "!node_modules/style-to-object/**"
@@ -117,7 +144,6 @@ files:
   - "!node_modules/html-url-attributes/**"
   - "!node_modules/html-void-elements/**"
   - "!node_modules/estree-util-is-identifier-name/**"
-  - "!node_modules/entities/**"
   - "!node_modules/escape-string-regexp/**"
   - "!node_modules/extend/**"
   - "!node_modules/space-separated-tokens/**"
@@ -264,29 +290,38 @@ mac:
       arch: [arm64]
     - target: zip
       arch: [arm64]
-  # No distributable signing identity on this machine (Apple Development
-  # only). null ⇒ skip real codesigning; arm64 gets an ad-hoc signature so
-  # macOS will execute it locally. Gatekeeper on OTHER machines will warn —
-  # right-click → Open, documented in BUILD-STATUS.md.
-  identity: null
-  hardenedRuntime: false
+  # Phase 27: real signing. No `identity` key here on purpose — the header of
+  # this file explains where discovery finds the certificate in each of the
+  # three build environments, and why CSC_LINK must not be used.
+  hardenedRuntime: true
+  # False on purpose. gatekeeperAssess runs `spctl --assess` right after
+  # signing, BEFORE notarization can have happened, and macOS 10.15.5+ rejects
+  # every not-yet-notarized Developer ID app — so `true` would fail every
+  # build unconditionally. The real Gatekeeper check lives in
+  # build/verify-signed.mjs, which knows whether to expect "Unnotarized
+  # Developer ID" (after packaging) or "Notarized Developer ID" (the release
+  # gate, --expect-notarized).
   gatekeeperAssess: false
-  # Phase 15 — the nested Mach-O list for the signing pass (Appendix F.3:
-  # notarization rejects any embedded binary that is not Developer ID-signed
-  # with hardened runtime, and signing is inside-out). Relative paths are
-  # resolved against the .app root by app-builder-lib.
+  # The three entitlements Electron needs under the hardened runtime, and
+  # nothing else (research 27 section 6.2). The helpers inherit the same set.
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.inherit.plist
+  # Phase 27, replacing the Phase 15 `binaries:` list. The nested Mach-O
+  # binaries (specstory, the unpacked ripgrep) are signed at afterPack by
+  # build/sign-nested-binaries.cjs — inside-out, with the real identity when
+  # one is discoverable, and with STABLE reverse-DNS identifiers. This
+  # signIgnore list keeps @electron/osx-sign's whole-bundle walk from
+  # re-signing them, because codesign --force without -i replaces a stable
+  # identifier with a filename-derived one (measured 2026-08-13: a re-sign
+  # without -i turned com.probe.custom into rg-probe-5555...).
   #
-  # This list is INERT while `identity: null` — electron-builder's sign() bails
-  # at handleNullIdentity() before it ever reads `binaries`. Until an identity
-  # exists, build/sign-nested-binaries.cjs signs the same file ad-hoc with
-  # hardened runtime from the afterPack hook, so today's build already carries
-  # the shape notarization will want. Keep the two lists in step.
-  #
-  # ZERO entitlements are needed for it: CGO-free Go, no JIT, no unsigned
-  # executable memory, and `otool -L` shows only Apple system dylibs, so
-  # library validation is satisfied trivially.
-  binaries:
-    - Contents/Resources/bin/specstory
+  # MUST STAY IN STEP with NESTED_BINARIES in build/sign-nested-binaries.cjs.
+  # A path listed here that the hook does not sign ships with the upstream
+  # linker ad-hoc signature inside a Developer ID app, and notarization
+  # rejects exactly that. build/verify-signed.mjs checks every entry.
+  signIgnore:
+    - '/Resources/bin/specstory$'
+    - '/Resources/app\.asar\.unpacked/node_modules/@vscode/ripgrep-darwin-arm64/bin/rg$'
 dmg:
   # Plain drag-to-Applications layout; no signing, no license panel.
   contents:
@@ -296,4 +331,17 @@ dmg:
       y: 220
       type: link
       path: /Applications
-publish: null
+# Phase 27: publish configuration exists so the packager EMITS the
+# electron-updater feed file. With `publish: null` no latest-mac.yml was
+# generated at all (research 27 section 3.7.1); the .blockmap files already
+# were. Nothing uploads from a local build: without a GH_TOKEN in the env
+# electron-builder only writes release/latest-mac.yml next to the DMG, the
+# ZIP and their blockmaps. The release workflow publishes those five files to
+# a DRAFT GitHub release itself; a human promotes the draft (section 3.7.1).
+# releaseType is belt and braces for any path where electron-builder does the
+# upload.
+publish:
+  provider: github
+  owner: gregce
+  repo: tortie
+  releaseType: draft

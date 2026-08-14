@@ -12,6 +12,14 @@
  * per embedded binary, and Phase 22's packaging gate — and this file stays the
  * hook, not a junk drawer.
  *
+ * SEAL WARNING (Phase 27, research 27 section 6.3): everything in this hook
+ * is safe ONLY because afterPack runs BEFORE signApp seals the bundle.
+ * NOTHING may write inside the .app after signing — a hook placed after
+ * signApp (afterSign, afterAllArtifactBuild touching the .app) invalidates
+ * the seal, and the symptom is a Gatekeeper failure on the user's machine
+ * rather than a build error here. If you need a new packaging step that
+ * writes into the bundle, it goes in THIS hook, before the sign.
+ *
  * ---
  *
  * Phase 13.8. electron-builder renames the four helper BUNDLES and their
@@ -42,11 +50,18 @@ const { execFileSync } = require('node:child_process');
 const { join } = require('node:path');
 const { signNestedBinaries } = require('./sign-nested-binaries.cjs');
 const { assertSkillsCli } = require('./assert-skills-cli.cjs');
+const { assertMainRequires } = require('./assert-main-requires.cjs');
 
 exports.default = async function afterPack(context) {
   if (context.electronPlatformName !== 'darwin') return;
   renameHelpers(context);
   signNestedBinaries(context);
+  // THROWS if a module the main/preload bundles require is not in the packed
+  // app. The 0.18.0 rehearsal build passed every repo gate and then died in
+  // its first JavaScript tick ("Cannot find module 'parse5'") because the
+  // electron-builder.yml denylist had outlived what main actually imports.
+  // See build/assert-main-requires.cjs for the shipped failure.
+  assertMainRequires(context);
   // Runs last, and it THROWS. A packed app with no working skills CLI is a
   // broken build, not a warning: the failure is invisible until a user tries to
   // install a skill. See build/assert-skills-cli.cjs for the one that shipped.

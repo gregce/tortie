@@ -1,0 +1,49 @@
+# Shared setup for every CI lane (research 27 sections 7.2 and 7.5).
+#
+# What it does, in order: Node with the npm cache, the four download caches
+# that are worth keeping, tmux, then npm ci. It caches the INPUTS (the
+# Electron zip, the npm tarballs, the two vendor tarballs) and never
+# node_modules. Research 27 section 7.5 measured why: restoring 776 MB costs
+# more than the 47 s it replaces, and it buys three failure modes the
+# download caches do not have.
+#
+# tmux is confirmed absent from the hosted macOS images (research 27 section
+# 7.2). Every durability gate needs it, so it is installed here once.
+#
+# Action refs are pinned to commit SHAs because tag mutation on popular
+# actions is a live supply chain risk (research 27 section 7.10).
+name: setup
+description: Node, dependency caches, tmux, and npm ci.
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      with:
+        node-version: '22.23.1' # matches the dev machine (research 27 header)
+        cache: npm
+    - name: Cache the Electron binary
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/Library/Caches/electron
+        key: electron-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}
+    - name: Cache the vendored specstory tarball
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: build/vendor/specstory/cache
+        key: specstory-${{ hashFiles('build/specstory-release.json') }}
+    - name: Cache the vendored skills tarball
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: build/vendor/skills-cache
+        key: skills-${{ hashFiles('build/skills-release.json') }}
+    - name: tmux (confirmed absent from the runner image)
+      shell: bash
+      env:
+        HOMEBREW_NO_AUTO_UPDATE: '1'
+        HOMEBREW_NO_INSTALL_CLEANUP: '1'
+      run: |
+        command -v tmux || brew install tmux
+        tmux -V
+    - name: Install
+      shell: bash
+      run: npm ci # postinstall runs electron-rebuild, about 30 s on the runner

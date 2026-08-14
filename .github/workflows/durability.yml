@@ -1,0 +1,82 @@
+# The durability lane. Nightly, plus on demand. It holds every agent-free
+# durability harness the gate lane is too slow to carry (research 27 section
+# 7.10): T1, T3, the fault battery, migrate, identity and procid, then a full
+# DMG and ZIP package and a smoke run of the packaged app.
+#
+# Every harness runs on its own scratch tmux socket through
+# build/harness-socket.mjs, which refuses the socket names "gmux" and
+# "default" by construction. The runner is a throwaway VM, but the same
+# command shapes are safe to paste on the dev machine, and that property is
+# worth keeping.
+#
+# Build once, then reuse out/. The npm smoke:* scripts each prepend their own
+# build, which is right for a human at a terminal and wasteful here, so this
+# lane inlines the build-free halves (research 27 section 7.6).
+#
+# The package step here is UNSIGNED on purpose. Signing needs the certificate,
+# and the certificate is only ever imported in the release lane. This lane
+# proves the bundle assembles and launches, not that it is signed.
+#
+# Deliberately NOT here: smoke:capture, conformance:resume and
+# conformance:resume:capture. They need installed agent CLIs and live
+# credentials, which a hosted runner does not have. On a runner,
+# conformance:resume:capture is vacuously green (research 27 section 7.2).
+name: durability
+on:
+  schedule:
+    - cron: '0 9 * * *' # nightly, 09:00 UTC
+  workflow_dispatch:
+concurrency:
+  group: durability
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  durability:
+    runs-on: macos-15 # never macos-latest (research 27 section 7.3)
+    timeout-minutes: 40
+    env:
+      NODE_OPTIONS: --max-old-space-size=5120
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false' # this lane never signs
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+      - name: Cache the electron-builder toolsets (dmg-builder, 96 MB)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/Library/Caches/electron-builder
+          key: ebuilder-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - run: npm run build # ONCE per lane; every later step reuses out/
+      - name: T1, a session survives a restart
+        run: |
+          node build/harness-socket.mjs gmux-smoke-t1 \
+            "GMUX_SMOKE=create npx electron . --user-data-dir='$RUNNER_TEMP/t1' && GMUX_SMOKE=verify npx electron . --user-data-dir='$RUNNER_TEMP/t1'"
+      - name: T3, restorable to restored to armed
+        run: |
+          node build/harness-socket.mjs gmux-smoke-t3 \
+            "GMUX_SMOKE=t3-prep npx electron . --user-data-dir='$RUNNER_TEMP/t3' && GMUX_SMOKE=t3-verify npx electron . --user-data-dir='$RUNNER_TEMP/t3'"
+      - name: The fault battery, 16 cases, SIGKILL and relaunch
+        run: node build/fault-harness.mjs
+      - name: Migrate, identity and procid
+        run: |
+          for m in migrate identity procid; do
+            node build/harness-socket.mjs "gmux-smoke-$m" \
+              "GMUX_SMOKE=$m npx electron . --user-data-dir='$RUNNER_TEMP/$m'"
+          done
+      - name: Full package, DMG and ZIP, unsigned
+        # identity=null is coerced to a real null by electron-builder, which
+        # skips signing, and notarization is unreachable once signing is
+        # skipped. Verified in the installed electron-builder 26.15.3.
+        run: npx electron-builder --mac -c.mac.identity=null
+      - name: The packaged app launches and passes the basic smoke
+        run: |
+          node build/harness-socket.mjs gmux-smoke-pkg \
+            "GMUX_SMOKE=basic './release/mac-arm64/Tortie.app/Contents/MacOS/Tortie' --user-data-dir='$RUNNER_TEMP/pkg'"
+      - if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: durability-logs
+          path: |
+            ${{ runner.temp }}/**/*.log
+            out/*.png
+          retention-days: 3
