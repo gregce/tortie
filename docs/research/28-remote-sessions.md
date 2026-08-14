@@ -3,7 +3,7 @@
 | Assessment fact | Value |
 | --- | --- |
 | Date | 12 August 2026 |
-| Codebase assessed | `db3cd02` (Phase 17 shipped) |
+| Codebase assessed | `c726627` (Phase 17 shipped) |
 | Questions | **(A)** Which durability gaps in [assessment 26](26-tortie-durability-architecture-and-recovery.md) should close next, in what order? **(B)** Should Tortie offer durable *remote* sessions, on what infrastructure, and should Tortie build and operate that infrastructure? |
 | Inputs | Assessment 26 read in full; [The Zen of Tortie](../ZEN-OF-TORTIE.md); [FINAL-REPORT §2](../FINAL-REPORT.md); `CLAUDE.md`; committed Tortie source, read-only; prior art at `/Users/gdc/stoa` and `/Users/gdc/specstory-sync`, read-only; live provider verification on 12 August 2026 |
 | Headline | **Close five local gaps first. Do not build remote infrastructure — ever. Ship remote as SSH attach to machines the user already owns, and only after the local gaps close.** |
@@ -55,9 +55,9 @@ Four answers, because "should we do remote" is four different questions.
 
 ## 2. The local backlog, with proof method per item
 
-Every claim below was re-verified against `db3cd02` rather than inherited from assessment 26; line references are HEAD. Nothing in Phases 16–17 closed any of these. Full defect narratives are in Appendix A §1.3.
+Every claim below was re-verified against `c726627` rather than inherited from assessment 26; line references are HEAD. Nothing in Phases 16–17 closed any of these. Full defect narratives are in Appendix A §1.3.
 
-| # | The defect, as it stands at `db3cd02` | The fix | How it is proven | Cost | Tier |
+| # | The defect, as it stands at `c726627` | The fix | How it is proven | Cost | Tier |
 | --- | --- | --- | --- | --- | --- |
 | **G1a** | `snapshotAllSessions` catches ENOSPC from `writeFile` and emits `console.warn`. The user is told nothing and quits believing transcripts were saved. | One degraded-protection notice, emitted once, through the channel that later becomes the Recovery Centre. | Fill a loopback disk image, run a capture pass, assert the notice fires exactly once and that no successful state is reported. | XS | 2 |
 | **G1** | No capture timer exists. The only real capture points are app quit and `killSession`; the `%exit` handler at `sessions/core.ts:551` fires *after* the server is dead and its own comment concedes the captures "fail harmlessly". | Adaptive checkpoint scheduler in a new `src/main/restore/checkpoint.ts`, driven by `GmuxCore`; capture on the last healthy control-mode heartbeat rather than on `%exit`; force a capture on `powerMonitor` `suspend` (not used anywhere in `src/` today); publish a recovery-point objective in UI copy. | New `smoke:checkpoint` in the `GMUX_SMOKE` family: isolated `-S` socket and `userData`, sessions emitting known output continuously, `SIGKILL` the main process at a random point, relaunch and **measure the byte distance from the last checkpoint to the true tail**. Pass condition is a measured maximum RPO plus bounded CPU, disk writes and wakeups at 10, 50 and 100 sessions. Fixtures for full-screen TUI, wide Unicode and 50,000-line scrollback. | M | 3 |
@@ -316,9 +316,9 @@ Secondary, fetched today and labelled as such:
 | Assessment fact | Value |
 | --- | --- |
 | Date | 12 August 2026 |
-| Codebase assessed | `db3cd02` (Phase 17 shipped) |
-| Input | [Durability assessment 26](26-tortie-durability-architecture-and-recovery.md), written at `07969f7` and re-read in full |
-| Method | Every claim about current behaviour re-verified against `db3cd02` rather than inherited. Line references below are HEAD, not 26's. |
+| Codebase assessed | `c726627` (Phase 17 shipped) |
+| Input | [Durability assessment 26](26-tortie-durability-architecture-and-recovery.md), written at `ae6a1b7` and re-read in full |
+| Method | Every claim about current behaviour re-verified against `c726627` rather than inherited. Line references below are HEAD, not 26's. |
 | Verdict | 26's findings all still hold. Nothing in Phases 16–17 closed them. The rename work closed A1 and, usefully, built the exact primitive that closes B2. |
 
 #### 1.1. Why this ranking differs from assessment 26's
@@ -456,7 +456,7 @@ The temporary name is per-session, which is better than 26's "fixed temporary na
 
 ##### G5 — Restore reports `running` after partial failure
 
-**What is unprotected today.** Verified at `db3cd02`, unchanged from 26 §6.5. `src/main/restore/restore.ts` catches both partial failures and records them:
+**What is unprotected today.** Verified at `c726627`, unchanged from 26 §6.5. `src/main/restore/restore.ts` catches both partial failures and records them:
 
 ```
 let replayed = false;
@@ -1170,7 +1170,7 @@ Secondary sources, labelled as such:
 
 #### Additional sources for Dimensions 1 and 2
 
-Project evidence, read at `db3cd02` on 12 August 2026:
+Project evidence, read at `c726627` on 12 August 2026:
 
 - `src/main/db/sqlite.ts` — the one opener; `WAL` / `synchronous=NORMAL` / `busy_timeout`; `immediateTransaction`; `runMigrations`
 - `src/main/db/__tests__/sqlite.test.ts` — the deterministic `SQLITE_BUSY_SNAPSHOT` worker-thread reproduction

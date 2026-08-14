@@ -7,7 +7,7 @@ phase is 18.6.
 **This document contains no code changes.** Nothing under `src` was written. No package was
 installed into the repository. Every measurement below was taken on the operator's Mac on
 2026-08-12, against git version 2.50.1 (Apple Git-155) at `/usr/bin/git`, and against the
-working tree at commit `db3cd02` plus the uncommitted Phase 18.5 edits.
+working tree at commit `c726627` plus the uncommitted Phase 18.5 edits.
 
 Three agents researched this and a fourth attacked the result. Where the attack overturned
 a finding, this document carries the corrected version and section 5 records what was cut

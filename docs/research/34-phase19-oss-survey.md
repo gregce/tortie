@@ -10,8 +10,8 @@ it.
 disk. The system Node used for cross-checks is v22.23.1 with libuv 1.51.0. The system `sqlite3` is
 Apple's 3.43.2. The `better-sqlite3` in the tree links SQLite 3.53.4.
 
-**Baseline.** Claims about the tree were checked against `6fd9ff9` (Phase 18) and re-checked against
-the working tree today, which is now at `3887c0e` with a concurrent session's edits in flight. The
+**Baseline.** Claims about the tree were checked against `bfa67d7` (Phase 18) and re-checked against
+the working tree today, which is now at `4f3701c` with a concurrent session's edits in flight. The
 one place the two differ is Need 3, and it is called out there.
 
 **Safety.** `/Users/gdc/gmux` was read-only throughout. Nothing was installed into the repo, no file
@@ -108,7 +108,7 @@ is four `db.pragma()` calls around one transaction at a measured price of 4.24 m
 and nothing anywhere else.
 
 **Overturned 3, as a statement about the tree. The single-instance lock is no longer absent.** The
-brief and the Need 3 draft both say the lock is absent and verified so. At `6fd9ff9` that was
+brief and the Need 3 draft both say the lock is absent and verified so. At `bfa67d7` that was
 correct. It is now present at `src/main/index.ts:144`, added by the concurrent session, and the
 implementation already carries a `harnessLaunch` exemption so that `GMUX_SMOKE` and `GMUX_SHOT` runs
 never take the lock. It also carries a `GMUX_ALLOW_SECOND_INSTANCE=1` escape hatch, and it exits
@@ -308,7 +308,7 @@ await writeFile(tmp, text, 'utf8');
 await rename(tmp, final);
 ```
 
-`grep -rn "fsync|fdatasync|O_SYNC" src` returns no matches, confirmed at `6fd9ff9` and again in the
+`grep -rn "fsync|fdatasync|O_SYNC" src` returns no matches, confirmed at `bfa67d7` and again in the
 working tree today. The temp name is fixed per session, so two capture paths racing on one session
 write the same temp file, and both the quit path and the `%exit` path exist. The live workload read
 from the operator's own snapshots directory is 43 files totalling 1.2 MB.

@@ -2,10 +2,10 @@
 
 | Assessment fact | Value |
 | --- | --- |
-| First assessment | 11 August 2026 at `90f9d46`: 51 out of 100 |
-| Second assessment | 11 August 2026 at `07969f7`: 63 out of 100 |
-| Pre-Phase 19 assessment | 12 August 2026 at `109c773`: 64 out of 100 |
-| Current committed assessment | 12 August 2026 at `9029831`: 70 out of 100 |
+| First assessment | 11 August 2026 at `7a47257`: 51 out of 100 |
+| Second assessment | 11 August 2026 at `ae6a1b7`: 63 out of 100 |
+| Pre-Phase 19 assessment | 12 August 2026 at `a47e377`: 64 out of 100 |
+| Current committed assessment | 12 August 2026 at `3be5d0e`: 70 out of 100 |
 | Decision | Tortie now has a credible same-machine recovery layer. It still does not earn the whole promise in [The Zen of Tortie](../ZEN-OF-TORTIE.md). |
 | Scope | Committed product code only. Early Phase 20 working-tree changes, the scheduled-task lock and temporary verifier files receive no score credit. |
 
@@ -183,7 +183,7 @@ Tortie should extract those properties for its small continuity corpus. It shoul
 
 The score is a decision aid, not telemetry. It is weighted by the product promise, not by code volume.
 
-| Dimension | Weight | 11 Aug baseline | Pre-Phase 19 | Current `9029831` | Current change | Reason |
+| Dimension | Weight | 11 Aug baseline | Pre-Phase 19 | Current `3be5d0e` | Current change | Reason |
 | --- | ---: | ---: | ---: | ---: | ---: | --- |
 | Live process continuity | 20 | 17 | 17 | 17 | 0 | tmux still owns processes. Config verification and crash tests improved, but system tmux and `-L gmux` remain. |
 | Exact conversation recovery | 20 | 17 | 17 | 17 | 0 | Semantic recall remains strong. Weak provenance, adapter drift and release enforcement remain open. |
@@ -198,7 +198,7 @@ The committed product is now the first version that can reasonably claim a same-
 
 ### 4.1 Latest progress against the 30 recommendations
 
-The status below assesses committed `9029831`. Early Phase 20 changes in the working tree receive no credit.
+The status below assesses committed `3be5d0e`. Early Phase 20 changes in the working tree receive no credit.
 
 | Item | Latest status | Evidence and remaining boundary |
 | --- | --- | --- |
@@ -241,7 +241,7 @@ First, restore truth has reached storage but not every surface. Main persists a 
 
 Second, quarantine protects evidence on the ordinary path but is not one atomic move. It renames the database first and each WAL, shared-memory or journal sidecar afterwards. If a later rename fails, the database can be moved while an original sidecar remains. The snapshot ring has a related concentration risk: bodies are immutable and verified, but one mutable capsule-index file decides which bodies are readable. These are narrower defects than the pre-Phase 19 design, but they prevent a 10 out of 15 integrity score.
 
-### 4.2 Historical progress against the 30 recommendations at `07969f7`
+### 4.2 Historical progress against the 30 recommendations at `ae6a1b7`
 
 The table below is retained as the 11 August baseline. Section 4.1 supersedes it for current status.
 
@@ -338,7 +338,7 @@ The [resume presentation model](../../src/renderer/app/resume.ts) now distinguis
 
 ## 6. Failure boundaries at the 11 August baseline
 
-This section records the evidence at `07969f7`. Section 4.1 is authoritative for committed `9029831`. Phase 19 materially narrows 6.5, 6.10, 6.11 and 6.14 by persisting restore outcomes, checking and quarantining SQLite, publishing verified snapshot generations and making restart create-first. It does not close them completely: the current residual defects are stated after the section 4.1 table. The other boundaries remain current unless section 4.1 says otherwise.
+This section records the evidence at `ae6a1b7`. Section 4.1 is authoritative for committed `3be5d0e`. Phase 19 materially narrows 6.5, 6.10, 6.11 and 6.14 by persisting restore outcomes, checking and quarantining SQLite, publishing verified snapshot generations and making restart create-first. It does not close them completely: the current residual defects are stated after the section 4.1 table. The other boundaries remain current unless section 4.1 says otherwise.
 
 ### 6.1 Closing Tortie preserves processes but ends watchfulness
 

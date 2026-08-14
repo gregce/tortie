@@ -5,7 +5,7 @@
 | Assessment fact | Value |
 | --- | --- |
 | Date | 12 August 2026 |
-| Codebase adjudicated | `0b615d0` (research 31 committed; a Phase 18 chrome-layout build is editing `src/renderer/**` concurrently — every line reference below was re-grepped at `0b615d0` and renderer references may drift by a few lines) |
+| Codebase adjudicated | `0cb494a` (research 31 committed; a Phase 18 chrome-layout build is editing `src/renderer/**` concurrently — every line reference below was re-grepped at `0cb494a` and renderer references may drift by a few lines) |
 | Inputs | [26](26-tortie-durability-architecture-and-recovery.md) read in full (its subject); [28](28-remote-sessions.md) read in full (its partial successor); [27](27-release-and-updates.md), [29](29-context-sidebar.md), [30](30-specstory-distribution.md), [31](31-extensions.md); [The Zen of Tortie](../ZEN-OF-TORTIE.md) as the tiebreaker; `CLAUDE.md` for invariants and tiers; committed source, read-only |
 | Purpose | 26 carries 30 numbered items. 28 compressed part of them into G1–G9 and **never named A8, M6, M9, B5 or B7**. 26's §12 keep/defer/cut, §13 fault matrix, §14 roadmap and §15 success measures were written before Phases 16 and 17 and have never been revisited. Two of the five unnamed items were then independently rediscovered at full cost by workflows that never cited 26. |
 | Status of this document | **This is the durability roadmap. 26 and 28 are evidence behind it.** Where this document and either of them disagree, this document is the decision. Neither is superseded as *evidence*: 26 holds the exemplar extraction and the invariants; 28 holds the defect narratives, the proof methods and the remote verdict. |
@@ -16,7 +16,7 @@
 
 Three claims, and everything else follows from them.
 
-**One item shipped out of thirty.** A1 — and only because Phase 16.5 needed it for a rename, not because durability was scheduled. That is not a criticism; it is the fact that decides the sequencing. Two independent re-verifications (28's Appendix A, and mine at `0b615d0`) reached it separately.
+**One item shipped out of thirty.** A1 — and only because Phase 16.5 needed it for a rename, not because durability was scheduled. That is not a criticism; it is the fact that decides the sequencing. Two independent re-verifications (28's Appendix A, and mine at `0cb494a`) reached it separately.
 
 **Nineteen items are better specified somewhere else than in 26.** 28 restated ten of them as G1–G9 with proof methods and expected-loss ranking. 27 took A9's compatibility half and 30 took M9's version half and made both executable. For those, the successor is the place to look, and this document's job is to point there and name what the successor left behind — because **nine of the nineteen are superseded only in part**, and a half-covered item filed under "SUPERSEDED" is exactly how work disappears.
 
@@ -83,7 +83,7 @@ These are the items no successor named. Two of them were rediscovered independen
 
 ### 2.1 A8 — versioned agent recovery contracts · OPEN · cost M · Tier 3
 
-**Restated against `0b615d0`.** The manifest has five migrations (`src/main/manifest/store.ts:436-513`) and none of them records anything about the agent beyond its id. The full picture:
+**Restated against `0cb494a`.** The manifest has five migrations (`src/main/manifest/store.ts:436-513`) and none of them records anything about the agent beyond its id. The full picture:
 
 - **The wrapper's version is recorded; the agent's is not.** `sessions.specstory` JSON carries `binVersion`, explicitly so "a restore after a mid-flight `brew upgrade` replays the same binary it launched with" (30 §2.2, confirmed). There is no `agent_version` column. The reasoning that justified `binVersion` applies with more force to the thing whose resume semantics are actually being relied on.
 - **Restore reads the live registry for correctness-bearing data.** `src/main/restore/restore.ts:60-68` documents its own limitation in a comment: *"The manifest cannot answer this: `AgentLaunchSpec.requiresOriginalCwd` is set at launch and never persisted, so restore has to ask the registry."* The `catch` below it returns `false` for any id the registry no longer launches — and for a pi-shaped agent, `false` means restore quietly opens an empty session that looks resumed. 31 §5.0 found this independently, confirmed it by reading the tree, and made it P0 for every one of its four competing extension proposals: it is the precondition none of them could choose between.
@@ -100,9 +100,9 @@ These are the items no successor named. Two of them were rediscovered independen
 
 ### 2.2 M6 — restore preflight and verified handoff · OPEN · cost M · Tier 3
 
-26 asked for six preflight checks before restore creates anything. At `0b615d0`, two exist and four do not, and the post-handoff half does not exist at all.
+26 asked for six preflight checks before restore creates anything. At `0cb494a`, two exist and four do not, and the post-handoff half does not exist at all.
 
-| M6 check | State at `0b615d0` |
+| M6 check | State at `0cb494a` |
 | --- | --- |
 | Exact cwd exists, or the user approved a provider-safe relocation | **Shipped.** `restore.ts:203-218`; `resumeNeedsOriginalCwd` (`:69`) consults the registry and refuses with an actionable message for qwen and pi. Seven tests in `restore/__tests__/cwd-guard.test.ts`. |
 | Required binary exists and its version is compatible | **Half.** The *SpecStory wrapper* binary is checked and healed (`armableResumeArgv`, four tests in `capture-rearm.test.ts`). The *agent* binary is not checked at all, and no version comparison happens anywhere — that half is A8. |
@@ -133,7 +133,7 @@ These are the items no successor named. Two of them were rediscovered independen
 
 **26 framed this as protecting Tortie's own recovery data. 29 showed the larger exposure runs the other way.** Both halves are live.
 
-*Tortie's own data, at `0b615d0`:*
+*Tortie's own data, at `0cb494a`:*
 
 - `src/main/restore/snapshots.ts:88-95` — `mkdir` with defaults and `writeFile(tmp, text, 'utf8')` with no mode. Snapshots are terminal transcripts. They land at default umask, not `0600`. The template for doing this right is already in the tree: `src/main/drop/store.ts:173` writes `{ mode: 0o600 }`.
 - There is **no per-project opt-out for terminal capture**. Today that is survivable because capture happens twice a day at shutdown. **G1 makes capture continuous.** 26's Challenge 3 said exactly this — "the real change is frequency and retention" — and then B5 was never scheduled and G1 was ranked fourth without naming it as a dependency.
@@ -178,7 +178,7 @@ There is no Recovery Centre in the tree. What exists is its narrow ancestor: `sr
 
 **A1 — stable durability root and rename migration · SHIPPED**
 
-Evidence at `0b615d0`, read rather than inferred:
+Evidence at `0cb494a`, read rather than inferred:
 
 - `src/main/migrate/userdata.ts` (943 lines). Copy-first into `<userData>.migrating`, verified in staging before publication, published by a single atomic `rename()` when the target is absent or entry-by-entry when Chromium created it first. An in-progress marker is written *before* the first publish so an interrupted run is resumed, not mistaken for finished. Anything it must overwrite is moved into `<userData>/.pre-migration-<ts>/`, never removed. The original is opened readonly throughout, including the SQLite connections, and the database is copied by `VACUUM INTO` from a readonly connection (`userdata.ts:638`) with per-table row-count verification (`DbVerification`, `userdata.ts:179`). A denylist, not an allowlist, so future files migrate automatically. Nothing in the module can stop the app booting.
 - 26's four proof requirements, matched: upgrade from the released gmux identity (`smoke:migrate`, `GMUX_SMOKE=migrate`, `index.ts:1596`, run against a populated fixture *with live tmux sessions*); interrupted-copy resume ("resumes an interrupted migration instead of treating half of it as done"); a decision when both roots hold data ("prefers the new directory when BOTH already hold data"); and no move-first or delete-first path anywhere. Plus tests for idempotence, copying committed WAL content while another connection holds the manifest open, non-SQLite `.db` byte-for-byte, and never duplicating per-instance lock files. `migrate/notice.ts` has 14 copy tests including "says the originals are still there — never 'moved'".
@@ -223,11 +223,11 @@ For each, the successor is authoritative. Named here only so nothing falls betwe
 
 ### 3.3 Open, and deliberately below the line — but not for the reasons given
 
-**M7 — Agent Attention Contract · OPEN · cost L · Tier 3.** At `0b615d0` the detector is `src/main/activity/{monitor,state-machine,oracles,screen,process,panes}.ts` plus a loopback hook receiver that **only claude supports** (`hooks.ts:11-14`; codex hooks are deliberately unimplemented because they need `--dangerously-bypass-hook-trust`). There is no provider-neutral structured contract, no `tortie signal`, no causal IDs. 28 is right to put this below the line: it is large, and its benefit is fidelity rather than loss prevention. One caveat for whoever picks it up — 26 §9 M7's external references (A2A task lifecycle, ACP session updates, Codex app-server) are a year of protocol churn old and must be re-verified live before any of them is designed against.
+**M7 — Agent Attention Contract · OPEN · cost L · Tier 3.** At `0cb494a` the detector is `src/main/activity/{monitor,state-machine,oracles,screen,process,panes}.ts` plus a loopback hook receiver that **only claude supports** (`hooks.ts:11-14`; codex hooks are deliberately unimplemented because they need `--dangerously-bypass-hook-trust`). There is no provider-neutral structured contract, no `tortie signal`, no causal IDs. 28 is right to put this below the line: it is large, and its benefit is fidelity rather than loss prevention. One caveat for whoever picks it up — 26 §9 M7's external references (A2A task lifecycle, ACP session updates, Codex app-server) are a year of protocol churn old and must be re-verified live before any of them is designed against.
 
 **M8 — leases and causal dedup · OPEN · cost M · Tier 3.** The local substitute already exists and works: `state-machine.ts:44` requires consecutive captures with the dialog gone before releasing `needs_input`, and `:239-286` handles the user's own keystroke as a release. That is a well-tuned heuristic, not a lease. Expiry-to-`unknown` (rather than to `idle`) is the one clause worth extracting early and cheaply, because it is the same honesty principle as G9 applied to attention rather than to liveness. **Do that clause with G9; leave the rest below the line.**
 
-**B6 — reversible remove, restart, archive · OPEN · cost S–M · Tier 3.** 28 put this in its tail. I disagree with the placement, and the code is why. `src/renderer/state/store.ts:880-899` at `0b615d0` (Phase 18 has moved it to `:976` in the working tree — re-grep, do not trust the number): `restartSession` calls `discard(sessionId)` **first**, then creates a replacement with only `{name, projectPath, cwd, agent}`. The comment above the call states the reason for the order — *"so the restarted session takes back its name"* — which is a display-name collision traded against a lost snapshot. Two defects, both confirmed at HEAD:
+**B6 — reversible remove, restart, archive · OPEN · cost S–M · Tier 3.** 28 put this in its tail. I disagree with the placement, and the code is why. `src/renderer/state/store.ts:880-899` at `0cb494a` (Phase 18 has moved it to `:976` in the working tree — re-grep, do not trust the number): `restartSession` calls `discard(sessionId)` **first**, then creates a replacement with only `{name, projectPath, cwd, agent}`. The comment above the call states the reason for the order — *"so the restarted session takes back its name"* — which is a display-name collision traded against a lost snapshot. Two defects, both confirmed at HEAD:
 
 1. If the create fails, the user's recovery path is already gone — the row and its snapshot were deleted to free the name.
 2. The replacement silently drops the original launch flags (`extraArgs`) and the SpecStory capture choice. A session restarted after Phase 15 stops being captured, and nothing says so.
@@ -297,7 +297,7 @@ A second, machine-independent objection stands even when Time Machine *is* runni
 
 ## 4. Already built — do not rebuild
 
-The single most reusable output of this reconciliation. Every row is code that exists at `0b615d0` and that a future durability phase would otherwise write again.
+The single most reusable output of this reconciliation. Every row is code that exists at `0cb494a` and that a future durability phase would otherwise write again.
 
 | You are about to build | It already exists here | What it gives you |
 | --- | --- | --- |
@@ -445,7 +445,7 @@ Proved necessary by work done after 26. Add them.
 
 ## 8. §14 roadmap — what actually happened
 
-26's roadmap was four gates. Here is the honest accounting at `0b615d0`, four days after it was written.
+26's roadmap was four gates. Here is the honest accounting at `0cb494a`, four days after it was written.
 
 **Gate 0 — "make current claims honest" (horizon: immediate). Not met.** Its exit test is *"no UI state or documentation uses a stronger recovery verb than the stored evidence permits"*, and it fails at one line: `sessions/core.ts:832-839` destructures `replayed` and `armedCommand` out of existence and writes `status: 'running'`. Of five bullets: the shipped readiness distinction was already true when 26 was written (it is not progress); partial restore still reports `running`; capture provenance is still not persisted; documentation was largely corrected, but by the rename work and `docs/research/32-phase18-name-audit.md` rather than by Gate 0.
 
@@ -520,4 +520,4 @@ Project documents, all read for this reconciliation:
 - [27 — release, versioning and self-update](27-release-and-updates.md) · [29 — the Context sidebar](29-context-sidebar.md) · [30 — SpecStory distribution, drift and provider discovery](30-specstory-distribution.md) · [31 — extensibility](31-extensions.md) · [25 — codebase context](25-codebase-context.md)
 - [The Zen of Tortie](../ZEN-OF-TORTIE.md) (the tiebreaker) · `CLAUDE.md` (invariants and verification tiers) · [BACKLOG](../BACKLOG.md)
 
-Source read at `0b615d0` for the verdicts above: `src/main/migrate/userdata.ts`, `src/main/db/sqlite.ts`, `src/main/manifest/store.ts`, `src/main/manifest/harvest/stores.ts`, `src/main/sessions/core.ts`, `src/main/restore/{restore,snapshots,command,login-item}.ts`, `src/main/tmux/supervisor.ts`, `src/main/activity/{hooks,state-machine,monitor}.ts`, `src/main/conformance/resume.ts`, `src/main/index.ts`, `src/main/drop/store.ts`, `src/renderer/app/resume.ts`, `src/renderer/state/store.ts`, `resources/gmux-tmux.conf`, `package.json`, and the test suites named in §4 and §7.
+Source read at `0cb494a` for the verdicts above: `src/main/migrate/userdata.ts`, `src/main/db/sqlite.ts`, `src/main/manifest/store.ts`, `src/main/manifest/harvest/stores.ts`, `src/main/sessions/core.ts`, `src/main/restore/{restore,snapshots,command,login-item}.ts`, `src/main/tmux/supervisor.ts`, `src/main/activity/{hooks,state-machine,monitor}.ts`, `src/main/conformance/resume.ts`, `src/main/index.ts`, `src/main/drop/store.ts`, `src/renderer/app/resume.ts`, `src/renderer/state/store.ts`, `resources/gmux-tmux.conf`, `package.json`, and the test suites named in §4 and §7.

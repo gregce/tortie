@@ -469,13 +469,13 @@ The directory `src/renderer/assets/agents/` holds twelve SVG files. The file
 compiled renderer bundle. They are in the shipped application, not merely in the repository.
 
 Tortie's own commit history records where each came from, and it is a primary source about Tortie.
-Commit `72d6340`, "icons: agent logos, codicons, material file-icon theme":
+Commit `1794a1d`, "icons: agent logos, codicons, material file-icon theme":
 
 > "AgentIcon: real vendor marks (claude, codex=OpenAI, gemini, amp, cursor, droid, githubcopilot,
 > deepseek) inlined from normalized SVGs in src/renderer/assets/agents; monochrome marks converted to
 > currentColor"
 
-Commit `38571b1`, "Phase 10.1: verifier fixes":
+Commit `9522e6b`, "Phase 10.1: verifier fixes":
 
 > "Agent identity: commissioned monochrome currentColor marks for antigravity (traced from vendor PNG),
 > pi (vendor mark normalized), muse + qwen (authored)"
@@ -653,7 +653,7 @@ All read on 2026-08-12 unless stated. Local paths were read on this machine. Eve
 - `src/main/agents/registry.ts`
 - `docs/research/11-agent-registry.md`
 - `build/specstory-release.json`, `electron-builder.yml`, `package.json`
-- `git log` commits `72d6340` and `38571b1`, which record where each icon came from
+- `git log` commits `1794a1d` and `9522e6b`, which record where each icon came from
 
 ---
 

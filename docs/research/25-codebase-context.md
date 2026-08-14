@@ -1,6 +1,6 @@
 # 25 — Codebase context: the re-baseline that Phase 16 is driven from
 
-**Phase 15.5. Read-only survey. Baseline: `main` @ `3fc6369`, measured 2026-08-11.**
+**Phase 15.5. Read-only survey. Baseline: `main` @ `500723d`, measured 2026-08-11.**
 **This document supersedes the file/line figures in the Phase 16 BACKLOG entry.** Those figures
 (`store.ts ~950`, `main/ipc.ts ~1,019`, `app.css ~1,528`) were written at Phase 9. All three files
 are now roughly **twice** those sizes, and the four largest sources of reader pain in the tree today

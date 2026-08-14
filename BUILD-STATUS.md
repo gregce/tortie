@@ -133,31 +133,31 @@ it did not create, and never kills the tmux server.
 
 | Phase | Commit | What landed |
 |---|---|---|
-| 1 | `5c4c2af` | Design system + Electron scaffold, frozen IPC contracts |
-| 2 | `49c0776` | **Durable session core** — private tmux server (`-L gmux`), SQLite manifest, attach; T1 restart test |
-| 3 | `cf8ac8e` | App shell — project tabs, session sidebar, create/rename (⌘T, F2) |
-| 4 | `fe840a5` | Git sidebar + git-decorated file tree |
-| 5 | `1a22fc3` | Monaco editor, diff-vs-HEAD on file click |
-| 6 | `deb1f7d` | **Reboot restore** — snapshots, manifest replay, ARMED agent resume |
-| 7 | `6a7c2f7` | Polish + packaging — native menus, icon, DMG |
-| 8.1–8.3 | `e850011` `8b2b10d` `2dc6a54` | Hardening — native menus, first-quit toast, focus-correct rename |
-| 9 / 9.2 | `bbeb2ae` `de31057` `86c8f01` | Dogfood 1 — login-shell PATH capture (agents stopped dying at launch), input-aware status detector, terminal glyph coverage |
-| 10 / 10.1 | `6f34bd2` `38571b1` | **Agent fleet** — registry launching, Settings + per-agent hotkeys, drag-to-split, branch management |
-| 11 / 11.1 | `e2d1c96` `332183b` | Pierre diffs + trees; Monaco demoted to editor-only |
-| 12.0 | `7499d98` | Large diffs open fast (Pierre's virtualized path) |
-| 12 / 12.1 | `a7a9a7b` `20d7a70` | Terminal menu + capture, git push/pull, editor tabs, markdown preview, image drop |
-| 12.2–12.6 | `239a188` `e08c20c` `877153c` `07360ab` `ae07023` | Scrollback in agent panes, Shift+Enter newline everywhere, preview tabs, drag/rename fixes |
-| 12.7 | `3732927` | **Durability hardening** — durable agents no longer uniquely killable (F3), identity by id, diagnosable deaths |
-| 12.8 / 12.85 | `5301247` `349a5a0` | Real agent marks; the Tortie seated-sentinel icon + menu-bar item |
-| 12.9–12.12 | `8c32c00` `cb8c172` `f343c1b` | File operations service, project/file management, image preview, tree-to-agent drag, per-pane zoom, shared agent grid, keyboard reference |
-| 13 / 13.1 | `69bd2ac` `1c18539` | **Per-agent activity oracles** replace the byte heuristic |
-| 13.5a/b/c | `90f9d46` `a3dd057` `b9b737d` | **Universal resume** — session ids captured for every agent that supports one; the UI says *before* the reboot which sessions come back with their conversation; the conformance harness makes every resume claim executable |
-| 13.5.1 | `2951a60` | Verifier fixes — incl. deepseek's dead-pane resume |
-| 14 / 14.1 / 14.3 | `030d2bb` `e977415` `2d75408` | **Project search, quick open, symbols** (ripgrep + tree-sitter). Parity scope capped here. |
-| 14.5–14.7 | `c18a554` `bbda40c` `3b56049` | True git log graph with lanes and origin divergence; View-menu radios follow the store |
-| 15 / 15.1 | `77e4434` `3f064d1` | **SpecStory bundled** — specstory-cli 2.8.0 inside the app, capture wraps launch AND resume, Settings owns device sign-in |
-| 16.0 / 16 / 16.1 | `ec5ded2` `b650966` `07969f7` | **Consolidation** — one IPC surface, domain boundaries, dead code removed, three guardrails made executable |
-| 16.5a / 16.5 / 16.5.1 | `8346d64` `3e54812` `09b216e` | **Rename to Tortie** + userData migration (copy, verify, keep the original) |
+| 1 | `e55dd88` | Design system + Electron scaffold, frozen IPC contracts |
+| 2 | `d2f73ed` | **Durable session core** — private tmux server (`-L gmux`), SQLite manifest, attach; T1 restart test |
+| 3 | `d6042cc` | App shell — project tabs, session sidebar, create/rename (⌘T, F2) |
+| 4 | `21678a7` | Git sidebar + git-decorated file tree |
+| 5 | `68e37ac` | Monaco editor, diff-vs-HEAD on file click |
+| 6 | `0024e38` | **Reboot restore** — snapshots, manifest replay, ARMED agent resume |
+| 7 | `2f4cd23` | Polish + packaging — native menus, icon, DMG |
+| 8.1–8.3 | `96cbc61` `2201a6f` `05b46fb` | Hardening — native menus, first-quit toast, focus-correct rename |
+| 9 / 9.2 | `ca129d5` `86ecd36` `d9336d7` | Dogfood 1 — login-shell PATH capture (agents stopped dying at launch), input-aware status detector, terminal glyph coverage |
+| 10 / 10.1 | `0d43f16` `9522e6b` | **Agent fleet** — registry launching, Settings + per-agent hotkeys, drag-to-split, branch management |
+| 11 / 11.1 | `207decf` `bc8ebd9` | Pierre diffs + trees; Monaco demoted to editor-only |
+| 12.0 | `611d74c` | Large diffs open fast (Pierre's virtualized path) |
+| 12 / 12.1 | `d3ee863` `539e76d` | Terminal menu + capture, git push/pull, editor tabs, markdown preview, image drop |
+| 12.2–12.6 | `c638575` `6ef60e0` `c19719a` `7174482` `f305f6f` | Scrollback in agent panes, Shift+Enter newline everywhere, preview tabs, drag/rename fixes |
+| 12.7 | `8f39864` | **Durability hardening** — durable agents no longer uniquely killable (F3), identity by id, diagnosable deaths |
+| 12.8 / 12.85 | `a58458e` `d95d0e9` | Real agent marks; the Tortie seated-sentinel icon + menu-bar item |
+| 12.9–12.12 | `5e39605` `39cfa4f` `6b7fc5d` | File operations service, project/file management, image preview, tree-to-agent drag, per-pane zoom, shared agent grid, keyboard reference |
+| 13 / 13.1 | `4c6f2ea` `81a40d1` | **Per-agent activity oracles** replace the byte heuristic |
+| 13.5a/b/c | `7a47257` `3a14699` `d8f1208` | **Universal resume** — session ids captured for every agent that supports one; the UI says *before* the reboot which sessions come back with their conversation; the conformance harness makes every resume claim executable |
+| 13.5.1 | `eca4c7b` | Verifier fixes — incl. deepseek's dead-pane resume |
+| 14 / 14.1 / 14.3 | `2890625` `f41a8f0` `aa7b8d2` | **Project search, quick open, symbols** (ripgrep + tree-sitter). Parity scope capped here. |
+| 14.5–14.7 | `08b05c3` `011bade` `e417722` | True git log graph with lanes and origin divergence; View-menu radios follow the store |
+| 15 / 15.1 | `e930530` `1db2853` | **SpecStory bundled** — specstory-cli 2.8.0 inside the app, capture wraps launch AND resume, Settings owns device sign-in |
+| 16.0 / 16 / 16.1 | `bfc3c85` `ab42553` `ae6a1b7` | **Consolidation** — one IPC surface, domain boundaries, dead code removed, three guardrails made executable |
+| 16.5a / 16.5 / 16.5.1 | `53fa1e4` `09cb853` `cda2b1a` | **Rename to Tortie** + userData migration (copy, verify, keep the original) |
 | **17** | *this* | **Installed for daily use** — packaged from HEAD, bundle verified, switched over live, About commit stamp, acceptance script |
 
 ---
