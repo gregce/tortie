@@ -170,9 +170,16 @@ export interface ManifestSessionRecord extends Session {
   contextSnapshot?: ContextSnapshot;
 }
 
-/** Fields a caller may patch after creation. */
+/**
+ * Fields a caller may patch after creation.
+ *
+ * `removedAt` is EXCLUDED on purpose (Phase 29). The only writers of the
+ * tombstone are `markSessionRemoved` and the clear inside `setRestoreResult`.
+ * A general patch route would let some later caller tombstone a row by
+ * accident, and a tombstone is a promise to the user that Remove was pressed.
+ */
 export type ManifestSessionPatch = Partial<
-  Omit<ManifestSessionRecord, 'id' | 'createdAt'>
+  Omit<ManifestSessionRecord, 'id' | 'createdAt' | 'removedAt'>
 >;
 
 /**
@@ -187,6 +194,14 @@ export type ManifestSessionPatch = Partial<
 export interface UpdateSessionOptions {
   /** Delete `exitCode` and `exitSignal` from the row after the patch merges. */
   clearExitCause?: boolean;
+  /**
+   * Delete `removedAt` from the row after the patch merges (Phase 29). The
+   * patch shape cannot express the clear for the same reason it cannot
+   * express the exit-cause clear: a merge skips `undefined`. Passed only by
+   * `setRestoreResult` when a restore brought the session back, so the
+   * tombstone leaves in the same durable commit that writes the live status.
+   */
+  clearRemovedAt?: boolean;
 }
 
 /**
@@ -322,6 +337,12 @@ interface SessionRow {
    * Phase 22). ADVISORY. Nothing on the restore path reads it.
    */
   context_snapshot: string | null;
+  /**
+   * Epoch ms of the user's Remove (migration 010, Phase 29). NULL on every
+   * live row. Written only by markSessionRemoved; cleared only by the
+   * restore's setRestoreResult.
+   */
+  removed_at: number | null;
 }
 
 interface ProjectRow {
@@ -598,6 +619,11 @@ function rowToRecord(row: SessionRow): ManifestSessionRecord {
   // nothing, and NULL means nobody looked.
   const context = parseContextSnapshot(row.context_snapshot ?? null);
   if (context !== undefined) record.contextSnapshot = context;
+  // Phase 29. NULL means "never removed", which is the truth for every live
+  // row and for every row written before migration 010.
+  if (row.removed_at !== null && row.removed_at !== undefined) {
+    record.removedAt = row.removed_at;
+  }
   return record;
 }
 
@@ -653,6 +679,9 @@ export function toSession(record: ManifestSessionRecord): Session {
   if (record.status === 'exited') {
     session.hasSavedScrollback = snapshotMaterialExists(record.id);
   }
+  // Phase 29: the Past Sessions panel orders by this and renders it as
+  // "removed Aug 12", so it travels with the projection.
+  if (record.removedAt !== undefined) session.removedAt = record.removedAt;
   return session;
 }
 
@@ -911,6 +940,29 @@ const MIGRATIONS: readonly SqliteMigration[] = [
     up: (db) => {
       addColumnIfMissing(db, 'sessions', 'context_snapshot', 'TEXT');
     }
+  },
+  {
+    // Phase 29 (research 39 section 9, first amendment): WHEN this row was
+    // removed. `last_seen` means "last confirmed alive in tmux", so it cannot
+    // order a removal list honestly: a row that sat ended for 5 days and was
+    // then removed by accident would sort below rows removed 3 days earlier.
+    // Written only by the tombstone write in markSessionRemoved. NULL on every
+    // live row and on every row written before this migration, and NULL is the
+    // true answer for both: the session was never removed.
+    //
+    // ADDITIVE, NOT BREAKING, by the rule in research 27 section 4.3. The test
+    // is whether an old build writing NULL here produces a row the new build
+    // reads WRONGLY. It cannot. No build older than this one writes
+    // status = 'discarded' (the comment at the reconcile guard said "nothing
+    // writes it yet" until today), so every discarded row is written by a
+    // build that also stamps removed_at in the same statement. A row an old
+    // build creates carries NULL, and the new build reads NULL as "never
+    // removed", which is what that row is. So MANIFEST_SCHEMA_VERSION moves to
+    // 10 and MANIFEST_MIN_COMPATIBLE_VERSION stays at 8.
+    name: '010-removed-at',
+    up: (db) => {
+      addColumnIfMissing(db, 'sessions', 'removed_at', 'INTEGER');
+    }
   }
 ];
 
@@ -932,12 +984,12 @@ export const MANIFEST_APPLICATION_ID = 0x54525445;
  * one. Keep it that way: a number that has to be reasoned about is a number
  * that gets set wrong under time pressure.
  */
-export const MANIFEST_SCHEMA_VERSION = 9;
+export const MANIFEST_SCHEMA_VERSION = 10;
 
 /**
  * The oldest schema version whose code may still write this manifest.
  *
- * IT IS 8, WHICH IS ONE BEHIND THE SCHEMA VERSION, and the gap is the point.
+ * IT IS 8, WHICH IS TWO BEHIND THE SCHEMA VERSION, and the gap is the point.
  * Migration 008 is breaking by the rule in research 27 §4.3. A build at schema
  * 7 can open this file and can insert sessions into it, and every session it
  * inserted would carry a NULL `agent_contract`. Those rows restore by asking
@@ -945,15 +997,24 @@ export const MANIFEST_SCHEMA_VERSION = 9;
  * visible result is an empty session that looks resumed. SQLite would allow
  * that write. This number is what stops it.
  *
- * Migration 009 is ADDITIVE by that same rule, so it moved
+ * Migrations 009 and 010 are ADDITIVE by that same rule, so each moved
  * MANIFEST_SCHEMA_VERSION and left this number alone. `context_snapshot` is
  * advisory: nothing on the restore path reads it, and a build at schema 8
  * writing NULL into it produces a session with no record of what it loaded,
- * which is exactly what that session is. Reasoning is at migration 009.
+ * which is exactly what that session is. `removed_at` (Phase 29) cannot be
+ * needed by a row an older build writes, because no older build writes
+ * status 'discarded' at all. Reasoning is at migrations 009 and 010.
  *
- * The honest limit of it: a build that shipped before the refusal existed has
- * no code to read this number, so it will still open the file. The protection
- * starts with the first build that carries it.
+ * The honest limit of leaving this at 8 across migration 010, stated so it is
+ * checked rather than discovered: a build at schema 8 or 9 opened against
+ * this manifest shows tombstoned rows in its session list, labeled "removed",
+ * and its Remove verb hard deletes such a row. That is a degraded surface in
+ * a build the user has moved off, not a misread, and the minimum exists to
+ * stop misreads.
+ *
+ * The older limit still holds too: a build that shipped before the refusal
+ * existed has no code to read this number, so it will still open the file.
+ * The protection starts with the first build that carries it.
  */
 export const MANIFEST_MIN_COMPATIBLE_VERSION = 8;
 
@@ -1000,6 +1061,16 @@ export const MANIFEST_MIGRATION_NAMES: readonly string[] = MIGRATIONS.map(
 // ---------------------------------------------------------------------------
 // Store
 // ---------------------------------------------------------------------------
+
+/**
+ * Phase 29: how long a removed session stays restorable. 90 days is the
+ * research's own leaning (research 39 section 10). At the measured removal
+ * rate of 12.5 rows per day the panel holds about 1125 rows at the cap, and
+ * a year of removals would otherwise accumulate unbounded. No count cap is
+ * added on top, because two overlapping rules answer "why did my row vanish"
+ * two different ways.
+ */
+const DISCARDED_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
 
 /**
  * Default on-disk location: <userData>/gmux/manifest.db
@@ -1143,6 +1214,9 @@ export class ManifestStore {
         stampSchemaVersion(db, MANIFEST_SCHEMA_IDENTITY, currentAppVersion());
       };
       if (!runMigrations(this.db, MIGRATIONS, stamp)) stamp(this.db);
+      // Phase 29: retention for removed sessions, BEFORE the attempt prune so
+      // the restore attempts orphaned here are swept in the same open.
+      this.pruneDiscardedSessions();
       // Bound the journal on open (Phase 19 item 7). Unfinished attempts are
       // never pruned: the launch that is starting right now has not yet had
       // its chance to act on them.
@@ -1446,6 +1520,12 @@ export class ManifestStore {
       delete merged.exitCode;
       delete merged.exitSignal;
     }
+    // Phase 29: the tombstone's clear, same mechanism. The patch shape cannot
+    // SET removedAt (it is excluded from ManifestSessionPatch), so the merged
+    // value below is always the row's own unless this option removes it.
+    if (opts.clearRemovedAt === true) {
+      delete merged.removedAt;
+    }
 
     this.db
       .prepare(
@@ -1459,7 +1539,8 @@ export class ManifestStore {
            restore = @restore, agent_version = @agentVersion,
            agent_contract = @agentContract,
            resume_provenance = @resumeProvenance,
-           context_snapshot = @contextSnapshot
+           context_snapshot = @contextSnapshot,
+           removed_at = @removedAt
          WHERE id = @id`
       )
       .run({
@@ -1484,7 +1565,8 @@ export class ManifestStore {
         agentVersion: merged.agentVersion ?? null,
         agentContract: serializeAgentContract(merged.agentContract),
         resumeProvenance: serializeResumeProvenance(merged.resumeProvenance),
-        contextSnapshot: serializeContextSnapshot(merged.contextSnapshot)
+        contextSnapshot: serializeContextSnapshot(merged.contextSnapshot),
+        removedAt: merged.removedAt ?? null
       });
     return merged;
   }
@@ -1672,6 +1754,58 @@ export class ManifestStore {
   }
 
   /**
+   * The reversible remove (Phase 29, research 39 section 10). Writes the
+   * tombstone the status alphabet reserved in Phase 19: status 'discarded'
+   * plus removed_at, in one statement.
+   *
+   * A DURABLE COMMIT for the same ordering reason deleteSession is one: the
+   * caller deletes the snapshot generations and the hook settings file the
+   * moment this returns, and a NORMAL commit could be discarded by power loss,
+   * leaving a row that claims a screen which is already gone. Durable first
+   * means the two sides can only be lost in the safe order.
+   */
+  markSessionRemoved(id: string, at: number = Date.now()): void {
+    durableTransaction(this.db, () => {
+      const info = this.db
+        .prepare<[number, string]>(
+          `UPDATE sessions SET status = 'discarded', removed_at = ?
+            WHERE id = ?`
+        )
+        .run(at, id);
+      if (info.changes === 0) {
+        throw manifestError(
+          'SESSION_NOT_FOUND',
+          `No manifest row for session ${id}`
+        );
+      }
+    });
+  }
+
+  /**
+   * Hard delete discarded rows whose removal is older than the cap. Runs at
+   * manifest open, before pruneRestoreAttempts so the attempts orphaned here
+   * are swept in the same open. Goes through deleteSession so the durable
+   * ordering promise holds for the prune too. There is no Delete Forever verb;
+   * this is the only hygiene (research 39 section 9).
+   *
+   * A discarded row with NULL removed_at cannot be produced by this build. If
+   * one exists anyway (a hand edited file), it is never pruned: the WHERE
+   * clause requires a stamp older than the cutoff, and NULL is not one.
+   */
+  pruneDiscardedSessions(now: number = Date.now()): void {
+    const cutoff = now - DISCARDED_RETENTION_MS;
+    const ids = this.db
+      .prepare<[number], { id: string }>(
+        `SELECT id FROM sessions
+          WHERE status = 'discarded'
+            AND removed_at IS NOT NULL
+            AND removed_at < ?`
+      )
+      .all(cutoff);
+    for (const row of ids) this.deleteSession(row.id);
+  }
+
+  /**
    * Record what the last restore of this session achieved, and the liveness
    * status that follows from it, as ONE write (Phase 19 item 6).
    *
@@ -1700,6 +1834,13 @@ export class ManifestStore {
    * kinds that clear are exactly the kinds where tmux created a session;
    * `failed` and `interrupted` never reach this method from the restore path,
    * and if one ever does, the death it describes is still the truth.
+   *
+   * WHEN THE SESSION CAME BACK, THE TOMBSTONE IS ERASED TOO (Phase 29). A
+   * restore of a 'discarded' row is the undo of a Remove, and `removed_at`
+   * clears in the same durable commit that writes the restored status, so no
+   * crash can leave a live status beside a removal date. A failed restore
+   * never reaches this method, so a row that could not come back stays
+   * 'discarded', stays in the Past Sessions panel, and the error rises.
    */
   setRestoreResult(
     id: string,
@@ -1720,7 +1861,7 @@ export class ManifestStore {
         ...(bind.tmuxName !== undefined ? { tmuxName: bind.tmuxName } : {}),
         ...(bind.panePid !== undefined ? { panePid: bind.panePid } : {})
       },
-      { clearExitCause: cameBack }
+      { clearExitCause: cameBack, clearRemovedAt: cameBack }
     );
   }
 

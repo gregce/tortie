@@ -37,7 +37,7 @@ the wordmark is a wordmark. Revisit only if the operator asks.
 | 11 | **24** self update | ✅ SHIPPED 2026-08-13 | the release lane ✅. The app is now signed, so this is unblocked |
 | — | ~~Release lane, second half: signing, notarization, the updater~~ | signing and notarization shipped with Phase 27. The updater is Phase 24 | the issuer identifier was never needed. Notarization uses the Apple ID, the team id and an app specific password, the deadreckon shape |
 | 12 | **28** process observability after the lid close diagnosis | ✅ SHIPPED `e9a8731` | — |
-| 13 | **29** session history: browse and restore removed sessions | BUILDING 2026-08-14 | spec is docs/research/39-session-history.md |
+| 13 | **29** session history: browse and restore removed sessions | ✅ SHIPPED 2026-08-14 | spec is docs/research/39-session-history.md |
 | 14 | **30** skill removal through the skills CLI | ✅ SHIPPED `f33599b` | — |
 | 15 | **32** the antigravity claim race (operator hit it live, 2026-08-14) | ✅ SHIPPED `ecdfcad` | — |
 | 16 | **31** updater honesty after the operator's first live update (operator reported, 2026-08-14) | ✅ SHIPPED `aa4e456` + `a63ec76` | Phase 24 ✅ |
@@ -3201,7 +3201,7 @@ targeted probe and one screenshot read.
 
 ---
 
-## Phase 29 — session history: browse and restore removed sessions (user requested, 2026-08-14) QUEUED
+## Phase 29 — session history: browse and restore removed sessions (user requested, 2026-08-14) ✅ SHIPPED 2026-08-14 (this commit)
 
 **Specification.** docs/research/39-session-history.md. The research holds the verified facts, the
 three competing designs, the adversarial verdicts and the winning interaction in full.
@@ -3266,6 +3266,60 @@ The browse surface is Tier 2, one targeted probe and one screenshot read of the 
 - The Phase 19 restart ordering, where nothing is discarded until the replacement exists.
 - Status semantics. A discarded row never sets "needs input".
 - The reconcile refusal at `store.ts:1867`, which must keep ignoring discarded rows.
+
+**What shipped.**
+- Migration 010 adds the nullable `removed_at` column. The schema version is 10 and the
+  compatibility minimum stays at 8, with the honest limit of that choice written at the constant.
+- Remove writes the tombstone now. `sessions:discard` keeps its channel name and calls the new
+  `removeSession`, which cancels the harvest watch, releases the conversation claim, marks the row
+  `'discarded'` with the removal stamp in one durable statement, and still deletes the snapshot
+  generations and the hook settings file. `discardSession` stays as the hard delete for restart's
+  old row cleanup, failed creates and the harness cleanups, so a restarted session's old row never
+  reaches the panel.
+- The restore gate accepts `'discarded'` beside `'restorable'` and `'exited'`. Before the journal
+  write, restore re-acquires the conversation claim a Remove released, through `claimStrengthOf`,
+  the strength rule it now shares with the boot claim loop. A refusal warns and proceeds. On
+  success `setRestoreResult` clears `removed_at` in the same durable commit that writes the live
+  status. A failed restore leaves the row `'discarded'` and in the panel.
+- `listSessions` filters tombstones at its one choke point, so the rail, search, Context and the
+  tab rollup never see them. `listRemovedSessions` carries them newest removal first, and a NULL
+  stamp sorts last.
+- Retention is 90 days. `pruneDiscardedSessions` runs at manifest open, between the migration
+  stamp and the restore attempt prune, so the attempts orphaned by the prune sweep in the same
+  open. There is no Delete Forever verb.
+- The boot claim loop, the rescue loop and the claude hook settings boot pass all skip
+  `'discarded'` rows.
+- One "Past Sessions…" item at the bottom of the Session menu, with no accelerator, no badge and
+  no count. It opens a panel shaped like the create modal, with a search field over name and
+  project path, rows from every project presorted by main, a per row promise line computed before
+  the click ("Continues the conversation" when both `agent_session_id` and `resume_argv` are
+  present, "Starts fresh" otherwise), a per row Restore that runs the Phase 26.3 machinery, and a
+  footer stating the 90 days. The Remove confirm body now reads "It moves to Past Sessions and
+  you can restore it from there."
+- An old preload without `sessions:listRemoved` opens the panel empty with no error.
+- 42 new unit tests across four files pin the schema numbers, migration 010 against a real
+  schema 9 file, the tombstone write, the patch exclusion, the prune at 91 and 89 days and the
+  NULL stamp, the reconcile refusals, both list methods on the real prototype, the promise
+  predicate, the date label, the search rule and the store slice's open, restore and failure
+  paths.
+
+**The numbers.**
+
+| Check | Result |
+| --- | --- |
+| typecheck, build, bundle refusals | pass |
+| unit tests | 3293 passed, 0 failed in Phase 29 files; one symbols perf budget flake under three parallel workflows, passing alone twice |
+| smoke:t1 | pass |
+| smoke:t3 | pass, claude and pi shapes restored with armed, unexecuted resume commands |
+| conformance:resume:capture | 6 pass, 0 fail, 0 blocked, 4 skip in 20.1 s |
+| conformance:agents | pass |
+| operator tmux sessions | 21 before, 21 after, read only |
+
+**What is not true.** The live panel roundtrip in a running window, being remove, browse, search
+and restore from the tombstone in a real pane, is the verifier's evidence to produce, not the
+build's. The rename prompt for a restore whose name a live session took was not built; the tmux
+dedupe is inherited, per the spec's own named deviation. Rows removed before this shipped stay
+unrecoverable, on purpose. The 90 days is a chosen number, not a measured one.
 
 ## Phase 33 — env passthrough for agent launches (user requested, 2026-08-14) QUEUED
 

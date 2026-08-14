@@ -46,6 +46,10 @@ import './work-area.css';
 import { CreateSessionModal } from './CreateSessionModal';
 import { NewProjectModal } from './NewProjectModal';
 import { CloneRepoModal } from './CloneRepoModal';
+// Phase 29. The Past Sessions panel. The Session menu holds its one entry
+// point, with no accelerator and no renderer keydown fallback, on purpose.
+// Restoring starts a process, so the user reads a name first.
+import { PastSessionsModal } from './PastSessionsModal';
 import { ShortcutsOverlay } from './ShortcutsOverlay';
 import { AttentionOverlay } from './AttentionOverlay';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -469,7 +473,8 @@ function runMenuAction(action: AnyMenuActionWithProjects): void {
     s.createOpen ||
     s.newProjectOpen ||
     s.shortcutsOpen ||
-    s.attentionOpen;
+    s.attentionOpen ||
+    s.pastOpen;
 
   switch (action) {
     case 'new-session':
@@ -596,6 +601,11 @@ function runMenuAction(action: AnyMenuActionWithProjects): void {
       if (position !== null) s.setSessionOrientation(position);
       return;
     }
+    // Phase 29. The Session menu's Past Sessions… item. Menu-only: there is
+    // no accelerator and no keydown branch mirrors it.
+    case 'past-sessions':
+      s.setPastOpen(true);
+      return;
     case 'settings':
       // The settings surface is the activity-bar gear's menu (one setting
       // in v1); ⌘, routes through it so the shortcut stays honest.
@@ -1132,6 +1142,9 @@ export function App(): React.JSX.Element {
           the home screen, those two of them work from INSIDE a project. It
           renders null unless the clone store says it is open. */}
       <CloneRepoModal />
+      {/* Phase 29. Mounted with the other sheets; it renders null unless the
+          store says it is open, and only the Session menu opens it. */}
+      <PastSessionsModal />
       <ShortcutsOverlay />
       <AttentionOverlay />
       <QuickOpenPalette />

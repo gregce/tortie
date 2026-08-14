@@ -235,6 +235,12 @@ export interface Session {
    * projections written before this field existed.
    */
   hasSavedScrollback?: boolean;
+  /**
+   * APPENDED (Phase 29): epoch ms of the user's Remove, present only on
+   * status 'discarded' rows. Orders the Past Sessions panel and renders as
+   * "removed Aug 12". Absent on every live row.
+   */
+  removedAt?: number;
 }
 
 /**

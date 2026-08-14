@@ -28,6 +28,7 @@ import type {
   GmuxFsExtras,
   GmuxLoginItemExtras,
   GmuxNoticeExtras,
+  GmuxPastSessionsExtras,
   GmuxProjectCreateExtras,
   GmuxScrollbackExtras,
   GmuxSessionExtras,
@@ -324,6 +325,31 @@ interface AppState {
   restoreSession(sessionId: string): Promise<void>;
   /** Restore every restorable session in the active project (sequential). */
   restoreAllSessions(): Promise<void>;
+  // -- past sessions (Phase 29) -----------------------------------------------
+  /** Whether the Past Sessions panel is open (Session menu, Past Sessions…). */
+  pastOpen: boolean;
+  /**
+   * Discarded rows from every project, exactly as main sorted them (newest
+   * removal first). The panel never re-sorts.
+   */
+  pastSessions: Session[];
+  /** True while the open fetch is in flight, so the empty copy never flashes. */
+  pastLoading: boolean;
+  /**
+   * Open or close the Past Sessions panel. Opening fetches through the
+   * optional sessions:listRemoved bridge method; a missing method means the
+   * panel opens in its empty state with no error, the same posture every
+   * extras consumer takes.
+   */
+  setPastOpen(open: boolean): void;
+  /**
+   * Restore one discarded row through the existing Phase 26.3 verb (no new
+   * channel). Success closes the panel, refreshes the session list and lands
+   * on the restored session, the same landing the restart path gives.
+   * Failure toasts sticky and re-fetches the list. The row is still there
+   * because main kept it 'discarded'.
+   */
+  restorePastSession(sessionId: string): Promise<void>;
   /**
    * User input (keystrokes/mouse reports) went to a terminal: whatever it was
    * blocked on has an answer now. Pass the session id from the pty write
@@ -438,7 +464,8 @@ export const useApp = create<AppState>((set, get) => {
     ? (gmux.sessions as typeof gmux.sessions &
         GmuxSessionExtras &
         GmuxSessionRestoreExtras &
-        GmuxSessionRestartExtras)
+        GmuxSessionRestartExtras &
+        GmuxPastSessionsExtras)
     : null;
 
   const scrollbackExtras = gmux
@@ -1256,9 +1283,12 @@ export const useApp = create<AppState>((set, get) => {
       const session = get().sessions.find((x) => x.id === sessionId);
       if (!session || typeof sessionExtras?.discard !== 'function') return;
       const discard = sessionExtras.discard.bind(sessionExtras);
+      // Phase 29. Remove is reversible now (main writes a tombstone behind
+      // the same sessions:discard channel), so the body names the way back
+      // instead of promising a loss that no longer happens.
       get().setConfirm({
         title: `Remove '${session.name}'?`,
-        body: 'Its scrollback will be discarded.',
+        body: 'It moves to Past Sessions and you can restore it from there.',
         confirmLabel: 'Remove',
         destructive: true,
         onConfirm: () => {
@@ -1324,6 +1354,77 @@ export const useApp = create<AppState>((set, get) => {
         .filter((x) => x.status === 'restorable');
       for (const t of targets) {
         await get().restoreSession(t.id);
+      }
+    },
+
+    // -- past sessions (Phase 29) ------------------------------------------------
+
+    pastOpen: false,
+    pastSessions: [],
+    pastLoading: false,
+
+    setPastOpen(open) {
+      if (!open) {
+        set({ pastOpen: false });
+        return;
+      }
+      const listRemoved = sessionExtras?.listRemoved;
+      if (typeof listRemoved !== 'function') {
+        // Older preload: the panel opens empty, with no error.
+        set({ pastOpen: true, pastSessions: [], pastLoading: false });
+        return;
+      }
+      set({ pastOpen: true, pastLoading: true });
+      void listRemoved.call(sessionExtras).then(
+        (rows) => set({ pastSessions: rows, pastLoading: false }),
+        (err: unknown) => {
+          set({ pastLoading: false });
+          get().toast('error', errorText(err), { sticky: true });
+        }
+      );
+    },
+
+    async restorePastSession(sessionId) {
+      if (typeof sessionExtras?.restore !== 'function') return;
+      if (get().restoringIds[sessionId] === true) return;
+      const restore = sessionExtras.restore.bind(sessionExtras);
+      set((s) => ({
+        restoringIds: { ...s.restoringIds, [sessionId]: true }
+      }));
+      try {
+        const restored = await restore(sessionId);
+        set({ pastOpen: false });
+        const sessions = await gmux!.sessions.list();
+        applySessions(sessions);
+        // Land on the restored session, the same landing restart gives. Its
+        // project may not be an open tab (closing a tab keeps session rows);
+        // in that case the restore still happened and the list refresh above
+        // is the whole visible effect.
+        const project = get().projects.find(
+          (p) => p.path === restored.projectPath
+        );
+        if (project !== undefined) {
+          get().setActiveProject(project.id);
+          get().setActiveSession(restored.id);
+        }
+      } catch (err) {
+        get().toast('error', errorText(err), { sticky: true });
+        // A failed restore is not a second loss. Main kept the row
+        // 'discarded', so the re-fetch shows it still in the panel.
+        const listRemoved = sessionExtras.listRemoved;
+        if (typeof listRemoved === 'function') {
+          try {
+            set({ pastSessions: await listRemoved.call(sessionExtras) });
+          } catch {
+            /* keep the list we have */
+          }
+        }
+      } finally {
+        set((s) => {
+          const restoringIds = { ...s.restoringIds };
+          delete restoringIds[sessionId];
+          return { restoringIds };
+        });
       }
     },
 

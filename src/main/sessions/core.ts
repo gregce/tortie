@@ -103,6 +103,7 @@ import {
   toSession,
   watchForSessionId,
   type AgentLaunchSpec,
+  type ClaimStrength,
   type ConversationReclaim,
   type LiveTmuxSession,
   type ManifestRingSchedule,
@@ -452,6 +453,24 @@ export function restoredStatus(result: SessionRestore): SessionStatus {
     case 'armed':
       return 'idle';
   }
+}
+
+/**
+ * How strongly a row's recorded conversation id may be claimed (Phase 32,
+ * extracted in Phase 29 for the restore path).
+ *
+ * A row armed by a grace GUESS must stay reclaimable: freezing it as
+ * confirmed would preserve a live mis-assignment forever. Everything else is
+ * asserted as confirmed. Two callers share this — the boot claim loop, and
+ * `restoreSession` re-acquiring the claim a Remove released — so the answer
+ * cannot drift between them.
+ */
+export function claimStrengthOf(rec: ManifestSessionRecord): ClaimStrength {
+  const p = rec.resumeProvenance;
+  return p !== undefined &&
+    (p.viaGraceTimer === true || p.confidence === 'grace-accepted')
+    ? 'provisional'
+    : 'confirmed';
 }
 
 export class GmuxCore {
@@ -811,7 +830,16 @@ export class GmuxCore {
     const known = new Set<string>();
     for (const rec of this.manifest.listSessions()) {
       known.add(rec.id);
-      if (rec.agent !== 'claude' || rec.status === 'exited') continue;
+      // 'discarded' skips too (Phase 29): remove deleted this session's
+      // settings file on purpose, and boot must not recreate it. The id stays
+      // in `known`, so the sweep below leaves nothing to re-delete either.
+      if (
+        rec.agent !== 'claude' ||
+        rec.status === 'exited' ||
+        rec.status === 'discarded'
+      ) {
+        continue;
+      }
       ensureClaudeHookSettings(this.hookServer, rec.id);
     }
     // Sweep settings files whose session row is gone (killed and removed in a
@@ -1106,18 +1134,17 @@ export class GmuxCore {
     // the row that holds it, and the rescues below then look for a record
     // nobody has.
     for (const rec of this.manifest.listSessions()) {
+      // Phase 29: a tombstone claims nothing. Remove released the claim on
+      // purpose, and a tombstone re-claiming its conversation at the next
+      // boot would block a new session in that folder from recording the id.
+      if (rec.status === 'discarded') continue;
       if (rec.agentSessionId === undefined) continue;
-      // Phase 32. A row armed by a grace GUESS must stay reclaimable across
-      // restarts: freezing it as confirmed would preserve the exact live
-      // mis-assignment this phase corrects, forever. Everything else is
-      // asserted as confirmed, first claim wins, exactly as before.
-      const p = rec.resumeProvenance;
-      const strength =
-        p !== undefined &&
-        (p.viaGraceTimer === true || p.confidence === 'grace-accepted')
-          ? ('provisional' as const)
-          : ('confirmed' as const);
-      if (claimConversationId(rec.agentSessionId, rec.id, strength)) continue;
+      // Phase 32 (strength extracted to claimStrengthOf in Phase 29): a row
+      // armed by a grace GUESS must stay reclaimable across restarts, and
+      // everything else is asserted as confirmed, first claim wins.
+      if (claimConversationId(rec.agentSessionId, rec.id, claimStrengthOf(rec))) {
+        continue;
+      }
       // Two rows already record one conversation. This build cannot make that
       // happen any more, and it cannot undo one that a previous build wrote:
       // there is no way to know which row is right. It is said out loud
@@ -1132,6 +1159,9 @@ export class GmuxCore {
       );
     }
     for (const rec of this.manifest.listSessions()) {
+      // Phase 29: never rescue an id for a tombstone. A rescue watch would
+      // write a conversation id onto a row the user removed.
+      if (rec.status === 'discarded') continue;
       if (rec.agent === 'shell' || !agentRescuesId(rec.agent)) continue;
       if (rec.agentSessionId !== undefined) continue;
       const live = this.liveIds.get(rec.id);
@@ -1380,13 +1410,26 @@ export class GmuxCore {
    * had, so an exited row that fails to come back still reads 'exited' and
    * never claims running.
    *
+   * 'discarded' is accepted since Phase 29 (Past Sessions). Remove deleted
+   * the snapshot generations, so the replay finds no capsule and the outcome
+   * records that honestly; the claude hook settings rewrite below recreates
+   * the file remove deleted; and the conversation claim remove released is
+   * re-acquired above the journal write. A failed restore leaves the row
+   * 'discarded', still in the panel.
+   *
    * The status it stores is DERIVED from the stage the restore reached, never
    * assigned (Phase 19 item 6). See {@link restoredStatus} for why `running`
    * is not one of the answers.
    */
   async restoreSession(sessionId: string): Promise<Session> {
     const rec = this.mustGetSession(sessionId);
-    if (rec.status !== 'restorable' && rec.status !== 'exited') {
+    // 'discarded' is accepted since Phase 29: a Past Sessions restore is the
+    // undo of a Remove, and everything below the gate already works for it.
+    if (
+      rec.status !== 'restorable' &&
+      rec.status !== 'exited' &&
+      rec.status !== 'discarded'
+    ) {
       return toSession(rec); // already live — nothing to do (Restore-all race)
     }
     if (this.restoresInFlight.has(sessionId)) {
@@ -1401,6 +1444,21 @@ export class GmuxCore {
       // session's existing token) before the command is typed into the pane.
       if (rec.agent === 'claude') {
         ensureClaudeHookSettings(this.hookServer, sessionId);
+      }
+      // Phase 29: re-acquire the conversation claim a Remove released. For a
+      // row that never lost its claim this is a no-op (the holder asking
+      // again is true). The refusal warns and proceeds, exactly as the boot
+      // claim loop does: refusing the restore would make a removal
+      // permanently blocking, which is a second loss.
+      if (
+        rec.agentSessionId !== undefined &&
+        !claimConversationId(rec.agentSessionId, rec.id, claimStrengthOf(rec))
+      ) {
+        console.warn(
+          `[gmux] sessions ${String(conversationClaimant(rec.agentSessionId))} ` +
+            `and ${rec.id} both record ${rec.agent} conversation ` +
+            `${rec.agentSessionId}. Restoring both resumes the same conversation.`
+        );
       }
       // Item 7: the intent is on disk, in a durable commit, before any side
       // effect. `attemptId` is what closes it again on every path out.
@@ -2089,12 +2147,38 @@ export class GmuxCore {
   // Sessions API (used by IPC handlers AND the smoke harness)
   // -------------------------------------------------------------------------
 
+  /**
+   * The session list every surface draws from. Tombstones stay out (Phase
+   * 29): this one filter covers `sessions:list`, `broadcastSessions`, and
+   * therefore the session rail, search over sessions, Context and the
+   * project tab rollup. The Past Sessions panel reads
+   * {@link listRemovedSessions} instead.
+   */
   listSessions(): Session[] {
-    return this.manifest.listSessions().map(toSession);
+    return this.manifest
+      .listSessions()
+      .filter((rec) => rec.status !== 'discarded')
+      .map(toSession);
   }
 
+  /**
+   * RAW, tombstones included, on purpose: smoke and conformance cleanups use
+   * this to see and hard delete leftover rows of any status.
+   */
   listSessionRecords(): ManifestSessionRecord[] {
     return this.manifest.listSessions();
+  }
+
+  /** Past Sessions data (Phase 29): discarded rows only, newest removal first. */
+  listRemovedSessions(): Session[] {
+    return this.manifest
+      .listSessions()
+      .filter((rec) => rec.status === 'discarded')
+      .map(toSession)
+      // A discarded row with NULL removed_at cannot be produced by this
+      // build. If one exists anyway (a hand edited file), it sorts last and
+      // is never pruned.
+      .sort((a, b) => (b.removedAt ?? 0) - (a.removedAt ?? 0));
   }
 
   /**
@@ -2567,7 +2651,15 @@ export class GmuxCore {
     this.broadcastSessions();
   }
 
-  /** Remove a session row entirely (discard a restorable / smoke cleanup). */
+  /**
+   * The HARD delete: the row is gone and nothing brings it back. Since Phase
+   * 29 the user's Remove goes through {@link removeSession} instead; the
+   * callers that stay here are the ones whose rows must never appear in Past
+   * Sessions — restart's old-row cleanup (a tombstoned leftover would carry
+   * the same name as its live replacement and hazard two live sessions on
+   * one conversation id), and smoke and conformance cleanups, which must
+   * remove tombstones too.
+   */
   discardSession(sessionId: string): void {
     // The row is going, so its hold on its conversation goes with it. Anything
     // else would keep a discarded session's claim alive for the rest of the
@@ -2576,13 +2668,46 @@ export class GmuxCore {
     // restore of it resumes that conversation.
     releaseConversationClaims(sessionId);
     this.manifest.deleteSession(sessionId);
+    // The row is gone, so its snapshot and its hook settings are unreachable
+    // garbage now.
+    this.releaseSessionResources(sessionId);
+  }
+
+  /**
+   * The user's Remove (Phase 29): tombstone, not delete. The row moves to
+   * Past Sessions and Restore can bring the conversation back. Disk hygiene
+   * is unchanged from the old remove, and that is deliberate: the claim is
+   * released so a new session in that folder can record an id, the snapshot
+   * generations go because a restore from here returns the conversation and
+   * not the screen (the panel says so), and the hook settings file goes
+   * because restoreSession rewrites it on the way back.
+   */
+  removeSession(sessionId: string): void {
+    this.mustGetSession(sessionId);
+    // A live harvest watch must not write a conversation id onto a tombstone.
+    const watch = this.idCaptureWatches.get(sessionId);
+    if (watch !== undefined) {
+      watch.cancel();
+      this.idCaptureWatches.delete(sessionId);
+    }
+    releaseConversationClaims(sessionId);
+    this.manifest.markSessionRemoved(sessionId);
+    this.releaseSessionResources(sessionId);
+  }
+
+  /**
+   * The cleanup the hard delete and the tombstone share (extracted at Phase
+   * 29 integration): the live-id maps, the activity tracker, the hook token,
+   * the snapshot generations and the hook settings file. The two exits
+   * differ ONLY in what happens to the manifest row, and one body here keeps
+   * the disk hygiene from drifting between them.
+   */
+  private releaseSessionResources(sessionId: string): void {
     const live = this.liveIds.get(sessionId);
     if (live !== undefined) this.byTmuxId.delete(live);
     this.liveIds.delete(sessionId);
     this.activity.forget(sessionId);
     this.hookServer.revoke(sessionId);
-    // The row is gone — its snapshot and its hook settings are unreachable
-    // garbage now.
     void deleteSnapshot(sessionId).catch(() => undefined);
     rm(claudeHookSettingsPath(sessionId), { force: true }).catch(
       () => undefined

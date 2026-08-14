@@ -811,7 +811,8 @@ export type GmuxInvokeChannelMap = InvokeChannelMap &
   ContextSnapshotInvokeChannelMap &
   ContextInvokeChannelMap &
   ConfigInvokeChannelMap &
-  UpdatesInvokeChannelMap;
+  UpdatesInvokeChannelMap &
+  GmuxPastSessionsChannelMap;
 
 export type GmuxInvokeChannel = keyof GmuxInvokeChannelMap;
 
@@ -1524,7 +1525,8 @@ export type AnyMenuActionWithProjects =
   | ProjectMenuActionId
   | FindMenuActionId
   | ChromeMenuActionId
-  | CloneMenuActionId;
+  | CloneMenuActionId
+  | PastSessionsMenuActionId;
 
 // ---------------------------------------------------------------------------
 // APPENDED by Phase 12.9 items 2-4 (the explorer's file management) — one new
@@ -3222,3 +3224,46 @@ export interface GmuxUpdatesExtras {
     state(): Promise<UpdateUiState>;
   };
 }
+
+// ---------------------------------------------------------------------------
+// APPENDED by Phase 29 (session history) — new channel/types only. The two
+// existing lines touched above are the GmuxInvokeChannelMap intersection and
+// the AnyMenuActionWithProjects alias, exactly the one-line folds their own
+// comments prescribe.
+//
+// sessions:listRemoved — the Past Sessions panel's data: discarded rows from
+//   every project, newest removal first by removedAt. Sorted in MAIN, so
+//   there is one opinion about the order. There is deliberately no push event
+//   for this list: the panel fetches on open and after its own restore verb,
+//   and a removal cannot happen while the panel is open (the panel is a modal
+//   and Remove lives behind it), so a stale list is not reachable.
+//
+// Restore from the panel reuses the existing `sessions:restore` channel — the
+// Phase 26.3 machinery — and Remove keeps its shipped `sessions:discard`
+// channel name while the handler behind it writes a tombstone instead of a
+// DELETE. No new verb channels exist.
+//
+// MAIN: src/main/restore/ipc.ts, beside restore and discard.
+// ---------------------------------------------------------------------------
+
+/** Past Sessions data: discarded rows, newest removal first. */
+export interface GmuxPastSessionsChannelMap {
+  'sessions:listRemoved': { req: []; res: RestoreSession[] };
+}
+
+/**
+ * OPTIONAL sessions extra, feature-detected by the renderer
+ * (`typeof window.gmux.sessions.listRemoved === 'function'`). Without it the
+ * Past Sessions panel opens in its empty state with no error, the same
+ * posture every extras consumer takes.
+ */
+export interface GmuxPastSessionsExtras {
+  listRemoved?(): Promise<RestoreSession[]>;
+}
+
+/**
+ * The Session menu gained "Past Sessions…". Appended as its own id union,
+ * the same one-line shape ProjectMenuActionId used. Deliberately
+ * unaccelerated: restoring starts a process, so the user reads a name first.
+ */
+export type PastSessionsMenuActionId = 'past-sessions';

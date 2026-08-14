@@ -420,7 +420,12 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         item('End Session…', 'end-session'),
         // User-recorded per-agent shortcuts (S13 Hotkeys) — present only
         // when assigned; rebuilt on every hotkey change.
-        ...agentHotkeyItems()
+        ...agentHotkeyItems(),
+        { type: 'separator' },
+        // Phase 29. Deliberately unaccelerated and at the bottom: restoring
+        // starts a process, so the user reads a name first. No badge, no
+        // count.
+        item('Past Sessions…', 'past-sessions')
       ]
     },
     {

@@ -41,6 +41,7 @@ import type {
   GmuxMenuExtras,
   GmuxMultilineExtras,
   GmuxNoticeExtras,
+  GmuxPastSessionsExtras,
   GmuxPopupMenuExtras,
   GmuxContextExtras,
   GmuxContextSnapshotExtras,
@@ -233,7 +234,8 @@ const fs: GmuxApi['fs'] &
 const sessions: GmuxApi['sessions'] &
   GmuxSessionExtras &
   GmuxSessionRestoreExtras &
-  GmuxSessionRestartExtras = {
+  GmuxSessionRestartExtras &
+  GmuxPastSessionsExtras = {
   create: (input) => invoke('sessions:create', input),
   list: () => invoke('sessions:list'),
   rename: (input) => invoke('sessions:rename', input),
@@ -247,7 +249,9 @@ const sessions: GmuxApi['sessions'] &
   restore: (sessionId) => invoke('sessions:restore', sessionId),
   // Phase 19 item 8. One call, because the ordering inside it is a durability
   // invariant: the replacement is created before anything is removed.
-  restart: (sessionId) => invoke('sessions:restart', sessionId)
+  restart: (sessionId) => invoke('sessions:restart', sessionId),
+  // Phase 29. The Past Sessions panel's data: discarded rows, newest first.
+  listRemoved: () => invoke('sessions:listRemoved')
 };
 
 /**

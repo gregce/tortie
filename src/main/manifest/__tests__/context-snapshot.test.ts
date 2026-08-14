@@ -142,10 +142,12 @@ describe('migration 009', () => {
     }
   });
 
-  it('is the ninth migration, and the schema version says so', () => {
+  it('is the ninth migration, and the schema version has kept counting', () => {
     expect(MANIFEST_MIGRATION_NAMES).toHaveLength(MANIFEST_SCHEMA_VERSION);
-    expect(MANIFEST_SCHEMA_VERSION).toBe(9);
-    expect(MANIFEST_MIGRATION_NAMES.at(-1)).toBe('009-context-snapshot');
+    // Phase 29 appended migration 010, so the version moved to 10 and this
+    // migration's own position is what stays pinned.
+    expect(MANIFEST_SCHEMA_VERSION).toBe(10);
+    expect(MANIFEST_MIGRATION_NAMES[8]).toBe('009-context-snapshot');
   });
 
   it('is declared ADDITIVE, so the minimum stayed where 008 left it', () => {

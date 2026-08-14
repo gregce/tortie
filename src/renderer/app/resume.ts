@@ -211,6 +211,23 @@ export function restoreExitedCopy(session: Session): string {
 }
 
 /**
+ * Phase 29 (research 39 section 10). The Past Sessions promise line, decided
+ * BEFORE the click from the row's own fields: both an agent conversation id
+ * and an armed resume argv means the restore continues the conversation,
+ * anything less starts fresh. Deliberately not resumeReadiness: 'capturing'
+ * cannot exist on a removed row (the watch is cancelled at remove), and the
+ * research fixed this two field predicate as the honest disclosure.
+ */
+export function pastSessionPromise(
+  session: Pick<Session, 'agentSessionId' | 'resumeArgv'>
+): 'continues' | 'fresh' {
+  return session.agentSessionId !== undefined &&
+    (session.resumeArgv?.length ?? 0) > 0
+    ? 'continues'
+    : 'fresh';
+}
+
+/**
  * Body copy for the "Ready to restore" state — the honest version of the
  * armed/not-armed branch that used to be the ONLY place this was said.
  */

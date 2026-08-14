@@ -22,8 +22,9 @@
  *     notice channel with the session's name and the at-end marker.
  *  3. reapDeadSession keeps the same capture-then-kill order for natural
  *     deaths.
- *  4. restoreSession no longer refuses 'exited'; the gate lets both
- *     'restorable' and 'exited' through and no-ops every live status.
+ *  4. restoreSession no longer refuses 'exited'; the gate lets 'restorable',
+ *     'exited' and — since Phase 29 — 'discarded' through and no-ops every
+ *     live status.
  */
 
 import { readFileSync } from 'node:fs';
@@ -81,10 +82,10 @@ describe('reapDeadSession (natural death)', () => {
 describe('restoreSession gate', () => {
   const restore = body('async restoreSession(', 'restoresInFlight.add(');
 
-  it('lets both restorable and exited rows into the one restore path', () => {
-    expect(restore).toContain(
-      "rec.status !== 'restorable' && rec.status !== 'exited'"
-    );
+  it('lets restorable, exited and discarded rows into the one restore path', () => {
+    expect(restore).toContain("rec.status !== 'restorable' &&");
+    expect(restore).toContain("rec.status !== 'exited' &&");
+    expect(restore).toContain("rec.status !== 'discarded'");
   });
 
   it('no longer refuses an ended session', () => {

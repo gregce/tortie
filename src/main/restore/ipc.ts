@@ -4,10 +4,16 @@
  * Registers the appended extension channels the restore UI feature-detects:
  *   - sessions:restore   → GmuxCore.restoreSession (snapshot replay + armed
  *                          resume; §2.4 Step 3)
- *   - sessions:discard   → GmuxCore.discardSession (the §6.6 "Remove"
+ *   - sessions:discard   → GmuxCore.removeSession (the §6.6 "Remove"
  *                          affordance the shell stream appended; wired here
  *                          because Remove is the natural exit from the
- *                          restorable state)
+ *                          restorable state). Since Phase 29 the verb writes
+ *                          the tombstone rather than deleting the row; the
+ *                          CHANNEL NAME does not change, because renaming a
+ *                          shipped channel breaks an old preload for nothing.
+ *   - sessions:listRemoved → GmuxCore.listRemovedSessions (Phase 29, the
+ *                          Past Sessions panel's data: discarded rows,
+ *                          newest removal first).
  *   - app:getLoginItem / app:setLoginItem → 'Launch gmux at login' toggle.
  *
  * Import direction: this module imports ../ipc (getGmuxCore). ../ipc imports
@@ -27,9 +33,15 @@ export function registerRestoreIpc(ipc: IpcMain): void {
 
   handle(ipc, 'sessions:discard', async (_e, sessionId) => {
     const core = await getGmuxCore();
-    core.discardSession(sessionId);
+    core.removeSession(sessionId);
+    // What makes the removed row leave the rail immediately: listSessions
+    // filters tombstones out.
     core.broadcastSessions();
   });
+
+  handle(ipc, 'sessions:listRemoved', async () =>
+    (await getGmuxCore()).listRemovedSessions()
+  );
 
   handle(ipc, 'app:getLoginItem', () => getLoginItemState());
   handle(ipc, 'app:setLoginItem', (_e, openAtLogin) =>
