@@ -157,6 +157,12 @@ import * as tmux from './tmux';
 import { applyProcessIdentity } from './proc/identity';
 import { reapGuardedChildren } from './proc/guarded';
 import { reapOrphanedTmuxClients } from './proc/orphans';
+// Phase 24: self update. The updater engine is one module, the post update
+// self check runs once per version change, and updates:state feeds the
+// Settings row. All three are wired below on normal startup paths only.
+import { initUpdater } from './updates/updater';
+import { runPostUpdateSelfCheck } from './updates/self-check';
+import { registerUpdatesIpc } from './updates/ipc';
 
 // Phase 13.8: say our name before anything else runs — app.setName feeds the
 // menu bar, the About panel and app.getPath('userData'), and process.title is
@@ -197,6 +203,15 @@ applyProcessIdentity(app);
 // The harnesses never take the lock. Each already runs under its own
 // --user-data-dir, and several of them run at the same time as each other, so a
 // lock would make one exit instead of doing its job.
+//
+// Phase 24: the update rehearsal is DELIBERATELY not on this list, even
+// though `activeTmuxSocket` in src/main/tmux/supervisor.ts honours
+// GMUX_UPDATE_REHEARSAL as a harness term. A rehearsal launch must still
+// take the lock. The lock lives in the isolated profile the rehearsal
+// always passes, so it protects the rehearsal without touching the
+// operator's instance. A rehearsal launched WITHOUT --user-data-dir is
+// refused by the operator's own running copy, and that refusal is the
+// protective direction. Both files state this asymmetry on purpose.
 //
 // GMUX_ALLOW_SECOND_INSTANCE=1 starts a second copy anyway. It is there for the
 // case the measurements above did not reach, e.g. a profile on a volume where
@@ -1767,6 +1782,10 @@ app.whenReady().then(async () => {
   // Phase 10 (S13): settings store + Settings window + flag-preset catalogs
   // (settings:get/set, settings:openWindow, agents:flagPresets).
   registerSettingsIpc(ipcMain);
+  // Phase 24: updates:state, the one updates channel, read by the Settings
+  // row. Registering in every mode is the existing convention here and it
+  // costs one closure.
+  registerUpdatesIpc(ipcMain);
   // Phase 12 item 8: file/image drop (drop:strategies/prepare/persist) and
   // the userData drop store's prune-at-ready + daily timer.
   registerDropIpc(ipcMain);
@@ -1922,6 +1941,12 @@ app.whenReady().then(async () => {
     console.error(`[gmux] core boot failed: ${(err as Error).message}`);
   });
 
+  // Phase 24: the post update self check. On the first boot after the
+  // version changes it verifies the bundled resources resolve on disk and
+  // surfaces one quiet failure if any is missing. Fire and forget, catches
+  // internally, and must never delay the window.
+  void runPostUpdateSelfCheck();
+
   // Phase 13.8: detach tmux clients that previous runs left attached to the
   // private server (12 of them were found alive on the reporting machine,
   // one per launch that ended abruptly). Clients only — sessions are never
@@ -1998,6 +2023,13 @@ app.whenReady().then(async () => {
         .catch(() => undefined);
     }
   });
+
+  // Phase 24: the self updater. Three refusals live inside it. The first
+  // check runs 30 seconds from now and never at launch, a failed background
+  // check is one log line and nothing above the surface, and Tortie never
+  // calls quitAndInstall on its own initiative. Normal startup only, because
+  // every harness mode returned before this line.
+  initUpdater();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) showAppWindow();

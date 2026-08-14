@@ -61,6 +61,7 @@ import type {
   GmuxSettingsExtras,
   GmuxSpecStoryExtras,
   GmuxTermStreamExtras,
+  GmuxUpdatesExtras,
   GmuxViewMenuExtras,
   SearchProgress,
   TermExitPayload,
@@ -531,7 +532,8 @@ const api: GmuxApi &
   GmuxContextSnapshotExtras &
   GmuxContextExtras &
   GmuxConfigExtras &
-  GmuxViewMenuExtras = {
+  GmuxViewMenuExtras &
+  GmuxUpdatesExtras = {
   sessions,
   projects,
   recents,
@@ -550,6 +552,12 @@ const api: GmuxApi &
   scrollback,
   notice,
   preview,
+  // Phase 24 optional extra: the Settings row's one read. The update engine,
+  // the menu item and every dialog live in main; the renderer only ever asks
+  // what is true right now, on the one typed bridge.
+  updates: {
+    state: () => invoke('updates:state')
+  },
   pathForFile: (file: File): string => {
     try {
       return webUtils.getPathForFile(file);

@@ -810,7 +810,8 @@ export type GmuxInvokeChannelMap = InvokeChannelMap &
   PreviewInvokeChannelMap &
   ContextSnapshotInvokeChannelMap &
   ContextInvokeChannelMap &
-  ConfigInvokeChannelMap;
+  ConfigInvokeChannelMap &
+  UpdatesInvokeChannelMap;
 
 export type GmuxInvokeChannel = keyof GmuxInvokeChannelMap;
 
@@ -3172,5 +3173,49 @@ export interface GmuxConfigExtras {
     rows(): Promise<ConfigRowsResult>;
     confirm(input: ConfigConfirmInput): Promise<ConfigRowView>;
     forget(id: string): Promise<ConfigRowView>;
+  };
+}
+
+// ---------------------------------------------------------------------------
+// APPENDED by Phase 24 (self update). One invoke channel behind ONE optional
+// preload extra, `window.gmux.updates`. The one existing line touched above is
+// the GmuxInvokeChannelMap intersection, exactly as that declaration's own
+// comment prescribes.
+//
+// updates:state is a READ and it is the only updates channel. The renderer
+// asks what is true right now and draws one Settings caption from it. The
+// menu, the dialogs, the timers and the install call all live in main
+// (src/main/updates), because the update engine must never depend on a
+// renderer being open. There is deliberately no channel that starts a check,
+// no channel that installs, and no event stream that pushes update state at
+// the renderer. The announcement surface is one native menu item.
+//
+// MAIN: src/main/updates/ipc.ts, the one `updates:*` registrar.
+// ---------------------------------------------------------------------------
+
+/**
+ * What the Settings row reads. `stagedVersion` is non null only when an
+ * update is downloaded, verified by the updater library, and waiting for the
+ * user's own quit. `lastCheckedAt` is epoch ms of the last completed check,
+ * or null when no check has run yet on this install.
+ */
+export interface UpdateUiState {
+  currentVersion: string;
+  stagedVersion: string | null;
+  lastCheckedAt: number | null;
+}
+
+export interface UpdatesInvokeChannelMap {
+  'updates:state': { req: []; res: UpdateUiState };
+}
+
+/**
+ * OPTIONAL extra on window.gmux, feature-detected by the Settings window
+ * (`typeof window.gmux.updates?.state === 'function'`). A build without it
+ * shows no Updates row rather than a row that throws.
+ */
+export interface GmuxUpdatesExtras {
+  updates?: {
+    state(): Promise<UpdateUiState>;
   };
 }

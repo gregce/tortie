@@ -69,14 +69,24 @@ export const TMUX_SOCKET = 'gmux';
  * no sessions listed, hours of agent work alive and unreachable. A normal
  * launch ignores the variable entirely, so that cannot happen.
  *
- * A HARNESS LAUNCH IS `GMUX_SMOKE` OR `GMUX_SHOT`, and that is the same
- * definition `src/main/index.ts` uses for the single-instance lock. The two
- * disagreed until Phase 22: this function honoured only `GMUX_SMOKE`, so a
- * shot-harness run that created a session put it on the socket carrying the
- * user's live work while printing that the override had been ignored. A Phase
- * 22 verifier hit exactly that and had to remove a session from the real
- * server by hand. `src/renderer/context/shot-probe.ts` ships a shot driver for
- * this view, so the two definitions have to agree from here on.
+ * A HARNESS LAUNCH IS `GMUX_SMOKE`, `GMUX_SHOT` OR `GMUX_UPDATE_REHEARSAL`
+ * (Phase 24). The first two terms match the definition `src/main/index.ts`
+ * uses for the single-instance lock, and those two must keep matching. The
+ * definitions disagreed until Phase 22: this function honoured only
+ * `GMUX_SMOKE`, so a shot-harness run that created a session put it on the
+ * socket carrying the user's live work while printing that the override had
+ * been ignored. A Phase 22 verifier hit exactly that and had to remove a
+ * session from the real server by hand. `src/renderer/context/shot-probe.ts`
+ * ships a shot driver for this view, so the smoke and shot terms have to
+ * agree from here on.
+ *
+ * `GMUX_UPDATE_REHEARSAL` is the deliberate exception, present HERE and
+ * absent from the single-instance definition in index.ts. A rehearsal launch
+ * must still take the lock. The lock lives in the isolated profile the
+ * rehearsal always passes, so it protects the rehearsal without touching the
+ * operator's instance. A rehearsal launched WITHOUT `--user-data-dir` is
+ * refused by the operator's own running copy, and that refusal is the
+ * protective direction.
  *
  * `default` is refused by name. That is the socket of the user's OWN tmux
  * server, which this app never touches.
@@ -87,7 +97,9 @@ export function activeTmuxSocket(
   const want = (env['GMUX_TMUX_SOCKET'] ?? '').trim();
   if (want === '') return TMUX_SOCKET;
   const harnessLaunch =
-    (env['GMUX_SMOKE'] ?? '') !== '' || (env['GMUX_SHOT'] ?? '') !== '';
+    (env['GMUX_SMOKE'] ?? '') !== '' ||
+    (env['GMUX_SHOT'] ?? '') !== '' ||
+    (env['GMUX_UPDATE_REHEARSAL'] ?? '') !== '';
   if (!harnessLaunch) {
     console.warn(
       '[gmux] GMUX_TMUX_SOCKET is set but this is not a harness launch, so it is ignored.'

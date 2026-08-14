@@ -69,6 +69,15 @@ import { runOperatorReconstruction } from './manifest/reconstruct-operator';
 // editor and no onboarding flow, because the file is one click away and the
 // user's agents are already here.
 import { revealConfigFolder } from './config/guide';
+// Phase 24. The two update surfaces this menu owns: the staged item that
+// appears only once an update is downloaded, and the check a person can run.
+// The state comes from ./updates/updater and the words come from ./updates/ui.
+// The menu is the WHOLE announcement: no toast, no modal, no badge.
+import { getUpdateUiState, onUpdateStateChanged } from './updates/updater';
+import {
+  confirmInstallStagedUpdate,
+  runInteractiveUpdateCheck
+} from './updates/ui';
 
 /**
  * Can this window act on a menu action? The Settings window (S13) is a
@@ -238,12 +247,55 @@ export function sessionsPositionRadioState(): SessionsPosition {
   return sessionsPosition;
 }
 
+/**
+ * The Tortie submenu's update items (Phase 24).
+ *
+ * The staged item exists only while an update is downloaded and staged,
+ * never on update-available: an announcement about bytes that are not on
+ * disk yet is a promise the quit cannot keep. Its label is one comma joined
+ * sentence, never a dash. Clicking it opens the one sanctioned install
+ * prompt (./updates/ui).
+ *
+ * "Check for Updates…" is always present, including in dev, where the
+ * result dialog says plainly that a development build does not update
+ * itself.
+ *
+ * The template reads `getUpdateUiState()` synchronously as it is built, the
+ * same way the recents rows are read, so there is no second pass to race.
+ * The try/catch is menu discipline rather than doubt about the contract: a
+ * broken updater module must cost the user the staged item, never the menu
+ * bar.
+ */
+function updateMenuItems(): MenuItemConstructorOptions[] {
+  let staged: string | null = null;
+  try {
+    staged = getUpdateUiState().stagedVersion;
+  } catch {
+    staged = null;
+  }
+  const items: MenuItemConstructorOptions[] = [];
+  if (staged !== null) {
+    items.push({
+      label: `Update to ${staged}, installs when you quit`,
+      click: () => void confirmInstallStagedUpdate()
+    });
+  }
+  items.push({
+    label: 'Check for Updates…',
+    click: () => void runInteractiveUpdateCheck()
+  });
+  return items;
+}
+
 function buildTemplate(): MenuItemConstructorOptions[] {
   const template: MenuItemConstructorOptions[] = [
     {
       label: app.name, // "Tortie" — set in proc/identity.ts
       submenu: [
         { role: 'about', label: `About ${app.name}` },
+        // Phase 24: the staged update announcement (one menu item and
+        // nothing else) and the user initiated check.
+        ...updateMenuItems(),
         { type: 'separator' },
         // S13: ⌘, opens the dedicated single-instance Settings window
         // straight from main — no renderer detour, works from any window.
@@ -460,6 +512,21 @@ function watchRecentsForMenu(): void {
   onRecentsChanged(() => applyMenu());
 }
 
+/** True once the update subscription exists, so a second install is a no-op. */
+let watchingUpdates = false;
+
+/**
+ * Rebuild whenever the update state changes (Phase 24), which is when an
+ * update finishes downloading and when a check completes. Same mechanism as
+ * the recents subscription above: the template reads the state synchronously
+ * as it is built, so the staged item can never disagree with the engine.
+ */
+function watchUpdatesForMenu(): void {
+  if (watchingUpdates) return;
+  watchingUpdates = true;
+  onUpdateStateChanged(() => applyMenu());
+}
+
 export function installAppMenu(): void {
   // The About panel reads CFBundleName/CFBundleShortVersionString from the
   // bundle in a packaged build and Electron's own values in dev, so a dev run
@@ -483,5 +550,6 @@ export function installAppMenu(): void {
     console.warn(`[gmux] About panel: ${(err as Error).message}`);
   }
   watchRecentsForMenu();
+  watchUpdatesForMenu();
   applyMenu();
 }

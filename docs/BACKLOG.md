@@ -34,7 +34,7 @@ the wordmark is a wordmark. Revisit only if the operator asks.
 | 9 | **25.5** the DeepSeek CLI renamed itself and detection is broken | ✅ SHIPPED 2026-08-13 | nothing. Small, and can run beside any phase |
 | 9b | **26** Context sidebar dogfood round, user reported | ✅ SHIPPED 2026-08-13 | 25.5 ✅ |
 | 10 | **Release lane (Phase 27)** Itavero identity, signing, notarization, version scheme, four CI lanes | ✅ SHIPPED 2026-08-13 | after Phase 25.5 ✅ |
-| 11 | **24** self update | SPECCED BELOW | the release lane ✅. The app is now signed, so this is unblocked |
+| 11 | **24** self update | ✅ SHIPPED 2026-08-13 | the release lane ✅. The app is now signed, so this is unblocked |
 | — | ~~Release lane, second half: signing, notarization, the updater~~ | signing and notarization shipped with Phase 27. The updater is Phase 24 | the issuer identifier was never needed. Notarization uses the Apple ID, the team id and an app specific password, the deadreckon shape |
 
 **Why 19 waits for 18.6.** Both touch `src/renderer/state/store.ts`. Phase 19's restart fix would be
@@ -1935,7 +1935,7 @@ because each half was correct on its own and only the artifacts hold the join.
 
 ---
 
-## Phase 24 — self update (2026-08-12)
+## Phase 24 — self update (2026-08-12) ✅ SHIPPED 2026-08-13
 
 Specification in docs/research/27-release-and-updates.md section 5, which canvassed six options and
 carries the mechanism, the interface, the failure envelope and the honest answer about rollback.

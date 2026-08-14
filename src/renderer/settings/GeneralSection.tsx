@@ -5,7 +5,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import type { GmuxLoginItemExtras } from '@shared/ipc';
+import type { GmuxLoginItemExtras, GmuxUpdatesExtras, UpdateUiState } from '@shared/ipc';
 import type { LaunchableAgentKind } from '@shared/types';
 import { keyDisplay } from '@shared/keymap';
 import { ScrollbackSection } from './ScrollbackSection';
@@ -129,6 +129,60 @@ function DefaultAgentRow(): React.JSX.Element {
   );
 }
 
+/**
+ * Phase 24. One read only row: the running version, and what the updater is
+ * doing about it. Data comes from the `updates:state` invoke channel, fetched
+ * when the section mounts. The row does not live update; reopening Settings
+ * refreshes it, which is a recorded limit of the phase rather than a defect.
+ * There is no button here: checking is in the Tortie menu, and installing
+ * rides the user's own quit.
+ */
+function UpdatesGroup(): React.JSX.Element | null {
+  const [state, setState] = useState<UpdateUiState | null>(null);
+  const extras = (window.gmux ?? {}) as unknown as GmuxUpdatesExtras;
+  const supported = typeof extras.updates?.state === 'function';
+
+  useEffect(() => {
+    if (!supported) return;
+    let alive = true;
+    void extras.updates
+      ?.state()
+      .then((s) => {
+        if (alive) setState(s);
+      })
+      .catch(() => {
+        // An unanswerable read renders no row rather than a wrong one.
+      });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supported]);
+
+  if (!supported || state === null) return null;
+
+  const caption =
+    state.stagedVersion !== null
+      ? `Version ${state.currentVersion}. Tortie ${state.stagedVersion} is ready and installs when you quit.`
+      : state.lastCheckedAt !== null
+        ? `Version ${state.currentVersion}. Last checked ${new Date(state.lastCheckedAt).toLocaleString()}.`
+        : `Version ${state.currentVersion}. No update check has run yet.`;
+
+  return (
+    <>
+      <div className="set-group-label">Updates</div>
+      <div className="set-card">
+        <div className="set-row tall">
+          <div className="set-row-text">
+            <span className="set-row-label">Updates</span>
+            <span className="set-row-caption">{caption}</span>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 export function GeneralSection(): React.JSX.Element {
   return (
     <section aria-label="General">
@@ -149,6 +203,10 @@ export function GeneralSection(): React.JSX.Element {
           card, and a nav item called Diagnostics is a dashboard by another
           name (ZEN-OF-TORTIE). */}
       <ScrollbackSection />
+
+      {/* Phase 24. The bottom of General, per the phase spec: one line about
+          the running version and the staged update, no controls. */}
+      <UpdatesGroup />
     </section>
   );
 }

@@ -185,6 +185,24 @@ export interface BackupFailingNotice {
   detail: string;
 }
 
+/**
+ * The first boot after an update found the new bundle incomplete. Phase 24.
+ *
+ * APPENDED (Phase 24). The post update self check runs once when the stored
+ * version differs from app.getVersion(), and verifies that the resources the
+ * app cannot work without still resolve on disk. This notice is the single
+ * thing the whole update flow is allowed to raise above the surface, and only
+ * because it is a failure. A reinstall repairs it completely, because no user
+ * data lives in the bundle.
+ */
+export interface UpdateIncompleteNotice {
+  kind: 'update-incomplete';
+  /** Short resource labels, e.g. "tmux config", "specstory", "ripgrep", "tree-sitter". */
+  missing: string[];
+  /** The version that just started. */
+  version: string;
+}
+
 /** Every degraded state Tortie can report. One kind per state, no free text. */
 export type DurabilityNotice =
   | BackupFailingNotice
@@ -194,7 +212,8 @@ export type DurabilityNotice =
   | ManifestUnreadableNotice
   | ScrollbackDepthDegradedNotice
   | RestoreIncompleteNotice
-  | RestoreShortfallNotice;
+  | RestoreShortfallNotice
+  | UpdateIncompleteNotice;
 
 /**
  * Everything that travels on `scrollback:notice`: the three scrollback events
@@ -211,7 +230,8 @@ export const DURABILITY_NOTICE_KINDS = [
   'manifest-unreadable',
   'depth-degraded',
   'restore-incomplete',
-  'restore-shortfall'
+  'restore-shortfall',
+  'update-incomplete'
 ] as const;
 
 /** Narrow a notice off the shared channel to a degraded state. */

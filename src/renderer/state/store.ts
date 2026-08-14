@@ -799,6 +799,19 @@ export const useApp = create<AppState>((set, get) => {
           );
           return;
         }
+        if (notice.kind === 'update-incomplete') {
+          // Phase 24. The post update self check found the swapped bundle
+          // missing a resource. The reinstall sentence is honest because no
+          // user data lives in the bundle: sessions are on the tmux server
+          // and the manifest is in userData, so putting a fresh Tortie.app
+          // in place recovers everything. The missing labels are in the log.
+          get().toast(
+            'error',
+            'This update is missing files. Reinstall Tortie to repair it.',
+            { sticky: true }
+          );
+          return;
+        }
         // A kind added to the shared union without a sentence here fails the
         // build, rather than shipping a degraded state nobody is told about.
         const unhandled: never = notice;

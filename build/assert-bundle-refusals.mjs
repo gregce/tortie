@@ -353,6 +353,43 @@ const CONFIG_REFUSALS = [
 ];
 
 /**
+ * Phase 24's updater refusals, counted SEPARATELY again.
+ *
+ * What these cost if the bundler removes one is different from every list
+ * above. The updater is the one subsystem that replaces the application on a
+ * machine holding live work. The first refusal is the feed override gate: a
+ * rehearsal can point the updater at a local feed, and the gate is what stops
+ * a stray TORTIE_UPDATE_FEED variable from redirecting a production launch's
+ * checks. Squirrel would still refuse foreign bytes at install time, so what
+ * the gate protects is narrower and still worth having: where the check
+ * itself goes. The second is the post update self check's one log line, the
+ * single failure the whole update flow may raise above the surface. If the
+ * bundler drops it, a bundle swap that lost the tmux config degrades every
+ * session's scrollback and nothing anywhere says so.
+ */
+const UPDATER_REFUSALS = [
+  {
+    id: 'updater.feed-override-refused',
+    source: 'src/main/updates/updater.ts',
+    why:
+      'a stray environment variable must never redirect where a production ' +
+      'launch checks for updates',
+    fragments: [
+      'TORTIE_UPDATE_FEED is set, but this launch is not a confirmed rehearsal, so the override is ignored.',
+      'The update feed stays the release feed.'
+    ]
+  },
+  {
+    id: 'updater.self-check-missing-resources',
+    source: 'src/main/updates/self-check.ts',
+    why:
+      'a bundle swap that lost a resource must be said out loud once, or it ' +
+      'reads as every downstream feature quietly breaking',
+    fragments: ['the update left resources missing: ']
+  }
+];
+
+/**
  * PHASE 23 FIX ROUND — a gate is not a gate if nobody can pass it.
  *
  * ## The defect that made this check exist
@@ -469,7 +506,12 @@ function main() {
   const staleTable = [];
   const missingFromBundle = [];
 
-  for (const refusal of [...REFUSALS, ...SKILLS_REFUSALS, ...CONFIG_REFUSALS]) {
+  for (const refusal of [
+    ...REFUSALS,
+    ...SKILLS_REFUSALS,
+    ...CONFIG_REFUSALS,
+    ...UPDATER_REFUSALS
+  ]) {
     const sourcePath = join(repoRoot, refusal.source);
     if (!sources.has(refusal.source)) {
       sources.set(
@@ -528,6 +570,9 @@ function main() {
   );
   console.log(
     `[refusals] ${String(CONFIG_REFUSALS.length)} config confirm-gate refusals are in out/main/index.js.`
+  );
+  console.log(
+    `[refusals] ${String(UPDATER_REFUSALS.length)} updater refusals are in out/main/index.js.`
   );
 
   assertReachable(bundle);
