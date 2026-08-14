@@ -37,10 +37,24 @@ the wordmark is a wordmark. Revisit only if the operator asks.
 | 11 | **24** self update | ✅ SHIPPED 2026-08-13 | the release lane ✅. The app is now signed, so this is unblocked |
 | — | ~~Release lane, second half: signing, notarization, the updater~~ | signing and notarization shipped with Phase 27. The updater is Phase 24 | the issuer identifier was never needed. Notarization uses the Apple ID, the team id and an app specific password, the deadreckon shape |
 | 12 | **28** process observability after the lid close diagnosis | ✅ SHIPPED `e9a8731` | — |
-| 13 | **29** session history: browse and restore removed sessions | QUEUED | spec is docs/research/39-session-history.md |
+| 13 | **29** session history: browse and restore removed sessions | BUILDING 2026-08-14 | spec is docs/research/39-session-history.md |
 | 14 | **30** skill removal through the skills CLI | ✅ SHIPPED `f33599b` | — |
 | 15 | **32** the antigravity claim race (operator hit it live, 2026-08-14) | ✅ SHIPPED `ecdfcad` | — |
 | 16 | **31** updater honesty after the operator's first live update (operator reported, 2026-08-14) | ✅ SHIPPED `aa4e456` + `a63ec76` | Phase 24 ✅ |
+
+**The wave plan, recorded 2026-08-14, operator approved.** Phases run in parallel when their file
+domains are disjoint, never more than 3 build workflows at once. Every phase commit moves the
+version: minor for a feat subject, patch for a fix, nothing for docs, chore, test or ci. The
+version on main states what accumulated even when no release is tagged. The next release is
+0.20.0, cut on the operator's word once Phase 36 lands, because 36 closes the last known defect
+in the shipping build.
+
+| Wave | Phases | Gated on |
+| --- | --- | --- |
+| A, building now | **36** quit crash (fix), **29** session history (feat), **37** inline naming (fix) | — |
+| release point | **0.20.0 candidate** prepared, tag held for the operator | 36 landed and green |
+| B | **35** uniform logging (feat) | 36 pushed |
+| C | **33** env passthrough (feat), **34** the CodeWhale race (fix) | 29 pushed |
 
 **Why 19 waits for 18.6.** Both touch `src/renderer/state/store.ts`. Phase 19's restart fix would be
 written against a file that 18.6 then rewrites. Doing the renderer work together, then the main
