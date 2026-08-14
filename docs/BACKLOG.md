@@ -3249,3 +3249,39 @@ The browse surface is Tier 2, one targeted probe and one screenshot read of the 
 - The Phase 19 restart ordering, where nothing is discarded until the replacement exists.
 - Status semantics. A discarded row never sets "needs input".
 - The reconcile refusal at `store.ts:1867`, which must keep ignoring discarded rows.
+
+## Phase 33 — env passthrough for agent launches (user requested, 2026-08-14) QUEUED
+
+**Specification.** docs/research/41-pi-env-providers.md. The research holds the pi configuration
+surface, the measured env chain, the five options and the adversarial scoring.
+
+**The problem.** A fresh agent pane inherits only PATH and LANG from the login shell, so provider
+keys exported in ~/.zshrc never reach a natively launched agent. pi with a Fireworks or custom
+backend fails inside Tortie while working in a plain terminal.
+
+**The decision.** Build option D from the research. agents.json rows gain `launch.envPassthrough`,
+a list of environment variable NAMES with a count cap and a name pattern. The name list is
+execution bearing: it joins ConfigExecutionFields and moves the confirm hash, and the confirm
+sheet prints the names. Values are resolved at each launch and each restore with one login shell
+probe in the captureLoginShellPath shape, 3 second deadline, group kill, then injected per pane
+with -e before managedPaneEnv so the GMUX stamps stay last. The manifest stores names only, never
+values. Version 1 refuses PI_CODING_AGENT_DIR and PI_CODING_AGENT_SESSION_DIR with a visible
+error. An unset variable injects nothing and surfaces a per session notice.
+
+**Why the rejected options lost.**
+- Injecting the login env into the tmux server globals puts provider keys where every pane and
+  every same user process can read them, and lets an agent that edits .zshrc change every
+  session's credentials with no confirm. That is the refusal 8 pattern.
+- Capturing the full env per session persists secrets verbatim into the manifest SQLite.
+- Wrapping launches in a login shell re-runs agent writable rc code on every launch and deepens
+  the process tree, which endangers the bare name pkill property and descendant pid matching.
+- Doing nothing fixes only pi, through its auth.json, and abandons the other 12 agents.
+
+**Stopgap to document on day one.** pi users can run /login for their provider today: auth.json
+beats env in pi's credential order and its values may be keychain shell outs.
+
+**Verification. Tier 3.** Extend conformance:agents with three assertions: the hash moves on a
+name add or remove and not on reorder, the manifest row carries names only, and the resume argv
+stays byte equal. conformance:resume:capture on every commit, the full conformance:resume once,
+live pane evidence with a test variable proving the value is present in the pane and absent from
+show-environment -g and from the manifest, and smoke:t3 on both restore shapes.
