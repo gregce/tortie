@@ -64,10 +64,14 @@ jobs:
               "GMUX_SMOKE=$m npx electron . --user-data-dir='$RUNNER_TEMP/$m'"
           done
       - name: Full package, DMG and ZIP, unsigned
+        # --publish never matters even though nothing is uploaded: without
+        # it, electron-builder sees the github publish provider in the
+        # config and demands a token on CI, which failed this lane's first
+        # scheduled run. The npm run package script carries the same flag.
         # identity=null is coerced to a real null by electron-builder, which
         # skips signing, and notarization is unreachable once signing is
         # skipped. Verified in the installed electron-builder 26.15.3.
-        run: npx electron-builder --mac -c.mac.identity=null
+        run: npx electron-builder --mac --publish never -c.mac.identity=null
       - name: The packaged app launches and passes the basic smoke
         run: |
           node build/harness-socket.mjs gmux-smoke-pkg \
