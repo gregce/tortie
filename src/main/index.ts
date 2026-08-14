@@ -56,6 +56,14 @@
  *                       process is started at any point. Isolated profile AND
  *                       isolated socket, refused without both.
  *                       `npm run smoke:config`.
+ *  - GMUX_SMOKE=quit    the REAL app.quit() under a saturated uv threadpool
+ *                       (Phase 36). Every other harness ends with app.exit,
+ *                       which skips before-quit and FreeEnvironment — the
+ *                       exact stretch where a fire-and-forget watcher
+ *                       unsubscribe turns quit into a SIGABRT. Boots the
+ *                       core, proves the agents.json watcher is live, queues
+ *                       8 slow pbkdf2 jobs, quits for real. The process exit
+ *                       code is the verdict. `npm run smoke:quit`.
  *  - GMUX_SMOKE=procid  what the OUTSIDE world sees of gmux (Phase 13.8):
  *                       app name, process.title, what `ps` prints, and the
  *                       gmux-owned process list (app + helpers + private tmux
@@ -74,7 +82,7 @@
 
 import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import { execFile } from 'node:child_process';
-import { randomUUID } from 'node:crypto';
+import { pbkdf2, randomUUID } from 'node:crypto';
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { homedir, tmpdir } from 'node:os';
@@ -99,7 +107,11 @@ import { runConfigConfirmSmoke } from './config/confirm-smoke';
 // Phase 23: the configuration file is read at boot, on an explicit reload and
 // on a watcher debounce, and nowhere else. `initAgentOverlay` is the boot read.
 // `stopAgentOverlayWatch` is the matching teardown on quit.
-import { initAgentOverlay, stopAgentOverlayWatch } from './config/store';
+import {
+  initAgentOverlay,
+  startAgentOverlayWatch,
+  stopAgentOverlayWatch
+} from './config/store';
 import { installLaunchContextResolver } from './context/launch-resolver';
 import {
   PREVIEW_PRIVILEGED_SCHEME,
@@ -109,6 +121,9 @@ import {
 } from './preview';
 import { getGmuxCore, shutdownGmuxCore } from './sessions';
 import type { GmuxCore } from './sessions';
+// Phase 36: the quit-time watcher-close drain. See watcher/teardown.ts for
+// why a fire-and-forget unsubscribe near quit is a SIGABRT and not a quit.
+import { drainWatcherCloses } from './watcher/teardown';
 import { handle } from './typed-ipc';
 import { WINDOW_BACKGROUND } from '@shared/window-chrome';
 import type { ManifestSessionRecord } from './manifest';
@@ -601,6 +616,51 @@ async function runSmokeVerify(): Promise<void> {
     await shutdownGmuxCore();
     smokeLog('6/6 PASS (verify) — T1 restart acceptance test complete');
     app.exit(0);
+  } catch (err) {
+    smokeFail(err);
+  }
+}
+
+/**
+ * GMUX_SMOKE=quit — Phase 36, the quit that is secretly a crash.
+ *
+ * On 2026-08-14 all 5 real quits of the installed app were SIGABRTs:
+ * before-quit fired its @parcel/watcher unsubscribes with `void`, and under
+ * a busy uv threadpool their napi completions were still queued when
+ * FreeEnvironment ran. No other harness can see this, because they all end
+ * with app.exit(), which never reaches before-quit. This one ends with the
+ * REAL app.quit() while 8 slow pbkdf2 jobs hold the 4-thread pool, which is
+ * the same pressure a real quit's snapshot and manifest-generation writes
+ * apply. Exit 0 means the quit path waited for its watcher closes. Exit 134
+ * is the bug.
+ */
+async function runSmokeQuit(): Promise<void> {
+  armWatchdog(30_000);
+  try {
+    await getGmuxCore();
+    smokeLog('1/4 core booted: tmux server + manifest + control client');
+
+    // The agents.json watcher is the subscription EVERY real boot holds
+    // (config/store.ts), so it is the one whose quit-time close this smoke
+    // exists to race. initAgentOverlay starts it; the second call proves it
+    // is live rather than assumed.
+    await initAgentOverlay();
+    const watching = await startAgentOverlayWatch();
+    if (!watching) {
+      throw new Error('agents.json watcher failed to start — nothing to race');
+    }
+    smokeLog('2/4 agents.json watcher live (the boot subscription)');
+
+    // Saturate the uv threadpool so the unsubscribe completions queue behind
+    // real work, exactly as they do behind a real quit's writes. Callbacks
+    // are deliberately ignored; the jobs exist to keep the pool busy.
+    for (let i = 0; i < 8; i += 1) {
+      pbkdf2('x', 'y', 2_000_000, 64, 'sha512', () => {});
+    }
+    smokeLog('3/4 uv threadpool saturated: 8 pbkdf2 jobs of 2,000,000 rounds');
+
+    smokeLog('4/4 calling the REAL app.quit() — the exit code is the verdict');
+    app.quit();
   } catch (err) {
     smokeFail(err);
   }
@@ -1833,6 +1893,9 @@ app.whenReady().then(async () => {
   if (smoke === 'basic') return runSmokeBasic();
   if (smoke === 'create') return runSmokeCreate();
   if (smoke === 'verify') return runSmokeVerify();
+  // Phase 36: the only harness that ends with the real app.quit(), because
+  // the bug it guards against lives between before-quit and FreeEnvironment.
+  if (smoke === 'quit') return runSmokeQuit();
   if (smoke === 't3-prep') return runSmokeT3Prep();
   if (smoke === 't3-verify') return runSmokeT3Verify();
   if (smoke === 'agent') return runSmokeAgent();
@@ -2092,11 +2155,23 @@ app.on('before-quit', (event) => {
     } catch {
       /* never block quit */
     }
-    void disposeGitIpc();
-    // Phase 23: stop watching the configuration directory. One FSEvents
-    // subscription and one pending debounce timer, both released here so a
-    // quit does not leave a watcher holding a handle on the user's folder.
-    void stopAgentOverlayWatch();
+    // Phase 36: every watcher close the quit path issues is AWAITED before
+    // app.quit(). These two lines used to be `void disposeGitIpc()` and
+    // `void stopAgentOverlayWatch()`, and that void was the crash: an
+    // unsubscribe completion still queued at FreeEnvironment is answered by
+    // napi_fatal_error, and all 5 real quits on 2026-08-14 died that way.
+    // The drain must run AFTER shutdownGmuxCore above, because core.dispose()
+    // is what issues the harvest-watch unsubscribes, and it picks up the
+    // repo-watcher and agents.json closes started on this line. The manifest
+    // quit generation already finished inside shutdownGmuxCore, so nothing
+    // here can delay or cut it short. The outer 3 s race is a wedge guard
+    // only; a measured unsubscribe completes in single-digit milliseconds.
+    await Promise.race([
+      Promise.allSettled([disposeGitIpc(), stopAgentOverlayWatch()]).then(() =>
+        drainWatcherCloses(2_000)
+      ),
+      new Promise((r) => setTimeout(r, 3_000))
+    ]).catch(() => undefined);
     disposeSearchIpc(); // SIGKILL any in-flight ripgrep
     void disposeQuickOpenIpc(); // terminate the ⌘P ranking worker
     void disposeSymbolsIpc(); // terminate the tree-sitter pool, close its db

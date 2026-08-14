@@ -28,6 +28,7 @@ import watcher from '@parcel/watcher';
 import type { AsyncSubscription, Event } from '@parcel/watcher';
 import { readFileSync, realpathSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
+import { trackWatcherClose } from './teardown';
 
 export interface RepoWatcherOptions {
   /** Coalescing window for change events. Default 300 ms. */
@@ -93,7 +94,13 @@ export class RepoWatcher {
   private worktreeSub: AsyncSubscription | null = null;
   private dotgitSub: AsyncSubscription | null = null;
   private dotgitDir: string | null = null;
-  private dotgitStarting = false;
+  /**
+   * The in-flight dotgit attach, held so dispose() can AWAIT it (Phase 36).
+   * A dispose that lands mid subscribe used to fire the "disposed during
+   * subscribe" unsubscribe and walk away; now the whole start is awaited,
+   * so the close finishes before dispose returns.
+   */
+  private dotgitStart: Promise<void> | null = null;
 
   private flushTimer: NodeJS.Timeout | null = null;
   private disposed = false;
@@ -138,6 +145,13 @@ export class RepoWatcher {
     if (this.flushTimer !== null) {
       clearTimeout(this.flushTimer);
       this.flushTimer = null;
+    }
+    // Phase 36: a dotgit attach can be mid subscribe right now. Wait for it,
+    // so its "disposed during subscribe" unsubscribe has FINISHED (not just
+    // been fired) by the time this dispose resolves. The quit path awaits
+    // dispose, so this closes the last unawaited close in this file.
+    if (this.dotgitStart !== null) {
+      await this.dotgitStart.catch(() => undefined);
     }
     const subs = [this.worktreeSub, this.dotgitSub];
     this.worktreeSub = null;
@@ -198,11 +212,17 @@ export class RepoWatcher {
   }
 
   /** Attach the dotgit watcher if `.git` exists and none is attached yet. */
-  private async tryStartDotgitWatcher(): Promise<void> {
-    if (this.disposed || this.dotgitSub !== null || this.dotgitStarting) {
-      return;
-    }
-    this.dotgitStarting = true;
+  private tryStartDotgitWatcher(): Promise<void> {
+    if (this.disposed || this.dotgitSub !== null) return Promise.resolve();
+    if (this.dotgitStart !== null) return this.dotgitStart;
+    this.dotgitStart = this.startDotgitWatcher().finally(() => {
+      this.dotgitStart = null;
+    });
+    return this.dotgitStart;
+  }
+
+  /** The attach itself. Never rejects; errors go through onError. */
+  private async startDotgitWatcher(): Promise<void> {
     try {
       const gitDir = this.resolveDotgitDir();
       if (gitDir === null) return;
@@ -223,14 +243,14 @@ export class RepoWatcher {
         }
       );
       if (this.disposed) {
-        await sub.unsubscribe().catch(() => undefined);
+        // Phase 36: tracked AND awaited — dispose() is waiting on this very
+        // promise, and the quit drain is the second line of defence.
+        await trackWatcherClose(sub.unsubscribe().catch(() => undefined));
         return;
       }
       this.dotgitSub = sub;
     } catch (err) {
       this.onError(err as Error);
-    } finally {
-      this.dotgitStarting = false;
     }
   }
 

@@ -3578,7 +3578,7 @@ helper and reads the process.gone record back out of app.log with one jq express
 sends kill -ABRT to a scratch profile run and confirms the boot.unclean_exit record, the one
 quiet notice, and the dump count. One screenshot read of the notice line.
 
-## Phase 36 — the quit that is secretly a crash (found 2026-08-14 by research 42) QUEUED
+## Phase 36 — the quit that is secretly a crash (found 2026-08-14 by research 42) ✅ SHIPPED 2026-08-14 (this commit)
 
 **The evidence.** macOS DiagnosticReports holds 5 SIGABRT reports for the packaged Tortie dated
 2026-08-14, one on 0.18.0 and four on 0.19.0. All five share one faulting stack: watcher.node,
@@ -3599,6 +3599,57 @@ still aborts after a clean unsubscribe, pin the module version and take the upst
 rides: prove with a packaged scratch instance that 5 consecutive quits produce 0 new
 DiagnosticReports entries and that the quit generation lands in the manifest every time, then
 prove the fault harness still passes.
+
+**The mechanism, proven with a paired control before anything was changed.** The crash was never
+"a subscription is open at quit". A subscription left open with no unsubscribe at all survives
+teardown, because the module's own cleanup hook closes the backend without calling back into
+JavaScript. The crash is the quit path's own fire and forget `unsubscribe()` calls. An
+unsubscribe queues work on the uv threadpool, and its completion resolves a JavaScript promise
+through napi on the main loop. before-quit fired those closes with `void` and called
+`app.quit()` without waiting. When the pool is busy, the completion is still queued when
+`node::FreeEnvironment` runs. Environment cleanup drains it, napi refuses the call, and the
+module aborts through `napi_fatal_error`. A real quit writes snapshots and takes a manifest
+generation, so its pool is never idle, which matches 5 crashes in 5 real quits on 2026-08-14.
+A 15 line standalone under the same Electron proved the pair: fire and forget unsubscribe under
+a saturated pool aborts with the production stack byte for byte, the same unsubscribe awaited
+exits 0. Versions pinned: @parcel/watcher 2.6.0 (watcher-darwin-arm64 2.6.0), Electron 43.3.0.
+
+**What shipped.**
+- `src/main/watcher/teardown.ts`, with unit tests. `trackWatcherClose(p)` records a close in a
+  module level set until it settles. `drainWatcherCloses(deadlineMs)` waits until the set is
+  empty, includes closes tracked while it runs, and gives up at the deadline so a sick FSEvents
+  can never wedge quit.
+- The 4 subscription sites in main are all awaitable at quit now. The two harvest sites
+  (`manifest/harvest/watch.ts`) are tracked. The repo watcher's dispose-during-subscribe race
+  (`watcher/repo-watcher.ts`) is tracked, and `dispose()` now awaits an in-flight dotgit attach
+  so the race window itself is closed. The agents.json watcher needed no change; its caller was
+  the problem.
+- before-quit (`src/main/index.ts`) awaits `disposeGitIpc()` and `stopAgentOverlayWatch()`, then
+  drains every tracked close, after `shutdownGmuxCore()` and before `app.quit()`, bounded at
+  3 s. The manifest quit generation finishes inside `shutdownGmuxCore`, before any of this, so
+  the drain cannot delay it or cut it short. smoke:t3 shows the quit generation still landing.
+- `GMUX_SMOKE=quit` and `npm run smoke:quit`, the one harness that ends with the real
+  `app.quit()`. Every other harness ends with `app.exit`, which skips before-quit and
+  FreeEnvironment, which is why the whole battery stayed green while every real quit aborted.
+- The resume conformance harness now drains the tracked closes instead of sleeping a blind
+  1.5 s, and its stale fire and forget comment is gone.
+
+**The numbers.**
+
+| Check | Result |
+| --- | --- |
+| smoke:quit on the pre fix build, 5 runs | 5 of 5 abort with `FATAL ERROR: Error::ThrowAsJavaScriptException napi_throw` and the exact production frames |
+| smoke:quit on the fixed build, 5 runs | 5 of 5 exit 0 |
+| typecheck, build, bundle refusals | pass |
+| unit tests | 3284 passed, 0 failed |
+| smoke:t1 and smoke:t3 | pass, quit generation logged as taken (quit) |
+| conformance:resume:capture | 6 pass, 0 fail, 0 blocked |
+
+**What is not true.** The abort was never reproduced in the packaged app itself; a near idle
+instance's pool lets the completion win the race, and 3 SIGTERM quits of a scratch copy exited
+0. The packaged claim rests on the 5 banked .ips reports plus the identical standalone stack.
+A quit where FSEvents outlives the 3 s bound can still abort, and that is accepted, because a
+quit that hangs is worse. SIGTERM is assumed to equal a menu quit, per research 34.
 
 ## Phase 37 — a new file is named before it exists (user requested, 2026-08-14) QUEUED
 

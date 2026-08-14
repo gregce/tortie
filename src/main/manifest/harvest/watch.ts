@@ -41,6 +41,7 @@ import { join } from 'node:path';
 import * as parcelWatcher from '@parcel/watcher';
 import type { LaunchableAgentId } from '@shared/types';
 import { getRegistryEntry } from '../../agents/registry';
+import { trackWatcherClose } from '../../watcher/teardown';
 import {
   DESCRIPTORS,
   type DescriptorEnv,
@@ -420,7 +421,10 @@ export function watchForSessionId(
     if (pollTimer !== undefined) clearTimeout(pollTimer);
     if (timeoutTimer !== undefined) clearTimeout(timeoutTimer);
     for (const sub of subscriptions) {
-      void sub.unsubscribe().catch(() => undefined);
+      // Phase 36: tracked so the before-quit drain can wait for this close.
+      // A fire-and-forget unsubscribe whose completion lands during
+      // FreeEnvironment is a SIGABRT, not a quit.
+      void trackWatcherClose(sub.unsubscribe().catch(() => undefined));
     }
     subscriptions.length = 0;
   };
@@ -750,7 +754,9 @@ export function watchForSessionId(
       if (!existsSync(dir)) return; // the poll picks it up once it exists
       const sub = await parcelWatcher.subscribe(dir, onEvents);
       if (settled) {
-        void sub.unsubscribe().catch(() => undefined);
+        // Phase 36: the watch settled while this subscribe was in flight.
+        // The close still has to be awaitable at quit, so track it.
+        void trackWatcherClose(sub.unsubscribe().catch(() => undefined));
         return;
       }
       subscriptions.push(sub);

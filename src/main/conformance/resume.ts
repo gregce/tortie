@@ -77,6 +77,7 @@ import {
   getLaunchableEntry
 } from '../agents/registry';
 import { getGmuxCore, shutdownGmuxCore, type GmuxCore } from '../sessions';
+import { drainWatcherCloses } from '../watcher/teardown';
 import type { ManifestSessionRecord } from '../manifest';
 import { buildArmedCommand } from '../restore/command';
 import { captureSessionSnapshot } from '../restore/snapshots';
@@ -808,16 +809,14 @@ export async function runResumeConformance(): Promise<void> {
 
     await sweepLeftovers(core).catch(() => 0);
     await shutdownGmuxCore();
-    // KNOWN ISSUE (BUILD-STATUS.md #1): GmuxCore.dispose() cancels the
-    // harvest watches but @parcel/watcher's unsubscribe() is fire-and-forget,
-    // so an FSEvents subscription can still be initialising when app.exit()
-    // tears the env down — napi_throw during RunCleanup, SIGABRT, and an exit
-    // code that says nothing about the run. This harness starts one watcher
-    // per harvest agent, so it hits that window far more reliably than the
-    // app does. The real fix is awaiting unsubscribe in the watcher's cancel
-    // path (owner: src/main/manifest/harvest); until then, give the
-    // subscriptions a beat to retire so the exit code stays meaningful.
-    await delay(1_500);
+    // Phase 36: GmuxCore.dispose() cancels the harvest watches, and every
+    // one of those unsubscribes is now TRACKED (src/main/watcher/teardown).
+    // app.exit() below skips before-quit, so this harness drains the closes
+    // itself; otherwise an FSEvents completion can land during RunCleanup —
+    // napi_throw, SIGABRT, and an exit code that says nothing about the run.
+    // This used to be a blind 1.5 s delay (the old BUILD-STATUS.md #1);
+    // it is now an awaited drain under the same bound.
+    await drainWatcherCloses(1_500);
     const code = exitCodeFor(results, cfg.strict);
     console.log(code === 0 ? '[gmux-conf] PASS' : '[gmux-conf] FAIL');
     app.exit(code);
