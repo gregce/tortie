@@ -64,6 +64,7 @@ function sourceOf(operation: SkillsOperation): string {
 
 function scopeOf(operation: SkillsOperation): 'global' | 'project' {
   if (operation.kind === 'install') return operation.scope;
+  if (operation.kind === 'remove') return operation.scope ?? 'global';
   if (operation.kind === 'restoreProject') return 'project';
   return 'global';
 }

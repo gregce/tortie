@@ -103,7 +103,7 @@ export function EnableForDialog(): React.JSX.Element | null {
                 className={`ctx-enable-target${off ? ' is-unavailable' : ''}`}
                 title={
                   target.locked && !off
-                    ? 'Already enabled from disk. This surface only adds; use Move to Trash to remove it.'
+                    ? 'Already enabled from disk. This surface only adds. Use Remove to take it away.'
                     : undefined
                 }
               >

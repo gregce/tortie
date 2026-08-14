@@ -252,12 +252,21 @@ export function installCommand(request: InstallRequest): string[] {
 }
 
 /**
- * `skills remove -g -y -s <name> [-a <agent>]`
+ * `skills remove [-g] -y -s <name> [-a <agent>]`
  *
  * Written exactly as the command table writes it. See the header for why the
  * `-s` is inert and the name is a positional, and why that is left alone.
+ *
+ * Scope is the `-g` flag plus the working directory. `-g` scans the user's
+ * home; without it the CLI scans and removes under its own working directory,
+ * so a project remove must also run in the project root, which `run.ts`
+ * arranges from the operation's scope.
  */
-export function removeCommand(skill: string, agent?: string): string[] {
+export function removeCommand(
+  skill: string,
+  agent?: string,
+  scope: 'global' | 'project' = 'global'
+): string[] {
   assertFreeValue('skill name', skill);
   if (agent !== undefined) {
     if (agent === '*') {
@@ -267,7 +276,14 @@ export function removeCommand(skill: string, agent?: string): string[] {
     }
     assertFreeValue('agent name', agent);
   }
-  const argv = ['remove', '-g', '-y', '-s', skill, ...(agent !== undefined ? ['-a', agent] : [])];
+  const argv = [
+    'remove',
+    ...(scope === 'global' ? ['-g'] : []),
+    '-y',
+    '-s',
+    skill,
+    ...(agent !== undefined ? ['-a', agent] : [])
+  ];
   assertNoEqualsForm(argv);
   return argv;
 }
@@ -307,7 +323,7 @@ export function commandFor(operation: SkillsOperation): string[] {
     case 'install':
       return installCommand(operation);
     case 'remove':
-      return removeCommand(operation.skill, operation.agent);
+      return removeCommand(operation.skill, operation.agent, operation.scope ?? 'global');
     case 'update':
       return updateCommand(operation.skill);
     case 'restoreProject':

@@ -48,6 +48,7 @@ import type {
   SkillsPlan
 } from '@shared/skills';
 import type { ContextEntry } from '../model';
+import { checkPlanShape } from '../surface/command-line';
 import { scanPreview } from '../surface/executable-scan';
 import type {
   AuditRecord,
@@ -539,35 +540,104 @@ export const useInstallFlow = create<InstallFlowState>((set, get) => {
     },
 
     async requestRemove(entry) {
-      const operation: SkillsOperation = { kind: 'remove', skill: entry.name };
-      const built = await buildPlan(operation, entry.name);
-      if (built.plan === null) {
+      const copy = removeSkillCopy(entry.name, entry.agents.length);
+      const scan = useContext.getState().scan;
+
+      // What the remove takes off the machine, from Tortie's own scan. The CLI
+      // has no dry run, so this is the preview, and the filesystem is already
+      // the read path everywhere else in the panel.
+      const removes: { label: string; path: string | null }[] = [
+        ...entry.agents.map((agentId) => ({
+          label:
+            scan?.agents.find((a) => a.agent === agentId)?.displayName ??
+            agentId,
+          path:
+            entry.verdicts.find((v) => v.agent === agentId)?.viaPath ?? null
+        })),
+        { label: 'The skill folder', path: canonicalSkillPath(entry) },
+        { label: 'Its entry in the skills lock file', path: null },
+        ...(useContext.getState().pins.get(entry.id) !== undefined
+          ? [{ label: "Tortie's record of your approval", path: null }]
+          : [])
+      ];
+
+      const failWith = (stderr: string): void => {
         set({
           confirm: {
-            copy: removeSkillCopy(entry.name, false),
+            copy,
             plan: null,
+            removes,
             failure: {
               operation: 'removal',
               commandLine: '',
               exitCode: null,
               timedOut: false,
-              stderr: built.problem ?? 'Tortie could not build that command.'
+              stderr
             },
             running: false
           },
           confirmOperation: null,
           confirmPin: null
         });
+      };
+
+      // Defense in depth behind the menu's own gate: the CLI manages the
+      // global and the project scope and nothing else. There is no trash
+      // fallback anywhere, so a row outside those scopes is a refusal.
+      if (entry.scope !== 'global' && entry.scope !== 'project') {
+        failWith(
+          "This skill is part of an agent's own installation. Tortie does not edit vendor files, so it cannot remove it."
+        );
         return;
       }
+
+      // The CLI matches the FOLDER name against what is on disk plus the lock
+      // keys. A frontmatter name that differs from the folder name would exit
+      // 0 having removed nothing, so the folder name is what the command gets.
+      const dir = canonicalSkillPath(entry);
+      const folderName = dir.slice(dir.lastIndexOf('/') + 1);
+      const scope: 'global' | 'project' =
+        entry.scope === 'project' ? 'project' : 'global';
+
+      // Same move requestEnable makes: the scope and the root must describe
+      // THIS operation, not whatever the sheet was last opened on. The root
+      // comes from the scan the row on screen was drawn from.
+      set({ scope, projectRoot: scan?.cwd ?? null });
+
+      const operation: SkillsOperation = {
+        kind: 'remove',
+        skill: folderName === '' ? entry.name : folderName,
+        scope
+      };
+      const built = await buildPlan(operation, entry.name);
+      if (built.plan === null) {
+        failWith(built.problem ?? 'Tortie could not build that command.');
+        return;
+      }
+
+      // The same shape check install runs through `evaluateInstall`. A problem
+      // here is handled exactly like a command mismatch: shown in the confirm,
+      // and the primary control runs nothing.
+      const shapeProblem = checkPlanShape(built.plan)[0]?.message ?? null;
+      const problem = built.mismatch ?? shapeProblem;
       set({
         confirm: {
-          copy: removeSkillCopy(entry.name, entry.sourcePath !== entry.realPath),
+          copy,
           plan: built.plan,
-          failure: null,
+          removes,
+          failure:
+            problem === null
+              ? null
+              : {
+                  operation: 'removal',
+                  commandLine: '',
+                  exitCode: null,
+                  timedOut: false,
+                  stderr: problem
+                },
           running: false
         },
-        confirmOperation: built.mismatch === null ? operation : null,
+        confirmOperation: problem === null ? operation : null,
         confirmPin: null
       });
     },

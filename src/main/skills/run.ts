@@ -49,6 +49,10 @@
  * 5. There is no network. `plan.requiresNetwork` says which operations need one
  *    in advance, so the panel can say it in one line rather than disabling a
  *    whole section.
+ * 6. A remove exits 0 with the skill still on disk (Phase 30). The CLI reports
+ *    "No matching skills found" and returns without a non-zero exit, so for
+ *    remove alone the exit code is checked against the filesystem. See
+ *    {@link removeResidueFailure}.
  *
  * **The panel never shows a state it has not re-read from disk.** That is why
  * {@link SkillsRunResult} carries no skills, no names and no counts: there is
@@ -60,7 +64,9 @@
  * looking at it.
  */
 
+import { lstatSync } from 'node:fs';
 import { homedir } from 'node:os';
+import { join } from 'node:path';
 import { runGuarded } from '../proc/guarded';
 import {
   OPERATION_TRAITS,
@@ -142,8 +148,36 @@ function tail(text: string, lines: number): string {
 /** Global operations run in the user's home, project ones in the project root. */
 function scopeOf(operation: SkillsOperation): 'global' | 'project' {
   if (operation.kind === 'install') return operation.scope;
+  if (operation.kind === 'remove') return operation.scope ?? 'global';
   if (operation.kind === 'restoreProject') return 'project';
   return 'global';
+}
+
+/**
+ * The post-run check for remove, and nothing else (Phase 30).
+ *
+ * The pinned CLI exits 0 when a remove matches nothing: `resolveSkillsToRemove`
+ * prints "No matching skills found" and returns without `process.exit(1)`. So
+ * for remove alone, exit 0 is not evidence that anything was removed. This
+ * checks the one fact that decides it, being whether the canonical directory is
+ * still on disk. It is a filesystem check, not output parsing, so the "success
+ * is the exit code, never the text" rule holds: the exit code decides whether
+ * the command FAILED, and this decides whether a passing remove REMOVED.
+ *
+ * Returns the failure sentence when the directory is still there, null when it
+ * is gone. `lstat` rather than `stat`, so a leftover symlink also counts as
+ * residue rather than being followed to nowhere.
+ */
+export function removeResidueFailure(skill: string, canonicalDir: string): string | null {
+  try {
+    lstatSync(canonicalDir);
+  } catch {
+    return null;
+  }
+  return (
+    `The skills CLI exited 0, but "${skill}" is still on disk at ${canonicalDir}. ` +
+    `Tortie does not treat this as removed.`
+  );
 }
 
 /**
@@ -323,6 +357,27 @@ export async function executeSkillsPlan(
       stdout: run.stdout,
       durationMs
     };
+  }
+
+  // Remove only: exit 0 with the folder still on disk is the silent no-op
+  // class, and it comes back as a visible failure rather than a closed dialog.
+  // The canonical directory is `<home or cwd>/.agents/skills/<name>`, the same
+  // join the CLI performs, and `fresh.cwd` is the home for a global remove and
+  // the project root for a project one.
+  if (fresh.operation.kind === 'remove') {
+    const residue = removeResidueFailure(
+      fresh.operation.skill,
+      join(fresh.cwd, '.agents', 'skills', fresh.operation.skill)
+    );
+    if (residue !== null) {
+      return {
+        ...fail(residue),
+        exitCode: 0,
+        stderrTail,
+        stdout: run.stdout,
+        durationMs
+      };
+    }
   }
 
   return {

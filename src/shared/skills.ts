@@ -32,7 +32,13 @@ export type SkillsOperation =
       readonly skills: readonly string[];
       readonly agents: readonly string[];
     }
-  | { readonly kind: 'remove'; readonly skill: string; readonly agent?: string }
+  | {
+      readonly kind: 'remove';
+      readonly skill: string;
+      readonly agent?: string;
+      /** Absent means global, so every caller written before Phase 30 keeps its meaning. */
+      readonly scope?: 'global' | 'project';
+    }
   | { readonly kind: 'update'; readonly skill: string | null }
   | { readonly kind: 'restoreProject' };
 

@@ -7,7 +7,7 @@
  * entry a winner beats. Those need nothing but the bridge the app already has.
  *
  * INTEGRATION SEAM 3 — the verbs that WRITE (`Enable for…`, `Disable`,
- * `Remove…`, `Move to Trash`, `New skill…`, `Check connection…`) are supplied
+ * `Remove…`, `New skill…`, `Check connection…`) are supplied
  * by the caller as a `ContextRowActions` object. Every one of them is optional
  * and an absent one simply does not appear in the menu. That is deliberate:
  * installing and removing execute someone else's code, they go through the
@@ -167,10 +167,16 @@ export function rowMenuItems(
       run: () => setEnabled(entry, off)
     });
   }
-  if (writable && actions.remove !== undefined) {
+  // Remove is offered only where the CLI can actually act: a user-owned skill
+  // in the global or the project scope. Bundled, plugin and managed rows are
+  // rows the CLI does not manage, and a remove there is structurally the
+  // silent exit-0 no-op, so the verb is absent rather than pretending.
+  const removable =
+    writable && (entry.scope === 'global' || entry.scope === 'project');
+  if (removable && actions.remove !== undefined) {
     const remove = actions.remove;
     writes.push({
-      label: 'Move to Trash…',
+      label: 'Remove…',
       destructive: true,
       run: () => remove(entry)
     });

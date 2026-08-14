@@ -20,9 +20,18 @@
  * run `npm run vendor:skills` in this tree.
  */
 
-import { existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import {
+  existsSync,
+  lstatSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync
+} from 'node:fs';
+import { tmpdir, userInfo } from 'node:os';
+import { basename, join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 const SKILL = 'zz-tortie-roundtrip-probe';
@@ -53,7 +62,9 @@ afterAll(() => {
 });
 
 const { bundledSkillsEntry, resetSkillsResolutionCache } = await import('../../skills/resolve');
-const { executeSkillsPlan, planSkillsCommand } = await import('../../skills/run');
+const { executeSkillsPlan, planSkillsCommand, removeResidueFailure } = await import(
+  '../../skills/run'
+);
 const { skillsCliTargets } = await import('../agent-context');
 const { scanContext } = await import('../scan');
 
@@ -122,17 +133,94 @@ suite('a skill install, end to end, against an isolated HOME', () => {
     expect(row?.agents).toEqual(expect.arrayContaining(['claude', 'codex', 'gemini']));
   }, 180_000);
 
-  it('removes it, and the reader stops seeing it', async () => {
+  it('plans a project remove in the project root, and refuses without one', async () => {
     resetSkillsResolutionCache();
-    const planned = await planSkillsCommand({ kind: 'remove', skill: SKILL });
+    const refused = await planSkillsCommand({ kind: 'remove', skill: SKILL, scope: 'project' });
+    expect(refused.refused).toBe(true);
+    if (refused.refused) expect(refused.reason).toBe('missing-project-root');
+
+    const planned = await planSkillsCommand(
+      { kind: 'remove', skill: SKILL, scope: 'project' },
+      { projectRoot: source }
+    );
     expect(planned.refused).toBe(false);
     if (planned.refused) return;
+    expect(planned.plan.commandArgs).toEqual(['remove', '-y', '-s', SKILL]);
+    expect(planned.plan.cwd).toBe(source);
+  });
+
+  it('removes it fully through the CLI, with no residue and no Trash', async () => {
+    resetSkillsResolutionCache();
+    const planned = await planSkillsCommand({ kind: 'remove', skill: SKILL, scope: 'global' });
+    expect(planned.refused).toBe(false);
+    if (planned.refused) return;
+    expect(planned.plan.commandArgs).toEqual(['remove', '-g', '-y', '-s', SKILL]);
 
     const run = await executeSkillsPlan(planned.plan);
     expect(run.failure).toBeNull();
     expect(run.exitCode).toBe(0);
 
+    // Full removal, proved by walking the whole scratch HOME. Zero paths whose
+    // basename carries the skill name may remain: this covers the canonical
+    // folder, every agent link and any copy.
+    const leftovers = walk(home).filter((p) => basename(p).includes(SKILL));
+    expect(leftovers).toEqual([]);
+
+    // The lock entry went with it.
+    const lockPath = join(home, 'state', 'skills', '.skill-lock.json');
+    if (existsSync(lockPath)) {
+      expect(readFileSync(lockPath, 'utf8')).not.toContain(SKILL);
+    }
+
+    // Nothing was trashed. The scratch HOME holds no .Trash at all, and the
+    // real Trash holds no entry carrying the probe's unique name. The probe
+    // name makes a collision practically impossible; the scratch walk above is
+    // the primary evidence.
+    expect(walk(home).some((p) => basename(p) === '.Trash')).toBe(false);
+    const realTrash = join(userInfo().homedir, '.Trash');
+    if (existsSync(realTrash)) {
+      expect(readdirSync(realTrash).some((n) => n.includes(SKILL))).toBe(false);
+    }
+
     const scan = await scanContext({ cwd: source, env: process.env });
     expect(scan.entries.find((entry) => entry.name === SKILL)).toBeUndefined();
   }, 180_000);
+});
+
+/**
+ * Every path under `dir`, without following symlinks. `readdirSync` with
+ * `recursive` would do, but walking by hand keeps the lstat semantics explicit:
+ * a symlinked directory is listed and never descended into.
+ */
+function walk(dir: string): string[] {
+  const out: string[] = [];
+  let names: string[];
+  try {
+    names = readdirSync(dir);
+  } catch {
+    return out;
+  }
+  for (const name of names) {
+    const path = join(dir, name);
+    out.push(path);
+    try {
+      if (lstatSync(path).isDirectory()) out.push(...walk(path));
+    } catch {
+      // A path that vanished mid-walk is a path that is not residue.
+    }
+  }
+  return out;
+}
+
+describe('the post-run disk check for remove', () => {
+  it('fails while the folder is still on disk, and passes once it is gone', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'gmux-residue-'));
+    const failure = removeResidueFailure('zz-tortie-phase30-probe', dir);
+    expect(failure).not.toBeNull();
+    expect(failure).toContain('is still on disk at');
+    expect(failure).toContain('does not treat this as removed');
+    expect(failure).toContain(dir);
+    rmSync(dir, { recursive: true, force: true });
+    expect(removeResidueFailure('zz-tortie-phase30-probe', dir)).toBeNull();
+  });
 });

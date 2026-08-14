@@ -267,6 +267,15 @@ const SKILLS_REFUSALS = [
       'command that was read, and a confirm sits on screen while a person ' +
       'reads it',
     fragments: ['the command changed after it was shown']
+  },
+  {
+    id: 'skills.remove-left-the-skill-on-disk',
+    source: 'src/main/skills/run.ts',
+    why:
+      'the pinned CLI exits 0 when a remove matches nothing, so a remove that ' +
+      'leaves the folder on disk would close the dialog as if it worked; the ' +
+      'post-run disk check is what turns that silent no-op into a visible failure',
+    fragments: ['is still on disk at ', 'does not treat this as removed']
   }
 ];
 

@@ -175,25 +175,31 @@ export function enablePluginCopy(
 }
 
 /**
- * §9.3. Trashing a skill and trashing a link to one are different acts and must
- * never share a sentence.
+ * The remove confirm (Phase 30). Removal is always full: with no `-a` the
+ * pinned CLI targets every agent it knows, deletes each agent's copy or link,
+ * then deletes the canonical folder and the lock entry. Nothing touches any
+ * Trash and nothing is recoverable from Finder, so the copy says exactly that.
+ * `agentCount` is how many registry agents load the skill today, and the list
+ * the second sentence points at is the removes block the dialog renders.
  */
-export function removeSkillCopy(name: string, isSymlink: boolean): ConfirmCopy {
-  return isSymlink
-    ? {
-        title: `Remove the link to "${name}"?`,
-        body: ['The skill itself stays in ~/.agents/skills.'],
-        confirmLabel: 'Remove the link',
-        cancelLabel: 'Cancel',
-        destructive: true
-      }
-    : {
-        title: `Delete "${name}"?`,
-        body: ['It moves to the Trash, so you can put it back from Finder.'],
-        confirmLabel: 'Move to Trash',
-        cancelLabel: 'Cancel',
-        destructive: true
-      };
+export function removeSkillCopy(name: string, agentCount: number): ConfirmCopy {
+  const list = 'The list below shows everything this removes.';
+  const second =
+    agentCount === 0
+      ? list
+      : agentCount === 1
+        ? `1 agent loads this skill today. ${list}`
+        : `${agentCount} agents load this skill today. ${list}`;
+  return {
+    title: `Remove "${name}"?`,
+    body: [
+      'This deletes the skill from your machine. It does not go to the Trash, so it cannot be put back from Finder.',
+      second
+    ],
+    confirmLabel: 'Remove',
+    cancelLabel: 'Cancel',
+    destructive: true
+  };
 }
 
 /**

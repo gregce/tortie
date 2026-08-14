@@ -3,8 +3,9 @@
  * rules it was written under: sentence case with no exclamation marks, and a
  * primary button that names the consequence rather than the verb.
  *
- * The third assertion is the one worth keeping: trashing a skill and trashing a
- * link to a skill are different acts and must never share a sentence.
+ * The remove copy changed in Phase 30: removal goes through the skills CLI and
+ * is always full, so the copy says the skill is deleted from the machine and
+ * never mentions the Trash as a way back.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -66,8 +67,9 @@ const ALL: ConfirmCopy[] = [
     'Claude Code',
     'Sessions running now are not affected.'
   ),
-  removeSkillCopy('govuk-style', false),
-  removeSkillCopy('govuk-style', true)
+  removeSkillCopy('govuk-style', 0),
+  removeSkillCopy('govuk-style', 1),
+  removeSkillCopy('govuk-style', 3)
 ];
 
 describe('every confirm', () => {
@@ -87,7 +89,7 @@ describe('every confirm', () => {
   });
 
   it('reserves the destructive fill for the confirms that destroy something', () => {
-    expect(removeSkillCopy('x', false).destructive).toBe(true);
+    expect(removeSkillCopy('x', 0).destructive).toBe(true);
     expect(installSkillCopy('x', 'y', UNSCANNED, null, NOW).destructive).toBe(
       false
     );
@@ -140,13 +142,26 @@ describe('adding an MCP server', () => {
 });
 
 describe('removing', () => {
-  it('never shares a sentence between a skill and a link to one', () => {
-    const skill = removeSkillCopy('govuk-style', false);
-    const link = removeSkillCopy('govuk-style', true);
-    expect(skill.title).toBe('Delete "govuk-style"?');
-    expect(link.title).toBe('Remove the link to "govuk-style"?');
-    expect(skill.body[0]).not.toBe(link.body[0]);
-    expect(link.body[0]).toContain('~/.agents/skills');
+  it('says the removal is permanent and never offers the Trash as a way back', () => {
+    const copy = removeSkillCopy('govuk-style', 2);
+    expect(copy.title).toBe('Remove "govuk-style"?');
+    expect(copy.body[0]).toBe(
+      'This deletes the skill from your machine. It does not go to the Trash, so it cannot be put back from Finder.'
+    );
+    expect(copy.confirmLabel).toBe('Remove');
+    expect(copy.destructive).toBe(true);
+  });
+
+  it('counts the agents that load the skill today, in plain words', () => {
+    expect(removeSkillCopy('x', 1).body[1]).toBe(
+      '1 agent loads this skill today. The list below shows everything this removes.'
+    );
+    expect(removeSkillCopy('x', 3).body[1]).toBe(
+      '3 agents load this skill today. The list below shows everything this removes.'
+    );
+    expect(removeSkillCopy('x', 0).body[1]).toBe(
+      'The list below shows everything this removes.'
+    );
   });
 });
 

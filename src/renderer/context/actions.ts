@@ -11,7 +11,7 @@
  *
  * | Verb | Status |
  * | --- | --- |
- * | Move to Trash… | `skills remove -g -y -s <name>`, behind the confirm |
+ * | Remove… | `skills remove [-g] -y -s <name>`, behind the confirm. `-g` and the home for a global skill, no `-g` and the project root for a project one. Offered only for user-owned rows in those two scopes. |
  * | Update… | `skills update -g -y <name>`, behind the confirm |
  * | Enable for… | the fleet picker (`../enable/`), then `add` re-run behind the same confirm (Phase 26 item 3) |
  * | New skill… | opens the sheet on an empty query |

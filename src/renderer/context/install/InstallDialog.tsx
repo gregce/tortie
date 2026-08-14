@@ -40,6 +40,13 @@ export interface InstallDialogSpec {
   plan: InstallPlan | null;
   /** §9.1's "what runs and when" table, for a plugin or a hook. */
   runs?: readonly PluginRunRow[];
+  /**
+   * What a remove takes off the machine (Phase 30). The CLI has no dry run, so
+   * these rows come from Tortie's own filesystem scan, which is the same read
+   * the panel is drawn from. A null path is a row with no single path, e.g.
+   * the lock entry.
+   */
+  removes?: readonly { label: string; path: string | null }[];
   /** Provenance lines: marketplace, version, repository, commit. */
   provenance?: readonly string[];
   /** From `../surface/reload-sentence`. Never typed by hand. */
@@ -131,6 +138,21 @@ export function InstallDialog({
                 <tr key={`${row.when}-${row.script}`}>
                   <td className="ctxd-runs-when">{row.when}</td>
                   <td className="ctxd-mono ctxd-runs-script">{row.script}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : null}
+
+        {spec.removes !== undefined && spec.removes.length > 0 ? (
+          <table className="ctxd-runs">
+            <tbody>
+              {spec.removes.map((row) => (
+                <tr key={`${row.label}-${row.path ?? ''}`}>
+                  <td className="ctxd-runs-when">{row.label}</td>
+                  <td className="ctxd-mono ctxd-runs-script">
+                    {row.path ?? ''}
+                  </td>
                 </tr>
               ))}
             </tbody>

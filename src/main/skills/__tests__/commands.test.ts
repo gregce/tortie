@@ -81,8 +81,24 @@ describe('the command table, row by row', () => {
     ]);
   });
 
-  it('removes a skill everywhere', () => {
+  it('removes a global skill fully, with -g and no agent list', () => {
     expect(removeCommand('govuk-style')).toEqual(['remove', '-g', '-y', '-s', 'govuk-style']);
+    expect(removeCommand('govuk-style', undefined, 'global')).toEqual([
+      'remove',
+      '-g',
+      '-y',
+      '-s',
+      'govuk-style'
+    ]);
+  });
+
+  it('removes a project skill with no -g, because scope is the flag plus the cwd', () => {
+    expect(removeCommand('govuk-style', undefined, 'project')).toEqual([
+      'remove',
+      '-y',
+      '-s',
+      'govuk-style'
+    ]);
   });
 
   it('removes a skill from one agent that uses symlinks', () => {
@@ -111,6 +127,10 @@ describe('the command table, row by row', () => {
     expect(commandFor({ kind: 'listProbe' })).toEqual(listProbeCommand());
     expect(commandFor({ kind: 'enumerate', source: 'a/b' })).toEqual(enumerateCommand('a/b'));
     expect(commandFor({ kind: 'remove', skill: 'x' })).toEqual(removeCommand('x'));
+    expect(commandFor({ kind: 'remove', skill: 'x', scope: 'global' })).toEqual(removeCommand('x'));
+    expect(commandFor({ kind: 'remove', skill: 'x', scope: 'project' })).toEqual(
+      removeCommand('x', undefined, 'project')
+    );
     expect(commandFor({ kind: 'update', skill: null })).toEqual(updateCommand(null));
     expect(commandFor({ kind: 'restoreProject' })).toEqual(restoreProjectCommand());
   });
@@ -175,6 +195,7 @@ describe('trap 2: the --flag=value form is discarded silently', () => {
       installCommand({ scope: 'project', source: 'a/b', skills: ['s'], agents: ['x', 'y'] }),
       removeCommand('s'),
       removeCommand('s', 'claude-code'),
+      removeCommand('s', undefined, 'project'),
       updateCommand('s'),
       updateCommand(null),
       restoreProjectCommand()
