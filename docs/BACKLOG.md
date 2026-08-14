@@ -36,6 +36,7 @@ the wordmark is a wordmark. Revisit only if the operator asks.
 | 10 | **Release lane (Phase 27)** Itavero identity, signing, notarization, version scheme, four CI lanes | ✅ SHIPPED 2026-08-13 | after Phase 25.5 ✅ |
 | 11 | **24** self update | ✅ SHIPPED 2026-08-13 | the release lane ✅. The app is now signed, so this is unblocked |
 | — | ~~Release lane, second half: signing, notarization, the updater~~ | signing and notarization shipped with Phase 27. The updater is Phase 24 | the issuer identifier was never needed. Notarization uses the Apple ID, the team id and an app specific password, the deadreckon shape |
+| 12 | **28** process observability after the lid close diagnosis | ✅ SHIPPED 2026-08-14 (this commit) | — |
 
 **Why 19 waits for 18.6.** Both touch `src/renderer/state/store.ts`. Phase 19's restart fix would be
 written against a file that 18.6 then rewrites. Doing the renderer work together, then the main
@@ -3130,3 +3131,52 @@ goes through the existing `restoreSession` path, obeys the manifest row, and lea
 exited when it fails. Live drives restored a claude shape and a pi shape with the resume command
 armed and unexecuted, and a plain shell in its recorded directory. The end confirm no longer says
 "cannot be undone" on any end path, including the group end. Tier 3 verified, one fix round.
+
+---
+
+## Phase 28. Process observability after the lid close diagnosis (2026-08-14) ✅ SHIPPED 2026-08-14 (this commit)
+
+**The event.** On 2026-08-14 the operator closed the laptop lid. On wake, the GPU driver dropped
+the Chromium GPU helper's graphics context. Chromium ended that helper on purpose with code 34 and
+respawned it in under 1 second. No work was lost. The diagnosis found two gaps in Tortie. The main
+process had no listener for helper or renderer death, so a packaged build would hold no record that
+the event ever happened. And a terminal pane that loses its WebGL context falls back to the DOM
+renderer silently and permanently, because nothing retries the WebGL addon until the pane remounts.
+This phase closes exactly those two gaps and nothing more.
+
+**What shipped.**
+- src/main/diagnostics/process-gone.ts listens for `child-process-gone` and `render-process-gone`
+  on the app and logs one `[gmux]` line per death. The line carries the process type, the reason
+  and the exit code. The exit code on these events is the raw wait status. When it is a positive
+  multiple of 256 the line also carries the decoded code, e.g. `exitCode=8704 realCode=34`. The
+  module logs and does nothing else. The renderer listener is registered on the app rather than
+  per window, so one registration covers every window.
+- A pane in src/renderer/terminal/TerminalPane.tsx now logs one line when it falls back to the DOM
+  renderer at context loss. On each `power:resume` broadcast it retries the WebGL addon once, with
+  the same try catch shape the initial creation uses, and logs whether the retry succeeded. A
+  failed retry leaves the pane on the DOM renderer and the next wake tries again. A pane whose
+  initial WebGL creation failed is not retried, because it never had a context to lose.
+- One harness knob, `GMUX_SHOT_POWER_RESUME=1`, makes a shot instance send the wake broadcast on
+  the same channel a real resume uses, so a verifier can reach the retry without putting the
+  machine to sleep. The knob waits 4 seconds before the broadcast, because xterm's WebGL addon
+  holds a lost context for 3 seconds hoping the browser restores it, and only then reports the
+  loss. Shot mode only, no product behavior.
+
+**Tier and evidence.** Item 1 ran at Tier 1 plus one live kill. Item 2 ran at Tier 2 with one
+targeted probe and one screenshot read.
+- Probe A drove a real pane in an isolated harness instance on socket gmux-p28-shot, forced the
+  context loss through `WEBGL_lose_context`, and sent the wake broadcast. The harness output shows
+  the loss line, then `webgl restored after wake`, and the screenshot shows the pane still drawing
+  its prompt after the round trip.
+- Probe B started a second isolated instance and killed exactly its own GPU helper, found as the
+  `--type=gpu-process` child of that instance's main process, with signal 9. The harness output
+  shows `[gmux] helper process gone: type=GPU reason=killed exitCode=9 name=GPU`. The instance
+  survived and completed its capture.
+- 7 unit tests pin both line shapes and the decode rule, including 8704 decoding to 34.
+- Gates on the final tree: typecheck, build, the full test battery, smoke:t1 and
+  assert-bundle-refusals, all green. The battery ran with 2 workers because the machine sat at
+  load average 36 with 16 live operator sessions, and the real git integration tests time out at
+  5 seconds under that load. They pass alone and with 2 workers.
+- Not verified, stated plainly. The retry failure branch never ran live, because a healthy GPU
+  grants the new context. A real renderer death was not observed live. Nothing here persists
+  stdout in a packaged build. The lines go to the same stream the rest of main already uses.

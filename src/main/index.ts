@@ -151,6 +151,8 @@ import { disposeTray, installTray } from './tray';
 // make production code carry that edge.
 import { installPowerHandlers } from './power';
 import { runPowerSmoke } from './power/smoke';
+// Phase 28: one log line when a helper or renderer process dies. Log only.
+import { installProcessGoneLogging } from './diagnostics/process-gone';
 import { broadcastEvent } from './typed-events';
 import { EVT_POWER_RESUME } from '@shared/ipc';
 import * as tmux from './tmux';
@@ -1666,6 +1668,18 @@ async function runShot(outPath: string): Promise<void> {
           const value: unknown = await wc.executeJavaScript(probeJs, true);
           console.log(`[gmux-shot] probe ${JSON.stringify(value) ?? 'undefined'}`);
         }
+        // Phase 28 verification knob. Sends the wake broadcast on the same
+        // channel a real resume uses, so a verifier can exercise the terminal
+        // webgl retry without putting a machine to sleep. Shot mode only. No
+        // product behavior. The first wait is 4 s because xterm's webgl addon
+        // holds a lost context for 3 s hoping the browser restores it, and
+        // only then fires onContextLoss. A broadcast inside that grace window
+        // finds nothing to retry.
+        if (process.env['GMUX_SHOT_POWER_RESUME'] === '1') {
+          await new Promise((r) => setTimeout(r, 4000));
+          broadcastEvent(EVT_POWER_RESUME);
+          await new Promise((r) => setTimeout(r, 500));
+        }
         const image = await wc.capturePage();
         await writeFile(outPath, image.toPNG());
         console.log(`[gmux-shot] wrote ${outPath}`);
@@ -2035,6 +2049,11 @@ app.whenReady().then(async () => {
     if (BrowserWindow.getAllWindows().length === 0) showAppWindow();
   });
 });
+
+// Phase 28: record helper and renderer process death. Registered at module
+// scope because the GPU process can die before whenReady resolves, and
+// registering before ready is safe. Log only, no behavior change.
+installProcessGoneLogging(app);
 
 // Quit-time teardown kills ONLY gmux-side clients (attach PTYs, control
 // client, repo watchers). The tmux server and every session keep running —

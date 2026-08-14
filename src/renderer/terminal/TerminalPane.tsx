@@ -8,7 +8,8 @@
  *
  * - WebGL renderer, falling back to xterm's built-in DOM renderer when a
  *   WebGL context is unavailable or lost (@xterm/addon-canvas is not a
- *   dependency today).
+ *   dependency today). The pane logs the fallback and retries the WebGL
+ *   addon once per power:resume broadcast (Phase 28).
  * - FitAddon re-fits on a ResizeObserver (rAF-coalesced); xterm's onResize
  *   is the single path that pushes new cols/rows to tmux.
  * - Flow control: each received chunk is acked back (bytes) after xterm
@@ -122,6 +123,9 @@ export function TerminalPane({
   // renderer have to outlive the mount effect's closure.
   const fitRef = useRef<FitAddon | null>(null);
   const webglRef = useRef<WebglAddon | null>(null);
+  // Phase 28: set inside the mount effect, called by the power:resume effect
+  // so a pane that lost its WebGL context can try the addon again on wake.
+  const retryWebglRef = useRef<(() => void) | null>(null);
   const focusedRef = useRef(focused);
   focusedRef.current = focused;
 
@@ -252,9 +256,12 @@ export function TerminalPane({
     // so xterm never measures cells or builds its (WebGL) glyph atlas from
     // a not-yet-loaded font (Bug C hardening: a @font-face --font-mono
     // would otherwise rasterize as the fallback and stick until a resize).
-    // WebGL when available; on failure/context loss xterm silently keeps
-    // its built-in DOM renderer (no @xterm/addon-canvas dependency today).
+    // WebGL when available; on failure/context loss xterm keeps its built-in
+    // DOM renderer (no @xterm/addon-canvas dependency today). Phase 28: the
+    // pane logs the fallback, and on each power:resume broadcast it retries
+    // the WebGL addon once if the context was lost.
     let webgl: WebglAddon | null = null;
+    let webglLost = false;
 
     // ---- keystrokes / binary → main → pty --------------------------------
     // noteTerminalInput: every byte the user sends — including mouse reports,
@@ -360,20 +367,40 @@ export function TerminalPane({
       }
       if (disposed) return;
       term.open(container);
-      try {
-        const addon = new WebglAddon();
-        addon.onContextLoss(() => {
-          addon.dispose();
+      const attachWebgl = (): boolean => {
+        try {
+          const addon = new WebglAddon();
+          addon.onContextLoss(() => {
+            addon.dispose();
+            webgl = null;
+            webglRef.current = null;
+            webglLost = true;
+            console.warn(
+              `[gmux] terminal ${sessionId}: webgl context lost, now on the DOM renderer`
+            );
+          });
+          term.loadAddon(addon);
+          webgl = addon;
+          webglRef.current = addon;
+          return true;
+        } catch {
           webgl = null;
           webglRef.current = null;
-        });
-        term.loadAddon(addon);
-        webgl = addon;
-        webglRef.current = addon;
-      } catch {
-        webgl = null;
-        webglRef.current = null;
-      }
+          return false;
+        }
+      };
+      attachWebgl();
+      retryWebglRef.current = () => {
+        if (disposed || !webglLost || webglRef.current !== null) return;
+        if (attachWebgl()) {
+          webglLost = false;
+          console.log(`[gmux] terminal ${sessionId}: webgl restored after wake`);
+        } else {
+          console.warn(
+            `[gmux] terminal ${sessionId}: webgl retry after wake failed, staying on the DOM renderer`
+          );
+        }
+      };
       doFit(); // size the pty request window before the first paint lands
       try {
         await gmux.sessions.attach(sessionId);
@@ -415,6 +442,7 @@ export function TerminalPane({
       termRef.current = null;
       fitRef.current = null;
       webglRef.current = null;
+      retryWebglRef.current = null;
       // Kills only the attach client; the tmux session lives on.
       void gmux.sessions.detach(sessionId).catch(() => undefined);
     };
@@ -484,6 +512,9 @@ export function TerminalPane({
     const subscribe = bridge.onPowerResume;
     if (typeof subscribe !== 'function') return;
     return subscribe(() => {
+      // Phase 28: if the pane fell back to the DOM renderer at context loss,
+      // try the WebGL addon again before repainting. One attempt per wake.
+      retryWebglRef.current?.();
       const term = termRef.current;
       try {
         webglRef.current?.clearTextureAtlas();
