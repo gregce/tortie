@@ -3563,3 +3563,25 @@ redaction, the three schemas and the sentinel lifecycle. Probe 1 kills its own i
 helper and reads the process.gone record back out of app.log with one jq expression. Probe 2
 sends kill -ABRT to a scratch profile run and confirms the boot.unclean_exit record, the one
 quiet notice, and the dump count. One screenshot read of the notice line.
+
+## Phase 36 — the quit that is secretly a crash (found 2026-08-14 by research 42) QUEUED
+
+**The evidence.** macOS DiagnosticReports holds 5 SIGABRT reports for the packaged Tortie dated
+2026-08-14, one on 0.18.0 and four on 0.19.0. All five share one faulting stack: watcher.node,
+which is @parcel/watcher, calls napi_fatal_error during shutdown, node::OnFatalError aborts the
+process. The timestamps line up with the day's quits, so every quit of the installed app today
+ended in a crash the user never saw. The app looks like it quit normally. macOS records a crash.
+
+**What it does and does not harm.** Sessions are untouched, because they live in the tmux server.
+The risk is the shutdown path itself: a SIGABRT during teardown can cut short the quit time
+manifest generation and, once Phase 35 lands, would make every quit read as an unclean exit and
+fire the crash notice wrongly. The fix must land before Phase 35 ships its sentinel.
+
+**The likely fix shape, to verify in spec.** Close every @parcel/watcher subscription and await
+the closes in the will-quit path, before Electron tears down the napi environment. If the module
+still aborts after a clean unsubscribe, pin the module version and take the upstream issue.
+
+**Verification. Tier 3**, because it touches the quit path that the manifest quit generation
+rides: prove with a packaged scratch instance that 5 consecutive quits produce 0 new
+DiagnosticReports entries and that the quit generation lands in the manifest every time, then
+prove the fault harness still passes.
