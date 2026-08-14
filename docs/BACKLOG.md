@@ -3585,3 +3585,24 @@ still aborts after a clean unsubscribe, pin the module version and take the upst
 rides: prove with a packaged scratch instance that 5 consecutive quits produce 0 new
 DiagnosticReports entries and that the quit generation lands in the manifest every time, then
 prove the fault harness still passes.
+
+## Phase 37 — a new file is named before it exists (user requested, 2026-08-14) QUEUED
+
+**The problem.** New File and New Folder in the explorer show a row named "untitled file" or
+"untitled folder". Nothing exists on disk until the user names it, so the row is an appearance
+without a thing behind it. A user can try to open it, move it, or drop something on it, and every
+one of those interactions is against nothing.
+
+**The fix, the pattern VS Code uses.** Creating a new file or folder never shows a named row.
+It shows an inline name editor in the tree at the right position, with the cursor already in it:
+- Enter with a valid name creates the file or folder and then selects it.
+- Escape removes the editor and creates nothing.
+- Clicking away commits a valid name, and removes the editor when the box is empty.
+- An invalid or duplicate name shows the reason under the box and refuses to commit, the same
+  way the session rename field refuses.
+While the editor is open the row is not draggable, not a drop target, and not openable, because
+it is not a file yet.
+
+**Verification. Tier 2.** One probe drives create, rename, escape and duplicate through the real
+tree. One screenshot read of the inline editor with the cursor placed. The invariant to assert in
+a unit test: no filesystem write of any kind happens before Enter commits a valid name.
