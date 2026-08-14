@@ -104,7 +104,7 @@ describe('deriveResumeConfidence — ambiguity never becomes an exact claim', ()
   });
 
   it('an identity key with a rival stays exact — the pane cannot be two panes', () => {
-    for (const key of ['tmux-pane', 'pid'] as const) {
+    for (const key of ['tmux-pane', 'pid', 'fd-owner'] as const) {
       expect(
         deriveResumeConfidence({
           key,
@@ -141,7 +141,14 @@ describe('deriveResumeConfidence — ambiguity never becomes an exact claim', ()
   });
 
   it('never returns exact for any input carrying doubt', () => {
-    const keys = ['tmux-pane', 'pid', 'cwd-newest', 'sqlite-index', 'time-only'] as const;
+    const keys = [
+      'tmux-pane',
+      'pid',
+      'fd-owner',
+      'cwd-newest',
+      'sqlite-index',
+      'time-only'
+    ] as const;
     for (const key of keys) {
       for (const keyConfidence of ['exact', 'weak'] as const) {
         for (const viaGraceTimer of [true, false]) {
@@ -155,7 +162,10 @@ describe('deriveResumeConfidence — ambiguity never becomes an exact claim', ()
             const doubt =
               viaGraceTimer ||
               keyConfidence === 'weak' ||
-              (rivals > 1 && key !== 'tmux-pane' && key !== 'pid');
+              (rivals > 1 &&
+                key !== 'tmux-pane' &&
+                key !== 'pid' &&
+                key !== 'fd-owner');
             if (doubt) expect(verdict).not.toBe('exact');
             else expect(verdict).toBe('exact');
           }

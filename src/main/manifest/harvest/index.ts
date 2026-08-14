@@ -27,7 +27,18 @@ export {
 export {
   claimConversationId,
   conversationClaimant,
+  conversationClaimStrength,
   forgetConversationClaims,
+  onConversationReclaimed,
   releaseConversationClaims,
-  watchForSessionId
+  resetPendingWatches,
+  watchForSessionId,
+  type ClaimStrength,
+  type ConversationReclaim
 } from './watch';
+
+export {
+  agyOwnedConversations,
+  resetAgyOwnershipCache,
+  type AgyOwnership
+} from './agy-owner';

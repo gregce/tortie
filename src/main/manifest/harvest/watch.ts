@@ -73,6 +73,24 @@ type CandidateSource = 'poll' | 'events';
 // ---------------------------------------------------------------------------
 
 /**
+ * How strongly a claim is held (Phase 32).
+ *
+ *  - 'confirmed' — the descriptor's key PROVED ownership, or a caller
+ *    asserted it (the boot claim of a row whose id was not a grace guess).
+ *    Immovable: nothing takes a confirmed claim except discarding the row.
+ *  - 'provisional' — a grace timer accepted it, or the boot claim of a row
+ *    whose persisted provenance says the grace timer did. Reclaimable by an
+ *    exact confirm, and ONLY by an exact confirm: grace never steals, not
+ *    even from grace.
+ */
+export type ClaimStrength = 'confirmed' | 'provisional';
+
+interface ConversationClaim {
+  claimant: string;
+  strength: ClaimStrength;
+}
+
+/**
  * Conversation ids this process has already given to a session, and to which
  * session (the "claimant").
  *
@@ -89,14 +107,21 @@ type CandidateSource = 'poll' | 'events';
  * timestamps say. The loser of the race keeps waiting and gets its own record
  * a moment later, which is the RIGHT answer rather than a hedged one.
  *
+ * PHASE 32 GAVE EACH CLAIM A STRENGTH, because first-wins alone re-created
+ * the defect one level up for the time-keyed store: a hungry earlier watch
+ * grace-claimed the LATER session's conversation, and the rightful session
+ * was then permanently starved by this very filter. A grace claim is now
+ * provisional, an exact confirm takes it over (see `accept`), and the loser's
+ * manifest row is corrected through the reclaim event below.
+ *
  * It is keyed by claimant so that re-watching the SAME session (the boot
  * rescue, a restore) can retake the id it already had.
  *
- * Nothing prunes it. One entry is a short string per successful harvest, the
+ * Nothing prunes it. One entry is a short record per successful harvest, the
  * count is the number of sessions, and an entry that expired would put the
  * hazard back for the case it exists to cover.
  */
-const claimedConversations = new Map<string, string>();
+const claimedConversations = new Map<string, ConversationClaim>();
 
 let anonymousClaimants = 0;
 
@@ -111,10 +136,18 @@ function nextAnonymousClaimant(): string {
   return `anon-${String(anonymousClaimants)}`;
 }
 
-/** True when some OTHER session in this process is already resuming from it. */
-function claimedByAnother(conversationId: string, claimant: string): boolean {
-  const owner = claimedConversations.get(conversationId);
-  return owner !== undefined && owner !== claimant;
+/** True when some OTHER session holds it with strength `strength`. */
+function heldByAnotherAt(
+  conversationId: string,
+  claimant: string,
+  strength: ClaimStrength
+): boolean {
+  const claim = claimedConversations.get(conversationId);
+  return (
+    claim !== undefined &&
+    claim.claimant !== claimant &&
+    claim.strength === strength
+  );
 }
 
 /**
@@ -126,6 +159,11 @@ function claimedByAnother(conversationId: string, claimant: string): boolean {
  * another. The first claim wins; a later one for the same id is refused, since
  * the row that already had it is the one with the older evidence.
  *
+ * `strength` says how the id was originally obtained (Phase 32). It defaults
+ * to 'confirmed' so every pre-existing caller keeps its old meaning. This
+ * function NEVER performs a takeover, whatever strengths collide: takeover is
+ * the accept path's alone, so a boot claim can never silently steal.
+ *
  * It says nothing itself. A refusal means two different things depending on
  * who asked, and only the caller knows which: a watch being refused is a bug
  * in the watch, while a boot time claim being refused is a pair of rows that
@@ -136,18 +174,26 @@ function claimedByAnother(conversationId: string, claimant: string): boolean {
  */
 export function claimConversationId(
   conversationId: string,
-  claimant: string
+  claimant: string,
+  strength: ClaimStrength = 'confirmed'
 ): boolean {
   if (conversationId.length === 0) return false;
-  const owner = claimedConversations.get(conversationId);
-  if (owner !== undefined) return owner === claimant;
-  claimedConversations.set(conversationId, claimant);
+  const claim = claimedConversations.get(conversationId);
+  if (claim !== undefined) return claim.claimant === claimant;
+  claimedConversations.set(conversationId, { claimant, strength });
   return true;
 }
 
 /** Which session holds it, for a caller that has to name the other one. */
 export function conversationClaimant(conversationId: string): string | undefined {
-  return claimedConversations.get(conversationId);
+  return claimedConversations.get(conversationId)?.claimant;
+}
+
+/** How strongly it is held. For tests and for the core's logging. */
+export function conversationClaimStrength(
+  conversationId: string
+): ClaimStrength | undefined {
+  return claimedConversations.get(conversationId)?.strength;
 }
 
 /**
@@ -159,14 +205,101 @@ export function conversationClaimant(conversationId: string): string | undefined
  * conversation. Only removing the row ends it.
  */
 export function releaseConversationClaims(claimant: string): void {
-  for (const [id, owner] of claimedConversations) {
-    if (owner === claimant) claimedConversations.delete(id);
+  for (const [id, claim] of claimedConversations) {
+    if (claim.claimant === claimant) claimedConversations.delete(id);
   }
 }
 
 /** Test hook. The app never forgets every claim at once. */
 export function forgetConversationClaims(): void {
   claimedConversations.clear();
+}
+
+// ---------------------------------------------------------------------------
+// Reclaims — exact beats grace (Phase 32)
+// ---------------------------------------------------------------------------
+
+/**
+ * An exact confirm displaced another session's provisional claim. Fired
+ * synchronously inside the winner's accept, BEFORE its settle, so a decide
+ * running in any other watch in the same tick already sees the new owner.
+ * The handler in sessions/core.ts corrects the loser's manifest row and
+ * restarts its watch.
+ */
+export interface ConversationReclaim {
+  agent: LaunchableAgentId;
+  conversationId: string;
+  /** The claimant that lost the id (a Tortie session id in production). */
+  from: string;
+  /** The claimant whose exact confirm won it. */
+  to: string;
+  /** Epoch ms. */
+  at: number;
+}
+
+const reclaimListeners = new Set<(ev: ConversationReclaim) => void>();
+
+/** Subscribe to reclaims. Returns the unsubscribe. */
+export function onConversationReclaimed(
+  listener: (ev: ConversationReclaim) => void
+): () => void {
+  reclaimListeners.add(listener);
+  return () => {
+    reclaimListeners.delete(listener);
+  };
+}
+
+/** Listener exceptions are logged, never propagated into the watch. */
+function emitReclaim(ev: ConversationReclaim): void {
+  for (const listener of [...reclaimListeners]) {
+    try {
+      listener(ev);
+    } catch (err) {
+      console.warn(
+        `[gmux] conversation reclaim listener failed: ${(err as Error).message}`
+      );
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Pending watches — who else is still looking (Phase 32)
+// ---------------------------------------------------------------------------
+
+/**
+ * Claimants with a live watch, per agent. It answers one question at one
+ * moment: when a grace timer accepts, how many OTHER sessions of the same
+ * agent were still waiting for a record? Above 0 the guess was contested,
+ * and the number is persisted (`contestedByWatches`) so the doubt survives
+ * a restart and the claim stays provisional there too.
+ */
+const pendingWatches = new Map<LaunchableAgentId, Set<string>>();
+
+function addPendingWatch(agent: LaunchableAgentId, claimant: string): void {
+  let set = pendingWatches.get(agent);
+  if (set === undefined) {
+    set = new Set();
+    pendingWatches.set(agent, set);
+  }
+  set.add(claimant);
+}
+
+function removePendingWatch(agent: LaunchableAgentId, claimant: string): void {
+  pendingWatches.get(agent)?.delete(claimant);
+}
+
+function otherPendingWatchCount(
+  agent: LaunchableAgentId,
+  claimant: string
+): number {
+  const set = pendingWatches.get(agent);
+  if (set === undefined) return 0;
+  return set.size - (set.has(claimant) ? 1 : 0);
+}
+
+/** Test hook. In the app every watch removes itself when it settles. */
+export function resetPendingWatches(): void {
+  pendingWatches.clear();
 }
 
 /** List candidate entries under `dir`, honouring the descriptor's filters. */
@@ -277,7 +410,13 @@ export function watchForSessionId(
   // A rejection that nobody has attached to yet must not crash main.
   promise.catch(() => undefined);
 
+  // Registered before any decision can run, removed by cleanup(), which
+  // every way out (settle, cancel, timeout) funnels through. It is what
+  // `contestedByWatches` counts at another watch's grace acceptance.
+  addPendingWatch(agent, claimant);
+
   const cleanup = (): void => {
+    removePendingWatch(agent, claimant);
     if (pollTimer !== undefined) clearTimeout(pollTimer);
     if (timeoutTimer !== undefined) clearTimeout(timeoutTimer);
     for (const sub of subscriptions) {
@@ -314,15 +453,57 @@ export function watchForSessionId(
     // The claim goes in BEFORE the settle, so a second watch that decides
     // inside the same tick already sees it. Both are synchronous, so there is
     // no window between them.
-    if (!claimConversationId(c.sessionId, claimant)) {
-      // `decide()` filters out anything another session holds, so this cannot
-      // happen. It is said out loud rather than swallowed because if it ever
-      // does, the sentence is the whole bug report.
+    const existing = claimedConversations.get(c.sessionId);
+    let reclaimedFrom: string | undefined;
+    if (
+      !viaGraceTimer &&
+      existing !== undefined &&
+      existing.claimant !== claimant &&
+      existing.strength === 'provisional'
+    ) {
+      // EXACT BEATS GRACE (Phase 32). Another session guessed this id on a
+      // timer, and this watch has PROOF. The claim moves, the reclaim event
+      // fires synchronously so a same-tick decide in any other watch already
+      // sees the new owner, and the loser's manifest row is corrected by the
+      // handler in sessions/core.ts before this watch's own settle resolves.
+      reclaimedFrom = existing.claimant;
+      claimedConversations.set(c.sessionId, { claimant, strength: 'confirmed' });
+      emitReclaim({
+        agent,
+        conversationId: c.sessionId,
+        from: existing.claimant,
+        to: claimant,
+        at: Date.now()
+      });
+    } else if (
+      !claimConversationId(
+        c.sessionId,
+        claimant,
+        viaGraceTimer ? 'provisional' : 'confirmed'
+      )
+    ) {
+      // `decide()` filters out anything another session holds confirmed, and
+      // the branch above handles a provisional holder, so this cannot happen.
+      // It is said out loud rather than swallowed because if it ever does,
+      // the sentence is the whole bug report.
       console.warn(
         `[gmux] ${agent} took conversation ${c.sessionId} for ${claimant}, ` +
           `which ${String(conversationClaimant(c.sessionId))} already has.`
       );
+    } else if (
+      !viaGraceTimer &&
+      existing?.claimant === claimant &&
+      existing.strength === 'provisional'
+    ) {
+      // The same session proved an id it had only guessed before (a re-armed
+      // watch confirming its own grace claim). Upgrade in place.
+      claimedConversations.set(c.sessionId, { claimant, strength: 'confirmed' });
     }
+    // How many OTHER same-agent watches were still waiting when a grace
+    // timer took this guess. Persisted so the doubt survives a restart.
+    const contested = viaGraceTimer
+      ? otherPendingWatchCount(agent, claimant)
+      : undefined;
     settle({
       agent,
       sessionId: c.sessionId,
@@ -332,7 +513,9 @@ export function watchForSessionId(
       confidence: d.confidence,
       viaGraceTimer,
       rivals,
-      acceptedAt: Date.now()
+      acceptedAt: Date.now(),
+      ...(reclaimedFrom !== undefined ? { reclaimedFrom } : {}),
+      ...(contested !== undefined ? { contestedByWatches: contested } : {})
     });
   };
 
@@ -442,11 +625,18 @@ export function watchForSessionId(
    */
   const decide = (): void => {
     if (settled) return;
-    // A record another session in this process has already taken is not in
+    // A record another session in this process has taken CONFIRMED is not in
     // play for this one. Dropping it here rather than after the sort is what
     // lets the loser of a two pane race keep waiting for its OWN record.
+    //
+    // A record another session holds only PROVISIONALLY stays in the list
+    // (Phase 32): it is winnable, but only by proof. The grace branch below
+    // skips it, and the accept path moves the claim when a verdict of
+    // 'match' wins it.
     const list = [...candidates.values()].filter(
-      (c) => c.verdict !== 'mismatch' && !claimedByAnother(c.sessionId, claimant)
+      (c) =>
+        c.verdict !== 'mismatch' &&
+        !heldByAnotherAt(c.sessionId, claimant, 'confirmed')
     );
     if (list.length === 0) return;
     // A listing is PART WAY THROUGH registering what it found. Whatever is in
@@ -486,7 +676,16 @@ export function watchForSessionId(
     }
     // No confirmation possible yet: wait out the grace period in case a
     // confirmable rival shows up or the record gains its key.
-    const first = list[0];
+    //
+    // GRACE NEVER STEALS (Phase 32). The pick is the earliest candidate NOT
+    // provisionally held by another session: two timer guesses about one id
+    // must not trade it back and forth, so a provisional claim falls only to
+    // the proof branch above. When every surviving candidate is provisionally
+    // held by others, this watch keeps waiting, which is the honest outcome —
+    // its own record appears on its own first turn.
+    const first = list.find(
+      (c) => !heldByAnotherAt(c.sessionId, claimant, 'provisional')
+    );
     if (first && Date.now() - first.firstSeen >= graceMs) accept(first, true, rivals);
   };
 

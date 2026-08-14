@@ -256,6 +256,10 @@ export type ResumeConfidence =
  *  - 'tmux-pane' — the agent stamps the pane it runs in, and Tortie spawned
  *    that pane. Two muse sessions in one directory stay separable.
  *  - 'pid' — the record's pid is a descendant of the pane pid.
+ *  - 'fd-owner' — an agent process descended from the pane holds open
+ *    descriptors inside the record's directory (Phase 32). Two agy sessions
+ *    in one directory stay separable, because each pane's own process holds
+ *    only its own conversation open.
  *
  * Everything else ('cwd-newest', 'sqlite-index', 'time-only') keys on the
  * DIRECTORY or on nothing, and a directory is not an identity: two sessions of
@@ -264,7 +268,8 @@ export type ResumeConfidence =
  */
 const IDENTITY_HARVEST_KEYS: ReadonlySet<AgentHarvestKey> = new Set<AgentHarvestKey>([
   'tmux-pane',
-  'pid'
+  'pid',
+  'fd-owner'
 ]);
 
 /**
@@ -334,6 +339,27 @@ export interface ResumeProvenance {
   storeRoot?: string;
   /** The agent CLI version in force when the id was fixed. */
   agentVersion?: string;
+  /**
+   * Phase 32. On a grace acceptance: how many OTHER watches for the same
+   * agent were still pending at that moment. Above 0 the guess was contested,
+   * and the boot claim in sessions/core.ts keeps such a row provisional so a
+   * rival's exact confirm can still correct it after a restart.
+   */
+  contestedByWatches?: number;
+  /**
+   * Phase 32. On a winner: whose provisional claim this exact confirm
+   * displaced. The named session's row was corrected at the same moment.
+   */
+  reclaimedFrom?: string;
+  /**
+   * Phase 32. On a corrected loser: which session proved ownership of the id
+   * this row used to carry, and when. Written with `confidence: 'none'` by
+   * the reclaim handler, alongside the fields that describe the withdrawn
+   * guess.
+   */
+  reclaimedBy?: string;
+  /** Phase 32. Epoch ms of that correction. */
+  reclaimedAt?: number;
 }
 
 /**
@@ -573,6 +599,12 @@ export function harvestProvenance(
     rivals: harvested.rivals,
     storePath: harvested.storePath,
     storeRoot: harvested.storeRoot,
+    ...(harvested.contestedByWatches !== undefined
+      ? { contestedByWatches: harvested.contestedByWatches }
+      : {}),
+    ...(harvested.reclaimedFrom !== undefined
+      ? { reclaimedFrom: harvested.reclaimedFrom }
+      : {}),
     ...(input.agentVersion !== null ? { agentVersion: input.agentVersion } : {})
   };
 }

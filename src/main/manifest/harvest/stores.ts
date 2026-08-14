@@ -28,11 +28,16 @@
  *            pane pid.
  *  - codex — filename uuid + line-1 `session_meta.cwd`, with a grace timer
  *            for records that cannot be classified yet (.zst, not flushed).
- *  - deepseek / antigravity — WEAK by construction. deepseek's only cwd
- *            signal is inside a file it does not write until the first turn;
- *            nothing on antigravity's disk links a conversation id to a
- *            directory at all. Both are labelled 'weak' so the UI can say so
+ *  - deepseek — WEAK by construction. Its only cwd signal is inside a file
+ *            it does not write until the first turn, so two panes started
+ *            together in one directory are not separable, and the UI says so
  *            instead of promising a conversation that may be the wrong one.
+ *  - antigravity — the DISK is still mute (nothing in the store links a
+ *            conversation id to a directory), but the PROCESS is not: the
+ *            owning agy holds open descriptors inside brain/<id> and on
+ *            presence/<id>.lock, and it is a descendant of its pane. Phase 32
+ *            keys on that (./agy-owner.ts). The grace timer stays as the
+ *            fallback for a pane whose agy died before it could confirm.
  *
  * Ownership: src/main/manifest/**. Pure Node (no Electron import).
  */
@@ -43,6 +48,11 @@ import { basename, dirname, join } from 'node:path';
 import { promisify } from 'node:util';
 import type { LaunchableAgentId } from '@shared/types';
 import type { AgentHarvestKey } from '../../agents/registry';
+// A deliberate module cycle, used only inside confirm() at call time:
+// ./agy-owner imports processTable and isDescendantOf from this file, and the
+// antigravity descriptor below calls its probe. Keeping the probe in its own
+// module is what lets the race test mock process truth whole.
+import { agyOwnedConversations } from './agy-owner';
 
 const execFileAsync = promisify(execFile);
 
@@ -108,6 +118,19 @@ export interface HarvestedSessionId {
   rivals: number;
   /** Epoch ms the watcher settled on this record. */
   acceptedAt: number;
+  /**
+   * Phase 32. Present on a winner whose exact confirm displaced another
+   * session's grace claim: the claimant that lost the id. The loser's own
+   * manifest row is corrected by the reclaim handler in sessions/core.ts.
+   */
+  reclaimedFrom?: string;
+  /**
+   * Phase 32. Present on a grace acceptance: how many OTHER watches for the
+   * same agent were still pending at that moment. Above 0 means the guess was
+   * contested, and the claim it produced stays provisional, so a rival's
+   * exact confirm can still take the id back.
+   */
+  contestedByWatches?: number;
 }
 
 export interface SessionIdWatch {
@@ -195,7 +218,7 @@ export interface HarvestDescriptor {
   pollIntervalMs: number;
 }
 
-const UUID_RE =
+export const UUID_RE =
   /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
 /**
@@ -530,8 +553,15 @@ export const DESCRIPTORS: Partial<Record<LaunchableAgentId, HarvestDescriptor>> 
   },
 
   antigravity: {
-    key: 'time-only',
-    confidence: 'weak',
+    // Phase 32 (docs/research/40-antigravity-claim-race.md). The DISK still
+    // links nothing: history.jsonl has a workspace and no id, and
+    // conversation_summaries.db has an id and an empty workspace_uris. The
+    // PROCESS does: the owning agy holds open descriptors inside brain/<id>
+    // and on presence/<id>.lock, and it is a descendant of its pane. That is
+    // a true identity while agy lives, so the key is 'fd-owner' and the
+    // descriptor's own rating is 'exact'.
+    key: 'fd-owner',
+    confidence: 'exact',
     roots: (_ctx, de) => [join(de.home, '.gemini', 'antigravity-cli', 'brain')],
     entry: 'dir',
     maxDepth: 0,
@@ -539,11 +569,25 @@ export const DESCRIPTORS: Partial<Record<LaunchableAgentId, HarvestDescriptor>> 
       const id = basename(path);
       return UUID_RE.test(id) ? { sessionId: id } : null;
     },
-    // NOTHING on disk links a conversation id to a cwd: history.jsonl has a
-    // workspace and no id, conversation_summaries.db has an id and an empty
-    // workspace_uris. Time correlation is the whole mechanism, and two agy
-    // sessions started together are genuinely not separable.
-    confirm: async () => 'unknown',
+    confirm: async (path, ctx) => {
+      if (ctx.panePid === undefined) return 'unknown';
+      const brainRoot = dirname(path);
+      const owned = await agyOwnedConversations(brainRoot, ctx.panePid);
+      // Tooling failure (ps or lsof could not run) is never a verdict in
+      // either direction: the watch degrades to exactly the pre-Phase-32
+      // grace-timer behavior, never below it.
+      if (!owned.ok) return 'unknown';
+      const id = basename(path);
+      if (owned.ownedIds.has(id)) return 'match';
+      // The pane's agy provably owns a DIFFERENT conversation, so this
+      // candidate is not ours. An empty set is not that proof: agy may not
+      // have opened its brain directory yet, or may have died.
+      if (owned.ownedIds.size > 0) return 'mismatch';
+      return 'unknown';
+    },
+    // The fallback for a pane whose agy died before it could confirm. A grace
+    // acceptance is claimed PROVISIONALLY (./watch.ts), so the rightful
+    // session's exact confirm can still take the id back.
     graceMs: 5_000,
     timeoutMs: HARVEST_WINDOW_MS,
     pollIntervalMs: 1_000
@@ -575,10 +619,10 @@ export function agentRescuesId(agent: LaunchableAgentId): boolean {
  * TRUE when the rescue works on a session whose PROCESS IS GONE. A store
  * keyed on cwd + start time (pi) outlives the pane, so a restorable row can
  * still be repaired — that is the whole point after a reboot. A store keyed
- * on a pid or a tmux pane (qwen, muse) cannot be correlated once the process
- * is dead, and one keyed on time alone (antigravity) or on a file the agent
- * writes late (deepseek) would ride the grace timer into somebody else's
- * conversation. Those get an honest 'unavailable' instead of a guess.
+ * on a live process (qwen's pid, muse's pane, antigravity's open descriptors)
+ * cannot be correlated once the process is dead, and one keyed on a file the
+ * agent writes late (deepseek) would ride the grace timer into somebody
+ * else's conversation. Those get an honest 'unavailable' instead of a guess.
  */
 export function agentRescuesIdAfterExit(agent: LaunchableAgentId): boolean {
   const d = DESCRIPTORS[agent];
@@ -690,44 +734,65 @@ async function samePath(a: string, b: string): Promise<boolean> {
 }
 
 // ---------------------------------------------------------------------------
-// pid ancestry (qwen's key, and muse's fallback)
+// The process table (qwen's key, muse's fallback, and agy ownership)
 // ---------------------------------------------------------------------------
 
-interface ParentTable {
-  parents: Map<number, number>;
+/** One row of the cached `ps` snapshot. */
+export interface ProcessRow {
+  pid: number;
+  ppid: number;
+  /** The executable as ps reports `comm` — a path or a bare name. */
+  comm: string;
+}
+
+interface ProcessTable {
+  rows: Map<number, ProcessRow>;
   readAt: number;
 }
 
-let parentTable: ParentTable | null = null;
-const PARENT_TABLE_TTL_MS = 1_000;
+let processTableCache: ProcessTable | null = null;
+const PROCESS_TABLE_TTL_MS = 1_000;
 
-/** pid → ppid for every process, refreshed at most once a second. */
-async function processParents(): Promise<Map<number, number>> {
+/**
+ * pid → {pid, ppid, comm} for every process, refreshed at most once a second.
+ *
+ * Phase 32 widened the old pid → ppid table to carry `comm` too, so ONE `ps`
+ * call serves the ancestry checks here AND the agy ownership probe next door
+ * in ./agy-owner.ts. A directory holding several candidates must not multiply
+ * process-table reads, so the cache and its TTL stay exactly as they were.
+ */
+export async function processTable(): Promise<Map<number, ProcessRow>> {
   const now = Date.now();
-  if (parentTable !== null && now - parentTable.readAt < PARENT_TABLE_TTL_MS) {
-    return parentTable.parents;
+  if (
+    processTableCache !== null &&
+    now - processTableCache.readAt < PROCESS_TABLE_TTL_MS
+  ) {
+    return processTableCache.rows;
   }
-  const parents = new Map<number, number>();
+  const rows = new Map<number, ProcessRow>();
   try {
-    const { stdout } = await execFileAsync('ps', ['-Ao', 'pid=,ppid='], {
+    const { stdout } = await execFileAsync('ps', ['-Axo', 'pid=,ppid=,comm='], {
       timeout: 5_000,
       maxBuffer: 8 * 1024 * 1024
     });
     for (const line of stdout.split('\n')) {
-      const m = /^\s*(\d+)\s+(\d+)\s*$/.exec(line);
+      // comm can hold spaces ("/Applications/Google Chrome.app/…"), so only
+      // the first two fields are numeric and the rest is the command.
+      const m = /^\s*(\d+)\s+(\d+)\s+(.+?)\s*$/.exec(line);
       if (m === null) continue;
-      parents.set(Number(m[1]), Number(m[2]));
+      const pid = Number(m[1]);
+      rows.set(pid, { pid, ppid: Number(m[2]), comm: m[3] ?? '' });
     }
   } catch {
     /* ps unavailable — callers degrade to 'unknown', never to a wrong match */
   }
-  parentTable = { parents, readAt: now };
-  return parents;
+  processTableCache = { rows, readAt: now };
+  return rows;
 }
 
 /** Test hook: forget the cached ps snapshot. */
 export function resetProcessParentCache(): void {
-  parentTable = null;
+  processTableCache = null;
 }
 
 /**
@@ -739,11 +804,11 @@ export async function isDescendantOf(
   ancestor: number
 ): Promise<boolean> {
   if (pid === ancestor) return true;
-  const parents = await processParents();
+  const rows = await processTable();
   let cur = pid;
   // Bounded: a pid whose chain is longer than this is not our child tree.
   for (let hop = 0; hop < 24; hop += 1) {
-    const parent = parents.get(cur);
+    const parent = rows.get(cur)?.ppid;
     if (parent === undefined || parent <= 1) return false;
     if (parent === ancestor) return true;
     cur = parent;

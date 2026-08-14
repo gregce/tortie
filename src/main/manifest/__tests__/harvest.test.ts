@@ -13,7 +13,8 @@
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { harvestProvenance } from '../agents';
 import {
   agentHarvestsId,
   agentRescuesId,
@@ -28,6 +29,28 @@ import {
 
 let home = '';
 let cwd = '';
+
+/**
+ * The scripted agy ownership probe (Phase 32). The default, ok: false, is
+ * "lsof or ps could not answer", which degrades antigravity to exactly its
+ * pre-Phase-32 grace-timer behavior. A test that wants an exact confirm
+ * scripts `owned` per pane pid. Mocked whole so no test here ever runs ps or
+ * lsof against the real machine.
+ */
+const agyProbe = vi.hoisted(() => ({
+  ok: false,
+  owned: new Map<number, Set<string>>()
+}));
+
+vi.mock('../harvest/agy-owner', () => ({
+  agyOwnedConversations: (_brainRoot: string, panePid: number) =>
+    Promise.resolve(
+      agyProbe.ok
+        ? { ok: true, ownedIds: new Set(agyProbe.owned.get(panePid) ?? []) }
+        : { ok: false, ownedIds: new Set<string>() }
+    ),
+  resetAgyOwnershipCache: () => undefined
+}));
 
 /** Fast polling so a test does not wait on a 1 Hz clock. */
 const FAST = { pollIntervalMs: 25, timeoutMs: 4_000, graceMs: 150 } as const;
@@ -49,6 +72,8 @@ beforeEach(() => {
   home = mkdtempSync(join(tmpdir(), 'gmux-harvest-home-'));
   cwd = mkdtempSync(join(tmpdir(), 'gmux-harvest-cwd-'));
   resetProcessParentCache();
+  agyProbe.ok = false;
+  agyProbe.owned.clear();
 });
 
 afterEach(() => {
@@ -355,7 +380,7 @@ describe('pi — rescue by cwd directory + filename start time', () => {
   });
 });
 
-describe('the two weak harvests, honestly labelled', () => {
+describe('the weak harvest, honestly labelled', () => {
   it('deepseek keys on metadata.workspace inside the file', async () => {
     const id = '99999999-2222-4222-8222-aaaaaaaaaaaa';
     write(
@@ -368,18 +393,78 @@ describe('the two weak harvests, honestly labelled', () => {
       confidence: 'weak'
     });
   });
+});
 
-  it('antigravity can only correlate on time, and admits it', async () => {
+describe('antigravity confirms by process ownership (Phase 32)', () => {
+  const brain = (id: string): string =>
+    join(home, '.gemini', 'antigravity-cli', 'brain', id);
+
+  it('grace-accepts when the probe cannot answer, and provenance says so', async () => {
     const id = 'aaaaaaaa-3333-4333-8333-bbbbbbbbbbbb';
-    mkdirSync(join(home, '.gemini', 'antigravity-cli', 'brain', id), {
-      recursive: true
+    mkdirSync(brain(id), { recursive: true });
+    // ok: false — lsof or ps unavailable. The descriptor degrades to the
+    // pre-Phase-32 behavior: the grace timer accepts, and nothing may call
+    // the answer proven.
+    const watch = watchForSessionId('antigravity', ctx({ panePid: 4242 }), {
+      home,
+      ...FAST
     });
+    const got = await watch.promise;
+    expect(got.sessionId).toBe(id);
+    expect(got.key).toBe('fd-owner');
+    expect(got.viaGraceTimer).toBe(true);
+    expect(
+      harvestProvenance(got, { cwd, agentVersion: null, atCreate: true })
+        .confidence
+    ).toBe('grace-accepted');
+  });
+
+  it('confirms exactly when the pane agy holds the directory open', async () => {
+    const id = 'aaaaaaaa-4444-4444-8444-cccccccccccc';
+    mkdirSync(brain(id), { recursive: true });
+    agyProbe.ok = true;
+    agyProbe.owned.set(4242, new Set([id]));
+    const watch = watchForSessionId('antigravity', ctx({ panePid: 4242 }), {
+      home,
+      ...FAST
+    });
+    const got = await watch.promise;
+    expect(got.sessionId).toBe(id);
+    expect(got.key).toBe('fd-owner');
+    expect(got.confidence).toBe('exact');
+    expect(got.viaGraceTimer).toBe(false);
+    expect(
+      harvestProvenance(got, { cwd, agentVersion: null, atCreate: true })
+        .confidence
+    ).toBe('exact');
+  });
+
+  it('rules out a candidate when the pane agy owns a DIFFERENT conversation', async () => {
+    const mine = 'aaaaaaaa-5555-4555-8555-dddddddddddd';
+    const theirs = 'bbbbbbbb-6666-4666-8666-eeeeeeeeeeee';
+    mkdirSync(brain(mine), { recursive: true });
+    mkdirSync(brain(theirs), { recursive: true });
+    agyProbe.ok = true;
+    agyProbe.owned.set(4242, new Set([mine]));
+    const watch = watchForSessionId('antigravity', ctx({ panePid: 4242 }), {
+      home,
+      ...FAST
+    });
+    const got = await watch.promise;
+    // The other directory is a mismatch, not a rival that weakens the match.
+    expect(got.sessionId).toBe(mine);
+    expect(got.viaGraceTimer).toBe(false);
+  });
+
+  it('stays unknown with no panePid, so the grace timer is the only route', async () => {
+    const id = 'aaaaaaaa-7777-4777-8777-ffffffffffff';
+    mkdirSync(brain(id), { recursive: true });
+    agyProbe.ok = true;
+    agyProbe.owned.set(4242, new Set([id]));
+    // No panePid in the context: the probe is never asked.
     const watch = watchForSessionId('antigravity', ctx(), { home, ...FAST });
     const got = await watch.promise;
     expect(got.sessionId).toBe(id);
-    expect(got.key).toBe('time-only');
-    expect(got.confidence).toBe('weak');
-    // Nothing on disk links the id to a cwd, so it is NEVER a proven match.
     expect(got.viaGraceTimer).toBe(true);
   });
 });

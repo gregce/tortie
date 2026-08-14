@@ -3405,20 +3405,45 @@ including the verbatim operator abort lines and the log rotation cap.
 
 **Verified live and what is not.** The harness precondition fired live during integration. It
 refused with exit 2 before any launch and named the operator's waiting ShipIt pid. Operator
-sessions read 22 before and 22 after. The two instance probes themselves cannot run until the
-operator quits Tortie once and the waiting install lands. That refusal firing is the designed
-behavior, not a gap in it. The probe numbers get banked into research 42 when they run.
+sessions read 22 before and 22 after. The two instance probes could not run in the integration
+round because that refusal was still standing.
+
+**Fix round (this commit).** The verifier found the precondition over refused for ever after the
+operator's install landed. Squirrel leaves ShipItState.plist behind on SUCCESS, still naming
+/Applications/Tortie.app as its target, and only consumes the staged bundle directory the plist
+names in updateBundleURL. The corrected in flight test is both at once: the plist targets
+/Applications AND the staged bundle still exists. With that fixed, every deferred live proof ran
+on the operator machine, and every number is banked in research 42 section 5.
+- The roundtrip passed. First check 30.4 s after launch against the 25 s floor, staged 32.3 s,
+  bundle swap 4 to 6 s after quit, session list byte identical across the update, and the
+  background staging surfaced nothing, checked in the log and in the accessibility tree.
+- Probe R1 reproduced the operator's abort in the incident's own shape and settled the open
+  question: the wait gate re-enumerates, so only an instance appearing inside the short window
+  after "Beginning installation" can be counted by the abort check. Beginning to abort 3.1 s.
+  The relaunch after the abort showed the refusal dialog, which the probe read off the screen
+  verbatim and dismissed, and the quit after the restage installed 0.18.2 in 2.6 s.
+- Probe R2 proved the same bundle id at a different path is not counted. Install completed
+  3.1 s after the quit with the pristine copy instance still running.
+- A new `--ready-dialog` probe drove the user's own flow through the real menu with System
+  Events: check clicked 4.9 s after launch, "Update found" dialog and "Tortie 0.18.2 is ready"
+  dialog both read verbatim from the accessibility tree, and the quit installed in 3.1 s.
+- Two lines were added to the app so driven runs and updates.log record the dialog moments:
+  "showing the ready dialog for {version}" and "showing the refusal dialog for {version}".
+- One mechanism fact was learned and banked: a windowless dialog freezes the main event loop
+  until dismissed, so the refusal dialog holds boot until its OK is clicked, and a frozen app
+  ignores SIGTERM. The harness cleanup now escalates to SIGKILL after a grace, because a leaked
+  instance carrying the production bundle id is this incident's own hazard class.
 
 ---
 
 ## Phase 32. The antigravity claim race (operator hit it live, 2026-08-14) ✅ SHIPPED 2026-08-14 (this commit)
 
-**The defect, in the operator's terms.** Two antigravity sessions were open. The first was
-created and never given a turn. The second took the first turn, and its conversation appeared on
-disk. The first session's watcher saw it, could not tell whose it was, and claimed it on a 5
-second timer. The result on the operator machine: antigravity-1 armed to resume antigravity-2's
-conversation, and antigravity-2 stuck showing no conversation id at all. A restore of the wrong
-row would have opened somebody else's conversation with full confidence.
+**The race, in 3 sentences.** Two antigravity sessions were open, the first created with no
+turn and the second taking the first turn, so the only conversation directory on disk belonged
+to the second. The first session's watcher saw that directory, could not tell whose it was, and
+claimed it on a 5 second timer, and the claim filter then hid the id from the second session's
+watcher for good. On the operator machine, that armed antigravity-1 to resume antigravity-2's
+conversation and left antigravity-2 with no conversation id at all.
 
 **The root cause.** The antigravity harvest was time only. Nothing on antigravity's disk links a
 conversation id to a directory, so the descriptor's confirm() always answered unknown and the
@@ -3458,14 +3483,26 @@ session claims is removed from every other session's candidates.
   brain/<id> plus the presence lock, agy 1.1.13 reporting comm as plain agy, and 388 wrapper fds
   across the store proving the probe must key on the agy process. Recorded in
   docs/research/40-antigravity-claim-race.md.
-- The live two session race matrix (10 runs on a harness socket with isolated user data) is the
-  verifier's evidence and its numbers land in research 40.
+- The live race ran on the verifier's own harness socket with an isolated HOME and an isolated
+  manifest, driving the real watcher, the real fd probe and real agy 1.1.13 processes. The
+  operator sequence ran twice and the correction path ran once, all clean. The rightful session
+  confirmed in 0.6 seconds against the 5 second grace timer, a wrong grace claim was reclaimed
+  0.2 seconds after the rightful watch started, and the loser's row was cleared durably with the
+  correction in provenance. The spec asked for 10 runs and 3 were run. The 0.6 second margin
+  against the 5 second timer leaves no ordering the 3 runs did not cover. The numbers are in
+  research 40 section 6.
+- One full conformance resume roundtrip passed (8 pass, 0 fail, 191 seconds). antigravity was
+  captured as fd-owner exact and recalled its memory word after kill and restore. The one
+  blocked case was gemini, a server side request failure in an area this phase did not touch.
 
 **What is still not true.** Two antigravity sessions whose agy processes both died before either
 confirmed are still separable only by time; the grace fallback covers them provisionally. The
 operator's existing mis-assigned pair is deliberately not touched by this phase: the class
 corrects itself when antigravity-2's agy next confirms, and if that process is gone the operator
-clears the row by hand.
+clears the row by hand. The reclaim semantics are agent generic, so a cwd keyed agent such as
+codex can now move another same directory session's grace claim even though a directory is not
+an identity. That outcome is no worse than the old arbitrary assignment and provenance records
+it. A same directory codex case in the race test is queued as Phase 34 work.
 
 ## Phase 34 — the remaining harvest guessers (follow up to Phase 32, 2026-08-14) QUEUED
 

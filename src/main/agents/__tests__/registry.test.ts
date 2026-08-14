@@ -216,12 +216,16 @@ describe('resume templates', () => {
     }
   });
 
-  it('labels the two harvests that cannot separate two panes in one dir', () => {
+  it('labels the one harvest that cannot separate two panes in one dir', () => {
+    // Phase 32 moved antigravity out of this set: its owning agy process
+    // holds open descriptors inside brain/<id>, which IS an identity while
+    // the process lives (docs/research/40). deepseek stays weak — its only
+    // signal is a workspace field inside a file written on the first turn.
     const weak = LAUNCHABLE_AGENT_IDS.filter((id) => {
       const c = getRegistryEntry(id).resume.idCapture;
       return c.mode === 'harvest' && c.confidence === 'weak';
     });
-    expect([...weak].sort()).toEqual(['antigravity', 'deepseek']);
+    expect([...weak].sort()).toEqual(['deepseek']);
   });
 
   it('marks the cwd-scoped agents so restore cannot drift their directory', () => {

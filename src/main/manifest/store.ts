@@ -1568,6 +1568,60 @@ export class ManifestStore {
   }
 
   /**
+   * Withdraw a conversation id that another session has PROVEN is its own
+   * (Phase 32, the antigravity claim race).
+   *
+   * A DURABLE COMMIT for the same reason `setAgentSessionId` is: losing this
+   * write leaves a row armed to resume somebody else's conversation, which is
+   * the exact failure the reclaim exists to correct. The id, the argv built
+   * from it and the capture state move in ONE transaction, so no crash can
+   * leave an argv armed for an id the row no longer carries.
+   *
+   * A dedicated statement rather than the `updateSession` patch path, because
+   * the patch shape reads `undefined` as "no change" and cannot express
+   * removal; `clearExitCause` is the standing precedent for that limitation.
+   *
+   * @param resumeCapture 'capturing' when the loser still has a live pane
+   *                      and a re-armed watch, else 'unavailable'.
+   * @param provenance    the correction record: the withdrawn guess's own
+   *                      evidence plus `reclaimedBy`/`reclaimedAt`.
+   */
+  clearAgentSessionId(
+    id: string,
+    resumeCapture: ResumeCapture,
+    provenance: ResumeProvenance
+  ): ManifestSessionRecord {
+    return durableTransaction(this.db, () => {
+      const existing = this.getSession(id);
+      if (!existing) {
+        throw manifestError(
+          'SESSION_NOT_FOUND',
+          `No manifest row for session ${id}`
+        );
+      }
+      this.db
+        .prepare(
+          `UPDATE sessions SET
+             agent_session_id = NULL, resume_argv = NULL,
+             resume_capture = @resumeCapture,
+             resume_provenance = @resumeProvenance
+           WHERE id = @id`
+        )
+        .run({
+          id,
+          resumeCapture,
+          resumeProvenance: serializeResumeProvenance(provenance)
+        });
+      const merged: ManifestSessionRecord = { ...existing };
+      delete merged.agentSessionId;
+      delete merged.resumeArgv;
+      merged.resumeCapture = resumeCapture;
+      merged.resumeProvenance = provenance;
+      return merged;
+    });
+  }
+
+  /**
    * Record where a conversation id came from, on its own.
    *
    * For the callers that have provenance to store without an id to store with

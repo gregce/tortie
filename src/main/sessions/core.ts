@@ -84,6 +84,7 @@ import { DurableWriteError, isOutOfSpace } from '../durable';
 import { faultPoint } from '../fault/inject';
 import { unwatchGitRepo } from '../git';
 import {
+  agentHarvestsId,
   agentRescuesId,
   agentRescuesIdAfterExit,
   buildRecoveryContract,
@@ -92,18 +93,22 @@ import {
   harvestProvenance,
   launchProvenance,
   ManifestStore,
+  onConversationReclaimed,
   releaseConversationClaims,
   defaultManifestDbPath,
   prepareManifestForBoot,
   resolveLaunchSpec,
+  SESSION_CONTRACT_VERSION,
   startManifestRing,
   toSession,
   watchForSessionId,
   type AgentLaunchSpec,
+  type ConversationReclaim,
   type LiveTmuxSession,
   type ManifestRingSchedule,
   type ManifestSessionRecord,
   type RestoreAttemptRecord,
+  type ResumeProvenance,
   type RingTakeResult,
   type SessionIdWatch
 } from '../manifest';
@@ -513,6 +518,12 @@ export class GmuxCore {
   /** Depth last pushed to the server — see the settings subscription. */
   private appliedScrollbackLines = getSettings().scrollbackLines;
   private unwatchSettings: (() => void) | null = null;
+  /**
+   * Phase 32. Unsubscribes the reclaim handler registered in the
+   * constructor; called in dispose() so a settle landing after teardown
+   * cannot touch a closed manifest.
+   */
+  private unsubscribeReclaims: (() => void) | null = null;
 
   /**
    * Phase 13.7. Latches the one notice scrollback is allowed to volunteer:
@@ -622,6 +633,14 @@ export class GmuxCore {
       }
     });
     this.wireControlEvents();
+    // Phase 32. When a session PROVES a conversation another session had
+    // only guessed, the loser's row is corrected here: id withdrawn, watch
+    // re-armed. Fired synchronously inside the winner's accept, before the
+    // winner's own settle resolves, so at no observable moment do two rows
+    // carry the same conversation id.
+    this.unsubscribeReclaims = onConversationReclaimed((ev) => {
+      this.handleConversationReclaim(ev);
+    });
     // Phase 13.7: a depth change has to reach the live server the moment it
     // is made. Without this the user edits the setting and observes nothing
     // until the next app launch — for a value that only affects sessions
@@ -1088,7 +1107,17 @@ export class GmuxCore {
     // nobody has.
     for (const rec of this.manifest.listSessions()) {
       if (rec.agentSessionId === undefined) continue;
-      if (claimConversationId(rec.agentSessionId, rec.id)) continue;
+      // Phase 32. A row armed by a grace GUESS must stay reclaimable across
+      // restarts: freezing it as confirmed would preserve the exact live
+      // mis-assignment this phase corrects, forever. Everything else is
+      // asserted as confirmed, first claim wins, exactly as before.
+      const p = rec.resumeProvenance;
+      const strength =
+        p !== undefined &&
+        (p.viaGraceTimer === true || p.confidence === 'grace-accepted')
+          ? ('provisional' as const)
+          : ('confirmed' as const);
+      if (claimConversationId(rec.agentSessionId, rec.id, strength)) continue;
       // Two rows already record one conversation. This build cannot make that
       // happen any more, and it cannot undo one that a previous build wrote:
       // there is no way to know which row is right. It is said out loud
@@ -1154,6 +1183,101 @@ export class GmuxCore {
         // time. That is weaker than a watch started with the pane, and the
         // record says so.
         { atCreate: false }
+      );
+    }
+  }
+
+  /**
+   * Correct the loser of a conversation reclaim (Phase 32).
+   *
+   * Another session PROVED, by its own agy process holding the record open,
+   * that a conversation id this row carries was a wrong grace guess. The map
+   * in the watcher was already corrected before this fired; what is left is
+   * the durable side: withdraw the id from the row, record why, and give the
+   * loser a fresh watch so it finds its OWN conversation on its own first
+   * turn.
+   *
+   * ORDERING GUARANTEE. This runs synchronously inside the winner's accept,
+   * before the winner's settle resolves, and better-sqlite3 writes are
+   * synchronous. The winner's own `setAgentSessionId` happens in its watch's
+   * `.then()` AFTER this returns, so at no observable moment do two manifest
+   * rows carry the same conversation id.
+   */
+  private handleConversationReclaim(ev: ConversationReclaim): void {
+    try {
+      if (this.disposed) return;
+      const rec = this.manifest.getSession(ev.from);
+      // The row is gone, or it no longer carries the reclaimed id (a test
+      // claimant, or a row corrected already). The claim map was fixed in
+      // the watcher; there is nothing durable to correct.
+      if (rec === undefined || rec.agentSessionId !== ev.conversationId) return;
+      const prior = rec.resumeProvenance;
+      // The correction keeps the withdrawn guess's own evidence: those
+      // fields describe the guess being taken back, and losing them would
+      // erase the only record of how the wrong id got there.
+      const provenance: ResumeProvenance = {
+        v: SESSION_CONTRACT_VERSION,
+        source: prior?.source === 'boot-rescue' ? 'boot-rescue' : 'store-harvest',
+        confidence: 'none',
+        at: ev.at,
+        cwd: prior?.cwd ?? rec.cwd,
+        ...(prior?.key !== undefined ? { key: prior.key } : {}),
+        ...(prior?.keyConfidence !== undefined
+          ? { keyConfidence: prior.keyConfidence }
+          : {}),
+        ...(prior?.viaGraceTimer !== undefined
+          ? { viaGraceTimer: prior.viaGraceTimer }
+          : {}),
+        ...(prior?.rivals !== undefined ? { rivals: prior.rivals } : {}),
+        ...(prior?.contestedByWatches !== undefined
+          ? { contestedByWatches: prior.contestedByWatches }
+          : {}),
+        ...(prior?.storePath !== undefined ? { storePath: prior.storePath } : {}),
+        reclaimedBy: ev.to,
+        reclaimedAt: ev.at
+      };
+      const live = this.liveIds.get(ev.from);
+      const state: ResumeCapture =
+        live !== undefined &&
+        rec.agent !== 'shell' &&
+        agentHarvestsId(rec.agent)
+          ? 'capturing'
+          : 'unavailable';
+      this.manifest.clearAgentSessionId(ev.from, state, provenance);
+      if (live !== undefined) {
+        // Best effort: the tmux marker carried the wrong id too.
+        void tmux
+          .setSessionOption(live, '@gmux-session-id', '')
+          .catch(() => undefined);
+      }
+      if (live !== undefined && rec.agent !== 'shell') {
+        // The watch guard passes: the loser's old watch settled when its
+        // grace timer accepted, and a settled watch deletes its entry. The
+        // re-armed watch confirms the loser's OWN record the moment its agy
+        // takes a turn, because its agy holds those descriptors.
+        this.startIdCapture(
+          ev.from,
+          rec.agent,
+          {
+            cwd: rec.cwd,
+            sinceTs: rec.createdAt,
+            tmuxSessionId: live,
+            ...(rec.panePid !== undefined ? { panePid: rec.panePid } : {})
+          },
+          agentExtrasOf(rec),
+          { atCreate: false }
+        );
+      }
+      this.broadcastSessions();
+      console.warn(
+        `[gmux] ${rec.agent} conversation ${ev.conversationId} was reclaimed ` +
+          `from session ${ev.from} by ${ev.to}; the losing row was cleared ` +
+          `and its watch ${live !== undefined ? 'restarted' : 'not restarted (no live pane)'}.`
+      );
+    } catch (err) {
+      console.warn(
+        `[gmux] conversation reclaim correction failed for ${ev.from}: ` +
+          `${(err as Error).message}`
       );
     }
   }
@@ -2588,6 +2712,8 @@ export class GmuxCore {
     this.ringSchedule?.stop();
     for (const watch of this.idCaptureWatches.values()) watch.cancel();
     this.idCaptureWatches.clear();
+    this.unsubscribeReclaims?.();
+    this.unsubscribeReclaims = null;
     this.unwatchSettings?.();
     this.unwatchSettings = null;
     this.activity.dispose();

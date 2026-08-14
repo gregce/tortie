@@ -81,7 +81,17 @@ export type AgentHarvestKey =
   | 'cwd-newest'
   /** An index (SQLite) carries id + cwd in one row. */
   | 'sqlite-index'
-  /** Nothing on disk links the id to a directory — time correlation only. */
+  /**
+   * An agent process descended from the pane holds open descriptors inside
+   * the record (antigravity: agy keeps brain/<id> open while it runs).
+   */
+  | 'fd-owner'
+  /**
+   * Nothing on disk links the id to a directory — time correlation only.
+   * No live descriptor carries it since Phase 32 moved antigravity to
+   * 'fd-owner'; the member stays because persisted provenance rows written
+   * by earlier builds already carry the string.
+   */
   | 'time-only';
 
 /**
@@ -780,21 +790,23 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
       template: ['--conversation', SESSION_ID_SLOT],
       idCapture: {
         mode: 'harvest',
-        key: 'time-only',
-        source: 'newest ~/.gemini/antigravity-cli/brain/<id>/ directory created after spawn',
+        key: 'fd-owner',
+        source:
+          'agy descendant of the pane holds open fds under brain/<id> (lsof), grace timer as fallback',
         // NOT session-open, however plausible that looked: reproduced twice
         // 2026-08-11 — no brain/<id>/ directory appears in 45 s of an idle
         // session, and one appears immediately AFTER the first turn. The
         // wrong value also failed conformance:resume:capture, which is the
         // zero-cost gate everything else here is asked to run.
         availableAt: 'first-turn',
-        confidence: 'weak'
+        confidence: 'exact'
       },
       sessionStore:
         '~/.gemini/antigravity-cli/brain/<conversationId>/.system_generated/logs/transcript_full.jsonl',
       notes:
         'Resume flag is --conversation, NOT --resume — VERIFIED hands-on 2026-08-10 (1.1.11). ' +
-        'HARVEST IS WEAK AND MUST BE LABELLED AS SUCH IN THE UI: nothing on disk links a conversation id to a cwd. history.jsonl has workspace+timestamp but no id; conversation_summaries.db has conversation_id + workspace_uris but is STALE SINCE MAY with workspace_uris EMPTY. Time-correlation only — two agy sessions started together are not separable. ' +
+        'HARVEST IS EXACT WHILE THE PANE\'S AGY IS ALIVE (Phase 32, docs/research/40). The disk still links nothing: history.jsonl has workspace+timestamp but no id, and conversation_summaries.db is STALE SINCE MAY with workspace_uris EMPTY. The owning agy PROCESS holds open fds under brain/<id> and presence/<id>.lock and is a descendant of its pane, so the harvest confirms by process ownership. The confirm keys on the agy process specifically, never on any process holding the directory, because specstory wrappers hold read fds on EVERY conversation directory. ' +
+        'Only the grace fallback is a guess (agy died before confirming). A grace claim stays provisional, so the rightful session\'s exact confirm reclaims it and the losing row is corrected. ' +
         'NOT a cross-agent resume target (real state is protobuf-in-SQLite conversations/<id>.db).'
     },
     reconstructionTarget: false,
