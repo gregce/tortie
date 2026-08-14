@@ -76,11 +76,15 @@ import { showOneTimeTip } from '../app/one-time-tip';
 import { treeStyles } from '../pierre/theme-bridge';
 import { beginTreeDrag } from '../terminal/drop/tree-drag';
 import { isConflicted, openModeFor, pierreGitStatus } from './decorations';
+import { entryNameVerdict } from './entry-name';
+import type { EntryNameVerdict } from './entry-name';
 import { canReveal, reveal } from './fs-bridge';
 import { canDuplicate, canMutate } from './fs-ops-bridge';
 import { expandedDirs, headerDestDir } from './header-actions';
 import { requestOpenFile } from './open-file';
 import { FOLDER_ICON_CSS, getPierreTreeIcons } from './pierre-icons';
+import { resolveTreeEditor } from './rename-view';
+import type { TreeEditorBridge } from './rename-view';
 import { useFileTree } from './store';
 import { useTreeHandle } from './tree-handle';
 import {
@@ -90,7 +94,7 @@ import {
 } from './tree-menu';
 import { createTreeOps } from './tree-ops';
 import type { TreeOps } from './tree-ops';
-import { absOf, isDirPath, parentOf, toRel } from './tree-paths';
+import { absOf, baseNameOf, isDirPath, parentOf, toRel } from './tree-paths';
 
 // ---------------------------------------------------------------------------
 // Persisted expansion state (per project root)
@@ -312,17 +316,27 @@ export function FileTree({
     ((item: ContextMenuItem, ctx: ContextMenuOpenContext) => void) | null
   >(null);
 
-  /** `.git` is never a drag source, and search freezes dragging (library). */
-  const canDrag = useCallback(
-    (paths: readonly string[]): boolean =>
-      opsRef.current !== null && !paths.some(isProtectedFsPath),
-    []
-  );
+  /**
+   * `.git` is never a drag source, and search freezes dragging (library).
+   * A PENDING CREATE's row is not draggable either (Phase 37): while the
+   * inline name editor is open there is nothing on disk behind the row.
+   */
+  const canDrag = useCallback((paths: readonly string[]): boolean => {
+    const ops = opsRef.current;
+    if (ops === null || paths.some(isProtectedFsPath)) return false;
+    const pending = ops.pendingPath();
+    return pending === null || !paths.includes(pending);
+  }, []);
 
-  /** `.git` is never a destination either — the same one shared predicate. */
+  /**
+   * `.git` is never a destination either — the same one shared predicate.
+   * Nor is a pending folder (Phase 37); its real parent still is.
+   */
   const canDropInto = useCallback((event: FileTreeDropContext): boolean => {
     const dir = event.target.directoryPath;
-    return dir === null || !isProtectedFsPath(dir);
+    if (dir === null) return true;
+    if (isProtectedFsPath(dir)) return false;
+    return dir !== opsRef.current?.pendingPath();
   }, []);
 
   /** Pierre moved its own rows first; the disk is asked second. */
@@ -509,6 +523,23 @@ export function FileTree({
     model.setGitStatus(gitState.entries);
   }, [model, gitState]);
 
+  // ----- the rename-editor bridge (Phase 37) -------------------------------
+  // Resolved lazily and kept for the mount: the controller the adapter finds
+  // lives exactly as long as this model does. A null result is retried (the
+  // tree may not have been mounted yet); a resolved bridge never changes.
+  const editorBridgeRef = useRef<TreeEditorBridge | null>(null);
+  const editorBridge = useCallback((): TreeEditorBridge | null => {
+    editorBridgeRef.current ??= resolveTreeEditor(hostRef.current);
+    return editorBridgeRef.current;
+  }, []);
+
+  const treeShadow = useCallback(
+    (): ShadowRoot | null =>
+      hostRef.current?.querySelector('file-tree-container')?.shadowRoot ??
+      null,
+    []
+  );
+
   // ----- the verbs ---------------------------------------------------------
   // Built once per mounted root: they hold the model and the feed baseline,
   // which are exactly the two things a file operation has to keep in step.
@@ -520,13 +551,123 @@ export function FileTree({
       writeFed: (next) => {
         fedRef.current = next;
       },
-      hold
+      hold,
+      renameView: () => editorBridge()?.view ?? null,
+      selectOnly: (canonical) => editorBridge()?.selectOnly(canonical)
     });
     setOpsCreated((n) => n + 1);
     return () => {
       opsRef.current = null;
     };
-  }, [model, rootPath, hold]);
+  }, [model, rootPath, hold, editorBridge]);
+
+  // ----- the create editor's live refusal (Phase 37) ------------------------
+  // While a New File / New Folder editor is open, every keystroke is judged
+  // by entryNameVerdict and a bad name shows its reason under the box; Enter
+  // on a bad name is stopped in the CAPTURE phase on this host, so the
+  // library's own commit (bubble phase, inside the shadow root) never runs.
+  const [nameError, setNameError] = useState<{
+    message: string;
+    top: number;
+    left: number;
+    maxWidth: number;
+  } | null>(null);
+  const nameErrorShownRef = useRef(false);
+  nameErrorShownRef.current = nameError !== null;
+
+  /** The verdict on the pending create's current text, or null when idle. */
+  const pendingVerdict = useCallback((): EntryNameVerdict | null => {
+    const pendingPath = opsRef.current?.pendingPath() ?? null;
+    if (pendingPath === null) return null;
+    const view = editorBridge()?.view ?? null;
+    if (view === null || view.getPath() !== pendingPath) return null;
+    const parent = parentOf(pendingPath);
+    const taken = new Set<string>();
+    for (const path of fedRef.current) {
+      if (parentOf(path) === parent) taken.add(baseNameOf(path).toLowerCase());
+    }
+    return entryNameVerdict(view.getValue(), taken);
+  }, [editorBridge]);
+
+  /** Show, move or hide the reason element to match the live verdict. */
+  const refreshNameError = useCallback((): void => {
+    const verdict = pendingVerdict();
+    const input = treeShadow()?.querySelector('[data-item-rename-input]');
+    if (verdict === null || verdict.kind !== 'bad') {
+      if (input instanceof HTMLElement) input.removeAttribute('aria-invalid');
+      setNameError(null);
+      return;
+    }
+    const host = hostRef.current;
+    if (!(input instanceof HTMLElement) || host === null) {
+      setNameError(null);
+      return;
+    }
+    input.setAttribute('aria-invalid', 'true');
+    const inputRect = input.getBoundingClientRect();
+    const hostRect = host.getBoundingClientRect();
+    setNameError({
+      message: verdict.reason,
+      top: inputRect.bottom - hostRect.top + 2,
+      left: Math.max(0, inputRect.left - hostRect.left),
+      maxWidth: Math.max(120, hostRect.right - inputRect.left - 8)
+    });
+  }, [pendingVerdict, treeShadow]);
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (host === null) return;
+    // `input` is a composed event, so it crosses the shadow boundary and
+    // bubbles to this host — one listener judges every keystroke.
+    const onInput = (): void => {
+      if (opsRef.current?.pendingPath() != null) refreshNameError();
+    };
+    const onKeyDownCapture = (event: KeyboardEvent): void => {
+      if (event.key !== 'Enter' || event.isComposing) return;
+      const verdict = pendingVerdict();
+      if (verdict === null || verdict.kind !== 'bad') return;
+      // Bad name: the commit never runs, the editor stays open, focus stays
+      // in the box, and the reason stays visible. Ok and empty fall through.
+      event.preventDefault();
+      event.stopPropagation();
+      refreshNameError();
+    };
+    host.addEventListener('input', onInput);
+    host.addEventListener('keydown', onKeyDownCapture, true);
+    return () => {
+      host.removeEventListener('input', onInput);
+      host.removeEventListener('keydown', onKeyDownCapture, true);
+    };
+  }, [pendingVerdict, refreshNameError]);
+
+  // Hide (or re-place) the reason when the editor closes or the rows move —
+  // every one of those emits on the model.
+  useEffect(() => {
+    const unsubscribe = model.subscribe(() => {
+      queueMicrotask(() => {
+        if (nameErrorShownRef.current) refreshNameError();
+      });
+    });
+    return unsubscribe;
+  }, [model, refreshNameError]);
+
+  // Scroll does not compose, so a host listener would never hear the shadow
+  // tree scrolling under the box — the capture listener sits on the shadow
+  // root itself, and only while the reason is showing.
+  const nameErrorShown = nameError !== null;
+  useEffect(() => {
+    if (!nameErrorShown) return;
+    const shadow = treeShadow();
+    const reposition = (): void => {
+      refreshNameError();
+    };
+    shadow?.addEventListener('scroll', reposition, true);
+    window.addEventListener('resize', reposition);
+    return () => {
+      shadow?.removeEventListener('scroll', reposition, true);
+      window.removeEventListener('resize', reposition);
+    };
+  }, [nameErrorShown, treeShadow, refreshNameError]);
 
   // ----- expansion watch: lazy listing + persistence ----------------------
   const expandedRef = useRef<Set<string>>(new Set(initial.expanded));
@@ -678,7 +819,11 @@ export function FileTree({
     (e: React.MouseEvent): void => {
       if (e.metaKey || e.ctrlKey || e.shiftKey) return;
       const row = rowFromEvent(e.nativeEvent);
-      if (row !== null && row.type === 'file') openRel(row.rel);
+      if (row === null) return;
+      // A pending create's row is not openable (Phase 37) — there is no file
+      // yet. The click still blurs the editor, and the blur rules decide.
+      if (row.rel === opsRef.current?.pendingPath()) return;
+      if (row.type === 'file') openRel(row.rel);
     },
     [openRel]
   );
@@ -687,7 +832,9 @@ export function FileTree({
     (e: React.MouseEvent): void => {
       if (e.metaKey || e.ctrlKey || e.shiftKey) return;
       const row = rowFromEvent(e.nativeEvent);
-      if (row !== null && row.type === 'file') openRel(row.rel, true);
+      if (row === null) return;
+      if (row.rel === opsRef.current?.pendingPath()) return;
+      if (row.type === 'file') openRel(row.rel, true);
     },
     [openRel]
   );
@@ -846,6 +993,16 @@ export function FileTree({
       const primary = rowFromEvent(e.nativeEvent)?.rel;
       const dragged =
         primary !== undefined && !paths.includes(primary) ? [primary] : [...paths];
+      // Phase 37: a pending create's row is not draggable. The library
+      // already renders the renaming row without the drag affordance and
+      // `canDrag` refuses it in the model; this closes the third door — the
+      // ATTACH contract below must never arm with a row that is not a file.
+      const pendingCreate = opsRef.current?.pendingPath() ?? null;
+      if (pendingCreate !== null && dragged.includes(pendingCreate)) {
+        e.preventDefault();
+        dragPathsRef.current = [];
+        return;
+      }
       dragPathsRef.current = dragged;
 
       // NOTE — `effectAllowed`: Pierre stamps 'move', which makes Chromium
@@ -958,6 +1115,19 @@ export function FileTree({
         <p className="files-filter-note">
           No matches in the folders you have opened.
         </p>
+      ) : null}
+      {nameError !== null ? (
+        <div
+          className="tree-name-error"
+          role="alert"
+          style={{
+            top: nameError.top,
+            left: nameError.left,
+            maxWidth: nameError.maxWidth
+          }}
+        >
+          {nameError.message}
+        </div>
       ) : null}
     </div>
   );

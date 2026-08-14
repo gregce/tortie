@@ -39,6 +39,7 @@ import { errorPayload, errorText, useApp } from '../state/store';
 import { followMoves } from './editor-follow';
 import * as fsOps from './fs-ops-bridge';
 import { requestOpenFile } from './open-file';
+import type { TreeRenameView } from './rename-view';
 import { useFileTree } from './store';
 import { describeConflicts, describeEntries } from './tree-menu';
 import {
@@ -81,6 +82,16 @@ export interface TreeOpsContext {
    * diff, so the tree converges on the truth either way.
    */
   hold(paths: readonly string[]): () => void;
+  /**
+   * The live rename-editor adapter (Phase 37), or null when the library's
+   * editor state cannot be reached. A create NEVER opens without it: the
+   * empty box, the silent no-op detection and the refusal-with-a-reason all
+   * read and write the editor through this, and a placeholder row we cannot
+   * control is exactly the fake row the phase removes.
+   */
+  renameView(): TreeRenameView | null;
+  /** Make this row the only selected one (controller-level selection). */
+  selectOnly(canonical: string): void;
 }
 
 export interface TreeOps {
@@ -110,6 +121,12 @@ export interface TreeOps {
     destDirCanonical: string,
     modelAlreadyMoved: boolean
   ): void;
+  /**
+   * The placeholder's canonical path while a New File / New Folder editor is
+   * open, else null (Phase 37). While non-null the row is not draggable, not
+   * a drop target, and not openable — it is not a file yet.
+   */
+  pendingPath(): string | null;
 }
 
 export function createTreeOps(ctx: TreeOpsContext): TreeOps {
@@ -221,6 +238,10 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
     void create({ root: ctx.rootPath, path: toRel(destinationRel) })
       .then((entry) => {
         addToFed(canonical);
+        // Enter creates AND SELECTS (Phase 37): the committed rename left
+        // the selection on the placeholder's old spelling, which is nowhere.
+        ctx.selectOnly(canonical);
+        ctx.model.focusPath(canonical);
         void files()
           .relist([absOf(ctx.rootPath, parentOf(canonical))])
           .finally(release);
@@ -392,6 +413,15 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
   return {
     newEntry(destDirCanonical, kind) {
       revealDestination(destDirCanonical);
+      // Phase 37: no editor without its adapter. The library seeds the box
+      // with the placeholder's leaf name, and only the adapter can empty it
+      // and watch it — so a missing adapter refuses the gesture outright
+      // rather than showing a named row that nothing stands behind.
+      const view = ctx.renameView();
+      if (view === null) {
+        app().toast('error', 'Could not start a new item here.');
+        return;
+      }
       const base = kind === 'dir' ? 'untitled folder' : 'untitled';
       const name = uniqueName(base, siblingNames(destDirCanonical));
       const placeholder = destDirCanonical + toCanonical(name, kind === 'dir');
@@ -410,6 +440,11 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
         return;
       }
       if (ctx.model.startRenaming(placeholder, { removeIfCanceled: true })) {
+        // The editor opens EMPTY, in the same task as the add — before the
+        // row's first paint. The model path keeps its unique seed (a model
+        // needs a path that collides with nothing); the user never sees it
+        // as text.
+        view.setValue('');
         pending = { placeholder, kind };
         return;
       }
@@ -423,12 +458,35 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
       ctx.model.startRenaming(canonical);
     },
 
+    pendingPath() {
+      return pending?.placeholder ?? null;
+    },
+
     settle() {
       if (pending === null) return;
-      if (ctx.model.getItem(pending.placeholder) !== null) return;
+      if (ctx.model.getItem(pending.placeholder) === null) {
+        // Esc / empty commit: the library removed the row with no callback.
+        pending = null;
+        pendingRelease?.();
+        pendingRelease = null;
+        return;
+      }
+      // Phase 37, the silent no-op hole: commit a name equal to the seed and
+      // the library closes the editor, KEEPS the row, and fires nothing.
+      // Row present + editor no longer on the placeholder + `pending` set has
+      // exactly that one cause — every other exit either removes the row or
+      // clears `pending` synchronously in its callback before this runs. The
+      // adapter's view state makes the check race-free where a DOM query
+      // would race the library's own unmount.
+      const view = ctx.renameView();
+      if (view === null || view.getPath() === pending.placeholder) return;
+      const create = pending;
+      const release = pendingRelease;
       pending = null;
-      pendingRelease?.();
       pendingRelease = null;
+      release?.();
+      // Treat it as a commit of the typed name: the one disk write.
+      finishCreate(create.placeholder, create.kind, create.placeholder);
     },
 
     onRenameCommitted(event) {
@@ -453,9 +511,23 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
     onRenameRejected(message) {
       // Pierre validated the name against the rows it can see (empty, a '/',
       // a sibling that already exists) and refused before anything moved.
+      // For a PENDING CREATE this is the click-away-with-a-bad-name exit
+      // (Phase 37): the library closed the editor and KEPT the row, so take
+      // the row back out — nothing was ever on disk behind it.
+      const create = pending;
+      const release = pendingRelease;
       pending = null;
-      pendingRelease?.();
       pendingRelease = null;
+      if (create !== null) {
+        try {
+          ctx.model.remove(create.placeholder, {
+            recursive: create.kind === 'dir'
+          });
+        } catch {
+          /* already gone */
+        }
+      }
+      release?.();
       app().toast('error', message);
     },
 

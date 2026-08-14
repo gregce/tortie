@@ -3705,7 +3705,7 @@ instance's pool lets the completion win the race, and 3 SIGTERM quits of a scrat
 A quit where FSEvents outlives the 3 s bound can still abort, and that is accepted, because a
 quit that hangs is worse. SIGTERM is assumed to equal a menu quit, per research 34.
 
-## Phase 37 — a new file is named before it exists (user requested, 2026-08-14) QUEUED
+## Phase 37 — a new file is named before it exists (user requested, 2026-08-14) ✅ SHIPPED 2026-08-14 (this commit)
 
 **The problem.** New File and New Folder in the explorer show a row named "untitled file" or
 "untitled folder". Nothing exists on disk until the user names it, so the row is an appearance
@@ -3725,3 +3725,22 @@ it is not a file yet.
 **Verification. Tier 2.** One probe drives create, rename, escape and duplicate through the real
 tree. One screenshot read of the inline editor with the cursor placed. The invariant to assert in
 a unit test: no filesystem write of any kind happens before Enter commits a valid name.
+
+**What shipped.**
+- New File and New Folder now open an inline name editor in the tree at the right position.
+  The box starts empty and the cursor is already in it. Nothing exists on disk until Enter
+  commits a valid name. The fake "untitled" row is gone.
+- Enter with a valid name creates the file or folder, selects it, and a new file opens as a
+  tab. Escape removes the editor and creates nothing. Clicking away commits a valid name and
+  removes the editor when the box is empty.
+- An invalid or duplicate name shows the reason under the box and refuses to commit, the same
+  way the session rename field refuses. The name rules live in
+  `src/renderer/tree/entry-name.ts` and are shared with rename.
+- While the editor is open the row cannot be dragged, cannot take a drop, and cannot be
+  opened, because it is not a file yet.
+- Two new test files hold the invariant: 19 tests prove zero filesystem calls happen through
+  every refusal path and exactly one happens on commit. A mutation that moved the write to
+  editor open time failed 8 of the 9 create tests.
+- The live probe drove 23 steps through the real app on a harness socket, including a
+  screenshot read of the open editor with the refusal reason under the box. After Escape and
+  after every refusal the scratch repo held only `.git` and `README.md`.

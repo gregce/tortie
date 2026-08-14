@@ -56,6 +56,9 @@
    box (search.css `.search-body`), so the sidebar views read as one rhythm
    rather than three opinions. */
 .files-tree {
+  /* Positioned so the create editor's refusal note (Phase 37) can sit
+     directly under the inline name box, which lives in the shadow DOM. */
+  position: relative;
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -137,4 +140,26 @@
 
 .files-retry:focus-visible {
   box-shadow: var(--focus-ring);
+}
+
+/* THE CREATE EDITOR'S REFUSAL (Phase 37). The reason an invalid or duplicate
+   name cannot commit, shown directly under the inline name box — the same
+   language the app's other refusing fields speak (.input-error-text in
+   globals.css: --error text at --text-sm), plus a solid surface and the
+   error border so it reads over the rows below. Positioned by FileTree.tsx
+   from the live input rect; pointer-events off so it never eats the click
+   that dismisses the editor. */
+.tree-name-error {
+  position: absolute;
+  z-index: 3;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--error);
+  background: var(--bg-surface);
+  border: 1px solid var(--error);
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow-1);
+  pointer-events: none;
+  overflow-wrap: break-word;
 }

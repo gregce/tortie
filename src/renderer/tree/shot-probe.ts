@@ -50,6 +50,12 @@ export interface TreeOpsProbeSpec {
    * capture has to be able to go there. Clamped by the store's own bounds.
    */
   holdSidebarWidth?: number;
+  /**
+   * Phase 37: leave a New File editor OPEN at the project root with this
+   * text typed (no Enter), so a capture can photograph the inline editor —
+   * and, when the text is invalid (e.g. "a/b"), the reason under the box.
+   */
+  holdNewFile?: string;
 }
 
 export interface TreeOpsProbeStep {
@@ -88,31 +94,48 @@ function listed(rootPath: string, rel: string): boolean {
   return entries?.some((e) => e.path === abs) === true;
 }
 
-/** Type into the inline rename input the way a person does, then commit. */
-async function commitRenameInput(
-  handle: TreeHandle,
-  value: string
-): Promise<boolean> {
-  const find = (): HTMLInputElement | null => {
-    const el = handle
-      .shadowRoot()
-      ?.querySelector('[data-item-rename-input]');
-    return el instanceof HTMLInputElement ? el : null;
-  };
-  const found = await until(() => find() !== null);
-  const input = find();
-  if (!found || input === null) return false;
+/** The live inline rename input, if one is open. */
+function renameInput(handle: TreeHandle): HTMLInputElement | null {
+  const el = handle.shadowRoot()?.querySelector('[data-item-rename-input]');
+  return el instanceof HTMLInputElement ? el : null;
+}
+
+/** Wait for the rename editor to mount, then hand it back. */
+async function awaitRenameInput(
+  handle: TreeHandle
+): Promise<HTMLInputElement | null> {
+  await until(() => renameInput(handle) !== null);
+  return renameInput(handle);
+}
+
+/** Type into the editor the way a person does (composed input event). */
+function typeInRenameInput(input: HTMLInputElement, value: string): void {
   input.value = value;
   input.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
-  await wait(30);
+}
+
+/** Press one key in the editor (composed, cancelable — the real shape). */
+function pressRenameKey(input: HTMLInputElement, key: string): void {
   input.dispatchEvent(
     new KeyboardEvent('keydown', {
-      key: 'Enter',
+      key,
       bubbles: true,
       cancelable: true,
       composed: true
     })
   );
+}
+
+/** Type into the inline rename input the way a person does, then commit. */
+async function commitRenameInput(
+  handle: TreeHandle,
+  value: string
+): Promise<boolean> {
+  const input = await awaitRenameInput(handle);
+  if (input === null) return false;
+  typeInRenameInput(input, value);
+  await wait(30);
+  pressRenameKey(input, 'Enter');
   return true;
 }
 
@@ -124,6 +147,232 @@ function confirmDialog(): string | null {
   spec.onConfirm();
   useApp.getState().setConfirm(null);
   return said;
+}
+
+/** Fresh disk truth for one directory: relist it, read the cache back. */
+async function entriesOnDisk(
+  rootPath: string,
+  relDir: string
+): Promise<string[]> {
+  await useFileTree.getState().relist([`${rootPath}/${relDir}`]);
+  const entries = useFileTree.getState().entriesByDir[`${rootPath}/${relDir}`];
+  return (entries ?? []).map((e) => e.path.slice(rootPath.length + 1));
+}
+
+/** The Phase 37 refusal note under the inline editor, if showing. */
+function nameErrorEl(): HTMLElement | null {
+  const el = document.querySelector('.tree-name-error');
+  return el instanceof HTMLElement ? el : null;
+}
+
+/**
+ * Phase 37, end to end: a new file is named BEFORE it exists. Every step
+ * drives the real editor in the real tree and reads the DISK back through a
+ * fresh listing, because the phase's whole claim is about what is and is not
+ * on the disk while the editor is open.
+ */
+async function drivePhase37(
+  handle: TreeHandle,
+  scratchCanon: string,
+  record: (name: string, ok: boolean, detail: string) => void
+): Promise<void> {
+  const { rootPath, ops } = handle;
+  const p37 = `${scratchCanon}p37`;
+  const p37Canon = `${p37}/`;
+
+  // Scaffolding: a fresh empty folder, created through the gesture itself.
+  ops.newEntry(scratchCanon, 'dir');
+  await commitRenameInput(handle, 'p37');
+  const scaffolded = await until(() => listed(rootPath, p37));
+  if (!scaffolded) {
+    record('P37: scaffold folder', false, 'could not create the p37 folder');
+    return;
+  }
+  await useFileTree.getState().relist([`${rootPath}/${p37}`]);
+
+  // ---- 1. the editor opens EMPTY, nothing exists anywhere ----------------
+  ops.newEntry(p37Canon, 'file');
+  const input1 = await awaitRenameInput(handle);
+  const emptyBox = input1 !== null && input1.value === '';
+  const placeholderNotFed = !handle
+    .paths()
+    .some((p) => p.startsWith(p37Canon) && p !== p37Canon);
+  const disk1 = await entriesOnDisk(rootPath, p37);
+  record(
+    'P37: New File opens an empty editor, nothing on disk',
+    emptyBox && placeholderNotFed && disk1.length === 0,
+    `input=${String(input1 !== null)} value=${JSON.stringify(
+      input1?.value ?? null
+    )} placeholderInFed=${String(!placeholderNotFed)} disk=${JSON.stringify(disk1)}`
+  );
+
+  // ---- 2. Escape removes the editor, creates nothing ---------------------
+  if (input1 !== null) pressRenameKey(input1, 'Escape');
+  const escGone = await until(() => renameInput(handle) === null);
+  const disk2 = await entriesOnDisk(rootPath, p37);
+  record(
+    'P37: Escape removes the editor and creates nothing',
+    escGone && disk2.length === 0,
+    `editorGone=${String(escGone)} disk=${JSON.stringify(disk2)}`
+  );
+
+  // ---- 3. an invalid name refuses INLINE, editor stays, nothing on disk --
+  ops.newEntry(p37Canon, 'file');
+  const input3 = await awaitRenameInput(handle);
+  if (input3 !== null) typeInRenameInput(input3, 'a/b');
+  await wait(80);
+  if (input3 !== null) pressRenameKey(input3, 'Enter');
+  await wait(150);
+  const stillEditing = renameInput(handle) !== null;
+  const reason3 = nameErrorEl();
+  const saysSlash =
+    reason3 !== null &&
+    (reason3.textContent ?? '').includes('A name cannot contain "/".');
+  const disk3 = await entriesOnDisk(rootPath, p37);
+  record(
+    'P37: an invalid name refuses inline with the reason under the box',
+    stillEditing && saysSlash && disk3.length === 0,
+    `editorOpen=${String(stillEditing)} reason=${JSON.stringify(
+      reason3?.textContent ?? null
+    )} disk=${JSON.stringify(disk3)}`
+  );
+
+  // ---- 4. retype a valid name: reason clears, Enter creates + selects ----
+  const input4 = renameInput(handle);
+  if (input4 !== null) typeInRenameInput(input4, 'note.md');
+  const reasonCleared = await until(() => nameErrorEl() === null);
+  if (input4 !== null) pressRenameKey(input4, 'Enter');
+  const created4 = await until(() => listed(rootPath, `${p37}/note.md`));
+  const selected4 = await until(
+    () =>
+      handle
+        .shadowRoot()
+        ?.querySelector(
+          `[data-item-path="${p37}/note.md"][data-item-selected]`
+      ) instanceof HTMLElement
+  );
+  const opened4 = await until(() =>
+    useEditor.getState().tabs.some((t) => t.path === `${rootPath}/${p37}/note.md`)
+  );
+  record(
+    'P37: a valid Enter clears the reason, creates, selects and opens',
+    reasonCleared && created4 && selected4 && opened4,
+    `reasonCleared=${String(reasonCleared)} created=${String(
+      created4
+    )} selected=${String(selected4)} tabOpen=${String(opened4)}`
+  );
+
+  // ---- 5. a duplicate name is refused with the exists message ------------
+  ops.newEntry(p37Canon, 'file');
+  const input5 = await awaitRenameInput(handle);
+  if (input5 !== null) typeInRenameInput(input5, 'note.md');
+  await wait(80);
+  if (input5 !== null) pressRenameKey(input5, 'Enter');
+  await wait(150);
+  const reason5 = nameErrorEl();
+  const saysExists =
+    renameInput(handle) !== null &&
+    reason5 !== null &&
+    (reason5.textContent ?? '').includes('"note.md" already exists here.');
+  const editEl5 = renameInput(handle);
+  if (editEl5 !== null) pressRenameKey(editEl5, 'Escape');
+  await until(() => renameInput(handle) === null);
+  const disk5 = await entriesOnDisk(rootPath, p37);
+  const oneNote = disk5.filter((p) => p === `${p37}/note.md`).length === 1;
+  record(
+    'P37: a duplicate name is refused with the exists message',
+    saysExists && oneNote && disk5.length === 1,
+    `reason=${JSON.stringify(reason5?.textContent ?? null)} disk=${JSON.stringify(disk5)}`
+  );
+
+  // ---- 6. typing the old seed name commits it FOR REAL -------------------
+  // (the silent no-op hole: the library closes without firing anything when
+  // the typed name equals the placeholder's seed)
+  ops.newEntry(p37Canon, 'file');
+  const input6 = await awaitRenameInput(handle);
+  if (input6 !== null) typeInRenameInput(input6, 'untitled');
+  await wait(50);
+  if (input6 !== null) pressRenameKey(input6, 'Enter');
+  const created6 = await until(() => listed(rootPath, `${p37}/untitled`));
+  const selected6 = await until(
+    () =>
+      handle
+        .shadowRoot()
+        ?.querySelector(
+          `[data-item-path="${p37}/untitled"][data-item-selected]`
+      ) instanceof HTMLElement
+  );
+  record(
+    'P37: typing the seed name creates it (the silent no-op hole)',
+    created6 && selected6,
+    created6
+      ? `${p37}/untitled exists and is selected=${String(selected6)}`
+      : 'the seed-named commit created nothing — the stranded-row defect'
+  );
+
+  // ---- 7. New Folder goes through the same empty editor ------------------
+  ops.newEntry(p37Canon, 'dir');
+  const input7 = await awaitRenameInput(handle);
+  const empty7 = input7 !== null && input7.value === '';
+  await commitRenameInput(handle, 'p37-dir');
+  const created7 = await until(() => listed(rootPath, `${p37}/p37-dir`));
+  record(
+    'P37: New Folder opens empty and creates on Enter',
+    empty7 && created7,
+    `emptyBox=${String(empty7)} created=${String(created7)}`
+  );
+
+  // ---- 8. click-away (blur) with an empty box removes the editor ---------
+  ops.newEntry(p37Canon, 'file');
+  const input8 = await awaitRenameInput(handle);
+  if (input8 !== null) input8.dispatchEvent(new FocusEvent('blur'));
+  const blurGone = await until(() => renameInput(handle) === null);
+  const disk8 = await entriesOnDisk(rootPath, p37);
+  record(
+    'P37: blur with an empty box removes the editor, nothing on disk',
+    blurGone && disk8.length === 3,
+    `editorGone=${String(blurGone)} disk=${JSON.stringify(disk8)}`
+  );
+
+  // ---- 9. while the editor is open the row is inert -----------------------
+  // Three doors, three checks: the library renders the renaming row WITHOUT
+  // the drag affordance (a div, draggable false); a dispatched dragstart is
+  // refused by the host handler (default prevented) so the tree-drag ATTACH
+  // contract never arms; and a click opens nothing.
+  ops.newEntry(p37Canon, 'file');
+  const input9 = await awaitRenameInput(handle);
+  const row9 = input9?.closest('[data-item-path]');
+  let notDraggable = false;
+  let dragRefused = false;
+  let noTabOpened = false;
+  if (row9 instanceof HTMLElement) {
+    notDraggable = !row9.draggable;
+    const transfer = new DataTransfer();
+    const dragEvent = new DragEvent('dragstart', {
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+      dataTransfer: transfer
+    });
+    row9.dispatchEvent(dragEvent);
+    dragRefused = dragEvent.defaultPrevented && treeDrag() === null;
+    const tabsBefore = useEditor.getState().tabs.length;
+    row9.click();
+    await wait(200);
+    noTabOpened = useEditor.getState().tabs.length === tabsBefore;
+  }
+  const editEl9 = renameInput(handle);
+  if (editEl9 !== null) pressRenameKey(editEl9, 'Escape');
+  await until(() => renameInput(handle) === null);
+  record(
+    'P37: the pending row cannot be dragged or opened',
+    notDraggable && dragRefused && noTabOpened,
+    `row=${String(row9 instanceof HTMLElement)} draggableAffordance=${String(
+      !notDraggable
+    )} dragRefusedAndUnarmed=${String(dragRefused)} clickOpenedNoTab=${String(
+      noTabOpened
+    )}`
+  );
 }
 
 /** A button in the Explorer's band header, found the way a person finds it. */
@@ -287,6 +536,9 @@ export async function driveTreeOps(
 
   // Expand it so its children are listed for the rest of the run.
   await useFileTree.getState().relist([`${rootPath}/${dir}`]);
+
+  // ---- Phase 37: a new file is named before it exists ---------------------
+  await drivePhase37(handle, dirCanon, record);
 
   // ---- New File, and it opens for keeps ----------------------------------
   ops.newEntry(dirCanon, 'file');
@@ -519,6 +771,17 @@ export async function driveTreeOps(
       );
     }
     await wait(400);
+  }
+
+  // Phase 37: leave a create editor open (with its refusal, if the text is
+  // invalid) so the capture shows the inline box the way a person sees it.
+  if (spec.holdNewFile !== undefined) {
+    ops.newEntry('', 'file');
+    const held = await awaitRenameInput(handle);
+    if (held !== null && spec.holdNewFile.length > 0) {
+      typeInRenameInput(held, spec.holdNewFile);
+    }
+    await wait(300);
   }
 
   const failed = steps.filter((s) => !s.ok).length;
