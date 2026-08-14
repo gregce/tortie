@@ -192,6 +192,10 @@ describe('SymbolTable', () => {
     const hits = t.query('shn', 50);
     const elapsed = performance.now() - started;
     expect(hits.length).toBe(50);
-    expect(elapsed).toBeLessThan(80);
+    // 80 ms is the tripwire on a developer machine. Shared CI runners are
+    // slower and uneven, and this line failed at 88 ms on a run whose diff
+    // never touched symbols. 200 ms keeps the tripwire real there: the
+    // regression this test exists to catch would cost far more than that.
+    expect(elapsed).toBeLessThan(process.env.CI ? 200 : 80);
   });
 });
