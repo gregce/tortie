@@ -542,7 +542,9 @@ export function installAppMenu(): void {
       applicationName: app.name,
       applicationVersion: app.getVersion(),
       version: BUILD_COMMIT,
-      copyright: 'SpecStory'
+      // The native About panel renders plain strings only, so the repo URL
+      // is text, not a hyperlink.
+      copyright: 'By gregce\ngithub.com/gregce/tortie'
     });
   } catch (err) {
     // Cosmetic: an About panel that falls back to the bundle's own strings is
