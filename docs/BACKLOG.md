@@ -38,6 +38,8 @@ the wordmark is a wordmark. Revisit only if the operator asks.
 | — | ~~Release lane, second half: signing, notarization, the updater~~ | signing and notarization shipped with Phase 27. The updater is Phase 24 | the issuer identifier was never needed. Notarization uses the Apple ID, the team id and an app specific password, the deadreckon shape |
 | 12 | **28** process observability after the lid close diagnosis | ✅ SHIPPED 2026-08-14 (this commit) | — |
 | 13 | **29** session history: browse and restore removed sessions | QUEUED | spec is docs/research/39-session-history.md |
+| 14 | **30** skill removal through the skills CLI | ✅ SHIPPED 2026-08-14 (this commit) | — |
+| 15 | **32** the antigravity claim race (operator hit it live, 2026-08-14) | ✅ SHIPPED 2026-08-14 (this commit) | — |
 
 **Why 19 waits for 18.6.** Both touch `src/renderer/state/store.ts`. Phase 19's restart fix would be
 written against a file that 18.6 then rewrites. Doing the renderer work together, then the main
@@ -3285,3 +3287,158 @@ name add or remove and not on reorder, the manifest row carries names only, and 
 stays byte equal. conformance:resume:capture on every commit, the full conformance:resume once,
 live pane evidence with a test variable proving the value is present in the pane and absent from
 show-environment -g and from the manifest, and smoke:t3 on both restore shapes.
+
+## Phase 30. Skill removal through the skills CLI (user requested, 2026-08-14) ✅ SHIPPED 2026-08-14 (this commit)
+
+**The request.** The skills verb in the Context view should remove a skill fully through the
+skills CLI, instead of sending a file to the Trash. The Phase 22 decision stands behind it. The
+bundled CLI is the interface for every skill operation that changes state, and the filesystem
+stays the read path.
+
+**The finding.** The remove verb already spawned the CLI. Nothing in the Context view ever called
+shell.trashItem for a skill. What predated the decision was the story the interface told, and 4
+gaps around the command.
+- The menu verb said "Move to Trash…" and the confirm promised recovery from Finder. The CLI runs
+  rm with recursive and force, so nothing was ever recoverable.
+- The symlink branch of the confirm said the skill itself stays in ~/.agents/skills. That was
+  false. With no -a the pinned CLI targets every agent it knows, then deletes the canonical
+  folder and the lock entry too. Removal is always full.
+- requestRemove always built a global command. A project scoped row got the verb, the global scan
+  found nothing, and the CLI exited 0 having removed nothing. The dialog closed as if it worked.
+- The confirm showed the command line but not what would leave the disk, and the remove path
+  never ran checkPlanShape while install did.
+
+**What shipped.**
+- The remove operation carries a scope. removeCommand emits -g only for a global remove, and a
+  project remove runs in the project root and is refused without one. The command passes the
+  FOLDER name, read off the row's resolved directory, because the pinned CLI matches directory
+  names on disk plus lock keys, and a differing frontmatter name would exit 0 having removed
+  nothing.
+- A post-run disk check in main, for remove only. After exit 0, main checks the canonical
+  directory with lstat. If it is still there, the run comes back as a failure and the dialog
+  stays open with the sentence under the same command line. The pinned CLI prints "No skills
+  found to remove." and exits 0 in that case, so for remove alone the exit code is not evidence
+  on its own. The sentence joined build/assert-bundle-refusals.mjs as
+  skills.remove-left-the-skill-on-disk, the sixth skills row.
+- The verb is now "Remove…". It is offered only for a user owned skill row in the global or the
+  project scope. Bundled, plugin and managed rows do not get it, because a remove there is
+  structurally the exit 0 no-op. A guard behind the menu refuses such a row with a sentence
+  naming vendor ownership. There is no trash fallback anywhere in the path.
+- The confirm says what removal is and shows what goes. The title is Remove "name"?. The body
+  says the skill does not go to the Trash and cannot be put back from Finder, and counts the
+  agents that load it today. A listing block shows one row per agent with its path, the skill
+  folder with its resolved path, the lock entry, and Tortie's record of the approval when one
+  exists. The rows come from Tortie's own scan, because the pinned CLI has no dry run. The full
+  command line block is unchanged.
+- requestRemove now runs checkPlanShape on the adapted plan, the same check install runs through
+  evaluateInstall. A problem renders in the confirm and the primary control runs nothing.
+- One neighbouring sentence in the Enable for picker now points at Remove instead of Move to
+  Trash.
+
+**Tier and evidence. Tier 2.**
+- The live roundtrip test installs the scratch skill for 3 agents against an isolated HOME and
+  removes it through the new path. It then walks the whole scratch HOME and finds zero paths
+  carrying the skill name, finds no entry for it in the lock file, finds no .Trash directory
+  under the scratch HOME, and finds no entry with the probe name in the real Trash.
+- A plan case proves a project remove produces remove -y -s name, runs in the project root, and
+  is refused without one.
+- A unit case points the post-run check at a directory that still exists and gets the failure
+  sentence back, with both gate fragments in it.
+- Gates on the final tree: typecheck, build, the full battery, smoke:t1, and
+  assert-bundle-refusals with the sixth skills row, all green. The builder ran the battery with
+  2 workers because the machine sat at load average 25 with the operator's sessions live. The
+  verifier then ran the full battery at full width on the same tree, and all 3199 tests passed.
+- The verifier drove the exit 0 no-op live against the pinned CLI in a scratch HOME. A remove
+  naming a skill that exists nowhere exits 0 and prints "No skills found to remove." That is the
+  case the post-run disk check guards. The verifier also tried to force the residue case live,
+  with a canonical folder that has no SKILL.md, and the pinned CLI removed the folder anyway. So
+  the residue branch is covered by the unit case and the bundle gate, not by a live run.
+- Not verified, stated plainly. No screenshot of the menu or the confirm was read. The render
+  path was verified by reading the code, which shows the removal listing mounted inside the
+  install dialog's confirm. The renderer's vendor ownership guard is not driven by any test. It
+  sits behind the menu gate that already hides the verb for such rows, and the bundle refusals
+  gate cannot assert it because that gate reads only out/main/index.js. The main side disk check
+  is the row the gate asserts. A row with scope project-local is assumed not to occur, and such
+  a row simply does not get the verb. The removal preview lists what Tortie's scan knows, so an
+  agent outside the registry that also links the skill is not listed.
+
+---
+## Phase 32. The antigravity claim race (operator hit it live, 2026-08-14) ✅ SHIPPED 2026-08-14 (this commit)
+
+**The defect, in the operator's terms.** Two antigravity sessions were open. The first was
+created and never given a turn. The second took the first turn, and its conversation appeared on
+disk. The first session's watcher saw it, could not tell whose it was, and claimed it on a 5
+second timer. The result on the operator machine: antigravity-1 armed to resume antigravity-2's
+conversation, and antigravity-2 stuck showing no conversation id at all. A restore of the wrong
+row would have opened somebody else's conversation with full confidence.
+
+**The root cause.** The antigravity harvest was time only. Nothing on antigravity's disk links a
+conversation id to a directory, so the descriptor's confirm() always answered unknown and the
+grace timer was the whole mechanism. The claim filter then made the loss permanent: an id one
+session claims is removed from every other session's candidates.
+
+**What shipped.**
+- An antigravity session now PROVES its conversation by its own process. The owning agy holds
+  open descriptors inside brain/<id> and is a descendant of its pane. A new probe
+  (src/main/manifest/harvest/agy-owner.ts) finds the pane's agy through one cached ps table and
+  one lsof call against exactly those pids. The key is 'fd-owner' and it is an identity: a rival
+  candidate cannot weaken a confirmed match. The probe deliberately never sweeps the directory,
+  because every specstory wrapper holds read fds on every conversation directory (388 measured),
+  and a sweep would confirm everything for everyone.
+- A grace guess can no longer starve the rightful session. Claims now carry a strength. A grace
+  acceptance is provisional. An exact confirm takes a provisionally held id, the claim moves,
+  and the loser's row is corrected on the spot: id and resume argv withdrawn in one durable
+  write (clearAgentSessionId), the correction recorded in provenance (reclaimedBy, reclaimedAt),
+  and the loser's watch restarted so it finds its own conversation on its own first turn. Grace
+  itself never steals, not even from another grace guess.
+- The correction works across restarts. The boot pass claims a grace armed row as provisional,
+  read from its persisted provenance, so a wrong guess stays reclaimable forever instead of
+  freezing at the next launch.
+- The grace timer stays as the fallback for a session whose agy died before confirming, and a
+  contested grace acceptance records how many other watches were pending (contestedByWatches).
+- When lsof or ps cannot run, the probe says so and the harvest degrades to exactly the old
+  grace behavior, never below it, and never to a wrong answer.
+
+**Tier and evidence. Tier 3 (durability, and a bug the operator personally reported).**
+- The permanent cheap gate: src/main/manifest/__tests__/harvest-claim-race.test.ts, 8 cases with
+  a mocked watcher, a scripted ownership probe and faked timers. It replays the operator's exact
+  race and asserts the reclaim, proves grace never steals, proves confirmed claims are
+  immovable, proves a boot claim of a grace row is reclaimable, and proves the durable clear
+  survives a database reopen. Research 22 §6 row 8 named this race untested; it is now tested on
+  every npm test run.
+- Read only measurements on the operator machine 2026-08-14: 5 fds held by the owning agy under
+  brain/<id> plus the presence lock, agy 1.1.13 reporting comm as plain agy, and 388 wrapper fds
+  across the store proving the probe must key on the agy process. Recorded in
+  docs/research/40-antigravity-claim-race.md.
+- The live two session race matrix (10 runs on a harness socket with isolated user data) is the
+  verifier's evidence and its numbers land in research 40.
+
+**What is still not true.** Two antigravity sessions whose agy processes both died before either
+confirmed are still separable only by time; the grace fallback covers them provisionally. The
+operator's existing mis-assigned pair is deliberately not touched by this phase: the class
+corrects itself when antigravity-2's agy next confirms, and if that process is gone the operator
+clears the row by hand.
+
+## Phase 34 — the remaining harvest guessers (follow up to Phase 32, 2026-08-14) QUEUED
+
+**The gap, from the descriptor table after Phase 32.** CodeWhale is the last time-only descriptor:
+cwd-newest, confidence weak, 5 second grace. It carries the same claim race Phase 32 fixed for
+antigravity. And for the cwd-confirmed agents, codex and pi, two sessions of the same agent started
+in the SAME folder both confirm the same candidate, so the tiebreak degrades to recency, which is
+the race in miniature. The stores.ts comment near line 108 names this openly.
+
+**The work.**
+- Investigate what the CodeWhale CLI exposes that can serve as an exact signal: open descriptors
+  on its store like antigravity's agy, a pid file, or an id written inside the store content.
+  Upgrade the descriptor to that signal with the Phase 32 claim transfer semantics.
+- Audit the same-folder tiebreak for codex and pi: decide whether a second exact signal exists
+  (rollout content, presence files) and add it, or document the residual honestly in the
+  descriptor comment and the research.
+- Extend the Phase 32 race unit test with a CodeWhale case and a same-folder case.
+
+**Verification. Tier 3** on the descriptor change (harvest semantics, wrong resume class):
+conformance:resume:capture per commit, one full conformance:resume, and a live two-session race
+reproduction for CodeWhale in an isolated environment. Tier 2 for the tiebreak audit if it ends
+in documentation rather than code.
+
+**Depends on Phase 32** for the claim transfer semantics and the race test harness.
