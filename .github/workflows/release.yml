@@ -144,6 +144,32 @@ jobs:
             -c.publish.provider=github \
             -c.publish.owner=gregce \
             -c.publish.repo=tortie
+      - name: The DMG gets its own ticket
+        timeout-minutes: 20
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PWD: ${{ secrets.APPLE_APP_PWD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euxo pipefail
+          dmg="$(ls release/Tortie-*-arm64.dmg)"
+          # electron-builder notarizes and staples the .app before the DMG
+          # and ZIP are cut, but the DMG container never gets a ticket of
+          # its own. The release gate below requires one, so a downloaded
+          # DMG passes Gatekeeper offline. The submission is fast because
+          # Apple has already seen every file inside it. If the submission
+          # is refused there is no ticket, and the staple fails the lane.
+          xcrun notarytool submit "$dmg" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_PWD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+          xcrun stapler staple "$dmg"
+          xcrun stapler validate "$dmg"
+          # Stapling appends the ticket. The hash, the size and the blockmap
+          # recorded for the DMG at package time no longer match the file,
+          # so re-align the feed with the bytes being published.
+          node build/refresh-dmg-feed.mjs "$dmg"
       - name: The packaged app launches and passes the basic smoke
         run: |
           node build/harness-socket.mjs gmux-smoke-pkg \
