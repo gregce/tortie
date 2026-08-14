@@ -94,6 +94,7 @@ scratch. The code it owns is the durability layer and the glue.
 - [material-icon-theme](https://github.com/material-extensions/vscode-material-icon-theme) supplies the file icons.
 - [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) stores the session manifest.
 - [node-pty](https://github.com/microsoft/node-pty) connects the shells.
+- [skills.sh](https://skills.sh) installs and manages the skills behind the Context view.
 - [SpecStory](https://specstory.com/) captures agent conversations.
 
 The full list with licenses is in [`NOTICE`](NOTICE).
