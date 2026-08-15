@@ -5,6 +5,35 @@ to a representative commit. Prose appears above those sections only when somethi
 needs explaining. Versions follow semver: the minor moves for features, the patch
 for fixes.
 
+## 0.24.3 (2026-08-15)
+
+One fix, and it is the thing that made the file tree hard to look at. Grey rows
+stopped flashing white.
+
+The explorer threw away everything it knew about ignored files every time
+anything wrote to the repository, then asked git again. For the 13 to 30 ms
+that took, nothing was dimmed, so every grey row went bright. If you have
+agents writing constantly, that happened about every two seconds. A probe on
+0.24.2 caught 84 bright frames out of 3601 painted over 31 seconds, in 15
+flashes exactly 2000 ms apart. The same probe on this build caught 0 of 3601,
+then 0 of 4802, then 0 of 4802 again with 2000 extra ignored files and a new
+file appearing inside an ignored folder every 400 ms.
+
+### Changed
+
+- The tree keeps showing what it last knew about ignored files while it fetches
+  the new answer, instead of clearing first and refilling ([`3bbc3e6`](https://github.com/gregce/tortie/commit/3bbc3e6))
+- Editing a `.gitignore` now takes up to 10 seconds to show, where it used to
+  take up to 2. Tortie asks git 6 times a minute instead of 30, and the wait
+  costs you nothing to look at now that nothing blanks while it happens ([`3bbc3e6`](https://github.com/gregce/tortie/commit/3bbc3e6))
+
+### Fixed
+
+- Ignored files and folders no longer flash white while agents write to the
+  repository ([`3bbc3e6`](https://github.com/gregce/tortie/commit/3bbc3e6))
+- A file an agent writes into an already ignored folder is dimmed on the first
+  frame it appears. Measured on 122 new rows, all 122 correct ([`3bbc3e6`](https://github.com/gregce/tortie/commit/3bbc3e6))
+
 ## 0.24.2 (2026-08-15)
 
 Eight changes, and the one that matters most is invisible: the reason an update

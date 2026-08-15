@@ -4752,6 +4752,49 @@ ref pills and dates still degrade per the Phase 12 rules rather than clipping.
   separates the pointer press from the library's close, so a click delayed by a paint stall
   falls back to the old behavior of closing.
 
+
+## Phase 47.1 - the ignored dimming strobe (operator reported against 0.24.2) SHIPPED 2026-08-15 (`3bbc3e6`, 0.24.3)
+
+**The report.** "the greyed out files in the tree will flash white which is VERY
+distracting", and "it feels like a strobe".
+
+**The mechanism.** `FilesSection.tsx` called `invalidateIgnored()` from the
+`onRepoChanged` handler, so every `git:changed` reached it, and `forget()` in
+`ignored.ts` ran `set({ ignored: NONE, epoch: +1 })`. That emptied the RENDERED
+set before fetching the replacement, so `treeGitLane` emitted no ignored entries
+and every dimmed row repainted bright for the 13 ms to 30 ms the git spawn took.
+`INVALIDATE_MIN_MS` was 2000, so under a constant writer it strobed on a fixed
+two second period.
+
+**Measured before and after.** 84 bad frames of 3601 painted over 31.0 s in 15
+episodes exactly 2000 ms apart, against 0 of 3601, 0 of 4802 and 0 of 4802 with
+2000 extra ignored paths. A project switch leaked nothing, 0 of 2120 frames in
+both directions. Removing a rule dropped the dimming in 2383 ms and restoring it
+took 9399 ms, both inside the new 10 s floor.
+
+**What the fix is.** Stale while revalidate. The rendered set is never emptied
+to refresh it, only `reset` empties it, and that is leaving the repository. A
+revalidation REPLACES so a path that stopped being ignored can leave, while an
+ordinary sync MERGES because it only ever learns about paths nobody had asked
+about. `INVALIDATE_MIN_MS` rose from 2000 to 10000, since the floor no longer
+has a visual cost and its only job is to bound how often git is asked.
+
+**A library defect the fix has to work around.** `@pierre/trees` builds
+`ignoredInheritanceCache` once per mount with `useMemo(..., [])` and never
+clears it, so a directory rendered before its ignored answer arrives is cached
+as "not under an ignored directory" for the life of the tree. The blanking used
+to hide this, because asking about every path every 2 s gave every row an
+explicit entry. `coveredByIgnored` now does that deliberately.
+
+**Three things left open, and none of them is a regression.**
+1. `src/main/git/service.ts` maps "nothing is ignored", "git refused" and "git
+   could not run" onto the same empty list, so a refusal would clear the dimming
+   until the next successful read. Fixing it needs an IPC contract change.
+2. A revalidation with zero loaded paths settles on the empty set. Three lines,
+   and unreachable from the app today.
+3. A pending invalidate timer survives a project switch, costing the next
+   project one unneeded `git check-ignore`.
+
 ---
 
 # Recorded, not queued (2026-08-15)
