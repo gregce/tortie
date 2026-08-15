@@ -51,7 +51,7 @@ in the shipping build.
 
 | Wave | Phases | Gated on |
 | --- | --- | --- |
-| A, building now | **36** quit crash (fix), **29** session history (feat), **37** inline naming (fix) | — |
+| A, landed | **36** quit crash (`3c09245` + `3d1d70c`), **29** session history (`d08ab00`), **37** inline naming (`7c0ae02`) | — |
 | release point | **0.20.0 candidate** prepared, tag held for the operator | 36 landed and green |
 | B | **35** uniform logging (feat) | 36 pushed |
 | C | **33** env passthrough (feat), **34** the CodeWhale race (fix) | 29 pushed |
@@ -3808,7 +3808,7 @@ a unit test: no filesystem write of any kind happens before Enter commits a vali
   screenshot read of the open editor with the refusal reason under the box. After Escape and
   after every refusal the scratch repo held only `.git` and `README.md`.
 
-## Phase 38 — a session group survives closing its project (user reported, 2026-08-14) ✅ SHIPPED 2026-08-14 (this commit)
+## Phase 38 — a session group survives closing its project (user reported, 2026-08-14) ✅ SHIPPED 2026-08-14 (`2cbd873`)
 
 **The report, operator verbatim in substance.** Drag one session onto another and a multiplexed
 group exists. Close the project and reopen it: every session is still there, but the grouped
