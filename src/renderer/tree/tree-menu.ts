@@ -22,6 +22,7 @@
 
 import type { FsMoveConflict } from '@shared/fs-ops';
 import type { MenuItemSpec } from '../state/store';
+import { OPEN_WITH_LABEL } from './open-with';
 import { baseNameOf, isDirPath } from './tree-paths';
 
 /** What was right-clicked, with the selection rule already resolved. */
@@ -61,10 +62,18 @@ function countedNoun(canonicals: readonly string[]): string {
   return `${canonicals.length} items`;
 }
 
+/**
+ * `openWith` is the Phase 39 submenu, already built by
+ * `buildOpenWithSubmenu`. It is passed in rather than built here because it
+ * needs an answer from main, and this function is pure. Null means the item
+ * is not offered at all: an older preload without the channels, or a subject
+ * that is not one openable file.
+ */
 export function buildTreeMenu(
   target: TreeMenuTarget,
   caps: TreeMenuCapabilities,
-  actions: TreeMenuActions
+  actions: TreeMenuActions,
+  openWith: (MenuItemSpec | 'sep')[] | null = null
 ): (MenuItemSpec | 'sep')[] {
   const items: (MenuItemSpec | 'sep')[] = [];
   const { canonical, selection } = target;
@@ -80,9 +89,21 @@ export function buildTreeMenu(
   if (canonical !== null && !isFolder && target.openable && !many) {
     items.push(
       { label: 'Open', run: () => actions.open(canonical, false) },
-      { label: 'Open in New Tab', run: () => actions.open(canonical, true) },
-      'sep'
+      { label: 'Open in New Tab', run: () => actions.open(canonical, true) }
     );
+    // Open With sits with the two openings, under exactly their condition:
+    // one file, not a folder, not a multi-row selection, and openable. A
+    // folder, a socket, a FIFO or a device is not a document.
+    if (openWith !== null) {
+      items.push({
+        label: OPEN_WITH_LABEL,
+        submenu: openWith,
+        // A parent item never fires on macOS; the id that comes back is
+        // always a leaf's.
+        run: () => undefined
+      });
+    }
+    items.push('sep');
   }
 
   // -- create --------------------------------------------------------------

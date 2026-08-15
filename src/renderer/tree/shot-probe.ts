@@ -16,6 +16,7 @@
  */
 
 import { useApp } from '../state/store';
+import type { MenuItemSpec, MenuSpec } from '../state/store';
 import { useEditor } from '../editor/store';
 import {
   endTreeDrag,
@@ -68,6 +69,52 @@ export interface TreeOpsProbeSpec {
    * filter's own value after each one.
    */
   phase47?: boolean;
+  /**
+   * Phase 39: build the Open With submenu for real files in the live
+   * renderer, time it cold and warm, and launch one non-default app.
+   *
+   * When this is set the probe does NOTHING ELSE — it returns as soon as the
+   * Open With steps are recorded. `scratchDir` is still required by this
+   * type and is unused on that branch, so the caller passes a name the probe
+   * never creates.
+   */
+  openWith?: OpenWithProbeSpec;
+}
+
+export interface OpenWithProbeSpec {
+  /**
+   * Repo-relative files to right click, in order. Each one is measured cold
+   * (first build, which may spawn) and then warm (the per-extension cache).
+   */
+  rels: string[];
+  /**
+   * Repo-relative file whose submenu the launch is performed from. The probe
+   * picks the first app that is NOT the default and runs that item.
+   */
+  launchRel?: string;
+  /**
+   * Where main was told to record the launch argv
+   * (GMUX_OPEN_WITH_RECORD). The probe reads it back through fs.readFile so
+   * the argv is reported as evidence rather than assumed.
+   */
+  recordPath?: string;
+  /**
+   * How long to wait between the cold pass and the warm pass, so a lookup
+   * that lost the race to main's deadline has landed in the cache before the
+   * cache is measured. Default 4000 ms.
+   */
+  settleMs?: number;
+}
+
+export interface OpenWithProbeReading {
+  rel: string;
+  status: string;
+  /** Milliseconds for the first build of this extension's submenu. */
+  coldMs: number;
+  /** Milliseconds for the second build, which must be a cache hit. */
+  warmMs: number;
+  /** The submenu exactly as the renderer would hand it to the bridge. */
+  labels: string[];
 }
 
 export interface TreeOpsProbeStep {
@@ -576,6 +623,233 @@ async function drivePhase37(
   );
 }
 
+/**
+ * Phase 39, end to end: Open With, measured on the real right click.
+ *
+ * The whole point is the number. The charter caps the menu build at 150 ms on
+ * first use, and only a live run through the shipped path can say what that
+ * costs: the row's own contextmenu event, @pierre/trees' onOpen, the
+ * component's async showMenuAt, the fs:openWithApps round trip, the two
+ * deadlines (the renderer's OPEN_WITH_MENU_DEADLINE_MS, which is timed from
+ * before the round trip, and main's OPEN_WITH_DEADLINE_MS inside it), and the
+ * item array coming back.
+ *
+ * The 150 ms below is the charter's number and it is not unconditional. It
+ * was measured holding at 21 of 21 readings from load average 15 to 82,
+ * worst case 136.7 ms, and breaking at 3 of 5 at load average 116, where the
+ * renderer's own timer is delivered late. A failure here is only readable
+ * next to the machine's load, which build/probe-openwith.mjs prints.
+ *
+ * This measures a WARM machine unless the extensions are new to it.
+ * LaunchServices caches its answer for an extension across processes, so the
+ * second run of this probe on `.png` is not a cold reading however fresh the
+ * app instance is. `npm run probe:openwith -- --exts a,b,c` exists for that
+ * reason: a re-measurement picks extensions this Mac has not been asked
+ * about.
+ *
+ * The store's `setMenu` action is swapped for a recorder, exactly as the
+ * terminal's selection probe does it. That is not a shortcut around the
+ * bridge, it is the only way to run at all: `setMenu` raises a real macOS
+ * menu, which is an OS-owned window that takes a mouse grab and would stop
+ * the run dead. What the recorder holds is the very MenuSpec the bridge would
+ * have received, so the submenu is captured as data even though no camera can
+ * photograph it.
+ *
+ * The launch is real, and the argv is read back from the file main recorded
+ * it to (GMUX_OPEN_WITH_RECORD). Letting an app actually start would steal
+ * focus, leave a window on the operator's screen, and prove less: a launched
+ * app cannot tell you what argv `open` received.
+ */
+async function driveOpenWith(
+  handle: TreeHandle,
+  spec: OpenWithProbeSpec,
+  record: (name: string, ok: boolean, detail: string) => void
+): Promise<void> {
+  const { rootPath } = handle;
+
+  const rowEl = (rel: string): HTMLElement | null => {
+    const escaped = rel.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    const el = handle.shadowRoot()?.querySelector(`[data-item-path="${escaped}"]`);
+    return el instanceof HTMLElement ? el : null;
+  };
+
+  /** Every menu the component raised, with the instant it raised it. */
+  const recorder: { menu: MenuSpec; at: number }[] = [];
+  const original = useApp.getState().setMenu;
+  useApp.setState({
+    setMenu: (menu: MenuSpec | null): void => {
+      if (menu !== null) recorder.push({ menu, at: performance.now() });
+    }
+  });
+
+  /** One real right click on one row. Returns the build time and the menu. */
+  const rightClick = async (
+    rel: string
+  ): Promise<{ ms: number; menu: MenuSpec | null }> => {
+    recorder.length = 0;
+    const el = rowEl(rel);
+    if (el === null) return { ms: -1, menu: null };
+    const rect = el.getBoundingClientRect();
+    const started = performance.now();
+    el.dispatchEvent(
+      new MouseEvent('contextmenu', {
+        bubbles: true,
+        composed: true,
+        cancelable: true,
+        button: 2,
+        buttons: 2,
+        clientX: Math.round(rect.left + 8),
+        clientY: Math.round(rect.top + rect.height / 2)
+      })
+    );
+    // Poll finely: the reading is taken from the instant the recorder fired,
+    // not from the instant the poll noticed, so the loop's own granularity
+    // does not enter the number.
+    for (let i = 0; i < 400 && recorder.length === 0; i++) await wait(5);
+    const first = recorder[0];
+    if (first === undefined) return { ms: -1, menu: null };
+    return { ms: first.at - started, menu: first.menu };
+  };
+
+  /** The Open With item of a recorded menu, if it carries one. */
+  const openWithItem = (menu: MenuSpec | null): MenuItemSpec | null => {
+    const found = menu?.items.find(
+      (item): item is MenuItemSpec => item !== 'sep' && item.label === 'Open With'
+    );
+    return found ?? null;
+  };
+
+  const submenuLabels = (item: MenuItemSpec | null): string[] =>
+    (item?.submenu ?? []).map((entry) =>
+      entry === 'sep' ? '——' : entry.label
+    );
+
+  /**
+   * What the user actually got, read off the labels rather than off an
+   * internal flag: 'unavailable' is the degraded submenu, 'ready-empty' is
+   * the honest "nothing claims this file", 'ready' is a real list.
+   */
+  const statusOf = (labels: string[]): string => {
+    if (labels[0] === 'Open in Default App') return 'unavailable';
+    if (labels.length === 1 && labels[0] === 'Other…') return 'ready-empty';
+    return labels.length === 0 ? 'none' : 'ready';
+  };
+
+  const readings: OpenWithProbeReading[] = [];
+
+  try {
+    // ---- the cold pass: one right click per file, timed ------------------
+    const cold = new Map<string, { ms: number; labels: string[] }>();
+    for (const rel of spec.rels) {
+      // Make sure the row is there before it is clicked: a missing row is a
+      // scaffolding fault, and it must not read as a slow menu.
+      const present = await until(() => rowEl(rel) !== null, 5000);
+      if (!present) {
+        record(`39: right click ${rel}`, false, 'no row for that file');
+        continue;
+      }
+      const built = await rightClick(rel);
+      cold.set(rel, { ms: built.ms, labels: submenuLabels(openWithItem(built.menu)) });
+    }
+
+    // ---- let the late answers land ---------------------------------------
+    // A cold build that lost the race to main's 140 ms deadline did NOT
+    // cancel its lookup, and the whole point of that design is the cache it
+    // fills afterwards. Clicking again immediately would measure the same
+    // race a second time and say nothing about the cache, so the probe waits
+    // for the slowest lookup this machine is likely to make.
+    await wait(spec.settleMs ?? 4000);
+
+    // ---- the warm pass: the same rows again, now from the cache ----------
+    for (const rel of spec.rels) {
+      const before = cold.get(rel);
+      if (before === undefined) continue;
+      const warm = await rightClick(rel);
+      const labels = submenuLabels(openWithItem(warm.menu));
+      readings.push({
+        rel,
+        status: statusOf(labels),
+        coldMs: Math.round(before.ms * 10) / 10,
+        warmMs: Math.round(warm.ms * 10) / 10,
+        labels
+      });
+      record(
+        `39: the Open With submenu for ${rel}`,
+        labels.length > 0 && before.ms >= 0 && before.ms < 150 && warm.ms < 150,
+        `cold: ${before.ms.toFixed(1)}ms ${JSON.stringify(before.labels)} | ` +
+          `warm: ${warm.ms.toFixed(1)}ms status=${statusOf(labels)} ` +
+          `${JSON.stringify(labels)}`
+      );
+    }
+
+    // ---- launch one NON-DEFAULT app, and read the argv back --------------
+    const launchRel = spec.launchRel;
+    if (launchRel !== undefined) {
+      const built = await rightClick(launchRel);
+      const item = openWithItem(built.menu);
+      const entries = (item?.submenu ?? []).filter(
+        (entry): entry is MenuItemSpec => entry !== 'sep'
+      );
+      const chosen = entries.find(
+        (entry) =>
+          !entry.label.endsWith(' (default)') &&
+          entry.label !== 'Other…' &&
+          entry.label !== 'Open in Default App'
+      );
+      if (chosen === undefined) {
+        record(
+          '39: open with a non-default app',
+          false,
+          `no non-default row in ${JSON.stringify(submenuLabels(item))}`
+        );
+      } else {
+        // The recorded item's OWN run, which is the shipped action.
+        chosen.run();
+        await wait(600);
+        let recordedLine = '';
+        const recordPath = spec.recordPath;
+        if (recordPath !== undefined) {
+          try {
+            const file = await window.gmux.fs.readFile(recordPath);
+            recordedLine = file.contents.trim().split('\n').pop() ?? '';
+          } catch (err) {
+            recordedLine = `could not read ${recordPath}: ${String(err)}`;
+          }
+        }
+        const abs = `${rootPath}/${launchRel}`;
+        let argvOk = false;
+        try {
+          const parsed = JSON.parse(recordedLine) as {
+            bin: string;
+            args: string[];
+          };
+          argvOk =
+            parsed.bin === '/usr/bin/open' &&
+            parsed.args.length === 3 &&
+            parsed.args[0] === '-a' &&
+            parsed.args[1]?.endsWith('.app') === true &&
+            parsed.args[2] === abs;
+        } catch {
+          argvOk = false;
+        }
+        record(
+          '39: open with a non-default app spawns the right argv',
+          argvOk,
+          `picked=${JSON.stringify(chosen.label)} recorded=${recordedLine}`
+        );
+      }
+    }
+  } finally {
+    useApp.setState({ setMenu: original });
+  }
+
+  record(
+    '39: the readings',
+    readings.length > 0,
+    JSON.stringify(readings)
+  );
+}
+
 /** A button in the Explorer's band header, found the way a person finds it. */
 function headerButton(label: string): HTMLButtonElement | null {
   const el = document.querySelector(
@@ -720,6 +994,21 @@ export async function driveTreeOps(
     record('tree mounted', false, 'no tree handle registered');
     return { steps, passed: 0, failed: 1 };
   }
+  // Phase 39 runs ALONE. It creates nothing, so it needs none of the
+  // scaffolding below, and the file verbs below would churn the tree under
+  // the timing it is here to measure. `spec.scratchDir` is required by the
+  // type and unused on this branch: the caller passes a name the probe never
+  // creates.
+  if (spec.openWith !== undefined) {
+    await driveOpenWith(handle, spec.openWith, record);
+    const failedOpenWith = steps.filter((s) => !s.ok).length;
+    return {
+      steps,
+      passed: steps.length - failedOpenWith,
+      failed: failedOpenWith
+    };
+  }
+
   const { rootPath, ops } = handle;
   const dir = spec.scratchDir;
   const dirCanon = `${dir}/`;

@@ -68,7 +68,9 @@ import type {
   GmuxFsDuplicateExtras,
   GmuxFsExtras,
   GmuxFsOpsExtras,
+  GmuxOpenWithExtras,
   GmuxPreviewExtras,
+  OpenWithInvokeChannelMap,
   PreviewInvokeChannelMap,
   TreeInvokeChannelMap
 } from './files';
@@ -204,6 +206,7 @@ export type GmuxInvokeChannelMap = InvokeChannelMap &
   ConfigInvokeChannelMap &
   UpdatesInvokeChannelMap &
   GmuxPastSessionsChannelMap &
+  OpenWithInvokeChannelMap &
   LogInvokeChannelMap;
 
 export type GmuxInvokeChannel = keyof GmuxInvokeChannelMap;
@@ -265,12 +268,16 @@ export type InstalledGitApi = GmuxApi['git'] &
   GmuxGitGraphExtras &
   GmuxGitIgnoreExtras;
 
-/** The `fs` object the preload installs: base plus tree, ops and image. */
+/**
+ * The `fs` object the preload installs: base plus tree, ops, image and the
+ * Phase 39 Open With pair.
+ */
 export type InstalledFsApi = GmuxApi['fs'] &
   GmuxFsExtras &
   GmuxFsOpsExtras &
   GmuxFsDuplicateExtras &
-  GmuxImageExtras;
+  GmuxImageExtras &
+  GmuxOpenWithExtras;
 
 /** The `term` object the preload installs: base plus acks and exit notices. */
 export type InstalledTermApi = GmuxApi['term'] & GmuxTermStreamExtras;

@@ -231,3 +231,113 @@ export interface GmuxPreviewExtras {
     stats(input: PreviewStatsInput): Promise<PreviewStats | null>;
   };
 }
+
+// ---------------------------------------------------------------------------
+// APPENDED by Phase 39 (Open With on every file row) — two new invoke channels
+// and one optional preload extra. Append only, per the src/shared rule.
+//
+// fs:openWithApps — which apps macOS registers for this file. Only main can
+//   answer it: the list comes from LaunchServices, read by spawning
+//   /usr/bin/osascript, and a renderer spawns nothing. Main races the lookup
+//   against a deadline and answers 'unavailable' when the deadline wins, so
+//   the menu is never held open waiting on a busy machine. The renderer then
+//   shows the degraded submenu, which is "Open in Default App" plus "Other…".
+//
+// fs:openWith — launch the file. Only main can spawn /usr/bin/open, and only
+//   main can raise the system's application panel (NSOpenPanel, through
+//   Electron's dialog.showOpenDialog). Nothing is ever loaded into a Tortie
+//   process: the chosen app is started by LaunchServices as its own process.
+//
+// Both inputs carry `root`, the absolute project root, and go through the
+// same resolveProjectRoot + resolveInsideRoot guards as fs:trash, so a root
+// that is not an open project, a '..' escape, an absolute path outside the
+// root, an escape through a directory symlink and '.git' at any depth are all
+// refused before anything is spawned.
+//
+// MAIN: registered in src/main/fs/ipc.ts (rules in src/main/fs/open-with.ts).
+// PRELOAD: two methods appended to the existing `fs` object, feature-detected
+// by the tree (`typeof window.gmux.fs.openWithApps === 'function'`), so an
+// older preload simply hides the Open With item.
+// ---------------------------------------------------------------------------
+
+/** One app macOS registers as able to open a file. */
+export interface OpenWithApp {
+  /** Absolute path of the .app bundle. */
+  path: string;
+  /** The name Finder shows, e.g. "Preview". */
+  name: string;
+  /** Bundle identifier, or null for a bundle that carries none. */
+  bundleId: string | null;
+}
+
+/**
+ * Which app a launch should use.
+ *
+ * 'app' is a row the user picked out of the submenu. 'default' is the
+ * degraded item, which lets LaunchServices choose. 'choose' raises the
+ * system's own application panel first, and the user picks there.
+ */
+export type OpenWithHandler =
+  | { kind: 'app'; appPath: string }
+  | { kind: 'default' }
+  | { kind: 'choose' };
+
+/**
+ * The answer to fs:openWithApps.
+ *
+ * 'ready' is a lookup that finished. It may still carry no apps at all, which
+ * is the honest answer for an extension nothing on this Mac claims.
+ * 'unavailable' means the lookup did not finish inside the deadline, could
+ * not be spawned, exited non zero, or returned output that did not parse.
+ */
+export type OpenWithApps =
+  | {
+      status: 'ready';
+      /** The app macOS would use, or null when nothing claims the file. */
+      defaultApp: OpenWithApp | null;
+      /** Every other registered app, deduped and sorted by name. */
+      apps: OpenWithApp[];
+    }
+  | { status: 'unavailable' };
+
+export interface OpenWithAppsInput {
+  /** Absolute path of the open project the file lives in. */
+  root: string;
+  /** The file, absolute or relative to the root. */
+  path: string;
+}
+
+export interface OpenWithInput {
+  root: string;
+  path: string;
+  /** Which app opens it. */
+  app: OpenWithHandler;
+}
+
+/**
+ * What a launch did. A failure REPORTS rather than throws, matching the
+ * fs:trash precedent: an app that has been deleted since the menu was built
+ * is an environmental fact, not a programming error. `message` is a complete
+ * sentence, because the renderer may show it on its own.
+ */
+export type OpenWithOutcome =
+  | { status: 'opened' }
+  | { status: 'canceled' }
+  | { status: 'failed'; message: string };
+
+/** The two channels Open With needs. */
+export interface OpenWithInvokeChannelMap {
+  /** Which apps macOS registers for one file (cached per extension). */
+  'fs:openWithApps': { req: [input: OpenWithAppsInput]; res: OpenWithApps };
+  /** Open one file with one app, or raise the system's app panel first. */
+  'fs:openWith': { req: [input: OpenWithInput]; res: OpenWithOutcome };
+}
+
+/**
+ * OPTIONAL extensions to GmuxApi['fs'], feature-detected by the tree
+ * (`typeof window.gmux.fs.openWithApps === 'function'` hides the menu item).
+ */
+export interface GmuxOpenWithExtras {
+  openWithApps?(input: OpenWithAppsInput): Promise<OpenWithApps>;
+  openWith?(input: OpenWithInput): Promise<OpenWithOutcome>;
+}

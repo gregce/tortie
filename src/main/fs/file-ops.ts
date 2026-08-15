@@ -41,7 +41,11 @@ import type {
 import { gmuxError } from '../errors';
 import { fsOpError, fsOpMessage } from './errors';
 import type { ResolvedFsPath } from './paths';
-import { assertBasename, resolveInsideRoot, resolveProjectRoot } from './paths';
+import {
+  assertBasename,
+  resolveInsideRoot,
+  resolveOpenProjectRoot
+} from './paths';
 
 /** Injected so `shell.trashItem` (Electron-only) stays out of the unit tests. */
 export interface FileOpsDeps {
@@ -123,24 +127,13 @@ function isAtOrUnder(dir: string, candidate: string): boolean {
 // ---------------------------------------------------------------------------
 
 export function createFileOps(deps: FileOpsDeps): FileOpsService {
-  /** Resolve + authorize a project root before any path is interpreted. */
-  async function root(input: unknown): Promise<string> {
-    const realRoot = await resolveProjectRoot(input);
-    const known = await deps.listProjectRoots();
-    for (const candidate of known) {
-      let realCandidate: string;
-      try {
-        realCandidate = await resolveProjectRoot(candidate);
-      } catch {
-        continue; // a project folder that has since gone away
-      }
-      if (realCandidate === realRoot) return realRoot;
-    }
-    throw gmuxError(
-      'PROJECT_NOT_FOUND',
-      'That folder is not an open project.',
-      realRoot
-    );
+  /**
+   * Resolve + authorize a project root before any path is interpreted. The
+   * gate itself lives in paths.ts since Phase 39, so Open With runs the same
+   * one rather than a second copy.
+   */
+  function root(input: unknown): Promise<string> {
+    return resolveOpenProjectRoot(input, () => deps.listProjectRoots());
   }
 
   async function createEntry(

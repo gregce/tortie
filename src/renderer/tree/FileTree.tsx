@@ -69,8 +69,10 @@ import {
   useFileTreeSearch
 } from '@pierre/trees/react';
 import { isProtectedFsPath } from '@shared/fs-ops';
+import type { OpenWithApps, OpenWithHandler } from '@shared/ipc';
 import type { FsDirEntry, GitFileStatus } from '@shared/types';
 import { useApp } from '../state/store';
+import type { MenuItemSpec } from '../state/store';
 import { showOneTimeTip } from '../app/one-time-tip';
 import { treeStyles } from '../pierre/theme-bridge';
 import { beginTreeDrag } from '../terminal/drop/tree-drag';
@@ -87,6 +89,13 @@ import {
 import type { FilterStash } from './filter-guard';
 import { canReveal, reveal } from './fs-bridge';
 import { canDuplicate, canMutate } from './fs-ops-bridge';
+import {
+  buildOpenWithSubmenu,
+  canOpenWith,
+  openWith,
+  openWithAppsWithinBudget,
+  openWithFailureToast
+} from './open-with';
 import { expandedDirs, headerDestDir } from './header-actions';
 import { ignoredDotSuppressionCss, ignoredOnlyAncestors, useTreeIgnored } from './ignored';
 import { requestOpenFile } from './open-file';
@@ -1161,12 +1170,73 @@ export function FileTree({
   );
 
   /**
+   * Open one file with one app (Phase 39). The launch itself is main's:
+   * `/usr/bin/open` is spawned there, and the app it starts is not a child of
+   * Tortie. A cancel at the system panel says nothing, because the user
+   * cancelled on purpose.
+   */
+  const runOpenWith = useCallback(
+    (canonical: string, app: OpenWithHandler, appName: string | null): void => {
+      void openWith({
+        root: rootPath,
+        path: absOf(rootPath, canonical),
+        app
+      }).then(
+        (outcome) => {
+          if (outcome.status === 'failed') {
+            toast('error', openWithFailureToast(appName, outcome.message));
+          }
+        },
+        () => toast('error', openWithFailureToast(appName, ''))
+      );
+    },
+    [rootPath, toast]
+  );
+
+  /**
+   * The Open With submenu for one row, or null when the item is not offered.
+   *
+   * Awaiting main here is what makes `showMenuAt` async, and it is why the
+   * whole menu waits, not only this item. The wait is bounded here rather
+   * than in main: `openWithAppsWithinBudget` starts its clock before the IPC
+   * call, so the round trip is inside the deadline instead of added to it.
+   * When the deadline wins the answer is 'unavailable' and the submenu
+   * degrades to 'Open in Default App' plus 'Other…', which is a shape the
+   * user can still act on.
+   */
+  const openWithItemsFor = useCallback(
+    async (
+      canonical: string
+    ): Promise<(MenuItemSpec | 'sep')[] | null> => {
+      if (!canOpenWith()) return null;
+      let apps: OpenWithApps;
+      try {
+        apps = await openWithAppsWithinBudget({
+          root: rootPath,
+          path: absOf(rootPath, canonical)
+        });
+      } catch {
+        // A guard in main refused the path. Offering to open it would be a
+        // promise this build cannot keep, so the item is simply absent.
+        return null;
+      }
+      return buildOpenWithSubmenu(apps, {
+        withApp: (app) =>
+          runOpenWith(canonical, { kind: 'app', appPath: app.path }, app.name),
+        withDefault: () => runOpenWith(canonical, { kind: 'default' }, null),
+        choose: () => runOpenWith(canonical, { kind: 'choose' }, null)
+      });
+    },
+    [rootPath, runOpenWith]
+  );
+
+  /**
    * Build and raise the menu. Finder's rule decides the subject: the verbs
    * apply to the whole selection when the clicked row is inside it, and to
    * that row alone when it is not.
    */
   const showMenuAt = useCallback(
-    (canonical: string | null, x: number, y: number): void => {
+    async (canonical: string | null, x: number, y: number): Promise<void> => {
       const ops = opsRef.current;
       const selected = canonical === null ? [] : model.getSelectedPaths();
       const selection =
@@ -1183,12 +1253,22 @@ export function FileTree({
             ? canonical
             : parentOf(canonical);
 
+      const openable = treeInput.kinds.get(rel) !== 'other';
+      // One file, not a folder, not a multi-row selection, and openable —
+      // exactly the condition Open and Open in New Tab appear under.
+      const single =
+        canonical !== null &&
+        !isDirPath(canonical) &&
+        openable &&
+        selection.length <= 1;
+      const openWithItems = single ? await openWithItemsFor(canonical) : null;
+
       const items = buildTreeMenu(
         {
           canonical,
           selection,
           destDir,
-          openable: treeInput.kinds.get(rel) !== 'other'
+          openable
         },
         {
           mutate: ops !== null && canMutate(),
@@ -1206,12 +1286,21 @@ export function FileTree({
           reveal: revealPath,
           copyPaths,
           trash: (paths) => ops?.trash(paths)
-        }
+        },
+        openWithItems
       );
       if (items.length === 0) return;
       setMenu({ x, y, items });
     },
-    [model, treeInput, openRel, revealPath, copyPaths, setMenu]
+    [
+      model,
+      treeInput,
+      openRel,
+      revealPath,
+      copyPaths,
+      setMenu,
+      openWithItemsFor
+    ]
   );
 
   openMenuRef.current = (item, context): void => {
@@ -1219,7 +1308,7 @@ export function FileTree({
     // surface immediately: gmux's menu is the OS's, and there is nothing
     // to render into the slot.
     const rect = context.anchorRect;
-    showMenuAt(item.path, rect.left, rect.bottom);
+    void showMenuAt(item.path, rect.left, rect.bottom);
     context.close();
   };
 
@@ -1233,7 +1322,7 @@ export function FileTree({
     (e: React.MouseEvent): void => {
       if (rowFromEvent(e.nativeEvent) !== null) return;
       e.preventDefault();
-      showMenuAt(null, e.clientX, e.clientY);
+      void showMenuAt(null, e.clientX, e.clientY);
     },
     [showMenuAt]
   );

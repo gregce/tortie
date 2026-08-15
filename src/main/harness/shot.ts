@@ -184,6 +184,27 @@ export async function runShot(outPath: string, deps: ShotDeps): Promise<void> {
           broadcastEvent(EVT_POWER_RESUME);
           await new Promise((r) => setTimeout(r, 500));
         }
+        // The same measurement the Settings branch above records, applied to
+        // the window every other capture uses. capturePage on a window that
+        // is not frontmost returns the LAST PAINTED FRAME, so a shot taken
+        // while another app held focus photographs the app as it looked
+        // BEFORE the drive ran. Phase 39 hit it: two runs of
+        // build/probe-openwith.mjs, whose drive reported every step and every
+        // reading, wrote an image of an app with no project open and the
+        // default view selected. Raising the window and waiting for two real
+        // frames is what makes the capture show what the drive did. It costs
+        // one window activation during a harness run, which is already what
+        // the Settings branch does, and nothing outside GMUX_SHOT reaches
+        // this code.
+        mainWindow.show();
+        mainWindow.moveTop();
+        mainWindow.focus();
+        await wc
+          .executeJavaScript(
+            'new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(1))))',
+            true
+          )
+          .catch(() => undefined);
         const image = await wc.capturePage();
         await writeFile(outPath, image.toPNG());
         console.log(`[gmux-shot] wrote ${outPath}`);

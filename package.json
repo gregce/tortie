@@ -1,7 +1,7 @@
 {
   "name": "tortie",
   "productName": "Tortie",
-  "version": "0.22.1",
+  "version": "0.23.0",
   "description": "Tortie — a calm, durable place for agentic work: named terminal sessions that outlive the window (private tmux server), git sidebar, decorated file tree, diff + edit surfaces.",
   "private": true,
   "main": "./out/main/index.js",
@@ -22,6 +22,7 @@
     "smoke:identity": "npm run build && node build/harness-socket.mjs gmux-smoke-identity 'GMUX_SMOKE=identity electron . --user-data-dir=\"${TMPDIR:-/tmp/}gmux-smoke-identity\" -ApplePersistenceIgnoreState YES'",
     "smoke:reconstruct": "npm run build && rm -rf \"${TMPDIR:-/tmp/}gmux-smoke-reconstruct\" && node build/harness-socket.mjs gmux-smoke-reconstruct 'GMUX_RECONSTRUCT_ROOT=\"${TMPDIR:-/tmp/}gmux-smoke-reconstruct\" GMUX_SMOKE=reconstruct electron . --user-data-dir=\"${TMPDIR:-/tmp/}gmux-smoke-reconstruct/profile\" -ApplePersistenceIgnoreState YES'",
     "smoke:fault": "npm run build && node build/fault-harness.mjs",
+    "probe:openwith": "node build/probe-openwith.mjs",
     "smoke:power": "npm run build && GMUX_POWER_ROOT=\"${TMPDIR:-/tmp/}gmux-smoke-power\" GMUX_TMUX_SOCKET=\"gmux-power-$$\" GMUX_SMOKE=power electron . --user-data-dir=\"${TMPDIR:-/tmp/}gmux-smoke-power/profile\" -ApplePersistenceIgnoreState YES",
     "smoke:procid": "npm run build && node build/harness-socket.mjs gmux-smoke-procid 'GMUX_SMOKE=procid electron . --user-data-dir=\"${TMPDIR:-/tmp/}gmux-smoke-procid\" -ApplePersistenceIgnoreState YES'",
     "smoke:refusal": "npm run build && rm -rf \"${TMPDIR:-/tmp/}gmux-smoke-refusal\" && GMUX_TMUX_SOCKET=gmux-smoke-refusal GMUX_REFUSAL_ROOT=\"${TMPDIR:-/tmp/}gmux-smoke-refusal\" GMUX_SMOKE=refusal electron . --user-data-dir=\"${TMPDIR:-/tmp/}gmux-smoke-refusal/profile\" -ApplePersistenceIgnoreState YES",

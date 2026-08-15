@@ -26,7 +26,12 @@ export const fs: InstalledFsApi = {
   duplicate: (input) => invoke('fs:duplicate', input),
   move: (input) => invoke('fs:move', input),
   trash: (input) => invoke('fs:trash', input),
-  readImage: (input) => invoke('fs:readImage', input)
+  readImage: (input) => invoke('fs:readImage', input),
+  // Phase 39 Open With. `openWithApps` only reads a list, and `openWith`
+  // starts a process that is NOT a child of Tortie: main spawns
+  // /usr/bin/open, which hands the request to LaunchServices and exits.
+  openWithApps: (input) => invoke('fs:openWithApps', input),
+  openWith: (input) => invoke('fs:openWith', input)
 };
 
 /**

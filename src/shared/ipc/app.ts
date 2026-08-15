@@ -177,6 +177,12 @@ export interface PopupMenuItem {
   icon?: PopupMenuIcon;
   /** 'separator' items need no id/label. */
   type?: 'item' | 'separator';
+  /**
+   * Nested items (Phase 39). An item that carries a submenu has no click of
+   * its own and its `id` is never returned: the id that comes back is always
+   * a leaf's. Optional, so every existing menu site is unchanged.
+   */
+  submenu?: PopupMenuItem[];
 }
 
 export interface PopupMenuInput {

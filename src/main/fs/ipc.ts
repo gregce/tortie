@@ -20,8 +20,8 @@
  *                  live in file-ops.ts + paths.ts; this file is wiring.
  */
 
-import { shell } from 'electron';
-import type { IpcMain } from 'electron';
+import { BrowserWindow, dialog, shell } from 'electron';
+import type { IpcMain, IpcMainInvokeEvent } from 'electron';
 import { open as openFile, readdir, writeFile } from 'node:fs/promises';
 import { basename, resolve as resolvePath } from 'node:path';
 import type { FsDirEntry, ReadFileResult } from '@shared/types';
@@ -29,6 +29,8 @@ import { gmuxError } from '../errors';
 import { handle } from '../typed-ipc';
 import type { FileOpsDeps } from './file-ops';
 import { createFileOps } from './file-ops';
+import type { OpenWithDeps } from './open-with';
+import { createOpenWith, defaultOpenWithDeps } from './open-with';
 
 
 function entryKind(d: {
@@ -106,12 +108,42 @@ function defaultFileOpsDeps(): FileOpsDeps {
 }
 
 /**
- * Register fs:readDir + fs:reveal (tree), fs:readFile + fs:writeFile
- * (editor) and the Phase 12.9 mutation channels. Call once during
- * main-process boot. `deps` is for tests and for an integrator that wants to
- * hand in its own project-root source; production passes nothing.
+ * Raise the system's own application panel and hand back the picked bundle.
+ *
+ * `treatPackageAsDirectory` is deliberately absent: leaving it off is what
+ * makes an .app bundle selectable rather than something the user browses
+ * into. Parenting to the sender's window follows projects:pickDirectory in
+ * src/main/ipc.ts, which is the existing precedent for a modal panel.
  */
-export function registerFsIpc(ipc: IpcMain, deps?: FileOpsDeps): void {
+async function chooseAppFor(event: IpcMainInvokeEvent): Promise<string | null> {
+  const options = {
+    properties: ['openFile'] as Array<'openFile'>,
+    defaultPath: '/Applications',
+    filters: [{ name: 'Applications', extensions: ['app'] }],
+    message: 'Choose an app to open this file',
+    buttonLabel: 'Open'
+  };
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const result =
+    win !== null && !win.isDestroyed()
+      ? await dialog.showOpenDialog(win, options)
+      : await dialog.showOpenDialog(options);
+  if (result.canceled) return null;
+  return result.filePaths[0] ?? null;
+}
+
+/**
+ * Register fs:readDir + fs:reveal (tree), fs:readFile + fs:writeFile
+ * (editor), the Phase 12.9 mutation channels and the Phase 39 Open With pair.
+ * Call once during main-process boot. `deps` is for tests and for an
+ * integrator that wants to hand in its own project-root source; production
+ * passes nothing.
+ */
+export function registerFsIpc(
+  ipc: IpcMain,
+  deps?: FileOpsDeps,
+  openWithDeps?: OpenWithDeps
+): void {
   const fileOps = createFileOps(deps ?? defaultFileOpsDeps());
 
   handle(ipc, 'fs:readDir', async (_e, dirPath) => {
@@ -190,4 +222,15 @@ export function registerFsIpc(ipc: IpcMain, deps?: FileOpsDeps): void {
   handle(ipc, 'fs:duplicate', (_e, input) => fileOps.duplicate(input));
   handle(ipc, 'fs:move', (_e, input) => fileOps.move(input));
   handle(ipc, 'fs:trash', (_e, input) => fileOps.trash(input));
+
+  // ----- Phase 39 Open With ----------------------------------------------
+  // Thin by design, like the block above: the deadline, the cache, the
+  // dedupe rule and every refusal live in open-with.ts.
+
+  const openWith = createOpenWith(openWithDeps ?? defaultOpenWithDeps());
+
+  handle(ipc, 'fs:openWithApps', (_e, input) => openWith.apps(input));
+  handle(ipc, 'fs:openWith', (e, input) =>
+    openWith.open(input, () => chooseAppFor(e))
+  );
 }

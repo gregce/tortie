@@ -8,7 +8,7 @@
 
 import { BrowserWindow, ipcMain, Menu, nativeImage } from 'electron';
 import type { MenuItemConstructorOptions } from 'electron';
-import type { PopupMenuIcon } from '@shared/ipc';
+import type { PopupMenuIcon, PopupMenuItem } from '@shared/ipc';
 import { handle } from './typed-ipc';
 
 // ---------------------------------------------------------------------------
@@ -61,6 +61,48 @@ function menuIcon(icon: PopupMenuIcon | undefined): Electron.NativeImage | null 
   }
 }
 
+/**
+ * The item array → Electron's menu template. Extracted from the handler in
+ * Phase 39 and kept PURE (its only outside contact is `onClick`, which it
+ * merely stores) so a unit test can prove the nesting: `Menu.popup` opens an
+ * OS-owned window that `capturePage` cannot photograph, so the template is
+ * the only place the submenu's shape can be read back.
+ *
+ * An item that carries a submenu recurses and gets NO click of its own: on
+ * macOS a parent item does not fire, and giving it one would let a stray id
+ * come back that maps to no leaf.
+ */
+export function toMenuTemplate(
+  items: readonly PopupMenuItem[],
+  onClick: (id: string) => void
+): MenuItemConstructorOptions[] {
+  return items.map((item) => {
+    if (item.type === 'separator') {
+      return { type: 'separator' as const };
+    }
+    const accelerator = hintToAccelerator(item.hint);
+    const icon = menuIcon(item.icon);
+    const base = {
+      label: item.label,
+      enabled: item.enabled ?? true,
+      // `destructive` has no native Electron menu treatment; the
+      // confirm dialogs behind those items carry the red styling.
+      ...(accelerator !== null ? { accelerator } : {}),
+      ...(item.sublabel !== undefined ? { sublabel: item.sublabel } : {}),
+      ...(icon !== null ? { icon } : {})
+    };
+    if (item.submenu !== undefined) {
+      return { ...base, submenu: toMenuTemplate(item.submenu, onClick) };
+    }
+    return {
+      ...base,
+      click: (): void => {
+        onClick(item.id);
+      }
+    };
+  });
+}
+
 export function registerPopupMenuHandler(): void {
   handle(
     ipcMain,
@@ -73,27 +115,9 @@ export function registerPopupMenuHandler(): void {
           return;
         }
         let clicked: string | null = null;
-        const template: MenuItemConstructorOptions[] = input.items.map(
-          (item) => {
-            if (item.type === 'separator') {
-              return { type: 'separator' as const };
-            }
-            const accelerator = hintToAccelerator(item.hint);
-            const icon = menuIcon(item.icon);
-            return {
-              label: item.label,
-              enabled: item.enabled ?? true,
-              // `destructive` has no native Electron menu treatment; the
-              // confirm dialogs behind those items carry the red styling.
-              ...(accelerator !== null ? { accelerator } : {}),
-              ...(item.sublabel !== undefined ? { sublabel: item.sublabel } : {}),
-              ...(icon !== null ? { icon } : {}),
-              click: (): void => {
-                clicked = item.id;
-              }
-            };
-          }
-        );
+        const template = toMenuTemplate(input.items, (id) => {
+          clicked = id;
+        });
         Menu.buildFromTemplate(template).popup({
           window: win,
           x: Math.round(input.x),

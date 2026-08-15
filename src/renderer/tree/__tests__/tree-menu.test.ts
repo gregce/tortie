@@ -101,6 +101,85 @@ describe('a file row', () => {
   });
 });
 
+describe('Open With (Phase 39)', () => {
+  const submenu: (MenuItemSpec | 'sep')[] = [
+    { label: 'Preview (default)', run: vi.fn() },
+    'sep',
+    { label: 'Other…', run: vi.fn() }
+  ];
+
+  it('sits with the two openings, and carries the submenu it was handed', () => {
+    const items = buildTreeMenu(
+      {
+        canonical: 'shot.png',
+        selection: ['shot.png'],
+        destDir: '',
+        openable: true
+      },
+      ALL,
+      actions(),
+      submenu
+    );
+    expect(labels(items).slice(0, 3)).toEqual([
+      'Open',
+      'Open in New Tab',
+      'Open With'
+    ]);
+    const parent = items.find(
+      (i): i is MenuItemSpec => i !== 'sep' && i.label === 'Open With'
+    );
+    expect(parent?.submenu).toBe(submenu);
+  });
+
+  it('is absent when nothing was handed in', () => {
+    const items = buildTreeMenu(
+      {
+        canonical: 'shot.png',
+        selection: ['shot.png'],
+        destDir: '',
+        openable: true
+      },
+      ALL,
+      actions()
+    );
+    expect(labels(items)).not.toContain('Open With');
+  });
+
+  it('is absent for a folder, a multi-selection and an unopenable row', () => {
+    const folder = buildTreeMenu(
+      { canonical: 'src/', selection: ['src/'], destDir: 'src/', openable: true },
+      ALL,
+      actions(),
+      submenu
+    );
+    const many = buildTreeMenu(
+      {
+        canonical: 'a.ts',
+        selection: ['a.ts', 'b.ts'],
+        destDir: '',
+        openable: true
+      },
+      ALL,
+      actions(),
+      submenu
+    );
+    const socket = buildTreeMenu(
+      {
+        canonical: 'run.sock',
+        selection: ['run.sock'],
+        destDir: '',
+        openable: false
+      },
+      ALL,
+      actions(),
+      submenu
+    );
+    expect(labels(folder)).not.toContain('Open With');
+    expect(labels(many)).not.toContain('Open With');
+    expect(labels(socket)).not.toContain('Open With');
+  });
+});
+
 describe('a folder row', () => {
   it('creates INSIDE the folder and does not offer Open', () => {
     const act = actions();

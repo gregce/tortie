@@ -9,3 +9,17 @@ export {
   type ImageReader,
   type ImageReaderDeps
 } from './image';
+/** Open With (Phase 39) — the app list and the launch. */
+export {
+  createOpenWith,
+  defaultOpenWithDeps,
+  isAppBundleOnDisk,
+  launchRecorder,
+  normalizeLookup,
+  parseLookup,
+  APP_LOOKUP_SCRIPT,
+  OPEN_WITH_DEADLINE_MS,
+  type AppChooser,
+  type OpenWithDeps,
+  type OpenWithService
+} from './open-with';

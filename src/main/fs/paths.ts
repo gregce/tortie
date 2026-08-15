@@ -107,6 +107,39 @@ export async function resolveProjectRoot(root: unknown): Promise<string> {
 }
 
 /**
+ * Resolve a project root AND prove it is one of the folders Tortie has open.
+ *
+ * A renderer bug must not be able to turn "/" into a project root and make
+ * the whole disk writable, so every channel that takes a `root` runs it
+ * through here first. The comparison is between REAL paths on both sides, so
+ * a symlinked spelling of an open project is accepted and a stranger that
+ * merely looks similar is not.
+ *
+ * Extracted in Phase 39 so the file-operations service and Open With share
+ * one gate rather than two copies of it.
+ */
+export async function resolveOpenProjectRoot(
+  root: unknown,
+  listProjectRoots: () => Promise<readonly string[]>
+): Promise<string> {
+  const realRoot = await resolveProjectRoot(root);
+  for (const candidate of await listProjectRoots()) {
+    let realCandidate: string;
+    try {
+      realCandidate = await resolveProjectRoot(candidate);
+    } catch {
+      continue; // a project folder that has since gone away
+    }
+    if (realCandidate === realRoot) return realRoot;
+  }
+  throw gmuxError(
+    'PROJECT_NOT_FOUND',
+    'That folder is not an open project.',
+    realRoot
+  );
+}
+
+/**
  * Prove `input` lives inside `realRoot` and hand back both spellings.
  *
  * `input` may be absolute (must be inside the root) or relative to the root,
