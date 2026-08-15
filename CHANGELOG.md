@@ -1,167 +1,111 @@
 # Changelog
 
-Release notes, written by hand for the person installing the app. Each entry
-says what you can now do that you could not before, and what is still not
-true. The build story itself lives in the git history and in docs/BACKLOG.md.
-This file does not restate it.
+Each release lists its changes under Added, Changed and Fixed, and every item links
+to a representative commit. Prose appears above those sections only when something
+needs explaining. Versions follow semver: the minor moves for features, the patch
+for fixes.
 
 ## 0.20.2 (2026-08-15)
 
-Tortie delivers this update to you by itself. If you are running 0.19.0 or
-0.19.1, the Tortie menu will offer "Update to 0.20.2, installs when you
-quit" within a few hours, or immediately through Check for Updates under
-About Tortie. Nothing to download, nothing moves, and your sessions keep
-running through the swap.
+Every quit of the packaged app had been ending in a crash inside the file watcher.
+The app looked like it closed normally while macOS filed a crash report each time.
+That is fixed. Removing a session no longer destroys it either: removed sessions
+move to a searchable list you can restore from for 90 days.
 
-### Quitting is now a real quit
+If you are running 0.19.0 or later, Tortie delivers this update itself. The Tortie
+menu offers it within a few hours, or immediately through Check for Updates.
 
-Every quit of the packaged app used to end in a hidden crash inside the
-file watcher, which macOS quietly filed as a crash report. Now the app
-waits for its watchers before teardown, and 5 of 5 measured quits under
-load ended cleanly with 0 new crash reports.
+### Added
 
-### Your removed sessions are no longer gone
+- Past Sessions, at the bottom of the Session menu. A searchable list of every session you removed, newest first, each row saying before you click whether Restore continues the conversation or starts fresh. Removed sessions are kept for 90 days ([`d08ab00`](https://github.com/gregce/tortie/commit/d08ab00))
+- A dialog that tells you an update is ready and installs when you quit, shown after a check you started ([`aa4e456`](https://github.com/gregce/tortie/commit/aa4e456))
+- An updater log in packaged builds, and a line on the next launch when an install was refused, naming the reason ([`a63ec76`](https://github.com/gregce/tortie/commit/a63ec76))
 
-Remove no longer deletes a session's record. It moves to Past Sessions, at
-the bottom of the Session menu: a searchable list of everything you
-removed, newest first, each row saying before you click whether Restore
-continues the old conversation or starts fresh. Removed sessions are kept
-for 90 days.
+### Changed
 
-### Split groups survive closing a project
+- New File and New Folder open a name box in the tree instead of creating an untitled row. Nothing is written to disk until you commit a valid name ([`7c0ae02`](https://github.com/gregce/tortie/commit/7c0ae02))
+- Removing a skill removes it through the skills CLI and lists every path that will leave the disk before you confirm ([`f33599b`](https://github.com/gregce/tortie/commit/f33599b))
 
-Drag sessions into a split group, close the project tab, reopen it, and
-the arrangement comes back exactly as you left it, including which pane
-had focus. It survives a full app restart too.
+### Fixed
 
-### The updater tells the truth
-
-When a check you started finishes downloading, one dialog says the update
-is ready and installs when you quit. If an install was refused, e.g.
-because another copy of Tortie was running, the next launch says so in
-one line. Packaged builds now keep their own updater log.
-
-### Smaller honest fixes
-
-- A new file or folder is named before it exists. No more untitled rows
-  that are not really there.
-- Removing a skill removes it fully through the skills CLI and lists every
-  path that will leave the disk before you confirm.
-- An antigravity session can no longer take credit for another session's
-  conversation. Ownership is proven by the process that holds the
-  conversation open.
-- A terminal pane that lost its fast renderer to a lid close recovers on
-  the next wake.
+- Quitting is a real quit. The app waits for its file watchers before teardown, and 5 of 5 measured quits under load ended with no crash report ([`3c09245`](https://github.com/gregce/tortie/commit/3c09245), [`3d1d70c`](https://github.com/gregce/tortie/commit/3d1d70c))
+- Split groups keep their arrangement, including which pane had focus, when you close a project and reopen it, and across a full restart ([`2cbd873`](https://github.com/gregce/tortie/commit/2cbd873))
+- An antigravity session can no longer claim another session's conversation. Ownership is proven by the process holding the conversation open, and a wrong claim is taken back ([`ecdfcad`](https://github.com/gregce/tortie/commit/ecdfcad))
 
 ## 0.19.1 (2026-08-14)
 
-A small one, and the first release Tortie delivers to you by itself. If you
-are running 0.19.0, this update announces itself in the Tortie menu and
-installs when you quit. Your sessions keep running the whole time.
+The first release Tortie delivered to installed copies by itself.
 
-- The About panel now credits gregce, with the repository address, instead
-  of reading SpecStory.
+### Fixed
+
+- The About panel credits gregce with the repository address, instead of reading SpecStory ([`dbbaea1`](https://github.com/gregce/tortie/commit/dbbaea1))
 
 ## 0.19.0 (2026-08-14)
 
-This is the last release you install by hand.
+Tortie updates itself from this version on. It checks 30 seconds after launch and
+then every 6 hours, and when an update is ready a single menu item appears reading
+"Update to X.Y.Z, installs when you quit". There is no popup and no badge. The
+install happens when you quit, and your sessions keep running through the swap
+because they live outside the app.
 
-### Tortie now updates itself
+A copy of 0.18.0 cannot update itself, since the updater arrived after it shipped.
+Installing this version by hand is the last time that is necessary.
 
-From this version on, Tortie checks for updates on its own, 30 seconds
-after launch and then every 6 hours. When one is ready, a single menu item
-appears under the Tortie menu reading "Update to X.Y.Z, installs when you
-quit". No popup, no badge. The update installs when you quit, and your
-sessions keep running through the swap, because they live outside the app.
-You can also check any time with "Check for Updates" under About Tortie.
+### Added
 
-A few honest details:
+- Self update through the GitHub releases feed, with install on quit, a Check for Updates item under About Tortie, and a halt script for pulling a bad version from the feed ([`b96b519`](https://github.com/gregce/tortie/commit/b96b519))
+- A check on first launch after an update that the bundled files all resolve, with one quiet notice if any is missing ([`b96b519`](https://github.com/gregce/tortie/commit/b96b519))
+- A log line whenever a helper process dies, carrying the reason and the decoded exit code ([`e9a8731`](https://github.com/gregce/tortie/commit/e9a8731))
 
-- A copy of 0.18.0 cannot update itself, because the updater arrived after
-  it shipped. Install this version by hand, and it is the last time.
-- A corrupted or tampered download is refused and nothing changes.
-- After an update, Tortie checks its own bundled files on first launch and
-  tells you once if anything is missing.
+### Fixed
 
-### Better behavior around sleep and wake
+- A terminal pane that lost its fast renderer when the laptop lid closed now recovers on the next wake, instead of staying on the slower path until the pane was restarted ([`e9a8731`](https://github.com/gregce/tortie/commit/e9a8731))
 
-Closing the laptop lid could leave a terminal pane drawing on a slower
-path until you restarted the pane. Now every wake retries the fast
-renderer, and the pane recovers on its own. Tortie also writes one log
-line whenever a helper process dies, with the reason and the decoded exit
-code, so a rare crash leaves a record instead of a mystery.
+## 0.18.0 (2026-08-14)
 
-## 0.18.0 (2026-08-13)
+The first release you can download and install. Tortie is a macOS home for coding
+agents: your projects open as tabs in one window, you start Claude Code, Codex,
+Cursor or any of twelve supported agents with a keystroke, and the work keeps
+running whether the window is open or not. Quit the app, reboot the Mac, come back
+tomorrow, and your sessions are still there with their scrollback and a resume
+command ready for the agent's own conversation.
 
-Welcome to Tortie. This is the first release you can download and install.
+The build is signed with a Developer ID and notarized, so it opens without the
+right-click ritual an unsigned app needs. If you ran an earlier build, macOS asks
+once more for each permission you had granted, because the app's identity changed
+to `com.itavero.tortie` and macOS ties permissions to identity. Your data and your
+sessions are not touched.
 
-Tortie is a calm home for your coding agents on macOS. You open your
-projects as tabs in one window, start Claude Code, Codex, Cursor or any of
-twelve supported agents with a keystroke, and the work keeps running whether
-the window is open or not. Quit the app, reboot the Mac, come back tomorrow.
-Your sessions are still there, with their scrollback, ready to continue the
-conversation where it stopped.
+Two limits worth knowing. This build does not update itself, so an update is a
+download and a drag until 0.19.0. And once it has opened your session data, older
+builds refuse to open it, which is deliberate and one way only.
 
-### Signed and notarized, so it just opens
+### Added
 
-Tortie is signed with a Developer ID and notarized by Apple. Download it,
-drag it to Applications, and it opens. No warning dialogs, no right-click
-ritual.
+- Signed and notarized builds under the Itavero identity, with four CI lanes and a release pipeline ([`47eb4f9`](https://github.com/gregce/tortie/commit/47eb4f9))
+- Restore an ended session, with its scrollback replayed and the agent's resume command armed and waiting for your Enter ([`68620b8`](https://github.com/gregce/tortie/commit/68620b8))
+- The Context view: every skill, MCP server, hook, plugin and instruction file on your machine, listed per agent, with skill installs from GitHub ([`ec219a3`](https://github.com/gregce/tortie/commit/ec219a3))
+- Add an agent Tortie has never heard of with one JSON file. Nothing in that file runs as code, and anything that could start a process asks you first ([`89a5a9a`](https://github.com/gregce/tortie/commit/89a5a9a))
+- A home screen listing recent projects, and repository cloning with per phase progress ([`7b42536`](https://github.com/gregce/tortie/commit/7b42536))
+- HTML preview beside markdown, with untrusted pages held in a frame that can do nothing ([`ffd623b`](https://github.com/gregce/tortie/commit/ffd623b))
+- A verified backup ring for the session list, refreshed at launch, on sleep, on quit and as things change, with a menu item to rebuild the list from it ([`8bb473e`](https://github.com/gregce/tortie/commit/8bb473e))
+- Durable writes and a fault harness that kills the app at 16 chosen points and proves what survives, now a permanent gate ([`3be5d0e`](https://github.com/gregce/tortie/commit/3be5d0e))
+- Zoom for the search pane, through the shared view region model ([`d6d0fc8`](https://github.com/gregce/tortie/commit/d6d0fc8))
+- SpecStory capture, sync and cloud status per session ([`e930530`](https://github.com/gregce/tortie/commit/e930530))
 
-If you already run Tortie from an earlier build, macOS will ask again for
-each permission you had granted, one time. That is because the app's
-identity changed in this release, to `com.itavero.tortie`, and macOS ties
-permissions to identity. Your data and your sessions are not touched, and
-this identity is the final one, so this is the last time.
+### Changed
 
-### What you can do
+- The window is one geometry model, so an open file can no longer crush the session tab strip ([`bfa67d7`](https://github.com/gregce/tortie/commit/bfa67d7))
+- The app is named Tortie, and its data directory migrates by copy and verify, leaving the original in place ([`09cb853`](https://github.com/gregce/tortie/commit/09cb853), [`53fa1e4`](https://github.com/gregce/tortie/commit/53fa1e4))
 
-- **Keep your sessions forever.** End a session and bring it back later,
-  scrollback and all, with the agent's resume command typed and waiting for
-  your Enter.
-- **See what your agents actually load.** The Context view lists every
-  skill, MCP server, hook, plugin and instruction file on your machine, per
-  agent, and can install a skill from GitHub.
-- **Add your own agent.** A new CLI Tortie has never heard of takes one
-  JSON file, no rebuild. Nothing in that file can run code, and anything
-  that could start a process asks you first.
-- **Start fast.** A home screen lists your recent projects, and you can
-  clone a repository from the File menu with a real progress bar.
-- **Preview files.** Markdown and HTML render inside the app, with
-  untrusted pages locked in a frame that can do nothing.
+### Fixed
 
-### What protects your work
-
-Most of this release is invisible. It is the part that makes the durability
-promise true rather than hopeful.
-
-- Your session list keeps five verified backup copies beside it, refreshed
-  at launch, on sleep, on quit and every few minutes while things change.
-  A menu item can rebuild the list from those copies if the worst happens.
-- A full disk or a power cut during a save can no longer replace a good
-  copy with a bad one. Every important write is verified before it counts.
-- The app was killed on purpose at 16 of its worst possible moments, in an
-  automated harness, and everything came back every time. That harness now
-  runs as a permanent gate on every change.
-- Restore tells the truth. A session that did not come back says so,
-  instead of pretending.
-
-### Honest notes
-
-- This build does not update itself yet. The updater is written and tested
-  and arrives in the next release. Until then, an update is a download and
-  a drag.
-- The backups live on the same disk as the original. An off-machine copy is
-  a planned, separate feature.
-- Once this build has opened your session data, older builds refuse to open
-  it. That is deliberate, and your sessions keep running either way.
-
-### Install
-
-macOS on Apple silicon. Download the DMG, open it, drag Tortie to
-Applications, and point it at a project folder.
+- Restore reads the manifest row rather than the live registry, so a later registry change cannot lose a recorded conversation ([`a00f798`](https://github.com/gregce/tortie/commit/a00f798))
+- The DeepSeek CLI renamed itself to codewhale, and both names are detected ([`041b664`](https://github.com/gregce/tortie/commit/041b664))
+- Four Context sidebar defects from the first morning of real use, including a git error that could not be dismissed ([`5bdf81b`](https://github.com/gregce/tortie/commit/5bdf81b), [`d8e2ebf`](https://github.com/gregce/tortie/commit/d8e2ebf))
+- Reconcile no longer flips live sessions to restorable, and the manifest tolerates a busy database ([`cda2b1a`](https://github.com/gregce/tortie/commit/cda2b1a), [`bfc3c85`](https://github.com/gregce/tortie/commit/bfc3c85))
 
 ## 0.0.1
 
-Everything before the first tagged release, Phases 1 through 17. Never
-published anywhere. The record is docs/BACKLOG.md and the git history.
+Everything before the first tagged release. Never published. The record is
+docs/BACKLOG.md and the git history.

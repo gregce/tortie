@@ -62,11 +62,16 @@ in the shipping build.
 Phases accumulate on main with the version moving per commit type. A release is cut only at a
 breakpoint, and the breakpoints are chosen by the rule below rather than by the calendar.
 
+Releases are named by CONTENT, not by a predicted number. The version on main moves with
+every commit, so the number a release carries is whatever main holds when the operator cuts it.
+As of 2026-08-15 main is at 0.22.0 after Phases 35 and 33, so the release below called 0.21.0
+will in fact be cut at 0.22.0 or higher.
+
 | Release | Contents | The story it tells |
 | --- | --- | --- |
-| **0.21.0**, after wave 2 lands | 47, 35, 33, 34, 40, 39 and 43 | Tortie explains itself and gets out of your way. Every item is either a defect the operator reported or a diagnostic that makes the next failure legible. Nothing changes how sessions live or how the app starts |
-| **0.22.0**, bundled tmux alone | 41 | A fresh Mac runs Tortie with nothing installed first. It travels alone because it changes which binary owns every session at the next cold start, and a warm server on an older tmux is the one hazard that must be unambiguously attributable |
-| **0.23.0** | 46, plus the herdr study recommendations if the operator green lights them, especially the versioned resume contracts | Tortie shows you your CI and stops guessing about resumes |
+| **The first**, after wave 2 lands | 47, 35, 33, 34, 40, 39 and 43 | Tortie explains itself and gets out of your way. Every item is either a defect the operator reported or a diagnostic that makes the next failure legible. Nothing changes how sessions live or how the app starts |
+| **The second**, bundled tmux alone | 41 | A fresh Mac runs Tortie with nothing installed first. It travels alone because it changes which binary owns every session at the next cold start, and a warm server on an older tmux is the one hazard that must be unambiguously attributable |
+| **The third** | 46, plus the herdr study recommendations if the operator green lights them, especially the versioned resume contracts | Tortie shows you your CI and stops guessing about resumes |
 
 **The rule that generates a breakpoint.** Cut a release when all three are true.
 
@@ -78,7 +83,7 @@ breakpoint, and the breakpoints are chosen by the rule below rather than by the 
    regression has one suspect rather than several.
 
 **Why Phase 43 moved forward into wave 2.** A fix to the update path only protects the updates
-that come after the version carrying it. Shipping the updater recovery in 0.21.0 means 0.22.0,
+that come after the version carrying it. Shipping the updater recovery in the first release means the bundled tmux release,
 the riskiest delivery in the queue, lands on a build that can heal its own updater state. The
 operator hit that exact wreckage by hand on 2026-08-15.
 
