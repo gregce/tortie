@@ -4065,9 +4065,9 @@ the native menu bridge. Degrade ladder with quiet copy: gh absent, logged out, r
 github remote, offline. **Tier 2** plus one live probe on a real push to gregce/tortie, which
 also closes the one unverified claim, mid run step visibility. **Semver:** feat.
 
-## Phase 47 — explorer nits: ignored files grey out, the filter holds, a density knob (user requested, 2026-08-15) QUEUED
+## Phase 47 — explorer and git pane nits (user requested, 2026-08-15) QUEUED
 
-Three small items, one phase, all in the explorer tree. Runs FIRST after Phase 42 lands.
+Four small items, one phase. Runs FIRST after Phase 42 lands.
 
 **Item 1, gitignored entries grey out.** Anything the repository ignores renders dimmed in the
 file tree, the VS Code convention. Detection comes from git itself (porcelain v2 already feeds
@@ -4091,4 +4091,17 @@ filtered view survive; toggle density, screenshot read both states, relaunch, pr
 The known must-not-regress: tree drag to terminal, inline naming from Phase 37, and git status
 colors all still work with each item, checked in the same probe.
 
-**Semver.** fix, patch bump (item 2 is a defect; the set rides as one fix).
+**Item 4, the graph gutter gets a compact option.** In the history and graph section, commit
+text today sits pushed far right because the gutter reserves width for the widest possible lane
+count. The operator's reference is VS Code's Graph view, where text hugs the lanes. Add a small
+toggle in the pane header next to the filter: compact keeps the gutter tight to the lanes
+actually present in view, wide keeps today's fixed reservation. The choice persists in a gmux.*
+localStorage key. The vendored VS Code graph layout algorithm is NOT modified; only the gutter
+width the renderer grants it is. Reference screenshots from 2026-08-15 are the operator's
+message of that date.
+
+**Verification for item 4.** Screenshot reads of the same repository in both modes, one with 1
+lane and one with 4 plus lanes, proving compact hugs the lanes and wide matches today, and that
+ref pills and dates still degrade per the Phase 12 rules rather than clipping.
+
+**Semver.** fix, patch bump (items 2 and 4 correct defects of the surface; the set rides as one fix).
