@@ -22,10 +22,11 @@
  *  - unexpected PTY exit (session killed elsewhere, server died) → notify
  *    the renderer on term:exit:<sessionId> and the main-side onExit hook.
  *
- * NOTE: we run the SYSTEM tmux (3.6a at build time); bundling a pinned tmux
- * inside gmux.app is out of scope today (FINAL-REPORT §5 Stream A1 owns the
- * shipping plan). Binary/conf resolution lives in src/main/tmux/resolve.ts
- * (growth guardrail 3) — AttachHostOptions.tmuxBin normally overrides.
+ * WHICH TMUX RUNS (Phase 41). A packaged Tortie attaches with the pinned tmux
+ * inside its own bundle; a development build attaches with the machine's own,
+ * which is 3.6a here. Binary and conf resolution lives in
+ * src/main/tmux/resolve.ts (growth guardrail 3), and AttachHostOptions.tmuxBin
+ * normally overrides both.
  */
 
 import { ipcMain } from 'electron';
@@ -42,7 +43,11 @@ import {
 import type { TermExitPayload } from '@shared/ipc';
 import type { GmuxErrorPayload } from '@shared/types';
 import { withUtf8Locale } from '../tmux/env';
-import { findTmuxBinary, resolveConfPath } from '../tmux/resolve';
+import {
+  resolveConfPath,
+  resolveTmux,
+  tmuxUnavailableError
+} from '../tmux/resolve';
 import { TMUX_SOCKET } from '../tmux/supervisor';
 import { getLog } from '../log';
 
@@ -170,13 +175,20 @@ export class AttachHost {
     // Replace any existing client (renderer reloaded, or re-attach).
     this.detach(req.sessionId);
 
-    const tmuxBin = this.opts.tmuxBin ?? findTmuxBinary();
-    if (!tmuxBin) {
-      throw gmuxError(
-        'TMUX_NOT_FOUND',
-        'tmux is not installed (looked in /opt/homebrew/bin, /usr/local/bin, /usr/bin)',
-        'brew install tmux'
-      );
+    // Phase 41: one composer for both "there is no tmux" sentences, in
+    // ../tmux/resolve. This host and the supervisor each wrote their own
+    // before that, and the two had already drifted apart. A packaged Tortie
+    // that cannot find its own bundled copy has a broken install, and telling
+    // that user to run brew was never right.
+    //
+    // Resolution only runs when the caller named no binary, which is the
+    // normal case in tests and harnesses. The supervisor passes the path it
+    // already resolved, so an attach costs no extra filesystem probing.
+    let tmuxBin = this.opts.tmuxBin ?? null;
+    if (tmuxBin === null) {
+      const resolution = resolveTmux();
+      if (resolution.path === null) throw tmuxUnavailableError(resolution);
+      tmuxBin = resolution.path;
     }
     const confPath = this.opts.confPath ?? resolveConfPath();
     // The socket name is the supervisor's constant, never a second literal:

@@ -55,7 +55,12 @@ import { AttentionOverlay } from './AttentionOverlay';
 import { ConfirmDialog } from './ConfirmDialog';
 import { ContextInstallHost } from '../context';
 import { Toasts } from './Toasts';
-import { FirstRun, TmuxMissing } from './EmptyStates';
+import {
+  FirstRun,
+  TmuxBundleIncomplete,
+  TmuxMissing,
+  TmuxVersionBlocked
+} from './EmptyStates';
 // Phase 12.12 item 3: ⌘1-⌘8 by position, ⌘9 = last. One module, shared with
 // the tabs' ⌘-held hints so the two can never disagree.
 import { digitToIndex } from './project-shortcuts';
@@ -1096,11 +1101,15 @@ export function App(): React.JSX.Element {
     );
   }
 
-  if (bootBlock === 'tmux-missing') {
+  // Phase 41: three boot blocks, one shape. The screens differ, the chrome
+  // around them does not, and none of them renders the rest of the app.
+  if (bootBlock !== null) {
     return (
       <div className="shell">
         <div className="titlebar" />
-        <TmuxMissing />
+        {bootBlock === 'tmux-missing' ? <TmuxMissing /> : null}
+        {bootBlock === 'tmux-bundle-incomplete' ? <TmuxBundleIncomplete /> : null}
+        {bootBlock === 'tmux-version-blocked' ? <TmuxVersionBlocked /> : null}
         <Toasts />
       </div>
     );

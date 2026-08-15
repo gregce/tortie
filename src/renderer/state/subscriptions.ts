@@ -35,7 +35,8 @@ import type {
 import type { DurabilityNotice, GmuxNotice } from '@shared/notice';
 import { isDurabilityNotice } from '@shared/notice';
 import { formatScrollbackBytes } from '@shared/scrollback';
-import type { AppState } from './app-state';
+import type { GmuxErrorPayload } from '@shared/types';
+import type { AppState, BootBlock } from './app-state';
 import { errorPayload, errorText } from './errors';
 import { loadLocal } from './local';
 import { LS_ACTIVE_PROJECT } from './projects-slice';
@@ -78,6 +79,7 @@ export async function hydrateAppState(store: AppStore): Promise<void> {
       ready: true,
       bootBlock: null,
       bootErrorDetail: null,
+      bootBlockMessage: null,
       projects: merged,
       activeProjectId
     });
@@ -101,10 +103,15 @@ export async function hydrateAppState(store: AppStore): Promise<void> {
     }
   } catch (err) {
     const payload = errorPayload(err);
-    if (payload?.code === 'TMUX_NOT_FOUND') {
+    // Phase 41: three codes, three screens. Each one also carries the sentence
+    // main composed, because the version block's sentence holds two numbers
+    // that exist nowhere in the renderer.
+    const block = payload === null ? null : BOOT_BLOCK_BY_CODE[payload.code];
+    if (payload !== null && block !== undefined) {
       setState({
         ready: true,
-        bootBlock: 'tmux-missing',
+        bootBlock: block,
+        bootBlockMessage: payload.message,
         bootErrorDetail: payload.detail ?? null
       });
     } else {
@@ -113,6 +120,15 @@ export async function hydrateAppState(store: AppStore): Promise<void> {
     }
   }
 }
+
+/** Which main-process failure stops the boot, and with which screen. */
+const BOOT_BLOCK_BY_CODE: Partial<
+  Record<GmuxErrorPayload['code'], Exclude<BootBlock, null>>
+> = {
+  TMUX_NOT_FOUND: 'tmux-missing',
+  TMUX_BUNDLE_INCOMPLETE: 'tmux-bundle-incomplete',
+  TMUX_VERSION_UNTESTED: 'tmux-version-blocked'
+};
 
 // ---------------------------------------------------------------------------
 // The notice sentences

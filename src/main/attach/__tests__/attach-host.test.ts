@@ -105,7 +105,16 @@ vi.mock('node-pty', () => ({
 // only need the names to exist.
 vi.mock('../../tmux/resolve', () => ({
   findTmuxBinary: () => '/usr/bin/false',
-  resolveConfPath: () => '/dev/null'
+  resolveConfPath: () => '/dev/null',
+  // Phase 41: the host resolves for itself only when no binary was named, and
+  // it composes its "there is no tmux" error through the one composer.
+  resolveTmux: () => ({
+    path: '/usr/bin/false',
+    source: 'dev-path',
+    packaged: false,
+    detail: '/usr/bin/false'
+  }),
+  tmuxUnavailableError: () => new Error('no tmux')
 }));
 vi.mock('../../tmux/supervisor', () => ({ TMUX_SOCKET: 'gmux' }));
 vi.mock('../../tmux/env', () => ({

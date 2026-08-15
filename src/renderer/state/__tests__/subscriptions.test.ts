@@ -173,6 +173,83 @@ describe('repeated start', () => {
   });
 });
 
+/**
+ * PHASE 41. Three main-process codes stop the boot, and each one draws its own
+ * screen. The mapping is the only place the renderer decides which of the three
+ * a user sees, and every one of them also carries main's composed sentence,
+ * because the version sentence holds two numbers that exist nowhere else in the
+ * renderer.
+ */
+describe('the three boot blocks', () => {
+  /** Fail the next hydrate the way main reports a classified failure. */
+  function failWith(code: string, message: string, detail: string): void {
+    failListsWith = new Error(
+      `gmux: ${JSON.stringify({ code, message, detail })}`
+    );
+  }
+
+  it('a development build with no tmux draws the tmux-missing screen', async () => {
+    failWith(
+      'TMUX_NOT_FOUND',
+      'This is a development build, so Tortie uses the tmux on your PATH, and there is none.',
+      'probed /opt/homebrew/bin, /usr/local/bin, /usr/bin and PATH'
+    );
+    await useApp.getState().boot();
+    expect(useApp.getState().bootBlock).toBe('tmux-missing');
+    expect(useApp.getState().bootBlockMessage).toContain('development build');
+    expect(useApp.getState().bootErrorDetail).toContain('/opt/homebrew/bin');
+  });
+
+  it('a packaged build missing its own tmux draws the broken-install screen', async () => {
+    failWith(
+      'TMUX_BUNDLE_INCOMPLETE',
+      'Tortie is missing the program that keeps your sessions alive.',
+      'the bundled tmux is not at /A/Contents/Resources/bin/tmux'
+    );
+    await useApp.getState().boot();
+    expect(useApp.getState().bootBlock).toBe('tmux-bundle-incomplete');
+    expect(useApp.getState().bootBlockMessage).toContain('missing the program');
+  });
+
+  it('an untested version pair draws the version screen with both numbers', async () => {
+    failWith(
+      'TMUX_VERSION_UNTESTED',
+      'The session server on this machine is running tmux 3.5a. Tortie runs tmux 3.7b. Tortie has not tested that pair, so it will not attach to it.',
+      'server 3.5a, client 3.7b, socket gmux, client at /A/bin/tmux'
+    );
+    await useApp.getState().boot();
+    expect(useApp.getState().bootBlock).toBe('tmux-version-blocked');
+    expect(useApp.getState().bootBlockMessage).toContain('3.5a');
+    expect(useApp.getState().bootBlockMessage).toContain('3.7b');
+    expect(useApp.getState().bootErrorDetail).toContain('socket gmux');
+  });
+
+  it('any other failure is a toast, not a block', async () => {
+    // Start from a clear window. `retryBoot` is what clears a block in the
+    // product, and this case is about a failure that must not RAISE one.
+    useApp.setState({ bootBlock: null, bootBlockMessage: null } as never);
+    failWith('GIT_FAILED', 'git said no', 'exit 128');
+    await useApp.getState().boot();
+    expect(useApp.getState().bootBlock).toBeNull();
+    expect(useApp.getState().ready).toBe(true);
+    expect(useApp.getState().toasts.map((t) => t.text).join('')).toContain(
+      'git said no'
+    );
+  });
+
+  it('a successful boot clears the sentence as well as the block', async () => {
+    failWith('TMUX_VERSION_UNTESTED', 'blocked', 'server 3.5a, client 3.7b');
+    await useApp.getState().boot();
+    expect(useApp.getState().bootBlockMessage).toBe('blocked');
+    failListsWith = null;
+    await useApp.getState().retryBoot();
+    await settle();
+    expect(useApp.getState().bootBlock).toBeNull();
+    expect(useApp.getState().bootBlockMessage).toBeNull();
+    expect(useApp.getState().bootErrorDetail).toBeNull();
+  });
+});
+
 describe('retry after the tmux-missing block', () => {
   it('hydrates fresh state without attaching a second handler set', async () => {
     // Wreck the next hydrate the way main reports a missing tmux.

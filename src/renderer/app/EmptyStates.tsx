@@ -38,6 +38,12 @@ import { cloneAction } from '../state/clone';
 import { AgentGrid } from './AgentGrid';
 import { Codicon } from '../icons';
 import { HomeScreen } from './HomeScreen';
+import {
+  COPY_COMMAND_TOASTS,
+  TMUX_BUNDLE_INCOMPLETE_COPY,
+  TMUX_MISSING_COPY,
+  TMUX_VERSION_BLOCKED_COPY
+} from './tmux-block-copy';
 import './empty-states.css';
 
 /**
@@ -166,55 +172,171 @@ export function NoSessions(): React.JSX.Element {
 }
 
 // ---------------------------------------------------------------------------
-// §6.4 — tmux missing (the ONLY surface where the word tmux may appear)
+// §6.4 — the three screens that stop a boot
+//
+// THE WORD TMUX MAY APPEAR ON THESE THREE SURFACES AND NOWHERE ELSE. Design
+// spec §6.4 made the tmux missing screen the one exception to the
+// no-tmux-vocabulary rule, and Phase 41's two new screens are the same family
+// and the same exception. The word is here for one reason: the user has to
+// type a command that spells it. A later cleanup must not "fix" this.
+//
+// The sentences live in ./tmux-block-copy, which is a plain module so the unit
+// tests can pin them. The one sentence that is NOT there is the first
+// paragraph of the version screen, which main composes because main is the
+// only place holding both version numbers.
 // ---------------------------------------------------------------------------
 
-const INSTALL_CMD = 'brew install tmux';
-
-export function TmuxMissing(): React.JSX.Element {
+/** The Check again button all three screens share. */
+function CheckAgainButton({
+  label,
+  busyLabel
+}: {
+  label: string;
+  busyLabel: string;
+}): React.JSX.Element {
   const retryBoot = useApp((s) => s.retryBoot);
-  const toast = useApp((s) => s.toast);
   const [checking, setChecking] = useState(false);
+  return (
+    <div className="empty-actions">
+      <button
+        type="button"
+        className="btn btn-primary"
+        disabled={checking}
+        onClick={() => {
+          setChecking(true);
+          void retryBoot().finally(() => setChecking(false));
+        }}
+      >
+        {checking ? busyLabel : label}
+      </button>
+    </div>
+  );
+}
 
+/** A command the user copies and runs themselves. Tortie never runs it. */
+function CommandRow({
+  command,
+  copyLabel
+}: {
+  command: string;
+  copyLabel: string;
+}): React.JSX.Element {
+  const toast = useApp((s) => s.toast);
+  return (
+    <div className="empty-actions">
+      <span className="code-row">
+        {command}
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label={copyLabel}
+          onClick={() => {
+            void navigator.clipboard.writeText(command).then(
+              () => toast('info', COPY_COMMAND_TOASTS.ok),
+              () => toast('error', COPY_COMMAND_TOASTS.failed)
+            );
+          }}
+        >
+          <Codicon name="copy" size={14} />
+        </button>
+      </span>
+    </div>
+  );
+}
+
+/** §6.4 — a development build with no tmux on this machine. */
+export function TmuxMissing(): React.JSX.Element {
   return (
     <div className="empty">
       <div className="empty-inner onb-inner">
-        <h2 className="empty-title">Tortie needs tmux to keep sessions alive</h2>
-        <p className="empty-body">
-          Tortie runs sessions on a private tmux server so they survive quits
-          and crashes. It never touches your own tmux setup.
-        </p>
-        <div className="empty-actions">
-          <span className="code-row">
-            {INSTALL_CMD}
-            <button
-              type="button"
-              className="icon-btn"
-              aria-label="Copy install command"
-              onClick={() => {
-                void navigator.clipboard.writeText(INSTALL_CMD).then(
-                  () => toast('info', 'Command copied'),
-                  () => toast('error', 'Could not copy the command')
-                );
-              }}
-            >
-              <Codicon name="copy" size={14} />
-            </button>
-          </span>
-        </div>
-        <div className="empty-actions">
-          <button
-            type="button"
-            className="btn btn-primary"
-            disabled={checking}
-            onClick={() => {
-              setChecking(true);
-              void retryBoot().finally(() => setChecking(false));
-            }}
-          >
-            {checking ? 'Checking…' : 'Check again'}
-          </button>
-        </div>
+        <h2 className="empty-title">{TMUX_MISSING_COPY.title}</h2>
+        {TMUX_MISSING_COPY.body.map((line) => (
+          <p className="empty-body" key={line}>
+            {line}
+          </p>
+        ))}
+        <CommandRow
+          command={TMUX_MISSING_COPY.command}
+          copyLabel={TMUX_MISSING_COPY.copyLabel}
+        />
+        <CheckAgainButton
+          label={TMUX_MISSING_COPY.button}
+          busyLabel={TMUX_MISSING_COPY.buttonBusy}
+        />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A packaged Tortie whose own copy of tmux is not inside the bundle.
+ *
+ * There is no command on this screen on purpose. Nothing is missing from the
+ * machine, so there is nothing for the user to install, and the only repair is
+ * to install Tortie again.
+ */
+export function TmuxBundleIncomplete(): React.JSX.Element {
+  const message = useApp((s) => s.bootBlockMessage);
+  const detail = useApp((s) => s.bootErrorDetail);
+  return (
+    <div className="empty">
+      <div className="empty-inner onb-inner boot-block">
+        <h2 className="empty-title">{TMUX_BUNDLE_INCOMPLETE_COPY.title}</h2>
+        {message !== null ? <p className="empty-body">{message}</p> : null}
+        {TMUX_BUNDLE_INCOMPLETE_COPY.body.map((line) => (
+          <p className="empty-body" key={line}>
+            {line}
+          </p>
+        ))}
+        <CheckAgainButton
+          label={TMUX_BUNDLE_INCOMPLETE_COPY.button}
+          busyLabel={TMUX_BUNDLE_INCOMPLETE_COPY.buttonBusy}
+        />
+        {detail !== null ? <p className="boot-block-detail">{detail}</p> : null}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A session server that is already running, on a version pair this release
+ * never tested, or one whose version could not be read.
+ *
+ * The command row is the one thing on this screen that could end somebody's
+ * work, so it is text the user copies and never a button Tortie presses.
+ */
+export function TmuxVersionBlocked(): React.JSX.Element {
+  const message = useApp((s) => s.bootBlockMessage);
+  const detail = useApp((s) => s.bootErrorDetail);
+  return (
+    <div className="empty">
+      <div className="empty-inner onb-inner boot-block">
+        <h2 className="empty-title">{TMUX_VERSION_BLOCKED_COPY.title}</h2>
+        {message !== null ? <p className="empty-body">{message}</p> : null}
+        {TMUX_VERSION_BLOCKED_COPY.body.map((line) => (
+          <p className="empty-body" key={line}>
+            {line}
+          </p>
+        ))}
+        <ul className="boot-block-ways">
+          {TMUX_VERSION_BLOCKED_COPY.ways.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+        <CommandRow
+          command={TMUX_VERSION_BLOCKED_COPY.command}
+          copyLabel={TMUX_VERSION_BLOCKED_COPY.copyLabel}
+        />
+        {TMUX_VERSION_BLOCKED_COPY.afterCommand.map((line) => (
+          <p className="empty-body" key={line}>
+            {line}
+          </p>
+        ))}
+        <CheckAgainButton
+          label={TMUX_VERSION_BLOCKED_COPY.button}
+          busyLabel={TMUX_VERSION_BLOCKED_COPY.buttonBusy}
+        />
+        {detail !== null ? <p className="boot-block-detail">{detail}</p> : null}
       </div>
     </div>
   );

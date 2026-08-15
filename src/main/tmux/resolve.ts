@@ -24,9 +24,15 @@
  *
  *  3. tmux binary + gmux-tmux.conf resolution (moved from supervisor.ts and
  *     attach-host.ts — one module, two consumers, zero duplication).
+ *     Phase 41 put the bundled tmux here too: a packaged Tortie runs the copy
+ *     at Contents/Resources/bin/tmux and nothing else, and a development build
+ *     keeps the old PATH search with GMUX_TMUX_BIN in front of it. See
+ *     `resolveTmux` for the rules and for why the packaged branch refuses the
+ *     override.
  *
- * Pure Node except resolveConfPath (lazy electron import keeps this module
- * unit-testable outside Electron).
+ * Pure Node except resolveConfPath and the packaged test (both reach electron
+ * through a lazy require, which keeps this module unit-testable outside
+ * Electron: outside it, nothing is packaged).
  */
 
 import { spawn } from 'node:child_process';
@@ -35,6 +41,7 @@ import { accessSync, constants, existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { delimiter, isAbsolute, join } from 'node:path';
 import { killProcessGroup, trackGuardedChild } from '../proc/guarded';
+import { gmuxError, type GmuxError } from '../errors';
 
 import { getLog } from '../log';
 
@@ -532,19 +539,206 @@ export async function resolveBinary(
 // ---------------------------------------------------------------------------
 
 /**
- * Locate tmux. GUI-launched Electron apps inherit a minimal PATH (no
- * /opt/homebrew/bin), so probe known locations first, then scan PATH.
+ * Lazy electron accessor, the same shape `src/main/config/guide.ts` uses.
+ * Returns null outside Electron so this module stays loadable, and testable,
+ * in plain node. Outside Electron nothing is packaged.
  */
-export function findTmuxBinary(): string | null {
+function electronApp(): { isPackaged: boolean } | null {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { app } = require('electron') as typeof import('electron');
+    if (typeof app?.isPackaged !== 'boolean') return null;
+    return { isPackaged: app.isPackaged };
+  } catch {
+    return null;
+  }
+}
+
+/** True when this process is a packaged Tortie. */
+export function isPackagedApp(): boolean {
+  return electronApp()?.isPackaged === true;
+}
+
+/** Where the tmux binary this process runs came from. */
+export type TmuxBinarySource = 'bundled' | 'dev-override' | 'dev-path';
+
+/** The full answer to "which tmux does this process run, and why that one". */
+export interface TmuxResolution {
+  /** Absolute path, or null when nothing usable was found. */
+  path: string | null;
+  source: TmuxBinarySource;
+  /** True when app.isPackaged. Decides the copy and the override rule. */
+  packaged: boolean;
+  /** Where we looked, for the error detail and the log. Never user copy. */
+  detail: string;
+}
+
+/** Said once per process, so a repeated resolve does not repeat a warning. */
+let saidPackagedOverrideIgnored = false;
+let saidOverrideUnusable = false;
+let saidOverrideUsed = false;
+
+/**
+ * Locate tmux (Phase 41).
+ *
+ * THE PACKAGED RULE IS THE WHOLE POINT OF THIS PHASE. A packaged Tortie runs
+ * the tmux inside its own bundle and nothing else. PATH is not consulted, no
+ * Homebrew location is probed, and `GMUX_TMUX_BIN` is refused. A fresh Mac
+ * needs nothing installed first, and the binary holding a user's sessions is
+ * the one Apple's notary service saw. A missing file there is a broken install
+ * rather than a missing prerequisite, and it is reported as one.
+ *
+ * A DEVELOPMENT BUILD keeps what it always did, which is the three known
+ * install locations and then PATH, because `npm run dev` and every harness run
+ * against the machine's own tmux. `GMUX_TMUX_BIN` is the override in front of
+ * that, and it is what lets the interop probes run a real client of a chosen
+ * version against a server of another. A value that names something that is not
+ * an executable file is ignored with one warning rather than being fatal: a
+ * stale line in a shell profile must not make a development build unusable.
+ */
+export function resolveTmux(env: NodeJS.ProcessEnv = process.env): TmuxResolution {
+  return planTmuxResolution({
+    packaged: isPackagedApp(),
+    env,
+    resourcesPath: process.resourcesPath
+  });
+}
+
+/** What the resolution depends on, all of it passed in so it can be tested. */
+export interface TmuxResolutionInput {
+  /** `app.isPackaged`, asked once by the caller. */
+  packaged: boolean;
+  /** The environment to read `GMUX_TMUX_BIN` and `PATH` from. */
+  env: NodeJS.ProcessEnv;
+  /** `process.resourcesPath`, which only exists inside Electron. */
+  resourcesPath: string;
+}
+
+/**
+ * The decision itself, with nothing hidden behind a global.
+ *
+ * It is separate from {@link resolveTmux} for one reason: `app.isPackaged` and
+ * `process.resourcesPath` cannot both be set from a plain node test, and the
+ * packaged branch is the one this phase exists for. A rule that cannot be
+ * tested is a rule that drifts.
+ */
+export function planTmuxResolution(input: TmuxResolutionInput): TmuxResolution {
+  const { packaged, env } = input;
+  const override = (env['GMUX_TMUX_BIN'] ?? '').trim();
+
+  if (packaged) {
+    if (override !== '' && !saidPackagedOverrideIgnored) {
+      saidPackagedOverrideIgnored = true;
+      tmuxLog.warn(
+        'GMUX_TMUX_BIN is ignored in a packaged Tortie. The application ' +
+          'always uses the copy of tmux inside its own bundle.'
+      );
+    }
+    const bundled = join(input.resourcesPath, 'bin', 'tmux');
+    const usable = isExecutableFile(bundled);
+    return {
+      path: usable ? bundled : null,
+      source: 'bundled',
+      packaged: true,
+      detail: usable
+        ? bundled
+        : `the bundled tmux is not at ${bundled}, or it is not executable`
+    };
+  }
+
+  if (override !== '') {
+    if (isExecutableFile(override)) {
+      if (!saidOverrideUsed) {
+        saidOverrideUsed = true;
+        tmuxLog.info(`GMUX_TMUX_BIN names the tmux this run uses: ${override}`);
+      }
+      return {
+        path: override,
+        source: 'dev-override',
+        packaged: false,
+        detail: `GMUX_TMUX_BIN=${override}`
+      };
+    }
+    if (!saidOverrideUnusable) {
+      saidOverrideUnusable = true;
+      tmuxLog.warn(
+        `GMUX_TMUX_BIN does not name an executable file, so it is ignored. ` +
+          `The value was ${override}.`
+      );
+    }
+  }
+
+  // GUI-launched Electron apps inherit a minimal PATH (no /opt/homebrew/bin),
+  // so probe the known locations first, then scan PATH.
   const known = [
     '/opt/homebrew/bin/tmux',
     '/usr/local/bin/tmux',
     '/usr/bin/tmux'
   ];
   for (const candidate of known) {
-    if (existsSync(candidate)) return candidate;
+    if (existsSync(candidate)) {
+      return {
+        path: candidate,
+        source: 'dev-path',
+        packaged: false,
+        detail: candidate
+      };
+    }
   }
-  return resolveBinaryAgainst('tmux', process.env['PATH'] ?? '', []);
+  const onPath = resolveBinaryAgainst('tmux', env['PATH'] ?? '', []);
+  return {
+    path: onPath,
+    source: 'dev-path',
+    packaged: false,
+    detail:
+      onPath ??
+      'probed /opt/homebrew/bin, /usr/local/bin, /usr/bin and PATH'
+  };
+}
+
+/** Test hook, so one process can exercise more than one resolution path. */
+export function resetTmuxResolutionWarnings(): void {
+  saidPackagedOverrideIgnored = false;
+  saidOverrideUnusable = false;
+  saidOverrideUsed = false;
+}
+
+/**
+ * The path only. Kept because the supervisor, the attach host and the
+ * harnesses have always asked this question in this shape.
+ */
+export function findTmuxBinary(): string | null {
+  return resolveTmux().path;
+}
+
+/**
+ * The ONE composer for "there is no tmux to run" (Phase 41).
+ *
+ * The supervisor and the attach host each wrote their own sentence before this
+ * existed, and the two had already drifted apart. They are also two different
+ * situations now, and the difference matters to the reader. A packaged Tortie
+ * that cannot find its own tmux has a broken install and there is nothing for
+ * the user to install. A development build that cannot find one on the machine
+ * is missing a prerequisite, and the sentence says so and says that a packaged
+ * Tortie would not need it.
+ */
+export function tmuxUnavailableError(res: TmuxResolution): GmuxError {
+  if (res.packaged) {
+    return gmuxError(
+      'TMUX_BUNDLE_INCOMPLETE',
+      'Tortie is missing the program that keeps your sessions alive. It ' +
+        'ships inside the application, and it is not there. Reinstalling ' +
+        'Tortie will restore it.',
+      res.detail
+    );
+  }
+  return gmuxError(
+    'TMUX_NOT_FOUND',
+    'This is a development build, so Tortie uses the tmux on your PATH, and ' +
+      'there is none. Install tmux with "brew install tmux". A packaged ' +
+      'Tortie carries its own copy and needs nothing installed.',
+    res.detail
+  );
 }
 
 /** Resolve resources/gmux-tmux.conf for dev vs packaged builds. */

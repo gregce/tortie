@@ -38,9 +38,19 @@
  * identifiers, exactly the pre-Phase-27 behaviour, so the unsigned build
  * keeps the shape notarization will want.
  *
- * ENTITLEMENTS: none for either binary, verified rather than assumed.
- * specstory is CGO-free Go (otool -L: only Apple system dylibs); ripgrep is
- * Rust with the same property. No JIT, no unsigned executable memory.
+ * ENTITLEMENTS: none for any of the three binaries, verified rather than
+ * assumed. specstory is CGO-free Go (otool -L: only Apple system dylibs);
+ * ripgrep is Rust with the same property. tmux (Phase 41) is C, built from
+ * source by build/build-tmux.mjs with libevent and utf8proc linked static, and
+ * that script fails the build if otool -L ever shows a path outside /usr/lib.
+ * None of the three needs JIT or unsigned executable memory, and a binary that
+ * loads only Apple system dylibs satisfies hardened runtime library
+ * validation, so the bundle keeps its "ZERO entitlements are needed" note.
+ *
+ * WHY THE BUNDLED TMUX IS NOT PHASE 23 REFUSAL 6. That refusal is about third
+ * party code loaded INTO a Tortie process. tmux is a separately signed
+ * executable that runs as its own process, which is the shape specstory and rg
+ * already have. No Tortie process loads it.
  *
  * THE SKILLS CLI TREE (Resources/skills-cli) is pure JavaScript — nothing to
  * codesign; the app's resource seal covers it. That claim is enforced, not
@@ -64,7 +74,11 @@ const NESTED_BINARIES = [
     relative:
       'Resources/app.asar.unpacked/node_modules/@vscode/ripgrep-darwin-arm64/bin/rg',
     identifierSuffix: 'rg'
-  }
+  },
+  // Phase 41. The pinned tmux, built by build/build-tmux.mjs. It is the
+  // durability layer, so unlike the two above it is the binary the app cannot
+  // start without: a packaged Tortie resolves only this path and never PATH.
+  { relative: 'Resources/bin/tmux', identifierSuffix: 'tmux' }
 ];
 
 /** The skills CLI tree that must stay free of Mach-O binaries. */
@@ -135,7 +149,8 @@ function signNestedBinaries(context) {
       throw new Error(
         `after-pack: ${relative} is missing from the app bundle. ` +
           'The packaging step that copies it did not run — for specstory check ' +
-          'build/vendor/specstory/bin exists (npm run vendor:specstory); for rg ' +
+          'build/vendor/specstory/bin exists (npm run vendor:specstory); for tmux ' +
+          'check build/vendor/tmux/bin exists (npm run vendor:tmux); for rg ' +
           'check the asarUnpack pattern in electron-builder.yml.'
       );
     }

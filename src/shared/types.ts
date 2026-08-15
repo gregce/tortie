@@ -822,6 +822,22 @@ export interface GmuxErrorPayload {
     // be resolved to an executable — surfaced as a friendly create-modal
     // message, never a dead pane. `detail` carries the bare binary name.
     | 'AGENT_NOT_FOUND'
+    // APPENDED (Phase 41), three codes about WHICH tmux is running.
+    //
+    // TMUX_BUNDLE_INCOMPLETE is a packaged Tortie whose own copy of tmux is
+    // not inside the bundle. It is a broken install, not a missing
+    // prerequisite, so it is a different code from TMUX_NOT_FOUND and the
+    // user is never told to install anything.
+    | 'TMUX_BUNDLE_INCOMPLETE'
+    // A tmux server was already running and the pair of versions is one this
+    // release never tested, or its version could not be read at all. The boot
+    // stops before the first attach, because attaching across an untested
+    // pair can hang rather than fail. Nothing is changed and nothing ends.
+    | 'TMUX_VERSION_UNTESTED'
+    // tmux itself refused the connection over a protocol difference. This one
+    // comes from classifyTmuxFailure reading tmux's own words, so it can
+    // arrive at any command, not only at boot.
+    | 'TMUX_VERSION_MISMATCH'
     | 'UNKNOWN';
   message: string;
   detail?: string;

@@ -32,7 +32,10 @@
  *   4. the main executable's entitlements carry allow-jit
  *   5. every NESTED_BINARIES entry (kept in build/sign-nested-binaries.cjs)
  *      verifies strictly, carries the same TeamIdentifier, hardened runtime,
- *      and its stable reverse-DNS identifier
+ *      and its stable reverse-DNS identifier. THREE binaries are expected
+ *      since Phase 41: specstory, the unpacked ripgrep, and the pinned tmux at
+ *      Resources/bin/tmux with identifier <appId>.tmux. The check walks the
+ *      list, so the third row needed no code change here.
  *   6. the skills CLI tree contains no Mach-O (nothing unsigned to smuggle)
  *   7. spctl --assess, interpreted per the flag above
  *   8. stapler validate (only with --expect-notarized)

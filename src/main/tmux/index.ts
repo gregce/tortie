@@ -54,6 +54,40 @@ export {
   type CapturePathOptions
 } from './resolve';
 
+// Phase 41 — which tmux this process runs, and the one composer for the two
+// "there is no tmux to run" messages.
+export {
+  isPackagedApp,
+  planTmuxResolution,
+  resetTmuxResolutionWarnings,
+  resolveTmux,
+  tmuxUnavailableError,
+  type TmuxBinarySource,
+  type TmuxResolution,
+  type TmuxResolutionInput
+} from './resolve';
+
+// Phase 41 — the pinned version, the tested pairs, and the gate that runs on a
+// warm server before the first attach.
+export {
+  assertServerVersionUsable,
+  decideVersionGate,
+  lastVersionGate,
+  logCreatedServerVersion,
+  parseTmuxVersion,
+  readClientVersion,
+  readServerVersion,
+  resetTmuxVersionState,
+  versionBlockDetail,
+  versionBlockMessage,
+  BUNDLED_TMUX_VERSION,
+  TESTED_TMUX_PAIRS,
+  TMUX_VERSION_PROBE_TIMEOUT_MS,
+  type TmuxExec,
+  type TmuxVersionPair,
+  type VersionGate
+} from './version';
+
 // Pane environment: the UTF-8 guard (Bug C) and the GMUX_* markers every
 // managed pane carries (Phase 12.7 F3).
 export { managedPaneEnv, withUtf8Locale } from './env';

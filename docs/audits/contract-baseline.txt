@@ -252,7 +252,7 @@ gmux.treeDensity
 gmux.treeOpen.
 gmux.zoomLevels
 
-[env.names] count=51
+[env.names] count=53
 GMUX_ALLOW_SECOND_INSTANCE
 GMUX_CONFIG_ROOT
 GMUX_CONF_AGENTS
@@ -301,7 +301,9 @@ GMUX_SPECSTORY_HOME
 GMUX_SPECSTORY_NO_CLOUD
 GMUX_SPECSTORY_TARBALL
 GMUX_THEME_NAME
+GMUX_TMUX_BIN
 GMUX_TMUX_SOCKET
+GMUX_TMUX_TARBALL_DIR
 GMUX_UPDATE_REHEARSAL
 GMUX_UPDATE_STATE_ROOT
 
@@ -326,7 +328,7 @@ t3-verify
 verify
 
 [bundle.refusals]
-durability=21
+durability=23
 skills=6
 config=6
 updater=8

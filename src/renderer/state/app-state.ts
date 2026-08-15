@@ -17,8 +17,25 @@ import type { OverlaysSlice } from './overlays-slice';
 import type { ProjectsSlice } from './projects-slice';
 import type { SessionsSlice } from './sessions-slice';
 
-/** Boot-blocking failures (S9 §6.4). */
-export type BootBlock = 'tmux-missing' | null;
+/**
+ * Boot-blocking failures (S9 §6.4).
+ *
+ * Phase 41 added the second and the third. They are separate blocks rather
+ * than one screen with a variable, because the three say different things and
+ * offer different ways forward:
+ *
+ * - `tmux-missing` is a development build with no tmux on the machine.
+ * - `tmux-bundle-incomplete` is a packaged Tortie whose own copy of tmux is
+ *   not inside the bundle. Nothing is missing from the machine.
+ * - `tmux-version-blocked` is a session server already running whose version
+ *   pair is one this release never tested, or whose version could not be
+ *   read. Every session on that server is still running and untouched.
+ */
+export type BootBlock =
+  | 'tmux-missing'
+  | 'tmux-bundle-incomplete'
+  | 'tmux-version-blocked'
+  | null;
 
 /**
  * Boot and retry. The bodies live in ./subscriptions (the one lifecycle
@@ -30,6 +47,15 @@ export interface LifecycleSlice {
   ready: boolean;
   bootBlock: BootBlock;
   bootErrorDetail: string | null;
+  /**
+   * The sentence main composed for the block, or null (Phase 41).
+   *
+   * The version block is the reason this field exists. Main is the only place
+   * that holds both version numbers, so main writes that sentence and the
+   * screen draws it with its own paragraphs around it. `bootErrorDetail` keeps
+   * its old job, which is the technical line at the foot.
+   */
+  bootBlockMessage: string | null;
 
   boot(): Promise<void>;
   retryBoot(): Promise<void>;

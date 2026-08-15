@@ -19,9 +19,13 @@
  *   - provides `execTmux()`, the one door every other tmux module calls
  *     through, with structured error classification
  *
- * NOTE: we run the SYSTEM tmux (3.6a on this machine). Bundling a pinned
- * tmux inside gmux.app is out of scope today — see FINAL-REPORT §5 Stream A1
- * for the shipping plan.
+ * WHICH TMUX RUNS (Phase 41). A packaged Tortie runs the pinned tmux inside
+ * its own bundle, so a fresh Mac needs nothing installed first. A development
+ * build runs the machine's own tmux, which is 3.6a here. ./resolve decides,
+ * and it is the only module that does. On a WARM server this module reads the
+ * server's version before the first attach and stops the boot when the pair of
+ * versions is one this release never tested. See ./version for the
+ * measurements behind that.
  */
 
 import { execFile } from 'node:child_process';
@@ -31,7 +35,18 @@ import { DEFAULT_UTF8_LANG, hasUtf8Locale } from './env';
 import { gmuxError } from '../errors';
 import { classifyTmuxFailure } from './errors';
 import { postDurabilityNotice } from '../notice';
-import { findTmuxBinary, getUserPath, resolveConfPath } from './resolve';
+import {
+  getUserPath,
+  resolveConfPath,
+  resolveTmux,
+  tmuxUnavailableError,
+  type TmuxBinarySource
+} from './resolve';
+import {
+  assertServerVersionUsable,
+  logCreatedServerVersion,
+  resetTmuxVersionState
+} from './version';
 
 import { getLog } from '../log';
 
@@ -396,36 +411,48 @@ export interface TmuxContext {
   socket: string;
   /** Absolute path to gmux-tmux.conf, passed as `-f` on every invocation. */
   confPath: string;
+  /** Where that binary came from (Phase 41), for the log and the error copy. */
+  binSource: TmuxBinarySource;
+  /** True when this is a packaged Tortie. */
+  packaged: boolean;
 }
 
 let cachedContext: TmuxContext | null = null;
 
 /**
  * Resolve (and cache) the tmux invocation context.
- * @throws GmuxError TMUX_NOT_FOUND when no tmux binary exists on this machine.
+ *
+ * @throws GmuxError TMUX_BUNDLE_INCOMPLETE when a packaged Tortie has no tmux
+ *   inside its own bundle, TMUX_NOT_FOUND when a development build finds none
+ *   on the machine. The sentence for each is composed in ./resolve, which is
+ *   the one place both of them are written.
  */
 export function getTmuxContext(): TmuxContext {
   if (cachedContext !== null) return cachedContext;
-  const bin = findTmuxBinary();
-  if (bin === null) {
-    throw gmuxError(
-      'TMUX_NOT_FOUND',
-      'tmux is not installed. Tortie needs tmux to keep sessions alive — install it with: brew install tmux',
-      'probed /opt/homebrew/bin, /usr/local/bin, /usr/bin and PATH'
-    );
-  }
+  const res = resolveTmux();
+  if (res.path === null) throw tmuxUnavailableError(res);
   const confPath = resolveConfPath();
   // Phase 19 item 13: exists, is a file, and is not empty. A zero-byte conf
   // left by a half-written update starts a tmux server on the built-in
   // defaults exactly as a missing one does, and passes an existence test.
   assertConfUsable(confPath);
-  cachedContext = { bin, socket: activeTmuxSocket(), confPath };
+  cachedContext = {
+    bin: res.path,
+    socket: activeTmuxSocket(),
+    confPath,
+    binSource: res.source,
+    packaged: res.packaged
+  };
   return cachedContext;
 }
 
 /** Test/reset hook (e.g. after surfacing TMUX_NOT_FOUND and a user install). */
 export function resetTmuxContext(): void {
   cachedContext = null;
+  // Phase 41: the version gate remembers a PASS for the life of the process,
+  // and a reset means the next boot resolves a binary again, so the remembered
+  // answer is about a world that may no longer be the current one.
+  resetTmuxVersionState();
 }
 
 /** Build a full tmux argv: `-L gmux -f <conf> …rest`. */
@@ -510,8 +537,18 @@ export async function execTmux(
   } catch (err) {
     const e = err as NodeJS.ErrnoException & { stderr?: string };
     if (e.code === 'ENOENT') {
-      resetTmuxContext(); // binary vanished since we cached it
-      throw gmuxError('TMUX_NOT_FOUND', 'The tmux binary disappeared.', ctx.bin);
+      // The binary vanished since we cached it. Phase 41: which sentence the
+      // user gets depends on which build this is, so the one composer decides
+      // rather than a second literal here. A packaged Tortie has lost part of
+      // its own install; a development build has lost the machine's tmux.
+      const gone = {
+        path: null,
+        source: ctx.binSource,
+        packaged: ctx.packaged,
+        detail: `${ctx.bin} was there when Tortie started and it is gone now`
+      };
+      resetTmuxContext();
+      throw tmuxUnavailableError(gone);
     }
     throw classifyTmuxFailure(
       e.stderr ?? '',
@@ -578,6 +615,28 @@ export function ensureServer(): Promise<TmuxContext> {
     // lost conf only on a COLD start, because on a warm server a differing
     // depth is the user's own Settings value and not a defect.
     const serverWasAlreadyRunning = await isServerRunning();
+
+    // PHASE 41, and where this block sits is the design.
+    //
+    // A tmux server outlives the app that made it, so the copy of Tortie
+    // starting now can meet a server an older copy created. Across a version
+    // boundary tmux can hang rather than fail: MEASURED, a 3.7b control client
+    // against a 3.5a server prints "%exit" and then sits there, still running
+    // after 8 s. The first thing GmuxCore.boot does after this function
+    // returns is exactly that control mode attach, so the read has to happen
+    // HERE, before the start loop, or it happens after the freeze.
+    //
+    // It runs on a warm server only. A server this process is about to create
+    // will run the binary this process resolved, so there is no pair to check.
+    if (serverWasAlreadyRunning) {
+      await assertServerVersionUsable({
+        exec: execTmux,
+        bin: ctx.bin,
+        socket: ctx.socket,
+        packaged: ctx.packaged
+      });
+    }
+
     let lastFailure = '';
     // start-server is idempotent; health-check with short retries because a
     // cold server needs a beat to create the socket.
@@ -598,6 +657,16 @@ export function ensureServer(): Promise<TmuxContext> {
         // evidence that the conf applied. Ask the server what depth it is
         // actually running at.
         await verifyHistoryLimit(ctx.confPath, serverWasAlreadyRunning);
+        // Phase 41. On the cold path only, say which tmux is now holding this
+        // user's sessions. It also means every ordinary development run
+        // exercises the same `#{version}` read the warm path depends on.
+        if (!serverWasAlreadyRunning) {
+          await logCreatedServerVersion({
+            exec: execTmux,
+            bin: ctx.bin,
+            source: ctx.binSource
+          });
+        }
         return ctx;
       } catch (err) {
         lastFailure = err instanceof Error ? err.message : String(err);

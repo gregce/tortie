@@ -52,8 +52,9 @@ const bundlePath = join(repoRoot, 'out', 'main', 'index.js');
  *
  * Every one of these has a cost attached if it silently disappears: adopting a
  * session that is not ours, rebuilding over the live manifest, ending the
- * operator's tmux server, keeping a copy that was never verified, or publishing
- * bytes that were never read back.
+ * operator's tmux server, attaching across a tmux version pair nobody tested,
+ * keeping a copy that was never verified, or publishing bytes that were never
+ * read back.
  */
 const REFUSALS = [
   {
@@ -64,6 +65,34 @@ const REFUSALS = [
       'Tortie does not end the session server.',
       'it would end every ',
       'Move the harness to its own socket with '
+    ]
+  },
+  {
+    id: 'tmux.untested-version-pair',
+    source: 'src/main/tmux/version.ts',
+    why:
+      'a tmux server outlives the app that made it, and attaching across a ' +
+      'version pair nobody tested can HANG rather than fail: measured, a ' +
+      '3.7b control client against a 3.5a server printed "%exit" and was ' +
+      'still running 8 s later. Without this branch the product attaches ' +
+      'anyway and the user sees Tortie freeze on live sessions',
+    fragments: [
+      'has not tested that pair',
+      'will not attach',
+      'It will not attach to a server it cannot identify.'
+    ]
+  },
+  {
+    id: 'tmux.packaged-binary-override-ignored',
+    source: 'src/main/tmux/resolve.ts',
+    why:
+      'a packaged Tortie runs the tmux inside its own signed bundle and ' +
+      'nothing else. If this branch goes, an environment variable decides ' +
+      'which tmux holds every session on the machine, and that binary is one ' +
+      'nobody signed and nobody tested',
+    fragments: [
+      'is ignored in a packaged Tortie',
+      'always uses the copy of tmux inside its own bundle'
     ]
   },
   {
@@ -213,7 +242,7 @@ const REFUSALS = [
 ];
 
 /**
- * Phase 22's skills refusals, counted SEPARATELY from the 21 above.
+ * Phase 22's skills refusals, counted SEPARATELY from the 23 above.
  *
  * They belong in this artifact for the same reason: a refusal that the bundler
  * removed is a refusal the product only claims to have. They are not folded into

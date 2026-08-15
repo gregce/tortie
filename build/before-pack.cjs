@@ -19,6 +19,13 @@
  * `build/fetch-skills.cjs` materialises from `build/skills-release.json`. Same
  * reasoning, same gitignored directory, same "the .app is the only place a
  * mistake shows up".
+ *
+ * Phase 41 adds the third, and it is the one that carries the durability
+ * layer: the pinned tmux, built from source by `build/build-tmux.mjs` from the
+ * pin in `build/tmux-release.json`. Without it a packaged Tortie has no tmux at
+ * all, because a packaged build resolves ONLY the bundled path and never PATH.
+ * The first build downloads about 2 MB of source and compiles for about 31 s on
+ * this machine; every later build is one `tmux -V` call.
  */
 
 const { ensureSpecstoryBinary } = require('./fetch-specstory.cjs');
@@ -29,4 +36,7 @@ exports.default = async function beforePack(context) {
   const log = (line) => console.log(line.replace(/^ {2}• /, '  • before-pack: '));
   await ensureSpecstoryBinary({ log });
   await ensureSkillsCli({ log });
+  // build-tmux is ESM, so it arrives by dynamic import rather than require.
+  const { ensureTmuxBinary } = await import('./build-tmux.mjs');
+  await ensureTmuxBinary({ log });
 };

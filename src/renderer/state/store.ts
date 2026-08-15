@@ -95,6 +95,7 @@ export const useApp = create<AppState>((set, get, api) => ({
   ready: false,
   bootBlock: null,
   bootErrorDetail: null,
+  bootBlockMessage: null,
 
   async boot() {
     if (!window.gmux) return;
@@ -103,7 +104,10 @@ export const useApp = create<AppState>((set, get, api) => ({
   },
 
   async retryBoot() {
-    set({ bootBlock: null });
+    // Phase 41: the version block is the one a retry is really for. The user
+    // ends the old server themselves and presses Check again, and main
+    // re-probes because it never remembers a block.
+    set({ bootBlock: null, bootBlockMessage: null });
     await get().boot();
   }
 }));

@@ -37,18 +37,19 @@
 # way is build/verify-signed.mjs; run it with --expect-notarized --artifacts
 # before anything is published.
 #
-# NESTED BINARIES (specstory, the unpacked ripgrep) are signed inside-out by
-# build/sign-nested-binaries.cjs at afterPack, with the real identity when one
-# is discoverable and with stable reverse-DNS identifiers
-# (<appId>.specstory, <appId>.rg). The signIgnore list under `mac:` keeps
-# @electron/osx-sign's whole-bundle walk from re-signing them, because a
-# codesign --force without -i replaces a stable identifier with a
-# filename-derived one (measured 2026-08-13). The signIgnore list and
-# NESTED_BINARIES in build/sign-nested-binaries.cjs MUST stay in step; each
-# file says so.
+# NESTED BINARIES (specstory, the unpacked ripgrep, and since Phase 41 the
+# pinned tmux) are signed inside-out by build/sign-nested-binaries.cjs at
+# afterPack, with the real identity when one is discoverable and with stable
+# reverse-DNS identifiers (<appId>.specstory, <appId>.rg, <appId>.tmux). The
+# signIgnore list under `mac:` keeps @electron/osx-sign's whole-bundle walk
+# from re-signing them, because a codesign --force without -i replaces a
+# stable identifier with a filename-derived one (measured 2026-08-13). The
+# signIgnore list and NESTED_BINARIES in build/sign-nested-binaries.cjs MUST
+# stay in step; each file says so.
 #
-# Still deferred: a bundled pinned tmux (the app uses system tmux 3.6a today,
-# see BUILD-STATUS.md) and the electron-updater wiring (Phase 24).
+# Phase 41 closed the tmux deferral. Tortie carries its own tmux 3.7b, built
+# from pinned source by build/build-tmux.mjs, and a packaged app resolves only
+# that copy. A fresh Mac needs nothing installed first.
 # Phase 27: Tortie ships under Itavero, the operator's LLC, not SpecStory
 # (docs/BACKLOG.md, "Release lane", decided 2026-08-12). The data directory
 # follows app.setName ("Tortie"), not this id, so no data migration happens.
@@ -222,6 +223,27 @@ extraResources:
   # build/specstory-release.json and is NOT in git; beforePack materialises it.
   - from: build/vendor/specstory/bin
     to: bin
+  # Phase 41 (the bundled tmux): the pinned tmux 3.7b, at
+  # Contents/Resources/bin/tmux, beside the specstory binary above.
+  # src/main/tmux/resolve.ts finds it via process.resourcesPath, and in a
+  # packaged app that is the ONLY path it looks at: no PATH probe, no Homebrew
+  # path, and GMUX_TMUX_BIN refused.
+  #
+  # extraResources rather than asarUnpack, for the same two reasons as the
+  # specstory row above and one more that is stronger here. Signing keys off a
+  # stable path (mac.signIgnore below, and NESTED_BINARIES in
+  # build/sign-nested-binaries.cjs). TCC attribution keys off it too, for every
+  # process the tmux server's panes spawn, which is every agent the user runs.
+  # And the server started from this path OUTLIVES the app on purpose, so the
+  # path must be one thing that does not move.
+  #
+  # 1,437,872 bytes as built, 1,456,160 bytes once signed, which is 0.83
+  # percent of the DMG. It is BUILT, not downloaded: tmux publishes source
+  # only. build/build-tmux.mjs compiles it from the three tarballs pinned by
+  # SHA-256 in build/tmux-release.json, and the output directory is NOT in
+  # git; beforePack materialises it.
+  - from: build/vendor/tmux/bin/tmux
+    to: bin/tmux
   # Phase 22 (the Context sidebar): the pinned `skills` CLI, at
   # Contents/Resources/skills-cli/. src/main/skills/resolve.ts finds it via
   # process.resourcesPath and runs it with Electron's own Node
@@ -307,13 +329,14 @@ mac:
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.inherit.plist
   # Phase 27, replacing the Phase 15 `binaries:` list. The nested Mach-O
-  # binaries (specstory, the unpacked ripgrep) are signed at afterPack by
-  # build/sign-nested-binaries.cjs — inside-out, with the real identity when
-  # one is discoverable, and with STABLE reverse-DNS identifiers. This
-  # signIgnore list keeps @electron/osx-sign's whole-bundle walk from
-  # re-signing them, because codesign --force without -i replaces a stable
-  # identifier with a filename-derived one (measured 2026-08-13: a re-sign
-  # without -i turned com.probe.custom into rg-probe-5555...).
+  # binaries (specstory, the unpacked ripgrep, and since Phase 41 the pinned
+  # tmux) are signed at afterPack by build/sign-nested-binaries.cjs —
+  # inside-out, with the real identity when one is discoverable, and with
+  # STABLE reverse-DNS identifiers. This signIgnore list keeps
+  # @electron/osx-sign's whole-bundle walk from re-signing them, because
+  # codesign --force without -i replaces a stable identifier with a
+  # filename-derived one (measured 2026-08-13: a re-sign without -i turned
+  # com.probe.custom into rg-probe-5555...).
   #
   # MUST STAY IN STEP with NESTED_BINARIES in build/sign-nested-binaries.cjs.
   # A path listed here that the hook does not sign ships with the upstream
@@ -321,6 +344,7 @@ mac:
   # rejects exactly that. build/verify-signed.mjs checks every entry.
   signIgnore:
     - '/Resources/bin/specstory$'
+    - '/Resources/bin/tmux$'
     - '/Resources/app\.asar\.unpacked/node_modules/@vscode/ripgrep-darwin-arm64/bin/rg$'
 dmg:
   # Plain drag-to-Applications layout; no signing, no license panel.

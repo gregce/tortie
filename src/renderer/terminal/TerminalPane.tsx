@@ -85,12 +85,27 @@ function friendlyAttachError(err: unknown): OverlayState {
     }
   }
   switch (payload?.code) {
+    // Phase 41. The pane used to spell "brew install tmux" here, which became
+    // wrong in two directions at once: a packaged Tortie carries its own copy,
+    // so there is nothing to install, and a development build gets a sentence
+    // main already composed. Main writes the words in all three cases now and
+    // the pane shows them, so the pane and the boot screen can never disagree.
     case 'TMUX_NOT_FOUND':
       return {
         title: 'tmux is not installed',
-        detail:
-          'Tortie needs tmux to keep sessions alive. Install it with ' +
-          '"brew install tmux", then try again.',
+        detail: payload.message,
+        action: 'Try again'
+      };
+    case 'TMUX_BUNDLE_INCOMPLETE':
+      return {
+        title: 'Tortie cannot start sessions',
+        detail: payload.message,
+        action: 'Try again'
+      };
+    case 'TMUX_VERSION_MISMATCH':
+      return {
+        title: 'Tortie cannot reach this session',
+        detail: payload.message,
         action: 'Try again'
       };
     case 'SESSION_NOT_FOUND':

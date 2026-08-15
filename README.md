@@ -73,7 +73,8 @@ sessions.
 
 ## Install
 
-macOS on Apple silicon.
+macOS on Apple silicon. Nothing has to be installed first. Tortie carries its
+own copy of tmux, so a fresh Mac needs no Homebrew and no command line setup.
 
 1. [Download the latest release](https://github.com/gregce/tortie/releases/latest) and open the DMG.
 2. Drag **Tortie** to Applications and open it.
@@ -84,7 +85,7 @@ macOS on Apple silicon.
 Tortie is deliberately assembled from open source rather than written from
 scratch. The code it owns is the durability layer and the glue.
 
-- [tmux](https://github.com/tmux/tmux) holds the sessions. It is the reason your agents survive.
+- [tmux](https://github.com/tmux/tmux) holds the sessions. It is the reason your agents survive. Tortie ships its own copy, so the version is chosen by the release and not by whatever the machine happens to have.
 - [Electron](https://www.electronjs.org/) is the window.
 - [xterm.js](https://github.com/xtermjs/xterm.js) draws the terminals.
 - [Monaco](https://github.com/microsoft/monaco-editor) is the editor, the same one inside VS Code.

@@ -113,6 +113,26 @@
  *                     install. It runs last and only after the in flight
  *                     precondition passes, because it is the only probe
  *                     that touches state the installed app shares.
+ *   --tmux-pair       Phase 41 probe P1. Drive the release's one tested tmux
+ *                     version pair with the PACKAGED app, so the client is the
+ *                     tmux inside the app bundle rather than one this repo
+ *                     built a moment ago. A warm server is started with the
+ *                     older tmux, the app's create and verify smoke halves run
+ *                     against it through a real attach, and the old server is
+ *                     proved unchanged afterwards. It stages no update, so it
+ *                     runs before the feed server starts and touches no
+ *                     Squirrel state at all. Combine with --skip-package to
+ *                     reuse the packages.
+ *   --pair-server-bin <path>
+ *                     the older tmux that starts the warm server for
+ *                     --tmux-pair. Defaults to /opt/homebrew/bin/tmux, and its
+ *                     version must equal the pin's testedPair.server.
+ *   --prove-override-refused
+ *                     with --tmux-pair, set GMUX_TMUX_BIN to the OLDER tmux in
+ *                     the packaged run and prove the app refuses it. An app
+ *                     that honoured the variable would run a matching pair and
+ *                     never log the tested pair line, so this fails two ways
+ *                     rather than only by a missing warning.
  *
  * THE SCRATCH STATE ROOT (Phase 43). Probes P2 and P3 set
  * GMUX_UPDATE_STATE_ROOT, which moves the Squirrel state the app READS and
@@ -185,6 +205,13 @@ const readyDialog = flag('--ready-dialog');
 const wreck = flag('--wreck');
 const wreckHealthy = flag('--wreck-healthy');
 const wreckLive = flag('--wreck-live');
+/** Phase 41 probe P1. See probeTmuxPair below. */
+const tmuxPair = flag('--tmux-pair');
+const pairServerBin = option('--pair-server-bin', '/opt/homebrew/bin/tmux');
+/** Set GMUX_TMUX_BIN in the packaged run and prove it is refused. */
+const proveOverrideRefused = flag('--prove-override-refused');
+/** The Phase 41 probe's own scratch socket. Never a rehearsal socket. */
+const TMUX_PAIR_SOCKET = 'gmux-p41-pair-packaged';
 
 const pristineDir = join(scratch, 'pristine');
 const pristineApp = join(pristineDir, 'Tortie.app');
@@ -2025,6 +2052,109 @@ async function assertNoScratchProcesses() {
 
 // -- main -----------------------------------------------------------------------
 
+// -- Phase 41 probe P1, the tested tmux pair against the PACKAGED app --------
+
+/**
+ * Drive the release's one tested tmux version pair with the packaged app.
+ *
+ * `npm run conformance:tmux-pair` runs the same probe with the binary this
+ * repo just built. This one is the version that matters for a release: the
+ * client is the tmux inside the signed app bundle, resolved the way a user's
+ * copy resolves it, with no environment variable pointing at it. If the two
+ * ever disagree, the packaging is where the fault is.
+ *
+ * It stages no update, so it runs before the feed server starts and before the
+ * ShipIt preconditions. Nothing Squirrel owns is read, written or snapshotted.
+ *
+ * NO `GMUX_TMUX_BIN` IS SET, and that is the point. A packaged Tortie refuses
+ * that variable, so setting it would prove nothing about which binary the app
+ * chose on its own.
+ *
+ * `--prove-override-refused` turns that refusal into a live test instead. It
+ * sets `GMUX_TMUX_BIN` to the OLDER tmux, the one that started the warm server.
+ * An app that honoured it would run a 3.6a client against a 3.6a server, the
+ * versions would match, and the tested pair line would never be logged. So the
+ * refusal is not asserted by reading a warning alone: honouring the variable
+ * changes the outcome, and two independent assertions fail.
+ */
+async function probeTmuxPair() {
+  const { runTmuxPair, OVERRIDE_REFUSED_FRAGMENT } = await import('./tmux-pair.mjs');
+
+  const bundledTmux = join(pristineApp, 'Contents', 'Resources', 'bin', 'tmux');
+  if (!existsSync(bundledTmux)) {
+    fail(
+      `the packaged app at ${pristineApp} carries no tmux at ` +
+        'Contents/Resources/bin/tmux. Check the extraResources row in ' +
+        'electron-builder.yml and that npm run vendor:tmux produced ' +
+        'build/vendor/tmux/bin/tmux.'
+    );
+  }
+  const bundledVersion = spawnSync(bundledTmux, ['-V'], { encoding: 'utf8' });
+  log(`the app bundle carries ${(bundledVersion.stdout ?? '').trim()} at ${bundledTmux}`);
+
+  const profile = join(scratch, 'p41-pair-profile');
+  rmSync(profile, { recursive: true, force: true });
+  mkdirSync(profile, { recursive: true });
+
+  const launch = (mode) =>
+    new Promise((done) => {
+      const env = { ...process.env };
+      delete env.APPLE_ID;
+      delete env.APPLE_APP_SPECIFIC_PASSWORD;
+      delete env.APPLE_TEAM_ID;
+      delete env.APPLE_KEYCHAIN_PROFILE;
+      // A build started from inside a tmux session must not hand the app a
+      // variable meaning "you are already attached somewhere".
+      delete env.TMUX;
+      // Never inherited. Set only by --prove-override-refused, and then to the
+      // OLD tmux on purpose. See the note above.
+      delete env.GMUX_TMUX_BIN;
+      if (proveOverrideRefused) env.GMUX_TMUX_BIN = pairServerBin;
+      env.GMUX_TMUX_SOCKET = TMUX_PAIR_SOCKET;
+      env.GMUX_SMOKE = mode;
+      // Belt and braces. GMUX_SMOKE alone already unlocks the socket
+      // override, and a harness launch returns before any updater code runs.
+      env.GMUX_UPDATE_REHEARSAL = '1';
+      // TMUX_PAIR_SOCKET is deliberately NOT added to usedSockets. The pair
+      // harness owns that server and ends it in its own finally block, with a
+      // prefix check immediately before the kill. Two owners for one socket is
+      // how a teardown ends up racing itself.
+      const child = spawn(
+        join(pristineApp, 'Contents', 'MacOS', 'Tortie'),
+        [`--user-data-dir=${profile}`],
+        { env, stdio: ['ignore', 'pipe', 'pipe'] }
+      );
+      livePids.add(child.pid);
+      let output = '';
+      const onData = (chunk) => {
+        output += chunk.toString();
+        process.stdout.write(chunk);
+      };
+      child.stdout.on('data', onData);
+      child.stderr.on('data', onData);
+      child.on('exit', (code) => {
+        livePids.delete(child.pid);
+        done({ output, code });
+      });
+    });
+
+  const result = await runTmuxPair({
+    pairServerBin,
+    socket: TMUX_PAIR_SOCKET,
+    clientLabel: `the tmux inside ${pristineApp}`,
+    launch,
+    extraFragments: proveOverrideRefused ? [OVERRIDE_REFUSED_FRAGMENT] : [],
+    checkClientPaths: (paths) =>
+      paths.every((path) => path === bundledTmux)
+        ? null
+        : 'the client should have been the tmux inside the app bundle, ' +
+          `${bundledTmux}, and the process table showed ${paths.join(', ')}`
+  });
+
+  rmSync(profile, { recursive: true, force: true });
+  return { ...result, bundledTmux };
+}
+
 async function main() {
   if (process.platform !== 'darwin') refuse('this rehearsal drives a signed macOS app');
 
@@ -2060,6 +2190,31 @@ async function main() {
   }
   if (packageOnly) {
     log('stopping after the packages, as asked. The feed files and the pristine app are in the scratch directory.');
+    restoreVersion();
+    process.exit(0);
+  }
+
+  // Phase 41 probe P1. It stages no update, so it runs HERE, before the
+  // ShipIt preconditions and before the feed server. Nothing Squirrel owns is
+  // read, written or snapshotted by this branch.
+  if (tmuxPair) {
+    const pair = await probeTmuxPair();
+    const operatorAfterPair = operatorSessionCount();
+    log('PASS. Probe P1, the tested tmux pair, driven by the packaged app.');
+    log(`  the client was the tmux inside the app bundle at ${pair.bundledTmux}`);
+    log(`  ${pair.pairLine}`);
+    log(`  create half ${pair.createBytes} bytes, verify half ${pair.verifyBytes} bytes, both through a real attach`);
+    log(
+      `  the warm server is unchanged: version ${String(pair.after.version)}, start time ` +
+        `${String(pair.after.startTime)}`
+    );
+    log(`  operator sessions ${operatorBefore} before and ${operatorAfterPair} after`);
+    if (operatorAfterPair !== operatorBefore) {
+      fail(
+        `the operator session count moved from ${operatorBefore} to ${operatorAfterPair}. ` +
+          'Something touched the real server.'
+      );
+    }
     restoreVersion();
     process.exit(0);
   }

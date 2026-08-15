@@ -55,7 +55,7 @@ in the shipping build.
 | cleanup, landed | **42** the architecture cleanup, 9 stage commits `ba6a090` to `a1c7e1e` plus ledger `e28c53f` | 36 and 38 landed |
 | 1 | **47** explorer and git pane nits (fix), **35** uniform logging (feat), **33** env passthrough (feat, ✅ landed this commit) | 42 pushed |
 | 2 | **34** the CodeWhale race (fix, ✅ landed this commit), **40** selection and calm focus (fix, ✅ landed this commit), **39** Open With (feat, ✅ landed this commit), **43** updater wreckage recovery (fix, PULLED FORWARD, ✅ landed this commit) | wave 1 slots free |
-| 3 | **41** bundled tmux 3.7b (feat), **46** Runs in the SCM view (feat, ✅ landed this commit) | wave 2 slots free |
+| 3 | **41** bundled tmux 3.7b (feat, ✅ landed this commit), **46** Runs in the SCM view (feat, ✅ landed `1eeddea`) | wave 2 slots free |
 
 ## The release plan, decided 2026-08-15
 
@@ -4256,7 +4256,7 @@ pane group, focused and unfocused states, plus one read with a needs input dot o
 
 **Semver.** fix, patch bump.
 
-## Phase 41 — bundle a pinned tmux 3.7b (research 43, operator approved 2026-08-14) QUEUED
+## Phase 41 — bundle a pinned tmux 3.7b (research 43, operator approved 2026-08-14) ✅ SHIPPED 2026-08-15 (this commit)
 
 **Specification.** docs/research/43-bundled-tmux.md. The research carries the measured build, the
 interop matrix, the option table and the adoption rule in full.
@@ -4296,6 +4296,78 @@ no system tmux, the full fault battery and both smoke restore shapes on the bund
 verify-signed green on all three nested binaries.
 
 **Semver.** feat, minor bump.
+
+**What shipped.** Tortie carries its own tmux. A packaged build resolves
+`Contents/Resources/bin/tmux` and nothing else, so a Mac with no tmux installed runs Tortie with
+nothing to install first. The shipped binary reports `tmux 3.7b`. It is 1,456,160 bytes after
+signing, which is 0.833 percent of the 174,711,664 byte DMG this phase built. It links three
+libraries and all three are under `/usr/lib`, because libevent 2.1.12 and utf8proc 2.10.0 are
+compiled in statically from pinned tarballs.
+
+- `build/build-tmux.mjs` downloads the three source tarballs, checks each one against the SHA-256
+  recorded in `build/tmux-release.json`, compiles them and asserts the result. A full build from
+  source measured 54.3 s under a parallel load. A repeat build measured 0.02 s, because a binary
+  that already reports the pinned version is left alone. `GMUX_TMUX_TARBALL_DIR` points the same
+  build at tarballs already on disk for an offline build, and those files face the same hash
+  check, so the offline path cannot bring different sources in.
+- `build/check-tmux-pin.cjs` proves `build/tmux-release.json` and `src/main/tmux/version.ts` state
+  the same version and the same tested pair. It runs inside `npm run package`, so a drifted pin
+  cannot reach a build.
+- Signing goes through the same pipeline as specstory and rg, with no change to its shape. There
+  is one `NESTED_BINARIES` row and one `signIgnore` row, and `verify-signed.mjs` check 5 enforces
+  them. All three nested binaries verify with team 4GRQMF5T5U and the hardened runtime, and tmux
+  carries the identifier `com.itavero.tortie.tmux`.
+- Tortie adopts a new tmux only when it creates a server. It never restarts, signals or upgrades a
+  server that is already running.
+- On a warm server the supervisor reads the server's version before the first attach. Here is the
+  measurement that decides that order. A 3.7b control attach against a 3.5a server ran for the
+  full 10 s cap and printed nothing, while the same client's `display-message -p '#{version}'`
+  answered `3.5a` and exited 0. A warm server holding zero sessions answers `display-message` and
+  answers `list-sessions -F '#{version}'` with nothing, so the version read comes first and the
+  session read is only a fallback.
+- The tested pair for this release is a 3.6a server with a 3.7b client. That pair attaches for
+  real. It logs one line saying the versions differ and that the pair is tested for this release.
+- An untested pair stops the boot with a screen naming both versions, the socket and the client
+  path, and offering two ways forward. The app never kills the old server. Check again re-probes
+  rather than remembering the earlier answer, so ending the old server outside Tortie and clicking
+  it lets the boot through.
+- `classifyTmuxFailure` learns the two version mismatch strings that are in the binary and were
+  unclassified before.
+- `npm run conformance:tmux-pair` and `build/update-rehearsal.mjs --tmux-pair` drive the tested
+  pair with a real attach, one in a development tree and one against a packaged app.
+
+**The Tier 3 evidence, produced by a verifier who did not build any of it.** The interop pair
+passed in both places, 614 bytes on the create half and 723 bytes on the verify half in the
+development run, and 614 then 1006 in the packaged run, with the warm 3.6a server unchanged in
+start time and session list afterwards. A copy of the packaged app launched under
+`env -i PATH=/usr/bin:/bin`, where `command -v tmux` finds nothing, created its server from the
+bundle, read back `history-limit 25000` from the repo's own conf, and passed a create then verify
+restore across a process restart. Both blocked screens were driven live and read from
+screenshots, and so was the third screen for a bundle with its tmux removed. The fault battery
+passed 20 of 20 cases on the bundled binary, `smoke:t3` passed both restore shapes, and
+`conformance:resume:capture` passed 6 with 0 failures. All three pinned tarballs were downloaded
+again and hashed independently, and `build/vendor/tmux` was deleted and rebuilt from source
+through the offline path. Operator sessions on socket gmux were 22 before and 22 after.
+
+**What is not proven, stated plainly.**
+- The fresh Mac was simulated by hiding PATH. Homebrew's tmux is still installed on the machine
+  that ran the checks, so no run happened on a Mac that never had tmux.
+- The `TMUX_NOT_FOUND` development screen was never driven live. `src/main/tmux/resolve.ts` probes
+  `/opt/homebrew/bin/tmux`, `/usr/local/bin/tmux` and `/usr/bin/tmux` directly before it reads
+  PATH, so hiding PATH does not reach that branch. Two unit test files pin its copy and its
+  resolution order, and that is the only evidence for it. A packaged build cannot reach it at all.
+- There is no before and after DMG number for the same code, because no 0.24.2 DMG exists without
+  tmux in it. The nearest earlier measurement is the 0.19.1 DMG at 172,577,508 bytes, and that is
+  a different application version, so the gap is not all tmux.
+- The built binary is not reproducible. Two builds at the same path produced the same 1,437,872
+  bytes and two different SHA-256 values. That is why the gate is on the source tarball hashes and
+  never on the built binary.
+
+**One behaviour change the operator will meet.** The tested pair is ordered. Once a packaged
+Tortie cold starts a 3.7b server on socket gmux, `npm run dev` with Homebrew's 3.6a is blocked by
+the untested pair screen, measured live at about 2 s to block. Set `GMUX_TMUX_BIN` to
+`build/vendor/tmux/bin/tmux` to point a development run at the bundled copy. The trigger is a
+reboot rather than anything the operator did, so it will arrive unannounced the first time.
 
 ## Phase 42 — the architecture cleanup, byte for byte (audit 2026-08-14, operator directed) ✅ SHIPPED 2026-08-15 (9 stage commits, ledger below)
 

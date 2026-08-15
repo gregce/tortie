@@ -111,3 +111,49 @@
 .onb-inner .empty-actions + .empty-actions {
   margin-top: var(--space-5);
 }
+
+/* ---------------------------------------------------------------------------
+   Phase 41 — the two boot blocks about which tmux is running.
+
+   Both reuse the family above. What they add is a short list of the ways
+   forward and one technical line at the foot, and neither existed on a
+   full-window state before.
+--------------------------------------------------------------------------- */
+
+/* These two screens carry more prose than any other empty state, so the body
+   measure matches the list below it. At the family's 460px the paragraphs
+   wrapped three lines narrower than the list and the block read as two
+   different columns. */
+.empty-inner.boot-block .empty-body {
+  max-width: 560px;
+}
+
+/* The two ways forward. Left aligned inside the centered column, because each
+   item is a sentence rather than a label and a centered sentence is slower to
+   read. */
+.onb-inner .boot-block-ways {
+  margin: var(--space-5) 0 0;
+  padding-left: var(--space-6);
+  max-width: 560px;
+  text-align: left;
+  font-size: var(--text-md);
+  line-height: var(--lh-md);
+  color: var(--text-secondary);
+}
+
+.onb-inner .boot-block-ways li + li {
+  margin-top: var(--space-3);
+}
+
+/* The line a bug report quotes. Monospace, dimmed, and selectable, so it can
+   be copied out without a button of its own. */
+.onb-inner .boot-block-detail {
+  margin: var(--space-6) 0 0;
+  max-width: 560px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 18px;
+  color: var(--text-muted);
+  user-select: text;
+  word-break: break-word;
+}
