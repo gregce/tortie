@@ -3697,15 +3697,26 @@ inside the 3000 ms outer race expires, before-quit proceeds to `app.quit()`, and
 `FreeEnvironment` hits the same `napi_fatal_error`. A real quit can reach the same state,
 because `shutdownGmuxCore` bounds its snapshot work at 8 s and abandons still queued pool work.
 What changed:
-- An expired drain no longer proceeds to `app.quit()`. before-quit reads the live pending count
-  after the bounded drain (`pendingWatcherCloseCount`); when it is nonzero, it writes one log
-  line naming the leftover count and leaves through `app.exit(0)`, which skips
-  `FreeEnvironment`, so the queued napi completion is never answered with an abort. Nothing
-  durable is pending at that line; the manifest quit generation finished inside
-  `shutdownGmuxCore` long before. The line is written with `writeSync`, because stdout to a
-  pipe is asynchronous and a hard exit right after a `console.log` can drop it.
-- The expired drain is no longer silent. The one log line is what Phase 35 will classify, so a
-  degraded quit reads as a degraded quit and never as a crash.
+- Every graceful exit was measured before choosing one, in a standalone lab under a saturated
+  pool with a pending unsubscribe, dev Electron 43.3.0, load average 65. `app.quit()` aborts
+  with the production stack. `app.exit(0)` ALSO aborts, and its stack still shows
+  `FreeEnvironment` running `RunCleanup`, so the first draft of this fix round, which escaped
+  through `app.exit(0)`, was a placebo: 6 of 6 runs printed the abort stack right after the
+  degraded log line. `process.exit(0)` wedges the process for minutes. SIGKILL to self exits
+  with no abort and no crash report, and the singleton notes already prove a SIGKILLed holder
+  does not lock the next launch out.
+- So an expired drain no longer proceeds to any teardown. before-quit reads the live pending
+  count after the bounded drain (`pendingWatcherCloseCount`); when it is nonzero, it writes one
+  log line naming the leftover count, hides the window so the late quit is invisible, and
+  drains AGAIN for up to 15 s. A busy pool always frees, the close settles, and the quit ends
+  with a normal `app.quit()`, logged with the measured wait. Only when the second drain also
+  expires, which needs a wedged FSEvents rather than a busy pool, does the quit end hard with
+  SIGKILL to self after one more log line. Nothing durable is pending at that line; the
+  manifest quit generation finished inside `shutdownGmuxCore` long before. The lines are
+  written with `writeSync`, because stdout to a pipe is asynchronous and a hard exit right
+  after a `console.log` can drop it.
+- The expired drain is no longer silent. Each step writes one log line, and those lines are
+  what Phase 35 will classify, so a late quit reads as a late quit and never as a crash.
 - The pending count now sees every close. Two closes were awaited directly instead of being
   tracked, in the repo watcher's `dispose()` and in the agents.json watcher's stop. The quit
   path bounds those awaits with its 3 s race, so a quit whose race expired while one of them
@@ -3713,6 +3724,9 @@ What changed:
   Both call sites now wrap the unsubscribe in `trackWatcherClose`, so the count is the whole
   truth. An untracked `unsubscribe()` anywhere in src/main is now documented as a bug in
   `watcher/teardown.ts`.
+- The quit smoke's watchdog went from 30 s to 60 s, because the late path may legitimately
+  spend 15 s in the second drain on top of a slow boot, and the watchdog's own `app.exit(1)`
+  under a pending close would abort.
 - The user facing symptom of the pre fix crash is recorded here because it was worse than the
   crash itself: after any aborted quit, the NEXT launch of the packaged app wedges indefinitely
   on the macOS reopen windows prompt (`NSPersistentUIRestorer
@@ -3727,7 +3741,9 @@ What changed:
 | smoke:quit on the pre fix build, 5 runs | 5 of 5 abort with `FATAL ERROR: Error::ThrowAsJavaScriptException napi_throw` and the exact production frames |
 | smoke:quit on the first fixed build, 5 runs, dev electron on an unloaded machine | 5 of 5 exit 0. This number did NOT hold for the packaged binary under load |
 | packaged smoke:quit series on the first fixed build | 5 clean and 1 abort of 6 under organic load; 1 of 1 abort when forced under 12 external CPU burners |
-| packaged smoke:quit under 12 external CPU burners, after the fix round | exit 0 with the leftover close line logged, the classified degraded path |
+| the fix round's own first draft, escaping through `app.exit(0)`, dev electron, load average 65 | 6 of 6 print the abort stack right after the degraded log line. The escape was a placebo |
+| exit path lab, saturated pool with a pending unsubscribe, dev Electron 43.3.0 | `app.quit()` aborts. `app.exit(0)` aborts. `process.exit(0)` wedges over 2 minutes until killed. SIGKILL to self exits at once with 0 FATAL lines |
+| smoke:quit on the shipped fix round, dev electron, load average 28 to 65 | 3 of 3 exit 0 through the late path: the first drain expires, the second drain settles, the quit ends with a normal `app.quit()` |
 | typecheck, build, bundle refusals | pass |
 | unit tests | 3284 passed, 0 failed (fix round adds 1) |
 | smoke:t1 and smoke:t3 | pass, quit generation logged as taken (quit) |
@@ -3740,10 +3756,12 @@ harness; the proof of the original defect is the 5 banked .ips reports plus the 
 standalone stack, and the proof of the fix is the harness differential, not plain scratch
 quits. The residual expiry of the drain has two known triggers, not one: a sick FSEvents, and
 in-process uv pool backlog under CPU contention, which is broader because a real quit's own 8 s
-snapshot bound can abandon queued pool work. Since the fix round an expired drain exits 0
-through `app.exit` with one log line instead of aborting; the cost accepted in exchange is that
-the degraded path skips the window close events `app.quit` would have fired. SIGTERM is assumed
-to equal a menu quit, per research 34.
+snapshot bound can abandon queued pool work. Since the fix round an expired first drain leads
+to a second drain and then a normal `app.quit()`, so the common late path is a clean quit that
+arrives up to 15 s later than usual, with the window hidden while it waits. The SIGKILL last
+resort has never fired in any run; it needs FSEvents to refuse an unsubscribe for 18 s, and it
+skips all remaining teardown, so anything a renderer flushes on window close would lose its
+final burst in that one case. SIGTERM is assumed to equal a menu quit, per research 34.
 
 ## Phase 37 — a new file is named before it exists (user requested, 2026-08-14) ✅ SHIPPED 2026-08-14 (`7c0ae02`)
 
@@ -3917,3 +3935,55 @@ no system tmux, the full fault battery and both smoke restore shapes on the bund
 verify-signed green on all three nested binaries.
 
 **Semver.** feat, minor bump.
+
+## Phase 42 — the architecture cleanup, byte for byte (audit 2026-08-14, operator directed) QUEUED
+
+**Specification.** docs/audits/2026-08-14-electron-typescript-architecture.md. The audit's target
+tree, invariants list and implementation order are the charter. This entry adds the execution
+rules the audit leaves open.
+
+**The goal, in the operator's words.** Retain byte for byte technical and user functionality.
+Bundle bytes cannot be the target because module order alone moves them, so byte identity is
+enforced at the CONTRACT level and behavior at the gate level.
+
+**The baseline inventories, captured on the pre refactor commit and byte compared after every
+stage.** A script (build/contract-inventory.mjs, written in stage 0) emits one deterministic
+file: every IPC invoke channel name sorted, the runtime window.gmux surface dumped from a live
+isolated instance, the SQLite schema text and user_version and min_compatible_version, the
+gmux.* localStorage keys from a source sweep, the harness env names, the four bundle refusal
+counts, and the conformance:agents and conformance:context outputs. Any stage that moves a byte
+of that file has broken the promise and its commit does not land.
+
+**The stages, one gates green commit each, subjects all refactor(scope), phase label "Phase 42:
+the architecture cleanup" on every body, NO version bumps (the semver rule exempts refactor).**
+One commit per stage is a deliberate deviation from one commit per phase, because eight
+bisectable steps beat one 5,000 line diff when hunting a regression.
+- Stage 0: the inventory script plus its baseline fixture, committed before any move.
+- Stages 1 to 8: the audit's implementation order, each with the audit's named protection
+  suites green plus the inventory byte compare. Stage 1's Settings window policy extension is a
+  deliberate hardening; the verifier drives Settings live (open, edit a setting, close) to prove
+  no visible change. Stage 7 (project references) may end blocked with evidence if it fights
+  electron-vite; record and continue. Stage 8 includes the agy-owner.ts NUL cleanup so that file
+  becomes text again.
+- Closing: update the CLAUDE.md growth rule that names src/shared/ipc.ts to name the split
+  contract while keeping the one bridge rule, and state why in the commit.
+
+**Execution rules.**
+- Runs ALONE. No other phase workflow may build while 42 is in flight; the queue resumes on the
+  new seams when it lands.
+- Only the committer role commits. Builders and verifiers never commit.
+- Full battery per stage (typecheck, build, test, smoke:t1, assert-bundle-refusals). The final
+  stage adds the whole arsenal: smoke:t3, the fault battery, conformance:resume:capture, one full
+  conformance:resume roundtrip, conformance:agents, conformance:context, a packaged build with
+  verify-signed, and a live behavioral pass driving sessions, git, search, context and settings.
+- Any stage that cannot reach green in one fix round REVERTS ITS OWN commit and records why,
+  rather than leaving the tree between shapes. Reverting a not yet pushed refactor commit is the
+  one sanctioned use of git revert in this phase.
+
+**Ordering.** After Phases 36 and 38 land and push, before Phase 35, which then lands its
+logging into the new composition root instead of the 2231 line index.ts.
+
+**Verification. Tier 3 overall**: the refactor touches durability orchestration files, and the
+operator was promised byte for byte.
+
+**Semver.** refactor, no bump.
