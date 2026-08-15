@@ -5,6 +5,54 @@ says what you can now do that you could not before, and what is still not
 true. The build story itself lives in the git history and in docs/BACKLOG.md.
 This file does not restate it.
 
+## 0.20.2 (2026-08-15)
+
+Tortie delivers this update to you by itself. If you are running 0.19.0 or
+0.19.1, the Tortie menu will offer "Update to 0.20.2, installs when you
+quit" within a few hours, or immediately through Check for Updates under
+About Tortie. Nothing to download, nothing moves, and your sessions keep
+running through the swap.
+
+### Quitting is now a real quit
+
+Every quit of the packaged app used to end in a hidden crash inside the
+file watcher, which macOS quietly filed as a crash report. Now the app
+waits for its watchers before teardown, and 5 of 5 measured quits under
+load ended cleanly with 0 new crash reports.
+
+### Your removed sessions are no longer gone
+
+Remove no longer deletes a session's record. It moves to Past Sessions, at
+the bottom of the Session menu: a searchable list of everything you
+removed, newest first, each row saying before you click whether Restore
+continues the old conversation or starts fresh. Removed sessions are kept
+for 90 days.
+
+### Split groups survive closing a project
+
+Drag sessions into a split group, close the project tab, reopen it, and
+the arrangement comes back exactly as you left it, including which pane
+had focus. It survives a full app restart too.
+
+### The updater tells the truth
+
+When a check you started finishes downloading, one dialog says the update
+is ready and installs when you quit. If an install was refused, e.g.
+because another copy of Tortie was running, the next launch says so in
+one line. Packaged builds now keep their own updater log.
+
+### Smaller honest fixes
+
+- A new file or folder is named before it exists. No more untitled rows
+  that are not really there.
+- Removing a skill removes it fully through the skills CLI and lists every
+  path that will leave the disk before you confirm.
+- An antigravity session can no longer take credit for another session's
+  conversation. Ownership is proven by the process that holds the
+  conversation open.
+- A terminal pane that lost its fast renderer to a lid close recovers on
+  the next wake.
+
 ## 0.19.1 (2026-08-14)
 
 A small one, and the first release Tortie delivers to you by itself. If you
