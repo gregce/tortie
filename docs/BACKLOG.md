@@ -3998,3 +3998,32 @@ logging into the new composition root instead of the 2231 line index.ts.
 operator was promised byte for byte.
 
 **Semver.** refactor, no bump.
+
+## Phase 43 — the updater recovers from its own wreckage (operator hit it live, 2026-08-15) QUEUED
+
+**The incident.** The operator's 0.19.1 tried to self update to 0.20.2. ShipIt crash looped: 3
+install attempts inside 18 seconds, each dying about 2 seconds after Beginning installation,
+because the staged bundle its state file pointed at did not exist and its staging directory was
+empty. The persisted attempt counter then tripped "Too many attempts to install, aborting
+update" and the update died silently. The app stayed at 0.19.1 with no surface saying anything.
+The orchestrator recovered by hand: delete ShipItState.plist, the update.* staging directories,
+the com.itavero.tortie.ShipIt defaults domain, and the tortie-updater pending cache.
+
+**The work.**
+- Diagnose WHY the staged bundle vanished between staging and install (the download completed
+  and staging was recorded; suspects include the pending cache being cleared by a second check,
+  quarantine, or a race between two ShipIt spawns; the ShipIt stderr log and the Phase 31
+  disassembly notes are the starting evidence).
+- The Phase 31 refusal line on next launch learns the two remaining silent shapes: "Too many
+  attempts" and a staged bundle missing at install time. Copy names the reason and the remedy.
+- A recovery verb, not a manual ritual: when the next launch detects exhausted or wrecked
+  updater state, Tortie offers one action that clears the Squirrel state and the pending cache
+  and re-arms the check, the exact sequence the orchestrator ran by hand. It never touches a
+  healthy staged update.
+
+**Verification. Tier 3** (the operator personally hit it, and it touches the update path):
+reproduce the wreck in an isolated instance by deleting the staged bundle after staging and
+exhausting the counter, prove the refusal line names it and the recovery verb heals it, then
+prove a healthy staged update is untouched by the recovery path.
+
+**Semver.** fix, patch bump.
