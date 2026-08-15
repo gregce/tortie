@@ -14,11 +14,19 @@
  * a fire-and-forget unsubscribe under a saturated pool aborts (exit 134),
  * the same unsubscribe awaited exits 0.
  *
- * THE RULE THAT FOLLOWS. A watcher close issued anywhere near quit must be
- * awaitable by the quit path. Call sites that cannot await locally wrap the
- * close in `trackWatcherClose`; the before-quit handler calls
- * `drainWatcherCloses` after the last close has been issued and before
- * `app.quit()`.
+ * THE RULE THAT FOLLOWS (broadened in the fix round). EVERY watcher close is
+ * wrapped in `trackWatcherClose`, including the ones a dispose path awaits
+ * directly, because the quit path bounds its awaits with a race. The
+ * before-quit handler calls `drainWatcherCloses` after the last close has
+ * been issued; when the drain expires it reads `pendingWatcherCloseCount`,
+ * logs the nonzero count, and drains AGAIN with a much longer bound,
+ * because reaching `node::FreeEnvironment` with a queued unsubscribe
+ * completion is a guaranteed abort, and so is `app.exit()` (measured; its
+ * stack still runs FreeEnvironment -> RunCleanup). Only when the second
+ * drain also expires does the quit end hard with SIGKILL to self, the one
+ * exit that cannot abort. A close the count cannot see is a close that can
+ * still crash the quit, so an untracked `unsubscribe()` anywhere in
+ * src/main is a bug.
  *
  * No Electron import on purpose, so this stays unit testable.
  */
@@ -47,12 +55,28 @@ export function trackWatcherClose<T>(close: Promise<T>): Promise<T> {
 }
 
 /**
+ * How many tracked closes are still unsettled right now. The before-quit
+ * handler reads this AFTER its bounded drain: a nonzero answer means at
+ * least one unsubscribe completion is still queued, and letting the quit
+ * reach `node::FreeEnvironment` from that state is a guaranteed
+ * `napi_fatal_error` abort. The caller logs the count and drains again with
+ * a longer bound instead of proceeding.
+ */
+export function pendingWatcherCloseCount(): number {
+  return pending.size;
+}
+
+/**
  * Wait until every tracked close has settled, or until `deadlineMs` runs
  * out. Closes tracked WHILE the drain is running are included, because the
  * set is re-read after every settled batch. Returns the number of closes
  * still unsettled at return, so 0 means the drain is complete and any other
- * number is the log-worthy truth. The deadline exists only so a sick
- * FSEvents can never wedge quit.
+ * number is the log-worthy truth. The deadline exists so quit can never
+ * wedge. Two things are known to outlive it: a sick FSEvents, and an
+ * unsubscribe completion queued behind uv threadpool work when the pool is
+ * backed up and the CPU is contended. The second was measured in the
+ * packaged app on 2026-08-14, so an expired drain is an expected state, not
+ * a theoretical one.
  */
 export async function drainWatcherCloses(deadlineMs: number): Promise<number> {
   const deadline = Date.now() + deadlineMs;

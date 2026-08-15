@@ -63,7 +63,11 @@
  *                       unsubscribe turns quit into a SIGABRT. Boots the
  *                       core, proves the agents.json watcher is live, queues
  *                       8 slow pbkdf2 jobs, quits for real. The process exit
- *                       code is the verdict. `npm run smoke:quit`.
+ *                       code is the verdict: 0 is the pass, 134 is the bug.
+ *                       When the first drain expires the quit logs the
+ *                       leftover count, hides the window, and drains again
+ *                       for up to 15 s, so a 0 with those lines is the
+ *                       classified late quit. `npm run smoke:quit`.
  *  - GMUX_SMOKE=procid  what the OUTSIDE world sees of gmux (Phase 13.8):
  *                       app name, process.title, what `ps` prints, and the
  *                       gmux-owned process list (app + helpers + private tmux
@@ -83,7 +87,7 @@
 import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import { execFile } from 'node:child_process';
 import { pbkdf2, randomUUID } from 'node:crypto';
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync, writeSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -123,7 +127,10 @@ import { getGmuxCore, shutdownGmuxCore } from './sessions';
 import type { GmuxCore } from './sessions';
 // Phase 36: the quit-time watcher-close drain. See watcher/teardown.ts for
 // why a fire-and-forget unsubscribe near quit is a SIGABRT and not a quit.
-import { drainWatcherCloses } from './watcher/teardown';
+import {
+  drainWatcherCloses,
+  pendingWatcherCloseCount
+} from './watcher/teardown';
 import { handle } from './typed-ipc';
 import { WINDOW_BACKGROUND } from '@shared/window-chrome';
 import type { ManifestSessionRecord } from './manifest';
@@ -631,11 +638,21 @@ async function runSmokeVerify(): Promise<void> {
  * with app.exit(), which never reaches before-quit. This one ends with the
  * REAL app.quit() while 8 slow pbkdf2 jobs hold the 4-thread pool, which is
  * the same pressure a real quit's snapshot and manifest-generation writes
- * apply. Exit 0 means the quit path waited for its watcher closes. Exit 134
- * is the bug.
+ * apply. Exit 134 is the bug. Exit 0 has two shapes since the fix round:
+ * the clean one, where the first drain finished in time, and the classified
+ * late one, where the first drain expired, the quit path logged the
+ * leftover close count and drained again for up to 15 s, and the close
+ * settled before FreeEnvironment could run into it. A loaded machine hits
+ * the late shape; an idle one hits the clean shape. Only a wedged FSEvents
+ * outlives BOTH drains, and that last resort is a logged SIGKILL to self,
+ * never an abort.
  */
 async function runSmokeQuit(): Promise<void> {
-  armWatchdog(30_000);
+  // 60 s, not the usual 30: the late path may legitimately spend up to 15 s
+  // in the second drain on top of a slow boot under load, and the watchdog's
+  // own app.exit(1) under a pending close would abort, which is the exact
+  // failure this smoke exists to catch.
+  armWatchdog(60_000);
   try {
     await getGmuxCore();
     smokeLog('1/4 core booted: tmux server + manifest + control client');
@@ -2165,7 +2182,8 @@ app.on('before-quit', (event) => {
     // repo-watcher and agents.json closes started on this line. The manifest
     // quit generation already finished inside shutdownGmuxCore, so nothing
     // here can delay or cut it short. The outer 3 s race is a wedge guard
-    // only; a measured unsubscribe completes in single-digit milliseconds.
+    // only; a measured unsubscribe completes in single-digit milliseconds
+    // when the uv threadpool has a free thread.
     await Promise.race([
       Promise.allSettled([disposeGitIpc(), stopAgentOverlayWatch()]).then(() =>
         drainWatcherCloses(2_000)
@@ -2182,6 +2200,60 @@ app.on('before-quit', (event) => {
     const reaped = reapGuardedChildren();
     if (reaped > 0) console.log(`[gmux] reaped ${reaped} in-flight probe(s)`);
     disposeTray();
+    // Phase 36 fix round: the drain can expire. The pool can still be backed
+    // up here, because shutdownGmuxCore bounds its snapshot work at 8 s and
+    // abandons whatever is still queued, and external CPU load stretches
+    // every queued job. An unsubscribe completion still pending past this
+    // point makes ANY environment teardown a guaranteed abort:
+    // node::FreeEnvironment runs RunCleanup, napi refuses the late call, and
+    // @parcel/watcher answers with napi_fatal_error. Worse, the NEXT launch
+    // then wedges on the macOS reopen-windows prompt. Every graceful exit
+    // was measured on 2026-08-14, dev Electron 43.3.0 under a 65 load
+    // average, with a pending unsubscribe queued behind a saturated pool:
+    //   app.quit()      aborts (SIGABRT, the production stack)
+    //   app.exit(0)     ALSO aborts. The stack still shows FreeEnvironment
+    //                   -> RunCleanup, so it is not the escape it looks like
+    //   process.exit(0) wedges the process for minutes
+    // The only exits that cannot abort are (a) waiting until the close has
+    // actually settled, then quitting cleanly, and (b) SIGKILL to self,
+    // which skips all teardown. So the degraded path does (a) with a second,
+    // much longer drain, and (b) only if even that expires, which needs a
+    // wedged FSEvents, not just a busy pool. The window is hidden first so
+    // the late quit is invisible; nothing durable is pending by this line
+    // (the manifest quit generation finished inside shutdownGmuxCore).
+    // Each step writes one line so Phase 35 can classify the quit.
+    // writeSync, because stdout to a pipe is asynchronous and a hard exit
+    // right after console.log can drop the line.
+    const logQuit = (line: string): void => {
+      try {
+        writeSync(1, `${line}\n`);
+      } catch {
+        /* stdout may already be closed in a packaged run */
+      }
+    };
+    let leftover = pendingWatcherCloseCount();
+    if (leftover > 0) {
+      logQuit(
+        `[gmux] quit: ${leftover} watcher close(s) still pending after the drain; waiting up to 15 s more so quit is not a crash`
+      );
+      try {
+        for (const w of BrowserWindow.getAllWindows()) w.hide();
+      } catch {
+        /* hiding is cosmetic; never let it block the quit */
+      }
+      const lateStart = Date.now();
+      leftover = await drainWatcherCloses(15_000);
+      if (leftover > 0) {
+        logQuit(
+          `[gmux] quit: ${leftover} watcher close(s) still pending after 15 s more; ending the process hard because environment teardown would abort`
+        );
+        process.kill(process.pid, 'SIGKILL');
+        return;
+      }
+      logQuit(
+        `[gmux] quit: the late watcher close(s) settled after ${Date.now() - lateStart} ms; quitting cleanly`
+      );
+    }
     app.quit();
   })();
 });

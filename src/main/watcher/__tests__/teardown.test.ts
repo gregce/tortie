@@ -8,7 +8,11 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { drainWatcherCloses, trackWatcherClose } from '../teardown';
+import {
+  drainWatcherCloses,
+  pendingWatcherCloseCount,
+  trackWatcherClose
+} from '../teardown';
 
 /** A promise plus the handles to settle it from the test body. */
 function deferred(): {
@@ -94,5 +98,29 @@ describe('watcher teardown drain', () => {
     // Settle it so the module-level set is empty for the other tests.
     stuck.resolve();
     await drainWatcherCloses(1_000);
+  });
+
+  it('exposes the live pending count for the quit path to read', async () => {
+    // This is the number the before-quit handler reads after its bounded
+    // drain. Nonzero means app.quit() would abort, so it must track the set
+    // exactly: up on track, down on settle, regardless of how the drain's
+    // own race resolved.
+    expect(pendingWatcherCloseCount()).toBe(0);
+
+    const a = deferred();
+    const b = deferred();
+    trackWatcherClose(a.promise);
+    trackWatcherClose(b.promise);
+    expect(pendingWatcherCloseCount()).toBe(2);
+
+    a.resolve();
+    // The settle chain removes the entry before it resolves, so one macrotask
+    // is enough for the count to drop.
+    await new Promise((r) => setTimeout(r, 10));
+    expect(pendingWatcherCloseCount()).toBe(1);
+
+    b.resolve();
+    await drainWatcherCloses(1_000);
+    expect(pendingWatcherCloseCount()).toBe(0);
   });
 });

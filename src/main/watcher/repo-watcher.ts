@@ -158,7 +158,12 @@ export class RepoWatcher {
     this.dotgitSub = null;
     for (const sub of subs) {
       if (sub !== null) {
-        await sub.unsubscribe().catch(() => undefined);
+        // Tracked AND awaited (Phase 36 fix round). The quit path bounds the
+        // await with a race; when the bound expires with this unsubscribe
+        // still queued behind pool work, the tracked set is the only thing
+        // that lets `pendingWatcherCloseCount()` see it and drain again
+        // instead of quitting into a napi abort.
+        await trackWatcherClose(sub.unsubscribe().catch(() => undefined));
       }
     }
   }

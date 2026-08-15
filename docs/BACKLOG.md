@@ -3728,11 +3728,14 @@ What changed:
   spend 15 s in the second drain on top of a slow boot, and the watchdog's own `app.exit(1)`
   under a pending close would abort.
 - The user facing symptom of the pre fix crash is recorded here because it was worse than the
-  crash itself: after any aborted quit, the NEXT launch of the packaged app wedges indefinitely
-  on the macOS reopen windows prompt (`NSPersistentUIRestorer
+  crash itself: after any aborted quit, the NEXT launch of the app wedges indefinitely on the
+  macOS reopen windows prompt (`NSPersistentUIRestorer
   promptToIgnorePersistentStateWithCrashHistory`, sampled live on a wedge that sat 10 or more
-  minutes until killed). The smoke:quit harness now passes `-ApplePersistenceIgnoreState YES`
-  so consecutive runs cannot wedge on that prompt.
+  minutes until killed). The wedge is not limited to the packaged app or to smoke:quit. During
+  this fix round a smoke:t3 prep launch of the dev electron sat 15 minutes inside that same
+  `NSAlert runModal` frame, because the placebo runs earlier in the evening had filed crash
+  history for the dev electron bundle. Every harness electron launch in package.json now
+  passes `-ApplePersistenceIgnoreState YES`, 16 sites, so no harness can wedge on that prompt.
 
 **The numbers.**
 
@@ -3743,10 +3746,12 @@ What changed:
 | packaged smoke:quit series on the first fixed build | 5 clean and 1 abort of 6 under organic load; 1 of 1 abort when forced under 12 external CPU burners |
 | the fix round's own first draft, escaping through `app.exit(0)`, dev electron, load average 65 | 6 of 6 print the abort stack right after the degraded log line. The escape was a placebo |
 | exit path lab, saturated pool with a pending unsubscribe, dev Electron 43.3.0 | `app.quit()` aborts. `app.exit(0)` aborts. `process.exit(0)` wedges over 2 minutes until killed. SIGKILL to self exits at once with 0 FATAL lines |
-| smoke:quit on the shipped fix round, dev electron, load average 28 to 65 | 3 of 3 exit 0 through the late path: the first drain expires, the second drain settles, the quit ends with a normal `app.quit()` |
+| smoke:quit on the shipped fix round, dev electron, load average 28 to 65 | 5 of 5 exit 0 through the late path: the first drain expires, the second drain settles (664 ms and 1118 ms on the two measured runs), the quit ends with a normal `app.quit()` |
+| packaged smoke:quit series on the shipped fix round, signed release build, load average 28 to 38 | 5 of 5 exit 0 through the late path, second drain settled in 315 to 738 ms, 0 new DiagnosticReports entries |
+| the installed 0.19.1 app, during this fix round | filed one more organic SIGABRT at 23:25 with the exact production stack (launched by launchd, quit by the operator), confirming the pre fix behavior in the wild while the fixed build quit cleanly 5 of 5 |
 | typecheck, build, bundle refusals | pass |
-| unit tests | 3284 passed, 0 failed (fix round adds 1) |
-| smoke:t1 and smoke:t3 | pass, quit generation logged as taken (quit) |
+| unit tests, fix round | 3299 passed and 13 failed on the parallel run under external CPU load; every failure is a 5 s timeout in git, context scan, or name scan integration suites; all 13 pass re run in isolation, 40 of 40 |
+| smoke:t1 and smoke:t3, fix round | pass, quit generation logged as taken (quit); prep 6 of 6, verify 3 of 3 |
 | conformance:resume:capture | 6 pass, 0 fail, 0 blocked |
 
 **What is not true.** The plain packaged launch and quit workload does not reproduce the

@@ -47,6 +47,7 @@ import { setConfigRowSource } from './ipc';
 import type { AgentOverlayMerge, MergedAgentEntry } from './overlay';
 import { executionFieldsOf, mergeAgentOverlay, parseAgentOverlay } from './overlay';
 import { agentOverlayPath, configDir, ensureConfigDir } from './paths';
+import { trackWatcherClose } from '../watcher/teardown';
 
 /** Why a load happened. It reaches the log line and nothing else. */
 export type AgentOverlayLoadReason = 'boot' | 'reload' | 'watch';
@@ -400,7 +401,12 @@ export async function startAgentOverlayWatch(): Promise<boolean> {
       }, WATCH_DEBOUNCE_MS);
       watchTimer.unref?.();
     });
-    watchStop = () => sub.unsubscribe();
+    // Tracked AND awaited (Phase 36 fix round). stopAgentOverlayWatch awaits
+    // this, but the quit path bounds that await with a race; the tracked set
+    // is what lets `pendingWatcherCloseCount()` see an unsubscribe that
+    // outlives the bound, so the quit drains again instead of running
+    // node::FreeEnvironment into the queued napi completion.
+    watchStop = () => trackWatcherClose(sub.unsubscribe());
     return true;
   } catch (err) {
     console.warn(
