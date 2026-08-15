@@ -5,6 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  coveredByIgnored,
   ignoredDotSuppressionCss,
   ignoredOnlyAncestors,
   isUnderIgnored,
@@ -79,6 +80,31 @@ describe('pathsToAsk', () => {
 
   it('drops the empty string rather than sending it to git', () => {
     expect(pathsToAsk(['', 'a.ts'], new Set(), new Set())).toEqual(['a.ts']);
+  });
+});
+
+describe('coveredByIgnored', () => {
+  it('spells out the loaded paths an ignored directory already covers', () => {
+    // These get an explicit entry rather than relying on @pierre/trees'
+    // inheritance cache, which is never cleared. See the function's comment.
+    expect(
+      coveredByIgnored(
+        ['src/main.ts', 'node_modules/react/index.js', 'node_modules/react/'],
+        IGNORED
+      )
+    ).toEqual(['node_modules/react/index.js', 'node_modules/react/']);
+  });
+
+  it('does not repeat a path the set already holds', () => {
+    expect(coveredByIgnored(['node_modules/', 'dist/'], IGNORED)).toEqual([]);
+  });
+
+  it('is empty while nothing is known to be ignored', () => {
+    expect(coveredByIgnored(['a/b.ts', 'c/'], new Set())).toEqual([]);
+  });
+
+  it('drops the empty string rather than covering it', () => {
+    expect(coveredByIgnored(['', 'dist/x.js'], IGNORED)).toEqual(['dist/x.js']);
   });
 });
 

@@ -10,12 +10,32 @@
  *
  * TWO RULES KEEP THE CALL SMALL, and both are pure functions below.
  *
- *  1. A directory answers for its whole subtree. @pierre/trees keeps an
- *     `ignoredDirectoryPaths` set and inherits the ignored status down to
- *     every descendant row, so once `node_modules/` comes back ignored,
- *     expanding it costs zero further calls.
+ *  1. A directory answers for its whole subtree. Git cannot re-include a file
+ *     whose parent directory is excluded, so once `node_modules/` comes back
+ *     ignored, every path under it is ignored too and needs no call of its
+ *     own. `coveredByIgnored` spells those paths out for the tree.
  *  2. A path is asked once. The answer for a path that is not ignored is
  *     remembered too, so a watcher tick does not re-ask the whole tree.
+ *
+ * THE RULE THAT MUST NOT BE UNDONE (Phase 47.1, an operator bug against 0.24.2).
+ * `invalidate` MUST NEVER EMPTY `ignored`. It used to, and the rendered set is
+ * what the tree dims from, so every dimmed row repainted at full brightness
+ * for the 13 ms to 30 ms the replacement call took. The operator runs several
+ * agents writing at once, which fired the watcher continuously, so he saw a
+ * white flash on a fixed period and called it a strobe. Measured on the
+ * shipped build: 84 bad frames out of 3601 over 31.0 s, in 15 flashes exactly
+ * 2000 ms apart. The store is stale-while-revalidate instead. It keeps showing
+ * the last answer, fetches the new one, and swaps in one `set` call. What
+ * `invalidate` clears is the QUERY BOOKKEEPING, being `answered` and the
+ * `revalidating` flag, never the set the tree renders. Only `reset`, which is
+ * leaving the repository altogether, empties it.
+ *
+ * A REVALIDATION REPLACES, an ordinary sync MERGES. Merging is right while the
+ * tree grows, because each answer is about paths nobody had asked about yet.
+ * It is wrong after a .gitignore edit, because a path that stopped being
+ * ignored has to be able to LEAVE the set, and merging can only add. So a
+ * revalidation asks about every loaded path and starts the next set from the
+ * hits alone.
  *
  * Everything here is an ENHANCEMENT. A preload without the channel, a failed
  * read and a folder that is not a repository all leave the set empty and the
@@ -34,15 +54,25 @@ const NONE: ReadonlySet<string> = new Set<string>();
 const MAX_ASK = 20_000;
 
 /**
- * Floor on how often a repo change may throw the answers away.
+ * Floor on how often a repo change may throw the ANSWERS away (not the set).
  *
  * The watcher fires on any worktree write, and the operator runs several
  * agents writing at once, so without this an ignore re-read would ride every
- * tick and its stdin would grow with the loaded tree. Two seconds caps the
- * extra work at one short `git check-ignore` per two seconds, and a
- * .gitignore edit still shows up within about two seconds.
+ * tick and its stdin would grow with the loaded tree.
+ *
+ * Raised from 2000 to 10000 in Phase 47.1. Two things decide the number. The
+ * only event this floor exists for is an ignore RULE change, meaning an edit
+ * to a .gitignore, to .git/info/exclude or to core.excludesFile, because
+ * nothing else can change an answer the store already holds. A new file that
+ * happens to be ignored is not that event, and it dims on the next watcher
+ * tick through the ordinary sync below. The floor used to have a visible cost
+ * per tick, since each one blanked the tree, and that cost is now zero, so the
+ * only thing left to weigh is one `git check-ignore` spawn against how long a
+ * .gitignore edit may take to show. Measured under one writer at 400 ms, 2000
+ * ms means 30 spawns per minute and 10000 ms means 6, each spawn costing 13 ms
+ * to 30 ms. A .gitignore edit now shows within 10 s at worst.
  */
-const INVALIDATE_MIN_MS = 2000;
+const INVALIDATE_MIN_MS = 10_000;
 
 /** True when `path` sits inside a directory already known to be ignored. */
 export function isUnderIgnored(
@@ -54,6 +84,40 @@ export function isUnderIgnored(
     if (ignored.has(dir)) return true;
   }
   return false;
+}
+
+/**
+ * Loaded paths the set already covers, spelled out one by one (Phase 47.1).
+ *
+ * These never go to git. Git cannot re-include a file whose parent directory
+ * is excluded, so a path under `node_modules/` is ignored by definition and
+ * `pathsToAsk` is right to drop it. The tree still needs a row-level answer
+ * for it, and the two ways to get one are not equal.
+ *
+ * @pierre/trees can inherit the status down from the directory entry, but its
+ * `ignoredInheritanceCache` is built once per mount with `useMemo(..., [])`
+ * and nothing in the package ever clears it (render/FileTreeView.js, the
+ * `useMemo` at line 558 and `getInheritedIgnoredGitStatus` at line 180). A
+ * directory that is rendered BEFORE its ignored answer arrives is cached as
+ * "not under an ignored directory" for the life of the tree, so a file an
+ * agent later writes into `node_modules/` would render undimmed and stay that
+ * way. Until Phase 47.1 that was hidden, because emptying the set every 2 s made
+ * the next pass ask about every loaded path and hand every row an explicit
+ * entry. An explicit entry wins over inheritance (FileTreeView.js line 408),
+ * so giving every loaded path its own entry is what keeps the dimming right
+ * without the blanking that made it right before.
+ */
+export function coveredByIgnored(
+  paths: Iterable<string>,
+  ignored: ReadonlySet<string>
+): string[] {
+  if (ignored.size === 0) return [];
+  const covered: string[] = [];
+  for (const path of paths) {
+    if (path.length === 0 || ignored.has(path)) continue;
+    if (isUnderIgnored(path, ignored)) covered.push(path);
+  }
+  return covered;
 }
 
 /**
@@ -139,12 +203,16 @@ interface TreeIgnoredState {
   /**
    * Bumped by `invalidate`. The tree's sync effect watches it, so a
    * .gitignore edit re-asks about every path rather than trusting the
-   * remembered answers.
+   * remembered answers. It does NOT change what is rendered on its own.
    */
   epoch: number;
   /** Ask about whatever is new in `paths`. Never throws. */
   sync(repoPath: string, paths: Iterable<string>): Promise<void>;
-  /** Forget every answer and ask again (git:changed). */
+  /**
+   * Distrust the remembered answers and ask again (git:changed). The set the
+   * tree renders is left alone until the replacement lands. See the rule in
+   * the module header.
+   */
   invalidate(): void;
   /** Leave the repo entirely (project closed, folder is not a repository). */
   reset(): void;
@@ -160,12 +228,47 @@ export const useTreeIgnored = create<TreeIgnoredState>((set, get) => {
   let syncSeq = 0;
   let lastInvalidateAt = 0;
   let invalidateTimer: ReturnType<typeof setTimeout> | null = null;
+  /**
+   * True from `invalidate` until a full answer lands. It makes the next sync
+   * ask about every loaded path and REPLACE the set with what comes back, so
+   * a path that stopped being ignored can leave.
+   */
+  let revalidating = false;
 
   const forget = (): void => {
     lastInvalidateAt = Date.now();
     answered = new Set();
+    revalidating = true;
     syncSeq++;
-    set((s) => ({ ignored: NONE, epoch: s.epoch + 1 }));
+    // The rendered set is deliberately absent here. Emptying it is the bug
+    // Phase 47.1 fixed; read the module header before putting it back.
+    set((s) => ({ epoch: s.epoch + 1 }));
+  };
+
+  /** True when the two sets hold the same paths, so no repaint is needed. */
+  const sameSet = (a: ReadonlySet<string>, b: ReadonlySet<string>): boolean => {
+    if (a.size !== b.size) return false;
+    for (const path of a) if (!b.has(path)) return false;
+    return true;
+  };
+
+  /**
+   * Land one answer. `replace` starts from the hits alone, which is what lets
+   * a path that stopped being ignored leave; otherwise the hits are merged
+   * into what is already shown. Either way the loaded paths the result covers
+   * are spelled out, and an unchanged result is not written back.
+   */
+  const commit = (
+    hits: readonly string[],
+    paths: Iterable<string>,
+    replace: boolean
+  ): void => {
+    const current = get().ignored;
+    const next = replace ? new Set<string>() : new Set(current);
+    for (const path of hits) next.add(path);
+    for (const path of coveredByIgnored(paths, next)) next.add(path);
+    if (sameSet(next, current)) return;
+    set({ ignored: next });
   };
 
   return {
@@ -179,12 +282,30 @@ export const useTreeIgnored = create<TreeIgnoredState>((set, get) => {
       if (gmux === undefined || typeof checkIgnore !== 'function') return;
 
       if (get().repoPath !== repoPath) {
+        // A different repository is a real transition, not a refresh. Nothing
+        // known about the old one is worth showing over the new one.
         answered = new Set();
+        revalidating = false;
         set({ repoPath, ignored: NONE });
       }
 
-      const ask = pathsToAsk(paths, get().ignored, answered);
-      if (ask.length === 0) return;
+      // A revalidation asks about EVERY loaded path. The remembered answers
+      // are exactly what may now be wrong, and the current set cannot be used
+      // to skip a subtree either, because the whole point is to find out
+      // whether that subtree is still ignored.
+      const replace = revalidating;
+      const ask = replace
+        ? pathsToAsk(paths, NONE, NONE)
+        : pathsToAsk(paths, get().ignored, answered);
+
+      if (ask.length === 0) {
+        // Nothing to ask git, which is still an answer. Spell out any newly
+        // listed path the set already covers, and on a revalidation with an
+        // empty tree settle on the empty set rather than staying stale.
+        if (replace) revalidating = false;
+        commit([], paths, replace);
+        return;
+      }
 
       const seq = ++syncSeq;
       const epoch = get().epoch;
@@ -192,19 +313,23 @@ export const useTreeIgnored = create<TreeIgnoredState>((set, get) => {
       try {
         hits = await checkIgnore.call(gmux.git, { repoPath, paths: ask });
       } catch {
-        // Dimming is a decoration. A failed read leaves the tree plain.
+        // Dimming is a decoration. A failed read leaves the tree plain, and
+        // leaves `revalidating` set so the next tick tries the full ask again.
         return;
       }
       // Stale: another sync started, the project moved, or the answers were
-      // invalidated while this call was in flight.
+      // invalidated while this call was in flight. Dropping the result keeps
+      // the last good set on screen, which is the point of the whole store.
       if (seq !== syncSeq) return;
       if (get().repoPath !== repoPath || get().epoch !== epoch) return;
 
-      for (const path of ask) answered.add(path);
-      if (hits.length === 0) return;
-      const next = new Set(get().ignored);
-      for (const path of hits) next.add(path);
-      set({ ignored: next });
+      if (replace) {
+        answered = new Set(ask);
+        revalidating = false;
+      } else {
+        for (const path of ask) answered.add(path);
+      }
+      commit(hits, paths, replace);
     },
 
     invalidate() {
@@ -223,6 +348,13 @@ export const useTreeIgnored = create<TreeIgnoredState>((set, get) => {
     },
 
     reset() {
+      // Leaving the repository IS a real transition, so this one does empty
+      // the rendered set. There is no tree left to dim.
+      if (invalidateTimer !== null) {
+        clearTimeout(invalidateTimer);
+        invalidateTimer = null;
+      }
+      revalidating = false;
       // Idempotent, and it does NOT touch the epoch. The tree's sync effect
       // watches the epoch and calls this one when the folder is not a
       // repository, so bumping it here would be a loop.
