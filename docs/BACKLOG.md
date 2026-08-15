@@ -3793,3 +3793,32 @@ process spawned with the expected argv. One screenshot read. The menu build must
 ms on first use for a common extension, measured.
 
 **Semver.** feat, minor bump.
+
+## Phase 40 — the right click keeps your selection, and focus reads calmly (user reported, 2026-08-14) QUEUED
+
+Two defects from the operator's evening of real use, one phase because both live in the terminal
+pane surface.
+
+**Item 1, the selection drop, a bug with proof owed.** Select text in a session, right click to
+reach Copy or Copy as HTML, and the selection is gone before the menu opens. Copy has the cmd+C
+escape hatch. Copy as HTML has no path at all, because it only exists on that menu. The fix:
+the selection is captured BEFORE the menu opens and survives the right click, so both verbs act
+on what the user selected. Diagnose whether the drop comes from xterm handling the mousedown,
+from focus movement, or from the menu trigger, and fix at the source rather than re-selecting
+after the fact.
+
+**Item 2, the focus affordance in a group.** With 2 or more sessions multiplexed, the focused
+pane today carries a hard blue outline that crowds its top edge. The operator wants, verbatim in
+substance: a lighter blue box around the focused pane, and a subtle fade over every unfocused
+pane in the group. Screenshots from 2026-08-14 show the current state. Rules: colors via tokens
+only, the fade must not make unfocused content unreadable (it is a hint, not a curtain), a group
+of 1 shows neither treatment, and the needs input status dot must remain fully visible on faded
+panes because status always outranks decoration.
+
+**Verification.** Item 1 at the user reported bug bar: a live probe selects multi line text in a
+real session, right clicks, captures the menu with both verbs enabled, invokes Copy as HTML, and
+proves the clipboard holds an HTML fragment carrying the terminal colors, with the selection
+still highlighted after the menu closes. Item 2 at Tier 2: screenshot reads of a 2 pane and a 3
+pane group, focused and unfocused states, plus one read with a needs input dot on a faded pane.
+
+**Semver.** fix, patch bump.
