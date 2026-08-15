@@ -4751,3 +4751,123 @@ ref pills and dates still degrade per the Phase 12 rules rather than clipping.
   model rebuilds; expansion state survives. The filter reopen refuses if more than 200 ms
   separates the pointer press from the library's close, so a click delayed by a paint stall
   falls back to the old behavior of closing.
+
+---
+
+# Recorded, not queued (2026-08-15)
+
+Four phases below have a written specification and no place in the queue. The operator asked for
+them to be recorded rather than scheduled. Do not build any of them without being told to. Two of
+them additionally require the operator to accept a new principle first, and that is stated on the
+entry.
+
+Both research documents behind them had no backlog entry at all until now, which meant the
+decisions lived only in a chat session. That is the gap this section closes.
+
+## Phase 48 — the launch preflight and the exit text (research 47, parts A and B) RECORDED 2026-08-15, NOT QUEUED
+
+**Specification.** docs/research/47-agent-installs.md, sections 2, 6, 7 and row A and B of section
+12. This is the incident the operator hit on a second Mac, where `claude` was found, launched and
+died with no explanation.
+
+Part A is PATH truth. `PATH_CAPTURE_TIMEOUT_MS` moves from 3000 ms to 10,000 ms, matching what VS
+Code allows its own shell probe. Five timed captures on the operator's machine measured 2837,
+3077, 3089, 3145 and 3511 ms, so four of five miss the current budget and fall back to a PATH that
+cannot find a version managed node. Two comments are corrected in the same commit, because both
+credit the wrong line for how a pane gets its PATH. The load bearing line is
+`process.env['PATH'] = userPath` at supervisor.ts:558, not the `set-environment -g PATH` the
+comment at supervisor.ts:545 names, and that was measured twice by two independent investigations.
+A comment that wrong is a trap for whoever next tunes boot latency.
+
+Part B is the preflight and the exit text. A new `src/main/agents/health.ts` reads the first two
+bytes of the resolved file before anything spawns. If they are `#!`, it parses the interpreter,
+expands a `/usr/bin/env X` form, and resolves `X` against the same PATH the pane will get. Measured
+at 0.137 to 1.358 ms per agent, so it can sit on the launch path where a `--version` probe never
+could, the worst measured case for that being 11,084 ms. It fails open: over 250 ms or any throw
+returns `unknown` and the launch proceeds, because a health check that can stop a working agent is
+worse than the bug it was written for. Alongside it, an `exitDetail` column carries the last five
+non-empty lines the pane printed, taken from the snapshot the reaper already captures, capped at
+500 bytes, shown verbatim and never parsed. The exit 127 branch at TerminalRegion.tsx is deleted,
+because it currently tells the user the agent could not be found when in fact the agent was found
+and its interpreter was not, and then prints the npm command that produced the problem.
+
+**Tier 3**, because the operator reported it. The evidence that closes it is the seven reproduced
+failure modes from section 2.1 re-run against the new build, as a per mode table showing the
+sentence each one now produces. No mode may produce a bare exit code. **Semver:** fix.
+
+## Phase 49 — the install map, precedence and probe budgets (research 47, parts C, D and E) RECORDED 2026-08-15, NOT QUEUED
+
+**Specification.** docs/research/47-agent-installs.md, sections 3, 5, 8, 9 and 10. `AgentInstallInfo`
+lands on all twelve registry rows, holding the provider's own first listed install command as a
+display string, the page it was read from and the date it was read. Nothing in it is ever run, and
+`npm run conformance:installs` asserts that shape in about 1 s while spawning nothing. The failure
+copy shows the command with a copy button and says out loud that Tortie does not run install
+commands. Arming the command in a pane was rejected, because any process that can reach the
+`-L gmux` socket could send Enter to it. `AGENT_INSTALL_COMMANDS` is deleted.
+
+Precedence gains a collect-all resolution so Settings can name shadowed copies, which matters
+because section 3.2 found three live shadowing hazards on the operator's own machine, including a
+gemini that `npm install -g` keeps upgrading and that never runs. It also fixes a real defect at
+core.ts:2096, where the code tests `onLoginPath` for null when it should compare it against `abs`.
+When those differ the manifest records one file and the pane runs another. `VERSION_PROBE_TIMEOUT_MS`
+moves from 4000 ms to 10,000 ms and the probe is asserted unreachable from the create path.
+
+**Tier 2** for the surfaces, **Tier 3** for the bare name invariant, which needs a `smoke:t3` case
+proving a session created with a shadowed binary launches the file the manifest recorded.
+**Semver:** feat.
+
+## Phase 50 — Tortie speaks outside its own window (research 48, survivors 1, 2 and 4) RECORDED 2026-08-15, NOT QUEUED, AND BLOCKED ON A ZEN DECISION
+
+**This one cannot be built until the operator accepts a new principle.** The sentence, from research
+48 section 10, is: Tortie may speak outside its own window, and only for the signals that already
+rise above the surface inside it. A second, narrower sentence rides with it: Tortie records whether
+the human has seen an event, which makes the human's own attention an input to what Tortie draws.
+Both point the same way, which is that Tortie begins to model the human's attention and not only
+the sessions' state. That is the thing to accept or refuse, rather than the notification itself.
+
+**Specification.** docs/research/48-what-people-want.md, sections 9.1, 9.2 and 9.4. One macOS
+notification when a session crosses into a state that already rises above the surface inside the
+app, being needs input, failed or finished. It reports the state and never sets one. Clicking it
+focuses that session. An unread mark per session, cleared when the human looks. A refused provider
+becomes one more trigger rather than a feature of its own.
+
+The form that must be refused is written into the spec, not left to review: no badge, no count, no
+inbox, no history, no sound unless the user turns it on, and a per session mute. Nothing may
+accumulate. Note that `'app:setBadgeCount'` already exists in the type surface at
+src/shared/ipc/app.ts with nothing calling it, and Phase 29 refused it in plain words, so the spec
+has to refuse it again in writing.
+
+**Tier 3**, because it claims to work across agents and four of twelve activity rows are floor
+verified by stand-in rather than against the real binary. **The kill condition is written down:** a
+measured false ping rate above zero on the agents with exact oracles means ship nothing. A wrong
+silence costs the user some waiting. A wrong ping costs them their attention. **Semver:** feat.
+
+## Phase 51 — `tortie .` from the shell (research 48, survivor 3) RECORDED 2026-08-15, NOT QUEUED
+
+**Specification.** docs/research/48-what-people-want.md, section 9.3. An optional shell command that
+opens a folder as a project tab in the running window. It opens a folder and does nothing else.
+
+**Two things must be honest in any proposal that picks this up.** First, this is an operator hunch
+and not a corpus finding. The document's own best source was struck, because 599 people were
+complaining that Cursor changed a default rather than asking for this. Second, the cap belongs in
+the proposal rather than in a later review: the moment anyone adds a flag such as
+`tortie --agent claude .`, any process on the machine can start an agent in any directory, which is
+the exact shape refusal 8 exists to prevent.
+
+**Check this before it gets built.** There is no `setAsDefaultProtocolClient`, no `open-file` handler
+and no `open-url` handler anywhere under `src/main`, so `open -a Tortie <folder>` costs zero code
+today and may already be half true. Somebody should try it first.
+
+**Tier 2.** Gates, one probe that a second launch with a path argument opens the right project tab,
+and one probe of the PATH install and its removal. **Semver:** feat.
+
+## Also recorded, with no phase written
+
+Three research documents have no phase and no entry, and the operator has not asked for one.
+Recorded here so they are findable rather than forgotten.
+
+| Research | Size | What it holds | Why there is no phase |
+| --- | --- | --- | --- |
+| docs/research/28-remote-sessions.md | 1201 lines | Remote sessions, and the durability that would have to come first | Never queued. The largest piece of unscheduled thinking in the repository |
+| docs/research/38-agent-licences.md | 672 lines | The licence of every agent harness and what each means for shipping publicly | Written before going public, which then happened. It is a reference, not work |
+| docs/research/46-herder-study.md | 320 lines | A study of another tool | A study. It was never meant to produce a phase |
