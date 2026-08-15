@@ -201,7 +201,7 @@ const REFUSALS = [
   },
   {
     id: 'schema.version-matches-the-migration-count',
-    source: 'src/main/manifest/store.ts',
+    source: 'src/main/manifest/schema.ts',
     why:
       'a manifest that lies about which schema it is at is a manifest the ' +
       'refusal cannot protect',
