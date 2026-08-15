@@ -4064,3 +4064,31 @@ promised because the API cannot deliver it; row verbs are Open on GitHub and Cop
 the native menu bridge. Degrade ladder with quiet copy: gh absent, logged out, rate limited, no
 github remote, offline. **Tier 2** plus one live probe on a real push to gregce/tortie, which
 also closes the one unverified claim, mid run step visibility. **Semver:** feat.
+
+## Phase 47 — explorer nits: ignored files grey out, the filter holds, a density knob (user requested, 2026-08-15) QUEUED
+
+Three small items, one phase, all in the explorer tree. Runs FIRST after Phase 42 lands.
+
+**Item 1, gitignored entries grey out.** Anything the repository ignores renders dimmed in the
+file tree, the VS Code convention. Detection comes from git itself (porcelain v2 already feeds
+the tree's status colors; ignored entries need --ignored or check-ignore, and the spec measures
+which is affordable on a large tree before choosing). Dimming is a token color, never a literal,
+and an ignored file stays fully clickable and openable; grey means ignored, not disabled.
+
+**Item 2, clicking a result never clears the filter.** Filter the tree, click a file or folder,
+and today the filter clears. It must hold: only the clear affordance in the filter box or the
+filter toggle icon clears it. Clicking a result opens the file or expands the folder with the
+filter still applied.
+
+**Item 3, a density knob.** The tree library (@pierre/trees) already supports adjustable row
+density; expose it as a small control in the explorer pane header (compact and comfortable at
+minimum, whatever the library natively names). The choice persists per user in a gmux.*
+localStorage key and applies without a reload.
+
+**Verification. Tier 2.** One live probe: a scratch repo with a .gitignore covering a file and a
+folder, screenshot read of the dimming; filter, click a result, prove the filter text and the
+filtered view survive; toggle density, screenshot read both states, relaunch, prove persistence.
+The known must-not-regress: tree drag to terminal, inline naming from Phase 37, and git status
+colors all still work with each item, checked in the same probe.
+
+**Semver.** fix, patch bump (item 2 is a defect; the set rides as one fix).
