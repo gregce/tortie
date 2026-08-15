@@ -53,7 +53,7 @@ in the shipping build.
 | --- | --- | --- |
 | A, landed and released as 0.20.2 | **36** quit crash (`3c09245` + `3d1d70c`), **29** session history (`d08ab00`), **37** inline naming (`7c0ae02`) | — |
 | cleanup, landed | **42** the architecture cleanup, 9 stage commits `ba6a090` to `a1c7e1e` plus ledger `e28c53f` | 36 and 38 landed |
-| 1 | **47** explorer and git pane nits (fix), **35** uniform logging (feat), **33** env passthrough (feat) | 42 pushed |
+| 1 | **47** explorer and git pane nits (fix), **35** uniform logging (feat), **33** env passthrough (feat, ✅ landed this commit) | 42 pushed |
 | 2 | **34** the CodeWhale race (fix), **40** selection and calm focus (fix), **39** Open With (feat), **43** updater wreckage recovery (fix, PULLED FORWARD, see the release plan) | wave 1 slots free |
 | 3 | **41** bundled tmux 3.7b (feat), **46** Runs in the SCM view (feat) | wave 2 slots free |
 
@@ -3347,7 +3347,7 @@ build's. The rename prompt for a restore whose name a live session took was not 
 dedupe is inherited, per the spec's own named deviation. Rows removed before this shipped stay
 unrecoverable, on purpose. The 90 days is a chosen number, not a measured one.
 
-## Phase 33 — env passthrough for agent launches (user requested, 2026-08-14) QUEUED
+## Phase 33. env passthrough for agent launches (user requested, 2026-08-14) ✅ SHIPPED 2026-08-15 (this commit)
 
 **Specification.** docs/research/41-pi-env-providers.md. The research holds the pi configuration
 surface, the measured env chain, the five options and the adversarial scoring.
@@ -3382,6 +3382,72 @@ name add or remove and not on reorder, the manifest row carries names only, and 
 stays byte equal. conformance:resume:capture on every commit, the full conformance:resume once,
 live pane evidence with a test variable proving the value is present in the pane and absent from
 show-environment -g and from the manifest, and smoke:t3 on both restore shapes.
+
+**What shipped.** Option D, as decided above, with nothing added and nothing dropped.
+- `agents.json` rows gain `launch.envPassthrough`, a list of up to 16 environment variable names.
+  The file must say `"schema": 2` to carry the field. A `"schema": 1` file keeps working and gets
+  a targeted error naming the schema number if it uses the field.
+- The names are execution bearing. They join `ConfigExecutionFields`, so adding or removing a name
+  moves the confirm hash and Settings then Agents asks again. Writing the same names in another
+  order does not move it. The sheet prints one line per name, being
+  `Reads from your shell at each launch: NAME`, and never a value.
+- `captureLoginShellEnv` in src/main/tmux/resolve.ts reads the values. It copies the
+  `captureLoginShellPath` shape line for line: detached spawn, settle on markers, a 3 second
+  deadline that resolves whatever the child does, a group kill on that deadline, and the deadline
+  cleared on `close` and never on `exit`. The marker carries a fresh nonce per probe so rc output
+  cannot forge a record. A row that names nothing spawns no probe at all.
+- `paneEnvFor` in src/main/sessions/launch-plan.ts is the one merge rule, called by the create and
+  by the restore. The GMUX stamps go last and win.
+- The manifest gains `env_passthrough` through migration `011-env-passthrough`.
+  `MANIFEST_SCHEMA_VERSION` moves to 11 and `MANIFEST_MIN_COMPATIBLE_VERSION` stays at 8, because
+  no older build can create a passthrough session and an older build restoring one starts the pane
+  without the injection, which is exactly what every pane did before this phase. The column holds
+  names. It is written once, at insert, and `ManifestSessionPatch` excludes it at the type level.
+- Restore re-resolves rather than replays. It reads the names off the row and runs the same probe
+  again, so a key rotated between the create and the restore arrives correct.
+- A name that is unset, empty, or over 4096 bytes injects nothing and is named in a new
+  `env-unresolved` notice. That notice latches per session per app run rather than per kind, so a
+  second session missing a variable is still told. Every other kind keeps the plain kind key.
+- Refusals: everything already refused for `launch.env`, plus `PI_CODING_AGENT_DIR` and
+  `PI_CODING_AGENT_SESSION_DIR`, plus any name the same row's `launch.env` already sets. An invalid
+  row is dropped whole with a visible error naming the field.
+- No compiled agent row sets the field. The route to it is an agents.json patch that restates
+  `launch.argv` and passes the confirm gate.
+- The day one stopgap is written into the shipped guide, resources/config/README.md, with the pi
+  `/login` flow and the keychain shell out form.
+
+**One consequence to expect.** Every configured agent's confirm hash moved once with this build,
+because the new field adds a line to the canonical text for every row. Settings then Agents asks
+again for each configured row, once. Nothing else changed about those rows.
+
+**Tier and evidence. Tier 3.**
+- `conformance:agents` gained a fifth section with 7 rows. The verifier proved it is not vacuous by
+  running the checker against 8 one-fact mutations of a captured probe output. The unmutated run
+  exits 0 and all 8 mutations exit 1.
+- Live, on a real Electron process against a real tmux on a harness socket, with a scratch ZDOTDIR
+  so nothing of the operator's shell was read or written. Create: the launched process's own
+  environment carries the sentinel value, `show-environment -g` carries neither the value nor the
+  name, and a byte scan of all 61440 bytes of the manifest file finds the value nowhere while the
+  row carries the two names. Restore: the session was killed, the scratch rc was rewritten to a
+  second value, and the restored pane came back with the new value and not the old one.
+- The deadline and the group kill, live. Against a shell that forks a child holding stdout open and
+  never exits, the probe returned at 3008 ms with `probeFailed: true`, and a `ps` sweep 1.5 s later
+  found zero survivors. The happy path against the real login shell took 80 ms.
+- Gates green on the committed tree: typecheck, build, smoke:t1, assert-bundle-refusals,
+  contract-inventory, conformance:agents and conformance:resume:capture. On the pre-split tree the
+  verifier also ran the full test battery, smoke:t3 on both restore shapes, smoke:config and the
+  full conformance:resume roundtrip (8 pass, 262 s).
+
+**What is not true.** No screenshot of the confirm sheet or of the toast was read. The sheet's
+lines were proved through the real `describeExecution` inside a real Electron process and through
+the shipped confirm smoke artifact, which is the data the sheet draws from, and the three toast
+sentences are proved by unit tests only. The live agent was a scratch executable that records its
+own environment, not one of the twelve compiled agents, because a compiled agent's environment is
+not readable from outside on macOS. The packaged Finder launch environment is still unmeasured
+(research 41 section 11). The operator's own Fireworks setup is proven when they run it, and not
+before. One degradation path has no test: a login shell whose rc sets `nounset` fails the whole
+probe script on the first unset name, so the user reads "started without its shell variables"
+rather than the name. The pane still opens and nothing is lost.
 
 ## Phase 30. Skill removal through the skills CLI (user requested, 2026-08-14) ✅ SHIPPED 2026-08-14 (`f33599b`)
 

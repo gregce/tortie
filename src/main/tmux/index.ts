@@ -39,6 +39,7 @@ export {
 // Resolution primitives (Phase 9.2 Bug A / Phase 10 detection service) —
 // login-shell PATH capture + argv[0] → absolute binary resolution.
 export {
+  captureLoginShellEnv,
   captureLoginShellPath,
   extraBinDirs,
   fallbackPath,
@@ -47,7 +48,9 @@ export {
   resetUserPathCache,
   resolveBinary,
   resolveBinaryAgainst,
+  ENV_CAPTURE_MAX_VALUE_BYTES,
   PATH_CAPTURE_TIMEOUT_MS,
+  type CaptureEnvResult,
   type CapturePathOptions
 } from './resolve';
 

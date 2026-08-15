@@ -32,8 +32,10 @@ vi.mock('electron', () => ({
 }));
 
 import {
+  AGENT_OVERLAY_ACCEPTED_SCHEMAS,
   AGENT_OVERLAY_JSON_SCHEMA,
   AGENT_SESSION_ID_SLOT,
+  ENV_PASSTHROUGH_REFUSED,
   ENV_REFUSED_EXACT,
   ENV_REFUSED_PREFIXES,
   EXECUTION_BEARING_FIELDS,
@@ -102,8 +104,8 @@ function load(input: unknown): { rows: AgentOverlayV1[]; problems: string[] } {
 // ---------------------------------------------------------------------------
 
 describe('the worked examples', () => {
-  it('ships six of them, which is what the guide claims', () => {
-    expect(exampleFiles()).toHaveLength(6);
+  it('ships seven of them, which is what the guide claims', () => {
+    expect(exampleFiles()).toHaveLength(7);
   });
 
   it.each(exampleFiles())('%s loads with no problems', (name) => {
@@ -114,7 +116,10 @@ describe('the worked examples', () => {
 
   it.each(exampleFiles())('%s is a complete file that can replace agents.json', (name) => {
     const parsed = readExample(name) as Record<string, unknown>;
-    expect(parsed['schema']).toBe(1);
+    // Both schema numbers this build reads are legal here. Phase 33 added
+    // schema 2 for `launch.envPassthrough`, and five of the seven examples stay
+    // on schema 1 so the older shape keeps being exercised.
+    expect(AGENT_OVERLAY_ACCEPTED_SCHEMAS).toContain(parsed['schema']);
     expect(Array.isArray(parsed['agents'])).toBe(true);
     // A file that only patches would still be complete, so the check is that
     // the merge produced the row rather than that the array is non-empty.
@@ -143,7 +148,9 @@ describe('the worked examples', () => {
     // 01-minimal.json shows.
     expect([...modes].sort()).toEqual(['pre-assign', 'pre-assign-cmd']);
     expect(newAgentsWithoutResume).toBe(1);
-    expect(patches).toBe(1);
+    // Two patches since Phase 33: 05 renames a compiled agent, and 07 gives the
+    // compiled pi row an environment variable name to pass through.
+    expect(patches).toBe(2);
   });
 
   it('shows a subcommand resume and a leading extras position, which are the two traps', () => {
@@ -165,13 +172,26 @@ describe('the worked examples', () => {
   });
 
   it('gives every new agent an id the build does not already ship', () => {
+    // A row whose id is compiled is a patch, and a patch is meant to name a
+    // compiled id. The check is on the rest: an example that invents an agent
+    // must invent an id too, or it would silently rewrite a shipped row when a
+    // reader copies it. The examples that patch are named in the next test, so
+    // this one cannot be satisfied by patching everything.
     const compiled = new Set(mergeAgentOverlay([]).agents.map((a) => a.id));
+    const patchIds: string[] = [];
     for (const name of exampleFiles()) {
-      if (name.includes('patch')) continue;
       for (const row of load(readExample(name)).rows) {
-        expect(compiled, `${name} uses a compiled id`).not.toContain(row.id);
+        if (compiled.has(row.id)) {
+          patchIds.push(`${name}:${row.id}`);
+          continue;
+        }
+        expect(row.displayName, `${name} adds an agent with no display name`).toBeDefined();
       }
     }
+    expect(patchIds.sort()).toEqual([
+      '05-patch-a-built-in-agent.json:claude',
+      '07-env-passthrough.json:pi'
+    ]);
   });
 
   it('the patch example changes nothing that can start a program', () => {
@@ -280,6 +300,28 @@ describe('the guide', () => {
     for (const prefix of ENV_REFUSED_PREFIXES) {
       expect(text, `the guide never names the refused prefix ${prefix}`).toContain(prefix);
     }
+    // Phase 33. These two are refused only for `launch.envPassthrough`, and the
+    // reason is mechanical rather than cautious, so the guide states the reason
+    // beside the name.
+    for (const refused of ENV_PASSTHROUGH_REFUSED) {
+      expect(text, `the guide never names the refused ${refused.name}`).toContain(
+        `\`${refused.name}\``
+      );
+      expect(text, `the guide never says why ${refused.name} is refused`).toContain(refused.why);
+    }
+  });
+
+  it('states both schema numbers, and which one the new field needs', () => {
+    // Phase 33. An authoring agent that writes `envPassthrough` into a
+    // `"schema": 1` file gets the row dropped, so the guide has to say the
+    // number out loud rather than leave the reader to infer it.
+    const text = guideText();
+    for (const version of AGENT_OVERLAY_ACCEPTED_SCHEMAS) {
+      expect(text, `the guide never states schema ${version}`).toContain(`\`${version}\``);
+    }
+    expect(text).toContain(
+      'A file that uses envPassthrough must say "schema": 2. A file that says "schema": 1'
+    );
   });
 
   it('states the reserved ids, the row limit and the session id slot', () => {

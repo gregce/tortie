@@ -15,8 +15,8 @@
  * file under the user's home, no write anywhere. Safe on a machine with live
  * sessions on it.
  *
- * WHAT IT CHECKS, in four sections, and each one is a way a user-added agent
- * could go missing or a session could be lost.
+ * WHAT IT CHECKS, in five sections, and each one is a way a user-added agent
+ * could go missing, a session could be lost, or a secret could be written down.
  *
  * SECTION 1 — the create path. For every launchable agent, the launch argv
  *   starts with the ABSOLUTE binary it was handed, keeps the user's extra
@@ -62,6 +62,32 @@
  *   When the loader has not landed the probe reports `seam: absent`, this
  *   section is SKIPPED OUT LOUD, and sections 1 to 3 still decide the verdict.
  *   It never silently passes.
+ *
+ * SECTION 5 — env passthrough (Phase 33). `launch.envPassthrough` is a list of
+ *   environment variable NAMES. Tortie reads their values from the login shell
+ *   at each launch and each restore, hands them to that pane, and writes them
+ *   nowhere. Five assertions keep that sentence true.
+ *
+ *   1. The confirm hash moves when the name SET changes and only then. Adding a
+ *      name moves it, removing that name moves it back, reordering the list
+ *      leaves it byte equal, and a display name change leaves it byte equal.
+ *   2. The manifest row carries names and never values. The record is composed
+ *      from a spec carrying the names, the pane environment is composed
+ *      separately from a resolved map carrying a sentinel value, and the
+ *      sentinel must appear in the second and in no byte of the first. The same
+ *      assertion holds the stamps-stay-last rule: a resolved map that tries to
+ *      set `GMUX_SESSION_ID` loses to the session's own id.
+ *   3. The resume argv rebuilt from the passthrough row's manifest contract
+ *      alone is byte equal to the registry's, so the new field changed nothing
+ *      about how a session comes back.
+ *   4. The confirm sheet prints one line per name and no value.
+ *   5. The refused names are refused. A row naming `PI_CODING_AGENT_DIR` is
+ *      dropped whole with the field named, and so is a `"schema": 1` file that
+ *      carries the field at all.
+ *
+ *   The login shell probe itself is NOT run here. It spawns a process, and this
+ *   gate spawns none. Its 3 second deadline and its group kill are proven by the
+ *   unit tests beside it and by the Tier 3 verifier driving the real app.
  *
  * WHAT IT DOES NOT PROVE, stated so nobody reads more into a pass. The confirm
  * record is sealed through `safeStorage`, which needs an Electron process, so
@@ -466,6 +492,165 @@ if (seam.state === 'absent') {
 }
 
 // ---------------------------------------------------------------------------
+// Section 5 — env passthrough (Phase 33)
+// ---------------------------------------------------------------------------
+//
+// Each of the five assertions gets a row in its own table, so a person reads
+// which one broke rather than a paragraph. `note` is what the row says when it
+// is not a plain pass.
+
+const p33 = data.p33 ?? { state: 'absent', missing: ['the probe printed no p33 section'] };
+const p33Rows = [];
+
+/** Record one assertion. `ok` decides the verdict; `note` is for the table. */
+const p33Assert = (name, ok, note, why) => {
+  p33Rows.push({ name, ok, note: note ?? '' });
+  if (!ok) fail(`env passthrough, ${name}: ${why}`);
+};
+
+if (p33.state === 'absent') {
+  skipped.push(
+    'env passthrough (Phase 33) has not landed, so the confirm hash, the names-only ' +
+      `manifest row, the resume argv, the sheet and the refusals were NOT checked. Missing: ${(
+        p33.missing ?? []
+      ).join(', ')}.`
+  );
+} else if (p33.state === 'broken') {
+  fail(
+    `the env passthrough section threw when it was used: ${p33.error}. Nothing about ` +
+      'launch.envPassthrough was checked.'
+  );
+} else {
+  const h = p33.hash;
+  const everyHash = [h.base, h.sameAgain, h.afterAdd, h.afterRemove, h.afterReorder, h.afterDisplayName];
+  const hashed = everyHash.every((v) => typeof v === 'string' && v.length === 64);
+
+  // 1. The hash moves on the name SET and on nothing else.
+  p33Assert(
+    'hash moves on add and remove, not on reorder',
+    hashed &&
+      h.sameAgain === h.base &&
+      h.afterAdd !== h.base &&
+      h.afterRemove === h.base &&
+      h.afterReorder === h.base &&
+      h.afterDisplayName === h.base,
+    hashed ? '' : 'a variation did not survive validation',
+    !hashed
+      ? 'at least one variation of the row did not hash, so its hash was never compared. ' +
+          `base ${JSON.stringify(h.base)}, add ${JSON.stringify(h.afterAdd)}, ` +
+          `reorder ${JSON.stringify(h.afterReorder)}.`
+      : h.afterAdd === h.base
+        ? 'adding a name left the confirm hash unchanged, so a row could widen the set of ' +
+          'variables reaching a pane on a confirmation given for a narrower set.'
+        : h.afterRemove !== h.base
+          ? 'removing the added name did not return the hash to where it started, so the hash ' +
+            'depends on something other than the set of names.'
+          : h.afterReorder !== h.base
+            ? 'reordering the names moved the confirm hash. Order does not change which ' +
+              'variables reach the pane, and asking a person to re-approve a reorder trains ' +
+              'them to click through the sheet that matters.'
+            : h.afterDisplayName !== h.base
+              ? 'changing the display name moved the confirm hash of a passthrough row.'
+              : 'hashing the same row twice gave two answers.'
+  );
+
+  // 2. The row carries names. The value is in the pane and nowhere else.
+  const rec = p33.record;
+  const namesOnRecord = Array.isArray(rec.envPassthrough)
+    ? [...rec.envPassthrough].sort().join(',')
+    : null;
+  const wantNames = [...p33.names].sort().join(',');
+  p33Assert(
+    'manifest row carries names, never values',
+    namesOnRecord === wantNames && !rec.recordJsonHasSentinel && rec.paneEnvCarriesValue,
+    namesOnRecord === null ? 'the record carries no envPassthrough' : '',
+    rec.recordJsonHasSentinel
+      ? 'a resolved VALUE was found in the manifest record. Option B in research 41 is the ' +
+          'design this phase rejected, and its whole failure is a secret written into the ' +
+          'session database in plain text.'
+      : !rec.paneEnvCarriesValue
+        ? 'the resolved value did not reach the pane environment, so the feature does nothing.'
+        : `the record's envPassthrough is ${JSON.stringify(rec.envPassthrough)} rather than the ` +
+          `configured ${JSON.stringify(p33.names)}. Restore reads the row, not the registry, so ` +
+          'a row that lost its names restores a pane without them.'
+  );
+  p33Assert(
+    'the pane stamps stay last',
+    rec.stampSurvives === true,
+    '',
+    'a resolved value overwrote GMUX_SESSION_ID. That stamp is the second identity source ' +
+      'Tortie reads sessions back by, and a pane carrying another session\'s stamp is the one ' +
+      'thing the durability layer cannot survive.'
+  );
+
+  // 3. The resume argv is untouched by the new field.
+  const rep = p33.report;
+  p33Assert(
+    'resume argv stays byte equal',
+    rep !== null && rep.resumeAgrees && rep.contractRoundTrips && rep.noUnfilledSlot,
+    rep === null ? 'the passthrough row produced no recovery contract' : '',
+    rep === null
+      ? 'the passthrough row produced no recovery contract, so nothing about its restore was ' +
+          'checked.'
+      : !rep.contractRoundTrips
+        ? 'the passthrough row\'s recovery contract did not survive serialize and parse ' +
+            'unchanged, which is the exact path restore reads.'
+        : `the resume argv composed from the passthrough row's manifest contract differs from ` +
+            `the registry's.\n      row      ${JSON.stringify(rep.contractResume)}` +
+            `\n      registry ${JSON.stringify(rep.registryResume)}`
+  );
+
+  // 4. The sheet prints the names and no value.
+  const sheet = p33.sheet;
+  const printed =
+    sheet === null
+      ? []
+      : sheet.passthroughLines.map((line) => line.slice(p33.sheetPrefix.length));
+  p33Assert(
+    'the sheet prints names and no value',
+    sheet !== null &&
+      !sheet.valueLeak &&
+      printed.join(',') === [...p33.names].sort().join(','),
+    sheet === null ? 'no sheet was built' : printed.join(' '),
+    sheet === null
+      ? 'the confirm sheet could not be built for the passthrough row.'
+      : sheet.valueLeak
+        ? 'a resolved VALUE appeared on the confirm sheet. The sheet is what the person reads ' +
+            'before they agree, and it carries names only.'
+        : `the sheet printed ${JSON.stringify(printed)} rather than the sorted configured names ` +
+            `${JSON.stringify([...p33.names].sort())}. A person who cannot see every name on the ` +
+            'sheet is confirming a set they were not shown.'
+  );
+
+  // 5. The refusals refuse, and each one names the field.
+  const namesField = (r) => typeof r.field === 'string' && r.field.includes('envPassthrough');
+  p33Assert(
+    'PI_CODING_AGENT_DIR is refused',
+    p33.refusePiDir.dropped && namesField(p33.refusePiDir),
+    p33.refusePiDir.field ?? 'no problem named the field',
+    !p33.refusePiDir.dropped
+      ? 'a row naming PI_CODING_AGENT_DIR was merged. That name moves where the agent keeps ' +
+          'its sessions, and Tortie would keep looking in the old place and lose the conversation.'
+      : 'the row was dropped with no problem naming launch.envPassthrough. A silent drop is the ' +
+          'failure mode the drop-whole rule exists to prevent.'
+  );
+  p33Assert(
+    'a "schema": 1 file may not carry the field',
+    p33.refuseSchema1.dropped &&
+      namesField(p33.refuseSchema1) &&
+      typeof p33.refuseSchema1.message === 'string' &&
+      p33.refuseSchema1.message.includes('2'),
+    p33.refuseSchema1.field ?? 'no problem named the field',
+    !p33.refuseSchema1.dropped
+      ? 'a file that says "schema": 1 carried launch.envPassthrough and the row was merged ' +
+          'anyway. A new field arrives as schema 2 with a converter, never as a block bolted ' +
+          'onto version 1.'
+      : 'the row was dropped without an error naming the field and the schema number to move ' +
+          'to. The person cannot fix a file when the error does not say what to change.'
+  );
+}
+
+// ---------------------------------------------------------------------------
 // The table, printed whatever the verdict, because the point is that a person
 // can read it.
 // ---------------------------------------------------------------------------
@@ -497,6 +682,21 @@ process.stdout.write(
     `agents including one the registry does not contain.\n`
 );
 process.stdout.write(`overlay loader: ${seam.state} (${seam.specifier}).\n`);
+
+process.stdout.write('\nenv passthrough (Phase 33)\n');
+process.stdout.write('-'.repeat(107) + '\n');
+if (p33Rows.length === 0) {
+  process.stdout.write(`  not checked: the section reported ${p33.state}.\n`);
+} else {
+  for (const row of p33Rows) {
+    process.stdout.write(`${pad(row.name, 46)} ${pad(tick(row.ok), 4)} ${row.note}\n`);
+  }
+  process.stdout.write(
+    `\nthe configured names are ${p33.names.join(' and ')}. The sentinel value is ` +
+      `${p33.sentinel.length} bytes, it was found in the pane environment, and it was found in ` +
+      'no byte of the manifest record.\n'
+  );
+}
 
 if (skipped.length > 0) {
   process.stdout.write(`\nSKIPPED, ${skipped.length}:\n`);

@@ -168,6 +168,7 @@ import {
   agentNotFoundMessage,
   binaryCandidatesOf,
   newSessionRecord,
+  paneEnvFor,
   snapshotRecipeOf,
   spawnArgvFor
 } from './launch-plan';
@@ -2197,13 +2198,29 @@ export class GmuxCore {
     // captured session gets the same protection one level in.
     const launchArgv = spawnArgvFor(spec.argv, bareName, capture);
 
+    // PHASE 33. The variables this row asks Tortie to read from the login
+    // shell. One probe, 3 second deadline, group killed, and nothing is
+    // spawned at all when the row names none, which is every compiled agent.
+    //
+    // The resolved pairs live in this local and in the tmux `-e` set, and
+    // nowhere else. They are deliberately NOT put on `spec.env`, because that
+    // is written into the manifest row verbatim and replayed at restore, which
+    // is how option B in research 41 put provider keys into SQLite in plain
+    // text. Restore reads the NAMES off the row and probes again.
+    let resolvedEnv: Record<string, string> = {};
+    let envProbe: tmux.CaptureEnvResult | null = null;
+    if (spec.envPassthrough !== undefined && spec.envPassthrough.length > 0) {
+      envProbe = await tmux.captureLoginShellEnv(spec.envPassthrough);
+      resolvedEnv = envProbe.values;
+    }
+
     let info: tmux.TmuxSessionInfo;
     try {
       info = await tmux.createSession({
         displayName: input.name,
         cwd,
         argv: launchArgv,
-        env: { ...spec.env, ...tmux.managedPaneEnv(id) }
+        env: paneEnvFor(spec.env, resolvedEnv, id)
       });
     } catch (err) {
       // Spawn never happened — a lingering row would resurrect a session
@@ -2231,6 +2248,21 @@ export class GmuxCore {
     }
 
     faultPoint('create.after-launch-record');
+
+    // PHASE 33. The pane is running and it is bound to its live tmux id, so
+    // the notice can name a session that exists. It says one thing: this pane
+    // started without a variable its row promises. Nothing else on the machine
+    // would ever say so, and the agent inside it fails much later with a
+    // message about its provider rather than about the shell.
+    if (envProbe !== null && (envProbe.missing.length > 0 || envProbe.probeFailed)) {
+      postDurabilityNotice({
+        kind: 'env-unresolved',
+        sessionId: id,
+        sessionName: input.name,
+        names: envProbe.missing,
+        probeFailed: envProbe.probeFailed
+      });
+    }
 
     // Mirror metadata into tmux user options so the durable server is
     // self-describing even if the manifest is lost (§2.4 Step 0.2).

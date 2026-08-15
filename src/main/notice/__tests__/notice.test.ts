@@ -114,3 +114,50 @@ describe('after the renderer has drained once', () => {
     expect(takePendingNotices()).toHaveLength(0);
   });
 });
+
+describe('the env-unresolved latch is per session, not per kind (Phase 33)', () => {
+  const ENV_A: DurabilityNotice = {
+    kind: 'env-unresolved',
+    sessionId: 'session-a',
+    sessionName: 'auth',
+    names: ['FIREWORKS_API_KEY'],
+    probeFailed: false
+  };
+  const ENV_B: DurabilityNotice = {
+    kind: 'env-unresolved',
+    sessionId: 'session-b',
+    sessionName: 'billing',
+    names: ['FIREWORKS_API_KEY'],
+    probeFailed: false
+  };
+
+  it('says it once per session and swallows a repeat for that session', () => {
+    takePendingNotices();
+    expect(postDurabilityNotice(ENV_A)).toBe(true);
+    expect(postDurabilityNotice(ENV_A)).toBe(false);
+    expect(postDurabilityNotice({ ...ENV_A, probeFailed: true })).toBe(false);
+    expect(sent).toHaveLength(1);
+  });
+
+  it('a second session is a second fact, and it is said', () => {
+    takePendingNotices();
+    postDurabilityNotice(ENV_A);
+    expect(postDurabilityNotice(ENV_B)).toBe(true);
+    expect(sent.map((n) => n.kind)).toEqual(['env-unresolved', 'env-unresolved']);
+  });
+
+  it('does not silence other kinds, and other kinds do not silence it', () => {
+    takePendingNotices();
+    postDurabilityNotice(DISK);
+    expect(postDurabilityNotice(ENV_A)).toBe(true);
+    expect(postDurabilityNotice(QUARANTINE)).toBe(true);
+    expect(sent).toHaveLength(3);
+  });
+
+  it('hasSaidNotice answers per session when given the session id', () => {
+    takePendingNotices();
+    postDurabilityNotice(ENV_A);
+    expect(hasSaidNotice('env-unresolved', 'session-a')).toBe(true);
+    expect(hasSaidNotice('env-unresolved', 'session-b')).toBe(false);
+  });
+});

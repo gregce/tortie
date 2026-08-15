@@ -52,15 +52,16 @@
 
 import type {
   AgentOverlayIdCaptureV1,
-  AgentOverlayLaunchV1,
+  AgentOverlayLaunchV2,
   AgentOverlayProblem,
   AgentOverlayResumeV1,
   AgentOverlayV1,
   AgentOverlayVersionProbeV1
 } from '@shared/agent-overlay';
 import {
-  AGENT_OVERLAY_SCHEMA_VERSION,
+  AGENT_OVERLAY_ACCEPTED_SCHEMAS,
   AGENT_SESSION_ID_SLOT,
+  ENV_PASSTHROUGH_REFUSED,
   ENV_REFUSED_EXACT,
   ENV_REFUSED_PATTERNS,
   OVERLAY_ID_PATTERN,
@@ -157,6 +158,10 @@ export function executionFieldsOf(entry: MergedAgentEntry): ConfigExecutionField
     extraProbeDirs: entry.extraProbeDirs,
     launchArgv: entry.launch?.argv ?? [],
     launchEnv: entry.launch?.env ?? {},
+    // Phase 33. The NAMES, and only ever the names. The values are read from
+    // the login shell at each launch and are never hashed, never shown and
+    // never stored, so a rotated key moves nothing here.
+    envPassthroughNames: entry.launch?.envPassthrough ?? [],
     resumeTemplate: entry.resume.template,
     resumeExtrasPosition: entry.resume.resumeExtrasPosition ?? null,
     versionProbeArgs: entry.versionProbe?.args ?? [],
@@ -391,9 +396,114 @@ function envField(value: unknown, field: string): Record<string, string> {
   return out;
 }
 
-function launchField(value: unknown, field: string): AgentOverlayLaunchV1 {
+/**
+ * `launch.envPassthrough` (Phase 33): the NAMES of variables Tortie reads from
+ * the login shell at each launch and each restore.
+ *
+ * The checks run in this order, and the order is chosen so that the sentence a
+ * person reads names the first thing actually wrong with their row rather than
+ * a consequence of it. A row that fails any of them is dropped whole by the
+ * caller, which is the standing rule for this loader.
+ *
+ *  1. It is a list.
+ *  2. It holds at most 16 entries.
+ *  3. Every entry is a usable environment variable name.
+ *  4. No entry appears twice.
+ *  5. No entry is on the denylist.
+ *  6. No entry is a name `launch.env` already sets.
+ *
+ * The denylist is the SAME one `launch.env` uses, plus the two names that move
+ * where pi keeps its sessions. A passthrough `PATH` is the same danger as a
+ * literal one, because the name decides what reaches the process and the value
+ * is what the user's own shell says at that moment.
+ *
+ * The last check refuses a name that `launch.env` already sets. Two sources
+ * for one name would make every report about it wrong in one direction or the
+ * other, and the notice for an unresolved name could not be written honestly.
+ */
+function envPassthroughField(
+  value: unknown,
+  field: string,
+  env: Readonly<Record<string, string>> | undefined
+): string[] {
+  if (!Array.isArray(value)) {
+    fail(field, `${field} must be a list of environment variable names.`);
+  }
+  const list = value as unknown[];
+  if (list.length > OVERLAY_LIMITS.maxEnvPassthroughNames) {
+    fail(
+      field,
+      `${field} names more than the ${OVERLAY_LIMITS.maxEnvPassthroughNames} ` +
+        `variables Tortie accepts.`
+    );
+  }
+  // Each check runs over the WHOLE list before the next one starts, rather
+  // than the whole set of checks running over each entry. That is what makes
+  // the order above a real order: a list that names PATH at the front and the
+  // same variable twice at the back reports the duplicate, because a duplicate
+  // is a typing mistake and the denylist entry is a decision.
+  const names = list.map((item, i) => {
+    if (
+      typeof item !== 'string' ||
+      item.length > OVERLAY_LIMITS.maxEnvKeyLength ||
+      !ENV_KEY_RE.test(item)
+    ) {
+      fail(`${field}[${i}]`, `${field}[${i}] is not a usable environment variable name.`);
+    }
+    return item;
+  });
+
+  names.forEach((name, i) => {
+    if (names.indexOf(name) !== i) {
+      fail(`${field}[${i}]`, `${field} names ${name} twice.`);
+    }
+  });
+
+  names.forEach((name, i) => {
+    if (ENV_REFUSED_EXACT.includes(name)) {
+      fail(
+        `${field}[${i}]`,
+        `${field} may not name ${name}. It decides which program or which ` +
+          `startup file runs, which would undo the confirmation you gave on ` +
+          `the executable.`
+      );
+    }
+    const refused = ENV_REFUSED_PATTERNS.find((p) => p.pattern.test(name));
+    if (refused !== undefined) {
+      fail(`${field}[${i}]`, `${field} may not name ${name}, because ${refused.why}.`);
+    }
+    const moved = ENV_PASSTHROUGH_REFUSED.find((p) => p.name === name);
+    if (moved !== undefined) {
+      fail(`${field}[${i}]`, `${field} may not name ${name}. ${moved.why}`);
+    }
+  });
+
+  names.forEach((name, i) => {
+    if (env !== undefined && Object.prototype.hasOwnProperty.call(env, name)) {
+      fail(
+        `${field}[${i}]`,
+        `${field} may not name ${name}, because launch.env already sets it. ` +
+          `Pick one source for each name.`
+      );
+    }
+  });
+
+  return names;
+}
+
+/**
+ * The launch block. `schema` is the number at the top of the file, because one
+ * field of this block exists only at schema 2 and a schema 1 file that carries
+ * it gets a sentence naming the version rather than "Tortie does not know this
+ * field".
+ */
+function launchField(
+  value: unknown,
+  field: string,
+  schema: number
+): AgentOverlayLaunchV2 {
   const obj = asObject(value, field, 'an object');
-  noUnknownKeys(obj, ['argv', 'env'], field);
+  noUnknownKeys(obj, ['argv', 'env', 'envPassthrough'], field);
   const argv = argvField(obj['argv'], `${field}.argv`, {
     minItems: 1,
     maxItems: OVERLAY_LIMITS.maxArgv,
@@ -403,8 +513,23 @@ function launchField(value: unknown, field: string): AgentOverlayLaunchV1 {
   if (first === undefined || first.length === 0) {
     fail(`${field}.argv[0]`, `${field}.argv[0] must be the executable name.`);
   }
-  const out: AgentOverlayLaunchV1 = { argv };
+  const out: AgentOverlayLaunchV2 = { argv };
   if (obj['env'] !== undefined) out.env = envField(obj['env'], `${field}.env`);
+  if (obj['envPassthrough'] !== undefined) {
+    if (schema < 2) {
+      fail(
+        `${field}.envPassthrough`,
+        `${field}.envPassthrough needs "schema": 2 at the top of agents.json. ` +
+          `Change the schema number and Tortie will read this field. Files ` +
+          `that say "schema": 1 keep working without it.`
+      );
+    }
+    out.envPassthrough = envPassthroughField(
+      obj['envPassthrough'],
+      `${field}.envPassthrough`,
+      out.env
+    );
+  }
   return out;
 }
 
@@ -584,8 +709,15 @@ const ROW_KEYS: readonly string[] = [
   'notes'
 ];
 
-/** One row, checked field by field. Any failure throws and drops it whole. */
-function validateRow(raw: unknown, index: number): AgentOverlayV1 {
+/**
+ * One row, checked field by field. Any failure throws and drops it whole.
+ *
+ * `schema` is the version the file declared. Only one check reads it, being
+ * the schema 2 field inside `launch`, and it is passed down rather than held
+ * in a module variable so that two files parsed in one run cannot see each
+ * other's version.
+ */
+function validateRow(raw: unknown, index: number, schema: number): AgentOverlayV1 {
   const obj = asObject(raw, `agents[${index}]`, 'an object');
   const field = `agents[${index}]`;
   refusedKeys(obj, REFUSED_ROW_FIELDS, field);
@@ -637,7 +769,7 @@ function validateRow(raw: unknown, index: number): AgentOverlayV1 {
     row.storeDirs = pathTemplateArray(obj['storeDirs'], `${field}.storeDirs`);
   }
   if (obj['launch'] !== undefined) {
-    row.launch = launchField(obj['launch'], `${field}.launch`);
+    row.launch = launchField(obj['launch'], `${field}.launch`, schema);
   }
   if (obj['resume'] !== undefined) {
     row.resume = resumeField(obj['resume'], `${field}.resume`);
@@ -703,11 +835,20 @@ export function validateAgentOverlayFile(raw: unknown): AgentOverlayValidation {
   }
   const obj = raw as Record<string, unknown>;
 
-  if (obj['schema'] !== AGENT_OVERLAY_SCHEMA_VERSION) {
+  // Phase 33 made this build read two versions rather than one. A schema 1
+  // file is still a valid file and nothing about it changed. Schema 2 adds one
+  // field, `launch.envPassthrough`, and a schema 1 file that carries it gets a
+  // sentence naming the version instead of an unknown field error.
+  const declared = obj['schema'];
+  if (
+    typeof declared !== 'number' ||
+    !AGENT_OVERLAY_ACCEPTED_SCHEMAS.includes(declared)
+  ) {
     return fileProblem(
       'schema',
-      `agents.json must say "schema": ${AGENT_OVERLAY_SCHEMA_VERSION}. This ` +
-        `build reads no other version, and it will not guess at one.`
+      `agents.json must say "schema": ${AGENT_OVERLAY_ACCEPTED_SCHEMAS.join(
+        ' or "schema": '
+      )}. This build reads both.`
     );
   }
 
@@ -745,7 +886,7 @@ export function validateAgentOverlayFile(raw: unknown): AgentOverlayValidation {
   agents.slice(0, OVERLAY_LIMITS.maxRows).forEach((raw_, index) => {
     let row: AgentOverlayV1;
     try {
-      row = validateRow(raw_, index);
+      row = validateRow(raw_, index, declared);
     } catch (err) {
       const id =
         typeof raw_ === 'object' && raw_ !== null && typeof (raw_ as Record<string, unknown>)['id'] === 'string'
@@ -917,6 +1058,9 @@ function fromRow(row: AgentOverlayV1): MergedAgentEntry {
         : {
             argv: [...row.launch.argv],
             ...(row.launch.env !== undefined ? { env: { ...row.launch.env } } : {}),
+            ...(row.launch.envPassthrough !== undefined
+              ? { envPassthrough: [...row.launch.envPassthrough] }
+              : {}),
             quirks: [`${row.id} was added by your agents.json.`]
           },
     resume: row.resume === undefined ? noResume(row.id) : toRegistryResume(row.resume, row.id),
@@ -960,6 +1104,13 @@ function patch(entry: AgentRegistryEntry, row: AgentOverlayV1): MergedAgentEntry
     merged.launch = {
       argv: [...row.launch.argv],
       ...(row.launch.env !== undefined ? { env: { ...row.launch.env } } : {}),
+      // Phase 33. `launch` replaces wholesale, so a patched row that wants the
+      // passthrough restates the argv and adds the names. That is the route to
+      // this field for a compiled agent, and it passes the confirm gate like
+      // any other execution bearing change.
+      ...(row.launch.envPassthrough !== undefined
+        ? { envPassthrough: [...row.launch.envPassthrough] }
+        : {}),
       quirks: [
         ...(entry.launch?.quirks ?? []),
         `The launch command for ${entry.id} comes from your agents.json.`

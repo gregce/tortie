@@ -28,6 +28,8 @@ vi.mock('electron', () => ({
 }));
 
 import {
+  ENV_CAPTURE_MAX_VALUE_BYTES,
+  captureLoginShellEnv,
   captureLoginShellPath,
   extraBinDirs,
   fallbackPath,
@@ -262,6 +264,150 @@ describe('captureLoginShellPath — fallback', () => {
     chmodSync(shell, 0o755);
     const captured = await captureLoginShellPath({ shell, timeoutMs: 2000 });
     assert.ok(captured.split(delimiter).includes('/opt/homebrew/bin'));
+  });
+});
+
+/**
+ * captureLoginShellEnv (Phase 33).
+ *
+ * The failure modes are the PATH probe's, because the shape is the PATH
+ * probe's. What is new here is the answer: a map of names to values, a list of
+ * names that had none, and one flag saying whether the shell answered at all.
+ * The fake shells below evaluate their last argument, which is the `-c`
+ * string, so the real printf script runs.
+ */
+describe('captureLoginShellEnv', () => {
+  /** A shell that exports what the test asks for, then runs the -c command. */
+  function fakeShell(name: string, body: string): string {
+    const shell = join(root, name);
+    writeFileSync(
+      shell,
+      '#!/bin/sh\n' +
+        `${body}\n` +
+        '# the last argument is the -c command\n' +
+        'for last; do :; done\n' +
+        'eval "$last"\n'
+    );
+    chmodSync(shell, 0o755);
+    return shell;
+  }
+
+  it('reads the named variables and nothing else', async () => {
+    const shell = fakeShell(
+      'env-shell',
+      'export P33_A=alpha\nexport P33_B=beta\nexport P33_SECRET=never\n' +
+        'echo "rc noise from a chatty startup file"'
+    );
+    const out = await captureLoginShellEnv(['P33_A', 'P33_B'], {
+      shell,
+      timeoutMs: 3000
+    });
+    assert.deepEqual(out.values, { P33_A: 'alpha', P33_B: 'beta' });
+    assert.deepEqual(out.missing, []);
+    assert.equal(out.probeFailed, false);
+    // The probe asked for two names, so the third cannot appear anywhere.
+    assert.ok(!JSON.stringify(out).includes('never'));
+  });
+
+  it('treats an unset name and an empty one the same, and names both', async () => {
+    const shell = fakeShell('empty-shell', 'export P33_SET=yes\nexport P33_EMPTY=');
+    const out = await captureLoginShellEnv(
+      ['P33_SET', 'P33_EMPTY', 'P33_UNSET'],
+      { shell, timeoutMs: 3000 }
+    );
+    assert.deepEqual(out.values, { P33_SET: 'yes' });
+    assert.deepEqual(out.missing, ['P33_EMPTY', 'P33_UNSET']);
+    assert.equal(out.probeFailed, false);
+  });
+
+  it('refuses a value over the cap whole, rather than truncating it', async () => {
+    const long = 'x'.repeat(ENV_CAPTURE_MAX_VALUE_BYTES + 1);
+    const shell = fakeShell('long-shell', `export P33_LONG=${long}`);
+    const out = await captureLoginShellEnv(['P33_LONG'], { shell, timeoutMs: 3000 });
+    assert.deepEqual(out.values, {});
+    assert.deepEqual(out.missing, ['P33_LONG']);
+  });
+
+  it('spawns nothing at all when no names are asked for', async () => {
+    const out = await captureLoginShellEnv([], {
+      shell: join(root, 'this-shell-does-not-exist'),
+      timeoutMs: 3000
+    });
+    assert.deepEqual(out, { values: {}, missing: [], probeFailed: false });
+  });
+
+  it('missing shell → probeFailed, every name reported, never a reject', async () => {
+    const out = await captureLoginShellEnv(['P33_A'], {
+      shell: join(root, 'no-such-shell'),
+      timeoutMs: 500
+    });
+    assert.equal(out.probeFailed, true);
+    assert.deepEqual(out.missing, ['P33_A']);
+  });
+
+  it('a shell that prints no markers is a failed probe, not a set of unset names', async () => {
+    const shell = join(root, 'silent-shell');
+    writeFileSync(shell, '#!/bin/sh\necho "not a record in sight"\n');
+    chmodSync(shell, 0o755);
+    const out = await captureLoginShellEnv(['P33_A'], { shell, timeoutMs: 2000 });
+    assert.equal(out.probeFailed, true);
+    assert.deepEqual(out.missing, ['P33_A']);
+  });
+
+  /**
+   * The Phase 13.5.1 case, in this probe. A shell that forks a child holding
+   * stdout never closes the pipe, so settling on `close` alone would hang the
+   * launch. The deadline settles it and the GROUP kill reaches the fork. Two
+   * assertions, because settling while leaking is half a fix.
+   */
+  it('hung shell that forks → settles on the deadline and kills the group', async () => {
+    const shell = join(root, 'env-fork-shell');
+    const pidFile = join(root, 'env-grandchild.pid');
+    writeFileSync(
+      shell,
+      '#!/bin/sh\n' + 'sleep 30 &\n' + `echo $! > ${pidFile}\n` + 'sleep 30\n'
+    );
+    chmodSync(shell, 0o755);
+    const started = Date.now();
+    const out = await captureLoginShellEnv(['P33_A'], { shell, timeoutMs: 300 });
+    const elapsed = Date.now() - started;
+    assert.ok(elapsed < 5_000, `did not settle: waited ${elapsed} ms`);
+    assert.equal(out.probeFailed, true);
+    assert.deepEqual(out.missing, ['P33_A']);
+
+    const grandchild = Number(readFileSync(pidFile, 'utf8').trim());
+    assert.ok(Number.isFinite(grandchild) && grandchild > 0, 'no grandchild pid');
+    await new Promise((r) => setTimeout(r, 1_200));
+    assert.throws(
+      () => process.kill(grandchild, 0),
+      /ESRCH/,
+      `grandchild ${grandchild} survived the probe deadline`
+    );
+  });
+
+  /**
+   * The nonce. Two probes in the same process must not share a marker, or rc
+   * output that copied one probe's framing could forge the next probe's
+   * records. The marker is unpredictable, so the check is that a value which
+   * TRIES to look like a record does not become one.
+   */
+  it('rc output cannot forge a record, because the marker is per probe', async () => {
+    const shell = fakeShell(
+      'forge-shell',
+      'export P33_A=real\n' + 'echo "__GMUX_ENVP_00000000__P33_A=forged__GMUX_ENVP_00000000__"'
+    );
+    const out = await captureLoginShellEnv(['P33_A'], { shell, timeoutMs: 3000 });
+    assert.equal(out.values['P33_A'], 'real');
+  });
+
+  it('drops a name that is not a usable variable name rather than running it', async () => {
+    const shell = fakeShell('inject-shell', 'export P33_A=alpha');
+    const out = await captureLoginShellEnv(['P33_A', 'oops; rm -rf /'], {
+      shell,
+      timeoutMs: 3000
+    });
+    assert.deepEqual(out.values, { P33_A: 'alpha' });
+    assert.deepEqual(out.missing, ['oops; rm -rf /']);
   });
 });
 

@@ -60,8 +60,20 @@
 // The file
 // ---------------------------------------------------------------------------
 
-/** The only schema version this build reads. */
-export const AGENT_OVERLAY_SCHEMA_VERSION = 1;
+/** The newest schema version this build understands. */
+export const AGENT_OVERLAY_SCHEMA_VERSION = 2;
+
+/**
+ * Every schema version this build reads.
+ *
+ * Phase 33 added `launch.envPassthrough` and bumped the schema to 2, following
+ * the rule written on {@link AgentOverlayFileV1}: a new field is schema 2 with
+ * a converter, never an appended block on version 1. The converter from a
+ * schema 1 file is the identity, because every V1 row is a valid V2 row. The
+ * one difference the loader enforces is that a schema 1 file may not carry
+ * `envPassthrough`, and that case gets a targeted error naming schema 2.
+ */
+export const AGENT_OVERLAY_ACCEPTED_SCHEMAS: readonly number[] = [1, 2];
 
 /** The file a user writes, inside the configuration directory. */
 export const AGENT_OVERLAY_FILENAME = 'agents.json';
@@ -91,6 +103,18 @@ export interface AgentOverlayFileV1 {
   schema: 1;
   agents: AgentOverlayV1[];
 }
+
+/**
+ * A schema 2 file. The rows are the same shape, and only a schema 2 file may
+ * put `envPassthrough` inside a row's `launch`.
+ */
+export interface AgentOverlayFileV2 {
+  schema: 2;
+  agents: AgentOverlayV1[];
+}
+
+/** A whole `agents.json`, at either schema this build reads. */
+export type AgentOverlayFile = AgentOverlayFileV1 | AgentOverlayFileV2;
 
 // ---------------------------------------------------------------------------
 // One row
@@ -136,8 +160,14 @@ export interface AgentOverlayV1 {
    * whether the agent is installed and in use. It never writes them.
    */
   storeDirs?: string[];
-  /** How the agent starts. Execution bearing. */
-  launch?: AgentOverlayLaunchV1;
+  /**
+   * How the agent starts. Execution bearing.
+   *
+   * The V2 shape is a superset of V1, so one field carries both. A schema 1
+   * file may not use the one V2 addition, `envPassthrough`, and the loader
+   * refuses that case with an error naming schema 2.
+   */
+  launch?: AgentOverlayLaunchV2;
   /**
    * How a conversation comes back. Execution bearing.
    *
@@ -178,6 +208,30 @@ export interface AgentOverlayLaunchV1 {
    * `ENV_REFUSED_PATTERNS` for the list and the reason for each entry.
    */
   env?: Record<string, string>;
+}
+
+/**
+ * The schema 2 launch block (Phase 33). Everything V1 says, plus one field.
+ */
+export interface AgentOverlayLaunchV2 extends AgentOverlayLaunchV1 {
+  /**
+   * Environment variable NAMES, up to 16. At each launch and each restore
+   * Tortie reads their values from the user's login shell, with the same
+   * probe shape and the same 3 second deadline the PATH capture uses, and
+   * passes the resolved pairs to that pane only.
+   *
+   * The NAME LIST is execution bearing and is hashed by the confirm gate, so
+   * adding or removing a name asks the person again. The VALUES are resolved
+   * fresh at every launch and are never written to any file, never hashed,
+   * and never shown on the confirm sheet. A rotated key therefore moves
+   * nothing and is picked up on the next launch.
+   *
+   * The `launch.env` denylist applies to these names too, and two more names
+   * are refused on top of it. See `ENV_PASSTHROUGH_REFUSED`. A name may not
+   * appear in both `env` and `envPassthrough`, because two sources for one
+   * name would make any report about it wrong in one direction or the other.
+   */
+  envPassthrough?: string[];
 }
 
 export interface AgentOverlayResumeV1 {
@@ -315,6 +369,7 @@ export const OVERLAY_LIMITS = {
   maxEnvKeys: 16,
   maxEnvKeyLength: 64,
   maxEnvValueLength: 1024,
+  maxEnvPassthroughNames: 16,
   maxTemplate: 16,
   maxProbeArgs: 8,
   maxNotesLength: 512,
@@ -394,6 +449,33 @@ export const ENV_REFUSED_PATTERNS: readonly { pattern: RegExp; why: string }[] =
     why: 'it is how Tortie recognises the panes it owns, and a pane carrying another session’s stamp is a session claiming an identity that is not its own'
   },
   { pattern: /^TORTIE_/, why: 'it is reserved for Tortie itself' }
+];
+
+/**
+ * Names `launch.envPassthrough` refuses on top of `ENV_REFUSED_EXACT` and
+ * `ENV_REFUSED_PATTERNS` (Phase 33).
+ *
+ * Both names move where pi keeps its session files. The reason they are
+ * refused is mechanical, not cautious. `src/main/agents/detection.ts` expands
+ * an agent's store directories against Tortie's OWN process environment, so a
+ * pane whose store moved is a pane whose conversations the harvester cannot
+ * find, and the user loses the conversation without an error anywhere.
+ * Lifting this refusal later requires feeding the same resolved values to
+ * detection, and nothing does that today.
+ */
+export const ENV_PASSTHROUGH_REFUSED: readonly { name: string; why: string }[] = [
+  {
+    name: 'PI_CODING_AGENT_DIR',
+    why:
+      'It moves where the agent keeps its sessions, and Tortie would keep ' +
+      'looking in the old place and lose the conversation.'
+  },
+  {
+    name: 'PI_CODING_AGENT_SESSION_DIR',
+    why:
+      'It moves where the agent keeps its sessions, and Tortie would keep ' +
+      'looking in the old place and lose the conversation.'
+  }
 ];
 
 /**
@@ -501,6 +583,10 @@ export const EXECUTION_BEARING_FIELDS: readonly string[] = [
   'extraProbeDirs',
   'launch.argv',
   'launch.env',
+  // Phase 33. The NAME LIST is execution bearing even though the values never
+  // are: which variables reach the pane changes what the launched program
+  // does, so adding or removing a name asks the person again.
+  'launch.envPassthrough',
   'versionProbe',
   'resume.template',
   'resume.idCapture'
@@ -542,26 +628,29 @@ export function rowBearsExecution(row: AgentOverlayV1): boolean {
  * every worked example through both this schema and the real loader, because a
  * worked example that does not load is a defect.
  *
- * The schema and the loader do not agree everywhere, and the three places they
+ * The schema and the loader do not agree everywhere, and the four places they
  * differ are deliberate.
  *
- * The schema is weaker in two of them. It cannot express "argv[0] equals
+ * The schema is weaker in three of them. It cannot express "argv[0] equals
  * binaries[0]" and it cannot express the environment denylist, so a file can
  * pass the schema and still have a row dropped. Both are checked in
- * src/main/config/overlay.ts and reported as ordinary dropped rows.
+ * src/main/config/overlay.ts and reported as ordinary dropped rows. It also
+ * cannot say that `launch.envPassthrough` needs `"schema": 2`, so a schema 1
+ * file carrying that field passes the schema and the loader drops the row
+ * with an error naming schema 2.
  *
- * The schema is stricter in the third. A file with more than 32 rows fails the
- * schema outright, while the loader reads the first 32 and says it ignored the
- * rest. Losing 32 working agents over a 33rd is not a trade the loader should
- * make on a user's behalf.
+ * The schema is stricter in the fourth. A file with more than 32 rows fails
+ * the schema outright, while the loader reads the first 32 and says it
+ * ignored the rest. Losing 32 working agents over a 33rd is not a trade the
+ * loader should make on a user's behalf.
  *
  * The schema exists so an authoring agent gets the shape right on the first
  * try. It does not replace the loader and it never decides what runs.
  */
 export const AGENT_OVERLAY_JSON_SCHEMA = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
-  $id: 'https://tortie.app/schema/agents-v1.json',
-  title: 'Tortie agents.json (schema 1)',
+  $id: 'https://tortie.app/schema/agents-v2.json',
+  title: 'Tortie agents.json (schema 1 or 2)',
   description:
     'Agents Tortie can launch, added or patched by the user. Tortie never ' +
     'loads code from this file. Fields that can cause a program to run need ' +
@@ -570,7 +659,12 @@ export const AGENT_OVERLAY_JSON_SCHEMA = {
   additionalProperties: false,
   required: ['schema', 'agents'],
   properties: {
-    schema: { const: 1 },
+    schema: {
+      enum: [1, 2],
+      description:
+        'Say 2 to use launch.envPassthrough. A file that says 1 keeps ' +
+        'working and cannot carry that field.'
+    },
     agents: {
       type: 'array',
       maxItems: OVERLAY_LIMITS.maxRows,
@@ -668,6 +762,22 @@ export const AGENT_OVERLAY_JSON_SCHEMA = {
             'Environment for this pane only. Names that decide which code ' +
             'runs, and the names Tortie uses to identify its own panes, are ' +
             'refused. Execution bearing.'
+        },
+        envPassthrough: {
+          type: 'array',
+          maxItems: OVERLAY_LIMITS.maxEnvPassthroughNames,
+          items: {
+            type: 'string',
+            pattern: OVERLAY_ENV_KEY_PATTERN,
+            maxLength: OVERLAY_LIMITS.maxEnvKeyLength
+          },
+          description:
+            'Environment variable names, up to 16. Tortie reads their ' +
+            'values from your login shell each time this agent launches or ' +
+            'restores, and passes them to that pane only. The values are ' +
+            'never written to any file. Needs "schema": 2. The names ' +
+            'refused for launch.env are refused here too, and a name may ' +
+            'not appear in both. Execution bearing.'
         }
       }
     },

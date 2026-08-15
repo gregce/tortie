@@ -29,6 +29,15 @@
  * count, no history the UI can page through, and no way to ask "is everything
  * fine". ZEN-OF-TORTIE settles that, and Phase 19's own brief repeats it: this
  * is a notice, not a dashboard.
+ *
+ * ONE KIND LATCHES PER SESSION rather than per kind (Phase 33). The
+ * `env-unresolved` notice says that one pane started without a variable its
+ * row promises. That fact belongs to one session, so its latch key is
+ * `kind:sessionId`. Two sessions missing a variable are two facts, and a
+ * per-kind latch would let the first session's launch silence the second's.
+ * Within one session the rule is unchanged, being once per app run. Every
+ * other kind keeps the plain kind key, because each of them describes a
+ * layer, not a session.
  */
 
 import type { DurabilityNotice } from '@shared/notice';
@@ -36,8 +45,18 @@ import { EVT_SCROLLBACK_NOTICE } from '@shared/ipc';
 import { logEvent } from '../log';
 import { broadcastEvent } from '../typed-events';
 
-/** Kinds already said this run. The latch behind rule 1. */
-const said = new Set<DurabilityNotice['kind']>();
+/** Latch keys already said this run. The latch behind rule 1. */
+const said = new Set<string>();
+
+/**
+ * The latch key for one notice. `env-unresolved` is keyed per session, per
+ * the header paragraph above. Everything else is keyed by kind alone.
+ */
+function latchKeyOf(kind: DurabilityNotice['kind'], sessionId?: string): string {
+  return kind === 'env-unresolved' && sessionId !== undefined
+    ? `${kind}:${sessionId}`
+    : kind;
+}
 
 /** Posted with no renderer listening. Drained by `notice:pending`. */
 let queued: DurabilityNotice[] = [];
@@ -56,8 +75,12 @@ let rendererListening = false;
  *          had already been said and this call was swallowed.
  */
 export function postDurabilityNotice(notice: DurabilityNotice): boolean {
-  if (said.has(notice.kind)) return false;
-  said.add(notice.kind);
+  const key = latchKeyOf(
+    notice.kind,
+    notice.kind === 'env-unresolved' ? notice.sessionId : undefined
+  );
+  if (said.has(key)) return false;
+  said.add(key);
   // PHASE 35: mirror what the user was shown. The toast is one line that a
   // person may miss, dismiss, or see days before they ask about it, and until
   // now nothing on disk said it had ever appeared. Every ACCEPTED notice is
@@ -90,10 +113,14 @@ export function takePendingNotices(): DurabilityNotice[] {
 
 /**
  * Has this kind already been said this run? Only for callers that want to log
- * the detail of a repeat they know will be swallowed.
+ * the detail of a repeat they know will be swallowed. For `env-unresolved`
+ * pass the session id, because that kind latches per session.
  */
-export function hasSaidNotice(kind: DurabilityNotice['kind']): boolean {
-  return said.has(kind);
+export function hasSaidNotice(
+  kind: DurabilityNotice['kind'],
+  sessionId?: string
+): boolean {
+  return said.has(latchKeyOf(kind, sessionId));
 }
 
 /** Tests only. There is no product path that clears the latch. */

@@ -233,6 +233,44 @@ describe('each degraded state says one plain thing', () => {
     expect(out.kind).toBe('info');
   });
 
+  it('a pane that started without one promised variable names it (Phase 33)', () => {
+    const out = say({
+      kind: 'env-unresolved',
+      sessionId: 's1',
+      sessionName: 'auth',
+      names: ['FIREWORKS_API_KEY'],
+      probeFailed: false
+    });
+    expect(out.text).toBe('"auth" started without FIREWORKS_API_KEY.');
+    expect(out.kind).toBe('error');
+    // No button, because there is nothing Tortie can run for the user. The
+    // fix is in their own shell startup files.
+    expect(out.action).toBeUndefined();
+  });
+
+  it('several missing variables become a count, because three names cannot fit', () => {
+    const out = say({
+      kind: 'env-unresolved',
+      sessionId: 's1',
+      sessionName: 'auth',
+      names: ['A_NAME', 'B_NAME', 'C_NAME'],
+      probeFailed: false
+    });
+    expect(out.text).toBe('"auth" started without 3 of its variables.');
+    expect(out.kind).toBe('error');
+  });
+
+  it('a probe that failed or timed out says the variables did not arrive at all', () => {
+    const out = say({
+      kind: 'env-unresolved',
+      sessionId: 's1',
+      sessionName: 'auth',
+      names: ['FIREWORKS_API_KEY'],
+      probeFailed: true
+    });
+    expect(out.text).toBe('"auth" started without its shell variables.');
+    expect(out.kind).toBe('error');
+  });
 });
 
 describe('every line fits the toast it has to fit in', () => {
@@ -255,7 +293,28 @@ describe('every line fits the toast it has to fit in', () => {
     { kind: 'manifest-quarantined', quarantinePath: '/tmp/x', recoveredAt: null },
     { kind: 'depth-degraded', actualLines: 2000, requestedLines: 25_000 },
     { kind: 'restore-incomplete', sessionName: 'a-very-long-session-name' },
-    { kind: 'unclean-exit', newDumps: 3 }
+    { kind: 'unclean-exit', newDumps: 3 },
+    {
+      kind: 'env-unresolved',
+      sessionId: 's1',
+      sessionName: 'a-very-long-session-name',
+      names: ['FIREWORKS_API_KEY'],
+      probeFailed: false
+    },
+    {
+      kind: 'env-unresolved',
+      sessionId: 's1',
+      sessionName: 'a-very-long-session-name',
+      names: ['A_NAME', 'B_NAME', 'C_NAME'],
+      probeFailed: false
+    },
+    {
+      kind: 'env-unresolved',
+      sessionId: 's1',
+      sessionName: 'a-very-long-session-name',
+      names: ['FIREWORKS_API_KEY'],
+      probeFailed: true
+    }
   ];
 
   for (const notice of CASES) {

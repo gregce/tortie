@@ -50,6 +50,22 @@ export interface ManifestSessionRecord extends Session {
   argv: string[];
   /** Environment deltas applied at launch (e.g. CLAUDE_CONFIG_DIR). */
   env?: Record<string, string>;
+  /**
+   * Environment variable NAMES this session's agent row asked Tortie to read
+   * from the login shell (Phase 33, migration 011).
+   *
+   * NAMES ONLY, NEVER VALUES. A value is resolved by one login shell probe at
+   * the moment of the launch, handed to that pane, and dropped. It is not in
+   * this record, not in this database and not in any file Tortie writes.
+   *
+   * RESTORE RE-RESOLVES. It reads these names, runs the same probe again and
+   * injects whatever the shell says then. So a key the user rotated between
+   * the create and the restore arrives correct rather than stale, and a
+   * freshly created pane and a restored pane see the same environment.
+   *
+   * Written once, with the row. `ManifestSessionPatch` excludes it.
+   */
+  envPassthrough?: string[];
   /** Epoch ms this session was last confirmed alive in tmux. */
   lastSeen: number;
   /**
@@ -139,9 +155,15 @@ export interface ManifestSessionRecord extends Session {
  * tombstone are `markSessionRemoved` and the clear inside `setRestoreResult`.
  * A general patch route would let some later caller tombstone a row by
  * accident, and a tombstone is a promise to the user that Remove was pressed.
+ *
+ * `envPassthrough` is EXCLUDED for a related reason (Phase 33). The set of
+ * variable names is part of what a person confirmed for this launch. A general
+ * patch route would let a later caller widen it on a live row with nobody
+ * agreeing to the change, and the UPDATE statement leaves the column alone so
+ * a patch could not write it even if the type allowed one.
  */
 export type ManifestSessionPatch = Partial<
-  Omit<ManifestSessionRecord, 'id' | 'createdAt' | 'removedAt'>
+  Omit<ManifestSessionRecord, 'id' | 'createdAt' | 'removedAt' | 'envPassthrough'>
 >;
 
 /**
@@ -213,6 +235,12 @@ export interface SessionRow {
    * restore's setRestoreResult.
    */
   removed_at: number | null;
+  /**
+   * Environment variable names as a JSON array (migration 011, Phase 33).
+   * NULL on every row created before this migration, and on every row whose
+   * agent asks for no passthrough, which is all twelve compiled agents.
+   */
+  env_passthrough: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -443,6 +471,14 @@ export function rowToRecord(row: SessionRow): ManifestSessionRecord {
   // row and for every row written before migration 010.
   if (row.removed_at !== null && row.removed_at !== undefined) {
     record.removedAt = row.removed_at;
+  }
+  // Phase 33. A list of NAMES. An unreadable or empty value is dropped whole
+  // and the row reads as "no passthrough", which is what every row written
+  // before migration 011 is. The alternative, half a list, would start a pane
+  // claiming to carry variables it does not.
+  const passthrough = parseJsonArray(row.env_passthrough ?? null);
+  if (passthrough !== undefined && passthrough.length > 0) {
+    record.envPassthrough = passthrough;
   }
   return record;
 }

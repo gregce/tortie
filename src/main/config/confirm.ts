@@ -128,6 +128,19 @@ export interface ConfigExecutionFields {
   readonly launchArgv: readonly string[];
   /** Environment entries added to the spawn. */
   readonly launchEnv: Readonly<Record<string, string>>;
+  /**
+   * Environment variable NAMES read from the login shell at each launch and
+   * each restore, and handed to that pane only (Phase 33).
+   *
+   * THE NAMES ARE HASHED AND THE VALUES NEVER ARE. Which variables reach a
+   * process changes what that process does, so adding or removing a name asks
+   * the person again. The value is whatever the user's own shell says at the
+   * moment of the launch, it is resolved fresh every time, and it is never
+   * written to any file. Hashing a value would put a credential in the record
+   * of what somebody agreed to, and rotating that credential would refuse the
+   * launch until they confirmed it again.
+   */
+  readonly envPassthroughNames: readonly string[];
   /** The resume argv template, with the conversation id slot in it. */
   readonly resumeTemplate: readonly string[];
   /**
@@ -183,6 +196,10 @@ const NORMALIZE: Normalizers = {
     Object.entries(v)
       .filter(([k, value]) => typeof k === 'string' && typeof value === 'string')
       .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)),
+  // A set, like the environment keys above it. Adding or removing a name is a
+  // different row and must ask again; writing the same names in another order
+  // is the same row and must not.
+  envPassthroughNames: (v) => [...v].sort(),
   resumeTemplate: (v) => [...v],
   resumeExtrasPosition: (v) => v,
   versionProbeArgs: (v) => [...v],
@@ -202,6 +219,7 @@ export const EMPTY_EXECUTION_FIELDS: ConfigExecutionFields = {
   extraProbeDirs: [],
   launchArgv: [],
   launchEnv: {},
+  envPassthroughNames: [],
   resumeTemplate: [],
   resumeExtrasPosition: null,
   versionProbeArgs: [],
@@ -266,6 +284,11 @@ export interface ConfigExecutionSummary {
   readonly resumeCommandLine: string | null;
   /** `KEY=value` per environment entry added to the spawn. */
   readonly env: readonly string[];
+  /**
+   * Names read from the login shell at each launch (Phase 33). Sorted. No
+   * value appears here, because no value is ever known to this module.
+   */
+  readonly envPassthrough: readonly string[];
   /** Directories searched for the binary ahead of PATH. */
   readonly probeDirs: readonly string[];
   /** Commands Tortie runs by itself: the version probe and the id capture. */
@@ -295,6 +318,10 @@ export function describeExecution(
   const env = Object.entries(fields.launchEnv)
     .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
     .map(([key, value]) => `${key}=${value}`);
+  // Phase 33. One line per name, sorted, and never a value. The sheet is read
+  // by a person and screenshotted by support, so a credential printed here
+  // would leave the machine with it.
+  const envPassthrough = [...fields.envPassthroughNames].sort();
   const sideCommands: string[] = [];
   if (fields.versionProbeArgs.length > 0) {
     sideCommands.push(shellQuoteArgv([binary, ...fields.versionProbeArgs]));
@@ -342,6 +369,9 @@ export function describeExecution(
     );
   }
   for (const entry of env) lines.push(`Sets in the environment: ${entry}`);
+  for (const name of envPassthrough) {
+    lines.push(`Reads from your shell at each launch: ${name}`);
+  }
   for (const command of sideCommands) lines.push(`Also runs by itself: ${command}`);
   for (const flag of [...fields.flagPresetFlags].sort()) {
     lines.push(`Offers the launch flag: ${flag}`);
@@ -354,6 +384,7 @@ export function describeExecution(
     commandLine,
     resumeCommandLine,
     env,
+    envPassthrough,
     probeDirs: [...fields.extraProbeDirs],
     sideCommands,
     lines,

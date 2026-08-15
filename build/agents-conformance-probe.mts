@@ -70,6 +70,9 @@ import type { AgentsScanResult, DetectedAgent, LaunchableAgentId } from '../src/
 const OVERLAY_SEAM = '../src/main/config/overlay';
 const CONFIRM_SEAM = '../src/main/config/confirm';
 
+/** Phase 33: where `paneEnvFor` and `newSessionRecord` live. */
+const LAUNCH_PLAN_SEAM = '../src/main/sessions/launch-plan';
+
 /** The id the whole gate is written around: an agent Tortie did not compile. */
 const SYNTH_ID = 'tortie-conformance-agent';
 
@@ -601,9 +604,248 @@ async function runSeam(api: OverlayApi): Promise<Record<string, unknown>> {
 }
 
 // ---------------------------------------------------------------------------
+// Section 5 — Phase 33, env passthrough
+// ---------------------------------------------------------------------------
+//
+// `launch.envPassthrough` is a list of environment variable NAMES. The names
+// are execution bearing and confirmed; the VALUES are read from the login
+// shell at each launch and each restore, injected into the pane, and stored
+// nowhere. Five facts keep that sentence true, and this section makes each
+// one executable: the confirm hash moves on the name set and only on the name
+// set, the manifest row carries names and never values, the resume argv is
+// unchanged by the field, the sheet prints names and never values, and the
+// refused names are refused. The checker prints one table row per assertion.
+//
+// Everything here is pure, like the rest of this probe. The login shell probe
+// itself (`captureLoginShellEnv`) spawns a process, so it is NOT run here; its
+// deadline and group kill are proven by the unit tests beside it and by the
+// Tier 3 verifier driving the real app.
+
+/** The configured names. Deliberately NOT sorted, to prove reorder is free. */
+const P33_NAMES = ['P33_B_NAME', 'P33_A_NAME'];
+
+/** A value that must appear in the pane env and in NOTHING that persists. */
+const P33_SENTINEL = 'p33-resolved-value-that-must-never-be-stored';
+
+/** The sheet line prefix pinned by the Phase 33 spec, section 4. */
+const P33_SHEET_PREFIX = 'Reads from your shell at each launch: ';
+
+/** The row: NEW_ROW's launch restated, plus the passthrough names. */
+function p33Row(names: readonly string[], over: Record<string, unknown> = {}) {
+  return {
+    ...NEW_ROW,
+    launch: { argv: ['tca'], env: { TCA_COLOR: '1' }, envPassthrough: [...names] },
+    ...over
+  };
+}
+
+/** What Phase 33 needs beyond OverlayApi: the sheet builder. */
+interface P33ConfirmApi {
+  describeExecution(id: string, fields: unknown): { lines: readonly string[] };
+}
+
+/** The two launch-plan functions the gate reads. Both pure. */
+interface P33LaunchPlanApi {
+  paneEnvFor(
+    base: Record<string, string> | undefined,
+    resolved: Record<string, string>,
+    sessionId: string
+  ): Record<string, string>;
+  newSessionRecord(facts: unknown): Record<string, unknown>;
+}
+
+function p33HashOf(
+  api: OverlayApi,
+  names: readonly string[],
+  over: Record<string, unknown> = {}
+): string | null {
+  const parsed = api.parseAgentOverlay(
+    JSON.stringify({ schema: 2, agents: [p33Row(names, over)] })
+  );
+  if (parsed.rows.length === 0) return null;
+  const entry = api.mergeAgentOverlay(parsed.rows).agents.find((e) => e.id === SYNTH_ID);
+  if (entry === undefined) return null;
+  return api.executionHash(entry.id, api.executionFieldsOf(entry));
+}
+
+/** Parse and merge one file; report whether `id` was dropped, and the problem. */
+function p33Refusal(
+  api: OverlayApi,
+  file: Record<string, unknown>,
+  id: string
+): { dropped: boolean; field: string | null; message: string | null } {
+  const parsed = api.parseAgentOverlay(JSON.stringify(file));
+  const merged = api.mergeAgentOverlay(parsed.rows);
+  const problems = [...parsed.problems, ...merged.problems];
+  const named =
+    problems.find(
+      (p) => p.field.includes('envPassthrough') || p.message.includes('envPassthrough')
+    ) ?? null;
+  return {
+    dropped: !merged.agents.some((e) => e.id === id),
+    field: named === null ? null : named.field,
+    message: named === null ? null : named.message
+  };
+}
+
+async function p33Section(): Promise<Record<string, unknown>> {
+  let overlay: Record<string, unknown>;
+  let confirm: Record<string, unknown>;
+  let plan: Record<string, unknown>;
+  try {
+    overlay = (await import(OVERLAY_SEAM)) as Record<string, unknown>;
+    confirm = (await import(CONFIRM_SEAM)) as Record<string, unknown>;
+    plan = (await import(LAUNCH_PLAN_SEAM)) as Record<string, unknown>;
+  } catch {
+    return {
+      state: 'absent',
+      missing: [`one of ${OVERLAY_SEAM}, ${CONFIRM_SEAM}, ${LAUNCH_PLAN_SEAM} did not import`]
+    };
+  }
+  const missing: string[] = [];
+  for (const name of SEAM_EXPORTS) {
+    if (typeof { ...overlay, ...confirm }[name] !== 'function') {
+      missing.push(`${name} (overlay seam)`);
+    }
+  }
+  if (typeof confirm['describeExecution'] !== 'function') {
+    missing.push('describeExecution (config/confirm)');
+  }
+  if (typeof plan['paneEnvFor'] !== 'function') {
+    missing.push('paneEnvFor (sessions/launch-plan)');
+  }
+  if (typeof plan['newSessionRecord'] !== 'function') {
+    missing.push('newSessionRecord (sessions/launch-plan)');
+  }
+  const api = { ...overlay, ...confirm } as unknown as OverlayApi & P33ConfirmApi;
+  const planApi = plan as unknown as P33LaunchPlanApi;
+  if (missing.length === 0) {
+    // Schema 2 is the shape that carries the field. A loader that still
+    // refuses the empty schema 2 file has not grown Phase 33 yet.
+    const empty2 = api.parseAgentOverlay(JSON.stringify({ schema: 2, agents: [] }));
+    if (empty2.problems.length > 0) {
+      missing.push('schema 2 support in the overlay loader');
+    }
+  }
+  if (missing.length > 0) return { state: 'absent', missing };
+  try {
+    return runP33(api, planApi);
+  } catch (err) {
+    return {
+      state: 'broken',
+      error: err instanceof Error ? `${err.name}: ${err.message}` : String(err)
+    };
+  }
+}
+
+function runP33(
+  api: OverlayApi & P33ConfirmApi,
+  plan: P33LaunchPlanApi
+): Record<string, unknown> {
+  // Assertion 1 inputs: the hash against the name set.
+  const hash = {
+    base: p33HashOf(api, P33_NAMES),
+    sameAgain: p33HashOf(api, P33_NAMES),
+    afterAdd: p33HashOf(api, [...P33_NAMES, 'P33_C_NAME']),
+    afterRemove: p33HashOf(api, P33_NAMES),
+    afterReorder: p33HashOf(api, ['P33_A_NAME', 'P33_B_NAME']),
+    afterDisplayName: p33HashOf(api, P33_NAMES, { displayName: 'Renamed' })
+  };
+
+  // Assertion 2 inputs: the record from a spec carrying the names, and the
+  // pane env from a resolved map carrying the sentinel. The two compositions
+  // are separate on purpose: values are not on the spec, so the record CANNOT
+  // carry them, and this assertion is what keeps that true.
+  const spec33 = {
+    ...buildLaunchSpec('claude', EXTRAS, ABS_BIN),
+    envPassthrough: [...P33_NAMES]
+  };
+  const record = plan.newSessionRecord({
+    id: CAPTURED_ID,
+    input: {
+      name: 'p33-conformance',
+      projectPath: CONTRACT_INPUT.projectReal,
+      agent: 'claude'
+    },
+    cwd: CONTRACT_INPUT.cwdReal,
+    spec: spec33,
+    capture: undefined,
+    agentVersion: '0.0.0-conformance',
+    binPath: ABS_BIN,
+    cwdReal: CONTRACT_INPUT.cwdReal,
+    projectReal: CONTRACT_INPUT.projectReal,
+    now: 0
+  });
+  const paneEnv = plan.paneEnvFor(spec33.env, { P33_A_NAME: P33_SENTINEL }, CAPTURED_ID);
+  const hostile = plan.paneEnvFor(undefined, { GMUX_SESSION_ID: 'evil' }, CAPTURED_ID);
+
+  // Assertions 3 and 4 inputs: the merged passthrough row, its resume report
+  // and its sheet.
+  const parsed = api.parseAgentOverlay(
+    JSON.stringify({ schema: 2, agents: [p33Row(P33_NAMES)] })
+  );
+  const merged = api.mergeAgentOverlay(parsed.rows);
+  const entry = merged.agents.find((e) => e.id === SYNTH_ID) ?? null;
+  let report: AgentReport | null = null;
+  let mergedNames: string[] | null = null;
+  let sheet: { passthroughLines: string[]; valueLeak: boolean } | null = null;
+  if (entry !== null) {
+    const contract = contractFromMerged(entry);
+    report = reportOf(
+      'p33-env-passthrough',
+      'config',
+      { argv: launchArgvOf(entry, CAPTURED_ID), idCapture: 'preassigned' },
+      contract,
+      resumeFromContract(contract, CAPTURED_ID, EXTRAS),
+      resumeFromContract(contract, '', EXTRAS)
+    );
+    mergedNames =
+      ((entry.launch ?? {}) as { envPassthrough?: string[] }).envPassthrough ?? null;
+    const summary = api.describeExecution(entry.id, api.executionFieldsOf(entry));
+    sheet = {
+      passthroughLines: summary.lines.filter((l) => l.startsWith(P33_SHEET_PREFIX)),
+      valueLeak: summary.lines.some((l) => l.includes(P33_SENTINEL))
+    };
+  }
+
+  // Assertion 5 inputs: the two refusals.
+  const refusePiDir = p33Refusal(
+    api,
+    { schema: 2, agents: [p33Row(['PI_CODING_AGENT_DIR'])] },
+    SYNTH_ID
+  );
+  const refuseSchema1 = p33Refusal(
+    api,
+    { schema: 1, agents: [p33Row(P33_NAMES)] },
+    SYNTH_ID
+  );
+
+  return {
+    state: 'present',
+    names: [...P33_NAMES],
+    sentinel: P33_SENTINEL,
+    sheetPrefix: P33_SHEET_PREFIX,
+    hash,
+    record: {
+      envPassthrough:
+        Array.isArray(record['envPassthrough']) ? [...(record['envPassthrough'] as string[])] : null,
+      recordJsonHasSentinel: JSON.stringify(record).includes(P33_SENTINEL),
+      paneEnvCarriesValue: paneEnv['P33_A_NAME'] === P33_SENTINEL,
+      stampSurvives: hostile['GMUX_SESSION_ID'] === CAPTURED_ID
+    },
+    mergedNames,
+    report,
+    sheet,
+    refusePiDir,
+    refuseSchema1
+  };
+}
+
+// ---------------------------------------------------------------------------
 
 const agents = LAUNCHABLE_AGENT_IDS.map(compiledReport);
 const seam = await seamReport();
+const p33 = await p33Section();
 
 process.stdout.write(
   JSON.stringify({
@@ -615,6 +857,7 @@ process.stdout.write(
     compiledRows: AGENT_REGISTRY.length,
     agents,
     renderer: rendererReport(),
-    seam
+    seam,
+    p33
   })
 );

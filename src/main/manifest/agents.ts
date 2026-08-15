@@ -160,6 +160,17 @@ export interface AgentLaunchSpec {
   resumeArgv?: string[];
   /** Environment deltas to apply at spawn (cursor-agent: FORCE_COLOR=1). */
   env?: Record<string, string>;
+  /**
+   * Environment variable NAMES to read from the user's login shell at spawn
+   * (Phase 33). Empty or absent for every compiled agent.
+   *
+   * IT CARRIES NAMES AND NEVER VALUES, which is what makes persisting it safe
+   * by construction rather than by care. `env` above is written into the
+   * manifest row verbatim and replayed at restore, and that is exactly why the
+   * resolved values must not travel through it. They are resolved beside the
+   * spawn, merged into the tmux `-e` set, and dropped.
+   */
+  envPassthrough?: string[];
   idCapture: IdCaptureMode;
   /**
    * For harvest agents: which key proves a store record is this pane's, and
@@ -653,6 +664,12 @@ export function buildLaunchSpec(
     resumeTemplate: [...entry.resume.template]
   };
   if (entry.launch.env !== undefined) spec.env = { ...entry.launch.env };
+  // Phase 33. Copied only when the row actually names something, so a spec for
+  // one of the twelve compiled agents is byte for byte what it was before this
+  // phase and no launch pays for a feature it does not use.
+  if (entry.launch.envPassthrough !== undefined && entry.launch.envPassthrough.length > 0) {
+    spec.envPassthrough = [...entry.launch.envPassthrough];
+  }
   if (entry.resume.requiresOriginalCwd === true) spec.requiresOriginalCwd = true;
 
   switch (capture.mode) {

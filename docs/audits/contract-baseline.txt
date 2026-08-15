@@ -136,10 +136,10 @@ updates:state
 
 [sqlite.identity]
 application_id=1414681669
-user_version=10
+user_version=11
 min_compatible_version=8
 
-[sqlite.migrations] count=10
+[sqlite.migrations] count=11
 001-initial
 002-exit-code
 003-death-forensics
@@ -150,6 +150,7 @@ min_compatible_version=8
 008-agent-recovery-contract
 009-context-snapshot
 010-removed-at
+011-env-passthrough
 
 [sqlite.schema] objects=8
 -- index idx_restore_attempts_open
@@ -207,7 +208,7 @@ CREATE TABLE sessions (
           status           TEXT NOT NULL DEFAULT 'running',
           created_at       INTEGER NOT NULL,
           last_seen        INTEGER NOT NULL
-        , exit_code INTEGER, exit_signal TEXT, pane_pid INTEGER, resume_capture TEXT, specstory TEXT, restore TEXT, agent_version TEXT, agent_contract TEXT, resume_provenance TEXT, context_snapshot TEXT, removed_at INTEGER)
+        , exit_code INTEGER, exit_signal TEXT, pane_pid INTEGER, resume_capture TEXT, specstory TEXT, restore TEXT, agent_version TEXT, agent_contract TEXT, resume_provenance TEXT, context_snapshot TEXT, removed_at INTEGER, env_passthrough TEXT)
 
 [localStorage.keys] count=33
 gmux.

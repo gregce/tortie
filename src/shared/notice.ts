@@ -219,6 +219,30 @@ export interface UncleanExitNotice {
   newDumps: number;
 }
 
+/**
+ * An agent pane started without a variable its row promises. Phase 33.
+ *
+ * `launch.envPassthrough` names variables Tortie reads from the login shell
+ * at each launch and each restore. A name that is unset or empty at probe
+ * time injects nothing, and the probe itself can fail or time out. Either
+ * way the pane is running without something its row said it would have, and
+ * nothing else would ever say so. The agent inside the pane fails much
+ * later, with a message about its provider rather than about the shell.
+ *
+ * `sessionId` is here because the LATCH for this kind is per session per app
+ * run rather than per kind (src/main/notice). Two sessions missing a
+ * variable are two facts, and the second must not be silenced by the first.
+ */
+export interface EnvUnresolvedNotice {
+  kind: 'env-unresolved';
+  sessionId: string;
+  sessionName: string;
+  /** The names that had no value in the login shell. Sorted. At least 1. */
+  names: string[];
+  /** True when the probe itself failed or timed out. */
+  probeFailed: boolean;
+}
+
 /** Every degraded state Tortie can report. One kind per state, no free text. */
 export type DurabilityNotice =
   | BackupFailingNotice
@@ -230,7 +254,8 @@ export type DurabilityNotice =
   | RestoreIncompleteNotice
   | RestoreShortfallNotice
   | UpdateIncompleteNotice
-  | UncleanExitNotice;
+  | UncleanExitNotice
+  | EnvUnresolvedNotice;
 
 /**
  * Everything that travels on `scrollback:notice`: the three scrollback events
@@ -249,7 +274,8 @@ export const DURABILITY_NOTICE_KINDS = [
   'restore-incomplete',
   'restore-shortfall',
   'update-incomplete',
-  'unclean-exit'
+  'unclean-exit',
+  'env-unresolved'
 ] as const;
 
 /** Narrow a notice off the shared channel to a degraded state. */

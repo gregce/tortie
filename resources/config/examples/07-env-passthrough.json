@@ -1,0 +1,13 @@
+{
+  "schema": 2,
+  "agents": [
+    {
+      "id": "pi",
+      "launch": {
+        "argv": ["pi"],
+        "envPassthrough": ["FIREWORKS_API_KEY"]
+      },
+      "notes": "A patch of the compiled pi row. Tortie reads FIREWORKS_API_KEY from your login shell at each launch and each restore, and passes it to that pane only. The value is never written to any file. The confirm sheet shows the name and never the value. The row restates argv because a patch replaces the whole launch block. If the variable is unset when a session starts, the pane still opens and Tortie names the variable that had no value."
+    }
+  ]
+}

@@ -308,6 +308,26 @@ function showDegraded(store: AppStore, notice: DurabilityNotice): void {
     });
     return;
   }
+  if (notice.kind === 'env-unresolved') {
+    // Phase 33. The pane exists and the agent is running. What is missing
+    // is a variable the row promises through launch.envPassthrough: the
+    // login shell probe found it unset, empty or over the size cap, or the
+    // probe itself failed. Main sends the fact once per session per run.
+    // There is no action button, because there is nothing Tortie can run
+    // for the user. The fix is in their own shell startup files. Two lines
+    // of about 29 characters, matching the restore shortfall pattern.
+    const short = shortName(notice.sessionName);
+    getState().toast(
+      'error',
+      notice.probeFailed
+        ? `"${short}" started without its shell variables.`
+        : notice.names.length === 1
+          ? `"${short}" started without ${notice.names[0]}.`
+          : `"${short}" started without ${notice.names.length} of its variables.`,
+      { sticky: true }
+    );
+    return;
+  }
   // A kind added to the shared union without a sentence here fails the
   // build, rather than shipping a degraded state nobody is told about.
   const unhandled: never = notice;

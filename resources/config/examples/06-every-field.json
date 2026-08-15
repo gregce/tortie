@@ -1,5 +1,5 @@
 {
-  "schema": 1,
+  "schema": 2,
   "agents": [
     {
       "id": "everest",
@@ -17,7 +17,8 @@
         "argv": ["everest", "--no-banner"],
         "env": {
           "EVEREST_COLOR": "always"
-        }
+        },
+        "envPassthrough": ["EVEREST_API_KEY"]
       },
       "resume": {
         "template": ["--conversation", "<sessionId>"],
@@ -31,7 +32,7 @@
         "resumeExtrasPosition": "trailing"
       },
       "iconKey": "everest",
-      "notes": "Every field the contract allows, in one row. Most agents need far less. Verified by hand against 3.0.2. Resume finds the conversation from any directory because the lookup is global, and `--conversation` with no value exits 2 rather than attaching to something else, so both defaults are turned off here on evidence. There is no field for a hotkey, a flag preset, a paste behaviour or a newline key, because those are yours to choose in Settings."
+      "notes": "Every field the contract allows, in one row. Most agents need far less. Verified by hand against 3.0.2. The file says schema 2 because it uses envPassthrough. EVEREST_API_KEY is read from the login shell at each launch and stored nowhere. Both resume defaults are turned off here on evidence. The lookup is global, and `--conversation` with no value exits 2 rather than attaching to something else. Settings, not this file, holds your hotkey, flag preset, paste and newline choices."
     }
   ]
 }

@@ -206,6 +206,19 @@ export interface AgentLaunchInfo {
   argv: string[];
   /** Env deltas injected at spawn (cursor-agent needs FORCE_COLOR=1). */
   env?: Record<string, string>;
+  /**
+   * Environment variable NAMES read from the user's login shell at each launch
+   * and each restore, and passed to that pane only (Phase 33).
+   *
+   * NO COMPILED ROW SETS THIS, and that is the design rather than an omission.
+   * Which variables an agent needs is a fact about one person's machine, not
+   * about the agent, so the route to this field is an agents.json row that
+   * restates `launch.argv` and passes the confirm gate. The NAMES are hashed
+   * by that gate. The VALUES are resolved fresh at every launch and are never
+   * written to agents.json, to the confirm record, to the manifest or to the
+   * tmux server environment.
+   */
+  envPassthrough?: string[];
   /** Behavioral notes from the research (inherit-stdio, aliases, …). */
   quirks: string[];
 }

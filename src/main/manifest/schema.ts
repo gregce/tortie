@@ -270,6 +270,43 @@ export const MIGRATIONS: readonly SqliteMigration[] = [
     up: (db) => {
       addColumnIfMissing(db, 'sessions', 'removed_at', 'INTEGER');
     }
+  },
+  {
+    // Phase 33 (research 41 section 8): the environment variable NAMES this
+    // session's agent row asked Tortie to read from the login shell, as a JSON
+    // array. NAMES ONLY. No value ever reaches this column, this table or this
+    // file, which is the exact failure of option B in that research and the
+    // reason the column holds a list of names instead of a set of pairs.
+    //
+    // WHY IT IS PERSISTED AT ALL. Restore must not ask the live registry what
+    // a session was launched with. That is the Phase 21 lesson and migration
+    // 008 exists for it. A restore reads the names off the row, runs the same
+    // login shell probe again, and injects whatever the shell says NOW. So a
+    // rotated key is picked up by the restore rather than replayed from a
+    // stale copy, and a fresh pane and a restored pane see the same
+    // environment.
+    //
+    // ADDITIVE, NOT BREAKING, by the rule in research 27 section 4.3. The test
+    // is whether an old build writing NULL here produces a row the new build
+    // reads WRONGLY. It cannot. No build older than this one can create a
+    // passthrough session, because no build older than this one reads the
+    // field that names the variables, so NULL on a row an old build wrote is
+    // the true answer for that row. The other direction is a degraded launch
+    // rather than a misread: an old build restoring a row this build created
+    // spawns the pane without the injection, which is exactly what every pane
+    // did before this phase. The agent inside it fails to reach its provider
+    // and says so. Nothing is lost and nothing is misreported. So
+    // MANIFEST_SCHEMA_VERSION moves to 11 and MANIFEST_MIN_COMPATIBLE_VERSION
+    // stays at 8.
+    //
+    // WRITTEN ONCE, AT CREATE. `ManifestSessionPatch` excludes it for the same
+    // reason it excludes `removedAt`: the names are part of what the person
+    // confirmed for this launch, and a later patch route would let some other
+    // caller widen the set without anybody agreeing to it.
+    name: '011-env-passthrough',
+    up: (db) => {
+      addColumnIfMissing(db, 'sessions', 'env_passthrough', 'TEXT');
+    }
   }
 ];
 
@@ -291,7 +328,7 @@ export const MANIFEST_APPLICATION_ID = 0x54525445;
  * one. Keep it that way: a number that has to be reasoned about is a number
  * that gets set wrong under time pressure.
  */
-export const MANIFEST_SCHEMA_VERSION = 10;
+export const MANIFEST_SCHEMA_VERSION = 11;
 
 /**
  * The oldest schema version whose code may still write this manifest.
@@ -304,13 +341,16 @@ export const MANIFEST_SCHEMA_VERSION = 10;
  * visible result is an empty session that looks resumed. SQLite would allow
  * that write. This number is what stops it.
  *
- * Migrations 009 and 010 are ADDITIVE by that same rule, so each moved
+ * Migrations 009, 010 and 011 are ADDITIVE by that same rule, so each moved
  * MANIFEST_SCHEMA_VERSION and left this number alone. `context_snapshot` is
  * advisory: nothing on the restore path reads it, and a build at schema 8
  * writing NULL into it produces a session with no record of what it loaded,
  * which is exactly what that session is. `removed_at` (Phase 29) cannot be
  * needed by a row an older build writes, because no older build writes
- * status 'discarded' at all. Reasoning is at migrations 009 and 010.
+ * status 'discarded' at all. `env_passthrough` (Phase 33) cannot be needed by
+ * a row an older build writes either, because no older build reads the
+ * configuration field that names those variables. Reasoning is at migrations
+ * 009, 010 and 011.
  *
  * The honest limit of leaving this at 8 across migration 010, stated so it is
  * checked rather than discovered: a build at schema 8 or 9 opened against
@@ -318,6 +358,12 @@ export const MANIFEST_SCHEMA_VERSION = 10;
  * and its Remove verb hard deletes such a row. That is a degraded surface in
  * a build the user has moved off, not a misread, and the minimum exists to
  * stop misreads.
+ *
+ * The honest limit across migration 011 is the same shape. A build older than
+ * this one restoring a passthrough session starts the pane without the
+ * variables the row names. The agent then fails to reach its provider, which
+ * is a degraded launch a person can see and act on, and it is exactly what
+ * every launch did before Phase 33.
  *
  * The older limit still holds too: a build that shipped before the refusal
  * existed has no code to read this number, so it will still open the file.

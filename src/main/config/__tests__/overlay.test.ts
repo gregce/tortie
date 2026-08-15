@@ -38,6 +38,15 @@ function file(...agents: Record<string, unknown>[]): unknown {
   return { schema: 1, agents };
 }
 
+/**
+ * A schema 2 file (Phase 33). Every schema 1 row is a valid schema 2 row, so
+ * the only reason to reach for this helper is `launch.envPassthrough`, which a
+ * schema 1 file may not carry.
+ */
+function fileV2(...agents: Record<string, unknown>[]): unknown {
+  return { schema: 2, agents };
+}
+
 /** Validate one row and return the single problem it produced. */
 function problemFor(row: Record<string, unknown>): { field: string; message: string } {
   const out = validateAgentOverlayFile(file(row));
@@ -68,6 +77,11 @@ describe('the execution bearing list is executable, not documentation', () => {
     extraProbeDirs: { extraProbeDirs: ['~/.claude/local'] },
     'launch.argv': { launch: { argv: ['claude', '--verbose'] } },
     'launch.env': { launch: { argv: ['claude'], env: { CLAUDE_COLOR: '1' } } },
+    // Phase 33. The only fragment that needs a schema 2 file, which is what
+    // `schemaFor` below is for.
+    'launch.envPassthrough': {
+      launch: { argv: ['claude'], envPassthrough: ['CLAUDE_TEST_KEY'] }
+    },
     versionProbe: { versionProbe: { args: ['--version'] } },
     'resume.template': {
       resume: {
@@ -87,10 +101,14 @@ describe('the execution bearing list is executable, not documentation', () => {
     expect(Object.keys(bearer).sort()).toEqual([...EXECUTION_BEARING_FIELDS].sort());
   });
 
+  /** Schema 2 for the one field that needs it, schema 1 for the rest. */
+  const wrap = (field: string, row: Record<string, unknown>): unknown =>
+    field === 'launch.envPassthrough' ? fileV2(row) : file(row);
+
   for (const [field, fragment] of Object.entries(bearer)) {
     it(`${field} arms the gate`, () => {
       const rows = validateAgentOverlayFile(
-        file({ id: 'claude', ...fragment })
+        wrap(field, { id: 'claude', ...fragment })
       ).rows;
       expect(rows).toHaveLength(1);
       const entry = mergeAgentOverlay(rows, AGENT_REGISTRY).agents.find(
@@ -129,10 +147,16 @@ describe('the file itself', () => {
   });
 
   it('refuses a schema version it does not know, and says so', () => {
-    const out = validateAgentOverlayFile({ schema: 2, agents: [owl()] });
+    // Phase 33 made 2 a version this build reads, so the unknown one is 3.
+    const out = validateAgentOverlayFile({ schema: 3, agents: [owl()] });
     expect(out.rows).toEqual([]);
     expect(out.problems[0]?.field).toBe('schema');
-    expect(out.problems[0]?.message).toContain('"schema": 1');
+    expect(out.problems[0]?.message).toContain('"schema": 1 or "schema": 2');
+  });
+
+  it('reads both versions it accepts', () => {
+    expect(validateAgentOverlayFile(file(owl())).rows).toHaveLength(1);
+    expect(validateAgentOverlayFile(fileV2(owl())).rows).toHaveLength(1);
   });
 
   it('refuses anything that is not an object', () => {
@@ -219,6 +243,105 @@ describe('the environment denylist', () => {
     );
     expect(out.problems).toEqual([]);
     expect(out.rows[0]?.launch?.env).toEqual({ FORCE_COLOR: '1' });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// launch.envPassthrough (Phase 33)
+// ---------------------------------------------------------------------------
+
+describe('launch.envPassthrough', () => {
+  /** One row's single problem, from a schema 2 file. */
+  function problemForV2(row: Record<string, unknown>): { field: string; message: string } {
+    const out = validateAgentOverlayFile(fileV2(row));
+    expect(out.rows, `expected ${JSON.stringify(row)} to be dropped`).toHaveLength(0);
+    expect(out.problems).toHaveLength(1);
+    const first = out.problems[0];
+    return { field: first?.field ?? '', message: first?.message ?? '' };
+  }
+
+  function withNames(names: unknown): Record<string, unknown> {
+    return owl({ launch: { argv: ['owl'], envPassthrough: names } });
+  }
+
+  it('accepts a list of names and carries it onto the merged row', () => {
+    const parsed = validateAgentOverlayFile(fileV2(withNames(['FIREWORKS_API_KEY'])));
+    expect(parsed.problems).toEqual([]);
+    expect(parsed.rows[0]?.launch?.envPassthrough).toEqual(['FIREWORKS_API_KEY']);
+    const merged = mergeAgentOverlay(parsed.rows, AGENT_REGISTRY).agents.find(
+      (a) => a.id === 'owl'
+    );
+    expect(merged?.launch?.envPassthrough).toEqual(['FIREWORKS_API_KEY']);
+  });
+
+  it('needs schema 2, and says which number to write', () => {
+    const problem = problemFor(withNames(['FIREWORKS_API_KEY']));
+    expect(problem.field).toBe('agents[0].launch.envPassthrough');
+    expect(problem.message).toContain('"schema": 2');
+  });
+
+  it('must be a list', () => {
+    expect(problemForV2(withNames('FIREWORKS_API_KEY')).message).toContain(
+      'must be a list of environment variable names'
+    );
+  });
+
+  it('refuses more than sixteen names', () => {
+    const many = Array.from({ length: 17 }, (_, i) => `NAME_${String(i)}`);
+    expect(problemForV2(withNames(many)).message).toContain('more than the 16');
+  });
+
+  it('refuses a name that is not a usable variable name', () => {
+    const problem = problemForV2(withNames(['not-a-name']));
+    expect(problem.field).toBe('agents[0].launch.envPassthrough[0]');
+    expect(problem.message).toContain('is not a usable environment variable name');
+  });
+
+  it('refuses the same name twice', () => {
+    expect(problemForV2(withNames(['A_KEY', 'A_KEY'])).message).toContain(
+      'names A_KEY twice'
+    );
+  });
+
+  // The SAME denylist launch.env uses. A passthrough PATH is the same danger
+  // as a literal one, because the name is what decides what reaches the
+  // process and the value is whatever the user's shell says at that moment.
+  for (const name of ['PATH', 'ZDOTDIR', 'DYLD_INSERT_LIBRARIES', 'GMUX_SESSION_ID']) {
+    it(`refuses ${name}, the same as launch.env does`, () => {
+      const problem = problemForV2(withNames([name]));
+      expect(problem.field).toBe('agents[0].launch.envPassthrough[0]');
+      expect(problem.message).toContain(`may not name ${name}`);
+    });
+  }
+
+  for (const name of ['PI_CODING_AGENT_DIR', 'PI_CODING_AGENT_SESSION_DIR']) {
+    it(`refuses ${name}, because it moves the agent's own session store`, () => {
+      const problem = problemForV2(withNames([name]));
+      expect(problem.message).toContain(`may not name ${name}`);
+      expect(problem.message).toContain('lose the conversation');
+    });
+  }
+
+  it('refuses a name launch.env already sets', () => {
+    const problem = problemForV2(
+      owl({
+        launch: {
+          argv: ['owl'],
+          env: { FORCE_COLOR: '1' },
+          envPassthrough: ['FORCE_COLOR']
+        }
+      })
+    );
+    expect(problem.message).toContain('launch.env already sets it');
+    expect(problem.message).toContain('Pick one source for each name');
+  });
+
+  it('drops the row whole, so nothing half of it is merged', () => {
+    const out = validateAgentOverlayFile(
+      fileV2(withNames(['PATH']), owl({ id: 'kite', binaries: ['kite'], launch: { argv: ['kite'] } }))
+    );
+    expect(out.rows.map((r) => r.id)).toEqual(['kite']);
+    expect(out.problems).toHaveLength(1);
   });
 });
 

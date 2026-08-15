@@ -13,6 +13,11 @@
  *     into the private tmux server env at boot (supervisor.ensureServer) so
  *     every pane — and everything agents spawn — sees the user's real PATH.
  *
+ *  1b. Login-shell env capture BY NAME (Phase 33, captureLoginShellEnv). Same
+ *     probe shape as the PATH capture, run once per launch and once per
+ *     restore for a row that names variables under `launch.envPassthrough`.
+ *     The values go to that one pane and are written nowhere.
+ *
  *  2. Binary resolution: argv[0] → absolute path against the captured PATH
  *     plus the known install dirs GUI apps miss. The manifest stores ONLY
  *     absolute paths (argv and resume_argv), so restores survive PATH drift.
@@ -25,6 +30,7 @@
  */
 
 import { spawn } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { accessSync, constants, existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { delimiter, isAbsolute, join } from 'node:path';
@@ -260,6 +266,182 @@ export function captureLoginShellPath(
         `[gmux] login-shell PATH capture threw (${shell}): ${(err as Error).message} — using fallback`
       );
       finish(null);
+    }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Login-shell env capture, by name (Phase 33)
+// ---------------------------------------------------------------------------
+
+/**
+ * The longest resolved value Tortie will hand to a pane.
+ *
+ * A resolved value rides a tmux command line, so it cannot be unbounded. It is
+ * refused WHOLE rather than truncated: a truncated credential is a credential
+ * that fails somewhere far away with a message about the provider, and the
+ * user would have no way to connect that to a length. A name over the cap is
+ * reported as unresolved, which is a sentence they can act on.
+ */
+export const ENV_CAPTURE_MAX_VALUE_BYTES = 4096;
+
+/** Environment variable names the probe will interpolate into its script. */
+const ENV_NAME_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+/** What one login-shell environment capture answered. */
+export interface CaptureEnvResult {
+  /** Name to value, only for names that resolved non empty and under the cap. */
+  values: Record<string, string>;
+  /** Names that were unset, empty, or over the 4096 byte cap. Sorted. */
+  missing: string[];
+  /** True when the shell failed to spawn, timed out, or printed no markers. */
+  probeFailed: boolean;
+}
+
+/**
+ * Read named variables out of the user's login shell (Phase 33).
+ *
+ * WHY THIS EXISTS. A fresh agent pane runs its argv directly, with no shell in
+ * between, so no startup file ever runs in it. A provider key exported in
+ * ~/.zshrc reaches the user's own terminal and reaches nothing Tortie starts.
+ * An agent row may name variables under `launch.envPassthrough`, and this is
+ * how their values are found, once per launch and once per restore. The values
+ * are handed to that one pane and are written nowhere.
+ *
+ * IT IS THE SAME PROBE SHAPE AS {@link captureLoginShellPath}, deliberately and
+ * line for line, because that shape is what Phase 13.5.1 paid for. `spawn` with
+ * `detached: true` so the probe owns its process group, settle on the markers
+ * rather than on stdio close, an independent deadline that resolves whatever
+ * the child does, a group kill on that deadline, and the deadline cleared on
+ * `close` and never on `exit`. Read the long note on that function for what
+ * each of those five buys. A shell that forks a copy of itself is the case
+ * they exist for, and it is a real machine rather than a hypothetical one.
+ *
+ * TWO THINGS ARE DIFFERENT, and both are about the values.
+ *
+ * The marker carries a fresh 8 byte nonce per probe. The PATH capture can use
+ * a fixed marker because it also doubles as an ownership tag for the orphan
+ * reaper. Here the framing has to survive rc output that an agent could have
+ * written, and a static marker would let that output forge a record.
+ *
+ * An unset name, an empty name and a name whose value is over
+ * {@link ENV_CAPTURE_MAX_VALUE_BYTES} are all reported as MISSING rather than
+ * injected. Never an empty string: a pane holding `FIREWORKS_API_KEY=` fails
+ * later with a message about the provider, and nothing would ever say that the
+ * shell had no value for it.
+ *
+ * NEVER REJECTS, and never hangs. It resolves for every input, including an
+ * empty name list, which spawns nothing at all.
+ */
+export function captureLoginShellEnv(
+  names: readonly string[],
+  options: CapturePathOptions = {}
+): Promise<CaptureEnvResult> {
+  // A name the caller should never have passed. The loader already refuses
+  // one, and this is the second answer: it is dropped rather than
+  // interpolated, because the name goes into a shell script below.
+  const usable = [...new Set(names)].filter((n) => ENV_NAME_RE.test(n));
+  const unusable = [...new Set(names)].filter((n) => !ENV_NAME_RE.test(n));
+  if (usable.length === 0) {
+    return Promise.resolve({
+      values: {},
+      missing: unusable.sort(),
+      probeFailed: false
+    });
+  }
+
+  const env = options.env ?? process.env;
+  const shell = options.shell ?? env['SHELL'] ?? '/bin/zsh';
+  const timeoutMs = options.timeoutMs ?? PATH_CAPTURE_TIMEOUT_MS;
+  const marker = `__GMUX_ENVP_${randomBytes(4).toString('hex')}__`;
+  const recordRe = new RegExp(`${marker}([A-Za-z_][A-Za-z0-9_]*)=(.*?)${marker}`, 'gs');
+  // Every record at the value cap, plus room for rc noise ahead of them.
+  const maxOutput =
+    usable.length * (marker.length * 2 + 64 + 1 + ENV_CAPTURE_MAX_VALUE_BYTES) +
+    64 * 1024;
+
+  return new Promise<CaptureEnvResult>((resolve) => {
+    const found = new Map<string, string>();
+    let settled = false;
+
+    const finish = (probeFailed: boolean): void => {
+      if (settled) return;
+      settled = true;
+      const values: Record<string, string> = {};
+      const missing: string[] = [...unusable];
+      for (const name of usable) {
+        const value = found.get(name);
+        if (
+          value === undefined ||
+          value.length === 0 ||
+          Buffer.byteLength(value, 'utf8') > ENV_CAPTURE_MAX_VALUE_BYTES
+        ) {
+          missing.push(name);
+          continue;
+        }
+        values[name] = value;
+      }
+      resolve({ values, missing: missing.sort(), probeFailed });
+    };
+
+    try {
+      const script = usable
+        .map((name) => `printf '${marker}${name}=%s${marker}' "$${name}"`)
+        .join('; ');
+      const child = spawn(shell, ['-lic', script], {
+        detached: true,
+        stdio: ['ignore', 'pipe', 'pipe']
+      });
+      const untrack = trackGuardedChild(child);
+
+      let out = '';
+      child.stdout?.setEncoding('utf8');
+      child.stdout?.on('data', (chunk: string) => {
+        out += chunk;
+        // Keep the TAIL. The printfs run last, so rc noise can push itself out
+        // of the buffer but never the answer.
+        if (out.length > maxOutput) out = out.slice(out.length - maxOutput);
+        recordRe.lastIndex = 0;
+        found.clear();
+        for (const m of out.matchAll(recordRe)) {
+          if (m[1] !== undefined) found.set(m[1], m[2] ?? '');
+        }
+        if (usable.every((name) => found.has(name))) finish(false);
+      });
+      child.stdout?.on('error', () => undefined);
+      child.stderr?.on('data', () => undefined);
+      child.stderr?.on('error', () => undefined);
+
+      const deadline = setTimeout(() => {
+        tmuxLog.warn(
+          `login-shell env probe still running after ${timeoutMs} ms ` +
+            `(${shell}). Killing its process group.`
+        );
+        killProcessGroup(child);
+        finish(true);
+      }, timeoutMs);
+      child.once('close', () => {
+        clearTimeout(deadline);
+        untrack();
+        // No record at all means the shell printed nothing this function can
+        // read, which is a failed probe rather than a set of unset variables.
+        finish(found.size === 0);
+      });
+      child.once('error', (err) => {
+        clearTimeout(deadline);
+        untrack();
+        tmuxLog.warn(
+          `login-shell env capture failed (${shell}): ${err.message}. ` +
+            `The pane starts without those variables.`
+        );
+        finish(true);
+      });
+    } catch (err) {
+      tmuxLog.warn(
+        `login-shell env capture threw (${shell}): ` +
+          `${(err as Error).message}. The pane starts without those variables.`
+      );
+      finish(true);
     }
   });
 }

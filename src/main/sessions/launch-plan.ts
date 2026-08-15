@@ -26,6 +26,7 @@ import {
   wrapWithRecord,
   type SpecstoryCaptureRecord
 } from '../specstory';
+import { managedPaneEnv } from '../tmux/env';
 import { sanitizeSessionName } from '../tmux/names';
 
 /**
@@ -200,6 +201,34 @@ export function spawnArgvFor(
       : [bareName, ...argv.slice(1)];
 }
 
+/**
+ * The pane environment for tmux `-e`, in the one order that is safe (Phase 33).
+ *
+ * Three sources, and the order between them is the whole function.
+ *
+ *  1. `base` is the row's own `launch.env`, e.g. cursor's FORCE_COLOR=1. It is
+ *     persisted in the manifest row and replayed at restore.
+ *  2. `resolved` is what the login shell answered for this row's
+ *     `launch.envPassthrough` names, a moment ago. It is never persisted
+ *     anywhere and it never travels through `spec.env`.
+ *  3. The GMUX stamps go LAST and therefore win. GMUX_MANAGED and
+ *     GMUX_SESSION_ID are the second source of session identity, read back by
+ *     `getSessionEnv`, and a pane carrying another session's stamp is a
+ *     session claiming an identity that is not its own. The overlay loader
+ *     already refuses a `GMUX_` name in either list, so this order is the
+ *     second answer to the same question rather than the only one.
+ *
+ * Both spawn sites call it, being the create in ./core.ts and the restore in
+ * ../restore/restore.ts, so the merge rule exists once and is tested once.
+ */
+export function paneEnvFor(
+  base: Record<string, string> | undefined,
+  resolved: Record<string, string>,
+  sessionId: string
+): Record<string, string> {
+  return { ...base, ...resolved, ...managedPaneEnv(sessionId) };
+}
+
 /** Everything already resolved that the new manifest row is composed from. */
 export interface LaunchRecordFacts {
   /** The fresh session uuid. */
@@ -258,6 +287,12 @@ export function newSessionRecord(facts: LaunchRecordFacts): ManifestSessionRecor
     // conversation. Written with the row, before the process exists.
     resumeCapture: resumeCaptureFor(spec),
     ...(spec.env !== undefined ? { env: spec.env } : {}),
+    // Phase 33. The NAMES this session's row asked for, so a restore knows
+    // which variables to read again. The spec carries no values, so there is
+    // no path by which one could land in this record.
+    ...(spec.envPassthrough !== undefined && spec.envPassthrough.length > 0
+      ? { envPassthrough: [...spec.envPassthrough] }
+      : {}),
     ...(capture !== undefined ? { specstory: capture } : {}),
     // Phase 21 (A8 + G6). The three fields migration 008 adds, written with
     // the row, before the process exists — same moment and same transaction

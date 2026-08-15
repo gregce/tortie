@@ -1,5 +1,5 @@
 /**
- * The schema on disk, and the six worked examples.
+ * The schema on disk, and the seven worked examples.
  *
  * The examples are the authoring story. A user opens a session in the
  * configuration folder, points their agent at the guide and the schema, and
@@ -76,9 +76,71 @@ describe('the generated JSON Schema', () => {
     expect(() => compiledSchema()).not.toThrow();
   });
 
-  it('refuses a file that is not schema 1', () => {
+  it('accepts both schema numbers this build reads, and no others', () => {
+    // Phase 33 added `launch.envPassthrough` and bumped the file to schema 2.
+    // Schema 1 stays readable, because a file that never uses the new field is
+    // still correct and nobody should have to edit it. Anything else is a shape
+    // this build does not know, and the reader refuses it rather than guessing.
     const validate = compiledSchema();
-    expect(validate({ schema: 2, agents: [] })).toBe(false);
+    expect(validate({ schema: 1, agents: [] })).toBe(true);
+    expect(validate({ schema: 2, agents: [] })).toBe(true);
+    expect(validate({ schema: 3, agents: [] })).toBe(false);
+    expect(validate({ schema: '2', agents: [] })).toBe(false);
+  });
+
+  it('carries the passthrough field, its cap and its name pattern', () => {
+    // The schema is what an authoring agent reads first. A field that reached
+    // the loader without reaching the schema would be written wrong on the
+    // first attempt every time.
+    const validate = compiledSchema();
+    expect(
+      validate({
+        schema: 2,
+        agents: [
+          {
+            id: 'owl',
+            displayName: 'Owl',
+            binaries: ['owl'],
+            launch: { argv: ['owl'], envPassthrough: ['OWL_API_KEY'] }
+          }
+        ]
+      })
+    ).toBe(true);
+    // A name that is not a usable environment variable name.
+    expect(
+      validate({
+        schema: 2,
+        agents: [{ id: 'owl', launch: { argv: ['owl'], envPassthrough: ['9-nope'] } }]
+      })
+    ).toBe(false);
+    // Seventeen names, against the cap of sixteen.
+    expect(
+      validate({
+        schema: 2,
+        agents: [
+          {
+            id: 'owl',
+            launch: {
+              argv: ['owl'],
+              envPassthrough: Array.from({ length: 17 }, (_, i) => `OWL_${i}`)
+            }
+          }
+        ]
+      })
+    ).toBe(false);
+  });
+
+  it('refuses a launch field the contract does not carry', () => {
+    // `additionalProperties: false` on the launch block is what makes the
+    // passthrough field's spelling load-bearing. A near miss must fail here
+    // rather than be quietly ignored.
+    const validate = compiledSchema();
+    expect(
+      validate({
+        schema: 2,
+        agents: [{ id: 'owl', launch: { argv: ['owl'], envPassthroughs: ['OWL_API_KEY'] } }]
+      })
+    ).toBe(false);
   });
 
   it('refuses a row field the contract does not carry', () => {
@@ -93,8 +155,49 @@ describe('the generated JSON Schema', () => {
 });
 
 describe('the worked examples', () => {
-  it('ships six of them', () => {
-    expect(exampleFiles()).toHaveLength(6);
+  it('ships seven of them', () => {
+    expect(exampleFiles()).toHaveLength(7);
+  });
+
+  it('keeps five of them on schema 1, so the converter path is exercised', () => {
+    // Examples 01 to 05 stay at schema 1 on purpose. They are the proof that a
+    // file written before Phase 33 still loads, and every check below runs them
+    // through the real reader.
+    const byName = new Map(
+      exampleFiles().map((name) => [
+        name,
+        (JSON.parse(readFileSync(join(EXAMPLES_DIR, name), 'utf8')) as { schema: number }).schema
+      ])
+    );
+    expect([...byName].filter(([, schema]) => schema === 1).map(([name]) => name)).toEqual([
+      '01-minimal.json',
+      '02-resume-with-a-flag.json',
+      '03-resume-is-a-subcommand.json',
+      '04-id-from-a-side-command.json',
+      '05-patch-a-built-in-agent.json'
+    ]);
+    expect([...byName].filter(([, schema]) => schema === 2).map(([name]) => name)).toEqual([
+      '06-every-field.json',
+      '07-env-passthrough.json'
+    ]);
+  });
+
+  it('the passthrough example carries names and no value at all', () => {
+    // The whole promise of the field is that a secret is never written down.
+    // The example is what a person copies, so it must not be the first place
+    // that promise is broken.
+    const raw = readFileSync(join(EXAMPLES_DIR, '07-env-passthrough.json'), 'utf8');
+    const parsed = parseAgentOverlay(raw);
+    const merged = mergeAgentOverlay(parsed.rows, AGENT_REGISTRY);
+    const pi = merged.agents.find((a) => a.id === 'pi');
+    expect(pi?.source).toBe('patched');
+    expect(pi?.launch?.envPassthrough).toEqual(['FIREWORKS_API_KEY']);
+    // A patch replaces `launch` whole, so the restated argv is the compiled one.
+    expect(pi?.launch?.argv).toEqual(['pi']);
+    // The row can start a program, so it arms the confirm gate.
+    expect(pi?.executionHash).toMatch(/^[0-9a-f]{64}$/);
+    // There is no field for a value, and the file contains none.
+    expect(pi?.launch?.env).toBeUndefined();
   });
 
   for (const name of exampleFiles()) {

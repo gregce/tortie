@@ -24,7 +24,7 @@ the text below, and say what you want after it.
 Read README.md in this directory. It is the contract for agents.json, which is
 Tortie's agent configuration file. Then write or edit ./agents.json to do what I
 ask next. Use only the fields the contract lists, because any other field drops
-the whole row. Check your file against ./agents.schema.json and against the six
+the whole row. Check your file against ./agents.schema.json and against the seven
 files in ./examples/ before you tell me you are done. When you are done, tell me
 whether the change needs me to confirm it inside Tortie.
 ```
@@ -41,7 +41,7 @@ An example of what to say next: "add my company's `owl` CLI. It launches as
 | `agents.json` | you | Your agent rows. Tortie never writes this file. |
 | `README.md` | Tortie | This file. It is rewritten to match the installed build. |
 | `agents.schema.json` | Tortie | The JSON Schema for `agents.json`. It is generated from the type Tortie parses, and a test fails the build when the two differ, so it cannot drift from the code. |
-| `examples/` | Tortie | Six complete files you can copy over `agents.json` and edit. |
+| `examples/` | Tortie | Seven complete files you can copy over `agents.json` and edit. |
 
 Do not edit `README.md`, `agents.schema.json` or anything in `examples/`. Tortie
 restores them when it starts. Your work goes in `agents.json`. Any other file you
@@ -64,9 +64,16 @@ to, and renaming it would strand sessions that are running now.
 }
 ```
 
-`schema` must be the number `1`. It is how a later version of Tortie knows which
-shape your file is in. A new field will arrive as `schema: 2` with a converter,
-never as an extra block bolted onto version 1.
+`schema` must be the number `1` or the number `2`. It is how Tortie knows which
+shape your file is in, and this build reads both.
+
+A file that uses envPassthrough must say "schema": 2. A file that says "schema": 1
+keeps working and cannot carry this field. Nothing else differs between the two,
+so moving a working file to schema 2 is a one character edit.
+
+A new field arrives as a new schema number with a converter, never as an extra
+block bolted onto an older version. `launch.envPassthrough` is the field that
+made this file schema 2.
 
 Each entry in `agents` is one agent. An `id` Tortie does not already have creates
 a new agent. An `id` Tortie does have patches that agent.
@@ -128,6 +135,7 @@ process happened to be in at the time.
 | --- | --- | --- | --- |
 | `argv` | yes | string array | The command. Up to 32 entries, each up to 512 characters. |
 | `env` | no | object of string to string | Environment values for this agent's panes only. Up to 16 names. |
+| `envPassthrough` | no | string array | A list of environment variable names, up to 16. Tortie reads their values from your login shell each time this agent launches or restores, and passes them to that pane only. The values are never written to any file. Needs `"schema": 2`. |
 
 Two rules on `argv`.
 
@@ -149,6 +157,87 @@ has already run", or lets a pane claim an identity that is not its own.
 | `TMUX`, `TMUX_PANE`, `TMUX_TMPDIR` | They are how tmux is addressed. Configuration never names a tmux server, session or pane. |
 | Anything starting `DYLD_` or `LD_` | They decide which libraries load into a process. |
 | Anything starting `GMUX_` or `TORTIE_` | They are the pane stamp Tortie uses to know which sessions are its own. A session claiming another session's identity is the one thing the durability layer cannot survive. |
+
+### `launch.envPassthrough`
+
+**The problem it solves.** Tortie starts an agent pane by running the agent
+directly. No shell runs in front of it, so none of your shell startup files run
+either, and a key you exported in `~/.zshrc` is not in that pane. The same agent
+works when you type its name in a terminal, because that terminal did read your
+startup files. `envPassthrough` is how you name the variables that should cross
+that gap.
+
+```json
+{
+  "schema": 2,
+  "agents": [
+    {
+      "id": "acme",
+      "displayName": "Acme CLI",
+      "binaries": ["acme"],
+      "launch": {
+        "argv": ["acme"],
+        "envPassthrough": ["ACME_API_KEY", "ACME_REGION"]
+      }
+    }
+  ]
+}
+```
+
+**What Tortie does with it.** Each time it creates a session for this agent, and
+each time it restores one, Tortie runs one interactive login shell that prints
+only the variables you named. That shell reads `~/.zprofile` and `~/.zshrc` the
+way your terminal does. It is given 3 seconds, and it is killed with its whole
+process group if it takes longer, so a slow or broken startup file cannot hold a
+launch open. The resolved values are handed to that one pane.
+
+**What is stored, and what is not.** The list of names is stored in this file and
+in Tortie's session records. The values are not stored anywhere. Here is the full
+list of places a resolved value does not appear.
+
+- `agents.json`, which holds names only.
+- Tortie's session database, which holds names only.
+- The confirm hash, which is computed from the names.
+- The confirm sheet, which prints the names.
+- The tmux server's own environment, which holds `PATH` and `LANG` and nothing
+  else Tortie put there.
+
+A value exists in one pane's process environment for as long as that pane lives.
+That is the same exposure you accept when you export the variable in your own
+terminal.
+
+Because nothing is stored, a rotated key needs no edit here. The next launch
+reads the new value. A restore re-reads it too, rather than replaying whatever
+was there when the session was created.
+
+**When a variable is not set.** Nothing is injected for it, and Tortie tells you
+once for that session, naming the variable. An empty value is treated the same as
+an unset one, because passing an empty string is a way to make an agent fail
+later with a confusing message. A value longer than 4096 bytes is also treated as
+unset and named the same way, because that value would have to ride a command
+line.
+
+**Names that are refused.** Every name refused for `launch.env` in the table
+above is refused here as well, for the same reasons. A `PATH` or a `ZDOTDIR` that
+arrives from your shell is the same danger as one written into the file. Two more
+names are refused on top of that list.
+
+| Refused | Why |
+| --- | --- |
+| `PI_CODING_AGENT_DIR` | It moves where the agent keeps its sessions, and Tortie would keep looking in the old place and lose the conversation. |
+| `PI_CODING_AGENT_SESSION_DIR` | It moves where the agent keeps its sessions, and Tortie would keep looking in the old place and lose the conversation. |
+
+A name may not appear in both `launch.env` and `launch.envPassthrough`. Two
+sources for one name would make any report about it wrong in one direction or the
+other, so the row is dropped and Tortie names the field.
+
+**A route that needs no configuration at all, for pi.** If you use pi with a
+provider such as Fireworks, you do not have to wait for any of this. Run /login
+fireworks inside pi once. The key is stored in ~/.pi/agent/auth.json with file
+mode 0600, and auth.json beats environment variables in pi's credential order.
+For a keychain, set the auth.json value to a command that starts with "!", for
+example !security find-generic-password -s fireworks -w. pi runs the command when
+it needs the key, so the key never sits in a file.
 
 ### `resume`
 
@@ -224,6 +313,7 @@ A version probe runs the binary as a subprocess, so it arms the confirm gate.
 | Entries in `launch.argv` | 32 |
 | Entries in `resume.template` | 16 |
 | Names in `launch.env` | 16 |
+| Names in `launch.envPassthrough` | 16 |
 | Entries in `extraProbeDirs` and `storeDirs` | 16 each |
 
 They are here because these values reach a command line, an environment and a
@@ -253,6 +343,7 @@ where it started.
 | `extraProbeDirs` | It decides which file of that name is found. A row that names `claude` and adds a directory it controls has chosen the program as surely as one that gives a path. |
 | `launch.argv` | It is the command line. |
 | `launch.env` | Environment values change what a program does, and some change which library loads into it. |
+| `launch.envPassthrough` | Which variables reach the pane changes what the program does. The names are hashed. The values are read fresh at each launch and are never hashed, so rotating a key asks you nothing. |
 | `versionProbe` | Tortie runs the binary with these arguments during detection. |
 | `resume.template` | It is the command line a restore replays. |
 | `resume.idCapture` | Both of its useful modes reach a command line, and one of them runs the binary a second time. |
@@ -331,6 +422,7 @@ One bad row does not cost you the others. The remaining rows load.
 | A row breaks the contract | One error naming that row's `id`, the field and the reason. Every other row loads. |
 | The file has a field at the top level that is not `schema` or `agents` | One error naming that field. It is not fatal, and every valid row still loads. One typo at the top of the file should not cost you the whole file. |
 | A row inside `agents` has a field Tortie does not know | That row is dropped whole, with an error naming the field. A row is a contract, so a field Tortie ignores inside one could mean the row does something it does not. |
+| A file that says `"schema": 1` uses `launch.envPassthrough` | That row is dropped, with an error telling you to change the schema number to `2`. Every other row loads. |
 | Two rows carry the same `id` | The first one is used. The second is dropped with an error saying so. |
 | The file lists more rows than Tortie reads | An error naming the count. The first rows load and the rest are ignored. |
 | A row is fine but not confirmed | No error. The agent appears, marked "confirm first", and it will not launch until you confirm it. |
@@ -364,7 +456,7 @@ is also the fastest way to rule this file out when something looks wrong.
 
 ## The examples
 
-Six complete files. Each one can be copied over `agents.json` as it stands.
+Seven complete files. Each one can be copied over `agents.json` as it stands.
 
 | File | What it shows |
 | --- | --- |
@@ -373,7 +465,8 @@ Six complete files. Each one can be copied over `agents.json` as it stands.
 | `03-resume-is-a-subcommand.json` | Resume is a subcommand rather than a flag, and the launch flags have to come before it. |
 | `04-id-from-a-side-command.json` | A second run of the same binary mints the conversation id, and the first launch resumes into it. |
 | `05-patch-a-built-in-agent.json` | Changing a compiled agent. This example touches nothing execution bearing, so it never asks you to confirm anything. |
-| `06-every-field.json` | Every field the contract allows, in one row, so you can see the whole surface. |
+| `06-every-field.json` | Every field the contract allows, in one row, so you can see the whole surface. It says `"schema": 2`, because it uses `launch.envPassthrough`. |
+| `07-env-passthrough.json` | Handing one variable from your login shell to one agent's panes. It patches the compiled `pi` row for a Fireworks key. |
 
 Copy one and edit it:
 
@@ -389,11 +482,14 @@ cp examples/02-resume-with-a-flag.json agents.json
 generated from the type Tortie parses. Point your editor at it, or hand its path
 to an agent.
 
-It is deliberately weaker than Tortie's own reader in two places. It cannot say
-that `argv[0]` equals `binaries[0]`, and it cannot carry the refused environment
-names. Both are checked when the file is read, and both drop the row in the
-ordinary way. The schema is there so an authoring agent gets the shape right on
-the first attempt, not so it can stand in for the reader.
+It is deliberately weaker than Tortie's own reader in three places. It cannot say
+that `argv[0]` equals `binaries[0]`. It cannot carry the refused environment
+names. It cannot say that `launch.envPassthrough` needs `"schema": 2`, so a
+schema 1 file that uses the field passes the schema and is then dropped by the
+reader with an error naming the schema number. All three are checked when the
+file is read, and all three drop the row in the ordinary way. The schema is there
+so an authoring agent gets the shape right on the first attempt, not so it can
+stand in for the reader.
 
 Every example in this folder is run through both the schema and the real reader
 by Tortie's own tests. An example that does not load is a defect, not a typo you

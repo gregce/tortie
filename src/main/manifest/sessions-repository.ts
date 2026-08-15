@@ -152,14 +152,14 @@ export class SessionsRepository {
               argv, resume_argv, env, status, created_at, last_seen, exit_code,
               exit_signal, pane_pid, resume_capture, specstory, restore,
               agent_version, agent_contract, resume_provenance,
-              context_snapshot)
+              context_snapshot, env_passthrough)
            VALUES
              (@id, @name, @tmuxName, @projectPath, @cwd, @agent,
               @agentSessionId, @argv, @resumeArgv, @env, @status,
               @createdAt, @lastSeen, @exitCode, @exitSignal, @panePid,
               @resumeCapture, @specstory, @restore,
               @agentVersion, @agentContract, @resumeProvenance,
-              @contextSnapshot)`
+              @contextSnapshot, @envPassthrough)`
         )
         .run({
           id: record.id,
@@ -189,7 +189,15 @@ export class SessionsRepository {
           // Normally NULL at insert. The snapshot is written a moment later,
           // by `recordLaunchContext`, off the create path, so that resolving
           // the configuration cannot delay or fail the launch it describes.
-          contextSnapshot: serializeContextSnapshot(record.contextSnapshot)
+          contextSnapshot: serializeContextSnapshot(record.contextSnapshot),
+          // Phase 33. The NAMES of the variables this session reads from the
+          // login shell, and never their values. This is the only statement
+          // that writes the column: the UPDATE below does not name it, so the
+          // set a person confirmed at create cannot be widened later.
+          envPassthrough:
+            record.envPassthrough !== undefined && record.envPassthrough.length > 0
+              ? JSON.stringify(record.envPassthrough)
+              : null
         });
     } catch (err) {
       throw manifestError(

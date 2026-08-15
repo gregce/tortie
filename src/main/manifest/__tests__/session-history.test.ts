@@ -1,8 +1,9 @@
 /**
  * Phase 29 — session history. The data layer's promises, pinned at the store:
  *
- *  - migration 010 adds `removed_at`, moves the schema version to 10 and
- *    leaves the compatibility minimum at 8 (the additive decision);
+ *  - migration 010 adds `removed_at`, moves the schema version on and leaves
+ *    the compatibility minimum at 8 (the additive decision). The version
+ *    reads 11 since Phase 33 appended migration 011;
  *  - `markSessionRemoved` writes the tombstone in one statement and throws
  *    on a missing row;
  *  - the prune deletes at 91 days back, keeps 89 days back, never touches a
@@ -66,23 +67,28 @@ function row(
 }
 
 describe('the two schema numbers', () => {
-  it('schema version is 10 and the minimum stays 8 (the additive decision)', () => {
-    expect(MANIFEST_SCHEMA_VERSION).toBe(10);
+  // Phase 33 appended migration 011, so the version reads 11 here. The
+  // minimum is the number this file is actually about, and it has not moved
+  // since migration 008.
+  it('schema version is 11 and the minimum stays 8 (the additive decision)', () => {
+    expect(MANIFEST_SCHEMA_VERSION).toBe(11);
     expect(MANIFEST_MIN_COMPATIBLE_VERSION).toBe(8);
   });
 
   it('stamps both numbers on the file', () => {
     const state = store.schemaState();
-    expect(state.userVersion).toBe(10);
+    expect(state.userVersion).toBe(11);
     expect(state.minCompatible).toBe(8);
   });
 });
 
 describe('migration 010 against a schema 9 file', () => {
-  it('adds removed_at, moves user_version to 10, and a second open is a no-op', () => {
+  it('adds removed_at, moves user_version past 10, and a second open is a no-op', () => {
     // Build a byte-honest schema 9 fixture: this build's file, minus exactly
-    // what migration 010 added. 010 adds one nullable column and nothing
-    // else, so removing that column and its bookkeeping row IS schema 9.
+    // what migrations 010 and 011 added. Each adds one nullable column and
+    // nothing else, so removing both columns and both bookkeeping rows IS
+    // schema 9. Phase 33 added the second one; before it, this fixture had
+    // one column to remove.
     const dbPath = join(dir, 'nine.db');
     const fresh = new ManifestStore(dbPath);
     fresh.insertSession({
@@ -100,14 +106,18 @@ describe('migration 010 against a schema 9 file', () => {
     fresh.close();
     const raw = new Database(dbPath);
     raw.exec('ALTER TABLE sessions DROP COLUMN removed_at');
+    raw.exec('ALTER TABLE sessions DROP COLUMN env_passthrough');
     raw.prepare("DELETE FROM migrations WHERE name = '010-removed-at'").run();
+    raw
+      .prepare("DELETE FROM migrations WHERE name = '011-env-passthrough'")
+      .run();
     raw.pragma('user_version = 9');
     raw.close();
 
-    // First open: the migration runs.
+    // First open: both pending migrations run.
     const migrated = new ManifestStore(dbPath);
     const state = migrated.schemaState();
-    expect(state.userVersion).toBe(10);
+    expect(state.userVersion).toBe(11);
     expect(state.minCompatible).toBe(8);
     // NULL on a row written before the migration reads as "never removed".
     const old = migrated.getSession('old-row');
@@ -122,7 +132,7 @@ describe('migration 010 against a schema 9 file', () => {
 
     // Second open: nothing pending, nothing changes.
     const again = new ManifestStore(dbPath);
-    expect(again.schemaState().userVersion).toBe(10);
+    expect(again.schemaState().userVersion).toBe(11);
     expect(again.getSession('old-row')?.removedAt).toBe(removedAt);
     expect(again.getSession('old-row')?.status).toBe('discarded');
     again.close();

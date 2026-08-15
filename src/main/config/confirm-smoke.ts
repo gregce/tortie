@@ -70,6 +70,9 @@ const ROW: ConfigExecutionFields = {
   extraProbeDirs: ['~/.smokeagent/bin'],
   launchArgv: ['smokeagent', '--no-banner'],
   launchEnv: { FORCE_COLOR: '1' },
+  // Phase 33. Two names, so step 9 can add a third and watch the hash move in
+  // the shipped artifact, and can reverse these two and watch it stay.
+  envPassthroughNames: ['SMOKEAGENT_API_KEY', 'SMOKEAGENT_BASE_URL'],
   resumeTemplate: ['--resume', '<sessionId>'],
   resumeExtrasPosition: 'trailing',
   versionProbeArgs: ['--version'],
@@ -240,7 +243,35 @@ export function runConfigConfirmSmoke(): void {
       assertConfigRowMayLaunch(ID, ROW);
     });
 
-    // --- 9. Nothing was started, which is the whole phase -------------------
+    // --- 9. A passthrough name is on the sheet, and no value ever is --------
+    // Phase 33. The gate hashes the NAMES of the variables Tortie reads from
+    // the login shell. This step proves three things in the shipped artifact:
+    // the name is printed, adding one asks the person again, and reordering
+    // the same names does not.
+    confirmAsAPerson(ROW);
+    const sheet = describeExecution(ID, ROW);
+    if (!sheet.lines.includes('Reads from your shell at each launch: SMOKEAGENT_API_KEY')) {
+      fail('the sheet never named the variable the row reads from the shell');
+    }
+    const added: ConfigExecutionFields = {
+      ...ROW,
+      envPassthroughNames: [...ROW.envPassthroughNames, 'SMOKEAGENT_REGION']
+    };
+    assertRefused(
+      'the same row with one more passthrough name',
+      'changed after you confirmed it',
+      () => {
+        assertConfigRowMayLaunch(ID, added);
+      }
+    );
+    const reordered: ConfigExecutionFields = {
+      ...ROW,
+      envPassthroughNames: [...ROW.envPassthroughNames].reverse()
+    };
+    assertConfigRowMayLaunch(ID, reordered);
+    log('a passthrough name is on the sheet, adding one asks again, reordering does not');
+
+    // --- 10. Nothing was started, which is the whole phase ------------------
     // The gate imports no spawn of any kind, so there is no path from any of
     // the eight steps above to a process. The import boundary test pins that
     // structurally. What this line adds is the run: nine refusals and two

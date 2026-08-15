@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://tortie.app/schema/agents-v1.json",
-  "title": "Tortie agents.json (schema 1)",
+  "$id": "https://tortie.app/schema/agents-v2.json",
+  "title": "Tortie agents.json (schema 1 or 2)",
   "description": "Agents Tortie can launch, added or patched by the user. Tortie never loads code from this file. Fields that can cause a program to run need a confirmation from you before Tortie will launch the agent.",
   "type": "object",
   "additionalProperties": false,
@@ -11,7 +11,11 @@
   ],
   "properties": {
     "schema": {
-      "const": 1
+      "enum": [
+        1,
+        2
+      ],
+      "description": "Say 2 to use launch.envPassthrough. A file that says 1 keeps working and cannot carry that field."
     },
     "agents": {
       "type": "array",
@@ -124,6 +128,16 @@
             "maxLength": 1024
           },
           "description": "Environment for this pane only. Names that decide which code runs, and the names Tortie uses to identify its own panes, are refused. Execution bearing."
+        },
+        "envPassthrough": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$",
+            "maxLength": 64
+          },
+          "description": "Environment variable names, up to 16. Tortie reads their values from your login shell each time this agent launches or restores, and passes them to that pane only. The values are never written to any file. Needs \"schema\": 2. The names refused for launch.env are refused here too, and a name may not appear in both. Execution bearing."
         }
       }
     },

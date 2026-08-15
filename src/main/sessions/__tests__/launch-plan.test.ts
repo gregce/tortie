@@ -21,6 +21,7 @@ import {
   agentNotFoundMessage,
   binaryCandidatesOf,
   newSessionRecord,
+  paneEnvFor,
   relaunchWrapped,
   resumeCaptureFor,
   snapshotRecipeOf,
@@ -268,6 +269,7 @@ describe('newSessionRecord', () => {
     expect('env' in rec).toBe(false);
     expect('specstory' in rec).toBe(false);
     expect('agentVersion' in rec).toBe(false);
+    expect('envPassthrough' in rec).toBe(false);
   });
 
   it('carries the spec optionals and the capture record when they exist', () => {
@@ -295,5 +297,60 @@ describe('newSessionRecord', () => {
     expect(rec.agentVersion).toBe('2.0.0');
     expect(rec.resumeCapture).toBe('armed');
     expect(rec.agentContract?.bin).toBe('/opt/bin/claude');
+  });
+
+  // Phase 33. The row records the NAMES so a restore knows what to read from
+  // the shell again. There is no field on the spec that could hold a value, so
+  // the proof is structural as well as asserted.
+  it('records the passthrough NAMES, and the record holds no value anywhere', () => {
+    const spec: AgentLaunchSpec = {
+      agent: 'claude',
+      argv: ['/opt/bin/claude'],
+      env: { FORCE_COLOR: '1' },
+      envPassthrough: ['P33_A_NAME', 'P33_B_NAME'],
+      idCapture: 'none'
+    };
+    const rec = newSessionRecord({ ...facts, spec });
+    expect(rec.envPassthrough).toEqual(['P33_A_NAME', 'P33_B_NAME']);
+    expect(JSON.stringify(rec)).not.toContain('P33_SENTINEL_VALUE');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// paneEnvFor (Phase 33)
+// ---------------------------------------------------------------------------
+
+describe('paneEnvFor', () => {
+  it('layers the row env, then the resolved values, then the stamps', () => {
+    expect(
+      paneEnvFor({ FORCE_COLOR: '1' }, { FIREWORKS_API_KEY: 'sk-live' }, 'sess-1')
+    ).toEqual({
+      FORCE_COLOR: '1',
+      FIREWORKS_API_KEY: 'sk-live',
+      GMUX_MANAGED: '1',
+      GMUX_SESSION_ID: 'sess-1'
+    });
+  });
+
+  it('works with no row env at all', () => {
+    expect(paneEnvFor(undefined, {}, 'sess-2')).toEqual({
+      GMUX_MANAGED: '1',
+      GMUX_SESSION_ID: 'sess-2'
+    });
+  });
+
+  // THE RULE THAT MATTERS. GMUX_SESSION_ID is the second source of session
+  // identity, and a pane carrying another session's stamp is a session
+  // claiming an identity that is not its own. The overlay loader refuses a
+  // GMUX_ name in either list, so a hostile map cannot be produced through
+  // configuration at all. This is the second answer to the same question.
+  it('the stamps win over a hostile resolved map', () => {
+    const hostile = {
+      GMUX_SESSION_ID: 'some-other-session',
+      GMUX_MANAGED: '0'
+    };
+    const out = paneEnvFor({ GMUX_SESSION_ID: 'and-another' }, hostile, 'mine');
+    expect(out['GMUX_SESSION_ID']).toBe('mine');
+    expect(out['GMUX_MANAGED']).toBe('1');
   });
 });

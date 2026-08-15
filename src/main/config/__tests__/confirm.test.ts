@@ -70,6 +70,7 @@ const ROW: Fields = {
   extraProbeDirs: ['~/.myagent/bin'],
   launchArgv: ['myagent', '--no-banner'],
   launchEnv: { FORCE_COLOR: '1', MYAGENT_HOME: '~/.myagent' },
+  envPassthroughNames: ['MYAGENT_API_KEY', 'MYAGENT_BASE_URL'],
   resumeTemplate: ['--resume', '<sessionId>'],
   resumeExtrasPosition: 'trailing',
   versionProbeArgs: ['--version'],
@@ -130,6 +131,10 @@ describe('the hash', () => {
       extraProbeDirs: { ...ROW, extraProbeDirs: ['/tmp'] },
       launchArgv: { ...ROW, launchArgv: ['myagent', '--dangerously-skip'] },
       launchEnv: { ...ROW, launchEnv: { ...ROW.launchEnv, PATH: '/tmp' } },
+      envPassthroughNames: {
+        ...ROW,
+        envPassthroughNames: [...ROW.envPassthroughNames, 'MYAGENT_REGION']
+      },
       resumeTemplate: { ...ROW, resumeTemplate: ['resume', '<sessionId>'] },
       resumeExtrasPosition: { ...ROW, resumeExtrasPosition: 'leading' },
       versionProbeArgs: { ...ROW, versionProbeArgs: ['-v'] },
@@ -157,6 +162,11 @@ describe('the hash', () => {
     const reordered: Fields = {
       ...ROW,
       launchEnv: { MYAGENT_HOME: '~/.myagent', FORCE_COLOR: '1' },
+      // Phase 33. The passthrough names are a set for the same reason the
+      // environment keys are: the same names in another order are the same
+      // row, and asking the person again for nothing is how a confirmation
+      // becomes noise they learn to click through.
+      envPassthroughNames: ['MYAGENT_BASE_URL', 'MYAGENT_API_KEY'],
       flagPresetFlags: ['--verbose', '--yolo']
     };
     expect(executionHash('myagent', reordered)).toBe(executionHash('myagent', ROW));
@@ -182,6 +192,33 @@ describe('what the person reads', () => {
   it('carries the honest sentence, so a sheet cannot omit it', () => {
     expect(describeExecution('myagent', ROW).warning).toBe(CONFIG_CONFIRM_WARNING);
     expect(CONFIG_CONFIRM_WARNING).toContain('run it as you');
+  });
+
+  // Phase 33. One line per name, sorted, and never a value. The sheet is what
+  // a person reads and what support screenshots, so a value printed here would
+  // leave the machine with it. The module has no way to know a value at all,
+  // which is the structural half of the same statement.
+  it('prints one line per passthrough name, sorted, and no value', () => {
+    const summary = describeExecution('myagent', ROW);
+    expect(summary.envPassthrough).toEqual([
+      'MYAGENT_API_KEY',
+      'MYAGENT_BASE_URL'
+    ]);
+    const text = summary.lines.join('\n');
+    expect(text).toContain('Reads from your shell at each launch: MYAGENT_API_KEY');
+    expect(text).toContain('Reads from your shell at each launch: MYAGENT_BASE_URL');
+    // Sorted, whatever order the row wrote them in.
+    const reversed = describeExecution('myagent', {
+      ...ROW,
+      envPassthroughNames: ['MYAGENT_BASE_URL', 'MYAGENT_API_KEY']
+    });
+    expect(reversed.envPassthrough).toEqual(summary.envPassthrough);
+  });
+
+  it('says nothing about the shell when the row names no variables', () => {
+    const summary = describeExecution('myagent', { ...ROW, envPassthroughNames: [] });
+    expect(summary.envPassthrough).toEqual([]);
+    expect(summary.lines.join('\n')).not.toContain('Reads from your shell');
   });
 
   // PHASE 23 FIX ROUND. The sheet is the whole consent mechanism, so a line on

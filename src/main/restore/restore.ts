@@ -69,6 +69,9 @@ import {
 } from './command';
 import { resolveSnapshot } from './snapshots';
 import { postDurabilityNotice } from '../notice';
+// The pane env merge rule, owned by the create path's pure module so that the
+// two spawn sites cannot drift (Phase 33). One import of one pure function.
+import { paneEnvFor } from '../sessions/launch-plan';
 
 import { getLog } from '../log';
 
@@ -749,6 +752,20 @@ export async function restoreSessionInTmux(
   // GUI-launched Electron inherits a minimal env; SHELL may be unset.
   const shell = process.env['SHELL'] ?? '/bin/zsh';
 
+  // PHASE 33. Re-resolve, never replay. The row carries the NAMES its agent
+  // asked Tortie to read from the login shell, and no value, so the only way
+  // to fill them is to ask the shell again. That is also the better answer:
+  // a key the user rotated since the create arrives correct, and a fresh pane
+  // and a restored pane see the same environment for the first time. A row
+  // written before this phase names nothing, spawns no probe, and behaves
+  // exactly as it did.
+  let resolvedEnv: Record<string, string> = {};
+  let envProbe: tmux.CaptureEnvResult | null = null;
+  if (rec.envPassthrough !== undefined && rec.envPassthrough.length > 0) {
+    envProbe = await tmux.captureLoginShellEnv(rec.envPassthrough);
+    resolvedEnv = envProbe.values;
+  }
+
   faultPoint('restore.before-spawn');
   let info: tmux.TmuxSessionInfo;
   try {
@@ -757,8 +774,10 @@ export async function restoreSessionInTmux(
       cwd,
       argv: [shell],
       // Same markers a fresh create stamps (Phase 12.7 F3): a restored session
-      // is just as managed, and identity must survive the round trip.
-      env: { ...rec.env, ...tmux.managedPaneEnv(rec.id) }
+      // is just as managed, and identity must survive the round trip. The
+      // stamps stay last, over both the row's own env and the resolved
+      // passthrough. See paneEnvFor.
+      env: paneEnvFor(rec.env, resolvedEnv, rec.id)
     });
   } catch (err) {
     return {
@@ -781,6 +800,18 @@ export async function restoreSessionInTmux(
   }
 
   faultPoint('restore.after-spawn');
+
+  // PHASE 33. The same sentence a fresh create says, for the same reason. The
+  // pane exists, and it is running without a variable its row promises.
+  if (envProbe !== null && (envProbe.missing.length > 0 || envProbe.probeFailed)) {
+    postDurabilityNotice({
+      kind: 'env-unresolved',
+      sessionId: rec.id,
+      sessionName: rec.name,
+      names: envProbe.missing,
+      probeFailed: envProbe.probeFailed
+    });
+  }
 
   // From here on, target the immutable $-id (rename-proof addressing).
   const target = info.sessionId;
