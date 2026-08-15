@@ -4027,3 +4027,40 @@ exhausting the counter, prove the refusal line names it and the recovery verb he
 prove a healthy staged update is untouched by the recovery path.
 
 **Semver.** fix, patch bump.
+
+## Phase 44 — Catch Me Up, the structural digest (research 44, operator approved 2026-08-15) QUEUED
+
+**Specification.** docs/research/44-session-digests.md, Phase A. A per session Catch Me Up verb
+opens a digest computed on demand from the SpecStory capture, keyed by agent_session_id: turns,
+tool calls, files edited, the last user ask, the tail of the last agent statement, every line
+linking into the capture, computed in under 22 ms, nothing stored. The same digest enriches the
+existing needs input jump overlay. No capture means the live manifest facts plus the sentence
+"no transcript record exists for this session". Staleness always shown as of the capture's last
+in file timestamp; mtime never trusted alone. Nothing badges, pushes, or sets status. Stretch:
+parse update_plan inputs as a substance line for headless codex sessions. **Tier 2** plus a
+fixture matrix over real captures from every agent with captures on disk. **Semver:** feat.
+
+## Phase 45 — Catch Me Up, the model summary opt in (research 44, operator approved 2026-08-15) QUEUED
+
+**Specification.** docs/research/44-session-digests.md, Phase B. Behind the same verb, an opt in
+model written summary produced by one shot of an agent CLI the user confirmed through the Phase
+23 gate, off by default, on demand only (measured $0.03 to $0.05 and 15 to 19 s per ask), cached
+under userData/gmux with the two staleness keys. Model prose is boxed and labeled with agent,
+model, time and cost, never mixed with structural facts, never sets or implies status. Settings
+copy states where the transcript goes, including the cross vendor case. **Depends on Phase 44.**
+**Tier 3 on the execution gate** (confirm hash moves for every execution bearing field, at most
+2 live invocations as evidence with spend stated), Tier 2 on the UI. **Semver:** feat.
+
+## Phase 46 — Runs, GitHub Actions in the SCM view (research 45, operator approved 2026-08-15) QUEUED
+
+**Specification.** docs/research/45-actions-in-scm.md. A fourth SCM section named Runs, shipped
+collapsed, rendered only for repos with a github.com origin: the latest 10 runs for the current
+branch, jobs and steps on expand. A push arms a bounded watch: discovery by pushed SHA via gh
+run list --commit every 5 seconds with a 120 second give up, then 5 second polling until every
+run for the SHA completes, 30 minute cap, one poller per repo, watch state never durable. Data
+path is the gh CLI spawned READ ONLY with an argv allowlist unit test (run list, run view, auth
+status). Zero mutations and zero presence outside the panel in version 1; no live log streaming
+promised because the API cannot deliver it; row verbs are Open on GitHub and Copy URL through
+the native menu bridge. Degrade ladder with quiet copy: gh absent, logged out, rate limited, no
+github remote, offline. **Tier 2** plus one live probe on a real push to gregce/tortie, which
+also closes the one unverified claim, mid run step visibility. **Semver:** feat.
