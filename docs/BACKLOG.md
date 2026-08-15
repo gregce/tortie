@@ -3632,7 +3632,7 @@ helper and reads the process.gone record back out of app.log with one jq express
 sends kill -ABRT to a scratch profile run and confirms the boot.unclean_exit record, the one
 quiet notice, and the dump count. One screenshot read of the notice line.
 
-## Phase 36 — the quit that is secretly a crash (found 2026-08-14 by research 42) ✅ SHIPPED 2026-08-14 (this commit)
+## Phase 36 — the quit that is secretly a crash (found 2026-08-14 by research 42) ✅ SHIPPED 2026-08-14 (`3c09245`, fix round in this commit)
 
 **The evidence.** macOS DiagnosticReports holds 5 SIGABRT reports for the packaged Tortie dated
 2026-08-14, one on 0.18.0 and four on 0.19.0. All five share one faulting stack: watcher.node,
@@ -3688,24 +3688,64 @@ exits 0. Versions pinned: @parcel/watcher 2.6.0 (watcher-darwin-arm64 2.6.0), El
 - The resume conformance harness now drains the tracked closes instead of sleeping a blind
   1.5 s, and its stale fire and forget comment is gone.
 
+**The fix round (this commit).** The verifier proved the drain bound itself was still a crash
+door. The packaged fixed build aborted with the exact production stack twice: once in a plain
+smoke:quit series under organic machine load (Tortie-2026-08-14-194305.ips) and once forced
+under 12 external CPU burners (Tortie-2026-08-14-195506.ips). The mechanism, proven by sampling
+and timing: the unsubscribe completion queues behind in-process uv pool work, the 2000 ms drain
+inside the 3000 ms outer race expires, before-quit proceeds to `app.quit()`, and
+`FreeEnvironment` hits the same `napi_fatal_error`. A real quit can reach the same state,
+because `shutdownGmuxCore` bounds its snapshot work at 8 s and abandons still queued pool work.
+What changed:
+- An expired drain no longer proceeds to `app.quit()`. before-quit reads the live pending count
+  after the bounded drain (`pendingWatcherCloseCount`); when it is nonzero, it writes one log
+  line naming the leftover count and leaves through `app.exit(0)`, which skips
+  `FreeEnvironment`, so the queued napi completion is never answered with an abort. Nothing
+  durable is pending at that line; the manifest quit generation finished inside
+  `shutdownGmuxCore` long before. The line is written with `writeSync`, because stdout to a
+  pipe is asynchronous and a hard exit right after a `console.log` can drop it.
+- The expired drain is no longer silent. The one log line is what Phase 35 will classify, so a
+  degraded quit reads as a degraded quit and never as a crash.
+- The pending count now sees every close. Two closes were awaited directly instead of being
+  tracked, in the repo watcher's `dispose()` and in the agents.json watcher's stop. The quit
+  path bounds those awaits with its 3 s race, so a quit whose race expired while one of them
+  was still queued read a count of 0 and reached `app.quit()` with a queued completion anyway.
+  Both call sites now wrap the unsubscribe in `trackWatcherClose`, so the count is the whole
+  truth. An untracked `unsubscribe()` anywhere in src/main is now documented as a bug in
+  `watcher/teardown.ts`.
+- The user facing symptom of the pre fix crash is recorded here because it was worse than the
+  crash itself: after any aborted quit, the NEXT launch of the packaged app wedges indefinitely
+  on the macOS reopen windows prompt (`NSPersistentUIRestorer
+  promptToIgnorePersistentStateWithCrashHistory`, sampled live on a wedge that sat 10 or more
+  minutes until killed). The smoke:quit harness now passes `-ApplePersistenceIgnoreState YES`
+  so consecutive runs cannot wedge on that prompt.
+
 **The numbers.**
 
 | Check | Result |
 | --- | --- |
 | smoke:quit on the pre fix build, 5 runs | 5 of 5 abort with `FATAL ERROR: Error::ThrowAsJavaScriptException napi_throw` and the exact production frames |
-| smoke:quit on the fixed build, 5 runs | 5 of 5 exit 0 |
+| smoke:quit on the first fixed build, 5 runs, dev electron on an unloaded machine | 5 of 5 exit 0. This number did NOT hold for the packaged binary under load |
+| packaged smoke:quit series on the first fixed build | 5 clean and 1 abort of 6 under organic load; 1 of 1 abort when forced under 12 external CPU burners |
+| packaged smoke:quit under 12 external CPU burners, after the fix round | exit 0 with the leftover close line logged, the classified degraded path |
 | typecheck, build, bundle refusals | pass |
-| unit tests | 3284 passed, 0 failed |
+| unit tests | 3284 passed, 0 failed (fix round adds 1) |
 | smoke:t1 and smoke:t3 | pass, quit generation logged as taken (quit) |
 | conformance:resume:capture | 6 pass, 0 fail, 0 blocked |
 
-**What is not true.** The abort was never reproduced in the packaged app itself; a near idle
-instance's pool lets the completion win the race, and 3 SIGTERM quits of a scratch copy exited
-0. The packaged claim rests on the 5 banked .ips reports plus the identical standalone stack.
-A quit where FSEvents outlives the 3 s bound can still abort, and that is accepted, because a
-quit that hangs is worse. SIGTERM is assumed to equal a menu quit, per research 34.
+**What is not true.** The plain packaged launch and quit workload does not reproduce the
+original crash on the pre fix build: 5 of 5 scratch quits exited 0 with a durable session
+present. The packaged before and after differential therefore rests entirely on the saturation
+harness; the proof of the original defect is the 5 banked .ips reports plus the identical
+standalone stack, and the proof of the fix is the harness differential, not plain scratch
+quits. The residual expiry of the drain has two known triggers, not one: a sick FSEvents, and
+in-process uv pool backlog under CPU contention, which is broader because a real quit's own 8 s
+snapshot bound can abandon queued pool work. Since the fix round an expired drain exits 0
+through `app.exit` with one log line instead of aborting; the cost accepted in exchange is that
+the degraded path skips the window close events `app.quit` would have fired. SIGTERM is assumed
+to equal a menu quit, per research 34.
 
-## Phase 37 — a new file is named before it exists (user requested, 2026-08-14) ✅ SHIPPED 2026-08-14 (this commit)
+## Phase 37 — a new file is named before it exists (user requested, 2026-08-14) ✅ SHIPPED 2026-08-14 (`7c0ae02`)
 
 **The problem.** New File and New Folder in the explorer show a row named "untitled file" or
 "untitled folder". Nothing exists on disk until the user names it, so the row is an appearance
@@ -3745,7 +3785,7 @@ a unit test: no filesystem write of any kind happens before Enter commits a vali
   screenshot read of the open editor with the refusal reason under the box. After Escape and
   after every refusal the scratch repo held only `.git` and `README.md`.
 
-## Phase 38 — a session group survives closing its project (user reported, 2026-08-14) QUEUED
+## Phase 38 — a session group survives closing its project (user reported, 2026-08-14) ✅ SHIPPED 2026-08-14 (this commit)
 
 **The report, operator verbatim in substance.** Drag one session onto another and a multiplexed
 group exists. Close the project and reopen it: every session is still there, but the grouped
@@ -3767,6 +3807,20 @@ hit next. A regression test pins the persistence key so a later refactor cannot 
 back to an ephemeral id.
 
 **Semver.** fix, patch bump.
+
+**Shipped.** The diagnosis found the split layout record in localStorage keyed by the project
+row's UUID. Closing a project deletes that row and reopening mints a fresh UUID, so the layout
+was orphaned the moment the tab closed. The fix re-keys the record by the project's absolute
+path, the same identity sessions already rebind by. The key name stays `gmux.splitLayouts`.
+A guard in the store's write refuses any key that does not start with `/`. A one-shot boot
+migration adopts each open project's UUID entry under its path and drops orphaned UUID entries.
+The localStorage write is a 200 ms trailing debounce with a pagehide flush, so a divider drag
+burst costs one write and app quit loses nothing. The regression test
+`src/renderer/state/__tests__/layout-key.test.ts` pins the persisted key to the path so a later
+refactor cannot move it back to an ephemeral id. Not fixed, stated plainly: which surface is
+SELECTED after reopen still falls back to the last surface, because `activeSessionByProject`
+keys by project UUID. The group's own remembered focus does survive, because it lives inside
+the layout record.
 
 ## Phase 39 — Open With on every file row (user requested, 2026-08-14) QUEUED
 
@@ -3822,3 +3876,44 @@ still highlighted after the menu closes. Item 2 at Tier 2: screenshot reads of a
 pane group, focused and unfocused states, plus one read with a needs input dot on a faded pane.
 
 **Semver.** fix, patch bump.
+
+## Phase 41 — bundle a pinned tmux 3.7b (research 43, operator approved 2026-08-14) QUEUED
+
+**Specification.** docs/research/43-bundled-tmux.md. The research carries the measured build, the
+interop matrix, the option table and the adoption rule in full.
+
+**The decision.** Tortie ships tmux 3.7b as its third signed nested binary at Resources/bin/tmux,
+identifier com.itavero.tortie.tmux, through the exact specstory and rg pipeline (one
+NESTED_BINARIES row, one signIgnore row, verify-signed.mjs check 5 enforces it). The packaged app
+uses only the bundled binary. Dev builds and the harnesses keep PATH resolution through a dev
+branch in src/main/tmux/resolve.ts. A fresh Mac then runs Tortie with zero prerequisites, and the
+TmuxMissing boot block becomes dev only.
+
+**The adoption rule, measured not assumed.**
+- A new bundled version becomes the SERVER only at cold start. The app never restarts, signals or
+  upgrades a running server.
+- On a warm server the supervisor reads #{version} with a timeout before the first attach,
+  because the measured failure across a broken wire boundary can be a hang, not an error.
+- The tested pair per release (previous pin as server, new binary as client, real attach) passes
+  silently with one log line. An untested pair blocks attach with a screen naming both versions
+  and offering the manifest restore path. The user chooses; the app never kills the old server.
+- classifyTmuxFailure gains the two mismatch strings that exist in the binary and are
+  unclassified today.
+- The first release pair (3.7b client, 3.6a warm server) is measured working in both directions
+  including real attach, so the fleet notices nothing.
+
+**The numbers.** Signed binary 1,456,032 bytes, 0.84 percent of the measured 172,577,508 byte
+DMG. Static libevent 2.1.12 and utf8proc 2.10.0 from pinned tarballs with recorded SHA-256s,
+Apple SDK ncurses. Upstream ships about 1.1 feature releases per year, so expect one re-pin a
+year and none forced.
+
+**No data migration.** Sessions live in the server process and every durable record (manifest,
+snapshots, captures, layouts) is tmux version agnostic. The one transition is the warm server,
+covered by the adoption rule above.
+
+**Verification. Tier 3** (tmux layer, durability): the update-rehearsal interop pair with real
+attach, the version probe proven on a zero session warm server, a fresh machine simulation with
+no system tmux, the full fault battery and both smoke restore shapes on the bundled binary, and
+verify-signed green on all three nested binaries.
+
+**Semver.** feat, minor bump.
