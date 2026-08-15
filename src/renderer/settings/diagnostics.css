@@ -1,0 +1,14 @@
+/*
+ * Settings → Diagnostics (Phase 35). Colocated with its component, like
+ * scrollback.css: the section invents no new shapes, it only pins the two
+ * spots where the S13 row anatomy has no rule yet.
+ */
+
+/* The copy button flips to "Copied" for two seconds. A fixed floor keeps the
+   button from shrinking under the shorter word, so the row does not reflow
+   while the user is looking at it. 122px is what "Copy diagnostics" measures
+   at the control font plus the button padding. */
+.set-diag-copy {
+  flex: 0 0 auto;
+  min-width: 122px;
+}

@@ -1,0 +1,41 @@
+/*
+ * The error boundary's fallback (Phase 35). One centered block, tokens only.
+ * It paints on --bg-canvas because when the tree under the boundary is gone
+ * there is no surface behind it, and the fallback IS the window.
+ */
+
+.errb-shell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background: var(--bg-canvas);
+}
+
+.errb-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: 360px;
+  padding: var(--space-8);
+  text-align: center;
+}
+
+.errb-heading {
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+.errb-body {
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  color: var(--text-secondary);
+}
+
+/* Space between the sentence and the one action under it. */
+.errb-block > .btn {
+  margin-top: var(--space-4);
+}

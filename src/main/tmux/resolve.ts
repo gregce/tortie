@@ -30,6 +30,16 @@ import { homedir } from 'node:os';
 import { delimiter, isAbsolute, join } from 'node:path';
 import { killProcessGroup, trackGuardedChild } from '../proc/guarded';
 
+import { getLog } from '../log';
+
+/**
+ * Scope "tmux" (Phase 35). Every error and warning from this
+ * directory is one record in `<userData>/logs/app.log`. The console
+ * line is unchanged for dev terminals; what is new is that a packaged
+ * build keeps it.
+ */
+const tmuxLog = getLog('tmux');
+
 // ---------------------------------------------------------------------------
 // Login-shell PATH capture
 // ---------------------------------------------------------------------------
@@ -223,8 +233,8 @@ export function captureLoginShellPath(
       // never fire 'close', and leave the promise unsettled AND the fork
       // alive — exactly the two symptoms 13.5.1 set out to kill.
       const deadline = setTimeout(() => {
-        console.warn(
-          `[gmux] login-shell PATH probe still running after ${timeoutMs} ms ` +
+        tmuxLog.warn(
+          `login-shell PATH probe still running after ${timeoutMs} ms ` +
             `(${shell}) — killing its process group`
         );
         killProcessGroup(child);

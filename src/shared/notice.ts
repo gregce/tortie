@@ -203,6 +203,22 @@ export interface UpdateIncompleteNotice {
   version: string;
 }
 
+/**
+ * The previous run did not exit cleanly. Phase 35.
+ *
+ * APPENDED (Phase 35). The run sentinel (`<userData>/logs/run.json`) survives
+ * a crash and is found at the next boot, and the Crashpad readdir diff says
+ * how many new dumps that death left. The boot.unclean_exit record in the
+ * log carries the detail; this notice is the one quiet line above the
+ * surface. It is info styled and never an error toast, because the crash
+ * already happened and the sessions live in the tmux server.
+ */
+export interface UncleanExitNotice {
+  kind: 'unclean-exit';
+  /** New crash dumps found at this boot. 0 when the process died with no dump. */
+  newDumps: number;
+}
+
 /** Every degraded state Tortie can report. One kind per state, no free text. */
 export type DurabilityNotice =
   | BackupFailingNotice
@@ -213,7 +229,8 @@ export type DurabilityNotice =
   | ScrollbackDepthDegradedNotice
   | RestoreIncompleteNotice
   | RestoreShortfallNotice
-  | UpdateIncompleteNotice;
+  | UpdateIncompleteNotice
+  | UncleanExitNotice;
 
 /**
  * Everything that travels on `scrollback:notice`: the three scrollback events
@@ -231,7 +248,8 @@ export const DURABILITY_NOTICE_KINDS = [
   'depth-degraded',
   'restore-incomplete',
   'restore-shortfall',
-  'update-incomplete'
+  'update-incomplete',
+  'unclean-exit'
 ] as const;
 
 /** Narrow a notice off the shared channel to a degraded state. */

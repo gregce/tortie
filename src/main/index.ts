@@ -29,6 +29,16 @@ import { proveNativeModules } from './diagnostics/native-proof';
 // Phase 28: one log line when a helper or renderer process dies. Log only.
 import { installProcessGoneLogging } from './diagnostics/process-gone';
 import { dispatchHarness } from './harness';
+// Phase 35: one structured log file, local crash capture. initLogging and
+// startCrashCapture run at module scope below, before whenReady; the boot
+// sequence (sentinel, Crashpad diff, boot.env, prune) runs inside whenReady.
+import {
+  getLog,
+  initLogging,
+  runLogBootSequence
+} from './log';
+import { startCrashCapture } from './log/crash';
+import { postDurabilityNotice } from './notice';
 import {
   registerAssetSchemePrivileged
 } from './assets';
@@ -65,6 +75,16 @@ import { announceRefusedInstallIfAny } from './updates/ui';
 // what makes a DEV run greppable as gmux (see proc/identity.ts for the honest
 // account of what dev mode cannot rename).
 applyProcessIdentity(app);
+
+// Phase 35: logging first, crash capture second, both before whenReady.
+// initLogging must follow applyProcessIdentity because the file lives under
+// userData, which the app name decides. crashReporter.start must run before
+// app ready (25 to 33 ms measured, research 42 §6) and runs in EVERY mode,
+// so dumps exist even in dev profiles. uploadToServer is false and no code
+// path may ever flip it (build/assert-bundle-refusals.mjs pins the fragment).
+initLogging();
+startCrashCapture();
+const bootLog = getLog('boot');
 
 // ---------------------------------------------------------------------------
 // One Tortie per user data directory (Phase 18.5 item 4)
@@ -120,9 +140,10 @@ if (!harnessLaunch) {
   if (!app.requestSingleInstanceLock()) {
     const profile = app.getPath('userData');
     if (process.env['GMUX_ALLOW_SECOND_INSTANCE'] === '1') {
-      console.warn(
-        `[gmux] Tortie is already running on ${profile}. ` +
-          'GMUX_ALLOW_SECOND_INSTANCE=1 is set, so this second copy is starting anyway.'
+      bootLog.warn(
+        `Tortie is already running on ${profile}. ` +
+          'GMUX_ALLOW_SECOND_INSTANCE=1 is set, so this second copy is starting anyway.',
+        { profile }
       );
     } else {
       console.log(
@@ -251,6 +272,17 @@ app.whenReady().then(async () => {
   // noise. The return value is the one ordered disposer invoked at quit.
   disposeCapabilities = installMainCapabilities({ ipcMain });
 
+  // Phase 35: the crash story's whenReady half, before any window exists.
+  // It reads the run sentinel, diffs the Crashpad directories, writes
+  // boot.unclean_exit, posts the one quiet notice, sweeps the dumps, prunes
+  // the logs directory, arms a fresh sentinel, and detaches the boot.env
+  // snapshot. It runs before dispatchHarness so a probe profile gets the same
+  // records the shipped app gets, and it does nothing at all unless file
+  // logging is on (app.isPackaged, or GMUX_LOG_FILE=1). That gate is what
+  // stops a harness that ends in app.exit() from leaving a sentinel behind
+  // and faking a crash at the next smoke boot.
+  runLogBootSequence({ postNotice: postDurabilityNotice });
+
   // A harness launch (GMUX_SMOKE / GMUX_SHOT) owns the process from here:
   // every harness ends in app.exit, or, for the quit smoke, the real
   // app.quit. Normal startup never runs behind one.
@@ -290,8 +322,8 @@ app.whenReady().then(async () => {
   // addition to the compiled twelve agents, so the failure direction is
   // "you get the agents the build ships" rather than "the app does not open".
   void initAgentOverlay().catch((err: unknown) => {
-    console.error(
-      `[gmux] the configuration file was not read: ${(err as Error).message}`
+    getLog('config').error(
+      `the configuration file was not read: ${(err as Error).message}`
     );
   });
 
@@ -301,7 +333,9 @@ app.whenReady().then(async () => {
   if (native.ok) {
     console.log(`[gmux] native modules: ${native.detail}`);
   } else {
-    console.error(`[gmux] NATIVE MODULE FAILURE: ${native.detail}`);
+    bootLog.error(`NATIVE MODULE FAILURE: ${native.detail}`, {
+      detail: native.detail
+    });
   }
 
   // Kick the core boot now so the window opens onto live data; failures are
@@ -316,7 +350,7 @@ app.whenReady().then(async () => {
       void presentManifestRefusal(err);
       return;
     }
-    console.error(`[gmux] core boot failed: ${(err as Error).message}`);
+    bootLog.error(`core boot failed: ${(err as Error).message}`);
   });
 
   // Phase 31: the refusal surface. If the last run promised an install and

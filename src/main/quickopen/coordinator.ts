@@ -15,6 +15,16 @@ import type { QuickOpenQueryInput, QuickOpenResult } from '@shared/ipc';
 import type { QuickOpenRequest, QuickOpenResponse } from './protocol';
 import { WORKER_NAMES } from '../proc/identity';
 
+import { getLog } from '../log';
+
+/**
+ * Scope "quickopen" (Phase 35). Every error and warning from this
+ * directory is one record in `<userData>/logs/app.log`. The console
+ * line is unchanged for dev terminals; what is new is that a packaged
+ * build keeps it.
+ */
+const quickopenLog = getLog('quickopen');
+
 export interface QuickOpenDeps {
   /** Absolute path to the ripgrep binary (src/main/search/resolve.ts). */
   rgPath(): string;
@@ -130,7 +140,7 @@ export function createQuickOpenCoordinator(
       rgPath = deps.rgPath();
     } catch (err) {
       startupError = (err as Error).message;
-      console.warn(`[gmux] quick open unavailable: ${startupError}`);
+      quickopenLog.warn(`quick open unavailable: ${startupError}`);
       return null;
     }
 
@@ -156,7 +166,7 @@ export function createQuickOpenCoordinator(
 
     w.on('message', (msg: QuickOpenResponse) => {
       if (msg.type === 'error') {
-        console.warn(`[gmux] quick open worker: ${msg.message}`);
+        quickopenLog.warn(`quick open worker: ${msg.message}`);
         if (msg.id === undefined) return;
         const p = pending.get(msg.id);
         if (p === undefined) return;
@@ -181,7 +191,7 @@ export function createQuickOpenCoordinator(
     });
 
     w.on('error', (err) => {
-      console.warn(`[gmux] quick open worker crashed: ${err.message}`);
+      quickopenLog.warn(`quick open worker crashed: ${err.message}`);
     });
 
     w.on('exit', () => {

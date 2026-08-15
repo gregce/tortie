@@ -33,6 +33,7 @@
 
 import type { DurabilityNotice } from '@shared/notice';
 import { EVT_SCROLLBACK_NOTICE } from '@shared/ipc';
+import { logEvent } from '../log';
 import { broadcastEvent } from '../typed-events';
 
 /** Kinds already said this run. The latch behind rule 1. */
@@ -57,6 +58,17 @@ let rendererListening = false;
 export function postDurabilityNotice(notice: DurabilityNotice): boolean {
   if (said.has(notice.kind)) return false;
   said.add(notice.kind);
+  // PHASE 35: mirror what the user was shown. The toast is one line that a
+  // person may miss, dismiss, or see days before they ask about it, and until
+  // now nothing on disk said it had ever appeared. Every ACCEPTED notice is
+  // one record; a swallowed repeat is not, because the latch means the user
+  // was shown nothing the second time. `console: false` keeps the mirror out
+  // of dev terminals, where the notice's own call site already says it.
+  const { kind, ...fields } = notice;
+  logEvent('notice', 'warn', 'notice.shown', `notice shown: ${kind}`, {
+    notice: kind,
+    ...fields
+  }, { console: false });
   if (rendererListening) {
     broadcastEvent(EVT_SCROLLBACK_NOTICE, notice);
   } else {

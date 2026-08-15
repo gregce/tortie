@@ -150,6 +150,16 @@ import {
 import * as tmux from '../tmux';
 import { gmuxError, isGmuxError } from '../errors';
 import { broadcastEvent } from '../typed-events';
+import { getLog } from '../log';
+
+/**
+ * Scope "sessions" (Phase 35). Every error and warning from this
+ * directory is one record in `<userData>/logs/app.log`. The console
+ * line is unchanged for dev terminals; what is new is that a packaged
+ * build keeps it.
+ */
+const sessionsLog = getLog('sessions');
+
 // The pure launch and reconcile decisions (Phase 42 stage 5). This class is
 // the orchestrator: it runs the execs and the writes, and asks these two
 // modules what the launch or the judgement should be.
@@ -260,8 +270,8 @@ async function applyHistoryLimit(lines: number): Promise<void> {
   await tmux
     .execTmux(['set-option', '-g', 'history-limit', String(lines)])
     .catch((err: unknown) => {
-      console.warn(
-        `[gmux] could not set history-limit: ${(err as Error).message}`
+      sessionsLog.warn(
+        `could not set history-limit: ${(err as Error).message}`
       );
     });
 }
@@ -271,8 +281,8 @@ async function assertServerOptions(): Promise<void> {
     await tmux
       .execTmux(['set-option', '-g', name, value])
       .catch((err: unknown) => {
-        console.warn(
-          `[gmux] could not set ${name}: ${(err as Error).message}`
+        sessionsLog.warn(
+          `could not set ${name}: ${(err as Error).message}`
         );
       });
   }
@@ -390,8 +400,8 @@ export class GmuxCore {
     this.syncOwners.delete(req);
     if (outcome.ok) return;
     const rec = sessionId !== null ? this.manifest.getSession(sessionId) : undefined;
-    console.warn(
-      `[gmux] specstory sync failed for ${rec?.name ?? sessionId ?? req.cwd}: ` +
+    sessionsLog.warn(
+      `specstory sync failed for ${rec?.name ?? sessionId ?? req.cwd}: ` +
         `${outcome.message ?? 'no reason given'} (${outcome.argv.join(' ')})`
     );
     if (rec === undefined || outcome.message === null) return;
@@ -568,8 +578,8 @@ export class GmuxCore {
       // It already swallows its own failures. This catch is for the one thing
       // it cannot answer for, which is a bug in it: a backup step must never be
       // the reason a user cannot open their sessions.
-      console.warn(
-        `[gmux] preparing the manifest failed: ${(err as Error).message}`
+      sessionsLog.warn(
+        `preparing the manifest failed: ${(err as Error).message}`
       );
     });
     const core = new GmuxCore(new ManifestStore(dbPath));
@@ -578,8 +588,8 @@ export class GmuxCore {
     } catch (err) {
       // Control client reconnects on its own; boot proceeds — the manifest
       // and one-shot tmux commands still work without the event bus.
-      console.warn(
-        `[gmux] control client failed to start (will retry): ${(err as Error).message}`
+      sessionsLog.warn(
+        `control client failed to start (will retry): ${(err as Error).message}`
       );
     }
     await assertServerOptions();
@@ -593,8 +603,8 @@ export class GmuxCore {
     // again. refresh() itself already treats an unreachable tmux this way —
     // warn and carry on; this makes a locked manifest match.
     await core.refresh().catch((err: unknown) => {
-      console.warn(
-        `[gmux] initial refresh failed (showing last known sessions): ${(err as Error).message}`
+      sessionsLog.warn(
+        `initial refresh failed (showing last known sessions): ${(err as Error).message}`
       );
     });
     core.startStatusWatcher();
@@ -698,7 +708,7 @@ export class GmuxCore {
       );
     });
     this.control.on('error', (err) => {
-      console.warn(`[gmux] control client: ${err.message}`);
+      sessionsLog.warn(`control client: ${err.message}`);
     });
   }
 
@@ -859,8 +869,8 @@ export class GmuxCore {
             // pass through). Arming the BARE resume is right — the
             // conversation is what matters — but the user's capture would
             // silently stop at the restore, so it is said out loud.
-            console.warn(
-              `[gmux] ${agent} resume for "${rec.name}" could not keep ` +
+            sessionsLog.warn(
+              `${agent} resume for "${rec.name}" could not keep ` +
                 'SpecStory capture; the armed command runs the agent directly.'
             );
           }
@@ -889,8 +899,8 @@ export class GmuxCore {
           // Armed, but not PROVEN to be this pane's conversation. Said out
           // loud in the log because the alternative is a confident restore
           // into somebody else's session.
-          console.warn(
-            `[gmux] ${agent} resume id ${harvested.sessionId} matched on ` +
+          sessionsLog.warn(
+            `${agent} resume id ${harvested.sessionId} matched on ` +
               `'${harvested.key}'${harvested.viaGraceTimer ? ' via the grace timer' : ''} ` +
               `with ${harvested.rivals} candidate(s) in play ` +
               `(${provenance.confidence}) — ${harvested.storePath}`
@@ -918,7 +928,7 @@ export class GmuxCore {
         // terminal where the answer really is final: refresh() re-arms live
         // sessions, and resumeIdHarvests() withdraws the promise once the
         // session is gone without an id.
-        console.warn(`[gmux] ${agent} session-id harvest: ${(err as Error).message}`);
+        sessionsLog.warn(`${agent} session-id harvest: ${(err as Error).message}`);
         // …EXCEPT for a rescue of a session that has already exited, where
         // the answer really is final: no process will ever write that record
         // now, so the row stops saying 'capturing' and says what a restore
@@ -974,8 +984,8 @@ export class GmuxCore {
       // is worth knowing before it surprises someone. MEASURED in the T1 smoke
       // profile the moment this landed: codex-1 and codex-2 both carry
       // 019febf5-e7fa-7e32-8fd5-c4a56e10a859.
-      console.warn(
-        `[gmux] sessions ${String(conversationClaimant(rec.agentSessionId))} ` +
+      sessionsLog.warn(
+        `sessions ${String(conversationClaimant(rec.agentSessionId))} ` +
           `and ${rec.id} both record ${rec.agent} conversation ` +
           `${rec.agentSessionId}. Restoring both resumes the same conversation.`
       );
@@ -1121,14 +1131,14 @@ export class GmuxCore {
         );
       }
       this.broadcastSessions();
-      console.warn(
-        `[gmux] ${rec.agent} conversation ${ev.conversationId} was reclaimed ` +
+      sessionsLog.warn(
+        `${rec.agent} conversation ${ev.conversationId} was reclaimed ` +
           `from session ${ev.from} by ${ev.to}; the losing row was cleared ` +
           `and its watch ${live !== undefined ? 'restarted' : 'not restarted (no live pane)'}.`
       );
     } catch (err) {
-      console.warn(
-        `[gmux] conversation reclaim correction failed for ${ev.from}: ` +
+      sessionsLog.warn(
+        `conversation reclaim correction failed for ${ev.from}: ` +
           `${(err as Error).message}`
       );
     }
@@ -1179,8 +1189,8 @@ export class GmuxCore {
             unwritten.push({ name: rec.name, outOfSpace: isOutOfSpace(err) });
             return;
           }
-          console.warn(
-            `[gmux] snapshot failed for "${rec.name}": ${(err as Error).message}`
+          sessionsLog.warn(
+            `snapshot failed for "${rec.name}": ${(err as Error).message}`
           );
         })
       );
@@ -1207,8 +1217,8 @@ export class GmuxCore {
   ): void {
     const notice = snapshotFailureNotice(unwritten);
     if (notice === null) return;
-    console.warn(
-      `[gmux] ${notice.sessions} session(s) were not saved` +
+    sessionsLog.warn(
+      `${notice.sessions} session(s) were not saved` +
         `${notice.outOfSpace ? ' because the volume is full' : ''}: ` +
         unwritten.map((one) => one.name).join(', ')
     );
@@ -1276,8 +1286,8 @@ export class GmuxCore {
         rec.agentSessionId !== undefined &&
         !claimConversationId(rec.agentSessionId, rec.id, claimStrengthOf(rec))
       ) {
-        console.warn(
-          `[gmux] sessions ${String(conversationClaimant(rec.agentSessionId))} ` +
+        sessionsLog.warn(
+          `sessions ${String(conversationClaimant(rec.agentSessionId))} ` +
             `and ${rec.id} both record ${rec.agent} conversation ` +
             `${rec.agentSessionId}. Restoring both resumes the same conversation.`
         );
@@ -1346,8 +1356,8 @@ export class GmuxCore {
           );
         }
       } catch (err) {
-        console.warn(
-          `[gmux] could not mirror metadata after restore: ${(err as Error).message}`
+        sessionsLog.warn(
+          `could not mirror metadata after restore: ${(err as Error).message}`
         );
       }
 
@@ -1383,8 +1393,8 @@ export class GmuxCore {
         try {
           this.manifest.finishRestoreAttempt(attemptId, 'interrupted');
         } catch (err) {
-          console.warn(
-            `[gmux] could not close the restore journal entry: ${(err as Error).message}`
+          sessionsLog.warn(
+            `could not close the restore journal entry: ${(err as Error).message}`
           );
         }
       }
@@ -1417,7 +1427,7 @@ export class GmuxCore {
   ): void {
     const shortfall = restoreShortfall(result);
     if (shortfall === null) return;
-    console.warn(`[gmux] restore of "${rec.name}" (${result.kind}): ${shortfall}`);
+    sessionsLog.warn(`restore of "${rec.name}" (${result.kind}): ${shortfall}`);
     // 'failed' and 'interrupted' are not this notice. The first is a restore
     // that did not happen and the caller already reports it, and the second is
     // the journal's own state with its own notice kind.
@@ -1445,7 +1455,7 @@ export class GmuxCore {
     this.refreshTimer = setTimeout(() => {
       this.refreshTimer = null;
       void this.refresh().catch((err: unknown) => {
-        console.warn(`[gmux] refresh failed: ${(err as Error).message}`);
+        sessionsLog.warn(`refresh failed: ${(err as Error).message}`);
       });
     }, REFRESH_DEBOUNCE_MS);
   }
@@ -1518,8 +1528,8 @@ export class GmuxCore {
       liveInfos = await tmux.listSessions();
     } catch (err) {
       if (!isGmuxError(err, 'TMUX_UNREACHABLE')) {
-        console.warn(
-          `[gmux] list-sessions failed, skipping reconcile: ${(err as Error).message}`
+        sessionsLog.warn(
+          `list-sessions failed, skipping reconcile: ${(err as Error).message}`
         );
         return;
       }
@@ -1608,8 +1618,8 @@ export class GmuxCore {
     try {
       open = this.manifest.listUnfinishedRestoreAttempts();
     } catch (err) {
-      console.warn(
-        `[gmux] could not read the restore journal: ${(err as Error).message}`
+      sessionsLog.warn(
+        `could not read the restore journal: ${(err as Error).message}`
       );
       return;
     }
@@ -1631,7 +1641,7 @@ export class GmuxCore {
     }
 
     for (const r of resolveRestoreJournal(open, identities, existing)) {
-      console.warn(`[gmux] ${r.note}`);
+      sessionsLog.warn(r.note);
       try {
         // The row may be gone: a session discarded between the crash and this
         // launch has no row to annotate, and the attempt still has to close.
@@ -1665,8 +1675,8 @@ export class GmuxCore {
           });
         }
       } catch (err) {
-        console.warn(
-          `[gmux] could not close restore attempt ${r.attemptId}: ${(err as Error).message}`
+        sessionsLog.warn(
+          `could not close restore attempt ${r.attemptId}: ${(err as Error).message}`
         );
       }
     }
@@ -1782,8 +1792,8 @@ export class GmuxCore {
     this.queueCaptureSync(rec);
     // The manifest row is the record of truth but it dies with a discard —
     // this line is the copy that survives in the app log (research 21 §10).
-    console.warn(
-      `[gmux] session death: id=${sessionId} name="${rec.name}" ` +
+    sessionsLog.warn(
+      `session death: id=${sessionId} name="${rec.name}" ` +
         `agent=${rec.agent} tmux=${target ?? '(unbound)'} ` +
         `pane_pid=${rec.panePid ?? '?'} exit=${exitCode ?? ''} ` +
         `signal=${deadSignal ?? ''}`
@@ -2237,8 +2247,8 @@ export class GmuxCore {
         );
       }
     } catch (err) {
-      console.warn(
-        `[gmux] could not mirror metadata into tmux options: ${(err as Error).message}`
+      sessionsLog.warn(
+        `could not mirror metadata into tmux options: ${(err as Error).message}`
       );
     }
 
@@ -2265,7 +2275,7 @@ export class GmuxCore {
     // session it is about — the alternative is discovering an empty
     // .specstory/history days later and blaming SpecStory for it.
     if (captureDeclined !== null) {
-      console.warn(`[gmux] ${captureDeclined} (session "${input.name}")`);
+      sessionsLog.warn(`${captureDeclined} (session "${input.name}")`);
       broadcast(EVT_CAPTURE_NOTICE, {
         kind: 'declined',
         sessionId: id,
@@ -2375,8 +2385,8 @@ export class GmuxCore {
           reason: 'session-close',
           session: snapshotRecipeOf(rec)
         }).catch((err: unknown) => {
-          console.warn(
-            `[gmux] end-time snapshot failed for "${rec.name}": ` +
+          sessionsLog.warn(
+            `end-time snapshot failed for "${rec.name}": ` +
               `${(err as Error).message}`
           );
           postDurabilityNotice({

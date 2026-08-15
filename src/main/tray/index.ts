@@ -25,6 +25,16 @@ import type { Project, Session } from '@shared/types';
 import { getGmuxCore } from '../sessions';
 import { requestQuit, sendMenuAction } from '../menu';
 import { attentionRows, blockedSince } from './attention';
+import { getLog } from '../log';
+
+/**
+ * Scope "tray" (Phase 35). Every error and warning from this
+ * directory is one record in `<userData>/logs/app.log`. The console
+ * line is unchanged for dev terminals; what is new is that a packaged
+ * build keeps it.
+ */
+const trayLog = getLog('tray');
+
 
 export interface TrayDeps {
   /** Bring the app window forward (creating it if it somehow went away). */
@@ -104,7 +114,7 @@ export function installTray(trayDeps: TrayDeps): void {
 
   const image = nativeImage.createFromPath(templateImagePath());
   if (image.isEmpty()) {
-    console.error('[gmux] menu-bar image missing — no status item installed');
+    trayLog.error('menu-bar image missing — no status item installed');
     return;
   }
   // macOS tints template images itself: black-on-transparent art follows the

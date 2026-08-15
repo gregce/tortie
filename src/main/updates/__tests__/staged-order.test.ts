@@ -12,7 +12,7 @@
  * and notifies the surfaces.
  */
 
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -61,6 +61,9 @@ import {
   onUpdateStateChanged
 } from '../updater';
 
+/** Every line the shared log's console side wrote during one test. */
+const consoleLines: string[] = [];
+
 beforeEach(() => {
   userDataDir = mkdtempSync(join(tmpdir(), 'gmux-staged-order-test-'));
   // Only the two timer functions initUpdater schedules with. Date stays
@@ -68,9 +71,16 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ['setTimeout', 'setInterval'] });
   delete process.env['TORTIE_UPDATE_FEED'];
   delete process.env['GMUX_TMUX_SOCKET'];
+  consoleLines.length = 0;
+  for (const name of ['log', 'warn', 'error'] as const) {
+    vi.spyOn(console, name).mockImplementation((...args: unknown[]) => {
+      consoleLines.push(args.map(String).join(' '));
+    });
+  }
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.useRealTimers();
   rmSync(userDataDir, { recursive: true, force: true });
 });
@@ -101,16 +111,18 @@ describe('the two staging events', () => {
     expect(getUpdateUiState().stagedVersion).toBe('0.19.1');
     expect(notifications).toEqual([1]);
 
-    // Packaged builds persist both lines to <userData>/logs/updates.log.
-    const logText = readFileSync(
-      join(userDataDir, 'logs', 'updates.log'),
-      'utf8'
+    // PHASE 35: both lines go to the shared log at scope "updates", so the
+    // updater story reads in one file beside the boot before it and the boot
+    // after it. `<userData>/logs/updates.log` retired with its rotation; the
+    // legacy pair on an existing profile ages out through the startup prune.
+    // The console side is what this test can read without an Electron
+    // process, and it carries the same message the record does.
+    const said = consoleLines.join('\n');
+    expect(said).toContain(
+      '[gmux-updates] update 0.19.1 is downloaded and staging has started'
     );
-    expect(logText).toContain(
-      'update 0.19.1 is downloaded and staging has started'
-    );
-    expect(logText).toContain(
-      'update 0.19.1 is staged and installs when you quit'
+    expect(said).toContain(
+      '[gmux-updates] update 0.19.1 is staged and installs when you quit'
     );
 
     unsubscribe();

@@ -25,6 +25,7 @@ import { Codicon, InlineSvg } from '../icons';
 // com.specstory.tortie.
 import specstorySvg from '../assets/brand/specstory.svg?raw';
 import { AgentsSection } from './AgentsSection';
+import { DiagnosticsSection } from './DiagnosticsSection';
 import { GeneralSection } from './GeneralSection';
 import { KeyboardSection } from './KeyboardSection';
 import { LaunchDefaultsSection } from './LaunchDefaultsSection';
@@ -37,7 +38,8 @@ type SectionId =
   | 'agents'
   | 'keyboard'
   | 'launch-defaults'
-  | 'specstory';
+  | 'specstory'
+  | 'diagnostics';
 
 /**
  * A rail entry wears either a codicon, which is what app chrome uses, or a
@@ -68,7 +70,12 @@ const SECTIONS: { id: SectionId; label: string; icon: RailIcon }[] = [
   // brand mark rather than UI furniture, and because this entry sits at the
   // end of the rail. §4.5 also records a 22-of-24 inset variant if review ever
   // judges the weight too heavy.
-  { id: 'specstory', label: 'SpecStory', icon: { svg: specstorySvg } }
+  { id: 'specstory', label: 'SpecStory', icon: { svg: specstorySvg } },
+  // Phase 35. Last on the rail, the same reasoning as SpecStory above: it is
+  // the newest section and the least often visited, and inserting it
+  // mid-list would move entries people already know the position of. It is
+  // actions, not readings, so it does not break the no-dashboard rule.
+  { id: 'diagnostics', label: 'Diagnostics', icon: { codicon: 'output' } }
 ];
 
 export function SettingsApp(): React.JSX.Element {
@@ -144,6 +151,7 @@ export function SettingsApp(): React.JSX.Element {
         {section === 'keyboard' ? <KeyboardSection /> : null}
         {section === 'launch-defaults' ? <LaunchDefaultsSection /> : null}
         {section === 'specstory' ? <SpecStorySection /> : null}
+        {section === 'diagnostics' ? <DiagnosticsSection /> : null}
       </main>
     </div>
   );

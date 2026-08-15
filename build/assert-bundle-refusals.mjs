@@ -429,6 +429,69 @@ const UPDATER_REFUSALS = [
 ];
 
 /**
+ * PHASE 35 — crash dumps never leave the machine.
+ *
+ * Research 42's lab read a live CLAUDE_CODE_MESSAGING_TOKEN value out of a
+ * minidump's environment block, so research 37's refusal of transmission is
+ * confirmed by bytes rather than by reasoning. `uploadToServer: false` is
+ * the one line that keeps every dump local, and it is a plain object
+ * property passed to an Electron API. That makes it exactly the shape the
+ * bundler is free to reshape, so it is pinned in the artifact here.
+ *
+ * The second direction, `assertNoUpload` below, is the one this table cannot
+ * express: the literal `uploadToServer: true` must appear NOWHERE in src/.
+ * A later edit that flips it fails the build rather than shipping.
+ */
+const LOG_REFUSALS = [
+  {
+    id: 'log.crash-dumps-stay-local',
+    source: 'src/main/log/crash.ts',
+    why:
+      'a minidump embeds the process environment block, including live ' +
+      'token values, so no dump may ever be uploaded',
+    fragments: ['uploadToServer: false']
+  }
+];
+
+/** The literal that must never exist in src/. */
+const UPLOAD_ENABLED_LITERALS = ['uploadToServer: true', 'uploadToServer:true'];
+
+/** Every .ts/.tsx/.mjs under src/, so the scan misses nothing. */
+function collectSourceFiles(dir, out = []) {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name === 'node_modules') continue;
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) collectSourceFiles(path, out);
+    else if (/\.(tsx?|mjs|cjs|js)$/.test(entry.name)) out.push(path);
+  }
+  return out;
+}
+
+function assertNoUpload() {
+  const offenders = [];
+  for (const file of collectSourceFiles(join(repoRoot, 'src'))) {
+    const text = readFileSync(file, 'utf8');
+    for (const literal of UPLOAD_ENABLED_LITERALS) {
+      if (text.includes(literal)) {
+        offenders.push(`${file.slice(repoRoot.length + 1)} contains ${JSON.stringify(literal)}`);
+      }
+    }
+  }
+  if (offenders.length > 0) {
+    console.error(
+      '[refusals] crash dump upload was switched on. research 42 §13 refuses ' +
+        'this permanently, and research 42 §6 read a live token value out of a ' +
+        'minidump to show why. uploadToServer stays false.'
+    );
+    for (const line of offenders) console.error(`  ${line}`);
+    process.exit(1);
+  }
+  console.log(
+    '[refusals] no source file enables crash dump upload; dumps stay local.'
+  );
+}
+
+/**
  * PHASE 23 FIX ROUND — a gate is not a gate if nobody can pass it.
  *
  * ## The defect that made this check exist
@@ -549,7 +612,8 @@ function main() {
     ...REFUSALS,
     ...SKILLS_REFUSALS,
     ...CONFIG_REFUSALS,
-    ...UPDATER_REFUSALS
+    ...UPDATER_REFUSALS,
+    ...LOG_REFUSALS
   ]) {
     const sourcePath = join(repoRoot, refusal.source);
     if (!sources.has(refusal.source)) {
@@ -613,7 +677,11 @@ function main() {
   console.log(
     `[refusals] ${String(UPDATER_REFUSALS.length)} updater refusals are in out/main/index.js.`
   );
+  console.log(
+    `[refusals] ${String(LOG_REFUSALS.length)} crash-capture refusal is in out/main/index.js.`
+  );
 
+  assertNoUpload();
   assertReachable(bundle);
 }
 

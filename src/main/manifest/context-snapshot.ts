@@ -54,6 +54,16 @@ import {
   type ContextSnapshotEntry
 } from '../../shared/context-snapshot';
 import { parseObject } from './json-column';
+import { getLog } from '../log';
+
+/**
+ * Scope "manifest" (Phase 35). Every error and warning from this
+ * directory is one record in `<userData>/logs/app.log`. The console
+ * line is unchanged for dev terminals; what is new is that a packaged
+ * build keeps it.
+ */
+const manifestLog = getLog('manifest');
+
 
 /**
  * Parse the `context_snapshot` column.
@@ -97,8 +107,8 @@ export function parseContextSnapshot(
   // notice about it would be the product performing attentiveness. It is not
   // silent to a person debugging.
   if (dropped > 0) {
-    console.warn(
-      `[gmux] context snapshot: dropped ${String(dropped)} unreadable ` +
+    manifestLog.warn(
+      `context snapshot: dropped ${String(dropped)} unreadable ` +
         'entries from a session row'
     );
   }

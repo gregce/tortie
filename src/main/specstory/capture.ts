@@ -63,6 +63,16 @@ import {
   type SpecstoryBinary
 } from './resolve';
 import { wrapArgv } from './wrap';
+import { getLog } from '../log';
+
+/**
+ * Scope "specstory" (Phase 35). Every error and warning from this
+ * directory is one record in `<userData>/logs/app.log`. The console
+ * line is unchanged for dev terminals; what is new is that a packaged
+ * build keeps it.
+ */
+const specstoryLog = getLog('specstory');
+
 
 // ---------------------------------------------------------------------------
 // Provider availability
@@ -224,8 +234,8 @@ async function probeProviders(bin: SpecstoryBinary): Promise<ProviderCatalog> {
   if (listed !== null) return catalogOf(listed, 'probed');
   const helped = await probeByHelp(bin);
   if (helped !== null) return catalogOf(helped, 'probed');
-  console.warn(
-    `[gmux] specstory ${bin.version ?? '?'} did not list its providers ` +
+  specstoryLog.warn(
+    `specstory ${bin.version ?? '?'} did not list its providers ` +
       `(${bin.path}) — capture falls back to the measured set`
   );
   return catalogOf(

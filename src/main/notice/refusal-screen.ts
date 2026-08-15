@@ -27,7 +27,15 @@
 
 import { app, dialog, shell } from 'electron';
 import { dirname } from 'node:path';
+import { getLog } from '../log';
 import { refusalCopy, type ManifestRefusal } from '../manifest/refusal';
+
+/**
+ * Scope "manifest" (Phase 35). This screen ends in `app.exit(0)`, so the
+ * record is the only thing that outlives it. A person who reports "it just
+ * quit" needs the refusal's reason to still exist after the process is gone.
+ */
+const refusalLog = getLog('manifest');
 
 /** Shown once per app run, however many callers reach it. */
 let showing = false;
@@ -45,8 +53,11 @@ export async function presentManifestRefusal(
   showing = true;
   const copy = refusalCopy(err);
   // Every line also goes to the log, so a person who reports "it just quit"
-  // has the reason in the console output they can copy.
-  console.error(`[gmux] ${copy.message}\n${copy.detail}`);
+  // has the reason after the process is gone.
+  refusalLog.error(`${copy.message}\n${copy.detail}`, {
+    dbPath: err.dbPath,
+    message: copy.message
+  });
   try {
     await app.whenReady();
     for (;;) {
@@ -65,8 +76,8 @@ export async function presentManifestRefusal(
       // screen: the only way out is Quit.
     }
   } catch (dialogErr) {
-    console.error(
-      `[gmux] the refusal screen could not be shown: ${(dialogErr as Error).message}`
+    refusalLog.error(
+      `the refusal screen could not be shown: ${(dialogErr as Error).message}`
     );
   } finally {
     // `exit` rather than `quit`, and it matters. `quit` runs the before-quit

@@ -39,6 +39,16 @@
 import type { CreateSessionInput, Session } from '@shared/types';
 import type { ManifestSessionRecord } from '../manifest/store';
 import { recoverLaunchExtras } from './extras';
+import { getLog } from '../log';
+
+/**
+ * Scope "restart" (Phase 35). Every error and warning from this
+ * directory is one record in `<userData>/logs/app.log`. The console
+ * line is unchanged for dev terminals; what is new is that a packaged
+ * build keeps it.
+ */
+const restartLog = getLog('restart');
+
 
 /**
  * The slice of GmuxCore a restart needs, stated structurally so this module
@@ -112,8 +122,8 @@ export async function restartSession(
     } catch (err) {
       // The replacement exists and is what the user asked for. A kill that
       // failed is worth a log line, not a failed restart.
-      console.warn(
-        `[gmux] restart: could not stop the old '${rec.name}': ` +
+      restartLog.warn(
+        `restart: could not stop the old '${rec.name}': ` +
           `${(err as Error).message}`
       );
     }
@@ -124,8 +134,8 @@ export async function restartSession(
   host.broadcastSessions();
 
   if (recovered === null) {
-    console.warn(
-      `[gmux] restart: '${rec.name}' came back without its launch flags — ` +
+    restartLog.warn(
+      `restart: '${rec.name}' came back without its launch flags — ` +
         `the recorded argv matched no known launch shape for ${rec.agent}.`
     );
   }

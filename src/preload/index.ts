@@ -30,6 +30,7 @@ import { invoke, on } from './bridge';
 import { config, context, contextSnapshot } from './context';
 import { fs, preview } from './files';
 import { git } from './git';
+import { log } from './log';
 import { projects, recents } from './projects';
 import { notice, sessions } from './sessions';
 import { quickOpen, search, symbols } from './search';
@@ -78,6 +79,10 @@ const api: InstalledGmuxApi = {
   scrollback,
   notice,
   preview,
+  // Phase 35 optional extra: the log surface. Renderer error capture writes
+  // over `append`, and the Settings Diagnostics section owns the other four.
+  // Both renderers feature-detect it.
+  log,
   // Phase 24 optional extra: the Settings row's one read. The update engine,
   // the menu item and every dialog live in main; the renderer only ever asks
   // what is true right now, on the one typed bridge.

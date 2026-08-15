@@ -118,6 +118,7 @@ import type {
   GmuxSessionRestoreExtras,
   RestoreInvokeChannelMap
 } from './sessions';
+import type { GmuxLogExtras, LogInvokeChannelMap } from './log';
 import type {
   GmuxSpecStoryExtras,
   CaptureEventPayloadMap,
@@ -142,6 +143,7 @@ export * from './agents';
 export * from './context';
 export * from './files';
 export * from './git';
+export * from './log';
 export * from './projects';
 export * from './search';
 export * from './sessions';
@@ -201,7 +203,8 @@ export type GmuxInvokeChannelMap = InvokeChannelMap &
   ContextInvokeChannelMap &
   ConfigInvokeChannelMap &
   UpdatesInvokeChannelMap &
-  GmuxPastSessionsChannelMap;
+  GmuxPastSessionsChannelMap &
+  LogInvokeChannelMap;
 
 export type GmuxInvokeChannel = keyof GmuxInvokeChannelMap;
 
@@ -311,4 +314,5 @@ export type InstalledGmuxApi = GmuxApi & {
   GmuxContextExtras &
   GmuxConfigExtras &
   GmuxViewMenuExtras &
-  GmuxUpdatesExtras;
+  GmuxUpdatesExtras &
+  GmuxLogExtras;

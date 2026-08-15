@@ -20,8 +20,11 @@
  *   src/main      may import only src/main and src/shared
  *   src/renderer  may import only src/renderer and src/shared
  *
- * Package and node builtin imports are out of scope. Aliases: @shared/* is
- * src/shared/*, @renderer/* is src/renderer/*.
+ * Package and node builtin imports are out of scope, with ONE exception
+ * (Phase 35, research 42 §8 and §12): only src/main/log/ may import
+ * electron-log. The logging framework choice is safe precisely because one
+ * module owns it, so if the framework disappoints, one file changes. A
+ * second importer anywhere in src/ fails typecheck here.
  *
  * No dependencies, no TypeScript parse: a line scan for the four import
  * shapes (from '...', side-effect import '...', import('...'),
@@ -81,6 +84,29 @@ const SPECIFIER_PATTERNS = [
   /\brequire\s*\(\s*['"]([^'"]+)['"]\s*\)/g // require('...')
 ];
 
+/**
+ * Phase 35: the packages exactly one directory may import. The key is the
+ * package name (bare, or any subpath of it); the value is the one directory
+ * prefix, relative to src/, allowed to name it.
+ */
+const SOLE_OWNER_PACKAGES = {
+  'electron-log': {
+    dir: 'main/log/',
+    why:
+      'the logging framework is safe because ONE module owns it. A second ' +
+      'importer means a framework swap is no longer one file (research 42 §8)'
+  }
+};
+
+/** The package a bare specifier names, or null for a relative or alias one. */
+function packageOf(spec) {
+  if (spec.startsWith('.') || spec.startsWith('@shared/') || spec.startsWith('@renderer/')) {
+    return null;
+  }
+  const parts = spec.split('/');
+  return spec.startsWith('@') ? parts.slice(0, 2).join('/') : parts[0];
+}
+
 const violations = [];
 let filesScanned = 0;
 let importsChecked = 0;
@@ -89,6 +115,7 @@ for (const layer of LAYERS) {
   for (const file of walk(join(SRC, layer), [])) {
     filesScanned += 1;
     const text = readFileSync(file, 'utf8');
+    const relFromSrc = relative(SRC, file).split(sep).join('/');
     const seen = new Set(); // dedupe a specifier matched by two patterns
     for (const pattern of SPECIFIER_PATTERNS) {
       pattern.lastIndex = 0;
@@ -98,11 +125,22 @@ for (const layer of LAYERS) {
         if (seen.has(key)) continue;
         seen.add(key);
         importsChecked += 1;
+        const line = () => text.slice(0, match.index).split('\n').length;
+
+        const pkg = packageOf(spec);
+        const owned = pkg === null ? undefined : SOLE_OWNER_PACKAGES[pkg];
+        if (owned !== undefined && !relFromSrc.startsWith(owned.dir)) {
+          violations.push(
+            `${relative(ROOT, file)}:${line()} imports '${spec}', and only ` +
+              `src/${owned.dir} may: ${owned.why}`
+          );
+          continue;
+        }
+
         const target = targetLayer(file, spec);
         if (target === null || ALLOWED[layer].has(target)) continue;
-        const line = text.slice(0, match.index).split('\n').length;
         violations.push(
-          `${relative(ROOT, file)}:${line} src/${layer} imports src/${target} ('${spec}')`
+          `${relative(ROOT, file)}:${line()} src/${layer} imports src/${target} ('${spec}')`
         );
       }
     }
@@ -115,5 +153,6 @@ if (violations.length > 0) {
   process.exit(1);
 }
 console.log(
-  `import boundaries OK: ${filesScanned} production files, ${importsChecked} imports, 0 violations`
+  `import boundaries OK: ${filesScanned} production files, ${importsChecked} imports, ` +
+    `0 violations (${Object.keys(SOLE_OWNER_PACKAGES).length} sole-owner package rule)`
 );

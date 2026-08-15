@@ -147,7 +147,13 @@ const TECHNICAL: { pattern: RegExp; why: string }[] = [
   { pattern: /gmux-asset/g, why: 'PROTECTED: the asset URL scheme' },
   { pattern: /gmux\.[A-Za-z][A-Za-z0-9_.]*/g, why: 'PROTECTED: gmux.* localStorage keys' },
   // Console prefixes. Developer-facing stderr, never a UI surface.
-  { pattern: /\[gmux[a-z0-9 -]*\]/gi, why: 'console prefixes: [gmux], [gmux-conf], [gmux-smoke], [gmux-shot], [gmux search bench]' },
+  //
+  // The closing `]` is OPTIONAL for the same reason `@gmux-` above allows a
+  // trailing `-`: Phase 35's shared log builds its prefix as the template
+  // `[gmux-${scope}]`, so the AST hands back the template HEAD `[gmux-` with
+  // the bracket on the other side of the hole. This is still an identifier
+  // strand and still never a UI surface.
+  { pattern: /\[gmux[a-z0-9 -]*\]?/gi, why: 'console prefixes: [gmux], [gmux-conf], [gmux-smoke], [gmux-shot], [gmux search bench], and the `[gmux-${scope}]` template the shared log builds' },
   { pattern: /gmux:\s(?=markdown|diff)/g, why: 'worker console-error prefixes ("gmux: diff parse worker failed")' },
   // Code identifiers that happen to live inside strings (channel names, symbol
   // names quoted in error text, describe() titles that name a function).

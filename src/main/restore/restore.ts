@@ -70,6 +70,16 @@ import {
 import { resolveSnapshot } from './snapshots';
 import { postDurabilityNotice } from '../notice';
 
+import { getLog } from '../log';
+
+/**
+ * Scope "restore" (Phase 35). Every error and warning from this
+ * directory is one record in `<userData>/logs/app.log`. The console
+ * line is unchanged for dev terminals; what is new is that a packaged
+ * build keeps it.
+ */
+const restoreLog = getLog('restore');
+
 /**
  * What a restore attempt achieved (Phase 19 item 6).
  *
@@ -639,8 +649,8 @@ export async function armableResumeArgv(
   if (inner.length === 0) {
     // Not a shape this function can take apart; arming the recorded line at
     // least fails loudly in the pane rather than silently arming nothing.
-    console.warn(
-      `[gmux] "${rec.name}": recorded SpecStory binary is gone (${capture.bin}) ` +
+    restoreLog.warn(
+      `"${rec.name}": recorded SpecStory binary is gone (${capture.bin}) ` +
         'and its resume command could not be unwrapped — arming it as recorded'
     );
     return recorded;
@@ -650,16 +660,16 @@ export async function armableResumeArgv(
   if (active !== null) {
     const rewrapped = wrapWithRecord({ ...capture, bin: active.path }, inner);
     if (rewrapped !== null) {
-      console.warn(
-        `[gmux] "${rec.name}": recorded SpecStory binary is gone ` +
+      restoreLog.warn(
+        `"${rec.name}": recorded SpecStory binary is gone ` +
           `(${capture.bin}) — re-armed under ${active.path}, capture continues`
       );
       return rewrapped;
     }
   }
 
-  console.warn(
-    `[gmux] "${rec.name}": recorded SpecStory binary is gone (${capture.bin}) ` +
+  restoreLog.warn(
+    `"${rec.name}": recorded SpecStory binary is gone (${capture.bin}) ` +
       'and no SpecStory CLI is available — armed the agent directly, so this ' +
       'session resumes but is no longer captured'
   );
@@ -785,8 +795,8 @@ export async function restoreSessionInTmux(
     // an earlier one instead. The restore succeeds, so nothing else on this
     // path would say a word, and the user is about to look at scrollback that
     // stops earlier than the one they remember.
-    console.warn(
-      `[gmux] "${rec.name}" restored from an earlier snapshot: ` +
+    restoreLog.warn(
+      `"${rec.name}" restored from an earlier snapshot: ` +
         `${String(resolved.rejected)} newer generation(s) did not verify`
     );
     postDurabilityNotice({ kind: 'snapshot-repaired', sessionName: rec.name });
@@ -800,8 +810,8 @@ export async function restoreSessionInTmux(
       // forgotten either, which is what used to happen one line below this
       // one: the boolean was dropped and the session was stored as 'running'.
       replayFailure = (err as Error).message;
-      console.warn(
-        `[gmux] snapshot replay failed for "${rec.name}": ${replayFailure}`
+      restoreLog.warn(
+        `snapshot replay failed for "${rec.name}": ${replayFailure}`
       );
     }
   }
@@ -835,14 +845,14 @@ export async function restoreSessionInTmux(
     const sentence = agentDriftSentence(facts);
     if (sentence !== null) {
       versionDrift = sentence;
-      console.warn(`[gmux] "${rec.name}": ${sentence}`);
+      restoreLog.warn(`"${rec.name}": ${sentence}`);
       try {
         await typeIntoPane(target, buildDriftNoticeCommand(sentence), true);
       } catch (err) {
         // Best effort by design. Losing the restore over a warning would cost
         // the user more than the warning is worth.
-        console.warn(
-          `[gmux] could not print the agent notice for "${rec.name}": ` +
+        restoreLog.warn(
+          `could not print the agent notice for "${rec.name}": ` +
             (err as Error).message
         );
       }
@@ -852,8 +862,8 @@ export async function restoreSessionInTmux(
       armedCommand = armed;
     } catch (err) {
       armFailure = (err as Error).message;
-      console.warn(
-        `[gmux] could not arm resume for "${rec.name}": ${armFailure}`
+      restoreLog.warn(
+        `could not arm resume for "${rec.name}": ${armFailure}`
       );
     }
   }

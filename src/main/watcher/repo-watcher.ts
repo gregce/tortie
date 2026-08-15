@@ -29,6 +29,16 @@ import type { AsyncSubscription, Event } from '@parcel/watcher';
 import { readFileSync, realpathSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { trackWatcherClose } from './teardown';
+import { getLog } from '../log';
+
+/**
+ * Scope "watcher" (Phase 35). Every error and warning from this
+ * directory is one record in `<userData>/logs/app.log`. The console
+ * line is unchanged for dev terminals; what is new is that a packaged
+ * build keeps it.
+ */
+const watcherLog = getLog('watcher');
+
 
 export interface RepoWatcherOptions {
   /** Coalescing window for change events. Default 300 ms. */
@@ -113,7 +123,7 @@ export class RepoWatcher {
     this.onError =
       options.onError ??
       ((err) =>
-        console.warn(`[gmux] repo watcher (${repoPath}): ${err.message}`));
+        watcherLog.warn(`repo watcher (${repoPath}): ${err.message}`));
   }
 
   /**

@@ -78,6 +78,16 @@ import {
   confirmInstallStagedUpdate,
   runInteractiveUpdateCheck
 } from './updates/ui';
+import { getLog } from './log';
+
+/**
+ * Scope "menu" (Phase 35). Every error and warning from this
+ * directory is one record in `<userData>/logs/app.log`. The console
+ * line is unchanged for dev terminals; what is new is that a packaged
+ * build keeps it.
+ */
+const menuLog = getLog('menu');
+
 
 /**
  * Can this window act on a menu action? The Settings window (S13) is a
@@ -123,7 +133,9 @@ function menuActionTarget(): BrowserWindow | null {
 export function sendMenuAction(action: MenuActionWithFind): boolean {
   const win = menuActionTarget();
   if (win === null) {
-    console.warn(`[menu] "${action}" had no window to act on — dropped`);
+    menuLog.warn(`"${action}" had no window to act on, so it was dropped`, {
+      action
+    });
     return false;
   }
   sendEvent(win.webContents, EVT_MENU_ACTION, action);
@@ -554,7 +566,7 @@ export function installAppMenu(): void {
   } catch (err) {
     // Cosmetic: an About panel that falls back to the bundle's own strings is
     // a worse panel, not a broken app. Never let it cost us the menu bar.
-    console.warn(`[gmux] About panel: ${(err as Error).message}`);
+    menuLog.warn(`About panel: ${(err as Error).message}`);
   }
   watchRecentsForMenu();
   watchUpdatesForMenu();

@@ -41,6 +41,16 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { app } from 'electron';
+import { getLog } from '../log';
+
+/**
+ * Scope "updates" (Phase 35). Every error and warning from this
+ * directory is one record in `<userData>/logs/app.log`. The console
+ * line is unchanged for dev terminals; what is new is that a packaged
+ * build keeps it.
+ */
+const updatesLog = getLog('updates');
+
 
 export interface UpdateState {
   /** The version the app last booted as, or null before the first boot. */
@@ -139,8 +149,8 @@ export function writeUpdateState(patch: Partial<UpdateState>): void {
     writeFileSync(tmp, `${JSON.stringify(next, null, 2)}\n`, 'utf8');
     renameSync(tmp, path); // atomic on the same volume
   } catch (err) {
-    console.warn(
-      `[gmux-updates] could not persist updates.json: ${(err as Error).message}`
+    updatesLog.warn(
+      `could not persist updates.json: ${(err as Error).message}`
     );
   }
 }

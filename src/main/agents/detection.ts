@@ -41,6 +41,16 @@ import { runGuarded } from '../proc/guarded';
 import { extraBinDirs, getUserPath, resolveBinaryAgainst } from '../tmux/resolve';
 import type { AgentRegistryEntry, VersionProbe } from './registry';
 import { AGENT_REGISTRY } from './registry';
+import { getLog } from '../log';
+
+/**
+ * Scope "agents" (Phase 35). Every error and warning from this
+ * directory is one record in `<userData>/logs/app.log`. The console
+ * line is unchanged for dev terminals; what is new is that a packaged
+ * build keeps it.
+ */
+const agentsLog = getLog('agents');
+
 
 /** How long a versionCmd may run before it is killed and version stays null. */
 export const VERSION_PROBE_TIMEOUT_MS = 4_000;
@@ -278,8 +288,8 @@ async function detectOne(
       if (probed.identityFailed) {
         // Something else wears this name — do not offer it as the agent.
         installed = false;
-        console.warn(
-          `[gmux] agent detection: ${binPath} failed the '${entry.id}' identity probe — ignoring`
+        agentsLog.warn(
+          `agent detection: ${binPath} failed the '${entry.id}' identity probe — ignoring`
         );
       }
     }

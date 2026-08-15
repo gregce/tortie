@@ -1,18 +1,50 @@
 /**
- * Phase 28. The process death log lines.
+ * Phase 28. The process death log lines. Phase 35 added the durable record
+ * beside them and the field assertions at the bottom of this file.
  *
  * Nothing here kills a real process. The emitter is injected, so the tests
- * fire both events by hand and read what was logged.
+ * fire both events by hand and read what was logged. The shared log is
+ * mocked, so these tests stay in plain node with no Electron and no file.
  */
 
 import { EventEmitter } from 'node:events';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+interface RecordedEvent {
+  scope: string;
+  level: string;
+  event: string;
+  msg: string;
+  fields?: Record<string, unknown>;
+  options?: { console?: boolean };
+}
+const recorded: RecordedEvent[] = [];
+
+vi.mock('../../log', () => ({
+  logEvent: (
+    scope: string,
+    level: string,
+    event: string,
+    msg: string,
+    fields?: Record<string, unknown>,
+    options?: { console?: boolean }
+  ) => {
+    recorded.push({ scope, level, event, msg, fields, options });
+  }
+}));
+
 import {
+  childGoneFields,
   formatChildGone,
   formatRendererGone,
   installProcessGoneLogging,
+  rendererGoneFields,
   type AppGoneEvents
 } from '../process-gone';
+
+beforeEach(() => {
+  recorded.length = 0;
+});
 
 describe('formatChildGone', () => {
   it('decodes a raw wait status that is a multiple of 256', () => {
@@ -109,5 +141,117 @@ describe('installProcessGoneLogging', () => {
     expect(warn).toHaveBeenLastCalledWith(
       '[gmux] renderer process gone: reason=killed exitCode=9'
     );
+  });
+
+  it('writes one durable record per event, and never a second console line', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const emitter = new EventEmitter();
+    installProcessGoneLogging(emitter as unknown as AppGoneEvents);
+
+    emitter.emit('child-process-gone', {}, {
+      type: 'GPU',
+      reason: 'crashed',
+      exitCode: 8704,
+      name: 'GPU'
+    });
+    emitter.emit('render-process-gone', {}, {}, {
+      reason: 'killed',
+      exitCode: 9
+    });
+
+    expect(recorded).toHaveLength(2);
+    for (const entry of recorded) {
+      expect(entry.scope).toBe('proc');
+      expect(entry.level).toBe('warn');
+      expect(entry.event).toBe('process.gone');
+      // The Phase 28 console line above it is the only console output.
+      expect(entry.options?.console).toBe(false);
+    }
+    expect(recorded[0]?.msg).toBe('helper process gone');
+    expect(recorded[1]?.msg).toBe('renderer process gone');
+  });
+});
+
+/**
+ * Phase 35. The record half, field by field, against research 42 §9. Phase
+ * 28's decode rule is asserted here in the shape the file actually stores,
+ * because a decoded 8704 that reads as 34 in the console and as nothing in
+ * the file is the same bug the console line was written to catch.
+ */
+describe('childGoneFields', () => {
+  it('is the research 42 §9 shape, byte for byte on the 2026-08-14 event', () => {
+    expect(
+      childGoneFields({
+        type: 'GPU',
+        reason: 'crashed',
+        exitCode: 8704,
+        name: 'GPU'
+      })
+    ).toEqual({
+      kind: 'child',
+      ptype: 'GPU',
+      reason: 'crashed',
+      exitCode: 8704,
+      realCode: 34,
+      name: 'GPU'
+    });
+  });
+
+  it('omits realCode when the wait status does not decode', () => {
+    const fields = childGoneFields({
+      type: 'GPU',
+      reason: 'killed',
+      exitCode: 34
+    });
+    expect(fields).not.toHaveProperty('realCode');
+    expect(fields['exitCode']).toBe(34);
+  });
+
+  it('omits realCode for a clean exit code of 0', () => {
+    expect(
+      childGoneFields({ type: 'GPU', reason: 'clean-exit', exitCode: 0 })
+    ).not.toHaveProperty('realCode');
+  });
+
+  it('prefers name over serviceName, and omits an empty one', () => {
+    expect(
+      childGoneFields({
+        type: 'Utility',
+        reason: 'crashed',
+        exitCode: 5,
+        name: 'Audio Service',
+        serviceName: 'audio.mojom.AudioService'
+      })['name']
+    ).toBe('Audio Service');
+    expect(
+      childGoneFields({
+        type: 'Utility',
+        reason: 'crashed',
+        exitCode: 5,
+        serviceName: 'network.mojom.NetworkService'
+      })['name']
+    ).toBe('network.mojom.NetworkService');
+    expect(
+      childGoneFields({ type: 'GPU', reason: 'crashed', exitCode: 5, name: '' })
+    ).not.toHaveProperty('name');
+  });
+});
+
+describe('rendererGoneFields', () => {
+  it('carries kind renderer, the reason and the raw exit code', () => {
+    expect(rendererGoneFields({ reason: 'oom', exitCode: 0 })).toEqual({
+      kind: 'renderer',
+      reason: 'oom',
+      exitCode: 0
+    });
+  });
+
+  it('decodes the wait status with the same rule as the child half', () => {
+    expect(rendererGoneFields({ reason: 'crashed', exitCode: 512 })).toEqual({
+      kind: 'renderer',
+      reason: 'crashed',
+      exitCode: 512,
+      realCode: 2
+    });
   });
 });

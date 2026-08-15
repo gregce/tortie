@@ -134,9 +134,13 @@ export function defaultManifestDbPath(): string {
  *
  * The log line the opener writes is kept as well. This adds a reader, it does
  * not replace one.
+ *
+ * PHASE 35: the narrative half is now one error record at scope "manifest",
+ * beside the notice, so a packaged user's quarantine leaves a record of which
+ * file moved and whether the rebuild worked.
  */
 function reportManifestGate(report: IntegrityGateReport): void {
-  reportDatabaseGate(report);
+  reportDatabaseGate(report, 'manifest');
   // A file nothing could read is not a file that was damaged, and the two need
   // opposite reactions from the user. See ManifestUnreadableNotice.
   if (report.outcome === 'unreadable') {

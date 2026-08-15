@@ -44,6 +44,16 @@ import type { GmuxErrorPayload } from '@shared/types';
 import { withUtf8Locale } from '../tmux/env';
 import { findTmuxBinary, resolveConfPath } from '../tmux/resolve';
 import { TMUX_SOCKET } from '../tmux/supervisor';
+import { getLog } from '../log';
+
+/**
+ * Scope "attach" (Phase 35). Every error and warning from this
+ * directory is one record in `<userData>/logs/app.log`. The console
+ * line is unchanged for dev terminals; what is new is that a packaged
+ * build keeps it.
+ */
+const attachLog = getLog('attach');
+
 
 // ---------------------------------------------------------------------------
 // Tuning constants
@@ -392,7 +402,7 @@ export class AttachHost {
         client.ackGraceTimer = setTimeout(() => {
           client.ackGraceTimer = null;
           if (client.cleaned || client.ackEverReceived) return;
-          console.warn(
+          attachLog.warn(
             `[attach-host] no term:ack from renderer for session ` +
               `${client.sessionId} after ${ACK_GRACE_MS}ms — disabling ` +
               `flow control for this client (is the preload ack wired?)`

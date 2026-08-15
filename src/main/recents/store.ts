@@ -29,6 +29,16 @@ import { basename, dirname, isAbsolute, join } from 'node:path';
 import { app } from 'electron';
 import type { RecentProject } from '@shared/ipc';
 import type { Project } from '@shared/types';
+import { getLog } from '../log';
+
+/**
+ * Scope "recents" (Phase 35). Every error and warning from this
+ * directory is one record in `<userData>/logs/app.log`. The console
+ * line is unchanged for dev terminals; what is new is that a packaged
+ * build keeps it.
+ */
+const recentsLog = getLog('recents');
+
 
 /**
  * How many rows the file keeps. The home screen shows 5 and the native menu
@@ -143,8 +153,8 @@ function persist(next: RecentProject[]): void {
   } catch (err) {
     // A recents write must never be the reason an open or a close fails. The
     // in-memory list stays live for this run.
-    console.warn(
-      `[gmux] could not persist recent projects: ${(err as Error).message}`
+    recentsLog.warn(
+      `could not persist recent projects: ${(err as Error).message}`
     );
   }
   for (const listener of listeners) listener(next);

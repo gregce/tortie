@@ -61,6 +61,16 @@ import {
   type ContextSnapshot,
   type ContextSnapshotEntry
 } from '@shared/context-snapshot';
+import { getLog } from '../log';
+
+/**
+ * Scope "context" (Phase 35). Every error and warning from this
+ * directory is one record in `<userData>/logs/app.log`. The console
+ * line is unchanged for dev terminals; what is new is that a packaged
+ * build keeps it.
+ */
+const contextLog = getLog('context');
+
 
 /**
  * How long the resolver gets before the snapshot is abandoned.
@@ -173,8 +183,8 @@ export async function captureAndStore(
     // discard a session between the launch and the scan finishing. Logged at
     // debug volume and never surfaced, because there is nothing for them to do
     // about a record of a session they just deleted.
-    console.warn(
-      `[gmux] context snapshot for ${input.sessionId} was not stored: ` +
+    contextLog.warn(
+      `context snapshot for ${input.sessionId} was not stored: ` +
         (err as Error).message
     );
     return null;
@@ -207,15 +217,15 @@ export async function captureContextSnapshot(
       CONTEXT_SNAPSHOT_BUDGET_MS
     );
   } catch (err) {
-    console.warn(
-      `[gmux] context snapshot for ${input.agent} in ${input.cwd} failed: ` +
+    contextLog.warn(
+      `context snapshot for ${input.agent} in ${input.cwd} failed: ` +
         (err as Error).message
     );
     return null;
   }
   if (result === null) {
-    console.warn(
-      `[gmux] context snapshot for ${input.agent} in ${input.cwd} gave up ` +
+    contextLog.warn(
+      `context snapshot for ${input.agent} in ${input.cwd} gave up ` +
         `after ${String(CONTEXT_SNAPSHOT_BUDGET_MS)} ms`
     );
     return null;

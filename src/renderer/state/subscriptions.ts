@@ -26,6 +26,7 @@ import type { StoreApi } from 'zustand';
 import type {
   GmuxActivityExtras,
   GmuxFsExtras,
+  GmuxLogExtras,
   GmuxNoticeExtras,
   GmuxScrollbackExtras,
   GmuxSettingsExtras,
@@ -279,6 +280,32 @@ function showDegraded(store: AppStore, notice: DurabilityNotice): void {
       'This update is missing files. Reinstall Tortie to repair it.',
       { sticky: true }
     );
+    return;
+  }
+  if (notice.kind === 'unclean-exit') {
+    // Phase 35. The previous run did not exit cleanly: the run sentinel
+    // survived, and main already wrote the boot.unclean_exit record with
+    // the crash dump delta. This is INFO, never error, because the crash
+    // already happened, the sessions live in the tmux server, and there is
+    // nothing degraded about the run the user is in now. The second half
+    // of the research sentence ("Details are in the logs.") does not fit
+    // the toast's 58 characters beside the first, so it moved into the
+    // action, which is where it already pointed.
+    const logExtras = gmux
+      ? (gmux as typeof gmux & GmuxLogExtras).log
+      : null;
+    const openFolder = logExtras?.openFolder;
+    getState().toast('info', 'Tortie quit unexpectedly last time.', {
+      sticky: true,
+      ...(typeof openFolder === 'function'
+        ? {
+            action: {
+              label: 'View logs',
+              run: () => void openFolder()
+            }
+          }
+        : {})
+    });
     return;
   }
   // A kind added to the shared union without a sentence here fails the

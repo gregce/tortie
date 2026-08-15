@@ -32,6 +32,10 @@ import { registerDropIpc, startDropStorePruning } from './drop';
 import { registerFsIpc, registerImageIpc } from './fs';
 import { disposeGitIpc, registerGitIpc } from './git';
 import { registerIpcHandlers } from './ipc';
+// Phase 35: the five log channels, and the sentinel clear the SIGKILL escape
+// below owes the next boot.
+import { clearLogRunSentinel, getLog, logEvent } from './log';
+import { registerLogIpc } from './log/ipc';
 import { installAppMenu } from './menu';
 import { registerNoticeIpc } from './notice/ipc';
 import {
@@ -190,6 +194,13 @@ export function installMainCapabilities(
   // on the first ⌘⇧O for a project and never at boot — "never on project
   // open" is the lifecycle rule this registration exists to keep enforceable.
   registerSymbolsIpc(ipcMain);
+  // Phase 35: the five log channels. log:append is the renderer error
+  // capture path (window.onerror, unhandledrejection, the error boundary),
+  // bounded main-side so an error loop cannot eat the log budget. The other
+  // four back Settings → Diagnostics. None of them spawns anything and none
+  // of them can send a byte anywhere: Copy diagnostics returns text to the
+  // clipboard and Open logs folder reveals a directory.
+  registerLogIpc(ipcMain);
   // Phase 8.2: renderer-confirmed quit (first-quit toast flow — the Quit
   // menu item forwards to the renderer, which invokes this after showing
   // the one-time §4 toast; see src/main/menu.ts for the fallback timer).
@@ -252,7 +263,9 @@ export async function disposeMainCapabilities(): Promise<MainDisposeOutcome> {
   // This is the hole the 19-hour `zsh -lic` orphans came through: their
   // deadline was pending and the timer died with the process that set it.
   const reaped = reapGuardedChildren();
-  if (reaped > 0) console.log(`[gmux] reaped ${reaped} in-flight probe(s)`);
+  if (reaped > 0) {
+    getLog('quit').info(`reaped ${reaped} in-flight probe(s)`, { reaped });
+  }
   disposeTray();
   // Phase 36 fix round: the drain can expire. The pool can still be backed
   // up here, because shutdownGmuxCore bounds its snapshot work at 8 s and
@@ -278,6 +291,15 @@ export async function disposeMainCapabilities(): Promise<MainDisposeOutcome> {
   // Each step writes one line so Phase 35 can classify the quit.
   // writeSync, because stdout to a pipe is asynchronous and a hard exit
   // right after console.log can drop the line.
+  //
+  // PHASE 35 classified these lines, and it did NOT move them. The writeSync
+  // calls are load bearing exactly as Phase 36 left them, and the drain
+  // bounds either side of them are untouched. What Phase 35 added is a
+  // MIRROR into app.log for the two lines whose write cannot race the hard
+  // exit, so a packaged quit leaves a durable record of a late teardown. The
+  // line immediately before SIGKILL is deliberately NOT mirrored: the file
+  // transport buffers, the signal does not wait, and a record that may or
+  // may not be on disk is worse than none.
   const logQuit = (line: string): void => {
     try {
       writeSync(1, `${line}\n`);
@@ -285,10 +307,23 @@ export async function disposeMainCapabilities(): Promise<MainDisposeOutcome> {
       /* stdout may already be closed in a packaged run */
     }
   };
+  /** The file mirror. `console: false` because logQuit already said it. */
+  const recordQuit = (
+    event: string,
+    msg: string,
+    fields: Record<string, unknown>
+  ): void => {
+    logEvent('quit', 'warn', event, msg, fields, { console: false });
+  };
   let leftover = pendingWatcherCloseCount();
   if (leftover > 0) {
     logQuit(
       `[gmux] quit: ${leftover} watcher close(s) still pending after the drain; waiting up to 15 s more so quit is not a crash`
+    );
+    recordQuit(
+      'quit.late_drain',
+      'watcher closes are still pending after the drain. Waiting up to 15 s more, so this quit is not a crash.',
+      { pending: leftover, waitMs: 15_000 }
     );
     try {
       for (const w of BrowserWindow.getAllWindows()) w.hide();
@@ -301,11 +336,25 @@ export async function disposeMainCapabilities(): Promise<MainDisposeOutcome> {
       logQuit(
         `[gmux] quit: ${leftover} watcher close(s) still pending after 15 s more; ending the process hard because environment teardown would abort`
       );
+      // PHASE 35, and this is the whole interlock. This line is a LATE QUIT,
+      // never a crash, and the next boot must not tell the operator their app
+      // crashed because of it. Nothing durable is pending here (Phase 36
+      // proved it: the manifest quit generation finished inside
+      // shutdownGmuxCore), so removing the sentinel is truthful. It is one
+      // synchronous unlink immediately before the signal, and it cannot
+      // reorder, unbound or silence anything above it.
+      clearLogRunSentinel();
       process.kill(process.pid, 'SIGKILL');
       return 'killed';
     }
+    const lateMs = Date.now() - lateStart;
     logQuit(
-      `[gmux] quit: the late watcher close(s) settled after ${Date.now() - lateStart} ms; quitting cleanly`
+      `[gmux] quit: the late watcher close(s) settled after ${lateMs} ms; quitting cleanly`
+    );
+    recordQuit(
+      'quit.late_settled',
+      'the late watcher closes settled. Quitting cleanly.',
+      { settledMs: lateMs }
     );
   }
   return 'proceed';

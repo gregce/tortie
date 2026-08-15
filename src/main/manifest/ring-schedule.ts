@@ -90,6 +90,16 @@ import type Database from 'better-sqlite3';
 import BetterSqlite3 from 'better-sqlite3';
 import { existsSync } from 'node:fs';
 import { captureManifestBackup, type CaptureBackupOptions } from './recovery';
+import { getLog } from '../log';
+
+/**
+ * Scope "manifest" (Phase 35). Every error and warning from this
+ * directory is one record in `<userData>/logs/app.log`. The console
+ * line is unchanged for dev terminals; what is new is that a packaged
+ * build keeps it.
+ */
+const manifestLog = getLog('manifest');
+
 
 // ---------------------------------------------------------------------------
 // The seam into the ring
@@ -472,8 +482,8 @@ export class ManifestRingSchedule {
     const first = this.state.consecutiveFailures === 0;
     this.state.consecutiveFailures += 1;
     this.state.lastFailure = detail;
-    console.warn(
-      `[gmux] manifest generation (${reason}) failed: ${detail} ` +
+    manifestLog.warn(
+      `manifest generation (${reason}) failed: ${detail} ` +
         `(${String(this.state.consecutiveFailures)} in a row)`
     );
     // The first one, not every one. A disk that is full fails every tick, and a
@@ -613,8 +623,8 @@ export async function takePreMigrationGeneration(
   }
 
   if (!result.ok) {
-    console.warn(
-      `[gmux] the pre-migration copy failed: ${result.detail}. The migration ` +
+    manifestLog.warn(
+      `the pre-migration copy failed: ${result.detail}. The migration ` +
         'will still run, because refusing to launch is the worse answer.'
     );
     return { taken: false, why: 'failed', pending, detail: result.detail };

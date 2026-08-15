@@ -3,7 +3,7 @@
  *
  * Phase 23 ships a door onto the agent table as data. This module is the part
  * of that door a person actually meets. It writes the guide, the generated
- * schema and the six worked examples into
+ * schema and the seven worked examples into
  * `<userData>/gmux/config/`, and it reveals that folder from one menu item.
  *
  * ## Why the guide lives on disk rather than in the app
@@ -48,6 +48,16 @@ import { dirname, extname, join, relative } from 'node:path';
 // one. `configDir` is imported rather than reimplemented so the seeder and the
 // overlay loader can never disagree about which folder they mean.
 import { configDir } from './paths';
+
+import { getLog } from '../log';
+
+/**
+ * Scope "config" (Phase 35). Every error and warning from this
+ * directory is one record in `<userData>/logs/app.log`. The console
+ * line is unchanged for dev terminals; what is new is that a packaged
+ * build keeps it.
+ */
+const configLog = getLog('config');
 
 /**
  * Files in the configuration folder that belong to the user. They are never
@@ -220,7 +230,7 @@ export async function revealConfigFolder(): Promise<{ dir: string; problem: stri
   const opened = await shell.openPath(seeded.dir);
   const problem = opened === '' ? seeded.problem : opened;
   if (problem !== null && problem !== undefined && problem !== '') {
-    console.warn(`[gmux] configuration folder: ${problem}`);
+    configLog.warn(`configuration folder: ${problem}`);
   }
   return { dir: seeded.dir, problem: problem === '' ? null : (problem ?? null) };
 }

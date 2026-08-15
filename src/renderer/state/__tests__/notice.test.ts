@@ -21,6 +21,7 @@ let onNoticeCb: ((notice: GmuxNotice) => void) | null = null;
 let pending: DurabilityNotice[] = [];
 let pendingCalls = 0;
 let revealed: string[] = [];
+let logFolderOpens = 0;
 
 function installGlobals(): void {
   vi.stubGlobal('window', {
@@ -51,6 +52,12 @@ function installGlobals(): void {
         pending: () => {
           pendingCalls += 1;
           return Promise.resolve(pending);
+        }
+      },
+      log: {
+        openFolder: () => {
+          logFolderOpens += 1;
+          return Promise.resolve();
         }
       }
     }
@@ -84,6 +91,7 @@ function say(notice: GmuxNotice): { text: string; kind: string; action?: string 
 
 beforeEach(() => {
   revealed = [];
+  logFolderOpens = 0;
   useApp.setState({ toasts: [] } as never);
 });
 
@@ -205,6 +213,26 @@ describe('each degraded state says one plain thing', () => {
       say({ kind: 'restore-incomplete', sessionName: 'auth' }).text
     ).toBe('"auth" did not finish coming back.');
   });
+
+  it('an unclean exit is quiet, and the details are behind the action', () => {
+    // Phase 35. INFO and never error: the crash already happened, and the
+    // sessions live in the tmux server. The second research sentence
+    // ("Details are in the logs.") does not fit beside the first in 58
+    // characters, so the action carries it.
+    const out = say({ kind: 'unclean-exit', newDumps: 1 });
+    expect(out.text).toBe('Tortie quit unexpectedly last time.');
+    expect(out.kind).toBe('info');
+    expect(out.action).toBe('View logs');
+    useApp.getState().toasts[0]?.action?.run();
+    expect(logFolderOpens).toBe(1);
+  });
+
+  it('an unclean exit with no dump reads the same, because the sentence is about the quit', () => {
+    const out = say({ kind: 'unclean-exit', newDumps: 0 });
+    expect(out.text).toBe('Tortie quit unexpectedly last time.');
+    expect(out.kind).toBe('info');
+  });
+
 });
 
 describe('every line fits the toast it has to fit in', () => {
@@ -226,7 +254,8 @@ describe('every line fits the toast it has to fit in', () => {
     },
     { kind: 'manifest-quarantined', quarantinePath: '/tmp/x', recoveredAt: null },
     { kind: 'depth-degraded', actualLines: 2000, requestedLines: 25_000 },
-    { kind: 'restore-incomplete', sessionName: 'a-very-long-session-name' }
+    { kind: 'restore-incomplete', sessionName: 'a-very-long-session-name' },
+    { kind: 'unclean-exit', newDumps: 3 }
   ];
 
   for (const notice of CASES) {

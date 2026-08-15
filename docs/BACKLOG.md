@@ -3624,7 +3624,7 @@ in documentation rather than code.
 
 **Depends on Phase 32** for the claim transfer semantics and the race test harness.
 
-## Phase 35 — uniform logging with a footprint budget (research 42, 2026-08-14) QUEUED
+## Phase 35 — uniform logging with a footprint budget (research 42, 2026-08-14) ✅ SHIPPED 2026-08-15 (this commit)
 
 **Specification.** docs/research/42-logging.md. The research holds the measured peers table, the
 framework decision, the three record schemas and the budget arithmetic.
@@ -3657,6 +3657,52 @@ redaction, the three schemas and the sentinel lifecycle. Probe 1 kills its own i
 helper and reads the process.gone record back out of app.log with one jq expression. Probe 2
 sends kill -ABRT to a scratch profile run and confirms the boot.unclean_exit record, the one
 quiet notice, and the dump count. One screenshot read of the notice line.
+
+**What shipped.**
+- One NDJSON file per profile at `<userData>/logs/app.log`, written through electron-log 5.4.4
+  behind `src/main/log/index.ts`. That file is the only importer of the package in the tree, and
+  `build/assert-import-boundaries.mjs` fails the build when a second one appears. The section 8
+  spike went the good way: a format function returning the data array emits the prebuilt JSON
+  line byte for byte, including a message that contains `%s`, so the fallback custom transport
+  was not needed. Rotation is 2 MiB plus a 2 MiB `app.log.1`, the Phase 31 pair convention. The
+  rotation test applies the shipping configuration to electron-log/node and fills past two
+  rotations, so the mechanism is proved without an Electron process.
+- Redaction happens in the envelope builder, before the line exists, so no caller can put an
+  unredacted line on disk. The home directory becomes `~` in every string of every record,
+  including strings nested in objects and arrays. A live probe sent the home directory through
+  `log:append` in all three positions and the file came back with 0 occurrences of it.
+- The file transport writes when the build is packaged, or when `GMUX_LOG_FILE=1`. A developer
+  run without that variable behaves exactly as it did before, and the smoke profile has no logs
+  directory at all.
+- crashReporter is on with `uploadToServer: false`. `build/assert-bundle-refusals.mjs` pins that
+  literal in the bundle and fails the build if `uploadToServer: true` appears anywhere in `src/`.
+  Research 42 read a live token value out of a minidump's environment block, which is why no
+  dump may leave the machine.
+- The crash story is a sentinel and a directory diff. `<userData>/logs/run.json` is written at
+  boot and removed on will-quit. A run that finds one already there writes a single
+  `boot.unclean_exit` record naming the previous pid, version and boot time, plus the count,
+  names and bytes of the crash dumps that appeared since. It posts one quiet notice. Dumps are
+  swept to the newest 5 and 30 days, and the logs directory is pruned at 30 days, which is also
+  how the legacy `updates.log` pair ages out.
+- Settings has a Diagnostics section, last on the rail. It holds a debug switch that lasts until
+  Tortie quits, Open logs folder, and Copy diagnostics. The diagnostics text is a boot snapshot,
+  the tail of app.log and a crash dump inventory of names, sizes and dates. It never contains
+  dump bytes, and a live run measured 0 occurrences of the home directory in 4216 characters.
+- 38 call sites now log through a scope. `updates.log` retired into scope "updates", the helper
+  death record went structured, and every durability notice the user is shown is mirrored to
+  disk as one `notice.shown` record. The renderer gained window.onerror, unhandledrejection and
+  one error boundary over the typed `log:append` channel, which is bounded at 2048 characters per
+  message, 8 KiB of fields and 200 lines per sender per run. The harness stdout protocols
+  ([gmux-smoke], [gmux-fault], [gmux-conf], [gmux-shot]) stay raw console calls, 24 of them.
+- Footprint measured on a probe profile after four boots and one real 1.3 MB minidump: logs 8 KB,
+  Crashpad 1280 KB, whole profile 3376 KB. The ceiling is 13 MB.
+
+**What is not true.** The packaged branch of the file gate was never driven. Every probe forced
+the transport on with `GMUX_LOG_FILE=1`, so the `app.isPackaged` half rests on reading one
+boolean OR rather than on a measurement. The error boundary's fallback block was never seen on
+screen; its unit tests pass and the write path under it was proved live, but no run forced a
+render-time throw. Tortie does not backfill: the five packaged SIGABRT reports from 2026-08-14
+stay only in macOS DiagnosticReports.
 
 ## Phase 36 — the quit that is secretly a crash (found 2026-08-14 by research 42) ✅ SHIPPED 2026-08-14 (`3c09245`, fix round `3d1d70c`)
 

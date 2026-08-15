@@ -26,6 +26,16 @@ import { assetProblem, grammarDir, runtimeWasmPath } from './paths';
 import { SymbolPersistence } from './persist';
 import { SymbolPool } from './pool';
 import { SymbolService } from './service';
+import { getLog } from '../log';
+
+/**
+ * Scope "symbols" (Phase 35). Every error and warning from this
+ * directory is one record in `<userData>/logs/app.log`. The console
+ * line is unchanged for dev terminals; what is new is that a packaged
+ * build keeps it.
+ */
+const symbolsLog = getLog('symbols');
+
 
 let service: SymbolService | null = null;
 let persistence: SymbolPersistence | null = null;
@@ -68,8 +78,8 @@ export function registerSymbolsIpc(ipc: IpcMain): void {
     } catch (err) {
       // A build that cannot even start (no database, no grammars) must not
       // reject the palette's call — the UI has a place to say so.
-      console.warn(
-        `[gmux] symbol index unavailable: ${(err as Error).message}`
+      symbolsLog.warn(
+        `symbol index unavailable: ${(err as Error).message}`
       );
       return { started: false, indexing: false, indexed: 0, total: 0 };
     }

@@ -76,6 +76,16 @@ import { gmuxError } from '../errors';
 import { shellQuoteArgv } from '../restore/command';
 import { openSealedText, sealText } from './seal';
 
+import { getLog } from '../log';
+
+/**
+ * Scope "config" (Phase 35). Every error and warning from this
+ * directory is one record in `<userData>/logs/app.log`. The console
+ * line is unchanged for dev terminals; what is new is that a packaged
+ * build keeps it.
+ */
+const configLog = getLog('config');
+
 // ---------------------------------------------------------------------------
 // What counts as execution bearing
 // ---------------------------------------------------------------------------
@@ -760,8 +770,8 @@ export function confirmConfigRow(
   };
   const rows = { ...readState().rows, [id]: confirmation };
   if (!writeState(rows)) {
-    console.warn(
-      `[gmux] the OS keystore is unavailable, so the confirmation for ${id} ` +
+    configLog.warn(
+      `the OS keystore is unavailable, so the confirmation for ${id} ` +
         `could not be recorded. It was not written.`
     );
     return null;

@@ -26,6 +26,16 @@
  * needs per-path deltas, that is a change to RepoWatcher, not a second bus.
  */
 
+import { getLog } from '../log';
+
+/**
+ * Scope "watcher" (Phase 35). A subscriber that throws is contained here, so
+ * without a record the only evidence is a console line a packaged build
+ * discards, and the symptom is a git sidebar or a quick open list that
+ * quietly stops refreshing.
+ */
+const watcherLog = getLog('watcher');
+
 type RepoChangedListener = (repoPath: string) => void;
 
 const listeners = new Set<RepoChangedListener>();
@@ -44,8 +54,9 @@ export function emitRepoChanged(repoPath: string): void {
     try {
       listener(repoPath);
     } catch (err) {
-      console.warn(
-        `[gmux] repo-changed listener failed: ${(err as Error).message}`
+      watcherLog.warn(
+        `repo-changed listener failed: ${(err as Error).message}`,
+        { repoPath }
       );
     }
   }

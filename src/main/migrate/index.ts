@@ -11,6 +11,16 @@ import {
   migrateUserData,
   type MigrationResult
 } from './userdata';
+import { getLog } from '../log';
+
+/**
+ * Scope "migrate" (Phase 35). Every error and warning from this
+ * directory is one record in `<userData>/logs/app.log`. The console
+ * line is unchanged for dev terminals; what is new is that a packaged
+ * build keeps it.
+ */
+const migrateLog = getLog('migrate');
+
 
 export {
   FAILURE_STAMP,
@@ -77,7 +87,7 @@ export function migrateUserDataIfNeeded(app: App): MigrationResult {
     return migrateUserData(decision.site);
   } catch (err) {
     const message = (err as Error).message;
-    console.error(`[gmux-migrate] could not evaluate the migration: ${message}`);
+    migrateLog.error(`could not evaluate the migration: ${message}`);
     return {
       ...skeleton,
       status: 'failed',

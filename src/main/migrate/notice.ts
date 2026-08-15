@@ -47,6 +47,7 @@
 import { app, dialog, shell } from 'electron';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { getLog } from '../log';
 import type { LoginItemReconcile } from '../restore/login-item';
 import {
   LEGACY_APP_NAME,
@@ -145,8 +146,8 @@ export async function showRenameNoticeOnce(
     }
     return { shown: true, kind: 'migrated' };
   } catch (err) {
-    console.error(
-      `[gmux-migrate] could not show the rename notice: ${(err as Error).message}`
+    getLog('migrate').error(
+      `could not show the rename notice: ${(err as Error).message}`
     );
     return { shown: false, reason: 'error' };
   }

@@ -41,6 +41,8 @@
  * Injected so the two handlers can be tested without a real machine going to
  * sleep, which is the only other way to fire these events.
  */
+import { getLog } from '../log';
+
 export interface PowerMonitorLike {
   on(event: 'suspend' | 'resume', listener: () => void): unknown;
   removeListener(event: 'suspend' | 'resume', listener: () => void): unknown;
@@ -76,6 +78,15 @@ export interface PowerHandlerDeps {
  * sessions, so 4 s is far more than the 43-session shape needs.
  */
 export const SUSPEND_CAPTURE_DEADLINE_MS = 4_000;
+
+/**
+ * Scope "power" (Phase 35). Suspend and resume are the events behind "the app
+ * got weird after I closed the lid", and until Phase 35 they were console
+ * lines a packaged build discarded. They are records now, in the same file as
+ * the `process.gone` record the same lid close produces, so the three lines
+ * of research 42's incident 1 read together.
+ */
+const powerLog = getLog('power');
 
 /** Resolves to false if `work` has not settled within `ms`. */
 async function withDeadline(work: Promise<void>, ms: number): Promise<boolean> {
@@ -114,7 +125,7 @@ export function installPowerHandlers(deps: PowerHandlerDeps): () => void {
 
   const onSuspend = (): void => {
     if (capturing) {
-      console.log('[gmux] suspend: a capture is already running');
+      powerLog.info('suspend: a capture is already running');
       return;
     }
     capturing = true;
@@ -123,19 +134,22 @@ export function installPowerHandlers(deps: PowerHandlerDeps): () => void {
       try {
         const finished = await withDeadline(
           deps.captureAll().catch((err: unknown) => {
-            console.warn(
-              `[gmux] suspend capture failed: ${(err as Error).message}`
-            );
+            powerLog.warn(`suspend capture failed: ${(err as Error).message}`);
           }),
           deadlineMs
         );
         const took = Date.now() - startedAt;
-        console.log(
-          finished
-            ? `[gmux] suspend: captured every session in ${took} ms`
-            : `[gmux] suspend: capture still running after ${deadlineMs} ms — ` +
-                'the machine may sleep before it finishes'
-        );
+        if (finished) {
+          powerLog.info(`suspend: captured every session in ${took} ms`, {
+            tookMs: took
+          });
+        } else {
+          powerLog.warn(
+            `suspend: capture still running after ${deadlineMs} ms. ` +
+              'The machine may sleep before it finishes.',
+            { deadlineMs }
+          );
+        }
       } finally {
         capturing = false;
       }
@@ -143,11 +157,11 @@ export function installPowerHandlers(deps: PowerHandlerDeps): () => void {
   };
 
   const onResume = (): void => {
-    console.log('[gmux] resume: clearing the terminal glyph atlas');
+    powerLog.info('resume: clearing the terminal glyph atlas');
     try {
       deps.onResume();
     } catch (err) {
-      console.warn(`[gmux] resume handler failed: ${(err as Error).message}`);
+      powerLog.warn(`resume handler failed: ${(err as Error).message}`);
     }
   };
 

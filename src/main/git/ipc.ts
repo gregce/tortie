@@ -33,6 +33,15 @@ import { runGitOrThrow } from './exec';
 import { GitService } from './service';
 import { handle } from '../typed-ipc';
 import { broadcastEvent } from '../typed-events';
+import { getLog } from '../log';
+
+/**
+ * Scope "git" (Phase 35). Every error and warning from this
+ * directory is one record in `<userData>/logs/app.log`. The console
+ * line is unchanged for dev terminals; what is new is that a packaged
+ * build keeps it.
+ */
+const gitLog = getLog('git');
 
 // ---------------------------------------------------------------------------
 // Per-repo registries
@@ -103,8 +112,8 @@ function ensureWatcher(repoPath: string): void {
   const promise = RepoWatcher.watch(key, {
     onChange: emitRepoChanged
   }).catch((err: unknown) => {
-    console.warn(
-      `[gmux] could not watch ${key}: ${(err as Error).message}`
+    gitLog.warn(
+      `could not watch ${key}: ${(err as Error).message}`
     );
     return null;
   });

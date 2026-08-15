@@ -44,6 +44,16 @@ import type { LaunchableAgentId, LaunchableAgentKind } from '@shared/types';
 import { LAUNCHABLE_AGENT_IDS } from '../agents/registry';
 import { AGENT_FLAG_PRESETS } from '../agents/flags';
 
+import { getLog } from '../log';
+
+/**
+ * Scope "settings" (Phase 35). Every error and warning from this
+ * directory is one record in `<userData>/logs/app.log`. The console
+ * line is unchanged for dev terminals; what is new is that a packaged
+ * build keeps it.
+ */
+const settingsLog = getLog('settings');
+
 // ---------------------------------------------------------------------------
 // Disk shape
 // ---------------------------------------------------------------------------
@@ -263,8 +273,8 @@ function sealDangerState(state: DangerState): string | undefined {
     const text = `${SEAL_PREFIX}${JSON.stringify(state)}`;
     return safeStorage.encryptString(text).toString('base64');
   } catch (err) {
-    console.warn(
-      `[gmux] could not seal danger settings: ${(err as Error).message}`
+    settingsLog.warn(
+      `could not seal danger settings: ${(err as Error).message}`
     );
     return undefined;
   }
@@ -438,8 +448,8 @@ function loadFile(): SettingsFile {
 /** Log a rejection once per load, naming the flags and the reason. */
 function warnRejected(rejected: readonly string[]): void {
   if (rejected.length === 0) return;
-  console.warn(
-    `[gmux] ignoring ${rejected.length} launch default(s) that turn a ` +
+  settingsLog.warn(
+    `ignoring ${rejected.length} launch default(s) that turn a ` +
       `safeguard off and were not switched on in Tortie's Settings window: ` +
       `${rejected.join(', ')}. Switch them on in Settings → Launch defaults ` +
       `if you want them.`
@@ -456,7 +466,7 @@ function writeFile(file: SettingsFile): void {
   } catch (err) {
     // Never let a failed preference write break the app; the in-memory
     // value stays live for this run.
-    console.warn(`[gmux] could not persist settings: ${(err as Error).message}`);
+    settingsLog.warn(`could not persist settings: ${(err as Error).message}`);
   }
 }
 
@@ -474,8 +484,8 @@ function persistSettings(next: GmuxSettings): GmuxSettings {
   if (!isDangerStateEmpty(state) && seal === undefined) {
     const stripped = withSealedDangerState(settings, EMPTY_DANGER_STATE);
     settings = stripped.settings;
-    console.warn(
-      `[gmux] the OS keystore is unavailable, so these launch defaults ` +
+    settingsLog.warn(
+      `the OS keystore is unavailable, so these launch defaults ` +
         `cannot be recorded: ${stripped.rejected.join(', ')}`
     );
   }

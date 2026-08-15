@@ -45,6 +45,16 @@ import { app } from 'electron';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
+import { getLog } from '../log';
+
+/**
+ * Scope "restore" (Phase 35). Every error and warning from this
+ * directory is one record in `<userData>/logs/app.log`. The console
+ * line is unchanged for dev terminals; what is new is that a packaged
+ * build keeps it.
+ */
+const restoreLog = getLog('restore');
+
 export interface LoginItemState {
   openAtLogin: boolean;
 }
@@ -95,8 +105,8 @@ function writeStamp(openAtLogin: boolean): void {
   } catch (err) {
     // Not fatal: the OS registration is the live state either way. But a
     // preference we cannot remember is one a future rename will lose.
-    console.warn(
-      `[gmux] could not record the launch-at-login preference: ${(err as Error).message}`
+    restoreLog.warn(
+      `could not record the launch-at-login preference: ${(err as Error).message}`
     );
   }
 }
@@ -163,23 +173,23 @@ export function reconcileLoginItem(): LoginItemReconcile {
     return { action: 'none', openAtLogin: current };
   }
 
-  console.warn(
-    `[gmux] launch-at-login was on for ${stamp.bundleId} but macOS reports it ` +
+  restoreLog.warn(
+    `launch-at-login was on for ${stamp.bundleId} but macOS reports it ` +
       `off for ${bundleId()} — re-registering`
   );
   try {
     app.setLoginItemSettings({ openAtLogin: true });
   } catch (err) {
-    console.error(
-      `[gmux] could not re-register the login item: ${(err as Error).message}`
+    restoreLog.error(
+      `could not re-register the login item: ${(err as Error).message}`
     );
     return { action: 'refused', openAtLogin: false };
   }
   if (getLoginItemState().openAtLogin) {
     return { action: 're-registered', openAtLogin: true };
   }
-  console.error(
-    '[gmux] macOS refused to re-register the login item — sessions will NOT ' +
+  restoreLog.error(
+    'macOS refused to re-register the login item — sessions will NOT ' +
       'come back automatically after a restart. Turn "Launch Tortie at login" ' +
       'back on in Settings → General, and check System Settings → General → ' +
       'Login Items.'

@@ -52,6 +52,16 @@ import {
   type HarvestVerdict,
   type SessionIdWatch
 } from './stores';
+import { getLog } from '../../log';
+
+/**
+ * Scope "manifest" (Phase 35). Every error and warning from this
+ * directory is one record in `<userData>/logs/app.log`. The console
+ * line is unchanged for dev terminals; what is new is that a packaged
+ * build keeps it.
+ */
+const manifestLog = getLog('manifest');
+
 
 // ---------------------------------------------------------------------------
 // The watcher
@@ -256,8 +266,8 @@ function emitReclaim(ev: ConversationReclaim): void {
     try {
       listener(ev);
     } catch (err) {
-      console.warn(
-        `[gmux] conversation reclaim listener failed: ${(err as Error).message}`
+      manifestLog.warn(
+        `conversation reclaim listener failed: ${(err as Error).message}`
       );
     }
   }
@@ -490,8 +500,8 @@ export function watchForSessionId(
       // the branch above handles a provisional holder, so this cannot happen.
       // It is said out loud rather than swallowed because if it ever does,
       // the sentence is the whole bug report.
-      console.warn(
-        `[gmux] ${agent} took conversation ${c.sessionId} for ${claimant}, ` +
+      manifestLog.warn(
+        `${agent} took conversation ${c.sessionId} for ${claimant}, ` +
           `which ${String(conversationClaimant(c.sessionId))} already has.`
       );
     } else if (

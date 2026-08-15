@@ -33,6 +33,16 @@ import { classifyTmuxFailure } from './errors';
 import { postDurabilityNotice } from '../notice';
 import { findTmuxBinary, getUserPath, resolveConfPath } from './resolve';
 
+import { getLog } from '../log';
+
+/**
+ * Scope "tmux" (Phase 35). Every error and warning from this
+ * directory is one record in `<userData>/logs/app.log`. The console
+ * line is unchanged for dev terminals; what is new is that a packaged
+ * build keeps it.
+ */
+const tmuxLog = getLog('tmux');
+
 // Re-exported so the barrel (index.ts) and existing callers keep one import
 // surface; the implementations live in ./resolve (growth guardrail 3).
 export { findTmuxBinary, resolveConfPath } from './resolve';
@@ -101,14 +111,14 @@ export function activeTmuxSocket(
     (env['GMUX_SHOT'] ?? '') !== '' ||
     (env['GMUX_UPDATE_REHEARSAL'] ?? '') !== '';
   if (!harnessLaunch) {
-    console.warn(
-      '[gmux] GMUX_TMUX_SOCKET is set but this is not a harness launch, so it is ignored.'
+    tmuxLog.warn(
+      'GMUX_TMUX_SOCKET is set but this is not a harness launch, so it is ignored.'
     );
     return TMUX_SOCKET;
   }
   if (want === 'default' || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(want)) {
-    console.warn(
-      `[gmux] GMUX_TMUX_SOCKET="${want}" is not a socket name this app will use.`
+    tmuxLog.warn(
+      `GMUX_TMUX_SOCKET="${want}" is not a socket name this app will use.`
     );
     return TMUX_SOCKET;
   }
@@ -308,16 +318,16 @@ export async function verifyHistoryLimitWith(
     observed === TMUX_BUILTIN_HISTORY_LIMIT;
 
   if (coldStartLostItsConf) {
-    console.error(
-      `[gmux] the tmux server started WITHOUT ${confPath}: it came up at ` +
+    tmuxLog.error(
+      `the tmux server started WITHOUT ${confPath}: it came up at ` +
         `history-limit ${TMUX_BUILTIN_HISTORY_LIMIT} instead of ${declared}. ` +
         'Setting the declared depth on it now.'
     );
     try {
       await deps.setLimit(declared);
     } catch (err) {
-      console.warn(
-        `[gmux] could not repair history-limit: ${(err as Error).message}`
+      tmuxLog.warn(
+        `could not repair history-limit: ${(err as Error).message}`
       );
     }
     observed = await deps.readLimit();
@@ -343,7 +353,7 @@ export async function verifyHistoryLimitWith(
   if (applied) {
     console.log(`[gmux] tmux conf verified: ${detail}`);
   } else if (!serverWasAlreadyRunning) {
-    console.warn(`[gmux] tmux conf did not apply: ${detail}`);
+    tmuxLog.warn(`tmux conf did not apply: ${detail}`);
     // Items 9 and 13. Told to the user, not only to the log, because the
     // consequence is that every session on this boot keeps a fraction of the
     // scrollback the product promises and nothing else would say so.

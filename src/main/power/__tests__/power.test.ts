@@ -103,7 +103,10 @@ describe('installPowerHandlers', () => {
       const monitor = fakeMonitor();
       // A capture that never resolves, which is what a wedged tmux looks like.
       const captureAll = vi.fn(() => new Promise<void>(() => undefined));
-      const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+      // Phase 35 moved this line from console.log to a WARN record at scope
+      // "power". A capture that missed its deadline is a warning, not
+      // information: the machine is going down and those lines are gone.
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
       installPowerHandlers({
         captureAll,
         onResume: () => undefined,
@@ -114,7 +117,7 @@ describe('installPowerHandlers', () => {
       monitor.fire('suspend');
       await vi.advanceTimersByTimeAsync(60);
       expect(
-        log.mock.calls.some(([msg]) =>
+        warn.mock.calls.some(([msg]) =>
           String(msg).includes('capture still running after 50 ms')
         )
       ).toBe(true);

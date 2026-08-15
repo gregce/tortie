@@ -52,6 +52,16 @@
 
 import { app, safeStorage } from 'electron';
 
+import { getLog } from '../log';
+
+/**
+ * Scope "config" (Phase 35). Every error and warning from this
+ * directory is one record in `<userData>/logs/app.log`. The console
+ * line is unchanged for dev terminals; what is new is that a packaged
+ * build keeps it.
+ */
+const configLog = getLog('config');
+
 /** Is the OS keystore usable right now? False before `app` is ready. */
 export function sealAvailable(): boolean {
   try {
@@ -73,7 +83,7 @@ export function sealText(prefix: string, text: string): string | undefined {
   try {
     return safeStorage.encryptString(`${prefix}${text}`).toString('base64');
   } catch (err) {
-    console.warn(`[gmux] could not seal ${prefix}: ${(err as Error).message}`);
+    configLog.warn(`could not seal ${prefix}: ${(err as Error).message}`);
     return undefined;
   }
 }

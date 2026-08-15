@@ -49,6 +49,16 @@ import { executionFieldsOf, mergeAgentOverlay, parseAgentOverlay } from './overl
 import { agentOverlayPath, configDir, ensureConfigDir } from './paths';
 import { trackWatcherClose } from '../watcher/teardown';
 
+import { getLog } from '../log';
+
+/**
+ * Scope "config" (Phase 35). Every error and warning from this
+ * directory is one record in `<userData>/logs/app.log`. The console
+ * line is unchanged for dev terminals; what is new is that a packaged
+ * build keeps it.
+ */
+const configLog = getLog('config');
+
 /** Why a load happened. It reaches the log line and nothing else. */
 export type AgentOverlayLoadReason = 'boot' | 'reload' | 'watch';
 
@@ -276,8 +286,8 @@ export function loadAgentOverlay(
   const changed = snapshot === null || signatureOf(snapshot) !== signatureOf(next);
   snapshot = next;
   if (problems.length > 0) {
-    console.warn(
-      `[gmux] agents.json (${reason}): ${problems.length} problem(s). ` +
+    configLog.warn(
+      `agents.json (${reason}): ${problems.length} problem(s). ` +
         problems.map((p) => p.message).join(' ')
     );
   }
@@ -286,7 +296,7 @@ export function loadAgentOverlay(
       try {
         listener(next);
       } catch (err) {
-        console.warn(`[gmux] agents.json listener failed: ${(err as Error).message}`);
+        configLog.warn(`agents.json listener failed: ${(err as Error).message}`);
       }
     }
   }
@@ -355,8 +365,8 @@ export async function initAgentOverlay(): Promise<AgentOverlaySnapshot> {
   try {
     ensureConfigDirSeeded();
   } catch (err) {
-    console.warn(
-      `[gmux] could not write the configuration guide: ${(err as Error).message}`
+    configLog.warn(
+      `could not write the configuration guide: ${(err as Error).message}`
     );
   }
   const loaded = loadAgentOverlay('boot');
@@ -394,8 +404,8 @@ export async function startAgentOverlayWatch(): Promise<boolean> {
         try {
           loadAgentOverlay('watch');
         } catch (loadErr) {
-          console.warn(
-            `[gmux] agents.json reload failed: ${(loadErr as Error).message}`
+          configLog.warn(
+            `agents.json reload failed: ${(loadErr as Error).message}`
           );
         }
       }, WATCH_DEBOUNCE_MS);
@@ -409,8 +419,8 @@ export async function startAgentOverlayWatch(): Promise<boolean> {
     watchStop = () => trackWatcherClose(sub.unsubscribe());
     return true;
   } catch (err) {
-    console.warn(
-      `[gmux] not watching ${dir} for changes: ${(err as Error).message}. ` +
+    configLog.warn(
+      `not watching ${dir} for changes: ${(err as Error).message}. ` +
         `Tortie will still re-read agents.json when you ask it to.`
     );
     return false;

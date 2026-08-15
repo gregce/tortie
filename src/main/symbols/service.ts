@@ -40,6 +40,16 @@ import { listIndexableFiles } from './files';
 import { BATCH_SIZE, IDLE_EVICT_MS, SymbolPool } from './pool';
 import type { FileStamp, SymbolPersistence } from './persist';
 import { SymbolTable } from './store';
+import { getLog } from '../log';
+
+/**
+ * Scope "symbols" (Phase 35). Every error and warning from this
+ * directory is one record in `<userData>/logs/app.log`. The console
+ * line is unchanged for dev terminals; what is new is that a packaged
+ * build keeps it.
+ */
+const symbolsLog = getLog('symbols');
+
 
 /** Coalescing window for watcher-driven refreshes. */
 const WATCH_DEBOUNCE_MS = 300;
@@ -298,8 +308,8 @@ export class SymbolService {
         } catch (err) {
           // Losing the CACHE is survivable — the in-memory table is already
           // correct and the next launch just re-parses. Never fail the build.
-          console.warn(
-            `[gmux] could not persist symbols for ${state.repoPath}: ${
+          symbolsLog.warn(
+            `could not persist symbols for ${state.repoPath}: ${
               (err as Error).message
             }`
           );

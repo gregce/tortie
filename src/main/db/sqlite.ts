@@ -28,6 +28,7 @@
 
 import Database from 'better-sqlite3';
 import { existsSync, mkdirSync } from 'node:fs';
+import { getLog } from '../log';
 import { dirname } from 'node:path';
 import { checkDatabaseIntegrity, isUnreadable, quarantineDatabase } from './integrity';
 import { recoverDatabase, type RecoverySummary } from './recover';
@@ -190,29 +191,53 @@ function runIntegrityGate(dbPath: string, options: OpenDatabaseOptions): void {
 /**
  * The log lines a quarantine produces. The default reader, and also the one a
  * caller with its own reader calls first so nothing is lost from the log.
+ *
+ * PHASE 35. Until now this narrative went to a console the shipped app does
+ * not have, so a packaged user whose session list was quarantined got the
+ * durability notice and nothing else. The notice says a file moved; this
+ * narrative says which file, why, where it went, and whether the rebuild
+ * worked. It is one error record now, so both halves survive.
+ *
+ * `scope` is "db" by default and "manifest" when the manifest store calls it,
+ * because the manifest is the file whose damage costs the user their session
+ * list and it should be findable on its own name.
  */
-export function reportDatabaseGate(r: IntegrityGateReport): void {
+export function reportDatabaseGate(
+  r: IntegrityGateReport,
+  scope: 'db' | 'manifest' = 'db'
+): void {
+  const dbLog = getLog(scope);
   if (r.outcome === 'unreadable') {
-    console.error(
-      `[gmux] the database at ${r.path} could not be read, so nothing is known ` +
+    dbLog.error(
+      `the database at ${r.path} could not be read, so nothing is known ` +
         `about it: ${r.detail}. It was left exactly where it is and nothing was ` +
-        'moved or rebuilt.'
+        'moved or rebuilt.',
+      { path: r.path, outcome: r.outcome, detail: r.detail }
     );
     return;
   }
   if (r.outcome !== 'quarantined') return;
-  console.error(
-    `[gmux] the database at ${r.path} is damaged: ${r.detail}. It was moved to ` +
-      `${r.quarantinedTo ?? 'nowhere'} and nothing was written over it.`
+  dbLog.error(
+    `the database at ${r.path} is damaged: ${r.detail}. It was moved to ` +
+      `${r.quarantinedTo ?? 'nowhere'} and nothing was written over it.`,
+    {
+      path: r.path,
+      outcome: r.outcome,
+      detail: r.detail,
+      quarantinedTo: r.quarantinedTo ?? null,
+      rebuilt: r.recovery?.ok ?? null,
+      rebuildMs: r.recovery?.ms ?? null,
+      rebuildDetail: r.recovery?.detail ?? null
+    }
   );
   if (!r.recovery) {
-    console.error('[gmux] no rebuild was attempted; starting with an empty file');
+    dbLog.error('no rebuild was attempted; starting with an empty file');
     return;
   }
-  console.error(
+  dbLog.error(
     r.recovery.ok
-      ? `[gmux] rebuilt from the damaged copy in ${r.recovery.ms} ms: ${r.recovery.detail}`
-      : `[gmux] could not rebuild it: ${r.recovery.detail}`
+      ? `rebuilt from the damaged copy in ${r.recovery.ms} ms: ${r.recovery.detail}`
+      : `could not rebuild it: ${r.recovery.detail}`
   );
 }
 
