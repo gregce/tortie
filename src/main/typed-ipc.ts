@@ -21,6 +21,7 @@ import type {
   GmuxInvokeReq,
   GmuxInvokeRes
 } from '@shared/ipc';
+import { assertTrustedIpcSender } from './security/trusted-window';
 
 export function handle<C extends GmuxInvokeChannel>(
   ipc: IpcMain,
@@ -30,7 +31,12 @@ export function handle<C extends GmuxInvokeChannel>(
     ...args: GmuxInvokeReq<C>
   ) => Promise<GmuxInvokeRes<C>> | GmuxInvokeRes<C>
 ): void {
-  ipc.handle(channel, (event, ...args) =>
-    fn(event, ...(args as GmuxInvokeReq<C>))
-  );
+  ipc.handle(channel, (event, ...args) => {
+    // Phase 42 stage 1: every invoke channel answers only the windows Tortie
+    // created (src/main/security/trusted-window.ts). One check here covers
+    // all of them, because this wrapper is THE one invoke registrar
+    // (guardrail: ipc-single-bridge.test.ts).
+    assertTrustedIpcSender(event, channel);
+    return fn(event, ...(args as GmuxInvokeReq<C>));
+  });
 }

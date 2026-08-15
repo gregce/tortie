@@ -9,6 +9,9 @@
 
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { IpcMain } from 'electron';
+// Phase 42 stage 1: handlers registered through typed-ipc refuse untrusted
+// senders, so driving one takes a trusted fake event instead of `null`.
+import { trustedInvokeEvent } from '../../security/__tests__/trusted-test-sender';
 
 const planSkillsCommand = vi.fn();
 const executeSkillsPlan = vi.fn();
@@ -92,7 +95,7 @@ describe('context:skillsRun never runs what the renderer sent', () => {
     const handlers = install();
     // A forged plan riding along on the input must have no effect at all: the
     // channel does not take a plan, so there is nothing for a caller to forge.
-    await handlers.get('context:skillsRun')?.(null, {
+    await handlers.get('context:skillsRun')?.(trustedInvokeEvent(), {
       operation: { kind: 'update', skill: null },
       plan: { commandLine: 'rm -rf /' }
     });
@@ -108,7 +111,7 @@ describe('context:skillsRun never runs what the renderer sent', () => {
       message: 'Tortie did not run this.'
     });
     const handlers = install();
-    const result = (await handlers.get('context:skillsRun')?.(null, {
+    const result = (await handlers.get('context:skillsRun')?.(trustedInvokeEvent(), {
       operation: { kind: 'update', skill: null }
     })) as { ok: boolean; failure: string | null };
 
@@ -120,7 +123,7 @@ describe('context:skillsRun never runs what the renderer sent', () => {
   it('refuses an input with no operation instead of spawning anything', async () => {
     const handlers = install();
     await expect(
-      handlers.get('context:skillsRun')?.(null, { projectRoot: '/tmp' })
+      handlers.get('context:skillsRun')?.(trustedInvokeEvent(), { projectRoot: '/tmp' })
     ).rejects.toThrow(/no operation/);
     expect(planSkillsCommand).not.toHaveBeenCalled();
     expect(executeSkillsPlan).not.toHaveBeenCalled();
@@ -131,13 +134,13 @@ describe('context:skillsRun never runs what the renderer sent', () => {
     executeSkillsPlan.mockResolvedValue({ ok: true });
     const handlers = install();
 
-    await handlers.get('context:skillsPlan')?.(null, {
+    await handlers.get('context:skillsPlan')?.(trustedInvokeEvent(), {
       operation: { kind: 'restoreProject' },
       projectRoot: '/repo'
     });
     expect(planSkillsCommand.mock.calls[0]?.[1]).toEqual({ projectRoot: '/repo' });
 
-    await handlers.get('context:skillsPlan')?.(null, {
+    await handlers.get('context:skillsPlan')?.(trustedInvokeEvent(), {
       operation: { kind: 'update', skill: null },
       projectRoot: ''
     });
@@ -152,7 +155,7 @@ describe('context:hashSkill answers, and never agrees by accident', () => {
   it('names the algorithm beside the hash', async () => {
     hashDirectory.mockResolvedValue('abc123');
     const handlers = install();
-    const out = (await handlers.get('context:hashSkill')?.(null, '/skills/lore')) as {
+    const out = (await handlers.get('context:hashSkill')?.(trustedInvokeEvent(), '/skills/lore')) as {
       hash: string | null;
       algorithm: string;
       problem: string | null;
@@ -165,7 +168,7 @@ describe('context:hashSkill answers, and never agrees by accident', () => {
   it('reports a null hash with a sentence, so a re-check cannot read it as agreement', async () => {
     hashDirectory.mockResolvedValue(null);
     const handlers = install();
-    const out = (await handlers.get('context:hashSkill')?.(null, '/gone')) as {
+    const out = (await handlers.get('context:hashSkill')?.(trustedInvokeEvent(), '/gone')) as {
       hash: string | null;
       problem: string | null;
     };
@@ -176,7 +179,7 @@ describe('context:hashSkill answers, and never agrees by accident', () => {
   it('turns a thrown read into the same shape rather than a rejection', async () => {
     hashDirectory.mockRejectedValue(new Error('EACCES'));
     const handlers = install();
-    const out = (await handlers.get('context:hashSkill')?.(null, '/locked')) as {
+    const out = (await handlers.get('context:hashSkill')?.(trustedInvokeEvent(), '/locked')) as {
       hash: string | null;
       problem: string | null;
     };
@@ -189,13 +192,13 @@ describe('context:scan', () => {
   it('passes the input straight through', async () => {
     scanContext.mockResolvedValue({ entries: [] });
     const handlers = install();
-    await handlers.get('context:scan')?.(null, { cwd: '/repo', hash: 'head' });
+    await handlers.get('context:scan')?.(trustedInvokeEvent(), { cwd: '/repo', hash: 'head' });
     expect(scanContext.mock.calls[0]?.[0]).toEqual({ cwd: '/repo', hash: 'head' });
   });
 
   it('refuses a non-object input rather than walking from nowhere', async () => {
     const handlers = install();
-    await expect(handlers.get('context:scan')?.(null, null)).rejects.toThrow(
+    await expect(handlers.get('context:scan')?.(trustedInvokeEvent(), null)).rejects.toThrow(
       /no project/
     );
     expect(scanContext).not.toHaveBeenCalled();

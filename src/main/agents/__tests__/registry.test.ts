@@ -34,6 +34,9 @@ import {
   SESSION_ID_SLOT
 } from '../registry';
 import { registerAgentsIpc } from '../index';
+// Phase 42 stage 1: handlers registered through typed-ipc refuse untrusted
+// senders, so driving one takes a trusted fake event.
+import { trustedInvokeEvent } from '../../security/__tests__/trusted-test-sender';
 
 const ALL_IDS: AgentRegistryId[] = [
   'claude',
@@ -613,6 +616,8 @@ describe('registerAgentsIpc', () => {
 
     const handler = handlers.get('agents:multilineKeys');
     expect(handler).toBeDefined();
-    expect(await handler?.({})).toEqual(multilineKeyTable());
+    // Phase 42 stage 1: the typed-ipc wrapper refuses untrusted senders, so
+    // the drive presents a trusted fake event rather than a bare object.
+    expect(await handler?.(trustedInvokeEvent())).toEqual(multilineKeyTable());
   });
 });

@@ -84,7 +84,7 @@
  * inside gmux.app is out of scope today (docs/audits/2026-08-09-prebuild-architecture-assessment.md §5 Stream A1).
  */
 
-import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, ipcMain } from 'electron';
 import { execFile } from 'node:child_process';
 import { pbkdf2, randomUUID } from 'node:crypto';
 import { existsSync, mkdtempSync, rmSync, writeSync } from 'node:fs';
@@ -163,6 +163,9 @@ import {
 // session should be running under, and unwrapArgv reads the inner command
 // back out of a wrap for the assertion that the resume survived it.
 import { resolveSpecstory, unwrapArgv } from './specstory';
+// Phase 42 stage 1: navigation, new-window and IPC sender trust — one policy
+// module, applied to every window Tortie creates for its own renderers.
+import { applyTrustedWindowPolicy } from './security/trusted-window';
 import { disposeSearchIpc, registerSearchIpc } from './search';
 import { disposeSymbolsIpc, registerSymbolsIpc } from './symbols';
 import { openSettingsWindow, registerSettingsIpc } from './settings';
@@ -390,22 +393,9 @@ function createWindow(): BrowserWindow {
 
   win.on('ready-to-show', () => win.show());
 
-  // Terminal web links (and any window.open) go to the system browser.
-  win.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^https?:/i.test(url)) void shell.openExternal(url);
-    return { action: 'deny' };
-  });
-
-  // setWindowOpenHandler only covers window.open / target=_blank. A plain
-  // <a href="https://…"> — which rendered markdown is full of — would
-  // navigate THIS renderer away from the app, tearing down every terminal
-  // attachment with it. gmux is a single fixed document: nothing may
-  // navigate it except the initial load and a dev-server reload.
-  win.webContents.on('will-navigate', (event, url) => {
-    if (url === win.webContents.getURL()) return; // reload
-    event.preventDefault();
-    if (/^https?:/i.test(url)) void shell.openExternal(url);
-  });
+  // Navigation + new-window restrictions + trusted IPC sender registration —
+  // one policy, stated once for every Tortie window (Phase 42 stage 1).
+  applyTrustedWindowPolicy(win);
 
   // electron-vite: dev server URL in dev, bundled file otherwise.
   const devUrl = process.env['ELECTRON_RENDERER_URL'];

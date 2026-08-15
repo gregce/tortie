@@ -15,6 +15,7 @@
 import { join } from 'node:path';
 import { app, BrowserWindow } from 'electron';
 import { WINDOW_BACKGROUND } from '@shared/window-chrome';
+import { applyTrustedWindowPolicy } from '../security/trusted-window';
 import {
   getSettingsWindowBounds,
   saveSettingsWindowBounds
@@ -56,6 +57,12 @@ export function openSettingsWindow(): void {
     }
   });
   settingsWindow = win;
+
+  // Phase 42 stage 1 (sanctioned hardening): the Settings window gets the
+  // SAME trusted-window policy as the main window — no navigation, no child
+  // windows, registered as a trusted IPC sender. Before this call it had no
+  // navigation policy at all (audit 2026-08-14, "As-built corrections").
+  applyTrustedWindowPolicy(win);
 
   win.on('ready-to-show', () => win.show());
 
