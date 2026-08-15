@@ -518,6 +518,12 @@ export interface UpdateUiState {
   currentVersion: string;
   stagedVersion: string | null;
   lastCheckedAt: number | null;
+  /**
+   * True when the launch found updater state that stops any install from
+   * happening, so the Tortie menu offers the repair item. False on every
+   * ordinary launch. Added in Phase 43.
+   */
+  needsUpdateRepair: boolean;
 }
 
 export interface UpdatesInvokeChannelMap {

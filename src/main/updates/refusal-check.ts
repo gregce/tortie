@@ -1,14 +1,23 @@
 /**
- * The refusal check (Phase 31, item 2). Did the install the last run
- * promised actually happen, and if not, why not?
+ * The refusal check (Phase 31, item 2, widened in Phase 43). Did the install
+ * the last run promised actually happen, and if not, why not?
  *
- * THE INCIDENT THIS ANSWERS. On 2026-08-14 the operator's first live update
- * downloaded, staged, and then never installed. ShipIt aborted three times
- * with SQRLInstallerErrorDomain code -9, "there are 1 running instances of
- * the target app", because the operator relaunched into the install window
- * that follows a quit. Tortie surfaced nothing. This module reads the
- * evidence Squirrel leaves on disk and gives ./ui.ts one honest sentence to
- * show on the first launch after such a failure.
+ * THE FIRST INCIDENT THIS ANSWERS. On 2026-08-14 the operator's first live
+ * update downloaded, staged, and then never installed. ShipIt aborted three
+ * times with SQRLInstallerErrorDomain code -9, "there are 1 running
+ * instances of the target app", because the operator relaunched into the
+ * install window that follows a quit. Tortie surfaced nothing.
+ *
+ * THE SECOND INCIDENT, one day later. On 2026-08-15 the same machine reached
+ * a worse state. Two stagings ran 5.609 s apart, the second deleted the
+ * staged bundle the first had left the pending install pointing at, and
+ * ShipIt failed with SQRLInstallerErrorDomain code -1, "Failed to copy
+ * bundle", POSIX error 2. launchd retried, Squirrel counted 3 attempts in
+ * its own preferences domain and wrote "Too many attempts to install,
+ * aborting update". From that moment no install could ever succeed until
+ * someone cleared the saved count. Tortie again surfaced nothing, and the
+ * running 0.19.1 predated Phase 31, so it had neither the pending record nor
+ * this check. The full diagnosis is docs/research/46-updater-wreckage.md.
  *
  * HOW SQUIRREL COUNTS INSTANCES, from disassembly of the shipped ShipIt
  * binary (docs/research/42-shipit-instance-counting.md). An instance counts
@@ -17,7 +26,7 @@
  * can block the installed app's update. The dev build and any rehearsal copy
  * can never be the counted instance.
  *
- * THE DECISION, restated from the phase spec section 4.2:
+ * THE DECISION, restated from the Phase 31 spec section 4.2:
  *
  *  1. Not packaged, or no pending promise on disk: nothing to say.
  *  2. Clear the pending fields FIRST, before any surface, so a crash loop
@@ -34,113 +43,119 @@
  * and `announceRefusedInstallIfAny` must call this function before its first
  * await.
  *
+ * THE SECOND ENTRY POINT (Phase 43). `detectStandingWreck` answers the case
+ * the pending record cannot: a wreck that is on disk with no promise
+ * attached to it. That covers a user who clicked "Not Now" last launch, and
+ * it covers a machine wrecked by a build older than Phase 31, which is
+ * exactly what the operator was running. It reads Squirrel's state directly
+ * and announces one fingerprint at most once.
+ *
  * Ownership: src/main/updates/refusal-check.ts (Builder A, Phase 31).
  */
 
-import { closeSync, openSync, readSync, statSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { join } from 'node:path';
 import { app } from 'electron';
 import { logUpdateEvent } from './log';
+import {
+  currentUpdaterPaths,
+  inspectUpdaterHealth,
+  readRepairMarkAt,
+  readShipItLogLine,
+  readShipItLogTail,
+  type UpdaterHealth
+} from './shipit-state';
 import { readUpdateState, writeUpdateState } from './state';
+import { setUpdaterRepairNeeded } from './updater';
 
-/**
- * The bundle id Squirrel derives its cache directory from. This is `appId`
- * in electron-builder.yml (line 59, `appId: com.itavero.tortie`). If that
- * line ever changes, this constant moves with it or the refusal check reads
- * the wrong directory.
- */
-export const TORTIE_BUNDLE_ID = 'com.itavero.tortie';
-
-/** How much of the tail of ShipIt_stderr.log is read. The file only grows. */
-const TAIL_BYTES = 65536;
-
-/** The recency slop between the pending record and an abort line. */
+/** The recency slop between the pending record and a cause line. */
 const ABORT_SLOP_MS = 60_000;
 
-/**
- * Where Squirrel keeps its per-application state, e.g.
- * `~/Library/Caches/com.itavero.tortie.ShipIt`. Pure so the unit tests pin
- * it. Squirrel derives the directory the same way, from the job label
- * `<bundle id>.ShipIt`.
- */
-export function shipItCacheDir(home: string, bundleId: string): string {
-  return join(home, 'Library', 'Caches', `${bundleId}.ShipIt`);
-}
-
-/**
- * The abort line ShipIt writes, exactly as NSLog formats it. The trailing
- * "Installation cancelled" line that follows it carries the same error as
- * an Objective C description, so the count line is the one worth parsing.
- */
-const SHIPIT_ABORT_LINE =
-  /^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+) ShipIt\[\d+:\d+\] Aborting update attempt because there are (\d+) running instances of the target app$/;
-
-export interface ShipItAbortDecision {
-  reason: 'another-copy' | 'unknown';
-  /** The matched abort line verbatim, or null when no line matched. */
+export interface ShipItEvidence {
+  /** The newest cause line inside the window. */
+  reason: 'another-copy' | 'staged-bundle-missing' | 'unknown';
+  /** True when the installer gave up inside the window. */
+  gaveUp: boolean;
+  /** Attempts counted, or null. */
+  attempts: number | null;
+  /** The cause line verbatim, or null. */
   line: string | null;
 }
 
 /**
  * Decide what the tail of ShipIt_stderr.log says about a broken promise
  * recorded at `sinceMs`. Pure, and unit tested against the verbatim lines
- * from the operator's machine.
+ * from both of the operator's incidents.
  *
- * The newest line matching the abort shape is the verdict. ShipIt writes an
- * "Installation cancelled" line and untimestamped noise lines after the
- * abort line, so "the last line" means the last line OF THAT SHAPE, not the
- * last line of the file. The timestamp parses as local time, which is what
- * NSLog writes. An abort at or after `sinceMs` minus a 60 second slop means
- * another copy of the app blocked the install. An older abort belongs to
- * some earlier incident and proves nothing about this promise, so it reads
- * as unknown, which fails toward saying less.
+ * The window is `sinceMs` minus 60 seconds and newer. That slop is Phase
+ * 31's and it does not move. The rules:
+ *
+ * - `reason` is the newest `another-copy` or `staged-bundle-missing` line
+ *   inside the window. Giving up is a consequence, not a cause, so it never
+ *   becomes the reason on its own.
+ * - `gaveUp` is true when a give up line sits inside the window.
+ * - `attempts` is the highest "Resuming installation attempt N" inside the
+ *   window. The limit of 3 is Squirrel's, so the copy states the number it
+ *   counted rather than a number this codebase assumes.
+ * - Nothing inside the window means `unknown` and `gaveUp: false`, which
+ *   fails toward saying less. That is Phase 31's rule and it does not move.
+ * - `ignoreAtOrBeforeMs` is the repair mark, added in the fix round. The
+ *   repair keeps ShipIt_stderr.log, and the window's 60 seconds of slop
+ *   reaches back past a repair that was followed at once by a download. A
+ *   line from before the clear would then be read as this install's cause,
+ *   so lines stamped at or before the mark are skipped.
+ *
+ * ShipIt writes an "Installation cancelled" line and untimestamped noise
+ * lines after a cause line, so "the last line" means the last line OF A
+ * KNOWN SHAPE, never the last line of the file. The timestamps parse as
+ * local time, which is what NSLog writes.
  */
-export function parseShipItAbort(
+export function readShipItEvidence(
   tail: string,
-  sinceMs: number
-): ShipItAbortDecision {
+  sinceMs: number,
+  ignoreAtOrBeforeMs: number | null = null
+): ShipItEvidence {
+  const floor =
+    ignoreAtOrBeforeMs === null
+      ? sinceMs - ABORT_SLOP_MS
+      : Math.max(sinceMs - ABORT_SLOP_MS, ignoreAtOrBeforeMs + 1);
   const lines = tail.split('\n');
+  const evidence: ShipItEvidence = {
+    reason: 'unknown',
+    gaveUp: false,
+    attempts: null,
+    line: null
+  };
+  // Newest first, so the first cause line inside the window is the verdict.
   for (let i = lines.length - 1; i >= 0; i--) {
-    const line = (lines[i] ?? '').replace(/\r$/, '');
-    const match = SHIPIT_ABORT_LINE.exec(line);
-    if (match === null) continue;
-    const abortedAt = new Date((match[1] ?? '').replace(' ', 'T')).getTime();
-    if (Number.isNaN(abortedAt)) return { reason: 'unknown', line };
-    if (abortedAt >= sinceMs - ABORT_SLOP_MS) {
-      return { reason: 'another-copy', line };
+    const parsed = readShipItLogLine(lines[i] ?? '');
+    if (parsed === null) continue;
+    if (parsed.at === null || parsed.at < floor) continue;
+    if (
+      parsed.attempt !== null &&
+      (evidence.attempts === null || parsed.attempt > evidence.attempts)
+    ) {
+      evidence.attempts = parsed.attempt;
     }
-    return { reason: 'unknown', line };
-  }
-  return { reason: 'unknown', line: null };
-}
-
-/** The last TAIL_BYTES of ShipIt_stderr.log, or '' when unreadable. */
-function readShipItStderrTail(): string {
-  try {
-    const path = join(
-      shipItCacheDir(homedir(), TORTIE_BUNDLE_ID),
-      'ShipIt_stderr.log'
-    );
-    const size = statSync(path).size;
-    const fd = openSync(path, 'r');
-    try {
-      const start = Math.max(0, size - TAIL_BYTES);
-      const buf = Buffer.alloc(Math.min(size, TAIL_BYTES));
-      readSync(fd, buf, 0, buf.length, start);
-      return buf.toString('utf8');
-    } finally {
-      closeSync(fd);
+    if (parsed.terminal === 'gave-up') {
+      evidence.gaveUp = true;
+      continue;
     }
-  } catch {
-    // Missing or unreadable both read as no evidence.
-    return '';
+    if (
+      evidence.reason === 'unknown' &&
+      (parsed.terminal === 'another-copy' ||
+        parsed.terminal === 'staged-bundle-missing')
+    ) {
+      evidence.reason = parsed.terminal;
+      evidence.line = parsed.line;
+    }
   }
+  return evidence;
 }
 
 export interface RefusedInstall {
   version: string;
-  reason: 'another-copy' | 'unknown';
+  reason: 'another-copy' | 'staged-bundle-missing' | 'unknown';
+  gaveUp: boolean;
+  attempts: number | null;
 }
 
 /**
@@ -177,19 +192,19 @@ export function detectRefusedInstall(): RefusedInstall | null {
       return null;
     }
     // The version did not change, so the promised install did not happen.
-    const decision = parseShipItAbort(readShipItStderrTail(), recordedAt);
-    if (decision.reason === 'another-copy') {
-      logUpdateEvent(
-        'warn',
-        `the install of ${pending} was refused because another copy of Tortie was running. ShipIt wrote the line "${decision.line ?? ''}"`
-      );
-    } else {
-      logUpdateEvent(
-        'warn',
-        `the install of ${pending} did not happen and the ShipIt log does not say why.${decision.line !== null ? ` The newest abort line is stale. It reads "${decision.line}"` : ''}`
-      );
-    }
-    return { version: pending, reason: decision.reason };
+    const paths = currentUpdaterPaths();
+    const evidence = readShipItEvidence(
+      readShipItLogTail(paths.shipItDir),
+      recordedAt,
+      readRepairMarkAt(paths.shipItDir)
+    );
+    logRefusal(pending, evidence);
+    return {
+      version: pending,
+      reason: evidence.reason,
+      gaveUp: evidence.gaveUp,
+      attempts: evidence.attempts
+    };
   } catch (err) {
     // The check reports on a failed install. It must never become the
     // thing that fails a working launch.
@@ -197,6 +212,112 @@ export function detectRefusedInstall(): RefusedInstall | null {
       logUpdateEvent(
         'warn',
         `the refusal check did not finish: ${(err as Error).message}`
+      );
+    } catch {
+      // Even the log line is optional here.
+    }
+    return null;
+  }
+}
+
+/** One warning naming what the log said, whatever it said. */
+function logRefusal(pending: string, evidence: ShipItEvidence): void {
+  const gaveUp = evidence.gaveUp
+    ? ` The installer then gave up after ${evidence.attempts === null ? 'an unrecorded number of' : String(evidence.attempts)} attempts, so it will not try again until the saved state is cleared.`
+    : '';
+  if (evidence.reason === 'another-copy') {
+    logUpdateEvent(
+      'warn',
+      `the install of ${pending} was refused because another copy of Tortie was running. ShipIt wrote the line "${evidence.line ?? ''}"${gaveUp}`
+    );
+    return;
+  }
+  if (evidence.reason === 'staged-bundle-missing') {
+    logUpdateEvent(
+      'warn',
+      `the install of ${pending} failed because the staged copy was gone from disk. ShipIt wrote the line "${evidence.line ?? ''}"${gaveUp}`
+    );
+    return;
+  }
+  logUpdateEvent(
+    'warn',
+    `the install of ${pending} did not happen and the ShipIt log does not say why.${gaveUp}`
+  );
+}
+
+// ---------------------------------------------------------------------------
+// The standing wreck (Phase 43)
+// ---------------------------------------------------------------------------
+
+export interface StandingWreck {
+  reason: 'staged-bundle-missing' | 'gave-up';
+  attempts: number | null;
+  /** The health verdict, so the recovery can refuse on a stale one. */
+  health: UpdaterHealth;
+}
+
+/**
+ * A wreck on disk that no pending record explains, announced at most once.
+ *
+ * The rules, in order:
+ *
+ * 1. Not packaged: null. There is no updater state in a dev build.
+ * 2. The health verdict is anything but `wrecked`: null.
+ * 3. The verdict IS wrecked, so arm the menu item. This happens whether or
+ *    not a dialog follows. The dialog is once per wreck, but the wreck
+ *    itself outlives a "Not Now" and outlives the quit after it, so the
+ *    menu item has to follow the disk rather than the announcement. Without
+ *    this line a person who answered "Not Now" and quit would have no
+ *    surface at all on the next launch.
+ * 4. `wreckAnnouncedFor` already equals this wreck's fingerprint: null, so
+ *    no dialog. The same wreck is offered once and does not nag every
+ *    launch. The fingerprint is the terminal log line verbatim, timestamp
+ *    and all, so a later incident never matches an earlier one.
+ * 5. Otherwise write the fingerprint BEFORE returning, which is the same
+ *    "clear first, then surface" discipline the pending path uses, and
+ *    return the wreck.
+ *
+ * Never throws.
+ */
+export function detectStandingWreck(): StandingWreck | null {
+  try {
+    if (!app.isPackaged) return null;
+    const health = inspectUpdaterHealth(currentUpdaterPaths());
+    if (health.state !== 'wrecked' || health.reason === null) {
+      // One line per launch, so the next incident can be read from the log
+      // rather than guessed at. It is also what the healthy probe asserts.
+      logUpdateEvent(
+        'info',
+        `the updater state on disk reads ${health.state}. Nothing to repair.`
+      );
+      return null;
+    }
+    // The menu item follows the disk, not the dialog. See rule 3 above.
+    setUpdaterRepairNeeded(true);
+    const fingerprint = health.fingerprint;
+    if (fingerprint === null) return null;
+    if (readUpdateState().wreckAnnouncedFor === fingerprint) {
+      logUpdateEvent(
+        'info',
+        'the updater is still wrecked and this launch already offered to repair it, so nothing is shown again'
+      );
+      return null;
+    }
+    writeUpdateState({ wreckAnnouncedFor: fingerprint });
+    logUpdateEvent(
+      'warn',
+      `the updater state on disk stops any install. Reason ${health.reason}, attempts ${health.attempts === null ? 'not recorded' : String(health.attempts)}. ShipIt wrote the line "${fingerprint}"`
+    );
+    return {
+      reason: health.reason,
+      attempts: health.attempts,
+      health
+    };
+  } catch (err) {
+    try {
+      logUpdateEvent(
+        'warn',
+        `the standing wreck check did not finish: ${(err as Error).message}`
       );
     } catch {
       // Even the log line is optional here.

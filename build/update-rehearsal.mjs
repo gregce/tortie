@@ -90,9 +90,39 @@
  *                     menu with System Events, read both dialogs off the
  *                     screen through the accessibility tree, then quit and
  *                     prove the install lands. This is the live proof of
- *                     Phase 31 item 1. Combine with --skip-package to
- *                     reuse the packages. Needs accessibility permission
- *                     for the terminal running this script.
+ *                     Phase 31 item 1, and since Phase 43 it also carries
+ *                     probe P4: two more user checks after the staging must
+ *                     add no second install request. Combine with
+ *                     --skip-package to reuse the packages. Needs
+ *                     accessibility permission for the terminal running
+ *                     this script.
+ *   --wreck           probe P2. Build a scratch copy of Squirrel's state in
+ *                     the shape of the 2026-08-15 incident, launch, read the
+ *                     dialog off the screen, click Clear and Check Again,
+ *                     and prove on disk what went and what stayed. It then
+ *                     launches a second time on a fresh profile and proves
+ *                     that launch is quiet, which is the proof of the repair
+ *                     mark. Touches none of the three real locations.
+ *   --wreck-healthy   probe P3, two legs. Leg A proves a healthy staged
+ *                     update is never offered for clearing. Leg B creates
+ *                     the staged bundle while the dialog sits on screen and
+ *                     proves the click then refuses, which is the proof
+ *                     that health is read at click time.
+ *   --wreck-live      probe P6. The same wreck against REAL Squirrel and
+ *                     the real ShipIt directory, healed, and then a real
+ *                     install. It runs last and only after the in flight
+ *                     precondition passes, because it is the only probe
+ *                     that touches state the installed app shares.
+ *
+ * THE SCRATCH STATE ROOT (Phase 43). Probes P2 and P3 set
+ * GMUX_UPDATE_STATE_ROOT, which moves the Squirrel state the app READS and
+ * CLEARS under <scratch>/p43-state-root. The app honours it only because
+ * all three rehearsal conditions hold. The preferences domain gets a
+ * ".rehearsal" suffix, because the rehearsal builds carry the production
+ * bundle id and would otherwise share the installed app's domain. Those two
+ * probes also run against a dead feed on purpose: a live feed would have
+ * the re-armed check stage through real Squirrel, which writes to the real
+ * ShipIt directory, and the point of P2 and P3 is that nothing real moves.
  */
 
 import { spawn, spawnSync, execFileSync } from 'node:child_process';
@@ -106,13 +136,14 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   rmSync,
   statSync,
   writeFileSync
 } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { dirname, join, relative } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const REHEARSAL_SOCKET = 'gmux-update-rehearsal';
@@ -151,6 +182,9 @@ const packageOnly = flag('--package-only');
 const keepServer = flag('--keep-server');
 const twoInstance = flag('--two-instance');
 const readyDialog = flag('--ready-dialog');
+const wreck = flag('--wreck');
+const wreckHealthy = flag('--wreck-healthy');
+const wreckLive = flag('--wreck-live');
 
 const pristineDir = join(scratch, 'pristine');
 const pristineApp = join(pristineDir, 'Tortie.app');
@@ -168,6 +202,22 @@ const ymlBackup = join(scratch, 'latest-mac.yml.release-backup');
 /** Squirrel's shared per bundle id state. See the header note. */
 const shipItDir = join(homedir(), 'Library', 'Caches', `${BUNDLE_ID}.ShipIt`);
 const shipItStderrLog = join(shipItDir, 'ShipIt_stderr.log');
+
+/**
+ * Phase 43. The scratch copy of Squirrel's state that the wreck probes
+ * build, wreck and heal. GMUX_UPDATE_STATE_ROOT points the app under test
+ * at it, so probes P2 and P3 never read or write the three real locations.
+ * The preferences domain gets a suffix, because the rehearsal builds carry
+ * the production bundle id and would otherwise share the installed app's.
+ */
+const stateRoot = join(scratch, 'p43-state-root');
+const wreckShipItDir = join(stateRoot, `${BUNDLE_ID}.ShipIt`);
+const wreckCacheDir = join(stateRoot, 'tortie-updater');
+const WRECK_DEFAULTS_DOMAIN = `${BUNDLE_ID}.ShipIt.rehearsal`;
+/** The name the operator's own ShipItState.plist carried on 2026-08-15. */
+const WRECK_STAGING_NAME = 'update.KZlg2R9';
+/** The staging directory P3 leg A creates for real, so the state is healthy. */
+const HEALTHY_STAGING_NAME = 'update.HEALTHY';
 
 const t0 = Date.now();
 function elapsed() {
@@ -377,7 +427,8 @@ class AppRun {
    * opts.binary, opts.profile and opts.socket default to the primary
    * instance's values. The two instance probes pass their own, so instance
    * B shares the app path but not the profile or the tmux server, and
-   * instance C shares neither the path nor the profile.
+   * instance C shares neither the path nor the profile. opts.extraEnv adds
+   * environment variables for the Phase 43 wreck probes.
    */
   constructor(name, feedUrl, opts = {}) {
     const binary = opts.binary ?? appBinary;
@@ -401,6 +452,10 @@ class AppRun {
     env.GMUX_UPDATE_REHEARSAL = '1';
     env.GMUX_TMUX_SOCKET = socket;
     env.TORTIE_UPDATE_FEED = feedUrl;
+    // Phase 43. The wreck probes move the Squirrel state Tortie READS and
+    // CLEARS to a scratch directory. The app honours it only because all
+    // three rehearsal conditions above hold.
+    for (const [k, v] of Object.entries(opts.extraEnv ?? {})) env[k] = v;
     usedSockets.add(socket);
     createdHarnessServer = true;
     this.child = spawn(binary, [`--user-data-dir=${profile}`], {
@@ -575,12 +630,28 @@ function startFeedServer() {
 
 const updaterCacheDir = join(homedir(), 'Library', 'Caches', 'tortie-updater');
 
-/** Every path under dir, parents before children, or null when dir is absent. */
+/**
+ * Every path under dir, parents before children, or null when dir is
+ * absent.
+ *
+ * The read of each directory is guarded because ShipIt deletes its staging
+ * directories underneath this walk. A P4 run crashed the harness with
+ * `ENOENT: scandir '.../update.868laFL/Tortie.app/.../cs_FEMININE.lproj'`
+ * after its assertions had passed, and the same crash could land inside a
+ * later probe's assertion instead of after one. A directory that is gone by
+ * the time the walk reaches it contributes nothing and is not an error.
+ */
 function snapshotTree(dir) {
   if (!existsSync(dir)) return null;
   const out = [];
   const walk = (d) => {
-    for (const entry of readdirSync(d, { withFileTypes: true })) {
+    let entries;
+    try {
+      entries = readdirSync(d, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
       const p = join(d, entry.name);
       out.push(p);
       if (entry.isDirectory()) walk(p);
@@ -689,12 +760,19 @@ function cleanShipIt(before) {
   }
   const keep = new Set(before ?? []);
   const after = snapshotTree(shipItDir) ?? [];
+  // tortie-repair.json is kept for the same reason ShipIt_stderr.log is. It
+  // is state rather than litter: a repair writes it so the give up line in
+  // the kept log stops deciding later launches, and removing it here would
+  // hand the next launch the false alarm the mark exists to prevent.
   const created = after.filter(
-    (p) => !keep.has(p) && !p.endsWith('ShipIt_stderr.log')
+    (p) =>
+      !keep.has(p) &&
+      !p.endsWith('ShipIt_stderr.log') &&
+      !p.endsWith('tortie-repair.json')
   );
   for (const p of created.reverse()) rmSync(p, { recursive: true, force: true });
   log(
-    `removed ${created.length} entries the run created under ${shipItDir}. ShipIt_stderr.log was preserved.`
+    `removed ${created.length} entries the run created under ${shipItDir}. ShipIt_stderr.log and tortie-repair.json were preserved.`
   );
 }
 
@@ -979,6 +1057,9 @@ function screenshot(name) {
 async function probeReadyDialog(feedUrl) {
   log('ready dialog probe. A user initiated check, both dialogs, then the install.');
   freshV1Copy();
+  // Phase 43, probe P4. Everything ShipIt writes from here to the quit
+  // belongs to this run, and exactly one install request may appear in it.
+  const runShipItOffset = shipItStderrSize();
   const run = new AppRun('ready-a', feedUrl);
   await run.waitFor(/tmux conf verified/, 120_000, 'the app booting its tmux server');
   // Give the menu bar a moment to exist, then click the real item well
@@ -1019,6 +1100,37 @@ async function probeReadyDialog(feedUrl) {
   clickDialogButton(run.pid, readyTitle, 'OK');
   log('dismissed the ready dialog with its OK button');
 
+  // Phase 43, probe P4. Two more user checks, 3 seconds apart, after the
+  // staging has landed. Each one must answer from what the run already
+  // knows and must NOT reach electron-updater, because a second staging
+  // deletes the copy the pending install is waiting on. The menu item must
+  // still do something, so each click is held to showing a dialog.
+  const installPromptNeedle = 'Update ready';
+  for (const attempt of [2, 3]) {
+    await sleep(3_000);
+    clickCheckForUpdates(run.pid);
+    const promptTexts = await waitForDialogOnScreen(
+      run.pid,
+      installPromptNeedle,
+      30_000,
+      `the dialog after user check ${attempt}`
+    );
+    log(`user check ${attempt} answered with a dialog. The window reads, verbatim:\n${promptTexts}`);
+    // Later, never Update Now. Update Now would quit and install here.
+    clickDialogButton(run.pid, installPromptNeedle, 'Later');
+  }
+  if (!run.sawLine(/already handed an update to the installer in this run/)) {
+    fail('the app never logged the no second staging refusal, so the guard did not run');
+  }
+  log('the app logged the pinned no second staging refusal');
+  const detected = shipItStderrSince(runShipItOffset)
+    .split('\n')
+    .filter((l) => l.includes('Detected this as an install request')).length;
+  log(`"Detected this as an install request" lines for this run: ${detected}. The target is 1. The 2026-08-15 incident had 2.`);
+  if (detected !== 1) {
+    fail(`the run produced ${detected} install requests. Two more user checks after the staging must add none.`);
+  }
+
   // The dialog promised "it installs when you quit". Hold it to that.
   const offset = shipItStderrSize();
   const quitAtMs = Date.now();
@@ -1031,7 +1143,7 @@ async function probeReadyDialog(feedUrl) {
   if (after !== V2) fail(`after the quit Info.plist reads ${after}, expected ${V2}`);
   const quitToSwapS = (result.completedAtMs - quitAtMs) / 1000;
   log(`the quit installed ${V2} in ${quitToSwapS.toFixed(1)} s, exactly what the dialog promised`);
-  return { checkAtS: checking.at / 1000, quitToSwapS };
+  return { checkAtS: checking.at / 1000, quitToSwapS, detected };
 }
 
 // -- the two instance probes (Phase 31) ---------------------------------------
@@ -1295,6 +1407,592 @@ async function twoInstanceProbes(feedUrl) {
   return { r1, r2 };
 }
 
+// -- the wreck probes (Phase 43) ----------------------------------------------
+
+/**
+ * The operator's own ShipIt lines from 2026-08-15, message text verbatim.
+ *
+ * The TIMESTAMPS are the one thing the probe changes. The refusal check
+ * compares a line's timestamp against the app's pending record with a 60
+ * second window, so lines from 00:29 that morning would read as an old
+ * incident and prove nothing about the promise the probe just wrote. Each
+ * line keeps its offset from the first one, to the millisecond, and the
+ * whole block is placed a few seconds before now.
+ */
+const OPERATOR_OFFSETS_MS = {
+  firstRequest: 0,
+  secondRequest: 5609,
+  beginning: 18953,
+  firstError: 18973,
+  attempt2: 19037,
+  secondError: 19048,
+  attempt3: 21116,
+  thirdError: 21124,
+  gaveUp: 23237,
+  quitting: 23242
+};
+
+const SHIPIT_NOISE = 'ERROR: Unrecognized attribute string flag';
+
+/** `YYYY-MM-DD HH:MM:SS.mmm` in local time, which is what NSLog writes. */
+function nsLogStamp(ms) {
+  const d = new Date(ms);
+  const p = (n, w = 2) => String(n).padStart(w, '0');
+  return (
+    `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ` +
+    `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}.${p(d.getMilliseconds(), 3)}`
+  );
+}
+
+/** The verbatim "Failed to copy bundle" error, pointed at a real path. */
+function copyFailedRest(stagedBundle) {
+  return (
+    'Installation error: Error Domain=SQRLInstallerErrorDomain Code=-1 ' +
+    `"Failed to copy bundle ${pathToFileURL(stagedBundle).href}/ ` +
+    'to directory file:///var/folders/xx/com.itavero.tortie.ShipIt.fFsI228X/Tortie.app" ' +
+    'UserInfo={NSUnderlyingError=0x600001 {Error Domain=NSCocoaErrorDomain Code=260 ' +
+    '"The file “Tortie.app” couldn’t be opened because there is no such file." ' +
+    'UserInfo={NSUnderlyingError=0x600002 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}}}'
+  );
+}
+
+/** The 2026-08-15 tail, re-timestamped so its last line lands at endMs. */
+function operatorWreckTail(stagedBundle, endMs) {
+  const base = endMs - OPERATOR_OFFSETS_MS.quitting;
+  const line = (key, pids, rest) =>
+    `${nsLogStamp(base + OPERATOR_OFFSETS_MS[key])} ShipIt[${pids}] ${rest}`;
+  const failed = copyFailedRest(stagedBundle);
+  return (
+    [
+      line('firstRequest', '69989:92086352', 'Detected this as an install request'),
+      line('secondRequest', '70665:92087700', 'Detected this as an install request'),
+      line('beginning', '70665:92087710', 'Beginning installation'),
+      SHIPIT_NOISE,
+      line('firstError', '70665:92089787', failed),
+      line('attempt2', '71832:92089801', 'Resuming installation attempt 2'),
+      line('secondError', '71832:92089801', failed),
+      line('attempt3', '71966:92090057', 'Resuming installation attempt 3'),
+      line('thirdError', '71966:92090057', failed),
+      SHIPIT_NOISE,
+      line('gaveUp', '72120:92090255', 'Too many attempts to install, aborting update'),
+      line('quitting', '72120:92090255', 'ShipIt quitting')
+    ].join('\n') + '\n'
+  );
+}
+
+/** A log whose newest line is Beginning installation, so nothing terminal. */
+function healthyTail(endMs) {
+  return (
+    [
+      `${nsLogStamp(endMs - 2000)} ShipIt[90001:1] Detected this as an install request`,
+      SHIPIT_NOISE,
+      `${nsLogStamp(endMs)} ShipIt[90001:2] Beginning installation`
+    ].join('\n') + '\n'
+  );
+}
+
+/** Every path under dir with its size, relative and sorted. */
+function listWithSizes(dir) {
+  const paths = snapshotTree(dir);
+  if (paths === null) return ['(the directory does not exist)'];
+  return paths
+    .map((p) => {
+      let size = 'dir';
+      try {
+        const st = statSync(p);
+        if (st.isFile()) size = String(st.size);
+      } catch {
+        size = '(unreadable)';
+      }
+      return `${relative(dir, p)} ${size}`;
+    })
+    .sort();
+}
+
+function defaultsRead(domain) {
+  const r = spawnSync('/usr/bin/defaults', ['read', domain], {
+    encoding: 'utf8'
+  });
+  if (r.status === 0) return (r.stdout ?? '').trim();
+  return '(does not exist)';
+}
+
+function defaultsWriteInt(domain, key, value) {
+  const r = spawnSync(
+    '/usr/bin/defaults',
+    ['write', domain, key, '-int', String(value)],
+    { encoding: 'utf8' }
+  );
+  if (r.status !== 0) {
+    fail(`could not write ${domain} ${key}. ${(r.stderr ?? '').trim()}`);
+  }
+}
+
+function defaultsDelete(domain) {
+  spawnSync('/usr/bin/defaults', ['delete', domain], { encoding: 'utf8' });
+}
+
+/**
+ * Build the scratch copy of Squirrel's state. `staged` decides whether the
+ * bundle the state file names actually exists, which is the whole
+ * difference between a wreck and a healthy pending install.
+ *
+ * THE STAGING DIRECTORY ALWAYS EXISTS. The operator's disk had
+ * `update.KZlg2R9` present and EMPTY, with only the `Tortie.app` inside it
+ * gone. The first cut of this fixture created neither, so the probe's own
+ * assertion that no `update.*` entry survives the repair passed against an
+ * empty list and proved nothing. The wreck shape is now the operator's
+ * shape.
+ *
+ * THE TARGET URL IS THE RESOLVED PATH. The scratch app lives under
+ * `/var/folders/...`, which is a symlink to `/private/var/folders/...`, and
+ * the app reads its own bundle through `process.execPath`, which libuv
+ * resolves. Writing the unresolved path here made the app read its own
+ * state file as another application's.
+ */
+function buildStateRoot({ staged, stagingName, tail }) {
+  rmSync(stateRoot, { recursive: true, force: true });
+  mkdirSync(wreckShipItDir, { recursive: true });
+  mkdirSync(wreckCacheDir, { recursive: true });
+  const stagedBundle = join(wreckShipItDir, stagingName, 'Tortie.app');
+  mkdirSync(join(wreckShipItDir, stagingName), { recursive: true });
+  if (staged) {
+    mkdirSync(join(stagedBundle, 'Contents'), { recursive: true });
+    writeFileSync(join(stagedBundle, 'Contents', 'marker.txt'), 'staged\n');
+  }
+  writeFileSync(
+    join(wreckShipItDir, 'ShipItState.plist'),
+    `${JSON.stringify(
+      {
+        bundleIdentifier: BUNDLE_ID,
+        // Squirrel writes standardized URLs with a trailing slash.
+        targetBundleURL: `${pathToFileURL(realpathSync(appPath)).href}/`,
+        updateBundleURL: `${pathToFileURL(stagedBundle).href}/`,
+        launchAfterInstallation: true
+      },
+      null,
+      2
+    )}\n`
+  );
+  writeFileSync(
+    join(wreckShipItDir, 'ShipIt_stderr.log'),
+    tail(stagedBundle, Date.now() - 2_000)
+  );
+  // The pending download the repair must remove, and the cached zip beside
+  // it that the repair must keep.
+  mkdirSync(join(wreckCacheDir, 'pending'), { recursive: true });
+  writeFileSync(
+    join(wreckCacheDir, 'pending', `Tortie-${V2}-arm64.zip`),
+    'a pending download\n'
+  );
+  writeFileSync(join(wreckCacheDir, 'update.zip'), 'a cached zip\n');
+  defaultsDelete(WRECK_DEFAULTS_DOMAIN);
+  defaultsWriteInt(WRECK_DEFAULTS_DOMAIN, 'SQRLInstallationAttempts', 3);
+  return stagedBundle;
+}
+
+/** Seed the profile so the launch has a broken promise to report. */
+function seedPendingRecord(profile) {
+  rmSync(profile, { recursive: true, force: true });
+  mkdirSync(profile, { recursive: true });
+  writeFileSync(
+    join(profile, 'updates.json'),
+    `${JSON.stringify(
+      {
+        // lastSeenVersion must equal the running version, or the check
+        // reads the failure as "some other install happened".
+        lastSeenVersion: V1,
+        pendingVersion: V2,
+        pendingRecordedAt: Date.now()
+      },
+      null,
+      2
+    )}\n`
+  );
+}
+
+/** Every menu item label in the app's own Tortie menu. */
+function tortieMenuLabels(pid) {
+  const r = spawnSync(
+    'osascript',
+    [
+      '-e',
+      `tell application "System Events"
+  tell (first process whose unix id is ${pid})
+    return name of every menu item of menu 1 of menu bar item "Tortie" of menu bar 1
+  end tell
+end tell`
+    ],
+    { encoding: 'utf8' }
+  );
+  return r.status === 0 ? (r.stdout ?? '').trim() : '';
+}
+
+/** The three real locations plus the real preferences domain. */
+function realStateSnapshot() {
+  return {
+    shipIt: listWithSizes(shipItDir).join('\n'),
+    cache: listWithSizes(updaterCacheDir).join('\n'),
+    domain: defaultsRead(`${BUNDLE_ID}.ShipIt`)
+  };
+}
+
+function assertRealStateUnchanged(before, what) {
+  const after = realStateSnapshot();
+  for (const key of ['shipIt', 'cache', 'domain']) {
+    if (before[key] !== after[key]) {
+      fail(
+        `${what}: the real ${key} state changed.\nbefore:\n${before[key]}\nafter:\n${after[key]}`
+      );
+    }
+  }
+  log(`${what}: the three real locations and the real defaults domain read exactly as they did before the probe`);
+}
+
+const CLEAR_BUTTON = 'Clear and Check Again';
+const WRECK_NEEDLE = 'that copy was gone from disk when the installer ran';
+const READY_REFUSAL_NEEDLE =
+  'the update it prepared is still on disk and ready to install';
+
+/**
+ * Probe P2. Wreck the scratch state, launch, read the dialog off the
+ * accessibility tree, click Clear and Check Again, and prove on disk what
+ * went and what stayed.
+ *
+ * The feed is deliberately DEAD here. The point of P2 is that nothing real
+ * is touched, and a live feed would have the re-armed check download and
+ * stage through real Squirrel, which writes to the real ShipIt directory.
+ * The re-arm and the check starting are what this probe asserts; P5 and P6
+ * prove that a check after a repair really installs.
+ */
+async function probeWreckAndHeal(feedUrl) {
+  log('probe P2. Wreck the scratch Squirrel state, then heal it.');
+  const realBefore = realStateSnapshot();
+  freshV1Copy();
+  const stagedBundle = buildStateRoot({
+    staged: false,
+    stagingName: WRECK_STAGING_NAME,
+    tail: operatorWreckTail
+  });
+  seedPendingRecord(profileDir);
+  log(`state root at ${stateRoot}. The state file names ${stagedBundle}, which does not exist.`);
+  log(`${WRECK_DEFAULTS_DOMAIN} before the launch: ${defaultsRead(WRECK_DEFAULTS_DOMAIN)}`);
+
+  const run = new AppRun('p43-wreck', `${feedUrl}/absent`, {
+    extraEnv: { GMUX_UPDATE_STATE_ROOT: stateRoot }
+  });
+  await run.waitFor(/showing the refusal dialog for/, 90_000, 'the refusal dialog log line');
+  const texts = await waitForDialogOnScreen(run.pid, WRECK_NEEDLE, 60_000, 'the wreck dialog');
+  log(`the wreck dialog is on screen. The window reads, verbatim:\n${texts}`);
+  screenshot('p43-wreck-dialog.png');
+  const expected =
+    `The update to ${V2} did not install. Tortie had prepared a copy of the new version, and that copy was gone from disk when the installer ran. ` +
+    'The installer tried 3 times and then saved that it had given up. It does not try again until Tortie clears what it saved. ' +
+    "Clearing removes only the installer's own leftover files. " +
+    'Your sessions keep running and your settings are not touched.';
+  if (!texts.includes(expected)) {
+    fail(`the wreck dialog body is not the pinned copy.\nexpected:\n${expected}\non screen:\n${texts}`);
+  }
+  log('the dialog body is byte identical to the pinned copy, with the version 0.18.2 and the attempt count 3');
+  const labels = tortieMenuLabels(run.pid);
+  log(`the Tortie menu reads: ${labels}`);
+
+  const clickedAt = Date.now();
+  clickDialogButton(run.pid, WRECK_NEEDLE, CLEAR_BUTTON);
+  log(`clicked "${CLEAR_BUTTON}"`);
+  await run.waitFor(/repair finished as/, 60_000, 'the repair finishing');
+  const clearedMs = Date.now() - clickedAt;
+
+  // What went, and what stayed.
+  const problems = [];
+  if (existsSync(join(wreckShipItDir, 'ShipItState.plist'))) {
+    problems.push('ShipItState.plist is still there');
+  }
+  const leftovers = readdirSync(wreckShipItDir).filter((n) => n.startsWith('update.'));
+  if (leftovers.length > 0) {
+    problems.push(`staging directories remain: ${leftovers.join(', ')}`);
+  }
+  if (existsSync(join(wreckCacheDir, 'pending'))) {
+    problems.push('the pending download directory is still there');
+  }
+  if (!existsSync(join(wreckCacheDir, 'update.zip'))) {
+    problems.push('update.zip was removed and it must be kept');
+  }
+  if (!existsSync(join(wreckShipItDir, 'ShipIt_stderr.log'))) {
+    problems.push('ShipIt_stderr.log was removed and it must be kept');
+  }
+  const domainAfter = defaultsRead(WRECK_DEFAULTS_DOMAIN);
+  if (domainAfter !== '(does not exist)') {
+    problems.push(`the defaults domain still reads ${domainAfter}`);
+  }
+  if (problems.length > 0) {
+    fail(`the repair left the wrong state on disk. ${problems.join('; ')}`);
+  }
+  log(`the repair removed the state file, the staging directories, the defaults domain and the pending cache in ${(clearedMs / 1000).toFixed(1)} s`);
+  log('ShipIt_stderr.log and update.zip were kept, exactly as the module says they are');
+  if (!existsSync(join(wreckShipItDir, 'tortie-repair.json'))) {
+    fail('the repair did not write tortie-repair.json, so the next launch would read the kept log as a wreck again');
+  }
+  log(`the repair mark reads ${readFileSync(join(wreckShipItDir, 'tortie-repair.json'), 'utf8').trim().replace(/\s+/g, ' ')}`);
+
+  await run.waitFor(/the updater state was cleared/, 30_000, 'the re-arm line');
+
+  // The result dialog comes BEFORE the check. offerUpdaterRepair awaits its
+  // OK and only then runs the check, so waiting for the check first is a
+  // deadlock. The first cut of this probe did exactly that and timed out
+  // after 60 s with the repair already finished.
+  const clearedTexts = await waitForDialogOnScreen(
+    run.pid,
+    "installer's leftovers",
+    30_000,
+    'the repair result dialog'
+  );
+  log(`the repair result dialog reads, verbatim:\n${clearedTexts}`);
+  screenshot('p43-wreck-cleared.png');
+  if (!clearedTexts.includes("Tortie cleared the installer's leftovers")) {
+    fail(`the repair reported itself as something other than a whole clear. The window reads:\n${clearedTexts}`);
+  }
+  clickDialogButton(run.pid, "installer's leftovers", 'OK');
+  await run.waitFor(/Checking for update/, 60_000, 'the check that follows the repair');
+  log('the app re-armed its checks and started one');
+
+  // The feed is dead, so the check ends in the ordinary failure dialog.
+  await sleep(3_000);
+  const on = dialogTexts(run.pid);
+  if (on.includes('update check failed')) {
+    clickDialogButton(run.pid, 'update check failed', 'OK');
+  }
+  await run.quit(45_000);
+
+  // The launch AFTER a successful repair must be quiet. The repair keeps
+  // ShipIt_stderr.log, so without the repair mark its give up line is still
+  // the newest terminal line and this launch would offer the same repair
+  // again. That false alarm was measured live before the mark existed.
+  rmSync(profileDir, { recursive: true, force: true });
+  const after = new AppRun('p43-wreck-after', `${feedUrl}/absent`, {
+    extraEnv: { GMUX_UPDATE_STATE_ROOT: stateRoot }
+  });
+  await after.waitFor(/the updater state on disk reads unknown/, 60_000, 'the healed verdict on the next launch');
+  const quietTexts = dialogTexts(after.pid);
+  if (quietTexts.includes(CLEAR_BUTTON) || quietTexts.includes('cannot install updates')) {
+    fail(`the launch after a successful repair offered the repair again. The windows read:\n${quietTexts}`);
+  }
+  const afterLabels = tortieMenuLabels(after.pid);
+  if (afterLabels.includes('Repair Updates')) {
+    fail(`the launch after a successful repair still draws the Repair Updates item. The menu reads: ${afterLabels}`);
+  }
+  log(`the launch after the repair is quiet. The Tortie menu reads: ${afterLabels}`);
+  await after.quit(45_000);
+
+  assertRealStateUnchanged(realBefore, 'P2');
+  return { clearedMs, dialog: texts, cleared: clearedTexts };
+}
+
+/**
+ * Probe P3. A healthy staged update is never touched.
+ *
+ * Leg A proves nothing is offered when the staged bundle is on disk. Leg B
+ * proves the health is read at CLICK time: the bundle appears while the
+ * dialog sits on screen, and the click then refuses.
+ */
+async function probeWreckHealthy(feedUrl) {
+  log('probe P3. A healthy staged update is never touched.');
+  const realBefore = realStateSnapshot();
+
+  // ---- Leg A ----
+  freshV1Copy();
+  buildStateRoot({
+    staged: true,
+    stagingName: HEALTHY_STAGING_NAME,
+    tail: (_bundle, endMs) => healthyTail(endMs)
+  });
+  rmSync(profileDir, { recursive: true, force: true });
+  const beforeA = listWithSizes(stateRoot).join('\n');
+  const runA = new AppRun('p43-healthy-a', `${feedUrl}/absent`, {
+    extraEnv: { GMUX_UPDATE_STATE_ROOT: stateRoot }
+  });
+  await runA.waitFor(/tmux conf verified/, 120_000, 'leg A booting, which proves no dialog blocked it');
+  await runA.waitFor(/the updater state on disk reads healthy/, 30_000, 'the healthy verdict in the log');
+  const onScreenA = dialogTexts(runA.pid);
+  if (onScreenA.includes(CLEAR_BUTTON) || onScreenA.includes('cannot install updates')) {
+    fail(`leg A showed a repair offer against a healthy state. The windows read:\n${onScreenA}`);
+  }
+  const labelsA = tortieMenuLabels(runA.pid);
+  if (labelsA.includes('Repair Updates')) {
+    fail(`leg A drew the Repair Updates item against a healthy state. The menu reads: ${labelsA}`);
+  }
+  log(`leg A: no dialog, no Repair Updates item. The Tortie menu reads: ${labelsA}`);
+  await runA.quit(45_000);
+  const afterA = listWithSizes(stateRoot).join('\n');
+  if (afterA !== beforeA) {
+    fail(`leg A changed the state root.\nbefore:\n${beforeA}\nafter:\n${afterA}`);
+  }
+  log('leg A: the state root listing with sizes is byte identical after the run');
+
+  // ---- Leg B ----
+  freshV1Copy();
+  const stagedBundle = buildStateRoot({
+    staged: false,
+    stagingName: WRECK_STAGING_NAME,
+    tail: operatorWreckTail
+  });
+  seedPendingRecord(profileDir);
+  const runB = new AppRun('p43-healthy-b', `${feedUrl}/absent`, {
+    extraEnv: { GMUX_UPDATE_STATE_ROOT: stateRoot }
+  });
+  await waitForDialogOnScreen(runB.pid, WRECK_NEEDLE, 90_000, 'the wreck dialog in leg B');
+  log('leg B: the wreck dialog is on screen. Creating the staged bundle it names, while the dialog waits.');
+  mkdirSync(join(stagedBundle, 'Contents'), { recursive: true });
+  writeFileSync(join(stagedBundle, 'Contents', 'marker.txt'), 'staged late\n');
+  const beforeB = listWithSizes(stateRoot).join('\n');
+  clickDialogButton(runB.pid, WRECK_NEEDLE, CLEAR_BUTTON);
+  const refusalTexts = await waitForDialogOnScreen(
+    runB.pid,
+    READY_REFUSAL_NEEDLE,
+    60_000,
+    'the ready update refusal'
+  );
+  log(`leg B: the refusal is on screen. The window reads, verbatim:\n${refusalTexts}`);
+  screenshot('p43-healthy-refusal.png');
+  const afterB = listWithSizes(stateRoot).join('\n');
+  if (afterB !== beforeB) {
+    fail(`leg B removed something after refusing.\nbefore:\n${beforeB}\nafter:\n${afterB}`);
+  }
+  log('leg B: the state root listing with sizes is byte identical after the refusal, so health is read at click time');
+  clickDialogButton(runB.pid, READY_REFUSAL_NEEDLE, 'OK');
+  await runB.quit(45_000);
+  assertRealStateUnchanged(realBefore, 'P3');
+  return { legAMenu: labelsA, refusal: refusalTexts };
+}
+
+/**
+ * Probe P6. The real wreck, reproduced against real Squirrel and healed.
+ *
+ * This is the only probe that touches the ShipIt state the installed app
+ * shares, so it runs last and only after refuseIfInstalledUpdateInFlight()
+ * has passed in main(). It deletes the real preferences domain, which the
+ * installed app recreates on its next install, and it never truncates
+ * ShipIt_stderr.log.
+ */
+async function probeWreckLive(feedUrl) {
+  log('probe P6. The real wreck, against real Squirrel.');
+  const shipItListBefore = listWithSizes(shipItDir).join('\n');
+  const domainBefore = defaultsRead(`${BUNDLE_ID}.ShipIt`);
+  log(`the real defaults domain before the probe: ${domainBefore.split('\n')[0] ?? ''}`);
+  freshV1Copy();
+  const runA = await stageOnPrimary(feedUrl, 'p43-live-a');
+
+  // The wreck, made by hand in the shape section 1.2 of the spec explains:
+  // remove the staging directory the pending install is waiting on.
+  const statePlist = join(shipItDir, 'ShipItState.plist');
+  const parsed = JSON.parse(readFileSync(statePlist, 'utf8'));
+  const stagedBundle = fileURLToPath(String(parsed.updateBundleURL ?? ''));
+  const stagingDir = dirname(stagedBundle.replace(/\/+$/, ''));
+  if (!stagingDir.startsWith(`${shipItDir}/update.`)) {
+    fail(`refusing to remove ${stagingDir}. It is not an update.* directory under ${shipItDir}.`);
+  }
+  rmSync(stagingDir, { recursive: true, force: true });
+  log(`removed ${stagingDir}, the staged bundle the pending install is waiting on. This is the wreck.`);
+
+  const offset = shipItStderrSize();
+  const quitAtMs = Date.now();
+  await runA.quit(45_000);
+  let gaveUpAtMs = null;
+  while (Date.now() - quitAtMs < 180_000) {
+    if (/Too many attempts to install, aborting update/.test(shipItStderrSince(offset))) {
+      gaveUpAtMs = Date.now();
+      break;
+    }
+    await sleep(500);
+  }
+  const chunk = shipItStderrSince(offset);
+  if (gaveUpAtMs === null) {
+    fail(`the install never reached "Too many attempts" within 180 s of the quit. The log since the quit reads:\n${chunk}`);
+  }
+  if (!/SQRLInstallerErrorDomain Code=-1/.test(chunk)) {
+    fail(`the wreck did not produce the Code=-1 error. The log since the quit reads:\n${chunk}`);
+  }
+  const attemptLines = chunk
+    .split('\n')
+    .filter((l) => /Resuming installation attempt (\d+)/.test(l));
+  log(`the wreck reproduced. Code=-1 then "Too many attempts" ${((gaveUpAtMs - quitAtMs) / 1000).toFixed(1)} s after the quit, with ${attemptLines.length} resume lines.`);
+  const held = plistVersion(appPath);
+  if (held !== V1) fail(`after the wreck Info.plist reads ${held}, expected ${V1}`);
+
+  // The relaunch must say so, and must offer the repair.
+  const recovery = new AppRun('p43-live-recovery', feedUrl);
+  const texts = await waitForDialogOnScreen(recovery.pid, WRECK_NEEDLE, 120_000, 'the wreck dialog on the relaunch');
+  log(`the relaunch shows the wreck dialog. The window reads, verbatim:\n${texts}`);
+  screenshot('p43-live-dialog.png');
+  clickDialogButton(recovery.pid, WRECK_NEEDLE, CLEAR_BUTTON);
+  await recovery.waitFor(/repair finished as/, 60_000, 'the repair finishing');
+
+  const problems = [];
+  if (existsSync(statePlist)) problems.push('the real ShipItState.plist is still there');
+  const leftovers = (existsSync(shipItDir) ? readdirSync(shipItDir) : []).filter((n) =>
+    n.startsWith('update.')
+  );
+  if (leftovers.length > 0) problems.push(`staging directories remain: ${leftovers.join(', ')}`);
+  if (defaultsRead(`${BUNDLE_ID}.ShipIt`) !== '(does not exist)') {
+    problems.push('the real defaults domain still exists');
+  }
+  if (existsSync(join(updaterCacheDir, 'pending'))) {
+    problems.push('the real pending download directory is still there');
+  }
+  if (!existsSync(shipItStderrLog)) problems.push('ShipIt_stderr.log was removed');
+  if (problems.length > 0) fail(`the live repair left the wrong state. ${problems.join('; ')}`);
+  log('the live repair cleared the real state file, staging directories, defaults domain and pending cache, and kept ShipIt_stderr.log');
+
+  // The check re-arms, a new staging completes, and the quit installs.
+  await recovery.waitFor(/the updater state was cleared/, 30_000, 'the re-arm line');
+
+  // The result dialog blocks the check behind its OK, so it is dismissed
+  // first and by a needle that matches BOTH results. The first cut waited
+  // on "cleared the installer's leftovers", which the partial title
+  // "Tortie cleared some of the installer's leftovers" does not contain, so
+  // a partial result left the dialog on screen and the probe timed out
+  // after 300 s without ever reaching the restage.
+  const resultTexts = await waitForDialogOnScreen(
+    recovery.pid,
+    "installer's leftovers",
+    30_000,
+    'the repair result dialog'
+  );
+  log(`the live repair result dialog reads, verbatim:\n${resultTexts}`);
+  if (!resultTexts.includes("Tortie cleared the installer's leftovers")) {
+    fail(`the live repair reported itself as something other than a whole clear. The window reads:\n${resultTexts}`);
+  }
+  clickDialogButton(recovery.pid, "installer's leftovers", 'OK');
+  await sleep(2_000);
+  if (dialogTexts(recovery.pid).includes('is downloading')) {
+    clickDialogButton(recovery.pid, 'is downloading', 'OK');
+  }
+  await recovery.waitFor(/is staged and installs when you quit/, 300_000, `restaging ${V2} after the repair`);
+  const readyTitle = `Tortie ${V2} is ready`;
+  if (dialogTexts(recovery.pid).includes(readyTitle)) {
+    clickDialogButton(recovery.pid, readyTitle, 'OK');
+  }
+  const offset2 = shipItStderrSize();
+  const quit2 = Date.now();
+  await recovery.quit(45_000);
+  const result = await watchInstallAfterQuit(offset2, 60_000, 'P6 recovery');
+  if (result.outcome !== 'completed') {
+    fail(`the repaired updater did not install. Outcome ${result.outcome}`);
+  }
+  const after = plistVersion(appPath);
+  if (after !== V2) fail(`after the repaired install Info.plist reads ${after}, expected ${V2}`);
+  const quitToSwapS = (result.completedAtMs - quit2) / 1000;
+  log(`P6 PROVED. The repaired updater installed ${V2} ${quitToSwapS.toFixed(1)} s after the quit.`);
+  log(`the real ShipIt listing before the probe:\n${shipItListBefore}`);
+  log(`the real ShipIt listing after the probe:\n${listWithSizes(shipItDir).join('\n')}`);
+  return {
+    gaveUpAfterS: (gaveUpAtMs - quitAtMs) / 1000,
+    attemptLines: attemptLines.length,
+    quitToSwapS,
+    dialog: texts
+  };
+}
+
 /**
  * A leaked instance carrying the production bundle id is one suspect in the
  * incident this phase answers, so the run ends by proving it left none.
@@ -1391,11 +2089,12 @@ async function main() {
 
   let result;
   try {
-    result = twoInstance
-      ? await twoInstanceProbes(feedUrl)
-      : readyDialog
-        ? await probeReadyDialog(feedUrl)
-        : await roundtrip(feedUrl);
+    if (twoInstance) result = await twoInstanceProbes(feedUrl);
+    else if (readyDialog) result = await probeReadyDialog(feedUrl);
+    else if (wreck) result = await probeWreckAndHeal(feedUrl);
+    else if (wreckHealthy) result = await probeWreckHealthy(feedUrl);
+    else if (wreckLive) result = await probeWreckLive(feedUrl);
+    else result = await roundtrip(feedUrl);
   } finally {
     feedServer.close();
     feedServer = null;
@@ -1405,6 +2104,13 @@ async function main() {
     rmSync(profileDir, { recursive: true, force: true });
     rmSync(profileBDir, { recursive: true, force: true });
     rmSync(profileCDir, { recursive: true, force: true });
+    // Phase 43. The scratch state root and the suffixed preferences domain
+    // belong to this script alone, so both go whole. The real domain is
+    // never named here.
+    if (wreck || wreckHealthy) {
+      rmSync(stateRoot, { recursive: true, force: true });
+      defaultsDelete(WRECK_DEFAULTS_DOMAIN);
+    }
   }
 
   await assertNoScratchProcesses();
@@ -1416,10 +2122,31 @@ async function main() {
   }
 
   if (readyDialog) {
-    log('PASS. Ready dialog probe.');
+    log('PASS. Ready dialog probe, with probe P4 riding on it.');
     log(`  the user's check began ${result.checkAtS.toFixed(1)} s after launch`);
     log('  the Update found dialog and the ready dialog were both read off the screen');
+    log('  two more user checks after the staging showed a dialog and reached the library no times');
+    log(`  "Detected this as an install request" lines for the run: ${result.detected} (target 1, the incident had 2)`);
     log(`  the quit installed ${V2} in ${result.quitToSwapS.toFixed(1)} s`);
+    log(`  operator sessions ${operatorBefore} before and ${operatorAfter} after`);
+  } else if (wreck) {
+    log('PASS. Probe P2, wreck and heal, fully isolated.');
+    log(`  the wreck dialog was read off the accessibility tree and matched the pinned copy`);
+    log(`  the clear finished ${(result.clearedMs / 1000).toFixed(1)} s after the click`);
+    log('  the state file, the staging directories, the defaults domain and the pending cache are gone');
+    log('  ShipIt_stderr.log and update.zip were kept');
+    log('  the repair reported itself as a whole clear, and the launch after it was quiet');
+    log(`  operator sessions ${operatorBefore} before and ${operatorAfter} after`);
+  } else if (wreckHealthy) {
+    log('PASS. Probe P3, a healthy staged update is never touched.');
+    log(`  leg A showed no dialog and drew no Repair Updates item. The Tortie menu read: ${result.legAMenu}`);
+    log('  leg B refused at click time and removed nothing');
+    log(`  operator sessions ${operatorBefore} before and ${operatorAfter} after`);
+  } else if (wreckLive) {
+    log('PASS. Probe P6, the real wreck reproduced and healed.');
+    log(`  "Too many attempts" landed ${result.gaveUpAfterS.toFixed(1)} s after the quit, after ${result.attemptLines} resume lines`);
+    log('  the relaunch showed the wreck dialog and the click cleared the real state');
+    log(`  the repaired updater installed ${V2} ${result.quitToSwapS.toFixed(1)} s after the quit`);
     log(`  operator sessions ${operatorBefore} before and ${operatorAfter} after`);
   } else if (twoInstance) {
     log('PASS. Two instance probes.');

@@ -36,6 +36,18 @@
  *    reason read from ShipIt's own log. That surface is ./refusal-check.ts
  *    plus ./ui.ts, and it is the second sanctioned dialog outside a user
  *    initiated check, allowed because it reports a failure.
+ * 6. ONE STAGING PER RUN (Phase 43). Once an update has been handed to the
+ *    OS installer, this run checks for updates no more. The reason is
+ *    measured, not cautious. electron-updater clears its own download guard
+ *    in a `finally` as soon as the first cycle ends, so a later check runs
+ *    the whole staging path again from the cached zip and calls
+ *    `nativeUpdater.checkForUpdates()` a second time. Every Squirrel
+ *    staging deletes the update directories of the previous ones, including
+ *    the one the pending install is waiting on. That is how the operator's
+ *    machine reached a state where no update could install at all on
+ *    2026-08-15. The diagnosis is docs/research/46-updater-wreckage.md. The
+ *    guard is `handedToInstaller` below, and `rearmUpdateChecks()` is the
+ *    one way to undo it, called by ./recovery.ts after a repair.
  *
  * LOGGING (Phase 31). Every line this module logs, including everything
  * electron-updater says through the logger hook below, goes through
@@ -88,8 +100,9 @@ import type { UpdateInfo } from 'electron-updater';
 import { autoUpdater } from 'electron-updater';
 import type { UpdateUiState } from '@shared/ipc';
 import { logUpdateEvent } from './log';
+import { isConfirmedRehearsal } from './rehearsal';
 import { readUpdateState, writeUpdateState } from './state';
-import { activeTmuxSocket, TMUX_SOCKET } from '../tmux/supervisor';
+import { activeTmuxSocket } from '../tmux/supervisor';
 
 // UpdateUiState is the `updates:state` response type, so it lives in
 // src/shared/ipc.ts with the channel. The outcome union below is shared only
@@ -139,8 +152,10 @@ export interface FeedOverrideDecision {
 
 /**
  * Decide whether TORTIE_UPDATE_FEED may redirect the update check. The
- * conditions are in the module header. Pure so the tests can cover every
- * combination without an Electron process.
+ * conditions are in the module header and they are now held in one place,
+ * ./rehearsal.ts, because Phase 43 added a second variable that answers to
+ * the same three conditions. This function's signature, its behaviour and
+ * its pinned refusal string did not change when the rule moved.
  */
 export function feedOverrideDecision(
   env: NodeJS.ProcessEnv,
@@ -149,10 +164,7 @@ export function feedOverrideDecision(
 ): FeedOverrideDecision {
   const url = (env['TORTIE_UPDATE_FEED'] ?? '').trim();
   if (url === '') return { url: null, refused: false };
-  const rehearsal = env['GMUX_UPDATE_REHEARSAL'] === '1';
-  const isolatedSocket = socketName !== TMUX_SOCKET;
-  const isolatedProfile = !userDataPath.endsWith('/Tortie');
-  if (rehearsal && isolatedSocket && isolatedProfile) {
+  if (isConfirmedRehearsal(env, socketName, userDataPath)) {
     return { url, refused: false };
   }
   return { url: null, refused: true };
@@ -174,6 +186,31 @@ let stagedVersion: string | null = null;
 let lastCheckedAt: number | null = null;
 /** Lazy one-time read of updates.json for the fallback above. */
 let diskLastCheckedAt: number | null | undefined;
+/**
+ * True once this run handed an update to the OS installer (Phase 43, rule 6
+ * in the module header). From that moment no check runs, because a second
+ * staging deletes the copy the pending install is waiting on.
+ */
+let handedToInstaller = false;
+/** The refusal above is worth one line per run, not one line per check. */
+let noSecondStagingLogged = false;
+/** True when this launch found updater state that stops any install. */
+let needsUpdateRepair = false;
+
+/**
+ * The pinned refusal for rule 6. build/assert-bundle-refusals.mjs checks
+ * that both halves of this sentence reach the shipped bundle, because a
+ * guard the bundler removed is a guard the product only claims to have.
+ */
+const NO_SECOND_STAGING_REFUSAL =
+  'Tortie is not checking for updates again, because it already handed an update to the installer in this run. ' +
+  'A second check would delete the copy the installer is waiting on.';
+
+function logNoSecondStagingRefusal(): void {
+  if (noSecondStagingLogged) return;
+  noSecondStagingLogged = true;
+  logWarn(NO_SECOND_STAGING_REFUSAL);
+}
 
 type StateListener = () => void;
 const listeners = new Set<StateListener>();
@@ -203,8 +240,38 @@ export function getUpdateUiState(): UpdateUiState {
   return {
     currentVersion: app.getVersion(),
     stagedVersion,
-    lastCheckedAt: lastCheckedAt ?? diskLastCheckedAt ?? null
+    lastCheckedAt: lastCheckedAt ?? diskLastCheckedAt ?? null,
+    needsUpdateRepair
   };
+}
+
+/**
+ * Forget this run's staging so a repaired updater can check again (Phase
+ * 43). Called by ./recovery.ts after a successful clear, and by nothing
+ * else. The notify rebuilds the menu, which drops the staged item that no
+ * longer means anything, because the bundle it named has just been removed.
+ */
+export function rearmUpdateChecks(): void {
+  handedToInstaller = false;
+  noSecondStagingLogged = false;
+  downloadedVersion = null;
+  stagedVersion = null;
+  logInfo(
+    'the updater state was cleared, so this run may check for updates again'
+  );
+  notifyStateChanged();
+}
+
+/**
+ * Set by ./refusal-check.ts at launch when a standing wreck is found, and
+ * cleared by ./recovery.ts after a repair. The only thing it changes is
+ * whether the Tortie menu carries the "Repair Updates…" item, so a user who
+ * clicked "Not Now" can still reach the action.
+ */
+export function setUpdaterRepairNeeded(needed: boolean): void {
+  if (needsUpdateRepair === needed) return;
+  needsUpdateRepair = needed;
+  notifyStateChanged();
 }
 
 /** A check completed. Remember when, for this run and for the next one. */
@@ -281,6 +348,11 @@ export function initUpdater(): void {
   // is the staged menu item and an undownloaded update is not staged.
   autoUpdater.on('update-downloaded', (info: UpdateInfo) => {
     downloadedVersion = info.version;
+    // Phase 43, rule 6. This is the moment the library's loopback proxy went
+    // up and Squirrel was told to fetch, so it is the moment after which
+    // another check would re-stage and delete the copy the pending install
+    // is waiting on.
+    handedToInstaller = true;
     writeUpdateState({
       pendingVersion: info.version,
       pendingRecordedAt: Date.now()
@@ -323,6 +395,10 @@ export function initUpdater(): void {
 
 /** The timer path. Failures are already logged; nothing else happens. */
 async function backgroundCheck(): Promise<void> {
+  if (handedToInstaller) {
+    logNoSecondStagingRefusal();
+    return;
+  }
   try {
     const result = await autoUpdater.checkForUpdates();
     if (result !== null) recordCheckCompleted();
@@ -342,6 +418,16 @@ async function backgroundCheck(): Promise<void> {
  */
 export async function checkForUpdatesNow(): Promise<UpdateCheckOutcome> {
   if (!app.isPackaged) return { kind: 'unsupported' };
+  // Phase 43, rule 6. Answer from what this run already knows rather than
+  // calling the library. The user still gets the ordinary dialog, so the
+  // menu item is not dead, and lastCheckedAt stops moving, which is honest,
+  // because no check is running.
+  if (handedToInstaller && downloadedVersion !== null) {
+    logNoSecondStagingRefusal();
+    return stagedVersion !== null
+      ? { kind: 'staged', version: stagedVersion }
+      : { kind: 'downloading', version: downloadedVersion };
+  }
   try {
     const result = await autoUpdater.checkForUpdates();
     if (result === null) return { kind: 'unsupported' };

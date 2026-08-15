@@ -76,6 +76,7 @@ import { revealConfigFolder } from './config/guide';
 import { getUpdateUiState, onUpdateStateChanged } from './updates/updater';
 import {
   confirmInstallStagedUpdate,
+  offerUpdaterRepair,
   runInteractiveUpdateCheck
 } from './updates/ui';
 import { getLog } from './log';
@@ -272,6 +273,12 @@ export function sessionsPositionRadioState(): SessionsPosition {
  * result dialog says plainly that a development build does not update
  * itself.
  *
+ * "Repair Updates…" (Phase 43) appears only while the launch found updater
+ * state on disk that stops any install from happening. It is absent on
+ * every ordinary launch. It exists so the offer is not a one shot dialog: a
+ * user who answered "Not Now" can still reach the action, and so can a user
+ * who quit before answering.
+ *
  * The template reads `getUpdateUiState()` synchronously as it is built, the
  * same way the recents rows are read, so there is no second pass to race.
  * The try/catch is menu discipline rather than doubt about the contract: a
@@ -280,10 +287,14 @@ export function sessionsPositionRadioState(): SessionsPosition {
  */
 function updateMenuItems(): MenuItemConstructorOptions[] {
   let staged: string | null = null;
+  let needsRepair = false;
   try {
-    staged = getUpdateUiState().stagedVersion;
+    const state = getUpdateUiState();
+    staged = state.stagedVersion;
+    needsRepair = state.needsUpdateRepair;
   } catch {
     staged = null;
+    needsRepair = false;
   }
   const items: MenuItemConstructorOptions[] = [];
   if (staged !== null) {
@@ -296,6 +307,12 @@ function updateMenuItems(): MenuItemConstructorOptions[] {
     label: 'Check for Updates…',
     click: () => void runInteractiveUpdateCheck()
   });
+  if (needsRepair) {
+    items.push({
+      label: 'Repair Updates…',
+      click: () => void offerUpdaterRepair()
+    });
+  }
   return items;
 }
 

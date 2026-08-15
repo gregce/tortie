@@ -1,8 +1,8 @@
 /**
  * The updater's own small store, kept at `<userData>/updates.json` (Phase 24,
- * two fields added in Phase 31).
+ * two fields added in Phase 31, one added in Phase 43).
  *
- * Five fields live here and nothing else does:
+ * Six fields live here and nothing else does:
  *
  * - `lastSeenVersion` is the version the app last booted as. The post update
  *   self check compares it to `app.getVersion()` to know when an update has
@@ -24,6 +24,13 @@
  *   because the refusal check compares Squirrel's abort timestamps against
  *   `pendingRecordedAt`. So the sanitizer treats them as a pair: if either
  *   reads malformed, both read as null.
+ * - `wreckAnnouncedFor` (Phase 43) is the terminal ShipIt log line of a
+ *   wreck the user has already been offered a repair for. A wreck on disk
+ *   outlives the pending record, and a user may answer "Not Now", so the
+ *   launch check would otherwise show the same dialog every launch for
+ *   ever. The value is the line verbatim, timestamp and all, so a later
+ *   incident never matches an earlier one. It is independent of the pending
+ *   pair, so a malformed value costs nothing else.
  *
  * settings.json is deliberately not used. Its sanitizer whitelists fields and
  * the Settings window rewrites the file, so a hidden preference would either
@@ -63,6 +70,8 @@ export interface UpdateState {
   pendingVersion: string | null;
   /** When that promise was recorded, epoch milliseconds, or null. */
   pendingRecordedAt: number | null;
+  /** The wreck fingerprint already offered to the user, or null. */
+  wreckAnnouncedFor: string | null;
 }
 
 const DEFAULTS: UpdateState = {
@@ -70,7 +79,8 @@ const DEFAULTS: UpdateState = {
   allowDowngrade: false,
   lastCheckedAt: null,
   pendingVersion: null,
-  pendingRecordedAt: null
+  pendingRecordedAt: null,
+  wreckAnnouncedFor: null
 };
 
 function updatesPath(): string {
@@ -89,6 +99,7 @@ export function sanitizeUpdateState(raw: unknown): UpdateState {
   const checked = row['lastCheckedAt'];
   const pendingV = row['pendingVersion'];
   const pendingAt = row['pendingRecordedAt'];
+  const announced = row['wreckAnnouncedFor'];
   // The pending pair is only meaningful together: a version with no
   // timestamp cannot be checked against Squirrel's abort log, and a
   // timestamp with no version promises nothing. If either is malformed,
@@ -117,7 +128,13 @@ export function sanitizeUpdateState(raw: unknown): UpdateState {
         ? checked
         : null,
     pendingVersion: pairValid ? pendingVersionClean : null,
-    pendingRecordedAt: pairValid ? pendingRecordedAtClean : null
+    pendingRecordedAt: pairValid ? pendingRecordedAtClean : null,
+    // Independent of the pending pair on purpose. The wreck this names sits
+    // on disk in Squirrel's directory, not in the promise the pair records.
+    wreckAnnouncedFor:
+      typeof announced === 'string' && announced.trim().length > 0
+        ? announced.trim()
+        : null
   };
 }
 

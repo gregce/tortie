@@ -252,7 +252,7 @@ gmux.treeDensity
 gmux.treeOpen.
 gmux.zoomLevels
 
-[env.names] count=50
+[env.names] count=51
 GMUX_ALLOW_SECOND_INSTANCE
 GMUX_CONFIG_ROOT
 GMUX_CONF_AGENTS
@@ -303,6 +303,7 @@ GMUX_SPECSTORY_TARBALL
 GMUX_THEME_NAME
 GMUX_TMUX_SOCKET
 GMUX_UPDATE_REHEARSAL
+GMUX_UPDATE_STATE_ROOT
 
 [harness.smoke.modes] count=18
 agent
@@ -328,4 +329,4 @@ verify
 durability=21
 skills=6
 config=6
-updater=4
+updater=8

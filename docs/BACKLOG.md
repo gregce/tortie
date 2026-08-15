@@ -54,7 +54,7 @@ in the shipping build.
 | A, landed and released as 0.20.2 | **36** quit crash (`3c09245` + `3d1d70c`), **29** session history (`d08ab00`), **37** inline naming (`7c0ae02`) | — |
 | cleanup, landed | **42** the architecture cleanup, 9 stage commits `ba6a090` to `a1c7e1e` plus ledger `e28c53f` | 36 and 38 landed |
 | 1 | **47** explorer and git pane nits (fix), **35** uniform logging (feat), **33** env passthrough (feat, ✅ landed this commit) | 42 pushed |
-| 2 | **34** the CodeWhale race (fix), **40** selection and calm focus (fix, ✅ landed this commit), **39** Open With (feat, ✅ landed this commit), **43** updater wreckage recovery (fix, PULLED FORWARD, see the release plan) | wave 1 slots free |
+| 2 | **34** the CodeWhale race (fix), **40** selection and calm focus (fix, ✅ landed this commit), **39** Open With (feat, ✅ landed this commit), **43** updater wreckage recovery (fix, PULLED FORWARD, ✅ landed this commit) | wave 1 slots free |
 | 3 | **41** bundled tmux 3.7b (feat), **46** Runs in the SCM view (feat, ✅ landed this commit) | wave 2 slots free |
 
 ## The release plan, decided 2026-08-15
@@ -4269,7 +4269,7 @@ operator was promised byte for byte.
 
 **Semver.** refactor, no bump.
 
-## Phase 43 — the updater recovers from its own wreckage (operator hit it live, 2026-08-15) QUEUED
+## Phase 43 — the updater recovers from its own wreckage (operator hit it live, 2026-08-15) ✅ SHIPPED 2026-08-15 (this commit)
 
 **The incident.** The operator's 0.19.1 tried to self update to 0.20.2. ShipIt crash looped: 3
 install attempts inside 18 seconds, each dying about 2 seconds after Beginning installation,
@@ -4297,6 +4297,125 @@ exhausting the counter, prove the refusal line names it and the recovery verb he
 prove a healthy staged update is untouched by the recovery path.
 
 **Semver.** fix, patch bump.
+
+**The diagnosis, and it is settled.** docs/research/46-updater-wreckage.md holds it with the
+evidence quoted. Two facts make the wreck. First, every update check that runs after a download has
+finished stages the update again. electron-updater clears its own download guard as soon as the
+first cycle ends, and `validateDownloadedPath` then finds the zip already cached and re-stages from
+it without downloading anything. Second, every Squirrel staging deletes the update directories the
+earlier stagings left behind. The selector `removeUpdateDirectoriesInStorageURL:excludingURL:` has
+two call sites in the shipped Squirrel binary, and the one on the staging path excludes only the
+directory it has just created. So the second staging deleted the bundle the pending install was
+waiting on. The installer failed with `SQRLInstallerErrorDomain Code=-1`, launchd relaunched it, and
+Squirrel saved that it had given up after 3 attempts. That saved count makes every later install
+fail at once until someone clears it. The operator's log shows the two stagings 5.609 s apart and
+the give up 17.628 s after the second one.
+
+**What shipped.** Four items.
+
+- **Tortie stops checking for updates once it has handed one to the installer in this run.** That is
+  the cause, closed. A second check in the same run would delete the copy the installer is waiting
+  on. The menu item is not dead afterwards. A check made after the staging answers with the ordinary
+  install prompt and never reaches the library.
+- **The launch after a failed install names the reason and the remedy.** Phase 31 could say only
+  that another copy was running. It now also says that the prepared copy was gone from disk, and it
+  says when the installer has saved that it gave up, with the number of tries it counted in the log.
+  A give up now outranks the reason in every shape, so no dialog tells a person to quit and wait for
+  an install that cannot happen.
+- **One action clears what the installer saved.** It removes `ShipItState.plist`, every `update.*`
+  staging directory, the `com.itavero.tortie.ShipIt` preferences domain and the updater's pending
+  download, then re-arms the check and runs one. That is the exact sequence the orchestrator ran by
+  hand on 2026-08-15. It keeps `ShipIt_stderr.log`, `ShipIt_stdout.log` and `update.zip`, because the
+  log is the evidence the next incident is read from and the zip only makes the next download
+  smaller. It refuses on five conditions, and the first two are the ones that matter: a healthy
+  staged update on disk, and a state file that names a different copy of Tortie. The health is read
+  again at click time and never carried from launch. The action is reachable from the dialog and
+  from a `Repair Updates…` item in the Tortie menu, which is drawn only while a wreck is standing.
+- **The diagnosis is banked** in docs/research/46-updater-wreckage.md, so the next agent inherits it.
+
+**Tier 3, and every probe passed.** The gates ran in a tree holding HEAD plus this phase's files
+alone, because the shared working tree carries two other phases at the same time. typecheck passes
+at 618 production files, 3183 imports and 0 import boundary violations. The build passes. 3828 unit
+tests pass with 23 skipped and 0 failures in 28.40 s, so no flake had to be argued away.
+`npm run smoke:t1` reports 6 of 6. `node build/assert-bundle-refusals.mjs` reports 21 durability, 6
+skills-write, 6 config confirm-gate, 8 updater and 1 crash-capture. `node build/contract-inventory.mjs --check`
+matches the baseline byte for byte. 154 of those unit tests are in `src/main/updates`, and they
+include the 8 combinations of the rehearsal gate, the 7 health rules, the 5 recovery refusals and
+the verbatim body of every dialog.
+
+- **P2, wreck and heal in a scratch state root.** The dialog was read off the accessibility tree and
+  matched the pinned copy with the version 0.18.2 and the attempt count 3. The clear finished 0.3 s
+  after the click. The state file, the staging directories, the defaults domain and the pending
+  download were gone, and `ShipIt_stderr.log` and `update.zip` were kept. The launch after the
+  repair was quiet and drew no `Repair Updates…` item.
+- **P3, a healthy staged update is never touched.** Leg A showed no dialog, no menu item, and a
+  recursive listing with sizes that was byte identical after the run. Leg B created the staged
+  bundle while the wreck dialog sat on the screen, and the click produced the pinned refusal
+  "Tortie is not clearing the updater state, because the update it prepared is still on disk and
+  ready to install." and removed nothing.
+- **P4, no second staging.** "Detected this as an install request" lines for the run: 1. The
+  2026-08-15 incident had 2. Two further user checks 3 seconds apart each answered with the install
+  prompt, neither reached the library, and the quit installed 0.18.2 in 2.6 s.
+- **P5, the plain roundtrip.** First check 30.4 s after launch against a 25 s floor, staged at
+  32.4 s, the bundle swapped at the quit, the relaunched app read 0.18.2, and the session list after
+  the relaunch was byte identical to the list before the quit.
+- **P6, the real wreck against real Squirrel.** The staged bundle was removed by hand at 32.9 s, the
+  quit produced `Code=-1` and then "Too many attempts to install, aborting update" 7.1 s later after
+  2 resume lines, the relaunch showed the 4.3 dialog verbatim, the click cleared the real state file,
+  the real staging directories, the real defaults domain and the real pending cache, and the
+  repaired updater installed 0.18.2 2.6 s after the next quit. The first attempt at this probe
+  failed its own cleanup check with 2 scratch pids still alive after a 10 s grace. The rerun passed.
+- Operator sessions on socket `gmux` read 21 before and 21 after every probe and 21 after the gates.
+
+**The fix round, named rather than hidden.** The first cut was verified and came back needs_work,
+and three of the findings were app defects.
+
+1. The recovery deleted a healthy staged update when the two bundle paths disagreed as strings. The
+   state file said `/var/folders/...` and `process.execPath` came back as `/private/var/folders/...`,
+   the state read as another application's, the verdict fell to `unknown`, and `unknown` proceeded.
+   `sameBundleOnDisk` now resolves both sides through their symlinks, and `recoveryPlan` refuses
+   outright on a state file that parses and names another bundle. The live proof is P3 leg B.
+2. A whole clear reported itself as partial on any machine whose preferences domain was already
+   gone. On macOS 15.7.9 `defaults delete` on an absent domain exits 1 and prints
+   "Domain (com.itavero.tortie.ShipIt) not found.", and only the older wording "does not exist" was
+   accepted. Both wordings are accepted now, and any other failure is confirmed by reading the
+   domain back.
+3. The launch after a successful repair showed a false alarm, because the kept `ShipIt_stderr.log`
+   still had the give up line as its newest terminal line. A successful clear now writes
+   `tortie-repair.json` into the ShipIt directory with the epoch milliseconds of the clear, and every
+   log line stamped at or before that moment is skipped.
+
+**Contract lines added, and why.** Two, and nothing was removed. `GMUX_UPDATE_STATE_ROOT` takes the
+env count from 50 to 51. It points the updater at a scratch copy of Squirrel's state and is honoured
+only under the three conditions that already gate `TORTIE_UPDATE_FEED`, so the isolated probes can
+wreck and heal without going near the operator's real files. `updater=4` becomes `updater=8` in the
+bundle refusals, for the no second staging refusal, the refusal to clear a ready update, and the two
+sentences that name the new failure shapes. No IPC channel, no `gmux.*` key and no smoke mode was
+added.
+
+**What is still not true.**
+- Item 0 stops a second staging inside one run. It does not stop one across two runs. A launch that
+  stages, quits without installing, and launches again will stage again, and that second staging
+  deletes the first staged bundle. The recovery verb is what answers that case.
+- The Phase 31 sentence "It installs the next time you quit" survives for the one case where the log
+  says nothing inside the window and the installer has not given up. It can still be wrong there.
+- `tortie-repair.json` is the only thing the repair adds. A user who deletes it by hand gets the old
+  false alarm once on the next launch.
+- The attempt limit of 3 is Squirrel's number, read out of the log rather than owned by this
+  codebase. When no attempt line is inside the window the copy drops the number.
+- Whether Electron rebuilds `SQRLUpdater` on every `setFeedURL` was not read out of Electron's own
+  binary. Nothing in the design depends on the answer, because the staging call site has no guard at
+  all.
+- The `Repair Updates…` item was seen on screen in the first verification round, after a "Not Now"
+  on a standing wreck. The fix round's probes drove the pending record path and the healthy path, and
+  in both the item was correctly absent, so its presence was not re-observed after the fix round.
+- P6 uses the real ShipIt directory, which is shared with the installed `/Applications/Tortie.app`.
+  It ran only because the Phase 31 precondition proved no install was in flight first. It leaves that
+  directory holding a 343 byte `ShipItState.plist` from its own completed install, a 34 byte
+  `tortie-repair.json`, and a `ShipIt_stderr.log` that grew from 70,935 to 87,471 bytes. The state
+  file names a directory that install consumed, which health rule 4 reads as `unknown`.
+- `release/mac-arm64/Tortie.app` is a 0.18.1 rehearsal build, which is the harness's normal end
+  state. `release/` is gitignored.
 
 ## Phase 44 — Catch Me Up, the structural digest (research 44) HELD 2026-08-15 by the operator, pending more thinking; do not build until they say so
 

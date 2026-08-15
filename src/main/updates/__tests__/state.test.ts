@@ -62,7 +62,8 @@ const DEFAULT_STATE = {
   allowDowngrade: false,
   lastCheckedAt: null,
   pendingVersion: null,
-  pendingRecordedAt: null
+  pendingRecordedAt: null,
+  wreckAnnouncedFor: null
 };
 
 describe('readUpdateState', () => {
@@ -92,7 +93,8 @@ describe('readUpdateState', () => {
       allowDowngrade: true,
       lastCheckedAt: 1765600000000,
       pendingVersion: '0.18.3',
-      pendingRecordedAt: 1765600100000
+      pendingRecordedAt: 1765600100000,
+      wreckAnnouncedFor: null
     });
   });
 
@@ -188,6 +190,43 @@ describe('sanitizeUpdateState, the pending pair (Phase 31)', () => {
     });
     expect(state.lastSeenVersion).toBe('0.19.0');
     expect(state.lastCheckedAt).toBe(1765600000000);
+    expect(state.pendingVersion).toBe(null);
+    expect(state.pendingRecordedAt).toBe(null);
+  });
+});
+
+describe('sanitizeUpdateState, wreckAnnouncedFor (Phase 43)', () => {
+  it('keeps a non empty string', () => {
+    expect(
+      sanitizeUpdateState({ wreckAnnouncedFor: 'a terminal line' })
+        .wreckAnnouncedFor
+    ).toBe('a terminal line');
+  });
+
+  it('trims a padded string', () => {
+    expect(
+      sanitizeUpdateState({ wreckAnnouncedFor: '  a terminal line  ' })
+        .wreckAnnouncedFor
+    ).toBe('a terminal line');
+  });
+
+  it.each([['   '], [''], [7], [null], [{}]])('reads %j as null', (value) => {
+    expect(sanitizeUpdateState({ wreckAnnouncedFor: value }).wreckAnnouncedFor).toBe(
+      null
+    );
+  });
+
+  it('reads as null when the field is absent', () => {
+    expect(sanitizeUpdateState({}).wreckAnnouncedFor).toBe(null);
+  });
+
+  it('survives a malformed pending pair, because it is independent of it', () => {
+    const state = sanitizeUpdateState({
+      wreckAnnouncedFor: 'a terminal line',
+      pendingVersion: '0.19.1',
+      pendingRecordedAt: 'not a number'
+    });
+    expect(state.wreckAnnouncedFor).toBe('a terminal line');
     expect(state.pendingVersion).toBe(null);
     expect(state.pendingRecordedAt).toBe(null);
   });

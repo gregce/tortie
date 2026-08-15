@@ -384,6 +384,27 @@ const CONFIG_REFUSALS = [
  * fourth is the refusal sentence: an install the OS updater refused must be
  * said out loud once with its reason, or it reads to the user as an update
  * that never existed.
+ *
+ * Phase 43 added the fifth through the eighth, after the operator's machine
+ * reached a state on 2026-08-15 where no update could ever install again.
+ * The diagnosis is docs/research/46-updater-wreckage.md.
+ *
+ * The fifth is the cause. Every check that runs after a download has
+ * finished re-stages the update, and every Squirrel staging deletes the
+ * staged bundle the pending install is waiting on. If the bundler removes
+ * that guard, the product makes the wreck again and the recovery below is a
+ * mop under a running tap.
+ *
+ * The sixth is the recovery's own refusal. The verb deletes Squirrel's
+ * staging directories, so a version of it that ran while a healthy update
+ * sat staged would destroy an install that was about to succeed. That
+ * sentence is the whole difference between a repair and a defect.
+ *
+ * The seventh and the eighth are what the user is told. Without them the two
+ * new failure shapes are silent, which is exactly the condition that made
+ * this phase necessary. The eighth also carries the attempt count, and the
+ * count is read out of the log rather than assumed, because the limit of 3
+ * is Squirrel's number and not one this codebase owns.
  */
 const UPDATER_REFUSALS = [
   {
@@ -425,6 +446,47 @@ const UPDATER_REFUSALS = [
       'The update to ',
       ' did not install because another copy of Tortie was running. It installs the next time you quit.'
     ]
+  },
+  {
+    id: 'updater.no-second-staging',
+    source: 'src/main/updates/updater.ts',
+    why:
+      'a second staging in the same run deletes the copy the pending ' +
+      'install is waiting on, which is how the operator reached a state ' +
+      'where no update could install at all',
+    fragments: [
+      'Tortie is not checking for updates again, because it already handed an update to the installer in this run.',
+      'A second check would delete the copy the installer is waiting on.'
+    ]
+  },
+  {
+    id: 'updater.repair-never-touches-a-ready-update',
+    source: 'src/main/updates/recovery.ts',
+    why:
+      'the recovery deletes staging directories, so a run of it against a ' +
+      'healthy staged update would destroy an install that was about to work',
+    fragments: [
+      'Tortie is not clearing the updater state, because the update it prepared is still on disk and ready to install.'
+    ]
+  },
+  {
+    id: 'updater.staged-bundle-missing-says-why',
+    source: 'src/main/updates/ui.ts',
+    why:
+      'an install that failed because the prepared copy was gone must be ' +
+      'said out loud, or it reads as an update that never existed',
+    fragments: [
+      'Tortie had prepared a copy of the new version, and that copy was gone from disk when the installer ran.'
+    ]
+  },
+  {
+    id: 'updater.too-many-attempts-says-why',
+    source: 'src/main/updates/ui.ts',
+    why:
+      'once the installer has saved that it gave up, no later install can ' +
+      'succeed until it is cleared, and the number of tries is read from ' +
+      'the log rather than assumed',
+    fragments: ['The installer tried ', ' times and then saved that it had given up.']
   }
 ];
 
