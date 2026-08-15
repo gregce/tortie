@@ -51,10 +51,36 @@ in the shipping build.
 
 | Wave | Phases | Gated on |
 | --- | --- | --- |
-| A, landed | **36** quit crash (`3c09245` + `3d1d70c`), **29** session history (`d08ab00`), **37** inline naming (`7c0ae02`) | — |
-| release point | **0.20.0 candidate** prepared, tag held for the operator | 36 landed and green |
-| B | **35** uniform logging (feat) | 36 pushed |
-| C | **33** env passthrough (feat), **34** the CodeWhale race (fix) | 29 pushed |
+| A, landed and released as 0.20.2 | **36** quit crash (`3c09245` + `3d1d70c`), **29** session history (`d08ab00`), **37** inline naming (`7c0ae02`) | — |
+| cleanup, landed | **42** the architecture cleanup, 9 stage commits `ba6a090` to `a1c7e1e` plus ledger `e28c53f` | 36 and 38 landed |
+| 1 | **47** explorer and git pane nits (fix), **35** uniform logging (feat), **33** env passthrough (feat) | 42 pushed |
+| 2 | **34** the CodeWhale race (fix), **40** selection and calm focus (fix), **39** Open With (feat), **43** updater wreckage recovery (fix, PULLED FORWARD, see the release plan) | wave 1 slots free |
+| 3 | **41** bundled tmux 3.7b (feat), **46** Runs in the SCM view (feat) | wave 2 slots free |
+
+## The release plan, decided 2026-08-15
+
+Phases accumulate on main with the version moving per commit type. A release is cut only at a
+breakpoint, and the breakpoints are chosen by the rule below rather than by the calendar.
+
+| Release | Contents | The story it tells |
+| --- | --- | --- |
+| **0.21.0**, after wave 2 lands | 47, 35, 33, 34, 40, 39 and 43 | Tortie explains itself and gets out of your way. Every item is either a defect the operator reported or a diagnostic that makes the next failure legible. Nothing changes how sessions live or how the app starts |
+| **0.22.0**, bundled tmux alone | 41 | A fresh Mac runs Tortie with nothing installed first. It travels alone because it changes which binary owns every session at the next cold start, and a warm server on an older tmux is the one hazard that must be unambiguously attributable |
+| **0.23.0** | 46, plus the herdr study recommendations if the operator green lights them, especially the versioned resume contracts | Tortie shows you your CI and stops guessing about resumes |
+
+**The rule that generates a breakpoint.** Cut a release when all three are true.
+
+1. The changelog tells one story in a sentence. If nobody can summarize it, nobody can debug it
+   either.
+2. No Tier 3 phase in it landed inside the soak window. Durability work runs on the operator's
+   machine for a day before it reaches anyone else's.
+3. It contains at most one phase that touches how sessions live or how the app boots, so a
+   regression has one suspect rather than several.
+
+**Why Phase 43 moved forward into wave 2.** A fix to the update path only protects the updates
+that come after the version carrying it. Shipping the updater recovery in 0.21.0 means 0.22.0,
+the riskiest delivery in the queue, lands on a build that can heal its own updater state. The
+operator hit that exact wreckage by hand on 2026-08-15.
 
 **Why 19 waits for 18.6.** Both touch `src/renderer/state/store.ts`. Phase 19's restart fix would be
 written against a file that 18.6 then rewrites. Doing the renderer work together, then the main
