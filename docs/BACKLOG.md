@@ -3942,9 +3942,11 @@ verify-signed green on all three nested binaries.
 tree, invariants list and implementation order are the charter. This entry adds the execution
 rules the audit leaves open.
 
-**The goal, in the operator's words.** Retain byte for byte technical and user functionality.
-Bundle bytes cannot be the target because module order alone moves them, so byte identity is
-enforced at the CONTRACT level and behavior at the gate level.
+**The goal, clarified by the operator 2026-08-14.** Preserve current functionality exactly: the
+refactor must not change technical or functional behavior. Byte for byte was figurative, so the
+inventory below is the TOOL for proving contracts held, not the goal itself. If a stage has a
+sound reason to touch an inventory line, it stops and reports the reason instead of either
+forcing the change through or abandoning a sensible move; the operator decides.
 
 **The baseline inventories, captured on the pre refactor commit and byte compared after every
 stage.** A script (build/contract-inventory.mjs, written in stage 0) emits one deterministic
