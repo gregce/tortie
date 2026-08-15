@@ -794,8 +794,8 @@ export async function restoreSessionInTmux(
   try {
     options.onCreated?.(info);
   } catch (err) {
-    console.warn(
-      `[gmux] could not record the restore of "${rec.name}": ${(err as Error).message}`
+    restoreLog.warn(
+      `could not record the restore of "${rec.name}": ${(err as Error).message}`
     );
   }
 

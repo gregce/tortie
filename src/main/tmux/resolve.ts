@@ -256,14 +256,14 @@ export function captureLoginShellPath(
       child.once('error', (err) => {
         clearTimeout(deadline);
         untrack();
-        console.warn(
-          `[gmux] login-shell PATH capture failed (${shell}): ${err.message} — using fallback`
+        tmuxLog.warn(
+          `login-shell PATH capture failed (${shell}): ${err.message} — using fallback`
         );
         finish(null);
       });
     } catch (err) {
-      console.warn(
-        `[gmux] login-shell PATH capture threw (${shell}): ${(err as Error).message} — using fallback`
+      tmuxLog.warn(
+        `login-shell PATH capture threw (${shell}): ${(err as Error).message} — using fallback`
       );
       finish(null);
     }
