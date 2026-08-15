@@ -222,31 +222,6 @@ export function focusInsideSearch(): boolean {
 }
 
 /**
- * Move focus into the results list, selecting the first row if nothing is.
- *
- * This is the keyboard bridge between the box and the results, and it is ↓
- * from the query field rather than Esc. Esc cannot be it: the first Esc in a
- * non-empty box CLEARS the query, which takes the results with it, so
- * "Esc to reach the results" would only ever work on an empty search.
- */
-export function focusResultsList(): boolean {
-  const list = document.querySelector<HTMLElement>(
-    '[data-slot="search-results"]'
-  );
-  if (list === null) return false;
-  const search = useSearch.getState();
-  if (search.selectedKey === null) {
-    const first = search.files[0];
-    const match = first?.matches[0];
-    if (first !== undefined && match !== undefined) {
-      search.setSelectedKey(`m:${first.relPath}:${String(match.line)}`);
-    }
-  }
-  list.focus();
-  return true;
-}
-
-/**
  * A one-line, non-empty selection makes a good seed for ⌘⇧F — and a multi-line
  * one does not, which is why this refuses it rather than pasting a paragraph
  * into the query box.

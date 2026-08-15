@@ -19,7 +19,7 @@ import React from 'react';
 import { keyDisplay } from '@shared/keymap';
 import type { KeymapId } from '@shared/keymap';
 import { Codicon } from '../icons';
-import { focusResultsList } from './SearchView';
+import { focusResultsList } from './results-focus';
 import { useSearch } from './store';
 
 function Toggle({

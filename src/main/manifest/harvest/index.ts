@@ -13,8 +13,6 @@ export {
   agentHarvestsId,
   agentRescuesId,
   agentRescuesIdAfterExit,
-  isDescendantOf,
-  resetProcessParentCache,
   sanitizePiCwd,
   sanitizeQwenCwd,
   type HarvestContext,
@@ -23,6 +21,8 @@ export {
   type HarvestVerdict,
   type SessionIdWatch
 } from './stores';
+
+export { isDescendantOf, resetProcessParentCache } from './process-table';
 
 export {
   claimConversationId,

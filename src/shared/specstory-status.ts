@@ -332,7 +332,7 @@ function cliLines(raw: string): string[] {
       .map((l) =>
         l
           // eslint-disable-next-line no-control-regex
-          .replace(/\[[0-9;]*[A-Za-z]/g, '')
+          .replace(/\x1b\[[0-9;]*[A-Za-z]/g, '')
           .replace(/^[\s│┃|>*─-╿\p{Extended_Pictographic}️↳]+/gu, '')
           .trim()
       )

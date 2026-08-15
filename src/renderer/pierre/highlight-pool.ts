@@ -19,20 +19,13 @@
  */
 
 import type { WorkerPoolManager } from '@pierre/diffs/worker';
-import type { FileDiffMetadata, LineDiffTypes } from '@pierre/diffs';
-import { diffTheme } from './theme-bridge';
+import type { FileDiffMetadata } from '@pierre/diffs';
 
-/**
- * Rendering options shared by the pool and every diff surface. When a pool is
- * attached the renderer highlights with the POOL's copy of these
- * (renderers/DiffHunksRenderer getRenderOptions), so the two must not drift or
- * the highlight cache never matches and the diff re-highlights forever.
- */
-export const DIFF_RENDER_OPTIONS = {
-  theme: diffTheme,
-  lineDiffType: 'word' as LineDiffTypes,
-  useTokenTransformer: false
-};
+// The options themselves live in ./diff-render-options (Phase 42 stage 8) so
+// the heavy half can import them without importing this loader back.
+// Re-exported here because every diff surface already imports them from this
+// module.
+export { DIFF_RENDER_OPTIONS } from './diff-render-options';
 
 /**
  * Above this many lines on either side the library renders the diff as plain

@@ -53,6 +53,7 @@ import {
   type ContextSnapshot,
   type ContextSnapshotEntry
 } from '../../shared/context-snapshot';
+import { parseObject } from './json-column';
 
 /**
  * Parse the `context_snapshot` column.
@@ -178,13 +179,3 @@ function asEntry(value: unknown): ContextSnapshotEntry | undefined {
   return o as unknown as ContextSnapshotEntry;
 }
 
-function parseObject(text: string | null): Record<string, unknown> | undefined {
-  if (text === null) return undefined;
-  try {
-    const v: unknown = JSON.parse(text);
-    if (v === null || typeof v !== 'object' || Array.isArray(v)) return undefined;
-    return v as Record<string, unknown>;
-  } catch {
-    return undefined;
-  }
-}

@@ -17,10 +17,10 @@ import './search.css';
 export { SearchHeader, SearchSection } from './SearchView';
 export {
   focusInsideSearch,
-  focusResultsList,
   focusSearchInput,
   selectionSeed
 } from './SearchView';
+export { focusResultsList } from './results-focus';
 export { SymbolPalette } from './SymbolPalette';
 export { useSearch, searchAvailable } from './store';
 export type { SearchState, SearchStatus } from './store';

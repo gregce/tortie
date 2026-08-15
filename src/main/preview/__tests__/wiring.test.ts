@@ -161,6 +161,9 @@ describe('the preview channel is wired end to end', () => {
   it('computes the tab flag from the shared predicate', () => {
     const store = code('renderer', 'editor', 'store.ts');
     expect(store).toContain('canPreviewPath(req.path)');
-    expect(store).toContain('html: boolean');
+    // The EditorTab shape moved to tab-types.ts in Phase 42 stage 8, so the
+    // flag's declaration is asserted where it now lives.
+    const tabTypes = code('renderer', 'editor', 'tab-types.ts');
+    expect(tabTypes).toContain('html: boolean');
   });
 });

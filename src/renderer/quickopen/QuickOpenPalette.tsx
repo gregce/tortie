@@ -273,7 +273,7 @@ export function QuickOpenPalette(): React.JSX.Element | null {
                 const { name, dir, nameOffset } = splitRelPath(hit.relPath);
                 return (
                   <button
-                    key={`${hit.repoPath} ${hit.relPath}`}
+                    key={`${hit.repoPath}\u0000${hit.relPath}`}
                     type="button"
                     role="option"
                     aria-selected={i === selected}

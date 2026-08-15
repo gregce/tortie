@@ -45,6 +45,7 @@
  */
 
 import type { AgentRecoveryContract, ResumeProvenance } from './agents';
+import { parseObject } from './json-column';
 
 /**
  * What a row with no `resume_provenance` reads as.
@@ -153,13 +154,3 @@ export function serializeResumeProvenance(
   return JSON.stringify(provenance);
 }
 
-function parseObject(text: string | null): Record<string, unknown> | undefined {
-  if (text === null) return undefined;
-  try {
-    const v: unknown = JSON.parse(text);
-    if (v === null || typeof v !== 'object' || Array.isArray(v)) return undefined;
-    return v as Record<string, unknown>;
-  } catch {
-    return undefined;
-  }
-}

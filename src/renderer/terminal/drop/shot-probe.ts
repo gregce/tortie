@@ -212,7 +212,7 @@ async function walkConflict(
         r !== source &&
         r.getAttribute('data-item-type') === 'folder' &&
         source?.getAttribute('data-item-path')?.startsWith(
-          r.getAttribute('data-item-path') ?? ' '
+          r.getAttribute('data-item-path') ?? '\u0000'
         ) !== true
     ) ?? null;
   if (source === null || folder === null) return null;

@@ -5,10 +5,15 @@
  */
 
 import type { StateCreator } from 'zustand';
-import type { PopupMenuIcon } from '@shared/ipc';
 import { showNativeMenu } from '../app/ContextMenu';
+import type { MenuSpec } from '../app/ContextMenu';
 import { cancelPointerDrag } from '../app/split/pointer-drag';
 import type { AppState } from './app-state';
+
+// The menu vocabulary moved to ../app/ContextMenu with the bridge that
+// consumes it (Phase 42 stage 8). Re-exported here so ./store.ts and every
+// site importing from it keep their existing names.
+export type { MenuItemSpec, MenuSpec } from '../app/ContextMenu';
 
 export interface ConfirmSpec {
   title: string;
@@ -24,24 +29,6 @@ export interface ConfirmSpec {
    */
   altLabel?: string;
   onAlt?: () => void;
-}
-
-export interface MenuItemSpec {
-  label: string;
-  hint?: string;
-  /** Grey second line under the label — prose the hint slot cannot carry. */
-  sublabel?: string;
-  /** Leading icon; see src/renderer/icons/agent-menu-icon.ts. */
-  icon?: PopupMenuIcon;
-  destructive?: boolean;
-  disabled?: boolean;
-  run: () => void;
-}
-
-export interface MenuSpec {
-  x: number;
-  y: number;
-  items: (MenuItemSpec | 'sep')[];
 }
 
 export interface OverlaysSlice {

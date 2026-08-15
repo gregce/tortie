@@ -17,7 +17,7 @@
 
 import { WorkerPoolManager } from '@pierre/diffs/worker';
 import DiffsHighlightWorker from '@pierre/diffs/worker/worker.js?worker&inline';
-import { DIFF_RENDER_OPTIONS } from './highlight-pool';
+import { DIFF_RENDER_OPTIONS } from './diff-render-options';
 
 /**
  * One diff surface is visible at a time, and a diff is one highlight task, so

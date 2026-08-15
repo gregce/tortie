@@ -8,8 +8,36 @@
  * environments) the request is a silent no-op.
  */
 
-import type { GmuxPopupMenuExtras, PopupMenuInput } from '@shared/ipc';
-import type { MenuSpec } from '../state/store';
+import type {
+  GmuxPopupMenuExtras,
+  PopupMenuIcon,
+  PopupMenuInput
+} from '@shared/ipc';
+
+/**
+ * The menu vocabulary lives HERE, with the bridge that consumes it (Phase 42
+ * stage 8). It lived in the app store, which made this module import the
+ * store while the store's overlays slice imported `showNativeMenu` back — a
+ * production import cycle. The store re-exports both types, so every site
+ * that imports these names from the state store still works.
+ */
+export interface MenuItemSpec {
+  label: string;
+  hint?: string;
+  /** Grey second line under the label — prose the hint slot cannot carry. */
+  sublabel?: string;
+  /** Leading icon; see src/renderer/icons/agent-menu-icon.ts. */
+  icon?: PopupMenuIcon;
+  destructive?: boolean;
+  disabled?: boolean;
+  run: () => void;
+}
+
+export interface MenuSpec {
+  x: number;
+  y: number;
+  items: (MenuItemSpec | 'sep')[];
+}
 
 /**
  * Show a native context menu for `menu` and run the picked item's callback.

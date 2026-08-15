@@ -27,7 +27,7 @@ import type { OpenFileCommitRef } from '../state/open-file';
 import { getWorkingModel, resetWorkingModel } from './monaco-loader';
 import { dirOf } from './paths';
 import { fileInRepo } from './tab-identity';
-import type { EditorTab } from './store';
+import type { EditorTab } from './tab-types';
 
 /**
  * One plain sentence for a person, never a JSON body and never a stack
