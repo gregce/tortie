@@ -64,10 +64,10 @@ follow.
   upgrade crosses the exact 3.6 to 3.7 span this research measured.
 - macOS attributes file access grants to the responsible process. A Homebrew tmux changes
   identity on every upgrade, so TCC grants can detach from it. A bundled signed tmux keeps one
-  identity at one stable path (docs/FINAL-REPORT.md risk 1, and electron-builder.yml lines 211 to
+  identity at one stable path (docs/audits/2026-08-09-prebuild-architecture-assessment.md risk 1, and electron-builder.yml lines 211 to
   224 record the same reason for the specstory path).
 
-The in-tree architecture authority already answered this question once. docs/FINAL-REPORT.md
+The pre-build architecture assessment answered this question once. docs/audits/2026-08-09-prebuild-architecture-assessment.md
 section 1 describes sessions on "a private tmux 3.7b server (ISC, bundled inside gmux.app...)",
 and Stream A1 at line 232 specifies the static build recipe. docs/research/09-reboot-survival.md
 Appendix F holds the full shipping recipe. The deferral to system tmux is written into
@@ -426,7 +426,7 @@ has.
 
 ### The pin policy
 
-Pin 3.7b first. It is the latest stable, docs/FINAL-REPORT.md planned it from day one, the build
+Pin 3.7b first. It is the latest stable, docs/audits/2026-08-09-prebuild-architecture-assessment.md planned it from day one, the build
 lane already built and measured it, and its pair with the fleet's current 3.6a servers is
 measured working in both directions including real attach.
 
@@ -543,7 +543,7 @@ In tree:
 - /Users/gdc/gmux/build/sign-nested-binaries.cjs, verify-signed.mjs, specstory-release.json,
   update-rehearsal.mjs
 - /Users/gdc/gmux/docs/research/09-reboot-survival.md Appendix F, the shipping recipe
-- /Users/gdc/gmux/docs/FINAL-REPORT.md sections 1 and 5, Stream A1, risk 1
+- /Users/gdc/gmux/docs/audits/2026-08-09-prebuild-architecture-assessment.md sections 1 and 5, Stream A1, risk 1
 - /Users/gdc/gmux/resources/gmux-tmux.conf lines 5 to 6, 42 and 70
 
 Upstream:

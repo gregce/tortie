@@ -272,7 +272,7 @@ Scores use this scale:
 
 ### As-built corrections
 
-The earlier pre-build architecture report is a decision record, not a current source map:
+The earlier [pre-build architecture assessment](2026-08-09-prebuild-architecture-assessment.md) is a decision record, not a current source map:
 
 - The app has a main renderer and a Settings renderer. It is not strictly a one-window build.
 - `AttachHost` imports `node-pty` and runs inside Electron main. The repository does not use Electron `utilityProcess` or terminal `MessagePort` transport.

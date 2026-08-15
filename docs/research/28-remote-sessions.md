@@ -5,7 +5,7 @@
 | Date | 12 August 2026 |
 | Codebase assessed | `c726627` (Phase 17 shipped) |
 | Questions | **(A)** Which durability gaps in [assessment 26](26-tortie-durability-architecture-and-recovery.md) should close next, in what order? **(B)** Should Tortie offer durable *remote* sessions, on what infrastructure, and should Tortie build and operate that infrastructure? |
-| Inputs | Assessment 26 read in full; [The Zen of Tortie](../ZEN-OF-TORTIE.md); [FINAL-REPORT §2](../FINAL-REPORT.md); `CLAUDE.md`; committed Tortie source, read-only; prior art at `/Users/gdc/stoa` and `/Users/gdc/specstory-sync`, read-only; live provider verification on 12 August 2026 |
+| Inputs | Assessment 26 read in full; [The Zen of Tortie](../ZEN-OF-TORTIE.md); [pre-build architecture assessment §2](../audits/2026-08-09-prebuild-architecture-assessment.md); `CLAUDE.md`; committed Tortie source, read-only; prior art at `/Users/gdc/stoa` and `/Users/gdc/specstory-sync`, read-only; live provider verification on 12 August 2026 |
 | Headline | **Close five local gaps first. Do not build remote infrastructure — ever. Ship remote as SSH attach to machines the user already owns, and only after the local gaps close.** |
 | Structure | §1–§7 are the synthesis and the decision. Appendices A, B and C are the three independent dimension write-ups the synthesis rests on, kept whole because they carry the evidence. |
 
@@ -690,7 +690,7 @@ Six things Tortie never builds:
 | --- | --- |
 | Date | 12 August 2026 |
 | Scope | Dimension 3 only: where a remote tmux server would live, how the app would attach, the repo problem, the manifest problem, agent auth, the UI, and whether Tortie should build and operate this. |
-| Inputs | [Durability assessment 26](26-tortie-durability-architecture-and-recovery.md), [The Zen of Tortie](../ZEN-OF-TORTIE.md), [FINAL-REPORT §2](../FINAL-REPORT.md), committed Tortie source (read-only), prior art at `/Users/gdc/stoa` and `/Users/gdc/specstory-sync` (read-only), and live provider verification on 12 August 2026. |
+| Inputs | [Durability assessment 26](26-tortie-durability-architecture-and-recovery.md), [The Zen of Tortie](../ZEN-OF-TORTIE.md), [pre-build architecture assessment §2](../audits/2026-08-09-prebuild-architecture-assessment.md), committed Tortie source (read-only), prior art at `/Users/gdc/stoa` and `/Users/gdc/specstory-sync` (read-only), and live provider verification on 12 August 2026. |
 | Verdict | **Not yet, and not on infrastructure we own.** Ship durable remote sessions on machines the user already owns, over plain SSH, with no vendor in the path. Revisit a Tortie-operated substrate only against the trigger conditions in §12.5. |
 | Note | Written as a standalone dimension. Its internal section numbers (§1–§13 below) are local to this appendix; the trigger conditions it refers to as "§12.5" are at §11.5 of this appendix. |
 
@@ -1124,7 +1124,7 @@ Project evidence, read on 12 August 2026:
 
 - [The Zen of Tortie](../ZEN-OF-TORTIE.md)
 - [Durability, architecture and recovery assessment](26-tortie-durability-architecture-and-recovery.md)
-- [Final architecture report §2](../FINAL-REPORT.md)
+- [Pre-build architecture assessment §2](../audits/2026-08-09-prebuild-architecture-assessment.md)
 - `src/main/attach/attach-host.ts`, `src/main/tmux/resolve.ts`, `src/main/tmux/supervisor.ts`, `src/main/tmux/control-client.ts`
 - `src/main/activity/hooks.ts`, `src/main/activity/process.ts`
 - `src/main/manifest/harvest/stores.ts`, `src/main/manifest/harvest/watch.ts`

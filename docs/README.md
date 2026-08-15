@@ -4,7 +4,8 @@ gmux is a lightweight macOS shell for agentic coding: durable named terminal ses
 
 ## Start here
 
-- **[FINAL-REPORT.md](FINAL-REPORT.md)** — the decision document: recommended architecture (single-window Electron + bundled pinned tmux + session manifest with agent-native resume), the Electron-vs-Tauri-vs-native verdict, why the alternatives lost, decision matrix, phased roadmap, risk register, and open questions.
+- **[Current architecture simplification audit](audits/2026-08-14-electron-typescript-architecture.md)** - the as-built runtime map, assessment, behavior-preserving target tree, and implementation order.
+- **[Pre-build architecture assessment](audits/2026-08-09-prebuild-architecture-assessment.md)** - the historical decision record: recommended architecture, Electron-versus-Tauri-versus-native verdict, phased roadmap, risks, and original open questions.
 
 ## research/ — the ten dimension deep-dives
 
@@ -35,4 +36,4 @@ gmux is a lightweight macOS shell for agentic coding: durable named terminal ses
 | [design-c-tauri.md](designs/design-c-tauri.md) | Tauri 2 + Rust core supervising bundled tmux, PTY bytes over a localhost WebSocket bypassing Tauri IPC, CodeMirror UI — half Electron's memory, first-of-kind risk. |
 | [design-d-fork-existing.md](designs/design-d-fork-existing.md) | Hard-fork Wave Terminal (Apache-2.0) and close the bar with four deltas — plus the "no new app" VSCodium+tmux stopgap analysis. |
 
-**The final recommendation synthesizes these:** Design A's Electron shell and component set with the tmux durability layer that Designs B/C/D (and research 01/09) converged on. See FINAL-REPORT.md §2.1 for the adjudication.
+**The pre-build recommendation synthesizes these:** Design A's Electron shell and component set with the tmux durability layer that Designs B/C/D (and research 01/09) converged on. See the [pre-build architecture assessment](audits/2026-08-09-prebuild-architecture-assessment.md) §2.1 for the adjudication.

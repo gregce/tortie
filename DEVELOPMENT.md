@@ -7,7 +7,7 @@ editor with diff-vs-HEAD — in one window. tmux is invisible: the GUI is the
 whole interface.
 
 Philosophy and naming: [`docs/ZEN-OF-TORTIE.md`](docs/ZEN-OF-TORTIE.md).
-Architecture authority: [`docs/FINAL-REPORT.md`](docs/FINAL-REPORT.md) (§2).
+Architecture authority: [`docs/audits/2026-08-14-electron-typescript-architecture.md`](docs/audits/2026-08-14-electron-typescript-architecture.md).
 
 > **The app was called `gmux` until Phase 16.5.** The product name, bundle id
 > and data directory (`~/Library/Application Support/Tortie`) all changed; the
@@ -59,7 +59,7 @@ tmux -L gmux -f resources/gmux-tmux.conf <command>
 It never reads `~/.tmux.conf`, never touches the default `tmux` server, and
 its config keeps the private server alive with zero sessions (`exit-empty off`)
 — that server, not the GUI, is the durability boundary. The system tmux is the
-dev target today; a pinned, bundled tmux is planned (FINAL-REPORT §5, Stream A1).
+dev target today; a pinned, bundled tmux is planned in the [pre-build architecture assessment](docs/audits/2026-08-09-prebuild-architecture-assessment.md) (§5, Stream A1).
 
 ## Layout
 

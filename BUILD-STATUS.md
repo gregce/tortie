@@ -13,7 +13,7 @@ electron 43.3.0 · electron-builder 26.15.3 · system tmux 3.6a
 A calm, durable place for agentic work — an Electron window in front of a
 **private tmux server**, so the sessions belong to the work rather than to the
 application displaying them. Product philosophy: [docs/ZEN-OF-TORTIE.md](docs/ZEN-OF-TORTIE.md).
-Architecture: [docs/FINAL-REPORT.md](docs/FINAL-REPORT.md) §2.
+Architecture: [current architecture simplification audit](docs/audits/2026-08-14-electron-typescript-architecture.md).
 
 Three things it does that a normal editor cannot, and everything else is in
 service of them:
@@ -515,7 +515,7 @@ vendored. It only re-copies authored assets; nothing generates the icon.
 | Question | File |
 |---|---|
 | Why does Tortie exist, what is it for | `docs/ZEN-OF-TORTIE.md` |
-| Architecture | `docs/FINAL-REPORT.md` §2 |
+| Architecture | `docs/audits/2026-08-14-electron-typescript-architecture.md` |
 | Design | `DESIGN.md`, `docs/DESIGN-SPEC.md` |
 | Agent conventions and invariants | `CLAUDE.md` |
 | What is still called gmux, and why | `README.md` |

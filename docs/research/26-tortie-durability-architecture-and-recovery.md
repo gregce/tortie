@@ -1278,7 +1278,7 @@ The Zen after this work remains unchanged:
 Project evidence:
 
 - [The Zen of Tortie](../ZEN-OF-TORTIE.md)
-- [Final architecture report](../FINAL-REPORT.md)
+- [Pre-build architecture assessment](../audits/2026-08-09-prebuild-architecture-assessment.md)
 - [Reboot survival research](09-reboot-survival.md)
 - [Agent workspace product inventory](24-agent-workspace-product-inventory.md)
 - [tmux supervisor](../../src/main/tmux/supervisor.ts)

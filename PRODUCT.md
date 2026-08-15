@@ -22,7 +22,7 @@ Tortie is a calm, durable place for agentic work: one window where named termina
 
 ## Positioning
 
-The only tool that combines durable named terminals + VS Code-grade SCM + decorated file tree + editor-with-diff + isolated project tabs in one lightweight window (docs/FINAL-REPORT.md §3: every competitor has durability without IDE furniture, or IDE furniture without durability). The durability claim is structural, not best-effort: sessions live outside the app process, and reboot restore re-arms the *specific agent conversation* (`claude --resume <uuid>`), which tmux-resurrect/zellij structurally cannot do.
+The only tool that combines durable named terminals + VS Code-grade SCM + decorated file tree + editor-with-diff + isolated project tabs in one lightweight window ([pre-build architecture assessment](docs/audits/2026-08-09-prebuild-architecture-assessment.md) §3: every competitor has durability without IDE furniture, or IDE furniture without durability). The durability claim is structural, not best-effort: sessions live outside the app process, and reboot restore re-arms the *specific agent conversation* (`claude --resume <uuid>`), which tmux-resurrect/zellij structurally cannot do.
 
 ## Operating Context
 
@@ -34,7 +34,7 @@ The only tool that combines durable named terminals + VS Code-grade SCM + decora
 
 ## Capabilities and Constraints
 
-The six product properties (docs/FINAL-REPORT.md §2):
+The six product properties ([pre-build architecture assessment](docs/audits/2026-08-09-prebuild-architecture-assessment.md) §2):
 
 - **P1 Durable named sessions** — survive quit/crash/update untouched; reboot restore recreates sessions with scrollback history and an armed (pre-typed, not auto-run) resume command per agent conversation.
 - **P2 Git GUI** — VS Code-grade: branch + ahead/behind always visible, Merge/Staged/Changes/Untracked groups, stage/unstage/commit (inherits hooks/signing), history with copy-SHA.
@@ -57,7 +57,7 @@ Constraints: single BrowserWindow forever; no cloud component; session kill is a
 
 ## Evidence on Hand
 
-- docs/FINAL-REPORT.md (architecture authority, §2) and docs/research/01–10 (verified 2026-08-09); docs/research/10-multi-project-ux.md carries the Layout C IA decision and wireframes.
+- `docs/audits/2026-08-14-electron-typescript-architecture.md` is the current architecture authority. The pre-build assessment and `docs/research/01–10` preserve the design evidence verified on 2026-08-09; `docs/research/10-multi-project-ux.md` carries the Layout C IA decision and wireframes.
 - No customers, benchmarks, or testimonials exist; nothing may fabricate them.
 
 ## Product Principles

@@ -77,7 +77,7 @@
  *                       MEASURE the running app and not only photograph it)
  *
  * NOTE: we run the SYSTEM tmux (3.6a at build time) — bundling a pinned tmux
- * inside gmux.app is out of scope today (docs/FINAL-REPORT.md §5 Stream A1).
+ * inside gmux.app is out of scope today (docs/audits/2026-08-09-prebuild-architecture-assessment.md §5 Stream A1).
  */
 
 import { app, BrowserWindow, ipcMain, shell } from 'electron';
