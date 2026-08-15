@@ -4028,7 +4028,7 @@ prove a healthy staged update is untouched by the recovery path.
 
 **Semver.** fix, patch bump.
 
-## Phase 44 — Catch Me Up, the structural digest (research 44, operator approved 2026-08-15) QUEUED
+## Phase 44 — Catch Me Up, the structural digest (research 44) HELD 2026-08-15 by the operator, pending more thinking; do not build until they say so
 
 **Specification.** docs/research/44-session-digests.md, Phase A. A per session Catch Me Up verb
 opens a digest computed on demand from the SpecStory capture, keyed by agent_session_id: turns,
@@ -4040,7 +4040,7 @@ in file timestamp; mtime never trusted alone. Nothing badges, pushes, or sets st
 parse update_plan inputs as a substance line for headless codex sessions. **Tier 2** plus a
 fixture matrix over real captures from every agent with captures on disk. **Semver:** feat.
 
-## Phase 45 — Catch Me Up, the model summary opt in (research 44, operator approved 2026-08-15) QUEUED
+## Phase 45 — Catch Me Up, the model summary opt in (research 44) HELD 2026-08-15 by the operator, pending more thinking; do not build until they say so
 
 **Specification.** docs/research/44-session-digests.md, Phase B. Behind the same verb, an opt in
 model written summary produced by one shot of an agent CLI the user confirmed through the Phase
