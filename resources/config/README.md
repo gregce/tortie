@@ -25,8 +25,10 @@ Read README.md in this directory. It is the contract for agents.json, which is
 Tortie's agent configuration file. Then write or edit ./agents.json to do what I
 ask next. Use only the fields the contract lists, because any other field drops
 the whole row. Check your file against ./agents.schema.json and against the seven
-files in ./examples/ before you tell me you are done. When you are done, tell me
-whether the change needs me to confirm it inside Tortie.
+files in ./examples/ before you tell me you are done. Never write a secret value
+into the file: if I ask for an API key, put the variable NAME in
+launch.envPassthrough and tell me to export it in my shell. When you are done,
+tell me whether the change needs me to confirm it inside Tortie.
 ```
 
 An example of what to say next: "add my company's `owl` CLI. It launches as
@@ -134,7 +136,7 @@ process happened to be in at the time.
 | Field | Required | Type | What it does |
 | --- | --- | --- | --- |
 | `argv` | yes | string array | The command. Up to 32 entries, each up to 512 characters. |
-| `env` | no | object of string to string | Environment values for this agent's panes only. Up to 16 names. |
+| `env` | no | object of string to string | Environment values for this agent's panes only, written into this file as plain text. Up to 16 names. Not for a secret: use `envPassthrough`. |
 | `envPassthrough` | no | string array | A list of environment variable names, up to 16. Tortie reads their values from your login shell each time this agent launches or restores, and passes them to that pane only. The values are never written to any file. Needs `"schema": 2`. |
 
 Two rules on `argv`.
@@ -144,6 +146,12 @@ resolves to a file and the name tmux runs, so a mismatch would start a different
 program from the one you confirmed.
 
 `argv` may not contain the `<sessionId>` slot. The slot belongs to `resume` only.
+
+**A secret does not belong in `launch.env`.** A value there is written into
+`agents.json` in plain text, and that file sits in a folder every agent running
+under your account can read. Name the variable in `launch.envPassthrough`
+instead. Tortie then reads the value out of your login shell at each launch,
+hands it to that one pane, and writes it nowhere.
 
 Some environment names are refused, and the row is dropped whole if it sets one.
 Each of them turns "run this program" into "run this program after something else
