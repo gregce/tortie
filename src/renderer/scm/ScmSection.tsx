@@ -43,6 +43,7 @@ import { splitPath } from './format';
 import { requestOpenFile } from './open-file';
 import { HistorySection } from './HistorySection';
 import { BranchesView } from './BranchesView';
+import { RunsSection } from './RunsSection';
 import { usePersistedBool, useSectionDrag, useSectionOrder } from './sections';
 import {
   NO_SELECTION,
@@ -64,14 +65,21 @@ import {
 import type { ScmGroupId, ScmRow, ScmSelection, ScmVerbs } from './selection';
 import './scm.css';
 
-/** SCM view sections, default order (DESIGN-SPEC S3A round 2). */
-const SCM_SECTION_IDS = ['changes', 'history', 'branches'] as const;
+/**
+ * SCM view sections, default order (DESIGN-SPEC S3A round 2).
+ *
+ * Phase 46 appended `runs`. A user whose stored order predates it keeps that
+ * order and gets Runs last, because sanitizeOrder appends every id it does
+ * not find. No migration is written.
+ */
+const SCM_SECTION_IDS = ['changes', 'history', 'branches', 'runs'] as const;
 type ScmSectionId = (typeof SCM_SECTION_IDS)[number];
 
 const SCM_SECTION_LABELS: Record<ScmSectionId, string> = {
   changes: 'Changes',
   history: 'History',
-  branches: 'Branches'
+  branches: 'Branches',
+  runs: 'Runs'
 };
 
 // ---------------------------------------------------------------------------
@@ -926,6 +934,11 @@ export function ScmSection(): React.JSX.Element | null {
     history: isRepo ? <HistorySection key={repoPath} repoPath={repoPath} /> : null,
     branches: isRepo ? (
       <BranchesView key={`branches-${repoPath}`} repoPath={repoPath} />
+    ) : null,
+    // Renders null unless the origin is on github.com, so a repository with
+    // no GitHub remote has three sections and no empty fourth one.
+    runs: isRepo ? (
+      <RunsSection key={`runs-${repoPath}`} repoPath={repoPath} />
     ) : null
   };
 

@@ -1,0 +1,106 @@
+{
+  "conclusion": "success",
+  "jobs": [
+    {
+      "completedAt": "2026-08-15T18:21:43Z",
+      "conclusion": "success",
+      "databaseId": 95051018949,
+      "name": "gates",
+      "startedAt": "2026-08-15T18:18:05Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-08-15T18:18:07Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-08-15T18:18:06Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-15T18:18:10Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-08-15T18:18:07Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-15T18:19:01Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/setup",
+          "number": 3,
+          "startedAt": "2026-08-15T18:18:10Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-15T18:19:16Z",
+          "conclusion": "success",
+          "name": "Run npm run typecheck",
+          "number": 4,
+          "startedAt": "2026-08-15T18:19:01Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-15T18:20:17Z",
+          "conclusion": "success",
+          "name": "Run npm test",
+          "number": 5,
+          "startedAt": "2026-08-15T18:19:16Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-15T18:21:19Z",
+          "conclusion": "success",
+          "name": "Run npm run build",
+          "number": 6,
+          "startedAt": "2026-08-15T18:20:17Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-15T18:21:34Z",
+          "conclusion": "success",
+          "name": "The packaged bundle contains what it claims",
+          "number": 7,
+          "startedAt": "2026-08-15T18:21:19Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-15T18:21:34Z",
+          "conclusion": "skipped",
+          "name": "Run actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+          "number": 8,
+          "startedAt": "2026-08-15T18:21:34Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-15T18:21:40Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/setup",
+          "number": 15,
+          "startedAt": "2026-08-15T18:21:34Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-15T18:21:40Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 16,
+          "startedAt": "2026-08-15T18:21:40Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-08-15T18:21:41Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 17,
+          "startedAt": "2026-08-15T18:21:40Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/gregce/tortie/actions/runs/31900744174/job/95051018949"
+    }
+  ],
+  "status": "completed",
+  "url": "https://github.com/gregce/tortie/actions/runs/31900744174"
+}

@@ -18,6 +18,7 @@
 
 import { app, BrowserWindow, type IpcMain } from 'electron';
 import { writeSync } from 'node:fs';
+import { disposeActionsIpc, registerActionsIpc } from './actions';
 import { registerAgentsIpc } from './agents';
 import { registerAssetProtocol } from './assets';
 import { registerCaptureIpc } from './capture';
@@ -194,6 +195,12 @@ export function installMainCapabilities(
   // on the first ⌘⇧O for a project and never at boot — "never on project
   // open" is the lifecycle rule this registration exists to keep enforceable.
   registerSymbolsIpc(ipcMain);
+  // Phase 46: the SCM view's Runs section (actions:runs/jobs/observe/release).
+  // Every channel is a read, and each one spawns the gh CLI with an argv the
+  // allowlist in src/main/actions/argv.ts has already checked. Nothing here
+  // runs until the user expands the section for a repository, so registering
+  // it costs four closures.
+  registerActionsIpc(ipcMain);
   // Phase 35: the five log channels. log:append is the renderer error
   // capture path (window.onerror, unhandledrejection, the error boundary),
   // bounded main-side so an error loop cannot eat the log budget. The other
@@ -256,6 +263,7 @@ export async function disposeMainCapabilities(): Promise<MainDisposeOutcome> {
     new Promise((r) => setTimeout(r, 3_000))
   ]).catch(() => undefined);
   disposeSearchIpc(); // SIGKILL any in-flight ripgrep
+  disposeActionsIpc(); // stop every Runs watch timer; the watch is not durable
   void disposeQuickOpenIpc(); // terminate the ⌘P ranking worker
   void disposeSymbolsIpc(); // terminate the tree-sitter pool, close its db
   // Phase 13.8: any question-asking child still in flight (login-shell PATH

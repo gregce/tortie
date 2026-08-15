@@ -9,6 +9,7 @@ import type { Project } from '@shared/types';
 import type {
   CreateProjectInput,
   CreateProjectResult,
+  GmuxActionsExtras,
   GmuxProjectCreateExtras,
   GmuxSymbolsExtras
 } from '@shared/ipc';
@@ -182,6 +183,16 @@ export const createProjectsSlice: StateCreator<
               void (
                 window.gmux as (typeof window.gmux & GmuxSymbolsExtras) | undefined
               )?.symbols
+                ?.release(project.path)
+                .catch(() => undefined);
+              // Phase 46: end any GitHub Actions watch this project armed.
+              // Same posture as the release above, and for the same reason:
+              // feature-detected, fire-and-forget, never a reason a project
+              // fails to close. Watch state is in memory only, so the worst a
+              // missed call costs is one poller until the app quits.
+              void (
+                window.gmux as (typeof window.gmux & GmuxActionsExtras) | undefined
+              )?.actions
                 ?.release(project.path)
                 .catch(() => undefined);
               const projects = await gmux.projects.list();

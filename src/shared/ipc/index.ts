@@ -49,6 +49,11 @@ import type {
   ViewMenuInvokeChannelMap
 } from './app';
 import type {
+  ActionsEventPayloadMap,
+  ActionsInvokeChannelMap,
+  GmuxActionsExtras
+} from './actions';
+import type {
   AgentsInvokeChannelMap,
   ConfigInvokeChannelMap,
   GmuxAgentRegistryExtras,
@@ -141,6 +146,7 @@ import type {
 
 export * from './base';
 export * from './app';
+export * from './actions';
 export * from './agents';
 export * from './context';
 export * from './files';
@@ -207,6 +213,7 @@ export type GmuxInvokeChannelMap = InvokeChannelMap &
   UpdatesInvokeChannelMap &
   GmuxPastSessionsChannelMap &
   OpenWithInvokeChannelMap &
+  ActionsInvokeChannelMap &
   LogInvokeChannelMap;
 
 export type GmuxInvokeChannel = keyof GmuxInvokeChannelMap;
@@ -231,6 +238,7 @@ export type AllEventPayloadMap = EventPayloadMap &
   QuitEventPayloadMap &
   SettingsEventPayloadMap &
   RecentsEventPayloadMap &
+  ActionsEventPayloadMap &
   PowerEventPayloadMap;
 
 export type AllEventChannel = keyof AllEventPayloadMap;
@@ -322,4 +330,5 @@ export type InstalledGmuxApi = GmuxApi & {
   GmuxConfigExtras &
   GmuxViewMenuExtras &
   GmuxUpdatesExtras &
+  GmuxActionsExtras &
   GmuxLogExtras;

@@ -26,6 +26,7 @@ import {
   EVT_QUIT_REQUESTED,
   EVT_SETTINGS_CHANGED
 } from '../shared/ipc';
+import { actions } from './actions';
 import { invoke, on } from './bridge';
 import { config, context, contextSnapshot } from './context';
 import { fs, preview } from './files';
@@ -79,6 +80,9 @@ const api: InstalledGmuxApi = {
   scrollback,
   notice,
   preview,
+  // Phase 46 optional extra: the SCM view's Runs section. Read only, and the
+  // renderer feature-detects it, so a build without it simply has no section.
+  actions,
   // Phase 35 optional extra: the log surface. Renderer error capture writes
   // over `append`, and the Settings Diagnostics section owns the other four.
   // Both renderers feature-detect it.

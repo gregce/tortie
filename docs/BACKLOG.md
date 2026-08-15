@@ -55,7 +55,7 @@ in the shipping build.
 | cleanup, landed | **42** the architecture cleanup, 9 stage commits `ba6a090` to `a1c7e1e` plus ledger `e28c53f` | 36 and 38 landed |
 | 1 | **47** explorer and git pane nits (fix), **35** uniform logging (feat), **33** env passthrough (feat, ✅ landed this commit) | 42 pushed |
 | 2 | **34** the CodeWhale race (fix), **40** selection and calm focus (fix, ✅ landed this commit), **39** Open With (feat, ✅ landed this commit), **43** updater wreckage recovery (fix, PULLED FORWARD, see the release plan) | wave 1 slots free |
-| 3 | **41** bundled tmux 3.7b (feat), **46** Runs in the SCM view (feat) | wave 2 slots free |
+| 3 | **41** bundled tmux 3.7b (feat), **46** Runs in the SCM view (feat, ✅ landed this commit) | wave 2 slots free |
 
 ## The release plan, decided 2026-08-15
 
@@ -4321,7 +4321,7 @@ copy states where the transcript goes, including the cross vendor case. **Depend
 **Tier 3 on the execution gate** (confirm hash moves for every execution bearing field, at most
 2 live invocations as evidence with spend stated), Tier 2 on the UI. **Semver:** feat.
 
-## Phase 46 — Runs, GitHub Actions in the SCM view (research 45, operator approved 2026-08-15) QUEUED
+## Phase 46 — Runs, GitHub Actions in the SCM view (research 45, operator approved 2026-08-15) ✅ SHIPPED 2026-08-15 (this commit)
 
 **Specification.** docs/research/45-actions-in-scm.md. A fourth SCM section named Runs, shipped
 collapsed, rendered only for repos with a github.com origin: the latest 10 runs for the current
@@ -4334,6 +4334,108 @@ promised because the API cannot deliver it; row verbs are Open on GitHub and Cop
 the native menu bridge. Degrade ladder with quiet copy: gh absent, logged out, rate limited, no
 github remote, offline. **Tier 2** plus one live probe on a real push to gregce/tortie, which
 also closes the one unverified claim, mid run step visibility. **Semver:** feat.
+
+**What shipped.** The SCM view has a fourth section named Runs. It is drawn only when `origin`
+points at github.com, so a repository on any other host still shows three sections and no empty
+fourth one. It ships collapsed, and nothing spawns until the user opens it. Open it and it lists
+the latest 10 runs for the checked out branch. Each row carries the workflow name, the commit
+subject, the age and the duration. Expand a row and it reads that run's jobs and steps.
+
+- The data path is the gh CLI spawned read only. `src/main/actions/argv.ts` is the only place a
+  gh argv is built, and `assertReadOnlyArgv` checks it before a process exists. Three verbs are
+  allowed: `auth status`, `run list` and `run view`. `--repo` is always explicit, so gh never
+  guesses the repository from a working directory. A value that begins with a dash is refused,
+  because a branch name is user data and git allows a name such as `--upload-pack=evil`. A run id
+  must be a positive integer. No shell is involved at any point.
+- A push arms a bounded watch. Main already watches each repository's refs, and a watch arms only
+  when the remote tracking ref moved and now points at local HEAD. A tracking ref that moved to
+  anything else came from a fetch or from somebody else's push, and it arms nothing. Discovery
+  runs `gh run list --commit` every 5 seconds and gives up after 120 seconds. After that the
+  poller re reads each discovered run every 5 seconds until every one of them reports `completed`,
+  with a hard cap of 30 minutes from the arm. Discovery counts wall clock rather than ticks, so a
+  machine that slept is not owed the missed tries. There is one poller per repository, and the
+  watch state is in memory only, so quitting ends it and a restart never resumes it.
+- Version 1 mutates nothing. There is no rerun, no cancel, no approve and no dispatch. The two row
+  verbs are Open on GitHub and Copy run URL. Both are reads, and both are drawn by the native menu
+  bridge through the store's `setMenu`.
+- Version 1 has no presence outside the panel. There is no badge, no toast when a run finishes, no
+  dock count, no system notification and nothing that writes a session status. The one toast in
+  the phase confirms the user's own Copy verb, and it has the same shape as the History section's
+  copy toast.
+- The degrade ladder is five quiet lines. gh missing says "Runs need the GitHub CLI. Install gh to
+  see them here." Logged out says "Sign in with gh auth login to see runs." A rate limit says
+  "GitHub is limiting requests. Runs will refresh when the limit resets." Offline says "Could not
+  reach GitHub." No github.com remote draws no section at all.
+- No live log streaming is offered, because the GitHub API cannot deliver a running step's output.
+
+**Tier 2, plus the live probe the entry asked for, and the unverified claim is now closed.**
+- The gates ran in a tree holding HEAD plus this phase's files alone, because the shared working
+  tree carries four other phases at the same time. typecheck passes at 615 production files, 3164
+  imports and 0 import boundary violations. The build passes.
+  `node build/assert-bundle-refusals.mjs` reports 21 durability, 6 skills-write, 6 config
+  confirm-gate, 4 updater and 1 crash-capture. `npm run smoke:t1` reports 5/5 create and 6/6
+  verify on its own scratch socket. 3737 unit tests pass with 23 skipped.
+- The one test failure in that run is the symbols 80 ms budget at 137.5 ms, at a load average of
+  30.2. It passed 3 of 3 isolation runs, 40 tests each, and this phase touches no file under
+  `src/main/symbols`.
+- This phase adds 91 tests across 5 files. The allowlist has a test that fails when a fourth verb
+  is added.
+  The verifier added `run cancel` to `GH_ALLOWED_VERBS` and got
+  `expected [ 'auth status', 'run list', ...(2) ] to have a length of 3 but got 4`, then restored
+  the file.
+- The mid run probe closed research 45 section 7's first bullet. Run 21 of the gates workflow was
+  in progress on `main` while the verifier drove the app with an isolated profile. gh reported the
+  job `gates` as `in_progress` with steps 1 and 2 completed, step 3 in progress and steps 4 to 16
+  pending. The panel said "gates has been running for 1 minute 37 seconds", drew four green checks
+  with their durations, one blue spinner on "Run npm test" reading "has been running for 36
+  seconds", and five muted circles below it. Mid run job and step progress is visible and it moves.
+  That is measured now rather than inferred.
+- The section is fourth. The live DOM read returned `["changes","history","branches","runs"]` and
+  10 rows for branch `main`. Expanding one run read its jobs in 750 ms and drew 1 job and 10 steps.
+- Three degrade rungs were driven in the app. Logged out used the real gh binary with `GH_CONFIG_DIR`
+  pointed at an empty scratch directory, which left the operator's own gh config untouched, and the
+  panel drew the sign in line with no rows and no header icon. gh missing used
+  `GMUX_GH_BIN=/nonexistent/p46/gh`. A scratch repository with a gitlab.com origin produced no
+  section and the order `["changes","history","branches"]`.
+- The arming path was driven without a push. In a read only clone the verifier rewound
+  `refs/remotes/origin/main` and moved it back to the tip local HEAD already sat on, which is byte
+  for byte what a push leaves on disk. Main logged `watching a push` and the panel showed
+  "Watching for a run to start after your push."
+
+**Contract lines added, and why.** Six lines were added and none were removed. `actions:runs`, `actions:jobs`,
+`actions:observe` and `actions:release` are the four read channels, taking the invoke channel count
+from 132 to 136. `GMUX_GH_BIN` names an alternative gh binary for probes and takes the env count
+from 49 to 50. `gmux.scm.runsCollapsed.` is the per repository collapsed state and takes the
+localStorage key count from 33 to 34.
+
+**What is still not true.**
+- A step whose gh status is `pending` gets the catch-all sentence, e.g.
+  `Run npm run build reports the state "pending".` `STATUS_WORDS` in `src/main/actions/parse.ts`
+  narrows only `queued`, `in_progress` and `completed`, so `pending` falls to `unknown`. On an in
+  progress run most steps carry it, so this is the tooltip a user meets most often. The glyph is
+  right and nothing lies, but the sentence should read as "has not started". This is a copy nit and
+  it is open.
+- The native context menu was never opened live. An OS menu is modal and blocks the harness, and
+  one probe that dispatched a real `contextmenu` event hung past 5 minutes and was killed. Open on
+  GitHub and Copy run URL are verified by reading the two call sites and by `setMenu` being the
+  only path, not by driving.
+- "Watching this push. Checking every 5 seconds." was never seen on screen. The run for the armed
+  sha had already finished, so the machine went from arm to discovering to complete. The 5 second
+  polling lane and the 30 minute cap are proven by unit tests only.
+- No real push to gregce/tortie was made, by design, because the phase was driven read only. The
+  github.com side of a push, and so the discovery of a brand new run appearing from nothing, was
+  not exercised.
+- gh's exit code on a rate limited response is still unmeasured. Research 45 said so and this phase
+  did not close it. `classifyGhFailure` finds a rate limit by the words "rate limit" in stderr
+  before it looks at the exit code, and a miss falls to the last rung. The rate limited rung and
+  the offline rung were not driven in the app, so 3 of the 5 rungs were observed live.
+- One measurement disagrees with research 45. `gh auth status --hostname github.com` with an empty
+  config directory exits 1 here, not 4. `classifyGhFailure` caught it through the logged out
+  pattern and the panel showed the right line, so the exit 4 branch is covered by a unit test only.
+- The allowlist's guard against a fourth verb is an array length assertion. With `run cancel` in
+  the array, `run cancel --repo o/r` would pass `assertReadOnlyArgv`. The length assertion does
+  fire, so the sanction holds today, but it rests on one number a future editor could change
+  alongside the array.
 
 ## Phase 47 — explorer and git pane nits (user requested, 2026-08-15) ✅ SHIPPED 2026-08-15 (this commit)
 
