@@ -34,15 +34,29 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { SRC, stripComments } from '../../../shared/__tests__/source-scan';
+import {
+  SRC,
+  sourceFiles,
+  stripComments
+} from '../../../shared/__tests__/source-scan';
 
 function code(...parts: string[]): string {
   return stripComments(readFileSync(join(SRC, ...parts), 'utf8'));
 }
 
+/** Every production file under a directory, concatenated and stripped. */
+function codeDir(...parts: string[]): string {
+  return sourceFiles(join(SRC, ...parts))
+    .map((file) => stripComments(readFileSync(file, 'utf8')))
+    .join('\n');
+}
+
 describe('the preview channel is wired end to end', () => {
   it('declares two invoke channels in the shared contract, and no others', () => {
-    const ipc = code('shared', 'ipc.ts');
+    // Phase 42 stage 2 split the contract by domain; the closure claim is
+    // over the whole directory, so a stray preview channel in ANY domain
+    // file still fails here.
+    const ipc = codeDir('shared', 'ipc');
     // Two channels and no more. The preview surface is deliberately this
     // small, and adding a third is the moment to ask again whether there is
     // still nothing a previewed DOCUMENT can reach.
@@ -68,13 +82,17 @@ describe('the preview channel is wired end to end', () => {
   });
 
   it('exposes both under window.gmux.preview in the preload', () => {
-    const preload = code('preload', 'index.ts');
-    expect(preload).toMatch(/url:\s*\(input\)\s*=>\s*invoke\('preview:url',/);
-    expect(preload).toMatch(
+    // Phase 42 stage 2: the preview object lives in the preload's files
+    // domain module; the assembly in preload/index.ts attaches it.
+    const preloadFiles = code('preload', 'files.ts');
+    expect(preloadFiles).toMatch(
+      /url:\s*\(input\)\s*=>\s*invoke\('preview:url',/
+    );
+    expect(preloadFiles).toMatch(
       /stats:\s*\(input\)\s*=>\s*invoke\('preview:stats',/
     );
     // The object has to be attached to the api, not merely declared.
-    expect(preload).toMatch(/^\s*preview,\s*$/m);
+    expect(code('preload', 'index.ts')).toMatch(/^\s*preview,\s*$/m);
   });
 
   it('reads the counts back after the frame loads, from the frame itself', () => {

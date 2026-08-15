@@ -26,7 +26,7 @@
  *
  * The fix when this fails is never to widen an allow-list. It is to route the
  * new call through `handle` / `sendEvent` / `broadcastEvent` / `on`, and to
- * give the channel a payload entry in src/shared/ipc.ts.
+ * give the channel a payload entry in src/shared/ipc/.
  *
  * TEMPLATE channels are out of scope by construction, and the exemptions
  * below are exactly those: `term:data:<id>`, `term:exit:<id>`,
@@ -49,7 +49,7 @@ import { SRC, relPath as rel, sourceFiles, stripComments } from './source-scan';
 const RAW_IPC_ALLOWED: Readonly<Record<string, string>> = {
   'main/typed-ipc.ts': 'THE typed ipcMain.handle wrapper',
   'main/typed-events.ts': 'THE typed main→renderer event senders',
-  'preload/index.ts': 'THE bridge: the one typed invoke and the one typed on',
+  'preload/bridge.ts': 'THE bridge: the one typed invoke and the one typed on',
   'main/attach/attach-host.ts':
     'per-session TEMPLATE channels (term:data/exit) — computed names',
   'main/search/ipc.ts':
@@ -70,8 +70,15 @@ function scan(pattern: RegExp): string[] {
   return offenders;
 }
 
-const IPC_SOURCE = readFileSync(join(SRC, 'shared', 'ipc.ts'), 'utf8');
-const PRELOAD_SOURCE = readFileSync(join(SRC, 'preload', 'index.ts'), 'utf8');
+// Phase 42 stage 2 split both single files by domain. The contract's names
+// and the preload's subscriptions are unchanged; the scans below now read the
+// whole directory each lived in, concatenated, instead of one file.
+const IPC_SOURCE = sourceFiles(join(SRC, 'shared', 'ipc'))
+  .map((file) => readFileSync(file, 'utf8'))
+  .join('\n');
+const PRELOAD_SOURCE = sourceFiles(join(SRC, 'preload'))
+  .map((file) => readFileSync(file, 'utf8'))
+  .join('\n');
 
 /**
  * Resolve `AllEventPayloadMap` to its channel names by following the one
@@ -87,7 +94,7 @@ function staticEventChannels(): Set<string> {
     const body = new RegExp(
       `export interface ${member} \\{([\\s\\S]*?)\\n\\}`
     ).exec(IPC_SOURCE);
-    expect(body, `${member} must be an interface in shared/ipc.ts`).not.toBeNull();
+    expect(body, `${member} must be an interface in shared/ipc/`).not.toBeNull();
     for (const key of (body?.[1] ?? '').matchAll(/^\s*'([^']+)':/gm)) {
       channels.add(key[1] as string);
     }
