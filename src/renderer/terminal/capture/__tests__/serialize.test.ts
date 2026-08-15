@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { IBufferCell, ITheme, Terminal } from '@xterm/xterm';
+import type { IBufferCell, IBufferRange, ITheme, Terminal } from '@xterm/xterm';
 import { escapeHtml, paletteColor, serializeAsHtml } from '../serialize';
 import { terminalTheme } from '../../theme';
 
@@ -65,8 +65,12 @@ function cell(spec: FakeCellSpec): IBufferCell {
   } as IBufferCell;
 }
 
-/** A Terminal whose active buffer is the given rows of fake cells. */
-function fakeTerm(rows: FakeCellSpec[][]): Terminal {
+/**
+ * A Terminal whose active buffer is the given rows of fake cells.
+ * `reports` is what `getSelectionPosition` answers — the LIVE model, which
+ * Phase 40's snapshot path must be able to override.
+ */
+function fakeTerm(rows: FakeCellSpec[][], reports?: IBufferRange): Terminal {
   const lines = rows.map((specs) => specs.map(cell));
   return {
     buffer: {
@@ -87,7 +91,7 @@ function fakeTerm(rows: FakeCellSpec[][]): Terminal {
         }
       }
     },
-    getSelectionPosition: () => undefined
+    getSelectionPosition: () => reports
   } as unknown as Terminal;
 }
 
@@ -241,6 +245,43 @@ describe('serializeAsHtml', () => {
     });
     expect(html).toContain('<div>b</div><div>c</div>');
     expect(html).not.toContain('<div>a</div>');
+  });
+
+  it('serializes the passed selection and ignores what the terminal reports', () => {
+    // Phase 40. The menu decided what to act on when the user right-clicked;
+    // the terminal's own answer arrives later and may be a different range.
+    const html = serializeAsHtml(
+      fakeTerm([text('a'), text('b'), text('c')], {
+        start: { x: 0, y: 0 },
+        end: { x: 1, y: 0 }
+      }),
+      {
+        theme: THEME,
+        onlySelection: true,
+        selection: { start: { x: 0, y: 1 }, end: { x: 1, y: 2 } },
+        fontFamily: 'Menlo',
+        fontSizePx: 13
+      }
+    );
+    expect(html).toContain('<div>b</div><div>c</div>');
+    expect(html).not.toContain('<div>a</div>');
+  });
+
+  it('falls back to the live selection when no range is passed', () => {
+    const html = serializeAsHtml(
+      fakeTerm([text('a'), text('b'), text('c')], {
+        start: { x: 0, y: 0 },
+        end: { x: 1, y: 1 }
+      }),
+      {
+        theme: THEME,
+        onlySelection: true,
+        fontFamily: 'Menlo',
+        fontSizePx: 13
+      }
+    );
+    expect(html).toContain('<div>a</div><div>b</div>');
+    expect(html).not.toContain('<div>c</div>');
   });
 
   it('adds the measured line height and letter-spacing correction', () => {

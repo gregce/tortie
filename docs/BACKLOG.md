@@ -54,7 +54,7 @@ in the shipping build.
 | A, landed and released as 0.20.2 | **36** quit crash (`3c09245` + `3d1d70c`), **29** session history (`d08ab00`), **37** inline naming (`7c0ae02`) | — |
 | cleanup, landed | **42** the architecture cleanup, 9 stage commits `ba6a090` to `a1c7e1e` plus ledger `e28c53f` | 36 and 38 landed |
 | 1 | **47** explorer and git pane nits (fix), **35** uniform logging (feat), **33** env passthrough (feat, ✅ landed this commit) | 42 pushed |
-| 2 | **34** the CodeWhale race (fix), **40** selection and calm focus (fix), **39** Open With (feat), **43** updater wreckage recovery (fix, PULLED FORWARD, see the release plan) | wave 1 slots free |
+| 2 | **34** the CodeWhale race (fix), **40** selection and calm focus (fix, ✅ landed this commit), **39** Open With (feat), **43** updater wreckage recovery (fix, PULLED FORWARD, see the release plan) | wave 1 slots free |
 | 3 | **41** bundled tmux 3.7b (feat), **46** Runs in the SCM view (feat) | wave 2 slots free |
 
 ## The release plan, decided 2026-08-15
@@ -4014,7 +4014,37 @@ ms on first use for a common extension, measured.
 
 **Semver.** feat, minor bump.
 
-## Phase 40 — the right click keeps your selection, and focus reads calmly (user reported, 2026-08-14) QUEUED
+## Phase 40 — the right click keeps your selection, and focus reads calmly (user reported, 2026-08-14) ✅ SHIPPED 2026-08-15 (this commit)
+
+**Shipped 2026-08-15, both items, one commit.**
+
+Item 1 was xterm's own option and not our code. `rightClickSelectsWord` defaults to true on macOS,
+and xterm's `contextmenu` listener on `.xterm` runs before the React handler on the ancestor pane.
+A right click on blank space beside a selection found no word, dropped `selectionEnd`, and left
+nothing selected, so the menu was built from a selection the same click had already destroyed. The
+option is now off, and the pane reads the selection once in its own handler and carries that
+snapshot to the menu. Copy, Copy as HTML and Capture Selection all act on the snapshot. An A/B on
+the built bundle, with only that one constant flipped, showed the selection gone and all three
+verbs disabled with the option true, and the selection unchanged byte for byte with all three
+enabled with it false. Copy as HTML then put a 794 byte fragment on the clipboard carrying nine
+distinct colors, three of them the green, magenta and cyan the test line printed.
+
+Item 2 replaced the hard `--accent` ring on the pane body with a 1 px `--accent-soft` box around
+the whole pane, header included, and removed the 2 px accent stub under the header that used to
+double as a second line. Every unfocused pane in the group dims its BODY to
+`--pane-unfocused-opacity` 0.82, never its header, because the status dot lives in the header.
+Both rules are guarded by `:not([data-leaf-count='1'])`, so a group of 1 gets neither. Measured on
+screenshots: the box is exactly four 1 px edges, zero solid `--accent` pixels remain in the frame,
+and a needs input dot on a dimmed pane peaks at (233, 184, 93) against (236, 187, 94) for an
+undimmed dot in the same frame.
+
+**What is not true.** One text element ships below the AA bar that was above it before.
+`.split-state-note`, the 11 px resume hint that appears only on an ENDED or restorable leaf, falls
+from 5.25:1 to 3.93:1 on a dimmed pane. It is legible and it is a hint, so the phase shipped it
+rather than blunting the fade on every pane. Everything else in a pane body clears 4.5:1 dimmed.
+The fix, if the operator wants it, is four lines stepping that one note to `--text-secondary` on a
+dimmed pane, which lands it at 5.87:1. The native menu's own drawing is also unproven, because
+`Menu.popup` opens an NSMenu outside the window and `capturePage` cannot see it.
 
 Two defects from the operator's evening of real use, one phase because both live in the terminal
 pane surface.

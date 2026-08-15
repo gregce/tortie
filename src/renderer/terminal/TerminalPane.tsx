@@ -38,6 +38,7 @@ import { useApp } from '../state/store';
 // Phase 12.11: a terminal zooms by changing its FONT, never by CSS scaling —
 // see src/renderer/zoom/regions.ts for why, and for the S1 band rule.
 import { zoomedFontSize, useZoom } from '../zoom';
+import { snapshotSelection } from './capture';
 import { registerTerminal } from './drop/registry';
 import { terminalKeyHandler } from './keys';
 import { multilineSequenceFor, primeMultilineKeys } from './keys/multiline';
@@ -50,6 +51,7 @@ import {
   terminalBaseFontSize,
   TERMINAL_LETTER_SPACING,
   TERMINAL_LINE_HEIGHT,
+  TERMINAL_RIGHT_CLICK_SELECTS_WORD,
   TERMINAL_SCROLLBACK
 } from './theme';
 
@@ -192,7 +194,10 @@ export function TerminalPane({
       cursorBlink: true,
       // Belt to the private server's `mouse off` brace: even if an app inside
       // the pane turns mouse tracking on, Option-click still selects locally.
-      macOptionClickForcesSelection: true
+      macOptionClickForcesSelection: true,
+      // Phase 40. xterm defaults this to true on macOS, and it is what threw
+      // the selection away before the menu could be built. See ./theme.ts.
+      rightClickSelectsWord: TERMINAL_RIGHT_CLICK_SELECTS_WORD
     });
     termRef.current = term;
 
@@ -526,10 +531,19 @@ export function TerminalPane({
   }, []);
 
   // Right-click anywhere in the session → the native menu (DESIGN.md §3).
-  // Right-clicking inside a selection keeps it, so Copy still has something
-  // to act on; right-clicking elsewhere behaves like a click.
+  // A right click never changes what is selected (Phase 40): the option that
+  // used to replace it is off in the Terminal constructor above, and the
+  // selection is read ONCE here and carried to the menu. Copy, Copy as HTML
+  // and Capture Selection then act on those bytes even though the item is
+  // picked later, after a scrollback await and after the native menu closed.
+  //
+  // The React handler stays on the ancestor pane. A capture-phase contextmenu
+  // swallow on the mount would also stop the event reaching React's root
+  // listener, and the menu would never open at all.
   const onContextMenu = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
+      // First act, before anything moves focus or paints.
+      const selection = snapshotSelection(sessionId);
       event.preventDefault();
       // xterm's own mousedown used to do this before we started swallowing
       // button 3 above. Paste (clipboard:paste → webContents.paste()) lands
@@ -541,7 +555,8 @@ export function TerminalPane({
         .sessions.find((s) => s.id === sessionId);
       if (session === undefined) return;
       showTerminalMenu(session, event.clientX, event.clientY, {
-        splittable: !restorable && canSplit(session)
+        splittable: !restorable && canSplit(session),
+        selection
       });
     },
     [sessionId, restorable]

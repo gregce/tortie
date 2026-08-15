@@ -22,7 +22,7 @@
  *    render as tofu here. Viewport capture is pixel-exact and unaffected.
  */
 
-import type { IBufferCell, ITheme, Terminal } from '@xterm/xterm';
+import type { IBufferCell, IBufferRange, ITheme, Terminal } from '@xterm/xterm';
 import { TERMINAL_BACKGROUND, TERMINAL_FOREGROUND } from '../theme';
 
 export interface HtmlRange {
@@ -39,6 +39,13 @@ export interface HtmlSerializeOptions {
   range?: HtmlRange;
   /** Emit only the current selection's rows (Copy as HTML). */
   onlySelection?: boolean;
+  /**
+   * Serialize THIS range, with its column window, instead of whatever the
+   * terminal reports as selected right now. Used by the context menu, which
+   * decided what to act on at the instant the user right-clicked. Only read
+   * when `onlySelection` is set and no explicit `range` was given.
+   */
+  selection?: IBufferRange;
   /**
    * true → the terminal's own foreground on its own background (screenshots).
    * false → black on white, ANSI colors kept (pasting into a document).
@@ -309,7 +316,7 @@ export function serializeAsHtml(
   let firstCol = 0;
   let lastColExclusive = Number.POSITIVE_INFINITY;
   if (range === undefined && options.onlySelection === true) {
-    const sel = term.getSelectionPosition();
+    const sel = options.selection ?? term.getSelectionPosition();
     if (sel === undefined) return '';
     range = { startLine: sel.start.y, endLine: sel.end.y };
     firstCol = sel.start.x;

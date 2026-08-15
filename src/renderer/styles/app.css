@@ -2075,15 +2075,30 @@ body.gmux-dragging:has([role='separator'][aria-orientation='horizontal'].draggin
   background: var(--bg-canvas);
 }
 
-/* Focused split: 1px accent inset ring on the CONTENT box (drawn on the
-   container, never over xterm pixels; static — no animation, §5). */
-.split-pane.focused > .split-pane-body::after {
+/* Focused split (Phase 40): one soft accent box around the WHOLE pane, header
+   included. It replaces the hard --accent ring that used to sit on the body
+   alone, whose top edge drew a second line immediately under the 24px header
+   and crowded it. Drawn on an overlay rather than as a border on .split-pane,
+   because the header's own background and xterm's canvas paint over an inset
+   box-shadow. Static, no transition: nothing animates over a live terminal
+   (§5). The guard is a second defence — a group of 1 dissolves back to a
+   plain tab in deriveSurfaces and renders no .split-pane at all. */
+.surface-root:not([data-leaf-count='1']) .split-pane.focused::after {
   content: '';
   position: absolute;
   inset: 0;
-  border: 1px solid var(--accent);
+  border: 1px solid var(--accent-soft);
   pointer-events: none;
   z-index: 3;
+}
+
+/* Unfocused splits in a group read one step back. The dim is on the BODY and
+   never on the header, because the status dot lives in the header and status
+   always outranks decoration. */
+.surface-root:not([data-leaf-count='1'])
+  .split-pane:not(.focused)
+  .split-pane-body {
+  opacity: var(--pane-unfocused-opacity);
 }
 
 /* Header [h:24]: whole bar is the pop-out drag handle. */
@@ -2118,10 +2133,12 @@ body.gmux-dragging:has([role='separator'][aria-orientation='horizontal'].draggin
   min-width: 0;
 }
 
-/* Focused split's header: name steps up + 2px accent left inset (S4A). */
+/* Focused split's header: the name steps up, and that is the whole treatment.
+   Phase 40 removed the 2px accent left inset that used to sit here. With the
+   focus box now running around the outside of the pane, that stub landed on
+   top of the box's left edge and read as a thick corner. */
 .split-header.focused {
   color: var(--text-primary);
-  box-shadow: inset 2px 0 0 var(--accent);
 }
 
 .split-wt,

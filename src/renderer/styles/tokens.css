@@ -32,6 +32,12 @@
   /* Drag drop-target fill (split halves) — deliberately stronger than
      --accent-wash: it must read over a live terminal, not a sidebar row. */
   --drop-wash: rgba(77, 157, 232, 0.25);
+  /* Phase 40. A blue that reads as a box around the focused split without
+     competing with the live terminal output inside it. Measured against
+     --bg-canvas it is 3.06:1, where the solid --accent is 6.41:1. It clears
+     the 3:1 bar WCAG 1.4.11 asks of a non-text boundary, and it is not the
+     only focus signal, because every unfocused pane in the group also dims. */
+  --accent-soft: rgba(77, 157, 232, 0.6);
   --on-accent: #0d1117;
 
   /* §1.3 Session status */
@@ -186,6 +192,21 @@
 
   /* §1.10 Focus & motion */
   --focus-ring: 0 0 0 2px rgba(77, 157, 232, 0.6);
+  /* Split focus (Phase 40). How far an unfocused split in a group steps back.
+     It is a hint and not a curtain. Measured on the shipped terminal
+     foreground #D8DBE2 over --bg-canvas #131417, contrast falls from 13.29:1
+     to 9.19:1, so terminal text on an unfocused pane stays well above the
+     4.5:1 bar for body text. The dim is applied to the pane BODY only, never
+     to the header, because the status dot lives in the header and status
+     outranks decoration. It has to be done that way round: opacity composites
+     a whole subtree, so a child cannot undo a parent's opacity.
+     One element does fall under the bar, recorded here so a later round does
+     not have to re-measure it. `.split-state-note`, the 11px --text-muted
+     resume hint that appears only on an ENDED or restorable leaf, measures
+     5.25:1 focused and 3.93:1 dimmed. Everything else in a pane body clears
+     4.5:1 dimmed: the ended-state title reads 5.87:1 and a primary button's
+     label reads 4.79:1. */
+  --pane-unfocused-opacity: 0.82;
   --dur-fast: 120ms;
   --dur-base: 160ms;
   --dur-panel: 200ms;

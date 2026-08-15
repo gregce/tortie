@@ -22,6 +22,10 @@ import { driveTreeDrop } from '../terminal/drop/shot-probe';
 import type { TreeDropProbeSpec } from '../terminal/drop/shot-probe';
 import { driveTreeOps } from '../tree/shot-probe';
 import type { TreeOpsProbeSpec } from '../tree/shot-probe';
+import { driveSelectionMenu } from '../terminal/selection-shot-probe';
+import type { SelectionProbeSpec } from '../terminal/selection-shot-probe';
+import { driveSplitGroup, stopSplitGroupHolds } from '../app/split/shot-probe';
+import type { SplitGroupProbeSpec } from '../app/split/shot-probe';
 import { scrollBridge } from '../terminal/scroll/surface';
 import { setStoredEditorWidth } from './panel-width';
 import { useEditor } from './store';
@@ -179,6 +183,16 @@ export interface ShotDriveSpec {
     pasteAfter?: string;
   };
   /**
+   * Phase 40 item 1, end to end: drag a real selection over several rows in
+   * the session the spec created, fire a real contextmenu event, record the
+   * menu the renderer built, and optionally run one of its items for real.
+   * Needs `session`, and something printed into the pane first (use
+   * `scrollback.commands`). Owned by
+   * src/renderer/terminal/selection-shot-probe.ts; the reading is logged as
+   * `[shot-drive] selectionMenu result …` (GMUX_SHOT_VERBOSE=1).
+   */
+  selectionMenu?: SelectionProbeSpec;
+  /**
    * Phase 12.10 item 2, end to end: fire real DragEvents from a synthesized
    * tree drag at the file tree and then at the session pane, and read back
    * what armed and what landed. Needs `session` and `sidebarView: 'explorer'`.
@@ -194,6 +208,14 @@ export interface ShotDriveSpec {
    * as `[shot-drive] treeOps result …` (GMUX_SHOT_VERBOSE=1).
    */
   treeOps?: TreeOpsProbeSpec;
+  /**
+   * Phase 40 item 2: build a real multiplexed group of 2 or 3 sessions, focus
+   * one leaf, and optionally hold one leaf at needs_input, so a capture shows
+   * the focus box, the dim on the other panes, and the status dot on a dimmed
+   * pane. Owned by src/renderer/app/split/shot-probe.ts; the created session
+   * ids are recorded here so the cleanup kills every one of them.
+   */
+  splitGroup?: Omit<SplitGroupProbeSpec, 'projectPath'>;
   /**
    * Switch the sidebar view before capture ('explorer' shows the Pierre
    * file tree; readiness waits for shadow-DOM rows to render).
@@ -288,6 +310,8 @@ function typeInto(selector: string, value: string): void {
 let drivenProjectPath: string | null = null;
 /** Real session created by the drive — killed again by the cleanup hook. */
 let drivenSessionId: string | null = null;
+/** Phase 40: real sessions the split-group probe made — killed by cleanup. */
+let splitGroupIds: string[] = [];
 /** Timer re-asserting renderer-only fixtures over main's session list. */
 let fakeReinject: number | null = null;
 
@@ -484,6 +508,19 @@ export function installShotHook(): void {
       step(`session ready (${String(drivenSessionId)})`);
     }
 
+    // Phase 40 item 2. Runs before any capture wait because it creates real
+    // sessions and multiplexes them, which is what the focus box and the dim
+    // are drawn on. projectPath comes from the drive spec, never from the
+    // probe's own JSON, so the group is always built in the open project.
+    if (spec.splitGroup !== undefined) {
+      step('splitGroup: building the group');
+      splitGroupIds = await driveSplitGroup({
+        ...spec.splitGroup,
+        projectPath: spec.projectPath
+      });
+      step(`splitGroup ids ${splitGroupIds.join(',')}`);
+    }
+
     if (spec.terminalCapture !== undefined && drivenSessionId !== null) {
       const sessionId = drivenSessionId;
       step('sending terminal command');
@@ -619,6 +656,17 @@ export function installShotHook(): void {
         const after = await scrollBridge()?.state({ sessionId });
         step(`scrollback after paste ${JSON.stringify(after ?? null)}`);
       }
+    }
+
+    // Phase 40 item 1. After the scrollback block, because the pane needs
+    // printed output before there is anything to drag a selection over.
+    if (spec.selectionMenu !== undefined && drivenSessionId !== null) {
+      step('selectionMenu: dragging a selection, then right-clicking');
+      const result = await driveSelectionMenu(
+        drivenSessionId,
+        spec.selectionMenu
+      );
+      step(`selectionMenu result ${JSON.stringify(result)}`);
     }
 
     const fixture =
@@ -978,14 +1026,20 @@ export function installShotHook(): void {
       window.clearInterval(fakeReinject);
       fakeReinject = null;
     }
+    stopSplitGroupHolds();
     if (!window.gmux) return;
     // Fake sessions are renderer-only; nothing to clean up in main.
-    if (drivenSessionId !== null) {
-      await window.gmux.sessions.kill(drivenSessionId).catch(() => undefined);
+    const created = [
+      ...(drivenSessionId === null ? [] : [drivenSessionId]),
+      ...splitGroupIds
+    ];
+    splitGroupIds = [];
+    for (const id of created) {
+      await window.gmux.sessions.kill(id).catch(() => undefined);
       const extras = window.gmux.sessions as typeof window.gmux.sessions &
         GmuxSessionExtras;
       if (typeof extras.discard === 'function') {
-        await extras.discard(drivenSessionId).catch(() => undefined);
+        await extras.discard(id).catch(() => undefined);
       }
     }
     if (drivenProjectPath === null) return;

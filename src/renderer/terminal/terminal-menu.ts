@@ -57,6 +57,7 @@ import {
   pasteIntoSession,
   selectAll
 } from './capture';
+import type { TerminalSelectionSnapshot } from './capture';
 
 /**
  * Create a session beside this one and put the two side by side — VS Code's
@@ -84,6 +85,14 @@ export interface TerminalMenuOptions {
    * Absent → the informational row is omitted entirely.
    */
   scrollback?: SessionScrollbackFacts | null;
+  /**
+   * What was selected when the user right-clicked (Phase 40). Present and
+   * null means the caller looked and found nothing selected; absent means the
+   * caller did not look, and the live terminal is read instead. Copy, Copy as
+   * HTML and Capture Selection all act on this rather than on whatever the
+   * terminal reports when the item is finally picked.
+   */
+  selection?: TerminalSelectionSnapshot | null;
 }
 
 /** Items for the session context menu. Pure — the caller positions the menu. */
@@ -95,7 +104,15 @@ export function terminalMenuItems(
   // copy, capture or clear, so those items read as unavailable rather than
   // doing nothing when picked.
   const live = hasLiveTerminal(session.id);
-  const selected = live && hasSelection(session.id);
+  // The snapshot is the answer when the caller took one. Reading the live
+  // model here instead is what made the enabled state and the action disagree
+  // (Phase 40): xterm's own contextmenu handler had already replaced the
+  // selection by the time this ran.
+  const snapshot = options.selection ?? null;
+  const selected =
+    options.selection !== undefined
+      ? snapshot !== null
+      : live && hasSelection(session.id);
   const canCapture = live && captureBridge() !== null;
 
   const items: (MenuItemSpec | 'sep')[] = [
@@ -114,12 +131,12 @@ export function terminalMenuItems(
       label: 'Copy',
       hint: keyDisplay('terminal.copyOrInterrupt'),
       disabled: !selected,
-      run: () => void copySelection(session.id)
+      run: () => void copySelection(session.id, snapshot)
     },
     {
       label: 'Copy as HTML',
       disabled: !selected || !canCapture,
-      run: () => void copySelectionAsHtml(session.id)
+      run: () => void copySelectionAsHtml(session.id, snapshot)
     },
     {
       label: 'Paste',
@@ -143,7 +160,7 @@ export function terminalMenuItems(
     items.push({
       label: 'Capture Selection',
       disabled: !selected,
-      run: () => void captureSelection(session)
+      run: () => void captureSelection(session, snapshot)
     });
     for (const lines of CAPTURE_PRESETS) {
       items.push({
@@ -208,7 +225,13 @@ async function readScrollbackForMenu(
   ]);
 }
 
-/** Open the session menu at a pointer position. */
+/**
+ * Open the session menu at a pointer position.
+ *
+ * `options` is passed through unchanged, so a selection snapshot taken in the
+ * pane's handler survives the scrollback await below and is still the answer
+ * when the items are built.
+ */
 export function showTerminalMenu(
   session: Session,
   x: number,

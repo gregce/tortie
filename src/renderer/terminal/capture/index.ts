@@ -17,6 +17,7 @@
  */
 
 import { Terminal } from '@xterm/xterm';
+import type { IBufferRange } from '@xterm/xterm';
 import type { GmuxCaptureExtras } from '@shared/ipc';
 import type { Session } from '@shared/types';
 import { errorText, useApp } from '../../state/store';
@@ -109,12 +110,58 @@ export function hasSelection(sessionId: string): boolean {
   return getTerminal(sessionId)?.hasSelection() ?? false;
 }
 
-/** Copy the selection as plain text. Returns false when nothing was selected. */
-export async function copySelection(sessionId: string): Promise<boolean> {
+/** What was selected at the instant the user right-clicked. */
+export interface TerminalSelectionSnapshot {
+  /** The selected text, exactly as Copy would write it. */
+  text: string;
+  /** The selected range, so a later serialize reads the same cells. */
+  position: IBufferRange;
+}
+
+/**
+ * Read this session's selection now, or null when nothing is selected.
+ *
+ * The context menu is built after an await of up to 150 ms for the scrollback
+ * read, and each item's `run` fires later still, after the native menu has
+ * closed. Reading the live model at three different instants is what let the
+ * enabled state and the action disagree. One read at right-click time removes
+ * that whole class of drift.
+ */
+export function snapshotSelection(
+  sessionId: string
+): TerminalSelectionSnapshot | null {
   const term = getTerminal(sessionId);
-  const bridge = captureBridge();
-  if (term === null || bridge === null || !term.hasSelection()) return false;
+  if (term === null || !term.hasSelection()) return null;
+  const position = term.getSelectionPosition();
+  if (position === undefined) return null;
   const text = term.getSelection();
+  // An empty string is what `copySelection` has always refused to write, so a
+  // snapshot of one would enable a menu item that then did nothing.
+  if (text.length === 0) return null;
+  return { text, position };
+}
+
+/**
+ * Copy the selection as plain text. Returns false when nothing was selected.
+ *
+ * With a `snapshot` the text is the snapshot's and the live model is never
+ * read. Without one the behavior is unchanged, which is what keeps the ⌘C
+ * path (no menu, no gap) exactly as it was.
+ */
+export async function copySelection(
+  sessionId: string,
+  snapshot?: TerminalSelectionSnapshot | null
+): Promise<boolean> {
+  const bridge = captureBridge();
+  if (bridge === null) return false;
+  let text: string;
+  if (snapshot != null) {
+    text = snapshot.text;
+  } else {
+    const term = getTerminal(sessionId);
+    if (term === null || !term.hasSelection()) return false;
+    text = term.getSelection();
+  }
   if (text.length === 0) return false;
   await bridge.writeRich({ text, html: '' });
   return true;
@@ -124,21 +171,29 @@ export async function copySelection(sessionId: string): Promise<boolean> {
  * Copy the selection with its colors and attributes intact. The light
  * rendition (black on white, ANSI colors kept) is what a document wants;
  * the dark rendition belongs to the capture items.
+ *
+ * With a `snapshot` the serializer is handed the snapshot's range, so the
+ * bytes on the clipboard are the bytes the menu was built from.
  */
-export async function copySelectionAsHtml(sessionId: string): Promise<void> {
+export async function copySelectionAsHtml(
+  sessionId: string,
+  snapshot?: TerminalSelectionSnapshot | null
+): Promise<void> {
   const term = getTerminal(sessionId);
   const bridge = captureBridge();
-  if (term === null || bridge === null || !term.hasSelection()) return;
+  if (term === null || bridge === null) return;
+  if (snapshot == null && !term.hasSelection()) return;
   try {
     const body = serializeAsHtml(term, {
       theme: resolveTerminalTheme(),
       onlySelection: true,
+      selection: snapshot?.position,
       includeGlobalBackground: false,
       fontFamily: resolveTerminalFontFamily(),
       fontSizePx: TERMINAL_FONT_SIZE
     });
     await bridge.writeRich({
-      text: term.getSelection(),
+      text: snapshot?.text ?? term.getSelection(),
       html: toClipboardHtml(body)
     });
     toast('success', 'Copied with colors.');
@@ -212,13 +267,22 @@ function nextFrames(count = 2): Promise<void> {
  * not of the text. The selection is put back afterwards (exactly for a
  * one-row drag, as full lines for a multi-row one, which is all the public
  * API can express).
+ *
+ * `restore` names the range to put back. The menu passes the range it decided
+ * on when the user right-clicked, for the same reason the verbs above take a
+ * snapshot: the range read here is read later and could have moved.
  */
 async function withoutSelection<T>(
   term: TerminalLike,
-  run: () => Promise<T>
+  run: () => Promise<T>,
+  restore?: IBufferRange
 ): Promise<T> {
-  const selection = term.getSelectionPosition();
-  if (selection === undefined) return run();
+  const live = term.getSelectionPosition();
+  // Nothing is highlighted, so there is nothing to wash out and nothing to
+  // put back. Restoring a range here would CREATE a selection the user never
+  // made.
+  if (live === undefined) return run();
+  const selection = restore ?? live;
   term.clearSelection();
   await nextFrames();
   try {
@@ -260,13 +324,19 @@ export async function captureVisible(session: Session): Promise<void> {
 /**
  * The selected rows. On screen → a pixel-exact band; scrolled out of view →
  * the HTML path over the same buffer range.
+ *
+ * With a `snapshot` the rows are the snapshot's, and the highlight put back
+ * after the shot is the snapshot's too.
  */
-export async function captureSelection(session: Session): Promise<void> {
+export async function captureSelection(
+  session: Session,
+  snapshot?: TerminalSelectionSnapshot | null
+): Promise<void> {
   const term = getTerminal(session.id);
   const bridge = captureBridge();
   const screen = screenElement(session.id);
   if (term === null || bridge === null || screen === null) return;
-  const selection = term.getSelectionPosition();
+  const selection = snapshot?.position ?? term.getSelectionPosition();
   if (selection === undefined) return;
 
   const metrics = measureCells(term, screen);
@@ -286,8 +356,10 @@ export async function captureSelection(session: Session): Promise<void> {
     );
     if (rect !== null) {
       try {
-        await withoutSelection(term, () =>
-          bridge.viewport({ rect, suggestedName: suggestedName(session) })
+        await withoutSelection(
+          term,
+          () => bridge.viewport({ rect, suggestedName: suggestedName(session) }),
+          selection
         );
         captured('Captured your selection to the clipboard.');
         return;

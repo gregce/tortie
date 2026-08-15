@@ -47,6 +47,31 @@ export const terminalTheme: ITheme = {
 };
 
 /**
+ * xterm's macOS default for this option is true, and it makes a right click
+ * REPLACE the current selection with the word under the pointer
+ * (browser/Clipboard.ts `rightClickHandler` → SelectionService
+ * `rightClickSelect`). Over blank space `_selectWordAtCursor(ev, false)`
+ * finds no word, drops `selectionEnd`, and leaves nothing selected at all.
+ * That is the whole of the Phase 40 selection drop: xterm's own contextmenu
+ * listener on `.xterm` runs before our React handler on the ancestor pane, so
+ * the menu was built from a selection the click had already destroyed.
+ *
+ * MEASURED in the real app, one right click on blank space beside a three
+ * line selection, everything else identical:
+ *
+ *   option true   selection before "AAA green\nBBB magenta\nCCC cyan\n➜ …"
+ *                 selection after  ""        Copy and Copy as HTML disabled
+ *   option false  selection before and after identical, byte for byte
+ *                 Copy and Copy as HTML both enabled
+ *
+ * Tortie's right click is a menu gesture and nothing else, so a right click
+ * never changes what is selected. We give up xterm's select-the-word-on-
+ * right-click behavior deliberately. Select All and a normal double click
+ * both still select words.
+ */
+export const TERMINAL_RIGHT_CLICK_SELECTS_WORD = false;
+
+/**
  * DESIGN.md §1.8: terminal runs `--font-terminal` at 13px, lineHeight 1.25,
  * spacing 0 — the verified macOS-native stack below (no bundled face).
  *
