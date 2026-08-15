@@ -3632,7 +3632,7 @@ helper and reads the process.gone record back out of app.log with one jq express
 sends kill -ABRT to a scratch profile run and confirms the boot.unclean_exit record, the one
 quiet notice, and the dump count. One screenshot read of the notice line.
 
-## Phase 36 — the quit that is secretly a crash (found 2026-08-14 by research 42) ✅ SHIPPED 2026-08-14 (`3c09245`, fix round in this commit)
+## Phase 36 — the quit that is secretly a crash (found 2026-08-14 by research 42) ✅ SHIPPED 2026-08-14 (`3c09245`, fix round `3d1d70c`)
 
 **The evidence.** macOS DiagnosticReports holds 5 SIGABRT reports for the packaged Tortie dated
 2026-08-14, one on 0.18.0 and four on 0.19.0. All five share one faulting stack: watcher.node,
@@ -3688,7 +3688,7 @@ exits 0. Versions pinned: @parcel/watcher 2.6.0 (watcher-darwin-arm64 2.6.0), El
 - The resume conformance harness now drains the tracked closes instead of sleeping a blind
   1.5 s, and its stale fire and forget comment is gone.
 
-**The fix round (this commit).** The verifier proved the drain bound itself was still a crash
+**The fix round (`3d1d70c`).** The verifier proved the drain bound itself was still a crash
 door. The packaged fixed build aborted with the exact production stack twice: once in a plain
 smoke:quit series under organic machine load (Tortie-2026-08-14-194305.ips) and once forced
 under 12 external CPU burners (Tortie-2026-08-14-195506.ips). The mechanism, proven by sampling
