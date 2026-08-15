@@ -137,6 +137,45 @@ describe('claimStrengthOf', () => {
     ).toBe('confirmed');
   });
 
+  // Phase 34. The strength a row is claimed with at boot follows the KEY that
+  // recorded it, so a restart cannot freeze a folder match into an immovable
+  // claim. Without these rows a reboot puts the starvation back.
+  it('a folder key reads as matched, so an identity proof can still take it', () => {
+    expect(
+      claimStrengthOf({
+        ...base,
+        resumeProvenance: provenance({ key: 'cwd-newest' })
+      })
+    ).toBe('matched');
+  });
+
+  it('an identity key reads as confirmed', () => {
+    expect(
+      claimStrengthOf({
+        ...base,
+        resumeProvenance: provenance({ key: 'fd-owner' })
+      })
+    ).toBe('confirmed');
+  });
+
+  it('a row with no key at all is confirmed, because a pre-assigned id is not a guess', () => {
+    expect(
+      claimStrengthOf({
+        ...base,
+        resumeProvenance: provenance({ source: 'preassigned' })
+      })
+    ).toBe('confirmed');
+  });
+
+  it('a grace row keeps provisional even when it carries a folder key', () => {
+    expect(
+      claimStrengthOf({
+        ...base,
+        resumeProvenance: provenance({ key: 'cwd-newest', viaGraceTimer: true })
+      })
+    ).toBe('provisional');
+  });
+
   it('a grace timer acceptance stays provisional', () => {
     expect(
       claimStrengthOf({

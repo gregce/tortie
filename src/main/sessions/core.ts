@@ -88,10 +88,12 @@ import {
   agentRescuesIdAfterExit,
   claimConversationId,
   conversationClaimant,
+  conversationClaimStrength,
   harvestProvenance,
   ManifestStore,
   onConversationReclaimed,
   releaseConversationClaims,
+  resolveClaimCwd,
   defaultManifestDbPath,
   prepareManifestForBoot,
   resolveLaunchSpec,
@@ -973,9 +975,18 @@ export class GmuxCore {
       if (rec.status === 'discarded') continue;
       if (rec.agentSessionId === undefined) continue;
       // Phase 32 (strength extracted to claimStrengthOf in Phase 29): a row
-      // armed by a grace GUESS must stay reclaimable across restarts, and
-      // everything else is asserted as confirmed, first claim wins.
-      if (claimConversationId(rec.agentSessionId, rec.id, claimStrengthOf(rec))) {
+      // armed by a grace GUESS must stay reclaimable across restarts. Phase
+      // 34 added the middle rung, so a folder match is takeable here too, and
+      // the row's cwd travels with the claim because that is what decides
+      // whether another session's folder match may take it.
+      if (
+        claimConversationId(
+          rec.agentSessionId,
+          rec.id,
+          claimStrengthOf(rec),
+          rec.cwd
+        )
+      ) {
         continue;
       }
       // Two rows already record one conversation. This build cannot make that
@@ -1013,7 +1024,11 @@ export class GmuxCore {
           this.startIdCapture(
             rec.id,
             rec.agent,
-            { cwd: rec.cwd, sinceTs: rec.createdAt },
+            // Resolved, because `HarvestContext.cwd` is the store key for pi
+            // and qwen and the folder every ownership rule compares. The row
+            // keeps the folder the user chose, which can be a symlink to the
+            // folder another row spells directly.
+            { cwd: resolveClaimCwd(rec.cwd), sinceTs: rec.createdAt },
             agentExtrasOf(rec),
             {
               // The record either exists now or never will: no process is
@@ -1035,7 +1050,7 @@ export class GmuxCore {
         rec.id,
         rec.agent,
         {
-          cwd: rec.cwd,
+          cwd: resolveClaimCwd(rec.cwd),
           sinceTs: rec.createdAt,
           tmuxSessionId: live,
           ...(rec.panePid !== undefined ? { panePid: rec.panePid } : {})
@@ -1095,6 +1110,9 @@ export class GmuxCore {
         ...(prior?.contestedByWatches !== undefined
           ? { contestedByWatches: prior.contestedByWatches }
           : {}),
+        ...(prior?.sameCwdWatches !== undefined
+          ? { sameCwdWatches: prior.sameCwdWatches }
+          : {}),
         ...(prior?.storePath !== undefined ? { storePath: prior.storePath } : {}),
         reclaimedBy: ev.to,
         reclaimedAt: ev.at
@@ -1122,7 +1140,7 @@ export class GmuxCore {
           ev.from,
           rec.agent,
           {
-            cwd: rec.cwd,
+            cwd: resolveClaimCwd(rec.cwd),
             sinceTs: rec.createdAt,
             tmuxSessionId: live,
             ...(rec.panePid !== undefined ? { panePid: rec.panePid } : {})
@@ -1132,10 +1150,22 @@ export class GmuxCore {
         );
       }
       this.broadcastSessions();
+      // Phase 34: the line names the winner's evidence, because the ladder
+      // now has three rungs and "reclaimed" alone does not say which one
+      // took it. The operator reads this through Copy Diagnostics.
+      const winner = conversationClaimStrength(ev.conversationId);
+      const evidence =
+        winner === 'confirmed'
+          ? 'The winner proved ownership with an identity key.'
+          : 'The winner matched the folder the record names.';
       sessionsLog.warn(
-        `${rec.agent} conversation ${ev.conversationId} was reclaimed ` +
-          `from session ${ev.from} by ${ev.to}; the losing row was cleared ` +
-          `and its watch ${live !== undefined ? 'restarted' : 'not restarted (no live pane)'}.`
+        `${rec.agent} conversation ${ev.conversationId} moved from session ` +
+          `${ev.from} to ${ev.to}. ${evidence} The losing row was cleared and ` +
+          `its watch was ${
+            live !== undefined
+              ? 'restarted'
+              : 'not restarted, because the session has no live pane'
+          }.`
       );
     } catch (err) {
       sessionsLog.warn(
@@ -1285,7 +1315,12 @@ export class GmuxCore {
       // permanently blocking, which is a second loss.
       if (
         rec.agentSessionId !== undefined &&
-        !claimConversationId(rec.agentSessionId, rec.id, claimStrengthOf(rec))
+        !claimConversationId(
+          rec.agentSessionId,
+          rec.id,
+          claimStrengthOf(rec),
+          rec.cwd
+        )
       ) {
         sessionsLog.warn(
           `sessions ${String(conversationClaimant(rec.agentSessionId))} ` +
@@ -2293,7 +2328,12 @@ export class GmuxCore {
         id,
         input.agent,
         {
-          cwd,
+          // `cwdReal`, not `cwd`. The row keeps the folder the user chose and
+          // the harvest needs the folder itself: pi and qwen build their
+          // store directory from it, and every ownership rule in
+          // ./claim-strength.ts compares it as a string. Two panes in one
+          // physical folder can spell it two ways, e.g. /tmp and /private/tmp.
+          cwd: cwdReal,
           sinceTs: now,
           tmuxSessionId: info.sessionId,
           ...(info.panePid !== undefined ? { panePid: info.panePid } : {})

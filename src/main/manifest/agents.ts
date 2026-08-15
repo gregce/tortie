@@ -65,6 +65,10 @@ import { assertConfigRowMayLaunch } from '../config/confirm';
 import { executionFieldsOf } from '../config/overlay';
 import { launchableAgentEntry } from '../config/store';
 import type { HarvestedSessionId } from './harvest/stores';
+// One identity key set for the whole tree (Phase 34). The claim ladder in
+// ./harvest/watch.ts and the confidence math below are two readings of the
+// same fact about a key, and a second copy would let them disagree.
+import { IDENTITY_HARVEST_KEYS } from './harvest/claim-strength';
 
 // ---------------------------------------------------------------------------
 // The one door onto the configured agent table
@@ -261,32 +265,9 @@ export type ResumeConfidence =
   | 'none';
 
 /**
- * The keys that are a true identity, so a second candidate cannot be this
- * pane's session.
- *
- *  - 'tmux-pane' — the agent stamps the pane it runs in, and Tortie spawned
- *    that pane. Two muse sessions in one directory stay separable.
- *  - 'pid' — the record's pid is a descendant of the pane pid.
- *  - 'fd-owner' — an agent process descended from the pane holds open
- *    descriptors inside the record's directory (Phase 32). Two agy sessions
- *    in one directory stay separable, because each pane's own process holds
- *    only its own conversation open.
- *
- * Everything else ('cwd-newest', 'sqlite-index', 'time-only') keys on the
- * DIRECTORY or on nothing, and a directory is not an identity: two sessions of
- * one agent started in one directory both match, and only their timing
- * separates them. That is the case G6 names, and it is why rivals matter.
- */
-const IDENTITY_HARVEST_KEYS: ReadonlySet<AgentHarvestKey> = new Set<AgentHarvestKey>([
-  'tmux-pane',
-  'pid',
-  'fd-owner'
-]);
-
-/**
  * The confidence a harvest may claim, from the evidence it actually had.
  *
- * Three ways to fall short of 'exact', in the order they are checked:
+ * Four ways to fall short of 'exact', in the order they are checked:
  *
  *  1. A grace timer accepted the record. Nothing confirmed it, so the answer
  *     is 'grace-accepted' whatever the key would have been worth.
@@ -298,6 +279,15 @@ const IDENTITY_HARVEST_KEYS: ReadonlySet<AgentHarvestKey> = new Set<AgentHarvest
  *     guess wearing a confirmed key, and it is exactly the case where a
  *     restore hands the user somebody else's conversation with full
  *     confidence.
+ *  4. Phase 34. The key confirmed, the directory held exactly one record, and
+ *     another watch of the same agent was waiting IN THE SAME FOLDER. That
+ *     watch's own record had not been written yet, and when it is, either
+ *     session could have been the one that wrote the record this one just
+ *     took. `rivals` cannot see that, because the rival is a pane rather than
+ *     a file. Without this clause the two pane codex race records 'exact'.
+ *
+ * The identity key set lives in ./harvest/claim-strength.ts, because the claim
+ * ladder reads the same fact about a key and the two must not drift.
  */
 export function deriveResumeConfidence(evidence: {
   key: AgentHarvestKey;
@@ -306,10 +296,15 @@ export function deriveResumeConfidence(evidence: {
   viaGraceTimer: boolean;
   /** Candidates still in play when the winner was accepted, winner included. */
   rivals: number;
+  /** Other watches of this agent pending in this folder at acceptance. */
+  sameCwdWatches?: number;
 }): ResumeConfidence {
   if (evidence.viaGraceTimer) return 'grace-accepted';
   if (evidence.keyConfidence === 'weak') return 'weak';
-  if (evidence.rivals > 1 && !IDENTITY_HARVEST_KEYS.has(evidence.key)) {
+  if (
+    !IDENTITY_HARVEST_KEYS.has(evidence.key) &&
+    (evidence.rivals > 1 || (evidence.sameCwdWatches ?? 0) > 0)
+  ) {
     return 'weak';
   }
   return 'exact';
@@ -358,8 +353,16 @@ export interface ResumeProvenance {
    */
   contestedByWatches?: number;
   /**
-   * Phase 32. On a winner: whose provisional claim this exact confirm
-   * displaced. The named session's row was corrected at the same moment.
+   * Phase 34. On any winner: how many OTHER watches of the same agent were
+   * pending in the SAME folder at that moment. Above 0 with a folder key
+   * means the answer was separated by time even when the store held one
+   * record, so `confidence` reads 'weak'. The boot claim keeps such a row
+   * takeable, because a folder match is not proof of ownership.
+   */
+  sameCwdWatches?: number;
+  /**
+   * Phase 32. On a winner: whose weaker claim this acceptance displaced. The
+   * named session's row was corrected at the same moment.
    */
   reclaimedFrom?: string;
   /**
@@ -600,7 +603,10 @@ export function harvestProvenance(
       key: harvested.key,
       keyConfidence: harvested.confidence,
       viaGraceTimer: harvested.viaGraceTimer,
-      rivals: harvested.rivals
+      rivals: harvested.rivals,
+      ...(harvested.sameCwdWatches !== undefined
+        ? { sameCwdWatches: harvested.sameCwdWatches }
+        : {})
     }),
     at: harvested.acceptedAt,
     cwd: input.cwd,
@@ -612,6 +618,9 @@ export function harvestProvenance(
     storeRoot: harvested.storeRoot,
     ...(harvested.contestedByWatches !== undefined
       ? { contestedByWatches: harvested.contestedByWatches }
+      : {}),
+    ...(harvested.sameCwdWatches !== undefined
+      ? { sameCwdWatches: harvested.sameCwdWatches }
       : {}),
     ...(harvested.reclaimedFrom !== undefined
       ? { reclaimedFrom: harvested.reclaimedFrom }

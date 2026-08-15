@@ -32,6 +32,10 @@
  *            it does not write until the first turn, so two panes started
  *            together in one directory are not separable, and the UI says so
  *            instead of promising a conversation that may be the wrong one.
+ *            Phase 34 probed the PROCESS as well, and it holds nothing: no
+ *            open descriptor on the store, no pid file, no lock file, no id
+ *            in the content that names a process or a pane. The descriptor
+ *            below carries the measurements.
  *  - antigravity — the DISK is still mute (nothing in the store links a
  *            conversation id to a directory), but the PROCESS is not: the
  *            owning agy holds open descriptors inside brain/<id> and on
@@ -60,7 +64,20 @@ import { isDescendantOf, UUID_RE } from './process-table';
 
 /** What gmux knows about the pane it just spawned into. */
 export interface HarvestContext {
-  /** The launch cwd, ALREADY realpath'd (qwen keys on the resolved path). */
+  /**
+   * The launch cwd, ALREADY resolved by the caller.
+   *
+   * Two things read it and both need the folder itself rather than a path
+   * that leads to it: pi and qwen build their store directory out of it, and
+   * the ownership rules in ./claim-strength.ts compare it as a string. On
+   * macOS one folder has more than one spelling, e.g. /tmp and /private/tmp,
+   * so an unresolved value gives pi and qwen a directory that does not exist
+   * and gives the claim map two folders where there is one.
+   *
+   * `sessions/core.ts` resolves it at every call. The claim map resolves it
+   * again on the way in, because a caller that forgets produces a wrong owner
+   * rather than an empty listing.
+   */
   cwd: string;
   /** Epoch ms captured just before spawn — nothing older can be ours. */
   sinceTs: number;
@@ -129,6 +146,15 @@ export interface HarvestedSessionId {
    * exact confirm can still take the id back.
    */
   contestedByWatches?: number;
+  /**
+   * Phase 34. Present on any acceptance where another watch of the same agent
+   * was pending IN THE SAME FOLDER. It is the fact `rivals` cannot carry: a
+   * neighbour whose own record had not been written yet would have confirmed
+   * this one too, because the only ownership field these records hold is the
+   * folder the two panes share. Above 0 makes the recorded confidence 'weak'
+   * for a non identity key, however few files the directory held.
+   */
+  sameCwdWatches?: number;
 }
 
 export interface SessionIdWatch {
@@ -317,6 +343,25 @@ function xdgDataHome(de: DescriptorEnv): string {
 }
 
 export const DESCRIPTORS: Partial<Record<LaunchableAgentId, HarvestDescriptor>> = {
+  /**
+   * codex. The rollout's line 1 carries the cwd, so a record is proven to
+   * belong to a FOLDER, which is not the same as proven to belong to a pane.
+   *
+   * THE SAME FOLDER RESIDUAL, audited in Phase 34 and not closed. Two
+   * sessions of this agent started in one folder both confirm the same
+   * record, because the record's only ownership field is the folder they
+   * share. The winner is then the earliest record at or after the spawn,
+   * which is a timing guess. Phase 34 stopped that guess from taking an
+   * immovable claim: the winner holds it at 'matched', which an identity key
+   * takes back. This agent has no identity key, so in practice nothing takes
+   * it, and the honest gain is the number rather than the transfer. The
+   * acceptance records `sameCwdWatches`, so the row says 'weak' instead of
+   * 'exact'. What the other session does is wait for its OWN record, and its
+   * watch times out at the end of the window when that session never takes a
+   * turn and so never writes one. What is still not true is that the right
+   * session gets the record. Nothing this agent writes says which pane wrote
+   * it.
+   */
   codex: {
     key: 'cwd-newest',
     confidence: 'exact',
@@ -447,6 +492,40 @@ export const DESCRIPTORS: Partial<Record<LaunchableAgentId, HarvestDescriptor>> 
     pollIntervalMs: 1_000
   },
 
+  /**
+   * codewhale, still filed under the agent id `deepseek`. The key is WEAK,
+   * and Phase 34 measured why it cannot be anything better. Its only ownership signal is
+   * `metadata.workspace` inside a file it does not write until the first
+   * turn, so two panes started in one folder both confirm the same record.
+   * Everything else was probed on 2026-08-15 against 0.8.26 and is absent.
+   * The process holds no descriptor on the store, which 46 lsof samples
+   * across a live write showed. There is no pid file and no lock file
+   * anywhere under the store root. `metadata.created_at` is the first turn
+   * time and not the session open time, measured 28 seconds after the process
+   * started, so it is no sharper than the file's own mtime.
+   * `sessions/checkpoints/latest.json` is one global file and carries a
+   * different id from the session written in the same second.
+   * `snapshots/<hash>` is keyed on the workspace path, so every session in one
+   * folder shares it. The CLI offers no pre-assign flag. The grace timer stays
+   * at 5 seconds, and it is now the weakest rung of the claim ladder: a
+   * session that can prove the record names ITS folder takes the guess back,
+   * and the losing row is corrected.
+   *
+   * THE SAME FOLDER RESIDUAL, audited in Phase 34 and not closed. Two
+   * sessions of this agent started in one folder both confirm the same
+   * record, because the record's only ownership field is the folder they
+   * share. The winner is then the earliest record at or after the spawn,
+   * which is a timing guess. Phase 34 stopped that guess from taking an
+   * immovable claim: the winner holds it at 'matched', which an identity key
+   * takes back. This agent has no identity key, so in practice nothing takes
+   * it, and the honest gain is the number rather than the transfer. The
+   * acceptance records `sameCwdWatches`, so the row says 'weak' instead of
+   * 'exact'. What the other session does is wait for its OWN record, and its
+   * watch times out at the end of the window when that session never takes a
+   * turn and so never writes one. What is still not true is that the right
+   * session gets the record. Nothing this agent writes says which pane wrote
+   * it.
+   */
   deepseek: {
     key: 'cwd-newest',
     confidence: 'weak',
@@ -496,6 +575,22 @@ export const DESCRIPTORS: Partial<Record<LaunchableAgentId, HarvestDescriptor>> 
    * manifest rows' createdAt to within a second (17:11:05.496Z vs 13:11:05
    * local, 18:57:56.300Z vs 14:57:55), and the watcher's "earliest record at
    * or after spawn" rule separates them cleanly.
+   *
+   * THE SAME FOLDER RESIDUAL, audited in Phase 34 and not closed. Two
+   * sessions of this agent started in one folder both confirm the same
+   * record, because the record's only ownership field is the folder they
+   * share. The winner is then the earliest record at or after the spawn,
+   * which is a timing guess. Phase 34 stopped that guess from taking an
+   * immovable claim: the winner holds it at 'matched', which an identity key
+   * takes back. This agent has no identity key, so in practice nothing takes
+   * it, and the honest gain is the number rather than the transfer. The
+   * acceptance records `sameCwdWatches`, so the row says 'weak' instead of
+   * 'exact'. What the other session does is wait for its OWN record, and its
+   * watch times out at the end of the window when that session never takes a
+   * turn and so never writes one. What is still not true is that the right
+   * session gets the record. Nothing this agent writes says which pane wrote
+   * it. The filename start time is the one thing that narrows it here, and a
+   * rescue running long after the fact is the case where it narrows least.
    */
   pi: {
     rescueOnly: true,

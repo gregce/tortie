@@ -34,7 +34,7 @@
  * Ownership: src/main/manifest/**. Pure Node (no Electron import).
  */
 
-import { existsSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import { readdir, stat } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -42,6 +42,12 @@ import * as parcelWatcher from '@parcel/watcher';
 import type { LaunchableAgentId } from '@shared/types';
 import { getRegistryEntry } from '../../agents/registry';
 import { trackWatcherClose } from '../../watcher/teardown';
+import {
+  claimRank,
+  claimStrengthForKey,
+  mayTakeOver,
+  type ClaimStrength
+} from './claim-strength';
 import {
   DESCRIPTORS,
   type DescriptorEnv,
@@ -84,21 +90,54 @@ type CandidateSource = 'poll' | 'events';
 // ---------------------------------------------------------------------------
 
 /**
- * How strongly a claim is held (Phase 32).
- *
- *  - 'confirmed' — the descriptor's key PROVED ownership, or a caller
- *    asserted it (the boot claim of a row whose id was not a grace guess).
- *    Immovable: nothing takes a confirmed claim except discarding the row.
- *  - 'provisional' — a grace timer accepted it, or the boot claim of a row
- *    whose persisted provenance says the grace timer did. Reclaimable by an
- *    exact confirm, and ONLY by an exact confirm: grace never steals, not
- *    even from grace.
+ * The claim strength ladder moved to ./claim-strength.ts in Phase 34, because
+ * `deriveResumeConfidence` reads the same fact about a key and the two must
+ * not drift. The type is re-exported here so every existing importer of
+ * './watch' keeps working.
  */
-export type ClaimStrength = 'confirmed' | 'provisional';
+export type { ClaimStrength };
 
 interface ConversationClaim {
   claimant: string;
   strength: ClaimStrength;
+  /**
+   * The launch folder of the session that holds it, as `resolveClaimCwd`
+   * returned it (Phase 34). It is what the rank 2 takeover rule compares: a
+   * folder match proves the loser cannot own the record only when the loser
+   * is somewhere else. Absent for a caller that did not name one, and an
+   * absent folder refuses the transfer rather than guessing.
+   */
+  cwd?: string | undefined;
+}
+
+/**
+ * The one spelling of a launch folder that the ownership rules compare.
+ *
+ * WHY THIS EXISTS, and it is measured rather than theoretical. The rank 2
+ * rule in ./claim-strength.ts compares two launch folders as STRINGS, and on
+ * macOS one physical folder has more than one spelling, because `/tmp` is a
+ * symlink to `/private/tmp`. A pane launched at `/private/tmp/proj` took a
+ * grace claim, a second pane launched at `/tmp/proj` matched the same record,
+ * the two strings were not equal, and the second pane TOOK the claim. That is
+ * the same folder steal the rule exists to refuse. The same compare decides
+ * `sameCwdWatches`, so the neighbour also went uncounted and the row recorded
+ * `exact` where the honest answer is `weak`.
+ *
+ * Every folder that enters the claim map or the pending watch map goes
+ * through here first, so the compare means the folder rather than the path
+ * the caller happened to type. A folder that no longer exists resolves to
+ * itself, which is the only spelling anyone has for it.
+ *
+ * It is exported because `sessions/core.ts` resolves the same way before it
+ * builds a `HarvestContext`, and one implementation is what keeps the two
+ * from drifting.
+ */
+export function resolveClaimCwd(cwd: string): string {
+  try {
+    return realpathSync(cwd);
+  } catch {
+    return cwd;
+  }
 }
 
 /**
@@ -125,6 +164,13 @@ interface ConversationClaim {
  * provisional, an exact confirm takes it over (see `accept`), and the loser's
  * manifest row is corrected through the reclaim event below.
  *
+ * PHASE 34 MADE THE STRENGTH FOLLOW THE KEY rather than the timer. A folder
+ * match is evidence and not proof, so it claims 'matched', which an identity
+ * proof can still take. Only an identity key claims 'confirmed'. Without that
+ * rung, two CodeWhale panes in one folder ended with the first watch holding
+ * an immovable claim on a record that may be the other pane's. See
+ * ./claim-strength.ts for the ladder and the two takeover rules.
+ *
  * It is keyed by claimant so that re-watching the SAME session (the boot
  * rescue, a restore) can retake the id it already had.
  *
@@ -147,18 +193,19 @@ function nextAnonymousClaimant(): string {
   return `anon-${String(anonymousClaimants)}`;
 }
 
-/** True when some OTHER session holds it with strength `strength`. */
-function heldByAnotherAt(
+/**
+ * The claim some OTHER session holds on this conversation, if any.
+ *
+ * The caller decides what to do with it, because the answer is no longer a
+ * yes or no about one strength: a candidate may be filtered out, winnable by
+ * proof, or winnable only from a different folder.
+ */
+function claimHeldByAnother(
   conversationId: string,
-  claimant: string,
-  strength: ClaimStrength
-): boolean {
+  claimant: string
+): ConversationClaim | undefined {
   const claim = claimedConversations.get(conversationId);
-  return (
-    claim !== undefined &&
-    claim.claimant !== claimant &&
-    claim.strength === strength
-  );
+  return claim !== undefined && claim.claimant !== claimant ? claim : undefined;
 }
 
 /**
@@ -175,6 +222,13 @@ function heldByAnotherAt(
  * function NEVER performs a takeover, whatever strengths collide: takeover is
  * the accept path's alone, so a boot claim can never silently steal.
  *
+ * `cwd` is the claimant's launch folder (Phase 34). It is optional and last,
+ * and it is only read when something later asks whether a folder match may
+ * take this claim. A claim with no folder is never taken by a folder match.
+ * It is resolved here rather than trusted, because the boot claim passes the
+ * folder the row was created with and two rows in one folder can spell it two
+ * ways (see `resolveClaimCwd`).
+ *
  * It says nothing itself. A refusal means two different things depending on
  * who asked, and only the caller knows which: a watch being refused is a bug
  * in the watch, while a boot time claim being refused is a pair of rows that
@@ -186,12 +240,17 @@ function heldByAnotherAt(
 export function claimConversationId(
   conversationId: string,
   claimant: string,
-  strength: ClaimStrength = 'confirmed'
+  strength: ClaimStrength = 'confirmed',
+  cwd?: string
 ): boolean {
   if (conversationId.length === 0) return false;
   const claim = claimedConversations.get(conversationId);
   if (claim !== undefined) return claim.claimant === claimant;
-  claimedConversations.set(conversationId, { claimant, strength });
+  claimedConversations.set(conversationId, {
+    claimant,
+    strength,
+    cwd: cwd === undefined ? undefined : resolveClaimCwd(cwd)
+  });
   return true;
 }
 
@@ -278,21 +337,30 @@ function emitReclaim(ev: ConversationReclaim): void {
 // ---------------------------------------------------------------------------
 
 /**
- * Claimants with a live watch, per agent. It answers one question at one
- * moment: when a grace timer accepts, how many OTHER sessions of the same
- * agent were still waiting for a record? Above 0 the guess was contested,
- * and the number is persisted (`contestedByWatches`) so the doubt survives
- * a restart and the claim stays provisional there too.
+ * Claimants with a live watch, per agent, each with the folder it was
+ * launched in. Two questions are asked of it at an acceptance, and they are
+ * different questions:
+ *
+ *  - how many OTHER sessions of this agent were still waiting for a record
+ *    anywhere, which a grace acceptance persists as `contestedByWatches`;
+ *  - how many were waiting IN THIS FOLDER, which every acceptance persists as
+ *    `sameCwdWatches` (Phase 34). That is the number that says a folder match
+ *    was a timing guess: a neighbour in the same folder would have confirmed
+ *    the same record, so `rivals: 1` on its own is misleading.
  */
-const pendingWatches = new Map<LaunchableAgentId, Set<string>>();
+const pendingWatches = new Map<LaunchableAgentId, Map<string, string>>();
 
-function addPendingWatch(agent: LaunchableAgentId, claimant: string): void {
-  let set = pendingWatches.get(agent);
-  if (set === undefined) {
-    set = new Set();
-    pendingWatches.set(agent, set);
+function addPendingWatch(
+  agent: LaunchableAgentId,
+  claimant: string,
+  cwd: string
+): void {
+  let byClaimant = pendingWatches.get(agent);
+  if (byClaimant === undefined) {
+    byClaimant = new Map();
+    pendingWatches.set(agent, byClaimant);
   }
-  set.add(claimant);
+  byClaimant.set(claimant, cwd);
 }
 
 function removePendingWatch(agent: LaunchableAgentId, claimant: string): void {
@@ -303,9 +371,24 @@ function otherPendingWatchCount(
   agent: LaunchableAgentId,
   claimant: string
 ): number {
-  const set = pendingWatches.get(agent);
-  if (set === undefined) return 0;
-  return set.size - (set.has(claimant) ? 1 : 0);
+  const byClaimant = pendingWatches.get(agent);
+  if (byClaimant === undefined) return 0;
+  return byClaimant.size - (byClaimant.has(claimant) ? 1 : 0);
+}
+
+/** Other watches of this agent whose launch folder is `cwd`. */
+function otherPendingWatchesInCwd(
+  agent: LaunchableAgentId,
+  claimant: string,
+  cwd: string
+): number {
+  const byClaimant = pendingWatches.get(agent);
+  if (byClaimant === undefined) return 0;
+  let n = 0;
+  for (const [other, folder] of byClaimant) {
+    if (other !== claimant && folder === cwd) n += 1;
+  }
+  return n;
 }
 
 /** Test hook. In the app every watch removes itself when it settles. */
@@ -397,6 +480,24 @@ export function watchForSessionId(
 
   const claimant = options.claimant ?? nextAnonymousClaimant();
 
+  /**
+   * The launch folder as the ownership rules compare it (Phase 34 fix round).
+   * `HarvestContext.cwd` is documented as already resolved and the app does
+   * resolve it, but every folder that reaches the claim map is resolved here
+   * as well, because a caller that forgets produces a wrong OWNER rather than
+   * a failed lookup. `resolveClaimCwd` has the measured case.
+   */
+  const claimCwd = resolveClaimCwd(ctx.cwd);
+
+  /**
+   * The strongest claim this watch can ever take, which is what its own key
+   * would claim on a 'match'. Both the candidate filter and the takeover
+   * question are asked against it, so a watch never waits on a claim it
+   * could win and never tries for one it could not.
+   */
+  const matchStrength = claimStrengthForKey(d.key, false);
+  const myMatchRank = claimRank(matchStrength);
+
   const candidates = new Map<string, Candidate>();
   const subscriptions: parcelWatcher.AsyncSubscription[] = [];
   let pollTimer: ReturnType<typeof setTimeout> | undefined;
@@ -423,8 +524,9 @@ export function watchForSessionId(
 
   // Registered before any decision can run, removed by cleanup(), which
   // every way out (settle, cancel, timeout) funnels through. It is what
-  // `contestedByWatches` counts at another watch's grace acceptance.
-  addPendingWatch(agent, claimant);
+  // `contestedByWatches` and `sameCwdWatches` count at another watch's
+  // acceptance.
+  addPendingWatch(agent, claimant, claimCwd);
 
   const cleanup = (): void => {
     removePendingWatch(agent, claimant);
@@ -467,21 +569,26 @@ export function watchForSessionId(
     // The claim goes in BEFORE the settle, so a second watch that decides
     // inside the same tick already sees it. Both are synchronous, so there is
     // no window between them.
+    //
+    // PHASE 34: the strength comes from the KEY, not from the timer. A folder
+    // key claims 'matched', which an identity proof can still take back.
+    const strength = claimStrengthForKey(d.key, viaGraceTimer);
+    const mine = { strength, cwd: claimCwd };
     const existing = claimedConversations.get(c.sessionId);
     let reclaimedFrom: string | undefined;
     if (
-      !viaGraceTimer &&
       existing !== undefined &&
       existing.claimant !== claimant &&
-      existing.strength === 'provisional'
+      mayTakeOver(mine, existing)
     ) {
-      // EXACT BEATS GRACE (Phase 32). Another session guessed this id on a
-      // timer, and this watch has PROOF. The claim moves, the reclaim event
-      // fires synchronously so a same-tick decide in any other watch already
-      // sees the new owner, and the loser's manifest row is corrected by the
-      // handler in sessions/core.ts before this watch's own settle resolves.
+      // A STRONGER CLAIM TAKES A WEAKER ONE (Phase 32, widened in Phase 34).
+      // Another session holds this id on weaker evidence than this watch has.
+      // The claim moves, the reclaim event fires synchronously so a same-tick
+      // decide in any other watch already sees the new owner, and the loser's
+      // manifest row is corrected by the handler in sessions/core.ts before
+      // this watch's own settle resolves.
       reclaimedFrom = existing.claimant;
-      claimedConversations.set(c.sessionId, { claimant, strength: 'confirmed' });
+      claimedConversations.set(c.sessionId, { claimant, ...mine });
       emitReclaim({
         agent,
         conversationId: c.sessionId,
@@ -489,35 +596,32 @@ export function watchForSessionId(
         to: claimant,
         at: Date.now()
       });
-    } else if (
-      !claimConversationId(
-        c.sessionId,
-        claimant,
-        viaGraceTimer ? 'provisional' : 'confirmed'
-      )
-    ) {
-      // `decide()` filters out anything another session holds confirmed, and
-      // the branch above handles a provisional holder, so this cannot happen.
-      // It is said out loud rather than swallowed because if it ever does,
-      // the sentence is the whole bug report.
+    } else if (!claimConversationId(c.sessionId, claimant, strength, claimCwd)) {
+      // `decide()` filters out anything another session holds at a rank this
+      // watch cannot beat, and the branch above handles a holder it can, so
+      // this cannot happen. It is said out loud rather than swallowed because
+      // if it ever does, the sentence is the whole bug report.
       manifestLog.warn(
         `${agent} took conversation ${c.sessionId} for ${claimant}, ` +
           `which ${String(conversationClaimant(c.sessionId))} already has.`
       );
     } else if (
-      !viaGraceTimer &&
       existing?.claimant === claimant &&
-      existing.strength === 'provisional'
+      claimRank(strength) > claimRank(existing.strength)
     ) {
-      // The same session proved an id it had only guessed before (a re-armed
-      // watch confirming its own grace claim). Upgrade in place.
-      claimedConversations.set(c.sessionId, { claimant, strength: 'confirmed' });
+      // The same session proved an id it had held on weaker evidence (a
+      // re-armed watch confirming its own grace claim). Upgrade in place.
+      claimedConversations.set(c.sessionId, { claimant, ...mine });
     }
     // How many OTHER same-agent watches were still waiting when a grace
     // timer took this guess. Persisted so the doubt survives a restart.
     const contested = viaGraceTimer
       ? otherPendingWatchCount(agent, claimant)
       : undefined;
+    // How many of them were looking in THIS folder, grace or match alike.
+    // Above 0 the answer was separated by time even when the directory held
+    // exactly one record, because a neighbour would have confirmed it too.
+    const sameCwd = otherPendingWatchesInCwd(agent, claimant, claimCwd);
     settle({
       agent,
       sessionId: c.sessionId,
@@ -529,7 +633,8 @@ export function watchForSessionId(
       rivals,
       acceptedAt: Date.now(),
       ...(reclaimedFrom !== undefined ? { reclaimedFrom } : {}),
-      ...(contested !== undefined ? { contestedByWatches: contested } : {})
+      ...(contested !== undefined ? { contestedByWatches: contested } : {}),
+      ...(sameCwd > 0 ? { sameCwdWatches: sameCwd } : {})
     });
   };
 
@@ -639,19 +744,22 @@ export function watchForSessionId(
    */
   const decide = (): void => {
     if (settled) return;
-    // A record another session in this process has taken CONFIRMED is not in
-    // play for this one. Dropping it here rather than after the sort is what
-    // lets the loser of a two pane race keep waiting for its OWN record.
+    // A record another session in this process holds at a rank THIS watch
+    // could never beat is not in play for it. Dropping it here rather than
+    // after the sort is what lets the loser of a two pane race keep waiting
+    // for its OWN record.
     //
-    // A record another session holds only PROVISIONALLY stays in the list
-    // (Phase 32): it is winnable, but only by proof. The grace branch below
-    // skips it, and the accept path moves the claim when a verdict of
-    // 'match' wins it.
-    const list = [...candidates.values()].filter(
-      (c) =>
-        c.verdict !== 'mismatch' &&
-        !heldByAnotherAt(c.sessionId, claimant, 'confirmed')
-    );
+    // The rank this watch could reach is the strength its own key would
+    // claim on a match: 3 for an identity key, 2 for a folder key. So a
+    // folder-keyed watch drops anything held at 'matched' or better, and an
+    // identity-keyed watch drops only what is held 'confirmed'. A candidate
+    // it could still win stays in the list and therefore counts as a rival,
+    // which is the honest direction for that number.
+    const list = [...candidates.values()].filter((c) => {
+      if (c.verdict === 'mismatch') return false;
+      const held = claimHeldByAnother(c.sessionId, claimant);
+      return held === undefined || claimRank(held.strength) < myMatchRank;
+    });
     if (list.length === 0) return;
     // A listing is PART WAY THROUGH registering what it found. Whatever is in
     // the map right now is a prefix of the answer, not the answer. It ends in
@@ -683,7 +791,18 @@ export function watchForSessionId(
     // The PICK does not change. The earliest record at or after the spawn is
     // still the best available answer. What changes is the claim recorded
     // about it.
-    const confirmed = list.find((c) => c.verdict === 'match');
+    //
+    // A match that another session already holds is taken only when this
+    // watch's evidence outranks the holder's, which for a folder key also
+    // means the holder was in a different folder (./claim-strength.ts).
+    const confirmed = list.find((c) => {
+      if (c.verdict !== 'match') return false;
+      const held = claimHeldByAnother(c.sessionId, claimant);
+      return (
+        held === undefined ||
+        mayTakeOver({ strength: matchStrength, cwd: claimCwd }, held)
+      );
+    });
     if (confirmed) {
       accept(confirmed, false, rivals);
       return;
@@ -691,14 +810,14 @@ export function watchForSessionId(
     // No confirmation possible yet: wait out the grace period in case a
     // confirmable rival shows up or the record gains its key.
     //
-    // GRACE NEVER STEALS (Phase 32). The pick is the earliest candidate NOT
-    // provisionally held by another session: two timer guesses about one id
-    // must not trade it back and forth, so a provisional claim falls only to
-    // the proof branch above. When every surviving candidate is provisionally
-    // held by others, this watch keeps waiting, which is the honest outcome —
-    // its own record appears on its own first turn.
+    // GRACE NEVER STEALS (Phase 32). The pick is the earliest candidate no
+    // other session holds AT ALL: two timer guesses about one id must not
+    // trade it back and forth, so a held claim falls only to the branch
+    // above. When every surviving candidate is held by others, this watch
+    // keeps waiting, which is the honest outcome. Its own record appears on
+    // its own first turn.
     const first = list.find(
-      (c) => !heldByAnotherAt(c.sessionId, claimant, 'provisional')
+      (c) => claimHeldByAnother(c.sessionId, claimant) === undefined
     );
     if (first && Date.now() - first.firstSeen >= graceMs) accept(first, true, rivals);
   };

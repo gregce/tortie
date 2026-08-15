@@ -18,6 +18,7 @@
 
 import type { SnapshotFailedNotice } from '@shared/notice';
 import type { SessionRestore, SessionStatus } from '@shared/types';
+import { IDENTITY_HARVEST_KEYS } from '../manifest';
 import type { ClaimStrength, ManifestSessionRecord } from '../manifest';
 
 // ---------------------------------------------------------------------------
@@ -120,20 +121,33 @@ export function restoredStatus(result: SessionRestore): SessionStatus {
 
 /**
  * How strongly a row's recorded conversation id may be claimed (Phase 32,
- * extracted in Phase 29 for the restore path).
+ * extracted in Phase 29 for the restore path, widened in Phase 34).
  *
- * A row armed by a grace GUESS must stay reclaimable: freezing it as
- * confirmed would preserve a live mis-assignment forever. Everything else is
- * asserted as confirmed. Two callers share this — the boot claim loop, and
- * `restoreSession` re-acquiring the claim a Remove released — so the answer
- * cannot drift between them.
+ * The strength follows the KEY that recorded the id, exactly as a live
+ * acceptance does, so a restart cannot turn a takeable claim into an
+ * immovable one. Four answers:
+ *
+ *  - a grace GUESS stays 'provisional', because freezing it would preserve a
+ *    live mis-assignment forever;
+ *  - a folder key such as 'cwd-newest' reads 'matched', because a folder is
+ *    not an identity and the session that can prove ownership must still be
+ *    able to take the id back after a reboot;
+ *  - an identity key reads 'confirmed';
+ *  - a row with NO key reads 'confirmed', because an id Tortie pre-assigned
+ *    was never a guess about which record belongs to whom.
+ *
+ * Two callers share this, being the boot claim loop and `restoreSession`
+ * re-acquiring the claim a Remove released, so the answer cannot drift
+ * between them.
  */
 export function claimStrengthOf(rec: ManifestSessionRecord): ClaimStrength {
   const p = rec.resumeProvenance;
-  return p !== undefined &&
-    (p.viaGraceTimer === true || p.confidence === 'grace-accepted')
-    ? 'provisional'
-    : 'confirmed';
+  if (p === undefined) return 'confirmed';
+  if (p.viaGraceTimer === true || p.confidence === 'grace-accepted') {
+    return 'provisional';
+  }
+  if (p.key === undefined) return 'confirmed';
+  return IDENTITY_HARVEST_KEYS.has(p.key) ? 'confirmed' : 'matched';
 }
 
 // ---------------------------------------------------------------------------

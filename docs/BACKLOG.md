@@ -54,7 +54,7 @@ in the shipping build.
 | A, landed and released as 0.20.2 | **36** quit crash (`3c09245` + `3d1d70c`), **29** session history (`d08ab00`), **37** inline naming (`7c0ae02`) | — |
 | cleanup, landed | **42** the architecture cleanup, 9 stage commits `ba6a090` to `a1c7e1e` plus ledger `e28c53f` | 36 and 38 landed |
 | 1 | **47** explorer and git pane nits (fix), **35** uniform logging (feat), **33** env passthrough (feat, ✅ landed this commit) | 42 pushed |
-| 2 | **34** the CodeWhale race (fix), **40** selection and calm focus (fix, ✅ landed this commit), **39** Open With (feat, ✅ landed this commit), **43** updater wreckage recovery (fix, PULLED FORWARD, ✅ landed this commit) | wave 1 slots free |
+| 2 | **34** the CodeWhale race (fix, ✅ landed this commit), **40** selection and calm focus (fix, ✅ landed this commit), **39** Open With (feat, ✅ landed this commit), **43** updater wreckage recovery (fix, PULLED FORWARD, ✅ landed this commit) | wave 1 slots free |
 | 3 | **41** bundled tmux 3.7b (feat), **46** Runs in the SCM view (feat, ✅ landed this commit) | wave 2 slots free |
 
 ## The release plan, decided 2026-08-15
@@ -3671,7 +3671,7 @@ codex can now move another same directory session's grace claim even though a di
 an identity. That outcome is no worse than the old arbitrary assignment and provenance records
 it. A same directory codex case in the race test is queued as Phase 34 work.
 
-## Phase 34 — the remaining harvest guessers (follow up to Phase 32, 2026-08-14) QUEUED
+## Phase 34 — the remaining harvest guessers (follow up to Phase 32, 2026-08-14) ✅ SHIPPED 2026-08-15 (this commit)
 
 **The gap, from the descriptor table after Phase 32.** CodeWhale is the last time-only descriptor:
 cwd-newest, confidence weak, 5 second grace. It carries the same claim race Phase 32 fixed for
@@ -3694,6 +3694,113 @@ reproduction for CodeWhale in an isolated environment. Tier 2 for the tiebreak a
 in documentation rather than code.
 
 **Depends on Phase 32** for the claim transfer semantics and the race test harness.
+
+**Two corrections to the entry above, both measured.** CodeWhale is not time only. Its descriptor
+is `cwd-newest` with a real `confirm()` that reads `metadata.workspace`, and the `time-only` key has
+had no live descriptor since Phase 32. And CodeWhale exposes no exact ownership signal at all, so
+the descriptor could not be upgraded. Everything the entry named was probed on 2026-08-15 against
+`deepseek` 0.8.26 and is absent: no open descriptor on the store across 46 lsof samples spanning a
+live write, no pid file, no lock file, no id in the content that names a process or a pane,
+`metadata.created_at` is the first turn time 28 seconds after the process started rather than the
+session open time, `checkpoints/latest.json` is one global file carrying a different id from the
+session written in the same second, `snapshots/<hash>` is keyed on the workspace path so every
+session in one folder shares it, and the CLI has no pre-assign flag. The table is in
+docs/research/40-antigravity-claim-race.md section 7.
+
+**What shipped.** The investigation found a defect one level up instead, and one change fixes
+CodeWhale, codex and pi at once.
+- Claim strength follows the KEY, not the grace timer. Phase 32 claimed every non grace acceptance
+  as `confirmed`, and a confirmed claim is immovable, so the first CodeWhale pane to see a record
+  took an unbreakable claim on a record that may be the other pane's and starved the rightful
+  session for the whole six hour window. There are now three rungs, in
+  src/main/manifest/harvest/claim-strength.ts: `provisional` for a grace guess, `matched` for a
+  folder match, `confirmed` for an identity key (`tmux-pane`, `pid`, `fd-owner`).
+- A takeover needs a strictly higher rank, so equal never takes equal and grace still never steals.
+  A folder match taking a grace guess also needs the loser to have been in a DIFFERENT folder,
+  because a match in the same folder proves nothing about which of the two panes wrote the record.
+  An unknown folder on either side refuses the transfer.
+- The boot claim learned the same rule (`claimStrengthOf`), so a restart cannot freeze a folder
+  match into an immovable claim. A row with no key stays confirmed, because a pre-assigned id was
+  never a guess.
+- The honest number. `sameCwdWatches` records how many other watches of the same agent were pending
+  in the SAME folder at acceptance. `rivals` cannot see that, because the rival is a pane whose own
+  record does not exist yet rather than a file. `deriveResumeConfidence` now returns `weak` for a
+  non identity key when rivals is above 1 OR sameCwdWatches is above 0, so the two pane codex race
+  records `weak` where it recorded `exact`.
+- The residual is written into the codex, pi and CodeWhale descriptors and into the deepseek
+  registry notes, in the same words, naming what is still not true.
+- The reclaim log line now names the winner's evidence, so Copy Diagnostics explains itself.
+- The fix round closed a hole in the rule above. Both takeover conditions compare two launch
+  folders as strings, and one folder has more than one spelling, because `/tmp` on macOS is a
+  symlink to `/private/tmp`. A verifier drove the real watcher and a pane at `/tmp/p34-projA` took
+  the claim of a pane at `/private/tmp/p34-projA`, which is the same folder steal the rule exists
+  to refuse. The same compare hid the neighbour, so a codex row recorded `exact` instead of `weak`.
+  `resolveClaimCwd` in src/main/manifest/harvest/watch.ts is now the one resolver. Every folder
+  that enters the claim map or the pending watch map goes through it, and sessions/core.ts resolves
+  the same way before it builds a `HarvestContext`, which also gives pi and qwen the store
+  directory they actually write to when the launch path is a symlink.
+
+**Tier and evidence. Tier 3** (durability, and the class the operator hit in Phase 32).
+- Seven new cases, each written before its change and run against the old code first. T7 CodeWhale
+  one folder (`expected undefined to be 1`), T8 the cross folder takeover (`expected 'confirmed' to
+  be 'matched'`), T9 the same folder refusal (`expected 's-B' to be 's-A'`, the old code moved the
+  claim), T10 the codex same folder confidence (`expected undefined to be 1`), T11 the boot claim
+  rows (`expected 'confirmed' to be 'matched'`), and the two T12 cases the fix round added for the
+  symlink hole (`expected 's-B' to be 's-A'` again, and `expected undefined to be 1`). All seven
+  pass after the change.
+- The counts, because the earlier draft of this entry got them wrong.
+  src/main/manifest/__tests__/harvest-claim-race.test.ts held 8 cases at HEAD and holds 14 now.
+  src/main/sessions/__tests__/session-history-core.test.ts held 7 and holds 11. Neither file held
+  nine. No existing case needed an edit.
+- Measured in a git worktree holding HEAD plus this phase's files alone, because the working tree
+  carries several phases at once and an earlier draft reported another phase's number. typecheck
+  passes with 619 production files and 0 import violations, the build passes, 3838 unit tests pass
+  with 23 skipped across 269 files, `npm run smoke:t1` reports 5 of 5 create and 6 of 6 verify, and
+  `node build/assert-bundle-refusals.mjs` reports 21 durability refusals, 6 skills-write, 6 config
+  confirm-gate, 8 updater and 1 crash-capture. The updater count is 8 rather than 4 because Phase
+  43 landed four more of them in the commit directly before this one. None of those eight are this
+  phase's work.
+- One full `npm run conformance:resume` roundtrip returned 8 PASS, 1 BLOCKED and 1 SKIP. The
+  roundtrip did not exercise two agents. gemini is BLOCKED on an upstream request failure that asks
+  for a human, and gemini pre-assigns its id and never harvests, so this phase cannot have caused
+  it. droid is SKIP because it is not installed on this machine.
+- `npm run conformance:resume:capture` returned 6 PASS, 0 FAIL, 0 BLOCKED and 4 SKIP in 17.1
+  seconds, in the same isolated tree on its own tmux socket. Capture mode plants no turn, so codex,
+  deepseek and antigravity skip, and the two harvesting agents it does exercise are muse on
+  `tmux-pane` and qwen on `pid`. qwen is the one that matters for the fix round, because its store
+  directory is a function of the launch folder, and it still captured its id after sessions/core.ts
+  started handing the harvest the resolved folder.
+- The race file's own load flake was measured rather than waved away. The first draft of the two
+  new cases made the symlink in `beforeEach`, so all 14 cases paid for it, and T1 timed out at the
+  5000 ms vitest default in 3 of 6 full suite runs at a load average near 20. The symlink is now
+  made on demand inside the two cases that need it, and T1 has not failed in the 7 full suite runs
+  since. Run alone the file passes 5 of 5 in 78 to 86 ms. The two flakes that remain in the full
+  suite under load are the ones the phase brief already names, being the symbols 80 ms budget and
+  the context scan 900 ms budget, and each passes 3 of 3 when run alone.
+- No contract line moved. No IPC channel, no `gmux.*` key, no `GMUX_*` variable, no smoke mode, and
+  `SESSION_CONTRACT_VERSION` stays 1 because provenance is a JSON column and both new fields are
+  optional. `node build/contract-inventory.mjs --check` passes against HEAD's baseline in the
+  isolated tree, so this phase needs no re-baseline.
+
+**What is still not true.** CodeWhale has no exact key and this phase did not invent one. A same
+folder pair is still separated by time, so the watch that accepts the only record on disk may be
+the wrong one.
+
+The gain is narrower than the first draft of this entry claimed, and here is the measured version
+of it.
+- The honest number is real. A folder match with a neighbour in its folder now records `weak`
+  where it recorded `exact`.
+- A folder claim is takeable in the rule and untakeable in practice for the three agents this
+  phase is about. Only a rank 3 winner takes a `matched` claim, and rank 3 needs the winning
+  WATCH's own key to be an identity key. codex, deepseek and pi are all `cwd-newest`, so no watch
+  of them can ever reach rank 3. The rung matters for an agent that has an identity key, being
+  qwen on `pid`, muse on `tmux-pane` and antigravity on `fd-owner`.
+- The loser is not handed the record. It waits for its OWN record, and its watch times out
+  honestly at the end of the window when that session never takes a turn and so never writes one.
+  That is what the T9 case asserts, and a live run measured the same shape.
+
+No user interface changed. The successor `codewhale` binary is not installed here, so every
+CodeWhale measurement is against `deepseek` 0.8.26 and the store shape the two share.
 
 ## Phase 35 — uniform logging with a footprint budget (research 42, 2026-08-14) ✅ SHIPPED 2026-08-15 (this commit)
 

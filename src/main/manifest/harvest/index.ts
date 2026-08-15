@@ -32,10 +32,23 @@ export {
   onConversationReclaimed,
   releaseConversationClaims,
   resetPendingWatches,
+  resolveClaimCwd,
   watchForSessionId,
-  type ClaimStrength,
   type ConversationReclaim
 } from './watch';
+
+/**
+ * The claim ladder (Phase 34). It is its own module because the claim map and
+ * `deriveResumeConfidence` are two readings of one fact about a harvest key.
+ */
+export {
+  claimRank,
+  claimStrengthForKey,
+  mayTakeOver,
+  IDENTITY_HARVEST_KEYS,
+  type ClaimStanding,
+  type ClaimStrength
+} from './claim-strength';
 
 export {
   agyOwnedConversations,
