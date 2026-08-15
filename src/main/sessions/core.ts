@@ -34,7 +34,6 @@ import {
   EVT_SESSIONS_CHANGED,
   EVT_STATUS_CHANGED
 } from '@shared/ipc';
-import type { SnapshotFailedNotice } from '@shared/notice';
 import { restoreShortfall } from '@shared/restore-status';
 import type {
   ScrollbackStats,
@@ -87,11 +86,9 @@ import {
   agentHarvestsId,
   agentRescuesId,
   agentRescuesIdAfterExit,
-  buildRecoveryContract,
   claimConversationId,
   conversationClaimant,
   harvestProvenance,
-  launchProvenance,
   ManifestStore,
   onConversationReclaimed,
   releaseConversationClaims,
@@ -102,8 +99,6 @@ import {
   startManifestRing,
   toSession,
   watchForSessionId,
-  type AgentLaunchSpec,
-  type ClaimStrength,
   type ConversationReclaim,
   type LiveTmuxSession,
   type ManifestRingSchedule,
@@ -131,8 +126,7 @@ import {
   captureSessionSnapshot,
   deleteSnapshot,
   snapshotsDir,
-  type SnapshotReason,
-  type SnapshotSessionRecipe
+  type SnapshotReason
 } from '../restore/snapshots';
 import {
   buildScrollbackReport,
@@ -156,6 +150,28 @@ import {
 import * as tmux from '../tmux';
 import { gmuxError, isGmuxError } from '../errors';
 import { broadcastEvent } from '../typed-events';
+// The pure launch and reconcile decisions (Phase 42 stage 5). This class is
+// the orchestrator: it runs the execs and the writes, and asks these two
+// modules what the launch or the judgement should be.
+import {
+  agentExtrasOf,
+  agentNotFoundMessage,
+  binaryCandidatesOf,
+  newSessionRecord,
+  snapshotRecipeOf,
+  spawnArgvFor
+} from './launch-plan';
+import {
+  claimStrengthOf,
+  identityProbeNeeded,
+  identityProbeVerdict,
+  restoredStatus,
+  retainedBindings,
+  snapshotFailureNotice,
+  staleCreateIds,
+  statusFlipActions,
+  type UnwrittenSnapshot
+} from './reconcile-plan';
 
 // ---------------------------------------------------------------------------
 // Broadcast helper — every event goes to every window (single-window app,
@@ -230,39 +246,6 @@ const BOOT_SERVER_OPTIONS: readonly (readonly [string, string])[] = [
 ];
 
 /**
- * The manifest row as a snapshot capsule carries it.
- *
- * Phase 20 rebuilds a lost manifest from the capsules, so it cannot read the
- * manifest to learn whose scrollback a body is. Everything it needs to launch
- * the session again travels in the capsule at capture time or it is not
- * recoverable at all. See SnapshotSessionRecipe in ../restore/snapshots.
- *
- * `argv` is the manifest's own form, with the ABSOLUTE binary path, which is
- * the form the manifest is the source of truth for. The bare-name launch rule
- * (Phase 12.7 F3) is applied at spawn, not stored.
- *
- * The two versions are two different binaries and each goes under its own
- * name. Until Phase 21 the capsule's `agentVersion` was fed from the SpecStory
- * wrapper's version, because that was the only version the manifest had. The
- * manifest now has an `agent_version` column, so the agent's version goes in
- * the field named for it and the wrapper keeps its own.
- */
-function snapshotRecipeOf(rec: ManifestSessionRecord): SnapshotSessionRecipe {
-  return {
-    name: rec.name,
-    tmuxName: rec.tmuxName,
-    projectPath: rec.projectPath,
-    cwd: rec.cwd,
-    agent: rec.agent,
-    agentSessionId: rec.agentSessionId ?? null,
-    argv: rec.argv,
-    resumeArgv: rec.resumeArgv ?? null,
-    agentVersion: rec.agentVersion ?? null,
-    specstoryVersion: rec.specstory?.binVersion ?? null
-  };
-}
-
-/**
  * Push the configured scrollback depth onto the private server.
  *
  * `set-option -g` is the ONLY lever that works. Measured on 3.6a:
@@ -283,67 +266,6 @@ async function applyHistoryLimit(lines: number): Promise<void> {
     });
 }
 
-/**
- * The launch spec's capture mode, as the ONE thing the user actually cares
- * about: does this session come back with its conversation? Pre-assigned
- * agents are armed before the process exists; harvesters start 'capturing'
- * and flip to 'armed' when their watcher lands; anything gmux has no verified
- * route for says 'unavailable' rather than leaving the question open.
- */
-function resumeCaptureFor(spec: AgentLaunchSpec): ResumeCapture {
-  switch (spec.idCapture) {
-    case 'preassigned':
-      return 'armed';
-    case 'preassigned-cmd':
-      // The side command either produced an id or it did not; no watcher
-      // follows, so there is nothing left to wait for either way.
-      return spec.resumeArgv !== undefined ? 'armed' : 'unavailable';
-    case 'store-harvest':
-      return 'capturing';
-    case 'unsupported':
-      return 'unavailable';
-    case 'none':
-      return 'none';
-  }
-}
-
-/**
- * The launch flags this row's AGENT was started with, recovered from the
- * manifest so a rescued harvest re-appends them to the resume argv.
- *
- * Under capture `argv` is the wrapper's — `run <provider> --no-version-check
- * --silent -c "…"` — and re-appending THOSE to a resume would build nonsense.
- * The unwrapped agent argv is recorded for exactly this reason.
- */
-function agentExtrasOf(rec: ManifestSessionRecord): string[] {
-  const inner = rec.specstory?.agentArgv;
-  return (inner !== undefined && inner.length > 0 ? inner : rec.argv).slice(1);
-}
-
-/**
- * The wrapped argv to actually SPAWN, with the agent's bare name inside the
- * `-c` string (Phase 12.7 F3).
- *
- * F3's rule is "the manifest keeps the absolute path, the launch uses the bare
- * name", and it exists because an absolute argv[0] made every durable gmux
- * agent the one process on the machine that `pkill -f "$(command -v claude)"`
- * matched while every ephemeral one walked away. Under capture the agent's
- * path is no longer argv[0] — it is a substring of the wrapper's `-c`
- * argument, which is exactly what `pkill -f` greps. Substituting it there is
- * what keeps the protection.
- *
- * The specstory binary itself stays ABSOLUTE in both places: it is not on
- * PATH when it is the bundled copy, and no pkill pattern is aimed at it.
- */
-function relaunchWrapped(
-  wrapped: string[],
-  capture: SpecstoryCaptureRecord,
-  bareName: string
-): string[] {
-  const inner = [bareName, ...capture.agentArgv.slice(1)];
-  return wrapWithRecord(capture, inner) ?? wrapped;
-}
-
 async function assertServerOptions(): Promise<void> {
   for (const [name, value] of BOOT_SERVER_OPTIONS) {
     await tmux
@@ -358,120 +280,20 @@ async function assertServerOptions(): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Phase 19 item 4 — a capture pass that could not write says so once
-// ---------------------------------------------------------------------------
-
-/** One session a capture pass could not write, and why. */
-export interface UnwrittenSnapshot {
-  /** The session's display name. For the log line, never for the notice. */
-  name: string;
-  /** True when the durable writer reported the volume was full. */
-  outOfSpace: boolean;
-}
-
-/**
- * The notice one capture pass owes the user, or null when it owes none.
- *
- * Exported and pure because the decision is the part worth pinning: how many
- * failures become how many notices, and when the notice may claim the volume
- * is full. The posting and the logging are the caller's.
- *
- * ONE notice for the whole pass. A full volume fails every session in the pass
- * with the same error, and forty three copies of one sentence is a dashboard.
- * `outOfSpace` is true when ANY failure in the pass was out of space, because
- * that is the one cause the user can clear, and a pass that hit it has hit the
- * end of the disk whatever else also failed.
- */
-export function snapshotFailureNotice(
-  unwritten: readonly UnwrittenSnapshot[]
-): SnapshotFailedNotice | null {
-  if (unwritten.length === 0) return null;
-  return {
-    kind: 'snapshot-failed',
-    sessions: unwritten.length,
-    outOfSpace: unwritten.some((one) => one.outOfSpace)
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Phase 19 item 6 — what a restore achieved, and what it may therefore claim
+// The pure decisions (Phase 42 stage 5) — moved, not changed
 //
-// `restoreSessionInTmux` runs three stages that fail independently: create the
-// tmux session, replay the saved scrollback, and arm the resume command. Two of
-// them only warn when they throw. This file used to destructure `info` out of
-// the result, drop the other two fields on that line, and write
-// `status: 'running'`. A restore whose replay and arming had both thrown was
-// stored and broadcast as a healthy working session.
-//
-// The result now arrives as the discriminated union in restore.ts, whose failed
-// arm carries no `info`, so dropping the stage results is a compile error. The
-// record stored on the row is `SessionRestore` from src/shared/types.ts, which
-// is the same shape the renderer reads. There is one description of a restore
-// rather than three.
+// The launch and reconcile judgements this class used to hold inline live in
+// ./launch-plan.ts and ./reconcile-plan.ts, where each has a direct unit
+// test. The three that were already public API (Phases 19 and 29) are
+// re-exported here so every existing import path keeps working.
 // ---------------------------------------------------------------------------
 
-/**
- * The status a restored session is allowed to claim, derived from the stage it
- * reached rather than assigned.
- *
- * `running` is not in the range of this function, and that is the point of it.
- * A restored pane holds a fresh interactive shell sitting at a prompt. Nothing
- * is executing. The resume command is TYPED and deliberately not sent, so even
- * the best case has not started the conversation. `running` was a claim about
- * work in progress, and it was made just as loudly when every stage had
- * thrown.
- *
- * `idle` is what the pane is: alive and quiet. The activity oracles move the
- * row to `running` a tick later if the session starts behaving like it, and
- * that observation is the only evidence the word is allowed to rest on. How
- * much of the session came back is a different fact and rides on
- * `Session.restore`, which is why it does not multiply this alphabet.
- *
- * `failed` and `interrupted` never reach here. Nothing was created for them,
- * so the row keeps the status it already had — 'restorable', or 'exited' for
- * an ended session restored under Phase 26.3 (the caller records the outcome
- * without touching status on that path). The switch has no `default`, so a
- * new member of `RestoreResultKind` is a compile error here rather than a
- * silent fall through to a status nobody chose.
- */
-export function restoredStatus(result: SessionRestore): SessionStatus {
-  switch (result.kind) {
-    // Nothing was created. The caller throws before this is asked, and the
-    // row keeps its own status (recordRestoreOutcome writes no status), so
-    // this arm's value is never stored over an 'exited' row.
-    case 'failed':
-    case 'interrupted':
-      return 'restorable';
-    // Alive with no scrollback replayed. The user got their folder back.
-    case 'shell_only':
-      return 'idle';
-    // The scrollback replayed as inert text above a fresh prompt.
-    case 'transcript':
-      return 'idle';
-    // The scrollback replayed and the resume command is typed, waiting on
-    // Enter. Still not running: the user has not pressed it.
-    case 'armed':
-      return 'idle';
-  }
-}
-
-/**
- * How strongly a row's recorded conversation id may be claimed (Phase 32,
- * extracted in Phase 29 for the restore path).
- *
- * A row armed by a grace GUESS must stay reclaimable: freezing it as
- * confirmed would preserve a live mis-assignment forever. Everything else is
- * asserted as confirmed. Two callers share this — the boot claim loop, and
- * `restoreSession` re-acquiring the claim a Remove released — so the answer
- * cannot drift between them.
- */
-export function claimStrengthOf(rec: ManifestSessionRecord): ClaimStrength {
-  const p = rec.resumeProvenance;
-  return p !== undefined &&
-    (p.viaGraceTimer === true || p.confidence === 'grace-accepted')
-    ? 'provisional'
-    : 'confirmed';
-}
+export {
+  claimStrengthOf,
+  restoredStatus,
+  snapshotFailureNotice,
+  type UnwrittenSnapshot
+} from './reconcile-plan';
 
 export class GmuxCore {
   readonly manifest: ManifestStore;
@@ -1647,19 +1469,17 @@ export class GmuxCore {
     const out: LiveTmuxSession[] = [];
     for (const info of liveInfos) {
       let gmuxId = info.gmuxId;
-      if (
-        (gmuxId === undefined || !known.has(gmuxId)) &&
-        !this.foreignTmuxIds.has(info.sessionId)
-      ) {
+      if (identityProbeNeeded(info, known, this.foreignTmuxIds)) {
         const fromEnv = await tmux.getSessionEnv(
           info.sessionId,
           'GMUX_SESSION_ID'
         );
-        if (fromEnv !== null && known.has(fromEnv)) {
-          gmuxId = fromEnv;
+        const verdict = identityProbeVerdict(fromEnv, known);
+        if (verdict.kind === 'adopted') {
+          gmuxId = verdict.gmuxId;
           // Re-stamp the option so the next refresh needs no extra exec.
           void tmux
-            .setSessionOption(info.sessionId, '@gmux-id', fromEnv)
+            .setSessionOption(info.sessionId, '@gmux-id', verdict.gmuxId)
             .catch(() => undefined);
         } else {
           // A pane's env is fixed at create, and `$-id`s are never reused, so
@@ -1731,11 +1551,13 @@ export class GmuxCore {
     // restoreSession already recorded for it: this map is the one thing that
     // answers "which tmux session do I attach to", and dropping it would fail
     // the attach just as surely as the 'restorable' flip did.
-    for (const { record } of result.skipped) {
-      const tmuxId = previousLive.get(record.id);
-      if (tmuxId === undefined || this.byTmuxId.has(tmuxId)) continue;
-      this.liveIds.set(record.id, tmuxId);
-      this.byTmuxId.set(tmuxId, record.id);
+    for (const [sessionId, tmuxId] of retainedBindings(
+      result.skipped.map(({ record }) => record.id),
+      previousLive,
+      new Set(this.byTmuxId.keys())
+    )) {
+      this.liveIds.set(sessionId, tmuxId);
+      this.byTmuxId.set(tmuxId, sessionId);
     }
 
     if (result.unknownTmuxNames.length > 0) {
@@ -1745,20 +1567,14 @@ export class GmuxCore {
       );
     }
 
-    // Cheap per-session status events for flips the reconcile produced.
+    // Cheap per-session status events for flips the reconcile produced. The
+    // capture-sync backstop rides the same judgement — see statusFlipActions
+    // for the Phase 15 rule and why a flip FROM 'exited' is not a death.
     for (const rec of this.manifest.listSessions()) {
-      const prev = before.get(rec.id);
-      if (prev !== undefined && prev !== rec.status) {
+      const actions = statusFlipActions(before.get(rec.id), rec.status);
+      if (actions.broadcast) {
         broadcast(EVT_STATUS_CHANGED, rec.id, rec.status);
-        // Phase 15: a captured session that was RUNNING and is now only
-        // restorable died while gmux was not watching — a reboot, a tmux
-        // server death, a `kill-pane` from outside. Nothing ran its flush, so
-        // this is the reconciliation-time backstop research 13 §3.3 asks for.
-        // Runs once per transition, not once per reconcile, because the flip
-        // itself is the trigger.
-        if (rec.status === 'restorable' && prev !== 'exited') {
-          this.queueCaptureSync(rec);
-        }
+        if (actions.captureSync) this.queueCaptureSync(rec);
       }
     }
     this.broadcastSessions();
@@ -1857,18 +1673,16 @@ export class GmuxCore {
   }
 
   /**
-   * Forget creates that can no longer be in progress. `tmux new-session`
-   * answers in milliseconds, so a minute is generous by orders of magnitude —
-   * this exists only so a create that threw between writing the row and
-   * spawning the process cannot exempt that row from reconcile for the rest
-   * of the app's life, which would leave a dead session reading 'running' and
-   * never offer it for restore.
+   * Forget creates that can no longer be in progress. See staleCreateIds in
+   * ./reconcile-plan for the rule and the reason the map is timestamped.
    */
   private pruneStaleCreates(): void {
-    const cutoff = Date.now() - CREATE_IN_FLIGHT_MAX_MS;
-    for (const [id, startedAt] of this.createsInFlight) {
-      if (startedAt < cutoff) this.createsInFlight.delete(id);
-    }
+    const stale = staleCreateIds(
+      this.createsInFlight,
+      Date.now(),
+      CREATE_IN_FLIGHT_MAX_MS
+    );
+    for (const id of stale) this.createsInFlight.delete(id);
   }
 
   private statusSnapshot(): Map<string, SessionStatus> {
@@ -2220,29 +2034,15 @@ export class GmuxCore {
     if (input.agent !== 'shell') {
       // Phase 10 (settings+hotkeys stream): the binary name comes from the
       // agent REGISTRY, not the agent id — cursor's binary is `cursor-agent`,
-      // antigravity's is `agy`. Unknown ids (never in the registry) keep the
-      // id-as-binary behavior so nothing regresses.
-      //
-      // PHASE 25.5: the WHOLE candidate list, not `binaries[0]` alone.
-      // deepseek's npm package renamed itself to codewhale, so one registry
-      // row now names three binaries — `codewhale`, `codew`, and the legacy
-      // `deepseek`. Detection already walked the list; launch resolved only
-      // the first name, which would have thrown AGENT_NOT_FOUND on every
-      // machine that has the old install and not the new one. Launch now
-      // walks the same list in the same order and takes the first hit.
-      //
-      // The list comes from the MERGED agent table (memory, never the disk),
-      // which is also what detection scans. For a compiled id with no overlay
-      // that is exactly the registry row; for a patched row it is the user's
-      // own `binaries`, which makes agents.json the working escape hatch for
-      // the next silent package rename. The confirm gate is still asked
-      // below, inside resolveLaunchSpec — a name is not a permission.
+      // antigravity's is `agy`. See binaryCandidatesOf in ./launch-plan for
+      // the Phase 25.5 whole-list rule and the merged-table sourcing. The
+      // confirm gate is still asked below, inside resolveLaunchSpec — a name
+      // is not a permission.
       probeDirs = expandDirs(agentEntry(input.agent)?.extraProbeDirs ?? []);
-      const merged = launchableAgentEntry(input.agent);
-      const candidates: readonly string[] =
-        merged !== null && merged.binaries.length > 0
-          ? merged.binaries
-          : [input.agent]; // legacy id-as-binary behavior
+      const candidates = binaryCandidatesOf(
+        input.agent,
+        launchableAgentEntry(input.agent)
+      );
       let abs: string | null = null;
       let bare: string = candidates[0] ?? input.agent;
       for (const candidate of candidates) {
@@ -2254,11 +2054,9 @@ export class GmuxCore {
         }
       }
       if (abs === null) {
-        const also =
-          candidates.length > 1 ? ` (also tried ${candidates.slice(1).join(', ')})` : '';
         throw gmuxError(
           'AGENT_NOT_FOUND',
-          `${candidates[0]} not found${also} — install it, or make sure your shell PATH includes it.`,
+          agentNotFoundMessage(candidates),
           candidates[0] ?? input.agent
         );
       }
@@ -2357,56 +2155,23 @@ export class GmuxCore {
     );
 
     const now = Date.now();
-    const record: ManifestSessionRecord = {
+    // The whole row is composed in ./launch-plan (Phase 42 stage 5): every
+    // field restore depends on is decided there, while it is still true
+    // (Phase 21, A8 + G6), and the composition has a direct unit test. The
+    // predicted tmuxName is replaced below with the name tmux actually
+    // applied (dedupe may append “-2”).
+    const record: ManifestSessionRecord = newSessionRecord({
       id,
-      name: input.name,
-      // Predicted; replaced below with the name tmux actually applied
-      // (dedupe may append “-2”).
-      tmuxName: tmux.sanitizeSessionName(input.name),
-      projectPath: input.projectPath,
+      input,
       cwd,
-      agent: input.agent,
-      status: 'running',
-      createdAt: now,
-      argv: spec.argv,
-      lastSeen: now,
-      ...(spec.agentSessionId !== undefined
-        ? { agentSessionId: spec.agentSessionId }
-        : {}),
-      ...(spec.resumeArgv !== undefined ? { resumeArgv: spec.resumeArgv } : {}),
-      // Phase 13.5: say NOW whether this session will come back with its
-      // conversation. Written with the row, before the process exists.
-      resumeCapture: resumeCaptureFor(spec),
-      ...(spec.env !== undefined ? { env: spec.env } : {}),
-      ...(capture !== undefined ? { specstory: capture } : {}),
-      // Phase 21 (A8 + G6). The three fields migration 008 adds, written with
-      // the row, before the process exists — same moment and same transaction
-      // as everything else a restore depends on.
-      ...(agentVersion !== null ? { agentVersion } : {}),
-      agentContract: buildRecoveryContract(
-        input.agent,
-        {
-          // The AGENT's binary, never the SpecStory wrapper's. `binPath` is
-          // set for every non-shell agent above or the create has already
-          // thrown, so `spec.argv[0]` is only reached for a plain shell, and
-          // a shell is never wrapped.
-          bin: binPath ?? spec.argv[0] ?? input.agent,
-          cwdReal,
-          projectReal,
-          agentVersion,
-          at: now
-        },
-        spec
-      ),
-      // The launch half of the provenance chain. A harvesting agent has no id
-      // yet, so this records the route and makes no claim; the watcher
-      // replaces it with the evidence it actually had. See startIdCapture.
-      resumeProvenance: launchProvenance(spec, {
-        cwd: cwdReal,
-        at: now,
-        agentVersion
-      })
-    };
+      spec,
+      capture,
+      agentVersion,
+      binPath,
+      cwdReal,
+      projectReal,
+      now
+    });
 
     // §2.4 Step 0: durability record exists BEFORE the process does — which
     // is exactly the window a concurrent reconcile must not judge (16.5.1).
@@ -2416,25 +2181,11 @@ export class GmuxCore {
     this.manifest.insertSession(record);
     faultPoint('create.after-declaration');
 
-    // F3 (Phase 12.7, research 21 §8) — LAUNCH BY BARE NAME. The manifest
-    // keeps the absolute path (restores must survive PATH drift, Bug A), but
-    // the absolute path in argv[0] is also what made a durable gmux agent the
-    // ONE process on the machine that `pkill -f "$(command -v claude)"` hits,
-    // while every ephemeral `claude` walked away. Bug A's real fix is the
-    // login-shell PATH injected into the tmux server env (supervisor.ts), so
-    // tmux's execvp resolves the bare name just as the user's own shell does.
-    //
-    // A CAPTURED session gets the same treatment ONE LEVEL IN: argv[0] is the
-    // specstory binary (absolute — it is not on PATH when it is the bundled
-    // copy), and the agent's own name lives inside the `-c` string, which is
-    // exactly what `pkill -f` reads. So the bare name is substituted there
-    // instead, and F3's protection survives the wrap.
-    const launchArgv =
-      bareName === undefined
-        ? spec.argv
-        : capture !== undefined
-          ? relaunchWrapped(spec.argv, capture, bareName)
-          : [bareName, ...spec.argv.slice(1)];
+    // F3 (Phase 12.7, research 21 §8) — LAUNCH BY BARE NAME. See
+    // spawnArgvFor in ./launch-plan for the whole rule: why the manifest
+    // keeps the absolute path while the spawn uses the bare name, and how a
+    // captured session gets the same protection one level in.
+    const launchArgv = spawnArgvFor(spec.argv, bareName, capture);
 
     let info: tmux.TmuxSessionInfo;
     try {
