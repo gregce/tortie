@@ -39,7 +39,7 @@ Two rules follow, and they bind every future round:
 **Parity scope is capped after Phase 14 (search).** Everything after that goes to durability, the agent layer, correctness, and consolidation unless the user explicitly asks otherwise.
 
 ## Growth guardrails (enforced at every commit)
-- One typed preload bridge derived from src/shared/ipc.ts — never add a parallel wrapper "generation".
+- One typed preload bridge derived from the shared contract in src/shared/ipc/ (domain files behind the index.ts facade, split in Phase 42) — never add a parallel wrapper "generation".
 - Organize by domain, not by accretion — TypeScript best practices over line-count rules: one module = one responsibility with a small, deliberate export surface; split when a file accumulates unrelated domains or its internal sections need comments to navigate (per-domain store slices, per-domain ipc registrars, colocated component CSS), not because it crossed an arbitrary length.
 - Grep for an existing helper before writing one. tmux binary/config resolution lives in exactly one module shared by supervisor and attach host.
 - src/shared/* is append-only during parallel builds; integrators reconcile.

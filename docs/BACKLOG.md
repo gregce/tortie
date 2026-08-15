@@ -3941,7 +3941,28 @@ verify-signed green on all three nested binaries.
 
 **Semver.** feat, minor bump.
 
-## Phase 42 — the architecture cleanup, byte for byte (audit 2026-08-14, operator directed) QUEUED
+## Phase 42 — the architecture cleanup, byte for byte (audit 2026-08-14, operator directed) ✅ SHIPPED 2026-08-15 (9 stage commits, ledger below)
+
+**Shipped 2026-08-15.** Nine stage commits landed in order:
+
+| Stage | What moved | Commit |
+|---|---|---|
+| 0 | the contract inventory script and its committed baseline | `ba6a090` |
+| 1 | the trusted window and IPC sender policy centralized | `eeaaee1` |
+| 2 | the shared contract and preload split by domain behind the facade | `58aadfb` |
+| 3 | main harnesses and install capabilities behind one ordered disposer | `b7060be` |
+| 4 | the renderer store split into slices with one lifecycle owner | `b5f0693` |
+| 5 | the pure launch and reconcile plans extracted from core | `8681cc2` |
+| 6 | the manifest split into schema, codecs and repositories behind the facade | `e2222a4` |
+| 7 | four referenced TypeScript projects and the forbidden import check | `fe4a37a` |
+| 8 | the import cycles broken and every source file text again | `a1c7e1e` |
+
+No stage was reverted and none ended blocked. Stage 7 had permission to end blocked if it
+fought electron-vite, and it did not need it. There were no fix round commits. The contract
+inventory matched docs/audits/contract-baseline.txt byte for byte after every stage, so no
+contract line moved and no re-baseline happened. The final arsenal passed. The closing commit
+updates the CLAUDE.md growth rule to name the split contract directory in place of the deleted
+src/shared/ipc.ts.
 
 **Specification.** docs/audits/2026-08-14-electron-typescript-architecture.md. The audit's target
 tree, invariants list and implementation order are the charter. This entry adds the execution
