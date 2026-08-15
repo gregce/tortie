@@ -78,7 +78,11 @@ describe('the preview channel is wired end to end', () => {
     const previewIpc = code('main', 'preview', 'ipc.ts');
     expect(previewIpc).toContain("handle(ipc, 'preview:url'");
     expect(previewIpc).toContain("handle(ipc, 'preview:stats'");
-    expect(code('main', 'index.ts')).toContain('registerPreviewIpc(ipcMain)');
+    // Phase 42 stage 3: the registrar call moved from src/main/index.ts into
+    // the capabilities installer, the composition root's one wiring surface.
+    expect(code('main', 'capabilities.ts')).toContain(
+      'registerPreviewIpc(ipcMain)'
+    );
   });
 
   it('exposes both under window.gmux.preview in the preload', () => {
@@ -108,12 +112,17 @@ describe('the preview channel is wired end to end', () => {
   });
 
   it('installs the protocol handler with the anchor rewrite', () => {
-    expect(code('main', 'index.ts')).toContain(
+    // Phase 42 stage 3: the ready-time handler install moved into the
+    // capabilities installer with the rest of the app-ready wiring.
+    expect(code('main', 'capabilities.ts')).toContain(
       'registerPreviewProtocol({ rewriteHtml: rewriteExternalAnchors })'
     );
   });
 
   it('adds the privileged descriptor to the ONE existing call', () => {
+    // The privileged declaration must run BEFORE app ready, so it stays in
+    // the composition root (src/main/index.ts) rather than moving to the
+    // capabilities installer with the ready-time handler above.
     const main = code('main', 'index.ts');
     expect(main).toContain(
       'registerAssetSchemePrivileged([PREVIEW_PRIVILEGED_SCHEME])'

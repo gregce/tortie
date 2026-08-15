@@ -190,8 +190,8 @@ const ALLOWED_FILES: { file: string; why: string }[] = [
     why: 'Developer CLI output (npm run conformance:resume), never shown in the app.'
   },
   {
-    file: 'src/main/index.ts',
-    why: 'GMUX_SMOKE / GMUX_SHOT harness console output and tmux probe scripts, all behind env-var-gated dev entry points.'
+    file: 'src/main/harness/identity.ts',
+    why: 'GMUX_SMOKE=identity harness console output and tmux probe scripts, all behind an env-var-gated dev entry point (Phase 42 stage 3 moved them out of src/main/index.ts, which no longer needs an entry here).'
   }
 ];
 
