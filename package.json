@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build && node build/assert-bundle-refusals.mjs && node build/assert-preview-containment.mjs",
-    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "typecheck": "tsc -b && tsc --noEmit -p tsconfig.node.json && node build/assert-import-boundaries.mjs",
     "smoke": "npm run build && GMUX_TMUX_SOCKET=\"${GMUX_TMUX_SOCKET:-gmux-smoke-t1}\" GMUX_SMOKE=basic electron . --user-data-dir=\"${TMPDIR:-/tmp/}gmux-smoke-t1\" -ApplePersistenceIgnoreState YES",
     "smoke:create": "GMUX_TMUX_SOCKET=\"${GMUX_TMUX_SOCKET:-gmux-smoke-t1}\" GMUX_SMOKE=create electron . --user-data-dir=\"${TMPDIR:-/tmp/}gmux-smoke-t1\" -ApplePersistenceIgnoreState YES",
     "smoke:verify": "GMUX_TMUX_SOCKET=\"${GMUX_TMUX_SOCKET:-gmux-smoke-t1}\" GMUX_SMOKE=verify electron . --user-data-dir=\"${TMPDIR:-/tmp/}gmux-smoke-t1\" -ApplePersistenceIgnoreState YES",

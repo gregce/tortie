@@ -1,4 +1,11 @@
 {
+  // Phase 42 stage 7: src/main, src/preload and src/shared moved into the
+  // composite projects (tsconfig.main.json, tsconfig.preload.json,
+  // tsconfig.shared.json) built by `tsc -b`. This file keeps two jobs:
+  //   1. typecheck electron.vite.config.ts (repo root, part of no project);
+  //   2. give the tsx conformance probes (build/conformance-agents.mjs,
+  //      build/conformance-context.mjs) their compilerOptions and the
+  //      @shared path alias. tsx reads options only, never `include`.
   "compilerOptions": {
     "target": "ES2023",
     "lib": ["ES2023"],
@@ -21,10 +28,5 @@
       "@shared/*": ["src/shared/*"]
     }
   },
-  "include": [
-    "electron.vite.config.ts",
-    "src/main/**/*.ts",
-    "src/preload/**/*.ts",
-    "src/shared/**/*.ts"
-  ]
+  "include": ["electron.vite.config.ts"]
 }

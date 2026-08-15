@@ -5,6 +5,9 @@ release/
 .DS_Store
 *.log
 .vite/
+# Phase 42 stage 7: declaration output of the four TypeScript projects
+# (tsc -b). Types only, never packaged, rebuilt by npm run typecheck.
+.tsc/
 # electron-vite bundles electron.vite.config.ts to a timestamped .mjs HERE, in
 # the repo root, and imports that. It is deleted when the build finishes, but
 # it exists for long enough to show up in `git status` mid-build (and, before

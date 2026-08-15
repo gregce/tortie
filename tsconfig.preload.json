@@ -1,10 +1,9 @@
 {
   "compilerOptions": {
     "target": "ES2023",
-    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "lib": ["ES2023"],
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "jsx": "react-jsx",
     "types": ["node"],
     "strict": true,
     "noUnusedLocals": true,
@@ -16,22 +15,17 @@
     "resolveJsonModule": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
-    "useDefineForClassFields": true,
     "composite": true,
     "emitDeclarationOnly": true,
     "declarationMap": true,
-    "rootDir": "src/renderer",
-    "outDir": ".tsc/web",
-    "tsBuildInfoFile": ".tsc/web.tsbuildinfo",
+    "rootDir": "src/preload",
+    "outDir": ".tsc/preload",
+    "tsBuildInfoFile": ".tsc/preload.tsbuildinfo",
     "baseUrl": ".",
     "paths": {
-      "@shared/*": ["src/shared/*"],
-      "@renderer/*": ["src/renderer/*"]
+      "@shared/*": ["src/shared/*"]
     }
   },
-  "include": ["src/renderer/**/*.ts", "src/renderer/**/*.tsx"],
-  "references": [
-    { "path": "./tsconfig.shared.json" },
-    { "path": "./tsconfig.main.json" }
-  ]
+  "include": ["src/preload/**/*.ts"],
+  "references": [{ "path": "./tsconfig.shared.json" }]
 }
