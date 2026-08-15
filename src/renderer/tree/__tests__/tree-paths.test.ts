@@ -11,6 +11,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   absOf,
+  ancestorDirsOf,
   baseNameOf,
   destinationFor,
   invertMoves,
@@ -45,6 +46,17 @@ describe('the two spellings', () => {
     expect(parentOf('README.md')).toBe('');
     expect(absOf('/proj', '')).toBe('/proj');
     expect(absOf('/proj', 'src/')).toBe('/proj/src');
+  });
+
+  it('lists the containing directories outermost first', () => {
+    // This chain has to agree with @pierre/trees' own, because the ignored
+    // store uses it to decide a path is already covered by a directory the
+    // library will dim anyway (Phase 47).
+    expect(ancestorDirsOf('a/b/c.ts')).toEqual(['a/', 'a/b/']);
+    expect(ancestorDirsOf('a/b/c/')).toEqual(['a/', 'a/b/']);
+    expect(ancestorDirsOf('top.ts')).toEqual([]);
+    expect(ancestorDirsOf('top/')).toEqual([]);
+    expect(ancestorDirsOf('')).toEqual([]);
   });
 });
 

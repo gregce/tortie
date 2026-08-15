@@ -4112,7 +4112,7 @@ the native menu bridge. Degrade ladder with quiet copy: gh absent, logged out, r
 github remote, offline. **Tier 2** plus one live probe on a real push to gregce/tortie, which
 also closes the one unverified claim, mid run step visibility. **Semver:** feat.
 
-## Phase 47 — explorer and git pane nits (user requested, 2026-08-15) QUEUED
+## Phase 47 — explorer and git pane nits (user requested, 2026-08-15) ✅ SHIPPED 2026-08-15 (this commit)
 
 Four small items, one phase. Runs FIRST after Phase 42 lands.
 
@@ -4152,3 +4152,51 @@ lane and one with 4 plus lanes, proving compact hugs the lanes and wide matches 
 ref pills and dates still degrade per the Phase 12 rules rather than clipping.
 
 **Semver.** fix, patch bump (items 2 and 4 correct defects of the surface; the set rides as one fix).
+
+**What shipped.**
+- Ignored entries are dimmed in the file tree. The answer comes from git itself, through a new
+  `git:checkIgnore` channel that runs `git check-ignore -z --stdin` over the paths the tree has
+  actually loaded. The spec measured both routes on this repository. Adding `--ignored` to the
+  frozen status call cost 0.218 s and a 1.45 MB payload of 25,305 rows on every refresh.
+  `check-ignore` over 5,000 paths cost 0.140 s and answered only what was asked, so it won.
+  The tree never asks inside a directory it already knows is ignored, so expanding
+  `node_modules` costs no further call. Dimming uses the existing `--git-ignored` token and
+  adds no color literal. An ignored row is still clickable, openable and a drop target. Grey
+  means ignored, not disabled.
+- The name filter survives clicking a result. Two guards in FileTree hold it: the library's
+  blur-close is swallowed at the shadow boundary, and the unconditional close the library
+  performs inside a row click or Enter is undone in the same gesture. Escape, the header
+  toggle, the new clear button, and starting a rename or a create all still close the filter,
+  because each of those is a deliberate filter-aimed gesture. The clear button is new, sits at
+  the right edge of the field, and reads "Clear the filter".
+- The Explorer header has a sixth button, row spacing. It opens a native menu with the three
+  densities @pierre/trees ships, being Compact at 24 px, Default at 30 px and Relaxed at 36 px.
+  The choice persists under `gmux.treeDensity`. The default is Compact, which keeps today's
+  24 px rows. The one deliberate visual change for a user who never touches the knob is the
+  item's horizontal padding, which moves from 8 px to 6.4 px, because the feature now speaks
+  the library's own names end to end.
+- The History header has a compact gutter toggle. In compact mode each row's graph column is
+  as wide as the lanes that row actually draws, so subjects hug the lanes the way VS Code's
+  Graph view does. Wide mode is the default and is unchanged. The vendored layout and fold were
+  not touched. Only the width the renderer grants each row changed, through one new pure helper
+  `rowColumns` in gmux's own geometry.ts. The choice persists under `gmux.scm.graphGutter`.
+- Verification, Tier 2 as the entry set. The verifier drove the real app seven times on harness
+  sockets with an isolated user-data-dir each time, and staged nothing. On a scratch repo the
+  tree reported `ignored` on the two ignored directories and the one ignored file, and did not
+  report it on `keep.log`, which is tracked and matches `*.log`. On this repository eight root
+  entries came back ignored and `check-ignore` over 5,000 paths took 0.048 s. The filter probe
+  ran 31 steps and all 31 passed, and a filtered view of 3 rows was byte-identical after
+  clicking a result. Row heights measured 24 px and 36 px in the running app, and the relaunched
+  app drew 36 px rows from the stored key alone. In the graph, ink extent measured with
+  `getBBox` was identical row for row in both modes, which is the proof the layout did not move,
+  and no row drew ink past its granted width. At a 220 px sidebar no pill, age or subject
+  clipped in either mode. Tree drag to terminal, Phase 37 inline naming (9 of 9 steps) and the
+  status colors all still work.
+- Contract lines added, three: `git:checkIgnore`, `gmux.treeDensity` and `gmux.scm.graphGutter`.
+- What is not true. The step from picking Relaxed in the native menu to the tree re-keying was
+  not driven live, because Electron's contextBridge is frozen and the menu pick cannot be
+  intercepted from the renderer. Both row heights and the persistence across a relaunch were
+  measured. A density change loses selection, scroll position and an open filter, because the
+  model rebuilds; expansion state survives. The filter reopen refuses if more than 200 ms
+  separates the pointer press from the library's close, so a click delayed by a paint stall
+  falls back to the old behavior of closing.

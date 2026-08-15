@@ -49,20 +49,36 @@ import { useResizeHandle } from '../controls';
 import { ContextHeader, ContextSection, useContextActions } from '../context';
 import { BranchHeader, ScmSection } from '../scm';
 import { SearchHeader, SearchSection } from '../search';
-import { canMutate, FilesSection, useFileTree, useTreeHandle } from '../tree';
+import {
+  canMutate,
+  densityHint,
+  densityLabel,
+  FilesSection,
+  TREE_DENSITIES,
+  useFileTree,
+  useTreeDensity,
+  useTreeHandle
+} from '../tree';
 import { Codicon } from '../icons';
 
 /**
  * Explorer view header — the band slice above the tree ([h:36], S3B).
  *
- * Five actions, in VS Code's order: the two that CREATE, then the three that
+ * Six actions, in VS Code's order: the two that CREATE, then the four that
  * change how the tree is being looked at. New File / New Folder call the same
  * `TreeOps.newEntry` the context menu calls — the Phase 12.9
  * inline-rename-on-create flow, not a second one — and the mounted tree
  * decides where they land from the current selection (tree/header-actions.ts).
+ *
+ * Phase 47 added the fourth of those four, row spacing. It is a native menu
+ * rather than a cycling button because there are three choices and a button
+ * that cycles through three states cannot say what the next one will be.
  */
 function ExplorerHeader(): React.JSX.Element {
   const refreshLoaded = useFileTree((s) => s.refreshLoaded);
+  const setMenu = useApp((s) => s.setMenu);
+  const density = useTreeDensity((s) => s.density);
+  const setDensity = useTreeDensity((s) => s.setDensity);
   // Phase 12.9 item 4: the name filter lives inside @pierre/trees' shadow
   // root and opens by TYPING on a focused tree — a real gesture, and an
   // invisible one. This button is the discoverable half; the mounted tree
@@ -79,6 +95,23 @@ function ExplorerHeader(): React.JSX.Element {
   const create = (kind: 'file' | 'dir'): void => {
     if (treeHandle === null) return;
     treeHandle.ops.newEntry(treeHandle.newEntryTarget(), kind);
+  };
+
+  const openDensityMenu = (e: React.MouseEvent): void => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setMenu({
+      x: rect.right - 8,
+      y: rect.bottom + 2,
+      // `ui:popupMenu` has no native check state — the ✓ prefix (with two
+      // spaces aligning the rest) is the convention the branch menu set.
+      items: TREE_DENSITIES.map((option) => ({
+        label: `${option === density ? '✓ ' : '  '}${densityLabel(option)}`,
+        sublabel: densityHint(option),
+        run: (): void => {
+          if (option !== density) setDensity(option);
+        }
+      }))
+    });
   };
 
   return (
@@ -115,6 +148,16 @@ function ExplorerHeader(): React.JSX.Element {
         onClick={() => treeHandle?.toggleFilter()}
       >
         <Codicon name="filter" size={16} />
+      </button>
+      <button
+        type="button"
+        className="icon-btn view-header-action"
+        aria-label={`Row spacing: ${densityLabel(density)}`}
+        aria-haspopup="menu"
+        title={`Row spacing: ${densityLabel(density)}`}
+        onClick={openDensityMenu}
+      >
+        <Codicon name="three-bars" size={16} />
       </button>
       <button
         type="button"

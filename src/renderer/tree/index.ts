@@ -18,6 +18,17 @@ export { openModeFor } from './decorations';
 export { useTreeGitStatus } from './git-status';
 export { useFileTree } from './store';
 /**
+ * Explorer row spacing (Phase 47 item 3). The band header offers the three
+ * the library ships; FilesSection keys the tree by the choice.
+ */
+export {
+  densityHint,
+  densityLabel,
+  TREE_DENSITIES,
+  useTreeDensity
+} from './density';
+export type { TreeDensity } from './density';
+/**
  * The mounted tree's imperative surface. The Explorer's band header uses it
  * for the name-filter toggle (Phase 12.9 item 4) — FilesSection's own header
  * is hidden inside the sidebar, so the button has to live up there.

@@ -275,3 +275,50 @@ export interface GitGraphInvokeChannelMap {
 export interface GmuxGitGraphExtras {
   graphLog?(input: GitGraphLogInput): Promise<GitGraphLogResult>;
 }
+
+// ---------------------------------------------------------------------------
+// APPENDED by the Phase-47 explorer stream — one new channel and its optional
+// preload extra. The file tree dims what the repository ignores, and this is
+// where it asks.
+//
+// WHY NOT `git status --ignored`: measured on this repository (30,196 paths
+// outside .git) the existing `git:status` call takes 0.044 s, and the same
+// call with `--ignored` takes 0.218 s and returns 1.45 MB across 25,305 rows,
+// because `-uall` enumerates every file inside every ignored directory. That
+// cost would land on the SHARED status read, on every watcher refresh, for a
+// decoration. `git check-ignore -z --stdin` scales with what the lazy tree has
+// actually loaded instead: 148 paths in 0.032 s, 5,000 paths in 0.140 s.
+//
+// Two pinned properties of the default mode, both measured:
+//   - It never reports a TRACKED file, so a committed file that matches a
+//     later ignore pattern does not dim, and a directory that still holds a
+//     tracked file is not reported ignored either.
+//   - Exit code 1 means "none of these are ignored" and maps to `[]`, not to
+//     an error. `--no-index` is never passed.
+// ---------------------------------------------------------------------------
+
+/** Ask which of `paths` the repository ignores. Paths are repo-relative. */
+export interface GitCheckIgnoreInput {
+  repoPath: string;
+  /** Repo-relative paths; a directory keeps its trailing '/'. */
+  paths: string[];
+}
+
+/** New invoke channel appended by the Phase-47 explorer stream. */
+export interface GitIgnoreInvokeChannelMap {
+  /**
+   * The subset of `paths` the repository ignores, echoed back byte for byte
+   * as they were asked. A non-repo folder, a failed read and "none ignored"
+   * all resolve to `[]` — the same friendly-read discipline as `git:status`.
+   */
+  'git:checkIgnore': { req: [input: GitCheckIgnoreInput]; res: string[] };
+}
+
+/**
+ * OPTIONAL extension to GmuxApi['git'], feature-detected by the renderer
+ * (`typeof window.gmux.git.checkIgnore === 'function'`) — an older preload
+ * leaves the tree undimmed rather than throwing.
+ */
+export interface GmuxGitIgnoreExtras {
+  checkIgnore?(input: GitCheckIgnoreInput): Promise<string[]>;
+}

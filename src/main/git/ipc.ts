@@ -193,6 +193,15 @@ export function registerGitIpc(ipc: IpcMain): void {
     return (await svc.showHead(input.path)) ?? '';
   });
 
+  // Phase 47: which of the paths the file tree has loaded are ignored. A pure
+  // read, so it does NOT start a watcher — the tree's own git:status call has
+  // already done that for this repo, and a decoration must not be the thing
+  // that subscribes a folder.
+  handle(ipc, 'git:checkIgnore', (_e, input) => {
+    const svc = getGitService(input.repoPath);
+    return svc.checkIgnore(input.paths);
+  });
+
   // Appended optional channel (ScmInvokeChannelMap): the §6.3
   // [Initialize repository] button on non-repo project folders.
   handle(ipc, 'git:init', async (_e, repoPath) => {

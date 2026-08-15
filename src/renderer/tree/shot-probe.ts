@@ -22,6 +22,8 @@ import {
   treeDrag,
   TREE_DRAG_MIME
 } from '../terminal/drop/tree-drag';
+import { useTreeDensity } from './density';
+import { useTreeIgnored } from './ignored';
 import { useFileTree } from './store';
 import { useTreeHandle } from './tree-handle';
 import type { TreeHandle } from './tree-handle';
@@ -56,6 +58,16 @@ export interface TreeOpsProbeSpec {
    * and, when the text is invalid (e.g. "a/b"), the reason under the box.
    */
   holdNewFile?: string;
+  /**
+   * Phase 47 items 1 to 3: drive the filter through every close path, read
+   * the ignored set back, and measure the row height the density produced.
+   *
+   * These three claims are about what SURVIVES a gesture, and a screenshot
+   * cannot show that a click did not clear something. The probe performs the
+   * real gestures on the real rows inside the shadow root and reports the
+   * filter's own value after each one.
+   */
+  phase47?: boolean;
 }
 
 export interface TreeOpsProbeStep {
@@ -163,6 +175,195 @@ async function entriesOnDisk(
 function nameErrorEl(): HTMLElement | null {
   const el = document.querySelector('.tree-name-error');
   return el instanceof HTMLElement ? el : null;
+}
+
+/**
+ * Phase 47 items 1 to 3, end to end.
+ *
+ * Every step here performs the real gesture on the real row inside
+ * @pierre/trees' shadow root and then asks the model what its filter holds.
+ * That is the only honest way to test "the filter survives a click": a
+ * screenshot can show a filtered tree, but it cannot show that the click did
+ * not clear one, and a unit test of the decision function cannot show that
+ * the library's five close paths are the five that were handled.
+ */
+async function drivePhase47(
+  handle: TreeHandle,
+  record: (name: string, ok: boolean, detail: string) => void
+): Promise<void> {
+  const shadow = (): ShadowRoot | null => handle.shadowRoot();
+
+  const field = (): HTMLInputElement | null => {
+    const el = shadow()?.querySelector('[data-file-tree-search-input]');
+    return el instanceof HTMLInputElement ? el : null;
+  };
+
+  const rowEl = (canonical: string): HTMLElement | null => {
+    const escaped = canonical.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    const el = shadow()?.querySelector(`[data-item-path="${escaped}"]`);
+    return el instanceof HTMLElement ? el : null;
+  };
+
+  const openFilter = async (value: string): Promise<boolean> => {
+    if (!useTreeHandle.getState().filterOpen) handle.toggleFilter();
+    await wait(150);
+    const input = field();
+    if (input === null) return false;
+    input.value = value;
+    input.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+    await wait(250);
+    return handle.filterValue() === value;
+  };
+
+  const clickRow = async (canonical: string): Promise<boolean> => {
+    const el = rowEl(canonical);
+    if (el === null) return false;
+    el.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        composed: true,
+        cancelable: true
+      })
+    );
+    el.dispatchEvent(
+      new MouseEvent('click', {
+        bubbles: true,
+        composed: true,
+        cancelable: true
+      })
+    );
+    await wait(300);
+    return true;
+  };
+
+  const pressInField = async (key: string): Promise<void> => {
+    field()?.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key,
+        bubbles: true,
+        cancelable: true,
+        composed: true
+      })
+    );
+    await wait(250);
+  };
+
+  const state = (): string =>
+    `open=${String(useTreeHandle.getState().filterOpen)} value=${JSON.stringify(handle.filterValue())}`;
+
+  // Pick one top-level file and one top-level folder off the live tree, so
+  // the probe works in any project rather than in one fixture.
+  const paths = handle.paths();
+  const topFile = paths.find((p) => !p.endsWith('/') && !p.includes('/'));
+  const topFolder = paths.find(
+    (p) => p.endsWith('/') && p.indexOf('/') === p.length - 1
+  );
+
+  // ---- a click on a FILE result -------------------------------------------
+  if (topFile === undefined) {
+    record('47: click a file result', false, 'no top-level file to click');
+  } else {
+    const query = topFile.slice(0, Math.min(4, topFile.length)).toLowerCase();
+    const typed = await openFilter(query);
+    const clicked = typed && (await clickRow(topFile));
+    const held =
+      clicked &&
+      useTreeHandle.getState().filterOpen &&
+      handle.filterValue() === query;
+    record(
+      'the filter survives clicking a file result',
+      held,
+      `query=${JSON.stringify(query)} row=${JSON.stringify(topFile)} after: ${state()}`
+    );
+  }
+
+  // ---- a click on a FOLDER result ------------------------------------------
+  if (topFolder === undefined) {
+    record('47: click a folder result', false, 'no top-level folder to click');
+  } else {
+    const name = topFolder.slice(0, -1);
+    const query = name.slice(0, Math.min(4, name.length)).toLowerCase();
+    const typed = await openFilter(query);
+    const clicked = typed && (await clickRow(topFolder));
+    const held =
+      clicked &&
+      useTreeHandle.getState().filterOpen &&
+      handle.filterValue() === query;
+    record(
+      'the filter survives clicking a folder result',
+      held,
+      `query=${JSON.stringify(query)} row=${JSON.stringify(topFolder)} after: ${state()}`
+    );
+  }
+
+  // ---- Enter in the field --------------------------------------------------
+  const enterQuery = 'e';
+  await openFilter(enterQuery);
+  await pressInField('Enter');
+  record(
+    'the filter survives Enter in the field',
+    useTreeHandle.getState().filterOpen && handle.filterValue() === enterQuery,
+    `after: ${state()}`
+  );
+
+  // ---- clicking outside the tree (the blur path) --------------------------
+  await openFilter('a');
+  field()?.blur();
+  await wait(250);
+  record(
+    'the filter survives losing focus',
+    useTreeHandle.getState().filterOpen && handle.filterValue() === 'a',
+    `after: ${state()}`
+  );
+
+  // ---- Escape still closes it ---------------------------------------------
+  await openFilter('a');
+  await pressInField('Escape');
+  record(
+    'Escape still closes the filter',
+    !useTreeHandle.getState().filterOpen,
+    `after: ${state()}`
+  );
+
+  // ---- the clear button still closes it ------------------------------------
+  await openFilter('a');
+  const clearBtn = document.querySelector('.files-filter-clear');
+  const clearPlaced = clearBtn instanceof HTMLElement;
+  if (clearPlaced) clearBtn.click();
+  await wait(250);
+  record(
+    'the clear button closes the filter',
+    clearPlaced && !useTreeHandle.getState().filterOpen,
+    clearPlaced ? `after: ${state()}` : 'no clear button rendered'
+  );
+
+  // ---- item 1: what came back from git check-ignore ------------------------
+  const ignored = [...useTreeIgnored.getState().ignored].sort();
+  const dimmedRows = shadow()?.querySelectorAll(
+    '[data-item-git-status="ignored"]'
+  );
+  const suppression = shadow()?.querySelector('style[data-gmux-ignored-dots]');
+  record(
+    'the ignored set reached the tree',
+    ignored.length > 0 && (dimmedRows?.length ?? 0) > 0,
+    `ignored=${ignored.length} ${JSON.stringify(ignored.slice(0, 12))}` +
+      ` dimmedRows=${dimmedRows?.length ?? 0}` +
+      ` dotSuppression=${suppression instanceof HTMLStyleElement ? JSON.stringify(suppression.textContent?.length ?? 0) : 'none'}`
+  );
+
+  // ---- item 3: the row height the density actually produced ----------------
+  const anyRow = shadow()?.querySelector('[data-item-path]');
+  const measured =
+    anyRow instanceof HTMLElement
+      ? Math.round(anyRow.getBoundingClientRect().height)
+      : 0;
+  const chosen = useTreeDensity.getState().density;
+  const expected = chosen === 'compact' ? 24 : chosen === 'default' ? 30 : 36;
+  record(
+    'the row height matches the chosen density',
+    measured === expected,
+    `density=${chosen} expected=${expected}px measured=${measured}px`
+  );
 }
 
 /**
@@ -745,6 +946,11 @@ export async function driveTreeOps(
   // ---- The band header's own buttons (Phase 14.2 item 3) -----------------
   if (spec.headerActions === true) {
     await driveHeaderActions(handle, dirCanon, record);
+  }
+
+  // ---- Phase 47: the filter's close paths, the ignored set, the density ---
+  if (spec.phase47 === true) {
+    await drivePhase47(handle, record);
   }
 
   // ---- Clean up whatever survived ---------------------------------------

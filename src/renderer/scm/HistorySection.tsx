@@ -65,7 +65,8 @@ import {
   useGitDepth
 } from './depth';
 import { CommitGraph, CommitGraphSpacer, useLaneCap } from './graph/CommitGraph';
-import { GRAPH_SCOPE_ATTR } from './graph/geometry';
+import { GRAPH_SCOPE_ATTR, rowColumns } from './graph/geometry';
+import { GraphGutterControl, useGraphGutter } from './GraphGutterControl';
 import { capRow, gutterColumns, layoutGraph, makeRoleResolver } from './graph';
 import type { CappedRow, GraphLayout, GraphRow } from './graph';
 import { formatRelative, fullMessage, shortSha, splitPath } from './format';
@@ -177,6 +178,7 @@ export function HistorySection({
     false
   );
   const [scope, setScope] = usePersistedScope(repoPath);
+  const [gutter, setGutter] = useGraphGutter();
   const graphAvailable = useMemo(() => hasGitGraph(), []);
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [cursor, setCursor] = useState<string | null>(null);
@@ -252,12 +254,29 @@ export function HistorySection({
   );
 
   /**
-   * ONE gutter width for the whole loaded window, measured off the list's own
-   * box. Per-row widths (what VS Code does) would start every subject at a
-   * different x, and at 24px density that jitter costs more than it saves.
+   * WIDE mode, the default. One gutter width for the whole loaded window,
+   * measured off the list's own box. Per-row widths (what VS Code does)
+   * start every subject at a different x, which is why wide stays the
+   * default.
+   *
+   * COMPACT mode is the operator's explicit request from Phase 47, with VS
+   * Code's Graph view as the reference. Each row's SVG gets only the width
+   * its own lanes need. That is `rowColumns` clamped to the window's
+   * `columns`, so compact can only shrink a row. Subjects then hug the
+   * lanes, and the per-row x jitter this comment once rejected is the
+   * requested behavior, not a defect. The layout and the fold run the same
+   * in both modes. Only the width the renderer grants each row changes.
    */
   const cap = useLaneCap(listEl, layout.maxLanes);
   const columns = gutterColumns(layout, cap);
+
+  /**
+   * Columns a spacer row (file rows, "Load 50 more", the tail fade) gets.
+   * Compact hugs the lanes still live at that point. Wide is the shared
+   * window width. Never below one, so the rail never disappears.
+   */
+  const spacerColumns = (laneCount: number): number =>
+    gutter === 'compact' ? Math.max(1, Math.min(laneCount, columns)) : columns;
 
   /**
    * The graph row for each commit, keyed by SHA because the list renders
@@ -691,13 +710,25 @@ export function HistorySection({
           : '';
 
     /**
+     * The width this row's gutter is granted. Wide mode hands every row the
+     * shared window width. Compact hands it only what its own lanes need.
+     */
+    const graphColumns =
+      gutter === 'compact' && graph !== undefined
+        ? Math.min(rowColumns(graph.capped), columns)
+        : columns;
+
+    /**
      * The gutter for this commit's inline file rows: every lane still live
      * below it, drawn as a plain pass-through. Without it, expanding a commit
      * visibly severs the spine — which is what today's rail-less file rows do.
      */
     const laneSpacer =
       graph === undefined ? null : (
-        <CommitGraphSpacer lanes={graph.full.out} columns={columns} />
+        <CommitGraphSpacer
+          lanes={graph.full.out}
+          columns={spacerColumns(graph.full.out.length)}
+        />
       );
 
     return (
@@ -743,7 +774,7 @@ export function HistorySection({
               row={graph.capped}
               sha={sha}
               parentCount={entry.parents.length}
-              columns={columns}
+              columns={graphColumns}
               color={graph.full.color}
               isHead={isHead}
               unpushed={entry.unpushed === true}
@@ -861,11 +892,14 @@ export function HistorySection({
         ) : null}
         <span className="section-spacer" />
         {graphAvailable ? (
-          <HistoryScopeControl
-            scope={scope}
-            onPick={setScope}
-            disabled={repo.logLoading}
-          />
+          <>
+            <HistoryScopeControl
+              scope={scope}
+              onPick={setScope}
+              disabled={repo.logLoading}
+            />
+            <GraphGutterControl mode={gutter} onPick={setGutter} />
+          </>
         ) : null}
         <span className="section-gripper" aria-hidden="true">
           <Codicon name="gripper" size={14} />
@@ -914,7 +948,7 @@ export function HistorySection({
                       stopping at the button. */}
                   <CommitGraphSpacer
                     lanes={layout.tailLanes}
-                    columns={columns}
+                    columns={spacerColumns(layout.tailLanes.length)}
                   />
                   {repo.logLoading ? 'Loading…' : 'Load 50 more'}
                 </button>
@@ -926,7 +960,7 @@ export function HistorySection({
                 <div className="scm-history-tail" aria-hidden="true">
                   <CommitGraphSpacer
                     lanes={layout.tailLanes}
-                    columns={columns}
+                    columns={spacerColumns(layout.tailLanes.length)}
                     fade
                   />
                 </div>

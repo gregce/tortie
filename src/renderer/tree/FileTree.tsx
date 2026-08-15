@@ -61,8 +61,7 @@ import type {
   FileTreeDropResult,
   FileTreeItemHandle,
   FileTreeRowDecoration,
-  FileTreeRowDecorationContext,
-  GitStatusEntry
+  FileTreeRowDecorationContext
 } from '@pierre/trees';
 import {
   FileTree as PierreTree,
@@ -75,12 +74,21 @@ import { useApp } from '../state/store';
 import { showOneTimeTip } from '../app/one-time-tip';
 import { treeStyles } from '../pierre/theme-bridge';
 import { beginTreeDrag } from '../terminal/drop/tree-drag';
-import { isConflicted, openModeFor, pierreGitStatus } from './decorations';
+import { Codicon } from '../icons';
+import { openModeFor, treeGitLane } from './decorations';
+import type { TreeDensity } from './density';
 import { entryNameVerdict } from './entry-name';
 import type { EntryNameVerdict } from './entry-name';
+import {
+  FILTER_SANCTION_MS,
+  filterReopenValue,
+  folderExpansionAfterReopen
+} from './filter-guard';
+import type { FilterStash } from './filter-guard';
 import { canReveal, reveal } from './fs-bridge';
 import { canDuplicate, canMutate } from './fs-ops-bridge';
 import { expandedDirs, headerDestDir } from './header-actions';
+import { ignoredDotSuppressionCss, ignoredOnlyAncestors, useTreeIgnored } from './ignored';
 import { requestOpenFile } from './open-file';
 import { FOLDER_ICON_CSS, getPierreTreeIcons } from './pierre-icons';
 import { resolveTreeEditor } from './rename-view';
@@ -101,6 +109,10 @@ import { absOf, baseNameOf, isDirPath, parentOf, toRel } from './tree-paths';
 // ---------------------------------------------------------------------------
 
 const LS_OPEN_PREFIX = 'gmux.treeOpen.';
+
+/** Hit box of the filter's clear button, and its inset from the field edge. */
+const CLEAR_BUTTON_PX = 16;
+const CLEAR_BUTTON_INSET_PX = 4;
 
 /**
  * Read the persisted expanded-dir list: canonical Pierre paths (root-relative,
@@ -247,10 +259,20 @@ ${FOLDER_ICON_CSS}`;
 
 export function FileTree({
   rootPath,
-  statusFiles
+  statusFiles,
+  isRepo,
+  density
 }: {
   rootPath: string;
   statusFiles: readonly GitFileStatus[];
+  /**
+   * Whether this folder is a git repository. Only a repository can be asked
+   * what it ignores, and asking a plain folder would spawn a git that answers
+   * "fatal" every time the listing changes.
+   */
+  isRepo: boolean;
+  /** Row spacing (Phase 47 item 3). FilesSection re-mounts on a change. */
+  density: TreeDensity;
 }): React.JSX.Element {
   const entriesByDir = useFileTree((s) => s.entriesByDir);
   const rootLoaded = useFileTree((s) => s.rootLoaded);
@@ -274,20 +296,23 @@ export function FileTree({
     return { paths, kinds };
   }, [entriesByDir, rootPath]);
 
-  // Pierre git-lane entries + the conflict overlay set.
+  // ----- what the repository ignores (Phase 47 item 1) ---------------------
+  const ignoredPaths = useTreeIgnored((s) => s.ignored);
+  const ignoredEpoch = useTreeIgnored((s) => s.epoch);
+  const syncIgnored = useTreeIgnored((s) => s.sync);
+  const resetIgnored = useTreeIgnored((s) => s.reset);
+
+  // Pierre git-lane entries + the conflict overlay set +, from Phase 47, the
+  // ignored entries and the directories whose dirty-descendant dot they would
+  // otherwise turn on by mistake. The rules are in decorations.ts and
+  // ignored.ts so they can be tested without a tree.
   const gitState = useMemo(() => {
-    const entries: GitStatusEntry[] = [];
-    const conflicts = new Set<string>();
-    const byPath = new Map<string, GitFileStatus>();
-    for (const file of statusFiles) {
-      byPath.set(file.path, file);
-      const status = pierreGitStatus(file);
-      if (status === null) continue;
-      entries.push({ path: file.path, status });
-      if (isConflicted(file)) conflicts.add(file.path);
-    }
-    return { entries, conflicts, byPath };
-  }, [statusFiles]);
+    const lane = treeGitLane(statusFiles, ignoredPaths);
+    return {
+      ...lane,
+      dotSuppression: ignoredOnlyAncestors(ignoredPaths, lane.changed)
+    };
+  }, [statusFiles, ignoredPaths]);
 
   const conflictsRef = useRef(gitState.conflicts);
   conflictsRef.current = gitState.conflicts;
@@ -309,6 +334,22 @@ export function FileTree({
 
   // ----- everything the once-captured model options reach through ----------
   const hostRef = useRef<HTMLDivElement | null>(null);
+  /**
+   * Deadline stamped by a close the user asked for (Phase 47 item 2). The
+   * filter guard below reopens every other close; this is how the header
+   * toggle, the clear button, Escape and a starting rename say "I meant it".
+   */
+  const sanctionUntilRef = useRef(0);
+  const sanctionFilterClose = useCallback((): void => {
+    sanctionUntilRef.current = Date.now() + FILTER_SANCTION_MS;
+  }, []);
+  /** @pierre/trees' shadow root, once the tree has mounted. */
+  const treeShadow = useCallback(
+    (): ShadowRoot | null =>
+      hostRef.current?.querySelector('file-tree-container')?.shadowRoot ??
+      null,
+    []
+  );
   const opsRef = useRef<TreeOps | null>(null);
   /** Bumped when the verbs exist, so the handle effect can wait for them. */
   const [opsCreated, setOpsCreated] = useState(0);
@@ -380,7 +421,11 @@ export function FileTree({
     initialExpandedPaths: initial.expanded,
     gitStatus: gitState.entries,
     icons: getPierreTreeIcons(),
-    itemHeight: 24,
+    // Row height comes from the library's own density presets now (24 / 30 /
+    // 36 px) rather than a hard-coded 24, so the keyword also scales the row's
+    // horizontal padding the way the library intends. Captured once, like
+    // every other option here — FilesSection re-mounts the tree on a change.
+    density,
     overscan: 8,
     renderRowDecoration: renderConflictDecoration,
     unsafeCSS: TREE_UNSAFE_CSS,
@@ -392,8 +437,16 @@ export function FileTree({
       onDropError
     },
     renaming: {
-      canRename: (item) =>
-        opsRef.current !== null && !isProtectedFsPath(item.path),
+      // The library closes the filter inside `startRenaming`, right after
+      // this predicate says yes (model/FileTreeController.js). Stamping the
+      // sanction here is what stops the guard from reopening the filter over
+      // the inline name editor. A refusal stamps nothing.
+      canRename: (item) => {
+        const allowed =
+          opsRef.current !== null && !isProtectedFsPath(item.path);
+        if (allowed) sanctionFilterClose();
+        return allowed;
+      },
       onRename: (event) => opsRef.current?.onRenameCommitted(event),
       onError: (message) => opsRef.current?.onRenameRejected(message)
     },
@@ -523,6 +576,42 @@ export function FileTree({
     model.setGitStatus(gitState.entries);
   }, [model, gitState]);
 
+  // ----- ignored paths → the same lane (Phase 47 item 1) -------------------
+  // Every time the listing grows, ask git about the paths it has not answered
+  // for yet. The store drops everything under a directory it already knows is
+  // ignored, so expanding node_modules costs no call at all. `ignoredEpoch`
+  // is in the deps so a .gitignore edit re-asks about everything.
+  useEffect(() => {
+    if (!isRepo) {
+      resetIgnored();
+      return;
+    }
+    void syncIgnored(rootPath, treeInput.paths);
+  }, [isRepo, rootPath, treeInput, ignoredEpoch, syncIgnored, resetIgnored]);
+
+  // The false dirty-descendant dot, removed. See ignoredOnlyAncestors in
+  // ignored.ts for why the library puts one there and why it is wrong.
+  // The style element is the tree's own, appended beside the one the library
+  // writes for `unsafeCSS`; the library never touches an element it did not
+  // create, and preact renders into a wrapper div, not into the shadow root.
+  const dotSuppression = gitState.dotSuppression;
+  useEffect(() => {
+    const shadow = treeShadow();
+    if (shadow === null) return;
+    const css = ignoredDotSuppressionCss(dotSuppression);
+    let style = shadow.querySelector('style[data-gmux-ignored-dots]');
+    if (css.length === 0) {
+      style?.remove();
+      return;
+    }
+    if (!(style instanceof HTMLStyleElement)) {
+      style = document.createElement('style');
+      style.setAttribute('data-gmux-ignored-dots', '');
+      shadow.appendChild(style);
+    }
+    if (style.textContent !== css) style.textContent = css;
+  }, [dotSuppression, treeShadow]);
+
   // ----- the rename-editor bridge (Phase 37) -------------------------------
   // Resolved lazily and kept for the mount: the controller the adapter finds
   // lives exactly as long as this model does. A null result is retried (the
@@ -532,13 +621,6 @@ export function FileTree({
     editorBridgeRef.current ??= resolveTreeEditor(hostRef.current);
     return editorBridgeRef.current;
   }, []);
-
-  const treeShadow = useCallback(
-    (): ShadowRoot | null =>
-      hostRef.current?.querySelector('file-tree-container')?.shadowRoot ??
-      null,
-    []
-  );
 
   // ----- the verbs ---------------------------------------------------------
   // Built once per mounted root: they hold the model and the feed baseline,
@@ -739,8 +821,10 @@ export function FileTree({
     registerHandle({
       rootPath,
       toggleFilter: () => {
-        if (model.isSearchOpen()) model.closeSearch();
-        else model.openSearch();
+        if (model.isSearchOpen()) {
+          sanctionFilterClose();
+          model.closeSearch();
+        } else model.openSearch();
       },
       filterValue: () => model.getSearchValue(),
       ops,
@@ -761,7 +845,14 @@ export function FileTree({
     });
     return () => registerHandle(null);
     // opsCreated re-runs this once the verbs exist (the effect above).
-  }, [model, rootPath, registerHandle, openDirs, opsCreated]);
+  }, [
+    model,
+    rootPath,
+    registerHandle,
+    openDirs,
+    opsCreated,
+    sanctionFilterClose
+  ]);
 
   useEffect(() => {
     setFilterOpen(search.isOpen);
@@ -779,6 +870,127 @@ export function FileTree({
     }
   }, [search.isOpen]);
 
+  // ----- the filter survives clicking a result (Phase 47 item 2) -----------
+  //
+  // GUARD ONE, the blur swallow. The library closes the filter on the input's
+  // own `onBlur`, which preact 11 binds as a plain 'blur' listener on the
+  // input element itself. 'blur' does not bubble but it does CAPTURE, and it
+  // is composed, so a capture listener on this host sits earlier in the path
+  // than the input's own handler and `stopPropagation()` there means the
+  // library never hears it. Nothing is reopened on this path, so no focus is
+  // ever taken back from wherever the click went.
+  useEffect(() => {
+    const host = hostRef.current;
+    if (host === null) return;
+    const swallowSearchBlur = (event: FocusEvent): void => {
+      const target = event.composedPath()[0];
+      if (
+        target instanceof HTMLElement &&
+        target.hasAttribute('data-file-tree-search-input')
+      ) {
+        event.stopPropagation();
+      }
+    };
+    host.addEventListener('blur', swallowSearchBlur, true);
+    return () => host.removeEventListener('blur', swallowSearchBlur, true);
+  }, []);
+
+  // GUARD TWO, the reopen. A row click closes the filter unconditionally
+  // inside the library's click plan, and Enter closes it from the field.
+  // Neither is a gesture aimed at the filter, so both are stashed here and
+  // put back by the model subscription below.
+  const stashRef = useRef<FilterStash | null>(null);
+  const reopeningRef = useRef(false);
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (host === null) return;
+
+    const stashIfFiltering = (row: FilterStash['row']): void => {
+      if (!model.isSearchOpen()) return;
+      const value = model.getSearchValue();
+      if (value.length === 0) return;
+      stashRef.current = { value, at: Date.now(), row };
+    };
+
+    const onPointerDown = (event: PointerEvent): void => {
+      // A modified click is a selection gesture; the library does not toggle
+      // a folder for it, so neither does the reopen.
+      if (event.metaKey || event.ctrlKey || event.shiftKey) return;
+      const hit = rowFromEvent(event);
+      if (hit === null) {
+        stashRef.current = null;
+        return;
+      }
+      stashIfFiltering({
+        path: hit.rel,
+        kind: hit.type,
+        wasExpanded:
+          hit.type === 'folder' &&
+          asDirectory(model.getItem(hit.rel))?.isExpanded() === true
+      });
+    };
+
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.isComposing) return;
+      // Escape is the one keystroke that means "put this filter away".
+      if (event.key === 'Escape' && model.isSearchOpen()) {
+        stashRef.current = null;
+        sanctionFilterClose();
+        return;
+      }
+      if (event.key === 'Enter') stashIfFiltering(null);
+    };
+
+    host.addEventListener('pointerdown', onPointerDown, true);
+    host.addEventListener('keydown', onKeyDown, true);
+    return () => {
+      host.removeEventListener('pointerdown', onPointerDown, true);
+      host.removeEventListener('keydown', onKeyDown, true);
+    };
+  }, [model, sanctionFilterClose]);
+
+  useEffect(() => {
+    let wasOpen = model.isSearchOpen();
+    const unsubscribe = model.subscribe(() => {
+      const isOpen = model.isSearchOpen();
+      const previouslyOpen = wasOpen;
+      wasOpen = isOpen;
+      if (reopeningRef.current) return;
+      const value = filterReopenValue({
+        wasOpen: previouslyOpen,
+        isOpen,
+        sanctionedUntil: sanctionUntilRef.current,
+        stash: stashRef.current,
+        now: Date.now()
+      });
+      if (value === null) return;
+      const stash = stashRef.current;
+      stashRef.current = null;
+      // A microtask, not this listener: the library is part-way through its
+      // own emit loop, and re-entering it would run every other subscriber
+      // against a state that is about to change again.
+      reopeningRef.current = true;
+      queueMicrotask(() => {
+        try {
+          // Re-apply the toggle the close undid, BEFORE reopening, so the
+          // filter's own expansion snapshot is taken over the right state.
+          const folder = folderExpansionAfterReopen(stash);
+          if (folder !== null) {
+            const dir = asDirectory(model.getItem(folder.path));
+            if (folder.expand) dir?.expand();
+            else dir?.collapse();
+          }
+          model.openSearch(value);
+          wasOpen = model.isSearchOpen();
+        } finally {
+          reopeningRef.current = false;
+        }
+      });
+    });
+    return unsubscribe;
+  }, [model]);
+
   // Pierre shows the WHOLE tree when a query matches nothing (rather than an
   // empty void), so the only honest signal is a line that says so — and says
   // what the filter can see, since it can only match rows already listed.
@@ -786,6 +998,59 @@ export function FileTree({
     search.isOpen &&
     search.value.trim().length > 0 &&
     search.matchingPaths.length === 0;
+
+  // ----- the clear affordance (Phase 47 item 2) ----------------------------
+  // The library renders no clear button, and the filter now survives every
+  // accidental close, so there has to be a deliberate way out that is not a
+  // keystroke. The button is the HOST's, never injected into the preact-owned
+  // shadow children, and it is placed over the field's right edge from the
+  // field's live rect — the same technique the Phase 37 refusal note uses.
+  const [clearBox, setClearBox] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (host === null || !search.isOpen) {
+      setClearBox(null);
+      return;
+    }
+    const place = (): void => {
+      const input = treeShadow()?.querySelector(
+        '[data-file-tree-search-input]'
+      );
+      if (!(input instanceof HTMLElement)) {
+        setClearBox(null);
+        return;
+      }
+      const rect = input.getBoundingClientRect();
+      const hostRect = host.getBoundingClientRect();
+      const next = {
+        top: Math.round(
+          rect.top - hostRect.top + (rect.height - CLEAR_BUTTON_PX) / 2
+        ),
+        left: Math.round(
+          rect.right - hostRect.left - CLEAR_BUTTON_PX - CLEAR_BUTTON_INSET_PX
+        )
+      };
+      setClearBox((prev) =>
+        prev !== null && prev.top === next.top && prev.left === next.left
+          ? prev
+          : next
+      );
+    };
+    place();
+    const observer = new ResizeObserver(place);
+    observer.observe(host);
+    return () => observer.disconnect();
+  }, [search.isOpen, treeShadow]);
+
+  const clearFilter = useCallback((): void => {
+    stashRef.current = null;
+    sanctionFilterClose();
+    model.closeSearch();
+  }, [model, sanctionFilterClose]);
 
   // ----- gestures ----------------------------------------------------------
 
@@ -1111,6 +1376,23 @@ export function FileTree({
           aria-label="Project files"
         />
       )}
+      {clearBox !== null ? (
+        <button
+          type="button"
+          className="files-filter-clear"
+          aria-label="Clear the filter"
+          title="Clear the filter"
+          style={{
+            top: clearBox.top,
+            left: clearBox.left,
+            width: CLEAR_BUTTON_PX,
+            height: CLEAR_BUTTON_PX
+          }}
+          onClick={clearFilter}
+        >
+          <Codicon name="close" size={12} />
+        </button>
+      ) : null}
       {filterMissed ? (
         <p className="files-filter-note">
           No matches in the folders you have opened.

@@ -1579,7 +1579,12 @@ body.scm-section-dragging .section-gripper {
    indication why is the kind of small lie this phase exists to remove.
 --------------------------------------------------------------------------- */
 
-.scm-scope-btn.pinned {
+/* Phase 47 adds a second accessory beside the scope control, the graph
+   gutter toggle (GraphGutterControl.tsx). It follows the same hover-revealed
+   pattern and stays lit while compact, because a narrower gutter is a mode
+   the user chose and the header should keep saying so. */
+.scm-scope-btn.pinned,
+.scm-gutter-btn.pinned {
   opacity: 1;
   pointer-events: auto;
   color: var(--accent-text);

@@ -15,7 +15,9 @@ import type { GitFileStatus } from '@shared/types';
 import { useApp } from '../state/store';
 import { onRepoChanged } from '../state/repo-changed';
 import { Codicon } from '../icons';
+import { useTreeDensity } from './density';
 import { useTreeGitStatus } from './git-status';
+import { useTreeIgnored } from './ignored';
 import { useFileTree } from './store';
 import { FileTree } from './FileTree';
 import './tree.css';
@@ -78,9 +80,17 @@ export function FilesSection({
   const refreshLoaded = useFileTree((s) => s.refreshLoaded);
 
   const storeFiles = useTreeGitStatus((s) => s.files);
+  const isRepo = useTreeGitStatus((s) => s.isRepo);
   const setRepo = useTreeGitStatus((s) => s.setRepo);
   const refreshStatus = useTreeGitStatus((s) => s.refresh);
   const applyExternal = useTreeGitStatus((s) => s.applyExternal);
+
+  // Phase 47 item 1: what the repository ignores. The set is remembered per
+  // path, so a .gitignore edit has to throw it away rather than add to it.
+  const invalidateIgnored = useTreeIgnored((s) => s.invalidate);
+  // Phase 47 item 3: row spacing. The tree's key includes it, because
+  // @pierre/trees captures density at construction and has no setter.
+  const density = useTreeDensity((s) => s.density);
 
   const [collapsed, setCollapsed] = useState(false);
 
@@ -117,9 +127,16 @@ export function FilesSection({
     return onRepoChanged((repoPath) => {
       if (repoPath !== project.path) return;
       void refreshLoaded();
+      invalidateIgnored();
       if (!externalStatus) void refreshStatus();
     });
-  }, [project, refreshLoaded, refreshStatus, externalStatus]);
+  }, [
+    project,
+    refreshLoaded,
+    refreshStatus,
+    externalStatus,
+    invalidateIgnored
+  ]);
 
   const toggleCollapsed = (): void => {
     setCollapsed((prev) => {
@@ -131,6 +148,7 @@ export function FilesSection({
 
   const refresh = (): void => {
     void refreshLoaded();
+    invalidateIgnored();
     if (!externalStatus) void refreshStatus();
   };
 
@@ -161,9 +179,15 @@ export function FilesSection({
     } else {
       body = (
         <FileTree
-          key={project.path}
+          // The density is in the key on purpose: @pierre/trees reads it once
+          // at construction, so changing it means a fresh tree. Expansion is
+          // written to localStorage on unmount and comes straight back;
+          // selection, scroll position and an open filter do not.
+          key={`${project.path}:${density}`}
           rootPath={project.path}
           statusFiles={statusFiles ?? storeFiles}
+          isRepo={isRepo}
+          density={density}
         />
       );
     }

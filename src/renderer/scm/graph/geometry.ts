@@ -139,6 +139,37 @@ export function gutterWidth(columns: number): number {
 }
 
 /**
+ * Columns ONE row actually draws (Phase 47, the compact gutter).
+ *
+ * Wide mode sizes every row from the window's shared `columns`, so every
+ * subject starts at the same x. Compact mode is the operator's explicit
+ * request, with VS Code's Graph view as the reference, where the text hugs
+ * the lanes. In compact mode each row's SVG is granted only the width its
+ * own lanes need, and this function is that need. It is the highest column
+ * index the row touches, plus one, across a list of five sources:
+ *
+ *  - the lanes entering the row
+ *  - the lanes leaving it
+ *  - the commit's own dot
+ *  - the fold marker, when the row overflowed
+ *  - the columns its merge parents were routed into
+ *
+ * The caller clamps the result to the window's `columns`, so compact can
+ * only shrink a row and never widen it past the shared cap. `layoutGraph`,
+ * `capRow` and `laneCap` run exactly as they do today. Only the width the
+ * renderer grants the row changes.
+ */
+export function rowColumns(row: GraphRowLayout): number {
+  let max = Math.max(1, row.in.length, row.out.length, row.circle + 1);
+  const bundle = row.bundleColumn ?? -1;
+  if (bundle >= 0) max = Math.max(max, bundle + 1);
+  for (const target of row.mergeTargets) {
+    max = Math.max(max, target + 1);
+  }
+  return max;
+}
+
+/**
  * THE NARROW-PANE RULE: how many columns this pane can afford, which is the
  * `cap` to hand `capRow()` and `gutterColumns()`.
  *

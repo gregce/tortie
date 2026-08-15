@@ -80,6 +80,36 @@
   border-radius: var(--r-sm);
 }
 
+/* THE FILTER'S CLEAR BUTTON (Phase 47 item 2). @pierre/trees renders no clear
+   affordance, and after this phase the filter no longer falls away when you
+   click a result, so there has to be one deliberate way out that is not a
+   keystroke. The button belongs to the HOST, not to the shadow tree, and
+   FileTree.tsx places it over the field's right edge from the field's live
+   rect — the field itself is inside the shadow root and cannot be styled from
+   here. */
+.files-filter-clear {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+
+.files-filter-clear:hover {
+  color: var(--text-primary);
+  background: var(--bg-raised);
+}
+
+.files-filter-clear:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+
 /* The filter's honest limit: @pierre/trees can only match rows the lazy
    listing has already produced, and Phase 14 owns project-wide search. */
 .files-filter-note {

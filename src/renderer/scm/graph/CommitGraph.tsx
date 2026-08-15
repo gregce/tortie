@@ -157,7 +157,11 @@ export interface CommitGraphProps {
   sha: string;
   /** Parent count. 0 is a root: its lane ends at the dot. */
   parentCount: number;
-  /** Gutter columns for the whole list — see {@link useLaneCap}. */
+  /**
+   * Gutter columns granted to THIS row. Wide mode passes one shared number
+   * for the whole list (see {@link useLaneCap}). Compact mode (Phase 47)
+   * passes the row's own need, clamped to that shared number.
+   */
   columns: number;
   /** The dot's own colour, from the uncapped layout row. */
   color?: GraphLaneColor;
@@ -295,9 +299,14 @@ export const CommitGraphSpacer = React.memo(function CommitGraphSpacer({
  * The lane cap this list can afford, measured from its own width. Feed it to
  * `capRow()` and `gutterColumns()`; every row then uses the same number.
  *
- * One width for the WHOLE loaded window, not per row: VS Code sizes its SVG
- * per row, which makes every subject start at a different x, and at 24px
- * density that jitter costs more than the width it saves.
+ * One CAP for the whole loaded window, in both gutter modes. In wide mode
+ * the resulting `columns` is also one width for every row. VS Code instead
+ * sizes its SVG per row, which makes every subject start at a different x,
+ * and that jitter is why wide stays the default. Phase 47 added a compact
+ * mode at the operator's explicit request, with VS Code's Graph view as the
+ * reference. In compact mode the caller grants each row only the width its
+ * own lanes need, through `rowColumns` in geometry.ts, always clamped to
+ * this window cap. Compact only ever shrinks a row.
  *
  * Recomputed when the sidebar is dragged and when a page load deepens the
  * graph. Both are instant — see the no-animation note at the top of the file.

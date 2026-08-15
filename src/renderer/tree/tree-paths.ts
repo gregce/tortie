@@ -56,6 +56,28 @@ export function parentOf(path: string): string {
 }
 
 /**
+ * Every directory that contains `path`, outermost first, canonically
+ * ('src/', then 'src/app/'). The root is not in the list, because the root is
+ * spelled '' and no rule in this module treats it as a containing directory.
+ *
+ * @pierre/trees computes the same chain internally for its git lane, which is
+ * why the ignored store's "is this already covered" test has to agree with it
+ * exactly: a directory answers for its whole subtree.
+ */
+export function ancestorDirsOf(path: string): string[] {
+  const trimmed = toRel(path);
+  const dirs: string[] = [];
+  let from = 0;
+  for (;;) {
+    const slash = trimmed.indexOf('/', from);
+    if (slash === -1) break;
+    dirs.push(trimmed.slice(0, slash + 1));
+    from = slash + 1;
+  }
+  return dirs;
+}
+
+/**
  * Where `sourceCanonical` lands when dropped into `destDirCanonical`
  * ('' = the project root). Keeps the source's own directory slash, because
  * Pierre's store refuses a move whose spelling changes kind.

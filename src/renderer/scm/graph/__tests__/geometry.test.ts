@@ -9,7 +9,8 @@ import {
   laneX,
   pathMergeOut,
   pathShift,
-  laneCap
+  laneCap,
+  rowColumns
 } from '../geometry';
 import { DEFAULT_LANE_CAP } from '../cap';
 import { LANE_COLOR_VARS } from '../colors';
@@ -60,6 +61,67 @@ describe('width', () => {
   it('never reserves more columns than the graph actually has', () => {
     expect(laneCap(1, 400)).toBe(1);
     expect(laneCap(3, 400)).toBe(3);
+  });
+});
+
+describe('rowColumns (Phase 47, the compact gutter)', () => {
+  it('a linear row needs exactly one column, the 20px rail', () => {
+    expect(rowColumns(row([lane('a')], [lane('b')], 0))).toBe(1);
+  });
+
+  it('an empty row still reserves one column', () => {
+    expect(rowColumns(row([], [], 0))).toBe(1);
+  });
+
+  it('a merge row reaches the farthest column a parent was routed into', () => {
+    expect(
+      rowColumns(
+        row([lane('a'), lane('x')], [lane('p'), lane('x'), lane('q')], 0, [2])
+      )
+    ).toBe(3);
+  });
+
+  it('a branch tip whose dot sits past the input lanes counts the dot', () => {
+    expect(rowColumns(row([lane('x')], [lane('x'), lane('a')], 1))).toBe(2);
+  });
+
+  it('a folded row includes the bundle column', () => {
+    expect(
+      rowColumns(row([lane('a'), lane('x')], [lane('a'), lane('x')], 0, [], 3))
+    ).toBe(4);
+  });
+
+  it('a bundleColumn left absent (raw GraphRow) is treated as no fold', () => {
+    expect(
+      rowColumns({
+        in: [lane('a'), lane('b')],
+        out: [lane('a'), lane('b')],
+        circle: 0,
+        mergeTargets: []
+      })
+    ).toBe(2);
+  });
+
+  it('the caller clamp keeps compact inside the window width', () => {
+    const lanes = Array.from({ length: 9 }, (_, i) => lane(`l${i}`));
+    const wide = row(lanes, lanes, 0);
+    expect(rowColumns(wide)).toBe(9);
+    // HistorySection passes min(rowColumns(row), columns), so a row can
+    // never draw past the shared window cap.
+    expect(Math.min(rowColumns(wide), 6)).toBe(6);
+  });
+
+  it('agrees with gutterWidth on the shapes the probe measures', () => {
+    // A 1-lane repo draws 20px everywhere in compact mode.
+    expect(gutterWidth(rowColumns(row([lane('a')], [lane('a')], 0)))).toBe(20);
+    // A 3-column merge row draws 44px.
+    expect(
+      gutterWidth(
+        rowColumns(
+          row([lane('a'), lane('x')], [lane('p'), lane('x'), lane('q')], 0, [2])
+        )
+      )
+    ).toBe(44);
   });
 });
 

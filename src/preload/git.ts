@@ -15,7 +15,9 @@ import { invoke, on } from './bridge';
  * + the Phase-12 sync extras (historical commit diffs, remotes list, push /
  * pull / sync) + the Phase-14.5 history graph read (git:graphLog — one
  * ref-scoped, topologically ordered page with its divergence and last-fetch
- * age attached), all feature-detected by the renderer.
+ * age attached) + the Phase-47 ignore read (git:checkIgnore — which of the
+ * paths the file tree has loaded the repository ignores), all feature-detected
+ * by the renderer.
  */
 export const git: InstalledGitApi = {
   status: (repoPath) => invoke('git:status', repoPath),
@@ -44,5 +46,6 @@ export const git: InstalledGitApi = {
   push: (input) => invoke('git:push', input),
   pull: (input) => invoke('git:pull', input),
   sync: (input) => invoke('git:sync', input),
-  graphLog: (input) => invoke('git:graphLog', input)
+  graphLog: (input) => invoke('git:graphLog', input),
+  checkIgnore: (input) => invoke('git:checkIgnore', input)
 };

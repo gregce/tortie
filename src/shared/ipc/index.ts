@@ -76,11 +76,13 @@ import type {
   GitBranchesInvokeChannelMap,
   GitDepthInvokeChannelMap,
   GitGraphInvokeChannelMap,
+  GitIgnoreInvokeChannelMap,
   GitSyncInvokeChannelMap,
   GmuxGitBranchExtras,
   GmuxGitDepthExtras,
   GmuxGitExtras,
   GmuxGitGraphExtras,
+  GmuxGitIgnoreExtras,
   GmuxGitSyncExtras,
   ScmInvokeChannelMap
 } from './git';
@@ -189,6 +191,7 @@ export type GmuxInvokeChannelMap = InvokeChannelMap &
   SymbolsInvokeChannelMap &
   ScrollbackInvokeChannelMap &
   GitGraphInvokeChannelMap &
+  GitIgnoreInvokeChannelMap &
   SpecStoryStatusInvokeChannelMap &
   CloneInvokeChannelMap &
   RecentsInvokeChannelMap &
@@ -256,7 +259,8 @@ export type InstalledGitApi = GmuxApi['git'] &
   GmuxGitDepthExtras &
   GmuxGitBranchExtras &
   GmuxGitSyncExtras &
-  GmuxGitGraphExtras;
+  GmuxGitGraphExtras &
+  GmuxGitIgnoreExtras;
 
 /** The `fs` object the preload installs: base plus tree, ops and image. */
 export type InstalledFsApi = GmuxApi['fs'] &
