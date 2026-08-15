@@ -26,6 +26,13 @@ runs:
       with:
         path: ~/Library/Caches/electron
         key: electron-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}
+        # Every phase bumps the version, so package-lock.json changes on
+        # every release and the exact key never hits. The prefix fallback
+        # restores the previous cache instead, and electron's own checksum
+        # check re-downloads only when the version really moved. Without
+        # this, a release pays a cold 100 MB download at the worst moment.
+        restore-keys: |
+          electron-${{ runner.os }}-${{ runner.arch }}-
     - name: Cache the vendored specstory tarball
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
@@ -47,3 +54,29 @@ runs:
     - name: Install
       shell: bash
       run: npm ci # postinstall runs electron-rebuild, about 30 s on the runner
+    - name: Fetch the Electron binary here, once, rather than lazily later
+      shell: bash
+      run: |
+        # electron 43 has no install script of its own. Its index.js
+        # downloads the binary the first time something requires it, in
+        # whatever process that happens to be, with no retry. Release run
+        # 31907886517 died that way: one vitest worker took the download,
+        # it failed, and the lane stopped with 3787 of 3788 tests passing.
+        #
+        # Doing it here makes the download a named step that either
+        # succeeds or fails with its own error, and every later step finds
+        # the binary already present.
+        for attempt in 1 2 3; do
+          if node -e "require('electron')" >/dev/null 2>&1; then break; fi
+          echo "electron binary not ready, attempt $attempt of 3"
+          sleep 5
+        done
+        node -e '
+          const fs = require("fs");
+          const p = require("electron");
+          if (typeof p !== "string" || !fs.existsSync(p)) {
+            console.error("::error::electron binary missing after 3 attempts, looked at " + p);
+            process.exit(1);
+          }
+          console.log("electron binary present at " + p);
+        '

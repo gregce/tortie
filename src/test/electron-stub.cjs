@@ -10,5 +10,11 @@
  * extraction and the whole suite dies (gates runs 31843762207, twice). This
  * stub pins the with-binary behavior. vi.mock('electron', ...) in individual
  * tests still wins over the alias, unchanged.
+ *
+ * This alias covers OUR imports only. A dependency that requires electron
+ * itself is externalised and resolves through plain Node, so it reaches the
+ * real package no matter what the alias says. That hole is closed separately
+ * by ELECTRON_OVERRIDE_DIST_PATH in vitest.config.ts. Do not delete either
+ * one believing the other covers it, because they cover different callers.
  */
 module.exports = '/dev/null/electron-not-available-in-unit-tests';
