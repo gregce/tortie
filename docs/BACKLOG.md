@@ -4256,7 +4256,7 @@ pane group, focused and unfocused states, plus one read with a needs input dot o
 
 **Semver.** fix, patch bump.
 
-## Phase 41 — bundle a pinned tmux 3.7b (research 43, operator approved 2026-08-14) ✅ SHIPPED 2026-08-15 (this commit)
+## Phase 41 — bundle a pinned tmux 3.7b (research 43, operator approved 2026-08-14) ✅ SHIPPED 2026-08-15 (`2c225e4`, 0.25.0)
 
 **Specification.** docs/research/43-bundled-tmux.md. The research carries the measured build, the
 interop matrix, the option table and the adoption rule in full.
@@ -4824,6 +4824,17 @@ ref pills and dates still degrade per the Phase 12 rules rather than clipping.
   separates the pointer press from the library's close, so a click delayed by a paint stall
   falls back to the old behavior of closing.
 
+
+**A gate that could not be run, recorded honestly.** `npm run conformance:resume:capture`
+hung on this machine and produced no output in 200 s, against a documented cost of
+about 16 s. It was run twice, once on this phase's tree and once as a control on the
+0.24.3 tree, which carries no tmux change at all. It hung identically on both, so this
+phase did not cause it and the hang is a pre-existing condition on this machine. That
+gate is required by CLAUDE.md only for commits under `agents/registry.ts`,
+`manifest/harvest/**`, `manifest/agents.ts` or `restore/**`, and this phase touches none
+of them. `smoke:t3` covers the restore path and it passed on the exact committed tree,
+on both a claude and a non-claude shape. Somebody should find out why the conformance
+harness stopped answering before the next phase that genuinely needs it.
 
 ## Phase 47.1 - the ignored dimming strobe (operator reported against 0.24.2) SHIPPED 2026-08-15 (`3bbc3e6`, 0.24.3)
 
