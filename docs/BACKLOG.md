@@ -3945,8 +3945,12 @@ rules the audit leaves open.
 **The goal, clarified by the operator 2026-08-14.** Preserve current functionality exactly: the
 refactor must not change technical or functional behavior. Byte for byte was figurative, so the
 inventory below is the TOOL for proving contracts held, not the goal itself. If a stage has a
-sound reason to touch an inventory line, it stops and reports the reason instead of either
-forcing the change through or abandoning a sensible move; the operator decides.
+sound reason to touch an inventory line, it DECIDES AUTONOMOUSLY and proceeds: it re-baselines
+the inventory in the same commit and the commit body states the line that moved, the reason,
+and the evidence that behavior held. A silent inventory diff is the only forbidden outcome. The
+immovable exceptions are the standing laws, which no stage may touch regardless of reasoning:
+the durability invariants, the tmux safety rules, the Phase 23 refusals, and the manifest
+schema compatibility numbers.
 
 **The baseline inventories, captured on the pre refactor commit and byte compared after every
 stage.** A script (build/contract-inventory.mjs, written in stage 0) emits one deterministic
