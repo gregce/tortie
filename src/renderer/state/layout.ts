@@ -8,6 +8,16 @@
  * losing it costs pixels, never sessions). The manifest/tmux layer never
  * learns about splits; leaves are ordinary sessions.
  *
+ * Phase 38: the record keys by the project's ABSOLUTE PATH, not the project
+ * row's UUID. Closing a project deletes its row and reopening mints a fresh
+ * UUID, so a UUID-keyed layout was orphaned the moment its tab closed. The
+ * path survives close and reopen, and sessions already rebind to a reopened
+ * project by projectPath. Leaf ids stay manifest session UUIDs, which live
+ * through a project close (Phase 26). `write` refuses any key that does not
+ * start with '/', so no caller can silently reintroduce a UUID key. Writes
+ * debounce 200 ms (a divider drag fires per pointer move) and a pagehide
+ * listener flushes the pending write, so app quit loses nothing.
+ *
  * Source of truth for "which session is active" stays useApp
  * (activeSessionByProject): selecting a leaf routes through
  * useApp.setActiveSession, and the active surface is DERIVED as the surface
@@ -16,7 +26,7 @@
  */
 
 import { create } from 'zustand';
-import type { Session } from '@shared/types';
+import type { Project, Session } from '@shared/types';
 import { loadLocal, saveLocal, useApp } from './store';
 import {
   leaf,
@@ -66,6 +76,7 @@ export interface SplitDropZone {
 }
 
 interface LayoutState {
+  /** Persisted layouts, keyed by the project's absolute path (Phase 38). */
   layouts: Record<string, ProjectLayoutState>;
 
   // Transient drag UI (never persisted).
@@ -82,33 +93,33 @@ interface LayoutState {
   clearDragUi(): void;
 
   /** Prune dead sessions / dissolved groups and persist the result. */
-  reconcile(projectId: string, sessionIds: string[]): void;
+  reconcile(projectPath: string, sessionIds: string[]): void;
   /** Move a surface to a new index in the strip/dock order. */
-  reorderSurface(projectId: string, surfaceId: string, toIndex: number): void;
+  reorderSurface(projectPath: string, surfaceId: string, toIndex: number): void;
   /**
    * Drop a dragged SINGLE surface onto a leaf's armed half: the leaf's box
    * divides 50/50, the dragged session takes the lit half and focus, and
    * its own tab/row leaves the strip (S4A).
    */
   splitWith(
-    projectId: string,
+    projectPath: string,
     targetLeafId: string,
     edge: SplitEdge,
     draggedId: string
   ): void;
   /** Remove a leaf from its group into its own tab/row at `toIndex`. */
-  popOut(projectId: string, sessionId: string, toIndex: number | null): void;
+  popOut(projectPath: string, sessionId: string, toIndex: number | null): void;
   /** Pop every leaf of a group out, in layout order (group context menu). */
-  breakUp(projectId: string, groupId: string): void;
+  breakUp(projectPath: string, groupId: string): void;
   /** Divider drag: set a branch node's ratio (path per split-tree). */
   setSurfaceRatio(
-    projectId: string,
+    projectPath: string,
     surfaceId: string,
     path: string,
     ratio: number
   ): void;
   /** Select a leaf: remembers group focus + routes to useApp. */
-  selectLeaf(projectId: string, sessionId: string): void;
+  selectLeaf(projectPath: string, sessionId: string): void;
   /**
    * ⌘⌥-arrow focus move. Nearest leaf in `dir` within the active surface;
    * at the surface's top/bottom edge ↑/↓ continue to the previous/next
@@ -118,7 +129,15 @@ interface LayoutState {
   /** Next/previous surface in strip order (⌘⌥↓/↑ fallthrough). */
   cycleSurface(delta: 1 | -1): void;
   /** Shot-harness helper: arrange the given sessions as one split group. */
-  stageGrid(projectId: string, sessionIds: string[]): void;
+  stageGrid(projectPath: string, sessionIds: string[]): void;
+  /**
+   * One-shot boot migration (Phase 38). For each open project whose layout
+   * still sits under the project UUID, adopt that entry under the project's
+   * path. Then drop every remaining key that is not an absolute path. Those
+   * are orphans of projects closed before this phase, and the mapping from
+   * their UUID to a path died with the project row.
+   */
+  migrateLegacyLayouts(projects: Project[]): void;
 }
 
 // ---------------------------------------------------------------------------
@@ -126,6 +145,8 @@ interface LayoutState {
 // ---------------------------------------------------------------------------
 
 const LS_LAYOUTS = 'gmux.splitLayouts';
+/** Trailing debounce for the localStorage write (divider drags burst). */
+const PERSIST_DEBOUNCE_MS = 200;
 
 let groupSeq = 0;
 function newGroupId(): string {
@@ -207,11 +228,11 @@ export function focusedLeafOf(
 /** Convenience: derived surfaces for the store's current state. */
 function currentSurfaces(
   state: LayoutState,
-  projectId: string,
+  projectPath: string,
   sessions: Session[]
 ): Surface[] {
   return deriveSurfaces(
-    state.layouts[projectId],
+    state.layouts[projectPath],
     sessions.map((x) => x.id)
   );
 }
@@ -246,22 +267,51 @@ function sameLayout(a: ProjectLayoutState, b: ProjectLayoutState): boolean {
 // ---------------------------------------------------------------------------
 
 export const useLayout = create<LayoutState>((set, get) => {
-  const persist = (layouts: Record<string, ProjectLayoutState>): void => {
-    saveLocal(LS_LAYOUTS, layouts);
+  let persistTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** Schedule the localStorage write; in-memory state is already current. */
+  const schedulePersist = (): void => {
+    if (persistTimer !== null) clearTimeout(persistTimer);
+    persistTimer = setTimeout(() => {
+      persistTimer = null;
+      saveLocal(LS_LAYOUTS, get().layouts);
+    }, PERSIST_DEBOUNCE_MS);
   };
 
-  const write = (
-    projectId: string,
-    next: ProjectLayoutState
-  ): void => {
-    const layouts = { ...get().layouts, [projectId]: next };
+  /** Write a pending layout immediately (app quit must lose nothing). */
+  const flushPersist = (): void => {
+    if (persistTimer === null) return;
+    clearTimeout(persistTimer);
+    persistTimer = null;
+    saveLocal(LS_LAYOUTS, get().layouts);
+  };
+
+  if (
+    typeof window !== 'undefined' &&
+    typeof window.addEventListener === 'function'
+  ) {
+    window.addEventListener('pagehide', flushPersist);
+  }
+
+  const write = (projectPath: string, next: ProjectLayoutState): void => {
+    // Phase 38 guard: the record keys by absolute project path. A key that
+    // does not start with '/' is a bug at the call site (most likely a
+    // project UUID), and persisting it would orphan the layout on close.
+    if (!projectPath.startsWith('/')) {
+      console.error(
+        `layout: refused to persist under key '${projectPath}'. ` +
+          'Layout records are keyed by the absolute project path.'
+      );
+      return;
+    }
+    const layouts = { ...get().layouts, [projectPath]: next };
     set({ layouts });
-    persist(layouts);
+    schedulePersist();
   };
 
   /** Sessions of a project, in store (creation) order. */
-  const projectSessions = (projectId: string): Session[] =>
-    useApp.getState().projectSessions(projectId);
+  const projectSessions = (projectPath: string): Session[] =>
+    useApp.getState().sessions.filter((x) => x.projectPath === projectPath);
 
   return {
     layouts: loadLocal<Record<string, ProjectLayoutState>>(LS_LAYOUTS, {}),
@@ -300,8 +350,8 @@ export const useLayout = create<LayoutState>((set, get) => {
       }
     },
 
-    reconcile(projectId, sessionIds) {
-      const prev = get().layouts[projectId];
+    reconcile(projectPath, sessionIds) {
+      const prev = get().layouts[projectPath];
       const surfaces = deriveSurfaces(prev, sessionIds);
       const next = toLayoutState(surfaces, prev);
       if (prev !== undefined && sameLayout(prev, next)) return;
@@ -312,13 +362,13 @@ export const useLayout = create<LayoutState>((set, get) => {
       ) {
         return;
       }
-      write(projectId, next);
+      write(projectPath, next);
     },
 
-    reorderSurface(projectId, surfaceId, toIndex) {
-      const sessions = projectSessions(projectId);
-      const prev = get().layouts[projectId];
-      const surfaces = currentSurfaces(get(), projectId, sessions);
+    reorderSurface(projectPath, surfaceId, toIndex) {
+      const sessions = projectSessions(projectPath);
+      const prev = get().layouts[projectPath];
+      const surfaces = currentSurfaces(get(), projectPath, sessions);
       const from = surfaces.findIndex((x) => x.id === surfaceId);
       if (from === -1) return;
       const clamped = Math.max(0, Math.min(surfaces.length, toIndex));
@@ -328,13 +378,13 @@ export const useLayout = create<LayoutState>((set, get) => {
       const next = [...surfaces];
       const moved = next.splice(from, 1);
       next.splice(target, 0, ...moved);
-      write(projectId, toLayoutState(next, prev));
+      write(projectPath, toLayoutState(next, prev));
     },
 
-    splitWith(projectId, targetLeafId, edge, draggedId) {
-      const sessions = projectSessions(projectId);
-      const prev = get().layouts[projectId];
-      const surfaces = currentSurfaces(get(), projectId, sessions);
+    splitWith(projectPath, targetLeafId, edge, draggedId) {
+      const sessions = projectSessions(projectPath);
+      const prev = get().layouts[projectPath];
+      const surfaces = currentSurfaces(get(), projectPath, sessions);
       const target = surfaces.find((x) => x.leafIds.includes(targetLeafId));
       const dragged = surfaces.find((x) => x.id === draggedId);
       if (
@@ -360,14 +410,14 @@ export const useLayout = create<LayoutState>((set, get) => {
       const state = toLayoutState(next, prev);
       const group = state.groups[id];
       if (group) group.focused = draggedId;
-      write(projectId, state);
+      write(projectPath, state);
       useApp.getState().setActiveSession(draggedId);
     },
 
-    popOut(projectId, sessionId, toIndex) {
-      const sessions = projectSessions(projectId);
-      const prev = get().layouts[projectId];
-      const surfaces = currentSurfaces(get(), projectId, sessions);
+    popOut(projectPath, sessionId, toIndex) {
+      const sessions = projectSessions(projectPath);
+      const prev = get().layouts[projectPath];
+      const surfaces = currentSurfaces(get(), projectPath, sessions);
       const at = surfaces.findIndex(
         (x) => x.isGroup && x.leafIds.includes(sessionId)
       );
@@ -407,14 +457,14 @@ export const useLayout = create<LayoutState>((set, get) => {
         leafIds: [sessionId],
         isGroup: false
       });
-      write(projectId, toLayoutState(next, prev));
+      write(projectPath, toLayoutState(next, prev));
       useApp.getState().setActiveSession(sessionId);
     },
 
-    breakUp(projectId, groupId) {
-      const sessions = projectSessions(projectId);
-      const prev = get().layouts[projectId];
-      const surfaces = currentSurfaces(get(), projectId, sessions);
+    breakUp(projectPath, groupId) {
+      const sessions = projectSessions(projectPath);
+      const prev = get().layouts[projectPath];
+      const surfaces = currentSurfaces(get(), projectPath, sessions);
       const at = surfaces.findIndex((x) => x.id === groupId && x.isGroup);
       const group = surfaces[at];
       if (at === -1 || group === undefined) return;
@@ -426,29 +476,29 @@ export const useLayout = create<LayoutState>((set, get) => {
       }));
       const next = [...surfaces];
       next.splice(at, 1, ...singles);
-      write(projectId, toLayoutState(next, prev));
+      write(projectPath, toLayoutState(next, prev));
     },
 
-    setSurfaceRatio(projectId, surfaceId, path, ratio) {
-      const prev = get().layouts[projectId];
+    setSurfaceRatio(projectPath, surfaceId, path, ratio) {
+      const prev = get().layouts[projectPath];
       const group = prev?.groups[surfaceId];
       if (!prev || !group) return;
       const root = setRatioAt(group.root, path, ratio);
       if (root === group.root) return;
-      write(projectId, {
+      write(projectPath, {
         ...prev,
         groups: { ...prev.groups, [surfaceId]: { ...group, root } }
       });
     },
 
-    selectLeaf(projectId, sessionId) {
-      const prev = get().layouts[projectId];
+    selectLeaf(projectPath, sessionId) {
+      const prev = get().layouts[projectPath];
       if (prev) {
         // Remember the focus inside whichever group holds this leaf.
         for (const [gid, group] of Object.entries(prev.groups)) {
           if (leafIds(group.root).includes(sessionId)) {
             if (group.focused !== sessionId) {
-              write(projectId, {
+              write(projectPath, {
                 ...prev,
                 groups: {
                   ...prev.groups,
@@ -465,18 +515,18 @@ export const useLayout = create<LayoutState>((set, get) => {
 
     navigate(dir) {
       const app = useApp.getState();
-      const projectId = app.activeProjectId;
-      if (projectId === null) return;
-      const sessions = app.projectSessions(projectId);
+      const project = app.activeProject();
+      if (project === null) return;
+      const sessions = projectSessions(project.path);
       if (sessions.length === 0) return;
-      const surfaces = currentSurfaces(get(), projectId, sessions);
+      const surfaces = currentSurfaces(get(), project.path, sessions);
       const active = app.activeSession();
       const surface = surfaceOf(surfaces, active?.id ?? null);
       if (surface && surface.isGroup && active) {
         const rects = leafRects(surface.root, { x: 0, y: 0, w: 1, h: 1 });
         const next = nearestLeaf(rects, active.id, dir);
         if (next !== null) {
-          get().selectLeaf(projectId, next);
+          get().selectLeaf(project.path, next);
           return;
         }
       }
@@ -488,11 +538,11 @@ export const useLayout = create<LayoutState>((set, get) => {
 
     cycleSurface(delta) {
       const app = useApp.getState();
-      const projectId = app.activeProjectId;
-      if (projectId === null) return;
-      const sessions = app.projectSessions(projectId);
+      const project = app.activeProject();
+      if (project === null) return;
+      const sessions = projectSessions(project.path);
       if (sessions.length === 0) return;
-      const surfaces = currentSurfaces(get(), projectId, sessions);
+      const surfaces = currentSurfaces(get(), project.path, sessions);
       if (surfaces.length < 2) return;
       const active = app.activeSession();
       const current = surfaceOf(surfaces, active?.id ?? null);
@@ -503,12 +553,12 @@ export const useLayout = create<LayoutState>((set, get) => {
       const target = focusedLeafOf(
         next,
         null,
-        get().layouts[projectId]
+        get().layouts[project.path]
       );
-      if (target !== '') get().selectLeaf(projectId, target);
+      if (target !== '') get().selectLeaf(project.path, target);
     },
 
-    stageGrid(projectId, sessionIds) {
+    stageGrid(projectPath, sessionIds) {
       const [a, b, c, d] = sessionIds;
       if (
         a === undefined ||
@@ -526,9 +576,9 @@ export const useLayout = create<LayoutState>((set, get) => {
         a: { type: 'branch', dir: 'column', ratio: 0.5, a: leaf(a), b: leaf(c) },
         b: { type: 'branch', dir: 'column', ratio: 0.5, a: leaf(b), b: leaf(d) }
       };
-      const sessions = projectSessions(projectId);
-      const prev = get().layouts[projectId];
-      const surfaces = currentSurfaces(get(), projectId, sessions).filter(
+      const sessions = projectSessions(projectPath);
+      const prev = get().layouts[projectPath];
+      const surfaces = currentSurfaces(get(), projectPath, sessions).filter(
         (x) => !sessionIds.includes(x.id)
       );
       const id = newGroupId();
@@ -536,8 +586,35 @@ export const useLayout = create<LayoutState>((set, get) => {
       const state = toLayoutState(surfaces, prev);
       const group = state.groups[id];
       if (group) group.focused = a;
-      write(projectId, state);
+      write(projectPath, state);
       useApp.getState().setActiveSession(a);
+    },
+
+    migrateLegacyLayouts(projects) {
+      const layouts = get().layouts;
+      const pathById = new Map(projects.map((p) => [p.id, p.path]));
+      let changed = false;
+      const next: Record<string, ProjectLayoutState> = {};
+      for (const [key, value] of Object.entries(layouts)) {
+        if (key.startsWith('/')) {
+          next[key] = value;
+          continue;
+        }
+        // Every non-path key changes the record: it is either adopted under
+        // its project's path or dropped as an orphan.
+        changed = true;
+        const path = pathById.get(key);
+        if (
+          path !== undefined &&
+          layouts[path] === undefined &&
+          next[path] === undefined
+        ) {
+          next[path] = value;
+        }
+      }
+      if (!changed) return;
+      set({ layouts: next });
+      schedulePersist();
     }
   };
 });

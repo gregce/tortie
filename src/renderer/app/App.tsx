@@ -800,10 +800,10 @@ function useShotLayoutHook(): void {
           await wait(250);
         }
         extraIds = ids.filter((id) => !before.has(id));
-        const projectId = useApp.getState().activeProjectId;
+        const projectPath = useApp.getState().activeProject()?.path ?? null;
         const four = ids.slice(0, 4);
-        if (projectId !== null && four.length === 4) {
-          useLayout.getState().stageGrid(projectId, four);
+        if (projectPath !== null && four.length === 4) {
+          useLayout.getState().stageGrid(projectPath, four);
         }
         // Four panes attach + draw their prompts.
         await wait(3000);
@@ -1064,7 +1064,12 @@ export function App(): React.JSX.Element {
   useFileDropRouter();
 
   useEffect(() => {
-    void boot();
+    void boot().then(() => {
+      // Phase 38: adopt each open project's UUID-keyed layout entry under
+      // its path, then drop the orphans. The call lives here because
+      // store.ts cannot import the layout store without an import cycle.
+      useLayout.getState().migrateLegacyLayouts(useApp.getState().projects);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

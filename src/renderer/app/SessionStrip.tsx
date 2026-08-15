@@ -99,7 +99,7 @@ function NewSessionSplitButton(): React.JSX.Element {
 function SessionTab({
   session,
   surface,
-  projectId,
+  projectPath,
   activeSurface,
   activeLeafId,
   active,
@@ -107,7 +107,7 @@ function SessionTab({
 }: {
   session: Session;
   surface: Surface;
-  projectId: string;
+  projectPath: string;
   activeSurface: Surface | null;
   activeLeafId: string;
   active: boolean;
@@ -149,7 +149,7 @@ function SessionTab({
       {...sessionGestureProps({
         session,
         surface,
-        projectId,
+        projectPath,
         home: 'strip',
         renaming,
         activeSurface,
@@ -195,13 +195,13 @@ function SessionTab({
 function GroupTab({
   surface,
   members,
-  projectId,
+  projectPath,
   focusedLeafId,
   active
 }: {
   surface: Surface;
   members: Session[];
-  projectId: string;
+  projectPath: string;
   focusedLeafId: string;
   active: boolean;
 }): React.JSX.Element {
@@ -236,7 +236,7 @@ function GroupTab({
       ]
         .filter(Boolean)
         .join(' ')}
-      onClick={() => selectLeaf(projectId, focusedLeafId)}
+      onClick={() => selectLeaf(projectPath, focusedLeafId)}
       onPointerDown={(e) => {
         // Phase 12.2 parity: group tabs refuse a drag on exactly the same
         // terms as single-session tabs.
@@ -246,7 +246,7 @@ function GroupTab({
           e.nativeEvent,
           e.currentTarget,
           surface,
-          projectId,
+          projectPath,
           'strip'
         );
       }}
@@ -255,13 +255,13 @@ function GroupTab({
         setMenu({
           x: e.clientX,
           y: e.clientY,
-          items: groupMenuItems(projectId, surface, members, focusedLeafId)
+          items: groupMenuItems(projectPath, surface, members, focusedLeafId)
         });
       }}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          selectLeaf(projectId, focusedLeafId);
+          selectLeaf(projectPath, focusedLeafId);
           document
             .querySelector<HTMLTextAreaElement>(
               '.gmux-terminal-mount textarea'
@@ -321,14 +321,14 @@ function StripIndicator({
 function SessionTabStrip({
   surfaces,
   sessionsById,
-  projectId,
+  projectPath,
   activeSurface,
   activeLeafId,
   termFocused
 }: {
   surfaces: Surface[];
   sessionsById: Map<string, Session>;
-  projectId: string;
+  projectPath: string;
   activeSurface: Surface | null;
   activeLeafId: string;
   termFocused: boolean;
@@ -413,7 +413,7 @@ function SessionTabStrip({
       return {
         label: `${surf.id === activeSurfaceId ? '✓ ' : ''}${label}`,
         ...(visual ? { hint: visual.label } : {}),
-        run: () => selectLeaf(projectId, leafId)
+        run: () => selectLeaf(projectPath, leafId)
       };
     });
     setMenu({ x, y, items });
@@ -457,7 +457,7 @@ function SessionTabStrip({
                 key={surf.id}
                 surface={surf}
                 members={members}
-                projectId={projectId}
+                projectPath={projectPath}
                 focusedLeafId={
                   surf.leafIds.includes(activeLeafId)
                     ? activeLeafId
@@ -474,7 +474,7 @@ function SessionTabStrip({
               key={surf.id}
               session={session}
               surface={surf}
-              projectId={projectId}
+              projectPath={projectPath}
               activeSurface={activeSurface}
               activeLeafId={activeLeafId}
               active={surf.id === activeSurfaceId}
@@ -531,7 +531,7 @@ export function SessionStrip(): React.JSX.Element | null {
     <SessionTabStrip
       surfaces={surfaces}
       sessionsById={sessionsById}
-      projectId={project.id}
+      projectPath={project.path}
       activeSurface={activeSurface}
       activeLeafId={activeLeafId}
       termFocused={termFocused}

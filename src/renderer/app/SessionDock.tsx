@@ -62,7 +62,7 @@ import { useProjectSurfaces } from './surfaces';
 function DockRow({
   session,
   surface,
-  projectId,
+  projectPath,
   activeSurface,
   activeLeafId,
   selected,
@@ -70,7 +70,7 @@ function DockRow({
 }: {
   session: Session;
   surface: Surface;
-  projectId: string;
+  projectPath: string;
   activeSurface: Surface | null;
   activeLeafId: string;
   selected: boolean;
@@ -108,7 +108,7 @@ function DockRow({
         {...sessionGestureProps({
           session,
           surface,
-          projectId,
+          projectPath,
           home: 'dock',
           renaming,
           activeSurface,
@@ -140,13 +140,13 @@ function DockRow({
 function GroupDockRow({
   surface,
   members,
-  projectId,
+  projectPath,
   focusedLeafId,
   selected
 }: {
   surface: Surface;
   members: Session[];
-  projectId: string;
+  projectPath: string;
   focusedLeafId: string;
   selected: boolean;
 }): React.JSX.Element {
@@ -180,7 +180,7 @@ function GroupDockRow({
         ]
           .filter(Boolean)
           .join(' ')}
-        onClick={() => selectLeaf(projectId, focusedLeafId)}
+        onClick={() => selectLeaf(projectPath, focusedLeafId)}
         onPointerDown={(e) => {
           // Phase 12.2 parity: group rows refuse a drag on exactly the same
           // terms as single-session rows.
@@ -190,7 +190,7 @@ function GroupDockRow({
             e.nativeEvent,
             e.currentTarget,
             surface,
-            projectId,
+            projectPath,
             'dock'
           );
         }}
@@ -199,7 +199,7 @@ function GroupDockRow({
           setMenu({
             x: e.clientX,
             y: e.clientY,
-            items: groupMenuItems(projectId, surface, members, focusedLeafId)
+            items: groupMenuItems(projectPath, surface, members, focusedLeafId)
           });
         }}
       >
@@ -383,7 +383,7 @@ export function SessionDock(): React.JSX.Element | null {
         <SessionRail
           surfaces={surfaces}
           sessionsById={sessionsById}
-          projectId={project.id}
+          projectPath={project.path}
           activeSurfaceId={activeSurface?.id ?? null}
           activeLeafId={activeLeafId}
           onListKeyDown={onListKeyDown}
@@ -467,7 +467,7 @@ export function SessionDock(): React.JSX.Element | null {
                   key={surf.id}
                   surface={surf}
                   members={members}
-                  projectId={project.id}
+                  projectPath={project.path}
                   focusedLeafId={
                     surf.leafIds.includes(activeLeafId)
                       ? activeLeafId
@@ -484,7 +484,7 @@ export function SessionDock(): React.JSX.Element | null {
                 key={surf.id}
                 session={sess}
                 surface={surf}
-                projectId={project.id}
+                projectPath={project.path}
                 activeSurface={activeSurface}
                 activeLeafId={activeLeafId}
                 selected={surf.id === activeSurface?.id}

@@ -54,9 +54,9 @@ export function paneAccepts(session: Session | null): boolean {
  */
 export function focusSession(sessionId: string): void {
   const app = useApp.getState();
-  const projectId = app.activeProjectId;
-  if (projectId !== null) {
-    useLayout.getState().selectLeaf(projectId, sessionId);
+  const projectPath = app.activeProject()?.path ?? null;
+  if (projectPath !== null) {
+    useLayout.getState().selectLeaf(projectPath, sessionId);
   } else if (app.activeSession()?.id !== sessionId) {
     app.setActiveSession(sessionId);
   }

@@ -235,14 +235,14 @@ function RailItem(props: ItemProps): React.JSX.Element {
 export function SessionRail({
   surfaces,
   sessionsById,
-  projectId,
+  projectPath,
   activeSurfaceId,
   activeLeafId,
   onListKeyDown
 }: {
   surfaces: Surface[];
   sessionsById: Map<string, Session>;
-  projectId: string;
+  projectPath: string;
   activeSurfaceId: string | null;
   activeLeafId: string;
   /** The dock's own list-key handler — one implementation, two densities. */
@@ -311,7 +311,7 @@ export function SessionRail({
                 }}
                 glyph={<Codicon name="split-horizontal" size={16} />}
                 dot={dot === 'none' ? 'idle' : dot}
-                onActivate={() => selectLeaf(projectId, focusedId)}
+                onActivate={() => selectLeaf(projectPath, focusedId)}
                 onReveal={setCard}
                 revealNow={keyboard}
               />

@@ -30,7 +30,7 @@ const EDGES: { edge: SplitEdge; label: string }[] = [
  * when the item is the active surface's only leaf (S4A).
  */
 export function openInSplitItems(
-  projectId: string,
+  projectPath: string,
   session: Session,
   activeSurface: Surface | null,
   activeLeafId: string
@@ -48,14 +48,14 @@ export function openInSplitItems(
       run: () =>
         useLayout
           .getState()
-          .splitWith(projectId, activeLeafId, edge, session.id)
+          .splitWith(projectPath, activeLeafId, edge, session.id)
     }))
   ];
 }
 
 /** Group tab/row context menu (S4A "Group tab / row"). */
 export function groupMenuItems(
-  projectId: string,
+  projectPath: string,
   surface: Surface,
   members: Session[],
   focusedLeafId: string
@@ -73,7 +73,7 @@ export function groupMenuItems(
     },
     {
       label: 'Break up into tabs',
-      run: () => useLayout.getState().breakUp(projectId, surface.id)
+      run: () => useLayout.getState().breakUp(projectPath, surface.id)
     },
     'sep',
     {

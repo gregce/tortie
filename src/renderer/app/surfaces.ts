@@ -80,7 +80,9 @@ export function useProjectSurfaces(): ProjectSurfaces {
   const surfaces = useMemo(
     () =>
       deriveSurfaces(
-        project ? layouts[project.id] : undefined,
+        // Phase 38: layouts key by the project's path, which survives a
+        // close and reopen. The project row's UUID does not.
+        project ? layouts[project.path] : undefined,
         sessionIdsKey === '' ? [] : sessionIdsKey.split(',')
       ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -99,7 +101,7 @@ export function useProjectSurfaces(): ProjectSurfaces {
       : focusedLeafOf(
           activeSurface,
           selected?.id ?? null,
-          project ? layouts[project.id] : undefined
+          project ? layouts[project.path] : undefined
         );
 
   return {

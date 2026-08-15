@@ -194,13 +194,13 @@ export function TerminalRegion(): React.JSX.Element {
   // one-leaf groups dissolve back to plain tabs). This region is the ONLY
   // caller — the derivation hook is read by three components and must not
   // give three of them a chance to write.
-  const projectId = project?.id ?? null;
+  const projectPath = project?.path ?? null;
   const sessionIdsKey = projectSessions.map((x) => x.id).join(',');
   useEffect(() => {
-    if (projectId !== null) {
-      reconcile(projectId, sessionIdsKey === '' ? [] : sessionIdsKey.split(','));
+    if (projectPath !== null) {
+      reconcile(projectPath, sessionIdsKey === '' ? [] : sessionIdsKey.split(','));
     }
-  }, [projectId, sessionIdsKey, reconcile]);
+  }, [projectPath, sessionIdsKey, reconcile]);
 
   // Report the mounted panes (active surface's leaves) so the status
   // detector watches every visible terminal, not just the focused one.
@@ -272,7 +272,7 @@ export function TerminalRegion(): React.JSX.Element {
         >
           <SplitSurfaceView
             surface={activeSurface}
-            projectId={project.id}
+            projectPath={project.path}
             sessions={projectSessions}
             focusedLeafId={activeLeafId}
           />

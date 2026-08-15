@@ -64,8 +64,8 @@ import {
  */
 async function splitSession(session: Session): Promise<void> {
   const app = useApp.getState();
-  const projectId = app.activeProjectId;
-  if (projectId === null) return;
+  const projectPath = app.activeProject()?.path ?? null;
+  if (projectPath === null) return;
   // Identify the new session by difference, not by "whatever is active now":
   // a failed create leaves the old session active and would split the pane
   // with itself.
@@ -73,7 +73,7 @@ async function splitSession(session: Session): Promise<void> {
   await app.quickCreate(session.agent);
   const created = useApp.getState().sessions.find((s) => !before.has(s.id));
   if (created === undefined) return;
-  useLayout.getState().splitWith(projectId, session.id, 'right', created.id);
+  useLayout.getState().splitWith(projectPath, session.id, 'right', created.id);
 }
 
 export interface TerminalMenuOptions {
@@ -227,11 +227,11 @@ export function showTerminalMenu(
 /** False once this session's surface is already holding MAX_LEAVES splits. */
 export function canSplit(session: Session): boolean {
   const app = useApp.getState();
-  const projectId = app.activeProjectId;
-  if (projectId === null) return false;
+  const projectPath = app.activeProject()?.path ?? null;
+  if (projectPath === null) return false;
   const sessionIds = app.projectSessions().map((s) => s.id);
   const surfaces = deriveSurfaces(
-    useLayout.getState().layouts[projectId],
+    useLayout.getState().layouts[projectPath],
     sessionIds
   );
   const surface = surfaceOf(surfaces, session.id);

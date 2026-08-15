@@ -48,11 +48,11 @@ import { startHeaderDrag } from './surface-dnd';
 
 function SplitHeader({
   session,
-  projectId,
+  projectPath,
   focused
 }: {
   session: Session;
-  projectId: string;
+  projectPath: string;
   focused: boolean;
 }): React.JSX.Element {
   const setRenaming = useApp((s) => s.setRenaming);
@@ -84,7 +84,7 @@ function SplitHeader({
           e.nativeEvent,
           e.currentTarget,
           session.id,
-          projectId,
+          projectPath,
           orientation === 'top' ? 'strip' : 'dock'
         );
       }}
@@ -99,7 +99,7 @@ function SplitHeader({
             'sep',
             {
               label: 'Move to its own tab',
-              run: () => popOut(projectId, session.id, null)
+              run: () => popOut(projectPath, session.id, null)
             }
           ]
         });
@@ -224,12 +224,12 @@ function SplitDivider({
   branch,
   path,
   surfaceId,
-  projectId
+  projectPath
 }: {
   branch: SplitBranch;
   path: string;
   surfaceId: string;
-  projectId: string;
+  projectPath: string;
 }): React.JSX.Element {
   const setSurfaceRatio = useLayout((s) => s.setSurfaceRatio);
   const [dragging, setDragging] = useState(false);
@@ -241,7 +241,7 @@ function SplitDivider({
       role="separator"
       aria-orientation={vertical ? 'vertical' : 'horizontal'}
       onDoubleClick={() =>
-        setSurfaceRatio(projectId, surfaceId, path, 0.5)
+        setSurfaceRatio(projectPath, surfaceId, path, 0.5)
       }
       onPointerDown={(e) => {
         // Phase 12.2 audit: the divider arms at 1px of travel, so a
@@ -265,7 +265,7 @@ function SplitDivider({
                 : MIN_PANE_HEIGHT / box.height;
               const lo = Math.min(0.5, min);
               const ratio = Math.min(1 - lo, Math.max(lo, raw));
-              setSurfaceRatio(projectId, surfaceId, path, ratio);
+              setSurfaceRatio(projectPath, surfaceId, path, ratio);
             },
             onDrop() {
               /* ratio already applied move-by-move */
@@ -273,7 +273,7 @@ function SplitDivider({
             onEnd(canceled) {
               setDragging(false);
               if (canceled) {
-                setSurfaceRatio(projectId, surfaceId, path, original);
+                setSurfaceRatio(projectPath, surfaceId, path, original);
               }
             }
           },
@@ -288,14 +288,14 @@ function SplitNodeView({
   node,
   path,
   surface,
-  projectId,
+  projectPath,
   sessionsById,
   focusedLeafId
 }: {
   node: SplitNode;
   path: string;
   surface: Surface;
-  projectId: string;
+  projectPath: string;
   sessionsById: Map<string, Session>;
   focusedLeafId: string;
 }): React.JSX.Element | null {
@@ -313,12 +313,12 @@ function SplitNodeView({
         data-split-leaf={session.id}
         aria-label={session.name}
         onPointerDownCapture={() => {
-          if (!focused) selectLeaf(projectId, session.id);
+          if (!focused) selectLeaf(projectPath, session.id);
         }}
       >
         <SplitHeader
           session={session}
-          projectId={projectId}
+          projectPath={projectPath}
           focused={focused}
         />
         <div className="split-pane-body">
@@ -343,7 +343,7 @@ function SplitNodeView({
           node={node.a}
           path={`${path}a`}
           surface={surface}
-          projectId={projectId}
+          projectPath={projectPath}
           sessionsById={sessionsById}
           focusedLeafId={focusedLeafId}
         />
@@ -352,14 +352,14 @@ function SplitNodeView({
         branch={node}
         path={path}
         surfaceId={surface.id}
-        projectId={projectId}
+        projectPath={projectPath}
       />
       <div className="split-cell" style={{ flexGrow: 1 - node.ratio }}>
         <SplitNodeView
           node={node.b}
           path={`${path}b`}
           surface={surface}
-          projectId={projectId}
+          projectPath={projectPath}
           sessionsById={sessionsById}
           focusedLeafId={focusedLeafId}
         />
@@ -370,12 +370,12 @@ function SplitNodeView({
 
 export function SplitSurfaceView({
   surface,
-  projectId,
+  projectPath,
   sessions,
   focusedLeafId
 }: {
   surface: Surface;
-  projectId: string;
+  projectPath: string;
   sessions: Session[];
   focusedLeafId: string;
 }): React.JSX.Element {
@@ -386,7 +386,7 @@ export function SplitSurfaceView({
         node={surface.root}
         path=""
         surface={surface}
-        projectId={projectId}
+        projectPath={projectPath}
         sessionsById={sessionsById}
         focusedLeafId={focusedLeafId}
       />

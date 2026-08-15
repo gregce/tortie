@@ -95,11 +95,11 @@ function trackSplitZone(draggedId: string, x: number, y: number): boolean {
 
   // Constraint set (S4A "No overlay = no drop").
   const app = useApp.getState();
-  const projectId = app.activeProjectId;
+  const projectPath = app.activeProject()?.path ?? null;
   const activeCount = Number(root.dataset['leafCount'] ?? '1');
   const activeSurfaceId = root.dataset['surfaceId'] ?? '';
   if (
-    projectId === null ||
+    projectPath === null ||
     activeCount >= MAX_LEAVES ||
     activeSurfaceId === draggedId // the dragged tab IS the surface's only leaf
   ) {
@@ -140,7 +140,7 @@ export function startSurfaceDrag(
   down: PointerDragInit,
   source: HTMLElement,
   surface: Surface,
-  projectId: string,
+  projectPath: string,
   home: SurfaceHome
 ): void {
   let ghost: ReturnType<typeof createGhost> | null = null;
@@ -163,10 +163,10 @@ export function startSurfaceDrag(
       const { stripDrop, dockDrop, splitDrop } = layout;
       const homeIndex = home === 'strip' ? stripDrop : dockDrop;
       if (homeIndex !== null) {
-        layout.reorderSurface(projectId, surface.id, homeIndex);
+        layout.reorderSurface(projectPath, surface.id, homeIndex);
       } else if (splitDrop !== null && !surface.isGroup) {
         layout.splitWith(
-          projectId,
+          projectPath,
           splitDrop.leafId,
           splitDrop.edge,
           surface.id
@@ -190,7 +190,7 @@ export function startHeaderDrag(
   down: PointerDragInit,
   source: HTMLElement,
   sessionId: string,
-  projectId: string,
+  projectPath: string,
   home: SurfaceHome
 ): void {
   let ghost: ReturnType<typeof createGhost> | null = null;
@@ -207,7 +207,7 @@ export function startHeaderDrag(
       const layout = useLayout.getState();
       const homeIndex = home === 'strip' ? layout.stripDrop : layout.dockDrop;
       if (homeIndex !== null) {
-        layout.popOut(projectId, sessionId, homeIndex);
+        layout.popOut(projectPath, sessionId, homeIndex);
       }
     },
     onEnd() {
@@ -248,7 +248,7 @@ export function pressBlocksSurfaceDrag(
 export function sessionGestureProps(args: {
   session: Session;
   surface: Surface;
-  projectId: string;
+  projectPath: string;
   home: SurfaceHome;
   renaming: boolean;
   activeSurface: Surface | null;
@@ -257,13 +257,13 @@ export function sessionGestureProps(args: {
   React.HTMLAttributes<HTMLDivElement>,
   'onClick' | 'onDoubleClick' | 'onPointerDown' | 'onContextMenu'
 > {
-  const { session, surface, projectId, home, renaming } = args;
+  const { session, surface, projectPath, home, renaming } = args;
   return {
     onClick: () => useApp.getState().setActiveSession(session.id),
     onDoubleClick: () => useApp.getState().setRenaming(session.id),
     onPointerDown: (e) => {
       if (pressBlocksSurfaceDrag(e, renaming)) return;
-      startSurfaceDrag(e.nativeEvent, e.currentTarget, surface, projectId, home);
+      startSurfaceDrag(e.nativeEvent, e.currentTarget, surface, projectPath, home);
     },
     onContextMenu: (e) => {
       e.preventDefault();
@@ -273,7 +273,7 @@ export function sessionGestureProps(args: {
         items: [
           ...sessionMenuItems(session, session.id),
           ...openInSplitItems(
-            projectId,
+            projectPath,
             session,
             args.activeSurface,
             args.activeLeafId
