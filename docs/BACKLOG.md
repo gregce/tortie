@@ -3352,7 +3352,7 @@ build's. The rename prompt for a restore whose name a live session took was not 
 dedupe is inherited, per the spec's own named deviation. Rows removed before this shipped stay
 unrecoverable, on purpose. The 90 days is a chosen number, not a measured one.
 
-## Phase 33. env passthrough for agent launches (user requested, 2026-08-14) ✅ SHIPPED 2026-08-15 (this commit)
+## Phase 33. env passthrough for agent launches (user requested, 2026-08-14) ✅ SHIPPED 2026-08-15 (`67ce3e3`)
 
 **Specification.** docs/research/41-pi-env-providers.md. The research holds the pi configuration
 surface, the measured env chain, the five options and the adversarial scoring.
@@ -3671,7 +3671,7 @@ codex can now move another same directory session's grace claim even though a di
 an identity. That outcome is no worse than the old arbitrary assignment and provenance records
 it. A same directory codex case in the race test is queued as Phase 34 work.
 
-## Phase 34 — the remaining harvest guessers (follow up to Phase 32, 2026-08-14) ✅ SHIPPED 2026-08-15 (this commit)
+## Phase 34 — the remaining harvest guessers (follow up to Phase 32, 2026-08-14) ✅ SHIPPED 2026-08-15 (`a5c63aa`)
 
 **The gap, from the descriptor table after Phase 32.** CodeWhale is the last time-only descriptor:
 cwd-newest, confidence weak, 5 second grace. It carries the same claim race Phase 32 fixed for
@@ -3802,7 +3802,7 @@ of it.
 No user interface changed. The successor `codewhale` binary is not installed here, so every
 CodeWhale measurement is against `deepseek` 0.8.26 and the store shape the two share.
 
-## Phase 35 — uniform logging with a footprint budget (research 42, 2026-08-14) ✅ SHIPPED 2026-08-15 (this commit)
+## Phase 35 — uniform logging with a footprint budget (research 42, 2026-08-14) ✅ SHIPPED 2026-08-15 (`774132a`)
 
 **Specification.** docs/research/42-logging.md. The research holds the measured peers table, the
 framework decision, the three record schemas and the budget arithmetic.
@@ -4095,7 +4095,7 @@ SELECTED after reopen still falls back to the last surface, because `activeSessi
 keys by project UUID. The group's own remembered focus does survive, because it lives inside
 the layout record.
 
-## Phase 39 — Open With on every file row (user requested, 2026-08-14) ✅ SHIPPED 2026-08-15 (this commit)
+## Phase 39 — Open With on every file row (user requested, 2026-08-14) ✅ SHIPPED 2026-08-15 (`9a69e89`)
 
 **The request.** Right clicking a file in the explorer should offer what Finder offers: open the
 file in an app of the user's choice. The operator's screenshot shows Finder's Open With submenu
@@ -4197,7 +4197,7 @@ and `GMUX_OPEN_WITH_RECORD`.
 - `docs/phase-39-spec.md` is still on disk, untracked. The spec asks the committer to delete it
   and this committer did not, because deleting a working document is not reversible.
 
-## Phase 40 — the right click keeps your selection, and focus reads calmly (user reported, 2026-08-14) ✅ SHIPPED 2026-08-15 (this commit)
+## Phase 40 — the right click keeps your selection, and focus reads calmly (user reported, 2026-08-14) ✅ SHIPPED 2026-08-15 (`08b4757`)
 
 **Shipped 2026-08-15, both items, one commit.**
 
@@ -4376,7 +4376,7 @@ operator was promised byte for byte.
 
 **Semver.** refactor, no bump.
 
-## Phase 43 — the updater recovers from its own wreckage (operator hit it live, 2026-08-15) ✅ SHIPPED 2026-08-15 (this commit)
+## Phase 43 — the updater recovers from its own wreckage (operator hit it live, 2026-08-15) ✅ SHIPPED 2026-08-15 (`cb07b37`)
 
 **The incident.** The operator's 0.19.1 tried to self update to 0.20.2. ShipIt crash looped: 3
 install attempts inside 18 seconds, each dying about 2 seconds after Beginning installation,
@@ -4547,7 +4547,7 @@ copy states where the transcript goes, including the cross vendor case. **Depend
 **Tier 3 on the execution gate** (confirm hash moves for every execution bearing field, at most
 2 live invocations as evidence with spend stated), Tier 2 on the UI. **Semver:** feat.
 
-## Phase 46 — Runs, GitHub Actions in the SCM view (research 45, operator approved 2026-08-15) ✅ SHIPPED 2026-08-15 (this commit)
+## Phase 46 — Runs, GitHub Actions in the SCM view (research 45, operator approved 2026-08-15) ✅ SHIPPED 2026-08-15 (`1eeddea`)
 
 **Specification.** docs/research/45-actions-in-scm.md. A fourth SCM section named Runs, shipped
 collapsed, rendered only for repos with a github.com origin: the latest 10 runs for the current
@@ -4663,7 +4663,7 @@ localStorage key count from 33 to 34.
   fire, so the sanction holds today, but it rests on one number a future editor could change
   alongside the array.
 
-## Phase 47 — explorer and git pane nits (user requested, 2026-08-15) ✅ SHIPPED 2026-08-15 (this commit)
+## Phase 47 — explorer and git pane nits (user requested, 2026-08-15) ✅ SHIPPED 2026-08-15 (`53e919d`)
 
 Four small items, one phase. Runs FIRST after Phase 42 lands.
 

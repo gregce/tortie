@@ -5,6 +5,41 @@ to a representative commit. Prose appears above those sections only when somethi
 needs explaining. Versions follow semver: the minor moves for features, the patch
 for fixes.
 
+## 0.24.2 (2026-08-15)
+
+Eight changes, and the one that matters most is invisible: the reason an update
+failed yesterday is closed. Tortie was checking for updates again after it had
+already handed one to the installer, and every check re-staged the download,
+deleting the copy the pending install was waiting on. It now stops checking once
+an install is prepared, explains itself when one fails, and offers a Repair
+Updates item that clears a wreck in one click.
+
+The rest is what you asked for while using it: your right click keeps your
+selection, ignored files look ignored, and you can watch a CI run or open a file
+in another app without leaving the window.
+
+### Added
+
+- A Runs section in the Source Control view, for repos with a github.com origin. It lists the latest 10 runs for your branch and expands to jobs and steps. A push starts a bounded watch that follows your commit's run until it finishes. It reads and never writes, and nothing about a run appears outside the panel ([`1eeddea`](https://github.com/gregce/tortie/commit/1eeddea))
+- Open With on every file row, listing the apps macOS registers for that file with the default marked, plus Other for the system chooser. Files open by spawning the system open command ([`9a69e89`](https://github.com/gregce/tortie/commit/9a69e89))
+- One structured log file per profile at `<userData>/logs/app.log`, capped at 2 MiB with one backup, with your home directory replaced by a tilde before anything is written. Crash dumps stay on your machine, and the build fails if any code ever tries to upload one ([`774132a`](https://github.com/gregce/tortie/commit/774132a))
+- A Diagnostics section in Settings with a debug switch, Open logs folder, and Copy diagnostics, which copies the boot details, the log tail and a crash dump inventory by name, size and date ([`774132a`](https://github.com/gregce/tortie/commit/774132a))
+- Environment passthrough for agents. Name variables in an `agents.json` row and Tortie reads them from your login shell at each launch and restore. Values are never written to any file ([`67ce3e3`](https://github.com/gregce/tortie/commit/67ce3e3))
+- A row spacing menu in the Explorer header, and a compact gutter toggle in History that starts commit text beside its own lanes ([`53e919d`](https://github.com/gregce/tortie/commit/53e919d))
+
+### Changed
+
+- Ignored files and folders are drawn grey in the file tree, using git itself so negation patterns are honored. Grey means ignored, not disabled ([`53e919d`](https://github.com/gregce/tortie/commit/53e919d))
+- Filtering the tree and clicking a result no longer clears the filter. Only the clear button, the filter toggle, Escape or starting a rename clears it ([`53e919d`](https://github.com/gregce/tortie/commit/53e919d))
+- In a group of two or more sessions, the focused pane carries one soft box and the others fade slightly. Headers never fade, so a session asking for input keeps a full brightness dot ([`08b4757`](https://github.com/gregce/tortie/commit/08b4757))
+
+### Fixed
+
+- Right clicking a selection in a session no longer throws it away, which had made Copy as HTML unreachable. The cause was an xterm option that selects a word on right click, on by default on macOS ([`08b4757`](https://github.com/gregce/tortie/commit/08b4757))
+- An update that fails now says why, and a wrecked updater can be repaired in one click instead of silently refusing every future update ([`cb07b37`](https://github.com/gregce/tortie/commit/cb07b37))
+- Two sessions of one agent started in the same folder no longer fight over one conversation record, and a record claimed on weak evidence can be taken back by a session that can prove ownership. A folder reached by two spellings, such as `/tmp` and `/private/tmp`, counted as two folders and let one session take another's record ([`a5c63aa`](https://github.com/gregce/tortie/commit/a5c63aa))
+- Resume confidence is honest. A record captured while another session of the same agent waited in the same folder is now marked weak rather than exact ([`a5c63aa`](https://github.com/gregce/tortie/commit/a5c63aa))
+
 ## 0.20.2 (2026-08-15)
 
 Every quit of the packaged app had been ending in a crash inside the file watcher.
