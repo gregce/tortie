@@ -39,6 +39,10 @@
   overflow-x: hidden;
   min-height: 0;
   flex: 1;
+  /* The rail is a 'dock' drag home (Phase 60): the absolute insertion
+     indicator (.drop-indicator-h) measures its `top` against this list, the
+     same way app.css positions .dock-list for the expanded density. */
+  position: relative;
   /* The `sessions` zoom region (Phase 12.11) covers the dock's list in both
      densities, so ⌘+ with the rail focused still moves what the user is
      looking at. The band above is deliberately excluded, as everywhere else —

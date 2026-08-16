@@ -29,7 +29,9 @@ export const sessions: InstalledSessionsApi = {
   // invariant: the replacement is created before anything is removed.
   restart: (sessionId) => invoke('sessions:restart', sessionId),
   // Phase 29. The Past Sessions panel's data: discarded rows, newest first.
-  listRemoved: () => invoke('sessions:listRemoved')
+  listRemoved: () => invoke('sessions:listRemoved'),
+  // Phase 60. The ask before restoring into a project that is not open.
+  askRestoreProject: (input) => invoke('sessions:askRestoreProject', input)
 };
 
 /**

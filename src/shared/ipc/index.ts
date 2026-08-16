@@ -116,8 +116,10 @@ import type {
 import type {
   ActivityEventPayloadMap,
   ActivityInvokeChannelMap,
+  AskRestoreProjectInvokeChannelMap,
   DurabilityInvokeChannelMap,
   GmuxActivityExtras,
+  GmuxAskRestoreProjectExtras,
   GmuxLoginItemExtras,
   GmuxNoticeExtras,
   GmuxPastSessionsChannelMap,
@@ -215,7 +217,8 @@ export type GmuxInvokeChannelMap = InvokeChannelMap &
   GmuxPastSessionsChannelMap &
   OpenWithInvokeChannelMap &
   ActionsInvokeChannelMap &
-  LogInvokeChannelMap;
+  LogInvokeChannelMap &
+  AskRestoreProjectInvokeChannelMap;
 
 export type GmuxInvokeChannel = keyof GmuxInvokeChannelMap;
 
@@ -251,13 +254,15 @@ export type AllEventChannel = keyof AllEventPayloadMap;
 
 /**
  * The `sessions` object the preload installs: the frozen base surface plus
- * discard, restore, restart and the Past Sessions list.
+ * discard, restore, restart, the Past Sessions list, and the Phase 60
+ * restore ask.
  */
 export type InstalledSessionsApi = GmuxApi['sessions'] &
   GmuxSessionExtras &
   GmuxSessionRestoreExtras &
   GmuxSessionRestartExtras &
-  GmuxPastSessionsExtras;
+  GmuxPastSessionsExtras &
+  GmuxAskRestoreProjectExtras;
 
 /**
  * The `projects` object the preload installs: the frozen base surface plus

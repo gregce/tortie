@@ -34,6 +34,8 @@ import { rollupDot, statusVisual } from './status';
 import { useNow } from './format';
 import { sessionAriaLabel, sessionTooltip } from './session-actions';
 import { groupTooltip } from './split/split-menu';
+import { pressBlocksSurfaceDrag, startSurfaceDrag } from './split/surface-dnd';
+import { DockIndicator } from './DockIndicator';
 import { AgentIcon, Codicon } from '../icons';
 import './session-rail.css';
 
@@ -121,7 +123,9 @@ function bodyOf(name: string, tooltip: string): { detail: string; note: string }
 // ---------------------------------------------------------------------------
 
 interface ItemProps {
-  surfaceId: string;
+  /** The surface this icon stands for — the drag path needs the whole thing. */
+  surface: Surface;
+  projectPath: string;
   /** Session id the item acts on (a group's focused leaf). */
   leafId: string;
   selected: boolean;
@@ -191,7 +195,7 @@ function RailItem(props: ItemProps): React.JSX.Element {
         aria-selected={props.selected}
         aria-label={props.label}
         data-session-id={props.leafId}
-        data-surface-id={props.surfaceId}
+        data-surface-id={props.surface.id}
         className={[
           'rail-item',
           props.selected ? 'selected' : '',
@@ -200,6 +204,24 @@ function RailItem(props: ItemProps): React.JSX.Element {
           .filter(Boolean)
           .join(' ')}
         onClick={props.onActivate}
+        onPointerDown={(e) => {
+          // Phase 60: the collapsed icon drags exactly like the expanded row —
+          // same refusals (pressBlocksSurfaceDrag), same gesture, same 'dock'
+          // home. `armPointerDrag` only takes over past its threshold, so a
+          // plain click still activates. The card is dismissed up front: a
+          // press is intent to act, not to read.
+          const anyRename = useApp.getState().renamingSessionId !== null;
+          if (pressBlocksSurfaceDrag(e, anyRename)) return;
+          cancel();
+          reveal(null);
+          startSurfaceDrag(
+            e.nativeEvent,
+            e.currentTarget,
+            props.surface,
+            props.projectPath,
+            'dock'
+          );
+        }}
         onPointerEnter={(e) => {
           // Touch/pen "hover" is a press about to happen; only a real pointer
           // gets the timed reveal.
@@ -251,16 +273,21 @@ export function SessionRail({
   const setActiveSession = useApp((s) => s.setActiveSession);
   const lastActivity = useApp((s) => s.lastActivity);
   const selectLeaf = useLayout((s) => s.selectLeaf);
+  // Phase 60: the rail is a 'dock' drag home, so it renders the dock's own
+  // insertion indicator when a drag hovers it.
+  const dockDrop = useLayout((s) => s.dockDrop);
   const now = useNow();
 
   const [card, setCard] = useState<CardSpec | null>(null);
   const [keyboard, setKeyboard] = useState(false);
+  const listRef = useRef<HTMLUListElement | null>(null);
 
   if (surfaces.length === 0) return null;
 
   return (
     <>
       <ul
+        ref={listRef}
         className="rail-list"
         role="listbox"
         aria-label="Sessions"
@@ -294,7 +321,8 @@ export function SessionRail({
             return (
               <RailItem
                 key={surf.id}
-                surfaceId={surf.id}
+                surface={surf}
+                projectPath={projectPath}
                 leafId={focusedId}
                 selected={selected}
                 attention={statuses.includes('needs_input')}
@@ -330,7 +358,8 @@ export function SessionRail({
           return (
             <RailItem
               key={surf.id}
-              surfaceId={surf.id}
+              surface={surf}
+              projectPath={projectPath}
               leafId={session.id}
               selected={selected}
               attention={status === 'needs_input'}
@@ -344,6 +373,9 @@ export function SessionRail({
             />
           );
         })}
+        {dockDrop !== null ? (
+          <DockIndicator index={dockDrop} listRef={listRef} />
+        ) : null}
       </ul>
       {card !== null ? <RailCard spec={card} /> : null}
     </>

@@ -768,12 +768,7 @@ export const KEYMAP = [
     // per-agent hotkey, so taking it would make the documented example
     // un-recordable.
     //
-    // NO `menuAction` YET. The native View menu is built in src/main/menu.ts
-    // from an id union in src/shared/ipc.ts, and both of those are outside this
-    // builder's files. Adding `show-context` there is the one-line change that
-    // puts Context in the View menu; until it lands the chord works and the
-    // menu simply does not list it. See the integration note in the phase
-    // report.
+    // Phase 60 added the View menu item, so the chord is discoverable there.
     id: 'view.context',
     keys: [k('Ctrl+Shift+C')],
     action: 'Context',
@@ -782,7 +777,8 @@ export const KEYMAP = [
     group: 'views',
     scope: 'app',
     assignable: false,
-    source: 'built-in'
+    source: 'built-in',
+    menuAction: 'show-context'
   },
   {
     id: 'view.sidebar',

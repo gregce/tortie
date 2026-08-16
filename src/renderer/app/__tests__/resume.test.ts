@@ -14,6 +14,7 @@ import { describe, expect, it } from 'vitest';
 import type { Session } from '@shared/types';
 import {
   hasRestoreMaterial,
+  pastRestoreNeedsAsk,
   restoreActionCopy,
   restoreExitedCopy,
   restoreSummary,
@@ -253,5 +254,19 @@ describe('restoreExitedCopy', () => {
     expect(copy).toContain('saved scrollback');
     expect(copy).toContain('same directory');
     expect(copy).not.toContain('resume command');
+  });
+});
+
+describe('pastRestoreNeedsAsk (Phase 60)', () => {
+  it('asks exactly when the project is not among the open tabs', () => {
+    expect(pastRestoreNeedsAsk(session(), ['/elsewhere'])).toBe(true);
+    expect(pastRestoreNeedsAsk(session(), [])).toBe(true);
+  });
+
+  it('never asks for a project that is an open tab', () => {
+    expect(pastRestoreNeedsAsk(session(), ['/repo'])).toBe(false);
+    expect(pastRestoreNeedsAsk(session(), ['/elsewhere', '/repo'])).toBe(
+      false
+    );
   });
 });

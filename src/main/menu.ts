@@ -469,9 +469,15 @@ function buildTemplate(): MenuItemConstructorOptions[] {
     {
       label: 'View',
       submenu: [
-        // Activity-bar views (round 1): the sidebar hosts one view at a time.
+        // Activity-bar views: the sidebar hosts one view at a time. Phase 60
+        // made this list tell the truth. It now lists all four views in the
+        // activity bar's own order. The shift+cmd+F chord therefore displays
+        // here and on Find in Project…, which is deliberate. The renderer
+        // keydown map runs first, so nothing fires twice.
         item('Explorer', 'show-explorer', accel('view.explorer')),
+        item('Search', 'show-search', accel('view.search')),
         item('Source Control', 'show-scm', accel('view.scm')),
+        item('Context', 'show-context', accel('view.context')),
         { type: 'separator' },
         // Session-surface orientation — a radio pair drawn from the cached
         // store value, so a rebuild reproduces the truth instead of resetting
@@ -492,6 +498,14 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         item('Toggle Editor', 'toggle-editor', accel('editor.toggle')),
         { type: 'separator' },
         item('Sessions That Need Input', 'attention', accel('session.attention')),
+        // Full screen (Phase 60). The role is emitted on every platform and
+        // that yields exactly one item. The phase first shipped a darwin
+        // guard on the belief that macOS injects its own item into any menu
+        // titled "View". Measurement refuted that belief. With the role
+        // omitted, the live menu carried zero full screen items and the
+        // ctrl+cmd+F shortcut was dead (AXFullScreen never moved). Nothing
+        // injects a second item into this app's View menu, so this role item
+        // is the only one there will ever be. Do not re-add the guard.
         { type: 'separator' },
         { role: 'togglefullscreen' },
         ...(app.isPackaged

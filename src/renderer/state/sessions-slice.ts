@@ -20,7 +20,9 @@ import type {
   SessionStatus
 } from '@shared/types';
 import type {
+  AskRestoreProjectAnswer,
   GmuxActivityExtras,
+  GmuxAskRestoreProjectExtras,
   GmuxPastSessionsExtras,
   GmuxSessionExtras,
   GmuxSessionRestartExtras,
@@ -28,7 +30,7 @@ import type {
 } from '@shared/ipc';
 // Pure over Session fields; resume.ts imports only types and state/agents,
 // and agents.ts does not import this store, so no cycle closes here.
-import { resumeReadiness } from '../app/resume';
+import { pastRestoreNeedsAsk, resumeReadiness } from '../app/resume';
 // Direct module import (NOT ../settings barrel): the barrel re-exports
 // integration.ts which imports the app store — presets.ts itself does not.
 import { defaultLaunchArgsFor } from '../settings/presets';
@@ -278,7 +280,8 @@ export const createSessionsSlice: StateCreator<
         GmuxSessionExtras &
         GmuxSessionRestoreExtras &
         GmuxSessionRestartExtras &
-        GmuxPastSessionsExtras)
+        GmuxPastSessionsExtras &
+        GmuxAskRestoreProjectExtras)
     : null;
 
   return {
@@ -642,6 +645,32 @@ export const createSessionsSlice: StateCreator<
       if (typeof sessionExtras?.restore !== 'function') return;
       if (get().restoringIds[sessionId] === true) return;
       const restore = sessionExtras.restore.bind(sessionExtras);
+      // Phase 60. A restore into a project that is not an open tab asks
+      // FIRST, before the restoring flag, so the row's button never reads
+      // "Restoring…" while the question is on screen. The open-project case
+      // never reaches this block, by control flow rather than by promise;
+      // an older preload without the extra keeps today's silent behavior.
+      const row = get().pastSessions.find((x) => x.id === sessionId);
+      if (
+        row !== undefined &&
+        pastRestoreNeedsAsk(row, get().projects.map((p) => p.path)) &&
+        typeof sessionExtras.askRestoreProject === 'function'
+      ) {
+        let answer: AskRestoreProjectAnswer = 'cancel';
+        try {
+          answer = await sessionExtras.askRestoreProject({
+            sessionName: row.name,
+            projectPath: row.projectPath
+          });
+        } catch {
+          /* an error on the ask changes nothing, which is the cancel behavior */
+        }
+        if (answer !== 'open') return;
+        // Open the tab first so the restore lands somewhere visible.
+        // addProjectPath toasts its own failures; if it failed, the restore
+        // still proceeds exactly as a closed-project restore did before.
+        await get().addProjectPath(row.projectPath);
+      }
       set((s) => ({
         restoringIds: { ...s.restoringIds, [sessionId]: true }
       }));

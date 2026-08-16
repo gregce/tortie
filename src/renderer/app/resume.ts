@@ -228,6 +228,18 @@ export function pastSessionPromise(
 }
 
 /**
+ * Phase 60. Whether restoring this past session must ask first. It must ask
+ * exactly when its project is not one of the open project tabs. Pure so the
+ * test can hold it; the store passes the live projects list.
+ */
+export function pastRestoreNeedsAsk(
+  session: Pick<Session, 'projectPath'>,
+  openProjectPaths: readonly string[]
+): boolean {
+  return !openProjectPaths.includes(session.projectPath);
+}
+
+/**
  * Body copy for the "Ready to restore" state — the honest version of the
  * armed/not-armed branch that used to be the ONLY place this was said.
  */

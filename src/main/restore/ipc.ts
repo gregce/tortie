@@ -14,6 +14,9 @@
  *   - sessions:listRemoved → GmuxCore.listRemovedSessions (Phase 29, the
  *                          Past Sessions panel's data: discarded rows,
  *                          newest removal first).
+ *   - sessions:askRestoreProject → ./ask-open-project.ts (Phase 60, the
+ *                          native question before a Past Sessions restore
+ *                          opens a project that is not an open tab).
  *   - app:getLoginItem / app:setLoginItem → 'Launch gmux at login' toggle.
  *
  * Import direction: this module imports ../ipc (getGmuxCore). ../ipc imports
@@ -24,6 +27,7 @@
 import type { IpcMain } from 'electron';
 import { getGmuxCore } from '../sessions';
 import { handle } from '../typed-ipc';
+import { registerAskRestoreProject } from './ask-open-project';
 import { getLoginItemState, setLoginItemState } from './login-item';
 
 export function registerRestoreIpc(ipc: IpcMain): void {
@@ -42,6 +46,8 @@ export function registerRestoreIpc(ipc: IpcMain): void {
   handle(ipc, 'sessions:listRemoved', async () =>
     (await getGmuxCore()).listRemovedSessions()
   );
+
+  registerAskRestoreProject(ipc);
 
   handle(ipc, 'app:getLoginItem', () => getLoginItemState());
   handle(ipc, 'app:setLoginItem', (_e, openAtLogin) =>

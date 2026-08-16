@@ -35,7 +35,12 @@ import type { PointerDragInit } from './pointer-drag';
 export type SurfaceHome = 'strip' | 'dock';
 
 const stripListSelector = '[data-slot="session-strip"] .stab-list';
-const dockListSelector = '[data-slot="session-dock"] .dock-list';
+// The dock has two densities and only one list exists at a time: the
+// expanded `.dock-list` or the collapsed rail's `.rail-list` (Phase 60).
+// Both are vertical, and rail items carry `data-surface-id` like rows do,
+// so every 'dock' code path serves both without knowing which is mounted.
+const dockListSelector =
+  '[data-slot="session-dock"] .dock-list, [data-slot="session-dock"] .rail-list';
 const leavesSelector = '[data-surface-leaves]';
 
 function rectContains(r: DOMRect, x: number, y: number): boolean {

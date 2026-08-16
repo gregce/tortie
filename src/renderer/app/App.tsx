@@ -588,6 +588,11 @@ function runMenuAction(action: AnyMenuActionWithProjects): void {
     case 'show-scm':
       showViewAction('scm');
       return;
+    // Phase 60. View > Context. Same body as the ⌃⇧C keydown branch, so the
+    // menu item and the chord cannot drift.
+    case 'show-context':
+      showViewAction('context');
+      return;
     // Phase 14 Find menu.
     case 'show-search':
       if (layerOpen) return;

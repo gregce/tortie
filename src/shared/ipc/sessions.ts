@@ -210,3 +210,51 @@ export interface GmuxPastSessionsExtras {
  * unaccelerated: restoring starts a process, so the user reads a name first.
  */
 export type PastSessionsMenuActionId = 'past-sessions';
+
+// ---------------------------------------------------------------------------
+// APPENDED by Phase 60 (the restore ask) — ONE new invoke channel. The one
+// existing line touched above is the GmuxInvokeChannelMap intersection,
+// exactly the one-line fold its own comment prescribes.
+//
+// sessions:askRestoreProject — the native question shown before a Past
+//   Sessions restore opens a project that is not an open tab. The dialog is
+//   `dialog.showMessageBox` in MAIN, parented to the app window, per the UI
+//   rule that dialogs are native. Main stats the path itself: the renderer
+//   sends only the name and path it already got from main's own
+//   sessions:listRemoved rows, so main never trusts the renderer about what
+//   is on disk. A restore into an OPEN project never reaches this channel.
+//
+// MAIN: src/main/restore/ask-open-project.ts, wired from
+// src/main/restore/ipc.ts beside sessions:restore and sessions:listRemoved.
+// ---------------------------------------------------------------------------
+
+/** What the ask must name (sessions:askRestoreProject). */
+export interface AskRestoreProjectInput {
+  sessionName: string;
+  projectPath: string;
+}
+
+/**
+ * The user's answer. 'open' means open the project and restore into it.
+ * The missing-folder dialog has one button, so it can only answer 'cancel'.
+ */
+export type AskRestoreProjectAnswer = 'open' | 'cancel';
+
+/** New invoke channel appended by Phase 60. */
+export interface AskRestoreProjectInvokeChannelMap {
+  'sessions:askRestoreProject': {
+    req: [input: AskRestoreProjectInput];
+    res: AskRestoreProjectAnswer;
+  };
+}
+
+/**
+ * OPTIONAL sessions extra, feature-detected by the renderer
+ * (`typeof window.gmux.sessions.askRestoreProject === 'function'`). Without
+ * it the restore keeps today's silent behavior, the standing extras posture.
+ */
+export interface GmuxAskRestoreProjectExtras {
+  askRestoreProject?(
+    input: AskRestoreProjectInput
+  ): Promise<AskRestoreProjectAnswer>;
+}

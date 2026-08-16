@@ -14,6 +14,7 @@ import type {
 } from './projects';
 import type { FindMenuActionId } from './search';
 import type { PastSessionsMenuActionId } from './sessions';
+import type { ContextMenuActionId } from './context';
 
 // ---------------------------------------------------------------------------
 // APPENDED by the app-shell stream (Phase 3) — new channels/types only,
@@ -368,7 +369,9 @@ export type AnyMenuActionWithProjects =
   | FindMenuActionId
   | ChromeMenuActionId
   | CloneMenuActionId
-  | PastSessionsMenuActionId;
+  | PastSessionsMenuActionId
+  // Phase 60. The View menu gained "Context", the same one-line fold.
+  | ContextMenuActionId;
 
 // ---------------------------------------------------------------------------
 // APPENDED by Phase 12.12 item 2 (the inline sessions-position toggle) — one

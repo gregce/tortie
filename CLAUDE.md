@@ -102,4 +102,5 @@ When a round mixes tiers, verify per item at its own tier rather than promoting 
 - All colors via tokens (src/renderer/styles/tokens.css); no hardcoded literals outside theme constant files.
 - No tmux vocabulary in user-facing UI (no "pane"/"window"/"prefix" — sessions have names).
 - Native macOS menus via the ui:popupMenu bridge — never DOM-drawn context menus.
+- A phase that adds, renames or removes a user-facing surface updates the native menus in the same commit, and the phase brief says what changed in the menus.
 - Status semantics: "needs input" may only be triggered by session behavior, never by the user's own input to that session.

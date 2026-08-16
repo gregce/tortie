@@ -272,3 +272,10 @@ export interface GmuxContextExtras {
     skillPinForget(path: string): Promise<void>;
   };
 }
+
+/**
+ * Phase 60. The View menu gained "Context". One id on the existing
+ * ui:menuAction channel, the same one-member shape PastSessionsMenuActionId
+ * and CloneMenuActionId use; older renderers ignore ids they do not know.
+ */
+export type ContextMenuActionId = 'show-context';

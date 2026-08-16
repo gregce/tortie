@@ -5265,7 +5265,7 @@ window raised first; proof no dialog appears on a manual check; proof a backgrou
 nothing until ready; and one full restart-and-update-now rehearsal that comes back on the new
 version. **Semver:** feat, minor, so the release this rides in becomes 0.26.0.
 
-## Phase 60 — three interaction nits before 0.26.0 (operator reported 2026-08-16) QUEUED, runs right after Phase 58, ships IN 0.26.0
+## Phase 60 — three interaction nits before 0.26.0 (operator reported 2026-08-16) ✅ SHIPPED 2026-08-16 (this commit, 0.26.1)
 
 **The operator's three reports, in his words and bound as the charter.**
 
@@ -5309,7 +5309,11 @@ machinery is not pulled in. Probes: a real drag of a collapsed session icon into
 back out, driven in the running app; a restore attempted from Past Sessions with the project
 closed, showing the ask, then accepting it and landing in the restored session; the View menu read
 back with all four views and their accelerators, and exactly one Toggle Full Screen. The dialog
-copy follows the writing rules. **Semver:** fix, patch. It ships inside 0.26.0 with Phase 58.
+copy follows the writing rules. **Semver:** fix, patch. Phase 58 shipped 0.26.0 on its own, so
+this phase ships as 0.26.1. One finding from the live probes is recorded in the fix round: the
+spec first believed macOS injects its own full screen item into any menu titled View, so the fix
+dropped the template role on darwin. Measurement in the running app showed no injection and a
+dead shortcut. The role is now emitted on every platform and the menu carries exactly one item.
 
 ## Phase 59 — grok build, the thirteenth compiled agent (research 50, operator requested 2026-08-16) QUEUED, runs after Phase 49
 
