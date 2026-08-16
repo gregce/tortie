@@ -5,6 +5,59 @@ to a representative commit. Prose appears above those sections only when somethi
 needs explaining. Versions follow semver: the minor moves for features, the patch
 for fixes.
 
+## 0.26.1 (2026-08-16)
+
+Five versions in one release, and the two you will feel first are the tmux that
+ships inside the app and the update flow that stopped interrupting you.
+
+Updating from 0.24.3 changes nothing about your running sessions. The bundled
+tmux takes over only when a fresh server starts, which in practice means after
+your next reboot. Until then everything runs exactly as it did.
+
+### Added
+
+- Tortie carries its own tmux 3.7b, signed inside the app, so a fresh Mac needs
+  nothing installed. A new version becomes the server only at cold start, and
+  Tortie never restarts or upgrades a server that is already running, so no
+  session is ever disturbed by an update. If the app meets a server version
+  pair that was never tested, it refuses to attach and says so with a screen
+  naming both versions, instead of risking your sessions ([`2c225e4`](https://github.com/gregce/tortie/commit/2c225e4))
+- A small ring above the settings gear carries the whole update journey. It
+  fills with real download progress, hovering names the stage in words, and
+  clicking it opens a native menu with the choices for that moment: Restart
+  and update now, or Install when you quit. When a check fails it offers Why
+  it failed and Repair updates. One gap to know: the home screen has no
+  activity bar, so a check started with no project open shows no ring until
+  the update is staged ([`9eb2b7f`](https://github.com/gregce/tortie/commit/9eb2b7f))
+- Restoring a past session whose project is not open now asks first, with a
+  native dialog naming the project. Open and restore, or cancel. If the folder
+  is gone from disk, it says that instead ([`cc60680`](https://github.com/gregce/tortie/commit/cc60680))
+
+### Changed
+
+- The update dialogs are gone. The ring replaced the one that appeared after a
+  manual check and the one that announced a staged install. Background checks
+  stay silent until an update is actually ready, exactly as before ([`9eb2b7f`](https://github.com/gregce/tortie/commit/9eb2b7f))
+- The View menu lists all 4 views, Explorer, Search, Source Control and
+  Context, each with its shortcut ([`cc60680`](https://github.com/gregce/tortie/commit/cc60680))
+- When an agent will not start because its interpreter is missing, Tortie now
+  says so before launching anything, names the missing program, and offers a
+  way forward plus a Start it anyway button. The old screen recommended the
+  exact npm install that caused the problem, and it is gone ([`2b4ee2f`](https://github.com/gregce/tortie/commit/2b4ee2f))
+
+### Fixed
+
+- Sessions can be dragged into and out of a group when the session list is
+  collapsed to icons, the same as when it is expanded ([`cc60680`](https://github.com/gregce/tortie/commit/cc60680))
+- An agent that starts and then dies within seconds now shows the last lines
+  it printed, in its own words, instead of a bare exit code. Restarting is
+  offered with an honest note about whether it will help ([`2b4ee2f`](https://github.com/gregce/tortie/commit/2b4ee2f))
+- Tortie waits up to 10 seconds for your login shell to answer instead of 3,
+  because slow shells made Tortie lose track of where node lives and agents
+  installed through npm then failed to start ([`2b4ee2f`](https://github.com/gregce/tortie/commit/2b4ee2f))
+- Harness and test launches of the app no longer touch the macOS keychain, so
+  automated runs cannot queue keychain dialogs on your screen ([`0d92728`](https://github.com/gregce/tortie/commit/0d92728))
+
 ## 0.24.3 (2026-08-15)
 
 One fix, and it is the thing that made the file tree hard to look at. Grey rows
