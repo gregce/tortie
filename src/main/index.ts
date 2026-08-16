@@ -136,6 +136,21 @@ const bootLog = getLog('boot');
 const harnessLaunch =
   (process.env['GMUX_SMOKE'] ?? '') !== '' ||
   (process.env['GMUX_SHOT'] ?? '') !== '';
+// A harness launch never touches the macOS keychain (2026-08-16 incident).
+// Chromium stores its safe-storage key in the DEFAULT keychain, and a probe
+// that redirects HOME has no keychain there, so macOS pops "A keychain
+// cannot be found to store ..." and WAITS. Keychain prompts queue
+// system-wide behind one modal, so one unanswered dialog on an unattended
+// machine blocks every later process that touches the keychain. That chain
+// hung conformance:resume:capture for a whole evening, because it is the
+// one gate that spawns real agent CLIs and claude reads its OAuth
+// credentials from the keychain at boot. --use-mock-keychain is Chromium's
+// own switch for exactly this case: a deterministic in-process key, no
+// keychain access, no dialog. Harness profiles are throwaway, so nothing of
+// value is ever stored under the mock key. Normal launches are unaffected.
+if (harnessLaunch) {
+  app.commandLine.appendSwitch('use-mock-keychain');
+}
 if (!harnessLaunch) {
   if (!app.requestSingleInstanceLock()) {
     const profile = app.getPath('userData');

@@ -77,7 +77,24 @@ const child = spawn(command, {
   env: { ...process.env, GMUX_TMUX_SOCKET: socket }
 });
 
+// One hint, once, if the harness runs long (2026-08-16 incident). A queued
+// macOS keychain alert blocks every process that touches the keychain, and
+// from a log file that looks like a silent hang with no cause. The full
+// conformance roundtrip legitimately exceeds this timer, so the line is
+// informational and nothing is killed.
+const hintTimer = setTimeout(() => {
+  console.error(
+    '[harness-socket] still running after 180 s. If there has been no ' +
+      'output for a while, look at the SCREEN of this machine for a macOS ' +
+      '"Keychain Not Found" alert. Keychain prompts queue system-wide, and ' +
+      'one unanswered dialog blocks every process that touches the ' +
+      'keychain, including agent CLIs reading their credentials.'
+  );
+}, 180_000);
+hintTimer.unref();
+
 child.on('close', (code, signal) => {
+  clearTimeout(hintTimer);
   void teardown().finally(() => {
     process.exit(signal ? 1 : (code ?? 1));
   });

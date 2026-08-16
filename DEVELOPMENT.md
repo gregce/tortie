@@ -117,6 +117,19 @@ would strand it:
 | `window.gmux` preload bridge, `gmux-asset:` scheme, `gmux.*` localStorage keys, `gmux-*` CSS classes | Private to the process. The localStorage keys in particular carry the user's tab order, layouts and one-time-tip flags. |
 | `GMUX_*` env vars and `[gmux]` log prefixes | Developer surface: harness switches and greppable log lines, never shown in the UI. |
 
+## The keychain and the harness (2026-08-16)
+
+Harness launches run Chromium with `--use-mock-keychain`, appended in `src/main/index.ts`
+whenever `GMUX_SMOKE` or `GMUX_SHOT` is set. Do not remove it, and do not launch Electron
+with a redirected HOME outside those modes. The reason is an incident. Chromium stores its
+safe-storage key in the default keychain, a probe with a redirected HOME has no keychain
+there, and macOS answers with a modal alert reading "A keychain cannot be found to store".
+Keychain prompts queue system-wide behind one modal. One unanswered dialog on an unattended
+machine therefore blocks every later process that touches the keychain, including claude
+reading its own credentials at boot, and the visible symptom is a harness that hangs with no
+output and no error on every tree at once. If a harness ever hangs that way again, look at
+the machine's screen first.
+
 One more path belongs in the same list, and it is not a `gmux` spelling. It is
 execution bearing all the same:
 

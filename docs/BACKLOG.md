@@ -4833,8 +4833,22 @@ phase did not cause it and the hang is a pre-existing condition on this machine.
 gate is required by CLAUDE.md only for commits under `agents/registry.ts`,
 `manifest/harvest/**`, `manifest/agents.ts` or `restore/**`, and this phase touches none
 of them. `smoke:t3` covers the restore path and it passed on the exact committed tree,
-on both a claude and a non-claude shape. Somebody should find out why the conformance
-harness stopped answering before the next phase that genuinely needs it.
+on both a claude and a non-claude shape.
+
+**RESOLVED 2026-08-16, and the harness was never broken.** The hang was a queued macOS
+keychain alert. A probe the evening before launched the dev Electron with HOME redirected
+into a scratch directory, where no login keychain exists, so Chromium's safe-storage layer
+made macOS pop "A keychain cannot be found to store ...". Keychain prompts queue
+system-wide behind one modal, the operator was away, and from then on every process that
+touched the keychain blocked in line behind the unanswered dialog. conformance:resume:capture
+is the one gate that spawns real agent CLIs, and claude reads its OAuth credentials from the
+keychain at boot, which is why this gate hung on every tree while smoke:t1 and smoke:t3,
+which spawn no real agent, kept passing. The operator cancelled the queued dialogs the next
+morning and the gate passed unchanged in 18.1 s, 6 PASS and 0 FAIL, which is the experiment
+that confirmed the cause. The fix that prevents a recurrence is in the commit that carries
+this paragraph: every harness launch now runs Chromium with --use-mock-keychain, so no probe
+can touch a keychain or pop that dialog again, and build/harness-socket.mjs prints one hint
+naming this failure mode when a harness runs long.
 
 ## Phase 47.1 - the ignored dimming strobe (operator reported against 0.24.2) SHIPPED 2026-08-15 (`3bbc3e6`, 0.24.3)
 
