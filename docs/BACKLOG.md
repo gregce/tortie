@@ -5351,3 +5351,42 @@ now carries GROK_PRIVACY_NOTICE_ROLLOUT=0, which keeps the banner out of Tortie 
 touching any sharing choice. Research 50 §8 records the mechanism. After the fix the roundtrip
 passed in 26.9 s with content recall. The rebase onto Phase 49 added the row's AgentInstallInfo
 from research 50 §3.12 and pinned x.ai in the installs gate.
+
+## Phase 61 — Finder opens things INTO Tortie (operator requested 2026-08-16) QUEUED
+
+**The operator's words.** "Allow it to open markdown, html and other source files AND folders that
+it natively supports. Opening binaries that aren't images should not be supported." The request
+came from a Finder screenshot where the Open With menu for README.md listed 22 apps and not
+Tortie.
+
+**What ships.** Tortie appears in Finder's Open With menu, and receives what is opened.
+
+- FOLDERS open as a project tab, through the pending-open machinery Phase 51 built, cold and warm.
+- FILES Tortie can natively show, being markdown, HTML, source and text files, and images, open
+  the right project and the file. The project is the nearest enclosing git repository root above
+  the file, or the file's parent folder when no repository exists. The file opens in the editor or
+  its viewer.
+- BINARIES THAT ARE NOT IMAGES are NOT declared, so Finder does not offer Tortie for them. One can
+  still arrive by force through Other in the Open With chooser; that opens the project and shows
+  the existing no-viewer state for the file, with one log line, and never errors modally.
+- THE CAP from Phase 51 carries over verbatim: an arriving path opens a project and a file and can
+  NEVER start an agent, select an agent or run a command.
+
+**Mechanics.** CFBundleDocumentTypes reach Info.plist through the packaging configuration, with
+the folder type declared by its UTI and the file types by extension, role Viewer so Tortie never
+seizes anyone's default. One module owns the openable-extension list, derived from what the app
+can actually display per research 39 part 2, and a unit test asserts the packaging declaration and
+that module agree, so the two can never drift. Main gains one open-file event handler feeding the
+same pending-open path as Phase 51; macOS delivers both files and folders through it.
+
+**Verification honesty, decided up front.** The Finder menu itself only reflects PACKAGED,
+LaunchServices-registered apps, and the verifier must NEVER register a development build carrying
+com.itavero.tortie with lsregister, because that would fight the operator's installed app for file
+associations. So the phase proves: the built Info.plist carries exactly the declared types and not
+one more, asserted on a package:dir build; the open-file delivery proven live by opening files and
+folders against a DEV instance with an explicit app target, which macOS delivers regardless of
+registration; the git-root project choice, the parent-folder fallback, the image path, the forced
+non-image binary path and the cap, each driven live with a screenshot. The operator's acceptance
+step, stated rather than implied: after the next release installs, right-click a markdown file in
+Finder and see Tortie in Open With. **Tier 2** with those live probes. **Semver:** feat, minor,
+0.30.0.
