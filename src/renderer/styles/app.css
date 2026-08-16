@@ -373,8 +373,11 @@
   align-items: center;
   /* Tight inside a group (DESIGN.md §1.7): the actions are ONE group, and
      the distance from the title to the first of them is set by the spacer,
-     not by this. 4px also buys the room the Explorer's five actions need to
-     stay on the row at the 220px minimum sidebar width. */
+     not by this. 4px also buys the room the Explorer's six actions need to
+     stay on the row at the 220px minimum sidebar width. Phase 47 added the
+     sixth (row spacing): six 20px buttons, seven 4px gaps and 24px of padding
+     come to 172px, so the title still has 48px at that minimum and clips to
+     an ellipsis rather than pushing an action off the row. */
   gap: var(--space-2);
   height: 36px;
   flex: 0 0 36px;
