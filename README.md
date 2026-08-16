@@ -33,43 +33,40 @@ sessions.
   <img src="tortie.png" alt="The Tortie window: project tabs, session list, terminal and git sidebar" width="900" />
 </p>
 
-## Features
+## Key Features
 
-### Durable agent sessions
+### One Window pane for your projects
 
-- **Quit the app and the agents keep working.** Sessions live outside the app process, so the window is just a view.
-- **Reboot and everything comes back.** Scrollback replayed, and each agent's own resume command typed and waiting for your Enter.
-- **Your session list keeps verified backups of itself,** refreshed automatically as it changes.
-- **If a session didn't come back, Tortie says so.** No green dot on a dead session.
+- **Every project is a tab.** Switch with `⌘1` through `⌘9`, and each tab scopes its own sessions, git state, file tree explorer and editor.
+- **Universal project search.** Quickly find a file in your active project or any opened project with cmd+P. 
+- **Context is first class.** The new context pane lists every skill, MCP server, hook, plugin and instruction file on your machine, per agent. Install skills from Skills.sh built in.
 
-### One window for your projects
+### Durable Agent Sessions
 
-- **Every project is a tab.** Switch with `⌘1` through `⌘9`, and each tab scopes its own sessions, git state, tree and editor.
-- **See who needs you at a glance.** Status dots on every session, and `⌘J` jumps to whichever one is waiting on you.
-- **Split, zoom and drag.** Drop one session onto another to split, zoom any pane, drag an image from the tree into an agent.
-- **Nothing new to learn.** Sessions have names. No prefix keys, no detach commands, no config files.
+- **Quit the app and the agents keep working.** Sessions are named and live outside the app process in a private tmux server so the window is just a view.
+- **Reboot and everything comes back.** Scrollback replayed. Each agent's own resume command is typed and waiting for you to hit Enter.
+- **Split, zoom and drag.** Drop one session onto another to split, zoom any pane, drag an image from the tree into an agent. Learning tmux is not required.
+- **Your session list keeps backups,** refreshed automatically as it changes.
 
-### The agents
+### The Agents
 
-- **Twelve agents supported out of the box.** Claude Code, Codex, Cursor, Gemini, Qwen, Muse, Pi, CodeWhale, Antigravity, Droid and plain shells, each with its own icon, hotkey and launch flags.
-- **Add your own with one JSON file.** No rebuild, nothing in the file runs as code, and anything that could start a process asks you first.
-- **See what your agents actually load.** The Context view lists every skill, MCP server, hook, plugin and instruction file on your machine, per agent, and installs skills from GitHub.
-- **Conversations are captured.** The bundled SpecStory integration records each session's conversation as it happens.
+- **Twelve agents supported out of the box.** Claude Code, Codex, Cursor, Gemini, Qwen, Muse, Pi, CodeWhale, Antigravity, Droid, Muse, Grok and plain shells, each with its own icon, settable hotkey and launch flags.
+- **Add your own with one JSON file.** No rebuild required. Anything that could start a process asks you first.
+- **Conversations are captured.** The bundled SpecStory integration can record each session's conversation as markdown as it happens.
 
 ### Familiar IDE features
 
-- **A full git sidebar.** Staging, history, branches and a commit graph, built from VS Code's own parsers.
-- **Click a file, see the diff.** Monaco opens modified files as a diff against HEAD by default, and plain editing is one toggle away.
-- **A decorated file tree** with git status colors and the icons you are used to.
+- **A full git sidebar.** Staging, history, branches, a rich commit graph, built from VS Code's own parsers. See action runs in Tortie if you have gh cli installed.
+- **Click a file, see the diff.** Monaco opens modified files as a diff against HEAD by default, and plain editing is a toggle away.
+- **A decorated file tree** with git status colors, the icons you are used to and fast file search (very helpful!)
 - **Search everything at once.** ripgrep across every open project, fast on large trees.
 - **Rich previews.** Markdown and HTML render in place. Untrusted pages open in a sandboxed frame with no scripts and no network.
 
-## What Tortie refuses to do
+## What Tortie doesn't
 
-- It never touches your own tmux server or `~/.tmux.conf`.
-- It never adopts a terminal session it did not create.
-- It never renders a key file or anything that looks like a secret as a friendly preview.
-- It never runs third party plugin code inside its own processes. Adding an agent is configuration, not code.
+- It won't touches your own tmux server or `~/.tmux.conf`.
+- It won't render a key file or anything that looks like a secret as a friendly preview.
+- It won't runs third party plugin code inside its own processes. Adding an agent is configuration, not code.
 
 ## Install
 
