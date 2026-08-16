@@ -5391,7 +5391,22 @@ step, stated rather than implied: after the next release installs, right-click a
 Finder and see Tortie in Open With. **Tier 2** with those live probes. **Semver:** feat, minor,
 0.30.0.
 
-## Research 51 — many machines, one calm window (operator requested 2026-08-16) QUEUED AS RESEARCH
+## Research 51 — many machines, one calm window (operator requested 2026-08-16) ✅ DELIVERED 2026-08-16, docs/research/51-remote-machines.md, NOTHING QUEUED FROM IT
+
+**The verdict, recorded.** The thin design wins: Tortie drives each remote machine's OWN tmux over
+plain /usr/bin/ssh, control mode for events and ssh -t for panes, and installs NOTHING remotely.
+The federated far-side-Tortie design is rejected for now on the residency contradiction and its
+falsified safety claims, with its groundwork overlap recorded. The standing law that Tortie never
+builds remote infrastructure for RENTED compute stands untouched; this is about machines the
+operator owns on his own tailnet, which research 28 always named first choice.
+
+**The ladder is M0 to M6 in section 6, and nothing below M0 ships before it.** M0 fixes a live
+LOCAL defect that four machines would multiply by four: the unknown status has no producer, and
+refresh() still flips every non-exited row to restorable on TMUX_UNREACHABLE, reading a dropped
+link as a dead process. Both adversaries agreed M0 is unconditional and first. Restore stays
+REFUSED for every remote row until M5's fault matrix runs green against a real tailnet machine.
+Nine open questions are priced in section 7, with the tmux dialect measurement gating M2. Queue
+nothing from this ladder without the operator's word.
 
 **The operator's words.** "What's the best terminal emulator etc out there when running multiple
 agents on multiple machines? I have been using four machines over tailscale where all of them run
