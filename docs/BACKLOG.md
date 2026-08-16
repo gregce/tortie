@@ -5390,3 +5390,69 @@ non-image binary path and the cap, each driven live with a screenshot. The opera
 step, stated rather than implied: after the next release installs, right-click a markdown file in
 Finder and see Tortie in Open With. **Tier 2** with those live probes. **Semver:** feat, minor,
 0.30.0.
+
+## Research 51 — many machines, one calm window (operator requested 2026-08-16) QUEUED AS RESEARCH
+
+**The operator's words.** "What's the best terminal emulator etc out there when running multiple
+agents on multiple machines? I have been using four machines over tailscale where all of them run
+inside tmux and I access them from the terminal on my mac, which feels very clunky." He wants to
+think through what "with intuitive menus, options to connect to SSH that are very friendly in the
+same way we already handle minimizing tmux complexity from the user" could look like, "and still
+provide similar guarantees for session durability etc, which is important," toward "a killer
+design."
+
+**The base it builds on, rather than redoing.** docs/research/28-remote-sessions.md already ran
+this question once at 1201 lines with a substrate survey, a build-versus-buy call and a phased
+plan, and it was never queued. The world moved since it was written: Phase 41 bundled a pinned
+tmux client, the tested wire-pair discipline exists, the attach host was reshaped in Phase 42, and
+Phases 48 and 49 built the launch preflight and the install map. The research DISTILLS 28 first,
+marks what its conclusions survive and what changed, then designs against the operator's concrete
+scenario: 4 machines, tailscale, tmux everywhere, one Mac in front.
+
+**What it must answer.** The competitive field today for multi-machine agent work; how a remote
+machine becomes a first class thing in Tortie with the same identity rules, being sessions
+addressed by id and never adopted when unmarked; what durability honestly means when the server is
+remote, including partition, reconnect, two Torties against one remote server, and where the
+manifest's truth ends; the friendly SSH surface, profiles, keys and tailscale specifics, with the
+same no-vocabulary discipline that hides tmux today; and a phase ladder with costs. Deliverable is
+docs/research/51-remote-machines.md in the house style with a verdict table and a what-is-not-true
+section. Nothing is built from it without the operator's word.
+
+## Phase 62 — a minimal theme system: highlight schemes and a contrast lift (operator requested 2026-08-16) QUEUED, BUILDING
+
+**The operator's words.** "Build a minimal theme system into settings that allows for the color
+scheme of the highlighting to be changed BUT also to enable brightening of contrast etc as on some
+less vivid displays some of tortie is quite muted. This would supplement the brightness
+capabilities on the mac and make it easier to see with sharpness tortie in its full glory. Where an
+external approach can be used and it retains or minimizes custom code, please investigate but then
+build a candidate solution." His message referenced an image that did not arrive; the charter
+reads "the highlighting" as the selection and focus highlight family, and the token mechanism
+covers any color family if he meant a different one.
+
+**What ships.** An Appearance section in Settings with two controls and nothing else.
+
+- HIGHLIGHT SCHEME: a small set of preset accent schemes for the selection and focus highlight
+  family, applied by overriding the existing custom properties in
+  src/renderer/styles/tokens.css at runtime. Presets only, no free color picker, because minimal
+  is the operator's word. The default preset is byte-identical to today.
+- CONTRAST: a stepped control, Normal, Raised, High. Raised and High transform the token palette
+  perceptually, lifting lightness contrast and chroma so muted surfaces separate on dim displays.
+  Normal changes nothing: a user who never opens the section sees today's exact colors.
+
+**The external approach, per the assemble rule.** The spec stage investigates and picks the
+smallest maintained color library for the perceptual math, e.g. culori, MIT, tree shakeable, OKLCH
+transforms, against colorjs.io, and vendors nothing hand rolled beyond the token override wiring.
+The library runs at build or in the renderer as a compiled dependency, which the charter permits
+and Phase 23 does not forbid. Settings persistence rides the existing settings store, and any new
+gmux.* key or channel is declared with the baseline re-based in the same commit.
+
+**What must stay true.** All colors via tokens with no literals introduced, asserted by the
+existing discipline. The terminal's own xterm theme is OUT of scope for this phase except the
+selection highlight if it shares a token. Status semantics and every other UI rule untouched. The
+native menus gain nothing, because Settings sections are not menu surfaces, and the CLAUDE.md
+menu rule is therefore not triggered.
+
+**Tier 2.** Screenshots of each preset and each contrast step with the window raised; a byte
+assertion that Normal plus the default preset renders today's tokens exactly; persistence across a
+relaunch; and the drift test that the preset definitions cover every token they claim to.
+**Semver:** feat, minor, 0.31.0.
