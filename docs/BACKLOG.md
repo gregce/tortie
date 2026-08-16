@@ -4997,3 +4997,66 @@ Recorded here so they are findable rather than forgotten.
 | docs/research/28-remote-sessions.md | 1201 lines | Remote sessions, and the durability that would have to come first | Never queued. The largest piece of unscheduled thinking in the repository |
 | docs/research/38-agent-licences.md | 672 lines | The licence of every agent harness and what each means for shipping publicly | Written before going public, which then happened. It is a reference, not work |
 | docs/research/46-herder-study.md | 320 lines | A study of another tool | A study. It was never meant to produce a phase |
+
+---
+
+# The Arch pane, from research 49 (2026-08-15) RECORDED, NOT QUEUED
+
+Specification: docs/research/49-arch-pane.md, 2818 lines. The operator asked for a first class Arch
+pane beside Explorer, Search, SCM and Context, mapping the project architecture onto an explorable
+canvas. The research says build the extractor, do not build the canvas yet, and put a measured gate
+between them. Nothing below is queued.
+
+**Why the canvas waits.** The recommended design's own import rules were run over six of the
+operator's repositories. On gmux, across 621 non-test source files, the complete set of distinct
+cross-group edges is three, and all three point at `shared`. There are zero edges between main,
+renderer and preload, which are the three processes that make up the product. That is structural
+rather than a bug: 65 renderer files call `window.gmux` and none import the preload, because that is
+what a bridge is for, and the 149 declared invoke channels are strings rather than imports. An
+import graph draws the couplings a codebase makes cheap and misses the ones it deliberately makes
+expensive. The other five repositories are denser, at 14, 13, 8, 6 and 0 edges, so gmux is the least
+favourable case rather than a typical one. The measured median is 7.
+
+**The gate, and it has a number.** Proceed to the canvas only if the median repository in the
+operator's own set produces at least 8 distinct cross-group edges at the level 0 partition after
+alias resolution. Eight is the low end of GitDiagram's shipped 8 to 30 edge budget, the only shipped
+per-level budget the survey found. Measured today by a stand-in script the median is 7, so the gate
+does not pass as things stand. Two of the six clear it comfortably. Phase B computes these edges
+anyway, so the gate is free, and it must be re-run with the real extractor before it decides
+anything.
+
+**The cost the gate is weighed against.** A canvas slice is an estimated 7,500 to 11,500 insertions
+across 40 to 55 files, being an SVG surface, a layout engine binding, a layout reconciliation
+algorithm, a graph keyboard model with no ARIA pattern behind it, a new EditorMode arm and a
+conformance gate. The largest recent phase in this repository is 4,982 insertions across 34 files
+and the median is about 2,300. So the canvas is two to three phases, and on this repository it would
+buy a drawing with three edges.
+
+| # | Phase | What ships | Owned code, estimated | Tier | Tokens |
+| --- | --- | --- | --- | --- | --- |
+| 52 | Map freshness | One `git log` per existing AS-BUILT-ARCHITECTURE.md, comparing the document's last commit to HEAD, shown as a plain sentence. No pane, no drawing, no schema | 100 to 300 lines | 1 and 2 | 0 |
+| 53 | Structure and provenance | Import edges from five tree-sitter queries, the alias resolver, nine provenance classifiers each with an evidence receipt, an edge table in the disposable symbols.db, surfaced as a SIDEBAR LIST. No MCP and no drawing | 1,500 to 2,500 lines | 2, plus a conformance gate | 0 |
+| — | **The gate** | Re-run the real extractor and count. Pass value is a median of 8 | 0 | n/a | 0 |
+| 54 | Serve the structure to the user's own agents over MCP stdio | Hand-written newline-delimited JSON-RPC framing, no SDK, passed on the argv of a session the user creates | about 400 lines | **3**, because the argv lands in the manifest and touches restore | 0 |
+| 55 | The canvas | ONLY if the gate passes | 4,000 to 7,000 lines | 2 | 0 |
+| 56 | The names overlay | `.tortie/arch.names.json`, its schema, its validator, rename following, the naming-prompt composer | 800 to 1,200 lines | 2 | About $0.04 to $0.15 per optional naming pass |
+| 57 | The checkable contract | Coverage percentage, divergences at weight 2 or more, the unmapped-file check | 400 to 700 lines | 2 | 0 |
+
+**Phase 52 is the cheapest useful thing in the whole document and it needs no decision.** Eight of
+the operator's 30 AS-BUILT-ARCHITECTURE.md documents are more than 250 commits behind HEAD and one
+is 583 behind. Telling him that costs one `git log` per document and no tokens.
+
+**The Zen question, which the operator must answer before phase 55 or 56.** The research asks for
+two additive edits and rejects two others it had considered. It also leaves one blocking choice
+open, being whether a person may move a box the code did not put there. The Zen wording depends on
+that choice, so both candidate closing sentences are printed side by side in section 4.2.3 and one
+accept-or-reject covers both. Do not build 55 or 56 until he has answered.
+
+**What is not true, and it matters.** Three of the four competing designs were never delivered,
+because their agents died on API errors mid-response. Only the static-first design reached the
+judges, so the three judges scored one design rather than choosing among four, and nine of the
+twelve adversarial attacks had no target. The document says this plainly in section 12.1 and marks
+the missing attacks in its own table. The edge counts are real measurements but were taken with a
+100-line stand-in script rather than the real extractor, so they are a floor. The wall, the voice
+and the live collaborators from the operator's north star are not deliverable under the charter, and
+section 12.5 says so rather than implying otherwise.
