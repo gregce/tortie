@@ -62,7 +62,7 @@ sessions.
 - **Search everything at once.** ripgrep across every open project, fast on large trees.
 - **Rich previews.** Markdown and HTML render in place. Untrusted pages open in a sandboxed frame with no scripts and no network.
 
-## What Tortie doesn't
+## What Tortie doesn't do
 
 - It won't touches your own tmux server or `~/.tmux.conf`.
 - It won't render a key file or anything that looks like a secret as a friendly preview.
