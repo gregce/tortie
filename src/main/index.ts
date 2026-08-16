@@ -70,6 +70,9 @@ import {
   pickShellOpenPath,
   setPendingShellOpen
 } from './shell';
+// Phase 61: a Finder open may carry a file. The arrival module decides the
+// project folder for it, or refuses, and this file only logs and stores.
+import { resolveShellArrival } from './shell/arrival';
 // Phase 24: self update. The updater engine is one module, the post update
 // self check runs once per version change, and updates:state feeds the
 // Settings row. All three are wired below on normal startup paths only.
@@ -230,17 +233,52 @@ function noteShellOpenArgs(rawArgs: string[]): boolean {
 // harness argv is all switches, which the acceptance skips silently.
 noteShellOpenArgs(process.argv.slice(app.isPackaged ? 1 : 2));
 
-// The Apple open-file event — `open -a Tortie <folder>` and a Dock drop.
-// Registered inside will-finish-launching so a COLD `open -a Tortie
-// <folder>` is caught too (the event fires before ready on a cold start;
-// the hydrate pull delivers it, because no window exists to nudge yet). A
-// file path arriving here is dropped with its reason logged: folders only,
-// because a project tab is the only thing the cap allows.
+// The Apple open-file event — `open -a Tortie <path>`, a Dock drop, and
+// since Phase 61 every Finder "Open With" delivery. Registered inside
+// will-finish-launching so a COLD open is caught too (the event fires
+// before ready on a cold start; the hydrate pull delivers it, because no
+// window exists to nudge yet). A folder opens as a project tab. A file
+// opens its project first (the nearest git repository root above it, or
+// its parent folder), then opens in a tab. The cap holds: an arriving path
+// can never start an agent, select an agent or run a command, and macOS
+// sends one event per selected file, so anything beyond one path per event
+// does not exist. Each arrival replaces the pending pair whole; the last
+// one wins. The argv path (`tortie <file>`) is unchanged and still accepts
+// folders only; Finder never uses argv.
 app.on('will-finish-launching', () => {
   app.on('open-file', (event, path) => {
     event.preventDefault();
-    const opened = noteShellOpenArgs([path]);
-    if (!opened || !app.isReady()) return;
+    const shellLog = getLog('shell');
+    const arrival = resolveShellArrival(path, app.getPath('home'));
+    // One log line per outcome. For a file, the no-viewer line wins over
+    // the project lines, because it explains what the tab will show.
+    if (arrival.kind === 'refused') {
+      shellLog.info(`a Finder open was ignored: ${path} (${arrival.reason})`);
+      return;
+    }
+    if (arrival.kind === 'folder') {
+      shellLog.info(`opening folder from Finder: ${arrival.folder}`);
+      setPendingShellOpen(arrival.folder, null);
+    } else {
+      if (!arrival.displayable) {
+        shellLog.info(
+          `opening file from Finder: ${arrival.file} ` +
+            '(Tortie has no viewer for this file type, so its tab will say so)'
+        );
+      } else if (arrival.repository) {
+        shellLog.info(
+          `opening file from Finder: ${arrival.file} (project ${arrival.folder})`
+        );
+      } else {
+        shellLog.info(
+          `opening file from Finder: ${arrival.file} ` +
+            '(no git repository above it, so the project is its parent ' +
+            `folder ${arrival.folder})`
+        );
+      }
+      setPendingShellOpen(arrival.folder, arrival.file);
+    }
+    if (!app.isReady()) return;
     showAppWindow();
     nudgeRenderer();
   });

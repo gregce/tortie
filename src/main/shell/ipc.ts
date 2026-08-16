@@ -1,5 +1,8 @@
 /**
  * The `shell:*` registrar (Phase 51). Four channels, none with arguments.
+ * Since Phase 61 the pending pull returns the folder-and-file pair
+ * (ShellPendingOpen) instead of a bare folder string. Same channel, same
+ * take-and-clear read, both halves delivered together.
  *
  * Nothing to dispose: no watcher, no timer, no child process. Nothing here
  * spawns anything, ever — install writes one file, remove deletes one file

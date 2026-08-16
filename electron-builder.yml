@@ -303,6 +303,55 @@ asarUnpack:
 npmRebuild: true
 mac:
   category: public.app-category.developer-tools
+  # Phase 61: Finder offers Tortie in Open With for folders, markdown, HTML,
+  # source and text files, and images. The rules, so a later edit does not
+  # bend them. Every entry is role Viewer and rank Alternate, because Tortie
+  # never seizes anyone's default app. The extension lists are owned by
+  # src/shared/openable.ts, and src/shared/__tests__/openable-drift.test.ts
+  # holds this block equal to that module, extension for extension, in
+  # order. build/assert-document-types.mjs then holds the packaged
+  # Info.plist equal to this block. The Folder entry is the one UTI entry,
+  # because folders have no extension, and it is the only entry with no
+  # extension list.
+  #
+  # This is extendInfo and not fileAssociations, on purpose. electron-builder
+  # applies extendInfo to the generated Info.plist by shallow key assignment,
+  # so an extendInfo CFBundleDocumentTypes key replaces whatever
+  # fileAssociations generated. Folders need the public.folder UTI, which
+  # fileAssociations cannot express, so extendInfo must carry the folder
+  # entry, and therefore it carries all of them. One home for the whole
+  # declaration, never a half declaration split across two mechanisms.
+  extendInfo:
+    CFBundleDocumentTypes:
+      - CFBundleTypeName: Folder
+        CFBundleTypeRole: Viewer
+        LSHandlerRank: Alternate
+        LSItemContentTypes:
+          - public.folder
+      - CFBundleTypeName: Markdown document
+        CFBundleTypeRole: Viewer
+        LSHandlerRank: Alternate
+        CFBundleTypeExtensions: [md, markdown, mdown, mkd, mdx]
+      - CFBundleTypeName: Web page
+        CFBundleTypeRole: Viewer
+        LSHandlerRank: Alternate
+        CFBundleTypeExtensions: [html, htm]
+      - CFBundleTypeName: Image
+        CFBundleTypeRole: Viewer
+        LSHandlerRank: Alternate
+        CFBundleTypeExtensions:
+          [apng, avif, bmp, gif, ico, jpeg, jpg, png, svg, webp]
+      - CFBundleTypeName: Source or text file
+        CFBundleTypeRole: Viewer
+        LSHandlerRank: Alternate
+        CFBundleTypeExtensions:
+          [
+            ts, tsx, mts, cts, js, jsx, mjs, cjs, json, jsonc, css, scss,
+            less, py, rb, go, rs, java, kt, swift, c, h, cc, cpp, hh, hpp,
+            m, mm, cs, php, sh, bash, zsh, fish, ps1, sql, lua, pl, r,
+            yaml, yml, toml, ini, conf, txt, log, csv, tsv, xml, vue,
+            svelte, graphql, gql, proto
+          ]
   # Phase 12.85: build/icon.icns is a byte-for-byte copy of the brand
   # package's docs/brand/tortie/macos/Tortie.icns (the seated sentinel).
   # `npm run icon` re-copies it; nothing generates it from an SVG any more.

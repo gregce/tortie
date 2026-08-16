@@ -15,6 +15,8 @@
  *    travels only through `shell:takePendingOpen`, so there is exactly one
  *    way the renderer receives it, and the take-and-clear read means a
  *    renderer reload can never open the folder twice.
+ *  - A file may ride along with the folder (Phase 61, a Finder open), and it
+ *    may only ever open a tab.
  *
  * Research 48 section 9.3 records why the cap is the whole design: any
  * process on the machine can invoke the shim, so a shim that could start an
@@ -40,6 +42,18 @@ export interface ShellCommandStatus {
   reason?: string;
 }
 
+/**
+ * One pending shell open, delivered whole (Phase 61). One channel returning
+ * both halves is what makes delivery atomic. Two separate pulls could pair
+ * one arrival's folder with another arrival's file.
+ */
+export interface ShellPendingOpen {
+  /** Absolute folder to open as the project tab. */
+  folder: string;
+  /** Absolute file inside that folder to open once the project is up, or null. */
+  file: string | null;
+}
+
 /** New invoke channels appended by Phase 51. All four take no arguments. */
 export interface ShellCommandInvokeChannelMap {
   /** The shim's current state; Settings reads it on mount and after acts. */
@@ -48,8 +62,11 @@ export interface ShellCommandInvokeChannelMap {
   'shell:installCommand': { req: []; res: ShellCommandStatus };
   /** Delete the target, only when it carries the ownership marker. */
   'shell:removeCommand': { req: []; res: ShellCommandStatus };
-  /** Take-and-clear the pending folder path. Null when nothing is pending. */
-  'shell:takePendingOpen': { req: []; res: string | null };
+  /**
+   * Take-and-clear the pending open pair. Null when nothing is pending.
+   * Before Phase 61 the response was the bare folder string.
+   */
+  'shell:takePendingOpen': { req: []; res: ShellPendingOpen | null };
 }
 
 /**
@@ -69,5 +86,5 @@ export interface GmuxShellExtras {
   shellCommandStatus?(): Promise<ShellCommandStatus>;
   installShellCommand?(): Promise<ShellCommandStatus>;
   removeShellCommand?(): Promise<ShellCommandStatus>;
-  takePendingOpen?(): Promise<string | null>;
+  takePendingOpen?(): Promise<ShellPendingOpen | null>;
 }

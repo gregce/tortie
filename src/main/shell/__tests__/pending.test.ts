@@ -1,10 +1,12 @@
 /**
- * The pending shell-open slot (Phase 51): at most one path, take-and-clear,
- * and a nudge that only fires at a window that exists and finished loading.
+ * The pending shell-open slot (Phase 51, pair since Phase 61): at most one
+ * folder-and-file pair, take-and-clear, and a nudge that only fires at a
+ * window that exists and finished loading.
  *
  * Take-and-clear is the property that makes the double delivery coverage
  * (hydrate pull + menu-action pull) safe: whichever pull runs first gets
- * the path, and the other gets null.
+ * the pair, and the other gets null. The pair is set and taken together,
+ * so a newer arrival can never mix its folder with an older arrival's file.
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -29,11 +31,15 @@ vi.mock('../../menu', () => ({
 vi.mock('../../settings/window', () => ({
   isSettingsWindow: (win: FakeWindow) => settingsWindows.has(win)
 }));
+/** Every info line the module logged, so replacements can be asserted. */
+const infoLines: string[] = [];
 vi.mock('../../log', () => ({
   getLog: () => ({
     error: () => undefined,
     warn: () => undefined,
-    info: () => undefined,
+    info: (line: string) => {
+      infoLines.push(line);
+    },
     debug: () => undefined
   })
 }));
@@ -55,6 +61,7 @@ beforeEach(() => {
   windows = [];
   settingsWindows = new Set();
   sendMenuAction.mockClear();
+  infoLines.length = 0;
   takePendingShellOpen(); // drain whatever an earlier test left behind
 });
 
@@ -63,17 +70,56 @@ describe('the slot', () => {
     expect(takePendingShellOpen()).toBeNull();
   });
 
-  it('take returns the path and CLEARS the slot', () => {
+  it('take returns the pair and CLEARS the slot', () => {
     setPendingShellOpen('/tmp/one');
-    expect(takePendingShellOpen()).toBe('/tmp/one');
+    expect(takePendingShellOpen()).toEqual({ folder: '/tmp/one', file: null });
     expect(takePendingShellOpen()).toBeNull();
   });
 
-  it('a newer path replaces an older one — at most one is ever held', () => {
+  it('a file rides along with its folder and comes back with it', () => {
+    setPendingShellOpen('/tmp/repo', '/tmp/repo/readme.md');
+    expect(takePendingShellOpen()).toEqual({
+      folder: '/tmp/repo',
+      file: '/tmp/repo/readme.md'
+    });
+    expect(takePendingShellOpen()).toBeNull();
+  });
+
+  it('a newer arrival replaces an older one — at most one pair is ever held', () => {
     setPendingShellOpen('/tmp/older');
     setPendingShellOpen('/tmp/newer');
-    expect(takePendingShellOpen()).toBe('/tmp/newer');
+    expect(takePendingShellOpen()).toEqual({
+      folder: '/tmp/newer',
+      file: null
+    });
     expect(takePendingShellOpen()).toBeNull();
+  });
+
+  it('replacement is WHOLE — a folder-only arrival never keeps an older file', () => {
+    setPendingShellOpen('/tmp/repo', '/tmp/repo/readme.md');
+    setPendingShellOpen('/tmp/other');
+    expect(takePendingShellOpen()).toEqual({
+      folder: '/tmp/other',
+      file: null
+    });
+  });
+
+  it('two files from one folder still replace each other, and each replacement is logged', () => {
+    setPendingShellOpen('/tmp/repo', '/tmp/repo/a.md');
+    setPendingShellOpen('/tmp/repo', '/tmp/repo/b.md');
+    expect(takePendingShellOpen()).toEqual({
+      folder: '/tmp/repo',
+      file: '/tmp/repo/b.md'
+    });
+    expect(infoLines).toEqual([
+      'a newer shell open replaced a pending one: /tmp/repo/b.md'
+    ]);
+  });
+
+  it('setting the identical pair again logs no replacement', () => {
+    setPendingShellOpen('/tmp/repo', '/tmp/repo/a.md');
+    setPendingShellOpen('/tmp/repo', '/tmp/repo/a.md');
+    expect(infoLines).toEqual([]);
   });
 });
 

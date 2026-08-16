@@ -21,7 +21,6 @@ import type {
   AnyMenuActionWithProjects,
   GmuxMenuExtras,
   GmuxQuitExtras,
-  GmuxShellExtras,
   MenuActionWithFind
 } from '@shared/ipc';
 import { OPEN_RECENT_PREFIX } from '@shared/ipc';
@@ -31,6 +30,7 @@ import { useApp, whenSessionsPositionPushed } from '../state/store';
 import type { SidebarViewId } from '../state/store';
 import { isSidebarViewId } from '../state/sidebar-views';
 import { cloneAction } from '../state/clone';
+import { pullPendingShellOpen } from '../state/shell-open';
 import { useLayout } from '../state/layout';
 import type { NavDir } from '../state/layout';
 import { useEditor } from '../editor/store';
@@ -652,23 +652,17 @@ function useMenuActions(): void {
           .addProjectPath(action.slice(OPEN_RECENT_PREFIX.length));
         return;
       }
-      // Phase 51: a second launch delivered a folder (`tortie .`). The
-      // action carries NO payload on purpose — the path travels only
-      // through the take-and-clear shell:takePendingOpen pull, so there is
-      // exactly one way the renderer receives it, and it lands on the same
-      // addProjectPath route as Open Recent. A folder deleted between shim
-      // and delivery fails with the one sentence that case already has.
+      // Phase 51: a warm launch delivered a folder (`tortie .` or a Finder
+      // open while Tortie was running). The action carries NO payload on
+      // purpose — the path travels only through the take-and-clear
+      // shell:takePendingOpen pull, so there is exactly one way the
+      // renderer receives it, and it lands on the same addProjectPath
+      // route as Open Recent. Since Phase 61 the pull carries an optional
+      // file that opens after the project does. A folder deleted between
+      // arrival and delivery fails with the one sentence that case
+      // already has.
       if (action === 'shell-open-pending') {
-        const shellExtras = window.gmux as
-          | (typeof window.gmux & GmuxShellExtras)
-          | undefined;
-        if (typeof shellExtras?.takePendingOpen !== 'function') return;
-        void shellExtras.takePendingOpen().then(
-          (path) => {
-            if (path !== null) void useApp.getState().addProjectPath(path);
-          },
-          () => undefined
-        );
+        void pullPendingShellOpen();
         return;
       }
       // Still a NARROWING cast, and now visibly so: what survives the

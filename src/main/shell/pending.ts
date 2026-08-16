@@ -1,11 +1,13 @@
 /**
  * The pending shell open (Phase 51): one module-level slot, two triggers.
  *
- * The slot holds at most one folder path. `takePendingShellOpen` backs the
- * `shell:takePendingOpen` invoke channel and CLEARS the slot as it reads, so
- * a renderer reload can never reopen the folder twice. The renderer pulls
- * from two places, and the take-and-clear semantics make the double
- * coverage safe:
+ * The slot holds at most one pair: a folder, and optionally one file inside
+ * it (Phase 61, a Finder open). The pair is set and taken together, so a
+ * second arrival can never mix its folder with an older arrival's file.
+ * `takePendingShellOpen` backs the `shell:takePendingOpen` invoke channel
+ * and CLEARS the slot as it reads, so a renderer reload can never reopen
+ * the folder twice. The renderer pulls from two places, and the
+ * take-and-clear semantics make the double coverage safe:
  *
  *  1. the end of `hydrateAppState` (src/renderer/state/subscriptions.ts),
  *     which delivers a folder passed to a COLD boot;
@@ -20,25 +22,36 @@
  */
 
 import { BrowserWindow } from 'electron';
+import type { ShellPendingOpen } from '@shared/ipc';
 import { getLog } from '../log';
 import { sendMenuAction } from '../menu';
 import { isSettingsWindow } from '../settings/window';
 
-let pending: string | null = null;
+let pending: ShellPendingOpen | null = null;
 
-/** Store at most one path. A newer path replaces an older one, and says so. */
-export function setPendingShellOpen(path: string): void {
-  if (pending !== null && pending !== path) {
-    getLog('shell').info(`a newer shell open replaced a pending one: ${path}`);
+/**
+ * Store at most one pair. A newer arrival replaces an older one whole,
+ * folder and file together, and says so. The logged path is the most
+ * specific half of the NEW arrival, so three files selected in Finder log
+ * three distinct replacements.
+ */
+export function setPendingShellOpen(
+  folder: string,
+  file: string | null = null
+): void {
+  if (pending !== null && (pending.folder !== folder || pending.file !== file)) {
+    getLog('shell').info(
+      `a newer shell open replaced a pending one: ${file ?? folder}`
+    );
   }
-  pending = path;
+  pending = { folder, file };
 }
 
-/** Take-and-clear. Backs `shell:takePendingOpen`. */
-export function takePendingShellOpen(): string | null {
-  const path = pending;
+/** Take-and-clear, both halves together. Backs `shell:takePendingOpen`. */
+export function takePendingShellOpen(): ShellPendingOpen | null {
+  const pair = pending;
   pending = null;
-  return path;
+  return pair;
 }
 
 /**

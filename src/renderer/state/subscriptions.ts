@@ -30,7 +30,6 @@ import type {
   GmuxNoticeExtras,
   GmuxScrollbackExtras,
   GmuxSettingsExtras,
-  GmuxShellExtras,
   GmuxSpecStoryExtras
 } from '@shared/ipc';
 import type { DurabilityNotice, GmuxNotice } from '@shared/notice';
@@ -41,6 +40,7 @@ import type { AppState, BootBlock } from './app-state';
 import { errorPayload, errorText } from './errors';
 import { loadLocal } from './local';
 import { LS_ACTIVE_PROJECT } from './projects-slice';
+import { pullPendingShellOpen } from './shell-open';
 
 type AppStore = StoreApi<AppState>;
 
@@ -102,20 +102,12 @@ export async function hydrateAppState(store: AppStore): Promise<void> {
           : `${restorable.length} sessions are saved and ready to restore.`
       );
     }
-    // Phase 51: a folder passed on this launch's argv (`tortie .` while
-    // Tortie was not running). The pull is take-and-clear main-side, so
-    // this and the shell-open-pending menu action can both exist without
-    // ever opening the same folder twice. Same addProjectPath route as
-    // every other way of opening a project.
-    const shellExtras = gmux as typeof gmux & GmuxShellExtras;
-    if (typeof shellExtras.takePendingOpen === 'function') {
-      void shellExtras.takePendingOpen().then(
-        (path) => {
-          if (path !== null) void getState().addProjectPath(path);
-        },
-        () => undefined
-      );
-    }
+    // Phase 51: a folder passed to a cold launch (`tortie .` or a Finder
+    // open while Tortie was not running). The pull is take-and-clear
+    // main-side, so this and the shell-open-pending menu action can both
+    // exist without ever opening the same folder twice. Since Phase 61 the
+    // pull carries an optional file that opens after the project does.
+    void pullPendingShellOpen();
   } catch (err) {
     const payload = errorPayload(err);
     // Phase 41: three codes, three screens. Each one also carries the sentence
