@@ -506,6 +506,22 @@ export interface GmuxPowerExtras {
 // ---------------------------------------------------------------------------
 
 /**
+ * What the activity bar ring draws (Phase 58). 'hidden' is the state almost
+ * all of the time. The five visible stages carry the manual update journey.
+ * VISIBILITY IS DECIDED IN MAIN: the renderer draws exactly what this field
+ * says and holds no policy of its own, so the rule "the ring never animates
+ * for a check the user did not start" lives in one unit-tested place
+ * (src/main/updates/journey.ts).
+ */
+export type UpdateRingStage =
+  | 'hidden'
+  | 'checking'
+  | 'downloading'
+  | 'staging'
+  | 'ready'
+  | 'failed';
+
+/**
  * What the Settings row reads. `stagedVersion` is non null only when the OS
  * updater has finished staging the update, so a quit from that moment really
  * installs it. Phase 31 moved the flip from the library's downloaded event
@@ -513,6 +529,9 @@ export interface GmuxPowerExtras {
  * a quit inside that gap installs nothing. `lastCheckedAt` is epoch ms of
  * the last completed check, or null when no check has run yet on this
  * install.
+ *
+ * Phase 58 added the four ring fields. They are additive, so the Settings
+ * row compiles and behaves unchanged.
  */
 export interface UpdateUiState {
   currentVersion: string;
@@ -524,19 +543,66 @@ export interface UpdateUiState {
    * ordinary launch. Added in Phase 43.
    */
   needsUpdateRepair: boolean;
+  /** Phase 58. What the activity bar ring draws. Visibility is decided in main. */
+  ring: UpdateRingStage;
+  /** The version the ring concerns. Null when ring is hidden or checking. */
+  ringVersion: string | null;
+  /** Whole number 0 to 100 while downloading. Null in every other state. */
+  ringPercent: number | null;
+  /** Which stage failed, for the failed hover and the Why it failed dialog. */
+  failedDuring: 'checking' | 'downloading' | 'staging' | null;
 }
 
 export interface UpdatesInvokeChannelMap {
   'updates:state': { req: []; res: UpdateUiState };
+  /**
+   * Phase 58. The ring's ready menu needs an install action reachable from
+   * the renderer. It calls the one existing quitAndInstall wrapper
+   * (installStagedUpdateNow, a no-op unless staged) and adds no relaunch
+   * logic.
+   */
+  'updates:restartNow': { req: []; res: void };
+  /**
+   * Phase 58. The failed menu item must show a native dialog, and dialogs
+   * are owned by main.
+   */
+  'updates:whyFailed': { req: []; res: void };
+  /**
+   * Phase 58. The failed menu item reuses the Phase 43 repair flow
+   * (offerUpdaterRepair), which lives in main.
+   */
+  'updates:repair': { req: []; res: void };
+}
+
+// ---------------------------------------------------------------------------
+// APPENDED by Phase 58 (the update ring). One event channel, because the
+// renderer needs a push to animate the ring, and the backlog entry sanctions
+// the minimal event. The payload is the whole UpdateUiState so a listener
+// never has to follow up with a read. Folded into AllEventPayloadMap by the
+// one-line edit index.ts prescribes.
+// ---------------------------------------------------------------------------
+
+/** Main → renderers: the update state changed (ring stage or progress). */
+export const EVT_UPDATES_CHANGED = 'updates:changed' as const;
+
+/** Payload of EVT_UPDATES_CHANGED (broadcast to EVERY window). */
+export interface UpdatesEventPayloadMap {
+  'updates:changed': [state: UpdateUiState];
 }
 
 /**
  * OPTIONAL extra on window.gmux, feature-detected by the Settings window
- * (`typeof window.gmux.updates?.state === 'function'`). A build without it
- * shows no Updates row rather than a row that throws.
+ * and by the activity bar ring (`typeof window.gmux.updates?.state ===
+ * 'function'`). A build without it shows no Updates row rather than a row
+ * that throws, and no ring at all. The four Phase 58 members are optional
+ * one by one, so an older preload without them simply has no ring.
  */
 export interface GmuxUpdatesExtras {
   updates?: {
     state(): Promise<UpdateUiState>;
+    restartNow?(): Promise<void>;
+    whyFailed?(): Promise<void>;
+    repair?(): Promise<void>;
+    onChanged?(cb: (state: UpdateUiState) => void): Unsubscribe;
   };
 }

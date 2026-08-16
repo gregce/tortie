@@ -96,9 +96,11 @@
 // The native staged listener below rides beside the library's own listener
 // on the same ordinary EventEmitter, so neither disturbs the other.
 import { app, autoUpdater as nativeUpdater } from 'electron';
-import type { UpdateInfo } from 'electron-updater';
+import type { ProgressInfo, UpdateInfo } from 'electron-updater';
 import { autoUpdater } from 'electron-updater';
 import type { UpdateUiState } from '@shared/ipc';
+import type { JourneyEvent, JourneyState } from './journey';
+import { idleJourney, nextJourney, ringFromJourney } from './journey';
 import { logUpdateEvent } from './log';
 import { isConfirmedRehearsal } from './rehearsal';
 import { readUpdateState, writeUpdateState } from './state';
@@ -217,6 +219,10 @@ const listeners = new Set<StateListener>();
 
 function notifyStateChanged(): void {
   for (const listener of listeners) listener();
+  // Every state change the menu learns about, the ring learns about too
+  // (Phase 58). The reverse is NOT true: progress ticks fire only the ring
+  // listeners, so the native menu is never rebuilt several times a second.
+  notifyRingChanged();
 }
 
 /**
@@ -229,19 +235,115 @@ export function onUpdateStateChanged(cb: StateListener): () => void {
   return () => listeners.delete(cb);
 }
 
+// ---------------------------------------------------------------------------
+// The update journey and the ring listeners (Phase 58)
+// ---------------------------------------------------------------------------
+
+/**
+ * The one journey the ring draws from. The machine is pure
+ * (./journey.ts); this module owns the instance and feeds it at the
+ * engine's existing seams. The engine rules above are the engine's own and
+ * none of them read this state.
+ */
+let journey: JourneyState = idleJourney;
+
+/**
+ * The version the current check reported, for pairing with progress events.
+ * electron-updater's ProgressInfo carries percent but not the version, so
+ * the pairing is ours, the same way the native staged event is paired with
+ * downloadedVersion above.
+ */
+let checkReportedVersion: string | null = null;
+
+const ringListeners = new Set<StateListener>();
+
+/** Progress ticks reach the renderer at most once per this many ms. */
+const RING_THROTTLE_MS = 250;
+
+let lastRingNotifyAt = 0;
+let pendingRingTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * The ring's own listener set (Phase 58). Everything onUpdateStateChanged
+ * fires for, this fires for too, plus download progress ticks, throttled to
+ * at most one per 250 milliseconds. A stage change always fires
+ * immediately regardless of the throttle.
+ */
+export function onUpdateRingChanged(cb: StateListener): () => void {
+  ringListeners.add(cb);
+  return () => ringListeners.delete(cb);
+}
+
+/** Fire the ring listeners now and reset the throttle clock. */
+function notifyRingChanged(): void {
+  if (pendingRingTimer !== null) {
+    clearTimeout(pendingRingTimer);
+    pendingRingTimer = null;
+  }
+  lastRingNotifyAt = Date.now();
+  for (const listener of ringListeners) listener();
+}
+
+/** Fire the ring listeners, but let progress ticks coalesce. */
+function notifyRingThrottled(): void {
+  const elapsed = Date.now() - lastRingNotifyAt;
+  if (elapsed >= RING_THROTTLE_MS) {
+    notifyRingChanged();
+    return;
+  }
+  if (pendingRingTimer !== null) return;
+  // A trailing tick, so the last percent before a quiet spell still lands.
+  pendingRingTimer = setTimeout(() => {
+    pendingRingTimer = null;
+    notifyRingChanged();
+  }, RING_THROTTLE_MS - elapsed);
+}
+
+/**
+ * Feed one event into the journey. A stage change notifies the ring
+ * immediately; a percent-only change goes through the throttle; no change
+ * notifies nobody.
+ */
+function feedJourney(event: JourneyEvent): void {
+  const before = journey;
+  journey = nextJourney(journey, event);
+  if (journey === before) return;
+  const stageLevelChange =
+    journey.stage !== before.stage ||
+    journey.userInitiated !== before.userInitiated ||
+    journey.version !== before.version ||
+    journey.failedDuring !== before.failedDuring;
+  if (stageLevelChange) {
+    notifyRingChanged();
+    return;
+  }
+  if (journey.percent !== before.percent) {
+    // Only the percent moved.
+    notifyRingThrottled();
+  }
+  // A fresh object with identical content notifies nobody.
+}
+
 /**
  * What the surfaces draw from, synchronously. Safe in dev, where it reports
  * the current version, no staged update and whatever updates.json remembers.
+ * The four ring fields (Phase 58) come from the journey through the pure
+ * visibility policy, so a background journey leaks nothing.
  */
 export function getUpdateUiState(): UpdateUiState {
   if (lastCheckedAt === null && diskLastCheckedAt === undefined) {
     diskLastCheckedAt = readUpdateState().lastCheckedAt;
   }
+  const ring = ringFromJourney(journey);
   return {
     currentVersion: app.getVersion(),
     stagedVersion,
     lastCheckedAt: lastCheckedAt ?? diskLastCheckedAt ?? null,
-    needsUpdateRepair
+    needsUpdateRepair,
+    ring: ring.ring,
+    ringVersion: ring.ringVersion,
+    ringPercent: ring.ringPercent,
+    failedDuring: ring.failedDuring
   };
 }
 
@@ -256,6 +358,10 @@ export function rearmUpdateChecks(): void {
   noSecondStagingLogged = false;
   downloadedVersion = null;
   stagedVersion = null;
+  checkReportedVersion = null;
+  // The journey returns to idle too: the recovery removed the staged copy,
+  // so a ready ring would be a lie (Phase 58).
+  feedJourney({ kind: 'rearmed' });
   logInfo(
     'the updater state was cleared, so this run may check for updates again'
   );
@@ -358,6 +464,22 @@ export function initUpdater(): void {
       pendingRecordedAt: Date.now()
     });
     logInfo(`update ${info.version} is downloaded and staging has started`);
+    // Phase 58: the ring's staging stage begins where the hand over does.
+    feedJourney({ kind: 'handed-to-installer', version: info.version });
+  });
+
+  // Phase 58. The ring's downloading arc is real progress from the
+  // library's own download events. ProgressInfo carries percent but not the
+  // version, so the version the current check reported is paired here. This
+  // listener feeds the journey and NOTHING else: no engine rule reads it,
+  // and the menu never learns about progress ticks.
+  autoUpdater.on('download-progress', (progress: ProgressInfo) => {
+    if (checkReportedVersion === null) return;
+    feedJourney({
+      kind: 'download-progress',
+      version: checkReportedVersion,
+      percent: progress.percent
+    });
   });
 
   // Electron's own native autoUpdater emits update-downloaded when Squirrel
@@ -375,14 +497,20 @@ export function initUpdater(): void {
     }
     stagedVersion = downloadedVersion;
     logInfo(`update ${stagedVersion} is staged and installs when you quit`);
+    // Phase 58: ready is always visible, from any journey, exactly as the
+    // staged menu item is.
+    feedJourney({ kind: 'staged', version: stagedVersion });
     notifyStateChanged();
   });
 
   // A background failure lands here and in the logger above, and nowhere the
   // user sees. The listener must exist either way, because an 'error' event
-  // with no listener would throw.
+  // with no listener would throw. The journey feed shows a failed ring only
+  // when the journey is user initiated; a background journey dies silently
+  // (./journey.ts).
   autoUpdater.on('error', (err: Error) => {
     logWarn(`update check failed: ${err.message}`);
+    feedJourney({ kind: 'updater-error' });
   });
 
   setTimeout(() => {
@@ -395,15 +523,32 @@ export function initUpdater(): void {
 
 /** The timer path. Failures are already logged; nothing else happens. */
 async function backgroundCheck(): Promise<void> {
+  // Phase 58: the journey learns a background check began. From idle it
+  // stays idle with userInitiated false; a visible ring is never disturbed.
+  feedJourney({ kind: 'background-check-started' });
   if (handedToInstaller) {
     logNoSecondStagingRefusal();
     return;
   }
   try {
     const result = await autoUpdater.checkForUpdates();
-    if (result !== null) recordCheckCompleted();
+    if (result !== null) {
+      recordCheckCompleted();
+      if (result.isUpdateAvailable) {
+        // The pairing for the progress events (Phase 58).
+        checkReportedVersion = result.updateInfo.version;
+      } else {
+        // A background check that completes with "nothing to update"
+        // clears a standing failed ring: removing attention rather than
+        // adding it, so the silence rule holds (phase spec section 2).
+        feedJourney({ kind: 'check-none' });
+      }
+    }
   } catch {
-    // The 'error' listener above already wrote the one allowed line.
+    // The 'error' listener above already wrote the one allowed line. The
+    // journey feed is a no-op for a background journey that was never
+    // visible, and it leaves a standing failed ring alone.
+    feedJourney({ kind: 'check-failed' });
   }
 }
 
@@ -418,32 +563,57 @@ async function backgroundCheck(): Promise<void> {
  */
 export async function checkForUpdatesNow(): Promise<UpdateCheckOutcome> {
   if (!app.isPackaged) return { kind: 'unsupported' };
+  // Phase 58: the journey either starts checking or ADOPTS an in flight
+  // background journey, which makes the ring visible from here on. This
+  // line sits after the isPackaged guard (dev builds have no journey) and
+  // before the handedToInstaller shortcut.
+  feedJourney({ kind: 'user-check-started' });
   // Phase 43, rule 6. Answer from what this run already knows rather than
-  // calling the library. The user still gets the ordinary dialog, so the
-  // menu item is not dead, and lastCheckedAt stops moving, which is honest,
-  // because no check is running.
+  // calling the library. The user still gets an answer, and lastCheckedAt
+  // stops moving, which is honest, because no check is running.
   if (handedToInstaller && downloadedVersion !== null) {
     logNoSecondStagingRefusal();
-    return stagedVersion !== null
-      ? { kind: 'staged', version: stagedVersion }
-      : { kind: 'downloading', version: downloadedVersion };
+    if (stagedVersion !== null) {
+      // The ring is already ready on the ordinary path. This feed matters
+      // only when the journey was reset after the hand over (a failed ring
+      // the user checks again from): without it, checking would spin with
+      // no event ever coming.
+      feedJourney({ kind: 'staged', version: stagedVersion });
+      return { kind: 'staged', version: stagedVersion };
+    }
+    feedJourney({ kind: 'handed-to-installer', version: downloadedVersion });
+    return { kind: 'downloading', version: downloadedVersion };
   }
   try {
     const result = await autoUpdater.checkForUpdates();
-    if (result === null) return { kind: 'unsupported' };
+    if (result === null) {
+      // The library answered "updates are not supported here". Nothing is
+      // coming, so the journey must not stay in checking.
+      feedJourney({ kind: 'check-none' });
+      return { kind: 'unsupported' };
+    }
     recordCheckCompleted();
     if (!result.isUpdateAvailable) {
+      feedJourney({ kind: 'check-none' });
       return { kind: 'none', currentVersion: app.getVersion() };
     }
     const version = result.updateInfo.version;
+    // The pairing for the progress events (Phase 58).
+    checkReportedVersion = version;
     if (stagedVersion === version) return { kind: 'staged', version };
     // autoDownload is on, so the download is already in flight. Between the
     // library's download finishing and Squirrel staging it, "downloading" is
     // the literal truth, and the native staged event flips the state and
-    // tells the menu when a quit really installs.
+    // tells the menu when a quit really installs. When no progress event
+    // has arrived yet, the journey moves to downloading at 0 percent here;
+    // a journey already downloading keeps its real percent.
+    if (journey.stage === 'checking') {
+      feedJourney({ kind: 'download-progress', version, percent: 0 });
+    }
     return { kind: 'downloading', version };
   } catch {
-    // The 'error' listener logged the detail. The dialog uses fixed copy.
+    // The 'error' listener logged the detail.
+    feedJourney({ kind: 'check-failed' });
     return { kind: 'failed' };
   }
 }

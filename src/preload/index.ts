@@ -24,7 +24,8 @@ import {
   EVT_MENU_ACTION,
   EVT_POWER_RESUME,
   EVT_QUIT_REQUESTED,
-  EVT_SETTINGS_CHANGED
+  EVT_SETTINGS_CHANGED,
+  EVT_UPDATES_CHANGED
 } from '../shared/ipc';
 import { actions } from './actions';
 import { invoke, on } from './bridge';
@@ -87,11 +88,16 @@ const api: InstalledGmuxApi = {
   // over `append`, and the Settings Diagnostics section owns the other four.
   // Both renderers feature-detect it.
   log,
-  // Phase 24 optional extra: the Settings row's one read. The update engine,
-  // the menu item and every dialog live in main; the renderer only ever asks
-  // what is true right now, on the one typed bridge.
+  // Phase 24 optional extra: the Settings row's one read. The update engine
+  // and every dialog live in main. Phase 58 added the ring's four members on
+  // the same object and the same typed bridge: the two failed-menu actions,
+  // the one install action, and the push that animates the ring.
   updates: {
-    state: () => invoke('updates:state')
+    state: () => invoke('updates:state'),
+    restartNow: () => invoke('updates:restartNow'),
+    whyFailed: () => invoke('updates:whyFailed'),
+    repair: () => invoke('updates:repair'),
+    onChanged: (cb) => on(EVT_UPDATES_CHANGED, cb)
   },
   pathForFile,
   meta: {

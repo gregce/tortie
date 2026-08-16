@@ -1,46 +1,49 @@
 /**
  * Every dialog the update flow can show (Phase 24, extended in Phase 31 and
- * Phase 43). Native `dialog.showMessageBox` only, per the UI rules. This
- * module owns no durable updater state: it calls the engine's exports
- * (./updater) and puts the pinned words on screen. Its only state is the in
- * memory arm below.
+ * Phase 43, thinned in Phase 58). Native `dialog.showMessageBox` only, per
+ * the UI rules. This module owns no durable updater state: it calls the
+ * engine's exports (./updater) and puts the pinned words on screen.
  *
- * WHAT PHASE 43 ADDED. The launch surface learned two more shapes, and it
- * grew a button. When the log says the prepared copy was gone at install
- * time, or that the installer gave up after too many attempts, the dialog
- * names that and offers to clear what the installer saved. A second entry
- * point, `offerUpdaterRepair`, runs that clear and is also what the "Repair
- * Updates…" menu item calls, so a user who answered "Not Now" can still
- * reach the action later.
+ * PHASE 58 MOVED THE JOURNEY INTO THE RING. The activity bar ring
+ * (src/renderer/app/UpdateRing.tsx, fed by src/main/updates/journey.ts)
+ * now carries checking, downloading, staging, ready and failed for a check
+ * the user started. Four dialogs left with it: the "Update found,
+ * downloading" dialog, the ready dialog and its arm-watch machinery, the
+ * failed-check dialog on the interactive path, and the install prompt on
+ * the interactive check's staged outcome. The failed-check dialog's exact
+ * body lives on behind the ring's "Why it failed" item
+ * (`explainRingFailure` below).
  *
- * WHEN A DIALOG MAY APPEAR, restated from the phase specs:
+ * WHAT SURVIVES, the complete list:
  *
- *  - Only a user initiated action reaches this module, with the two Phase 31
- *    additions below. The staged menu item click and the "Check for
- *    Updates…" click are the two menu callers. A failed BACKGROUND check
- *    writes one log line inside ./updater and never gets a dialog, a toast,
- *    or a badge.
- *  - The ready dialog (Phase 31) follows a check the user started. The
- *    downloading outcome arms an in memory watch for that exact version, and
- *    when the OS updater finishes staging it, one dialog says it is ready.
- *    A quit forgets the arm, and the launch surface below takes over the
- *    honesty. A staging no user checked for stays silent.
- *  - The refusal dialog (Phase 31) is the one launch time surface. It shows
- *    on the first launch after an install the OS updater refused, names the
- *    reason in plain words, and cannot repeat, because ./refusal-check
- *    clears the pending record on disk before it answers. A failure may
- *    rise above the surface; that is the license this dialog uses.
- *  - The install prompt is the ONE sanctioned install-now path. Its Update
- *    Now button calls `installStagedUpdateNow()`, which is the one
- *    quitAndInstall call site in the app. Tortie never restarts itself on
- *    its own initiative.
- *  - The failure body is fixed copy. The library's error text goes to the
+ *  - "You are up to date". The ring has no state that says "there is
+ *    nothing to update", so one direct answer to a question the user just
+ *    asked stays a dialog. It is not a chain.
+ *  - The dev build dialog. Dev builds never initialize the updater, so the
+ *    ring never exists there, and without the dialog Check for Updates
+ *    would be a dead menu item in dev.
+ *  - The refusal dialog and the standing wreck dialog, the whole
+ *    `announceRefusedInstallIfAny` surface (Phase 31, widened in Phase 43).
+ *    A failed install explaining itself at the next launch is a launch time
+ *    surface with no ring on screen yet.
+ *  - `offerUpdaterRepair` with its three outcome dialogs (Phase 43),
+ *    reached from the Tortie menu, from the refusal dialogs' clear button,
+ *    and now also from the ring's failed menu.
+ *  - `confirmInstallStagedUpdate` and the install prompt, reached from the
+ *    staged menu item. The install prompt's Update Now button and the
+ *    ring's "Restart and update now" both end at `installStagedUpdateNow()`,
+ *    the one quitAndInstall call site in the app. Tortie never restarts
+ *    itself on its own initiative.
+ *
+ *  - A failed BACKGROUND check writes one log line inside ./updater and
+ *    never gets a dialog, a toast, or a badge. That rule did not move.
+ *  - Failure bodies are fixed copy. The library's error text goes to the
  *    log, never into a dialog.
  *
- * The copy is pinned in the phase specs, section 8 of each. Two sentences
- * here are additionally pinned by build/assert-bundle-refusals.mjs, so the
- * shipped bundle provably contains them. No em dashes and no en dashes
- * anywhere a person reads.
+ * The copy is pinned in the phase specs. Several sentences here are
+ * additionally pinned by build/assert-bundle-refusals.mjs, so the shipped
+ * bundle provably contains them. No em dashes and no en dashes anywhere a
+ * person reads.
  */
 
 import { dialog } from 'electron';
@@ -48,7 +51,6 @@ import {
   checkForUpdatesNow,
   getUpdateUiState,
   installStagedUpdateNow,
-  onUpdateStateChanged,
   setUpdaterRepairNeeded
 } from './updater';
 import {
@@ -105,55 +107,66 @@ async function showOkDialog(
 }
 
 // ---------------------------------------------------------------------------
-// The ready moment (Phase 31)
+// The ring's "Why it failed" dialog (Phase 58)
 // ---------------------------------------------------------------------------
 
 /**
- * The version the user was told is downloading, or null. The OS updater
- * finishing the staging of this exact version is what shows the ready
- * dialog. Memory only, on purpose: a quit forgets it, and the next launch
- * answers through announceRefusedInstallIfAny instead. Background checks
- * never write this, so a staging the user did not ask about stays silent.
+ * The words behind the ring's failed menu, fixed copy per failed stage. The
+ * checking body is the exact body of the dialog Phase 24 showed on a failed
+ * interactive check, so no new promise is invented. The library's error
+ * text stays in the log, never in the dialog, the Phase 24 rule.
  */
-let armedReadyVersion: string | null = null;
-
-/** The one onUpdateStateChanged subscription this module ever takes. */
-let armWatchInstalled = false;
-
-function ensureArmWatch(): void {
-  if (armWatchInstalled) return;
-  armWatchInstalled = true;
-  onUpdateStateChanged(() => {
-    if (armedReadyVersion === null) return;
-    if (getUpdateUiState().stagedVersion !== armedReadyVersion) return;
-    const version = armedReadyVersion;
-    // Disarm before showing, so a version is announced at most once per run
-    // no matter how many state changes follow.
-    armedReadyVersion = null;
-    void showReadyDialog(version);
-  });
+function ringFailureCopy(
+  failedDuring: 'checking' | 'downloading' | 'staging',
+  version: string
+): { title: string; body: string } {
+  switch (failedDuring) {
+    case 'checking':
+      return {
+        title: 'The update check failed',
+        body: 'Tortie could not reach the update feed. It will try again on its own.'
+      };
+    case 'downloading':
+      return {
+        title: 'The download did not finish',
+        body: `Tortie was downloading ${version} and the download stopped. It will try again on its own.`
+      };
+    case 'staging':
+      return {
+        title: 'The update could not be prepared',
+        body: `Tortie downloaded ${version} and the installer could not prepare it. Repair updates can clear the installer's files and check again.`
+      };
+    default: {
+      const unhandled: never = failedDuring;
+      return unhandled;
+    }
+  }
 }
 
 /**
- * The ready dialog. One OK button, installs nothing. The one sanctioned
- * install path stays the install prompt behind the menu item, which exists
- * by the time this shows, because the staged state is set.
+ * The ring's "Why it failed" item. Reads the state at click time. When
+ * failedDuring is null the click raced a state change, and nothing shows.
+ * One OK dialog, installs nothing, repairs nothing. Never rejects.
  */
-async function showReadyDialog(version: string): Promise<void> {
+export async function explainRingFailure(): Promise<void> {
   try {
-    // The log line rides beside the dialog so updates.log records the
-    // moment the promise was made, and so a driven rehearsal can assert
-    // the dialog call happened (Phase 31 fix round).
-    logUpdateEvent('info', `showing the ready dialog for ${version}`);
-    await showOkDialog(
-      'info',
-      `Tortie ${version} is ready`,
-      'It installs when you quit. To install it now, use the Tortie menu.'
+    const state = getUpdateUiState();
+    if (state.failedDuring === null) return;
+    const copy = ringFailureCopy(
+      state.failedDuring,
+      state.ringVersion ?? 'the new version'
     );
+    // The log line rides beside the dialog, matching the Phase 31 pattern,
+    // so a driven rehearsal can assert the dialog call happened.
+    logUpdateEvent(
+      'info',
+      `showing the why it failed dialog for ${state.failedDuring}`
+    );
+    await showOkDialog('warning', copy.title, copy.body);
   } catch (err) {
     logUpdateEvent(
       'warn',
-      `the ready dialog did not open: ${(err as Error).message}`
+      `the why it failed dialog did not open: ${(err as Error).message}`
     );
   }
 }
@@ -404,10 +417,17 @@ export async function confirmInstallStagedUpdate(): Promise<void> {
 }
 
 /**
- * "Check for Updates…" was clicked. This is the ONLY path on which a check
- * result may put words on the screen, and the only path that arms the ready
- * dialog. `checkForUpdatesNow()` never rejects by contract; the catch is
- * here so a defect in it cannot throw into the menu's event loop.
+ * "Check for Updates…" was clicked. Phase 58 moved the journey into the
+ * ring, so this path shows a dialog only for the two answers the ring
+ * cannot carry: "there is nothing to update" and "this build does not
+ * update". Everything else — downloading, staging, ready, failed — is the
+ * ring's, already visible by the time `checkForUpdatesNow()` resolves,
+ * because the engine fed the journey before answering. A check that finds
+ * an already staged update shows nothing here either: the ring is on
+ * screen in ready at that moment, and the staged menu item still offers
+ * the install prompt for a user who wants it. `checkForUpdatesNow()` never
+ * rejects by contract; the catch is here so a defect in it cannot throw
+ * into the menu's event loop.
  */
 export async function runInteractiveUpdateCheck(): Promise<void> {
   try {
@@ -421,32 +441,14 @@ export async function runInteractiveUpdateCheck(): Promise<void> {
         );
         return;
       case 'downloading':
-        await showOkDialog(
-          'info',
-          'Update found',
-          `Tortie ${outcome.version} is downloading. Another message appears when it is ready.`
-        );
-        // Staging may have finished while the dialog sat on screen. Say
-        // ready now if it did; otherwise arm the watch for this exact
-        // version. A second check before staging replaces the arm with the
-        // same version, so there is still one dialog.
-        if (getUpdateUiState().stagedVersion === outcome.version) {
-          await showReadyDialog(outcome.version);
-        } else {
-          ensureArmWatch();
-          armedReadyVersion = outcome.version;
-        }
+        // The ring carries it: downloading, then staging, then ready.
         return;
       case 'staged':
-        await showInstallPrompt('Update ready');
+        // The ring is already filled in ready.
         return;
       case 'failed':
-        // Fixed copy. The library's error text is already in the log.
-        await showOkDialog(
-          'warning',
-          'The update check failed',
-          'Tortie could not reach the update feed. It will try again on its own.'
-        );
+        // The ring shows failed, and its "Why it failed" item carries the
+        // exact words this path used to show in a dialog.
         return;
       case 'unsupported':
         await showOkDialog(

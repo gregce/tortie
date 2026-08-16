@@ -45,6 +45,7 @@ import type {
   SettingsEventPayloadMap,
   SettingsInvokeChannelMap,
   ShellInvokeChannelMap,
+  UpdatesEventPayloadMap,
   UpdatesInvokeChannelMap,
   ViewMenuInvokeChannelMap
 } from './app';
@@ -239,7 +240,8 @@ export type AllEventPayloadMap = EventPayloadMap &
   SettingsEventPayloadMap &
   RecentsEventPayloadMap &
   ActionsEventPayloadMap &
-  PowerEventPayloadMap;
+  PowerEventPayloadMap &
+  UpdatesEventPayloadMap;
 
 export type AllEventChannel = keyof AllEventPayloadMap;
 

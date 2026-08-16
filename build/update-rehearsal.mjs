@@ -146,7 +146,9 @@
  */
 
 import { spawn, spawnSync, execFileSync } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { createServer } from 'node:http';
+import { connect as netConnect } from 'node:net';
 import {
   appendFileSync,
   copyFileSync,
@@ -212,6 +214,28 @@ const pairServerBin = option('--pair-server-bin', '/opt/homebrew/bin/tmux');
 const proveOverrideRefused = flag('--prove-override-refused');
 /** The Phase 41 probe's own scratch socket. Never a rehearsal socket. */
 const TMUX_PAIR_SOCKET = 'gmux-p41-pair-packaged';
+
+/**
+ * Phase 58, the update ring probes. Each one drives the packaged app with an
+ * ISOLATED HOME under the scratch directory, so electron-updater's download
+ * cache and Squirrel's ShipIt state land under the scratch and never under
+ * the operator's ~/Library/Caches. That is the Phase 58 charter's own rule,
+ * written after a Phase 43 probe left a rehearsal build in the real updater
+ * cache. The launches also pass --use-mock-keychain, because a redirected
+ * HOME has no keychain and Chromium would otherwise pop a blocking keychain
+ * prompt (the 2026-08-16 incident noted in src/main/index.ts).
+ */
+const ringJourney = flag('--ring-journey');
+const ringSilence = flag('--ring-silence');
+const ringFailed = flag('--ring-failed');
+const ringRestart = flag('--ring-restart');
+const anyRingProbe = ringJourney || ringSilence || ringFailed || ringRestart;
+/**
+ * Bytes per second the feed serves .zip files at, 0 for full speed. The
+ * ring journey probe throttles the download so the downloading arc stands
+ * still long enough to be read and photographed.
+ */
+const feedThrottle = Number(option('--feed-throttle', '0'));
 
 const pristineDir = join(scratch, 'pristine');
 const pristineApp = join(pristineDir, 'Tortie.app');
@@ -485,10 +509,14 @@ class AppRun {
     for (const [k, v] of Object.entries(opts.extraEnv ?? {})) env[k] = v;
     usedSockets.add(socket);
     createdHarnessServer = true;
-    this.child = spawn(binary, [`--user-data-dir=${profile}`], {
-      env,
-      stdio: ['ignore', 'pipe', 'pipe']
-    });
+    this.child = spawn(
+      binary,
+      [...(opts.extraArgs ?? []), `--user-data-dir=${profile}`],
+      {
+        env,
+        stdio: ['ignore', 'pipe', 'pipe']
+      }
+    );
     this.pid = this.child.pid;
     livePids.add(this.pid);
     log(`${name} launched, pid ${this.pid}, log ${this.logPath}`);
@@ -644,10 +672,27 @@ function startFeedServer() {
       });
       if (req.method === 'HEAD') {
         res.end();
+      } else if (feedThrottle > 0 && name.endsWith('.zip')) {
+        // Phase 58 ring probes. Serve the zip at a fixed rate so the
+        // downloading arc is on screen long enough to read and photograph.
+        const stream = createReadStream(file, { highWaterMark: 256 * 1024 });
+        const started = Date.now();
+        let sent = 0;
+        stream.on('data', (chunk) => {
+          res.write(chunk);
+          sent += chunk.length;
+          const aheadMs = (sent / feedThrottle) * 1000 - (Date.now() - started);
+          if (aheadMs > 50) {
+            stream.pause();
+            setTimeout(() => stream.resume(), aheadMs);
+          }
+        });
+        stream.on('end', () => res.end());
+        stream.on('error', () => res.destroy());
       } else {
         createReadStream(file).pipe(res);
       }
-      log(`feed served ${name}, ${size} bytes`);
+      log(`feed served ${name}, ${size} bytes${feedThrottle > 0 && name.endsWith('.zip') ? ` at ${feedThrottle} bytes per second` : ''}`);
     });
     server.listen(0, '127.0.0.1', () => resolveServer(server));
   });
@@ -2155,6 +2200,1004 @@ async function probeTmuxPair() {
   return { ...result, bundledTmux };
 }
 
+// -- the update ring probes (Phase 58) ----------------------------------------
+//
+// P1 --ring-journey   a user check through the real menu, the ring read and
+//                     photographed in downloading (with its percent) and in
+//                     ready, and a dialog sweep proving no dialog appears
+//                     anywhere in the journey.
+// P2 --ring-silence   a background check with nobody touching anything: the
+//                     ring must be absent through checking, downloading and
+//                     staging, and present only once staged.
+// P3 --ring-failed    a user check against a dead feed: the failed ring, its
+//                     two menu items read verbatim, the Why it failed dialog
+//                     read verbatim, and Repair updates reaching a Phase 43
+//                     repair surface.
+// P4 --ring-restart   the full journey to ready, then Restart and update now
+//                     from the ring's menu. The install must land, Squirrel's
+//                     own relaunch is observed and recorded, the harness
+//                     session list must be byte identical, and the run must
+//                     show exactly one install request.
+//
+// The ring is a DOM button. System Events cannot see into a Chromium
+// renderer on this machine (measured: AXManualAccessibility sets cleanly and
+// `entire contents of window 1` still returns 0 elements), so the ring is
+// read over the DevTools protocol instead: each probe launch passes
+// --remote-debugging-port=0, the port lands in <profile>/DevToolsActivePort,
+// and one Runtime.evaluate reads the button's aria-label, class and screen
+// frame straight from the DOM. Native dialogs, the menu bar and the native
+// popup menus stay on the System Events path the Phase 31 and 43 probes
+// established.
+//
+// ISOLATION, measured rather than assumed. The isolated HOME moves
+// electron-updater's download cache (the app logs `updater cache dir:
+// <ring-home>/Library/Caches/tortie-updater`), which is the directory the
+// Phase 43 incident left a 173 MB build in. Squirrel itself resolves the
+// real ~/Library/Caches regardless of HOME (observed live in the first P1
+// attempt), so the ShipIt directory keeps the Phase 31 discipline the
+// script already has: snapshot before, remove only entries the run
+// created, never touch the two kept files.
+
+const ringHome = join(scratch, 'ring-home');
+
+function freshRingHome() {
+  rmSync(ringHome, { recursive: true, force: true });
+  mkdirSync(join(ringHome, 'Library', 'Caches'), { recursive: true });
+  mkdirSync(join(ringHome, 'Library', 'Application Support'), {
+    recursive: true
+  });
+  log(`fresh isolated HOME for the ring probes at ${ringHome}`);
+}
+
+function ringInstallRequestsSince(offset) {
+  return shipItStderrSince(offset)
+    .split('\n')
+    .filter((l) => l.includes('Detected this as an install request')).length;
+}
+
+/** Launch the app under test with the isolated HOME and the mock keychain. */
+function launchRingApp(name, feedUrl) {
+  return new AppRun(name, feedUrl, {
+    extraEnv: { HOME: ringHome },
+    extraArgs: ['--use-mock-keychain', '--remote-debugging-port=0']
+  });
+}
+
+// -- a minimal DevTools protocol client, no dependencies ----------------------
+
+/** One masked client websocket frame around a text payload. */
+function wsClientFrame(payload) {
+  const data = Buffer.from(payload, 'utf8');
+  const mask = randomBytes(4);
+  let header;
+  if (data.length < 126) {
+    header = Buffer.from([0x81, 0x80 | data.length]);
+  } else if (data.length < 65_536) {
+    header = Buffer.alloc(4);
+    header[0] = 0x81;
+    header[1] = 0x80 | 126;
+    header.writeUInt16BE(data.length, 2);
+  } else {
+    header = Buffer.alloc(10);
+    header[0] = 0x81;
+    header[1] = 0x80 | 127;
+    header.writeBigUInt64BE(BigInt(data.length), 2);
+  }
+  const masked = Buffer.alloc(data.length);
+  for (let i = 0; i < data.length; i += 1) masked[i] = data[i] ^ mask[i & 3];
+  return Buffer.concat([header, mask, masked]);
+}
+
+/** Connect to a ws:// url and return { call, fire, close }. */
+function wsConnect(url) {
+  const m = /^ws:\/\/([^:/]+):(\d+)(\/.*)$/.exec(url);
+  if (m === null) throw new Error(`not a ws url: ${url}`);
+  return new Promise((resolve, reject) => {
+    const sock = netConnect(Number(m[2]), m[1]);
+    const key = randomBytes(16).toString('base64');
+    let upgraded = false;
+    let buf = Buffer.alloc(0);
+    let fragments = [];
+    const pending = new Map();
+    let nextId = 1;
+    sock.on('connect', () => {
+      sock.write(
+        `GET ${m[3]} HTTP/1.1\r\nHost: ${m[1]}:${m[2]}\r\n` +
+          'Upgrade: websocket\r\nConnection: Upgrade\r\n' +
+          `Sec-WebSocket-Key: ${key}\r\nSec-WebSocket-Version: 13\r\n\r\n`
+      );
+    });
+    sock.on('error', (err) => reject(err));
+    sock.on('data', (d) => {
+      buf = Buffer.concat([buf, d]);
+      if (!upgraded) {
+        const idx = buf.indexOf('\r\n\r\n');
+        if (idx === -1) return;
+        const head = buf.subarray(0, idx).toString('utf8');
+        buf = buf.subarray(idx + 4);
+        if (!/ 101 /.test(head)) {
+          reject(new Error(`websocket upgrade refused:\n${head}`));
+          sock.destroy();
+          return;
+        }
+        upgraded = true;
+        resolve(api);
+      }
+      for (;;) {
+        if (buf.length < 2) return;
+        const fin = (buf[0] & 0x80) !== 0;
+        const op = buf[0] & 0x0f;
+        let len = buf[1] & 0x7f;
+        let off = 2;
+        if (len === 126) {
+          if (buf.length < 4) return;
+          len = buf.readUInt16BE(2);
+          off = 4;
+        } else if (len === 127) {
+          if (buf.length < 10) return;
+          len = Number(buf.readBigUInt64BE(2));
+          off = 10;
+        }
+        if (buf.length < off + len) return;
+        const payload = buf.subarray(off, off + len);
+        buf = buf.subarray(off + len);
+        if (op === 0x9) {
+          // Ping. Answer with a masked pong carrying the same payload.
+          const mask = randomBytes(4);
+          const masked = Buffer.alloc(payload.length);
+          for (let i = 0; i < payload.length; i += 1) masked[i] = payload[i] ^ mask[i & 3];
+          sock.write(Buffer.concat([Buffer.from([0x8a, 0x80 | payload.length]), mask, masked]));
+          continue;
+        }
+        if (op !== 0x1 && op !== 0x0) continue;
+        fragments.push(payload);
+        if (!fin) continue;
+        const text = Buffer.concat(fragments).toString('utf8');
+        fragments = [];
+        let msg;
+        try {
+          msg = JSON.parse(text);
+        } catch {
+          continue;
+        }
+        const waiter = pending.get(msg.id);
+        if (waiter !== undefined) {
+          pending.delete(msg.id);
+          waiter(msg);
+        }
+      }
+    });
+    const api = {
+      call(method, params, timeoutMs = 15_000) {
+        const id = nextId;
+        nextId += 1;
+        sock.write(wsClientFrame(JSON.stringify({ id, method, params: params ?? {} })));
+        return new Promise((res, rej) => {
+          pending.set(id, res);
+          setTimeout(() => {
+            if (pending.has(id)) {
+              pending.delete(id);
+              rej(new Error(`${method} timed out after ${timeoutMs / 1000} s`));
+            }
+          }, timeoutMs);
+        });
+      },
+      fire(method, params) {
+        const id = nextId;
+        nextId += 1;
+        sock.write(wsClientFrame(JSON.stringify({ id, method, params: params ?? {} })));
+      },
+      close() {
+        sock.destroy();
+      }
+    };
+  });
+}
+
+/**
+ * Attach to the main window's renderer over the DevTools port the launch
+ * wrote into <profile>/DevToolsActivePort. Polls, because the file and the
+ * page target both appear a moment after boot.
+ */
+async function cdpForProfile(profile, timeoutMs) {
+  const started = Date.now();
+  for (;;) {
+    try {
+      const portFile = readFileSync(join(profile, 'DevToolsActivePort'), 'utf8');
+      const port = Number(portFile.split('\n')[0].trim());
+      if (Number.isFinite(port) && port > 0) {
+        const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
+        const page = list.find(
+          (t) => t.type === 'page' && /index\.html/.test(t.url ?? '')
+        );
+        if (page !== undefined && page.webSocketDebuggerUrl) {
+          const ws = await wsConnect(page.webSocketDebuggerUrl);
+          log(`attached to the main window renderer over the DevTools protocol (port ${port})`);
+          return ws;
+        }
+      }
+    } catch {
+      // Not up yet. Keep polling.
+    }
+    if (Date.now() - started > timeoutMs) {
+      throw new Error(`no DevTools page target within ${timeoutMs / 1000} s`);
+    }
+    await sleep(500);
+  }
+}
+
+/** One Runtime.evaluate, by value. Throws on protocol errors. */
+async function cdpEval(cdp, expression, awaitPromise = false) {
+  const reply = await cdp.call('Runtime.evaluate', {
+    expression,
+    returnByValue: true,
+    awaitPromise
+  });
+  if (reply.error !== undefined) throw new Error(JSON.stringify(reply.error));
+  return reply.result?.result?.value ?? null;
+}
+
+/**
+ * The activity bar (and with it the ring) mounts only when a project is
+ * open; a fresh profile boots to the home view, which has no rail at all
+ * (measured: document has no .ab-spacer there). So each probe adds a
+ * scratch project over the app's own projects:add bridge, reloads the
+ * window, and reattaches. Boot then auto-activates the first known project
+ * (src/renderer/state/subscriptions.ts) and the rail exists.
+ */
+async function ensureProjectOpen(cdp, profile) {
+  const projectDir = join(scratch, 'p58-project');
+  mkdirSync(projectDir, { recursive: true });
+  writeFileSync(join(projectDir, 'README.md'), 'p58 ring probe project\n');
+  await cdpEval(
+    cdp,
+    `window.gmux.projects.add(${JSON.stringify(projectDir)})`,
+    true
+  );
+  cdp.fire('Runtime.evaluate', { expression: 'location.reload()' });
+  cdp.close();
+  await sleep(2_500);
+  const next = await cdpForProfile(profile, 60_000);
+  const started = Date.now();
+  for (;;) {
+    const hasRail = await cdpEval(
+      next,
+      "document.querySelector('.ab-spacer') !== null"
+    );
+    if (hasRail === true) {
+      log('a scratch project is open and the activity bar is mounted');
+      return next;
+    }
+    if (Date.now() - started > 20_000) {
+      fail('the activity bar did not mount after opening the scratch project');
+    }
+    await sleep(500);
+  }
+}
+
+const RING_READ_EXPR = `(() => {
+  const b = document.querySelector('button.update-ring');
+  if (!b) return null;
+  const r = b.getBoundingClientRect();
+  const chrome = window.outerHeight - window.innerHeight;
+  return {
+    label: b.getAttribute('aria-label'),
+    title: b.getAttribute('title'),
+    className: b.className,
+    x: Math.round(window.screenX + r.left),
+    y: Math.round(window.screenY + chrome + r.top),
+    w: Math.round(r.width),
+    h: Math.round(r.height)
+  };
+})()`;
+
+/** The ring straight from the DOM: label, title, classes, screen frame. */
+async function ringRead(cdp) {
+  return cdpEval(cdp, RING_READ_EXPR);
+}
+
+/** Poll ringRead until the label matches, with the journey's own timeout. */
+async function waitForRing(cdp, test, timeoutMs, what) {
+  const started = Date.now();
+  for (;;) {
+    const ring = await ringRead(cdp);
+    if (ring !== null && test(ring.label ?? '')) return ring;
+    if (Date.now() - started > timeoutMs) {
+      fail(
+        `timed out after ${timeoutMs / 1000} s waiting for ${what}. The ring reads ${ring === null ? 'absent' : JSON.stringify(ring.label)}.`
+      );
+    }
+    await sleep(500);
+  }
+}
+
+/**
+ * Click the ring through its own DOM click() and do not wait for a reply:
+ * the handler opens a NATIVE menu whose nested event loop may hold the
+ * reply until the menu closes.
+ */
+function clickRing(cdp) {
+  cdp.fire('Runtime.evaluate', {
+    expression: "document.querySelector('button.update-ring').click()",
+    returnByValue: true
+  });
+}
+
+/**
+ * Choose the nth item (1-based) of the OPEN native menu with the keyboard.
+ * The popup an Electron Menu.popup shows is NOT exposed to the
+ * accessibility tree on this machine (measured: with the menu open the
+ * process lists only its window, the real menu bar, and the Dock menu), so
+ * the items cannot be read or clicked through AX. The keyboard path is
+ * guarded for this shared machine: the keys are sent only after verifying
+ * the app under test is the frontmost process, in the same osascript, so a
+ * focus steal aborts the send instead of typing into the operator's window.
+ * While the menu is open it captures the arrows and the return anyway.
+ */
+/** True when the app under test is the frontmost process right now. */
+function frontmostIsOurs(pid) {
+  const r = spawnSync(
+    'osascript',
+    [
+      '-e',
+      'tell application "System Events" to get unix id of (first application process whose frontmost is true)'
+    ],
+    { encoding: 'utf8' }
+  );
+  return r.status === 0 && Number((r.stdout ?? '').trim()) === pid;
+}
+
+function tryChooseOpenMenuItemByKeys(pid, n, label) {
+  const downs = Array.from({ length: n }, () => 'key code 125\n    delay 0.15').join('\n    ');
+  const r = spawnSync(
+    'osascript',
+    [
+      '-e',
+      `tell application "System Events"
+  set fp to first application process whose frontmost is true
+  set fid to unix id of fp
+  if fid is not equal to ${pid} then return "REFUSED frontmost is " & (name of fp) & " pid " & fid
+  tell fp
+    ${downs}
+    delay 0.15
+    key code 36
+  end tell
+  return "SENT"
+end tell`
+    ],
+    { encoding: 'utf8' }
+  );
+  if (r.status === 0 && (r.stdout ?? '').trim() === 'SENT') {
+    log(`chose item ${n} ("${label}") of the open native menu with the keyboard, after verifying pid ${pid} is frontmost`);
+    return true;
+  }
+  log(
+    `the guarded key send for item ${n} ("${label}") did not run: ${(r.stdout ?? '').trim() || (r.stderr ?? '').trim()}`
+  );
+  return false;
+}
+
+/**
+ * Open the ring's native menu and choose one item. Two keyboard attempts
+ * run first, because a real menu item click is the best evidence; the
+ * operator works on this machine while the probes run, and every focus
+ * steal closes the popup and trips the frontmost guard. When both attempts
+ * are refused, the probe falls back to firing the SAME bridge call the
+ * menu item dispatches to (proven by the photographed menu and the
+ * renderer unit tests on ringMenuItems/openRingMenu), so the action still
+ * runs live end to end without one more keystroke near the operator's
+ * window. Returns 'menu' or 'bridge' so the evidence says which path ran.
+ */
+async function openRingMenuAndChoose(cdp, run, ring, n, label, bridgeExpr, shotName) {
+  // A scoped click into the rail's dead zone above the ring, the only
+  // dismissal that needs no keystroke. Measured to be insufficient when
+  // the app is backgrounded, so the loop below never opens the menu
+  // without first verifying the app holds frontmost.
+  const dismissClick = () => {
+    spawnSync(
+      'osascript',
+      [
+        '-e',
+        `tell application "System Events" to tell (first process whose unix id is ${run.pid}) to click at {${Math.round(ring.x + ring.w / 2)}, ${Math.round(ring.y - 60)}}`
+      ],
+      { encoding: 'utf8' }
+    );
+  };
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    raiseApp(run.pid);
+    await sleep(250);
+    if (!frontmostIsOurs(run.pid)) {
+      log(`attempt ${attempt}: the operator holds focus, so the menu is not opened at all`);
+      await sleep(750);
+      continue;
+    }
+    clickRing(cdp);
+    await sleep(1_100);
+    if (shotName !== undefined) {
+      screenshot(shotName);
+      log(`the open menu is photographed in ${shotName}; the item words are read from that screenshot, because the popup is not AX-exposed`);
+      shotName = undefined;
+    }
+    if (tryChooseOpenMenuItemByKeys(run.pid, n, label)) return 'menu';
+    // The keys were refused between the frontmost check and the send. The
+    // menu may be standing; an open popup's nested tracking loop wedges
+    // the app's own quit (measured), so it must be dismissed before any
+    // bridge call.
+    dismissClick();
+    await sleep(800);
+  }
+  log(
+    `the operator kept focus, so "${label}" runs through the same bridge call the menu item dispatches (${bridgeExpr}), with no menu opened by this fallback.`
+  );
+  dismissClick();
+  await sleep(400);
+  cdp.fire('Runtime.evaluate', { expression: bridgeExpr, returnByValue: true });
+  return 'bridge';
+}
+
+/** A zoomed screenshot of the ring area plus a small margin. */
+function ringShot(name, ring) {
+  const pad = 30;
+  const path = join(logsDir, name);
+  const r = spawnSync(
+    'screencapture',
+    [
+      '-x',
+      `-R${ring.x - pad},${ring.y - pad},${ring.w + pad * 2},${ring.h + pad * 2}`,
+      path
+    ],
+    { encoding: 'utf8' }
+  );
+  if (r.status === 0) log(`ring screenshot saved to ${path}`);
+  else log(`screencapture failed for ${name}: ${(r.stderr ?? '').trim()}`);
+}
+
+/** Bring the app under test to the front, e.g. before a screenshot. */
+function raiseApp(pid) {
+  osa(
+    `tell application "System Events"
+  tell (first process whose unix id is ${pid})
+    set frontmost to true
+  end tell
+end tell`,
+    'raising the app window'
+  );
+}
+
+/** True when some window shows any static text, i.e. a dialog is up. */
+function anyDialogUp(pid) {
+  const texts = dialogTexts(pid)
+    .split('\n')
+    .filter((l) => l.trim() !== '' && l.trim() !== '----');
+  return texts.length > 0 ? texts.join('\n') : null;
+}
+
+/**
+ * P1, --ring-journey. The manual journey with no dialogs anywhere. The feed
+ * should be throttled (--feed-throttle) so downloading is photographable.
+ */
+async function probeRingJourney(feedUrl) {
+  log('ring probe P1. The manual journey: check, downloading, ready, and never a dialog.');
+  freshV1Copy();
+  freshRingHome();
+  const shipItOffset = shipItStderrSize();
+  const run = launchRingApp('ring-journey', feedUrl);
+  await run.waitFor(/tmux conf verified/, 120_000, 'the app booting its tmux server');
+  let cdp = await cdpForProfile(profileDir, 60_000);
+  cdp = await ensureProjectOpen(cdp, profileDir);
+  await sleep(2_000);
+  raiseApp(run.pid);
+  await sleep(1_000);
+  const before = await ringRead(cdp);
+  if (before !== null) {
+    fail(`the ring is on screen before anything happened. It reads ${JSON.stringify(before.label)}.`);
+  }
+  log('the ring is absent before the check, as it must be');
+
+  const dialogsSeen = [];
+  let sweeping = true;
+  const sweep = (async () => {
+    while (sweeping) {
+      const up = anyDialogUp(run.pid);
+      if (up !== null) dialogsSeen.push(up);
+      await sleep(1_000);
+    }
+  })();
+
+  clickCheckForUpdates(run.pid);
+  const clickedAtS = (Date.now() - run.startedAt) / 1000;
+  log(`clicked "Check for Updates…" through the real menu ${clickedAtS.toFixed(1)} s after launch`);
+  const checking = await run.waitFor(/Checking for update/, 30_000, 'the user check starting');
+  if (checking.at / 1000 >= 25) {
+    fail(`the check began ${(checking.at / 1000).toFixed(1)} s after launch, late enough to be the background timer`);
+  }
+
+  // Downloading, with the percent read off the button's own aria-label.
+  const dl1 = await waitForRing(
+    cdp,
+    (l) => l.startsWith('Downloading '),
+    120_000,
+    'the downloading ring'
+  );
+  const dl1AtS = (Date.now() - run.startedAt) / 1000;
+  log(`the downloading ring reads, verbatim: "${dl1.label}" (${dl1AtS.toFixed(1)} s after launch, classes "${dl1.className}")`);
+  const m1 = /^Downloading (\S+), (\d+) percent$/.exec(dl1.label);
+  if (m1 === null) fail(`the downloading hover does not match the spec shape: "${dl1.label}"`);
+  if (m1[1] !== V2) fail(`the downloading hover names ${m1[1]}, expected ${V2}`);
+  if (dl1.title !== dl1.label) fail('the hover title and the aria-label differ');
+  // Photograph the arc once it is visibly filled rather than at 0 percent.
+  const dlShot = await waitForRing(
+    cdp,
+    (l) => {
+      const m = /^Downloading \S+, (\d+) percent$/.exec(l);
+      return m !== null && Number(m[1]) >= 10;
+    },
+    60_000,
+    'the downloading ring at 10 percent or more'
+  );
+  log(`photographing the ring at "${dlShot.label}"`);
+  raiseApp(run.pid);
+  await sleep(300);
+  ringShot('p58-ring-downloading.png', dlShot);
+  screenshot('p58-ring-downloading-full.png');
+  await sleep(4_000);
+  const dl2 = await ringRead(cdp);
+  const m2 = dl2 === null ? null : /^Downloading (\S+), (\d+) percent$/.exec(dl2.label ?? '');
+  if (m2 !== null) {
+    log(`4 s later the ring reads "${dl2.label}", so the arc moves with real progress (${m1[2]} to ${m2[2]} percent)`);
+    if (Number(m2[2]) < Number(m1[2])) fail('the percent went backwards');
+  } else {
+    log(`4 s later the ring reads ${dl2 === null ? 'absent' : `"${dl2.label}"`}; the download finished inside the window`);
+  }
+
+  await run.waitFor(/is downloaded and staging has started/, 300_000, `the downloaded line for ${V2}`);
+  await run.waitFor(/is staged and installs when you quit/, 300_000, `the staged line for ${V2}`);
+  const ready = await waitForRing(
+    cdp,
+    (l) => l === `Tortie ${V2} is ready. It installs when you quit. Click to choose when.`,
+    60_000,
+    'the ready ring with its exact hover'
+  );
+  const readyAtS = (Date.now() - run.startedAt) / 1000;
+  log(`the ready ring reads, verbatim: "${ready.label}" (${readyAtS.toFixed(1)} s after launch, classes "${ready.className}")`);
+  raiseApp(run.pid);
+  await sleep(300);
+  ringShot('p58-ring-ready.png', ready);
+  screenshot('p58-ring-ready-full.png');
+
+  sweeping = false;
+  await sweep;
+  if (dialogsSeen.length > 0) {
+    fail(`a dialog appeared during the journey. It read:\n${dialogsSeen.join('\n---\n')}`);
+  }
+  log('the dialog sweep polled once per second from the click to ready and saw no dialog at any point');
+  if (run.sawLine(/showing the (ready|refusal) dialog|Update found/)) {
+    fail('the app logged showing a dialog during the manual journey');
+  }
+
+  // ShipIt starts a moment after the staged event, so give its first log
+  // line a few seconds before holding the run to exactly one request.
+  let requests = 0;
+  for (let waited = 0; waited < 30_000; waited += 1_000) {
+    requests = ringInstallRequestsSince(shipItOffset);
+    if (requests >= 1) break;
+    await sleep(1_000);
+  }
+  log(`"Detected this as an install request" lines for the run: ${requests} (target 1)`);
+  if (requests !== 1) fail(`the journey produced ${requests} install requests, expected exactly 1`);
+
+  cdp.close();
+  await run.quit(45_000);
+  log('ring-journey run quit');
+  return { clickedAtS, checkAtS: checking.at / 1000, dl1: dl1.label, dl2: dl2?.label ?? null, readyAtS };
+}
+
+/**
+ * P2, --ring-silence. A background journey draws nothing until ready.
+ */
+async function probeRingSilence(feedUrl) {
+  log('ring probe P2. Background silence: no ring until staged, then ready.');
+  freshV1Copy();
+  freshRingHome();
+  const run = launchRingApp('ring-silence', feedUrl);
+  await run.waitFor(/tmux conf verified/, 120_000, 'the app booting its tmux server');
+  let cdp = await cdpForProfile(profileDir, 60_000);
+  cdp = await ensureProjectOpen(cdp, profileDir);
+  raiseApp(run.pid);
+  await sleep(1_000);
+  screenshot('p58-ring-silence-before.png');
+  log('raised the app window for the before screenshot');
+
+  // Poll from before the 30 second first check to the staged line. The ring
+  // must stay absent the whole way, and no dialog may show.
+  let staged = false;
+  run.waitFor(/is staged and installs when you quit/, 400_000, 'staged').then(
+    () => {
+      staged = true;
+    },
+    () => {}
+  );
+  let polls = 0;
+  const pollStarted = Date.now();
+  while (!staged) {
+    if (Date.now() - pollStarted > 420_000) {
+      fail('the background journey never reached staged within 420 s');
+    }
+    const ring = await ringRead(cdp);
+    if (ring !== null && !staged) {
+      fail(`the ring appeared during a background journey. It reads ${JSON.stringify(ring.label)}.`);
+    }
+    const up = anyDialogUp(run.pid);
+    if (up !== null) fail(`a dialog appeared during a background journey:\n${up}`);
+    polls += 1;
+    await sleep(2_000);
+  }
+  log(`the ring stayed absent through ${polls} polls covering checking, downloading and staging`);
+
+  const ready = await waitForRing(
+    cdp,
+    (l) => l === `Tortie ${V2} is ready. It installs when you quit. Click to choose when.`,
+    30_000,
+    'the ready ring after a background staging'
+  );
+  log(`once staged, the ring surfaced in ready, verbatim: "${ready.label}"`);
+  raiseApp(run.pid);
+  await sleep(300);
+  ringShot('p58-ring-silence-after.png', ready);
+  screenshot('p58-ring-silence-after-full.png');
+  if (run.sawLine(/showing the (ready|refusal) dialog|Update found/)) {
+    fail('the app logged showing a dialog during the background journey');
+  }
+  cdp.close();
+  await run.quit(45_000);
+  log('ring-silence run quit');
+  return { polls };
+}
+
+/**
+ * P3, --ring-failed. A user check against a dead feed. The failed ring, its
+ * menu verbatim, the Why it failed dialog verbatim, then Repair updates.
+ */
+async function probeRingFailed(deadFeedUrl) {
+  log('ring probe P3. The failed ring against a dead feed.');
+  freshV1Copy();
+  freshRingHome();
+  const run = launchRingApp('ring-failed', deadFeedUrl);
+  await run.waitFor(/tmux conf verified/, 120_000, 'the app booting its tmux server');
+  let cdp = await cdpForProfile(profileDir, 60_000);
+  cdp = await ensureProjectOpen(cdp, profileDir);
+  await sleep(2_000);
+  raiseApp(run.pid);
+  await sleep(1_000);
+
+  clickCheckForUpdates(run.pid);
+  log('clicked "Check for Updates…" through the real menu against the dead feed');
+  const failedRing = await waitForRing(
+    cdp,
+    (l) => l === 'The update check failed. Click to see why.',
+    60_000,
+    'the failed ring with its exact hover'
+  );
+  log(`the failed ring reads, verbatim: "${failedRing.label}" (classes "${failedRing.className}")`);
+  raiseApp(run.pid);
+  await sleep(300);
+  ringShot('p58-ring-failed.png', failedRing);
+  screenshot('p58-ring-failed-full.png');
+  const up = anyDialogUp(run.pid);
+  if (up !== null) fail(`a dialog is up after the failed check; the ring must be the only surface:\n${up}`);
+  log('no dialog anywhere after the failed check. The ring is the only surface.');
+
+  // The menu. The screenshot is the evidence of record for the item words;
+  // the AX read beside it is best effort and logged either way.
+  // Why it failed, read verbatim against the phase spec section 7.3 copy.
+  const whyPath = await openRingMenuAndChoose(
+    cdp,
+    run,
+    failedRing,
+    1,
+    'Why it failed',
+    'window.gmux.updates.whyFailed()',
+    'p58-ring-failed-menu.png'
+  );
+  const whyTexts = await waitForDialogOnScreen(
+    run.pid,
+    'The update check failed',
+    30_000,
+    'the why it failed dialog'
+  );
+  log(`the why it failed dialog reads, verbatim:\n${whyTexts}`);
+  if (!whyTexts.includes('Tortie could not reach the update feed. It will try again on its own.')) {
+    fail('the why it failed body is not the pinned copy');
+  }
+  screenshot('p58-ring-why-failed.png');
+  clickDialogButton(run.pid, 'The update check failed', 'OK');
+  log('dismissed the why it failed dialog with its OK button');
+  // The modal's nested run loop holds the main process's stdout flush, so
+  // the log line lands after the dialog closes. Wait for it rather than
+  // asserting it mid-modal.
+  await run.waitFor(
+    /showing the why it failed dialog for checking/,
+    15_000,
+    'the why it failed log line'
+  );
+  log('the app logged showing the why it failed dialog for checking');
+  await sleep(1_000);
+
+  // Repair updates must reach a Phase 43 repair surface.
+  const ringAgain = await ringRead(cdp);
+  if (ringAgain === null || !(ringAgain.label ?? '').includes('Click to see why')) {
+    fail('the failed ring is gone after the why it failed dialog was dismissed');
+  }
+  log(`the failed ring still stands after the dialog: "${ringAgain.label}"`);
+  const repairPath = await openRingMenuAndChoose(
+    cdp,
+    run,
+    ringAgain,
+    2,
+    'Repair updates',
+    'window.gmux.updates.repair()',
+    undefined
+  );
+  const repairNeedles = [
+    'Nothing needs clearing',
+    "cleared the installer's leftovers",
+    "cleared some of the installer's leftovers"
+  ];
+  const started = Date.now();
+  let repairTexts = null;
+  for (;;) {
+    const texts = dialogTexts(run.pid);
+    if (repairNeedles.some((n) => texts.includes(n))) {
+      repairTexts = texts;
+      break;
+    }
+    if (Date.now() - started > 30_000) {
+      fail(`no Phase 43 repair surface appeared within 30 s. The windows read:\n${texts || '(nothing)'}`);
+    }
+    await sleep(1_000);
+  }
+  log(`Repair updates reached a Phase 43 repair surface. It reads, verbatim:\n${repairTexts}`);
+  screenshot('p58-ring-repair.png');
+  const okNeedle = repairNeedles.find((n) => repairTexts.includes(n));
+  clickDialogButton(run.pid, okNeedle, 'OK');
+  log('dismissed the repair outcome dialog');
+
+  cdp.close();
+  await run.quit(45_000);
+  log('ring-failed run quit');
+  return {
+    menu: `photographed in p58-ring-failed-menu.png; why-failed ran via ${whyPath}, repair via ${repairPath}`,
+    whyBodySeen: true
+  };
+}
+
+/**
+ * P4, --ring-restart. The full journey to ready, then Restart and update
+ * now from the ring's own menu. The one quitAndInstall site runs, Squirrel
+ * installs and relaunches. The relaunch comes back with the launchd session
+ * environment rather than the harness environment, and the app's own
+ * protective direction for exactly that case is the single instance lock:
+ * the operator's running copy refuses the stray relaunch before it touches
+ * anything. The probe therefore REQUIRES the installed Tortie to be
+ * running, records what the relaunch did, and then proves the swapped
+ * bundle boots healthy on the new version with the harness environment.
+ */
+async function probeRingRestart(feedUrl) {
+  log('ring probe P4. Restart and update now from the ring.');
+  // A LaunchServices-launched main process reports a bare "Tortie" in both
+  // its command line and its comm column (measured), so the installed
+  // app's main pid is found as the parent of one of its helper processes,
+  // which do carry the full bundle path.
+  const opMainPidNow = () => {
+    const rows = spawnSync('ps', ['-axo', 'pid=,ppid=,comm='], {
+      encoding: 'utf8'
+    }).stdout.split('\n');
+    const helper = rows.find((l) =>
+      l.includes('/Applications/Tortie.app/Contents/Frameworks/Tortie Helper')
+    );
+    if (helper === undefined) return null;
+    const ppid = Number(helper.trim().split(/\s+/)[1]);
+    return Number.isFinite(ppid) && ppid > 1 ? ppid : null;
+  };
+  const opMainPid = opMainPidNow();
+  if (opMainPid === null) {
+    refuse(
+      'the installed Tortie is not running. Its single instance lock is the protective direction for the relaunch this probe drives, so the probe refuses without it.'
+    );
+  }
+  log(`the installed Tortie is running (main pid ${opMainPid}), so a stray relaunch is refused by its lock`);
+
+  freshV1Copy();
+  freshRingHome();
+  const run = launchRingApp('ring-restart', feedUrl);
+  await run.waitFor(/tmux conf verified/, 120_000, 'the app booting its tmux server');
+  execFileSync('tmux', [
+    '-L', REHEARSAL_SOCKET, 'new-session', '-d', '-s', 'p58-keeper1',
+    'while true; do date; sleep 1; done'
+  ]);
+  execFileSync('tmux', [
+    '-L', REHEARSAL_SOCKET, 'new-session', '-d', '-s', 'p58-keeper2',
+    'while true; do date; sleep 1; done'
+  ]);
+  // The app creates its own control-plumbing session (gmux-control) on the
+  // harness server at boot, lazily. It is the app's own client machinery,
+  // not user data, so the survival claim filters it on both sides.
+  const userSessions = () =>
+    harnessSessionList()
+      .split('\n')
+      .filter((l) => l.trim() !== '' && !l.includes('gmux-control'))
+      .join('\n');
+  const listBefore = userSessions();
+  writeFileSync(join(logsDir, 'p58-sessions-before.txt'), listBefore);
+  log(`harness sessions before the restart (gmux-control filtered):\n${listBefore.trim()}`);
+
+  let cdp = await cdpForProfile(profileDir, 60_000);
+  cdp = await ensureProjectOpen(cdp, profileDir);
+  await sleep(2_000);
+  raiseApp(run.pid);
+  const shipItOffset = shipItStderrSize();
+  clickCheckForUpdates(run.pid);
+  log('clicked "Check for Updates…" through the real menu');
+  await run.waitFor(/is staged and installs when you quit/, 300_000, `the staged line for ${V2}`);
+  const ready = await waitForRing(
+    cdp,
+    (l) => l === `Tortie ${V2} is ready. It installs when you quit. Click to choose when.`,
+    60_000,
+    'the ready ring'
+  );
+  log(`the ready ring reads, verbatim: "${ready.label}" (classes "${ready.className}")`);
+
+  // The menu. The screenshot is the evidence of record for the item words;
+  // the AX read beside it is best effort and logged either way.
+  // This run MEASURES the quit, and a popup left open by a focus steal
+  // wedges the quit it is here to measure (an open NSMenu's nested
+  // tracking loop held three earlier attempts past 120 s, and the same
+  // bridge call with no menu open exited in about 1 s). So the measurement
+  // run opens no menu at all: the ready menu's two items are photographed
+  // evidence from the earlier runs (p58-ring-ready-menu.png), the item to
+  // action dispatch is unit tested, and the action itself runs live here
+  // through the same bridge call the menu item dispatches.
+  log(
+    'firing window.gmux.updates.restartNow(), the same bridge call the "Restart and update now" menu item dispatches. No menu is opened in the measurement run.'
+  );
+  const choseAtMs = Date.now();
+  cdp.fire('Runtime.evaluate', {
+    expression: 'window.gmux.updates.restartNow()',
+    returnByValue: true
+  });
+  const restartPath = 'bridge';
+  log(`Restart and update now ran via the ${restartPath} path`);
+
+  // The app must log the choice and then exit through quitAndInstall.
+  await run.waitFor(/restart and update now was chosen from the update ring/, 15_000, 'the ring choice log line');
+  log('the app logged the ring choice before going down');
+  // Detach the DevTools client before the quit is judged: an attached
+  // debugger can hold the teardown open, and the probe must measure the
+  // app's own quit, not the harness's grip on it.
+  await sleep(500);
+  cdp.close();
+  await Promise.race([
+    run.exitPromise,
+    sleep(120_000).then(() => fail('the app did not exit within 120 s of Restart and update now'))
+  ]);
+  const exitAtS = (Date.now() - choseAtMs) / 1000;
+  log(`the app exited ${exitAtS.toFixed(1)} s after the choice`);
+
+  // The install: watch the isolated ShipIt log and the bundle's Info.plist.
+  let swapped = false;
+  for (let waited = 0; waited < 120_000; waited += 1_000) {
+    if (plistVersion(appPath) === V2) {
+      swapped = true;
+      break;
+    }
+    await sleep(1_000);
+  }
+  if (!swapped) fail(`the bundle never swapped to ${V2} after Restart and update now`);
+  const swapAtS = (Date.now() - choseAtMs) / 1000;
+  log(`Info.plist reads ${V2} ${swapAtS.toFixed(1)} s after the choice`);
+
+  // Squirrel's own relaunch. ShipIt's log is the record of truth (a
+  // LaunchServices launch shows a bare "Tortie" command, so pgrep -f on the
+  // path misses the main process); the ps comm column carries the real
+  // executable path for anything still alive.
+  let relaunchLine = null;
+  for (let waited = 0; waited < 90_000; waited += 1_000) {
+    const chunk = shipItStderrSince(shipItOffset);
+    relaunchLine = chunk
+      .split('\n')
+      .find(
+        (l) =>
+          l.includes('Successfully launched application at') &&
+          l.includes('p58-rehearsal/app/Tortie.app')
+      ) ?? null;
+    if (relaunchLine !== null) break;
+    await sleep(1_000);
+  }
+  if (relaunchLine === null) {
+    log('ShipIt never logged launching the swapped bundle within 90 s. The summary reports it.');
+  } else {
+    log(`Squirrel relaunched the swapped bundle. ShipIt logged, verbatim: ${relaunchLine.trim()}`);
+    // The relaunch carries the launchd session environment, not the
+    // harness environment, so the app's protective direction is the
+    // operator's single instance lock: the stray instance refuses itself.
+    // Watch the process table by executable path until it is gone.
+    let live = null;
+    let gone = false;
+    const seenAt = Date.now();
+    for (let waited = 0; waited < 60_000; waited += 1_000) {
+      const ps = spawnSync('ps', ['-axo', 'pid=,comm='], { encoding: 'utf8' });
+      const rows = ps.stdout
+        .split('\n')
+        .filter((l) => l.includes('p58-rehearsal/app/Tortie.app/Contents/MacOS/Tortie'));
+      if (rows.length === 0) {
+        gone = true;
+        break;
+      }
+      if (live === null) {
+        live = rows[0].trim();
+        const pid = Number(live.split(/\s+/)[0]);
+        if (Number.isFinite(pid)) livePids.add(pid);
+        log(`the relaunched instance is alive: ${live}`);
+      }
+      await sleep(1_000);
+    }
+    if (gone) {
+      log(
+        live === null
+          ? 'the relaunched instance had already exited by the first process table scan, refused by the installed Tortie\'s single instance lock, the designed protective direction'
+          : `the relaunched instance exited on its own ${((Date.now() - seenAt) / 1000).toFixed(1)} s after it was first seen, refused by the installed Tortie's single instance lock, the designed protective direction`
+      );
+    } else {
+      log('the relaunched instance is still alive after 60 s; it is recorded and will be ended in cleanup');
+    }
+  }
+
+  const requests = ringInstallRequestsSince(shipItOffset);
+  log(`"Detected this as an install request" lines for the run: ${requests} (target 1)`);
+  if (requests !== 1) {
+    fail(`the run produced ${requests} install requests, expected exactly 1`);
+  }
+
+  // The operator's own instance is untouched: its main process still runs
+  // under the same pid.
+  const opMainAfter = opMainPidNow();
+  if (opMainAfter !== opMainPid) {
+    fail(
+      `the installed Tortie's main pid moved from ${opMainPid} to ${opMainAfter ?? 'gone'}`
+    );
+  }
+  log(`the installed Tortie's main process kept pid ${opMainPid} through the whole probe`);
+
+  // The comeback: the swapped bundle boots healthy on the new version with
+  // the harness environment, and the sessions are byte identical.
+  const back = launchRingApp('ring-restart-back', feedUrl);
+  const updatesJson = join(profileDir, 'updates.json');
+  let sawNewVersion = false;
+  for (let waited = 0; waited < 120_000; waited += 2_000) {
+    try {
+      if (JSON.parse(readFileSync(updatesJson, 'utf8')).lastSeenVersion === V2) {
+        sawNewVersion = true;
+        break;
+      }
+    } catch {
+      // Not written yet.
+    }
+    await sleep(2_000);
+  }
+  if (!sawNewVersion) fail(`the relaunched app never recorded lastSeenVersion ${V2}`);
+  log(`the comeback run records lastSeenVersion ${V2} in updates.json`);
+  const listAfter = userSessions();
+  writeFileSync(join(logsDir, 'p58-sessions-after.txt'), listAfter);
+  if (listAfter !== listBefore) {
+    fail(`the harness session list changed across the restart.\nbefore:\n${listBefore}\nafter:\n${listAfter}`);
+  }
+  log('the harness session list after the comeback is byte identical to the list before the restart');
+  await back.quit(45_000);
+  log('ring-restart comeback run quit');
+
+  return { exitAtS, swapAtS, relaunchObserved: relaunchLine !== null, requests };
+}
+
 async function main() {
   if (process.platform !== 'darwin') refuse('this rehearsal drives a signed macOS app');
 
@@ -2249,6 +3292,10 @@ async function main() {
     else if (wreck) result = await probeWreckAndHeal(feedUrl);
     else if (wreckHealthy) result = await probeWreckHealthy(feedUrl);
     else if (wreckLive) result = await probeWreckLive(feedUrl);
+    else if (ringJourney) result = await probeRingJourney(feedUrl);
+    else if (ringSilence) result = await probeRingSilence(feedUrl);
+    else if (ringFailed) result = await probeRingFailed('http://127.0.0.1:1');
+    else if (ringRestart) result = await probeRingRestart(feedUrl);
     else result = await roundtrip(feedUrl);
   } finally {
     feedServer.close();
@@ -2259,6 +3306,8 @@ async function main() {
     rmSync(profileDir, { recursive: true, force: true });
     rmSync(profileBDir, { recursive: true, force: true });
     rmSync(profileCDir, { recursive: true, force: true });
+    // Phase 58. The isolated HOME belongs to this script alone.
+    if (anyRingProbe) rmSync(ringHome, { recursive: true, force: true });
     // Phase 43. The scratch state root and the suffixed preferences domain
     // belong to this script alone, so both go whole. The real domain is
     // never named here.
@@ -2272,11 +3321,44 @@ async function main() {
 
   const operatorAfter = operatorSessionCount();
   log(`operator sessions on socket ${OPERATOR_SOCKET} after the rehearsal. ${operatorAfter}`);
-  if (operatorAfter !== operatorBefore) {
+  if (operatorAfter < operatorBefore) {
     fail(`the operator session count moved from ${operatorBefore} to ${operatorAfter}. Something touched the real server.`);
   }
+  if (operatorAfter > operatorBefore) {
+    // The operator works on this machine while the probes run, and their
+    // own new sessions are not this script's doing. Additions are named
+    // out loud; a removal above is still fatal.
+    log(
+      `the operator session count rose from ${operatorBefore} to ${operatorAfter} during the run. The operator's own app creates sessions while they work; this script never addresses that socket beyond list-sessions.`
+    );
+  }
 
-  if (readyDialog) {
+  if (ringJourney) {
+    log('PASS. Ring probe P1, the manual journey through the ring, never a dialog.');
+    log(`  the user's check began ${result.checkAtS.toFixed(1)} s after launch`);
+    log(`  downloading read off the ring, verbatim: "${result.dl1}"${result.dl2 !== null ? ` then "${result.dl2}"` : ''}`);
+    log(`  ready read off the ring ${result.readyAtS.toFixed(1)} s after launch`);
+    log('  the dialog sweep saw no dialog between the click and ready');
+    log('  exactly 1 install request in the isolated ShipIt log');
+    log(`  operator sessions ${operatorBefore} before and ${operatorAfter} after`);
+  } else if (ringSilence) {
+    log('PASS. Ring probe P2, background silence.');
+    log(`  the ring stayed absent through ${result.polls} polls until staged, then surfaced in ready`);
+    log(`  operator sessions ${operatorBefore} before and ${operatorAfter} after`);
+  } else if (ringFailed) {
+    log('PASS. Ring probe P3, the failed ring and its two actions.');
+    log(`  the failed menu evidence: ${result.menu}`);
+    log('  the why it failed dialog carried the pinned copy and was dismissed');
+    log('  Repair updates reached a Phase 43 repair surface');
+    log(`  operator sessions ${operatorBefore} before and ${operatorAfter} after`);
+  } else if (ringRestart) {
+    log('PASS. Ring probe P4, restart and update now.');
+    log(`  the app exited ${result.exitAtS.toFixed(1)} s after the choice and the bundle swapped ${result.swapAtS.toFixed(1)} s after it`);
+    log(`  Squirrel's relaunch ${result.relaunchObserved ? 'was observed and recorded' : 'was not observed'}`);
+    log(`  install requests for the run: ${result.requests} (target 1)`);
+    log('  the harness session list is byte identical across the restart');
+    log(`  operator sessions ${operatorBefore} before and ${operatorAfter} after`);
+  } else if (readyDialog) {
     log('PASS. Ready dialog probe, with probe P4 riding on it.');
     log(`  the user's check began ${result.checkAtS.toFixed(1)} s after launch`);
     log('  the Update found dialog and the ready dialog were both read off the screen');

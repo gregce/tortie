@@ -406,10 +406,13 @@ const CONFIG_REFUSALS = [
  * scrollback and nothing anywhere says so.
  *
  * Phase 31 added the third and the fourth, after the operator's first live
- * update installed nothing and said nothing. The third is the ready dialog's
+ * update installed nothing and said nothing. The third is the ready
  * promise sentence: a user who was told "downloading" must later be told
  * "ready", or the quit promise is a guess, because the download event and
- * the staged event are seconds apart and only the second one is true. The
+ * the staged event are seconds apart and only the second one is true.
+ * Phase 58 removed the ready dialog and moved that promise into the update
+ * ring's ready hover, which is renderer code, so that one entry scans the
+ * renderer asset bundles instead of out/main/index.js. The
  * fourth is the refusal sentence: an install the OS updater refused must be
  * said out loud once with its reason, or it reads to the user as an update
  * that never existed.
@@ -456,14 +459,16 @@ const UPDATER_REFUSALS = [
     fragments: ['the update left resources missing: ']
   },
   {
-    id: 'updater.ready-after-user-check',
-    source: 'src/main/updates/ui.ts',
+    id: 'updater.ready-ring-promise',
+    source: 'src/renderer/app/UpdateRing.tsx',
+    // Phase 58 moved the ready promise from the ready dialog (removed) into
+    // the ring's ready hover, which is RENDERER code, so this entry scans
+    // the renderer asset bundles rather than out/main/index.js.
+    bundle: 'renderer',
     why:
-      'a user who was told "downloading" must be told "ready", or the quit ' +
+      'a user who was told downloading must be told ready, or the quit ' +
       'promise is a guess',
-    fragments: [
-      'It installs when you quit. To install it now, use the Tortie menu.'
-    ]
+    fragments: [' is ready. It installs when you quit.']
   },
   {
     id: 'updater.refused-install-says-why',
@@ -687,6 +692,21 @@ function assertReachable(bundle) {
   );
 }
 
+/**
+ * Every renderer asset bundle as one concatenated string (Phase 58). The
+ * ring's ready promise is renderer code, so its shipped artifact is
+ * out/renderer/assets rather than out/main/index.js. Searched by content
+ * rather than by name because the chunks carry content hashes.
+ */
+function readRendererBundles() {
+  const rendererDir = join(repoRoot, 'out', 'renderer', 'assets');
+  if (!existsSync(rendererDir)) return null;
+  return readdirSync(rendererDir)
+    .filter((name) => name.endsWith('.js'))
+    .map((name) => readFileSync(join(rendererDir, name), 'utf8'))
+    .join('\n');
+}
+
 function main() {
   if (!existsSync(bundlePath)) {
     console.error(
@@ -695,6 +715,7 @@ function main() {
     process.exit(1);
   }
   const bundle = readFileSync(bundlePath, 'utf8');
+  const rendererBundle = readRendererBundles();
   const sources = new Map();
   const staleTable = [];
   const missingFromBundle = [];
@@ -718,12 +739,19 @@ function main() {
       staleTable.push(`${refusal.id}: ${refusal.source} does not exist`);
       continue;
     }
+    const shipped = refusal.bundle === 'renderer' ? rendererBundle : bundle;
+    if (shipped === null) {
+      staleTable.push(
+        `${refusal.id}: out/renderer/assets is not there. Run the build before this check.`
+      );
+      continue;
+    }
     for (const fragment of refusal.fragments) {
       if (!source.includes(fragment)) {
         staleTable.push(`${refusal.id}: ${refusal.source} no longer contains ${JSON.stringify(fragment)}`);
         continue;
       }
-      if (!bundle.includes(fragment)) {
+      if (!shipped.includes(fragment)) {
         missingFromBundle.push({ refusal, fragment });
       }
     }
@@ -766,7 +794,7 @@ function main() {
     `[refusals] ${String(CONFIG_REFUSALS.length)} config confirm-gate refusals are in out/main/index.js.`
   );
   console.log(
-    `[refusals] ${String(UPDATER_REFUSALS.length)} updater refusals are in out/main/index.js.`
+    `[refusals] ${String(UPDATER_REFUSALS.length)} updater refusals are in the shipped bundles (one, the ring's ready promise, is renderer code).`
   );
   console.log(
     `[refusals] ${String(LOG_REFUSALS.length)} crash-capture refusal is in out/main/index.js.`

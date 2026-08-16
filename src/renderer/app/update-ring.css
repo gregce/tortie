@@ -1,0 +1,79 @@
+/**
+ * The update ring (Phase 58), colocated with UpdateRing.tsx. Every color is
+ * a token from styles/tokens.css. The drawing is quiet on purpose. Checking
+ * and staging turn slowly, downloading grows an arc, ready and failed stand
+ * still. Nothing here pulses and nothing here is amber, because amber
+ * belongs to "an agent needs you".
+ */
+
+.update-ring {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 32px;
+  flex: 0 0 auto;
+}
+
+.update-ring:focus-visible {
+  box-shadow: inset var(--focus-ring);
+}
+
+.update-ring svg {
+  display: block;
+}
+
+/* The faint full circle behind the checking, downloading and staging arcs. */
+.update-ring-track {
+  stroke: var(--border-strong);
+}
+
+/* The arc. The base rotation starts every arc at 12 o'clock, so the spin
+   below and the reduced-motion stop both land on the same resting angle. */
+.update-ring-arc {
+  stroke: var(--accent);
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+}
+
+/* Downloading. The arc length rides stroke-dasharray, and a fast transition
+   makes each progress tick read as growth rather than a jump. */
+.update-ring-downloading .update-ring-arc {
+  transition: stroke-dasharray var(--dur-fast) var(--ease-out);
+}
+
+/* Checking and staging. One quarter arc, 1.2 seconds per turn. */
+.update-ring-spin {
+  animation: update-ring-turn 1.2s linear infinite;
+}
+
+@keyframes update-ring-turn {
+  from {
+    transform: rotate(-90deg);
+  }
+  to {
+    transform: rotate(270deg);
+  }
+}
+
+/* Ready. A calm filled moment, no animation. */
+.update-ring-ready .update-ring-full {
+  stroke: var(--accent);
+}
+
+.update-ring-dot {
+  fill: var(--accent);
+}
+
+/* Failed. Quiet, no animation, no pulse. */
+.update-ring-failed .update-ring-full {
+  stroke: var(--error);
+}
+
+/* The rotation stops and the quarter arc stands still at 12 o'clock. */
+@media (prefers-reduced-motion: reduce) {
+  .update-ring-spin {
+    animation: none;
+  }
+}

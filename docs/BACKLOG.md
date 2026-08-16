@@ -5190,7 +5190,32 @@ the missing attacks in its own table. The edge counts are real measurements but 
 and the live collaborators from the operator's north star are not deliverable under the charter, and
 section 12.5 says so rather than implying otherwise.
 
-## Phase 58 — the update ring: progress above the gear instead of dialogs (operator requested 2026-08-16) QUEUED
+## Phase 58 — the update ring: progress above the gear instead of dialogs (operator requested 2026-08-16) ✅ SHIPPED 2026-08-16 (this commit, 0.26.0)
+
+### What shipped
+
+The ring landed as specified. `src/main/updates/journey.ts` holds the transition table, and
+`ringFromJourney` hides every journey the user did not start until it reaches ready. The
+`UpdateRing` component sits in the activity bar directly above the gear, draws all six states from
+tokens only, and opens its menu through the ui:popupMenu bridge on every path. Four dialogs are
+gone. They are the downloading dialog, the ready dialog, the failed check dialog and the staged
+outcome prompt. The Phase 31 refusal dialog and the staged menu item stayed, as the entry required.
+"Restart and update now" calls the updater's own install path and adds no relaunch logic. Three
+contract lines were added and re-baselined in this commit, being updates:repair,
+updates:restartNow and updates:whyFailed.
+
+The verifier drove a real staged update through build/update-rehearsal.mjs on an isolated profile
+and an isolated download cache. The ring was photographed in downloading, ready and failed states.
+A dialog sweep polled once per second across the manual journey and saw no dialog. A background
+check drew nothing through 27 polls until the staged event landed. The restart rehearsal came back
+on the new version in 4.7 s with exactly 1 install request, and Squirrel's own log named the
+swapped bundle. The rehearsal probes ride in this commit so they are not lost.
+
+What is not true. The home view has no activity bar, so a manual check with no project open shows
+no ring and gives no feedback until the staged menu item appears. The three menu actions were
+verified through the same bridge calls the menu items dispatch, not through a click on the open
+native menu, because an NSMenu popup is invisible to the accessibility tree on this machine. The
+item words themselves were photographed and the dispatch is covered by 32 renderer unit tests.
 
 **The operator's words.** "When you check for updates and have the process download, you are
 confronted with many screens and then you have to wait and then something shows and then make

@@ -18,6 +18,7 @@ import { loginItemExtras, useApp } from '../state/store';
 import type { SidebarViewId } from '../state/store';
 import { useSearch } from '../search';
 import { Codicon } from '../icons';
+import { UpdateRing } from './UpdateRing';
 
 function ViewItem({
   view,
@@ -236,6 +237,11 @@ export function ActivityBar(): React.JSX.Element {
         shortcut={keyDisplay('view.context')}
       />
       <div className="ab-spacer" />
+      {/* Phase 58. The update ring sits directly above the gear and carries
+          the manual update journey. It is hidden almost all of the time, and
+          main decides its visibility. The spacer absorbs the difference, so
+          the gear never moves. */}
+      <UpdateRing />
       <SettingsItem />
     </nav>
   );

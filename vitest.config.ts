@@ -10,7 +10,13 @@ export default defineConfig({
     }
   },
   test: {
-    include: ['src/**/__tests__/**/*.test.ts'],
+    // Phase 58 added the .tsx form. The update ring's renderer test is a
+    // component test, and without this second glob vitest would skip the
+    // file in silence.
+    include: [
+      'src/**/__tests__/**/*.test.ts',
+      'src/**/__tests__/**/*.test.tsx'
+    ],
     environment: 'node',
     env: {
       // The alias above only covers OUR imports, because Vite rewrites the
