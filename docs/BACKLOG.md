@@ -5097,7 +5097,7 @@ verified by stand-in rather than against the real binary. **The kill condition i
 measured false ping rate above zero on the agents with exact oracles means ship nothing. A wrong
 silence costs the user some waiting. A wrong ping costs them their attention. **Semver:** feat.
 
-## Phase 51 — `tortie .` from the shell (research 48, survivor 3) ✅ SHIPPED 2026-08-16 (this commit, 0.28.0)
+## Phase 51 — `tortie .` from the shell (research 48, survivor 3) ✅ SHIPPED 2026-08-16 (`051558e`, 0.28.0)
 
 **Specification.** docs/research/48-what-people-want.md, section 9.3. An optional shell command that
 opens a folder as a project tab in the running window. It opens a folder and does nothing else.
@@ -5315,7 +5315,7 @@ spec first believed macOS injects its own full screen item into any menu titled 
 dropped the template role on darwin. Measurement in the running app showed no injection and a
 dead shortcut. The role is now emitted on every platform and the menu carries exactly one item.
 
-## Phase 59 — grok build, the thirteenth compiled agent (research 50, operator requested 2026-08-16) ✅ SHIPPED 2026-08-16 (this commit, 0.29.0)
+## Phase 59 — grok build, the thirteenth compiled agent (research 50, operator requested 2026-08-16) ✅ SHIPPED 2026-08-16 (`b8c59f4`, 0.29.0)
 
 **Specification.** docs/research/50-grok-build.md, all of section 3, is the spec of record. The
 short shape: grok pre-assigns session ids with `--session-id` and resumes strictly by id from any
