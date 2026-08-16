@@ -5285,3 +5285,32 @@ back out, driven in the running app; a restore attempted from Past Sessions with
 closed, showing the ask, then accepting it and landing in the restored session; the View menu read
 back with all four views and their accelerators, and exactly one Toggle Full Screen. The dialog
 copy follows the writing rules. **Semver:** fix, patch. It ships inside 0.26.0 with Phase 58.
+
+## Phase 59 — grok build, the thirteenth compiled agent (research 50, operator requested 2026-08-16) QUEUED, runs after Phase 49
+
+**Specification.** docs/research/50-grok-build.md, all of section 3, is the spec of record. The
+short shape: grok pre-assigns session ids with `--session-id` and resumes strictly by id from any
+directory, both PROVEN live with content recall, so there is no harvest guessing and no identity
+race to design around. It is the easiest add since pi. Detection probes only the name `grok` and
+NEVER `agent`, which Cursor also claims and which is a stale 1.0.3 on the operator's own machine.
+
+**Five questions must close before the registry row is committed**, and the research prices each:
+the dead-id resume behavior (one turn, the unspent budget), offline behavior of the remote
+fallback (zero tokens, sandbox-exec), the idle animation and tab title (zero turns, one
+observation), the version probe form (a read of detection.ts), and the SpaceX brand policy read.
+Questions 4, 6 and 7 close inside the phase at no extra cost.
+
+**The icon carries a finding the operator must rule on.** His instruction is the SpaceX mark, and
+the mechanical work is one vendored SVG plus one LOGOS row. But research 38's own standard gives
+every shipped mark a READ brand policy and a verdict, no SpaceX policy has been read, and whether
+the rocket company's mark and grok-build's "SpaceXAI" copyright holder are the same owner is
+unestablished. Research 38 also ordered two mitigations that are STILL UNBUILT for the twelve
+marks already shipping: the NOTICE marks line and the README disclaimer. So this phase ships both
+of those mitigations for ALL thirteen marks, reads one SpaceX brand or media policy and records
+the research 38 style row, and only then lands grok.svg. A design note rides along: the mark is a
+wide wordmark and may be illegible at 16 px, so the Tier 1 screenshot decides between the full
+wordmark and a crop to the X letterform.
+
+**Tier 3**, because resume claims are executable: conformance:agents, conformance:resume:capture
+with grok in GMUX_CONF_AGENTS, and one live roundtrip. **Runs after Phase 49** so the row is born
+with its AgentInstallInfo. **Semver:** feat, minor.
