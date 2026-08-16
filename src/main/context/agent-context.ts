@@ -991,6 +991,91 @@ const BLOCKS: Partial<Record<AgentRegistryId, AgentContextBlock>> = {
   },
 
   // -------------------------------------------------------------------------
+  // Instruction files only (Phase 59, research 50 §2.5). The recognized
+  // file list comes from grok's own compat table: AGENTS.md, AGENT.md and
+  // the CLAUDE.md family (claude compatibility is on by default). There is
+  // NO GROK.md anywhere in grok's source, so this table must not invent one.
+  // Rules directories are read per directory, plus rules/ under the home
+  // root. Config (~/.grok/config.toml and its overlay chain) is recorded in
+  // the registry row's notes; the Context substrate has no cell for it.
+  grok: {
+    locations: {
+      instruction: [
+        {
+          at: '~/.grok/rules',
+          scope: 'global',
+          rank: 1,
+          reader: 'instruction-glob',
+          file: '.md',
+          evidence: 'doc'
+        },
+        {
+          at: '<project>',
+          scope: 'project',
+          rank: 2,
+          reader: 'instruction-walk',
+          file: 'AGENTS.md',
+          evidence: 'doc'
+        },
+        {
+          at: '<project>',
+          scope: 'project',
+          rank: 3,
+          reader: 'instruction-walk',
+          file: 'AGENT.md',
+          evidence: 'doc'
+        },
+        {
+          at: '<project>',
+          scope: 'project',
+          rank: 4,
+          reader: 'instruction-walk',
+          file: 'CLAUDE.md',
+          evidence: 'doc',
+          note: 'Claude compatibility is on by default, so CLAUDE.md files load too.'
+        },
+        {
+          at: '<project>/.grok/rules',
+          scope: 'project',
+          rank: 5,
+          reader: 'instruction-glob',
+          file: '.md',
+          evidence: 'doc'
+        },
+        {
+          at: '<project>/.claude/rules',
+          scope: 'project',
+          rank: 6,
+          reader: 'instruction-glob',
+          file: '.md',
+          evidence: 'doc'
+        },
+        {
+          at: '<project>/.cursor/rules',
+          scope: 'project',
+          rank: 7,
+          reader: 'instruction-glob',
+          file: '.mdc',
+          evidence: 'doc'
+        }
+      ]
+    },
+    precedence: {
+      instruction: {
+        model: 'merge-all',
+        evidence: 'doc',
+        note: 'Every recognized file loads. Home files load first, then project files from the repository root down to the working directory.'
+      }
+    },
+    reload: {
+      instruction: live(
+        'Grok reads instruction files again for every prompt, so an edit lands on the next message.',
+        'doc'
+      )
+    }
+  },
+
+  // -------------------------------------------------------------------------
   deepseek: {
     locations: {
       skill: [
@@ -1125,6 +1210,9 @@ const SKILLS_CLI_NAMES: Record<AgentRegistryId, string | null> = {
   droid: 'droid',
   qwen: 'qwen-code',
   pi: 'pi',
+  // The bundled skills CLI already lists 'grok' by that exact name
+  // (src/main/skills/commands.ts), verified in the Phase 59 spec stage.
+  grok: 'grok',
   antigravity: 'antigravity-cli',
   deepseek: null,
   muse: null,

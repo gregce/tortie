@@ -670,3 +670,23 @@ corrected above.** The Amp entry was read from a ten-month-old local install rat
 package. The VS Code Copilot row cited an archived repository and reported MIT for a layer that ships
 under GitHub's proprietary extension terms. The §5.1 clause table omitted Antigravity, which carries the
 sharpest clause in the set. All three are now stated from the current primary source.
+
+---
+
+## 10. Addendum, read 2026-08-16 for Phase 59: the grok mark
+
+Phase 59 adds grok as the thirteenth compiled agent, and the operator's instruction for its icon is
+the SpaceX mark. This addendum is the policy read that §6.2 requires before any mark ships. It
+follows the same table shape and the same standard: "Fine" means either that a published policy
+permits the use or that no policy forbidding it was found, and in the second case the absence is
+stated.
+
+| File | Whose mark | What the vendor publishes | Verdict | The change |
+|---|---|---|---|---|
+| `grok.svg` (new in Phase 59) | Space Exploration Technologies Corp., on the operator's instruction. The grok-build LICENSE copyright line reads "Copyright 2023-2026 SpaceXAI". Whether "SpaceXAI" and the rocket company are the same owner of the same mark is not established (§7 of this document and research 50 §3.7 both say so). | No published brand or logo guideline was found. The pages checked on 2026-08-16, each from the primary source: `shop.spacex.com/policies/terms-of-service` states under SITE CONTENTS that "the copyrights, trademarks, trade dress and/or other intellectual property in such materials ... are owned, controlled or licensed by Space Exploration Technologies Corp." and that "other trademarks appearing on the Site are the trademarks of SpaceX and/or its subsidiaries". It declares ownership and grants nothing, and it states no permission gate of the Google or GitHub kind. `x.ai/legal` returned HTTP 403. `spacex.com/media` and `spacex.com/legal/privacy-policy` render through scripts and returned no readable text. | **Fine, with a note, at the operator's instruction** | The mark is vendored as one SVG from the simple-icons set, which distributes the file under CC0 1.0. CC0 covers the file's bytes and grants nothing over the trademark, the same point §6.2 already records about icon lineage. No policy read forbids referential use, and none permits it. The cover is the same as for the claude and codex rows: the NOTICE marks line and the README disclaimer, which research 38 items 3 and 9 ordered and which Phase 59 ships in the same commit, before `grok.svg` lands. The operator's instruction is the reason the mark is used. It is not a legal position, and this row does not present it as one. |
+
+Two facts that bound this read. First, Apache 2.0 §6 in the grok-build checkout excludes trademark
+rights, so the source licence neither grants nor restricts the mark (research 50 §2.8). Second, the
+mitigations for the twelve marks already shipping, the NOTICE line from item 3 and the README
+disclaimer from item 9 of §6.3, were still absent when this addendum was written. Phase 59 lands
+both before the thirteenth mark enters the bundle.

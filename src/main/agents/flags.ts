@@ -43,7 +43,8 @@ export type RegistryAgentId =
   | 'antigravity'
   | 'muse'
   | 'qwen'
-  | 'pi';
+  | 'pi'
+  | 'grok';
 
 /** Where knowledge of a flag comes from. */
 export type FlagProvenance =
@@ -505,6 +506,37 @@ export const AGENT_FLAG_PRESETS: Record<RegistryAgentId, AgentFlagCatalog> = {
       '--thinking <off|minimal|low|medium|high|xhigh>',
       '--provider <name> / --model <pattern>',
       '--session-dir <dir> (overrides PI_CODING_AGENT_SESSION_DIR)'
+    ]
+  },
+
+  grok: {
+    binary: 'grok',
+    // The WHOLE distilled first line of `grok --version`, byte for byte.
+    // flagVerificationState compares this with strict equality against the
+    // detected version, whose distill is also the whole first line, so a
+    // shortened value here would make every grok session read 'other-version'
+    // against the identical binary (research 50 §3.2, field 14).
+    helpVerifiedVersion: 'grok 1.0.4 (d846eb93d94d) [stable]',
+    resumeRepass: 'required-unverified',
+    resumeNote:
+      '-r/--resume is a root flag sharing one argv with the preset. The measured resume argv carried trailing -p and --output-format after the id and worked (both roundtrips exited 0 with content recall), so trailing composition is exercised; the help shows no combined example with --always-approve.',
+    presets: [
+      {
+        flag: '--always-approve',
+        label: 'Approve all tools',
+        description:
+          'Auto-approve all tool executions (help text verbatim). Grok runs every tool without asking.',
+        danger: true,
+        provenance: 'VERIFIED'
+      }
+    ],
+    valueFlagNotes: [
+      '-m/--model <model>',
+      '--reasoning-effort <effort> (alias --effort)',
+      '--permission-mode <mode> (in the live 1.0.4 help; the value list is not recorded here)',
+      '--session-id <uuid> pre-assigns a NEW session id; an existing id is refused with a verbatim double "Error: Error:" line',
+      '--no-auto-update is accepted by 1.0.4 but hidden from its --help (measured 2026-08-16); Tortie does not pass it',
+      'The source aliases yolo and dangerously-skip-permissions for --always-approve are NOT printed by the live long help, so they are not cataloged'
     ]
   }
 };

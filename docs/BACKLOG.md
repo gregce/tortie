@@ -5315,7 +5315,7 @@ spec first believed macOS injects its own full screen item into any menu titled 
 dropped the template role on darwin. Measurement in the running app showed no injection and a
 dead shortcut. The role is now emitted on every platform and the menu carries exactly one item.
 
-## Phase 59 — grok build, the thirteenth compiled agent (research 50, operator requested 2026-08-16) QUEUED, runs after Phase 49
+## Phase 59 — grok build, the thirteenth compiled agent (research 50, operator requested 2026-08-16) ✅ SHIPPED 2026-08-16 (this commit, 0.29.0)
 
 **Specification.** docs/research/50-grok-build.md, all of section 3, is the spec of record. The
 short shape: grok pre-assigns session ids with `--session-id` and resumes strictly by id from any
@@ -5343,3 +5343,11 @@ wordmark and a crop to the X letterform.
 **Tier 3**, because resume claims are executable: conformance:agents, conformance:resume:capture
 with grok in GMUX_CONF_AGENTS, and one live roundtrip. **Runs after Phase 49** so the row is born
 with its AgentInstallInfo. **Semver:** feat, minor.
+
+**Shipped.** The verifier found one blocking defect and a fix round closed it before this
+commit. grok 1.0.4 runs the turn but never paints the reply while the first-run "Help improve
+Grok" banner is on screen, so the live roundtrip timed out twice at 150 s. The row's launch.env
+now carries GROK_PRIVACY_NOTICE_ROLLOUT=0, which keeps the banner out of Tortie panes without
+touching any sharing choice. Research 50 §8 records the mechanism. After the fix the roundtrip
+passed in 26.9 s with content recall. The rebase onto Phase 49 added the row's AgentInstallInfo
+from research 50 §3.12 and pinned x.ai in the installs gate.

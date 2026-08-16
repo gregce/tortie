@@ -1,11 +1,11 @@
 /**
- * `npm run conformance:agents` — the cheap gate that keeps a THIRTEENTH agent
+ * `npm run conformance:agents` — the cheap gate that keeps a FOURTEENTH agent
  * executable rather than asserted (Phase 23, C1/C2).
  *
  * WHAT IT IS FOR. Phase 23 lets a user describe an agent Tortie never compiled
  * in, in `<userData>/gmux/config/agents.json`. The claim that comes with that
  * is large: the new row launches, resumes and survives a quit and a restore
- * exactly the way the twelve compiled rows do. A claim like that decays. This
+ * exactly the way the thirteen compiled rows do. A claim like that decays. This
  * gate is the executable half of it, and it costs about a second.
  *
  * It is the third gate of its shape. `conformance:resume` proves the resume
@@ -41,7 +41,7 @@
  *   `unverified` column must agree with the registry, and before Phase 23 two
  *   of those facts had drifted: the seed marked pi unverified and left droid
  *   unmarked, which is backwards. The section then hands the renderer a scan
- *   carrying a thirteenth agent and requires a chip for it, with its own name
+ *   carrying a fourteenth agent and requires a chip for it, with its own name
  *   and icon, with no edit to the renderer.
  *
  * SECTION 4 — the overlay loader. A file with three rows goes in: an agent this
@@ -49,7 +49,7 @@
  *   `<sessionId>` slot, and a patch that renames a compiled agent. Out must
  *   come the new agent complete, the broken row dropped WHOLE with its field
  *   named, and the rename applied with nothing a process would run touched.
- *   `AGENT_REGISTRY` itself must be the same twelve rows afterwards, because
+ *   `AGENT_REGISTRY` itself must be the same thirteen rows afterwards, because
  *   that is the array the restore path reads.
  *
  *   The same section proves the confirm gate's binding on the hash alone.

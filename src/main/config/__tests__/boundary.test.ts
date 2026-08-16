@@ -209,11 +209,11 @@ describe('the create path reads memory, never the disk', () => {
     expect(after).toBe(1);
 
     // The filter removes the capture-only IDE pair at runtime, but the type of
-    // `e.id` is still the full twelve, so the cast says what the filter proved.
+    // `e.id` is still the full thirteen, so the cast says what the filter proved.
     const ids = registry.AGENT_REGISTRY.filter(
       (e) => e.launchable && e.launch !== null
     ).map((e) => e.id) as LaunchableAgentId[];
-    expect(ids.length).toBe(10);
+    expect(ids.length).toBe(11);
 
     for (const id of ids) {
       const spec = manifest.buildLaunchSpec(id, ['--flag'], `/abs/${id}`);

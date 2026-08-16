@@ -4,7 +4,10 @@
  * overlay, Settings). Logos live in src/renderer/assets/agents/*.svg:
  * eight are normalized copies of the SpecStory sync-cloud asset set; pi is
  * normalized from the vendor's own mark; antigravity is traced from the
- * vendor's PNG.
+ * vendor's PNG. grok (Phase 59) is the SpaceX X letterform from the
+ * simple-icons set, whose files are CC0, normalized to the 1em/currentColor
+ * contract the other marks share. Grok Build ships no mark of its own, and
+ * research 38 section 10 records the trademark read behind this choice.
  *
  * `muse` and `qwen` were flattened from the vendors' brand SVGs in Phase
  * 12.8 (muse wears META's mark — Muse Code is Meta's CLI):
@@ -41,6 +44,7 @@ import deepseekSvg from '../assets/agents/deepseek.svg?raw';
 import droidSvg from '../assets/agents/droid.svg?raw';
 import geminiSvg from '../assets/agents/gemini.svg?raw';
 import githubcopilotSvg from '../assets/agents/githubcopilot.svg?raw';
+import grokSvg from '../assets/agents/grok.svg?raw';
 import museSvg from '../assets/agents/muse.svg?raw';
 import piSvg from '../assets/agents/pi.svg?raw';
 import qwenSvg from '../assets/agents/qwen.svg?raw';
@@ -62,6 +66,7 @@ const LOGOS: Record<string, string> = {
   droid: droidSvg,
   gemini: geminiSvg,
   githubcopilot: githubcopilotSvg,
+  grok: grokSvg,
   muse: museSvg,
   pi: piSvg,
   qwen: qwenSvg
@@ -89,7 +94,12 @@ const ALIASES: Record<string, string> = {
   meta: 'muse',
   qwencode: 'qwen',
   alibaba: 'qwen',
-  picodingagent: 'pi'
+  picodingagent: 'pi',
+  xai: 'grok',
+  grokcli: 'grok',
+  spacex: 'grok',
+  // The binary announces itself as "Grok Build TUI", so that name resolves too.
+  grokbuild: 'grok'
 };
 
 export interface AgentIconProps {

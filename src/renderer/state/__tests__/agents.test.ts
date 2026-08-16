@@ -38,7 +38,7 @@ const BOTH = { claude: true, codex: true };
 describe('buildAgentOptions', () => {
   it('falls back to the static launchable list + Shell when no scan exists', () => {
     const options = buildAgentOptions(null, BOTH);
-    expect(options).toHaveLength(11); // 10 launchable registry agents + shell
+    expect(options).toHaveLength(12); // 11 launchable registry agents + shell
     expect(options[0]?.id).toBe('claude');
     expect(options.at(-1)?.id).toBe('shell');
     expect(options.at(-1)?.installed).toBe(true);
@@ -75,8 +75,8 @@ describe('buildAgentOptions', () => {
 describe('the pre-scan seed agrees with main', () => {
   /**
    * `SEED_AGENTS` in state/agents.ts is a hand-written copy of main's
-   * launchable registry — ids AND order — that nothing type-checks, so an
-   * eleventh agent added to the registry would silently never appear in ⌘T
+   * launchable registry — ids AND order — that nothing type-checks, so a
+   * twelfth agent added to the registry would silently never appear in ⌘T
    * until someone edited the renderer too (research 25 §3, Tier 3). The
    * labels are a DELIBERATE difference ("Cursor" vs the registry's "Cursor
    * CLI"), so what is asserted here is the part that must not differ.

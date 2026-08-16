@@ -508,8 +508,8 @@ export function buildRecoveryContract(
   // configured agent too: restore reads the row, and the row has to be right.
   const entry = launchEntryFor(agent);
   // Keyed on the id that was asked for, not on `entry.id`: the flag catalogue
-  // covers the ten LAUNCHABLE agents, while a registry entry's id spans all
-  // twelve and includes the capture-only IDE pair. A configured id is in
+  // covers the eleven LAUNCHABLE agents, while a registry entry's id spans all
+  // thirteen and includes the capture-only IDE pair. A configured id is in
   // neither, so `catalog` is undefined and the contract records 'never'
   // verified, which is the honest answer for flags Tortie has not checked.
   const catalog = AGENT_FLAG_PRESETS[agent as keyof typeof AGENT_FLAG_PRESETS];

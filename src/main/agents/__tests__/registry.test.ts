@@ -2,7 +2,7 @@
  * Registry integrity tests (Phase 10 — research 11).
  *
  * The registry is DATA the whole launch/detect/resume pipeline trusts; these
- * tests pin the invariants: all 12 entries present, capture-only IDEs never
+ * tests pin the invariants: all 13 entries present, capture-only IDEs never
  * launchable, every launchable entry has launch argv + icon key, resume
  * templates carry the session-id slot, and buildLaunchSpec's registry wiring
  * matches the hand-written claude/codex mechanics it must not disturb.
@@ -49,15 +49,16 @@ const ALL_IDS: AgentRegistryId[] = [
   'muse',
   'qwen',
   'pi',
+  'grok',
   'cursoride',
   'copilotide'
 ];
 
 describe('registry shape', () => {
-  it('contains exactly the 12 researched agents, ids unique', () => {
-    expect(AGENT_REGISTRY).toHaveLength(12);
+  it('contains exactly the 13 researched agents, ids unique', () => {
+    expect(AGENT_REGISTRY).toHaveLength(13);
     expect([...AGENT_IDS].sort()).toEqual([...ALL_IDS].sort());
-    expect(new Set(AGENT_IDS).size).toBe(12);
+    expect(new Set(AGENT_IDS).size).toBe(13);
   });
 
   it('every entry has displayName, ≥1 binary, and an icon key', () => {
@@ -88,8 +89,8 @@ describe('capture-only IDE entries', () => {
     expect(() => getLaunchableEntry(id as never)).toThrow(/capture-only/);
   });
 
-  it('launchable ids are the 10 CLIs (no IDE pair)', () => {
-    expect(LAUNCHABLE_AGENT_IDS).toHaveLength(10);
+  it('launchable ids are the 11 CLIs (no IDE pair)', () => {
+    expect(LAUNCHABLE_AGENT_IDS).toHaveLength(11);
     expect(LAUNCHABLE_AGENT_IDS).not.toContain('cursoride');
     expect(LAUNCHABLE_AGENT_IDS).not.toContain('copilotide');
   });
@@ -144,6 +145,19 @@ describe('launchable entries', () => {
     expect(getRegistryEntry('claude').versionProbe?.identitySubstring).toBe(
       '(Claude Code)'
     );
+    // Phase 59: grok is the second row with an identity substring. Its
+    // distilled version is the WHOLE first line of `grok --version`, and
+    // flags.ts's helpVerifiedVersion must match it byte for byte.
+    expect(getRegistryEntry('grok').versionProbe?.identitySubstring).toBe('grok ');
+    expect(getRegistryEntry('grok').versionProbe?.args).toEqual(['--version']);
+    // Phase 59 fix round: while grok's first-run "Help improve Grok" banner
+    // is on screen the reply never paints, and its buttons are mouse-only.
+    // This env delta keeps the banner out of every Tortie pane, at create
+    // and (via the persisted manifest row) at restore. Removing it revives
+    // a session that looks mute until the banner is clicked.
+    expect(getLaunchableEntry('grok').launch.env).toEqual({
+      GROK_PRIVACY_NOTICE_ROLLOUT: '0'
+    });
     expect(getRegistryEntry('codex').versionProbe?.fallbackArgs).toEqual(['-V']);
     expect(getRegistryEntry('droid').versionProbe?.postProcess).toBe(
       'strip-ansi-last-line'
@@ -176,7 +190,8 @@ describe('resume templates', () => {
       antigravity: '--conversation',
       muse: 'resume', // subcommand
       qwen: '--resume',
-      pi: '--session-id' // idempotent: the flag it launched with
+      pi: '--session-id', // idempotent: the flag it launched with
+      grok: '--resume' // launch flag is --session-id; the two differ, unlike pi
     };
     for (const id of LAUNCHABLE_AGENT_IDS) {
       expect(getRegistryEntry(id).resume.template[0], id).toBe(VERB[id]);
@@ -242,10 +257,16 @@ describe('resume templates', () => {
     expect(getRegistryEntry('claude').resume.requiresOriginalCwd).toBeUndefined();
   });
 
-  it('flags gemini as the agent whose bare --resume opens the WRONG chat', () => {
-    expect(getRegistryEntry('gemini').resume.bareResumeIsDangerous).toBe(true);
+  it('flags the agents whose bare --resume opens the WRONG chat', () => {
+    // gemini silently attaches to the most recent session; grok's bare
+    // --resume opens the most recent session for the cwd (Phase 59,
+    // cli.rs:556 to 576). It is the same failure mode, so it gets the same flag.
+    const dangerous = LAUNCHABLE_AGENT_IDS.filter(
+      (id) => getRegistryEntry(id).resume.bareResumeIsDangerous === true
+    );
+    expect([...dangerous].sort()).toEqual(['gemini', 'grok']);
     for (const id of LAUNCHABLE_AGENT_IDS) {
-      if (id === 'gemini') continue;
+      if (id === 'gemini' || id === 'grok') continue;
       expect(
         getRegistryEntry(id).resume.bareResumeIsDangerous,
         id
@@ -524,13 +545,14 @@ describe('buildLaunchSpec registry wiring', () => {
     expect(uncaptured).toEqual(['droid']);
   });
 
-  it('arms resume at spawn for 4 of the 10 launchable agents', () => {
+  it('arms resume at spawn for 5 of the 11 launchable agents', () => {
     const armed = LAUNCHABLE_AGENT_IDS.filter(
       (id) => buildLaunchSpec(id, [], agentBinaryName(id)).resumeArgv !== undefined
     );
-    // Tier 1 (research 22 §3.1): coverage went 1/10 → 4/10 with no watcher.
-    expect([...armed].sort()).toEqual(['claude', 'gemini', 'pi']);
-    // cursor is the fourth, via a side command resolveLaunchSpec must run.
+    // Tier 1 (research 22 §3.1): coverage went 1/10 → 4/10 with no watcher,
+    // and Phase 59 added grok as the fourth pre-assign row.
+    expect([...armed].sort()).toEqual(['claude', 'gemini', 'grok', 'pi']);
+    // cursor is the fifth, via a side command resolveLaunchSpec must run.
     expect(buildLaunchSpec('cursor', [], 'cursor-agent').idCapture).toBe(
       'preassigned-cmd'
     );

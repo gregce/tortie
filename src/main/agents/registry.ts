@@ -1,7 +1,7 @@
 /**
  * The gmux agent registry (Phase 10 — research 11, docs/research/11-agent-registry.md).
  *
- * All 12 agents SpecStory has mechanics for, as DATA: binary names, probe
+ * All 13 agents Tortie has mechanics for, as DATA: binary names, probe
  * dirs, session-store roots, version/identity probes, launch argv, and
  * resume strategy. Everything here is synthesized from specstory-cli's
  * provider SPI (see the research doc for per-field provenance); fields the
@@ -453,7 +453,7 @@ export const SESSION_ID_SLOT = '<sessionId>';
 export const DEFAULT_AGENT_ID: AgentRegistryId = 'claude';
 
 // ---------------------------------------------------------------------------
-// The 12 entries
+// The 13 entries
 // ---------------------------------------------------------------------------
 
 export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
@@ -555,7 +555,7 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
       argv: ['cursor-agent'],
       env: { FORCE_COLOR: '1' },
       quirks: [
-        'FORCE_COLOR=1 is the sole env injection SpecStory makes for any agent',
+        'FORCE_COLOR=1 was the sole env injection for any agent until Phase 59 added grok\'s GROK_PRIVACY_NOTICE_ROLLOUT=0',
         'PRE-ASSIGN via a SIDE COMMAND: `cursor-agent create-chat` prints a fresh chat id on stdout ("Create a new empty chat and return its ID"); launching `cursor-agent --resume <that id>` starts INTO it, so the first launch and every later restore use the SAME argv. Re-verified 2026-08-11: RC=0, one bare uuid on stdout, sub-second, no store dir written until the chat has content.'
       ]
     },
@@ -1245,6 +1245,132 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
       notes:
         'VERIFIED NEGATIVE: 0x16 writes the pasteboard image to its own temp file and inserts that path as plain text — no attachment either way, so gmux inserts the real path.'
     },
+    unverified: false
+  },
+  {
+    id: 'grok',
+    displayName: 'Grok',
+    kind: 'cli',
+    launchable: true,
+    status:
+      'hands-on verified 2026-08-16 (grok 1.0.4 (d846eb93d94d) [stable]); no specstory provider',
+    confidence: 'high',
+    // FATAL RULE: never probe `agent`. Cursor's installer claims that name
+    // (research 47), and on this machine `agent` is a STALE grok 1.0.3 even
+    // though the file is grok's own. The Aug 15 auto update rewrote
+    // ~/.grok/bin/grok and left ~/.grok/bin/agent on the Aug 12 download, so
+    // probing `agent` reports a wrong version on top of the Cursor collision.
+    binaries: ['grok'],
+    extraProbeDirs: ['~/.grok/bin'],
+    storeDirs: ['~/.grok/sessions'],
+    // Phase 49 shape, filled in when Phase 59 rebased onto it. Research 50
+    // §2.7 and §3.12, read 2026-08-16. Display and clipboard only. The
+    // installer creates ~/.grok/bin/grok and symlinks it into ~/.local/bin
+    // (install.sh:277 to 279), so the resolved binary's realpath lands under
+    // ~/.grok/bin. There is no npm or brew route at all.
+    install: {
+      canonical: {
+        command: 'curl -fsSL https://x.ai/cli/install.sh | bash',
+        docUrl: 'https://x.ai',
+        readOn: '2026-08-16'
+      },
+      alternates: [
+        {
+          label: 'Windows PowerShell',
+          command: 'irm https://x.ai/cli/install.ps1 | iex'
+        },
+        { label: 'self update', command: 'grok update' },
+        { label: 'from source, the xai-grok-pager crate' }
+      ],
+      canonicalIsPackageManager: false,
+      signature: [{ kind: 'realpath-under', dir: '~/.grok/bin' }]
+    },
+    // `grok --version` prints one line, `grok 1.0.4 (d846eb93d94d) [stable]`,
+    // and the distilled version is that WHOLE first line. flags.ts's
+    // helpVerifiedVersion must equal it byte for byte, or every grok session
+    // reads 'other-version' against the identical binary. A `['version',
+    // '--json']` primary was considered and rejected in the Phase 59 spec
+    // stage: it would make the distilled version, the Settings display and
+    // recovery contract field 14 the raw JSON line. 'grok ' is a weak
+    // identity token (any binary printing `grok <something>` passes), and the
+    // row accepts that; the probe is judged on stdout alone per the Phase 48
+    // rule, exactly like claude's.
+    versionProbe: { args: ['--version'], identitySubstring: 'grok ' },
+    launch: {
+      argv: ['grok'],
+      // The one env delta Tortie injects for grok, forced by a Phase 59
+      // fix-round measurement (twice, the second run on an isolated socket):
+      // while the first-run "Help improve Grok" data-sharing banner is on
+      // screen, the TUI accepts the typed prompt and runs the turn (the
+      // reply lands in updates.jsonl), but the pane NEVER paints the reply
+      // (150 s of screen polls, both runs). The banner's buttons are
+      // mouse-only hit rects (grok source: app/app_view.rs and app/mouse.rs
+      // route them by cursor position, no key binding exists), so a
+      // keyboard-driven pane cannot clear it. The banner shows whenever
+      // xAI's remote privacy_notice_rollout flag is on, the account is
+      // opted out of coding-data sharing (the default) and
+      // ~/.grok/config.toml has no [privacy].privacy_banner_acked stamp,
+      // and it RESHOWS privacy_banner_reshow_days after an ack, so one
+      // answered banner is not a permanent state. This variable is read by
+      // grok's production code via xai_grok_config::env_bool
+      // (event_loop.rs:1035) and BEATS the remote flag in both directions.
+      // Setting it to '0' keeps the banner out of Tortie panes. It changes
+      // NO data-sharing state: the user stays opted out (or in) exactly as
+      // before, and can decide any time in grok's own settings. Verified
+      // live 2026-08-16: without it the banner is on screen in 12 s, with
+      // it the welcome slot shows a normal tip and no banner appears.
+      env: { GROK_PRIVACY_NOTICE_ROLLOUT: '0' },
+      quirks: [
+        'PRE-ASSIGN: `grok --session-id <uuid>` creates a NEW session under that id, never an upsert. Any valid UUID is accepted (a v4 from uuidgen worked; grok mints v7 for itself). Launching with an id that already EXISTS refuses immediately with the verbatim double-error line `Error: Error: Session ID <id> is already in use.` So launch argv and resume argv are different, unlike pi.',
+        'FIRST RUN BANNER, corrected in the Phase 59 fix round: the "Help improve Grok" data-sharing banner leaves the typed prompt live, but the REPLY never paints while the banner is up (the turn runs and updates.jsonl gets the reply; measured twice at 150 s each). The buttons are mouse-only, so a keyboard pane cannot clear it. Tortie suppresses it with GROK_PRIVACY_NOTICE_ROLLOUT=0 in launch.env; see the comment there. If that variable ever stops working, a fresh grok session in Tortie will look mute until the banner is clicked.',
+        'SELF UPDATE runs in the background and retargets ~/.grok/bin/grok while sessions run. `--no-auto-update` is ACCEPTED by 1.0.4 (exit 0) but ABSENT from its --help, measured 2026-08-16, correcting research 50 §2.2 on that cell. Tortie does NOT pass it: the manifest stores the stable symlink the resolver hit, so a retarget underneath it changes nothing Tortie depends on.',
+        'NEVER set GROK_SESSION_ID. grok exports that variable TO its hook and MCP children and never reads it to select a session.'
+      ]
+    },
+    resume: {
+      strategy: 'flag-uuid',
+      template: ['--resume', SESSION_ID_SLOT],
+      idCapture: { mode: 'pre-assign', launchFlag: ['--session-id'] },
+      // requiresOriginalCwd omitted: measured false TWICE (the marker
+      // roundtrip resumed from a different cwd, and the Phase 59 spec stage's
+      // zero-message resume also ran from a different cwd). grok's
+      // resolve_local_session_any_cwd scans every encoded cwd directory.
+      bareResumeIsDangerous: true,
+      sessionStore: '~/.grok/sessions/<urlencode(realpath(cwd))>/<sessionId>/',
+      notes:
+        'VERIFIED HANDS-ON 2026-08-16 (grok 1.0.4). Roundtrips: create with a pre-assigned uuid, marker turn, kill, then `--resume <id>` returned the marker with the same sessionId, from the SAME cwd and from a DIFFERENT cwd (the store did not move; stderr said "Session <id> found locally (originally in <original cwd>)"). ' +
+        'ZERO-MESSAGE RESUME WORKS: a TUI killed before its first turn leaves a session directory with no updates.jsonl, and `--resume` of that id still exits 0 and answers (Phase 59 Q1), so a pane killed at the prompt is not lost. ' +
+        'PATH ENCODING: the store key is urlencode(realpath(cwd)); grok canonicalizes the cwd BEFORE percent encoding. A TUI launched from /tmp/x stores under %2Fprivate%2Ftmp%2Fx. Key on the realpath. ' +
+        'STALE ID: `--resume <unknown id>` does NOT fail fast. Online it prints "not found locally, restoring conversation from remote...", calls cli-chat-proxy.grok.com and exits 1 on a 404; offline it exits 1 in 5.0 s with a DNS error. Zero tokens either way, but a stale manifest id costs a network round trip. ' +
+        'SILENT REMOTE RESTORE RISK: after a reinstall, a TUI resume of a locally deleted session may restore the conversation FROM grok.com, so a dead session can come back over the network. ' +
+        'NO WHOLE-SESSION LOCK: active_sessions.json is crash recovery bookkeeping, not mutual exclusion, and grok documents concurrent same-id use as best effort. A user running `grok -c` in the same cwd can co-write a Tortie session; Tortie running one pane per session is the real guard. ' +
+        'FD FACT for any future harvest rule: during a turn the grok process durably holds a WRITE fd on events.jsonl (69 consecutive lsof samples); updates.jsonl, chat_history.jsonl and summary.json were never caught open, so an fd-owner rule must target events.jsonl. ' +
+        'A SESSION IS A DIRECTORY: updates.jsonl is the durable source of truth and chat_history.jsonl is a derived cache rebuilt from it, which is also why reconstructionTarget is false. ' +
+        'CONFIG CHAIN, recorded here because the Context substrate has no cell for it (a stated deviation from research 50 §3.9): CLI flags, then env vars, then requirements.toml and MDM, then the GROK_CONFIG overlay, then ~/.grok/config.toml, then managed_config.toml, then built-ins; project .grok/config.toml files layer over the global one. The docs state default model grok-4.5 while the live store shows grok-4.6 (headless usage keyed grok-4.6-build).'
+    },
+    reconstructionTarget: false,
+    // Q3 MEASURED 2026-08-16: one idle TUI on a private socket, 7
+    // capture-pane snapshots at 5 s intervals over 30 s, all md5-identical,
+    // pane_title `grok` at every sample. So the idle screen is byte-still and
+    // the idle title is the constant string `grok`. The tier stays at the
+    // floor anyway: grok OFFERS two exact-tier routes, a codex-style pane
+    // title oracle (a literal `Action Required` prefix when waiting, a
+    // braille spinner when busy) and Claude-schema lifecycle hooks under
+    // ~/.grok/hooks. The oracle needs a Tier 3 matrix before any tier claim,
+    // and the hooks would have Tortie WRITE configuration that makes grok
+    // execute a Tortie-chosen command, which collides with the spirit of
+    // Phase 23 refusal 8. Neither ships in Phase 59.
+    activity: { tier: 'screen', animatesWhenIdle: false, verified: 'unverified' },
+    iconKey: 'grok',
+    defaultHotkeyHint: 'r',
+    multilineKey: {
+      sequence: LF,
+      verified: false,
+      notes:
+        'UNMEASURED: the Phase 59 idle sitting typed nothing, so the Shift+Enter route has never been driven. LF is the default every measured agent takes, not a grok measurement.'
+    },
+    // imageDrop ABSENT: unmeasured, so DEFAULT_IMAGE_DROP (path text) applies.
+    // specstory ABSENT: the bundled specstory CLI has no grok provider.
     unverified: false
   },
   {

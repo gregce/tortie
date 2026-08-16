@@ -18,7 +18,7 @@
  * the ⌘T picker labelled the wrong agent "early" whenever it drew before the
  * detection scan landed.
  *
- * Phase 23 lets a user add a thirteenth agent in
+ * Phase 23 lets a user add a fourteenth agent in
  * `<userData>/gmux/config/agents.json`. That agent exists only at run time, in
  * main. It reaches this module the way every other fact about an agent
  * reaches it: inside the `agents:list` scan. So the rule for this file is now
@@ -32,7 +32,7 @@
  * gone missing:
  *
  *  1. `buildAgentOptions` renders whatever launchable rows the scan carries.
- *     It never filters against the seed, so a thirteenth agent appears with
+ *     It never filters against the seed, so a fourteenth agent appears with
  *     no edit here.
  *  2. `agentShortLabel` learns display names from every scan it is handed, so
  *     a user-added agent reads as its own name in Context rows and resume
@@ -222,7 +222,8 @@ const SEED_AGENTS: readonly SeedAgent[] = [
   { id: 'antigravity', label: 'Antigravity', unverified: false },
   { id: 'muse', label: 'Muse', unverified: false },
   { id: 'qwen', label: 'Qwen', unverified: false },
-  { id: 'pi', label: 'Pi', unverified: false }
+  { id: 'pi', label: 'Pi', unverified: false },
+  { id: 'grok', label: 'Grok', unverified: false }
 ];
 
 /** Seed short labels, by id. Compiled agents only, and that is the point. */
@@ -243,7 +244,7 @@ const learnedLabels = new Map<string, string>();
 /**
  * The short display label for an agent id ("pi" → "Pi").
  *
- * The seed wins for the ten compiled agents, because its labels are chosen
+ * The seed wins for the eleven compiled agents, because its labels are chosen
  * chip copy rather than the registry's longer names. Anything else falls back
  * to the display name main reported in the last scan, and then to the id
  * itself, so an agent Tortie has never heard of reads as itself rather than
@@ -266,7 +267,7 @@ export function agentShortLabel(id: string): string {
  *
  * NOTHING HERE FILTERS AGAINST THE SEED. A launchable row main did not
  * compile in — a Phase 23 overlay agent — becomes a chip on the same terms as
- * the other twelve.
+ * the other thirteen.
  */
 export function buildAgentOptions(
   scan: AgentsScanResult | null,
@@ -293,7 +294,7 @@ export function buildAgentOptions(
       iconKey: id,
       installed: id === 'claude' || id === 'codex' ? avail[id] : true,
       unverified,
-      // The seed is the twelve compiled agents. None of them has anything to
+      // The seed is the thirteen compiled agents. None of them has anything to
       // confirm, and a configured agent is correctly absent before a scan.
       configState: null,
       install: null

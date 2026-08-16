@@ -572,3 +572,61 @@ file did not exist, the sessionStore template carried commentary, the bypass pro
 wrong kind, and the icon section presented an editorial instruction as if it settled the trademark
 question. Section 5 records each correction. The values for imageDrop, multilineKey and
 animatesWhenIdle remain deliberately absent or floored because they are unmeasured.
+
+---
+
+## 8. Phase 59 fix-round addendum, 2026-08-16. The first-run banner suppresses reply painting
+
+This section corrects section 2.2 and the launch quirk built from it. Every roundtrip in this
+document was a headless `-p` run, so no TUI reply was ever watched, and the claim that the
+banner is cosmetic was an inference from one idle sitting, not a measurement of a turn.
+
+**The measured defect.** The phase's Tier 3 gate, `GMUX_CONF_AGENTS=grok npm run
+conformance:resume`, failed twice, the second run fully isolated on its own socket. In both runs
+the TUI accepted the typed nonce prompt while the "Help improve Grok" banner was on screen, the
+turn ran, and the reply was written to the session's updates.jsonl. The reply never appeared in
+capture-pane within the 150 s screen budget, so the harness's screen oracle timed out before the
+kill and resume half could run. The prompt half of the old quirk sentence was true. The reply
+half was not.
+
+**The mechanism, from the grok source checkout.** The banner is the coding-data sharing upsell in
+xai-grok-pager/src/views/privacy_banner.rs. Its visibility gate is `privacy_banner_should_show`
+in app/app_view.rs, which requires all of the following:
+
+- the rollout flag `privacy_notice_rollout` is on. It comes from remote settings, and the env
+  var `GROK_PRIVACY_NOTICE_ROLLOUT` beats it in both directions (event_loop.rs:1035, parsed by
+  `xai_grok_config::env_bool`, which takes 1/true/yes/on and 0/false/no/off).
+- the account is opted out of coding-data sharing, which is the default.
+- `[privacy].privacy_banner_acked` in ~/.grok/config.toml is unset, or was set longer ago than
+  the remote `privacy_banner_reshow_days`. The banner comes back after that window, so one
+  answered banner is not a permanent state.
+- auth is done, folder trust is done, and the user is not ZDR or a managed team member.
+
+The Opt in and Opt out buttons are mouse-position hit rects in app/app_view.rs and app/mouse.rs.
+No key binding dismisses the banner. The per-session announcement_state.json lead from the fix
+brief was a dead end. The banner state lives in config.toml and remote settings.
+
+**The fix that shipped.** The registry row's `launch.env` now carries
+`GROK_PRIVACY_NOTICE_ROLLOUT=0`. The variable is read by production code, not only by grok's own
+test harness, and it forces the rollout gate off before the remote flag is consulted. It was
+proven live at zero token cost: a TUI launched on a private socket without the variable painted
+the banner within 12 s, and a TUI launched with it showed a normal welcome tip and no banner.
+Because `launch.env` is persisted into the manifest row and replayed at restore, resumed panes
+are covered by the same delta. The conformance harness also gained the banner title as an
+interactive-gate pattern, so if the variable ever stops working the case reads BLOCKED with the
+banner line named instead of a bare timeout.
+
+**What this deliberately does not do.** It does not opt the user in or out of anything. The
+sharing state is untouched and stays at whatever the user chose, default off. It does not write
+any grok config file. It hides an upsell inside Tortie panes, where its buttons cannot be
+clicked from the keyboard and where its presence mutes the agent's replies. The user can opt in
+at any time in grok's own settings, and grok sessions outside Tortie still show the banner.
+
+**What is still not true after this addendum.**
+
+- Why the ratatui view withholds the transcript while the banner is visible was not traced to a
+  specific render path. The suppression is measured, not explained.
+- Whether the paint failure depends on pane size is unmeasured. Both failing runs used the
+  harness's default pane geometry.
+- `GROK_PRIVACY_NOTICE_ROLLOUT` is undocumented. A future grok release can rename or drop it.
+  The registry test pins the delta, and the harness tripwire names the banner if it returns.

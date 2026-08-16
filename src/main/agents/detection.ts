@@ -101,7 +101,7 @@ let agentTable: AgentTableSource = COMPILED_TABLE;
  * `initAgentOverlay`, after its first read.
  *
  * Before that call, and in every test and harness that never makes it, a scan
- * walks exactly the compiled twelve. That is the correct answer for a machine
+ * walks exactly the compiled thirteen. That is the correct answer for a machine
  * with no configuration file, so nothing has to be wired for the ordinary case
  * to be right.
  */
@@ -299,8 +299,9 @@ interface VersionProbeResult {
  * `npm install -g @anthropic-ai/claude-code`, which is the one piece of advice
  * launch-plan.ts says must never be printed for this failure. codex has no
  * `identitySubstring`, so the identical breakage reached the full refusal
- * there, and claude is the only one of the twelve compiled rows that carries
- * one.
+ * there. Of the thirteen compiled rows exactly two carry an identity
+ * substring, claude ('(Claude Code)') and, since Phase 59, grok ('grok '),
+ * so this stdout-only rule now protects both of them.
  *
  * The test still does its job. A DIFFERENT program wearing the name `claude`
  * that runs and prints its own version to stdout is still refused, which is

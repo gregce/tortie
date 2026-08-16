@@ -682,7 +682,7 @@ export interface GitCommitDetail {
 // `cursor-agent`, antigravity's is `agy` — the bare id is NOT the binary).
 // ---------------------------------------------------------------------------
 
-/** Every agent in the gmux registry (research 11 — all 12 entries). */
+/** Every agent in the gmux registry (research 11 plus later phases; all 13 entries). */
 export type AgentRegistryId =
   | 'claude'
   | 'cursor'
@@ -694,6 +694,7 @@ export type AgentRegistryId =
   | 'muse'
   | 'qwen'
   | 'pi'
+  | 'grok'
   | 'cursoride'
   | 'copilotide';
 
@@ -716,7 +717,7 @@ export type LaunchableAgentKind = AgentKind | LaunchableAgentId;
  * The reason for the split is that the two kinds of site want opposite things.
  *
  *  - This is a WIRE row. It carries whatever the merged agent table holds,
- *    which is the twelve compiled agents plus any the user's `agents.json`
+ *    which is the thirteen compiled agents plus any the user's `agents.json`
  *    adds. A closed union here would mean a configured agent could not be
  *    described to the renderer at all, so the picker could never offer it.
  *  - `ImageDropTable.agents`, `MultilineKeyTable.agents`, and the three
@@ -725,7 +726,7 @@ export type LaunchableAgentKind = AgentKind | LaunchableAgentId;
  *    into a silently empty lookup, and `Partial<Record<string, T>>` says
  *    nothing that `Record<string, T | undefined>` does not already say.
  *
- * So `AgentRegistryId` keeps its twelve literals and keeps its meaning, which
+ * So `AgentRegistryId` keeps its thirteen literals and keeps its meaning, which
  * is "an agent this build ships". It is a documented subset of the ids that
  * can appear on this field, not the whole set.
  *
@@ -802,7 +803,7 @@ export interface DetectedAgent {
 
 /** Full detection result (agents:list / agents:rescan). */
 export interface AgentsScanResult {
-  /** All 12 registry agents, in registry order (installed or not). */
+  /** All 13 registry agents, in registry order (installed or not). */
   agents: DetectedAgent[];
   /** Epoch ms when this scan ran (cache timestamp for the Settings UI). */
   scannedAt: number;

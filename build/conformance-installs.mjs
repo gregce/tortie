@@ -50,7 +50,8 @@ const DOC_HOSTS = {
   deepseek: 'github.com',
   antigravity: 'antigravity.google',
   qwen: 'github.com',
-  pi: 'pi.dev'
+  pi: 'pi.dev',
+  grok: 'x.ai'
 };
 
 /** First words that mean "this route is a package manager". */

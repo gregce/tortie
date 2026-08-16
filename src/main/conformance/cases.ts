@@ -62,6 +62,16 @@ export const BYPASS_FLAGS: Readonly<Record<LaunchableAgentId, readonly string[]>
   // pi has no approval system at all — its safety lever is --tools, and it
   // needs no gate answered to reach a prompt (research 22 §1.3).
   pi: [],
+  // grok needs no gate ANSWERED to reach a prompt. The first-run "Help
+  // improve Grok" banner is a different problem: the typed prompt stays
+  // live under it, but the REPLY never paints while it is on screen (Phase
+  // 59 fix round, measured twice at 150 s each; the turn ran and
+  // updates.jsonl held the reply both times). The registry's launch.env
+  // sets GROK_PRIVACY_NOTICE_ROLLOUT=0, so no pane this harness creates
+  // shows the banner. --always-approve is passed because running with a
+  // flag is what exercises the extras re-append rule on the resume argv
+  // (research 22 §3.4 rule 3).
+  grok: ['--always-approve'],
   // Not installed on any audited machine, and its flag catalog is therefore
   // empty (helpVerifiedVersion: null). Left blank rather than guessed: an
   // invented flag would produce a dead pane the day droid arrives, and the
@@ -131,7 +141,13 @@ export const INTERACTIVE_GATE_PATTERNS: readonly RegExp[] = [
   /\bpress enter to (?:continue|authenticate)\b/i,
   /\bselect (?:a|your) (?:login|auth|account) method\b/i,
   /\bonboarding\b[^\n]{0,30}\brequired\b/i,
-  /\bstatus\s*(?:code)?\s*4\d\d\b/i
+  /\bstatus\s*(?:code)?\s*4\d\d\b/i,
+  // grok's first-run data-sharing banner. Its buttons are mouse-only, and
+  // while it is on screen the reply never paints (Phase 59 fix round). The
+  // registry suppresses it with GROK_PRIVACY_NOTICE_ROLLOUT=0, so matching
+  // here is a tripwire: if that variable ever rots, the case reads BLOCKED
+  // with this line named instead of a bare 150 s timeout.
+  /\bhelp improve grok\b/i
 ];
 
 /**

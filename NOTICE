@@ -33,6 +33,14 @@ reinvent.
   Licensed under the MIT Licence.
 
 --------------------------------------------------------------------------------
+Third party marks
+--------------------------------------------------------------------------------
+The MIT licence on this repository covers Tortie's own code. It does not cover
+the product names or logos of the agents Tortie launches. Those marks belong to
+their owners. They appear in Tortie only to identify each supported product,
+and Tortie can grant no rights over them.
+
+--------------------------------------------------------------------------------
 Bundled and linked dependencies
 --------------------------------------------------------------------------------
 Apache Licence 2.0
