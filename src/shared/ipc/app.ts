@@ -15,6 +15,7 @@ import type {
 import type { FindMenuActionId } from './search';
 import type { PastSessionsMenuActionId } from './sessions';
 import type { ContextMenuActionId } from './context';
+import type { ShellOpenMenuActionId } from './shell';
 
 // ---------------------------------------------------------------------------
 // APPENDED by the app-shell stream (Phase 3) — new channels/types only,
@@ -371,7 +372,9 @@ export type AnyMenuActionWithProjects =
   | CloneMenuActionId
   | PastSessionsMenuActionId
   // Phase 60. The View menu gained "Context", the same one-line fold.
-  | ContextMenuActionId;
+  | ContextMenuActionId
+  // Phase 51. The payload-free nudge that a shell open is pending.
+  | ShellOpenMenuActionId;
 
 // ---------------------------------------------------------------------------
 // APPENDED by Phase 12.12 item 2 (the inline sessions-position toggle) — one

@@ -61,6 +61,15 @@ import { broadcastEvent } from './typed-events';
 import { EVT_POWER_RESUME } from '@shared/ipc';
 import { applyProcessIdentity } from './proc/identity';
 import { reapOrphanedTmuxClients } from './proc/orphans';
+// Phase 51: `tortie .` — a launch may carry ONE folder to open as a project
+// tab. The shim, the argv acceptance and the pending slot live in ./shell;
+// this file only wires the three entry points (boot argv, second-instance
+// argv, the open-file event).
+import {
+  nudgeRenderer,
+  pickShellOpenPath,
+  setPendingShellOpen
+} from './shell';
 // Phase 24: self update. The updater engine is one module, the post update
 // self check runs once per version change, and updates:state feeds the
 // Settings row. All three are wired below on normal startup paths only.
@@ -172,12 +181,70 @@ if (!harnessLaunch) {
   // Fires in the copy that HOLDS the lock, once per refused launch. A launch
   // that arrives during our own quit is ignored, because reopening the window
   // there would rebuild everything the quit flow is tearing down.
-  app.on('second-instance', () => {
+  //
+  // Phase 51: the event delivers the refused copy's full argv, which is how
+  // `tortie <folder>` reaches a running Tortie — the shim starts a fresh copy
+  // with `open -n`, this copy refuses it, and the folder lands here. The
+  // argv goes through the same one-folder acceptance as a boot argv. The
+  // nudge is skipped while a recreated window is still loading; the fresh
+  // renderer's hydrate pull delivers instead (take-and-clear, never twice).
+  app.on('second-instance', (_event, argv) => {
     if (quitFlowStarted) return;
     console.log('[gmux] a second launch was refused; showing this window');
+    const opened = noteShellOpenArgs(argv.slice(app.isPackaged ? 1 : 2));
     showAppWindow();
+    if (opened) nudgeRenderer();
   });
 }
+
+// ---------------------------------------------------------------------------
+// `tortie .` from the shell (Phase 51)
+// ---------------------------------------------------------------------------
+//
+// THE CAP: a launch argument can open one folder as a project tab, and it
+// can do nothing else. No argument may ever select an agent, start a
+// session, or run a command — any process on the machine can invoke the
+// shim, so a shim that could start an agent would be a remote control for a
+// process the user never confirmed (refusal 8; research 48 §9.3). The
+// acceptance function drops everything beyond one absolute existing folder
+// and this helper logs one line naming what was dropped.
+
+/** Accept at most one folder from launch arguments; true when one was set. */
+function noteShellOpenArgs(rawArgs: string[]): boolean {
+  const pick = pickShellOpenPath(rawArgs);
+  const shellLog = getLog('shell');
+  if (pick.dropped.length > 0) {
+    shellLog.info(
+      `launch arguments beyond one folder path were ignored: ${pick.dropped.join(', ')}`
+    );
+  }
+  if (pick.path === null) return false;
+  shellLog.info(`opening folder from launch: ${pick.path}`);
+  setPendingShellOpen(pick.path);
+  return true;
+}
+
+// Boot argv: parsed once, before any whenReady work. The renderer pulls the
+// slot at the end of hydrateAppState, so a shim launch while Tortie is not
+// running opens the folder on boot with no nudge needed. Runs in every mode:
+// harness argv is all switches, which the acceptance skips silently.
+noteShellOpenArgs(process.argv.slice(app.isPackaged ? 1 : 2));
+
+// The Apple open-file event — `open -a Tortie <folder>` and a Dock drop.
+// Registered inside will-finish-launching so a COLD `open -a Tortie
+// <folder>` is caught too (the event fires before ready on a cold start;
+// the hydrate pull delivers it, because no window exists to nudge yet). A
+// file path arriving here is dropped with its reason logged: folders only,
+// because a project tab is the only thing the cap allows.
+app.on('will-finish-launching', () => {
+  app.on('open-file', (event, path) => {
+    event.preventDefault();
+    const opened = noteShellOpenArgs([path]);
+    if (!opened || !app.isReady()) return;
+    showAppWindow();
+    nudgeRenderer();
+  });
+});
 
 // Phase 16.5a: the app name we just stated is also what Electron derives
 // userData from, so the FIRST launch after a rename points at an empty

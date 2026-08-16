@@ -74,6 +74,11 @@
  *                       gmux-owned process list (app + helpers + private tmux
  *                       server + sessions + strays). Read-only unless
  *                       GMUX_PROCID_REAP=1, which also runs the boot reap.
+ *  - GMUX_SMOKE=shim    the `tortie` shell shim (Phase 51): install into a
+ *                       fresh temp directory, byte-compare the content,
+ *                       check mode 0755, remove, then prove remove refuses
+ *                       a file without the ownership marker. Never touches
+ *                       a real PATH directory.
  *  - GMUX_SHOT=<path>   capturePage after 3 s (GMUX_SHOT_DELAY_MS) → PNG → quit
  *                       (GMUX_SHOT_CAPTURE_OUT=<path> additionally writes the
  *                       image a DRIVEN capture produced — see shot-hook.ts;
@@ -111,6 +116,7 @@ import { runSmokeIdentity } from './identity';
 import { runSmokeProcId } from './procid';
 import { runSmokeQuit } from './quit';
 import { runSmokeShadow } from './shadow';
+import { runSmokeShim } from './shim-smoke';
 import { runShot } from './shot';
 
 export interface HarnessDeps {
@@ -229,6 +235,13 @@ export async function dispatchHarness(deps: HarnessDeps): Promise<boolean> {
   // Phase 13.8: what the outside world sees of gmux (read-only).
   if (smoke === 'procid') {
     await runSmokeProcId();
+    return true;
+  }
+  // Phase 51: the `tortie` shim install and removal proof, run entirely
+  // against a fresh temp directory injected through the shim module's deps
+  // parameter. It can never touch a real PATH directory.
+  if (smoke === 'shim') {
+    await runSmokeShim();
     return true;
   }
   // Phase 13.5 item 5 — `npm run conformance:resume`. Lives in

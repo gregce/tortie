@@ -30,6 +30,7 @@ import type {
   GmuxNoticeExtras,
   GmuxScrollbackExtras,
   GmuxSettingsExtras,
+  GmuxShellExtras,
   GmuxSpecStoryExtras
 } from '@shared/ipc';
 import type { DurabilityNotice, GmuxNotice } from '@shared/notice';
@@ -99,6 +100,20 @@ export async function hydrateAppState(store: AppStore): Promise<void> {
         restorable.length === 1
           ? '1 session is saved and ready to restore.'
           : `${restorable.length} sessions are saved and ready to restore.`
+      );
+    }
+    // Phase 51: a folder passed on this launch's argv (`tortie .` while
+    // Tortie was not running). The pull is take-and-clear main-side, so
+    // this and the shell-open-pending menu action can both exist without
+    // ever opening the same folder twice. Same addProjectPath route as
+    // every other way of opening a project.
+    const shellExtras = gmux as typeof gmux & GmuxShellExtras;
+    if (typeof shellExtras.takePendingOpen === 'function') {
+      void shellExtras.takePendingOpen().then(
+        (path) => {
+          if (path !== null) void getState().addProjectPath(path);
+        },
+        () => undefined
       );
     }
   } catch (err) {

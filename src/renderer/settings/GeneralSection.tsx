@@ -5,7 +5,13 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import type { GmuxLoginItemExtras, GmuxUpdatesExtras, UpdateUiState } from '@shared/ipc';
+import type {
+  GmuxLoginItemExtras,
+  GmuxShellExtras,
+  GmuxUpdatesExtras,
+  ShellCommandStatus,
+  UpdateUiState
+} from '@shared/ipc';
 import type { LaunchableAgentKind } from '@shared/types';
 import { keyDisplay } from '@shared/keymap';
 import { ScrollbackSection } from './ScrollbackSection';
@@ -79,6 +85,121 @@ function LoginItemRow(): React.JSX.Element | null {
         onChange={toggle}
       />
     </div>
+  );
+}
+
+/**
+ * Phase 51. The `tortie` shell command: one card, one explicit Install
+ * click, one explicit Remove click. The row shows the exact target path
+ * BEFORE the click, which is the charter's "shown to the user before
+ * writing". The command opens a folder and does nothing else — the copy
+ * says so, and the shim itself refuses every flag.
+ */
+function ShellCommandRow(): React.JSX.Element | null {
+  const [status, setStatus] = useState<ShellCommandStatus | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const extras = (window.gmux ?? {}) as unknown as GmuxShellExtras;
+  const supported =
+    typeof extras.shellCommandStatus === 'function' &&
+    typeof extras.installShellCommand === 'function' &&
+    typeof extras.removeShellCommand === 'function';
+
+  useEffect(() => {
+    if (!supported) return;
+    let alive = true;
+    void extras
+      .shellCommandStatus?.()
+      .then((s) => {
+        if (alive) setStatus(s);
+      })
+      .catch(() => {
+        // An unanswerable read renders no row rather than a wrong one.
+      });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supported]);
+
+  if (!supported || status === null) return null;
+
+  /** Strip Electron's invoke prefix so the row shows the plain sentence. */
+  const friendly = (err: unknown): string =>
+    (err instanceof Error ? err.message : String(err)).replace(
+      /^Error invoking remote method '[^']+': (?:Error: )?/,
+      ''
+    );
+
+  const run = (
+    act: (() => Promise<ShellCommandStatus>) | undefined
+  ): void => {
+    if (act === undefined) return;
+    setBusy(true);
+    setError(null);
+    void act()
+      .then((s) => setStatus(s))
+      .catch((err: unknown) => setError(friendly(err)))
+      .finally(() => setBusy(false));
+  };
+
+  const target = status.target ?? '';
+  let caption: string;
+  let targetLine: string | null = null;
+  let button: { label: string; act: (() => Promise<ShellCommandStatus>) | undefined } | null = null;
+  if (status.state === 'not-installed') {
+    caption =
+      'Install the tortie command to open folders from a terminal. ' +
+      'Typing tortie . opens the current folder as a project tab in the ' +
+      'running Tortie window. The command opens a folder and does nothing ' +
+      'else. It cannot start an agent, and it accepts no flags.';
+    targetLine = `The command will be written to ${target}.`;
+    button = { label: 'Install', act: extras.installShellCommand };
+  } else if (status.state === 'installed') {
+    caption =
+      `The tortie command is installed at ${target}. Typing tortie . in a ` +
+      'terminal opens the current folder as a project tab. The command ' +
+      'opens a folder and does nothing else.';
+    button = { label: 'Remove', act: extras.removeShellCommand };
+  } else if (status.state === 'foreign') {
+    caption =
+      `A file named tortie already exists at ${target} and Tortie did not ` +
+      'install it, so Tortie will not replace it or remove it.';
+  } else {
+    caption =
+      'The command cannot be installed. Tortie looked for a folder that ' +
+      'is both on your PATH and writable, among /opt/homebrew/bin, ' +
+      '/usr/local/bin and ~/.local/bin, and found none.';
+  }
+
+  return (
+    <>
+      <div className="set-group-label">Shell command</div>
+      <div className="set-card">
+        <div className="set-row tall">
+          <div className="set-row-text">
+            <span className="set-row-label">Shell command</span>
+            <span className="set-row-caption">{caption}</span>
+            {targetLine !== null ? (
+              <span className="set-row-caption">{targetLine}</span>
+            ) : null}
+            {error !== null ? (
+              <span className="set-row-error">{error}</span>
+            ) : null}
+          </div>
+          {button !== null ? (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              disabled={busy}
+              onClick={() => run(button?.act)}
+            >
+              {button.label}
+            </button>
+          ) : null}
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -197,6 +318,12 @@ export function GeneralSection(): React.JSX.Element {
       <div className="set-card">
         <DefaultAgentRow />
       </div>
+
+      {/* Phase 51. The tortie shell command: install and remove are the two
+          only writers, each one explicit click, and the target path is on
+          the card before the click. Feature-detected: an older preload
+          renders no card. */}
+      <ShellCommandRow />
 
       {/* Phase 13.7. A third GROUP, not a fourth nav section: the one figure
           this feature shows is evidence for the choice being made in this

@@ -5045,7 +5045,7 @@ Still not true after the fix round:
 - `conformance:resume:capture` hangs on this machine, on this tree and on trees without this work,
   so it did not run. That is not a Phase 48 finding.
 
-## Phase 49 — the install map, precedence and probe budgets (research 47, parts C, D and E) ✅ SHIPPED 2026-08-16 (this commit, 0.27.0)
+## Phase 49 — the install map, precedence and probe budgets (research 47, parts C, D and E) ✅ SHIPPED 2026-08-16 (`bf6e9e2`, 0.27.0)
 
 **Queue position, decided 2026-08-16.** It runs before the grok build phase on purpose: this phase
 creates the AgentInstallInfo shape on every registry row, and grok's new row should be born with
@@ -5097,7 +5097,7 @@ verified by stand-in rather than against the real binary. **The kill condition i
 measured false ping rate above zero on the agents with exact oracles means ship nothing. A wrong
 silence costs the user some waiting. A wrong ping costs them their attention. **Semver:** feat.
 
-## Phase 51 — `tortie .` from the shell (research 48, survivor 3) RECORDED 2026-08-15, NOT QUEUED
+## Phase 51 — `tortie .` from the shell (research 48, survivor 3) ✅ SHIPPED 2026-08-16 (this commit, 0.28.0)
 
 **Specification.** docs/research/48-what-people-want.md, section 9.3. An optional shell command that
 opens a folder as a project tab in the running window. It opens a folder and does nothing else.

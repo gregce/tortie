@@ -36,6 +36,7 @@ import { log } from './log';
 import { projects, recents } from './projects';
 import { notice, sessions } from './sessions';
 import { quickOpen, search, symbols } from './search';
+import { shell } from './shell';
 import {
   capture,
   drop,
@@ -152,7 +153,10 @@ const api: InstalledGmuxApi = {
   onPowerResume: (cb) => on(EVT_POWER_RESUME, cb),
   // Phase 22 optional extra: the launch context snapshot read (see
   // ./context for why the comparison happens in the renderer).
-  contextSnapshot
+  contextSnapshot,
+  // Phase 51 optional extras: the `tortie` shim row in Settings and the
+  // pending-open pull. Four invokes, no arguments, no event channel.
+  ...shell
 };
 
 contextBridge.exposeInMainWorld('gmux', api);

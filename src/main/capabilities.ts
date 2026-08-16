@@ -57,6 +57,7 @@ import { registerRestoreIpc } from './restore';
 import { disposeSearchIpc, registerSearchIpc } from './search';
 import { getGmuxCore, shutdownGmuxCore } from './sessions';
 import { registerSettingsIpc } from './settings';
+import { registerShellIpc } from './shell';
 import { disposeSymbolsIpc, registerSymbolsIpc } from './symbols';
 import { disposeTray } from './tray';
 import { handle } from './typed-ipc';
@@ -175,6 +176,10 @@ export function installMainCapabilities(
   // row. Registering in every mode is the existing convention here and it
   // costs one closure.
   registerUpdatesIpc(ipcMain);
+  // Phase 51: the four shell:* channels — the Settings shim row and the
+  // pending-open pull. None takes an argument, none spawns anything, and
+  // there is nothing to dispose: no watcher, no timer, no child process.
+  registerShellIpc(ipcMain);
   // Phase 12 item 8: file/image drop (drop:strategies/prepare/persist) and
   // the userData drop store's prune-at-ready + daily timer.
   registerDropIpc(ipcMain);

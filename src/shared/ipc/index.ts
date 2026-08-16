@@ -114,6 +114,10 @@ import type {
   SymbolsInvokeChannelMap
 } from './search';
 import type {
+  GmuxShellExtras,
+  ShellCommandInvokeChannelMap
+} from './shell';
+import type {
   ActivityEventPayloadMap,
   ActivityInvokeChannelMap,
   AskRestoreProjectInvokeChannelMap,
@@ -158,6 +162,7 @@ export * from './log';
 export * from './projects';
 export * from './search';
 export * from './sessions';
+export * from './shell';
 export * from './specstory';
 export * from './terminal';
 
@@ -218,7 +223,8 @@ export type GmuxInvokeChannelMap = InvokeChannelMap &
   OpenWithInvokeChannelMap &
   ActionsInvokeChannelMap &
   LogInvokeChannelMap &
-  AskRestoreProjectInvokeChannelMap;
+  AskRestoreProjectInvokeChannelMap &
+  ShellCommandInvokeChannelMap;
 
 export type GmuxInvokeChannel = keyof GmuxInvokeChannelMap;
 
@@ -338,4 +344,5 @@ export type InstalledGmuxApi = GmuxApi & {
   GmuxViewMenuExtras &
   GmuxUpdatesExtras &
   GmuxActionsExtras &
-  GmuxLogExtras;
+  GmuxLogExtras &
+  GmuxShellExtras;

@@ -21,6 +21,7 @@ import type {
   AnyMenuActionWithProjects,
   GmuxMenuExtras,
   GmuxQuitExtras,
+  GmuxShellExtras,
   MenuActionWithFind
 } from '@shared/ipc';
 import { OPEN_RECENT_PREFIX } from '@shared/ipc';
@@ -649,6 +650,25 @@ function useMenuActions(): void {
         void useApp
           .getState()
           .addProjectPath(action.slice(OPEN_RECENT_PREFIX.length));
+        return;
+      }
+      // Phase 51: a second launch delivered a folder (`tortie .`). The
+      // action carries NO payload on purpose — the path travels only
+      // through the take-and-clear shell:takePendingOpen pull, so there is
+      // exactly one way the renderer receives it, and it lands on the same
+      // addProjectPath route as Open Recent. A folder deleted between shim
+      // and delivery fails with the one sentence that case already has.
+      if (action === 'shell-open-pending') {
+        const shellExtras = window.gmux as
+          | (typeof window.gmux & GmuxShellExtras)
+          | undefined;
+        if (typeof shellExtras?.takePendingOpen !== 'function') return;
+        void shellExtras.takePendingOpen().then(
+          (path) => {
+            if (path !== null) void useApp.getState().addProjectPath(path);
+          },
+          () => undefined
+        );
         return;
       }
       // Still a NARROWING cast, and now visibly so: what survives the
