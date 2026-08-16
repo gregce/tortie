@@ -5352,7 +5352,7 @@ touching any sharing choice. Research 50 §8 records the mechanism. After the fi
 passed in 26.9 s with content recall. The rebase onto Phase 49 added the row's AgentInstallInfo
 from research 50 §3.12 and pinned x.ai in the installs gate.
 
-## Phase 61 — Finder opens things INTO Tortie (operator requested 2026-08-16) ✅ SHIPPED 2026-08-16 (this commit, 0.30.0)
+## Phase 61 — Finder opens things INTO Tortie (operator requested 2026-08-16) ✅ SHIPPED 2026-08-16 (`6982ae4`, 0.30.0)
 
 **The operator's words.** "Allow it to open markdown, html and other source files AND folders that
 it natively supports. Opening binaries that aren't images should not be supported." The request
