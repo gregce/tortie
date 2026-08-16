@@ -50,11 +50,9 @@ sessions.
 
 ### The Agents
 
-- **Thirteen agents supported out of the box.** Claude Code, Codex, Cursor, Gemini, Qwen, Muse, Pi, CodeWhale, Antigravity, Droid and Grok in the terminal, conversation capture for Cursor IDE and GitHub Copilot, and plain shells. Each agent has its own icon, a settable hotkey and launch flags.
+- **Thirteen agents supported out of the box.** Claude Code, Codex, Cursor, Gemini, Qwen, Muse, Pi, CodeWhale, Antigravity, Droid and Grok in the terminal. Each agent has its own icon, a settable hotkey and launch flags.
 - **Add your own with one JSON file.** No rebuild required. Anything that could start a process asks you first. See [how here](https://github.com/gregce/tortie/blob/main/resources/config/README.md).
 - **Conversations are captured.** The bundled SpecStory integration can record each session's conversation as markdown as it happens.
-
-Tortie is not affiliated with, endorsed by, or sponsored by any of the companies whose products it launches. All product names and logos are the property of their respective owners, and are used here only to identify the supported product.
 
 ### Familiar IDE features
 
@@ -105,5 +103,7 @@ The full list with licenses is in [`NOTICE`](NOTICE).
 - Release notes: [`CHANGELOG.md`](CHANGELOG.md)
 - Building from source and contributing: [`DEVELOPMENT.md`](DEVELOPMENT.md)
 - License: Apache 2.0, see [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE)
+
+Tortie is not affiliated with, endorsed by, or sponsored by any of the companies whose products it launches. All product names and logos are the property of their respective owners, and are used here only to identify the supported product.
 
 <p align="center">Made by <a href="https://github.com/gregce">gregce</a>.<br /><i>Your sessions are never interrupted.</i></p>
