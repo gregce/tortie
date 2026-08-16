@@ -5184,3 +5184,53 @@ the missing attacks in its own table. The edge counts are real measurements but 
 100-line stand-in script rather than the real extractor, so they are a floor. The wall, the voice
 and the live collaborators from the operator's north star are not deliverable under the charter, and
 section 12.5 says so rather than implying otherwise.
+
+## Phase 58 — the update ring: progress above the gear instead of dialogs (operator requested 2026-08-16) QUEUED
+
+**The operator's words.** "When you check for updates and have the process download, you are
+confronted with many screens and then you have to wait and then something shows and then make
+another choice to install on quit, which then will relaunch the app. Instead, I think it would be
+nice, similar to how when you clone a git repo, there is status of what its happening shown to you
+and you know where you are in the upgrade process. Ideally this would not be all the modals that we
+have today but perhaps a small circular indicator with actions that could live right above the gear
+settings icon in the left nav bar."
+
+**What ships.** One small circular indicator in the activity bar, directly above the settings gear,
+that carries the whole manual update journey. Its states, in order:
+
+- hidden, which is the state almost all of the time
+- checking, an indeterminate ring, shown only after a check the user started
+- downloading, a determinate ring filled by real progress from the updater's download events
+- staging, the short window while the OS updater verifies and stages
+- ready, a calm filled state that stays until the user acts or quits
+- failed, a quiet error state that never pulses
+
+Hovering names the stage in words, e.g. "Downloading 0.26.0, 41 percent". Clicking opens a NATIVE
+menu through the ui:popupMenu bridge, never a DOM menu, whose items depend on the state: when
+ready, "Restart and update now" and "Install when you quit" and nothing else; when failed, "Why it
+failed" and "Repair updates", which reuses the Phase 43 surfaces. "Restart and update now" calls
+the updater's own quitAndInstall and adds no relaunch logic of its own, because the App Still
+Running incident came from racing that window.
+
+**What is removed.** The dialog after a user-started check and the ready dialog. The ring replaces
+both. The refusal dialog from Phase 31 STAYS, because a failed install explaining itself at the
+next launch is a launch-time surface with no ring on screen yet. The staged menu item under the
+Tortie menu STAYS, because a menu line is not a modal and it is where Check for Updates lives.
+
+**Background checks stay silent** until they reach ready, exactly as today. The ring must never
+animate for a check the user did not start. Nothing badges, nothing counts, nothing notifies, and
+the needs-input status semantics are untouched.
+
+**Mechanics.** The updates:state channel already carries UpdateUiState to the Settings row; it
+gains the download progress fields and a restart-now action rather than any parallel channel. If
+the contract inventory moves, the new lines are declared in the commit body per house rule. The
+update ENGINE, being Phase 24's updater.ts state machine with Phase 43's handedToInstaller
+discipline, does not change. Only surfaces change.
+
+**Tier 3**, because it touches the update path and the operator personally asked. The verifier
+drives a REAL staged update end to end against a local feed through build/update-rehearsal.mjs, on
+an isolated profile AND isolated cache directories, never the operator's ~/Library/Caches, per the
+Phase 43 incident. Evidence: the ring photographed in downloading, ready and failed states with the
+window raised first; proof no dialog appears on a manual check; proof a background check draws
+nothing until ready; and one full restart-and-update-now rehearsal that comes back on the new
+version. **Semver:** feat, minor, so the release this rides in becomes 0.26.0.
