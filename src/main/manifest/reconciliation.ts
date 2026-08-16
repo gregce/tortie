@@ -11,7 +11,8 @@ import type Database from 'better-sqlite3';
 import { immediateTransaction } from '../db/sqlite';
 import type {
   ManifestSessionPatch,
-  ManifestSessionRecord
+  ManifestSessionRecord,
+  UpdateSessionOptions
 } from './codecs';
 
 /**
@@ -116,7 +117,10 @@ export interface ReconcileSessions {
   listSessions(): ManifestSessionRecord[];
   updateSession(
     id: string,
-    patch: ManifestSessionPatch
+    patch: ManifestSessionPatch,
+    // Optional, so a test double that takes two arguments still satisfies
+    // this. The flip below is the only caller that passes it.
+    opts?: UpdateSessionOptions
   ): ManifestSessionRecord;
 }
 
@@ -234,13 +238,24 @@ export function reconcileManifest(
           rec.status === 'exited' ||
           // Seeing it alive is exactly the evidence 'unknown' was missing.
           rec.status === 'unknown';
-        const updated = sessions.updateSession(rec.id, {
-          lastSeen: now,
-          ...(session.tmuxName !== rec.tmuxName
-            ? { tmuxName: session.tmuxName }
-            : {}),
-          ...(needsStatusFlip ? { status: 'running' as const } : {})
-        });
+        const updated = sessions.updateSession(
+          rec.id,
+          {
+            lastSeen: now,
+            ...(session.tmuxName !== rec.tmuxName
+              ? { tmuxName: session.tmuxName }
+              : {}),
+            ...(needsStatusFlip ? { status: 'running' as const } : {})
+          },
+          // THE DEATH IS OVER WHEN THE ROW IS ALIVE AGAIN (Phase 48 fix
+          // round). This flip is the second way a row leaves 'exited', beside
+          // `setRestoreResult`, and only that one cleared the exit cause. A
+          // row that came back here kept its `exitCode`, its `exitSignal` and,
+          // since Phase 48, the words of a process that is no longer the one
+          // running. Cleared in the same durable write as the status, so no
+          // crash can leave a live status beside a dead process's cause.
+          needsStatusFlip ? { clearExitCause: true } : {}
+        );
         result.alive.push(updated);
         result.bindings.set(rec.id, session.tmuxId);
       } else if (rec.status === 'exited') {

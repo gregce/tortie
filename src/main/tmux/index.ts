@@ -48,6 +48,9 @@ export {
   resetUserPathCache,
   resolveBinary,
   resolveBinaryAgainst,
+  // Phase 48: the counter a cache keys on when its answer was computed against
+  // the captured PATH. See src/main/agents/health.ts.
+  userPathEpoch,
   ENV_CAPTURE_MAX_VALUE_BYTES,
   PATH_CAPTURE_TIMEOUT_MS,
   type CaptureEnvResult,

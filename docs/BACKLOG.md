@@ -4887,10 +4887,12 @@ them to be recorded rather than scheduled. Do not build any of them without bein
 them additionally require the operator to accept a new principle first, and that is stated on the
 entry.
 
+Phase 48 was pulled out of this section and built on 2026-08-15. Three remain unqueued.
+
 Both research documents behind them had no backlog entry at all until now, which meant the
 decisions lived only in a chat session. That is the gap this section closes.
 
-## Phase 48 — the launch preflight and the exit text (research 47, parts A and B) RECORDED 2026-08-15, NOT QUEUED
+## Phase 48 — the launch preflight and the exit text (research 47, parts A and B) ✅ SHIPPED 2026-08-15 (this commit, 0.25.1)
 
 **Specification.** docs/research/47-agent-installs.md, sections 2, 6, 7 and row A and B of section
 12. This is the incident the operator hit on a second Mac, where `claude` was found, launched and
@@ -4920,6 +4922,114 @@ and its interpreter was not, and then prints the npm command that produced the p
 **Tier 3**, because the operator reported it. The evidence that closes it is the seven reproduced
 failure modes from section 2.1 re-run against the new build, as a per mode table showing the
 sentence each one now produces. No mode may produce a bare exit code. **Semver:** fix.
+
+### What shipped
+
+Part A landed as written. `PATH_CAPTURE_TIMEOUT_MS` is 10,000 ms, `captureLoginShellPath` reports
+one `info` line naming the source, the wall clock, the directory count, the budget and the merged
+PATH itself, and `userPathEpoch()` counts the captures so a cache can key on them. The two comments
+that credited `set-environment -g PATH` for a pane's PATH now credit
+`process.env['PATH'] = userPath`, in supervisor.ts and in sessions/core.ts.
+
+Part B landed as written, with one deviation. `src/main/agents/health.ts` reads the first two bytes
+of the resolved file before anything spawns, parses the interpreter when they are `#!`, expands
+`/usr/bin/env`, and resolves the name against the same PATH the pane will get. Only
+`interpreter-missing` blocks. The deviation is that `AGENT_INTERPRETER_MISSING` carries its `detail`
+as two lines, being the absolute path and then the interpreter name, so the create sheet can name
+the program in its two ways forward without reading a fact out of a prose sentence. Migration
+`012-exit-detail` adds the column, `exitDetailFrom` keeps the last five non-empty lines within 500
+bytes, `clearExitCause` deletes it with the rest of the cause, and the exit 127 branch in
+TerminalRegion.tsx is gone.
+
+### The evidence the committer produced
+
+Gates, all on the committed tree: typecheck, build, `npm test` at 3973 passed and 23 skipped over
+279 files with no flake, `smoke:t1` create and verify both PASS, `assert-bundle-refusals`,
+`contract-inventory --check` OK byte for byte, and `conformance:agents` PASS. The six test files
+this phase adds or changes carry 120 tests.
+
+Three live probes, on scratch sockets `gmux-p48-live` and `gmux-p48-lived`, each with its own
+`--user-data-dir`, driving the real app through `GMUX_SHOT` with a controlled `$SHELL` that prints
+a PATH of the probe's choosing. Operator sessions on `-L gmux` were 22 before and 22 after.
+
+| Probe | Result |
+| --- | --- |
+| Mode 1, `#!/usr/bin/env <absent>` | Refused before launch. `AGENT_INTERPRETER_MISSING`, the state B sentence, preflight cost 1.515 ms |
+| Mode 7, `#!/usr/local/bin/<removed>` | Refused before launch. Same code, the absolute interpreter named, cost 0.313 ms |
+| `Start it anyway` | The same argv the check refused was accepted and a session was created |
+| Mode 3, a shim that starts and exits 1 | Manifest row carried `exitDetail`. The app drew "claude stopped right after it started", then "The session ended within 5 seconds of starting. It exited with code 1.", then the pane's own two lines in the monospace block, then the restart note. Screenshot read |
+| The Part A log line | Read live in the `smoke:t1` run: "login-shell PATH capture: login shell, 1227 ms, 46 directories, budget 10000 ms" |
+
+### What is not true
+
+- **The full seven mode matrix was not re-run by the committer.** Modes 1, 3 and 7 were driven
+  live, plus `Start it anyway` and the two Part A items above. Modes 2, 4, 5 and 6 were not
+  reproduced in this run. Modes 2 and 6 share mode 1's code path exactly, and modes 4 and 5 share
+  mode 3's, so the claim for them is an inference from a shared path and not a measurement.
+- **The state B block in the create sheet was not photographed.** The payload that feeds it was
+  proven live, twice. The block itself was read in the source.
+- **No screenshot of state A was taken**, and the `Try again` action was not driven.
+- **The second Mac was never observed.** Every reproduction is a shim in a scratch directory.
+- The larger PATH budget costs a machine whose login shell never prints 7 more seconds before the
+  first session can be created. That cost was reasoned about and was not measured in this round.
+- The `onLoginPath` equality defect at core.ts and `VERSION_PROBE_TIMEOUT_MS` are untouched. Both
+  are Phase 49.
+
+### The fix round, 2026-08-15, same commit
+
+The independent verifier died on an API error part way through its response, so the phase reached a
+pass verdict by default rather than by proof. Two verifiers were run again afterwards and both found
+real defects. Fifteen were reported. Eleven were fixed here, three were declined with a reason and
+one was a documentation error that is corrected above and in the code.
+
+| # | Defect | Fix |
+| --- | --- | --- |
+| 1 | The 250 ms timer released the caller but nothing cancelled the blocked `open`, so every launch against a file whose open hangs leaked one libuv threadpool thread for good. Measured at `UV_THREADPOOL_SIZE=2`, one of four creates returned. Once the pool was gone the app could not quit | `strandedInspections` in health.ts. One stranded read is tolerated, and while one is outstanding every later check answers `unknown` without opening anything. The pool always keeps at least three threads. Proved with a real FIFO |
+| 2 | State B was unreachable for claude on a fresh boot, which is the operator's own machine. detection.ts merged stderr into the identity test, so a broken shim's "No such file or directory" failed the `(Claude Code)` check and the tile read "not installed". claude is the only one of twelve rows with an `identitySubstring` | The identity claim now needs stdout. A program that could not run at all is no longer called an impostor. Driven live on a fresh profile, before and after |
+| 3 | `Try again` silently switched the agent to shell, and the third click created a session named shell-1 | The settle hop runs for the first settle only. A person's own pick and an on-screen refusal both freeze the selection |
+| 4 | tmux's own `Pane is dead (...)` banner was stored as the pane's last words and shown under "The last thing it printed was:". It also broke the UI rule against the word "Pane" and consumed one of the five lines | `DEAD_PANE_BANNER` drops it before the slice and before the cap. The two literal banner forms were captured from tmux 3.6a on this machine |
+| 5 | A single-line error of 451 bytes or more was discarded whole and replaced by the banner alone | Fixed by the banner drop. A 451 character message is now kept |
+| 6 | The "no last words" case never happened, so the block always drew, with nothing in it that the agent said | Fixed by the banner drop. Proved live: a silent exit draws no block, no lead and no note |
+| 7 | A healthy agent killed from outside was told a restart would not help | `exitDetailNote` branches on the signal, including the 128+n exit codes |
+| 8 | `exitDetail` went stale on a row that died twice, because the reaper omitted the field when it had nothing and the reconcile flip did not clear the cause | The reaper always states the answer and `null` means nothing, which needed the patch type to allow a removal. The reconcile flip now passes `clearExitCause` |
+| 9 | The health cache could block a working agent after an in place upgrade that kept the size and the mtime, e.g. `cp -p` | The key gains the inode and `ctimeMs` |
+| 10 | A file whose first two bytes are 0x23 0x21 by accident was blocked, with an unreadable interpreter name | The shebang must be printable ASCII, otherwise `unknown` |
+| 11 | `#!./node` was blocked although the kernel resolves it | A relative path containing a slash answers `unknown` |
+| 12 | A cached `interpreter-missing` answer reported the first caller's path, and the sheet prints that path | `binPath` is overwritten on a cache hit, as `elapsedMs` already was |
+| 13 | `#!/usr/bin/env --split-string=node` named no program | The long form and the attached `-S` form are both read |
+
+Declined, with the reason:
+
+- **Suppressing the block when the last words are only a TUI redraw.** It would have to read the
+  bytes, and this feature's whole contract is that no branch reads them. It would also hide a
+  genuine crash message from an agent that prints one and then dies by `SIGABRT`, which is what a
+  node out of memory abort does. The note branch fixes the false sentence, which was the actual
+  harm.
+- **Blocking `#!node`.** No kernel resolves a bare name in a shebang, so `ok` is technically the
+  wrong answer. Both `ok` and `unknown` launch, so nothing a person can see is different.
+- **Setting `remain-on-exit-format` in resources/gmux-tmux.conf.** The operator's server is already
+  running with tmux's default, so the recogniser is needed either way, and a second source of the
+  banner would only add a shape to match.
+
+The Part A justification does not reproduce. The commit body recorded five captures at 2837, 3077,
+3089, 3145 and 3511 ms. Two later runs of the same probe on the same machine and the same shell
+measured 1165, 1069, 1082, 1050 and 1074 ms and 1110, 1090, 1080, 1070 and 1110 ms, so 0 of 10
+missed the old 3000 ms budget. Two live boot lines read 1227 ms and 1183 ms. The 10,000 ms budget
+stays, because the cost of a miss is the bug this phase exists for, but the recorded reason is
+corrected here and on `PATH_CAPTURE_TIMEOUT_MS` itself.
+
+Gates after the fix round: typecheck, build, `npm test` at 3998 passed and 23 skipped over 280
+files, `smoke:t1` create and verify both PASS, `smoke:t3` both halves PASS covering a claude and a
+non-claude restore, `assert-bundle-refusals`, `contract-inventory --check` OK byte for byte, and
+`conformance:agents` PASS. Operator sessions on `-L gmux` were 22 before and 22 after.
+
+Still not true after the fix round:
+
+- The one stranded threadpool thread is bounded and is not recovered until the mount answers.
+- Modes 2, 4, 5 and 6 of the seven were still not driven.
+- The signal death note was proved by unit test on the three cases, not by killing a live agent.
+- `conformance:resume:capture` hangs on this machine, on this tree and on trees without this work,
+  so it did not run. That is not a Phase 48 finding.
 
 ## Phase 49 — the install map, precedence and probe budgets (research 47, parts C, D and E) RECORDED 2026-08-15, NOT QUEUED
 

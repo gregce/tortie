@@ -307,6 +307,35 @@ export const MIGRATIONS: readonly SqliteMigration[] = [
     up: (db) => {
       addColumnIfMissing(db, 'sessions', 'env_passthrough', 'TEXT');
     }
+  },
+  {
+    // Phase 48 (research 47 sections 6 and 7): the last thing the pane
+    // printed before it died.
+    //
+    // WHAT IT FIXES. Three of the seven reproduced failure modes are an agent
+    // that starts and then exits, so no static check can predict them. For
+    // those the pane already prints the reason and Tortie destroys it about
+    // one second later, replacing it with "Session ended unexpectedly
+    // (exit 1)". The text is taken from the snapshot the reaper already
+    // captures, so nothing new is spawned and nothing new is read.
+    //
+    // ADDITIVE, NOT BREAKING, by the rule in research 27 section 4.3. The
+    // test is whether an old build writing NULL here produces a row the new
+    // build reads WRONGLY. It cannot. NULL means "no last words were
+    // recorded", which is exactly true of every row written before this
+    // migration and of every session that died with an empty pane. Nothing on
+    // the restore path reads it and no launch depends on it. So
+    // MANIFEST_SCHEMA_VERSION moves to 12 and MANIFEST_MIN_COMPATIBLE_VERSION
+    // stays at 8.
+    //
+    // CAPPED AT 500 BYTES, and never parsed. An unbounded blob of agent
+    // output inside a durability critical database is a hazard whatever its
+    // typical size, and parsing agent error text is a maintenance burden with
+    // no upside.
+    name: '012-exit-detail',
+    up: (db) => {
+      addColumnIfMissing(db, 'sessions', 'exit_detail', 'TEXT');
+    }
   }
 ];
 
@@ -328,7 +357,7 @@ export const MANIFEST_APPLICATION_ID = 0x54525445;
  * one. Keep it that way: a number that has to be reasoned about is a number
  * that gets set wrong under time pressure.
  */
-export const MANIFEST_SCHEMA_VERSION = 11;
+export const MANIFEST_SCHEMA_VERSION = 12;
 
 /**
  * The oldest schema version whose code may still write this manifest.
@@ -341,9 +370,9 @@ export const MANIFEST_SCHEMA_VERSION = 11;
  * visible result is an empty session that looks resumed. SQLite would allow
  * that write. This number is what stops it.
  *
- * Migrations 009, 010 and 011 are ADDITIVE by that same rule, so each moved
- * MANIFEST_SCHEMA_VERSION and left this number alone. `context_snapshot` is
- * advisory: nothing on the restore path reads it, and a build at schema 8
+ * Migrations 009, 010, 011 and 012 are ADDITIVE by that same rule, so each
+ * moved MANIFEST_SCHEMA_VERSION and left this number alone. `context_snapshot`
+ * is advisory: nothing on the restore path reads it, and a build at schema 8
  * writing NULL into it produces a session with no record of what it loaded,
  * which is exactly what that session is. `removed_at` (Phase 29) cannot be
  * needed by a row an older build writes, because no older build writes
@@ -351,6 +380,14 @@ export const MANIFEST_SCHEMA_VERSION = 11;
  * a row an older build writes either, because no older build reads the
  * configuration field that names those variables. Reasoning is at migrations
  * 009, 010 and 011.
+ *
+ * `exit_detail` (Phase 48, migration 012) is additive for the plainest reason
+ * of the four. NULL means "no last words were recorded". That is true of every
+ * row written before the migration, true of every session that died with an
+ * empty pane, and true of every row an older build writes. Nothing on the
+ * restore path reads the column and no launch depends on it. An older build
+ * opening this manifest simply shows the exit code it always showed. Reasoning
+ * is at migration 012.
  *
  * The honest limit of leaving this at 8 across migration 010, stated so it is
  * checked rather than discovered: a build at schema 8 or 9 opened against

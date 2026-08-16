@@ -106,6 +106,19 @@ export function fetchAgentAvailability(): Promise<AgentAvailability> {
   return inflight;
 }
 
+/**
+ * PHASE 48. Forget the probe's answer so the next read asks main again.
+ *
+ * The create sheet's `Try again` calls it. The probe runs once per boot and
+ * the answer is cached for the renderer's lifetime, so a person who installed
+ * the agent while the sheet was open would otherwise keep seeing "not
+ * installed" on the tile until they quit Tortie. Nothing else clears it.
+ */
+export function resetAgentAvailabilityCache(): void {
+  cached = null;
+  inflight = null;
+}
+
 /** Current availability; starts optimistic and settles once probed. */
 export function useAgentAvailability(): AgentAvailability {
   const [avail, setAvail] = useState<AgentAvailability>(cached ?? OPTIMISTIC);

@@ -211,11 +211,19 @@ export function extractVersion(
  * forever AND leave the fork behind — the same shape as the `zsh -lic` probe
  * that leaked for 19 hours. runGuarded always settles and kills the group.
  */
+/** What one probe run produced, with the two streams kept apart. */
+interface ProbeOutput {
+  /** stdout and stderr joined, which is what a version is read out of. */
+  combined: string;
+  /** stdout alone, which is the only stream an identity is judged on. */
+  stdout: string;
+}
+
 function execProbe(
   bin: string,
   args: readonly string[],
   pathValue: string
-): Promise<string | null> {
+): Promise<ProbeOutput | null> {
   return runGuarded(bin, args, {
     timeoutMs: VERSION_PROBE_TIMEOUT_MS,
     maxOutputBytes: 256 * 1024,
@@ -226,7 +234,7 @@ function execProbe(
     // Some CLIs print the version yet exit non-zero; use any output. No
     // output at all is a failed probe whatever the exit code said — the
     // caller falls back to probe.fallbackArgs on null.
-    return combined.length > 0 ? combined : null;
+    return combined.length > 0 ? { combined, stdout: r.stdout.trim() } : null;
   });
 }
 
@@ -235,6 +243,35 @@ interface VersionProbeResult {
   /** True when output arrived but the identity substring was absent — the
    *  binary wearing this name is NOT the agent (e.g. a different `claude`). */
   identityFailed: boolean;
+}
+
+/**
+ * Judge the identity on STDOUT ALONE, and only when there is some.
+ *
+ * PHASE 48 FIX ROUND, and this is the line that made state B unreachable for
+ * claude on a fresh boot, which is the exact machine in the operator's bug
+ * report. The identity test used to read stdout and stderr joined. An npm shim
+ * whose interpreter is missing prints nothing to stdout and
+ * "env: node: No such file or directory" to stderr, so the joined text was not
+ * empty, it did not contain "(Claude Code)", and the row was marked NOT
+ * INSTALLED. The tile then read "Claude Code — not installed", the click was
+ * refused before any create could be attempted, and the sheet offered
+ * `npm install -g @anthropic-ai/claude-code`, which is the one piece of advice
+ * launch-plan.ts says must never be printed for this failure. codex has no
+ * `identitySubstring`, so the identical breakage reached the full refusal
+ * there, and claude is the only one of the twelve compiled rows that carries
+ * one.
+ *
+ * The test still does its job. A DIFFERENT program wearing the name `claude`
+ * that runs and prints its own version to stdout is still refused, which is
+ * what `identitySubstring` was added for. What no longer happens is a program
+ * that could not run at all being reported as an impostor.
+ */
+function identityMissing(probe: VersionProbe, out: ProbeOutput): boolean {
+  return (
+    probe.identitySubstring !== undefined &&
+    !out.combined.includes(probe.identitySubstring)
+  );
 }
 
 async function runVersionProbe(
@@ -247,10 +284,17 @@ async function runVersionProbe(
     out = await execProbe(binPath, probe.fallbackArgs, pathValue);
   }
   if (out === null) return { version: null, identityFailed: false };
-  if (probe.identitySubstring !== undefined && !out.includes(probe.identitySubstring)) {
-    return { version: null, identityFailed: true };
+  if (identityMissing(probe, out)) {
+    // No version either way: text that is not the agent's own greeting is not
+    // this agent's version, so Settings shows nothing rather than showing an
+    // error message where a number belongs. Only the second half, the claim
+    // that something ELSE wears this name, needs stdout to stand on.
+    return { version: null, identityFailed: out.stdout.length > 0 };
   }
-  return { version: extractVersion(out, probe.postProcess), identityFailed: false };
+  return {
+    version: extractVersion(out.combined, probe.postProcess),
+    identityFailed: false
+  };
 }
 
 // ---------------------------------------------------------------------------

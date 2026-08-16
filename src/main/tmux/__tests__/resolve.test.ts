@@ -29,14 +29,17 @@ vi.mock('electron', () => ({
 
 import {
   ENV_CAPTURE_MAX_VALUE_BYTES,
+  PATH_CAPTURE_TIMEOUT_MS,
   captureLoginShellEnv,
   captureLoginShellPath,
   extraBinDirs,
   fallbackPath,
+  getUserPath,
   mergePathDirs,
   resetUserPathCache,
   resolveBinary,
-  resolveBinaryAgainst
+  resolveBinaryAgainst,
+  userPathEpoch
 } from '../resolve';
 
 let root: string;
@@ -409,6 +412,60 @@ describe('captureLoginShellEnv', () => {
     assert.deepEqual(out.values, { P33_A: 'alpha' });
     assert.deepEqual(out.missing, ['oops; rm -rf /']);
   });
+});
+
+/**
+ * PHASE 48. The budget and the epoch.
+ *
+ * The budget is a number the create path waits on, so it is pinned here rather
+ * than left to a comment. A miss falls back to a PATH with no version managed
+ * node directory in it, the agent is then found and its interpreter is not,
+ * and the pane opens and dies at once. The Phase 48 fix round could not
+ * reproduce the five slow captures the raise was justified with, so the reason
+ * recorded on PATH_CAPTURE_TIMEOUT_MS in ../resolve.ts is the cost of a miss
+ * rather than a measured miss.
+ *
+ * The epoch exists so that a cache of answers computed AGAINST the captured
+ * PATH can drop them when the PATH is replaced. src/main/agents/health.ts is
+ * the caller, and what it needs is exactly this: a number that moves on a
+ * recapture and does not move on a cached call.
+ */
+describe('PATH_CAPTURE_TIMEOUT_MS', () => {
+  it('is 10,000 ms', () => {
+    assert.equal(PATH_CAPTURE_TIMEOUT_MS, 10_000);
+  });
+});
+
+describe('userPathEpoch', () => {
+  it('is 0 in a process that has not captured yet', async () => {
+    // A fresh copy of the module, so the count is this import's own. Nothing
+    // is spawned: the counter moves at the first getUserPath() and this test
+    // never makes one.
+    vi.resetModules();
+    const fresh = await import('../resolve');
+    assert.equal(fresh.userPathEpoch(), 0);
+  });
+
+  it('moves on a capture, stays put on a cached call, moves again after a reset', async () => {
+    const before = userPathEpoch();
+    // The counter moves where the promise is assigned, which is synchronous,
+    // so the assertions do not have to wait for a login shell to answer.
+    const first = getUserPath();
+    assert.equal(userPathEpoch(), before + 1);
+
+    const second = getUserPath();
+    assert.equal(userPathEpoch(), before + 1, 'a cached call re-captured');
+    assert.equal(second, first, 'a cached call returned a different promise');
+
+    resetUserPathCache();
+    const third = getUserPath();
+    assert.equal(userPathEpoch(), before + 2);
+    assert.notEqual(third, first);
+
+    // Both probes are settled before the test ends, so neither outlives it.
+    // captureLoginShellPath never rejects.
+    await Promise.all([first, third]);
+  }, 30_000);
 });
 
 describe('mergePathDirs / fallbackPath', () => {

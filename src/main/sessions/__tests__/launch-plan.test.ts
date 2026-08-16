@@ -20,6 +20,7 @@ import {
   agentExtrasOf,
   agentNotFoundMessage,
   binaryCandidatesOf,
+  interpreterMissingMessage,
   newSessionRecord,
   paneEnvFor,
   relaunchWrapped,
@@ -179,14 +180,48 @@ describe('binaryCandidatesOf', () => {
 describe('agentNotFoundMessage', () => {
   it('names the one candidate when there is one', () => {
     expect(agentNotFoundMessage(['claude'])).toBe(
-      'claude not found — install it, or make sure your shell PATH includes it.'
+      'Tortie looked for a program named claude on your login shell\'s PATH ' +
+        'and in the places Tortie knows agents install themselves. It found ' +
+        'nothing.'
     );
   });
 
   it('names every other candidate that was also tried', () => {
     expect(agentNotFoundMessage(['codewhale', 'codew', 'deepseek'])).toBe(
-      'codewhale not found (also tried codew, deepseek) — install it, or make sure your shell PATH includes it.'
+      'Tortie looked for a program named codewhale on your login shell\'s ' +
+        'PATH and in the places Tortie knows agents install themselves. It ' +
+        'also looked for codew and deepseek. It found nothing.'
     );
+  });
+
+  it('joins two extra candidates with the word and, not a comma', () => {
+    expect(agentNotFoundMessage(['a', 'b'])).toContain('It also looked for b.');
+  });
+
+  it('carries no dash of any kind', () => {
+    const text = agentNotFoundMessage(['claude', 'claude-code']);
+    expect(text).not.toContain('—');
+    expect(text).not.toContain('–');
+  });
+});
+
+describe('interpreterMissingMessage', () => {
+  const text = interpreterMissingMessage(
+    '/Users/you/.npm-global/bin/claude',
+    'node'
+  );
+
+  it('names the file and the interpreter', () => {
+    expect(text).toBe(
+      'The file at /Users/you/.npm-global/bin/claude is a script, not a ' +
+        'program. Its first line asks for node, and node is not on the PATH ' +
+        'this session would get. The session would open and close within a ' +
+        'second, so Tortie did not start it.'
+    );
+  });
+
+  it('names no install command, which is the point of the phase', () => {
+    expect(text).not.toContain('npm install');
   });
 });
 

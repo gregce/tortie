@@ -47,6 +47,22 @@ export interface SessionsSlice {
   excerpts: Record<string, string>;
   /** Last observed output activity per session (epoch ms). */
   lastActivity: Record<string, number>;
+  /**
+   * PHASE 48. When THIS window saw a session stop (epoch ms), for the
+   * sessions it also saw running.
+   *
+   * The ended block asks one question of it: did this session start and then
+   * stop within five seconds? The session projection carries `createdAt` and
+   * no death time at all, so the answer has to be observed rather than read.
+   *
+   * An id is absent when the window never saw that session alive, which is
+   * every session that was already over when the window opened and every
+   * session after a reload. Absent means the block draws exactly what it drew
+   * before this phase, which is the honest answer: Tortie did not watch that
+   * one start. The observed time is at or after the real one, so the error
+   * can only hide a fast death and can never invent one.
+   */
+  endedSeenAt: Record<string, number>;
 
   setActiveSession(sessionId: string): void;
   cycleSession(delta: 1 | -1): void;
@@ -93,6 +109,17 @@ export interface SessionsSlice {
      * dropped here in silence — the create sheet's switch did nothing at all.
      */
     capture?: boolean;
+    /**
+     * PHASE 48: skip the structural preflight in main and launch the argv it
+     * refused. It is the `Start it anyway` button in the create sheet and
+     * nothing else sets it.
+     *
+     * A named field for the same reason `capture` is one: an object spread
+     * bypasses TypeScript's excess-property check, so a field the store did
+     * not declare would be accepted at the call site and dropped in silence
+     * here.
+     */
+    startAnyway?: boolean;
   }): Promise<boolean>;
   /** §6.2 one-click create. Widened with createSession (Phase 12): the
    *  no-sessions fleet launches ANY launchable registry agent, not the trio. */
@@ -193,6 +220,47 @@ function withAttention(
   return changed ? next : prev;
 }
 
+/**
+ * PHASE 48. Stamp the moment a session this window was watching stopped.
+ *
+ * Same shape as {@link withAttention} and applied on both status paths for the
+ * same reason: the full-list refresh and the cheap per-session event must not
+ * be able to disagree. A stamp is written once and never moved, and a session
+ * that leaves the list takes its stamp with it.
+ *
+ * A session that is ALREADY 'exited' in `before` gets no stamp, because this
+ * window did not watch it stop. That is the case for every row that was over
+ * when the window opened.
+ */
+function withEndedAt(
+  prev: Record<string, number>,
+  before: readonly Session[],
+  after: readonly Session[]
+): Record<string, number> {
+  const aliveBefore = new Set<string>();
+  for (const sess of before) {
+    if (sess.status !== 'exited' && sess.status !== 'discarded') {
+      aliveBefore.add(sess.id);
+    }
+  }
+  const next: Record<string, number> = {};
+  const now = Date.now();
+  let changed = false;
+  for (const sess of after) {
+    const was = prev[sess.id];
+    if (was !== undefined) {
+      next[sess.id] = was;
+      continue;
+    }
+    if (sess.status === 'exited' && aliveBefore.has(sess.id)) {
+      next[sess.id] = now;
+      changed = true;
+    }
+  }
+  if (Object.keys(prev).length !== Object.keys(next).length) changed = true;
+  return changed ? next : prev;
+}
+
 export const createSessionsSlice: StateCreator<
   AppState,
   [],
@@ -220,6 +288,7 @@ export const createSessionsSlice: StateCreator<
     attentionSince: {},
     excerpts: {},
     lastActivity: {},
+    endedSeenAt: {},
 
     setActiveSession(sessionId) {
       const { activeProjectId } = get();
@@ -254,7 +323,8 @@ export const createSessionsSlice: StateCreator<
     applySessions(sessions) {
       set((s) => ({
         sessions,
-        attentionSince: withAttention(s.attentionSince, sessions)
+        attentionSince: withAttention(s.attentionSince, sessions),
+        endedSeenAt: withEndedAt(s.endedSeenAt, s.sessions, sessions)
       }));
       // Keep per-project selection valid.
       const s = get();
@@ -289,12 +359,20 @@ export const createSessionsSlice: StateCreator<
         );
         return {
           sessions,
-          attentionSince: withAttention(s.attentionSince, sessions)
+          attentionSince: withAttention(s.attentionSince, sessions),
+          endedSeenAt: withEndedAt(s.endedSeenAt, s.sessions, sessions)
         };
       });
     },
 
-    async createSession({ name, agent, cwd, extraArgs, capture }) {
+    async createSession({
+      name,
+      agent,
+      cwd,
+      extraArgs,
+      capture,
+      startAnyway
+    }) {
       const project = get().activeProject();
       if (!gmux || !project) return false;
       // Silent display-name dedupe within the project (S6).
@@ -322,7 +400,10 @@ export const createSessionsSlice: StateCreator<
           : {}),
         // Only ever sent when it is ON: absent is the uncaptured session every
         // pre-Phase-15 build created, and main reads exactly `=== true`.
-        ...(capture === true ? { capture: true } : {})
+        ...(capture === true ? { capture: true } : {}),
+        // Phase 48. Same rule: absent is every create that has not been
+        // refused by the preflight, and main reads exactly `=== true`.
+        ...(startAnyway === true ? { startAnyway: true } : {})
       });
       get().setActiveSession(session.id);
       return true;

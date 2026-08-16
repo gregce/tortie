@@ -101,11 +101,11 @@
   margin-top: var(--space-7);
 }
 
-/* §6.6's "command not found" state prints the install line between the body
-   and its actions; gap:0 means it carries its own space. */
-.onb-inner > .agent-missing-cmd {
-  margin-top: var(--space-5);
-}
+/* §6.6's "command not found" state printed an install line between the body
+   and its actions, and Phase 48 deleted that state. The rule that spaced it
+   went with it. Its selector was a DIRECT child of .onb-inner and the fleet
+   state's own command is a grandchild inside .onb-caption, so nothing else
+   ever matched it. */
 
 /* The install command sits directly above [Check again] as one group. */
 .onb-inner .empty-actions + .empty-actions {
@@ -156,4 +156,56 @@
   color: var(--text-muted);
   user-select: text;
   word-break: break-word;
+}
+
+/* ---------------------------------------------------------------------------
+   PHASE 48 — the last thing a dead pane printed.
+
+   Three of the seven failure modes research 47 reproduced are an agent that
+   starts and then exits. No static check can predict those, and in every one
+   of them the pane says why on its way out. Tortie used to destroy that text
+   about one second later and leave a number in its place. This is where the
+   text is drawn: verbatim, monospace, selectable, and never parsed.
+--------------------------------------------------------------------------- */
+
+/* The lead sentence and the note sit closer to the block than the body copy
+   above them, so the three read as one group rather than three paragraphs. */
+.onb-inner .exit-detail-lead {
+  margin: var(--space-5) 0 0;
+  max-width: 560px;
+  font-size: var(--text-xs);
+  line-height: 18px;
+  color: var(--text-muted);
+}
+
+/* Left aligned inside the centered column: it is the agent's own output and
+   centering it would make every line start in a different place. The height
+   is capped so a five line message cannot push the actions off a short
+   window, and it scrolls inside its own box rather than growing the page. */
+.onb-inner .exit-detail {
+  margin: var(--space-2) 0 0;
+  padding: var(--space-3) var(--space-4);
+  max-width: 560px;
+  max-height: 132px;
+  overflow: auto;
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 18px;
+  color: var(--text-secondary);
+  background: var(--bg-canvas);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  user-select: text;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.onb-inner .exit-detail-note {
+  margin: var(--space-4) 0 0;
+  max-width: 560px;
+  font-size: var(--text-xs);
+  line-height: 18px;
+  color: var(--text-muted);
+  text-wrap: balance;
 }

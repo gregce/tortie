@@ -10,7 +10,17 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { endedBadly, endedTitle, endSignalName, statusVisual } from '../status';
+import {
+  diedRightAfterStart,
+  endedBadly,
+  endedTitle,
+  endSignalName,
+  exitDetailNote,
+  FAST_DEATH_MS,
+  fastDeathSentence,
+  fastDeathTitle,
+  statusVisual
+} from '../status';
 
 describe('endSignalName', () => {
   it('reads tmux pane_dead_signal, normalizing case and the SIG prefix', () => {
@@ -111,5 +121,102 @@ describe('statusVisual', () => {
     expect(statusVisual('running').dot).toBe('working');
     expect(statusVisual('needs_input').label).toBe('needs input');
     expect(statusVisual('restorable').label).toBe('saved');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 48 — a session that started and then stopped at once
+// ---------------------------------------------------------------------------
+
+describe('diedRightAfterStart', () => {
+  const createdAt = 1_700_000_000_000;
+
+  it('is true at 4999 ms and false at 5001 ms', () => {
+    expect(
+      diedRightAfterStart({ createdAt, endedAt: createdAt + 4999 })
+    ).toBe(true);
+    expect(
+      diedRightAfterStart({ createdAt, endedAt: createdAt + 5001 })
+    ).toBe(false);
+  });
+
+  it('is true exactly on the bound', () => {
+    expect(
+      diedRightAfterStart({ createdAt, endedAt: createdAt + FAST_DEATH_MS })
+    ).toBe(true);
+  });
+
+  it('claims nothing for a session this window did not watch start', () => {
+    expect(diedRightAfterStart({ createdAt })).toBe(false);
+  });
+
+  it('claims nothing when the clock ran backwards', () => {
+    expect(
+      diedRightAfterStart({ createdAt, endedAt: createdAt - 1 })
+    ).toBe(false);
+  });
+});
+
+describe('the state D copy', () => {
+  it('names the agent in the heading', () => {
+    expect(fastDeathTitle('claude')).toBe(
+      'claude stopped right after it started'
+    );
+  });
+
+  it('states the bound and then the exit code', () => {
+    expect(fastDeathSentence({ exitCode: 1 })).toBe(
+      'The session ended within 5 seconds of starting. It exited with code 1.'
+    );
+  });
+
+  it('names the signal instead of a code when there was one', () => {
+    expect(fastDeathSentence({ exitSignal: 'term' })).toBe(
+      'The session ended within 5 seconds of starting. It was stopped by SIGTERM.'
+    );
+  });
+
+  it('drops the number when the capture wrapper collapsed it', () => {
+    expect(
+      fastDeathSentence({
+        exitCode: 1,
+        capture: { exitCodeApproximate: true }
+      })
+    ).toBe('The session ended within 5 seconds of starting.');
+  });
+
+  it('says nothing about a duration it cannot measure', () => {
+    const text = fastDeathSentence({ exitCode: 1 });
+    expect(text).not.toMatch(/ran for/);
+    expect(text).not.toMatch(/0\.\d/);
+  });
+});
+
+/**
+ * PHASE 48 FIX ROUND. The note under the pane's last words.
+ *
+ * It used to be one fixed sentence ending "restarting will not change the
+ * result". A verifier killed a healthy long-running agent from outside, and
+ * Tortie drew its TUI frame as its last words and then told the person a
+ * restart would not help, when the session was fully restartable.
+ */
+describe('exitDetailNote', () => {
+  it('tells a failed launch that a restart will not help', () => {
+    const note = exitDetailNote({ exitCode: 127 });
+    expect(note).toContain('restarting will not change the result');
+    expect(note).not.toContain('SIG');
+  });
+
+  it('tells a session killed from outside that a restart may well work', () => {
+    const note = exitDetailNote({ exitSignal: 'kill' });
+    expect(note).toContain('SIGKILL');
+    expect(note).toContain('a restart may well succeed');
+    expect(note).not.toContain('will not change the result');
+  });
+
+  it('reads the 128+n exit code as the signal it is', () => {
+    // claude traps SIGTERM and exits 143 itself, which is the same event
+    // wearing a number, so it gets the same sentence.
+    expect(exitDetailNote({ exitCode: 143 })).toContain('SIGTERM');
   });
 });

@@ -212,6 +212,29 @@ export interface Session {
    */
   exitSignal?: string;
   /**
+   * APPENDED (Phase 48, research 47 sections 6 and 7): the last thing the pane
+   * printed before it died.
+   *
+   * Three of the seven reproduced launch failures are an agent that starts and
+   * then exits, so no check before the launch can predict them. For those the
+   * pane prints its own reason and Tortie destroys the pane about one second
+   * later, which used to replace the reason with "Session ended unexpectedly
+   * (exit 1)". The text is taken from the snapshot the reaper already reads,
+   * so nothing extra is captured.
+   *
+   * IT IS THE LAST FIVE NON EMPTY LINES, ANSI STRIPPED, CAPPED AT 500 BYTES.
+   * It is rendered verbatim in a monospace block and it is NEVER parsed. No
+   * branch in Tortie reads its content to decide anything, and what the
+   * renderer draws is decided by `exitCode`, `exitSignal` and the session's
+   * own timing.
+   *
+   * ABSENT MEANS NO LAST WORDS WERE RECORDED. That is the true answer for
+   * every row written before this field existed and for every death with an
+   * empty pane. It is cleared when a restore brings the session back, because
+   * the words belong to a process that is no longer the one running.
+   */
+  exitDetail?: string;
+  /**
    * APPENDED (Phase 15): SpecStory capture for this session, when it is on.
    * Absent = an ordinary uncaptured session. See SessionCapture.
    */
@@ -316,6 +339,18 @@ export interface CreateSessionInput {
    * the wrapper unchanged. See SessionCapture for what actually happened.
    */
   capture?: boolean;
+  /**
+   * APPENDED (Phase 48): skip the structural preflight in
+   * src/main/agents/health.ts and launch the argv it refused.
+   *
+   * It is the `Start it anyway` button and nothing else sets it. The check
+   * reads a shebang and asks whether the interpreter it names is on the PATH
+   * the pane will get, and it can be wrong about a wrapper that re-execs
+   * through something Tortie cannot see, so the person gets the last word. It
+   * skips one read of one file. It changes no argv, no environment and no
+   * permission.
+   */
+  startAnyway?: boolean;
 }
 
 export interface RenameSessionInput {
@@ -822,6 +857,16 @@ export interface GmuxErrorPayload {
     // be resolved to an executable — surfaced as a friendly create-modal
     // message, never a dead pane. `detail` carries the bare binary name.
     | 'AGENT_NOT_FOUND'
+    // APPENDED (Phase 48): the agent's file was found, and the program its
+    // first line asks for was not. An npm shim starts `#!/usr/bin/env node`,
+    // and a pane whose PATH has no `node` opens and dies at once with exit
+    // 127. It is a different sentence from AGENT_NOT_FOUND, because the agent
+    // IS installed and telling the user to install it again is the wrong
+    // instruction. Thrown before anything is spawned, by the check in
+    // src/main/agents/health.ts. `detail` carries the absolute path of the
+    // file that was resolved. The create sheet answers it with `Start it
+    // anyway`, which re-sends the same argv with the check skipped.
+    | 'AGENT_INTERPRETER_MISSING'
     // APPENDED (Phase 41), three codes about WHICH tmux is running.
     //
     // TMUX_BUNDLE_INCOMPLETE is a packaged Tortie whose own copy of tmux is

@@ -136,6 +136,39 @@ describe('reconcile — statuses', () => {
     const result = store.reconcile([]);
     expect(result.restorable.map((r) => r.id).sort()).toEqual(['id-a', 'id-b']);
   });
+
+  /**
+   * PHASE 48 FIX ROUND. This flip is the SECOND way a row leaves 'exited',
+   * beside `setRestoreResult`, and only that one cleared the exit cause. A row
+   * that came back here kept the code, the signal and, since Phase 48, the
+   * words of a process that is no longer the one running. If that row then
+   * died a second time in silence, the reader saw the first death's sentence
+   * under the second death's number.
+   */
+  it('clears the whole exit cause when it flips an exited row back to running', () => {
+    row('id-a', 'work');
+    store.updateSession('id-a', {
+      status: 'exited',
+      exitCode: 127,
+      exitSignal: 'term',
+      exitDetail: 'env: node: No such file or directory'
+    });
+    store.reconcile([live('$1', 'work', 'id-a')]);
+    const rec = store.getSession('id-a');
+    expect(rec?.status).toBe('running');
+    expect(rec?.exitCode).toBeUndefined();
+    expect(rec?.exitSignal).toBeUndefined();
+    expect(rec?.exitDetail).toBeUndefined();
+  });
+
+  it('leaves the exit cause alone on a row that was already running', () => {
+    // No flip, so no clear. A row that reconcile merely refreshes must not
+    // have anything deleted from it.
+    row('id-a', 'work');
+    store.updateSession('id-a', { exitCode: 3 });
+    store.reconcile([live('$1', 'work', 'id-a')]);
+    expect(store.getSession('id-a')?.exitCode).toBe(3);
+  });
 });
 
 /**

@@ -8,10 +8,12 @@
  *  1. Login-shell PATH capture. gmux.app is launched by launchd with a
  *     minimal GUI PATH (/usr/bin:/bin:…) — agent CLIs live in ~/.local/bin,
  *     /opt/homebrew/bin, npm-global, etc. We ask the user's real shell once
- *     (`$SHELL -lic 'printf …$PATH…'`, 3 s timeout) and fall back to a sane
- *     default when the shell is slow/broken. The captured PATH is injected
- *     into the private tmux server env at boot (supervisor.ensureServer) so
- *     every pane — and everything agents spawn — sees the user's real PATH.
+ *     (`$SHELL -lic 'printf …$PATH…'`, 10 s timeout since Phase 48) and fall
+ *     back to a sane default when the shell is slow/broken. The captured PATH
+ *     is written into THIS process's environment at boot
+ *     (supervisor.ensureServer), and a pane takes its PATH from the tmux
+ *     client, which is this process. See `PATH_CAPTURE_TIMEOUT_MS` for the
+ *     budget and `ensureServer` for the client rule.
  *
  *  1b. Login-shell env capture BY NAME (Phase 33, captureLoginShellEnv). Same
  *     probe shape as the PATH capture, run once per launch and once per
@@ -57,8 +59,38 @@ const tmuxLog = getLog('tmux');
 // Login-shell PATH capture
 // ---------------------------------------------------------------------------
 
-/** How long the login shell gets to print its PATH before we fall back. */
-export const PATH_CAPTURE_TIMEOUT_MS = 3_000;
+/**
+ * How long the login shell gets to print its PATH before we fall back.
+ *
+ * 10,000 ms since Phase 48. It was 3,000 ms.
+ *
+ * WHAT THE MISS COSTS, which is why the number is generous. A miss returns
+ * {@link fallbackPath}, which carries no version managed node directory at
+ * all, so Tortie can still find an agent whose shim sits in one of
+ * {@link extraBinDirs} and can no longer find that shim's interpreter. The
+ * pane then opens and dies at once with exit 127. That is the failure this
+ * whole phase exists for, and 7 extra seconds of deadline on a machine whose
+ * shell never answers is a smaller cost than producing it. VS Code allows its
+ * own login shell probe 10,000 ms.
+ *
+ * WHAT IS NOT TRUE, corrected in the Phase 48 fix round. The commit that
+ * raised this number recorded five captures at 2837, 3077, 3089, 3145 and
+ * 3511 ms and said four of the five missed the old budget. Two later runs of
+ * the same probe, `zsh -lic` printing $PATH between the markers, on the same
+ * machine and the same shell, measured 1165, 1069, 1082, 1050 and 1074 ms and
+ * 1110, 1090, 1080, 1070 and 1110 ms. That is 0 of 10 over 3,000 ms. The
+ * operator's own live boot line also read 1227 ms. Nobody has explained the
+ * first set of numbers, so the honest statement is that the raise is cheap
+ * insurance against a slow shell and not a fix for a miss anyone can currently
+ * reproduce.
+ *
+ * THE ONE COST, stated so it is not discovered later. A machine whose login
+ * shell never prints now waits 10 s instead of 3 s before the first session can
+ * be created, because `getUserPath` is awaited on the create path. Nothing else
+ * gets slower: a shell that answers settles on the markers, and this number is
+ * only the deadline.
+ */
+export const PATH_CAPTURE_TIMEOUT_MS = 10_000;
 
 /** Cap on buffered probe output (a chatty rc file must not grow unbounded). */
 const PATH_PROBE_MAX_OUTPUT = 1024 * 1024;
@@ -129,7 +161,7 @@ export function fallbackPath(env: NodeJS.ProcessEnv = process.env): string {
 export interface CapturePathOptions {
   /** Shell to interrogate; default $SHELL, then /bin/zsh. */
   shell?: string;
-  /** Capture timeout; default PATH_CAPTURE_TIMEOUT_MS (3 s). */
+  /** Capture timeout; default PATH_CAPTURE_TIMEOUT_MS (10 s). */
   timeoutMs?: number;
   /** Env for the fallback computation (tests). */
   env?: NodeJS.ProcessEnv;
@@ -169,9 +201,11 @@ export interface CapturePathOptions {
  *
  *  1. SETTLE ON THE MARKERS, not on close. printf runs last, so once both
  *    markers are in the buffer the answer is complete no matter what else the
- *    shell is still holding open. On the affected machine this turns "hang 3 s
- *    then use the fallback PATH" into "capture the user's REAL PATH in ~200 ms"
- *    — the leak was costing correctness, not just time.
+ *    shell is still holding open. On the affected machine this turns "hang for
+ *    the whole budget then use the fallback PATH" into "capture the user's REAL
+ *    PATH in ~200 ms" — the leak was costing correctness, not just time. The
+ *    budget was 3 s when this was written and is 10 s since Phase 48, which
+ *    makes settling on the markers worth more rather than less.
  *  2. AN INDEPENDENT DEADLINE that resolves to the fallback whatever the child
  *     does, so no future stdio surprise can wedge the app again.
  *  3. `spawn(..., { detached: true })` so the probe owns its process group and
@@ -189,6 +223,9 @@ export function captureLoginShellPath(
   const env = options.env ?? process.env;
   const shell = options.shell ?? env['SHELL'] ?? '/bin/zsh';
   const timeoutMs = options.timeoutMs ?? PATH_CAPTURE_TIMEOUT_MS;
+  // Phase 48. Started before the spawn, so the reported figure is the wall
+  // clock of the whole capture and not of the parse.
+  const startedAt = Date.now();
   return new Promise<string>((resolve) => {
     let settled = false;
     const finish = (captured: string | null): void => {
@@ -197,14 +234,29 @@ export function captureLoginShellPath(
       const capturedDirs =
         captured === null ? [] : captured.split(delimiter).filter(Boolean);
       // Captured dirs first (user's own ordering wins), then the safety net.
-      resolve(
-        mergePathDirs(
-          capturedDirs,
-          (env['PATH'] ?? '').split(delimiter),
-          extraBinDirs(),
-          SYSTEM_PATH_DIRS
-        )
+      const merged = mergePathDirs(
+        capturedDirs,
+        (env['PATH'] ?? '').split(delimiter),
+        extraBinDirs(),
+        SYSTEM_PATH_DIRS
       );
+      // PHASE 48. Say what every pane is about to get, and how long it took to
+      // find out. The existing `warn` on the deadline says the probe was
+      // killed. This says what was used instead, and it is the record that
+      // turns "the agent died at once" into a question somebody can answer.
+      // `info` is the default file transport level, so it lands in
+      // <userData>/logs/app.log on a packaged build. It fires once per app
+      // process, because `getUserPath` caches the promise.
+      const elapsedMs = Date.now() - startedAt;
+      const source = captured === null ? 'fallback' : 'login shell';
+      const dirCount = merged.split(delimiter).filter(Boolean).length;
+      tmuxLog.info(
+        `login-shell PATH capture: ${source}, ${String(elapsedMs)} ms, ` +
+          `${String(dirCount)} directories, budget ${String(timeoutMs)} ms. ` +
+          `Every pane gets this PATH: ${merged}`,
+        { source, elapsedMs, dirCount, budgetMs: timeoutMs, path: merged }
+      );
+      resolve(merged);
     };
     try {
       const child = spawn(
@@ -454,6 +506,7 @@ export function captureLoginShellEnv(
 }
 
 let userPathPromise: Promise<string> | null = null;
+let userPathGeneration = 0;
 
 /**
  * The user's real PATH, captured once per boot (cached promise — concurrent
@@ -461,12 +514,25 @@ let userPathPromise: Promise<string> | null = null;
  */
 export function getUserPath(): Promise<string> {
   if (userPathPromise === null) {
+    userPathGeneration += 1;
     userPathPromise = captureLoginShellPath();
   }
   return userPathPromise;
 }
 
-/** Test hook. */
+/**
+ * How many times the login-shell PATH has been captured in this process.
+ *
+ * It starts at 0, is 1 after the first `getUserPath()`, and moves again only
+ * after `resetUserPathCache()`. Anything that caches an answer computed
+ * AGAINST the user PATH keys on this number, so the answer is dropped when
+ * the PATH it was computed from is replaced. See src/main/agents/health.ts.
+ */
+export function userPathEpoch(): number {
+  return userPathGeneration;
+}
+
+/** Test hook. Leaves the epoch alone, so the next capture moves it. */
 export function resetUserPathCache(): void {
   userPathPromise = null;
 }

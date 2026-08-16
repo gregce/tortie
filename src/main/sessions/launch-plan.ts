@@ -155,13 +155,57 @@ export function binaryCandidatesOf(
 /**
  * The AGENT_NOT_FOUND sentence, naming every candidate that was tried so the
  * user learns the actual search rather than the first name alone.
+ *
+ * PHASE 48 rewrote the words. The old sentence was "claude not found (also
+ * tried codew) — install it, or make sure your shell PATH includes it." It
+ * used a dash to join two clauses, it did not say where Tortie looked, and it
+ * gave an instruction in the same breath as the finding. This one states what
+ * was searched and what the search returned, and leaves the recovery to the
+ * sheet that draws it.
  */
 export function agentNotFoundMessage(candidates: readonly string[]): string {
-  const also =
-    candidates.length > 1
-      ? ` (also tried ${candidates.slice(1).join(', ')})`
-      : '';
-  return `${candidates[0]} not found${also} — install it, or make sure your shell PATH includes it.`;
+  const first = candidates[0] ?? 'the agent';
+  const rest = candidates.slice(1);
+  const also = rest.length > 0 ? ` It also looked for ${andList(rest)}.` : '';
+  return (
+    `Tortie looked for a program named ${first} on your login shell's PATH ` +
+    `and in the places Tortie knows agents install themselves.${also} ` +
+    'It found nothing.'
+  );
+}
+
+/** "a", "a and b", "a, b and c". Used by the sentence above. */
+function andList(names: readonly string[]): string {
+  if (names.length <= 1) return names[0] ?? '';
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+}
+
+/**
+ * The AGENT_INTERPRETER_MISSING sentence (Phase 48, research 47 section 7).
+ *
+ * The file exists and Tortie found it. It is a script, its first line names
+ * an interpreter, and that interpreter is not on the PATH this pane would
+ * get. This is failure modes 1, 2, 6 and 7 of the seven research 47
+ * reproduced, and before this phase every one of them arrived as a pane that
+ * opened and closed with "Session ended unexpectedly (exit 127)".
+ *
+ * No install command belongs in this sentence. Printing
+ * `npm install -g @anthropic-ai/claude-code` here would name the install kind
+ * that just failed, which is the defect this phase removes.
+ *
+ * @param binPath     the absolute file the launch resolved.
+ * @param interpreter the name its first line asks for, e.g. "node".
+ */
+export function interpreterMissingMessage(
+  binPath: string,
+  interpreter: string
+): string {
+  return (
+    `The file at ${binPath} is a script, not a program. Its first line asks ` +
+    `for ${interpreter}, and ${interpreter} is not on the PATH this session ` +
+    'would get. The session would open and close within a second, so Tortie ' +
+    'did not start it.'
+  );
 }
 
 /**

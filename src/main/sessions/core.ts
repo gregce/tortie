@@ -66,6 +66,10 @@ import {
 import { AttachHost } from '../attach';
 import {
   agentBinaryName,
+  // PHASE 48. The structural preflight. It reads the first line of the file
+  // the resolve just found and asks whether the interpreter that line names
+  // is on the PATH the pane will get. It spawns nothing.
+  checkAgentBinary,
   expandDirs,
   listDetectedAgents,
   registryResumeArgv
@@ -165,10 +169,14 @@ const sessionsLog = getLog('sessions');
 // The pure launch and reconcile decisions (Phase 42 stage 5). This class is
 // the orchestrator: it runs the execs and the writes, and asks these two
 // modules what the launch or the judgement should be.
+// PHASE 48. The last words of a dead pane, as one pure function beside this
+// file. The reaper is its only caller.
+import { exitDetailFrom } from './exit-detail';
 import {
   agentExtrasOf,
   agentNotFoundMessage,
   binaryCandidatesOf,
+  interpreterMissingMessage,
   newSessionRecord,
   paneEnvFor,
   snapshotRecipeOf,
@@ -1795,6 +1803,13 @@ export class GmuxCore {
    * Both halves of the cause are recorded (F2): `exitCode` for a real exit,
    * `exitSignal` for a death BY a signal, which reports an empty exit status
    * and used to leave the UI saying nothing at all.
+   *
+   * Phase 48 records a third thing: the last five non-empty lines the pane
+   * printed. An agent that starts and then exits says why on its way out, and
+   * this method used to destroy that text about one second later and leave
+   * the user with a number. The text comes from the snapshot capture below,
+   * which already reads it, so nothing new is spawned and the pane is not
+   * read twice.
    */
   private async reapDeadSession(
     sessionId: string,
@@ -1807,18 +1822,39 @@ export class GmuxCore {
     // F1: a session we cannot bind to a live tmux id is not ours. Record the
     // death, kill NOTHING.
     const target = this.liveIds.get(sessionId);
+    // A holder rather than a bare `let`, because a value assigned inside a
+    // callback is not something the compiler can follow through the await
+    // below.
+    const captured: { text: string | null } = { text: null };
     if (target !== undefined) {
       await captureSessionSnapshot(target, sessionId, {
         reason: 'session-death',
-        session: snapshotRecipeOf(rec)
+        session: snapshotRecipeOf(rec),
+        // Phase 48. The capture is already holding the pane's text and is
+        // about to keep only the parts a replay needs. This sink is where the
+        // reaper takes its copy.
+        onPaneText: (text) => {
+          captured.text = text;
+        }
       }).catch(() => undefined);
       await tmux.killSession(target).catch(() => undefined);
       this.byTmuxId.delete(target);
     }
     this.liveIds.delete(sessionId);
+    // One write, not two: the detail goes into the same patch that already
+    // carries the status and both halves of the cause.
+    //
+    // THE DETAIL IS ALWAYS STATED, and `null` is how "nothing" is stated
+    // (Phase 48 fix round). Omitting the field left the previous death's
+    // sentence on a row that reconcile had flipped back to 'running' and that
+    // then died a second time in silence, so the user read the first death's
+    // words under the second death's exit code.
+    const exitDetail =
+      captured.text === null ? null : (exitDetailFrom(captured.text) ?? null);
     this.manifest.updateSession(sessionId, {
       status: 'exited',
       lastSeen: Date.now(),
+      exitDetail,
       ...(exitCode !== undefined ? { exitCode } : {}),
       ...(deadSignal !== undefined ? { exitSignal: deadSignal } : {})
     });
@@ -2107,14 +2143,50 @@ export class GmuxCore {
         );
       }
       binPath = abs;
+      // PHASE 48. The structural preflight (../agents/health). It opens the
+      // resolved file, reads its first line if it has a shebang, and asks
+      // whether the interpreter that line names resolves against the same
+      // PATH this pane will get. It never spawns anything and it never runs
+      // the agent. `interpreter-missing` is the only answer that stops a
+      // launch, and `Start it anyway` sends the same argv back with the check
+      // skipped, because the check can be wrong about a wrapper that re-execs
+      // through something Tortie cannot see.
+      if (input.startAnyway !== true) {
+        const health = await checkAgentBinary(abs);
+        if (health.answer === 'interpreter-missing') {
+          sessionsLog.warn(
+            `launch refused: ${bare} at ${abs} needs ${health.interpreter}, ` +
+              `which is not on the PATH this pane would get ` +
+              `(${health.elapsedMs} ms, shebang ${health.shebang})`
+          );
+          // `detail` is TWO LINES for this code. The first is the absolute
+          // path, which is what every other AGENT_* code puts there. The
+          // second is the interpreter's name, because the create sheet's two
+          // ways forward have to name the program the person is being asked
+          // to install or to reveal, and a renderer must never read a fact
+          // out of a prose sentence. See readInterpreterDetail in
+          // src/renderer/app/CreateSessionModal.tsx.
+          throw gmuxError(
+            'AGENT_INTERPRETER_MISSING',
+            interpreterMissingMessage(health.binPath, health.interpreter),
+            `${health.binPath}\n${health.interpreter}`
+          );
+        }
+      }
       // PHASE 23 FIX ROUND, the second half of the `extraProbeDirs` fix, and
       // this is the half a driver run found rather than a reading.
       //
       // The pane is spawned by BARE NAME (F3 above). tmux resolves that name
-      // against the SERVER environment's PATH and ignores the per-pane
-      // `-e PATH=` entirely. Measured on tmux 3.6a: the same session created
-      // with an absolute argv[0] runs, and created with the bare name plus
-      // `-e PATH=<dir>` dies at once with "Pane is dead (status 1)".
+      // against the PATH of the tmux CLIENT that asked for the session, which
+      // is this process, and it ignores the per-pane `-e PATH=` entirely.
+      // Phase 48 corrected this comment. It used to name the SERVER
+      // environment, and that reading was measured wrong twice,
+      // independently, on tmux 3.6a. What WAS measured: the same session
+      // created with an absolute argv[0] runs, and created with the bare name
+      // plus `-e PATH=<dir>` dies at once with "Pane is dead (status 1)". The
+      // client's PATH is set in supervisor.ts ensureServer, at the
+      // `process.env['PATH'] = userPath` line. See
+      // docs/research/47-agent-installs.md section 2.
       //
       // So an agent whose binary exists ONLY in a directory its own entry names
       // cannot be launched by its bare name at all. Detection found it, the

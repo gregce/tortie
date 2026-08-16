@@ -311,6 +311,17 @@ export interface CaptureSnapshotOptions {
    * capture. See SnapshotSessionRecipe for why the field exists at all.
    */
   session?: SnapshotSessionRecipe;
+  /**
+   * Called once with the pane text this capture read, before anything is
+   * written and before the empty-pane early return.
+   *
+   * Phase 48. The reaper needs the last thing the pane printed and this
+   * function is already holding it. A second `capture-pane` on the death path
+   * would be a second read of a pane that is about to be killed, so the text
+   * is handed over instead. It is called at most once per capture, inside a
+   * try/catch, and a sink that throws cannot affect the snapshot.
+   */
+  onPaneText?: (text: string) => void;
 }
 
 /** What one file in the snapshots directory is. */
@@ -589,6 +600,17 @@ async function captureLocked(
 ): Promise<boolean> {
   const paneTarget = await resolvePaneTarget(target);
   const text = trimSnapshotText(await tmux.capturePane(paneTarget, savedLines()));
+  // Phase 48. Hand the text over BEFORE the early return, because a pane that
+  // died on its first line is exactly the pane whose last words matter and it
+  // is also the one most likely to be short. A sink that throws is the sink's
+  // problem, never the snapshot's.
+  if (options.onPaneText !== undefined) {
+    try {
+      options.onPaneText(text);
+    } catch {
+      /* a reader of the text may not break the writer of the snapshot */
+    }
+  }
   if (text.length === 0) return false; // nothing worth replaying
   const body = Buffer.from(text, 'utf8');
   const cwd = options.cwd ?? (await paneCwd(paneTarget));

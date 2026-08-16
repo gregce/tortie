@@ -163,8 +163,30 @@ export interface ManifestSessionRecord extends Session {
  * a patch could not write it even if the type allowed one.
  */
 export type ManifestSessionPatch = Partial<
-  Omit<ManifestSessionRecord, 'id' | 'createdAt' | 'removedAt' | 'envPassthrough'>
->;
+  Omit<
+    ManifestSessionRecord,
+    'id' | 'createdAt' | 'removedAt' | 'envPassthrough' | 'exitDetail'
+  >
+> & {
+  /**
+   * The one field a patch CAN remove, and `null` is how it says so (Phase 48
+   * fix round).
+   *
+   * The reaper is the reason. It writes the pane's last words when it has
+   * them, and before this it simply omitted the field when it had none. A row
+   * that had already died once, and had been flipped back to 'running' by
+   * reconcile, therefore kept the FIRST death's sentence through the second
+   * death. Reproduced against a real manifest: after a second death at exit
+   * code 2 the row still read "ENOENT: node not found" from the first one.
+   *
+   * A stale number is bad and a stale sentence is worse, so the reaper now
+   * always states the answer and `null` is how it states "nothing". The other
+   * exit fields keep the `clearExitCause` route, which runs AFTER the merge
+   * and is therefore the wrong tool for a caller that wants to set and clear
+   * in one write.
+   */
+  exitDetail?: string | null;
+};
 
 /**
  * The one thing a patch cannot say (Phase 26.3). A patch merges field by
@@ -176,7 +198,14 @@ export type ManifestSessionPatch = Partial<
  * has one.
  */
 export interface UpdateSessionOptions {
-  /** Delete `exitCode` and `exitSignal` from the row after the patch merges. */
+  /**
+   * Delete `exitCode`, `exitSignal` and `exitDetail` from the row after the
+   * patch merges.
+   *
+   * All three since Phase 48. `exitDetail` is the pane's own last words, so a
+   * restored session that kept them would show the user a message about a
+   * process that is no longer the one running.
+   */
   clearExitCause?: boolean;
   /**
    * Delete `removedAt` from the row after the patch merges (Phase 29). The
@@ -210,6 +239,13 @@ export interface SessionRow {
   exit_code: number | null;
   /** Signal that killed it, e.g. "term" (migration 003). */
   exit_signal: string | null;
+  /**
+   * The last thing the pane printed before it died (migration 012, Phase 48).
+   * NULL on every row written before the migration and on every death with an
+   * empty pane, and NULL is the true answer for both. Written verbatim, read
+   * verbatim, never parsed.
+   */
+  exit_detail: string | null;
   /** `#{pane_pid}` captured at create (migration 003). */
   pane_pid: number | null;
   /** Resume-capture state (migration 004, Phase 13.5). */
@@ -443,6 +479,16 @@ export function rowToRecord(row: SessionRow): ManifestSessionRecord {
   if (row.exit_signal !== null && row.exit_signal !== undefined) {
     record.exitSignal = row.exit_signal;
   }
+  // Phase 48. Absent rather than an empty string, because absent is what the
+  // renderer reads as "no last words were recorded" and an empty string would
+  // draw an empty monospace block.
+  if (
+    row.exit_detail !== null &&
+    row.exit_detail !== undefined &&
+    row.exit_detail.length > 0
+  ) {
+    record.exitDetail = row.exit_detail;
+  }
   if (row.pane_pid !== null && row.pane_pid !== undefined) {
     record.panePid = row.pane_pid;
   }
@@ -520,6 +566,10 @@ export function toSession(record: ManifestSessionRecord): Session {
   }
   if (record.exitCode !== undefined) session.exitCode = record.exitCode;
   if (record.exitSignal !== undefined) session.exitSignal = record.exitSignal;
+  // Phase 48: the pane's own last words travel with the projection, because
+  // the ended-session block draws them and the renderer cannot read a pane
+  // that tmux destroyed.
+  if (record.exitDetail !== undefined) session.exitDetail = record.exitDetail;
   if (record.specstory?.enabled === true) {
     session.capture = toSessionCapture(record.specstory);
   }

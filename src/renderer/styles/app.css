@@ -1160,6 +1160,13 @@
   color: var(--warning);
 }
 
+/* Phase 48. "Tortie does not run install commands for you", under the install
+   row. Its height is reserved for the same reason the row above it reserves
+   its own: a pointer sweeping the agent board must not move the sheet. */
+.field-caption.install-note {
+  min-height: var(--lh-xs);
+}
+
 .field-row {
   display: flex;
   gap: var(--space-4);
@@ -1183,6 +1190,60 @@
   font-size: var(--text-sm);
   line-height: var(--lh-sm);
   color: var(--error);
+}
+
+/* ---------------------------------------------------------------------------
+   PHASE 48 — the two states a create can be refused in.
+
+   Both are more than one line, which is the point: the one-line .modal-error
+   above could say "claude not found" and nothing else, so the sheet had
+   nowhere to put a heading, a paragraph and a way forward. These rules are
+   the room for them. The block sits where .modal-error sits and never both.
+--------------------------------------------------------------------------- */
+.launch-block {
+  margin-top: var(--space-5);
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-canvas);
+}
+
+.launch-block-title {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.launch-block-body {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-xs);
+  line-height: 18px;
+  color: var(--text-secondary);
+  /* The path in the sentence can be long and has no space to break at. */
+  overflow-wrap: anywhere;
+}
+
+/* Left aligned and numbered, because each item is a sentence about a
+   different way out and the order between them is the recommendation. */
+.launch-block-ways {
+  margin: var(--space-3) 0 0;
+  padding-left: var(--space-6);
+  font-size: var(--text-xs);
+  line-height: 18px;
+  color: var(--text-secondary);
+  list-style: decimal;
+}
+
+.launch-block-ways li + li {
+  margin-top: var(--space-2);
+}
+
+.launch-block-actions {
+  display: flex;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
 }
 
 /* New Project's path preview — the one line that says what is about to be

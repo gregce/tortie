@@ -21,6 +21,21 @@ import { listDetectedAgents, rescanAgents } from './detection';
 import { multilineKeyTable } from './registry';
 
 export { getAgentAvailability } from './availability';
+// PHASE 48. The structural preflight. It reads one file's first line and asks
+// whether the interpreter that line names is on the PATH the pane will get.
+// The create path is its only caller; see ../sessions/core.ts.
+export {
+  AGENT_HEALTH_TIMEOUT_MS,
+  agentHealthCacheSize,
+  checkAgentBinary,
+  interpreterOf,
+  resetAgentHealthCache,
+  type AgentHealth,
+  type AgentHealthAnswer,
+  type AgentHealthInterpreterMissing,
+  type AgentHealthOk,
+  type AgentHealthUnknown
+} from './health';
 export {
   expandDirs,
   expandPath,

@@ -20,10 +20,17 @@
 import React, { useEffect, useRef } from 'react';
 import type { Session } from '@shared/types';
 import { TerminalHost } from '../terminal';
-import { AGENT_INSTALL_COMMANDS } from '../state/agents';
 import { effectiveStatusOf, useApp } from '../state/store';
 import { useLayout } from '../state/layout';
-import { endedBadly, endedTitle, statusVisual } from './status';
+import {
+  diedRightAfterStart,
+  endedBadly,
+  endedTitle,
+  exitDetailNote,
+  fastDeathSentence,
+  fastDeathTitle,
+  statusVisual
+} from './status';
 import {
   RenameInput,
   sessionMenuItems,
@@ -173,6 +180,11 @@ export function TerminalRegion(): React.JSX.Element {
   const restoreSession = useApp((s) => s.restoreSession);
   const restoringIds = useApp((s) => s.restoringIds);
   const setVisibleSessions = useApp((s) => s.setVisibleSessions);
+  // Phase 48. When this window saw each session stop, for the ones it also
+  // saw running. The projection carries no death time, so the "stopped right
+  // after it started" answer is observed rather than read.
+  const endedSeenAt = useApp((s) => s.endedSeenAt);
+  const toast = useApp((s) => s.toast);
   const reconcile = useLayout((s) => s.reconcile);
 
   // One derivation for the strip, this region and the dock (./surfaces.ts).
@@ -221,20 +233,29 @@ export function TerminalRegion(): React.JSX.Element {
   // which carries no exit code at all (Phase 12.7 F2) — renders the failed
   // state, and endedTitle() names the cause instead of printing a number.
   const failed = exited && endedBadly(active);
-  // Bug A (Phase 9.2): exit 127 on an agent session = its command wasn't
-  // found. Explain and hand over the recovery instead of a bare exit code.
-  const commandNotFound =
-    exited && active.exitCode === 127 && active.agent !== 'shell'
-      ? active.agent
-      : null;
+  // PHASE 48. The exit-127 branch that used to live here is gone. It said the
+  // agent could not be found when the agent HAD been found and its
+  // interpreter had not, and it then printed the npm command that produced
+  // the problem. It also suppressed Restore, so its only action was Restart,
+  // and Restart re-ran the identical create path and died identically. The
+  // preflight in main now catches that case before the launch, and what is
+  // drawn here is the case no static check can predict: the agent started and
+  // then stopped, and the pane said why on its way out.
+  const fastDeath =
+    exited &&
+    diedRightAfterStart({
+      createdAt: active.createdAt,
+      endedAt: endedSeenAt[active.id]
+    });
+  // The pane's own last words, drawn verbatim and never parsed. Absent on
+  // every row written before this build and on every death with an empty
+  // pane, and the block then reads exactly as it did before.
+  const lastWords = exited && failed ? active.exitDetail : undefined;
   // Phase 26.3: an exited session offers Restore beside Restart when it
-  // still has material to bring back (resume.ts hasRestoreMaterial). The
-  // exit-127 branch keeps its install guidance instead, because a Restore
-  // that re-arms a missing binary helps nobody.
+  // still has material to bring back (resume.ts hasRestoreMaterial).
   const offersRestore =
     active !== null &&
     canRestore() &&
-    commandNotFound === null &&
     (restorable || (exited && hasRestoreMaterial(active)));
 
   const grouped = activeSurface !== null && activeSurface.isGroup;
@@ -290,17 +311,17 @@ export function TerminalRegion(): React.JSX.Element {
               share the type scale and action spacing — app/empty-states.css). */}
           <div className="empty-inner onb-inner">
             <h2 className="empty-title">
-              {commandNotFound !== null
-                ? `${commandNotFound} could not be found`
+              {fastDeath
+                ? fastDeathTitle(active.agent)
                 : exited
                   ? endedTitle(active)
                   : 'Ready to restore'}
             </h2>
             <p className="empty-body">
-              {commandNotFound !== null
-                ? `The session ended right away because the ${commandNotFound} ` +
-                  'command is not installed (or not where your shell expects ' +
-                  'it). Install it, then restart the session.'
+              {fastDeath
+                ? // Phase 48 — the bound, never a duration. See FAST_DEATH_MS
+                  // in ./status for why a decimal would be invented.
+                  fastDeathSentence(active)
                 : exited
                   ? offersRestore
                     ? // Phase 26.3 — the verb copy says what comes back and
@@ -313,10 +334,16 @@ export function TerminalRegion(): React.JSX.Element {
                       restoreActionCopy(active)
                     : 'This session is saved but not running — restart it to pick up in the same directory.'}
             </p>
-            {commandNotFound !== null ? (
-              <code className="agent-missing-cmd">
-                {AGENT_INSTALL_COMMANDS[commandNotFound]}
-              </code>
+            {lastWords !== undefined ? (
+              <>
+                <p className="exit-detail-lead">
+                  The last thing it printed was:
+                </p>
+                {/* Verbatim, monospace, selectable, and never parsed. No
+                    branch anywhere reads these bytes to decide anything. */}
+                <pre className="exit-detail">{lastWords}</pre>
+                <p className="exit-detail-note">{exitDetailNote(active)}</p>
+              </>
             ) : null}
             <div className="empty-actions">
               {offersRestore ? (
@@ -349,6 +376,23 @@ export function TerminalRegion(): React.JSX.Element {
                   onClick={() => void removeSession(active.id)}
                 >
                   Remove
+                </button>
+              ) : null}
+              {/* Phase 48. The message is the thing a person pastes into a
+                  search or a bug report, so it gets a button rather than a
+                  drag select over a block that may have scrolled. */}
+              {lastWords !== undefined ? (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(lastWords).then(
+                      () => toast('info', 'Message copied'),
+                      () => toast('error', 'Could not copy the message')
+                    );
+                  }}
+                >
+                  Copy message
                 </button>
               ) : null}
             </div>

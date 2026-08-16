@@ -579,10 +579,25 @@ let ensureInFlight: Promise<TmuxContext> | null = null;
  * gmux-tmux.conf only when it actually creates the server — an already
  * running server keeps its config, which is exactly what we want.
  *
- * Bug A (Phase 9.2): before any session can be created, the user's real
- * login-shell PATH is captured and injected — into THIS process (so probes
- * and PTYs inherit it) and into the tmux server's global environment (so
- * every pane, and everything agents spawn inside panes, sees it).
+ * Bug A (Phase 9.2), with its explanation corrected in Phase 48. Before any
+ * session can be created, the user's real login shell PATH is captured and
+ * written into THIS PROCESS's environment, at the
+ * `process.env['PATH'] = userPath` line below. That assignment is the load
+ * bearing one and it must not be deleted as redundant. A pane takes its PATH
+ * from the tmux CLIENT that asked for the session, and this process is that
+ * client.
+ *
+ * The `set-environment -g PATH` call further down does NOT give a pane its
+ * PATH, and the comment here used to say that it did. Measured twice,
+ * independently, on tmux 3.6a against a pristine socket with the gmux conf:
+ * the server process environment, the global session environment and the
+ * client environment were each given a different marker directory, and the
+ * pane received the client's. A non PATH variable set with `set-environment
+ * -g` did reach the pane in the same test, so the global environment applies
+ * in general and PATH is the exception. The call stays, because it is what a
+ * person reads with `show-environment -g` and it is what the GMUX_SMOKE=agent
+ * harness asserts. It is not what makes an agent resolve. See
+ * docs/research/47-agent-installs.md section 2.
  *
  * @throws GmuxError TMUX_NOT_FOUND | TMUX_UNREACHABLE
  */
@@ -644,9 +659,10 @@ export function ensureServer(): Promise<TmuxContext> {
       try {
         await execTmux(['start-server']);
         await execTmux(['list-sessions', '-F', '#{session_id}']);
-        // BEFORE any session op: new panes inherit the server's global
-        // environment, so agents (and their child git/node/etc.) resolve.
-        // Idempotent; also repairs long-lived servers started pre-fix.
+        // The server's global environment, kept honest for anything that
+        // reads it on purpose. It is NOT how the pane gets its PATH: that
+        // comes from this process, the tmux client, at the assignment above.
+        // Idempotent, and it also repairs long lived servers.
         await execTmux(['set-environment', '-g', 'PATH', userPath]);
         // Bug C, same repair logic: future panes must see a UTF-8 locale
         // even on a server that booted from a locale-less launchd env.

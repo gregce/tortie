@@ -37,8 +37,10 @@ import {
 import {
   agentBlockedReason,
   agentInstallCommand,
+  agentShortLabel,
   buildAgentOptions,
   defaultAgentChoice,
+  resetAgentAvailabilityCache,
   useAgentAvailability,
   type AgentPickerOption
 } from '../state/agents';
@@ -60,6 +62,55 @@ function presetsConflict(
 ): boolean {
   if (a.flag === b.flag) return false;
   return a.flag.split(' ')[0] === b.flag.split(' ')[0];
+}
+
+// ---------------------------------------------------------------------------
+// PHASE 48 — the two states a create can land in, drawn in full
+// ---------------------------------------------------------------------------
+
+/**
+ * State A. Nothing named like this agent exists anywhere Tortie looked.
+ *
+ * `message` is main's own sentence, which names every candidate binary that
+ * was tried. It is drawn verbatim; the renderer adds the heading and the one
+ * action.
+ */
+interface AgentAbsent {
+  agentId: string;
+  message: string;
+}
+
+/**
+ * State B. The file exists, it is a script, and the interpreter its first
+ * line names is not on the PATH the pane would get.
+ *
+ * WHERE THE TWO FIELDS COME FROM. `AGENT_INTERPRETER_MISSING` carries its
+ * `detail` as two lines. The first is the absolute path of the file, which is
+ * what every other AGENT_* code puts there. The second is the interpreter's
+ * name, and it is there because the two ways forward have to name the program
+ * the person is being asked to install or reveal, and a renderer must never
+ * read a fact out of a prose sentence.
+ */
+interface InterpreterMissing {
+  binPath: string;
+  interpreter: string;
+  message: string;
+}
+
+/** Read the two lines described above. Returns null for anything else. */
+function readInterpreterDetail(
+  detail: string | undefined,
+  message: string
+): InterpreterMissing | null {
+  const [binPath, interpreter] = (detail ?? '').split('\n');
+  if (binPath === undefined || binPath.length === 0) return null;
+  if (interpreter === undefined || interpreter.length === 0) return null;
+  return { binPath, interpreter, message };
+}
+
+/** The last segment of an absolute path, e.g. "claude". */
+function binName(path: string): string {
+  return path.slice(path.lastIndexOf('/') + 1);
 }
 
 /**
@@ -108,6 +159,9 @@ export function CreateSessionModal(): React.JSX.Element | null {
   const catalogs = useSettingsStore((s) => s.catalogs);
   const scan = useSettingsStore((s) => s.scan);
   const updateSettings = useSettingsStore((s) => s.update);
+  // Phase 48. `Try again` asks main to look again, so the tile that said
+  // "not installed" can stop saying it.
+  const rescanAgents = useSettingsStore((s) => s.rescan);
   useEffect(() => {
     initSettings();
   }, [initSettings]);
@@ -124,8 +178,13 @@ export function CreateSessionModal(): React.JSX.Element | null {
   const [genericError, setGenericError] = useState<string | null>(null);
   // Agent whose binary create-time resolution POSITIVELY reported missing
   // (AGENT_NOT_FOUND) — pins the caption row, because the boot-time scan can
-  // be stale (e.g. CLI uninstalled since).
-  const [notFoundAgent, setNotFoundAgent] = useState<string | null>(null);
+  // be stale (e.g. CLI uninstalled since). Phase 48 widened it from an id to
+  // the id plus main's own sentence, so the sheet can draw the whole state.
+  const [absent, setAbsent] = useState<AgentAbsent | null>(null);
+  // PHASE 48. The create was refused before the launch because the resolved
+  // file is a script whose interpreter is not reachable. Null on every other
+  // outcome.
+  const [blocked, setBlocked] = useState<InterpreterMissing | null>(null);
   // Last disabled chip the user hovered/focused — drives the caption row.
   const [hintAgent, setHintAgent] = useState<string | null>(null);
   // Per-agent checked preset flags for THIS modal opening; agents absent from
@@ -143,6 +202,13 @@ export function CreateSessionModal(): React.JSX.Element | null {
    */
   const [captureChoice, setCaptureChoice] = useState<boolean | null>(null);
   const nameRef = useRef<HTMLInputElement | null>(null);
+  /**
+   * True once the person has chosen an agent on the board themselves.
+   *
+   * A ref rather than state, because nothing renders from it and a render is
+   * exactly what it must not cause. It gates the settle hop below.
+   */
+  const agentPickedByUser = useRef(false);
   const toast = useApp((s) => s.toast);
   const specstory = useSpecStoryStatus(open);
 
@@ -157,24 +223,44 @@ export function CreateSessionModal(): React.JSX.Element | null {
     setCwd(project?.path ?? '');
     setDirError(null);
     setGenericError(null);
-    setNotFoundAgent(null);
+    setAbsent(null);
+    setBlocked(null);
     setHintAgent(null);
     setFlagSel({});
     setCaptureChoice(null);
     setCreating(false);
+    // A new opening of the sheet has no choice behind it yet, so the first
+    // settle is allowed to hop again.
+    agentPickedByUser.current = false;
     requestAnimationFrame(() => nameRef.current?.select());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   // If detection settles AFTER open and the selected agent turned out to be
   // missing, hop to the best installed one.
+  //
+  // THE HOP IS FOR THE FIRST SETTLE AND FOR NOTHING ELSE (Phase 48 fix round).
+  // `Try again` asks main to rescan, the rescan republishes the same answer,
+  // this effect ran again, and the selection moved to shell while the block
+  // above still read "Claude Code is not installed" beside a button still
+  // labelled "Try again". The name field became shell-1 and the next click
+  // created a shell session. A verifier drove it live and the third click
+  // produced a session named shell-1.
+  //
+  // Two guards, and each one alone would have been enough. A person who picked
+  // the agent keeps it, because a sheet must not silently launch something
+  // other than what its board shows as selected. And a refusal that is on
+  // screen freezes the selection, because that block is about THIS agent and
+  // its buttons act on THIS agent.
   useEffect(() => {
     if (!open) return;
+    if (agentPickedByUser.current) return;
+    if (absent !== null || blocked !== null) return;
     const current = options.find((o) => o.id === agent);
     if (current !== undefined && current.installed) return;
     setAgent(defaultAgentChoice(options, settings.defaultAgent));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, options]);
+  }, [open, options, absent, blocked]);
 
   // Re-prefill the name when the agent changes and the user hasn't typed.
   useEffect(() => {
@@ -247,10 +333,18 @@ export function CreateSessionModal(): React.JSX.Element | null {
       setHintAgent(opt.id);
       return;
     }
+    agentPickedByUser.current = true;
     setAgent(opt.id);
   };
 
-  const submit = (): void => {
+  /**
+   * @param startAnyway PHASE 48. Set by `Start it anyway` and by nothing
+   *                    else. It sends the same argv the preflight refused,
+   *                    because the check reads a shebang and can be wrong
+   *                    about a wrapper that re-execs through something Tortie
+   *                    cannot see. The person gets the last word.
+   */
+  const submit = (startAnyway = false): void => {
     if (creating) return;
     const trimmed = name.trim();
     if (trimmed.length === 0) {
@@ -261,6 +355,8 @@ export function CreateSessionModal(): React.JSX.Element | null {
     setCreating(true);
     setDirError(null);
     setGenericError(null);
+    setAbsent(null);
+    setBlocked(null);
     const extraArgs = presets
       .filter((p) => checkedFlags.includes(p.flag))
       .flatMap((p) => presetArgvTokens(p.flag));
@@ -284,7 +380,8 @@ export function CreateSessionModal(): React.JSX.Element | null {
       agent,
       ...(cwd.trim().length > 0 ? { cwd: cwd.trim() } : {}),
       ...(extraArgs.length > 0 ? { extraArgs } : {}),
-      ...(captureOffered && capture ? { capture: true } : {})
+      ...(captureOffered && capture ? { capture: true } : {}),
+      ...(startAnyway ? { startAnyway: true } : {})
     })
       .then((ok) => {
         if (ok) setOpen(false);
@@ -300,13 +397,36 @@ export function CreateSessionModal(): React.JSX.Element | null {
           setDirError('Directory not found');
         } else if (payload?.code === 'AGENT_NOT_FOUND') {
           // Friendly state, never a dead pane (Bug A): name the problem and
-          // hand over the recovery in the caption row below the grid.
-          if (agent !== 'shell') setNotFoundAgent(agent);
-          setGenericError(payload.message);
+          // draw the whole state under the grid (Phase 48).
+          if (agent !== 'shell') {
+            setAbsent({ agentId: agent, message: payload.message });
+          } else {
+            setGenericError(payload.message);
+          }
+        } else if (payload?.code === 'AGENT_INTERPRETER_MISSING') {
+          // PHASE 48. The agent IS installed. Its interpreter is not
+          // reachable, so the pane would have opened and closed within a
+          // second and Tortie did not start it.
+          const read = readInterpreterDetail(payload.detail, payload.message);
+          if (read !== null) setBlocked(read);
+          else setGenericError(payload.message);
         } else {
           setGenericError(errorText(err));
         }
       });
+  };
+
+  /**
+   * PHASE 48. State A's one action. It drops the boot probe's cached answer
+   * and asks main to scan again, so a tile that says "not installed" stops
+   * saying it once the install has happened, then it re-submits the same
+   * form. The scan is not awaited: the create path resolves the binary for
+   * itself, and the scan only refreshes the tiles.
+   */
+  const tryAgain = (): void => {
+    resetAgentAvailabilityCache();
+    void rescanAgents();
+    submit();
   };
 
   const chooseDirectory = (): void => {
@@ -322,7 +442,7 @@ export function CreateSessionModal(): React.JSX.Element | null {
   // the last hovered/focused missing tile. It renders ONLY when there is a
   // command to hand over — the tile already said "not installed", so a row
   // that just repeats that in a sentence is noise (Phase 12.12 item 1).
-  const captionId = notFoundAgent ?? hintAgent;
+  const captionId = absent?.agentId ?? hintAgent;
   const captionOption = options.find((o) => o.id === captionId);
   const captionCmd = captionId !== null ? agentInstallCommand(captionId) : null;
   // Reserve the row's height only when this machine could actually show it,
@@ -353,7 +473,9 @@ export function CreateSessionModal(): React.JSX.Element | null {
         aria-label="New session"
         onKeyDown={(e) =>
           modalKeyDown(e, e.currentTarget, {
-            submit,
+            // Wrapped, so a key handler can never pass its event in as the
+            // `startAnyway` argument.
+            submit: () => submit(),
             close: () => setOpen(false)
           })
         }
@@ -373,30 +495,42 @@ export function CreateSessionModal(): React.JSX.Element | null {
             ariaLabelledBy="agent-label"
           />
           {reserveInstallRow ? (
-            <div className="agent-missing" aria-live="polite">
-              {captionOption !== undefined && captionCmd !== null ? (
-                <>
-                  <span className="agent-missing-text">
-                    Install {captionOption.label}:
-                  </span>
-                  <code className="agent-missing-cmd">{captionCmd}</code>
-                  <button
-                    type="button"
-                    className="icon-btn agent-missing-copy"
-                    aria-label={`Copy install command for ${captionOption.label}`}
-                    title="Copy install command"
-                    onClick={() => {
-                      void navigator.clipboard.writeText(captionCmd).then(
-                        () => toast('info', 'Install command copied'),
-                        () => toast('error', 'Could not copy the command')
-                      );
-                    }}
-                  >
-                    <Codicon name="copy" size={12} />
-                  </button>
-                </>
-              ) : null}
-            </div>
+            <>
+              <div className="agent-missing" aria-live="polite">
+                {captionOption !== undefined && captionCmd !== null ? (
+                  <>
+                    <span className="agent-missing-text">
+                      Install {captionOption.label}:
+                    </span>
+                    <code className="agent-missing-cmd">{captionCmd}</code>
+                    <button
+                      type="button"
+                      className="icon-btn agent-missing-copy"
+                      aria-label={`Copy install command for ${captionOption.label}`}
+                      title="Copy install command"
+                      onClick={() => {
+                        void navigator.clipboard.writeText(captionCmd).then(
+                          () => toast('info', 'Install command copied'),
+                          () => toast('error', 'Could not copy the command')
+                        );
+                      }}
+                    >
+                      <Codicon name="copy" size={12} />
+                    </button>
+                  </>
+                ) : null}
+              </div>
+              {/* Phase 48. The command is there to be copied and run in a
+                  terminal. Tortie never runs it, and saying so once is
+                  cheaper than a person waiting for something to happen. The
+                  row's height is reserved on the same terms as the row above
+                  it, so a pointer sweeping the board still moves nothing. */}
+              <div className="field-caption install-note">
+                {captionOption !== undefined && captionCmd !== null
+                  ? 'Tortie does not run install commands for you.'
+                  : null}
+              </div>
+            </>
           ) : null}
           {blockedCaption !== null ? (
             <div className="field-caption warn" aria-live="polite">
@@ -518,7 +652,56 @@ export function CreateSessionModal(): React.JSX.Element | null {
           </div>
         ) : null}
 
-        {genericError !== null ? (
+        {/* PHASE 48. The two states a create can be refused in, each drawn in
+            full with the one action that can change the outcome. Everything
+            else still gets the one-line error row it always had. */}
+        {blocked !== null ? (
+          <div className="launch-block" role="alert">
+            <h3 className="launch-block-title">
+              {binName(blocked.binPath)} is installed but cannot start
+            </h3>
+            <p className="launch-block-body">{blocked.message}</p>
+            <p className="launch-block-body">There are two ways forward.</p>
+            <ol className="launch-block-ways">
+              <li>
+                Install {binName(blocked.binPath)} another way, one that does
+                not need {blocked.interpreter}.
+              </li>
+              <li>
+                Make {blocked.interpreter} visible to Tortie. Add its directory
+                to your login shell&rsquo;s startup file, then quit Tortie and
+                open it again.
+              </li>
+            </ol>
+            <div className="launch-block-actions">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={creating}
+                onClick={() => submit(true)}
+              >
+                Start it anyway
+              </button>
+            </div>
+          </div>
+        ) : absent !== null ? (
+          <div className="launch-block" role="alert">
+            <h3 className="launch-block-title">
+              {agentShortLabel(absent.agentId)} is not installed
+            </h3>
+            <p className="launch-block-body">{absent.message}</p>
+            <div className="launch-block-actions">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={creating}
+                onClick={tryAgain}
+              >
+                Try again
+              </button>
+            </div>
+          </div>
+        ) : genericError !== null ? (
           <div className="modal-error">{genericError}</div>
         ) : null}
 
@@ -534,7 +717,7 @@ export function CreateSessionModal(): React.JSX.Element | null {
             type="button"
             className="btn btn-primary"
             disabled={creating || dirError !== null}
-            onClick={submit}
+            onClick={() => submit()}
           >
             {creating ? 'Creating…' : 'Create'}
             {!creating ? <span aria-hidden="true">↩</span> : null}

@@ -152,14 +152,14 @@ export class SessionsRepository {
               argv, resume_argv, env, status, created_at, last_seen, exit_code,
               exit_signal, pane_pid, resume_capture, specstory, restore,
               agent_version, agent_contract, resume_provenance,
-              context_snapshot, env_passthrough)
+              context_snapshot, env_passthrough, exit_detail)
            VALUES
              (@id, @name, @tmuxName, @projectPath, @cwd, @agent,
               @agentSessionId, @argv, @resumeArgv, @env, @status,
               @createdAt, @lastSeen, @exitCode, @exitSignal, @panePid,
               @resumeCapture, @specstory, @restore,
               @agentVersion, @agentContract, @resumeProvenance,
-              @contextSnapshot, @envPassthrough)`
+              @contextSnapshot, @envPassthrough, @exitDetail)`
         )
         .run({
           id: record.id,
@@ -179,6 +179,10 @@ export class SessionsRepository {
           lastSeen: record.lastSeen,
           exitCode: record.exitCode ?? null,
           exitSignal: record.exitSignal ?? null,
+          // Phase 48. NULL at insert on every ordinary create, because a
+          // session that has not started cannot have printed anything. The
+          // reaper fills it in the same patch that writes the exit code.
+          exitDetail: record.exitDetail ?? null,
           panePid: record.panePid ?? null,
           resumeCapture: record.resumeCapture ?? null,
           specstory: record.specstory ? JSON.stringify(record.specstory) : null,
@@ -254,6 +258,10 @@ export class SessionsRepository {
     if (patch.lastSeen !== undefined) merged.lastSeen = patch.lastSeen;
     if (patch.exitCode !== undefined) merged.exitCode = patch.exitCode;
     if (patch.exitSignal !== undefined) merged.exitSignal = patch.exitSignal;
+    // `null` REMOVES, which no other field in a patch can say. See
+    // ManifestSessionPatch for the second death that made it necessary.
+    if (patch.exitDetail === null) delete merged.exitDetail;
+    else if (patch.exitDetail !== undefined) merged.exitDetail = patch.exitDetail;
     if (patch.panePid !== undefined) merged.panePid = patch.panePid;
     if (patch.resumeCapture !== undefined) {
       merged.resumeCapture = patch.resumeCapture;
@@ -295,6 +303,11 @@ export class SessionsRepository {
     if (opts.clearExitCause === true) {
       delete merged.exitCode;
       delete merged.exitSignal;
+      // Phase 48. The pane's own last words are part of the exit cause, and
+      // they are the part a person actually reads. A restore that left them
+      // on the row would show a message about a process that is no longer the
+      // one running.
+      delete merged.exitDetail;
     }
     // Phase 29: the tombstone's clear, same mechanism. The patch shape cannot
     // SET removedAt (it is excluded from ManifestSessionPatch), so the merged
@@ -310,7 +323,8 @@ export class SessionsRepository {
            cwd = @cwd, agent = @agent, agent_session_id = @agentSessionId,
            argv = @argv, resume_argv = @resumeArgv, env = @env,
            status = @status, last_seen = @lastSeen, exit_code = @exitCode,
-           exit_signal = @exitSignal, pane_pid = @panePid,
+           exit_signal = @exitSignal, exit_detail = @exitDetail,
+           pane_pid = @panePid,
            resume_capture = @resumeCapture, specstory = @specstory,
            restore = @restore, agent_version = @agentVersion,
            agent_contract = @agentContract,
@@ -334,6 +348,7 @@ export class SessionsRepository {
         lastSeen: merged.lastSeen,
         exitCode: merged.exitCode ?? null,
         exitSignal: merged.exitSignal ?? null,
+        exitDetail: merged.exitDetail ?? null,
         panePid: merged.panePid ?? null,
         resumeCapture: merged.resumeCapture ?? null,
         specstory: merged.specstory ? JSON.stringify(merged.specstory) : null,

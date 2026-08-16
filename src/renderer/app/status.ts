@@ -114,6 +114,105 @@ export function endedTitle(end: SessionEnd | undefined): string {
   return 'Session ended';
 }
 
+// ---------------------------------------------------------------------------
+// Phase 48 — a session that started and then stopped at once
+// ---------------------------------------------------------------------------
+
+/**
+ * How soon after a create a death counts as "right after it started".
+ *
+ * Five seconds, and the copy quotes this number rather than a duration.
+ * Tortie cannot state the duration. The death is noticed by a poll whose
+ * cadence is 1000 ms when a window has focus and 2000 ms when none does, so
+ * "the session ran for 0.4 seconds" would be a number nobody measured. A
+ * bound is the honest form and this constant is the bound.
+ */
+export const FAST_DEATH_MS = 5000;
+
+/** What a caller has to know about one session's lifetime for the test below. */
+export interface SessionLifetime {
+  /** Epoch ms of the create, from the session projection. */
+  createdAt: number;
+  /**
+   * Epoch ms of the moment THIS window saw the session stop.
+   *
+   * It is absent for a session that was already over when the window opened,
+   * which is the honest answer: Tortie did not watch that one start. The
+   * ended block then draws exactly what it drew before this phase.
+   */
+  endedAt?: number;
+}
+
+/**
+ * True when this window watched the session start and it was gone within
+ * {@link FAST_DEATH_MS}.
+ *
+ * The bound is inclusive, so a death at 4999 ms is inside it and a death at
+ * 5001 ms is outside it. It never claims the fast case for a session it did
+ * not watch, and the observed stop time is at or after the real one, so the
+ * error can only ever hide the fast case and never invent it.
+ */
+export function diedRightAfterStart(life: SessionLifetime): boolean {
+  const { createdAt, endedAt } = life;
+  if (endedAt === undefined) return false;
+  return endedAt >= createdAt && endedAt - createdAt <= FAST_DEATH_MS;
+}
+
+/** The state D heading, e.g. "claude stopped right after it started". */
+export function fastDeathTitle(agent: string): string {
+  return `${agent} stopped right after it started`;
+}
+
+/**
+ * The first sentence of the state D body, plus the cause when it is known.
+ *
+ * The cause sentence is dropped for a collapsing capture wrapper, for the
+ * same reason `endedTitle` drops the number: under those four providers the 1
+ * is the wrapper's, not the agent's.
+ */
+export function fastDeathSentence(end: SessionEnd): string {
+  const seconds = FAST_DEATH_MS / 1000;
+  const opener = `The session ended within ${seconds} seconds of starting.`;
+  const signal = endSignalName(end);
+  if (signal !== null) return `${opener} It was stopped by SIG${signal}.`;
+  const code = end.exitCode;
+  if (code !== undefined && code !== 0 && !exitCodeIsApproximate(end)) {
+    return `${opener} It exited with code ${code}.`;
+  }
+  return opener;
+}
+
+/**
+ * The sentence under the pane's last words (Phase 48 fix round).
+ *
+ * IT USED TO BE ONE SENTENCE AND IT WAS FALSE FOR HALF THE DEATHS. The single
+ * note said "restarting will not change the result", which is right for an
+ * agent that rejected a flag or could not find its interpreter, and wrong for
+ * an agent that was working and was killed from outside. A verifier drove the
+ * second case: a healthy agent killed by an external `kill` drew its own TUI
+ * frame as its last words and was then told a restart would not help, when the
+ * session was fully restartable.
+ *
+ * The branch reads `exitSignal` and the 128+n exit codes that mean the same
+ * thing, which are structured fields the reaper wrote. It does not read the
+ * last words themselves, and no branch in Tortie ever will.
+ */
+export function exitDetailNote(end: SessionEnd): string {
+  const signal = endSignalName(end);
+  if (signal !== null) {
+    return (
+      `Restart runs the same command again. This session was stopped by ` +
+      `SIG${signal} rather than by anything it reported, so a restart may ` +
+      'well succeed.'
+    );
+  }
+  return (
+    'Restart runs the same command again. If the message above names a ' +
+    'missing program or an option the agent does not know, restarting will ' +
+    'not change the result.'
+  );
+}
+
 export function statusVisual(
   status: SessionStatus,
   end?: SessionEnd
