@@ -5234,3 +5234,49 @@ Phase 43 incident. Evidence: the ring photographed in downloading, ready and fai
 window raised first; proof no dialog appears on a manual check; proof a background check draws
 nothing until ready; and one full restart-and-update-now rehearsal that comes back on the new
 version. **Semver:** feat, minor, so the release this rides in becomes 0.26.0.
+
+## Phase 60 — three interaction nits before 0.26.0 (operator reported 2026-08-16) QUEUED, runs right after Phase 58, ships IN 0.26.0
+
+**The operator's three reports, in his words and bound as the charter.**
+
+**1. Drag and drop dies when the dock collapses.** "When I am in the mode where the sessions are
+collapsed on the right I can't drag and drop them onto the current session or off it like I can
+when it is in this mode and they are expanded. This should be fixed." The dock is
+src/renderer/app/SessionDock.tsx and collapse is the dockCollapsed app state; the collapsed rail
+draws icon-only rows. Whatever drag surface the expanded rows carry, the collapsed rows must carry
+the same: dragging a collapsed session icon into the work area joins it to the current group, and
+dragging a pane out to the rail detaches it, exactly as in expanded mode. Note the keyboard flag is
+disabled when collapsed at SessionDock.tsx:321; the fix must not regress that choice, only add the
+pointer path.
+
+**2. Restoring a past session whose project is not open.** "When you are looking at past sessions
+and you restore a session, you might not have the project that that session is related to open. If
+it is not open in your pane, it should ask you first if you want to open it" rather than silently
+restoring. Surfaces: src/renderer/app/PastSessionsModal.tsx and src/renderer/app/resume.ts. The
+ask is a NATIVE dialog per the UI rules, it names the project by its folder name and path, and it
+offers exactly two ways forward: open the project and restore the session into it, or cancel and
+change nothing. No third button. If the project folder no longer exists on disk, say that instead
+and offer only cancel. A restore into an open project behaves exactly as today, with no new dialog.
+
+**3. The View menu tells the truth about the views.** "We should ensure that Explorer, Search,
+Source Control and Context are included with their hotkeys." Today src/main/menu.ts lists Explorer
+and Source Control only, at lines 473 to 474. Search and Context already have keymap ids
+(view.search, view.context in src/shared/keymap.ts) with accelerators; add the two menu items using
+those existing accels through the same item() helper, in the activity bar's own order: Explorer,
+Search, Source Control, Context. Also fix the doubled Toggle Full Screen visible in the menu today:
+the template carries role togglefullscreen at menu.ts:496 AND macOS injects its own item, so the
+menu shows two. Keep exactly one, whichever the spec judges native-correct.
+
+**And the standing rule the operator asked for.** "Going forward the top menu is minded and
+appropriately updated to reflect what is changing in Tortie." This phase adds one line to the UI
+rules in CLAUDE.md: a phase that adds, renames or removes a user-facing surface updates the native
+menus in the same commit, and the phase brief says what changed there. The rule ships in this
+phase's commit so it binds every later one.
+
+**Tier 2, with one live probe per nit and a screenshot each**, because these are single-subsystem
+UI changes; the restore ask touches the restore ENTRY only, never the restore mechanics, so Tier 3
+machinery is not pulled in. Probes: a real drag of a collapsed session icon into the work area and
+back out, driven in the running app; a restore attempted from Past Sessions with the project
+closed, showing the ask, then accepting it and landing in the restored session; the View menu read
+back with all four views and their accelerators, and exactly one Toggle Full Screen. The dialog
+copy follows the writing rules. **Semver:** fix, patch. It ships inside 0.26.0 with Phase 58.
