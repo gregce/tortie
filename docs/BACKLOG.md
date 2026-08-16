@@ -5163,7 +5163,7 @@ buy a drawing with three edges.
 
 | # | Phase | What ships | Owned code, estimated | Tier | Tokens |
 | --- | --- | --- | --- | --- | --- |
-| 52 | Map freshness | One `git log` per existing AS-BUILT-ARCHITECTURE.md, comparing the document's last commit to HEAD, shown as a plain sentence. No pane, no drawing, no schema | 100 to 300 lines | 1 and 2 | 0 |
+| 52 | ~~Map freshness~~ WITHDRAWN 2026-08-16 by the operator | It would have aged his AS-BUILT-ARCHITECTURE.md files against HEAD. He does not want those files parsed or maintained: they are his pre-feature workaround, shown to the research only as a design reference for what a first class map should contain. The ladder starts at 53 | 0 | n/a | 0 |
 | 53 | Structure and provenance | Import edges from five tree-sitter queries, the alias resolver, nine provenance classifiers each with an evidence receipt, an edge table in the disposable symbols.db, surfaced as a SIDEBAR LIST. No MCP and no drawing | 1,500 to 2,500 lines | 2, plus a conformance gate | 0 |
 | — | **The gate** | Re-run the real extractor and count. Pass value is a median of 8 | 0 | n/a | 0 |
 | 54 | Serve the structure to the user's own agents over MCP stdio | Hand-written newline-delimited JSON-RPC framing, no SDK, passed on the argv of a session the user creates | about 400 lines | **3**, because the argv lands in the manifest and touches restore | 0 |
