@@ -1,136 +1,57 @@
 # Changelog
 
-Each release lists its changes under Added, Changed and Fixed, and every item links
-to a representative commit. Prose appears above those sections only when something
-needs explaining. Versions follow semver: the minor moves for features, the patch
-for fixes.
+Each release lists its changes under Added, Changed and Fixed. Two rules keep the sections readable, and both exist because the operator asked for them on 2026-08-16. First, every commit appears in EXACTLY ONE section, chosen by what the commit is: new capability under Added, a repaired defect under Fixed, existing behavior reshaped under Changed. One commit gets one item that tells its whole story, never one item per section, because the same hash repeated across three headers is confusing and defeats the point. Second, every paragraph and every bullet sits on a single unwrapped line, because the GitHub release page renders a newline as a line break, and hard-wrapped text shows ragged there. Prose appears above the sections only when something needs explaining. Versions follow semver: the minor moves for features, the patch for fixes. Release pages carry these entries verbatim.
 
 ## 0.26.1 (2026-08-16)
 
-Five versions in one release, and the two you will feel first are the tmux that
-ships inside the app and the update flow that stopped interrupting you.
+Five versions in one release, and the two you will feel first are the tmux that ships inside the app and the update flow that stopped interrupting you.
 
-Updating from 0.24.3 changes nothing about your running sessions. The bundled
-tmux takes over only when a fresh server starts, which in practice means after
-your next reboot. Until then everything runs exactly as it did.
+Updating from 0.24.3 changes nothing about your running sessions. The bundled tmux takes over only when a fresh server starts, which in practice means after your next reboot. Until then everything runs exactly as it did.
 
 ### Added
 
-- Tortie carries its own tmux 3.7b, signed inside the app, so a fresh Mac needs
-  nothing installed. A new version becomes the server only at cold start, and
-  Tortie never restarts or upgrades a server that is already running, so no
-  session is ever disturbed by an update. If the app meets a server version
-  pair that was never tested, it refuses to attach and says so with a screen
-  naming both versions, instead of risking your sessions ([`2c225e4`](https://github.com/gregce/tortie/commit/2c225e4))
-- A small ring above the settings gear carries the whole update journey. It
-  fills with real download progress, hovering names the stage in words, and
-  clicking it opens a native menu with the choices for that moment: Restart
-  and update now, or Install when you quit. When a check fails it offers Why
-  it failed and Repair updates. One gap to know: the home screen has no
-  activity bar, so a check started with no project open shows no ring until
-  the update is staged ([`9eb2b7f`](https://github.com/gregce/tortie/commit/9eb2b7f))
-- Restoring a past session whose project is not open now asks first, with a
-  native dialog naming the project. Open and restore, or cancel. If the folder
-  is gone from disk, it says that instead ([`cc60680`](https://github.com/gregce/tortie/commit/cc60680))
-
-### Changed
-
-- The update dialogs are gone. The ring replaced the one that appeared after a
-  manual check and the one that announced a staged install. Background checks
-  stay silent until an update is actually ready, exactly as before ([`9eb2b7f`](https://github.com/gregce/tortie/commit/9eb2b7f))
-- The View menu lists all 4 views, Explorer, Search, Source Control and
-  Context, each with its shortcut ([`cc60680`](https://github.com/gregce/tortie/commit/cc60680))
-- When an agent will not start because its interpreter is missing, Tortie now
-  says so before launching anything, names the missing program, and offers a
-  way forward plus a Start it anyway button. The old screen recommended the
-  exact npm install that caused the problem, and it is gone ([`2b4ee2f`](https://github.com/gregce/tortie/commit/2b4ee2f))
+- Tortie carries its own tmux 3.7b, signed inside the app, so a fresh Mac needs nothing installed. A new version becomes the server only at cold start, and Tortie never restarts or upgrades a server that is already running, so no session is ever disturbed by an update. If the app meets a server version pair that was never tested, it refuses to attach and says so with a screen naming both versions, instead of risking your sessions ([`2c225e4`](https://github.com/gregce/tortie/commit/2c225e4))
+- A small ring above the settings gear carries the whole update journey, and the update dialogs are gone. The ring fills with real download progress, hovering names the stage in words, and clicking opens a native menu with the choices for that moment: Restart and update now, or Install when you quit; after a failed check, Why it failed and Repair updates. Background checks stay silent until an update is actually ready, exactly as before. One gap to know: the home screen has no activity bar, so a check started with no project open shows no ring until the update is staged ([`9eb2b7f`](https://github.com/gregce/tortie/commit/9eb2b7f))
 
 ### Fixed
 
-- Sessions can be dragged into and out of a group when the session list is
-  collapsed to icons, the same as when it is expanded ([`cc60680`](https://github.com/gregce/tortie/commit/cc60680))
-- An agent that starts and then dies within seconds now shows the last lines
-  it printed, in its own words, instead of a bare exit code. Restarting is
-  offered with an honest note about whether it will help ([`2b4ee2f`](https://github.com/gregce/tortie/commit/2b4ee2f))
-- Tortie waits up to 10 seconds for your login shell to answer instead of 3,
-  because slow shells made Tortie lose track of where node lives and agents
-  installed through npm then failed to start ([`2b4ee2f`](https://github.com/gregce/tortie/commit/2b4ee2f))
-- Harness and test launches of the app no longer touch the macOS keychain, so
-  automated runs cannot queue keychain dialogs on your screen ([`0d92728`](https://github.com/gregce/tortie/commit/0d92728))
+- Three interaction reports from real use. Sessions can be dragged into and out of a group while the session list is collapsed to icons, the same as when it is expanded. Restoring a past session whose project is not open now asks first, with a native dialog naming the project and offering open and restore, or cancel, and if the folder is gone from disk it says that instead. The View menu lists all 4 views with their shortcuts, being Explorer, Search, Source Control and Context ([`cc60680`](https://github.com/gregce/tortie/commit/cc60680))
+- An agent that cannot start now says why instead of showing a dead pane. Before launching, Tortie reads the file it is about to run, and when the program named on its first line is missing from the session's PATH, it refuses with the missing program named, two ways forward, and a Start it anyway button. An agent that starts and then dies within seconds shows the last lines it printed, in its own words, instead of a bare exit code. Tortie also waits up to 10 seconds for your login shell instead of 3, because slow shells made agents installed through npm fail to start. The old screen that recommended the exact npm install that caused the problem is gone ([`2b4ee2f`](https://github.com/gregce/tortie/commit/2b4ee2f))
+- Harness and test launches of the app no longer touch the macOS keychain, so automated runs cannot queue keychain dialogs on your screen ([`0d92728`](https://github.com/gregce/tortie/commit/0d92728))
 
 ## 0.24.3 (2026-08-15)
 
-One fix, and it is the thing that made the file tree hard to look at. Grey rows
-stopped flashing white.
-
-The explorer threw away everything it knew about ignored files every time
-anything wrote to the repository, then asked git again. For the 13 to 30 ms
-that took, nothing was dimmed, so every grey row went bright. If you have
-agents writing constantly, that happened about every two seconds. A probe on
-0.24.2 caught 84 bright frames out of 3601 painted over 31 seconds, in 15
-flashes exactly 2000 ms apart. The same probe on this build caught 0 of 3601,
-then 0 of 4802, then 0 of 4802 again with 2000 extra ignored files and a new
-file appearing inside an ignored folder every 400 ms.
-
-### Changed
-
-- The tree keeps showing what it last knew about ignored files while it fetches
-  the new answer, instead of clearing first and refilling ([`3bbc3e6`](https://github.com/gregce/tortie/commit/3bbc3e6))
-- Editing a `.gitignore` now takes up to 10 seconds to show, where it used to
-  take up to 2. Tortie asks git 6 times a minute instead of 30, and the wait
-  costs you nothing to look at now that nothing blanks while it happens ([`3bbc3e6`](https://github.com/gregce/tortie/commit/3bbc3e6))
+One fix, and it is the thing that made the file tree hard to look at. Grey rows stopped flashing white.
 
 ### Fixed
 
-- Ignored files and folders no longer flash white while agents write to the
-  repository ([`3bbc3e6`](https://github.com/gregce/tortie/commit/3bbc3e6))
-- A file an agent writes into an already ignored folder is dimmed on the first
-  frame it appears. Measured on 122 new rows, all 122 correct ([`3bbc3e6`](https://github.com/gregce/tortie/commit/3bbc3e6))
+- Ignored files and folders no longer flash white while agents write to the repository. The explorer used to throw away everything it knew about ignored files on every write and ask git again, and for the 13 to 30 ms that took, every grey row went bright, which under constant agent writes happened about every two seconds. It now keeps showing the last answer while it fetches the new one. A probe on 0.24.2 caught 84 bright frames out of 3601 painted over 31 seconds; the same probe on this build caught 0 of 3601, then 0 of 4802, then 0 of 4802 again with 2000 extra ignored files. One trade to know: editing a .gitignore now takes up to 10 seconds to show, where it used to take up to 2, because git is asked 6 times a minute instead of 30 and the wait no longer blanks anything ([`3bbc3e6`](https://github.com/gregce/tortie/commit/3bbc3e6))
 
 ## 0.24.2 (2026-08-15)
 
-Eight changes, and the one that matters most is invisible: the reason an update
-failed yesterday is closed. Tortie was checking for updates again after it had
-already handed one to the installer, and every check re-staged the download,
-deleting the copy the pending install was waiting on. It now stops checking once
-an install is prepared, explains itself when one fails, and offers a Repair
-Updates item that clears a wreck in one click.
+Eight changes, and the one that matters most is invisible: the reason an update failed yesterday is closed. Tortie was checking for updates again after it had already handed one to the installer, and every check re-staged the download, deleting the copy the pending install was waiting on. It now stops checking once an install is prepared, explains itself when one fails, and offers a Repair Updates item that clears a wreck in one click.
 
-The rest is what you asked for while using it: your right click keeps your
-selection, ignored files look ignored, and you can watch a CI run or open a file
-in another app without leaving the window.
+The rest is what you asked for while using it: your right click keeps your selection, ignored files look ignored, and you can watch a CI run or open a file in another app without leaving the window.
 
 ### Added
 
 - A Runs section in the Source Control view, for repos with a github.com origin. It lists the latest 10 runs for your branch and expands to jobs and steps. A push starts a bounded watch that follows your commit's run until it finishes. It reads and never writes, and nothing about a run appears outside the panel ([`1eeddea`](https://github.com/gregce/tortie/commit/1eeddea))
 - Open With on every file row, listing the apps macOS registers for that file with the default marked, plus Other for the system chooser. Files open by spawning the system open command ([`9a69e89`](https://github.com/gregce/tortie/commit/9a69e89))
-- One structured log file per profile at `<userData>/logs/app.log`, capped at 2 MiB with one backup, with your home directory replaced by a tilde before anything is written. Crash dumps stay on your machine, and the build fails if any code ever tries to upload one ([`774132a`](https://github.com/gregce/tortie/commit/774132a))
-- A Diagnostics section in Settings with a debug switch, Open logs folder, and Copy diagnostics, which copies the boot details, the log tail and a crash dump inventory by name, size and date ([`774132a`](https://github.com/gregce/tortie/commit/774132a))
+- One structured log file per profile at `<userData>/logs/app.log`, capped at 2 MiB with one backup, with your home directory replaced by a tilde before anything is written. Crash dumps stay on your machine, and the build fails if any code ever tries to upload one. A Diagnostics section in Settings adds a debug switch, Open logs folder, and Copy diagnostics, which copies the boot details, the log tail and a crash dump inventory ([`774132a`](https://github.com/gregce/tortie/commit/774132a))
 - Environment passthrough for agents. Name variables in an `agents.json` row and Tortie reads them from your login shell at each launch and restore. Values are never written to any file ([`67ce3e3`](https://github.com/gregce/tortie/commit/67ce3e3))
-- A row spacing menu in the Explorer header, and a compact gutter toggle in History that starts commit text beside its own lanes ([`53e919d`](https://github.com/gregce/tortie/commit/53e919d))
-
-### Changed
-
-- Ignored files and folders are drawn grey in the file tree, using git itself so negation patterns are honored. Grey means ignored, not disabled ([`53e919d`](https://github.com/gregce/tortie/commit/53e919d))
-- Filtering the tree and clicking a result no longer clears the filter. Only the clear button, the filter toggle, Escape or starting a rename clears it ([`53e919d`](https://github.com/gregce/tortie/commit/53e919d))
-- In a group of two or more sessions, the focused pane carries one soft box and the others fade slightly. Headers never fade, so a session asking for input keeps a full brightness dot ([`08b4757`](https://github.com/gregce/tortie/commit/08b4757))
 
 ### Fixed
 
-- Right clicking a selection in a session no longer throws it away, which had made Copy as HTML unreachable. The cause was an xterm option that selects a word on right click, on by default on macOS ([`08b4757`](https://github.com/gregce/tortie/commit/08b4757))
+- Four explorer reports from the first day of real use. Ignored files and folders are drawn grey in the file tree, using git itself so negation patterns are honored, and grey means ignored, not disabled. Filtering the tree and clicking a result no longer clears the filter; only the clear button, the filter toggle, Escape or starting a rename clears it. The Explorer header gains a row spacing menu, and History gains a compact gutter toggle that starts commit text beside its own lanes ([`53e919d`](https://github.com/gregce/tortie/commit/53e919d))
+- Right clicking a selection in a session no longer throws it away, which had made Copy as HTML unreachable; the cause was an xterm option that selects a word on right click, on by default on macOS. And in a group of two or more sessions, the focused pane now carries one soft box while the others fade slightly, with headers never fading, so a session asking for input keeps a full brightness dot ([`08b4757`](https://github.com/gregce/tortie/commit/08b4757))
 - An update that fails now says why, and a wrecked updater can be repaired in one click instead of silently refusing every future update ([`cb07b37`](https://github.com/gregce/tortie/commit/cb07b37))
-- Two sessions of one agent started in the same folder no longer fight over one conversation record, and a record claimed on weak evidence can be taken back by a session that can prove ownership. A folder reached by two spellings, such as `/tmp` and `/private/tmp`, counted as two folders and let one session take another's record ([`a5c63aa`](https://github.com/gregce/tortie/commit/a5c63aa))
-- Resume confidence is honest. A record captured while another session of the same agent waited in the same folder is now marked weak rather than exact ([`a5c63aa`](https://github.com/gregce/tortie/commit/a5c63aa))
+- Two sessions of one agent started in the same folder no longer fight over one conversation record, and a record claimed on weak evidence can be taken back by a session that can prove ownership. A folder reached by two spellings, such as `/tmp` and `/private/tmp`, counted as two folders and let one session take another's record. Resume confidence is honest too: a record captured while another session of the same agent waited in the same folder is now marked weak rather than exact ([`a5c63aa`](https://github.com/gregce/tortie/commit/a5c63aa))
 
 ## 0.20.2 (2026-08-15)
 
-Every quit of the packaged app had been ending in a crash inside the file watcher.
-The app looked like it closed normally while macOS filed a crash report each time.
-That is fixed. Removing a session no longer destroys it either: removed sessions
-move to a searchable list you can restore from for 90 days.
+Every quit of the packaged app had been ending in a crash inside the file watcher. The app looked like it closed normally while macOS filed a crash report each time. That is fixed. Removing a session no longer destroys it either: removed sessions move to a searchable list you can restore from for 90 days.
 
-If you are running 0.19.0 or later, Tortie delivers this update itself. The Tortie
-menu offers it within a few hours, or immediately through Check for Updates.
+If you are running 0.19.0 or later, Tortie delivers this update itself. The Tortie menu offers it within a few hours, or immediately through Check for Updates.
 
 ### Added
 
@@ -159,43 +80,25 @@ The first release Tortie delivered to installed copies by itself.
 
 ## 0.19.0 (2026-08-14)
 
-Tortie updates itself from this version on. It checks 30 seconds after launch and
-then every 6 hours, and when an update is ready a single menu item appears reading
-"Update to X.Y.Z, installs when you quit". There is no popup and no badge. The
-install happens when you quit, and your sessions keep running through the swap
-because they live outside the app.
+Tortie updates itself from this version on. It checks 30 seconds after launch and then every 6 hours, and when an update is ready a single menu item appears reading "Update to X.Y.Z, installs when you quit". There is no popup and no badge. The install happens when you quit, and your sessions keep running through the swap because they live outside the app.
 
-A copy of 0.18.0 cannot update itself, since the updater arrived after it shipped.
-Installing this version by hand is the last time that is necessary.
+A copy of 0.18.0 cannot update itself, since the updater arrived after it shipped. Installing this version by hand is the last time that is necessary.
 
 ### Added
 
-- Self update through the GitHub releases feed, with install on quit, a Check for Updates item under About Tortie, and a halt script for pulling a bad version from the feed ([`b96b519`](https://github.com/gregce/tortie/commit/b96b519))
-- A check on first launch after an update that the bundled files all resolve, with one quiet notice if any is missing ([`b96b519`](https://github.com/gregce/tortie/commit/b96b519))
-- A log line whenever a helper process dies, carrying the reason and the decoded exit code ([`e9a8731`](https://github.com/gregce/tortie/commit/e9a8731))
+- Self update through the GitHub releases feed, with install on quit, a Check for Updates item under About Tortie, a halt script for pulling a bad version from the feed, and a check on first launch after an update that the bundled files all resolve, with one quiet notice if any is missing ([`b96b519`](https://github.com/gregce/tortie/commit/b96b519))
 
 ### Fixed
 
-- A terminal pane that lost its fast renderer when the laptop lid closed now recovers on the next wake, instead of staying on the slower path until the pane was restarted ([`e9a8731`](https://github.com/gregce/tortie/commit/e9a8731))
+- A terminal pane that lost its fast renderer when the laptop lid closed now recovers on the next wake, instead of staying on the slower path until the pane was restarted. Every helper process death now writes a log line carrying the reason and the decoded exit code ([`e9a8731`](https://github.com/gregce/tortie/commit/e9a8731))
 
 ## 0.18.0 (2026-08-14)
 
-The first release you can download and install. Tortie is a macOS home for coding
-agents: your projects open as tabs in one window, you start Claude Code, Codex,
-Cursor or any of twelve supported agents with a keystroke, and the work keeps
-running whether the window is open or not. Quit the app, reboot the Mac, come back
-tomorrow, and your sessions are still there with their scrollback and a resume
-command ready for the agent's own conversation.
+The first release you can download and install. Tortie is a macOS home for coding agents: your projects open as tabs in one window, you start Claude Code, Codex, Cursor or any of twelve supported agents with a keystroke, and the work keeps running whether the window is open or not. Quit the app, reboot the Mac, come back tomorrow, and your sessions are still there with their scrollback and a resume command ready for the agent's own conversation.
 
-The build is signed with a Developer ID and notarized, so it opens without the
-right-click ritual an unsigned app needs. If you ran an earlier build, macOS asks
-once more for each permission you had granted, because the app's identity changed
-to `com.itavero.tortie` and macOS ties permissions to identity. Your data and your
-sessions are not touched.
+The build is signed with a Developer ID and notarized, so it opens without the right-click ritual an unsigned app needs. If you ran an earlier build, macOS asks once more for each permission you had granted, because the app's identity changed to `com.itavero.tortie` and macOS ties permissions to identity. Your data and your sessions are not touched.
 
-Two limits worth knowing. This build does not update itself, so an update is a
-download and a drag until 0.19.0. And once it has opened your session data, older
-builds refuse to open it, which is deliberate and one way only.
+Two limits worth knowing. This build does not update itself, so an update is a download and a drag until 0.19.0. And once it has opened your session data, older builds refuse to open it, which is deliberate and one way only.
 
 ### Added
 
@@ -224,5 +127,4 @@ builds refuse to open it, which is deliberate and one way only.
 
 ## 0.0.1
 
-Everything before the first tagged release. Never published. The record is
-docs/BACKLOG.md and the git history.
+Everything before the first tagged release. Never published. The record is docs/BACKLOG.md and the git history.
