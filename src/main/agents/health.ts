@@ -61,6 +61,18 @@ import {
 /** The three answers. Only `interpreter-missing` stops a launch. */
 export type AgentHealthAnswer = 'ok' | 'interpreter-missing' | 'unknown';
 
+/**
+ * What actually runs when the resolved file starts (Phase 49, research 47 §5).
+ *
+ * This module already opens the file, reads its first line and resolves the
+ * interpreter on the launch path. The answer used to be discarded once the
+ * ok/blocked verdict was made; now it is reported, so the detection scan can
+ * say "runs on node from ~/.nvm/..." without a second file read.
+ */
+export type AgentRuntime =
+  | { kind: 'binary' }
+  | { kind: 'script'; interpreter: string; interpreterPath: string | null };
+
 export interface AgentHealthBase {
   readonly answer: AgentHealthAnswer;
   /** Wall clock of this check, in ms, measured even on a cache hit. */
@@ -69,6 +81,8 @@ export interface AgentHealthBase {
 
 export interface AgentHealthOk extends AgentHealthBase {
   readonly answer: 'ok';
+  /** Phase 49. What the ok file is: a real program, or a script and its interpreter. */
+  readonly runtime: AgentRuntime;
 }
 
 export interface AgentHealthUnknown extends AgentHealthBase {
@@ -306,7 +320,11 @@ async function inspectFile(
   // byte or one byte file is not a script either, and a broken empty
   // executable is not this check's business.
   if (read < 2 || head[0] !== 0x23 || head[1] !== 0x21) {
-    return { answer: 'ok', elapsedMs: since(startedAt) };
+    return {
+      answer: 'ok',
+      elapsedMs: since(startedAt),
+      runtime: { kind: 'binary' }
+    };
   }
 
   const newline = head.indexOf(0x0a);
@@ -366,8 +384,15 @@ async function inspectFile(
   // makes the two searches equal. An absolute interpreter is validated as a
   // file by the same function, which is how a hard coded shebang to a node
   // that was removed is caught.
-  if (resolveBinaryAgainst(interpreter, userPath, []) !== null) {
-    return { answer: 'ok', elapsedMs: since(startedAt) };
+  const interpreterPath = resolveBinaryAgainst(interpreter, userPath, []);
+  if (interpreterPath !== null) {
+    return {
+      answer: 'ok',
+      elapsedMs: since(startedAt),
+      // Phase 49. The path is the one this check just resolved for the
+      // verdict; reporting it is free and it is what the Settings line prints.
+      runtime: { kind: 'script', interpreter, interpreterPath }
+    };
   }
   return {
     answer: 'interpreter-missing',

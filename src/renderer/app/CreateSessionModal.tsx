@@ -36,12 +36,17 @@ import {
 } from '@shared/settings';
 import {
   agentBlockedReason,
-  agentInstallCommand,
   agentShortLabel,
   buildAgentOptions,
   defaultAgentChoice,
+  INSTALL_NOTE_LINE,
+  installReadIsStale,
+  installSourceSentence,
+  noInstallCommandLine,
   resetAgentAvailabilityCache,
+  STALE_INSTALL_LINE,
   useAgentAvailability,
+  type AgentInstallDisplay,
   type AgentPickerOption
 } from '../state/agents';
 import { useSettingsStore } from '../settings/settings-store';
@@ -49,6 +54,7 @@ import { captureAvailableFor, useSpecStoryStatus } from '../state/specstory';
 import { errorPayload, errorText, nextOrdinal, useApp } from '../state/store';
 import { modalKeyDown } from './focus-trap';
 import { Codicon } from '../icons';
+import './create-session-modal.css';
 
 /**
  * Two DIFFERENT presets sharing the same leading token are alternative
@@ -91,7 +97,7 @@ interface AgentAbsent {
  * the person is being asked to install or reveal, and a renderer must never
  * read a fact out of a prose sentence.
  */
-interface InterpreterMissing {
+export interface InterpreterMissing {
   binPath: string;
   interpreter: string;
   message: string;
@@ -111,6 +117,96 @@ function readInterpreterDetail(
 /** The last segment of an absolute path, e.g. "claude". */
 function binName(path: string): string {
   return path.slice(path.lastIndexOf('/') + 1);
+}
+
+/**
+ * PHASE 49. The source line under a shown install command: where the command
+ * was read from and when, with an anchor that opens the provider's page in
+ * the browser (trusted-window denies the navigation and hands the https URL
+ * to the system). When the read date is more than 180 days old, one more
+ * line says so, so the user is never holding a stale string with no way to
+ * tell. Exported pure so the unit tests can pin the 179/181 day boundary.
+ */
+export function InstallSourceLines({
+  install,
+  nowMs = Date.now()
+}: {
+  install: AgentInstallDisplay;
+  nowMs?: number;
+}): React.JSX.Element {
+  return (
+    <>
+      <p className="launch-block-body">
+        {installSourceSentence(install.readOn)}{' '}
+        <a className="install-page-link" href={install.docUrl}>
+          Open that page
+        </a>
+      </p>
+      {installReadIsStale(install.readOn, nowMs) ? (
+        <p className="launch-block-body">{STALE_INSTALL_LINE}</p>
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * PHASE 49. State B's two ways forward. Way 1 branches on what the provider
+ * itself recommends: when the canonical route exists and is NOT a package
+ * manager, it names that route and hands the command over, because that
+ * version does not go through the interpreter that just failed. When the
+ * canonical route IS a package manager (gemini), the Phase 48 sentence
+ * stays, because recommending the canonical npm route would hand the person
+ * the shape that just failed. Exported pure so the branch is unit-testable.
+ */
+export function BlockedWays({
+  blocked,
+  label,
+  install,
+  nowMs,
+  onCopy
+}: {
+  blocked: InterpreterMissing;
+  label: string;
+  install: AgentInstallDisplay | null;
+  nowMs?: number;
+  onCopy: (command: string) => void;
+}): React.JSX.Element {
+  return (
+    <ol className="launch-block-ways">
+      {install !== null && !install.canonicalIsPackageManager ? (
+        <li>
+          Install {label} the way its provider recommends. That version does
+          not need {blocked.interpreter}.
+          <div className="agent-missing">
+            <code className="agent-missing-cmd">{install.command}</code>
+            <button
+              type="button"
+              className="icon-btn agent-missing-copy"
+              aria-label={`Copy install command for ${label}`}
+              title="Copy install command"
+              onClick={() => onCopy(install.command)}
+            >
+              <Codicon name="copy" size={12} />
+            </button>
+          </div>
+          <InstallSourceLines
+            install={install}
+            {...(nowMs !== undefined ? { nowMs } : {})}
+          />
+        </li>
+      ) : (
+        <li>
+          Install {binName(blocked.binPath)} another way, one that does not
+          need {blocked.interpreter}.
+        </li>
+      )}
+      <li>
+        Make {blocked.interpreter} visible to Tortie. Add its directory to
+        your login shell&rsquo;s startup file, then quit Tortie and open it
+        again.
+      </li>
+    </ol>
+  );
 }
 
 /**
@@ -183,8 +279,12 @@ export function CreateSessionModal(): React.JSX.Element | null {
   const [absent, setAbsent] = useState<AgentAbsent | null>(null);
   // PHASE 48. The create was refused before the launch because the resolved
   // file is a script whose interpreter is not reachable. Null on every other
-  // outcome.
-  const [blocked, setBlocked] = useState<InterpreterMissing | null>(null);
+  // outcome. PHASE 49 pinned the refused agent's id onto it: the block's
+  // provider-route branch reads that agent's install row, and the selection
+  // can move after the refusal is on screen.
+  const [blocked, setBlocked] = useState<
+    (InterpreterMissing & { agentId: string }) | null
+  >(null);
   // Last disabled chip the user hovered/focused — drives the caption row.
   const [hintAgent, setHintAgent] = useState<string | null>(null);
   // Per-agent checked preset flags for THIS modal opening; agents absent from
@@ -408,7 +508,7 @@ export function CreateSessionModal(): React.JSX.Element | null {
           // reachable, so the pane would have opened and closed within a
           // second and Tortie did not start it.
           const read = readInterpreterDetail(payload.detail, payload.message);
-          if (read !== null) setBlocked(read);
+          if (read !== null) setBlocked({ ...read, agentId: agent });
           else setGenericError(payload.message);
         } else {
           setGenericError(errorText(err));
@@ -442,16 +542,33 @@ export function CreateSessionModal(): React.JSX.Element | null {
   // the last hovered/focused missing tile. It renders ONLY when there is a
   // command to hand over — the tile already said "not installed", so a row
   // that just repeats that in a sentence is noise (Phase 12.12 item 1).
+  // PHASE 49: the command comes from the scan row's install map, never from
+  // a hand-typed renderer table, so it now renders for every not-installed
+  // agent whose provider publishes a command.
   const captionId = absent?.agentId ?? hintAgent;
   const captionOption = options.find((o) => o.id === captionId);
-  const captionCmd = captionId !== null ? agentInstallCommand(captionId) : null;
+  const captionCmd = captionOption?.install?.command ?? null;
   // Reserve the row's height only when this machine could actually show it,
   // so the sheet never jumps as the pointer sweeps the board — and never
   // carries 24px of dead space on the usual machine, where every agent gmux
   // knows an install command for is already installed.
   const reserveInstallRow = options.some(
-    (o) => !o.installed && agentInstallCommand(o.id) !== null
+    (o) => !o.installed && o.install !== null
   );
+  // PHASE 49. The absent agent's install row, for state A's source line. Null
+  // for an agent with no published command, which draws the one no-command
+  // sentence instead.
+  const absentInstall: AgentInstallDisplay | null =
+    absent !== null
+      ? (options.find((o) => o.id === absent.agentId)?.install ?? null)
+      : null;
+  // PHASE 49. The refused agent's own picker option, for state B's
+  // provider-route branch. The selection can move while the block is on
+  // screen, so the block never reads from `selectedOption`.
+  const blockedOption =
+    blocked !== null
+      ? options.find((o) => o.id === blocked.agentId)
+      : undefined;
   // Phase 23 fix round. The confirm gate's sentence for whichever configured
   // tile the pointer or the keyboard last reached. It has its own row rather
   // than sharing the install row, because the two say different things and the
@@ -527,7 +644,7 @@ export function CreateSessionModal(): React.JSX.Element | null {
                   it, so a pointer sweeping the board still moves nothing. */}
               <div className="field-caption install-note">
                 {captionOption !== undefined && captionCmd !== null
-                  ? 'Tortie does not run install commands for you.'
+                  ? INSTALL_NOTE_LINE
                   : null}
               </div>
             </>
@@ -662,17 +779,17 @@ export function CreateSessionModal(): React.JSX.Element | null {
             </h3>
             <p className="launch-block-body">{blocked.message}</p>
             <p className="launch-block-body">There are two ways forward.</p>
-            <ol className="launch-block-ways">
-              <li>
-                Install {binName(blocked.binPath)} another way, one that does
-                not need {blocked.interpreter}.
-              </li>
-              <li>
-                Make {blocked.interpreter} visible to Tortie. Add its directory
-                to your login shell&rsquo;s startup file, then quit Tortie and
-                open it again.
-              </li>
-            </ol>
+            <BlockedWays
+              blocked={blocked}
+              label={blockedOption?.label ?? binName(blocked.binPath)}
+              install={blockedOption?.install ?? null}
+              onCopy={(command) => {
+                void navigator.clipboard.writeText(command).then(
+                  () => toast('info', 'Install command copied'),
+                  () => toast('error', 'Could not copy the command')
+                );
+              }}
+            />
             <div className="launch-block-actions">
               <button
                 type="button"
@@ -690,6 +807,17 @@ export function CreateSessionModal(): React.JSX.Element | null {
               {agentShortLabel(absent.agentId)} is not installed
             </h3>
             <p className="launch-block-body">{absent.message}</p>
+            {/* PHASE 49. The command block itself is the pinned caption row
+                above the board. Under it, name where the command was read
+                from and when. An agent with no published command (muse, a
+                configured agent) gets the one no-command sentence instead. */}
+            {absentInstall !== null ? (
+              <InstallSourceLines install={absentInstall} />
+            ) : (
+              <p className="launch-block-body">
+                {noInstallCommandLine(agentShortLabel(absent.agentId))}
+              </p>
+            )}
             <div className="launch-block-actions">
               <button
                 type="button"

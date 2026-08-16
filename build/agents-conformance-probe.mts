@@ -47,6 +47,10 @@
  */
 
 import {
+  peekDetectedAgents,
+  versionProbeCount
+} from '../src/main/agents/detection';
+import {
   AGENT_REGISTRY,
   LAUNCHABLE_AGENT_IDS,
   SESSION_ID_SLOT,
@@ -337,7 +341,9 @@ const BROKEN_ROW = {
 /** A patch of a compiled agent that changes nothing a process would run. */
 const PRESENTATION_ROW = { id: 'claude', displayName: 'Claude', iconKey: 'terminal' };
 
-interface MergedEntry extends Omit<AgentRegistryEntry, 'id'> {
+// `install` is excluded to mirror MergedAgentEntry (Phase 49): the merged
+// table carries it nullable, and nothing in this probe reads it.
+interface MergedEntry extends Omit<AgentRegistryEntry, 'id' | 'install'> {
   id: string;
   source: 'builtin' | 'patched' | 'config';
 }
@@ -847,6 +853,21 @@ const agents = LAUNCHABLE_AGENT_IDS.map(compiledReport);
 const seam = await seamReport();
 const p33 = await p33Section();
 
+// ---------------------------------------------------------------------------
+// Phase 49 — the version probe is unreachable from the create path
+// ---------------------------------------------------------------------------
+//
+// Everything above composed the FULL create-path spec for every launchable
+// agent, plus the renderer seed, the overlay merge and the passthrough row.
+// If any of it could reach a version probe, the counter below would have
+// moved and the peek would hold a resolved scan. Asserting both here makes
+// the claim executable on every future commit that touches the agent table,
+// not once.
+const probeBudget = {
+  versionProbeCount: versionProbeCount(),
+  scanResolved: peekDetectedAgents() !== null
+};
+
 process.stdout.write(
   JSON.stringify({
     synthId: SYNTH_ID,
@@ -858,6 +879,7 @@ process.stdout.write(
     agents,
     renderer: rendererReport(),
     seam,
-    p33
+    p33,
+    probeBudget
   })
 );

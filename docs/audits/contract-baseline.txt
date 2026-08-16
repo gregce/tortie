@@ -312,7 +312,7 @@ GMUX_TMUX_TARBALL_DIR
 GMUX_UPDATE_REHEARSAL
 GMUX_UPDATE_STATE_ROOT
 
-[harness.smoke.modes] count=18
+[harness.smoke.modes] count=19
 agent
 basic
 capture
@@ -328,6 +328,7 @@ procid
 quit
 reconstruct
 refusal
+shadow
 t3-prep
 t3-verify
 verify

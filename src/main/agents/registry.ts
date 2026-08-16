@@ -306,6 +306,46 @@ export interface AgentActivityProfile {
   verified: 'verified' | 'partial' | 'unverified';
 }
 
+/**
+ * Where this agent comes from, and how to tell (Phase 49, research 47 §3, §5, §10).
+ *
+ * NOTHING HERE IS EVER RUN. Every string is display and clipboard material
+ * only. There is no call site that passes any of it to a spawn, and
+ * `npm run conformance:installs` plus one grep keep that true.
+ *
+ * The table is re-read from the providers' pages once per quarter and after
+ * any agent CLI upgrade. A re-read updates `readOn` even when the command did
+ * not change. The surfaces print the date, so the user is never holding a
+ * stale string with no way to tell.
+ */
+export interface AgentInstallInfo {
+  /**
+   * The provider's own first-listed install command, verbatim, with the page
+   * it was read from and the date it was read. Null when the provider
+   * publishes no install command at all. That is muse, whose launcher script
+   * is first party but not documented, and the two capture-only IDE rows.
+   */
+  canonical: {
+    /** e.g. 'curl -fsSL https://claude.ai/install.sh | bash'. DISPLAY ONLY. */
+    command: string;
+    /** The https page the command was read from. */
+    docUrl: string;
+    /** ISO date the page was read, e.g. '2026-08-15'. */
+    readOn: string;
+  } | null;
+  /** Other routes the provider blesses, so Tortie can say "you used X". */
+  alternates: { label: string; command?: string }[];
+  /** True when the provider's own first choice IS a package manager. */
+  canonicalIsPackageManager: boolean;
+  /** Path shapes that prove the canonical route. Null means not provable. */
+  signature: InstallSignature[] | null;
+}
+
+export type InstallSignature =
+  | { kind: 'realpath-under'; dir: string }   // '~/.local/share/claude/versions'
+  | { kind: 'marker-file'; path: string }     // '~/.qwen/source.json'
+  | { kind: 'sibling-glob'; glob: string };   // 'muse-bin-*', beside the binary
+
 export interface AgentRegistryEntry {
   id: AgentRegistryId;
   displayName: string;
@@ -334,6 +374,13 @@ export interface AgentRegistryEntry {
    * session-id harvest). `~/` and `$VARS` allowed.
    */
   storeDirs: string[];
+  /**
+   * How this agent reaches a disk, per its own provider (Phase 49). REQUIRED
+   * on purpose: a new registry row (grok, Phase 59) cannot compile without
+   * one, and `npm run conformance:installs` checks its shape. Nothing in it
+   * is ever run.
+   */
+  install: AgentInstallInfo;
   /** null when there is no safe subprocess probe (the capture-only IDEs). */
   versionProbe: VersionProbe | null;
   /** null when not launchable in a pane. */
@@ -420,6 +467,22 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     binaries: ['claude'],
     extraProbeDirs: ['~/.claude/local'],
     storeDirs: ['~/.claude/projects'],
+    // Phase 49, research 47 §3, read 2026-08-15. Display and clipboard only.
+    install: {
+      canonical: {
+        command: 'curl -fsSL https://claude.ai/install.sh | bash',
+        docUrl: 'https://code.claude.com/docs/en/setup',
+        readOn: '2026-08-15'
+      },
+      alternates: [
+        { label: 'Homebrew', command: 'brew install --cask claude-code' },
+        { label: 'winget', command: 'winget install Anthropic.ClaudeCode' },
+        { label: 'signed apt, dnf and apk repositories' },
+        { label: 'npm', command: 'npm install -g @anthropic-ai/claude-code' }
+      ],
+      canonicalIsPackageManager: false,
+      signature: [{ kind: 'realpath-under', dir: '~/.local/share/claude/versions' }]
+    },
     versionProbe: { args: ['-v'], identitySubstring: '(Claude Code)' },
     launch: {
       argv: ['claude'],
@@ -474,6 +537,19 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     binaries: ['cursor-agent'],
     extraProbeDirs: ['~/.cursor/bin'],
     storeDirs: ['~/.cursor/chats'],
+    // Phase 49, research 47 §3, read 2026-08-15. Display and clipboard only.
+    install: {
+      canonical: {
+        command: 'curl https://cursor.com/install -fsS | bash',
+        docUrl: 'https://cursor.com/docs/cli/installation',
+        readOn: '2026-08-15'
+      },
+      alternates: [],
+      canonicalIsPackageManager: false,
+      signature: [
+        { kind: 'realpath-under', dir: '~/.local/share/cursor-agent/versions' }
+      ]
+    },
     versionProbe: { args: ['--version'] },
     launch: {
       argv: ['cursor-agent'],
@@ -530,6 +606,24 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     binaries: ['codex'],
     extraProbeDirs: ['$NVM_BIN', '~/.nvm/versions/node/*/bin'],
     storeDirs: ['$CODEX_HOME/sessions', '~/.codex/sessions'],
+    // Phase 49, research 47 §3, read 2026-08-15. Display and clipboard only.
+    install: {
+      canonical: {
+        command: 'curl -fsSL https://chatgpt.com/codex/install.sh | sh',
+        docUrl: 'https://learn.chatgpt.com/docs/codex/cli',
+        readOn: '2026-08-15'
+      },
+      alternates: [
+        { label: 'npm', command: 'npm install -g @openai/codex' },
+        { label: 'Homebrew', command: 'brew install --cask codex' },
+        { label: 'GitHub release binaries' }
+      ],
+      canonicalIsPackageManager: false,
+      signature: [
+        { kind: 'marker-file', path: '~/.codex/packages/standalone/install.lock' },
+        { kind: 'realpath-under', dir: '~/.codex/packages/standalone' }
+      ]
+    },
     versionProbe: { args: ['--version'], fallbackArgs: ['-V'] },
     launch: {
       argv: ['codex'],
@@ -598,6 +692,24 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     binaries: ['gemini'],
     extraProbeDirs: [],
     storeDirs: ['~/.gemini/tmp'],
+    // Phase 49, research 47 §3, read 2026-08-15. Display and clipboard only.
+    // The provider's own first choice IS npm, so canonicalIsPackageManager is
+    // true and state B never offers this command as the interpreter-free way.
+    install: {
+      canonical: {
+        command: 'npm install -g @google/gemini-cli',
+        docUrl: 'https://geminicli.com/docs/get-started/installation',
+        readOn: '2026-08-15'
+      },
+      alternates: [
+        { label: 'npx', command: 'npx @google/gemini-cli' },
+        { label: 'Homebrew', command: 'brew install gemini-cli' },
+        { label: 'MacPorts' },
+        { label: 'conda' }
+      ],
+      canonicalIsPackageManager: true,
+      signature: null
+    },
     versionProbe: { args: ['--version'] },
     launch: {
       argv: ['gemini'],
@@ -652,6 +764,21 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     binaries: ['droid'],
     extraProbeDirs: [],
     storeDirs: ['~/.factory/sessions'],
+    // Phase 49, research 47 §3, read 2026-08-15. Display and clipboard only.
+    install: {
+      canonical: {
+        command: 'curl -fsSL https://app.factory.ai/cli | sh',
+        docUrl: 'https://docs.factory.ai/cli/getting-started/quickstart',
+        readOn: '2026-08-15'
+      },
+      alternates: [
+        { label: 'Homebrew', command: 'brew install --cask droid' },
+        { label: 'npm', command: 'npm install -g droid' },
+        { label: 'a PowerShell line on Windows' }
+      ],
+      canonicalIsPackageManager: false,
+      signature: null
+    },
     versionProbe: { args: ['--version'], postProcess: 'strip-ansi-last-line' },
     launch: { argv: ['droid'], quirks: [] },
     resume: {
@@ -724,6 +851,29 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     // "Restored legacy `.deepseek/sessions` visibility for upgraded
     // installs"). Probe both; either existing means installed-and-in-use.
     storeDirs: ['~/.codewhale/sessions', '~/.deepseek/sessions'],
+    // Phase 49, research 47 §3, read 2026-08-15. Display and clipboard only.
+    // The docUrl assumes the repository's default branch is `main`.
+    install: {
+      canonical: {
+        command: 'npm install -g codewhale',
+        docUrl: 'https://github.com/Hmbown/CodeWhale/blob/main/docs/INSTALL.md',
+        readOn: '2026-08-15'
+      },
+      alternates: [
+        {
+          label: 'install script',
+          command: 'curl -fsSL https://codewhale.net/install.sh | sh'
+        },
+        {
+          label: 'Homebrew',
+          command: 'brew tap Hmbown/deepseek-tui && brew install deepseek-tui'
+        },
+        { label: 'cargo', command: 'cargo install codewhale-cli --locked' },
+        { label: 'prebuilt archives' }
+      ],
+      canonicalIsPackageManager: true,
+      signature: null
+    },
     versionProbe: { args: ['--version'] },
     // argv[0] mirrors binaries[0] by invariant (registry.test.ts pins it);
     // every real launch passes the RESOLVED absolute path, which on an old
@@ -791,6 +941,21 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     binaries: ['agy'],
     extraProbeDirs: [],
     storeDirs: ['~/.gemini/antigravity-cli'],
+    // Phase 49, research 47 §3, read 2026-08-15. Display and clipboard only.
+    // The signature is null ON PURPOSE: the installer writes a bare Mach-O to
+    // ~/.local/bin/agy with no version directory and no marker, so a
+    // hand-copied binary at the same path is indistinguishable and a
+    // path-only test would claim more than disk can prove.
+    install: {
+      canonical: {
+        command: 'curl -fsSL https://antigravity.google/cli/install.sh | bash',
+        docUrl: 'https://antigravity.google/docs/cli/install',
+        readOn: '2026-08-15'
+      },
+      alternates: [],
+      canonicalIsPackageManager: false,
+      signature: null
+    },
     versionProbe: { args: ['--version'] },
     launch: {
       argv: ['agy'],
@@ -860,6 +1025,17 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     binaries: ['muse'],
     extraProbeDirs: [],
     storeDirs: ['$XDG_DATA_HOME/muse/sessions', '~/.local/share/muse/sessions'],
+    // Phase 49, research 47 §3, read 2026-08-15. The canonical is null ON
+    // PURPOSE: research 47 §13 says the row ships with no command or it does
+    // not ship, and muse's launcher URL is not a documented install command.
+    // The sibling-glob is the one disk shape that proves the first-party
+    // launcher: it keeps `muse-bin-*` copies beside the `muse` entry point.
+    install: {
+      canonical: null,
+      alternates: [],
+      canonicalIsPackageManager: false,
+      signature: [{ kind: 'sibling-glob', glob: 'muse-bin-*' }]
+    },
     versionProbe: { args: ['--version'] },
     launch: {
       argv: ['muse'],
@@ -921,6 +1097,24 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     binaries: ['qwen'],
     extraProbeDirs: [],
     storeDirs: ['~/.qwen/projects'],
+    // Phase 49, research 47 §3, read 2026-08-15. Display and clipboard only.
+    install: {
+      canonical: {
+        command:
+          'curl -fsSL https://qwen-code-assets.oss-cn-hangzhou.aliyuncs.com/installation/install-qwen-standalone.sh | bash',
+        docUrl: 'https://github.com/QwenLM/qwen-code',
+        readOn: '2026-08-15'
+      },
+      alternates: [
+        { label: 'npm', command: 'npm install -g @qwen-code/qwen-code@latest' },
+        { label: 'Homebrew', command: 'brew install qwen-code' }
+      ],
+      canonicalIsPackageManager: false,
+      signature: [
+        { kind: 'marker-file', path: '~/.qwen/source.json' },
+        { kind: 'realpath-under', dir: '~/.local/lib/qwen-code' }
+      ]
+    },
     versionProbe: { args: ['--version'] },
     launch: {
       argv: ['qwen'],
@@ -983,6 +1177,23 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
       '$PI_CODING_AGENT_DIR/sessions',
       '~/.pi/agent/sessions'
     ],
+    // Phase 49, research 47 §3, read 2026-08-15. Display and clipboard only.
+    install: {
+      canonical: {
+        command: 'curl -fsSL https://pi.dev/install.sh | sh',
+        docUrl: 'https://pi.dev',
+        readOn: '2026-08-15'
+      },
+      alternates: [
+        {
+          label: 'npm',
+          command: 'npm install -g --ignore-scripts @earendil-works/pi-coding-agent'
+        },
+        { label: 'pnpm and bun, also with --ignore-scripts' }
+      ],
+      canonicalIsPackageManager: false,
+      signature: null
+    },
     // `pi -v` prints a BARE semver ("0.84.1") with no product token, so there
     // is no identitySubstring to gate on; identity comes from storeDirs.
     versionProbe: { args: ['-v'] },
@@ -1046,6 +1257,14 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     binaries: ['cursor'],
     extraProbeDirs: [],
     storeDirs: ['~/Library/Application Support/Cursor/User/globalStorage/state.vscdb'],
+    // Phase 49. The IDE is installed as an app, not as a CLI; there is no
+    // install command to hand over and no path shape to test.
+    install: {
+      canonical: null,
+      alternates: [],
+      canonicalIsPackageManager: false,
+      signature: null
+    },
     versionProbe: null, // detection is store-existence, deliberately no subprocess
     launch: null,
     resume: {
@@ -1077,6 +1296,14 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
       '~/Library/Application Support/VSCodium/User/workspaceStorage',
       '~/Library/Application Support/VSCodium - Insiders/User/workspaceStorage'
     ],
+    // Phase 49. The IDE is installed as an app, not as a CLI; there is no
+    // install command to hand over and no path shape to test.
+    install: {
+      canonical: null,
+      alternates: [],
+      canonicalIsPackageManager: false,
+      signature: null
+    },
     versionProbe: null, // detection is workspaceStorage existence — no subprocess
     launch: null,
     resume: {
@@ -1200,9 +1427,16 @@ export function registryLaunchArgv(
  * anything from src/main/config/. The compiled `AgentRegistryEntry` satisfies
  * it, and so does the merged entry the configuration store produces.
  */
-export type LaunchableEntryLike = Omit<AgentRegistryEntry, 'id'> & {
+export type LaunchableEntryLike = Omit<AgentRegistryEntry, 'id' | 'install'> & {
   id: string;
   launch: AgentLaunchInfo;
+  /**
+   * Phase 49. Optional and nullable HERE, required on the compiled entry. The
+   * argv builders never read it, and a configured agent has no install map,
+   * so demanding one would keep a merged row out of these two functions for a
+   * field that decides nothing about what runs.
+   */
+  install?: AgentInstallInfo | null;
 };
 
 /**

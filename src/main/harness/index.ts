@@ -62,6 +62,13 @@
  *                       leftover count, hides the window, and drains again
  *                       for up to 15 s, so a 0 with those lines is the
  *                       classified late quit. `npm run smoke:quit`.
+ *  - GMUX_SMOKE=shadow  the bare-name invariant under a shadowed binary
+ *                       (Phase 49, Tier 3): two scratch copies of `droid` are
+ *                       planted at the head of a stubbed login-shell PATH, a
+ *                       session is created, and the manifest row, the pane's
+ *                       own printed $0, #{pane_start_command}, the collect-all
+ *                       resolver and the scan's shadowed list are each
+ *                       asserted. `npm run smoke:t3:shadow`.
  *  - GMUX_SMOKE=procid  what the OUTSIDE world sees of gmux (Phase 13.8):
  *                       app name, process.title, what `ps` prints, and the
  *                       gmux-owned process list (app + helpers + private tmux
@@ -103,6 +110,7 @@ import {
 import { runSmokeIdentity } from './identity';
 import { runSmokeProcId } from './procid';
 import { runSmokeQuit } from './quit';
+import { runSmokeShadow } from './shadow';
 import { runShot } from './shot';
 
 export interface HarnessDeps {
@@ -159,6 +167,13 @@ export async function dispatchHarness(deps: HarnessDeps): Promise<boolean> {
   }
   if (smoke === 'identity') {
     await runSmokeIdentity();
+    return true;
+  }
+  // Phase 49: the bare-name invariant, proven live with a shadowed binary.
+  // A session created with a shadowed copy launches the file the manifest
+  // recorded, and the spawn still uses the bare name (F3).
+  if (smoke === 'shadow') {
+    await runSmokeShadow();
     return true;
   }
   // Phase 19 item 1: the general fault harness. `fault-work` builds durable

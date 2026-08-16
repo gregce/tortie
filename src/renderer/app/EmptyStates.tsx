@@ -25,9 +25,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { keyDisplay } from '@shared/keymap';
 import { useApp } from '../state/store';
 import {
-  agentInstallCommand,
   buildAgentOptions,
   defaultAgentChoice,
+  INSTALL_NOTE_LINE,
   useAgentAvailability,
   type AgentPickerOption
 } from '../state/agents';
@@ -66,6 +66,38 @@ export function FirstRun(): React.JSX.Element {
 // ---------------------------------------------------------------------------
 // §6.2 — project with no sessions: the fleet
 // ---------------------------------------------------------------------------
+
+/**
+ * PHASE 49. The caption under the fleet for a missing agent, reading the
+ * provider's own command from the scan row rather than from a hand-typed
+ * table. The ⌘T modal carries the copy affordance for this command; here it
+ * is selectable text, so the state stays quiet. Exported pure so the unit
+ * tests can pin both sentences.
+ */
+export function HintedInstallCaption({
+  option
+}: {
+  option: AgentPickerOption;
+}): React.JSX.Element {
+  if (option.install === null) {
+    return (
+      <span className="agent-missing-text">
+        {option.label} is not installed. Tortie finds it as soon as it is on
+        your login shell&rsquo;s PATH.
+      </span>
+    );
+  }
+  return (
+    <>
+      <span className="agent-missing-text">
+        {option.label} is not installed. Copy this command and run it in a
+        terminal.
+      </span>
+      <code className="agent-missing-cmd">{option.install.command}</code>
+      <span className="agent-missing-text">{INSTALL_NOTE_LINE}</span>
+    </>
+  );
+}
 
 export function NoSessions(): React.JSX.Element {
   const quickCreate = useApp((s) => s.quickCreate);
@@ -117,7 +149,6 @@ export function NoSessions(): React.JSX.Element {
   };
 
   const hinted = options.find((o) => o.id === hint?.id) ?? null;
-  const hintedCmd = hinted !== null ? agentInstallCommand(hinted.id) : null;
 
   return (
     <div className="empty">
@@ -151,20 +182,7 @@ export function NoSessions(): React.JSX.Element {
         </p>
 
         <div className="onb-caption" aria-live="polite">
-          {hinted !== null ? (
-            <>
-              <span className="agent-missing-text">
-                {hintedCmd !== null
-                  ? `${hinted.label} isn’t installed. Install it with`
-                  : `${hinted.label} isn’t installed — Tortie picks it up as soon as it’s on your PATH.`}
-              </span>
-              {hintedCmd !== null ? (
-                // The ⌘T modal carries the copy affordance for this command;
-                // here it is selectable text, so the state stays quiet.
-                <code className="agent-missing-cmd">{hintedCmd}</code>
-              ) : null}
-            </>
-          ) : null}
+          {hinted !== null ? <HintedInstallCaption option={hinted} /> : null}
         </div>
       </div>
     </div>

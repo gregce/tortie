@@ -46,32 +46,22 @@ import { useEffect, useState } from 'react';
 import type { AgentAvailability, GmuxAgentExtras } from '@shared/ipc';
 import type {
   AgentsScanResult,
+  DetectedAgent,
   LaunchableAgentKind
 } from '@shared/types';
 
 /**
- * Install commands surfaced next to a disabled agent option.
+ * PHASE 49. The hand-typed install table that used to live here is deleted.
  *
- * Two entries, and that is deliberate rather than unfinished: these are the
- * only two agents whose install line Tortie has verified. Inventing a command
- * for the other eight would put an unchecked shell line in front of a user.
- * Read it through {@link agentInstallCommand} so a caller never has to write
- * the `id === 'claude' || id === 'codex'` test again.
+ * The provider's own install command now rides the scan row as
+ * `DetectedAgent.install`, straight from the install map in
+ * src/main/agents/registry.ts (research 47 §3). The scan is the truth, which
+ * is the same doctrine the seed below already states. Every string in it is
+ * display and clipboard material only. Nothing in it is ever run.
  */
-export const AGENT_INSTALL_COMMANDS: Record<'claude' | 'codex', string> = {
-  claude: 'npm install -g @anthropic-ai/claude-code',
-  codex: 'npm install -g @openai/codex'
-};
 
-/**
- * The install line for an agent, or null when Tortie has not verified one.
- *
- * A user-added agent always returns null. Tortie did not install it and has
- * nothing true to say about how to.
- */
-export function agentInstallCommand(id: string): string | null {
-  return id === 'claude' || id === 'codex' ? AGENT_INSTALL_COMMANDS[id] : null;
-}
+/** The scan row's install display info, non-null form. */
+export type AgentInstallDisplay = NonNullable<DetectedAgent['install']>;
 
 const OPTIMISTIC: AgentAvailability = { claude: true, codex: true };
 
@@ -167,6 +157,15 @@ export interface AgentPickerOption {
    * and got a modal error with no way to act on it.
    */
   configState: 'confirmed' | 'never' | 'changed' | 'unknown' | null;
+  /**
+   * PHASE 49. The provider's own install command for this agent, from the
+   * scan row, for display and the clipboard and nothing else. Null on the
+   * pre-scan seed, for muse, for the IDE pair and for a configured agent.
+   * For the few hundred milliseconds before the first scan answers, no
+   * install caption renders, and that is correct: the seed is a shape, and
+   * Tortie has nothing verified to hand over yet.
+   */
+  install: AgentInstallDisplay | null;
 }
 
 /**
@@ -284,7 +283,8 @@ export function buildAgentOptions(
         iconKey: a.iconKey,
         installed: a.installed,
         unverified: a.unverified,
-        configState: a.configState ?? null
+        configState: a.configState ?? null,
+        install: a.install ?? null
       }));
   } else {
     options = SEED_AGENTS.map(({ id, label, unverified }) => ({
@@ -295,7 +295,8 @@ export function buildAgentOptions(
       unverified,
       // The seed is the twelve compiled agents. None of them has anything to
       // confirm, and a configured agent is correctly absent before a scan.
-      configState: null
+      configState: null,
+      install: null
     }));
   }
   options.push({
@@ -304,7 +305,8 @@ export function buildAgentOptions(
     iconKey: 'shell',
     installed: true,
     unverified: false,
-    configState: null
+    configState: null,
+    install: null
   });
   return options;
 }
@@ -330,4 +332,225 @@ export function defaultAgentChoice(
   const preferred = installed(preferredId) ?? installed('claude');
   if (preferred !== undefined) return preferred.id;
   return options.find(usable)?.id ?? 'shell';
+}
+
+// ---------------------------------------------------------------------------
+// APPENDED — Phase 49 (the install map): the pure copy composers.
+//
+// Every sentence below is display material about how an agent reached the
+// disk or where its install command was read from. The composers are pure so
+// the unit tests can pin the exact words, and so the three surfaces that draw
+// them (the create sheet, the empty state, Settings then Agents) agree by
+// construction. Nothing here runs anything, ever.
+// ---------------------------------------------------------------------------
+
+/**
+ * One piece of a composed sentence. `code: true` renders in code font (paths,
+ * binary names, interpreter names); `code: false` is plain prose.
+ */
+export interface InstallCopySegment {
+  code: boolean;
+  text: string;
+}
+
+/** The sentence under every shown install command. Pinned for the tests. */
+export const INSTALL_NOTE_LINE = 'Tortie does not run install commands for you.';
+
+/** The one line added when the install map's read date is old. */
+export const STALE_INSTALL_LINE =
+  'This was read some time ago. Check the page if the command does not work.';
+
+const MONTH_NAMES = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December'
+];
+
+/**
+ * An ISO date such as '2026-08-15' as '15 August 2026'.
+ *
+ * Composed from the string's own parts rather than through `new Date`, so a
+ * timezone west of UTC can never shift the printed day back by one. A string
+ * that does not parse comes back unchanged rather than as "NaN undefined".
+ */
+export function formatReadOn(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (m === null) return iso;
+  const month = MONTH_NAMES[Number(m[2]) - 1];
+  if (month === undefined) return iso;
+  return `${Number(m[3])} ${month} ${Number(m[1])}`;
+}
+
+/**
+ * True when `readOn` is more than 180 days before `nowMs` (research 47 §10).
+ * Exactly 180 days is not stale; day 181 is.
+ */
+export function installReadIsStale(
+  readOn: string,
+  nowMs: number = Date.now()
+): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(readOn);
+  if (m === null) return false;
+  const readMs = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return nowMs - readMs > 180 * 86_400_000;
+}
+
+/** The source line under a shown command, e.g. on the create sheet. */
+export function installSourceSentence(readOn: string): string {
+  return `Read from the provider’s install page on ${formatReadOn(readOn)}.`;
+}
+
+/** The sentence for an agent whose provider publishes no install command. */
+export function noInstallCommandLine(label: string): string {
+  return (
+    `The provider does not publish an install command for ${label}. ` +
+    'Tortie finds it as soon as it is on your login shell’s PATH.'
+  );
+}
+
+/** The last path segment, e.g. '/Users/x/.local/bin/codex' → 'codex'. */
+function lastSegment(path: string): string {
+  return path.slice(path.lastIndexOf('/') + 1);
+}
+
+/** Home-relative display form, duplicated from app/format's displayPath so
+ *  this module keeps zero imports from the component layer. */
+function homePath(path: string): string {
+  const m = /^\/Users\/[^/]+(\/.*)?$/.exec(path);
+  return m !== null ? `~${m[1] ?? ''}` : path;
+}
+
+/**
+ * Which package manager the resolved file's real path names, for the state C
+ * sentence. Shape tests only, the same ones main's `installKind` uses:
+ * a path through node_modules is npm's global layout, and a path through a
+ * Cellar is Homebrew's. Anything else in a package-manager install reads as
+ * the generic sentence.
+ */
+export function packageManagerLabel(
+  realPath: string | null
+): 'npm' | 'Homebrew' | null {
+  if (realPath === null) return null;
+  if (realPath.includes('/node_modules/')) return 'npm';
+  if (
+    realPath.startsWith('/opt/homebrew/Cellar/') ||
+    realPath.startsWith('/usr/local/Cellar/')
+  ) {
+    return 'Homebrew';
+  }
+  return null;
+}
+
+/**
+ * State C (research 47 §7): the one passive line under an installed agent's
+ * path in Settings then Agents. Null unless the scan judged the install
+ * `package-manager`, because a canonical or unknown install that works is
+ * not a problem and draws nothing.
+ */
+export function installKindLine(
+  agent: DetectedAgent
+): InstallCopySegment[] | null {
+  if (agent.installKind !== 'package-manager') return null;
+  if (agent.binPath === null || agent.binPath === undefined) return null;
+  const path = homePath(agent.binPath);
+  const manager = packageManagerLabel(agent.realPath ?? null);
+  const opening =
+    manager !== null
+      ? `Installed with ${manager}, at `
+      : 'Installed from a package manager, at ';
+  const line: InstallCopySegment[] = [
+    { code: false, text: opening },
+    { code: true, text: path }
+  ];
+  const runtime = agent.runtime ?? null;
+  if (
+    manager === 'npm' &&
+    runtime !== null &&
+    runtime.kind === 'script' &&
+    runtime.interpreterPath !== null
+  ) {
+    line.push(
+      { code: false, text: '. Runs on ' },
+      { code: true, text: runtime.interpreter },
+      { code: false, text: ' from ' },
+      { code: true, text: homePath(runtime.interpreterPath) },
+      { code: false, text: '.' }
+    );
+  } else {
+    line.push({ code: false, text: '.' });
+  }
+  return line;
+}
+
+/**
+ * The one extra state C sentence, drawn when the provider's own first choice
+ * is NOT a package manager, so the person can see there is a native route.
+ * The component puts the `Read the install page` anchor after it. Null
+ * whenever the state C line itself would not draw.
+ */
+export function nativeRecommendSentence(agent: DetectedAgent): string | null {
+  if (agent.installKind !== 'package-manager') return null;
+  const install = agent.install ?? null;
+  if (install === null || install.canonicalIsPackageManager) return null;
+  const runtime = agent.runtime ?? null;
+  if (runtime !== null && runtime.kind === 'script') {
+    return `The provider recommends the native install, which does not need ${runtime.interpreter}.`;
+  }
+  return 'The provider recommends the native install.';
+}
+
+/** 'Two' to 'Five': the used copy plus one to four shadowed ones. */
+const COPY_COUNT_WORDS = ['Two', 'Three', 'Four', 'Five'];
+
+/** `, version 0.147.0` when known, nothing when the probe had no answer. */
+function versionClause(version: string | null): InstallCopySegment[] {
+  return version === null ? [] : [{ code: false, text: `, version ${version}` }];
+}
+
+/**
+ * The shadowed-copies sentence for Settings then Agents (research 47 §9).
+ * Null when the scan found no other copy of this binary name. The middle
+ * sentence changes when a Phase 23 override pinned the path, because "it
+ * comes first on your PATH" would then be false.
+ */
+export function shadowedLine(
+  agent: DetectedAgent
+): InstallCopySegment[] | null {
+  const shadowed = agent.shadowed ?? [];
+  if (shadowed.length === 0) return null;
+  if (agent.binPath === null || agent.binPath === undefined) return null;
+  const countWord =
+    COPY_COUNT_WORDS[Math.min(shadowed.length - 1, COPY_COUNT_WORDS.length - 1)];
+  const line: InstallCopySegment[] = [
+    { code: false, text: `${countWord} copies of ` },
+    { code: true, text: lastSegment(agent.binPath) },
+    { code: false, text: ' are installed. Tortie uses ' },
+    { code: true, text: homePath(agent.binPath) },
+    ...versionClause(agent.version),
+    {
+      code: false,
+      text:
+        agent.overridden === true
+          ? ', because you set its path in your agents file and confirmed it.'
+          : ', because it comes first on your PATH.'
+    }
+  ];
+  for (const copy of shadowed) {
+    line.push(
+      { code: false, text: ' There is also ' },
+      { code: true, text: homePath(copy.path) },
+      ...versionClause(copy.version),
+      { code: false, text: '.' }
+    );
+  }
+  return line;
 }

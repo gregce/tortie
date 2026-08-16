@@ -575,6 +575,37 @@ export function resolveBinaryAgainst(
 }
 
 /**
+ * Every executable hit for `bin` across the same walk, in walk order,
+ * deduped by path string. The first element equals resolveBinaryAgainst's
+ * answer whenever one exists. Same cost class: the walk is identical
+ * (Phase 49, research 47 §5 — the shadowed-copies list in Settings).
+ *
+ * A path-shaped input returns a zero-or-one element list, exactly as the
+ * sibling validates it: tilde-expanded, absolute, executable, or nothing.
+ */
+export function resolveBinaryAllAgainst(
+  bin: string,
+  pathValue: string,
+  extraDirs: readonly string[] = extraBinDirs()
+): string[] {
+  if (bin.length === 0) return [];
+  const expanded = bin.startsWith('~/') ? join(homedir(), bin.slice(2)) : bin;
+  if (expanded.includes('/')) {
+    return isAbsolute(expanded) && isExecutableFile(expanded) ? [expanded] : [];
+  }
+  const seen = new Set<string>();
+  const hits: string[] = [];
+  for (const dir of [...pathValue.split(delimiter), ...extraDirs]) {
+    if (dir.length === 0) continue;
+    const candidate = join(dir, expanded);
+    if (seen.has(candidate)) continue;
+    seen.add(candidate);
+    if (isExecutableFile(candidate)) hits.push(candidate);
+  }
+  return hits;
+}
+
+/**
  * Resolve a binary against the captured login-shell PATH + install dirs.
  * The one call sites use at session-create time (and Phase 10 detection).
  *

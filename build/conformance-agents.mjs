@@ -651,6 +651,36 @@ if (p33.state === 'absent') {
 }
 
 // ---------------------------------------------------------------------------
+// Section 6 — the version probe is unreachable from the create path (Phase 49)
+// ---------------------------------------------------------------------------
+//
+// The probe composed the full create-path spec for every launchable agent
+// before it read these two values. A create can never start a version probe
+// and can never wait on one; these two lines are what keep that sentence
+// executable rather than asserted.
+
+const pb = data.probeBudget ?? null;
+if (pb === null) {
+  fail(
+    'the probe printed no probeBudget section, so "the version probe is ' +
+      'unreachable from the create path" was not checked.'
+  );
+} else {
+  if (pb.versionProbeCount !== 0) {
+    fail(
+      `composing the create-path spec ran ${pb.versionProbeCount} version ` +
+        'probe(s). The create path must never start one.'
+    );
+  }
+  if (pb.scanResolved) {
+    fail(
+      'composing the create-path spec left a resolved detection scan behind, ' +
+        'so something on that path started a scan.'
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // The table, printed whatever the verdict, because the point is that a person
 // can read it.
 // ---------------------------------------------------------------------------
@@ -682,6 +712,11 @@ process.stdout.write(
     `agents including one the registry does not contain.\n`
 );
 process.stdout.write(`overlay loader: ${seam.state} (${seam.specifier}).\n`);
+if (pb !== null && pb.versionProbeCount === 0 && !pb.scanResolved) {
+  process.stdout.write(
+    'the version probe is unreachable from the create path: 0 probes ran and no scan started.\n'
+  );
+}
 
 process.stdout.write('\nenv passthrough (Phase 33)\n');
 process.stdout.write('-'.repeat(107) + '\n');

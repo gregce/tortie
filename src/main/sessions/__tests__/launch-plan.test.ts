@@ -19,6 +19,7 @@ import type { SpecstoryCaptureRecord } from '../../specstory';
 import {
   agentExtrasOf,
   agentNotFoundMessage,
+  bareNameFor,
   binaryCandidatesOf,
   interpreterMissingMessage,
   newSessionRecord,
@@ -246,6 +247,41 @@ describe('spawnArgvFor', () => {
     const inner = out[out.length - 1] ?? '';
     expect(inner).toContain('claude');
     expect(inner).not.toContain('/opt/bin/claude');
+  });
+});
+
+describe('bareNameFor (Phase 49, research 47 §9 and §11)', () => {
+  const abs = '/opt/bin/codex';
+
+  it('uses the bare name when the login-shell PATH picks the recorded file', () => {
+    expect(bareNameFor('codex', abs, abs)).toBe('codex');
+  });
+
+  it('stays absolute when the login-shell PATH resolves nothing', () => {
+    expect(bareNameFor('codex', abs, null)).toBeUndefined();
+  });
+
+  it('stays absolute when the login-shell PATH picks a DIFFERENT file', () => {
+    // The defect this function replaces: the old null test would have said
+    // yes here, and the manifest would record one file while the pane ran
+    // another.
+    expect(bareNameFor('codex', abs, '/usr/local/bin/codex')).toBeUndefined();
+  });
+
+  it('never spawns a path-shaped candidate as argv[0]', () => {
+    // A Phase 23 override row: tmux expands no tilde, so a ~/ or absolute
+    // candidate must never become the spawn's argv[0], whatever the PATH says.
+    expect(bareNameFor('~/bin/codex', abs, abs)).toBeUndefined();
+    expect(bareNameFor('/Users/me/bin/codex', abs, abs)).toBeUndefined();
+    expect(
+      bareNameFor('/Users/me/bin/codex', '/Users/me/bin/codex', '/Users/me/bin/codex')
+    ).toBeUndefined();
+  });
+
+  it('an overridden path therefore spawns the manifest argv byte for byte', () => {
+    const overridden = ['/Users/me/bin/codex', '--model', 'o5'];
+    const bare = bareNameFor('/Users/me/bin/codex', overridden[0] ?? '', null);
+    expect(spawnArgvFor(overridden, bare, undefined)).toBe(overridden);
   });
 });
 

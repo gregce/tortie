@@ -133,6 +133,38 @@ describe('checkAgentBinary, the files that are not scripts', () => {
   });
 });
 
+describe('the runtime detail on an ok answer (Phase 49)', () => {
+  it('reports a non-script as a binary', async () => {
+    const path = join(root, 'macho-runtime');
+    writeFileSync(path, Buffer.from([0xcf, 0xfa, 0xed, 0xfe, 0x0c, 0x00]));
+    chmodSync(path, 0o755);
+    const health = await checkAgentBinary(path);
+    expect(health.answer).toBe('ok');
+    if (health.answer !== 'ok') return;
+    expect(health.runtime).toEqual({ kind: 'binary' });
+  });
+
+  it('reports a script with its interpreter and the resolved path', async () => {
+    const health = await checkAgentBinary(shim('#!/usr/bin/env node\n'));
+    expect(health.answer).toBe('ok');
+    if (health.answer !== 'ok') return;
+    expect(health.runtime).toEqual({
+      kind: 'script',
+      interpreter: 'node',
+      interpreterPath: join(withNode, 'node')
+    });
+  });
+
+  it('carries the runtime through a cache hit', async () => {
+    const path = shim('#!/usr/bin/env node\n');
+    await checkAgentBinary(path);
+    const second = await checkAgentBinary(path);
+    expect(second.answer).toBe('ok');
+    if (second.answer !== 'ok') return;
+    expect(second.runtime.kind).toBe('script');
+  });
+});
+
 describe('checkAgentBinary, the scripts', () => {
   it('answers ok for #!/bin/sh', async () => {
     expect((await checkAgentBinary(shim('#!/bin/sh\necho hi\n'))).answer).toBe(

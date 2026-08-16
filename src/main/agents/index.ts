@@ -34,17 +34,26 @@ export {
   type AgentHealthAnswer,
   type AgentHealthInterpreterMissing,
   type AgentHealthOk,
-  type AgentHealthUnknown
+  type AgentHealthUnknown,
+  // Phase 49: what actually runs when the resolved file starts.
+  type AgentRuntime
 } from './health';
 export {
+  // Phase 49: the create path's synchronous read, and the two hooks that
+  // keep "the version probe is unreachable from the create path" executable.
+  detectionScanCount,
   expandDirs,
   expandPath,
   extractVersion,
+  installKindOf,
   listDetectedAgents,
+  peekDetectedAgents,
   rescanAgents,
   resetDetectionCache,
+  signatureMatches,
   stripAnsi,
-  VERSION_PROBE_TIMEOUT_MS
+  VERSION_PROBE_TIMEOUT_MS,
+  versionProbeCount
 } from './detection';
 export {
   AGENT_IDS,
@@ -69,9 +78,12 @@ export {
   type AgentFlagPreset,
   type AgentHarvestKey,
   type AgentIdCapture,
+  // Phase 49: the install map. Display and clipboard material only.
+  type AgentInstallInfo,
   type AgentLaunchInfo,
   type AgentRegistryEntry,
   type AgentResumeInfo,
+  type InstallSignature,
   type ResumeStrategy,
   type VersionProbe
 } from './registry';

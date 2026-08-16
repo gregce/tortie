@@ -48,6 +48,9 @@ export {
   resetUserPathCache,
   resolveBinary,
   resolveBinaryAgainst,
+  // Phase 49: every hit for one name across the same walk, for the
+  // shadowed-copies list in Settings. See src/main/agents/detection.ts.
+  resolveBinaryAllAgainst,
   // Phase 48: the counter a cache keys on when its answer was computed against
   // the captured PATH. See src/main/agents/health.ts.
   userPathEpoch,

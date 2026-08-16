@@ -769,6 +769,35 @@ export interface DetectedAgent {
    * so before the click rather than after it.
    */
   configState?: 'confirmed' | 'never' | 'changed' | 'unknown';
+  /**
+   * Phase 49. The provider's own install command, for display and the
+   * clipboard and nothing else. Null when the provider publishes none (muse),
+   * for the IDE pair, and for a configured agent. Nothing in it is ever run.
+   */
+  install?: {
+    command: string;
+    docUrl: string;
+    /** ISO date the provider's page was read, e.g. '2026-08-15'. */
+    readOn: string;
+    /** True when the provider's own first choice is a package manager. */
+    canonicalIsPackageManager: boolean;
+  } | null;
+  /** Phase 49. How the resolved copy reached the disk. 'unknown' when not installed. */
+  installKind?: 'canonical' | 'package-manager' | 'unknown';
+  /** Phase 49. What actually runs when the resolved file starts. Null when unknown. */
+  runtime?:
+    | { kind: 'binary' }
+    | { kind: 'script'; interpreter: string; interpreterPath: string | null }
+    | null;
+  /** Phase 49. The file binPath really is, after symlinks. */
+  realPath?: string | null;
+  /**
+   * Phase 49. Other copies of the same binary name found later in the walk,
+   * deduped by real path, capped at 4. Empty for almost every agent.
+   */
+  shadowed?: { path: string; version: string | null }[];
+  /** Phase 49. True when an agents.json patch pins this agent to an explicit path. */
+  overridden?: boolean;
 }
 
 /** Full detection result (agents:list / agents:rescan). */

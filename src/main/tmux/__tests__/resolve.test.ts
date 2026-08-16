@@ -39,6 +39,7 @@ import {
   resetUserPathCache,
   resolveBinary,
   resolveBinaryAgainst,
+  resolveBinaryAllAgainst,
   userPathEpoch
 } from '../resolve';
 
@@ -126,6 +127,68 @@ describe('resolveBinaryAgainst — precedence', () => {
 
   it('rejects empty input', () => {
     assert.equal(resolveBinaryAgainst('', root, []), null);
+  });
+});
+
+describe('resolveBinaryAllAgainst — every hit across the same walk (Phase 49)', () => {
+  it('returns every executable hit in walk order, first equal to the sibling', () => {
+    const a = join(root, 'all-a');
+    const b = join(root, 'all-b');
+    const c = join(root, 'all-c');
+    const first = makeBin(a, 'codex');
+    const second = makeBin(b, 'codex');
+    makeBin(c, 'other');
+    const pathValue = [a, b, c].join(delimiter);
+    const hits = resolveBinaryAllAgainst('codex', pathValue, []);
+    assert.deepEqual(hits, [first, second]);
+    assert.equal(hits[0], resolveBinaryAgainst('codex', pathValue, []));
+  });
+
+  it('dedupes a directory that appears twice on the PATH', () => {
+    const a = join(root, 'all-dup');
+    const winner = makeBin(a, 'gemini');
+    const hits = resolveBinaryAllAgainst('gemini', [a, a].join(delimiter), []);
+    assert.deepEqual(hits, [winner]);
+  });
+
+  it('walks extraDirs after every PATH dir, like the sibling', () => {
+    const onPath = join(root, 'all-onpath');
+    const extra = join(root, 'all-extra');
+    const first = makeBin(onPath, 'claude');
+    const second = makeBin(extra, 'claude');
+    assert.deepEqual(resolveBinaryAllAgainst('claude', onPath, [extra]), [
+      first,
+      second
+    ]);
+  });
+
+  it('skips non-executable files', () => {
+    const a = join(root, 'all-noexec');
+    const b = join(root, 'all-exec');
+    makeBin(a, 'droid', false);
+    const winner = makeBin(b, 'droid');
+    assert.deepEqual(
+      resolveBinaryAllAgainst('droid', [a, b].join(delimiter), []),
+      [winner]
+    );
+  });
+
+  it('answers a zero-or-one element list for a path-shaped input', () => {
+    const abs = makeBin(join(root, 'all-abs'), 'pi');
+    assert.deepEqual(resolveBinaryAllAgainst(abs, '', []), [abs]);
+    assert.deepEqual(
+      resolveBinaryAllAgainst(join(root, 'all-abs', 'missing'), '', []),
+      []
+    );
+    // A ~/ path that does not exist is validated as a path, never PATH-walked.
+    assert.deepEqual(
+      resolveBinaryAllAgainst('~/definitely-not-a-real-bin-xyz', '', [root]),
+      []
+    );
+  });
+
+  it('rejects empty input', () => {
+    assert.deepEqual(resolveBinaryAllAgainst('', root, []), []);
   });
 });
 

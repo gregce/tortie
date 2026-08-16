@@ -5045,7 +5045,7 @@ Still not true after the fix round:
 - `conformance:resume:capture` hangs on this machine, on this tree and on trees without this work,
   so it did not run. That is not a Phase 48 finding.
 
-## Phase 49 — the install map, precedence and probe budgets (research 47, parts C, D and E) QUEUED 2026-08-16, runs after Phase 60 and the 0.26.0 release, BEFORE Phase 59
+## Phase 49 — the install map, precedence and probe budgets (research 47, parts C, D and E) ✅ SHIPPED 2026-08-16 (this commit, 0.27.0)
 
 **Queue position, decided 2026-08-16.** It runs before the grok build phase on purpose: this phase
 creates the AgentInstallInfo shape on every registry row, and grok's new row should be born with

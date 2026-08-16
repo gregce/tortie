@@ -209,6 +209,37 @@ export function interpreterMissingMessage(
 }
 
 /**
+ * Whether the pane may be spawned by bare name (Phase 12.7 F3), given what
+ * the login-shell PATH resolves that name to (Phase 49, research 47 §9, §11).
+ *
+ * The bare name is used ONLY when it is really a bare name AND the file the
+ * pane's PATH would pick is byte-for-byte the file the manifest records.
+ * A path-shaped candidate (a Phase 23 override such as '~/x' or '/x') never
+ * spawns as argv[0]: tmux does no tilde expansion and the absolute argv in
+ * the manifest is already the right spawn. When onLoginPath differs from
+ * abs, the manifest would record one file while the pane ran another, so the
+ * launch stays absolute for exactly that create.
+ *
+ * HONESTY, so the next editor knows what this is insurance for. For a bare
+ * name TODAY the null test this replaced and the equality test coincide,
+ * because `getUserPath()` merges `extraBinDirs()` into every captured PATH,
+ * so any hit `resolveBinary(bare)` can find is also a userPath hit and equals
+ * `abs`. This function binds the invariant to the create path itself instead
+ * of to that merge, which someone tuning boot latency can remove without ever
+ * seeing this file. The path-shaped branch is a live fix, not insurance: an
+ * overlay row whose binary is written `~/x` or `/x` used to reach tmux as
+ * argv[0] and die, because tmux expands no tilde.
+ */
+export function bareNameFor(
+  bare: string,
+  abs: string,
+  onLoginPath: string | null
+): string | undefined {
+  if (bare.includes('/')) return undefined;
+  return onLoginPath === abs ? bare : undefined;
+}
+
+/**
  * The argv the pane actually spawns (Phase 12.7 F3 — LAUNCH BY BARE NAME).
  *
  * The manifest keeps the absolute path (restores must survive PATH drift,

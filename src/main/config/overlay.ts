@@ -74,7 +74,7 @@ import {
   RESERVED_AGENT_IDS,
   rowBearsExecution
 } from '@shared/agent-overlay';
-import type { AgentRegistryEntry } from '../agents/registry';
+import type { AgentInstallInfo, AgentRegistryEntry } from '../agents/registry';
 import { AGENT_REGISTRY } from '../agents/registry';
 import type { ConfigExecutionFields } from './confirm';
 import { EMPTY_EXECUTION_FIELDS, executionHash } from './confirm';
@@ -110,11 +110,18 @@ export type AgentEntrySource =
  * It is null for a compiled row, because a signed build is not something the
  * user is asked to vouch for, and it is null for a configured row that only
  * renames or re-icons a compiled agent.
+ *
+ * `install` is nullable HERE and required on the compiled entry (Phase 49).
+ * The install map is a fact about a provider Tortie compiled in, so the
+ * overlay's own input type (`AgentOverlayV1`) never carries it and a
+ * configured agent's row is null. A compiled or patched row keeps the
+ * compiled map through the spread.
  */
-export interface MergedAgentEntry extends Omit<AgentRegistryEntry, 'id'> {
+export interface MergedAgentEntry extends Omit<AgentRegistryEntry, 'id' | 'install'> {
   id: string;
   source: AgentEntrySource;
   executionHash: string | null;
+  install: AgentInstallInfo | null;
 }
 
 /** What the merge produced, and everything it refused on the way. */
@@ -1074,7 +1081,10 @@ function fromRow(row: AgentOverlayV1): MergedAgentEntry {
     unverified: true,
     ...(row.notes !== undefined ? { notes: row.notes } : {}),
     source: 'config',
-    executionHash: null
+    executionHash: null,
+    // Phase 49. Tortie has read no provider page for an agent the user's own
+    // file created, so there is no command to hand over and nothing to claim.
+    install: null
   };
   return withExecutionHash(entry, row);
 }

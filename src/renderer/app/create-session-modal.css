@@ -1,0 +1,13 @@
+/* Phase 49 — the create sheet's install source line. The anchor opens the
+   provider's page in the browser (trusted-window denies the navigation and
+   hands the https URL to the system). Colocated per the growth guardrails:
+   the sheet's older rules live in styles/app.css and stay there. */
+
+.install-page-link {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.install-page-link:hover {
+  text-decoration: underline;
+}

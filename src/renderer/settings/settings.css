@@ -380,6 +380,33 @@
   height: 18px;
 }
 
+/* Phase 49 — the passive lines under an agent row: where a not-installed
+   agent's command was read from, how a package-manager install reached the
+   disk, and which shadowed copies exist. Plain prose with paths and names
+   in code font. No badge, no color of alarm: an install that works is not
+   a problem. */
+.set-agent-note {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.set-agent-note-code {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.set-agent-link {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.set-agent-link:hover {
+  text-decoration: underline;
+}
+
 /* ------------------------------------------------------------ hotkeys */
 
 .set-hotkey-row-wrap + .set-hotkey-row-wrap {

@@ -40,7 +40,6 @@ import type {
   SessionScrollbackFacts
 } from '@shared/scrollback';
 import type {
-  AgentsScanResult,
   CreateSessionInput,
   LaunchableAgentKind,
   Project,
@@ -72,6 +71,10 @@ import {
   checkAgentBinary,
   expandDirs,
   listDetectedAgents,
+  // PHASE 49. The last RESOLVED scan, never a new one. The create path reads
+  // this synchronously, so a create can never start a version probe and can
+  // never wait on one.
+  peekDetectedAgents,
   registryResumeArgv
 } from '../agents';
 // PHASE 23. One lookup, into the merged agent table, in memory. It is used to
@@ -175,6 +178,7 @@ import { exitDetailFrom } from './exit-detail';
 import {
   agentExtrasOf,
   agentNotFoundMessage,
+  bareNameFor,
   binaryCandidatesOf,
   interpreterMissingMessage,
   newSessionRecord,
@@ -359,18 +363,6 @@ export class GmuxCore {
   private readonly foreignTmuxIds = new Set<string>();
   /** Last cols×rows pushed per session — see resizeSession (Phase 12.11). */
   private readonly lastGeometry = new Map<string, string>();
-
-  /**
-   * The last agent detection scan, kept so the create path can stamp the
-   * agent's version on the row (Phase 21, A8).
-   *
-   * `listDetectedAgents()` memoises its scan for the life of the process, so
-   * awaiting it on the create path runs no new subprocess. This field exists
-   * for the second reason: Settings' Re-scan replaces that memoised promise,
-   * and holding the resolved value here means a create always has an answer
-   * even while a re-scan is in flight.
-   */
-  private agentScan: AgentsScanResult | null = null;
 
   /** Phase 13: per-agent activity detection (src/main/activity). */
   readonly activity: SessionActivityMonitor;
@@ -629,13 +621,15 @@ export class GmuxCore {
       busy: () => core.createsInFlight.size > 0 || core.restoresInFlight.size > 0,
       dbPath
     });
-    // Phase 21 (A8). Warm the agent detection scan so the create path can
-    // record the agent's version without waiting for one. It is the same
-    // memoised scan the renderer asks for at startup, so this adds no probes
-    // to a normal launch; it removes the create path's dependence on the
-    // renderer having got there first. Unawaited, and a failure is nothing:
-    // the version is then recorded as unknown, which is what it is.
-    core.refreshAgentScan();
+    // Phase 21 (A8), rewired in Phase 49. Warm the agent detection scan so
+    // the create path can record the agent's version without waiting for one.
+    // It is the same memoised scan the renderer asks for at startup, so this
+    // adds no probes to a normal launch. Unawaited, and a failure is nothing:
+    // the version is then recorded as unknown, which is what it is. The
+    // create path reads `peekDetectedAgents()` synchronously and never awaits
+    // a scan, so this warm is what makes the answer almost always present
+    // before a human can press Create.
+    void listDetectedAgents().catch(() => undefined);
     // Phase 13.7 — one disk check, off the boot path. Boot is the moment
     // "sessions may not be saved when you quit" can still be acted on, and
     // this is deliberately the ONLY unprompted sample: the alternative was an
@@ -754,22 +748,16 @@ export class GmuxCore {
   // The agent version at launch — Phase 21 (A8, research 30 §2.4 D1)
   // -------------------------------------------------------------------------
 
-  /** Pull the memoised detection scan into `agentScan`. Never throws. */
-  private refreshAgentScan(): void {
-    void listDetectedAgents()
-      .then((scan) => {
-        this.agentScan = scan;
-      })
-      .catch(() => undefined);
-  }
-
   /**
-   * The installed version of `agent`, or null when nothing can say.
+   * The installed version of `agent`, or null when nothing can say yet.
    *
-   * NO NEW SUBPROCESS RUNS HERE. `listDetectedAgents()` returns the scan the
-   * process already ran, memoised for its whole life. The await is for the one
-   * launch where a create arrives before the boot warm has resolved, and it
-   * waits on that same in-flight scan rather than starting another.
+   * SYNCHRONOUS SINCE PHASE 49, and that is the point. `peekDetectedAgents()`
+   * returns the last RESOLVED scan and never starts one, so a create can
+   * never start a version probe and can never wait on one. The boot warm
+   * above starts the scan early; the one create that races it records
+   * agent_version NULL on its row, exactly as the harvest path has always
+   * tolerated. The column is nullable and nothing on the restore path reads
+   * it for correctness (Phase 21 recorded the contract on the row instead).
    *
    * The manifest records the SpecStory wrapper's version already, explicitly
    * so a restore after a mid-flight upgrade replays the same binary. The agent
@@ -777,27 +765,11 @@ export class GmuxCore {
    * installed agents drifted in the three days between research 30 being
    * written and being re-measured, so this is the version that matters more.
    */
-  private async detectedAgentVersion(
-    agent: LaunchableAgentKind
-  ): Promise<string | null> {
-    if (agent === 'shell') return null;
-    await listDetectedAgents()
-      .then((scan) => {
-        this.agentScan = scan;
-      })
-      .catch(() => undefined);
-    return this.cachedAgentVersion(agent);
-  }
-
-  /**
-   * The same answer without waiting, for the harvest callback. A harvest can
-   * land hours after the create, and blocking a settle on a scan would be the
-   * wrong trade there: the id is what matters and the version is a note
-   * beside it.
-   */
   private cachedAgentVersion(agent: LaunchableAgentKind): string | null {
     if (agent === 'shell') return null;
-    return this.agentScan?.agents.find((a) => a.id === agent)?.version ?? null;
+    return (
+      peekDetectedAgents()?.agents.find((a) => a.id === agent)?.version ?? null
+    );
   }
 
   // -------------------------------------------------------------------------
@@ -2110,8 +2082,10 @@ export class GmuxCore {
     let bareName: string | undefined;
     // PHASE 23 FIX ROUND. Where to LOOK for the binary, which is as load
     // bearing as its name and is on the confirm sheet as "Looks for it in".
-    // Declared out here because BOTH halves of the fix need it: the resolve
-    // below, and the pane env at the spawn.
+    // Declared out here because two readers need it: the resolve below, and
+    // the bare-name decision after the health check. (Phase 49 corrected
+    // this comment. It used to say the pane env at the spawn also read it;
+    // nothing on the spawn path has read it since the Phase 48 rework.)
     let probeDirs: string[] = [];
     if (input.agent !== 'shell') {
       // Phase 10 (settings+hotkeys stream): the binary name comes from the
@@ -2200,9 +2174,20 @@ export class GmuxCore {
       // that PATH cannot find is one that command substitution cannot name
       // either, so there is no pattern for that pkill to match and nothing for
       // the bare name to protect.
+      // PHASE 49, research 47 §9 and §11. The decision itself lives in
+      // ./launch-plan (bareNameFor): the bare name is used only when it is
+      // really a bare name AND the file the pane's PATH would pick is
+      // byte-for-byte the file the manifest records. The old code tested
+      // `onLoginPath` for null where it must compare it with `abs`, and it
+      // passed a path-shaped Phase 23 override to tmux as argv[0], where no
+      // tilde is expanded and the pane died. The shortcut below is the same
+      // one as before, now refused for a path-shaped candidate so the rule
+      // in bareNameFor sees it.
       const onLoginPath =
-        probeDirs.length === 0 ? abs : await tmux.resolveBinary(bare);
-      bareName = onLoginPath === null ? undefined : bare;
+        probeDirs.length === 0 && !bare.includes('/')
+          ? abs
+          : await tmux.resolveBinary(bare);
+      bareName = bareNameFor(bare, abs, onLoginPath);
     }
 
     const id = randomUUID();
@@ -2260,13 +2245,14 @@ export class GmuxCore {
     // that looks resumed. Everything restore reads for correctness is written
     // here instead, while it is still true.
     //
-    // Three awaits, none of which spawns anything: the detection scan is
-    // memoised for the life of the process and warmed at boot, and the two
-    // realpath calls are one fs lookup each. The resolved cwd is recorded
-    // because it is the store key for five of the eleven agents, so a moved
-    // or re-cloned checkout is the difference between finding the
+    // Two awaits, neither of which spawns anything: the two realpath calls
+    // are one fs lookup each. The version read is SYNCHRONOUS since Phase 49
+    // (peekDetectedAgents never starts a scan and never waits on one), so a
+    // create can never stall behind a version probe. The resolved cwd is
+    // recorded because it is the store key for five of the eleven agents, so
+    // a moved or re-cloned checkout is the difference between finding the
     // conversation and not.
-    const agentVersion = await this.detectedAgentVersion(input.agent);
+    const agentVersion = this.cachedAgentVersion(input.agent);
     const cwdReal = await realpath(cwd).catch(() => cwd);
     const projectReal = await realpath(input.projectPath).catch(
       () => input.projectPath
