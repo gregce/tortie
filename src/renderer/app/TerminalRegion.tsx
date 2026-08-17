@@ -29,8 +29,10 @@ import {
   exitDetailNote,
   fastDeathSentence,
   fastDeathTitle,
+  machineUnreachable,
   statusVisual
 } from './status';
+import './unreachable.css';
 import {
   RenameInput,
   sessionMenuItems,
@@ -167,6 +169,43 @@ function RestoreAllBar({
 }
 
 // ---------------------------------------------------------------------------
+// Machine-unreachable condition bar (Phase 67)
+// ---------------------------------------------------------------------------
+
+/**
+ * The one line the whole condition gets. The copy is research 51 section
+ * 4.6's binding sentence, and it is the entire signal: no button, no icon,
+ * no notification anywhere else. Restore is deliberately not offered here,
+ * because nothing proved the sessions are gone, and a restore of a live
+ * session starts a second agent on the same conversation.
+ */
+export const UNREACHABLE_BAR_TEXT =
+  'Machine unreachable. Your sessions are untouched. Tortie just cannot ' +
+  'see them.';
+
+export function UnreachableBar(): React.JSX.Element {
+  return (
+    <div className="unreachable-strip" role="status">
+      <span className="unreachable-strip-text">{UNREACHABLE_BAR_TEXT}</span>
+    </div>
+  );
+}
+
+/**
+ * The region's one bar slot. While the machine condition is on, the
+ * restore-all bar does not render, so the two bars never argue: one says
+ * "nothing is proven gone" and the other would offer to act on death.
+ */
+export function RegionBars({
+  sessions
+}: {
+  sessions: Session[];
+}): React.JSX.Element | null {
+  if (machineUnreachable(sessions)) return <UnreachableBar />;
+  return <RestoreAllBar sessions={sessions} />;
+}
+
+// ---------------------------------------------------------------------------
 // Terminal region
 // ---------------------------------------------------------------------------
 
@@ -279,7 +318,7 @@ export function TerminalRegion(): React.JSX.Element {
   return (
     <main className="center" data-slot="terminal-stack">
       {band}
-      <RestoreAllBar sessions={projectSessions} />
+      <RegionBars sessions={projectSessions} />
       {projectSessions.length === 0 ? (
         <NoSessions />
       ) : grouped && activeSurface ? (

@@ -34,10 +34,18 @@ export function sessionById(id: string): Session | null {
   return useApp.getState().sessions.find((s) => s.id === id) ?? null;
 }
 
-/** A pane can accept a drop only while its session is actually running. */
+/**
+ * A pane can accept a drop only while its session is actually running.
+ * `unknown` (Phase 67) refuses on the same terms as exited and restorable:
+ * the server did not answer, so nothing may act on the session's tmux side.
+ */
 export function paneAccepts(session: Session | null): boolean {
   if (!session) return false;
-  if (session.status === 'exited' || session.status === 'restorable') {
+  if (
+    session.status === 'exited' ||
+    session.status === 'restorable' ||
+    session.status === 'unknown'
+  ) {
     return false;
   }
   return canInsert(session.id);

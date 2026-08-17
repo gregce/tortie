@@ -19,6 +19,8 @@ import {
   FAST_DEATH_MS,
   fastDeathSentence,
   fastDeathTitle,
+  machineUnreachable,
+  rollupDot,
   statusVisual
 } from '../status';
 
@@ -121,6 +123,48 @@ describe('statusVisual', () => {
     expect(statusVisual('running').dot).toBe('working');
     expect(statusVisual('needs_input').label).toBe('needs input');
     expect(statusVisual('restorable').label).toBe('saved');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 67 — unreachable is not dead
+// ---------------------------------------------------------------------------
+
+describe('the unknown status (Phase 67)', () => {
+  it('reads "unreachable" on the hollow dot, with no new color', () => {
+    expect(statusVisual('unknown')).toEqual({
+      dot: 'ended',
+      label: 'unreachable'
+    });
+  });
+
+  it('machineUnreachable is true as soon as one row reads unknown', () => {
+    expect(
+      machineUnreachable([{ status: 'running' }, { status: 'unknown' }])
+    ).toBe(true);
+    expect(machineUnreachable([{ status: 'unknown' }])).toBe(true);
+  });
+
+  it('machineUnreachable is false for any list with no unknown row', () => {
+    expect(machineUnreachable([])).toBe(false);
+    expect(
+      machineUnreachable([
+        { status: 'running' },
+        { status: 'restorable' },
+        { status: 'exited' },
+        { status: 'needs_input' },
+        { status: 'idle' },
+        { status: 'discarded' }
+      ])
+    ).toBe(false);
+  });
+
+  it('rollupDot still excludes unknown, so no tab lights up for it', () => {
+    expect(rollupDot(['unknown'])).toBe('none');
+    expect(rollupDot(['unknown', 'unknown'])).toBe('none');
+    expect(rollupDot(['unknown', 'running'])).toBe('working');
+    expect(rollupDot(['unknown', 'needs_input'])).toBe('attention');
+    expect(rollupDot(['unknown', 'idle'])).toBe('idle');
   });
 });
 

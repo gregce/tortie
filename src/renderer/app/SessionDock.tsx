@@ -102,7 +102,9 @@ function DockRow({
           'srow',
           selected ? 'selected' : '',
           status === 'needs_input' ? 'attention' : '',
-          ended ? 'ended' : ''
+          ended ? 'ended' : '',
+          // Phase 67: rows on an unreachable server dim as one condition.
+          status === 'unknown' ? 'session-unreachable' : ''
         ]
           .filter(Boolean)
           .join(' ')}

@@ -1,9 +1,14 @@
 /**
- * Unit tests for classifyTmuxFailure (src/main/tmux/errors.ts).
+ * Unit tests for classifyTmuxFailure and serverProbeVerdict
+ * (src/main/tmux/errors.ts).
  *
  * Phase 41 added two patterns and put them ahead of the three that were there,
  * so the order is now load bearing. These tests cover all five, and the one
  * string that is deliberately NOT matched.
+ *
+ * Phase 67 added the serverProbeVerdict suite at the bottom. Its cases are
+ * pinned to stderr bytes MEASURED on this machine, not to bytes anybody typed
+ * from memory. P67_MEASURED records the capture and the states it came from.
  *
  * Runner: vitest (`npm test`). Assertions on node:assert/strict.
  */
@@ -11,7 +16,8 @@
 import { describe, it } from 'vitest';
 import assert from 'node:assert/strict';
 
-import { classifyTmuxFailure } from '../errors';
+import { classifyTmuxFailure, serverProbeVerdict } from '../errors';
+import { gmuxError } from '../../errors';
 
 describe('the version patterns Phase 41 added', () => {
   it('classifies a protocol version mismatch', () => {
@@ -80,5 +86,114 @@ describe('the three patterns that were already here', () => {
 
   it('empty stderr carries no detail at all', () => {
     assert.equal(classifyTmuxFailure('', 'tmux x failed').payload.detail, undefined);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 67 — the probe verdict, pinned to measured bytes
+// ---------------------------------------------------------------------------
+
+/**
+ * GROUND TRUTH, captured 2026-08-17 with tmux 3.6a on scratch sockets under
+ * /private/tmp/tmux-501, never on the socket named gmux. Every server in the
+ * capture was started by the capture script and signalled by its recorded pid.
+ * Only the socket path differs from the bytes as captured.
+ *
+ * The capture also settled the question this boundary exists for, which is
+ * whether a STALLED server can produce a confirming sentence. It cannot. A
+ * server stopped with SIGSTOP makes the client hang and print nothing at all,
+ * and the exec timeout is what ends it.
+ *
+ * Two numbers from that state, because they changed the exec layer. With
+ * node's default killSignal of SIGTERM the tmux client caught the signal and
+ * exited 0, so the exec RESOLVED with empty stdout after 3005 ms, and an empty
+ * stdout from list-sessions reads as a completed probe with zero sessions.
+ * With killSignal SIGKILL the client cannot answer, the exec REJECTED after
+ * 3010 ms with empty stderr, and the classifier returns code UNKNOWN.
+ * supervisor.execTmux passes SIGKILL for exactly that reason.
+ */
+const P67_MEASURED = {
+  /** State 2. Server killed with SIGKILL, its socket file left behind. */
+  killedServer: 'no server running on /private/tmp/tmux-501/gmux-p67a-kill9\n',
+  /** State 1. A socket file that was never created. */
+  freshSocket:
+    'error connecting to /private/tmp/tmux-501/gmux-p67a-fresh ' +
+    '(No such file or directory)\n',
+  /** State 4. Socket file chmod 000 while the server was still alive. */
+  unreadableSocket:
+    'error connecting to /private/tmp/tmux-501/gmux-p67a-chmod ' +
+    '(Permission denied)\n',
+  /** State 5. Socket file deleted while the server was still alive. */
+  deletedSocket:
+    'error connecting to /private/tmp/tmux-501/gmux-p67a-unlink ' +
+    '(No such file or directory)\n',
+  /** State 3. A client killed by the exec timeout says nothing. */
+  timeoutSilence: ''
+} as const;
+
+describe('serverProbeVerdict: only a completed probe confirms death', () => {
+  it('confirms death for the sentence a refused connect produces', () => {
+    const err = classifyTmuxFailure(P67_MEASURED.killedServer, 'x');
+    assert.equal(err.payload.code, 'TMUX_UNREACHABLE');
+    assert.equal(serverProbeVerdict(err), 'no-server');
+  });
+
+  it('refuses to confirm death for a socket file that is not there', () => {
+    const err = classifyTmuxFailure(P67_MEASURED.freshSocket, 'x');
+    assert.equal(err.payload.code, 'TMUX_UNREACHABLE');
+    assert.equal(serverProbeVerdict(err), 'not-confirmed');
+  });
+
+  /**
+   * This string and the one above differ only in the socket path, and this
+   * one came from a server that was alive for the whole capture. That is the
+   * entire case for reading "No such file or directory" as proof of nothing.
+   */
+  it('refuses to confirm death for a deleted socket over a live server', () => {
+    const err = classifyTmuxFailure(P67_MEASURED.deletedSocket, 'x');
+    assert.equal(serverProbeVerdict(err), 'not-confirmed');
+  });
+
+  it('refuses to confirm death for a permission error', () => {
+    const err = classifyTmuxFailure(P67_MEASURED.unreadableSocket, 'x');
+    assert.equal(err.payload.code, 'TMUX_UNREACHABLE');
+    assert.equal(serverProbeVerdict(err), 'not-confirmed');
+  });
+
+  it('refuses to confirm death for a client that timed out silently', () => {
+    const err = classifyTmuxFailure(
+      P67_MEASURED.timeoutSilence,
+      'tmux list-sessions failed: Command failed'
+    );
+    assert.equal(err.payload.code, 'UNKNOWN');
+    assert.equal(err.payload.detail, undefined);
+    assert.equal(serverProbeVerdict(err), 'not-confirmed');
+  });
+
+  it('refuses to confirm death for a version mismatch', () => {
+    const err = classifyTmuxFailure(
+      'protocol version mismatch (client 8, server 7)\n',
+      'x'
+    );
+    assert.equal(serverProbeVerdict(err), 'not-confirmed');
+  });
+
+  /**
+   * The error code alone is not the evidence. A TMUX_UNREACHABLE that carries
+   * no detail has no completed sentence inside it, so it confirms nothing.
+   */
+  it('refuses to confirm death for TMUX_UNREACHABLE with no detail', () => {
+    const err = gmuxError('TMUX_UNREACHABLE', 'server is not running');
+    assert.equal(serverProbeVerdict(err), 'not-confirmed');
+  });
+
+  it('refuses to confirm death for anything that is not a GmuxError', () => {
+    assert.equal(
+      serverProbeVerdict(new Error('no server running')),
+      'not-confirmed'
+    );
+    assert.equal(serverProbeVerdict('no server running'), 'not-confirmed');
+    assert.equal(serverProbeVerdict(undefined), 'not-confirmed');
+    assert.equal(serverProbeVerdict(null), 'not-confirmed');
   });
 });

@@ -94,6 +94,12 @@ export {
   type VersionGate
 } from './version';
 
+// Phase 67 — whether one failed list exec CONFIRMED that no server owns the
+// socket, or proved nothing. The reconcile boundary in sessions/core.ts is
+// the consumer: 'no-server' is the only verdict allowed to flip rows to
+// 'restorable'; everything else produces 'unknown'.
+export { serverProbeVerdict, type ServerProbeVerdict } from './errors';
+
 // Pane environment: the UTF-8 guard (Bug C) and the GMUX_* markers every
 // managed pane carries (Phase 12.7 F3).
 export { managedPaneEnv, withUtf8Locale } from './env';

@@ -148,10 +148,38 @@ export function SavedMark({ className }: { className: string }): React.JSX.Eleme
 }
 
 /**
+ * Phase 22 §8.3 — the readout. This is the launch snapshot's only entry
+ * point, and it is why the snapshot is written at all: no agent records
+ * what configuration it loaded, and Tortie owns the launch, so it is the
+ * one thing on the machine that can answer. It is offered for a shell
+ * too, because "nothing was loaded" is a real answer to the question.
+ */
+function showLoadedItem(session: Session): MenuItemSpec {
+  return {
+    label: 'Show what it loaded…',
+    run: () => openSessionContext(session)
+  };
+}
+
+function copyDirectoryPathItem(session: Session): MenuItemSpec {
+  return {
+    label: 'Copy directory path',
+    run: () => {
+      void navigator.clipboard.writeText(session.cwd).then(
+        () => useApp.getState().toast('info', 'Directory path copied'),
+        () => useApp.getState().toast('error', 'Could not copy the path')
+      );
+    }
+  };
+}
+
+/**
  * The one session context menu (S4): Rename, Restore/Restart when ended,
  * Copy directory path, End session… / Remove. `renameTarget` is the
  * renamingSessionId value the calling surface listens for (rows use the
  * plain id; the identity strip prefixes 'strip:' so only one input renders).
+ * An `unknown` row (Phase 67) gets only the two verbs that read Tortie's
+ * own records; see the branch below.
  */
 export function sessionMenuItems(
   session: Session,
@@ -159,6 +187,15 @@ export function sessionMenuItems(
 ): (MenuItemSpec | 'sep')[] {
   const s = useApp.getState();
   const status = s.effectiveStatus(session);
+  // Phase 67. An `unknown` row is one Tortie cannot currently see: the
+  // session server did not answer and nothing proved the session dead. Every
+  // verb that acts on the tmux side (Rename, Restore, Restart, End
+  // session…, Remove) is omitted, because acting on a session that may be
+  // alive is how a second agent lands on one conversation. What remains are
+  // the two verbs that read only Tortie's own records.
+  if (status === 'unknown') {
+    return [showLoadedItem(session), copyDirectoryPathItem(session)];
+  }
   const ended = status === 'exited' || status === 'restorable';
   // Phase 26.3: Restore extends from restorable rows to exited rows that
   // still have material to bring back (saved scrollback or an armed resume
@@ -191,24 +228,8 @@ export function sessionMenuItems(
           }
         ]
       : []),
-    {
-      // Phase 22 §8.3 — the readout. This is the launch snapshot's only entry
-      // point, and it is why the snapshot is written at all: no agent records
-      // what configuration it loaded, and Tortie owns the launch, so it is the
-      // one thing on the machine that can answer. It is offered for a shell
-      // too, because "nothing was loaded" is a real answer to the question.
-      label: 'Show what it loaded…',
-      run: () => openSessionContext(session)
-    },
-    {
-      label: 'Copy directory path',
-      run: () => {
-        void navigator.clipboard.writeText(session.cwd).then(
-          () => useApp.getState().toast('info', 'Directory path copied'),
-          () => useApp.getState().toast('error', 'Could not copy the path')
-        );
-      }
-    },
+    showLoadedItem(session),
+    copyDirectoryPathItem(session),
     'sep',
     ...(ended
       ? [
@@ -236,6 +257,10 @@ export function sessionMenuItems(
 export function closeSession(session: Session): void {
   const s = useApp.getState();
   const status = s.effectiveStatus(session);
+  // Phase 67. Ending acts on the tmux side and removing acts on the
+  // manifest row, and neither is safe while Tortie cannot see the server:
+  // the session may be alive. The × does nothing for an `unknown` row.
+  if (status === 'unknown') return;
   if (status === 'exited' || status === 'restorable') {
     void s.removeSession(session.id);
   } else {

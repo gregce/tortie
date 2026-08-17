@@ -286,3 +286,90 @@ describe('death forensics (migration 003)', () => {
     expect(rec?.exitCode).toBeUndefined();
   });
 });
+
+/**
+ * Phase 67. 'unknown' is written by the reconcile boundary in
+ * ../../sessions/core.ts when the local server could not be reached and its
+ * death was NOT confirmed. This suite pins the two, and only two, ways a row
+ * leaves that status, and both of them run through a COMPLETED list.
+ *
+ * Neither exit needed a change in reconcile itself. The alive branch already
+ * treated 'unknown' as a status that needs flipping to 'running', and the else
+ * branch already marked any unclaimed, unskipped row 'restorable'. The tests
+ * are here so a later edit cannot quietly close either door.
+ */
+describe('reconcile — the two exits from unknown (Phase 67)', () => {
+  /** A row the boundary already marked, carrying a stale exit cause. */
+  function unknownRow(
+    id: string,
+    tmuxName: string,
+    createdAt = Date.now()
+  ): ManifestSessionRecord {
+    store.insertSession({
+      id,
+      name: tmuxName,
+      tmuxName,
+      projectPath: '/w',
+      cwd: '/w',
+      agent: 'shell',
+      status: 'running',
+      createdAt,
+      argv: ['/bin/zsh'],
+      lastSeen: createdAt
+    });
+    return store.updateSession(id, {
+      status: 'unknown',
+      exitCode: 3,
+      exitSignal: 'kill'
+    });
+  }
+
+  it('seeing the session alive is the evidence unknown was missing', () => {
+    unknownRow('id-a', 'work');
+    const result = store.reconcile([live('$4', 'work', 'id-a')]);
+
+    expect(store.getSession('id-a')?.status).toBe('running');
+    expect(result.alive.map((r) => r.id)).toEqual(['id-a']);
+    expect(result.bindings.get('id-a')).toBe('$4');
+  });
+
+  /**
+   * The row came back, so the cause recorded against the process that is no
+   * longer running goes with the status. Same write, so no crash can leave a
+   * live status beside a dead process's cause.
+   */
+  it('clears the exit cause when an unknown row comes back alive', () => {
+    unknownRow('id-a', 'work');
+    store.reconcile([live('$4', 'work', 'id-a')]);
+
+    const rec = store.getSession('id-a');
+    expect(rec?.exitCode).toBeUndefined();
+    expect(rec?.exitSignal).toBeUndefined();
+  });
+
+  it('a completed list with the row absent confirms the death', () => {
+    unknownRow('id-a', 'work');
+    const result = store.reconcile([]);
+
+    expect(store.getSession('id-a')?.status).toBe('restorable');
+    expect(result.restorable.map((r) => r.id)).toEqual(['id-a']);
+  });
+
+  /**
+   * The exemption applies to 'unknown' exactly as it applies to every other
+   * status. A row whose own evidence is newer than the list is not judged by
+   * that list, so it stays 'unknown' rather than being offered for restore.
+   */
+  it('does not confirm a death against a row newer than the snapshot', () => {
+    const snapshotAt = 1_000_000;
+    unknownRow('id-a', 'work', snapshotAt - 60_000);
+    store.updateSession('id-a', { lastSeen: snapshotAt + 5 });
+
+    const result = store.reconcile([], { snapshotAt });
+
+    expect(store.getSession('id-a')?.status).toBe('unknown');
+    expect(result.skipped.map((s) => s.reason)).toEqual([
+      'touched-after-snapshot'
+    ]);
+  });
+});

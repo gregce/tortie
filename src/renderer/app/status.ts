@@ -4,7 +4,7 @@
  * and motion (pulse), and every row carries the text label.
  */
 
-import type { SessionStatus } from '@shared/types';
+import type { Session, SessionStatus } from '@shared/types';
 
 export type DotKind = 'working' | 'attention' | 'idle' | 'ended' | 'failed';
 
@@ -243,19 +243,35 @@ export function statusVisual(
     }
     case 'restorable':
       return { dot: 'idle', label: 'saved' };
-    // The two members added in Phase 19 item 6. Nothing writes either of them
-    // yet, and they are rendered anyway: this switch has no `default`, so a
-    // member with no case here is a compile error, which is exactly how the
-    // union is meant to behave when a later phase starts producing them.
     case 'unknown':
-      // A hollow dot, because hollow is what the other two "not working right
-      // now" states use, and no new colour is invented for a state the user
-      // cannot act on. The label is the honest word: Tortie cannot see this
-      // session and cannot prove it is gone.
-      return { dot: 'ended', label: 'unknown' };
+      // Produced since Phase 67: main writes it when the session server
+      // cannot be reached and its death is not confirmed by a completed
+      // probe. A hollow dot, because hollow is what the other "not working
+      // right now" states use, and no new colour is invented for a state the
+      // user cannot act on. The label is the honest word: Tortie cannot see
+      // this session and cannot prove it is gone.
+      return { dot: 'ended', label: 'unreachable' };
     case 'discarded':
+      // Added in Phase 19 item 6 with `unknown`; its producer is the
+      // reversible remove. This switch has no `default`, so a member with no
+      // case here is a compile error rather than a row that renders blank.
       return { dot: 'ended', label: 'removed' };
   }
+}
+
+/**
+ * True when the one local machine is unreachable, read off the rows.
+ *
+ * Phase 67. The condition is derived, never pushed over a channel of its
+ * own. One machine exists today, and its producer (the refresh catch arm in
+ * main) flips every eligible row to `unknown` together, so "at least one
+ * visible row reads unknown" is the whole machine condition. The M2 rung
+ * replaces the row scan with real machine ids.
+ */
+export function machineUnreachable(
+  sessions: readonly Pick<Session, 'status'>[]
+): boolean {
+  return sessions.some((s) => s.status === 'unknown');
 }
 
 /**

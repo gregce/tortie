@@ -7,16 +7,23 @@
  * file pins is the judgements that were inline in identify() and refresh()
  * until this stage: the identity probe, the retained bindings for skipped
  * rows, the stale-create sweep and the status-flip actions.
+ *
+ * Phase 67 added the listAttemptOutcome and unreachableFlips suites at the
+ * bottom. Together they pin the per-machine reconcile boundary: what a failed
+ * list is allowed to prove, and the whole status table that follows from it.
  */
 
 import { describe, expect, it } from 'vitest';
 import {
   identityProbeNeeded,
   identityProbeVerdict,
+  listAttemptOutcome,
   retainedBindings,
   staleCreateIds,
-  statusFlipActions
+  statusFlipActions,
+  unreachableFlips
 } from '../reconcile-plan';
+import type { SessionStatus } from '@shared/types';
 
 describe('identityProbeNeeded', () => {
   const known = new Set(['row-1']);
@@ -149,5 +156,137 @@ describe('statusFlipActions', () => {
       broadcast: true,
       captureSync: false
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 67 — the unreachable boundary
+// ---------------------------------------------------------------------------
+
+/**
+ * The three-way answer is the whole fix. Before Phase 67 a failed list had one
+ * branch, and "the exec failed" and "the server is dead" were the same fact.
+ */
+describe('listAttemptOutcome', () => {
+  it('a list that ran is listed, whatever it returned', () => {
+    expect(listAttemptOutcome(null)).toEqual({ kind: 'listed' });
+  });
+
+  it('only a completed probe reports no-server', () => {
+    expect(listAttemptOutcome('no-server')).toEqual({ kind: 'no-server' });
+  });
+
+  it('everything a failed exec did not prove is unreachable', () => {
+    expect(listAttemptOutcome('not-confirmed')).toEqual({
+      kind: 'unreachable'
+    });
+  });
+});
+
+/**
+ * The status table this suite pins, in full. `snapshotAt` is the instant the
+ * failed list was taken, so a row whose own evidence is newer than that is
+ * left alone whichever column it is in.
+ *
+ * | Prior status | On 'unreachable' | Why                                   |
+ * | ------------ | ---------------- | ------------------------------------- |
+ * | running      | unknown          | the claim of liveness lost its backing |
+ * | idle         | unknown          | same claim, quieter                    |
+ * | needs_input  | unknown          | same claim, and the gap is not queued  |
+ * | unknown      | unknown          | already honest, so no rewrite          |
+ * | restorable   | restorable       | its death was already confirmed        |
+ * | exited       | exited           | a terminal record, not a claim         |
+ * | discarded    | discarded        | a tombstone, never revived             |
+ * | in flight    | unchanged        | newer than the evidence                |
+ * | newer row    | unchanged        | newer than the evidence                |
+ */
+describe('unreachableFlips', () => {
+  const SNAPSHOT = 1_000_000;
+
+  /** One row, old enough that only its status decides the answer. */
+  function row(
+    id: string,
+    status: SessionStatus,
+    times: { createdAt?: number; lastSeen?: number } = {}
+  ) {
+    return {
+      id,
+      status,
+      createdAt: times.createdAt ?? SNAPSHOT - 60_000,
+      lastSeen: times.lastSeen ?? SNAPSHOT - 5_000
+    };
+  }
+
+  const NONE: ReadonlySet<string> = new Set();
+
+  it('downgrades every status that claims the session is alive', () => {
+    const rows = [
+      row('r-running', 'running'),
+      row('r-idle', 'idle'),
+      row('r-needs', 'needs_input')
+    ];
+    expect(unreachableFlips(rows, SNAPSHOT, NONE)).toEqual([
+      'r-running',
+      'r-idle',
+      'r-needs'
+    ]);
+  });
+
+  /**
+   * No rewrite and no event, so a 2 s retry cadence does not turn into a 2 s
+   * broadcast cadence for as long as the link stays down.
+   */
+  it('leaves a row that already reads unknown alone', () => {
+    expect(unreachableFlips([row('r', 'unknown')], SNAPSHOT, NONE)).toEqual([]);
+  });
+
+  /**
+   * A confirmed death is not un-confirmed by a later ambiguity. The offer of
+   * Restore stays honest, and a Restore pressed against an ambiguous socket
+   * fails cleanly and keeps the row's status.
+   */
+  it('never regresses a confirmed death back to unknown', () => {
+    expect(unreachableFlips([row('r', 'restorable')], SNAPSHOT, NONE)).toEqual(
+      []
+    );
+  });
+
+  it('leaves the two terminal records alone', () => {
+    const rows = [row('r-exited', 'exited'), row('r-discarded', 'discarded')];
+    expect(unreachableFlips(rows, SNAPSHOT, NONE)).toEqual([]);
+  });
+
+  it('leaves a create or a restore that is still in flight alone', () => {
+    const rows = [row('r-busy', 'running'), row('r-free', 'running')];
+    expect(unreachableFlips(rows, SNAPSHOT, new Set(['r-busy']))).toEqual([
+      'r-free'
+    ]);
+  });
+
+  /**
+   * The failed exec is evidence taken at `snapshotAt`. It proves nothing about
+   * a row born after that instant, and the tie goes to the row, the same `>=`
+   * rule skipReason uses in ../../manifest/reconciliation.ts.
+   */
+  it('leaves a row created at or after the snapshot alone', () => {
+    const rows = [
+      row('r-after', 'running', { createdAt: SNAPSHOT + 1 }),
+      row('r-tie', 'running', { createdAt: SNAPSHOT }),
+      row('r-before', 'running', { createdAt: SNAPSHOT - 1 })
+    ];
+    expect(unreachableFlips(rows, SNAPSHOT, NONE)).toEqual(['r-before']);
+  });
+
+  it('leaves a row seen alive at or after the snapshot alone', () => {
+    const rows = [
+      row('r-after', 'running', { lastSeen: SNAPSHOT + 1 }),
+      row('r-tie', 'running', { lastSeen: SNAPSHOT }),
+      row('r-before', 'running', { lastSeen: SNAPSHOT - 1 })
+    ];
+    expect(unreachableFlips(rows, SNAPSHOT, NONE)).toEqual(['r-before']);
+  });
+
+  it('returns nothing for an empty manifest', () => {
+    expect(unreachableFlips([], SNAPSHOT, NONE)).toEqual([]);
   });
 });

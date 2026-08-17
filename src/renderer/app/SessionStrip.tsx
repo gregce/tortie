@@ -142,7 +142,9 @@ function SessionTab({
         'stab',
         active ? 'active' : '',
         status === 'needs_input' ? 'attention' : '',
-        ended ? 'ended' : ''
+        ended ? 'ended' : '',
+        // Phase 67: tabs on an unreachable server dim as one condition.
+        status === 'unknown' ? 'session-unreachable' : ''
       ]
         .filter(Boolean)
         .join(' ')}

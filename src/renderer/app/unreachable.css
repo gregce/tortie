@@ -1,0 +1,38 @@
+/**
+ * Phase 67. The machine-unreachable condition (research 51 sections 4.4 and
+ * 4.6), presented at the session-list level.
+ *
+ * A whole unreachable server reads as ONE calm condition, never as a per-row
+ * alarm: one bar of plain text above the terminal, and dimmed rows. No
+ * button, no icon animation, no accent color. The bar shares the restore
+ * strip's box (h:32, same surface, same hairline) because the two occupy the
+ * same slot and never render together; TerminalRegion picks exactly one.
+ *
+ * Colors via tokens only. Dimming is opacity, so every token underneath
+ * (status dot, name, agent icon) keeps its meaning while reading as
+ * "currently out of sight".
+ */
+
+.unreachable-strip {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  flex: 0 0 32px;
+  padding: 0 var(--space-5);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.unreachable-strip-text {
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Dock rows and strip tabs whose session reads `unknown`. */
+.srow.session-unreachable,
+.stab.session-unreachable {
+  opacity: 0.55;
+}

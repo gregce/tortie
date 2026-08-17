@@ -530,6 +530,16 @@ export async function execTmux(
   try {
     const { stdout } = await execFileP(ctx.bin, argv, {
       timeout: options.timeoutMs ?? 10_000,
+      // SIGKILL, not the default SIGTERM (Phase 67). MEASURED 2026-08-17 on a
+      // scratch socket with the server stopped by SIGSTOP: the tmux client
+      // catches SIGTERM and exits 0, so a timed out exec RESOLVED with empty
+      // stdout instead of rejecting. For list-sessions that empty stdout read
+      // as a completed probe with zero sessions, which flipped every row to
+      // 'restorable' and offered Restore over agents that were still running.
+      // A client killed by SIGKILL cannot answer, the promise rejects, and
+      // the classifier returns code UNKNOWN, which the reconcile boundary
+      // treats as "nothing proven".
+      killSignal: 'SIGKILL',
       maxBuffer: MAX_BUFFER_BYTES,
       env: process.env
     });

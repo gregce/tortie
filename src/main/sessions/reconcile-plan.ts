@@ -20,6 +20,8 @@ import type { SnapshotFailedNotice } from '@shared/notice';
 import type { SessionRestore, SessionStatus } from '@shared/types';
 import { IDENTITY_HARVEST_KEYS } from '../manifest';
 import type { ClaimStrength, ManifestSessionRecord } from '../manifest';
+// Type only, so this module still touches no tmux code at runtime.
+import type { ServerProbeVerdict } from '../tmux/errors';
 
 // ---------------------------------------------------------------------------
 // Phase 19 item 4 — a capture pass that could not write says so once
@@ -247,6 +249,90 @@ export function staleCreateIds(
   const out: string[] = [];
   for (const [id, startedAt] of createsInFlight) {
     if (startedAt < cutoff) out.push(id);
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Phase 67 — the per-machine reconcile boundary (research 51 §4.3, §4.4, M0)
+// ---------------------------------------------------------------------------
+
+/**
+ * The machines this build reconciles. There is one, the local socket, and it
+ * adopts the boundary immediately. M2 replaces this with real machine ids.
+ */
+export type MachineId = 'local';
+
+/** The one machine that exists today. */
+export const LOCAL_MACHINE: MachineId = 'local';
+
+/** What one list attempt proved, reduced from the exec outcome. */
+export type ListAttemptOutcome =
+  /** The list completed. Reconcile normally. */
+  | { kind: 'listed' }
+  /** A completed probe confirmed death. Reconcile against the empty list. */
+  | { kind: 'no-server' }
+  /** Nothing was proven. Produce 'unknown', never 'restorable'. */
+  | { kind: 'unreachable' };
+
+/**
+ * Reduce one list attempt to what it PROVED.
+ *
+ * `verdict` is null when the exec ran to completion, and otherwise carries the
+ * judgement `serverProbeVerdict` passed on the failure. The whole point of the
+ * three-way answer is that "the exec failed" and "the server is dead" are
+ * different facts, and the old code had only one branch for both.
+ */
+export function listAttemptOutcome(
+  verdict: ServerProbeVerdict | null
+): ListAttemptOutcome {
+  if (verdict === null) return { kind: 'listed' };
+  return verdict === 'no-server'
+    ? { kind: 'no-server' }
+    : { kind: 'unreachable' };
+}
+
+/**
+ * The rows an unreachable verdict may write 'unknown' on.
+ *
+ * Only a status that CLAIMS liveness is downgraded, because those are the
+ * claims the lost link can no longer back: 'running', 'idle' and
+ * 'needs_input'. Everything the boundary refuses to touch, and why:
+ *
+ *  - 'unknown' is already the honest answer. No rewrite and no event, so a
+ *    2 s retry cadence does not become a 2 s broadcast cadence.
+ *  - 'restorable' keeps its confirmed death. A later ambiguity does not
+ *    un-confirm it, and a pressed Restore on an ambiguous socket fails
+ *    cleanly and keeps the row's status (the restore path guarantees that).
+ *  - 'exited' and 'discarded' are terminal records, not liveness claims.
+ *
+ * The same newer-than-the-evidence exemptions reconcile itself applies (see
+ * skipReason in ../../manifest/reconciliation.ts) apply here, with the same
+ * `>=` tie rule: an in-flight create or restore, and a row created or touched
+ * at or after `snapshotAt`, are left exactly as they are. The failed exec is
+ * evidence taken at `snapshotAt`, and it proves nothing about a row whose own
+ * evidence is newer.
+ */
+export function unreachableFlips(
+  rows: readonly Pick<
+    ManifestSessionRecord,
+    'id' | 'status' | 'createdAt' | 'lastSeen'
+  >[],
+  snapshotAt: number,
+  inFlightIds: ReadonlySet<string>
+): string[] {
+  const out: string[] = [];
+  for (const rec of rows) {
+    if (
+      rec.status !== 'running' &&
+      rec.status !== 'idle' &&
+      rec.status !== 'needs_input'
+    ) {
+      continue;
+    }
+    if (inFlightIds.has(rec.id)) continue;
+    if (rec.createdAt >= snapshotAt || rec.lastSeen >= snapshotAt) continue;
+    out.push(rec.id);
   }
   return out;
 }

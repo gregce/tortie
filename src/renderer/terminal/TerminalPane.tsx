@@ -70,6 +70,22 @@ interface OverlayState {
   action?: string;
 }
 
+/**
+ * True while the pane must swallow every byte the user types (Phase 67).
+ *
+ * An `unknown` session sits on a server Tortie cannot currently reach.
+ * Keystrokes sent into the attach client would queue in a socket nobody has
+ * proven alive and land later, all at once, in an agent conversation that
+ * may have moved on. The gate drops keystrokes, mouse reports and
+ * `noteTerminalInput` alike; the status semantics rule also requires the
+ * last one, because the user's own input must never clear a machine
+ * condition. Input flows again the moment a completed probe moves the row
+ * out of `unknown`.
+ */
+export function paneRefusesInput(status: SessionStatus | undefined): boolean {
+  return status === 'unknown';
+}
+
 /** Turn a main-process error (GmuxErrorPayload JSON) into friendly copy. */
 function friendlyAttachError(err: unknown): OverlayState {
   const raw = err instanceof Error ? err.message : String(err);
@@ -145,6 +161,12 @@ export function TerminalPane({
   const retryWebglRef = useRef<(() => void) | null>(null);
   const focusedRef = useRef(focused);
   focusedRef.current = focused;
+  // Phase 67: the input gate reads the CURRENT status, not the one the mount
+  // effect closed over. The attach stays mounted across an unreachable spell
+  // (deliberately, so a stall that resolves resumes the same view with no
+  // churn), which means the onData handlers below outlive many status flips.
+  const statusRef = useRef(status);
+  statusRef.current = status;
 
   // Phase 12.11 — one level for the whole terminal region, not one per pane.
   // A split grid whose panes disagreed about font size would read as a
@@ -292,11 +314,15 @@ export function TerminalPane({
     // Typing ALWAYS returns to live output first (scroll.sendInput): tmux
     // copy-mode has its own key table, so a keystroke sent while scrolled
     // would be eaten by it instead of reaching the agent.
+    // Phase 67: while the session reads `unknown`, everything is dropped at
+    // the source, including noteTerminalInput (see paneRefusesInput).
     const dataSub = term.onData((d) => {
+      if (paneRefusesInput(statusRef.current)) return;
       useApp.getState().noteTerminalInput(sessionId);
       scroll.sendInput(d);
     });
     const binarySub = term.onBinary((d) => {
+      if (paneRefusesInput(statusRef.current)) return;
       useApp.getState().noteTerminalInput(sessionId);
       scroll.sendInput(d);
     });
@@ -594,6 +620,20 @@ export function TerminalPane({
             This session is saved but not running — restore it to pick up
             where it left off.
           </div>
+        </div>
+      ) : status === 'unknown' ? (
+        // Phase 67. The attach underneath stays mounted, so a stall that
+        // resolves resumes the same view. This branch outranks the
+        // attach-error overlay while the status holds: the machine condition
+        // is the truer sentence, and it offers no button, because there is
+        // nothing safe to retry against a server nobody has proven alive.
+        // If the attach pty died during the gap, clearing the status reveals
+        // the existing exit overlay with its Reconnect button.
+        <div className="gmux-terminal-overlay">
+          <div className="gmux-terminal-overlay-title">
+            Machine unreachable
+          </div>
+          <div>Your sessions are untouched. Tortie just cannot see them.</div>
         </div>
       ) : overlay ? (
         <div className="gmux-terminal-overlay">

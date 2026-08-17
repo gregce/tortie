@@ -5506,7 +5506,7 @@ matrix on a real tailnet machine, are recorded as owed and run only when he is p
 
 | Phase | Was | Contents, from research 51 section 6 | Tier |
 | --- | --- | --- | --- |
-| 67 | M0 | `unknown` gets its producer at a per-machine reconcile boundary; restore and input refused while unreachable; the machine-level Unreachable presentation. Fixes the live LOCAL defect where refresh() flips every non-exited row to restorable on TMUX_UNREACHABLE. The local socket adopts the boundary immediately, decided per the operator's standing autonomy preference, because the local bug IS the point | 3 |
+| 67 | M0 | ✅ SHIPPED 2026-08-17 (this commit, 0.31.2), section below. `unknown` gets its producer at a per-machine reconcile boundary; restore and input refused while unreachable; the machine-level Unreachable presentation. Fixes the live LOCAL defect where refresh() flips every non-exited row to restorable on TMUX_UNREACHABLE. The local socket adopts the boundary immediately, decided per the operator's standing autonomy preference, because the local bug IS the point | 3 |
 | 68 | M1 | machines.json behind the confirm gate and seal, conformance:machines, the Settings surface, the tailscale picker from a pinned absolute path, the one visible connection test | 2 plus the gate |
 | 69 | M2 | MachineContext replaces the singleton; the exec plane over ssh with at-least-once discipline; remote server boot with -f /dev/null plus BOOT_SERVER_OPTIONS asserted; PATH capture ordered before first mutation; the version probe and refusal screen with remedy; error taxonomy golden files; keepalives from measurement. The dialect posture is a TESTED LIST that starts from locally measured versions and fails closed, so an unmeasured version is refused with the upgrade remedy, and his four machines join the list after the measurement he attends | 3 |
 | 70 | M3 | Attach over ssh -t in node-pty; create, kill and rename remote; the machine badge; session list by exec polling; restore REFUSED for every remote row with a visible coming label; the vocabulary audit. First visible operator value | 3 |
@@ -5564,3 +5564,71 @@ shows that same line even though the expanded row itself still shows its error. 
 the runs body's own scroll only, so an outer container scrolling would move the rows without
 closing it, which is the History card's behavior too. HistorySection still runs its own inline
 copy of the hover timers, so hover-timing.ts has exactly one consumer until a later consolidation.
+
+## Phase 67 — unreachable is not dead: the `unknown` status gets its producer (research 51, M0) ✅ SHIPPED 2026-08-17 (this commit, 0.31.2)
+
+The M0 rung of the remote ladder, landed against the local socket because the local bug was the
+point. `SessionStatus` has carried `unknown` since Phase 19 item 6 and nothing wrote it. `refresh()`
+read every `TMUX_UNREACHABLE` failure as death, reconciled against an empty list, and flipped every
+non-exited row to `restorable`. One dropped link therefore drew a wall of Restore buttons over
+agents that were still running, and pressing one starts a second agent on the same conversation.
+
+**What shipped.** A failed list is now judged before it is believed. `serverProbeVerdict` in
+src/main/tmux/errors.ts answers `no-server` or `not-confirmed` from the stderr the classifier
+already stores, and only `no-server` reaches the empty-list reconcile. Everything else goes to
+`markLocalServerUnreachable` in src/main/sessions/core.ts, which writes `unknown` on every row that
+still claims liveness and schedules a retry 2 s later. The decision itself is pure and lives in
+src/main/sessions/reconcile-plan.ts as `unreachableFlips`, `listAttemptOutcome` and the `MachineId`
+type the M2 rung replaces with real ids. The write goes through `updateSession`, not `setStatus`,
+because `setStatus` stamps `lastSeen` and nothing was seen. `liveIds` and `byTmuxId` are kept, since
+they answer which tmux session to attach to and that answer is still right during an outage. No
+capture sync runs on the flip, so the death backstop still fires exactly once, at confirmation.
+Three skip sets gained `unknown`: the activity poll, the detected-status writer and the snapshot
+pass. Only a completed list moves a row back out.
+
+The presentation is derived from the rows, with no new channel. `machineUnreachable` in
+src/renderer/app/status.ts reads the condition off the session list, `RegionBars` shows the one
+condition line and hides RestoreAllBar while it holds, dock rows and strip tabs dim through a
+`session-unreachable` class, and `statusVisual('unknown')` reads `unreachable` with the existing
+hollow dot. The pane keeps its attach mounted and draws an overlay with no button. Input is refused
+at the source, in `term.onData` and `term.onBinary` through a status ref, so keystrokes are dropped
+rather than queued into a socket nobody has proven alive. The menu for an `unknown` row offers only
+`Show what it loaded…` and `Copy directory path`, the × does nothing, and image drop refuses.
+
+**One measurement moved the spec.** The spec drafted a second confirming pattern for
+`error connecting to … (Connection refused)`. It is gone, because this client never prints those
+words. Measured against tmux 3.6a on scratch sockets by the builder and again, independently, by the
+verifier: `no server running on <path>` is printed only for a refused connect, and
+`error connecting to <path> (<reason>)` covers every other errno. A socket file that does not exist
+and a live server whose socket file was deleted print the same bytes, so a missing file can never be
+read as death. `execTmux` also had to move from the default SIGTERM to SIGKILL: the tmux client
+catches SIGTERM and exits 0, so a timed-out list resolved with empty stdout and read as a completed
+probe with zero sessions, which is the same wall of Restore buttons by another route.
+
+**What the live probes measured.** The verifier drove the real app three times on a scratch socket
+with an isolated profile. Dropping the link to a live server put both rows at `unknown` in 0.98 s
+and never at `restorable` across 29 samples, and a keystroke typed during the outage was absent from
+the pane after recovery while the control keystroke typed before it was present. Restoring the link
+returned the rows to `running` in 402 ms. In the decisive run the server was killed for real while
+the link was still down: the rows held `unknown` for the whole 12.0 s the server was genuinely dead
+and flipped to `restorable` 646 ms after the transport came back. Nothing was written to any exit
+field in any run. The operator's tmux server was counted at 28 sessions before and 28 after.
+
+**What is not true.** No remote transport was exercised. ssh, keepalives and master death are M2 and
+M4. The wake path was not proven on real hardware; the chmod stand-in exercises the same branch,
+which is all the classifier distinguishes. Nothing polls list-sessions on a timer, so the producer
+only fires when something already schedules a refresh, and a link loss that leaves the attach client
+alive keeps showing the old statuses until the next create, kill, boot, wake or control event. The
+pane right-click menu in src/renderer/terminal/terminal-menu.ts is still gated on mount state rather
+than status, so Split Session, Clear and the capture items stay clickable on an `unknown` row. The
+verifier traced each one and none can duplicate an agent on a conversation, the worst outcome being
+a visible error where a disabled item belonged. Paste is genuinely refused, because it arrives
+through `term.onData`. A row whose death was already confirmed keeps its `restorable` status during
+someone else's outage but loses the Restore-all bar for the length of it, since RegionBars suppresses
+that bar whenever any visible row reads `unknown`; the row's own menu still offers Restore. After a
+recovery the pane can show the pre-existing `This session has ended` overlay, because the attach
+client died during the outage, even though the row itself is live. The confirming stderr set is only
+as good as the fixtures for the bundled tmux, and a tmux upgrade that changes those sentences is
+caught by the fixture tests rather than by any probe. This phase added no IPC channel, no `gmux.*`
+key and no `GMUX_*` env, and the contract inventory matched its baseline byte for byte with no
+re-baseline.

@@ -190,11 +190,15 @@ import {
   claimStrengthOf,
   identityProbeNeeded,
   identityProbeVerdict,
+  listAttemptOutcome,
+  LOCAL_MACHINE,
   restoredStatus,
   retainedBindings,
   snapshotFailureNotice,
   staleCreateIds,
   statusFlipActions,
+  unreachableFlips,
+  type MachineId,
   type UnwrittenSnapshot
 } from './reconcile-plan';
 
@@ -213,6 +217,15 @@ const broadcast = broadcastEvent;
 // ---------------------------------------------------------------------------
 
 const REFRESH_DEBOUNCE_MS = 150;
+
+/**
+ * Retry cadence while the local server is unreachable (Phase 67). Each retry
+ * IS a fresh probe: the first one that completes flips the rows out of
+ * 'unknown' through the ordinary reconcile, so recovery needs no extra path.
+ * A fast-failing socket therefore probes at 0.5 Hz, and a hung one
+ * serializes behind the 10 s exec timeout.
+ */
+const UNREACHABLE_RETRY_MS = 2_000;
 
 /**
  * Cadence of the all-sessions activity poll. 1 Hz while a window has focus —
@@ -419,6 +432,13 @@ export class GmuxCore {
   private readonly syncOwners = new Map<SyncRequest, string>();
 
   private refreshTimer: NodeJS.Timeout | null = null;
+  /**
+   * True while the local machine is unreachable (Phase 67). It exists for the
+   * LOG only, so that a retry running every 2 s writes one line when the link
+   * drops and one when it comes back, instead of a line every 2 s for as long
+   * as the outage lasts. No status is ever read from it.
+   */
+  private localUnreachable = false;
   private statusTimer: NodeJS.Timeout | null = null;
   private sessionsBroadcastTimer: NodeJS.Timeout | null = null;
   private statusPollMs = STATUS_POLL_MS;
@@ -508,12 +528,21 @@ export class GmuxCore {
 
   /**
    * The live sessions the activity monitor evaluates: manifest rows that are
-   * neither exited nor restorable AND currently mapped to a live tmux id.
+   * neither exited, restorable nor unknown AND currently mapped to a live
+   * tmux id. 'unknown' is skipped (Phase 67) because the binding is kept
+   * through an unreachable spell on purpose, and polling a server Tortie
+   * cannot see would only produce noise.
    */
   private activitySessions(): ActivitySession[] {
     const out: ActivitySession[] = [];
     for (const rec of this.manifest.listSessions()) {
-      if (rec.status === 'exited' || rec.status === 'restorable') continue;
+      if (
+        rec.status === 'exited' ||
+        rec.status === 'restorable' ||
+        rec.status === 'unknown'
+      ) {
+        continue;
+      }
       const tmuxId = this.liveIds.get(rec.id);
       if (tmuxId === undefined) continue;
       out.push({ id: rec.id, tmuxId, agent: rec.agent, cwd: rec.cwd });
@@ -525,10 +554,22 @@ export class GmuxCore {
    * One verdict from the monitor. The manifest is the record of truth, so it
    * is written first and the cheap per-session event follows — and only when
    * something actually changed (the poll runs every second).
+   *
+   * 'unknown' is in the skip set (Phase 67): only a completed list may move
+   * a row out of 'unknown'. An activity verdict computed while the server was
+   * unreachable can arrive late, and writing it over 'unknown' would claim a
+   * liveness the boundary just said it cannot back.
    */
   private applyDetectedStatus(sessionId: string, status: SessionStatus): void {
     const rec = this.manifest.getSession(sessionId);
-    if (!rec || rec.status === 'exited' || rec.status === 'restorable') return;
+    if (
+      !rec ||
+      rec.status === 'exited' ||
+      rec.status === 'restorable' ||
+      rec.status === 'unknown'
+    ) {
+      return;
+    }
     if (rec.status === status) return;
     this.manifest.setStatus(sessionId, status);
     broadcast(EVT_STATUS_CHANGED, sessionId, status);
@@ -1179,7 +1220,16 @@ export class GmuxCore {
     /** Sessions whose scrollback this pass could not write. */
     const unwritten: UnwrittenSnapshot[] = [];
     for (const rec of this.manifest.listSessions()) {
-      if (rec.status === 'exited' || rec.status === 'restorable') continue;
+      // 'unknown' is skipped with the two dead statuses (Phase 67): capturing
+      // a pane on a server Tortie cannot reach only produces noise, and the
+      // session may still be alive to capture itself later.
+      if (
+        rec.status === 'exited' ||
+        rec.status === 'restorable' ||
+        rec.status === 'unknown'
+      ) {
+        continue;
+      }
       // F1: only capture panes we can prove are ours — a name-resolved
       // capture would file a STRANGER's scrollback as this session's
       // history and replay it on restore.
@@ -1466,14 +1516,20 @@ export class GmuxCore {
   // Reconcile
   // -------------------------------------------------------------------------
 
-  scheduleRefresh(): void {
+  /**
+   * `delayMs` defaults to the debounce every caller has always had. The one
+   * caller that passes anything else is the unreachable boundary, which
+   * retries at {@link UNREACHABLE_RETRY_MS}. A refresh already scheduled is
+   * left alone whichever delay it carries.
+   */
+  scheduleRefresh(delayMs: number = REFRESH_DEBOUNCE_MS): void {
     if (this.disposed || this.refreshTimer !== null) return;
     this.refreshTimer = setTimeout(() => {
       this.refreshTimer = null;
       void this.refresh().catch((err: unknown) => {
         sessionsLog.warn(`refresh failed: ${(err as Error).message}`);
       });
-    }, REFRESH_DEBOUNCE_MS);
+    }, delayMs);
   }
 
   /**
@@ -1525,9 +1581,17 @@ export class GmuxCore {
 
   /**
    * Reconcile the manifest against live tmux sessions, rebuild the id maps,
-   * and broadcast the refreshed list. TMUX_UNREACHABLE (server dead — T2)
-   * reconciles against an empty list so rows flip to 'restorable'; any other
-   * failure (transient timeout) skips reconciling rather than lie.
+   * and broadcast the refreshed list.
+   *
+   * A failed list is judged by {@link tmux.serverProbeVerdict} (Phase 67,
+   * research 51 §4.3). Only a COMPLETED probe that confirmed death, meaning
+   * the client itself ran to completion and reported that nothing owns the
+   * socket, reconciles against the empty list and flips rows to 'restorable'
+   * (the T2 path). Every other failure, e.g. a timeout, a permission error
+   * or a missing socket file, proves nothing about the server, so the rows
+   * are marked 'unknown' instead and a retry is scheduled. The old behavior
+   * read both cases as death, and one hiccup offered Restore on every
+   * session while the agents were still running.
    */
   async refresh(): Promise<void> {
     if (this.disposed) return;
@@ -1543,13 +1607,20 @@ export class GmuxCore {
     try {
       liveInfos = await tmux.listSessions();
     } catch (err) {
-      if (!isGmuxError(err, 'TMUX_UNREACHABLE')) {
-        sessionsLog.warn(
-          `list-sessions failed, skipping reconcile: ${(err as Error).message}`
-        );
+      const outcome = listAttemptOutcome(tmux.serverProbeVerdict(err));
+      if (outcome.kind === 'unreachable') {
+        this.markLocalServerUnreachable(LOCAL_MACHINE, snapshotAt, err);
         return;
       }
-      liveInfos = []; // server is really gone — the T2 path
+      liveInfos = []; // a completed probe confirmed death — the T2 path
+    }
+    // Past the boundary, so this list COMPLETED, whichever answer it gave.
+    if (this.localUnreachable) {
+      this.localUnreachable = false;
+      sessionsLog.warn(
+        `${LOCAL_MACHINE} session server reachable again. ` +
+          `The reconcile below is what moves the rows out of unknown`
+      );
     }
 
     const before = this.statusSnapshot();
@@ -1608,6 +1679,81 @@ export class GmuxCore {
     // Phase 6/13.5: harvesting sessions that outlived a gmux restart
     // mid-capture get their watch re-armed (no-op once the id is recorded).
     this.resumeIdHarvests();
+  }
+
+  /**
+   * The local machine could not be reached and its death was NOT confirmed
+   * (Phase 67, research 51 §4.3 and §4.4).
+   *
+   * Every row that still CLAIMS liveness is written 'unknown'. That is the
+   * one honest answer available, because the sessions may be running and
+   * Tortie cannot currently see them. The rules this method holds to, and the
+   * reason for each:
+   *
+   *  - `lastSeen` is not touched. Nothing was seen. `manifest.setStatus`
+   *    stamps `lastSeen` with the current time, so this writes the status
+   *    through `updateSession` instead. A bumped `lastSeen` would also make
+   *    the next reconcile treat the row as newer than its own evidence and
+   *    skip judging it.
+   *  - `liveIds` and `byTmuxId` are left intact. They answer "which tmux
+   *    session do I attach to", and during a lost link that answer is still
+   *    correct. The next completed reconcile rebuilds them from identity.
+   *  - No capture sync runs. A capture sync is the death backstop, and this
+   *    is not a death. The later flip from 'unknown' to 'restorable' happens
+   *    on the reconcile path, where `statusFlipActions` fires the backstop
+   *    exactly once, at the moment death is confirmed.
+   *  - No notice and no notification. The dimmed rows and the condition bar
+   *    in the renderer are the whole signal.
+   *
+   * A retry is scheduled at {@link UNREACHABLE_RETRY_MS}. Each retry IS a
+   * fresh probe, so recovery needs no separate path: the first list that
+   * completes flips these rows out of 'unknown' through the ordinary
+   * reconcile, to 'running' if they are alive and to 'restorable' if the
+   * completed probe reports no server.
+   *
+   * ONE FAILURE SHAPE DOES NOT HEAL ON THIS TIMER, and it is worth naming.
+   * MEASURED 2026-08-17 with tmux 3.6a: a socket file that does not exist
+   * prints "error connecting to <path> (No such file or directory)", which is
+   * byte-identical to what a LIVE server whose socket file was deleted
+   * prints, so neither can confirm death and both stay 'unknown' however many
+   * times they are retried. The control client heals that one instead. Its
+   * reconnect loop (500 ms to 10 s) re-runs `ensureServer`, a new server comes
+   * up on the socket, and the next list then COMPLETES with zero sessions,
+   * which is a listed empty result rather than a failed probe.
+   */
+  private markLocalServerUnreachable(
+    machine: MachineId,
+    snapshotAt: number,
+    err: unknown
+  ): void {
+    const flips = unreachableFlips(
+      this.manifest.listSessions(),
+      snapshotAt,
+      new Set([...this.createsInFlight.keys(), ...this.restoresInFlight])
+    );
+    for (const id of flips) {
+      try {
+        this.manifest.updateSession(id, { status: 'unknown' });
+      } catch (writeErr) {
+        sessionsLog.warn(
+          `could not mark ${id} unreachable: ${(writeErr as Error).message}`
+        );
+        continue;
+      }
+      broadcast(EVT_STATUS_CHANGED, id, 'unknown');
+    }
+    // Once when the link drops, and again only if a later retry finds more
+    // rows to mark. A retry that changes nothing says nothing.
+    if (!this.localUnreachable || flips.length > 0) {
+      sessionsLog.warn(
+        `${machine} session server unreachable and its death is not ` +
+          `confirmed. ${flips.length} sessions marked unknown. ` +
+          `The list failed with "${(err as Error).message}"`
+      );
+    }
+    this.localUnreachable = true;
+    if (flips.length > 0) this.broadcastSessions();
+    this.scheduleRefresh(UNREACHABLE_RETRY_MS);
   }
 
   /**
