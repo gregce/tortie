@@ -5129,66 +5129,45 @@ Recorded here so they are findable rather than forgotten.
 
 ---
 
-# The Arch pane, from research 49 (2026-08-15) RECORDED, NOT QUEUED
+# The Arch work, from research 49, COMPLETED 2026-08-16: The Standing Contract
 
-Specification: docs/research/49-arch-pane.md, 2818 lines. The operator asked for a first class Arch
-pane beside Explorer, Search, SCM and Context, mapping the project architecture onto an explorable
-canvas. The research says build the extractor, do not build the canvas yet, and put a measured gate
-between them. Nothing below is queued.
+**The first verdict from this research is superseded, and the record says why.** The 2026-08-15
+draft reached synthesis with only one of four designs delivered, because three architects died on
+API errors, and it recommended an extractor-first ladder gated on a median cross-group edge count
+of 8 against a measured 7. The operator ordered the competition completed. All four designs were
+then delivered and attacked, and all three judges independently chose a different design, The
+Standing Contract, with margins of 5 to 8 points over each judge's own second choice. The old
+phases 53 to 57 ladder and its edge-count gate are dead. Phase 52 had already been withdrawn by
+the operator on 2026-08-16, because it would have maintained his AS-BUILT markdown files, which
+are his pre-feature workaround and not a thing to keep alive.
 
-**Why the canvas waits.** The recommended design's own import rules were run over six of the
-operator's repositories. On gmux, across 621 non-test source files, the complete set of distinct
-cross-group edges is three, and all three point at `shared`. There are zero edges between main,
-renderer and preload, which are the three processes that make up the product. That is structural
-rather than a bug: 65 renderer files call `window.gmux` and none import the preload, because that is
-what a bridge is for, and the 149 declared invoke channels are strings rather than imports. An
-import graph draws the couplings a codebase makes cheap and misses the ones it deliberately makes
-expensive. The other five repositories are denser, at 14, 13, 8, 6 and 0 edges, so gmux is the least
-favourable case rather than a typical one. The measured median is 7.
+**The winning shape, from docs/research/49-arch-pane.md at 1531 lines.** Architectural promises
+live as plain JSON in `docs/arch/` inside the user's repository, written by the user or by an
+agent the user launches. Tortie's own compiled code checks every promise deterministically on
+every change burst, about 0.5 s on a repository this size, and says which promises hold, which
+broke at exactly which line, and which it cannot check. The verdicts surface first where the
+operator already looks, the pre-commit gate and the SCM view. A fifth sidebar view is the browse
+and repair surface. The canvas ships LAST, as an editor tab, generated on demand, and gated on an
+observed usage number rather than promised. The gate is the product; the picture is an output of
+it. The first slice adds ZERO npm packages and Tortie spends ZERO tokens on it forever. Optional
+narration runs on the user's own agent, modelled at $0 to $29.88 per run with prices verified
+live. The wall, voice and collaborators from the north star are refused under the charter and
+section 12 says so.
 
-**The gate, and it has a number.** Proceed to the canvas only if the median repository in the
-operator's own set produces at least 8 distinct cross-group edges at the level 0 partition after
-alias resolution. Eight is the low end of GitDiagram's shipped 8 to 30 edge budget, the only shipped
-per-level budget the survey found. Measured today by a stand-in script the median is 7, so the gate
-does not pass as things stand. Two of the six clear it comfortably. Phase B computes these edges
-anyway, so the gate is free, and it must be re-run with the real extractor before it decides
-anything.
+**ONE DECISION BLOCKS SLICE 1: the Zen addition in research 49 section 8.2**, one new section,
+two new refusal bullets and one clause, endorsed by all three judges as the minimum honest change,
+presented as a single accept or reject. Two sequencing conditions ride with acceptance: the argv
+defense from section 4.7 lands before the "nothing Tortie draws ever starts a process" bullet
+becomes true rather than aspirational, and the accepted-divergence visibility rule ships in the
+same phase as the words.
 
-**The cost the gate is weighed against.** A canvas slice is an estimated 7,500 to 11,500 insertions
-across 40 to 55 files, being an SVG surface, a layout engine binding, a layout reconciliation
-algorithm, a graph keyboard model with no ARIA pattern behind it, a new EditorMode arm and a
-conformance gate. The largest recent phase in this repository is 4,982 insertions across 34 files
-and the median is about 2,300. So the canvas is two to three phases, and on this repository it would
-buy a drawing with three edges.
-
-| # | Phase | What ships | Owned code, estimated | Tier | Tokens |
-| --- | --- | --- | --- | --- | --- |
-| 52 | ~~Map freshness~~ WITHDRAWN 2026-08-16 by the operator | It would have aged his AS-BUILT-ARCHITECTURE.md files against HEAD. He does not want those files parsed or maintained: they are his pre-feature workaround, shown to the research only as a design reference for what a first class map should contain. The ladder starts at 53 | 0 | n/a | 0 |
-| 53 | Structure and provenance | Import edges from five tree-sitter queries, the alias resolver, nine provenance classifiers each with an evidence receipt, an edge table in the disposable symbols.db, surfaced as a SIDEBAR LIST. No MCP and no drawing | 1,500 to 2,500 lines | 2, plus a conformance gate | 0 |
-| — | **The gate** | Re-run the real extractor and count. Pass value is a median of 8 | 0 | n/a | 0 |
-| 54 | Serve the structure to the user's own agents over MCP stdio | Hand-written newline-delimited JSON-RPC framing, no SDK, passed on the argv of a session the user creates | about 400 lines | **3**, because the argv lands in the manifest and touches restore | 0 |
-| 55 | The canvas | ONLY if the gate passes | 4,000 to 7,000 lines | 2 | 0 |
-| 56 | The names overlay | `.tortie/arch.names.json`, its schema, its validator, rename following, the naming-prompt composer | 800 to 1,200 lines | 2 | About $0.04 to $0.15 per optional naming pass |
-| 57 | The checkable contract | Coverage percentage, divergences at weight 2 or more, the unmapped-file check | 400 to 700 lines | 2 | 0 |
-
-**Phase 52 is the cheapest useful thing in the whole document and it needs no decision.** Eight of
-the operator's 30 AS-BUILT-ARCHITECTURE.md documents are more than 250 commits behind HEAD and one
-is 583 behind. Telling him that costs one `git log` per document and no tokens.
-
-**The Zen question, which the operator must answer before phase 55 or 56.** The research asks for
-two additive edits and rejects two others it had considered. It also leaves one blocking choice
-open, being whether a person may move a box the code did not put there. The Zen wording depends on
-that choice, so both candidate closing sentences are printed side by side in section 4.2.3 and one
-accept-or-reject covers both. Do not build 55 or 56 until he has answered.
-
-**What is not true, and it matters.** Three of the four competing designs were never delivered,
-because their agents died on API errors mid-response. Only the static-first design reached the
-judges, so the three judges scored one design rather than choosing among four, and nine of the
-twelve adversarial attacks had no target. The document says this plainly in section 12.1 and marks
-the missing attacks in its own table. The edge counts are real measurements but were taken with a
-100-line stand-in script rather than the real extractor, so they are a floor. The wall, the voice
-and the live collaborators from the operator's north star are not deliverable under the charter, and
-section 12.5 says so rather than implying otherwise.
+| # | Slice, recorded NOT queued | Contents | Blocked on |
+| --- | --- | --- | --- |
+| 63 | The contract without the canvas | The docs/arch format with schema and validator, the arch IPC domain, import captures with the manifest-aware resolver for TS, JS and Go, the five checkers with the argv defense and hostile fixture, the fifth sidebar view through the full registration cascade including the View menu item, the teaching empty state with the corpus-seeded prompt, conformance:arch, divergence rows in the SCM view. Tier 3 checkers, Tier 2 UI. Zero new packages | The operator accepting the Zen addition |
+| 64 | The aiming verb | The payload composer with byte-deterministic proof, delivery through tmux load-buffer with bracketed paste restricted to registry-launched sessions, per-agent matrix at Tier 3, the computed level 2 module view. This is the north star's point-and-riff sentence made textual | 63 |
+| 65 | The refresh loop | The delta prompt scoped to drifted claims, the session-change diff view from verdict deltas, the headless narration confirm sheet | 63 |
+| 66 | The canvas | An arch EditorMode arm on @xyflow/react 12.11.3 plus @dagrejs/dagre 3.1.1, both MIT, both verified free of eval, wasm and native code so the CSP stands. Gated FIRST on the CSS zoom spike and SECOND on an observed usage number from slices 1 to 3, e.g. 20 composed payloads or gate catches in a month | 64 and 65 in use, plus the number |
+| later | Flows at level 3, SCIP absorption, the Louvain regroup as a diff, Rust and Python resolver arms, a JSON Canvas one-way export | Each its own decision |
 
 ## Phase 58 — the update ring: progress above the gear instead of dialogs (operator requested 2026-08-16) ✅ SHIPPED 2026-08-16 (this commit, 0.26.0)
 
@@ -5433,7 +5412,7 @@ same no-vocabulary discipline that hides tmux today; and a phase ladder with cos
 docs/research/51-remote-machines.md in the house style with a verdict table and a what-is-not-true
 section. Nothing is built from it without the operator's word.
 
-## Phase 62 — a minimal theme system: highlight schemes and a contrast lift (operator requested 2026-08-16) ✅ SHIPPED 2026-08-16 (this commit, 0.31.0)
+## Phase 62 — a minimal theme system: highlight schemes and a contrast lift (operator requested 2026-08-16) ✅ SHIPPED 2026-08-16 (`c8508ec`, 0.31.0)
 
 **The operator's words.** "Build a minimal theme system into settings that allows for the color
 scheme of the highlighting to be changed BUT also to enable brightening of contrast etc as on some
