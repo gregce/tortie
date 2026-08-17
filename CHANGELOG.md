@@ -2,6 +2,20 @@
 
 Each release lists its changes under Added, Changed and Fixed. Two rules keep the sections readable, and both exist because the operator asked for them on 2026-08-16. First, every commit appears in EXACTLY ONE section, chosen by what the commit is: new capability under Added, a repaired defect under Fixed, existing behavior reshaped under Changed. One commit gets one item that tells its whole story, never one item per section, because the same hash repeated across three headers is confusing and defeats the point. Second, every paragraph and every bullet sits on a single unwrapped line, because the GitHub release page renders a newline as a line break, and hard-wrapped text shows ragged there. Prose appears above the sections only when something needs explaining. Versions follow semver: the minor moves for features, the patch for fixes. Release pages carry these entries verbatim.
 
+## 0.31.0 (2026-08-16)
+
+Five features in one release. The one you will see outside Tortie is that Finder now offers Tortie in the Open With menu. The one you will feel daily is that Settings finally tells you the truth about how your agents are installed.
+
+Nothing about your running sessions changes when you update.
+
+### Added
+
+- Settings names every installed copy of every agent, its version, and why the winning copy wins. When more than one copy is installed, the shadowed ones are named too, e.g. a gemini that npm keeps upgrading while a newer copy sits unused. When an agent is missing or cannot start, Tortie shows the provider's own install command with a copy button and the date it was read, and never runs it for you. A real defect rode along: with two copies on PATH, the manifest could record one file while the pane ran another, and a session now launches exactly the file the manifest recorded, proven live 8 checks of 8 ([`bf6e9e2`](https://github.com/gregce/tortie/commit/bf6e9e2))
+- A `tortie` shell command. Type `tortie .` in any terminal and that folder opens as a project tab in the running window, starting the app first if it is not running. Settings installs it with one click and removes it with one click. It opens one folder and does nothing else: it takes no flags, so no other process can use it to start an agent ([`051558e`](https://github.com/gregce/tortie/commit/051558e))
+- grok is the thirteenth supported agent. Create grok sessions, quit or reboot, and they resume by their own id with the conversation intact, proven live in 26.9 seconds from kill to recall. Grok's first-run banner used to leave the pane silent while the agent had already answered, and Tortie suppresses that banner at launch with your data sharing choice untouched. The NOTICE and README now carry the trademark lines for all thirteen agent marks ([`b8c59f4`](https://github.com/gregce/tortie/commit/b8c59f4))
+- Finder can open things into Tortie. Right click a folder, a markdown, HTML, source or text file, or an image, and Tortie is in the Open With list. A folder opens as a project tab. A file opens its project first, the git repository root above it or its parent folder, then the file itself. Binaries that are not images are not offered, and one forced through anyway gets a plain message, never an error. Tortie never becomes the default app for anything ([`6982ae4`](https://github.com/gregce/tortie/commit/6982ae4))
+- An Appearance section in Settings. Pick one of four highlight schemes, blue, teal, purple or slate, and raise contrast in two steps for less vivid displays. Measured lift: muted text contrast goes 4.80 to 5.28 to 5.78 across the steps. Blue at Normal is exactly what shipped before, byte for byte across all 33 theme tokens, so an untouched install looks identical ([`c8508ec`](https://github.com/gregce/tortie/commit/c8508ec))
+
 ## 0.26.1 (2026-08-16)
 
 Five versions in one release, and the two you will feel first are the tmux that ships inside the app and the update flow that stopped interrupting you.
