@@ -38,6 +38,10 @@ import {
   registryResumeArgv
 } from '../agents/registry';
 import type { ManifestSessionRecord } from '../manifest/store';
+// Phase 74. The one generated argument a shell argv carries. It is imported
+// rather than written out again, so this file and the create path cannot
+// disagree about which flag is generated.
+import { LOGIN_SHELL_FLAG } from '../manifest/login-shell';
 
 /** Does `argv` begin with every element of `prefix`, in order? */
 function startsWith(argv: readonly string[], prefix: readonly string[]): boolean {
@@ -96,9 +100,25 @@ export function recoverLaunchExtras(
   const bin = argv[0];
   if (bin === undefined) return null;
 
-  // A shell pane has no registry entry and no generated arguments at all:
-  // everything after the shell itself is the user's.
-  if (rec.agent === 'shell') return argv.slice(1);
+  // A shell pane has no registry entry and no generated arguments except one:
+  // the login flag this build puts at index 1 (Phase 74). Everything after
+  // that is the user's. Removing it by POSITION is what keeps the composed
+  // argv exact, because withLoginShellFlag writes the flag at index 1 and
+  // nowhere else.
+  //
+  // ONE CASE READS BACK SHORT, and it is known rather than overlooked. A
+  // person whose FIRST extra argument is `-l` gets it stripped here, because
+  // withLoginShellFlag skips an argv that already contains the flag anywhere
+  // and this function strips index 1 whatever wrote it. Nothing runs
+  // differently, since composing the argv again puts the same flag back in the
+  // same place and the bytes match. What changes is only what the restart
+  // dialog shows that person, which is no extra arguments where they typed
+  // one. The argv cannot say which of the two wrote the flag, so recovering
+  // that display would need a manifest field, and one dialog line does not
+  // earn one.
+  if (rec.agent === 'shell') {
+    return argv[1] === LOGIN_SHELL_FLAG ? argv.slice(2) : argv.slice(1);
+  }
 
   // Narrowed by the shell early-return above, and by getLaunchableEntry
   // below, which throws for anything the registry cannot launch.

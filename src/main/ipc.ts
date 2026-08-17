@@ -24,6 +24,9 @@ import { registerPopupMenuHandler } from './menu-popup';
 // LEAF import: the ./preview barrel also re-exports the parse5 anchor
 // rewrite, and this file needs one function that touches no parser.
 import { releasePreviewRoot } from './preview/protocol';
+// LEAF import for the same reason: ./projects re-exports the clone spawner
+// and the folder creator, and this file needs one pure copy lookup.
+import { directoryPickMessage } from './projects/picker';
 import { rememberProject } from './recents';
 import { getGmuxCore } from './sessions';
 import { handle as handleTyped } from './typed-ipc';
@@ -46,6 +49,29 @@ function handle<C extends GmuxInvokeChannel>(
   ) => Promise<GmuxInvokeRes<C>> | GmuxInvokeRes<C>
 ): void {
   handleTyped(ipcMain, channel, fn);
+}
+
+/**
+ * The native folder panel. Both picker channels end here, and the only
+ * difference between them is the sentence, which comes from ./projects/picker
+ * (Phase 74). The renderer sends the question and never the words.
+ */
+async function pickDirectory(
+  e: IpcMainInvokeEvent,
+  purpose: string
+): Promise<string | null> {
+  const win = BrowserWindow.fromWebContents(e.sender);
+  const options = {
+    properties: ['openDirectory', 'createDirectory'] as Array<
+      'openDirectory' | 'createDirectory'
+    >,
+    message: directoryPickMessage(purpose)
+  };
+  const result = win
+    ? await dialog.showOpenDialog(win, options)
+    : await dialog.showOpenDialog(options);
+  if (result.canceled) return null;
+  return result.filePaths[0] ?? null;
 }
 
 /**
@@ -143,18 +169,10 @@ export function registerIpcHandlers(): void {
     // removed above, and the close must not fail because of a token.
     if (row) await releasePreviewRoot(row.path).catch(() => undefined);
   });
-  handle('projects:pickDirectory', async (e) => {
-    const win = BrowserWindow.fromWebContents(e.sender);
-    const options = {
-      properties: ['openDirectory', 'createDirectory'] as Array<
-        'openDirectory' | 'createDirectory'
-      >,
-      message: 'Choose a project folder'
-    };
-    const result = win
-      ? await dialog.showOpenDialog(win, options)
-      : await dialog.showOpenDialog(options);
-    if (result.canceled) return null;
-    return result.filePaths[0] ?? null;
-  });
+  handle('projects:pickDirectory', async (e) => pickDirectory(e, 'project'));
+  // Phase 74. The same panel, worded for the question the caller is asking.
+  // The frozen channel above takes no argument, so this one carries it.
+  handle('projects:pickDirectoryFor', async (e, purpose) =>
+    pickDirectory(e, purpose)
+  );
 }

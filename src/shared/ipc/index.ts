@@ -99,8 +99,10 @@ import type {
   GmuxImageExtras,
   GmuxProjectCloneExtras,
   GmuxProjectCreateExtras,
+  GmuxProjectPickerExtras,
   GmuxRecentsExtras,
   ImageProjectInvokeChannelMap,
+  ProjectPickerInvokeChannelMap,
   RecentsEventPayloadMap,
   RecentsInvokeChannelMap
 } from './projects';
@@ -232,7 +234,8 @@ export type GmuxInvokeChannelMap = InvokeChannelMap &
   LogInvokeChannelMap &
   AskRestoreProjectInvokeChannelMap &
   ShellCommandInvokeChannelMap &
-  MachinesInvokeChannelMap;
+  MachinesInvokeChannelMap &
+  ProjectPickerInvokeChannelMap;
 
 export type GmuxInvokeChannel = keyof GmuxInvokeChannelMap;
 
@@ -285,13 +288,14 @@ export type InstalledSessionsApi = GmuxApi['sessions'] &
 
 /**
  * The `projects` object the preload installs: the frozen base surface plus
- * create and the clone stream. (`GmuxProjectExtras.rename` is declared in the
- * contract but has never been installed by the preload, so it is truthfully
- * absent here.)
+ * create, the clone stream, and the Phase 74 folder picker that takes a
+ * purpose. (`GmuxProjectExtras.rename` is declared in the contract but has
+ * never been installed by the preload, so it is truthfully absent here.)
  */
 export type InstalledProjectsApi = GmuxApi['projects'] &
   GmuxProjectCreateExtras &
-  GmuxProjectCloneExtras;
+  GmuxProjectCloneExtras &
+  GmuxProjectPickerExtras;
 
 /** The `git` object the preload installs: base plus every appended stream. */
 export type InstalledGitApi = GmuxApi['git'] &

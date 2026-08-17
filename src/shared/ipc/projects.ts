@@ -401,3 +401,53 @@ export type OpenRecentActionId = `open-recent:${string}`;
 
 /** The prefix above, so main and the renderer split the id the same way. */
 export const OPEN_RECENT_PREFIX = 'open-recent:' as const;
+
+// ---------------------------------------------------------------------------
+// APPENDED by Phase 74 (GitHub issue 6). One folder picker channel that takes
+// an argument.
+//
+// WHY A NEW CHANNEL. `projects:pickDirectory` is declared in the FROZEN
+// src/shared/ipc/base.ts, whose header says existing declarations must not be
+// changed and new ones may be appended. It takes no argument, so its native
+// panel says the same sentence to every caller. New Project is asking a
+// different question from Open Project. It needs the folder that the new
+// project folder is created INSIDE. The question is therefore the argument,
+// and the frozen channel keeps its behaviour and every one of its callers.
+//
+// THE RENDERER SENDS THE QUESTION, NEVER THE SENTENCE. Main owns the copy of
+// every native surface, so a renderer cannot put its own words into a native
+// panel, and one file decides what the panel says.
+//
+// MAIN: src/main/ipc.ts, copy in src/main/projects/picker.ts.
+// PRELOAD: `pickDirectoryFor` joins the existing `projects` object. The New
+// Project dialog feature detects it and falls back to `pickDirectory()`.
+//
+// The one existing line touched is the GmuxInvokeChannelMap intersection in
+// ./index.ts, plus the InstalledProjectsApi intersection beside it, exactly
+// as those declarations' own comments prescribe.
+// ---------------------------------------------------------------------------
+
+/** Which question the native folder panel is asking. */
+export type DirectoryPickPurpose =
+  /** The folder to open as a project. */
+  | 'project'
+  /** The folder that a NEW project folder is created inside. */
+  | 'new-project-parent';
+
+/** The invoke channel appended by Phase 74. */
+export interface ProjectPickerInvokeChannelMap {
+  /** Native directory picker, worded for the question. Null when the person cancels. */
+  'projects:pickDirectoryFor': {
+    req: [purpose: DirectoryPickPurpose];
+    res: string | null;
+  };
+}
+
+/**
+ * OPTIONAL extension to GmuxApi['projects'], feature detected by the New
+ * Project dialog. Without it the dialog opens the frozen picker rather than
+ * hiding its button.
+ */
+export interface GmuxProjectPickerExtras {
+  pickDirectoryFor?(purpose: DirectoryPickPurpose): Promise<string | null>;
+}

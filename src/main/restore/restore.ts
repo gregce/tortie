@@ -54,6 +54,15 @@ import { listDetectedAgents } from '../agents/detection';
 import { getLaunchableEntry } from '../agents/registry';
 import { faultPoint } from '../fault/inject';
 import type { ManifestSessionRecord } from '../manifest';
+// Phase 74. The one login flag definition, shared with the create path so the
+// two spawn sites cannot drift apart. It is imported from ../manifest/login-shell
+// and NOT from ../manifest/agents, where the create path's shell branch lives:
+// agents.ts reaches src/main/config/ on purpose, and Phase 23's boundary rule
+// says the restore path may never reach the configuration modules by any route.
+// src/main/config/__tests__/boundary.test.ts walks this file's value imports and
+// fails on the first one that lands there. ../manifest/login-shell imports
+// nothing at all.
+import { withLoginShellFlag } from '../manifest/login-shell';
 import * as tmux from '../tmux';
 import { gmuxError } from '../errors';
 import {
@@ -752,6 +761,39 @@ export async function restoreSessionInTmux(
   // GUI-launched Electron inherits a minimal env; SHELL may be unset.
   const shell = process.env['SHELL'] ?? '/bin/zsh';
 
+  // PHASE 74. Two things happen on this line, and the second one was a defect
+  // nobody had reported.
+  //
+  // ISSUE 8, and the gate. A shell session starts as a LOGIN shell, so the
+  // person's own ~/.zprofile runs and completion behaves the way it does in
+  // Terminal.app. The flag is added for `shell` rows ONLY, because this
+  // function opens a holder shell for EVERY row. An ungated flag would run
+  // agent writable rc code before every agent restore, which is the shape
+  // Phase 33 rejected at docs/BACKLOG.md:3378. Phase 33's other reason, that a
+  // login shell deepens the process tree and endangers the bare name pkill
+  // property, does not apply: `zsh -l` execs in place and adds no process.
+  //
+  // THE SECOND DEFECT. This spawned `[shell]` and never read `rec.argv`, so a
+  // restored shell session lost every flag it was launched with. On that one
+  // path the manifest was not the source of truth. The row is what the session
+  // ran, so the row is what restore spawns.
+  //
+  // The flag is added on the way out and never written back, so a restore
+  // still writes no argv to the manifest. A row from an older build carries no
+  // flag and comes back as a login shell anyway, with no migration.
+  let shellArgv: string[] = [shell];
+  if (rec.agent === 'shell') {
+    const recorded = rec.argv[0];
+    const usable = recorded !== undefined && existsSync(recorded);
+    if (recorded !== undefined && !usable) {
+      restoreLog.warn(
+        `"${rec.name}" was launched with ${recorded}, which is no longer ` +
+          `there. Restoring it with ${shell}.`
+      );
+    }
+    shellArgv = withLoginShellFlag(usable ? rec.argv : [shell]);
+  }
+
   // PHASE 33. Re-resolve, never replay. The row carries the NAMES its agent
   // asked Tortie to read from the login shell, and no value, so the only way
   // to fill them is to ask the shell again. That is also the better answer:
@@ -772,7 +814,7 @@ export async function restoreSessionInTmux(
     info = await tmux.createSession({
       displayName: rec.name,
       cwd,
-      argv: [shell],
+      argv: shellArgv,
       // Same markers a fresh create stamps (Phase 12.7 F3): a restored session
       // is just as managed, and identity must survive the round trip. The
       // stamps stay last, over both the row's own env and the resolved

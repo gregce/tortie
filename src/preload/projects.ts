@@ -19,6 +19,11 @@ import { invoke, on, onTemplateChannel } from './bridge';
  * hides "New Project…" and "Clone Repository…" rather than offering a button
  * that throws).
  *
+ * Phase 74 adds `pickDirectoryFor`, which is the folder panel worded for the
+ * question being asked. It is feature detected too, and a preload without it
+ * leaves the New Project dialog opening the frozen picker rather than losing
+ * its button.
+ *
  * `onCloneProgress` takes the cloneId the CALLER minted and is meant to be
  * called BEFORE `clone()`, for the same reason `search.onResults` is: a
  * validation failure is reported on the stream within a tick of the call, so
@@ -30,6 +35,7 @@ export const projects: InstalledProjectsApi = {
   list: () => invoke('projects:list'),
   remove: (projectId) => invoke('projects:remove', projectId),
   pickDirectory: () => invoke('projects:pickDirectory'),
+  pickDirectoryFor: (purpose) => invoke('projects:pickDirectoryFor', purpose),
   create: (input) => invoke('projects:create', input),
   clonePreflight: (input) => invoke('projects:clonePreflight', input),
   clone: (input) => invoke('projects:clone', input),

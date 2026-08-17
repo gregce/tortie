@@ -184,7 +184,9 @@ describe('the gate does not get in the way of what it should not', () => {
     loadAgentOverlay('boot');
     const before = agentOverlayDiskReads();
     const spec = buildLaunchSpec('shell', [], '/bin/zsh');
-    expect(spec.argv).toEqual(['/bin/zsh']);
+    // Phase 74 added the login flag to the shell branch. What this case is
+    // about is the gate and the disk read counter, and neither moved.
+    expect(spec.argv).toEqual(['/bin/zsh', '-l']);
     expect(agentOverlayDiskReads()).toBe(before);
   });
 });

@@ -157,14 +157,51 @@ describe('a captured session reads its flags off the unwrapped argv', () => {
 });
 
 describe('a shell pane', () => {
-  it('gives back everything after the shell itself', () => {
+  // PHASE 74. `-l` at index 1 is GENERATED now, so it is no longer one of the
+  // user's flags. This block used to assert that ['/bin/zsh', '-l'] gave back
+  // ['-l'], and that expectation is wrong from this phase on: restart would
+  // report a flag the person never typed and would then build
+  // ['/bin/zsh', '-l', '-l'].
+  it('does not hand back the login flag this build generates', () => {
     const rec = row('shell', ['/bin/zsh', '-l']);
-    expect(recoverLaunchExtras(rec)).toEqual(['-l']);
+    expect(recoverLaunchExtras(rec)).toEqual([]);
   });
 
-  it('with nothing after it gives back nothing', () => {
+  it('gives back everything after the login flag', () => {
+    const rec = row('shell', ['/bin/zsh', '-l', '--no-rcs']);
+    expect(recoverLaunchExtras(rec)).toEqual(['--no-rcs']);
+  });
+
+  it('a row from an older build has no flag to drop', () => {
     const rec = row('shell', ['/bin/zsh']);
     expect(recoverLaunchExtras(rec)).toEqual([]);
+  });
+
+  it('keeps a -c command whole, quoting and all', () => {
+    const command = 'while true; do date; sleep 1; done';
+    const rec = row('shell', ['/bin/zsh', '-l', '-c', command]);
+    expect(recoverLaunchExtras(rec)).toEqual(['-c', command]);
+  });
+
+  // The round trip is what proves restart does not drift. Feed the recovered
+  // extras back through the create path and the argv must come out the same,
+  // except for the older-build row, which gains the flag it should always have
+  // had.
+  it('round trips through buildLaunchSpec', () => {
+    const cases: Array<{ argv: string[]; back: string[] }> = [
+      { argv: ['/bin/zsh', '-l'], back: ['/bin/zsh', '-l'] },
+      { argv: ['/bin/zsh', '-l', '--no-rcs'], back: ['/bin/zsh', '-l', '--no-rcs'] },
+      { argv: ['/bin/zsh'], back: ['/bin/zsh', '-l'] },
+      {
+        argv: ['/bin/zsh', '-l', '-c', 'while true; do date; sleep 1; done'],
+        back: ['/bin/zsh', '-l', '-c', 'while true; do date; sleep 1; done']
+      }
+    ];
+    for (const c of cases) {
+      const extras = recoverLaunchExtras(row('shell', c.argv)) ?? [];
+      const rebuilt = buildLaunchSpec('shell', extras, c.argv[0]);
+      expect(rebuilt.argv).toEqual(c.back);
+    }
   });
 });
 

@@ -560,7 +560,9 @@ describe('buildLaunchSpec registry wiring', () => {
 
   it('shells have nothing to resume and say so', () => {
     const spec = buildLaunchSpec('shell', [], '/bin/zsh');
-    expect(spec.argv).toEqual(['/bin/zsh']);
+    // Phase 74: a shell session is a login shell now. It still has no registry
+    // entry and still nothing to resume, which is what this case is about.
+    expect(spec.argv).toEqual(['/bin/zsh', '-l']);
     expect(spec.idCapture).toBe('none');
     expect(spec.resumeArgv).toBeUndefined();
   });

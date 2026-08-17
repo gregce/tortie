@@ -311,7 +311,9 @@ describe('newSessionRecord', () => {
       agent: 'shell',
       status: 'running',
       createdAt: AT,
-      argv: ['/bin/zsh'],
+      // Phase 74: a shell session is a login shell, so the row records the
+      // flag. The row is still the argv the pane runs, which is the claim.
+      argv: ['/bin/zsh', '-l'],
       lastSeen: AT,
       resumeCapture: 'none',
       agentContract: buildRecoveryContract(

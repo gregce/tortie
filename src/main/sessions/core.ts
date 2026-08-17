@@ -20,7 +20,7 @@ import type { WebContents } from 'electron';
 import { randomUUID } from 'node:crypto';
 import { existsSync, statSync } from 'node:fs';
 import { readdir, realpath, rm } from 'node:fs/promises';
-import { basename, join, resolve as resolvePath } from 'node:path';
+import { join, resolve as resolvePath } from 'node:path';
 import type {
   TerminalScrollByInput,
   TerminalScrollPollInput,
@@ -196,6 +196,9 @@ import type { RemoteMachineContext } from '../machines/context';
 import { gmuxError, isGmuxError } from '../errors';
 import { broadcastEvent } from '../typed-events';
 import { getLog } from '../log';
+// LEAF import: the ../projects barrel re-exports the clone spawner and the
+// folder creator, and addProject below needs one pure name rule.
+import { projectNameForPath } from '../projects/name';
 
 /**
  * Scope "sessions" (Phase 35). Every error and warning from this
@@ -3045,7 +3048,9 @@ export class GmuxCore {
     return this.manifest.upsertProject({
       id: randomUUID(),
       path: abs,
-      name: basename(abs)
+      // Phase 74: basename is empty for the root of a volume. See
+      // ../projects/name for what a nameless folder is called and why.
+      name: projectNameForPath(abs)
     });
   }
 

@@ -100,6 +100,32 @@ function loginHost(url: string): string {
   }
 }
 
+/**
+ * The caption under "Enter the code from your browser".
+ *
+ * PHASE 74, GitHub issue 5. Tortie opens that tab through the SpecStory CLI
+ * and has no handle on it, so it cannot close it. Saying so is the whole fix,
+ * and the issue itself refuses browser automation.
+ *
+ * The address is in the line because Tortie cannot know whether the browser
+ * actually opened: the CLI opens it and only warns to a log if it fails. One
+ * sentence that works either way beats two that guess.
+ *
+ * It is a function rather than JSX so a unit test can read the exact sentence
+ * with no browser and no sign-in. The row it appears on is only on screen
+ * during a real sign-in, and driving that would open a browser tab on the
+ * operator's machine and could put their email address in a report.
+ */
+export function signInCodeCaption(loginUrl: string, started: boolean): string {
+  if (!started) {
+    return 'Tortie couldn’t start SpecStory sign-in. Check the SpecStory command above, then try again.';
+  }
+  return (
+    `Sign in at ${loginHost(loginUrl)}. It shows a 6-character code. ` +
+    'Tortie can’t close that browser tab, so close it when you’re done.'
+  );
+}
+
 /** "2h ago" / "now", measured at the instant the status was read. */
 function formatSince(iso: string, atMs: number): string | null {
   const ms = Date.parse(iso);
@@ -441,13 +467,9 @@ function CloudCard({ reading, onChanged }: CloudCardProps): React.JSX.Element {
           <div className="set-row-text">
             <span className="set-row-label">Enter the code from your browser</span>
             <span className="set-row-caption">
-              {/* The address is in the line because Tortie cannot know whether
-                  the browser actually opened — the CLI opens it and only
-                  warns to a log if it fails. One sentence that works either
-                  way beats two that guess. */}
-              {started
-                ? `Sign in at ${loginHost(loginUrl)} — it shows a 6-character code.`
-                : 'Tortie couldn’t start SpecStory sign-in. Check the SpecStory command above, then try again.'}
+              {/* Phase 74. The sentence lives in signInCodeCaption above, so a
+                  test can read it without a browser and without a sign-in. */}
+              {signInCodeCaption(loginUrl, started)}
             </span>
           </div>
           <div className="ss-actions">

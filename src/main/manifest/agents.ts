@@ -64,6 +64,11 @@ import {
 import { assertConfigRowMayLaunch } from '../config/confirm';
 import { executionFieldsOf } from '../config/overlay';
 import { launchableAgentEntry } from '../config/store';
+// Phase 74. The login flag a shell session carries. It sits in its own module
+// rather than here because the restore path needs the same constant and cannot
+// import this file, which reaches the configuration domain on purpose. Its
+// header has the whole reason.
+import { withLoginShellFlag } from './login-shell';
 import type { HarvestedSessionId } from './harvest/stores';
 // One identity key set for the whole tree (Phase 34). The claim ladder in
 // ./harvest/watch.ts and the confidence math below are two readings of the
@@ -654,7 +659,20 @@ export function buildLaunchSpec(
   if (agent === 'shell') {
     // GUI-launched Electron inherits a minimal env; SHELL may be unset.
     const shell = binPath ?? process.env['SHELL'] ?? '/bin/zsh';
-    return { agent, argv: [shell, ...extraArgs], idCapture: 'none' };
+    // PHASE 74, GitHub issue 8. A shell session is a LOGIN shell. Without the
+    // flag the person's own ~/.zprofile never runs, so a completion search
+    // path set there is missing, and zsh prints "_eza: function definition
+    // file not found" while completing a path and then finds no matches for a
+    // directory that exists. tmux starts default-shell as a login shell on its
+    // no-command branch and Terminal.app starts one too; Tortie always passes
+    // an argv, so it passes the flag. Two call sites, this one and
+    // src/main/restore/restore.ts, rather than a list of variable names
+    // somebody has to keep current.
+    return {
+      agent,
+      argv: withLoginShellFlag([shell, ...extraArgs]),
+      idCapture: 'none'
+    };
   }
 
   // PHASE 23: this is the confirm gate's call site. `launchEntryFor` throws

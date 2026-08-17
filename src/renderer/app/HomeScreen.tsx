@@ -222,7 +222,11 @@ export function HomeScreen({ onClone }: HomeScreenProps): React.JSX.Element {
       // The folder moved or was deleted, so the row hands the user the picker
       // to point at where it went. Seeding the picker at the last known
       // parent is not possible today: projects:pickDirectory is a frozen
-      // channel that takes no argument.
+      // channel that takes no argument. Phase 74 appended
+      // projects:pickDirectoryFor beside it, and that sentence is still true,
+      // because the new channel takes which question the panel asks and not a
+      // folder to start in. Seeding would need a third argument that neither
+      // channel has.
       void openProject();
       return;
     }

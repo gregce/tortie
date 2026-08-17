@@ -76,7 +76,16 @@ export function NewProjectModal(): React.JSX.Element | null {
     validateProjectName(name) === null;
 
   const chooseLocation = (): void => {
-    void window.gmux?.projects.pickDirectory().then((dir) => {
+    const projects = window.gmux?.projects;
+    if (projects === undefined) return;
+    // PHASE 74. The panel has to say which folder it is asking for, and the
+    // frozen channel takes no argument. A preload without the new channel
+    // opens the old panel rather than losing the button.
+    const picked =
+      typeof projects.pickDirectoryFor === 'function'
+        ? projects.pickDirectoryFor('new-project-parent')
+        : projects.pickDirectory();
+    void picked.then((dir) => {
       if (dir === null) return;
       setParentDir(dir);
       setError(null);
