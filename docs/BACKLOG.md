@@ -5577,6 +5577,165 @@ Phases 67 and 62.1 run in parallel in isolated worktrees because their files are
 through 73 run strictly in order, each gated on the one before, each landed and pushed before the
 next launches. **Semver:** 67 is a fix, patch; 68 through 73 are feats, minor each.
 
+## The eight open GitHub issues, assessed against the code on 2026-08-17
+
+All eight were opened by `aronchick` on 2026-08-17 and all were read against the real tree at
+`b660df9` by eight independent assessors and one adversarial critic. **Three of the eight rest on a
+claim the code contradicts, and one more is understated.** Those findings come first, because they
+change what is worth building.
+
+| Issue | The claim | What the code says |
+| --- | --- | --- |
+| 4 | A person cannot get a work surface until the New Session sheet is submitted | False. THREE create paths already skip the sheet. The menu beside the plus button calls `quickCreate` in `src/renderer/state/sessions-slice.ts`, the no-sessions board starts an agent on one click at `src/renderer/app/EmptyStates.tsx:139`, and a per-agent chord recorded in Settings creates and focuses a session with no dialog at `src/renderer/settings/integration.ts:32`. The issue is written against a limit that does not exist |
+| 6 | The folder chosen in New Project is the project folder, so its name should fill Name | False. The field is labelled "Create it in" and it selects a PARENT. `src/main/projects/create.ts:79` joins parent to name, so building the request would suggest `/Users/me/src/src`. The issue also says no single folder-to-name rule exists. One does, at `src/main/sessions/core.ts:2836`, and every route reaches it |
+| 3 | Tortie needs a model comparison against IDE, terminal and agent workspace patterns | Already written. `docs/research/10-multi-project-ux.md` compares eleven products, names the two archetypes, records the decision and records the condition that would falsify it. Only the smaller half of the issue, whether to rename the create verb, is genuinely open |
+| 2 | Control plus digit is free for session shortcuts | Understated rather than false. The shipped xterm build maps key codes 51 to 55 to control characters, so Control 3 already sends ESC and Control 4 through Control 8 send FS, GS, RS, US and DEL. Six of the ten requested chords already do something in every live session, and ESC is how an agent is cancelled |
+
+Two smaller corrections. Issue 1 says the design history removed a Settings font control in favour of
+zoom. `docs/DESIGN-SPEC.md:601` withdrew the SIZE stepper and conditionally sanctioned the FAMILY
+picker, so the half the issue most wants is the half already rejected. Issue 1 also assumes zoom
+arithmetic would have to change. It already takes the base as an argument at
+`src/renderer/zoom/regions.ts:151`, so none moves.
+
+**The consolidated verdict.**
+
+| # | Short name | Verdict | Tier | Where it goes |
+| --- | --- | --- | --- | --- |
+| 8 | A Tortie shell is not a login shell, so completions break | BUG | 3 | Phase 74 |
+| 6 | New Project naming, the two real defects only | NIT | 1 and 2 | Phase 74 |
+| 5 | The SpecStory sign-in tab stays open | EXTERNAL | 1 | Phase 74, caption only |
+| 3 | What the unit of work is, and what the create verb is called | DESIGN | n/a | Phase 75, research |
+| 4 | An immediate work surface on the New Tab chord | DESIGN | 3 | Blocked by 75 |
+| 2 | A positional shortcut that reaches a session | DESIGN | 2 to 3 | Blocked by 75 |
+| 7 | A filter field in the shortcuts overlay | DESIGN | 2 | Blocked on one measurement, below |
+| 1 | Font family and base size in Settings | DESIGN | 2 to 3 | Blocked on one operator decision, below |
+
+**Issue 7 is not in the batch, and the reason is a measurement.** The whole case for the filter is
+that about 60 rows overflow the sheet. `src/renderer/styles/app.css:1436` gives the shipped overlay
+three columns, `max-height: 78vh` and `width: min(880px, ...)`. Sixty rows in six groups is about 20
+rows per column at 26 px, so roughly 680 px in total. At 78 vh that fits any window taller than about
+870 px, and a 14 inch MacBook Pro gives 982 logical pixels. On the operator's own machine the overlay
+does not scroll unless several per-agent chords are assigned. Measure that on his window before
+building anything. If it does not overflow, the honest answer is that the filter is IDE parity work
+and the scope guardrail refuses it. Two further facts if it is ever built: `nameOrChordMatches` and
+`filterForReading` in `src/renderer/settings/KeyboardSection.tsx` already solve the exact ordering
+problem and should be lifted into `src/shared/keymap.ts` rather than a second scorer being created,
+and `docs/DESIGN-SPEC.md:526` still describes a 640 px two-column overlay while the code ships 880 px
+and three columns, so the spec and the code already disagree.
+
+**Issue 1 is blocked on one sentence from the operator.** Where does the font list come from. The
+three choices are a short fixed list of faces the design vouches for, a free-text field with a safe
+fallback, or a Chromium permission-gated enumeration. There is no font enumeration anywhere in the
+repository today, so this is a new capability rather than a wiring job. Nothing else about the issue
+is hard.
+
+## Phase 74 — the small-issue batch: login shells, project naming, sign-in copy, NOT QUEUED
+
+**Closes issues 8 and 5, and the two real defects behind issue 6.** It does not close issue 6 as
+written, because the name suggestion the issue asks for would produce a wrong path.
+
+**Subject:** `fix(shell): a shell session starts as a login shell, and New Project names honestly`
+**First body line:** `Phase 74: the small-issue batch`
+**Semver:** patch. Every item is a fix.
+**Tier per item, not promoted to the maximum.**
+
+| Item | Tier | Reason |
+| --- | --- | --- |
+| Issue 8, login shell parity | 3 | It reaches `src/main/restore/restore.ts` and the manifest's shell argv, and a user reported it |
+| Issue 6, the root-folder fallback | 2 | One line in main's `addProject`, plus a new preload channel |
+| Issue 6, the picker message, and issue 5's caption | 1 | Copy with no new state |
+
+**The decision a builder must not invent, with its answer.** Add `-l` to the shell argv at both
+spawn sites and gate the restore-side change on `agent === 'shell'`. The flag matches what tmux does
+on its no-command branch and what Terminal.app does, and it is two call sites rather than a list of
+variable names someone has to keep current. The gate matters because `src/main/restore/restore.ts`
+opens a holder shell for EVERY session, so an ungated change would run `.zprofile` for agent restores
+too, which is the shape Phase 33 already rejected at `docs/BACKLOG.md:3378`. Phase 33 gave two
+reasons against a login shell. The first, that it re-runs agent-writable rc code, applies to agent
+launches and is contained by the gate. The second, that it deepens the process tree and endangers the
+bare-name `pkill` property, does not apply at all, because `zsh -l` execs in place and adds no
+process. Say both in the phase brief so a reviewer does not stop the round. Rejected alternatives:
+passing no argv and letting tmux start `default-shell` as a login shell, which is rejected because
+tmux would pick `default-shell` rather than `$SHELL` and the manifest row would carry no argv that
+restart and history both read; and copying `FPATH` and friends into the pane, which is rejected
+because it fixes only the names somebody lists.
+
+**A second defect found in the same lines, and it must be decided in this phase.**
+`src/main/restore/restore.ts:775` passes `argv: [shell]` and never reads `rec.argv`, so a restored
+shell session ALREADY loses every extra flag it was launched with. On that one path the manifest is
+not the source of truth that CLAUDE.md says it is. Builder A is editing exactly those lines, so
+either read `rec.argv` for shell rows, which is the correct shape, or record in the commit that the
+divergence is knowingly kept and why. Do not leave it unmentioned.
+
+**A frozen contract must not be edited.** `src/shared/ipc/base.ts` is marked FROZEN and says existing
+declarations must not be changed and new ones may be appended. The picker message needs a channel
+that takes an argument, and `projects:pickDirectory` takes none. APPEND a new channel. Do not widen
+the frozen one. `src/renderer/app/HomeScreen.tsx:222` already documents this constraint in a comment.
+
+**Builder split, disjoint, with every file each builder actually needs.**
+
+| Builder | Owns | Item |
+| --- | --- | --- |
+| A | `src/main/manifest/agents.ts`, `src/main/restore/restore.ts`, `src/main/restart/extras.ts` and their tests | 8 |
+| B | `src/main/ipc.ts`, `src/shared/ipc/base.ts` append only, `src/preload/projects.ts`, `src/main/sessions/core.ts`, `src/renderer/app/NewProjectModal.tsx` | 6 |
+| C | `src/renderer/settings/SpecStorySection.tsx` | 5 |
+
+Builder A reads `src/main/sessions/core.ts` and does not edit it. Builder B owns it.
+
+**Native menus.** No item adds, renames or removes a user-facing surface, so no menu changes. The
+brief says this out loud so a reviewer does not go looking for a missing menu edit.
+
+**Probes.** Drive a real shell session and complete a path, reading the pane bytes and showing the
+`_eza` autoload errors are gone and the existing directory lists. Create a shell session with an
+extra flag, quit, relaunch, and read the restored pane's argv, quoting the bytes. Pick a root folder
+in New Project and show the fallback name rather than an empty field. Read the picker message and the
+SpecStory caption by screenshot.
+
+## Phase 75 — research: the unit of work, and what a session digit counts, NOT QUEUED
+
+**The question it answers.** Is a project still the primary unit of work in Tortie, and if so what is
+the create verb called and which chord reaches a session by position. Issues 3, 4 and 2 are all
+unbuildable until this is written, and issue 4 in particular cannot start because nobody has decided
+whether an unstarted session may exist at all.
+
+**Artifact.** `docs/research/52-unit-of-work.md`.
+
+**The six questions it must answer.**
+
+1. Does the project stay the primary unit, or does a session become primary with the directory as a property.
+2. Is the create verb renamed, and if so what does it become across the File menu, the tray, the terminal menu, the create sheet title and the two toasts in `App.tsx`.
+3. May an unstarted session exist, meaning a visible surface with no manifest row and no tmux session. Answer yes or no plainly, because issue 4 is unbuildable until this is answered.
+4. Which modifier carries a positional session shortcut, given that Control 3 through Control 8 already send ESC, FS, GS, RS, US and DEL into every live session.
+5. Does a session digit count surfaces or sessions. `deriveSurfaces` in `src/renderer/state/layout.ts:162` makes these different lists as soon as one split group is open.
+6. Who owns the zoom-reset chord. It is `view.zoomReset` today, shipped in Phase 12.11 and written into `DESIGN.md:301`.
+
+**It measures ONE thing, and the reason the other candidates were cut.** Read the operator's manifest,
+read only, and check whether the falsification condition in `docs/research/10-multi-project-ux.md`
+section 9 has been reached, being more than five concurrent agents per project on one repository.
+That condition is the only recorded test for whether the model should move, and if it has not fired
+the honest answer to question 1 is that the model stays.
+
+| Candidate measurement | Kept or cut | Deciding reason |
+| --- | --- | --- |
+| The falsification check against research 10 section 9 | KEPT | One manifest read, and it is the only recorded test that can move the answer |
+| A per-agent matrix of what Control 3 through Control 8 do to each of the thirteen agents | CUT | The one line in the shipped xterm bundle already decides it. Any chord Tortie intercepts is taken from every agent at once, so the matrix would only measure how much it hurts. Record the grep as evidence and answer question 4 in a sentence. Thirteen agents times six chords is 78 live probes, which is Tier 3 driving inside a document phase |
+| Counting surfaces against sessions in the operator's window | CUT | `deriveSurfaces` already shows the lists differ only when a split group is open, and every session surface draws from surfaces. The zero-cost answer is to count surfaces, and no measurement changes it |
+
+**The options it must weigh, with every rejected one recorded and a deciding reason on each.** For
+question 1 the options are keeping projects primary and changing nothing, keeping projects primary
+while renaming the create verb and adding a direct new-work entry, and making sessions primary with
+the project path becoming a property. The third touches the manifest schema on a NOT NULL column plus
+restore, so its cost must be stated in files rather than adjectives. For question 4 the options are
+Control plus digit, moving projects elsewhere to free Command plus digit, Command Option plus digit,
+Control Option plus digit, and shipping no positional session shortcut at all.
+
+**What it explicitly does NOT do.** It writes no code and opens no pull request. It does not touch
+the manifest schema or any migration. It does not re-derive the eleven-product comparison in
+`docs/research/10-multi-project-ux.md`, it cites that and extends it only where these questions are
+not already answered. It does not decide fonts, the SpecStory sign-in, project naming or the
+shortcuts filter. It runs no tmux command against the default server, and any live probe uses
+`-L gmux` only.
+
 ## Phase 73.1 — the second recorded nits round, NOT QUEUED
 
 Small things that shipped phases left behind, collected as they were found so none is lost. None
