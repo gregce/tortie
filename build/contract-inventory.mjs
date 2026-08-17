@@ -345,7 +345,15 @@ function collectRefusalCounts() {
     'utf8'
   );
   const counts = {};
-  const arrays = ['REFUSALS', 'SKILLS_REFUSALS', 'CONFIG_REFUSALS', 'UPDATER_REFUSALS'];
+  const arrays = [
+    'REFUSALS',
+    'SKILLS_REFUSALS',
+    'CONFIG_REFUSALS',
+    // Phase 68 added the machine confirm gate, a second gate over a second file
+    // with its own hash and its own key space in the shared record.
+    'MACHINE_REFUSALS',
+    'UPDATER_REFUSALS'
+  ];
   for (const name of arrays) {
     const start = source.match(new RegExp(`const ${name} = \\[`));
     if (start === null || start.index === undefined) {
@@ -421,6 +429,7 @@ function buildInventory() {
   lines.push(`durability=${refusals.REFUSALS}`);
   lines.push(`skills=${refusals.SKILLS_REFUSALS}`);
   lines.push(`config=${refusals.CONFIG_REFUSALS}`);
+  lines.push(`machines=${refusals.MACHINE_REFUSALS}`);
   lines.push(`updater=${refusals.UPDATER_REFUSALS}`);
   lines.push('');
 

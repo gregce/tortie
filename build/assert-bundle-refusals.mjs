@@ -391,6 +391,95 @@ const CONFIG_REFUSALS = [
 ];
 
 /**
+ * Phase 68's machine confirm-gate refusals, counted SEPARATELY again, for the
+ * same reason the config ones are.
+ *
+ * What these cost if the bundler removes one is larger than any list above,
+ * because the thing on the other side is a different computer. A machine row
+ * names an address, an account and a program path, and Tortie signs in there as
+ * the user with the user's files and the user's credentials. The same argument
+ * that made the config gate necessary makes this one necessary and then some:
+ * Tortie runs many agent processes at once under one account, several of them
+ * deliberately launchable with their safeguards off, and all of them can write
+ * to the home directory. If one of these six sentences disappears, a file an
+ * agent can write decides which computer Tortie reaches, and the confirmation a
+ * person gave becomes a formality.
+ *
+ * They are not folded into CONFIG_REFUSALS because that number is quoted in the
+ * Phase 23 records as the count of the configured-agent gate's refusals, and
+ * these are a second gate over a second file with its own hash and its own key
+ * space in the shared record.
+ */
+const MACHINE_REFUSALS = [
+  {
+    id: 'machine.never-confirmed',
+    source: 'src/main/machines/confirm.ts',
+    why: 'a machine no person has agreed to must not be signed in to',
+    fragments: [
+      'Tortie will not connect to ',
+      ', because nobody has confirmed it. Read ',
+      'what it will run and confirm it in Tortie first. Nothing was started.'
+    ]
+  },
+  {
+    id: 'machine.changed',
+    source: 'src/main/machines/confirm.ts',
+    why:
+      'without this the first confirmation is a permanent key and the address ' +
+      'behind it can be swapped afterwards',
+    fragments: [
+      ', because its details changed after you ',
+      'confirmed them. Read the change and confirm it again if it is what you '
+    ]
+  },
+  {
+    id: 'machine.seal-unreadable',
+    source: 'src/main/machines/confirm.ts',
+    why:
+      'a record of what a person approved that cannot be read is not consent, ' +
+      'so the gate fails closed rather than open',
+    fragments: [
+      'Tortie could not read its record of what you confirmed, so it will not ',
+      'connect to '
+    ]
+  },
+  {
+    id: 'machine.read-never-connects',
+    source: 'src/main/machines/confirm.ts',
+    why:
+      'reading the machines file must never be a way to reach another ' +
+      'computer, because a file changing is not a person deciding',
+    fragments: [
+      'A configuration change never starts anything on its own. Reading ',
+      'from the machines file asked to connect to it. Nothing was started.'
+    ]
+  },
+  {
+    id: 'machine.acknowledgement',
+    source: 'src/main/machines/confirm.ts',
+    why:
+      'the acknowledgement sentence is what stops a later convenience path ' +
+      'from confirming machines on the user behalf',
+    fragments: [
+      'A machine is confirmed by a person, not by a file. Pass ',
+      'MACHINE_CONFIRM_ACKNOWLEDGEMENT exactly. Nothing was confirmed.'
+    ]
+  },
+  {
+    id: 'machine.hash-moved',
+    source: 'src/main/machines/confirm.ts',
+    why:
+      'a confirmation is only worth anything if the machine that is recorded ' +
+      'is the machine that was read, and a sheet sits on screen while a person ' +
+      'reads it',
+    fragments: [
+      ', because the machine changed after it was ',
+      'shown. Read it again and confirm what it says now. Nothing was '
+    ]
+  }
+];
+
+/**
  * Phase 24's updater refusals, counted SEPARATELY again.
  *
  * What these cost if the bundler removes one is different from every list
@@ -631,13 +720,39 @@ const REACHABLE_CHANNELS = [
   {
     channel: 'config:forget',
     why: 'withdrawing an agreement, so the row asks again'
+  },
+  // Phase 68. Three of the ten machines channels, chosen because they are the
+  // three a person cannot get past without: the list they read, the agreement
+  // they give, and the one visible test that produces the program path the
+  // agreement is bound to. A build where any of them stops at the preload has a
+  // Machines section nobody can use, which is the exact defect this check was
+  // written for.
+  {
+    channel: 'machines:rows',
+    why: 'the list of machines, and the errors for rows Tortie dropped'
+  },
+  {
+    channel: 'machines:add',
+    why: 'the one place a person can add a machine and agree to what it runs'
+  },
+  {
+    channel: 'machines:test',
+    why: 'the one visible connection test, which is where the program path comes from'
   }
 ];
 
 /** Copy that only exists on the confirm surface. */
 const CONFIRM_SURFACE_COPY = [
   'From your configuration file',
-  'Show what it runs'
+  'Show what it runs',
+  // Phase 68. Two sentences that exist only on the Machines surface, and both
+  // are the renderer's OWN copy rather than a string main sends. The honesty
+  // line about the program's bytes is deliberately NOT here: it rides on
+  // `MachinesResult.honesty` from main, so it never appears as a literal in a
+  // renderer bundle and a check for it would fail on a build where the surface
+  // is perfectly present.
+  'Tortie never adopts work that is already running on your machines',
+  'You cannot open a session on a machine yet.'
 ];
 
 function assertReachable(bundle) {
@@ -726,6 +841,7 @@ function main() {
     ...REFUSALS,
     ...SKILLS_REFUSALS,
     ...CONFIG_REFUSALS,
+    ...MACHINE_REFUSALS,
     ...UPDATER_REFUSALS,
     ...LOG_REFUSALS
   ]) {
@@ -794,6 +910,9 @@ function main() {
   );
   console.log(
     `[refusals] ${String(CONFIG_REFUSALS.length)} config confirm-gate refusals are in out/main/index.js.`
+  );
+  console.log(
+    `[refusals] ${String(MACHINE_REFUSALS.length)} machine confirm-gate refusals are in out/main/index.js.`
   );
   console.log(
     `[refusals] ${String(UPDATER_REFUSALS.length)} updater refusals are in the shipped bundles (one, the ring's ready promise, is renderer code).`

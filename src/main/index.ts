@@ -26,6 +26,10 @@ import {
 // on a watcher debounce, and nowhere else. `initAgentOverlay` is the boot read.
 import { initAgentOverlay } from './config/store';
 import { proveNativeModules } from './diagnostics/native-proof';
+// Phase 68: the machines file is read at boot, on an explicit reload and on a
+// watcher debounce, and nowhere else. `initMachines` is the boot read, and it
+// starts nothing.
+import { initMachines } from './machines/store';
 // Phase 28: one log line when a helper or renderer process dies. Log only.
 import { installProcessGoneLogging } from './diagnostics/process-gone';
 import { dispatchHarness } from './harness';
@@ -444,6 +448,21 @@ app.whenReady().then(async () => {
   void initAgentOverlay().catch((err: unknown) => {
     getLog('config').error(
       `the configuration file was not read: ${(err as Error).message}`
+    );
+  });
+
+  // Phase 68, and the same shape for the same reasons. The read is synchronous
+  // and has already happened by the time this line returns; only the watcher is
+  // behind the await, and a window must not wait on a watcher.
+  //
+  // READING THIS FILE STARTS NOTHING. It cannot: a machine that has just
+  // appeared in it has no confirmation, so it cannot be connected to, and while
+  // the read is in progress no machine reports as confirmed at all. A throw
+  // here can never stop Tortie starting, because a machine is an addition to
+  // what this Mac can already do.
+  void initMachines().catch((err: unknown) => {
+    getLog('config').error(
+      `the machines file was not read: ${(err as Error).message}`
     );
   });
 

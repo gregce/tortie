@@ -64,17 +64,22 @@
  * recovery must never depend on a file the user can delete.
  */
 
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { dirname, join } from 'node:path';
-import { app } from 'electron';
 import { gmuxError } from '../errors';
 // The one quoting helper in the process that turns an argv into the line a
 // person reads. It is a pure function with no electron and no I/O. The import
 // goes ONE WAY: config reads a helper from restore, and restore never reads
 // config, which is the boundary the phase's import test pins.
 import { shellQuoteArgv } from '../restore/command';
-import { openSealedText, sealText } from './seal';
+// Phase 68 moved the sealed record layer out of this file, unchanged, so the
+// machines gate can share ONE record file with this one. Every refusal sentence
+// stayed here. See ./confirm-record.ts for what moved and why.
+import {
+  readConfirmRecords,
+  writeConfirmRecords,
+  type ConfirmRecord,
+  type ConfirmRecordState
+} from './confirm-record';
 
 import { getLog } from '../log';
 
@@ -396,165 +401,34 @@ export function describeExecution(
 // The record
 // ---------------------------------------------------------------------------
 
-/** What Tortie recorded when a person agreed to one row. */
-export interface ConfigConfirmation {
-  readonly id: string;
-  /** The hash of the execution bearing fields at the moment of the agreement. */
-  readonly hash: string;
-  readonly algorithm: string;
-  /** Epoch ms. */
-  readonly at: number;
-  /** The exact lines the person read. Never a summary of them. */
-  readonly lines: readonly string[];
-}
+/**
+ * What Tortie recorded when a person agreed to one row.
+ *
+ * Phase 68 moved this shape, and the four functions that read and write the
+ * file it lives in, into `./confirm-record.ts`. Nothing about any of them
+ * changed. They moved so that the machines gate, which asks the same question
+ * about a different kind of row, shares ONE record file with this gate rather
+ * than growing a second one with its own subtly different failure modes. This
+ * alias keeps the name every caller of this module already imports.
+ */
+export type ConfigConfirmation = ConfirmRecord;
 
-interface ConfirmFile {
-  version: 1;
-  confirmations: Record<string, ConfigConfirmation>;
-  /** Covers the id and hash of every confirmation above. See ./seal. */
-  seal?: string;
-}
-
-const SEAL_PREFIX = 'gmux-config-confirm-v1:';
-
-const EMPTY_FILE: ConfirmFile = { version: 1, confirmations: {} };
+// The path is re-exported rather than re-derived. One opinion about where the
+// record lives, and it is `./confirm-record.ts`.
+export { confirmPath } from './confirm-record';
 
 /**
- * `<userData>/gmux/config-confirmations.json`, a SIBLING of the configuration
- * directory and never inside it.
+ * The records, read fresh on every call.
  *
- * The configuration directory is the thing an agent writes. Putting the record
- * of what a person approved inside it would let the same write that adds a row
- * add its own approval. The seal already refuses a forged record, so this is
- * the second of two answers to the same question rather than the only one, and
- * two cheap answers are the right number for the file that decides whether a
- * program runs.
+ * The no cache rule and the argument for it moved with the function. See
+ * `readConfirmRecords` in `./confirm-record.ts`, and do not put the cache back.
  *
- * The inner `gmux/` directory is one of the identifiers live data is bound to
- * (CLAUDE.md, Phase 16.5). It stays `gmux` and is not "finished off".
+ * The algorithm name handed over is this gate's own. It is the name a record
+ * written before the field existed is read as, and the machines gate passes its
+ * own name for the same reason.
  */
-export function confirmPath(): string {
-  return join(app.getPath('userData'), 'gmux', 'config-confirmations.json');
-}
-
-/**
- * The parsed file, and whether the seal could be read.
- *
- * `sealKnown` false means the app is not ready or the OS keystore is
- * unavailable, so nothing is confirmed YET and the caller must ask again rather
- * than remember the safe answer for the whole run.
- */
-interface ConfirmState {
-  readonly rows: Record<string, ConfigConfirmation>;
-  readonly sealKnown: boolean;
-}
-
-/** One sealed line per confirmation. Sorted, so it seals to one text. */
-function sealedLines(rows: Record<string, ConfigConfirmation>): string[] {
-  return Object.values(rows)
-    .map((row) => `${row.id}\u0000${row.hash}`)
-    .sort();
-}
-
-function parse(raw: unknown): ConfirmFile {
-  if (raw === null || typeof raw !== 'object') return { ...EMPTY_FILE, confirmations: {} };
-  const obj = raw as Record<string, unknown>;
-  const seal = obj['seal'];
-  const rows = obj['confirmations'];
-  const out: Record<string, ConfigConfirmation> = {};
-  if (rows !== null && typeof rows === 'object' && !Array.isArray(rows)) {
-    for (const [key, value] of Object.entries(rows as Record<string, unknown>)) {
-      if (value === null || typeof value !== 'object') continue;
-      const row = value as Record<string, unknown>;
-      const hash = row['hash'];
-      if (typeof hash !== 'string' || hash.length === 0) continue;
-      out[key] = {
-        id: typeof row['id'] === 'string' ? row['id'] : key,
-        hash,
-        algorithm:
-          typeof row['algorithm'] === 'string'
-            ? row['algorithm']
-            : CONFIG_EXECUTION_HASH_ALGORITHM,
-        at: typeof row['at'] === 'number' ? row['at'] : 0,
-        lines: Array.isArray(row['lines'])
-          ? row['lines'].filter((l): l is string => typeof l === 'string')
-          : []
-      };
-    }
-  }
-  return {
-    version: 1,
-    confirmations: out,
-    ...(typeof seal === 'string' ? { seal } : {})
-  };
-}
-
-/**
- * Read the record, and drop every row the seal does not cover.
- *
- * A row in the file that the seal does not name was not written by Tortie. It
- * is dropped whole, exactly the way the settings sanitiser drops a value it
- * cannot account for, and the row reads afterwards as "never confirmed" rather
- * than as "approved". That is the safe direction: the cost is that a person is
- * asked again, and the alternative cost is a program running that nobody agreed
- * to.
- *
- * THIS RE-READS THE FILE ON EVERY CALL, AND THAT IS DELIBERATE. Caching the
- * answer was the first version of this function and it was wrong. The author of
- * the file this reads is a process that runs while Tortie runs, so a cache
- * means the record is read once at some point in the run and every launch
- * afterwards is decided against a copy of a file that has since been rewritten.
- * Three of this module's own adversarial tests failed against the cached
- * version and pass against no cache at all, which is the whole argument. The
- * cost is one small JSON parse and one keystore call per launch, against a
- * launch that already starts a tmux pane and a CLI. Do not put the cache back.
- */
-function readState(): ConfirmState {
-  const path = confirmPath();
-  let parsed: unknown = null;
-  try {
-    parsed = JSON.parse(readFileSync(path, 'utf8'));
-  } catch {
-    // Missing or corrupt. Nothing is confirmed, which disables nothing that
-    // was already running and approves nothing. It is never repaired in place.
-  }
-  const file = parse(parsed);
-  const opened = openSealedText(SEAL_PREFIX, file.seal);
-  if (opened === null) {
-    // Not known yet. Answer safely now and ask again on the next read.
-    return { rows: {}, sealKnown: false };
-  }
-  let covered: Set<string>;
-  try {
-    const list: unknown = opened.length === 0 ? [] : JSON.parse(opened);
-    covered = new Set(
-      Array.isArray(list) ? list.filter((l): l is string => typeof l === 'string') : []
-    );
-  } catch {
-    covered = new Set();
-  }
-  const rows: Record<string, ConfigConfirmation> = {};
-  for (const [key, row] of Object.entries(file.confirmations)) {
-    if (!covered.has(`${row.id}\u0000${row.hash}`)) continue;
-    rows[key] = row;
-  }
-  return { rows, sealKnown: true };
-}
-
-function writeState(rows: Record<string, ConfigConfirmation>): boolean {
-  const seal = sealText(SEAL_PREFIX, JSON.stringify(sealedLines(rows)));
-  if (Object.keys(rows).length > 0 && seal === undefined) return false;
-  const file: ConfirmFile = {
-    version: 1,
-    confirmations: rows,
-    ...(seal !== undefined ? { seal } : {})
-  };
-  const path = confirmPath();
-  mkdirSync(dirname(path), { recursive: true });
-  const tmp = `${path}.tmp`;
-  writeFileSync(tmp, `${JSON.stringify(file, null, 2)}\n`, 'utf8');
-  renameSync(tmp, path); // atomic on the same volume
-  return true;
+function readState(): ConfirmRecordState {
+  return readConfirmRecords(CONFIG_EXECUTION_HASH_ALGORITHM);
 }
 
 // ---------------------------------------------------------------------------
@@ -800,7 +674,7 @@ export function confirmConfigRow(
     lines: [...consent.linesRead]
   };
   const rows = { ...readState().rows, [id]: confirmation };
-  if (!writeState(rows)) {
+  if (!writeConfirmRecords(rows)) {
     configLog.warn(
       `the OS keystore is unavailable, so the confirmation for ${id} ` +
         `could not be recorded. It was not written.`
@@ -820,7 +694,7 @@ export function forgetConfigRow(id: string): void {
   const rows = { ...readState().rows };
   if (rows[id] === undefined) return;
   delete rows[id];
-  writeState(rows);
+  writeConfirmRecords(rows);
 }
 
 /** Every confirmation on record. For the settings list and for the tests. */

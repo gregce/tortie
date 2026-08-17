@@ -221,19 +221,49 @@ template, never the settings store.
   path, on a machine full of agents with write access to the home directory. The Settings field is
   not labeled with tmux vocabulary; it sits behind an advanced disclosure with a plain label.
 - Refusal 8, exactly. Writing a machine row starts nothing. Editing one invalidates its hash and it
-  stops working until re-confirmed. The first ssh process for a machine spawns on the person's
-  confirm click in Settings, out of band of any agent turn. Reconnect on wake is written into the
-  record now, so a later round cannot blur it. A reconnect traces to a standing confirmation plus a
-  power event, never to a configuration change, and it stops the moment the hash is invalid. The
-  boundary is between "reconnect on wake" and "connect on file write", and only the first is legal.
+  stops working until re-confirmed. The first ssh process for a machine spawns on the person's own
+  click in Settings, out of band of any agent turn. Reconnect on wake is written into the record
+  now, so a later round cannot blur it. A reconnect traces to a standing confirmation plus a power
+  event, never to a configuration change, and it stops the moment the hash is invalid. The boundary
+  is between "reconnect on wake" and "connect on file write", and only the first is legal.
+  - AMENDED BY PHASE 68, and the amendment is one word. This bullet used to say the first ssh
+    spawns on the person's "confirm click". The build spawns it on their Test the connection click
+    instead, which comes first in the same flow, because the hash a confirmation binds to covers
+    the absolute program path and the machine has to report that path before there is anything to
+    confirm. Measured in the live probe: the confirm click starts zero ssh processes, sampled at
+    150 ms. The property this bullet is here to protect is unchanged, because the click is still a
+    person's own click in Settings, out of band of any agent turn. The sentence moved to match the
+    code rather than the code moving to match the sentence, and that choice is deliberate: making
+    the confirm click spawn a second ssh would add a connection nobody asked for.
 - Discovery. The Add Machine picker offers names from `tailscale status --json`, run from a pinned
   absolute path resolved and shown at pick time, never a bare name served by PATH, because a
   planted binary earlier on PATH is exactly the attack the confirm gate exists for. Enumerating
   `~/.ssh/config` is not the source. The operator's config holds exactly 1 Host entry and it is an
   unrelated IP. Manual entry remains for hosts off the tailnet.
-- Keys. Tortie writes no keys, no passphrases, no known_hosts entries and no ssh config, on either
-  machine, ever. Authentication is the user's ssh agent, config and tailnet. Tailscale SSH makes
-  the whole key question disappear for this operator.
+- Keys. Tortie writes no keys, no passphrases and no ssh config, on either machine, ever.
+  Authentication is the user's ssh agent, config and tailnet. Tailscale SSH makes the whole key
+  question disappear for this operator.
+- Host keys. AMENDED BY PHASE 68, because the original bullet promised something the interactive
+  connection test cannot deliver and the first build broke the promise in practice. It said Tortie
+  writes no known_hosts entries ever. Answering ssh's own host key question IS a known_hosts write,
+  by definition, so the two halves of that bullet contradicted each other. The first build passed
+  `StrictHostKeyChecking=ask` and named no file, ssh used its default, and answering the question in
+  Tortie added three lines to the operator's `~/.ssh/known_hosts`. Measured read only at 932 bytes
+  before a probe run and 1229 bytes after.
+  - What is true now. The command names two files with `UserKnownHostsFile`. First is a file inside
+    Tortie's own data directory, `<userData>/gmux/machines/known-machines`, and being first is what
+    makes it the only file a new key is ever added to. Second is the person's `~/.ssh/known_hosts`,
+    read and never written, so a machine they have known for years whose key has since changed still
+    raises the alarm on Tortie's first contact instead of looking like a machine nobody has met.
+  - Measured against a scratch sshd on 127.0.0.1. A new key wrote 99 bytes to Tortie's file and 0
+    bytes to the second. A wrong key placed in the second file produced REMOTE HOST IDENTIFICATION
+    HAS CHANGED and left that file byte for byte as it was. A full ten step probe run left the
+    operator's file at 1229 bytes, unchanged.
+  - So the promise, in the words it can be kept in: Tortie never adds a line to any file in the
+    person's home directory. `build/conformance-machines.mjs` reads the argv and fails when the
+    option is missing, when either file is missing from it, when the order is reversed, or when
+    Tortie's path is unquoted. The Machines section says all of this on screen, in
+    `HONESTY_OWN_RECORD`.
 - The one interactive moment. Steady state runs `BatchMode=yes` so broken auth fails fast. First
   contact may need a host-key answer, and that belongs to setup. The Add Machine flow runs one
   visible connection test in a small terminal view inside Settings, the user answers ssh's own

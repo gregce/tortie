@@ -5566,7 +5566,7 @@ matrix on a real tailnet machine, are recorded as owed and run only when he is p
 | Phase | Was | Contents, from research 51 section 6 | Tier |
 | --- | --- | --- | --- |
 | 67 | M0 | ✅ SHIPPED 2026-08-17 (95aa770, 0.31.2, gates green), section below. `unknown` gets its producer at a per-machine reconcile boundary; restore and input refused while unreachable; the machine-level Unreachable presentation. Fixes the live LOCAL defect where refresh() flips every non-exited row to restorable on TMUX_UNREACHABLE. The local socket adopts the boundary immediately, decided per the operator's standing autonomy preference, because the local bug IS the point | 3 |
-| 68 | M1 | machines.json behind the confirm gate and seal, conformance:machines, the Settings surface, the tailscale picker from a pinned absolute path, the one visible connection test | 2 plus the gate |
+| 68 | M1 | ✅ SHIPPED 2026-08-17 (this commit, 0.32.0, gates green), section below. machines.json behind the confirm gate and seal, conformance:machines, the Settings surface, the tailscale picker from a pinned absolute path, the one visible connection test | 2 plus the gate |
 | 69 | M2 | MachineContext replaces the singleton; the exec plane over ssh with at-least-once discipline; remote server boot with -f /dev/null plus BOOT_SERVER_OPTIONS asserted; PATH capture ordered before first mutation; the version probe and refusal screen with remedy; error taxonomy golden files; keepalives from measurement. The dialect posture is a TESTED LIST that starts from locally measured versions and fails closed, so an unmeasured version is refused with the upgrade remedy, and his four machines join the list after the measurement he attends | 3 |
 | 70 | M3 | Attach over ssh -t in node-pty; create, kill and rename remote; the machine badge; session list by exec polling; restore REFUSED for every remote row with a visible coming label; the vocabulary audit. First visible operator value | 3 |
 | 71 | M4 | The control plane per machine replaces polling; per-machine reconcile; the machine_id migration; the section 4.4 case table live; pane-env rescue over the exec plane; the partition harness in the spirit of smoke:fault, driven by killing the scratch sshd mid-flight | 3 |
@@ -5623,6 +5623,126 @@ shows that same line even though the expanded row itself still shows its error. 
 the runs body's own scroll only, so an outer container scrolling would move the rows without
 closing it, which is the History card's behavior too. HistorySection still runs its own inline
 copy of the hover timers, so hover-timing.ts has exactly one consumer until a later consolidation.
+
+## Phase 68 — a machine you confirmed once is a place sessions can live (research 51, M1) ✅ SHIPPED 2026-08-17 (this commit, 0.32.0)
+
+The M1 rung of the remote ladder. A machine is now a thing Tortie holds: a row in a file, a person's
+agreement bound to a hash of the four fields that decide what runs, and one visible connection test
+that proves Tortie can reach it. No session opens on a machine yet, and the section says so on every
+visit.
+
+**What shipped.** `machines.json` sits beside `agents.json` under `<userData>/gmux/config/`, read at
+three moments and no others: boot, an explicit reload, and a file watcher with a 300 ms debounce.
+Reading it starts nothing, and `whileReadingMachines` closes the connect gate for the length of the
+read so a later round that wires "the file changed, so connect to it" fails at once and says why. A
+row that fails a check is dropped whole with a sentence naming the field and the reason, and the
+valid rows beside it survive.
+
+The gate is `src/main/machines/confirm.ts`, with its own field type rather than the agent gate's
+thirteen-field one, so the compiled ssh options stay out of the hash and a keepalive value Phase 69
+measures cannot invalidate machines a person already confirmed. The hash covers `host`, `user`,
+`port`, `remoteTmuxPath` and the prefixed row id. Confirmations share one sealed file with the agent
+gate, `<userData>/gmux/config-confirmations.json`, under `machine:` keys, so a machine and a
+configured agent with the same bare id can never share an agreement. Six refusals are asserted
+against `out/main/index.js` by `build/assert-bundle-refusals.mjs`.
+
+Settings then Machines is the only surface that can add, confirm, withdraw or remove one. The Add
+flow runs the pinned Tailscale program to offer names, shows the absolute path it ran before it runs
+anything, and never a name served by PATH. The one visible connection test runs ssh once in a pty,
+shows every byte the program printed with ANSI stripped, and lets a person answer the program's own
+question. It is the only `BatchMode=no` call site in the tree, counted by the gate.
+`npm run conformance:machines` is the fourth gate of its shape, about a second, spawning nothing.
+
+**The Add button could not add a machine, and that is the fix this round is mostly about.** The
+renderer composed its own confirm sheet from four labels of its own and sent `hashRead: ''`. Main
+compared that against the hash it had just computed and refused every add with "Tortie did not add
+scratch-box, because the machine changed after it was shown." The list still read "No machines yet."
+and no `machines.json` was written. Both builders reported it and neither fix landed. The hash covers
+the absolute program path, and the machine only reports that path at the end of the connection test,
+so a hash the renderer invents can never be the hash main computes. Main now composes the sheet at
+the end of the test and sends the hash and the lines together on
+`MachineTestOutcome.sheet`; the surface draws those exact lines and sends that exact hash back. The
+four labels are gone from `machines-copy.ts` and `machines-copy.test.ts` fails if any of them
+returns. `machines-store.test.ts` is new and reads the payload that crosses the bridge, because every
+component test passed while the payload was wrong.
+
+**The connection test wrote into the operator's home directory.** Measured read only: 932 bytes in
+`~/.ssh/known_hosts` before a probe run and 1229 bytes after, three lines added, and Tortie's own
+window said so. The command carried `StrictHostKeyChecking=ask` and named no host key file, so ssh
+used its default, and ssh finds the home directory through `getpwuid` rather than `HOME`, so setting
+`HOME` for the child moves nothing. Research 51 section 4.2 promised the opposite in as many words.
+The command now names two files with `UserKnownHostsFile`. First is
+`<userData>/gmux/machines/known-machines`, a file Tortie owns, and being first is what makes it the
+only file a new key is ever added to. Second is the person's own file, read and never written, so a
+machine they have known for years whose key has since changed still raises the alarm on Tortie's
+first contact. Measured against a scratch sshd: 99 bytes written to Tortie's file and 0 to the
+second; a wrong key placed in the second file produced REMOTE HOST IDENTIFICATION HAS CHANGED and
+left that file byte for byte as it was. `conformance:machines` now reads the argv and fails when the
+option is missing, when either file is absent from it, when the order is reversed, or when Tortie's
+path is unquoted, and a deliberate reversal was watched failing. Research 51 section 4.2 is amended
+in the same commit, and the section states the whole of it on screen in `HONESTY_OWN_RECORD`.
+
+**One spec sentence moved to match the code.** Research 51 section 4.2 said the first ssh process for
+a machine spawns on the person's confirm click. It spawns on their Test the connection click, which
+comes first in the same flow, because there is nothing to confirm until the machine has reported the
+program path. Measured: the confirm click starts zero ssh processes, sampled at 150 ms. The sentence
+moved rather than the code, because making the confirm click open a second connection would add one
+nobody asked for. The property the sentence protects is unchanged: it is a person's own click in
+Settings, out of band of any agent turn.
+
+**What the live probe measured.** `node build/probe-machines.mjs`, ten steps, six screenshots, green.
+The carriage is a real `/usr/sbin/sshd` on 127.0.0.1 on a high port with keys generated in the run's
+own directory, and a private key holder started by the probe holding exactly one key. Without that
+holder the client had no way to use the key the scratch server accepts, so step 3 returned
+`auth-refused` in 366 ms and steps 4 to 6 cascaded to "there is no machines.json to edit". Steps 3, 4
+and 8 are driven by typing into the real fields and clicking the real controls, because a bridge run
+cannot see a broken button: the previous round's three screenshots for the connection test, the
+confirmed row and the alarm were all the same photograph of an empty section. The numbers: the test
+came back `ok` in 693 ms with `/opt/homebrew/bin/tmux` reported by the machine; the sheet on screen
+read `Machine: 127.0.0.1`, `Port: <port>`, `Runs this program on that machine:
+/opt/homebrew/bin/tmux`; the Add button was enabled, the click wrote one row and
+`machines.json` on disk carried the machine's own path; a stale hash was refused and wrote nothing;
+an edit from outside the app moved the row to unusable in main 429 ms after the write landed, and the
+screen showed it after the person pressed Check the file again; a label change
+alone left the hash byte for byte; a port with nothing on it drew calm copy and a changed host key
+drew the alarm, with the alarm block inside the 532 px the capture photographs; the client died with
+the app, 0 survivors; and `~/.ssh/known_hosts` was 1229 bytes before the run and 1229 bytes after.
+The operator's tmux server was counted at 28 sessions before and 28 after.
+
+**Two things the probe found on the screen, and both are now fixed.** First, a row that stops being
+usable kept its two lists behind the disclosure, because the open state only decided how the row
+first rendered. The chip and the sentence changed and the evidence did not appear. `MachineRow` now
+opens itself once, on that transition, and a person can still shut an unusable row and have it stay
+shut. Second, and this is the one that took two probe runs to see: the window never learned that the
+file had changed at all. Main knew 429 ms after the write landed and the row on screen still read
+Confirmed, because nothing pushes a machines file change to a renderer and the only button that
+re-reads appeared when a row had failed a check. Nothing unsafe happened, because the gate refuses on
+the connect path whatever the screen says, but the screen said one thing and Tortie would have done
+another. `Check the file again` is now always in the section toolbar. The configured agents surface
+has the same shape and the same limitation, and it was left alone rather than given a new event
+channel in a fix round.
+
+**What is not true.** No session opens on a machine, and no code in this phase could open one. No
+machine of the operator's was contacted, no remote tmux server was started and no remote tmux version
+was measured; the dialect survey and the M5 fault matrix on a real tailnet machine stay owed and run
+only when he is present. The failure taxonomy is pinned by fixtures rather than by golden files per
+tested remote version, so an ssh release that rewords its messages is caught by the fixture tests and
+by nothing else. The row that opens itself is proven by the live probe alone, because the unit tests
+render statically in the node environment and `useEffect` never runs there. Nothing pushes a machines
+file change to a window, so a person who edits the file by hand while Settings is open sees the old
+rows until they press Check the file again; an event channel for that was deliberately not added in a
+fix round. Step 5 and step 6 of the probe still poll main through the bridge, since no control on the
+screen can edit the file from outside the app, and the stale-hash refusal is driven the same way for
+the same reason. The
+tailnet picker was exercised against the operator's real Tailscale program, which reported one peer
+and no other machines, so the multi-peer list is drawn only in unit tests. `remoteProgram` had to be
+typed into the Advanced field for the probe to reach a confirmed row, because a connection to this
+same Mac runs a login shell whose PATH does not carry Homebrew's directory and `command -v tmux`
+answers with nothing; the bare-name path is therefore proven to produce `no-program` and not to
+produce a resolved path. Fourteen contract lines were added and the baseline was re-based in this
+commit: the ten `machines:*` channels, `GMUX_SSH_BIN` and `GMUX_TAILSCALE_BIN` as development only
+overrides both refused when packaged, the `machines` smoke mode, and `machines=6` in the bundle
+refusal counts.
 
 ## Phase 67 — unreachable is not dead: the `unknown` status gets its producer (research 51, M0) ✅ SHIPPED 2026-08-17 (95aa770, 0.31.2, gates green)
 

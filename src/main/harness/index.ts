@@ -50,6 +50,14 @@
  *                       process is started at any point. Isolated profile AND
  *                       isolated socket, refused without both.
  *                       `npm run smoke:config`.
+ *  - GMUX_SMOKE=machines  the machine confirm gate (Phase 68), driven against
+ *                       the real OS keychain and a real forged record on disk.
+ *                       Twelve steps, and the last one asserts that a boot with
+ *                       a confirmed machine in the file started ZERO ssh
+ *                       processes, counted twice. Isolated profile AND isolated
+ *                       socket, refused without both, reusing GMUX_CONFIG_ROOT
+ *                       rather than adding a third variable.
+ *                       `npm run smoke:machines`.
  *  - GMUX_SMOKE=quit    the REAL app.quit() under a saturated uv threadpool
  *                       (Phase 36). Every other harness ends with app.exit,
  *                       which skips before-quit and FreeEnvironment — the
@@ -92,10 +100,16 @@ import type { BrowserWindow } from 'electron';
 // the photograph shows a build that has opened the configuration file.
 import { initAgentOverlay } from '../config/store';
 import { runConfigConfirmSmoke } from '../config/confirm-smoke';
+// Phase 68: the boot read of machines.json, awaited before a shot capture for
+// the same reason the agents.json read is.
+import { initMachines } from '../machines/store';
 import { runResumeConformance } from '../conformance';
 // LEAF import: ./fault/harness pulls in the session core, so it is imported
 // directly rather than through ../fault, which production code imports.
 import { runFaultSurvey, runFaultWork } from '../fault/harness';
+// Phase 68: the machines confirm gate, and the second caller its six refusals
+// need so the bundler cannot fold them away.
+import { runMachinesSmoke } from '../machines/smoke';
 import { runMigrateSmoke } from '../migrate/smoke';
 import { runReconstructSmoke } from '../manifest/reconstruct-smoke';
 import { runRefusalSmoke } from '../manifest/refusal-smoke';
@@ -232,6 +246,14 @@ export async function dispatchHarness(deps: HarnessDeps): Promise<boolean> {
     await runConfigConfirmSmoke();
     return true;
   }
+  // Phase 68: the machine confirm gate, driven in a real Electron process
+  // against the real OS keychain and a real forged record on disk. It is also
+  // the second caller the six machine refusals need. It starts no process, and
+  // the last of its twelve steps proves that by two independent counts.
+  if (smoke === 'machines') {
+    await runMachinesSmoke();
+    return true;
+  }
   // Phase 13.8: what the outside world sees of gmux (read-only).
   if (smoke === 'procid') {
     await runSmokeProcId();
@@ -267,6 +289,14 @@ export async function dispatchHarness(deps: HarnessDeps): Promise<boolean> {
     await initAgentOverlay().catch((err: unknown) => {
       console.error(
         `[gmux] the configuration file was not read: ${(err as Error).message}`
+      );
+    });
+    // Phase 68, for the same reason. A screenshot of the Machines section must
+    // show a build that has opened machines.json, and the read is awaited so a
+    // capture cannot race it and photograph whichever answer won.
+    await initMachines().catch((err: unknown) => {
+      console.error(
+        `[gmux] the machines file was not read: ${(err as Error).message}`
       );
     });
     await runShot(shot, deps);

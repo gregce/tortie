@@ -1,7 +1,7 @@
 {
   "name": "tortie",
   "productName": "Tortie",
-  "version": "0.31.3",
+  "version": "0.32.0",
   "description": "Tortie — a calm, durable place for agentic work: named terminal sessions that outlive the window (private tmux server), git sidebar, decorated file tree, diff + edit surfaces.",
   "private": true,
   "main": "./out/main/index.js",
@@ -31,7 +31,9 @@
     "smoke:procid": "npm run build && node build/harness-socket.mjs gmux-smoke-procid 'GMUX_SMOKE=procid electron . --user-data-dir=\"${TMPDIR:-/tmp/}gmux-smoke-procid\" -ApplePersistenceIgnoreState YES'",
     "smoke:refusal": "npm run build && rm -rf \"${TMPDIR:-/tmp/}gmux-smoke-refusal\" && GMUX_TMUX_SOCKET=gmux-smoke-refusal GMUX_REFUSAL_ROOT=\"${TMPDIR:-/tmp/}gmux-smoke-refusal\" GMUX_SMOKE=refusal electron . --user-data-dir=\"${TMPDIR:-/tmp/}gmux-smoke-refusal/profile\" -ApplePersistenceIgnoreState YES",
     "smoke:config": "npm run build && rm -rf \"${TMPDIR:-/tmp/}gmux-smoke-config\" && GMUX_TMUX_SOCKET=gmux-smoke-config GMUX_CONFIG_ROOT=\"${TMPDIR:-/tmp/}gmux-smoke-config\" GMUX_SMOKE=config electron . --user-data-dir=\"${TMPDIR:-/tmp/}gmux-smoke-config/profile\" -ApplePersistenceIgnoreState YES",
+    "smoke:machines": "npm run build && rm -rf \"${TMPDIR:-/tmp/}gmux-smoke-machines\" && GMUX_TMUX_SOCKET=gmux-smoke-machines GMUX_CONFIG_ROOT=\"${TMPDIR:-/tmp/}gmux-smoke-machines\" GMUX_SMOKE=machines electron . --user-data-dir=\"${TMPDIR:-/tmp/}gmux-smoke-machines/profile\" -ApplePersistenceIgnoreState YES",
     "conformance:agents": "node build/conformance-agents.mjs",
+    "conformance:machines": "node build/conformance-machines.mjs",
     "conformance:installs": "node build/conformance-installs.mjs",
     "conformance:context": "node build/conformance-context.mjs",
     "conformance:tmux-pair": "node build/tmux-pair.mjs",

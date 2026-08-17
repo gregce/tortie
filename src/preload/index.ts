@@ -33,6 +33,7 @@ import { config, context, contextSnapshot } from './context';
 import { fs, preview } from './files';
 import { git } from './git';
 import { log } from './log';
+import { machines } from './machines';
 import { projects, recents } from './projects';
 import { notice, sessions } from './sessions';
 import { quickOpen, search, symbols } from './search';
@@ -80,6 +81,10 @@ const api: InstalledGmuxApi = {
   symbols,
   quickOpen,
   scrollback,
+  // Phase 68 optional extra: the Machines section in Settings. Ten calls and
+  // one subscription. Two of them start a process, and both are a button a
+  // person presses. Nothing here opens a session on a machine.
+  machines,
   notice,
   preview,
   // Phase 46 optional extra: the SCM view's Runs section. Read only, and the

@@ -134,6 +134,11 @@ import type {
 } from './sessions';
 import type { GmuxLogExtras, LogInvokeChannelMap } from './log';
 import type {
+  GmuxMachinesExtras,
+  MachinesInvokeChannelMap,
+  MachineTestEventPayloadMap
+} from './machines';
+import type {
   GmuxSpecStoryExtras,
   CaptureEventPayloadMap,
   SpecStoryStatusInvokeChannelMap
@@ -159,6 +164,7 @@ export * from './context';
 export * from './files';
 export * from './git';
 export * from './log';
+export * from './machines';
 export * from './projects';
 export * from './search';
 export * from './sessions';
@@ -224,7 +230,8 @@ export type GmuxInvokeChannelMap = InvokeChannelMap &
   ActionsInvokeChannelMap &
   LogInvokeChannelMap &
   AskRestoreProjectInvokeChannelMap &
-  ShellCommandInvokeChannelMap;
+  ShellCommandInvokeChannelMap &
+  MachinesInvokeChannelMap;
 
 export type GmuxInvokeChannel = keyof GmuxInvokeChannelMap;
 
@@ -250,7 +257,8 @@ export type AllEventPayloadMap = EventPayloadMap &
   RecentsEventPayloadMap &
   ActionsEventPayloadMap &
   PowerEventPayloadMap &
-  UpdatesEventPayloadMap;
+  UpdatesEventPayloadMap &
+  MachineTestEventPayloadMap;
 
 export type AllEventChannel = keyof AllEventPayloadMap;
 
@@ -345,4 +353,5 @@ export type InstalledGmuxApi = GmuxApi & {
   GmuxUpdatesExtras &
   GmuxActionsExtras &
   GmuxLogExtras &
-  GmuxShellExtras;
+  GmuxShellExtras &
+  GmuxMachinesExtras;

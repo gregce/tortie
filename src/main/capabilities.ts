@@ -37,6 +37,11 @@ import { registerIpcHandlers } from './ipc';
 // below owes the next boot.
 import { clearLogRunSentinel, getLog, logEvent } from './log';
 import { registerLogIpc } from './log/ipc';
+// Phase 68: the machines domain. The watcher teardown and the live test
+// cancellation are both in the ordered disposer below.
+import { cancelLiveMachineTest } from './machines/connection-test';
+import { registerMachinesIpc } from './machines/ipc';
+import { stopMachinesWatch } from './machines/store';
 import { installAppMenu } from './menu';
 import { registerNoticeIpc } from './notice/ipc';
 import {
@@ -145,6 +150,14 @@ export function installMainCapabilities(
   // default source reports no rows, which is what a machine with no
   // configuration file has.
   registerConfigIpc(ipcMain);
+  // Phase 68: the ONE `machines:*` registrar. Ten channels, and what is not
+  // here is the point. There is no channel that opens a session on a machine,
+  // no channel that connects on a file change, and no channel that sets a
+  // session's status. Two of the ten start a process, being the tailnet picker
+  // and the one visible connection test, and both are a button a person
+  // presses in Settings. The other eight read memory, write one row, or write
+  // one record.
+  registerMachinesIpc(ipcMain);
   // Phase 12.9 item 1: projects:create — the only project channel that
   // writes to disk (mkdir + optional `git init`, then the usual add).
   registerProjectCreateIpc(ipcMain);
@@ -261,10 +274,19 @@ export async function disposeMainCapabilities(): Promise<MainDisposeOutcome> {
   // here can delay or cut it short. The outer 3 s race is a wedge guard
   // only; a measured unsubscribe completes in single-digit milliseconds
   // when the uv threadpool has a free thread.
+  // Phase 68: a connection test still running at quit is killed first, and only
+  // the pid this app started is killed. It is done before the watcher drain
+  // because it is synchronous and because a pty nobody is watching is a process
+  // nobody can answer.
+  cancelLiveMachineTest();
   await Promise.race([
-    Promise.allSettled([disposeGitIpc(), stopAgentOverlayWatch()]).then(() =>
-      drainWatcherCloses(2_000)
-    ),
+    Promise.allSettled([
+      disposeGitIpc(),
+      stopAgentOverlayWatch(),
+      // Phase 68: the machines.json watcher, closed through the same tracked
+      // path the agents.json one uses, for the same Phase 36 reason.
+      stopMachinesWatch()
+    ]).then(() => drainWatcherCloses(2_000)),
     new Promise((r) => setTimeout(r, 3_000))
   ]).catch(() => undefined);
   disposeSearchIpc(); // SIGKILL any in-flight ripgrep

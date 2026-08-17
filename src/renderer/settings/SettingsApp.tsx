@@ -30,6 +30,7 @@ import { DiagnosticsSection } from './DiagnosticsSection';
 import { GeneralSection } from './GeneralSection';
 import { KeyboardSection } from './KeyboardSection';
 import { LaunchDefaultsSection } from './LaunchDefaultsSection';
+import { MachinesSection } from './MachinesSection';
 import { useSettingsStore } from './settings-store';
 import { SpecStorySection } from './SpecStorySection';
 import './settings.css';
@@ -41,7 +42,8 @@ type SectionId =
   | 'launch-defaults'
   | 'specstory'
   | 'diagnostics'
-  | 'appearance';
+  | 'appearance'
+  | 'machines';
 
 /**
  * A rail entry wears either a codicon, which is what app chrome uses, or a
@@ -81,7 +83,14 @@ const SECTIONS: { id: SectionId; label: string; icon: RailIcon }[] = [
   // Phase 62. Last on the rail, the house rule for a new section: it is the
   // newest and inserting it mid-list would move entries people already know
   // the position of.
-  { id: 'appearance', label: 'Appearance', icon: { codicon: 'symbol-color' } }
+  { id: 'appearance', label: 'Appearance', icon: { codicon: 'symbol-color' } },
+  // Phase 68. Last on the rail, the house rule for a new section: it is the
+  // newest and inserting it mid-list would move entries people already know
+  // the position of. The `vm` glyph, not `server` and not `remote`: a machine
+  // here is another computer a person owns and signs in to as themselves,
+  // which is what that glyph draws. `remote` already means "this branch is on
+  // a remote" everywhere else in this app.
+  { id: 'machines', label: 'Machines', icon: { codicon: 'vm' } }
 ];
 
 export function SettingsApp(): React.JSX.Element {
@@ -159,6 +168,7 @@ export function SettingsApp(): React.JSX.Element {
         {section === 'specstory' ? <SpecStorySection /> : null}
         {section === 'diagnostics' ? <DiagnosticsSection /> : null}
         {section === 'appearance' ? <AppearanceSection /> : null}
+        {section === 'machines' ? <MachinesSection /> : null}
       </main>
     </div>
   );

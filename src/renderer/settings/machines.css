@@ -1,0 +1,481 @@
+/*
+ * Settings → Machines (Phase 68). Colocated with its components, like
+ * scrollback.css and diagnostics.css: settings.css is already the file three
+ * streams reach for at once, and this section is a domain of its own.
+ *
+ * The section invents as little as it can. The row head, the chip, the lines
+ * list, the dropped-rows block and the buttons are the S13 shapes the
+ * configured agents row already uses, reached through their existing classes.
+ * What is here is the handful of shapes that surface has no rule for yet: a
+ * colour dot, a labelled form field, a tailnet list, a transcript, and one
+ * alarm state.
+ *
+ * Every colour is a token. There is not one literal in this file.
+ */
+
+/* ------------------------------------------------------- the two honesty
+   lines, plus the third that arrives from main.
+
+   They are prose rather than controls, so they get the card's padding and the
+   body measure instead of the row anatomy. Secondary rather than muted: these
+   are promises the product makes, and a promise set in the hint colour reads
+   as small print. */
+.mach-honesty {
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.mach-honesty-line {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-secondary);
+}
+
+.mach-toolbar {
+  margin-top: var(--space-5);
+}
+
+/* ------------------------------------------------------------- one machine */
+
+.mach-row {
+  padding: var(--space-4) var(--space-5);
+}
+
+.mach-row + .mach-row {
+  border-top: 1px solid var(--border);
+}
+
+.mach-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.mach-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.mach-host {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+/* The colour a person picked. It is IDENTITY and never state: the chip beside
+   it carries whether Tortie will sign in, and the sentence under it says why.
+   A person who cannot tell two of these hues apart loses nothing, because the
+   name and the address are right beside the dot.
+
+   The six hues are the commit-graph lanes. That token set is the only one in
+   tokens.css that owns six categorical colours, it was measured for pairwise
+   separation and for contrast on the worst row background, and its own note
+   says lane colour is identity rather than state, which is exactly the job
+   here. Borrowing it beats inventing a seventh through twelfth hue that
+   nobody has measured. */
+.mach-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  margin-top: var(--space-3);
+  border-radius: 50%;
+  background: var(--graph-lane-1);
+}
+
+.mach-dot[data-machine-color='blue'] {
+  background: var(--graph-lane-1);
+}
+.mach-dot[data-machine-color='red'] {
+  background: var(--graph-lane-2);
+}
+.mach-dot[data-machine-color='cyan'] {
+  background: var(--graph-lane-3);
+}
+.mach-dot[data-machine-color='orange'] {
+  background: var(--graph-lane-4);
+}
+.mach-dot[data-machine-color='magenta'] {
+  background: var(--graph-lane-5);
+}
+.mach-dot[data-machine-color='green'] {
+  background: var(--graph-lane-6);
+}
+
+/* Confirmed reads as ready. The other three read the same as each other,
+   because they mean the same thing to the person in front of them, which is
+   that Tortie will not sign in. None of them is an alarm: a machine that has
+   not been confirmed yet is the ordinary state of a machine, not a fault. */
+.set-chip.mach-confirmed {
+  background: var(--success-wash);
+  color: var(--success);
+}
+
+.set-chip.mach-never,
+.set-chip.mach-changed,
+.set-chip.mach-unknown {
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+}
+
+/* Main's own refusal sentence, told apart from the sentence written for the
+   moment before it. */
+.mach-refusal {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-muted);
+}
+
+.mach-lines-block + .mach-lines-block {
+  margin-top: var(--space-5);
+}
+
+.mach-lines-label {
+  margin-bottom: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.mach-remove {
+  margin-top: var(--space-5);
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.mach-remove-question {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-secondary);
+}
+
+/* --------------------------------------------------------- add a machine */
+
+.mach-add {
+  margin-top: var(--space-6);
+}
+
+.mach-add-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+}
+
+.mach-add-head .set-group-label {
+  margin: 0;
+}
+
+.mach-card {
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.mach-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  align-items: flex-start;
+}
+
+.mach-block > .btn {
+  flex: 0 0 auto;
+}
+
+.mach-hint {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-muted);
+}
+
+.mach-note {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-secondary);
+}
+
+/* The pinned path Tortie ran, shown BEFORE it runs anything. A person has to
+   be able to see which program answered, so it gets the mono face and the
+   brighter tone rather than the hint colour. */
+.mach-source {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.mach-source-label {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.mach-source-path {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.mach-peers {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+
+.mach-peer {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: transparent;
+  border: 0;
+  text-align: left;
+  color: var(--text-primary);
+  font-size: var(--text-base);
+  cursor: pointer;
+}
+
+.mach-peer + .mach-peer {
+  border-top: 1px solid var(--border);
+}
+
+.mach-peer:hover:not(:disabled) {
+  background: var(--bg-raised);
+}
+
+.mach-peer:disabled {
+  color: var(--text-disabled);
+  cursor: default;
+}
+
+.mach-peer:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.mach-peer-name {
+  flex: 0 0 auto;
+}
+
+.mach-peer-host {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.mach-peer-os,
+.mach-peer-mark {
+  flex: 0 0 auto;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.mach-peer-mark {
+  padding: 0 var(--space-3);
+  border-radius: var(--r-sm);
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+}
+
+/* ------------------------------------------------------------ form fields */
+
+.mach-field-row {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+}
+
+.mach-field-label {
+  flex: 0 0 auto;
+  width: 180px;
+  font-size: var(--text-base);
+  color: var(--text-primary);
+}
+
+.mach-field {
+  flex: 1;
+  min-width: 0;
+  height: 24px;
+  padding: 0 var(--space-3);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+.mach-field:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.mach-field-short {
+  flex: 0 0 auto;
+  width: 80px;
+}
+
+.mach-advanced > summary {
+  cursor: pointer;
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+}
+
+.mach-advanced > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.mach-advanced[open] > summary {
+  margin-bottom: var(--space-5);
+}
+
+.mach-advanced > .mach-field-row + .mach-hint {
+  margin-top: var(--space-3);
+}
+
+.mach-advanced > .mach-hint + .mach-field-row {
+  margin-top: var(--space-5);
+}
+
+.mach-sheet {
+  align-self: stretch;
+}
+
+/* ------------------------------------------------- the connection test view */
+
+.mach-test {
+  align-self: stretch;
+  margin-top: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+
+/* Tortie's two lines, separated from the program's bytes by a rule and by a
+   different background. The rule is the line the second sentence refers to. */
+.mach-test-head {
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--border-strong);
+  background: var(--bg-raised);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.mach-test-tortie {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.mach-test-path {
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+/* Another program's bytes, unchanged. It is a plain text view and not a
+   terminal: no cursor, no redraw, no column tracking. A tall floor keeps the
+   panel from jumping as the first lines arrive, and the ceiling keeps a
+   chatty login file from pushing the buttons off the screen. */
+.mach-transcript {
+  margin: 0;
+  padding: var(--space-4) var(--space-5);
+  min-height: 72px;
+  max-height: 320px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-primary);
+}
+
+.mach-answer {
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.mach-answer-field {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.mach-answer-label {
+  flex: 0 0 auto;
+  font-size: var(--text-base);
+  color: var(--text-primary);
+}
+
+.mach-answer-hint,
+.mach-testing {
+  padding: 0 var(--space-5) var(--space-4);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-muted);
+}
+
+/* The outcome. Main writes both sentences; this file only decides where they
+   sit and, for exactly one class, that they are loud. */
+.mach-outcome {
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.mach-outcome-head {
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  color: var(--text-primary);
+}
+
+.mach-outcome-detail {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-secondary);
+}
+
+/* THE ONE ALARM ON THIS SURFACE. Only a changed host key reaches it. A
+   machine that is off, a refused connection and a rejected sign in are all
+   drawn calmly, because three ordinary events wearing the alarm colour teach
+   a person to ignore the one event that is not ordinary. */
+.mach-outcome.alarm {
+  background: var(--error-wash);
+  border-top-color: var(--error);
+}
+
+.mach-outcome.alarm .mach-outcome-head {
+  color: var(--error);
+}
