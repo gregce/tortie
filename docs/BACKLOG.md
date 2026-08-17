@@ -5163,7 +5163,7 @@ same phase as the words.
 
 | # | Slice, recorded NOT queued | Contents | Blocked on |
 | --- | --- | --- | --- |
-| 63 | The contract without the canvas | The docs/arch format with schema and validator, the arch IPC domain, import captures with the manifest-aware resolver for TS, JS and Go, the five checkers with the argv defense and hostile fixture, the fifth sidebar view through the full registration cascade including the View menu item, the teaching empty state with the corpus-seeded prompt, conformance:arch, divergence rows in the SCM view. Tier 3 checkers, Tier 2 UI. Zero new packages | NOTHING. The operator ACCEPTED the Zen addition on 2026-08-16, with two riders: the addition's text lands inside Phase 63's own commit so its two sequencing conditions hold, being the argv defense before the nothing-starts-a-process bullet is true and the accepted-divergence visibility rule in the same phase as the words; and README.md is NOT touched, the Zen lives in docs/ZEN-OF-TORTIE.md only |
+| 63 | The contract without the canvas, HELD 2026-08-16 by the operator AFTER acceptance, his words being that SSH is immediately valuable; the Zen acceptance stands recorded, the build resumes on his word from workflow run wf_70ed709c-c02 | The docs/arch format with schema and validator, the arch IPC domain, import captures with the manifest-aware resolver for TS, JS and Go, the five checkers with the argv defense and hostile fixture, the fifth sidebar view through the full registration cascade including the View menu item, the teaching empty state with the corpus-seeded prompt, conformance:arch, divergence rows in the SCM view. Tier 3 checkers, Tier 2 UI. Zero new packages | NOTHING. The operator ACCEPTED the Zen addition on 2026-08-16, with two riders: the addition's text lands inside Phase 63's own commit so its two sequencing conditions hold, being the argv defense before the nothing-starts-a-process bullet is true and the accepted-divergence visibility rule in the same phase as the words; and README.md is NOT touched, the Zen lives in docs/ZEN-OF-TORTIE.md only |
 | 64 | The aiming verb | The payload composer with byte-deterministic proof, delivery through tmux load-buffer with bracketed paste restricted to registry-launched sessions, per-agent matrix at Tier 3, the computed level 2 module view. This is the north star's point-and-riff sentence made textual | 63 |
 | 65 | The refresh loop | The delta prompt scoped to drifted claims, the session-change diff view from verdict deltas, the headless narration confirm sheet | 63 |
 | 66 | The canvas | An arch EditorMode arm on @xyflow/react 12.11.3 plus @dagrejs/dagre 3.1.1, both MIT, both verified free of eval, wasm and native code so the CSP stands. Gated FIRST on the CSS zoom spike and SECOND on an observed usage number from slices 1 to 3, e.g. 20 composed payloads or gate catches in a month | 64 and 65 in use, plus the number |
@@ -5476,3 +5476,44 @@ menu rule is therefore not triggered.
 assertion that Normal plus the default preset renders today's tokens exactly; persistence across a
 relaunch; and the drift test that the preset definitions cover every token they claim to.
 **Semver:** feat, minor, 0.31.0.
+
+## Phase 62.1 — the recorded nits round (operator ordered 2026-08-16) QUEUED, BUILDING
+
+Three small reports left behind by shipped phases, fixed as one sub-phase per house style.
+
+1. FROM PHASE 58: a manual Check for Updates started from the home screen gives no feedback,
+because the home view has no activity bar and therefore no ring. Give the home screen the
+smallest calm signal of the journey without building an activity bar there; the spec decides the
+mechanism and the Zen decides its volume. Background checks stay invisible as always.
+2. FROM PHASE 60: prove on a packaged build that the View menu shows exactly one Toggle Full
+Screen, which measurement predicts, and only if two are ever found, guard at runtime. The
+operator's original doubled-item screenshot was never reproduced and this closes the question.
+3. FROM PHASE 61: a multi-file open could leave focus on the first file instead of the last, seen
+once in three verifier runs. The last opened file wins the tab, made reliable.
+
+**Tier 2**, one live probe per nit with a screenshot. **Semver:** fix, patch.
+
+## Phases 67 to 73 — the remote ladder, M0 to M6 given their phase names (operator greenlit 2026-08-16) QUEUED IN ORDER
+
+The operator's word: build M0 to M6, referred to by phase numbers for consistency.
+docs/research/51-remote-machines.md is the specification of record for every rung, its section 6
+table maps rung to phase, and its section 4.6 durability promises are binding copy. STANDING
+SAFETY FOR THE WHOLE LADDER: no workflow ever connects to the operator's real machines
+unattended. All remote verification runs against a scratch sshd on 127.0.0.1 on a high port with
+keys generated in the scratchpad, which is a real ssh carriage with none of his fleet in it. The
+measurements that genuinely need his four machines, the tmux dialect survey and the M5 fault
+matrix on a real tailnet machine, are recorded as owed and run only when he is present.
+
+| Phase | Was | Contents, from research 51 section 6 | Tier |
+| --- | --- | --- | --- |
+| 67 | M0 | `unknown` gets its producer at a per-machine reconcile boundary; restore and input refused while unreachable; the machine-level Unreachable presentation. Fixes the live LOCAL defect where refresh() flips every non-exited row to restorable on TMUX_UNREACHABLE. The local socket adopts the boundary immediately, decided per the operator's standing autonomy preference, because the local bug IS the point | 3 |
+| 68 | M1 | machines.json behind the confirm gate and seal, conformance:machines, the Settings surface, the tailscale picker from a pinned absolute path, the one visible connection test | 2 plus the gate |
+| 69 | M2 | MachineContext replaces the singleton; the exec plane over ssh with at-least-once discipline; remote server boot with -f /dev/null plus BOOT_SERVER_OPTIONS asserted; PATH capture ordered before first mutation; the version probe and refusal screen with remedy; error taxonomy golden files; keepalives from measurement. The dialect posture is a TESTED LIST that starts from locally measured versions and fails closed, so an unmeasured version is refused with the upgrade remedy, and his four machines join the list after the measurement he attends | 3 |
+| 70 | M3 | Attach over ssh -t in node-pty; create, kill and rename remote; the machine badge; session list by exec polling; restore REFUSED for every remote row with a visible coming label; the vocabulary audit. First visible operator value | 3 |
+| 71 | M4 | The control plane per machine replaces polling; per-machine reconcile; the machine_id migration; the section 4.4 case table live; pane-env rescue over the exec plane; the partition harness in the spirit of smoke:fault, driven by killing the scratch sshd mid-flight | 3 |
+| 72 | M5 | Remote restore enabled behind the fault matrix; per-machine argv capture; capsule replay; provenance-gated resume arming; the forget-machine tombstone. The ten-row matrix runs green against the scratch sshd overnight, and the real-tailnet repetition is OWED and recorded before any release enables remote restore | 3 |
+| 73 | M6 | Connected-only harvest polling; the remote env value probe with the traced byte path; image upload; the read-only remote review answer through existing diff surfaces; and the conversation-continuity groundwork from the ladder note, being connected-time read-only sync of agent-native stores with the promise stated as last-sync staleness. Cross-machine reconstruction into target agents lands here if provable against the scratch sshd, else it is recorded as Phase 74 | 3 |
+
+Phases 67 and 62.1 run in parallel in isolated worktrees because their files are disjoint; 68
+through 73 run strictly in order, each gated on the one before, each landed and pushed before the
+next launches. **Semver:** 67 is a fix, patch; 68 through 73 are feats, minor each.
