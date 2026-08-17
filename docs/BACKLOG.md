@@ -5477,7 +5477,7 @@ assertion that Normal plus the default preset renders today's tokens exactly; pe
 relaunch; and the drift test that the preset definitions cover every token they claim to.
 **Semver:** feat, minor, 0.31.0.
 
-## Phase 62.1 — the recorded nits round (operator ordered 2026-08-16) ✅ SHIPPED 2026-08-17 (this commit, 0.31.3)
+## Phase 62.1 — the recorded nits round (operator ordered 2026-08-16) ✅ SHIPPED 2026-08-17 (a3dcb53, 0.31.3, gates green)
 
 Three small reports left behind by shipped phases, fixed as one sub-phase per house style.
 
@@ -5565,7 +5565,7 @@ matrix on a real tailnet machine, are recorded as owed and run only when he is p
 
 | Phase | Was | Contents, from research 51 section 6 | Tier |
 | --- | --- | --- | --- |
-| 67 | M0 | ✅ SHIPPED 2026-08-17 (this commit, 0.31.2), section below. `unknown` gets its producer at a per-machine reconcile boundary; restore and input refused while unreachable; the machine-level Unreachable presentation. Fixes the live LOCAL defect where refresh() flips every non-exited row to restorable on TMUX_UNREACHABLE. The local socket adopts the boundary immediately, decided per the operator's standing autonomy preference, because the local bug IS the point | 3 |
+| 67 | M0 | ✅ SHIPPED 2026-08-17 (95aa770, 0.31.2, gates green), section below. `unknown` gets its producer at a per-machine reconcile boundary; restore and input refused while unreachable; the machine-level Unreachable presentation. Fixes the live LOCAL defect where refresh() flips every non-exited row to restorable on TMUX_UNREACHABLE. The local socket adopts the boundary immediately, decided per the operator's standing autonomy preference, because the local bug IS the point | 3 |
 | 68 | M1 | machines.json behind the confirm gate and seal, conformance:machines, the Settings surface, the tailscale picker from a pinned absolute path, the one visible connection test | 2 plus the gate |
 | 69 | M2 | MachineContext replaces the singleton; the exec plane over ssh with at-least-once discipline; remote server boot with -f /dev/null plus BOOT_SERVER_OPTIONS asserted; PATH capture ordered before first mutation; the version probe and refusal screen with remedy; error taxonomy golden files; keepalives from measurement. The dialect posture is a TESTED LIST that starts from locally measured versions and fails closed, so an unmeasured version is refused with the upgrade remedy, and his four machines join the list after the measurement he attends | 3 |
 | 70 | M3 | Attach over ssh -t in node-pty; create, kill and rename remote; the machine badge; session list by exec polling; restore REFUSED for every remote row with a visible coming label; the vocabulary audit. First visible operator value | 3 |
@@ -5577,7 +5577,7 @@ Phases 67 and 62.1 run in parallel in isolated worktrees because their files are
 through 73 run strictly in order, each gated on the one before, each landed and pushed before the
 next launches. **Semver:** 67 is a fix, patch; 68 through 73 are feats, minor each.
 
-## Phase 46.1 — the Runs pane reads clearly (operator reported 2026-08-16) ✅ SHIPPED 2026-08-17 (this commit, 0.31.1)
+## Phase 46.1 — the Runs pane reads clearly (operator reported 2026-08-16) ✅ SHIPPED 2026-08-17 (d1ce49f, 0.31.1, gates green)
 
 The operator's reports against the shipped Runs section, from a screenshot of real use.
 
@@ -5624,7 +5624,7 @@ the runs body's own scroll only, so an outer container scrolling would move the 
 closing it, which is the History card's behavior too. HistorySection still runs its own inline
 copy of the hover timers, so hover-timing.ts has exactly one consumer until a later consolidation.
 
-## Phase 67 — unreachable is not dead: the `unknown` status gets its producer (research 51, M0) ✅ SHIPPED 2026-08-17 (this commit, 0.31.2)
+## Phase 67 — unreachable is not dead: the `unknown` status gets its producer (research 51, M0) ✅ SHIPPED 2026-08-17 (95aa770, 0.31.2, gates green)
 
 The M0 rung of the remote ladder, landed against the local socket because the local bug was the
 point. `SessionStatus` has carried `unknown` since Phase 19 item 6 and nothing wrote it. `refresh()`
@@ -5691,3 +5691,14 @@ as good as the fixtures for the bundled tmux, and a tmux upgrade that changes th
 caught by the fixture tests rather than by any probe. This phase added no IPC channel, no `gmux.*`
 key and no `GMUX_*` env, and the contract inventory matched its baseline byte for byte with no
 re-baseline.
+
+**Two more observations from the verifier, carried forward rather than fixed.** The first is the one
+the operator will see. During an outage the same sentence prints twice on one screen, once in the
+condition bar and once in the pane overlay, about six hundred pixels apart. Nothing is wrong with
+either surface on its own and neither can be removed without deciding which one owns the message, so
+it waits for a round that owns both. The second is a drift risk rather than a defect.
+`machineUnreachable` in src/renderer/app/status.ts and `paneAccepts` in
+src/renderer/dnd/drop/target.ts read `session.status` directly, where the spec says every surface
+reads through `effectiveStatusOf`. The behaviour is identical today because nothing else rewrites
+the status on the way out. It stops being identical the moment M4 gives each machine its own
+reconcile, so Phase 71 fixes both call sites as part of its own work.
