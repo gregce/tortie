@@ -5736,6 +5736,68 @@ not already answered. It does not decide fonts, the SpecStory sign-in, project n
 shortcuts filter. It runs no tmux command against the default server, and any live probe uses
 `-L gmux` only.
 
+## Phase 76 — appearance and discoverability, NOT QUEUED and BLOCKED ON ONE DECISION
+
+This exists so that every open issue has a home. It covers issues 1 and 7, which Phase 74 does not
+touch and Phase 75 does not answer. Neither can start today, and the reasons are different.
+
+**Issue 7, the shortcuts overlay filter, now has a measured trigger rather than a preference.** The
+whole case for it was that the sheet overflows. It was measured on 2026-08-17 against the real
+layout and the operator's real display, and the answer has a condition in it.
+
+| Case | Overlay height | Available at 78vh on a 1512 by 982 display | Result |
+| --- | --- | --- | --- |
+| The 60 built-in shortcuts alone | 677 px | 733 px | Fits, 56 px spare |
+| Plus 13 per-agent chords, one per compiled agent | 807 px | 733 px | Overflows by 74 px |
+
+The numbers come from 60 rows carrying a `keys` field across 7 section headings, three balanced
+columns at `columns: 3`, a 26 px `.shortcut-row`, an 11 px heading on a 16 px line with a 6 px
+margin, and 16 px between groups. They are computed from the tokens and the counts, not read from a
+rendered window, so they are close rather than exact. **The build condition is therefore: build the
+filter when per-agent chords are in normal use, and not before.** Until then the scope guardrail
+refuses it, because a list that fits on screen does not need a search field and Tortie is not a
+VS Code reimplementation.
+
+Two things bind whenever it is built. First, do not add a second scoring implementation.
+`nameOrChordMatches` and `filterForReading` in `src/renderer/settings/KeyboardSection.tsx` already
+solve the exact ordering problem, and the comment above the second one describes it. Lift both into
+`src/shared/keymap.ts` and call them from both surfaces, which deletes a duplicate instead of
+creating a dependency. Second, `docs/DESIGN-SPEC.md:526` still describes a 640 px two column overlay
+while the code ships 880 px and three columns, so the spec and the code already disagree and whoever
+edits section S8 fixes that in the same commit.
+
+**Issue 1, fonts, is blocked on one sentence from the operator and nothing else.** Where does the
+font list come from. There is no font enumeration anywhere in the repository today, so this is a new
+capability rather than a wiring job.
+
+| Option | What it costs |
+| --- | --- |
+| A short fixed list of faces the design vouches for | Smallest. No new capability, and every name is one the design already trusts |
+| A free-text field with a safe fallback | Small. The person can name anything, and an unavailable name must not produce blank or broken text |
+| A Chromium permission-gated enumeration of installed fonts | Largest. It is a new capability, it asks the person for permission, and it reads the font list off their machine |
+
+Two facts correct the issue as written. `docs/DESIGN-SPEC.md:601` withdrew the SIZE stepper and
+conditionally sanctioned the FAMILY picker, so the half the issue most wants is the half already
+rejected and reversing that needs its own reason. And zoom already takes the base size as an
+argument at `src/renderer/zoom/regions.ts:151`, so it stays a multiplier with no arithmetic moving.
+
+**Issue 2 has no phase of its own on purpose.** The chord decision and the rename decision land
+together, so whatever phase implements Phase 75's answer implements issue 2 as well. Splitting them
+would mean deciding the same thing twice.
+
+**Coverage, so nothing is homeless.**
+
+| Issue | Home |
+| --- | --- |
+| 8 zsh completion | Phase 74 |
+| 5 SpecStory sign-in tab | Phase 74, caption only. The real fix is in SpecStory Cloud |
+| 6 project naming | Phase 74, the two real defects. Closed as written |
+| 3 session model | Phase 75. Closed on GitHub, the open half tracked here |
+| 4 immediate work surface | Phase 75 answers its blocking question. Closed on GitHub |
+| 2 number shortcuts | Folded into whatever implements Phase 75 |
+| 7 shortcuts filter | This phase, on the measured condition above |
+| 1 fonts | This phase, on one decision from the operator |
+
 ## Phase 73.1 — the second recorded nits round, NOT QUEUED
 
 Small things that shipped phases left behind, collected as they were found so none is lost. None
