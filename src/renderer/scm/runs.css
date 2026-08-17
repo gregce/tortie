@@ -176,18 +176,26 @@
   min-width: 0;
 }
 
+/* The row's right side (Phase 46.1): age, a middle dot, duration. The dot
+   only renders when the duration does, so the age never ends in a dangling
+   separator. All three refuse to wrap so the figures cannot break apart at a
+   narrow sidebar. */
 .runs-age,
+.runs-sep,
 .runs-dur {
   font-size: var(--text-xs);
   line-height: var(--lh-xs);
   color: var(--text-muted);
   flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 /* Contrast rule: no muted text on a raised or active fill. */
 .runs-row:hover .runs-age,
+.runs-row:hover .runs-sep,
 .runs-row:hover .runs-dur,
 .runs-row.expanded .runs-age,
+.runs-row.expanded .runs-sep,
 .runs-row.expanded .runs-dur {
   color: var(--text-secondary);
 }
@@ -225,6 +233,12 @@
 
 .runs-step {
   padding: 0 var(--space-4) 0 var(--space-10);
+}
+
+/* A lifted step (Phase 46.1): the run's one job row is skipped, so its steps
+   take the indent that row occupied. */
+.runs-step.lifted {
+  padding-left: var(--space-8);
 }
 
 .runs-job-name {

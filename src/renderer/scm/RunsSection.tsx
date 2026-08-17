@@ -10,6 +10,10 @@
  * refresh button, a debounced `git:changed`, and the `actions:changed` event
  * main pushes while a watch it armed is running. See ./runs.ts.
  *
+ * Hovering a row for 600ms opens a card (Phase 46.1, RunHoverCard.tsx) with
+ * the run's full story. The card draws only from the run row and the jobs
+ * cache, so it is not a fourth trigger and can never start a process.
+ *
  * WHAT THIS SECTION CANNOT DO, and the refusals are load bearing. It cannot
  * cancel a run or re-run one, because those write to GitHub and every argv
  * main can compose is a read. It shows no logs, because GitHub has no public
@@ -31,6 +35,8 @@ import { useNow } from '../app/format';
 import { Codicon } from '../icons';
 import { depthRepoState, useGitDepth } from './depth';
 import { usePersistedBool } from './sections';
+import { useHoverTiming } from './hover-timing';
+import { RunHoverCard } from './RunHoverCard';
 import { RunJobs } from './RunJobs';
 import { RunRow, RunStatusIcon } from './RunRow';
 import { hasActions, runsRepoState, useRuns } from './runs';
@@ -62,6 +68,11 @@ export function RunsSection({
   const now = useNow();
   const available = useMemo(() => hasActions(), []);
 
+  // The hover card's timers (Phase 46.1), shared numbers with the History
+  // card. The key is the run id. The row reports the pointer, this section
+  // owns the state, and RunHoverCard draws.
+  const hover = useHoverTiming<number>();
+
   // Collapsed by default, per repository, exactly like BRANCHES.
   const [collapsed, setCollapsed] = usePersistedBool(
     `gmux.scm.runsCollapsed.${repoPath}`,
@@ -84,6 +95,12 @@ export function RunsSection({
 
   const runs = update?.runs ?? [];
   const latest = runs[0];
+  // The card's run is looked up fresh each render, so a refresh that moved
+  // the list updates the open card, and a run that left the list closes it.
+  const hoverRun =
+    hover.hover !== null
+      ? (runs.find((r) => r.id === hover.hover?.key) ?? null)
+      : null;
   const health = update === null ? null : healthNote(update.health);
   const watch = update === null ? null : watchNote(update.watch);
   const hidden = update === null ? [] : hiddenNotes(update.issues);
@@ -141,7 +158,9 @@ export function RunsSection({
         </span>
       </div>
       {!collapsed ? (
-        <div className="section-body runs-body">
+        // Scrolling moves the rows out from under the card's anchor, so it
+        // closes the card, exactly as the History list does.
+        <div className="section-body runs-body" onScroll={hover.close}>
           {health !== null ? (
             <div className="runs-note">
               {health.line}
@@ -166,7 +185,14 @@ export function RunsSection({
                       run={run}
                       expanded={expanded}
                       now={now}
-                      onToggle={() => toggleRun(repoPath, run.id)}
+                      onToggle={() => {
+                        // A click reorders what is under the pointer, so the
+                        // card closes, as a History row click does.
+                        hover.close();
+                        toggleRun(repoPath, run.id);
+                      }}
+                      onHoverStart={(el) => hover.rowEnter(run.id, el)}
+                      onHoverEnd={hover.rowLeave}
                     />
                     {expanded ? (
                       <RunJobs repoPath={repoPath} run={run} now={now} />
@@ -186,6 +212,18 @@ export function RunsSection({
             {lastCheckedNote(update?.lastCheckedAt ?? null, now)}
           </div>
         </div>
+      ) : null}
+      {hover.hover !== null && hoverRun !== null ? (
+        <RunHoverCard
+          run={hoverRun}
+          // The cache only. The card never calls loadJobs, so hovering can
+          // never start a process.
+          jobs={record.jobs[hoverRun.id]?.result?.jobs ?? null}
+          anchor={hover.hover.anchor}
+          now={now}
+          onPointerEnter={hover.cardEnter}
+          onPointerLeave={hover.cardLeave}
+        />
       ) : null}
     </section>
   );

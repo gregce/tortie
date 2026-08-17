@@ -17,11 +17,10 @@ import type { ActionsRun } from '@shared/actions';
 import { useApp } from '../state/store';
 import type { MenuItemSpec } from '../state/store';
 import { Codicon } from '../icons';
-import { formatRelative } from './format';
 import {
   activityDurationText,
-  activityTooltip,
   expandLabel,
+  formatAgeShort,
   runActivity,
   runGlyph
 } from './runs-format';
@@ -73,13 +72,22 @@ export function RunRow({
   run,
   expanded,
   now,
-  onToggle
+  onToggle,
+  onHoverStart,
+  onHoverEnd
 }: {
   run: ActionsRun;
   expanded: boolean;
   /** The instant ages and durations are measured against. */
   now: number;
   onToggle: (runId: number) => void;
+  /**
+   * Hover card wiring (Phase 46.1). RunsSection owns the timers and the card;
+   * the row only reports the pointer and hands over its own element so the
+   * card can anchor to the row's rect.
+   */
+  onHoverStart?: (el: HTMLElement) => void;
+  onHoverEnd?: () => void;
 }): React.JSX.Element {
   const setMenu = useApp((s) => s.setMenu);
 
@@ -97,15 +105,18 @@ export function RunRow({
     setMenu({ x: e.clientX, y: e.clientY, items });
   };
 
+  // No title attribute here (Phase 46.1). The hover card is the row's
+  // explanation now, and an OS tooltip would stack on top of it.
   return (
     <button
       type="button"
       className={`runs-row${expanded ? ' expanded' : ''}`}
       aria-expanded={expanded}
       aria-label={expandLabel(run, expanded)}
-      title={activityTooltip(activity, now)}
       onClick={() => onToggle(run.id)}
       onContextMenu={onContextMenu}
+      onMouseEnter={(e) => onHoverStart?.(e.currentTarget)}
+      onMouseLeave={() => onHoverEnd?.()}
     >
       <span className="runs-chevron" aria-hidden="true">
         <Codicon name="chevron-down" size={12} />
@@ -116,9 +127,14 @@ export function RunRow({
         <span className="runs-title">{run.displayTitle}</span>
       ) : null}
       <span className="runs-space" />
-      <span className="runs-age num">{formatRelative(run.createdAt, now)}</span>
+      <span className="runs-age num">{formatAgeShort(run.createdAt, now)}</span>
       {duration !== null ? (
-        <span className="runs-dur num">{duration}</span>
+        <>
+          <span className="runs-sep" aria-hidden="true">
+            ·
+          </span>
+          <span className="runs-dur num">{duration}</span>
+        </>
       ) : null}
     </button>
   );

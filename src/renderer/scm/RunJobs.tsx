@@ -8,6 +8,11 @@
  *
  * A job or a step whose timestamps gh did not send shows no duration at all,
  * rather than a zero that would claim it took no time.
+ *
+ * A run with exactly one job skips that job's row (Phase 46.1). The run row
+ * above already carries the same status, so the steps lift one level and
+ * take the indent the job row occupied. soloJob in runs-format decides, and
+ * its tests pin the rules.
  */
 
 import React from 'react';
@@ -25,6 +30,7 @@ import {
   hiddenNotes,
   jobActivity,
   runGlyph,
+  soloJob,
   stepActivity
 } from './runs-format';
 import { RunStatusIcon, copyUrl, openOnGitHub } from './RunRow';
@@ -46,18 +52,23 @@ function jobMenuItems(job: ActionsJob): MenuItemSpec[] {
 function StepRow({
   step,
   job,
-  now
+  now,
+  lifted = false
 }: {
   step: ActionsStep;
+  /** The step's own job, kept even when lifted so the menu's verbs still
+      open and copy the job page. */
   job: ActionsJob;
   now: number;
+  /** True when the run's one job row is skipped and the steps take its place. */
+  lifted?: boolean;
 }): React.JSX.Element {
   const setMenu = useApp((s) => s.setMenu);
   const activity = stepActivity(step);
   const duration = activityDurationText(activity);
   return (
     <div
-      className="runs-step"
+      className={`runs-step${lifted ? ' lifted' : ''}`}
       title={activityTooltip(activity, now)}
       onContextMenu={(e) => {
         e.preventDefault();
@@ -137,6 +148,7 @@ export function RunJobs({
 
   const health = healthNote(result.health);
   const hidden = hiddenNotes(result.issues);
+  const solo = soloJob(result.jobs);
 
   return (
     <div className="runs-jobs">
@@ -150,6 +162,16 @@ export function RunJobs({
       ) : null}
       {result.jobs.length === 0 && health === null ? (
         <div className="runs-note">{RUNS_JOBS_EMPTY}</div>
+      ) : solo !== null ? (
+        solo.steps.map((step, i) => (
+          <StepRow
+            key={`${step.number}-${i}`}
+            step={step}
+            job={solo}
+            now={now}
+            lifted
+          />
+        ))
       ) : (
         result.jobs.map((job) => <JobBlock key={job.id} job={job} now={now} />)
       )}

@@ -22,6 +22,7 @@ import {
   activityDurationText,
   activityTooltip,
   expandLabel,
+  formatAgeShort,
   formatDuration,
   formatDurationLong,
   headerTooltip,
@@ -31,6 +32,7 @@ import {
   lastCheckedNote,
   runActivity,
   runGlyph,
+  soloJob,
   stepActivity,
   watchNote
 } from '../runs-format';
@@ -169,6 +171,27 @@ describe('formatDurationLong', () => {
   it('drops a zero remainder', () => {
     expect(formatDurationLong(180_000)).toBe('3 minutes');
     expect(formatDurationLong(3_600_000)).toBe('1 hour');
+  });
+});
+
+describe('formatAgeShort', () => {
+  const HOUR = 60 * MIN;
+  const DAY = 24 * HOUR;
+
+  it('matches the seven pinned outputs', () => {
+    expect(formatAgeShort(T - 30_000, T)).toBe('now');
+    expect(formatAgeShort(T - 4 * MIN, T)).toBe('4m ago');
+    expect(formatAgeShort(T - 3 * HOUR, T)).toBe('3h ago');
+    expect(formatAgeShort(T - 2 * DAY, T)).toBe('2d ago');
+    expect(formatAgeShort(T - 3 * 7 * DAY, T)).toBe('3w ago');
+    expect(formatAgeShort(T - 5 * 30 * DAY, T)).toBe('5mo ago');
+    expect(formatAgeShort(T - 365 * DAY, T)).toBe('1y ago');
+  });
+
+  it('never says "now ago"', () => {
+    // The under one minute case stays the single word.
+    expect(formatAgeShort(T, T)).toBe('now');
+    expect(formatAgeShort(T - 59_000, T)).toBe('now');
   });
 });
 
@@ -404,6 +427,53 @@ describe('hiddenNotes', () => {
       'One step was hidden. GitHub did not send its status.'
     ]);
     expect(hiddenNotes([])).toEqual([]);
+  });
+});
+
+describe('soloJob', () => {
+  const step = (n: number): ActionsStep => ({
+    number: n,
+    name: `step ${n}`,
+    status: 'completed',
+    statusRaw: 'completed',
+    conclusion: 'success',
+    conclusionRaw: 'success',
+    startedAt: T - MIN,
+    completedAt: T
+  });
+  const job = (id: number, steps: ActionsStep[]): ActionsJob => ({
+    id,
+    name: `job ${id}`,
+    status: 'completed',
+    statusRaw: 'completed',
+    conclusion: 'success',
+    conclusionRaw: 'success',
+    startedAt: T - MIN,
+    completedAt: T,
+    url: `https://github.com/o/r/actions/runs/42/job/${id}`,
+    steps
+  });
+
+  it('answers the one job that has steps', () => {
+    const only = job(9, [step(1), step(2)]);
+    expect(soloJob([only])).toBe(only);
+  });
+
+  it('stays quiet for two or more jobs', () => {
+    // The multi-job fixture. Both jobs have steps, and neither collapses.
+    const build = job(1, [step(1), step(2)]);
+    const test = job(2, [step(1)]);
+    expect(soloJob([build, test])).toBe(null);
+    expect(soloJob([build, test, job(3, [step(1)])])).toBe(null);
+  });
+
+  it('stays quiet for one job with zero steps', () => {
+    // Collapsing it would leave nothing under the run row.
+    expect(soloJob([job(9, [])])).toBe(null);
+  });
+
+  it('stays quiet for no jobs at all', () => {
+    expect(soloJob([])).toBe(null);
   });
 });
 

@@ -5518,7 +5518,7 @@ Phases 67 and 62.1 run in parallel in isolated worktrees because their files are
 through 73 run strictly in order, each gated on the one before, each landed and pushed before the
 next launches. **Semver:** 67 is a fix, patch; 68 through 73 are feats, minor each.
 
-## Phase 46.1 — the Runs pane reads clearly (operator reported 2026-08-16) QUEUED, BUILDING IN PARALLEL
+## Phase 46.1 — the Runs pane reads clearly (operator reported 2026-08-16) ✅ SHIPPED 2026-08-17 (this commit, 0.31.1)
 
 The operator's reports against the shipped Runs section, from a screenshot of real use.
 
@@ -5541,3 +5541,26 @@ Spacing and styling improve without significant change, the operator's words.
 photographed and its fields checked against the gh payload; Open on GitHub proven to produce the
 exact run URL, without asserting the browser; a one-job run photographed with steps directly
 nested and a multi-job fixture keeping its level. **Semver:** fix, patch.
+
+**What shipped.** All four reports landed and the verifier proved each one against the live app
+and against the gh payload for run 36 of gregce/tortie. The row now reads `4h ago · 5m 24s`, with
+the middle dot hidden from screen readers. The row's OS tooltip is gone, because the hover card
+replaces it. The card mirrors the History commit card exactly, being a 600 ms open, a 100 ms close
+grace, a body portal, the same 8 px anchor and the same upward flip. Its timers live in a new hook,
+src/renderer/scm/hover-timing.ts, and its strings live in a new pure module,
+src/renderer/scm/run-card-format.ts. Open on GitHub and Copy run URL were already on the run row's
+native menu, and the card's footer now carries the same two verbs. A run with exactly one job draws
+no job row, so its steps sit at the indent the job row held, and a multi-job run is unchanged.
+
+**One deviation from the spec.** When gh sends no run number the copy button reads `Run URL`
+instead of the word `Copy` the spec named. It is a label rather than a sentence, and `#0` would be
+wrong. It is pinned by test in run-card-format.test.ts.
+
+**What is not true.** No actor is shown anywhere, because gh's run list payload has no field that
+names a person and this phase did not widen RUN_LIST_FIELDS. There is no keyboard path to the card,
+which is also true of the History card it mirrors. The card never reads jobs, so a run that was
+never expanded shows only the line `Expand the run to load its jobs.`, and a jobs read that failed
+shows that same line even though the expanded row itself still shows its error. The card closes on
+the runs body's own scroll only, so an outer container scrolling would move the rows without
+closing it, which is the History card's behavior too. HistorySection still runs its own inline
+copy of the hover timers, so hover-timing.ts has exactly one consumer until a later consolidation.

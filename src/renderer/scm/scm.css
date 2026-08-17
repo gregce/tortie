@@ -1265,6 +1265,127 @@
 }
 
 /* ---------------------------------------------------------------------------
+   Run hover card (Phase 46.1). The Runs sibling of the commit card above.
+   Same .scm-card shell, its own header and body, because a run carries a
+   status glyph where a commit carries an avatar, and a label grid where a
+   commit carries a message. Tokens only.
+--------------------------------------------------------------------------- */
+
+.runs-card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding-bottom: var(--space-5);
+  min-width: 0;
+  flex: 0 0 auto;
+}
+
+.runs-card-name {
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.runs-card-age {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.runs-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* The sentence the row's tooltip used to say, now readable at rest. */
+.runs-card-summary {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+/* Label and value rows. Only rows whose value exists are rendered, so the
+   grid never draws an empty cell. */
+.runs-card-grid {
+  margin: 0;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: var(--space-5);
+  row-gap: var(--space-1);
+}
+
+.runs-card-label {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-muted);
+}
+
+.runs-card-value {
+  margin: 0;
+  min-width: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.runs-card-jobs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.runs-card-jobs-title {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--text-muted);
+}
+
+.runs-card-job {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.runs-card-job-name {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.runs-card-job-dur {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.runs-card-jobs-note {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-muted);
+}
+
+/* ---------------------------------------------------------------------------
    Mini-modal (Create branch / Create tag) — S6 chrome at w:360.
 --------------------------------------------------------------------------- */
 

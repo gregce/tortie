@@ -22,7 +22,7 @@ import type {
   ActionsStep,
   ActionsWatchView
 } from '@shared/actions';
-import { formatRelativeLong } from './format';
+import { formatRelative, formatRelativeLong } from './format';
 
 // ---------------------------------------------------------------------------
 // Fixed copy
@@ -139,6 +139,18 @@ export function formatDuration(ms: number): string {
   return `${hours}h ${String(minutes % 60).padStart(2, '0')}m`;
 }
 
+/**
+ * The run row's age, reading as an age: `4m ago`, `3h ago`, `2d ago`
+ * (Phase 46.1). A bare `3h` next to a bare `5m 24s` left the reader to guess
+ * which figure was the age and which the duration. This wraps formatRelative
+ * so the two never drift. The under one minute case stays the single word
+ * `now`, because "now ago" is not English.
+ */
+export function formatAgeShort(epochMs: number, nowMs: number): string {
+  const rel = formatRelative(epochMs, nowMs);
+  return rel === 'now' ? rel : `${rel} ago`;
+}
+
 /** "1 second" / "3 seconds", and the same for minutes and hours. */
 function plural(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? '' : 's'}`;
@@ -241,6 +253,23 @@ export function activityDuration(a: RunActivity): number | null {
 export function activityDurationText(a: RunActivity): string | null {
   const ms = activityDuration(a);
   return ms === null ? null : formatDuration(ms);
+}
+
+/**
+ * The one job whose own row can be skipped (Phase 46.1).
+ *
+ * A run with exactly one job draws that job's row as a repeat: the run row
+ * above already carries the same status, and the hover card names the job.
+ * When this answers with a job, RunJobs lifts its steps one level and draws
+ * no job row. Null means draw every job as usual.
+ *
+ * A single job with zero steps stays a row, because collapsing it would
+ * leave nothing under the run row at all.
+ */
+export function soloJob(jobs: readonly ActionsJob[]): ActionsJob | null {
+  const only = jobs.length === 1 ? jobs[0] : undefined;
+  if (only === undefined) return null;
+  return only.steps.length > 0 ? only : null;
 }
 
 // ---------------------------------------------------------------------------
