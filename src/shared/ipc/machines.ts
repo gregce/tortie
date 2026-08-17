@@ -188,7 +188,15 @@ export interface MachineTestStarted {
   sshPath: string;
 }
 
-/** What the test concluded. One class, one piece of copy, one alarm flag. */
+/**
+ * What a connection test or a prepare concluded. One class, one piece of copy,
+ * one alarm flag.
+ *
+ * Phase 69 added the last three. `no-server` is a machine that answered and has
+ * nothing of Tortie's running on it, which research 51 section 4.4 requires be
+ * told apart from `refused`. `version-unmeasured` is a machine running a version
+ * Tortie has not measured. `prepared` is the success answer of Prepare.
+ */
 export type MachineTestClass =
   | 'ok'
   | 'host-key-changed'
@@ -200,7 +208,10 @@ export type MachineTestClass =
   | 'client-missing'
   | 'cancelled'
   | 'timed-out'
-  | 'unknown';
+  | 'unknown'
+  | 'no-server'
+  | 'version-unmeasured'
+  | 'prepared';
 
 /**
  * The outcome, composed in main.
@@ -266,11 +277,53 @@ export interface MachineConfirmInput {
 }
 
 // ---------------------------------------------------------------------------
+// Prepare this machine (Phase 69, M2)
+// ---------------------------------------------------------------------------
+
+/** One setting Tortie asserted on a machine, and what the machine answered. */
+export interface MachinePreparedOption {
+  name: string;
+  /** The value Tortie asked for. */
+  wanted: string;
+  /** The value the machine reported afterwards. */
+  observed: string;
+  agrees: boolean;
+}
+
+/**
+ * What Prepare concluded, composed in main.
+ *
+ * Every sentence on it comes from main for the reason the connection test's do:
+ * a later edit to a renderer file must not be able to draw a refusal as a
+ * success, and only main holds both version numbers.
+ */
+export interface MachinePrepareResult {
+  id: string;
+  /** 'prepared' on success, 'version-unmeasured' on a refusal, or a failure class. */
+  class: MachineTestClass;
+  /** True for exactly one class, being `host-key-changed`. */
+  alarm: boolean;
+  headline: string;
+  detail: string;
+  /** The version the machine reported, or null when it would not say. */
+  version: string | null;
+  /** The versions Tortie has measured, for the refusal surface. */
+  supported: string[];
+  /** True when this call created the server rather than finding it. */
+  serverBorn: boolean;
+  /** Every setting, wanted against observed. Empty when nothing was asserted. */
+  options: MachinePreparedOption[];
+  /** True when the machine's program search list was read for this connection. */
+  pathCaptured: boolean;
+  durationMs: number;
+}
+
+// ---------------------------------------------------------------------------
 // The channels
 // ---------------------------------------------------------------------------
 
 /**
- * The ten channels, and what each one may do.
+ * The eleven channels, and what each one may do.
  *
  * | Channel | Reads | Writes | Spawns |
  * | --- | --- | --- | --- |
@@ -284,8 +337,15 @@ export interface MachineConfirmInput {
  * | confirm | the row | one record | nothing |
  * | forget | nothing | one record removed | nothing |
  * | remove | nothing | machines.json and one record removed | nothing |
+ * | prepare | one row and the sealed record | settings on that machine | ssh |
  *
- * The two that spawn do so on a person's click and from nowhere else.
+ * The three that spawn do so on a person's click and from nowhere else.
+ *
+ * `machines:prepare` is Phase 69's one new channel, and it is the first thing
+ * Tortie ever STARTS on another machine. It asks the confirm gate before it
+ * spawns anything, it reads the version before it starts a server, and it refuses
+ * a version nobody measured. It opens no session, because this release has no
+ * path that could.
  */
 export interface MachinesInvokeChannelMap {
   'machines:rows': { req: []; res: MachinesResult };
@@ -301,6 +361,7 @@ export interface MachinesInvokeChannelMap {
   'machines:confirm': { req: [input: MachineConfirmInput]; res: MachineRowView };
   'machines:forget': { req: [id: string]; res: MachineRowView };
   'machines:remove': { req: [id: string]; res: MachinesResult };
+  'machines:prepare': { req: [id: string]; res: MachinePrepareResult };
 }
 
 /** The one event channel: the connection test's own bytes and its end. */
@@ -338,6 +399,7 @@ export interface GmuxMachinesExtras {
     confirm(input: MachineConfirmInput): Promise<MachineRowView>;
     forget(id: string): Promise<MachineRowView>;
     remove(id: string): Promise<MachinesResult>;
+    prepare(id: string): Promise<MachinePrepareResult>;
     onTestEvent(cb: (event: MachineTestEvent) => void): () => void;
   };
 }

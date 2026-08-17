@@ -106,9 +106,12 @@ describe('the empty section', () => {
       'Tortie never adopts work that is already running on your machines, ' +
         'and it never touches it. Anything Tortie runs there, it creates itself.'
     );
+    // Rewritten in Phase 69, because this release now also sets a machine up so
+    // that it is ready. The sentence that is still not true stays first.
     expect(html).toContain(
       'You cannot open a session on a machine yet. This release records the ' +
-        'machine and proves Tortie can reach it. Opening sessions comes later.'
+        'machine, proves Tortie can reach it, and sets it up so that it is ' +
+        'ready. Opening sessions comes later.'
     );
   });
 

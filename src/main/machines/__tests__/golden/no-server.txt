@@ -1,0 +1,1 @@
+error connecting to /private/tmp/tmux-501/gmux-p69-golden-27140 (No such file or directory)

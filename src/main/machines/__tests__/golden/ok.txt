@@ -1,0 +1,1 @@
+__TORTIE_PATH__/opt/homebrew/bin/tmux__TORTIE_PATH__

@@ -105,6 +105,111 @@ export const TESTED_TMUX_PAIRS: readonly TmuxVersionPair[] = [
 ];
 
 // ---------------------------------------------------------------------------
+// Which versions Tortie will speak to on ANOTHER machine (Phase 69, M2)
+// ---------------------------------------------------------------------------
+
+/**
+ * One version of tmux on another machine, and which planes it was measured
+ * against.
+ *
+ * `measured` is a PAIR rather than a boolean, and that is the whole design. This
+ * rung can honestly measure the exec plane, which is one command per connection
+ * over the sign in program. It cannot measure control mode, because opening a
+ * persistent control connection is outside its scope fence. So every row this
+ * rung writes carries `control: false`, and a row with `control: false` refuses
+ * the control plane. M4 has to measure before it opens a control connection, and
+ * the field is what makes that a fails closed ladder from rung to rung instead of
+ * a footnote somebody reads later.
+ */
+export interface TestedRemoteTmux {
+  readonly version: string;
+  /** Which planes this version was measured against. */
+  readonly measured: { readonly exec: boolean; readonly control: boolean };
+  /** ISO date of the measurement, and the machine it was made against. */
+  readonly measuredAt: string;
+  readonly note: string;
+}
+
+/**
+ * The versions Tortie has measured on another machine. A version that is not
+ * here is refused.
+ *
+ * WHAT WAS MEASURED, per row, by `build/probe-execplane.mjs` over a real ssh
+ * carriage to a scratch sshd on 127.0.0.1. Four shapes on each: the answer of
+ * `list-sessions -F`, the answer of `display-message -p '#{version}'`, the answer
+ * of `show-options -gv <name>`, and the stderr text and exit code a machine with
+ * no server produces.
+ *
+ * WHAT IS NOT HERE, and it is owed rather than assumed. The operator's four
+ * machines are never contacted by this rung, so their versions are unknown and
+ * every one of them is refused today. They join this list only after a
+ * measurement he attends.
+ */
+export const TESTED_REMOTE_TMUX_VERSIONS: readonly TestedRemoteTmux[] = [
+  {
+    version: '3.6a',
+    measured: { exec: true, control: false },
+    measuredAt: '2026-08-17',
+    note:
+      'The tmux this Mac runs, reached over the sign in program to a scratch ' +
+      'server on this same Mac. All four exec plane shapes answered as this ' +
+      'build expects. Control mode was not opened, because this release does ' +
+      'not open one.'
+  },
+  {
+    version: '3.7b',
+    measured: { exec: true, control: false },
+    measuredAt: '2026-08-17',
+    note:
+      'The version Tortie carries inside the application, built by ' +
+      '"npm run vendor:tmux" into the working tree and reached over the same ' +
+      'carriage on its own scratch socket. Its own server reported 3.7b, the no ' +
+      'server sentence was recognised, list-sessions answered with no rows and ' +
+      'exit 0, and show-options read back 25000. The copy inside an installed ' +
+      'Tortie.app was not read. Control mode was not opened.'
+  }
+];
+
+/** What the version read on another machine adds up to. */
+export type RemoteVersionGate =
+  | { kind: 'measured'; version: string }
+  | { kind: 'unmeasured'; version: string; supported: readonly string[] }
+  | { kind: 'unreadable'; supported: readonly string[] };
+
+/**
+ * Decide whether Tortie will use the program a machine reported. Pure.
+ *
+ * It fails closed in both directions. A version nobody measured is refused
+ * because an untested one can hang rather than fail, and a hang reads to the
+ * operator as Tortie freezing on work he cares about. A version that cannot be
+ * read is refused for the reason the local gate refuses one, which is that
+ * attaching to something nobody can identify is the case that hangs.
+ */
+export function decideRemoteVersionGate(
+  version: string | null,
+  list: readonly TestedRemoteTmux[] = TESTED_REMOTE_TMUX_VERSIONS
+): RemoteVersionGate {
+  const supported = list.filter((row) => row.measured.exec).map((row) => row.version);
+  if (version === null) return { kind: 'unreadable', supported };
+  return supported.includes(version)
+    ? { kind: 'measured', version }
+    : { kind: 'unmeasured', version, supported };
+}
+
+/**
+ * The supported versions as one phrase, e.g. "3.6a and 3.7b".
+ *
+ * Composed here because this is the only place that holds the list, and the
+ * refusal has to name every version rather than the first one.
+ */
+export function joinVersionList(versions: readonly string[]): string {
+  if (versions.length === 0) return 'no version at all so far';
+  if (versions.length === 1) return versions[0] ?? '';
+  const head = versions.slice(0, -1).join(', ');
+  return `${head} and ${versions[versions.length - 1] ?? ''}`;
+}
+
+// ---------------------------------------------------------------------------
 // Reading versions
 // ---------------------------------------------------------------------------
 

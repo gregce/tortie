@@ -28,25 +28,27 @@
  * measurements behind that.
  */
 
-import { execFile } from 'node:child_process';
-import { accessSync, constants, readFileSync, statSync } from 'node:fs';
-import { promisify } from 'node:util';
+import { readFileSync } from 'node:fs';
 import { DEFAULT_UTF8_LANG, hasUtf8Locale } from './env';
 import { gmuxError } from '../errors';
-import { classifyTmuxFailure } from './errors';
 import { postDurabilityNotice } from '../notice';
 import {
-  getUserPath,
-  resolveConfPath,
-  resolveTmux,
-  tmuxUnavailableError,
-  type TmuxBinarySource
+  activeTmuxSocket,
+  assertConfUsable,
+  assertVerbAllowedOnSocket,
+  getUserPath
 } from './resolve';
+import { assertServerVersionUsable, logCreatedServerVersion } from './version';
+// PHASE 69. The one door moved to ../machines/exec-plane.ts, where it takes a
+// machine as well as a command, and `execTmux` below is the local key's name for
+// it. The 59 callers of `execTmux` are unchanged, and so is what they get.
+import { execOn, type ExecTmuxOptions } from '../machines/exec-plane';
 import {
-  assertServerVersionUsable,
-  logCreatedServerVersion,
-  resetTmuxVersionState
-} from './version';
+  localMachineContext,
+  resetMachineContexts,
+  tmuxCommand,
+  type LocalMachineContext
+} from '../machines/context';
 
 import { getLog } from '../log';
 
@@ -60,85 +62,20 @@ const tmuxLog = getLog('tmux');
 
 // Re-exported so the barrel (index.ts) and existing callers keep one import
 // surface; the implementations live in ./resolve (growth guardrail 3).
-export { findTmuxBinary, resolveConfPath } from './resolve';
-
-const execFileP = promisify(execFile);
-
-// ---------------------------------------------------------------------------
-// Context: binary + socket + conf
-// ---------------------------------------------------------------------------
-
-/**
- * Private socket name. NEVER touch the user's default tmux server.
- *
- * **It stays `gmux` forever — the Tortie rename did not touch it, and nothing
- * later may** (Phase 16.5 hazard 2, CLAUDE.md). This string is not a name, it
- * is an ADDRESS: every session the user has running is on `/tmp/tmux-<uid>/gmux`
- * right now. Change it and the app starts a second, empty server, reports no
- * sessions, and leaves hours of agent work alive but unreachable on a socket
- * nothing connects to any more. There is no upside to weigh against that —
- * the socket name is never shown in the UI.
- */
-export const TMUX_SOCKET = 'gmux';
-
-/**
- * The socket this process will actually use.
- *
- * It is `TMUX_SOCKET` for every launch a user ever makes. `GMUX_TMUX_SOCKET`
- * moves it, and ONLY on a harness launch, because the fault harness has to be
- * able to crash the app mid-write without a single one of the user's live
- * sessions being on the server it is crashing against.
- *
- * The harness gate is the safety property. A `GMUX_TMUX_SOCKET` left in a shell
- * profile would otherwise start the real app against a second, empty server:
- * no sessions listed, hours of agent work alive and unreachable. A normal
- * launch ignores the variable entirely, so that cannot happen.
- *
- * A HARNESS LAUNCH IS `GMUX_SMOKE`, `GMUX_SHOT` OR `GMUX_UPDATE_REHEARSAL`
- * (Phase 24). The first two terms match the definition `src/main/index.ts`
- * uses for the single-instance lock, and those two must keep matching. The
- * definitions disagreed until Phase 22: this function honoured only
- * `GMUX_SMOKE`, so a shot-harness run that created a session put it on the
- * socket carrying the user's live work while printing that the override had
- * been ignored. A Phase 22 verifier hit exactly that and had to remove a
- * session from the real server by hand. `src/renderer/context/shot-probe.ts`
- * ships a shot driver for this view, so the smoke and shot terms have to
- * agree from here on.
- *
- * `GMUX_UPDATE_REHEARSAL` is the deliberate exception, present HERE and
- * absent from the single-instance definition in index.ts. A rehearsal launch
- * must still take the lock. The lock lives in the isolated profile the
- * rehearsal always passes, so it protects the rehearsal without touching the
- * operator's instance. A rehearsal launched WITHOUT `--user-data-dir` is
- * refused by the operator's own running copy, and that refusal is the
- * protective direction.
- *
- * `default` is refused by name. That is the socket of the user's OWN tmux
- * server, which this app never touches.
- */
-export function activeTmuxSocket(
-  env: NodeJS.ProcessEnv = process.env
-): string {
-  const want = (env['GMUX_TMUX_SOCKET'] ?? '').trim();
-  if (want === '') return TMUX_SOCKET;
-  const harnessLaunch =
-    (env['GMUX_SMOKE'] ?? '') !== '' ||
-    (env['GMUX_SHOT'] ?? '') !== '' ||
-    (env['GMUX_UPDATE_REHEARSAL'] ?? '') !== '';
-  if (!harnessLaunch) {
-    tmuxLog.warn(
-      'GMUX_TMUX_SOCKET is set but this is not a harness launch, so it is ignored.'
-    );
-    return TMUX_SOCKET;
-  }
-  if (want === 'default' || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(want)) {
-    tmuxLog.warn(
-      `GMUX_TMUX_SOCKET="${want}" is not a socket name this app will use.`
-    );
-    return TMUX_SOCKET;
-  }
-  return want;
-}
+//
+// PHASE 69 moved three more of them down there: `TMUX_SOCKET`,
+// `activeTmuxSocket` and `assertConfUsable`. Neither the names nor the values
+// changed. They had to leave this file so `../machines/context.ts` could call
+// them without the two files importing each other, and ./resolve is the module
+// both of them already import. The reasons for each are in ./resolve beside the
+// declaration.
+export {
+  activeTmuxSocket,
+  assertConfUsable,
+  findTmuxBinary,
+  resolveConfPath,
+  TMUX_SOCKET
+} from './resolve';
 
 // ---------------------------------------------------------------------------
 // The conf inside the bundle, and proving it applied (Phase 19 item 13)
@@ -196,51 +133,6 @@ export function declaredHistoryLimit(confPath: string): number | null {
   if (m?.[1] === undefined) return null;
   const value = Number.parseInt(m[1], 10);
   return Number.isFinite(value) ? value : null;
-}
-
-/**
- * Refuse to pass a conf path that will not do what the caller believes.
- *
- * `existsSync` alone is not the check. A botched update can leave a zero-byte
- * file, and a zero-byte conf produces exactly the same silent tmux defaults as
- * a missing one while passing an existence test. A directory at that path
- * passes it too.
- *
- * READABILITY IS PART OF THE CHECK, and it was missing until the Phase 19 fix
- * round. Measured: a conf at mode 000 and 3,886 bytes passed a stat plus size
- * test, `tmux start-server -f <it>` exited 0, the server came up on the built
- * in defaults, `exit-empty on` then ended it the moment it was empty, and the
- * app failed with TMUX_UNREACHABLE. The user was told the server would not
- * start, which is the wrong diagnosis for the exact fault this function exists
- * to name. One `accessSync` gives the right one.
- *
- * @throws GmuxError TMUX_NOT_FOUND
- */
-export function assertConfUsable(confPath: string): void {
-  // Reaches a toast verbatim through errorText() (renderer store), so the
-  // message is product copy: it names Tortie, not the protected filename. The
-  // path and the reason travel in `detail`, where a bug report finds them.
-  const refuse = (detail: string): never => {
-    throw gmuxError(
-      'TMUX_NOT_FOUND',
-      "Tortie's tmux configuration is missing from the application bundle. " +
-        'Reinstalling Tortie will restore it.',
-      detail
-    );
-  };
-  let info: ReturnType<typeof statSync>;
-  try {
-    info = statSync(confPath);
-  } catch {
-    return refuse(`expected at ${confPath}`);
-  }
-  if (!info.isFile()) return refuse(`${confPath} is not a file`);
-  if (info.size === 0) return refuse(`${confPath} is empty (0 bytes)`);
-  try {
-    accessSync(confPath, constants.R_OK);
-  } catch {
-    return refuse(`${confPath} exists but cannot be read (permissions)`);
-  }
 }
 
 /** What the read-back found. */
@@ -404,167 +296,81 @@ export function verifyHistoryLimit(
   });
 }
 
-export interface TmuxContext {
-  /** Absolute path to the tmux binary. */
-  bin: string;
-  /** Socket name passed as `-L`. */
-  socket: string;
-  /** Absolute path to gmux-tmux.conf, passed as `-f` on every invocation. */
-  confPath: string;
-  /** Where that binary came from (Phase 41), for the log and the error copy. */
-  binSource: TmuxBinarySource;
-  /** True when this is a packaged Tortie. */
-  packaged: boolean;
-}
-
-let cachedContext: TmuxContext | null = null;
+/**
+ * The local Mac's tmux invocation context.
+ *
+ * PHASE 69. It is now an alias of `LocalMachineContext`, which is one of the two
+ * shapes `../machines/context.ts` holds, and the fields are the same five with
+ * the same names. The alias stays so the 59 callers of `execTmux`, the barrel and
+ * every existing test keep their import and their type.
+ *
+ * WHAT ACTUALLY CHANGED, stated here because "the singleton went away" is the
+ * point of the rung and a reader of this file should not have to hunt for it.
+ * There is no longer one implicit target. There is a registry keyed by machine
+ * id, the local Mac is the key `'local'`, and a confirmed machine is another key.
+ * `execTmux` below is the local key's name for the one door, rather than a hidden
+ * default inside it.
+ */
+export type TmuxContext = LocalMachineContext;
 
 /**
- * Resolve (and cache) the tmux invocation context.
+ * Resolve (and remember) the local tmux invocation context.
  *
  * @throws GmuxError TMUX_BUNDLE_INCOMPLETE when a packaged Tortie has no tmux
  *   inside its own bundle, TMUX_NOT_FOUND when a development build finds none
  *   on the machine. The sentence for each is composed in ./resolve, which is
  *   the one place both of them are written.
  */
-export function getTmuxContext(): TmuxContext {
-  if (cachedContext !== null) return cachedContext;
-  const res = resolveTmux();
-  if (res.path === null) throw tmuxUnavailableError(res);
-  const confPath = resolveConfPath();
-  // Phase 19 item 13: exists, is a file, and is not empty. A zero-byte conf
-  // left by a half-written update starts a tmux server on the built-in
-  // defaults exactly as a missing one does, and passes an existence test.
-  assertConfUsable(confPath);
-  cachedContext = {
-    bin: res.path,
-    socket: activeTmuxSocket(),
-    confPath,
-    binSource: res.source,
-    packaged: res.packaged
-  };
-  return cachedContext;
-}
+export const getTmuxContext = localMachineContext;
 
 /** Test/reset hook (e.g. after surfacing TMUX_NOT_FOUND and a user install). */
-export function resetTmuxContext(): void {
-  cachedContext = null;
-  // Phase 41: the version gate remembers a PASS for the life of the process,
-  // and a reset means the next boot resolves a binary again, so the remembered
-  // answer is about a world that may no longer be the current one.
-  resetTmuxVersionState();
-}
+export const resetTmuxContext = resetMachineContexts;
 
-/** Build a full tmux argv: `-L gmux -f <conf> …rest`. */
+/**
+ * Build a full local tmux argv: `-L gmux -f <conf> …rest`.
+ *
+ * It is the local branch of `tmuxCommand`, so the two cannot disagree.
+ * `build/conformance-machines.mjs` compares this function's answer against a
+ * golden taken from `ab94847` across twelve argument vectors, because 59 call
+ * sites now reach tmux through a new door and a difference of one byte in this
+ * list is a difference in every one of them.
+ */
 export function tmuxArgs(ctx: TmuxContext, rest: readonly string[]): string[] {
-  return ['-L', ctx.socket, '-f', ctx.confPath, ...rest];
+  return [...tmuxCommand(ctx, rest).argv];
 }
+
+export type { ExecTmuxOptions };
 
 // ---------------------------------------------------------------------------
-// execTmux — the one door
+// execTmux, the local key's name for the one door
 // ---------------------------------------------------------------------------
 
-export interface ExecTmuxOptions {
-  /** Milliseconds before the command is killed. Default 10s. */
-  timeoutMs?: number;
-}
-
 /**
- * tmux verbs that end the whole server and every session on it at once.
+ * Run one tmux command against the private server on THIS Mac and return
+ * stdout.
  *
- * `kill-server` is the only one today. It is listed as a set rather than a
- * string compare so a later verb of the same weight is added in one place.
- */
-const SERVER_DESTROYING_VERBS = new Set(['kill-server']);
-
-/**
- * Refuse a verb that would end the real server (Phase 19 fix round).
- *
- * THE INCIDENT THIS CLOSES. `src/main/power/smoke.ts` called `kill-server` from
- * its own failure path and checked the socket name AFTERWARDS, on the line that
- * unlinks the socket file. So a harness that had already printed "refusing to
- * run" went on to kill the server it was refusing to touch. Reproduced on a
- * scratch socket by two verifiers, and the operator lost 48 live sessions the
- * same evening.
- *
- * The check belongs here rather than in the caller. `execTmux` is the one door
- * every tmux command in the product goes through, and it already resolves the
- * socket, so this is the only place that can answer the question for every
- * caller including the ones written after today.
- *
- * The shipped app never needs this verb. Sessions are killed one at a time, by
- * identity. A harness that genuinely wants a whole server gone is on its own
- * socket, and there the check passes.
- */
-function assertVerbAllowedOnSocket(verb: string, socket: string): void {
-  if (!SERVER_DESTROYING_VERBS.has(verb) || socket !== TMUX_SOCKET) return;
-  throw gmuxError(
-    'INVALID_INPUT',
-    'Tortie does not end the session server.',
-    `refused "tmux ${verb}" on the real socket -L ${socket}: it would end every ` +
-      'session on this machine. Move the harness to its own socket with ' +
-      'GMUX_TMUX_SOCKET.'
-  );
-}
-
-/** capture-pane of 50k colored lines can be many MB; be generous. */
-const MAX_BUFFER_BYTES = 64 * 1024 * 1024;
-
-/**
- * Run one tmux command against the private server and return stdout.
  * Failures are classified into structured GmuxErrors (server down →
- * TMUX_UNREACHABLE, bad target → SESSION_NOT_FOUND, …).
+ * TMUX_UNREACHABLE, bad target → SESSION_NOT_FOUND, …), exactly as before.
+ *
+ * WHY THE 59 CALLERS DID NOT GET A MACHINE PARAMETER IN THIS RUNG, stated
+ * plainly because it is the one judgement call in Phase 69. Every one of those
+ * callers is attach, create, kill, capture, reconcile or restore, and every one
+ * of those belongs to M3 or later. Giving each of them a machine parameter now
+ * would be churn with no consumer, on the exact code paths that hold the
+ * operator's running work, in the rung whose whole risk is that. M3 threads the
+ * machine through the callers that need it, and it does so against a door that
+ * already takes one.
+ *
+ * The server destroying refusal is asked TWICE, and the first ask is here rather
+ * than in the door. It must not depend on the configuration file being present
+ * or on Electron being up, and resolving the context depends on both.
  */
 export async function execTmux(
   args: readonly string[],
   options: ExecTmuxOptions = {}
 ): Promise<string> {
-  // Asked BEFORE the context is resolved, because the refusal must not depend
-  // on the conf being present or on Electron being up. Asked again below
-  // against the resolved socket, because the context is cached and a cached
-  // answer is the one the command will actually use.
   assertVerbAllowedOnSocket(args[0] ?? '', activeTmuxSocket());
-  const ctx = getTmuxContext();
-  assertVerbAllowedOnSocket(args[0] ?? '', ctx.socket);
-  const argv = tmuxArgs(ctx, args);
-  try {
-    const { stdout } = await execFileP(ctx.bin, argv, {
-      timeout: options.timeoutMs ?? 10_000,
-      // SIGKILL, not the default SIGTERM (Phase 67). MEASURED 2026-08-17 on a
-      // scratch socket with the server stopped by SIGSTOP: the tmux client
-      // catches SIGTERM and exits 0, so a timed out exec RESOLVED with empty
-      // stdout instead of rejecting. For list-sessions that empty stdout read
-      // as a completed probe with zero sessions, which flipped every row to
-      // 'restorable' and offered Restore over agents that were still running.
-      // A client killed by SIGKILL cannot answer, the promise rejects, and
-      // the classifier returns code UNKNOWN, which the reconcile boundary
-      // treats as "nothing proven".
-      killSignal: 'SIGKILL',
-      maxBuffer: MAX_BUFFER_BYTES,
-      env: process.env
-    });
-    return stdout;
-  } catch (err) {
-    const e = err as NodeJS.ErrnoException & { stderr?: string };
-    if (e.code === 'ENOENT') {
-      // The binary vanished since we cached it. Phase 41: which sentence the
-      // user gets depends on which build this is, so the one composer decides
-      // rather than a second literal here. A packaged Tortie has lost part of
-      // its own install; a development build has lost the machine's tmux.
-      const gone = {
-        path: null,
-        source: ctx.binSource,
-        packaged: ctx.packaged,
-        detail: `${ctx.bin} was there when Tortie started and it is gone now`
-      };
-      resetTmuxContext();
-      throw tmuxUnavailableError(gone);
-    }
-    throw classifyTmuxFailure(
-      e.stderr ?? '',
-      `tmux ${args[0] ?? ''} failed: ${e.message}`
-    );
-  }
+  return execOn(localMachineContext(), args, options);
 }
 
 // ---------------------------------------------------------------------------

@@ -1,0 +1,13 @@
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+IT IS POSSIBLE THAT SOMEONE IS DOING SOMETHING NASTY!
+Someone could be eavesdropping on you right now (man-in-the-middle attack)!
+It is also possible that a host key has just been changed.
+The fingerprint for the ED25519 key sent by the remote host is
+SHA256:idj5vL7DtF/g7FgOHOiaqqGH5XbVgdxW0FnKHFoiPLU.
+Please contact your system administrator.
+Add correct host key in /var/folders/7f/43d9mxrd1q3_82py34w8lwf40000gn/T/p69-goldens-27140/p69-wrong-record to get rid of this message.
+Offending ED25519 key in /var/folders/7f/43d9mxrd1q3_82py34w8lwf40000gn/T/p69-goldens-27140/p69-wrong-record:1
+Host key for [127.0.0.1]:35140 has changed and you have requested strict checking.
+Host key verification failed.

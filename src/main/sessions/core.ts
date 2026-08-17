@@ -157,6 +157,9 @@ import {
   type SyncRequest
 } from '../specstory';
 import * as tmux from '../tmux';
+// Phase 69: the five options this boot re-asserts, selected by field from the one
+// list the remote boot reads too, so the two cannot drift.
+import { localReassertOptions } from '../tmux/server-options';
 import { gmuxError, isGmuxError } from '../errors';
 import { broadcastEvent } from '../typed-events';
 import { getLog } from '../log';
@@ -274,14 +277,13 @@ const CREATE_IN_FLIGHT_MAX_MS = 60_000;
  *    than a literal, and it is the one where drift is invisible: the conf's
  *    number wins on a server that outlived a settings change, and the user
  *    would see their new depth ignored for days with nothing to look at.
+ *
+ * PHASE 69 moved the list itself to ../tmux/server-options.ts, where the remote
+ * boot reads the same rows. `localReassertOptions()` returns these five, in this
+ * order, selected by field rather than copied, so the two lists cannot drift. The
+ * names, the values, the order and the `-g` flag below are what they were at
+ * `ab94847`, and the local sequence is byte for byte unchanged.
  */
-const BOOT_SERVER_OPTIONS: readonly (readonly [string, string])[] = [
-  ['remain-on-exit', 'failed'],
-  ['exit-empty', 'off'],
-  ['mouse', 'off'],
-  ['copy-mode-position-format', ''],
-  ['mode-style', 'noattr,bg=default,fg=default']
-];
 
 /**
  * Push the configured scrollback depth onto the private server.
@@ -305,12 +307,12 @@ async function applyHistoryLimit(lines: number): Promise<void> {
 }
 
 async function assertServerOptions(): Promise<void> {
-  for (const [name, value] of BOOT_SERVER_OPTIONS) {
+  for (const row of localReassertOptions()) {
     await tmux
-      .execTmux(['set-option', '-g', name, value])
+      .execTmux(['set-option', '-g', row.name, row.value])
       .catch((err: unknown) => {
         sessionsLog.warn(
-          `could not set ${name}: ${(err as Error).message}`
+          `could not set ${row.name}: ${(err as Error).message}`
         );
       });
   }

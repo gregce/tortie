@@ -310,9 +310,17 @@ describe('the product is called Tortie wherever the user can read it', () => {
 
     // The private socket: `tmux -L gmux`. Renaming this strands every running
     // session, which is why it is asserted rather than merely allow-listed.
-    expect(read('src', 'main', 'tmux', 'supervisor.ts')).toMatch(
+    //
+    // PHASE 69 moved the DECLARATION from supervisor.ts to resolve.ts and changed
+    // neither the name nor the value. It had to move so the exec plane could
+    // resolve the socket for a machine as well as for this Mac without the two
+    // files importing each other, and supervisor.ts re-exports it so every
+    // existing caller keeps its import. This guardrail follows the declaration,
+    // and the second assertion is what keeps the re-export honest.
+    expect(read('src', 'main', 'tmux', 'resolve.ts')).toMatch(
       /export const TMUX_SOCKET = 'gmux';/
     );
+    expect(read('src', 'main', 'tmux', 'supervisor.ts')).toContain('TMUX_SOCKET');
     expect(read('src', 'main', 'tmux', 'resolve.ts')).toContain(
       'gmux-tmux.conf'
     );

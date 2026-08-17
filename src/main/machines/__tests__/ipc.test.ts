@@ -151,12 +151,15 @@ afterEach(() => {
   rmSync(userData, { recursive: true, force: true });
 });
 
-describe('every channel is registered, and only these ten', () => {
-  it('registers exactly the ten machines channels', () => {
+describe('every channel is registered, and only these eleven', () => {
+  it('registers exactly the eleven machines channels', () => {
     expect([...handlers.keys()].sort()).toEqual([
       'machines:add',
       'machines:confirm',
       'machines:forget',
+      // Phase 69's one new channel. It starts something on another machine, and
+      // it is the only channel in the product that does.
+      'machines:prepare',
       'machines:reload',
       'machines:remove',
       'machines:rows',

@@ -67,9 +67,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { accessSync, constants, statSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
 import * as nodePty from 'node-pty';
 import type { IPty } from 'node-pty';
 import type {
@@ -80,6 +78,15 @@ import type {
 } from '@shared/ipc';
 import { stripAnsi } from '../ansi';
 import { shellQuoteArgv } from '../restore/command';
+import {
+  PINNED_SSH_PATH,
+  REMOTE_PATH_MARKER,
+  SSH_CONNECT_TIMEOUT_SECONDS,
+  composeKnownHostsOption,
+  resetSshWarningsForTests,
+  resolveSsh,
+  type MachineHostKeyFiles
+} from './carriage';
 import {
   classifyMachineOutput,
   composeOutcomeCopy,
@@ -95,28 +102,38 @@ const machinesLog = getLog('config');
 // The client
 // ---------------------------------------------------------------------------
 
-/** The ssh every Mac has. Pinned, never a bare name served by PATH. */
-export const PINNED_SSH_PATH = '/usr/bin/ssh';
-
 /**
- * What every future ssh command in Tortie carries.
+ * Every declaration about the carriage now lives in `./carriage.ts`, and this
+ * file re-exports it so no caller of this module changed.
  *
- * Steady state must fail fast when authentication is broken, because a client
- * waiting on a password prompt nobody can see is a session that never opens and
- * never says why. Phase 69 reads this constant rather than writing the string
- * again.
+ * The move happened in Phase 69 for a measured reason. The exec plane needed
+ * four of these names, the exec plane sits under `execTmux`, and importing this
+ * file for a constant put `node-pty` into the import graph of every module that
+ * reaches the local tmux door, including `src/main/manifest/store.ts`. The
+ * header of `./carriage.ts` records what that broke.
  */
-export const SSH_BATCH_MODE_STEADY = 'BatchMode=yes';
+export {
+  PINNED_SSH_PATH,
+  SSH_BATCH_MODE_STEADY,
+  SSH_CONNECT_TIMEOUT_SECONDS,
+  REMOTE_PATH_MARKER,
+  KNOWN_HOSTS_OPTION,
+  resolveSsh,
+  resetSshWarningsForTests,
+  userHostKeysPath,
+  composeKnownHostsOption,
+  type SshResolution,
+  type MachineHostKeyFiles
+} from './carriage';
 
 /**
  * What the ONE visible test carries, and nothing else in the tree may.
  *
- * The whole point of this test is that a person is watching and can answer.
+ * The whole point of this test is that a person is watching and can answer. It
+ * stays in this file rather than moving to `./carriage.ts`, because the exec
+ * plane must never be able to read it.
  */
 export const SSH_BATCH_MODE_INTERACTIVE = 'BatchMode=no';
-
-/** How long the sign in program gets to answer before it is refused. */
-export const SSH_CONNECT_TIMEOUT_SECONDS = 10;
 
 /** How long the whole test may run. Generous, because a person may be reading. */
 export const TEST_DEADLINE_MS = 60_000;
@@ -124,79 +141,9 @@ export const TEST_DEADLINE_MS = 60_000;
 /** The most output Tortie will show from one test. */
 export const TEST_MAX_OUTPUT_BYTES = 256 * 1024;
 
-/** Where the ssh client came from. */
-export interface SshResolution {
-  path: string | null;
-  source: 'pinned' | 'dev-override' | 'missing';
-}
-
-function isExecutableFile(path: string): boolean {
-  try {
-    if (!statSync(path).isFile()) return false;
-    accessSync(path, constants.X_OK);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-let saidPackagedOverrideIgnored = false;
-
-/**
- * Resolve the ssh client.
- *
- * `GMUX_SSH_BIN` is a development only override, identical in shape and rules
- * to `GMUX_TAILSCALE_BIN`. A packaged Tortie ignores it with one warning and
- * runs {@link PINNED_SSH_PATH}. In a development build it must name an absolute
- * executable file, and the resolved path is printed as the first line of the
- * transcript, so a substituted client is visible to the person watching.
- */
-export function resolveSsh(input: {
-  packaged: boolean;
-  env: NodeJS.ProcessEnv;
-}): SshResolution {
-  const override = (input.env['GMUX_SSH_BIN'] ?? '').trim();
-  if (input.packaged) {
-    if (override !== '' && !saidPackagedOverrideIgnored) {
-      saidPackagedOverrideIgnored = true;
-      machinesLog.warn(
-        'GMUX_SSH_BIN is ignored in a packaged Tortie. The application always ' +
-          `runs ${PINNED_SSH_PATH}.`
-      );
-    }
-  } else if (override !== '') {
-    if (override.startsWith('/') && isExecutableFile(override)) {
-      return { path: override, source: 'dev-override' };
-    }
-    machinesLog.warn(
-      `GMUX_SSH_BIN does not name an absolute executable file, so it is ` +
-        `ignored. The value was ${override}.`
-    );
-  }
-  if (isExecutableFile(PINNED_SSH_PATH)) {
-    return { path: PINNED_SSH_PATH, source: 'pinned' };
-  }
-  return { path: null, source: 'missing' };
-}
-
-/** Test hook, so one process can exercise more than one resolution path. */
-export function resetSshWarningsForTests(): void {
-  saidPackagedOverrideIgnored = false;
-}
-
 // ---------------------------------------------------------------------------
 // The command, composed purely
 // ---------------------------------------------------------------------------
-
-/**
- * The marker pair around the answer.
- *
- * It is the recipe `PATH_MARKER` in `../tmux/resolve.ts` already uses, and it
- * exists for the same reason: a chatty login file on the other machine must not
- * be able to corrupt the answer. A captured value that does not begin with `/`
- * is treated as no answer at all.
- */
-export const REMOTE_PATH_MARKER = '__TORTIE_PATH__';
 
 const REMOTE_PATH_RE = /__TORTIE_PATH__(.*?)__TORTIE_PATH__/s;
 
@@ -215,56 +162,6 @@ const REMOTE_PATH_RE = /__TORTIE_PATH__(.*?)__TORTIE_PATH__/s;
 export function remoteProbeCommand(program: string): string {
   const quoted = shellQuoteArgv([program]);
   return `printf '${REMOTE_PATH_MARKER}%s${REMOTE_PATH_MARKER}\\n' "$(command -v ${quoted} || true)"`;
-}
-
-// ---------------------------------------------------------------------------
-// Where the machine's identity is recorded
-// ---------------------------------------------------------------------------
-
-/**
- * The two files the client checks a machine's identity against.
- *
- * The order is the safeguard and it is not cosmetic. See the header of this
- * file for the measurements behind it.
- */
-export interface MachineHostKeyFiles {
-  /**
-   * The file Tortie owns, inside Tortie's own data directory. It is the ONLY
-   * file this command may add a key to, and it is first for that reason.
-   */
-  readonly tortie: string;
-  /**
-   * The person's own file. It is read so that a machine they already know
-   * still raises the alarm when its identity changes. It is second, so nothing
-   * Tortie runs can ever add a line to it.
-   */
-  readonly user: string;
-}
-
-/** The name of the option this command sets. Exported so the gate can find it. */
-export const KNOWN_HOSTS_OPTION = 'UserKnownHostsFile';
-
-/**
- * The person's own record of machine identities.
- *
- * Named here so it can be READ. Nothing in Tortie writes to it, and the file
- * order in {@link composeKnownHostsOption} is what makes that true rather than
- * a promise.
- */
-export function userHostKeysPath(home: string): string {
-  return join(home, '.ssh', 'known_hosts');
-}
-
-/**
- * The one option value, with Tortie's file first.
- *
- * Both paths are quoted because the client reads this value as a whitespace
- * separated list, and Tortie's own directory has a space in its name on every
- * Mac. Quoting is the client's own syntax for that, and it was measured
- * working against a scratch server before it was written here.
- */
-export function composeKnownHostsOption(files: MachineHostKeyFiles): string {
-  return `${KNOWN_HOSTS_OPTION}="${files.tortie}" "${files.user}"`;
 }
 
 /**
@@ -496,8 +393,18 @@ function killLive(test: LiveTest): void {
  * text says what happened and the code only says that something did. An exit of
  * zero with a full path in the markers is the one success. An exit of zero with
  * no path is a machine that answered and has no such program on it.
+ *
+ * EXPORTED IN PHASE 69, and pure, so `__tests__/golden.test.ts` can read the
+ * captured bytes through the SAME decision the product makes. Two of the eight
+ * captured classes, being `ok` and `no-program`, are not decided by the phrase
+ * table at all: they are decided here, from the markers plus the exit code. A
+ * golden test that asked `classifyMachineOutput` about them would have checked a
+ * function that is not the one deciding, and it would have answered `unknown`.
  */
-function classifyRun(text: string, exitCode: number): MachineTestClass {
+export function classifyProbeOutput(
+  text: string,
+  exitCode: number
+): MachineTestClass {
   const resolved = parseResolvedPath(text);
   if (resolved !== null) return 'ok';
   const named = classifyMachineOutput(text);
@@ -593,7 +500,7 @@ export function startMachineTest(input: StartTestInput): StartedTest {
 
   pty.onExit(({ exitCode }: { exitCode: number }) => {
     if (test.finished) return;
-    finish(test, classifyRun(test.buffer, exitCode), exitCode);
+    finish(test, classifyProbeOutput(test.buffer, exitCode), exitCode);
   });
 
   test.deadline = setTimeout(() => {
@@ -653,5 +560,7 @@ export function resetMachineTestForTests(): void {
   }
   live = null;
   sshSpawnCount = 0;
-  saidPackagedOverrideIgnored = false;
+  // The warning flag moved to ./carriage.ts with the resolver that sets it, so
+  // this drops it through that module's own hook rather than a second copy.
+  resetSshWarningsForTests();
 }

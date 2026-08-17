@@ -479,3 +479,100 @@
 .mach-outcome.alarm .mach-outcome-head {
   color: var(--error);
 }
+
+/* ---------------------------------------------------------------------------
+   Prepare this machine (Phase 69)
+   ---------------------------------------------------------------------------
+   The one affordance on this surface that starts something on another
+   computer. The explaining sentence sits ABOVE the button rather than under
+   it, because a person should read what will happen before their eye reaches
+   the thing that makes it happen. */
+
+.mach-prepare {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: flex-start;
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.mach-prepare-explain {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-secondary);
+}
+
+/* What Prepare answered. Every sentence in here comes from main. */
+.mach-prepare-result {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-raised);
+}
+
+.mach-prepare-headline {
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  color: var(--text-primary);
+}
+
+.mach-prepare-detail,
+.mach-prepare-note {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-secondary);
+}
+
+.mach-prepare-fact {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.mach-prepare-label {
+  color: var(--text-muted);
+}
+
+.mach-prepare-value {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+
+.mach-prepare-options .set-config-lines {
+  font-family: var(--font-mono);
+}
+
+/* A value that did not stick. It is a fact about the machine rather than a
+   failure of Tortie, so it is marked and not made loud: the one alarm on this
+   surface stays with a changed host key. */
+.mach-prepare-disagrees {
+  display: block;
+  font-family: var(--font-ui);
+  color: var(--warning);
+}
+
+/* A refused version is drawn calmly for the same reason. It is not a security
+   event, it is a machine that needs its program updated. */
+.mach-prepare-result[data-prepare-class='version-unmeasured'] {
+  border-color: var(--warning);
+}
+
+/* The one alarm, again, and it may never be shared. */
+.mach-prepare-result[data-prepare-alarm='yes'] {
+  background: var(--error-wash);
+  border-color: var(--error);
+}
+
+.mach-prepare-result[data-prepare-alarm='yes'] .mach-prepare-headline {
+  color: var(--error);
+}

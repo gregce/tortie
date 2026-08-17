@@ -1,17 +1,21 @@
 /**
- * The ONE `machines:*` registrar (Phase 68).
+ * The ONE `machines:*` registrar (Phase 68, one channel added in Phase 69).
  *
- * Ten channels, and what is NOT here is the point of the file.
+ * Eleven channels, and what is NOT here is the point of the file.
  *
  *  - There is no `machines:connect`, no `machines:attach` and no
- *    `machines:createSession`. Phase 68 opens no session on any machine.
+ *    `machines:createSession`. Neither Phase 68 nor Phase 69 opens a session on
+ *    any machine.
  *  - There is no channel that reads the file and then acts. `machines:reload`
  *    returns rows and does nothing else.
  *  - There is no channel that sets a session's status.
  *
- * Two channels start a process, and both are a person pressing a button.
+ * Three channels start a process, and every one is a person pressing a button.
  * `machines:tailscaleNames` runs the pinned Tailscale program once.
- * `machines:test` runs ssh once. Nothing else in this file spawns anything.
+ * `machines:test` runs ssh once. `machines:prepare` runs ssh and starts the
+ * program a machine's work will live in, and it is the only channel in the
+ * product that starts anything on another computer. Nothing else in this file
+ * spawns anything.
  *
  * ## Where the gate sits, and where it deliberately does not
  *
@@ -44,6 +48,7 @@ import { MACHINE_COLORS, MACHINE_DEFAULT_COLOR } from '@shared/machines';
 import type {
   MachineAddInput,
   MachineConfirmInput,
+  MachinePrepareResult,
   MachineRowView,
   MachinesResult,
   MachineTestEvent,
@@ -79,6 +84,7 @@ import {
   userHostKeysPath,
   type MachineHostKeyFiles
 } from './connection-test';
+import { prepareMachine } from './prepare';
 import { validateMachinesFile } from './schema';
 import {
   addMachineRow,
@@ -384,6 +390,24 @@ export function registerMachinesIpc(ipc: IpcMain): void {
     forgetMachine(id);
     return resultOf();
   });
+
+  // PHASE 69. The one channel that starts something on another machine, and the
+  // one production caller of the exec plane. It refuses an unconfirmed row before
+  // any process exists, and it refuses a version nobody measured before any
+  // server is started. It opens no session, because this release has no path that
+  // could.
+  handle(
+    ipc,
+    'machines:prepare',
+    async (_event, id: string): Promise<MachinePrepareResult> => {
+      const row = rowOrThrow(id);
+      return prepareMachine({
+        machineId: row.id,
+        fields: machineFieldsOf(row),
+        tortieHostKeys: ensureMachineHostKeysPath()
+      });
+    }
+  );
 }
 
 /**

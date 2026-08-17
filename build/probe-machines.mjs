@@ -1104,6 +1104,292 @@ async function step9QuitWithTestRunning(standIn) {
 }
 
 // ---------------------------------------------------------------------------
+// Phase 69. The two photographs of Prepare, both taken by pressing the button
+// ---------------------------------------------------------------------------
+//
+// WHY THESE ARE HERE AND NOT IN A PROBE OF THEIR OWN. Everything they need
+// already exists in this file: a real sshd on loopback, an agent holding a
+// scratch key, a driver that types into the real fields and clicks the real
+// controls, and a machine confirmed in step 4 through the real gate. A second
+// probe would have copied all of it.
+//
+// WHY THEY PRESS THE BUTTON. Phase 68's fix round found three screenshots that
+// were the same photograph of an empty section, because the steps went through
+// the bridge and the view was never mounted. So each of these clicks
+// `[data-machines-action="prepare"]` inside a named row, waits for the result
+// block to appear, and reads what is on the screen back out of the DOM.
+
+/**
+ * Print why a driver returned nothing.
+ *
+ * A step whose driver threw reported every field as null, which reads exactly
+ * like a surface that drew nothing. This prints the tail of what the child said,
+ * so the next reader sees the error instead of guessing at it.
+ */
+function sayWhyNoAnswer(step, res) {
+  if (res.parsed !== null) return;
+  const tail = String(res.out).split('\n').slice(-25).join('\n');
+  console.log(
+    `[p68] step ${String(step)}: the driver returned nothing. The payload was ` +
+      `${JSON.stringify(res.payload)}. The last lines the child printed:\n${tail}`
+  );
+}
+
+/** A program that reports a version nobody has measured. */
+function writeMadeUpVersionProgram() {
+  const path = join(scratch, 'p69-stub-tmux');
+  writeFileSync(path, '#!/bin/sh\necho "tmux 0.0-p69-made-up"\nexit 0\n', 'utf8');
+  chmodSync(path, 0o755);
+  return path;
+}
+
+/**
+ * Step 11. A prepared machine row, photographed.
+ *
+ * The machine is the one step 4 confirmed, so the identity record file already
+ * holds this machine's key from the one visible test, which is the production
+ * path. Prepare is pressed, and the row then draws the version the machine
+ * reported, the table of settings Tortie asserted, and the two honesty lines.
+ */
+async function step11PreparePhoto(env) {
+  const shot = join(outDir, 'p69-prepared.png');
+  // End the SCRATCH server on the far side first, so this step measures a birth
+  // rather than a server an earlier run left behind. The socket name here is the
+  // scratch one this probe launches with, never `gmux`, and that is asserted by
+  // the name itself being a literal below rather than a variable.
+  let born = 'the scratch server was already gone';
+  try {
+    execFileSync('tmux', ['-L', 'gmux-p68-probe', 'kill-server'], {
+      encoding: 'utf8',
+      stdio: 'pipe'
+    });
+    born = 'the scratch server from an earlier run was ended first';
+  } catch {
+    /* no server is the state this step wants */
+  }
+  const res = await driveSettings({
+    shot,
+    env,
+    timeoutMs: 120_000,
+    js: driver(`
+      // A trail, so a step that stops somewhere says WHERE. The first build of
+      // this step returned nothing at all and read as a surface that drew
+      // nothing, which cost an hour of guessing.
+      const trail = [];
+      trail.push('opening');
+      await openMachines();
+      trail.push('opened');
+      const rows = await m().rows();
+      trail.push('rows:' + String(rows.rows.length));
+      const id = rows.rows.length > 0 ? rows.rows[0].id : null;
+      // Prepare lives inside the row's detail section, which is collapsed until a
+      // person presses Show. So this presses Show first, which is what they do.
+      const toggle = id === null
+        ? null
+        : document.querySelector('[data-machine-id="' + id + '"] [data-machines-action="toggle-lines"]');
+      if (toggle !== null) { toggle.click(); await wait(400); }
+      trail.push('expanded:' + String(toggle !== null));
+      const button = id === null
+        ? null
+        : document.querySelector('[data-machine-id="' + id + '"] [data-machines-action="prepare"]');
+      const buttonLabel = button === null ? null : (button.textContent || '').trim();
+      const wasEnabled = button === null ? null : button.disabled === false;
+      trail.push('button:' + String(buttonLabel) + ':enabled:' + String(wasEnabled));
+      if (button !== null && button.disabled === false) button.click();
+      trail.push('clicked');
+      const block = await until('.mach-prepare-result', 60000);
+      trail.push('block:' + String(block !== null));
+      await wait(600);
+      const read = (sel) => {
+        const el = document.querySelector(sel);
+        return el === null ? null : (el.textContent || '').trim();
+      };
+      show('.mach-row');
+      await wait(400);
+      return {
+        trail,
+        id,
+        buttonLabel,
+        wasEnabled,
+        drewBlock: block !== null,
+        drawnClass: block === null ? null : block.getAttribute('data-prepare-class'),
+        drawnAlarm: block === null ? null : block.getAttribute('data-prepare-alarm'),
+        headline: read('.mach-prepare-headline'),
+        detail: read('.mach-prepare-detail'),
+        version: read('[data-prepare-version]'),
+        optionRows: document.querySelectorAll('[data-prepare-option]').length,
+        settingsLabelOnScreen: text().includes('Settings Tortie asserted:'),
+        versionLabelOnScreen: text().includes('Version on that machine:'),
+        bornLineOnScreen: text().includes('started the program on that machine on this visit'),
+        warmLineOnScreen: text().includes('was already running on that machine, so Tortie left it running'),
+        pathLineOnScreen: text().includes('read the list of places that machine looks for programs'),
+        supportedLabelOnScreen: text().includes('Versions Tortie has measured:'),
+        cannotOpenYetOnScreen: text().includes('You cannot open a session on a machine yet.'),
+        anyDash: text().includes('\\u2014') || text().includes('\\u2013')
+      };
+    `)
+  });
+  sayWhyNoAnswer(11, res);
+  const d = res.parsed;
+  const ok =
+    d !== null &&
+    d.wasEnabled === true &&
+    d.drewBlock === true &&
+    d.drawnClass === 'prepared' &&
+    d.drawnAlarm === 'no' &&
+    typeof d.version === 'string' &&
+    d.version.length > 0 &&
+    d.optionRows >= 12 &&
+    d.versionLabelOnScreen === true &&
+    d.settingsLabelOnScreen === true &&
+    d.pathLineOnScreen === true &&
+    // EXACTLY ONE of the two honesty lines, never both and never neither. Which
+    // one it is depends on the machine rather than on Tortie, and on this probe
+    // it is the warm one for a reason worth writing down: the far side of this
+    // connection is this same Mac, on the same socket the app under test boots
+    // its own server on, so the server is already there before Prepare runs.
+    // The BIRTH is measured elsewhere, by `GMUX_SMOKE=exec-plane` step 3 and by
+    // `build/probe-execplane.mjs` steps 7 to 9, both of which end the scratch
+    // server first and watch it come back.
+    d.bornLineOnScreen !== d.warmLineOnScreen &&
+    // The detail sentence and the honesty line beside it must say the same
+    // thing. They did not in the first build, and the photograph is what showed
+    // it: "Tortie started the program" sat directly above "The program was
+    // already running on that machine".
+    d.bornLineOnScreen === d.detail.includes('Tortie started the program') &&
+    d.anyDash === false;
+  note(
+    11,
+    'a prepared machine row, photographed after the button was pressed',
+    ok ? 'pass' : 'FAIL',
+    `${born}. the trail was ${JSON.stringify(d?.trail ?? null)}. ` +
+      `the button read ${JSON.stringify(d?.buttonLabel ?? null)} and was enabled ` +
+      `${String(d?.wasEnabled)}. The row drew class ` +
+      `${JSON.stringify(d?.drawnClass ?? null)}, alarm ` +
+      `${JSON.stringify(d?.drawnAlarm ?? null)}, headline ` +
+      `${JSON.stringify(d?.headline ?? null)}, version ` +
+      `${JSON.stringify(d?.version ?? null)}, ${String(d?.optionRows)} setting ` +
+      `rows. On screen: the version label ${String(d?.versionLabelOnScreen)}, the ` +
+      `settings label ${String(d?.settingsLabelOnScreen)}, the program list line ` +
+      `${String(d?.pathLineOnScreen)}. Of the two honesty lines it drew the ` +
+      `server born line ${String(d?.bornLineOnScreen)} and the server warm line ` +
+      `${String(d?.warmLineOnScreen)}, and exactly one of them must be true. On ` +
+      `this probe it is the warm one, because the far side is this same Mac on ` +
+      `the socket the app under test already booted its own server on. The ` +
+      `"cannot open a session yet" line ` +
+      `${String(d?.cannotOpenYetOnScreen)}. A long dash anywhere on the page: ` +
+      `${String(d?.anyDash)}. Screenshot ${shot}`
+  );
+  return ok;
+}
+
+/**
+ * Step 12. A machine refused for a version nobody measured, photographed.
+ *
+ * The row is added and confirmed through the same controls as step 4, with the
+ * program path in Advanced pointing at a program that reports a made up version.
+ * Prepare is pressed, and the refusal must name the version it found, the list
+ * Tortie has measured, and what to do next.
+ */
+async function step12PrepareRefusedPhoto(env, stubPath) {
+  const shot = join(outDir, 'p69-version-refused.png');
+  const res = await driveSettings({
+    shot,
+    env,
+    timeoutMs: 120_000,
+    js: driver(`
+      const trail = [];
+      trail.push('opening');
+      await openMachines();
+      const drove = await runTestByButton(
+        '127.0.0.1',
+        ${sshdPort || 22},
+        'Made up version box',
+        ${JSON.stringify(stubPath)}
+      );
+      trail.push('tested:' + String(drove && drove.outcomeClass));
+      const added = await act('add-confirm');
+      await wait(1200);
+      trail.push('added:' + String(added));
+      const rows = await m().rows();
+      const row = rows.rows.find((r) => r.remoteTmuxPath === ${JSON.stringify(stubPath)}) || null;
+      trail.push('row:' + String(row && row.id));
+      // Prepare is inside the row's detail section, so press Show first.
+      const toggle = row === null
+        ? null
+        : document.querySelector('[data-machine-id="' + row.id + '"] [data-machines-action="toggle-lines"]');
+      if (toggle !== null) { toggle.click(); await wait(400); }
+      trail.push('expanded:' + String(toggle !== null));
+      const button = row === null
+        ? null
+        : document.querySelector('[data-machine-id="' + row.id + '"] [data-machines-action="prepare"]');
+      trail.push('button:' + String(button !== null) + ':enabled:' + String(button !== null && button.disabled === false));
+      if (button !== null && button.disabled === false) button.click();
+      const block = await until('.mach-prepare-result[data-prepare-class="version-unmeasured"]', 60000);
+      trail.push('block:' + String(block !== null));
+      await wait(600);
+      const read = (sel) => {
+        const el = document.querySelector(sel);
+        return el === null ? null : (el.textContent || '').trim();
+      };
+      const scope = row === null ? document : document.querySelector('[data-machine-id="' + row.id + '"]');
+      if (scope !== null) scope.scrollIntoView({ block: 'center' });
+      await wait(300);
+      return {
+        trail,
+        added,
+        outcomeClass: drove.outcomeClass,
+        rowId: row === null ? null : row.id,
+        drewBlock: block !== null,
+        drawnClass: block === null ? null : block.getAttribute('data-prepare-class'),
+        drawnAlarm: block === null ? null : block.getAttribute('data-prepare-alarm'),
+        headline: read('.mach-prepare-result[data-prepare-class="version-unmeasured"] .mach-prepare-headline'),
+        detail: read('.mach-prepare-result[data-prepare-class="version-unmeasured"] .mach-prepare-detail'),
+        foundVersion: read('.mach-prepare-result[data-prepare-class="version-unmeasured"] [data-prepare-version]'),
+        supportedOnScreen: read('.mach-prepare-result[data-prepare-class="version-unmeasured"] [data-prepare-supported]'),
+        remedyOnScreen: text().includes('then prepare it again'),
+        nothingChangedOnScreen: text().includes('Nothing was changed on either machine.'),
+        optionRows: document.querySelectorAll('.mach-prepare-result[data-prepare-class="version-unmeasured"] [data-prepare-option]').length,
+        anyDash: text().includes('\\u2014') || text().includes('\\u2013')
+      };
+    `)
+  });
+  sayWhyNoAnswer(12, res);
+  const d = res.parsed;
+  const ok =
+    d !== null &&
+    d.drewBlock === true &&
+    d.drawnClass === 'version-unmeasured' &&
+    d.drawnAlarm === 'no' &&
+    typeof d.foundVersion === 'string' &&
+    d.foundVersion.includes('p69-made-up') &&
+    typeof d.supportedOnScreen === 'string' &&
+    d.supportedOnScreen.length > 0 &&
+    d.nothingChangedOnScreen === true &&
+    d.optionRows === 0 &&
+    d.anyDash === false;
+  note(
+    12,
+    'a machine refused for a version nobody measured, photographed',
+    ok ? 'pass' : 'FAIL',
+    `the trail was ${JSON.stringify(d?.trail ?? null)}. ` +
+      `the row was added ${String(d?.added)} after a test that ended ` +
+      `${JSON.stringify(d?.outcomeClass ?? null)}. The row drew class ` +
+      `${JSON.stringify(d?.drawnClass ?? null)}, alarm ` +
+      `${JSON.stringify(d?.drawnAlarm ?? null)}, headline ` +
+      `${JSON.stringify(d?.headline ?? null)}. It names the version it found as ` +
+      `${JSON.stringify(d?.foundVersion ?? null)} and the versions Tortie has ` +
+      `measured as ${JSON.stringify(d?.supportedOnScreen ?? null)}. The remedy ` +
+      `sentence is on screen ${String(d?.remedyOnScreen)}, the "nothing was ` +
+      `changed" sentence ${String(d?.nothingChangedOnScreen)}, and it drew ` +
+      `${String(d?.optionRows)} setting rows, which must be zero because nothing ` +
+      `was started. A long dash anywhere on the page: ${String(d?.anyDash)}. ` +
+      `Screenshot ${shot}`
+  );
+  return ok;
+}
+
+// ---------------------------------------------------------------------------
 // The run
 // ---------------------------------------------------------------------------
 
@@ -1203,6 +1489,11 @@ async function main() {
   await step2AddMachine();
   await step3Test(env);
   await step4Confirm(env);
+  // Phase 69's two photographs run here, while exactly one confirmed machine is
+  // on the list and its identity is recorded from the one visible test. Step 8
+  // later plants a key that is not the machine's, so they cannot run after it.
+  await step11PreparePhoto(env);
+  await step12PrepareRefusedPhoto(env, writeMadeUpVersionProgram());
   await step5WatcherChange();
   await step6LabelOnly();
   await step7Refused();

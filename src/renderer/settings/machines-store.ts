@@ -9,10 +9,10 @@
  * WHAT THIS STORE CANNOT DO, and the reason it is worth stating here rather
  * than only in the spec. Nothing in this file starts anything. Every call that
  * can cause a process to exist (`findTailnet`, `startDraftTest`,
- * `startSavedTest`) is reachable from exactly one button each, and no reducer,
- * no subscription and no effect calls them. Reading the machines file cannot
- * reach them, which is refusal 8 of CLAUDE.md expressed in the one renderer
- * module that could otherwise break it.
+ * `startSavedTest`, and `prepareMachine` since Phase 69) is reachable from
+ * exactly one button each, and no reducer, no subscription and no effect calls
+ * them. Reading the machines file cannot reach them, which is refusal 8 of
+ * CLAUDE.md expressed in the one renderer module that could otherwise break it.
  *
  * THE GATE IS IN MAIN, not here. `startSavedTest` reaches
  * `assertMachineMayConnect` on the other side of the bridge, so an unconfirmed
@@ -26,6 +26,7 @@ import type {
   MachineAddInput,
   MachineConfirmSheet,
   MachineDraft,
+  MachinePrepareResult,
   MachineRowView,
   MachineTestOutcome,
   MachineTestStarted,
@@ -36,7 +37,11 @@ import type {
 } from '@shared/ipc';
 import type { MachineColor } from '@shared/machines';
 import { MACHINE_DEFAULT_COLOR } from '@shared/machines';
-import { ADD_DISABLED_REASON, BRIDGE_MISSING } from './machines-copy';
+import {
+  ADD_DISABLED_REASON,
+  BRIDGE_MISSING,
+  PREPARE_NEEDS_CONFIRM
+} from './machines-copy';
 
 type MachinesApi = NonNullable<GmuxMachinesExtras['machines']>;
 
@@ -222,6 +227,17 @@ export interface MachinesStoreState {
 
   test: LiveTest | null;
 
+  /**
+   * What Prepare answered, per machine id. Empty until a person presses it.
+   *
+   * Kept per id rather than as one value, because a person may prepare two
+   * machines in one sitting and the answer for the first must not be redrawn
+   * under the second.
+   */
+  prepared: Readonly<Record<string, MachinePrepareResult>>;
+  /** The id a prepare is in flight for, or null. */
+  preparing: string | null;
+
   /** Idempotent. Reads the rows and subscribes to the test stream. */
   init(): void;
   /** Re-read what main already holds. Opens no file. */
@@ -250,6 +266,15 @@ export interface MachinesStoreState {
   confirmMachine(id: string): Promise<string | null>;
   forgetMachine(id: string): Promise<string | null>;
   removeMachine(id: string): Promise<string | null>;
+
+  /**
+   * Starts the program on one machine. One button reaches this.
+   *
+   * The gate is in main. An unconfirmed row refuses there, before anything is
+   * started, so the check below is only about not sending a call that is certain
+   * to be refused. It is not the safeguard.
+   */
+  prepareMachine(id: string): Promise<string | null>;
 }
 
 let initialized = false;
@@ -268,6 +293,8 @@ export const useMachinesStore = create<MachinesStoreState>()((set, get) => ({
   tailscale: null,
   tailscaleBusy: false,
   test: null,
+  prepared: {},
+  preparing: null,
 
   init() {
     if (initialized) return;
@@ -542,6 +569,27 @@ export const useMachinesStore = create<MachinesStoreState>()((set, get) => ({
     }
   },
 
+  async prepareMachine(id) {
+    const b = bridge();
+    if (b === null) return BRIDGE_MISSING;
+    if (b.prepare === undefined) return BRIDGE_MISSING;
+    const row: MachineRowView | undefined = get().machines?.rows.find(
+      (r) => r.id === id
+    );
+    if (row === undefined) return null;
+    if (!row.usable) return PREPARE_NEEDS_CONFIRM;
+    set({ preparing: id });
+    try {
+      const result = await b.prepare(id);
+      set((s) => ({ prepared: { ...s.prepared, [id]: result } }));
+      return null;
+    } catch (err) {
+      return sentenceOf(err);
+    } finally {
+      set({ preparing: null });
+    }
+  },
+
   async removeMachine(id) {
     const b = bridge();
     if (b === null) return BRIDGE_MISSING;
@@ -549,8 +597,13 @@ export const useMachinesStore = create<MachinesStoreState>()((set, get) => ({
     try {
       const next = await b.remove(id);
       const live = get().test;
+      const prepared = { ...get().prepared };
+      // The answer belonged to a row that no longer exists, so it goes with the
+      // row rather than sitting under the machine that takes its place on screen.
+      delete prepared[id];
       set({
         machines: next,
+        prepared,
         // A test still running against a row that no longer exists has
         // nothing to report to, so it goes with the row.
         test: live !== null && live.savedId === id ? null : live

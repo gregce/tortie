@@ -104,7 +104,12 @@ describe('words and punctuation', () => {
       'You confirmed:',
       'It now says:',
       'Reading from:',
-      'Tortie is running:'
+      'Tortie is running:',
+      // Phase 69. Each of the three stands immediately before a value drawn
+      // after it and carries nothing of its own past the colon.
+      'Version on that machine:',
+      'Versions Tortie has measured:',
+      'Settings Tortie asserted:'
     ]);
   });
 
@@ -154,10 +159,24 @@ describe('the sentences the charter fixes', () => {
       'Tortie never adopts work that is already running on your machines, ' +
         'and it never touches it. Anything Tortie runs there, it creates itself.'
     );
+    // Rewritten in Phase 69. The old second half said this release records the
+    // machine and proves Tortie can reach it, and that stopped being the whole
+    // truth: it now also sets the machine up so that it is ready. What is still
+    // not true is the first sentence, and it stays first.
     expect(copy.HONESTY_NO_SESSIONS_YET).toBe(
       'You cannot open a session on a machine yet. This release records the ' +
-        'machine and proves Tortie can reach it. Opening sessions comes later.'
+        'machine, proves Tortie can reach it, and sets it up so that it is ' +
+        'ready. Opening sessions comes later.'
     );
+  });
+
+  it('says what Prepare will do, before a person presses it', () => {
+    expect(copy.PREPARE_EXPLAIN).toBe(
+      'Tortie starts the program on that machine that keeps your work alive, ' +
+        'and sets it up the way Tortie needs. This is the first thing Tortie ' +
+        'runs there. Anything already running on that machine is left alone.'
+    );
+    expect(copy.BTN_PREPARE).toBe('Prepare this machine');
   });
 
   it('says where a machine’s identity is written down, and where it is not', () => {

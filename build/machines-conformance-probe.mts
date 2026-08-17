@@ -64,6 +64,33 @@ import {
   userHostKeysPath
 } from '../src/main/machines/connection-test';
 import { validateMachinesFile } from '../src/main/machines/schema';
+// Phase 69, conditions 11 to 18. Every one of these is pure: no spawn, no server,
+// no Electron and no request.
+import {
+  REMOTE_CONF_PATH,
+  remoteTmuxArgv,
+  tmuxCommand,
+  type RemoteMachineContext,
+  type LocalMachineContext
+} from '../src/main/machines/context';
+import {
+  controlPathLeaf,
+  sshOptions,
+  CONTROL_DIR_MODE,
+  CONTROL_DIR_NAME,
+  CONTROL_PATH_MAX_BYTES,
+  REQUIRED_SSH_OPTIONS,
+  SSH_SERVER_ALIVE_COUNT_MAX,
+  SSH_SERVER_ALIVE_INTERVAL_SECONDS
+} from '../src/main/machines/ssh';
+import {
+  REMOTE_VERB_LEDGER,
+  VERBS_THIS_RUNG_REFUSES,
+  remoteVerbsOf
+} from '../src/main/machines/exec-plane';
+import { remoteBootArgs } from '../src/main/machines/remote-server';
+import { SERVER_OPTIONS } from '../src/main/tmux/server-options';
+import { TESTED_REMOTE_TMUX_VERSIONS } from '../src/main/tmux/version';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const machinesDir = join(repoRoot, 'src', 'main', 'machines');
@@ -249,6 +276,179 @@ function mentions(files: string[], phrase: string): { file: string; line: number
   return hits;
 }
 
+// ---------------------------------------------------------------------------
+// 8. Phase 69. The exec plane's composition, the ledger, the options and the list
+// ---------------------------------------------------------------------------
+//
+// The two contexts below are SHAPES, not this machine's real state. Nothing here
+// resolves a binary, opens a socket or asks Electron anything.
+
+/** The scratch socket a harness launch would use. Never the literal `gmux`. */
+const PROBE_SOCKET = 'gmux-p69-conformance';
+
+const LOCAL_CTX: LocalMachineContext = {
+  kind: 'local',
+  machineId: 'local',
+  bin: '/opt/homebrew/bin/tmux',
+  socket: PROBE_SOCKET,
+  confPath: '/Users/x/repo/resources/gmux-tmux.conf',
+  binSource: 'dev-path',
+  packaged: false
+};
+
+const REMOTE_CTX: RemoteMachineContext = {
+  kind: 'remote',
+  machineId: ID,
+  sshBin: '/usr/bin/ssh',
+  host: BASE.host,
+  user: BASE.user,
+  port: BASE.port,
+  remoteTmuxPath: BASE.remoteTmuxPath ?? '/usr/bin/tmux',
+  socket: PROBE_SOCKET,
+  controlPath: `/var/folders/7f/abcdefghijklmnopqrstuvwxyz/T/${CONTROL_DIR_NAME}/m-0123456789ab`,
+  hostKeys: HOST_KEYS
+};
+
+/**
+ * The twelve argument vectors the local composition is compared on.
+ *
+ * They are the real verbs, taken from the call sites: the list every reconcile
+ * makes, the two reads the version gate makes, the option writes the boot makes,
+ * a capture with its flags, a kill by identity, and one carrying an empty string
+ * argument because `copy-mode-position-format ''` is one of the five.
+ */
+const LOCAL_VECTORS: readonly (readonly string[])[] = [
+  ['start-server'],
+  ['list-sessions', '-F', '#{session_id}'],
+  ['display-message', '-p', '#{version}'],
+  ['list-sessions', '-F', '#{version}'],
+  ['set-environment', '-g', 'PATH', '/usr/bin:/bin'],
+  ['set-option', '-g', 'history-limit', '25000'],
+  ['set-option', '-g', 'copy-mode-position-format', ''],
+  ['set-option', '-g', 'mode-style', 'noattr,bg=default,fg=default'],
+  ['show-options', '-gv', 'history-limit'],
+  ['capture-pane', '-p', '-J', '-e', '-t', '$3'],
+  ['kill-session', '-t', '$7'],
+  ['has-session', '-t', '=smoke-keeper']
+];
+
+/**
+ * The golden local argv, being what `tmuxArgs` produced at `ab94847`.
+ *
+ * It is written out here rather than imported, ON PURPOSE. Importing the current
+ * implementation and comparing it against itself would pass whatever the
+ * implementation did. This list is the shape from before the refactor, typed out
+ * from `ab94847`'s one line body, `['-L', ctx.socket, '-f', ctx.confPath, ...rest]`.
+ */
+const localGolden = LOCAL_VECTORS.map((rest) => [
+  '-L',
+  LOCAL_CTX.socket,
+  '-f',
+  LOCAL_CTX.confPath,
+  ...rest
+]);
+
+const localRows = LOCAL_VECTORS.map((rest, index) => {
+  const plan = tmuxCommand(LOCAL_CTX, rest);
+  const want = localGolden[index] ?? [];
+  return {
+    verb: rest[0] ?? '',
+    file: plan.file,
+    got: [...plan.argv],
+    want,
+    equal: JSON.stringify([...plan.argv]) === JSON.stringify(want)
+  };
+});
+
+const REMOTE_VERB = ['list-sessions', '-F', '#{session_id}'];
+const remotePlan = tmuxCommand(REMOTE_CTX, REMOTE_VERB);
+const remoteBootPlan = tmuxCommand(REMOTE_CTX, remoteBootArgs());
+const remoteOptions = sshOptions(REMOTE_CTX);
+
+// The tmux call as a LIST, before it is quoted into one argument of the ssh argv.
+// Conditions 11 read this rather than the ssh argv, and the reason is what the live
+// probe measured: ssh carries no argv to the other machine, it joins everything
+// after the address with single spaces and hands one string to that machine's login
+// shell. So the whole tmux call travels as ONE quoted argument, and looking for
+// `-L` inside it would be reading the quoting rather than the command.
+const remoteCall = remoteTmuxArgv(REMOTE_CTX, REMOTE_VERB);
+const remoteBootCall = remoteTmuxArgv(REMOTE_CTX, remoteBootArgs());
+
+/** Every `set`, `set-option` and `setw` line in the conf, as name/scope/value. */
+function confOptions(): { name: string; scope: string; value: string }[] {
+  const text = readFileSync(join(repoRoot, 'resources', 'gmux-tmux.conf'), 'utf8');
+  const out: { name: string; scope: string; value: string }[] = [];
+  for (const raw of text.split('\n')) {
+    const line = raw.trim();
+    if (line.startsWith('#') || line.length === 0) continue;
+    const m = /^set(?:-option|w)?\s+(-[A-Za-z]+)\s+(\S+)\s*(.*)$/.exec(line);
+    if (m === null) continue;
+    const [, scope, name, rest] = m;
+    const value = (rest ?? '').trim().replace(/^"(.*)"$/, '$1');
+    out.push({ name: name ?? '', scope: scope ?? '', value });
+  }
+  return out;
+}
+
+const conf = confOptions();
+const optionRows = SERVER_OPTIONS.map((row) => {
+  const found = conf.find((entry) => entry.name === row.name) ?? null;
+  return {
+    name: row.name,
+    scope: row.scope,
+    value: row.value,
+    inConf: found !== null,
+    confScope: found?.scope ?? '',
+    confValue: found?.value ?? '',
+    // `history-limit` is the one row whose runtime value is the person's Settings
+    // value, and the conf's number is the first boot default, so the values must
+    // still agree here: this list carries the conf's literal.
+    agrees:
+      found !== null && found.scope === row.scope && found.value === row.value
+  };
+});
+const confOnly = conf
+  .filter((entry) => !SERVER_OPTIONS.some((row) => row.name === entry.name))
+  .map((entry) => entry.name);
+
+const ledgerRows = REMOTE_VERB_LEDGER.map((row) => ({
+  verb: row.verb,
+  repeat: row.repeat,
+  kind: row.kind,
+  reasonLength: row.reason.length
+}));
+
+const remoteList = TESTED_REMOTE_TMUX_VERSIONS.map((row) => ({
+  version: row.version,
+  exec: row.measured.exec,
+  control: row.measured.control,
+  measuredAt: row.measuredAt,
+  noteLength: row.note.length
+}));
+
+/** The golden files and the manifest beside them. */
+function goldens(): {
+  present: string[];
+  manifest: unknown;
+} {
+  const dir = join(machinesDir, '__tests__', 'golden');
+  let present: string[] = [];
+  let manifest: unknown = null;
+  try {
+    present = readdirSync(dir).filter((name) => name.endsWith('.txt')).sort();
+  } catch {
+    present = [];
+  }
+  try {
+    manifest = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8'));
+  } catch {
+    manifest = null;
+  }
+  return { present, manifest };
+}
+
+const golden = goldens();
+
 const files = productionFiles(machinesDir);
 const wholeTree = (() => {
   const collected: string[] = [];
@@ -301,6 +501,44 @@ process.stdout.write(
     sshConfigMentions: mentions(files, '.ssh/config'),
     knownHostsMentions: mentions(files, 'known_hosts'),
     batchModeNoMentions: mentions(wholeTree, "'BatchMode=no'"),
-    batchModeYesPresent: mentions(wholeTree, "'BatchMode=yes'").length > 0
+    batchModeYesPresent: mentions(wholeTree, "'BatchMode=yes'").length > 0,
+
+    // --- Phase 69, conditions 11 to 18 -------------------------------------
+    probeSocket: PROBE_SOCKET,
+    realSocket: 'gmux',
+    remoteConfPath: REMOTE_CONF_PATH,
+    remoteFile: remotePlan.file,
+    remoteArgv: [...remotePlan.argv],
+    remoteCall: [...remoteCall],
+    remoteBootArgv: [...remoteBootPlan.argv],
+    remoteBootCall: [...remoteBootCall],
+    remoteBootVerbs: remoteVerbsOf(remoteBootArgs()),
+    remoteSshOptions: remoteOptions,
+    requiredSshOptions: [...REQUIRED_SSH_OPTIONS],
+    keepalive: {
+      interval: SSH_SERVER_ALIVE_INTERVAL_SECONDS,
+      countMax: SSH_SERVER_ALIVE_COUNT_MAX
+    },
+    controlPath: REMOTE_CTX.controlPath,
+    controlPathBytes: Buffer.byteLength(REMOTE_CTX.controlPath, 'utf8'),
+    controlPathMaxBytes: CONTROL_PATH_MAX_BYTES,
+    controlDirName: CONTROL_DIR_NAME,
+    controlDirMode: CONTROL_DIR_MODE,
+    controlLeaf: controlPathLeaf({ executionHash: base, uid: 501 }),
+    controlLeafForOtherUid: controlPathLeaf({ executionHash: base, uid: 502 }),
+    localRows,
+    ledger: ledgerRows,
+    forbiddenVerbs: [...VERBS_THIS_RUNG_REFUSES],
+    serverOptions: optionRows,
+    confOnlyOptions: confOnly,
+    localReassertOrder: SERVER_OPTIONS.filter((row) => row.localReassert === true).map(
+      (row) => row.name
+    ),
+    fromSettingsRows: SERVER_OPTIONS.filter((row) => row.fromSettings === true).map(
+      (row) => row.name
+    ),
+    remoteVersions: remoteList,
+    goldenFiles: golden.present,
+    goldenManifest: golden.manifest
   })
 );

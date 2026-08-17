@@ -59,7 +59,12 @@ const bundlePath = join(repoRoot, 'out', 'main', 'index.js');
 const REFUSALS = [
   {
     id: 'tmux.kill-server-on-real-socket',
-    source: 'src/main/tmux/supervisor.ts',
+    // PHASE 69 moved the declaration to ./resolve.ts and changed nothing about it.
+    // It had to leave the supervisor so the exec plane could ask it for a machine
+    // as well as for this Mac without the two files importing each other, and the
+    // question is now asked the same way for both: a kill-server aimed at socket
+    // gmux is refused whichever machine it is aimed at.
+    source: 'src/main/tmux/resolve.ts',
     why: 'the refusal that stands between any caller and the operator sessions',
     fragments: [
       'Tortie does not end the session server.',
@@ -475,6 +480,70 @@ const MACHINE_REFUSALS = [
     fragments: [
       ', because the machine changed after it was ',
       'shown. Read it again and confirm what it says now. Nothing was '
+    ]
+  },
+  // ---------------------------------------------------------------------------
+  // Phase 69 added these four, and two of them CANNOT BE REACHED in production
+  // ---------------------------------------------------------------------------
+  //
+  // That is the exact case this whole file exists for. There is no `unsafe` row on
+  // the verb ledger and there is no mutating verb, so nothing a person can do
+  // makes either branch run, and rollup deletes a branch whose condition it can
+  // prove. `src/main/machines/exec-smoke.ts` is the second caller, and it drives
+  // both with a synthetic ledger row built at runtime, so each one is watched
+  // firing rather than assumed to exist.
+  {
+    id: 'machine.verb-not-in-ledger',
+    source: 'src/main/machines/exec-plane.ts',
+    why:
+      'a machine can sleep or drop after it ran a command and before the reply ' +
+      'arrives, so only a command written down as safe to run twice may cross ' +
+      'to one. This refusal is also what keeps new-session, kill-session, ' +
+      'rename-session, attach-session, send-keys and respawn-pane out of this ' +
+      'release in code rather than in prose',
+    fragments: [
+      'Tortie will not send that command to another machine. Only commands Tortie ',
+      'has written down as safe to run twice may cross to a machine, and this one ',
+      'is not on that list. Nothing was sent.'
+    ]
+  },
+  {
+    id: 'machine.repeat-unsafe',
+    source: 'src/main/machines/exec-plane.ts',
+    why:
+      'the class has no members in this release, so a bundler that folds it away ' +
+      'costs nothing today and costs the refusal on the day the first unsafe ' +
+      'verb is added',
+    fragments: [
+      'Tortie will not send that command to another machine, because running it ',
+      'twice could leave two of something and Tortie cannot yet tell one from the ',
+      'other. Nothing was sent.'
+    ]
+  },
+  {
+    id: 'machine.path-before-mutation',
+    source: 'src/main/machines/exec-plane.ts',
+    why:
+      'a pane takes its program search list from the client that created it, and ' +
+      'a command over a connection runs a non login shell, so starting work ' +
+      'before that list is read runs the wrong copy of a program or none at all',
+    fragments: [
+      'Tortie will not start work on a machine before it has read the list of ',
+      'places that machine looks for programs. Without that list the wrong copy of ',
+      'a program can run, or none at all. Nothing was started.'
+    ]
+  },
+  {
+    id: 'machine.control-path-too-long',
+    source: 'src/main/machines/ssh.ts',
+    why:
+      'a unix socket path is limited to 104 bytes and the failure otherwise ' +
+      'lands when the client tries to connect, where it reads as the machine ' +
+      'being broken rather than as a limit of this system',
+    fragments: [
+      'Tortie could not compose a short enough name for the connection it keeps ',
+      'open to this machine. This is a limit of this system rather than a problem ',
+      'with the machine. Nothing was started.'
     ]
   }
 ];

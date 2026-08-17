@@ -23,12 +23,13 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import type { MachineRowView } from '@shared/ipc';
+import type { MachinePrepareResult, MachineRowView } from '@shared/ipc';
 import { ConnectionTestView } from './ConnectionTestView';
 import {
   BTN_CONFIRM,
   BTN_CONFIRM_CHANGED,
   BTN_HIDE,
+  BTN_PREPARE,
   BTN_REMOVE,
   BTN_REMOVE_CONFIRM,
   BTN_REMOVE_KEEP,
@@ -37,11 +38,96 @@ import {
   BTN_WITHDRAW,
   CONFIRMED_LIST_LABEL,
   CURRENT_LIST_LABEL,
+  PREPARE_EXPLAIN,
+  PREPARE_OPTION_DISAGREES,
+  PREPARE_PATH_MISSING,
+  PREPARE_PATH_READ,
+  PREPARE_SERVER_BORN,
+  PREPARE_SERVER_WARM,
+  PREPARE_SETTINGS_LABEL,
+  PREPARE_SUPPORTED_LABEL,
+  PREPARE_VERSION_LABEL,
+  PREPARING,
   REMOVE_QUESTION,
   STATE_CHIP,
   STATE_SENTENCE
 } from './machines-copy';
 import { useMachinesStore } from './machines-store';
+
+/**
+ * What Prepare answered, drawn.
+ *
+ * Every sentence here comes from main on the result. This component writes no
+ * sentence of its own beyond the labels in machines-copy.ts, so a later edit to
+ * this file cannot draw a refusal as a success or an alarm calmly.
+ */
+function PrepareResult({
+  result
+}: {
+  result: MachinePrepareResult;
+}): React.JSX.Element {
+  return (
+    <div
+      className="mach-prepare-result"
+      data-prepare-class={result.class}
+      data-prepare-alarm={result.alarm ? 'yes' : 'no'}
+    >
+      <div className="mach-prepare-headline">{result.headline}</div>
+      <p className="mach-prepare-detail">{result.detail}</p>
+
+      {result.version === null ? null : (
+        <div className="mach-prepare-fact">
+          <span className="mach-prepare-label">{PREPARE_VERSION_LABEL}</span>
+          <span className="mach-prepare-value" data-prepare-version>
+            {result.version}
+          </span>
+        </div>
+      )}
+
+      {result.class === 'version-unmeasured' ? (
+        <div className="mach-prepare-fact">
+          <span className="mach-prepare-label">{PREPARE_SUPPORTED_LABEL}</span>
+          <span className="mach-prepare-value" data-prepare-supported>
+            {result.supported.join(', ')}
+          </span>
+        </div>
+      ) : null}
+
+      {result.class === 'prepared' ? (
+        <>
+          <p className="mach-prepare-note">
+            {result.serverBorn ? PREPARE_SERVER_BORN : PREPARE_SERVER_WARM}
+          </p>
+          <p className="mach-prepare-note">
+            {result.pathCaptured ? PREPARE_PATH_READ : PREPARE_PATH_MISSING}
+          </p>
+        </>
+      ) : null}
+
+      {result.options.length === 0 ? null : (
+        <div className="mach-prepare-options">
+          <div className="mach-prepare-label">{PREPARE_SETTINGS_LABEL}</div>
+          <ul className="set-config-lines">
+            {result.options.map((option) => (
+              <li
+                key={option.name}
+                data-prepare-option={option.name}
+                data-prepare-agrees={option.agrees ? 'yes' : 'no'}
+              >
+                {option.name} {option.wanted}
+                {option.agrees ? null : (
+                  <span className="mach-prepare-disagrees">
+                    {PREPARE_OPTION_DISAGREES}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /** One labelled list of the lines an agreement covers. */
 function Lines({
@@ -71,6 +157,9 @@ export function MachineRow({ row }: { row: MachineRowView }): React.JSX.Element 
   const sendTestInput = useMachinesStore((s) => s.sendTestInput);
   const cancelTest = useMachinesStore((s) => s.cancelTest);
   const test = useMachinesStore((s) => s.test);
+  const prepare = useMachinesStore((s) => s.prepareMachine);
+  const prepared = useMachinesStore((s) => s.prepared[row.id]);
+  const preparing = useMachinesStore((s) => s.preparing) === row.id;
   const busy = useMachinesStore((s) => s.busy) === row.id;
 
   // Shut for a machine that is ready and open for one that is not. A person
@@ -203,6 +292,30 @@ export function MachineRow({ row }: { row: MachineRowView }): React.JSX.Element 
               {row.hash.slice(0, 12)}
             </span>
           </div>
+
+          {/* PHASE 69. The first affordance in Tortie that STARTS something on
+              another computer. It is enabled only for a row a person confirmed,
+              and the sentence above it says what it will do before it does it.
+              The refusal for an unconfirmed row is main's, on the other side of
+              the bridge, so this button being off is a courtesy rather than the
+              safeguard. */}
+          <div className="mach-prepare">
+            <p className="mach-prepare-explain">{PREPARE_EXPLAIN}</p>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              disabled={busy || preparing || !row.usable}
+              data-machines-action="prepare"
+              onClick={() => {
+                setError(null);
+                void prepare(row.id).then(setError);
+              }}
+            >
+              {preparing ? PREPARING : BTN_PREPARE}
+            </button>
+          </div>
+
+          {prepared === undefined ? null : <PrepareResult result={prepared} />}
 
           <div className="mach-remove">
             {removing ? (

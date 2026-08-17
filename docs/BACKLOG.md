@@ -5567,7 +5567,7 @@ matrix on a real tailnet machine, are recorded as owed and run only when he is p
 | --- | --- | --- | --- |
 | 67 | M0 | ✅ SHIPPED 2026-08-17 (95aa770, 0.31.2, gates green), section below. `unknown` gets its producer at a per-machine reconcile boundary; restore and input refused while unreachable; the machine-level Unreachable presentation. Fixes the live LOCAL defect where refresh() flips every non-exited row to restorable on TMUX_UNREACHABLE. The local socket adopts the boundary immediately, decided per the operator's standing autonomy preference, because the local bug IS the point | 3 |
 | 68 | M1 | ✅ SHIPPED 2026-08-17 (this commit, 0.32.0, gates green), section below. machines.json behind the confirm gate and seal, conformance:machines, the Settings surface, the tailscale picker from a pinned absolute path, the one visible connection test | 2 plus the gate |
-| 69 | M2 | MachineContext replaces the singleton; the exec plane over ssh with at-least-once discipline; remote server boot with -f /dev/null plus BOOT_SERVER_OPTIONS asserted; PATH capture ordered before first mutation; the version probe and refusal screen with remedy; error taxonomy golden files; keepalives from measurement. The dialect posture is a TESTED LIST that starts from locally measured versions and fails closed, so an unmeasured version is refused with the upgrade remedy, and his four machines join the list after the measurement he attends | 3 |
+| 69 | M2 | ✅ SHIPPED 2026-08-17 (this commit, 0.33.0, gates green), section below. MachineContext replaces the singleton; the exec plane over ssh with at-least-once discipline; remote server boot with -f /dev/null plus BOOT_SERVER_OPTIONS asserted; PATH capture ordered before first mutation; the version probe and refusal screen with remedy; error taxonomy golden files; keepalives from measurement. The dialect posture is a TESTED LIST that starts from locally measured versions and fails closed, so an unmeasured version is refused with the upgrade remedy, and his four machines join the list after the measurement he attends | 3 |
 | 70 | M3 | Attach over ssh -t in node-pty; create, kill and rename remote; the machine badge; session list by exec polling; restore REFUSED for every remote row with a visible coming label; the vocabulary audit. First visible operator value | 3 |
 | 71 | M4 | The control plane per machine replaces polling; per-machine reconcile; the machine_id migration; the section 4.4 case table live; pane-env rescue over the exec plane; the partition harness in the spirit of smoke:fault, driven by killing the scratch sshd mid-flight | 3 |
 | 72 | M5 | Remote restore enabled behind the fault matrix; per-machine argv capture; capsule replay; provenance-gated resume arming; the forget-machine tombstone. The ten-row matrix runs green against the scratch sshd overnight, and the real-tailnet repetition is OWED and recorded before any release enables remote restore | 3 |
@@ -5623,6 +5623,117 @@ shows that same line even though the expanded row itself still shows its error. 
 the runs body's own scroll only, so an outer container scrolling would move the rows without
 closing it, which is the History card's behavior too. HistorySection still runs its own inline
 copy of the hover timers, so hover-timing.ts has exactly one consumer until a later consolidation.
+
+## Phase 69 — the exec plane speaks to a machine's own tmux (research 51, M2) ✅ SHIPPED 2026-08-17 (this commit, 0.33.0, gates green)
+
+The M2 rung of the remote ladder. Until this rung Tortie had one implicit place to run a tmux
+command and every command went to it. It now has a `MachineContext`, this Mac is one of them, a
+confirmed machine is another, and one function composes the command for both. A remote command is
+`/usr/bin/ssh` carrying a fixed list of options, one reused connection per machine, and that
+machine's own tmux on the far end. Nothing of Tortie's is installed there.
+
+**What shipped, in six parts.**
+
+1. `MachineContext` replaces the singleton. `src/main/machines/context.ts` holds a registry keyed by
+machine id, with `local` as one key. `getTmuxContext` and `resetTmuxContext` are now names for that
+registry's own functions, and `execTmux` is the local key's name for one door, `execOn` in
+`src/main/machines/exec-plane.ts`. The 59 existing callers keep their signature, because every one
+of them is attach, create, kill, capture, reconcile or restore, and each of those belongs to M3 or
+later. The local composition is proven byte for byte rather than asserted:
+`npm run conformance:machines` compares what `tmuxCommand` composes against a golden taken from
+`ab94847`'s `tmuxArgs` across twelve argument vectors, and it matched on 12 of 12.
+2. The exec plane. Nine options on every command, being `BatchMode=yes`, `ConnectTimeout=10`,
+`StrictHostKeyChecking=yes`, the two identity record files with Tortie's own first,
+`ControlMaster=auto`, `ControlPath`, `ControlPersist=60s`, `ServerAliveInterval=5` and
+`ServerAliveCountMax=3`. `StrictHostKeyChecking=yes` is stronger than Phase 68 promised, and it is
+what makes the plane unable to add a line to any identity record file. First contact stays with the
+one visible connection test, where a person is watching. The connection Tortie keeps open is named
+by a hash of the machine's execution hash and the user id, measured at 70 bytes of a 100 byte
+budget, in a directory created mode 700.
+3. At-least-once, made mechanical. A machine can sleep after it ran a command and before its answer
+arrives, so every command that crosses to a machine must be safe to run twice. That promise is a
+table in code rather than a paragraph. Seven verbs are on the ledger, each with the reason running
+it twice is safe. A verb that is not on it is refused before anything is sent, and that is what
+keeps `new-session`, `kill-session`, `kill-server`, `rename-session`, `attach-session`, `send-keys`
+and `respawn-pane` out of this release in code rather than in prose.
+4. The remote server boot, and one option list both boots read. A machine's server is created with
+`-f /dev/null`, so that machine's own configuration file is never read, and so it comes up with none
+of the options Tortie depends on. `src/main/tmux/server-options.ts` now holds all twelve, the local
+boot selects its five by field, and a test plus the gate compare the list against
+`resources/gmux-tmux.conf` in both directions. The five the local boot re-asserts, their order and
+their scope flag are what they were at `ab94847`.
+5. The PATH capture, ordered before the first mutating command. A command over a connection runs a
+non-login shell, so the machine's own login files are never read and its program search list is
+short. Tortie reads that list over the machine's login shell and writes it into the remote server
+environment. The ordering is enforced by the door rather than documented, and the refusal names what
+was not started.
+6. The version probe and a list that fails closed. Tortie reads the version over the plane before it
+starts anything, and refuses a version it has not measured. Two versions are on the list, being
+3.6a and 3.7b, both measured on 2026-08-17 against the exec plane and neither measured against
+control mode. Every row carries `control: false`, so M4 has to measure before it opens a control
+connection.
+
+**One new thing a person can do.** Settings then Machines has a Prepare this machine button. It is
+enabled for a confirmed row, it says what it will do before it does it, and it is the first thing
+Tortie ever starts on another computer. It opens no session.
+
+**What the live probe measured**, `node build/probe-execplane.mjs`, eighteen steps, all green,
+against a real `/usr/sbin/sshd` on 127.0.0.1 on a high port with keys generated in the run's own
+directory. The first command against a machine with no server came back in 49 ms with exit 1 and was
+classified `no-server`. The second command over the same shared connection took 9 ms against the
+first command's 49 ms, with 2 processes holding that connection. The boot order read
+`start-server` at position 2, the program search list at 3, and the first `set-option` at 5. All 12
+options were read back from the machine and 12 of 12 held the value Tortie asked for. The scratch
+server was then ended and booted again, and 12 of 12 held again, which is what proves the re-assert
+runs on every no-server detection rather than only the first. The keepalive pairs were measured by
+freezing the far side: (5,3) errored after 19.8 s, (10,3) after 39.6 s, and (15,3) after 59.6 s, all
+three with the message `mux_client_request_session: read from master failed: Broken pipe`, and all
+three recovered after the far side was resumed. The pair (5,3) is what shipped, because 19.8 s is
+the only measured detection time at or under 20 s. All seven ledger verbs were run twice and the
+machine's full option and environment state was byte equal after one run and after two, at 955
+bytes. Eight taxonomy golden files were captured from real program output. Tortie's own identity
+record file was 289 bytes after first contact and 289 bytes after the whole run, and the person's
+own file was 1229 bytes before and 1229 bytes after. The operator's server was read before and after
+the run and all three reads were identical: 28 sessions, `history-limit` 25000, `exit-empty` off.
+
+**What the real Electron harness proved**, `npm run smoke:execplane`, nine steps, all green. An
+unconfirmed machine refuses Prepare and starts no ssh process. A confirmed machine prepared in
+395 ms, with the server born and 12 of 12 settings stuck. A second Prepare found the server already
+running, read back byte equal settings, and started no new ssh process. All three exec plane
+refusals fired from the shipped bundle, two of them driven with a ledger row built at runtime
+because production has no way to reach them. A machine whose program reports `0.0-p69-made-up` was
+refused, and the refusal named the versions Tortie has measured.
+
+**Two screenshots, driven by pressing the real controls and read rather than collected.** The
+prepared row shows the headline `This machine is ready.`, the sentence naming
+`/opt/homebrew/bin/tmux` and version 3.6a, the label `Version on that machine:` with 3.6a beside it,
+the line saying the program was already running so Tortie left it running, the line saying Tortie
+read the list of places that machine looks for programs, and the settings table. The refused row
+shows the headline `Tortie has not measured the program this machine runs.`, the found version
+`0.0-p69-made-up`, the measured list `3.6a, 3.7b`, the sentence `Nothing was changed on either
+machine.` and the remedy. What the reader can see is absent from the refused row is any settings
+table at all, which is the point, because nothing was started on that machine.
+
+**Gates, from the committer's own runs.** typecheck, build, test, `smoke:t1`,
+`assert-bundle-refusals`, `contract-inventory --check`, `conformance-machines`, `conformance:agents`
+and `smoke:t3` all exited 0, with no flake to dismiss. Three contract lines were added and the
+baseline was re-based in this commit: the `machines:prepare` channel, the `exec-plane` smoke mode,
+and the machine refusal count moving from 6 to 10.
+
+**What is not true.** The operator's four machines were never contacted, so their tmux versions are
+unknown and every one of them is refused today. They join the list only after a measurement he
+attends. Control mode was not opened against any remote tmux, so every row on the list says so and
+M4 must measure before it opens one. The keepalive numbers were measured on loopback against a
+frozen far side, which reproduces a hung pipe and says nothing about a tailnet with real packet loss
+and real roaming, so research 51 section 7 question 3 stays open. No remote pane is created by this
+rung, so nothing here proves a remote pane receives the captured program search list. The probe
+writes the plane's option list a second time in its own file rather than importing the composer, so
+the byte exact product argv is proven by the conformance gate and by the Electron harness rather
+than by the probe. One ssh client was measured, being `OpenSSH_9.9p2, LibreSSL 3.3.6`, and the
+golden files carry that client's wording. The prepared block states the same fact twice on screen,
+once in main's own sentence and once in the honesty line under it, which is honest and repetitive.
+No attach, create, kill, rename, machine badge, session list, restore or control plane was built,
+and the verb ledger refuses most of that in code.
 
 ## Phase 68 — a machine you confirmed once is a place sessions can live (research 51, M1) ✅ SHIPPED 2026-08-17 (this commit, 0.32.0)
 

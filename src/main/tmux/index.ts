@@ -94,11 +94,35 @@ export {
   type VersionGate
 } from './version';
 
+// Phase 69. Which versions Tortie has measured on ANOTHER machine, and the gate
+// that fails closed on one it has not. Every row carries control: false, because
+// this release opens no control connection and so cannot honestly claim one.
+export {
+  decideRemoteVersionGate,
+  joinVersionList,
+  TESTED_REMOTE_TMUX_VERSIONS,
+  type RemoteVersionGate,
+  type TestedRemoteTmux
+} from './version';
+
 // Phase 67 — whether one failed list exec CONFIRMED that no server owns the
 // socket, or proved nothing. The reconcile boundary in sessions/core.ts is
 // the consumer: 'no-server' is the only verdict allowed to flip rows to
 // 'restorable'; everything else produces 'unknown'.
 export { serverProbeVerdict, type ServerProbeVerdict } from './errors';
+
+// Phase 69. Every option the private server runs with, as ONE list. The local
+// boot re-asserts five of them and a machine booted with -f /dev/null needs all
+// of them, and both read the same rows so the two cannot drift.
+export {
+  localReassertOptions,
+  remoteBootOptions,
+  runtimeValueOf,
+  setOptionArgs,
+  showOptionArgs,
+  SERVER_OPTIONS,
+  type ServerOption
+} from './server-options';
 
 // Pane environment: the UTF-8 guard (Bug C) and the GMUX_* markers every
 // managed pane carries (Phase 12.7 F3).

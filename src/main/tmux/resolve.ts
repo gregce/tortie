@@ -39,7 +39,7 @@
 
 import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { accessSync, constants, existsSync } from 'node:fs';
+import { accessSync, constants, existsSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { delimiter, isAbsolute, join } from 'node:path';
 import { killProcessGroup, trackGuardedChild } from '../proc/guarded';
@@ -848,4 +848,186 @@ export function resolveConfPath(): string {
   return app.isPackaged
     ? join(process.resourcesPath, 'gmux-tmux.conf')
     : join(app.getAppPath(), 'resources', 'gmux-tmux.conf');
+}
+
+/**
+ * Refuse to pass a conf path that will not do what the caller believes.
+ *
+ * MOVED HERE IN PHASE 69, from ./supervisor.ts, and nothing about it changed.
+ * It sits beside `resolveConfPath` because it is the check on that path, and it
+ * had to leave the supervisor so `../machines/context.ts` could call it without
+ * the two files importing each other. `./supervisor.ts` re-exports it, so every
+ * existing caller and every existing test keeps its import.
+ *
+ * `existsSync` alone is not the check. A botched update can leave a zero-byte
+ * file, and a zero-byte conf produces exactly the same silent tmux defaults as
+ * a missing one while passing an existence test. A directory at that path
+ * passes it too.
+ *
+ * READABILITY IS PART OF THE CHECK, and it was missing until the Phase 19 fix
+ * round. Measured: a conf at mode 000 and 3,886 bytes passed a stat plus size
+ * test, `tmux start-server -f <it>` exited 0, the server came up on the built
+ * in defaults, `exit-empty on` then ended it the moment it was empty, and the
+ * app failed with TMUX_UNREACHABLE. The user was told the server would not
+ * start, which is the wrong diagnosis for the exact fault this function exists
+ * to name. One `accessSync` gives the right one.
+ *
+ * @throws GmuxError TMUX_NOT_FOUND
+ */
+export function assertConfUsable(confPath: string): void {
+  // Reaches a toast verbatim through errorText() (renderer store), so the
+  // message is product copy: it names Tortie, not the protected filename. The
+  // path and the reason travel in `detail`, where a bug report finds them.
+  const refuse = (detail: string): never => {
+    throw gmuxError(
+      'TMUX_NOT_FOUND',
+      "Tortie's tmux configuration is missing from the application bundle. " +
+        'Reinstalling Tortie will restore it.',
+      detail
+    );
+  };
+  let info: ReturnType<typeof statSync>;
+  try {
+    info = statSync(confPath);
+  } catch {
+    return refuse(`expected at ${confPath}`);
+  }
+  if (!info.isFile()) return refuse(`${confPath} is not a file`);
+  if (info.size === 0) return refuse(`${confPath} is empty (0 bytes)`);
+  try {
+    accessSync(confPath, constants.R_OK);
+  } catch {
+    return refuse(`${confPath} exists but cannot be read (permissions)`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Which server this process talks to
+// ---------------------------------------------------------------------------
+//
+// MOVED HERE IN PHASE 69, from ./supervisor.ts, with no change to either the
+// name or the value. The rename guardrail in
+// src/renderer/__tests__/user-visible-name.test.ts follows the declaration to
+// this file and still asserts the literal, because renaming it is what would
+// strand every running session.
+//
+// It moved for one reason. `../machines/context.ts` builds the invocation for a
+// machine as well as for this Mac, and the remote socket name must come from
+// `activeTmuxSocket` and from nowhere else: a remote `set-option -g` sent to
+// socket `gmux` would rewrite the options on the operator's own server whenever
+// the far side happens to be this Mac, which is exactly what a loopback probe's
+// far side is. Having context.ts import the supervisor would make the two files
+// import each other, so the socket rules came down to this module, which both
+// of them already import.
+
+/**
+ * Private socket name. NEVER touch the user's default tmux server.
+ *
+ * **It stays `gmux` forever — the Tortie rename did not touch it, and nothing
+ * later may** (Phase 16.5 hazard 2, CLAUDE.md). This string is not a name, it
+ * is an ADDRESS: every session the user has running is on `/tmp/tmux-<uid>/gmux`
+ * right now. Change it and the app starts a second, empty server, reports no
+ * sessions, and leaves hours of agent work alive but unreachable on a socket
+ * nothing connects to any more. There is no upside to weigh against that —
+ * the socket name is never shown in the UI.
+ */
+export const TMUX_SOCKET = 'gmux';
+
+/**
+ * The socket this process will actually use.
+ *
+ * It is `TMUX_SOCKET` for every launch a user ever makes. `GMUX_TMUX_SOCKET`
+ * moves it, and ONLY on a harness launch, because the fault harness has to be
+ * able to crash the app mid-write without a single one of the user's live
+ * sessions being on the server it is crashing against.
+ *
+ * The harness gate is the safety property. A `GMUX_TMUX_SOCKET` left in a shell
+ * profile would otherwise start the real app against a second, empty server:
+ * no sessions listed, hours of agent work alive and unreachable. A normal
+ * launch ignores the variable entirely, so that cannot happen.
+ *
+ * A HARNESS LAUNCH IS `GMUX_SMOKE`, `GMUX_SHOT` OR `GMUX_UPDATE_REHEARSAL`
+ * (Phase 24). The first two terms match the definition `src/main/index.ts`
+ * uses for the single-instance lock, and those two must keep matching. The
+ * definitions disagreed until Phase 22: this function honoured only
+ * `GMUX_SMOKE`, so a shot-harness run that created a session put it on the
+ * socket carrying the user's live work while printing that the override had
+ * been ignored. A Phase 22 verifier hit exactly that and had to remove a
+ * session from the real server by hand. `src/renderer/context/shot-probe.ts`
+ * ships a shot driver for this view, so the smoke and shot terms have to
+ * agree from here on.
+ *
+ * `GMUX_UPDATE_REHEARSAL` is the deliberate exception, present HERE and
+ * absent from the single-instance definition in index.ts. A rehearsal launch
+ * must still take the lock. The lock lives in the isolated profile the
+ * rehearsal always passes, so it protects the rehearsal without touching the
+ * operator's instance. A rehearsal launched WITHOUT `--user-data-dir` is
+ * refused by the operator's own running copy, and that refusal is the
+ * protective direction.
+ *
+ * `default` is refused by name. That is the socket of the user's OWN tmux
+ * server, which this app never touches.
+ */
+export function activeTmuxSocket(
+  env: NodeJS.ProcessEnv = process.env
+): string {
+  const want = (env['GMUX_TMUX_SOCKET'] ?? '').trim();
+  if (want === '') return TMUX_SOCKET;
+  const harnessLaunch =
+    (env['GMUX_SMOKE'] ?? '') !== '' ||
+    (env['GMUX_SHOT'] ?? '') !== '' ||
+    (env['GMUX_UPDATE_REHEARSAL'] ?? '') !== '';
+  if (!harnessLaunch) {
+    tmuxLog.warn(
+      'GMUX_TMUX_SOCKET is set but this is not a harness launch, so it is ignored.'
+    );
+    return TMUX_SOCKET;
+  }
+  if (want === 'default' || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(want)) {
+    tmuxLog.warn(
+      `GMUX_TMUX_SOCKET="${want}" is not a socket name this app will use.`
+    );
+    return TMUX_SOCKET;
+  }
+  return want;
+}
+
+/**
+ * tmux verbs that end the whole server and every session on it at once.
+ *
+ * `kill-server` is the only one today. It is listed as a set rather than a
+ * string compare so a later verb of the same weight is added in one place.
+ */
+const SERVER_DESTROYING_VERBS = new Set(['kill-server']);
+
+/**
+ * Refuse a verb that would end the real server (Phase 19 fix round).
+ *
+ * THE INCIDENT THIS CLOSES. `src/main/power/smoke.ts` called `kill-server` from
+ * its own failure path and checked the socket name AFTERWARDS, on the line that
+ * unlinks the socket file. So a harness that had already printed "refusing to
+ * run" went on to kill the server it was refusing to touch. Reproduced on a
+ * scratch socket by two verifiers, and the operator lost 48 live sessions the
+ * same evening.
+ *
+ * The check belongs on the door rather than in the caller. Every tmux command in
+ * the product goes through one door, and it already resolves the socket, so this
+ * is the only place that can answer the question for every caller including the
+ * ones written after today. Phase 69 gave the door two kinds of target, and the
+ * check is asked the same way for both: a `kill-server` aimed at socket `gmux`
+ * is refused whichever machine it is aimed at.
+ *
+ * The shipped app never needs this verb. Sessions are killed one at a time, by
+ * identity. A harness that genuinely wants a whole server gone is on its own
+ * socket, and there the check passes.
+ */
+export function assertVerbAllowedOnSocket(verb: string, socket: string): void {
+  if (!SERVER_DESTROYING_VERBS.has(verb) || socket !== TMUX_SOCKET) return;
+  throw gmuxError(
+    'INVALID_INPUT',
+    'Tortie does not end the session server.',
+    `refused "tmux ${verb}" on the real socket -L ${socket}: it would end every ` +
+      'session on this machine. Move the harness to its own socket with ' +
+      'GMUX_TMUX_SOCKET.'
+  );
 }

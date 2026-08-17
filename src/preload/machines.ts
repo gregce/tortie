@@ -1,11 +1,12 @@
 /**
- * The machines half of the bridge (Phase 68). One object, ten calls and one
- * subscription, typed from the shared contract.
+ * The machines half of the bridge (Phase 68, one call added in Phase 69). One
+ * object, eleven calls and one subscription, typed from the shared contract.
  *
- * Two of these calls can start a process, and both of them are a person
+ * Three of these calls can start a process, and every one of them is a person
  * pressing a button in Settings. `tailscaleNames` runs the Tailscale program at
- * a pinned absolute path, and `test` runs ssh once. Everything else reads
- * memory in main, writes one row, or writes one record.
+ * a pinned absolute path, `test` runs ssh once, and `prepare` runs ssh and starts
+ * the program a machine's work will live in. Everything else reads memory in
+ * main, writes one row, or writes one record.
  *
  * The renderer never supplies the acknowledgement sentence and never supplies
  * the hash it wants recorded. It sends back the hash the sheet was drawn from
@@ -32,6 +33,10 @@ export const machines: NonNullable<GmuxMachinesExtras['machines']> = {
   confirm: (input) => invoke('machines:confirm', input),
   forget: (id) => invoke('machines:forget', id),
   remove: (id) => invoke('machines:remove', id),
+  // Phase 69. The first thing Tortie ever starts on another machine, and the one
+  // production caller of the exec plane. Main asks the confirm gate before it
+  // spawns anything.
+  prepare: (id) => invoke('machines:prepare', id),
   // The connection test's own bytes, plus its end. Nothing is emitted at any
   // other time, so a build with no test running subscribes to silence.
   onTestEvent: (cb) => on(EVT_MACHINE_TEST, cb)

@@ -58,6 +58,15 @@
  *                       socket, refused without both, reusing GMUX_CONFIG_ROOT
  *                       rather than adding a third variable.
  *                       `npm run smoke:machines`.
+ *  - GMUX_SMOKE=exec-plane  the exec plane (Phase 69): an unconfirmed machine
+ *                       refusing Prepare against the real keychain, a real
+ *                       prepare twice over a scratch connection, and all three
+ *                       exec plane refusals fired from the bundle, two of them
+ *                       with a synthetic ledger row because production cannot
+ *                       reach them. Isolated profile AND isolated socket, and it
+ *                       refuses the real socket BY NAME because the far side of
+ *                       its connection is this same Mac.
+ *                       `npm run smoke:execplane`.
  *  - GMUX_SMOKE=quit    the REAL app.quit() under a saturated uv threadpool
  *                       (Phase 36). Every other harness ends with app.exit,
  *                       which skips before-quit and FreeEnvironment — the
@@ -110,6 +119,10 @@ import { runFaultSurvey, runFaultWork } from '../fault/harness';
 // Phase 68: the machines confirm gate, and the second caller its six refusals
 // need so the bundler cannot fold them away.
 import { runMachinesSmoke } from '../machines/smoke';
+// Phase 69: the exec plane, and the second caller its four refusals need. Two of
+// them cannot be reached in production at all, so this harness drives them with a
+// synthetic ledger row built at runtime.
+import { runExecPlaneSmoke } from '../machines/exec-smoke';
 import { runMigrateSmoke } from '../migrate/smoke';
 import { runReconstructSmoke } from '../manifest/reconstruct-smoke';
 import { runRefusalSmoke } from '../manifest/refusal-smoke';
@@ -252,6 +265,15 @@ export async function dispatchHarness(deps: HarnessDeps): Promise<boolean> {
   // the last of its twelve steps proves that by two independent counts.
   if (smoke === 'machines') {
     await runMachinesSmoke();
+    return true;
+  }
+  // Phase 69: the exec plane, driven in a real Electron process. It is the second
+  // caller the four new machine refusals need, and two of them are unreachable in
+  // production, so a synthetic ledger row is what makes them fire. It refuses to
+  // run on the real socket by name, because the far side of its connection is this
+  // same Mac and a remote set-option there would land on the operator's server.
+  if (smoke === 'exec-plane') {
+    await runExecPlaneSmoke();
     return true;
   }
   // Phase 13.8: what the outside world sees of gmux (read-only).

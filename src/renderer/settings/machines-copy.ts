@@ -50,10 +50,18 @@ export const HONESTY_NO_ADOPTION =
   'Tortie never adopts work that is already running on your machines, and it ' +
   'never touches it. Anything Tortie runs there, it creates itself.';
 
-/** The second. It names what this release cannot do yet. */
+/**
+ * The second. It names what this release cannot do yet.
+ *
+ * Rewritten in Phase 69, because the second half of the old sentence stopped
+ * being the whole truth. This release does more than record the machine and prove
+ * Tortie can reach it: it also sets that machine up so that it is ready. What it
+ * still cannot do is open a session there.
+ */
 export const HONESTY_NO_SESSIONS_YET =
   'You cannot open a session on a machine yet. This release records the ' +
-  'machine and proves Tortie can reach it. Opening sessions comes later.';
+  'machine, proves Tortie can reach it, and sets it up so that it is ready. ' +
+  'Opening sessions comes later.';
 
 /**
  * The third line Tortie writes itself, and it is here because the first build
@@ -133,6 +141,54 @@ export const BTN_CONFIRM_CHANGED = 'Confirm the new details';
 export const BTN_WITHDRAW = 'Withdraw confirmation';
 export const BTN_TEST_AGAIN = 'Test the connection again';
 export const BTN_REMOVE = 'Remove this machine';
+
+// ---------------------------------------------------------------------------
+// Prepare this machine (Phase 69)
+// ---------------------------------------------------------------------------
+//
+// Labels only. Every sentence about an outcome comes from main, unchanged, per
+// the rule at the top of this file. The button is enabled only for a confirmed
+// row, and it says what it will do before it does it, because it is the first
+// thing Tortie ever starts on another machine.
+
+export const BTN_PREPARE = 'Prepare this machine';
+
+export const PREPARE_EXPLAIN =
+  'Tortie starts the program on that machine that keeps your work alive, and ' +
+  'sets it up the way Tortie needs. This is the first thing Tortie runs there. ' +
+  'Anything already running on that machine is left alone.';
+
+export const PREPARING = 'Preparing this machine';
+
+export const PREPARE_NEEDS_CONFIRM = 'Confirm this machine before Tortie prepares it.';
+
+/** Stands immediately before the version the machine reported. */
+export const PREPARE_VERSION_LABEL = 'Version on that machine:';
+
+/** Stands immediately before the list of versions Tortie has measured. */
+export const PREPARE_SUPPORTED_LABEL = 'Versions Tortie has measured:';
+
+/** Stands immediately before the settings table. */
+export const PREPARE_SETTINGS_LABEL = 'Settings Tortie asserted:';
+
+export const PREPARE_SERVER_BORN =
+  'Tortie started the program on that machine on this visit.';
+
+export const PREPARE_SERVER_WARM =
+  'The program was already running on that machine, so Tortie left it running.';
+
+/** One line per setting in the table, when a value did not stick. */
+export const PREPARE_OPTION_DISAGREES =
+  'The machine reports a different value than Tortie asked for. Tortie did ' +
+  'not write it again, because a value that will not stick is a fact about ' +
+  'the machine.';
+
+export const PREPARE_PATH_READ =
+  'Tortie read the list of places that machine looks for programs.';
+
+export const PREPARE_PATH_MISSING =
+  'Tortie could not read the list of places that machine looks for programs, ' +
+  'so it will not start work there.';
 
 /**
  * Removing takes two clicks. It deletes the row and the confirmation behind
@@ -295,5 +351,8 @@ export const LABELS_ENDING_IN_A_COLON: readonly string[] = [
   CONFIRMED_LIST_LABEL,
   CURRENT_LIST_LABEL,
   TAILSCALE_SOURCE_LABEL,
-  TRANSCRIPT_RUNNING_LABEL
+  TRANSCRIPT_RUNNING_LABEL,
+  PREPARE_VERSION_LABEL,
+  PREPARE_SUPPORTED_LABEL,
+  PREPARE_SETTINGS_LABEL
 ];

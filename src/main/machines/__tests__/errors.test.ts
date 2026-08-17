@@ -114,8 +114,11 @@ describe('every class carries copy', () => {
     }
   });
 
-  it('carries all eleven classes', () => {
-    expect(MACHINE_OUTCOME_CLASSES).toHaveLength(11);
+  it('carries all fourteen classes', () => {
+    // Eleven in Phase 68 and three more in Phase 69: `no-server` for a machine
+    // that answered with nothing of Tortie's on it, `version-unmeasured` for one
+    // running a version nobody measured, and `prepared` for the success answer.
+    expect(MACHINE_OUTCOME_CLASSES).toHaveLength(14);
   });
 
   it('uses no em dash and no en dash anywhere', () => {
@@ -128,7 +131,7 @@ describe('every class carries copy', () => {
   });
 });
 
-describe('the two classes that carry a fact from the run', () => {
+describe('the four classes that carry a fact from the run', () => {
   it('names the path the machine reported for ok', () => {
     const copy = composeOutcomeCopy('ok', { resolvedPath: '/usr/bin/tmux' });
     expect(copy.detail).toBe('Tortie will run /usr/bin/tmux on it.');
@@ -147,11 +150,105 @@ describe('the two classes that carry a fact from the run', () => {
     expect(copy.detail).toBe('The program printed nothing Tortie could read.');
   });
 
+  it('names the path and the version for prepared, and says it started it', () => {
+    const copy = composeOutcomeCopy('prepared', {
+      resolvedPath: '/usr/bin/tmux',
+      version: '3.6a',
+      serverBorn: true
+    });
+    expect(copy.detail).toBe(
+      'Tortie started the program at /usr/bin/tmux on this machine and set it ' +
+        'up the way it needs. The machine reports version 3.6a.'
+    );
+    expect(copy.alarm).toBe(false);
+  });
+
+  it('says it LEFT the program running when it found one already there', () => {
+    // The row draws an honesty line beside this sentence saying the same thing.
+    // MEASURED 2026-08-17 in build/probe-machines.mjs step 11: the first build
+    // said "Tortie started the program" whatever happened, and the photograph of
+    // a prepared row carried that sentence directly above "The program was
+    // already running on that machine, so Tortie left it running."
+    const copy = composeOutcomeCopy('prepared', {
+      resolvedPath: '/usr/bin/tmux',
+      version: '3.6a',
+      serverBorn: false
+    });
+    expect(copy.detail).toBe(
+      'The program at /usr/bin/tmux was already running on this machine, so ' +
+        'Tortie left it running and set it up the way it needs. The machine ' +
+        'reports version 3.6a.'
+    );
+    expect(copy.detail).not.toContain('Tortie started the program');
+    expect(copy.alarm).toBe(false);
+  });
+
+  it('names the found version, the measured list and the remedy', () => {
+    const copy = composeOutcomeCopy('version-unmeasured', {
+      resolvedPath: '/usr/bin/tmux',
+      version: '2.8',
+      supportedPhrase: '3.6a and 3.7b'
+    });
+    expect(copy.detail).toContain('reports version 2.8');
+    expect(copy.detail).toContain('Tortie has measured 3.6a and 3.7b.');
+    expect(copy.detail).toContain('Nothing was changed on either machine.');
+    expect(copy.detail).toContain('then prepare it again.');
+    // It is a machine that needs its program updated, not a security event.
+    expect(copy.alarm).toBe(false);
+  });
+
+  it('says a program that would not identify itself is not used', () => {
+    const copy = composeOutcomeCopy('version-unmeasured', {
+      resolvedPath: '/usr/bin/tmux',
+      version: null
+    });
+    expect(copy.detail).toBe(
+      'The program at /usr/bin/tmux on this machine would not report its ' +
+        'version. Tortie will not use a program it cannot identify. Nothing ' +
+        'was changed on either machine.'
+    );
+  });
+
+  it('names no install command, because it does not know that machine', () => {
+    const copy = composeOutcomeCopy('version-unmeasured', {
+      resolvedPath: '/usr/bin/tmux',
+      version: '2.8',
+      supportedPhrase: '3.6a'
+    });
+    for (const guess of ['brew ', 'apt ', 'apt-get', 'dnf ', 'yum ', 'pacman']) {
+      expect(copy.detail).not.toContain(guess);
+    }
+  });
+
   it('leaves every other class exactly as the table has it', () => {
     for (const cls of MACHINE_OUTCOME_CLASSES) {
-      if (cls === 'ok' || cls === 'unknown') continue;
+      if (
+        cls === 'ok' ||
+        cls === 'unknown' ||
+        cls === 'prepared' ||
+        cls === 'version-unmeasured'
+      ) {
+        continue;
+      }
       expect(composeOutcomeCopy(cls, {})).toEqual(machineOutcomeCopy(cls));
     }
+  });
+
+  it('tells a machine with no server apart from one that refused', () => {
+    // Research 51 section 4.4 requires these two be different answers, and both
+    // shapes of the no-server text are real captures. See
+    // src/main/machines/__tests__/golden/no-server.txt.
+    expect(
+      classifyMachineOutput('no server running on /tmp/tmux-501/gmux-p69')
+    ).toBe('no-server');
+    expect(
+      classifyMachineOutput(
+        'error connecting to /private/tmp/tmux-501/gmux-p69 (No such file or directory)'
+      )
+    ).toBe('no-server');
+    expect(
+      classifyMachineOutput('ssh: connect to host 127.0.0.1 port 22: Connection refused')
+    ).toBe('refused');
   });
 });
 

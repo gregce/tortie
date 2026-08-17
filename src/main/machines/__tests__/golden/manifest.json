@@ -1,0 +1,91 @@
+{
+  "note": "Captured by build/capture-machine-goldens.mjs against a scratch sshd on 127.0.0.1. Re-run it after an ssh upgrade or a tmux upgrade. src/main/machines/__tests__/golden.test.ts reads these files and runs nothing at all.",
+  "capturedAt": "2026-08-17",
+  "sshClient": "OpenSSH_9.9p2, LibreSSL 3.3.6",
+  "remoteTmux": "tmux 3.6a",
+  "carriageStarted": true,
+  "captures": [
+    {
+      "class": "ok",
+      "file": "ok.txt",
+      "note": "The scratch sshd answered and the named program was found.",
+      "exitCode": 0,
+      "bytes": 53
+    },
+    {
+      "class": "no-server",
+      "file": "no-server.txt",
+      "note": "The scratch sshd answered and nothing was running on the scratch socket.",
+      "exitCode": 1,
+      "bytes": 92
+    },
+    {
+      "class": "no-program",
+      "file": "no-program.txt",
+      "note": "The scratch sshd answered and the named program was not on it.",
+      "exitCode": 0,
+      "bytes": 31
+    },
+    {
+      "class": "host-key-changed",
+      "file": "host-key-changed.txt",
+      "note": "A key that is not the machine's, planted in Tortie's own record file.",
+      "exitCode": 255,
+      "bytes": 898
+    },
+    {
+      "class": "auth-refused",
+      "file": "auth-refused.txt",
+      "note": "Connect with no key the machine will accept.",
+      "exitCode": 255,
+      "bytes": 47
+    },
+    {
+      "class": "refused",
+      "file": "refused.txt",
+      "note": "A high port on this Mac with nothing listening on it.",
+      "exitCode": 255,
+      "bytes": 63
+    },
+    {
+      "class": "not-resolved",
+      "file": "not-resolved.txt",
+      "note": "A name under .invalid, which resolves to nothing by definition.",
+      "exitCode": 255,
+      "bytes": 107
+    },
+    {
+      "class": "unreachable",
+      "file": "unreachable.txt",
+      "note": "192.0.2.1, TEST-NET-1, with a short connect timeout. It reaches nobody.",
+      "exitCode": 255,
+      "bytes": 61
+    }
+  ],
+  "noGolden": [
+    {
+      "class": "timed-out",
+      "reason": "Tortie produces this sentence when its own deadline passed. No program prints it, so a file for it would look like a measurement while being a fixture."
+    },
+    {
+      "class": "cancelled",
+      "reason": "Tortie produces this when a person pressed Cancel. No program prints it."
+    },
+    {
+      "class": "client-missing",
+      "reason": "Tortie produces this when this Mac has no sign in program at all, so there is no program to capture output from."
+    },
+    {
+      "class": "unknown",
+      "reason": "This is the class for text no rule matched, so its content is by definition whatever nobody has seen yet. A captured example would make one unknown message look like the definition of the class."
+    },
+    {
+      "class": "version-unmeasured",
+      "reason": "Tortie's own judgement about a version, not a program's output."
+    },
+    {
+      "class": "prepared",
+      "reason": "Tortie's own answer on success, not a program's output."
+    }
+  ]
+}
