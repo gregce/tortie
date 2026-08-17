@@ -5567,7 +5567,7 @@ matrix on a real tailnet machine, are recorded as owed and run only when he is p
 | --- | --- | --- | --- |
 | 67 | M0 | ✅ SHIPPED 2026-08-17 (95aa770, 0.31.2, gates green), section below. `unknown` gets its producer at a per-machine reconcile boundary; restore and input refused while unreachable; the machine-level Unreachable presentation. Fixes the live LOCAL defect where refresh() flips every non-exited row to restorable on TMUX_UNREACHABLE. The local socket adopts the boundary immediately, decided per the operator's standing autonomy preference, because the local bug IS the point | 3 |
 | 68 | M1 | ✅ SHIPPED 2026-08-17 (this commit, 0.32.0, gates green), section below. machines.json behind the confirm gate and seal, conformance:machines, the Settings surface, the tailscale picker from a pinned absolute path, the one visible connection test | 2 plus the gate |
-| 69 | M2 | ✅ SHIPPED 2026-08-17 (this commit, 0.33.0, gates green), section below. MachineContext replaces the singleton; the exec plane over ssh with at-least-once discipline; remote server boot with -f /dev/null plus BOOT_SERVER_OPTIONS asserted; PATH capture ordered before first mutation; the version probe and refusal screen with remedy; error taxonomy golden files; keepalives from measurement. The dialect posture is a TESTED LIST that starts from locally measured versions and fails closed, so an unmeasured version is refused with the upgrade remedy, and his four machines join the list after the measurement he attends | 3 |
+| 69 | M2 | ✅ SHIPPED 2026-08-17 (4c86bea, 0.33.0, gates green), section below. MachineContext replaces the singleton; the exec plane over ssh with at-least-once discipline; remote server boot with -f /dev/null plus BOOT_SERVER_OPTIONS asserted; PATH capture ordered before first mutation; the version probe and refusal screen with remedy; error taxonomy golden files; keepalives from measurement. The dialect posture is a TESTED LIST that starts from locally measured versions and fails closed, so an unmeasured version is refused with the upgrade remedy, and his four machines join the list after the measurement he attends | 3 |
 | 70 | M3 | Attach over ssh -t in node-pty; create, kill and rename remote; the machine badge; session list by exec polling; restore REFUSED for every remote row with a visible coming label; the vocabulary audit. First visible operator value | 3 |
 | 71 | M4 | The control plane per machine replaces polling; per-machine reconcile; the machine_id migration; the section 4.4 case table live; pane-env rescue over the exec plane; the partition harness in the spirit of smoke:fault, driven by killing the scratch sshd mid-flight | 3 |
 | 72 | M5 | Remote restore enabled behind the fault matrix; per-machine argv capture; capsule replay; provenance-gated resume arming; the forget-machine tombstone. The ten-row matrix runs green against the scratch sshd overnight, and the real-tailnet repetition is OWED and recorded before any release enables remote restore | 3 |
@@ -5576,6 +5576,22 @@ matrix on a real tailnet machine, are recorded as owed and run only when he is p
 Phases 67 and 62.1 run in parallel in isolated worktrees because their files are disjoint; 68
 through 73 run strictly in order, each gated on the one before, each landed and pushed before the
 next launches. **Semver:** 67 is a fix, patch; 68 through 73 are feats, minor each.
+
+## Phase 73.1 — the second recorded nits round, NOT QUEUED
+
+Small things that shipped phases left behind, collected as they were found so none is lost. None
+blocks a rung. This round runs after 73, or earlier if the operator asks for it.
+
+| From | The nit |
+| --- | --- |
+| 68 | The connection test transcript shows Tortie's own parsing marker to the person, reading `__TORTIE_PATH__/opt/homebrew/bin/tmux__TORTIE_PATH__`. It is honest, because those are the remote program's own bytes under a header that says so, but a person should not read our internal marker |
+| 68 | Three probe screenshots driven through the bridge rather than the controls are byte identical, md5 `9267afdf432e8a93225941ef047651a7`, so their captions claim more than the images show |
+| 69 | The prepared block states the same fact twice on one screen, once in main's sentence and once in the honesty line under it. It is honest and repetitive, and it was left as it is |
+| 67 | The same outage sentence prints twice on one screen, in the condition bar and in the pane overlay, about six hundred pixels apart. Neither surface is wrong alone, so the round that fixes it must decide which one owns the message |
+| 46.1 | At the 220 px minimum sidebar the commit subject squeezes to about one character and an ellipsis |
+| 46.1 | On the hover card a failed jobs read is indistinguishable from a run that was never expanded |
+| 46.1 | The hover card closes on the runs body's own scroll only, so an outer container scrolling moves the rows without closing it. The History card behaves the same way |
+| 46.1 | The copy button reads `Run URL` rather than `Copy` when `run.number` is 0 |
 
 ## Phase 46.1 — the Runs pane reads clearly (operator reported 2026-08-16) ✅ SHIPPED 2026-08-17 (d1ce49f, 0.31.1, gates green)
 
@@ -5624,7 +5640,7 @@ the runs body's own scroll only, so an outer container scrolling would move the 
 closing it, which is the History card's behavior too. HistorySection still runs its own inline
 copy of the hover timers, so hover-timing.ts has exactly one consumer until a later consolidation.
 
-## Phase 69 — the exec plane speaks to a machine's own tmux (research 51, M2) ✅ SHIPPED 2026-08-17 (this commit, 0.33.0, gates green)
+## Phase 69 — the exec plane speaks to a machine's own tmux (research 51, M2) ✅ SHIPPED 2026-08-17 (4c86bea, 0.33.0, gates green)
 
 The M2 rung of the remote ladder. Until this rung Tortie had one implicit place to run a tmux
 command and every command went to it. It now has a `MachineContext`, this Mac is one of them, a
