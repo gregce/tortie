@@ -4,7 +4,7 @@
  * and motion (pulse), and every row carries the text label.
  */
 
-import type { Session, SessionStatus } from '@shared/types';
+import type { Session, SessionMachine, SessionStatus } from '@shared/types';
 
 export type DotKind = 'working' | 'attention' | 'idle' | 'ended' | 'failed';
 
@@ -272,6 +272,32 @@ export function machineUnreachable(
   sessions: readonly Pick<Session, 'status'>[]
 ): boolean {
   return sessions.some((s) => s.status === 'unknown');
+}
+
+/**
+ * The machines that went quiet, read off the rows, each one once (Phase 70).
+ *
+ * Phase 67 shipped one sentence for one machine, and it named no machine
+ * because there was only ever this Mac. There can now be several, so the
+ * condition bar draws a badge for each machine whose rows read `unknown` and a
+ * person can tell which one stopped answering. This Mac contributes nothing:
+ * its rows carry no machine, and a badge saying "this Mac" would be a label for
+ * the computer the person is looking at.
+ *
+ * The order is the order the rows arrive in, which is the order the surfaces
+ * already draw them in, so the badges do not reshuffle between renders.
+ */
+export function unreachableMachines(
+  sessions: readonly Pick<Session, 'status' | 'machine'>[]
+): SessionMachine[] {
+  const byId = new Map<string, SessionMachine>();
+  for (const s of sessions) {
+    if (s.status !== 'unknown') continue;
+    const machine = s.machine;
+    if (machine === undefined) continue;
+    if (!byId.has(machine.id)) byId.set(machine.id, machine);
+  }
+  return [...byId.values()];
 }
 
 /**

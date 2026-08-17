@@ -160,6 +160,39 @@ import * as tmux from '../tmux';
 // Phase 69: the five options this boot re-asserts, selected by field from the one
 // list the remote boot reads too, so the two cannot drift.
 import { localReassertOptions } from '../tmux/server-options';
+// PHASE 70. Sessions that live on another machine. This class ROUTES to them and
+// owns none of their state: every remote row lives in src/main/machines, in that
+// machine's own tmux server, and never in the manifest. The verbs below branch on
+// which of the two a session id names, and nothing else in this file changed
+// shape.
+//
+// The three imports are direct rather than through `../machines`, so this file's
+// graph gains the exec plane and not the visible connection test, which is the
+// one module there that spawns a pty.
+import { isMachineConfirmed } from '../machines/confirm';
+import { prepareMachine } from '../machines/prepare';
+import {
+  currentMachines,
+  machineFieldsOf,
+  machineHostKeysPath
+} from '../machines/store';
+import {
+  forgetRemoteRow,
+  isRemoteSessionId,
+  markMachineQuiet,
+  onRemoteSessionsChanged,
+  readyRemoteContext,
+  refuseRemoteRestore,
+  remoteCreate,
+  remoteKill,
+  remoteRename,
+  remoteSessionRow,
+  remoteSessions,
+  setRemotePollFocused,
+  startRemotePoll,
+  stopRemotePolls
+} from '../machines/remote-sessions';
+import type { RemoteMachineContext } from '../machines/context';
 import { gmuxError, isGmuxError } from '../errors';
 import { broadcastEvent } from '../typed-events';
 import { getLog } from '../log';
@@ -433,6 +466,12 @@ export class GmuxCore {
   /** Which session each queued sync belongs to (the queue stays generic). */
   private readonly syncOwners = new Map<SyncRequest, string>();
 
+  /**
+   * Phase 70. Unsubscribes the remote-row listener registered in the
+   * constructor, so a poll landing after teardown cannot broadcast.
+   */
+  private unsubscribeRemote: (() => void) | null = null;
+
   private refreshTimer: NodeJS.Timeout | null = null;
   /**
    * True while the local machine is unreachable (Phase 67). It exists for the
@@ -516,6 +555,13 @@ export class GmuxCore {
     // carry the same conversation id.
     this.unsubscribeReclaims = onConversationReclaimed((ev) => {
       this.handleConversationReclaim(ev);
+    });
+    // Phase 70. A poll of a machine, a remote create, a rename and a kill all
+    // change what the list holds, and none of them touches the manifest, so the
+    // ordinary reconcile would never notice. One subscription, and the same
+    // coalescing broadcast every local flip already uses.
+    this.unsubscribeRemote = onRemoteSessionsChanged(() => {
+      this.scheduleSessionsBroadcast();
     });
     // Phase 13.7: a depth change has to reach the live server the moment it
     // is made. Without this the user edits the setting and observes nothing
@@ -680,7 +726,55 @@ export class GmuxCore {
     setTimeout(() => {
       void core.scrollbackStats().catch(() => undefined);
     }, 5_000).unref?.();
+    // PHASE 70. The first of the three moments Tortie signs in to a machine,
+    // being the app launching. The other two are the Mac waking and a person
+    // pressing a control that needs that machine. A file changing is never one
+    // of them, which is the line refusal 8 draws, and `machines:reload` starts
+    // zero processes.
+    //
+    // Unawaited, because a machine that is asleep must not hold up the window,
+    // and every failure inside it is one log line.
+    void core.signInToConfirmedMachines();
     return core;
+  }
+
+  /**
+   * Sign in to every confirmed machine and start its poll (Phase 70).
+   *
+   * An unconfirmed row, a row whose execution bearing fields moved since the
+   * confirmation and a row whose seal cannot be read all refuse inside
+   * `prepareMachine`, before any process exists. A machine running a tmux
+   * version nobody measured refuses there too, and nothing is started on it.
+   *
+   * Sequential rather than parallel. A person with a fleet would otherwise open
+   * every connection at once at launch, and the first poll of the first machine
+   * is what they are waiting to see.
+   */
+  private async signInToConfirmedMachines(): Promise<void> {
+    for (const row of currentMachines().rows) {
+      const fields = machineFieldsOf(row);
+      if (!isMachineConfirmed(row.id, fields)) continue;
+      try {
+        const result = await prepareMachine({
+          machineId: row.id,
+          fields,
+          tortieHostKeys: machineHostKeysPath()
+        });
+        if (result.class !== 'prepared') {
+          sessionsLog.warn(
+            `${row.id} answered ${result.class} at launch: ${result.detail}`
+          );
+          markMachineQuiet(row.id);
+          continue;
+        }
+        await startRemotePoll(row.id);
+      } catch (err) {
+        sessionsLog.warn(
+          `signing in to ${row.id} failed: ${(err as Error).message}`
+        );
+        markMachineQuiet(row.id);
+      }
+    }
   }
 
   /**
@@ -772,6 +866,19 @@ export class GmuxCore {
   }
 
   private async handleUnexpectedAttachExit(sessionId: string): Promise<void> {
+    // PHASE 70. AN UNEXPECTED EXIT ON A REMOTE CLIENT MEANS THE LINK WENT, NOT
+    // THAT THE SESSION ENDED. The keepalive pair on every connection ends the
+    // sign in program about 19 s to 20 s after a far side stops answering, which
+    // ends the pty. The session on that machine is untouched, its agent is still
+    // running, and its output is still being absorbed there. So the row goes to
+    // 'unknown' through the machine's own answering flag, and the next poll that
+    // completes moves it back. Marking it ended here would offer Restore over an
+    // agent that is still working, which is the Phase 67 defect in a new place.
+    if (isRemoteSessionId(sessionId)) {
+      const row = remoteSessionRow(sessionId);
+      if (row !== null) markMachineQuiet(row.machineId);
+      return;
+    }
     const rec = this.manifest.getSession(sessionId);
     if (!rec || rec.status === 'exited' || rec.status === 'restorable') return;
     // F1: no live binding ⇒ this session is not ours to ask about. Let the
@@ -1317,6 +1424,13 @@ export class GmuxCore {
    * is not one of the answers.
    */
   async restoreSession(sessionId: string): Promise<Session> {
+    // PHASE 70, and it is the first line on purpose. A session on another
+    // machine has no manifest row, no saved scrollback and no resume command,
+    // because this release writes none of the three. So there is nothing to
+    // bring back and nothing is composed. The renderer removes the verb as well;
+    // this is the refusal behind it, and it is pinned as
+    // `machine.restore-refused` so a later rollup cannot delete it.
+    refuseRemoteRestore(sessionId);
     const rec = this.mustGetSession(sessionId);
     // 'discarded' is accepted since Phase 29: a Past Sessions restore is the
     // undo of a Remove, and everything below the gate already works for it.
@@ -1910,6 +2024,11 @@ export class GmuxCore {
    * status dots, and the floor is already only 0.28 % of one core.
    */
   setPollFocused(focused: boolean): void {
+    // Phase 70: the remote cadence moves with the local one, 5 s in front and
+    // 30 s behind. Those two numbers are CHOSEN rather than measured, and the
+    // create sheet says so, because nobody has measured what they cost over a
+    // tailnet with real packet loss.
+    setRemotePollFocused(focused);
     if (this.disposed || this.statusTimer === null) return;
     const next = focused ? STATUS_POLL_MS : STATUS_POLL_IDLE_MS;
     if (next !== this.statusPollMs) this.armStatusTimer(next);
@@ -2171,10 +2290,17 @@ export class GmuxCore {
    * {@link listRemovedSessions} instead.
    */
   listSessions(): Session[] {
-    return this.manifest
-      .listSessions()
-      .filter((rec) => rec.status !== 'discarded')
-      .map(toSession);
+    return [
+      ...this.manifest
+        .listSessions()
+        .filter((rec) => rec.status !== 'discarded')
+        .map(toSession),
+      // Phase 70. The remote rows come after the manifest rows and they come
+      // from memory, because no remote session has a manifest row and none ever
+      // will in this release. Every one of them carries `machine`, which is what
+      // the badge draws and what tells the renderer that Restore is not offered.
+      ...remoteSessions()
+    ];
   }
 
   /**
@@ -2204,6 +2330,23 @@ export class GmuxCore {
   async createSession(input: CreateSessionInput): Promise<Session> {
     if (input.name.trim().length === 0) {
       throw gmuxError('INVALID_INPUT', 'Session name cannot be empty.');
+    }
+    // PHASE 70. A create on another machine leaves this method here, before any
+    // local check runs. Every check below asks about this Mac: whether a folder
+    // exists here, which binary is here, what this Mac's login shell PATH holds.
+    // None of them can answer for a different computer, and running them anyway
+    // is how a create would refuse a folder that is perfectly there.
+    if (input.machineId !== undefined && input.machineId !== 'local') {
+      const session = await remoteCreate({
+        machineId: input.machineId,
+        name: input.name,
+        projectPath: input.projectPath,
+        cwd: input.cwd ?? input.projectPath,
+        agent: input.agent,
+        ...(input.extraArgs !== undefined ? { extraArgs: input.extraArgs } : {})
+      });
+      this.broadcastSessions();
+      return session;
     }
     if (!isDirectory(input.projectPath)) {
       throw gmuxError(
@@ -2591,6 +2734,14 @@ export class GmuxCore {
     if (input.name.trim().length === 0) {
       throw gmuxError('INVALID_INPUT', 'Session name cannot be empty.');
     }
+    // Phase 70: a remote row has no manifest record, so the rename lands on the
+    // far side and on its `@gmux-name` stamp, which is what makes the new name
+    // survive a Tortie quit.
+    if (isRemoteSessionId(input.sessionId)) {
+      const renamed = await remoteRename(input.sessionId, input.name);
+      this.broadcastSessions();
+      return renamed;
+    }
     const rec = this.mustGetSession(input.sessionId);
     const target = this.liveIds.get(rec.id);
     let updated: ManifestSessionRecord;
@@ -2636,6 +2787,18 @@ export class GmuxCore {
    * manual end. Nothing here may be reordered to kill first.
    */
   async killSession(sessionId: string): Promise<void> {
+    // PHASE 70. A remote end has no snapshot to take first, because this
+    // release saves no scrollback for a session on another machine, and the
+    // create sheet says so before the session exists. What it does have is the
+    // binding rule: the command is composed only against an identifier a
+    // completed list from that machine reported.
+    if (isRemoteSessionId(sessionId)) {
+      this.attachHost.detach(sessionId);
+      await remoteKill(sessionId);
+      broadcast(EVT_STATUS_CHANGED, sessionId, 'exited');
+      this.broadcastSessions();
+      return;
+    }
     const rec = this.mustGetSession(sessionId);
     const watch = this.idCaptureWatches.get(sessionId);
     if (watch !== undefined) {
@@ -2722,6 +2885,12 @@ export class GmuxCore {
    * because restoreSession rewrites it on the way back.
    */
   removeSession(sessionId: string): void {
+    // Phase 70. A remote row is forgotten rather than tombstoned, because this
+    // release writes no manifest row for one and there is nothing to bring back.
+    if (forgetRemoteRow(sessionId)) {
+      this.broadcastSessions();
+      return;
+    }
     this.mustGetSession(sessionId);
     // A live harvest watch must not write a conversation id onto a tombstone.
     const watch = this.idCaptureWatches.get(sessionId);
@@ -2755,6 +2924,30 @@ export class GmuxCore {
 
   /** Start streaming a session into `sender` (visible pane mount). */
   async attachSession(sessionId: string, sender: WebContents): Promise<void> {
+    // PHASE 70. A remote attach is a pty running the sign in program, carrying
+    // that machine's own tmux on the far end. The composition is in
+    // src/main/attach/attach-plan.ts and the target is the immutable identifier
+    // the last completed list from that machine reported, never a name: a name
+    // prefix-matches, and a prefix match on another machine would stream a
+    // stranger's session into this tab.
+    const remote = remoteSessionRow(sessionId);
+    if (remote !== null) {
+      if (remote.status === 'exited') {
+        throw gmuxError(
+          'SESSION_NOT_FOUND',
+          'This session is not running right now.',
+          `status: ${remote.status}`
+        );
+      }
+      const machine: RemoteMachineContext = readyRemoteContext(remote.machineId);
+      this.attachHost.attach({
+        sessionId,
+        tmuxName: remote.tmuxId,
+        sender,
+        machine
+      });
+      return;
+    }
     const rec = this.mustGetSession(sessionId);
     if (rec.status === 'restorable' || rec.status === 'exited') {
       throw gmuxError(
@@ -2878,6 +3071,11 @@ export class GmuxCore {
     this.idCaptureWatches.clear();
     this.unsubscribeReclaims?.();
     this.unsubscribeReclaims = null;
+    // Phase 70: every machine's poll timer, and the wake hook behind them. The
+    // sessions on those machines keep running, which is the whole point of them.
+    stopRemotePolls();
+    this.unsubscribeRemote?.();
+    this.unsubscribeRemote = null;
     this.unwatchSettings?.();
     this.unwatchSettings = null;
     this.activity.dispose();

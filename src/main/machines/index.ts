@@ -12,10 +12,16 @@
  * for both. `Prepare this machine` starts what Tortie needs on a machine and sets
  * every option it depends on.
  *
- * **It still builds nothing that opens a session.** No attach, no create, no
- * kill, no rename, no manifest column, no machine badge and no session status of
- * any kind. Those are Phases 70 to 73, and the verb ledger in `exec-plane.ts`
- * refuses every one of their verbs in code rather than in prose.
+ * PHASE 70 opened sessions on it. A person can create, rename and end a session
+ * on a confirmed machine, and see it in the list with the machine's badge beside
+ * it. `remote-sessions.ts` owns all of that.
+ *
+ * **What is still not here.** No manifest row of any kind is written for a
+ * remote session, so Restore is refused for every one of them, Past Sessions
+ * never holds one, and there is no saved scrollback, no resume command and no
+ * launch snapshot. Those are Phases 71 and 72. The verb ledger in
+ * `exec-plane.ts` still refuses `kill-server`, `attach-session`, `send-keys` and
+ * `respawn-pane` in code rather than in prose.
  *
  * The pieces are deliberately separate, the same way `../config/` is.
  *
@@ -43,9 +49,13 @@
  *  - `remote-server.ts` starts what Tortie needs on a machine and reads it back.
  *  - `remote-path.ts` reads that machine's own program search list.
  *  - `prepare.ts` is the one production caller of the plane.
+ *  - `remote-sessions.ts` owns the four remote verbs, the poll, the per-machine
+ *    registry and the projection into `Session`. It imports nothing from
+ *    `../manifest/`, which is the rung's central rule stated as an import list.
+ *  - `remote-copy.ts` holds every sentence main prints about a remote session.
  *  - `ipc.ts` is the one `machines:*` registrar.
- *  - `smoke.ts` and `exec-smoke.ts` are the Electron smokes, and the second
- *    callers the refusals need.
+ *  - `smoke.ts`, `exec-smoke.ts` and `remote-smoke.ts` are the Electron smokes,
+ *    and the second callers the refusals need.
  */
 
 export {
@@ -247,3 +257,57 @@ export {
   REMOTE_VERSION_TIMEOUT_MS,
   type PrepareInput
 } from './prepare';
+
+// ---------------------------------------------------------------------------
+// Phase 70, M3: sessions that live on another machine
+// ---------------------------------------------------------------------------
+
+export {
+  MACHINE_NOT_READY,
+  REMOTE_DIR_MISSING,
+  RESTORE_REFUSED,
+  TARGET_UNBOUND,
+  noRemoteRowFor
+} from './remote-copy';
+
+export {
+  boundRemoteRow,
+  forgetRemoteRow,
+  isRemoteSessionId,
+  markMachineQuiet,
+  nameOf,
+  oneLine,
+  parseRemoteListLine,
+  pollEveryRemoteMachine,
+  pollRemoteMachine,
+  readyRemoteContext,
+  refuseRemoteRestore,
+  remoteCreate,
+  remoteCreateArgs,
+  remoteKill,
+  remoteListArgs,
+  remoteMachineFacts,
+  remoteMachinesWoke,
+  remoteRename,
+  remoteRowStatus,
+  remoteSessionMachine,
+  remoteSessionRow,
+  remoteSessions,
+  remoteStampArgs,
+  resetRemoteSessionsForTests,
+  setRemotePollFocused,
+  splitQuotedLine,
+  startRemotePoll,
+  stopRemotePolls,
+  onRemoteSessionsChanged,
+  REMOTE_CREATE_FORMAT,
+  REMOTE_LIST_FIELDS,
+  REMOTE_LIST_FORMAT,
+  REMOTE_POLL_FOCUSED_MS,
+  REMOTE_POLL_IDLE_MS,
+  REMOTE_POLL_TIMEOUT_MS,
+  REMOTE_STAMPS,
+  type RemoteCreateInput,
+  type RemoteListRow,
+  type RemoteSessionRow
+} from './remote-sessions';

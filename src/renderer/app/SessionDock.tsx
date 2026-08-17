@@ -43,6 +43,7 @@ import {
   sessionTooltip,
   useRenameDraft
 } from './session-actions';
+import { MachineBadge } from './MachineBadge';
 import { AgentIcon, Codicon } from '../icons';
 import { useResizeHandle } from '../controls';
 import {
@@ -124,6 +125,9 @@ function DockRow({
         ) : (
           <span className="srow-name">{session.name}</span>
         )}
+        {/* Phase 70: a row that lives on another machine says so, right after
+            the name. A row on this Mac draws nothing. */}
+        <MachineBadge machine={session.machine} className="srow-machine" />
         {isOutsideProject(session) ? (
           <span className="srow-wt chip chip-sm" title={session.cwd}>
             ⎇wt

@@ -18,11 +18,13 @@
  *
  * A promise like that decays if it lives in prose. So it lives in
  * {@link REMOTE_VERB_LEDGER}, which the door reads before it sends anything, and
- * a verb that is not on the ledger is refused. That is also what keeps this
- * rung's scope fence honest in code: `new-session`, `kill-session`,
- * `rename-session`, `attach-session`, `send-keys` and `respawn-pane` cannot
- * reach a machine here even by accident, and M3 has to add each one with its
- * repeat reasoning written down beside it.
+ * a verb that is not on the ledger is refused. That is also what keeps the scope
+ * fence honest in code: `kill-server`, `attach-session`, `send-keys` and
+ * `respawn-pane` cannot reach a machine here even by accident, and any later
+ * rung that wants one has to add it with its repeat reasoning written down
+ * beside it. Phase 70 did exactly that for `new-session`, `kill-session` and
+ * `rename-session`, and `attach-session` stays refused forever, because attach
+ * is a different plane with a different carriage.
  *
  * ## The order of the checks, which is the order they have to be in
  *
@@ -105,14 +107,14 @@ export interface LedgerRow {
 }
 
 /**
- * Every command that may cross to a machine in this rung, and why each one is
- * safe to run twice.
+ * Every command that may cross to a machine, and why each one is safe to run
+ * twice.
  *
- * The list is complete because these seven are the only verbs the rung sends. A
- * verb absent from it is refused before anything is sent, which is what makes
- * the scope fence a fact rather than a note.
+ * The list is complete because these ten are the only verbs Tortie sends. A verb
+ * absent from it is refused before anything is sent, which is what makes the
+ * scope fence a fact rather than a note.
  *
- * `build/conformance-machines.mjs` fails when any of the six forbidden verbs
+ * `build/conformance-machines.mjs` fails when any of the four forbidden verbs
  * appears here, when a row carries an empty reason, or when a verb the plane
  * does send is missing.
  */
@@ -159,18 +161,48 @@ export const REMOTE_VERB_LEDGER: readonly LedgerRow[] = [
     repeat: 'safe',
     kind: 'server-setup',
     reason: 'The same reason as set-option, being one name and one value.'
+  },
+  // -------------------------------------------------------------------------
+  // Phase 70 added these three. Each one carries its repeat reasoning, which is
+  // the price of putting a verb on this list at all.
+  // -------------------------------------------------------------------------
+  {
+    verb: 'new-session',
+    repeat: 'safe',
+    kind: 'mutating',
+    reason:
+      'tmux refuses a second session with the same name, so a repeat cannot ' +
+      'leave two. Identity is on the new-session line itself as pane ' +
+      'environment, so a session created by a call whose answer was lost is ' +
+      'still identifiable by reading that environment back.'
+  },
+  {
+    verb: 'kill-session',
+    repeat: 'safe',
+    kind: 'mutating',
+    reason:
+      'Killing a session that is already gone is the state that was asked ' +
+      'for. The target is an immutable id Tortie read from this machine, so a ' +
+      'repeat cannot land on a different session.'
+  },
+  {
+    verb: 'rename-session',
+    repeat: 'safe',
+    kind: 'mutating',
+    reason: 'The same target given the same name twice holds one name.'
   }
 ];
 
 /**
- * The verbs this rung refuses to send, named so the gate can assert their
- * absence rather than guessing at what a ledger should not hold.
+ * The verbs Tortie refuses to send to a machine, named so the gate can assert
+ * their absence rather than guessing at what a ledger should not hold.
+ *
+ * `attach-session` is on this list FOREVER. Attach is a different plane with a
+ * different carriage, being a pty rather than a one-shot exec, and a person's
+ * keystrokes must never be reachable through this door.
  */
 export const VERBS_THIS_RUNG_REFUSES: readonly string[] = [
-  'new-session',
-  'kill-session',
   'kill-server',
-  'rename-session',
   'attach-session',
   'send-keys',
   'respawn-pane'
@@ -254,8 +286,10 @@ export const REPEAT_UNSAFE =
  * A mutating verb before the machine's program search list has been read.
  * Pinned as `machine.path-before-mutation`.
  *
- * No mutating verb exists in this rung either, for the same reason and with the
- * same answer: the sentence is pinned and the harness drives it.
+ * Phase 69 wrote this rule with no member to exercise it. Phase 70 gave it its
+ * first three, being `new-session`, `kill-session` and `rename-session`, so a
+ * create on a machine nobody prepared is refused here rather than running the
+ * wrong copy of a program.
  */
 export const PATH_BEFORE_MUTATION =
   'Tortie will not start work on a machine before it has read the list of ' +

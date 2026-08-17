@@ -43,6 +43,7 @@ import {
   sessionTooltip,
   useRenameDraft
 } from './session-actions';
+import { MachineBadge } from './MachineBadge';
 import { AgentIcon, Codicon } from '../icons';
 import {
   pressBlocksSurfaceDrag,
@@ -176,6 +177,9 @@ function SessionTab({
       ) : (
         <span className="stab-name">{session.name}</span>
       )}
+      {/* Phase 70: the tab says which machine the session runs on when that
+          machine is not this Mac. */}
+      <MachineBadge machine={session.machine} className="stab-machine" />
       {isOutsideProject(session) ? (
         <span className="stab-wt" title={session.cwd}>
           <Codicon name="git-branch" size={12} />

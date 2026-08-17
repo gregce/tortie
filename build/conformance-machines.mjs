@@ -14,7 +14,7 @@
  * no tmux server, no Electron, no manifest, no file under the person's home, no
  * request and no write anywhere. Safe on a machine with live sessions on it.
  *
- * THE EIGHTEEN CONDITIONS IT FAILS ON. Each one is a way a person's agreement
+ * THE TWENTY FOUR CONDITIONS IT FAILS ON. Each one is a way a person's agreement
  * could come to cover something they did not read, a way a refusal could quietly
  * stop being a refusal, or (from 11 on) a way a command Tortie sends to another
  * machine could come to land somewhere nobody chose.
@@ -51,7 +51,7 @@
  *     than 20 s to call a dead link dead.
  * 14. The composed control path is over its byte budget, its directory is not
  *     created mode 0700, or two accounts would share one connection name.
- * 15. The ledger holds any of the six verbs this release refuses, a row carries
+ * 15. The ledger holds any of the four verbs this release refuses, a row carries
  *     an empty reason, or a verb the plane does send is absent from it.
  * 16. `SERVER_OPTIONS` and `resources/gmux-tmux.conf` disagree on any option,
  *     value or scope flag, in either direction; the local re-assert order moved;
@@ -60,6 +60,26 @@
  *     date or its note, or any row claims control mode was measured.
  * 18. A golden file has no manifest row, a manifest row names a file that is not
  *     there, or a class listed as having no golden has one or gives no reason.
+ * 19. The local attach argv differs by one byte from the golden taken from
+ *     `b660df9`, across eight name and server vectors.
+ * 20. A remote attach argv does not carry `-t` first, does not carry every
+ *     required option, does not carry `-f /dev/null`, does not carry `-u`, names
+ *     a bare program rather than the absolute one, carries a literal `gmux`
+ *     socket, or targets a name that is not an exact match or is unquoted.
+ * 21. The ledger is missing `new-session`, `kill-session` or `rename-session`,
+ *     any of the three carries a thin reason or is not marked mutating, or any
+ *     of `kill-server`, `attach-session`, `send-keys` or `respawn-pane` left the
+ *     refused list.
+ * 22. A remote create argv is missing `-d`, is missing `-P -F`, is missing `--`,
+ *     or does not carry both `GMUX_MANAGED` and `GMUX_SESSION_ID` as `-e` pairs
+ *     on the `new-session` line itself.
+ * 23. The remote list format carries a tab, prints a different number of fields
+ *     from the one the parse expects, leaves any field outside tmux's own
+ *     quoting, or puts a fixed field after a free form one.
+ * 24. Any production file under `src/main/machines/` names node-pty other than
+ *     `connection-test.ts`, any file under `src/main/machines/` imports anything
+ *     under `src/main/attach/`, `attach-plan.ts` imports anything outside its
+ *     allowed list, or a second file under `src/main/attach/` names node-pty.
  *
  * WHAT IT DOES NOT PROVE, stated so nobody reads more into a pass. The record
  * is sealed through `safeStorage`, which needs an Electron process, so this
@@ -699,9 +719,12 @@ if (ledger.length === 0) {
 for (const forbidden of data.forbiddenVerbs ?? []) {
   if (!ledger.some((row) => row.verb === forbidden)) continue;
   fail(
-    `"${String(forbidden)}" is on the remote verb ledger. This release opens no ` +
-      `session on any machine, and the ledger is what enforces that in code ` +
-      `rather than in prose. A later rung adds it WITH its repeat reasoning.`
+    `"${String(forbidden)}" is on the remote verb ledger. It is refused because ` +
+      `nobody has written down why running it twice is safe, and the ledger is ` +
+      `what enforces that in code rather than in prose. A later rung may add it ` +
+      `WITH its repeat reasoning, which is what Phase 70 did for new-session, ` +
+      `kill-session and rename-session. attach-session is the exception and it ` +
+      `is refused forever.`
   );
 }
 for (const row of ledger) {
@@ -887,6 +910,329 @@ if (manifest === null || typeof manifest !== 'object') {
 }
 
 // ---------------------------------------------------------------------------
+// 19. The local attach argv, byte for byte against b660df9
+// ---------------------------------------------------------------------------
+//
+// 61 sessions on the author's machine attach through this one composer, so one
+// wrong byte is one wrong byte in every one of them.
+
+const attachLocalRows = data.attachLocalRows ?? [];
+if (attachLocalRows.length < 8) {
+  fail(
+    `the local attach argv was compared on ${String(
+      attachLocalRows.length
+    )} name(s) and the gate wants at least eight. The composition moved out of ` +
+      `the file that holds the terminal binding in this phase, and this is what ` +
+      `says it moved unchanged.`
+  );
+}
+for (const row of attachLocalRows) {
+  if (row.equal) continue;
+  fail(
+    `the local attach argv for ${JSON.stringify(row.name)} differs from what ` +
+      `b660df9 composed.\n      want ${String(row.wantFile)} ${JSON.stringify(
+        row.want
+      )}\n      got  ${String(row.file)} ${JSON.stringify(row.got)}`
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 20. The remote attach argv
+// ---------------------------------------------------------------------------
+
+const attachRemoteArgv = (data.attachRemoteArgv ?? []).map(String);
+const attachRemoteLast = String(attachRemoteArgv[attachRemoteArgv.length - 1] ?? '');
+
+if (attachRemoteArgv[0] !== '-t') {
+  fail(
+    `the remote attach argv begins with ${JSON.stringify(
+      attachRemoteArgv[0] ?? null
+    )} rather than -t. Without -t the sign in program gives the remote command ` +
+      `no terminal at all and tmux refuses to attach.`
+  );
+}
+if (String(data.attachRemoteFile) !== String(data.attachRemoteSshBin)) {
+  fail(
+    `a remote attach runs ${JSON.stringify(
+      String(data.attachRemoteFile)
+    )} rather than the sign in program the context resolved.`
+  );
+}
+for (const required of data.requiredSshOptions ?? []) {
+  if (attachRemoteArgv.join(' ').includes(String(required))) continue;
+  fail(
+    `the remote attach argv is missing ${String(required)}. An attach is the ` +
+      `longest lived connection Tortie makes, so a dropped keepalive there is a ` +
+      `pane that hangs rather than a link that ends.`
+  );
+}
+if (!attachRemoteLast.includes('-f /dev/null')) {
+  fail(
+    `the remote attach does not carry -f /dev/null. Any verb can create a ` +
+      `server, and a server created without it reads that machine's own ` +
+      `configuration file.`
+  );
+}
+if (!/(^|\s)-u(\s|$)/.test(attachRemoteLast)) {
+  fail(
+    `the remote attach does not carry -u, so tmux classifies the client as ` +
+      `something other than UTF-8 and draws an underscore for every non-ASCII ` +
+      `cell. That is Bug C from Phase 9.2, on a second kind of client.`
+  );
+}
+if (!attachRemoteLast.includes('attach-session')) {
+  fail('the remote attach does not carry attach-session.');
+}
+if (!attachRemoteLast.startsWith(String(data.attachRemoteProgram))) {
+  fail(
+    `the remote attach runs ${JSON.stringify(
+      attachRemoteLast.split(' ')[0] ?? ''
+    )} on the far side rather than the absolute program the confirm hash bound. ` +
+      `A bare name would let the other machine's PATH choose which program runs.`
+  );
+}
+if (attachRemoteArgv.some((one) => one === data.realSocket)) {
+  fail(
+    `the remote attach argv carries the literal socket "${String(
+      data.realSocket
+    )}". The socket must come from the machine context and from nowhere else.`
+  );
+}
+if (!attachRemoteLast.includes(`-L ${String(data.probeSocket)}`)) {
+  fail(
+    `the remote attach does not name the socket the context carried as the ` +
+      `value of -L.`
+  );
+}
+{
+  // The target is the last thing on the line and it is an exact match. A bare
+  // name matches on a prefix, and a prefix match on another machine would stream
+  // a stranger's session into the person's tab.
+  const target = attachRemoteLast.slice(attachRemoteLast.lastIndexOf('-t ') + 3);
+  const bare = target.replace(/^'/, '').replace(/'$/, '');
+  if (!bare.startsWith('=')) {
+    fail(
+      `the remote attach targets ${JSON.stringify(target)}, which is not an ` +
+        `exact match. A bare name matches on a prefix.`
+    );
+  }
+  if (target === bare) {
+    fail(
+      `the remote attach target ${JSON.stringify(target)} is unquoted. MEASURED ` +
+        `2026-08-17: zsh expands a word beginning with = into a program path, so ` +
+        `an unquoted exact-match target never reaches tmux.`
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 21. The three verbs Phase 70 added, and the four that stay refused
+// ---------------------------------------------------------------------------
+
+for (const verb of ['new-session', 'kill-session', 'rename-session']) {
+  const row = ledger.find((one) => one.verb === verb);
+  if (row === undefined) {
+    fail(
+      `"${verb}" is sent by this release and is not on the ledger, so the plane ` +
+        `would refuse its own commands.`
+    );
+    continue;
+  }
+  if (Number(row.reasonLength) < 40) {
+    fail(
+      `the ledger row for "${verb}" says almost nothing about why running it ` +
+        `twice is safe. A machine can sleep after it ran a command and before ` +
+        `the reply arrives, so that reasoning is the whole reason the row exists.`
+    );
+  }
+  if (row.kind !== 'mutating') {
+    fail(
+      `the ledger row for "${verb}" is ${JSON.stringify(row.kind)} rather than ` +
+        `mutating, so it would be sent before the machine's own program search ` +
+        `list had been read.`
+    );
+  }
+}
+const STILL_REFUSED = ['kill-server', 'attach-session', 'send-keys', 'respawn-pane'];
+for (const verb of STILL_REFUSED) {
+  if ((data.forbiddenVerbs ?? []).includes(verb)) continue;
+  fail(
+    `"${verb}" left the refused list. attach-session in particular is refused ` +
+      `forever: attach is a different plane with a different carriage, and a ` +
+      `person's keystrokes must never be reachable through a one-shot exec.`
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 22. The remote create argv
+// ---------------------------------------------------------------------------
+
+const createArgv = (data.remoteCreateArgv ?? []).map(String);
+if (createArgv[0] !== 'new-session') {
+  fail(`the remote create begins with ${JSON.stringify(createArgv[0] ?? null)}.`);
+}
+if (!createArgv.includes('-d')) {
+  fail(
+    'the remote create is missing -d, so it would attach a client on the far ' +
+      'side that nobody asked for and nobody can see.'
+  );
+}
+if (!createArgv.includes('-P') || !createArgv.includes('-F')) {
+  fail(
+    'the remote create is missing -P -F, so the immutable identifier would have ' +
+      'to be found by a list afterwards, and that list is a race a second create ' +
+      'can win.'
+  );
+}
+{
+  const pairs = createArgv.filter((_, index) => createArgv[index - 1] === '-e');
+  const carries = (name) => pairs.some((one) => one.startsWith(`${name}=`));
+  if (!carries('GMUX_MANAGED') || !carries('GMUX_SESSION_ID')) {
+    fail(
+      `the remote create carries ${JSON.stringify(pairs)} as -e pairs and it ` +
+        `must carry both GMUX_MANAGED and GMUX_SESSION_ID on the new-session ` +
+        `line itself. That is what makes a create whose answer was lost ` +
+        `identifiable rather than a session nobody can account for.`
+    );
+  }
+}
+if (!createArgv.includes('--')) {
+  fail(
+    'the remote create does not separate the command with --, so an agent flag ' +
+      'that looks like a tmux flag would be read by tmux.'
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 23. The list format
+// ---------------------------------------------------------------------------
+//
+// MEASURED 2026-08-17 with tmux 3.6a, which is why this condition asks what it
+// asks rather than what research 51 section 4.3 drafted:
+//
+//   env -i tmux -f /dev/null new-session -d -P -F '#{session_id}<TAB>#{session_name}'
+//     printed  $0_p70 tabtest
+//   env -i LC_ALL=en_US.UTF-8 tmux -f /dev/null new-session -d -P -F '...'
+//     printed  $0<TAB>p70 tabtest
+//
+// A tab in a format comes back as an underscore when the client has no UTF-8
+// locale, and a command sent over a connection has no locale unless both sides
+// were configured to forward one. So the separator is a single space and every
+// field is wrapped in tmux's own `#{q:...}` quoting, which is printable ASCII
+// whatever the locale is.
+
+const listFormat = String(data.remoteListFormat ?? '');
+const listFields = listFormat.split(' ');
+if (listFormat.includes('\t')) {
+  fail(
+    'the remote list format carries a tab. A tab comes back as an underscore ' +
+      'from a client with no UTF-8 locale, and a command sent over a connection ' +
+      'has none, so every field after it would move.'
+  );
+}
+if (listFields.length !== Number(data.remoteListFields)) {
+  fail(
+    `the remote list format prints ${String(listFields.length)} field(s) and ` +
+      `the parse expects ${String(data.remoteListFields)}. A row that does not ` +
+      `split into exactly that many is dropped, so a mismatch drops every row.`
+  );
+}
+for (const field of listFields) {
+  if (field.startsWith('#{q:')) continue;
+  fail(
+    `the remote list field ${JSON.stringify(field)} is not wrapped in tmux's ` +
+      `own quoting. The separator is a space, so a value holding a space would ` +
+      `become two fields and the whole row would be dropped.`
+  );
+}
+{
+  const freeForm = (data.remoteListFreeForm ?? []).map(String);
+  const firstFree = listFields.findIndex((one) => freeForm.includes(one));
+  const tail = firstFree < 0 ? [] : listFields.slice(firstFree);
+  if (firstFree < 0 || !tail.every((one) => freeForm.includes(one))) {
+    fail(
+      `the remote list format puts a fixed field after a free-form one: ` +
+        `${JSON.stringify(listFields)}. With every field quoted that is no ` +
+        `longer load bearing, and it is kept because a reader should not have ` +
+        `to know about the quoting to see that the format is safe.`
+    );
+  }
+}
+if (String(data.remoteCreateFormat ?? '') !== '#{session_id}') {
+  fail(
+    `the remote create format is ${JSON.stringify(
+      String(data.remoteCreateFormat ?? '')
+    )} and it must ask for the immutable identifier and nothing else. One field ` +
+      `means there is no separator to get wrong.`
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 24. The node-pty containment rule
+// ---------------------------------------------------------------------------
+//
+// Phase 69 found that reading one constant across this boundary put node-pty
+// into the import graph of the manifest store, and `contract-inventory --check`
+// crashed rather than diffed. This rung adds a remote attach, so it is exactly
+// the rung that can undo that.
+
+for (const hit of data.machinePtyMentions ?? []) {
+  if (hit.file === data.ptyOwnerFile) continue;
+  if (isDenyingComment(hit.text)) continue;
+  fail(
+    `${hit.file}:${hit.line} names node-pty and only ${String(
+      data.ptyOwnerFile
+    )} may. A second importer under src/main/machines/ puts a native module ` +
+      `into the import graph of everything that reads a constant from there. ` +
+      `The line reads: ${hit.text}`
+  );
+}
+for (const hit of data.machineAttachImports ?? []) {
+  fail(
+    `${hit.file}:${hit.line} imports from src/main/attach/. The dependency runs ` +
+      `the other way: attach reads the machine context, and nothing under ` +
+      `machines may reach back. The line reads: ${hit.text}`
+  );
+}
+{
+  const planImports = (data.attachPlanSource ?? []).map(String);
+  const ALLOWED_PLAN_IMPORTS = [
+    '../machines/context',
+    '../machines/ssh',
+    '../restore/command',
+    'node:path'
+  ];
+  for (const line of planImports) {
+    const match = /'([^']+)'/.exec(line);
+    if (match === null) continue;
+    if (ALLOWED_PLAN_IMPORTS.includes(match[1])) continue;
+    fail(
+      `src/main/attach/attach-plan.ts imports ${JSON.stringify(
+        match[1]
+      )}, which is not on its allowed list. The pure composer must start ` +
+        `nothing and load no native module, because it is the file a reviewer ` +
+        `reads to learn what Tortie sends to another machine.`
+    );
+  }
+}
+{
+  const ptyOwners = (data.attachPtyMentions ?? [])
+    .filter((hit) => !isDenyingComment(hit.text))
+    .map((hit) => hit.file);
+  const unique = [...new Set(ptyOwners)];
+  const allowed = ['src/main/attach/attach-host.ts'];
+  for (const file of unique) {
+    if (allowed.includes(file)) continue;
+    fail(
+      `${file} names node-pty and only ${allowed.join(
+        ', '
+      )} may under src/main/attach/. The composer and the host are separate so ` +
+        `the terminal binding has exactly one home.`
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // The tables, printed whatever the verdict, because the point is that a person
 // can read them.
 // ---------------------------------------------------------------------------
@@ -1007,6 +1353,38 @@ process.stdout.write(
     `${String(data.goldenManifest?.remoteTmux ?? 'an unrecorded tmux')}. ` +
     `${(data.goldenManifest?.noGolden ?? []).length} class(es) have none, each ` +
     `with its reason recorded.\n`
+);
+
+// ---------------------------------------------------------------------------
+// Phase 70's tables
+// ---------------------------------------------------------------------------
+
+process.stdout.write('\nattach name                matches b660df9\n');
+process.stdout.write('-'.repeat(50) + '\n');
+for (const row of attachLocalRows) {
+  process.stdout.write(`${pad(row.name, 26)} ${row.equal ? 'yes' : 'NO'}\n`);
+}
+process.stdout.write(
+  `a remote attach is: ${String(data.attachRemoteFile)} ${attachRemoteArgv.join(
+    ' '
+  )}\n`
+);
+process.stdout.write(
+  `a remote create is: ${(data.remoteCreateArgv ?? []).join(' ')}\n`
+);
+process.stdout.write(
+  `the list format prints ${String(listFields.length)} space separated ` +
+    `field(s), every one wrapped in tmux's own quoting, the last ${String(
+      (data.remoteListFreeForm ?? []).length
+    )} of which are free form.\n`
+);
+process.stdout.write(
+  `node-pty is imported by ${String(
+    new Set((data.machinePtyMentions ?? []).map((hit) => hit.file)).size
+  )} file(s) under src/main/machines/ and ${String(
+    new Set((data.attachPtyMentions ?? []).map((hit) => hit.file)).size
+  )} under src/main/attach/. Nothing under machines imports anything under ` +
+    `attach (${String((data.machineAttachImports ?? []).length)} hit(s)).\n`
 );
 
 if (failures.length > 0) {

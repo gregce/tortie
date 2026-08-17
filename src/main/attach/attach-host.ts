@@ -27,6 +27,22 @@
  * which is 3.6a here. Binary and conf resolution lives in
  * src/main/tmux/resolve.ts (growth guardrail 3), and AttachHostOptions.tmuxBin
  * normally overrides both.
+ *
+ * TWO KINDS OF CLIENT (Phase 70, M3). An AttachRequest that carries a machine
+ * runs one ssh client on this Mac carrying one tmux client on that machine. The
+ * argv for both kinds is composed in ./attach-plan.ts, which is pure and holds
+ * no terminal binding, so this file is the only one under src/main/attach that
+ * loads node-pty.
+ *
+ * WHAT AN UNEXPECTED EXIT MEANS IS DIFFERENT FOR THE TWO KINDS, and the onExit
+ * hook now says which one it was. A local client dies when the session was
+ * killed elsewhere or the server died. A remote client also dies when the LINK
+ * went, and the tmux session on the other machine is untouched by that: its
+ * agent is still running and its output is still being absorbed server-side,
+ * which is this host's designed failure mode and is now true across a link as
+ * well as across a quit. So an unexpected exit with kind 'remote' means the link
+ * went rather than the session ended, and the session owner maps it to unknown
+ * rather than to exited.
  */
 
 import { ipcMain } from 'electron';
@@ -49,6 +65,12 @@ import {
   tmuxUnavailableError
 } from '../tmux/resolve';
 import { TMUX_SOCKET } from '../tmux/supervisor';
+import type {
+  MachineKind,
+  RemoteMachineContext,
+  SpawnPlan
+} from '../machines/context';
+import { attachPlan } from './attach-plan';
 import { getLog } from '../log';
 
 /**
@@ -111,8 +133,18 @@ export interface AttachHostOptions {
    * `expected` is true for exits we caused (detach/re-attach/shutdown);
    * false means the tmux session was killed elsewhere or the server died —
    * the session owner should re-reconcile status (e.g. flip to 'exited').
+   *
+   * `kind` (Phase 70) says which sort of client died. An unexpected exit with
+   * kind 'remote' is a link that went, not a session that ended: the session is
+   * still running on the other machine. The session owner maps that to unknown
+   * and never to exited.
    */
-  onExit?: (sessionId: string, exitCode: number, expected: boolean) => void;
+  onExit?: (
+    sessionId: string,
+    exitCode: number,
+    expected: boolean,
+    kind: MachineKind
+  ) => void;
   /**
    * Main-side diagnostic tap: fired with the byte length of every term:data
    * flush sent to the renderer. Used by the smoke harness to assert output
@@ -132,10 +164,21 @@ export interface AttachRequest {
   rows?: number;
   /** cwd for the attach client process (cosmetic; default: home). */
   cwd?: string;
+  /**
+   * The machine this session runs on, when it is not this Mac (Phase 70).
+   *
+   * Absent means local, which is every caller before this release. The context
+   * has already been through the confirm gate, because `buildRemoteMachineContext`
+   * asks the gate before it composes anything, so there is no unconfirmed machine
+   * an attach could be handed.
+   */
+  machine?: RemoteMachineContext;
 }
 
 interface AttachClient {
   sessionId: string;
+  /** Which sort of client this is, for the exit hook. */
+  kind: MachineKind;
   pty: IPty;
   sender: WebContents;
   dataChannel: string;
@@ -175,61 +218,29 @@ export class AttachHost {
     // Replace any existing client (renderer reloaded, or re-attach).
     this.detach(req.sessionId);
 
-    // Phase 41: one composer for both "there is no tmux" sentences, in
-    // ../tmux/resolve. This host and the supervisor each wrote their own
-    // before that, and the two had already drifted apart. A packaged Tortie
-    // that cannot find its own bundled copy has a broken install, and telling
-    // that user to run brew was never right.
-    //
-    // Resolution only runs when the caller named no binary, which is the
-    // normal case in tests and harnesses. The supervisor passes the path it
-    // already resolved, so an attach costs no extra filesystem probing.
-    let tmuxBin = this.opts.tmuxBin ?? null;
-    if (tmuxBin === null) {
-      const resolution = resolveTmux();
-      if (resolution.path === null) throw tmuxUnavailableError(resolution);
-      tmuxBin = resolution.path;
-    }
-    const confPath = this.opts.confPath ?? resolveConfPath();
-    // The socket name is the supervisor's constant, never a second literal:
-    // an attach client on a different socket would attach to a DIFFERENT tmux
-    // server — the user's own, in the worst case (research 25 §3, Tier 3).
-    const socketName = this.opts.socketName ?? TMUX_SOCKET;
+    const kind: MachineKind = req.machine === undefined ? 'local' : 'remote';
+    const plan = this.planFor(req);
 
     let pty: IPty;
     try {
-      pty = nodePty.spawn(
-        tmuxBin,
-        [
-          // Force UTF-8 output for this client (Bug C): tmux classifies a
-          // client by string-scanning LC_ALL/LC_CTYPE/LANG for "UTF-8" and
-          // draws `_` for every non-ASCII cell on a non-UTF-8 client —
-          // launchd launches carry no locale at all. xterm.js is always
-          // UTF-8, so say so unconditionally.
-          '-u',
-          '-L',
-          socketName,
-          '-f',
-          confPath,
-          'attach-session',
-          '-t',
-          `=${req.tmuxName}` // exact match — never prefix-match another session
-        ],
-        {
-          name: 'xterm-256color',
-          cols: sanitizeCols(req.cols),
-          rows: sanitizeRows(req.rows),
-          cwd: req.cwd ?? homedir(),
-          env: {
-            // Bug C: guarantee the client env advertises UTF-8 too (status
-            // line, locale-sensitive client paths) — never overrides a
-            // locale the user actually has.
-            ...withUtf8Locale(process.env),
-            // xterm.js renders truecolor; advertise it to the tmux client.
-            COLORTERM: 'truecolor'
-          }
+      pty = nodePty.spawn(plan.file, [...plan.argv], {
+        name: 'xterm-256color',
+        cols: sanitizeCols(req.cols),
+        rows: sanitizeRows(req.rows),
+        // A remote client runs on THIS Mac and the session's directory is on
+        // the other machine, so a remote attach starts in this Mac's home
+        // directory. Handing node-pty a path that does not exist here fails
+        // the spawn, and the far side chooses its own directory anyway.
+        cwd: kind === 'remote' ? homedir() : (req.cwd ?? homedir()),
+        env: {
+          // Bug C: guarantee the client env advertises UTF-8 too (status
+          // line, locale-sensitive client paths) — never overrides a
+          // locale the user actually has.
+          ...withUtf8Locale(process.env),
+          // xterm.js renders truecolor; advertise it to the tmux client.
+          COLORTERM: 'truecolor'
         }
-      );
+      });
     } catch (err) {
       throw gmuxError(
         'SPAWN_FAILED',
@@ -240,6 +251,7 @@ export class AttachHost {
 
     const client: AttachClient = {
       sessionId: req.sessionId,
+      kind,
       pty,
       sender: req.sender,
       dataChannel: termDataChannel(req.sessionId),
@@ -336,10 +348,55 @@ export class AttachHost {
         };
         client.sender.send(termExitChannel(req.sessionId), payload);
       }
-      this.opts.onExit?.(req.sessionId, exitCode, expected);
+      this.opts.onExit?.(req.sessionId, exitCode, expected, client.kind);
     });
 
     this.clients.set(req.sessionId, client);
+  }
+
+  /**
+   * The program and the argv for one attach. The composition itself is in
+   * ./attach-plan.ts, which is pure; what this method adds is the local
+   * resolution, and it runs only for a local attach.
+   *
+   * A remote attach resolves nothing on this Mac. It needs no tmux binary here
+   * and no configuration file here, and asking for either would refuse an attach
+   * to another machine on a Mac whose own tmux is missing.
+   */
+  private planFor(req: AttachRequest): SpawnPlan {
+    if (req.machine !== undefined) {
+      return attachPlan({
+        kind: 'remote',
+        ctx: req.machine,
+        tmuxName: req.tmuxName
+      });
+    }
+    // Phase 41: one composer for both "there is no tmux" sentences, in
+    // ../tmux/resolve. This host and the supervisor each wrote their own
+    // before that, and the two had already drifted apart. A packaged Tortie
+    // that cannot find its own bundled copy has a broken install, and telling
+    // that user to run brew was never right.
+    //
+    // Resolution only runs when the caller named no binary, which is the
+    // normal case in tests and harnesses. The supervisor passes the path it
+    // already resolved, so an attach costs no extra filesystem probing.
+    let tmuxBin = this.opts.tmuxBin ?? null;
+    if (tmuxBin === null) {
+      const resolution = resolveTmux();
+      if (resolution.path === null) throw tmuxUnavailableError(resolution);
+      tmuxBin = resolution.path;
+    }
+    return attachPlan({
+      kind: 'local',
+      bin: tmuxBin,
+      // The socket name is the supervisor's constant, never a second literal:
+      // an attach client on a different socket would attach to a DIFFERENT
+      // tmux server — the user's own, in the worst case (research 25 §3,
+      // Tier 3).
+      socket: this.opts.socketName ?? TMUX_SOCKET,
+      confPath: this.opts.confPath ?? resolveConfPath(),
+      tmuxName: req.tmuxName
+    });
   }
 
   /**

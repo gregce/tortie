@@ -22,6 +22,17 @@
  * The reconcile is the second half: a session can die while the machine is
  * asleep, and the 1 Hz status poll would take until its next tick to notice.
  *
+ * **resume also tells the machines layer (Phase 70).** A session on another
+ * machine keeps running while this Mac sleeps, and the last answer Tortie got
+ * about it is about a world that may no longer be the current one. So the wake
+ * is one of the three moments Tortie is allowed to sign in to a machine, the
+ * other two being the app launching and a person pressing a control. It is never
+ * a file change, which is the line refusal 8 draws. The listeners are registered
+ * through {@link onMachineWake} rather than passed in as a dependency, because
+ * this module must keep importing nothing but the log: it is unit tested outside
+ * Electron, and an import of the machines layer would pull the whole exec plane
+ * into that test.
+ *
  * **This is NOT the adaptive checkpoint scheduler.** That is a later phase and
  * a much larger piece of work. Nothing here runs on a timer, nothing here
  * decides when to capture, and nothing here holds state beyond one in-flight
@@ -87,6 +98,50 @@ export const SUSPEND_CAPTURE_DEADLINE_MS = 4_000;
  * of research 42's incident 1 read together.
  */
 const powerLog = getLog('power');
+
+// ---------------------------------------------------------------------------
+// The wake hook (Phase 70)
+// ---------------------------------------------------------------------------
+
+/**
+ * What runs when the Mac wakes, beyond the injected `onResume`.
+ *
+ * One registry rather than a second dependency, for two reasons. The composition
+ * root already passes `onResume` and adding a second callback there would make
+ * every caller of {@link installPowerHandlers} carry a machines concern. And a
+ * listener registers itself when it starts caring, which for the machines layer
+ * is the moment a machine is first polled, not app start.
+ */
+const wakeListeners = new Set<() => void>();
+
+/** Run `listener` when the Mac wakes. Returns the unsubscribe. */
+export function onMachineWake(listener: () => void): () => void {
+  wakeListeners.add(listener);
+  return () => {
+    wakeListeners.delete(listener);
+  };
+}
+
+/** How many listeners are registered. For the tests and the smoke. */
+export function machineWakeListenerCount(): number {
+  return wakeListeners.size;
+}
+
+/**
+ * Fire every wake listener, catching each one on its own.
+ *
+ * Exported so a harness can drive a wake without a machine going to sleep, which
+ * is the only other way this runs.
+ */
+export function fireMachineWake(): void {
+  for (const listener of [...wakeListeners]) {
+    try {
+      listener();
+    } catch (err) {
+      powerLog.warn(`a wake listener failed: ${(err as Error).message}`);
+    }
+  }
+}
 
 /** Resolves to false if `work` has not settled within `ms`. */
 async function withDeadline(work: Promise<void>, ms: number): Promise<boolean> {
@@ -163,6 +218,11 @@ export function installPowerHandlers(deps: PowerHandlerDeps): () => void {
     } catch (err) {
       powerLog.warn(`resume handler failed: ${(err as Error).message}`);
     }
+    // Phase 70. Every remote row goes to unknown and every machine with a live
+    // connection is asked again, at once. It runs after `deps.onResume` and in
+    // its own try, so a machines layer that throws cannot stop the atlas clear
+    // and the local reconcile, which are what the person is looking at.
+    fireMachineWake();
   };
 
   monitor.on('suspend', onSuspend);

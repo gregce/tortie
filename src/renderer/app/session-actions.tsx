@@ -22,6 +22,7 @@ import {
 } from './resume';
 import { Codicon } from '../icons';
 import { openSessionContext } from '../context/open-session';
+import { badgeTitle, NO_SNAPSHOT } from './machine-copy';
 
 /**
  * True when the session runs outside the project checkout (a git worktree
@@ -51,8 +52,27 @@ export function sessionTooltip(
   const parts = [session.agent, visual.label, age];
   if (isOutsideProject(session)) parts.push(displayPath(session.cwd));
   const head = `${session.name} — ${parts.join(' · ')}`;
-  const note = resumeNote(session);
+  // Phase 70: no resume sentence for a session on another machine, for the
+  // same reason the mark is dropped. Every one of those sentences describes
+  // what a restart brings back, and Tortie refuses to restart one.
+  const note = session.machine === undefined ? resumeNote(session) : null;
   return note === null ? head : `${head}\n${note}`;
+}
+
+/**
+ * The resume mark's words for one session, or null when there are none.
+ *
+ * PHASE 70 put the one branch here. The mark answers "what comes back if this
+ * is restarted", and Tortie refuses to restart a session on another machine at
+ * all, so the answer for one of those is not "directory only" but nothing. The
+ * mark is written from `resumeArgv` and `resumeCapture`, and a remote row
+ * carries neither, so the untouched reading would have marked every remote
+ * session as coming back without its conversation. That is a promise about a
+ * verb that is not offered.
+ */
+export function resumeMark(session: Session): string | null {
+  if (session.machine !== undefined) return null;
+  return resumeMarkLabel(resumeReadiness(session));
 }
 
 /**
@@ -66,8 +86,15 @@ export function sessionAriaLabel(
   session: Session,
   visual: StatusVisual
 ): string {
-  const mark = resumeMarkLabel(resumeReadiness(session));
-  return `${session.name}, ${visual.label}${mark === null ? '' : `, ${mark}`}`;
+  const mark = resumeMark(session);
+  // Phase 70. The machine badge is a descendant of a row that carries its own
+  // `aria-label`, and an `aria-label` REPLACES its descendants' names, so the
+  // badge's sentence has to be assembled here or a screen reader is told
+  // nothing about where the session runs. A session on this Mac adds nothing,
+  // which is every session before this release.
+  const machine =
+    session.machine === undefined ? '' : `, ${badgeTitle(session.machine.label)}`;
+  return `${session.name}, ${visual.label}${mark === null ? '' : `, ${mark}`}${machine}`;
 }
 
 /**
@@ -86,7 +113,7 @@ export function ResumeMark({
 }: {
   session: Session;
 }): React.JSX.Element | null {
-  if (resumeMarkLabel(resumeReadiness(session)) === null) return null;
+  if (resumeMark(session) === null) return null;
   return (
     <span className="resume-mark">
       <Codicon name="folder" size={12} />
@@ -155,6 +182,19 @@ export function SavedMark({ className }: { className: string }): React.JSX.Eleme
  * too, because "nothing was loaded" is a real answer to the question.
  */
 function showLoadedItem(session: Session): MenuItemSpec {
+  // Phase 70. The launch snapshot is written on this Mac when the session is
+  // created, and a session created on another machine has none. The verb is
+  // offered disabled with the reason under it rather than removed: a verb that
+  // vanishes teaches nothing, and the reason is a fact about where the record
+  // is kept rather than a fault.
+  if (session.machine !== undefined) {
+    return {
+      label: 'Show what it loaded…',
+      sublabel: NO_SNAPSHOT,
+      disabled: true,
+      run: () => {}
+    };
+  }
   return {
     label: 'Show what it loaded…',
     run: () => openSessionContext(session)
@@ -197,11 +237,18 @@ export function sessionMenuItems(
     return [showLoadedItem(session), copyDirectoryPathItem(session)];
   }
   const ended = status === 'exited' || status === 'restorable';
+  // Phase 70. A session on another machine is never offered Restore and never
+  // offered Restart, at any status. Nothing about it was written on this Mac,
+  // so there is no saved output to replay and no command to arm, and main
+  // refuses both verbs for a remote id anyway. Offering a verb that main will
+  // refuse is how a person learns to distrust the menu.
+  const remote = session.machine !== undefined;
   // Phase 26.3: Restore extends from restorable rows to exited rows that
   // still have material to bring back (saved scrollback or an armed resume
   // command). Main accepts a restore for any exited row; this gate is what
   // keeps the offered verb truthful.
   const offersRestore =
+    !remote &&
     s.canRestore() &&
     (status === 'restorable' ||
       (status === 'exited' && hasRestoreMaterial(session)));
@@ -220,7 +267,7 @@ export function sessionMenuItems(
           }
         ]
       : []),
-    ...(ended
+    ...(ended && !remote
       ? [
           {
             label: 'Restart',

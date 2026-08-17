@@ -62,12 +62,20 @@ describe('the ledger', () => {
     }
   });
 
-  it('holds none of the six verbs this release refuses', () => {
+  it('holds none of the four verbs Tortie refuses to send', () => {
     // This is the scope fence in code rather than in prose. A later rung adds each
-    // of these WITH its repeat reasoning written down beside it.
+    // of these WITH its repeat reasoning written down beside it, which is what
+    // Phase 70 did for new-session, kill-session and rename-session.
     for (const verb of VERBS_THIS_RUNG_REFUSES) {
       expect(ledgerRowFor(verb)).toBeNull();
     }
+  });
+
+  it('refuses attach-session forever, because attach is a different plane', () => {
+    // Attach is a pty rather than a one-shot exec, and a person's keystrokes must
+    // never be reachable through this door.
+    expect(VERBS_THIS_RUNG_REFUSES).toContain('attach-session');
+    expect(ledgerRowFor('attach-session')).toBeNull();
   });
 
   it('holds every verb this release actually sends', () => {
@@ -78,15 +86,29 @@ describe('the ledger', () => {
       'show-environment',
       'start-server',
       'set-option',
-      'set-environment'
+      'set-environment',
+      // Phase 70's three.
+      'new-session',
+      'kill-session',
+      'rename-session'
     ]) {
       expect(ledgerRowFor(verb)).not.toBeNull();
     }
   });
 
-  it('has no unsafe row, and no mutating row, in this release', () => {
+  it('has no unsafe row, because nothing may cross that is not safe to repeat', () => {
     expect(REMOTE_VERB_LEDGER.filter((row) => row.repeat === 'unsafe')).toEqual([]);
-    expect(REMOTE_VERB_LEDGER.filter((row) => row.kind === 'mutating')).toEqual([]);
+  });
+
+  it('marks the three verbs that change something as mutating', () => {
+    // A mutating verb is refused until the machine's own program search list has
+    // been read for the current connection. Phase 69 wrote that rule with no
+    // member to exercise it, and these are its first three.
+    expect(
+      REMOTE_VERB_LEDGER.filter((row) => row.kind === 'mutating').map(
+        (row) => row.verb
+      )
+    ).toEqual(['new-session', 'kill-session', 'rename-session']);
   });
 });
 
@@ -104,23 +126,24 @@ describe('every verb in one command, because tmux takes more than one', () => {
   });
 
   it('refuses a second verb riding along in a chain', () => {
-    // Reading only args[0] would let new-session cross to a machine behind a verb
-    // that is on the ledger, which is the one way the fence could be got round.
+    // Reading only args[0] would let a verb nobody wrote down cross to a machine
+    // behind a verb that is on the ledger, which is the one way the fence could
+    // be got round.
     const payload = refusalOf(() => {
-      assertRemoteVerbAllowed(CTX, ['start-server', ';', 'new-session', '-d']);
+      assertRemoteVerbAllowed(CTX, ['start-server', ';', 'kill-server']);
     });
     expect(payload?.message).toBe(VERB_NOT_IN_LEDGER);
-    expect(payload?.detail ?? '').toContain('new-session');
+    expect(payload?.detail ?? '').toContain('kill-server');
   });
 });
 
 describe('the three refusals', () => {
   it('refuses a verb nobody wrote down, and names it in the detail', () => {
     const payload = refusalOf(() => {
-      assertRemoteVerbAllowed(CTX, ['kill-session', '-t', '$1']);
+      assertRemoteVerbAllowed(CTX, ['send-keys', '-t', '$1', 'rm -rf /']);
     });
     expect(payload?.message).toBe(VERB_NOT_IN_LEDGER);
-    expect(payload?.detail ?? '').toContain('kill-session');
+    expect(payload?.detail ?? '').toContain('send-keys');
     expect(payload?.detail ?? '').toContain('popos');
   });
 
@@ -199,9 +222,29 @@ describe('the three refusals', () => {
   });
 
   it('lets every ledger read through with no program list at all', () => {
-    // A read changes nothing, so it cannot run the wrong copy of anything.
+    // A read changes nothing, so it cannot run the wrong copy of anything. The
+    // same is true of the two server-setup verbs, which is why the gate asks
+    // about the kind rather than about the verb.
     for (const row of REMOTE_VERB_LEDGER) {
+      if (row.kind === 'mutating') continue;
       expect(() => assertRemoteVerbAllowed(CTX, [row.verb])).not.toThrow();
+    }
+  });
+
+  it('refuses each of the three real mutating verbs before the list is read', () => {
+    // The synthetic row above proves the branch. These three prove the rule
+    // reaches the verbs a person can actually cause, which is what Phase 70
+    // added and what the branch was written for.
+    bumpMachineGeneration(CTX.machineId);
+    for (const verb of ['new-session', 'kill-session', 'rename-session']) {
+      const payload = refusalOf(() => {
+        assertRemoteVerbAllowed(CTX, [verb]);
+      });
+      expect(payload?.message).toBe(PATH_BEFORE_MUTATION);
+    }
+    setMachineRemotePath(CTX.machineId, '/usr/bin:/bin');
+    for (const verb of ['new-session', 'kill-session', 'rename-session']) {
+      expect(() => assertRemoteVerbAllowed(CTX, [verb])).not.toThrow();
     }
   });
 });

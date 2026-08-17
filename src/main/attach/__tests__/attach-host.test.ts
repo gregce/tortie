@@ -15,6 +15,14 @@
  * Everything is driven with fakes: a fake ipcMain records listener add and
  * remove, a fake node-pty records writes and kills, a fake WebContents
  * records sends. No tmux server, no real PTY, no Electron binary.
+ *
+ * Phase 70 added a second kind of client, being an attach to a session on
+ * another machine. Four tests at the bottom of this file cover it: that a
+ * request with no machine spawns exactly what it always did, that a request
+ * with one spawns the ssh client instead, that an unexpected exit says which
+ * kind of client died, and that detaching a remote client kills the client on
+ * this Mac and nothing on the other machine. The argv itself is not re-checked
+ * here, because `attach-plan.test.ts` owns it.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -25,6 +33,7 @@ import {
   termInputChannel
 } from '@shared/ipc';
 import type { TermExitPayload } from '@shared/ipc';
+import type { MachineKind, RemoteMachineContext } from '../../machines/context';
 
 // ---------------------------------------------------------------------------
 // Fakes
@@ -60,12 +69,14 @@ interface FakePty {
   onExit: (cb: (e: { exitCode: number; signal?: number }) => void) => void;
   emitData: (data: string) => void;
   emitExit: (exitCode: number) => void;
+  /** The program spawned. Phase 70: a remote attach spawns ssh, not tmux. */
+  file: string;
   argv: string[];
 }
 
 const spawnedPtys: FakePty[] = [];
 
-function makeFakePty(argv: string[]): FakePty {
+function makeFakePty(file: string, argv: string[]): FakePty {
   let dataCb: ((data: string) => void) | null = null;
   let exitCb: ((e: { exitCode: number; signal?: number }) => void) | null =
     null;
@@ -87,14 +98,15 @@ function makeFakePty(argv: string[]): FakePty {
     emitExit: (exitCode) => {
       exitCb?.({ exitCode });
     },
+    file,
     argv
   };
   return pty;
 }
 
 vi.mock('node-pty', () => ({
-  spawn: vi.fn((_bin: string, argv: string[]) => {
-    const pty = makeFakePty(argv);
+  spawn: vi.fn((bin: string, argv: string[]) => {
+    const pty = makeFakePty(bin, argv);
     spawnedPtys.push(pty);
     return pty;
   })
@@ -114,7 +126,13 @@ vi.mock('../../tmux/resolve', () => ({
     packaged: false,
     detail: '/usr/bin/false'
   }),
-  tmuxUnavailableError: () => new Error('no tmux')
+  tmuxUnavailableError: () => new Error('no tmux'),
+  // Phase 70: the host now reaches this module through ../attach-plan as well,
+  // which imports ../machines/context. These two names are what that module
+  // reads, and a mock that omits them fails at import time rather than in a
+  // test. Neither is called on any path this file drives.
+  activeTmuxSocket: () => 'gmux-attach-test',
+  assertConfUsable: () => undefined
 }));
 vi.mock('../../tmux/supervisor', () => ({ TMUX_SOCKET: 'gmux' }));
 vi.mock('../../tmux/env', () => ({
@@ -159,7 +177,14 @@ const { AttachHost } = await import('../attach-host');
 
 const SID = 'sess-1';
 
-function host(onExit?: (id: string, code: number, expected: boolean) => void) {
+function host(
+  onExit?: (
+    id: string,
+    code: number,
+    expected: boolean,
+    kind: MachineKind
+  ) => void
+) {
   return new AttachHost({
     tmuxBin: '/opt/fake/tmux',
     confPath: '/opt/fake/gmux-tmux.conf',
@@ -389,6 +414,115 @@ describe('AttachHost cleanup', () => {
 
     expect(sender.send).not.toHaveBeenCalled();
     expect(pty.kill).toHaveBeenCalledTimes(1);
+    expect(listenerCount(termInputChannel(SID))).toBe(0);
+    expect(listenerCount(termAckChannel(SID))).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 70. The second kind of client
+// ---------------------------------------------------------------------------
+
+const MACHINE: RemoteMachineContext = {
+  kind: 'remote',
+  machineId: 'popos',
+  sshBin: '/usr/bin/ssh',
+  host: 'pop-os.tail1a2b.ts.net',
+  user: 'greg',
+  port: 2222,
+  remoteTmuxPath: '/usr/bin/tmux',
+  socket: 'gmux-p70-unit',
+  controlPath: '/tmp/tortie-501/m-0123456789ab',
+  hostKeys: {
+    tortie: '/Users/x/Library/Application Support/Tortie/gmux/machines/known-machines',
+    user: '/Users/x/.ssh/known_hosts'
+  }
+};
+
+function attachRemote(
+  h: InstanceType<typeof AttachHost>,
+  sender: FakeSender
+): void {
+  h.attach({
+    sessionId: SID,
+    tmuxName: 'proj--one',
+    sender: sender as never,
+    machine: MACHINE
+  });
+}
+
+describe('AttachHost, a session on another machine', () => {
+  it('a request with no machine spawns the same program and argv it always did', () => {
+    attach(host(), makeSender());
+    const spawned = spawnedPtys[0]!;
+    expect(spawned.file).toBe('/opt/fake/tmux');
+    expect(spawned.argv).toEqual([
+      '-u',
+      '-L',
+      'gmux-attach-test',
+      '-f',
+      '/opt/fake/gmux-tmux.conf',
+      'attach-session',
+      '-t',
+      '=proj--one'
+    ]);
+  });
+
+  it('a request with a machine spawns the sign in program instead', () => {
+    attachRemote(host(), makeSender());
+    const spawned = spawnedPtys[0]!;
+    expect(spawned.file).toBe('/usr/bin/ssh');
+    // The whole tmux call travels as one quoted argument, which is the shape
+    // attach-plan.test.ts checks in full. Here it is enough that the client
+    // being run is ssh and that the machine is named.
+    expect(spawned.argv).toContain(MACHINE.host);
+    expect(spawned.argv[0]).toBe('-t');
+  });
+
+  it('an unexpected exit on a remote client says the kind was remote', () => {
+    // The contract with the session owner is one sentence: an unexpected exit
+    // with kind 'remote' means the LINK went, not that the session ended. The
+    // session on the other machine is untouched, its agent is still running,
+    // and its output is still being absorbed by that machine's own server.
+    const exits: Array<[string, number, boolean, MachineKind]> = [];
+    const sender = makeSender();
+    const h = host((id, code, expected, kind) =>
+      exits.push([id, code, expected, kind])
+    );
+    attachRemote(h, sender);
+
+    spawnedPtys[0]!.emitExit(255); // what ssh exits with when the link goes
+
+    expect(exits).toEqual([[SID, 255, false, 'remote']]);
+  });
+
+  it('an unexpected exit on a local client still says the kind was local', () => {
+    const exits: Array<[string, number, boolean, MachineKind]> = [];
+    const sender = makeSender();
+    const h = host((id, code, expected, kind) =>
+      exits.push([id, code, expected, kind])
+    );
+    attach(h, sender);
+
+    spawnedPtys[0]!.emitExit(1);
+
+    expect(exits).toEqual([[SID, 1, false, 'local']]);
+  });
+
+  it('detaching a remote client kills the client here and nothing over there', () => {
+    // Killing the pty sends SIGHUP to the ssh process on THIS Mac. That ends
+    // the terminal the other machine's tmux client was on, so that client
+    // detaches. Nothing is sent to the other machine's server, so the session
+    // and its agent keep running.
+    const sender = makeSender();
+    const h = host();
+    attachRemote(h, sender);
+    const pty = spawnedPtys[0]!;
+
+    h.detach(SID);
+
+    expect(pty.kill).toHaveBeenCalledTimes(1);
+    expect(spawnedPtys).toHaveLength(1); // nothing else was started
     expect(listenerCount(termInputChannel(SID))).toBe(0);
     expect(listenerCount(termAckChannel(SID))).toBe(0);
   });

@@ -89,6 +89,17 @@ import {
   remoteVerbsOf
 } from '../src/main/machines/exec-plane';
 import { remoteBootArgs } from '../src/main/machines/remote-server';
+// Phase 70, conditions 19 to 24. All four are pure. `attach-plan` is imported
+// DIRECTLY rather than through `../src/main/attach`, because that index also
+// exports the attach host and that file loads node-pty. This probe must load no
+// native module.
+import { attachPlan } from '../src/main/attach/attach-plan';
+import {
+  REMOTE_CREATE_FORMAT,
+  REMOTE_LIST_FIELDS,
+  REMOTE_LIST_FORMAT,
+  remoteCreateArgs
+} from '../src/main/machines/remote-sessions';
 import { SERVER_OPTIONS } from '../src/main/tmux/server-options';
 import { TESTED_REMOTE_TMUX_VERSIONS } from '../src/main/tmux/version';
 
@@ -449,6 +460,97 @@ function goldens(): {
 
 const golden = goldens();
 
+// ---------------------------------------------------------------------------
+// 9. Phase 70. The attach argv, the create argv, the list format and the
+//    containment rule
+// ---------------------------------------------------------------------------
+
+/**
+ * The eight vectors the LOCAL attach argv is compared on.
+ *
+ * They are the shapes a real name takes: a plain one, one with a space, one with
+ * a hyphen, one a caller already prefixed, a long one, a digit-only one, and the
+ * two that vary the server rather than the name.
+ */
+const ATTACH_LOCAL_VECTORS: readonly {
+  name: string;
+  bin: string;
+  socket: string;
+  confPath: string;
+}[] = [
+  { name: 'work', bin: '/opt/homebrew/bin/tmux', socket: PROBE_SOCKET, confPath: '/r/gmux-tmux.conf' },
+  { name: 'the zen of tortie', bin: '/opt/homebrew/bin/tmux', socket: PROBE_SOCKET, confPath: '/r/gmux-tmux.conf' },
+  { name: 'phase-70', bin: '/opt/homebrew/bin/tmux', socket: PROBE_SOCKET, confPath: '/r/gmux-tmux.conf' },
+  { name: '=already', bin: '/opt/homebrew/bin/tmux', socket: PROBE_SOCKET, confPath: '/r/gmux-tmux.conf' },
+  { name: 'work', bin: '/opt/homebrew/bin/tmux', socket: 'gmux-p70-other', confPath: '/r/gmux-tmux.conf' },
+  { name: 'work', bin: '/usr/local/bin/tmux', socket: PROBE_SOCKET, confPath: '/another/place/gmux-tmux.conf' },
+  { name: 'a'.repeat(180), bin: '/opt/homebrew/bin/tmux', socket: PROBE_SOCKET, confPath: '/r/gmux-tmux.conf' },
+  { name: '12345', bin: '/opt/homebrew/bin/tmux', socket: PROBE_SOCKET, confPath: '/r/gmux-tmux.conf' }
+];
+
+/**
+ * The golden local attach argv, being what `attach-host.ts` composed inline at
+ * `b660df9`.
+ *
+ * It is written out here rather than imported, ON PURPOSE, for the same reason
+ * the local tmux golden above is: importing the current implementation and
+ * comparing it against itself would pass whatever the implementation did.
+ */
+const attachLocalRows = ATTACH_LOCAL_VECTORS.map((vector) => {
+  const plan = attachPlan({
+    kind: 'local',
+    bin: vector.bin,
+    socket: vector.socket,
+    confPath: vector.confPath,
+    tmuxName: vector.name
+  });
+  const want = [
+    '-u',
+    '-L',
+    vector.socket,
+    '-f',
+    vector.confPath,
+    'attach-session',
+    '-t',
+    `=${vector.name}`
+  ];
+  return {
+    name: vector.name.length > 24 ? `${vector.name.slice(0, 21)}...` : vector.name,
+    file: plan.file,
+    wantFile: vector.bin,
+    got: [...plan.argv],
+    want,
+    equal:
+      plan.file === vector.bin &&
+      JSON.stringify([...plan.argv]) === JSON.stringify(want)
+  };
+});
+
+const attachRemotePlan = attachPlan({
+  kind: 'remote',
+  ctx: REMOTE_CTX,
+  tmuxName: '$4'
+});
+
+/** The remote create argv, composed against a shape rather than a machine. */
+const remoteCreateArgv = remoteCreateArgs({
+  tmuxName: 'work',
+  cwd: '/srv/repo',
+  sessionId: '0d1f6f2e-70a1-4a1c-9f2f-5c0b1a2d3e4f',
+  argv: ['claude', '--model', 'opus']
+});
+
+/**
+ * Every production file under `src/main/machines/` that names node-pty, and
+ * every one that imports anything under `src/main/attach/`.
+ *
+ * Phase 69 found that reading one constant across this boundary put node-pty
+ * into the import graph of the manifest store, and `contract-inventory --check`
+ * crashed because its scratch bundle could not load `pty.node`. This rung adds a
+ * remote attach, so it is exactly the rung that can undo that.
+ */
+const attachFiles = productionFiles(join(repoRoot, 'src', 'main', 'attach'));
+
 const files = productionFiles(machinesDir);
 const wholeTree = (() => {
   const collected: string[] = [];
@@ -539,6 +641,39 @@ process.stdout.write(
     ),
     remoteVersions: remoteList,
     goldenFiles: golden.present,
-    goldenManifest: golden.manifest
+    goldenManifest: golden.manifest,
+
+    // --- Phase 70, conditions 19 to 24 -------------------------------------
+    attachLocalRows,
+    attachRemoteFile: attachRemotePlan.file,
+    attachRemoteArgv: [...attachRemotePlan.argv],
+    attachRemoteSshBin: REMOTE_CTX.sshBin,
+    attachRemoteProgram: REMOTE_CTX.remoteTmuxPath,
+    remoteCreateArgv,
+    remoteCreateFormat: REMOTE_CREATE_FORMAT,
+    remoteListFormat: REMOTE_LIST_FORMAT,
+    remoteListFields: REMOTE_LIST_FIELDS,
+    remoteListFreeForm: [
+      '#{q:session_name}',
+      '#{q:@gmux-project}',
+      '#{q:session_path}',
+      '#{q:@gmux-name}'
+    ],
+    // The one file allowed to name node-pty under src/main/machines/.
+    ptyOwnerFile: 'src/main/machines/connection-test.ts',
+    // The QUOTED name, so a line of prose naming the module in backticks is not
+    // read as an import. What matters is which files load the binding, and a
+    // module specifier is always quoted.
+    machinePtyMentions: mentions(files, "'node-pty'"),
+    machineAttachImports: mentions(files, "from '../attach"),
+    attachFiles: attachFiles.map((f) => f.slice(repoRoot.length + 1)),
+    attachPtyMentions: mentions(attachFiles, "'node-pty'"),
+    attachPlanSource: readFileSync(
+      join(repoRoot, 'src', 'main', 'attach', 'attach-plan.ts'),
+      'utf8'
+    )
+      .split('\n')
+      .filter((line) => /^\s*import\b/.test(line) || /^\s*}\s*from\s*'/.test(line))
+      .map((line) => line.trim())
   })
 );

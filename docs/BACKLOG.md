@@ -5568,8 +5568,8 @@ matrix on a real tailnet machine, are recorded as owed and run only when he is p
 | 67 | M0 | ✅ SHIPPED 2026-08-17 (95aa770, 0.31.2, gates green), section below. `unknown` gets its producer at a per-machine reconcile boundary; restore and input refused while unreachable; the machine-level Unreachable presentation. Fixes the live LOCAL defect where refresh() flips every non-exited row to restorable on TMUX_UNREACHABLE. The local socket adopts the boundary immediately, decided per the operator's standing autonomy preference, because the local bug IS the point | 3 |
 | 68 | M1 | ✅ SHIPPED 2026-08-17 (this commit, 0.32.0, gates green), section below. machines.json behind the confirm gate and seal, conformance:machines, the Settings surface, the tailscale picker from a pinned absolute path, the one visible connection test | 2 plus the gate |
 | 69 | M2 | ✅ SHIPPED 2026-08-17 (4c86bea, 0.33.0, gates green), section below. MachineContext replaces the singleton; the exec plane over ssh with at-least-once discipline; remote server boot with -f /dev/null plus BOOT_SERVER_OPTIONS asserted; PATH capture ordered before first mutation; the version probe and refusal screen with remedy; error taxonomy golden files; keepalives from measurement. The dialect posture is a TESTED LIST that starts from locally measured versions and fails closed, so an unmeasured version is refused with the upgrade remedy, and his four machines join the list after the measurement he attends | 3 |
-| 70 | M3 | Attach over ssh -t in node-pty; create, kill and rename remote; the machine badge; session list by exec polling; restore REFUSED for every remote row with a visible coming label; the vocabulary audit. First visible operator value | 3 |
-| 71 | M4 | The control plane per machine replaces polling; per-machine reconcile; the machine_id migration; the section 4.4 case table live; pane-env rescue over the exec plane; the partition harness in the spirit of smoke:fault, driven by killing the scratch sshd mid-flight | 3 |
+| 70 | M3 | ✅ SHIPPED 2026-08-17 (this commit, 0.34.0, gates green), section below. Attach over ssh -t in node-pty; create, kill and rename remote; the machine badge; session list by exec polling; restore REFUSED for every remote row with a visible coming label; the vocabulary audit. First visible operator value | 3 |
+| 71 | M4 | The control plane per machine replaces polling; per-machine reconcile; the machine_id migration; the section 4.4 case table live; pane-env rescue over the exec plane; the partition harness in the spirit of smoke:fault, driven by killing the scratch sshd mid-flight. **Plus the hole Phase 70's verifier measured and Phase 70 did not close.** A confirmed machine that does not answer when Tortie starts shows nothing at all in the main window. A row exists only after a poll, a poll starts only after a prepare, and a machine that is asleep never prepares, so the person is not told that the machine exists, that it did not answer, or that their sessions there are untouched. The per-machine reconcile is where a row that survives a launch comes from, so the fix belongs here | 3 |
 | 72 | M5 | Remote restore enabled behind the fault matrix; per-machine argv capture; capsule replay; provenance-gated resume arming; the forget-machine tombstone. The ten-row matrix runs green against the scratch sshd overnight, and the real-tailnet repetition is OWED and recorded before any release enables remote restore | 3 |
 | 73 | M6 | Connected-only harvest polling; the remote env value probe with the traced byte path; image upload; the read-only remote review answer through existing diff surfaces; and the conversation-continuity groundwork from the ladder note, being connected-time read-only sync of agent-native stores with the promise stated as last-sync staleness. Cross-machine reconstruction into target agents lands here if provable against the scratch sshd, else it is recorded as Phase 74 | 3 |
 
@@ -5809,6 +5809,9 @@ blocks a rung. This round runs after 73, or earlier if the operator asks for it.
 | 68 | Three probe screenshots driven through the bridge rather than the controls are byte identical, md5 `9267afdf432e8a93225941ef047651a7`, so their captions claim more than the images show |
 | 69 | The prepared block states the same fact twice on one screen, once in main's sentence and once in the honesty line under it. It is honest and repetitive, and it was left as it is |
 | 67 | The same outage sentence prints twice on one screen, in the condition bar and in the pane overlay, about six hundred pixels apart. Neither surface is wrong alone, so the round that fixes it must decide which one owns the message |
+| 70 | The two outage surfaces now say different amounts. Phase 70 added the machine's own label to the condition bar and left the pane overlay alone, so the bar names the machine and the overlay still says a machine. The round that decides which surface owns the message decides this at the same time |
+| 70 | The quiet badge's sentence, naming the machine that did not answer, is in the badge's title and its aria-label and in no visible text. A verifier read the quiet screen's body text and found it 0 times. A person who does not hover reads the generic bar sentence and never the machine specific one. It is a deliberate tooltip and it is recorded here rather than called wrong |
+| 70 | Nothing refuses a machine whose address resolves back to this Mac. In every probe the far side IS this Mac, and `sessions.list()` returned the one local session twice, once from the manifest with no machine and once from the remote poll carrying the machine. It cannot happen in production, because a machine's own tmux server never holds this Mac's session ids, and it would happen to a person who added their own Mac as a machine |
 | 46.1 | At the 220 px minimum sidebar the commit subject squeezes to about one character and an ellipsis |
 | 46.1 | On the hover card a failed jobs read is indistinguishable from a run that was never expanded |
 | 46.1 | The hover card closes on the runs body's own scroll only, so an outer container scrolling moves the rows without closing it. The History card behaves the same way |
@@ -5860,6 +5863,200 @@ shows that same line even though the expanded row itself still shows its error. 
 the runs body's own scroll only, so an outer container scrolling would move the rows without
 closing it, which is the History card's behavior too. HistorySection still runs its own inline
 copy of the hover timers, so hover-timing.ts has exactly one consumer until a later consolidation.
+
+## Phase 70 — a session runs on another machine, and a person types into it (research 51, M3) ✅ SHIPPED 2026-08-17 (0.34.0, gates green)
+
+The M3 rung of the remote ladder, and the first one a person can see. Phase 69 gave Tortie a way to
+run one tmux command on another machine and read its answer. This rung uses that to start a session
+there, to list what is there, to rename it and to end it, and it opens a real terminal on it. The
+terminal is one ssh client on this Mac carrying one tmux client on the other machine. Nothing of
+Tortie's is installed on that machine, and nothing about a session that lives there is written on
+this Mac.
+
+**What shipped, in six parts.**
+
+1. Attach over ssh, in the terminal a person already uses. `src/main/attach/attach-plan.ts` is a new
+module that composes the program and the argument list for both kinds of machine and starts nothing.
+The local shape is byte for byte what the attach host composed inline at `b660df9`, and the gate
+proves that across eight session names. The remote shape is
+`ssh -t <the nine carriage options> <host> '<that machine's tmux> -L <socket> -f /dev/null -u
+attach-session -t =<name>'`. It carries one flag more than the ATTACH row in research 51 section 4.1
+shows, being `-f /dev/null`, so that a verb which creates a server by accident cannot make one that
+reads that machine's own configuration file. The `=` before the name is an exact match, because a
+bare name matches on a prefix and a prefix match on another machine would stream a stranger's
+session into the person's tab.
+2. Create, kill and rename on a machine, over the Phase 69 exec plane. The verb ledger grew by
+three, being `new-session`, `kill-session` and `rename-session`, each with the reason running it
+twice is safe written into the row. Identity rides on the `new-session` line itself as pane
+environment, so a create whose answer was lost still leaves a session Tortie can recognise. Kill and
+rename are refused unless the target is a row Tortie read from that machine's own list, and the
+refusal says so. `kill-server`, `attach-session`, `send-keys` and `respawn-pane` are still absent
+from the ledger and the gate fails if any of them appears.
+3. The list, by asking that machine every 5 seconds while the window is in front and every 30
+seconds when it is not. One format string carries ten fields, every one wrapped in tmux's own
+quoting and separated by a single space. Research 51 section 4.3 describes a tab separated format,
+and tabs were measured to come back as underscores over a connection with no locale, which is Bug C
+from Phase 9.2 in a new place. The format also carries one field more than that section lists, being
+the name the far side actually holds, because picking a new name that does not collide needs it.
+4. The machine badge, in the machine's own label and colour, on four surfaces and no others, being
+the session dock row, the rail hover card, the identity strip and the tab. A session on this Mac
+draws no badge at all. A badge dims when the last completed check of that machine got no answer, and
+its sentence then says the machine did not answer. It never says the session ended, because nothing
+proved that.
+5. Restore, refused in two places. Main refuses the verb for any remote row and names the reason.
+The renderer removes Restore and Restart from the menu for such a row and draws a label saying that
+bringing a session back on another machine is coming in a later release. Both refusals are pinned in
+the shipped bundle by `build/assert-bundle-refusals.mjs`, which is why the machine refusal count
+moved from 10 to 12.
+6. The vocabulary audit, as a test that reads the copy. It strips comments, imports and module
+paths, takes every remaining string from the machine copy module and the four surfaces that draw it,
+and fails on a word from the transport layer. It cannot judge a sentence, so a person still read
+every changed string by eye, and this section is where that reading is recorded.
+
+**What a person can now do.** Create a session on a machine they confirmed once, type into it, watch
+it in the list, rename it and end it. Quit Tortie and start it again, and the session is still
+running on that machine with its name, its agent and its project tab, because all four of those are
+stamped on the far side and nothing had to be restored. What they cannot do is bring a remote
+session back after it ends, and the app says so where the verb would have been.
+
+**What the live probe measured**, `node build/probe-remote-attach.mjs`, thirteen steps, all green,
+against a real `/usr/sbin/sshd` on 127.0.0.1 on a high port with keys generated in the run's own
+directory. The composed attach argument list was 29 arguments with 9 of 9 carriage options present.
+The first bytes from the other machine arrived 31 ms after the spawn, 559 of them. A command typed
+here ran there and its output came back in 751 ms. The far side reported 1 client attached. A resize
+to 100 by 30 was read back from that machine as 100 by 30. Killing the client on this Mac ended the
+terminal here 21 ms later with exit 0, and that machine still listed the session with the marker
+still in its scrollback. Attaching again redrew the marker 20 ms later in 848 bytes. Freezing three
+processes on the far side ended the terminal here after 20.0 s with exit 255, against the 19.3 s
+Phase 69 measured for the same keepalive pair on the exec plane. After the far side was resumed the
+session was still listed and a fresh attach redrew the marker in 20 ms. The operator's own server was
+read before and after and both reads were identical, being 28 sessions, `history-limit` 25000 and
+`exit-empty` off.
+
+**What the shipped bundle proved**, `npm run smoke:remote`, eleven steps, all green, inside a real
+Electron process against the built bundle. A machine nobody confirmed refuses Create and starts no
+ssh process. A machine whose details moved after the confirmation refuses Create the same way.
+Writing and re-reading the machines file started 0 processes, which is refusal 8 measured rather
+than asserted. A machine reporting version `0.0-p69-made-up` refuses Create, and the refusal names
+the versions Tortie has measured, being 3.6a and 3.7b. A create on a confirmed and measured machine
+landed, and all four stamps plus both pane environment variables read back byte for byte from the
+far side. The poll reported 1 row of Tortie's and 0 that are not, and its projection carried the
+name, the agent, the folder and the machine. A rename landed on the far side and the name stamp
+moved with it. A kill aimed at a session no list reported was refused and sent nothing. The bound
+kill removed the session from the machine. Restore on the ended row was refused. After the whole
+create, rename and kill there were 0 database files in the profile, which is the no-manifest promise
+counted in bytes rather than in writes. The operator's own server held 28 sessions before the run
+and 28 after.
+
+**Phase 69's plane is unchanged, and two of the three things that made its gate unrepeatable are
+fixed.** The confirmation sealed in step 2 used to stay in the harness root, so an unconfirmed
+machine was already confirmed on the next run, and the scratch tmux server used to stay up, so a step
+that measures a server being born found one already there. The harness now drops its own
+confirmations before step 1, and `build/harness-socket.mjs` grew a `--fresh` flag that ends the
+server on that socket before the harness as well as after. The flag refuses the socket names `gmux`
+and `default` the same way the rest of that script does, so it reaches nothing new.
+`npm run smoke:remote` runs through the same wrapper for the same reason. The third piece of state is
+still not cleared, and the committer met it. `build/probe-execplane.mjs` writes `p69-carriage.json`
+into the harness root and leaves a scratch sshd running for the harness to use. When that sshd is
+gone and the file is not, the harness reads a dead port and fails at step 3, with `ssh-keyscan`
+reporting a refused connection. There are two ways round it. Run `npm run probe:execplane` first,
+which writes a fresh file and leaves a live sshd, or delete the harness root, which makes the harness
+skip the steps that need a machine and say on screen that it skipped them. The committer ran the
+probe first and got 9 of 9. Clearing a stale carriage file on its own belongs to Phase 71.
+
+**Gates, from the committer's own runs on the committed tree.** `typecheck` read 682 production files
+and 3589 imports with 0 boundary violations. `build` finished in 20.9 s. `test` ran 327 files and
+4828 tests with 23 skipped and 0 failures, so no flake had to be dismissed. `smoke:t1` passed 5 of 5
+and then 6 of 6, with 679 bytes on the re-attach. `smoke:t3` restored a claude session and a pi
+session, each with its replayed scrollback and its armed, unexecuted resume line.
+`assert-bundle-refusals` counted 12 machine refusals in the bundle. `contract-inventory --check`
+matched the baseline byte for byte. `conformance-machines` and `conformance:agents` both passed.
+`probe:execplane` passed 18 steps, `smoke:execplane` passed 9 of 9 and `smoke:remote` passed 11 of
+11, all against a scratch sshd on 127.0.0.1 on a high port. The seven test files this rung adds or
+grows hold 116 tests. The conformance gate grew by six conditions, covering the local attach argument
+list against `b660df9`, the shape of a remote attach, the three new ledger verbs and the four that
+must stay off it, the shape of a remote create, the list format, and the import rule. The import rule
+is narrower than an earlier draft of this paragraph claimed, and the exact wording matters because it
+is the rule that keeps a native binding out of the manifest's reach. Condition 24 fails when a
+production file under `src/main/machines/` names node-pty and is not `connection-test.ts`, when any
+file under `src/main/machines/` imports anything under `src/main/attach/`, when `attach-plan.ts`
+imports outside its allowed list, or when a second file under `src/main/attach/` names node-pty. So
+`connection-test.ts` is a permitted exception rather than a violation, and exactly two production
+files may name node-pty at all.
+
+**Two contract lines were added and the baseline was re-based in this commit.** The harness smoke
+mode `remote-sessions` is the Electron harness above, and the count of modes moved from 22 to 23.
+The machine refusal count moved from 10 to 12, for `machine.restore-refused` and
+`machine.remote-target-unbound`, so a later rollup cannot delete a refusal that production reaches
+rarely. No IPC channel, no `gmux.*` key and no `GMUX_*` environment name was added.
+
+**What is not true.**
+
+A machine that does not answer when Tortie starts shows nothing at all in the main window. This is
+the one product hole the verifier found, and it was measured rather than reasoned about. The scratch
+sshd was killed between two launches, and at the next launch the sign-in got a result that was not
+`prepared`, marked the machine quiet and moved on, so no poll ever started and no row ever existed.
+The condition bar keys off rows whose status is unknown, and with no rows it drew nothing. A person
+who quits Tortie with an agent running on a machine and starts it again while that machine is asleep
+is told nothing, not that the machine exists, not that it did not answer, and not that their sessions
+there are untouched. The machine's row is still in Settings and then Machines, and pressing Prepare
+there says what happened, so the fact is reachable and it is not on the screen the person is looking
+at. The same machine going quiet WHILE Tortie runs behaves correctly, and that was proved separately.
+The fix belongs to Phase 71, because a row that survives a launch is what the per-machine reconcile
+produces, and it is recorded on that row of the ladder.
+
+The version gate refuses create and attach through one function, `readyRemoteContext`, and only the
+create half was driven live with its exact sentence read. The attach half cannot be driven in this
+rung. Attach reaches that gate only after a row comes from a poll, a poll starts only after a
+machine prepares, and a machine on an unmeasured version never prepares, so there is no row to
+attach to. The refusal is one function shared by both paths and the test suite covers it, and the
+live measurement is of create alone.
+
+No machine of the operator's was contacted. Every measurement here is against a scratch sshd on
+127.0.0.1, and his four machines are still refused because nobody has measured their tmux versions.
+
+The 5 second and 30 second poll intervals were chosen rather than measured, and the create sheet
+says so to the person. Nobody has measured what they cost over a tailnet with real packet loss.
+
+The 20.0 s to notice a frozen link was measured on loopback against a stopped far side. That
+reproduces a hung pipe and says nothing about roaming or real packet loss, so research 51 section 7
+question 3 stays open. Interactive attach latency over a real tailnet is unmeasured, which is
+question 7 and it stays open too.
+
+A remote row's status is `running` or `idle`, read from one field, `#{session_activity}`. It is
+evidence that the session printed something. It is not the local attention verdict and no remote row
+ever says `needs input`, which is question 5 and is why the create sheet says Tortie cannot yet tell
+a person when a session on another machine is waiting for them.
+
+A remote session that ends while Tortie is not running leaves no trace on this Mac. Past Sessions
+never holds a remote row. There is no saved scrollback, no resume command, no launch snapshot, no
+install map, no SpecStory capture and no image drop for a remote session. Restore is refused for
+every remote row and no date is attached to when it arrives.
+
+Nothing refuses a machine whose address resolves back to this Mac. In every probe the far side is
+this Mac on a scratch socket, so the machine's tmux server is also the server holding the local
+session, and `sessions.list()` returned that one session twice, once from the manifest with no
+machine and once from the poll carrying the machine. It cannot happen in production, because a
+machine's own tmux server never holds this Mac's session ids. It would happen to a person who added
+their own Mac as a machine, and it is on the 73.1 list.
+
+The quiet badge's sentence, which names the machine that did not answer, is in the badge's title and
+its aria-label and in no visible text. A person who does not hover reads the generic bar sentence and
+never the machine specific one.
+
+The vocabulary audit found one word a person could read two ways, and it was kept on purpose. The
+poll honesty line in `src/renderer/app/machine-copy.ts` says "while this window is in front", and
+`window` there means the application window and not a tmux window. The shipped Home screen already
+says "Drop a folder anywhere in this window to open it.", so the word already carries that meaning in
+this product. Every other string was read by eye and no transport word reached one.
+
+The screenshot set was driven and read by the verifier rather than by the fix round, so the screen
+evidence in this section is what they reported, and the numbers above are from the committer's own
+runs of the probe, the harnesses and the gates.
+
+No control plane, no per-machine reconcile, no `machine_id` column, no pane environment rescue, no
+partition harness, no remote restore, no capsule replay and no harvest landed here. Those are
+Phases 71 and 72, and the verb ledger refuses most of them in code rather than in prose.
 
 ## Phase 69 — the exec plane speaks to a machine's own tmux (research 51, M2) ✅ SHIPPED 2026-08-17 (4c86bea, 0.33.0, gates green)
 

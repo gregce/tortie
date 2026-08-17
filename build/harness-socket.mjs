@@ -16,7 +16,13 @@
  * The exit code of the command is the exit code of this script, so a failing
  * harness still fails the build after its server has been cleaned up.
  *
- * Usage: node build/harness-socket.mjs <socket-name> '<shell command>'
+ * `--fresh` ends the server on that socket BEFORE the harness runs as well as
+ * after (Phase 70 fix round). A harness that measures "a server was born on
+ * this machine" cannot measure it twice if a run that crashed, or a run whose
+ * process was killed, left one behind. The teardown is the same function and it
+ * refuses the same two socket names, so the flag adds no reach.
+ *
+ * Usage: node build/harness-socket.mjs [--fresh] <socket-name> '<shell command>'
  */
 
 import { execFile, spawn } from 'node:child_process';
@@ -35,9 +41,13 @@ function refuse(why) {
   process.exit(2);
 }
 
-const [socket, command] = process.argv.slice(2);
+const args = process.argv.slice(2);
+const fresh = args[0] === '--fresh';
+const [socket, command] = fresh ? args.slice(1) : args;
 if (!socket || !command) {
-  refuse("usage: node build/harness-socket.mjs <socket-name> '<command>'");
+  refuse(
+    "usage: node build/harness-socket.mjs [--fresh] <socket-name> '<command>'"
+  );
 }
 if (socket === REAL_SOCKET) {
   refuse(`refusing to run a harness on "${socket}", the real server`);
@@ -55,7 +65,7 @@ if (!/^gmux-[A-Za-z0-9._-]+$/.test(socket)) {
  * The path is read out of tmux rather than guessed. tmux puts its sockets under
  * $TMUX_TMPDIR or /tmp, never under the TMPDIR Node reports on macOS.
  */
-async function teardown() {
+async function teardown(when) {
   const path = await execFileP('tmux', [
     '-L',
     socket,
@@ -68,8 +78,14 @@ async function teardown() {
   if (path === '') return; // no server on this socket, nothing to end
   await execFileP('tmux', ['-L', socket, 'kill-server']).catch(() => undefined);
   if (path.endsWith(`/${socket}`)) rmSync(path, { force: true });
-  console.log(`[harness-socket] ended the scratch server on -L ${socket}`);
+  console.log(
+    `[harness-socket] ended the scratch server on -L ${socket} (${when})`
+  );
 }
+
+// `--fresh` runs the same teardown first, so a server an earlier run left
+// behind cannot be mistaken for the one this run creates.
+if (fresh) await teardown('before the harness');
 
 const child = spawn(command, {
   shell: true,
@@ -95,7 +111,7 @@ hintTimer.unref();
 
 child.on('close', (code, signal) => {
   clearTimeout(hintTimer);
-  void teardown().finally(() => {
+  void teardown('after the harness').finally(() => {
     process.exit(signal ? 1 : (code ?? 1));
   });
 });

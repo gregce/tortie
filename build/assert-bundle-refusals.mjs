@@ -406,9 +406,13 @@ const CONFIG_REFUSALS = [
  * that made the config gate necessary makes this one necessary and then some:
  * Tortie runs many agent processes at once under one account, several of them
  * deliberately launchable with their safeguards off, and all of them can write
- * to the home directory. If one of these six sentences disappears, a file an
+ * to the home directory. If one of these sentences disappears, a file an
  * agent can write decides which computer Tortie reaches, and the confirmation a
  * person gave becomes a formality.
+ *
+ * PHASE 70 raised the count from ten to twelve, and the two it added are about
+ * the sessions rather than the gate: one refuses a restore Tortie cannot do, and
+ * one refuses a command aimed at a session no list from that machine reported.
  *
  * They are not folded into CONFIG_REFUSALS because that number is quoted in the
  * Phase 23 records as the count of the configured-agent gate's refusals, and
@@ -531,6 +535,43 @@ const MACHINE_REFUSALS = [
       'Tortie will not start work on a machine before it has read the list of ',
       'places that machine looks for programs. Without that list the wrong copy of ',
       'a program can run, or none at all. Nothing was started.'
+    ]
+  },
+  // ---------------------------------------------------------------------------
+  // Phase 70 added these two, and both stand in front of a person's work
+  // ---------------------------------------------------------------------------
+  //
+  // The first is what stops Tortie promising a restore it cannot do. The second
+  // is what stops Tortie ending a session on somebody else's machine. Neither is
+  // reached often in production, which is exactly the case a bundler folds away
+  // and exactly the case this file exists for.
+  // `src/main/machines/remote-smoke.ts` is the second caller and it watches both
+  // fire.
+  {
+    id: 'machine.restore-refused',
+    source: 'src/main/machines/remote-copy.ts',
+    why:
+      'a session on another machine has no manifest row, no saved scrollback ' +
+      'and no resume command in this release, so there is nothing to bring ' +
+      'back. Without this sentence a person would press Restore and get either ' +
+      'silence or a second session started from nothing',
+    fragments: [
+      'Tortie will not bring back a session that lives on another machine. That ',
+      'is coming in a later release. Nothing was started.'
+    ]
+  },
+  {
+    id: 'machine.remote-target-unbound',
+    source: 'src/main/machines/remote-copy.ts',
+    why:
+      'a kill or a rename is composed only against an identifier a completed ' +
+      'list from that machine reported. Without this refusal a session name ' +
+      'that happens to match would be enough to end work on a machine Tortie ' +
+      'never read that session from',
+    fragments: [
+      'Tortie will not send that command, because it has not seen this session in ',
+      'a list from that machine. Acting on a session it cannot account for is how ',
+      'work on somebody else’s machine gets ended. Nothing was sent.'
     ]
   },
   {

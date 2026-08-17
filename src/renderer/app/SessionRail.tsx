@@ -26,7 +26,7 @@
 
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { Session } from '@shared/types';
+import type { Session, SessionMachine } from '@shared/types';
 import { effectiveStatusOf, useApp } from '../state/store';
 import { useLayout } from '../state/layout';
 import type { Surface } from '../state/layout';
@@ -36,6 +36,7 @@ import { sessionAriaLabel, sessionTooltip } from './session-actions';
 import { groupTooltip } from './split/split-menu';
 import { pressBlocksSurfaceDrag, startSurfaceDrag } from './split/surface-dnd';
 import { DockIndicator } from './DockIndicator';
+import { MachineBadge } from './MachineBadge';
 import { AgentIcon, Codicon } from '../icons';
 import './session-rail.css';
 
@@ -64,6 +65,14 @@ interface CardSpec {
   detail: string;
   /** The resume sentence, when this session has one. Quiet, and last. */
   note: string;
+  /**
+   * The machine this session runs on, when it is not this Mac (Phase 70).
+   *
+   * The rail is 48px wide and shows no names at all, so the card is the only
+   * place a collapsed dock can say where a session runs. Undefined for every
+   * session on this Mac, and the card then draws exactly what it drew before.
+   */
+  machine?: SessionMachine;
 }
 
 function RailCard({ spec }: { spec: CardSpec }): React.JSX.Element {
@@ -80,7 +89,9 @@ function RailCard({ spec }: { spec: CardSpec }): React.JSX.Element {
     const desired = spec.anchorY - h / 2;
     const max = window.innerHeight - h - VIEWPORT_MARGIN;
     setTop(Math.round(Math.min(Math.max(desired, VIEWPORT_MARGIN), Math.max(VIEWPORT_MARGIN, max))));
-  }, [spec.anchorY, spec.title, spec.detail, spec.note]);
+    // The badge is a fourth line, so its arrival changes the height the
+    // centring is computed from.
+  }, [spec.anchorY, spec.title, spec.detail, spec.note, spec.machine?.label]);
 
   return createPortal(
     <div
@@ -98,6 +109,13 @@ function RailCard({ spec }: { spec: CardSpec }): React.JSX.Element {
           it explains. Never truncated: it is a promise about the user's work,
           and half of that sentence is worse than none of it. */}
       {spec.note === '' ? null : <div className="rail-card-note">{spec.note}</div>}
+      {/* Phase 70. Its own line, because the detail line above is the status
+          glance and the machine is not a status. */}
+      {spec.machine === undefined ? null : (
+        <div>
+          <MachineBadge machine={spec.machine} className="rail-card-machine" />
+        </div>
+      )}
     </div>,
     document.body
   );
@@ -364,7 +382,13 @@ export function SessionRail({
               selected={selected}
               attention={status === 'needs_input'}
               label={sessionAriaLabel(session, visual)}
-              card={{ title: session.name, ...bodyOf(session.name, tooltip) }}
+              card={{
+                title: session.name,
+                ...bodyOf(session.name, tooltip),
+                ...(session.machine !== undefined
+                  ? { machine: session.machine }
+                  : {})
+              }}
               glyph={<AgentIcon agent={session.agent} size={16} />}
               dot={visual.dot}
               onActivate={() => setActiveSession(session.id)}

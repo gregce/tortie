@@ -20,7 +20,13 @@
  *     shorter copy, so adding a member without updating the copy compiled
  *     cleanly and silently degraded every row carrying it. Both unions are
  *     byte-identical to what they were.
+ *
+ * PHASE 70 added the one import this file has. `./machines` imports nothing at
+ * all, so naming `MachineColor` here creates no cycle and pulls no code into
+ * any bundle that did not already carry it.
  */
+
+import type { MachineColor } from './machines';
 
 /** Which agent (if any) a session runs. Plain shells are first-class. */
 export type AgentKind = 'claude' | 'codex' | 'shell';
@@ -264,6 +270,29 @@ export interface Session {
    * "removed Aug 12". Absent on every live row.
    */
   removedAt?: number;
+  /**
+   * APPENDED (Phase 70): the machine this session runs on, when it is not
+   * this Mac. Absent means it runs here. See {@link SessionMachine}.
+   */
+  machine?: SessionMachine;
+}
+
+/**
+ * The machine this session runs on, when it is not this Mac (Phase 70).
+ *
+ * Absent means the session runs here, which is every session Tortie has ever
+ * held before this release. It carries the label and the colour rather than
+ * only the id, because the badge has to draw them and the main renderer holds
+ * no machine list of its own.
+ */
+export interface SessionMachine {
+  /** The machine row's id. */
+  id: string;
+  /** The row's label, or its address when it has none. */
+  label: string;
+  color: MachineColor;
+  /** False when the last completed check of that machine did not answer. */
+  answering: boolean;
 }
 
 /**
@@ -351,6 +380,15 @@ export interface CreateSessionInput {
    * permission.
    */
   startAnyway?: boolean;
+  /**
+   * APPENDED (Phase 70): create this session on another machine.
+   *
+   * Omitted, or the string 'local', means this Mac, which is every create
+   * before this release. Any other value names a row in machines.json, and the
+   * create refuses unless that row is confirmed and its version is one Tortie
+   * has measured.
+   */
+  machineId?: string;
 }
 
 export interface RenameSessionInput {

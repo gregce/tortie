@@ -122,6 +122,17 @@ export interface SessionsSlice {
      * here.
      */
     startAnyway?: boolean;
+    /**
+     * PHASE 70: create this session on another machine. Omitted means this
+     * Mac, which is every create before this release.
+     *
+     * A named field for the same reason `capture` and `startAnyway` are named
+     * ones: an object spread bypasses TypeScript's excess-property check, so a
+     * field the store did not declare would be accepted at the call site and
+     * dropped in silence here. Dropping this one would create the session on
+     * this Mac while the sheet said it was creating it somewhere else.
+     */
+    machineId?: string;
   }): Promise<boolean>;
   /** §6.2 one-click create. Widened with createSession (Phase 12): the
    *  no-sessions fleet launches ANY launchable registry agent, not the trio. */
@@ -374,7 +385,8 @@ export const createSessionsSlice: StateCreator<
       cwd,
       extraArgs,
       capture,
-      startAnyway
+      startAnyway,
+      machineId
     }) {
       const project = get().activeProject();
       if (!gmux || !project) return false;
@@ -406,7 +418,14 @@ export const createSessionsSlice: StateCreator<
         ...(capture === true ? { capture: true } : {}),
         // Phase 48. Same rule: absent is every create that has not been
         // refused by the preflight, and main reads exactly `=== true`.
-        ...(startAnyway === true ? { startAnyway: true } : {})
+        ...(startAnyway === true ? { startAnyway: true } : {}),
+        // Phase 70. Same rule again: absent is this Mac. Main refuses the id
+        // unless that machine is confirmed and its version is one Tortie has
+        // measured, so this field can ask for a machine and can never grant
+        // one.
+        ...(machineId !== undefined && machineId !== 'local'
+          ? { machineId }
+          : {})
       });
       get().setActiveSession(session.id);
       return true;

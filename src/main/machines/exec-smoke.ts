@@ -48,6 +48,7 @@ import {
   MACHINE_CONFIRM_ACKNOWLEDGEMENT,
   confirmMachine,
   describeMachine,
+  forgetMachine,
   type MachineExecutionFields
 } from './confirm';
 import {
@@ -198,6 +199,17 @@ export async function runExecPlaneSmoke(): Promise<void> {
     const sshBefore = sshChildCount();
     log(`ssh children before anything: ${String(sshBefore)}`);
 
+    // This harness reuses its config root between runs, because that is where
+    // `build/probe-execplane.mjs` leaves the scratch sshd's port and key. Step 2
+    // confirms `execplane` and that confirmation is sealed into the same root,
+    // so a second run would arrive with the machine already confirmed and step 1
+    // could not refuse anything. The Phase 70 verifier hit exactly that and read
+    // it as a Phase 70 defect. Drop both confirmations first, so every run starts
+    // from a machine nobody has agreed to.
+    forgetMachine(ID);
+    forgetMachine(STUB_ID);
+    log('the confirmations from any earlier run were dropped');
+
     // --- 1. An unconfirmed machine refuses Prepare, and nothing spawns -------
     const unconfirmed = await prepareMachine({
       machineId: ID,
@@ -333,11 +345,18 @@ export async function runExecPlaneSmoke(): Promise<void> {
     }
 
     // --- 5. The verb ledger refusal, from the bundle -------------------------
+    //
+    // PHASE 70 changed the verb this step drives, and the reason is the whole
+    // point of the ledger. It used to drive `new-session`, which was refused
+    // because nobody had written it down. Phase 70 wrote it down WITH its repeat
+    // reasoning, so it is on the ledger now and this step would refuse nothing.
+    // `send-keys` is refused and stays refused: it is a person's keystrokes, and
+    // this door is a one-shot exec with no terminal on either end.
     assertRefused(
       '5. a verb nobody wrote down',
       'Only commands Tortie has written down as safe to run twice',
       () => {
-        assertRemoteVerbAllowed(ctx, ['new-session', '-d', '-s', 'x']);
+        assertRemoteVerbAllowed(ctx, ['send-keys', '-t', '$1', 'rm -rf /']);
       }
     );
 

@@ -5,8 +5,11 @@
  *
  *   const attachHost = new AttachHost({
  *     tmuxBin: tmuxSupervisor.binPath,      // optional; probes if omitted
- *     onExit: (sessionId, exitCode, expected) => {
- *       if (!expected) sessionManager.reconcile(sessionId); // → 'exited'?
+ *     onExit: (sessionId, exitCode, expected, kind) => {
+ *       if (expected) return;
+ *       // kind 'remote' is a link that went, not a session that ended.
+ *       if (kind === 'remote') sessionManager.markUnknown(sessionId);
+ *       else sessionManager.reconcile(sessionId);            // → 'exited'?
  *     }
  *   });
  *
@@ -26,3 +29,18 @@
 
 export { AttachHost } from './attach-host';
 export type { AttachHostOptions, AttachRequest } from './attach-host';
+
+/**
+ * The pure composer, re-exported for readers who arrive through this file.
+ *
+ * A caller that must NOT load a terminal binding imports
+ * `./attach-plan` directly rather than this index, because this index also
+ * exports the AttachHost and that file loads node-pty. The conformance gate's
+ * probe is the one caller that cares, and it takes the direct path.
+ */
+export { attachPlan, exactTarget } from './attach-plan';
+export type {
+  AttachTarget,
+  AttachTargetLocal,
+  AttachTargetRemote
+} from './attach-plan';

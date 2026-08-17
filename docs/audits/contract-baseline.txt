@@ -329,7 +329,7 @@ GMUX_TMUX_TARBALL_DIR
 GMUX_UPDATE_REHEARSAL
 GMUX_UPDATE_STATE_ROOT
 
-[harness.smoke.modes] count=22
+[harness.smoke.modes] count=23
 agent
 basic
 capture
@@ -347,6 +347,7 @@ procid
 quit
 reconstruct
 refusal
+remote-sessions
 shadow
 shim
 t3-prep
@@ -357,5 +358,5 @@ verify
 durability=23
 skills=6
 config=6
-machines=10
+machines=12
 updater=8

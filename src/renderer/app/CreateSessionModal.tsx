@@ -27,6 +27,16 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AgentGrid } from './AgentGrid';
 import type { LaunchableAgentKind } from '@shared/types';
+import type { MachineRowView } from '@shared/ipc';
+import {
+  CREATE_DIR_EMPTY_HINT,
+  CREATE_DIR_HINT,
+  CREATE_HONESTY_LINES,
+  createDirLabel,
+  createDirPlaceholder,
+  MACHINE_FIELD_LABEL,
+  THIS_MAC
+} from './machine-copy';
 import {
   captureDefaultFor,
   presetArgvTokens,
@@ -267,6 +277,20 @@ export function CreateSessionModal(): React.JSX.Element | null {
   );
 
   const [agent, setAgent] = useState<LaunchableAgentKind>('claude');
+  /**
+   * PHASE 70. The machine this session will be created on. `'local'` is this
+   * Mac, and it is what every create before this release did.
+   */
+  const [machineId, setMachineId] = useState('local');
+  /**
+   * The machines a person may choose, being the confirmed ones and no others.
+   *
+   * It is read once per opening of the sheet from the channel Settings already
+   * uses, so this phase adds no channel of its own. An empty list is the
+   * ordinary case, and the choice is then not drawn at all: a control with one
+   * option answers no question.
+   */
+  const [machines, setMachines] = useState<MachineRowView[]>([]);
   const [name, setName] = useState('');
   const [nameTouched, setNameTouched] = useState(false);
   const [cwd, setCwd] = useState('');
@@ -318,6 +342,10 @@ export function CreateSessionModal(): React.JSX.Element | null {
     if (!open) return;
     const initial = defaultAgentChoice(options, settings.defaultAgent);
     setAgent(initial);
+    // Phase 70. Every opening of the sheet starts on this Mac. A remembered
+    // machine would mean a person who created one remote session two days ago
+    // presses ⌘T ↩ and starts a process on another computer.
+    setMachineId('local');
     setNameTouched(false);
     setName(`${initial}-${nextOrdinal(projectSessions, initial)}`);
     setCwd(project?.path ?? '');
@@ -371,10 +399,48 @@ export function CreateSessionModal(): React.JSX.Element | null {
 
   // If the modal opened before projects finished loading, backfill the
   // directory once the project is known.
+  //
+  // PHASE 70: not while a machine is chosen. The empty field is deliberate
+  // there, and this would refill it with a path that exists on this Mac and
+  // means nothing on the other machine.
   useEffect(() => {
-    if (open && cwd.length === 0 && project) setCwd(project.path);
+    if (open && machineId === 'local' && cwd.length === 0 && project) {
+      setCwd(project.path);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, project]);
+  }, [open, project, machineId]);
+
+  /**
+   * PHASE 70. Read the machines once per opening, from the channel Settings
+   * already uses. It starts nothing: `machines:rows` reads memory in main and
+   * the sealed record, and it spawns no process.
+   *
+   * Only confirmed rows are offered. An unconfirmed row would refuse in main
+   * anyway, and offering a choice that cannot be taken spends the person a
+   * name and a click to find that out.
+   */
+  useEffect(() => {
+    if (!open) return undefined;
+    const api = window.gmux?.machines;
+    if (api === undefined) {
+      setMachines([]);
+      return undefined;
+    }
+    let cancelled = false;
+    void api.rows().then(
+      (result) => {
+        if (!cancelled) setMachines(result.rows.filter((row) => row.usable));
+      },
+      () => {
+        // A build with no machines file, or a read that failed. The choice is
+        // then not drawn, which is the same sheet as before this release.
+        if (!cancelled) setMachines([]);
+      }
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
   if (!open || !project) return null;
 
@@ -387,9 +453,23 @@ export function CreateSessionModal(): React.JSX.Element | null {
   const checkedFlags = flagSel[agent] ?? seededFlags(agent, settings, presets);
   const selectedOption = options.find((o) => o.id === agent);
 
+  // PHASE 70. The machine this create will run on, or null for this Mac. A
+  // chosen id that is no longer in the list reads as this Mac, which is the
+  // safe direction: it starts nothing anywhere else.
+  const machine =
+    machineId === 'local'
+      ? null
+      : (machines.find((row) => row.id === machineId) ?? null);
+  const remote = machine !== null;
+
   // SpecStory capture (Phase 15). Offered only where it would actually work:
   // a resolved binary AND a provider for this agent (shells never).
-  const captureOffered = captureAvailableFor(specstory, agent);
+  //
+  // PHASE 70 adds one term. Capture runs the agent under the SpecStory program
+  // ON THIS MAC and writes the transcript to a folder here, and neither is
+  // true of a session on another machine, so the row is not drawn for one. The
+  // honesty block under the machine choice says the same thing in words.
+  const captureOffered = captureAvailableFor(specstory, agent) && !remote;
   const capture =
     captureChoice ?? captureDefaultFor(settings, agent);
   const setCapture = (on: boolean): void => setCaptureChoice(on);
@@ -478,6 +558,9 @@ export function CreateSessionModal(): React.JSX.Element | null {
     void createSession({
       name: trimmed,
       agent,
+      // PHASE 70. Sent only when a machine was chosen. Absent is this Mac,
+      // which is every create before this release.
+      ...(machine !== null ? { machineId: machine.id } : {}),
       ...(cwd.trim().length > 0 ? { cwd: cwd.trim() } : {}),
       ...(extraArgs.length > 0 ? { extraArgs } : {}),
       ...(captureOffered && capture ? { capture: true } : {}),
@@ -662,6 +745,46 @@ export function CreateSessionModal(): React.JSX.Element | null {
           ) : null}
         </div>
 
+        {/* PHASE 70. The machine choice. It is drawn only when there is a
+            machine to choose, so a person with none sees the sheet they have
+            always seen. This Mac is first and is the value on every opening. */}
+        {machines.length > 0 ? (
+          <div className="field">
+            <label className="field-label" htmlFor="session-machine">
+              {MACHINE_FIELD_LABEL}
+            </label>
+            <select
+              id="session-machine"
+              className="input"
+              value={machineId}
+              onChange={(e) => {
+                const next = e.target.value;
+                setMachineId(next);
+                setDirError(null);
+                // The directory belongs to whichever machine is chosen, so it
+                // is never carried across. This Mac gets the project root back
+                // and another machine starts empty, because Tortie holds no
+                // list of home directories on other machines.
+                setCwd(next === 'local' ? (project?.path ?? '') : '');
+              }}
+            >
+              <option value="local">{THIS_MAC}</option>
+              {machines.map((row) => (
+                <option key={row.id} value={row.id}>
+                  {row.label}
+                </option>
+              ))}
+            </select>
+            {remote
+              ? CREATE_HONESTY_LINES.map((line) => (
+                  <p key={line} className="field-caption">
+                    {line}
+                  </p>
+                ))
+              : null}
+          </div>
+        ) : null}
+
         <div className="field">
           <label className="field-label" htmlFor="session-name">
             Name
@@ -682,7 +805,9 @@ export function CreateSessionModal(): React.JSX.Element | null {
 
         <div className="field">
           <label className="field-label" htmlFor="session-dir">
-            Directory
+            {/* PHASE 70. The label names the machine, because the path is read
+                there and nowhere else. */}
+            {machine !== null ? createDirLabel(machine.label) : 'Directory'}
           </label>
           <div className="field-row">
             <input
@@ -691,19 +816,33 @@ export function CreateSessionModal(): React.JSX.Element | null {
               value={cwd}
               spellCheck={false}
               autoComplete="off"
+              {...(machine !== null
+                ? { placeholder: createDirPlaceholder(machine.label) }
+                : {})}
               onChange={(e) => {
                 setCwd(e.target.value);
                 setDirError(null);
               }}
             />
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={chooseDirectory}
-            >
-              Choose…
-            </button>
+            {/* The picker walks THIS Mac's disk, so it is not offered for a
+                folder on another machine. A path picked here would name a
+                directory that does not exist there. */}
+            {machine === null ? (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={chooseDirectory}
+              >
+                Choose…
+              </button>
+            ) : null}
           </div>
+          {machine !== null ? (
+            <>
+              <p className="field-caption">{CREATE_DIR_HINT}</p>
+              <p className="field-caption">{CREATE_DIR_EMPTY_HINT}</p>
+            </>
+          ) : null}
           {dirError !== null ? (
             <div className="input-error-text">{dirError}</div>
           ) : null}

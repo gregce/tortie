@@ -1,0 +1,82 @@
+/**
+ * The machine badge (Phase 70, M3). One small pill, four surfaces.
+ *
+ * COLOUR. The six machine colours are the six graph lane tokens, which is the
+ * same borrowing the Settings machine list already made and for the same
+ * reason: the graph's lane colour is identity rather than state, which is
+ * exactly this job. No seventh hue is invented and no literal appears here.
+ *
+ * The pill is drawn as a tinted outline rather than a filled block. A filled
+ * block at 11px next to a status dot reads as a second status, and status on
+ * these surfaces is the dot's job and only the dot's job.
+ */
+
+.machine-badge {
+  display: inline-flex;
+  align-items: center;
+  /* It shrinks before the status dot does and after the name has, so a dock
+     dragged down to its 160px floor loses letters from the label rather than
+     losing the dot that answers "who needs me". */
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 88px;
+  height: 16px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--machine-badge-color, var(--graph-lane-1));
+  border-radius: var(--r-sm);
+  color: var(--machine-badge-color, var(--graph-lane-1));
+  font-size: 10px;
+  line-height: var(--lh-xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  user-select: none;
+}
+
+.machine-badge[data-machine-color='blue'] {
+  --machine-badge-color: var(--graph-lane-1);
+}
+.machine-badge[data-machine-color='red'] {
+  --machine-badge-color: var(--graph-lane-2);
+}
+.machine-badge[data-machine-color='cyan'] {
+  --machine-badge-color: var(--graph-lane-3);
+}
+.machine-badge[data-machine-color='orange'] {
+  --machine-badge-color: var(--graph-lane-4);
+}
+.machine-badge[data-machine-color='magenta'] {
+  --machine-badge-color: var(--graph-lane-5);
+}
+.machine-badge[data-machine-color='green'] {
+  --machine-badge-color: var(--graph-lane-6);
+}
+
+/* The machine did not answer the last check. The colour goes, because the
+   colour is how the person tells one machine from another and a machine that
+   is not answering is not one they can act on. It stays legible, because the
+   label is how they know WHICH machine went quiet. */
+.machine-badge.quiet {
+  border-color: var(--border-strong);
+  color: var(--text-muted);
+}
+
+/* The rail's hover card gives the badge its own line (Phase 18 item 4 built
+   the card as name, detail, note; this is a fourth line under them). */
+.rail-card-machine {
+  margin-top: var(--space-2);
+}
+
+/* On the identity strip and the condition bar the badge follows text rather
+   than a glyph, so it needs its own left gap. */
+.identity-machine,
+.unreachable-strip-machine {
+  margin-left: var(--space-3);
+}
+
+/* The tab and the dock row already space their children; the badge only needs
+   to stop the name from crowding it. */
+.stab-machine,
+.srow-machine {
+  margin-left: var(--space-2);
+}

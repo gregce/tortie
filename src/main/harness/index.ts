@@ -67,6 +67,17 @@
  *                       refuses the real socket BY NAME because the far side of
  *                       its connection is this same Mac.
  *                       `npm run smoke:execplane`.
+ *  - GMUX_SMOKE=remote-sessions  create, list, rename and end a session on a
+ *                       machine (Phase 70), in the shipped bundle against a
+ *                       scratch sshd. Eleven steps: four refusals that start
+ *                       zero processes, a create whose four stamps and two
+ *                       environment variables are read back byte for byte, a
+ *                       poll, a rename, an unbound kill that sends nothing, a
+ *                       bound kill, the restore refusal, and a manifest write
+ *                       count of zero across all of it. Isolated profile AND
+ *                       isolated socket, and it refuses the real socket by name
+ *                       for the same reason the exec plane smoke does.
+ *                       `npm run smoke:remote`.
  *  - GMUX_SMOKE=quit    the REAL app.quit() under a saturated uv threadpool
  *                       (Phase 36). Every other harness ends with app.exit,
  *                       which skips before-quit and FreeEnvironment — the
@@ -123,6 +134,10 @@ import { runMachinesSmoke } from '../machines/smoke';
 // them cannot be reached in production at all, so this harness drives them with a
 // synthetic ledger row built at runtime.
 import { runExecPlaneSmoke } from '../machines/exec-smoke';
+// Phase 70: the four remote verbs, the poll and the two refusals this rung
+// pins. It is the second caller `machine.restore-refused` and
+// `machine.remote-target-unbound` need, and it counts manifest writes.
+import { runRemoteSessionsSmoke } from '../machines/remote-smoke';
 import { runMigrateSmoke } from '../migrate/smoke';
 import { runReconstructSmoke } from '../manifest/reconstruct-smoke';
 import { runRefusalSmoke } from '../manifest/refusal-smoke';
@@ -274,6 +289,14 @@ export async function dispatchHarness(deps: HarnessDeps): Promise<boolean> {
   // same Mac and a remote set-option there would land on the operator's server.
   if (smoke === 'exec-plane') {
     await runExecPlaneSmoke();
+    return true;
+  }
+  // Phase 70: sessions on a machine, driven in a real Electron process against a
+  // scratch sshd. It is the second caller the two new machine refusals need, and
+  // it is the only place the "no manifest write on any remote path" claim is a
+  // measurement rather than a reading of the code.
+  if (smoke === 'remote-sessions') {
+    await runRemoteSessionsSmoke();
     return true;
   }
   // Phase 13.8: what the outside world sees of gmux (read-only).

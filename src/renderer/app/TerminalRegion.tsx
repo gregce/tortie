@@ -18,7 +18,7 @@
  */
 
 import React, { useEffect, useRef } from 'react';
-import type { Session } from '@shared/types';
+import type { Session, SessionMachine } from '@shared/types';
 import { TerminalHost } from '../terminal';
 import { effectiveStatusOf, useApp } from '../state/store';
 import { useLayout } from '../state/layout';
@@ -30,11 +30,15 @@ import {
   fastDeathSentence,
   fastDeathTitle,
   machineUnreachable,
-  statusVisual
+  statusVisual,
+  unreachableMachines
 } from './status';
 import './unreachable.css';
+import { MachineBadge } from './MachineBadge';
+import { RESTORE_COMING } from './machine-copy';
 import {
   RenameInput,
+  resumeMark,
   sessionMenuItems,
   useRenameDraft
 } from './session-actions';
@@ -43,9 +47,7 @@ import {
   restoreActionCopy,
   restoreExitedCopy,
   restoreSummary,
-  resumeMarkLabel,
-  resumeNote,
-  resumeReadiness
+  resumeNote
 } from './resume';
 import { AgentIcon, Codicon } from '../icons';
 // §6.2 lives with the other full-window empty states (./EmptyStates).
@@ -73,7 +75,9 @@ function IdentityStrip({
 
   const status = effectiveStatusOf(session);
   const visual = statusVisual(status, session);
-  const resumeMark = resumeMarkLabel(resumeReadiness(session));
+  // Phase 70: null for a session on another machine, because the mark answers
+  // a question about a restart that Tortie will not perform there.
+  const mark = resumeMark(session);
   // Marker suffix so the dock row's rename input (plain id) never doubles up.
   const rename = useRenameDraft(session, `strip:${session.id}`);
   const renaming = rename.renaming;
@@ -99,6 +103,9 @@ function IdentityStrip({
           {session.name}
         </span>
       )}
+      {/* Phase 70: the identity strip has the room to say where this session
+          runs, and it is the one band that is always on screen. */}
+      <MachineBadge machine={session.machine} className="identity-machine" />
       <span
         className={`strip-status${status === 'needs_input' ? ' attention' : ''}`}
       >
@@ -106,10 +113,10 @@ function IdentityStrip({
       </span>
       {/* The strip has room the 24px rows do not, so here the resume state is
           words rather than a glyph — DESIGN.md §1.3's own split. */}
-      {resumeMark !== null ? (
+      {mark !== null ? (
         <span className="strip-resume" title={resumeNote(session) ?? undefined}>
           <Codicon name="folder" size={12} />
-          {resumeMark}
+          {mark}
         </span>
       ) : null}
       <span className="strip-spacer" />
@@ -183,10 +190,30 @@ export const UNREACHABLE_BAR_TEXT =
   'Machine unreachable. Your sessions are untouched. Tortie just cannot ' +
   'see them.';
 
-export function UnreachableBar(): React.JSX.Element {
+/**
+ * Phase 70 adds one thing to this bar and rewords nothing.
+ *
+ * The sentence above is research 51 section 4.6's binding copy and it stays
+ * exactly as it is. What it never said is WHICH machine, because until this
+ * release there was only this Mac. A badge for each quiet machine goes beside
+ * it, so the sentence is unchanged and the person can still tell what went
+ * quiet. A bar for this Mac alone draws no badge and reads as it always did.
+ */
+export function UnreachableBar({
+  machines = []
+}: {
+  machines?: readonly SessionMachine[];
+} = {}): React.JSX.Element {
   return (
     <div className="unreachable-strip" role="status">
       <span className="unreachable-strip-text">{UNREACHABLE_BAR_TEXT}</span>
+      {machines.map((machine) => (
+        <MachineBadge
+          key={machine.id}
+          machine={machine}
+          className="unreachable-strip-machine"
+        />
+      ))}
     </div>
   );
 }
@@ -201,8 +228,63 @@ export function RegionBars({
 }: {
   sessions: Session[];
 }): React.JSX.Element | null {
-  if (machineUnreachable(sessions)) return <UnreachableBar />;
+  if (machineUnreachable(sessions)) {
+    return <UnreachableBar machines={unreachableMachines(sessions)} />;
+  }
   return <RestoreAllBar sessions={sessions} />;
+}
+
+// ---------------------------------------------------------------------------
+// The ended state's one paragraph
+// ---------------------------------------------------------------------------
+
+/** What the ended block knows about the session it is drawing. */
+export interface EndedBody {
+  session: Session;
+  /** Phase 70: the session runs on another machine. */
+  remote: boolean;
+  /** Phase 48: this window watched it start and it was gone within 5 seconds. */
+  fastDeath: boolean;
+  /** The status is `exited` rather than `restorable`. */
+  exited: boolean;
+  /** Restore is being offered beside or instead of Restart. */
+  offersRestore: boolean;
+  /** The build can restore at all. */
+  canRestore: boolean;
+}
+
+/**
+ * The one sentence under the ended block's title.
+ *
+ * It was five nested ternaries inside the JSX and it is a function now, for
+ * one reason: Phase 70 added a sixth branch whose whole point is that a person
+ * reads it instead of pressing a button, and a branch that decides what a
+ * refusal says has to be testable without mounting the whole region. Nothing
+ * about the five existing branches moved.
+ */
+export function endedBodyText(body: EndedBody): string {
+  const { session, remote, fastDeath, exited, offersRestore, canRestore } =
+    body;
+  // Phase 70. Neither Restore nor Restart is offered for a session on another
+  // machine, so the body says what is coming rather than describing an action
+  // that is not on the screen. It outranks every other branch, because none of
+  // the others can be true of a session Tortie kept no record of.
+  if (remote) return RESTORE_COMING;
+  // Phase 48 — the bound, never a duration. See FAST_DEATH_MS in ./status for
+  // why a decimal would be invented.
+  if (fastDeath) return fastDeathSentence(session);
+  if (exited) {
+    // Phase 26.3 — the verb copy says what comes back and names what does not
+    // (the killed process stays gone).
+    return offersRestore
+      ? restoreExitedCopy(session)
+      : 'Restarting opens a fresh session with the same name and directory.';
+  }
+  // Phase 13.5 — the same honesty the row mark carries, said in full at the
+  // moment the user is about to act.
+  return canRestore
+    ? restoreActionCopy(session)
+    : 'This session is saved but not running — restart it to pick up in the same directory.';
 }
 
 // ---------------------------------------------------------------------------
@@ -290,10 +372,17 @@ export function TerminalRegion(): React.JSX.Element {
   // every row written before this build and on every death with an empty
   // pane, and the block then reads exactly as it did before.
   const lastWords = exited && failed ? active.exitDetail : undefined;
+  // Phase 70. A session on another machine is offered neither verb here, for
+  // the same reason the context menu offers neither: nothing about it was
+  // written on this Mac, so there is no output to replay and no command to
+  // arm, and main refuses both for a remote id. The block says so in words
+  // instead, which is the only honest thing left to put in that space.
+  const remote = active !== null && active.machine !== undefined;
   // Phase 26.3: an exited session offers Restore beside Restart when it
   // still has material to bring back (resume.ts hasRestoreMaterial).
   const offersRestore =
     active !== null &&
+    !remote &&
     canRestore() &&
     (restorable || (exited && hasRestoreMaterial(active)));
 
@@ -357,21 +446,14 @@ export function TerminalRegion(): React.JSX.Element {
                   : 'Ready to restore'}
             </h2>
             <p className="empty-body">
-              {fastDeath
-                ? // Phase 48 — the bound, never a duration. See FAST_DEATH_MS
-                  // in ./status for why a decimal would be invented.
-                  fastDeathSentence(active)
-                : exited
-                  ? offersRestore
-                    ? // Phase 26.3 — the verb copy says what comes back and
-                      // names what does not (the killed process stays gone).
-                      restoreExitedCopy(active)
-                    : 'Restarting opens a fresh session with the same name and directory.'
-                  : canRestore()
-                    ? // Phase 13.5 — the same honesty the row mark carries,
-                      // said in full at the moment the user is about to act.
-                      restoreActionCopy(active)
-                    : 'This session is saved but not running — restart it to pick up in the same directory.'}
+              {endedBodyText({
+                session: active,
+                remote,
+                fastDeath,
+                exited,
+                offersRestore,
+                canRestore: canRestore()
+              })}
             </p>
             {lastWords !== undefined ? (
               <>
@@ -399,7 +481,7 @@ export function TerminalRegion(): React.JSX.Element {
                   Restart drops to secondary beside it. Without Restore,
                   Restart stays primary as before. The restorable state keeps
                   its Restore-and-Remove pair unchanged. */}
-              {!offersRestore || exited ? (
+              {!remote && (!offersRestore || exited) ? (
                 <button
                   type="button"
                   className={`btn ${offersRestore ? 'btn-secondary' : 'btn-primary'}`}
