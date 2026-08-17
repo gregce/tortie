@@ -5477,7 +5477,7 @@ assertion that Normal plus the default preset renders today's tokens exactly; pe
 relaunch; and the drift test that the preset definitions cover every token they claim to.
 **Semver:** feat, minor, 0.31.0.
 
-## Phase 62.1 — the recorded nits round (operator ordered 2026-08-16) QUEUED, BUILDING
+## Phase 62.1 — the recorded nits round (operator ordered 2026-08-16) ✅ SHIPPED 2026-08-17 (this commit, 0.31.3)
 
 Three small reports left behind by shipped phases, fixed as one sub-phase per house style.
 
@@ -5492,6 +5492,65 @@ operator's original doubled-item screenshot was never reproduced and this closes
 once in three verifier runs. The last opened file wins the tab, made reliable.
 
 **Tier 2**, one live probe per nit with a screenshot. **Semver:** fix, patch.
+
+**What shipped, nit 1.** The home screen now carries one line of muted text directly under the
+TORTIE.sh lockup. It names what the update journey is doing, in the same words the activity bar
+ring uses. It is text only. There is no button, no menu and no motion on any path. The words moved
+into one module, src/renderer/app/update-words.ts, and the ring's hover recomposes its sentence
+from those same words, so the two surfaces cannot drift apart. The slot is reserved at 24 px in
+every state, whether or not it is showing words, so the column never shifts when the words appear.
+The tallest home state is 514 px now instead of 490 px, and the centring rule in home-screen.css is
+otherwise unchanged. Main still decides what is visible, so a background check stays silent here
+exactly as it does on the ring, and a background journey that reaches ready still shows. The live
+probe drove the packaged app: the slot existed and was silent before any check, it read "Checking
+for updates" 11 ms after Check for Updates was clicked, and "The update check failed." 66 ms after
+that, against a dead feed. Screenshot out/p62.1-home-update-line.png.
+
+**What shipped, nit 2, and this entry's own prediction was wrong.** The operator was right and
+Phase 60 was wrong. On a packaged build the View menu carried TWO rows named "Toggle Full Screen",
+one bound to the globe key plus F and one bound to control-command-F. The doubling was reproduced
+on four launches from four fresh profiles and photographed each time. Phase 60 missed it because it
+counted rows through the macOS accessibility interface, and that interface lists only one of the
+two rows when the app declares `{ role: 'togglefullscreen' }`. It reported 15 rows while 16 were on
+screen. So the guard branch written above is the branch that applied. The guard is not a runtime
+filter, because Electron can neither see nor remove the row macOS adds. Instead the app now
+declares NO VISIBLE full screen row. macOS adds its own "Enter Full Screen" on the globe key plus
+F, and the app keeps a HIDDEN item that carries control-command-F with
+`acceleratorWorksWhenHidden`, so the chord the operator has been pressing since Phase 60 still
+works and was photographed working. Four shapes were measured on the packaged build. Declaring the
+role gives two rows, declaring a plain visible item gives two rows, declaring nothing gives one,
+and this hidden item gives one. The candidate remedy the spec named, launching with
+`-NSFullScreenMenuItemEverywhere NO`, left both rows on screen, and so did the `0` form. The
+committer re-ran build/probe-fullscreen-menu.mjs against the packaged build and read the
+photograph with his own eyes: 15 rows on screen, one full screen row, named "Enter Full Screen" on
+the globe key plus F. Screenshot out/p62.1-view-menu.png. The comment Phase 60 left in
+src/main/menu.ts said the opposite of all of this and is replaced by the measurement.
+
+**What shipped, nit 3.** A multi-file open now leaves focus on the last file every time. Every
+pending shell open runs on one promise chain in src/renderer/state/shell-open.ts, so one delivery
+finishes before the next one starts and emit order matches arrival order. Before this, a first file
+whose project was not open yet waited on `addProjectPath` while the second file overtook it, and
+the editor activates whichever open arrives last. Ten of ten probe rounds passed: both tabs
+present, b.md active, the pane showing the second file's marker, and all of it still true after a
+2000 ms settle. Screenshot out/p62.1-last-file-wins.png.
+
+**What is not true.**
+
+- The View menu no longer shows the words "Toggle Full Screen". The visible row is macOS's own
+  "Enter Full Screen" on the globe key plus F. Control-command-F still works, and no menu row
+  displays that chord any more.
+- A dev build gets no macOS row at all, so in dev the View menu has no full screen row and only the
+  chord works. A dev build is therefore not evidence about this question, which is exactly how
+  Phase 60 went wrong.
+- The home line's downloading, staging and ready stages are proven by unit tests and by the shared
+  words module, not driven live. The live probe drove checking and failed only. The Phase 58
+  rehearsal harness edits package.json and overwrites the packaged app, so it was not run inside
+  the worktree this commit was staged from.
+- The coalescing path in nit 3 was never exercised live. The main-side line "a newer shell open
+  replaced a pending one" appeared zero times in ten rounds, because the pending slot was always
+  taken before the second file arrived. That path has unit coverage only.
+- The original race in nit 3 has no deterministic witness. Ten green rounds plus the ordering unit
+  tests are the evidence, and a run that used to fail about once in three is not proof by itself.
 
 ## Phases 67 to 73 — the remote ladder, M0 to M6 given their phase names (operator greenlit 2026-08-16) QUEUED IN ORDER
 

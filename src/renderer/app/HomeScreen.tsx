@@ -52,6 +52,10 @@ import { useApp } from '../state/store';
 // existence check all live behind that module.
 import { useHomeRecents, useRecents } from '../state/recents';
 import { displayPath, parentDir, truncateMiddle } from './format';
+// Phase 62.1. The one line that mirrors the update ring's state, because
+// this screen has no activity bar and a manual check started here was
+// silent. It is text only and its slot is reserved, so nothing shifts.
+import { HomeUpdateLine } from './HomeUpdateLine';
 import { recentMenuItems } from './recent-menu';
 // Phase 12.85: the ONE in-window Tortie mark, copied from the brand package
 // (docs/brand/tortie/dock/tortie-dock-128.png) by `npm run icon`. §1.7 keeps
@@ -262,6 +266,12 @@ export function HomeScreen({ onClone }: HomeScreenProps): React.JSX.Element {
             </span>
           </h1>
         </div>
+
+        {/* Phase 62.1. The update signal, directly under the lockup. The
+            slot renders in every state at a fixed height, so its words can
+            appear without moving the column. Main decides visibility; this
+            screen draws exactly what the ring would draw. */}
+        <HomeUpdateLine />
 
         {/* The promise. It is the only line on the screen that says why
             Tortie exists, and it sits in the slot a reader uses to find out

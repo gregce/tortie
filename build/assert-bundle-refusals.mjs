@@ -460,10 +460,12 @@ const UPDATER_REFUSALS = [
   },
   {
     id: 'updater.ready-ring-promise',
-    source: 'src/renderer/app/UpdateRing.tsx',
+    source: 'src/renderer/app/update-words.ts',
     // Phase 58 moved the ready promise from the ready dialog (removed) into
     // the ring's ready hover, which is RENDERER code, so this entry scans
-    // the renderer asset bundles rather than out/main/index.js.
+    // the renderer asset bundles rather than out/main/index.js. Phase 62.1
+    // moved the words into update-words.ts, shared by the ring's hover and
+    // the home screen line, so the source path follows them.
     bundle: 'renderer',
     why:
       'a user who was told downloading must be told ready, or the quit ' +

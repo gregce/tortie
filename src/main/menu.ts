@@ -498,16 +498,85 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         item('Toggle Editor', 'toggle-editor', accel('editor.toggle')),
         { type: 'separator' },
         item('Sessions That Need Input', 'attention', accel('session.attention')),
-        // Full screen (Phase 60). The role is emitted on every platform and
-        // that yields exactly one item. The phase first shipped a darwin
-        // guard on the belief that macOS injects its own item into any menu
-        // titled "View". Measurement refuted that belief. With the role
-        // omitted, the live menu carried zero full screen items and the
-        // ctrl+cmd+F shortcut was dead (AXFullScreen never moved). Nothing
-        // injects a second item into this app's View menu, so this role item
-        // is the only one there will ever be. Do not re-add the guard.
+        // Full screen (Phase 60, corrected by measurement in Phase 62.1).
+        // The app declares NO VISIBLE full screen row. macOS puts one there
+        // by itself, named "Enter Full Screen" and bound to the globe key
+        // plus F. What sits below is a HIDDEN item whose only job is to keep
+        // control-command-F working, because that chord is what the operator
+        // has been pressing since Phase 60 and macOS will not put it on a
+        // visible row without also adding a second row.
+        //
+        // WHAT WENT WRONG BEFORE. Phase 60 shipped
+        // `{ role: 'togglefullscreen' }` and wrote here that the packaged
+        // View menu therefore held exactly one full screen row. The operator
+        // had photographed two. He was right. Phase 60 counted through the
+        // accessibility interface, and that interface is BLIND to the row
+        // macOS adds next to a role item: it reported 15 rows and one full
+        // screen row while 16 rows and two were on screen. Phase 62.1
+        // photographed the open menu instead, and reproduced the doubling on
+        // four launches across four fresh profiles.
+        //
+        // THE FOUR PACKAGED READINGS, all on macOS 15.7.9 with Electron 43
+        // on 2026-08-17, each from a fresh isolated profile:
+        //
+        //   what the app declares        rows on screen   the rows
+        //   role togglefullscreen              2          "Toggle Full Screen"
+        //                                                 globe+F, and again
+        //                                                 with control-cmd-F
+        //   a plain visible item               2          "Toggle Full Screen"
+        //                                                 control-cmd-F, plus
+        //                                                 "Enter Full Screen"
+        //                                                 globe+F
+        //   nothing at all                     1          "Enter Full Screen"
+        //                                                 globe+F
+        //   a HIDDEN item, this one            1          "Enter Full Screen"
+        //                                                 globe+F
+        //
+        // So there is no shape in which a visible row of ours carries
+        // control-command-F and stays alone. macOS adds its own row whenever
+        // no menu item carries the native `toggleFullScreen:` action, and it
+        // adds a globe-key row next to one that does. The hidden item takes
+        // neither path: macOS cannot see a use for it, so it adds exactly one
+        // row, and the chord still fires because a hidden item keeps its
+        // accelerator (`acceleratorWorksWhenHidden` defaults to true).
+        //
+        // PROVEN, not assumed. With this shape the packaged menu read one
+        // full screen row on four launches, and control-command-F drove the
+        // window into full screen and back out again, photographed both ways
+        // (the menu bar disappears and returns).
+        //
+        // WHAT IS NOT TRUE. A DEV build gets no macOS row at all, so in dev
+        // the View menu has no full screen row and only the chord works.
+        // That difference is macOS's, not ours, and it is the whole reason
+        // Phase 60 went wrong: a dev build is not evidence about this
+        // question. Measure the packaged build or measure nothing.
+        //
+        // The chord is typed here rather than read from src/shared/keymap.ts
+        // on purpose. It is the macOS platform chord that Electron's role
+        // used to supply, it has never been a Tortie keymap entry and it has
+        // never appeared in the shortcuts overlay, so there is nothing for it
+        // to drift from.
+        //
+        // TWO THINGS KEEP THIS TRUE, and neither is enough alone.
+        // build/probe-fullscreen-menu.mjs reads the live packaged menu and
+        // asserts the one row it finds is macOS's own "Enter Full Screen" on
+        // the globe key, which is the only row shape that comes with no
+        // second row. src/main/__tests__/view-menu.test.ts forbids
+        // `{ role: 'togglefullscreen' }` in this template, because that role
+        // is the shape the probe cannot see through.
         { type: 'separator' },
-        { role: 'togglefullscreen' },
+        {
+          label: 'Toggle Full Screen',
+          accelerator: 'Control+Command+F',
+          visible: false,
+          acceleratorWorksWhenHidden: true,
+          click: (_menuItem, clickedWindow) => {
+            const target = clickedWindow ?? BrowserWindow.getFocusedWindow();
+            if (target === null || target === undefined) return;
+            if (target.isDestroyed() || !target.isFullScreenable()) return;
+            target.setFullScreen(!target.isFullScreen());
+          }
+        },
         ...(app.isPackaged
           ? []
           : ([

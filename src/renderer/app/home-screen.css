@@ -36,19 +36,27 @@
        column high and a large empty area under it, is that the screen must be
        well centred.
 
-   `min-height: 490px` is how both are true at once. 490 px is the measured
-   height of the tallest state, which is the one with five recents (§1.5, the
-   other two are 434 px and 296 px). The BOX is always 490 px tall and always
-   centred, and the content sits at the top of it, so the mark's y depends only
-   on the window and never on how many recents exist. It is the true middle and
-   not an optical one: the content's own mass already sits in the top half of
-   the box in every state but the tallest, which reads high rather than low.
+   A `min-height` on the column is how both are true at once. It is set to the
+   measured height of the tallest state, which is the one with five recents.
+   That measurement was 490 px through Phase 58 (§1.5, the other two states are
+   434 px and 296 px), and it is 514 px since Phase 62.1 for the reason written
+   below. The BOX is always that one height and always centred, and the content
+   sits at the top of it, so the mark's y depends only on the window and never
+   on how many recents exist. It is the true middle and not an optical one: the
+   content's own mass already sits in the top half of the box in every state but
+   the tallest, which reads high rather than low.
 
    `margin: auto 0` and not `align-items: center`. Both centre; only auto
    margins collapse to zero when the free space goes negative, so a window
    shorter than the content scrolls from the top instead of clipping the
    wordmark above the scroll origin. The padding on the scroll container is the
    breathing room in that case.
+
+   Phase 62.1 added the update line slot under the lockup. The slot is 24 px
+   in EVERY state (a 6 px margin plus an 18 px line), it is reserved even
+   when it shows no words, and every state grows by the same 24 px. The
+   tallest state is therefore 514 px now (490 plus 24), and the top-edge
+   rule above still holds because the slot never appears or disappears.
 
    The container scrolls. A window shorter than the content must scroll rather
    than clip, and it must never shrink the type.
@@ -66,8 +74,9 @@
 .home-col {
   width: 460px;
   flex: 0 0 auto;
-  /* The tallest state (§1.5). See the note above before changing it. */
-  min-height: 490px;
+  /* The tallest state (§1.5), plus the Phase 62.1 update line slot. See the
+     note above before changing it. */
+  min-height: 514px;
   margin: auto 0;
 }
 
@@ -116,6 +125,31 @@
      name's spacing badly at 0.06em. */
   letter-spacing: 0.02em;
   color: var(--text-secondary);
+}
+
+/* ---------------------------------------------------------------------------
+   The update line (Phase 62.1)
+
+   One quiet line of muted text directly under the lockup. It mirrors the
+   update ring's state, because the home screen has no activity bar and a
+   manual check started here was silent.
+
+   The height is FIXED and the element always renders, so the words appear
+   and disappear without moving anything under them. That is the same
+   reserved-slot rule the recent rows use for their warning icon, applied to
+   the whole line. The type matches the hint (11 px on an 18 px line,
+   --text-muted). No motion of any kind: no spinner, no pulse, no
+   transition. The only thing that changes is the text itself.
+--------------------------------------------------------------------------- */
+.home-update-line {
+  height: 18px;
+  margin: var(--space-3) 0 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--text-xs);
+  line-height: 18px;
+  color: var(--text-muted);
 }
 
 /* ---------------------------------------------------------------------------
@@ -319,6 +353,10 @@
    Five rows plus the rest of the column is 490px of content, which does not
    fit the 562px content area of the 960 by 600 minimum window once the
    padding is usable. Three rows is 434px and fits with 44px to spare.
+
+   Phase 62.1 added the 24px update line slot to every state. Five rows is
+   514px now and still does not fit. Three rows is 458px and still fits, with
+   20px to spare instead of 44px. The cap of 3 therefore does not move.
 
    nth-of-type and NOT nth-child: the section label is the first child, so
    nth-child(n+4) would hide one row too many. That was caught in the

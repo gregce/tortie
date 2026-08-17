@@ -1,5 +1,5 @@
 /**
- * The one pending-shell-open pull (Phase 61).
+ * The one pending-shell-open pull (Phase 61, serialized in Phase 62.1).
  *
  * Both pull sites call this function instead of carrying their own copies
  * of the same `.then` block, which is the extraction the growth guardrail
@@ -15,14 +15,47 @@
  * the same open bus a tree click uses. Nothing here can start an agent,
  * select an agent or run a command. That cap lives with the channel
  * declaration in src/shared/ipc/shell.ts.
+ *
+ * THE ORDER (Phase 62.1). A multi-file Finder open delivers one nudge per
+ * file, and each nudge runs this pull. Before this phase two pulls could
+ * run at once. The first pull took the first file and then waited on a
+ * slow `addProjectPath`, because its project was not open yet. The second
+ * pull took the second file and finished first, because the project row
+ * existed by then. So the FIRST file's open was emitted last, and
+ * `openFromRequest` in ../editor/store.ts activates the tab of whichever
+ * open arrives last. Focus landed on the first file about once in three
+ * runs, which is the Phase 61 report. The takes already happen in arrival
+ * order, because the main-side slot is take-and-clear. Only the pipeline
+ * after the take could reorder. The promise chain below runs each delivery
+ * to completion before the next one starts, so emit order now matches take
+ * order, and the last file the user opened wins the active tab.
  */
 
 import type { GmuxShellExtras, ShellPendingOpen } from '@shared/ipc';
 import { requestOpenFile } from './open-file';
 import { useApp } from './store';
 
-/** Pull the pending shell open, open the project, then open the file if one rode along. */
-export async function pullPendingShellOpen(): Promise<void> {
+/**
+ * The serial chain. Every delivery is appended here, so at most one
+ * delivery is in flight at any moment.
+ */
+let chain: Promise<void> = Promise.resolve();
+
+/**
+ * Pull the pending shell open, open the project, then open the file if one
+ * rode along. Deliveries run strictly one after another, in call order.
+ * The chain link swallows each delivery's rejection, so one failed
+ * delivery can never wedge every later pull. The promise returned to the
+ * caller still carries its own delivery's rejection.
+ */
+export function pullPendingShellOpen(): Promise<void> {
+  const run = chain.then(() => deliverPendingShellOpen());
+  chain = run.catch(() => undefined);
+  return run;
+}
+
+/** One delivery, from the take to the emit. Only the chain calls this. */
+async function deliverPendingShellOpen(): Promise<void> {
   const gmux = window.gmux as
     | (typeof window.gmux & GmuxShellExtras)
     | undefined;

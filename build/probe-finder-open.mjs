@@ -5,7 +5,7 @@
  * WHAT IT PROVES. Finder-shaped opens against a RUNNING dev instance. Each
  * open is delivered with an explicit app target, `open -a <the repo's own
  * Electron.app> <path>`, so LaunchServices routes by bundle path and not by
- * the shared dev bundle id. Five legs, each proven from the profile's
+ * the shared dev bundle id. Seven legs, each proven from the profile's
  * manifest, the structured log at <profile>/logs/app.log, and a screenshot
  * taken over the DevTools protocol:
  *
@@ -18,6 +18,22 @@
  *  4. IMAGE       a png opens the image viewer.
  *  5. BINARY      a zip forced through still opens its project, and the tab
  *                 shows the existing no-viewer sentence.
+ *  7. LAST FILE   (Phase 62.1) two files delivered back to back, a.md then
+ *                 b.md, land focus on b.md, the LAST delivered file, with
+ *                 the pane body as the second witness and a re-read two
+ *                 seconds later so a transient sighting cannot pass. Ten
+ *                 rounds, because the defect this pins showed once in three
+ *                 runs. Round one delivers into a repository that is not a
+ *                 project yet, which is the exact Phase 61 race shape. The
+ *                 leg runs before the cap so the cap sweeps its opens too.
+ * 7b. COALESCING (Phase 62.1 fix round) both files handed to ONE `open -a`
+ *                 call, so both arrivals land in the same run loop turn.
+ *                 That is the only shape that reaches the main-side slot's
+ *                 replace path, and leg 7 above never does: its two calls
+ *                 are hundreds of milliseconds apart and the renderer has
+ *                 already pulled the first file. This leg asserts main wrote
+ *                 "a newer shell open replaced a pending one" at least once
+ *                 and that b.md alone is open and active.
  *  6. THE CAP     after all legs the manifest's session table holds zero
  *                 rows, and the probe's tmux socket shows nothing the opens
  *                 created.
@@ -107,6 +123,20 @@ if (innerAt === -1) {
   const plain = join(root, 'plain');
   mkdirSync(plain, { recursive: true });
   writeFileSync(join(plain, 'notes.txt'), 'Phase 61 probe notes.\n');
+  // Leg 7's own repository. It stays untouched by legs 1 to 5, so round
+  // one of the last-file leg opens a project that does not exist yet,
+  // which is what made the first delivery slow in the Phase 61 race.
+  const race = join(root, 'race');
+  mkdirSync(race, { recursive: true });
+  execFileSync('git', ['init', '--quiet', race], { cwd: root });
+  writeFileSync(
+    join(race, 'a.md'),
+    '# a\n\nThe first delivered file. MARKER-A-FIRST.\n'
+  );
+  writeFileSync(
+    join(race, 'b.md'),
+    '# b\n\nThe last delivered file. MARKER-B-LAST.\n'
+  );
   mkdirSync(join(root, 'profile'), { recursive: true });
 
   const before = operatorSessionCount();
@@ -181,6 +211,7 @@ const electronBin = join(repoRoot, 'node_modules', '.bin', 'electron');
 const profile = join(root, 'profile');
 const repo = join(root, 'repo');
 const plain = join(root, 'plain');
+const race = join(root, 'race');
 const holderLogPath = join(root, 'holder.log');
 const appLogPath = join(profile, 'logs', 'app.log');
 
@@ -486,6 +517,27 @@ function deliverOpen(label, target, pidsBefore) {
   return checkNoNewInstance(label, pidsBefore);
 }
 
+/**
+ * Both files handed to macOS in ONE `open -a` call, so the app receives two
+ * `open-file` events in the same run loop turn. That is the only way to make
+ * the second arrival land while the first is still sitting in the main-side
+ * pending slot, which is the coalescing path in src/main/shell/pending.ts.
+ * Two sequential `open -a` calls never reach it: each one costs a few hundred
+ * milliseconds and the renderer has already pulled by then.
+ */
+function deliverOpenTogether(label, targets, pidsBefore) {
+  const out = spawnSync('/usr/bin/open', ['-a', electronApp, ...targets], {
+    encoding: 'utf8'
+  });
+  if (out.status !== 0) {
+    failures.push(
+      `${label}: open -a exited ${out.status}. stderr: ${(out.stderr ?? '').slice(0, 300)}`
+    );
+    return false;
+  }
+  return checkNoNewInstance(label, pidsBefore);
+}
+
 function checkNoNewInstance(label, pidsBefore) {
   const now = devElectronPids();
   const strays = now.filter((pid) => !pidsBefore.includes(pid));
@@ -520,7 +572,8 @@ for (const name of [
   'p61-finder-2-gitroot.png',
   'p61-finder-3-fallback.png',
   'p61-finder-4-image.png',
-  'p61-finder-5-binary.png'
+  'p61-finder-5-binary.png',
+  'p62.1-last-file-wins.png'
 ]) {
   rmSync(join(repoRoot, 'out', name), { force: true });
 }
@@ -656,6 +709,163 @@ try {
     await screenshot(cdp, 'p61-finder-5-binary.png');
   }
 
+  // Leg 7, LAST FILE WINS (Phase 62.1): a.md then b.md, back to back with
+  // no sleep between them, ten rounds. The renderer's serial pull queue
+  // must land focus on b.md, the LAST delivered file, every round. When
+  // both arrivals land before the first pull, the main-side slot holds
+  // only b.md and a.md never opens a tab; that is the pending-slot
+  // semantics this phase does not change, so how many tabs opened is
+  // REPORTED and the ACTIVE tab is the assertion.
+  {
+    const aPath = join(race, 'a.md');
+    const bPath = join(race, 'b.md');
+    const ROUNDS = 10;
+    /** How long a round waits past the first sighting before re-reading. */
+    const SETTLE_MS = 2000;
+    const bothTabsExpr =
+      `(() => { const names = [...document.querySelectorAll('.ed-tab .ed-tab-name')]` +
+      `.map((e) => e.textContent); ` +
+      `return names.includes('a.md') && names.includes('b.md'); })()`;
+    const activeIsBExpr =
+      `(document.querySelector('.ed-tab.active .ed-tab-name')||{}).textContent === 'b.md'`;
+    const paneShowsBExpr =
+      `(() => { const body = document.querySelector('.ed-body'); ` +
+      `const text = body ? body.innerText : ''; ` +
+      `return text.includes('MARKER-B-LAST') && !text.includes('MARKER-A-FIRST'); })()`;
+    // One close click per poll until the strip is empty. Run before every
+    // round, so round one also clears the tabs legs 2 to 5 left open.
+    const closeOneExpr =
+      `(() => { const btn = document.querySelector('.ed-tab-close'); ` +
+      `if (btn) btn.click(); ` +
+      `return document.querySelectorAll('.ed-tab').length === 0; })()`;
+    let greenRounds = 0;
+    for (let round = 1; round <= ROUNDS; round += 1) {
+      const label = `leg 7 (last file wins) round ${round}`;
+      const cleared = await waitFor(`${label}: the tab strip is empty`, 20_000, () =>
+        cdpEval(cdp, closeOneExpr)
+      );
+      if (cleared === null) break;
+      if (!deliverOpen(`${label} a.md`, aPath, pidsBaseline)) break;
+      if (!deliverOpen(`${label} b.md`, bPath, pidsBaseline)) break;
+      const active = await waitFor(`${label}: the active tab is b.md`, 30_000, () =>
+        cdpEval(cdp, activeIsBExpr)
+      );
+      if (active === null) break;
+      // Read the tab count AFTER the active assertion, once, with no wait.
+      // The serial queue emits a's open strictly before b's, so by the time
+      // b.md is active, a.md's tab already exists if a.md was ever taken.
+      // A missing a.md tab therefore means the two arrivals coalesced in the
+      // main-side slot, which is a legitimate outcome and not a failure.
+      const bothTabs = (await cdpEval(cdp, bothTabsExpr)) === true;
+      const witness = await waitFor(
+        `${label}: the pane shows b.md's own sentence and not a.md's`,
+        15_000,
+        () => cdpEval(cdp, paneShowsBExpr)
+      );
+      if (witness === null) break;
+      // The settle re-read, and it is the part that makes the leg honest.
+      // A first sighting is not enough on its own. Under the defect this
+      // leg pins, b.md's open emitted first and a.md's emitted a moment
+      // later, so b.md WAS briefly the active tab before a.md stole it. A
+      // poll that stopped at the first sighting would report that run as
+      // green. So the leg waits past any late emission and reads the same
+      // two facts once more, and a round is green only if they still hold.
+      await sleep(SETTLE_MS);
+      const stillActive = (await cdpEval(cdp, activeIsBExpr)) === true;
+      const stillShowing = (await cdpEval(cdp, paneShowsBExpr)) === true;
+      if (!stillActive || !stillShowing) {
+        const name = await cdpEval(
+          cdp,
+          `((document.querySelector('.ed-tab.active .ed-tab-name')||{}).textContent||'none')`
+        );
+        failures.push(
+          `${label}: b.md was the active tab, then lost it ${SETTLE_MS} ms ` +
+            `later. The active tab is now ${name}. A later open emitted ` +
+            'after the last delivered file, which is the ordering defect ' +
+            'this leg exists to catch.'
+        );
+        break;
+      }
+      console.log(
+        `[probe:finderopen] ${label}: active tab b.md, pane shows b.md, ` +
+          `still true after ${SETTLE_MS} ms` +
+          `${bothTabs ? ', both tabs present' : ', only b.md opened (both arrivals landed before the first pull)'}`
+      );
+      if (round === 1) {
+        await screenshot(cdp, 'p62.1-last-file-wins.png');
+      }
+      greenRounds += 1;
+    }
+    console.log(
+      `[probe:finderopen] leg 7 (last file wins): ${greenRounds} of ${ROUNDS} rounds green`
+    );
+    if (greenRounds < ROUNDS && failures.length === 0) {
+      failures.push(
+        `leg 7 (last file wins): only ${greenRounds} of ${ROUNDS} rounds ran green`
+      );
+    }
+
+    // Leg 7b, THE COALESCING PATH. Leg 7 above never reaches it: its two
+    // `open -a` calls are far enough apart that the renderer pulls the first
+    // file before the second arrives, so the main-side slot is always empty
+    // when the second lands and the drop line is never written. This leg
+    // hands macOS both files in one call, so both arrivals land in the same
+    // turn, the second replaces the first in the slot whole, and main writes
+    // "a newer shell open replaced a pending one". Then b.md is the only tab
+    // and it is active. That is the pending-slot semantics this phase does
+    // not change, proven live instead of by unit test alone.
+    if (failures.length === 0) {
+      const label = 'leg 7b (both files in one open)';
+      const cleared = await waitFor(
+        `${label}: the tab strip is empty`,
+        20_000,
+        () => cdpEval(cdp, closeOneExpr)
+      );
+      if (cleared !== null) {
+        const dropsBefore = (
+          appLogText().match(/a newer shell open replaced a pending one/g) ?? []
+        ).length;
+        if (deliverOpenTogether(label, [aPath, bPath], pidsBaseline)) {
+          const active = await waitFor(
+            `${label}: the active tab is b.md`,
+            30_000,
+            () => cdpEval(cdp, activeIsBExpr)
+          );
+          if (active !== null) {
+            await sleep(SETTLE_MS);
+            const stillActive = (await cdpEval(cdp, activeIsBExpr)) === true;
+            const dropsAfter = (
+              appLogText().match(
+                /a newer shell open replaced a pending one/g
+              ) ?? []
+            ).length;
+            const drops = dropsAfter - dropsBefore;
+            const tabNames = await cdpEval(
+              cdp,
+              `[...document.querySelectorAll('.ed-tab .ed-tab-name')].map((e) => e.textContent).join(',')`
+            );
+            console.log(
+              `[probe:finderopen] ${label}: active tab b.md (still true after ${SETTLE_MS} ms: ${stillActive}), ` +
+                `tabs [${tabNames}], drop lines this leg: ${drops}`
+            );
+            if (!stillActive) {
+              failures.push(
+                `${label}: b.md was the active tab and then lost it ${SETTLE_MS} ms later. Tabs: ${tabNames}`
+              );
+            }
+            if (drops < 1) {
+              failures.push(
+                `${label}: main never wrote "a newer shell open replaced a pending one", ` +
+                  'so the two arrivals did not coalesce and this leg proved nothing. ' +
+                  'Both files were handed to one `open -a` call, so they should have landed in one turn.'
+              );
+            }
+          }
+        }
+      }
+    }
+  }
+
   // Leg 6, THE CAP: no open started anything. Zero session rows, and the
   // probe's own tmux socket shows nothing the opens created.
   const sessionRows = manifestSessionCount();
@@ -665,8 +875,14 @@ try {
     );
   }
   const socketSessionsAfter = probeSocketSessions();
+  // `gmux-control` is the app's own pinned control session
+  // (src/main/tmux/control-client.ts, CONTROL_SESSION_NAME). The supervisor
+  // creates it at boot to carry the tmux control stream, and it can appear at
+  // any point after launch, so whether it is in the baseline depends only on
+  // how fast the app booted. It is never something a file open created, so it
+  // is excluded by name rather than left to make this leg flaky.
   const created = socketSessionsAfter.filter(
-    (s) => !socketSessionsBefore.includes(s)
+    (s) => !socketSessionsBefore.includes(s) && s.trim() !== 'gmux-control'
   );
   if (created.length > 0) {
     failures.push(
@@ -714,6 +930,6 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  '[probe:finderopen] PASS: folder, git root, fallback, image and binary ' +
-    'legs all delivered, and the cap held'
+  '[probe:finderopen] PASS: folder, git root, fallback, image, binary, ' +
+    'last-file and coalescing legs all delivered, and the cap held'
 );

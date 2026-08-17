@@ -1,18 +1,25 @@
 /**
- * The View menu tells the truth (Phase 60).
+ * The View menu tells the truth (Phase 60, corrected in Phase 62.1).
  *
  * Two lies are kept dead here. First, the menu listed Explorer and Source
  * Control while the activity bar has four views, so half the views were
  * undiscoverable from the menu bar. The template must now list Explorer,
  * Search, Source Control and Context, in the activity bar's own order, each
- * with the accelerator the shared keymap owns. Second, the full screen item
- * must appear exactly once on every platform, and the template's role item
- * is the only source of one. The phase first shipped a darwin guard on the
- * belief that macOS injects its own item into any menu titled "View".
- * Measurement in the live app refuted that belief. With the role omitted the
- * menu carried zero full screen items and the shortcut was dead. So the
- * template emits the role unconditionally, and these tests pin the count at
- * one on darwin and off it.
+ * with the accelerator the shared keymap owns.
+ *
+ * Second, and this is what Phase 62.1 corrected, the packaged View menu must
+ * show exactly ONE full screen row. Phase 60 believed its role item was the
+ * only source of one and pinned the role's count at one here. Measurement on
+ * the packaged build in Phase 62.1 refuted that: with the role, macOS added a
+ * second row bound to the globe key, and both were on screen. Phase 60 could
+ * not see it because it counted through the accessibility interface, which
+ * lists only one of the two.
+ *
+ * So the template now declares NO VISIBLE full screen row. macOS adds its own
+ * "Enter Full Screen", and the app carries only a HIDDEN item whose job is to
+ * keep control-command-F working. These tests forbid the role, because the
+ * role is the shape that makes the live probe blind, and they pin the hidden
+ * item's shape so the chord cannot quietly disappear.
  *
  * Same fake-electron pattern as sessions-position-menu.test.ts: the real
  * menu.ts runs against a template-capturing Menu mock.
@@ -34,6 +41,8 @@ interface FakeItem {
   role?: string;
   type?: string;
   accelerator?: string;
+  acceleratorWorksWhenHidden?: boolean;
+  visible?: boolean;
   checked?: boolean;
   click?: () => void;
   submenu?: FakeItem[];
@@ -124,8 +133,14 @@ function viewItems(): FakeItem[] {
   return view.submenu;
 }
 
-function fullscreenCount(): number {
+/** Items carrying the native role macOS reacts to. Must always be zero. */
+function fullscreenRoleCount(): number {
   return viewItems().filter((it) => it.role === 'togglefullscreen').length;
+}
+
+/** Every item this app declares whose label names full screen. */
+function fullscreenItems(): FakeItem[] {
+  return viewItems().filter((it) => (it.label ?? '').includes('Full Screen'));
 }
 
 const realPlatform = process.platform;
@@ -194,34 +209,50 @@ describe('the four views, in the activity bar’s order', () => {
   });
 });
 
-describe('exactly one full screen item on every platform', () => {
-  it('emits exactly ONE togglefullscreen role on macOS, where nothing injects one', () => {
+describe('the full screen row, measured on the packaged build in Phase 62.1', () => {
+  it('declares no togglefullscreen role on macOS, because macOS adds a second row next to one', () => {
     setPlatform('darwin');
     installAppMenu();
-    expect(fullscreenCount()).toBe(1);
+    expect(fullscreenRoleCount()).toBe(0);
   });
 
-  it('emits exactly ONE togglefullscreen role elsewhere', () => {
+  it('declares no togglefullscreen role off macOS either, since the template is one shape', () => {
     setPlatform('linux');
     rebuildAppMenu();
-    expect(fullscreenCount()).toBe(1);
+    expect(fullscreenRoleCount()).toBe(0);
   });
 
-  it('keeps a separator ahead of the role on macOS', () => {
+  it('declares exactly one full screen item and keeps it hidden', () => {
+    setPlatform('darwin');
+    installAppMenu();
+    const items = fullscreenItems();
+    expect(items).toHaveLength(1);
+    expect(items[0]?.label).toBe('Toggle Full Screen');
+    expect(items[0]?.visible).toBe(false);
+  });
+
+  it('keeps control-command-F alive on the hidden item', () => {
+    setPlatform('darwin');
+    installAppMenu();
+    const hidden = fullscreenItems()[0];
+    expect(hidden?.accelerator).toBe('Control+Command+F');
+    expect(hidden?.acceleratorWorksWhenHidden).toBe(true);
+  });
+
+  it('keeps a separator ahead of the full screen item', () => {
     setPlatform('darwin');
     installAppMenu();
     const items = viewItems();
-    const at = items.findIndex((it) => it.role === 'togglefullscreen');
+    const at = items.findIndex((it) => (it.label ?? '').includes('Full Screen'));
     expect(at).toBeGreaterThan(0);
     expect(items[at - 1]?.type).toBe('separator');
   });
 
-  it('keeps a separator ahead of the role off macOS', () => {
-    setPlatform('linux');
-    rebuildAppMenu();
-    const items = viewItems();
-    const at = items.findIndex((it) => it.role === 'togglefullscreen');
-    expect(at).toBeGreaterThan(0);
-    expect(items[at - 1]?.type).toBe('separator');
+  it('does nothing and does not throw when there is no window to act on', () => {
+    setPlatform('darwin');
+    installAppMenu();
+    const hidden = fullscreenItems()[0];
+    expect(hidden?.click).toBeDefined();
+    expect(() => hidden?.click?.()).not.toThrow();
   });
 });

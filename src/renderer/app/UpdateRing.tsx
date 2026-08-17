@@ -23,13 +23,16 @@ import type {
   UpdateRingStage,
   UpdateUiState
 } from '@shared/ipc';
+import type { UpdateRingSnapshot } from './update-words';
+import { updateStageWords } from './update-words';
 import './update-ring.css';
 
-/** The four fields the ring reads. The full UpdateUiState satisfies this. */
-export type UpdateRingSnapshot = Pick<
-  UpdateUiState,
-  'ring' | 'ringVersion' | 'ringPercent' | 'failedDuring'
->;
+/**
+ * The four-field snapshot type moved to update-words.ts in Phase 62.1, so
+ * the ring and the home screen line share one definition. Re-exported here
+ * so existing importers keep working.
+ */
+export type { UpdateRingSnapshot };
 
 /* ---------------------------------------------------------------------------
    Geometry. One inline SVG, 18 by 18, stroke width 2, radius 7. The arc
@@ -60,41 +63,24 @@ const QUARTER_TURN_PERCENT = 25;
 
 /* ---------------------------------------------------------------------------
    Words. The hover names the stage in words with the real percent, and it is
-   also the button's aria-label. The percent is the floor of the real number,
-   never rounded up, so 100 appears only when the download is done.
+   also the button's aria-label. Since Phase 62.1 the stage words live in
+   update-words.ts, shared byte for byte with the home screen line. The hover
+   recomposes them and adds the click suffix, because only the ring can be
+   clicked. A unit test in __tests__/update-words.test.ts holds the
+   recomposed strings byte identical to the Phase 58 hover strings.
 --------------------------------------------------------------------------- */
 
 export function ringHover(state: UpdateRingSnapshot): string {
-  const version = state.ringVersion ?? '';
-  switch (state.ring) {
-    case 'checking':
-      return 'Checking for updates';
-    case 'downloading':
-      return `Downloading ${version}, ${Math.floor(state.ringPercent ?? 0)} percent`;
-    case 'staging':
-      return `Preparing ${version}`;
-    case 'ready':
-      // The quit promise moved here from the removed ready dialog.
-      // build/assert-bundle-refusals.mjs pins the fragment
-      // " is ready. It installs when you quit." against the renderer bundle.
-      return `Tortie ${version} is ready. It installs when you quit. Click to choose when.`;
-    case 'failed':
-      switch (state.failedDuring) {
-        case 'checking':
-          return 'The update check failed. Click to see why.';
-        case 'downloading':
-          return `The download of ${version} did not finish. Click to see why.`;
-        case 'staging':
-          return `Tortie could not prepare ${version}. Click to see why.`;
-        case null:
-          // The state changed under the hover. Stay truthful and generic.
-          return 'The update did not finish. Click to see why.';
-      }
-      break;
-    case 'hidden':
-      return '';
+  const words = updateStageWords(state);
+  if (state.ring === 'ready') {
+    // The quit promise rides inside the shared words, where
+    // build/assert-bundle-refusals.mjs pins its fragment.
+    return `${words} Click to choose when.`;
   }
-  return '';
+  if (state.ring === 'failed') {
+    return `${words} Click to see why.`;
+  }
+  return words;
 }
 
 /* ---------------------------------------------------------------------------
