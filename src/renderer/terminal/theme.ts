@@ -139,6 +139,12 @@ function cssVar(styles: CSSStyleDeclaration, name: string): string | undefined {
  * The design constant, with canvas-coupled colors overridden from the design
  * tokens when they exist (`--bg-canvas` is “window base AND xterm background
  * — one material”). ANSI colors stay the §1.6 constants by design.
+ *
+ * Phase 62: the selection highlight also resolves from a token,
+ * `--terminal-selection`, so it can follow the highlight scheme. It is the
+ * one terminal color that belongs to the highlight family. The ANSI palette,
+ * foreground, cursor and background stay put; the constant keeps its bytes,
+ * so the capture path and the workers are unchanged.
  */
 export function resolveTerminalTheme(): ITheme {
   const styles = getComputedStyle(document.documentElement);
@@ -146,7 +152,9 @@ export function resolveTerminalTheme(): ITheme {
     ...terminalTheme,
     background: cssVar(styles, '--bg-canvas') ?? terminalTheme.background,
     cursorAccent: cssVar(styles, '--bg-canvas') ?? terminalTheme.cursorAccent,
-    cursor: cssVar(styles, '--text-primary') ?? terminalTheme.cursor
+    cursor: cssVar(styles, '--text-primary') ?? terminalTheme.cursor,
+    selectionBackground:
+      cssVar(styles, '--terminal-selection') ?? terminalTheme.selectionBackground
   };
 }
 

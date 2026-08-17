@@ -25,6 +25,7 @@ import { Codicon, InlineSvg } from '../icons';
 // com.specstory.tortie.
 import specstorySvg from '../assets/brand/specstory.svg?raw';
 import { AgentsSection } from './AgentsSection';
+import { AppearanceSection } from './AppearanceSection';
 import { DiagnosticsSection } from './DiagnosticsSection';
 import { GeneralSection } from './GeneralSection';
 import { KeyboardSection } from './KeyboardSection';
@@ -39,7 +40,8 @@ type SectionId =
   | 'keyboard'
   | 'launch-defaults'
   | 'specstory'
-  | 'diagnostics';
+  | 'diagnostics'
+  | 'appearance';
 
 /**
  * A rail entry wears either a codicon, which is what app chrome uses, or a
@@ -75,7 +77,11 @@ const SECTIONS: { id: SectionId; label: string; icon: RailIcon }[] = [
   // the newest section and the least often visited, and inserting it
   // mid-list would move entries people already know the position of. It is
   // actions, not readings, so it does not break the no-dashboard rule.
-  { id: 'diagnostics', label: 'Diagnostics', icon: { codicon: 'output' } }
+  { id: 'diagnostics', label: 'Diagnostics', icon: { codicon: 'output' } },
+  // Phase 62. Last on the rail, the house rule for a new section: it is the
+  // newest and inserting it mid-list would move entries people already know
+  // the position of.
+  { id: 'appearance', label: 'Appearance', icon: { codicon: 'symbol-color' } }
 ];
 
 export function SettingsApp(): React.JSX.Element {
@@ -152,6 +158,7 @@ export function SettingsApp(): React.JSX.Element {
         {section === 'launch-defaults' ? <LaunchDefaultsSection /> : null}
         {section === 'specstory' ? <SpecStorySection /> : null}
         {section === 'diagnostics' ? <DiagnosticsSection /> : null}
+        {section === 'appearance' ? <AppearanceSection /> : null}
       </main>
     </div>
   );

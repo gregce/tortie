@@ -73,6 +73,67 @@ export interface GmuxSettings {
    * 50,000 lines is 4.7-9.0 s of beachball on the quit path.
    */
   savedScrollbackLines: number;
+  /**
+   * Which highlight scheme the renderer derives token overrides from
+   * (Phase 62). 'blue' is the shipped palette and derives ZERO overrides.
+   * This is a preference with no danger semantics. It never touches the
+   * danger seal. A hand-edited file can at worst pick a different preset.
+   */
+  highlightScheme: HighlightScheme;
+  /**
+   * Which contrast step the renderer derives token overrides from
+   * (Phase 62). 'normal' derives ZERO overrides. Same posture as
+   * `highlightScheme` above. No danger semantics, never sealed.
+   */
+  contrastLevel: ContrastLevel;
+}
+
+// ---------------------------------------------------------------------------
+// Appearance (Phase 62). The value unions and their membership checks.
+// ---------------------------------------------------------------------------
+
+/**
+ * The highlight scheme presets, in UI order. The preset DATA (target OKLCH
+ * hues, the token family each one recolors) lives in
+ * src/renderer/theme/presets.ts. Here is only the persisted id.
+ */
+export type HighlightScheme = 'blue' | 'teal' | 'purple' | 'slate';
+export const HIGHLIGHT_SCHEMES: readonly HighlightScheme[] = [
+  'blue',
+  'teal',
+  'purple',
+  'slate'
+];
+export const DEFAULT_HIGHLIGHT_SCHEME: HighlightScheme = 'blue';
+
+/** The contrast steps, in UI order. 'normal' is the shipped palette. */
+export type ContrastLevel = 'normal' | 'raised' | 'high';
+export const CONTRAST_LEVELS: readonly ContrastLevel[] = [
+  'normal',
+  'raised',
+  'high'
+];
+export const DEFAULT_CONTRAST_LEVEL: ContrastLevel = 'normal';
+
+/**
+ * Membership check for a persisted highlight scheme. Anything outside the
+ * union falls back to the default, following the `clampScrollbackLines`
+ * pattern: one pure helper here so main sanitization and tests share one
+ * definition of "valid".
+ */
+export function sanitizeHighlightScheme(value: unknown): HighlightScheme {
+  return typeof value === 'string' &&
+    (HIGHLIGHT_SCHEMES as readonly string[]).includes(value)
+    ? (value as HighlightScheme)
+    : DEFAULT_HIGHLIGHT_SCHEME;
+}
+
+/** Membership check for a persisted contrast level. Same pattern as above. */
+export function sanitizeContrastLevel(value: unknown): ContrastLevel {
+  return typeof value === 'string' &&
+    (CONTRAST_LEVELS as readonly string[]).includes(value)
+    ? (value as ContrastLevel)
+    : DEFAULT_CONTRAST_LEVEL;
 }
 
 // ---------------------------------------------------------------------------
@@ -148,7 +209,9 @@ export function defaultGmuxSettings(): GmuxSettings {
     dangerAcknowledged: [],
     captureDefaults: {},
     scrollbackLines: DEFAULT_SCROLLBACK_LINES,
-    savedScrollbackLines: DEFAULT_SAVED_SCROLLBACK_LINES
+    savedScrollbackLines: DEFAULT_SAVED_SCROLLBACK_LINES,
+    highlightScheme: DEFAULT_HIGHLIGHT_SCHEME,
+    contrastLevel: DEFAULT_CONTRAST_LEVEL
   };
 }
 

@@ -32,3 +32,14 @@ export function registerTerminal(sessionId: string, term: Terminal): () => void 
 export function getTerminal(sessionId: string): Terminal | null {
   return live.get(sessionId) ?? null;
 }
+
+/**
+ * Visit every live terminal (Phase 62: the appearance layer re-resolves each
+ * terminal's theme after a highlight change, so the selection color follows
+ * the scheme without a remount). The callback runs once per terminal and
+ * must not keep the reference. TerminalPane owns the instance, which is this
+ * file's rule from the header.
+ */
+export function forEachTerminal(fn: (term: Terminal) => void): void {
+  for (const term of live.values()) fn(term);
+}

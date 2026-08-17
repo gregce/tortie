@@ -5433,7 +5433,7 @@ same no-vocabulary discipline that hides tmux today; and a phase ladder with cos
 docs/research/51-remote-machines.md in the house style with a verdict table and a what-is-not-true
 section. Nothing is built from it without the operator's word.
 
-## Phase 62 — a minimal theme system: highlight schemes and a contrast lift (operator requested 2026-08-16) QUEUED, BUILDING
+## Phase 62 — a minimal theme system: highlight schemes and a contrast lift (operator requested 2026-08-16) ✅ SHIPPED 2026-08-16 (this commit, 0.31.0)
 
 **The operator's words.** "Build a minimal theme system into settings that allows for the color
 scheme of the highlighting to be changed BUT also to enable brightening of contrast etc as on some

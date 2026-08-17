@@ -39,6 +39,11 @@
      only focus signal, because every unfocused pane in the group also dims. */
   --accent-soft: rgba(77, 157, 232, 0.6);
   --on-accent: #0d1117;
+  /* Phase 62. Mirrors the selectionBackground constant in
+     src/renderer/terminal/theme.ts and exists so the highlight scheme can
+     recolor the terminal selection. The ANSI palette, foreground, cursor and
+     background stay constants there. */
+  --terminal-selection: rgba(77, 157, 232, 0.3);
 
   /* §1.3 Session status */
   --status-working: #4d9de8; /* solid dot; agent producing output              */

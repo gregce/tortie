@@ -7,6 +7,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { installRendererErrorCapture } from '../errors/hooks';
+import { initAppearance } from '../theme/apply';
 import { SettingsApp } from './SettingsApp';
 import '../styles/globals.css';
 
@@ -14,6 +15,10 @@ import '../styles/globals.css';
 // 'settings' scope. No boundary here; the one boundary wraps the main
 // window's <App /> only.
 installRendererErrorCapture('settings');
+
+// Phase 62: the Settings window follows its own controls. Same call as the
+// main window's entry; the broadcast keeps both in step.
+initAppearance();
 
 const rootEl = document.getElementById('root');
 if (!rootEl) {
