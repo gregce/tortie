@@ -22,6 +22,10 @@ import { IDENTITY_HARVEST_KEYS } from '../manifest';
 import type { ClaimStrength, ManifestSessionRecord } from '../manifest';
 // Type only, so this module still touches no tmux code at runtime.
 import type { ServerProbeVerdict } from '../tmux/errors';
+// Phase 71. The id this Mac is registered under, imported rather than written
+// again, so there is ONE definition of the word `local` on the reconcile path.
+// It is a plain string constant; nothing is started by reading it.
+import { LOCAL_MACHINE_ID } from '../machines/context';
 
 // ---------------------------------------------------------------------------
 // Phase 19 item 4 — a capture pass that could not write says so once
@@ -255,16 +259,25 @@ export function staleCreateIds(
 
 // ---------------------------------------------------------------------------
 // Phase 67 — the per-machine reconcile boundary (research 51 §4.3, §4.4, M0)
+// Phase 71 — the boundary becomes real: more than one machine can be reconciled
 // ---------------------------------------------------------------------------
 
 /**
- * The machines this build reconciles. There is one, the local socket, and it
- * adopts the boundary immediately. M2 replaces this with real machine ids.
+ * The id of a machine this build reconciles.
+ *
+ * PHASE 67 WROTE THIS AS THE LITERAL TYPE `'local'`, because there was one
+ * machine and the boundary was being adopted before there was anything to
+ * separate. Phase 71 widens it, and the widening is the point of the rung: the
+ * judgements below now take a machine id and move that machine's rows and no
+ * other machine's.
  */
-export type MachineId = 'local';
+export type MachineId = string;
 
-/** The one machine that exists today. */
-export const LOCAL_MACHINE: MachineId = 'local';
+/**
+ * This Mac. It is not a machine row, and it is the only value this release
+ * writes into the manifest's `machine_id` column.
+ */
+export const LOCAL_MACHINE: MachineId = LOCAL_MACHINE_ID;
 
 /** What one list attempt proved, reduced from the exec outcome. */
 export type ListAttemptOutcome =
@@ -312,17 +325,30 @@ export function listAttemptOutcome(
  * at or after `snapshotAt`, are left exactly as they are. The failed exec is
  * evidence taken at `snapshotAt`, and it proves nothing about a row whose own
  * evidence is newer.
+ *
+ * PHASE 71 ADDED THE MACHINE FILTER, and it is the first argument after the
+ * rows because it is the first question. A failed link to one machine says
+ * nothing at all about the sessions on another, so only rows whose own
+ * `machine_id` equals `machineId` are considered. Without it, a machine that
+ * went to sleep would write 'unknown' over sessions running on this Mac, and a
+ * person would be told Tortie cannot see work it is looking straight at.
+ *
+ * A row with no `machineId` reads as {@link LOCAL_MACHINE}. That is true of
+ * every row written before migration 013 and of every row a `.recover` rebuild
+ * produced, and it is what keeps an old manifest reconciling exactly as it did.
  */
 export function unreachableFlips(
   rows: readonly Pick<
     ManifestSessionRecord,
-    'id' | 'status' | 'createdAt' | 'lastSeen'
+    'id' | 'status' | 'createdAt' | 'lastSeen' | 'machineId'
   >[],
+  machineId: MachineId,
   snapshotAt: number,
   inFlightIds: ReadonlySet<string>
 ): string[] {
   const out: string[] = [];
   for (const rec of rows) {
+    if ((rec.machineId ?? LOCAL_MACHINE) !== machineId) continue;
     if (
       rec.status !== 'running' &&
       rec.status !== 'idle' &&

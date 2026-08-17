@@ -22,6 +22,23 @@
  * (see __tests__/control-parser.test.ts). The stateful concerns (pairing
  * blocks to pending commands, treating in-block lines as body text) live in
  * control-client.ts; this module only classifies a single line.
+ *
+ * ## Phase 71: the same lines, measured over a connection, and NOTHING widened
+ *
+ * `build/probe-control-dialect.mjs` opened `tmux -C` on another machine over a
+ * real connection, on 3.6a and on 3.7b, and compared every line against a local
+ * child of the same version. Two things about this module were checked and both
+ * held, so not one character of the parsing below changed:
+ *
+ *  - Every guard printed exactly THREE numbers, so {@link GUARD_RE} needed no
+ *    fourth field. The greeting's guard carried command number 275 on 3.6a and
+ *    283 on 3.7b, and both sides of a version printed the same one.
+ *  - Four notification names arrived that have no named arm here, being
+ *    `%window-add`, `%unlinked-window-add`, `%unlinked-window-renamed` and
+ *    `%unlinked-window-close`. Each one lands in `other-notification`, which is
+ *    what it is for. None of them carries a fact the feed reads.
+ *
+ * The full table is docs/research/52-control-mode-dialect.md.
  */
 
 // ---------------------------------------------------------------------------

@@ -11,6 +11,7 @@
  *   projects-slice.ts   tabs, order, active project, project verbs
  *   sessions-slice.ts   the session projection and every session verb
  *   chrome-slice.ts     sidebar, dock, orientation, fill mode
+ *   machines-slice.ts   the link state of every machine, as main reports it
  *   overlays-slice.ts   dialogs, native menu choke point, rename
  *   notices-slice.ts    the toast queue
  *   subscriptions.ts    hydration + bridge event handlers (one owner, so a
@@ -37,6 +38,7 @@ import {
   createChromeSlice,
   pushSessionsPositionToMenu
 } from './chrome-slice';
+import { createMachinesSlice } from './machines-slice';
 import { createNoticesSlice } from './notices-slice';
 import { createOverlaysSlice } from './overlays-slice';
 import { createProjectsSlice } from './projects-slice';
@@ -60,6 +62,9 @@ export {
   whenSessionsPositionPushed
 } from './chrome-slice';
 export { nextOrdinal } from './sessions-slice';
+// Phase 71: the two pure reads over the machine link state, exported from the
+// facade so a surface imports one module for the store and its helpers.
+export { badgeMachineOf, silentMachines } from './machines-slice';
 
 /**
  * The sidebar hosts ONE view at a time (round 1, activity bar).
@@ -83,6 +88,10 @@ export const useApp = create<AppState>((set, get, api) => ({
   ...createChromeSlice(set, get, api),
   ...createOverlaysSlice(set, get, api),
   ...createNoticesSlice(set, get, api),
+  // Phase 71: machine link state. It is a slice rather than a derivation
+  // because it is the one fact about a machine that no session row can carry:
+  // a machine that has not answered has no rows here at all.
+  ...createMachinesSlice(set, get, api),
 
   // -- lifecycle -----------------------------------------------------------
   //

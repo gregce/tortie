@@ -32,7 +32,7 @@ import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { ManifestStore, type ManifestSessionRecord } from '../../manifest';
-import { unreachableFlips } from '../reconcile-plan';
+import { LOCAL_MACHINE, unreachableFlips } from '../reconcile-plan';
 import type { SessionStatus } from '@shared/types';
 
 // ---------------------------------------------------------------------------
@@ -71,9 +71,20 @@ function row(
   });
 }
 
-/** What markLocalServerUnreachable does to the manifest, and only that. */
+/**
+ * What markMachineUnreachable does to the manifest, and only that.
+ *
+ * Phase 71 gave the pure function its machine argument, and this helper passes
+ * the local id, which is what the core passes for this Mac. The per machine
+ * property has its own suite in ./reconcile-plan.test.ts.
+ */
 function markUnreachable(snapshotAt: number, inFlight = new Set<string>()) {
-  const flips = unreachableFlips(store.listSessions(), snapshotAt, inFlight);
+  const flips = unreachableFlips(
+    store.listSessions(),
+    LOCAL_MACHINE,
+    snapshotAt,
+    inFlight
+  );
   for (const id of flips) store.updateSession(id, { status: 'unknown' });
   return flips;
 }
@@ -189,7 +200,7 @@ describe('refresh, on a failed list', () => {
 
   it('reconciles against the empty list ONLY for a completed probe', () => {
     const empty = refresh.indexOf('liveInfos = [];');
-    const mark = refresh.indexOf('this.markLocalServerUnreachable(');
+    const mark = refresh.indexOf('this.markMachineUnreachable(');
     expect(mark).toBeGreaterThan(-1);
     expect(empty).toBeGreaterThan(mark); // the unreachable arm returns first
     expect(refresh.slice(mark)).toMatch(/return;/);
@@ -200,11 +211,21 @@ describe('refresh, on a failed list', () => {
   });
 });
 
-describe('markLocalServerUnreachable', () => {
+describe('markMachineUnreachable', () => {
   const mark = body(
-    'private markLocalServerUnreachable(',
+    'private markMachineUnreachable(',
     'Close every restore attempt'
   );
+
+  /**
+   * Phase 71. The judgement is taken for ONE machine, so the machine id the
+   * caller named is handed to the pure function rather than dropped on the
+   * floor. Without this line the flips would be taken over every row in the
+   * manifest, which is what the method did while there was only one machine.
+   */
+  it('passes the machine it was called for into the flips', () => {
+    expect(mark).toMatch(/unreachableFlips\(\s*this\.manifest\.listSessions\(\),\s*machine,/);
+  });
 
   it('writes the status without stamping lastSeen', () => {
     expect(mark).toContain("this.manifest.updateSession(id, { status: 'unknown' })");

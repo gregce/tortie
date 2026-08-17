@@ -21,6 +21,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { EventEmitter } from 'node:events';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GmuxError } from '../../errors';
 import type { RemoteMachineContext } from '../context';
@@ -78,6 +79,33 @@ vi.mock('../exec-plane', () => ({
   }
 }));
 
+/**
+ * The control client, replaced so nothing spawns.
+ *
+ * `startMachineFeed` opens a live connection when the machine's version has a
+ * control measurement, and this file must never start one. The fake records
+ * every client made and lets a test emit the events a real one would.
+ */
+class FakeControlClient extends EventEmitter {
+  static made: FakeControlClient[] = [];
+  connected = false;
+  constructor(readonly transport: { machineId: string }) {
+    super();
+    FakeControlClient.made.push(this);
+  }
+  start(): Promise<void> {
+    return Promise.resolve();
+  }
+  stop(): void {
+    this.connected = false;
+  }
+}
+
+vi.mock('../../tmux/control-client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../tmux/control-client')>()),
+  TmuxControlClient: FakeControlClient
+}));
+
 const {
   MACHINE_NOT_READY,
   RESTORE_REFUSED,
@@ -107,8 +135,17 @@ const {
   remoteSessionRow,
   remoteSessions,
   resetRemoteSessionsForTests,
-  splitQuotedLine
+  splitQuotedLine,
+  machinesWithBothFeeds,
+  remoteMachinesWoke,
+  startMachineFeed,
+  stopMachineFeeds
 } = await import('../remote-sessions');
+
+const { resetControlPlanesForTests } = await import('../control-plane');
+const { noteIssuedRemoteId, resetRescueForTests } = await import(
+  '../pane-env-rescue'
+);
 
 const MACHINE = 'popos';
 
@@ -155,11 +192,16 @@ beforeEach(() => {
   createdUuid = '';
   remotePath = '/usr/bin:/bin';
   registered = true;
+  FakeControlClient.made = [];
   resetRemoteSessionsForTests();
+  resetControlPlanesForTests();
+  resetRescueForTests();
 });
 
 afterEach(() => {
   resetRemoteSessionsForTests();
+  resetControlPlanesForTests();
+  resetRescueForTests();
 });
 
 /** The refusal a call produced, or null when it did not refuse. */
@@ -401,13 +443,30 @@ describe('create, list, rename and end', () => {
     expect(remoteSessions()[0]?.status).toBe('running');
   });
 
-  it('ends a row the machine stopped reporting, and keeps it for this run', async () => {
+  it('marks a row the machine stopped reporting restorable, and keeps it', async () => {
+    // PHASE 71 CHANGED THIS ANSWER, and the change is the case table. Phase 70
+    // wrote `exited`. Research 51 section 4.4 says `restorable`, because a
+    // completed pass that did not hold the session is evidence the session is
+    // not running and is NOT evidence about how it ended. Restore is still
+    // refused for every remote row in this release, so the label a person reads
+    // is the coming one rather than a button.
     answers['list-sessions'] = line({ tmuxId: '$1', gmuxId: 'ours-1' });
     await pollRemoteMachine(MACHINE);
     answers['list-sessions'] = '';
     await pollRemoteMachine(MACHINE);
-    expect(remoteSessions()[0]?.status).toBe('exited');
-    expect(remoteSessionRow('ours-1')?.status).toBe('exited');
+    expect(remoteSessions()[0]?.status).toBe('restorable');
+    expect(remoteSessionRow('ours-1')?.status).toBe('restorable');
+  });
+
+  it('keeps a proven absence when the link later drops', async () => {
+    // A completed pass is evidence, and a later lost link does not un-prove it.
+    // Only the LIVE rows on that machine go to `unknown`.
+    answers['list-sessions'] = line({ tmuxId: '$1', gmuxId: 'ours-1' });
+    await pollRemoteMachine(MACHINE);
+    answers['list-sessions'] = '';
+    await pollRemoteMachine(MACHINE);
+    markMachineQuiet(MACHINE);
+    expect(remoteSessions()[0]?.status).toBe('restorable');
   });
 
   it('renames on the far side and moves the name stamp with it', async () => {
@@ -567,6 +626,214 @@ describe('a machine that stops answering', () => {
     });
     await pollRemoteMachine(MACHINE);
     expect(remoteSessions()[0]?.status).toBe('running');
+  });
+});
+
+
+// ---------------------------------------------------------------------------
+// The feed (Phase 71, M4)
+// ---------------------------------------------------------------------------
+
+describe('the feed picks one shape and never both', () => {
+  /** The one client `startMachineFeed` made, or a failure that says so. */
+  function onlyClient(): FakeControlClient {
+    const client = FakeControlClient.made[0];
+    if (client === undefined) throw new Error('no control client was made');
+    return client;
+  }
+
+  it('keeps the timer for a machine whose dialect has no measurement', async () => {
+    // The mock answers `display-message` with nothing, so the version cannot be
+    // read and the control gate refuses. That is the fails closed answer.
+    answers['list-sessions'] = line({ tmuxId: '$1', gmuxId: 'ours-1' });
+    await startMachineFeed(MACHINE);
+    const facts = remoteMachineFacts(MACHINE);
+    expect(facts.timerArmed).toBe(true);
+    expect(facts.onControl).toBe(false);
+    expect(FakeControlClient.made).toHaveLength(0);
+    stopMachineFeeds();
+  });
+
+  it('clears the timer the moment a connection reaches connected', async () => {
+    answers['display-message'] = 'tmux 3.6a\n';
+    answers['list-sessions'] = line({ tmuxId: '$1', gmuxId: 'ours-1' });
+    await startMachineFeed(MACHINE);
+    // Opened, and the timer still carries the machine until it connects.
+    expect(remoteMachineFacts(MACHINE).timerArmed).toBe(true);
+
+    onlyClient().connected = true;
+    onlyClient().emit('connected');
+    await Promise.resolve();
+
+    const facts = remoteMachineFacts(MACHINE);
+    expect(facts.onControl).toBe(true);
+    expect(facts.timerArmed).toBe(false);
+    expect(machinesWithBothFeeds()).toEqual([]);
+    stopMachineFeeds();
+  });
+
+  it('arms the timer again the moment the connection drops', async () => {
+    answers['display-message'] = 'tmux 3.6a\n';
+    answers['list-sessions'] = line({ tmuxId: '$1', gmuxId: 'ours-1' });
+    await startMachineFeed(MACHINE);
+    onlyClient().connected = true;
+    onlyClient().emit('connected');
+    await Promise.resolve();
+
+    onlyClient().connected = false;
+    onlyClient().emit('disconnected', true);
+
+    const facts = remoteMachineFacts(MACHINE);
+    expect(facts.onControl).toBe(false);
+    expect(facts.timerArmed).toBe(true);
+    expect(machinesWithBothFeeds()).toEqual([]);
+    // Every row on that machine reads unknown, which is the transport-lost arm.
+    expect(remoteSessions()[0]?.status).toBe('unknown');
+    stopMachineFeeds();
+  });
+
+  it('lists once because the machine said something changed', async () => {
+    answers['display-message'] = 'tmux 3.6a\n';
+    answers['list-sessions'] = line({ tmuxId: '$1', gmuxId: 'ours-1' });
+    await startMachineFeed(MACHINE);
+    onlyClient().connected = true;
+    onlyClient().emit('connected');
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const before = sent.filter((argv) => argv[0] === 'list-sessions').length;
+    onlyClient().emit('sessions-changed');
+    await Promise.resolve();
+    await Promise.resolve();
+    const after = sent.filter((argv) => argv[0] === 'list-sessions').length;
+    expect(after).toBeGreaterThan(before);
+    stopMachineFeeds();
+  });
+
+  it('reads one list over either feed through one parser', async () => {
+    // The same recorded line, read once on the timer feed and once because the
+    // connection said something changed, produces the same row field by field.
+    const recorded = line({ tmuxId: '$1', gmuxId: 'ours-1', name: 'the work' });
+    answers['list-sessions'] = recorded;
+    await pollRemoteMachine(MACHINE);
+    const onTimer = { ...remoteSessionRow('ours-1') };
+
+    resetRemoteSessionsForTests();
+    resetControlPlanesForTests();
+    answers['display-message'] = 'tmux 3.6a\n';
+    answers['list-sessions'] = recorded;
+    await startMachineFeed(MACHINE);
+    onlyClient().connected = true;
+    onlyClient().emit('connected');
+    await Promise.resolve();
+    await Promise.resolve();
+    const onControl = { ...remoteSessionRow('ours-1') };
+
+    expect(onControl).toEqual(onTimer);
+    stopMachineFeeds();
+  });
+});
+
+describe('one machine never moves another machine rows', () => {
+  it('writes unknown on the machine that went and on no other', async () => {
+    answers['list-sessions'] = line({ tmuxId: '$1', gmuxId: 'ours-1' });
+    await pollRemoteMachine('studio');
+    answers['list-sessions'] = line({ tmuxId: '$1', gmuxId: 'theirs-1' });
+    await pollRemoteMachine('attic');
+
+    markMachineQuiet('studio');
+
+    const byId = new Map(remoteSessions().map((one) => [one.id, one]));
+    expect(byId.get('ours-1')?.status).toBe('unknown');
+    expect(byId.get('theirs-1')?.status).toBe('idle');
+  });
+
+  it('writes unknown on every machine when this Mac wakes', async () => {
+    answers['list-sessions'] = line({ tmuxId: '$1', gmuxId: 'ours-1' });
+    await pollRemoteMachine('studio');
+    answers['list-sessions'] = line({ tmuxId: '$1', gmuxId: 'theirs-1' });
+    await pollRemoteMachine('attic');
+
+    remoteMachinesWoke();
+
+    for (const row of remoteSessions()) expect(row.status).toBe('unknown');
+    expect(remoteMachineFacts('studio').evidence).toContain('power event');
+  });
+});
+
+describe('the pane environment rescue', () => {
+  it('re-binds a session this run issued and could not account for', async () => {
+    // The case: a create whose link died between the new-session line and the
+    // option stamp. The session is running with the pane stamp and no option
+    // stamp, so every pass counts it as foreign until the rescue reads it back.
+    noteIssuedRemoteId({
+      id: 'lost-1',
+      machineId: MACHINE,
+      name: 'the interrupted one',
+      agent: 'claude',
+      projectPath: '/srv/repo',
+      cwd: '/srv/repo',
+      issuedAt: 1
+    });
+    let listed = line({ tmuxId: '$9', gmuxId: '', tmuxName: 'orphan' });
+    answers['list-sessions'] = () => listed;
+    answers['show-environment'] = 'GMUX_SESSION_ID=lost-1\n';
+    answers['set-option'] = () => {
+      // The re-stamp lands, so the next list reports the row as ours.
+      listed = line({ tmuxId: '$9', gmuxId: 'lost-1', tmuxName: 'orphan' });
+      return '';
+    };
+
+    await pollRemoteMachine(MACHINE);
+
+    expect(remoteSessions().map((one) => one.id)).toEqual(['lost-1']);
+    const probe = sent.find((argv) => argv[0] === 'show-environment');
+    expect(probe).toEqual(['show-environment', '-t', '$9']);
+  });
+
+  it('never adopts a session whose stamp names an id nobody issued', async () => {
+    answers['list-sessions'] = line({ tmuxId: '$9', gmuxId: '', tmuxName: 'theirs' });
+    answers['show-environment'] = 'GMUX_SESSION_ID=nobody-issued-this\n';
+
+    await pollRemoteMachine(MACHINE);
+
+    expect(remoteSessions()).toEqual([]);
+    expect(remoteMachineFacts(MACHINE).foreign).toBe(1);
+    // NOT OURS is never killed and never renamed.
+    expect(sent.some((argv) => argv[0] === 'kill-session')).toBe(false);
+    expect(sent.some((argv) => argv[0] === 'set-option')).toBe(false);
+  });
+
+  it('asks once per session rather than once per pass', async () => {
+    answers['list-sessions'] = line({ tmuxId: '$9', gmuxId: '', tmuxName: 'theirs' });
+    answers['show-environment'] = 'GMUX_SESSION_ID=nobody-issued-this\n';
+
+    await pollRemoteMachine(MACHINE);
+    await pollRemoteMachine(MACHINE);
+    await pollRemoteMachine(MACHINE);
+
+    const probes = sent.filter((argv) => argv[0] === 'show-environment');
+    expect(probes).toHaveLength(1);
+  });
+
+  it('records the id BEFORE the create line is sent', async () => {
+    // An id recorded on the answer would not be recorded for exactly the create
+    // that needs rescuing, which is the one whose answer never arrived.
+    answers['new-session'] = new Error('the link went');
+    answers['show-environment'] = '';
+    answers['list-sessions'] = '';
+    await remoteCreate({
+      machineId: MACHINE,
+      name: 'interrupted',
+      projectPath: '/srv/repo',
+      cwd: '/srv/repo',
+      agent: 'shell'
+    }).catch(() => undefined);
+
+    const { issuedRemoteIdsFor } = await import('../pane-env-rescue');
+    const issued = issuedRemoteIdsFor(MACHINE);
+    expect(issued).toHaveLength(1);
+    expect(issued[0]?.name).toBe('interrupted');
   });
 });
 

@@ -151,8 +151,8 @@ afterEach(() => {
   rmSync(userData, { recursive: true, force: true });
 });
 
-describe('every channel is registered, and only these eleven', () => {
-  it('registers exactly the eleven machines channels', () => {
+describe('every channel is registered, and only these twelve', () => {
+  it('registers exactly the twelve machines channels', () => {
     expect([...handlers.keys()].sort()).toEqual([
       'machines:add',
       'machines:confirm',
@@ -163,6 +163,9 @@ describe('every channel is registered, and only these eleven', () => {
       'machines:reload',
       'machines:remove',
       'machines:rows',
+      // Phase 71's one new channel. It reads memory in main and answers: no
+      // machine is asked anything, no file is opened and nothing is started.
+      'machines:state',
       'machines:tailscaleNames',
       'machines:test',
       'machines:testCancel',

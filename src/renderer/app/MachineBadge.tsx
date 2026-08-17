@@ -29,18 +29,29 @@ import './machine-badge.css';
 
 export function MachineBadge({
   machine,
-  className
+  className,
+  title
 }: {
   /** The session's machine. Undefined means this Mac, and draws nothing. */
   machine: SessionMachine | undefined;
   /** Extra class for the surface's own placement. Never for colour. */
   className?: string;
+  /**
+   * The sentence to draw instead of the two below (Phase 71).
+   *
+   * There is a third case now, and only the caller can tell it apart: a machine
+   * that has not answered ONCE since Tortie started. `answering` cannot carry
+   * it, because a machine that answered and then stopped and a machine that was
+   * never heard from both have `answering` false and they need different words.
+   * The default stays exactly what Phase 70 shipped.
+   */
+  title?: string;
 }): React.JSX.Element | null {
   if (machine === undefined) return null;
   const quiet = !machine.answering;
-  const sentence = quiet
-    ? badgeQuietTitle(machine.label)
-    : badgeTitle(machine.label);
+  const sentence =
+    title ??
+    (quiet ? badgeQuietTitle(machine.label) : badgeTitle(machine.label));
   return (
     <span
       className={['machine-badge', quiet ? 'quiet' : '', className ?? '']

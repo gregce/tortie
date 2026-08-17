@@ -9,7 +9,7 @@
 
 import type { Session } from '@shared/types';
 import { useLayout } from '../../state/layout';
-import { useApp } from '../../state/store';
+import { effectiveStatusOf, useApp } from '../../state/store';
 import { canInsert } from './insert';
 import type { AttachPromise } from './state';
 import { imageDropFor } from './strategy';
@@ -38,13 +38,19 @@ export function sessionById(id: string): Session | null {
  * A pane can accept a drop only while its session is actually running.
  * `unknown` (Phase 67) refuses on the same terms as exited and restorable:
  * the server did not answer, so nothing may act on the session's tmux side.
+ *
+ * PHASE 71: all three refusals read through `effectiveStatusOf`, the one
+ * expression every surface reads status through. This gate decides whether
+ * Tortie writes bytes into a session, so it must never decide from a different
+ * reading than the row a person is looking at.
  */
 export function paneAccepts(session: Session | null): boolean {
   if (!session) return false;
+  const status = effectiveStatusOf(session);
   if (
-    session.status === 'exited' ||
-    session.status === 'restorable' ||
-    session.status === 'unknown'
+    status === 'exited' ||
+    status === 'restorable' ||
+    status === 'unknown'
   ) {
     return false;
   }

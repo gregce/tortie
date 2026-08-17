@@ -112,14 +112,19 @@ export const TESTED_TMUX_PAIRS: readonly TmuxVersionPair[] = [
  * One version of tmux on another machine, and which planes it was measured
  * against.
  *
- * `measured` is a PAIR rather than a boolean, and that is the whole design. This
- * rung can honestly measure the exec plane, which is one command per connection
- * over the sign in program. It cannot measure control mode, because opening a
- * persistent control connection is outside its scope fence. So every row this
- * rung writes carries `control: false`, and a row with `control: false` refuses
- * the control plane. M4 has to measure before it opens a control connection, and
- * the field is what makes that a fails closed ladder from rung to rung instead of
- * a footnote somebody reads later.
+ * `measured` is a PAIR rather than a boolean, and that is the whole design.
+ * Phase 69 could honestly measure the exec plane, which is one command per
+ * connection over the sign in program. It could not measure control mode,
+ * because opening a persistent control connection was outside its scope fence,
+ * so every row it wrote carried `control: false`.
+ *
+ * PHASE 71 MEASURED IT. `build/probe-control-dialect.mjs` opens the real
+ * carriage against a scratch machine and compares the stream against a local
+ * control child of the same version, step by step. A version whose stream
+ * matched gets `control: true` and a live connection. A version that differs on
+ * any step keeps `control: false`, keeps the timer feed, and the note says which
+ * step differed and what the far side sent instead. That is the fails closed
+ * ladder from rung to rung rather than a footnote somebody reads later.
  */
 export interface TestedRemoteTmux {
   readonly version: string;
@@ -148,27 +153,68 @@ export interface TestedRemoteTmux {
 export const TESTED_REMOTE_TMUX_VERSIONS: readonly TestedRemoteTmux[] = [
   {
     version: '3.6a',
-    measured: { exec: true, control: false },
+    measured: { exec: true, control: true },
     measuredAt: '2026-08-17',
     note:
       'The tmux this Mac runs, reached over the sign in program to a scratch ' +
       'server on this same Mac. All four exec plane shapes answered as this ' +
-      'build expects. Control mode was not opened, because this release does ' +
-      'not open one.'
+      'build expects. Control mode was opened by ' +
+      '"npm run probe:controldialect" and its stream matched a local control ' +
+      'child of the same version on all eight comparable steps, being the ' +
+      'greeting, the no output block, the guard shape, the notifications on a ' +
+      'create, a kill and a rename, the rename argument order, the window ' +
+      'traffic, the exit line, and one list compared byte for byte against the ' +
+      'same list over the exec plane.'
   },
   {
     version: '3.7b',
-    measured: { exec: true, control: false },
+    measured: { exec: true, control: true },
     measuredAt: '2026-08-17',
     note:
       'The version Tortie carries inside the application, built by ' +
       '"npm run vendor:tmux" into the working tree and reached over the same ' +
       'carriage on its own scratch socket. Its own server reported 3.7b, the no ' +
       'server sentence was recognised, list-sessions answered with no rows and ' +
-      'exit 0, and show-options read back 25000. The copy inside an installed ' +
-      'Tortie.app was not read. Control mode was not opened.'
+      'exit 0, and show-options read back 25000. Control mode matched the local ' +
+      'child of the same version on the same eight steps. The copy inside an ' +
+      'installed Tortie.app was not read.'
   }
 ];
+
+/** What the version read on another machine adds up to for the control plane. */
+export type RemoteControlGate =
+  | { kind: 'measured'; version: string }
+  | { kind: 'unmeasured'; version: string; supported: readonly string[] }
+  | { kind: 'unreadable'; supported: readonly string[] };
+
+/**
+ * Decide whether Tortie will open a live connection to the program a machine
+ * reported. Pure.
+ *
+ * It is a SECOND gate rather than a widening of {@link decideRemoteVersionGate},
+ * and the reason is the ladder rather than tidiness. Control mode is a different
+ * wire protocol from one-shot verbs, so a version measured on one plane says
+ * nothing about the other. A version this list has measured for the exec plane
+ * and not for control keeps the timer feed Phase 70 shipped, which is slower and
+ * correct, rather than getting a connection nobody has read the bytes of.
+ *
+ * MEASURED 2026-08-17 by `build/probe-control-dialect.mjs` against a scratch
+ * connection, twice, with the same answer both times. An untested wire pair
+ * HANGS rather than errors, which is measured at the top of this file, and a
+ * hang reads to a person as Tortie freezing on work they care about.
+ */
+export function decideRemoteControlGate(
+  version: string | null,
+  list: readonly TestedRemoteTmux[] = TESTED_REMOTE_TMUX_VERSIONS
+): RemoteControlGate {
+  const supported = list
+    .filter((row) => row.measured.control)
+    .map((row) => row.version);
+  if (version === null) return { kind: 'unreadable', supported };
+  return supported.includes(version)
+    ? { kind: 'measured', version }
+    : { kind: 'unmeasured', version, supported };
+}
 
 /** What the version read on another machine adds up to. */
 export type RemoteVersionGate =

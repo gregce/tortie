@@ -14,9 +14,42 @@
  * exits immediately (observed empirically; see module report).
  *
  * Reconnect: on child exit or `%exit`, pending commands are rejected and a
- * backoff loop (500 ms → 10 s) re-runs ensureServer() + respawn, so a killed
- * server (T2) heals automatically while the app layer gets a 'server-exit'
- * event to offer manifest-based restore.
+ * backoff loop (500 ms → 10 s) re-runs the transport's precheck + respawn, so a
+ * killed server (T2) heals automatically while the app layer gets a
+ * 'server-exit' event to offer manifest-based restore.
+ *
+ * ## Phase 71: the transport is injected, and that is the whole change
+ *
+ * This class used to name two local things inside `start()`, being
+ * `ensureServer()` and `tmuxArgs()`. Both moved behind {@link ControlTransport},
+ * so the same line protocol now runs over a local pipe and over a connection to
+ * another machine. Nothing else in this class moved: the outbox, the greeting
+ * block, the pending queue, the `%begin`/`%end` handling and the 500 ms to 10 s
+ * backoff are what they were at `ce51b0d`, and the local transport composes the
+ * same argv the local client composed there.
+ *
+ * THE ONE RULE THAT MADE THE SEAM NECESSARY. Research 51 section 3 says a remote
+ * reconnect must never call a local `ensureServer()`. Without the seam, a
+ * connection to another machine that dropped would have started a tmux server on
+ * THIS Mac on every retry, forever.
+ *
+ * ## What the far side actually sends, MEASURED 2026-08-17
+ *
+ * `build/probe-control-dialect.mjs` opened this exact command over a real
+ * connection and compared the bytes against a local child of the same tmux, for
+ * 3.6a and for 3.7b. Both matched on all eight comparable steps. Two of the
+ * findings change what this file may assume, and both are recorded here because
+ * the comment above them used to say something narrower:
+ *
+ *  - The greeting is FIVE lines, not the guard pair alone. It is
+ *    `%begin`, `%end`, `%window-add @0`, `%sessions-changed` and
+ *    `%session-changed $0 gmux-control`. The three notifications arrive AFTER
+ *    the block closes, so `closeBlock` still sees the guard pair first and
+ *    `connected` still fires at the right moment.
+ *  - `-u` changes not one byte of the control stream, so it is NOT on the
+ *    control carriage. That is the opposite of the attach carriage, where `-u`
+ *    is load bearing (Bug C, Phase 9.2), and the difference is measured rather
+ *    than assumed. The full table is docs/research/52-control-mode-dialect.md.
  */
 
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
@@ -27,10 +60,81 @@ import {
   type ControlEvent
 } from './control-parser';
 import { gmuxError } from '../errors';
+import type { SpawnPlan } from '../machines/context';
 import { ensureServer, tmuxArgs } from './supervisor';
 
 /** Name of the pinned control session (never shown in the UI). */
 export const CONTROL_SESSION_NAME = 'gmux-control';
+
+/**
+ * The tmux arguments that open the event bus, on either kind of machine.
+ *
+ * One list, so the local child and the remote child cannot drift. It is a
+ * `readonly` tuple because a caller that mutated it would move the local bytes,
+ * and `build/conformance-machines.mjs` compares those bytes against `ab94847`.
+ */
+export const CONTROL_ATTACH_ARGS: readonly string[] = [
+  '-C',
+  'new-session',
+  '-A',
+  '-s',
+  CONTROL_SESSION_NAME
+];
+
+/**
+ * What the client needs to open one connection. Nothing else.
+ *
+ * It is deliberately narrow. A transport cannot read the client's state, cannot
+ * see its events and cannot cancel a reconnect. It answers three questions and
+ * the client decides what to do with the answers.
+ */
+export interface ControlTransport {
+  /** Names the machine in every log line. 'local' for this Mac. */
+  readonly machineId: string;
+  /**
+   * Run before every spawn, including every reconnect.
+   *
+   * Local: `ensureServer()`. Remote: ONE cheap command over the exec plane, and
+   * never `ensureServer()`, because a local `ensureServer` on a remote reconnect
+   * would start a server on THIS Mac's socket. Research 51 section 3.
+   *
+   * A rejection stops the spawn and schedules another attempt, so a machine that
+   * is asleep costs one refused command per backoff step and nothing else.
+   */
+  precheck(): Promise<void>;
+  /** The program and its arguments. Composed fresh on every reconnect. */
+  plan(): Promise<SpawnPlan>;
+  /** The environment the child gets. */
+  env(): NodeJS.ProcessEnv;
+}
+
+/**
+ * The transport for the server on this Mac.
+ *
+ * `precheck` is `ensureServer()` and `plan` is what `start()` composed at
+ * `ce51b0d`, so the local child's program and argv do not move by one byte. The
+ * context is kept between the two calls rather than resolved twice, which is
+ * also what the old code did: it called `ensureServer()` once per spawn.
+ */
+export function localControlTransport(): ControlTransport {
+  let ctx: Awaited<ReturnType<typeof ensureServer>> | null = null;
+  return {
+    machineId: 'local',
+    async precheck(): Promise<void> {
+      ctx = await ensureServer();
+    },
+    async plan(): Promise<SpawnPlan> {
+      const resolved = ctx ?? (await ensureServer());
+      return {
+        file: resolved.bin,
+        argv: tmuxArgs(resolved, CONTROL_ATTACH_ARGS)
+      };
+    },
+    env(): NodeJS.ProcessEnv {
+      return process.env;
+    }
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Typed events
@@ -81,12 +185,24 @@ export class TmuxControlClient extends EventEmitter<ControlClientEvents> {
   private reconnectTimer: NodeJS.Timeout | null = null;
   private starting = false;
 
-  constructor() {
+  /**
+   * @param transport How this client reaches its server. Defaults to the server
+   *   on this Mac, so every caller written before Phase 71 keeps the bytes it
+   *   had.
+   */
+  constructor(
+    private readonly transport: ControlTransport = localControlTransport()
+  ) {
     super();
     // 'error' on an EventEmitter throws when nobody listens; the event bus
     // must never take the app down over a stderr line. Default no-op —
     // real subscribers still receive every event.
     this.on('error', () => undefined);
+  }
+
+  /** Which machine this client's server is on. 'local' for this Mac. */
+  get machineId(): string {
+    return this.transport.machineId;
   }
 
   /** True when attached and past the greeting block. */
@@ -95,7 +211,7 @@ export class TmuxControlClient extends EventEmitter<ControlClientEvents> {
   }
 
   /**
-   * Start (or restart) the control client. Ensures the private server is up
+   * Start (or restart) the control client. The transport's precheck runs
    * first. Resolves once the child is spawned; 'connected' fires when the
    * protocol is ready.
    */
@@ -104,17 +220,11 @@ export class TmuxControlClient extends EventEmitter<ControlClientEvents> {
     this.starting = true;
     this.stopped = false;
     try {
-      const ctx = await ensureServer();
-      const argv = tmuxArgs(ctx, [
-        '-C',
-        'new-session',
-        '-A',
-        '-s',
-        CONTROL_SESSION_NAME
-      ]);
-      const child = spawn(ctx.bin, argv, {
+      await this.transport.precheck();
+      const plan = await this.transport.plan();
+      const child = spawn(plan.file, [...plan.argv], {
         stdio: ['pipe', 'pipe', 'pipe'],
-        env: process.env
+        env: this.transport.env()
       });
       this.child = child;
       this.greetingConsumed = false;
@@ -129,7 +239,7 @@ export class TmuxControlClient extends EventEmitter<ControlClientEvents> {
       child.stderr.on('data', (chunk: string) => {
         const text = chunk.trim();
         if (text.length > 0) {
-          this.emit('error', new Error(`tmux control client stderr: ${text}`));
+          this.emit('error', new Error(`control client for ${this.transport.machineId}: ${text}`));
         }
       });
       child.on('error', (err) => {
@@ -171,7 +281,7 @@ export class TmuxControlClient extends EventEmitter<ControlClientEvents> {
       child.stderr.removeAllListeners();
       child.kill();
     }
-    this.failPending(new Error('control client stopped'));
+    this.failPending(new Error(`the control client for ${this.transport.machineId} stopped`));
   }
 
   /**
@@ -188,7 +298,10 @@ export class TmuxControlClient extends EventEmitter<ControlClientEvents> {
     }
     if (this.child === null) {
       return Promise.reject(
-        gmuxError('TMUX_UNREACHABLE', 'control client is not connected')
+        gmuxError(
+          'TMUX_UNREACHABLE',
+          `the control client for ${this.transport.machineId} is not connected`
+        )
       );
     }
     return new Promise<string[]>((resolve, reject) => {
@@ -296,7 +409,10 @@ export class TmuxControlClient extends EventEmitter<ControlClientEvents> {
     this.blockLines = null;
     this.lineBuffer.reset();
     this.failPending(
-      gmuxError('TMUX_UNREACHABLE', 'control client disconnected')
+      gmuxError(
+        'TMUX_UNREACHABLE',
+        `the control client for ${this.transport.machineId} disconnected`
+      )
     );
     this.emit('server-exit', reason);
     const willReconnect = !this.stopped;

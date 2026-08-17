@@ -1725,7 +1725,7 @@ export class GmuxCore {
     } catch (err) {
       const outcome = listAttemptOutcome(tmux.serverProbeVerdict(err));
       if (outcome.kind === 'unreachable') {
-        this.markLocalServerUnreachable(LOCAL_MACHINE, snapshotAt, err);
+        this.markMachineUnreachable(LOCAL_MACHINE, snapshotAt, err);
         return;
       }
       liveInfos = []; // a completed probe confirmed death — the T2 path
@@ -1798,8 +1798,17 @@ export class GmuxCore {
   }
 
   /**
-   * The local machine could not be reached and its death was NOT confirmed
-   * (Phase 67, research 51 §4.3 and §4.4).
+   * One machine could not be reached and its death was NOT confirmed
+   * (Phase 67, research 51 §4.3 and §4.4; the machine argument is Phase 71).
+   *
+   * PER MACHINE, AND THAT IS THE PHASE 71 CHANGE. It moves the rows whose own
+   * `machine_id` names `machine` and no other row at all. A link that dropped to
+   * one machine says nothing about the sessions on another, and before this the
+   * judgement was taken over every row in the manifest because there was only
+   * ever one machine for them to be on. This release still writes only `local`
+   * into that column, so today the filter selects everything it used to select.
+   * It is here now, with a test, because the rung that starts writing other
+   * values must not also be the rung that discovers the boundary was missing.
    *
    * Every row that still CLAIMS liveness is written 'unknown'. That is the
    * one honest answer available, because the sessions may be running and
@@ -1837,13 +1846,14 @@ export class GmuxCore {
    * up on the socket, and the next list then COMPLETES with zero sessions,
    * which is a listed empty result rather than a failed probe.
    */
-  private markLocalServerUnreachable(
+  private markMachineUnreachable(
     machine: MachineId,
     snapshotAt: number,
     err: unknown
   ): void {
     const flips = unreachableFlips(
       this.manifest.listSessions(),
+      machine,
       snapshotAt,
       new Set([...this.createsInFlight.keys(), ...this.restoresInFlight])
     );
@@ -2555,18 +2565,27 @@ export class GmuxCore {
     // (Phase 21, A8 + G6), and the composition has a direct unit test. The
     // predicted tmuxName is replaced below with the name tmux actually
     // applied (dedupe may append “-2”).
-    const record: ManifestSessionRecord = newSessionRecord({
-      id,
-      input,
-      cwd,
-      spec,
-      capture,
-      agentVersion,
-      binPath,
-      cwdReal,
-      projectReal,
-      now
-    });
+    const record: ManifestSessionRecord = {
+      ...newSessionRecord({
+        id,
+        input,
+        cwd,
+        spec,
+        capture,
+        agentVersion,
+        binPath,
+        cwdReal,
+        projectReal,
+        now
+      }),
+      // PHASE 71, migration 013. Where a session runs is decided once, at
+      // create, and stated on the row rather than assumed by every later
+      // reader. This method is the local create, so the answer is this Mac. A
+      // session on another machine takes a different path entirely and gets no
+      // manifest row at all in this release, which is what the refusal in
+      // ../manifest/sessions-repository.ts holds true.
+      machineId: LOCAL_MACHINE
+    };
 
     // §2.4 Step 0: durability record exists BEFORE the process does — which
     // is exactly the window a concurrent reconcile must not judge (16.5.1).

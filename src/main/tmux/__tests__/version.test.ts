@@ -21,7 +21,10 @@ import assert from 'node:assert/strict';
 import { GmuxError } from '../../errors';
 import {
   BUNDLED_TMUX_VERSION,
+  TESTED_REMOTE_TMUX_VERSIONS,
   TESTED_TMUX_PAIRS,
+  decideRemoteControlGate,
+  decideRemoteVersionGate,
   assertServerVersionUsable,
   decideVersionGate,
   lastVersionGate,
@@ -395,5 +398,74 @@ describe('assertServerVersionUsable', () => {
         err.payload.code === 'TMUX_VERSION_UNTESTED' &&
         err.payload.message.includes('cannot identify')
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The control gate (Phase 71, M4)
+// ---------------------------------------------------------------------------
+
+describe('decideRemoteControlGate', () => {
+  it('reads a DIFFERENT column of the tested list from the exec gate', () => {
+    // The two gates ask different questions of the same rows. A version measured
+    // on one plane says nothing about the other, because control mode is a
+    // different wire protocol from one-shot verbs.
+    const list = [
+      {
+        version: '4.0',
+        measured: { exec: true, control: false },
+        measuredAt: '2026-08-17',
+        note: 'the exec plane only'
+      }
+    ];
+    assert.deepEqual(decideRemoteVersionGate('4.0', list), {
+      kind: 'measured',
+      version: '4.0'
+    });
+    assert.deepEqual(decideRemoteControlGate('4.0', list), {
+      kind: 'unmeasured',
+      version: '4.0',
+      supported: []
+    });
+  });
+
+  it('accepts a version measured on the control plane', () => {
+    const list = [
+      {
+        version: '4.0',
+        measured: { exec: true, control: true },
+        measuredAt: '2026-08-17',
+        note: 'both planes'
+      }
+    ];
+    assert.deepEqual(decideRemoteControlGate('4.0', list), {
+      kind: 'measured',
+      version: '4.0'
+    });
+  });
+
+  it('refuses a version it could not read, and names what it has measured', () => {
+    const gate = decideRemoteControlGate(null);
+    assert.equal(gate.kind, 'unreadable');
+    assert.deepEqual([...gate.supported], ['3.6a', '3.7b']);
+  });
+
+  it('holds the two versions build/probe-control-dialect.mjs measured', () => {
+    // THE GATE AND THE MEASUREMENT ARE ONE FACT. If a row loses its control
+    // measurement this fails, and docs/research/52-control-mode-dialect.md is
+    // the evidence for the two that have one.
+    const measured = TESTED_REMOTE_TMUX_VERSIONS.filter(
+      (row) => row.measured.control
+    ).map((row) => row.version);
+    assert.deepEqual(measured, ['3.6a', '3.7b']);
+  });
+
+  it('never measures control without measuring exec first', () => {
+    // A version cannot be reachable on the live connection and unreachable for
+    // the one-shot verbs, because the live connection's own precheck is a
+    // one-shot verb.
+    for (const row of TESTED_REMOTE_TMUX_VERSIONS) {
+      if (row.measured.control) assert.equal(row.measured.exec, true);
+    }
   });
 });

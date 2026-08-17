@@ -1,9 +1,25 @@
 /**
- * Sessions that live on another machine (Phase 70, M3, research 51 sections 4.1,
- * 4.3 and 4.6).
+ * Sessions that live on another machine (Phase 70, M3, then Phase 71, M4;
+ * research 51 sections 4.1, 4.3, 4.4 and 4.6).
  *
- * This module owns four verbs, one poll, one registry and one projection. It is
+ * This module owns four verbs, one feed, one registry and one projection. It is
  * the whole of what main knows about a session that is not on this Mac.
+ *
+ * ## What Phase 71 changed, and what it deliberately did not
+ *
+ * The poll became a FEED with two shapes. A machine whose version has a measured
+ * control dialect gets one live connection, and a list is read because that
+ * machine said something changed. Every other machine keeps the timer Phase 70
+ * shipped, at the same two cadences. A machine never has both at once, which is
+ * asserted by counting armed timers rather than promised in this comment.
+ *
+ * The status ladder moved out of this file. `./status-truth.ts` is now the only
+ * place research 51 section 4.4's case table is written, and every status this
+ * feed writes for a whole machine comes from `machineTruth`. Two behaviours
+ * changed because of it. A row a completed list stopped reporting now reads
+ * `restorable` rather than `exited`, because the machine answered and its answer
+ * did not hold that session. And a lost link writes `unknown` on every row of
+ * that machine and of no other machine.
  *
  * ## The rule that shapes everything else
  *
@@ -93,6 +109,32 @@ import {
 } from './context';
 import { execOn } from './exec-plane';
 import { machineColorOf, machineLabelOf, machineRow } from './store';
+// The case table, and the only place a machine level status is decided.
+import {
+  machineTruth,
+  type MachineEvent,
+  type MachineTruth
+} from './status-truth';
+// The rescue for a create whose link died between the new-session line and the
+// option stamp, plus the set of ids this run issued.
+import {
+  clearIssuedRemoteId,
+  foreignRemoteIds,
+  noteIssuedRemoteId,
+  rescueNeeded,
+  rescueRemoteRow
+} from './pane-env-rescue';
+// The live connection. This module hands it a context and a sink; it never
+// resolves a context of its own and never holds a row.
+import {
+  noteMachineAnswered,
+  noteMachineConnecting,
+  noteMachineQuiet,
+  closeEveryControlPlane,
+  isControlPlaneLive,
+  openControlPlane,
+  setControlPlaneSink
+} from './control-plane';
 import {
   MACHINE_NOT_READY,
   REMOTE_DIR_MISSING,
@@ -244,10 +286,18 @@ interface MachineSessions {
    * and this Mac writes none.
    */
   gone: Map<string, RemoteSessionRow>;
-  /** True when the last poll completed, whatever it found. */
+  /** True when the last pass completed, whatever it found. */
   answering: boolean;
-  /** True once any poll has completed for this machine in this run. */
+  /** True once any pass has completed for this machine in this run. */
   everAnswered: boolean;
+  /**
+   * The last machine level verdict, from `./status-truth.ts`.
+   *
+   * It is the ONLY thing that decides a status for a whole machine. A row that
+   * a completed pass proved absent keeps its own proven status instead, which is
+   * what the `gone` map holds.
+   */
+  truth: MachineTruth;
   /** Epoch ms stamped BEFORE the command was issued, per research 51 §4.4. */
   snapshotAt: number;
   /** Sessions on that machine carrying no `@gmux-id`. Logged, never shown. */
@@ -263,6 +313,16 @@ interface MachineSessions {
    */
   names: Set<string>;
   timer: NodeJS.Timeout | null;
+  /**
+   * True while this machine has a live connection.
+   *
+   * It is what makes the two feeds exclusive. {@link armTimer} refuses to arm a
+   * timer while it is true, and the connection's own `connected` handler clears
+   * the timer, so one machine can never carry both feeds at once.
+   */
+  onControl: boolean;
+  /** True while a pass is running, so a rescue cannot re-enter one. */
+  passing: boolean;
 }
 
 const machines = new Map<string, MachineSessions>();
@@ -285,13 +345,40 @@ function stateOf(machineId: string): MachineSessions {
     gone: new Map(),
     answering: false,
     everAnswered: false,
+    // A machine nobody has asked yet is one Tortie cannot see, which is exactly
+    // what the transport-lost arm says. It is not `listed`, because no list has
+    // completed and reading a stale row as live would be the claim this rung
+    // exists to stop.
+    truth: machineTruth({ kind: 'transport-lost', at: 0, errorClass: 'not asked yet' }),
     snapshotAt: 0,
     foreign: 0,
     names: new Set(),
-    timer: null
+    timer: null,
+    onControl: false,
+    passing: false
   };
   machines.set(machineId, fresh);
   return fresh;
+}
+
+/**
+ * Apply one machine level event to one machine, and to no other machine.
+ *
+ * THIS IS THE PER MACHINE BOUNDARY, and it is one function on purpose. Every
+ * transport fact enters here, gets its verdict from the one case table, and is
+ * written against one key of one map. A machine cannot move another machine's
+ * rows because there is no code path that reaches two keys.
+ */
+function applyMachineEvent(machineId: string, event: MachineEvent): MachineTruth {
+  const state = stateOf(machineId);
+  const truth = machineTruth(event);
+  state.truth = truth;
+  state.answering = event.kind === 'listed' || event.kind === 'no-server';
+  if (state.answering) {
+    state.everAnswered = true;
+    noteMachineAnswered(machineId, event.at);
+  }
+  return truth;
 }
 
 function announce(): void {
@@ -522,27 +609,30 @@ export function remoteSessions(): Session[] {
       out.push(projectRow(row, machine, state));
     }
     for (const row of state.gone.values()) {
-      out.push(projectRow(row, machine, state));
+      out.push(projectRow(row, machine, state, true));
     }
   }
   return out;
 }
 
+/**
+ * One row as a surface reads it.
+ *
+ * The machine's verdict decides the status of every LIVE row, and the verdict
+ * comes from the one case table. A row a completed pass proved absent carries
+ * its own status and keeps it, because a completed pass is evidence and a later
+ * lost link does not un-prove it. That is the same shape Phase 70 gave `exited`,
+ * with `restorable` in its place.
+ */
 function projectRow(
   row: RemoteSessionRow,
   machine: SessionMachine,
-  state: MachineSessions
+  state: MachineSessions,
+  proven = false
 ): Session {
-  // A machine that did not answer, and a machine nothing has completed a poll
-  // for yet, both give every one of their rows 'unknown'. That is the one
-  // honest answer: the sessions may be running and Tortie cannot see them.
-  // An ended row keeps 'exited', because a completed poll proved that.
+  const verdict = state.truth.rows;
   const status: SessionStatus =
-    row.status === 'exited'
-      ? 'exited'
-      : state.answering && state.everAnswered
-        ? row.status
-        : 'unknown';
+    proven || verdict.kind === 'per-row' ? row.status : verdict.status;
   return {
     id: row.id,
     name: row.name,
@@ -679,6 +769,20 @@ export async function remoteCreate(input: RemoteCreateInput): Promise<Session> {
     argv
   });
 
+  // BEFORE the line is sent, and not after. The failure this exists for is a
+  // create whose link died between the new-session line and the option stamp
+  // below, and an id recorded on the answer would not be recorded for exactly
+  // the create that needs rescuing.
+  noteIssuedRemoteId({
+    id: sessionId,
+    machineId: input.machineId,
+    name: oneLine(input.name),
+    agent: String(input.agent),
+    projectPath: oneLine(input.projectPath),
+    cwd: input.cwd,
+    issuedAt: Date.now()
+  });
+
   let tmuxId: string;
   try {
     const printed = await execOn(ctx, args);
@@ -717,9 +821,11 @@ export async function remoteCreate(input: RemoteCreateInput): Promise<Session> {
     '@gmux-name': oneLine(input.name),
     '@gmux-project': oneLine(input.projectPath)
   };
+  let idStampLanded = false;
   for (const option of REMOTE_STAMPS) {
     try {
       await execOn(ctx, remoteStampArgs(tmuxId, option, stamped[option]));
+      if (option === '@gmux-id') idStampLanded = true;
     } catch (err) {
       machinesLog.warn(
         `${input.machineId} did not keep ${option} on ${tmuxId}: ` +
@@ -727,10 +833,15 @@ export async function remoteCreate(input: RemoteCreateInput): Promise<Session> {
       );
     }
   }
+  // The id is forgotten only when the OPTION stamp landed, because from then on
+  // every list reports the session carrying `@gmux-id` and no pass can read it
+  // as foreign. A stamp that did not land leaves the id in the issued set, which
+  // is exactly what the rescue reads.
+  if (idStampLanded) clearIssuedRemoteId(sessionId);
 
   // Once, at once, so the row is on screen without waiting a cadence, and the
-  // machine's timer is armed from here on.
-  await startRemotePoll(input.machineId);
+  // machine's feed is running from here on.
+  await startMachineFeed(input.machineId);
   const row = remoteSessionRow(sessionId);
   if (row === null) {
     throw gmuxError(
@@ -898,15 +1009,22 @@ export function refuseRemoteRestore(sessionId: string): void {
 }
 
 // ---------------------------------------------------------------------------
-// The poll
+// The pass
 // ---------------------------------------------------------------------------
 
 /**
- * Ask one machine for its list, once.
+ * Ask one machine for its list, once, and apply the answer to that machine only.
  *
  * `snapshotAt` is stamped BEFORE the command is issued, never on receipt, per
  * research 51 section 4.4's clock rule. Remote times are only ever compared with
  * other remote times from the same machine.
+ *
+ * Every ending this function can reach goes through {@link applyMachineEvent},
+ * so the case table is asked once per pass and the verdict is written against
+ * one machine's key. The name stays `pollRemoteMachine` because a list over the
+ * live connection and a list on the timer are the same read of the same format
+ * through the same parser, and giving them two names would suggest there were
+ * two answers to compare.
  */
 export async function pollRemoteMachine(machineId: string): Promise<void> {
   const state = stateOf(machineId);
@@ -919,6 +1037,7 @@ export async function pollRemoteMachine(machineId: string): Promise<void> {
   }
   const snapshotAt = Date.now();
   let printed: string;
+  let event: MachineEvent = { kind: 'listed', at: snapshotAt };
   try {
     printed = await execOn(ctx, remoteListArgs(), {
       timeoutMs: REMOTE_POLL_TIMEOUT_MS
@@ -936,22 +1055,29 @@ export async function pollRemoteMachine(machineId: string): Promise<void> {
     // has ended.
     if (serverProbeVerdict(err) === 'no-server') {
       printed = '';
+      event = { kind: 'no-server', at: snapshotAt };
     } else {
-      markMachineQuiet(machineId);
+      markMachineQuiet(machineId, classOfListFailure(err));
       return;
     }
   }
 
   const seen = new Map<string, RemoteSessionRow>();
   const names = new Set<string>();
+  const unclaimed: string[] = [];
   let foreign = 0;
   for (const line of printed.split('\n')) {
     const parsed = parseRemoteListLine(line);
     if (parsed === null) continue;
     if (parsed.tmuxName.length > 0) names.add(parsed.tmuxName);
     if (parsed.gmuxId.length === 0) {
-      // NOT OURS. Counted, never shown, never adopted and never killed.
+      // NOT OURS until a probe says otherwise. Counted, never shown, never
+      // adopted and never killed. The rescue below is the only thing allowed to
+      // change that answer, and only for an id THIS run issued.
       foreign += 1;
+      if (rescueNeeded(parsed, foreignRemoteIds(machineId))) {
+        unclaimed.push(parsed.tmuxId);
+      }
       continue;
     }
     const previous = state.rows.get(parsed.gmuxId);
@@ -970,26 +1096,92 @@ export async function pollRemoteMachine(machineId: string): Promise<void> {
     });
   }
 
+  // A row a COMPLETED pass did not report. The case table calls that `absent`
+  // and gives it `restorable`, which is a change from Phase 70's `exited`: the
+  // machine answered, and its answer not holding the session is evidence the
+  // session is not running rather than evidence about how it ended.
+  const absent = machineTruth({ kind: 'absent', at: snapshotAt });
+  const absentStatus =
+    absent.rows.kind === 'status' ? absent.rows.status : 'restorable';
   for (const [id, row] of state.rows) {
     if (seen.has(id)) continue;
-    // The machine answered without it, so it ended. Held in memory for the rest
-    // of this run: nothing on this Mac records it, and nothing on that machine
-    // does either.
-    state.gone.set(id, { ...row, status: 'exited' });
+    // Held in memory for the rest of this run: nothing on this Mac records it,
+    // and nothing on that machine does either.
+    state.gone.set(id, { ...row, status: absentStatus });
   }
+  const foreignBefore = state.foreign;
   state.rows = seen;
   state.names = names;
   state.foreign = foreign;
-  state.answering = true;
-  state.everAnswered = true;
   state.snapshotAt = snapshotAt;
-  if (foreign > 0) {
+  applyMachineEvent(machineId, event);
+  // Written when the COUNT MOVES, never on every pass. Phase 70 polled on a
+  // timer, so this was one line every 5 s. Phase 71 lists on every event the
+  // machine reports, so on a busy machine it was one line per event, saying the
+  // same number each time and burying everything else in the log.
+  if (foreign > 0 && foreign !== foreignBefore) {
     machinesLog.info(
       `${machineId} holds ${String(foreign)} session(s) Tortie did not create. ` +
         `They are not shown and nothing acts on them.`
     );
   }
   announce();
+  if (unclaimed.length > 0) await rescueUnclaimed(machineId, ctx, unclaimed);
+}
+
+/**
+ * Re-bind sessions on one machine that carry the pane stamp and no option stamp.
+ *
+ * The case this exists for is a create whose link died between the
+ * `new-session` line and the `set-option @gmux-id` that follows it. The session
+ * is then running on that machine with the pane environment Tortie put on the
+ * create line and none of the four option stamps, so every later pass counts it
+ * as foreign forever. Research 51 section 4.1's last bullet names it and this is
+ * the rung that owes it.
+ *
+ * It never adopts a session whose pane stamp names an id this run did not issue.
+ * A session carrying neither stamp, or a stamp naming nothing of ours, is NOT
+ * OURS: it is counted, never shown, never adopted and never killed.
+ *
+ * One re-entry guard, because a successful rescue asks for one more pass and a
+ * pass is what called this.
+ */
+async function rescueUnclaimed(
+  machineId: string,
+  ctx: RemoteMachineContext,
+  tmuxIds: readonly string[]
+): Promise<void> {
+  const state = stateOf(machineId);
+  if (state.passing) return;
+  state.passing = true;
+  let rebound = 0;
+  try {
+    for (const tmuxId of tmuxIds) {
+      const match = await rescueRemoteRow(ctx, tmuxId);
+      if (match !== null) rebound += 1;
+    }
+  } finally {
+    state.passing = false;
+  }
+  if (rebound === 0) return;
+  machinesLog.info(
+    `${machineId} held ${String(rebound)} session(s) Tortie created and could ` +
+      `not account for, and they are back on the list with their names.`
+  );
+  await pollRemoteMachine(machineId);
+}
+
+/**
+ * The transport class for a failed list, in one clause and with no transport
+ * words in it.
+ *
+ * It is what the case table records as evidence, so a log line and a bug report
+ * say which kind of failure it was without a person reading a stack.
+ */
+function classOfListFailure(err: unknown): string {
+  if (isGmuxError(err, 'TMUX_UNREACHABLE')) return 'no answer';
+  if (isGmuxError(err, 'INVALID_INPUT')) return 'refused';
+  return 'unreadable';
 }
 
 /**
@@ -1014,8 +1206,15 @@ function agentOf(stamp: string): AgentKind {
   return (stamp.length > 0 ? stamp : 'shell') as AgentKind;
 }
 
-/** The machine did not answer. Every row on it goes to 'unknown'. */
-export function markMachineQuiet(machineId: string): void {
+/**
+ * The machine did not answer. Every row on it goes to `unknown`.
+ *
+ * It keeps its Phase 70 name because every caller reads it as the same fact.
+ * What changed underneath is that the verdict now comes from the case table
+ * rather than from a boolean this file owns, so `transport-lost` writes the same
+ * status here, at the reconcile boundary and in the conformance gate.
+ */
+export function markMachineQuiet(machineId: string, errorClass = 'no answer'): void {
   const state = stateOf(machineId);
   if (state.answering) {
     machinesLog.warn(
@@ -1023,21 +1222,105 @@ export function markMachineQuiet(machineId: string): void {
         `cannot see them.`
     );
   }
-  state.answering = false;
+  applyMachineEvent(machineId, {
+    kind: 'transport-lost',
+    at: Date.now(),
+    errorClass
+  });
+  noteMachineQuiet(machineId, 'did not answer the last time Tortie asked');
   announce();
 }
 
-/** Start polling one machine, and resolve when the first poll is done. */
-export async function startRemotePoll(machineId: string): Promise<void> {
-  const state = stateOf(machineId);
-  if (state.timer === null) armTimer(machineId);
+// ---------------------------------------------------------------------------
+// The feed
+// ---------------------------------------------------------------------------
+
+/** True once the control plane has somewhere to send its events. */
+let sinkInstalled = false;
+
+/**
+ * Hand the control plane the four things it should tell this module about.
+ *
+ * It is installed once per run rather than per machine, because there is one
+ * feed and it keys everything it does by machine id.
+ */
+function installControlSink(): void {
+  if (sinkInstalled) return;
+  sinkInstalled = true;
+  setControlPlaneSink({
+    connected(machineId: string): void {
+      const state = stateOf(machineId);
+      state.onControl = true;
+      // THE TIMER GOES THE MOMENT THE CONNECTION IS UP. One machine never
+      // carries both feeds, and `remoteMachineFacts` exposes both flags so a
+      // test can count rather than trust this comment.
+      clearTimer(state);
+      void pollRemoteMachine(machineId).catch(() => undefined);
+    },
+    sessionsChanged(machineId: string): void {
+      void pollRemoteMachine(machineId).catch(() => undefined);
+    },
+    sessionRenamed(machineId: string): void {
+      void pollRemoteMachine(machineId).catch(() => undefined);
+    },
+    lost(machineId: string, reason: string): void {
+      const state = stateOf(machineId);
+      state.onControl = false;
+      markMachineQuiet(machineId, reason);
+      // The timer is the fallback, armed the moment the connection drops, so a
+      // machine is never left with no feed at all.
+      if (state.timer === null) armTimer(machineId);
+    }
+  });
+}
+
+/**
+ * Start one machine's feed, and resolve when its first list is done.
+ *
+ * The feed is one of two shapes and the machine's own version decides which:
+ *
+ *   control dialect measured, connection live   one list per event, no timer
+ *   control dialect measured, connection down   the timer, until it is back
+ *   control dialect unmeasured                  the timer, at Phase 70's cadences
+ *
+ * The timer is armed here in every case, including the case where a connection
+ * is about to open. `openControlPlane` resolves when the child is SPAWNED rather
+ * than when it is connected, and a machine with no timer and a connection that
+ * never completes would have no feed at all. The connection's own `connected`
+ * handler is what clears it.
+ */
+export async function startMachineFeed(machineId: string): Promise<void> {
+  installControlSink();
   hookWake();
+  const state = stateOf(machineId);
+  noteMachineConnecting(machineId);
+  // It never throws. A machine with no registered connection, a machine that did
+  // not answer and a machine whose dialect has no measurement all come back as
+  // false, and all three keep the timer below.
+  await openControlPlane(machineId);
+  if (!isControlPlaneLive(machineId) && state.timer === null) armTimer(machineId);
   await pollRemoteMachine(machineId);
+}
+
+/**
+ * The Phase 70 name for {@link startMachineFeed}.
+ *
+ * It is kept for one rung so the callers move in their own owner's commit rather
+ * than in this file's. There is one implementation and one behaviour.
+ */
+export const startRemotePoll = startMachineFeed;
+
+function clearTimer(state: MachineSessions): void {
+  if (state.timer !== null) clearInterval(state.timer);
+  state.timer = null;
 }
 
 function armTimer(machineId: string): void {
   const state = stateOf(machineId);
-  if (state.timer !== null) clearInterval(state.timer);
+  clearTimer(state);
+  // A machine on a live connection is TOLD what changed, so a timer beside it
+  // would be a second feed asking the same question for nothing.
+  if (state.onControl) return;
   const every = pollFocused ? REMOTE_POLL_FOCUSED_MS : REMOTE_POLL_IDLE_MS;
   state.timer = setInterval(() => {
     void pollRemoteMachine(machineId).catch(() => undefined);
@@ -1054,7 +1337,7 @@ export function setRemotePollFocused(focused: boolean): void {
   }
 }
 
-/** Poll every machine that has a live connection, at once. */
+/** Ask every machine for its list, at once. */
 export async function pollEveryRemoteMachine(): Promise<void> {
   await Promise.allSettled(
     [...machines.keys()].map((machineId) => pollRemoteMachine(machineId))
@@ -1069,9 +1352,18 @@ export async function pollEveryRemoteMachine(): Promise<void> {
  * longer be the current one. Then every machine is asked at once. This is the
  * second of the three moments Tortie signs in, and it is a wake rather than a
  * file change, which is the line refusal 8 draws.
+ *
+ * The event kind is `woke` rather than `transport-lost`, because the case table
+ * records what happened and a power event is not a link that dropped. Both arms
+ * write the same status, and the evidence line is what tells them apart in a log.
  */
 export function remoteMachinesWoke(): void {
-  for (const machineId of machines.keys()) markMachineQuiet(machineId);
+  const at = Date.now();
+  for (const machineId of machines.keys()) {
+    applyMachineEvent(machineId, { kind: 'woke', at });
+    noteMachineQuiet(machineId, 'has not answered since this Mac woke up');
+  }
+  announce();
   void pollEveryRemoteMachine().catch(() => undefined);
 }
 
@@ -1080,19 +1372,25 @@ function hookWake(): void {
   unhookWake = onMachineWake(remoteMachinesWoke);
 }
 
-/** Stop every poll. Called from the session core's dispose. */
-export function stopRemotePolls(): void {
+/** Stop every feed, of both shapes. Called from the session core's dispose. */
+export function stopMachineFeeds(): void {
   for (const state of machines.values()) {
-    if (state.timer !== null) clearInterval(state.timer);
-    state.timer = null;
+    clearTimer(state);
+    state.onControl = false;
   }
+  closeEveryControlPlane();
   unhookWake?.();
   unhookWake = null;
 }
 
-/** Drop every row and every timer. Tests and the smoke. */
+/** The Phase 70 name for {@link stopMachineFeeds}. One implementation. */
+export const stopRemotePolls = stopMachineFeeds;
+
+/** Drop every row, every timer and every connection. Tests and the smoke. */
 export function resetRemoteSessionsForTests(): void {
-  stopRemotePolls();
+  stopMachineFeeds();
+  setControlPlaneSink(null);
+  sinkInstalled = false;
   machines.clear();
   listeners = [];
   pollFocused = true;
@@ -1110,6 +1408,12 @@ export function remoteMachineFacts(machineId: string): {
   answering: boolean;
   everAnswered: boolean;
   snapshotAt: number;
+  /** True while a timer is armed for this machine. */
+  timerArmed: boolean;
+  /** True while this machine has a live connection. */
+  onControl: boolean;
+  /** What the case table last said about this machine. */
+  evidence: string;
 } {
   const state = stateOf(machineId);
   return {
@@ -1119,6 +1423,24 @@ export function remoteMachineFacts(machineId: string): {
     names: state.names.size,
     answering: state.answering,
     everAnswered: state.everAnswered,
-    snapshotAt: state.snapshotAt
+    snapshotAt: state.snapshotAt,
+    timerArmed: state.timer !== null,
+    onControl: state.onControl,
+    evidence: state.truth.evidence
   };
+}
+
+/**
+ * How many machines carry BOTH feeds at once. It must always be zero.
+ *
+ * It is a counter rather than a comment because the exclusivity is the property
+ * this rung has to keep, and a test that counts is evidence while a comment is
+ * not.
+ */
+export function machinesWithBothFeeds(): string[] {
+  const both: string[] = [];
+  for (const [machineId, state] of machines) {
+    if (state.timer !== null && state.onControl) both.push(machineId);
+  }
+  return both.sort();
 }

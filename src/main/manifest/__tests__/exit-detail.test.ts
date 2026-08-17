@@ -63,7 +63,9 @@ afterEach(() => {
 describe('migration 012', () => {
   it('is the twelfth migration and the version counts it', () => {
     expect(MANIFEST_MIGRATION_NAMES).toHaveLength(MANIFEST_SCHEMA_VERSION);
-    expect(MANIFEST_SCHEMA_VERSION).toBe(12);
+    // Phase 71 appended 013-machine-id, so the version reads 13 and this
+    // migration's own position is what stays pinned.
+    expect(MANIFEST_SCHEMA_VERSION).toBe(13);
     expect(MANIFEST_MIGRATION_NAMES[11]).toBe('012-exit-detail');
   });
 
@@ -139,8 +141,8 @@ describe('the exit_detail column', () => {
 
   // A row written by a build at schema 11 has no value here, and this build
   // must read that as "nothing was recorded" rather than as an empty message.
-  // The fixture is this build's file minus exactly what migration 012 added,
-  // which is one nullable column and one bookkeeping row.
+  // The fixture is this build's file minus exactly what migrations 012 and 013
+  // added, which is one nullable column and one bookkeeping row each.
   it('reads a row written before the migration as absent', () => {
     const elevenPath = join(dir, 'eleven.db');
     const fresh = new ManifestStore(elevenPath);
@@ -161,12 +163,14 @@ describe('the exit_detail column', () => {
 
     const raw = new Database(elevenPath);
     raw.exec('ALTER TABLE sessions DROP COLUMN exit_detail');
+    raw.exec('ALTER TABLE sessions DROP COLUMN machine_id');
     raw.prepare("DELETE FROM migrations WHERE name = '012-exit-detail'").run();
+    raw.prepare("DELETE FROM migrations WHERE name = '013-machine-id'").run();
     raw.pragma('user_version = 11');
     raw.close();
 
     const migrated = new ManifestStore(elevenPath);
-    expect(migrated.schemaState().userVersion).toBe(12);
+    expect(migrated.schemaState().userVersion).toBe(13);
     expect(migrated.schemaState().minCompatible).toBe(8);
     const old = migrated.getSession('old-row');
     expect(old?.exitCode).toBe(1);

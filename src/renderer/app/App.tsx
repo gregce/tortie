@@ -37,7 +37,7 @@ import { useEditor } from '../editor/store';
 import { Titlebar } from './Titlebar';
 import { ActivityBar } from './ActivityBar';
 import { Sidebar } from './Sidebar';
-import { TerminalRegion } from './TerminalRegion';
+import { MachineStatement, TerminalRegion } from './TerminalRegion';
 // Phase 18 item 3: the session tab strip is the work area's own band, not the
 // terminal region's — see the layout comment in the shell body below.
 import { SessionStrip } from './SessionStrip';
@@ -1138,7 +1138,15 @@ export function App(): React.JSX.Element {
     <div className="shell">
       <Titlebar />
       {ready && projects.length === 0 ? (
-        <FirstRun />
+        // PHASE 71 fix round. A confirmed machine that did not answer is named
+        // here too. The board below is the whole window in this state and the
+        // terminal region is not mounted at all, so without this line a person
+        // who quit Tortie with an agent running on a machine, and started it
+        // again with that machine down, was told nothing anywhere.
+        <>
+          <MachineStatement />
+          <FirstRun />
+        </>
       ) : (
         <div className="shell-body">
           {/* S1 region order: activity bar · sidebar (one view) · work area ·

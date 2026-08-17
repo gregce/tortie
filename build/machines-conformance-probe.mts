@@ -102,6 +102,17 @@ import {
 } from '../src/main/machines/remote-sessions';
 import { SERVER_OPTIONS } from '../src/main/tmux/server-options';
 import { TESTED_REMOTE_TMUX_VERSIONS } from '../src/main/tmux/version';
+// Phase 71, condition 25. `status-truth.ts` imports one type from @shared and
+// nothing else: no tmux, no SQLite, no filesystem, no timer. The manifest's own
+// numbers are deliberately NOT read here, because importing them would load
+// better-sqlite3 into a gate whose whole claim is that it loads nothing. Those
+// numbers are gated by `build/contract-inventory.mjs` and by
+// `src/main/manifest/__tests__/machine-id-migration.test.ts`.
+import {
+  MACHINE_EVENT_KINDS,
+  machineTruth,
+  mayFlipRestorable
+} from '../src/main/machines/status-truth';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const machinesDir = join(repoRoot, 'src', 'main', 'machines');
@@ -551,6 +562,34 @@ const remoteCreateArgv = remoteCreateArgs({
  */
 const attachFiles = productionFiles(join(repoRoot, 'src', 'main', 'attach'));
 
+// ---------------------------------------------------------------------------
+// 10. Phase 71. The section 4.4 case table, read as data
+// ---------------------------------------------------------------------------
+//
+// The checker holds research 51 section 4.4's table as a literal and compares
+// this against it row by row. Writing the expected table in the checker rather
+// than importing it is the same rule the local golden argv follows: importing
+// the implementation and comparing it against itself passes whatever the
+// implementation did.
+
+const AT = 1_700_000_000_000;
+
+const truthRows = MACHINE_EVENT_KINDS.map((kind) => {
+  const event =
+    kind === 'transport-lost'
+      ? { kind, at: AT, errorClass: 'timed-out' as const }
+      : { kind, at: AT };
+  const truth = machineTruth(event);
+  return {
+    event: kind,
+    rows: truth.rows.kind === 'per-row' ? 'per-row' : truth.rows.status,
+    restoreOffered: truth.restoreOffered,
+    reason: truth.restoreDisabledReason,
+    evidence: truth.evidence,
+    mayFlipRestorable: mayFlipRestorable(event)
+  };
+});
+
 const files = productionFiles(machinesDir);
 const wholeTree = (() => {
   const collected: string[] = [];
@@ -670,6 +709,21 @@ process.stdout.write(
     attachPtyMentions: mentions(attachFiles, "'node-pty'"),
     attachPlanSource: readFileSync(
       join(repoRoot, 'src', 'main', 'attach', 'attach-plan.ts'),
+      'utf8'
+    )
+      .split('\n')
+      .filter((line) => /^\s*import\b/.test(line) || /^\s*}\s*from\s*'/.test(line))
+      .map((line) => line.trim()),
+
+    // --- Phase 71, condition 25 --------------------------------------------
+    truthAt: AT,
+    truthRows,
+    truthEventKinds: [...MACHINE_EVENT_KINDS],
+    // The one line of this module a reader has to trust is that it imports no
+    // machinery. The checker asserts that from the source rather than from the
+    // header sentence.
+    truthImports: readFileSync(
+      join(machinesDir, 'status-truth.ts'),
       'utf8'
     )
       .split('\n')

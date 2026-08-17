@@ -26,6 +26,15 @@
  * `rename-session`, and `attach-session` stays refused forever, because attach
  * is a different plane with a different carriage.
  *
+ * PHASE 71 ADDED NOTHING TO THE LEDGER, and that is worth stating rather than
+ * leaving a reader to diff. The pane environment rescue in
+ * `./pane-env-rescue.ts` sends `show-environment` to read one session's identity
+ * and `set-option` to write the four stamps back. Both were already on the list
+ * with their repeat reasons, and both are safe to run twice for exactly the
+ * reasons recorded there. The control plane is a different carriage again, being
+ * a long lived pipe rather than a one-shot exec, so nothing it sends passes
+ * through this door.
+ *
  * ## The order of the checks, which is the order they have to be in
  *
  *  1. The server destroying verb check, asked before the context resolves and

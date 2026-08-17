@@ -5,6 +5,16 @@
  */
 
 import type { Session, SessionMachine, SessionStatus } from '@shared/types';
+// PHASE 71. Every surface reads status through this one expression. These two
+// machine conditions read `session.status` directly until this rung, which was
+// the same value, so nothing was wrong on screen. It stops being the same value
+// the moment each machine has its own reconcile, and a condition bar deciding
+// from a different reading than the row beside it is exactly the kind of
+// disagreement Phase 67 existed to end.
+//
+// No cycle is created: src/renderer/state/store.ts and everything it imports
+// were checked, and none of them imports this module.
+import { effectiveStatusOf } from '../state/store';
 
 export type DotKind = 'working' | 'attention' | 'idle' | 'ended' | 'failed';
 
@@ -213,9 +223,26 @@ export function exitDetailNote(end: SessionEnd): string {
   );
 }
 
+/**
+ * What the label needs to know about a session beyond its status.
+ *
+ * It extends {@link SessionEnd} rather than replacing it, so every existing
+ * call site is unchanged: they all already pass the whole session, which
+ * satisfies both halves structurally.
+ */
+export interface StatusFacts extends SessionEnd {
+  /**
+   * The machine this session runs on, when it is not this Mac (Phase 71).
+   *
+   * Only the `restorable` arm reads it, and read the comment there for what it
+   * changes and why.
+   */
+  machine?: SessionMachine;
+}
+
 export function statusVisual(
   status: SessionStatus,
-  end?: SessionEnd
+  end?: StatusFacts
 ): StatusVisual {
   switch (status) {
     case 'running':
@@ -242,7 +269,15 @@ export function statusVisual(
       };
     }
     case 'restorable':
-      return { dot: 'idle', label: 'saved' };
+      // PHASE 71. `saved` is true of a session on this Mac and false of a
+      // session on another machine. Nothing about a remote session is saved
+      // here: no scrollback, no resume line, no launch snapshot. The machine
+      // holds all of it. Saying "saved" would be the exact class of claim
+      // Phase 67 existed to kill, and the honest word for a row a completed
+      // list stopped reporting is that it is not running.
+      return end?.machine !== undefined
+        ? { dot: 'idle', label: 'not running' }
+        : { dot: 'idle', label: 'saved' };
     case 'unknown':
       // Produced since Phase 67: main writes it when the session server
       // cannot be reached and its death is not confirmed by a completed
@@ -265,13 +300,17 @@ export function statusVisual(
  * Phase 67. The condition is derived, never pushed over a channel of its
  * own. One machine exists today, and its producer (the refresh catch arm in
  * main) flips every eligible row to `unknown` together, so "at least one
- * visible row reads unknown" is the whole machine condition. The M2 rung
- * replaces the row scan with real machine ids.
+ * visible row reads unknown" is the whole machine condition.
+ *
+ * PHASE 71 changed one thing about it: the read goes through
+ * `effectiveStatusOf`, which is the one expression every surface reads status
+ * through, so it takes whole sessions. Until this rung the two were the same
+ * value. They stop being the same value the moment each machine has its own
+ * reconcile, and a bar deciding from a different reading than the row beside it
+ * is the disagreement Phase 67 existed to end.
  */
-export function machineUnreachable(
-  sessions: readonly Pick<Session, 'status'>[]
-): boolean {
-  return sessions.some((s) => s.status === 'unknown');
+export function machineUnreachable(sessions: readonly Session[]): boolean {
+  return sessions.some((s) => effectiveStatusOf(s) === 'unknown');
 }
 
 /**
@@ -286,13 +325,16 @@ export function machineUnreachable(
  *
  * The order is the order the rows arrive in, which is the order the surfaces
  * already draw them in, so the badges do not reshuffle between renders.
+ *
+ * PHASE 71: the same one line change as `machineUnreachable` above, for the
+ * same reason.
  */
 export function unreachableMachines(
-  sessions: readonly Pick<Session, 'status' | 'machine'>[]
+  sessions: readonly Session[]
 ): SessionMachine[] {
   const byId = new Map<string, SessionMachine>();
   for (const s of sessions) {
-    if (s.status !== 'unknown') continue;
+    if (effectiveStatusOf(s) !== 'unknown') continue;
     const machine = s.machine;
     if (machine === undefined) continue;
     if (!byId.has(machine.id)) byId.set(machine.id, machine);

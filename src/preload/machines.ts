@@ -1,6 +1,7 @@
 /**
- * The machines half of the bridge (Phase 68, one call added in Phase 69). One
- * object, eleven calls and one subscription, typed from the shared contract.
+ * The machines half of the bridge (Phase 68, one call added in Phase 69 and one
+ * more in Phase 71). One object, twelve calls and two subscriptions, typed from
+ * the shared contract.
  *
  * Three of these calls can start a process, and every one of them is a person
  * pressing a button in Settings. `tailscaleNames` runs the Tailscale program at
@@ -19,7 +20,7 @@
  */
 
 import type { GmuxMachinesExtras } from '../shared/ipc';
-import { EVT_MACHINE_TEST } from '../shared/ipc';
+import { EVT_MACHINE_STATE, EVT_MACHINE_TEST } from '../shared/ipc';
 import { invoke, on } from './bridge';
 
 export const machines: NonNullable<GmuxMachinesExtras['machines']> = {
@@ -39,5 +40,10 @@ export const machines: NonNullable<GmuxMachinesExtras['machines']> = {
   prepare: (id) => invoke('machines:prepare', id),
   // The connection test's own bytes, plus its end. Nothing is emitted at any
   // other time, so a build with no test running subscribes to silence.
-  onTestEvent: (cb) => on(EVT_MACHINE_TEST, cb)
+  onTestEvent: (cb) => on(EVT_MACHINE_TEST, cb),
+  // Phase 71. The link state of every machine. `state` reads memory in main and
+  // answers, and the subscription is pushed whenever that answer changes. A
+  // build with no machines file gets an empty list and no pushes.
+  state: () => invoke('machines:state'),
+  onStateChanged: (cb) => on(EVT_MACHINE_STATE, cb)
 };

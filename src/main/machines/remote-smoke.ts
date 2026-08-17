@@ -300,11 +300,17 @@ export async function runRemoteSessionsSmoke(): Promise<void> {
     );
 
     if (carriage === null) {
-      log('4 to 10. SKIPPED, and it is not evidence: no scratch carriage file');
-      log(`11. the operator's server: ${String(operatorSessionCount())}`);
-      log('PASS');
-      app.exit(0);
-      return;
+      // PHASE 71 FIX ROUND. This used to log a skip and exit PASS, so from a
+      // clean checkout the gate proved 3 of its 11 steps and reported success.
+      // `npm run smoke:remote` now starts its own machine through
+      // `build/with-scratch-machine.mjs`, so a missing file means the machine
+      // did not come up and there is nothing here to be optimistic about.
+      fail(
+        `no scratch machine details at ${CARRIAGE_FILE} inside the harness ` +
+          `root. Seven of this gate's eleven steps need a machine to talk to, ` +
+          `so a run without one has proved almost nothing and must not pass. ` +
+          `Run it through "npm run smoke:remote", which starts the machine.`
+      );
     }
 
     // The one first contact, done by hand, exactly as the exec plane smoke does

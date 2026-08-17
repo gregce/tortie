@@ -22,6 +22,7 @@ import type {
   SessionStatus
 } from '@shared/types';
 import {
+  LOCAL_MACHINE_ROW,
   manifestError,
   rowToRecord,
   type ManifestSessionPatch,
@@ -39,6 +40,49 @@ import {
  * two different ways.
  */
 const DISCARDED_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
+
+/**
+ * The refusal that keeps migration 013 additive (Phase 71).
+ *
+ * Pinned in the shipped bundle by `build/assert-bundle-refusals.mjs` as
+ * `manifest.machine-id-nonlocal`.
+ *
+ * WHY IT EXISTS. `MANIFEST_MIN_COMPATIBLE_VERSION` stays at 8 across migration
+ * 013, which means a build at schema 12 may still open and WRITE this manifest.
+ * That build has no `machine_id` column in its world, so it reads every row as a
+ * session on this Mac. Today that is correct, because every value in the column
+ * is `local`. The first row carrying any other value makes it wrong in the worst
+ * direction: an older build would read a session running on another machine as a
+ * local one and could recreate it here, which is two agents on one conversation.
+ *
+ * So the write is refused rather than the compatibility number being left to a
+ * later reader's judgement. THE BUILD THAT RECORDS A REAL MACHINE ID MOVES
+ * `MANIFEST_MIN_COMPATIBLE_VERSION` TO 13 AND DELETES THIS REFUSAL IN THE SAME
+ * COMMIT. That is M5, and this sentence is the note it is meant to find.
+ */
+export const MACHINE_ID_NONLOCAL =
+  'Tortie will not record a session as living on another machine while an ' +
+  'older build could read that row as living on this one. The build that ' +
+  'records it must raise the oldest build allowed to write this file.';
+
+/**
+ * Refuse a row that names any machine other than this Mac.
+ *
+ * `undefined` passes, because the create paths compose a record without stating
+ * the one value the column can hold, and the insert writes the constant for
+ * them. Anything else is refused with {@link MACHINE_ID_NONLOCAL}.
+ *
+ * @throws Error with a JSON GmuxErrorPayload (code INVALID_INPUT).
+ */
+export function assertMachineIdWritable(machineId: string | undefined): void {
+  if (machineId === undefined || machineId === LOCAL_MACHINE_ROW) return;
+  throw manifestError(
+    'INVALID_INPUT',
+    MACHINE_ID_NONLOCAL,
+    `the row named machine ${JSON.stringify(machineId)} and this build writes ` +
+      `only ${JSON.stringify(LOCAL_MACHINE_ROW)}`
+  );
+}
 
 export class SessionsRepository {
   constructor(private readonly db: Database.Database) {}
@@ -133,7 +177,11 @@ export class SessionsRepository {
     durableTransaction(this.db, () => {
       this.insertSessionRow(record);
     });
-    return record;
+    // Phase 71. The returned record states the machine, whether the caller did
+    // or not, so what this method hands back is what the row now holds. A
+    // caller reading `machineId` off the return value would otherwise get
+    // `undefined` for a row the database has written `local` into.
+    return { ...record, machineId: LOCAL_MACHINE_ROW };
   }
 
   /**
@@ -144,6 +192,14 @@ export class SessionsRepository {
    * rejected.
    */
   private insertSessionRow(record: ManifestSessionRecord): void {
+    // Phase 71, BEFORE the statement and outside the try below, because a
+    // refusal is not a failed insert and must not be reported as one. The
+    // `catch` turns everything into "Could not record session ... in the
+    // manifest", which is the right sentence for a constraint violation and
+    // the wrong one for a write this build declines to make. See
+    // MACHINE_ID_NONLOCAL for what it protects and for the commit that
+    // deletes it.
+    assertMachineIdWritable(record.machineId);
     try {
       this.db
         .prepare(
@@ -152,14 +208,14 @@ export class SessionsRepository {
               argv, resume_argv, env, status, created_at, last_seen, exit_code,
               exit_signal, pane_pid, resume_capture, specstory, restore,
               agent_version, agent_contract, resume_provenance,
-              context_snapshot, env_passthrough, exit_detail)
+              context_snapshot, env_passthrough, exit_detail, machine_id)
            VALUES
              (@id, @name, @tmuxName, @projectPath, @cwd, @agent,
               @agentSessionId, @argv, @resumeArgv, @env, @status,
               @createdAt, @lastSeen, @exitCode, @exitSignal, @panePid,
               @resumeCapture, @specstory, @restore,
               @agentVersion, @agentContract, @resumeProvenance,
-              @contextSnapshot, @envPassthrough, @exitDetail)`
+              @contextSnapshot, @envPassthrough, @exitDetail, @machineId)`
         )
         .run({
           id: record.id,
@@ -201,7 +257,13 @@ export class SessionsRepository {
           envPassthrough:
             record.envPassthrough !== undefined && record.envPassthrough.length > 0
               ? JSON.stringify(record.envPassthrough)
-              : null
+              : null,
+          // Phase 71. Written once, with the row, and the UPDATE below does not
+          // name the column, so where a session runs cannot be changed by any
+          // later patch. The value is the constant rather than the record's
+          // field: the guard above has already refused anything else, so this
+          // line cannot be the place a different value slips through.
+          machineId: LOCAL_MACHINE_ROW
         });
     } catch (err) {
       throw manifestError(

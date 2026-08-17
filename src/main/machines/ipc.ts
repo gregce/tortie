@@ -1,7 +1,8 @@
 /**
- * The ONE `machines:*` registrar (Phase 68, one channel added in Phase 69).
+ * The ONE `machines:*` registrar (Phase 68, one channel added in Phase 69 and
+ * one more in Phase 71).
  *
- * Eleven channels, and what is NOT here is the point of the file.
+ * Twelve channels, and what is NOT here is the point of the file.
  *
  *  - There is no `machines:connect`, no `machines:attach` and no
  *    `machines:createSession`. Neither Phase 68 nor Phase 69 opens a session on
@@ -51,18 +52,21 @@ import type {
   MachinePrepareResult,
   MachineRowView,
   MachinesResult,
+  MachineStateView,
   MachineTestEvent,
   MachineTestInput,
   MachineTestStarted,
   TailscaleSourceResult
 } from '@shared/ipc';
-import { EVT_MACHINE_TEST } from '@shared/ipc';
+import { EVT_MACHINE_STATE, EVT_MACHINE_TEST } from '@shared/ipc';
 import { gmuxError } from '../errors';
 import { handle } from '../typed-ipc';
 // Guardrail 1, event half. Every static event channel goes out through this
 // one wrapper, never through a bare `webContents.send`, and
 // src/shared/__tests__/ipc-single-bridge.test.ts fails on any raw send.
-import { sendEvent } from '../typed-events';
+import { broadcastEvent, sendEvent } from '../typed-events';
+// Phase 71: the link state of every machine, composed in one module in main.
+import { currentMachineStates, onMachineStateChanged } from './machine-state';
 import { configDir } from '../config/paths';
 import {
   MACHINE_CONFIRM_ACKNOWLEDGEMENT,
@@ -251,8 +255,34 @@ function recordAgreement(
   }
 }
 
+/**
+ * The one push subscription, attached once.
+ *
+ * `registerMachinesIpc` is called once at boot and its handlers live for the
+ * life of the process, so this does too. `broadcastEvent` skips a window that
+ * has been destroyed, so a reload or a closed Settings window costs nothing.
+ * The guard exists because a test may call the registrar more than once, and a
+ * second subscription would send every push twice.
+ */
+let stateSubscribed = false;
+
 export function registerMachinesIpc(ipc: IpcMain): void {
   handle(ipc, 'machines:rows', (): MachinesResult => resultOf());
+
+  // PHASE 71. The link state of every machine. It reads memory in main and
+  // answers: it asks no machine anything, opens no file and starts nothing. The
+  // renderer reads it once at boot and is pushed every change after that.
+  //
+  // It exists because a machine that never answers produces no session row on
+  // this Mac, and before this channel there was no way for the window to know
+  // that a confirmed machine had gone silent.
+  handle(ipc, 'machines:state', (): MachineStateView[] => currentMachineStates());
+  if (!stateSubscribed) {
+    stateSubscribed = true;
+    onMachineStateChanged((states) => {
+      broadcastEvent(EVT_MACHINE_STATE, states);
+    });
+  }
 
   handle(ipc, 'machines:reload', (): MachinesResult => {
     reloadMachines();

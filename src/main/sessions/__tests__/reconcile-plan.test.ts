@@ -11,10 +11,15 @@
  * Phase 67 added the listAttemptOutcome and unreachableFlips suites at the
  * bottom. Together they pin the per-machine reconcile boundary: what a failed
  * list is allowed to prove, and the whole status table that follows from it.
+ *
+ * Phase 71 gave `unreachableFlips` its machine filter and added the suite that
+ * proves it, being the last one in this file. The property it holds is short:
+ * one machine's lost link never moves another machine's rows.
  */
 
 import { describe, expect, it } from 'vitest';
 import {
+  LOCAL_MACHINE,
   identityProbeNeeded,
   identityProbeVerdict,
   listAttemptOutcome,
@@ -23,6 +28,7 @@ import {
   statusFlipActions,
   unreachableFlips
 } from '../reconcile-plan';
+import { LOCAL_MACHINE_ID } from '../../machines/context';
 import type { SessionStatus } from '@shared/types';
 
 describe('identityProbeNeeded', () => {
@@ -207,13 +213,14 @@ describe('unreachableFlips', () => {
   function row(
     id: string,
     status: SessionStatus,
-    times: { createdAt?: number; lastSeen?: number } = {}
+    times: { createdAt?: number; lastSeen?: number; machineId?: string } = {}
   ) {
     return {
       id,
       status,
       createdAt: times.createdAt ?? SNAPSHOT - 60_000,
-      lastSeen: times.lastSeen ?? SNAPSHOT - 5_000
+      lastSeen: times.lastSeen ?? SNAPSHOT - 5_000,
+      ...(times.machineId !== undefined ? { machineId: times.machineId } : {})
     };
   }
 
@@ -225,7 +232,7 @@ describe('unreachableFlips', () => {
       row('r-idle', 'idle'),
       row('r-needs', 'needs_input')
     ];
-    expect(unreachableFlips(rows, SNAPSHOT, NONE)).toEqual([
+    expect(unreachableFlips(rows, LOCAL_MACHINE, SNAPSHOT, NONE)).toEqual([
       'r-running',
       'r-idle',
       'r-needs'
@@ -237,7 +244,9 @@ describe('unreachableFlips', () => {
    * broadcast cadence for as long as the link stays down.
    */
   it('leaves a row that already reads unknown alone', () => {
-    expect(unreachableFlips([row('r', 'unknown')], SNAPSHOT, NONE)).toEqual([]);
+    expect(
+      unreachableFlips([row('r', 'unknown')], LOCAL_MACHINE, SNAPSHOT, NONE)
+    ).toEqual([]);
   });
 
   /**
@@ -246,21 +255,21 @@ describe('unreachableFlips', () => {
    * fails cleanly and keeps the row's status.
    */
   it('never regresses a confirmed death back to unknown', () => {
-    expect(unreachableFlips([row('r', 'restorable')], SNAPSHOT, NONE)).toEqual(
-      []
-    );
+    expect(
+      unreachableFlips([row('r', 'restorable')], LOCAL_MACHINE, SNAPSHOT, NONE)
+    ).toEqual([]);
   });
 
   it('leaves the two terminal records alone', () => {
     const rows = [row('r-exited', 'exited'), row('r-discarded', 'discarded')];
-    expect(unreachableFlips(rows, SNAPSHOT, NONE)).toEqual([]);
+    expect(unreachableFlips(rows, LOCAL_MACHINE, SNAPSHOT, NONE)).toEqual([]);
   });
 
   it('leaves a create or a restore that is still in flight alone', () => {
     const rows = [row('r-busy', 'running'), row('r-free', 'running')];
-    expect(unreachableFlips(rows, SNAPSHOT, new Set(['r-busy']))).toEqual([
-      'r-free'
-    ]);
+    expect(
+      unreachableFlips(rows, LOCAL_MACHINE, SNAPSHOT, new Set(['r-busy']))
+    ).toEqual(['r-free']);
   });
 
   /**
@@ -274,7 +283,9 @@ describe('unreachableFlips', () => {
       row('r-tie', 'running', { createdAt: SNAPSHOT }),
       row('r-before', 'running', { createdAt: SNAPSHOT - 1 })
     ];
-    expect(unreachableFlips(rows, SNAPSHOT, NONE)).toEqual(['r-before']);
+    expect(unreachableFlips(rows, LOCAL_MACHINE, SNAPSHOT, NONE)).toEqual([
+      'r-before'
+    ]);
   });
 
   it('leaves a row seen alive at or after the snapshot alone', () => {
@@ -283,10 +294,74 @@ describe('unreachableFlips', () => {
       row('r-tie', 'running', { lastSeen: SNAPSHOT }),
       row('r-before', 'running', { lastSeen: SNAPSHOT - 1 })
     ];
-    expect(unreachableFlips(rows, SNAPSHOT, NONE)).toEqual(['r-before']);
+    expect(unreachableFlips(rows, LOCAL_MACHINE, SNAPSHOT, NONE)).toEqual([
+      'r-before'
+    ]);
   });
 
   it('returns nothing for an empty manifest', () => {
-    expect(unreachableFlips([], SNAPSHOT, NONE)).toEqual([]);
+    expect(unreachableFlips([], LOCAL_MACHINE, SNAPSHOT, NONE)).toEqual([]);
+  });
+
+  // -------------------------------------------------------------------------
+  // Phase 71 — the machine filter
+  // -------------------------------------------------------------------------
+
+  /**
+   * The property, stated the way the test asserts it: a manifest holding one
+   * row on this Mac and one row on a machine called `studio`, given a local
+   * transport failure, flips exactly the local row and leaves the other one
+   * byte for byte. Given a `studio` transport failure it flips exactly the
+   * `studio` row. The local machine cannot be moved by any remote machine and
+   * no remote machine can be moved by another.
+   *
+   * This release writes only 'local' into the column, so nothing in production
+   * exercises the second half yet. It is tested now because the rung that
+   * starts writing other values must not also be the rung that discovers the
+   * boundary was missing.
+   */
+  describe('the machine filter', () => {
+    const mixed = [
+      row('r-local', 'running', { machineId: 'local' }),
+      row('r-studio', 'running', { machineId: 'studio' }),
+      row('r-attic', 'running', { machineId: 'attic' })
+    ];
+
+    it('a local failure moves the local row and nothing else', () => {
+      expect(unreachableFlips(mixed, 'local', SNAPSHOT, NONE)).toEqual([
+        'r-local'
+      ]);
+    });
+
+    it('one machine failing moves that machine and no other', () => {
+      expect(unreachableFlips(mixed, 'studio', SNAPSHOT, NONE)).toEqual([
+        'r-studio'
+      ]);
+      expect(unreachableFlips(mixed, 'attic', SNAPSHOT, NONE)).toEqual([
+        'r-attic'
+      ]);
+    });
+
+    it('a machine with no rows moves nothing at all', () => {
+      expect(unreachableFlips(mixed, 'nobody', SNAPSHOT, NONE)).toEqual([]);
+    });
+
+    /**
+     * Every row written before migration 013 has no value in the column, and
+     * every one of those rows is a session on this Mac. Reading them as local
+     * is what keeps an old manifest reconciling exactly as it did.
+     */
+    it('reads a row with no machine recorded as this Mac', () => {
+      const old = [row('r-old', 'running')];
+      expect(unreachableFlips(old, LOCAL_MACHINE, SNAPSHOT, NONE)).toEqual([
+        'r-old'
+      ]);
+      expect(unreachableFlips(old, 'studio', SNAPSHOT, NONE)).toEqual([]);
+    });
+
+    /** One definition of the word, checked rather than assumed. */
+    it('LOCAL_MACHINE is the id the machine registry uses', () => {
+      expect(LOCAL_MACHINE).toBe(LOCAL_MACHINE_ID);
+    });
   });
 });

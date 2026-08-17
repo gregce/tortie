@@ -78,6 +78,19 @@
  *                       isolated socket, and it refuses the real socket by name
  *                       for the same reason the exec plane smoke does.
  *                       `npm run smoke:remote`.
+ *  - GMUX_SMOKE=partition  what Tortie says while the link to a machine is cut
+ *                       (Phase 71). Five named moments: while a list is in the
+ *                       air, between a create and its identity stamp, while a
+ *                       terminal is attached and receiving bytes, while the
+ *                       connection is connected and idle, and on the way back.
+ *                       The scratch sshd belongs to the supervisor, which is
+ *                       the only thing that kills it. This process asks for the
+ *                       cut and samples every status at 250 ms, and the
+ *                       supervisor reads those samples and decides the verdict,
+ *                       so the thing being measured never grades itself.
+ *                       Isolated profile AND isolated socket, and it refuses
+ *                       the real socket by name for the same reason the two
+ *                       above do. `npm run smoke:partition`.
  *  - GMUX_SMOKE=quit    the REAL app.quit() under a saturated uv threadpool
  *                       (Phase 36). Every other harness ends with app.exit,
  *                       which skips before-quit and FreeEnvironment — the
@@ -157,6 +170,10 @@ import {
 import { runSmokeIdentity } from './identity';
 import { runSmokeProcId } from './procid';
 import { runSmokeQuit } from './quit';
+// Phase 71: the partition harness's Electron leg. It is the only place the
+// "a cut link never says a session ended" rule is measured against a real app
+// holding a real connection with a real terminal attached.
+import { runPartitionSmoke } from './partition';
 import { runSmokeShadow } from './shadow';
 import { runSmokeShim } from './shim-smoke';
 import { runShot } from './shot';
@@ -297,6 +314,14 @@ export async function dispatchHarness(deps: HarnessDeps): Promise<boolean> {
   // measurement rather than a reading of the code.
   if (smoke === 'remote-sessions') {
     await runRemoteSessionsSmoke();
+    return true;
+  }
+  // Phase 71: the link to a machine cut at five named moments, in a real
+  // Electron process against a scratch sshd the supervisor owns. It is the only
+  // place the case table of research 51 section 4.4 is checked against a
+  // running app rather than against a pure function.
+  if (smoke === 'partition') {
+    await runPartitionSmoke();
     return true;
   }
   // Phase 13.8: what the outside world sees of gmux (read-only).

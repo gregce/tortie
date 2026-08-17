@@ -135,6 +135,7 @@ import type {
 import type { GmuxLogExtras, LogInvokeChannelMap } from './log';
 import type {
   GmuxMachinesExtras,
+  MachinesEventPayloadMap,
   MachinesInvokeChannelMap,
   MachineTestEventPayloadMap
 } from './machines';
@@ -258,7 +259,11 @@ export type AllEventPayloadMap = EventPayloadMap &
   ActionsEventPayloadMap &
   PowerEventPayloadMap &
   UpdatesEventPayloadMap &
-  MachineTestEventPayloadMap;
+  MachineTestEventPayloadMap &
+  // Phase 71. The machine link state, pushed on every change. It is a second
+  // map rather than a member of the one above because that one is the
+  // connection test's own bytes and this is not about a test at all.
+  MachinesEventPayloadMap;
 
 export type AllEventChannel = keyof AllEventPayloadMap;
 

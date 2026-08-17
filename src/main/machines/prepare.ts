@@ -76,6 +76,44 @@ export interface PrepareInput {
 }
 
 /**
+ * What the two version reads learned. Three answers, and the third is the one
+ * Phase 71 added.
+ *
+ * `unreached` exists because the first build had no way to say it. Both reads
+ * were caught, both returned null, and null was read as "the program would not
+ * report its version". Tortie then told the person, about a machine that was
+ * switched off, that the program at a named path on it would not identify
+ * itself. Nothing had reached that machine, so nothing had been learned about
+ * any program on it, and the sentence was false. MEASURED 2026-08-17 with the
+ * scratch sshd killed: the log read "partitionmachine reports tmux nothing at
+ * all" and the person's sentence named the path.
+ */
+export type RemoteVersionRead =
+  /** The machine answered and named a version. */
+  | { readonly kind: 'version'; readonly version: string }
+  /** The machine answered and the program named no version Tortie could read. */
+  | { readonly kind: 'unreadable' }
+  /** Nothing reached the machine. Nothing was learned about any program on it. */
+  | { readonly kind: 'unreached'; readonly cls: MachineTestClass; readonly detail: string };
+
+/**
+ * The failure classes that mean the sign in program never got there.
+ *
+ * `no-server` is deliberately absent: that text comes from tmux on a machine
+ * that DID answer, which is the ordinary state of a machine nobody has prepared,
+ * and the second read is what settles it.
+ */
+const UNREACHED_CLASSES: readonly MachineTestClass[] = [
+  'unreachable',
+  'refused',
+  'not-resolved',
+  'auth-refused',
+  'host-key-changed',
+  'client-missing',
+  'timed-out'
+];
+
+/**
  * Read the version of the program on that machine.
  *
  * Two reads, in this order, and the second is not a fallback for a broken first
@@ -84,18 +122,20 @@ export interface PrepareInput {
  * `../tmux/version.ts`). A machine with no server at all cannot answer it, so the
  * program's own `-V` is read instead, which contacts nothing and starts nothing.
  *
- * Returns null when neither read produced a version, and that is a refusal
- * upstream rather than a guess.
+ * The SECOND read decides whether the machine was reached, because it is the one
+ * that runs on a machine with nothing of Tortie's on it. A failure the taxonomy
+ * recognises as the sign in program's own is `unreached`, and the caller then
+ * says what is true, which is that Tortie could not reach the machine.
  */
 export async function readRemoteTmuxVersion(
   ctx: RemoteMachineContext
-): Promise<string | null> {
+): Promise<RemoteVersionRead> {
   try {
     const out = await execOn(ctx, ['display-message', '-p', '#{version}'], {
       timeoutMs: REMOTE_VERSION_TIMEOUT_MS
     });
     const parsed = parseTmuxVersion(out);
-    if (parsed !== null) return parsed;
+    if (parsed !== null) return { kind: 'version', version: parsed };
   } catch {
     // A machine with nothing of Tortie's running on it lands here, and that is
     // the ordinary case for a machine nobody has prepared.
@@ -111,9 +151,14 @@ export async function readRemoteTmuxVersion(
       shellQuoteArgv([ctx.remoteTmuxPath, '-V']),
       { timeoutMs: REMOTE_VERSION_TIMEOUT_MS }
     );
-    return parseTmuxVersion(out);
-  } catch {
-    return null;
+    const parsed = parseTmuxVersion(out);
+    return parsed === null ? { kind: 'unreadable' } : { kind: 'version', version: parsed };
+  } catch (err) {
+    const cls = classOfFailure(err);
+    if (UNREACHED_CLASSES.includes(cls)) {
+      return { kind: 'unreached', cls, detail: sentenceOf(err) };
+    }
+    return { kind: 'unreadable' };
   }
 }
 
@@ -169,7 +214,29 @@ export async function prepareMachine(
 
   // Step 3 and 4. The version is read BEFORE any server is started, so a machine
   // running a version nobody measured never has anything started on it.
-  const version = await readRemoteTmuxVersion(ctx);
+  const read = await readRemoteTmuxVersion(ctx);
+
+  // A machine nothing reached is reported as a machine nothing reached. It is
+  // said here, before the version gate, because the gate's whole vocabulary is
+  // about a program Tortie looked at and there was no program to look at.
+  if (read.kind === 'unreached') {
+    const copy = composeOutcomeCopy(read.cls, { lastLine: read.detail });
+    machinesLog.warn(
+      `${input.machineId} could not be reached, so nothing was learned about ` +
+        `any program on it: ${read.detail}`
+    );
+    return {
+      ...base,
+      version: null,
+      class: read.cls,
+      alarm: copy.alarm,
+      headline: copy.headline,
+      detail: copy.detail,
+      durationMs: Date.now() - startedAt
+    };
+  }
+
+  const version = read.kind === 'version' ? read.version : null;
   const gate = decideRemoteVersionGate(version);
   if (gate.kind !== 'measured') {
     const copy = composeOutcomeCopy('version-unmeasured', {

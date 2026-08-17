@@ -336,6 +336,53 @@ export const MIGRATIONS: readonly SqliteMigration[] = [
     up: (db) => {
       addColumnIfMissing(db, 'sessions', 'exit_detail', 'TEXT');
     }
+  },
+  {
+    // Phase 71 (research 51 sections 4.3 and 4.4): WHICH MACHINE this session
+    // runs on.
+    //
+    // WHAT IT FIXES. Every reconcile decision this file supports was written
+    // for one machine. `unreachableFlips` took a list of rows and a snapshot
+    // instant and judged all of them together, because there was only ever one
+    // socket for them to be on. With more than one machine that is a defect
+    // waiting: a link to a machine that dropped would write 'unknown' on rows
+    // running on this Mac, and a person would be told Tortie cannot see
+    // sessions it is looking straight at. The column is what lets the judgement
+    // be per machine, and the reconcile now takes a machine id and moves only
+    // that machine's rows.
+    //
+    // BACKFILLED TO 'local', NOT LEFT NULL. Every row that exists when this
+    // migration runs was created by a build that could only create sessions on
+    // this Mac, so 'local' is not a default, it is the measured truth about
+    // every one of them. The read side still treats NULL as 'local' as well,
+    // because `/usr/bin/sqlite3 .recover` rebuilds from the FINAL schema and
+    // can produce a row that has the column and never saw the UPDATE.
+    //
+    // ADDITIVE, NOT BREAKING, by the rule in research 27 section 4.3. The test
+    // is whether an old build writing NULL here produces a row the new build
+    // reads WRONGLY. It cannot. The new build reads NULL as 'local', and every
+    // row an older build writes IS local, because no build older than this one
+    // can create a session anywhere else. So MANIFEST_SCHEMA_VERSION moves to
+    // 13 and MANIFEST_MIN_COMPATIBLE_VERSION stays at 8.
+    //
+    // WHAT A DOWNGRADE DOES, stated plainly. A build at schema 12 opens this
+    // manifest, is allowed to write it because 12 is at or above the minimum of
+    // 8, and ignores the column entirely. Every row it reads it treats as a
+    // session on this Mac. That is correct today and ONLY today, because every
+    // value in the column is 'local' in this release.
+    //
+    // THE LINE THAT KEEPS IT CORRECT IS EXECUTABLE, not written down. The first
+    // build that writes any other value changes the downgrade story completely:
+    // an older build would read a remote row as local and could recreate the
+    // session on this Mac. So `./sessions-repository.ts` REFUSES that write
+    // today, under the refusal id `manifest.machine-id-nonlocal`. The build
+    // that records a real machine id moves MANIFEST_MIN_COMPATIBLE_VERSION to
+    // 13 and deletes that refusal in the same commit.
+    name: '013-machine-id',
+    up: (db) => {
+      addColumnIfMissing(db, 'sessions', 'machine_id', 'TEXT');
+      db.exec("UPDATE sessions SET machine_id = 'local' WHERE machine_id IS NULL");
+    }
   }
 ];
 
@@ -357,7 +404,7 @@ export const MANIFEST_APPLICATION_ID = 0x54525445;
  * one. Keep it that way: a number that has to be reasoned about is a number
  * that gets set wrong under time pressure.
  */
-export const MANIFEST_SCHEMA_VERSION = 12;
+export const MANIFEST_SCHEMA_VERSION = 13;
 
 /**
  * The oldest schema version whose code may still write this manifest.
@@ -370,7 +417,7 @@ export const MANIFEST_SCHEMA_VERSION = 12;
  * visible result is an empty session that looks resumed. SQLite would allow
  * that write. This number is what stops it.
  *
- * Migrations 009, 010, 011 and 012 are ADDITIVE by that same rule, so each
+ * Migrations 009, 010, 011, 012 and 013 are ADDITIVE by that same rule, so each
  * moved MANIFEST_SCHEMA_VERSION and left this number alone. `context_snapshot`
  * is advisory: nothing on the restore path reads it, and a build at schema 8
  * writing NULL into it produces a session with no record of what it loaded,
@@ -388,6 +435,14 @@ export const MANIFEST_SCHEMA_VERSION = 12;
  * restore path reads the column and no launch depends on it. An older build
  * opening this manifest simply shows the exit code it always showed. Reasoning
  * is at migration 012.
+ *
+ * `machine_id` (Phase 71, migration 013) is additive because every value in the
+ * column is `local` in this release, and a build at schema 12 that ignores the
+ * column reads every row as a session on this Mac, which is what every row is.
+ * That reasoning holds only while the column holds one value, so the sessions
+ * repository REFUSES to write any other one, and the build that lifts that
+ * refusal moves this number to 13 in the same commit. Reasoning is at migration
+ * 013.
  *
  * The honest limit of leaving this at 8 across migration 010, stated so it is
  * checked rather than discovered: a build at schema 8 or 9 opened against

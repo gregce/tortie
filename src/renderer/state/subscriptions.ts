@@ -27,6 +27,7 @@ import type {
   GmuxActivityExtras,
   GmuxFsExtras,
   GmuxLogExtras,
+  GmuxMachinesExtras,
   GmuxNoticeExtras,
   GmuxScrollbackExtras,
   GmuxSettingsExtras,
@@ -102,6 +103,15 @@ export async function hydrateAppState(store: AppStore): Promise<void> {
           : `${restorable.length} sessions are saved and ready to restore.`
       );
     }
+    // PHASE 71. The link state of every machine, read once here.
+    //
+    // It is read separately from the session list because it answers a question
+    // the session list cannot: a confirmed machine that is asleep produces no
+    // session row on this Mac at all, so without this read the window would
+    // have nothing to draw for a person who left an agent running there. The
+    // read never blocks the boot: a build with no machines surface, or a read
+    // that fails, leaves the list empty and every other surface as it was.
+    void readMachineStates(store);
     // Phase 51: a folder passed to a cold launch (`tortie .` or a Finder
     // open while Tortie was not running). The pull is take-and-clear
     // main-side, so this and the shell-open-pending menu action can both
@@ -125,6 +135,36 @@ export async function hydrateAppState(store: AppStore): Promise<void> {
       setState({ ready: true });
       getState().toast('error', errorText(err), { sticky: true });
     }
+  }
+}
+
+/**
+ * The machines surface, when this build has one (Phase 71).
+ *
+ * It is optional on the bridge, exactly as `config` is, so a build without it
+ * shows no Machines section and reports no machines. Feature-detected here
+ * rather than assumed, so the boot of a build without it is unchanged.
+ */
+function machinesExtras(): NonNullable<GmuxMachinesExtras['machines']> | null {
+  const gmux = window.gmux as typeof window.gmux | undefined;
+  if (!gmux) return null;
+  return (gmux as typeof gmux & GmuxMachinesExtras).machines ?? null;
+}
+
+/**
+ * Read the machine link state once and adopt it.
+ *
+ * Failures are swallowed on purpose. This list is a statement about other
+ * computers, and no failure to read it should stop a person from using the
+ * sessions on the one in front of them.
+ */
+async function readMachineStates(store: AppStore): Promise<void> {
+  const machines = machinesExtras();
+  if (machines === null || typeof machines.state !== 'function') return;
+  try {
+    store.getState().applyMachineStates(await machines.state());
+  } catch {
+    /* a machine list that could not be read leaves the previous one alone */
   }
 }
 
@@ -503,6 +543,16 @@ export function startAppSubscriptions(store: AppStore): () => void {
         `SpecStory may not have saved the end of "${name}".`,
         { sticky: true }
       );
+    })
+  );
+
+  // Phase 71. Main pushes the whole machine list whenever any machine's link
+  // changes, and whenever the machines file changes. There is one push and one
+  // handler, so the window never has to poll main for it.
+  const machinesApi = machinesExtras();
+  keep(
+    machinesApi?.onStateChanged?.((states) => {
+      getState().applyMachineStates(states);
     })
   );
 

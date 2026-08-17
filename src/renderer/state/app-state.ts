@@ -12,6 +12,7 @@
  */
 
 import type { ChromeSlice } from './chrome-slice';
+import type { MachinesSlice } from './machines-slice';
 import type { NoticesSlice } from './notices-slice';
 import type { OverlaysSlice } from './overlays-slice';
 import type { ProjectsSlice } from './projects-slice';
@@ -66,4 +67,8 @@ export type AppState = LifecycleSlice &
   SessionsSlice &
   ChromeSlice &
   OverlaysSlice &
-  NoticesSlice;
+  NoticesSlice &
+  // Phase 71: the link state of every machine, which is the one thing that can
+  // be stated about a machine that has not answered. Session rows cannot carry
+  // it, because a machine that never answered produces none.
+  MachinesSlice;

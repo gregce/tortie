@@ -146,6 +146,27 @@ export interface ManifestSessionRecord extends Session {
    * It is not an empty configuration.
    */
   contextSnapshot?: ContextSnapshot;
+  /**
+   * Which machine this session runs on (Phase 71, migration 013).
+   *
+   * EVERY VALUE IN THIS RELEASE IS `'local'`. A session on another machine gets
+   * no manifest row at all in this rung, and `./sessions-repository.ts` refuses
+   * any other value under `manifest.machine-id-nonlocal`. The column exists so
+   * the reconcile boundary can be per machine, which is what stops a link to
+   * one machine writing 'unknown' over rows on another.
+   *
+   * UNDEFINED READS AS `'local'`, and {@link rowToRecord} never leaves it
+   * undefined: a NULL column becomes `'local'` on the way out. It is optional on
+   * this type so that a record composed by hand, which is what every create path
+   * and every test does, does not have to state the one value the column can
+   * hold. `LOCAL_MACHINE_ID` in `../machines/context.ts` is the one definition of
+   * the word.
+   *
+   * Written once, with the row. `ManifestSessionPatch` excludes it, for the same
+   * reason it excludes `envPassthrough`: where a session runs is decided once,
+   * at create, and a patch route would let another caller move it.
+   */
+  machineId?: string;
 }
 
 /**
@@ -161,11 +182,21 @@ export interface ManifestSessionRecord extends Session {
  * patch route would let a later caller widen it on a live row with nobody
  * agreeing to the change, and the UPDATE statement leaves the column alone so
  * a patch could not write it even if the type allowed one.
+ *
+ * `machineId` is EXCLUDED for the same reason again (Phase 71). Where a session
+ * runs is decided once, at create, and a patch route would let another caller
+ * move a row to a machine nobody chose. The UPDATE statement does not name the
+ * column either, so a patch could not write it even if the type allowed one.
  */
 export type ManifestSessionPatch = Partial<
   Omit<
     ManifestSessionRecord,
-    'id' | 'createdAt' | 'removedAt' | 'envPassthrough' | 'exitDetail'
+    | 'id'
+    | 'createdAt'
+    | 'removedAt'
+    | 'envPassthrough'
+    | 'exitDetail'
+    | 'machineId'
   >
 > & {
   /**
@@ -277,7 +308,36 @@ export interface SessionRow {
    * agent asks for no passthrough, which is all twelve compiled agents.
    */
   env_passthrough: string | null;
+  /**
+   * Which machine this session runs on (migration 013, Phase 71).
+   *
+   * `'local'` on every row in this release. NULL is possible on a row a
+   * `.recover` rebuild produced, because that rebuild writes the FINAL schema
+   * and never runs the migration's backfill, and NULL is read as `'local'`.
+   */
+  machine_id: string | null;
 }
+
+// ---------------------------------------------------------------------------
+// The one value `machine_id` may hold in this release
+// ---------------------------------------------------------------------------
+
+/**
+ * `'local'`, the only value the `machine_id` column may carry today.
+ *
+ * IT IS THE SAME STRING AS `LOCAL_MACHINE_ID` IN `../machines/context.ts`, and
+ * it is written out here rather than imported, on purpose. Importing that module
+ * would pull the whole machine layer, being the ssh carriage, the confirm gate
+ * and the logging framework, into the import graph of the manifest store, and
+ * `build/contract-inventory.mjs` bundles that store on its own to read the
+ * schema. Phase 69 measured what a wider graph costs there: one native module
+ * reached it and the gate crashed rather than diffed.
+ *
+ * The copy cannot drift, because
+ * `./__tests__/machine-id-migration.test.ts` imports both and asserts they are
+ * the same string.
+ */
+export const LOCAL_MACHINE_ROW = 'local';
 
 // ---------------------------------------------------------------------------
 // Errors (shared GmuxErrorPayload convention: JSON-stringified message)
@@ -526,6 +586,18 @@ export function rowToRecord(row: SessionRow): ManifestSessionRecord {
   if (passthrough !== undefined && passthrough.length > 0) {
     record.envPassthrough = passthrough;
   }
+  // Phase 71. ALWAYS SET, never left undefined, so every caller that reads a
+  // record from the store gets an answer rather than a maybe. NULL reads as
+  // 'local', which is true of every row written before migration 013 and of
+  // every row a `.recover` rebuild produced from the final schema without ever
+  // running the backfill. An empty string is treated the same way, because a
+  // hand edited file is the only thing that can produce one.
+  record.machineId =
+    row.machine_id !== null &&
+    row.machine_id !== undefined &&
+    row.machine_id.length > 0
+      ? row.machine_id
+      : LOCAL_MACHINE_ROW;
   return record;
 }
 

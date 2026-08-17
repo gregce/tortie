@@ -5569,7 +5569,7 @@ matrix on a real tailnet machine, are recorded as owed and run only when he is p
 | 68 | M1 | ✅ SHIPPED 2026-08-17 (this commit, 0.32.0, gates green), section below. machines.json behind the confirm gate and seal, conformance:machines, the Settings surface, the tailscale picker from a pinned absolute path, the one visible connection test | 2 plus the gate |
 | 69 | M2 | ✅ SHIPPED 2026-08-17 (4c86bea, 0.33.0, gates green), section below. MachineContext replaces the singleton; the exec plane over ssh with at-least-once discipline; remote server boot with -f /dev/null plus BOOT_SERVER_OPTIONS asserted; PATH capture ordered before first mutation; the version probe and refusal screen with remedy; error taxonomy golden files; keepalives from measurement. The dialect posture is a TESTED LIST that starts from locally measured versions and fails closed, so an unmeasured version is refused with the upgrade remedy, and his four machines join the list after the measurement he attends | 3 |
 | 70 | M3 | ✅ SHIPPED 2026-08-17 (17f1dea, 0.34.0, gates green), section below. Attach over ssh -t in node-pty; create, kill and rename remote; the machine badge; session list by exec polling; restore REFUSED for every remote row with a visible coming label; the vocabulary audit. First visible operator value | 3 |
-| 71 | M4 | The control plane per machine replaces polling; per-machine reconcile; the machine_id migration; the section 4.4 case table live; pane-env rescue over the exec plane; the partition harness in the spirit of smoke:fault, driven by killing the scratch sshd mid-flight. **Plus the hole Phase 70's verifier measured and Phase 70 did not close.** A confirmed machine that does not answer when Tortie starts shows nothing at all in the main window. A row exists only after a poll, a poll starts only after a prepare, and a machine that is asleep never prepares, so the person is not told that the machine exists, that it did not answer, or that their sessions there are untouched. The per-machine reconcile is where a row that survives a launch comes from, so the fix belongs here | 3 |
+| 71 | M4 | ✅ SHIPPED 2026-08-17 (this commit, 0.35.0, gates green), section below. The control plane per machine replaces polling; per-machine reconcile; the machine_id migration; the section 4.4 case table live; pane-env rescue over the exec plane; the partition harness in the spirit of smoke:fault, driven by killing the scratch sshd mid-flight. **Plus the hole Phase 70's verifier measured and Phase 70 did not close.** A confirmed machine that does not answer when Tortie starts shows nothing at all in the main window. A row exists only after a poll, a poll starts only after a prepare, and a machine that is asleep never prepares, so the person is not told that the machine exists, that it did not answer, or that their sessions there are untouched. The per-machine reconcile is where a row that survives a launch comes from, so the fix belongs here | 3 |
 | 72 | M5 | Remote restore enabled behind the fault matrix; per-machine argv capture; capsule replay; provenance-gated resume arming; the forget-machine tombstone. The ten-row matrix runs green against the scratch sshd overnight, and the real-tailnet repetition is OWED and recorded before any release enables remote restore | 3 |
 | 73 | M6 | Connected-only harvest polling; the remote env value probe with the traced byte path; image upload; the read-only remote review answer through existing diff surfaces; and the conversation-continuity groundwork from the ladder note, being connected-time read-only sync of agent-native stores with the promise stated as last-sync staleness. Cross-machine reconstruction into target agents lands here if provable against the scratch sshd, else it is recorded as Phase 74 | 3 |
 
@@ -5867,6 +5867,211 @@ shows that same line even though the expanded row itself still shows its error. 
 the runs body's own scroll only, so an outer container scrolling would move the rows without
 closing it, which is the History card's behavior too. HistorySection still runs its own inline
 copy of the hover timers, so hover-timing.ts has exactly one consumer until a later consolidation.
+
+## Phase 71 — the control plane and the partition harness (research 51, M4) ✅ SHIPPED 2026-08-17 (this commit, 0.35.0, gates green)
+
+The M4 rung of the remote ladder. Phase 70 asked every machine for its list on a timer, at 5,000 ms
+while the window was in front and 30,000 ms behind it. A timer is a guess about when something
+happened. This rung opens one live connection per machine, so the machine tells Tortie that a session
+was created, killed or renamed and the list is read because something happened. It also gives each
+machine its own reconcile, gives the manifest a column saying which machine a row runs on, turns
+research 51 section 4.4's case table from prose into code, and adds a harness that cuts the link to a
+machine while the app is in the middle of a sentence and grades what the app says.
+
+**The measurement came first, and it is written down.** `docs/research/52-control-mode-dialect.md`
+holds it, and nothing in it was read from documentation. The probe opens two children of the SAME
+tmux program, one local and one over a real connection, and compares their bytes. Both versions
+Tortie has measured for the exec plane matched on 8 of 8 comparable steps, being 3.6a at
+`/opt/homebrew/bin/tmux` and 3.7b in the copy Tortie ships. Two numbers on that page decide the
+carriage and both are measured rather than chosen. The `-u` flag changes not one byte of a control
+stream, 106 bytes with it and 106 identical bytes without it, so it is not on this carriage while the
+attach carriage still carries it. The keepalive pair `ServerAliveInterval=5` with
+`ServerAliveCountMax=3` ends a control child 0.1 s after the far side is killed and 19.1 s to 19.5 s
+after the far side is frozen. A version with no control measurement is not refused. That machine
+keeps working on the timer feed and the app says so, under the pinned refusal id
+`machine.control-dialect-unmeasured`.
+
+**What shipped, in eight parts.**
+
+1. One connection per machine, in `src/main/machines/control-plane.ts`. The carriage is the CONTROL
+row of research 51 section 4.1 with one flag more, being `-f /dev/null`, for the reason Phase 70
+recorded for the ATTACH row: `-C new-session -A` creates a server when none is running, and a server
+born that way would otherwise read the other machine's own configuration file. It is composed by the
+same module the exec plane and the attach plane use, because a second composer is a second place a
+keepalive can be dropped. A machine with forty sessions has one connection, and the first command it
+sends is `refresh-client -f no-output`, so no pane output ever crosses it. The precheck before the
+connection is one cheap read over the exec plane and never a local `ensureServer()`, which is the
+rule research 51 section 3 states and the reason is that a sleeping machine would otherwise start a
+tmux server on THIS Mac on every backoff step.
+2. The poll is gone while a connection is up, and it returns the moment one drops. A machine carries
+one feed and never two. The harness measures it on a running machine: over 20,000 ms with nothing
+happening, the connected machine's feed issued 0 lists and no timer was armed at any of the 80
+readings, where the Phase 70 cadence would have issued 4.
+3. Reconcile is per machine. `src/main/sessions/reconcile-plan.ts` and `src/main/sessions/core.ts`
+now take a machine id and move only that machine's rows. Before this rung one judgement covered every
+row, because there was only ever one socket for them to be on, so a link that dropped would have
+written `unknown` on rows running on this Mac and told a person Tortie cannot see sessions it is
+looking straight at.
+4. The `machine_id` column, migration `013-machine-id`, `user_version` 12 to 13. Every existing row
+is backfilled to `local`, which is not a default but the measured truth about every one of them,
+because no build older than this one could create a session anywhere else. `NULL` reads as `local` as
+well, because `sqlite3 .recover` rebuilds from the final schema. `MANIFEST_MIN_COMPATIBLE_VERSION`
+stays 8, so a build at schema 12 still opens the file. What keeps that honest is executable rather
+than written down: `src/main/manifest/sessions-repository.ts` refuses to write any value other than
+`local` today, under the pinned refusal id `manifest.machine-id-nonlocal`, and the build that records
+a real machine id moves the minimum to 13 and deletes that refusal in the same commit.
+5. Research 51 section 4.4's case table is code, in `src/main/machines/status-truth.ts`. It is pure.
+It runs no command, opens no database and arms no timer. It takes one machine level event and returns
+one verdict, and its two callers are the per machine feed and the local reconcile. Condition 25 of
+`conformance:machines` prints the table on every run: `listed` per row and no restore, `absent`
+restorable, `transport-lost` unknown, `woke` unknown, `no-server` restorable, `control-exit` per row.
+No arm offers restore in this release and no arm produces `needs input`.
+6. The pane environment rescue, over the exec plane. A create whose answer was lost still leaves a
+session on the far side carrying its identity, and the rescue is what re-binds it. The probe is
+`show-environment -t <id>` with no variable named, because naming the variable makes tmux exit non
+zero whenever a session is not ours, and that answer used to be read as a machine that did not answer
+and was never remembered. A session that is not ours is now remembered once and costs one command for
+the life of that server.
+7. A machine that has not answered is on the screen. Main composes the sentence in
+`src/main/machines/machine-state.ts` and the renderer stores it in `src/renderer/state/machines-slice.ts`
+and draws it. With a project open it is the condition bar with the machine's badge beside it. With no
+project open it is above the empty board, which is the whole window in that state. The sentence is
+"Tortie could not reach <machine>. Sessions you started there are not shown here, and Tortie did not
+end any of them." It never says the sessions are running and it never says they ended, because
+nothing proved either.
+8. The two Phase 67 drift sites read status through one expression. `machineUnreachable`,
+`unreachableMachines`, the drop target's three refusals and the Restore All bar all read
+`effectiveStatusOf` now, and that bar also excludes any row carrying a machine, because restore is
+refused for those in main and in the menu alike. The guard is a source assertion in
+`src/renderer/app/__tests__/status-seam.test.ts`, and it is source shape rather than behaviour for a
+measured reason: `effectiveStatusOf` is `return session.status`, and reverting all four sites left the
+whole suite green.
+
+**What a person can now do.** They see a session on another machine appear, change its name or
+disappear as it happens, rather than up to 5 seconds later. When the link to a machine drops, every
+row on that machine dims and says Tortie cannot see it, no row says it ended, Restore is not offered
+and typing into it is refused, and rows on every other machine and on this Mac do not move. When the
+link comes back the rows come back on their own, with no restart of Tortie. When they start Tortie
+and a machine they confirmed is asleep, the window says so, with a project open or without one. What
+they still cannot do is bring back a session that ended on another machine, and the app says so where
+the verb would have been.
+
+**What the partition harness measured**, `npm run smoke:partition`, on the committer's own run
+against two scratch machines. Both are a real `/usr/sbin/sshd` on 127.0.0.1 on a high port, each with
+its own sessions directory, and the harness proves that isolation over a real connection before it
+measures anything. The link to machine `one` is cut five times and machine `two` is never touched.
+
+| Moment | Samples | Rows on the cut machine | Rows on the other machine | Rows on this Mac | Time to unknown | Restore |
+| --- | --- | --- | --- | --- | --- | --- |
+| connected and idle | 16 | 1 | 1 | 1 | 196 ms | refused |
+| a list in the air | 17 | 1 | 1 | 1 | 45 ms | refused |
+| between a create and its stamp | 17 | 2 | 1 | 1 | 172 ms | refused |
+| a terminal attached and receiving | 17 | 2 | 1 | 1 | 114 ms | refused |
+| the link coming back | 3 | 2 | 1 | 1 | n/a | refused |
+
+No row on the cut machine ever read `restorable` or `exited` while the link was down, no row on the
+other machine changed status, and no row on this Mac changed status. In the create case the far side
+held 1 interrupted session and the pane environment rescue re-bound it. In the attach case 672 bytes
+had arrived through main before the cut. The rows came back 489 ms after the link returned with no
+restart of Tortie, and the ssh child count was 0 before the run and 0 after. The operator's own server
+held 28 sessions with `history-limit` 25000 and `exit-empty` off before the run and the same three
+after.
+
+**Gates, from the committer's own runs on the committed tree.** `typecheck` read 688 production files
+and 3,642 imports with 0 boundary violations. `build` finished with 24 durability refusals and 13
+machine refusals in the bundle. `test` ran 338 files and 5,002 tests in 25.95 s with 23 skipped and
+one failure, the known load flake in `src/main/symbols/__tests__/store.test.ts`, which asks a three
+letter query over 100,000 symbols to answer inside 80 ms and measured 118.78 ms while eleven other
+test files ran beside it. It was not dismissed on its name. That file was run alone twice and passed
+15 of 15 both times in 178 ms. `smoke:t1` passed 5 of 5 and then 6 of 6. `smoke:t3` restored a claude
+session and a pi session, each with its replayed scrollback and its armed, unexecuted resume line.
+`assert-bundle-refusals`, `contract-inventory --check`, `conformance-machines` at 25 conditions and
+`conformance:agents` all passed. `smoke:remote` passed 11 of 11 from a clean shell. `smoke:partition`
+passed all five moments twice. The first of those two runs printed PASS and then hung, which is the
+last item in the fix list below; the second ran on the committed tree and returned 0 on its own.
+
+**Seven contract lines were added and the baseline was re-based in this commit.** They are the invoke
+channel `machines:state`, which is how the renderer asks main for the link state at boot, moving that
+count from 155 to 156; `user_version` 12 to 13 and the migration `013-machine-id`, moving that count
+from 12 to 13; the `machine_id TEXT` column on the `sessions` table; the harness smoke mode
+`partition`, moving that count from 23 to 24; and two bundle refusals, being durability 23 to 24 for
+`manifest.machine-id-nonlocal` and machines 12 to 13 for `machine.control-dialect-unmeasured`. No
+`gmux.*` key and no `GMUX_*` environment name was added. `machines:stateChanged` adds no line,
+because the inventory tracks invoke channels and not event channels.
+
+**The native menus did not change**, and that is deliberate rather than forgotten. This rung adds no
+verb a person can invoke. It adds one sentence, one badge state and one column, and the menu items
+for a remote row are the ones Phase 70 already fixed, being Restore and Restart removed with the
+coming label in their place.
+
+**The verifier returned needs_work and here is what the fix round changed.** The verdict is recorded
+because the gate that failed was this rung's own.
+
+- `smoke:partition` failed for three reasons and all three are fixed. The kill that cuts the link ran
+`ps` without `-A`, which on macOS lists only the caller's own terminal processes, so the sshd children
+holding every open connection were invisible and the kill ended the listener alone. The verifier
+measured the control child still alive 120 s after that cut, and 0.0 s after the same cut with the
+flag. The second reason is that the first all-unknown sample was read out of the samples already
+taken rather than waited for, so a number the harness already had was reported as absent. The third
+is that the scratch machine used the same tmux socket as the app's own local server, so the one local
+session was also a remote row, the set of local rows was empty, and the isolation invariant ran over
+zero rows while printing a 0 that a reader would take as zero changes. The harness now runs two
+scratch machines from one shared module, `build/scratch-machine.mjs`, each with its own sessions
+directory, and the table above has a row count for the other machine and for this Mac.
+- The pane environment rescue probed the same foreign session on every list pass, without end. The
+probe no longer names the variable, so tmux answers with exit 0 and a session that is not ours is
+remembered once.
+- A machine that could not be reached at all was reported as running an unmeasured version, and the
+log said the program on it would not report its version. Tortie never reached the machine, so it
+learned nothing about any program on it. The unreachable read now returns its own class and the
+sentence says that nothing was learned about any program on it.
+- The guard for the drift sites did not exist, and a behavioural test cannot catch that class of
+drift. It is a source assertion now, which is the instrument
+`src/main/sessions/__tests__/unreachable-boundary.test.ts` already uses.
+- The startup statement did not render with no project open. It renders in both branches now.
+- `smoke:remote` could not prove anything from a clean checkout, because it read a carriage file an
+earlier probe had to leave behind. It starts its own scratch machine now, through
+`build/with-scratch-machine.mjs`, and it ran all 11 of its steps from a clean shell.
+- `smoke:migrate` grew a step, 11 of 12, which builds a manifest at schema 12 and watches the app's
+own process migrate it to 13. The verifier's migration evidence against a copy of the operator's real
+manifest ran under vitest rather than in the app.
+- The harness printed its whole report, printed PASS, and then never returned. Electron leaves a
+crash handler behind that holds the write end of both pipes, so the read ends never closed and two
+live handles kept the process alive with nothing left to do. The pipes are dropped when the app is
+gone and the exit is explicit. Measured by the committer: the run before the fix was still alive
+7 minutes 42 seconds after PASS and had to be ended by hand.
+
+**What is not true.**
+
+No remote session gets a manifest row. The `machine_id` column exists and every value in it is
+`local`, and the refusal in the sessions repository is what keeps that true.
+
+No remote restore. The refusal stays in main, the menu removal stays, both bundle refusals stay, and
+the coming label is exactly what Phase 70 shipped. There is no capsule replay, no provenance gated
+resume arming, no forget-machine tombstone, no harvest and no image upload, which are M5 and M6.
+
+The set of issued session ids the rescue reads lives in memory for one run. A create interrupted in a
+previous run is not rescued by this one.
+
+The operator's four machines were not contacted. Every number here is loopback against a scratch
+sshd on 127.0.0.1 on a high port, with keys generated in the run's own directory. Their tmux versions
+are unmeasured for both planes and every one of them is refused today.
+
+Nothing here measured a real tailnet, so research 51 section 7 questions 3 and 7 stay open. The
+19.1 s to notice a frozen link is loopback against a stopped far side, which reproduces a hung pipe
+and says nothing about roaming or real packet loss.
+
+A remote row's status still comes from `#{session_activity}` and no remote row ever says
+`needs input`, which is question 5 and it stays open.
+
+The screenshot reads for the startup statement were driven and read by the verifier, on the tree
+before the fix round, and the committer did not repeat them. With one project open they read the bar
+and the badge and both were correct. With no project open the window said nothing about the machine,
+which is the defect the fix round closed, and the proof that it is closed is a source assertion in
+`src/renderer/app/__tests__/unreachable-presentation.test.tsx` rather than a second screenshot.
+
+The one place a person still cannot see the machine specific sentence without hovering is the badge
+title, which Phase 70 recorded and this rung did not change.
 
 ## Phase 70 — a session runs on another machine, and a person types into it (research 51, M3) ✅ SHIPPED 2026-08-17 (17f1dea, 0.34.0, gates green)
 

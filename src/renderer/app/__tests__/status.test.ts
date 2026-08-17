@@ -9,8 +9,35 @@
  * nothing whatsoever.
  */
 
-import { describe, expect, it } from 'vitest';
-import {
+import { describe, expect, it, vi } from 'vitest';
+import type { Session, SessionMachine, SessionStatus } from '@shared/types';
+
+// PHASE 71. `machineUnreachable` and `unreachableMachines` read status through
+// `effectiveStatusOf`, which lives in the store, and importing the store builds
+// its initial state against window.gmux. These globals exist so that import is
+// inert in a node environment.
+vi.stubGlobal('window', {
+  addEventListener() {},
+  removeEventListener() {},
+  setTimeout,
+  clearTimeout,
+  gmux: {}
+});
+vi.stubGlobal('localStorage', {
+  getItem: () => null,
+  setItem() {},
+  removeItem() {}
+});
+vi.stubGlobal('document', {
+  body: { classList: { add() {}, remove() {}, contains: () => false } },
+  documentElement: { style: { setProperty() {} } },
+  querySelector: () => null,
+  addEventListener() {},
+  removeEventListener() {}
+});
+
+// Dynamic, so the globals above are in place before the store is built.
+const {
   diedRightAfterStart,
   endedBadly,
   endedTitle,
@@ -21,8 +48,31 @@ import {
   fastDeathTitle,
   machineUnreachable,
   rollupDot,
-  statusVisual
-} from '../status';
+  statusVisual,
+  unreachableMachines
+} = await import('../status');
+
+const STUDIO: SessionMachine = {
+  id: 'studio',
+  label: 'Studio',
+  color: 'orange',
+  answering: true
+};
+
+/** One session row, for the two conditions that now take whole sessions. */
+function sess(status: SessionStatus, over: Partial<Session> = {}): Session {
+  return {
+    id: `sess-${status}`,
+    name: 'auth',
+    tmuxName: 'auth',
+    projectPath: '/repo',
+    cwd: '/repo',
+    agent: 'claude',
+    status,
+    createdAt: 0,
+    ...over
+  };
+}
 
 describe('endSignalName', () => {
   it('reads tmux pane_dead_signal, normalizing case and the SIG prefix', () => {
@@ -124,6 +174,41 @@ describe('statusVisual', () => {
     expect(statusVisual('needs_input').label).toBe('needs input');
     expect(statusVisual('restorable').label).toBe('saved');
   });
+
+  // PHASE 71. Nothing about a session on another machine is saved on this Mac:
+  // no scrollback, no resume line, no launch snapshot. The machine holds all of
+  // it. `saved` there would be the exact class of claim Phase 67 existed to
+  // kill, so a restorable row that carries a machine reads "not running".
+  it('does not say a session on another machine is saved', () => {
+    expect(statusVisual('restorable', { machine: STUDIO })).toEqual({
+      dot: 'idle',
+      label: 'not running'
+    });
+  });
+
+  it('still says saved for a restorable session on this Mac', () => {
+    expect(statusVisual('restorable', { machine: undefined })).toEqual({
+      dot: 'idle',
+      label: 'saved'
+    });
+    expect(statusVisual('restorable', sess('restorable'))).toEqual({
+      dot: 'idle',
+      label: 'saved'
+    });
+  });
+
+  it('leaves every other arm alone for a session on another machine', () => {
+    // Only the restorable arm reads the machine. A remote row that is running
+    // is working, and one that is unreachable is unreachable, exactly as
+    // before.
+    expect(statusVisual('running', { machine: STUDIO }).label).toBe('working');
+    expect(statusVisual('unknown', { machine: STUDIO }).label).toBe(
+      'unreachable'
+    );
+    expect(
+      statusVisual('exited', { machine: STUDIO, exitCode: 0 }).label
+    ).toBe('ended');
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -139,24 +224,37 @@ describe('the unknown status (Phase 67)', () => {
   });
 
   it('machineUnreachable is true as soon as one row reads unknown', () => {
-    expect(
-      machineUnreachable([{ status: 'running' }, { status: 'unknown' }])
-    ).toBe(true);
-    expect(machineUnreachable([{ status: 'unknown' }])).toBe(true);
+    expect(machineUnreachable([sess('running'), sess('unknown')])).toBe(true);
+    expect(machineUnreachable([sess('unknown')])).toBe(true);
   });
 
   it('machineUnreachable is false for any list with no unknown row', () => {
     expect(machineUnreachable([])).toBe(false);
     expect(
       machineUnreachable([
-        { status: 'running' },
-        { status: 'restorable' },
-        { status: 'exited' },
-        { status: 'needs_input' },
-        { status: 'idle' },
-        { status: 'discarded' }
+        sess('running'),
+        sess('restorable'),
+        sess('exited'),
+        sess('needs_input'),
+        sess('idle'),
+        sess('discarded')
       ])
     ).toBe(false);
+  });
+
+  it('both conditions read status through the one expression', () => {
+    // PHASE 71. The two conditions take whole sessions and read through
+    // `effectiveStatusOf`, so a bar can never decide from a different reading
+    // than the row beside it. Today the two values agree; per machine
+    // reconcile is what makes them able to disagree.
+    const quiet = { ...STUDIO, answering: false };
+    const rows = [
+      sess('unknown', { id: 'a', machine: quiet }),
+      sess('running', { id: 'b', machine: STUDIO }),
+      sess('unknown', { id: 'c' })
+    ];
+    expect(machineUnreachable(rows)).toBe(true);
+    expect(unreachableMachines(rows)).toEqual([quiet]);
   });
 
   it('rollupDot still excludes unknown, so no tab lights up for it', () => {

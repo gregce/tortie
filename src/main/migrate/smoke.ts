@@ -51,6 +51,15 @@ import { join, relative } from 'node:path';
 import Database from 'better-sqlite3';
 import { ManifestStore, type ManifestSessionRecord } from '../manifest';
 import type { LiveTmuxSession } from '../manifest';
+// Phase 71. The schema 12 fixture step 11 builds, so the migration a person's
+// upgrade actually runs is watched running inside the app's own process.
+import {
+  MANIFEST_SCHEMA_IDENTITY,
+  MANIFEST_SCHEMA_VERSION,
+  MIGRATIONS
+} from '../manifest/schema';
+import { stampSchemaVersion } from '../db/schema-version';
+import { runMigrations } from '../db/sqlite';
 import { armableResumeArgv } from '../restore';
 import { wrapWithRecord, type SpecstoryCaptureRecord } from '../specstory';
 import * as tmux from '../tmux';
@@ -99,6 +108,16 @@ function readAllSessions(dbPath: string): Record<string, unknown>[] {
   const rows = db.prepare('SELECT * FROM sessions ORDER BY id').all();
   db.close();
   return rows as Record<string, unknown>[];
+}
+
+/** `PRAGMA user_version`, which is the number a migration moves. */
+function readUserVersion(dbPath: string): number {
+  const db = new Database(dbPath, { readonly: true, fileMustExist: true });
+  try {
+    return Number((db.pragma('user_version', { simple: true }) as number) ?? -1);
+  } finally {
+    db.close();
+  }
 }
 
 /**
@@ -178,7 +197,7 @@ export async function runMigrateSmoke(): Promise<void> {
 
   try {
     // -----------------------------------------------------------------------
-    log('1/11 the production guard still refuses to migrate on this machine');
+    log('1/12 the production guard still refuses to migrate on this machine');
     const live = decideMigrationSite({
       appDataDir: app.getPath('appData'),
       appName: app.getName(),
@@ -229,7 +248,7 @@ export async function runMigrateSmoke(): Promise<void> {
     );
 
     // -----------------------------------------------------------------------
-    log('2/11 building a populated legacy install (never a copy of the real one)');
+    log('2/12 building a populated legacy install (never a copy of the real one)');
     mkdirSync(join(legacyDir, LEGACY_APP_NAME, 'snapshots'), { recursive: true });
     mkdirSync(join(legacyDir, 'Local Storage', 'leveldb'), { recursive: true });
     mkdirSync(join(legacyDir, 'Cache', 'Cache_Data'), { recursive: true });
@@ -346,7 +365,7 @@ export async function runMigrateSmoke(): Promise<void> {
     );
 
     // -----------------------------------------------------------------------
-    log('3/11 migrating');
+    log('3/12 migrating');
     const sourceRows = readAllSessions(dbPath);
     const before = fingerprint(legacyDir);
     const result = migrateUserData({ legacyDir, targetDir });
@@ -357,7 +376,7 @@ export async function runMigrateSmoke(): Promise<void> {
     log(`      → ${result.summary}`);
 
     // -----------------------------------------------------------------------
-    log('4/11 the original is intact and kept as the backup');
+    log('4/12 the original is intact and kept as the backup');
     const after = fingerprint(legacyDir);
     const shm = `${LEGACY_APP_NAME}/manifest.db-shm`;
     before.delete(shm);
@@ -370,7 +389,7 @@ export async function runMigrateSmoke(): Promise<void> {
     log(`      → ${after.size} files byte-identical, mtimes unchanged`);
 
     // -----------------------------------------------------------------------
-    log('5/11 every manifest row survived with identical values');
+    log('5/12 every manifest row survived with identical values');
     const targetDb = join(targetDir, LEGACY_APP_NAME, 'manifest.db');
     const copiedRows = readAllSessions(targetDb);
     check(
@@ -395,7 +414,7 @@ export async function runMigrateSmoke(): Promise<void> {
     );
 
     // -----------------------------------------------------------------------
-    log('6/11 the live tmux sessions are still adoptable from the migrated copy');
+    log('6/12 the live tmux sessions are still adoptable from the migrated copy');
     const migrated = new ManifestStore(targetDb);
     const liveInfos = await tmux.listSessions();
     const liveList: LiveTmuxSession[] = liveInfos.map((info) => ({
@@ -429,7 +448,7 @@ export async function runMigrateSmoke(): Promise<void> {
     );
 
     // -----------------------------------------------------------------------
-    log('7/11 settings, hotkeys and one-time-tip flags came across');
+    log('7/12 settings, hotkeys and one-time-tip flags came across');
     const settings = JSON.parse(
       readFileSync(join(targetDir, 'settings.json'), 'utf8')
     ) as { settings: { hotkeys: Record<string, string>; defaultAgent: string } };
@@ -460,7 +479,7 @@ export async function runMigrateSmoke(): Promise<void> {
     log('      → hotkeys, default agent, tip flags and snapshots intact; cache left behind');
 
     // -----------------------------------------------------------------------
-    log('8/11 the captured session heals the dead bundle path (hazard 4)');
+    log('8/12 the captured session heals the dead bundle path (hazard 4)');
     check(
       !existsSync(OLD_BUNDLE_BIN),
       `${OLD_BUNDLE_BIN} exists on this machine — the rename case cannot be proved here`
@@ -497,7 +516,7 @@ export async function runMigrateSmoke(): Promise<void> {
     migrated.close();
 
     // -----------------------------------------------------------------------
-    log('9/11 the second launch is a no-op');
+    log('9/12 the second launch is a no-op');
     const second = migrateUserData({ legacyDir, targetDir, log: () => {} });
     check(
       second.status === 'skipped' && second.reason === 'already-migrated',
@@ -518,7 +537,7 @@ export async function runMigrateSmoke(): Promise<void> {
     // threw, the user was told nothing, the app's first boot created
     // `<userData>/gmux/`, and every launch after that answered
     // skipped / target-has-data for good. This stage drives the whole shape.
-    log('10/11 a failed migration records itself and stays armed');
+    log('10/12 a failed migration records itself and stays armed');
     const failRoot = join(scratch, 'failure-path');
     const failLegacy = join(failRoot, LEGACY_APP_NAME);
     const failTarget = join(failRoot, NEW_APP_NAME);
@@ -617,7 +636,124 @@ export async function runMigrateSmoke(): Promise<void> {
     }
 
     // -----------------------------------------------------------------------
-    log('11/11 cleanup');
+    // -----------------------------------------------------------------------
+    // PHASE 71. Migration 013, run by the real store inside a real Electron
+    // process against the built bundle.
+    //
+    // WHY IT IS HERE AND NOT ONLY IN A UNIT TEST. The unit test builds the same
+    // schema 12 file and it is thorough, but it runs under vitest, where
+    // `electron` is a stub and better-sqlite3 is loaded by the Node vitest
+    // spawned. The thing a person's upgrade actually does is open their file
+    // with the native module inside the shipped app, on the app's own SQLite
+    // build, with the app's own `app.getPath` behind it. That is what this leg
+    // is: the same file shape, opened by `new ManifestStore(path)`, which is the
+    // exact call the app makes at boot.
+    //
+    // It uses this harness rather than a new one because this harness already
+    // exists to answer "does an old file survive the new build", and a person
+    // upgrading gets the rename and the schema change in the same launch.
+    log('11/12 a manifest at schema 12 gains machine_id when the app opens it');
+    {
+      const oldDir = join(scratch, 'schema12');
+      mkdirSync(oldDir, { recursive: true });
+      const oldPath = join(oldDir, 'manifest.db');
+      const carried = {
+        id: 'zzmig-schema12',
+        name: 'the one that predates machines',
+        tmux_name: 'zz-schema12',
+        project_path: home,
+        cwd: home,
+        agent: 'claude',
+        argv: JSON.stringify(['/opt/homebrew/bin/claude', '--model', 'opus']),
+        resume_argv: JSON.stringify(['claude', '--resume', 'zzmig-schema12']),
+        status: 'restorable',
+        created_at: 1_700_000_000_000,
+        last_seen: 1_700_000_500_000
+      };
+      const old = new Database(oldPath);
+      try {
+        old.pragma('journal_mode = WAL');
+        runMigrations(
+          old,
+          MIGRATIONS.filter((one) => one.name !== '013-machine-id')
+        );
+        stampSchemaVersion(
+          old,
+          { ...MANIFEST_SCHEMA_IDENTITY, version: 12 },
+          '0.33.0'
+        );
+        const names = Object.keys(carried);
+        old
+          .prepare(
+            `INSERT INTO sessions (${names.join(', ')}) VALUES (${names
+              .map((one) => `@${one}`)
+              .join(', ')})`
+          )
+          .run(carried);
+      } finally {
+        old.close();
+      }
+      check(
+        readUserVersion(oldPath) === 12,
+        'the fixture was not left at schema 12'
+      );
+      check(
+        !readAllSessions(oldPath).some((r) =>
+          Object.hasOwn(r, 'machine_id')
+        ),
+        'the fixture already had the column, so nothing would be migrated'
+      );
+
+      // The one call the app makes at boot, on the real native module.
+      const upgraded = new ManifestStore(oldPath);
+      try {
+        const row = upgraded.getSession('zzmig-schema12');
+        check(row !== null, 'the row did not survive migration 013');
+        check(
+          row?.machineId === 'local',
+          `the carried row reads machineId ${String(row?.machineId)} and every ` +
+            'row an older build wrote is on this Mac'
+        );
+        check(
+          row?.name === carried.name && row?.status === 'restorable',
+          'migration 013 changed a value it does not own'
+        );
+        check(
+          JSON.stringify(row?.resumeArgv) === carried.resume_argv,
+          'the resume line did not survive migration 013'
+        );
+        const fresh = upgraded.insertSession({
+          id: 'zzmig-after-013',
+          name: 'created after the migration',
+          tmuxName: 'zz-after-013',
+          projectPath: home,
+          cwd: home,
+          agent: 'shell',
+          status: 'running',
+          createdAt: Date.now(),
+          lastSeen: Date.now(),
+          argv: ['/bin/zsh']
+        });
+        check(
+          fresh.machineId === 'local',
+          `a row created after the migration reads ${String(fresh.machineId)}`
+        );
+      } finally {
+        upgraded.close();
+      }
+      check(
+        readUserVersion(oldPath) === MANIFEST_SCHEMA_VERSION,
+        `the migrated file reads user_version ${String(readUserVersion(oldPath))}`
+      );
+      log(
+        `      → user_version 12 to ${String(MANIFEST_SCHEMA_VERSION)}, the ` +
+          'carried row reads local with its resume line intact, and a row ' +
+          'created after it reads local too'
+      );
+    }
+
+    // -----------------------------------------------------------------------
+    log('12/12 cleanup');
     for (const id of created) {
       await tmux.killSession(id).catch(() => undefined);
     }

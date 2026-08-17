@@ -20,9 +20,14 @@
  * Tier 3 probes drive the real app for the end-to-end story.
  */
 
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { Session } from '@shared/types';
+
+const HERE = dirname(fileURLToPath(import.meta.url));
 
 // The store reads window.gmux while zustand builds its initial state, so the
 // globals have to exist before the modules under test are ever imported.
@@ -61,7 +66,7 @@ const { closeSession, sessionMenuItems } = await import('../session-actions');
 const { RegionBars, UNREACHABLE_BAR_TEXT, UnreachableBar } = await import(
   '../TerminalRegion'
 );
-const { useApp } = await import('../../state/store');
+const { silentMachines, useApp } = await import('../../state/store');
 const { paneRefusesInput } = await import('../../terminal/TerminalPane');
 const { paneAccepts } = await import('../../terminal/drop/target');
 
@@ -199,6 +204,152 @@ describe('the condition bar', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Phase 71 — the two bar changes
+// ---------------------------------------------------------------------------
+
+describe('the restore-all bar', () => {
+  const STUDIO = {
+    id: 'studio',
+    label: 'Studio',
+    color: 'orange' as const,
+    answering: true
+  };
+
+  it('never offers to restore sessions on another machine', () => {
+    // Restore is refused for every remote session, in main and in the row menu
+    // alike, so a bar offering to restore all of them would offer an action
+    // that is refused the moment it is pressed.
+    const rows = [
+      sess({ id: 'a', status: 'restorable', machine: STUDIO }),
+      sess({ id: 'b', status: 'restorable', machine: STUDIO })
+    ];
+    const html = renderToStaticMarkup(<RegionBars sessions={rows} />);
+    expect(html).not.toContain('Restore all');
+  });
+
+  it('counts only the rows on this Mac towards the pair it needs', () => {
+    const rows = [
+      sess({ id: 'a', status: 'restorable', machine: STUDIO }),
+      sess({ id: 'b', status: 'restorable' })
+    ];
+    expect(
+      renderToStaticMarkup(<RegionBars sessions={rows} />)
+    ).not.toContain('Restore all');
+    const both = [
+      sess({ id: 'b', status: 'restorable' }),
+      sess({ id: 'c', status: 'restorable' })
+    ];
+    expect(renderToStaticMarkup(<RegionBars sessions={both} />)).toContain(
+      'Restore all'
+    );
+  });
+});
+
+describe('the bar for a machine with no rows at all', () => {
+  const QUIET_STUDIO = {
+    id: 'studio',
+    label: 'Studio',
+    color: 'orange' as const,
+    link: 'quiet' as const,
+    everAnswered: false,
+    lastAnsweredAt: null,
+    detail: 'Studio did not answer.'
+  };
+
+  it('draws when a confirmed machine is quiet and no row reads unknown', () => {
+    // This is the startup hole. Tortie holds no record of a remote session, so
+    // a machine that was down when Tortie started contributes no row and every
+    // row-derived condition is silent.
+    const html = renderToStaticMarkup(
+      <RegionBars sessions={[]} silent={[QUIET_STUDIO]} />
+    );
+    expect(html).toContain('Tortie could not reach Studio.');
+    expect(html).toContain('did not end any of them');
+    expect(html).not.toContain('<button');
+  });
+
+  it('loses the line to the unknown-row sentence when both are true', () => {
+    const html = renderToStaticMarkup(
+      <RegionBars
+        sessions={[sess({ id: 'a', status: 'unknown' })]}
+        silent={[QUIET_STUDIO]}
+      />
+    );
+    expect(html).toContain(UNREACHABLE_BAR_TEXT);
+    expect(html).not.toContain('Tortie could not reach Studio.');
+    // The silent machine still gets its badge, so the binding sentence never
+    // has to share a line.
+    expect(html).toContain('machine-badge');
+  });
+
+  it('outranks the restore-all bar', () => {
+    const rows = [
+      sess({ id: 'b', status: 'restorable' }),
+      sess({ id: 'c', status: 'restorable' })
+    ];
+    const html = renderToStaticMarkup(
+      <RegionBars sessions={rows} silent={[QUIET_STUDIO]} />
+    );
+    expect(html).toContain('Tortie could not reach Studio.');
+    expect(html).not.toContain('Restore all');
+  });
+
+  it('says nothing for a machine nobody confirmed', () => {
+    // `silentMachines` is what decides this, and a refused machine was never
+    // asked anything, so nothing about it may claim Tortie could not reach it.
+    const refused = { ...QUIET_STUDIO, link: 'refused' as const };
+    const html = renderToStaticMarkup(
+      <RegionBars sessions={[]} silent={silentMachines([refused])} />
+    );
+    expect(html).not.toContain('Tortie could not reach');
+  });
+
+  /**
+   * MEASURED 2026-08-17, and it is why these two assertions exist. With a
+   * project open the bar and the badge appeared correctly for a confirmed
+   * machine that was down. With no project open the window showed the empty
+   * board and said nothing about that machine anywhere, because the bar lives
+   * inside the terminal region and the region returns early with no project.
+   *
+   * The claim is an ordering of components rather than a value, and zustand
+   * answers a server render from its initial state, so this is read from the
+   * source the way ../../../main/sessions/__tests__/unreachable-boundary.test.ts
+   * reads core.ts.
+   */
+  it('is drawn in the two window states that have no region bars', () => {
+    const region = readFileSync(join(HERE, '..', 'TerminalRegion.tsx'), 'utf8');
+    const noProject = region.slice(
+      region.indexOf('if (!project) {'),
+      region.indexOf('const status = active ?')
+    );
+    expect(noProject).toContain('<MachineStatement />');
+
+    const app = readFileSync(join(HERE, '..', 'App.tsx'), 'utf8');
+    const firstRun = app.slice(
+      app.indexOf('ready && projects.length === 0'),
+      app.indexOf('<div className="shell-body">')
+    );
+    expect(firstRun).toContain('<MachineStatement />');
+    expect(firstRun).toContain('<FirstRun />');
+  });
+
+  it('reads the store when the caller passes nothing', () => {
+    // The app never passes the prop. This is the slice the component reads,
+    // and the store path itself is a screenshot read rather than a unit test,
+    // because zustand answers a server render from the initial state.
+    const original = useApp.getState().machineStates;
+    useApp.setState({ machineStates: [QUIET_STUDIO] });
+    try {
+      expect(silentMachines(useApp.getState().machineStates)).toEqual([
+        QUIET_STUDIO
+      ]);
+    } finally {
+      useApp.setState({ machineStates: original });
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
 // The input and drop gates
 // ---------------------------------------------------------------------------
 
@@ -225,5 +376,21 @@ describe('the image-drop gate', () => {
     expect(paneAccepts(sess({ status: 'exited' }))).toBe(false);
     expect(paneAccepts(sess({ status: 'restorable' }))).toBe(false);
     expect(paneAccepts(null)).toBe(false);
+  });
+
+  // PHASE 71. All three refusals read through `effectiveStatusOf`, the one
+  // expression every surface reads status through. This gate decides whether
+  // Tortie writes bytes into a session, so it must never decide from a
+  // different reading than the row a person is looking at.
+  it('refuses a session on another machine that Tortie cannot see', () => {
+    const quiet = {
+      id: 'studio',
+      label: 'Studio',
+      color: 'orange' as const,
+      answering: false
+    };
+    expect(paneAccepts(sess({ status: 'unknown', machine: quiet }))).toBe(
+      false
+    );
   });
 });

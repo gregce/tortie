@@ -45,6 +45,64 @@ export function badgeQuietTitle(label: string): string {
   return `${label} did not answer.`;
 }
 
+/**
+ * The badge's sentence for a machine that has not answered ONCE in this run
+ * (Phase 71).
+ *
+ * `badgeQuietTitle` above is for a machine that was answering and stopped. This
+ * one is for the case that used to be invisible: Tortie started, the machine
+ * was already down, and there is no session row anywhere on this Mac to hang a
+ * status on. So the sentence names the machine and then names the one thing a
+ * person can do about it, which is the button in Settings.
+ */
+export function badgeSilentTitle(label: string): string {
+  return (
+    `${label} has not answered since Tortie started. Settings then Machines ` +
+    'has a button that tries again.'
+  );
+}
+
+// ---------------------------------------------------------------------------
+// The condition bar for a machine Tortie holds no rows for (Phase 71)
+// ---------------------------------------------------------------------------
+
+/**
+ * Several labels as one phrase, e.g. "Studio and Attic".
+ *
+ * The same shape main uses for its version list, written again here because the
+ * renderer shares no module with main and three lines of joining does not earn
+ * a place in the shared contract.
+ */
+function joinLabels(labels: readonly string[]): string {
+  if (labels.length === 0) return '';
+  if (labels.length === 1) return labels[0] ?? '';
+  const head = labels.slice(0, -1).join(', ');
+  return `${head} and ${labels[labels.length - 1] ?? ''}`;
+}
+
+/**
+ * The bar when a confirmed machine has not answered and Tortie holds no rows
+ * for it.
+ *
+ * WHY THIS IS A SECOND SENTENCE AND NOT A REWORDING OF THE FIRST. The bar
+ * Phase 67 shipped says "Your sessions are untouched. Tortie just cannot see
+ * them", and it is about sessions that are on the screen with their status
+ * dimmed. Here there is nothing on the screen at all: no record of a remote
+ * session is kept on this Mac, so a machine that has never answered in this run
+ * contributes no rows. Reusing the old sentence would point at rows that are
+ * not there.
+ *
+ * WHAT IT MUST NEVER SAY. It must not say the sessions are running, because
+ * nothing proved that. It must not say they ended, because nothing proved that
+ * either. It says what Tortie did, which is nothing.
+ */
+export function machineSilentText(labels: readonly string[]): string {
+  return (
+    `Tortie could not reach ${joinLabels(labels)}. Sessions you started ` +
+    'there are not shown here, and Tortie did not end any of them.'
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Restore, refused
 // ---------------------------------------------------------------------------

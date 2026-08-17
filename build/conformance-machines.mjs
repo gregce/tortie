@@ -14,7 +14,7 @@
  * no tmux server, no Electron, no manifest, no file under the person's home, no
  * request and no write anywhere. Safe on a machine with live sessions on it.
  *
- * THE TWENTY FOUR CONDITIONS IT FAILS ON. Each one is a way a person's agreement
+ * THE TWENTY FIVE CONDITIONS IT FAILS ON. Each one is a way a person's agreement
  * could come to cover something they did not read, a way a refusal could quietly
  * stop being a refusal, or (from 11 on) a way a command Tortie sends to another
  * machine could come to land somewhere nobody chose.
@@ -57,7 +57,11 @@
  *     value or scope flag, in either direction; the local re-assert order moved;
  *     or a second row started taking its value from Settings.
  * 17. `TESTED_REMOTE_TMUX_VERSIONS` is empty, a row is missing its measurement
- *     date or its note, or any row claims control mode was measured.
+ *     date or its note, or a row claims control mode was measured while the exec
+ *     plane was not. Phase 69 and Phase 70 failed on ANY control claim, because
+ *     neither release opened a control connection. Phase 71 measures the dialect
+ *     with `npm run probe:controldialect` and flips the field for the versions
+ *     that matched, so the rule is now that a claim carries its measurement.
  * 18. A golden file has no manifest row, a manifest row names a file that is not
  *     there, or a class listed as having no golden has one or gives no reason.
  * 19. The local attach argv differs by one byte from the golden taken from
@@ -80,6 +84,12 @@
  *     `connection-test.ts`, any file under `src/main/machines/` imports anything
  *     under `src/main/attach/`, `attach-plan.ts` imports anything outside its
  *     allowed list, or a second file under `src/main/attach/` names node-pty.
+ * 25. The status truth table disagrees with research 51 section 4.4 on any of
+ *     its six arms: the status an arm writes, the evidence it records, whether
+ *     the arm may produce `restorable`, whether it offers restore, or whether it
+ *     says why it does not. Also fails when the table and `mayFlipRestorable`
+ *     disagree, when any arm produces `needs_input`, or when
+ *     `src/main/machines/status-truth.ts` imports anything but a shared type.
  *
  * WHAT IT DOES NOT PROVE, stated so nobody reads more into a pass. The record
  * is sealed through `safeStorage`, which needs an Electron process, so this
@@ -835,12 +845,20 @@ for (const row of remoteVersions) {
       `the row for ${String(row.version)} says nothing about what was measured.`
     );
   }
-  if (row.control === true) {
+  // PHASE 71 CHANGED THIS CHECK, and the change is the whole shape of the
+  // ladder. Phase 69 and Phase 70 failed on any row claiming control mode was
+  // measured, because neither release opened a control connection and a claim
+  // nothing could have measured is a claim nobody should trust. Phase 71 runs
+  // `npm run probe:controldialect` against a real remote tmux and flips the
+  // field for a version whose stream matched the local control child. So the
+  // rule is no longer "nobody may claim it". It is "a claim carries its
+  // measurement", which is the date and the note every row already owes.
+  if (row.control === true && row.exec !== true) {
     fail(
-      `the row for ${String(row.version)} claims control mode was measured. This ` +
-        `release opens no control connection, so nothing here could have ` +
-        `measured one. A later rung measures it and flips the field, and that ` +
-        `order is what makes the ladder fail closed.`
+      `the row for ${String(row.version)} claims control mode was measured and ` +
+        `the exec plane was not. The dialect probe compares a remote control ` +
+        `stream against the local child over an exec plane that is already ` +
+        `working, so this pair cannot have happened.`
     );
   }
   if (row.exec !== true) {
@@ -1233,6 +1251,136 @@ for (const hit of data.machineAttachImports ?? []) {
 }
 
 // ---------------------------------------------------------------------------
+// 25. The status truth table, against research 51 section 4.4
+// ---------------------------------------------------------------------------
+//
+// The expected table is WRITTEN OUT HERE rather than imported, on purpose, for
+// the same reason the local golden argv is: importing the implementation and
+// comparing it against itself would pass whatever the implementation did. This
+// is the transcription of research 51 section 4.4, and a reader compares these
+// six rows against that section line by line.
+//
+// The one rule under all six: a machine Tortie cannot see produces `unknown`.
+// It never produces `restorable`, and it never produces `exited`. "The link
+// failed" and "a completed list did not report that session" are different
+// facts, and reading the first as the second offers Restore over an agent that
+// is still working.
+
+const TRUTH_AT_RESEARCH_51 = [
+  { event: 'listed', rows: 'per-row', mayFlipRestorable: false, evidence: 'reconcile pass at' },
+  { event: 'absent', rows: 'restorable', mayFlipRestorable: true, evidence: 'absent from the pass at' },
+  { event: 'transport-lost', rows: 'unknown', mayFlipRestorable: false, evidence: 'transport timed-out at' },
+  { event: 'woke', rows: 'unknown', mayFlipRestorable: false, evidence: 'power event at' },
+  { event: 'no-server', rows: 'restorable', mayFlipRestorable: true, evidence: 'no server on a reachable machine at' },
+  { event: 'control-exit', rows: 'per-row', mayFlipRestorable: false, evidence: 'control event at' }
+];
+
+const truthRows = data.truthRows ?? [];
+const truthVerdicts = [];
+
+if (truthRows.length !== TRUTH_AT_RESEARCH_51.length) {
+  fail(
+    `the status truth table has ${String(truthRows.length)} arm(s) and research ` +
+      `51 section 4.4 has ${String(TRUTH_AT_RESEARCH_51.length)}. An arm added ` +
+      `without a row here is an arm nobody compared against the research.`
+  );
+}
+
+for (const want of TRUTH_AT_RESEARCH_51) {
+  const got = truthRows.find((row) => row.event === want.event) ?? null;
+  if (got === null) {
+    fail(
+      `the status truth table has no arm for "${want.event}", which research 51 ` +
+        `section 4.4 lists.`
+    );
+    continue;
+  }
+  const problems = [];
+  if (got.rows !== want.rows) {
+    problems.push(`rows ${JSON.stringify(got.rows)} rather than ${JSON.stringify(want.rows)}`);
+  }
+  if (got.mayFlipRestorable !== want.mayFlipRestorable) {
+    problems.push(
+      `mayFlipRestorable ${String(got.mayFlipRestorable)} rather than ` +
+        `${String(want.mayFlipRestorable)}`
+    );
+  }
+  if (!String(got.evidence).startsWith(want.evidence)) {
+    problems.push(
+      `evidence ${JSON.stringify(got.evidence)} rather than one beginning ` +
+        `${JSON.stringify(want.evidence)}`
+    );
+  }
+  if (!String(got.evidence).includes(String(data.truthAt))) {
+    problems.push('evidence carrying no instant, so a log line cannot be placed in time');
+  }
+  if (got.restoreOffered !== false) {
+    problems.push(
+      'restore offered, and this release brings back no session that lives on ' +
+        'another machine'
+    );
+  }
+  if (typeof got.reason !== 'string' || got.reason.length < 20) {
+    problems.push('no sentence saying why restore is not offered');
+  }
+  if (String(got.reason ?? '').includes('—') || String(got.reason ?? '').includes('–')) {
+    problems.push('a dash the writing rules refuse');
+  }
+  if (problems.length > 0) {
+    fail(`the "${want.event}" arm of the status truth table: ${problems.join('; ')}.`);
+  }
+  truthVerdicts.push({
+    event: want.event,
+    rows: got.rows,
+    restorable: got.mayFlipRestorable ? 'yes' : 'no',
+    verdict: problems.length === 0 ? 'pass' : 'FAIL'
+  });
+}
+
+// The two halves have to agree: every arm that WRITES restorable is an arm the
+// guard admits. A later edit that gave a lost link the power to write a
+// confirmed death would have to break both to get past this.
+for (const row of truthRows) {
+  const writes = row.rows === 'restorable';
+  if (writes === row.mayFlipRestorable) continue;
+  fail(
+    `the "${String(row.event)}" arm writes ${JSON.stringify(row.rows)} and ` +
+      `mayFlipRestorable answers ${String(row.mayFlipRestorable)}. The guard and ` +
+      `the table are the same rule and they disagree.`
+  );
+}
+
+// No arm may produce a status that means the session is asking for a person.
+// Status semantics do not move: `needs_input` is produced by an oracle reading
+// local disk, and a fact about a machine is never that.
+for (const row of truthRows) {
+  if (row.rows !== 'needs_input') continue;
+  fail(
+    `the "${String(row.event)}" arm produces needs_input. A machine level fact ` +
+      `is never a session behaviour status.`
+  );
+}
+
+// The module that holds the table has to stay a leaf. It is the file a reviewer
+// reads to learn what Tortie believes about a machine it cannot see, and a
+// tmux, SQLite or filesystem import in it would mean the answer depends on
+// something the reviewer cannot see from the page.
+{
+  const ALLOWED_TRUTH_IMPORTS = ['@shared/types'];
+  for (const line of (data.truthImports ?? []).map(String)) {
+    const match = /'([^']+)'/.exec(line);
+    if (match === null) continue;
+    if (ALLOWED_TRUTH_IMPORTS.includes(match[1])) continue;
+    fail(
+      `src/main/machines/status-truth.ts imports ${JSON.stringify(
+        match[1]
+      )}, which is not on its allowed list. The case table must be decidable ` +
+        `from the event alone: no tmux, no SQLite, no filesystem and no timer.`
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // The tables, printed whatever the verdict, because the point is that a person
 // can read them.
 // ---------------------------------------------------------------------------
@@ -1378,6 +1526,23 @@ process.stdout.write(
       (data.remoteListFreeForm ?? []).length
     )} of which are free form.\n`
 );
+// ---------------------------------------------------------------------------
+// Phase 71's table
+// ---------------------------------------------------------------------------
+
+process.stdout.write('\nevent            rows         may restore  verdict\n');
+process.stdout.write('-'.repeat(56) + '\n');
+for (const row of truthVerdicts) {
+  process.stdout.write(
+    `${pad(row.event, 16)} ${pad(row.rows, 12)} ${pad(row.restorable, 12)} ${row.verdict}\n`
+  );
+}
+process.stdout.write(
+  `no arm offers restore in this release, and no arm produces needs_input. A ` +
+    `machine Tortie cannot see produces unknown, never restorable and never ` +
+    `exited.\n`
+);
+
 process.stdout.write(
   `node-pty is imported by ${String(
     new Set((data.machinePtyMentions ?? []).map((hit) => hit.file)).size

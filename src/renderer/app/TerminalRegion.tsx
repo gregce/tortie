@@ -18,9 +18,15 @@
  */
 
 import React, { useEffect, useRef } from 'react';
+import type { MachineStateView } from '@shared/ipc';
 import type { Session, SessionMachine } from '@shared/types';
 import { TerminalHost } from '../terminal';
-import { effectiveStatusOf, useApp } from '../state/store';
+import {
+  badgeMachineOf,
+  effectiveStatusOf,
+  silentMachines,
+  useApp
+} from '../state/store';
 import { useLayout } from '../state/layout';
 import {
   diedRightAfterStart,
@@ -35,7 +41,12 @@ import {
 } from './status';
 import './unreachable.css';
 import { MachineBadge } from './MachineBadge';
-import { RESTORE_COMING } from './machine-copy';
+import {
+  RESTORE_COMING,
+  badgeQuietTitle,
+  badgeSilentTitle,
+  machineSilentText
+} from './machine-copy';
 import {
   RenameInput,
   resumeMark,
@@ -152,7 +163,20 @@ function RestoreAllBar({
   const restoreAllSessions = useApp((s) => s.restoreAllSessions);
   const restoringIds = useApp((s) => s.restoringIds);
 
-  const restorable = sessions.filter((x) => x.status === 'restorable');
+  // PHASE 71. Two changes, and both are about offering an action Tortie will
+  // actually perform.
+  //
+  // The status is read through `effectiveStatusOf`, the one expression every
+  // surface reads status through, so this bar can never decide from a different
+  // reading than the rows behind it.
+  //
+  // A row that carries a machine is excluded whatever its status. Restore is
+  // refused for every session on another machine, in main and in the menu
+  // alike, so a bar offering to restore all of them would offer an action that
+  // is refused the moment it is pressed.
+  const restorable = sessions.filter(
+    (x) => effectiveStatusOf(x) === 'restorable' && x.machine === undefined
+  );
   if (restorable.length < 2 || !canRestore()) return null;
   const busy = restorable.some((x) => restoringIds[x.id] === true);
 
@@ -200,10 +224,18 @@ export const UNREACHABLE_BAR_TEXT =
  * quiet. A bar for this Mac alone draws no badge and reads as it always did.
  */
 export function UnreachableBar({
-  machines = []
+  machines = [],
+  silent = []
 }: {
   machines?: readonly SessionMachine[];
+  /**
+   * Confirmed machines that are not answering and that Tortie holds no rows
+   * for (Phase 71). They get their badge here so the sentence above never has
+   * to share a line with a second one.
+   */
+  silent?: readonly MachineStateView[];
 } = {}): React.JSX.Element {
+  const drawn = new Set(machines.map((one) => one.id));
   return (
     <div className="unreachable-strip" role="status">
       <span className="unreachable-strip-text">{UNREACHABLE_BAR_TEXT}</span>
@@ -214,6 +246,67 @@ export function UnreachableBar({
           className="unreachable-strip-machine"
         />
       ))}
+      <SilentBadges states={silent.filter((one) => !drawn.has(one.id))} />
+    </div>
+  );
+}
+
+/**
+ * One badge per machine that is not answering, from main's own statement
+ * rather than from rows (Phase 71).
+ *
+ * A machine that has never answered in this run says something different from
+ * one that answered and then stopped, so the sentence is chosen here and handed
+ * to the badge rather than derived inside it.
+ */
+function SilentBadges({
+  states
+}: {
+  states: readonly MachineStateView[];
+}): React.JSX.Element | null {
+  if (states.length === 0) return null;
+  return (
+    <>
+      {states.map((state) => (
+        <MachineBadge
+          key={state.id}
+          machine={badgeMachineOf(state)}
+          className="unreachable-strip-machine"
+          title={
+            state.everAnswered
+              ? badgeQuietTitle(state.label)
+              : badgeSilentTitle(state.label)
+          }
+        />
+      ))}
+    </>
+  );
+}
+
+/**
+ * The bar for a machine Tortie holds NO rows for (Phase 71).
+ *
+ * This is the startup hole. A remote session has no record on this Mac, so a
+ * confirmed machine that is down when Tortie starts contributes no row, no
+ * badge and nothing dimmed anywhere, and the person who left an agent running
+ * there was told nothing at all. The sentence names the machine and says what
+ * Tortie did, which is nothing.
+ *
+ * The Phase 67 sentence above is not reused here, because it is about sessions
+ * that are on the screen with their status dimmed and there are none.
+ */
+export function MachineSilentBar({
+  silent
+}: {
+  silent: readonly MachineStateView[];
+}): React.JSX.Element | null {
+  if (silent.length === 0) return null;
+  return (
+    <div className="unreachable-strip" role="status">
+      <span className="unreachable-strip-text">
+        {machineSilentText(silent.map((one) => one.label))}
+      </span>
+      <SilentBadges states={silent} />
     </div>
   );
 }
@@ -222,15 +315,64 @@ export function UnreachableBar({
  * The region's one bar slot. While the machine condition is on, the
  * restore-all bar does not render, so the two bars never argue: one says
  * "nothing is proven gone" and the other would offer to act on death.
+ *
+ * The order is deliberate and it is stated in research 51 section 4.6's terms.
+ * A visible row reading `unknown` wins, because that sentence is the binding
+ * copy and it is about rows a person can see. The silent machine bar is second,
+ * because it exists precisely for the case where there is nothing to see. The
+ * restore-all bar is last, because it offers to act on sessions that are over
+ * and neither of the other two has proved that anything is.
  */
+/**
+ * The machine statement on its own, for the window states that draw no region
+ * bars at all (Phase 71 fix round).
+ *
+ * MEASURED, and it is why this exists. The bar above renders inside the terminal
+ * region, and the terminal region returns early when no project is open. So a
+ * confirmed machine that was down at startup was named correctly with a project
+ * open and said nothing whatsoever with none open: the window showed the empty
+ * board and no statement about the machine anywhere. The statement is about a
+ * MACHINE, and whether a person has a project open is not a fact about their
+ * machine, so it does not decide whether they are told.
+ *
+ * Two mounts, and between them they cover every state that skips the region
+ * bars: the first-run board in ./App.tsx, and the region's own no-project branch
+ * below. A state that draws `RegionBars` never draws this one, so the sentence
+ * cannot appear twice.
+ */
+export function MachineStatement(): React.JSX.Element | null {
+  const machineStates = useApp((s) => s.machineStates);
+  return <MachineSilentBar silent={silentMachines(machineStates)} />;
+}
+
 export function RegionBars({
-  sessions
+  sessions,
+  silent: given
 }: {
   sessions: Session[];
+  /**
+   * The quiet machines, when the caller already has them.
+   *
+   * The app never passes this: it reads the store below. It exists because
+   * zustand answers a SERVER render from the store's initial state rather than
+   * its current one, so a test that renders this component to static markup
+   * cannot see a `setState`. The prop is how those tests state the case they
+   * are testing, and the store path is exercised in the running app and by the
+   * screenshot reads.
+   */
+  silent?: readonly MachineStateView[];
 }): React.JSX.Element | null {
+  const machineStates = useApp((s) => s.machineStates);
+  const silent = given ?? silentMachines(machineStates);
   if (machineUnreachable(sessions)) {
-    return <UnreachableBar machines={unreachableMachines(sessions)} />;
+    return (
+      <UnreachableBar
+        machines={unreachableMachines(sessions)}
+        silent={silent}
+      />
+    );
   }
+  if (silent.length > 0) return <MachineSilentBar silent={silent} />;
   return <RestoreAllBar sessions={sessions} />;
 }
 
@@ -343,8 +485,14 @@ export function TerminalRegion(): React.JSX.Element {
   }, [visibleKey, setVisibleSessions]);
 
   if (!project) {
-    // First-run state is rendered by App (full window, §6.1).
-    return <main className="center" data-slot="terminal-stack" />;
+    // First-run state is rendered by App (full window, §6.1). The machine
+    // statement still renders, because a machine that did not answer is a fact
+    // about the person's machines rather than about the project they have open.
+    return (
+      <main className="center" data-slot="terminal-stack">
+        <MachineStatement />
+      </main>
+    );
   }
 
   const status = active ? effectiveStatusOf(active) : null;

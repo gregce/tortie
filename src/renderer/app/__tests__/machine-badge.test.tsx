@@ -47,10 +47,15 @@ vi.stubGlobal('document', {
 });
 
 const { MachineBadge } = await import('../MachineBadge');
-const { badgeQuietTitle, badgeTitle } = await import('../machine-copy');
+const {
+  badgeQuietTitle,
+  badgeSilentTitle,
+  badgeTitle,
+  machineSilentText
+} = await import('../machine-copy');
 const { sessionAriaLabel } = await import('../session-actions');
 const { statusVisual, unreachableMachines } = await import('../status');
-const { UnreachableBar } = await import('../TerminalRegion');
+const { MachineSilentBar, UnreachableBar } = await import('../TerminalRegion');
 
 const STUDIO: SessionMachine = {
   id: 'studio',
@@ -185,5 +190,87 @@ describe('the machines that went quiet', () => {
     const html = renderToStaticMarkup(<UnreachableBar />);
     expect(html).toContain('Machine unreachable.');
     expect(html).not.toContain('machine-badge');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 71 — the machine Tortie holds no rows for
+// ---------------------------------------------------------------------------
+
+/** One machine as main reports its link. */
+const SILENT_STUDIO = {
+  id: 'studio',
+  label: 'Studio',
+  color: 'orange' as const,
+  link: 'quiet' as const,
+  everAnswered: false,
+  lastAnsweredAt: null,
+  detail: 'Studio did not answer.'
+};
+
+describe('the bar for a machine that has never answered', () => {
+  it('names the machine and says Tortie ended nothing', () => {
+    const html = renderToStaticMarkup(
+      <MachineSilentBar silent={[SILENT_STUDIO]} />
+    );
+    expect(machineSilentText(['Studio'])).toBe(
+      'Tortie could not reach Studio. Sessions you started there are not ' +
+        'shown here, and Tortie did not end any of them.'
+    );
+    expect(html).toContain(machineSilentText(['Studio']));
+    expect(html).toContain('role="status"');
+    expect(html).not.toContain('<button');
+  });
+
+  it('joins two machines into one sentence', () => {
+    expect(machineSilentText(['Studio', 'Attic'])).toBe(
+      'Tortie could not reach Studio and Attic. Sessions you started there ' +
+        'are not shown here, and Tortie did not end any of them.'
+    );
+  });
+
+  it('never claims the sessions are running and never claims they ended', () => {
+    const text = machineSilentText(['Studio']);
+    expect(text).not.toMatch(/still running/i);
+    expect(text).not.toMatch(/ended\b(?! any)/i);
+  });
+
+  it('draws the badge with the sentence for a machine never heard from', () => {
+    const html = renderToStaticMarkup(
+      <MachineSilentBar silent={[SILENT_STUDIO]} />
+    );
+    expect(badgeSilentTitle('Studio')).toBe(
+      'Studio has not answered since Tortie started. Settings then Machines ' +
+        'has a button that tries again.'
+    );
+    expect(html).toContain(`title="${badgeSilentTitle('Studio')}"`);
+    expect(html).toContain('machine-badge quiet');
+  });
+
+  it('uses the shorter sentence for a machine that answered and stopped', () => {
+    const html = renderToStaticMarkup(
+      <MachineSilentBar silent={[{ ...SILENT_STUDIO, everAnswered: true }]} />
+    );
+    expect(html).toContain(`title="${badgeQuietTitle('Studio')}"`);
+  });
+
+  it('draws nothing at all when no machine is quiet', () => {
+    expect(renderToStaticMarkup(<MachineSilentBar silent={[]} />)).toBe('');
+  });
+
+  it('gives a silent machine its badge on the unreachable bar too', () => {
+    // Research 51 section 4.6's sentence is binding and is never reworded, so
+    // when both conditions are true it wins the line and the silent machine
+    // still gets a badge.
+    const quiet = { ...STUDIO, answering: false };
+    const html = renderToStaticMarkup(
+      <UnreachableBar machines={[quiet]} silent={[SILENT_STUDIO]} />
+    );
+    expect(html).toContain(
+      'Machine unreachable. Your sessions are untouched. Tortie just cannot see them.'
+    );
+    expect(html).not.toContain(machineSilentText(['Studio']));
+    // One badge, not two: the machine is the same machine.
+    expect(html.match(/machine-badge/g)?.length).toBe(1);
   });
 });

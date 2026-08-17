@@ -319,11 +319,72 @@ export interface MachinePrepareResult {
 }
 
 // ---------------------------------------------------------------------------
+// The link state of every machine (Phase 71, M4)
+// ---------------------------------------------------------------------------
+
+/**
+ * How Tortie is talking to one machine right now.
+ *
+ *  - `connected` is a live connection. There is no timer on that machine.
+ *  - `polling` is the machine answering on the timer, which is what a machine
+ *    whose program Tortie has not measured for a live connection gets.
+ *  - `connecting` is a sign in that is happening right now.
+ *  - `quiet` is a confirmed machine whose last attempt got no answer.
+ *  - `refused` is a machine Tortie will not use, because a person has not
+ *    confirmed it or because it runs a version nobody measured.
+ */
+export type MachineLink =
+  | 'connected'
+  | 'polling'
+  | 'connecting'
+  | 'quiet'
+  | 'refused';
+
+/**
+ * One machine's link state, composed in main.
+ *
+ * WHY THIS EXISTS AND WHY IT IS NOT A ROW. Tortie keeps no record on this Mac
+ * of a session that runs on another machine. So at startup, before a machine
+ * has answered, there is nothing from which a session row could be built, and a
+ * person who quit with an agent running on a machine that is now asleep used to
+ * be told nothing at all. This is the one statement Tortie can make truthfully
+ * before any answer arrives: it names the machine, and it says whether Tortie
+ * has heard from it.
+ *
+ * It says nothing about sessions, because nothing about them is known.
+ */
+export interface MachineStateView {
+  readonly id: string;
+  readonly label: string;
+  readonly color: MachineColor;
+  readonly link: MachineLink;
+  /** True once any list completed for this machine in this run. */
+  readonly everAnswered: boolean;
+  /** Local epoch ms of the last completed list, or null. */
+  readonly lastAnsweredAt: number | null;
+  /** One sentence for the person, or null when the link is healthy. */
+  readonly detail: string | null;
+}
+
+/**
+ * The one event channel this state arrives on after the first read.
+ *
+ * It carries the whole list every time. The list is at most as long as the
+ * machines file, which a person maintains by hand, so there is nothing to gain
+ * from a per machine push and one shape is one shape to reason about.
+ */
+export const EVT_MACHINE_STATE = 'machines:stateChanged';
+
+export interface MachinesEventPayloadMap {
+  [EVT_MACHINE_STATE]: [states: MachineStateView[]];
+}
+
+// ---------------------------------------------------------------------------
 // The channels
 // ---------------------------------------------------------------------------
 
 /**
- * The eleven channels, and what each one may do.
+ * The twelve channels, and what each one may do.
  *
  * | Channel | Reads | Writes | Spawns |
  * | --- | --- | --- | --- |
@@ -338,6 +399,7 @@ export interface MachinePrepareResult {
  * | forget | nothing | one record removed | nothing |
  * | remove | nothing | machines.json and one record removed | nothing |
  * | prepare | one row and the sealed record | settings on that machine | ssh |
+ * | state | memory in main | nothing | nothing |
  *
  * The three that spawn do so on a person's click and from nowhere else.
  *
@@ -362,6 +424,10 @@ export interface MachinesInvokeChannelMap {
   'machines:forget': { req: [id: string]; res: MachineRowView };
   'machines:remove': { req: [id: string]; res: MachinesResult };
   'machines:prepare': { req: [id: string]; res: MachinePrepareResult };
+  // PHASE 71. Reads memory in main and answers. It starts nothing, asks no
+  // machine anything, and opens no file. The renderer calls it once at boot and
+  // is pushed every change after that on EVT_MACHINE_STATE.
+  'machines:state': { req: []; res: MachineStateView[] };
 }
 
 /** The one event channel: the connection test's own bytes and its end. */
@@ -401,5 +467,9 @@ export interface GmuxMachinesExtras {
     remove(id: string): Promise<MachinesResult>;
     prepare(id: string): Promise<MachinePrepareResult>;
     onTestEvent(cb: (event: MachineTestEvent) => void): () => void;
+    // Phase 71. The link state of every machine, read once at boot and pushed
+    // on every change after that.
+    state(): Promise<MachineStateView[]>;
+    onStateChanged(cb: (states: MachineStateView[]) => void): () => void;
   };
 }

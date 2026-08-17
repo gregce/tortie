@@ -189,3 +189,62 @@ describe('LineBuffer', () => {
     assert.deepEqual(buf.push('fresh\n'), ['fresh']);
   });
 });
+
+// ---------------------------------------------------------------------------
+// What a connection actually sent (Phase 71, M4)
+// ---------------------------------------------------------------------------
+
+describe('the lines build/probe-control-dialect.mjs recorded over a connection', () => {
+  it('reads the five line greeting the probe measured', () => {
+    // Recorded 2026-08-17 from a real connection, on 3.6a and on 3.7b, and
+    // identical to a local child of the same version. It is FIVE lines, not the
+    // guard pair alone, and the three after the block are notifications.
+    const greeting = [
+      '%begin 1786998987 275 0',
+      '%end 1786998987 275 0',
+      '%window-add @0',
+      '%sessions-changed',
+      '%session-changed $0 gmux-control'
+    ];
+    assert.deepEqual(
+      greeting.map((line) => parseControlLine(line).kind),
+      ['begin', 'end', 'other-notification', 'sessions-changed', 'session-changed']
+    );
+  });
+
+  it('reads the rename line with the argument order the far side sent', () => {
+    const event = parseControlLine('%session-renamed $1 p71-worker-53327-2');
+    assert.deepEqual(event, {
+      kind: 'session-renamed',
+      sessionId: '$1',
+      name: 'p71-worker-53327-2'
+    });
+  });
+
+  it('reads %exit with no reason, which is what a killed far side sent', () => {
+    assert.deepEqual(parseControlLine('%exit'), { kind: 'exit' });
+  });
+
+  it('drops the four unnamed notifications into other-notification', () => {
+    // Every one of these arrived on a live connection. None carries a fact the
+    // feed reads, and the arm exists so an unknown name is never a crash.
+    for (const line of [
+      '%window-add @0',
+      '%unlinked-window-add @1',
+      '%unlinked-window-renamed @1 kernel_task',
+      '%unlinked-window-close @2'
+    ]) {
+      assert.equal(parseControlLine(line).kind, 'other-notification');
+    }
+  });
+
+  it('requires exactly three numbers on a guard, which is what both sent', () => {
+    assert.equal(parseControlLine('%begin 1786998987 275 0').kind, 'begin');
+    // A fourth number is not a guard this release has ever seen, and reading one
+    // as a guard would pair a block to the wrong command.
+    assert.equal(
+      parseControlLine('%begin 1786998987 275 0 1').kind,
+      'other-notification'
+    );
+  });
+});

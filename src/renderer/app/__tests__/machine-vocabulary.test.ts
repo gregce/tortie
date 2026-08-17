@@ -47,7 +47,10 @@ const FILES: readonly string[] = [
   'src/renderer/app/SessionRail.tsx',
   'src/renderer/app/SessionStrip.tsx',
   'src/renderer/app/TerminalRegion.tsx',
-  'src/main/machines/remote-copy.ts'
+  'src/main/machines/remote-copy.ts',
+  // Phase 71. The link statement's own sentences, composed in main because
+  // only main holds the confirm gate's answer and the link's own reason.
+  'src/main/machines/machine-state.ts'
 ];
 
 /**

@@ -67,17 +67,17 @@ function row(
 }
 
 describe('the two schema numbers', () => {
-  // Phase 48 appended migration 012, so the version reads 12 here. The
+  // Phase 71 appended migration 013, so the version reads 13 here. The
   // minimum is the number this file is actually about, and it has not moved
   // since migration 008.
-  it('schema version is 12 and the minimum stays 8 (the additive decision)', () => {
-    expect(MANIFEST_SCHEMA_VERSION).toBe(12);
+  it('schema version is 13 and the minimum stays 8 (the additive decision)', () => {
+    expect(MANIFEST_SCHEMA_VERSION).toBe(13);
     expect(MANIFEST_MIN_COMPATIBLE_VERSION).toBe(8);
   });
 
   it('stamps both numbers on the file', () => {
     const state = store.schemaState();
-    expect(state.userVersion).toBe(12);
+    expect(state.userVersion).toBe(13);
     expect(state.minCompatible).toBe(8);
   });
 });
@@ -85,10 +85,11 @@ describe('the two schema numbers', () => {
 describe('migration 010 against a schema 9 file', () => {
   it('adds removed_at, moves user_version past 10, and a second open is a no-op', () => {
     // Build a byte-honest schema 9 fixture: this build's file, minus exactly
-    // what migrations 010, 011 and 012 added. Each adds one nullable column
-    // and nothing else, so removing the three columns and the three
-    // bookkeeping rows IS schema 9. Phase 33 added the second one and Phase 48
-    // added the third; before them, this fixture had one column to remove.
+    // what migrations 010, 011, 012 and 013 added. Each adds one nullable
+    // column and nothing else, so removing the four columns and the four
+    // bookkeeping rows IS schema 9. Phase 33 added the second one, Phase 48
+    // added the third and Phase 71 added the fourth; before them, this fixture
+    // had one column to remove.
     const dbPath = join(dir, 'nine.db');
     const fresh = new ManifestStore(dbPath);
     fresh.insertSession({
@@ -108,19 +109,23 @@ describe('migration 010 against a schema 9 file', () => {
     raw.exec('ALTER TABLE sessions DROP COLUMN removed_at');
     raw.exec('ALTER TABLE sessions DROP COLUMN env_passthrough');
     raw.exec('ALTER TABLE sessions DROP COLUMN exit_detail');
+    raw.exec('ALTER TABLE sessions DROP COLUMN machine_id');
     raw.prepare("DELETE FROM migrations WHERE name = '010-removed-at'").run();
     raw
       .prepare("DELETE FROM migrations WHERE name = '011-env-passthrough'")
       .run();
     raw.prepare("DELETE FROM migrations WHERE name = '012-exit-detail'").run();
+    raw.prepare("DELETE FROM migrations WHERE name = '013-machine-id'").run();
     raw.pragma('user_version = 9');
     raw.close();
 
-    // First open: all three pending migrations run.
+    // First open: all four pending migrations run.
     const migrated = new ManifestStore(dbPath);
     const state = migrated.schemaState();
-    expect(state.userVersion).toBe(12);
+    expect(state.userVersion).toBe(13);
     expect(state.minCompatible).toBe(8);
+    // Migration 013 backfilled the row this fixture wrote at schema 9.
+    expect(migrated.getSession('old-row')?.machineId).toBe('local');
     // NULL on a row written before the migration reads as "never removed".
     const old = migrated.getSession('old-row');
     expect(old?.removedAt).toBeUndefined();
@@ -134,7 +139,7 @@ describe('migration 010 against a schema 9 file', () => {
 
     // Second open: nothing pending, nothing changes.
     const again = new ManifestStore(dbPath);
-    expect(again.schemaState().userVersion).toBe(12);
+    expect(again.schemaState().userVersion).toBe(13);
     expect(again.getSession('old-row')?.removedAt).toBe(removedAt);
     expect(again.getSession('old-row')?.status).toBe('discarded');
     again.close();

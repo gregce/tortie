@@ -243,6 +243,30 @@ const REFUSALS = [
       'MANIFEST_SCHEMA_VERSION is ',
       ' migrations. They are the same number. '
     ]
+  },
+  {
+    // PHASE 71. Migration 013 adds `machine_id` and leaves
+    // MANIFEST_MIN_COMPATIBLE_VERSION at 8, so a build at schema 12 may still
+    // open and WRITE this manifest. That build has no such column and reads
+    // every row as a session on this Mac. Today that is correct, because every
+    // value in the column is `local`. The first row carrying any other value
+    // makes it wrong in the worst direction: an older build would read a
+    // session running on another machine as a local one and could recreate it
+    // here, which is two agents on one conversation.
+    //
+    // THE BUILD THAT RECORDS A REAL MACHINE ID MOVES THE MINIMUM TO 13 AND
+    // DELETES THIS ENTRY IN THE SAME COMMIT. That is M5.
+    id: 'manifest.machine-id-nonlocal',
+    source: 'src/main/manifest/sessions-repository.ts',
+    why:
+      'a durable row that names another machine, written while an older build ' +
+      'may still open the file, is a row that older build reads as local and ' +
+      'can recreate on this Mac',
+    fragments: [
+      'Tortie will not record a session as living on another machine while an ',
+      'older build could read that row as living on this one. The build that ',
+      'records it must raise the oldest build allowed to write this file.'
+    ]
   }
 ];
 
@@ -572,6 +596,30 @@ const MACHINE_REFUSALS = [
       'Tortie will not send that command, because it has not seen this session in ',
       'a list from that machine. Acting on a session it cannot account for is how ',
       'work on somebody else’s machine gets ended. Nothing was sent.'
+    ]
+  },
+  // ---------------------------------------------------------------------------
+  // Phase 71 added this one, and it is the fails closed rung of the ladder
+  // ---------------------------------------------------------------------------
+  //
+  // Control mode is a different wire protocol from one-shot verbs, so a version
+  // measured on the exec plane says nothing about this one.
+  // `build/probe-control-dialect.mjs` measured 3.6a and 3.7b and both matched,
+  // so the branch this sentence lives on has no member in production today. That
+  // is exactly the case a bundler folds away, and exactly the case this file
+  // exists for.
+  {
+    id: 'machine.control-dialect-unmeasured',
+    source: 'src/main/machines/control-plane.ts',
+    why:
+      'an untested wire pair hangs rather than errors, which is measured at the ' +
+      'top of src/main/tmux/version.ts, and a hang reads to a person as Tortie ' +
+      'freezing on work they care about. Without this refusal an unmeasured ' +
+      'version would get a live connection instead of the timer feed that works',
+    fragments: [
+      'Tortie has not measured how this machine speaks over a live connection, so ',
+      'it asks the machine for its list on a timer instead. Nothing was changed on ',
+      'either machine.'
     ]
   },
   {
