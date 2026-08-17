@@ -5517,3 +5517,27 @@ matrix on a real tailnet machine, are recorded as owed and run only when he is p
 Phases 67 and 62.1 run in parallel in isolated worktrees because their files are disjoint; 68
 through 73 run strictly in order, each gated on the one before, each landed and pushed before the
 next launches. **Semver:** 67 is a fix, patch; 68 through 73 are feats, minor each.
+
+## Phase 46.1 — the Runs pane reads clearly (operator reported 2026-08-16) QUEUED, BUILDING IN PARALLEL
+
+The operator's reports against the shipped Runs section, from a screenshot of real use.
+
+1. THE TIME READS WRONG. A collapsed run row shows "3h 5m 24s", which scans as one duration. The
+first figure is when the run happened and the second is how long it took; make that unmistakable
+before expanding, e.g. "3h ago" set apart from the duration, with the exact copy under the
+writing rules.
+2. HOVER FOR DETAIL. Hovering a run row shows the fuller story the way hovering a git commit in
+History already does, and that existing hover is the pattern to mirror: the full commit subject,
+the branch, the run number, the trigger, the absolute start time, the duration, and per-job
+status, all from data the gh calls already return. No new gh verbs.
+3. OPEN ON GITHUB. A run can be opened directly at its Actions page, through the native menu per
+the UI rules, and the URL comes from the run data already held.
+4. THE DOUBLED JOB NAME. A one-job workflow shows "gates" on the run row and "gates" again as the
+only child, wasting a level; when a workflow has exactly one job, collapse that level so steps
+nest directly under the run row and shift left accordingly. Multi-job runs keep the job level.
+Spacing and styling improve without significant change, the operator's words.
+
+**Tier 2.** Probes: the collapsed row photographed with the disambiguated time; the hover card
+photographed and its fields checked against the gh payload; Open on GitHub proven to produce the
+exact run URL, without asserting the browser; a one-job run photographed with steps directly
+nested and a multi-job fixture keeping its level. **Semver:** fix, patch.
