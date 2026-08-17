@@ -49,7 +49,16 @@ jobs:
         # identity=null is coerced to a real null by electron-builder, which
         # skips signing, and notarization is unreachable once signing is
         # skipped. Verified in the installed electron-builder 26.15.3.
-        run: npx electron-builder --mac -c.mac.identity=null
+        #
+        # --publish never is required, not optional. electron-builder.yml
+        # line 416 configures a github publish provider, so without this flag
+        # PublishManager runs at the end of the build and fails with "GitHub
+        # Personal Access Token is not set", which is what killed this lane's
+        # first scheduled run on 2026-08-17. This lane packages to prove the
+        # app builds and launches. It must never upload anything, and no
+        # token is available to it. The release lane already carries the same
+        # flag for the same reason.
+        run: npx electron-builder --mac --publish never -c.mac.identity=null
       - name: The packaged app launches and passes the basic smoke
         run: |
           node build/harness-socket.mjs gmux-smoke-pkg \
