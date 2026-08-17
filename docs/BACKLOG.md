@@ -5379,7 +5379,33 @@ falsified safety claims, with its groundwork overlap recorded. The standing law 
 builds remote infrastructure for RENTED compute stands untouched; this is about machines the
 operator owns on his own tailnet, which research 28 always named first choice.
 
-**The ladder is M0 to M6 in section 6, and nothing below M0 ships before it.** M0 fixes a live
+**The ladder is M0 to M6 in section 6, and nothing below M0 ships before it.** 
+
+**Conversation continuity, the operator's stated destination (2026-08-16).** His words: when
+connected, Tortie should have the ability to continue a remote conversation from another machine,
+fully locally if needed. That is what the remote work builds toward if this ladder is greenlit,
+and it sharpens rung M6 or becomes its own rung M7, decided in the greenlight brief. The
+mechanism, from the manifest discussion that produced this note:
+
+- While a machine is connected, harvest extends from reading conversation IDS to a READ-ONLY sync
+  of the agent-native conversation stores themselves, copied home to the Mac. Harvest already
+  knows every agent's store path; this is a difference of degree, not architecture.
+- With the content home, a dead or unreachable machine loses only the tail since the last sync,
+  and for agents whose registry row carries reconstructionTarget true, Tortie can REPLANT the
+  conversation into a fresh store locally or on another machine and continue it there. Tortie
+  already distinguishes continues-the-conversation from starts-fresh in Past Sessions, and this
+  reuses that honesty: a replanted conversation is a reconstruction, never sold as a byte-perfect
+  resume.
+- The promise is stated as last-sync staleness, exactly the way capsules already state capture
+  time. Sync freshness is bounded by connectivity and the copy discipline needs measurement
+  before any promise, because agent stores can be large and chatty.
+
+**Two constraints the operator set.** This capability must NOT rely on SpecStory; it rides
+Tortie's own harvest reading agent-native stores, so nothing installs remotely and the capture
+path has no second product in it. And as reference only, the SpecStory source at
+/Users/gdc/getspecstory (specstory-cli/pkg/providers, one package per agent including grokbuild)
+may be studied for how it locates and tails each agent's store across all thirteen, because that
+is measured prior art on the exact per-agent file shapes this sync must read. M0 fixes a live
 LOCAL defect that four machines would multiply by four: the unknown status has no producer, and
 refresh() still flips every non-exited row to restorable on TMUX_UNREACHABLE, reading a dropped
 link as a dead process. Both adversaries agreed M0 is unconditional and first. Restore stays
