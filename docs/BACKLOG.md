@@ -6730,7 +6730,29 @@ a Linux box.
 **The number.** The ladder note said this becomes "Phase 74" if it is not built in M6. That number was
 already taken by the small-issue batch, so it takes the next free one, which is 82.
 
-## Phase 73.1 — the second recorded nits round ✅ SHIPPED 2026-08-18 (this commit, 0.40.1, gates green)
+## Phase 73.1 — the second recorded nits round ✅ SHIPPED 2026-08-18 (9fbe8ed, 0.40.1, gates green, CI green on the third run)
+
+**CI WENT RED TWICE ON THIS COMMIT BEFORE GOING GREEN, and the investigation is recorded because
+the next person will see it again.** Nothing in the code changed between the three runs.
+
+| Run | Result | What it printed |
+| --- | --- | --- |
+| 1 | failure | `[vitest-pool]: Worker forks emitted error`, with 0 tests failed and 5679 passed |
+| 2 | failure | one test timed out at 5000 ms, `harvest-claim-race.test.ts` |
+| 3 | success | the same commit, no code changed |
+
+Five checks say both failures were environmental rather than caused by this round. The commit
+touches NEITHER `src/main/manifest` NOR `src/main/sessions`, so the timing-out test sits in a
+directory with a zero line diff. The two failures were DIFFERENT, being a worker crash with no
+failing test and then a single timeout, and one defect does not usually present two ways. That test
+file is the standing load flake already recorded here, measured at 5,011 ms during Phase 80.1 and
+passing 3 of 3 in isolation. It passed 14 of 14 three times in isolation again during this
+investigation, and the full suite passed twice locally at 5,716. And the one runtime change in this
+round CLEARS timers that were previously left armed, which makes a clean process exit more likely
+rather than less.
+
+The lesson to carry: CI is the arbiter, and a red run is investigated rather than re-run until it
+agrees. Three runs were spent on evidence, not on hope.
 
 Small things that shipped phases left behind, collected as they were found so none is lost. None
 blocked a rung. The round ran after Phase 73, on 2026-08-18.
