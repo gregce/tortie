@@ -47,6 +47,18 @@ import {
   startRemoteCaptures,
   stopRemoteCaptures
 } from './machines/remote-capsule';
+// Phase 73: the two connected-time cadences of M6. The first reads an agent's
+// own store on a machine Tortie is connected to. The second copies the record
+// it found home. Both are armed here and both are stopped in the ordered
+// disposer below.
+import {
+  startRemoteHarvest,
+  stopRemoteHarvest
+} from './machines/remote-harvest';
+import {
+  startRemoteStoreSync,
+  stopRemoteStoreSync
+} from './machines/remote-store-sync';
 import { stopMachinesWatch } from './machines/store';
 import { installAppMenu } from './menu';
 import { registerNoticeIpc } from './notice/ipc';
@@ -169,6 +181,17 @@ export function installMainCapabilities(
   // machine has a live connection and rows on it, so a person with no machines
   // pays one timer that never fires a command. It is stopped in the disposer.
   startRemoteCaptures();
+  // Phase 73: start reading conversation ids off machines Tortie is connected
+  // to. It arms one timer and one subscription, and it reads nothing until a
+  // machine has a live connection and rows on it whose conversation id is still
+  // empty, so a person with no machines pays one timer that never sends a
+  // command. Once a machine's rows are armed a pass costs nothing at all,
+  // because a row that has an id is never asked about again.
+  startRemoteHarvest();
+  // Phase 73: start copying those conversations home while connected. It reads
+  // the copies already on disk once, here, so a relaunch does not report that
+  // Tortie has no copy of a conversation that is sitting in userData.
+  startRemoteStoreSync();
   // Phase 12.9 item 1: projects:create — the only project channel that
   // writes to disk (mkdir + optional `git init`, then the usual add).
   registerProjectCreateIpc(ipcMain);
@@ -295,6 +318,12 @@ export async function disposeMainCapabilities(): Promise<MainDisposeOutcome> {
   // would otherwise still be waiting on a machine nobody is listening to. A
   // pass already in flight stops between reads and writes nothing more.
   stopRemoteCaptures();
+  // Phase 73: stop reading stores and stop copying conversations. Synchronous,
+  // and here for the same reason the line above it is: it cancels work that
+  // would otherwise still be waiting on a machine nobody is listening to. A
+  // pass already in flight stops between reads and writes nothing more.
+  stopRemoteHarvest();
+  stopRemoteStoreSync();
   await Promise.race([
     Promise.allSettled([
       disposeGitIpc(),

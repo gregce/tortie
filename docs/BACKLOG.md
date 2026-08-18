@@ -5571,7 +5571,7 @@ matrix on a real tailnet machine, are recorded as owed and run only when he is p
 | 70 | M3 | ✅ SHIPPED 2026-08-17 (17f1dea, 0.34.0, gates green), section below. Attach over ssh -t in node-pty; create, kill and rename remote; the machine badge; session list by exec polling; restore REFUSED for every remote row with a visible coming label; the vocabulary audit. First visible operator value | 3 |
 | 71 | M4 | ✅ SHIPPED 2026-08-17 (this commit, 0.35.0, gates green), section below. The control plane per machine replaces polling; per-machine reconcile; the machine_id migration; the section 4.4 case table live; pane-env rescue over the exec plane; the partition harness in the spirit of smoke:fault, driven by killing the scratch sshd mid-flight. **Plus the hole Phase 70's verifier measured and Phase 70 did not close.** A confirmed machine that does not answer when Tortie starts shows nothing at all in the main window. A row exists only after a poll, a poll starts only after a prepare, and a machine that is asleep never prepares, so the person is not told that the machine exists, that it did not answer, or that their sessions there are untouched. The per-machine reconcile is where a row that survives a launch comes from, so the fix belongs here | 3 |
 | 72 | M5 | ✅ SHIPPED 2026-08-17 (this commit, 0.36.0, gates green), section below. Remote restore enabled behind the fault matrix; per machine program capture; the saved output panel; provenance gated resume arming; the forget-machine record. The ten row matrix runs green against the scratch sshd, and the real tailnet repetition is OWED and recorded. **Plus four defects the fix round found and closed**, being restore refused for ever after the far side's own session server died, the local reconcile writing `restorable` onto every remote row, the saved output surface being unreachable because nothing produced `savedOutputAt`, and no remote session ever being copied twice because the skip rule read `#{session_activity}`, which does not move for a session nobody is attached to | 3 |
-| 73 | M6 | Connected-only harvest polling; the remote env value probe with the traced byte path; image upload; the read-only remote review answer through existing diff surfaces; and the conversation-continuity groundwork from the ladder note, being connected-time read-only sync of agent-native stores with the promise stated as last-sync staleness. Cross-machine reconstruction into target agents lands here if provable against the scratch sshd, else it is recorded as Phase 74 | 3 |
+| 73 | M6 | ✅ SHIPPED 2026-08-18 (this commit, 0.40.0, gates green), section below. Connected-only harvest polling; the remote env value probe with the traced byte path, which ends in a refusal rather than a feature; image upload over the new script door; the read-only remote review through the diff surface the editor already had; and the conversation-continuity groundwork, being connected-time read-only sync of agent-native stores with the promise stated as last-sync staleness. **One agent of the thirteen, muse, gets a provable conversation id on another machine, and even that conversation is not typed back, because the typing half does not exist.** Cross-machine reconstruction was NOT provable against the scratch sshd and is recorded as Phase 82 | 3 |
 
 Phases 67 and 62.1 run in parallel in isolated worktrees because their files are disjoint; 68
 through 73 run strictly in order, each gated on the one before, each landed and pushed before the
@@ -6596,6 +6596,139 @@ written. Decision 1 says `durability.ts` boots and shuts down four times in one 
 four shutdowns are four separate Electron processes, one per smoke mode. The fix is right either way,
 and the verifier drove two full boot and shutdown cycles inside one process by hand, which is the
 case decision 1 was worried about.
+
+## Phase 73 — M6, the last ladder rung (research 51, M6) ✅ SHIPPED 2026-08-18 (this commit, 0.40.0, gates green)
+
+The last rung of the remote ladder. Its specification of record is docs/research/51-remote-machines.md
+section 6 row M6 and section 7, and the working spec that drove the build was deleted at the commit
+because everything a later reader needs is here and in docs/research/52-remote-env-and-review.md.
+
+**Subject:** `feat(machines): the last remote rung, harvest and review over the exec plane`
+**First body line:** `Phase 73: M6, the last ladder rung`
+**Semver:** minor, 0.39.0 to 0.40.0.
+
+### The one new mechanism, and every item rides it
+
+A second door beside the tmux verb plane, in `src/main/machines/remote-run.ts`, with its own frozen
+catalogue in `src/main/machines/remote-scripts.ts`. The rule is the whole design of the door.
+
+> A command that crosses to a machine is one of Tortie's own constant scripts, chosen from a frozen
+> catalogue by name. Values reach the far side as positional parameters. No script text is ever
+> composed, interpolated or concatenated at run time.
+
+Seven scripts, and exactly one of them writes. The door refuses before it composes anything when the
+script is not in the catalogue, when a write was reached through the read door, when the machine is
+not answering, and again when the connection moved while the answer was in flight.
+
+### What landed, per item
+
+| # | Item | Tier | What a person gets |
+| --- | --- | --- | --- |
+| 1 | Connected-only harvest polling | 3 | While Tortie is connected to a machine, it reads that machine's agent stores and records which conversation a session there owns. Four of the thirteen agents can be read this way. One of them, muse, records an id strong enough for the arming gate to say yes |
+| 2 | The remote environment value probe | 2 | A refusal, not a feature. The byte path was traced and written down, and passing a value through is refused because the traced path is unsafe on a platform nobody measured |
+| 3 | Image upload | 2 | Dropping an image on a session that runs on another machine now puts the bytes on THAT machine and inserts that machine's path. It used to insert a path on this Mac, which named nothing there |
+| 4 | The read-only remote review | 2 | A session menu item lists what changed in that folder on that machine, and opening one file shows both sides in the diff tab this product already had. `src/renderer/editor/PierreDiff.tsx` was not edited, which was the item's own test of whether it reused the surface |
+| 5 | Conversation continuity groundwork | 2 | While connected, Tortie copies the agent's own conversation file home. The saved output panel says when it last did so. It never says the conversation is current |
+
+### The honest headline, and it has two halves
+
+**One agent of the thirteen gets a provable conversation id on another machine, and that agent is
+muse.** Three more get a recorded id that restore refuses to type, which is the right answer for an
+id nothing can check. Two are owed because they need a process read on the far side. Seven pre-assign
+their ids and need no harvest at all.
+
+**And even muse's conversation does not come back yet.** The arming gate in
+`src/main/machines/resume-arming.ts` now has its first producer and answers yes for a muse row. Saying
+yes is not typing. Nothing in this release types a resume command into a pane on another machine, so
+`src/main/machines/remote-restore.ts` reports `resumeArmed: false` on every restore and logs the gap.
+So the record is now provable and the conversation is still not continued. That is owed item 1 below.
+
+### The contract lines this phase added
+
+| Line | Why |
+| --- | --- |
+| `machines:putImage` | Puts image bytes on one machine and answers with the paths there |
+| `machines:reviewFiles` | Reads what changed in a folder on one machine |
+| `machines:reviewFile` | Reads both sides of one file on one machine |
+
+The invoke count moves from 157 to 160 and the pinned machine refusal count from 23 to 29. No new
+`gmux.*` key, no new `GMUX_*` name and no new smoke mode.
+
+### The image cap is 90,000 bytes, and most real screenshots will be refused
+
+The number is measured rather than chosen. A 90,000 byte image composes a 120,684 byte command
+against the 131,072 byte limit Linux puts on one argument of one program, and the whole command
+reaches the far side as ONE argument of that machine's login shell. A screenshot taken on this Mac is
+commonly 200 KB to 2 MB, so the refusal is what a person will meet most of the time. The refusal
+names the cap as 90 KB.
+
+There is a way past it and this phase did not build it, because the carriage is the wrong shape for
+it. It is owed item 5 below.
+
+### What this phase leaves owed
+
+1. **The typing half of a remote resume.** The gate says yes for a muse row and nothing types the
+command into a pane on that machine. Until that is built, item 1 produces a record no person can act
+on. This is the largest gap the rung leaves.
+2. **Pre-assignment on the remote create path.** Seven of the thirteen agents pre-assign a
+conversation id and the remote create does not use it. Doing so would give those seven an armed
+remote resume with no remote read at all. It is a bigger win than item 1 and it costs less.
+3. **Linux store path patterns**, research 51 section 7 question 9. One to two days on a real Linux
+box, and there is no Linux box here. The six descriptors whose roots are `$HOME` relative are named
+in docs/research/52-remote-env-and-review.md, and likely is not measured.
+4. **qwen and antigravity remote harvest.** qwen needs a process table read on the far side and an
+ancestry walk against the far side's pane pid. antigravity needs open descriptor inspection there.
+5. **A carriage for an image larger than 90,000 bytes.** Two candidates, neither measured here.
+Chunking sends the bytes as several catalogue calls and reassembles them on the far side, which keeps
+the one-argument door and adds a resume and a cleanup problem. `scp` over the same connection carries
+any size in one call and puts a second program inside the safety story the verb ledger and the script
+catalogue exist for. Whichever is chosen has to keep the four properties the `image-put` text already
+has, being a content addressed name, no write over a file that is already there, a temporary name
+moved into place, and a checksum compared before any path reaches a prompt.
+6. **The real tailnet repetition** of everything in this rung, owed the same way the M5 fault matrix
+repetition already is. Every remote step in this phase ran against a scratch sign in server on
+127.0.0.1 on a high port. No machine of the operator's and no tailnet host was contacted.
+7. **A live claim count either side of a cut, in the smoke.** Closed in the fix round as step 10i of
+`GMUX_SMOKE=remote-sessions`, which reconnects the machine and prints the claim count before and
+after. It is listed here because the phase's own verification could not produce it and the fix round
+had to.
+8. **Cross-machine reconstruction**, which is Phase 82 below.
+
+### What is not true about this rung
+
+- No Linux machine was contacted, and the far side in every probe was this Mac.
+- The per-agent harvest matrix covers only the agents a record was actually planted for. The rest are
+named as not driven rather than assumed.
+- The store shapes proven here are the macOS ones.
+
+## Phase 82 — cross-machine conversation reconstruction, NOT QUEUED
+
+Recorded by Phase 73 rather than built by it. The ladder table's own line said this lands in M6 if it
+is provable against the scratch sign in server, and it is not provable there.
+
+**What it means.** Take a conversation file Tortie copied home from machine A and replant it into a
+fresh store for an agent on machine B, or on this Mac, then continue the conversation from it.
+
+**Why Phase 73 did not build it.** Proving it needs a real second machine with a real agent installed
+on it. The only far side Phase 73 had was this Mac pretending to be a machine. A replant proven that
+way would prove that Tortie can copy a file into a directory on this Mac, which is not the claim. A
+half built version is worse than none, because a person would read a continued conversation and get a
+new one.
+
+**What it would need.**
+
+1. A second real machine, with at least one agent installed on it, that the operator is present for.
+2. A measured answer, per agent, to what a store record depends on besides its own bytes. A record
+that names an absolute path, a machine name, a pid or a workspace id does not survive a move without
+a rewrite, and a rewrite is a per-agent piece of work.
+3. A decision about what happens to the conversation on the machine it came from. Two agents on one
+conversation is the failure the arming gate exists to prevent, and replanting creates exactly that
+shape unless one side is ended.
+4. The Linux store path patterns from owed item 3 of Phase 73, because a replant target is most likely
+a Linux box.
+
+**The number.** The ladder note said this becomes "Phase 74" if it is not built in M6. That number was
+already taken by the small-issue batch, so it takes the next free one, which is 82.
 
 ## Phase 73.1 — the second recorded nits round, NOT QUEUED
 

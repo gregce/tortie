@@ -14,6 +14,13 @@ import { errorText, useApp } from '../../state/store';
 import { pathForFile, preparePaths, resolveFilePath } from './acquire';
 import { insertReferences, MAX_REFERENCES } from './insert';
 import { isUnsafeToPaste, referenceText } from './reference';
+// PHASE 73. What a drop on a session that runs on another machine may attach,
+// and every sentence a person reads about it.
+import {
+  REMOTE_DROP_NOTHING_LANDED,
+  planRemoteAttach,
+  remoteImagesCopied
+} from './remote';
 import { imageDropFor } from './strategy';
 import { focusSession, paneAccepts, sessionById } from './target';
 
@@ -94,8 +101,21 @@ export async function attachPaths(
     return;
   }
 
+  // PHASE 73. A session on another machine gets the bytes rather than the path.
+  //
+  // A path on this Mac names nothing on that machine, so inserting it looked
+  // like it worked and never did. This branch carries the images there and
+  // references the paths THAT MACHINE reported. Everything below it is
+  // unchanged, so the per-agent image drop strategy, the insertion and the
+  // truncation notice are all the ones a local drop already uses.
+  let attachable = usable;
+  if (session.machine !== undefined) {
+    attachable = await placeOnMachine(session.machine.id, sessionId, usable);
+    if (attachable.length === 0) return;
+  }
+
   const drop = imageDropFor(session.agent);
-  const refs = usable.map((i) => referenceText(i.refPath, session.agent));
+  const refs = attachable.map((i) => referenceText(i.refPath, session.agent));
 
   focusSession(sessionId);
   if (!(await insertReferences(sessionId, refs, drop))) {
@@ -108,15 +128,77 @@ export async function attachPaths(
   if (truncated) {
     app.toast('info', `Only the first ${MAX_REFERENCES} files were attached.`);
   }
-  if (usable.some((i) => i.copied)) {
+  if (attachable.some((i) => i.copied)) {
     app.toast('info', 'Copied to a safe filename before attaching.');
   }
-  if (drop.strategy === 'clipboard-attach' && usable.some((i) => i.isImage)) {
+  if (drop.strategy === 'clipboard-attach' && attachable.some((i) => i.isImage)) {
     app.toast(
       'info',
       `Inserted the file path — this agent attaches images from ${acceleratorToDisplay('Cmd+V')} only.`
     );
   }
+}
+
+/**
+ * Carry a drop's images to one machine and answer with what may be referenced.
+ *
+ * PHASE 73. The returned items carry the FAR SIDE's path in `refPath`, because
+ * that is the path the prompt on that machine has to hold. Everything else on
+ * each item is left as main prepared it, so `copied` and `isImage` still say
+ * what they said and the notices below the branch read the same facts.
+ *
+ * An empty answer means nothing may be inserted, and the person has already
+ * been told why.
+ */
+async function placeOnMachine(
+  machineId: string,
+  sessionId: string,
+  items: readonly DropPreparedItem[]
+): Promise<DropPreparedItem[]> {
+  const app = useApp.getState();
+  const plan = planRemoteAttach(items);
+  for (const note of plan.notes) app.toast('info', note);
+  if (plan.images.length === 0) return [];
+
+  const bridge = window.gmux?.machines;
+  if (bridge === undefined) {
+    app.toast('error', REMOTE_DROP_NOTHING_LANDED);
+    return [];
+  }
+
+  let placements;
+  try {
+    placements = await bridge.putImage({
+      machineId,
+      sessionId,
+      paths: plan.images.map((item) => item.refPath)
+    });
+  } catch (err) {
+    // Main composes every refusal on this path, so the sentence a person reads
+    // is main's own rather than one invented here.
+    app.toast('error', errorText(err));
+    return [];
+  }
+
+  const landed: DropPreparedItem[] = [];
+  const refusals: string[] = [];
+  for (const [at, placement] of placements.entries()) {
+    const item = plan.images[at];
+    if (item === undefined) continue;
+    if (placement.remotePath === null) {
+      if (placement.refusal !== null) refusals.push(placement.refusal);
+      continue;
+    }
+    landed.push({ ...item, refPath: placement.remotePath });
+  }
+  for (const refusal of [...new Set(refusals)]) app.toast('error', refusal);
+  if (landed.length === 0) {
+    if (refusals.length === 0) app.toast('error', REMOTE_DROP_NOTHING_LANDED);
+    return [];
+  }
+  const label = sessionById(sessionId)?.machine?.label ?? machineId;
+  app.toast('info', remoteImagesCopied(landed.length, label));
+  return landed;
 }
 
 /** Insert one URL (a cross-app drag that carried no file). */

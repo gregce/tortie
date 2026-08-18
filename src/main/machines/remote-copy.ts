@@ -81,16 +81,22 @@ export const RESTORE_STILL_RUNNING =
 /**
  * What a restore on another machine does NOT bring back.
  *
- * PINNED as `machine.resume-not-collected`. Tortie reads no agent's own files on
- * another machine in this release, so it never obtained a conversation id for a
- * session there. The session comes back. The conversation does not, and the
- * person is told so at the moment it happens rather than discovering it in an
- * empty pane.
+ * PINNED as `machine.resume-not-collected`. It is printed for a row whose
+ * provenance says nothing was ever collected for it. The session comes back.
+ * The conversation does not, and the person is told so at the moment it happens
+ * rather than discovering it in an empty pane.
+ *
+ * PHASE 73 FIX ROUND changed the reason clause, because the old one became
+ * false. It said Tortie does not read an agent's own files on another machine
+ * yet. It does now, while it is connected, for the agents whose keys can be
+ * checked over a connection. What is true for a row carrying this sentence is
+ * narrower and is what the sentence now says: no id was got for THIS session.
  */
 export const RESUME_NOT_COLLECTED =
-  "Tortie has no conversation id for this session, because it does not read an " +
-  "agent's own files on another machine yet. The session comes back with its " +
-  'folder and its program. The conversation does not come back.';
+  "Tortie has no conversation id for this session. It reads an agent's own " +
+  'files on a machine only while it is connected to that machine, and it did ' +
+  'not get one for this session. The session comes back with its folder and ' +
+  'its program. The conversation does not come back.';
 
 /**
  * A verb aimed at a session no completed list from that machine reported.
@@ -185,5 +191,160 @@ export function noRemoteProgramRefusal(bare: string, label: string): string {
     `Tortie could not find ${bare} on ${label}, so it did not start the ` +
     `session there. Install it there, or start the session on a machine that ` +
     `has it.`
+  );
+}
+
+// ---------------------------------------------------------------------------
+// PHASE 73, M6. Every sentence the second door, the image upload, the review
+// and the conversation copy print.
+//
+// They are here rather than in the four modules that print them, for the reason
+// the header gives: the vocabulary audit reads one file, and
+// `build/assert-bundle-refusals.mjs` pins the ones production reaches rarely so
+// a later rollup cannot delete a refusal it can prove unreachable.
+//
+// BUILDER A wrote all of them, for all three builders, so that one person held
+// the writing rules for the whole rung.
+// ---------------------------------------------------------------------------
+
+/**
+ * A script name nobody wrote down.
+ *
+ * PINNED as `machine.script-not-in-catalogue`. It is a programming error rather
+ * than a state a person can reach by using the product, and it is a sentence
+ * anyway, because the alternative is a stack trace in a place where a person is
+ * owed an answer about their machine.
+ */
+export const SCRIPT_NOT_IN_CATALOGUE =
+  'Tortie will not run that on another machine. Only the commands Tortie has ' +
+  'written down may cross to a machine, and this one is not on that list. ' +
+  'Nothing was sent.';
+
+/**
+ * A write reached through the read door, or a read through the write door.
+ *
+ * PINNED as `machine.write-through-read-door`. One script in the whole
+ * catalogue writes anything, and it is reachable through one function. This is
+ * the sentence that fires when something tries to reach it through the other
+ * one.
+ */
+export const WRITE_THROUGH_READ_DOOR =
+  'Tortie will not run that on another machine, because a command that only ' +
+  'reads and a command that writes go through different doors and this one ' +
+  'came through the wrong door. Nothing was sent.';
+
+/**
+ * The machine is not answering, so nothing was asked of it.
+ *
+ * PINNED as `machine.not-connected`. This is where connected only lives for
+ * every caller at once. It fires before anything is composed, and it fires
+ * again when the connection was replaced while a command was in flight, because
+ * an answer from a connection Tortie no longer has is not an answer about the
+ * machine Tortie has now.
+ */
+export const MACHINE_NOT_CONNECTED =
+  'Tortie is not connected to that machine right now, so it did not ask it ' +
+  'for anything. What Tortie already knows about that machine is as old as ' +
+  'the last time it answered. Nothing was sent.';
+
+/**
+ * An environment value Tortie will not put on a session on another machine.
+ *
+ * PINNED as `machine.env-passthrough-refused`. The trace is in
+ * docs/research/52-remote-env-and-review.md. A value sent this way is one
+ * element of the argv of the local ssh process and one element of the argv of
+ * that machine's own tmux, so it is in two process tables at once for the life
+ * of the create. On this Mac an account cannot read another account's
+ * arguments. On a Linux machine the usual default is that any account can. No
+ * Linux machine was measured here, so the passthrough is refused rather than
+ * offered with a warning.
+ */
+export const REMOTE_ENV_PASSTHROUGH_REFUSED =
+  'Tortie will not put that value on a session on another machine. A value ' +
+  'sent this way is part of a command line that other accounts on that ' +
+  'machine can read, and Tortie has not measured which accounts can read it ' +
+  'there. Nothing was started.';
+
+/**
+ * An image bigger than the cap. The number is the cap, in kilobytes.
+ *
+ * PHASE 73 FIX ROUND. It took megabytes and printed "0.09 MB", which is a
+ * number nobody says out loud and which reads as a rounding error rather than
+ * as a limit. The cap is 90,000 bytes, so the unit a person can use is
+ * kilobytes and the sentence says 90 KB.
+ */
+export function imageTooLargeRefusal(kilobytes: number): string {
+  return (
+    `That image is larger than ${String(kilobytes)} KB, so Tortie did not ` +
+    `copy it to the machine. Nothing was sent.`
+  );
+}
+
+/**
+ * A file whose first bytes are not an image.
+ *
+ * The claimed name decides nothing here, which is the rule the local drop store
+ * already follows. A text file renamed to end in `.png` is refused by this
+ * sentence.
+ */
+export const IMAGE_NOT_AN_IMAGE =
+  'That file is not an image, so Tortie did not copy it to the machine. ' +
+  'Tortie reads the first bytes of a file rather than its name, and these ' +
+  'bytes are not any image it knows. Nothing was sent.';
+
+/**
+ * The far side wrote something of a different size or a different checksum.
+ *
+ * PINNED as `machine.image-not-written`. Nothing is inserted into the session
+ * when this fires, because a path to bytes that did not land is worse than no
+ * path at all.
+ */
+export const IMAGE_NOT_WRITTEN =
+  'The image did not arrive on that machine in one piece, so Tortie did not ' +
+  'give the session a path to it. You can try again.';
+
+/**
+ * Something other than an image dropped on a session on another machine.
+ *
+ * THIS STRING EXISTS TWICE ON PURPOSE, and it is the one duplication this rung
+ * accepts. Main refuses the upload and the renderer refuses the drop, and
+ * neither may import the other. The copy in
+ * `src/renderer/terminal/drop/remote.ts` is byte identical, and
+ * `build/conformance-machines.mjs` compares the two.
+ */
+export const REMOTE_DROP_IMAGES_ONLY =
+  'That session runs on another machine, so Tortie can only attach images to ' +
+  'it. The other files stayed on this Mac, because their paths mean nothing ' +
+  'on that machine.';
+
+/**
+ * The folder named for a review is not inside a repository.
+ *
+ * PINNED as `machine.review-not-a-repository`. The last sentence is a promise
+ * about both machines, and it is true by construction: every script the review
+ * uses is a read, and the conformance gate reads their text to prove it.
+ */
+export const REVIEW_NOT_A_REPOSITORY =
+  'That folder on the machine is not inside a repository, so there are no ' +
+  'changes for Tortie to show. Nothing was changed on either machine.';
+
+/** A file whose two sides are over the cap. The number is the cap, in megabytes. */
+export function reviewTooLargeNote(megabytes: number): string {
+  return (
+    `This file is larger than ${String(megabytes)} MB on that machine, so ` +
+    `Tortie is showing the first ${String(megabytes)} MB of each side. The ` +
+    `rest is not shown.`
+  );
+}
+
+/** A review that found nothing changed. */
+export const REVIEW_NOTHING_CHANGED =
+  'Nothing has changed in that folder on the machine since its last commit.';
+
+/** More changed files than the menu lists. */
+export function reviewMoreFiles(shown: number, total: number): string {
+  return (
+    `Showing ${String(shown)} of ${String(total)} changed files. The rest are ` +
+    `not listed here.`
   );
 }

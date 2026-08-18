@@ -55,3 +55,39 @@ export {
   resetAgyOwnershipCache,
   type AgyOwnership
 } from './agy-owner';
+
+/**
+ * PHASE 73. The same store descriptors, read over a connection to another
+ * machine rather than off this Mac's own disk.
+ *
+ * It is a third file beside ./stores.ts and ./watch.ts rather than a branch
+ * inside either, because the two halves it needs are different halves. It
+ * reuses `roots` and `identify`, which are pure, and it deliberately does not
+ * reuse `confirm`, which opens local files. The live half that sends the reads
+ * is `../../machines/remote-harvest.ts`.
+ */
+export {
+  confirmRemoteCandidate,
+  decideRemoteHarvest,
+  parseMachineFacts,
+  parseRemoteListing,
+  remoteHarvestKey,
+  remoteHarvestRoots,
+  remoteHarvestsId,
+  remoteKeyConfidence,
+  rootOfRemotePath,
+  REMOTE_FACT_ENV_NAMES,
+  REMOTE_HARVEST_AGENTS,
+  type RemoteCandidate,
+  type RemoteConfirmVerdict,
+  type RemoteHarvestFacts,
+  type RemoteHarvestPlan,
+  type RemoteHarvestSession,
+  type RemoteHarvestWinner
+} from './remote';
+
+/**
+ * PHASE 73. The 8 day window a date sharded store is walked back over, exported
+ * so the connected harvest uses the same number this file's own watcher does.
+ */
+export { DATE_SHARD_WINDOW_MS } from './stores';

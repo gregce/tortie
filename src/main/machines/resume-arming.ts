@@ -32,27 +32,40 @@
  * `src/main/restore/restore.ts` is untouched by this phase and nothing in it
  * calls this module. Arm 1 is what makes that safe to say.
  *
- * ## The arm that says yes to a REMOTE row has no producer in this release
+ * ## The arm that says yes to a REMOTE row HAS a producer as of Phase 73
  *
- * The last arm is reachable only for a remote row whose provenance records
- * `confidence: 'exact'` and a `machineId` equal to the machine being restored
- * on. Nothing writes such a record, because reading an agent's own files on
- * another machine is M6. Every remote row written by this build records
- * `source: 'remote-not-collected'`, so every remote row for an agent takes the
- * `not-collected` arm.
+ * PHASE 73 (M6) built it. The last arm is reachable only for a remote row whose
+ * provenance records `confidence: 'exact'` and a `machineId` equal to the
+ * machine being restored on. The connected time store harvest in
+ * `./remote-harvest.ts` writes exactly such a record, with
+ * `source: 'remote-store-harvest'`, for ONE agent of the thirteen, being muse.
+ * muse's key is its own pane key, which the far side reports in its own session
+ * list, so the id can be checked rather than guessed. Three more agents get a
+ * recorded id at `confidence: 'weak'`, and they take arm 6 and are refused.
+ * Every other remote row still records `source: 'remote-not-collected'` and
+ * takes arm 4.
  *
- * The arm is built now anyway, and this is the reason. The gate that says yes
- * has to exist before the rung that fills it, or the rung that fills it also
- * writes the gate and there is nobody left to disagree with it. The unit test
- * drives both directions.
+ * WHAT THE ARM STILL DOES NOT DO, and it is the honest half. Saying yes is not
+ * typing. `./remote-restore.ts` reads this verdict, and this release has no way
+ * to type a resume command into a pane on another machine, so it reports
+ * `resumeArmed: false` for every row and logs the gap. So a muse conversation
+ * on a machine is now PROVABLE and still not CONTINUED. Closing that is the
+ * typing half, recorded as owed in the Phase 73 backlog entry.
+ *
+ * The gate was built one rung before its producer, and this is the reason. The
+ * gate that says yes has to exist before the rung that fills it, or the rung
+ * that fills it also writes the gate and there is nobody left to disagree with
+ * it. The unit test drives both directions.
  *
  * ## Why the empty resume command is not the first question
  *
  * PHASE 72 FIX ROUND. The first cut asked whether the row had a resume command
- * before it asked anything else, and every remote row this build writes has
- * none, because collecting one is M6. So every remote row answered
+ * before it asked anything else. At that time no remote row had one, because
+ * collecting one was M6 and M6 had not been built. So every remote row answered
  * `nothing-to-arm`, which says nothing to the person, and the arm that tells
- * them their conversation is not coming back was never reached by any row.
+ * them their conversation is not coming back was never reached by any row. The
+ * order below is still the right one after Phase 73, because the nine agents
+ * the harvest cannot prove an id for are still in exactly that position.
  *
  * An empty resume command on a remote row is the SYMPTOM of nothing having been
  * collected rather than evidence that there was nothing to collect. So the
@@ -193,9 +206,9 @@ export function resumeArmingVerdict(facts: ArmingFacts): ArmingVerdict {
       reason: resumeOtherMachine(recorded, facts.targetMachineId)
     };
   }
-  // 4. Nothing was ever read, so nothing can be checked. Every remote row this
-  //    build writes takes this arm, because collecting an id on another machine
-  //    is M6 and nothing does it yet.
+  // 4. Nothing was ever read, so nothing can be checked. Every remote row whose
+  //    agent the Phase 73 harvest cannot prove an id for takes this arm, which
+  //    is nine of the thirteen agents plus every row read before Phase 73.
   if (facts.provenance.source === 'remote-not-collected') {
     return {
       arm: false,
@@ -216,7 +229,8 @@ export function resumeArmingVerdict(facts: ArmingFacts): ArmingVerdict {
       reason: RESUME_WEAKER_SOURCE
     };
   }
-  // 7. No producer writes a record that reaches here in this release.
+  // 7. Reached by a muse row the Phase 73 harvest proved on the machine being
+  //    restored on. Saying yes here is not typing: see the header.
   return { arm: true, refusal: null, reason: null };
 }
 

@@ -85,7 +85,17 @@ import type {
   MachineTestEvent,
   MachineTestInput,
   MachineTestStarted,
-  TailscaleSourceResult
+  TailscaleSourceResult,
+  // ---- PHASE 73 BLOCK B ----
+  MachineImagePlacement,
+  MachineImagePutInput,
+  // ---- END PHASE 73 BLOCK B ----
+  // ---- PHASE 73 BLOCK C ----
+  MachineReviewFileInput,
+  MachineReviewInput,
+  MachineReviewList,
+  MachineReviewPair
+  // ---- END PHASE 73 BLOCK C ----
 } from '@shared/ipc';
 import { EVT_MACHINE_STATE, EVT_MACHINE_TEST } from '@shared/ipc';
 import { gmuxError } from '../errors';
@@ -150,6 +160,20 @@ import {
   removeMachineRow
 } from './store';
 import { readTailnetMachines } from './tailscale';
+// ---- PHASE 73 BLOCK B ----
+// Phase 73, item 3. The one write this product makes on another computer. It
+// starts no process of its own: the bytes go through the write door in
+// ./remote-run.ts, which can send exactly one script because the catalogue
+// holds exactly one script that writes.
+import { putImagesOnMachine } from './remote-image';
+// ---- END PHASE 73 BLOCK B ----
+// ---- PHASE 73 BLOCK C ----
+// The read only review. It reads a folder on one machine and writes nothing on
+// either computer. It starts no process of its own: every byte it moves goes
+// through the one door in ./remote-run.ts, which refuses a machine Tortie is
+// not connected to.
+import { reviewFileOn, reviewFilesOn } from './remote-review';
+// ---- END PHASE 73 BLOCK C ----
 
 /**
  * Windows that already carry the "you went away, so the test stops" listener.
@@ -570,6 +594,71 @@ export function registerMachinesIpc(ipc: IpcMain): void {
       };
     }
   );
+
+  // ---- PHASE 73 BLOCK B ----
+  // PHASE 73, item 3. The ONE channel in this file that writes on another
+  // computer, and the fifth that starts a process at all.
+  //
+  // What it writes is bounded by the script it sends rather than by this
+  // handler. The name is composed in main from the session id and a checksum of
+  // the bytes, the directory is `~/.tortie/images` resolved by that machine's
+  // own shell, and a file that is already there is never opened for writing. So
+  // running it twice writes one file, which is what every command that crosses
+  // to a machine has to be able to do.
+  //
+  // It does not ask {@link assertMachineMayConnect} again, for the reason the
+  // review channels below do not: a machine with a registered context has
+  // already been through that gate, and `readyRemoteContext` refuses one that
+  // has not.
+  handle(
+    ipc,
+    'machines:putImage',
+    async (
+      _event,
+      input: MachineImagePutInput
+    ): Promise<MachineImagePlacement[]> =>
+      putImagesOnMachine({
+        machineId: input.machineId,
+        sessionId: input.sessionId,
+        paths: input.paths
+      })
+  );
+  // ---- END PHASE 73 BLOCK B ----
+
+  // ---- PHASE 73 BLOCK C ----
+  // PHASE 73, item 4. Two channels that READ one folder on one machine.
+  //
+  // They are the first channels in this file that ask a machine for something
+  // that is not a session, and the reason they are safe to add is that they
+  // cannot compose what they ask. Every command that crosses to a machine is
+  // one of Tortie's own constant scripts, chosen from the catalogue in
+  // ./remote-scripts.ts by name, with the folder and the path arriving there as
+  // positional parameters. Neither channel can name a git subcommand, so
+  // neither can turn a review into a commit.
+  //
+  // Neither asks {@link assertMachineMayConnect} again. A machine with a live
+  // connection has already been through that gate: nothing has a registered
+  // context without it, and `readyRemoteContext` refuses a machine that has no
+  // registered context with the sentence saying so.
+  handle(
+    ipc,
+    'machines:reviewFiles',
+    async (_event, input: MachineReviewInput): Promise<MachineReviewList> =>
+      reviewFilesOn({ machineId: input.machineId, cwd: input.cwd })
+  );
+
+  handle(
+    ipc,
+    'machines:reviewFile',
+    async (_event, input: MachineReviewFileInput): Promise<MachineReviewPair> =>
+      reviewFileOn({
+        machineId: input.machineId,
+        repoPath: input.repoPath,
+        path: input.path,
+        origPath: input.origPath
+      })
+  );
+  // ---- END PHASE 73 BLOCK C ----
 }
 
 /**

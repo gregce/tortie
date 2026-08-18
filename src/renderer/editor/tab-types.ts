@@ -11,7 +11,11 @@
  */
 
 import type { ImageReadResult } from '@shared/image-types';
-import type { OpenFileCommitRef, OpenFileSelection } from '../state/open-file';
+import type {
+  OpenFileCommitRef,
+  OpenFileRemoteRef,
+  OpenFileSelection
+} from '../state/open-file';
 
 /**
  * What the body renders.
@@ -151,4 +155,16 @@ export interface EditorTab {
    * thing that needs the shape.
    */
   contextEntry: unknown;
+  /**
+   * PHASE 73. This tab shows a file on another machine.
+   *
+   * Both sides come from main, exactly as a commit tab's do, and no working
+   * tree on this Mac is ever read for it. Present implies read-only in every
+   * surface: the store refuses to mark it dirty, tab IO refuses to save it, and
+   * the watcher never refreshes it.
+   *
+   * Optional rather than nullable, so every tab built before this phase, and
+   * every fixture in the tests, is still a valid tab.
+   */
+  remote?: OpenFileRemoteRef;
 }

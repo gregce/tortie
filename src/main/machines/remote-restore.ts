@@ -8,11 +8,16 @@
  * same program by bare name, with the four session options and both pane
  * environment variables, and the manifest row moves to `running`.
  *
- * IT DOES NOT BRING BACK the conversation. Tortie reads no agent's own files on
- * another machine in this release, so no conversation id was ever obtained for a
- * remote session, `resume_argv` is NULL on every remote row, and the provenance
- * says `remote-not-collected` rather than saying nothing. The outcome carries
- * that sentence and every surface prints it.
+ * IT DOES NOT BRING BACK the conversation, and Phase 73 did not change that.
+ * What Phase 73 changed is the record. The connected time store harvest reads
+ * an agent's own store on a machine while Tortie is connected to it, so a row
+ * for one of four agents can now carry a `resume_argv` and a
+ * `remote-store-harvest` provenance, and for a muse row the arming gate says
+ * yes. Saying yes is not typing. Nothing in this release types a resume command
+ * into a pane on another machine, so `resumeArmed` is false on every outcome
+ * this function returns and the sentence a person reads is unchanged. A row the
+ * harvest could not prove still says `remote-not-collected` rather than saying
+ * nothing, and every surface prints that sentence.
  *
  * IT DOES NOT PUT THE SAVED OUTPUT BACK on that machine. Tortie keeps a copy of
  * a remote session's output on this Mac, and the copy stays here. Three
@@ -272,8 +277,14 @@ export async function restoreRemoteSession(
   // ASKED, never assumed. The first cut of this function printed the
   // `not-collected` sentence unconditionally and the gate that owns the decision
   // had no caller at all. It is asked here, once, and its answer is what the
-  // outcome carries. `arm` is false for every row this release can produce, and
-  // that is a fact about the build rather than something this line decides.
+  // outcome carries.
+  //
+  // PHASE 73 CHANGED WHAT THE ANSWER CAN BE, and did not change what this
+  // function does with it. The connected time store harvest now writes a
+  // provable conversation id for a muse session on a machine, so `arm` comes
+  // back true for such a row. `resumeArmed` below is still false, because
+  // saying yes is not typing and nothing in this release types a resume command
+  // into a pane on another machine. The gap is logged and is recorded as owed.
   const arming = resumeArmingVerdict({
     machineId,
     targetMachineId: ctx.machineId,
@@ -282,9 +293,11 @@ export async function restoreRemoteSession(
     provenance: provenanceOf(record.resumeProvenance)
   });
   if (arming.arm) {
-    // Unreachable in this release, and it must stay a refusal rather than a
-    // silent success if a later rung fills the arm without building the typing
-    // half. Nothing types a command into a pane on another machine yet.
+    // REACHED as of Phase 73, for a muse row whose id the connected time store
+    // harvest proved on this machine. It stays a refusal rather than a silent
+    // success, because typing a resume command into a pane on another machine
+    // is a half nothing in this release builds. A silent success here would
+    // report a continued conversation that was never continued.
     machinesLog.warn(
       `the arming gate allowed a conversation for ${sessionId} on ${machineId} ` +
         `and this release has no way to continue one on another machine`
@@ -296,6 +309,8 @@ export async function restoreRemoteSession(
     stampsLanded,
     serverWasBorn: server.born,
     savedOutputAt: savedAt,
+    // Always false. The gate above can now say yes, and the typing half does
+    // not exist. Phase 73's backlog entry records it as the first owed item.
     resumeArmed: false,
     resumeRefusal: arming.refusal,
     resumeNote: arming.reason,

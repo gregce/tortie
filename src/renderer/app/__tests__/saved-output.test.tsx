@@ -61,6 +61,7 @@ const {
   SAVED_OUTPUT_ITEM,
   SAVED_OUTPUT_NONE,
   SAVED_OUTPUT_UNVERIFIED,
+  conversationCopyLine,
   savedOutputHeader,
   savedOutputHeaderLocal,
   savedWhen
@@ -296,6 +297,102 @@ describe('the panel', () => {
       />
     );
     expect(html).toContain('Saved from Studio on');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The second line, about the conversation copy (Phase 73, item 5)
+// ---------------------------------------------------------------------------
+
+describe('the line about the conversation copy', () => {
+  const nothing = { session: null, output: null, loading: false, close() {} };
+
+  /**
+   * PHASE 73 FIX ROUND. The sentence existed and nothing drew it, so no person
+   * could read when their conversation was last copied. These tests hold that
+   * it reaches the screen, in both of its states, and that it stays off a
+   * screen where it would be a claim about nothing.
+   */
+  it('says when the conversation was last copied, for a session on a machine', () => {
+    const html = renderToStaticMarkup(
+      <SavedOutputPanel
+        {...nothing}
+        session={sess({ machine: { ...STUDIO, conversationSyncedAt: WHEN } })}
+      />
+    );
+    expect(html).toContain('Tortie last copied this conversation on');
+    expect(html).toContain(savedWhen(WHEN));
+  });
+
+  it('says it has no copy rather than drawing a date from nowhere', () => {
+    const html = renderToStaticMarkup(
+      <SavedOutputPanel
+        {...nothing}
+        session={sess({ machine: { ...STUDIO, conversationSyncedAt: null } })}
+      />
+    );
+    expect(html).toContain('Tortie has no copy of this conversation.');
+    expect(html).not.toContain('1970');
+  });
+
+  it('says the same thing when the producer was never asked', () => {
+    const html = renderToStaticMarkup(
+      <SavedOutputPanel {...nothing} session={sess({ machine: STUDIO })} />
+    );
+    expect(html).toContain('Tortie has no copy of this conversation.');
+  });
+
+  it('is drawn beside a saved screen, because they are two copies', () => {
+    const html = renderToStaticMarkup(
+      <SavedOutputPanel
+        {...nothing}
+        session={sess({ machine: { ...STUDIO, conversationSyncedAt: WHEN } })}
+        output={{
+          text: 'the agent said something\n',
+          capturedAt: WHEN,
+          machineId: 'studio',
+          verified: true,
+          bytes: 25,
+          lines: 1
+        }}
+      />
+    );
+    expect(html).toContain('Saved from Studio on');
+    expect(html).toContain('Tortie last copied this conversation on');
+  });
+
+  it('is not drawn for a session on this Mac', () => {
+    const html = renderToStaticMarkup(
+      <SavedOutputPanel {...nothing} session={sess()} />
+    );
+    expect(html).not.toContain('this conversation');
+  });
+
+  it('is not drawn for a row whose machine a person removed', () => {
+    const html = renderToStaticMarkup(
+      <SavedOutputPanel
+        {...nothing}
+        session={sess({
+          status: 'discarded',
+          machineGone: {
+            label: 'Studio',
+            lastStatus: 'running',
+            lastSeenAt: WHEN,
+            forgottenAt: WHEN
+          }
+        })}
+      />
+    );
+    expect(html).not.toContain('this conversation');
+  });
+
+  it('promises staleness and never currency, and uses no dash', () => {
+    for (const text of [conversationCopyLine(WHEN), conversationCopyLine(null)]) {
+      expect(text).not.toMatch(/[—–]/);
+      expect(text).not.toContain('up to date');
+      expect(text).not.toContain('current');
+    }
+    expect(conversationCopyLine(WHEN)).toContain('last copied');
   });
 });
 

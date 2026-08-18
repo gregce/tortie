@@ -22,6 +22,20 @@
  * without a write are refused in `src/main/machines/remote-capsule.ts`. So the
  * output stays here, and this is where a person reads it.
  *
+ * ## The second line, and it is about a different copy (Phase 73, item 5)
+ *
+ * A session on another machine has two copies on this Mac and they are not the
+ * same thing. The first is the screen a pane printed, and the line above it
+ * says when that was read. The second is the agent's own conversation file,
+ * which Tortie brings home while it is connected to the machine, and the line
+ * under the header says when that last happened.
+ *
+ * The promise is last sync staleness and nothing else. A machine that has been
+ * out of reach for a day carries the same instant it carried a day ago, so the
+ * sentence gets older rather than being refreshed. The line is drawn for every
+ * session that runs on a machine, including one Tortie has never copied, and
+ * that case says so rather than drawing a date from nowhere.
+ *
  * ## The bytes are drawn and never parsed
  *
  * The text is whatever a pane printed, on a machine Tortie does not control. It
@@ -53,6 +67,7 @@ import {
   SAVED_OUTPUT_NONE,
   SAVED_OUTPUT_TITLE,
   SAVED_OUTPUT_UNVERIFIED,
+  conversationCopyLine,
   savedOutputHeader,
   savedOutputHeaderLocal
 } from './machine-copy';
@@ -98,6 +113,21 @@ export function SavedOutputPanel({
         ? savedOutputHeaderLocal(output.capturedAt)
         : savedOutputHeader(label, output.capturedAt);
 
+  // PHASE 73, item 5. The second line, and it is drawn only for a session that
+  // runs on a machine right now. A session on this Mac keeps its conversation
+  // on this Mac, so there is nothing to copy and nothing to say. A row whose
+  // machine a person removed has no `machine` either, and the line would be a
+  // statement about a copy nothing can refresh.
+  //
+  // It is drawn in every other state of this panel, including the state where
+  // there is no saved screen at all, because the two are separate copies: the
+  // screen is what a pane printed and this is the agent's own conversation
+  // file. A person who has one may not have the other.
+  const conversation =
+    session?.machine === undefined
+      ? null
+      : conversationCopyLine(session.machine.conversationSyncedAt);
+
   return (
     <div
       className="modal-scrim"
@@ -126,6 +156,9 @@ export function SavedOutputPanel({
 
         {header === null ? null : (
           <p className="saved-output-header">{header}</p>
+        )}
+        {conversation === null ? null : (
+          <p className="saved-output-conversation">{conversation}</p>
         )}
         {output !== null && !output.verified ? (
           <p className="saved-output-warning">{SAVED_OUTPUT_UNVERIFIED}</p>

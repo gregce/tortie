@@ -50,5 +50,18 @@ export const machines: NonNullable<GmuxMachinesExtras['machines']> = {
   // answers, and the subscription is pushed whenever that answer changes. A
   // build with no machines file gets an empty list and no pushes.
   state: () => invoke('machines:state'),
-  onStateChanged: (cb) => on(EVT_MACHINE_STATE, cb)
+  onStateChanged: (cb) => on(EVT_MACHINE_STATE, cb),
+  // ---- PHASE 73 BLOCK B ----
+  // Phase 73. Puts image bytes on one machine. It is the one call on this
+  // bridge that writes on another computer, and main refuses it while it is
+  // not connected to that machine.
+  putImage: (input) => invoke('machines:putImage', input),
+  // ---- END PHASE 73 BLOCK B ----
+  // ---- PHASE 73 BLOCK C ----
+  // Phase 73. The read only review of a folder on one machine. Both calls
+  // read: nothing on either computer is written by either of them, and main
+  // refuses both while it is not connected to that machine.
+  reviewFiles: (input) => invoke('machines:reviewFiles', input),
+  reviewFile: (input) => invoke('machines:reviewFile', input)
+  // ---- END PHASE 73 BLOCK C ----
 };

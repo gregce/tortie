@@ -299,8 +299,14 @@ const HARVEST_WINDOW_MS = 6 * 60 * 60 * 1_000;
  * and a poll that walks all of them every few seconds is the fd-exhaustion
  * lesson from research 02 waiting to happen. Nothing older than this window
  * can belong to a spawn that just happened.
+ *
+ * PHASE 73 GAVE IT A SECOND READER, being the connected harvest in
+ * `../../machines/remote-harvest.ts`, which walks back this far from a remote
+ * row's create instant when it asks a machine for a listing. It is exported
+ * rather than copied, because two 8 day windows in one product is how they come
+ * to disagree.
  */
-const DATE_SHARD_WINDOW_MS = 8 * 24 * 60 * 60 * 1_000;
+export const DATE_SHARD_WINDOW_MS = 8 * 24 * 60 * 60 * 1_000;
 
 /**
  * Recursion filter for a `<root>/<YYYY>/<MM>/<DD>/` store: descend only into

@@ -65,9 +65,13 @@
  *
  * ## What is NOT true, and no surface may imply otherwise
  *
- *  - No conversation comes back. Tortie reads no agent's own files on another
- *    machine in this release, so `resume_argv` is NULL on every remote row and
- *    the provenance records `remote-not-collected` rather than nothing.
+ *  - No conversation comes back, whatever the row records. Phase 73's
+ *    connected time store harvest can now put a `resume_argv` and a
+ *    `remote-store-harvest` provenance on a remote row, and for a muse row the
+ *    arming gate says yes to it. Nothing in this release TYPES a resume command
+ *    into a pane on another machine, so `resumeArmed` is false on every restore
+ *    and the conversation does not come back. A row the harvest could not prove
+ *    still records `remote-not-collected` rather than nothing.
  *  - A remote row's status comes from one format field, `#{session_activity}`.
  *    It is evidence that the session printed something. It is not the local
  *    attention verdict, and no remote row ever says `needs input`.
@@ -136,6 +140,7 @@ import { captureRemoteArgv } from './remote-argv';
 // Phase 72. The ONE place a remote session meets the manifest. This file imports
 // nothing else from `../manifest/`, which is how the boundary stays checkable.
 import {
+  conversationSyncedAt,
   noteRemoteRowSeen,
   remoteManifest,
   remoteManifestInstalled,
@@ -186,6 +191,11 @@ import {
   TARGET_UNBOUND,
   noRemoteRowFor
 } from './remote-copy';
+// Phase 73, item 2. The allowlist for the two names a create may put on a
+// session on another machine. It is pure, so `remoteCreateArgs` stays a
+// function the conformance gate can read without starting anything.
+import { assertRemoteEnvAllowed } from './remote-env';
+
 
 const machinesLog = getLog('config');
 
@@ -528,10 +538,19 @@ export function remoteCreateArgs(input: {
     '-c',
     input.cwd
   ];
-  for (const [key, value] of Object.entries({
-    ...managedPaneEnv(input.sessionId),
-    ...input.env
-  })) {
+  // PHASE 73, item 2. Every name that reaches this loop is checked against the
+  // two Tortie is allowed to put on a session on another machine. The trace
+  // behind the refusal is in docs/research/52-remote-env-and-review.md, and the
+  // short version is that a value sent this way is one element of the argv of
+  // the local ssh process and one element of the argv of that machine's own
+  // tmux, so it stands in two process tables at once for the life of the
+  // create. On this Mac an account cannot read another account's arguments. No
+  // Linux machine was measured, so a passthrough is refused rather than offered
+  // with a warning. It is asked BEFORE the loop, so a refused create composes
+  // nothing and sends nothing.
+  const env = { ...managedPaneEnv(input.sessionId), ...input.env };
+  assertRemoteEnvAllowed(env);
+  for (const [key, value] of Object.entries(env)) {
     args.push('-e', `${key}=${value}`);
   }
   if (input.argv.length > 0) args.push('--', ...input.argv);
@@ -685,7 +704,14 @@ export function remoteSessionMachine(
     // as quiet would be a claim Tortie cannot back.
     answering: state === undefined ? true : state.answering,
     canRestore: verdict.offered,
-    restoreReason: verdict.reason
+    restoreReason: verdict.reason,
+    // PHASE 73, item 5. A staleness statement and never a currency statement.
+    // Null means there is no copy, which includes the case where a copy was
+    // refused for being too large: a refusal is not a copy, and the panel says
+    // what happened from the record beside the bytes rather than from a number
+    // that would read as one.
+    conversationSyncedAt:
+      sessionId === undefined ? null : conversationSyncedAt(sessionId)
   };
 }
 
@@ -1918,6 +1944,18 @@ export function setRemotePollFocused(focused: boolean): void {
   for (const machineId of machines.keys()) {
     if (machines.get(machineId)?.timer !== null) armTimer(machineId);
   }
+}
+
+/**
+ * True while a window has focus (Phase 73).
+ *
+ * It exists so the connected harvest in `./remote-harvest.ts` follows the same
+ * focus signal this feed does, without a second caller having to be wired
+ * through `../sessions/core.ts`. There is one source of the fact and two
+ * readers of it.
+ */
+export function remotePollIsFocused(): boolean {
+  return pollFocused;
 }
 
 /** Ask every machine for its list, at once. */

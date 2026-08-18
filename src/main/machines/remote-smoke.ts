@@ -70,7 +70,11 @@ import {
 } from './confirm';
 import { execOn } from './exec-plane';
 import { prepareMachine } from './prepare';
-import { machineContext, type RemoteMachineContext } from './context';
+import {
+  machineContext,
+  machineGeneration,
+  type RemoteMachineContext
+} from './context';
 import {
   addMachineRow,
   machineHostKeysPath,
@@ -111,6 +115,31 @@ import {
 import { restoreRemoteSession } from './remote-restore';
 import { assertArgvBelongsToMachine, captureRemoteArgv } from './remote-argv';
 import { removeMachineRow } from './store';
+// Phase 73, M6. The connected harvest, the conversation copy, the door they
+// both ride, and the gate that decides whether a resume may be typed.
+import { remoteHarvestRoots } from '../manifest/harvest/remote';
+import {
+  dropClaimsOfMovedConnections,
+  harvestMachineOnce,
+  remoteHarvestClaims,
+  remoteHarvestFacts,
+  setRemoteHarvestFactsForHarness,
+  stopRemoteHarvest
+} from './remote-harvest';
+import {
+  remoteStoreSessionDir,
+  stopRemoteStoreSync,
+  syncMachineOnce
+} from './remote-store-sync';
+import {
+  conversationSyncedAt,
+  remoteStoreRecordOf
+} from './remote-record';
+import { resumeArmingVerdict } from './resume-arming';
+import { runRemoteRead } from './remote-run';
+import { pollRemoteMachine, remoteStampArgs } from './remote-sessions';
+import { provenanceOf } from '../manifest/contract';
+import { createHash } from 'node:crypto';
 
 function log(line: string): void {
   console.log(`[gmux-remote-sessions] ${line}`);
@@ -285,8 +314,20 @@ export async function runRemoteSessionsSmoke(): Promise<void> {
           `session on a machine, and on this socket that machine is this Mac.`
       );
     }
+    // PHASE 73. The two connected-time cadences are turned OFF for the whole of
+    // this gate, and the reason is a safety one rather than a tidiness one. IN
+    // THIS HARNESS THE OTHER MACHINE IS THIS MAC, so a background harvest pass
+    // would list and read the operator's own agent stores under their own home
+    // directory. The gate drives both cadences explicitly instead, against a
+    // scratch home inside this run's isolated root, so every byte it reads is a
+    // byte it planted. It also makes steps 10e to 10h deterministic: a
+    // background pass racing an explicit one wrote one of the four rows before
+    // the explicit pass could, and the step then counted three.
+    stopRemoteHarvest();
+    stopRemoteStoreSync();
     const operatorBefore = operatorSessionCount();
     log(`profile ${iso.userData}, socket ${iso.socket}`);
+    log('the connected-time harvest and copy cadences are off for this run');
     log(`the operator's own server holds ${String(operatorBefore)} session(s)`);
 
     // PHASE 72. A real manifest, inside this run's own profile, installed the
@@ -766,6 +807,362 @@ export async function runRemoteSessionsSmoke(): Promise<void> {
         `stamps, saying the conversation does not come back`
     );
     await remoteKill(agentSession.id).catch(() => undefined);
+
+    // --- 10e. The connected harvest, end to end (Phase 73, item 1) ----------
+    //
+    // WHAT IS REAL HERE AND WHAT IS SUBSTITUTED, said before the result.
+    //
+    // Real: the connection, the second door, the three scripts, the listing,
+    // the record read, the base64 decode, the confirm, the decision, the
+    // manifest write and the arming gate's answer. The `machine-facts` script
+    // is run first, for real, and its answer is printed.
+    //
+    // Substituted: the far side's HOME, replaced with a scratch directory
+    // inside this run's own isolated root. IN THIS HARNESS THE OTHER MACHINE IS
+    // THIS MAC, so the real HOME is the operator's own home directory, and
+    // planting agent records there to drive a harvest would write conversation
+    // files into stores the operator's own agents read. The scratch home is a
+    // real directory on the far side and every read below it goes over the
+    // connection.
+    //
+    // The sessions are plain shells wearing an agent stamp. Launching four real
+    // agents would write four real conversations into the operator's home for
+    // no gain, because what this step proves is the READ path and not any
+    // agent's own behaviour.
+    const factsAnswer = await runRemoteRead(ctx, 'machine-facts', []);
+    log(
+      `10e. the machine says about itself: ` +
+        `${factsAnswer.payload.split('\n').join(', ')}`
+    );
+
+    const scratchHome = join(iso.root, 'p73-remote-home');
+    mkdirSync(scratchHome, { recursive: true });
+    setRemoteHarvestFactsForHarness(ID, {
+      home: scratchHome,
+      env: {},
+      platform: 'Darwin'
+    });
+    log(`    the harvest was pointed at ${scratchHome} on that machine`);
+
+    /** One conversation id per agent, so a row can be traced to its record. */
+    const plantedIds: Record<string, string> = {
+      muse: '11111111-2222-4333-8444-000000000001',
+      codex: '11111111-2222-4333-8444-000000000002',
+      deepseek: '11111111-2222-4333-8444-000000000003',
+      pi: '11111111-2222-4333-8444-000000000004'
+    };
+    const harvestAgents = ['muse', 'codex', 'deepseek', 'pi'] as const;
+    const harvestSessions: Record<string, string> = {};
+
+    for (const agent of harvestAgents) {
+      const made = await remoteCreate({
+        machineId: ID,
+        name: `p73 ${agent}`,
+        projectPath: '/tmp',
+        cwd: '/tmp',
+        agent: 'shell'
+      });
+      harvestSessions[agent] = made.id;
+      const live = remoteSessionRow(made.id);
+      if (live === null) fail(`the create for ${agent} left no row`);
+      await execOn(ctx, remoteStampArgs(live.tmuxId, '@gmux-agent', agent));
+    }
+    await startRemotePoll(ID);
+
+    // The records, planted into the directories THE PRODUCT ITSELF names. The
+    // roots come from `remoteHarvestRoots`, so a store layout that moved would
+    // fail this step rather than being quietly worked around.
+    const now = Date.now();
+    const two = (n: number): string => String(n).padStart(2, '0');
+    for (const agent of harvestAgents) {
+      const sessionId = harvestSessions[agent] ?? '';
+      const live = remoteSessionRow(sessionId);
+      if (live === null) fail(`${agent}'s row went away before it was planted`);
+      const plan = remoteHarvestRoots(agent, live.cwd, {
+        home: scratchHome,
+        env: {},
+        platform: 'Darwin'
+      });
+      if (plan === null) fail(`the product names no store for ${agent}`);
+      const root = plan.roots[0] ?? '';
+      const id = plantedIds[agent] ?? '';
+      const when = new Date(now);
+      const shard = `${String(when.getFullYear())}/${two(when.getMonth() + 1)}/${two(when.getDate())}`;
+      let path = '';
+      let body = '';
+      if (agent === 'muse') {
+        path = join(root, shard, id, 'session.jsonl');
+        body =
+          `${JSON.stringify({ payload_type: 'session.open' })}\n` +
+          `${JSON.stringify({
+            payload_type: 'runtime.session.route_facts',
+            payload: { record: { tmux_pane: `${live.tmuxId}:@1.%1` } }
+          })}\n`;
+      } else if (agent === 'codex') {
+        const stamp =
+          `${String(when.getFullYear())}-${two(when.getMonth() + 1)}-${two(when.getDate())}` +
+          `T${two(when.getHours())}-${two(when.getMinutes())}-${two(when.getSeconds())}`;
+        path = join(root, shard, `rollout-${stamp}-${id}.jsonl`);
+        body = `${JSON.stringify({ payload: { cwd: live.cwd } })}\n`;
+      } else if (agent === 'deepseek') {
+        path = join(root, `${id}.json`);
+        body = JSON.stringify({ metadata: { workspace: live.cwd } });
+      } else {
+        const iso8601 = new Date(now).toISOString().replace(/[:.]/g, '-');
+        path = join(root, `${iso8601}_${id}.jsonl`);
+        body = `${JSON.stringify({ type: 'session', cwd: live.cwd })}\n`;
+      }
+      mkdirSync(dirname(path), { recursive: true });
+      writeFileSync(path, body, 'utf8');
+    }
+    log(`    four records were planted under ${scratchHome}`);
+
+    const factsBefore = remoteHarvestFacts();
+    const startedHarvest = Date.now();
+    const harvested = await harvestMachineOnce(ID);
+    const harvestMs = Date.now() - startedHarvest;
+    const factsAfter = remoteHarvestFacts();
+    if (harvested !== 4) {
+      fail(
+        `the harvest wrote ${String(harvested)} conversation id(s) and four ` +
+          `records were planted. The claims it holds are ` +
+          `${remoteHarvestClaims()
+            .map((one) => `${one.sessionId}=${one.conversationId}`)
+            .join(', ')}`
+      );
+    }
+    log(
+      `    one pass over four sessions took ${String(harvestMs)} ms, sent ` +
+        `${String(factsAfter.commandsSent - factsBefore.commandsSent)} read(s) ` +
+        `and carried ${String(factsAfter.bytesRead - factsBefore.bytesRead)} ` +
+        `byte(s) of payload`
+    );
+
+    // The rows, read back out of the real database in this real process.
+    for (const agent of harvestAgents) {
+      const sessionId = harvestSessions[agent] ?? '';
+      const row = remoteRecordOf(sessionId);
+      if (row === null) fail(`${agent}'s row is gone`);
+      if (row.agentSessionId !== plantedIds[agent]) {
+        fail(
+          `${agent}'s row records conversation ` +
+            `${JSON.stringify(String(row.agentSessionId))} and the planted ` +
+            `record carried ${String(plantedIds[agent])}`
+        );
+      }
+      const prov = provenanceOf(row.resumeProvenance);
+      if (prov.source !== 'remote-store-harvest') {
+        fail(`${agent}'s row records source ${String(prov.source)}`);
+      }
+      if (prov.machineId !== ID) {
+        fail(`${agent}'s row records machine ${String(prov.machineId)}`);
+      }
+      if ((row.resumeArgv ?? []).length === 0) {
+        fail(`${agent}'s row has no resume command`);
+      }
+    }
+    log(
+      `    all four rows name ${ID} and record remote-store-harvest, with a ` +
+        `resume command each`
+    );
+
+    // --- 10f. The arming matrix, four rows, from the real gate --------------
+    //
+    // This is the honest headline of the whole rung: one agent of the thirteen
+    // gets an armed conversation resume on another machine, and it is muse.
+    const armingRows: string[] = [];
+    for (const agent of harvestAgents) {
+      const sessionId = harvestSessions[agent] ?? '';
+      const row = remoteRecordOf(sessionId);
+      if (row === null) fail(`${agent}'s row is gone`);
+      const prov = provenanceOf(row.resumeProvenance);
+      const verdict = resumeArmingVerdict({
+        machineId: ID,
+        targetMachineId: ID,
+        agentKeepsConversation: true,
+        resumeArgvLength: (row.resumeArgv ?? []).length,
+        provenance: prov
+      });
+      armingRows.push(
+        `${agent}: key=${String(prov.key)} confidence=${prov.confidence} ` +
+          `arm=${String(verdict.arm)} refusal=${String(verdict.refusal)}`
+      );
+      const shouldArm = agent === 'muse';
+      if (verdict.arm !== shouldArm) {
+        fail(
+          `the arming gate answered ${String(verdict.arm)} for ${agent} and it ` +
+            `should have answered ${String(shouldArm)}`
+        );
+      }
+      if (!shouldArm && verdict.refusal !== 'weaker-source') {
+        fail(
+          `${agent} was refused with ${String(verdict.refusal)} rather than ` +
+            `weaker-source`
+        );
+      }
+    }
+    log(`10f. the arming matrix:`);
+    for (const line of armingRows) log(`      ${line}`);
+
+    // --- 10g. Connected only, watched refusing ------------------------------
+    //
+    // The link is cut on purpose and a second pass is asked for. What this step
+    // holds is that NOTHING WAS SENT, which is a different fact from "no claim
+    // was written": a pass that read everything and found nothing also writes
+    // no claim.
+    const readsBeforeCut = remoteHarvestFacts().commandsSent;
+    markMachineQuiet(ID, 'the smoke cut it on purpose');
+    const cutHarvest = await harvestMachineOnce(ID);
+    const cutSync = await syncMachineOnce(ID);
+    if (cutHarvest !== 0 || cutSync !== 0) {
+      fail(
+        `a pass over a machine that is not answering wrote ` +
+          `${String(cutHarvest)} id(s) and ${String(cutSync)} copy(s)`
+      );
+    }
+    if (remoteHarvestFacts().commandsSent !== readsBeforeCut) {
+      fail('a pass over a machine that is not answering sent a command');
+    }
+    log(
+      `10g. with the machine not answering, the harvest and the copy both sent ` +
+        `zero commands and wrote nothing`
+    );
+    // The link is brought back by a COMPLETED LIST rather than by asking the
+    // feed to start again. `startMachineFeed` is a no-op for a machine that
+    // already has one, so on its own it leaves the link reading quiet and every
+    // read below would be refused for the right reason at the wrong moment.
+    await pollRemoteMachine(ID);
+
+    // --- 10h. The conversation copy, and the staleness it promises ----------
+    setRemoteHarvestFactsForHarness(ID, {
+      home: scratchHome,
+      env: {},
+      platform: 'Darwin'
+    });
+    const copied = await syncMachineOnce(ID);
+    if (copied < 1) {
+      const claimLines = remoteHarvestClaims()
+        .map((one) => `${one.sessionId}=${one.storePath}`)
+        .join(', ');
+      fail(
+        `the copy pass brought nothing home. The claims it had were ` +
+          `[${claimLines}] and the machine link reads ` +
+          `${remoteMachineFacts(ID).answering ? 'answering' : 'not answering'}`
+      );
+    }
+    const museSession = harvestSessions['muse'] ?? '';
+    const copyRecord = remoteStoreRecordOf(museSession);
+    let checkedSession = museSession;
+    let checkedRecord = copyRecord;
+    if (checkedRecord === null) {
+      // At most two sessions are copied in one pass and the order breaks on the
+      // session id, so muse is not always one of them. Any copied session
+      // proves the same thing.
+      for (const agent of harvestAgents) {
+        const id = harvestSessions[agent] ?? '';
+        const record = remoteStoreRecordOf(id);
+        if (record !== null && record.outcome === 'copied') {
+          checkedSession = id;
+          checkedRecord = record;
+          break;
+        }
+      }
+    }
+    if (checkedRecord === null || checkedRecord.outcome !== 'copied') {
+      fail('no conversation was copied home in one piece');
+    }
+    const localCopy = join(
+      remoteStoreSessionDir(ID, checkedSession),
+      checkedRecord.name
+    );
+    const localSum = createHash('sha256')
+      .update(readFileSync(localCopy))
+      .digest('hex');
+    if (localSum !== checkedRecord.remoteSha256) {
+      fail(
+        `the copy on this Mac hashes to ${localSum} and the machine said ` +
+          `${String(checkedRecord.remoteSha256)}`
+      );
+    }
+    const syncedFirst = conversationSyncedAt(checkedSession);
+    if (syncedFirst === null) fail('a copied conversation reports no instant');
+    log(
+      `10h. ${checkedRecord.name} came home to ${localCopy}, ` +
+        `${String(checkedRecord.localBytes)} bytes, and both sides hash to ` +
+        `${localSum.slice(0, 16)}`
+    );
+
+    // Staleness, measured rather than asserted. The machine stops answering,
+    // another pass is asked for, and the instant a person reads does not move.
+    markMachineQuiet(ID, 'the smoke cut it on purpose');
+    await syncMachineOnce(ID);
+    const syncedAfter = conversationSyncedAt(checkedSession);
+    if (syncedAfter !== syncedFirst) {
+      fail(
+        `the last copy instant moved from ${String(syncedFirst)} to ` +
+          `${String(syncedAfter)} while the machine was not answering`
+      );
+    }
+    log(
+      `     with the machine not answering the instant is still ` +
+        `${String(syncedFirst)}, so the sentence a person reads gets older ` +
+        `rather than being refreshed`
+    );
+    await pollRemoteMachine(ID);
+
+    // --- 10i. The claim count either side of a connection that moved --------
+    //
+    // PHASE 73 FIX ROUND. Property 2 of connected only says a claim never
+    // outlives the connection that produced it. Step 10g proves the read half,
+    // being that a machine which is not answering is asked nothing. This proves
+    // the memory half, and it proves it as a NUMBER read out of the live claim
+    // store rather than as an argument from the code.
+    //
+    // The connection is moved the way the product moves it, by preparing the
+    // machine again, which is what a reconnect does. Then the same function the
+    // cadence calls at the top of every tick is called once, and the claim
+    // count is read either side of it.
+    const claimsBeforeMove = remoteHarvestFacts().claims;
+    if (claimsBeforeMove < 1) {
+      fail('the harvest held no claim, so there was nothing to drop');
+    }
+    const generationBefore = machineGeneration(ID).generation;
+    const reconnected = await prepareMachine({
+      machineId: ID,
+      fields,
+      tortieHostKeys: machineHostKeysPath()
+    });
+    if (reconnected.class !== 'prepared') {
+      fail(
+        `the reconnect answered ${reconnected.class}: ${reconnected.detail}`
+      );
+    }
+    const generationAfter = machineGeneration(ID).generation;
+    if (generationAfter === generationBefore) {
+      fail(
+        `a reconnect left the connection number at ` +
+          `${String(generationBefore)}, so nothing moved`
+      );
+    }
+    const droppedClaims = dropClaimsOfMovedConnections();
+    const claimsAfterMove = remoteHarvestFacts().claims;
+    if (droppedClaims !== claimsBeforeMove || claimsAfterMove !== 0) {
+      fail(
+        `the harvest held ${String(claimsBeforeMove)} claim(s) under ` +
+          `connection ${String(generationBefore)}, the connection became ` +
+          `${String(generationAfter)}, and it dropped ` +
+          `${String(droppedClaims)} leaving ${String(claimsAfterMove)}`
+      );
+    }
+    log(
+      `10i. connection ${String(generationBefore)} became ` +
+        `${String(generationAfter)}, and the harvest went from ` +
+        `${String(claimsBeforeMove)} claim(s) to ${String(claimsAfterMove)}`
+    );
+
+    for (const agent of harvestAgents) {
+      await remoteKill(harvestSessions[agent] ?? '').catch(() => undefined);
+    }
 
     // --- 10b. The three rare refusals, watched firing ------------------------
     //

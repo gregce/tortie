@@ -250,16 +250,45 @@ export type ResumeIdSource =
   /** Tortie has no verified capture route for this agent, so nothing tried. */
   | 'unavailable'
   /**
-   * PHASE 72. The session runs on another machine and Tortie has no route to
-   * that machine's agent store in this release, so no conversation id was ever
-   * obtained.
+   * PHASE 72. The session runs on another machine and no conversation id was
+   * ever obtained for it.
    *
    * It is a WEAKER source than every local one by construction: nothing was
    * read, so nothing can be checked. `./machines/resume-arming.ts` refuses to
    * type a resume command for a row carrying it, and that refusal has no
-   * exception. Reading an agent's own files on another machine is M6.
+   * exception.
+   *
+   * PHASE 73 NARROWED WHAT IT COVERS and did not remove it. The connected time
+   * store harvest reads an agent's own store on a machine while Tortie is
+   * connected to it, so four of the thirteen agents can now get an id there and
+   * they record `remote-store-harvest` below. This source is what the other
+   * nine record, and it is also what every row written before Phase 73 records.
    */
-  | 'remote-not-collected';
+  | 'remote-not-collected'
+  /**
+   * PHASE 73. A connected-time read of an agent's own store on another machine.
+   *
+   * It is weaker than 'store-harvest' by construction, in three separate ways,
+   * and each one is a fact about the read rather than a caution:
+   *
+   *  1. No process on that machine was correlated against. A key that names a
+   *     process id or an open file descriptor cannot be checked from here, so
+   *     the two agents whose keys are those are never read at all.
+   *  2. The read happened AFTER the session started rather than beside it. A
+   *     local watcher is bounded by a spawn instant it observed. A listing over
+   *     a connection is a photograph taken later, so for a key that names a
+   *     folder every session of that agent that ever ran in that folder gives
+   *     the same answer.
+   *  3. The answer is only as fresh as the last connected moment, and the row
+   *     records which moment that was.
+   *
+   * `../machines/remote-harvest.ts` is its one producer, and
+   * `../manifest/harvest/remote.ts` is what decides that a key which is not a
+   * true identity records 'weak' here whatever it records locally. So the only
+   * agent this source ever arms is muse, whose records carry the pane they ran
+   * in, and every other row it writes is refused by the arming gate.
+   */
+  | 'remote-store-harvest';
 
 /**
  * How strongly the recorded conversation id is tied to THIS session.

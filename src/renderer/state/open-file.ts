@@ -50,6 +50,32 @@ export interface OpenFileCommitRef {
 }
 
 /**
+ * The machine identity a REMOTE REVIEW open carries (Phase 73, M6, item 4).
+ *
+ * Its presence means: this tab shows a file that lives on another computer.
+ * Both sides come from main, exactly as a commit tab's do, and no working tree
+ * on this Mac is ever read for it. Non-null implies read-only in every surface,
+ * for the same reason `commit` does, plus one more: a save could not reach the
+ * file even if it were attempted, because the file is not here.
+ *
+ * It is a separate field rather than a flavour of `commit` because the two
+ * answer different questions. A commit tab shows one file as it was at one
+ * commit in THIS repository. A review tab shows the working copy and the HEAD
+ * copy of one file in a repository on a machine, which is the pair a person
+ * reads when they want to know what an agent has done over there.
+ */
+export interface OpenFileRemoteRef {
+  /** The machine the file lives on. */
+  machineId: string;
+  /** That machine's own label, for the tab tooltip. Never composed here. */
+  machineLabel: string;
+  /** The repository root ON THAT MACHINE. Never a path on this Mac. */
+  repoPath: string;
+  /** The pre-rename path, or null. A rename is read at both paths. */
+  origPath?: string;
+}
+
+/**
  * WHERE in the file to land (Phase 14). A request carrying one is a
  * NAVIGATION, not merely an open: the editor reveals the range, SELECTS it,
  * and flashes it once. Scrolling near the line is not enough — a 240-hit
@@ -124,7 +150,13 @@ export interface OpenFileRequest {
     | 'tree'
     | 'search'
     | 'symbol'
-    | 'quickopen';
+    | 'quickopen'
+    /**
+     * Phase 73. A review of a file on another machine, from the session menu.
+     * Only `'search'` changes what the editor does with a request, so this
+     * value is a record of where the gesture came from and nothing more.
+     */
+    | 'machine';
   /**
    * VS Code preview-tab semantics (Phase 12 item 5). Omitted/`true` = a
    * PREVIEW open: italic tab, reused by the next preview open until the
@@ -185,6 +217,19 @@ export interface OpenFileRequest {
    * draws the card.
    */
   contextEntry?: unknown;
+  /**
+   * Present ONLY for a REMOTE REVIEW open (Phase 73, M6, item 4). The editor
+   * must then fill both sides from `machines:reviewFile` and treat the tab as
+   * read-only: no save, no watcher refresh, and no read of any working tree on
+   * this Mac. Identity is keyed by the machine as well as the path, so the same
+   * path on two machines is two tabs and neither collides with a file of that
+   * path here.
+   *
+   * `path` and `relPath` carry the file's path INSIDE the repository on that
+   * machine, so the tab's name, its icon and its language detection need no
+   * special case.
+   */
+  remote?: OpenFileRemoteRef;
 }
 
 /** Emit an open request (fire-and-forget). */

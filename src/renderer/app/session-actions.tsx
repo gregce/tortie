@@ -8,9 +8,18 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import type { Session } from '@shared/types';
+import type { Session, SessionMachine } from '@shared/types';
+// Phase 73. The read only review reads one folder on one machine through the
+// machines bridge. It is feature detected the way Settings detects it, so a
+// build without the bridge simply does not offer the verb.
+import type {
+  GmuxMachinesExtras,
+  MachineReviewFile,
+  MachineReviewList
+} from '@shared/ipc';
 import type { MenuItemSpec } from '../state/store';
-import { useApp } from '../state/store';
+import { errorText, useApp } from '../state/store';
+import { requestOpenFile } from '../state/open-file';
 import { statusVisual } from './status';
 import type { StatusVisual } from './status';
 import { displayPath, formatAge } from './format';
@@ -25,8 +34,13 @@ import { openSessionContext } from '../context/open-session';
 import {
   badgeTitle,
   NO_SNAPSHOT,
+  REVIEW_ITEM_SUBLABEL,
+  REVIEW_READING,
   SAVED_OUTPUT_ITEM,
-  SAVED_OUTPUT_NONE
+  SAVED_OUTPUT_NONE,
+  reviewItemLabel,
+  reviewListTitle,
+  reviewNotAnsweringSublabel
 } from './machine-copy';
 
 /**
@@ -234,6 +248,161 @@ function savedOutputItem(session: Session): MenuItemSpec {
   };
 }
 
+/**
+ * PHASE 73, M6, item 4 — the read only review of a session's folder on the
+ * machine it runs on.
+ *
+ * WHAT IT DOES. It asks that machine which tracked files in that folder differ
+ * from the last commit, then opens the two sides of the one a person picks in
+ * the diff tab the editor has drawn since Phase 12. No new surface is drawn for
+ * either half: the list is a native menu, which is the only kind of menu this
+ * product has, and the diff is the tab. `src/renderer/editor/PierreDiff.tsx` is
+ * not edited by this phase at all.
+ *
+ * WHAT IT NEVER DOES. It writes nothing on either computer. The git subcommand
+ * lives inside Tortie's own script text on the far side and is never a value
+ * this file can supply, so nothing here can turn a review into a commit. It is
+ * refused in main while Tortie is not connected to the machine.
+ *
+ * WHY THE LIST IS A SECOND MENU RATHER THAN A SUBMENU, stated because the spec
+ * asked for a submenu. A submenu's items have to exist at the moment the first
+ * menu is composed, and `sessionMenuItems` composes synchronously. The list is
+ * one question asked of another computer, so the honest choices were a stale
+ * cached list drawn as if it were current, or a second menu after the answer
+ * arrives. The second menu is drawn at the row the person opened the first one
+ * on, so it lands where their eyes already are.
+ */
+type MachinesApi = NonNullable<GmuxMachinesExtras['machines']>;
+
+/**
+ * The machines bridge, feature detected, read through globalThis rather than a
+ * bare `window` so the node environment tests can import this module.
+ */
+function machinesBridge(): MachinesApi | null {
+  const api = (globalThis as { window?: { gmux?: unknown } }).window?.gmux as
+    | GmuxMachinesExtras
+    | undefined;
+  return api?.machines ?? null;
+}
+
+/**
+ * Where the second menu opens: the row the person right-clicked.
+ *
+ * Every session surface stamps `data-session-id` on its row, and that attribute
+ * is already how the app answers "which session has focus". Reading it here
+ * means the file list appears at the row rather than at a corner, and it means
+ * this module holds no pointer listener of its own.
+ */
+function menuPointFor(sessionId: string): { x: number; y: number } {
+  const doc = (globalThis as { document?: Document }).document;
+  const row = doc?.querySelector<HTMLElement>(
+    `[data-session-id="${CSS.escape(sessionId)}"]`
+  );
+  if (row === null || row === undefined) return { x: 24, y: 96 };
+  const rect = row.getBoundingClientRect();
+  return { x: Math.round(rect.left + 8), y: Math.round(rect.bottom + 2) };
+}
+
+/** One changed file becomes one read only tab. */
+function openReviewTab(
+  list: MachineReviewList,
+  file: MachineReviewFile
+): void {
+  const path = `${list.repoPath}/${file.path}`;
+  requestOpenFile({
+    repoPath: list.repoPath,
+    relPath: file.path,
+    path,
+    ...(file.origPath !== null ? { origPath: file.origPath } : {}),
+    mode: 'diff',
+    source: 'machine',
+    // Opened for keeps. A person reviewing three files wants three tabs, and
+    // a preview tab would replace each one with the next.
+    preview: false,
+    remote: {
+      machineId: list.machineId,
+      machineLabel: list.machineLabel,
+      repoPath: list.repoPath,
+      ...(file.origPath !== null ? { origPath: file.origPath } : {})
+    }
+  });
+}
+
+/**
+ * Ask the machine what changed, then offer the answer.
+ *
+ * A list with nothing in it, and a list main could not read, both end as one
+ * sentence composed IN MAIN. This file never writes a sentence about what a
+ * machine did or did not do, for the reason `./machine-copy.ts` states: the
+ * vocabulary audit reads one file.
+ */
+async function openRemoteReview(
+  session: Session,
+  machine: SessionMachine
+): Promise<void> {
+  const app = useApp.getState();
+  const bridge = machinesBridge();
+  if (bridge === null || typeof bridge.reviewFiles !== 'function') return;
+  app.toast('info', REVIEW_READING);
+  let list: MachineReviewList;
+  try {
+    list = await bridge.reviewFiles({
+      machineId: machine.id,
+      cwd: session.cwd
+    });
+  } catch (err) {
+    app.toast('error', errorText(err));
+    return;
+  }
+  if (list.files.length === 0) {
+    if (list.note !== null) app.toast('info', list.note);
+    return;
+  }
+  const items: (MenuItemSpec | 'sep')[] = [
+    { label: reviewListTitle(machine.label), disabled: true, run: () => {} },
+    'sep',
+    ...list.files.map((file) => ({
+      label: file.path,
+      run: () => openReviewTab(list, file)
+    }))
+  ];
+  // Main says when it listed only the first files, and the sentence is drawn
+  // under them rather than instead of them.
+  if (list.note !== null) {
+    items.push('sep', { label: list.note, disabled: true, run: () => {} });
+  }
+  const at = menuPointFor(session.id);
+  useApp.getState().setMenu({ x: at.x, y: at.y, items });
+}
+
+/**
+ * The menu item itself.
+ *
+ * Offered for every session on a machine, and offered DISABLED with the reason
+ * while that machine is not answering. That is the rule `Show what it loaded…`
+ * and `Show saved output…` already follow: a verb that vanishes teaches
+ * nothing, and "that machine did not answer" is a real answer to the question.
+ */
+function reviewChangesItem(
+  session: Session,
+  machine: SessionMachine
+): MenuItemSpec {
+  const label = reviewItemLabel(machine.label);
+  if (!machine.answering) {
+    return {
+      label,
+      sublabel: reviewNotAnsweringSublabel(machine.label),
+      disabled: true,
+      run: () => {}
+    };
+  }
+  return {
+    label,
+    sublabel: REVIEW_ITEM_SUBLABEL,
+    run: () => void openRemoteReview(session, machine)
+  };
+}
+
 function copyDirectoryPathItem(session: Session): MenuItemSpec {
   return {
     label: 'Copy directory path',
@@ -319,6 +488,9 @@ export function sessionMenuItems(
       : []),
     showLoadedItem(session),
     savedOutputItem(session),
+    // PHASE 73. Only for a session on another machine, because a session on
+    // this Mac already has the git surfaces of the project it belongs to.
+    ...(machine !== undefined ? [reviewChangesItem(session, machine)] : []),
     copyDirectoryPathItem(session),
     'sep',
     ...(ended

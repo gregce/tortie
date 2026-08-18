@@ -430,7 +430,22 @@ const CONFIG_REFUSALS = [
  * and one refuses a command aimed at a session no list from that machine
  * reported.
  *
- * PHASE 79.1 PUT SEVEN IN, so the count is twenty three. Six of them are the
+ * PHASE 73 PUT SIX IN, so the count is twenty nine. They are the second door's
+ * own refusals plus the three sentences the three items on it end at. The door
+ * is the one place a command that is not a tmux verb can cross to a machine,
+ * and every one of these stands between a caller and that door: a name nobody
+ * wrote down, a write reached through the read door, a machine that is not
+ * answering, a value that would sit in two process tables at once, an image
+ * that did not arrive whole, and a folder that is not a repository.
+ *
+ * Three of the six are reached rarely in ordinary use, which is exactly the
+ * branch a bundler folds away. `machine.script-not-in-catalogue` and
+ * `machine.write-through-read-door` are programming errors that no correct
+ * caller reaches at all, and `machine.image-not-written` fires only when a link
+ * dropped halfway. That is the same shape as `machine.repeat-unsafe`, whose
+ * whole reason for being pinned is that nothing in production reaches it.
+ *
+ * PHASE 79.1 PUT SEVEN IN, so the count was twenty three. Six of them are the
  * sentences the key channel refuses with, and the seventh is the one that stops
  * a string that is not a public key from reaching another machine's shell. That
  * last one is the one this file exists for: `assertPublicKeyLine` has two call
@@ -697,9 +712,10 @@ const MACHINE_REFUSALS = [
       'conversation, and a person who is not told that discovers it in an ' +
       'empty pane instead',
     fragments: [
-      'Tortie has no conversation id for this session, because it does not read an ',
-      "agent's own files on another machine yet. The session comes back with its ",
-      'folder and its program. The conversation does not come back.'
+      "Tortie has no conversation id for this session. It reads an agent's own ",
+      'files on a machine only while it is connected to that machine, and it did ',
+      'not get one for this session. The session comes back with its folder and ',
+      'its program. The conversation does not come back.'
     ]
   },
   // ---------------------------------------------------------------------------
@@ -789,6 +805,94 @@ const MACHINE_REFUSALS = [
     fragments: [
       'Tortie will not send that to another machine, because what it was given ',
       'is not one public key line. Nothing was sent.'
+    ]
+  },
+  // ---------------------------------------------------------------------------
+  // Phase 73 added these six, and they are the second door's own refusals
+  // ---------------------------------------------------------------------------
+  //
+  // The exec plane carries tmux verbs. The second door carries one of Tortie's
+  // own constant scripts, chosen from a frozen catalogue by name, and a login
+  // shell runs anything. So the door's refusals are the whole reason it is safe
+  // to have opened at all, and losing one silently is losing the only thing
+  // between a caller and another person's computer.
+  {
+    id: 'machine.script-not-in-catalogue',
+    source: 'src/main/machines/remote-copy.ts',
+    why:
+      'the catalogue is what makes the second door narrower than the login ' +
+      'shell it rides on. Without this branch any string a caller composed ' +
+      'could reach that shell',
+    fragments: [
+      'Tortie will not run that on another machine. Only the commands Tortie has ',
+      'written down may cross to a machine, and this one is not on that list. ',
+      'Nothing was sent.'
+    ]
+  },
+  {
+    id: 'machine.write-through-read-door',
+    source: 'src/main/machines/remote-copy.ts',
+    why:
+      'one script in the whole catalogue writes anything, and this is what ' +
+      'keeps it reachable through one function. No correct caller reaches ' +
+      'this branch, which is exactly the shape a bundler proves through',
+    fragments: [
+      'Tortie will not run that on another machine, because a command that only ',
+      'reads and a command that writes go through different doors and this one ',
+      'came through the wrong door. Nothing was sent.'
+    ]
+  },
+  {
+    id: 'machine.not-connected',
+    source: 'src/main/machines/remote-copy.ts',
+    why:
+      'this is where connected only lives for every caller of the second door ' +
+      'at once. Without it a harvest could write a conversation id read ' +
+      'through a connection Tortie no longer has, and a restore would then ' +
+      'type that id into a live agent',
+    fragments: [
+      'Tortie is not connected to that machine right now, so it did not ask it ',
+      'for anything. What Tortie already knows about that machine is as old as ',
+      'the last time it answered. Nothing was sent.'
+    ]
+  },
+  {
+    id: 'machine.env-passthrough-refused',
+    source: 'src/main/machines/remote-copy.ts',
+    why:
+      'a value passed this way is one element of two process tables at once ' +
+      'for the life of the create, and no Linux far side was measured. ' +
+      'Without this branch a later caller could put a secret there and Tortie ' +
+      'would carry it',
+    fragments: [
+      'Tortie will not put that value on a session on another machine. A value ',
+      'sent this way is part of a command line that other accounts on that ',
+      'machine can read, and Tortie has not measured which accounts can read it ',
+      'there. Nothing was started.'
+    ]
+  },
+  {
+    id: 'machine.image-not-written',
+    source: 'src/main/machines/remote-copy.ts',
+    why:
+      'a path to bytes that did not land is worse than no path at all, ' +
+      'because the agent on that machine then reads a file that is half an ' +
+      'image or is not there',
+    fragments: [
+      'The image did not arrive on that machine in one piece, so Tortie did not ',
+      'give the session a path to it. You can try again.'
+    ]
+  },
+  {
+    id: 'machine.review-not-a-repository',
+    source: 'src/main/machines/remote-copy.ts',
+    why:
+      'the last sentence of it is a promise about both computers, and the ' +
+      'review is the one surface in this rung that a person could mistake for ' +
+      'something that changes a repository',
+    fragments: [
+      'That folder on the machine is not inside a repository, so there are no ',
+      'changes for Tortie to show. Nothing was changed on either machine.'
     ]
   }
 ];

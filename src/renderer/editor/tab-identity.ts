@@ -6,6 +6,8 @@
  */
 
 import type { OpenFileRequest } from '../state/open-file';
+import type { EditorTab } from './tab-types';
+import { reviewTabTooltip } from '../app/machine-copy';
 
 /**
  * The identity a request opens into: one tab per absolute path for the
@@ -76,4 +78,34 @@ export function fileInRepo(repoPath: string, path: string): boolean {
 export function leftPathFor(req: OpenFileRequest): string | null {
   const orig = req.commit?.origPath ?? req.origPath ?? '';
   return orig.length > 0 ? orig : null;
+}
+
+/**
+ * The line a tab's tooltip leads with, and its accessible identity.
+ *
+ * PHASE 73 FIX ROUND put it here, out of the tab strip's markup, for one
+ * reason: a REVIEW tab's `path` is a path on ANOTHER COMPUTER, and the strip
+ * showed it. That names a file this Mac may not have, and it may name a
+ * different file this Mac does have. So a review tab is asked about FIRST, and
+ * it answers with the machine and with the fact that the tab is read only,
+ * because a diff tab in Tortie is usually a file a person can edit and this one
+ * is not.
+ *
+ * The other four answers are the ones the strip has drawn since Phase 12 and
+ * they are unchanged: a history tab wears its short SHA, a file that went away
+ * says so, a working tree diff says what it is against, and everything else is
+ * its own absolute path on this Mac.
+ */
+export function tabTooltipIdentity(tab: EditorTab): string {
+  if (tab.remote !== undefined) {
+    return reviewTabTooltip(tab.name, tab.remote.machineLabel);
+  }
+  if (tab.commit !== null) {
+    const subject =
+      tab.commit.subject !== undefined ? ` · ${tab.commit.subject}` : '';
+    return `${tab.relPath} — ${tab.commit.shortSha}${subject}`;
+  }
+  if (tab.deleted) return 'Deleted on disk';
+  if (tab.mode === 'diff' && tab.canDiff) return `${tab.name} — changes vs HEAD`;
+  return tab.path;
 }

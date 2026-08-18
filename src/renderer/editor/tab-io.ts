@@ -9,21 +9,28 @@
  * into one 770-line file with five section banners, which is the split
  * signal in CLAUDE.md's growth guardrails.
  *
- * The two kinds of tab (DESIGN-SPEC S5C) differ ONLY here:
+ * The three kinds of tab (DESIGN-SPEC S5C, the third added by Phase 73) differ
+ * ONLY here:
  *   worktree — loadContents + loadHead, refreshed by `refreshRepo`
  *   history  — loadCommitDiff fills both sides once and nothing else runs
- * Which is why `save` and `refreshRepo` both refuse a history tab: it is
- * cheaper to state that twice, right where the write would happen, than to
- * rely on every caller remembering.
+ *   review   — loadRemoteDiff fills both sides once, from another computer
+ * Which is why `save` and `refreshRepo` both refuse a history tab and a review
+ * tab: it is cheaper to state that twice, right where the write would happen,
+ * than to rely on every caller remembering.
  */
 
 import type {
   GmuxFsExtras,
   GmuxGitSyncExtras,
-  GmuxImageExtras
+  GmuxImageExtras,
+  // Phase 73. The read only review of a folder on another machine.
+  GmuxMachinesExtras
 } from '@shared/ipc';
 import { errorText, useApp } from '../state/store';
-import type { OpenFileCommitRef } from '../state/open-file';
+import type {
+  OpenFileCommitRef,
+  OpenFileRemoteRef
+} from '../state/open-file';
 import { getWorkingModel, resetWorkingModel } from './monaco-loader';
 import { dirOf } from './paths';
 import { fileInRepo } from './tab-identity';
@@ -53,6 +60,17 @@ export function errorSentence(err: unknown, fallback: string): string {
   return /[.!?]$/.test(first) ? first : `${first}.`;
 }
 
+/**
+ * A file whose two sides hold bytes no text diff can show.
+ *
+ * PHASE 73 FIX ROUND. It was written out twice, once for a commit tab and once
+ * for a review tab on another machine, and the two copies carried an em dash
+ * against the writing rules. One function, one sentence, no dash.
+ */
+export function binaryFileNote(name: string): string {
+  return `${name} is a binary file. There is no text diff to show.`;
+}
+
 /** What the store lends the IO layer: read a tab, write a tab. */
 export interface TabIoDeps {
   patch(id: string, patch: Partial<EditorTab>): void;
@@ -65,6 +83,11 @@ export interface TabIo {
   loadContents(id: string, path: string): Promise<void>;
   loadHead(id: string): Promise<void>;
   loadCommitDiff(id: string, commit: OpenFileCommitRef): Promise<void>;
+  /**
+   * Both sides of one file on another machine (Phase 73). No working tree on
+   * this Mac is read, and nothing is written on either computer.
+   */
+  loadRemoteDiff(id: string, remote: OpenFileRemoteRef): Promise<void>;
   /** The working copy of an image (Phase 12.10) — never the text reader. */
   loadImage(id: string, path: string): Promise<void>;
   /** The same image at HEAD — the BEFORE side of the comparison. */
@@ -175,7 +198,7 @@ export function createTabIo(deps: TabIoDeps): TabIo {
       if (pair.binary) {
         deps.patch(id, {
           loading: false,
-          error: `${tab.name} is a binary file — there is no text diff to show.`
+          error: binaryFileNote(tab.name)
         });
         return;
       }
@@ -189,6 +212,80 @@ export function createTabIo(deps: TabIoDeps): TabIo {
       deps.patch(id, {
         loading: false,
         error: errorSentence(err, 'The commit could not be read.')
+      });
+    }
+  };
+
+  /**
+   * A REVIEW tab's two sides (Phase 73, M6, item 4) — the HEAD copy and the
+   * working copy of one file, both read ON THE MACHINE the session runs on.
+   *
+   * It is `loadCommitDiff` with one call swapped, and that is the whole point
+   * of the item: the read-only diff surface, the two content fields, the binary
+   * answer and the error sentences are the ones the editor has had since
+   * Phase 12. `src/renderer/editor/PierreDiff.tsx` is not edited by this phase.
+   *
+   * The two ways this differs from every other loader in this file are worth
+   * stating, because both are safety properties rather than details.
+   *
+   *  1. NO PATH ON THIS MAC IS READ. `tab.path` is a path on another computer.
+   *     Handing it to `fs:readFile` would open whatever this Mac happens to
+   *     hold at that name, which in the phase's own probes is a real file.
+   *  2. The call can REFUSE, and the refusal is a sentence rather than an empty
+   *     tab. Main refuses when Tortie is not connected to that machine, and
+   *     refuses again when the connection changed while the read was in
+   *     flight. Both arrive here as an error with main's own sentence on it.
+   */
+  const loadRemoteDiff = async (
+    id: string,
+    remote: OpenFileRemoteRef
+  ): Promise<void> => {
+    const machines = gmux
+      ? (gmux as typeof gmux & GmuxMachinesExtras).machines
+      : undefined;
+    const tab = deps.byId(id);
+    if (tab === undefined) return;
+    if (machines === undefined || typeof machines.reviewFile !== 'function') {
+      deps.patch(id, {
+        loading: false,
+        error: 'This build cannot show files from another machine.'
+      });
+      return;
+    }
+    try {
+      const pair = await machines.reviewFile({
+        machineId: remote.machineId,
+        repoPath: remote.repoPath,
+        path: tab.relPath,
+        origPath: tab.origRelPath
+      });
+      if (pair.binary) {
+        deps.patch(id, {
+          loading: false,
+          error: binaryFileNote(tab.name)
+        });
+        return;
+      }
+      deps.patch(id, {
+        headContents: pair.oldContents,
+        savedContents: pair.newContents,
+        loading: false,
+        error: null
+      });
+      // The cap is a fact about what is on screen, so it is said once here
+      // rather than drawn as a permanent banner. `truncated` also puts the tab
+      // into its existing read-only state, which a review already is.
+      if (pair.truncated) {
+        deps.patch(id, { truncated: true });
+        if (pair.note !== null) useApp.getState().toast('info', pair.note);
+      }
+    } catch (err) {
+      deps.patch(id, {
+        loading: false,
+        error: errorSentence(
+          err,
+          'That file could not be read on the machine.'
+        )
       });
     }
   };
@@ -264,8 +361,10 @@ export function createTabIo(deps: TabIoDeps): TabIo {
     const tab = deps.byId(id);
     if (!gmux || tab === undefined) return false;
     // History is immutable: ⌘S on a commit tab is a no-op, never a write of
-    // an old revision over the live file.
-    if (tab.commit !== null) return false;
+    // an old revision over the live file. Phase 73: a review tab is refused
+    // here too, and for a stronger reason. Its path names a file on another
+    // computer, so a write would land on whatever this Mac holds at that path.
+    if (tab.commit !== null || tab.remote !== undefined) return false;
     if (tab.deleted || tab.truncated || tab.error !== null) return false;
     const model = getWorkingModel(id);
     if (model === null) return false;
@@ -366,6 +465,7 @@ export function createTabIo(deps: TabIoDeps): TabIo {
     loadContents,
     loadHead,
     loadCommitDiff,
+    loadRemoteDiff,
     loadImage,
     loadImageHead,
     save,

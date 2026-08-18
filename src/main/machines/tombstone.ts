@@ -45,6 +45,14 @@ import { closeControlPlane } from './control-plane';
 // Phase 72, Builder B. Capture is connected only, so a machine nobody can
 // reach any more is a machine nothing is captured from.
 import { stopCapturingMachine } from './remote-capsule';
+// Phase 73, Builder A. Reading an agent's own store on a machine is connected
+// only for the same reason saving is, so a machine nobody can reach any more is
+// a machine nothing is read from. Neither of these deletes anything: a
+// conversation id already on a row is a record of a moment that really
+// happened, and a copy already on this Mac is what a person reads after the
+// machine is gone.
+import { stopHarvestingMachine } from './remote-harvest';
+import { stopSyncingMachine } from './remote-store-sync';
 // Phase 72, Builder A. The one place a remote session meets the manifest.
 import { remoteRecordsForMachine } from './remote-record';
 import { forgetMachineRows } from './remote-sessions';
@@ -88,7 +96,8 @@ export function machineSessionCount(machineId: string): number {
  *  1. `forgetMachineRows` writes one tombstone per manifest row and drops the
  *     rows in memory. It runs FIRST because a tombstone carries the machine's
  *     label, and the label is in the file the caller is about to rewrite.
- *  2. Saving stops for that machine.
+ *  2. Saving stops for that machine, and so does reading its stores and
+ *     copying its conversations (Phase 73).
  *  3. The connection is closed.
  *
  * The CALLER removes the row from `machines.json` after this returns. Nothing
@@ -100,6 +109,8 @@ export function forgetMachineSessions(
 ): MachineForgetOutcome {
   const tombstoned = forgetMachineRows(machineId, now);
   stopCapturingMachine(machineId);
+  stopHarvestingMachine(machineId);
+  stopSyncingMachine(machineId);
   closeControlPlane(machineId);
   return { tombstoned, commandsSent: 0 };
 }

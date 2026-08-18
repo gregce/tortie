@@ -34,6 +34,16 @@
   color: var(--text-secondary);
 }
 
+/* PHASE 73, item 5. The conversation copy line, under the capture time. It is
+   a second statement about a second copy, so it reads as subordinate to the
+   line above it and uses the muted colour rather than the secondary one. */
+.modal.saved-output-modal .saved-output-conversation {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+}
+
 /* Stated, not alarmed (ZEN-OF-TORTIE). Unverified bytes are still worth
    reading and the sentence says what they are. */
 .modal.saved-output-modal .saved-output-warning {

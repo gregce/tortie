@@ -881,6 +881,124 @@ function sourceLines(file: string): { line: number; text: string }[] {
     .map((text, index) => ({ line: index + 1, text: text.trim() }));
 }
 
+// --- Phase 73, conditions 35 to 40 -----------------------------------------
+// Every one of these is pure. The catalogue imports nothing at all, and the
+// door's two composers read no machine, open no file and start nothing.
+const {
+  REMOTE_SCRIPTS,
+  REMOTE_SCRIPT_MARKER,
+  REMOTE_SCRIPT_MAX_BYTES
+} = await import('../src/main/machines/remote-scripts');
+const { composeRemoteScriptCommand, remoteScriptName } = await import(
+  '../src/main/machines/remote-run'
+);
+const { REMOTE_DROP_IMAGES_ONLY: MAIN_DROP_COPY } = await import(
+  '../src/main/machines/remote-copy'
+);
+const { REMOTE_IMAGE_MAX_BYTES } = await import('../src/shared/ipc');
+
+/** A value nothing in this product would ever pass, for the hostile check. */
+const HOSTILE_VALUE = "'; rm -rf ~; touch /tmp/pwned; echo '";
+
+/** Where every `$1` to `$9` sits in one script, and how it is quoted. */
+function positionalsOf(
+  text: string
+): { index: number; at: number; quoting: 'double' | 'single' | 'bare' }[] {
+  const out: { index: number; at: number; quoting: 'double' | 'single' | 'bare' }[] =
+    [];
+  let single = false;
+  let double = false;
+  for (let at = 0; at < text.length; at += 1) {
+    const ch = text[at];
+    if (ch === "'" && !double) {
+      single = !single;
+      continue;
+    }
+    if (ch === '"' && !single) {
+      double = !double;
+      continue;
+    }
+    if (ch !== '$') continue;
+    const next = text[at + 1] ?? '';
+    if (next < '1' || next > '9') continue;
+    out.push({ index: Number(next), at, quoting: single ? 'single' : double ? 'double' : 'bare' });
+  }
+  return out;
+}
+
+const scriptRows = REMOTE_SCRIPTS.map((script) => {
+  const args = Array.from({ length: script.params }, (_, at) =>
+    at === 0 ? HOSTILE_VALUE : `v${String(at + 1)}`
+  );
+  const command = composeRemoteScriptCommand(script, args);
+  const recomposed = shellQuoteArgv([
+    '/bin/sh',
+    '-c',
+    script.text,
+    remoteScriptName(script.id),
+    ...args
+  ]);
+  const markers = script.text.split(REMOTE_SCRIPT_MARKER).length - 1;
+  const lines = script.text.split('\n');
+  return {
+    id: script.id,
+    mode: script.mode,
+    params: script.params,
+    reasonLength: script.reason.length,
+    bytes: script.text.length,
+    text: script.text,
+    firstLine: lines[0] ?? '',
+    secondLine: lines[1] ?? '',
+    markers,
+    carriesBacktick: script.text.includes('`'),
+    positionals: positionalsOf(script.text),
+    command,
+    commandRecomposed: recomposed,
+    scriptInCommandOnce: command.split(shellQuoteArgv([script.text])).length - 1,
+    hostileInScript: script.text.includes(HOSTILE_VALUE),
+    hostileInCommand: command.split(HOSTILE_VALUE).length - 1,
+    hostileQuoted: command.includes(shellQuoteArgv([HOSTILE_VALUE])),
+    // Every `>` that is not part of `2>/dev/null`, with what it aims at.
+    redirects: [...script.text.matchAll(/(?<!2)>\s*([^\s;|)]+)/g)].map(
+      (hit) => hit[1] ?? ''
+    ),
+    // Every git verb the text names, so a later edit cannot add `commit`.
+    gitVerbs: [...script.text.matchAll(/git (?:--no-pager )?([a-z-]+)/g)].map(
+      (hit) => hit[1] ?? ''
+    ),
+    gitVerbIsAValue: /git (?:--no-pager )?"?\$/.test(script.text),
+    // Every command word, for the mutating program check.
+    words: script.text.split(/[\s;|&(){}]+/).filter((word) => word.length > 0)
+  };
+});
+
+/** The one write, composed with a payload of the largest image allowed. */
+const biggestImageCommand = (() => {
+  const write = REMOTE_SCRIPTS.find((script) => script.mode === 'write');
+  if (write === undefined) return { bytes: 0, fits: false };
+  const payload = Buffer.alloc(REMOTE_IMAGE_MAX_BYTES, 7).toString('base64');
+  const command = composeRemoteScriptCommand(write, ['s-1-abcdef0123456789.png', payload]);
+  return { bytes: command.length, fits: command.length <= REMOTE_SCRIPT_MAX_BYTES };
+})();
+
+const runPath = join(machinesDir, 'remote-run.ts');
+const scriptsPath = join(machinesDir, 'remote-scripts.ts');
+const rendererDropRemotePath = join(
+  repoRoot,
+  'src',
+  'renderer',
+  'terminal',
+  'drop',
+  'remote.ts'
+);
+const rendererDropCopy = (() => {
+  const text = readFileSync(rendererDropRemotePath, 'utf8');
+  const match = /export const REMOTE_DROP_IMAGES_ONLY =\n([\s\S]*?);\n/.exec(text);
+  if (match === null) return '';
+  // eslint-disable-next-line no-eval
+  return String(eval(`(${(match[1] ?? '').trim()})`));
+})();
+
 const keyMaterialPath = join(machinesDir, 'key-material.ts');
 const keyInstallPath = join(machinesDir, 'key-install.ts');
 const connectionTestPath = join(machinesDir, 'connection-test.ts');
@@ -1045,6 +1163,37 @@ process.stdout.write(
       join(repoRoot, 'src', 'main', 'harness', 'index.ts'),
       'utf8'
     ).includes("smoke === 'remote-matrix'"),
+
+    // --- Phase 73, conditions 35 to 40 -------------------------------------
+    remoteRun: {
+      marker: REMOTE_SCRIPT_MARKER,
+      maxBytes: REMOTE_SCRIPT_MAX_BYTES,
+      scripts: scriptRows,
+      writers: REMOTE_SCRIPTS.filter((script) => script.mode === 'write').map(
+        (script) => script.id
+      ),
+      biggestImageCommand,
+      imageMaxBytes: REMOTE_IMAGE_MAX_BYTES,
+      // The two copies of one sentence, being main's and the renderer's. Main
+      // refuses the upload and the renderer refuses the drop, neither may
+      // import the other, and this gate is what keeps them one sentence.
+      dropCopyMain: MAIN_DROP_COPY,
+      dropCopyRenderer: rendererDropCopy,
+      // The import graph. `remote-run.ts` rides on `execRemoteShell`, and
+      // nothing that `execRemoteShell` itself depends on may ride back.
+      runImports: importSpecifiers(runPath),
+      scriptsImports: importSpecifiers(scriptsPath),
+      importersOfRun: files
+        .filter((file) =>
+          readFileSync(file, 'utf8').includes("from './remote-run'")
+        )
+        .map((file) => file.slice(machinesDir.length + 1)),
+      shellCallers: files
+        .filter((file) =>
+          readFileSync(file, 'utf8').includes('execRemoteShell(')
+        )
+        .map((file) => file.slice(machinesDir.length + 1))
+    },
 
     // --- Phase 79.1, conditions 28 to 34 -----------------------------------
     keyInstall: {

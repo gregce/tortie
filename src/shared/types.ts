@@ -345,6 +345,22 @@ export interface SessionMachine {
    * sentence is what it prints beside the row when it has one.
    */
   restoreReason: string | null;
+  /**
+   * APPENDED (Phase 73). Epoch ms of the last connected-time copy of this
+   * session's own conversation file, null when there has never been one, and
+   * absent when the producer was not asked.
+   *
+   * IT IS A STALENESS STATEMENT AND NEVER A CURRENCY STATEMENT. A machine that
+   * has been out of reach for a day carries the same number it carried a day
+   * ago, and the sentence a person reads gets older rather than being
+   * refreshed. Tortie never says a conversation is current. It says when it
+   * last copied it, and the person judges.
+   *
+   * A refusal is not a copy. A conversation file too large to bring home
+   * answers null here, and the panel says what happened from the record beside
+   * the bytes rather than from this number.
+   */
+  conversationSyncedAt?: number | null;
 }
 
 /**

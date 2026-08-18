@@ -221,8 +221,12 @@ afterEach(() => {
   rmSync(userData, { recursive: true, force: true });
 });
 
-describe('every channel is registered, and only these thirteen', () => {
-  it('registers exactly the thirteen machines channels', () => {
+describe('every channel is registered, and only the ones listed here', () => {
+  // The list below is the assertion. It used to be titled with a count, and
+  // Phase 73 took the count out of the title rather than moving it: three
+  // builders added channels in one phase and a number in a sentence is a thing
+  // that goes stale between two of them. The array is the fact.
+  it('registers exactly the machines channels this list names', () => {
     expect([...handlers.keys()].sort()).toEqual([
       'machines:add',
       'machines:confirm',
@@ -234,8 +238,20 @@ describe('every channel is registered, and only these thirteen', () => {
       // Phase 69's one new channel. It starts something on another machine, and
       // it is the only channel in the product that does.
       'machines:prepare',
+      // Phase 73's one WRITE, being the image upload. It is listed here by
+      // builder C rather than by the builder who added it, because this file
+      // belongs to no builder in this phase and the list has to name every
+      // channel or it names none.
+      'machines:putImage',
       'machines:reload',
       'machines:remove',
+      // ---- PHASE 73 BLOCK C ----
+      // Two READS of one folder on one machine. Neither writes anything on
+      // either computer, and both refuse while Tortie is not connected to the
+      // machine.
+      'machines:reviewFile',
+      'machines:reviewFiles',
+      // ---- END PHASE 73 BLOCK C ----
       'machines:rows',
       // Phase 71's one new channel. It reads memory in main and answers: no
       // machine is asked anything, no file is opened and nothing is started.

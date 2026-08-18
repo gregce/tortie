@@ -25,12 +25,19 @@
  * the same file seen at two commits is two tabs, neither of which shares (or
  * disposes) the live file's buffer. The rule itself is ./tab-identity.
  *
- * TWO KINDS OF TAB (Phase 12 integration, DESIGN-SPEC S5C):
+ * THREE KINDS OF TAB (Phase 12 integration, DESIGN-SPEC S5C; the third added
+ * by Phase 73):
  *  - worktree (`commit === null`) — LEFT is HEAD (`git:showHead`), RIGHT is
  *    the live buffer; editable, refreshed by the git watcher.
  *  - history  (`commit !== null`) — LEFT and RIGHT both come from
  *    `git:commitFileDiff` (`<sha>^ → <sha>`); IMMUTABLE, so it never reads
  *    the worktree, never saves, and the watcher skips it.
+ *  - review   (`remote !== undefined`, Phase 73) — LEFT and RIGHT both come
+ *    from `machines:reviewFile`, which reads them on ANOTHER COMPUTER. It is
+ *    immutable for the same three reasons as history plus one more: the file
+ *    is not on this Mac, so a save could only ever write over a different
+ *    file. Its identity carries the machine id, so the same path on two
+ *    machines is two tabs.
  * `origRelPath` is the path the LEFT side lives at, which differs from
  * `relPath` for a rename. Without it a renamed file diffs against nothing at
  * its new path and renders as a whole-file addition (Phase 11 carried
@@ -225,8 +232,18 @@ export const useEditor = create<EditorState>((set, get) => {
   const io = createTabIo({
     patch: patchTab,
     byId: tabById,
+    // Phase 73: a REVIEW tab is excluded here for the same reason a history
+    // tab is. Its repository is on another computer, this Mac's watcher knows
+    // nothing about it, and re-running the worktree refresh over one would
+    // replace a file from that machine with whatever this Mac holds at the
+    // same path.
     worktreeTabsIn: (repoPath) =>
-      get().tabs.filter((t) => t.repoPath === repoPath && t.commit === null)
+      get().tabs.filter(
+        (t) =>
+          t.repoPath === repoPath &&
+          t.commit === null &&
+          t.remote === undefined
+      )
   });
 
   // -- closing ---------------------------------------------------------------
@@ -308,7 +325,20 @@ export const useEditor = create<EditorState>((set, get) => {
 
     openFromRequest(req) {
       set({ lastRequest: req });
-      const id = tabIdFor(req);
+      // Phase 73. A review tab's identity carries the MACHINE as well as the
+      // path, so the same path on two machines is two tabs and neither
+      // collides with a file of that path on this Mac. That last collision is
+      // not hypothetical: in the phase's own probes the far side IS this Mac,
+      // so `/tmp/scratch/a.ts` names a real file here as well as there.
+      //
+      // The rule is written here rather than in ./tab-identity.ts because that
+      // file belongs to no builder in this phase and three builders were
+      // writing this tree at once. The integrator moves it, and the answer
+      // does not change when it does.
+      const id =
+        req.remote === undefined
+          ? tabIdFor(req)
+          : `machine:${req.remote.machineId}:${req.relPath}`;
       const now = Date.now();
       const redoubled = lastOpen.id === id && now - lastOpen.at < DOUBLE_OPEN_MS;
       lastOpen = { id, at: now };
@@ -357,7 +387,13 @@ export const useEditor = create<EditorState>((set, get) => {
       // state ("binary file — there is no text diff to show") until an
       // arbitrary-revision image read exists.
       const svg = isSvgPath(req.path);
-      const image = isImagePath(req.path) && (svg || commit === null);
+      // Phase 73: a raster image on another machine is excluded for the same
+      // reason a raster image in a commit is. `fs:readImage` reads this Mac's
+      // working tree and its HEAD, so pointing it at a review tab would draw a
+      // comparison of two files nobody asked about.
+      const image =
+        isImagePath(req.path) &&
+        (svg || (commit === null && req.remote === undefined));
       // Phase 20.5. The predicate is shared with main's preview handler, so
       // "this tab offers Preview" and "the handler will serve it" are one
       // answer. An HTML tab still opens in Source: see the flag's comment.
@@ -379,7 +415,7 @@ export const useEditor = create<EditorState>((set, get) => {
         // clicking a file in a commit means "what did this commit do to it".
         mode: navigate
           ? 'file'
-          : wantsDiff || commit !== null
+          : wantsDiff || commit !== null || req.remote !== undefined
             ? 'diff'
             : markdown
               ? readMarkdownMode()
@@ -390,7 +426,7 @@ export const useEditor = create<EditorState>((set, get) => {
                 : image
                   ? 'image'
                   : 'file',
-        canDiff: wantsDiff || commit !== null,
+        canDiff: wantsDiff || commit !== null || req.remote !== undefined,
         markdown,
         image,
         svg,
@@ -400,6 +436,10 @@ export const useEditor = create<EditorState>((set, get) => {
         imageRevision: 0,
         preview: !keep,
         commit,
+        // Phase 73. Present only for a review of a file on another machine.
+        // Every reader treats it the way it treats `commit`: read only, no
+        // save, no watcher refresh, no read of a working tree on this Mac.
+        ...(req.remote !== undefined ? { remote: req.remote } : {}),
         pendingSelection: navigate ? selection : null,
         // Only ever false while there is a selection waiting to be consumed,
         // so a tab can never get stuck refusing focus: the landing resets it.
@@ -445,7 +485,13 @@ export const useEditor = create<EditorState>((set, get) => {
         return { tabs, activeId: tab.id, panelOpen: true };
       });
 
-      if (commit !== null) {
+      if (req.remote !== undefined) {
+        // Phase 73. One call to main fills BOTH sides, from the machine. The
+        // worktree loaders are deliberately not run: this file is not on this
+        // Mac, and reading a file of the same name here would show a person a
+        // diff of the wrong two things.
+        void io.loadRemoteDiff(id, req.remote);
+      } else if (commit !== null) {
         // One call fills BOTH sides. The worktree loaders are deliberately
         // not run: reading the live file here is exactly the bug item 4 is.
         void io.loadCommitDiff(id, commit);
@@ -555,14 +601,18 @@ export const useEditor = create<EditorState>((set, get) => {
       if (
         mode === 'diff' &&
         tab.commit === null &&
+        tab.remote === undefined &&
         !fileInRepo(tab.repoPath, tab.path)
       ) {
         return;
       }
       patchTab(id, { mode });
       // A history tab's LEFT side only ever comes from its commit — never
-      // fall back to HEAD for it.
-      if (mode === 'diff' && tab.commit === null) {
+      // fall back to HEAD for it. Phase 73: a review tab's LEFT side only ever
+      // comes from the machine, for the stronger version of the same reason.
+      // `git.showHead` runs on THIS Mac, so asking it for a path on another
+      // computer answers about a different file or refuses.
+      if (mode === 'diff' && tab.commit === null && tab.remote === undefined) {
         if (tab.image && !tab.svg) {
           if (tab.imageHead === null) void io.loadImageHead(id);
         } else if (tab.headContents === null) {
@@ -597,7 +647,11 @@ export const useEditor = create<EditorState>((set, get) => {
       // Monaco is read-only on a history tab, so this should never fire —
       // but a dirty commit tab would prompt to save an old revision over the
       // live file on close, which is not a risk worth leaving open.
-      if (tab.commit !== null) return;
+      // Phase 73 widened this by one condition. A review tab is immutable for
+      // a stronger reason than a history tab: the file it shows is not on this
+      // Mac at all, so a save would write over whatever this Mac holds at that
+      // path, which is somebody else's file or nothing.
+      if (tab.commit !== null || tab.remote !== undefined) return;
       const patch: Partial<EditorTab> = { dirty };
       if (dirty && tab.preview) patch.preview = false; // edited → permanent
       patchTab(id, patch);

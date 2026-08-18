@@ -36,6 +36,10 @@
  */
 
 import type { MachineColor } from '../machines';
+// PHASE 73 BLOCK C. The review's per file letter is the one the diff
+// surfaces already speak, so a file on another machine and a file in a
+// commit carry the same vocabulary.
+import type { GitCommitFileState } from '../types';
 
 // ---------------------------------------------------------------------------
 // The rows
@@ -581,6 +585,35 @@ export interface MachinesInvokeChannelMap {
     req: [input: MachineKeyInstallInput];
     res: MachineKeyInstallResult;
   };
+  // ---- PHASE 73 BLOCK B ----
+  // The ONE write this product can make on another computer. It puts image
+  // bytes under that machine's own home directory and answers with the path
+  // there, so a prompt on that machine names a file that machine has. It
+  // refuses while Tortie is not connected to the machine, it refuses a file
+  // whose bytes are not an image, and it refuses a file over the size limit.
+  // Running it twice writes one file, because the name is a checksum of the
+  // bytes and a file that is already there is never opened for writing.
+  'machines:putImage': {
+    req: [input: MachineImagePutInput];
+    res: MachineImagePlacement[];
+  };
+  // ---- END PHASE 73 BLOCK B ----
+  // ---- PHASE 73 BLOCK C ----
+  // Two READS of one folder on one machine, and neither writes anything on
+  // either computer. `reviewFiles` asks git which tracked files differ from
+  // HEAD. `reviewFile` asks for both sides of one of them. Both refuse when
+  // Tortie is not connected to that machine, and both refuse again when the
+  // connection changed while the read was in flight, so an answer can never
+  // outlive the connection that produced it.
+  'machines:reviewFiles': {
+    req: [input: MachineReviewInput];
+    res: MachineReviewList;
+  };
+  'machines:reviewFile': {
+    req: [input: MachineReviewFileInput];
+    res: MachineReviewPair;
+  };
+  // ---- END PHASE 73 BLOCK C ----
 }
 
 /** The one event channel: the connection test's own bytes and its end. */
@@ -627,5 +660,153 @@ export interface GmuxMachinesExtras {
     // on every change after that.
     state(): Promise<MachineStateView[]>;
     onStateChanged(cb: (states: MachineStateView[]) => void): () => void;
+    // ---- PHASE 73 BLOCK B ----
+    // Phase 73. Puts image bytes on one machine and answers with the paths
+    // there. It is the one call in this contract that writes on another
+    // computer.
+    putImage(input: MachineImagePutInput): Promise<MachineImagePlacement[]>;
+    // ---- END PHASE 73 BLOCK B ----
+    // ---- PHASE 73 BLOCK C ----
+    // Phase 73. The read only review. Both calls read and neither writes.
+    reviewFiles(input: MachineReviewInput): Promise<MachineReviewList>;
+    reviewFile(input: MachineReviewFileInput): Promise<MachineReviewPair>;
+    // ---- END PHASE 73 BLOCK C ----
   };
 }
+
+// ---- PHASE 73 BLOCK B ----
+// Putting image bytes on one machine (Phase 73, M6, item 3).
+//
+// WHAT THIS IS FOR. Dropping an image on a session that runs on another
+// machine used to insert THIS Mac's path into the prompt, and that path names
+// nothing on the far side, so the agent there could not read the picture. This
+// call carries the bytes to that machine and answers with the path they landed
+// at, which is what goes into the prompt instead.
+//
+// WHAT IT DOES NOT DO. It carries nothing but images: a folder, a text file and
+// anything whose leading bytes are not an image are all refused, and the file
+// stays on this Mac. It never removes anything on either computer. It writes
+// only under `~/.tortie/images` on the machine, in a directory it creates mode
+// 0700 with files mode 0600.
+
+/**
+ * The largest image this door will carry, in bytes. 90,000.
+ *
+ * IT IS NOT THE LOCAL DROP LIMIT, and the reason is a limit of the carriage
+ * rather than a choice. The bytes travel encoded, inside one command, and that
+ * command reaches the far side as ONE argument of that machine's own login
+ * shell. Linux caps one argument of one program at 131,072 bytes. Encoding adds
+ * a third. So 90,000 bytes of image becomes 120,000 bytes of payload and fits,
+ * and 25 MB, which is what a drop on a session on this Mac accepts, does not
+ * fit by a factor of about 280.
+ *
+ * NOT MEASURED ON LINUX. No Linux machine was contacted by the phase that wrote
+ * this. The 131,072 is the kernel's own documented constant. The far side in
+ * every probe was this Mac, whose limit is 1,048,576 bytes on the whole
+ * invocation rather than on one argument.
+ *
+ * A larger image is refused with a sentence naming this number, and it is
+ * refused on this Mac before anything is sent.
+ */
+export const REMOTE_IMAGE_MAX_BYTES = 90_000;
+
+/** Which images go to which machine, for which session. */
+export interface MachineImagePutInput {
+  machineId: string;
+  /** The session the images are for. It names the files on the far side. */
+  sessionId: string;
+  /** Absolute paths ON THIS MAC. Every one is read and sniffed before it goes. */
+  paths: string[];
+}
+
+/** What happened to one image. One of these per path, in the order asked. */
+export interface MachineImagePlacement {
+  /** The path on this Mac that was read. */
+  localPath: string;
+  /** The absolute path on the machine, or null when nothing was written. */
+  remotePath: string | null;
+  /**
+   * What the machine reported doing.
+   *
+   * 'added' means the file was written. 'present' means a file of that name was
+   * already there and nothing was written, which is the ordinary answer for the
+   * same image sent twice. Null means nothing was written and `refusal` says
+   * why.
+   */
+  outcome: 'added' | 'present' | null;
+  /** One sentence when nothing was written. Null when something was. */
+  refusal: string | null;
+}
+// ---- END PHASE 73 BLOCK B ----
+
+// ---- PHASE 73 BLOCK C ----
+// The read only review of a folder on one machine (Phase 73, M6, item 4).
+//
+// WHAT THESE SHAPES ARE FOR. A person with a session on another machine can
+// read what changed in that session's folder without leaving Tortie. The two
+// answers below fill the diff tab the editor has drawn since Phase 12, through
+// the same two fields a commit tab fills. No new surface is drawn for them,
+// which was the condition research 51 section 6 put on this item.
+//
+// WHAT NEITHER OF THEM DOES. Neither writes a byte on either computer. Neither
+// reads a working tree on this Mac. Neither can be reached while Tortie is not
+// connected to the machine. The git subcommand is inside Tortie's own script
+// text on the far side and is never a value either of these carries, so no
+// caller can turn a review into a commit.
+
+/** Which folder on which machine a review is about. */
+export interface MachineReviewInput {
+  machineId: string;
+  /** The folder ON THAT MACHINE. It is never a path on this Mac. */
+  cwd: string;
+}
+
+/** One changed file in a review. */
+export interface MachineReviewFile {
+  /** Repository relative path, being the NEW path for a rename. */
+  path: string;
+  /** The pre-rename path, or null for the ordinary case. */
+  origPath: string | null;
+  /** The letter git printed, reused as the existing GitCommitFileState. */
+  status: GitCommitFileState;
+}
+
+/** What one repository on one machine has changed since its last commit. */
+export interface MachineReviewList {
+  machineId: string;
+  /** The machine's own label, so a surface never composes one. */
+  machineLabel: string;
+  /** The repository root THAT MACHINE reported. Empty when there is none. */
+  repoPath: string;
+  files: MachineReviewFile[];
+  /** How many changed files there were, when only the first ones are listed. */
+  total: number;
+  /** One sentence when there is nothing to show. Null when there is. */
+  note: string | null;
+}
+
+/** Which file on which machine both sides are wanted for. */
+export interface MachineReviewFileInput {
+  machineId: string;
+  /** The repository root, as `machines:reviewFiles` reported it. */
+  repoPath: string;
+  /** Repository relative path. */
+  path: string;
+  /** The pre-rename path, or null. A rename is read at both paths. */
+  origPath: string | null;
+}
+
+/** Both sides of one file on one machine. */
+export interface MachineReviewPair {
+  /** The HEAD copy. Empty when the file is not in the last commit. */
+  oldContents: string;
+  /** The working copy. Empty when the file was deleted. */
+  newContents: string;
+  /** True when either side holds a zero byte in its first 8 KB. */
+  binary: boolean;
+  /** True when a side was cut at the cap. */
+  truncated: boolean;
+  /** The sentence for a side that was cut, or null. */
+  note: string | null;
+}
+// ---- END PHASE 73 BLOCK C ----

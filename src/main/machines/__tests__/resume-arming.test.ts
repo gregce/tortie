@@ -9,19 +9,20 @@
  *     every confidence and every argv length. `src/main/restore/restore.ts` is
  *     untouched by this phase, and this is the assertion that says the new gate
  *     cannot reach it either.
- *  2. A remote row never arms in this release. Every remote row records
- *     `remote-not-collected`, and the arm that says yes has no producer. The
- *     last test drives that arm with a hand written record, so the gate is
- *     proven in both directions rather than only in the direction the product
- *     can currently reach.
+ *  2. A remote row arms only on a record that was proved on the machine being
+ *     restored on. When this file was written no producer wrote such a record,
+ *     and Phase 73's connected time store harvest is now that producer for one
+ *     agent of the thirteen, being muse. The tests below drive both directions
+ *     with hand written records, which is what kept the gate honest before the
+ *     producer existed and is what keeps it honest now.
  *
  * PHASE 72 FIX ROUND. The order of two arms moved and a fact was added. The
  * first cut asked whether the row had a resume command before it asked
- * anything else, and every remote row this build writes has none, so every
- * remote row answered `nothing-to-arm` and the `not-collected` arm was reached
- * by no row at all. What decides now is whether the session's agent keeps a
- * conversation, which the caller supplies, and the empty command is asked about
- * only after the provenance has had its say.
+ * anything else, and at that time no remote row had one, so every remote row
+ * answered `nothing-to-arm` and the `not-collected` arm was reached by no row
+ * at all. What decides now is whether the session's agent keeps a conversation,
+ * which the caller supplies, and the empty command is asked about only after
+ * the provenance has had its say.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -127,10 +128,10 @@ describe('a row on another machine', () => {
     expect(verdict.refusal).toBe('not-collected');
     expect(verdict.reason).toBe(RESUME_NOT_COLLECTED);
     expect(RESUME_NOT_COLLECTED).toBe(
-      'Tortie has no conversation id for this session, because it does not ' +
-        "read an agent's own files on another machine yet. The session comes " +
-        'back with its folder and its program. The conversation does not come ' +
-        'back.'
+      "Tortie has no conversation id for this session. It reads an agent's " +
+        'own files on a machine only while it is connected to that machine, ' +
+        'and it did not get one for this session. The session comes back with ' +
+        'its folder and its program. The conversation does not come back.'
     );
   });
 
@@ -149,13 +150,13 @@ describe('a row on another machine', () => {
   });
 
   /**
-   * THE ARM EVERY REMOTE AGENT ROW TAKES, and the reason the order moved.
+   * THE ARM EVERY UNPROVED REMOTE AGENT ROW TAKES, and the reason the order
+   * moved.
    *
-   * Every remote row this build writes has a NULL resume command, because
-   * collecting one on another machine is M6. The empty command is the symptom
-   * of that rather than evidence that there was nothing to collect, so the
-   * provenance is asked first and the person is told their conversation is not
-   * coming back.
+   * A remote row the harvest could not prove an id for has a NULL resume
+   * command. The empty command is the symptom of that rather than evidence that
+   * there was nothing to collect, so the provenance is asked first and the
+   * person is told their conversation is not coming back.
    */
   it('names the cause rather than the symptom on a row with no command yet', () => {
     const verdict = resumeArmingVerdict({
@@ -215,10 +216,10 @@ describe('a row on another machine', () => {
     }
   });
 
-  it('arms only for a record no producer writes in this release', () => {
-    // The arm that says yes. Nothing in the product can produce this record,
-    // because reading an agent's own files on another machine is M6. It is
-    // driven by hand so the gate is proven in both directions.
+  it('arms for a record whose id was proved on the machine in hand', () => {
+    // The arm that says yes. It is driven by hand here, which is how it was
+    // proven before Phase 73 built its first producer. The live producer is
+    // driven end to end by the remote-sessions smoke, step 10f.
     const verdict = resumeArmingVerdict({
       ...base,
       provenance: provenance('store-harvest', 'exact', 'studio')

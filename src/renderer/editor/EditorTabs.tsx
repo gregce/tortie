@@ -17,6 +17,7 @@ import { keyDisplay } from '@shared/keymap';
 import { useApp } from '../state/store';
 import type { MenuItemSpec } from '../state/store';
 import { showNativeMenu } from '../app/ContextMenu';
+import { tabTooltipIdentity } from './tab-identity';
 import { canReveal, reveal } from '../tree/fs-bridge';
 import { Codicon, FileIcon } from '../icons';
 import { useEditor } from './store';
@@ -104,16 +105,10 @@ function TabButton({
     if (active) ref.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }, [active]);
 
-  const identity =
-    tab.commit !== null
-      ? `${tab.relPath} — ${tab.commit.shortSha}${
-          tab.commit.subject !== undefined ? ` · ${tab.commit.subject}` : ''
-        }`
-      : tab.deleted
-        ? 'Deleted on disk'
-        : tab.mode === 'diff' && tab.canDiff
-          ? `${tab.name} — changes vs HEAD`
-          : tab.path;
+  // Five answers, one per kind of tab, and they live in ./tab-identity.ts so a
+  // test can read them without rendering the strip. A REVIEW tab is the first
+  // one asked about, because its `path` is a path on another computer.
+  const identity = tabTooltipIdentity(tab);
 
   // The italic slant is the only thing on screen saying this tab is on loan,
   // and italics teach nobody (Phase 12.4). The tooltip says what it is AND

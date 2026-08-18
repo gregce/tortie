@@ -14,7 +14,7 @@
  * no tmux server, no Electron, no manifest, no file under the person's home, no
  * request and no write anywhere. Safe on a machine with live sessions on it.
  *
- * THE THIRTY FOUR CONDITIONS IT FAILS ON. Each one is a way a person's agreement
+ * THE FORTY CONDITIONS IT FAILS ON. Each one is a way a person's agreement
  * could come to cover something they did not read, a way a refusal could quietly
  * stop being a refusal, or (from 11 on) a way a command Tortie sends to another
  * machine could come to land somewhere nobody chose.
@@ -131,6 +131,28 @@
  *     manifest or the sealed confirmation record, or names `safeStorage` in code.
  *     The password a person types crosses one call and is kept nowhere, and this
  *     is the condition that makes that a property of the import graph.
+ * 35. The remote script catalogue holds a duplicate id, a row with a thin
+ *     reason, a script that does not begin `set -e` and then `umask 077`, a
+ *     script with an odd number of markers, or a number of write scripts that
+ *     is not exactly one.
+ * 36. A script text carries a backtick, reads a positional parameter beyond its
+ *     declared count, never reads one it declares, or reads one that is not
+ *     inside double quotes.
+ * 37. A composed command is not the output of one `shellQuoteArgv` call over an
+ *     argv array, does not carry the script text exactly once as one quoted
+ *     argument, or carries a hostile value anywhere other than once in the
+ *     quoted tail. Also fails when the value appears inside the script text.
+ * 38. A `read` script names a program that can remove or replace a file, or
+ *     carries a `>` that is not part of `2>/dev/null`. A git script names a
+ *     verb other than `rev-parse`, `status` and `show`, or takes its verb from
+ *     a parameter. The one `write` script aims a redirection at anything other
+ *     than its temporary name, or does not move that name into place.
+ * 39. The two copies of the drop refusal, being main's and the renderer's, are
+ *     not byte identical. Also fails when the largest image the contract allows
+ *     composes a command longer than one argument of a Linux login shell.
+ * 40. `remote-scripts.ts` imports anything at all, or `carriage.ts`,
+ *     `context.ts`, `exec-plane.ts` or `control-plane.ts` imports the door.
+ *     `execRemoteShell` is called from a file that is not on the named list.
  *
  * WHAT IT DOES NOT PROVE, stated so nobody reads more into a pass. The record
  * is sealed through `safeStorage`, which needs an Electron process, so this
@@ -145,6 +167,13 @@
  * password is typed and nothing is written to any machine. That is
  * `npm run probe:keyinstall`, which drives the real client and a real scratch
  * server on 127.0.0.1.
+ *
+ * Conditions 35 to 40 read the TEXT of the seven scripts Tortie may run on
+ * another machine, and the composed command for each. Nothing is sent, no
+ * machine is asked anything, and no image is written anywhere. What they prove
+ * is that the text has the properties the header of
+ * `src/main/machines/remote-scripts.ts` claims for it. That a machine RUNS them,
+ * and that the bytes arrive whole, is `node build/probe-remote-image.mjs`.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -2049,6 +2078,317 @@ process.stdout.write(
 );
 
 // ---------------------------------------------------------------------------
+// 35 to 40. Phase 73. The second door, and the seven scripts it may send
+// ---------------------------------------------------------------------------
+//
+// The exec plane carries tmux verbs and its ledger decides which. This door
+// carries one of Tortie's own constant scripts on the far side's LOGIN SHELL,
+// and a login shell runs anything. So the discipline here is stronger than the
+// ledger's: the script is a compiled constant, the values reach the far side as
+// positional parameters, and no script text is composed at run time.
+//
+// Every check below reads the text. None of them sends anything.
+
+const scriptVerdicts = [];
+const run = data.remoteRun ?? {};
+const scripts = run.scripts ?? [];
+
+/** Programs that can remove or replace something a person already had. */
+const MUTATING_PROGRAMS = [
+  'rm',
+  'mv',
+  'cp',
+  'mkdir',
+  'touch',
+  'chmod',
+  'chown',
+  'ln',
+  'dd',
+  'tee',
+  'truncate'
+];
+
+/** The only git verbs any script in the catalogue may name. */
+const ALLOWED_GIT_VERBS = ['rev-parse', 'status', 'show'];
+
+{
+  // 35. The catalogue's shape.
+  if (scripts.length === 0) {
+    fail(
+      'the remote script catalogue is empty, so either it went away or this ' +
+        'gate stopped reading it. Either way nothing below is checking anything.'
+    );
+  }
+  const ids = scripts.map((row) => row.id);
+  if (new Set(ids).size !== ids.length) {
+    fail(
+      `two remote scripts share an id: ${ids.join(', ')}. The door looks a ` +
+        `script up by name, so two of one name is two answers to one question.`
+    );
+  }
+  const writers = run.writers ?? [];
+  if (writers.length !== 1 || writers[0] !== 'image-put') {
+    fail(
+      `${String(writers.length)} script(s) in the catalogue write, being ` +
+        `${writers.join(', ') || 'none'}. Exactly one may, and it is image-put. ` +
+        `This is the number that bounds what Tortie can do to another person's ` +
+        `computer.`
+    );
+  }
+  for (const row of scripts) {
+    if (row.reasonLength < 30) {
+      fail(
+        `remote script ${row.id} carries a ${String(row.reasonLength)} ` +
+          `character reason for why running it twice is safe. A verb ledger row ` +
+          `has to say it and so does this.`
+      );
+    }
+    if (row.firstLine !== 'set -e' || row.secondLine !== 'umask 077') {
+      fail(
+        `remote script ${row.id} begins ${JSON.stringify(row.firstLine)} then ` +
+          `${JSON.stringify(row.secondLine)}. Every one begins set -e and then ` +
+          `umask 077, so a failure stops the script and a file it creates is ` +
+          `not readable by another account on that machine.`
+      );
+    }
+    if (row.markers === 0 || row.markers % 2 !== 0) {
+      fail(
+        `remote script ${row.id} prints ${String(row.markers)} marker(s). An ` +
+          `odd count is a pair that was opened and never closed, and an answer ` +
+          `read out of that is everything the far side printed after it.`
+      );
+    }
+  }
+}
+
+{
+  // 36. The text is a constant, and every value it reads is quoted.
+  for (const row of scripts) {
+    if (row.carriesBacktick) {
+      fail(
+        `remote script ${row.id} carries a backtick. Script text is a compiled ` +
+          `constant, and a backtick is how a value becomes script on the other ` +
+          `machine.`
+      );
+    }
+    const read = new Set((row.positionals ?? []).map((one) => one.index));
+    for (let at = 1; at <= row.params; at += 1) {
+      if (read.has(at)) continue;
+      fail(
+        `remote script ${row.id} declares ${String(row.params)} value(s) and ` +
+          `never reads $${String(at)}. A declared value nothing reads is a value ` +
+          `nothing checks.`
+      );
+    }
+    for (const one of row.positionals ?? []) {
+      if (one.index > row.params) {
+        fail(
+          `remote script ${row.id} reads $${String(one.index)} and declares ` +
+            `${String(row.params)} value(s), so it reads a value no caller was ` +
+            `asked for.`
+        );
+      }
+      if (one.quoting !== 'double') {
+        fail(
+          `remote script ${row.id} reads $${String(one.index)} at byte ` +
+            `${String(one.at)} ${one.quoting === 'bare' ? 'unquoted' : 'inside single quotes'}. ` +
+            `An unquoted one turns a path with a space into two arguments, and a ` +
+            `single quoted one is text rather than the value.`
+        );
+      }
+    }
+    scriptVerdicts.push({
+      id: row.id,
+      mode: row.mode,
+      params: String(row.params),
+      bytes: String(row.bytes),
+      quoting: (row.positionals ?? []).every((one) => one.quoting === 'double')
+        ? 'all quoted'
+        : 'NOT ALL QUOTED'
+    });
+  }
+}
+
+{
+  // 37. One quoting call, over a list, and the value travels as an argument.
+  for (const row of scripts) {
+    if (row.command !== row.commandRecomposed) {
+      fail(
+        `the command for ${row.id} is not the output of one shellQuoteArgv call ` +
+          `over an argv array.\n      composed    ${JSON.stringify(row.command.slice(0, 120))}` +
+          `\n      recomposed  ${JSON.stringify(row.commandRecomposed.slice(0, 120))}`
+      );
+    }
+    if (row.scriptInCommandOnce !== 1) {
+      fail(
+        `the script text of ${row.id} appears ${String(row.scriptInCommandOnce)} ` +
+          `time(s) as one quoted argument of its command, and it must appear ` +
+          `exactly once.`
+      );
+    }
+    if (row.hostileInScript) {
+      fail(
+        `a caller's value reached the script text of ${row.id}. Values are ` +
+          `positional parameters and never script.`
+      );
+    }
+    if (row.params === 0) continue;
+    if (row.hostileInCommand !== 1) {
+      fail(
+        `a hostile value appears ${String(row.hostileInCommand)} time(s) in the ` +
+          `command for ${row.id} and it must appear exactly once, as an argument.`
+      );
+    }
+    if (!row.hostileQuoted) {
+      fail(
+        `a hostile value is not quoted in the command for ${row.id}, so the far ` +
+          `side's shell would read it as more than one thing.`
+      );
+    }
+  }
+}
+
+{
+  // 38. A read script reads. The one write aims every redirection at a
+  //     temporary name and then moves it.
+  for (const row of scripts) {
+    if (row.mode === 'read') {
+      const named = (row.words ?? []).filter((word) =>
+        MUTATING_PROGRAMS.includes(word)
+      );
+      if (named.length > 0) {
+        fail(
+          `read script ${row.id} names ${[...new Set(named)].join(', ')}, which ` +
+            `can remove or replace something the person already had.`
+        );
+      }
+      if ((row.redirects ?? []).length > 0) {
+        fail(
+          `read script ${row.id} redirects to ${row.redirects.join(', ')}. The ` +
+            `only redirection a read may carry is 2>/dev/null, and a read that ` +
+            `writes is not a read.`
+        );
+      }
+    } else {
+      const targets = row.redirects ?? [];
+      if (targets.length === 0) {
+        fail(
+          `write script ${row.id} carries no redirection at all, so this gate ` +
+            `cannot tell what it writes to.`
+        );
+      }
+      for (const target of targets) {
+        if (target === '"$t"') continue;
+        fail(
+          `write script ${row.id} redirects to ${target}. Every redirection has ` +
+            `to aim at the temporary name, so a link that dies halfway leaves a ` +
+            `part file rather than half an image under the real name.`
+        );
+      }
+      if (!row.text.includes('mv "$t" "$f"')) {
+        fail(
+          `write script ${row.id} does not move its temporary name into place, ` +
+            `so either it writes the real name directly or it leaves the part ` +
+            `file behind.`
+        );
+      }
+      if (!row.text.includes('if [ -f "$f" ]; then')) {
+        fail(
+          `write script ${row.id} does not check whether the file is already ` +
+            `there. That check is what makes the one write in this product safe ` +
+            `to run twice.`
+        );
+      }
+    }
+    for (const verb of row.gitVerbs ?? []) {
+      if (ALLOWED_GIT_VERBS.includes(verb)) continue;
+      fail(
+        `remote script ${row.id} runs git ${verb}. The three verbs a script may ` +
+          `name are ${ALLOWED_GIT_VERBS.join(', ')}, and anything else turns a ` +
+          `review into something that changes a repository.`
+      );
+    }
+    if (row.gitVerbIsAValue) {
+      fail(
+        `remote script ${row.id} takes its git verb from a parameter. The verb ` +
+          `is part of the text so no caller can choose it.`
+      );
+    }
+  }
+}
+
+{
+  // 39. One sentence in two places, and one limit that has to fit.
+  if (run.dropCopyRenderer === '') {
+    fail(
+      'the renderer copy of the drop refusal could not be read out of ' +
+        'src/renderer/terminal/drop/remote.ts, so this gate is not comparing ' +
+        'anything.'
+    );
+  } else if (run.dropCopyMain !== run.dropCopyRenderer) {
+    fail(
+      `the two copies of the drop refusal have drifted apart.\n      main      ` +
+        `${JSON.stringify(run.dropCopyMain)}\n      renderer  ${JSON.stringify(
+          run.dropCopyRenderer
+        )}`
+    );
+  }
+  const biggest = run.biggestImageCommand ?? {};
+  if (!biggest.fits) {
+    fail(
+      `the largest image the contract allows, being ` +
+        `${String(run.imageMaxBytes)} bytes, composes a command of ` +
+        `${String(biggest.bytes)} bytes and one argument of a Linux login shell ` +
+        `is ${String(run.maxBytes)}. Every upload of that size would fail on a ` +
+        `machine nobody measured.`
+    );
+  }
+}
+
+{
+  // 40. The import graph, because a cycle here is a door that can be opened
+  //     from inside the room it guards.
+  if ((run.scriptsImports ?? []).length > 0) {
+    fail(
+      `remote-scripts.ts imports ${run.scriptsImports.join(', ')}. It is pure ` +
+        `data and it imports nothing, so nothing it holds can depend on a ` +
+        `connection, a record or a manifest row.`
+    );
+  }
+  const FORBIDDEN_IMPORTERS = [
+    'carriage.ts',
+    'context.ts',
+    'exec-plane.ts',
+    'control-plane.ts'
+  ];
+  for (const file of run.importersOfRun ?? []) {
+    if (!FORBIDDEN_IMPORTERS.includes(file)) continue;
+    fail(
+      `${file} imports the door in remote-run.ts, and the door imports it. Two ` +
+        `modules importing each other is safe only while neither reads the ` +
+        `other's binding while its own body runs, and this pair cannot promise ` +
+        `that.`
+    );
+  }
+  const ALLOWED_SHELL_CALLERS = [
+    'exec-plane.ts',
+    'prepare.ts',
+    'remote-argv.ts',
+    'remote-path.ts',
+    'remote-run.ts'
+  ];
+  for (const file of run.shellCallers ?? []) {
+    if (ALLOWED_SHELL_CALLERS.includes(file)) continue;
+    fail(
+      `${file} calls execRemoteShell. A command that crosses to a machine goes ` +
+        `through the ledger in exec-plane.ts or the catalogue in ` +
+        `remote-scripts.ts, and a fifth caller composing its own string is ` +
+        `neither.`
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Phase 69's tables
 // ---------------------------------------------------------------------------
 
@@ -2225,6 +2565,42 @@ process.stdout.write(
     `tried and every one produced no argv at all. ` +
     `${String((key.hostilePaths ?? []).length)} hostile machine id(s) all landed ` +
     `inside ${String(key.keyDir)}.\n`
+);
+
+// ---------------------------------------------------------------------------
+// Phase 73's table
+// ---------------------------------------------------------------------------
+
+process.stdout.write('\nremote script   mode   values  bytes  quoting\n');
+process.stdout.write('-'.repeat(56) + '\n');
+for (const row of scriptVerdicts) {
+  process.stdout.write(
+    `${pad(row.id, 15)} ${pad(row.mode, 6)} ${pad(row.params, 7)} ${pad(
+      row.bytes,
+      6
+    )} ${row.quoting}\n`
+  );
+}
+process.stdout.write(
+  `${String((run.writers ?? []).length)} of ${String(
+    (run.scripts ?? []).length
+  )} script(s) write, being ${(run.writers ?? []).join(', ')}. Nothing else ` +
+    `Tortie sends to a machine can change a byte there.\n`
+);
+process.stdout.write(
+  `the largest image the contract allows is ${String(
+    run.imageMaxBytes
+  )} bytes, which composes a ${String(
+    run.biggestImageCommand?.bytes
+  )} byte command against a ${String(run.maxBytes)} byte limit on one argument ` +
+    `of a Linux login shell. That limit is the kernel's own constant and it was ` +
+    `NOT measured here, because no Linux machine was contacted.\n`
+);
+process.stdout.write(
+  `execRemoteShell is called from ${String(
+    (run.shellCallers ?? []).length
+  )} file(s): ${(run.shellCallers ?? []).join(', ')}. The door in remote-run.ts ` +
+    `is the only one that sends a catalogue script.\n`
 );
 
 if (failures.length > 0) {
