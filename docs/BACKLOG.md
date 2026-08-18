@@ -5983,6 +5983,387 @@ all three after a successful run.
 needs `SSH_AUTH_SOCK` exported from the Phase 69 carriage file because the npm script does not
 export it. That gate runnability defect is itself a recorded nit.
 
+## The remote reliability round, queued 2026-08-18 from research 54
+
+**The operator made contact with his Mac Pro and it runs tmux 3.7c from Homebrew.** He has ONE
+machine, not four. The four machine figure in research 51 was a specification device and the record
+is corrected here so no later round designs for a fleet that does not exist.
+
+Research 54 read the whole remote ladder after it shipped and found 26 things wrong across five
+families. This round takes the ones that lose work, the ones that block the workflow, and the one
+question the operator asked directly. Run them in this order and do not reshuffle without asking.
+
+| Order | Item | Tier | Gated on |
+| --- | --- | --- | --- |
+| 1 | **83** mac-pro is a machine Tortie will speak to, and the harness that proves it | 3 | nothing. It gates the rest |
+| 2 | **Research 55** a project folder that lives on another machine | — | 83, for the latency number |
+| 2 | **84** getting a session to exist over there, and ending it honestly | 3 and 2 per item | 83, for three measurements |
+| 3 | **85** the status dot tells the truth on a connected machine | 3 | 83, for the `#{session_activity}` measurement |
+| 3 | **81** the session list stops waiting for your shell | 3 | nothing. Different domain, runs beside 85 |
+
+**Two decisions the operator made on 2026-08-18, binding on these phases.**
+
+1. **The create sheet keeps resetting to This Mac.** The last machine is NOT remembered per project.
+   The reset is deliberate, so one Cmd-T and one Return cannot start a process on another computer.
+2. **Design the version gate for more than the Homebrew case.** His words. Adding 3.7c to a list is
+   half an answer. Phase 83 carries the other half.
+
+**Not queued, deliberately, and each says why.**
+
+| Not queued | Why |
+| --- | --- |
+| Machine aware Explorer and git over ssh | The largest item in research 54. Research 55 decides its shape first |
+| A "Files live on <machine>" label on the workspace surfaces | Research 55 may replace the design this label describes. It rules on whether the label is a phase |
+| `needs input` for a remote session | The oracles read local disk. A partial answer exists through codex's title oracle and it is recorded in Phase 85, not built |
+| **82** cross-machine conversation reconstruction | The operator's stated destination. It sits on top of all of the above and it needs a real machine with a real agent, which Phase 83 provides for the first time |
+
+## Phase 83 — mac-pro is a machine Tortie will speak to, and the harness that proves it (operator queued 2026-08-18) QUEUED
+
+**Subject:** `feat(machines): a version Tortie measured, and the harness that measured it`
+**First body line:** `Phase 83: mac-pro is a machine Tortie will speak to`
+**Semver:** minor.
+**Tier 3.** It decides whether anything runs on another machine at all, and the failure it exists to
+prevent is a hang rather than an error.
+
+### Why the machine is refused today
+
+`decideRemoteVersionGate` at `src/main/tmux/version.ts:234` accepts a version only when its exact
+string is in `TESTED_REMOTE_TMUX_VERSIONS`, which holds `3.6a` and `3.7b`. The Mac Pro reports
+`3.7c`, so it is refused and nothing starts on it.
+
+The refusal is correct and it is not pedantry. The measurement at the top of that same file records
+what a mismatch does.
+
+```
+client 3.7b -> server 3.6a                 answers "3.6a", exit 0
+client 3.5a -> server 3.7b                 "server exited unexpectedly", exit 1
+client 3.7b -> server 3.5a, control mode   prints %exit and then HANGS
+```
+
+A newer server against an older client is the direction that fails, and in control mode it hangs
+rather than erroring. Tortie ships 3.7b as its client and mac-pro runs 3.7c as its server. That is
+that direction, one patch letter apart, and nobody has measured it.
+
+### What a person gets
+
+The Mac Pro passes Prepare and holds sessions. The next machine, whatever it runs, gets an honest
+answer rather than a refusal only a code change can lift.
+
+### Half one, measure 3.7c
+
+Build a 3.7c binary the way `build/build-tmux.mjs` already builds the pin, then run the two probes
+that earned the existing rows. `npm run probe:execplane` reads the four exec shapes and
+`npm run probe:controldialect` compares the eight control mode steps, both with the shipping 3.7b as
+the client. Only then add the row, with its measured pair and its date.
+
+**The row must name what it measured.** The operator's binary is Homebrew's. A patched distribution
+build is not the same subject as an upstream tarball, and a row that does not say which one it read
+is a row the next reader cannot trust.
+
+### Half two, make the failure safe so the list stops being load bearing
+
+The operator's instruction is to design this for more than the Homebrew case. Growing a list of
+exact strings forever is not resilient, because the person with the next version is refused until
+somebody visits their machine. The list exists for one reason, which is that control mode hangs
+across a broken boundary. So the durable fix is to make a hang impossible.
+
+1. **The control attach gets a deadline.** A version that does not complete the greeting inside it
+   falls back to the timer feed Phase 70 shipped, which is slower and correct, rather than freezing.
+2. **An unmeasured version becomes something the person can accept**, through the machine's existing
+   confirm agreement rather than a new surface. The agreement already binds the id, host, user, port
+   and remote tmux path. It gains the version it was accepted against, so accepting 3.8a does not
+   silently carry to 3.9a. The copy says plainly what is unmeasured and what happens if it is wrong.
+3. **The two gates stay separate.** A version accepted for the exec plane is not accepted for the
+   control plane, exactly as `decideRemoteControlGate` already holds them apart.
+
+Refusal 8 in CLAUDE.md governs half two. A human confirms, out of band of any agent turn, and the
+agreement is bound to a hash of the fields that decide what runs. A tmux version is such a field, so
+`conformance:machines` gains a case proving the hash moves for it.
+
+**What must NOT be built.** No version range arithmetic and no "close enough" comparison. Four data
+points do not make a rule, and the one measured failure is one minor version apart.
+
+### The harness, and it is the other half of the phase
+
+`build/scratch-machine.mjs:24` says it in capitals: IN EVERY HARNESS THAT USES THIS, THE REMOTE
+MACHINE IS THIS MAC. Every remote number Tortie has recorded came from a loopback sshd, and every
+harness passes `/tmp` as the folder, which exists on both sides, so the one case where two machines
+disagree about a path is the case the topology cannot produce.
+
+This phase adds a second carriage that points the existing probe suite at a named real host. It is
+opt in by environment variable, it never runs in CI, and it refuses to run against any host but the
+one the operator names.
+
+**The five unknowns it must close, from research 54 section 7.**
+
+1. **What PATH a pane gets on the far machine.** Read `printenv PATH` inside a remote pane. It
+   decides whether launch by bare name works at all, and it is unmeasured for every machine.
+2. **What the far tmux does with `new-session -c <a path that is not there>`.**
+   `REMOTE_DIR_MISSING` appears at four places in source and zero places in any test, and the
+   refusal rests on one untested regular expression against tmux's own error text.
+3. **What `#{session_activity}` reports.** `src/main/activity/panes.ts:11` says it tracks clients,
+   that it froze at attach time while output flowed, and that it is deliberately absent from the
+   local format. `src/main/machines/remote-sessions.ts:76` says it is evidence the session printed
+   something. Two modules in one tree disagree and only one carries a measurement.
+4. **What a reboot does to the tmux socket directory on macOS.** Finding 9 of research 54 is stated
+   as two branches because nobody measured it.
+5. **The far side's sshd channel ceiling.** OpenSSH defaults `MaxSessions` to 10 channels on one
+   connection. A machine's steady state is one control child, one attach per visible session, and
+   one short lived process per command. No file in this tree mentions it.
+
+**Answers 1, 2 and 3 are inputs to Phase 84 and Phase 85, and neither can be specced honestly
+without them.**
+
+### Safety, and it is not negotiable
+
+The far side is the operator's own machine with his own work on it. Every rule in
+docs/method/HOW-WE-DROVE-THIS.md applies, with one addition. Nothing this harness runs may kill,
+rename or reconfigure a session it did not create, on either side. Scratch sessions carry the `zz-`
+prefix and are killed by exact name. The harness lists the far machine's sessions before and after
+and prints the diff, and any difference other than its own scratch rows is a FAIL.
+
+### The evidence this phase must produce
+
+- The four exec shapes and the eight control steps for 3.7c, printed, against a real 3.7c binary.
+- The same two probes run against mac-pro itself, with the answers compared against the local 3.7c
+  measurement. A difference is reported rather than smoothed over.
+- A session created on mac-pro, attached, typed into and read back. This has never happened.
+- The five unknowns answered, each with the command that answered it and that command's output.
+- **A hang proven impossible.** Point the control attach at a deliberately broken pair and show it
+  falls back to the timer feed inside the deadline instead of freezing. This is the Tier 3 proof and
+  the phase does not ship without it.
+- The far machine's session list before and after, identical apart from the scratch rows.
+
+### What must not regress
+
+The local path and the loopback carriage, because the loopback carriage is what CI runs.
+`npm run smoke:t1`, `smoke:t3`, `smoke:remote`, `smoke:execplane` and `conformance:machines` all stay
+green.
+
+## Phase 84 — getting a session to exist over there, and ending it honestly (operator queued 2026-08-18) QUEUED
+
+**Subject:** `feat(machines): a remote session is created, ended and removed honestly`
+**First body line:** `Phase 84: getting a session to exist over there, and ending it honestly`
+**Semver:** minor, because item 6 adds a surface.
+**Tier per item rather than promoted to the maximum.** Items 1 to 3 are Tier 3, because each can
+destroy a durable record or lose the agent's last answer. Items 4 to 9 are Tier 2.
+
+Runs after Phase 83, because items 5 and 9 need measurements it produces.
+
+### The three that can lose work
+
+**1. Restart inside a split leaf deletes the remote record and starts the session on this Mac.**
+Two surfaces guard Restart with a remote test, being `src/renderer/app/TerminalRegion.tsx:651` and
+`src/renderer/app/session-actions.tsx:481`. `src/renderer/app/split/SplitSurface.tsx:196` does not,
+and the split modules contain the words machine and remote zero times. `src/main/restart.ts:99`
+composes a create with no `machineId`, so main takes the local branch, and `discardSession` then
+hard deletes the manifest row and the saved copies. Between two Macs, whose path shapes agree, the
+result is a local session wearing the remote one's name while the agent keeps running on mac-pro,
+and the remote record is gone with no undo. Traced through five files and never driven.
+
+The fix is not a fourth renderer guard. A guard living in three renderer surfaces is a guard a
+fourth surface will miss. Main refuses a restart of a remote row it was not told about, and the
+split leaf gets the guard the other two already have.
+
+**2. End session promises to save the scrollback and does not.** The confirm reads "This stops what
+is running in it. The scrollback is saved first, so you can restore this session later." That
+sentence has no machine branch. The remote kill detaches and sends `kill-session` with no capture,
+at `src/main/sessions/core.ts:2918`. The newest copy is whatever the 120,000 ms pass last took, so
+the agent's final answer can be missing. Quitting does not help, because the quit pass only captures
+rows with a local tmux binding. `capture-pane` is already on the allowed verb list and the capsule
+writer already exists. If a capture fails, the promise is withdrawn in words rather than the kill
+being cancelled.
+
+**3. Remove does not stick in the run you did it in.** `src/main/sessions/core.ts:3018` returns as
+soon as `forgetRemoteRow` finds the id in memory, which is true for every row this run created, saw
+or ended. `markSessionRemoved` never runs, nothing durable is written, and the same broadcast
+redraws the row reading "not running". It works only after a relaunch.
+`src/main/machines/remote-sessions.ts:1276` already says the caller should write the tombstone
+first. No test in the tree covers `core.removeSession` at all, so this phase writes the first one.
+
+### Getting a session to exist over there
+
+**4. Prepare does not start the machine's feed.** The `machines:prepare` handler at
+`src/main/ipc.ts:526` calls `prepareMachine` and nothing else. The only production callers of
+`startMachineFeed` are the launch sign in, a create and a restore. A machine asleep at launch stays
+unreachable for the whole run even after Prepare reports success, and the badge sends the person to
+the button that cannot fix it.
+
+**5. An empty Directory field sends this Mac's project path.** Ask the machine for `$HOME` and send
+that, or send no `-c` at all. `machine-facts` already reads the far `$HOME` and `remote-image.ts`
+already builds paths from it. **Phase 83's unknown 2 decides which of the two this becomes**, because
+what the far tmux does with a missing `-c` path is what makes one of them safe.
+
+**6. A remote folder picker.** One `machines:listDir` channel and one frozen script, the eighth. It
+is drawn by Tortie rather than by macOS, because the macOS panel cannot browse another computer. The
+frozen script pattern and the seven script catalogue are already there, and the new script reads and
+never writes. This is the small half of the operator's project folder question. The big half is
+Research 55.
+
+**DECIDED BY THE OPERATOR, 2026-08-18. The create sheet keeps resetting to This Mac.** The last
+machine is not remembered per project. The reset is deliberate, so one Cmd-T and one Return cannot
+start a process on another computer. A later phase may revisit it. This one does not, and a builder
+who "helpfully" adds it has broken the phase.
+
+**7. Name the installed key on every ssh command.** `IdentityFile` and a bare `-i` appear zero times
+under `src/main/machines`, so the key the Install button writes to
+`<userData>/gmux/machines/keys/machine-<12 hex>` is used by nothing. That path is not a default ssh
+identity, so every sign in depends on whatever the person's own agent happens to offer, and nothing
+on screen says so.
+
+**8. The dropdown stops offering a machine that cannot hold a session.** `src/main/ipc.ts:202` sets
+`usable` from the confirmation alone. A person picks the machine, types a name, presses Create and
+reads that Tortie has not signed in to it yet, which is the screen that just refused them.
+
+### Folded in from Phase 73's owed list
+
+**9. Pre-assign the conversation id on the remote create.** Phase 73 recorded this and did not build
+it, and its own note says it "would be a bigger win for less work than the typing half". Seven of the
+thirteen agents take a fresh conversation id on a launch flag, and the remote create path calls
+`launchArgvFor` with no session id. This does not make a remote conversation resumable on its own,
+because nothing types a resume command into a remote pane. It makes the durable record true instead
+of empty, and that is the half that costs almost nothing.
+
+### What is still not true after this phase
+
+No conversation comes back on a remote machine. `send-keys` is on the permanently refused verb list
+at `src/main/machines/exec-plane.ts:231`, so typing a resume command into a remote pane needs either
+a different mechanism or a decision to change that list. **That decision is not made here.** The
+phase says so on screen rather than leaving it to be discovered.
+
+### What must not regress
+
+The local lifecycle. Restart, End and Remove on a local session behave exactly as they do today,
+proven by the existing smoke gates plus one driven local restart, end and remove.
+
+## Phase 85 — the status dot tells the truth on a connected machine (operator queued 2026-08-18) QUEUED
+
+**Subject:** `fix(machines): a remote row says what the agent is actually doing`
+**First body line:** `Phase 85: the status dot tells the truth on a connected machine`
+**Semver:** patch.
+**Tier 3.** Status is what the operator reads to decide where to look, and a status that is wrong
+for ten minutes is worse than no status at all.
+
+Runs after Phase 83, because the contradiction below has to be settled by measurement first.
+
+### The root cause
+
+`src/main/machines/remote-sessions.ts:1932`: `armTimer` returns early when the machine is on the
+control feed. Both accepted versions carry a measured control dialect, so every machine Tortie
+accepts takes the connection, and therefore no machine ever gets the timer. A list then runs only on
+connect, on `%sessions-changed`, on `%session-renamed`, on the person's own create, kill, rename or
+restore, and on a wake. Between those, nothing re-reads status. An agent can work for ten minutes
+while the row reads idle, and it still reads idle when it finishes. There is no manual refresh,
+because `refresh()` only lists this Mac's socket.
+
+### The contradiction that must be settled before anything is designed
+
+The remote list reads `#{session_activity}`. `src/main/activity/panes.ts:11` says that field tracks
+clients rather than output, that it froze at attach time while output flowed, and that it is
+deliberately absent from the local format. `src/main/machines/remote-sessions.ts:76` says it is
+evidence the session printed something. Two modules in one tree disagree and only one carries a
+measurement.
+
+**Phase 83's harness measures it on a real machine.** If the local measurement holds, this phase
+moves off the field. If the remote module is right, this phase adds a periodic list beside the
+control connection. The build brief is written after the measurement, never before it.
+
+### Also in scope
+
+The create sheet prints "every 5 seconds while this window is in front, and every 30 seconds when it
+is not". Those are the fallback cadence numbers and not what a connected machine does. The sentence
+is corrected to whatever this phase makes true.
+
+### What this phase does NOT fix, and says so
+
+A remote row has 5 status states where a local row has 6. `needs input` is never produced remotely,
+by construction, because the agent native oracles read local disk. One partial answer exists and is
+recorded rather than built: codex's title oracle needs no disk, and the remote list format carries no
+`#{pane_title}` today. Adding that field is a candidate for a later phase.
+
+### What must not regress
+
+The local activity poll, measured at 2.75 ms for 16 panes. This phase does not touch it. Any
+periodic remote list is per machine, is capped the way the existing 8-sessions-per-pass snapshot is
+capped, and it stops when the window is not in front.
+
+## Research 55 — a project folder that lives on another machine (operator requested 2026-08-18) QUEUED
+
+Runs after Phase 83, because it needs a latency number from a real machine.
+
+**The operator's question, in his words.** "What about the research that would allow me to open a
+project folder easily?"
+
+### What cannot happen today
+
+A remote folder cannot be a project. `Project` at `src/shared/types.ts:409` is three fields, being an
+id, an absolute path and a name, with no machine anywhere in it. Sixty renderer files read a project
+path and every one of them assumes the path is on this Mac. So a remote session hangs off a project
+whose folder is here, which is why the Explorer, the git sidebar, search and Quick Open all show this
+Mac's files while the person is looking at a session on mac-pro, with nothing saying so.
+
+### The question this research exists to answer
+
+VS Code solves the remote project by installing a server on the far machine. Tortie's remote design
+installs nothing, and everything shipped so far rides eleven allowed tmux verbs and seven frozen
+shell scripts whose git access is three read only verbs. A project tab needs directory listings, open
+any file, save and search, which is a different order of traffic.
+
+**So: can a remote project folder be usable with nothing installed on the far machine, or does this
+feature reopen the Tortie Host decision that research 51 section 5 rejected "for now" and explicitly
+did not refute forever?**
+
+Answer it from measurement rather than preference. If the thin design carries it, say so with the
+numbers. If it does not, say that too, and price a Host against research 51's own residency
+contradiction rather than against a fresh argument.
+
+### What it must settle
+
+| # | Question | What decides it |
+| --- | --- | --- |
+| 1 | What carries the machine through the project model | The cost across the 60 renderer files that read a project path, counted rather than estimated |
+| 2 | What a folder listing and a tree expansion cost on the operator's tailnet | A measurement on mac-pro through Phase 83's harness. A folder open costing 400 ms produces a different design from one costing 40 ms |
+| 3 | What the Explorer becomes | Whether a listing is an eighth frozen script or needs a different transport |
+| 4 | What the git sidebar becomes | Read only, absent, or full git over ssh. Today it can commit to this Mac's copy while the person looks at mac-pro, which is finding 15 of research 54 |
+| 5 | What search becomes | ripgrep runs here. Whether it is on the far machine, whether Tortie may require it, or whether search is refused on a remote project |
+| 6 | What the editor becomes | Today a remote file opens only when the review list named it, capped at 30 changed files, and a save is refused SILENTLY, with `save()` returning false and Monaco left editable |
+| 7 | Whether the no install rule survives | The honest re-examination of research 51 section 5, against this feature rather than in the abstract |
+
+### Two constraints it may not trade away
+
+The tmux safety rules and the machine confirm gate are not open for renegotiation. And a remote
+project must never let a local write masquerade as a remote one, because that is the defect it exists
+to remove.
+
+### It decides whether the labelling work is a phase at all
+
+Research 54 item 15 asks for a "Files live on <machine>" label on the Explorer, the git sidebar,
+search and Quick Open. Research 51 section 4.5 specified that string and nobody wrote it. If a
+project can carry a machine, the label is a stopgap for a design about to replace it. So the label is
+NOT queued as its own phase, and this research rules on it.
+
+## What is undelivered and still worth approaching, surveyed 2026-08-18
+
+The operator asked what is in the backlog that has not been delivered and might still make sense.
+This is the answer, read against the tree at `e27eee4`. It is recorded here rather than left in a
+conversation.
+
+| Item | State | Why it might make sense now |
+| --- | --- | --- |
+| **63 to 66, the Arch work** (research 49, 1531 lines) | HELD 2026-08-16 by the operator AFTER he accepted the Zen addition. His recorded words were that SSH was immediately valuable | **The largest ready thing in the repository, and Phase 63 is blocked on nothing.** The reason for the hold was the remote work, and the remote work is finishing. Zero new npm packages, zero tokens spent forever |
+| **82** cross-machine conversation reconstruction | NOT QUEUED | The operator's own stated destination for all the remote work. It was blocked on needing a real machine with a real agent on it, and Phase 83 provides exactly that for the first time |
+| **Issues 4 and 2** from the eight GitHub issues | Recorded as "Blocked by 75" | **Phase 75 landed on 2026-08-18 and nobody re-checked these.** Issue 4 is an immediate work surface on the New Tab chord and issue 2 is a positional shortcut that reaches a session. Both are now unblocked |
+| **The audit refresh, and `src/main/machines` in particular** | Recorded 2026-08-17 as drifted | Twelve counted figures moved and five claims are wrong about the code rather than merely old. Neither audit mentions `src/main/machines`, which is 24 files and 9,603 lines on the boot path, whose largest file is bigger than the two files the architecture audit named as split targets. **This round adds to that domain, so the refresh belongs after it, not before** |
+| **44 and 45**, Catch Me Up | HELD 2026-08-15 pending the operator's thinking | Unchanged. It needs a decision from him rather than work from anyone else |
+| **50** Tortie speaks outside its own window | NOT QUEUED, blocked on a Zen decision | It asks whether Tortie may model the human's attention rather than only the sessions' state. That is a principle to accept or refuse, and only the operator can do it |
+| **25** downloads and usage measurement | DEFERRED 2026-08-12 by the operator | Worth re-raising once, because it must ship IN a released build. Every release cut without it is a cohort that can never be measured |
+| **Issue 7**, a filter field in the shortcuts overlay | Blocked on one measurement | Measure whether the overlay actually overflows on the operator's window. If it does not, the scope guardrail refuses it and the row is closed rather than carried |
+| **Issue 1**, font family and size in Settings | Blocked on one sentence from the operator | Where the font list comes from. A short vouched list, a free text field with a fallback, or a Chromium permission gated enumeration |
+
+**The one recommendation.** After this remote round, ask the operator whether the Arch hold lifts.
+It is the only large piece of work in the repository that is fully specified, fully decided, blocked
+on nothing, and paused for a reason that is about to stop being true.
+
 ## Phase 81 — the session list stops waiting for your shell (operator queued 2026-08-18) QUEUED
 
 **Build the SMALL HALF of performance fix 1 and nothing else.** The audit's fix 1 was examined by
