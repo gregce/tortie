@@ -5798,6 +5798,143 @@ would mean deciding the same thing twice.
 | 7 shortcuts filter | This phase, on the measured condition above |
 | 1 fonts | This phase, on one decision from the operator |
 
+## The two audits, verified against the tree on 2026-08-17
+
+Six assessors read `docs/audits/2026-08-16-electron-typescript-architecture.md` and
+`docs/audits/2026-08-17-performance-and-simplification.md` against `2867223`, and one adversarial
+critic checked their work and re-measured every load-bearing claim. **Both audits have drifted.**
+Every named finding still holds in mechanism. Twelve counted figures moved, and five claims are
+wrong about the code rather than merely out of date.
+
+**Counted figures that moved.**
+
+| Figure | Audit said | Measured at 2867223 |
+| --- | --- | --- |
+| Production TypeScript files | 639 | 691 |
+| Production imports | 3,299 | 3,648 |
+| Production lines outside tests | 155,161 | 173,363 |
+| Invoke channels | 144 | 157 |
+| `src/main/sessions/core.ts` | 2,822 lines | 3,192 lines |
+| `createSession` span | about 384 lines | 410 lines |
+| Manifest schema version | 12 | 13 |
+| Harness dispatcher modes | 20 | 24 |
+| Eager renderer JS main chunk | 3,240,081 bytes | 3,265,154 bytes |
+
+**Five claims are wrong about the code, not just old.**
+
+| Claim | What the code says |
+| --- | --- |
+| The Finder-open cycle is three files | It has FIVE members. `shell-open.ts:97` dynamically imports `../editor/store`, which reaches `tab-io.ts:25` and back to `state/store`. A full graph walk finds five cyclic components across 691 files |
+| The cycle guard fixed the editor-store cycle | The forbidden edge is gone and the two files are back in one cyclic component through a specifier a string scan cannot see. `source-scan.test.ts:15` says so itself, being "string scans of the one forbidden specifier per file, not a graph walk". The guard reports a repair that no longer holds |
+| Fix 1 step 5, start packaged tmux from its bundle path | Already true since Phase 41. `resolve.ts:734` returns the bundle path and never reads PATH |
+| Fix 3, a hidden project's dirty badge consumes the warm status | No visible surface consumes a hidden project's status. `ActivityBar.tsx:186` returns 0 without an active project |
+| Fix 5, thirteen executable probes can run | Two registry entries are `kind: 'ide'` and return before any subprocess, and an unresolved binary never probes. The ceiling is eleven |
+
+**A stale comment in the code blocks a judgement.** `src/main/tmux/supervisor.ts:422` explains the
+PATH read by saying a tmux in an exotic login-shell directory should still be found. That is false
+for a packaged build and TRUE for a development build, where `resolve.ts:785` does resolve tmux
+against PATH. Anyone deciding whether the `await getUserPath()` can move will read that comment and
+stop. Correct it without deleting the development-build truth.
+
+**Neither audit mentions `src/main/machines`, and that is our own doing.** The domain is 24
+production files and 9,603 lines, it is on the boot path through `void initMachines()` at
+`src/main/index.ts:463` and `void core.signInToConfirmedMachines()` at `core.ts:740`, and its
+largest file `remote-sessions.ts` is 1,446 lines, which is bigger than both `src/shared/types.ts`
+and `src/renderer/app/App.tsx`, the two files the architecture audit named as split targets. The
+performance audit's subsystem table has no row for it and its idle table omits the remote poll. The
+remote ladder built exactly the shape the audits warn about, in the weeks after they were written.
+Nothing is broken. It is unmapped, and the next audit refresh owns it.
+
+## Phase 77 — the quit and suspend contract, NOT QUEUED and BLOCKED ON PHASE 72
+
+**This may not run while Phase 72 is in flight.** Builder A owns all 3,192 lines of
+`src/main/sessions/core.ts` and Builder C owns `sessions-slice.ts`. Phase 72, remote restore, needs
+both, plus `restore/**` and `manifest/**`. Running them together guarantees a merge in the two most
+durability-critical files in the tree. Launch this only after 72 is pushed with gates green.
+
+**Subject:** `fix(lifecycle): suspend takes a generation, and shutdown finishes before the slot clears`
+**First body line:** `Phase 77: the quit and suspend contract`
+**Semver:** patch. Three items repair defects, three change internal shape only, and no user-facing
+surface is added, renamed or removed, so the native menu rule does not apply.
+
+**The admissible test the operator set.** He asked for no user or technical behaviour change. An
+item qualifies only if it is a REPAIR, meaning the code does not do what its own contract says, or
+INTERNAL ONLY, meaning shape changes and observable behaviour does not. Everything that alters
+durable side effects, adds a persisted input or changes a failure mode was excluded and is listed
+below with its reason.
+
+| # | Item | Category | Tier |
+| --- | --- | --- | --- |
+| 1 | Suspend takes a manifest generation. `ring-schedule.ts:418` documents `onSuspend` as the suspend handler and nothing calls it | REPAIR | 3 |
+| 2 | `shutdownGmuxCore` keeps the singleton until dispose returns. `core.ts:3170` clears it before an 8,000 ms race, so `getGmuxCore()` boots a second core for that whole window | REPAIR | 3 |
+| 3 | Quick open and symbol disposal are awaited. `capabilities.ts:294` and `:295` fire both with `void` | REPAIR | 3 |
+| 5 | Remove the two ghost invoke channels, `projects:rename` and `app:setBadgeCount`, which have no preload or main implementation | INTERNAL ONLY | 1 |
+| 6 | Correct the stale PATH comment at `supervisor.ts:422` | INTERNAL ONLY | 1 |
+| 7 | Refresh both audits with the measured figures above and add a `src/main/machines` row | INTERNAL ONLY | 1 |
+
+**Item 4 was dropped on purpose.** It filtered Restore all to local rows. Phase 72 enables remote
+restore and would delete the filter, the two assertions pinning it and `refuseRemoteRestore` at
+`core.ts:1436`. A two-line change that the next rung reverts is not worth a fourth builder and a
+screenshot read. Phase 72 closes it instead.
+
+**Four decisions a builder must not invent.**
+
+1. **When `shutdownPromise` is cleared, and this one is load bearing.** It must be cleared once the
+shutdown settles. `src/main/harness/durability.ts` boots and shuts down FOUR times in one process
+and `src/main/fault/harness.ts` does it twice. A promise that is never reset makes cycles two
+through four join a settled promise, return instantly, and skip the snapshot pass, the capture
+drain, the quit ring take and `core.dispose()`. The harnesses that exist to prove durability would
+silently stop proving it and no gate would go red. No harness file may be edited to accommodate the
+fix.
+2. **The corrected PATH comment keeps the development-build truth.** The PATH read at
+`resolve.ts:785` is live in a dev build. Only the packaged branch at `:734` skips it.
+3. **Item 3's justification is the live worker at environment teardown, not the database close.**
+`persistence.close()` is `this.db.close()` and nothing else, and the database runs WAL with
+`synchronous = NORMAL`, so every committed row is already durable and the next open recovers the
+WAL. Missing the close leaks a handle in an exiting process. The real argument is that a live
+`worker_threads` Worker at teardown is the same class of abort Phase 36 fixed, and it is unmeasured.
+4. **Item 1 consumes recovery ring generations.** The ring holds five, at `recovery.ts:325`, and its
+comment reasons about that span being five times the gap between takes. Suspend skips the five
+minute floor at `ring-schedule.ts:403`, so a person who closes a lid several times a day shortens
+the span. Say it in the commit and prove the ring still holds a generation older than the current
+session after several simulated suspends.
+
+**Builder split, disjoint, with every file each builder needs.**
+
+| Builder | Owns | Items |
+| --- | --- | --- |
+| A | `src/main/sessions/core.ts`, `src/main/power/index.ts`, `src/main/power/smoke.ts`, `src/main/manifest/ring-schedule.ts`, `src/main/index.ts` and their tests | 1, 2 |
+| B | `src/main/capabilities.ts`, `src/main/symbols/ipc.ts`, `src/main/quickopen/ipc.ts`, `src/main/tmux/supervisor.ts` and their tests | 3, 6 |
+| C | `src/shared/ipc/app.ts`, `docs/audits/contract-baseline.txt`, both audit documents | 5, 7 |
+
+Builder A needs `src/main/power/smoke.ts` because its own `captureAll` at `:164` carries the comment
+"The same argument the real suspend handler passes, so what this harness proves is what the app
+does". If only the production path gains the ring take, that comment becomes false and the demanded
+`GMUX_SMOKE=power` evidence cannot show a generation file.
+
+**Gates.** The full battery plus `npm run smoke:quit`, which exists as a script and is in neither
+the current proof lists nor the integrator battery. A Tier 3 change to `shutdownGmuxCore` that never
+drives the real quit harness has not been verified. Item 5 re-bases the contract baseline in the
+same commit, moving the invoke count from 157 to 155.
+
+**Proof per item.** Item 1 needs one suspend reaching both the scrollback capture and the ring take,
+plus the ring-span check. Item 2 needs a delayed shutdown with `getGmuxCore()` called during it,
+proving `GmuxCore.boot()` does not run again, plus all four durability harness cycles still doing
+real teardown. Item 3 needs worker termination settled before the disposer returns, and a measured
+normal-case quit latency before and after, because `index.ts:614` defers the quit with the window
+still on screen and a 2,000 ms bound can hold it there.
+
+**What is deliberately left for later.**
+
+| Left out | Why, and what would make it admissible |
+| --- | --- |
+| Performance fix 1, the PATH cache | It introduces a persisted launch input that did not exist, which the audit itself lists as its own attack. Admissible only as its own phase with a threat model for the cache as a launch input |
+| Performance fix 4, Restore all in parallel | It changes the order and nature of durable side effects and changes a failure mode. The serial loop exists because parallel session creation races name dedupe. Needs its own Tier 3 round with a fault-injection matrix |
+| Performance fix 2, the JS split | Internal only and genuinely admissible, but it is a wide renderer edit that shares no file with this round. It goes second so a lifecycle repair is not held up by a bundler question |
+| Performance fix 3, git fan-out | Admissible, and one of its two supporting claims was found wrong, so it needs its own re-measurement first |
+| Performance fix 5, the agent scan | Admissible, but there are five always-reachable trigger sites rather than the one the audit names, so the change is wider than written |
+| The renderer cycle, the exact bridge type, the TypeScript config split | All admissible and all internal only, but every one is a wide shape-only edit across many renderer files and none repairs a defect. They form the second half |
+
 ## Phase 73.1 — the second recorded nits round, NOT QUEUED
 
 Small things that shipped phases left behind, collected as they were found so none is lost. None
