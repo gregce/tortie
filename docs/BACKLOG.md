@@ -5847,96 +5847,130 @@ Nothing is broken. It is unmapped, and the next audit refresh owns it.
 
 ## Phase 79 — the Machines screen tells you what to do (operator reported 2026-08-17) QUEUED
 
-The operator photographed the Machines section and said it is a wall of text that does not tell a
-person what to do. He is right, and while checking it a worse thing turned up.
+The operator photographed the Machines section twice and said it is a wall of text that does not
+tell a person what to do, and asked for the shape Tortie already uses for the agent scan. Checking
+it turned up three defects nobody reported.
 
-**THE SCREEN IS LYING RIGHT NOW.** `src/renderer/settings/machines-copy.ts:62` reads "You cannot
-open a session on a machine yet. This release records the machine, proves Tortie can reach it, and
-sets it up so that it is ready. Opening sessions comes later." Phase 70 shipped remote sessions on
-2026-08-17 at 0.34.0. That sentence has been false since it landed. It went stale because it sits in
-a block nobody re-reads, which is the argument for this phase rather than a decoration on it.
+**DEFECT ONE, THE SCREEN IS LYING.** `src/renderer/settings/machines-copy.ts:62` says "You cannot
+open a session on a machine yet. Opening sessions comes later." Phase 70 shipped remote sessions
+today at 0.34.0. The sentence has been false since it landed, and it went stale because it sits in a
+block nobody re-reads.
 
-**THE SECOND FINDING, and it is the biggest win here.** The operator hit a real failure while trying
-to use the feature. `ssh gregs-mac-pro tmux -V` returned "Connection refused" because macOS ships
-with Remote Login off. Tortie's error taxonomy classified it correctly and told him
-`refused: "That machine answered and refused the connection. Something is at that address and it is
-not accepting connections on this port."` That is diagnostically perfect and practically useless. It
-knew what was wrong and did not say what to do. The same is true of `auth-refused`, which says
-"Tortie does not handle keys or passwords" and leaves the person stuck. **The taxonomy is a
-diagnosis and it should be a remedy.**
+**DEFECT TWO, TORTIE CANNOT TELL YOU TO INSTALL TAILSCALE.**
+`src/main/machines/tailscale.ts:282` reads `source: resolution.source === 'missing' ? 'pinned' :
+resolution.source`. The wire type at `src/shared/ipc/machines.ts:118` declares `'missing'` as a
+value and main overwrites it before sending, so the renderer can never learn that Tailscale is
+absent. A person without Tailscale gets an empty list and no explanation. This is a one word fix in
+main and it is the only main-side edit in this phase.
 
-**THE FENCE, and it decides the shape.** Phase 72 owns `src/main/machines/**`, `src/main/sessions/
-core.ts`, `src/main/restore/**` and `src/main/manifest/**`. This phase touches NONE of them. The
-renderer already receives `class: MachineTestClass` on every outcome, at
-`src/shared/ipc/machines.ts:225`, so every remedy is keyed off that class in renderer copy. Main
-classifies and the renderer advises, which is the correct split anyway.
+**DEFECT THREE, THE TAILNET LIST SHOWS "localhost".** Two of the operator's rows render as
+`localhost` because Tailscale reports no hostname for an iOS device and the code falls back to a raw
+field. The wire already carries `os` and `online` per row, at `machines.ts:106` and `:107`, so
+nothing is missing to fix it.
+
+**THE FOURTH THING IS NOT A DEFECT AND IT MATTERS MOST.** The operator could not use the feature at
+all, because macOS ships with Remote Login off and his ssh returned "Connection refused". Tortie
+classified that correctly and said "Something is at that address and it is not accepting connections
+on this port." That is diagnostically perfect and practically useless. **The taxonomy is a diagnosis
+and it should be a remedy.**
 
 **Subject:** `fix(machines): the setup screen says what to do next`
 **First body line:** `Phase 79: the Machines screen tells you what to do`
-**Semver:** patch. No new capability, no new channel, no durable state.
-**Tier 2.** Copy and one renderer surface, proven with screenshots of each state.
+**Semver:** patch.
+**Tier 2.** One renderer surface plus a one word main fix, proven with a screenshot of each state.
+
+### The shape to copy, which the operator named
+
+The agent scan in Settings already solves this problem. It shows a scanned-state header with a
+Re-scan action, one row per agent, and for a missing agent it shows "Not installed" beside the
+install command in mono with a copy affordance. Machines gets the same treatment for Tailscale and
+for each machine.
 
 ### What ships
 
-1. **Delete the stale sentence**, and add a test that fails if the intro copy claims something the
-shipped rungs contradict. The test names the sentence and the rung that disproves it, so the next
-person who edits copy learns why the test exists.
+1. **Delete the stale sentence** and add a test that fails if the intro copy claims something the
+shipped rungs contradict. The test names the sentence and the rung that disproves it.
 
-2. **The empty state becomes one line and one button.** For a person with no machines the section
-reads a heading, one sentence saying Tortie can keep work running on another machine you own, and
-Add a machine. Nothing else. "Check the file again" does not belong on a first run when there is no
-file yet, so it appears only once at least one machine exists.
+2. **The empty state is one line and one button.** A heading, one sentence, and Add a machine.
+"Check the file again" appears only once at least one machine exists, because there is no file to
+check before that.
 
-3. **The honesty text moves to where it decides something.** It is not deleted, because every line
-of it is true and load bearing. It moves. The sealing sentence, that confirming seals which program
-runs and cannot seal the bytes of that program, belongs on the confirm sheet at the moment of
-agreement. The line that Tortie never adopts work already running belongs on a machine row. The rest
-goes behind one disclosure for the person who wants it.
+3. **Tortie says it is wired for Tailscale, and says how to get it.** This is the operator's
+request and it has two states, in the agent scan's shape.
 
-4. **Every error class gains a remedy line**, keyed off `MachineTestClass` in renderer copy. The
-remedy says what to do next in plain words, and it never guesses. Two are named here because they
-are the ones the operator hit, and the rest follow the same rule.
+| Tailscale state | What the person sees |
+| --- | --- |
+| Installed | The path it reads, the count of machines found, and when it last looked, with a Look again action |
+| Not installed | "Tailscale is not installed" and the install command `brew install --cask tailscale` in mono with a copy affordance, plus the one line that says why Tortie wants it |
 
-| Class | Remedy the person needs |
+The why line is short and honest: Tortie asks Tailscale which machines you own, so you pick a name
+rather than typing an address, and Tailscale carries the connection. A person can still add a
+machine by typing an address, so Tailscale is the easy path rather than the only one. Say that,
+because otherwise the missing state reads as a hard requirement.
+
+4. **The honesty text moves to where it decides something.** Nothing is deleted, because every line
+is true and load bearing. The sealing sentence goes on the confirm sheet at the moment of agreement.
+The line that Tortie never adopts running work goes on a machine row. The rest goes behind one
+disclosure.
+
+5. **The tailnet list becomes readable.** A device with no hostname shows its tailnet name rather
+than `localhost`. A device that cannot host a session, meaning an iOS device, is either omitted or
+clearly marked as unable to host, and the phase picks one and says which. An offline device is
+de-emphasised rather than listed at equal weight. The operator's own list has four rows of which
+exactly one is usable, and the screen currently gives all four the same prominence.
+
+6. **Every error class gains a remedy line**, keyed off `MachineTestClass` in renderer copy.
+
+| Class | The remedy |
 | --- | --- |
 | `refused` | On that Mac, open System Settings, then General, then Sharing, and turn on Remote Login. macOS ships with it off |
-| `auth-refused` | That machine did not accept your sign in. If you have no key, Tortie can make one. If you have one, it may not be on that machine yet |
+| `auth-refused` | That machine did not accept your sign in. Your key may not be on it yet |
 | `not-resolved` | Pick the machine from your tailnet list rather than typing an address |
-| `no-program` | The machine answered and has no tmux. Install it there, then test again |
+| `no-program` | The machine answered and has no tmux on it. Install it there, then test again |
 
-5. **Say the version gate out loud before it bites.** Tortie has measured tmux 3.6a and 3.7b and
-refuses anything else. Today a person discovers that after adding a machine. The Add flow should say
-which versions are supported before the test runs, so the refusal is expected rather than a surprise.
+7. **Say the version gate before it bites.** Tortie has measured tmux 3.6a and 3.7b and refuses
+anything else. Today a person learns that after adding a machine. The Add flow says it before the
+test runs.
 
 ### What is deliberately NOT in this phase
 
-**Generating and installing an ssh key.** It is the right idea and the operator asked for it. It
-needs a main-side action to run `ssh-keygen`, and installing the key needs the visible connection
-test to carry a password prompt, and both need a new IPC channel. `src/shared/ipc/machines.ts` and
-`src/main/machines/**` are inside Phase 72's blast radius, so building it now means a merge in the
-directory that decides whether the operator's remote work is safe. It is recorded as Phase 79.1 and
-runs after 72 lands.
+**Generating and installing an ssh key.** The operator asked for it and it is right. It needs a main
+action to run `ssh-keygen`, a password prompt inside the visible connection test, and a new IPC
+channel. `src/shared/ipc/machines.ts` and `src/main/machines/**` are inside Phase 72's blast radius,
+so building it now means a merge in the directory that decides whether remote work is safe. Recorded
+as Phase 79.1, runs after 72 lands.
 
-**Turning on Remote Login for the person.** Tortie cannot, and no phase will change that. It needs
+**Turning on Remote Login for the person.** Tortie cannot and no phase will change it. It needs
 `sudo` on a machine Tortie cannot reach, because reaching it is the thing being enabled. The remedy
-line above is the whole answer.
+line is the whole answer.
 
-### Builder split, disjoint, renderer only
+### The fence
+
+Phase 72 owns `src/main/machines/**`, `src/main/sessions/core.ts`, `src/main/restore/**` and
+`src/main/manifest/**`. This phase makes exactly ONE main edit, being the one word at
+`src/main/machines/tailscale.ts:282` that stops masking `'missing'`. Nothing else in main is touched.
+Every remedy is keyed off the class the renderer already receives, so main classifies and the
+renderer advises, which is the better split anyway.
+
+### Builder split
 
 | Builder | Owns |
 | --- | --- |
-| A | `src/renderer/settings/machines-copy.ts` and its tests, being the stale sentence, the remedies and the moved honesty text |
-| B | `src/renderer/settings/MachinesSection.tsx`, `AddMachine.tsx`, `MachineRow.tsx`, `machines.css` and their tests, being the empty state, the disclosure and where each moved line now renders |
+| A | `src/renderer/settings/machines-copy.ts` and its tests, being the stale sentence, the remedies, the Tailscale copy and the moved honesty text |
+| B | `src/renderer/settings/MachinesSection.tsx`, `AddMachine.tsx`, `MachineRow.tsx`, `machines.css` and their tests, being the empty state, the Tailscale panel in the agent-scan shape, the tailnet list and the disclosure |
+| C | `src/main/machines/tailscale.ts` one word only, plus its test |
 
 ### Probes
 
-Photograph the empty state and confirm it is one line and one button. Photograph a state with one
-machine and confirm the moved lines appear where they now belong. Drive a real failing connection
-against a port with nothing listening, read the refused remedy on screen, and quote it. Photograph
-the confirm sheet and confirm the sealing sentence is on it. Read every new string against the
-writing rules including no em or en dashes. Prove no file under `src/main/machines/`,
-`src/main/sessions/`, `src/main/restore/`, `src/main/manifest/` or `src/shared/ipc/` was edited, and
-say so explicitly.
+Photograph the empty state and confirm it is one line and one button. Photograph the Tailscale panel
+in both states, and produce the not-installed state by pointing the resolver at a path that does not
+exist rather than by removing the operator's Tailscale. Photograph the tailnet list and confirm no
+row reads `localhost` and that the four rows are not equally prominent. Drive a real failing
+connection against a port with nothing listening, read the refused remedy on screen and quote it.
+Photograph the confirm sheet and confirm the sealing sentence is on it. Read every new string against
+the writing rules including no em or en dashes. Prove no file under `src/main/sessions/`,
+`src/main/restore/`, `src/main/manifest/` or `src/shared/ipc/` was edited, and that the only
+`src/main/machines/` change is the one word, and say so explicitly.
 
 ## Phase 78 — three font presets, and the screenshot that must keep matching (operator requested 2026-08-17) QUEUED
 
