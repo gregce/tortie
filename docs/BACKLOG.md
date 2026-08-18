@@ -5691,7 +5691,29 @@ extra flag, quit, relaunch, and read the restored pane's argv, quoting the bytes
 in New Project and show the fallback name rather than an empty field. Read the picker message and the
 SpecStory caption by screenshot.
 
-## Phase 75 — research: the unit of work, and what a session digit counts, NOT QUEUED
+## Phase 75 — research: the unit of work, and what a session digit counts ✅ SHIPPED 2026-08-18 (this commit, 0.38.2, gates green)
+
+**What it decided, and the artifact is `docs/research/52-unit-of-work.md` at 707 lines.** The
+project stays the primary unit, because the falsification condition in research 10 section 9 has
+not fired. The create verb IS renamed, becoming `New Session in This Project…` in the menus, across
+14 strings in 10 files. An unstarted session MAY NOT exist, which is the plain answer GitHub issue 4
+was waiting for. A positional session shortcut takes Option plus Command plus digit, because
+Control plus digit already sends control codes into every live session. A digit counts SURFACES.
+The zoom-reset chord stays with `view.zoomReset`.
+
+**The critic changed the answer twice.** It found the create verb inventory short by one string,
+being the toast in `launchAgent` at `src/renderer/settings/integration.ts:36`, which is the
+per-agent hotkey create path and shows the identical sentence for the identical condition. The
+document had it at 13 strings in 9 files and named only the two copies in `App.tsx`. An implementer
+following the old checklist would have left the third holding the old wording, so the app would show
+two different toasts for one condition, which is the exact inconsistency this document exists to
+remove. It also caught a claim that two rows sat in two files when both named `App.tsx`. Sixteen
+earlier findings were fixed in the phase's own round.
+
+**What is not true.** The falsification measurement was taken against a COPY of the operator's
+manifest in scratch, never the live file, because his app was running and an ordinary SQLite open
+would write `-wal` and `-shm` beside it. Nothing was written to his data directory and the critic
+confirmed that afterward.
 
 **The question it answers.** Is a project still the primary unit of work in Tortie, and if so what is
 the create verb called and which chord reaches a session by position. Issues 3, 4 and 2 are all
