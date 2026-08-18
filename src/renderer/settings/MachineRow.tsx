@@ -21,6 +21,13 @@
  * machines file. A person changes a machine in their own editor, or removes
  * it here and adds it again.
  *
+ * PHASE 79.1. A row whose test came back with the machine turning the sign in
+ * down now offers to set up a key. The block itself is drawn by
+ * ConnectionTestView, which this row already renders, so nothing about the
+ * block is written twice. This row's part is to hand down the install that
+ * belongs to IT, matched on the row id, so one row's answer is never drawn
+ * under another row's machine.
+ *
  * PHASE 79. Two sentences that used to stand in a block above the whole list
  * now stand on the row, because that is where each of them decides something.
  * The sentence about never adopting other work sits immediately above Prepare,
@@ -183,6 +190,8 @@ export function MachineRow({
   const cancelTest = useMachinesStore((s) => s.cancelTest);
   const test = useMachinesStore((s) => s.test);
   const prepare = useMachinesStore((s) => s.prepareMachine);
+  const installKey = useMachinesStore((s) => s.installKey);
+  const keyInstall = useMachinesStore((s) => s.keyInstall);
   const prepared = useMachinesStore((s) => s.prepared[row.id]);
   const preparing = useMachinesStore((s) => s.preparing) === row.id;
   const busy = useMachinesStore((s) => s.busy) === row.id;
@@ -212,6 +221,10 @@ export function MachineRow({
   }, [row.state]);
 
   const liveTest = test !== null && test.savedId === row.id ? test : null;
+  // An install belongs to one machine. A row draws the one that names it and
+  // never the one that names its neighbour.
+  const rowKeyInstall =
+    keyInstall !== null && keyInstall.savedId === row.id ? keyInstall : null;
 
   const confirmLabel =
     row.state === 'changed' ? BTN_CONFIRM_CHANGED : BTN_CONFIRM;
@@ -407,6 +420,11 @@ export function MachineRow({
               running={liveTest.running}
               onSend={(text) => void sendTestInput(text)}
               onCancel={() => void cancelTest()}
+              keyInstall={rowKeyInstall}
+              onInstallKey={(password) => {
+                setError(null);
+                void installKey(password).then(setError);
+              }}
             />
           ) : null}
         </div>

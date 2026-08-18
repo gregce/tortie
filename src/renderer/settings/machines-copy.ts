@@ -7,7 +7,7 @@
  * person should never meet in Tortie's own copy. A string written inline in a
  * component escapes that check, so no component in this surface writes one.
  *
- * WHAT IS NOT HERE, and must never be moved here. Three kinds of text on this
+ * WHAT IS NOT HERE, and must never be moved here. Four kinds of text on this
  * surface come from main and are drawn exactly as they arrive:
  *
  *  1. `MachinesResult.honesty` and `MachinesResult.warning`, the two sentences
@@ -18,6 +18,11 @@
  *  3. `MachineTestOutcome.headline` and `detail`. The taxonomy lives in main
  *     precisely so a later edit to a renderer file cannot draw the changed
  *     host key calmly.
+ *  4. `MachineTestOutcome.keySheet.lines`, `warning` and `notes`, added in
+ *     Phase 79.1. They are the facts the key install hash covers and the four
+ *     sentences a person reads before they type a password. Main composes them
+ *     beside the hash, so a line the renderer wrote could never be part of
+ *     what main checks.
  *
  * WHAT PHASE 79 ADDED, and why it does not break that rule. `REMEDY` at the
  * bottom of this file is one sentence per outcome class saying what a person
@@ -29,6 +34,11 @@
  * removal leaves behind, and they are the other half of the removal question,
  * so they live beside it and under the same audit. The reason is written again
  * over the functions themselves.
+ * WHAT PHASE 79.1 ADDED. One block of labels, buttons and hints for setting up
+ * a key on one machine. Not one of them names a file, a path or any part of a
+ * key, because all of those arrive from main. `REMEDY` gained one row, being
+ * `key-installed`, and it is null because the surface starts the connection
+ * test itself and there is nothing for a person to do while it runs.
  *
  * THE COLON RULE, and the two places it bends. House style allows a colon only
  * to introduce a list. Two shapes on this surface are neither prose nor a list:
@@ -578,14 +588,30 @@ export const REMEDY: Readonly<Record<MachineTestClass, string | null>> = {
   ok: null,
   prepared: null,
   cancelled: null,
+  // PHASE 79.1. The key is on the machine and the surface has already started
+  // the connection test. There is nothing for a person to do while that runs,
+  // and the answer they are waiting for is the machine's own.
+  'key-installed': null,
   refused:
     'On that Mac, open System Settings, then General, then Sharing, and turn ' +
     'on Remote Login. macOS ships with Remote Login turned off, so that is ' +
     'the usual reason. On a machine that is not a Mac, start its sign in ' +
     'service and check that it is listening on this port.',
+  // PHASE 79.1 FIX ROUND. The machine answered and asked for a password.
+  // Main's detail says that much and says Tortie stopped there. What it does
+  // not say is that the way out is on this panel, and that the password is
+  // asked for once rather than on every connection.
+  'password-required':
+    'The block under this one makes a key and puts it on that machine for ' +
+    'you. It asks for that machine\'s password once. After that Tortie signs ' +
+    'in with the key and never asks for that password again.',
+  // PHASE 79.1. Tortie can now do this itself, so the sentence names the
+  // block that does it rather than telling a person to go and do it by hand.
+  // The block stands under this one, on the same panel.
   'auth-refused':
     'That machine did not accept your sign in. Your key may not be on it ' +
-    'yet. Put your public key on that machine, then test again.',
+    'yet. The block under this one makes a key and puts it on that machine ' +
+    'for you.',
   // Main's detail already says to check the address or pick from the tailnet.
   // What it does not say is why the tailnet name is the surer of the two.
   'not-resolved':
@@ -634,6 +660,78 @@ export const REMEDY: Readonly<Record<MachineTestClass, string | null>> = {
     'Wait for a Tortie release that has measured the version that machine ' +
     'runs, or put a version Tortie has already measured on it.'
 };
+
+// ---------------------------------------------------------------------------
+// Setting up a key for one machine (Phase 79.1)
+// ---------------------------------------------------------------------------
+//
+// WHAT IS HERE AND WHAT IS NOT. Every string below is a label, a button or a
+// hint. Not one of them names a file, a path, a program or any part of the
+// key. All of those arrive from main on the sheet and on the result, and the
+// surface draws them exactly as they came, for the same reason the confirm
+// sheet works that way: the lines a person agrees to are composed where the
+// hash is computed, so nothing the renderer writes can drift away from what
+// main will actually do.
+//
+// The four sentences a person reads before they type anything, being what
+// Tortie is about to do, the order Remote Login comes in, what the key does
+// not have and where the password goes, are main's and live in
+// src/main/machines/key-install.ts.
+
+/** The heading of the block, and what pressing the button will start. */
+export const KEY_BLOCK_LABEL = 'Set up a key for this machine';
+
+/** Stands over main's own lines, which are the facts the agreement covers. */
+export const KEY_LINES_LABEL = 'What Tortie will do';
+
+export const KEY_PASSWORD_LABEL = "That machine's password";
+
+/**
+ * What happens to what a person types, said beside the field rather than
+ * after it. It is the same promise the answer field on the connection test
+ * makes, and it is true for the same reason: the bytes cross one call and
+ * nothing keeps a copy of them.
+ */
+export const KEY_PASSWORD_HINT =
+  'This goes straight to the sign in program for one call. Tortie keeps no ' +
+  'copy of it.';
+
+export const BTN_INSTALL_KEY = 'Make a key and put it on this machine';
+
+export const INSTALLING_KEY = 'Setting up the key';
+
+/** Drawn under the button for as long as it is off. */
+export const KEY_DISABLED_REASON =
+  "Type that machine's password first. Tortie needs it once to put the key " +
+  'on the machine.';
+
+/** Stands over the bytes the far machine printed, which are not Tortie's. */
+export const KEY_TRANSCRIPT_LABEL = 'What the machine printed';
+
+/** Stands over main's own account of the install. */
+export const KEY_RESULT_LABEL = 'What happened';
+
+export const KEY_MADE_NEW = 'Tortie made a new key for this machine.';
+
+/**
+ * Said when the key was already there.
+ *
+ * A second key would leave the first public half on the machine with nothing
+ * on this Mac pointing at it, so Tortie uses the one it has, and the person
+ * is told which of the two happened.
+ */
+export const KEY_MADE_REUSED =
+  'Tortie used the key it had already made for this machine.';
+
+/** Said when the machine gained the line. It is one line and never more. */
+export const KEY_WROTE_ADDED = 'That machine gained one line.';
+
+/** Said when the line was already there, which is what running it twice does. */
+export const KEY_WROTE_PRESENT =
+  'That machine already had this key, so nothing was added.';
+
+/** Stands immediately before the fingerprint main computed. */
+export const KEY_FINGERPRINT_LABEL = 'Key fingerprint';
 
 // ---------------------------------------------------------------------------
 // The sheet the Add flow records, and why no label for it is in this file

@@ -1,7 +1,7 @@
 {
   "name": "tortie",
   "productName": "Tortie",
-  "version": "0.38.2",
+  "version": "0.39.0",
   "description": "Tortie — a calm, durable place for agentic work: named terminal sessions that outlive the window (private tmux server), git sidebar, decorated file tree, diff + edit surfaces.",
   "private": true,
   "main": "./out/main/index.js",
@@ -36,6 +36,7 @@
     "probe:execplane": "node build/probe-execplane.mjs",
     "probe:remoteattach": "node build/probe-remote-attach.mjs",
     "probe:controldialect": "node build/probe-control-dialect.mjs",
+    "probe:keyinstall": "node build/probe-key-install.mjs",
     "smoke:partition": "npm run build && node build/harness-socket.mjs --fresh gmux-p71-partition 'node build/partition-harness.mjs'",
     "smoke:matrix": "npm run build && node build/harness-socket.mjs --fresh gmux-p72-matrix 'node build/remote-matrix.mjs'",
     "smoke:remote": "npm run build && node build/harness-socket.mjs --fresh gmux-p70-remote 'export GMUX_CONFIG_ROOT=\"${GMUX_CONFIG_ROOT:-${TMPDIR:-/tmp/}gmux-p70-remote}\"; node build/with-scratch-machine.mjs -- GMUX_SMOKE=remote-sessions electron . --user-data-dir=$GMUX_CONFIG_ROOT/profile -ApplePersistenceIgnoreState YES'",

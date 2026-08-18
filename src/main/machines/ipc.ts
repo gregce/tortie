@@ -1,8 +1,8 @@
 /**
- * The ONE `machines:*` registrar (Phase 68, one channel added in Phase 69 and
- * one more in Phase 71).
+ * The ONE `machines:*` registrar (Phase 68, one channel added in Phase 69, one
+ * more in Phase 71 and one more in Phase 79.1).
  *
- * Twelve channels, and what is NOT here is the point of the file.
+ * Thirteen channels, and what is NOT here is the point of the file.
  *
  *  - There is no `machines:connect`, no `machines:attach` and no
  *    `machines:createSession`. Neither Phase 68 nor Phase 69 opens a session on
@@ -11,12 +11,30 @@
  *    returns rows and does nothing else.
  *  - There is no channel that sets a session's status.
  *
- * Three channels start a process, and every one is a person pressing a button.
+ * Four channels start a process, and every one is a person pressing a button.
  * `machines:tailscaleNames` runs the pinned Tailscale program once.
  * `machines:test` runs ssh once. `machines:prepare` runs ssh and starts the
- * program a machine's work will live in, and it is the only channel in the
- * product that starts anything on another computer. Nothing else in this file
+ * program a machine's work will live in. `machines:installKey` runs the program
+ * macOS ships for making a key and then one ssh. Nothing else in this file
  * spawns anything.
+ *
+ * ## Phase 79.1 adds one channel, and puts its gate somewhere new
+ *
+ * `machines:installKey` makes a key for one machine and adds its public half to
+ * one file on that machine. It does NOT ask {@link assertMachineMayConnect},
+ * and the reason is the whole point of the channel: a machine that has never
+ * let Tortie in has no program path, so it cannot be confirmed, so requiring a
+ * confirmation would make this call unreachable for exactly the person it is
+ * for. The operator hit that himself, with no key at all and his own machine
+ * refusing his connection.
+ *
+ * What stands in the gate's place is this call's OWN hash, and it is stronger
+ * for this act than the machine hash would be. It covers the machine id, the
+ * address, the account name, the port, the file that will be written on that
+ * machine and the path the private half is kept at here, so a person agrees to
+ * the file name rather than to a row. Main recomputes it before anything is
+ * started. A hash that does not match refuses, and at that point no key has
+ * been made and nothing has been sent.
  *
  * ## Phase 72 adds no channel, and changes one
  *
@@ -58,6 +76,8 @@ import { MACHINE_COLORS, MACHINE_DEFAULT_COLOR } from '@shared/machines';
 import type {
   MachineAddInput,
   MachineConfirmInput,
+  MachineKeyInstallInput,
+  MachineKeyInstallResult,
   MachinePrepareResult,
   MachineRowView,
   MachinesResult,
@@ -93,10 +113,24 @@ import {
   cancelMachineTest,
   resolveSsh,
   sendMachineTestInput,
+  startKeyInstall,
   startMachineTest,
   userHostKeysPath,
   type MachineHostKeyFiles
 } from './connection-test';
+// Phase 79.1. The sentences, the hash and the composed strings. It starts
+// nothing, which is why the runner above and not this module owns the terminal.
+import {
+  MACHINE_KEY_NO_ID,
+  MACHINE_KEY_STALE,
+  composeKeyInstallCopy,
+  describeKeyInstall
+} from './key-install';
+// Phase 79.1. The key itself. `machineKeyPath` is pure and makes nothing, so a
+// failed connection test can name the file on the block without a key existing.
+// `ensureMachineKey` is the one call that runs ssh-keygen, and it runs only
+// after the hash a person read has been checked.
+import { ensureMachineKey, machineKeyPath } from './key-material';
 import { prepareMachine } from './prepare';
 import { validateMachinesFile } from './schema';
 // Phase 72: the record a removal leaves behind. It writes tombstones and
@@ -326,9 +360,15 @@ export function registerMachinesIpc(ipc: IpcMain): void {
         if (sender.isDestroyed()) return;
         sendEvent(sender, EVT_MACHINE_TEST, payload);
       };
+      const sheetId = testSheetIdOf(input);
       const started = startMachineTest({
         fields,
-        sheetId: testSheetIdOf(input),
+        sheetId,
+        // PHASE 79.1. The path the key for this machine WOULD be kept at. It is
+        // computed and nothing is made: `machineKeyPath` opens no file and
+        // starts no program. The test needs it because the block a person reads
+        // after a refusal names the file, and the hash of that block covers it.
+        keyPath: sheetId === null ? null : machineKeyPath(sheetId),
         packaged: app.isPackaged,
         env: process.env,
         hostKeys: hostKeyFilesForTest(),
@@ -471,6 +511,110 @@ export function registerMachinesIpc(ipc: IpcMain): void {
       });
     }
   );
+
+  // PHASE 79.1. The one call that makes a key and puts its public half on one
+  // machine. The order below is the whole safeguard, and it is the order the
+  // spec of this phase names.
+  //
+  //  1. The machine has to have a name, because the name is on the hash.
+  //  2. The fields are validated the same way a test's are, so a typed address
+  //     the file would refuse is refused here with the same sentence.
+  //  3. The hash is recomputed and compared. A mismatch refuses HERE, with no
+  //     key made, no program started and nothing sent to any machine.
+  //  4. Only then is the key made, and only then is one connection opened.
+  handle(
+    ipc,
+    'machines:installKey',
+    async (
+      _event,
+      input: MachineKeyInstallInput
+    ): Promise<MachineKeyInstallResult> => {
+      const id = keyInstallIdOf(input.target);
+      const fields = keyInstallFieldsOf(input.target);
+      const block = describeKeyInstall(id, {
+        host: fields.host,
+        user: fields.user,
+        port: fields.port,
+        localKeyPath: machineKeyPath(id)
+      });
+      if (input.hashRead !== block.hash || !sameLines(input.linesRead, block.lines)) {
+        throw gmuxError('INVALID_INPUT', MACHINE_KEY_STALE);
+      }
+      // From here a key exists on this Mac. Nothing has been sent yet.
+      const material = ensureMachineKey({ id });
+      const run = await startKeyInstall({
+        machineId: id,
+        fields,
+        publicKeyLine: material.publicKeyLine,
+        password: input.password,
+        packaged: app.isPackaged,
+        env: process.env,
+        hostKeys: hostKeyFilesForTest()
+      });
+      const copy = composeKeyInstallCopy({
+        cls: run.cls,
+        text: run.transcript,
+        exitCode: run.exitCode
+      });
+      return {
+        id,
+        class: copy.class,
+        alarm: copy.alarm,
+        headline: copy.headline,
+        detail: copy.detail,
+        wrote: run.wrote,
+        keyMade: material.made,
+        fingerprint: material.fingerprint,
+        transcript: run.transcript,
+        durationMs: run.durationMs
+      };
+    }
+  );
+}
+
+/**
+ * The machine one install is for, or the sentence saying it needs a name.
+ *
+ * A saved row has one. A draft has the id the person typed into the form, and
+ * it is absent until they have typed it. There is no unnamed case, because the
+ * name is part of what the person agreed to and it is what tells one machine's
+ * key from another's.
+ */
+function keyInstallIdOf(target: MachineTestInput): string {
+  const id = target.mode === 'saved' ? target.id : (target.draft.id ?? '');
+  if (id.length === 0) throw gmuxError('INVALID_INPUT', MACHINE_KEY_NO_ID);
+  return id;
+}
+
+/**
+ * The fields one install runs against.
+ *
+ * A saved row is read from the file and a draft is checked by the SAME
+ * validator the loader uses, so a typed address the file would refuse is
+ * refused here with the validator's own sentence. Neither path asks
+ * {@link assertMachineMayConnect}, and the reason is at the top of this file.
+ */
+function keyInstallFieldsOf(target: MachineTestInput): MachineExecutionFields {
+  if (target.mode === 'saved') return machineFieldsOf(rowOrThrow(target.id));
+  const draft = target.draft;
+  const row: MachineRowV1 = {
+    id: 'draft',
+    host: draft.host,
+    ...(draft.user !== null ? { user: draft.user } : {}),
+    ...(draft.port !== null ? { port: draft.port } : {})
+  };
+  const checked = validateMachinesFile({ schema: 1, machines: [row] });
+  const problem = checked.problems[0];
+  if (problem !== undefined) {
+    throw gmuxError('INVALID_INPUT', `${problem.message} Nothing was started.`);
+  }
+  return machineFieldsOf(row);
+}
+
+/** True when the renderer sent back exactly the lines main composed. */
+function sameLines(read: readonly string[], composed: readonly string[]): boolean {
+  if (read.length !== composed.length) return false;
+  return read.every((line, at) => line === composed[at]);
 }
 
 /**

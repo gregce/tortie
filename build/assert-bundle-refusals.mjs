@@ -430,7 +430,16 @@ const CONFIG_REFUSALS = [
  * and one refuses a command aimed at a session no list from that machine
  * reported.
  *
- * PHASE 72 TOOK ONE OUT AND PUT FOUR IN, so the count is sixteen. The one that
+ * PHASE 79.1 PUT SEVEN IN, so the count is twenty three. Six of them are the
+ * sentences the key channel refuses with, and the seventh is the one that stops
+ * a string that is not a public key from reaching another machine's shell. That
+ * last one is the one this file exists for: `assertPublicKeyLine` has two call
+ * sites in one module and both pass the same value, which is the shape rollup
+ * proves through and deletes. The fix round added these rows because the phase's
+ * own specification asked for them and no builder owned this file, so the gate's
+ * count stayed at sixteen while seven new refusals shipped unpinned.
+ *
+ * PHASE 72 TOOK ONE OUT AND PUT FOUR IN, so the count was sixteen. The one that
  * left is `machine.restore-refused`, whose sentence said that bringing a session
  * back on another machine was coming in a later release. This is that release,
  * so the sentence became false. The four that arrived are the restore gate's own
@@ -691,6 +700,95 @@ const MACHINE_REFUSALS = [
       'Tortie has no conversation id for this session, because it does not read an ',
       "agent's own files on another machine yet. The session comes back with its ",
       'folder and its program. The conversation does not come back.'
+    ]
+  },
+  // ---------------------------------------------------------------------------
+  // Phase 79.1 added these seven. The channel makes a key and puts it on another
+  // computer, so every one of them stands between a person's agreement and a
+  // credential being installed somewhere.
+  // ---------------------------------------------------------------------------
+  {
+    id: 'machine.key-stale',
+    source: 'src/main/machines/key-install.ts',
+    why:
+      'the block sits on screen while a person reads it, and a key must be ' +
+      'installed on the machine they read about rather than on whatever the ' +
+      'row says by the time they press the button',
+    fragments: [
+      'Tortie did not set up a key, because the machine changed after it was ',
+      'shown. Read what it says now and agree to that. Nothing was sent to the '
+    ]
+  },
+  {
+    id: 'machine.key-no-id',
+    source: 'src/main/machines/key-install.ts',
+    why:
+      'the machine name is part of what is hashed and it is what tells one ' +
+      "machine's key from another's, so a key with no machine behind it is a " +
+      'credential nobody agreed to',
+    fragments: [
+      'Name this machine before Tortie makes a key for it. The name is part of ',
+      "what you are agreeing to, and it is what tells one machine's key from "
+    ]
+  },
+  {
+    id: 'machine.key-keygen-missing',
+    source: 'src/main/machines/key-install.ts',
+    why:
+      'without this sentence a Mac with no key program would fail somewhere ' +
+      'later and the person would not know that nothing was ever sent',
+    fragments: [
+      'Tortie could not find the program macOS uses to make a key, at ',
+      '/usr/bin/ssh-keygen. That program ships with macOS, so a missing one means '
+    ]
+  },
+  {
+    id: 'machine.key-password-refused',
+    source: 'src/main/machines/key-install.ts',
+    why:
+      'a wrong password must end the attempt in words rather than in a silent ' +
+      'retry, and the person has to be told that nothing was added and that ' +
+      'no copy of what they typed was kept',
+    fragments: [
+      'That machine did not accept the password. Tortie stopped there and did not ',
+      'try again. Nothing was added to that machine, and Tortie kept no copy of '
+    ]
+  },
+  {
+    id: 'machine.key-unknown-machine',
+    source: 'src/main/machines/key-install.ts',
+    why:
+      "a password may never be typed at a machine whose identity nobody has " +
+      'answered for, because the machine on the other end may not be the one ' +
+      'the person means',
+    fragments: [
+      'Tortie has not met this machine yet, so it will not send a password to it. ',
+      "Test the connection first. That is where you read the machine's "
+    ]
+  },
+  {
+    id: 'machine.key-not-written',
+    source: 'src/main/machines/key-install.ts',
+    why:
+      'a sign in that worked and a key that was added are two different ' +
+      'things, and reporting the first as the second would leave a person ' +
+      'believing a machine is ready when it is not',
+    fragments: [
+      'Tortie signed in to that machine and the machine did not report that the ',
+      'key was added. Nothing about this Mac changed. Read the lines above for '
+    ]
+  },
+  {
+    id: 'machine.key-not-a-public-key',
+    source: 'src/main/machines/key-install.ts',
+    why:
+      'this is the one that keeps a string that is not a public key out of ' +
+      "another computer's shell, and its two call sites are in one module and " +
+      'both pass the same value, which is exactly the shape a bundler proves ' +
+      'through and deletes',
+    fragments: [
+      'Tortie will not send that to another machine, because what it was given ',
+      'is not one public key line. Nothing was sent.'
     ]
   }
 ];

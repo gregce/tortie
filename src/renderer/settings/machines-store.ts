@@ -9,10 +9,18 @@
  * WHAT THIS STORE CANNOT DO, and the reason it is worth stating here rather
  * than only in the spec. Nothing in this file starts anything. Every call that
  * can cause a process to exist (`findTailnet`, `startDraftTest`,
- * `startSavedTest`, and `prepareMachine` since Phase 69) is reachable from
- * exactly one button each, and no reducer, no subscription and no effect calls
- * them. Reading the machines file cannot reach them, which is refusal 8 of
- * CLAUDE.md expressed in the one renderer module that could otherwise break it.
+ * `startSavedTest`, `prepareMachine` since Phase 69, and `installKey` since
+ * Phase 79.1) is reachable from exactly one button each, and no reducer, no
+ * subscription and no effect calls them. Reading the machines file cannot
+ * reach them, which is refusal 8 of CLAUDE.md expressed in the one renderer
+ * module that could otherwise break it.
+ *
+ * `installKey` starts a second call by itself, and that is deliberate rather
+ * than an exception. When main answers that the key is on the machine, this
+ * store starts the connection test again, because Tortie claiming a machine is
+ * ready is not the same as the machine signing Tortie in. A person still
+ * pressed one button, and the only thing that call can start is the test they
+ * could start themselves from the same panel.
  *
  * THE GATE IS IN MAIN, not here. `startSavedTest` reaches
  * `assertMachineMayConnect` on the other side of the bridge, so an unconfirmed
@@ -26,8 +34,12 @@ import type {
   MachineAddInput,
   MachineConfirmSheet,
   MachineDraft,
+  MachineKeyInstallResult,
+  MachineKeySheet,
   MachinePrepareResult,
   MachineRowView,
+  MachineTestClass,
+  MachineTestInput,
   MachineTestOutcome,
   MachineTestStarted,
   MachinesResult,
@@ -40,6 +52,7 @@ import { MACHINE_DEFAULT_COLOR } from '@shared/machines';
 import {
   ADD_DISABLED_REASON,
   BRIDGE_MISSING,
+  KEY_DISABLED_REASON,
   PREPARE_NEEDS_CONFIRM
 } from './machines-copy';
 
@@ -201,6 +214,68 @@ export function sheetOf(test: LiveTest | null): MachineConfirmSheet | null {
 }
 
 /**
+ * The three outcomes a key can do anything about.
+ *
+ * `password-required` is the machine asking for a password, which is the stock
+ * Mac with Remote Login on and no key for Tortie on it. It is the one of the
+ * three where pressing the button can succeed immediately, and it was missing
+ * from the first build of this phase.
+ *
+ * `auth-refused` is the machine turning the sign in down, which is what a
+ * missing key looks like when the machine offers no password at all.
+ *
+ * `refused` is the machine not accepting connections, which a key does not fix
+ * by itself. It is in the set anyway, because a person who has just turned on
+ * Remote Login is one step away from needing the key and should not have to
+ * run the test twice to be offered it. The order on the screen says Remote
+ * Login comes first, and that sentence is main's.
+ *
+ * This set is the second half of one gate. Main decides whether a sheet exists
+ * at all, and `connection-test.ts` uses the same three classes.
+ */
+const KEY_INSTALL_CLASSES: ReadonlySet<MachineTestClass> = new Set<
+  MachineTestClass
+>(['password-required', 'auth-refused', 'refused']);
+
+/**
+ * The sheet a person reads before Tortie makes a key, or null.
+ *
+ * ONE RULE IN ONE PLACE. The store sends the hash on this sheet back to main,
+ * and the surface draws the lines on it. If the two disagreed about when the
+ * block exists, a person could read one sheet and have another sent, so both
+ * ask this function.
+ *
+ * Main decides whether there is a sheet at all, and it sends one only for a
+ * machine it can name. The class check here is the second half of the same
+ * gate: a password field is drawn under an answer this surface was written
+ * for, and never under one it was not.
+ */
+export function keySheetOf(
+  outcome: MachineTestOutcome | null
+): MachineKeySheet | null {
+  if (outcome === null) return null;
+  if (!KEY_INSTALL_CLASSES.has(outcome.class)) return null;
+  return outcome.keySheet ?? null;
+}
+
+/**
+ * One key install, for one machine, at one moment.
+ *
+ * THE PASSWORD IS NOT HERE AND MUST NEVER BE. `installKey` takes it as an
+ * argument, hands it to the bridge, and lets it go when the call ends. The
+ * field that collects it lives in the component and is cleared on the same
+ * tick the call is made. Nothing in this store, and nothing in any snapshot
+ * of it, holds what a person typed.
+ */
+export interface KeyInstallState {
+  /** The row the install is for, or null for the Add a machine form. */
+  savedId: string | null;
+  running: boolean;
+  /** What main answered. Null while the call is in flight. */
+  result: MachineKeyInstallResult | null;
+}
+
+/**
  * The path the machine itself reported, or null when no test has finished
  * with an answer.
  */
@@ -247,6 +322,14 @@ export interface MachinesStoreState {
   /** The id a prepare is in flight for, or null. */
   preparing: string | null;
 
+  /**
+   * The key install for the machine a test is open on, or null.
+   *
+   * At most one exists, because at most one connection test exists and the
+   * install shares that one slot in main.
+   */
+  keyInstall: KeyInstallState | null;
+
   /** Idempotent. Reads the rows and subscribes to the test stream. */
   init(): void;
   /** Re-read what main already holds. Opens no file. */
@@ -284,6 +367,21 @@ export interface MachinesStoreState {
    * to be refused. It is not the safeguard.
    */
   prepareMachine(id: string): Promise<string | null>;
+
+  /**
+   * Makes a key for the machine the open test is about, puts its public half
+   * on that machine, and then starts the connection test again. One button
+   * reaches this.
+   *
+   * The password is an ARGUMENT and is never stored. It goes into the call and
+   * nowhere else.
+   *
+   * The gate is in main. Main recomputes the install hash and refuses one that
+   * is not the hash it would compute now, before anything is started, so the
+   * sheet this sends back is what binds the agreement rather than anything
+   * this file decides.
+   */
+  installKey(password: string): Promise<string | null>;
 }
 
 let initialized = false;
@@ -305,6 +403,7 @@ export const useMachinesStore = create<MachinesStoreState>()((set, get) => ({
   test: null,
   prepared: {},
   preparing: null,
+  keyInstall: null,
 
   init() {
     if (initialized) return;
@@ -357,11 +456,13 @@ export const useMachinesStore = create<MachinesStoreState>()((set, get) => ({
   },
 
   openAdd() {
-    set({ adding: true, form: emptyForm(), test: null });
+    // The key install belongs to the machine the last test was about, so it
+    // goes with that test rather than sitting under the next one.
+    set({ adding: true, form: emptyForm(), test: null, keyInstall: null });
   },
 
   closeAdd() {
-    set({ adding: false, form: emptyForm(), test: null });
+    set({ adding: false, form: emptyForm(), test: null, keyInstall: null });
   },
 
   setForm(patch) {
@@ -377,7 +478,10 @@ export const useMachinesStore = create<MachinesStoreState>()((set, get) => ({
         s.test !== null &&
         s.test.savedId === null &&
         JSON.stringify(draftOf(form)) !== JSON.stringify(draftOf(s.form));
-      return drifted ? { form, test: null } : { form };
+      // What a key install did was done to the address that was tested, so
+      // its answer goes when that test goes. Reading "That machine gained one
+      // line" under a different address would be a lie about which machine.
+      return drifted ? { form, test: null, keyInstall: null } : { form };
     });
   },
 
@@ -607,6 +711,59 @@ export const useMachinesStore = create<MachinesStoreState>()((set, get) => ({
     }
   },
 
+  async installKey(password) {
+    const b = bridge();
+    if (b === null) return BRIDGE_MISSING;
+    if (b.installKey === undefined) return BRIDGE_MISSING;
+
+    const live = get().test;
+    const sheet = keySheetOf(live?.outcome ?? null);
+    // The block that carries the button only exists while the sheet does, so
+    // this is narrowing rather than the safeguard. The safeguard is main
+    // recomputing the hash and refusing one it would not compute now.
+    if (live === null || sheet === null) return null;
+    if (password === '') return KEY_DISABLED_REASON;
+
+    // The install runs against the machine the OPEN TEST was about, never
+    // against whatever the form holds now. A draft test is sent back with the
+    // same four values and the same id it ran with, for the reason `draft` is
+    // kept on the test at all: the hash covers them, and a keystroke after the
+    // test must not move what the sheet was read for.
+    let target: MachineTestInput;
+    if (live.savedId !== null) {
+      target = { mode: 'saved', id: live.savedId };
+    } else if (live.draft !== null && live.draftId !== null) {
+      target = { mode: 'draft', draft: { ...live.draft, id: live.draftId } };
+    } else {
+      return null;
+    }
+
+    const savedId = live.savedId;
+    set({ keyInstall: { savedId, running: true, result: null } });
+    try {
+      const result = await b.installKey({
+        target,
+        // Main's own hash and main's own lines, sent back exactly as they
+        // arrived, which is what makes the agreement bind to the lines that
+        // were on the screen.
+        hashRead: sheet.hash,
+        linesRead: [...sheet.lines],
+        password
+      });
+      set({ keyInstall: { savedId, running: false, result } });
+      if (result.class !== 'key-installed') return null;
+      // THE FLOW ENDS WITH THE MACHINE'S OWN ANSWER. Tortie saying the key is
+      // installed is not the same as the machine signing Tortie in, so the
+      // real connection test runs again and the person reads what it says.
+      return savedId !== null
+        ? await get().startSavedTest(savedId)
+        : await get().startDraftTest();
+    } catch (err) {
+      set({ keyInstall: { savedId, running: false, result: null } });
+      return sentenceOf(err);
+    }
+  },
+
   async removeMachine(id) {
     const b = bridge();
     if (b === null) return BRIDGE_MISSING;
@@ -618,12 +775,17 @@ export const useMachinesStore = create<MachinesStoreState>()((set, get) => ({
       // The answer belonged to a row that no longer exists, so it goes with the
       // row rather than sitting under the machine that takes its place on screen.
       delete prepared[id];
+      const keyInstall = get().keyInstall;
       set({
         machines: next,
         prepared,
         // A test still running against a row that no longer exists has
         // nothing to report to, so it goes with the row.
-        test: live !== null && live.savedId === id ? null : live
+        test: live !== null && live.savedId === id ? null : live,
+        // The install answer goes with the row for the same reason the
+        // prepare answer does.
+        keyInstall:
+          keyInstall !== null && keyInstall.savedId === id ? null : keyInstall
       });
       return null;
     } catch (err) {

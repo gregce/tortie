@@ -4,7 +4,7 @@
  *
  * ## Why the copy is composed here and not in the renderer
  *
- * Ten of these eleven classes are calm. One is not. A changed host key means
+ * Fifteen of these sixteen classes are calm. One is not. A changed host key means
  * the program is warning that the machine presenting itself is not the machine
  * that presented itself before, and somebody may be reading the connection.
  * That case gets its own alarming state and it may never share calm copy with
@@ -18,10 +18,13 @@
  * ## What is calm on purpose
  *
  * An expired key, a changed permission and a machine that is switched off all
- * read as ordinary. They are ordinary. Tortie handles no keys and no passwords,
- * so the person's own ssh agent, their own ssh settings and their tailnet
- * decide those, and telling them to panic about a key rotation would teach them
- * to ignore the one message that matters.
+ * read as ordinary. They are ordinary, and telling a person to panic about a
+ * key rotation would teach them to ignore the one message that matters.
+ *
+ * These sentences used to say that Tortie handles no keys and no passwords.
+ * Phase 79.1 made that false. Tortie now makes a key for one machine and puts
+ * its public half on that machine, so a sign in that failed has something a
+ * person can do about it inside the product.
  *
  * ## What this cannot do, stated plainly
  *
@@ -49,6 +52,30 @@
  *  - `version-unmeasured` is a machine running a version nobody measured.
  *    `alarm` is false, because it is not a security event.
  *  - `prepared` is the success answer of Prepare.
+ *
+ * ## The two classes Phase 79.1 added
+ *
+ *  - `key-installed` says the public half of Tortie's key for that machine is
+ *    now on it. It is Tortie's own sentence rather than a program's, because
+ *    the marker the far machine prints is text Tortie's own script printed.
+ *    `alarm` is false. It is deliberately NOT a claim that the machine is
+ *    usable, and the detail says what happens next, which is that Tortie tests
+ *    the connection and shows the machine's own answer.
+ *  - `password-required` is a machine that answered and asked for a password.
+ *    A real program prints that question, but no phrase in the table below
+ *    decides it, because the question arrives while the client is still
+ *    running and is never followed by an exit. `./connection-test.ts` watches
+ *    for it, stops the client and finishes on this class.
+ *
+ *    MEASURED 2026-08-18, twice. In the real app, against a Mac with Remote
+ *    Login on and no key for Tortie on it, the test ran its whole 60 s deadline
+ *    and came back `timed-out`, and the advice on screen said the machine was
+ *    answering too slowly to use. The machine had printed
+ *    `gdc@127.0.0.1's password: ` and was waiting. With this class, the same
+ *    shape of machine, built as a scratch server on 127.0.0.1 by
+ *    `build/probe-key-install.mjs` leg 4, answered `password-required` in
+ *    33 ms and was offered the key block. The 27 bytes the client printed are
+ *    in `__tests__/golden/password-required.txt`.
  */
 
 import type { MachineTestClass } from '@shared/ipc';
@@ -173,14 +200,34 @@ const COPY: Readonly<Record<MachineTestClass, MachineOutcomeCopy>> = {
       'Check the address, or pick the machine from your tailnet instead of ' +
       'typing it.'
   },
+  // PHASE 79.1 FIX ROUND. This detail used to say that Tortie does not handle
+  // keys or passwords. It was photographed drawn one line above a button
+  // reading "Make a key and put it on this machine", so half of the screen
+  // disproved the other half. The renderer's remedy was reworded when the
+  // button shipped and this sentence was not, because the test that walks
+  // retired claims only walked renderer copy. It walks this table now.
   'auth-refused': {
     class: 'auth-refused',
     alarm: false,
     headline: 'The machine refused your sign in.',
     detail:
-      'Tortie does not handle keys or passwords. Your own ssh agent, your own ' +
-      'ssh settings and your tailnet decide this. An expired key and a changed ' +
+      'That machine answered and would not let Tortie in. It holds no key ' +
+      'that it will accept from this Mac. An expired key and a changed ' +
       'permission both look like this.'
+  },
+  // PHASE 79.1 FIX ROUND. A machine that answered and asked for a password.
+  // Tortie signs in with a key everywhere else in the product, and every other
+  // connection it makes refuses to wait for a person, so a password typed here
+  // would produce a machine that passes its test and fails every real use.
+  'password-required': {
+    class: 'password-required',
+    alarm: false,
+    headline: 'That machine asked for a password.',
+    detail:
+      'It answered, and it would not take a key from this Mac, so it asked ' +
+      'for a password instead. Tortie signs in with a key rather than a ' +
+      'password, so it stopped the test there and changed nothing on either ' +
+      'machine.'
   },
   'no-program': {
     class: 'no-program',
@@ -242,6 +289,13 @@ const COPY: Readonly<Record<MachineTestClass, MachineOutcomeCopy>> = {
     headline: 'This machine is ready.',
     // The path and the version are appended by the composer below.
     detail: 'Tortie started the program on this machine.'
+  },
+  'key-installed': {
+    class: 'key-installed',
+    alarm: false,
+    headline: 'The key is on that machine.',
+    detail:
+      'Tortie added its key to that machine and is testing the connection now.'
   }
 };
 

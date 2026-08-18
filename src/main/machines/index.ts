@@ -69,6 +69,23 @@
  *  - `ipc.ts` is the one `machines:*` registrar.
  *  - `smoke.ts`, `exec-smoke.ts` and `remote-smoke.ts` are the Electron smokes,
  *    and the second callers the refusals need.
+ *
+ * PHASE 79.1 added two modules and this file re-exports NEITHER, which is a
+ * decision rather than an oversight.
+ *
+ *  - `key-material.ts` makes and reads the key for one machine, under Tortie's
+ *    own directory. It never touches the person's own key folder.
+ *  - `key-install.ts` holds every sentence, every hash and every composed
+ *    string about putting that key on a machine. It starts nothing. The runner
+ *    that does is in `connection-test.ts`, beside the other one, because both
+ *    spawn a pty and one module owns that.
+ *
+ * Their only callers are `ipc.ts` and `connection-test.ts`, both inside this
+ * directory, and both import the module directly. A re-export here would be a
+ * second name for something nothing outside asks for, and the growth guardrail
+ * in CLAUDE.md asks for a small deliberate export surface rather than a
+ * complete one. Add the re-export when a caller outside this directory needs
+ * one, and not before.
  */
 
 export {

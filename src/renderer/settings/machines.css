@@ -687,3 +687,95 @@
 .mach-prepare-result[data-prepare-alarm='yes'] .mach-prepare-headline {
   color: var(--error);
 }
+
+/* ---------------------------------------------------------------------------
+   Setting up a key for one machine (Phase 79.1)
+   ---------------------------------------------------------------------------
+   The block hangs off the bottom of the connection test, under the advice,
+   and it is the one place in the product that asks for another machine's
+   password. It is set in the ordinary tones. It is not an alarm and it must
+   never become one: the single alarm on this surface is a changed host key,
+   and a second loud thing on the same panel is how a person learns to read
+   past the first. */
+
+.mach-key {
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.mach-key-label {
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  color: var(--text-primary);
+}
+
+/* The two headings inside the block. They are quieter than the block's own
+   label, because they sort what is under them rather than naming the block. */
+.mach-key-sublabel {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.mach-key-lines {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Main's notes. Each one is its own paragraph, because they answer four
+   different questions and a person reads them one at a time. */
+.mach-key-note {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-secondary);
+}
+
+.mach-key-field {
+  margin-top: var(--space-2);
+}
+
+/* What main answered. It carries its own border for the reason Prepare's
+   answer does, being that a report about another computer should not read as
+   more of the sentence above it. */
+.mach-key-result {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-raised);
+}
+
+/* The result's own transcript sits inside a bordered card already, so it
+   keeps the type and drops the panel padding. */
+.mach-key-result .mach-transcript {
+  padding: 0;
+  min-height: 0;
+  max-height: 200px;
+}
+
+/* The advice inside the result needs the rule that separates it from the
+   report and nothing else, exactly as it does inside Prepare's answer. */
+.mach-key-result .mach-remedy {
+  padding: var(--space-3) 0 0;
+}
+
+/* The one alarm, again, and it may never be shared. A changed host key met
+   while installing a key is the same event it is anywhere else. */
+.mach-key-result[data-key-alarm='yes'] {
+  background: var(--error-wash);
+  border-color: var(--error);
+}
+
+.mach-key-result[data-key-alarm='yes'] .mach-outcome-head {
+  color: var(--error);
+}

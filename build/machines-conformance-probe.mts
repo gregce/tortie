@@ -16,6 +16,12 @@
  * writes nothing anywhere. Every function it calls is pure. It is safe to run
  * on a machine with live sessions on it.
  *
+ * PHASE 79.1 ADDED ONE MODULE LOAD, said here rather than left to be noticed.
+ * `key-material.ts` reads the record directory from `../src/main/machines/store`,
+ * which imports Electron's `app` and the watcher package. Loading those modules
+ * starts nothing, opens no window, watches no directory and reads no file. No
+ * function in this probe makes a key, and `ensureMachineKey` is never called.
+ *
  * ---------------------------------------------------------------------------
  * WHAT IT CANNOT PROVE, said here so nobody reads more into a pass
  * ---------------------------------------------------------------------------
@@ -121,6 +127,27 @@ import {
   remoteRestoreVerdict,
   type RemoteRestoreFacts
 } from '../src/main/machines/restore-gate';
+// Phase 79.1, conditions 28 to 34. The key Tortie makes for one machine and the
+// one command that puts its public half on that machine. Both modules are pure:
+// `key-install.ts` composes strings, and nothing in `key-material.ts` runs until
+// a caller asks for a key, which this probe never does.
+import {
+  AUTHORIZED_KEYS_SCRIPT,
+  MACHINE_KEY_HASH_ALGORITHM,
+  REMOTE_AUTHORIZED_KEYS_DISPLAY,
+  canonicalKeyInstallText,
+  composeAuthorizedKeysCommand,
+  composeKeyInstallArgv,
+  keyInstallHash,
+  type KeyInstallFacts
+} from '../src/main/machines/key-install';
+import {
+  machineKeyComment,
+  machineKeyDir,
+  machineKeyPath
+} from '../src/main/machines/key-material';
+import { machineRecordDir } from '../src/main/machines/store';
+import { shellQuoteArgv } from '../src/main/restore/command';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const machinesDir = join(repoRoot, 'src', 'main', 'machines');
@@ -720,6 +747,144 @@ const matrixIdsIn = (text: string): string[] => [
   ...new Set([...text.matchAll(/'(matrix\.[a-z-]+)'/g)].map((hit) => hit[1] ?? ''))
 ];
 
+// ---------------------------------------------------------------------------
+// 13. Phase 79.1. The key install: its own agreement, its argv and its script
+// ---------------------------------------------------------------------------
+//
+// Installing a key is a second act with a second agreement. The machine
+// execution hash does not gain a field for it, and conditions 1, 2 and 7 above
+// still hold that set at four. What is checked here is that the install has its
+// OWN hash over the facts a person reads on its own sheet, that the two hashes
+// are never the same value, and that nothing a person or an agent typed can
+// reach the other machine's shell.
+//
+// Nothing below connects to anything, makes a key, or writes a file. Every call
+// composes a string.
+
+/** A userData root with a space in it, which is what every Mac has. */
+const KEY_USER_DATA = '/Users/x/Library/Application Support/Tortie';
+
+/** The one public key line shape Tortie ever installs. Made up, not a real key. */
+const PUBLIC_KEY_LINE =
+  'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIB6f4Iu2vQeJcuqZ0h1sK2n2u9C6VvVdV9wF1B2Q3R4S tortie-0123456789ab';
+
+const KEY_FACTS: KeyInstallFacts = {
+  host: BASE.host,
+  user: BASE.user,
+  port: BASE.port,
+  localKeyPath: machineKeyPath(ID, KEY_USER_DATA)
+};
+
+/** One variation per hashed field, changed alone. */
+const KEY_CHANGED: Record<string, KeyInstallFacts> = {
+  host: { ...KEY_FACTS, host: 'attic.tail1a2b.ts.net' },
+  user: { ...KEY_FACTS, user: 'root' },
+  port: { ...KEY_FACTS, port: 2222 },
+  localKeyPath: { ...KEY_FACTS, localKeyPath: `${KEY_FACTS.localKeyPath}-other` }
+};
+
+const KEY_UNSET: Record<string, KeyInstallFacts> = {
+  user: { ...KEY_FACTS, user: null },
+  port: { ...KEY_FACTS, port: null }
+};
+
+const keyBase = keyInstallHash(ID, KEY_FACTS);
+const keyCanonical = canonicalKeyInstallText(ID, KEY_FACTS);
+
+const keyFieldRows = Object.keys(KEY_CHANGED).map((field) => ({
+  field,
+  changedHash: keyInstallHash(ID, KEY_CHANGED[field] as KeyInstallFacts),
+  unsetHash:
+    KEY_UNSET[field] === undefined
+      ? null
+      : keyInstallHash(ID, KEY_UNSET[field] as KeyInstallFacts)
+}));
+
+/** The install argv, and the one command it carries to the other machine. */
+const keyInstallArgv = composeKeyInstallArgv(BASE, HOST_KEYS, PUBLIC_KEY_LINE);
+const keyInstallCommand = composeAuthorizedKeysCommand(PUBLIC_KEY_LINE);
+
+/**
+ * The same command, quoted here from an argv array rather than read from the
+ * module. A byte difference between the two is a composer that stopped going
+ * through one `shellQuoteArgv` call over a list.
+ */
+const keyInstallCommandRecomposed = shellQuoteArgv([
+  '/bin/sh',
+  '-c',
+  AUTHORIZED_KEYS_SCRIPT,
+  'tortie-install-key',
+  PUBLIC_KEY_LINE
+]);
+
+/**
+ * Five public key lines nobody would ever produce, each one a way a line could
+ * carry something the other machine's shell would read. Every one of them must
+ * produce no argv at all.
+ */
+const HOSTILE_KEY_LINES = [
+  `${PUBLIC_KEY_LINE}\nssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEVIL evil`,
+  `${PUBLIC_KEY_LINE}; rm -rf /`,
+  `${PUBLIC_KEY_LINE}\`id\``,
+  `${PUBLIC_KEY_LINE}$(id)`,
+  `${PUBLIC_KEY_LINE}'`
+];
+
+const hostileKeyRows = HOSTILE_KEY_LINES.map((line) => {
+  let composed: string[] | null = null;
+  let threw = false;
+  try {
+    composed = composeKeyInstallArgv(BASE, HOST_KEYS, line);
+  } catch {
+    threw = true;
+  }
+  return {
+    sample: line.slice(PUBLIC_KEY_LINE.length),
+    threw,
+    argvLength: composed === null ? 0 : composed.length
+  };
+});
+
+/** Twelve ids the machines file is allowed to carry, and an agent can write. */
+const HOSTILE_MACHINE_IDS = [
+  '../../../../etc/ssh/ssh_host_ed25519_key',
+  '..',
+  '.',
+  '/etc/shadow',
+  'a/b/c',
+  '   x   ',
+  'id null',
+  "'; rm -rf / #",
+  '$(id)',
+  '`id`',
+  'two\nlines',
+  'unicode-horse-abcdefghij'.repeat(40)
+];
+
+const keyRecordDir = machineRecordDir(KEY_USER_DATA);
+const hostileKeyPaths = HOSTILE_MACHINE_IDS.map((id) => ({
+  path: machineKeyPath(id, KEY_USER_DATA),
+  comment: machineKeyComment(id)
+}));
+
+/** The import specifiers of one module, for condition 34. */
+function importSpecifiers(file: string): string[] {
+  return [...readFileSync(file, 'utf8').matchAll(/from\s+'([^']+)'/g)].map(
+    (hit) => hit[1] ?? ''
+  );
+}
+
+/** Every line of a file, trimmed, for a source rule the checker decides. */
+function sourceLines(file: string): { line: number; text: string }[] {
+  return readFileSync(file, 'utf8')
+    .split('\n')
+    .map((text, index) => ({ line: index + 1, text: text.trim() }));
+}
+
+const keyMaterialPath = join(machinesDir, 'key-material.ts');
+const keyInstallPath = join(machinesDir, 'key-install.ts');
+const connectionTestPath = join(machinesDir, 'connection-test.ts');
+
 const files = productionFiles(machinesDir);
 const wholeTree = (() => {
   const collected: string[] = [];
@@ -879,6 +1044,61 @@ process.stdout.write(
     matrixModeRegistered: readFileSync(
       join(repoRoot, 'src', 'main', 'harness', 'index.ts'),
       'utf8'
-    ).includes("smoke === 'remote-matrix'")
+    ).includes("smoke === 'remote-matrix'"),
+
+    // --- Phase 79.1, conditions 28 to 34 -----------------------------------
+    keyInstall: {
+      id: ID,
+      algorithm: MACHINE_KEY_HASH_ALGORITHM,
+      base: keyBase,
+      sameAgain: keyInstallHash(ID, { ...KEY_FACTS }),
+      fields: keyFieldRows,
+      canonical: keyCanonical,
+      // The machine execution hash and the install hash are two agreements over
+      // two different sets of facts, so they may never be one value.
+      machineHash: base,
+      // The remote file path is a compiled constant rather than a field a caller
+      // passes, so the executable form of "the hash moves for it" is that the
+      // canonical text carries it.
+      remoteFilePath: REMOTE_AUTHORIZED_KEYS_DISPLAY,
+      canonicalCarriesRemotePath: keyCanonical.includes(REMOTE_AUTHORIZED_KEYS_DISPLAY),
+      canonicalCarriesLocalKeyPath: keyCanonical.includes(KEY_FACTS.localKeyPath),
+      canonicalCarriesPrefix: keyCanonical.includes(`"${MACHINE_CONFIRM_ID_PREFIX}${ID}"`),
+      // `remoteTmuxPath` is deliberately not in this hash. A machine that has
+      // never authenticated has no program path, and that is the exact machine
+      // this surface exists for.
+      canonicalCarriesProgramPath: keyCanonical.includes('/usr/bin/tmux'),
+      canonicalCarriesLabel: keyCanonical.includes('Pop OS') || keyCanonical.includes('label'),
+      canonicalCarriesColor: keyCanonical.includes('blue') || keyCanonical.includes('color'),
+      argv: keyInstallArgv,
+      command: keyInstallCommand,
+      commandRecomposed: keyInstallCommandRecomposed,
+      commandEndsWithQuotedKey: keyInstallCommand.endsWith(
+        shellQuoteArgv([PUBLIC_KEY_LINE])
+      ),
+      commandKeyOccurrences: keyInstallCommand.split(PUBLIC_KEY_LINE).length - 1,
+      script: AUTHORIZED_KEYS_SCRIPT,
+      scriptCarriesKey: AUTHORIZED_KEYS_SCRIPT.includes(PUBLIC_KEY_LINE),
+      publicKeyLine: PUBLIC_KEY_LINE,
+      hostileLines: hostileKeyRows,
+      keyDir: machineKeyDir(KEY_USER_DATA),
+      recordDir: keyRecordDir,
+      hostilePaths: hostileKeyPaths,
+      materialSource: sourceLines(keyMaterialPath),
+      imports: {
+        'key-material.ts': importSpecifiers(keyMaterialPath),
+        'key-install.ts': importSpecifiers(keyInstallPath),
+        'connection-test.ts': importSpecifiers(connectionTestPath)
+      },
+      namesSafeStorage: [keyMaterialPath, keyInstallPath, connectionTestPath]
+        .map((file) => ({
+          file: file.slice(repoRoot.length + 1),
+          hits: sourceLines(file).filter(
+            (row) => row.text.includes('safeStorage') && !/^(\*|\/\/|\/\*)/.test(row.text)
+          )
+        }))
+        .filter((row) => row.hits.length > 0)
+        .map((row) => row.file)
+    }
   })
 );

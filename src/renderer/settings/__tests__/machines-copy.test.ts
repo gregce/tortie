@@ -37,12 +37,25 @@
  * `build/assert-import-boundaries.mjs` lines 14 to 17 exempt `__tests__` from
  * the layer rules and name the renderer agents test, which imports the
  * main-process registry for exactly this purpose.
+ *
+ * WHAT PHASE 79.1 ADDED. One block of strings for setting up a key on one
+ * machine, and one check that none of them names a file, a path or any part of
+ * a key. Those all arrive from main beside the hash the agreement binds to, so
+ * a path written in this file could differ from the path main writes to, and a
+ * person would have agreed to the wrong one.
  */
 
 import { describe, expect, it } from 'vitest';
 import * as copy from '../machines-copy';
 import { remoteCreateArgs } from '../../../main/machines/remote-sessions';
-import { MACHINE_OUTCOME_CLASSES } from '../../../main/machines/errors';
+import {
+  MACHINE_OUTCOME_CLASSES,
+  machineOutcomeCopy
+} from '../../../main/machines/errors';
+// The witness for the Phase 79.1 rows below. `key-install.ts` starts nothing
+// and pulls in no native module, which is why it is the witness rather than
+// the runner that spawns the client.
+import { composeAuthorizedKeysCommand } from '../../../main/machines/key-install';
 import { TESTED_REMOTE_TMUX_VERSIONS } from '../../../main/tmux/version';
 
 /** Words a person should never meet in Tortie's own copy. */
@@ -304,6 +317,13 @@ describe('the sentences the charter fixes', () => {
  * shipping sessions on another machine. Nobody re-read the block. Add a row
  * here when a rung retires a sentence, and the next person is told by a
  * failing test rather than by the operator's photograph.
+ *
+ * WHAT THE FIX ROUND OF PHASE 79.1 CHANGED. This walk only ever read renderer
+ * copy, so it could not see main's own outcome table. Phase 79.1 reworded the
+ * renderer's advice for a refused sign in and left main's detail beside it
+ * saying "Tortie does not handle keys or passwords", one line above a button
+ * that makes a key. Half a claim was retired and the other half shipped. The
+ * walk below now reads both sets, and the third row is that sentence.
  */
 const RETIRED_CLAIMS = [
   {
@@ -317,18 +337,56 @@ const RETIRED_CLAIMS = [
     rung: 'Phase 70, 0.34.0, 2026-08-17',
     witness: 'remoteCreateArgs composes the create command for another machine',
     shipped: () => typeof remoteCreateArgs === 'function'
+  },
+  {
+    phrase: 'does not handle keys or passwords',
+    rung: 'Phase 79.1, 2026-08-18',
+    witness:
+      'composeAuthorizedKeysCommand composes the command that adds Tortie\'s ' +
+      'key to another machine',
+    shipped: () => typeof composeAuthorizedKeysCommand === 'function'
+  },
+  {
+    phrase: 'handles no keys and no passwords',
+    rung: 'Phase 79.1, 2026-08-18',
+    witness:
+      'composeAuthorizedKeysCommand composes the command that adds Tortie\'s ' +
+      'key to another machine',
+    shipped: () => typeof composeAuthorizedKeysCommand === 'function'
   }
 ];
+
+/**
+ * Main's own outcome copy, added to the walk.
+ *
+ * It is kept apart from `STRINGS` on purpose. The checks above this point are
+ * about renderer copy and they forbid words such as ssh, which main's copy is
+ * allowed to use and does: one class names /usr/bin/ssh, because a person
+ * whose Mac is missing that file has to be told which file. Only the retired
+ * claims walk reads this list.
+ */
+const MAIN_STRINGS: { name: string; text: string }[] =
+  MACHINE_OUTCOME_CLASSES.flatMap((cls) => {
+    const copy = machineOutcomeCopy(cls);
+    return [
+      { name: `main ${cls}.headline`, text: copy.headline },
+      { name: `main ${cls}.detail`, text: copy.detail }
+    ];
+  });
 
 describe('claims a shipped rung has retired', () => {
   it('has at least one row, so the walk below checks something', () => {
     expect(RETIRED_CLAIMS.length).toBeGreaterThan(0);
   });
 
+  it('reads main\'s outcome copy as well as this file\'s', () => {
+    expect(MAIN_STRINGS.length).toBe(MACHINE_OUTCOME_CLASSES.length * 2);
+  });
+
   for (const claim of RETIRED_CLAIMS) {
     it(`no string still says "${claim.phrase}"`, () => {
       if (!claim.shipped()) return;
-      const offenders = STRINGS.filter((s) =>
+      const offenders = [...STRINGS, ...MAIN_STRINGS].filter((s) =>
         s.text.toLowerCase().includes(claim.phrase.toLowerCase())
       ).map(
         (s) =>
@@ -364,7 +422,82 @@ describe('the three copies of main, checked by machine', () => {
       .filter(([, text]) => text === null)
       .map(([cls]) => cls)
       .sort();
-    expect(nothingToDo).toEqual(['cancelled', 'ok', 'prepared']);
+    // Phase 79.1 added `key-installed`. The key is on the machine, the
+    // surface has already started the connection test, and the answer a
+    // person is waiting for is the machine's own.
+    expect(nothingToDo).toEqual(['cancelled', 'key-installed', 'ok', 'prepared']);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 79.1. The block that offers to set up a key
+// ---------------------------------------------------------------------------
+
+describe('the words the key block writes for itself', () => {
+  it('names no file, no path and no part of a key', () => {
+    // Every one of those arrives from main on the sheet and on the result,
+    // beside the hash the agreement binds to. A path written here could
+    // differ from the path main will actually write to, and a person would
+    // have agreed to the wrong one.
+    const ours = [
+      copy.KEY_BLOCK_LABEL,
+      copy.KEY_LINES_LABEL,
+      copy.KEY_PASSWORD_LABEL,
+      copy.KEY_PASSWORD_HINT,
+      copy.BTN_INSTALL_KEY,
+      copy.INSTALLING_KEY,
+      copy.KEY_DISABLED_REASON,
+      copy.KEY_TRANSCRIPT_LABEL,
+      copy.KEY_RESULT_LABEL,
+      copy.KEY_MADE_NEW,
+      copy.KEY_MADE_REUSED,
+      copy.KEY_WROTE_ADDED,
+      copy.KEY_WROTE_PRESENT,
+      copy.KEY_FINGERPRINT_LABEL
+    ];
+    const offenders = ours.filter((text) => /\/|~|authorized_keys|ed25519/.test(text));
+    expect(offenders).toEqual([]);
+  });
+
+  it('says what the button will do, in the words on the button', () => {
+    expect(copy.BTN_INSTALL_KEY).toBe('Make a key and put it on this machine');
+    expect(copy.KEY_BLOCK_LABEL).toBe('Set up a key for this machine');
+  });
+
+  it('promises that the password is not kept, beside the field that takes it', () => {
+    expect(copy.KEY_PASSWORD_HINT).toBe(
+      'This goes straight to the sign in program for one call. Tortie keeps ' +
+        'no copy of it.'
+    );
+  });
+
+  it('says why the button is off, while it is off', () => {
+    expect(copy.KEY_DISABLED_REASON).toBe(
+      "Type that machine's password first. Tortie needs it once to put the " +
+        'key on the machine.'
+    );
+  });
+
+  it('says which of the two things happened to the key and to the file', () => {
+    expect(copy.KEY_MADE_NEW).toBe('Tortie made a new key for this machine.');
+    expect(copy.KEY_MADE_REUSED).toBe(
+      'Tortie used the key it had already made for this machine.'
+    );
+    expect(copy.KEY_WROTE_ADDED).toBe('That machine gained one line.');
+    expect(copy.KEY_WROTE_PRESENT).toBe(
+      'That machine already had this key, so nothing was added.'
+    );
+  });
+
+  it('points a refused sign in at the block that fixes it', () => {
+    // Phase 79 told a person to put their public key on the machine
+    // themselves. Tortie does it now, so the advice names the block rather
+    // than the errand.
+    expect(copy.REMEDY['auth-refused']).toBe(
+      'That machine did not accept your sign in. Your key may not be on it ' +
+        'yet. The block under this one makes a key and puts it on that ' +
+        'machine for you.'
+    );
   });
 });
 

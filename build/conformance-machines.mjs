@@ -14,7 +14,7 @@
  * no tmux server, no Electron, no manifest, no file under the person's home, no
  * request and no write anywhere. Safe on a machine with live sessions on it.
  *
- * THE TWENTY SEVEN CONDITIONS IT FAILS ON. Each one is a way a person's agreement
+ * THE THIRTY FOUR CONDITIONS IT FAILS ON. Each one is a way a person's agreement
  * could come to cover something they did not read, a way a refusal could quietly
  * stop being a refusal, or (from 11 on) a way a command Tortie sends to another
  * machine could come to land somewhere nobody chose.
@@ -102,6 +102,35 @@
  * 27. The ten row fault matrix has fewer than ten rows, its two halves name
  *     different rows, or `src/main/harness/index.ts` cannot start it. A row
  *     with no grader passes by not being looked at.
+ * 28. The key install hash does not move for `host`, `user`, `port` or the local
+ *     key path, each varied alone; it does not carry the file it writes on the
+ *     other machine or the record prefix; it carries `remoteTmuxPath`, a label or
+ *     a colour; or it equals the machine execution hash for the same machine.
+ *     PHASE 79.1 DID NOT ADD A FIELD TO THE MACHINE HASH, and conditions 1, 2
+ *     and 7 still hold that set at four. Installing a key is a second act, so it
+ *     gets a second agreement over its own facts.
+ * 29. The key install argv is missing `BatchMode=no`, `StrictHostKeyChecking=yes`,
+ *     `NumberOfPasswordPrompts=1`, `PubkeyAuthentication=no` or
+ *     `IdentitiesOnly=yes`; weakens the host key check; or does not name exactly
+ *     one record file option with Tortie's file first and both paths quoted.
+ * 30. The remote script carries a backtick, a `$(` or a `${`; the remote command
+ *     is not the output of one `shellQuoteArgv` call over an argv array; or the
+ *     public key is anywhere in that command other than as the last argument.
+ * 31. The remote script carries a `>` that is not part of a `>>`, appends at more
+ *     than one place, names `truncate`, `tee` or `dd`, or aims its one append at
+ *     something other than the `authorized_keys` path it named.
+ * 32. A public key line Tortie did not make produces an argv at all. Five hostile
+ *     strings are tried, being a second line, a semicolon, a backtick pair, a
+ *     command substitution and a single quote.
+ * 33. `key-material.ts` names `homedir`, `~` or `.ssh` outside a denying comment;
+ *     the key directory is outside the machine record directory; a hostile
+ *     machine id composes a path outside the key directory, a file name that is
+ *     not a hash, or a key comment that is not a hash; or twelve ids produce
+ *     fewer than twelve file names.
+ * 34. `key-material.ts`, `key-install.ts` or `connection-test.ts` imports the
+ *     manifest or the sealed confirmation record, or names `safeStorage` in code.
+ *     The password a person types crosses one call and is kept nowhere, and this
+ *     is the condition that makes that a property of the import graph.
  *
  * WHAT IT DOES NOT PROVE, stated so nobody reads more into a pass. The record
  * is sealed through `safeStorage`, which needs an Electron process, so this
@@ -111,6 +140,11 @@
  * COMPOSED strings and lists, never a live connection, so what they prove is that
  * the shapes are right and not that a machine answered. That is
  * `build/probe-execplane.mjs` and `npm run smoke:execplane`.
+ *
+ * Conditions 28 to 34 read composed strings and source files. No key is made, no
+ * password is typed and nothing is written to any machine. That is
+ * `npm run probe:keyinstall`, which drives the real client and a real scratch
+ * server on 127.0.0.1.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -446,7 +480,17 @@ const EXPECTED_CLASSES = [
   // own answer on success.
   'no-server',
   'version-unmeasured',
-  'prepared'
+  'prepared',
+  // Phase 79.1. Tortie's own answer after it put a key on a machine. No program
+  // prints it, which is why the golden manifest carries a `noGolden` row for it
+  // with that reason. The surface then starts the real connection test, so this
+  // class is never the last thing a person reads.
+  'key-installed',
+  // Phase 79.1 fix round. A machine that answered and asked for a password. A
+  // real program prints that question and the golden folder holds the bytes,
+  // captured through Tortie's own runner because the question arrives while the
+  // client is still running and the capture script runs every case to an exit.
+  'password-required'
 ].sort();
 
 const gotClasses = data.taxonomy.map((row) => row.class).sort();
@@ -1583,6 +1627,381 @@ for (const row of gateRows) {
 }
 
 // ---------------------------------------------------------------------------
+// 28 to 34. Phase 79.1. Tortie makes the key and puts it on the machine
+// ---------------------------------------------------------------------------
+//
+// Installing a key is a second act and it gets a second agreement. The machine
+// execution hash did NOT gain a field for it, so conditions 1, 2 and 7 above
+// still hold that set at four and every machine the operator already confirmed
+// still reads `confirmed`. What is checked here is the other half of that
+// choice: the install has its own hash over the facts its own sheet shows, the
+// two hashes are never one value, and nothing a person or an agent typed can
+// reach the other machine's shell.
+
+const keyVerdicts = [];
+const key = data.keyInstall ?? {};
+
+{
+  // 28. The install agreement, and what it is bound to.
+  if (typeof key.base !== 'string' || key.base.length !== 64) {
+    fail(
+      `the key install sheet hashed to ${JSON.stringify(key.base)}. There is ` +
+        `nothing for a person's agreement to bind to, so the install would run ` +
+        `on whatever the renderer sent.`
+    );
+  }
+  if (key.sameAgain !== key.base) {
+    fail('hashing the same key install twice gave two answers. No agreement would hold.');
+  }
+  if (key.base === key.machineHash) {
+    fail(
+      'the key install hash and the machine execution hash are the same value. ' +
+        'One agreement would cover two different acts, and the sheet a person ' +
+        'read for one would confirm the other.'
+    );
+  }
+  for (const row of key.fields ?? []) {
+    const moved = row.changedHash !== key.base;
+    const unsetMoved = row.unsetHash === null || row.unsetHash !== key.base;
+    if (!moved) {
+      fail(
+        `changing ${row.field} left the key install hash unchanged, so a sheet ` +
+          `read for one machine, one account or one key file would install on ` +
+          `another.`
+      );
+    }
+    if (!unsetMoved) {
+      fail(
+        `unsetting ${row.field} left the key install hash unchanged. Removing a ` +
+          `value changes where the key lands exactly as much as replacing it does.`
+      );
+    }
+    keyVerdicts.push({
+      field: row.field,
+      moves: moved && unsetMoved ? 'yes' : 'NO',
+      verdict: moved && unsetMoved ? 'pass' : 'FAIL'
+    });
+  }
+  if (!key.canonicalCarriesRemotePath) {
+    fail(
+      `the key install hash text does not carry the file it writes on the other ` +
+        `machine, ${String(key.remoteFilePath)}. That path is the single most ` +
+        `important fact on the sheet, so it has to be inside the hash and not ` +
+        `beside it.`
+    );
+  }
+  if (!key.canonicalCarriesLocalKeyPath) {
+    fail(
+      'the key install hash text does not carry the local path of the private ' +
+        'half. A person is told where the key stays, so that is a fact they are ' +
+        'agreeing to.'
+    );
+  }
+  if (!key.canonicalCarriesPrefix) {
+    fail(
+      'the key install hash text does not carry the record prefix, so a machine ' +
+        'and a configured agent with the same bare id would hash against the ' +
+        'same id entry.'
+    );
+  }
+  if (key.canonicalCarriesProgramPath) {
+    fail(
+      'the key install hash text carries the remote program path. It is not in ' +
+        'this hash on purpose: a machine that has never authenticated has no ' +
+        'program path, and that is the exact machine this surface exists for.'
+    );
+  }
+  if (key.canonicalCarriesLabel || key.canonicalCarriesColor) {
+    fail(
+      'the key install hash text carries a presentation field, so renaming a ' +
+        'machine would ask a person to agree again to an install that did not move.'
+    );
+  }
+  keyVerdicts.push({
+    field: 'remote file path',
+    moves: key.canonicalCarriesRemotePath ? 'yes' : 'NO',
+    verdict: key.canonicalCarriesRemotePath ? 'pass' : 'FAIL'
+  });
+  keyVerdicts.push({
+    field: 'remoteTmuxPath',
+    moves: key.canonicalCarriesProgramPath ? 'YES' : 'no',
+    verdict: key.canonicalCarriesProgramPath ? 'FAIL' : 'pass'
+  });
+}
+
+{
+  // 29. The install argv.
+  const argv = (key.argv ?? []).map(String);
+  const REQUIRED = [
+    'BatchMode=no',
+    'StrictHostKeyChecking=yes',
+    'NumberOfPasswordPrompts=1',
+    'PubkeyAuthentication=no',
+    'IdentitiesOnly=yes'
+  ];
+  const WHY = {
+    'BatchMode=no':
+      'the person cannot be asked for the password at all, so the install can ' +
+      'never happen',
+    'StrictHostKeyChecking=yes':
+      'the install could make first contact with an unknown machine, and first ' +
+      'contact belongs to the one visible test where a person can read the question',
+    'NumberOfPasswordPrompts=1':
+      'the client would keep asking after a wrong password, which is the silent ' +
+      'retry this phase refuses',
+    'PubkeyAuthentication=no':
+      'the install could quietly succeed on some other credential, which would ' +
+      'make the sentence on the screen about using a password untrue',
+    'IdentitiesOnly=yes':
+      "Tortie would offer the person's own identities to a machine on this path"
+  };
+  for (const option of REQUIRED) {
+    if (argv.includes(option)) continue;
+    fail(`the key install argv does not carry ${option}. Without it ${WHY[option]}.`);
+  }
+  if (argv.includes('BatchMode=yes')) {
+    fail(
+      'the key install argv carries BatchMode=yes, which would stop the person ' +
+        'answering the one prompt the whole flow depends on.'
+    );
+  }
+  if (argv.includes('StrictHostKeyChecking=ask') || argv.includes('StrictHostKeyChecking=no')) {
+    fail(
+      'the key install argv weakens the host key check. An install must never ' +
+        'meet a machine for the first time, because it would put a question on a ' +
+        'surface with no answer field.'
+    );
+  }
+  const keyKnownHosts = argv.filter((a) => a.startsWith(`${data.knownHostsOption}=`));
+  const value = String(keyKnownHosts[0] ?? '');
+  const tortieFirst = value.indexOf(data.hostKeys.tortie);
+  const userSecond = value.indexOf(data.hostKeys.user);
+  if (keyKnownHosts.length !== 1) {
+    fail(
+      `the key install argv names ${keyKnownHosts.length} record file option(s) ` +
+        `and it must name exactly one. With none the client picks the file in the ` +
+        `person's home folder and writes into it.`
+    );
+  } else if (tortieFirst < 0 || userSecond < 0) {
+    fail(
+      'the key install argv does not name both identity record files. Tortie ' +
+        "owns the first one, and the person's own is read so a machine they have " +
+        'known for years still raises the alarm if its identity changed.'
+    );
+  } else if (tortieFirst > userSecond) {
+    fail(
+      "the key install argv names the person's own record file before the file " +
+        'Tortie owns. The client adds a new key to the first file in the list.'
+    );
+  }
+  if (
+    !value.includes(`"${data.hostKeys.tortie}"`) ||
+    !value.includes(`"${data.hostKeys.user}"`)
+  ) {
+    fail(
+      'a path in the key install record file option is unquoted. The client ' +
+        "reads that value as a list separated by spaces, and Tortie's own " +
+        'directory has a space in its name on every Mac.'
+    );
+  }
+}
+
+{
+  // 30. One quoting call, over a list, and the key travels as an argument.
+  const script = String(key.script ?? '');
+  for (const forbidden of ['`', '$(', '${']) {
+    if (!script.includes(forbidden)) continue;
+    fail(
+      `the remote script carries ${JSON.stringify(forbidden)}. The script is a ` +
+        `constant with no interpolation of any kind, and every one of those is a ` +
+        `way for a value to become script text on the other machine.`
+    );
+  }
+  if (key.command !== key.commandRecomposed) {
+    fail(
+      `the remote command is not the output of one shellQuoteArgv call over an ` +
+        `argv array.\n      composed    ${JSON.stringify(key.command)}\n` +
+        `      recomposed  ${JSON.stringify(key.commandRecomposed)}`
+    );
+  }
+  if (key.scriptCarriesKey) {
+    fail(
+      'the public key is inside the script text. It must reach the other ' +
+        "machine's shell as a positional argument and never as script."
+    );
+  }
+  if (key.commandKeyOccurrences !== 1) {
+    fail(
+      `the public key appears ${String(key.commandKeyOccurrences)} time(s) in ` +
+        `the remote command and it must appear exactly once, as the last argument.`
+    );
+  }
+  if (!key.commandEndsWithQuotedKey) {
+    fail(
+      'the remote command does not end with the quoted public key, so the key is ' +
+        'not the last argv element. Anywhere else in the command is a place the ' +
+        "other machine's shell reads it."
+    );
+  }
+}
+
+{
+  // 31. Append, never overwrite, and it is a property of the text.
+  const script = String(key.script ?? '');
+  const withoutAppend = script.split('>>').join('');
+  if (withoutAppend.includes('>')) {
+    fail(
+      `the remote script carries a > that is not part of a >>. The promise never ` +
+        `to overwrite an existing authorized_keys is a property of this text, not ` +
+        `of a guard around it.`
+    );
+  }
+  const appends = (script.match(/>>/g) ?? []).length;
+  if (appends !== 1) {
+    fail(
+      `the remote script appends at ${String(appends)} place(s) and it must ` +
+        `append at exactly one.`
+    );
+  }
+  for (const program of ['truncate', 'tee', 'dd ']) {
+    if (!script.includes(program)) continue;
+    fail(
+      `the remote script names ${program.trim()}, which can replace a file the ` +
+        `person already had.`
+    );
+  }
+  if (!script.includes('authorized_keys')) {
+    fail('the remote script does not name authorized_keys, so it writes somewhere else.');
+  } else {
+    const assigned = /(\w+)="\$\w+\/authorized_keys"/.exec(script);
+    const target = assigned === null ? null : `>> "$${assigned[1]}"`;
+    if (target === null) {
+      fail(
+        'the remote script does not assign the authorized_keys path to a shell ' +
+          'variable, so the gate cannot tell what the append is aimed at.'
+      );
+    } else if (!script.includes(target)) {
+      fail(
+        `the remote script appends somewhere other than ${target}. The one append ` +
+          `has to be aimed at the file the script named.`
+      );
+    }
+  }
+}
+
+{
+  // 32. A line that is not one Tortie made produces no argv at all.
+  const rows = key.hostileLines ?? [];
+  if (rows.length < 5) {
+    fail(
+      `${String(rows.length)} hostile public key line(s) were tried and the gate ` +
+        `wants at least five. This is the check that a value reaching the other ` +
+        `machine has to be a line Tortie itself made.`
+    );
+  }
+  for (const row of rows) {
+    if (row.threw && row.argvLength === 0) continue;
+    fail(
+      `a public key line ending ${JSON.stringify(row.sample)} produced an argv ` +
+        `of ${String(row.argvLength)} element(s). A line Tortie did not make must ` +
+        `be refused before any array exists.`
+    );
+  }
+}
+
+{
+  // 33. The private half never goes near the person's own key folder.
+  const offending = (key.materialSource ?? []).filter((row) => {
+    if (!/homedir|\.ssh|~/.test(String(row.text))) return false;
+    return !isDenyingComment(String(row.text));
+  });
+  for (const row of offending) {
+    fail(
+      `src/main/machines/key-material.ts:${String(row.line)} names the folder the ` +
+        `person keeps their own keys in. Tortie never reads it, never writes it ` +
+        `and never copies a key out of it. The line reads: ${row.text}`
+    );
+  }
+  const keyDir = String(key.keyDir ?? '');
+  const recordDir = String(key.recordDir ?? '');
+  if (keyDir === '' || !keyDir.startsWith(`${recordDir}/`)) {
+    fail(
+      `the key directory is ${JSON.stringify(keyDir)} and it must sit inside the ` +
+        `machine record directory ${JSON.stringify(recordDir)}.`
+    );
+  }
+  const leaves = new Set();
+  for (const row of key.hostilePaths ?? []) {
+    const path = String(row.path);
+    if (!path.startsWith(`${keyDir}/`)) {
+      fail(
+        `a machine id composed the key path ${JSON.stringify(path)}, which is ` +
+          `outside ${JSON.stringify(keyDir)}. A machine id comes from a file an ` +
+          `agent process can write, so a path that can leave that directory is a ` +
+          `write anywhere on this Mac.`
+      );
+      continue;
+    }
+    const leaf = path.slice(keyDir.length + 1);
+    if (!/^machine-[0-9a-f]{12}$/.test(leaf)) {
+      fail(
+        `a machine id composed the file name ${JSON.stringify(leaf)}. The name is ` +
+          `a hash so that no character of an id can reach a path or the other machine.`
+      );
+    }
+    if (!/^tortie-[0-9a-f]{12}$/.test(String(row.comment))) {
+      fail(
+        `a machine id composed the key comment ${JSON.stringify(row.comment)}. ` +
+          `The comment crosses to the other machine, so it carries nothing a ` +
+          `person or an agent typed.`
+      );
+    }
+    leaves.add(leaf);
+  }
+  const tried = (key.hostilePaths ?? []).length;
+  if (tried < 12) {
+    fail(
+      `${String(tried)} hostile machine id(s) were tried against the key path and ` +
+        `the gate wants at least twelve.`
+    );
+  }
+  if (leaves.size !== tried) {
+    fail(
+      `${String(tried)} machine ids produced ${String(leaves.size)} file name(s). ` +
+        `Two machines sharing one key file means removing one machine cannot ` +
+        `revoke anything.`
+    );
+  }
+}
+
+{
+  // 34. Nothing on the install path can record what the person typed.
+  const FORBIDDEN = [
+    { needle: 'manifest', why: 'the durable record every session restores from' },
+    { needle: 'confirm-record', why: 'the sealed record of what a person agreed to run' }
+  ];
+  for (const [file, specifiers] of Object.entries(key.imports ?? {})) {
+    for (const specifier of specifiers.map(String)) {
+      for (const row of FORBIDDEN) {
+        if (!specifier.includes(row.needle)) continue;
+        fail(
+          `${file} imports ${JSON.stringify(specifier)}, which is ${row.why}. The ` +
+            `password a person types crosses one call and is kept nowhere, and the ` +
+            `way that is true is that nothing on this path can write it down.`
+        );
+      }
+    }
+  }
+  for (const file of key.namesSafeStorage ?? []) {
+    fail(
+      `${String(file)} names safeStorage. The password for a machine is never put ` +
+        `in the OS keystore, and a path that cannot name the keystore cannot put ` +
+        `it there by accident later.`
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // The tables, printed whatever the verdict, because the point is that a person
 // can read them.
 // ---------------------------------------------------------------------------
@@ -1777,6 +2196,35 @@ process.stdout.write(
     new Set((data.attachPtyMentions ?? []).map((hit) => hit.file)).size
   )} under src/main/attach/. Nothing under machines imports anything under ` +
     `attach (${String((data.machineAttachImports ?? []).length)} hit(s)).\n`
+);
+
+// ---------------------------------------------------------------------------
+// Phase 79.1's table
+// ---------------------------------------------------------------------------
+
+process.stdout.write('\nkey install fact     hash moves  verdict\n');
+process.stdout.write('-'.repeat(48) + '\n');
+for (const row of keyVerdicts) {
+  process.stdout.write(`${pad(row.field, 20)} ${pad(row.moves, 11)} ${row.verdict}\n`);
+}
+process.stdout.write(
+  `the machine execution hash still covers ${data.hashedKeys.join(', ')} and did ` +
+    `not gain a field for this. Installing a key is a second agreement with its ` +
+    `own hash, ${String(key.algorithm)}, and the two hashes are ` +
+    `${key.base === key.machineHash ? 'THE SAME' : 'different'} values.\n`
+);
+process.stdout.write(
+  `the install writes ${String(key.remoteFilePath)} on the other machine and ` +
+    `keeps the private half at ${String(key.keyDir)}.\n`
+);
+process.stdout.write(
+  `a key install is: ${(key.argv ?? []).join(' ')}\n`
+);
+process.stdout.write(
+  `${String((key.hostileLines ?? []).length)} hostile public key line(s) were ` +
+    `tried and every one produced no argv at all. ` +
+    `${String((key.hostilePaths ?? []).length)} hostile machine id(s) all landed ` +
+    `inside ${String(key.keyDir)}.\n`
 );
 
 if (failures.length > 0) {

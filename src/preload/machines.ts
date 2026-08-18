@@ -1,13 +1,14 @@
 /**
- * The machines half of the bridge (Phase 68, one call added in Phase 69 and one
- * more in Phase 71). One object, twelve calls and two subscriptions, typed from
- * the shared contract.
+ * The machines half of the bridge (Phase 68, one call added in Phase 69, one
+ * more in Phase 71 and one more in Phase 79.1). One object, thirteen calls and
+ * two subscriptions, typed from the shared contract.
  *
- * Three of these calls can start a process, and every one of them is a person
+ * Four of these calls can start a process, and every one of them is a person
  * pressing a button in Settings. `tailscaleNames` runs the Tailscale program at
- * a pinned absolute path, `test` runs ssh once, and `prepare` runs ssh and starts
- * the program a machine's work will live in. Everything else reads memory in
- * main, writes one row, or writes one record.
+ * a pinned absolute path, `test` runs ssh once, `prepare` runs ssh and starts
+ * the program a machine's work will live in, and `installKey` runs the program
+ * macOS ships for making a key and then one ssh. Everything else reads memory
+ * in main, writes one row, or writes one record.
  *
  * The renderer never supplies the acknowledgement sentence and never supplies
  * the hash it wants recorded. It sends back the hash the sheet was drawn from
@@ -38,6 +39,10 @@ export const machines: NonNullable<GmuxMachinesExtras['machines']> = {
   // production caller of the exec plane. Main asks the confirm gate before it
   // spawns anything.
   prepare: (id) => invoke('machines:prepare', id),
+  // Phase 79.1. Makes a key for one machine and puts its public half on it. The
+  // password crosses this one call and is kept nowhere: this side stores none
+  // of it, and main writes it to the sign in program once and drops it.
+  installKey: (input) => invoke('machines:installKey', input),
   // The connection test's own bytes, plus its end. Nothing is emitted at any
   // other time, so a build with no test running subscribes to silence.
   onTestEvent: (cb) => on(EVT_MACHINE_TEST, cb),

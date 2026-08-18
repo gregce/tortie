@@ -114,11 +114,47 @@ describe('every class carries copy', () => {
     }
   });
 
-  it('carries all fourteen classes', () => {
+  it('carries all sixteen classes', () => {
     // Eleven in Phase 68 and three more in Phase 69: `no-server` for a machine
     // that answered with nothing of Tortie's on it, `version-unmeasured` for one
     // running a version nobody measured, and `prepared` for the success answer.
-    expect(MACHINE_OUTCOME_CLASSES).toHaveLength(14);
+    // Phase 79.1 added two, being `key-installed` and `password-required`.
+    expect(MACHINE_OUTCOME_CLASSES).toHaveLength(16);
+  });
+
+  it('tells a machine asking for a password apart from one refusing a sign in', () => {
+    // These two are one line apart on the same screen and they mean different
+    // things. One machine is waiting for an answer and the other has given one.
+    const asked = machineOutcomeCopy('password-required');
+    const refused = machineOutcomeCopy('auth-refused');
+    expect(asked.headline).toBe('That machine asked for a password.');
+    expect(asked.alarm).toBe(false);
+    expect(asked.detail).not.toBe(refused.detail);
+    expect(asked.headline).not.toBe(refused.headline);
+  });
+
+  it('no longer says Tortie does not handle keys or passwords', () => {
+    // PHASE 79.1 FIX ROUND. This sentence was drawn one line above a button
+    // reading "Make a key and put it on this machine". Tortie makes a key and
+    // sends a password now, so the claim is false wherever it appears.
+    for (const cls of MACHINE_OUTCOME_CLASSES) {
+      const copy = machineOutcomeCopy(cls);
+      const both = `${copy.headline} ${copy.detail}`.toLowerCase();
+      expect(both).not.toContain('does not handle keys or passwords');
+      expect(both).not.toContain('handles no keys and no passwords');
+    }
+  });
+
+  it('says the key is on the machine, and that the test comes next', () => {
+    // It is deliberately NOT a claim that the machine is usable. The surface
+    // starts the real connection test straight after it, so the answer a person
+    // ends on is the machine's own rather than Tortie's.
+    const copy = machineOutcomeCopy('key-installed');
+    expect(copy.headline).toBe('The key is on that machine.');
+    expect(copy.detail).toBe(
+      'Tortie added its key to that machine and is testing the connection now.'
+    );
+    expect(copy.alarm).toBe(false);
   });
 
   it('uses no em dash and no en dash anywhere', () => {

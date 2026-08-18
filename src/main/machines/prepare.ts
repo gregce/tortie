@@ -108,6 +108,10 @@ const UNREACHED_CLASSES: readonly MachineTestClass[] = [
   'refused',
   'not-resolved',
   'auth-refused',
+  // Phase 79.1 fix round. The machine answered and asked for a password, so
+  // the sign in never completed and nothing was learned about any program on
+  // it. It belongs beside `auth-refused` and not beside `no-server`.
+  'password-required',
   'host-key-changed',
   'client-missing',
   'timed-out'

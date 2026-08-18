@@ -1,19 +1,22 @@
 /**
- * The ten channels, and the three sentences that decide whether this phase is
- * safe.
+ * The thirteen channels, and the four sentences that decide whether this phase
+ * is safe.
  *
  *  1. `machines:test` in `saved` mode asks the gate BEFORE it spawns anything.
  *     A machine nobody confirmed refuses, and node-pty is never called.
  *  2. `machines:add` refuses a stale hash and writes NOTHING, so a sheet that
  *     went out of date cannot add a machine a person never read.
  *  3. `machines:rows` opens no file. It reads what the store already has.
+ *  4. PHASE 79.1. `machines:installKey` refuses a stale hash and a machine with
+ *     no name, and in both cases nothing is spawned and no key is made.
  *
- * node-pty is replaced by a counter, so the test can say "zero" about spawning
- * rather than "it looked fine". The counter is the same shape the module's own
- * `machineSshSpawnCount` has, and the two are asserted against each other.
+ * node-pty is replaced by a stand in that RECORDS rather than only counts. It
+ * keeps the callbacks the module handed it, so a test can make the program
+ * print what a real one prints and then exit, which is how the key block on the
+ * outcome is driven without any connection.
  */
 
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -24,8 +27,23 @@ let keystore = true;
 
 const MARKER = ' tortie-test-key ';
 
-/** Every node-pty spawn this file caused. It must stay empty in most tests. */
-const spawned: { file: string; args: string[] }[] = [];
+/**
+ * Every node-pty spawn this file caused. It must stay empty in most tests.
+ *
+ * Each row keeps the two callbacks the module registered, so a test can drive
+ * the program's output and its exit. That is how a `refused` answer is produced
+ * here without a machine, a network or a connection.
+ */
+interface SpawnRecord {
+  file: string;
+  args: string[];
+  written: string[];
+  killed: boolean;
+  data: ((chunk: string) => void) | null;
+  exit: ((event: { exitCode: number }) => void) | null;
+}
+
+const spawned: SpawnRecord[] = [];
 
 vi.mock('electron', () => ({
   app: { getPath: () => userData, isReady: () => true, isPackaged: false },
@@ -42,13 +60,29 @@ vi.mock('electron', () => ({
 
 vi.mock('node-pty', () => ({
   spawn: (file: string, args: string[]) => {
-    spawned.push({ file, args });
+    const record: SpawnRecord = {
+      file,
+      args,
+      written: [],
+      killed: false,
+      data: null,
+      exit: null
+    };
+    spawned.push(record);
     return {
       pid: 424242,
-      onData: () => undefined,
-      onExit: () => undefined,
-      write: () => undefined,
-      kill: () => undefined
+      onData: (cb: (chunk: string) => void) => {
+        record.data = cb;
+      },
+      onExit: (cb: (event: { exitCode: number }) => void) => {
+        record.exit = cb;
+      },
+      write: (data: string) => {
+        record.written.push(data);
+      },
+      kill: () => {
+        record.killed = true;
+      }
     };
   }
 }));
@@ -101,6 +135,8 @@ const {
 const { machineSshSpawnCount, resetMachineTestForTests } = await import(
   '../connection-test'
 );
+const { describeKeyInstall } = await import('../key-install');
+const { machineKeyPath } = await import('../key-material');
 const { ensureConfigDir } = await import('../../config/paths');
 const { trustedInvokeEvent } = await import(
   '../../security/__tests__/trusted-test-sender'
@@ -185,12 +221,16 @@ afterEach(() => {
   rmSync(userData, { recursive: true, force: true });
 });
 
-describe('every channel is registered, and only these twelve', () => {
-  it('registers exactly the twelve machines channels', () => {
+describe('every channel is registered, and only these thirteen', () => {
+  it('registers exactly the thirteen machines channels', () => {
     expect([...handlers.keys()].sort()).toEqual([
       'machines:add',
       'machines:confirm',
       'machines:forget',
+      // Phase 79.1's one new channel. It makes a key on this Mac and adds one
+      // line to one file on one machine, and it checks the hash of what the
+      // person read before it starts anything at all.
+      'machines:installKey',
       // Phase 69's one new channel. It starts something on another machine, and
       // it is the only channel in the product that does.
       'machines:prepare',
@@ -407,6 +447,260 @@ describe('the confirm sheet a draft test hands back', () => {
       remoteTmuxPath: null
     });
     expect(outcome.sheet ?? null).toBeNull();
+  });
+});
+
+describe('the key block a refused test hands back (Phase 79.1)', () => {
+  /**
+   * Drive one draft test to its end by making the stand in print what a real
+   * program prints and then exit.
+   *
+   * Nothing connects to anything. The bytes below are the ones a real client
+   * writes, and they are the same fixtures `__tests__/errors.test.ts` uses.
+   */
+  function runDraftTo(
+    draft: Record<string, unknown>,
+    output: string,
+    exitCode: number
+  ): {
+    class: string;
+    keySheet:
+      | { hash: string; lines: string[]; warning: string; notes: string[] }
+      | null
+      | undefined;
+  } {
+    call<{ testId: string }>('machines:test', { mode: 'draft', draft });
+    const record = spawned[spawned.length - 1];
+    record?.data?.(output);
+    record?.exit?.({ exitCode });
+    const end = sent
+      .map((row) => row.payload as { kind: string; outcome?: unknown })
+      .filter((payload) => payload.kind === 'end')
+      .pop();
+    return (end?.outcome ?? {}) as {
+      class: string;
+      keySheet:
+        | { hash: string; lines: string[]; warning: string; notes: string[] }
+        | null
+        | undefined;
+    };
+  }
+
+  const DRAFT = {
+    id: 'pop-os',
+    host: '127.0.0.1',
+    user: 'greg',
+    port: 2222,
+    remoteTmuxPath: null
+  };
+
+  it('offers the block when the machine refused the sign in', () => {
+    loadMachines('boot');
+    const outcome = runDraftTo(
+      DRAFT,
+      'greg@127.0.0.1: Permission denied (publickey).\n',
+      255
+    );
+    expect(outcome.class).toBe('auth-refused');
+    const block = outcome.keySheet ?? null;
+    expect(block).not.toBeNull();
+    expect(block?.lines).toEqual([
+      'Machine: 127.0.0.1',
+      'Signs in as: greg',
+      'Port: 2222',
+      'Writes this file on that machine: ~/.ssh/authorized_keys',
+      expect.stringContaining('Keeps the private half of the key on this Mac, at: ')
+    ]);
+    expect(block?.hash.length).toBe(64);
+    expect(block?.notes).toHaveLength(5);
+    expect(block?.warning).toContain('private half stays on this Mac');
+  });
+
+  it('offers it for a machine that answered and declined the connection', () => {
+    // This is what Remote Login being switched off looks like, which is the
+    // case the operator hit on his own machine.
+    loadMachines('boot');
+    const outcome = runDraftTo(
+      DRAFT,
+      'ssh: connect to host 127.0.0.1 port 2222: Connection refused\n',
+      255
+    );
+    expect(outcome.class).toBe('refused');
+    expect(outcome.keySheet ?? null).not.toBeNull();
+  });
+
+  it('offers nothing for an answer a key would not help', () => {
+    loadMachines('boot');
+    const outcome = runDraftTo(
+      DRAFT,
+      'ssh: connect to host 127.0.0.1 port 2222: No route to host\n',
+      255
+    );
+    expect(outcome.class).toBe('unreachable');
+    expect(outcome.keySheet ?? null).toBeNull();
+  });
+
+  it('offers nothing when the person has not named the machine', () => {
+    // The name is on the hash, so there is nothing to agree to without one.
+    loadMachines('boot');
+    const outcome = runDraftTo(
+      { host: '127.0.0.1', user: null, port: null, remoteTmuxPath: null },
+      'greg@127.0.0.1: Permission denied (publickey).\n',
+      255
+    );
+    expect(outcome.class).toBe('auth-refused');
+    expect(outcome.keySheet ?? null).toBeNull();
+  });
+
+  it('makes no key while composing the block', () => {
+    // The block names the file the key WOULD be kept in. Nothing is made until
+    // a person presses the button and the hash they read matches.
+    loadMachines('boot');
+    const outcome = runDraftTo(
+      DRAFT,
+      'greg@127.0.0.1: Permission denied (publickey).\n',
+      255
+    );
+    const at = (outcome.keySheet?.lines ?? []).find((line) =>
+      line.startsWith('Keeps the private half')
+    );
+    const path = (at ?? '').split(': ')[1] ?? '';
+    expect(path.startsWith(join(userData, 'gmux', 'machines', 'keys'))).toBe(true);
+    expect(existsSync(path)).toBe(false);
+    expect(existsSync(join(userData, 'gmux', 'machines', 'keys'))).toBe(false);
+  });
+});
+
+describe('machines:installKey (Phase 79.1)', () => {
+  const BLOCK_FOR = (
+    id: string,
+    fields: { host: string; user: string | null; port: number | null }
+  ): { hash: string; lines: string[] } => {
+    const block = describeKeyInstall(id, {
+      ...fields,
+      localKeyPath: machineKeyPath(id)
+    });
+    return { hash: block.hash, lines: [...block.lines] };
+  };
+
+  it('refuses a machine with no name, and starts nothing', async () => {
+    loadMachines('boot');
+    await expect(
+      call<Promise<unknown>>('machines:installKey', {
+        target: {
+          mode: 'draft',
+          draft: { host: '127.0.0.1', user: null, port: null, remoteTmuxPath: null }
+        },
+        hashRead: 'x',
+        linesRead: [],
+        password: 'hunter2'
+      })
+    ).rejects.toThrow(/Name this machine/);
+    expect(spawned).toHaveLength(0);
+    expect(machineSshSpawnCount()).toBe(0);
+    expect(existsSync(join(userData, 'gmux', 'machines', 'keys'))).toBe(false);
+  });
+
+  it('refuses a hash that is not the one main would compute now', async () => {
+    loadMachines('boot');
+    await expect(
+      call<Promise<unknown>>('machines:installKey', {
+        target: {
+          mode: 'draft',
+          draft: {
+            id: 'pop-os',
+            host: '127.0.0.1',
+            user: null,
+            port: null,
+            remoteTmuxPath: null
+          }
+        },
+        hashRead: 'a'.repeat(64),
+        linesRead: [],
+        password: 'hunter2'
+      })
+    ).rejects.toThrow(/machine changed after it was shown/);
+    // Nothing was made and nothing was sent. This is the sentence the whole
+    // channel rests on.
+    expect(spawned).toHaveLength(0);
+    expect(machineSshSpawnCount()).toBe(0);
+    expect(existsSync(join(userData, 'gmux', 'machines', 'keys'))).toBe(false);
+  });
+
+  it('refuses lines that are not the ones main composed', async () => {
+    loadMachines('boot');
+    const block = BLOCK_FOR('pop-os', { host: '127.0.0.1', user: null, port: null });
+    await expect(
+      call<Promise<unknown>>('machines:installKey', {
+        target: {
+          mode: 'draft',
+          draft: {
+            id: 'pop-os',
+            host: '127.0.0.1',
+            user: null,
+            port: null,
+            remoteTmuxPath: null
+          }
+        },
+        hashRead: block.hash,
+        linesRead: [...block.lines, 'Also writes: /etc/passwd'],
+        password: 'hunter2'
+      })
+    ).rejects.toThrow(/machine changed after it was shown/);
+    expect(spawned).toHaveLength(0);
+  });
+
+  it('refuses a typed address the machines file would refuse', async () => {
+    loadMachines('boot');
+    await expect(
+      call<Promise<unknown>>('machines:installKey', {
+        target: {
+          mode: 'draft',
+          draft: {
+            id: 'pop-os',
+            host: '-oProxyCommand=x',
+            user: null,
+            port: null,
+            remoteTmuxPath: null
+          }
+        },
+        hashRead: 'a'.repeat(64),
+        linesRead: [],
+        password: 'hunter2'
+      })
+    ).rejects.toThrow(/hyphen/);
+    expect(spawned).toHaveLength(0);
+  });
+
+  it('refuses an id no row carries, in saved mode', async () => {
+    loadMachines('boot');
+    await expect(
+      call<Promise<unknown>>('machines:installKey', {
+        target: { mode: 'saved', id: 'nope' },
+        hashRead: 'a'.repeat(64),
+        linesRead: [],
+        password: 'hunter2'
+      })
+    ).rejects.toThrow(/no machine called nope/);
+    expect(spawned).toHaveLength(0);
+  });
+
+  it('does NOT ask the confirm gate for a saved row, and says why in code', async () => {
+    // A machine that has never let Tortie in has no program path, so it cannot
+    // be confirmed. Asking the gate here would make this channel unreachable
+    // for exactly the person it is for. What stands in its place is this
+    // call's own hash, which is checked next and refuses the one below.
+    writeFile({ schema: 1, machines: [POP] });
+    loadMachines('boot');
+    await expect(
+      call<Promise<unknown>>('machines:installKey', {
+        target: { mode: 'saved', id: 'pop-os' },
+        hashRead: 'a'.repeat(64),
+        linesRead: [],
+        password: 'hunter2'
+      })
+    ).rejects.toThrow(/machine changed after it was shown/);
+    expect(spawned).toHaveLength(0);
   });
 });
 

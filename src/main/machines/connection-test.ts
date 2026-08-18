@@ -59,11 +59,32 @@
  * Both paths are quoted, because Tortie's own directory has a space in its name
  * on every Mac.
  *
+ * ## Phase 79.1 put a second runner in this file, and it is the only new thing
+ * in the tree that starts a terminal
+ *
+ * {@link startKeyInstall} makes the one connection that puts Tortie's own key
+ * on a machine. It lives here rather than beside the composition in
+ * `./key-install.ts` for one reason: this file already owns the one terminal
+ * Tortie opens for a person, and a second module that spawned one would be a
+ * second place to reason about killing it. It shares the one live slot, so
+ * starting an install cancels a running test, and
+ * {@link cancelLiveMachineTest} at quit kills whichever of the two is there.
+ *
+ * Nothing streams from an install. It resolves once with its whole transcript,
+ * so no event channel was added for it.
+ *
  * ## What this module never does
  *
- * It writes no key, no passphrase and no configuration file into the person's
- * home folder, on either machine. It stores nothing a person types. It kills
- * only the pid it started, and there is no `pkill` anywhere in this phase.
+ * It writes no passphrase and no configuration file into the person's home
+ * folder, on either machine, and it reads nothing from `~/.ssh` except the
+ * identity record file named on the command. It stores nothing a person types.
+ * It kills only the pid it started, and there is no `pkill` anywhere in this
+ * phase.
+ *
+ * PHASE 79.1 CHANGED ONE HALF OF THAT SENTENCE, and says so rather than
+ * quietly. Tortie now writes a key, into its OWN data directory, and puts the
+ * public half of it on another machine after a person read a sheet and pressed
+ * a button. It still writes nothing into the person's own `~/.ssh` on this Mac.
  */
 
 import { randomUUID } from 'node:crypto';
@@ -72,6 +93,7 @@ import * as nodePty from 'node-pty';
 import type { IPty } from 'node-pty';
 import type {
   MachineConfirmSheet,
+  MachineKeySheet,
   MachineTestClass,
   MachineTestEvent,
   MachineTestOutcome
@@ -93,6 +115,19 @@ import {
   lastPrintedLine
 } from './errors';
 import { describeMachine, type MachineExecutionFields } from './confirm';
+// Phase 79.1. Every sentence, every hash and every composed string about
+// putting a key on a machine lives in ./key-install.ts, which starts nothing.
+// This file holds the one runner that does.
+import {
+  PASSWORD_PROMPT_RE,
+  PASSWORD_PROMPT_SEEN_RE,
+  classifyKeyInstallOutput,
+  composeKeyInstallArgv,
+  composeKeyInstallCommandLine,
+  describeKeyInstall,
+  parseKeyInstallAnswer,
+  redactPassword
+} from './key-install';
 
 import { getLog } from '../log';
 
@@ -140,6 +175,17 @@ export const TEST_DEADLINE_MS = 60_000;
 
 /** The most output Tortie will show from one test. */
 export const TEST_MAX_OUTPUT_BYTES = 256 * 1024;
+
+/**
+ * How long one key install may run.
+ *
+ * Half the visible test's deadline, and the reason is that nobody is reading
+ * during it. The password was typed before the call started and Tortie writes
+ * it on the one prompt, so there is no person to wait for. Thirty seconds is
+ * three times the connect budget {@link SSH_CONNECT_TIMEOUT_SECONDS} allows,
+ * which leaves room for a slow link plus the few lines the other machine runs.
+ */
+export const KEY_INSTALL_DEADLINE_MS = 30_000;
 
 // ---------------------------------------------------------------------------
 // The command, composed purely
@@ -256,6 +302,18 @@ export interface StartTestInput {
    * the path is not known until the machine answers.
    */
   sheetId: string | null;
+  /**
+   * PHASE 79.1. Where the private half of this machine's key would live, or
+   * null when there is no id to make one for.
+   *
+   * The caller supplies it for the reason it supplies {@link hostKeys}: only
+   * main knows where Tortie's data directory is, and this module stays free of
+   * any import that would reach it. It is a path, not a key. NOTHING is made
+   * here, and a failed test makes no key: the path is only what the sheet says
+   * the key WOULD be kept at, so a person reads the file name before they agree
+   * to anything.
+   */
+  keyPath: string | null;
   /** Called for every push, being output and the one end event. */
   emit(event: MachineTestEvent): void;
 }
@@ -267,7 +325,17 @@ export interface StartedTest {
   sshPath: string;
 }
 
+/**
+ * The one client this module has running, whichever of the two it is.
+ *
+ * `kind` is what tells them apart. A test pushes every byte to a window and
+ * ends on an event. An install pushes nothing and ends by resolving one
+ * promise, which is what {@link LiveTest.settle} is. Everything else about
+ * them is the same, which is why they share one slot: one process to kill, one
+ * deadline to clear, one pid the probe can read.
+ */
 interface LiveTest {
+  kind: 'test' | 'key-install';
   testId: string;
   pty: IPty | null;
   pid: number | null;
@@ -278,7 +346,14 @@ interface LiveTest {
   finished: boolean;
   fields: MachineExecutionFields;
   sheetId: string | null;
+  keyPath: string | null;
+  /** How far into the buffer the prompt matcher has already looked. */
+  promptCursor: number;
+  /** True once the password was written. It is never written twice. */
+  passwordSent: boolean;
   emit(event: MachineTestEvent): void;
+  /** Set for an install, null for a test. Resolves the one promise. */
+  settle: ((cls: MachineTestClass, exitCode: number | null) => void) | null;
 }
 
 /**
@@ -340,6 +415,14 @@ function finish(
     clearTimeout(test.deadline);
     test.deadline = null;
   }
+  if (live === test) live = null;
+  // PHASE 79.1. An install has no window to push to and no outcome to compose.
+  // It hands its class and its exit code to the one promise its caller is
+  // waiting on, and everything below this line belongs to a test.
+  if (test.settle !== null) {
+    test.settle(cls, exitCode);
+    return;
+  }
   const resolvedPath = cls === 'ok' ? parseResolvedPath(test.buffer) : null;
   const copy = composeOutcomeCopy(cls, {
     resolvedPath,
@@ -360,6 +443,39 @@ function finish(
       warning: summary.warning
     };
   }
+  // PHASE 79.1. The block that offers to make a key, composed HERE for the same
+  // reason the confirm sheet above is: this is the moment both halves of its
+  // hash exist, being the id the person typed and the facts of the row. It is
+  // offered for exactly three answers. `password-required` is a machine that
+  // answered and asked for a password, `auth-refused` is a machine that
+  // answered and would not let Tortie in, and `refused` is a machine that
+  // answered and declined the connection, which is what Remote Login being off
+  // looks like. Every other answer gets nothing, because a key would not help.
+  //
+  // THE FIRST OF THE THREE IS THE ONE THE PHASE IS FOR, and it was missing from
+  // the first build. A Mac with Remote Login on that has no key for Tortie is
+  // the stock machine the operator lands on, and it is the one state where
+  // pressing the button can actually succeed. `refused` is the opposite case:
+  // nothing is listening there, so the key cannot be delivered until Remote
+  // Login is on. It stays in the set because the person is one step away from
+  // needing it and the first note on the sheet says Remote Login comes first.
+  let keySheet: MachineKeySheet | null = null;
+  const offersKey =
+    cls === 'password-required' || cls === 'auth-refused' || cls === 'refused';
+  if (offersKey && test.sheetId !== null && test.keyPath !== null) {
+    const summary = describeKeyInstall(test.sheetId, {
+      host: test.fields.host,
+      user: test.fields.user,
+      port: test.fields.port,
+      localKeyPath: test.keyPath
+    });
+    keySheet = {
+      hash: summary.hash,
+      lines: [...summary.lines],
+      warning: summary.warning,
+      notes: [...summary.notes]
+    };
+  }
   const outcome: MachineTestOutcome = {
     testId: test.testId,
     class: copy.class,
@@ -369,9 +485,9 @@ function finish(
     resolvedPath,
     exitCode,
     durationMs: Date.now() - test.startedAt,
-    sheet
+    sheet,
+    keySheet
   };
-  if (live === test) live = null;
   test.emit({ testId: test.testId, kind: 'end', outcome });
 }
 
@@ -384,6 +500,61 @@ function killLive(test: LiveTest): void {
   } catch {
     // A process that is already gone is the state we wanted.
   }
+}
+
+/**
+ * What Tortie writes into the transcript when it stops at a password question.
+ *
+ * The transcript is the program's bytes, so a line Tortie adds to it has to
+ * say plainly that the run ended and why. Exported so the tests and the live
+ * probe read the same sentence the person does.
+ */
+export const TEST_PASSWORD_STOP_NOTE =
+  '\nThat machine asked for a password. Tortie signs in with a key, so it ' +
+  'stopped here without answering.\n';
+
+/**
+ * Stop the visible test when the machine asks for a password (Phase 79.1 fix
+ * round).
+ *
+ * ## The defect this exists for, measured in the real app
+ *
+ * A Mac with Remote Login on offers a key and a password. With no key for
+ * Tortie on it, the client tries the key, gets nowhere, and prints its own
+ * password question. Nothing then happens. The client waits for a person, the
+ * person waits for the app, and 60 s later the test ended as `timed-out` and
+ * the screen said the machine was answering too slowly to use. The machine had
+ * answered in milliseconds. That is the stock macOS machine, and it is the one
+ * this whole phase is for.
+ *
+ * ## Why Tortie stops rather than letting the person type the password
+ *
+ * Every other connection in the product carries `BatchMode=yes` and signs in
+ * with a key, because no person is watching those. A password typed into this
+ * one transcript would produce a green `ok` for a machine that no other part
+ * of Tortie can reach, and the person would meet the real failure later, in a
+ * session that will not open. Stopping here is the honest answer, and the
+ * block underneath the result is the way forward.
+ *
+ * ## What it does not stop
+ *
+ * The host key question and a passphrase question for a person's own key are
+ * different text and neither matches. Both stay answerable, which is the
+ * reason this one test carries `BatchMode=no` at all.
+ */
+function stopAtPasswordPrompt(test: LiveTest): boolean {
+  if (test.finished) return false;
+  // The whole buffer, and the matcher is anchored at its end, so this is true
+  // only while the client is waiting for an answer right now.
+  if (!PASSWORD_PROMPT_RE.test(test.buffer)) return false;
+  test.emit({
+    testId: test.testId,
+    kind: 'output',
+    text: TEST_PASSWORD_STOP_NOTE
+  });
+  killLive(test);
+  finish(test, 'password-required', null);
+  return true;
 }
 
 /**
@@ -409,6 +580,11 @@ export function classifyProbeOutput(
   if (resolved !== null) return 'ok';
   const named = classifyMachineOutput(text);
   if (named !== 'unknown') return named;
+  // PHASE 79.1 FIX ROUND. A password question, AFTER the phrase table has had
+  // its say. The order is the point: a transcript holding both the question and
+  // `Permission denied` is a machine that asked and then turned the answer
+  // down, and `auth-refused` is the truer of the two answers for it.
+  if (PASSWORD_PROMPT_SEEN_RE.test(text)) return 'password-required';
   if (exitCode === 0) return 'no-program';
   return 'unknown';
 }
@@ -433,6 +609,7 @@ export function startMachineTest(input: StartTestInput): StartedTest {
   const commandLine = composeTestCommandLine(sshPath, input.fields, input.hostKeys);
 
   const test: LiveTest = {
+    kind: 'test',
     testId,
     pty: null,
     pid: null,
@@ -443,7 +620,11 @@ export function startMachineTest(input: StartTestInput): StartedTest {
     finished: false,
     fields: input.fields,
     sheetId: input.sheetId,
-    emit: input.emit
+    keyPath: input.keyPath,
+    promptCursor: 0,
+    passwordSent: false,
+    emit: input.emit,
+    settle: null
   };
   live = test;
 
@@ -495,7 +676,9 @@ export function startMachineTest(input: StartTestInput): StartedTest {
       });
       killLive(test);
       finish(test, 'unknown', null);
+      return;
     }
+    stopAtPasswordPrompt(test);
   });
 
   pty.onExit(({ exitCode }: { exitCode: number }) => {
@@ -528,6 +711,203 @@ export function sendMachineTestInput(testId: string, data: string): void {
     // A pty that has gone takes the keystroke with it, and the exit handler is
     // about to say so.
   }
+}
+
+// ---------------------------------------------------------------------------
+// Putting Tortie's key on one machine (Phase 79.1)
+// ---------------------------------------------------------------------------
+
+/** What the caller hands over to put one key on one machine. */
+export interface StartKeyInstallInput {
+  /** The machine this is for. It is on the hash the caller already checked. */
+  machineId: string;
+  fields: MachineExecutionFields;
+  /** The public half, one line. A string that is not one throws before anything starts. */
+  publicKeyLine: string;
+  /**
+   * That machine's password, for this one call.
+   *
+   * It is a local variable from here to the terminal and back. It is written
+   * once, on the one prompt, and every occurrence of it is replaced in the
+   * transcript before any text leaves main. Nothing writes it to a file.
+   */
+  password: string;
+  packaged: boolean;
+  env: NodeJS.ProcessEnv;
+  hostKeys: MachineHostKeyFiles;
+}
+
+/** What one install concluded. It arrives all at once, at the end. */
+export interface KeyInstallRun {
+  cls: MachineTestClass;
+  /** 'added', 'present', or null when the machine reported nothing. */
+  wrote: 'added' | 'present' | null;
+  /** The bytes the program printed, ANSI stripped and the password replaced. */
+  transcript: string;
+  exitCode: number | null;
+  durationMs: number;
+}
+
+/**
+ * Answer the client's password question, once.
+ *
+ * The matcher looks only at output that arrived after the last thing Tortie
+ * answered, so one question is answered one time. A SECOND question means the
+ * machine refused the first answer, and Tortie kills the client there instead
+ * of typing the password again. `NumberOfPasswordPrompts=1` makes the client
+ * give up on its own as well, so this is the second of two brakes rather than
+ * the only one.
+ */
+function answerOnePrompt(test: LiveTest, password: string): void {
+  const fresh = test.buffer.slice(test.promptCursor);
+  if (!PASSWORD_PROMPT_RE.test(fresh)) return;
+  test.promptCursor = test.buffer.length;
+  if (test.passwordSent) {
+    killLive(test);
+    finish(test, 'auth-refused', null);
+    return;
+  }
+  test.passwordSent = true;
+  try {
+    test.pty?.write(`${password}\r`);
+  } catch {
+    // A pty that has gone takes the answer with it, and the exit handler is
+    // about to say so.
+  }
+}
+
+/**
+ * Put the public half of Tortie's key for one machine on that machine.
+ *
+ * It shares the one live slot with the visible test, so starting an install
+ * cancels a running test the same way a second test cancels the first. Nothing
+ * streams: the promise resolves once, carrying the whole transcript.
+ *
+ * The argv is composed BEFORE anything is started, so a public key line that is
+ * not one throws out of this call with no process, no promise and no terminal.
+ */
+export function startKeyInstall(
+  input: StartKeyInstallInput
+): Promise<KeyInstallRun> {
+  const resolution = resolveSsh({ packaged: input.packaged, env: input.env });
+  const sshPath = resolution.path ?? PINNED_SSH_PATH;
+  // Composed first, and outside the promise. A line that is not a public key
+  // refuses here, before there is anything to cancel or kill.
+  const argv = composeKeyInstallArgv(
+    input.fields,
+    input.hostKeys,
+    input.publicKeyLine
+  );
+  // Written to the log rather than to the screen. The block a person read says
+  // what Tortie will do in plain words, and the result carries no command line
+  // field, so this is where somebody helping them can read the exact command.
+  // There is no secret in it: the password is never on a command line, and the
+  // half of the key that is here is the public half.
+  machinesLog.debug(
+    `putting a key on ${input.machineId}: ` +
+      composeKeyInstallCommandLine(
+        sshPath,
+        input.fields,
+        input.hostKeys,
+        input.publicKeyLine
+      )
+  );
+
+  if (live !== null) {
+    const previous = live;
+    killLive(previous);
+    finish(previous, 'cancelled', null);
+  }
+
+  const testId = randomUUID();
+  const startedAt = Date.now();
+
+  return new Promise<KeyInstallRun>((resolve) => {
+    const test: LiveTest = {
+      kind: 'key-install',
+      testId,
+      pty: null,
+      pid: null,
+      startedAt,
+      buffer: '',
+      bytes: 0,
+      deadline: null,
+      finished: false,
+      fields: input.fields,
+      sheetId: input.machineId,
+      keyPath: null,
+      promptCursor: 0,
+      passwordSent: false,
+      emit: () => undefined,
+      settle: (cls, exitCode) => {
+        resolve({
+          cls,
+          // Read from the raw bytes rather than the redacted ones, so a
+          // password that happened to be the word `added` cannot change the
+          // answer the machine gave.
+          wrote: parseKeyInstallAnswer(test.buffer),
+          transcript: redactPassword(test.buffer, input.password),
+          exitCode,
+          durationMs: Date.now() - startedAt
+        });
+      }
+    };
+    live = test;
+
+    if (resolution.path === null) {
+      setTimeout(() => {
+        finish(test, 'client-missing', null);
+      }, 0);
+      return;
+    }
+
+    let pty: IPty;
+    try {
+      sshSpawnCount += 1;
+      pty = nodePty.spawn(resolution.path, argv, {
+        name: 'xterm-256color',
+        cols: 100,
+        rows: 30,
+        cwd: homedir(),
+        env: plainEnv(input.env)
+      });
+    } catch (err) {
+      machinesLog.warn(
+        `the key install could not start ${resolution.path}: ${(err as Error).message}`
+      );
+      setTimeout(() => {
+        finish(test, 'client-missing', null);
+      }, 0);
+      return;
+    }
+    test.pty = pty;
+    test.pid = pty.pid;
+
+    pty.onData((chunk: string) => {
+      if (test.finished) return;
+      const text = stripAnsi(chunk);
+      test.bytes += Buffer.byteLength(chunk, 'utf8');
+      test.buffer += text;
+      if (test.bytes > TEST_MAX_OUTPUT_BYTES) {
+        killLive(test);
+        finish(test, 'unknown', null);
+        return;
+      }
+      answerOnePrompt(test, input.password);
+    });
+
+    pty.onExit(({ exitCode }: { exitCode: number }) => {
+      if (test.finished) return;
+      finish(test, classifyKeyInstallOutput(test.buffer, exitCode), exitCode);
+    });
+
+    test.deadline = setTimeout(() => {
+      if (test.finished) return;
+      killLive(test);
+      finish(test, 'timed-out', null);
+    }, KEY_INSTALL_DEADLINE_MS);
+    test.deadline.unref?.();
+  });
 }
 
 /** The person pressed Cancel. */

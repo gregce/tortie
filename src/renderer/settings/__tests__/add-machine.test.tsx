@@ -19,6 +19,12 @@
  *   being broken.
  * - PHASE 79. An outcome a person can act on carries what to do next, and an
  *   outcome that worked carries nothing.
+ * - PHASE 79.1. A machine that turned the sign in down is offered a key on
+ *   this sheet, before it has been added at all. That is the case the rung
+ *   exists for: a machine that refuses cannot pass the test, and a machine
+ *   that cannot pass the test can never be added. The block itself is drawn by
+ *   the connection test view, and it is proven in key-install.test.tsx. What
+ *   is proven here is that this sheet reaches it.
  * - A changed host key draws the alarm state. An unreachable machine does
  *   not. The two must never look the same, because three ordinary events
  *   wearing the alarm colour teach a person to ignore the one that is not.
@@ -56,6 +62,7 @@ import {
   machineIdFrom,
   portOf,
   sheetOf,
+  type KeyInstallState,
   type LiveTest,
   type MachineFormState
 } from '../machines-store';
@@ -142,6 +149,7 @@ function seed(state: {
   test?: LiveTest | null;
   tailscale?: TailscaleSourceResult | null;
   tailscaleReadAt?: number | null;
+  keyInstall?: KeyInstallState | null;
 }): string {
   return renderToStaticMarkup(
     <AddMachineView
@@ -151,6 +159,7 @@ function seed(state: {
       tailscaleBusy={false}
       tailscaleReadAt={state.tailscaleReadAt ?? null}
       test={state.test ?? null}
+      keyInstall={state.keyInstall ?? null}
       busy={false}
       error={null}
       onSetForm={() => undefined}
@@ -160,6 +169,7 @@ function seed(state: {
       onStartTest={() => undefined}
       onSendInput={() => undefined}
       onCancelTest={() => undefined}
+      onInstallKey={() => undefined}
       onAdd={() => undefined}
     />
   );
@@ -725,5 +735,62 @@ describe('the values a new row is written from', () => {
         draftTest({ outcome: outcome({ class: 'unreachable', resolvedPath: null }) })
       )
     ).toBeNull();
+  });
+});
+
+describe('the key a machine can be given before it is added', () => {
+  /** Main's key sheet, as a fixture. Main composes it beside the hash. */
+  const KEY_SHEET = {
+    hash: 'd7'.repeat(32),
+    lines: [
+      'Machine: 127.0.0.1',
+      'Port: 2222',
+      'Writes this file on that machine: ~/.ssh/authorized_keys',
+      'Keeps the private half of the key on this Mac, at: /scratch/keys/machine-3f2a91c04d7b'
+    ],
+    warning: 'the warning main owns',
+    notes: ['Turn on Remote Login on that machine first.']
+  };
+
+  const refused = (keySheet: typeof KEY_SHEET | null): LiveTest =>
+    draftTest({
+      outcome: outcome({
+        class: 'auth-refused',
+        headline: 'That machine turned the sign in down.',
+        detail: 'The machine answered and would not let Tortie in.',
+        resolvedPath: null,
+        exitCode: 255,
+        sheet: null,
+        keySheet
+      })
+    });
+
+  it('offers the key on this sheet, for a machine with no row yet', () => {
+    const html = seed({
+      form: form({ host: '127.0.0.1' }),
+      test: refused(KEY_SHEET)
+    });
+    expect(html).toContain('data-machines-key="1"');
+    expect(html).toContain('data-machines-field="machine-password"');
+    for (const line of KEY_SHEET.lines) expect(html).toContain(line);
+  });
+
+  it('offers nothing when main sent no key sheet back', () => {
+    const html = seed({
+      form: form({ host: '127.0.0.1' }),
+      test: refused(null)
+    });
+    expect(html).not.toContain('data-machines-key="1"');
+  });
+
+  it('leaves the add button off, because the machine has still not answered', () => {
+    // A key on the machine is not the machine answering. The row is written
+    // from a test that came back ok with a program path, and nothing else.
+    const html = seed({
+      form: form({ host: '127.0.0.1' }),
+      test: refused(KEY_SHEET),
+      keyInstall: { savedId: null, running: false, result: null }
+    });
+    expect(addButtonTag(html)).toContain('disabled');
   });
 });

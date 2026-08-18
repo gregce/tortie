@@ -5892,7 +5892,7 @@ performance audit's subsystem table has no row for it and its idle table omits t
 remote ladder built exactly the shape the audits warn about, in the weeks after they were written.
 Nothing is broken. It is unmapped, and the next audit refresh owns it.
 
-## Phase 79.1 — Tortie makes the key and puts it on the machine (operator asked 2026-08-17) QUEUED
+## Phase 79.1 — Tortie makes the key and puts it on the machine (operator asked 2026-08-17) ✅ SHIPPED 2026-08-18 (this commit, 0.39.0, gates green)
 
 The half of the operator's request Phase 79 refused to build while Phase 72 was in flight. Phase 79
 put the Remote Login instruction on the screen where he hit the failure, and that is as far as copy

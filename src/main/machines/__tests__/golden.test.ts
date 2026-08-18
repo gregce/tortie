@@ -14,6 +14,13 @@
  * WHAT IT CANNOT PROVE. One ssh client was measured, being the version the
  * manifest records. A different client may print different words, and the answer to
  * that is to re-run the capture rather than to widen the matcher on a guess.
+ *
+ * ONE FILE COMES FROM A DIFFERENT SCRIPT, and the row says which. A password
+ * question arrives while the client is still running and is never followed by an
+ * exit, so `capture-machine-goldens.mjs`, which runs every case to completion,
+ * cannot produce it. `build/probe-key-install.mjs --capture-golden` writes it
+ * from leg 4, through the product's own runner, against a scratch server set up
+ * the way a stock Mac with Remote Login on is.
  */
 
 import { readFileSync, readdirSync } from 'node:fs';
@@ -38,7 +45,14 @@ interface Manifest {
     class: string;
     file: string;
     note: string;
-    exitCode: number;
+    /**
+     * Null for one row. `password-required` is decided while the client is
+     * still printing, and Tortie stops the client at the question, so that run
+     * never reported an exit code. Recording a number for it would be a
+     * fiction. The classifier never reads the code for that class, so -1 is
+     * passed below and changes nothing.
+     */
+    exitCode: number | null;
     bytes: number;
   }[];
   noGolden: { class: string; reason: string }[];
@@ -80,7 +94,7 @@ describe('every captured file classifies to the class it was captured for', () =
   for (const row of manifest.captures) {
     it(`${row.class}: ${row.note}`, () => {
       const text = readFileSync(join(dir, row.file), 'utf8');
-      expect(classifyProbeOutput(text, row.exitCode)).toBe(
+      expect(classifyProbeOutput(text, row.exitCode ?? -1)).toBe(
         row.class as MachineTestClass
       );
     });

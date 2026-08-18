@@ -32,6 +32,13 @@
  * questions for an agent that is not on this Mac. A person who has read one
  * has read the other.
  *
+ * PHASE 79.1. A draft test that came back with the machine turning the sign in
+ * down offers to set up a key, and the block that does it is drawn by
+ * ConnectionTestView, which this sheet already renders. So this file gains two
+ * props and no markup. A machine can be given a key BEFORE it is added, which
+ * is the case the whole rung exists for: the operator's own Mac refused him,
+ * and a machine that refuses cannot be tested, so it can never be added.
+ *
  * WHAT THIS SURFACE NEVER DOES. It writes nothing until the button is
  * pressed. It starts nothing on a keystroke. It reads no file. It sends no
  * answer to the program on a person's behalf.
@@ -94,6 +101,7 @@ import {
 import {
   sheetOf,
   useMachinesStore,
+  type KeyInstallState,
   type LiveTest,
   type MachineFormState
 } from './machines-store';
@@ -319,6 +327,11 @@ export interface AddMachineViewProps {
   tailscaleReadAt: number | null;
   /** The draft test, or null. A saved row's test never reaches this view. */
   test: LiveTest | null;
+  /**
+   * The key install for the machine being added, or null. A saved row's
+   * install never reaches this view, for the reason its test does not.
+   */
+  keyInstall: KeyInstallState | null;
   /** True while the add call is in flight. */
   busy: boolean;
   /** Main's sentence when a call was refused. Null otherwise. */
@@ -330,6 +343,8 @@ export interface AddMachineViewProps {
   onStartTest(): void;
   onSendInput(text: string): void;
   onCancelTest(): void;
+  /** Sends that machine's password once. Nothing here keeps a copy of it. */
+  onInstallKey(password: string): void;
   onAdd(): void;
 }
 
@@ -340,6 +355,7 @@ export function AddMachineView({
   tailscaleBusy,
   tailscaleReadAt,
   test,
+  keyInstall,
   busy,
   error,
   onSetForm,
@@ -349,6 +365,7 @@ export function AddMachineView({
   onStartTest,
   onSendInput,
   onCancelTest,
+  onInstallKey,
   onAdd
 }: AddMachineViewProps): React.JSX.Element {
   // The sheet main composed at the end of the test. It is the only source of
@@ -520,6 +537,8 @@ export function AddMachineView({
             running={test.running}
             onSend={onSendInput}
             onCancel={onCancelTest}
+            keyInstall={keyInstall}
+            onInstallKey={onInstallKey}
           />
         ) : null}
 
@@ -577,12 +596,18 @@ export function AddMachine(): React.JSX.Element {
   const sendTestInput = useMachinesStore((s) => s.sendTestInput);
   const cancelTest = useMachinesStore((s) => s.cancelTest);
   const addMachine = useMachinesStore((s) => s.addMachine);
+  const installKey = useMachinesStore((s) => s.installKey);
+  const keyInstall = useMachinesStore((s) => s.keyInstall);
   const busy = useMachinesStore((s) => s.busy) === 'add';
 
   const [error, setError] = useState<string | null>(null);
 
   // A test started from a saved row belongs to that row and is drawn there.
   const draftTest = test !== null && test.savedId === null ? test : null;
+  // The same rule for the install. A row's install carries that row's id, and
+  // the machine being added has none yet.
+  const draftKeyInstall =
+    keyInstall !== null && keyInstall.savedId === null ? keyInstall : null;
 
   return (
     <AddMachineView
@@ -592,6 +617,7 @@ export function AddMachine(): React.JSX.Element {
       tailscaleBusy={tailscaleBusy}
       tailscaleReadAt={tailscaleReadAt}
       test={draftTest}
+      keyInstall={draftKeyInstall}
       busy={busy}
       error={error}
       onSetForm={setForm}
@@ -607,6 +633,10 @@ export function AddMachine(): React.JSX.Element {
       }}
       onSendInput={(text) => void sendTestInput(text)}
       onCancelTest={() => void cancelTest()}
+      onInstallKey={(password) => {
+        setError(null);
+        void installKey(password).then(setError);
+      }}
       onAdd={() => {
         setError(null);
         void addMachine().then(setError);

@@ -27,6 +27,15 @@
  * That line comes from REMEDY in machines-copy.ts and is keyed by main's own
  * class, so main still says what happened and this file only says what to do
  * about it. A class with nothing for a person to do draws nothing.
+ *
+ * PHASE 79.1. One block hangs under the advice, and it is the only place in
+ * the product that offers to set up a key. It is rendered HERE rather than in
+ * the Add sheet and again on the machine row, because both of those draw this
+ * view, so one insertion point gives both of them the block and neither can
+ * grow a copy that drifts. Whether it appears at all is `keySheetOf`'s
+ * decision, and main decides whether there is a sheet to appear for. A surface
+ * that passes no `onInstallKey` gets no block, which is how a caller says it
+ * is not offering this.
  */
 
 import React, { useState } from 'react';
@@ -35,6 +44,7 @@ import type {
   MachineTestOutcome,
   MachineTestStarted
 } from '@shared/ipc';
+import { KeyInstall } from './KeyInstall';
 import {
   ANSWER_HINT,
   ANSWER_LABEL,
@@ -46,6 +56,7 @@ import {
   TRANSCRIPT_RUNNING_LABEL,
   TRANSCRIPT_SOURCE_LINE
 } from './machines-copy';
+import { keySheetOf, type KeyInstallState } from './machines-store';
 
 /**
  * What a person can do about one outcome, drawn apart from what happened.
@@ -78,6 +89,18 @@ export interface ConnectionTestViewProps {
   running: boolean;
   onSend(text: string): void;
   onCancel(): void;
+  /**
+   * The key install for the machine this test is about, or null.
+   *
+   * Optional, so a surface written against the Phase 79 props still compiles
+   * and simply offers no key.
+   */
+  keyInstall?: KeyInstallState | null;
+  /**
+   * Sends that machine's password once, to make a key and put it on the
+   * machine. A caller that passes nothing offers no key at all.
+   */
+  onInstallKey?: (password: string) => void;
 }
 
 export function ConnectionTestView({
@@ -86,7 +109,9 @@ export function ConnectionTestView({
   outcome,
   running,
   onSend,
-  onCancel
+  onCancel,
+  keyInstall,
+  onInstallKey
 }: ConnectionTestViewProps): React.JSX.Element {
   const [answer, setAnswer] = useState('');
 
@@ -178,6 +203,17 @@ export function ConnectionTestView({
       ) : null}
 
       {outcome !== null ? <Remedy cls={outcome.class} /> : null}
+
+      {/* PHASE 79.1. Under the advice, because it is the one thing on this
+          panel that acts on the advice. */}
+      {onInstallKey === undefined ? null : (
+        <KeyInstall
+          sheet={keySheetOf(outcome)}
+          state={keyInstall ?? null}
+          adviceAbove={outcome?.class ?? null}
+          onInstall={onInstallKey}
+        />
+      )}
     </div>
   );
 }

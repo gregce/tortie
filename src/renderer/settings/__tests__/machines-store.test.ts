@@ -16,12 +16,22 @@
  * PHASE 79 adds one field to the same file, being when the last look at
  * Tailscale finished. The panel says it on screen, so it has to be true on
  * both paths, and a look that threw is still a look.
+ *
+ * PHASE 79.1 adds the key install, and it is here rather than in a component
+ * test for the same reason the add payload is. What matters is what crossed
+ * the bridge: the hash main composed rather than one the renderer invented,
+ * the machine the open test was about rather than whatever the form holds
+ * now, and the password once and then never again. The last one is measured
+ * by walking the whole store after the call and looking for the bytes.
  */
 
 import { beforeEach, describe, expect, it } from 'vitest';
 import type {
   MachineAddInput,
   MachineConfirmSheet,
+  MachineKeyInstallInput,
+  MachineKeyInstallResult,
+  MachineKeySheet,
   MachineTestInput,
   MachineTestStarted,
   MachinesResult
@@ -49,9 +59,45 @@ const STARTED: MachineTestStarted = {
 interface Recorded {
   tests: MachineTestInput[];
   adds: MachineAddInput[];
+  installs: MachineKeyInstallInput[];
 }
 
-const recorded: Recorded = { tests: [], adds: [] };
+const recorded: Recorded = { tests: [], adds: [], installs: [] };
+
+/** The password the tests type. It must exist in exactly one place. */
+const PASSWORD = 'correct-horse-battery-staple';
+
+/** Main's key sheet, as a fixture. Main composes it beside the hash. */
+const KEY_SHEET: MachineKeySheet = {
+  hash: 'c4'.repeat(32),
+  lines: [
+    'Machine: 127.0.0.1',
+    'Port: 2222',
+    'Writes this file on that machine: ~/.ssh/authorized_keys',
+    'Keeps the private half of the key on this Mac, at: /scratch/keys/machine-3f2a91c04d7b'
+  ],
+  warning: 'the warning main owns',
+  notes: ['the first note', 'the second note']
+};
+
+/** What main answers when the key went on. */
+function installed(
+  over: Partial<MachineKeyInstallResult> = {}
+): MachineKeyInstallResult {
+  return {
+    id: 'scratch-box',
+    class: 'key-installed',
+    alarm: false,
+    headline: 'The key is on that machine.',
+    detail: 'Tortie added its key to that machine and is testing it now.',
+    wrote: 'added',
+    keyMade: true,
+    fingerprint: 'SHA256:aaaa',
+    transcript: 'Password:\n__TORTIE_KEY__added__TORTIE_KEY__\n',
+    durationMs: 2_000,
+    ...over
+  };
+}
 
 function emptyRows(): MachinesResult {
   return {
@@ -70,9 +116,10 @@ function emptyRows(): MachinesResult {
  * A bridge that answers the way main does. The test hands the sheet back on
  * the outcome, because that is where main puts it.
  */
-function installBridge(): void {
+function installBridge(answer: () => MachineKeyInstallResult = installed): void {
   recorded.tests = [];
   recorded.adds = [];
+  recorded.installs = [];
   const machines = {
     rows: async () => emptyRows(),
     reload: async () => emptyRows(),
@@ -99,6 +146,10 @@ function installBridge(): void {
       throw new Error('not used');
     },
     remove: async () => emptyRows(),
+    installKey: async (input: MachineKeyInstallInput) => {
+      recorded.installs.push(input);
+      return answer();
+    },
     onTestEvent: () => () => undefined
   };
   (globalThis as { window?: unknown }).window = { gmux: { machines } };
@@ -114,7 +165,8 @@ function reset(): void {
     tailscale: null,
     tailscaleBusy: false,
     tailscaleReadAt: null,
-    test: null
+    test: null,
+    keyInstall: null
   });
 }
 
@@ -136,6 +188,30 @@ function testEnded(sheet: MachineConfirmSheet | null, resolvedPath: string | nul
         exitCode: 0,
         durationMs: 900,
         sheet
+      }
+    }
+  });
+}
+
+/** The end event for a machine that turned the sign in down. */
+function testRefused(keySheet: MachineKeySheet | null): void {
+  const live = useMachinesStore.getState().test;
+  if (live === null) throw new Error('there is no live test to end');
+  useMachinesStore.setState({
+    test: {
+      ...live,
+      running: false,
+      outcome: {
+        testId: live.started.testId,
+        class: 'auth-refused',
+        alarm: false,
+        headline: 'That machine turned the sign in down.',
+        detail: 'The machine answered and would not let Tortie in.',
+        resolvedPath: null,
+        exitCode: 255,
+        durationMs: 900,
+        sheet: null,
+        keySheet
       }
     }
   });
@@ -241,5 +317,123 @@ describe('when the last look at Tailscale happened', () => {
     await useMachinesStore.getState().findTailnet();
     expect(typeof useMachinesStore.getState().tailscaleReadAt).toBe('number');
     expect(useMachinesStore.getState().tailscaleBusy).toBe(false);
+  });
+});
+
+describe('setting up a key on one machine', () => {
+  beforeEach(() => {
+    installBridge();
+    reset();
+  });
+
+  /** One draft test that ended with the machine turning the sign in down. */
+  async function draftWasRefused(
+    keySheet: MachineKeySheet | null = KEY_SHEET
+  ): Promise<void> {
+    useMachinesStore
+      .getState()
+      .setForm({ host: '127.0.0.1', label: 'Scratch box', port: '2222' });
+    await useMachinesStore.getState().startDraftTest();
+    testRefused(keySheet);
+  }
+
+  it('sends main’s own hash and main’s own lines, never ones it wrote', async () => {
+    await draftWasRefused();
+    await useMachinesStore.getState().installKey(PASSWORD);
+    expect(recorded.installs).toHaveLength(1);
+    const sent = recorded.installs[0];
+    expect(sent?.hashRead).toBe(KEY_SHEET.hash);
+    expect(sent?.linesRead).toEqual(KEY_SHEET.lines);
+  });
+
+  it('sends the machine the open test was about, with the same id', async () => {
+    await draftWasRefused();
+    await useMachinesStore.getState().installKey(PASSWORD);
+    const target = recorded.installs[0]?.target;
+    expect(target?.mode).toBe('draft');
+    expect(target?.mode === 'draft' ? target.draft.host : null).toBe('127.0.0.1');
+    expect(target?.mode === 'draft' ? target.draft.port : null).toBe(2_222);
+    expect(target?.mode === 'draft' ? target.draft.id : null).toBe('scratch-box');
+  });
+
+  it('sends the row when the test belonged to a saved row', async () => {
+    await useMachinesStore.getState().startSavedTest('pop-os');
+    testRefused(KEY_SHEET);
+    await useMachinesStore.getState().installKey(PASSWORD);
+    const target = recorded.installs[0]?.target;
+    expect(target).toEqual({ mode: 'saved', id: 'pop-os' });
+    expect(useMachinesStore.getState().keyInstall?.savedId).toBe('pop-os');
+  });
+
+  it('sends the password once and keeps it nowhere at all', async () => {
+    await draftWasRefused();
+    await useMachinesStore.getState().installKey(PASSWORD);
+    expect(recorded.installs[0]?.password).toBe(PASSWORD);
+    // The whole store, walked. The password crosses one call as an argument
+    // and is never set into any field of this store, so no snapshot of it can
+    // carry the bytes.
+    const whole = JSON.stringify(useMachinesStore.getState());
+    expect(whole).not.toContain(PASSWORD);
+  });
+
+  it('asks the machine itself once the key is on it', async () => {
+    await draftWasRefused();
+    await useMachinesStore.getState().installKey(PASSWORD);
+    // Two tests: the one that refused, and the one that runs now. Tortie
+    // saying the key is installed is not the machine signing Tortie in.
+    expect(recorded.tests).toHaveLength(2);
+    expect(recorded.tests[1]?.mode).toBe('draft');
+    expect(useMachinesStore.getState().keyInstall?.result?.class).toBe(
+      'key-installed'
+    );
+  });
+
+  it('asks nothing again when the key did not go on', async () => {
+    installBridge(() =>
+      installed({ class: 'auth-refused', wrote: null, keyMade: false })
+    );
+    reset();
+    await draftWasRefused();
+    await useMachinesStore.getState().installKey(PASSWORD);
+    expect(recorded.tests).toHaveLength(1);
+    expect(useMachinesStore.getState().keyInstall?.result?.class).toBe(
+      'auth-refused'
+    );
+  });
+
+  it('sends nothing when main offered no key sheet', async () => {
+    await draftWasRefused(null);
+    const said = await useMachinesStore.getState().installKey(PASSWORD);
+    expect(recorded.installs).toEqual([]);
+    expect(said).toBeNull();
+    expect(useMachinesStore.getState().keyInstall).toBeNull();
+  });
+
+  it('sends nothing with an empty field, and says what to type', async () => {
+    await draftWasRefused();
+    const said = await useMachinesStore.getState().installKey('');
+    expect(recorded.installs).toEqual([]);
+    expect(said).toContain('password first');
+  });
+
+  it('drops the answer when the address it was done to is edited', async () => {
+    await draftWasRefused();
+    await useMachinesStore.getState().installKey(PASSWORD);
+    expect(useMachinesStore.getState().keyInstall).not.toBeNull();
+    useMachinesStore.getState().setForm({ host: '127.0.0.2' });
+    expect(useMachinesStore.getState().keyInstall).toBeNull();
+  });
+
+  it('keeps main’s sentence when the call was refused', async () => {
+    installBridge(() => {
+      throw new Error('Tortie did not set up a key, because the machine changed.');
+    });
+    reset();
+    await draftWasRefused();
+    const said = await useMachinesStore.getState().installKey(PASSWORD);
+    expect(said).toContain('because the machine changed');
+    expect(useMachinesStore.getState().keyInstall?.running).toBe(false);
+    expect(useMachinesStore.getState().keyInstall?.result).toBeNull();
+    expect(recorded.tests).toHaveLength(1);
   });
 });

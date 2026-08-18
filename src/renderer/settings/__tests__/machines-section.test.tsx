@@ -14,6 +14,8 @@
  * - A row whose details moved draws both lists, both list headings and both
  *   sets of lines, so a person reads the change rather than guessing at it.
  * - A confirmed row draws `Confirmed`.
+ * - PHASE 79.1. No row asks for another machine's password until a connection
+ *   test has come back asking for one.
  * - The dropped rows block names the field and the reason, and counts.
  * - The honesty sentence and the confirm warning appear exactly as main sent
  *   them. Neither is composed here, so a passing test proves this surface
@@ -280,6 +282,16 @@ describe('a row that has never been confirmed', () => {
     expect(html).toContain('Remove this machine');
     // The second step is not on screen until the first is pressed.
     expect(html).not.toContain('Remove it');
+  });
+
+  it('asks for no password until a test has come back asking for one', () => {
+    // PHASE 79.1. The key block hangs off a finished connection test, and a
+    // row with no test has none. A field asking for another machine's
+    // password on a row nobody has tested would be a field a person cannot
+    // judge, because nothing on the screen would have said why it is there.
+    expect(html).not.toContain('data-machines-key="1"');
+    expect(html).not.toContain('data-machines-field="machine-password"');
+    expect(html).not.toContain('Make a key and put it on this machine');
   });
 });
 

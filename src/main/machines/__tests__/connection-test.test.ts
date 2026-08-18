@@ -15,6 +15,9 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  KEY_INSTALL_DEADLINE_MS,
+  TEST_PASSWORD_STOP_NOTE,
+  classifyProbeOutput,
   KNOWN_HOSTS_OPTION,
   PINNED_SSH_PATH,
   REMOTE_PATH_MARKER,
@@ -245,11 +248,65 @@ describe('the bounds', () => {
     expect(TEST_DEADLINE_MS).toBe(60_000);
   });
 
+  it('gives a key install half of that, because nobody is reading', () => {
+    // The password was typed before the call started, so there is no person to
+    // wait for. Thirty seconds is three times the connect budget.
+    expect(KEY_INSTALL_DEADLINE_MS).toBe(30_000);
+    expect(KEY_INSTALL_DEADLINE_MS).toBeLessThan(TEST_DEADLINE_MS);
+  });
+
   it('shows at most 256 KB of output', () => {
     expect(TEST_MAX_OUTPUT_BYTES).toBe(256 * 1024);
   });
 
   it('runs the ssh every Mac has, at an absolute path', () => {
     expect(PINNED_SSH_PATH).toBe('/usr/bin/ssh');
+  });
+});
+
+/**
+ * PHASE 79.1 FIX ROUND. The machine that asks for a password.
+ *
+ * The live stop is proven by `build/probe-key-install.mjs` leg 4, which drives
+ * this module against a scratch server on 127.0.0.1 set up the way a stock Mac
+ * with Remote Login on is. What is checked here is the decision the live stop
+ * and the finished transcript share.
+ */
+describe('a machine that asks for a password', () => {
+  /** The 27 bytes a real client printed, from the golden file. */
+  const REAL = "\rgdc@127.0.0.1's password: ";
+
+  it('is its own class rather than a machine answering slowly', () => {
+    expect(classifyProbeOutput(REAL, -1)).toBe('password-required');
+  });
+
+  it('is still that class when the question is not the last thing printed', () => {
+    expect(
+      classifyProbeOutput(`some banner\ngreg@box password: \n`, -1)
+    ).toBe('password-required');
+  });
+
+  it('loses to a machine that turned the answer down', () => {
+    // Both are in the text when a wrong answer was given. The machine has
+    // spoken by then, and what it said is the truer of the two.
+    const both = `greg@box's password: \nPermission denied, please try again.\n`;
+    expect(classifyProbeOutput(both, 255)).toBe('auth-refused');
+  });
+
+  it('does not read an ordinary line holding the word as a question', () => {
+    expect(classifyProbeOutput('your password: is wrong\n', 255)).toBe('unknown');
+  });
+
+  it('never wins over a machine that answered the probe', () => {
+    const ok = `greg@box's password: \n__TORTIE_PATH__/usr/bin/tmux__TORTIE_PATH__\n`;
+    expect(classifyProbeOutput(ok, 0)).toBe('ok');
+  });
+
+  it('says in the transcript that Tortie stopped and why', () => {
+    expect(TEST_PASSWORD_STOP_NOTE).toContain('asked for a password');
+    expect(TEST_PASSWORD_STOP_NOTE).toContain('stopped here');
+    // No em dash, no en dash, and the house colon rule.
+    expect(TEST_PASSWORD_STOP_NOTE).not.toMatch(/[\u2014\u2013]/);
+    expect(TEST_PASSWORD_STOP_NOTE).not.toContain(':');
   });
 });

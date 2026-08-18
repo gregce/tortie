@@ -1,5 +1,5 @@
 {
-  "note": "Captured by build/capture-machine-goldens.mjs against a scratch sshd on 127.0.0.1. Re-run it after an ssh upgrade or a tmux upgrade. src/main/machines/__tests__/golden.test.ts reads these files and runs nothing at all.",
+  "note": "Captured by build/capture-machine-goldens.mjs against a scratch sshd on 127.0.0.1, except password-required.txt, which build/probe-key-install.mjs writes with --capture-golden and whose row names it. Re-run them after an ssh upgrade or a tmux upgrade. src/main/machines/__tests__/golden.test.ts reads these files and runs nothing at all.",
   "capturedAt": "2026-08-17",
   "sshClient": "OpenSSH_9.9p2, LibreSSL 3.3.6",
   "remoteTmux": "tmux 3.6a",
@@ -60,6 +60,15 @@
       "note": "192.0.2.1, TEST-NET-1, with a short connect timeout. It reaches nobody.",
       "exitCode": 255,
       "bytes": 61
+    },
+    {
+      "class": "password-required",
+      "file": "password-required.txt",
+      "note": "A scratch server configured the way a stock Mac with Remote Login on is: a key is allowed, a password is allowed, and the file that would hold a key for Tortie is empty. The client tried the key, got nowhere and printed its own password question. Captured through Tortie's own runner rather than by the capture script, because the question arrives while the client is still running and that script runs every case to an exit.",
+      "capturedBy": "build/probe-key-install.mjs --capture-golden, leg 4",
+      "capturedAt": "2026-08-18",
+      "exitCode": null,
+      "bytes": 27
     }
   ],
   "noGolden": [
@@ -86,6 +95,10 @@
     {
       "class": "prepared",
       "reason": "Tortie's own answer on success, not a program's output."
+    },
+    {
+      "class": "key-installed",
+      "reason": "Tortie's own answer after it put a key on a machine. The marker the far machine prints is text Tortie's own script printed, so a captured file would be a capture of Tortie's bytes rather than a measurement of what some program says."
     }
   ]
 }
