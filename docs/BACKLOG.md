@@ -5984,6 +5984,72 @@ all three after a successful run.
 needs `SSH_AUTH_SOCK` exported from the Phase 69 carriage file because the npm script does not
 export it. That gate runnability defect is itself a recorded nit.
 
+## THE RELEASE GATE, decided by the operator 2026-08-18. Phase 87 is REFUSED
+
+**Phase 87, the release switch that would have turned remote off in packaged builds, is not built and
+is not queued. The operator refused it on 2026-08-18.** The entry is not written and no builder
+should look for one. Anyone who later proposes hiding an unfinished surface to make a release
+shippable is proposing this again, and the answer was no.
+
+**What replaces it is a better gate, and it is his: no release is cut until a person can create and
+use a real agent session on a real remote machine, from Tortie's own interface, from the operator's
+seat.** Not a probe. Not a harness. Not an agent's report. Him, at the keyboard, watching an agent
+answer on another computer.
+
+This is stronger than counting features, because it cannot be satisfied by assurance. It is also
+narrower than "remote is finished", which research 54 shows is five to eight phases away, being 44
+of 87 capabilities degraded, absent or refused with the agent layer at 18 of 22.
+
+### Why this is now reachable, measured 2026-08-18
+
+| Fact | State |
+| --- | --- |
+| ssh from the laptop to the Mac Pro | WORKS. The operator made an ed25519 key and installed it |
+| The machine | `gregs-mac-pro.tail2ddfe1.ts.net`, arm64, reachable over Tailscale on a direct path |
+| Its tmux | 3.7c at `/usr/local/bin/tmux`, exactly as `machines.json` says, and Phase 83 accepts that version |
+| claude on that machine | 2.1.234, runs, signed in, 4 session directories under `~/.claude` |
+| Durability, already proven | 5 Tortie sessions from 15 and 16 August are still alive there, 2 of them running claude 2.1.233 for four days |
+
+### The one thing standing in the way, and Phase 84 owns it
+
+Tortie asks the far machine `"$SHELL" -lc 'command -v claude'` before it writes the manifest row.
+claude is at `~/.local/bin/claude`, which is on NEITHER the exec plane PATH, being the 4 entries
+`/usr/bin:/bin:/usr/sbin:/sbin`, NOR the login shell PATH, being 10 entries that include
+`/usr/local/bin` and not `~/.local/bin`. So the answer is empty and the create is refused, on a
+machine where claude is installed and two of Tortie's own claude sessions are running.
+
+**Phase 84 is therefore the release gate's only blocker.** Phases 85 and 81 are not, and they may
+land after a release rather than before it.
+
+### The acceptance script the operator runs, and it is the deliverable
+
+He runs this himself, from a development build, before any release is cut. Each step names the
+signal that confirms it. A step that needs a follow-up question has failed as a script.
+
+**Setup.** In `/Users/gdc/gmux`, run `npm install` if the tree is fresh, then `npm run dev`.
+
+| # | Do this | The signal that it worked |
+| --- | --- | --- |
+| 1 | Open Settings, then Machines | "Greg's Mac Pro" is listed, shows as confirmed and prepared, and names tmux 3.7c. It does NOT read unreachable |
+| 2 | Open any project tab | The 5 sessions from 15 and 16 August appear, each with a machine badge. This is four day old work coming back |
+| 3 | Press Cmd+T. Set Machine to Greg's Mac Pro, Agent to Claude Code, and LEAVE Directory EMPTY | The sheet accepts it. **Today this step fails with a refusal saying claude cannot be found** |
+| 4 | Press Enter | One new session appears with a machine badge, and its pane shows claude starting |
+| 5 | Type `what machine are you on? run hostname` and press Enter | claude answers, and the hostname it reports is `Mac`, not this laptop. **This is the gate. If claude answers here, the release is unblocked** |
+| 6 | Quit Tortie with Cmd+Q, then launch it again | The session is still there, still attached, and its scrollback is intact |
+| 7 | End that session from its menu | It goes to exited, and the far machine's session list loses exactly that one row |
+
+**What this script deliberately does NOT cover, so the scope is honest.** None of these blocks a
+release and every one of them is known:
+
+- `needs input` never lights for a remote session. The oracles read local disk.
+- No conversation comes back on a remote machine, for any agent. `send-keys` is a permanently
+  refused verb, so nothing types a resume command over there.
+- The Explorer, the git sidebar, search and Quick Open all show THIS Mac's files while a remote
+  session is selected, with no label. Research 55 rules on the fix and it is not built.
+- SpecStory capture is not offered for a remote session.
+- The status dot does not move on a connected machine. That is Phase 85 and it may land after the
+  release.
+
 ## The remote reliability round, queued 2026-08-18 from research 54
 
 **The operator made contact with his Mac Pro and it runs tmux 3.7c from Homebrew.** He has ONE
