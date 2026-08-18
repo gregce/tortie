@@ -5984,6 +5984,111 @@ all three after a successful run.
 needs `SSH_AUTH_SOCK` exported from the Phase 69 carriage file because the npm script does not
 export it. That gate runnability defect is itself a recorded nit.
 
+## Making remote real, ordered 2026-08-18 by the operator
+
+**His words.** "I think we need to solve all of this." He then named the harder half himself: "today
+the mental model is that you first open up a project and THEN you start a session. But if you had a
+machine connected, you could technically OPEN up a session from a remote machine in a different
+project, and so all of the explorer, scm, search, etc wouldn't necessarily change. We need a smart
+way to handle that. Either you OPEN a remote project first, OR you open a session in your current
+local project BUT it is either mapped to the same project on the remote machine even if the path is
+different, or it dynamically switches the project to what the remote machine is mapped to."
+
+**That paragraph is the most important thing anyone has said about remote since research 51.** Every
+item below except the agent layer is downstream of it. The workspace surfaces do not lie because
+somebody forgot a label. They lie because the product has one project model and two computers, and
+nothing in the model says which computer a project is about.
+
+**This does NOT move the release gate.** The gate stays as the operator set it: create and use one
+real agent session on the Mac Pro from Tortie's interface. Phase 84 is its only blocker. Everything
+below lands after that release, unless he says otherwise.
+
+### The order, and Research 56 comes first because it rules on three of the five
+
+| # | Item | Size | Blocked on |
+| --- | --- | --- | --- |
+| 1 | **Research 56** the project and session model when there is more than one machine | research | nothing. Runs now, it is docs only |
+| 2 | **85** the status dot tells the truth on a connected machine | medium | Phase 84's files |
+| 3 | **90** the workspace follows the machine you are looking at | large | Research 56 |
+| 4 | **91** SpecStory capture for a remote session | medium | nothing technical. It needs a decision about where the transcript lives |
+| 5 | **88** `needs input` for a remote session | large | the oracle question, which Research 56 does not touch |
+| 6 | **89** a conversation comes back on a remote machine | large | a decision about the permanently refused `send-keys` verb |
+
+## Research 56 — the project and session model when there is more than one machine (operator ordered 2026-08-18) QUEUED
+
+**It rules. It does not survey.** Three candidate models are named below because the operator named
+them. The round may find a fourth, and it must say plainly if one of his three is wrong.
+
+### The candidates
+
+**A. A remote project is its own tab.** A project carries a machine, and a tab is either local or
+remote. Research 55 already priced the mechanism, being a `remote_projects` table, one frozen
+listing script taking a root and a depth, 5 of 13 workspace surfaces crossing and 8 refusing.
+
+**B. A project is a MAPPING.** One tab knows its path on this Mac and its path on each machine, and
+the two need not be equal. Sessions on either machine live in that tab because they are the same
+work.
+
+**C. The workspace surfaces FOLLOW the focused session.** Selecting a remote session re-targets the
+Explorer, the SCM view, search and Quick Open to that machine's copy, with a label naming it.
+
+**B and C are not alternatives and the round should say so or refute it.** B answers what a project
+IS and C answers what the sidebars SHOW. The interesting design is B plus C. A is the simpler
+shape and its cost is that one piece of work is split across two tabs the person manages by hand.
+
+### What it must settle
+
+| # | Question | What decides it |
+| --- | --- | --- |
+| 1 | Which model, and whether B and C are one design | The cost of each counted against the tab spine, the layout store and the 60 renderer files that read a project path |
+| 2 | What a re-target costs when focus moves | Measured on the operator's tailnet. Research 55 measured 30.8 ms for one folder and 42.3 ms for a subtree, so a re-target is roughly 50 to 400 ms of visible change. Decide whether that is acceptable and what is shown while it happens |
+| 3 | How a local project learns its remote counterpart | By hand, by matching basename, by matching the git remote URL, or by asking the machine. Say which, and what happens when the mapping is wrong or absent |
+| 4 | What the SCM view does when the two copies disagree | They will be on different branches with different changes. Decide whether that is shown, hidden or refused, and never let a local write look like a remote one |
+| 5 | What search does | ripgrep is NOT installed on the Mac Pro, measured 2026-08-18. Decide whether search follows the machine, stays local with a label, or is refused on a remote focus |
+| 6 | What the tab spine and the session list look like | Whether a remote session's row sits in the local project's tab, and what the badge says. The worktree chip fires for nearly every remote row today and says worktree when it means another computer |
+| 7 | Which choice is cheapest to reverse | This is a model change and the product has one chance to get it cheap. Say which option a later round could undo |
+
+### Two constraints it may not trade away
+
+The tmux safety rules and the machine confirm gate are not open. And **a local write must never be
+able to masquerade as a remote one**, which is finding 15 of research 54 and the defect this whole
+round exists to remove.
+
+### What it must not do
+
+It may not re-open the no install decision. Research 55 settled that on measured round trips and the
+answer was to build on the ssh door that already exists. This round designs on top of that answer.
+
+## Phase 90 — the workspace follows the machine you are looking at, NOT QUEUED, blocked on Research 56
+
+The build of whatever Research 56 rules. It is named here so the research has a destination, and it
+stays unqueued until the ruling exists. It absorbs research 54 item 15, being the
+"Files live on \<machine\>" label that research 51 section 4.5 specified and nobody wrote, because a
+label is either part of this design or it is a stopgap for it.
+
+## Phase 91 — SpecStory capture for a remote session, NOT QUEUED
+
+Today the capture checkbox disappears when a machine is picked, with no sentence naming why. The
+decision it needs is where the transcript lives. The specstory binary is bundled in Tortie on this
+Mac and nothing installs on the far machine, so either the transcript is written over there by a
+program that is already there, or the capture wraps nothing and the row stays absent honestly. Do
+not build until that is decided.
+
+## Phase 88 — `needs input` for a remote session, NOT QUEUED
+
+The agent native oracles read local disk, so nothing can produce the state for a session on another
+computer. One partial answer is recorded and not built: codex's title oracle needs no disk, and the
+remote list format carries no `#{pane_title}` today. Adding that field gives one agent the state and
+leaves twelve without it, which is a decision about honesty rather than a coding task.
+
+## Phase 89 — a conversation comes back on a remote machine, NOT QUEUED
+
+Nothing types a resume command into a pane on another computer, because `send-keys` is on the
+permanently refused verb list at `src/main/machines/exec-plane.ts:231` and that refusal is load
+bearing. This phase cannot be built without either a different mechanism or a decision to change
+that list, and changing it is not a thing a builder may do. Phase 82, cross machine conversation
+reconstruction, sits above this one.
+
 ## THE RELEASE GATE, decided by the operator 2026-08-18. Phase 87 is REFUSED
 
 **Phase 87, the release switch that would have turned remote off in packaged builds, is not built and
