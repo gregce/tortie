@@ -5936,7 +5936,7 @@ all three after a successful run.
 needs `SSH_AUTH_SOCK` exported from the Phase 69 carriage file because the npm script does not
 export it. That gate runnability defect is itself a recorded nit.
 
-## Phase 80.1 — session focus mode, the build (operator queued 2026-08-17) ✅ SHIPPED 2026-08-18 (this commit, 0.38.0, gates green)
+## Phase 80.1 — session focus mode, the build (operator queued 2026-08-17) ✅ SHIPPED 2026-08-18 (8713547, 0.38.0, gates green, CI green)
 
 **What landed.** ⇧⌘↩ grows the session surface, including every split leaf, until it fills the
 window. The activity bar, the sidebar, the session strip and the editor go to `display: none` from
@@ -6508,6 +6508,9 @@ blocks a rung. This round runs after 73, or earlier if the operator asks for it.
 | orchestrator | A research figure was written into a phase entry without measuring the files. The Phase 78 charter said the bundled fonts were 335,296 bytes and the four files measure 340,472. The committer caught it. A number in a charter is checked against the thing it describes before a builder reads it |
 | orchestrator | An exit code is not a result. Two runs of the ten row fault matrix reported exit 0 while dying halfway through, because the command was backgrounded a second time inside a call that was already backgrounded, so the child was killed when the wrapper returned. A gate's result is the rows it printed and its own PASS line. Read those, not the status |
 | orchestrator | Two rungs fixed the same false sentence independently, because neither could see the other. Phase 72 rewrote `HONESTY_NO_SESSIONS_YET` and Phase 79 deleted it and added a table that fails on any retired claim. The merge kept the stronger answer, but the duplicated work is the standing cost of building three phases at once, and a shared list of user-facing copy defects would have prevented it |
+| orchestrator | A phase committer worked in the operator's own checkout rather than its isolated worktree, and fast forwarded his HEAD from `b018f4d` to `065491a` to do it. No harm reached him, because none of his seven dirty files overlapped what main moved or what the commit touched, and their mtimes never changed. The cause is that the runner tells a committer to rebase without telling it which directory it owns. A committer's brief must name its worktree path and forbid every other checkout by name |
+| 80.1 | The packaged View menu was never read for this build. `build/probe-fullscreen-menu.mjs` failed twice with "the View menu was not readable within 90 s", because a packaged binary launched with an isolated HOME gets no window and no menu bar while an unanswered macOS keychain dialog is up. The block is environmental and predates the phase. What was read instead is the packaged `out/main/index.js` inside `app.asar`, which declares exactly one Toggle Full Screen and one Focus the Session. Re-run the packaged probe once the dialog is cleared |
+| 80.1 | On the way out the chrome does not fade in. The focus class stays on the shell root for the whole 200 ms, so the sidebar, the rail and the strip appear at full opacity the instant the flight ends rather than arriving with it |
 
 ## Phase 46.1 — the Runs pane reads clearly (operator reported 2026-08-16) ✅ SHIPPED 2026-08-17 (d1ce49f, 0.31.1, gates green)
 
