@@ -75,11 +75,22 @@ describe('badgeMachineOf', () => {
     const badge = badgeMachineOf(
       state({ id: 'attic', label: 'Attic', color: 'green', link: 'quiet' })
     );
-    expect(badge).toEqual({
+    expect(badge).toMatchObject({
       id: 'attic',
       label: 'Attic',
       color: 'green',
       answering: false
     });
+    // PHASE 72. This projection describes a MACHINE and not a session, so it
+    // cannot answer whether one session may be brought back: two of the six
+    // conditions behind that answer are facts about a row and there is no row
+    // here. False with the machine's own sentence is the honest answer and the
+    // safe one, because a surface reading it hides the verb.
+    expect(badge.canRestore).toBe(false);
+    // The machine's own sentence, whatever it is. This fixture states none, and
+    // in production `machineDetailSentence` always writes one.
+    expect(badge.restoreReason).toBe(
+      state({ id: 'attic', label: 'Attic', color: 'green', link: 'quiet' }).detail
+    );
   });
 });

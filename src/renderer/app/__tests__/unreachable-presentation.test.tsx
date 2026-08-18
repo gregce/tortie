@@ -102,11 +102,18 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 
 describe('the unknown row menu', () => {
-  it('offers exactly the two verbs that read Tortie’s own records', () => {
+  /**
+   * PHASE 72 added the third. "Show saved output…" reads a file on this Mac and
+   * sends nothing anywhere, so it belongs with the other two rather than with
+   * the verbs that act on a session Tortie cannot see. On a row with no copy it
+   * is offered disabled with the reason under it.
+   */
+  it('offers exactly the three verbs that read Tortie’s own records', () => {
     const items = sessionMenuItems(sess({}), 'x');
-    expect(items).toHaveLength(2);
+    expect(items).toHaveLength(3);
     expect(labelsOf(items)).toEqual([
       'Show what it loaded…',
+      'Show saved output…',
       'Copy directory path'
     ]);
   });
@@ -212,7 +219,12 @@ describe('the restore-all bar', () => {
     id: 'studio',
     label: 'Studio',
     color: 'orange' as const,
-    answering: true
+    answering: true,
+    // Phase 72 appended these two. This block is about the bar rather than
+    // about one row, so it states the ordinary answer for a row nothing has
+    // offered.
+    canRestore: false,
+    restoreReason: 'That machine still lists this session, so it is already running.'
   };
 
   it('never offers to restore sessions on another machine', () => {
@@ -387,7 +399,11 @@ describe('the image-drop gate', () => {
       id: 'studio',
       label: 'Studio',
       color: 'orange' as const,
-      answering: false
+      answering: false,
+      // A machine Tortie cannot see never offers the verb, which is the whole
+      // point of the case below.
+      canRestore: false,
+      restoreReason: 'Tortie cannot see this machine right now.'
     };
     expect(paneAccepts(sess({ status: 'unknown', machine: quiet }))).toBe(
       false

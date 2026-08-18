@@ -63,16 +63,27 @@ afterEach(() => {
 describe('migration 012', () => {
   it('is the twelfth migration and the version counts it', () => {
     expect(MANIFEST_MIGRATION_NAMES).toHaveLength(MANIFEST_SCHEMA_VERSION);
-    // Phase 71 appended 013-machine-id, so the version reads 13 and this
-    // migration's own position is what stays pinned.
-    expect(MANIFEST_SCHEMA_VERSION).toBe(13);
+    // Phase 71 appended 013-machine-id and Phase 72 appended
+    // 014-machine-tombstone, so the version reads 14 and this migration's own
+    // position is what stays pinned.
+    expect(MANIFEST_SCHEMA_VERSION).toBe(14);
     expect(MANIFEST_MIGRATION_NAMES[11]).toBe('012-exit-detail');
   });
 
-  it('is declared ADDITIVE, so the minimum stays at 8', () => {
+  it('is declared ADDITIVE, so it never moved the minimum itself', () => {
     // NULL means "no last words were recorded", which is true of every row an
-    // older build writes. Nothing on the restore path reads the column.
-    expect(MANIFEST_MIN_COMPATIBLE_VERSION).toBe(8);
+    // older build writes. Nothing on the restore path reads the column, so this
+    // migration left the minimum where it found it.
+    //
+    // THE NUMBER MOVED IN PHASE 72 AND NOT BECAUSE OF THIS MIGRATION. Migration
+    // 013's column started carrying real machine ids, which an older build
+    // would read as sessions on this Mac, so the minimum went from 8 to 13. The
+    // claim this case keeps is that 012 is additive, and the way to write that
+    // now is that the minimum is below this migration's own number.
+    expect(MANIFEST_MIN_COMPATIBLE_VERSION).toBe(13);
+    expect(MANIFEST_MIN_COMPATIBLE_VERSION).toBeLessThan(
+      MANIFEST_SCHEMA_VERSION
+    );
   });
 
   it('adds exactly one column to sessions', () => {
@@ -164,14 +175,18 @@ describe('the exit_detail column', () => {
     const raw = new Database(elevenPath);
     raw.exec('ALTER TABLE sessions DROP COLUMN exit_detail');
     raw.exec('ALTER TABLE sessions DROP COLUMN machine_id');
+    raw.exec('ALTER TABLE sessions DROP COLUMN machine_tombstone');
     raw.prepare("DELETE FROM migrations WHERE name = '012-exit-detail'").run();
     raw.prepare("DELETE FROM migrations WHERE name = '013-machine-id'").run();
+    raw
+      .prepare("DELETE FROM migrations WHERE name = '014-machine-tombstone'")
+      .run();
     raw.pragma('user_version = 11');
     raw.close();
 
     const migrated = new ManifestStore(elevenPath);
-    expect(migrated.schemaState().userVersion).toBe(13);
-    expect(migrated.schemaState().minCompatible).toBe(8);
+    expect(migrated.schemaState().userVersion).toBe(14);
+    expect(migrated.schemaState().minCompatible).toBe(13);
     const old = migrated.getSession('old-row');
     expect(old?.exitCode).toBe(1);
     expect(old?.exitDetail).toBeUndefined();

@@ -24,9 +24,11 @@ import type {
   GmuxActivityExtras,
   GmuxAskRestoreProjectExtras,
   GmuxPastSessionsExtras,
+  GmuxScrollbackExtras,
   GmuxSessionExtras,
   GmuxSessionRestartExtras,
-  GmuxSessionRestoreExtras
+  GmuxSessionRestoreExtras,
+  SavedSessionOutput
 } from '@shared/ipc';
 // Pure over Session fields; resume.ts imports only types and state/agents,
 // and agents.ts does not import this store, so no cycle closes here.
@@ -180,6 +182,30 @@ export interface SessionsSlice {
    * because main kept it 'discarded'.
    */
   restorePastSession(sessionId: string): Promise<void>;
+  // -- saved output (Phase 72) -----------------------------------------------
+  /**
+   * The session whose saved output panel is open, or null when it is closed.
+   *
+   * The panel is opened from one session menu item and from nowhere else. It
+   * exists because a remote restore does NOT put the saved output back into
+   * the recreated session on the other machine, so this is where that output
+   * is, and because the capture time is the fact that stops a person reading
+   * an hours old screen as live.
+   */
+  savedOutputSessionId: string | null;
+  /** What main answered for that session, or null while there is no answer. */
+  savedOutput: SavedSessionOutput | null;
+  /** True while the one read is in flight, so the empty copy never flashes. */
+  savedOutputLoading: boolean;
+  /**
+   * Open the saved output panel for one session. It reads through the optional
+   * `scrollback.saved` bridge method; a preload without it opens the panel in
+   * its empty state with no error, the same posture every extras consumer
+   * takes.
+   */
+  openSavedOutput(sessionId: string): void;
+  /** Close it and drop the text, so a body is not held after it is read. */
+  closeSavedOutput(): void;
   /**
    * User input (keystrokes/mouse reports) went to a terminal: whatever it was
    * blocked on has an answer now. Pass the session id from the pty write
@@ -293,6 +319,13 @@ export const createSessionsSlice: StateCreator<
         GmuxSessionRestartExtras &
         GmuxPastSessionsExtras &
         GmuxAskRestoreProjectExtras)
+    : null;
+
+  // Phase 72: the saved output read. It is on the top-level scrollback surface
+  // rather than on `sessions`, because it is the fourth pull of the same kind
+  // as the three the Settings card already makes.
+  const scrollbackExtras = gmux
+    ? ((gmux as typeof gmux & GmuxScrollbackExtras).scrollback ?? null)
     : null;
 
   return {
@@ -728,6 +761,54 @@ export const createSessionsSlice: StateCreator<
           return { restoringIds };
         });
       }
+    },
+
+    // -- saved output (Phase 72) -------------------------------------------------
+
+    savedOutputSessionId: null,
+    savedOutput: null,
+    savedOutputLoading: false,
+
+    openSavedOutput(sessionId) {
+      const saved = scrollbackExtras?.saved;
+      if (typeof saved !== 'function') {
+        // Older preload: the panel opens and says it has nothing, with no
+        // error. It is the same posture Past Sessions takes.
+        set({
+          savedOutputSessionId: sessionId,
+          savedOutput: null,
+          savedOutputLoading: false
+        });
+        return;
+      }
+      set({
+        savedOutputSessionId: sessionId,
+        savedOutput: null,
+        savedOutputLoading: true
+      });
+      void saved.call(scrollbackExtras, sessionId).then(
+        (found) => {
+          // A second open before the first answered wins. Without this check
+          // the older answer would land in the newer panel.
+          if (get().savedOutputSessionId !== sessionId) return;
+          set({ savedOutput: found, savedOutputLoading: false });
+        },
+        (err: unknown) => {
+          if (get().savedOutputSessionId !== sessionId) return;
+          set({ savedOutputLoading: false });
+          get().toast('error', errorText(err));
+        }
+      );
+    },
+
+    closeSavedOutput() {
+      // The body is dropped rather than kept. A saved screen can be several
+      // megabytes and there is no reason to hold it after the panel is shut.
+      set({
+        savedOutputSessionId: null,
+        savedOutput: null,
+        savedOutputLoading: false
+      });
     },
 
     noteTerminalInput(sessionId) {

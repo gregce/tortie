@@ -52,6 +52,20 @@ const FORBIDDEN_WORDS = /\b(pane|panes|window|windows|prefix|tmux|ssh|socket)\b/
 const DASHES = /[—–]/;
 
 /**
+ * A clock time, e.g. `14:32`.
+ *
+ * PHASE 72. The tombstone sentences carry the moment a list reached this Mac,
+ * and a clock time is written with a colon in it in every language Tortie is
+ * written in. The house rule about colons is about prose, so the colon check
+ * below removes clock times first and then asserts that nothing else was
+ * removed, which keeps the rule exact rather than loosening it.
+ */
+const CLOCK_TIME = /\b\d{1,2}:\d{2}\b/g;
+
+/** The same shape without the global flag, because `test` on a global one keeps state. */
+const HAS_CLOCK_TIME = /\b\d{1,2}:\d{2}\b/;
+
+/**
  * Every string this module puts on a screen, gathered by walking the exports
  * rather than by listing them, so a string added later is checked without
  * anybody remembering to add it here.
@@ -85,6 +99,34 @@ function everyString(): { name: string; text: string }[] {
   out.push({ name: 'tailnetCountLine(4)', text: copy.tailnetCountLine(4) });
   out.push({ name: "lastLookedLine('now')", text: copy.lastLookedLine('now') });
   out.push({ name: "lastLookedLine('2m')", text: copy.lastLookedLine('2m') });
+  // PHASE 72. Every shape of the two counting sentences and of the three
+  // tombstone sentences, so a function's output is audited exactly the way a
+  // constant is. A shape left out here is a sentence nothing checks.
+  out.push({ name: 'removeQuestion(0)', text: copy.removeQuestion('Studio', 0) });
+  out.push({ name: 'removeQuestion(1)', text: copy.removeQuestion('Studio', 1) });
+  out.push({ name: 'removeQuestion(4)', text: copy.removeQuestion('Studio', 4) });
+  const SEEN = Date.UTC(2026, 7, 17, 12, 32);
+  const GONE = Date.UTC(2026, 7, 17, 15, 0);
+  out.push({
+    name: 'tombstoneLine(running)',
+    text: copy.tombstoneLine('Studio', GONE, SEEN, 'running')
+  });
+  out.push({
+    name: 'tombstoneLine(idle)',
+    text: copy.tombstoneLine('Studio', GONE, SEEN, 'idle')
+  });
+  out.push({
+    name: 'tombstoneLine(restorable)',
+    text: copy.tombstoneLine('Studio', GONE, SEEN, 'restorable')
+  });
+  out.push({
+    name: 'tombstoneLine(never seen)',
+    text: copy.tombstoneLine('Studio', GONE, 0, 'unknown')
+  });
+  out.push({
+    name: 'tombstoneRestoreRefused',
+    text: copy.tombstoneRestoreRefused('Studio')
+  });
   return out;
 }
 
@@ -115,13 +157,30 @@ describe('words and punctuation', () => {
   it('carries a colon only on a named label, and only as its last character', () => {
     const allowed = new Set<string>(copy.LABELS_ENDING_IN_A_COLON);
     for (const { name, text } of STRINGS) {
-      if (!text.includes(':')) continue;
+      // A clock time is not prose. It is removed first and the check below
+      // then holds the rule exactly, so a colon that appears anywhere else in
+      // this sentence still fails.
+      const prose = text.replace(CLOCK_TIME, 'a clock time');
+      if (!prose.includes(':')) continue;
       expect({
         name,
-        named: allowed.has(text),
-        onlyColonIsTheLastCharacter: text.indexOf(':') === text.length - 1
+        named: allowed.has(prose),
+        onlyColonIsTheLastCharacter: prose.indexOf(':') === prose.length - 1
       }).toEqual({ name, named: true, onlyColonIsTheLastCharacter: true });
     }
+  });
+
+  it('removes a clock time from nothing but the four sentences that carry one', () => {
+    // The carve out above could hide a colon anywhere if it matched loosely,
+    // so the set of strings it touches is named and held.
+    const touched = STRINGS.filter((s) => HAS_CLOCK_TIME.test(s.text)).map(
+      (s) => s.name
+    );
+    expect(touched.sort()).toEqual([
+      'tombstoneLine(idle)',
+      'tombstoneLine(restorable)',
+      'tombstoneLine(running)'
+    ]);
   });
 
   it('names every label that carries a colon, and no others', () => {
@@ -359,5 +418,96 @@ describe('the counting sentences the Tailscale panel writes', () => {
 
   it('says a device cannot run a session rather than hiding it', () => {
     expect(copy.PEER_CANNOT_HOST).toBe('Cannot run a session');
+  });
+});
+// ---------------------------------------------------------------------------
+// PHASE 72. The removal question, and the record a removal leaves behind
+// ---------------------------------------------------------------------------
+
+describe('the removal question', () => {
+  it('counts the sessions rather than describing them', () => {
+    expect(copy.removeQuestion('Studio', 0)).toBe(
+      'Remove Studio? Tortie holds no sessions for it.'
+    );
+    expect(copy.removeQuestion('Studio', 1)).toBe(
+      'Remove Studio? Tortie keeps a record of the 1 session it knows about ' +
+        'there, with what it last knew and when. The conversations on that ' +
+        'machine stay on that machine, and Tortie can no longer reach them.'
+    );
+    expect(copy.removeQuestion('Studio', 4)).toBe(
+      'Remove Studio? Tortie keeps a record of the 4 sessions it knows about ' +
+        'there, with what it last knew and when. The conversations on that ' +
+        'machine stay on that machine, and Tortie can no longer reach them.'
+    );
+  });
+
+  it('reads a count below zero as none, rather than printing it', () => {
+    expect(copy.removeQuestion('Studio', -1)).toBe(
+      'Remove Studio? Tortie holds no sessions for it.'
+    );
+  });
+
+  it('never says the sessions on that machine were ended', () => {
+    // Removing a machine sends nothing to it. A sentence that implied
+    // otherwise would be the one lie this whole rung exists to prevent.
+    for (const count of [0, 1, 2]) {
+      const text = copy.removeQuestion('Studio', count).toLowerCase();
+      expect(text).not.toContain('end');
+      expect(text).not.toContain('stop');
+      expect(text).not.toContain('close');
+    }
+  });
+});
+
+describe('the tombstone sentences', () => {
+  /** 17 August 2026, 12:32 and 15:00 local, so the format is pinned exactly. */
+  const SEEN = new Date(2026, 7, 17, 12, 32).getTime();
+  const GONE = new Date(2026, 7, 17, 15, 0).getTime();
+
+  it('writes a day as a day and a moment as a day and a time', () => {
+    expect(copy.tombstoneDay(GONE)).toBe('17 August');
+    expect(copy.tombstoneMoment(SEEN)).toBe('17 August at 12:32');
+  });
+
+  it('says Tortie did not end a session it last saw running', () => {
+    expect(copy.tombstoneLine('Studio', GONE, SEEN, 'running')).toBe(
+      'You removed Studio on 17 August. Tortie last saw this session running ' +
+        'there on 17 August at 12:32. Tortie did not end it.'
+    );
+    expect(copy.tombstoneLine('Studio', GONE, SEEN, 'idle')).toBe(
+      copy.tombstoneLine('Studio', GONE, SEEN, 'running')
+    );
+  });
+
+  it('says only what a list that did not hold the session proved', () => {
+    expect(copy.tombstoneLine('Studio', GONE, SEEN, 'restorable')).toBe(
+      'You removed Studio on 17 August. The last list from that machine did ' +
+        'not hold this session, on 17 August at 12:32.'
+    );
+  });
+
+  it('says it does not know when no list ever held the session', () => {
+    expect(copy.tombstoneLine('Studio', GONE, 0, 'unknown')).toBe(
+      'You removed Studio on 17 August. Tortie never got a list from that ' +
+        'machine while this session existed, so it does not know what ' +
+        'happened to it.'
+    );
+  });
+
+  it('never claims a session on the machine ended', () => {
+    for (const status of ['running', 'idle', 'restorable', 'unknown', 'exited']) {
+      for (const seen of [0, SEEN]) {
+        const text = copy.tombstoneLine('Studio', GONE, seen, status);
+        expect(text).not.toContain('ended');
+        expect(text).not.toContain('stopped');
+      }
+    }
+  });
+
+  it('says why Restore is off, and what to do about it', () => {
+    expect(copy.tombstoneRestoreRefused('Studio')).toBe(
+      'Tortie can no longer reach Studio, so it cannot bring this session ' +
+        'back. Add the machine again to work with it.'
+    );
   });
 });

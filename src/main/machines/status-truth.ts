@@ -32,15 +32,27 @@
  * instant is left exactly as it is. Local times are only ever compared with
  * local times, and a remote machine's own clock never reaches this module.
  *
- * ## What this release does NOT do, said here so no surface implies otherwise
+ * ## What `restoreOffered` means here, and what it does NOT decide
  *
- * `restoreOffered` is false on every arm. Tortie brings back no session that
- * lives on another machine in this release: there is no saved scrollback, no
- * resume line and no launch snapshot for one on this Mac. M5 is the rung that
- * flips two of these arms, and it flips them by changing this file.
+ * PHASE 72 FLIPPED TWO ARMS, being `absent` and `no-server`, which are exactly
+ * the two `mayFlipRestorable` already named. Those are the two events that say a
+ * machine ANSWERED and its answer did not hold the session, and that is the only
+ * evidence that may open the verb. The other four stay false with a sentence.
+ *
+ * This flag is the MACHINE level statement. It is not the whole answer, and no
+ * surface reads it as one. Whether a particular session may be brought back
+ * depends on facts this table never sees, being whether the machine is still in
+ * `machines.json`, whether Tortie has signed in to it in this run, whether the
+ * live connection is up, and whether the row was created on that machine at all.
+ * `./restore-gate.ts` is the pure table that asks all six, and
+ * `./remote-sessions.ts` is what gathers them. A row's own verb comes from there.
+ *
+ * So the two live side by side on purpose: this file says what one EVENT proves
+ * about the rows it covers, and the gate says whether one SESSION may come back.
  */
 
 import type { SessionStatus } from '@shared/types';
+import { RESTORE_STILL_RUNNING } from './remote-copy';
 
 // ---------------------------------------------------------------------------
 // The event
@@ -107,14 +119,20 @@ export const RESTORE_DISABLED_UNSEEN =
   'Tortie cannot see this machine right now.';
 
 /**
- * The reason for every arm where the machine ANSWERED.
+ * The reason for the two arms that decide nothing PER ROW.
  *
- * Nothing about a session on another machine is saved on this Mac, so there is
- * nothing here to bring one back from. The sentence names the release rather
- * than a date, because a date would be a promise nobody made.
+ * PHASE 72 REPLACED `RESTORE_DISABLED_LATER` WITH THIS. That sentence said that
+ * bringing a session back on another machine was coming in a later release, and
+ * this is that release, so it was deleted rather than reworded.
+ *
+ * The two arms it covers are `listed` and `control-exit`, and both leave every
+ * row carrying whatever the last completed list said about it. The rows such an
+ * event covers are therefore the rows that list HELD, and a session the machine
+ * is holding is a session that is running. So the machine level reason is the
+ * gate's own `running` sentence, defined once in `./remote-copy.ts` and used
+ * here rather than written a second time.
  */
-export const RESTORE_DISABLED_LATER =
-  'Bringing a session back on another machine is coming in a later release.';
+export const RESTORE_DISABLED_RUNNING = RESTORE_STILL_RUNNING;
 
 // ---------------------------------------------------------------------------
 // The table
@@ -126,20 +144,24 @@ export const RESTORE_DISABLED_LATER =
  * | Event            | rows                   | restore | evidence                                    |
  * | ---------------- | ---------------------- | ------- | ------------------------------------------- |
  * | `listed`         | per-row                | no      | reconcile pass at <at>                      |
- * | `absent`         | status: 'restorable'   | no      | absent from the pass at <at>                |
+ * | `absent`         | status: 'restorable'   | YES     | absent from the pass at <at>                |
  * | `transport-lost` | status: 'unknown'      | no      | transport <errorClass> at <at>              |
  * | `woke`           | status: 'unknown'      | no      | power event at <at>                         |
- * | `no-server`      | status: 'restorable'   | no      | no server on a reachable machine at <at>    |
+ * | `no-server`      | status: 'restorable'   | YES     | no server on a reachable machine at <at>    |
  * | `control-exit`   | per-row                | no      | control event at <at>                       |
  *
- * Two arms are worth reading twice.
+ * Three arms are worth reading twice.
  *
  * `absent` writes `restorable` and not `exited`. Phase 70 wrote `exited` on a
  * remote row a completed list stopped reporting, and `exited` is a terminal
  * record that no later evidence revises. `restorable` is what the row is: the
- * session is not running, and a later release brings it back. The label a person
- * reads for a restorable row that carries a machine is `not running`, because
- * nothing about it is saved on this Mac and `saved` would be a lie.
+ * session is not running, and Phase 72 is the release that brings it back.
+ *
+ * `absent` and `no-server` are the two arms that OFFER restore, and they are
+ * exactly the two {@link mayFlipRestorable} admits. The rule behind both is one
+ * sentence: a session may be offered for restore only when a machine ANSWERED
+ * and the answer did not hold it. The four arms that say no are the four where
+ * nothing was proved about the session at all.
  *
  * `control-exit` decides nothing per row on purpose. A `%exit` says the control
  * connection ended. It does not say the far side's server died, and it does not
@@ -157,14 +179,14 @@ export function machineTruth(event: MachineEvent): MachineTruth {
       return {
         rows: { kind: 'per-row' },
         restoreOffered: false,
-        restoreDisabledReason: RESTORE_DISABLED_LATER,
+        restoreDisabledReason: RESTORE_DISABLED_RUNNING,
         evidence: `reconcile pass at ${at}`
       };
     case 'absent':
       return {
         rows: { kind: 'status', status: 'restorable' },
-        restoreOffered: false,
-        restoreDisabledReason: RESTORE_DISABLED_LATER,
+        restoreOffered: true,
+        restoreDisabledReason: null,
         evidence: `absent from the pass at ${at}`
       };
     case 'transport-lost':
@@ -184,15 +206,15 @@ export function machineTruth(event: MachineEvent): MachineTruth {
     case 'no-server':
       return {
         rows: { kind: 'status', status: 'restorable' },
-        restoreOffered: false,
-        restoreDisabledReason: RESTORE_DISABLED_LATER,
+        restoreOffered: true,
+        restoreDisabledReason: null,
         evidence: `no server on a reachable machine at ${at}`
       };
     case 'control-exit':
       return {
         rows: { kind: 'per-row' },
         restoreOffered: false,
-        restoreDisabledReason: RESTORE_DISABLED_LATER,
+        restoreDisabledReason: RESTORE_DISABLED_RUNNING,
         evidence: `control event at ${at}`
       };
   }
@@ -210,6 +232,12 @@ export function machineTruth(event: MachineEvent): MachineTruth {
  * The caller uses it as a guard in front of any write that could reach
  * `restorable`, so a later edit to the table cannot let a lost link write a
  * confirmed death without this function saying so too.
+ *
+ * PHASE 72 GAVE IT A SECOND JOB, and it needed no change to do it. The two arms
+ * this admits are now exactly the two arms that set `restoreOffered`, so the
+ * table's own test asserts all three agree: the arms that may write
+ * `restorable`, the arms that offer restore, and the arms this function names
+ * are one set of two.
  */
 export function mayFlipRestorable(event: MachineEvent): boolean {
   return event.kind === 'absent' || event.kind === 'no-server';

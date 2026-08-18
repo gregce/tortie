@@ -25,6 +25,10 @@
  * renderer writes only the advice, because the advice is about settings on
  * this Mac and on the far machine rather than about the bytes that came back.
  * A test holds the key set equal to main's class list in both directions.
+ * PHASE 72 ADDED TWO SENTENCES PAST SESSIONS DRAWS. They are the record a
+ * removal leaves behind, and they are the other half of the removal question,
+ * so they live beside it and under the same audit. The reason is written again
+ * over the functions themselves.
  *
  * THE COLON RULE, and the two places it bends. House style allows a colon only
  * to introduce a list. Two shapes on this surface are neither prose nor a list:
@@ -230,11 +234,125 @@ export const PREPARE_PATH_MISSING =
  * Removing takes two clicks. It deletes the row and the confirmation behind
  * it, and a person who meant to press the button beside it should not lose an
  * agreement they made to a slip of the hand.
+ *
+ * PHASE 72. The question counts the sessions out loud. Before this rung it was
+ * one fixed sentence about the row and the agreement, and it said nothing at
+ * all about the work on the other computer, so a person could remove a machine
+ * holding two running agents and read only that a confirmation was going away.
+ * The count is a number rather than a word, because a number is a fact a
+ * person can check against what they can see.
  */
-export const REMOVE_QUESTION =
-  'This deletes the machine and the confirmation you gave it.';
+export function removeQuestion(label: string, sessionCount: number): string {
+  if (sessionCount <= 0) {
+    return `Remove ${label}? Tortie holds no sessions for it.`;
+  }
+  const sessions =
+    sessionCount === 1 ? 'the 1 session' : `the ${String(sessionCount)} sessions`;
+  return (
+    `Remove ${label}? Tortie keeps a record of ${sessions} it knows about ` +
+    `there, with what it last knew and when. The conversations on that ` +
+    `machine stay on that machine, and Tortie can no longer reach them.`
+  );
+}
+
 export const BTN_REMOVE_CONFIRM = 'Remove it';
 export const BTN_REMOVE_KEEP = 'Keep it';
+
+// ---------------------------------------------------------------------------
+// The tombstone a removal leaves behind (Phase 72)
+// ---------------------------------------------------------------------------
+//
+// THESE TWO SENTENCES ARE DRAWN IN PAST SESSIONS, not in Settings, and they
+// live here anyway. They are here because they are the other half of the
+// question above: a person reads "Tortie keeps a record of the 2 sessions it
+// knows about there", and these are that record, written out. Keeping them in
+// one module keeps them under one copy audit and keeps the two halves of one
+// promise from drifting apart. Nothing else in Tortie composes them.
+
+/** The full month names, so a date reads the way a person says it out loud. */
+const MONTH_NAMES = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December'
+] as const;
+
+/** A day, in local time, as "17 August". Exported so the test can pin it. */
+export function tombstoneDay(atMs: number): string {
+  const at = new Date(atMs);
+  return `${String(at.getDate())} ${MONTH_NAMES[at.getMonth()] ?? ''}`;
+}
+
+/**
+ * A day and a clock time, in local time, as "17 August at 14:32".
+ *
+ * Local, always. The instant recorded is when the answer reached this Mac, and
+ * a person reads it against the clock in front of them. No time on this
+ * surface comes from the other computer.
+ */
+export function tombstoneMoment(atMs: number): string {
+  const at = new Date(atMs);
+  const hours = String(at.getHours()).padStart(2, '0');
+  const minutes = String(at.getMinutes()).padStart(2, '0');
+  return `${tombstoneDay(atMs)} at ${hours}:${minutes}`;
+}
+
+/**
+ * One sentence about a session whose machine a person removed.
+ *
+ * Three shapes, and which one is used depends on what Tortie actually held.
+ *
+ *  1. A completed list held this session and reported it working. Tortie says
+ *     it last saw the session running there, and says it did not end it.
+ *  2. A completed list reached Tortie and did not hold this session. Tortie
+ *     says that, and nothing more, because a list that did not name a session
+ *     does not say what happened to it.
+ *  3. No completed list ever held it. Tortie says it does not know.
+ *
+ * A status that is neither running nor idle takes shape 2 whenever a list did
+ * arrive, because the only thing such a list proved is that the session was
+ * not in it.
+ */
+export function tombstoneLine(
+  label: string,
+  forgottenAt: number,
+  lastSeenAt: number,
+  lastStatus: string
+): string {
+  const removed = `You removed ${label} on ${tombstoneDay(forgottenAt)}.`;
+  if (lastSeenAt <= 0) {
+    return (
+      `${removed} Tortie never got a list from that machine while this ` +
+      `session existed, so it does not know what happened to it.`
+    );
+  }
+  if (lastStatus === 'running' || lastStatus === 'idle') {
+    return (
+      `${removed} Tortie last saw this session running there on ` +
+      `${tombstoneMoment(lastSeenAt)}. Tortie did not end it.`
+    );
+  }
+  return (
+    `${removed} The last list from that machine did not hold this session, ` +
+    `on ${tombstoneMoment(lastSeenAt)}.`
+  );
+}
+
+/** Why Restore is off for a tombstoned row, said rather than hidden. */
+export function tombstoneRestoreRefused(label: string): string {
+  return (
+    `Tortie can no longer reach ${label}, so it cannot bring this session ` +
+    `back. Add the machine again to work with it.`
+  );
+}
 
 // ---------------------------------------------------------------------------
 // The rows Tortie dropped

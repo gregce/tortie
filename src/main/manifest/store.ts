@@ -56,6 +56,7 @@ import type {
 } from '@shared/types';
 import { MANIFEST_SCHEMA_IDENTITY, MIGRATIONS } from './schema';
 import type {
+  MachineTombstone,
   ManifestSessionPatch,
   ManifestSessionRecord,
   UpdateSessionOptions
@@ -85,6 +86,9 @@ export {
 export {
   toSession,
   toSessionCapture,
+  serializeMachineTombstone,
+  LOCAL_MACHINE_ROW,
+  type MachineTombstone,
   type ManifestSessionPatch,
   type ManifestSessionRecord,
   type UpdateSessionOptions
@@ -411,6 +415,22 @@ export class ManifestStore {
 
   markSessionRemoved(id: string, at: number = Date.now()): void {
     this.sessions.markSessionRemoved(id, at);
+  }
+
+  /**
+   * Phase 72. The tombstone a machine's removal writes on every session row that
+   * named it. One durable write per row, and nothing is sent to the machine.
+   */
+  markMachineForgotten(id: string, tombstone: MachineTombstone): void {
+    this.sessions.markMachineForgotten(id, tombstone);
+  }
+
+  /**
+   * Phase 72. A completed list from a machine still held this session. One
+   * column, no status change, not durable. See the repository method.
+   */
+  setLastSeen(id: string, at: number): void {
+    this.sessions.setLastSeen(id, at);
   }
 
   pruneDiscardedSessions(now: number = Date.now()): void {

@@ -78,6 +78,14 @@ export function badgeMachineOf(state: MachineStateView): SessionMachine {
     id: state.id,
     label: state.label,
     color: state.color,
-    answering: state.link === 'connected' || state.link === 'polling'
+    answering: state.link === 'connected' || state.link === 'polling',
+    // PHASE 72. This projection describes a MACHINE and not a session, so it
+    // cannot answer whether a particular session may be brought back: two of the
+    // six conditions behind that answer are facts about a row, and there is no
+    // row here. False with the machine's own sentence is the honest answer, and
+    // it is also the safe one, because a surface reading it hides the verb
+    // rather than offering one nothing has checked.
+    canRestore: false,
+    restoreReason: state.detail
   };
 }

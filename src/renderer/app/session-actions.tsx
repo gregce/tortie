@@ -22,7 +22,12 @@ import {
 } from './resume';
 import { Codicon } from '../icons';
 import { openSessionContext } from '../context/open-session';
-import { badgeTitle, NO_SNAPSHOT } from './machine-copy';
+import {
+  badgeTitle,
+  NO_SNAPSHOT,
+  SAVED_OUTPUT_ITEM,
+  SAVED_OUTPUT_NONE
+} from './machine-copy';
 
 /**
  * True when the session runs outside the project checkout (a git worktree
@@ -201,6 +206,34 @@ function showLoadedItem(session: Session): MenuItemSpec {
   };
 }
 
+/**
+ * PHASE 72 — the saved output panel's one entry point.
+ *
+ * Offered for EVERY row, on this Mac and on another machine, because the
+ * question it answers is the same one in both cases: what did this session
+ * print, and when was that copy taken. It reads a file on this Mac and sends
+ * nothing anywhere, which is why it is safe even on an `unknown` row, where
+ * every verb that acts on a session is withheld.
+ *
+ * Offered DISABLED with the reason when there is no copy, for the same reason
+ * `Show what it loaded…` is: a verb that vanishes teaches nothing, and "there
+ * is no saved output" is a real answer to the question.
+ */
+function savedOutputItem(session: Session): MenuItemSpec {
+  if (session.savedOutputAt === undefined) {
+    return {
+      label: SAVED_OUTPUT_ITEM,
+      sublabel: SAVED_OUTPUT_NONE,
+      disabled: true,
+      run: () => {}
+    };
+  }
+  return {
+    label: SAVED_OUTPUT_ITEM,
+    run: () => useApp.getState().openSavedOutput(session.id)
+  };
+}
+
 function copyDirectoryPathItem(session: Session): MenuItemSpec {
   return {
     label: 'Copy directory path',
@@ -234,24 +267,33 @@ export function sessionMenuItems(
   // alive is how a second agent lands on one conversation. What remains are
   // the two verbs that read only Tortie's own records.
   if (status === 'unknown') {
-    return [showLoadedItem(session), copyDirectoryPathItem(session)];
+    return [
+      showLoadedItem(session),
+      savedOutputItem(session),
+      copyDirectoryPathItem(session)
+    ];
   }
   const ended = status === 'exited' || status === 'restorable';
-  // Phase 70. A session on another machine is never offered Restore and never
-  // offered Restart, at any status. Nothing about it was written on this Mac,
-  // so there is no saved output to replay and no command to arm, and main
-  // refuses both verbs for a remote id anyway. Offering a verb that main will
-  // refuse is how a person learns to distrust the menu.
-  const remote = session.machine !== undefined;
+  // PHASE 72. Restore is offered for a session on another machine for the
+  // first time, and it is offered from ONE fact: `machine.canRestore`, which
+  // main sets only when every condition holds. The conditions are in
+  // src/main/machines/restore-gate.ts and the renderer does not re-derive any
+  // of them, because a second reading is a second answer. Restart stays absent
+  // for every remote row: a restart ends a session and starts a new one, and
+  // the ending half is a verb aimed at another machine that this rung did not
+  // build.
+  const machine = session.machine;
+  const remote = machine !== undefined;
   // Phase 26.3: Restore extends from restorable rows to exited rows that
   // still have material to bring back (saved scrollback or an armed resume
   // command). Main accepts a restore for any exited row; this gate is what
   // keeps the offered verb truthful.
   const offersRestore =
-    !remote &&
     s.canRestore() &&
-    (status === 'restorable' ||
-      (status === 'exited' && hasRestoreMaterial(session)));
+    (machine !== undefined
+      ? machine.canRestore
+      : status === 'restorable' ||
+        (status === 'exited' && hasRestoreMaterial(session)));
 
   return [
     {
@@ -276,6 +318,7 @@ export function sessionMenuItems(
         ]
       : []),
     showLoadedItem(session),
+    savedOutputItem(session),
     copyDirectoryPathItem(session),
     'sep',
     ...(ended

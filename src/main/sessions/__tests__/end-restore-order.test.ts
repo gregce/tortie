@@ -80,7 +80,16 @@ describe('reapDeadSession (natural death)', () => {
 });
 
 describe('restoreSession gate', () => {
-  const restore = body('async restoreSession(', 'restoresInFlight.add(');
+  // PHASE 72 FIX ROUND. The slice starts at the LOCAL row rather than at the
+  // method, because the method now opens with the branch that sends a session
+  // on another machine somewhere else entirely, and that branch has an
+  // in flight guard of its own. What this describe is about is the gate in
+  // front of the local restore, which is everything from the local row to its
+  // own guard.
+  const restore = body(
+    'const rec = this.mustGetSession(sessionId);',
+    'this.restoresInFlight.add(sessionId);\n    /** The open journal entry'
+  );
 
   it('lets restorable, exited and discarded rows into the one restore path', () => {
     expect(restore).toContain("rec.status !== 'restorable' &&");

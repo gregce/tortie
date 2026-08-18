@@ -1,6 +1,6 @@
 /**
- * Sessions that live on another machine (Phase 70, M3, then Phase 71, M4;
- * research 51 sections 4.1, 4.3, 4.4 and 4.6).
+ * Sessions that live on another machine (Phase 70, M3, then Phase 71, M4, then
+ * Phase 72, M5; research 51 sections 4.1, 4.3, 4.4 and 4.6).
  *
  * This module owns four verbs, one feed, one registry and one projection. It is
  * the whole of what main knows about a session that is not on this Mac.
@@ -21,19 +21,26 @@
  * did not hold that session. And a lost link writes `unknown` on every row of
  * that machine and of no other machine.
  *
- * ## The rule that shapes everything else
+ * ## THE RULE THAT PHASE 72 CHANGED, stated in full because it was absolute
  *
- * > Nothing about a remote session is ever written to the manifest. No row, no
- * > resume line, no snapshot, no capsule, no tombstone.
+ * Phase 70's rule was that nothing about a remote session is ever written to the
+ * manifest, and this header carried it as an import list a reader could check.
+ * It was right for a build with no `machine_id` column: a row that cannot say
+ * which machine its session is on is a row a later restore reads as local and
+ * recreates on this Mac, which is two agents on one conversation.
  *
- * The scope fence for this rung forbids the `machine_id` migration, and a
- * manifest row with no machine column cannot say which machine its session is
- * on. Writing one would produce a row that a later restore could read as local
- * and recreate on this Mac. So this file imports nothing from
- * `src/main/manifest/`, and a later reader can check that by reading the import
- * list rather than by reading every function.
+ * Phase 71 added the column. Phase 72 moved `MANIFEST_MIN_COMPATIBLE_VERSION`
+ * from 8 to 13 and deleted the refusal that stood in for it. A row can now say
+ * which machine it belongs to, an older build is refused at the open rather than
+ * trusted, and a session on another machine gets a manifest row written at
+ * create time, before the create line is sent.
  *
- * ## Where the truth lives instead
+ * THE IMPORT LIST IS STILL THE CHECK, and it still holds, because every one of
+ * those writes goes through `./remote-record.ts` and this file imports nothing
+ * else from `../manifest/`. A reader asking what a remote path can do to the
+ * manifest reads that one module.
+ *
+ * ## Where the truth lives
  *
  * On that machine, beside the processes, exactly where research 51 section 4.3
  * puts it. Tortie stamps four session options on a session it creates there and
@@ -49,17 +56,26 @@
  * because the machine held all of it. Nothing was restored and nothing was
  * recreated. The session never stopped running.
  *
+ * The manifest row is the SECOND record, and it answers the questions the far
+ * side cannot: which program path this session launched on that machine, what
+ * Tortie last knew about a session whose machine ended up removed, and what to
+ * compose when the machine answered and its answer no longer holds the session.
+ * Where the two disagree about a live session, the machine wins, because the
+ * machine is where the process is.
+ *
  * ## What is NOT true, and no surface may imply otherwise
  *
- *  - A remote session that ends while Tortie is not running leaves no trace on
- *    this Mac. Past Sessions never holds a remote row.
- *  - There is no saved scrollback, no resume command and no launch snapshot for
- *    a remote session, so Restore is refused for every one of them.
+ *  - No conversation comes back. Tortie reads no agent's own files on another
+ *    machine in this release, so `resume_argv` is NULL on every remote row and
+ *    the provenance records `remote-not-collected` rather than nothing.
  *  - A remote row's status comes from one format field, `#{session_activity}`.
  *    It is evidence that the session printed something. It is not the local
  *    attention verdict, and no remote row ever says `needs input`.
+ *  - A remote session created by 0.34 or 0.35 has no manifest row, because those
+ *    builds wrote none. It is a feed row and nothing else, and it cannot be
+ *    brought back.
  *
- * ## Two safety properties, and they are the reason this file exists at all
+ * ## Three safety properties, and they are the reason this file exists at all
  *
  * A kill or a rename is composed only against an identifier a COMPLETED poll of
  * that machine reported, on a row whose `@gmux-id` equals the session being
@@ -71,6 +87,11 @@
  * machine in this run, which is what makes the version gate and the program
  * search list unavoidable. Tortie signs in on a launch, on a wake, or on a
  * person's click, and never because a file changed.
+ *
+ * A RESTORE is offered only when six facts hold at once, and the sixth is that
+ * the machine's own last completed list does not hold the session. The facts are
+ * gathered by {@link remoteRestoreFactsFor} here and judged by the pure table in
+ * `./restore-gate.ts`. Nothing else in the product decides that question.
  */
 
 import { randomUUID } from 'node:crypto';
@@ -109,6 +130,28 @@ import {
 } from './context';
 import { execOn } from './exec-plane';
 import { machineColorOf, machineLabelOf, machineRow } from './store';
+// Phase 72. The per machine program path, captured on that machine and recorded
+// against that machine's id. It is never sent; the launch stays by bare name.
+import { captureRemoteArgv } from './remote-argv';
+// Phase 72. The ONE place a remote session meets the manifest. This file imports
+// nothing else from `../manifest/`, which is how the boundary stays checkable.
+import {
+  noteRemoteRowSeen,
+  remoteManifest,
+  remoteManifestInstalled,
+  remoteRecordOf,
+  remoteRecordsForMachine,
+  tombstoneRemoteRow,
+  writeRemoteRow
+} from './remote-record';
+// Phase 72. The pure table that decides whether a session on another machine may
+// be brought back. This module gathers the facts and nothing else.
+import {
+  remoteRestoreVerdict,
+  type RemoteRestoreFacts,
+  type RemoteRestoreVerdict
+} from './restore-gate';
+import type { MachineTombstone } from '../manifest/codecs';
 // The case table, and the only place a machine level status is decided.
 import {
   machineTruth,
@@ -120,6 +163,7 @@ import {
 import {
   clearIssuedRemoteId,
   foreignRemoteIds,
+  forgetForeignMemo,
   noteIssuedRemoteId,
   rescueNeeded,
   rescueRemoteRow
@@ -130,6 +174,7 @@ import {
   noteMachineAnswered,
   noteMachineConnecting,
   noteMachineQuiet,
+  closeControlPlane,
   closeEveryControlPlane,
   isControlPlaneLive,
   openControlPlane,
@@ -138,7 +183,6 @@ import {
 import {
   MACHINE_NOT_READY,
   REMOTE_DIR_MISSING,
-  RESTORE_REFUSED,
   TARGET_UNBOUND,
   noRemoteRowFor
 } from './remote-copy';
@@ -323,6 +367,15 @@ interface MachineSessions {
   onControl: boolean;
   /** True while a pass is running, so a rescue cannot re-enter one. */
   passing: boolean;
+  /**
+   * The last machine level status this feed wrote to the manifest for this
+   * machine, or null when it has written none (Phase 72).
+   *
+   * It exists so a machine that is down does not rewrite `unknown` over every
+   * one of its rows every five seconds. The write itself already skips a row
+   * whose status has not moved, and this skips the whole scan.
+   */
+  lastMachineStatus: SessionStatus | null;
 }
 
 const machines = new Map<string, MachineSessions>();
@@ -355,7 +408,8 @@ function stateOf(machineId: string): MachineSessions {
     names: new Set(),
     timer: null,
     onControl: false,
-    passing: false
+    passing: false,
+    lastMachineStatus: null
   };
   machines.set(machineId, fresh);
   return fresh;
@@ -378,6 +432,24 @@ function applyMachineEvent(machineId: string, event: MachineEvent): MachineTruth
     state.everAnswered = true;
     noteMachineAnswered(machineId, event.at);
   }
+  // PHASE 72. The same verdict, written to the manifest rows this machine owns.
+  //
+  // It matters across a relaunch rather than inside one. The projection below
+  // computes a live status from this machine's current state on every read, so
+  // the window shows the right thing without any of this. What the manifest
+  // carries is what Tortie will believe at the NEXT launch, before any machine
+  // has answered, and a row that says `running` about a machine that went away
+  // an hour ago is the claim this whole rung exists to stop.
+  //
+  // Only a verdict that covers every row is written here. A `per-row` verdict is
+  // written by the pass itself, row by row, because that is where the rows are.
+  if (truth.rows.kind === 'status' && state.lastMachineStatus !== truth.rows.status) {
+    state.lastMachineStatus = truth.rows.status;
+    for (const record of remoteRecordsForMachine(machineId)) {
+      noteRemoteRowSeen(record.id, truth.rows.status, event.at);
+    }
+  }
+  if (truth.rows.kind === 'per-row') state.lastMachineStatus = null;
   return truth;
 }
 
@@ -585,31 +657,48 @@ export function remoteSessionRow(sessionId: string): RemoteSessionRow | null {
   return null;
 }
 
-/** What the badge draws for one machine. */
-export function remoteSessionMachine(machineId: string): SessionMachine {
+/**
+ * What the badge draws for one machine, for one row.
+ *
+ * PHASE 72 MADE IT PER ROW. `canRestore` and `restoreReason` ride on this object
+ * because that is where the renderer already looks, and two of the six
+ * conditions behind them are facts about the row rather than about the machine.
+ * A caller with no row in hand passes none and gets `canRestore: false` with the
+ * machine level reason, which is the honest answer to "may I restore an
+ * unnamed session".
+ */
+export function remoteSessionMachine(
+  machineId: string,
+  sessionId?: string
+): SessionMachine {
   const row = machineRow(machineId);
   const state = machines.get(machineId);
+  const verdict =
+    sessionId === undefined
+      ? remoteRestoreVerdict(machineFactsFor(machineId, 'unknown'))
+      : remoteRestoreVerdictFor(sessionId, machineId);
   return {
     id: machineId,
     label: row === null ? machineId : machineLabelOf(row),
     color: row === null ? 'blue' : machineColorOf(row),
     // A machine nobody has polled yet has not failed to answer, and drawing it
     // as quiet would be a claim Tortie cannot back.
-    answering: state === undefined ? true : state.answering
+    answering: state === undefined ? true : state.answering,
+    canRestore: verdict.offered,
+    restoreReason: verdict.reason
   };
 }
 
-/** Every remote row, projected for the renderer, oldest machine id first. */
+/** Every remote FEED row, projected for the renderer, oldest machine id first. */
 export function remoteSessions(): Session[] {
   const out: Session[] = [];
   for (const machineId of [...machines.keys()].sort()) {
     const state = stateOf(machineId);
-    const machine = remoteSessionMachine(machineId);
     for (const row of state.rows.values()) {
-      out.push(projectRow(row, machine, state));
+      out.push(projectRow(row, state));
     }
     for (const row of state.gone.values()) {
-      out.push(projectRow(row, machine, state, true));
+      out.push(projectRow(row, state, true));
     }
   }
   return out;
@@ -626,7 +715,6 @@ export function remoteSessions(): Session[] {
  */
 function projectRow(
   row: RemoteSessionRow,
-  machine: SessionMachine,
   state: MachineSessions,
   proven = false
 ): Session {
@@ -642,8 +730,99 @@ function projectRow(
     agent: row.agent,
     status,
     createdAt: row.createdAt,
-    machine
+    machine: remoteSessionMachine(row.machineId, row.id)
   };
+}
+
+/**
+ * A MANIFEST row for a session on another machine, projected for the renderer
+ * (Phase 72).
+ *
+ * ## Why the two sources are merged this way, and it is the part most likely to
+ * go wrong
+ *
+ * After this rung a live remote session is in both places: the machine's own
+ * list, read every pass, and a manifest row written at create time. The rule is
+ * one row per id, and which source supplies which field is decided by which one
+ * can be wrong.
+ *
+ * The MACHINE wins for everything about a session it is currently holding. The
+ * name a person typed, the folder, the agent and the create instant all live on
+ * the far side as session options, which is what makes them survive a Tortie
+ * quit with nothing restored. So when the feed holds this id, this function
+ * projects the feed row.
+ *
+ * The MANIFEST wins when the machine is not holding the session, which is every
+ * case where restore is the question. It is the only place the program path on
+ * that machine is recorded, and it is the only thing that survives the machine
+ * being unreachable, being removed, or the session having ended while Tortie was
+ * not running.
+ *
+ * The STATUS always comes from the machine's current state through the one case
+ * table, never from the column. The column is what the next launch starts from,
+ * before any machine has answered.
+ */
+export function projectRemoteRecord(record: {
+  readonly id: string;
+  readonly name: string;
+  readonly tmuxName: string;
+  readonly projectPath: string;
+  readonly cwd: string;
+  readonly agent: AgentKind;
+  readonly status: SessionStatus;
+  readonly createdAt: number;
+  readonly machineId?: string;
+}): Session {
+  const machineId = record.machineId ?? '';
+  const state = machines.get(machineId);
+  const live = state?.rows.get(record.id);
+  if (live !== undefined && state !== undefined) return projectRow(live, state);
+  return {
+    id: record.id,
+    name: record.name,
+    tmuxName: record.tmuxName,
+    projectPath: record.projectPath,
+    cwd: record.cwd,
+    agent: record.agent,
+    status: remoteRecordStatus(machineId, record.id, record.status),
+    createdAt: record.createdAt,
+    machine: remoteSessionMachine(machineId, record.id)
+  };
+}
+
+/**
+ * The status a manifest row for a remote session reads, from the machine's
+ * current state (Phase 72).
+ *
+ * The ladder, and every arm is the case table's answer rather than a new one:
+ *
+ *   the feed lists it                 the feed's own status
+ *   a completed list did not hold it  restorable
+ *   the machine is not answering      unknown
+ *   the machine was removed           whatever the row already says
+ *
+ * The last arm is the tombstone's. A removal writes `discarded` on the row in a
+ * durable commit, so the row already carries the answer and nothing here should
+ * second guess it. A machine that is simply not registered in this run, which is
+ * what an unprepared machine looks like, reaches the third arm instead, because
+ * `stateOf` gives a machine nobody asked the transport lost verdict.
+ */
+function remoteRecordStatus(
+  machineId: string,
+  sessionId: string,
+  recorded: SessionStatus
+): SessionStatus {
+  if (machineRow(machineId) === null) return recorded;
+  const state = stateOf(machineId);
+  const live = state.rows.get(sessionId);
+  if (live !== undefined) return live.status;
+  const proven = state.gone.get(sessionId);
+  if (proven !== undefined) return proven.status;
+  if (state.truth.rows.kind === 'status') return state.truth.rows.status;
+  // The machine answered, this pass decided per row, and the row was not in the
+  // answer. That is `absent`, and the table gives it `restorable`.
+  const absent = machineTruth({ kind: 'absent', at: state.snapshotAt });
+  return absent.rows.kind === 'status' ? absent.rows.status : recorded;
 }
 
 // ---------------------------------------------------------------------------
@@ -698,8 +877,12 @@ export function readyRemoteContext(machineId: string): RemoteMachineContext {
  * resolved path does not match every durable session (CLAUDE.md, Phase 12.7 F3).
  * Remotely it is bare name because the machine's own program search list, read
  * by `captureRemotePath` and written into that server's environment, is the only
- * thing that knows where that machine keeps its programs. No `command -v` runs
- * here and no argv is recorded anywhere. Per machine argv capture is Phase 72.
+ * thing that knows where that machine keeps its programs.
+ *
+ * PHASE 72 DID NOT CHANGE THIS LINE, and that is worth stating because it added
+ * the capture. `./remote-argv.ts` reads where that machine keeps the program and
+ * the answer goes into the manifest row, bound to that machine's id. It does not
+ * go on this argv, and it does not go on any command line.
  */
 function remoteLaunchArgv(
   agent: LaunchableAgentKind,
@@ -729,18 +912,47 @@ function takenNames(machineId: string): Set<string> {
 }
 
 /**
+ * Where that machine keeps the program this create is about to launch
+ * (Phase 72).
+ *
+ * A read, not a mutation, so it runs before anything is created. Three answers:
+ *
+ *  - An empty argv is a plain shell session. Tortie chose no program, so there
+ *    is nothing to record and the empty string says exactly that.
+ *  - An `argv[0]` that is already an absolute path is a configured agent whose
+ *    row names one. The person wrote that path and it is theirs, so it is
+ *    recorded as given and no question is asked.
+ *  - Anything else is a bare name, and the machine is asked where it keeps it.
+ *    No answer is a refusal rather than a guess.
+ */
+async function remoteBinFor(
+  ctx: RemoteMachineContext,
+  argv: readonly string[]
+): Promise<string> {
+  const bare = argv[0] ?? '';
+  if (bare.length === 0) return '';
+  if (bare.startsWith('/')) return bare;
+  return captureRemoteArgv(ctx, bare);
+}
+
+/**
  * Create a session on a machine.
  *
  * The order is fixed and every step is where it is on purpose:
  *
  *  1. Refuse unless the machine is signed in to and its program list was read.
  *  2. Compose the argv by bare name, asking the agent confirm gate on the way.
- *  3. Read the machine's list, and pick a name that collides with none of it.
- *  4. `new-session`, with both identity variables on the line itself.
- *  5. If that failed, ONE read of the environment, to see whether it ran anyway.
- *  6. Stamp the four options. A stamp that fails is logged and the create still
+ *  3. Ask the machine where it keeps that program. A read, before any mutation.
+ *  4. Read the machine's list, and pick a name that collides with none of it.
+ *  5. Write the manifest row, BEFORE the create line, the same order a local
+ *     create uses. A session that starts before its row exists is a session a
+ *     crash can strand with a live agent and no record of it.
+ *  6. `new-session`, with both identity variables on the line itself.
+ *  7. If that failed, ONE read of the environment, to see whether it ran anyway.
+ *     A create that truly failed takes its row back out.
+ *  8. Stamp the four options. A stamp that fails is logged and the create still
  *     succeeds, because the pane environment already carries the identity.
- *  7. Poll once, at once, so the row is on screen without waiting a cadence.
+ *  9. Poll once, at once, so the row is on screen without waiting a cadence.
  */
 export async function remoteCreate(input: RemoteCreateInput): Promise<Session> {
   if (input.name.trim().length === 0) {
@@ -748,6 +960,10 @@ export async function remoteCreate(input: RemoteCreateInput): Promise<Session> {
   }
   const ctx = readyRemoteContext(input.machineId);
   const argv = remoteLaunchArgv(input.agent, input.extraArgs ?? []);
+  // Step 3. Before the create, because a machine with no copy of the program is
+  // a machine where the create would produce a pane that prints an error and
+  // dies, and a refusal naming the program is a better answer than that.
+  const bin = await remoteBinFor(ctx, argv);
   const sessionId = randomUUID();
   // MEASURED 2026-08-17 against a scratch machine: without this read the first
   // create of a Tortie run picks a name from an empty set, and a machine that
@@ -783,6 +999,26 @@ export async function remoteCreate(input: RemoteCreateInput): Promise<Session> {
     issuedAt: Date.now()
   });
 
+  // PHASE 72, STEP 5. The durable row, written before the create line, which is
+  // §2.4 Step 0 for a session on another machine. `argv[0]` is the path captured
+  // ON THAT MACHINE, and every path in the row belongs to that machine.
+  //
+  // A create that then fails takes the row back out below. A create that runs
+  // and loses its answer KEEPS it, because the session is there.
+  const createdAt = Date.now();
+  writeRemoteRow({
+    sessionId,
+    machineId: input.machineId,
+    name: oneLine(input.name),
+    tmuxName,
+    projectPath: oneLine(input.projectPath),
+    cwd: input.cwd,
+    agent: String(input.agent),
+    argv: bin.length > 0 ? [bin, ...argv.slice(1)] : argv,
+    bin,
+    createdAt
+  });
+
   let tmuxId: string;
   try {
     const printed = await execOn(ctx, args);
@@ -796,7 +1032,14 @@ export async function remoteCreate(input: RemoteCreateInput): Promise<Session> {
     // session it did not just ask for. The rescue that re-binds a marked session
     // found at reconcile time with no row pointing at it is Phase 71.
     const found = await confirmCreate(ctx, tmuxName, sessionId);
-    if (found === null) throw createFailure(err, input.cwd);
+    if (found === null) {
+      // Phase 72. Nothing is running, so the row is a claim about a session that
+      // does not exist. The local create path removes its row on a failed spawn
+      // for the same reason, and leaving one here would put a permanent
+      // `restorable` row on screen for work that never started.
+      dropRemoteRow(sessionId);
+      throw createFailure(err, input.cwd);
+    }
     tmuxId = found;
     machinesLog.warn(
       `the create on ${input.machineId} lost its answer and the session was ` +
@@ -804,6 +1047,7 @@ export async function remoteCreate(input: RemoteCreateInput): Promise<Session> {
     );
   }
   if (!tmuxId.startsWith('$')) {
+    dropRemoteRow(sessionId);
     throw gmuxError(
       'SPAWN_FAILED',
       noRemoteRowFor(input.name),
@@ -850,11 +1094,27 @@ export async function remoteCreate(input: RemoteCreateInput): Promise<Session> {
       `${input.machineId} created ${tmuxId} and did not list it back`
     );
   }
-  return projectRow(
-    row,
-    remoteSessionMachine(input.machineId),
-    stateOf(input.machineId)
-  );
+  return projectRow(row, stateOf(input.machineId));
+}
+
+/**
+ * Take back a row written for a create that did not run (Phase 72).
+ *
+ * A hard delete rather than a tombstone, and the local create path does the
+ * same. A tombstone is a record of a session that existed, and this one never
+ * did, so leaving one would put a row in Past Sessions for work that was never
+ * started.
+ */
+function dropRemoteRow(sessionId: string): void {
+  if (remoteRecordOf(sessionId) === null) return;
+  try {
+    remoteManifest().deleteSession(sessionId);
+  } catch (err) {
+    machinesLog.warn(
+      `the row for a create that did not run could not be removed: ` +
+        `${(err as Error).message}`
+    );
+  }
 }
 
 /** The one read a lost create answer gets. Returns the identifier, or null. */
@@ -963,25 +1223,38 @@ export async function remoteRename(
     tmuxName
   };
   state.rows.set(sessionId, updated);
+  // Phase 72. The manifest row carries the name too now, and a rename that moved
+  // it on the far side and not here would leave the two disagreeing the moment
+  // the machine stopped answering, which is exactly when the manifest is read.
+  if (remoteRecordOf(sessionId) !== null) {
+    try {
+      remoteManifest().renameSession(sessionId, oneLine(newDisplayName), tmuxName);
+    } catch (err) {
+      machinesLog.warn(
+        `the new name landed on ${row.machineId} and not in the session list: ` +
+          `${(err as Error).message}`
+      );
+    }
+  }
   announce();
   await pollRemoteMachine(row.machineId);
-  return projectRow(
-    remoteSessionRow(sessionId) ?? updated,
-    remoteSessionMachine(row.machineId),
-    state
-  );
+  return projectRow(remoteSessionRow(sessionId) ?? updated, state);
 }
 
 /**
- * Forget one remote row. Nothing is sent to any machine and nothing is written.
+ * Forget one remote row.
  *
- * This is what the person's Remove does to a remote row that has ended. Locally
- * a Remove writes a tombstone the person can undo from Past Sessions, and this
- * rung writes no manifest row of any kind, so there is nothing to tombstone and
- * nothing to bring back. Forgetting it is the honest whole of the verb, and the
- * surface says so.
+ * This is what the person's Remove does to a remote row that has ended. It drops
+ * the row from memory and NOTHING IS SENT TO ANY MACHINE.
  *
- * Returns false when the id names no remote row.
+ * Phase 72 gave a remote session a manifest row, so a Remove now writes the same
+ * tombstone a local Remove writes, through the ordinary route: the caller in
+ * `../sessions/core.ts` calls `markSessionRemoved` for a row that has one. This
+ * function is the memory half, and it stays because a session created by 0.34 or
+ * 0.35 has no manifest row and forgetting it is still the whole of what can be
+ * done for it.
+ *
+ * Returns false when the id names no remote row in memory.
  */
 export function forgetRemoteRow(sessionId: string): boolean {
   for (const state of machines.values()) {
@@ -993,18 +1266,266 @@ export function forgetRemoteRow(sessionId: string): boolean {
   return false;
 }
 
+// ---------------------------------------------------------------------------
+// A machine a person removed (Phase 72)
+// ---------------------------------------------------------------------------
+
+/** What Tortie last knew about one row on one machine. */
+export interface RemoteRowLastKnown {
+  readonly id: string;
+  readonly status: SessionStatus;
+  /** Local receipt ms of the last completed list that held it. 0 when none did. */
+  readonly lastSeenAt: number;
+}
+
 /**
- * Restore, refused for every remote row, before anything is composed.
+ * What Tortie last knew about every row on one machine, from memory and from the
+ * manifest together.
  *
- * @throws GmuxError INVALID_INPUT with {@link RESTORE_REFUSED}.
+ * The memory half is authoritative about status while the app has been running,
+ * because it holds what the last completed pass reported. The manifest half is
+ * what a row carries across a relaunch, and it is the only half for a machine
+ * nobody has signed in to in this run.
+ */
+export function remoteRowLastKnown(machineId: string): RemoteRowLastKnown[] {
+  const out = new Map<string, RemoteRowLastKnown>();
+  for (const record of remoteRecordsForMachine(machineId)) {
+    out.set(record.id, {
+      id: record.id,
+      status: record.status,
+      // `last_seen` on a remote row is written by every completed list that held
+      // it, so it is already the answer, and it is a local receipt time.
+      lastSeenAt: record.lastSeen
+    });
+  }
+  const state = machines.get(machineId);
+  if (state !== undefined) {
+    for (const [id, row] of [...state.gone, ...state.rows]) {
+      // A row the last completed pass HELD was seen at that pass's own instant.
+      // A row it did not hold keeps whatever instant the manifest already has,
+      // because a pass that did not report a session says nothing about when it
+      // was last there.
+      const lastSeenAt = state.rows.has(id)
+        ? state.snapshotAt
+        : (out.get(id)?.lastSeenAt ?? 0);
+      out.set(id, { id, status: row.status, lastSeenAt });
+    }
+  }
+  return [...out.values()].sort((a, b) => a.id.localeCompare(b.id));
+}
+
+/**
+ * A person removed a machine. Record what Tortie last knew, and drop it.
+ *
+ * FOUR THINGS HAPPEN AND A FIFTH DELIBERATELY DOES NOT.
+ *
+ *  1. Every manifest row for that machine is tombstoned, in a durable commit
+ *     each, carrying the label, the last status and the two instants.
+ *  2. The in memory rows for that machine are dropped.
+ *  3. The remembered foreign ids for that machine are dropped, so a machine
+ *     added again later starts from nothing.
+ *  4. The surfaces are told.
+ *
+ * NOTHING IS SENT TO THE MACHINE. No session is ended, no server is stopped and
+ * nothing is read. The sessions over there keep running, and every tombstone
+ * sentence says so.
+ *
+ * The CALLER closes the link and removes the row from `machines.json`, in that
+ * order, after this returns. This runs first because the tombstone needs the
+ * label, and the label is in the file the caller is about to rewrite.
+ *
+ * Returns the number of manifest rows tombstoned. A machine holding only feed
+ * rows returns 0, which is the honest answer: those sessions were created by a
+ * build that recorded nothing about them and Tortie can leave no record either.
+ */
+export function forgetMachineRows(
+  machineId: string,
+  forgottenAt: number = Date.now()
+): number {
+  const row = machineRow(machineId);
+  const machineLabel = row === null ? machineId : machineLabelOf(row);
+  let tombstoned = 0;
+  for (const known of remoteRowLastKnown(machineId)) {
+    const tombstone: MachineTombstone = {
+      v: 1,
+      machineId,
+      machineLabel,
+      lastStatus: known.status,
+      lastSeenAt: known.lastSeenAt,
+      forgottenAt
+    };
+    if (tombstoneRemoteRow(known.id, tombstone)) tombstoned += 1;
+  }
+  const state = machines.get(machineId);
+  if (state !== undefined) {
+    clearTimer(state);
+    state.rows.clear();
+    state.gone.clear();
+    state.names.clear();
+    state.onControl = false;
+    state.lastMachineStatus = null;
+  }
+  machines.delete(machineId);
+  // The link goes with the rows. It closes a connection this Mac holds open and
+  // sends nothing to the machine, which is the same thing quitting Tortie does.
+  closeControlPlane(machineId);
+  forgetForeignMemo(machineId);
+  announce();
+  machinesLog.info(
+    `${machineId} was removed and ${String(tombstoned)} session record(s) now ` +
+      `say what Tortie last knew. Nothing was sent to that machine.`
+  );
+  return tombstoned;
+}
+
+/** Tell every surface the remote rows changed. The announce, by its own name. */
+export function notifyRemoteRowsChanged(): void {
+  announce();
+}
+
+// ---------------------------------------------------------------------------
+// The restore gate's facts (Phase 72)
+// ---------------------------------------------------------------------------
+
+/**
+ * True once Tortie has signed in to this machine in this run AND read its own
+ * list of places it looks for programs.
+ *
+ * The same two questions {@link readyRemoteContext} asks, without the throw, so
+ * a projection running sixty times a second is not composing error objects for
+ * a machine nobody prepared.
+ */
+function remoteContextReady(machineId: string): boolean {
+  let ctx;
+  try {
+    ctx = machineContext(machineId);
+  } catch {
+    return false;
+  }
+  if (ctx.kind !== 'remote') return false;
+  return machineGeneration(machineId).remotePath !== null;
+}
+
+/**
+ * True when Tortie has a route to this machine right now (Phase 72 fix round).
+ *
+ * EITHER route counts, and that is the whole of this function. The live
+ * connection is one. The other is that machine's last pass having COMPLETED
+ * over the command route, which is the route a restore itself sends on.
+ *
+ * The live connection alone was the wrong question. `openControlPlane` opens it
+ * only after a read proves the machine's own session server is already running,
+ * because opening it against a machine with no server would create one carrying
+ * none of Tortie's settings. So a machine whose server died can never have a
+ * live connection, and asking for one refused restore for ever in exactly the
+ * case restore exists for. Fault matrix row 7 measured that twice.
+ */
+function machineReachable(machineId: string): boolean {
+  if (isControlPlaneLive(machineId)) return true;
+  return machines.get(machineId)?.answering ?? false;
+}
+
+/** The four machine level facts, with no row in hand. */
+function machineFactsFor(
+  machineId: string,
+  rowStatus: SessionStatus
+): RemoteRestoreFacts {
+  const state = machines.get(machineId);
+  return {
+    machineKnown: machineRow(machineId) !== null,
+    contextReady: remoteContextReady(machineId),
+    machineReachable: machineReachable(machineId),
+    completedListSeen: state?.everAnswered ?? false,
+    machineAnswering: state?.answering ?? false,
+    // With no row in hand nothing can say the far side is not holding it, and
+    // "cannot say" is refused rather than allowed.
+    listedNow: true,
+    rowMachineId: machineId,
+    targetMachineId: machineId,
+    rowStatus
+  };
+}
+
+/**
+ * Every fact the restore gate needs about one session, gathered from the six
+ * places that own them (Phase 72).
+ *
+ * It is here rather than in `./remote-restore.ts` because five of the six come
+ * out of this module's own maps, and a second module reaching into them would be
+ * a second opinion about what this feed knows.
+ */
+export function remoteRestoreFactsFor(
+  sessionId: string,
+  targetMachineId?: string
+): RemoteRestoreFacts {
+  const feed = remoteSessionRow(sessionId);
+  // The manifest is asked ONLY when this run's own maps cannot answer. The
+  // projection calls this for every row on every change, and a database read per
+  // row per change would be the busiest read in the product for an answer the
+  // feed already holds.
+  const record = feed === null ? remoteRecordOf(sessionId) : null;
+  const rowMachineId = feed?.machineId ?? record?.machineId ?? '';
+  const target = targetMachineId ?? rowMachineId;
+  const state = machines.get(rowMachineId);
+  const status = feed?.status ?? record?.status ?? 'unknown';
+  return {
+    machineKnown: machineRow(target) !== null,
+    contextReady: remoteContextReady(target),
+    machineReachable: machineReachable(target),
+    completedListSeen: state?.everAnswered ?? false,
+    machineAnswering: state?.answering ?? false,
+    // THE DOUBLE RUN GUARD'S OWN FACT. `rows` holds exactly what the machine's
+    // last COMPLETED list reported. A session in it is a session that is
+    // running, and `gone` is deliberately not consulted: a row that moved to
+    // `gone` is a row a completed list stopped reporting, which is the case
+    // restore exists for.
+    listedNow: state?.rows.has(sessionId) ?? false,
+    rowMachineId,
+    targetMachineId: target,
+    rowStatus: remoteRecordStatus(rowMachineId, sessionId, status)
+  };
+}
+
+/** The gate's verdict for one session. Pure once the facts are gathered. */
+export function remoteRestoreVerdictFor(
+  sessionId: string,
+  targetMachineId?: string
+): RemoteRestoreVerdict {
+  return remoteRestoreVerdict(
+    remoteRestoreFactsFor(sessionId, targetMachineId)
+  );
+}
+
+/**
+ * Refuse a restore the gate does not offer, before anything is composed.
+ *
+ * PHASE 70 REFUSED EVERY REMOTE ROW HERE and said so in one sentence. Phase 72
+ * asks the gate instead, so the same call now returns quietly for a row that may
+ * come back and throws the gate's own sentence for one that may not. Every
+ * caller reads it the same way it always did, being "this throws when Tortie
+ * will not do it", and the partition harness's measurement of a cut link is
+ * unchanged: a machine Tortie cannot see fails the `unseen` arm.
+ *
+ * A row that is not remote at all returns quietly, which is what keeps this
+ * callable as the first line of the local restore.
+ *
+ * @throws GmuxError INVALID_INPUT carrying the gate's sentence.
  */
 export function refuseRemoteRestore(sessionId: string): void {
-  if (!isRemoteSessionId(sessionId)) return;
+  const record = remoteRecordOf(sessionId);
+  const isRemote =
+    isRemoteSessionId(sessionId) ||
+    (record !== null &&
+      record.machineId !== undefined &&
+      record.machineId !== 'local');
+  if (!isRemote) return;
+  const verdict = remoteRestoreVerdictFor(sessionId);
+  if (verdict.offered) return;
   throw gmuxError(
     'INVALID_INPUT',
-    RESTORE_REFUSED,
-    `${sessionId} lives on another machine and this release brings back no ` +
-      `session that does`
+    verdict.reason ?? '',
+    `${sessionId} lives on another machine and the restore gate refused it ` +
+      `with ${String(verdict.refusal)}`
   );
 }
 
@@ -1110,11 +1631,27 @@ export async function pollRemoteMachine(machineId: string): Promise<void> {
     state.gone.set(id, { ...row, status: absentStatus });
   }
   const foreignBefore = state.foreign;
+  // Captured before the two are overwritten, because the manifest writes below
+  // are bounded by whether the machine's membership actually moved.
+  const previousIds = new Set(state.rows.keys());
+  const firstCompletedPass = !state.everAnswered;
   state.rows = seen;
   state.names = names;
   state.foreign = foreign;
   state.snapshotAt = snapshotAt;
   applyMachineEvent(machineId, event);
+  writeBackCompletedPass(machineId, {
+    seen,
+    absentStatus,
+    snapshotAt,
+    // A row appearing or disappearing is the only thing that can make a manifest
+    // row absent, and the first completed pass of a run is the other, because
+    // nothing before it had an answer to compare against.
+    membershipMoved:
+      firstCompletedPass ||
+      previousIds.size !== seen.size ||
+      [...seen.keys()].some((id) => !previousIds.has(id))
+  });
   // Written when the COUNT MOVES, never on every pass. Phase 70 polled on a
   // timer, so this was one line every 5 s. Phase 71 lists on every event the
   // machine reports, so on a busy machine it was one line per event, saying the
@@ -1127,6 +1664,52 @@ export async function pollRemoteMachine(machineId: string): Promise<void> {
   }
   announce();
   if (unclaimed.length > 0) await rescueUnclaimed(machineId, ctx, unclaimed);
+}
+
+/**
+ * The manifest half of one completed pass (Phase 72).
+ *
+ * TWO WRITES, and the difference between them is the point.
+ *
+ * A row this pass HELD gets `last_seen` on EVERY pass, through a one column
+ * statement, and its status only when the status moved. `last_seen` is what the
+ * tombstone reads later to say when Tortie last saw the session, so a value
+ * refreshed only on a change would name the last time the status moved rather
+ * than the last time the session was there.
+ *
+ * A manifest row this COMPLETED pass did not hold gets the case table's `absent`
+ * answer, which is `restorable`. That is the write that makes Restore offerable
+ * after a relaunch, because without it a row would come back saying whatever it
+ * said when Tortie last quit.
+ *
+ * THE SECOND WRITE IS BOUNDED, and that is deliberate. It reads every manifest
+ * row for the machine, and a machine on a live connection reports an event every
+ * time anything happens on it. Doing that scan per event would be the busiest
+ * read in the product for an answer that only changes when a session appears or
+ * disappears, so it runs on the first completed pass of a run and on a pass whose
+ * membership moved, and on no others.
+ *
+ * Every one of these is a no-op for a session created by 0.34 or 0.35, which has
+ * no manifest row at all.
+ */
+function writeBackCompletedPass(
+  machineId: string,
+  pass: {
+    readonly seen: ReadonlyMap<string, RemoteSessionRow>;
+    readonly absentStatus: SessionStatus;
+    readonly snapshotAt: number;
+    readonly membershipMoved: boolean;
+  }
+): void {
+  if (!remoteManifestInstalled()) return;
+  for (const [id, row] of pass.seen) {
+    noteRemoteRowSeen(id, row.status, pass.snapshotAt);
+  }
+  if (!pass.membershipMoved) return;
+  for (const record of remoteRecordsForMachine(machineId)) {
+    if (pass.seen.has(record.id)) continue;
+    noteRemoteRowSeen(record.id, pass.absentStatus, pass.snapshotAt);
+  }
 }
 
 /**

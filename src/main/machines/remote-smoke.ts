@@ -13,14 +13,20 @@
  * The ssh process count is read from the process table, so "nothing was started
  * after the refusal" is a measurement rather than an assertion.
  *
- * The two refusals this rung pins are reachable in production but rarely, and
- * rollup deletes a branch whose condition it can prove. This file is the second
- * caller `build/assert-bundle-refusals.mjs` needs for `machine.restore-refused`
- * and `machine.remote-target-unbound`.
+ * The refusals this rung pins are reachable in production but rarely, and rollup
+ * deletes a branch whose condition it can prove. This file is the second caller
+ * `build/assert-bundle-refusals.mjs` needs for `machine.remote-target-unbound`
+ * and for the four Phase 72 added, being `machine.restore-unseen`,
+ * `machine.restore-wrong-machine`, `machine.restore-forgotten` and
+ * `machine.resume-not-collected`.
  *
- * And the claim that no remote path writes to the manifest is checked here by
- * looking for a database file in the profile after a whole create, rename and
- * kill. The unit test counts the writes; this counts the bytes.
+ * PHASE 72 TURNED ONE OF ITS CHECKS INSIDE OUT. Phase 70 looked for a database
+ * file in the profile after a create, a rename and a kill, because no remote
+ * path was allowed to write one. This build writes a manifest row for a session
+ * on a machine, so the check is now that the row IS there, that it names the
+ * machine, and that its recorded program path is the path that machine reported
+ * rather than the path this Mac holds. The unit tests count the writes. This one
+ * reads the row out of a real database in a real Electron process.
  *
  * ## Safety
  *
@@ -47,6 +53,14 @@ import {
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { assertHarnessIsolation } from '../harness/isolation';
+// Phase 72 fix round. The per machine program capture is only exercised by a
+// session that HAS a program, and every session this harness made was a plain
+// shell, whose argv is empty by construction.
+import {
+  LAUNCHABLE_AGENT_IDS,
+  agentBinaryName
+} from '../agents/registry';
+import type { LaunchableAgentId } from '@shared/types';
 import { activeTmuxSocket, TMUX_SOCKET } from '../tmux/resolve';
 import {
   MACHINE_CONFIRM_ACKNOWLEDGEMENT,
@@ -63,8 +77,17 @@ import {
   machinesPath,
   reloadMachines
 } from './store';
-import { RESTORE_REFUSED, TARGET_UNBOUND } from './remote-copy';
 import {
+  RESTORE_FORGOTTEN,
+  RESTORE_STILL_RUNNING,
+  RESTORE_UNSEEN,
+  RESTORE_WRONG_MACHINE,
+  RESUME_NOT_COLLECTED,
+  TARGET_UNBOUND
+} from './remote-copy';
+import {
+  forgetMachineRows,
+  markMachineQuiet,
   parseRemoteListLine,
   refuseRemoteRestore,
   remoteCreate,
@@ -72,13 +95,64 @@ import {
   remoteListArgs,
   remoteMachineFacts,
   remoteRename,
+  remoteRestoreVerdictFor,
   remoteSessionRow,
   remoteSessions,
   startRemotePoll
 } from './remote-sessions';
+// Phase 72. The manifest row a remote create now writes, the restore behind the
+// gate, and the per machine program path capture.
+import { ManifestStore } from '../manifest/store';
+import {
+  remoteRecordOf,
+  remoteRecordsForMachine,
+  setRemoteManifest
+} from './remote-record';
+import { restoreRemoteSession } from './remote-restore';
+import { assertArgvBelongsToMachine, captureRemoteArgv } from './remote-argv';
+import { removeMachineRow } from './store';
 
 function log(line: string): void {
   console.log(`[gmux-remote-sessions] ${line}`);
+}
+
+/** One agent that machine actually has, with the path it keeps it at. */
+interface AgentOnMachine {
+  agent: LaunchableAgentId;
+  bare: string;
+  path: string;
+}
+
+/**
+ * The first agent in the table that machine has a copy of (Phase 72 fix round).
+ *
+ * It ASKS THE MACHINE, one bare name at a time, through the same read the
+ * create uses. It does not read this Mac's own program list, even though the
+ * machine here is this same Mac, because the question is what that machine
+ * holds and a second way of answering it would be a second answer.
+ *
+ * Null when the machine has none of them. The caller fails rather than skipping,
+ * because a step that quietly measures nothing is the vacuous pass this fix
+ * round exists to remove.
+ */
+async function firstAgentOnMachine(
+  ctx: RemoteMachineContext
+): Promise<AgentOnMachine | null> {
+  for (const agent of LAUNCHABLE_AGENT_IDS) {
+    let bare: string;
+    try {
+      bare = agentBinaryName(agent);
+    } catch {
+      continue;
+    }
+    try {
+      const path = await captureRemoteArgv(ctx, bare);
+      return { agent, bare, path };
+    } catch {
+      // That machine does not have this one. The next name is asked.
+    }
+  }
+  return null;
 }
 
 function fail(message: string): never {
@@ -214,6 +288,15 @@ export async function runRemoteSessionsSmoke(): Promise<void> {
     const operatorBefore = operatorSessionCount();
     log(`profile ${iso.userData}, socket ${iso.socket}`);
     log(`the operator's own server holds ${String(operatorBefore)} session(s)`);
+
+    // PHASE 72. A real manifest, inside this run's own profile, installed the
+    // same way `../sessions/core.ts` installs it. Without it every write below
+    // is a no-op and the checks would prove the harness rather than the product.
+    const manifestPath = join(iso.userData, 'gmux', 'manifest.db');
+    mkdirSync(dirname(manifestPath), { recursive: true });
+    const manifest = new ManifestStore(manifestPath);
+    setRemoteManifest(manifest);
+    log(`a session list was opened at ${manifestPath}`);
 
     const carriage = readCarriage(iso.root);
     const fields: MachineExecutionFields =
@@ -362,6 +445,26 @@ export async function runRemoteSessionsSmoke(): Promise<void> {
     }
 
     // --- 5. A confirmed and measured machine takes a create ------------------
+    //
+    // PHASE 72 FIX ROUND. THE ROW IS ADDED TO THE MACHINES FILE FIRST, which is
+    // what a person does in Settings before they confirm anything. Without it
+    // this harness confirmed and prepared a machine that was in no file, so
+    // every restore below reached the gate's first arm, which asks whether the
+    // machine is still known, and every refusal came back as "you removed this
+    // machine from Tortie". Step 8c then failed and the whole gate stopped
+    // before it reached the restore it exists to prove.
+    addMachineRow({
+      id: ID,
+      label: 'Remote Sessions',
+      color: 'orange',
+      host: fields.host,
+      ...(fields.user === null ? {} : { user: fields.user }),
+      ...(fields.port === null ? {} : { port: fields.port }),
+      ...(fields.remoteTmuxPath === null
+        ? {}
+        : { remoteTmuxPath: fields.remoteTmuxPath })
+    });
+    reloadMachines();
     confirmAsAPerson(ID, fields);
     const prepared = await prepareMachine({
       machineId: ID,
@@ -448,6 +551,57 @@ export async function runRemoteSessionsSmoke(): Promise<void> {
     }
     log('   and it sent nothing');
 
+    // --- 8b. The manifest row, and the path that machine reported ------------
+    //
+    // PHASE 72. The create wrote a row before it sent the create line. This is
+    // what proves it, out of a real database, in a real Electron process.
+    const recorded = remoteRecordOf(session.id);
+    if (recorded === null) {
+      fail('the create on a machine wrote no row to the session list');
+    }
+    if (recorded.machineId !== ID) {
+      fail(
+        `the row says machine ${JSON.stringify(String(recorded.machineId))} and ` +
+          `it should say ${JSON.stringify(ID)}`
+      );
+    }
+    if (recorded.resumeArgv !== undefined) {
+      fail('the row carries a resume command, and no remote row may have one');
+    }
+    if (recorded.resumeProvenance?.source !== 'remote-not-collected') {
+      fail(
+        `the row records where its conversation id came from as ` +
+          `${JSON.stringify(String(recorded.resumeProvenance?.source))}`
+      );
+    }
+    log(
+      `8b. the row for ${session.id} names machine ${ID}, has no resume ` +
+        `command, and records why there is none`
+    );
+
+    // The capture itself, against a program every machine has. A shell session
+    // records no program, so this is what drives the read end to end.
+    const shPath = await captureRemoteArgv(ctx, 'sh');
+    if (!shPath.startsWith('/')) {
+      fail(`the machine answered ${JSON.stringify(shPath)} for sh`);
+    }
+    log(`    and the machine says it keeps sh at ${shPath}`);
+
+    // --- 8c. Restore is refused while the machine still lists it -------------
+    //
+    // THE DOUBLE RUN GUARD, watched firing. This is the one failure research 28
+    // ranks as destroying work, and it is refused before anything is composed.
+    const sshBeforeRunning = sshChildCount();
+    await assertRefused(
+      '8c. restore while the machine still lists the session',
+      RESTORE_STILL_RUNNING,
+      () => restoreRemoteSession(session.id)
+    );
+    if (sshChildCount() !== sshBeforeRunning) {
+      fail('the refused restore started an ssh process');
+    }
+    log('    and it sent nothing');
+
     // --- 9. The bound kill ---------------------------------------------------
     await remoteKill(session.id);
     const afterKill = await execOn(ctx, remoteListArgs()).catch(() => '');
@@ -461,27 +615,237 @@ export async function runRemoteSessionsSmoke(): Promise<void> {
     }
     log('9. the bound kill removed it from the machine');
 
-    // --- 10. Restore refused, and nothing was written ------------------------
+    // --- 10. The restore, end to end ----------------------------------------
+    //
+    // The machine answered, its answer did not hold the session, and every other
+    // condition holds, so the gate offers the verb and the verb runs. This is
+    // the whole of what M5 added, watched in a real process against a real
+    // machine.
     const ended = remoteSessionRow(session.id);
     if (ended === null) fail('the ended row was forgotten rather than held');
-    await assertRefused('10. restore on a remote row', RESTORE_REFUSED, () =>
-      Promise.resolve().then(() => {
-        refuseRemoteRestore(session.id);
-      })
-    );
-    const databases = databaseFiles(iso.userData);
-    if (databases.length > 0) {
+    const offered = remoteRestoreVerdictFor(session.id, ID);
+    if (!offered.offered) {
       fail(
-        `a create, a rename and a kill on a machine left ${String(
-          databases.length
-        )} database file(s) in the profile: ${databases.join(', ')}. Nothing ` +
-          `about a remote session may be written here.`
+        `the gate refused a row the machine answered about, with ` +
+          `${String(offered.refusal)}: ${String(offered.reason)}`
+      );
+    }
+    const startedAt = Date.now();
+    const outcome = await restoreRemoteSession(session.id);
+    const restoreMs = Date.now() - startedAt;
+    if (!outcome.tmuxId.startsWith('$')) {
+      fail(`the restore answered ${JSON.stringify(outcome.tmuxId)}`);
+    }
+    if (outcome.stampsLanded !== 4) {
+      fail(
+        `${String(outcome.stampsLanded)} of the four session options landed ` +
+          `on the restored session`
+      );
+    }
+    // A shell has no conversation and never had one, so the arming gate says
+    // nothing about it. The sentence belongs to a session whose agent keeps
+    // one, and step 10a below is where it is watched.
+    if (outcome.resumeNote !== null) {
+      fail(
+        `the restore of a shell session said ${JSON.stringify(outcome.resumeNote)} ` +
+          `about a conversation it never had`
+      );
+    }
+    if (outcome.resumeRefusal !== 'nothing-to-arm') {
+      fail(
+        `the arming gate answered ${String(outcome.resumeRefusal)} for a shell`
+      );
+    }
+    // Read back from the machine, byte for byte, the same four stamps and both
+    // pane variables the create wrote.
+    const afterRestore = await execOn(ctx, remoteListArgs());
+    const back = afterRestore
+      .split('\n')
+      .map(parseRemoteListLine)
+      .find((one) => one !== null && one.gmuxId === session.id);
+    if (back === null || back === undefined) {
+      fail('the restored session is not in the machine\u2019s own list');
+    }
+    if (back.agent !== 'shell' || back.projectPath !== '/tmp') {
+      fail('the restored session came back with different stamps');
+    }
+    const restoredEnv = await execOn(ctx, ['show-environment', '-t', back.tmuxId]);
+    for (const pair of ['GMUX_MANAGED=1', `GMUX_SESSION_ID=${session.id}`]) {
+      if (restoredEnv.includes(pair)) continue;
+      fail(`the restored pane environment does not carry ${pair}`);
+    }
+    log(
+      `10. the restore brought ${session.id} back on ${ID} as ${back.tmuxId} ` +
+        `in ${String(restoreMs)} ms, with four stamps and both pane variables ` +
+        `reading back byte for byte, and it said nothing about a conversation ` +
+        `because a shell never had one`
+    );
+
+    // --- 10a. The per machine program path, into the row and back out -------
+    //
+    // PHASE 72 FIX ROUND. Everything above this line is a plain shell session,
+    // whose argv is empty by construction, so the row's `argv[0]` was "" and
+    // the restore's own program check was skipped every time. Only the refusal
+    // half of the claim was proven. This step creates a session that HAS a
+    // program, reads the row, and brings it back.
+    const onMachine = await firstAgentOnMachine(ctx);
+    if (onMachine === null) {
+      fail(
+        `no agent Tortie can launch is installed on that machine, so the per ` +
+          `machine program capture could not be measured. This gate runs ` +
+          `against a machine that is this same Mac, so install one of ` +
+          `${LAUNCHABLE_AGENT_IDS.join(', ')} and run it again.`
+      );
+    }
+    const agentSession = await remoteCreate({
+      machineId: ID,
+      name: 'p72 agent',
+      projectPath: '/tmp',
+      cwd: '/tmp',
+      agent: onMachine.agent
+    });
+    const agentRecord = remoteRecordOf(agentSession.id);
+    if (agentRecord === null) fail('the agent create wrote no row');
+    const recordedBin = agentRecord.argv[0] ?? '';
+    if (recordedBin !== onMachine.path) {
+      fail(
+        `the row records ${JSON.stringify(recordedBin)} and the machine says ` +
+          `it keeps ${onMachine.bare} at ${JSON.stringify(onMachine.path)}`
+      );
+    }
+    if (agentRecord.agentContract?.bin !== onMachine.path) {
+      fail(
+        `the recovery record's program is ` +
+          `${JSON.stringify(String(agentRecord.agentContract?.bin))}`
       );
     }
     log(
-      `    and zero database files exist in ${iso.userData} after the whole ` +
-        `create, rename and kill`
+      `10a. the row for ${agentSession.id} records ${onMachine.bare} at ` +
+        `${onMachine.path}, which is where that machine says it keeps it`
     );
+
+    // The launch itself stays BY BARE NAME on both sides. The recorded path is
+    // evidence about a machine, never an instruction, so it must not appear on
+    // the command the machine ran.
+    const agentListed = await execOn(ctx, remoteListArgs());
+    const agentRow = agentListed
+      .split('\n')
+      .map(parseRemoteListLine)
+      .find((one) => one !== null && one.gmuxId === agentSession.id);
+    if (agentRow === null || agentRow === undefined) {
+      fail('the agent session was not in the machine’s own list');
+    }
+    if (agentRow.agent !== onMachine.agent) {
+      fail(`the agent stamp on the far side is ${JSON.stringify(agentRow.agent)}`);
+    }
+
+    // Ended on the machine, then brought back. The restore reads the program
+    // again before it composes anything, which is the half nothing exercised.
+    await remoteKill(agentSession.id);
+    const agentOutcome = await restoreRemoteSession(agentSession.id);
+    if (agentOutcome.stampsLanded !== 4) {
+      fail(
+        `${String(agentOutcome.stampsLanded)} of the four session options ` +
+          `landed on the restored agent session`
+      );
+    }
+    if (agentOutcome.resumeRefusal !== 'not-collected') {
+      fail(
+        `the arming gate answered ${String(agentOutcome.resumeRefusal)} for a ` +
+          `session whose conversation Tortie never collected`
+      );
+    }
+    if (agentOutcome.resumeNote !== RESUME_NOT_COLLECTED) {
+      fail('the restore result does not say that no conversation comes back');
+    }
+    if (agentOutcome.resumeArmed) {
+      fail('the restore claims it continued a conversation');
+    }
+    log(
+      `    and the restore brought it back as ${agentOutcome.tmuxId} with four ` +
+        `stamps, saying the conversation does not come back`
+    );
+    await remoteKill(agentSession.id).catch(() => undefined);
+
+    // --- 10b. The three rare refusals, watched firing ------------------------
+    //
+    // Each one is a branch a bundler folds away, and each one is the sentence
+    // between a person and a second agent on one conversation.
+    await assertRefused(
+      '10b. a row whose recorded machine is not the machine in hand',
+      RESTORE_WRONG_MACHINE,
+      () =>
+        Promise.resolve().then(() => {
+          assertArgvBelongsToMachine(ID, 'some-other-machine');
+        })
+    );
+    markMachineQuiet(ID, 'the smoke cut it on purpose');
+    await assertRefused(
+      '10c. a restore while Tortie cannot see the machine',
+      RESTORE_UNSEEN,
+      () =>
+        Promise.resolve().then(() => {
+          refuseRemoteRestore(session.id);
+        })
+    );
+    await startRemotePoll(ID);
+
+    // --- 10d. The tombstone --------------------------------------------------
+    //
+    // A person removes the machine. Nothing is sent to it, the row survives as a
+    // record of what Tortie last knew, and the session is still running there.
+    // Two rows live on that machine by now, being the shell of step 5 and the
+    // agent of step 10a, and both must survive the removal as a record.
+    const liveRows = remoteRecordsForMachine(ID).filter(
+      (row) => row.status !== 'discarded'
+    ).length;
+    const tombstoned = forgetMachineRows(ID);
+    removeMachineRow(ID);
+    if (tombstoned !== liveRows || tombstoned < 2) {
+      fail(
+        `${String(liveRows)} row(s) were on that machine and removing it ` +
+          `tombstoned ${String(tombstoned)}`
+      );
+    }
+    const gone = remoteRecordOf(session.id);
+    if (gone?.machineTombstone === undefined) {
+      fail('the row for a removed machine carries no record of what was known');
+    }
+    if (gone.status !== 'discarded') {
+      fail(`the row for a removed machine reads ${gone.status}`);
+    }
+    await assertRefused(
+      '10d. a restore for a machine the person removed',
+      RESTORE_FORGOTTEN,
+      () => restoreRemoteSession(session.id)
+    );
+    const stillThere = await execOn(ctx, remoteListArgs()).catch(() => '');
+    const survivor = stillThere
+      .split('\n')
+      .map(parseRemoteListLine)
+      .find((one) => one !== null && one.gmuxId === session.id);
+    if (survivor === null || survivor === undefined) {
+      fail('removing the machine ended the session on it');
+    }
+    log(
+      `    ${String(tombstoned)} row(s) became a record of what Tortie last ` +
+        `knew, the first says ${gone.machineTombstone.machineLabel} was ` +
+        `removed, and the session is still running on that machine as ` +
+        `${survivor.tmuxId}`
+    );
+
+    // The database this rung DOES write, named so a reader can find it.
+    const databases = databaseFiles(iso.userData);
+    if (databases.length === 0) {
+      fail(
+        `a create on a machine left no database file in ${iso.userData}. This ` +
+          `build records a session on another machine and the row is what ` +
+          `makes it restorable.`
+      );
+    }
+    log(`    and the session list is on disk: ${databases.join(', ')}`);
+    manifest.close();
+    setRemoteManifest(null);
 
     // --- 11. The operator's server -------------------------------------------
     const operatorAfter = operatorSessionCount();

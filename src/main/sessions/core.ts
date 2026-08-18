@@ -134,6 +134,7 @@ import {
 import {
   captureSessionSnapshot,
   deleteSnapshot,
+  savedOutputAt,
   snapshotsDir,
   type SnapshotReason
 } from '../restore/snapshots';
@@ -181,6 +182,7 @@ import {
   isRemoteSessionId,
   markMachineQuiet,
   onRemoteSessionsChanged,
+  projectRemoteRecord,
   readyRemoteContext,
   refuseRemoteRestore,
   remoteCreate,
@@ -192,6 +194,11 @@ import {
   startRemotePoll,
   stopRemotePolls
 } from '../machines/remote-sessions';
+// PHASE 72. The manifest handle the machine layer writes remote rows through,
+// and the verb behind the restore gate. Both are direct rather than through
+// `../machines`, for the same reason the three imports above are.
+import { setRemoteManifest } from '../machines/remote-record';
+import { restoreRemoteSession } from '../machines/remote-restore';
 import type { RemoteMachineContext } from '../machines/context';
 import { gmuxError, isGmuxError } from '../errors';
 import { broadcastEvent } from '../typed-events';
@@ -506,6 +513,11 @@ export class GmuxCore {
 
   private constructor(manifest: ManifestStore) {
     this.manifest = manifest;
+    // PHASE 72. The machine layer writes remote session rows through this one
+    // handle rather than opening a second connection to a database this process
+    // already holds open for writing. It is taken away again in dispose(), so a
+    // poll landing after teardown cannot write to a closed manifest.
+    setRemoteManifest(manifest);
     this.attachHost = new AttachHost({
       tmuxBin: tmux.getTmuxContext().bin,
       confPath: tmux.resolveConfPath(),
@@ -1399,6 +1411,20 @@ export class GmuxCore {
   }
 
   /**
+   * One remote row as it currently reads, for a caller that is not going to act
+   * (Phase 72 fix round).
+   *
+   * The answer a second press of Restore gets while the first is still running.
+   * It is the same shape the local path returns in the same situation, being
+   * the row as it stands, so the surface re-renders and nothing is started.
+   */
+  private remoteSessionOrRecord(sessionId: string): Session {
+    const drawn = this.listSessions().find((one) => one.id === sessionId);
+    if (drawn !== undefined) return drawn;
+    return toSession(this.mustGetSession(sessionId));
+  }
+
+  /**
    * Restore a 'restorable' or 'exited' session (§2.4 Step 3): recreate it in
    * tmux with $SHELL, replay the scrollback snapshot as inert history, and
    * TYPE the recorded resume command without Enter (armed). Idempotent for
@@ -1427,12 +1453,43 @@ export class GmuxCore {
    * is not one of the answers.
    */
   async restoreSession(sessionId: string): Promise<Session> {
-    // PHASE 70, and it is the first line on purpose. A session on another
-    // machine has no manifest row, no saved scrollback and no resume command,
-    // because this release writes none of the three. So there is nothing to
-    // bring back and nothing is composed. The renderer removes the verb as well;
-    // this is the refusal behind it, and it is pinned as
-    // `machine.restore-refused` so a later rollup cannot delete it.
+    // PHASE 72, and it is the first branch on purpose. A session on another
+    // machine takes a different path entirely: a different composer, a
+    // different transport, a different set of conditions in front of it, and
+    // none of the local machinery below it.
+    //
+    // Phase 70 refused every remote row on this line. The gate is asked now
+    // instead of answering no, so a row it refuses gets its own sentence with
+    // nothing composed and nothing sent, and a row it offers goes somewhere.
+    // The local path is unchanged and is asked the same question below.
+    const remoteRow = this.manifest.getSession(sessionId);
+    if (
+      isRemoteSessionId(sessionId) ||
+      (remoteRow?.machineId !== undefined && remoteRow.machineId !== LOCAL_MACHINE)
+    ) {
+      // PHASE 72 FIX ROUND. THE DOUBLE PRESS GUARD COMES FIRST, before the gate
+      // and before anything is composed.
+      //
+      // It used to sit below this branch, so two presses on one remote row both
+      // passed the gate and both went on to compose a create. The window
+      // between them is several seconds wide, because the restore re-asserts
+      // the machine's own session server before it creates anything, and the
+      // only thing refusing the second create was that machine's own rule about
+      // duplicate session names. A rule on the far side is not a decision
+      // Tortie made, and a rename between the two presses would have removed it.
+      if (this.restoresInFlight.has(sessionId)) {
+        return this.remoteSessionOrRecord(sessionId);
+      }
+      this.restoresInFlight.add(sessionId);
+      try {
+        refuseRemoteRestore(sessionId);
+        const outcome = await restoreRemoteSession(sessionId);
+        this.broadcastSessions();
+        return outcome.session;
+      } finally {
+        this.restoresInFlight.delete(sessionId);
+      }
+    }
     refuseRemoteRestore(sessionId);
     const rec = this.mustGetSession(sessionId);
     // 'discarded' is accepted since Phase 29: a Past Sessions restore is the
@@ -2303,17 +2360,66 @@ export class GmuxCore {
    * {@link listRemovedSessions} instead.
    */
   listSessions(): Session[] {
-    return [
-      ...this.manifest
-        .listSessions()
-        .filter((rec) => rec.status !== 'discarded')
-        .map(toSession),
-      // Phase 70. The remote rows come after the manifest rows and they come
-      // from memory, because no remote session has a manifest row and none ever
-      // will in this release. Every one of them carries `machine`, which is what
-      // the badge draws and what tells the renderer that Restore is not offered.
-      ...remoteSessions()
-    ];
+    // PHASE 72. ONE ROW PER ID, and this merge is the part of the rung most
+    // likely to go wrong, so the rule is written out rather than left in the
+    // shape of the code.
+    //
+    // Before this, a remote session had no manifest row and the two lists could
+    // simply be concatenated. Now a session Tortie created on a machine is in
+    // BOTH: a manifest row written at create time, and a feed row read from that
+    // machine every pass. Concatenating would draw it twice.
+    //
+    //   a manifest row on this Mac        toSession, unchanged
+    //   a manifest row on a machine       projected by that machine's own truth
+    //   a feed row with no manifest row   projected as it was in Phase 70
+    //
+    // The third case is not a leftover to clean up. It is every remote session
+    // created by 0.34 or 0.35, which wrote no row, and it is a session the pane
+    // environment rescue re-bound after a create lost its answer. Both are real
+    // sessions running right now, and dropping them from the list would hide
+    // work a person can see on the other machine.
+    const out: Session[] = [];
+    const covered = new Set<string>();
+    for (const rec of this.manifest.listSessions()) {
+      if (rec.status === 'discarded') continue;
+      covered.add(rec.id);
+      if (rec.machineId === undefined || rec.machineId === LOCAL_MACHINE) {
+        out.push(toSession(rec));
+        continue;
+      }
+      // PHASE 72, SECOND FIX ROUND. `toSession` stamps the instant of the copy
+      // for a local row. `projectRemoteRecord` cannot, because the machines
+      // layer is not allowed to reach into the restore layer and its own test
+      // holds that rule. So the stamp happens here, which is the one place the
+      // two lists are merged, exactly as it does in the feed loop below.
+      //
+      // Without it the saved output panel was unreachable for every remote
+      // session that HAS a manifest row, which is every remote session this
+      // build creates. The copies were on disk the whole time. The menu item
+      // stayed disabled and the kept-here line never drew, because both read
+      // this field.
+      const remote = projectRemoteRecord(rec);
+      const remoteSavedAt = savedOutputAt(remote.id);
+      out.push(
+        remoteSavedAt === null ? remote : { ...remote, savedOutputAt: remoteSavedAt }
+      );
+    }
+    for (const session of remoteSessions()) {
+      if (covered.has(session.id)) continue;
+      // PHASE 72 FIX ROUND. A feed row has no manifest row, so `toSession` never
+      // saw it and nothing stamped the instant of the copy Tortie keeps of its
+      // output. The menu item that opens the saved output panel is offered only
+      // for a row that carries one, so without this the panel was unreachable
+      // for exactly the rows an older Tortie created.
+      //
+      // It is stamped HERE rather than in the machines layer because that layer
+      // is not allowed to reach into the restore layer, which is a rule its own
+      // test holds. This is the one place the two lists are merged, so it is the
+      // one place a field that comes from a third place belongs.
+      const savedAt = savedOutputAt(session.id);
+      out.push(savedAt === null ? session : { ...session, savedOutputAt: savedAt });
+    }
+    return out;
   }
 
   /**
@@ -3100,6 +3206,9 @@ export class GmuxCore {
     stopRemotePolls();
     this.unsubscribeRemote?.();
     this.unsubscribeRemote = null;
+    // Phase 72. BEFORE the manifest is closed below, so nothing in the machine
+    // layer holds a handle to a connection that is about to go away.
+    setRemoteManifest(null);
     this.unwatchSettings?.();
     this.unwatchSettings = null;
     this.activity.dispose();

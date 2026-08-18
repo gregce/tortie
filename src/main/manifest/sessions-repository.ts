@@ -25,6 +25,8 @@ import {
   LOCAL_MACHINE_ROW,
   manifestError,
   rowToRecord,
+  serializeMachineTombstone,
+  type MachineTombstone,
   type ManifestSessionPatch,
   type ManifestSessionRecord,
   type SessionRow,
@@ -42,47 +44,22 @@ import {
 const DISCARDED_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
 
 /**
- * The refusal that keeps migration 013 additive (Phase 71).
+ * PHASE 72 DELETED THE REFUSAL THAT USED TO STAND HERE, and this note is the
+ * record of it so a later reader does not go looking for a guard that was
+ * removed on purpose.
  *
- * Pinned in the shipped bundle by `build/assert-bundle-refusals.mjs` as
- * `manifest.machine-id-nonlocal`.
+ * `MACHINE_ID_NONLOCAL`, pinned as `manifest.machine-id-nonlocal`, refused any
+ * write of a `machine_id` other than `local`. It existed because Phase 71 left
+ * `MANIFEST_MIN_COMPATIBLE_VERSION` at 8 across migration 013, so a build at
+ * schema 12 could still write this file and would read every row as a session on
+ * this Mac. That was correct only while the column held one value.
  *
- * WHY IT EXISTS. `MANIFEST_MIN_COMPATIBLE_VERSION` stays at 8 across migration
- * 013, which means a build at schema 12 may still open and WRITE this manifest.
- * That build has no `machine_id` column in its world, so it reads every row as a
- * session on this Mac. Today that is correct, because every value in the column
- * is `local`. The first row carrying any other value makes it wrong in the worst
- * direction: an older build would read a session running on another machine as a
- * local one and could recreate it here, which is two agents on one conversation.
- *
- * So the write is refused rather than the compatibility number being left to a
- * later reader's judgement. THE BUILD THAT RECORDS A REAL MACHINE ID MOVES
- * `MANIFEST_MIN_COMPATIBLE_VERSION` TO 13 AND DELETES THIS REFUSAL IN THE SAME
- * COMMIT. That is M5, and this sentence is the note it is meant to find.
+ * Phase 71 wrote the instruction and Phase 72 executed it: this build records
+ * real machine ids, so `MANIFEST_MIN_COMPATIBLE_VERSION` moved from 8 to 13 in
+ * the same commit. The number now does the work the sentence was standing in
+ * for, and it does it better, because an older build is refused at the open
+ * rather than relying on this build to decline a write.
  */
-export const MACHINE_ID_NONLOCAL =
-  'Tortie will not record a session as living on another machine while an ' +
-  'older build could read that row as living on this one. The build that ' +
-  'records it must raise the oldest build allowed to write this file.';
-
-/**
- * Refuse a row that names any machine other than this Mac.
- *
- * `undefined` passes, because the create paths compose a record without stating
- * the one value the column can hold, and the insert writes the constant for
- * them. Anything else is refused with {@link MACHINE_ID_NONLOCAL}.
- *
- * @throws Error with a JSON GmuxErrorPayload (code INVALID_INPUT).
- */
-export function assertMachineIdWritable(machineId: string | undefined): void {
-  if (machineId === undefined || machineId === LOCAL_MACHINE_ROW) return;
-  throw manifestError(
-    'INVALID_INPUT',
-    MACHINE_ID_NONLOCAL,
-    `the row named machine ${JSON.stringify(machineId)} and this build writes ` +
-      `only ${JSON.stringify(LOCAL_MACHINE_ROW)}`
-  );
-}
 
 export class SessionsRepository {
   constructor(private readonly db: Database.Database) {}
@@ -180,8 +157,10 @@ export class SessionsRepository {
     // Phase 71. The returned record states the machine, whether the caller did
     // or not, so what this method hands back is what the row now holds. A
     // caller reading `machineId` off the return value would otherwise get
-    // `undefined` for a row the database has written `local` into.
-    return { ...record, machineId: LOCAL_MACHINE_ROW };
+    // `undefined` for a row the database has written a value into. Phase 72: the
+    // value is the caller's when it gave one, because a remote create names its
+    // machine and the row has to carry it.
+    return { ...record, machineId: record.machineId ?? LOCAL_MACHINE_ROW };
   }
 
   /**
@@ -192,14 +171,6 @@ export class SessionsRepository {
    * rejected.
    */
   private insertSessionRow(record: ManifestSessionRecord): void {
-    // Phase 71, BEFORE the statement and outside the try below, because a
-    // refusal is not a failed insert and must not be reported as one. The
-    // `catch` turns everything into "Could not record session ... in the
-    // manifest", which is the right sentence for a constraint violation and
-    // the wrong one for a write this build declines to make. See
-    // MACHINE_ID_NONLOCAL for what it protects and for the commit that
-    // deletes it.
-    assertMachineIdWritable(record.machineId);
     try {
       this.db
         .prepare(
@@ -208,14 +179,16 @@ export class SessionsRepository {
               argv, resume_argv, env, status, created_at, last_seen, exit_code,
               exit_signal, pane_pid, resume_capture, specstory, restore,
               agent_version, agent_contract, resume_provenance,
-              context_snapshot, env_passthrough, exit_detail, machine_id)
+              context_snapshot, env_passthrough, exit_detail, machine_id,
+              machine_tombstone)
            VALUES
              (@id, @name, @tmuxName, @projectPath, @cwd, @agent,
               @agentSessionId, @argv, @resumeArgv, @env, @status,
               @createdAt, @lastSeen, @exitCode, @exitSignal, @panePid,
               @resumeCapture, @specstory, @restore,
               @agentVersion, @agentContract, @resumeProvenance,
-              @contextSnapshot, @envPassthrough, @exitDetail, @machineId)`
+              @contextSnapshot, @envPassthrough, @exitDetail, @machineId,
+              @machineTombstone)`
         )
         .run({
           id: record.id,
@@ -260,10 +233,15 @@ export class SessionsRepository {
               : null,
           // Phase 71. Written once, with the row, and the UPDATE below does not
           // name the column, so where a session runs cannot be changed by any
-          // later patch. The value is the constant rather than the record's
-          // field: the guard above has already refused anything else, so this
-          // line cannot be the place a different value slips through.
-          machineId: LOCAL_MACHINE_ROW
+          // later patch. Phase 72: the record's own value is written, because a
+          // remote create names its machine here and the row is the only place
+          // that fact can live. A record that states nothing gets the ordinary
+          // value, which is what every local create composes.
+          machineId: record.machineId ?? LOCAL_MACHINE_ROW,
+          // Phase 72. NULL at insert on every create of any kind. A session
+          // whose machine has been removed cannot be a session being created.
+          // `markMachineForgotten` is the only writer.
+          machineTombstone: serializeMachineTombstone(record.machineTombstone)
         });
     } catch (err) {
       throw manifestError(
@@ -625,6 +603,82 @@ export class SessionsRepository {
             WHERE id = ?`
         )
         .run(at, id);
+      if (info.changes === 0) {
+        throw manifestError(
+          'SESSION_NOT_FOUND',
+          `No manifest row for session ${id}`
+        );
+      }
+    });
+  }
+
+  /**
+   * Record that a completed list from a machine still held this session
+   * (Phase 72).
+   *
+   * `last_seen` MEANS "last confirmed alive", and for a session on another
+   * machine the only thing that can confirm it is a list from that machine that
+   * completed and held the row. This is the write for that, and it is a
+   * dedicated statement rather than a `updateSession` patch for two reasons.
+   *
+   * It runs on every completed pass that holds the row, which on a machine with
+   * a live connection is once per event that machine reports. The patch path
+   * reads the whole row and writes every column back, and doing that per row per
+   * pass would be the most frequent write in the product for the least valuable
+   * field in it. This one touches one column.
+   *
+   * And it must NOT move the status. The status of a remote row is decided by
+   * the case table in `../machines/status-truth.ts`, written back only when it
+   * changes, and a second writer that could move it by accident is exactly the
+   * kind of thing that makes a row disagree with the machine it names.
+   *
+   * NOT a durable commit. Losing it loses one instant on a row whose next
+   * completed pass writes it again seconds later.
+   *
+   * A silent no-op when the id has no row. A remote row created by 0.34 or 0.35
+   * has no manifest row at all, and the feed still reports it every pass.
+   */
+  setLastSeen(id: string, at: number): void {
+    this.db
+      .prepare<[number, string]>('UPDATE sessions SET last_seen = ? WHERE id = ?')
+      .run(at, id);
+  }
+
+  /**
+   * Tombstone a row because a person removed the machine it runs on
+   * (Phase 72, migration 014).
+   *
+   * ONE STATEMENT writes all four facts: the status, the removal instant, and
+   * the record of what Tortie last knew. They are one write because they are one
+   * event, and a crash between them would leave a discarded row with no
+   * explanation of which machine went away, which is the state this whole item
+   * exists to remove.
+   *
+   * A DURABLE COMMIT, for the same reason `markSessionRemoved` is one. The caller
+   * removes the machine row from `machines.json` the moment this returns, and a
+   * NORMAL commit could be discarded by power loss. Durable first means the two
+   * sides can only be lost in the safe order: a tombstone naming a machine that
+   * is still in the list reads correctly, and a machine removed with no
+   * tombstone behind it does not.
+   *
+   * NOTHING IS SENT TO THE MACHINE by this method or by its caller. The sessions
+   * over there keep running, and the tombstone's own sentence says so.
+   *
+   * @throws SESSION_NOT_FOUND when the id has no row.
+   */
+  markMachineForgotten(
+    id: string,
+    tombstone: MachineTombstone,
+    at: number = tombstone.forgottenAt
+  ): void {
+    durableTransaction(this.db, () => {
+      const info = this.db
+        .prepare<[number, string, string]>(
+          `UPDATE sessions
+              SET status = 'discarded', removed_at = ?, machine_tombstone = ?
+            WHERE id = ?`
+        )
+        .run(at, JSON.stringify(tombstone), id);
       if (info.changes === 0) {
         throw manifestError(
           'SESSION_NOT_FOUND',

@@ -244,30 +244,21 @@ const REFUSALS = [
       ' migrations. They are the same number. '
     ]
   },
-  {
-    // PHASE 71. Migration 013 adds `machine_id` and leaves
-    // MANIFEST_MIN_COMPATIBLE_VERSION at 8, so a build at schema 12 may still
-    // open and WRITE this manifest. That build has no such column and reads
-    // every row as a session on this Mac. Today that is correct, because every
-    // value in the column is `local`. The first row carrying any other value
-    // makes it wrong in the worst direction: an older build would read a
-    // session running on another machine as a local one and could recreate it
-    // here, which is two agents on one conversation.
-    //
-    // THE BUILD THAT RECORDS A REAL MACHINE ID MOVES THE MINIMUM TO 13 AND
-    // DELETES THIS ENTRY IN THE SAME COMMIT. That is M5.
-    id: 'manifest.machine-id-nonlocal',
-    source: 'src/main/manifest/sessions-repository.ts',
-    why:
-      'a durable row that names another machine, written while an older build ' +
-      'may still open the file, is a row that older build reads as local and ' +
-      'can recreate on this Mac',
-    fragments: [
-      'Tortie will not record a session as living on another machine while an ',
-      'older build could read that row as living on this one. The build that ',
-      'records it must raise the oldest build allowed to write this file.'
-    ]
-  }
+  // PHASE 72 DELETED `manifest.machine-id-nonlocal` FROM THIS LIST, and the
+  // deletion is recorded here rather than left as a shorter array.
+  //
+  // Phase 71 added it because migration 013 left MANIFEST_MIN_COMPATIBLE_VERSION
+  // at 8, so a build at schema 12 could still open and write the manifest and
+  // would read every row as a session on this Mac. The refusal declined to write
+  // any machine id other than `local`, which kept that reading true.
+  //
+  // Phase 72 is the build that records a real machine id. It moved the minimum
+  // from 8 to 13 in the same commit, so an older build is now refused at the
+  // OPEN rather than relying on this build to decline a write. The number does
+  // the work the sentence was standing in for, and it does it in the one place
+  // that protects a manifest from a build that has already shipped.
+  // `schema.version-matches-the-migration-count` above still pins the assertion
+  // that keeps the number honest.
 ];
 
 /**
@@ -435,8 +426,17 @@ const CONFIG_REFUSALS = [
  * person gave becomes a formality.
  *
  * PHASE 70 raised the count from ten to twelve, and the two it added are about
- * the sessions rather than the gate: one refuses a restore Tortie cannot do, and
- * one refuses a command aimed at a session no list from that machine reported.
+ * the sessions rather than the gate: one refused a restore Tortie could not do,
+ * and one refuses a command aimed at a session no list from that machine
+ * reported.
+ *
+ * PHASE 72 TOOK ONE OUT AND PUT FOUR IN, so the count is sixteen. The one that
+ * left is `machine.restore-refused`, whose sentence said that bringing a session
+ * back on another machine was coming in a later release. This is that release,
+ * so the sentence became false. The four that arrived are the restore gate's own
+ * sentences, one per condition that can fail, and losing any of them costs more
+ * than losing anything else on this page: two agents writing to one conversation
+ * on a machine nobody is watching.
  *
  * They are not folded into CONFIG_REFUSALS because that number is quoted in the
  * Phase 23 records as the count of the configured-agent gate's refusals, and
@@ -571,19 +571,12 @@ const MACHINE_REFUSALS = [
   // and exactly the case this file exists for.
   // `src/main/machines/remote-smoke.ts` is the second caller and it watches both
   // fire.
-  {
-    id: 'machine.restore-refused',
-    source: 'src/main/machines/remote-copy.ts',
-    why:
-      'a session on another machine has no manifest row, no saved scrollback ' +
-      'and no resume command in this release, so there is nothing to bring ' +
-      'back. Without this sentence a person would press Restore and get either ' +
-      'silence or a second session started from nothing',
-    fragments: [
-      'Tortie will not bring back a session that lives on another machine. That ',
-      'is coming in a later release. Nothing was started.'
-    ]
-  },
+  // PHASE 72 RETIRED `machine.restore-refused`. Its sentence said that bringing
+  // a session back on another machine was coming in a later release, and this is
+  // that release, so the sentence became false and was deleted rather than
+  // reworded. The four entries at the end of this list are what took its place,
+  // one per condition the restore gate can fail. `machine.remote-target-unbound`
+  // below is unchanged.
   {
     id: 'machine.remote-target-unbound',
     source: 'src/main/machines/remote-copy.ts',
@@ -633,6 +626,71 @@ const MACHINE_REFUSALS = [
       'Tortie could not compose a short enough name for the connection it keeps ',
       'open to this machine. This is a limit of this system rather than a problem ',
       'with the machine. Nothing was started.'
+    ]
+  },
+  // ---------------------------------------------------------------------------
+  // Phase 72 added these four, and they are the restore gate's own sentences
+  // ---------------------------------------------------------------------------
+  //
+  // Restore for a session on another machine ships ENABLED behind six conditions
+  // that all have to hold at once. Each of these is the sentence for one of the
+  // conditions that can fail, and the cost of losing one is the largest on this
+  // page: a person presses Restore, Tortie brings back a session that never
+  // stopped running, and two agents write to one conversation on a machine
+  // nobody is watching. There is no undo for that.
+  //
+  // Three of the four are reached rarely in ordinary use, which is exactly the
+  // branch a bundler folds away. `src/main/machines/remote-smoke.ts` is the
+  // second caller and it watches each one fire.
+  {
+    id: 'machine.restore-unseen',
+    source: 'src/main/machines/remote-copy.ts',
+    why:
+      'a link that dropped says nothing about what is running on the other ' +
+      'side, and reading it as a death is what offers Restore over an agent ' +
+      'that is still working',
+    fragments: [
+      'Tortie cannot see that machine right now, so it will not try to bring this ',
+      'session back. Bringing a session back while the machine is out of sight can ',
+      'start a second agent on the same conversation. Nothing was started.'
+    ]
+  },
+  {
+    id: 'machine.restore-wrong-machine',
+    source: 'src/main/machines/remote-copy.ts',
+    why:
+      'the program path on a remote row was read on ONE machine with that ' +
+      "machine's own search list, so using it anywhere else starts the wrong " +
+      'program or none at all',
+    fragments: [
+      'This session was created on a different machine. The program path Tortie ',
+      'recorded for it only means something there, so Tortie will not use it here. ',
+      'Nothing was started.'
+    ]
+  },
+  {
+    id: 'machine.restore-forgotten',
+    source: 'src/main/machines/remote-copy.ts',
+    why:
+      'a row for a machine a person removed survives as a record of what ' +
+      'Tortie last knew, and a record is not a route back to the machine',
+    fragments: [
+      'You removed this machine from Tortie. This row is a record of what Tortie ',
+      'last knew about the session, and Tortie can no longer reach the machine to ',
+      'bring it back. Nothing was started.'
+    ]
+  },
+  {
+    id: 'machine.resume-not-collected',
+    source: 'src/main/machines/remote-copy.ts',
+    why:
+      'a restore on another machine brings the session back and not the ' +
+      'conversation, and a person who is not told that discovers it in an ' +
+      'empty pane instead',
+    fragments: [
+      'Tortie has no conversation id for this session, because it does not read an ',
+      "agent's own files on another machine yet. The session comes back with its ",
+      'folder and its program. The conversation does not come back.'
     ]
   }
 ];

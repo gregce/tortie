@@ -13,10 +13,22 @@
  * per-row disclosure is the reason design B won the adversarial round. Rows
  * arrive presorted from main, newest removal first by removedAt, and are
  * never re-sorted here.
+ *
+ * PHASE 72 ADDED A SECOND WAY A ROW GETS HERE. A person can remove a MACHINE,
+ * and every session Tortie held a record of on that machine becomes a row in
+ * this panel carrying `machineGone`. Such a row says what Tortie last knew and
+ * when, and its Restore button is off with the reason beside it rather than
+ * missing. The sentences come from src/renderer/settings/machines-copy.ts,
+ * beside the removal question they answer, so the two halves of one promise
+ * are written in one place and audited by one test.
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { Session } from '@shared/types';
+import {
+  tombstoneLine,
+  tombstoneRestoreRefused
+} from '../settings/machines-copy';
 import { agentShortLabel } from '../state/agents';
 import { useApp } from '../state/store';
 import { displayPath } from './format';
@@ -140,8 +152,17 @@ export function PastSessionsModal(): React.JSX.Element | null {
           ) : (
             visible.map((session) => {
               const restoring = restoringIds[session.id] === true;
+              // PHASE 72. A row whose machine a person removed. Tortie can no
+              // longer reach the machine that holds the work, so Restore is
+              // off and the row carries the sentence saying so.
+              const gone = session.machineGone;
               return (
-                <div className="past-row" role="listitem" key={session.id}>
+                <div
+                  className="past-row"
+                  role="listitem"
+                  key={session.id}
+                  data-machine-gone={gone === undefined ? undefined : 'yes'}
+                >
                   <div className="past-row-main">
                     <div className="past-row-line1">
                       <span className="past-name">{session.name}</span>
@@ -169,15 +190,30 @@ export function PastSessionsModal(): React.JSX.Element | null {
                       ) : null}
                     </div>
                     <div className="past-promise">
-                      {pastSessionPromise(session) === 'continues'
-                        ? 'Continues the conversation'
-                        : 'Starts fresh'}
+                      {gone === undefined
+                        ? pastSessionPromise(session) === 'continues'
+                          ? 'Continues the conversation'
+                          : 'Starts fresh'
+                        : tombstoneLine(
+                            gone.label,
+                            gone.forgottenAt,
+                            gone.lastSeenAt,
+                            gone.lastStatus
+                          )}
                     </div>
+                    {gone === undefined ? null : (
+                      /* The same muted voice the promise line uses. A row
+                         whose machine is gone is a fact rather than an
+                         alarm, and the button beside it is already off. */
+                      <div className="past-promise">
+                        {tombstoneRestoreRefused(gone.label)}
+                      </div>
+                    )}
                   </div>
                   <button
                     type="button"
                     className="btn btn-secondary past-restore"
-                    disabled={restoring}
+                    disabled={restoring || gone !== undefined}
                     onClick={() => void restorePastSession(session.id)}
                   >
                     {restoring ? 'Restoring…' : 'Restore'}

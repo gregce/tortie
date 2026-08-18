@@ -1,6 +1,6 @@
 /**
- * Migration 013, `machine_id`, against a real manifest built at schema 12
- * (Phase 71, M4).
+ * Migrations 013 and 014, `machine_id` and `machine_tombstone`, against a real
+ * manifest built at schema 12 (Phase 71, M4, then Phase 72, M5).
  *
  * ## Why it builds the old file rather than asserting on today's
  *
@@ -22,8 +22,12 @@
  *  4. The migration is idempotent: applying it twice leaves the same bytes.
  *  5. A row inserted after the migration carries `'local'`.
  *
- * And then the refusal, which is what keeps the migration additive: a record
- * naming any other machine is refused rather than written.
+ * PHASE 72 REPLACED THE LAST SECTION. It used to assert the refusal that kept
+ * migration 013 additive, being that a record naming any machine other than this
+ * Mac was refused rather than written. This build records real machine ids, so
+ * that refusal is gone and `MANIFEST_MIN_COMPATIBLE_VERSION` moved from 8 to 13
+ * in the same commit. The section now asserts the write that used to be refused,
+ * the number that replaced the refusal, and migration 014's tombstone column.
  */
 
 import Database from 'better-sqlite3';
@@ -47,7 +51,6 @@ const {
   MIGRATIONS
 } = await import('../schema');
 const { LOCAL_MACHINE_ROW } = await import('../codecs');
-const { MACHINE_ID_NONLOCAL } = await import('../sessions-repository');
 const { ManifestStore } = await import('../store');
 const { LOCAL_MACHINE_ID } = await import('../../machines/context');
 
@@ -68,8 +71,10 @@ afterEach(() => {
 // The file this migration has to be right about
 // ---------------------------------------------------------------------------
 
-/** Every migration this build ships except the one under test. */
-const UP_TO_012 = MIGRATIONS.filter((one) => one.name !== '013-machine-id');
+/** Every migration this build ships except the two under test. */
+const UP_TO_012 = MIGRATIONS.filter(
+  (one) => one.name !== '013-machine-id' && one.name !== '014-machine-tombstone'
+);
 
 /**
  * When the discarded row was removed.
@@ -259,23 +264,35 @@ function userVersion(): number {
 // ---------------------------------------------------------------------------
 
 describe('the three compatibility numbers', () => {
-  it('the schema version is the migration count, and both are 13', () => {
-    expect(MANIFEST_SCHEMA_VERSION).toBe(13);
-    expect(MIGRATIONS.length).toBe(13);
+  it('the schema version is the migration count, and both are 14', () => {
+    expect(MANIFEST_SCHEMA_VERSION).toBe(14);
+    expect(MIGRATIONS.length).toBe(14);
   });
 
-  it('the last migration is 013-machine-id', () => {
-    expect(MIGRATIONS.at(-1)?.name).toBe('013-machine-id');
+  it('the last migration is 014-machine-tombstone', () => {
+    expect(MIGRATIONS.at(-1)?.name).toBe('014-machine-tombstone');
+    expect(MIGRATIONS.at(-2)?.name).toBe('013-machine-id');
   });
 
   /**
-   * ADDITIVE, NOT BREAKING. The reason is written at the migration: an older
-   * build writing NULL here produces a row the new build reads as local, and
-   * every row an older build writes IS local, because no build older than this
-   * one can create a session anywhere else.
+   * PHASE 72 MOVED IT FROM 8 TO 13, and this is the assertion that says so.
+   *
+   * This build records a session as living on another machine. A build at
+   * schema 12 has no `machine_id` column in its world and reads every row as a
+   * session on this Mac, so it would offer Restore over a session running
+   * somewhere else and recreate it here while the original keeps running. That
+   * is two agents on one conversation. Phase 71 left this at 8 behind a refusal
+   * on the write, and the instruction it carried was that the build recording a
+   * real machine id moves this number and deletes that refusal in one commit.
+   *
+   * 13 rather than 14 because a build at schema 13 HAS the column, reads it, and
+   * writes `local` into every row it creates. What it lacks is the tombstone,
+   * and a build with no tombstone column shows a discarded row with no
+   * explanation of which machine went away. That is a degraded surface rather
+   * than a misread.
    */
-  it('the oldest build allowed to write this file is still 8', () => {
-    expect(MANIFEST_MIN_COMPATIBLE_VERSION).toBe(8);
+  it('the oldest build allowed to write this file is 13', () => {
+    expect(MANIFEST_MIN_COMPATIBLE_VERSION).toBe(13);
   });
 
   /**
@@ -303,7 +320,7 @@ describe('a manifest built at schema 12, migrated', () => {
     const store = new ManifestStore(dbPath);
     try {
       // 1. The version moved.
-      expect(userVersion()).toBe(13);
+      expect(userVersion()).toBe(14);
 
       // 2. Every pre-existing row reads local.
       const records = store.listSessions();
@@ -345,15 +362,18 @@ describe('a manifest built at schema 12, migrated', () => {
     first.close();
     const afterOnce = rawRows();
 
-    // Force the step to run again by deleting its bookkeeping row.
+    // Force both steps to run again by deleting their bookkeeping rows.
     const db = new Database(dbPath);
-    db.prepare('DELETE FROM migrations WHERE name = ?').run('013-machine-id');
+    db.prepare('DELETE FROM migrations WHERE name IN (?, ?)').run(
+      '013-machine-id',
+      '014-machine-tombstone'
+    );
     db.close();
 
     const second = new ManifestStore(dbPath);
     second.close();
     expect(rawRows()).toEqual(afterOnce);
-    expect(userVersion()).toBe(13);
+    expect(userVersion()).toBe(14);
   });
 
   it('a row inserted after the migration carries local', () => {
@@ -405,41 +425,46 @@ describe('a manifest built at schema 12, migrated', () => {
 });
 
 // ---------------------------------------------------------------------------
-// The refusal that keeps the migration additive
+// The write that used to be refused (Phase 72)
 // ---------------------------------------------------------------------------
 
 /**
- * The minimum stays at 8, so a build at schema 12 may still write this file and
- * reads every row as a session on this Mac. That is correct only while every
- * value in the column is `local`, so the write of any other value is refused
- * rather than left to a later reader's judgement.
+ * Phase 71 refused any `machine_id` other than `local`, under
+ * `manifest.machine-id-nonlocal`, because the minimum stayed at 8 and a build at
+ * schema 12 would have read such a row as a session on this Mac. Phase 72 moved
+ * the minimum to 13 and deleted the refusal in the same commit, so the write
+ * below is the one this rung exists to make.
  */
-describe('the refusal on a non local machine id', () => {
-  it('refuses a record naming another machine, and writes no row', () => {
+describe('a row that names another machine', () => {
+  it('is written, and reads back naming that machine', () => {
     const store = new ManifestStore(dbPath);
     try {
-      expect(() =>
-        store.insertSession({
-          id: 'r-remote',
-          name: 'on the studio',
-          tmuxName: 'on-the-studio',
-          projectPath: '/w/remote',
-          cwd: '/w/remote',
-          agent: 'claude',
-          status: 'running',
-          createdAt: 1_700_002_000_000,
-          argv: ['/opt/homebrew/bin/claude'],
-          lastSeen: 1_700_002_000_000,
-          machineId: 'studio'
-        })
-      ).toThrow(new RegExp(MACHINE_ID_NONLOCAL.slice(0, 40)));
-      expect(store.getSession('r-remote')).toBeUndefined();
+      const written = store.insertSession({
+        id: 'r-remote',
+        name: 'on the studio',
+        tmuxName: 'on-the-studio',
+        projectPath: '/Users/them/work',
+        cwd: '/Users/them/work',
+        agent: 'claude',
+        status: 'running',
+        createdAt: 1_700_002_000_000,
+        // The absolute path ON THAT MACHINE. It means nothing here, and it is
+        // recorded rather than sent.
+        argv: ['/opt/homebrew/bin/claude'],
+        lastSeen: 1_700_002_000_000,
+        machineId: 'studio'
+      });
+      expect(written.machineId).toBe('studio');
+      expect(store.getSession('r-remote')?.machineId).toBe('studio');
+      expect(store.getSession('r-remote')?.argv[0]).toBe(
+        '/opt/homebrew/bin/claude'
+      );
     } finally {
       store.close();
     }
   });
 
-  it('accepts a record that states local, and one that states nothing', () => {
+  it('still writes local for a record that states local, and one that states nothing', () => {
     const store = new ManifestStore(dbPath);
     try {
       store.insertSession({
@@ -475,13 +500,215 @@ describe('the refusal on a non local machine id', () => {
   });
 
   /**
-   * The sentence a person reads. It says what Tortie will not do and what has to
-   * change for it to do it, and it names no transport and no table.
+   * WHERE A SESSION RUNS IS DECIDED ONCE, AT CREATE. The patch type excludes
+   * `machineId` and the UPDATE statement does not name the column, so a patch
+   * could not move a row to a machine nobody chose even if the type allowed one.
+   * That mattered less while every value was `local`. It matters now.
    */
-  it('the sentence names the fix rather than the mechanism', () => {
-    expect(MACHINE_ID_NONLOCAL).toContain('another machine');
-    expect(MACHINE_ID_NONLOCAL).toContain('oldest build allowed to write');
-    expect(MACHINE_ID_NONLOCAL).not.toContain('—');
-    expect(MACHINE_ID_NONLOCAL).not.toContain('machine_id');
+  it('cannot be moved to another machine by a later patch', () => {
+    const store = new ManifestStore(dbPath);
+    try {
+      store.insertSession({
+        id: 'r-fixed',
+        name: 'fixed',
+        tmuxName: 'fixed',
+        projectPath: '/w/c',
+        cwd: '/w/c',
+        agent: 'shell',
+        status: 'running',
+        createdAt: 1_700_004_000_000,
+        argv: ['/bin/zsh'],
+        lastSeen: 1_700_004_000_000,
+        machineId: 'studio'
+      });
+      store.updateSession('r-fixed', { name: 'renamed' });
+      expect(store.getSession('r-fixed')?.machineId).toBe('studio');
+      expect(store.getSession('r-fixed')?.name).toBe('renamed');
+    } finally {
+      store.close();
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Migration 014, the tombstone (Phase 72)
+// ---------------------------------------------------------------------------
+
+describe('the tombstone a removed machine leaves', () => {
+  it('adds one nullable column and leaves every existing row alone', () => {
+    seedAtSchema12();
+    const before = rawRows();
+    const store = new ManifestStore(dbPath);
+    try {
+      const after = rawRows();
+      for (const [index, row] of before.entries()) {
+        const now = after[index] ?? {};
+        for (const column of Object.keys(row)) {
+          expect(
+            { column, value: now[column] },
+            `${String(row['id'])}.${column}`
+          ).toEqual({ column, value: row[column] });
+        }
+        // NULL is the true answer for every row whose machine is still there.
+        expect(now['machine_tombstone']).toBeNull();
+      }
+      for (const record of store.listSessions()) {
+        expect(record.machineTombstone).toBeUndefined();
+      }
+    } finally {
+      store.close();
+    }
+  });
+
+  it('writes the status, the removal instant and the record in one statement', () => {
+    const store = new ManifestStore(dbPath);
+    try {
+      store.insertSession({
+        id: 'r-tombstoned',
+        name: 'on a machine that went away',
+        tmuxName: 'gone',
+        projectPath: '/Users/them/work',
+        cwd: '/Users/them/work',
+        agent: 'claude',
+        status: 'running',
+        createdAt: 1_700_005_000_000,
+        argv: ['/opt/homebrew/bin/claude'],
+        lastSeen: 1_700_005_500_000,
+        machineId: 'studio'
+      });
+      store.markMachineForgotten('r-tombstoned', {
+        v: 1,
+        machineId: 'studio',
+        machineLabel: 'Studio',
+        lastStatus: 'running',
+        lastSeenAt: 1_700_005_500_000,
+        forgottenAt: 1_700_006_000_000
+      });
+      const record = store.getSession('r-tombstoned');
+      expect(record?.status).toBe('discarded');
+      expect(record?.removedAt).toBe(1_700_006_000_000);
+      expect(record?.machineTombstone).toEqual({
+        v: 1,
+        machineId: 'studio',
+        machineLabel: 'Studio',
+        lastStatus: 'running',
+        lastSeenAt: 1_700_005_500_000,
+        forgottenAt: 1_700_006_000_000
+      });
+    } finally {
+      store.close();
+    }
+  });
+
+  /**
+   * A half read tombstone would draw a sentence naming a machine it cannot name
+   * or an instant it does not have, and this is a record about work a person may
+   * have lost. So an unreadable value is dropped whole and the row reads as an
+   * ordinary removal, which is what it is.
+   */
+  it('drops an unreadable value whole rather than reading half of it', () => {
+    const store = new ManifestStore(dbPath);
+    store.insertSession({
+      id: 'r-broken',
+      name: 'broken record',
+      tmuxName: 'broken-record',
+      projectPath: '/w',
+      cwd: '/w',
+      agent: 'shell',
+      status: 'running',
+      createdAt: 1_700_007_000_000,
+      argv: ['/bin/zsh'],
+      lastSeen: 1_700_007_000_000,
+      machineId: 'studio'
+    });
+    store.close();
+
+    const db = new Database(dbPath);
+    for (const value of [
+      'not json at all',
+      '{"v":1,"machineId":"studio"}',
+      '{"v":1,"machineId":"studio","machineLabel":"","lastStatus":"running","lastSeenAt":0,"forgottenAt":1}',
+      '{"v":1,"machineId":"studio","machineLabel":"Studio","lastStatus":"nonsense","lastSeenAt":0,"forgottenAt":1}'
+    ]) {
+      db.prepare('UPDATE sessions SET machine_tombstone = ? WHERE id = ?').run(
+        value,
+        'r-broken'
+      );
+      const reopened = new ManifestStore(dbPath);
+      try {
+        expect(reopened.getSession('r-broken')?.machineTombstone).toBeUndefined();
+      } finally {
+        reopened.close();
+      }
+    }
+    db.close();
+  });
+
+  it('refuses to tombstone an id with no row', () => {
+    const store = new ManifestStore(dbPath);
+    try {
+      expect(() =>
+        store.markMachineForgotten('nobody', {
+          v: 1,
+          machineId: 'studio',
+          machineLabel: 'Studio',
+          lastStatus: 'running',
+          lastSeenAt: 0,
+          forgottenAt: 1_700_008_000_000
+        })
+      ).toThrow(/No manifest row/);
+    } finally {
+      store.close();
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The one column write a completed remote list makes (Phase 72)
+// ---------------------------------------------------------------------------
+
+describe('setLastSeen', () => {
+  /**
+   * It moves ONE column. A remote row's status is decided by the case table in
+   * `../machines/status-truth.ts` and written only when it changes, and a second
+   * writer that could move it by accident is exactly what makes a row disagree
+   * with the machine it names.
+   */
+  it('moves last seen and touches nothing else', () => {
+    const store = new ManifestStore(dbPath);
+    try {
+      store.insertSession({
+        id: 'r-seen',
+        name: 'seen',
+        tmuxName: 'seen',
+        projectPath: '/w',
+        cwd: '/w',
+        agent: 'shell',
+        status: 'running',
+        createdAt: 1_700_009_000_000,
+        argv: ['/bin/zsh'],
+        lastSeen: 1_700_009_000_000,
+        machineId: 'studio'
+      });
+      store.setLastSeen('r-seen', 1_700_009_900_000);
+      const record = store.getSession('r-seen');
+      expect(record?.lastSeen).toBe(1_700_009_900_000);
+      expect(record?.status).toBe('running');
+      expect(record?.machineId).toBe('studio');
+    } finally {
+      store.close();
+    }
+  });
+
+  /** Every remote session created by 0.34 or 0.35 has no row at all. */
+  it('is a silent no-op for an id with no row', () => {
+    const store = new ManifestStore(dbPath);
+    try {
+      expect(() => {
+        store.setLastSeen('nobody', 1_700_009_000_000);
+      }).not.toThrow();
+    } finally {
+      store.close();
+    }
   });
 });

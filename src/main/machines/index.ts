@@ -16,12 +16,18 @@
  * on a confirmed machine, and see it in the list with the machine's badge beside
  * it. `remote-sessions.ts` owns all of that.
  *
- * **What is still not here.** No manifest row of any kind is written for a
- * remote session, so Restore is refused for every one of them, Past Sessions
- * never holds one, and there is no saved scrollback, no resume command and no
- * launch snapshot. Those are Phases 71 and 72. The verb ledger in
- * `exec-plane.ts` still refuses `kill-server`, `attach-session`, `send-keys` and
- * `respawn-pane` in code rather than in prose.
+ * PHASE 72 BROUGHT THEM BACK. A session Tortie creates on a machine now gets a
+ * manifest row at create time, carrying that machine's id and the absolute
+ * program path captured on that machine. Restore is offered behind six
+ * conditions checked by one pure table, and a machine a person removes leaves a
+ * record of what Tortie last knew rather than silence.
+ *
+ * **What is still not here.** No conversation comes back, because Tortie reads
+ * no agent's own files on another machine, so every remote row records
+ * `remote-not-collected` and `resume_argv` is NULL. The output Tortie saved
+ * stays on this Mac and is not put back into the recreated session. The verb
+ * ledger in `exec-plane.ts` still refuses `kill-server`, `attach-session`,
+ * `send-keys` and `respawn-pane` in code rather than in prose.
  *
  * The pieces are deliberately separate, the same way `../config/` is.
  *
@@ -51,7 +57,14 @@
  *  - `prepare.ts` is the one production caller of the plane.
  *  - `remote-sessions.ts` owns the four remote verbs, the poll, the per-machine
  *    registry and the projection into `Session`. It imports nothing from
- *    `../manifest/`, which is the rung's central rule stated as an import list.
+ *    `../manifest/` except `remote-record.ts`, which is the rung's central rule
+ *    stated as an import list.
+ *  - `remote-record.ts` is the ONE place a remote session meets the manifest.
+ *  - `remote-argv.ts` reads where ONE machine keeps ONE program, and records the
+ *    answer against that machine's id. It never sends it.
+ *  - `restore-gate.ts` is the pure table that decides whether a session on
+ *    another machine may be brought back. Six facts in, one verdict out.
+ *  - `remote-restore.ts` is the verb behind that verdict.
  *  - `remote-copy.ts` holds every sentence main prints about a remote session.
  *  - `ipc.ts` is the one `machines:*` registrar.
  *  - `smoke.ts`, `exec-smoke.ts` and `remote-smoke.ts` are the Electron smokes,
@@ -265,21 +278,29 @@ export {
 export {
   MACHINE_NOT_READY,
   REMOTE_DIR_MISSING,
-  RESTORE_REFUSED,
+  RESTORE_FORGOTTEN,
+  RESTORE_STILL_RUNNING,
+  RESTORE_UNSEEN,
+  RESTORE_WRONG_MACHINE,
+  RESUME_NOT_COLLECTED,
   TARGET_UNBOUND,
+  noRemoteProgramRefusal,
   noRemoteRowFor
 } from './remote-copy';
 
 export {
   boundRemoteRow,
+  forgetMachineRows,
   forgetRemoteRow,
   isRemoteSessionId,
   markMachineQuiet,
   nameOf,
+  notifyRemoteRowsChanged,
   oneLine,
   parseRemoteListLine,
   pollEveryRemoteMachine,
   pollRemoteMachine,
+  projectRemoteRecord,
   readyRemoteContext,
   refuseRemoteRestore,
   remoteCreate,
@@ -289,6 +310,9 @@ export {
   remoteMachineFacts,
   remoteMachinesWoke,
   remoteRename,
+  remoteRestoreFactsFor,
+  remoteRestoreVerdictFor,
+  remoteRowLastKnown,
   remoteRowStatus,
   remoteSessionMachine,
   remoteSessionRow,
@@ -297,7 +321,9 @@ export {
   resetRemoteSessionsForTests,
   setRemotePollFocused,
   splitQuotedLine,
+  startMachineFeed,
   startRemotePoll,
+  stopMachineFeeds,
   stopRemotePolls,
   onRemoteSessionsChanged,
   REMOTE_CREATE_FORMAT,
@@ -309,5 +335,48 @@ export {
   REMOTE_STAMPS,
   type RemoteCreateInput,
   type RemoteListRow,
+  type RemoteRowLastKnown,
   type RemoteSessionRow
 } from './remote-sessions';
+
+// ---------------------------------------------------------------------------
+// Phase 72, M5: bringing a session on another machine back
+// ---------------------------------------------------------------------------
+
+export {
+  remoteRestoreVerdict,
+  REMOTE_RESTORE_REFUSALS,
+  type RemoteRestoreFacts,
+  type RemoteRestoreRefusal,
+  type RemoteRestoreVerdict
+} from './restore-gate';
+
+export {
+  assertArgvBelongsToMachine,
+  captureRemoteArgv,
+  parseRemoteWhich,
+  remoteWhichCommand,
+  REMOTE_ARGV_TIMEOUT_MS
+} from './remote-argv';
+
+export {
+  isRemoteRecord,
+  noteRemoteRowSeen,
+  remoteManifest,
+  remoteManifestInstalled,
+  remoteRecordOf,
+  remoteRecordsForMachine,
+  remoteResumeProvenance,
+  setRemoteManifest,
+  tombstoneRemoteRow,
+  writeRemoteRow,
+  type RemoteRowInput
+} from './remote-record';
+
+export {
+  readBackRemoteStamps,
+  restoreRemoteSession,
+  REPLAY_IS_NOT_ATTEMPTED,
+  RESTORE_NO_RECORD,
+  type RemoteRestoreOutcome
+} from './remote-restore';

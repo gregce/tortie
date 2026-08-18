@@ -18,6 +18,15 @@
  * product that starts anything on another computer. Nothing else in this file
  * spawns anything.
  *
+ * ## Phase 72 adds no channel, and changes one
+ *
+ * `machines:remove` used to write the machines file and forget the
+ * confirmation. Now it first turns every session row Tortie holds for that
+ * machine into a record of what it last knew, then removes the row. It still
+ * sends nothing to the machine. The count of commands it sent is returned and
+ * logged rather than promised, and `machines:rows` carries the same count of
+ * sessions so the question a person answers names a number.
+ *
  * ## Where the gate sits, and where it deliberately does not
  *
  * `machines:test` takes a mode.
@@ -90,6 +99,10 @@ import {
 } from './connection-test';
 import { prepareMachine } from './prepare';
 import { validateMachinesFile } from './schema';
+// Phase 72: the record a removal leaves behind. It writes tombstones and
+// closes the machine down locally. It has no route to the machine at all, and
+// the number of commands it returns having sent is a constant zero.
+import { forgetMachineSessions, machineSessionCount } from './tombstone';
 import {
   addMachineRow,
   currentMachines,
@@ -135,7 +148,10 @@ function viewOf(row: MachineRowV1): MachineRowView {
     confirmedLines: [...status.confirmedLines],
     lines: [...status.lines],
     refusal: status.refusal,
-    warning: MACHINE_CONFIRM_WARNING
+    warning: MACHINE_CONFIRM_WARNING,
+    // Phase 72. Counted on this Mac, from the manifest. The machine is not
+    // asked, so the answer is the same whether it is reachable or not.
+    sessions: machineSessionCount(row.id)
   };
 }
 
@@ -409,15 +425,32 @@ export function registerMachinesIpc(ipc: IpcMain): void {
       confirmedLines: [],
       lines: [],
       refusal: null,
-      warning: MACHINE_CONFIRM_WARNING
+      warning: MACHINE_CONFIRM_WARNING,
+      // The row is not in the file, so Tortie holds no machine to count
+      // sessions for.
+      sessions: 0
     };
   });
 
   handle(ipc, 'machines:remove', (_event, id: string): MachinesResult => {
+    // PHASE 72. The tombstones are written FIRST, and the order is the whole
+    // of it. The label a person read is in machines.json and nowhere else, so
+    // a removal that deleted the row first would write "You removed
+    // studiomachine" instead of "You removed Studio". This call sends nothing
+    // to the machine: it ends no session, stops no server, and reads nothing
+    // there. Row 10 of the fault matrix is the measurement of that.
+    const forgotten = forgetMachineSessions(id);
     removeMachineRow(id);
     // The record goes with the row. A machine that comes back later is a
     // machine nobody has agreed to yet.
     forgetMachine(id);
+    if (forgotten.tombstoned > 0) {
+      console.log(
+        `[gmux] ${id} was removed. ${String(forgotten.tombstoned)} session ` +
+          `row(s) became a record of what Tortie last knew, and ` +
+          `${String(forgotten.commandsSent)} command(s) were sent to it.`
+      );
+    }
     return resultOf();
   });
 

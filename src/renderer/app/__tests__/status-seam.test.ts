@@ -103,6 +103,47 @@ describe('the four sites that decide from status', () => {
 });
 
 /**
+ * PHASE 72 added a FIFTH site, and it is the one that decides whether a verb
+ * that starts a process is on the screen.
+ *
+ * A remote row's Restore comes from `machine.canRestore`, which main computes
+ * from five conditions in `src/main/machines/restore-gate.ts`. The renderer
+ * must read that answer and re-derive none of it. Two readings of five
+ * conditions are two answers, and the one a person acts on would be the
+ * renderer's.
+ *
+ * This is source shape for the same reason the four above are: a renderer that
+ * re-derived one condition correctly today would still be a second copy of the
+ * rule tomorrow, and no behavioural test can see the difference until the two
+ * disagree.
+ */
+describe('the remote restore offer', () => {
+  const region = read('TerminalRegion.tsx');
+  const actions = read('session-actions.tsx');
+
+  it('the ended block reads main s verdict and nothing else', () => {
+    const fn = body(region, '  const offersRestore =', 'const grouped');
+    expect(fn).toContain('machine.canRestore');
+    // None of the five conditions is re-derived here.
+    expect(fn).not.toContain('answering');
+    expect(fn).not.toContain('machineStates');
+  });
+
+  it('the session menu reads main s verdict and nothing else', () => {
+    const fn = body(actions, '  const offersRestore =', 'return [');
+    expect(fn).toContain('machine.canRestore');
+    expect(fn).not.toContain('answering');
+  });
+
+  it('neither surface offers Restart for a row on another machine', () => {
+    // A restart ends a session and starts a new one, and the ending half is a
+    // verb aimed at another machine that this rung did not build.
+    expect(region).toContain('{!remote && (!offersRestore || exited) ? (');
+    expect(actions).toContain('...(ended && !remote');
+  });
+});
+
+/**
  * The seam itself, stated so a reader of this file knows why the assertions
  * above cannot be behavioural.
  */

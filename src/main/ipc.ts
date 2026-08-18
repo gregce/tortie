@@ -28,6 +28,10 @@ import { releasePreviewRoot } from './preview/protocol';
 // and the folder creator, and this file needs one pure copy lookup.
 import { directoryPickMessage } from './projects/picker';
 import { rememberProject } from './recents';
+// LEAF import for the same reason the two above are leaf imports: ./restore
+// re-exports the restore machinery and its IPC registrar, and this file needs
+// one synchronous read of the snapshot store.
+import { readSavedOutput } from './restore/snapshots';
 import { getGmuxCore } from './sessions';
 import { handle as handleTyped } from './typed-ipc';
 
@@ -133,6 +137,12 @@ export function registerIpcHandlers(): void {
     (await getGmuxCore()).sessionScrollback(sessionId)
   );
   handle('scrollback:report', async () => (await getGmuxCore()).scrollbackReport());
+  // Phase 72: the saved output panel's one read. It goes STRAIGHT to the
+  // snapshot store rather than through the sessions core, because the answer
+  // is a file on this Mac and the core holds nothing this needs. It sends no
+  // command to any machine: for a session that runs somewhere else, this is
+  // the copy Tortie kept here, and the panel says so.
+  handle('scrollback:saved', (_e, sessionId) => readSavedOutput(sessionId));
 
   // Phase 13: the user typed into a session, so whatever it was blocked on
   // has an answer. Clears needs_input without waiting for echo — the Phase

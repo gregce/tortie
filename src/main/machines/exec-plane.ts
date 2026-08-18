@@ -26,6 +26,12 @@
  * `rename-session`, and `attach-session` stays refused forever, because attach
  * is a different plane with a different carriage.
  *
+ * PHASE 72 ADDED ONE VERB, being `capture-pane`. It is a read: with `-p` it
+ * prints what is on a screen and writes nothing, so running it twice leaves the
+ * machine exactly as running it once does. It is what the saved output capture
+ * in `./remote-capsule.ts` sends, and it is the only thing that rung sends.
+ * Nothing was removed and no refused verb moved.
+ *
  * PHASE 71 ADDED NOTHING TO THE LEDGER, and that is worth stating rather than
  * leaving a reader to diff. The pane environment rescue in
  * `./pane-env-rescue.ts` sends `show-environment` to read one session's identity
@@ -119,9 +125,9 @@ export interface LedgerRow {
  * Every command that may cross to a machine, and why each one is safe to run
  * twice.
  *
- * The list is complete because these ten are the only verbs Tortie sends. A verb
- * absent from it is refused before anything is sent, which is what makes the
- * scope fence a fact rather than a note.
+ * The list is complete because these eleven are the only verbs Tortie sends. A
+ * verb absent from it is refused before anything is sent, which is what makes
+ * the scope fence a fact rather than a note.
  *
  * `build/conformance-machines.mjs` fails when any of the four forbidden verbs
  * appears here, when a row carries an empty reason, or when a verb the plane
@@ -151,6 +157,18 @@ export const REMOTE_VERB_LEDGER: readonly LedgerRow[] = [
     repeat: 'safe',
     kind: 'read',
     reason: 'It reads the server environment.'
+  },
+  // -------------------------------------------------------------------------
+  // Phase 72 added this one, and it is the only verb this rung adds.
+  // -------------------------------------------------------------------------
+  {
+    verb: 'capture-pane',
+    repeat: 'safe',
+    kind: 'read',
+    reason:
+      'With -p it prints what is on a screen and writes nothing. Two prints ' +
+      'of the same screen leave the machine exactly as one does, and the ' +
+      'second answer is simply the newer one.'
   },
   {
     verb: 'start-server',

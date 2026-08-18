@@ -51,6 +51,9 @@ import { CloneRepoModal } from './CloneRepoModal';
 // point, with no accelerator and no renderer keydown fallback, on purpose.
 // Restoring starts a process, so the user reads a name first.
 import { PastSessionsModal } from './PastSessionsModal';
+// Phase 72. The saved output panel. One session menu item opens it, it reads
+// one file on this Mac and it sends nothing anywhere.
+import { SavedOutputModal } from './SavedOutputModal';
 import { ShortcutsOverlay } from './ShortcutsOverlay';
 import { AttentionOverlay } from './AttentionOverlay';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -1186,6 +1189,10 @@ export function App(): React.JSX.Element {
       {/* Phase 29. Mounted with the other sheets; it renders null unless the
           store says it is open, and only the Session menu opens it. */}
       <PastSessionsModal />
+      {/* Phase 72. Mounted beside Past Sessions for the same reason: it
+          renders null unless the store says a session's saved output is
+          open, and only the session menu opens it. */}
+      <SavedOutputModal />
       <ShortcutsOverlay />
       <AttentionOverlay />
       <QuickOpenPalette />

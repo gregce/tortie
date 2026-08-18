@@ -9,11 +9,14 @@
  * one file for a reviewer to read when they want to know what Tortie claims
  * about a machine it cannot see.
  *
- * WHAT THE WORDS ARE ALLOWED TO CLAIM. A remote session in this release has no
- * row in Tortie's own records, no saved output, no resume command and no launch
- * snapshot. The machine holds all of it, beside the processes. So every
- * sentence here either states something the machine itself just reported, or
- * names something Tortie cannot do yet. None of them promises a recovery.
+ * WHAT THE WORDS ARE ALLOWED TO CLAIM. PHASE 72 changed this paragraph, and the
+ * change is the phase. A remote session now HAS a row in Tortie's own records
+ * and it has saved output on this Mac, so Tortie can start it again on that
+ * machine. Two things it still does not have, and every sentence here has to
+ * keep saying so: there is no conversation id for it, so the conversation does
+ * not come back, and the saved output is not put back into the recreated
+ * session on the other machine. There is also no launch snapshot for it, which
+ * is what {@link NO_SNAPSHOT} says.
  *
  * Machines have labels and sessions have names. No sentence here names the
  * transport, the program Tortie runs on the far side, or any of its verbs.
@@ -104,20 +107,147 @@ export function machineSilentText(labels: readonly string[]): string {
 }
 
 // ---------------------------------------------------------------------------
-// Restore, refused
+// Restore, offered and refused (Phase 72)
 // ---------------------------------------------------------------------------
 
 /**
- * Drawn where Restore and Restart would be, for a session on another machine
- * that has ended.
+ * What Restore does for a session on another machine, said before the click.
  *
- * Main refuses the verb as well, so this label is the honest half of a refusal
- * that exists in two places. It names the release rather than a date, because
- * nobody has set a date.
+ * PHASE 72 replaced `RESTORE_COMING` with this. That sentence said bringing a
+ * session back on another machine was coming in a later release, and this is
+ * that release, so the sentence became false and was deleted rather than
+ * reworded.
+ *
+ * Three claims, in the order a person needs them. What comes back: the session,
+ * on that machine, in the same folder, running the same program. What stays
+ * here: the output Tortie saved, which is not put back on the other machine.
+ * What does not come back: the conversation. The second and third are the
+ * whole difference between a restore on this Mac and a restore on a machine,
+ * and they are said here rather than discovered in an empty pane.
  */
-export const RESTORE_COMING =
-  'Bringing a session back on another machine is coming in a later release. ' +
-  'Tortie will not offer it here until it can prove what came back.';
+export function restoreRemoteBody(label: string): string {
+  return (
+    `Restoring starts this session again on ${label}, in the same folder, ` +
+    `running the same program. The output Tortie saved is kept on this Mac ` +
+    `and is not put back on ${label}. The conversation does not come back.`
+  );
+}
+
+/**
+ * The body when Restore is NOT offered and main gave no sentence of its own.
+ *
+ * Main sends one sentence naming the condition that failed, and `restoreReason`
+ * carries it. This is what is drawn if that field is ever null while the verb
+ * is refused, which the projection should never produce. It states the general
+ * rule rather than guessing at which condition failed, so it is true in every
+ * case it can be reached in.
+ */
+export function restoreNotOfferedBody(label: string): string {
+  return (
+    `Tortie is not bringing this session back right now. It has to be able to ` +
+    `see ${label}, and it has to check that the session is not already ` +
+    `running there. Nothing was started.`
+  );
+}
+
+/**
+ * Drawn under the ended block for a remote row that has saved output here.
+ *
+ * The output is on this Mac and the restore does not put it back, so a person
+ * needs to be told where it went. The menu item it names is
+ * {@link SAVED_OUTPUT_ITEM}.
+ */
+export const RESTORE_KEPT_HERE =
+  "Tortie kept a copy of this session's output on this Mac. Open it from the " +
+  'session menu.';
+
+// ---------------------------------------------------------------------------
+// The saved output panel (Phase 72)
+// ---------------------------------------------------------------------------
+
+/** The session menu item that opens the panel. */
+export const SAVED_OUTPUT_ITEM = 'Show saved output…';
+
+/** The panel's own title. */
+export const SAVED_OUTPUT_TITLE = 'Saved output';
+
+/** Under the menu item, and in the panel, when there is nothing to show. */
+export const SAVED_OUTPUT_NONE = 'Tortie has no saved output for this session.';
+
+/** While the read is in flight. It is one file read and it is usually a blink. */
+export const SAVED_OUTPUT_LOADING = 'Reading the saved copy…';
+
+/** Month names in full, because "17 Aug" reads as an abbreviation of nothing. */
+const MONTHS = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December'
+] as const;
+
+/**
+ * One instant, in this Mac's own local time, as "17 August 2026 at 14:32".
+ *
+ * ONE helper, so every surface says it the same way. The instant is always this
+ * Mac's clock at the moment the copy finished arriving, never a clock on the
+ * other machine, which is what makes it safe to read against the reader's own
+ * watch.
+ */
+export function savedWhen(at: number): string {
+  const d = new Date(at);
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return (
+    `${String(d.getDate())} ${MONTHS[d.getMonth()] ?? ''} ` +
+    `${String(d.getFullYear())} at ${hours}:${minutes}`
+  );
+}
+
+/** The clause both headers end with. */
+const KEPT_HERE_TAIL = 'This is a copy Tortie kept on this Mac. It is not live.';
+
+/**
+ * The line above the saved output, for a session on another machine.
+ *
+ * The capture time is on screen every time, and it is the reason the line
+ * exists. Saved output looks exactly like live output, so without the time a
+ * person reads an hours old screen as the current one.
+ *
+ * `at` is 0 for a copy written before Tortie recorded capture times. That case
+ * says so in a sentence of its own rather than drawing a date from nowhere.
+ */
+export function savedOutputHeader(label: string, at: number): string {
+  if (at <= 0) {
+    return `Saved from ${label}. Tortie did not record when this copy was taken. ${KEPT_HERE_TAIL}`;
+  }
+  return `Saved from ${label} on ${savedWhen(at)}. ${KEPT_HERE_TAIL}`;
+}
+
+/** The same line for a session on this Mac, which names no machine. */
+export function savedOutputHeaderLocal(at: number): string {
+  if (at <= 0) {
+    return `Saved. Tortie did not record when this copy was taken. ${KEPT_HERE_TAIL}`;
+  }
+  return `Saved on ${savedWhen(at)}. ${KEPT_HERE_TAIL}`;
+}
+
+/**
+ * Under the header when the bytes did not match what was recorded for them.
+ *
+ * The panel still shows them, because unproven text a person can read is worth
+ * more than an empty panel, and it says what it is showing.
+ */
+export const SAVED_OUTPUT_UNVERIFIED =
+  'Tortie could not check these bytes against what it recorded for them, so ' +
+  'this copy may be incomplete.';
 
 /**
  * The sentence under `Show what it loaded…` for a session on another machine.
@@ -168,13 +298,17 @@ export const CREATE_DIR_EMPTY_HINT =
 /**
  * The first line of the honesty block, and the one that matters most.
  *
- * It states the property this release buys and the three it does not, in that
- * order, because the property is why a person would use this at all.
+ * PHASE 72 rewrote it because it had become false. It used to say Tortie did
+ * not save what the session printed, did not keep a record of it here, and
+ * could not bring it back. Tortie now does all three, so the sentence names
+ * what it does and then names the one thing it still cannot do, which is the
+ * conversation.
  */
 export const CREATE_HONESTY =
   'A session on another machine runs there and keeps running when you quit ' +
-  'Tortie. Tortie does not save what it prints, does not keep a record of it ' +
-  'here, and cannot bring it back yet.';
+  'Tortie. Tortie keeps a record of it on this Mac, keeps a copy of what it ' +
+  'prints, and can start it again on that machine. The conversation does not ' +
+  'come back.';
 
 /**
  * The second line. The numbers are chosen rather than measured, and no copy
@@ -211,10 +345,24 @@ export const AGENT_LOCAL_CHECK =
   'The board above says which agents are installed on this Mac. Tortie has ' +
   'not checked what is installed on the other machine.';
 
-/** The four honesty lines in the order the sheet draws them. */
+/**
+ * The fifth line, added by Phase 72 with the copy it describes.
+ *
+ * The number is CHOSEN rather than measured and the sentence does not pretend
+ * otherwise: it says how often Tortie asks and it says the copy can be that
+ * old. It also says the one condition, which is that Tortie has to be able to
+ * see the machine, because a copy stops the moment the machine goes quiet.
+ */
+export const CAPTURE_HONESTY =
+  'While Tortie can see the machine, it copies what each session printed ' +
+  'about every 2 minutes and keeps that copy on this Mac. The copy can be ' +
+  'that old, and Tortie stops taking copies while it cannot see the machine.';
+
+/** The five honesty lines in the order the sheet draws them. */
 export const CREATE_HONESTY_LINES: readonly string[] = [
   CREATE_HONESTY,
   POLL_HONESTY,
+  CAPTURE_HONESTY,
   ATTENTION_HONESTY,
   AGENT_LOCAL_CHECK
 ];

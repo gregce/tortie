@@ -61,7 +61,12 @@ const STUDIO: SessionMachine = {
   id: 'studio',
   label: 'Studio',
   color: 'orange',
-  answering: true
+  answering: true,
+  // Phase 72 appended these two. A row Tortie may bring back is the case the
+  // ten row matrix drives; this fixture is about the badge and the bars, so it
+  // states the ordinary answer for a row nothing has offered.
+  canRestore: false,
+  restoreReason: 'That machine still lists this session, so it is already running.'
 };
 
 function sess(over: Partial<Session>): Session {

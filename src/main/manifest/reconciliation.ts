@@ -9,10 +9,11 @@
 
 import type Database from 'better-sqlite3';
 import { immediateTransaction } from '../db/sqlite';
-import type {
-  ManifestSessionPatch,
-  ManifestSessionRecord,
-  UpdateSessionOptions
+import {
+  LOCAL_MACHINE_ROW,
+  type ManifestSessionPatch,
+  type ManifestSessionRecord,
+  type UpdateSessionOptions
 } from './codecs';
 
 /**
@@ -30,9 +31,11 @@ export interface LiveTmuxSession {
 }
 
 /**
- * Why reconcile refused to judge a row this pass. All three mean the same
- * thing: the `live` snapshot is OLDER than the row's own evidence, so its
- * silence about the row proves nothing.
+ * Why reconcile refused to judge a row this pass.
+ *
+ * The first three mean the same thing: the `live` snapshot is OLDER than the
+ * row's own evidence, so its silence about the row proves nothing. The fourth
+ * is different in kind and is explained where it is used.
  */
 export type ReconcileSkipReason =
   /** Row inserted after the snapshot was taken (a create in progress). */
@@ -40,7 +43,9 @@ export type ReconcileSkipReason =
   /** Caller says this row's tmux side is being created right now. */
   | 'in-flight'
   /** Something proved the row live after the snapshot (restore, activity). */
-  | 'touched-after-snapshot';
+  | 'touched-after-snapshot'
+  /** The row's session runs on another computer, so this list cannot see it. */
+  | 'another-machine';
 
 /** A row reconcile deliberately left alone, with the reason it did. */
 export interface ReconcileSkip {
@@ -71,6 +76,16 @@ export interface ReconcileOptions {
    * its tmux session appear just after it.
    */
   inFlightIds?: ReadonlySet<string>;
+}
+
+/**
+ * True when this row's session runs on another computer (Phase 72 fix round).
+ *
+ * A row written before migration 013 has no machine at all and reads `local`,
+ * which is what every session on this Mac is.
+ */
+function runsElsewhere(rec: ManifestSessionRecord): boolean {
+  return rec.machineId !== undefined && rec.machineId !== LOCAL_MACHINE_ROW;
 }
 
 /** Result of reconciling the manifest against live tmux sessions. */
@@ -204,8 +219,15 @@ export function reconcileManifest(
     // what makes a live session that carries a tombstone's identity get
     // REPORTED as an unknown session instead of quietly disappearing from
     // every bucket.
+    // PHASE 72 FIX ROUND. A row whose session runs on another computer is left
+    // out of the id map for the same reason a tombstone is: this list is THIS
+    // Mac's own session server, and it can say nothing at all about a session
+    // on a different computer. A live session here that carried such a row's
+    // identity is REPORTED as one Tortie does not own rather than claimed.
     const byId = new Map(
-      all.filter((rec) => rec.status !== 'discarded').map((rec) => [rec.id, rec])
+      all
+        .filter((rec) => rec.status !== 'discarded' && !runsElsewhere(rec))
+        .map((rec) => [rec.id, rec])
     );
     const now = Date.now();
 
@@ -232,6 +254,18 @@ export function reconcileManifest(
       // 'discarded' yet; the guard is here so that a row written by a later
       // build cannot be resurrected by an older one.
       if (rec.status === 'discarded') continue;
+      // PHASE 72 FIX ROUND, AND IT IS A DURABILITY BUG THIS CLOSES. Before it,
+      // every pass compared a row for a session on another computer against
+      // this Mac's own list, found it absent, and wrote `restorable` on it. The
+      // row then said a session on a machine that was working perfectly well
+      // had stopped, and that is the value the NEXT launch starts from, before
+      // any machine has answered. Per machine truth is written by the per
+      // machine feed in ../machines/remote-sessions.ts, from that machine's own
+      // answers, and this list is entitled to no opinion about it.
+      if (runsElsewhere(rec)) {
+        result.skipped.push({ record: rec, reason: 'another-machine' });
+        continue;
+      }
       if (session !== undefined) {
         const needsStatusFlip =
           rec.status === 'restorable' ||

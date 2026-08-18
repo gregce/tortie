@@ -365,23 +365,65 @@ export const MIGRATIONS: readonly SqliteMigration[] = [
     // can create a session anywhere else. So MANIFEST_SCHEMA_VERSION moves to
     // 13 and MANIFEST_MIN_COMPATIBLE_VERSION stays at 8.
     //
-    // WHAT A DOWNGRADE DOES, stated plainly. A build at schema 12 opens this
-    // manifest, is allowed to write it because 12 is at or above the minimum of
-    // 8, and ignores the column entirely. Every row it reads it treats as a
-    // session on this Mac. That is correct today and ONLY today, because every
-    // value in the column is 'local' in this release.
+    // WHAT A DOWNGRADE DID WHILE THE COLUMN HELD ONE VALUE. A build at schema 12
+    // opened this manifest, was allowed to write it because 12 was at or above
+    // the minimum of 8, and ignored the column entirely. Every row it read it
+    // treated as a session on this Mac, which was correct while every value in
+    // the column was 'local'.
     //
-    // THE LINE THAT KEEPS IT CORRECT IS EXECUTABLE, not written down. The first
-    // build that writes any other value changes the downgrade story completely:
-    // an older build would read a remote row as local and could recreate the
-    // session on this Mac. So `./sessions-repository.ts` REFUSES that write
-    // today, under the refusal id `manifest.machine-id-nonlocal`. The build
-    // that records a real machine id moves MANIFEST_MIN_COMPATIBLE_VERSION to
-    // 13 and deletes that refusal in the same commit.
+    // PHASE 72 ENDED THAT, and the sentence above is kept as the record of why
+    // this migration was additive when it shipped. This build writes a real
+    // machine id, so an older build would read a session running on another
+    // machine as a local one and its restore would recreate that session HERE.
+    // That is the duplicate agent the whole machines ladder exists to prevent.
+    // So MANIFEST_MIN_COMPATIBLE_VERSION moved from 8 to 13 and the refusal that
+    // stood in for it, `manifest.machine-id-nonlocal`, was deleted in the same
+    // commit. Phase 71 wrote that instruction here and Phase 72 executed it.
     name: '013-machine-id',
     up: (db) => {
       addColumnIfMissing(db, 'sessions', 'machine_id', 'TEXT');
       db.exec("UPDATE sessions SET machine_id = 'local' WHERE machine_id IS NULL");
+    }
+  },
+  {
+    // Phase 72 (research 51 section 4.3): what Tortie last knew about a session
+    // whose machine a person REMOVED.
+    //
+    // WHAT IT FIXES. Before this, `machines:remove` wrote the file and forgot
+    // the confirmation, and every row for that machine left the window with no
+    // record at all. The sessions were still running over there. A person who
+    // removed a machine by mistake had no way to see what they had been holding,
+    // and nothing anywhere said whether Tortie had ended anything. It had not,
+    // and silence is the wrong way to say so.
+    //
+    // WHAT GOES IN IT. One JSON value carrying the machine's label at the moment
+    // of removal, the last status a completed list produced for the row, the
+    // local instant of the last completed list that held it, and the local
+    // instant of the removal. It is one column rather than four for the reason
+    // `specstory` and `restore` are one each: the fields are meaningless apart.
+    // A "last seen" with no status beside it cannot be rendered as a sentence,
+    // and a label with no instant cannot either.
+    //
+    // WHY THE LABEL IS COPIED IN. `machines.json` no longer holds the row by the
+    // time anybody reads the tombstone, so the only place the name can come from
+    // is the tombstone itself. A row that said "you removed a machine" without
+    // naming it would be a worse record than none.
+    //
+    // NOTHING IS SENT TO THE MACHINE when this is written. No session is ended,
+    // no server is stopped and nothing is read. The rows go to status
+    // 'discarded' with `removed_at` set, so they appear in Past Sessions where a
+    // removal already belongs.
+    //
+    // ADDITIVE, NOT BREAKING, by the rule in research 27 section 4.3, and the
+    // minimum stays where migration 013 just put it, at 13. The test is whether
+    // an old build writing NULL here produces a row the new build reads WRONGLY.
+    // It cannot. NULL means "no machine of this row's was ever removed", which
+    // is true of every row written before this migration and of every row whose
+    // machine is still in the list. Nothing on the restore path reads the column
+    // and no launch depends on it.
+    name: '014-machine-tombstone',
+    up: (db) => {
+      addColumnIfMissing(db, 'sessions', 'machine_tombstone', 'TEXT');
     }
   }
 ];
@@ -404,64 +446,72 @@ export const MANIFEST_APPLICATION_ID = 0x54525445;
  * one. Keep it that way: a number that has to be reasoned about is a number
  * that gets set wrong under time pressure.
  */
-export const MANIFEST_SCHEMA_VERSION = 13;
+export const MANIFEST_SCHEMA_VERSION = 14;
 
 /**
  * The oldest schema version whose code may still write this manifest.
  *
- * IT IS 8, WHICH IS TWO BEHIND THE SCHEMA VERSION, and the gap is the point.
- * Migration 008 is breaking by the rule in research 27 §4.3. A build at schema
- * 7 can open this file and can insert sessions into it, and every session it
- * inserted would carry a NULL `agent_contract`. Those rows restore by asking
- * the live registry, which is the defect Phase 21 removes, and for pi the
- * visible result is an empty session that looks resumed. SQLite would allow
- * that write. This number is what stops it.
+ * IT IS 13 SINCE PHASE 72, and it moved for exactly one reason: this build
+ * records a session as living on another machine.
  *
- * Migrations 009, 010, 011, 012 and 013 are ADDITIVE by that same rule, so each
- * moved MANIFEST_SCHEMA_VERSION and left this number alone. `context_snapshot`
- * is advisory: nothing on the restore path reads it, and a build at schema 8
- * writing NULL into it produces a session with no record of what it loaded,
- * which is exactly what that session is. `removed_at` (Phase 29) cannot be
- * needed by a row an older build writes, because no older build writes
- * status 'discarded' at all. `env_passthrough` (Phase 33) cannot be needed by
- * a row an older build writes either, because no older build reads the
- * configuration field that names those variables. Reasoning is at migrations
- * 009, 010 and 011.
+ * WHAT THE MOVE PREVENTS, stated as the failure rather than as the rule. A build
+ * at schema 12 has no `machine_id` column in its world. It reads every row in
+ * this file as a session on this Mac. Until Phase 72 that was correct, because
+ * every value in the column was `local`. This build writes real machine ids, so
+ * an older build would read a session running on a different computer as a local
+ * one, offer Restore over it, and recreate it HERE while the original keeps
+ * running over there. That is two agents on one conversation, which research 28
+ * ranks as the one remote failure that destroys work. SQLite would allow the
+ * write. This number is what stops it.
  *
- * `exit_detail` (Phase 48, migration 012) is additive for the plainest reason
- * of the four. NULL means "no last words were recorded". That is true of every
- * row written before the migration, true of every session that died with an
- * empty pane, and true of every row an older build writes. Nothing on the
- * restore path reads the column and no launch depends on it. An older build
- * opening this manifest simply shows the exit code it always showed. Reasoning
- * is at migration 012.
+ * Phase 71 shipped migration 013 as additive and left this number at 8, under a
+ * refusal in `./sessions-repository.ts` that declined to write any machine id
+ * other than `local`. It carried the instruction that the build recording a real
+ * machine id must move this number to 13 and delete that refusal in the same
+ * commit. Phase 72 is that build and did both.
  *
- * `machine_id` (Phase 71, migration 013) is additive because every value in the
- * column is `local` in this release, and a build at schema 12 that ignores the
- * column reads every row as a session on this Mac, which is what every row is.
- * That reasoning holds only while the column holds one value, so the sessions
- * repository REFUSES to write any other one, and the build that lifts that
- * refusal moves this number to 13 in the same commit. Reasoning is at migration
- * 013.
+ * WHY 13 AND NOT 14. The minimum names the oldest build that may WRITE, and a
+ * build at schema 13 has the column, reads it, and writes `local` into every row
+ * it creates. It cannot misread a remote row as local. What it lacks is
+ * migration 014's tombstone, and a build with no tombstone column simply shows a
+ * discarded row with no explanation of which machine went away. That is a
+ * degraded surface rather than a misread, and this number exists to stop
+ * misreads.
  *
- * The honest limit of leaving this at 8 across migration 010, stated so it is
- * checked rather than discovered: a build at schema 8 or 9 opened against
- * this manifest shows tombstoned rows in its session list, labeled "removed",
- * and its Remove verb hard deletes such a row. That is a degraded surface in
- * a build the user has moved off, not a misread, and the minimum exists to
- * stop misreads.
+ * THE HISTORY OF THE NUMBER, kept because each step's reasoning is still the
+ * reason the step is safe.
  *
- * The honest limit across migration 011 is the same shape. A build older than
- * this one restoring a passthrough session starts the pane without the
- * variables the row names. The agent then fails to reach its provider, which
- * is a degraded launch a person can see and act on, and it is exactly what
- * every launch did before Phase 33.
+ * It was 8 from Phase 21 to Phase 71. Migration 008 is breaking by the rule in
+ * research 27 §4.3. A build at schema 7 can open this file and insert sessions
+ * into it, and every session it inserted would carry a NULL `agent_contract`.
+ * Those rows restore by asking the live registry, which is the defect Phase 21
+ * removes, and for pi the visible result is an empty session that looks resumed.
  *
- * The older limit still holds too: a build that shipped before the refusal
- * existed has no code to read this number, so it will still open the file.
- * The protection starts with the first build that carries it.
+ * Migrations 009 to 013 were each ADDITIVE by that same rule, so each moved
+ * MANIFEST_SCHEMA_VERSION and left the minimum alone at the time. Migration 014
+ * is additive too, and it did not move the minimum either: 013 did that, in this
+ * same commit. `context_snapshot` is advisory, and a build at schema 8 writing
+ * NULL into it produces a session with no record of what it loaded, which is
+ * what that session is. `removed_at` (Phase 29) cannot be needed by a row an
+ * older build writes, because no older build writes status 'discarded' at all.
+ * `env_passthrough` (Phase 33) cannot be needed by one either, because no older
+ * build reads the configuration field that names those variables. `exit_detail`
+ * (Phase 48) reads NULL as "no last words were recorded", which is true of every
+ * row an older build writes. `machine_tombstone` (Phase 72) reads NULL as "no
+ * machine of this row's was removed", which is true of every row an older build
+ * writes. Reasoning is at each migration.
+ *
+ * The honest limit of the old value of 8, kept because a manifest that has been
+ * in use since Phase 29 still carries rows written under it: a build at schema 8
+ * or 9 opened against this manifest showed tombstoned rows in its session list,
+ * labeled "removed", and its Remove verb hard deleted such a row. That was a
+ * degraded surface in a build the user had moved off, not a misread.
+ *
+ * The oldest limit still holds too: a build that shipped before the refusal
+ * existed has no code to read this number, so it will still open the file. The
+ * protection starts with the first build that carries it.
  */
-export const MANIFEST_MIN_COMPATIBLE_VERSION = 8;
+export const MANIFEST_MIN_COMPATIBLE_VERSION = 13;
 
 /** The three numbers, paired with the file they describe. */
 export const MANIFEST_SCHEMA_IDENTITY: SchemaIdentity = {

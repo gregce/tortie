@@ -376,6 +376,31 @@ export interface ScrollbackEventPayloadMap {
   'scrollback:notice': [notice: GmuxNotice];
 }
 
+/**
+ * The newest saved output for one session, with the fact that decides how it
+ * is read (Phase 72).
+ *
+ * `capturedAt` is the WHOLE reason this shape exists. Saved output looks
+ * exactly like live output on a screen, so the panel that draws it always says
+ * when it was taken. The instant is this Mac's own clock at the moment the
+ * bytes finished arriving, never a clock on another machine, so it can be
+ * compared against this Mac's now without any correction.
+ */
+export interface SavedSessionOutput {
+  /** The body, exactly as it was saved. Rendered verbatim, never parsed. */
+  text: string;
+  /** Epoch ms on THIS Mac. 0 for a snapshot written before Phase 19. */
+  capturedAt: number;
+  /** The machine the output came from, or null when it is this Mac. */
+  machineId: string | null;
+  /** True when the bytes matched a recorded length and hash. */
+  verified: boolean;
+  /** Byte length of the body. */
+  bytes: number;
+  /** Newlines in the body, from the record. 0 when there is no record. */
+  lines: number;
+}
+
 /** New invoke channels appended by the scrollback-limits stream. */
 export interface ScrollbackInvokeChannelMap {
   /**
@@ -395,6 +420,22 @@ export interface ScrollbackInvokeChannelMap {
   };
   /** Copy details: a plain-text block for a bug report. */
   'scrollback:report': { req: []; res: string };
+  /**
+   * APPENDED by Phase 72. The newest saved output Tortie holds for one
+   * session, with the moment it was captured.
+   *
+   * A PULL, like the three above, asked when a person opens the saved output
+   * panel and at no other time. Null when nothing is saved for that session.
+   *
+   * It reads a file on this Mac and sends no command anywhere. For a session
+   * on another machine the answer is a copy Tortie kept here, and the panel
+   * says so in words: this is not live, and it is not put back on that
+   * machine when the session is brought back.
+   */
+  'scrollback:saved': {
+    req: [sessionId: string];
+    res: SavedSessionOutput | null;
+  };
 }
 
 /**
@@ -408,6 +449,12 @@ export interface GmuxScrollbackExtras {
     stats(): Promise<ScrollbackStats>;
     session(sessionId: string): Promise<SessionScrollbackFacts | null>;
     report(): Promise<string>;
+    /**
+     * APPENDED by Phase 72. The newest saved output for one session, read when
+     * the panel opens. Optional, and the panel says it has nothing when an
+     * older preload does not carry it.
+     */
+    saved?(sessionId: string): Promise<SavedSessionOutput | null>;
     /**
      * WIDENED by Phase 19 item 9 — see ScrollbackEventPayloadMap above. The
      * renderer switches on `kind`, and `ScrollbackNotice` is still one of the

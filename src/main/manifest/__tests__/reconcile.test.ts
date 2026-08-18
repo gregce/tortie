@@ -373,3 +373,83 @@ describe('reconcile — the two exits from unknown (Phase 67)', () => {
     ]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 72 fix round — a session on another computer is not this list's to judge
+// ---------------------------------------------------------------------------
+
+/**
+ * THE DURABILITY BUG THIS CLOSES.
+ *
+ * `reconcile` compares the manifest against THIS Mac's own session server.
+ * Before this fix it compared every row, including rows for sessions running on
+ * another computer, found them absent from a list that could never have held
+ * them, and wrote `restorable`. That value is what the NEXT launch believes
+ * before any machine has answered, so a person came back to Tortie offering to
+ * bring back work that had been running the whole time.
+ *
+ * Per machine truth is written by the per machine feed in
+ * `src/main/machines/remote-sessions.ts`, from that machine's own answers.
+ */
+describe('reconcile — a row whose session runs on another computer', () => {
+  function remoteRow(id: string, machineId: string): ManifestSessionRecord {
+    const now = Date.now();
+    return store.insertSession({
+      id,
+      name: id,
+      tmuxName: id,
+      projectPath: '/w',
+      cwd: '/w',
+      agent: 'shell',
+      status: 'running',
+      createdAt: now - 60_000,
+      argv: ['/usr/bin/claude'],
+      lastSeen: now - 60_000,
+      machineId
+    });
+  }
+
+  it('leaves it exactly as it was against an empty local list', () => {
+    remoteRow('id-remote', 'studio');
+    const result = store.reconcile([]);
+
+    expect(store.getSession('id-remote')?.status).toBe('running');
+    expect(result.restorable.map((r) => r.id)).toEqual([]);
+    expect(result.skipped.map((s) => [s.record.id, s.reason])).toEqual([
+      ['id-remote', 'another-machine']
+    ]);
+  });
+
+  it('judges the local rows in the same pass', () => {
+    remoteRow('id-remote', 'studio');
+    row('id-here', 'work');
+    const result = store.reconcile([]);
+
+    expect(store.getSession('id-here')?.status).toBe('restorable');
+    expect(store.getSession('id-remote')?.status).toBe('running');
+    expect(result.restorable.map((r) => r.id)).toEqual(['id-here']);
+  });
+
+  /**
+   * A live session on this Mac carrying a remote row's identity is not that
+   * row. It is reported as one Tortie does not own, which is the same answer a
+   * tombstone's identity gets, and it is never claimed or bound.
+   */
+  it('never claims a local session that carries its identity', () => {
+    remoteRow('id-remote', 'studio');
+    const result = store.reconcile([live('$9', 'imposter', 'id-remote')]);
+
+    expect(result.alive).toEqual([]);
+    expect(result.bindings.size).toBe(0);
+    expect(result.unknownTmuxNames).toEqual(['imposter']);
+    expect(store.getSession('id-remote')?.status).toBe('running');
+  });
+
+  /** A row written before migration 013 reads `local` and is judged as before. */
+  it('judges a row that names this Mac exactly as it always did', () => {
+    remoteRow('id-local', 'local');
+    store.reconcile([]);
+
+    expect(store.getSession('id-local')?.status).toBe('restorable');
+  });
+});

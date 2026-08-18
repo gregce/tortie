@@ -113,6 +113,14 @@ import {
   machineTruth,
   mayFlipRestorable
 } from '../src/main/machines/status-truth';
+// Phase 72, conditions 26 and 27. The gate that decides whether Restore is
+// offered for a session on a machine. It is pure for the same reason the case
+// table is, so it can be driven here without starting anything.
+import {
+  REMOTE_RESTORE_REFUSALS,
+  remoteRestoreVerdict,
+  type RemoteRestoreFacts
+} from '../src/main/machines/restore-gate';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const machinesDir = join(repoRoot, 'src', 'main', 'machines');
@@ -590,6 +598,128 @@ const truthRows = MACHINE_EVENT_KINDS.map((kind) => {
   };
 });
 
+// ---------------------------------------------------------------------------
+// 11. Phase 72. The restore gate, driven over every arm
+// ---------------------------------------------------------------------------
+//
+// The gate decides whether a person is offered a button that starts an agent on
+// another computer. Pressing it when the answer should have been no is how one
+// conversation comes to have two agents on it, which research 28 ranks as the
+// worst thing this whole rung can do.
+//
+// So the gate is driven here, from a baseline where every condition holds, with
+// ONE condition turned off at a time. The checker asserts which arm each of
+// those produces, that the order of the arms is the order the refusals are
+// declared in, and that a row reading `unknown` is never offered whatever else
+// is true.
+
+/** Every condition true. The one input where the answer is yes. */
+const GATE_BASELINE: RemoteRestoreFacts = {
+  machineKnown: true,
+  contextReady: true,
+  machineReachable: true,
+  completedListSeen: true,
+  machineAnswering: true,
+  listedNow: false,
+  rowMachineId: 'studio',
+  targetMachineId: 'studio',
+  rowStatus: 'restorable'
+};
+
+/** One condition turned off, and the arm it is expected to reach. */
+const GATE_VECTORS: { name: string; facts: RemoteRestoreFacts }[] = [
+  { name: 'everything holds', facts: GATE_BASELINE },
+  {
+    name: 'the machine was removed',
+    facts: { ...GATE_BASELINE, machineKnown: false }
+  },
+  {
+    name: 'the row belongs to another machine',
+    facts: { ...GATE_BASELINE, rowMachineId: 'laptop' }
+  },
+  {
+    name: 'nobody signed in to it in this run',
+    facts: { ...GATE_BASELINE, contextReady: false }
+  },
+  {
+    name: 'neither route to the machine answered',
+    facts: { ...GATE_BASELINE, machineReachable: false }
+  },
+  {
+    // PHASE 72 FIX ROUND, and it is the case restore exists for. A machine
+    // whose own session server has died can never carry a live connection,
+    // because the connection is opened only after a read proves that server is
+    // running. It is still reachable over the route the restore itself uses,
+    // and its completed answer is what says the session is not running.
+    name: 'that machine’s own session server has died',
+    facts: {
+      ...GATE_BASELINE,
+      machineReachable: true,
+      completedListSeen: true,
+      machineAnswering: true,
+      listedNow: false
+    }
+  },
+  {
+    name: 'no list has completed yet',
+    facts: { ...GATE_BASELINE, completedListSeen: false }
+  },
+  {
+    name: 'the machine is not answering now',
+    facts: { ...GATE_BASELINE, machineAnswering: false }
+  },
+  {
+    name: 'the machine still lists the session',
+    facts: { ...GATE_BASELINE, listedNow: true }
+  },
+  {
+    name: 'the row reads unknown',
+    facts: { ...GATE_BASELINE, rowStatus: 'unknown' }
+  },
+  {
+    name: 'the row reads unknown and every condition holds',
+    facts: { ...GATE_BASELINE, rowStatus: 'unknown', machineAnswering: true }
+  },
+  {
+    name: 'the row is running',
+    facts: { ...GATE_BASELINE, rowStatus: 'running', listedNow: true }
+  }
+];
+
+const gateRows = GATE_VECTORS.map((vector) => {
+  const verdict = remoteRestoreVerdict(vector.facts);
+  return {
+    name: vector.name,
+    rowStatus: vector.facts.rowStatus,
+    offered: verdict.offered,
+    refusal: verdict.refusal,
+    reason: verdict.reason ?? ''
+  };
+});
+
+// ---------------------------------------------------------------------------
+// 12. Phase 72. The ten row fault matrix, counted from its own source
+// ---------------------------------------------------------------------------
+//
+// The matrix is the gate on this rung, and a matrix that quietly lost a row
+// would still print PASS over the rows it kept. So the ids are counted out of
+// both halves and the checker holds the number at ten and asserts the two
+// halves name the same set. It is a text scan rather than an import, because
+// importing either half would load Electron into a gate whose whole claim is
+// that it loads nothing.
+
+const matrixAppSource = readFileSync(
+  join(repoRoot, 'src', 'main', 'harness', 'remote-matrix.ts'),
+  'utf8'
+);
+const matrixSupervisorSource = readFileSync(
+  join(repoRoot, 'build', 'remote-matrix.mjs'),
+  'utf8'
+);
+const matrixIdsIn = (text: string): string[] => [
+  ...new Set([...text.matchAll(/'(matrix\.[a-z-]+)'/g)].map((hit) => hit[1] ?? ''))
+];
+
 const files = productionFiles(machinesDir);
 const wholeTree = (() => {
   const collected: string[] = [];
@@ -728,6 +858,27 @@ process.stdout.write(
     )
       .split('\n')
       .filter((line) => /^\s*import\b/.test(line) || /^\s*}\s*from\s*'/.test(line))
-      .map((line) => line.trim())
+      .map((line) => line.trim()),
+
+    // --- Phase 72, condition 26 --------------------------------------------
+    gateRefusals: [...REMOTE_RESTORE_REFUSALS],
+    gateRows,
+    // The gate has to be decidable from its facts alone, for the same reason
+    // the case table does: it is the file a reviewer reads to learn when Tortie
+    // will start an agent on another computer.
+    gateImports: readFileSync(join(machinesDir, 'restore-gate.ts'), 'utf8')
+      .split('\n')
+      .filter((line) => /^\s*import\b/.test(line) || /^\s*}\s*from\s*'/.test(line))
+      .map((line) => line.trim()),
+
+    // --- Phase 72, condition 27 --------------------------------------------
+    matrixAppRows: matrixIdsIn(matrixAppSource),
+    matrixSupervisorRows: matrixIdsIn(matrixSupervisorSource),
+    // The mode name the supervisor launches, read from the app's dispatch, so a
+    // matrix nothing can start fails here rather than at midnight.
+    matrixModeRegistered: readFileSync(
+      join(repoRoot, 'src', 'main', 'harness', 'index.ts'),
+      'utf8'
+    ).includes("smoke === 'remote-matrix'")
   })
 );

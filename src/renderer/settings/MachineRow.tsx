@@ -57,7 +57,7 @@ import {
   PREPARE_SUPPORTED_LABEL,
   PREPARE_VERSION_LABEL,
   PREPARING,
-  REMOVE_QUESTION,
+  removeQuestion,
   STATE_CHIP,
   STATE_SENTENCE
 } from './machines-copy';
@@ -353,10 +353,16 @@ export function MachineRow({
 
           {prepared === undefined ? null : <PrepareResult result={prepared} />}
 
+          {/* PHASE 72. The question names the sessions Tortie holds a record
+              of on that machine, counted, because removing a machine turns
+              every one of them into a record of what Tortie last knew. It
+              sends nothing to the machine and it ends nothing there. */}
           <div className="mach-remove">
             {removing ? (
               <>
-                <span className="mach-remove-question">{REMOVE_QUESTION}</span>
+                <span className="mach-remove-question">
+                  {removeQuestion(row.label, row.sessions ?? 0)}
+                </span>
                 <button
                   type="button"
                   className="btn btn-destructive"

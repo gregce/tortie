@@ -300,10 +300,98 @@ describe('the guards that keep unknown until a list completes', () => {
    * 'unknown' row opens no journal entry and execs nothing.
    */
   it('restoreSession refuses an unknown row', () => {
-    const gate = body('async restoreSession(', 'this.restoresInFlight.add(');
+    // PHASE 72 FIX ROUND. The slice starts at the local row, because the method
+    // now opens with the branch for a session on another machine and that
+    // branch has an in flight guard of its own. What this asserts is the gate
+    // in front of the LOCAL restore.
+    const gate = body(
+      'const rec = this.mustGetSession(sessionId);',
+      'this.restoresInFlight.add(sessionId);\n    /** The open journal entry'
+    );
     expect(gate).toContain("rec.status !== 'restorable'");
     expect(gate).toContain("rec.status !== 'exited'");
     expect(gate).toContain("rec.status !== 'discarded'");
     expect(gate).not.toContain("'unknown'");
+  });
+});
+
+/**
+ * PHASE 72. A session on another machine takes a different path entirely, and
+ * the shape of the branch is what keeps the two apart.
+ *
+ * The same instrument as the block above, and for the same reason: `restoreSession`
+ * needs a live tmux server, an attach host and a control client, so exercising it
+ * here would prove the mocks. The behavioural half is the ten row matrix and
+ * `GMUX_SMOKE=remote-sessions`.
+ */
+describe('the remote branch in front of the local restore', () => {
+  const gate = body('async restoreSession(', 'const rec = this.mustGetSession(');
+
+  /**
+   * The refusal runs before anything is composed and before anything is sent.
+   * It asks the restore gate now rather than answering no, so a row the gate
+   * refuses gets the gate's own sentence.
+   */
+  it('asks the restore gate before anything local runs', () => {
+    expect(gate).toContain('refuseRemoteRestore(sessionId)');
+    expect(gate.indexOf('refuseRemoteRestore')).toBeLessThan(
+      gate.indexOf('restoreRemoteSession(sessionId)')
+    );
+  });
+
+  /**
+   * PHASE 72 FIX ROUND. THE DOUBLE PRESS GUARD IS INSIDE THE BRANCH, above the
+   * gate and above everything the restore composes.
+   *
+   * It used to be below the branch, so two presses on one remote row both
+   * passed the gate and both composed a create. The window between them is
+   * several seconds wide, because the restore re-asserts the machine's own
+   * session server first, and the only thing refusing the second create was
+   * that machine's own rule about duplicate session names.
+   */
+  it('guards a second press before it asks the gate', () => {
+    expect(gate).toContain('this.restoresInFlight.has(sessionId)');
+    expect(gate).toContain('this.restoresInFlight.add(sessionId)');
+    expect(gate.indexOf('this.restoresInFlight.add(sessionId)')).toBeLessThan(
+      gate.indexOf('refuseRemoteRestore(sessionId)')
+    );
+    // Released on every path out, including the one that throws the gate's
+    // sentence. A guard a refusal leaks would make the verb dead for the rest
+    // of the run.
+    expect(gate).toContain('this.restoresInFlight.delete(sessionId)');
+    expect(gate).toContain('} finally {');
+  });
+
+  /**
+   * A row on another machine never reaches the local machinery. Every check
+   * below the branch asks about this Mac, being whether a folder exists here and
+   * which binary is here, and none of them can answer for a different computer.
+   */
+  it('routes a row on another machine away from the local path', () => {
+    expect(gate).toContain('restoreRemoteSession(sessionId)');
+    // The whole branch sits above the first line of the local path, which is
+    // where the slice ends, so reaching it at all means the local machinery ran
+    // for a row on another machine.
+    expect(gate).not.toContain('restoreSessionInTmux');
+  });
+
+  /**
+   * A row with no machine, and a row whose machine is this Mac, are the same
+   * thing and both take the local path. The comparison is against the one
+   * constant rather than a literal, so a rename of the word cannot split them.
+   */
+  it('treats a row with no machine as local', () => {
+    expect(gate).toContain("remoteRow?.machineId !== undefined");
+    expect(gate).toContain('remoteRow.machineId !== LOCAL_MACHINE');
+  });
+
+  /**
+   * `src/main/restore/restore.ts` is untouched by this phase, and the local
+   * restore reaches it exactly as it did before. This is the shape assertion
+   * behind that claim; `smoke:t3` and `conformance:resume:capture` are the
+   * evidence.
+   */
+  it('leaves the local restore call where it was', () => {
+    expect(src).toContain('await restoreSessionInTmux(rec, {');
   });
 });

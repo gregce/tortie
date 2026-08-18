@@ -93,6 +93,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync, statSync } from 'node:fs';
 import { rm } from 'node:fs/promises';
 import { join } from 'node:path';
+import type { SavedSessionOutput } from '@shared/ipc';
 import {
   generationPath,
   listGenerations,
@@ -104,7 +105,7 @@ import * as tmux from '../tmux';
 // DIRECT, not through ../settings — that barrel re-exports its own ipc module,
 // which pulls in the menu; a leaf on the quit path must not drag that in.
 import { getSettings } from '../settings/store';
-import { trimSnapshotText } from './command';
+import { stripAnsi, trimSnapshotText } from './command';
 
 /**
  * Fallback saved depth. The live value is Settings → "Saved scrollback"
@@ -145,8 +146,16 @@ export const SNAPSHOT_GENERATIONS = 3;
  * version the manifest recorded at the time. The manifest now records both, so
  * the capsule carries both, and each field is named for the binary it
  * describes. See `SnapshotSessionRecipe`.
+ *
+ * 3 (Phase 72): a capsule can now describe a pane on ANOTHER MACHINE.
+ * `machineId` is new and it is the field that says so. Absent means this Mac,
+ * which is every capsule written before this release. `capturedAt` did not
+ * change meaning and it never will: it is the moment this Mac finished
+ * receiving the bytes, read from this Mac's clock, so a machine whose clock is
+ * two days out cannot move it. A `reason` of `remote-checkpoint` is new for
+ * the same rung.
  */
-export const CAPSULE_VERSION = 2;
+export const CAPSULE_VERSION = 3;
 
 /** Extension every body carries, before its generation suffix. */
 const BODY_EXTENSION = '.txt';
@@ -175,6 +184,16 @@ export type SnapshotReason =
   | 'system-sleep'
   /** A timed capture (Phase 20). */
   | 'checkpoint'
+  /**
+   * A timed capture of a pane on ANOTHER MACHINE (Phase 72).
+   *
+   * Kept apart from `checkpoint` because the two are read differently. A local
+   * checkpoint is a copy of a pane this Mac can read again at any moment. A
+   * remote checkpoint is the only copy on this Mac of something that lives
+   * somewhere else, and it exists only for as long as the machine was
+   * answering.
+   */
+  | 'remote-checkpoint'
   /** The resume conformance harness. */
   | 'conformance'
   /** The caller did not say. */
@@ -261,8 +280,22 @@ export interface SnapshotCapsule {
   bytes: number;
   /** Hex sha256 of the body. */
   sha256: string;
-  /** When the capture completed. Epoch milliseconds. */
+  /**
+   * When the capture completed, from THIS MAC's clock. Epoch milliseconds.
+   *
+   * It is local receipt time and it is never a remote clock. A machine whose
+   * own clock is two days ahead still produces a capsule stamped with the
+   * moment this Mac finished writing it, which is why every age a surface
+   * shows can be compared against this Mac's own now. Fault matrix row 5 is
+   * the check on that.
+   */
   capturedAt: number;
+  /**
+   * APPENDED (Phase 72): the machine whose pane this is, when it is not this
+   * Mac. Absent means this Mac, which is every capsule written before this
+   * release.
+   */
+  machineId?: string;
 }
 
 /** The completion record file, newest capsule first. */
@@ -538,6 +571,100 @@ export function snapshotMaterialExists(sessionId: string): boolean {
 }
 
 /**
+ * The newest saved output for one session, as a person reads it (Phase 72).
+ *
+ * It is the read behind the `scrollback:saved` channel and the saved output
+ * panel. Three things about it are deliberate.
+ *
+ * It goes through `resolveSnapshot`, so the bytes it hands back are the bytes
+ * a restore would replay: the newest generation whose length and hash match
+ * its record, or an earlier one when the newest does not prove out. A panel
+ * showing something the restore would not use would be a second answer to the
+ * same question.
+ *
+ * It reports the CAPTURE TIME and it never omits it. That instant is the whole
+ * reason the panel exists. Saved output looks exactly like live output, and
+ * without the time a person reads an hours old screen as the current one. A
+ * pre-Phase-19 file has no record and so no time, and this function answers
+ * `capturedAt: 0` for it rather than inventing one; the panel says the time is
+ * not recorded rather than drawing a date from nowhere.
+ *
+ * It returns null rather than throwing for every failure, including a body
+ * that cannot be read after its record proved out. There is no state in which
+ * a person pressing a menu item gets an error dialog from this.
+ *
+ * IT STRIPS THE ESCAPES ON THE WAY OUT, and only on the way out. The bytes on
+ * disk keep their colour, because a restore replays them into a live pane where
+ * the colour is worth having. The panel is not a terminal, so what crosses to
+ * it is plain text. Stripping here rather than in the renderer keeps the one
+ * ANSI stripper in this codebase as the only one: `src/renderer` may not import
+ * `src/main`, so a renderer-side strip would be a second implementation of a
+ * thing that has exactly one correct answer.
+ */
+export function readSavedOutput(sessionId: string): SavedSessionOutput | null {
+  const found = resolveSnapshot(sessionId);
+  if (found === null) return null;
+  let raw: string;
+  try {
+    raw = readFileSync(found.path, 'utf8');
+  } catch {
+    return null;
+  }
+  if (raw.length === 0) return null;
+  const text = stripControls(stripAnsi(raw));
+  if (text.length === 0) return null;
+  return {
+    text,
+    capturedAt: found.capsule?.capturedAt ?? 0,
+    machineId: found.capsule?.machineId ?? null,
+    verified: found.verified,
+    bytes: Buffer.byteLength(raw, 'utf8'),
+    lines: found.capsule?.lines ?? 0
+  };
+}
+
+/**
+ * True when a recorded generation's body is still on disk at its own length.
+ *
+ * One `stat`, no read and no hash. It is the cheap half of the check the
+ * verified reader makes, and it is enough for the question here, which is
+ * whether skipping a publish would leave the session with no readable copy.
+ */
+function bodyIsIntact(capsule: SnapshotCapsule): boolean {
+  try {
+    return statSync(capsule.path).size === capsule.bytes;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The C0 controls out, keeping tab, newline and carriage return.
+ *
+ * `stripAnsi` removes escape SEQUENCES. What it leaves behind is the single
+ * bytes a program can print on their own, e.g. a bell. None of them is text and
+ * none of them draws anything in a panel, and a session on a machine Tortie
+ * does not control can print as many as it likes. Fault matrix row 8 drives
+ * exactly that.
+ */
+function stripControls(text: string): string {
+  // eslint-disable-next-line no-control-regex
+  return text.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '');
+}
+
+/**
+ * Epoch ms of the newest saved output for one session, or null.
+ *
+ * Presence and a time, with no body read and no hash. It is what the session
+ * projection carries as `savedOutputAt`, so a menu can offer the panel without
+ * every sessions broadcast reading every body off the disk.
+ */
+export function savedOutputAt(sessionId: string): number | null {
+  const newest = readCapsules(sessionId)[0];
+  return newest === undefined ? null : newest.capturedAt;
+}
+
+/**
  * The path a reader should open for this session.
  *
  * Kept because callers outside this module already had it. It answers with the
@@ -559,14 +686,25 @@ export function snapshotPath(sessionId: string): string {
 // capture became its second caller (standing guardrail 3: one copy).
 const resolvePaneTarget = tmux.resolvePaneTarget;
 
-/** Lines to write into a snapshot, from settings, clamped. */
-function savedLines(): number {
+/**
+ * Lines to write into a snapshot, from settings, with the fallback above.
+ *
+ * EXPORTED since Phase 72, and it is one function on purpose. The remote
+ * capture in `../machines/remote-capsule.ts` asks the far side for the same
+ * depth this Mac asks its own panes for, so a remote capsule and a local one
+ * are the same bytes read the same way. A second copy of this lookup would be
+ * a second answer to "how much is saved" the day somebody changes the setting.
+ */
+export function savedSnapshotLines(): number {
   try {
     return getSettings().savedScrollbackLines;
   } catch {
     return SNAPSHOT_LINES;
   }
 }
+
+/** The private name every caller in this file already used. */
+const savedLines = savedSnapshotLines;
 
 /**
  * Capture one live session's scrollback and publish it as the next generation.
@@ -612,8 +750,71 @@ async function captureLocked(
     }
   }
   if (text.length === 0) return false; // nothing worth replaying
-  const body = Buffer.from(text, 'utf8');
   const cwd = options.cwd ?? (await paneCwd(paneTarget));
+  return storeCapsuleLocked({
+    sessionId,
+    text,
+    ...(options.reason !== undefined ? { reason: options.reason } : {}),
+    cwd,
+    ...(options.session !== undefined ? { session: options.session } : {})
+  });
+}
+
+/** What a caller that already holds the text has to say about it. */
+export interface StoreCapsuleInput {
+  sessionId: string;
+  /** The pane text. Trimmed here, so a caller may pass it raw. */
+  text: string;
+  /** Why the capture ran. Defaults to 'unknown', as a local capture does. */
+  reason?: SnapshotReason;
+  /** The pane's working directory, or null when nothing knows it. */
+  cwd: string | null;
+  /** How to rebuild the session, when the caller has the row. */
+  session?: SnapshotSessionRecipe;
+  /** The machine the text came from. Left out for a pane on this Mac. */
+  machineId?: string;
+  /**
+   * Do not publish a body identical to the newest one already recorded
+   * (Phase 72 fix round).
+   *
+   * The remote capture takes it. It reads a screen on another machine every
+   * pass, and most passes find the same screen, so without this the ring would
+   * fill with three copies of one screen and the oldest real one would be
+   * pushed out. `false` when it is left out, which is what the local path
+   * passes: a local capture runs at an end, a checkpoint or a reap, and each of
+   * those is a moment worth a generation whatever the bytes say.
+   */
+  skipIfIdentical?: boolean;
+}
+
+/**
+ * Store text a caller already read as the next generation for one session.
+ *
+ * PHASE 72, and it exists so there is ONE writer rather than two. The local
+ * path reads a pane with `capture-pane` and then writes; the remote path reads
+ * a pane on another machine through the exec plane and then writes. Only the
+ * read differs, so only the read is in two places. Everything below this line,
+ * being the generation numbering, the durable publish, the completion record,
+ * the ring and the pre-Phase-19 sweep, has exactly one implementation and
+ * `captureSessionSnapshot` above now calls it too.
+ *
+ * Same contract as `captureSessionSnapshot`: true when the bytes are on disk,
+ * read back, hashed, flushed and named by a durable record. False when the
+ * text was empty. A throw means nothing was recorded and the previous
+ * generation is still the newest a reader will find.
+ *
+ * Serialised per session, on the same lock a capture and a delete take.
+ */
+export async function storeCapsuleText(input: StoreCapsuleInput): Promise<boolean> {
+  return withSessionLock(input.sessionId, () => storeCapsuleLocked(input));
+}
+
+async function storeCapsuleLocked(input: StoreCapsuleInput): Promise<boolean> {
+  const { sessionId } = input;
+  const text = trimSnapshotText(input.text);
+  if (text.length === 0) return false; // nothing worth replaying
+  const body = Buffer.from(text, 'utf8');
+  const cwd = input.cwd;
 
   const dir = snapshotsDir();
   const stem = snapshotStem(sessionId);
@@ -622,6 +823,18 @@ async function captureLocked(
   // left behind. The parent comes off the RECORD, so the chain of capsules
   // Phase 20 walks never points at a generation that has no capsule.
   const recorded = readCapsules(sessionId);
+  // PHASE 72 FIX ROUND. A screen that has not changed is not a new generation.
+  //
+  // The remote capture reads a screen on another machine on a cadence, and most
+  // passes find exactly what the last one found. Publishing each of those would
+  // fill the ring with three copies of one screen. The newest RECORD's own hash
+  // is compared, and its body has to still be on disk at the length the record
+  // names, so a lost body is republished rather than skipped.
+  if (input.skipIfIdentical === true && recorded[0] !== undefined) {
+    const newest = recorded[0];
+    const same = createHash('sha256').update(body).digest('hex');
+    if (newest.sha256 === same && bodyIsIntact(newest)) return false;
+  }
   const generation = (existing[0]?.generation ?? 0) + 1;
   const parent = recorded[0]?.generation ?? null;
   const path = generationPath(dir, stem, generation);
@@ -640,14 +853,16 @@ async function captureLocked(
     sessionId,
     generation,
     parent,
-    reason: options.reason ?? 'unknown',
+    reason: input.reason ?? 'unknown',
     path: receipt.path,
     cwd,
-    session: options.session ?? null,
+    session: input.session ?? null,
     lines: countLines(body),
     bytes: receipt.bytes,
     sha256: receipt.sha256,
-    capturedAt: Date.now()
+    // LOCAL RECEIPT TIME, never a clock on the other machine. See the field.
+    capturedAt: Date.now(),
+    ...(input.machineId !== undefined ? { machineId: input.machineId } : {})
   };
 
   // Step 9. The record, and it may not become durable before step 8 returned.
@@ -900,6 +1115,11 @@ function sanitizeCapsule(value: unknown, sessionId: string): SnapshotCapsule | n
     lines: typeof c['lines'] === 'number' ? c['lines'] : 0,
     bytes: c['bytes'],
     sha256: c['sha256'],
-    capturedAt: typeof c['capturedAt'] === 'number' ? c['capturedAt'] : 0
+    capturedAt: typeof c['capturedAt'] === 'number' ? c['capturedAt'] : 0,
+    // Phase 72. Absent is the honest answer for every capsule written before
+    // this release, and for every pane on this Mac.
+    ...(typeof c['machineId'] === 'string' && c['machineId'].length > 0
+      ? { machineId: c['machineId'] }
+      : {})
   };
 }

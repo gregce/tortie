@@ -14,7 +14,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   MACHINE_EVENT_KINDS,
-  RESTORE_DISABLED_LATER,
+  RESTORE_DISABLED_RUNNING,
   RESTORE_DISABLED_UNSEEN,
   machineTruth,
   mayFlipRestorable,
@@ -37,7 +37,7 @@ describe('the case table, one test per row', () => {
     expect(machineTruth(event('listed'))).toEqual({
       rows: { kind: 'per-row' },
       restoreOffered: false,
-      restoreDisabledReason: RESTORE_DISABLED_LATER,
+      restoreDisabledReason: RESTORE_DISABLED_RUNNING,
       evidence: `reconcile pass at ${String(AT)}`
     });
   });
@@ -50,8 +50,11 @@ describe('the case table, one test per row', () => {
   it('absent: a completed pass that did not report it is restorable, not exited', () => {
     expect(machineTruth(event('absent'))).toEqual({
       rows: { kind: 'status', status: 'restorable' },
-      restoreOffered: false,
-      restoreDisabledReason: RESTORE_DISABLED_LATER,
+      // PHASE 72 FLIPPED THIS ARM. A machine answered and its answer did not
+      // hold the session, which is the one piece of evidence that may open the
+      // verb. The per session conditions are asked by ../restore-gate.ts.
+      restoreOffered: true,
+      restoreDisabledReason: null,
       evidence: `absent from the pass at ${String(AT)}`
     });
   });
@@ -87,8 +90,9 @@ describe('the case table, one test per row', () => {
   it('no-server: the machine answered and holds nothing, so restorable', () => {
     expect(machineTruth(event('no-server'))).toEqual({
       rows: { kind: 'status', status: 'restorable' },
-      restoreOffered: false,
-      restoreDisabledReason: RESTORE_DISABLED_LATER,
+      // The second of the two arms Phase 72 flipped, for the same reason.
+      restoreOffered: true,
+      restoreDisabledReason: null,
       evidence: `no server on a reachable machine at ${String(AT)}`
     });
   });
@@ -101,7 +105,7 @@ describe('the case table, one test per row', () => {
     expect(machineTruth(event('control-exit'))).toEqual({
       rows: { kind: 'per-row' },
       restoreOffered: false,
-      restoreDisabledReason: RESTORE_DISABLED_LATER,
+      restoreDisabledReason: RESTORE_DISABLED_RUNNING,
       evidence: `control event at ${String(AT)}`
     });
   });
@@ -152,13 +156,36 @@ describe('the invariants no arm may break', () => {
   });
 
   /**
-   * Nothing on another machine comes back in this release. The reason names the
-   * release rather than a date, and M5 is the rung that flips two of these.
+   * PHASE 72 REPLACED THE OLD VERSION OF THIS INVARIANT, which asserted that no
+   * arm offered restore. Two arms do now, and the invariant that replaced it is
+   * stronger: the arms that offer restore, the arms that may write `restorable`,
+   * and the arms `mayFlipRestorable` admits are ONE set of two. A later edit
+   * that opened the verb on a third arm has to break all three at once.
    */
-  it('restore is offered on no arm, and every arm says why', () => {
+  it('restore is offered on exactly the arms that may write restorable', () => {
+    const offering = MACHINE_EVENT_KINDS.filter(
+      (kind) => machineTruth(event(kind)).restoreOffered
+    );
+    expect(offering).toEqual(['absent', 'no-server']);
+    for (const kind of MACHINE_EVENT_KINDS) {
+      expect(machineTruth(event(kind)).restoreOffered).toBe(
+        mayFlipRestorable(event(kind))
+      );
+    }
+  });
+
+  /**
+   * An arm that offers the verb names no reason, and an arm that refuses it
+   * always names one. A refusal with no sentence is a verb that vanishes from a
+   * menu with nothing said, which is the shape this whole rung refuses.
+   */
+  it('every arm either offers the verb or says why it does not', () => {
     for (const kind of MACHINE_EVENT_KINDS) {
       const truth = machineTruth(event(kind));
-      expect(truth.restoreOffered).toBe(false);
+      if (truth.restoreOffered) {
+        expect(truth.restoreDisabledReason).toBeNull();
+        continue;
+      }
       expect(truth.restoreDisabledReason).not.toBeNull();
       expect(String(truth.restoreDisabledReason).length).toBeGreaterThan(20);
     }
@@ -175,7 +202,7 @@ describe('the invariants no arm may break', () => {
    * reads, and both sentences here are drawn beside a session row.
    */
   it('neither sentence carries a dash the writing rules refuse', () => {
-    for (const sentence of [RESTORE_DISABLED_UNSEEN, RESTORE_DISABLED_LATER]) {
+    for (const sentence of [RESTORE_DISABLED_UNSEEN, RESTORE_DISABLED_RUNNING]) {
       expect(sentence).not.toContain('—');
       expect(sentence).not.toContain('–');
     }

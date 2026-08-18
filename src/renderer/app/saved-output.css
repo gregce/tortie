@@ -1,0 +1,74 @@
+/**
+ * Saved output panel styles, colocated with SavedOutputModal.tsx (Phase 72).
+ *
+ * The panel is the shared S6 sheet: `.modal-scrim`, `.modal`, `.modal-title`,
+ * `.modal-actions` and `.btn` all come from styles/app.css and
+ * styles/globals.css and are not restated here. What lives in this file is the
+ * output block, which no other sheet has.
+ *
+ * Every override is qualified with a second class (.modal.saved-output-modal)
+ * so it outranks the shared sheet on SPECIFICITY and never on bundle order,
+ * since Vite is free to emit these stylesheets in either order. That rule is
+ * written in the header of app/empty-states.css and it binds this file too.
+ *
+ * All colors via tokens (CLAUDE.md UI rules). No new tokens.
+ */
+
+/* Wider than the 560px Past Sessions sheet, because the content is terminal
+   output and a narrow column rewraps every line of it into nonsense. This file
+   owns the number. */
+.modal.saved-output-modal {
+  width: 720px;
+  max-width: 90vw;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The capture time. It is the first thing under the title and it is never
+   hidden behind a scroll, which is the whole reason the block below has its
+   own scroller instead of the sheet scrolling as one. */
+.modal.saved-output-modal .saved-output-header {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-secondary);
+}
+
+/* Stated, not alarmed (ZEN-OF-TORTIE). Unverified bytes are still worth
+   reading and the sentence says what they are. */
+.modal.saved-output-modal .saved-output-warning {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+}
+
+/* The output itself. Monospace, selectable, wrapped rather than clipped, and
+   scrolled in its own box so the header above stays on screen. */
+.modal.saved-output-modal .saved-output-body {
+  flex: 1 1 auto;
+  margin: 0;
+  min-height: 120px;
+  max-height: 52vh;
+  overflow: auto;
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-canvas);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.modal.saved-output-modal .saved-output-empty {
+  margin: 0;
+  padding: var(--space-8) var(--space-5);
+  text-align: center;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-muted);
+}

@@ -145,25 +145,36 @@ describe('migration 009', () => {
   it('is the ninth migration, and the schema version has kept counting', () => {
     expect(MANIFEST_MIGRATION_NAMES).toHaveLength(MANIFEST_SCHEMA_VERSION);
     // Phase 29 appended migration 010, Phase 33 appended 011, Phase 48
-    // appended 012 and Phase 71 appended 013, so the version moved to 13 and
-    // this migration's own position is what stays pinned.
-    expect(MANIFEST_SCHEMA_VERSION).toBe(13);
+    // appended 012, Phase 71 appended 013 and Phase 72 appended 014, so the
+    // version moved to 14 and this migration's own position is what stays
+    // pinned.
+    expect(MANIFEST_SCHEMA_VERSION).toBe(14);
     expect(MANIFEST_MIGRATION_NAMES[8]).toBe('009-context-snapshot');
   });
 
-  it('is declared ADDITIVE, so the minimum stayed where 008 left it', () => {
+  it('is declared ADDITIVE, so it never moved the minimum itself', () => {
     // The whole compatibility decision, in one line. See the file header for
     // why "additive" here is a statement about meaning and not about SQL.
-    expect(MANIFEST_MIN_COMPATIBLE_VERSION).toBe(8);
+    //
+    // PHASE 72 MOVED THE MINIMUM FROM 8 TO 13, and not because of this
+    // migration. Migration 013's column started carrying real machine ids, and
+    // an older build would read such a row as a session on this Mac and could
+    // recreate it here. This migration is still additive, and the way to write
+    // that is that the minimum is BELOW this migration's own number.
+    expect(MANIFEST_MIN_COMPATIBLE_VERSION).toBe(13);
     expect(MANIFEST_MIN_COMPATIBLE_VERSION).toBeLessThan(
       MANIFEST_SCHEMA_VERSION
     );
   });
 
-  it('lets a build at schema 8 keep opening and writing the file', () => {
-    // The refusal reads the MINIMUM, not the version. A build that understands
-    // format 8 is entitled to this file, and the sessions it creates carry a
-    // NULL snapshot, which reads as unrecorded rather than as wrong.
+  it('stamps the minimum, which is the number the refusal reads', () => {
+    // The refusal reads the MINIMUM, not the version. The number was 8 from
+    // Phase 21 to Phase 71, and a build that understood format 8 was entitled to
+    // this file: the sessions it created carried a NULL snapshot, which reads as
+    // unrecorded rather than as wrong. Phase 72 moved it to 13, because this
+    // build records sessions on other machines and an older build would read
+    // one as a session on this Mac. The claim this case keeps is that the
+    // stamped number and the constant are the same number.
     store.close();
     const raw = new Database(dbPath, { readonly: true });
     try {
@@ -172,7 +183,7 @@ describe('migration 009', () => {
           'SELECT value FROM meta WHERE key = ?'
         )
         .get('min_compatible_version');
-      expect(Number(min?.value)).toBe(8);
+      expect(Number(min?.value)).toBe(MANIFEST_MIN_COMPATIBLE_VERSION);
     } finally {
       raw.close();
     }

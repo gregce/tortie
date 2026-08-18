@@ -5570,7 +5570,7 @@ matrix on a real tailnet machine, are recorded as owed and run only when he is p
 | 69 | M2 | ✅ SHIPPED 2026-08-17 (4c86bea, 0.33.0, gates green), section below. MachineContext replaces the singleton; the exec plane over ssh with at-least-once discipline; remote server boot with -f /dev/null plus BOOT_SERVER_OPTIONS asserted; PATH capture ordered before first mutation; the version probe and refusal screen with remedy; error taxonomy golden files; keepalives from measurement. The dialect posture is a TESTED LIST that starts from locally measured versions and fails closed, so an unmeasured version is refused with the upgrade remedy, and his four machines join the list after the measurement he attends | 3 |
 | 70 | M3 | ✅ SHIPPED 2026-08-17 (17f1dea, 0.34.0, gates green), section below. Attach over ssh -t in node-pty; create, kill and rename remote; the machine badge; session list by exec polling; restore REFUSED for every remote row with a visible coming label; the vocabulary audit. First visible operator value | 3 |
 | 71 | M4 | ✅ SHIPPED 2026-08-17 (this commit, 0.35.0, gates green), section below. The control plane per machine replaces polling; per-machine reconcile; the machine_id migration; the section 4.4 case table live; pane-env rescue over the exec plane; the partition harness in the spirit of smoke:fault, driven by killing the scratch sshd mid-flight. **Plus the hole Phase 70's verifier measured and Phase 70 did not close.** A confirmed machine that does not answer when Tortie starts shows nothing at all in the main window. A row exists only after a poll, a poll starts only after a prepare, and a machine that is asleep never prepares, so the person is not told that the machine exists, that it did not answer, or that their sessions there are untouched. The per-machine reconcile is where a row that survives a launch comes from, so the fix belongs here | 3 |
-| 72 | M5 | Remote restore enabled behind the fault matrix; per-machine argv capture; capsule replay; provenance-gated resume arming; the forget-machine tombstone. The ten-row matrix runs green against the scratch sshd overnight, and the real-tailnet repetition is OWED and recorded before any release enables remote restore | 3 |
+| 72 | M5 | ✅ SHIPPED 2026-08-17 (this commit, 0.36.0, gates green), section below. Remote restore enabled behind the fault matrix; per machine program capture; the saved output panel; provenance gated resume arming; the forget-machine record. The ten row matrix runs green against the scratch sshd, and the real tailnet repetition is OWED and recorded. **Plus four defects the fix round found and closed**, being restore refused for ever after the far side's own session server died, the local reconcile writing `restorable` onto every remote row, the saved output surface being unreachable because nothing produced `savedOutputAt`, and no remote session ever being copied twice because the skip rule read `#{session_activity}`, which does not move for a session nobody is attached to | 3 |
 | 73 | M6 | Connected-only harvest polling; the remote env value probe with the traced byte path; image upload; the read-only remote review answer through existing diff surfaces; and the conversation-continuity groundwork from the ladder note, being connected-time read-only sync of agent-native stores with the promise stated as last-sync staleness. Cross-machine reconstruction into target agents lands here if provable against the scratch sshd, else it is recorded as Phase 74 | 3 |
 
 Phases 67 and 62.1 run in parallel in isolated worktrees because their files are disjoint; 68
@@ -6399,6 +6399,239 @@ shows that same line even though the expanded row itself still shows its error. 
 the runs body's own scroll only, so an outer container scrolling would move the rows without
 closing it, which is the History card's behavior too. HistorySection still runs its own inline
 copy of the hover timers, so hover-timing.ts has exactly one consumer until a later consolidation.
+
+## Phase 72 — M5, remote restore, earned (research 51, M5) ✅ SHIPPED 2026-08-18 (this commit, 0.37.0, gates green)
+
+The M5 rung of the remote ladder. Phase 70 refused Restore for every session on another machine and
+said so in one sentence. This rung offers it, behind five conditions that all have to hold at once,
+and it declines to bring the conversation back because Tortie has never collected one for a session
+on another machine. It also gives a remote session a durable row, records where THAT machine keeps
+the program the session runs, keeps a copy of what the session printed on this Mac, and keeps a
+record of what Tortie last knew when a person removes a machine.
+
+**A SECOND FIX ROUND, and what the merge decided.** The first re-verify closed sixteen of the
+seventeen problems and left one open, being the saved output surface. `listSessions` merges two
+lists. The manifest loop projected a remote row and added its id to `covered` without stamping
+`savedOutputAt`, and the loop below it, which is the loop that stamps, skips every covered id. So
+the panel was unreachable for every remote session that HAS a manifest row, which is every remote
+session this build creates, while the copies sat on disk the whole time. The manifest arm now
+stamps it. `src/main/sessions/__tests__/saved-output-reach.test.ts` holds it, and it was proven by
+reverting the fix and watching two of its five tests fail.
+
+The merge onto 0.36.1 also settled problem 9 in Phase 79's favour rather than this phase's. Both
+rungs independently fixed the same false sentence. Phase 72 rewrote `HONESTY_NO_SESSIONS_YET` into
+a true one. Phase 79 deleted the constant outright and added a RETIRED_CLAIMS table that fails when
+any string still makes a claim a shipped rung has disproved. Nothing consumed the constant, so the
+deletion stands and the rewrite was dropped. The stronger of the two answers survived.
+
+**What is NOT true of this rung.** Every number here comes from a scratch sign in server on this
+Mac over the loopback address. That reproduces a hung pipe and it says nothing about packet loss,
+roaming, or a laptop closing its lid. The real tailnet repetition is OWED and needs the operator
+present. Nobody has photographed the saved output panel, the refused verb or the Past Sessions
+record on the tree that shipped; the evidence for those is the driven matrix and the tests.
+
+**The gate is five conditions and the first one that fails is the sentence a person reads.**
+`src/main/machines/restore-gate.ts` is a pure table with six arms, in this order: the machine is
+still in the machines file, the row's recorded machine is the machine being restored on, Tortie has
+signed in to it in this run, Tortie has a route to it right now, a list from it completed in this
+run and it answered the last time Tortie asked, and that machine's own last completed list does NOT
+hold this session. The last one is the double run guard, and it is the one failure research 28 ranks
+as destroying work.
+
+**What shipped, in seven parts.**
+
+1. Remote restore, in `src/main/machines/remote-restore.ts`. It asks the gate, checks that the row
+belongs to the machine in hand, re-asserts that machine's own session server and reads its program
+list before any mutation, asks the machine one more time whether it is holding the session, creates
+with both identity variables on the line itself, stamps the four session options and reads them
+back. Measured against the scratch machine: 304 ms for a shell session and 441 ms in the fault
+matrix, with 4 of 4 stamps and 2 of 2 pane variables reading back byte for byte.
+2. Per machine program capture, in `src/main/machines/remote-argv.ts`. The manifest rule is that
+`argv[0]` is an absolute path, and a path read on this Mac names nothing on another computer, so the
+machine is asked where IT keeps the program, through its own login shell inside a marker pair. The
+answer goes into the row and into the recovery record, both bound to that row's machine. It goes on
+no command line: the launch stays by bare name on both sides. `smoke:remote` step 10a proves it end
+to end, recording `claude` at `/Users/gdc/.local/bin/claude` on the scratch machine and bringing the
+session back from that row.
+3. The durable row for a remote session, written before the create line, the same order a local
+create uses. `MANIFEST_MIN_COMPATIBLE_VERSION` moves from 8 to 13 and the refusal Phase 71 left in
+`sessions-repository.ts` is deleted, because this is the build that records a real machine.
+4. Saved output, in `src/main/machines/remote-capsule.ts`. It reads a screen on another machine with
+the same flags a local capture uses, through the same durable ring, and the copy stays on this Mac.
+The panel is `src/renderer/app/SavedOutputModal.tsx` and every view of it says when the copy was
+taken and that it is not live.
+5. The arming gate, in `src/main/machines/resume-arming.ts`. A local row arms for every input, by
+construction and with a test over every combination. A remote row takes the `not-collected` arm every
+time, because no producer writes a remote conversation id in this release.
+6. The forget-machine record, in `src/main/machines/tombstone.ts`, migration `014-machine-tombstone`,
+`user_version` 13 to 14. Removing a machine sends nothing to it, writes one record per row saying
+what Tortie last knew and when, closes the connection and stops the saving.
+7. The ten row fault matrix, `npm run smoke:matrix`, against two scratch machines with their own
+session servers. The script owns the machines and the faults, the app owns the moments and writes
+facts, and the script grades. It is the gate: a red run ships restore refused.
+
+**The matrix, green, with a number on every row.**
+
+| # | Research 28 section 6.3 | What was measured |
+| --- | --- | --- |
+| 1 | Transport loss on a healthy host | Every row on the cut machine read `unknown` 196 ms after the cut and never `restorable` or `exited`. 0 restores offered, 0 copies taken on that machine while it was down. The row on the other machine and the row on this Mac each took exactly one status the whole time |
+| 2 | Host unreachable at launch | The app started with the machine down, holding a row a previous run created. 1 row on screen, reading `unknown`, carrying a 151 character sentence, offering no Restore. 0 sessions created on this Mac. The row's name, folder, machine, program and create time were byte identical before and after, and the only column that moved was the status, from `idle` to `unknown` |
+| 3 | Two clients, one remote session | A second profile listed 1 session of Tortie's on that machine, wrote 0 manifest rows for it, offered 0 restores and sent 0 kills. The first client's session list was 61440 bytes before and 61440 after |
+| 4 | Restore against an unreachable host | Refused with the `unseen` sentence, 0 processes started, and the session list byte identical across the attempt. The sample is taken after every row has gone `unknown` and immediately before the restore |
+| 5 | Clock skew | The machine reported session times 172,794,519 ms ahead, which is 48 hours less the run's own elapsed time. The copy Tortie saved is stamped 30,052 ms BEHIND this Mac's clock rather than two days ahead of it, and no row moved status in the 30 s that followed |
+| 6 | Version mismatch | The machine reported `0.0-made-up`. Create, attach and restore were all refused, 0 servers were started on it and 0 settings were written |
+| 7 | Remote reboot | The machine's own session server was ended by the one pid the supervisor recorded. The row became restorable 5,386 ms later, having read `unknown` on the way and never `exited`. The restore took 337 ms, and 4 of 4 identity marks and 2 of 2 environment values read back from the machine byte for byte |
+| 8 | Untrusted remote bytes | The supervisor typed a bell, four escape sequences and 4096 random bytes into a session from the machine's own side. The copy on this Mac holds 5,685 characters including 9 escape bytes and reads back through its own hash. What a person is shown is 5,644 characters with 0 escape bytes and 0 control bytes, and the session list row holds 0 |
+| 9 | Capture cadence at scale | 30 sessions on one link, all printing. Three driven passes wrote 6, 8 and 8 copies, which is 22 against a bound of 8 per pass and a cap of 24 over three. With the printing stopped the passes settled 8, 6, 8, 0 and the pass after that wrote 0. Over 300 s of wall clock with 10 rounds of printing the cadence produced 51 copies |
+| 10 | Move with a dirty tree, translated | A person removed a machine holding 34 sessions. 34 rows became a record of what Tortie last knew, 0 commands were sent to the machine, 0 rows claim the work ended, and the machine still held all 34 sessions when the supervisor looked afterwards |
+
+Every number above is from the clean shell run, being
+`env -i PATH=... HOME=... SHELL=/bin/zsh TMPDIR=... npm run smoke:matrix` on the committed tree. The
+run from an ordinary shell on the same tree gave the same verdict and the same shape of numbers: row
+7 took 5,487 ms to restorable and 356 ms to restore against 5,386 ms and 337 ms, and row 9 wrote 7, 8
+and 7 copies per pass against 6, 8 and 8. The operator's own server held 32 sessions before and after
+every leg of both runs, with `history-limit` and `exit-empty` unchanged.
+
+**The fix round found sixteen things and every one of them is closed.** The four that were durability
+or truth, rather than harness defects, are first.
+
+- **Restore was refused for ever after the far side's own session server died, which is the one case
+restore exists for.** The gate asked whether the live connection was up, and that connection is
+opened only after a read proves the far side's server is already running, because opening it against
+a machine with no server would create one carrying none of Tortie's settings. So a machine whose
+server died could never satisfy that arm. Matrix row 7 measured it twice: the row became restorable
+in about 5.1 s and the restore was then refused, with 0 of 4 stamps read back. The fact is now
+whether Tortie has a ROUTE to the machine, over either plane, and a completed list is a route. Row 7
+now reads `becameRestorable` in 5.5 s, a restore in 441 ms, 4 of 4 stamps and 2 of 2 pane variables.
+- **The local reconcile wrote a false status onto every remote row.** `reconcileManifest` compared
+every manifest row against THIS Mac's own session list, found the remote ones absent from a list that
+could never have held them, and wrote `restorable`. That is the value the next launch believes before
+any machine answers, so a person came back to Tortie offering to bring back work that had been
+running the whole time. Rows whose machine is not this Mac are now left alone, and four tests in
+`src/main/manifest/__tests__/reconcile.test.ts` hold it.
+- **The whole saved output surface was unreachable.** `Session.savedOutputAt` had two readers and no
+producer, so the menu item was permanently disabled on every row and the line pointing at the copy
+never drew. It is produced in `toSession` for a manifest row and in `SessionCore.listSessions` for a
+feed row that has none.
+- **No session on any machine was ever copied more than once.** The pass skipped a row whose
+`#{session_activity}` stamp had not moved since the last copy, and that stamp does not do what the
+rule assumed. MEASURED 2026-08-17 with tmux 3.6a, twice: a detached session was made to print 4096
+bytes, and the stamp read 1787023590 before, 1787023590 after and 1787023590 three seconds later.
+The same test with a control client attached to another session on the same server gave the same
+answer. `#{history_size}` moved from 0 to 48 in both, so the printing did happen. tmux moves that
+stamp for a session somebody is attached to, and every session Tortie copies is one nobody is
+attached to. So the first pass took a copy of whatever the screen held seconds after the create and
+every pass after it skipped the session for ever. The rule is gone. The read still happens, bounded
+at eight per pass by the link, and whether to PUBLISH is decided on the bytes: the ring is asked to
+skip a body identical to the newest one it already holds. Matrix rows 5, 8 and 9 all measured zero
+copies before this was found and all three now measure real ones.
+
+The rest were the phase's own surfaces and harnesses.
+
+- A concurrent double press of Restore on a remote row was guarded by nothing Tortie decided. The
+in flight guard sat below the remote branch, so both presses passed the gate and both composed a
+create, and only the far side's own rule about duplicate session names refused the second. The window
+is several seconds wide because the restore re-asserts the machine's session server inside it. The
+guard is now the first thing the branch does.
+- `resumeArmingVerdict` had no production caller and the restore printed its sentence unconditionally.
+It is asked now, once, and its answer is what the outcome carries. Its rules also moved: it used to
+ask whether the row had a resume command before anything else, and every remote row this build writes
+has none, so every remote row answered "nothing to say" and the arm that tells a person their
+conversation is not coming back was reached by no row at all.
+- Settings then Machines still said "You cannot open a session on a machine yet". That has been false
+since Phase 70. It now names what a session on a machine does and does not carry.
+- `npm test` was red on the committed tree, at
+`src/renderer/app/__tests__/unreachable-presentation.test.tsx`, because the phase added a third item
+to the menu an unreachable row gets and the test still expected two.
+- `npm run smoke:remote` exited 1 at step 8c, before it reached any restore, so the phase shipped
+with no end to end restore proof in any gate. The harness confirmed and prepared a machine it never
+added to the machines file, so every refusal came back as "you removed this machine".
+- Per machine program capture was exercised by nothing, because every session any harness created was
+a plain shell, whose argv is empty by construction. `smoke:remote` step 10a now creates a session with
+a real agent and brings it back.
+- Matrix row 4 could not pass as written. Its before sample was taken before the link was cut, and
+cutting the link writes `unknown` on every row on that machine by design, so the two samples always
+differed. The sample is taken after the rows have gone unknown and immediately before the restore.
+- Matrix row 2 could not pass as written either, for the same reason in a different place. It asked
+for the row not to be written at all, and a machine Tortie cannot see writes `unknown` durably on
+purpose. It now grades the row's identity, which must not move, and the status, which must read
+`unknown`.
+- Matrix rows 5 and 9 passed over zero events. Row 5 asserted something about a saved copy with
+`capsuleCapturedAtMs: 0`, and row 9 asserted a cap with 0 saves in 300 s. Both now fail on zero, and
+both were made to produce real events.
+- The matrix cold leg did not reproduce a launch. It never read the machines file, so the row told a
+person "you removed this machine from Tortie" about a machine nobody removed.
+- Tortie composes NO argv for a session created as a plain shell, so every `extraArgs` the matrix
+handed one was dropped and every one of its sessions sat idle. Rows 8 and 9 were grading copies of a
+shell prompt. The supervisor types into those sessions from the machine's own side now, which is also
+the honest shape of the case.
+- The supervisor's own lookup of which pane belongs to which session used a tab between its two
+fields, and the clean shell run is what caught it. MEASURED 2026-08-18 with tmux 3.6a: the same
+`list-panes -a -F` prints `$0 \t %0` from a shell with a locale in it and `$0 _ %0` from one started
+with `env -i`. So under the clean shell the lookup found no pane, typed into nothing, and rows 5, 8
+and 9 graded a screen nobody had made print, with only the first run's numbers to show it. A space
+separates the two fields now, neither identifier can hold one, and the supervisor fails the run
+outright when a request to make sessions print reaches none of them.
+- The vocabulary audit named `src/main/machines/tombstone.ts`, which holds no copy, and did not name
+the two sentences the restore prints. Those sentences moved into `./remote-copy.ts`, which is where
+every sentence main prints about a session on another machine lives, and the audit now also reads
+`src/renderer/settings/machines-copy.ts`, which is where the tombstone sentences are composed.
+
+**Contract lines this commit moves, and the reason for each.** `docs/audits/contract-baseline.txt` is
+regenerated in the same commit and the diff is exactly these eight lines.
+
+| Line | From | To | Reason |
+| --- | --- | --- | --- |
+| `[ipc.invoke.channels]` | 157 | 158 | `scrollback:saved`, the newest verified copy's text and its capture time for one session |
+| `[sqlite.identity] user_version` | 13 | 14 | Migration `014-machine-tombstone` |
+| `[sqlite.identity] min_compatible_version` | 8 | 13 | A build at schema 12 reads a remote row as a session on this Mac, and its restore would recreate that session HERE. Phase 71 wrote this instruction at `schema.ts:378` |
+| `[sqlite.migrations]` | 13 | 14 | `014-machine-tombstone` |
+| `[sqlite.schema]` sessions | — | `machine_tombstone TEXT` | What Tortie last knew about a session on a machine a person removed |
+| `[harness.smoke.modes]` | 24 | 25 | `remote-matrix`, the app half of the ten row matrix |
+| `[bundle.refusals] durability` | 24 | 23 | `manifest.machine-id-nonlocal` is deleted, because this is the build that records a real machine |
+| `[bundle.refusals] machines` | 13 | 16 | `machine.restore-refused` is retired because its sentence is now false. Added: `machine.restore-unseen`, `machine.restore-wrong-machine`, `machine.restore-forgotten`, `machine.resume-not-collected` |
+
+**What is not true.**
+
+The real tailnet repetition is OWED. Every number in this rung comes from a scratch sign in server on
+this Mac over the loopback address. That reproduces a hung pipe. It says nothing about packet loss,
+roaming, or a laptop closing its lid. It needs the operator present and it is not done.
+
+The operator's four machines were not contacted and their tmux versions are still unmeasured, so all
+four are still refused.
+
+The saved output is not put back into the recreated session on the other machine. Three mechanisms
+could do it and all three are refused, which `REPLAY_IS_NOT_ATTEMPTED` states in full. The restore
+result and the panel both say it to the person.
+
+No conversation comes back. Every remote row records `remote-not-collected` and the arming gate takes
+that arm every time. The arm that says yes has no producer in this release, and the restore logs a
+warning if it is ever reached, because nothing types a command into a pane on another machine yet.
+
+Cross Mac double run is still open. Research 51 section 7 question 6 has no answer here. A second Mac
+restoring the same session is refused by nothing on the far side, and matrix row 3 proves only that
+the second Mac never adopts and never kills.
+
+No harvest, no remote environment value probe, no image upload, no remote review, no conversation
+store sync. Those are M6.
+
+The capture cadence numbers are chosen rather than measured. What IS measured is what they produce,
+and matrix row 9 prints the copies one pass writes with thirty sessions listed.
+
+Matrix row 9 does not measure "one capture in flight at a time". That is a property inside one
+process and the harness watches from outside. A unit test holds it.
+
+Matrix row 6 asks for a restore of a row that does not exist, because no session can be created on a
+machine whose version nobody measured. What it measures is that restore starts nothing, not that it
+read the version.
+
+No screenshot was taken in this fix round. The saved output panel, the refused verb and the Past
+Sessions record are held by unit tests and by the matrix's own numbers, and a person has not looked
+at any of the three with their own eyes on this tree.
+
+The live probes the phase brief lists as items 1 to 6 were driven by the harnesses rather than by a
+person in the window. `smoke:remote` covers items 1, 3 and 6 and the matrix covers items 2 and 5.
+Item 4, reading the capture time in the panel by eye, was not done.
 
 ## Phase 71 — the control plane and the partition harness (research 51, M4) ✅ SHIPPED 2026-08-17 (this commit, 0.35.0, gates green)
 

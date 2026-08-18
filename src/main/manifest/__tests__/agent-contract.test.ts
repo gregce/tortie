@@ -154,19 +154,26 @@ describe('migration 008', () => {
     expect(MANIFEST_MIGRATION_NAMES[7]).toBe('008-agent-recovery-contract');
   });
 
-  it('is declared BREAKING, so the minimum moved to 8 with it', () => {
+  it('is declared BREAKING, and it is the migration that first raised the floor', () => {
     // The SQL shape is additive and the compatibility statement is not. See
     // research 27 §4.3: bump the minimum whenever a new column is required for
     // correct restore, even where SQLite would let an old build write without
     // it. `agent_contract` is that column.
     //
-    // THE NUMBER IS LITERAL, AND IT USED TO BE `MANIFEST_SCHEMA_VERSION`.
-    // Written that way it only said "008 is breaking" for as long as 008 was
-    // the last migration. Phase 22 added 009, which is ADDITIVE and therefore
-    // moved the version and not the minimum, and the old form failed as though
-    // that were a defect. The claim this case exists to keep is that migration
-    // 008 raised the floor to 8, and 8 is how you write it.
-    expect(MANIFEST_MIN_COMPATIBLE_VERSION).toBe(8);
+    // THE NUMBER WAS LITERAL 8 FROM PHASE 21 TO PHASE 71, and it used to be
+    // written as `MANIFEST_SCHEMA_VERSION`. Written that way it only said "008
+    // is breaking" for as long as 008 was the last migration. Phase 22 added
+    // 009, which is ADDITIVE and therefore moved the version and not the
+    // minimum, and the old form failed as though that were a defect.
+    //
+    // PHASE 72 MOVED THE FLOOR AGAIN, from 8 to 13, because migration 013's
+    // column started carrying real machine ids and an older build would read
+    // such a row as a session on this Mac. So the claim this case keeps is the
+    // one that survives both moves: migration 008 is BREAKING, meaning it is at
+    // or below the floor, and every migration after it that is additive left the
+    // floor alone.
+    expect(MANIFEST_MIN_COMPATIBLE_VERSION).toBeGreaterThanOrEqual(8);
+    expect(MANIFEST_MIN_COMPATIBLE_VERSION).toBe(13);
   });
 
   it('stamps the three numbers on the file it migrated', () => {
@@ -496,13 +503,13 @@ describe('what the PREVIOUS release does with this manifest', () => {
       expect(rows).toHaveLength(1);
       // Three from migration 008, one from 009, one from 010 (Phase 29's
       // removed_at), one from 011 (Phase 33's env_passthrough), one from 012
-      // (Phase 48's exit_detail), one from 013 (Phase 71's machine_id). The
-      // point of the case is that an old build's `SELECT *` neither throws nor
-      // mis-reads the row it gets, so the number moves with every additive
-      // migration after this one and is deliberately spelled out rather than
-      // hidden behind a constant.
+      // (Phase 48's exit_detail), one from 013 (Phase 71's machine_id), one from
+      // 014 (Phase 72's machine_tombstone). The point of the case is that an old
+      // build's `SELECT *` neither throws nor mis-reads the row it gets, so the
+      // number moves with every additive migration after this one and is
+      // deliberately spelled out rather than hidden behind a constant.
       expect(Object.keys(rows[0] ?? {})).toHaveLength(
-        SCHEMA_7_COLUMNS.length + 3 + 1 + 1 + 1 + 1 + 1
+        SCHEMA_7_COLUMNS.length + 3 + 1 + 1 + 1 + 1 + 1 + 1
       );
     } finally {
       old.close();

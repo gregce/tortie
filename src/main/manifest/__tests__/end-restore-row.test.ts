@@ -31,7 +31,11 @@ vi.mock('../../restore/snapshots', () => ({
   snapshotMaterialExists: (sessionId: string) => {
     probed.push(sessionId);
     return material;
-  }
+  },
+  // Phase 72. The projection also carries the instant of the newest copy Tortie
+  // kept of a session's output. Null here, because these tests are about the
+  // restore material field and a saved copy is a different question.
+  savedOutputAt: () => null
 }));
 
 let dir: string;

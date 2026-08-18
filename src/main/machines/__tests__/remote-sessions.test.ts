@@ -7,15 +7,20 @@
  * about what Tortie SENDS and what it refuses to send, and a test that let a
  * command through to find out would be the defect it is testing for.
  *
- * ## The manifest claim, and how it is checked here
+ * ## The manifest claim, and how PHASE 72 CHANGED IT
  *
- * The rung's central rule is that nothing about a remote session is ever written
- * to the manifest. This file checks the structural half, being that
- * `remote-sessions.ts` imports nothing under `../manifest/` and nothing that
- * could reach it, so there is no code path to audit. The byte half is
- * `GMUX_SMOKE=remote-sessions`, which looks for a database file in the profile
- * after a whole create, rename and kill and requires zero. Between the two, a
- * write would have to appear both as a new import here and as a file there.
+ * Phase 70's rule was that nothing about a remote session is ever written to the
+ * manifest, and this file checked it as an import list. Phase 72 writes a row for
+ * every session Tortie creates on a machine, so the rule moved rather than went
+ * away: every one of those writes goes through `../remote-record.ts`, and this
+ * file still asserts that `remote-sessions.ts` reaches the manifest through that
+ * one module and no other. A reader asking what a remote path can do to the
+ * manifest still reads one module.
+ *
+ * The byte half moved with it. `GMUX_SMOKE=remote-sessions` used to require zero
+ * database files in the profile after a create, a rename and a kill. It now
+ * requires the row to be there, to name the machine, and to carry the program
+ * path that machine reported.
  */
 
 import { readFileSync } from 'node:fs';
@@ -108,7 +113,7 @@ vi.mock('../../tmux/control-client', async (importOriginal) => ({
 
 const {
   MACHINE_NOT_READY,
-  RESTORE_REFUSED,
+  RESTORE_FORGOTTEN,
   TARGET_UNBOUND
 } = await import('../remote-copy');
 
@@ -575,7 +580,21 @@ describe('the two refusals this rung pins', () => {
     expect(() => boundRemoteRow('ours-1')).toThrow();
   });
 
-  it('refuses restore for a remote row and allows it for anything else', async () => {
+  /**
+   * PHASE 72 CHANGED WHAT THIS ASSERTS, and the change is the rung.
+   *
+   * Phase 70 refused restore for every remote row with one sentence. The gate
+   * asks six conditions now, and in this file NONE of them can hold. This test
+   * writes no machines file, so the FIRST arm is the one that fires, and the
+   * order is what decides which sentence a person reads: a machine Tortie has no
+   * row for is a machine that was removed or never added, and telling them the
+   * link is down would send them to fix something that is not the problem.
+   *
+   * The offered case needs a machines row, a signed in connection and a live
+   * feed, none of which a unit test can produce honestly. It is watched in
+   * `GMUX_SMOKE=remote-sessions` and graded by the ten row matrix.
+   */
+  it('refuses restore for a remote row on a machine it has no row for', async () => {
     answers['list-sessions'] = line({ tmuxId: '$7', gmuxId: 'ours-1' });
     await pollRemoteMachine(MACHINE);
     const payload = await refusalOf(async () =>
@@ -583,7 +602,7 @@ describe('the two refusals this rung pins', () => {
         refuseRemoteRestore('ours-1');
       })
     );
-    expect(payload?.message).toBe(RESTORE_REFUSED);
+    expect(payload?.message).toBe(RESTORE_FORGOTTEN);
     expect(() => refuseRemoteRestore('a-local-row')).not.toThrow();
   });
 });
@@ -843,11 +862,20 @@ describe('what this module is allowed to import', () => {
     'utf8'
   );
 
-  it('imports nothing from the manifest, which is the rung’s central rule', () => {
-    // Nothing about a remote session is ever written to the manifest. Stated as
-    // an import list, that rule is checkable rather than asserted, and this is
-    // the check.
-    expect(source).not.toMatch(/from '\.\.\/manifest/);
+  it('reaches the manifest through one module and no other', () => {
+    // PHASE 72. Every write a remote path makes goes through `./remote-record.ts`,
+    // so a reader auditing what this layer can do to the manifest reads that one
+    // module. Stated as an import list, that rule is checkable rather than
+    // asserted, and this is the check.
+    //
+    // The one direct import allowed is a TYPE, being the tombstone shape, which
+    // compiles to nothing and can write no row.
+    const manifestImports = [...source.matchAll(/from '(\.\.\/manifest[^']*)'/g)].map(
+      (match) => match[1]
+    );
+    expect(manifestImports).toEqual(['../manifest/codecs']);
+    expect(source).toMatch(/import type \{[\s\S]*?\} from '\.\.\/manifest\/codecs'/);
+    expect(source).toContain("from './remote-record'");
     expect(source).not.toMatch(/from '\.\.\/restore/);
   });
 

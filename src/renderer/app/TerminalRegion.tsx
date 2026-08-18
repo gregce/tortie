@@ -42,10 +42,12 @@ import {
 import './unreachable.css';
 import { MachineBadge } from './MachineBadge';
 import {
-  RESTORE_COMING,
+  RESTORE_KEPT_HERE,
   badgeQuietTitle,
   badgeSilentTitle,
-  machineSilentText
+  machineSilentText,
+  restoreNotOfferedBody,
+  restoreRemoteBody
 } from './machine-copy';
 import {
   RenameInput,
@@ -383,8 +385,6 @@ export function RegionBars({
 /** What the ended block knows about the session it is drawing. */
 export interface EndedBody {
   session: Session;
-  /** Phase 70: the session runs on another machine. */
-  remote: boolean;
   /** Phase 48: this window watched it start and it was gone within 5 seconds. */
   fastDeath: boolean;
   /** The status is `exited` rather than `restorable`. */
@@ -402,16 +402,26 @@ export interface EndedBody {
  * one reason: Phase 70 added a sixth branch whose whole point is that a person
  * reads it instead of pressing a button, and a branch that decides what a
  * refusal says has to be testable without mounting the whole region. Nothing
- * about the five existing branches moved.
+ * about the five original branches moved.
+ *
+ * PHASE 72 split that sixth branch in two and dropped the `remote` field it
+ * used to take. The field was `session.machine !== undefined` written twice, so
+ * a caller could pass a boolean that disagreed with the session it passed
+ * beside it. Now there is one source for the answer and it is the row itself.
  */
 export function endedBodyText(body: EndedBody): string {
-  const { session, remote, fastDeath, exited, offersRestore, canRestore } =
-    body;
-  // Phase 70. Neither Restore nor Restart is offered for a session on another
-  // machine, so the body says what is coming rather than describing an action
-  // that is not on the screen. It outranks every other branch, because none of
-  // the others can be true of a session Tortie kept no record of.
-  if (remote) return RESTORE_COMING;
+  const { session, fastDeath, exited, offersRestore, canRestore } = body;
+  const machine = session.machine;
+  // PHASE 72. A session on another machine says one of two things, and which
+  // one is decided by main and nothing else. Offered: what Restore will do,
+  // including the two things it will not do. Refused: the sentence main sent
+  // naming the condition that failed. Either way it outranks every branch
+  // below, because none of those describes a session that lives somewhere else.
+  if (machine !== undefined) {
+    return machine.canRestore
+      ? restoreRemoteBody(machine.label)
+      : (machine.restoreReason ?? restoreNotOfferedBody(machine.label));
+  }
   // Phase 48 — the bound, never a duration. See FAST_DEATH_MS in ./status for
   // why a decimal would be invented.
   if (fastDeath) return fastDeathSentence(session);
@@ -520,19 +530,22 @@ export function TerminalRegion(): React.JSX.Element {
   // every row written before this build and on every death with an empty
   // pane, and the block then reads exactly as it did before.
   const lastWords = exited && failed ? active.exitDetail : undefined;
-  // Phase 70. A session on another machine is offered neither verb here, for
-  // the same reason the context menu offers neither: nothing about it was
-  // written on this Mac, so there is no output to replay and no command to
-  // arm, and main refuses both for a remote id. The block says so in words
-  // instead, which is the only honest thing left to put in that space.
-  const remote = active !== null && active.machine !== undefined;
+  // PHASE 72. A session on another machine is now offered Restore, and the
+  // answer comes from ONE fact main sent, being `machine.canRestore`. The
+  // renderer re-derives none of the five conditions behind it, because a
+  // second reading is a second answer. Restart stays absent for every remote
+  // row: a restart ends a session and starts a new one, and the ending half is
+  // a verb aimed at another machine that this rung did not build.
+  const machine = active?.machine;
+  const remote = machine !== undefined;
   // Phase 26.3: an exited session offers Restore beside Restart when it
   // still has material to bring back (resume.ts hasRestoreMaterial).
   const offersRestore =
     active !== null &&
-    !remote &&
     canRestore() &&
-    (restorable || (exited && hasRestoreMaterial(active)));
+    (machine !== undefined
+      ? machine.canRestore
+      : restorable || (exited && hasRestoreMaterial(active)));
 
   const grouped = activeSurface !== null && activeSurface.isGroup;
 
@@ -596,13 +609,19 @@ export function TerminalRegion(): React.JSX.Element {
             <p className="empty-body">
               {endedBodyText({
                 session: active,
-                remote,
                 fastDeath,
                 exited,
                 offersRestore,
                 canRestore: canRestore()
               })}
             </p>
+            {/* Phase 72. A remote restore does not put the saved output back
+                into the recreated session on the other machine, so the person
+                is told where that output is instead of finding a blank pane.
+                Drawn only when there is a copy to open. */}
+            {remote && active.savedOutputAt !== undefined ? (
+              <p className="empty-body">{RESTORE_KEPT_HERE}</p>
+            ) : null}
             {lastWords !== undefined ? (
               <>
                 <p className="exit-detail-lead">

@@ -17,7 +17,7 @@ import type { ContextSnapshot } from '@shared/context-snapshot';
 // the projection can tell the renderer whether an ended row has anything to
 // restore. snapshots.ts is a leaf — it never imports the manifest — so this
 // direction is cycle-free.
-import { snapshotMaterialExists } from '../restore/snapshots';
+import { savedOutputAt, snapshotMaterialExists } from '../restore/snapshots';
 import {
   RESUME_CAPTURES,
   SESSION_STATUSES,
@@ -149,24 +149,70 @@ export interface ManifestSessionRecord extends Session {
   /**
    * Which machine this session runs on (Phase 71, migration 013).
    *
-   * EVERY VALUE IN THIS RELEASE IS `'local'`. A session on another machine gets
-   * no manifest row at all in this rung, and `./sessions-repository.ts` refuses
-   * any other value under `manifest.machine-id-nonlocal`. The column exists so
-   * the reconcile boundary can be per machine, which is what stops a link to
-   * one machine writing 'unknown' over rows on another.
+   * PHASE 72 IS THE FIRST BUILD THAT WRITES ANY VALUE OTHER THAN `'local'`. A
+   * session Tortie creates on another machine now gets a row here, written at
+   * create time, before the create line is sent, which is the same order a local
+   * create uses. The refusal that stood in front of that write while the column
+   * held one value is gone, and `MANIFEST_MIN_COMPATIBLE_VERSION` moved from 8 to
+   * 13 in the same commit, because an older build would read a remote row as
+   * local and its restore would recreate the session on this Mac.
+   *
+   * WHAT A NON LOCAL VALUE CHANGES ABOUT THE REST OF THE ROW. `argv[0]` is the
+   * absolute path of the program ON THAT MACHINE, captured there by
+   * `../machines/remote-argv.ts`, and it means nothing on any other computer.
+   * `cwd` and `projectPath` are paths on that machine, so no local `existsSync`
+   * may run against them. `agentContract.cwdReal` and `projectReal` are those
+   * same paths as given rather than realpath'd, because realpath is a local call.
    *
    * UNDEFINED READS AS `'local'`, and {@link rowToRecord} never leaves it
    * undefined: a NULL column becomes `'local'` on the way out. It is optional on
-   * this type so that a record composed by hand, which is what every create path
-   * and every test does, does not have to state the one value the column can
-   * hold. `LOCAL_MACHINE_ID` in `../machines/context.ts` is the one definition of
-   * the word.
+   * this type so that a record composed by hand, which is what every LOCAL create
+   * path and every test does, does not have to state the ordinary value.
+   * `LOCAL_MACHINE_ID` in `../machines/context.ts` is the one definition of the
+   * word.
    *
    * Written once, with the row. `ManifestSessionPatch` excludes it, for the same
    * reason it excludes `envPassthrough`: where a session runs is decided once,
    * at create, and a patch route would let another caller move it.
    */
   machineId?: string;
+  /**
+   * What Tortie last knew about this session when a person removed its machine
+   * (Phase 72, migration 014).
+   *
+   * PRESENT ONLY ON A ROW WHOSE MACHINE WAS REMOVED. It is written once, by
+   * `markMachineForgotten`, in the same statement that writes status 'discarded'
+   * and `removed_at`. Nothing is sent to the machine when it is written: no
+   * session is ended, no server is stopped and nothing is read.
+   *
+   * It is the whole record of a machine that is no longer in `machines.json`, so
+   * it carries the label as well as the instants. Nothing else can supply the
+   * name afterwards.
+   */
+  machineTombstone?: MachineTombstone;
+}
+
+/**
+ * What Tortie last knew about a session on a machine a person removed
+ * (Phase 72, migration 014).
+ *
+ * It is written into `machine_tombstone` as JSON and read back whole. Every
+ * field is a LOCAL fact: the label Tortie held, the status Tortie last derived,
+ * and two instants from this Mac's clock. No value here comes from the other
+ * machine's clock, because a remote clock is never compared with a local one.
+ */
+export interface MachineTombstone {
+  v: 1;
+  /** The machine row's id, kept so a later reader can group by machine. */
+  machineId: string;
+  /** The label at the moment of removal. machines.json no longer holds it. */
+  machineLabel: string;
+  /** The last status a completed list produced for this row. */
+  lastStatus: SessionStatus;
+  /** Local receipt ms of the last completed list that held this row. 0 when none did. */
+  lastSeenAt: number;
+  /** Local ms of the removal. */
+  forgottenAt: number;
 }
 
 /**
@@ -311,19 +357,32 @@ export interface SessionRow {
   /**
    * Which machine this session runs on (migration 013, Phase 71).
    *
-   * `'local'` on every row in this release. NULL is possible on a row a
+   * `'local'` on every row created on this Mac, and the machine row's id on a
+   * session Tortie created somewhere else (Phase 72). NULL is possible on a row a
    * `.recover` rebuild produced, because that rebuild writes the FINAL schema
    * and never runs the migration's backfill, and NULL is read as `'local'`.
    */
   machine_id: string | null;
+  /**
+   * What Tortie last knew about this session when its machine was removed, as
+   * JSON (migration 014, Phase 72).
+   *
+   * NULL on every row whose machine is still in the list, and on every row
+   * written before the migration. NULL is the true answer for both.
+   */
+  machine_tombstone: string | null;
 }
 
 // ---------------------------------------------------------------------------
-// The one value `machine_id` may hold in this release
+// The value `machine_id` carries for a session on this Mac
 // ---------------------------------------------------------------------------
 
 /**
- * `'local'`, the only value the `machine_id` column may carry today.
+ * `'local'`, the value the `machine_id` column carries for a session on this Mac.
+ *
+ * It was the ONLY value the column could hold until Phase 72, which is the build
+ * that records a session as living on another machine. It is still the value
+ * every local create writes and the value a NULL column reads as.
  *
  * IT IS THE SAME STRING AS `LOCAL_MACHINE_ID` IN `../machines/context.ts`, and
  * it is written out here rather than imported, on purpose. Importing that module
@@ -338,6 +397,60 @@ export interface SessionRow {
  * the same string.
  */
 export const LOCAL_MACHINE_ROW = 'local';
+
+/**
+ * Parse the `machine_tombstone` column (Phase 72, migration 014).
+ *
+ * Every field is checked, and an unreadable value is dropped WHOLE. Half a
+ * tombstone would draw a sentence naming a machine it cannot name, or an instant
+ * it does not have, and a record about work a person may have lost is the last
+ * place to render a guess. A dropped tombstone leaves the row as an ordinary
+ * removal, which is what it is.
+ */
+function parseMachineTombstone(text: string | null): MachineTombstone | undefined {
+  if (text === null) return undefined;
+  try {
+    const v: unknown = JSON.parse(text);
+    if (v === null || typeof v !== 'object' || Array.isArray(v)) return undefined;
+    const o = v as Record<string, unknown>;
+    const machineId = o['machineId'];
+    const machineLabel = o['machineLabel'];
+    const lastStatus = o['lastStatus'];
+    const lastSeenAt = o['lastSeenAt'];
+    const forgottenAt = o['forgottenAt'];
+    if (typeof machineId !== 'string' || machineId.length === 0) return undefined;
+    if (typeof machineLabel !== 'string' || machineLabel.length === 0) {
+      return undefined;
+    }
+    if (typeof lastStatus !== 'string') return undefined;
+    if (!(SESSION_STATUSES as readonly string[]).includes(lastStatus)) {
+      return undefined;
+    }
+    if (typeof lastSeenAt !== 'number' || !Number.isFinite(lastSeenAt)) {
+      return undefined;
+    }
+    if (typeof forgottenAt !== 'number' || !Number.isFinite(forgottenAt)) {
+      return undefined;
+    }
+    return {
+      v: 1,
+      machineId,
+      machineLabel,
+      lastStatus: lastStatus as SessionStatus,
+      lastSeenAt,
+      forgottenAt
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+/** Serialize the tombstone for the column. Undefined in, NULL out. */
+export function serializeMachineTombstone(
+  tombstone: MachineTombstone | undefined
+): string | null {
+  return tombstone === undefined ? null : JSON.stringify(tombstone);
+}
 
 // ---------------------------------------------------------------------------
 // Errors (shared GmuxErrorPayload convention: JSON-stringified message)
@@ -598,6 +711,10 @@ export function rowToRecord(row: SessionRow): ManifestSessionRecord {
     row.machine_id.length > 0
       ? row.machine_id
       : LOCAL_MACHINE_ROW;
+  // Phase 72. Absent on every row whose machine is still in the list, which is
+  // what NULL means, and absent on a value that would not parse whole.
+  const tombstone = parseMachineTombstone(row.machine_tombstone ?? null);
+  if (tombstone !== undefined) record.machineTombstone = tombstone;
   return record;
 }
 
@@ -660,5 +777,25 @@ export function toSession(record: ManifestSessionRecord): Session {
   // Phase 29: the Past Sessions panel orders by this and renders it as
   // "removed Aug 12", so it travels with the projection.
   if (record.removedAt !== undefined) session.removedAt = record.removedAt;
+  // PHASE 72, and it is what makes the saved output panel reachable at all.
+  // The menu item offers the panel only for a row that HAS a copy, and whether
+  // one is on disk is a main process fact a renderer cannot stat for itself.
+  // It reads the completion record and never a body, so it is one small file
+  // read per row and no scrollback is loaded to answer it.
+  const savedAt = savedOutputAt(record.id);
+  if (savedAt !== null) session.savedOutputAt = savedAt;
+  // Phase 72: a row whose machine a person removed. Past Sessions draws the
+  // sentence from these four facts, and it cannot read the machines file for
+  // them because the machine is no longer in it. `machineId` is deliberately not
+  // projected: a renderer that had it could look the machine up and find
+  // nothing, and the label here is the answer to that question already.
+  if (record.machineTombstone !== undefined) {
+    session.machineGone = {
+      label: record.machineTombstone.machineLabel,
+      lastStatus: record.machineTombstone.lastStatus,
+      lastSeenAt: record.machineTombstone.lastSeenAt,
+      forgottenAt: record.machineTombstone.forgottenAt
+    };
+  }
   return session;
 }

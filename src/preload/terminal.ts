@@ -100,5 +100,8 @@ export const scrollback: NonNullable<GmuxScrollbackExtras['scrollback']> = {
   stats: () => invoke('scrollback:stats'),
   session: (sessionId) => invoke('scrollback:session', sessionId),
   report: () => invoke('scrollback:report'),
+  // Phase 72. A fourth PULL, asked when the saved output panel opens and at
+  // no other time. It reads a file on this Mac and sends no command anywhere.
+  saved: (sessionId) => invoke('scrollback:saved', sessionId),
   onNotice: (cb) => on(EVT_SCROLLBACK_NOTICE, cb)
 };

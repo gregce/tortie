@@ -53,6 +53,36 @@ vi.mock('node-pty', () => ({
   }
 }));
 
+/**
+ * PHASE 72. The tombstone module, replaced.
+ *
+ * The real one opens the manifest and reaches the machine feed, and neither
+ * belongs in a test about which channels are registered and in what order they
+ * do their work. What this file has to prove about it is the ORDER: the
+ * tombstones are written while the machine row is still in the file, because
+ * the label they carry comes from that row. So the stand in records whether
+ * the row was still there when it was called.
+ *
+ * `src/main/machines/__tests__/tombstone.test.ts` holds the module's own
+ * behaviour.
+ */
+const tomb = vi.hoisted(() => ({
+  /** Each call, with whether the machine row was still in the file. */
+  calls: [] as { id: string; rowStillThere: boolean }[],
+  /** How many sessions the stand in reports for a machine. */
+  count: 0,
+  /** Set in beforeEach, so the stand in can read the real store. */
+  rowStillThere: (): boolean => false
+}));
+
+vi.mock('../tombstone', () => ({
+  forgetMachineSessions: (id: string) => {
+    tomb.calls.push({ id, rowStillThere: tomb.rowStillThere() });
+    return { tombstoned: tomb.count, commandsSent: 0 as const };
+  },
+  machineSessionCount: () => tomb.count
+}));
+
 const { registerMachinesIpc } = await import('../ipc');
 const {
   MACHINE_CONFIRM_ACKNOWLEDGEMENT,
@@ -63,6 +93,7 @@ const {
   addMachineRow,
   loadMachines,
   machineFieldsOf,
+  machineRow,
   machinesDiskReads,
   machinesPath,
   resetMachinesStoreForTests
@@ -139,6 +170,9 @@ beforeEach(() => {
   spawned.length = 0;
   sent.length = 0;
   handlers.clear();
+  tomb.calls.length = 0;
+  tomb.count = 0;
+  tomb.rowStillThere = () => machineRow('pop-os') !== null;
   resetMachinesStoreForTests();
   resetMachineTestForTests();
   registerMachinesIpc(fakeIpc);
@@ -491,5 +525,59 @@ describe('machines:confirm, forget and remove', () => {
     addMachineRow(POP);
     const after = call<{ rows: { state: string }[] }>('machines:rows');
     expect(after.rows[0]?.state).toBe('never');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 72. What a removal leaves behind
+// ---------------------------------------------------------------------------
+
+describe('machines:remove writes the record before the row goes', () => {
+  it('tombstones the sessions while the machine is still in the file', () => {
+    loadMachines('boot');
+    addMachineRow(POP);
+    tomb.count = 2;
+    call('machines:remove', 'pop-os');
+    // One call, for this machine, made while the row was still there. The
+    // label the record carries comes from that row, so a removal that deleted
+    // it first would write the id where a person expects the name.
+    expect(tomb.calls).toEqual([{ id: 'pop-os', rowStillThere: true }]);
+    expect(machineRow('pop-os')).toBeNull();
+  });
+
+  it('still asks even when Tortie holds no session for the machine', () => {
+    loadMachines('boot');
+    addMachineRow(POP);
+    tomb.count = 0;
+    call('machines:remove', 'pop-os');
+    // The link is closed and the feed rows are dropped by the same call, so it
+    // runs for a machine with nothing on it too.
+    expect(tomb.calls).toHaveLength(1);
+  });
+
+  it('spawns nothing, because nothing is sent to the machine', () => {
+    loadMachines('boot');
+    addMachineRow(POP);
+    tomb.count = 3;
+    call('machines:remove', 'pop-os');
+    expect(spawned).toHaveLength(0);
+    expect(machineSshSpawnCount()).toBe(0);
+  });
+});
+
+describe('machines:rows carries the session count', () => {
+  it('names a number, so the removal question can count out loud', () => {
+    writeFile({ schema: 1, machines: [POP] });
+    loadMachines('boot');
+    tomb.count = 2;
+    const out = call<{ rows: { sessions: number }[] }>('machines:rows');
+    expect(out.rows[0]?.sessions).toBe(2);
+  });
+
+  it('reads 0 for a machine Tortie holds nothing for', () => {
+    writeFile({ schema: 1, machines: [POP] });
+    loadMachines('boot');
+    const out = call<{ rows: { sessions: number }[] }>('machines:rows');
+    expect(out.rows[0]?.sessions).toBe(0);
   });
 });

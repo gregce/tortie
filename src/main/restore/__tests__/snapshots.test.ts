@@ -17,6 +17,16 @@
  *    record is, exactly once, and is deleted as soon as a proven body exists.
  *  - Two captures of one session serialise instead of colliding.
  *  - The capsule carries everything Phase 20 reconstruction needs.
+ *
+ * PHASE 72 added three things and each one has its own block at the foot of
+ * this file.
+ *  - `storeCapsuleText` is the ONE writer. The local capture now calls it, so
+ *    a test that proves the local path still writes the same generations,
+ *    records and ring is a test of both paths.
+ *  - A capsule can name the machine its pane was on, and `capturedAt` stays
+ *    this Mac's clock whatever that machine's clock says.
+ *  - `readSavedOutput` is what the saved output panel reads, and it hands back
+ *    the capture time with the text, with the escapes removed.
  */
 
 import { createHash } from 'node:crypto';
@@ -61,6 +71,9 @@ vi.mock('../../tmux', () => ({
 const {
   captureSessionSnapshot,
   capsuleIndexPath,
+  readSavedOutput,
+  savedOutputAt,
+  storeCapsuleText,
   classifySnapshotFile,
   deleteSnapshot,
   existingSnapshotPath,
@@ -557,5 +570,218 @@ describe('deleting a session snapshots', () => {
 
   it('is fine when there was never a snapshot', async () => {
     await expect(deleteSnapshot(SESSION)).resolves.toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 72
+// ---------------------------------------------------------------------------
+
+describe('storing text a caller already read (Phase 72)', () => {
+  it('writes the same generation, record and ring a local capture writes', async () => {
+    await expect(
+      storeCapsuleText({
+        sessionId: SESSION,
+        text: 'from another machine\n',
+        reason: 'remote-checkpoint',
+        cwd: '/work',
+        machineId: 'studio'
+      })
+    ).resolves.toBe(true);
+
+    expect(bodies()).toEqual([`${SESSION}.txt.000001`]);
+    const capsule = readCapsules(SESSION)[0];
+    expect(capsule).toMatchObject({
+      version: CAPSULE_VERSION,
+      generation: 1,
+      parent: null,
+      reason: 'remote-checkpoint',
+      cwd: '/work',
+      machineId: 'studio'
+    });
+    const body = readFileSync(snapshotBodyPath(SESSION, 1));
+    expect(capsule?.sha256).toBe(sha(body));
+    expect(capsule?.bytes).toBe(body.length);
+  });
+
+  it('names no machine for a pane on this Mac', async () => {
+    await captureSessionSnapshot('$1', SESSION);
+    expect(readCapsules(SESSION)[0]?.machineId).toBeUndefined();
+  });
+
+  it('keeps the ring at three across both writers', async () => {
+    await captureSessionSnapshot('$1', SESSION);
+    for (const text of ['two\n', 'three\n', 'four\n']) {
+      await storeCapsuleText({
+        sessionId: SESSION,
+        text,
+        reason: 'remote-checkpoint',
+        cwd: null,
+        machineId: 'studio'
+      });
+    }
+    expect(bodies()).toHaveLength(SNAPSHOT_GENERATIONS);
+    expect(readCapsules(SESSION).map((c) => c.generation)).toEqual([4, 3, 2]);
+  });
+
+  /**
+   * PHASE 72 FIX ROUND. The remote capture reads a screen on another machine
+   * every pass, and most passes find exactly what the last one found. Without
+   * this the ring would fill with three copies of one screen and the oldest
+   * real one would be pushed out.
+   */
+  describe('a screen that has not changed', () => {
+    const same = {
+      sessionId: SESSION,
+      text: 'the same screen\n',
+      reason: 'remote-checkpoint' as const,
+      cwd: null,
+      machineId: 'studio',
+      skipIfIdentical: true
+    };
+
+    it('is not published a second time when the caller asks for that', async () => {
+      await expect(storeCapsuleText(same)).resolves.toBe(true);
+      await expect(storeCapsuleText(same)).resolves.toBe(false);
+      await expect(storeCapsuleText(same)).resolves.toBe(false);
+      expect(bodies()).toHaveLength(1);
+      expect(readCapsules(SESSION).map((c) => c.generation)).toEqual([1]);
+    });
+
+    it('is published when the screen changes by one character', async () => {
+      await storeCapsuleText(same);
+      await expect(
+        storeCapsuleText({ ...same, text: 'the same screen.\n' })
+      ).resolves.toBe(true);
+      expect(readCapsules(SESSION).map((c) => c.generation)).toEqual([2, 1]);
+    });
+
+    it('is published again when the body it matches is gone from disk', async () => {
+      await storeCapsuleText(same);
+      const newest = readCapsules(SESSION)[0];
+      rmSync(String(newest?.path));
+      expect(bodies()).toEqual([]);
+      // Published rather than skipped, because skipping would leave the
+      // session with a record and no bytes anybody could read.
+      await expect(storeCapsuleText(same)).resolves.toBe(true);
+      expect(bodies()).toHaveLength(1);
+      expect(resolveSnapshot(SESSION)?.verified).toBe(true);
+    });
+
+    it('is published every time for a caller that does not ask', async () => {
+      const { skipIfIdentical: _skip, ...plain } = same;
+      await expect(storeCapsuleText(plain)).resolves.toBe(true);
+      await expect(storeCapsuleText(plain)).resolves.toBe(true);
+      expect(readCapsules(SESSION).map((c) => c.generation)).toEqual([2, 1]);
+    });
+  });
+
+  it('writes nothing for an empty screen', async () => {
+    await expect(
+      storeCapsuleText({
+        sessionId: SESSION,
+        text: '   \n\n',
+        reason: 'remote-checkpoint',
+        cwd: null,
+        machineId: 'studio'
+      })
+    ).resolves.toBe(false);
+    expect(bodies()).toEqual([]);
+  });
+
+  it('stamps this Mac s clock whatever the other machine s clock says', async () => {
+    const before = Date.now();
+    await storeCapsuleText({
+      sessionId: SESSION,
+      text: 'text\n',
+      reason: 'remote-checkpoint',
+      cwd: null,
+      machineId: 'studio'
+    });
+    const capsule = readCapsules(SESSION)[0];
+    expect(capsule?.capturedAt).toBeGreaterThanOrEqual(before);
+    expect(capsule?.capturedAt).toBeLessThanOrEqual(Date.now());
+  });
+
+  it('serialises a remote write against a local capture of one session', async () => {
+    const both = await Promise.all([
+      captureSessionSnapshot('$1', SESSION),
+      storeCapsuleText({
+        sessionId: SESSION,
+        text: 'from the machine\n',
+        reason: 'remote-checkpoint',
+        cwd: null,
+        machineId: 'studio'
+      })
+    ]);
+    expect(both).toEqual([true, true]);
+    expect(bodies()).toEqual([
+      `${SESSION}.txt.000001`,
+      `${SESSION}.txt.000002`
+    ]);
+    expect(readCapsules(SESSION).map((c) => c.generation)).toEqual([2, 1]);
+  });
+});
+
+describe('reading the saved output back (Phase 72)', () => {
+  it('hands back the text, the capture time and the machine', async () => {
+    await storeCapsuleText({
+      sessionId: SESSION,
+      text: 'what the agent said\n',
+      reason: 'remote-checkpoint',
+      cwd: '/work',
+      machineId: 'studio'
+    });
+    const found = readSavedOutput(SESSION);
+    expect(found?.text).toBe('what the agent said\n');
+    expect(found?.machineId).toBe('studio');
+    expect(found?.verified).toBe(true);
+    expect(found?.lines).toBe(1);
+    expect(found?.capturedAt).toBe(readCapsules(SESSION)[0]?.capturedAt);
+  });
+
+  it('removes the escapes and the single byte controls on the way out', async () => {
+    // The bytes on DISK keep their colour, because a restore replays them into
+    // a live pane. Only what crosses to the panel is plain.
+    await storeCapsuleText({
+      sessionId: SESSION,
+      text: '\u001b[1;32mgreen\u001b[0m and a bell\u0007 here\n',
+      reason: 'remote-checkpoint',
+      cwd: null,
+      machineId: 'studio'
+    });
+    expect(readSavedOutput(SESSION)?.text).toBe('green and a bell here\n');
+    expect(readFileSync(snapshotBodyPath(SESSION, 1), 'utf8')).toContain(
+      '\u001b['
+    );
+  });
+
+  it('answers nothing when there is nothing saved', () => {
+    expect(readSavedOutput(SESSION)).toBeNull();
+    expect(savedOutputAt(SESSION)).toBeNull();
+  });
+
+  it('answers with a time of zero for a snapshot written before Phase 19', () => {
+    writeFileSync(legacySnapshotPath(SESSION), 'old scrollback\n');
+    const found = readSavedOutput(SESSION);
+    expect(found?.text).toBe('old scrollback\n');
+    expect(found?.capturedAt).toBe(0);
+    expect(found?.verified).toBe(false);
+    expect(found?.machineId).toBeNull();
+  });
+
+  it('falls back to the previous generation when the newest is damaged', async () => {
+    await captureSessionSnapshot('$1', SESSION);
+    paneText = 'the second one\n';
+    await captureSessionSnapshot('$1', SESSION);
+    writeFileSync(snapshotBodyPath(SESSION, 2), 'tampered\n');
+    const found = readSavedOutput(SESSION);
+    expect(found?.text).toBe('hello from the pane\n');
+    expect(found?.verified).toBe(true);
+  });
+
+  it('reports the newest capture time without reading a body', async () => {
+    await captureSessionSnapshot('$1', SESSION);
+    expect(savedOutputAt(SESSION)).toBe(readCapsules(SESSION)[0]?.capturedAt);
   });
 });

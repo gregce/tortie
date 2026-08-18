@@ -14,7 +14,7 @@
  * no tmux server, no Electron, no manifest, no file under the person's home, no
  * request and no write anywhere. Safe on a machine with live sessions on it.
  *
- * THE TWENTY FIVE CONDITIONS IT FAILS ON. Each one is a way a person's agreement
+ * THE TWENTY SEVEN CONDITIONS IT FAILS ON. Each one is a way a person's agreement
  * could come to cover something they did not read, a way a refusal could quietly
  * stop being a refusal, or (from 11 on) a way a command Tortie sends to another
  * machine could come to land somewhere nobody chose.
@@ -90,6 +90,18 @@
  *     says why it does not. Also fails when the table and `mayFlipRestorable`
  *     disagree, when any arm produces `needs_input`, or when
  *     `src/main/machines/status-truth.ts` imports anything but a shared type.
+ *     PHASE 72 CHANGED WHAT THIS ARM EXPECTS. Two arms now offer restore, and
+ *     they are exactly the two `mayFlipRestorable` names, so the two sets are
+ *     compared against each other rather than both held at false.
+ * 26. The restore gate offers Restore for an input it should refuse, refuses
+ *     with the wrong arm, refuses without a sentence a person could read, or
+ *     offers a row that reads `unknown`. Also fails when the declared order of
+ *     the arms is not the order they fire in, because the first true arm is the
+ *     sentence a person reads, or when `restore-gate.ts` imports anything
+ *     beyond a shared type and the copy module.
+ * 27. The ten row fault matrix has fewer than ten rows, its two halves name
+ *     different rows, or `src/main/harness/index.ts` cannot start it. A row
+ *     with no grader passes by not being looked at.
  *
  * WHAT IT DOES NOT PROVE, stated so nobody reads more into a pass. The record
  * is sealed through `safeStorage`, which needs an Electron process, so this
@@ -1314,17 +1326,36 @@ for (const want of TRUTH_AT_RESEARCH_51) {
   if (!String(got.evidence).includes(String(data.truthAt))) {
     problems.push('evidence carrying no instant, so a log line cannot be placed in time');
   }
-  if (got.restoreOffered !== false) {
+  // PHASE 72. Two arms now offer restore, and they are exactly the two that
+  // `mayFlipRestorable` names. The rule is one sentence: a session may be
+  // offered for restore only when the machine ANSWERED and the answer did not
+  // hold it. An arm that offers restore on any other evidence is offering to
+  // start a second agent on a conversation that already has one, so the two
+  // sets are compared here rather than read.
+  if (got.restoreOffered !== want.mayFlipRestorable) {
     problems.push(
-      'restore offered, and this release brings back no session that lives on ' +
-        'another machine'
+      `restoreOffered ${String(got.restoreOffered)} for an arm whose ` +
+        `mayFlipRestorable is ${String(want.mayFlipRestorable)}. Restore is ` +
+        `offered on exactly the arms where a machine answered and its answer ` +
+        `did not hold the session.`
     );
   }
-  if (typeof got.reason !== 'string' || got.reason.length < 20) {
-    problems.push('no sentence saying why restore is not offered');
+  if (got.restoreOffered === true && got.reason !== null) {
+    problems.push(
+      'an arm that offers restore also carries a sentence saying why it does ' +
+        'not, so a surface could draw both'
+    );
   }
-  if (String(got.reason ?? '').includes('—') || String(got.reason ?? '').includes('–')) {
-    problems.push('a dash the writing rules refuse');
+  if (got.restoreOffered === false) {
+    if (typeof got.reason !== 'string' || got.reason.length < 20) {
+      problems.push('no sentence saying why restore is not offered');
+    }
+    if (
+      String(got.reason ?? '').includes('—') ||
+      String(got.reason ?? '').includes('–')
+    ) {
+      problems.push('a dash the writing rules refuse');
+    }
   }
   if (problems.length > 0) {
     fail(`the "${want.event}" arm of the status truth table: ${problems.join('; ')}.`);
@@ -1366,7 +1397,12 @@ for (const row of truthRows) {
 // tmux, SQLite or filesystem import in it would mean the answer depends on
 // something the reviewer cannot see from the page.
 {
-  const ALLOWED_TRUTH_IMPORTS = ['@shared/types'];
+  // PHASE 72 ADDED ONE NAME TO THIS LIST. The case table's sentences are copy,
+  // and every sentence about a machine is written once in `./remote-copy.ts` so
+  // one audit can read them all. That module imports nothing itself, so the
+  // rule this list exists for is unchanged: the verdict is still decidable from
+  // the event alone, with no tmux, no SQLite, no filesystem and no timer.
+  const ALLOWED_TRUTH_IMPORTS = ['@shared/types', './remote-copy'];
   for (const line of (data.truthImports ?? []).map(String)) {
     const match = /'([^']+)'/.exec(line);
     if (match === null) continue;
@@ -1376,6 +1412,172 @@ for (const row of truthRows) {
         match[1]
       )}, which is not on its allowed list. The case table must be decidable ` +
         `from the event alone: no tmux, no SQLite, no filesystem and no timer.`
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 26. Phase 72. The gate that decides whether Restore is offered
+// ---------------------------------------------------------------------------
+//
+// Pressing Restore when the answer should have been no is how one conversation
+// comes to have two agents on it. The gate is pure, so the probe drives it from
+// a baseline where every condition holds, turning one condition off at a time,
+// and what is checked here is which arm each of those reaches.
+//
+// The expected arms are written out HERE rather than imported, for the same
+// reason the case table above is: importing the implementation and comparing it
+// against itself would pass whatever the implementation did.
+
+const GATE_AT_SPEC = [
+  { name: 'everything holds', offered: true, refusal: null },
+  { name: 'the machine was removed', offered: false, refusal: 'forgotten' },
+  { name: 'the row belongs to another machine', offered: false, refusal: 'wrong-machine' },
+  { name: 'nobody signed in to it in this run', offered: false, refusal: 'not-ready' },
+  { name: 'neither route to the machine answered', offered: false, refusal: 'no-route' },
+  { name: 'that machine’s own session server has died', offered: true, refusal: null },
+  { name: 'no list has completed yet', offered: false, refusal: 'unseen' },
+  { name: 'the machine is not answering now', offered: false, refusal: 'unseen' },
+  { name: 'the machine still lists the session', offered: false, refusal: 'running' },
+  { name: 'the row reads unknown', offered: false, refusal: 'unseen' },
+  { name: 'the row reads unknown and every condition holds', offered: false, refusal: 'unseen' },
+  { name: 'the row is running', offered: false, refusal: 'running' }
+];
+
+const REFUSAL_ORDER = [
+  'forgotten',
+  'wrong-machine',
+  'not-ready',
+  'no-route',
+  'unseen',
+  'running'
+];
+
+const gateRows = data.gateRows ?? [];
+const gateVerdicts = [];
+
+if (gateRows.length !== GATE_AT_SPEC.length) {
+  fail(
+    `the restore gate was driven over ${String(gateRows.length)} input(s) and ` +
+      `${String(GATE_AT_SPEC.length)} are named here. An input added without a ` +
+      `row here is an input nobody compared against the specification.`
+  );
+}
+
+for (const want of GATE_AT_SPEC) {
+  const got = gateRows.find((row) => row.name === want.name) ?? null;
+  if (got === null) {
+    fail(`the restore gate was not driven with "${want.name}"`);
+    continue;
+  }
+  const problems = [];
+  if (got.offered !== want.offered) {
+    problems.push(
+      `offered ${String(got.offered)} rather than ${String(want.offered)}`
+    );
+  }
+  if ((got.refusal ?? null) !== want.refusal) {
+    problems.push(
+      `refusal ${JSON.stringify(got.refusal)} rather than ` +
+        `${JSON.stringify(want.refusal)}`
+    );
+  }
+  if (want.offered === false) {
+    if (typeof got.reason !== 'string' || got.reason.length < 20) {
+      problems.push('no sentence a person could read');
+    }
+    if (String(got.reason ?? '').includes('—') || String(got.reason ?? '').includes('–')) {
+      problems.push('a dash the writing rules refuse');
+    }
+  } else if (String(got.reason ?? '') !== '') {
+    problems.push('an offered verdict carries a refusal sentence as well');
+  }
+  if (problems.length > 0) {
+    fail(`the restore gate with "${want.name}": ${problems.join('; ')}.`);
+  }
+  gateVerdicts.push({
+    input: want.name,
+    offered: got.offered ? 'YES' : 'no',
+    refusal: got.refusal ?? '',
+    verdict: problems.length === 0 ? 'pass' : 'FAIL'
+  });
+}
+
+// A row that reads `unknown` can never be offered, whatever else is true. It is
+// asserted over every input rather than over the two that name it, because the
+// status is the one fact a surface shows and a person reads.
+for (const row of gateRows) {
+  if (row.rowStatus !== 'unknown' || row.offered !== true) continue;
+  fail(
+    `the restore gate offered a row reading unknown, with "${String(row.name)}". ` +
+      `A machine Tortie cannot see says nothing about the session, so there is ` +
+      `nothing there to bring back.`
+  );
+}
+
+// The declared order and the order the arms actually fire in are the same rule,
+// and a person reads the FIRST one that is true. A declared order that no
+// longer matches the code means the sentence a person reads is not the one the
+// author chose.
+{
+  const declared = (data.gateRefusals ?? []).map(String);
+  if (JSON.stringify(declared) !== JSON.stringify(REFUSAL_ORDER)) {
+    fail(
+      `the restore gate declares its arms in the order ${declared.join(', ')} ` +
+        `and the specification's order is ${REFUSAL_ORDER.join(', ')}. The ` +
+        `first true arm is the sentence a person reads.`
+    );
+  }
+}
+
+// The gate has to be decidable from its facts alone. A tmux, SQLite or
+// filesystem import in it would mean the answer depends on something a reviewer
+// cannot see from the page.
+{
+  const ALLOWED_GATE_IMPORTS = ['@shared/types', './remote-copy'];
+  for (const line of (data.gateImports ?? []).map(String)) {
+    const match = /'([^']+)'/.exec(line);
+    if (match === null) continue;
+    if (ALLOWED_GATE_IMPORTS.includes(match[1])) continue;
+    fail(
+      `src/main/machines/restore-gate.ts imports ${JSON.stringify(
+        match[1]
+      )}, which is not on its allowed list. The verdict must be decidable from ` +
+        `the facts alone: no tmux, no SQLite, no filesystem and no timer.`
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 27. Phase 72. The ten row fault matrix still has ten rows
+// ---------------------------------------------------------------------------
+//
+// The matrix is the gate on remote restore. A matrix that quietly lost a row
+// would still print PASS over the rows it kept, and nothing else in the
+// repository would notice. This costs a text scan.
+
+{
+  const appRows = (data.matrixAppRows ?? []).map(String).sort();
+  const supervisorRows = (data.matrixSupervisorRows ?? []).map(String).sort();
+  if (appRows.length !== 10) {
+    fail(
+      `src/main/harness/remote-matrix.ts produces ${String(
+        appRows.length
+      )} row(s) and research 28 section 6.3 has 10.`
+    );
+  }
+  if (JSON.stringify(appRows) !== JSON.stringify(supervisorRows)) {
+    fail(
+      `the two halves of the fault matrix name different rows. The app half ` +
+        `has ${appRows.join(', ')} and build/remote-matrix.mjs grades ` +
+        `${supervisorRows.join(', ')}. A row with no grader passes by not being ` +
+        `looked at.`
+    );
+  }
+  if (data.matrixModeRegistered !== true) {
+    fail(
+      `src/main/harness/index.ts does not dispatch the remote-matrix mode, so ` +
+        `nothing can start the matrix at all.`
     );
   }
 }
@@ -1538,9 +1740,34 @@ for (const row of truthVerdicts) {
   );
 }
 process.stdout.write(
-  `no arm offers restore in this release, and no arm produces needs_input. A ` +
-    `machine Tortie cannot see produces unknown, never restorable and never ` +
-    `exited.\n`
+  `restore is offered on exactly the ${String(
+    truthVerdicts.filter((row) => row.restorable === 'yes').length
+  )} arm(s) where a machine answered and its answer did not hold the session. ` +
+    `No arm produces needs_input. A machine Tortie cannot see produces ` +
+    `unknown, never restorable and never exited.\n`
+);
+
+// ---------------------------------------------------------------------------
+// Phase 72's tables
+// ---------------------------------------------------------------------------
+
+process.stdout.write('\nrestore gate input                             offered  refusal\n');
+process.stdout.write('-'.repeat(80) + '\n');
+for (const row of gateVerdicts) {
+  process.stdout.write(
+    `${pad(row.input, 46)} ${pad(row.offered, 8)} ${pad(row.refusal, 14)} ${row.verdict}\n`
+  );
+}
+process.stdout.write(
+  `the arms are asked in this order and the first true one is the sentence a ` +
+    `person reads: ${(data.gateRefusals ?? []).join(', ')}.\n`
+);
+process.stdout.write(
+  `the fault matrix has ${String(
+    (data.matrixAppRows ?? []).length
+  )} row(s), every one of them graded by build/remote-matrix.mjs, and the app ` +
+    `half is reachable as a harness mode: ` +
+    `${data.matrixModeRegistered === true ? 'yes' : 'NO'}.\n`
 );
 
 process.stdout.write(

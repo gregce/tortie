@@ -47,10 +47,25 @@ const FILES: readonly string[] = [
   'src/renderer/app/SessionRail.tsx',
   'src/renderer/app/SessionStrip.tsx',
   'src/renderer/app/TerminalRegion.tsx',
+  // Phase 72. The saved output panel and its own copy. The panel draws a
+  // machine's label and a time, and it must not draw a word from the
+  // transport layer while doing it.
+  'src/renderer/app/SavedOutputModal.tsx',
   'src/main/machines/remote-copy.ts',
   // Phase 71. The link statement's own sentences, composed in main because
   // only main holds the confirm gate's answer and the link's own reason.
-  'src/main/machines/machine-state.ts'
+  'src/main/machines/machine-state.ts',
+  // Phase 72. The arming refusals a person can read in a pane.
+  'src/main/machines/resume-arming.ts',
+  // Phase 72 fix round. This list used to name ./tombstone.ts, which holds no
+  // copy at all: the tombstone sentences are composed by the surface that draws
+  // them, in src/renderer/settings/machines-copy.ts, under that file's own
+  // audit. The two sentences the restore prints, being what it did not put back
+  // and what it has no record of, moved into ./remote-copy.ts above, which is
+  // where every sentence main prints about a session on another machine lives.
+  // A module that holds log lines as well as copy cannot be audited by reading
+  // its strings, and ./remote-restore.ts is one of those.
+  'src/renderer/settings/machines-copy.ts'
 ];
 
 /**

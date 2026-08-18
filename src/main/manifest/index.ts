@@ -4,6 +4,7 @@
  */
 
 export {
+  LOCAL_MACHINE_ROW,
   MANIFEST_APPLICATION_ID,
   MANIFEST_MIGRATION_NAMES,
   MANIFEST_MIN_COMPATIBLE_VERSION,
@@ -11,7 +12,9 @@ export {
   MANIFEST_SCHEMA_VERSION,
   ManifestStore,
   defaultManifestDbPath,
+  serializeMachineTombstone,
   toSession,
+  type MachineTombstone,
   type ManifestSessionRecord,
   type ManifestSessionPatch,
   type UpdateSessionOptions,

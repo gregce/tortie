@@ -41,6 +41,12 @@ import { registerLogIpc } from './log/ipc';
 // cancellation are both in the ordered disposer below.
 import { cancelLiveMachineTest } from './machines/connection-test';
 import { registerMachinesIpc } from './machines/ipc';
+// Phase 72: the saved output capture for sessions on another machine. Its
+// cadence is armed here and stopped in the ordered disposer below.
+import {
+  startRemoteCaptures,
+  stopRemoteCaptures
+} from './machines/remote-capsule';
 import { stopMachinesWatch } from './machines/store';
 import { installAppMenu } from './menu';
 import { registerNoticeIpc } from './notice/ipc';
@@ -158,6 +164,11 @@ export function installMainCapabilities(
   // presses in Settings. The other eight read memory, write one row, or write
   // one record.
   registerMachinesIpc(ipcMain);
+  // Phase 72: start keeping a copy of what sessions on other machines print.
+  // It arms one timer and one subscription, and it reads nothing until a
+  // machine has a live connection and rows on it, so a person with no machines
+  // pays one timer that never fires a command. It is stopped in the disposer.
+  startRemoteCaptures();
   // Phase 12.9 item 1: projects:create — the only project channel that
   // writes to disk (mkdir + optional `git init`, then the usual add).
   registerProjectCreateIpc(ipcMain);
@@ -279,6 +290,11 @@ export async function disposeMainCapabilities(): Promise<MainDisposeOutcome> {
   // because it is synchronous and because a pty nobody is watching is a process
   // nobody can answer.
   cancelLiveMachineTest();
+  // Phase 72: stop reading screens on other machines. Synchronous, and before
+  // the drain for the same reason the line above it is: it cancels work that
+  // would otherwise still be waiting on a machine nobody is listening to. A
+  // pass already in flight stops between reads and writes nothing more.
+  stopRemoteCaptures();
   await Promise.race([
     Promise.allSettled([
       disposeGitIpc(),

@@ -248,7 +248,18 @@ export type ResumeIdSource =
   /** No conversation id exists for this session (plain shells). */
   | 'none'
   /** Tortie has no verified capture route for this agent, so nothing tried. */
-  | 'unavailable';
+  | 'unavailable'
+  /**
+   * PHASE 72. The session runs on another machine and Tortie has no route to
+   * that machine's agent store in this release, so no conversation id was ever
+   * obtained.
+   *
+   * It is a WEAKER source than every local one by construction: nothing was
+   * read, so nothing can be checked. `./machines/resume-arming.ts` refuses to
+   * type a resume command for a row carrying it, and that refusal has no
+   * exception. Reading an agent's own files on another machine is M6.
+   */
+  | 'remote-not-collected';
 
 /**
  * How strongly the recorded conversation id is tied to THIS session.
@@ -332,6 +343,17 @@ export interface ResumeProvenance {
   at: number;
   /** The cwd the correlation was made against, realpath'd. */
   cwd: string;
+  /**
+   * PHASE 72. Which machine the id was fixed on. Absent means this Mac.
+   *
+   * A conversation id means something on the machine whose agent store holds
+   * it and nowhere else, so the machine is recorded beside the id rather than
+   * inferred later from the row's own `machine_id`. The two can disagree: a
+   * row can be moved, and a record that carries its own machine says which
+   * answer is the older one. `./machines/resume-arming.ts` refuses to arm when
+   * this field names a machine other than the one being restored on.
+   */
+  machineId?: string;
   /** Which key proved the record. Absent for the pre-assigned sources. */
   key?: AgentHarvestKey;
   /** The descriptor's own rating of that key, before rivals were counted. */

@@ -69,6 +69,23 @@ export interface MachineRowView {
   refusal: string | null;
   /** MACHINE_CONFIRM_WARNING, carried so the sheet cannot omit it. */
   warning: string;
+  /**
+   * APPENDED (Phase 72): how many sessions Tortie holds a record of on this
+   * machine.
+   *
+   * The removal question counts them out loud, because removing a machine
+   * turns every one of those records into a record of what Tortie last knew,
+   * and a person deciding whether to press the button needs the number. It is
+   * a count of manifest rows on this Mac. It is never a question asked of the
+   * machine, so it is answered the same whether the machine is reachable or
+   * not.
+   *
+   * Optional, and absent reads as 0. Main sets it on every row it composes.
+   * The field is optional so that a fixture written before it existed is still
+   * a valid row, which is the same rule every other appended field in this
+   * contract follows.
+   */
+  sessions?: number;
 }
 
 /** Everything the Machines section needs in one read. */

@@ -275,6 +275,33 @@ export interface Session {
    * this Mac. Absent means it runs here. See {@link SessionMachine}.
    */
   machine?: SessionMachine;
+  /**
+   * APPENDED (Phase 72): what Tortie last knew about a session whose machine a
+   * person removed.
+   *
+   * Present only on 'discarded' rows that carried a machine, and Past Sessions
+   * is the one surface that draws it. It carries the LABEL rather than the
+   * machine id, because the machine is no longer in the machines file and
+   * nothing can look the name up afterwards.
+   *
+   * `lastSeenAt` is 0 when no completed list from that machine ever held the
+   * row, and that case gets its own sentence rather than a date of zero.
+   */
+  machineGone?: {
+    label: string;
+    lastStatus: SessionStatus;
+    lastSeenAt: number;
+    forgottenAt: number;
+  };
+  /**
+   * APPENDED (Phase 72): epoch ms of the newest saved output Tortie holds for
+   * this session on THIS Mac, or absent when there is none.
+   *
+   * It is local receipt time and never a remote clock. It exists so a surface
+   * can offer the saved output and state when it was taken, which is the fact
+   * that stops a person reading an hours old screen as live.
+   */
+  savedOutputAt?: number;
 }
 
 /**
@@ -293,6 +320,31 @@ export interface SessionMachine {
   color: MachineColor;
   /** False when the last completed check of that machine did not answer. */
   answering: boolean;
+  /**
+   * APPENDED (Phase 72). True only when every condition for bringing this
+   * session back holds.
+   *
+   * It is per ROW rather than per machine, even though it rides on the machine
+   * object, because two of the conditions are about the row: whether that
+   * machine's own last completed list still holds the session, and whether the
+   * row was created on this machine at all. The renderer draws the verb from
+   * this and from nothing else.
+   */
+  canRestore: boolean;
+  /**
+   * APPENDED (Phase 72). One sentence naming the condition that failed.
+   *
+   * NULL IN TWO CASES AND ONLY TWO. It is null when {@link canRestore} is true,
+   * because there is nothing to explain. And it is null when the producer is
+   * describing a MACHINE rather than one session, which is the badge the
+   * renderer draws for a quiet machine with no row in hand: `canRestore` is
+   * false there because nothing was checked, and inventing a reason would be a
+   * claim about a session that was never named.
+   *
+   * A surface reading a false {@link canRestore} hides the verb either way. The
+   * sentence is what it prints beside the row when it has one.
+   */
+  restoreReason: string | null;
 }
 
 /**

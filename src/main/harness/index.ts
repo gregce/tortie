@@ -91,6 +91,20 @@
  *                       Isolated profile AND isolated socket, and it refuses
  *                       the real socket by name for the same reason the two
  *                       above do. `npm run smoke:partition`.
+ *  - GMUX_SMOKE=remote-matrix  the ten row fault matrix (Phase 72). Research
+ *                       28 section 6.3's ten ways working on another machine
+ *                       goes wrong, run against a real app holding real
+ *                       connections to two scratch machines. It is the GATE on
+ *                       remote restore rather than a report: research 51
+ *                       section 6 requires all ten green before Tortie brings
+ *                       back a session that lives on a machine. Four launches,
+ *                       because two of the rows are about what a launch finds
+ *                       rather than about what a running app does, and the
+ *                       carriage file says which leg each launch is. This
+ *                       process writes facts and never grades itself.
+ *                       Isolated profile AND isolated socket, and it refuses
+ *                       the real socket by name for the same reason the four
+ *                       above do. `npm run smoke:matrix`.
  *  - GMUX_SMOKE=quit    the REAL app.quit() under a saturated uv threadpool
  *                       (Phase 36). Every other harness ends with app.exit,
  *                       which skips before-quit and FreeEnvironment — the
@@ -174,6 +188,9 @@ import { runSmokeQuit } from './quit';
 // "a cut link never says a session ended" rule is measured against a real app
 // holding a real connection with a real terminal attached.
 import { runPartitionSmoke } from './partition';
+// Phase 72: the ten row fault matrix. It is the only place research 28's fault
+// list is executed against a running app rather than read.
+import { runRemoteMatrixSmoke } from './remote-matrix';
 import { runSmokeShadow } from './shadow';
 import { runSmokeShim } from './shim-smoke';
 import { runShot } from './shot';
@@ -322,6 +339,14 @@ export async function dispatchHarness(deps: HarnessDeps): Promise<boolean> {
   // running app rather than against a pure function.
   if (smoke === 'partition') {
     await runPartitionSmoke();
+    return true;
+  }
+  // Phase 72: the ten row fault matrix, in a real Electron process against two
+  // scratch machines. It is the gate on remote restore, so a red run is a
+  // release that ships restore refused rather than a note in a report. This
+  // process writes facts and `build/remote-matrix.mjs` decides the verdict.
+  if (smoke === 'remote-matrix') {
+    await runRemoteMatrixSmoke();
     return true;
   }
   // Phase 13.8: what the outside world sees of gmux (read-only).
