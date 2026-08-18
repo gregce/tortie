@@ -5845,6 +5845,97 @@ performance audit's subsystem table has no row for it and its idle table omits t
 remote ladder built exactly the shape the audits warn about, in the weeks after they were written.
 Nothing is broken. It is unmapped, and the next audit refresh owns it.
 
+## Phase 79.1 — Tortie makes the key and puts it on the machine (operator asked 2026-08-17) QUEUED
+
+The half of the operator's request Phase 79 refused to build while Phase 72 was in flight. Phase 79
+put the Remote Login instruction on the screen where he hit the failure, and that is as far as copy
+can go. He still has to leave Tortie, run two commands he has never run, and come back. This phase
+does those two commands for him.
+
+**Phase 72 has landed at 1741a01 and 0.37.0, so the blocker is gone.** The reason to wait was that
+`src/shared/ipc/machines.ts` and `src/main/machines/**` were inside Phase 72's blast radius and
+building here meant a merge in the directory that decides whether remote work is safe.
+
+**Subject:** `feat(machines): Tortie can make a key and put it on the machine`
+**First body line:** `Phase 79.1: Tortie makes the key and puts it on the machine`
+**Semver:** minor.
+**Tier 3.** This writes a private key to disk and installs a credential on a machine over a
+password-authenticated connection. A mistake here hands someone else a way in, or leaves a key
+where its owner does not know it exists.
+
+**What a person gets.** A machine whose test came back `auth-refused` or `refused` offers one
+button. Tortie makes a key for that machine, asks for the machine's password once, installs the
+public half, and runs the test again. The person never opens a terminal.
+
+### Five decisions that follow from rules already in force, and a builder does not re-open them
+
+| Question | Decision | Why |
+| --- | --- | --- |
+| Where the private key lives | Tortie's own directory under `<userData>/gmux/`, never `~/.ssh` | Tortie already refuses to write the person's `~/.ssh`. `conformance:machines` proves the connection test names Tortie's own host key file first and the person's second, after a probe was measured adding three lines to `~/.ssh/known_hosts`, 932 bytes before and 1229 after |
+| One key or one per machine | One per machine | A key is a credential for one host. One key across a fleet means removing one machine cannot revoke anything |
+| Whether the key has a passphrase | No passphrase, and the entry says so plainly on the screen | A passphrase Tortie holds is not a passphrase. A passphrase it prompts for on every connection breaks the exec plane, which runs many short commands. The honest answer is a file-permission boundary, stated rather than dressed up |
+| Where the password goes | Into the one `BatchMode=no` call site and nowhere else | `connection-test.ts` is the ONE place in the tree that sets `BatchMode=no`, and `build/conformance-machines.mjs` counts those call sites. That count is the gate that keeps it one |
+| Whether the password is ever stored | Never, not in the manifest, not in the Keychain, not in memory past the call | Tortie does not need it again. It is used once to install the public half and then the key does the work |
+
+### The confirm gate applies, and this is refusal 8
+
+CLAUDE.md refusal 8 says nothing may cause a process to start on a configuration change alone, and
+that a human confirms out of band of any agent turn. Installing a credential on a machine is
+stronger than starting a process. So the button is a confirm surface, not a one-click action, and
+it names three things before it runs: the machine, the exact file it will write on that machine,
+and the fact that the private half stays on this Mac.
+
+`conformance:machines` already proves the confirm hash moves for `host`, `user`, `port` and
+`remoteTmuxPath` and for neither presentation field. Adding a key installation to a machine must not
+weaken that. Say in the report whether the hash gained a field and why.
+
+### What Tortie must never do here
+
+1. **Never read, write or move anything under the person's `~/.ssh`.** Not `config`, not
+`known_hosts`, not an existing key. If a person already has a key, Tortie does not find it, does not
+offer it and does not copy it. It makes its own.
+2. **Never install a key on a machine the person did not name in this flow.** One confirm, one
+machine.
+3. **Never write the remote `authorized_keys` by shell string.** A machine name or a comment field
+that reaches a shell is an injection. Use the argv path the exec plane already established.
+4. **Never overwrite an existing remote `authorized_keys`.** Append, and prove it by byte count
+before and after in the verification.
+5. **Never claim the machine is ready until the test actually passes.** The flow ends by running the
+real connection test again, and the person reads its real answer.
+
+### What is NOT in this phase
+
+**Turning on Remote Login.** Tortie cannot and no phase will. It needs `sudo` on a machine Tortie
+cannot reach, because reaching it is the thing being enabled. Phase 79's remedy sentence is the
+whole answer, and this phase's failure path points at it. A key installed on a Mac with Remote Login
+off still cannot connect, so the ORDER MATTERS and the screen must say so: Remote Login first, then
+the key.
+
+**Removing a key.** Removing a machine should probably remove its key, and that is a real question
+about whether Tortie reaches out to a machine it is being told to forget. It is not decided here.
+
+### Proof this phase must produce
+
+1. Drive the whole flow against a scratch sign in server on 127.0.0.1 on a high port, from
+`/usr/sbin/sshd`, with `UserKnownHostsFile` on a scratch path, killed by recorded pid. The
+operator's four machines and any tailnet host are NEVER contacted.
+2. Measure `~/.ssh` before and after by byte count and sha256 on every file, and show nothing moved.
+It reads 1229 bytes with sha256 `cf4c5ef344ee288dee21e464b523c5768f087c5cd14a3535a344db052ae6f9b3`
+for `known_hosts` today.
+3. Show the private key's file mode is `0600` and its directory is `0700`.
+4. Show the remote `authorized_keys` gained exactly one line, with byte counts before and after,
+including the case where it already had entries and the case where the file did not exist.
+5. Drive the password prompt with a WRONG password and read what the person is told. It must not
+leak the password, must not retry silently, and must not leave a key installed.
+6. Prove the password is not in the manifest, not in any log and not in the Keychain, by searching
+all three after a successful run.
+7. Prove `conformance:machines` still counts exactly one `BatchMode=no` call site.
+8. Photograph the confirm surface and the finished state, capturing the app window by id.
+
+**Gates.** The full battery plus `npm run conformance:machines` and `npm run smoke:remote`, which
+needs `SSH_AUTH_SOCK` exported from the Phase 69 carriage file because the npm script does not
+export it. That gate runnability defect is itself a recorded nit.
+
 ## Phase 80.1 — session focus mode, the build (operator queued 2026-08-17) QUEUED
 
 The build the research in `docs/research/53-session-focus-mode.md` earned. Section 9 of that
