@@ -909,8 +909,15 @@ const CONFIRM_SURFACE_COPY = [
   // `MachinesResult.honesty` from main, so it never appears as a literal in a
   // renderer bundle and a check for it would fail on a build where the surface
   // is perfectly present.
+  //
+  // Phase 79 replaced the second sentence. It used to read "You cannot open a
+  // session on a machine yet." Phase 70 shipped sessions on another machine,
+  // so that sentence was false and Phase 79 deleted it from the renderer. The
+  // sentence that took its place states the confirm rule itself, which is a
+  // better thing for this check to anchor on: while it is in a renderer
+  // bundle, the surface that asks a person to agree is reachable.
   'Tortie never adopts work that is already running on your machines',
-  'You cannot open a session on a machine yet.'
+  'Tortie will not sign in to a machine until you have read what it runs'
 ];
 
 function assertReachable(bundle) {

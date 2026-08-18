@@ -19,7 +19,18 @@
  * Tailscale program at a pinned absolute path and shows that path on screen
  * before it runs anything. A name served by PATH is never used, because a
  * planted program earlier on PATH is the exact attack the confirm gate exists
- * for. The picker is reachable from one button and from nowhere else.
+ * for.
+ *
+ * PHASE 79. The picker is now reachable from two presses of the same button
+ * rather than one, and both of them are a person's. The panel above it is
+ * drawn before either press, and it says what Tailscale is for here, when
+ * Tortie last looked, and how to install Tailscale when there is none. Opening
+ * this sheet still runs nothing. The panel is built from what the last look
+ * left in the store, so the first press is the first process.
+ *
+ * The panel copies the agent scan in Settings, which answers the same three
+ * questions for an agent that is not on this Mac. A person who has read one
+ * has read the other.
  *
  * WHAT THIS SURFACE NEVER DOES. It writes nothing until the button is
  * pressed. It starts nothing on a keystroke. It reads no file. It sends no
@@ -37,8 +48,10 @@ import type {
   TailscaleSourceResult
 } from '@shared/ipc';
 import { MACHINE_COLORS } from '@shared/machines';
+import { formatAge, useNow } from '../app/format';
 import { Codicon } from '../icons';
 import { ConnectionTestView } from './ConnectionTestView';
+import { CopyButton } from './CopyButton';
 import {
   ADD_DISABLED_REASON,
   ADD_TITLE,
@@ -46,8 +59,10 @@ import {
   BTN_ADD_CANCEL,
   BTN_ADD_CONFIRM,
   BTN_FIND_TAILNET,
+  BTN_TAILSCALE_LOOK_AGAIN,
   BTN_TEST,
   COLOUR_LABEL,
+  COPY_INSTALL_COMMAND_LABEL,
   FIELD_COLOUR,
   FIELD_HOST,
   FIELD_LABEL,
@@ -57,14 +72,24 @@ import {
   FIELD_REMOTE_PATH_HINT,
   FIELD_USER,
   FIELD_USER_HINT,
+  MEASURED_VERSIONS,
   PEER_ALREADY_ADDED,
+  PEER_CANNOT_HOST,
   PEER_OFFLINE,
   PEER_THIS_MAC,
-  TAILSCALE_EMPTY,
+  PREPARE_SUPPORTED_LABEL,
   TAILSCALE_EXPLAIN,
-  TAILSCALE_MISSING,
+  TAILSCALE_INSTALL_COMMAND,
+  TAILSCALE_LOOKING,
+  TAILSCALE_NOT_INSTALLED,
+  TAILSCALE_NOT_LOOKED,
   TAILSCALE_SOURCE_LABEL,
-  TESTING
+  TAILSCALE_TITLE,
+  TAILSCALE_WHY,
+  TESTING,
+  VERSION_GATE_EXPLAIN,
+  lastLookedLine,
+  tailnetCountLine
 } from './machines-copy';
 import {
   sheetOf,
@@ -72,6 +97,54 @@ import {
   type LiveTest,
   type MachineFormState
 } from './machines-store';
+
+/**
+ * The names Tailscale hands back for a machine that has no useful one.
+ *
+ * An iOS device reports the HostName `localhost`, and main falls back to the
+ * HostName when it has nothing better, so a person with two iPhones on their
+ * tailnet reads `localhost` twice and cannot tell the rows apart.
+ */
+const PLACEHOLDER_NAMES: ReadonlySet<string> = new Set([
+  '',
+  'localhost',
+  'localhost.localdomain'
+]);
+
+/**
+ * The name to draw for one machine.
+ *
+ * The full address is already on the wire as `host`, and its first label is
+ * the name Tailscale itself shows in its own list. When the name Tortie was
+ * given says nothing, that label is used instead. The address is drawn beside
+ * it either way, so nothing is hidden by this.
+ */
+export function peerDisplayName(peer: TailscalePeerView): string {
+  if (!PLACEHOLDER_NAMES.has(peer.name.trim().toLowerCase())) return peer.name;
+  const label = peer.host.split('.')[0] ?? '';
+  return label === '' ? peer.name : label;
+}
+
+/** The systems that cannot keep a session alive. Lowercase, trimmed. */
+const CANNOT_HOST: ReadonlySet<string> = new Set([
+  'ios',
+  'ipados',
+  'android',
+  'tvos'
+]);
+
+/**
+ * False for a device that cannot run a session.
+ *
+ * The judgement comes from one string another program supplied, so it narrows
+ * what a person can press and it never removes a row. A phone a person can see
+ * in the Tailscale app and cannot see in Tortie reads as Tortie being broken.
+ * Anything Tortie has not seen before, including an empty value, is treated as
+ * able, because Tortie must not refuse a machine on a string it does not know.
+ */
+export function peerCanHost(os: string): boolean {
+  return !CANNOT_HOST.has(os.trim().toLowerCase());
+}
 
 /** One machine the tailnet reported, as a button that fills the form. */
 function PeerRow({
@@ -81,20 +154,27 @@ function PeerRow({
   peer: TailscalePeerView;
   onPick(peer: TailscalePeerView): void;
 }): React.JSX.Element {
+  const canHost = peerCanHost(peer.os);
+  const name = peerDisplayName(peer);
+
   const marks: string[] = [];
   if (peer.isThisMac) marks.push(PEER_THIS_MAC);
   if (peer.alreadyAdded) marks.push(PEER_ALREADY_ADDED);
   if (!peer.online) marks.push(PEER_OFFLINE);
+  if (!canHost) marks.push(PEER_CANNOT_HOST);
 
   return (
     <button
       type="button"
       className="mach-peer"
       data-machines-peer={peer.host}
-      disabled={peer.alreadyAdded}
+      data-peer-online={peer.online ? 'yes' : 'no'}
+      data-peer-can-host={canHost ? 'yes' : 'no'}
+      data-peer-name-source={name === peer.name ? 'hostname' : 'tailnet'}
+      disabled={peer.alreadyAdded || !canHost}
       onClick={() => onPick(peer)}
     >
-      <span className="mach-peer-name">{peer.name}</span>
+      <span className="mach-peer-name">{name}</span>
       <span className="mach-peer-host">{peer.host}</span>
       <span className="mach-peer-os">{peer.os}</span>
       {marks.map((mark) => (
@@ -106,20 +186,125 @@ function PeerRow({
   );
 }
 
-/** The pinned path, or the plain sentence saying why there is none. */
-function TailnetSource({
-  tailscale
+/** The three things the panel can be saying, derived and never stored. */
+type TailnetState = 'unlooked' | 'missing' | 'installed';
+
+function tailnetStateOf(tailscale: TailscaleSourceResult | null): TailnetState {
+  if (tailscale === null) return 'unlooked';
+  if (tailscale.binary === null) return 'missing';
+  return 'installed';
+}
+
+/**
+ * PHASE 79. What Tailscale is for here, when Tortie last looked, and what to
+ * do when there is no Tailscale on this Mac.
+ *
+ * The operator pressed the one button this sheet used to offer, read a single
+ * sentence saying no program was found, and had nowhere to go. The panel now
+ * answers the three questions the agent scan answers for a missing agent,
+ * which are what this is, whether it is here, and how to get it.
+ *
+ * IT STARTS NOTHING. Everything drawn here comes from what the last press left
+ * in the store. The button is the only thing that can run the program, and a
+ * person presses it.
+ */
+function TailscalePanel({
+  tailscale,
+  tailscaleBusy,
+  readAt,
+  now,
+  onFindTailnet,
+  onUsePeer
 }: {
   tailscale: TailscaleSourceResult | null;
-}): React.JSX.Element | null {
-  if (tailscale === null) return null;
-  if (tailscale.binary === null) {
-    return <div className="mach-note">{TAILSCALE_MISSING}</div>;
-  }
+  tailscaleBusy: boolean;
+  readAt: number | null;
+  now: number;
+  onFindTailnet(): void;
+  onUsePeer(peer: TailscalePeerView): void;
+}): React.JSX.Element {
+  const state = tailnetStateOf(tailscale);
+
+  // The same population main's own note counts, being everything that is not
+  // the Mac this window is running on.
+  const others =
+    tailscale === null
+      ? 0
+      : tailscale.peers.filter((peer) => !peer.isThisMac).length;
+
   return (
-    <div className="mach-source">
-      <span className="mach-source-label">{TAILSCALE_SOURCE_LABEL}</span>
-      <span className="mach-source-path">{tailscale.binary}</span>
+    <div className="mach-block mach-scan" data-tailscale-state={state}>
+      <div className="mach-scan-head">
+        <span className="mach-scan-title">{TAILSCALE_TITLE}</span>
+        <span className="set-scan-age">
+          {readAt === null
+            ? TAILSCALE_NOT_LOOKED
+            : lastLookedLine(formatAge(readAt, now))}
+        </span>
+        <button
+          type="button"
+          className="btn btn-secondary set-rescan"
+          disabled={tailscaleBusy}
+          data-machines-action="find-tailnet"
+          onClick={onFindTailnet}
+        >
+          {tailscaleBusy ? (
+            <span className="set-spinner" aria-hidden="true" />
+          ) : (
+            <Codicon name="search" size={12} />
+          )}
+          {tailscaleBusy
+            ? TAILSCALE_LOOKING
+            : state === 'unlooked'
+              ? BTN_FIND_TAILNET
+              : BTN_TAILSCALE_LOOK_AGAIN}
+        </button>
+      </div>
+
+      {state === 'unlooked' ? <div className="mach-hint">{TAILSCALE_WHY}</div> : null}
+
+      {/* The command is drawn and never run. Tortie has no installer and this
+          is a line for a person to paste into their own terminal.
+          Main's own note is NOT drawn in this state. It says the same thing as
+          the sentence beside the command, in other words, and a person should
+          not read it twice. Do not add it back. */}
+      {state === 'missing' ? (
+        <>
+          <div className="set-agent-detail">
+            <span className="set-agent-missing">{TAILSCALE_NOT_INSTALLED}</span>
+            <code className="set-agent-cmd">{TAILSCALE_INSTALL_COMMAND}</code>
+            <CopyButton
+              text={TAILSCALE_INSTALL_COMMAND}
+              label={COPY_INSTALL_COMMAND_LABEL}
+            />
+          </div>
+          <div className="mach-hint">{TAILSCALE_WHY}</div>
+        </>
+      ) : null}
+
+      {state === 'installed' && tailscale !== null ? (
+        <>
+          <div className="mach-source">
+            <span className="mach-source-label">{TAILSCALE_SOURCE_LABEL}</span>
+            <span className="mach-source-path">{tailscale.binary}</span>
+          </div>
+          <div className="mach-scan-count">{tailnetCountLine(others)}</div>
+          <div className="mach-hint">{TAILSCALE_EXPLAIN}</div>
+          {/* Main's note, drawn once and nowhere else. An empty tailnet used to
+              print the same sentence twice, because this file kept a copy of
+              it under its own name. */}
+          {tailscale.note === null ? null : (
+            <div className="mach-note">{tailscale.note}</div>
+          )}
+          {tailscale.peers.length > 0 ? (
+            <div className="mach-peers">
+              {tailscale.peers.map((peer) => (
+                <PeerRow key={peer.host} peer={peer} onPick={onUsePeer} />
+              ))}
+            </div>
+          ) : null}
+        </>
+      ) : null}
     </div>
   );
 }
@@ -130,6 +315,8 @@ export interface AddMachineViewProps {
   form: MachineFormState;
   tailscale: TailscaleSourceResult | null;
   tailscaleBusy: boolean;
+  /** When the last look at Tailscale finished. Null until one has. */
+  tailscaleReadAt: number | null;
   /** The draft test, or null. A saved row's test never reaches this view. */
   test: LiveTest | null;
   /** True while the add call is in flight. */
@@ -151,6 +338,7 @@ export function AddMachineView({
   form,
   tailscale,
   tailscaleBusy,
+  tailscaleReadAt,
   test,
   busy,
   error,
@@ -170,13 +358,8 @@ export function AddMachineView({
   const canAdd = sheet !== null && !busy;
   const testing = test !== null && test.running;
 
-  // The tailnet answered and had nothing to offer. That is a different
-  // sentence from "no program was found", and a person needs to be able to
-  // tell them apart.
-  const emptyTailnet =
-    tailscale !== null &&
-    tailscale.binary !== null &&
-    tailscale.peers.length === 0;
+  // Only so the age in the panel head stays honest while the sheet is open.
+  const now = useNow();
 
   return (
     <div className="mach-add" data-machines-add="1">
@@ -194,33 +377,14 @@ export function AddMachineView({
 
       <div className="set-card mach-card">
         {/* Step one. One button, and nothing runs before it is pressed. */}
-        <div className="mach-block">
-          <button
-            type="button"
-            className="btn btn-secondary"
-            disabled={tailscaleBusy}
-            data-machines-action="find-tailnet"
-            onClick={onFindTailnet}
-          >
-            <Codicon name="search" size={12} />
-            {BTN_FIND_TAILNET}
-          </button>
-          <div className="mach-hint">{TAILSCALE_EXPLAIN}</div>
-          <TailnetSource tailscale={tailscale} />
-          {tailscale !== null && tailscale.note !== null ? (
-            <div className="mach-note">{tailscale.note}</div>
-          ) : null}
-          {emptyTailnet ? (
-            <div className="mach-note">{TAILSCALE_EMPTY}</div>
-          ) : null}
-          {tailscale !== null && tailscale.peers.length > 0 ? (
-            <div className="mach-peers">
-              {tailscale.peers.map((peer) => (
-                <PeerRow key={peer.host} peer={peer} onPick={onUsePeer} />
-              ))}
-            </div>
-          ) : null}
-        </div>
+        <TailscalePanel
+          tailscale={tailscale}
+          tailscaleBusy={tailscaleBusy}
+          readAt={tailscaleReadAt}
+          now={now}
+          onFindTailnet={onFindTailnet}
+          onUsePeer={onUsePeer}
+        />
 
         {/* Step two. The person's own keystrokes. */}
         <div className="mach-block">
@@ -317,8 +481,26 @@ export function AddMachineView({
           <div className="mach-hint">{FIELD_REMOTE_PATH_HINT}</div>
         </details>
 
-        {/* Step three. The only affordance here that starts a process. */}
+        {/* Step three. The only affordance here that starts a process.
+            PHASE 79. The versions Tortie has measured are on screen BEFORE the
+            test runs, not only in the refusal afterwards. A person about to
+            add a machine can go and check what it runs first, rather than
+            learning the rule from a machine that was turned down. */}
         <div className="mach-block">
+          <div className="mach-version-gate">
+            <div className="mach-prepare-fact">
+              <span className="mach-prepare-label">
+                {PREPARE_SUPPORTED_LABEL}
+              </span>
+              <span
+                className="mach-prepare-value"
+                data-measured-versions="1"
+              >
+                {MEASURED_VERSIONS.join(', ')}
+              </span>
+            </div>
+            <div className="mach-hint">{VERSION_GATE_EXPLAIN}</div>
+          </div>
           <button
             type="button"
             className="btn btn-secondary"
@@ -387,6 +569,7 @@ export function AddMachine(): React.JSX.Element {
   const closeAdd = useMachinesStore((s) => s.closeAdd);
   const tailscale = useMachinesStore((s) => s.tailscale);
   const tailscaleBusy = useMachinesStore((s) => s.tailscaleBusy);
+  const tailscaleReadAt = useMachinesStore((s) => s.tailscaleReadAt);
   const findTailnet = useMachinesStore((s) => s.findTailnet);
   const usePeer = useMachinesStore((s) => s.usePeer);
   const test = useMachinesStore((s) => s.test);
@@ -407,6 +590,7 @@ export function AddMachine(): React.JSX.Element {
       form={form}
       tailscale={tailscale}
       tailscaleBusy={tailscaleBusy}
+      tailscaleReadAt={tailscaleReadAt}
       test={draftTest}
       busy={busy}
       error={error}

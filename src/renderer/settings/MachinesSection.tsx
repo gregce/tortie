@@ -7,22 +7,25 @@
  * Tortie that can do any of that, and removing it makes every configured
  * machine unusable rather than making it convenient.
  *
- * WHAT THIS RELEASE CANNOT DO, said on the section rather than in a release
- * note. You cannot open a session on a machine yet. The two standing honesty
- * lines above the list say so, and they are drawn on every visit rather than
- * behind a disclosure, because a promise a person has to go looking for is
- * not a promise.
+ * PHASE 79. THE STANDING BLOCK OF FOUR SENTENCES IS GONE, and nothing it said
+ * was dropped from the product. It sat between a person and the one button
+ * they came here for, and one of its sentences had been false since Phase 70
+ * shipped remote sessions. Each of the rest now stands where it decides
+ * something.
  *
- * THE THIRD LINE SAYS WHERE THE MACHINE'S IDENTITY IS RECORDED. Answering
- * the connection test makes the sign in program write down which machine
- * answered. Tortie names a file of its own for that and reads the person's own
- * record without ever adding to it. The line is drawn here because the first
- * build of this phase did the opposite and nobody could have known.
+ *  1. The sentence about never adopting other work is drawn on the row,
+ *     immediately above Prepare, which is the button it is a promise about.
+ *  2. Main's sealing sentence is drawn at both moments of agreement, being the
+ *     Add sheet and the row's confirm block. It still rides on the result, so
+ *     no surface can drop it or soften it.
+ *  3. The sentence about where a machine's identity is recorded is behind the
+ *     disclosure, with the half of the caption that named the confirm rule.
+ *  4. The sentence saying a session cannot be opened on a machine is deleted,
+ *     because a person can open one.
  *
- * THE FOURTH HONESTY LINE COMES FROM MAIN. `MachinesResult.honesty` is the
- * sentence that says confirming seals which program Tortie runs, not the
- * bytes of that program. It rides on the result exactly as the confirm
- * warning does, so this file can neither drop it nor soften it.
+ * THE EMPTY STATE IS A HEADING, ONE SENTENCE AND ONE BUTTON. A person with no
+ * machines has no file to check, no row to read and nothing to disclose, so
+ * none of those are drawn for them.
  *
  * THE DROPPED ROWS BLOCK. A row that failed a check is dropped entire and
  * never partly merged. The sentence naming the field and the reason has to
@@ -46,11 +49,10 @@ import {
   ADD_TITLE,
   BRIDGE_MISSING,
   BTN_CHECK_AGAIN,
-  EMPTY_LINE,
-  HONESTY_NO_ADOPTION,
-  HONESTY_NO_SESSIONS_YET,
+  DISCLOSURE_LABEL,
   HONESTY_OWN_RECORD,
   SECTION_CAPTION,
+  SECTION_CONFIRM_LINE,
   SECTION_TITLE,
   droppedRowsLine
 } from './machines-copy';
@@ -88,19 +90,14 @@ export function MachinesView({
   const rows = machines?.rows ?? [];
   const errors = machines?.errors ?? [];
 
+  // Nobody has added a machine and nothing was dropped. There is a heading, a
+  // sentence and a button, and that is the whole screen.
+  const empty = rows.length === 0 && errors.length === 0;
+
   return (
     <section aria-label={SECTION_TITLE}>
       <h1 className="set-title">{SECTION_TITLE}</h1>
       <div className="set-section-caption">{SECTION_CAPTION}</div>
-
-      <div className="set-card mach-honesty">
-        <p className="mach-honesty-line">{HONESTY_NO_ADOPTION}</p>
-        <p className="mach-honesty-line">{HONESTY_NO_SESSIONS_YET}</p>
-        <p className="mach-honesty-line">{HONESTY_OWN_RECORD}</p>
-        {machines === null ? null : (
-          <p className="mach-honesty-line">{machines.honesty}</p>
-        )}
-      </div>
 
       {errors.length > 0 ? (
         <div className="set-card set-config-errors">
@@ -130,13 +127,28 @@ export function MachinesView({
         </div>
       ) : null}
 
-      <div className="set-card">
-        {rows.length === 0 ? (
-          <div className="set-empty-line">{EMPTY_LINE}</div>
-        ) : (
-          rows.map((row) => <MachineRow key={row.id} row={row} />)
-        )}
-      </div>
+      {rows.length === 0 ? null : (
+        <div className="set-card">
+          {rows.map((row) => (
+            <MachineRow
+              key={row.id}
+              row={row}
+              honesty={machines?.honesty ?? null}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Two sentences a person needs once and does not need on every visit.
+          They are shut by default and they are not drawn at all on the empty
+          screen, where there is nothing yet for them to be about. */}
+      {empty ? null : (
+        <details className="mach-disclosure">
+          <summary>{DISCLOSURE_LABEL}</summary>
+          <p className="mach-honesty-line">{SECTION_CONFIRM_LINE}</p>
+          <p className="mach-honesty-line">{HONESTY_OWN_RECORD}</p>
+        </details>
+      )}
 
       {adding ? null : (
         <div className="set-section-toolbar mach-toolbar">
@@ -148,7 +160,7 @@ export function MachinesView({
           >
             {ADD_TITLE}
           </button>
-          {/* Always here, not only when a row was dropped.
+          {/* Here for every row, not only for a row that was dropped.
               MEASURED: the live probe changed the address in machines.json from
               outside the app and main knew 429 ms later, and the list on screen
               still read Confirmed, because nothing pushes a file change to this
@@ -157,15 +169,21 @@ export function MachinesView({
               way, so nothing unsafe happened, but the screen said one thing and
               Tortie would have done another. Tortie writes this file itself and
               a person may hand edit it, so asking it to look again is an
-              ordinary thing to want. */}
-          <button
-            type="button"
-            className="btn btn-secondary"
-            data-machines-action="reload"
-            onClick={onReload}
-          >
-            {BTN_CHECK_AGAIN}
-          </button>
+              ordinary thing to want.
+              PHASE 79. It is not drawn when there is no row, because a person
+              who has added nothing has no file to check. The dropped rows block
+              keeps its own copy of this button, since a row that failed a check
+              means there IS a file to look at again. */}
+          {rows.length === 0 ? null : (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              data-machines-action="reload"
+              onClick={onReload}
+            >
+              {BTN_CHECK_AGAIN}
+            </button>
+          )}
         </div>
       )}
 

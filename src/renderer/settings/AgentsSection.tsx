@@ -18,12 +18,16 @@
  * how a package-manager install reached the disk and what it runs on, and
  * which other copies of the same binary name are shadowed on the PATH. No
  * badge, no toast, no count. An install that works is not a problem.
+ *
+ * PHASE 79. The copy button that sits beside the install command moved to
+ * CopyButton.tsx. The machines surface needed the same control, and one copy
+ * of it is the rule. Nothing else here changed.
  */
 
-import React, { useState } from 'react';
+import React from 'react';
 import type { DetectedAgent } from '@shared/types';
 import { formatAge, truncateMiddle, useNow, displayPath } from '../app/format';
-import { AgentIcon, Codicon } from '../icons';
+import { AgentIcon } from '../icons';
 import {
   installKindLine,
   installReadIsStale,
@@ -34,27 +38,8 @@ import {
   type InstallCopySegment
 } from '../state/agents';
 import { ConfiguredAgents } from './ConfiguredAgents';
+import { CopyButton } from './CopyButton';
 import { useSettingsStore } from './settings-store';
-
-function CopyButton({ text, label }: { text: string; label: string }): React.JSX.Element {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button
-      type="button"
-      className="icon-btn set-copy"
-      aria-label={label}
-      title={copied ? 'Copied' : label}
-      onClick={() => {
-        void navigator.clipboard.writeText(text).then(() => {
-          setCopied(true);
-          window.setTimeout(() => setCopied(false), 1500);
-        });
-      }}
-    >
-      <Codicon name={copied ? 'check' : 'copy'} size={12} />
-    </button>
-  );
-}
 
 /** A composed sentence: plain text with paths and names in code font. */
 function Segments({ line }: { line: InstallCopySegment[] }): React.JSX.Element {

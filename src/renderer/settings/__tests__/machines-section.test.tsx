@@ -2,9 +2,13 @@
  * Phase 68. Settings → Machines, the section and one row.
  *
  * What these tests hold:
- * - An empty list draws the empty line and BOTH standing honesty lines, plus
- *   the third that arrives from main. A person must be told what this release
- *   cannot do before they add anything.
+ * - An empty list draws a heading, one sentence and one button, and nothing
+ *   else at all. Phase 79 counts the buttons, because the screen the operator
+ *   photographed put four sentences of small print between a person and the
+ *   only thing there was to do.
+ * - The sentences that block used to hold are drawn where each of them decides
+ *   something, being the row above Prepare and the block above Confirm, and
+ *   the two that are background sit behind one disclosure.
  * - A row that has never been confirmed draws `Not usable` and the sentence
  *   that says what to do about it. It does NOT draw `Confirmed`.
  * - A row whose details moved draws both lists, both list headings and both
@@ -26,6 +30,13 @@ import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { MachineRowView, MachinesResult } from '@shared/ipc';
 import { MachinesView } from '../MachinesSection';
+import {
+  DISCLOSURE_LABEL,
+  HONESTY_NO_ADOPTION,
+  HONESTY_OWN_RECORD,
+  SECTION_CAPTION,
+  SECTION_CONFIRM_LINE
+} from '../machines-copy';
 
 /** The sentence main owns. The surface may draw it and may not touch it. */
 const HONESTY =
@@ -82,6 +93,15 @@ function result(over: Partial<MachinesResult>): MachinesResult {
   };
 }
 
+/** The one disclosure element, so what is inside it can be read alone. */
+function disclosure(html: string): string {
+  const at = html.indexOf('<details class="mach-disclosure"');
+  expect(at).toBeGreaterThan(-1);
+  const end = html.indexOf('</details>', at);
+  expect(end).toBeGreaterThan(at);
+  return html.slice(at, end + '</details>'.length);
+}
+
 function draw(machines: MachinesResult | null): string {
   return renderToStaticMarkup(
     <MachinesView
@@ -97,41 +117,50 @@ function draw(machines: MachinesResult | null): string {
 describe('the empty section', () => {
   const html = draw(result({}));
 
-  it('draws the empty line', () => {
-    expect(html).toContain('No machines yet.');
-  });
-
-  it('draws both standing honesty lines', () => {
-    expect(html).toContain(
-      'Tortie never adopts work that is already running on your machines, ' +
-        'and it never touches it. Anything Tortie runs there, it creates itself.'
-    );
-    // Rewritten in Phase 69, because this release now also sets a machine up so
-    // that it is ready. The sentence that is still not true stays first.
-    expect(html).toContain(
-      'You cannot open a session on a machine yet. This release records the ' +
-        'machine, proves Tortie can reach it, and sets it up so that it is ' +
-        'ready. Opening sessions comes later.'
-    );
-  });
-
-  it('draws the honesty sentence exactly as main sent it', () => {
-    expect(html).toContain(HONESTY);
-  });
-
-  it('says where a machine’s identity is written down, and where it is not', () => {
-    expect(html).toContain(
-      'Tortie keeps its own record of which machines have answered, in a file ' +
-        'it owns.'
-    );
-    expect(html).toContain('It never adds a line to that one.');
-  });
-
-  it('offers the one way to add a machine', () => {
+  it('draws the heading, one sentence and one button', () => {
+    expect(html).toContain('>Machines<');
+    expect(html).toContain(SECTION_CAPTION);
     expect(html).toContain('Add a machine');
   });
 
-  it('offers the way to read the file again with no row dropped at all', () => {
+  it('draws exactly one button, and it is the one thing there is to do', () => {
+    // The operator photographed this screen. It carried four sentences of
+    // small print, an empty card and a second button about a file that does
+    // not exist yet, above the one button a person came here for.
+    expect(html.match(/<button/g) ?? []).toHaveLength(1);
+  });
+
+  it('offers no file to check, because nothing has been added', () => {
+    expect(html).not.toContain('data-machines-action="reload"');
+    expect(html).not.toContain('Check the file again');
+  });
+
+  it('draws no empty card and no empty line', () => {
+    expect(html).not.toContain('No machines yet.');
+    expect(html).not.toContain('set-empty-line');
+  });
+
+  it('draws no disclosure and no honesty sentence at all', () => {
+    expect(html).not.toContain('<details');
+    expect(html).not.toContain(DISCLOSURE_LABEL);
+    expect(html).not.toContain(HONESTY_NO_ADOPTION);
+    expect(html).not.toContain(HONESTY_OWN_RECORD);
+    expect(html).not.toContain(SECTION_CONFIRM_LINE);
+    expect(html).not.toContain(HONESTY);
+  });
+
+  it('no longer says a session cannot be opened on a machine', () => {
+    // Phase 70 shipped remote sessions on 2026-08-17 at 0.34.0. The sentence
+    // was false from the day it landed and nobody re-read the block.
+    expect(html).not.toContain('You cannot open a session on a machine yet.');
+    expect(html).not.toContain('Opening sessions comes later.');
+  });
+});
+
+describe('the section once there is a machine', () => {
+  const html = draw(result({ rows: [row({})] }));
+
+  it('offers the way to read the file again', () => {
     // MEASURED: the live probe changed the address in machines.json from
     // outside the app. Main knew 429 ms later and the row on screen still read
     // Confirmed, because nothing pushes a file change to this window and the
@@ -140,6 +169,62 @@ describe('the empty section', () => {
     // but the screen said one thing and Tortie would have done another.
     expect(html).toContain('data-machines-action="reload"');
     expect(html).toContain('Check the file again');
+  });
+
+  it('draws the disclosure, shut', () => {
+    expect(html).toContain(DISCLOSURE_LABEL);
+    expect(disclosure(html)).not.toContain('open');
+  });
+
+  it('puts exactly the two background sentences behind it', () => {
+    const inside = disclosure(html);
+    expect(inside).toContain(SECTION_CONFIRM_LINE);
+    expect(inside).toContain(HONESTY_OWN_RECORD);
+    // The other two are drawn on the row, where each decides something.
+    expect(inside).not.toContain(HONESTY_NO_ADOPTION);
+    expect(inside).not.toContain(HONESTY);
+  });
+
+  it('keeps the caption to one sentence', () => {
+    expect(html).toContain(SECTION_CAPTION);
+    expect(SECTION_CAPTION).not.toContain('confirm it once');
+  });
+});
+
+describe('the honesty sentences, where they now stand', () => {
+  const html = draw(
+    result({ rows: [row({ state: 'never', usable: false })] })
+  );
+
+  it('promises never to adopt other work right above the button that runs one', () => {
+    expect(html).toContain(HONESTY_NO_ADOPTION);
+    const promise = html.indexOf(HONESTY_NO_ADOPTION);
+    const button = html.indexOf('data-machines-action="prepare"');
+    expect(promise).toBeGreaterThan(-1);
+    expect(button).toBeGreaterThan(promise);
+  });
+
+  it('draws main’s sealing sentence in the block a person confirms from', () => {
+    // It arrives on the result and is handed to the row as a prop, so a
+    // passing test proves this surface can neither drop it nor reword it.
+    expect(html).toContain(HONESTY);
+    const sealing = html.indexOf(HONESTY);
+    const confirm = html.indexOf('data-machines-action="confirm"');
+    expect(sealing).toBeGreaterThan(-1);
+    expect(confirm).toBeGreaterThan(sealing);
+  });
+
+  it('draws it nowhere at all before the first read has answered', () => {
+    const before = renderToStaticMarkup(
+      <MachinesView
+        machines={null}
+        supported={true}
+        adding={false}
+        onOpenAdd={() => undefined}
+        onReload={() => undefined}
+      />
+    );
+    expect(before).not.toContain(HONESTY);
   });
 });
 
@@ -299,7 +384,10 @@ describe('the rows Tortie dropped', () => {
   });
 
   it('offers the one way to read the file again', () => {
+    // The toolbar's copy of this button is gone when there is no row, but a
+    // row that failed a check means there IS a file worth looking at again.
     expect(html).toContain('Check the file again');
+    expect(html).toContain('data-machines-action="reload-after-errors"');
   });
 
   it('says one row in the singular', () => {

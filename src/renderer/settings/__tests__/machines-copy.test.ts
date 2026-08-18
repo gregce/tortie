@@ -20,10 +20,30 @@
  * and this test holds that set at exactly two, so a later edit cannot slip a
  * third Tortie sentence in among another program's output where a person
  * would read it as the program's own.
+ *
+ * WHAT PHASE 79 ADDED, and the defect that asked for it. This file checked
+ * punctuation and forbidden words and never checked whether a sentence was
+ * still true. `HONESTY_NO_SESSIONS_YET` said "You cannot open a session on a
+ * machine yet" for the whole of Phase 70, 70.5 and 71, while Phase 70 was
+ * shipping sessions on another machine. The operator found it in a
+ * photograph. Three checks now read main from a renderer test, which is
+ * allowed for a test file and has precedent:
+ *
+ *  1. RETIRED_CLAIMS, a table of phrases a rung has disproved, each with a
+ *     thing in main whose presence proves that rung shipped.
+ *  2. MEASURED_VERSIONS against main's own measured list.
+ *  3. The REMEDY key set against main's class list.
+ *
+ * `build/assert-import-boundaries.mjs` lines 14 to 17 exempt `__tests__` from
+ * the layer rules and name the renderer agents test, which imports the
+ * main-process registry for exactly this purpose.
  */
 
 import { describe, expect, it } from 'vitest';
 import * as copy from '../machines-copy';
+import { remoteCreateArgs } from '../../../main/machines/remote-sessions';
+import { MACHINE_OUTCOME_CLASSES } from '../../../main/machines/errors';
+import { TESTED_REMOTE_TMUX_VERSIONS } from '../../../main/tmux/version';
 
 /** Words a person should never meet in Tortie's own copy. */
 const FORBIDDEN_WORDS = /\b(pane|panes|window|windows|prefix|tmux|ssh|socket)\b/i;
@@ -60,6 +80,11 @@ function everyString(): { name: string; text: string }[] {
   }
   out.push({ name: 'droppedRowsLine(1)', text: copy.droppedRowsLine(1) });
   out.push({ name: 'droppedRowsLine(2)', text: copy.droppedRowsLine(2) });
+  out.push({ name: 'tailnetCountLine(0)', text: copy.tailnetCountLine(0) });
+  out.push({ name: 'tailnetCountLine(1)', text: copy.tailnetCountLine(1) });
+  out.push({ name: 'tailnetCountLine(4)', text: copy.tailnetCountLine(4) });
+  out.push({ name: "lastLookedLine('now')", text: copy.lastLookedLine('now') });
+  out.push({ name: "lastLookedLine('2m')", text: copy.lastLookedLine('2m') });
   return out;
 }
 
@@ -154,19 +179,14 @@ describe('the transcript exemption', () => {
 });
 
 describe('the sentences the charter fixes', () => {
-  it('carries both standing honesty lines, word for word', () => {
+  it('carries the standing honesty line, word for word', () => {
+    // Phase 79 moved this onto the machine row, above the Prepare button. The
+    // words did not change. The second standing line, which claimed a session
+    // could not be opened on a machine, is deleted and is held dead by the
+    // retired claims block below.
     expect(copy.HONESTY_NO_ADOPTION).toBe(
       'Tortie never adopts work that is already running on your machines, ' +
         'and it never touches it. Anything Tortie runs there, it creates itself.'
-    );
-    // Rewritten in Phase 69. The old second half said this release records the
-    // machine and proves Tortie can reach it, and that stopped being the whole
-    // truth: it now also sets the machine up so that it is ready. What is still
-    // not true is the first sentence, and it stays first.
-    expect(copy.HONESTY_NO_SESSIONS_YET).toBe(
-      'You cannot open a session on a machine yet. This release records the ' +
-        'machine, proves Tortie can reach it, and sets it up so that it is ' +
-        'ready. Opening sessions comes later.'
     );
   });
 
@@ -212,5 +232,132 @@ describe('the sentences the charter fixes', () => {
     expect(copy.STATE_CHIP.never).toBe('Not usable');
     expect(copy.STATE_CHIP.changed).toBe('Not usable');
     expect(copy.STATE_CHIP.unknown).toBe('Not usable');
+  });
+});
+
+/**
+ * A claim the copy used to make, the rung that disproves it, and a witness in
+ * main for that rung. When the witness is present the claim is dead, and no
+ * string in machines-copy.ts may still make it.
+ *
+ * WHY THIS EXISTS. machines-copy.ts said "You cannot open a session on a
+ * machine yet" for the whole of Phase 70, 70.5 and 71, while Phase 70 was
+ * shipping sessions on another machine. Nobody re-read the block. Add a row
+ * here when a rung retires a sentence, and the next person is told by a
+ * failing test rather than by the operator's photograph.
+ */
+const RETIRED_CLAIMS = [
+  {
+    phrase: 'cannot open a session on a machine yet',
+    rung: 'Phase 70, 0.34.0, 2026-08-17',
+    witness: 'remoteCreateArgs composes the create command for another machine',
+    shipped: () => typeof remoteCreateArgs === 'function'
+  },
+  {
+    phrase: 'Opening sessions comes later',
+    rung: 'Phase 70, 0.34.0, 2026-08-17',
+    witness: 'remoteCreateArgs composes the create command for another machine',
+    shipped: () => typeof remoteCreateArgs === 'function'
+  }
+];
+
+describe('claims a shipped rung has retired', () => {
+  it('has at least one row, so the walk below checks something', () => {
+    expect(RETIRED_CLAIMS.length).toBeGreaterThan(0);
+  });
+
+  for (const claim of RETIRED_CLAIMS) {
+    it(`no string still says "${claim.phrase}"`, () => {
+      if (!claim.shipped()) return;
+      const offenders = STRINGS.filter((s) =>
+        s.text.toLowerCase().includes(claim.phrase.toLowerCase())
+      ).map(
+        (s) =>
+          `${s.name} still says "${claim.phrase}", which ${claim.rung} ` +
+          `disproved. The witness is ${claim.witness}.`
+      );
+      expect(offenders).toEqual([]);
+    });
+  }
+});
+
+describe('the three copies of main, checked by machine', () => {
+  it('lists the versions main has measured for the exec plane, in order', () => {
+    // The renderer may not import main in production code, so
+    // MEASURED_VERSIONS is a hand-written copy of main's list. A copy going
+    // stale is the whole defect this phase fixes, so this test is the thing
+    // that keeps it honest. Add a row in main and this fails until the
+    // renderer's copy agrees.
+    const measured = TESTED_REMOTE_TMUX_VERSIONS.filter(
+      (row) => row.measured.exec
+    ).map((row) => row.version);
+    expect([...copy.MEASURED_VERSIONS]).toEqual(measured);
+  });
+
+  it('gives every outcome class a remedy entry, and invents none', () => {
+    const classes = [...MACHINE_OUTCOME_CLASSES].sort();
+    const keys = Object.keys(copy.REMEDY).sort();
+    expect(keys).toEqual(classes);
+  });
+
+  it('leaves a remedy null only where there is nothing to do', () => {
+    const nothingToDo = Object.entries(copy.REMEDY)
+      .filter(([, text]) => text === null)
+      .map(([cls]) => cls)
+      .sort();
+    expect(nothingToDo).toEqual(['cancelled', 'ok', 'prepared']);
+  });
+});
+
+describe('the four sentences Phase 79 writes', () => {
+  it('says what the section is for in one sentence', () => {
+    expect(copy.SECTION_CAPTION).toBe(
+      'Tortie can keep your work running on another machine you own.'
+    );
+  });
+
+  it('says why Tortie wants Tailscale, and that it is not required', () => {
+    expect(copy.TAILSCALE_WHY).toBe(
+      'Tortie asks Tailscale which machines you own, so you pick a name ' +
+        'rather than typing an address, and Tailscale carries the connection. ' +
+        'You can still add a machine by typing its address below, so ' +
+        'Tailscale is the easy path rather than the only one.'
+    );
+  });
+
+  it('shows the install command a person can copy', () => {
+    expect(copy.TAILSCALE_INSTALL_COMMAND).toBe('brew install --cask tailscale');
+  });
+
+  it('tells a person how to turn on Remote Login after a refusal', () => {
+    // The operator could not use this feature at all. macOS ships with Remote
+    // Login turned off, his connection was refused, and the screen told him
+    // what had happened and nothing he could do. This is the sentence that
+    // answers him, and it is pinned so a later edit cannot soften it back
+    // into a diagnosis.
+    expect(copy.REMEDY.refused).toBe(
+      'On that Mac, open System Settings, then General, then Sharing, and ' +
+        'turn on Remote Login. macOS ships with Remote Login turned off, so ' +
+        'that is the usual reason. On a machine that is not a Mac, start its ' +
+        'sign in service and check that it is listening on this port.'
+    );
+  });
+});
+
+describe('the counting sentences the Tailscale panel writes', () => {
+  it('counts other machines in none, one and many', () => {
+    expect(copy.tailnetCountLine(0)).toBe('No other machines found.');
+    expect(copy.tailnetCountLine(1)).toBe('1 other machine found.');
+    expect(copy.tailnetCountLine(4)).toBe('4 other machines found.');
+  });
+
+  it('says when Tortie last looked, and reads plainly at zero minutes', () => {
+    expect(copy.lastLookedLine('now')).toBe('Tortie looked just now.');
+    expect(copy.lastLookedLine('2m')).toBe('Tortie last looked 2m ago.');
+    expect(copy.lastLookedLine('3h')).toBe('Tortie last looked 3h ago.');
+  });
+
+  it('says a device cannot run a session rather than hiding it', () => {
+    expect(copy.PEER_CANNOT_HOST).toBe('Cannot run a session');
   });
 });

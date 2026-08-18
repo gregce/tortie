@@ -21,19 +21,53 @@
  * --error-wash. An expired key, a changed permission and a machine that is
  * simply off all share calm copy on purpose, because three ordinary things
  * that look alarming teach a person to ignore the one that is.
+ *
+ * PHASE 79. This surface now writes one more line of its own, and it is the
+ * only one. Under main's two sentences it draws what a person can do next.
+ * That line comes from REMEDY in machines-copy.ts and is keyed by main's own
+ * class, so main still says what happened and this file only says what to do
+ * about it. A class with nothing for a person to do draws nothing.
  */
 
 import React, { useState } from 'react';
-import type { MachineTestOutcome, MachineTestStarted } from '@shared/ipc';
+import type {
+  MachineTestClass,
+  MachineTestOutcome,
+  MachineTestStarted
+} from '@shared/ipc';
 import {
   ANSWER_HINT,
   ANSWER_LABEL,
   BTN_CANCEL_TEST,
   BTN_SEND,
+  REMEDY,
+  REMEDY_LABEL,
   TESTING,
   TRANSCRIPT_RUNNING_LABEL,
   TRANSCRIPT_SOURCE_LINE
 } from './machines-copy';
+
+/**
+ * What a person can do about one outcome, drawn apart from what happened.
+ *
+ * Main names the outcome and this names the next step, and the two are kept
+ * visually separate so a person can tell the report from the advice. It is
+ * exported because Prepare answers with the same classes and a second copy of
+ * this block would be the duplication the growth guardrail forbids.
+ *
+ * A class with nothing for a person to do draws nothing at all. Advice under
+ * an outcome that worked would be noise.
+ */
+export function Remedy({ cls }: { cls: MachineTestClass }): React.JSX.Element | null {
+  const text = REMEDY[cls];
+  if (text === null) return null;
+  return (
+    <div className="mach-remedy" data-remedy-class={cls}>
+      <div className="mach-remedy-label">{REMEDY_LABEL}</div>
+      <p className="mach-remedy-text">{text}</p>
+    </div>
+  );
+}
 
 export interface ConnectionTestViewProps {
   started: MachineTestStarted;
@@ -142,6 +176,8 @@ export function ConnectionTestView({
           <div className="mach-outcome-detail">{outcome.detail}</div>
         </div>
       ) : null}
+
+      {outcome !== null ? <Remedy cls={outcome.class} /> : null}
     </div>
   );
 }

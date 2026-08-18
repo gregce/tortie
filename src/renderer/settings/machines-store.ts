@@ -224,6 +224,15 @@ export interface MachinesStoreState {
 
   tailscale: TailscaleSourceResult | null;
   tailscaleBusy: boolean;
+  /**
+   * When the last look at Tailscale finished, as a clock reading. Null until
+   * one has.
+   *
+   * PHASE 79. The panel says when Tortie last looked, the way the agent scan
+   * says when it last scanned. A look that found nothing is still a look, so
+   * this is set on the failing path as well as on the succeeding one.
+   */
+  tailscaleReadAt: number | null;
 
   test: LiveTest | null;
 
@@ -292,6 +301,7 @@ export const useMachinesStore = create<MachinesStoreState>()((set, get) => ({
   form: emptyForm(),
   tailscale: null,
   tailscaleBusy: false,
+  tailscaleReadAt: null,
   test: null,
   prepared: {},
   preparing: null,
@@ -389,9 +399,16 @@ export const useMachinesStore = create<MachinesStoreState>()((set, get) => ({
     if (b === null || get().tailscaleBusy) return;
     set({ tailscaleBusy: true });
     try {
-      set({ tailscale: await b.tailscaleNames(), tailscaleBusy: false });
+      set({
+        tailscale: await b.tailscaleNames(),
+        tailscaleBusy: false,
+        tailscaleReadAt: Date.now()
+      });
     } catch {
-      set({ tailscaleBusy: false });
+      // A look that threw is still a look. The panel says when Tortie last
+      // tried, and a person pressing the button again should see the answer
+      // move rather than sit at "has not looked yet".
+      set({ tailscaleBusy: false, tailscaleReadAt: Date.now() });
     }
   },
 

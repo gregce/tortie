@@ -5913,7 +5913,37 @@ because a View row is added, so the native menus change in the same commit.
 6. Control-Command-F still toggles window full screen and a packaged build still shows exactly one full screen row.
 7. Screenshots of enter, of the settled focus, and of leave, read by eye.
 
-## Phase 79 — the Machines screen tells you what to do (operator reported 2026-08-17) QUEUED
+## Phase 79 — the Machines screen tells you what to do (operator reported 2026-08-17) ✅ SHIPPED 2026-08-17 (this commit, 0.36.1, gates green)
+
+**What landed, and the two places the plan below was wrong.** All seven items shipped. The stale
+sentence is gone and a test named RETIRED_CLAIMS fails if any string in the copy file makes that
+claim again while the rung that disproves it is still in main. The empty state is a heading, one
+sentence and one button. The Tailscale panel has three states and the missing one shows `brew
+install --cask tailscale` in mono with a copy button, in the agent scan's shape. The tailnet list
+draws the tailnet name where Tailscale reports no hostname, and a device that cannot host a session
+stays in the list, dimmed, with its button disabled and the words "Cannot run a session" on it.
+That is the phase picking the mark rather than the omission. Every one of the fourteen outcome
+classes has a remedy or an explicit null, and the refused remedy names System Settings, General,
+Sharing and Remote Login. The version gate is drawn above the test button rather than after it.
+
+The first thing the plan got wrong is defect two. Main was not masking a `missing` source in a way
+the renderer could see, because `readTailnetMachines` returns early with `source: 'missing'`
+whenever the path is null, so the line that relabels it was already unreachable for that value. The
+pre-phase renderer did draw a sentence when the binary was null. What was actually absent is the
+install command, the copy affordance and the reason Tortie wants Tailscale, and all three are
+renderer work. The one word main edit still shipped, because a line that relabels a resolved source
+is a hazard, but it is a tidy rather than the cure.
+
+The second is the probe instruction. Pointing `GMUX_TAILSCALE_BIN` at a path that does not exist
+cannot produce the not-installed state on this Mac, because `resolveTailscale` ignores an override
+that is not an executable file and falls through to a pinned list, and two of the three pinned
+paths hold a program here. The verifier produced the state by denying the Electron process read
+access to those three paths with `sandbox-exec`. The operator's Tailscale was never removed, moved
+or altered.
+
+**What is not true.** No ssh key is generated or installed for a person, which is Phase 79.1 and
+runs after 72. Tortie still cannot turn on Remote Login, and no phase will. The remedy sentence is
+the whole answer there.
 
 The operator photographed the Machines section twice and said it is a wall of text that does not
 tell a person what to do, and asked for the shape Tortie already uses for the agent scan. Checking

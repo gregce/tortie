@@ -277,9 +277,11 @@ export async function readTailnetMachines(input: {
       : error.length > 0
         ? TAILSCALE_EMPTY_NOTE
         : null;
+  // The source is whatever the resolver decided. A line here that relabels it is
+  // how a screen comes to claim a pinned path Tortie did not run.
   return {
     binary: resolution.path,
-    source: resolution.source === 'missing' ? 'pinned' : resolution.source,
+    source: resolution.source,
     peers,
     note
   };

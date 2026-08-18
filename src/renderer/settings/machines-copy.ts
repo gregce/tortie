@@ -19,6 +19,13 @@
  *     precisely so a later edit to a renderer file cannot draw the changed
  *     host key calmly.
  *
+ * WHAT PHASE 79 ADDED, and why it does not break that rule. `REMEDY` at the
+ * bottom of this file is one sentence per outcome class saying what a person
+ * can do next. Main still classifies and still writes what happened. The
+ * renderer writes only the advice, because the advice is about settings on
+ * this Mac and on the far machine rather than about the bytes that came back.
+ * A test holds the key set equal to main's class list in both directions.
+ *
  * THE COLON RULE, and the two places it bends. House style allows a colon only
  * to introduce a list. Two shapes on this surface are neither prose nor a list:
  * a field label that stands immediately before the value drawn after it, and
@@ -28,7 +35,7 @@
  * sentence fails.
  */
 
-import type { MachineConfirmState } from '@shared/ipc';
+import type { MachineConfirmState, MachineTestClass } from '@shared/ipc';
 import type { MachineColor } from '@shared/machines';
 
 // ---------------------------------------------------------------------------
@@ -38,33 +45,38 @@ import type { MachineColor } from '@shared/machines';
 export const SECTION_TITLE = 'Machines';
 
 export const SECTION_CAPTION =
-  'Tortie can keep your work running on another machine you own. Add one ' +
-  'here, and confirm it once, before Tortie will sign in to it.';
+  'Tortie can keep your work running on another machine you own.';
+
+/**
+ * The second half of the old caption, moved behind the disclosure in Phase 79.
+ *
+ * It is still true and it is still worth reading. It left the caption because
+ * the empty state is a heading, one sentence and one button, and a person who
+ * has added no machine yet has nothing to confirm.
+ */
+export const SECTION_CONFIRM_LINE =
+  'Tortie will not sign in to a machine until you have read what it runs ' +
+  'and confirmed it once.';
+
+/** The summary of the one disclosure this section has. */
+export const DISCLOSURE_LABEL = 'How Tortie treats your machines';
 
 /**
  * The first standing honesty line. Research 51 section 4.6 makes this a
- * promise rather than a note, so it is drawn on every visit and not behind a
- * disclosure.
+ * promise rather than a note, so it is never behind a disclosure.
+ *
+ * Phase 79 moved it from a standing block at the top of the section onto the
+ * machine row itself, directly above the Prepare button. The words are
+ * unchanged. Prepare is the affordance that starts something on the other
+ * machine, so that is where the promise decides something rather than being
+ * read once and scrolled past.
  */
 export const HONESTY_NO_ADOPTION =
   'Tortie never adopts work that is already running on your machines, and it ' +
   'never touches it. Anything Tortie runs there, it creates itself.';
 
 /**
- * The second. It names what this release cannot do yet.
- *
- * Rewritten in Phase 69, because the second half of the old sentence stopped
- * being the whole truth. This release does more than record the machine and prove
- * Tortie can reach it: it also sets that machine up so that it is ready. What it
- * still cannot do is open a session there.
- */
-export const HONESTY_NO_SESSIONS_YET =
-  'You cannot open a session on a machine yet. This release records the ' +
-  'machine, proves Tortie can reach it, and sets it up so that it is ready. ' +
-  'Opening sessions comes later.';
-
-/**
- * The third line Tortie writes itself, and it is here because the first build
+ * The second line Tortie writes itself, and it is here because the first build
  * of this phase did the opposite of what it says.
  *
  * When you answer the connection test, the sign in program records which
@@ -74,6 +86,9 @@ export const HONESTY_NO_SESSIONS_YET =
  * added three lines to. Tortie now names a file of its own and that file is
  * the only one anything Tortie runs will add a line to. The full path is in
  * the command shown at the top of the connection test.
+ *
+ * Phase 79 moved it behind the disclosure. It is a fact about a file, and a
+ * person needs it when they go looking rather than on every visit.
  */
 export const HONESTY_OWN_RECORD =
   'Tortie keeps its own record of which machines have answered, in a file it ' +
@@ -81,7 +96,28 @@ export const HONESTY_OWN_RECORD =
   'machine you have used for years still raises the alarm if it changes. It ' +
   'never adds a line to that one.';
 
-export const EMPTY_LINE = 'No machines yet.';
+/**
+ * WHAT PHASE 79 DELETED FROM THIS FILE, so that nobody puts it back:
+ *
+ *  1. `HONESTY_NO_SESSIONS_YET`, which said "You cannot open a session on a
+ *     machine yet" and "Opening sessions comes later". Phase 70 shipped
+ *     sessions on another machine on 2026-08-17 at 0.34.0, so the sentence
+ *     was false from the day it landed. It went stale because it sat in a
+ *     block nobody re-read, and the operator is the one who found it.
+ *     `machines-copy.test.ts` now carries a table named RETIRED_CLAIMS. Each
+ *     row holds a retired phrase, the rung that disproves it, and a thing in
+ *     main whose presence proves that rung shipped. While that thing is
+ *     present, no string in this file may make the claim again. Add a row
+ *     there whenever a rung retires a sentence here, and the next person is
+ *     told by a failing test rather than by the operator's photograph.
+ *  2. `EMPTY_LINE`, which said "No machines yet." The empty state is a
+ *     heading, one sentence and one button, and that line was a second
+ *     sentence saying what the empty screen already showed.
+ *  3. `TAILSCALE_MISSING` and `TAILSCALE_EMPTY`. Main sends those same two
+ *     sentences on `TailscaleSourceResult.note` and the Add flow drew both,
+ *     so a person read each one twice in a row. Main's note is drawn now and
+ *     the renderer keeps no copy of it.
+ */
 
 /** Drawn when the preload of this build has no machines surface at all. */
 export const BRIDGE_MISSING =
@@ -225,6 +261,60 @@ export const BTN_ADD_CANCEL = 'Cancel';
 
 export const BTN_FIND_TAILNET = 'Find machines on your tailnet';
 
+// ---------------------------------------------------------------------------
+// The Tailscale panel (Phase 79)
+// ---------------------------------------------------------------------------
+//
+// The operator asked for the shape Settings then Agents already uses for the
+// agent scan, and these are that shape's words. A title, when Tortie last
+// looked, an action that looks again, and for a program that is not there the
+// install command in code font with a copy control beside it.
+//
+// Nothing here runs anything. The panel is drawn before any look happens, and
+// a person presses the button.
+
+export const TAILSCALE_TITLE = 'Tailscale';
+
+/**
+ * Why Tortie wants Tailscale, and the sentence that stops the missing state
+ * reading as a hard requirement. Typing an address always works.
+ */
+export const TAILSCALE_WHY =
+  'Tortie asks Tailscale which machines you own, so you pick a name rather ' +
+  'than typing an address, and Tailscale carries the connection. You can ' +
+  'still add a machine by typing its address below, so Tailscale is the ' +
+  'easy path rather than the only one.';
+
+export const TAILSCALE_NOT_INSTALLED = 'Tailscale is not installed.';
+
+/**
+ * Drawn in code font for a person to read and copy. Tortie never runs it, and
+ * no button in this surface runs anything a person has not typed.
+ */
+export const TAILSCALE_INSTALL_COMMAND = 'brew install --cask tailscale';
+
+export const COPY_INSTALL_COMMAND_LABEL = 'Copy the install command';
+
+export const TAILSCALE_NOT_LOOKED = 'Tortie has not looked yet.';
+
+export const TAILSCALE_LOOKING = 'Looking';
+
+export const BTN_TAILSCALE_LOOK_AGAIN = 'Look again';
+
+/** How many other machines the last look found. */
+export function tailnetCountLine(others: number): string {
+  if (others === 0) return 'No other machines found.';
+  if (others === 1) return '1 other machine found.';
+  return `${others} other machines found.`;
+}
+
+/** When the last look happened. `age` comes from formatAge. */
+export function lastLookedLine(age: string): string {
+  return age === 'now'
+    ? 'Tortie looked just now.'
+    : `Tortie last looked ${age} ago.`;
+}
+
 export const TAILSCALE_EXPLAIN =
   'Tortie asks the Tailscale program on this Mac which machines you have. It ' +
   'runs the copy at this exact path, and nothing that a PATH could point ' +
@@ -233,17 +323,20 @@ export const TAILSCALE_EXPLAIN =
 /** Stands immediately before the absolute path Tortie ran. */
 export const TAILSCALE_SOURCE_LABEL = 'Reading from:';
 
-export const TAILSCALE_MISSING =
-  'Tortie found no Tailscale program on this Mac at the places it looks. ' +
-  'Type the machine address yourself below.';
-
-export const TAILSCALE_EMPTY =
-  'Tailscale answered and listed no other machines. Type the machine address ' +
-  'yourself below.';
-
 export const PEER_THIS_MAC = 'This Mac';
 export const PEER_ALREADY_ADDED = 'Already added';
 export const PEER_OFFLINE = 'Offline';
+
+/**
+ * The mark on a device that cannot run a session, being an iPhone, an iPad, an
+ * Android device or an Apple TV.
+ *
+ * The row stays and its button is off. A device a person can see in the
+ * Tailscale app and cannot see in Tortie reads as Tortie being broken. The
+ * judgement also comes from one string another program supplied, so it narrows
+ * what a person can press rather than deleting a row.
+ */
+export const PEER_CANNOT_HOST = 'Cannot run a session';
 
 export const FIELD_HOST = 'Machine address';
 export const FIELD_LABEL = 'Name in Tortie';
@@ -276,6 +369,22 @@ export const COLOUR_LABEL: Readonly<Record<MachineColor, string>> = {
 // ---------------------------------------------------------------------------
 // The connection test
 // ---------------------------------------------------------------------------
+
+/**
+ * The versions Tortie has measured on another machine, drawn before the test
+ * runs rather than after it refuses.
+ *
+ * A renderer may not import main, so this list is a copy, and a copy going
+ * stale is exactly how the deleted sentence above happened.
+ * `machines-copy.test.ts` imports `TESTED_REMOTE_TMUX_VERSIONS` from main and
+ * fails when the two disagree, so the list is kept honest by a test rather
+ * than by a promise.
+ */
+export const MEASURED_VERSIONS: readonly string[] = ['3.6a', '3.7b'];
+
+export const VERSION_GATE_EXPLAIN =
+  'Tortie only uses versions of that program it has measured. If the ' +
+  'machine runs a different version, Tortie says so and starts nothing.';
 
 export const BTN_TEST = 'Test the connection';
 export const TESTING = 'Testing the connection';
@@ -315,6 +424,98 @@ export const TRANSCRIPT_TORTIE_LINES: readonly string[] = [
   TRANSCRIPT_RUNNING_LABEL,
   TRANSCRIPT_SOURCE_LINE
 ];
+
+// ---------------------------------------------------------------------------
+// What to do next, one remedy per outcome class (Phase 79)
+// ---------------------------------------------------------------------------
+//
+// MAIN CLASSIFIES AND THE RENDERER ADVISES, and that split is the reason these
+// sentences may live here at all. `MachineTestOutcome.headline` and `detail`
+// say what happened, they are main's words, and they are drawn unchanged. A
+// remedy says what a person can do next, and what a person can do next is
+// mostly about this Mac and about settings on the far machine rather than
+// about the bytes that came back.
+//
+// The operator's own report is the reason this exists. macOS ships with Remote
+// Login turned off, his connection was refused, and Tortie said "Something is
+// at that address and it is not accepting connections on this port." That
+// sentence is right and it left him with nothing to do.
+//
+// Every class has an entry, and `null` means there is nothing for a person to
+// do. `machines-copy.test.ts` asserts this key set equals
+// `MACHINE_OUTCOME_CLASSES`, which is exported from `src/main/machines/errors`
+// rather than from `@shared/ipc`, in both directions, so a class added in main
+// cannot ship with no advice and a key main no longer has cannot linger.
+//
+// A REMEDY DOES NOT REPEAT MAIN'S DETAIL SENTENCE. The two are drawn one line
+// apart, main's first and the remedy under it, so a remedy that restates the
+// detail costs a person a second reading and gives them nothing. Four of these
+// did exactly that in the first build of this phase. Read the class in
+// src/main/machines/errors.ts before writing one here, and write only the part
+// main does not already say.
+
+export const REMEDY_LABEL = 'What to do next';
+
+export const REMEDY: Readonly<Record<MachineTestClass, string | null>> = {
+  ok: null,
+  prepared: null,
+  cancelled: null,
+  refused:
+    'On that Mac, open System Settings, then General, then Sharing, and turn ' +
+    'on Remote Login. macOS ships with Remote Login turned off, so that is ' +
+    'the usual reason. On a machine that is not a Mac, start its sign in ' +
+    'service and check that it is listening on this port.',
+  'auth-refused':
+    'That machine did not accept your sign in. Your key may not be on it ' +
+    'yet. Put your public key on that machine, then test again.',
+  // Main's detail already says to check the address or pick from the tailnet.
+  // What it does not say is why the tailnet name is the surer of the two.
+  'not-resolved':
+    'Tailscale gives every machine a name that resolves from any network, so ' +
+    'a name picked from your tailnet works where a typed address may not.',
+  // Main's detail already names both actions, being install it or type the
+  // path under Advanced. What it does not say is which of the two applies to
+  // you, so that is all this says.
+  'no-program':
+    'If that program is already on the machine under a path Tortie did not ' +
+    'look in, type that path under Advanced. If it is not on the machine at ' +
+    'all, install it there and test again.',
+  'host-key-changed':
+    'Do not confirm this machine again until you know why its identity ' +
+    'changed. Ask whoever runs it, or check whether it was rebuilt. Tortie ' +
+    'changed nothing on either machine.',
+  unreachable:
+    'Wake that machine and check that it is on the network. If you reach it ' +
+    'through Tailscale, check that Tailscale shows it as online.',
+  // The spec drafted this as "reinstall the command line tools". That is
+  // wrong and it would send a person somewhere that cannot help. The program
+  // Tortie is missing is 1,557,568 bytes at /usr/bin/ssh on this Mac and it
+  // ships with macOS itself, while the command line tools install under
+  // /Library/Developer/CommandLineTools and leave that path alone.
+  'client-missing':
+    'That program ships with macOS, so a missing one means something removed ' +
+    'it or the disk is damaged. Restore this Mac from a backup, or reinstall ' +
+    'macOS.',
+  'timed-out':
+    'Test it again. If it times out every time, that machine is answering ' +
+    'too slowly to use, and a slow network or a machine under heavy load is ' +
+    'the usual reason.',
+  unknown:
+    'Read the last line the program printed, because that is the whole of ' +
+    'what Tortie knows. Change one thing on that machine, then test again.',
+  // Main's detail already says to prepare it and what preparing does. What it
+  // does not say is where the button is, and a person who has just read a
+  // connection test is not looking at the row it sits on.
+  'no-server':
+    'The button that does this is named Prepare this machine, and it is on ' +
+    "that machine's row.",
+  // Main's detail opens with the refusal and the reason for it, and one of its
+  // two shapes then says to update the program. Waiting for a Tortie release
+  // is the option main never names, so it goes first.
+  'version-unmeasured':
+    'Wait for a Tortie release that has measured the version that machine ' +
+    'runs, or put a version Tortie has already measured on it.'
+};
 
 // ---------------------------------------------------------------------------
 // The sheet the Add flow records, and why no label for it is in this file

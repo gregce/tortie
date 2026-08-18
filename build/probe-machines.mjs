@@ -414,7 +414,13 @@ function driver(body) {
       return true;
     };
     const openMachines = async () => {
-      if (text().includes('No machines yet.') || text().includes('Add a machine')) return 'already';
+      // PHASE 79 deleted "No machines yet.". The caption is drawn on this
+      // section whether or not a machine has been added, so it is the sentinel
+      // now, and the Add button stays as the second one.
+      if (
+        text().includes('Tortie can keep your work running on another machine you own.') ||
+        text().includes('Add a machine')
+      ) return 'already';
       const rail = Array.from(document.querySelectorAll('button, [role="tab"], li, a'))
         .find((n) => (n.textContent || '').trim() === 'Machines');
       if (rail === null || rail === undefined) return 'not-found';
@@ -544,8 +550,29 @@ function driver(body) {
 
 const HONESTY_ONE =
   'Tortie never adopts work that is already running on your machines';
-const HONESTY_TWO = 'You cannot open a session on a machine yet.';
 const HONESTY_THREE = 'It cannot seal the bytes of that program.';
+
+/**
+ * PHASE 79 rewrote what step 1 measures, and this is why.
+ *
+ * Phase 68 drew four honesty lines and an empty line on the Machines section
+ * before a person had added anything. Step 1 asserted all of them were there.
+ * Phase 79 emptied that screen down to a heading, one sentence and one button.
+ * `HONESTY_TWO` is gone from the product, because Phase 70 shipped sessions on
+ * another machine and the sentence was false. `HONESTY_ONE` moved onto the
+ * machine row above Prepare, and main's honesty line is drawn per row, so
+ * neither is on the empty screen any more.
+ *
+ * Step 1 now asserts the opposite of what it used to: the caption and the
+ * button are there, and the five sentences that used to crowd the empty screen
+ * are not. Step 4 checks that the disclosure appears once a row exists, and
+ * step 11 checks that `HONESTY_ONE` is on the prepared row.
+ */
+const SECTION_CAPTION =
+  'Tortie can keep your work running on another machine you own.';
+const RETIRED_EMPTY_LINE = 'No machines yet.';
+const RETIRED_NO_SESSIONS = 'You cannot open a session on a machine yet.';
+const DISCLOSURE_LABEL = 'How Tortie treats your machines';
 
 async function step1Empty() {
   const shot = join(outDir, 'p68-machines-empty.png');
@@ -554,28 +581,45 @@ async function step1Empty() {
     js: driver(`
       const opened = await openMachines();
       const body = text();
+      const addButton = findByText('Add a machine');
       return {
         opened,
         railFound: opened !== 'not-found',
-        empty: body.includes('No machines yet.'),
+        caption: body.includes(${JSON.stringify(SECTION_CAPTION)}),
+        addButton: addButton !== null,
+        retiredEmptyLine: body.includes(${JSON.stringify(RETIRED_EMPTY_LINE)}),
+        retiredNoSessions: body.includes(${JSON.stringify(RETIRED_NO_SESSIONS)}),
         honestyOne: body.includes(${JSON.stringify(HONESTY_ONE)}),
-        honestyTwo: body.includes(${JSON.stringify(HONESTY_TWO)}),
         honestyThree: body.includes(${JSON.stringify(HONESTY_THREE)}),
+        disclosure: body.includes(${JSON.stringify(DISCLOSURE_LABEL)}),
         bridge: typeof (m() || {}).rows === 'function'
       };
     `)
   });
   const d = res.parsed;
   const ok =
-    d !== null && d.empty === true && d.honestyOne === true && d.honestyTwo === true &&
-    d.honestyThree === true;
+    d !== null &&
+    d.caption === true &&
+    d.addButton === true &&
+    d.retiredEmptyLine === false &&
+    d.retiredNoSessions === false &&
+    d.honestyOne === false &&
+    d.honestyThree === false &&
+    d.disclosure === false;
   note(
     1,
     'Settings, Machines, with nothing added',
     ok ? 'pass' : 'FAIL',
-    `driven by button. empty line ${String(d?.empty)}, honesty lines ` +
-      `${String(d?.honestyOne)}/${String(d?.honestyTwo)}/${String(d?.honestyThree)}, ` +
-      `bridge present ${String(d?.bridge)}. Screenshot ${shot}`
+    `driven by button. PHASE 79 turned this step around. The empty screen must ` +
+      `be a heading, one sentence and one button, so the caption ` +
+      `${String(d?.caption)} and the Add button ${String(d?.addButton)} must both ` +
+      `be there, and everything that used to crowd it must not be. The retired ` +
+      `empty line ${String(d?.retiredEmptyLine)}, the retired sessions sentence ` +
+      `${String(d?.retiredNoSessions)}, the no adoption line ` +
+      `${String(d?.honestyOne)}, main's honesty line ${String(d?.honestyThree)}, ` +
+      `the disclosure ${String(d?.disclosure)}, and every one of those five is a ` +
+      `failure if it is true. Bridge present ${String(d?.bridge)}. ` +
+      `Screenshot ${shot}`
   );
   return ok;
 }
@@ -767,7 +811,11 @@ async function step4Confirm(env) {
         rows: listed.rows.map((r) => ({ id: r.id, state: r.state, path: r.remoteTmuxPath, label: r.label })),
         rowOnScreen: text().includes('Scratch box'),
         confirmedChipOnScreen: text().includes('Confirmed'),
-        emptyLineStillOnScreen: text().includes('No machines yet.'),
+        // PHASE 79. "No machines yet." is gone from the product, so asking
+        // whether it is still on screen can no longer fail. The disclosure is
+        // the line that is drawn only once a row exists, so it is what proves
+        // the screen left its empty state.
+        disclosureOnScreen: text().includes(${JSON.stringify(DISCLOSURE_LABEL)}),
         staleError,
         rowsAfterStale: afterStale.rows.map((r) => r.id),
         filePath: listed.path
@@ -787,7 +835,7 @@ async function step4Confirm(env) {
     d.clicked === true &&
     confirmed &&
     d.rowOnScreen === true &&
-    d.emptyLineStillOnScreen === false &&
+    d.disclosureOnScreen === true &&
     staleRefused &&
     wroteNothingOnStale;
 
@@ -804,8 +852,8 @@ async function step4Confirm(env) {
       `enabled ${String(d?.buttonWasEnabled)}, clicked ${String(d?.clicked)}, error under ` +
       `the button ${JSON.stringify(d?.errorOnScreen ?? null)}, rows after the click ` +
       `${JSON.stringify(d?.rows ?? null)}, the row is on screen ` +
-      `${String(d?.rowOnScreen)}, the empty line is gone ` +
-      `${String(d?.emptyLineStillOnScreen === false)}. Stale sheet refused ` +
+      `${String(d?.rowOnScreen)}, the screen left its empty state and drew the ` +
+      `disclosure ${String(d?.disclosureOnScreen)}. Stale sheet refused ` +
       `${String(staleRefused)} and wrote nothing ${String(wroteNothingOnStale)}. ` +
       `machines.json on disk: ` +
       `${JSON.stringify((onDisk ?? '').replace(/\s+/g, ' ').slice(0, 240))}. Screenshot ${shot}`
@@ -1224,7 +1272,12 @@ async function step11PreparePhoto(env) {
         warmLineOnScreen: text().includes('was already running on that machine, so Tortie left it running'),
         pathLineOnScreen: text().includes('read the list of places that machine looks for programs'),
         supportedLabelOnScreen: text().includes('Versions Tortie has measured:'),
-        cannotOpenYetOnScreen: text().includes('You cannot open a session on a machine yet.'),
+        // PHASE 79 deleted the "cannot open a session yet" sentence and moved
+        // the no adoption promise from the top of the section onto this row,
+        // directly above the Prepare button. This row is where that promise
+        // now has to be, so the probe reads it here.
+        noAdoptionLineOnScreen: text().includes(${JSON.stringify(HONESTY_ONE)}),
+        retiredNoSessionsOnScreen: text().includes(${JSON.stringify(RETIRED_NO_SESSIONS)}),
         anyDash: text().includes('\\u2014') || text().includes('\\u2013')
       };
     `)
@@ -1257,6 +1310,11 @@ async function step11PreparePhoto(env) {
     // it: "Tortie started the program" sat directly above "The program was
     // already running on that machine".
     d.bornLineOnScreen === d.detail.includes('Tortie started the program') &&
+    // PHASE 79. The promise that Tortie creates what it runs and adopts
+    // nothing lives on this row now, and the sentence Phase 70 made false is
+    // gone from the product.
+    d.noAdoptionLineOnScreen === true &&
+    d.retiredNoSessionsOnScreen === false &&
     d.anyDash === false;
   note(
     11,
@@ -1276,8 +1334,9 @@ async function step11PreparePhoto(env) {
       `${String(d?.warmLineOnScreen)}, and exactly one of them must be true. On ` +
       `this probe it is the warm one, because the far side is this same Mac on ` +
       `the socket the app under test already booted its own server on. The ` +
-      `"cannot open a session yet" line ` +
-      `${String(d?.cannotOpenYetOnScreen)}. A long dash anywhere on the page: ` +
+      `no adoption promise is on this row ${String(d?.noAdoptionLineOnScreen)} ` +
+      `and the retired "cannot open a session yet" sentence is on screen ` +
+      `${String(d?.retiredNoSessionsOnScreen)}. A long dash anywhere on the page: ` +
       `${String(d?.anyDash)}. Screenshot ${shot}`
   );
   return ok;

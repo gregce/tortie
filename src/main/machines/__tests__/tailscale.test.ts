@@ -8,15 +8,32 @@
  *
  * A bare `tailscale` served by PATH is never used. That is asserted here by the
  * candidate list, and it is asserted structurally by the conformance gate.
+ *
+ * A third property, added in Phase 79. The source the picker sends to the screen
+ * is the one the resolver decided. Nothing on the way out rewrites it, because a
+ * rewritten source is how a screen comes to claim a pinned path Tortie did not
+ * run.
  */
 
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  accessSync,
+  chmodSync,
+  constants,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync
+} from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   TAILSCALE_CANDIDATES,
+  TAILSCALE_MISSING_NOTE,
   parseTailscaleStatus,
+  readTailnetMachines,
   resetTailscaleWarningsForTests,
   resolveTailscale
 } from '../tailscale';
@@ -177,5 +194,139 @@ describe('the development override', () => {
     } else {
       expect(TAILSCALE_CANDIDATES).toContain(out.path);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The one call, and the source it sends to the screen
+// ---------------------------------------------------------------------------
+
+/** This module's own text, read the way the machines tests already read one. */
+const tailscaleSource = readFileSync(
+  join(dirname(fileURLToPath(import.meta.url)), '..', 'tailscale.ts'),
+  'utf8'
+);
+
+/** True when one of the three pinned paths holds a program on this machine. */
+function pinnedProgramExists(): boolean {
+  return TAILSCALE_CANDIDATES.some((candidate) => {
+    try {
+      if (!statSync(candidate).isFile()) return false;
+      accessSync(candidate, constants.X_OK);
+      return true;
+    } catch {
+      return false;
+    }
+  });
+}
+
+describe('the one call', () => {
+  let dir = '';
+  let standIn = '';
+
+  beforeEach(() => {
+    resetTailscaleWarningsForTests();
+    dir = mkdtempSync(join(tmpdir(), 'tortie-tailscale-call-'));
+    standIn = join(dir, 'stand-in-tailscale');
+    // A stand-in that prints one fixed document. Nothing here asks the person's
+    // own network, and no pinned program is run.
+    writeFileSync(standIn, `#!/bin/sh\ncat <<'JSON'\n${STATUS}\nJSON\n`, 'utf8');
+    chmodSync(standIn, 0o755);
+  });
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('sends the screen the source the resolver decided', async () => {
+    const out = await readTailnetMachines({
+      packaged: false,
+      env: { GMUX_TAILSCALE_BIN: standIn },
+      alreadyAdded: []
+    });
+    expect(out.source).toBe('dev-override');
+    expect(out.binary).toBe(standIn);
+  });
+
+  it('sends the machines the program listed, in the parse order', async () => {
+    const out = await readTailnetMachines({
+      packaged: false,
+      env: { GMUX_TAILSCALE_BIN: standIn },
+      alreadyAdded: []
+    });
+    expect(out.peers.map((peer) => peer.name)).toEqual([
+      'greg-mac',
+      'attic',
+      'no-dns-name',
+      'pop-os'
+    ]);
+    expect(out.peers.filter((peer) => peer.isThisMac).map((peer) => peer.name)).toEqual([
+      'greg-mac'
+    ]);
+    expect(out.note).toBeNull();
+  });
+
+  it('marks a machine that machines.json already holds', async () => {
+    const out = await readTailnetMachines({
+      packaged: false,
+      env: { GMUX_TAILSCALE_BIN: standIn },
+      alreadyAdded: ['ATTIC.tail1a2b.ts.net']
+    });
+    expect(out.peers.filter((peer) => peer.alreadyAdded).map((peer) => peer.name)).toEqual([
+      'attic'
+    ]);
+  });
+});
+
+describe('the source the screen prints', () => {
+  it('is passed straight through, and no line rewrites it', () => {
+    // This one reads the module's own text rather than driving the code, and
+    // here is the reason. The line it guards sat on the second return of
+    // readTailnetMachines. That return is only reached when a path resolved, and
+    // a path resolves exactly when the source is not 'missing', so no input can
+    // drive the branch. A behavioural test would look like proof and be none.
+    // Reading the text is the shape build/conformance-machines.mjs already uses
+    // on the production files in this directory.
+    expect(tailscaleSource).toContain('source: resolution.source,');
+    expect(tailscaleSource).not.toMatch(/'missing'\s*\?\s*'pinned'/);
+  });
+});
+
+describe('when no pinned path holds a program', () => {
+  it('says so in the early return, which is the arm that answers', () => {
+    // Always runs, on any machine. The arm is read out of the module's text
+    // because a machine that has Tailscale cannot be driven into it.
+    const arm = tailscaleSource.slice(
+      tailscaleSource.indexOf('if (resolution.path === null)'),
+      tailscaleSource.indexOf('const added =')
+    );
+    expect(arm).toContain('binary: null');
+    expect(arm).toContain("source: 'missing'");
+    expect(arm).toContain('TAILSCALE_MISSING_NOTE');
+  });
+
+  it('answers with no binary, the source missing and no machines', async () => {
+    // Which half of this runs depends on the machine, and the test says which
+    // rather than pretending. On a machine with no Tailscale the call itself is
+    // driven and the early return is proven end to end. On a machine that has
+    // Tailscale there is no way into that arm without editing main, and main is
+    // fenced in this phase, so only the resolver half is proven here. The call
+    // is deliberately not made in that case, because with no override it would
+    // run the real program and ask the person's own network.
+    if (pinnedProgramExists()) {
+      const resolution = resolveTailscale({ packaged: false, env: {} });
+      expect(resolution.source).toBe('pinned');
+      expect(TAILSCALE_CANDIDATES).toContain(resolution.path);
+      return;
+    }
+    const out = await readTailnetMachines({
+      packaged: false,
+      env: {},
+      alreadyAdded: []
+    });
+    expect(out.binary).toBeNull();
+    expect(out.source).toBe('missing');
+    expect(out.peers).toEqual([]);
+    expect(out.note).toBe(TAILSCALE_MISSING_NOTE);
   });
 });

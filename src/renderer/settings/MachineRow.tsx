@@ -20,11 +20,19 @@
  * WHAT THIS IS NOT. It is not an editor. Nothing here writes a field of the
  * machines file. A person changes a machine in their own editor, or removes
  * it here and adds it again.
+ *
+ * PHASE 79. Two sentences that used to stand in a block above the whole list
+ * now stand on the row, because that is where each of them decides something.
+ * The sentence about never adopting other work sits immediately above Prepare,
+ * which is the button that starts something on the other machine. Main's
+ * sealing sentence sits in the block a person reads before they press Confirm,
+ * which is the moment of agreement. It arrives as a prop from the section so
+ * this file can neither omit it nor reword it, exactly as the Add sheet does.
  */
 
 import React, { useEffect, useRef, useState } from 'react';
 import type { MachinePrepareResult, MachineRowView } from '@shared/ipc';
-import { ConnectionTestView } from './ConnectionTestView';
+import { ConnectionTestView, Remedy } from './ConnectionTestView';
 import {
   BTN_CONFIRM,
   BTN_CONFIRM_CHANGED,
@@ -38,6 +46,7 @@ import {
   BTN_WITHDRAW,
   CONFIRMED_LIST_LABEL,
   CURRENT_LIST_LABEL,
+  HONESTY_NO_ADOPTION,
   PREPARE_EXPLAIN,
   PREPARE_OPTION_DISAGREES,
   PREPARE_PATH_MISSING,
@@ -125,6 +134,12 @@ function PrepareResult({
           </ul>
         </div>
       )}
+
+      {/* PHASE 79. Prepare answers with main's own classes, so it gets the
+          same advice the connection test gets, from the same table. A person
+          who reads that the machine has no program should not have to go
+          looking for what to do about it. */}
+      <Remedy cls={result.class} />
     </div>
   );
 }
@@ -149,7 +164,17 @@ function Lines({
   );
 }
 
-export function MachineRow({ row }: { row: MachineRowView }): React.JSX.Element {
+export function MachineRow({
+  row,
+  honesty
+}: {
+  row: MachineRowView;
+  /**
+   * Main's sealing sentence, handed down from the section. Null until the
+   * first read of the machines file has answered.
+   */
+  honesty: string | null;
+}): React.JSX.Element {
   const confirm = useMachinesStore((s) => s.confirmMachine);
   const forget = useMachinesStore((s) => s.forgetMachine);
   const remove = useMachinesStore((s) => s.removeMachine);
@@ -239,6 +264,13 @@ export function MachineRow({ row }: { row: MachineRowView }): React.JSX.Element 
               connection prints, shown here while the button that fixes it is
               still in front of the person. */}
           <p className="set-config-warning">{row.warning}</p>
+          {/* PHASE 79. The confirm button below is a moment of agreement, and
+              main's sealing sentence belongs at every one of them. It used to
+              be drawn once above the list, where a person had already scrolled
+              past it by the time they reached this button. */}
+          {honesty === null ? null : (
+            <p className="set-config-warning">{honesty}</p>
+          )}
           {row.refusal === null ? null : (
             <p className="mach-refusal">{row.refusal}</p>
           )}
@@ -300,6 +332,10 @@ export function MachineRow({ row }: { row: MachineRowView }): React.JSX.Element 
               the bridge, so this button being off is a courtesy rather than the
               safeguard. */}
           <div className="mach-prepare">
+            {/* PHASE 79. First, because it is the promise this button is
+                bound by. Tortie creates what it runs there and leaves
+                everything else alone. */}
+            <p className="mach-prepare-explain">{HONESTY_NO_ADOPTION}</p>
             <p className="mach-prepare-explain">{PREPARE_EXPLAIN}</p>
             <button
               type="button"

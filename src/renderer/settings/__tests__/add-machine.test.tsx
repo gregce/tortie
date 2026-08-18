@@ -7,7 +7,18 @@
  *   under it for as long as it is off. A control that is off without saying
  *   why is a puzzle rather than a safeguard.
  * - The picker prints the pinned absolute path Tortie ran, before it runs
- *   anything, and prints the plain sentence when there is no such program.
+ *   anything.
+ * - PHASE 79. The panel above the picker has three states and each one says
+ *   what a person can do. A Mac with no Tailscale gets the install command in
+ *   mono with a copy control beside it, which is what the agent scan already
+ *   does for an agent that is not installed. The operator pressed the button,
+ *   read one sentence saying no program was found, and had nowhere to go.
+ * - PHASE 79. A device that cannot keep a session alive is marked and its
+ *   button is off. It is never removed from the list, because a device a
+ *   person can see in the Tailscale app and not in Tortie reads as Tortie
+ *   being broken.
+ * - PHASE 79. An outcome a person can act on carries what to do next, and an
+ *   outcome that worked carries nothing.
  * - A changed host key draws the alarm state. An unreachable machine does
  *   not. The two must never look the same, because three ordinary events
  *   wearing the alarm colour teach a person to ignore the one that is not.
@@ -28,8 +39,18 @@ import type {
   MachinesResult,
   TailscaleSourceResult
 } from '@shared/ipc';
-import { AddMachineView } from '../AddMachine';
+import { AddMachineView, peerCanHost, peerDisplayName } from '../AddMachine';
 import { ConnectionTestView } from '../ConnectionTestView';
+import {
+  MEASURED_VERSIONS,
+  REMEDY,
+  REMEDY_LABEL,
+  TAILSCALE_INSTALL_COMMAND,
+  TAILSCALE_NOT_INSTALLED,
+  TAILSCALE_NOT_LOOKED,
+  TAILSCALE_TITLE,
+  TAILSCALE_WHY
+} from '../machines-copy';
 import {
   emptyForm,
   machineIdFrom,
@@ -120,6 +141,7 @@ function seed(state: {
   form?: MachineFormState;
   test?: LiveTest | null;
   tailscale?: TailscaleSourceResult | null;
+  tailscaleReadAt?: number | null;
 }): string {
   return renderToStaticMarkup(
     <AddMachineView
@@ -127,6 +149,7 @@ function seed(state: {
       form={state.form ?? emptyForm()}
       tailscale={state.tailscale ?? null}
       tailscaleBusy={false}
+      tailscaleReadAt={state.tailscaleReadAt ?? null}
       test={state.test ?? null}
       busy={false}
       error={null}
@@ -145,6 +168,14 @@ function seed(state: {
 /** The one button's opening tag, so `disabled` can be read off it alone. */
 function addButtonTag(html: string): string {
   const at = html.indexOf('data-machines-action="add-confirm"');
+  expect(at).toBeGreaterThan(-1);
+  const open = html.lastIndexOf('<button', at);
+  return html.slice(open, html.indexOf('>', at) + 1);
+}
+
+/** One peer row's opening tag, found by the address it carries. */
+function peerButtonTag(html: string, host: string): string {
+  const at = html.indexOf(`data-machines-peer="${host}"`);
   expect(at).toBeGreaterThan(-1);
   const open = html.lastIndexOf('<button', at);
   return html.slice(open, html.indexOf('>', at) + 1);
@@ -241,85 +272,298 @@ describe('the confirm button waits for the machine to answer', () => {
   });
 });
 
-describe('the tailnet picker', () => {
+describe('the Tailscale panel, before anything is pressed', () => {
+  it('says what Tailscale is for and that Tortie has not looked yet', () => {
+    const html = seed({});
+    expect(html).toContain('data-tailscale-state="unlooked"');
+    expect(html).toContain(TAILSCALE_TITLE);
+    expect(html).toContain(TAILSCALE_NOT_LOOKED);
+    expect(html).toContain(TAILSCALE_WHY);
+    expect(html).toContain('Find machines on your tailnet');
+  });
+
+  it('says a person can type an address instead, so this is not the only path', () => {
+    expect(TAILSCALE_WHY).toContain('typing its address');
+  });
+
+  it('offers the button once, and starts nothing by being drawn', () => {
+    const html = seed({});
+    expect(html.match(/data-machines-action="find-tailnet"/g) ?? []).toHaveLength(1);
+    // No path, no count and no peer list until a person has pressed it.
+    expect(html).not.toContain('Reading from:');
+    expect(html).not.toContain('mach-peers');
+  });
+});
+
+describe('the Tailscale panel on a Mac with no Tailscale', () => {
+  const html = seed({
+    tailscale: { binary: null, source: 'missing', peers: [], note: null },
+    tailscaleReadAt: 1_760_000_000_000
+  });
+
+  it('says it is not installed and gives the command that installs it', () => {
+    expect(html).toContain('data-tailscale-state="missing"');
+    expect(html).toContain(TAILSCALE_NOT_INSTALLED);
+    expect(html).toContain(
+      `<code class="set-agent-cmd">${TAILSCALE_INSTALL_COMMAND}</code>`
+    );
+  });
+
+  it('puts the copy control beside the command', () => {
+    expect(html).toContain('Copy the install command');
+    expect(html).toContain('set-copy');
+  });
+
+  it('still says what Tailscale is for, and offers the button again', () => {
+    expect(html).toContain(TAILSCALE_WHY);
+    expect(html).toContain('Look again');
+  });
+
+  it('draws no pinned path, because no program was found', () => {
+    expect(html).not.toContain('Reading from:');
+  });
+
+  it('does not print the same sentence twice', () => {
+    // Main sends its own note for this state and it says what the sentence
+    // above the command says. Only one of them is drawn.
+    const withNote = seed({
+      tailscale: {
+        binary: null,
+        source: 'missing',
+        peers: [],
+        note:
+          'Tortie found no Tailscale program on this Mac at the places it ' +
+          'looks. Type the machine address yourself below.'
+      },
+      tailscaleReadAt: 1_760_000_000_000
+    });
+    expect(withNote).not.toContain('Type the machine address yourself below.');
+  });
+});
+
+describe('the Tailscale panel once it has looked', () => {
+  const installed = (
+    peers: TailscaleSourceResult['peers'],
+    note: string | null = null
+  ): TailscaleSourceResult => ({
+    binary: '/Applications/Tailscale.app/Contents/MacOS/Tailscale',
+    source: 'pinned',
+    peers,
+    note
+  });
+
   it('prints the pinned path Tortie ran', () => {
     const html = seed({
-      tailscale: {
-        binary: '/Applications/Tailscale.app/Contents/MacOS/Tailscale',
-        source: 'pinned',
-        peers: [
-          {
-            host: 'pop-os.tail1a2b.ts.net',
-            name: 'pop-os',
-            os: 'linux',
-            online: true,
-            isThisMac: false,
-            alreadyAdded: false
-          }
-        ],
-        note: null
-      }
+      tailscale: installed([
+        {
+          host: 'pop-os.tail1a2b.ts.net',
+          name: 'pop-os',
+          os: 'linux',
+          online: true,
+          isThisMac: false,
+          alreadyAdded: false
+        }
+      ]),
+      tailscaleReadAt: 1_760_000_000_000
     });
+    expect(html).toContain('data-tailscale-state="installed"');
     expect(html).toContain('Reading from:');
     expect(html).toContain('/Applications/Tailscale.app/Contents/MacOS/Tailscale');
     expect(html).toContain('pop-os.tail1a2b.ts.net');
   });
 
-  it('says plainly when there is no Tailscale program to run', () => {
-    const html = seed({
-      tailscale: { binary: null, source: 'missing', peers: [], note: null }
+  it('counts the other machines it found', () => {
+    const one = seed({
+      tailscale: installed([
+        {
+          host: 'pop-os.tail1a2b.ts.net',
+          name: 'pop-os',
+          os: 'linux',
+          online: true,
+          isThisMac: false,
+          alreadyAdded: false
+        },
+        {
+          host: 'this-mac.tail1a2b.ts.net',
+          name: 'this-mac',
+          os: 'macOS',
+          online: true,
+          isThisMac: true,
+          alreadyAdded: false
+        }
+      ]),
+      tailscaleReadAt: 1_760_000_000_000
     });
-    expect(html).toContain(
-      'Tortie found no Tailscale program on this Mac at the places it looks. ' +
-        'Type the machine address yourself below.'
-    );
-    expect(html).not.toContain('Reading from:');
+    // This Mac is not another machine, so one row of two is counted.
+    expect(one).toContain('1 other machine found.');
   });
 
-  it('tells an empty tailnet apart from a missing program', () => {
+  it('says so plainly when the tailnet answered with nothing, once', () => {
     const html = seed({
-      tailscale: {
-        binary: '/usr/local/bin/tailscale',
-        source: 'pinned',
-        peers: [],
-        note: null
-      }
+      tailscale: installed(
+        [],
+        'Tailscale answered and listed no other machines. Type the machine ' +
+          'address yourself below.'
+      ),
+      tailscaleReadAt: 1_760_000_000_000
     });
-    expect(html).toContain(
-      'Tailscale answered and listed no other machines. Type the machine ' +
-        'address yourself below.'
-    );
+    expect(html).toContain('No other machines found.');
+    // Main's note, drawn once. The renderer used to keep a copy of the same
+    // sentence and print both.
+    expect(
+      html.match(/Tailscale answered and listed no other machines\./g) ?? []
+    ).toHaveLength(1);
   });
 
-  it('marks this Mac and a machine that is already added', () => {
+  it('marks this Mac, a machine already added, and a machine that is off', () => {
     const html = seed({
-      tailscale: {
-        binary: '/usr/local/bin/tailscale',
-        source: 'pinned',
-        peers: [
-          {
-            host: 'this-mac.tail1a2b.ts.net',
-            name: 'this-mac',
-            os: 'macOS',
-            online: true,
-            isThisMac: true,
-            alreadyAdded: false
-          },
-          {
-            host: 'pop-os.tail1a2b.ts.net',
-            name: 'pop-os',
-            os: 'linux',
-            online: false,
-            isThisMac: false,
-            alreadyAdded: true
-          }
-        ],
-        note: null
-      }
+      tailscale: installed([
+        {
+          host: 'this-mac.tail1a2b.ts.net',
+          name: 'this-mac',
+          os: 'macOS',
+          online: true,
+          isThisMac: true,
+          alreadyAdded: false
+        },
+        {
+          host: 'pop-os.tail1a2b.ts.net',
+          name: 'pop-os',
+          os: 'linux',
+          online: false,
+          isThisMac: false,
+          alreadyAdded: true
+        }
+      ]),
+      tailscaleReadAt: 1_760_000_000_000
     });
     expect(html).toContain('This Mac');
     expect(html).toContain('Already added');
     expect(html).toContain('Offline');
+    expect(html).toContain('data-peer-online="no"');
+  });
+
+  it('names a machine whose name Tailscale did not supply', () => {
+    // Tailscale reports the HostName `localhost` for an iOS device and main
+    // falls back to it, so two of the operator's four rows read localhost.
+    // The first label of the address is the name Tailscale itself shows.
+    const html = seed({
+      tailscale: installed([
+        {
+          host: 'gregs-iphone.tail1a2b.ts.net',
+          name: 'localhost',
+          os: 'iOS',
+          online: true,
+          isThisMac: false,
+          alreadyAdded: false
+        }
+      ]),
+      tailscaleReadAt: 1_760_000_000_000
+    });
+    expect(html).toContain('>gregs-iphone<');
+    expect(html).toContain('data-peer-name-source="tailnet"');
+    expect(html).not.toContain('localhost');
+  });
+
+  it('marks a device that cannot run a session, and turns its button off', () => {
+    const html = seed({
+      tailscale: installed([
+        {
+          host: 'gregs-iphone.tail1a2b.ts.net',
+          name: 'gregs-iphone',
+          os: 'iOS',
+          online: true,
+          isThisMac: false,
+          alreadyAdded: false
+        }
+      ]),
+      tailscaleReadAt: 1_760_000_000_000
+    });
+    // Marked, never omitted. A device a person can see in the Tailscale app
+    // and cannot see here reads as Tortie being broken.
+    expect(html).toContain('gregs-iphone.tail1a2b.ts.net');
+    expect(html).toContain('Cannot run a session');
+    const tag = peerButtonTag(html, 'gregs-iphone.tail1a2b.ts.net');
+    expect(tag).toContain('data-peer-can-host="no"');
+    expect(tag).toContain('disabled');
+  });
+
+  it('says when Tortie last looked', () => {
+    const html = seed({
+      tailscale: installed([]),
+      tailscaleReadAt: Date.now()
+    });
+    expect(html).toContain('Tortie looked just now.');
+    expect(html).not.toContain('Tortie has not looked yet.');
+  });
+
+  it('leaves a machine it has never heard of alone', () => {
+    const html = seed({
+      tailscale: installed([
+        {
+          host: 'odd-box.tail1a2b.ts.net',
+          name: 'odd-box',
+          os: '',
+          online: true,
+          isThisMac: false,
+          alreadyAdded: false
+        }
+      ]),
+      tailscaleReadAt: 1_760_000_000_000
+    });
+    expect(html).toContain('data-peer-can-host="yes"');
+    expect(html).not.toContain('Cannot run a session');
+  });
+});
+
+describe('the two judgements the peer list makes, on their own', () => {
+  it('falls back to the tailnet label only when the name says nothing', () => {
+    const peer = (name: string, host: string) => ({
+      host,
+      name,
+      os: 'linux',
+      online: true,
+      isThisMac: false,
+      alreadyAdded: false
+    });
+    expect(peerDisplayName(peer('pop-os', 'pop-os.tail1a2b.ts.net'))).toBe('pop-os');
+    expect(peerDisplayName(peer('localhost', 'gregs-iphone.tail1a2b.ts.net'))).toBe(
+      'gregs-iphone'
+    );
+    expect(peerDisplayName(peer('LocalHost', 'gregs-ipad.tail1a2b.ts.net'))).toBe(
+      'gregs-ipad'
+    );
+    expect(
+      peerDisplayName(peer('localhost.localdomain', 'box.tail1a2b.ts.net'))
+    ).toBe('box');
+    expect(peerDisplayName(peer('', 'box.tail1a2b.ts.net'))).toBe('box');
+    // Nothing better to offer, so the name it was given stands.
+    expect(peerDisplayName(peer('localhost', ''))).toBe('localhost');
+  });
+
+  it('refuses only the four systems that cannot keep a session alive', () => {
+    for (const os of ['ios', 'iOS', 'iPadOS', 'android', 'Android', 'tvOS', ' ios ']) {
+      expect(peerCanHost(os)).toBe(false);
+    }
+    // Everything else, including a value Tortie has never seen and an empty
+    // one, is treated as able. Tortie must not refuse a machine on a string it
+    // does not know.
+    for (const os of ['macOS', 'linux', 'windows', 'freebsd', '', 'plan9']) {
+      expect(peerCanHost(os)).toBe(true);
+    }
+  });
+});
+
+describe('the versions Tortie has measured, before any test runs', () => {
+  it('is on screen with no test at all', () => {
+    const html = seed({ form: form({ host: '127.0.0.1' }) });
+    expect(html).toContain('Versions Tortie has measured:');
+    expect(html).toContain(MEASURED_VERSIONS.join(', '));
+    expect(html).toContain(
+      'Tortie only uses versions of that program it has measured.'
+    );
+    // Proven to be before the test rather than after it: nothing has run.
+    expect(html).not.toContain('data-machines-transcript');
   });
 });
 
@@ -383,6 +627,34 @@ describe('the connection test view', () => {
     expect(html).toContain('data-alarm="no"');
     expect(html).not.toContain('mach-outcome alarm');
     expect(html).toContain('Tortie could not reach this machine.');
+  });
+
+  it('says what to do next about an outcome a person can act on', () => {
+    const html = draw(
+      outcome({
+        class: 'refused',
+        alarm: false,
+        headline: 'That machine answered and refused the connection.',
+        detail:
+          'Something is at that address and it is not accepting connections ' +
+          'on this port.',
+        resolvedPath: null,
+        exitCode: 255,
+        sheet: null
+      })
+    );
+    expect(html).toContain(REMEDY_LABEL);
+    expect(html).toContain('data-remedy-class="refused"');
+    expect(html).toContain(REMEDY.refused);
+    // The advice names the four places a person has to go, in order.
+    expect(html).toContain('System Settings');
+    expect(html).toContain('Remote Login');
+  });
+
+  it('says nothing at all about an outcome that worked', () => {
+    const html = draw(outcome({}));
+    expect(html).not.toContain(REMEDY_LABEL);
+    expect(html).not.toContain('mach-remedy');
   });
 
   it('offers the answer field only while the program is still running', () => {

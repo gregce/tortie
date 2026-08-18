@@ -12,6 +12,10 @@
  *
  * So these tests hold the payload. They stand a fake `window.gmux.machines` up,
  * run the store's own calls, and read what arrived on the other side.
+ *
+ * PHASE 79 adds one field to the same file, being when the last look at
+ * Tailscale finished. The panel says it on screen, so it has to be true on
+ * both paths, and a look that threw is still a look.
  */
 
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -109,6 +113,7 @@ function reset(): void {
     form: emptyForm(),
     tailscale: null,
     tailscaleBusy: false,
+    tailscaleReadAt: null,
     test: null
   });
 }
@@ -205,5 +210,36 @@ describe('the values the Add flow sends over the bridge', () => {
     const said = await useMachinesStore.getState().addMachine();
     expect(recorded.adds).toEqual([]);
     expect(said).toContain('Run the connection test first.');
+  });
+});
+
+describe('when the last look at Tailscale happened', () => {
+  beforeEach(() => {
+    installBridge();
+    reset();
+  });
+
+  it('is null before anything has looked', () => {
+    expect(useMachinesStore.getState().tailscaleReadAt).toBeNull();
+  });
+
+  it('is a clock reading once a look has come back', async () => {
+    const before = Date.now();
+    await useMachinesStore.getState().findTailnet();
+    const at = useMachinesStore.getState().tailscaleReadAt;
+    expect(typeof at).toBe('number');
+    expect(at ?? 0).toBeGreaterThanOrEqual(before);
+    expect(useMachinesStore.getState().tailscaleBusy).toBe(false);
+  });
+
+  it('is a clock reading when the look threw, because a look happened', async () => {
+    const api = (globalThis as { window?: { gmux?: { machines?: unknown } } })
+      .window?.gmux?.machines as { tailscaleNames(): Promise<unknown> };
+    api.tailscaleNames = async () => {
+      throw new Error('the program was not there');
+    };
+    await useMachinesStore.getState().findTailnet();
+    expect(typeof useMachinesStore.getState().tailscaleReadAt).toBe('number');
+    expect(useMachinesStore.getState().tailscaleBusy).toBe(false);
   });
 });
