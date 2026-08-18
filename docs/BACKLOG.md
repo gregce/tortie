@@ -6352,6 +6352,8 @@ blocks a rung. This round runs after 73, or earlier if the operator asks for it.
 | 78 | `src/renderer/terminal/capture/index.ts` now holds two `no FontFaceSet outside a browser` comments that differ by one character, because Phase 78 wrote its new one without an em dash and left the older one alone |
 | orchestrator | A fence that is too tight blocks the phase it was meant to protect. Phase 79 deleted a user-facing sentence, and `build/assert-bundle-refusals.mjs` asserts that named sentences reach the shipped bundles, so the build gate failed on a file no builder was allowed to edit. A fence must name every file the change reaches, not only the files the feature lives in |
 | orchestrator | A research figure was written into a phase entry without measuring the files. The Phase 78 charter said the bundled fonts were 335,296 bytes and the four files measure 340,472. The committer caught it. A number in a charter is checked against the thing it describes before a builder reads it |
+| orchestrator | An exit code is not a result. Two runs of the ten row fault matrix reported exit 0 while dying halfway through, because the command was backgrounded a second time inside a call that was already backgrounded, so the child was killed when the wrapper returned. A gate's result is the rows it printed and its own PASS line. Read those, not the status |
+| orchestrator | Two rungs fixed the same false sentence independently, because neither could see the other. Phase 72 rewrote `HONESTY_NO_SESSIONS_YET` and Phase 79 deleted it and added a table that fails on any retired claim. The merge kept the stronger answer, but the duplicated work is the standing cost of building three phases at once, and a shared list of user-facing copy defects would have prevented it |
 
 ## Phase 46.1 — the Runs pane reads clearly (operator reported 2026-08-16) ✅ SHIPPED 2026-08-17 (d1ce49f, 0.31.1, gates green)
 
@@ -6400,7 +6402,7 @@ the runs body's own scroll only, so an outer container scrolling would move the 
 closing it, which is the History card's behavior too. HistorySection still runs its own inline
 copy of the hover timers, so hover-timing.ts has exactly one consumer until a later consolidation.
 
-## Phase 72 — M5, remote restore, earned (research 51, M5) ✅ SHIPPED 2026-08-18 (this commit, 0.37.0, gates green)
+## Phase 72 — M5, remote restore, earned (research 51, M5) ✅ SHIPPED 2026-08-18 (1741a01, 0.37.0, gates green, CI green)
 
 The M5 rung of the remote ladder. Phase 70 refused Restore for every session on another machine and
 said so in one sentence. This rung offers it, behind five conditions that all have to hold at once,
