@@ -6000,6 +6000,7 @@ question the operator asked directly. Run them in this order and do not reshuffl
 | 2 | **84** getting a session to exist over there, and ending it honestly | 3 and 2 per item | 83, for three measurements |
 | 3 | **85** the status dot tells the truth on a connected machine | 3 | 83, for the `#{session_activity}` measurement |
 | 3 | **81** the session list stops waiting for your shell | 3 | nothing. Different domain, runs beside 85 |
+| beside 1 | **86** the splits and the two sheets you actually use | per item | nothing. Operator reported 2026-08-18. It owns `src/renderer/app/**` and runs beside Phase 83, whose files are all under `src/main` and `build/` |
 
 **Two decisions the operator made on 2026-08-18, binding on these phases.**
 
@@ -6016,6 +6017,180 @@ question the operator asked directly. Run them in this order and do not reshuffl
 | A "Files live on <machine>" label on the workspace surfaces | Research 55 may replace the design this label describes. It rules on whether the label is a phase |
 | `needs input` for a remote session | The oracles read local disk. A partial answer exists through codex's title oracle and it is recorded in Phase 85, not built |
 | **82** cross-machine conversation reconstruction | The operator's stated destination. It sits on top of all of the above and it needs a real machine with a real agent, which Phase 83 provides for the first time |
+
+## Phase 86 — the splits and the two sheets you actually use (operator reported 2026-08-18) QUEUED
+
+**Subject:** `fix(ui): a split leaf moves without leaving, and the two sheets answer the keyboard`
+**First body line:** `Phase 86: the splits and the two sheets you actually use`
+**Semver:** minor, because items 2 and 3 add surfaces.
+**Tier per item, not promoted to the maximum.** Item 6 is Tier 3 because the operator reported it
+personally and it is a dead keystroke, so he gets proof rather than assurance. Items 1, 2 and 4 are
+Tier 2 with driven pointer and key events. Items 3 and 5 are Tier 2 with a screenshot read.
+
+Runs beside Phase 83, whose files are all under `src/main/tmux`, `src/main/machines` and `build/`.
+This phase owns `src/renderer/app/**` and `src/renderer/state/layout.ts` and touches neither.
+
+**The operator's words, bound as the charter.** "When I drag a session onto another one I want to be
+able to redrag into a new position once it is placed in the session window instead of having to drag
+it back into the session pane. I want to add an option, for when you drag a session off of a
+multiplexed pane, to be able to choose whether it takes you directly to that new session or keeps you
+looking at the session you dragged from. I want to make it so its very easy to see, scroll and
+navigate the short cut keys when you press cmd + /, right now it is just a static list and there are
+a lot of commands, so creatively make that better. I want it to be possible to tab through the types
+of sessions available in the cmd+t pane as well as when the project is opened and there are no
+sessions yet. When you open cmd+t it should be default that the selectable options by agent are
+actually default collapsed so that the size of the new session screen is largely consistent. Lastly
+when you are in the cmd+t menu, pressing ENTER when you've selected what you want should actually
+launch it, it does not today."
+
+### 1. A leaf moves inside its own group, without leaving it first
+
+**Root cause.** `startHeaderDrag` at `src/renderer/app/split/surface-dnd.ts:194` tracks exactly one
+thing, being the home strip or dock, through `trackHome`. Its `onDrop` does exactly one thing, being
+`layout.popOut(...)` when a home index is armed. It never hit tests the split's own leaves, so a
+header dragged onto another leaf in the same group falls through to the no-op arm. The module header
+says so in its own words: "Split headers drag the other way: onto the strip/dock to pop the leaf
+out."
+
+**What makes this small.** The quadrant hit testing that decides which edge of which leaf a drop
+lands on already exists and is already imported into this file, being `armedEdge` from
+`../../state/split-tree`, used by the cross region drag. A header drag has to consult it as well as
+`trackHome`, and the drop then routes to a move within the tree rather than a pop out.
+
+**What a person gets.** Drag a leaf's header onto another leaf in the same split and it takes that
+position, top, bottom, left or right, with the same wash overlay the first drop showed. Dragging to
+the strip or the dock still pops it out, unchanged.
+
+**What must not regress.** `MAX_LEAVES`, `MIN_PANE_HEIGHT` and `MIN_PANE_WIDTH` still bind. A move
+that would break a minimum is refused the way a create is. A group always holds two or more leaves,
+so a move that would empty the source is a no-op rather than a collapse.
+
+### 2. A toggle for where you are looking after a pop out
+
+**Root cause.** `popOut` at `src/renderer/state/layout.ts:417` ends with an unconditional
+`useApp.getState().setActiveSession(sessionId)`. There is no preference and no way to want the other
+thing.
+
+**What ships.** One setting, remembered, default to today's behaviour so nobody's habit changes
+under them. The two answers in plain words: after you drag a session out of a split, Tortie either
+shows you the session you dragged out, or keeps you looking at the split you dragged it from.
+
+**Where the toggle lives.** In Settings, beside the other session behaviour, NOT inside the drag
+gesture. A control that only exists during a drag is a mode nobody can find again.
+
+**What must not regress.** `breakUp`, the group context menu verb that pops every leaf out at once,
+reads the same preference or explicitly states why it does not. Two verbs that pop leaves out must
+not disagree about where the eye goes.
+
+### 3. The shortcuts overlay becomes searchable, scrollable and navigable
+
+**Root cause.** `src/renderer/app/ShortcutsOverlay.tsx` is 102 lines that render every section and
+every row flat, with no search field, no scroll affordance and no keyboard navigation beyond
+`trapTabKey`. The list it renders is the whole keymap.
+
+**The machinery already exists and nothing calls it.** `src/shared/keymap.ts` already exports
+`keymapMatches`, whose own comment reads "Substring match over the words a person would actually
+type", and it searches the action, the explanation and both the display and accelerator forms of
+every chord. This overlay does not use it. The backlog already recorded that `nameOrChordMatches`
+and `filterForReading` in `src/renderer/settings/KeyboardSection.tsx` solve the ordering problem and
+should be LIFTED into `src/shared/keymap.ts` rather than a second scorer being written. This phase
+does that lift. **No new matching function may be written.**
+
+**The shape, decided here so the builder does not invent one.**
+
+- A search field focused on open. Typing filters live through the lifted matcher.
+- The body scrolls, with the group titles sticky at the top of their own section, so a person
+  scrolling through 75 rows always knows which group they are in.
+- Up and Down move a highlight through the visible rows and the highlight scrolls itself into view.
+  Escape clears a query first and closes the overlay on the second press.
+- A count of what is showing against the total, so a filtered view never reads as the whole list.
+
+**What is deliberately NOT built, and the reason.** The highlighted row does not run its command on
+Enter. Tortie already has Quick Open for running things, and a cheat sheet that also executes is a
+second palette with different contents and different rules. This overlay's job is to answer "what is
+the key for that", and it should get out of the way once it has.
+
+**This also closes GitHub issue 7 by observation.** That issue asked for a filter field and was
+parked on measuring whether the overlay actually overflows. The operator has now said directly that
+it is hard to read, which settles the measurement the parking depended on. Update that row.
+
+### 4. Tab moves the highlight across the agent tiles, in both places
+
+**Root cause, and it is a deliberate decision rather than an oversight.** `AgentGrid` is one shared
+component in two modes. In `mode="select"`, which the Cmd-T sheet uses, it is a `role="radiogroup"`
+with a roving tabindex at `src/renderer/app/AgentGrid.tsx:196`, being `tabIndex: selected ? 0 : -1`,
+and arrow keys move the check. That is the correct ARIA radiogroup pattern, and it is precisely why
+Tab does not move between tiles: a radiogroup takes ONE tab stop and arrows move inside it. In
+`mode="launch"`, which the empty state uses, the tiles get no radio properties at all, so they take
+the button default and Tab already walks them. Two behaviours out of one component.
+
+**The decision, and it is the operator's request winning over a convention.** Tab moves the
+highlight across the tiles in BOTH modes. The select mode grid stops being a radiogroup and becomes
+a group of buttons carrying `aria-pressed`, which is the honest role for a control that Tab walks.
+Arrow keys keep working, so nobody who learned the arrows loses them.
+
+**Say what is given up.** A screen reader user loses the single-stop-per-group behaviour a
+radiogroup gives, and gains a tab stop per agent. With thirteen agents that is thirteen stops. The
+phase records this rather than hiding it, and the `aria-pressed` group is the mitigation.
+
+### 5. The per-agent options start collapsed, so the sheet stops changing height
+
+**Root cause.** The launch flag presets render as toggles under the grid, one row per verified
+preset for the selected agent, so the sheet's height changes every time the selection moves across
+agents with different preset counts.
+
+**What ships.** The options block collapses by default and remembers nothing across openings, so the
+sheet is the same height every time Cmd-T is pressed.
+
+**The constraint that makes this honest, and it is the whole risk of the item.** Presets are seeded
+ON from Settings launch defaults through `seededFlags`. A seeded flag that is hidden behind a
+collapsed block is a flag the session will run under and the person cannot see. So the collapsed
+summary MUST name how many are on, e.g. "Options, 2 on", and a summary reading zero must mean zero.
+**A collapsed block that hides an active flag without counting it fails this phase.**
+
+### 6. Enter launches from the Cmd-T sheet
+
+**Root cause, exactly.** `modalKeyDown` in `src/renderer/app/focus-trap.ts` reads:
+
+```
+if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+  if (e.target instanceof HTMLElement && e.target.tagName === 'BUTTON') {
+    return;
+  }
+  e.preventDefault();
+  handlers.submit();
+}
+```
+
+Every agent tile is a `<button type="button">`, at `src/renderer/app/AgentGrid.tsx:201`. So the
+moment a person picks an agent with the keyboard, focus is on a BUTTON, the early return fires, and
+Enter never reaches `submit()`. The sheet's own header still claims "Enter creates from any field",
+which has been false for every keyboard user since the grid replaced the segmented control in Phase
+12.12. Correct that comment in the same commit.
+
+**Why the early return exists, so the fix does not break it.** It stops Enter on the Create or
+Cancel button from submitting AND activating the button, which would create twice. The fix narrows
+the skip to controls that actually submit or cancel, rather than to every element that happens to be
+a button. A selection control that looks like a button must not be treated as one.
+
+**Tier 3 proof for this item.** Drive real key events through CDP: open Cmd-T, move to an agent with
+Tab and with an arrow, press Enter, and show one session created. Then press Enter on the Create
+button itself and show ONE session created rather than two. A double create is a FAIL.
+
+### What must not regress across the whole phase
+
+- The two-key happy path, Cmd-T then Enter, still creates with the default agent from a cold open.
+- `src/shared/keymap.ts` stays the only shortcut list, enforced by
+  `src/shared/__tests__/keymap-single-source.test.ts`. Item 3 adds no chord.
+- Every colour comes from tokens. No literal outside a theme constant file.
+- No DOM-drawn context menu is added. Native menus only, through the ui:popupMenu bridge.
+- The drop wash, the insertion indicator and the pop-out gesture keep their current look, because
+  item 1 adds a destination rather than a new visual language.
+
+### The menus
+
+Item 2 adds a setting, which is a Settings surface rather than a menu item, so no native menu
+changes. State that in the commit body so the house rule is visibly satisfied rather than skipped.
 
 ## Phase 83 — mac-pro is a machine Tortie will speak to, and the harness that proves it (operator queued 2026-08-18) QUEUED
 
