@@ -5997,7 +5997,7 @@ question the operator asked directly. Run them in this order and do not reshuffl
 | Order | Item | Tier | Gated on |
 | --- | --- | --- | --- |
 | 1 | **83** mac-pro is a machine Tortie will speak to, and the harness that proves it ✅ SHIPPED 2026-08-18 | 3 | nothing. It gated the rest. It shipped without reaching mac-pro, so every number in it came from this Mac |
-| 2 | **Research 55** a project folder that lives on another machine | — | 83, for the latency number. Phase 83 did not produce it, because it never reached mac-pro |
+| 2 | **Research 55** a project folder that lives on another machine ✅ DELIVERED 2026-08-18 | — | it did not need 83 after all. ssh to mac-pro signed in on the first attempt, so the round took the latency number itself |
 | 2 | **84** getting a session to exist over there, and ending it honestly | 3 and 2 per item | 83, for three measurements. All three arrived, and all three were taken on this Mac over a loopback carriage |
 | 3 | **85** the status dot tells the truth on a connected machine | 3 | 83, for the `#{session_activity}` measurement. It arrived, and it was taken on this Mac over a loopback carriage |
 | 3 | **81** the session list stops waiting for your shell | 3 | nothing. Different domain, runs beside 85 |
@@ -6014,8 +6014,8 @@ question the operator asked directly. Run them in this order and do not reshuffl
 
 | Not queued | Why |
 | --- | --- |
-| Machine aware Explorer and git over ssh | The largest item in research 54. Research 55 decides its shape first |
-| A "Files live on <machine>" label on the workspace surfaces | Research 55 may replace the design this label describes. It rules on whether the label is a phase |
+| Machine aware Explorer and git over ssh | Research 55 has now decided its shape. The Explorer crosses on one new frozen subtree script and is polled, the git sidebar is read only and limited to the Changes group, and no git write ever crosses |
+| A "Files live on <machine>" label on the workspace surfaces | Research 55 ruled that it is not a phase of its own. It is permanent, and it ships inside the commit that adds the refusal it explains |
 | `needs input` for a remote session | The oracles read local disk. A partial answer exists through codex's title oracle and it is recorded in Phase 85, not built |
 | **82** cross-machine conversation reconstruction | The operator's stated destination. It sits on top of all of the above and it needs a real machine with a real agent, which Phase 83 provides for the first time |
 
@@ -6521,7 +6521,9 @@ an ssh key mac-pro trusts.
 is drawn by Tortie rather than by macOS, because the macOS panel cannot browse another computer. The
 frozen script pattern and the seven script catalogue are already there, and the new script reads and
 never writes. This is the small half of the operator's project folder question. The big half is
-Research 55.
+Research 55. **Research 55 has now ruled that this is the same script the Explorer needs, so write it
+with a depth parameter and a cap from the start.** A picker is that script at depth 1. An Explorer
+expansion is the same script at depth 2 or 3. Only one script may be written.
 
 **DECIDED BY THE OPERATOR, 2026-08-18. The create sheet keeps resetting to This Mac.** The last
 machine is not remembered per project. The reset is deliberate, so one Cmd-T and one Return cannot
@@ -6637,7 +6639,46 @@ The local activity poll, measured at 2.75 ms for 16 panes. This phase does not t
 periodic remote list is per machine, is capped the way the existing 8-sessions-per-pass snapshot is
 capped, and it stops when the window is not in front.
 
-## Research 55 — a project folder that lives on another machine (operator requested 2026-08-18) QUEUED
+## Research 55 — a project folder that lives on another machine (operator requested 2026-08-18) ✅ DELIVERED 2026-08-18 (this commit), docs/research/55-remote-project-folder.md, checked against the tree of `069ef77` and banked on `f6cd1ad`
+
+**The verdict, recorded.** Build the remote project folder on the door that already exists, and do
+not build a Tortie Host. Every read a project folder needs is one command the far machine's own
+programs already answer, so the whole design is one new frozen read script taking a root, a depth and
+a cap, plus one rule that Tortie asks for a subtree rather than for a folder. The measurement that
+forces that rule was taken on mac-pro over the operator's own tailnet this session, being 65.5 ms for
+a whole 1,695 entry repository in one call against 409.7 ms for nine folders read one after another.
+Of the thirteen workspace surfaces the document counts, five cross and eight refuse, and every write
+stays on this Mac.
+
+**The charter's premise about latency was false and the round says so.** `ssh -o BatchMode=yes
+100.113.101.95 true` signed in on the first attempt with no password and no prompt, so the row below
+that gates this research on Phase 83 is stale. Every number in the document is a real round trip
+rather than a loopback floor. The one qualification is that `tailscale ping` reports a direct path via
+`192.168.1.47`, so these are same building numbers and no wide area number exists.
+
+**The three rulings a later builder must not rediscover.**
+
+| Ruling | Why it binds |
+| --- | --- |
+| The project model is a new `remote_projects` table with `UNIQUE(machine_id, path)`, not a rebuild of `projects` | Migration `007-restore-attempts` is the precedent, and it keeps `MANIFEST_MIN_COMPATIBLE_VERSION` at 13. A rebuild moves it to 15 because `ON CONFLICT(path)` in `upsertProject` needs the unique index |
+| The listing script takes a root and a depth, NOT many roots | `positionalsOf` in `build/machines-conformance-probe.mts` reads `$1` to `$9` only, condition 37 skips the hostile check when `params === 0`, and step 3 of `runRemoteScript` throws on an argument count mismatch. The subtree call also measured faster, at 42.3 ms against 55.5 ms |
+| It is the SAME script Phase 84 item 6 already queues as `machines:listDir` | Two documents claimed one slot. Only one script may be written, and it needs the depth parameter from the start or the Explorer has to add a second one |
+
+**The "Files live on <machine>" label is ruled on, and it is NOT its own phase.** It is permanent
+rather than a stopgap, and it ships in the same commit as the check that makes the git sidebar, search
+and Quick Open refuse a remote project. Shipped alone it would disclose a destructive write instead of
+stopping it. The string appears 0 times in `src/` today, so it was specified twice and written never.
+
+**Two defects the round found are blocked on none of this and should be fixed first.** A remote review
+tab is fully editable with Cmd-S enabled, and `save` in `src/renderer/editor/tab-io.ts` returns `false`
+with no message at all. And a remote create with an empty Directory field sends THIS Mac's project
+path to the other computer and stamps it there as `@gmux-project`, which Phase 84 item 5 half fixes
+and nobody has queued the stamp half of. The document also proved that `review-file` has no
+containment, because the exact script text run with `../above.txt` returned the file above the root.
+
+**The charter below is the original, kept as written.** It is history now, and the rulings above
+answer it. Its premise that the round is gated on Phase 83 for a latency number is the premise the
+round refuted.
 
 Runs after Phase 83, because it needs a latency number from a real machine.
 

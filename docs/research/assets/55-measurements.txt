@@ -1,0 +1,80 @@
+Research 55 raw measurements, taken 2026-08-18 against 100.113.101.95 (gregs-mac-pro)
+from this Mac, over the operator's tailnet. tailscale ping reports a DIRECT path
+via 192.168.1.47:41641, so these are same building numbers and not wide area ones.
+
+Harnesses: docs/research/assets/55-probe-real-machine.mjs
+           docs/research/assets/55-probe-batching.mjs
+Read only on both machines. No tmux server contacted, no file written on the far side.
+
+--- far machine facts, read once ---
+uname: Darwin Mac 24.6.0 ... RELEASE_ARM64_T6020 arm64
+cpu:   Apple M2 Ultra, 24 cores
+ssh:   OpenSSH_9.9p2, LibreSSL 3.3.6
+sshd:  "#MaxSessions 10" and "#MaxStartups 10:30:100" both COMMENTED, so defaults apply
+git:   git version 2.39.5 (Apple Git-154)
+rg:    command -v rg answered nothing. ripgrep is NOT installed
+.oh-my-zsh: 1214 files, 481 directories
+/Users/gdc within 3 levels: 5923 entries
+/usr/share: 41 entries at depth 1, 794 at depth 2, 10043 at depth 3
+/usr/bin: 915 entries
+
+--- ICMP, 60 packets, two runs ---
+run 1: min 5.211 avg 54.349 max 266.235 stddev 72.764
+run 2: n=60 p50=7.98 p90=89.77 p99=184.59 min=5.82 max=214.47
+
+--- local process floor on this Mac ---
+ssh binary start (ssh -V):   n=20 min 2.44 p50 2.75
+local /bin/sh -c true:       n=20 min 2.10 p50 2.32
+
+--- local readdir(withFileTypes), the call fs:readDir makes ---
+/usr/share  41 entries  n=20 min 0.031 p50 0.045 p90 0.100
+/usr/bin   915 entries  n=20 min 0.335 p50 0.407 p90 0.620
+/Users/gdc 891 entries  n=20 min 0.328 p50 0.370 p90 0.393
+
+--- transport, pass 1 ---
+cold connection, true          n=10 min 170.3 p50 210.6 p90 300.0
+warm multiplexed, true         n=20 min  29.3 p50  35.9 p90 123.8
+review-list, /Users/gdc/dev        cmd 407 B, answer 106 B, n=7 p50 57.2 p90 140.3
+review-list, /Users/gdc/.oh-my-zsh cmd 414 B, answer 226 B, n=7 p50 59.5 p90 110.8
+dir-list stat  /usr/share d1  answer   1853 B  p50  30.8 p90  33.9
+dir-list paths /usr/share d1  answer    825 B  p50  38.9 p90 130.0
+dir-list stat  /usr/share d2  answer  48890 B  p50  55.1 p90 147.4
+dir-list paths /usr/share d2  answer  27569 B  p50  39.5 p90 133.4
+dir-list stat  /usr/share d3  answer 648665 B  p50 268.8 p90 301.2
+dir-list paths /usr/share d3  answer 363804 B  p50 108.4 p90 185.4
+dir-list stat  /usr/bin   d1  answer  43843 B  p50  49.3 p90  63.1
+dir-list stat  /Applications d1 answer 2190 B  p50  36.5 p90 115.4
+fan out (pass 1, wall clock, failures): 1=31.2/0 4=28.3/0 8=30.8/0 12=291.8/0
+                                        16=284.7/0 24=460.5/0 32=572.8/0 50=793.7/0
+
+--- transport, pass 2, oh-my-zsh and review-file ---
+oh-my-zsh depth 1  answer   1148 B  n=5 p50 38.7 p90  48.3
+oh-my-zsh depth 2  answer  37857 B  n=5 p50 53.0 p90 170.8
+oh-my-zsh depth 3  answer 108015 B  n=5 p50 68.5 p90 129.7
+oh-my-zsh depth 9  answer 112574 B  n=5 p50 65.5 p90 130.6
+review-file README.md      answer 56438 B  n=5 p50 54.5 p90  59.8
+review-file oh-my-zsh.sh   answer 20286 B  n=5 p50 51.1 p90 141.5
+fan out (pass 2, 3 rounds each, wall clock p50 / failures of n*3):
+  2=29.4/0of6   4=34.9/0of12  6=36.3/0of18  8=44.8/0of24 10=44.8/0of30
+ 12=279.1/0of36 16=289.6/0of48 24=415.2/0of72 50=742.7/3of150
+
+--- batching, the 9 child directories of /Users/gdc on the far machine ---
+dirs used: .config Music .cursor test-sync .local Pictures .specstory .claude .ipython
+9 folders, one call each, in series   answer 2842 B  n=5 min 325.9 p50 409.7 p90 504.8
+9 folders, ONE call, nine parameters  cmd 452 B, answer 2590 B, n=5 p50 55.5 p90 160.7
+9 folders, all at once                n=5 min 41.6 p50 43.8 p90 119.1
+one call, /Users/gdc depth 1  answer   2395 B  n=5 p50  36.0 p90  39.5
+one call, /Users/gdc depth 2  answer  49083 B  n=5 p50  42.3 p90  81.1
+one call, /Users/gdc depth 3  answer 509945 B  n=5 p50 119.1 p90 279.3
+
+--- the two walk listing shape, which is the one recommended ---
+two walk /Users/gdc depth 1        answer   1154 B  cmd 392 B  n=5 p50  43.9 p90  68.0
+two walk /Users/gdc depth 2        answer  30729 B  cmd 392 B  n=5 p50  57.3 p90 155.6
+two walk /Users/gdc depth 3        answer 351184 B  cmd 392 B  n=5 p50 100.4 p90 169.7
+two walk .oh-my-zsh depth 9        answer  71778 B  cmd 403 B  n=5 p50  68.7 p90 143.6
+two walk /usr/share depth 3        answer 364612 B  cmd 392 B  n=5 p50 110.5 p90 146.7
+
+--- review-file containment, run locally against the exact script text ---
+$ sh -c '<REVIEW_FILE>' tortie-review-file /tmp/r55-501/repo ../above.txt 1000000
+__TORTIE_RUN__none c2VjcmV0IGFib3ZlIHJvb3QK__TORTIE_RUN__
+The script read a file ABOVE the root it was given. It has no containment.
