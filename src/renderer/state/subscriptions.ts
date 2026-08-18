@@ -211,6 +211,25 @@ function showDegraded(store: AppStore, notice: DurabilityNotice): void {
     // conversation only") is 111 characters and the toast physically
     // holds 58, so it is compressed: "was not saved" is the scrollback
     // loss, and "Restore resumes it" is the half that still works.
+    // PHASE 84, item 2. A session on another machine gets its own sentence,
+    // and it is ahead of the local one because the local one ends with a
+    // promise that is false over there. "Restore resumes it" is true on this
+    // Mac, where the conversation comes back. A session on another machine
+    // comes back with its folder and its program and no conversation, and the
+    // copy this notice is about is the only thing that would have held what it
+    // printed. So the second half says what is left rather than what to press.
+    if (
+      notice.remote === true &&
+      notice.atSessionEnd === true &&
+      notice.sessionName !== undefined
+    ) {
+      getState().toast(
+        'error',
+        `"${shortName(notice.sessionName)}" was not saved. Nothing more of it is here.`,
+        { sticky: true }
+      );
+      return;
+    }
     if (notice.atSessionEnd === true && notice.sessionName !== undefined) {
       getState().toast(
         'error',

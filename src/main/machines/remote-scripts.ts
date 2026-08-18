@@ -9,6 +9,13 @@
  * command to a machine's own login shell, and until this phase it had exactly
  * one caller, being the program search list capture.
  *
+ * PHASE 84 ADDED TWO MORE, and both are reads. `dir-list` names the folders
+ * inside one folder, so the create sheet can offer a picker for the other
+ * computer and so a folder that is not there is refused before a session is
+ * started. `program-find` tests whether one name is an executable file in each
+ * of a list of folders, which is how Tortie finds an agent on a machine whose
+ * login shell does not have that agent on its list. Both write nothing.
+ *
  * Opening that door to four more callers with no discipline would undo the
  * property the verb ledger exists for, because a login shell runs anything. So
  * the second door gets its own list, and this list is stronger than the first
@@ -38,7 +45,11 @@
  *     holds no backtick. Nothing a caller passes is ever inside it: the gate
  *     composes a command with a hostile value and proves that value appears
  *     once, in the quoted tail, and never in the script.
- *  2. Values are read as `"$1"` to `"$9"` and are always quoted.
+ *  2. Values are read as `"$1"` to `"$9"` and are always quoted. A script that
+ *     needs to walk a LIST reads the whole list into a local name first, in
+ *     quotes, and splits that local name under `IFS`. `program-find` is the one
+ *     script that does this, and condition 46 of the gate asserts it, because
+ *     `for d in $2` would be a bare positional and rule 2 would be gone.
  *  3. Every script begins `set -e` and then `umask 077`.
  *  4. Every script prints its payload between {@link REMOTE_SCRIPT_MARKER}
  *     markers. That is the recipe `./remote-path.ts` and `./key-install.ts`
@@ -339,7 +350,111 @@ const REVIEW_FILE = [
 ].join('\n');
 
 /**
- * The whole catalogue. Seven scripts, and this release holds no others.
+ * The folders inside one folder on another machine (Phase 84, item 6).
+ *
+ * FOLDERS ONLY. `ls -A -p` marks a directory with a trailing slash and the
+ * filter keeps only those. A picker that listed files would be a file browser,
+ * which this phase does not build, and it would send every file name in a
+ * person's home directory across the connection for nothing.
+ *
+ * FOUR ANSWERS, and three of them are ordinary states rather than failures. A
+ * path that is not there answers `missing`. A path that is there and is not a
+ * folder answers `notdir`. A folder the account cannot read answers `denied`.
+ * Anything else answers `ok`, the number of folders really in there, the path,
+ * and then at most `$2` names, one per line.
+ *
+ * THE COUNT COMES BEFORE THE PATH on that first line, and the order has a
+ * reason. A folder on another computer can hold a space in its name, so the
+ * path has to be the rest of the line rather than a field in the middle of it.
+ * The three refusal answers put the path last for the same reason.
+ *
+ * THE TOTAL IS COUNTED SEPARATELY FROM THE LISTING, so a caller can say "this
+ * folder holds 900 folders and Tortie is showing the first 500" rather than
+ * presenting 500 as all of them.
+ *
+ * `$2` IS NEVER ZERO. BSD `head -n 0` refuses with "illegal line count", so a
+ * caller that only wants the status word asks for one entry rather than none.
+ *
+ * An empty `$1` is that machine's own `$HOME`, resolved by that machine's own
+ * shell. Tortie composes no home path for another computer.
+ */
+const DIR_LIST = [
+  'set -e',
+  'umask 077',
+  'p="$1"',
+  'if [ -z "$p" ]; then p="$HOME"; fi',
+  'if [ ! -e "$p" ]; then',
+  "  printf '__TORTIE_RUN__missing %s\\n__TORTIE_RUN__\\n' \"$p\"",
+  'elif [ ! -d "$p" ]; then',
+  "  printf '__TORTIE_RUN__notdir %s\\n__TORTIE_RUN__\\n' \"$p\"",
+  'elif [ ! -r "$p" ] || [ ! -x "$p" ]; then',
+  "  printf '__TORTIE_RUN__denied %s\\n__TORTIE_RUN__\\n' \"$p\"",
+  'else',
+  '  o=$(cd "$p" && ls -A -p 2>/dev/null | grep \'/$\' | head -n "$2" || true)',
+  '  c=$(cd "$p" && ls -A -p 2>/dev/null | grep -c \'/$\' || true)',
+  "  printf '__TORTIE_RUN__ok %s %s\\n%s__TORTIE_RUN__\\n' \"${c:-0}\" \"$p\" \"${o:-}\"",
+  'fi'
+].join('\n');
+
+/**
+ * Where one machine keeps one program, asked of a list of folders (Phase 84,
+ * item 10).
+ *
+ * ## Why `command -v` was not enough, and this is measured rather than argued
+ *
+ * MEASURED on the operator's Mac Pro, 2026-08-18. `claude` is installed there
+ * at `~/.local/bin/claude`. The login shell's own list of places it looks for
+ * programs holds ten entries and that folder is not one of them, so
+ * `"$SHELL" -lc 'command -v claude'` prints nothing. Tortie then refused to
+ * create a claude session on a machine where claude is installed and two of
+ * Tortie's own claude sessions were running.
+ *
+ * `../tmux/resolve.ts` answers the same question on this Mac by walking three
+ * lists rather than one, being the login shell's PATH, the agent entry's own
+ * probe folders and the folders a GUI launched app misses. This script is that
+ * walk, one machine further away, with that machine's own answers in every list.
+ *
+ * ## The two lists, and why each is read into a local name first
+ *
+ * Rule 2 of this catalogue says every positional is read as `"$1"` to `"$9"`
+ * and is always quoted. `for d in $2` would be a bare positional and would end
+ * that rule. So each list is read once, in quotes, into a local name, and the
+ * word splitting happens on that local name under `IFS=:`. The property the
+ * rule exists for is unchanged: a value appears exactly once, in the quoted
+ * tail of the command, and never inside this text.
+ *
+ * NOTHING A PERSON TYPED AND NOTHING AN AGENT WROTE REACHES EITHER LIST. The
+ * first is the far machine's own answer about itself. The second is a compiled
+ * constant with that machine's own `$HOME` in front of it.
+ *
+ * The answer names which list it came from and then the file, or `none none`.
+ * The list word comes FIRST because a folder on another computer can hold a
+ * space in its name, so the path has to be the rest of the line.
+ */
+const PROGRAM_FIND = [
+  'set -e',
+  'umask 077',
+  'n="$1"',
+  'p="$2"',
+  'x="$3"',
+  'f=',
+  's=',
+  'IFS=:',
+  'for d in $p; do',
+  '  [ -n "$d" ] || continue',
+  '  if [ -x "$d/$n" ]; then f="$d/$n"; s=path; break; fi',
+  'done',
+  'if [ -z "$f" ]; then',
+  '  for d in $x; do',
+  '    [ -n "$d" ] || continue',
+  '    if [ -x "$d/$n" ]; then f="$d/$n"; s=install; break; fi',
+  '  done',
+  'fi',
+  "printf '__TORTIE_RUN__%s %s__TORTIE_RUN__\\n' \"${s:-none}\" \"${f:-none}\""
+].join('\n');
+
+/**
+ * The whole catalogue. Nine scripts, and this release holds no others.
  *
  * A name that is not here is refused by `./remote-run.ts` before anything is
  * composed, which is the shape the verb ledger has as well: the refusal happens
@@ -401,6 +516,24 @@ export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
     reason:
       'It reads one file twice, once from the last commit and once from the ' +
       'folder. It writes nothing.'
+  },
+  {
+    id: 'dir-list',
+    mode: 'read',
+    params: 2,
+    text: DIR_LIST,
+    reason:
+      'It lists the folders inside one folder and writes nothing. Running it ' +
+      'twice reads the same folder twice.'
+  },
+  {
+    id: 'program-find',
+    mode: 'read',
+    params: 3,
+    text: PROGRAM_FIND,
+    reason:
+      'It tests whether one name is an executable file in each of a list of ' +
+      'folders, and writes nothing. Running it twice asks the same question.'
   }
 ];
 

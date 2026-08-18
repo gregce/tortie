@@ -23,6 +23,19 @@
  * Per-agent status ("not installed", "early") is on the tiles now, so the row
  * under the grid stopped being a caption about whichever agent the pointer
  * touched last and became purely that recovery.
+ *
+ * PHASE 84 adds two things to the machine half of this sheet, and keeps one
+ * thing exactly as it was.
+ *
+ *  - A machine Tortie has not signed in to in this run stays in the list and
+ *    is drawn off with the reason in its own text, instead of being offered
+ *    and then refused after a person has typed a name.
+ *  - A machine gets a folder picker of its own, drawn by Tortie, because the
+ *    panel macOS ships walks THIS Mac's disk and a folder chosen in it names
+ *    nothing over there.
+ *  - The sheet still resets to This Mac on every opening. The operator decided
+ *    on 2026-08-18 that the last machine is NOT remembered per project, so one
+ *    Cmd-T and one Return can never start a process on another computer.
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -35,9 +48,13 @@ import {
   CREATE_HONESTY_LINES,
   createDirLabel,
   createDirPlaceholder,
+  DIR_PICKER_OPEN,
   MACHINE_FIELD_LABEL,
+  MACHINE_NOT_SIGNED_IN_HINT,
+  machineNotSignedInOption,
   THIS_MAC
 } from './machine-copy';
+import { RemoteDirPicker } from './RemoteDirPicker';
 import {
   captureDefaultFor,
   presetArgvTokens,
@@ -66,6 +83,50 @@ import { errorPayload, errorText, nextOrdinal, useApp } from '../state/store';
 import { modalKeyDown } from './focus-trap';
 import { Codicon } from '../icons';
 import './create-session-modal.css';
+
+// ---------------------------------------------------------------------------
+// PHASE 84, item 8. A machine that is in the list and cannot hold a session
+// ---------------------------------------------------------------------------
+
+/**
+ * True when at least one machine in the list cannot hold a session yet.
+ *
+ * `ready` is main's answer to exactly the condition a remote create tests. It
+ * is optional on the row and absent reads as false, which is what a row
+ * composed before the field existed knew about itself.
+ */
+export function anyMachineNotReady(rows: readonly MachineRowView[]): boolean {
+  return rows.some((row) => row.ready !== true);
+}
+
+/**
+ * The machine options, drawn.
+ *
+ * A machine Tortie has not signed in to in this run stays in the list and is
+ * drawn off, with the reason in its own text. It used to be offered like any
+ * other, and a person picked it, typed a name, pressed Create and read a
+ * refusal that sent them back to the screen they had just come from. Removing
+ * the option instead would fix the refusal by teaching nothing, which is the
+ * rule the saved output item and the review item already follow.
+ *
+ * Exported so the option text and the disabled state are read in a test. The
+ * environment there is node, so the test reads static markup.
+ */
+export function MachineOptions({
+  rows
+}: {
+  rows: readonly MachineRowView[];
+}): React.JSX.Element {
+  return (
+    <>
+      {rows.map((row) => (
+        <option key={row.id} value={row.id} disabled={row.ready !== true}>
+          {row.ready === true ? row.label : machineNotSignedInOption(row.label)}
+        </option>
+      ))}
+    </>
+  );
+}
 
 /**
  * Two DIFFERENT presets sharing the same leading token are alternative
@@ -326,6 +387,13 @@ export function CreateSessionModal(): React.JSX.Element | null {
   const [nameTouched, setNameTouched] = useState(false);
   const [cwd, setCwd] = useState('');
   const [dirError, setDirError] = useState<string | null>(null);
+  /**
+   * PHASE 84. Whether the folder picker for the chosen machine is open.
+   *
+   * It is an inline panel under the Directory field rather than a second
+   * dialog, so there is one Escape to press and one focus trap to be inside.
+   */
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [genericError, setGenericError] = useState<string | null>(null);
   // Agent whose binary create-time resolution POSITIVELY reported missing
   // (AGENT_NOT_FOUND) — pins the caption row, because the boot-time scan can
@@ -394,6 +462,7 @@ export function CreateSessionModal(): React.JSX.Element | null {
     setName(`${initial}-${nextOrdinal(projectSessions, initial)}`);
     setCwd(project?.path ?? '');
     setDirError(null);
+    setPickerOpen(false);
     setGenericError(null);
     setAbsent(null);
     setBlocked(null);
@@ -809,6 +878,10 @@ export function CreateSessionModal(): React.JSX.Element | null {
                 const next = e.target.value;
                 setMachineId(next);
                 setDirError(null);
+                // PHASE 84. The folders on screen belong to whichever machine
+                // was chosen a moment ago, so the panel shuts rather than
+                // showing one machine's folders under another machine's name.
+                setPickerOpen(false);
                 // The directory belongs to whichever machine is chosen, so it
                 // is never carried across. This Mac gets the project root back
                 // and another machine starts empty, because Tortie holds no
@@ -817,12 +890,14 @@ export function CreateSessionModal(): React.JSX.Element | null {
               }}
             >
               <option value="local">{THIS_MAC}</option>
-              {machines.map((row) => (
-                <option key={row.id} value={row.id}>
-                  {row.label}
-                </option>
-              ))}
+              <MachineOptions rows={machines} />
             </select>
+            {/* Once, not per row. The answer is the same for every machine in
+                the list that is off, and three copies of one sentence is three
+                times the reading for one fact. */}
+            {anyMachineNotReady(machines) ? (
+              <p className="field-caption">{MACHINE_NOT_SIGNED_IN_HINT}</p>
+            ) : null}
             {remote
               ? CREATE_HONESTY_LINES.map((line) => (
                   <p key={line} className="field-caption">
@@ -872,9 +947,14 @@ export function CreateSessionModal(): React.JSX.Element | null {
                 setDirError(null);
               }}
             />
-            {/* The picker walks THIS Mac's disk, so it is not offered for a
-                folder on another machine. A path picked here would name a
-                directory that does not exist there. */}
+            {/* The panel macOS ships walks THIS Mac's disk, so it is offered
+                for this Mac only. A folder picked in it would name nothing on
+                the other computer.
+
+                PHASE 84. A machine gets a picker of its own instead of
+                nothing, drawn by Tortie out of one read of one folder at a
+                time. Both buttons say what they open, and neither of them can
+                reach the other computer's files. */}
             {machine === null ? (
               <button
                 type="button"
@@ -883,8 +963,31 @@ export function CreateSessionModal(): React.JSX.Element | null {
               >
                 Choose…
               </button>
-            ) : null}
+            ) : (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                aria-expanded={pickerOpen}
+                data-create-action="browse-machine"
+                onClick={() => setPickerOpen((v) => !v)}
+              >
+                {DIR_PICKER_OPEN}
+              </button>
+            )}
           </div>
+          {machine !== null && pickerOpen ? (
+            <RemoteDirPicker
+              machineId={machine.id}
+              machineLabel={machine.label}
+              initialPath={cwd.trim()}
+              onChoose={(path) => {
+                setCwd(path);
+                setDirError(null);
+                setPickerOpen(false);
+              }}
+              onClose={() => setPickerOpen(false)}
+            />
+          ) : null}
           {machine !== null ? (
             <>
               <p className="field-caption">{CREATE_DIR_HINT}</p>

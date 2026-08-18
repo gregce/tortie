@@ -65,6 +65,9 @@ import {
   type LedgerRow
 } from './exec-plane';
 import { prepareMachine } from './prepare';
+// Phase 84, item 4. The feed's own facts, read back after Prepare returned.
+// It asks the machine nothing: both flags are memory in this process.
+import { remoteMachineFacts } from './remote-sessions';
 import { machineHostKeysPath } from './store';
 
 function log(line: string): void {
@@ -342,6 +345,33 @@ export async function runExecPlaneSmoke(): Promise<void> {
         `4. prepared again, server NOT born, the settings are byte equal, ` +
           `ssh children ${String(sshAfterFirst)} then ${String(sshChildCount())}`
       );
+
+      // --- 4b. PHASE 84, item 4. Prepare started the machine's feed ----------
+      //
+      // Until Phase 84, Prepare signed in, read the version, started the
+      // program and reported success, and started NOTHING that reads the
+      // machine's list of sessions. So a machine that was asleep when Tortie
+      // launched stayed unread for the whole run even after Prepare said it
+      // was ready, and the badge sent the person to the button that could not
+      // fix it. This step reads the feed's own facts back after Prepare
+      // returned and asks nothing of the machine.
+      const feed = remoteMachineFacts(ID);
+      if (!feed.timerArmed && !feed.onControl) {
+        fail(
+          'Prepare returned prepared and the machine has neither a timer nor ' +
+            'a live connection reading its list of sessions, so nothing on it ' +
+            'would appear'
+        );
+      }
+      log(
+        `4b. the machine's feed is running after Prepare: timer ` +
+          `${feed.timerArmed ? 'armed' : 'not armed'}, live connection ` +
+          `${feed.onControl ? 'open' : 'not open'}, and exactly one of the two ` +
+          `is what this rung allows`
+      );
+      if (feed.timerArmed && feed.onControl) {
+        fail('the machine has BOTH a timer and a live connection reading it');
+      }
     }
 
     // --- 5. The verb ledger refusal, from the bundle -------------------------

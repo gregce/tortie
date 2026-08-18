@@ -140,6 +140,13 @@ function everyString(): { name: string; text: string }[] {
     name: 'tombstoneRestoreRefused',
     text: copy.tombstoneRestoreRefused('Studio')
   });
+  // PHASE 84. The sentence that says which key Tortie signs in with. It takes
+  // the file name from main, so the shape is audited with a sample name of
+  // exactly the form main composes.
+  out.push({
+    name: 'keyNamedOnEveryCommand',
+    text: copy.keyNamedOnEveryCommand('machine-a1b2c3d4e5f6')
+  });
   return out;
 }
 
@@ -525,6 +532,40 @@ describe('the words the key block writes for itself', () => {
     expect(copy.KEY_WROTE_PRESENT).toBe(
       'That machine already had this key, so nothing was added.'
     );
+  });
+
+  it('names no path of its own in the sentence that names a file', () => {
+    // PHASE 84. The file name arrives from main as an argument, so this file
+    // still writes no path. The check is that the sentence carries nothing but
+    // what it was handed.
+    const text = copy.keyNamedOnEveryCommand('machine-a1b2c3d4e5f6');
+    expect(text).not.toMatch(/\/|~|authorized_keys|ed25519/);
+    expect(text).toContain('machine-a1b2c3d4e5f6');
+  });
+
+  it('says Tortie names its own key AND leaves yours offered', () => {
+    // The second half is the half that matters. Tortie deliberately does not
+    // tell the sign in program to offer its key and nothing else, because the
+    // operator's own Mac Pro answers today through a key he loaded himself and
+    // narrowing the offer would have broken it on the first run of this build.
+    expect(copy.keyNamedOnEveryCommand('machine-a1b2c3d4e5f6')).toBe(
+      'Tortie names its own key for this machine, the file called ' +
+        'machine-a1b2c3d4e5f6, on every command it sends there. It also lets ' +
+        'the sign in program offer any key you have loaded yourself.'
+    );
+  });
+
+  it('says what happens when Tortie has no key, and names a real control', () => {
+    expect(copy.KEY_NOT_MADE_YET).toBe(
+      'Tortie has no key of its own for this machine, so every sign in uses ' +
+        'whatever key you have loaded yourself. Run the connection test. When ' +
+        'that machine asks for a password, or turns the sign in down, Tortie ' +
+        'offers to make one.'
+    );
+    // There is no button called Install on this surface. The draft said there
+    // was, and a sentence that names a control a person cannot find is the
+    // same defect as a sentence that is out of date.
+    expect(copy.KEY_NOT_MADE_YET).not.toContain('Install button');
   });
 
   it('points a refused sign in at the block that fixes it', () => {

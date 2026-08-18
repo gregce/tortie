@@ -92,11 +92,19 @@ export function groupMenuItems(
         const allResumable = live.every(
           (x) => resumeReadiness(x) === 'conversation'
         );
+        // PHASE 84, item 2. When ANY of the named sessions runs on another
+        // machine, the whole body changes, because a promise made to a group
+        // has to hold for every session in it. The scrollback sentence is
+        // dropped for the group, and the last sentence names the one thing a
+        // session on another machine does not bring back.
+        const anyOnAMachine = live.some((x) => x.machine !== undefined);
         useApp.getState().setConfirm({
           title: `End ${live.length} sessions?`,
-          body: allResumable
-            ? `This stops what is running in ${names}. The scrollback and the conversations are saved first, so you can restore each session later.`
-            : `This stops what is running in ${names}. The scrollback is saved first, so you can restore each session later.`,
+          body: anyOnAMachine
+            ? `This stops what is running in ${names}. Tortie saves a copy of what each one printed first, so you can read those copies here afterwards. A session on another machine does not bring its conversation back.`
+            : allResumable
+              ? `This stops what is running in ${names}. The scrollback and the conversations are saved first, so you can restore each session later.`
+              : `This stops what is running in ${names}. The scrollback is saved first, so you can restore each session later.`,
           confirmLabel: 'End sessions',
           destructive: true,
           onConfirm: () => {

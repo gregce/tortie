@@ -314,6 +314,19 @@ export const HOST_KEY_UNKNOWN_PHRASE = 'Host key verification failed';
 // The sentences
 // ---------------------------------------------------------------------------
 
+/**
+ * What a person reads after the key lands (Phase 84, item 7).
+ *
+ * Tortie reads which key it has for a machine when that machine is PREPARED,
+ * and it names that file on every command afterwards. A key made in the middle
+ * of a run is therefore picked up at the next Prepare. Rebuilding the
+ * connection behind the person's back would start work on their machine because
+ * a file appeared, and this product does not do that.
+ */
+export const MACHINE_KEY_USED_NEXT_PREPARE =
+  'Tortie names this key on every command it sends to this machine from the ' +
+  'next time you prepare it.';
+
 export const MACHINE_KEY_WARNING =
   'Tortie will make a key for this machine and put its public half on that ' +
   'machine. The private half stays on this Mac in a file only your account ' +
@@ -423,7 +436,15 @@ export function composeKeyInstallCopy(input: {
   exitCode: number | null;
 }): MachineOutcomeCopy {
   const { cls, text, exitCode } = input;
-  if (cls === 'key-installed') return machineOutcomeCopy('key-installed');
+  if (cls === 'key-installed') {
+    const copy = machineOutcomeCopy('key-installed');
+    // PHASE 84, item 7. Tortie now names its own key on every command it sends
+    // to a machine, and it reads which key that is when the machine is
+    // prepared. A key made in the middle of a run is therefore picked up on the
+    // NEXT Prepare rather than behind the person's back, and this sentence is
+    // where they are told so.
+    return { ...copy, detail: `${copy.detail} ${MACHINE_KEY_USED_NEXT_PREPARE}` };
+  }
   if (cls === 'auth-refused') {
     return {
       ...machineOutcomeCopy('auth-refused'),

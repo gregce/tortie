@@ -15,7 +15,11 @@ import { describe, expect, it } from 'vitest';
 import {
   REMOTE_ARGV_TIMEOUT_MS,
   assertArgvBelongsToMachine,
+  parseProgramFind,
   parseRemoteWhich,
+  rebaseRemoteDir,
+  remoteSearchCount,
+  remoteSearchDirs,
   remoteWhichCommand
 } from '../remote-argv';
 import { REMOTE_PATH_MARKER } from '../carriage';
@@ -139,25 +143,159 @@ describe('the machine binding', () => {
 });
 
 describe('the refusal a person reads', () => {
-  it('names the program and the machine, and says what to do', () => {
-    const sentence = noRemoteProgramRefusal('claude', 'Studio');
+  it('names the program, the machine, the count, and says what to do', () => {
+    const sentence = noRemoteProgramRefusal('claude', 'Studio', 17);
     expect(sentence).toContain('claude');
     expect(sentence).toContain('Studio');
-    expect(sentence).toContain('Install it there');
-    expect(sentence).toContain('did not start the session there');
+    expect(sentence).toContain('17 folders');
+    expect(sentence).toContain('Install it on Studio');
+    expect(sentence).toContain('Nothing was started there');
   });
 
   it('carries no dash the writing rules refuse', () => {
-    const sentence = noRemoteProgramRefusal('codex', 'Studio');
+    const sentence = noRemoteProgramRefusal('codex', 'Studio', 4);
     expect(sentence).not.toContain('—');
     expect(sentence).not.toContain('–');
   });
 
   /** No transport word reaches a person. */
   it('names no transport and no program of the transport', () => {
-    const sentence = noRemoteProgramRefusal('codex', 'Studio');
+    const sentence = noRemoteProgramRefusal('codex', 'Studio', 4);
     for (const word of ['ssh', 'tmux', 'socket', 'PATH', 'pane']) {
       expect(sentence).not.toContain(word);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 84, item 10. The three source walk
+//
+// The composition and the parse are pure and are tested for real. The read
+// itself crosses to another computer, and a mocked spawn would prove the mock,
+// so the end to end walk is watched by `npm run probe:realunknowns` against the
+// operator's Mac Pro and by `GMUX_SMOKE=remote-sessions` against a scratch one.
+// ---------------------------------------------------------------------------
+
+describe('rebasing one probe folder on that machine\'s own home', () => {
+  it('rebases a tilde entry on the home the machine stated', () => {
+    expect(rebaseRemoteDir('~/.claude/local', '/Users/gdc')).toBe(
+      '/Users/gdc/.claude/local'
+    );
+  });
+
+  it('keeps an absolute entry as it is', () => {
+    expect(rebaseRemoteDir('/opt/homebrew/bin', '/Users/gdc')).toBe(
+      '/opt/homebrew/bin'
+    );
+  });
+
+  it('reads a bare tilde as the home itself', () => {
+    expect(rebaseRemoteDir('~', '/home/gdc')).toBe('/home/gdc');
+  });
+
+  /**
+   * A glob expanded on another computer is a command deciding its own
+   * arguments, and this product does not do that. codex names both of these.
+   */
+  it('sends neither a value nor a pattern', () => {
+    expect(rebaseRemoteDir('$NVM_BIN', '/Users/gdc')).toBeNull();
+    expect(rebaseRemoteDir('~/.nvm/versions/node/*/bin', '/Users/gdc')).toBeNull();
+    expect(rebaseRemoteDir('~/tools/[abc]/bin', '/Users/gdc')).toBeNull();
+    expect(rebaseRemoteDir('~/tools/?/bin', '/Users/gdc')).toBeNull();
+  });
+
+  it('sends nothing relative, because it names nothing on its own', () => {
+    expect(rebaseRemoteDir('bin', '/Users/gdc')).toBeNull();
+    expect(rebaseRemoteDir('./bin', '/Users/gdc')).toBeNull();
+  });
+
+  /** Tortie composes no home path for another computer out of a guess. */
+  it('drops a tilde entry when the machine stated no home', () => {
+    expect(rebaseRemoteDir('~/.local/bin', '')).toBeNull();
+  });
+});
+
+describe('the folders one walk asks about', () => {
+  it('puts the agent\'s own folders before the install folders', () => {
+    const { dirs } = remoteSearchDirs(['~/.claude/local'], '/Users/gdc');
+    expect(dirs[0]).toBe('/Users/gdc/.claude/local');
+    expect(dirs).toContain('/Users/gdc/.local/bin');
+    expect(dirs).toContain('/opt/homebrew/bin');
+  });
+
+  it('counts the entries it would not send rather than dropping them silently', () => {
+    const { dirs, skipped } = remoteSearchDirs(
+      ['$NVM_BIN', '~/.nvm/versions/node/*/bin'],
+      '/Users/gdc'
+    );
+    expect(skipped).toBe(2);
+    expect(dirs).not.toContain('$NVM_BIN');
+  });
+
+  it('names one folder once, however many lists hold it', () => {
+    const { dirs } = remoteSearchDirs(['~/.local/bin'], '/Users/gdc');
+    const at = dirs.filter((dir) => dir === '/Users/gdc/.local/bin');
+    expect(at).toHaveLength(1);
+  });
+
+  /**
+   * A machine that would not say where its home is contributes only the folders
+   * that do not depend on one. Tortie does not guess at /Users/<somebody>.
+   */
+  it('keeps only the home free folders when the machine stated no home', () => {
+    const { dirs } = remoteSearchDirs(['~/.claude/local'], '');
+    expect(dirs).toEqual(['/opt/homebrew/bin', '/usr/local/bin']);
+  });
+});
+
+describe('how many folders a walk tested', () => {
+  it('counts both lists once each', () => {
+    expect(remoteSearchCount('/usr/bin:/bin', ['/opt/homebrew/bin'])).toBe(3);
+  });
+
+  it('counts a folder on both lists once', () => {
+    expect(remoteSearchCount('/usr/local/bin:/bin', ['/usr/local/bin'])).toBe(2);
+  });
+
+  it('counts nothing for an empty list', () => {
+    expect(remoteSearchCount('', [])).toBe(0);
+  });
+});
+
+describe('reading what the machine answered', () => {
+  it('reads the list word and the path', () => {
+    expect(parseProgramFind('install /Users/gdc/.local/bin/claude')).toEqual({
+      source: 'install',
+      path: '/Users/gdc/.local/bin/claude'
+    });
+  });
+
+  /**
+   * The list word comes first because a folder on another computer can hold a
+   * space in its name, so the path is the rest of the line.
+   */
+  it('keeps a path that holds a space', () => {
+    expect(parseProgramFind('path /Users/gdc/my tools/claude')).toEqual({
+      source: 'path',
+      path: '/Users/gdc/my tools/claude'
+    });
+  });
+
+  it('reads a machine that found nothing as no answer', () => {
+    expect(parseProgramFind('none none')).toBeNull();
+  });
+
+  it('refuses anything that is not an absolute path', () => {
+    expect(parseProgramFind('path claude')).toBeNull();
+    expect(parseProgramFind('path ./claude')).toBeNull();
+  });
+
+  it('refuses a list word it does not know', () => {
+    expect(parseProgramFind('somewhere /usr/bin/claude')).toBeNull();
+  });
+
+  it('refuses an answer with no space in it at all', () => {
+    expect(parseProgramFind('')).toBeNull();
+    expect(parseProgramFind('none')).toBeNull();
   });
 });

@@ -113,6 +113,26 @@ const REMOTE_NOT_COLLECTED: ResumeIdSource = 'remote-not-collected';
  */
 const REMOTE_STORE_HARVEST: ResumeIdSource = 'remote-store-harvest';
 
+/**
+ * The provenance source for a conversation id TORTIE ITSELF chose (Phase 84).
+ *
+ * Seven of the thirteen agents take a fresh conversation id on a launch flag,
+ * and `../manifest/agents.ts` has recorded `preassigned` for a local create of
+ * one of them since Phase 12. A remote create composed no such flag, so the
+ * durable row said `remote-not-collected` for an agent whose id Tortie could
+ * have chosen and did not.
+ *
+ * IT IS THE STRONGEST SOURCE THERE IS, and it is the same word the local path
+ * writes for the same reason: the id was not read off anything, it was decided
+ * before the process existed and put on its own launch line.
+ *
+ * IT STILL DOES NOT BRING A CONVERSATION BACK ON A MACHINE. Nothing in this
+ * release types a resume command into a pane on another machine, so
+ * `./remote-restore.ts` still reports `resumeArmed: false`. What this changes is
+ * that the row records the truth instead of nothing.
+ */
+const REMOTE_PREASSIGNED: ResumeIdSource = 'preassigned';
+
 // ---------------------------------------------------------------------------
 // The injected store
 // ---------------------------------------------------------------------------
@@ -203,8 +223,15 @@ export interface RemoteRowInput {
   readonly agent: string;
   /**
    * The launch argv with the ABSOLUTE path captured on THAT MACHINE at
-   * `argv[0]`. It is a record of which copy of the program the session
-   * launched. It is never sent, and the launch stays by bare name.
+   * `argv[0]`.
+   *
+   * PHASE 84 MADE THIS THE ARRAY THAT WAS SENT. Before this phase the row held
+   * the absolute path and the launch put the bare name back, because the far
+   * side's own program search list was believed to be what a pane gets. Step
+   * 17c of `build/probe-execplane.mjs` measured that a pane does not get it and
+   * that `-e PATH=` cannot set it either, so the absolute path is now what
+   * launches. The row and the command are one array, and `remoteCreate` in
+   * `./remote-sessions.ts` carries the cost of that in full.
    */
   readonly argv: readonly string[];
   /** The captured absolute path on its own, for the recovery contract's `bin`. */
@@ -212,6 +239,23 @@ export interface RemoteRowInput {
   readonly createdAt: number;
   /** Environment deltas the create put on the line, if any. */
   readonly env?: Readonly<Record<string, string>>;
+  /**
+   * APPENDED (Phase 84): the conversation id Tortie put on the launch line.
+   *
+   * Present only for an agent whose `idCapture.mode` is `pre-assign`, being
+   * seven of the thirteen. Absent for the other six and for every shell, and an
+   * absent value leaves every resume field on the row exactly as it was.
+   */
+  readonly agentSessionId?: string;
+  /**
+   * APPENDED (Phase 84): the command that would continue that conversation.
+   *
+   * Composed by `resumeArgvFor` with the program path found ON THAT MACHINE, so
+   * every path in it belongs to that machine, which is the rule the launch argv
+   * already follows. It is a record rather than an instruction: nothing in this
+   * release types it anywhere.
+   */
+  readonly resumeArgv?: readonly string[];
 }
 
 /**
@@ -230,11 +274,21 @@ export function remoteResumeProvenance(input: {
   readonly machineId: string;
   readonly at: number;
   readonly cwd: string;
+  /**
+   * APPENDED (Phase 84): true when Tortie chose the conversation id itself.
+   *
+   * Absent reads as false, which is what every row written before this phase
+   * knew about itself. When it is true the source is `preassigned` and the
+   * confidence is `exact`, because the id was decided before the process
+   * existed rather than read off anything.
+   */
+  readonly preassigned?: boolean;
 }): ResumeProvenance {
+  const preassigned = input.preassigned === true;
   return {
     v: SESSION_CONTRACT_VERSION,
-    source: REMOTE_NOT_COLLECTED,
-    confidence: 'none',
+    source: preassigned ? REMOTE_PREASSIGNED : REMOTE_NOT_COLLECTED,
+    confidence: preassigned ? 'exact' : 'none',
     at: input.at,
     cwd: input.cwd,
     // Which machine the id would have been fixed on. The arming gate reads it to
@@ -280,13 +334,26 @@ export function writeRemoteRow(
     argv: [...input.argv],
     lastSeen: input.createdAt,
     machineId: input.machineId,
-    // Nothing to resume. `resumeArgv` is left out rather than written empty, and
-    // the provenance below is what says why.
+    // PHASE 84. `resumeCapture` stays `unavailable` on EVERY remote row,
+    // including a pre-assigned one, and that is a decision rather than an
+    // oversight. `../sessions/launch-plan.ts` maps `preassigned` to `armed` for
+    // a local row, and `armed` is read by a person as "this session comes back
+    // with its conversation". On a machine it does not: `send-keys` is on the
+    // permanently refused verb list, so nothing types the resume command. The
+    // id and the command are recorded on the fields below, where they are a
+    // record of what was started rather than a promise about what comes back.
     resumeCapture: 'unavailable',
+    ...(input.resumeArgv !== undefined && input.resumeArgv.length > 0
+      ? { resumeArgv: [...input.resumeArgv] }
+      : {}),
+    ...(input.agentSessionId !== undefined
+      ? { agentSessionId: input.agentSessionId }
+      : {}),
     resumeProvenance: remoteResumeProvenance({
       machineId: input.machineId,
       at: input.createdAt,
-      cwd: input.cwd
+      cwd: input.cwd,
+      ...(input.agentSessionId !== undefined ? { preassigned: true } : {})
     }),
     agentContract: {
       v: SESSION_CONTRACT_VERSION,
@@ -463,7 +530,10 @@ export interface RemoteHarvestWrite {
  * function the local harvest and the launch path use. `argv[0]` is THAT
  * MACHINE'S own absolute path, taken from the row, for the reason
  * `./remote-argv.ts` gives: the manifest records absolute paths, bound to the
- * machine they were read on, and the launch puts the bare name back. An argv
+ * machine they were read on. Since Phase 84 the launch on that machine uses
+ * that path too, because a pane over there does not get the machine's own
+ * program search list. Nothing types this command anywhere in this release. An
+ * argv
  * the registry declines to build, which is what an agent with no resume
  * mechanics gets, is never persisted, because an id with no command to type is
  * a row that claims something it cannot do.

@@ -134,6 +134,7 @@ const {
   remoteCreateArgs,
   remoteKill,
   remoteListArgs,
+  machineCanHoldSession,
   remoteMachineFacts,
   remoteRename,
   remoteRowStatus,
@@ -310,6 +311,73 @@ describe('the create argv', () => {
       'opus'
     ]);
   });
+
+  // -------------------------------------------------------------------------
+  // PHASE 84, item 5. The folder is sent only when a person named one
+  // -------------------------------------------------------------------------
+
+  /**
+   * `../sessions/core.ts` used to compose `input.cwd ?? input.projectPath`, and
+   * `projectPath` is the project tab's path ON THIS MAC. So an empty Directory
+   * field started the session in a folder named after this Mac's project, on
+   * the other computer, or failed.
+   */
+  it('sends no folder at all when the person named none', () => {
+    const bare = remoteCreateArgs({
+      tmuxName: 'work',
+      sessionId: 'uuid-2',
+      argv: []
+    });
+    expect(bare).not.toContain('-c');
+  });
+
+  it('sends no folder for an empty string either', () => {
+    const bare = remoteCreateArgs({
+      tmuxName: 'work',
+      cwd: '',
+      sessionId: 'uuid-2',
+      argv: []
+    });
+    expect(bare).not.toContain('-c');
+  });
+
+  // -------------------------------------------------------------------------
+  // PHASE 84, item 10. The pair that was measured and not sent
+  // -------------------------------------------------------------------------
+
+  /**
+   * MEASURED 2026-08-18 by `build/probe-execplane.mjs` step 17c on tmux 3.6a. A
+   * session created with `-e PATH=/p84-planted-85507:/usr/bin:/bin` produced a
+   * pane printing `/Users/gdc/.cargo/bin:/usr/bin:/bin:/usr/sbin:/sbin`. On a
+   * scratch socket, `-e FOO=bar-planted` on the same line DID reach the pane
+   * and `-e PATH=` did not, while `show-environment` read both back.
+   *
+   * So a pane takes its PATH from the server rather than from the session
+   * environment, and Phase 84 sends the absolute program path as `argv[0]`
+   * instead. The refusal below is what keeps a later round from putting the
+   * pair back without reading that measurement.
+   */
+  it('refuses a list of folders, because it would change nothing there', () => {
+    expect(() =>
+      remoteCreateArgs({
+        tmuxName: 'work',
+        sessionId: 'uuid-3',
+        argv: ['claude'],
+        env: { PATH: '/home/gdc/.local/bin:/usr/bin:/bin' }
+      })
+    ).toThrow();
+  });
+
+  it('refuses any third name, whatever else is on the line', () => {
+    expect(() =>
+      remoteCreateArgs({
+        tmuxName: 'work',
+        sessionId: 'uuid-4',
+        argv: [],
+        env: { ANTHROPIC_API_KEY: 'sk-not-a-real-key' }
+      })
+    ).toThrow();
+  });
 });
 
 describe('the status ladder', () => {
@@ -359,6 +427,38 @@ describe('the readiness refusal', () => {
       })
     );
     expect(payload?.message).toBe(MACHINE_NOT_READY);
+    expect(sent).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 84, item 8. The same question, asked before a person picks a machine
+// ---------------------------------------------------------------------------
+
+describe('whether a machine can hold a session right now', () => {
+  it('is true when the machine is signed in to and its list was read', () => {
+    expect(machineCanHoldSession(MACHINE)).toBe(true);
+  });
+
+  it('is false when nothing has signed in to the machine in this run', () => {
+    registered = false;
+    expect(machineCanHoldSession(MACHINE)).toBe(false);
+  });
+
+  it('is false when the machine’s program search list was never read', () => {
+    remotePath = null;
+    expect(machineCanHoldSession(MACHINE)).toBe(false);
+  });
+
+  /**
+   * It asks the machine NOTHING. The create sheet draws it on every row on
+   * every open, so a question that crossed to a machine would be a command per
+   * row per open.
+   */
+  it('sends nothing to the machine', () => {
+    machineCanHoldSession(MACHINE);
+    registered = false;
+    machineCanHoldSession(MACHINE);
     expect(sent).toEqual([]);
   });
 });

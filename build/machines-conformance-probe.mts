@@ -1014,6 +1014,16 @@ const { REMOTE_DROP_IMAGES_ONLY: MAIN_DROP_COPY } = await import(
 );
 const { REMOTE_IMAGE_MAX_BYTES } = await import('../src/shared/ipc');
 
+// --- Phase 84, conditions 46 to 48 -----------------------------------------
+// All three are pure. The allowed environment set is a compiled constant, the
+// key path composer reads no file, and `sshOptions` starts nothing.
+const { REMOTE_ENV_ALLOWED, REMOTE_ENV_MEASURED_AND_REFUSED } = await import(
+  '../src/main/machines/remote-env'
+);
+const { machineKeyDir: keyDirFor, machineKeyPath: keyPathFor } = await import(
+  '../src/main/machines/key-material'
+);
+
 /** A value nothing in this product would ever pass, for the hostile check. */
 const HOSTILE_VALUE = "'; rm -rf ~; touch /tmp/pwned; echo '";
 
@@ -1284,6 +1294,49 @@ process.stdout.write(
       join(repoRoot, 'src', 'main', 'harness', 'index.ts'),
       'utf8'
     ).includes("smoke === 'remote-matrix'"),
+
+    // --- Phase 84, conditions 46 to 48 -------------------------------------
+    phase84: {
+      // 46. The two lists `program-find` walks are read into a local name
+      //     before any loop reads them, so rule 2 of the catalogue still holds
+      //     and a hostile value still appears exactly once, in the quoted tail.
+      programFind: (() => {
+        const script = REMOTE_SCRIPTS.find((row) => row.id === 'program-find');
+        if (script === undefined) return null;
+        const text = script.text;
+        return {
+          params: script.params,
+          mode: script.mode,
+          bareLoops: [...text.matchAll(/for\s+\w+\s+in\s+\$[1-9]/g)].map(
+            (hit) => hit[0]
+          ),
+          assignments: [
+            { name: 'p', at: text.indexOf('p="$2"'), loopAt: text.indexOf('for d in $p') },
+            { name: 'x', at: text.indexOf('x="$3"'), loopAt: text.indexOf('for d in $x') }
+          ],
+          redirects: [...text.matchAll(/>/g)].length
+        };
+      })(),
+      // 47. The set a person's safety is argued from, and the one name Phase 84
+      //     measured and did not add to it.
+      envAllowed: [...REMOTE_ENV_ALLOWED],
+      envMeasuredAndRefused: REMOTE_ENV_MEASURED_AND_REFUSED,
+      // 48. Tortie's own key for one machine, named on every command, and the
+      //     option that is deliberately NOT set beside it.
+      identity: (() => {
+        const keyPath = keyPathFor(ID, KEY_USER_DATA);
+        const argv = sshOptions({ ...REMOTE_CTX, identityFile: keyPath });
+        const bare = sshOptions(REMOTE_CTX);
+        return {
+          keyDir: keyDirFor(KEY_USER_DATA),
+          keyPath,
+          argv,
+          bareArgv: bare,
+          named: argv.filter((one) => one.startsWith('IdentityFile=')),
+          identitiesOnly: argv.filter((one) => one.includes('IdentitiesOnly'))
+        };
+      })()
+    },
 
     // --- Phase 73, conditions 35 to 40 -------------------------------------
     remoteRun: {

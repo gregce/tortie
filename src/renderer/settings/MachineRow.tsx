@@ -28,6 +28,12 @@
  * belongs to IT, matched on the row id, so one row's answer is never drawn
  * under another row's machine.
  *
+ * PHASE 84. The row says which key Tortie signs in with. Tortie has written a
+ * key of its own for a machine since Phase 79.1 and named it on no command it
+ * sent, so every sign in went through whatever key the person had loaded and
+ * nothing on screen said so. The sentence is drawn only when main answered the
+ * question, because a row that guesses is the thing this change exists to stop.
+ *
  * PHASE 79. Two sentences that used to stand in a block above the whole list
  * now stand on the row, because that is where each of them decides something.
  * The sentence about never adopting other work sits immediately above Prepare,
@@ -59,6 +65,8 @@ import {
   CONFIRMED_LIST_LABEL,
   CURRENT_LIST_LABEL,
   HONESTY_NO_ADOPTION,
+  KEY_NOT_MADE_YET,
+  keyNamedOnEveryCommand,
   PREPARE_EXPLAIN,
   PREPARE_OPTION_DISAGREES,
   PREPARE_PATH_MISSING,
@@ -326,6 +334,25 @@ export function MachineRow({
           )}
           {row.refusal === null ? null : (
             <p className="mach-refusal">{row.refusal}</p>
+          )}
+
+          {/* PHASE 84, item 7. Which key Tortie signs in with, said on the row
+              rather than left to be guessed at. Tortie has written a key of
+              its own since Phase 79.1 and named it on no command it sent, so
+              every sign in went through whatever key the person had loaded and
+              nothing on screen said so.
+
+              THREE STATES, NOT TWO. A file name means the key is on this Mac
+              and Tortie names it on every command. Null means there is none.
+              ABSENT means main did not answer the question, and then neither
+              sentence is drawn, because a row that guesses is the thing this
+              item exists to stop. */}
+          {row.keyFile === undefined ? null : (
+            <p className="set-config-caption" data-machine-key-line>
+              {row.keyFile === null
+                ? KEY_NOT_MADE_YET
+                : keyNamedOnEveryCommand(row.keyFile)}
+            </p>
           )}
 
           <div className="set-config-actions">

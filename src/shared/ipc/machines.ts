@@ -114,6 +114,40 @@ export interface MachineRowView {
    * follows.
    */
   acceptedTmuxVersion?: string | null;
+  /**
+   * APPENDED (Phase 84): true when Tortie has signed in to this machine in
+   * this run and read its list of places it looks for programs.
+   *
+   * It is exactly the condition `readyRemoteContext` tests, asked in main so
+   * the create sheet does not have to guess. A person used to pick a machine,
+   * type a name, press Create and read a refusal that sent them back to the
+   * screen that had just refused them.
+   *
+   * IT IS NOT `usable`, AND THE TWO MUST NOT BE MERGED. `usable` says a person
+   * confirmed this machine, and Settings reads it to decide whether the Prepare
+   * button is offered at all. A confirmed machine that is asleep has to keep
+   * offering Prepare, because Prepare is the one button that fixes it.
+   *
+   * Optional, and absent reads as false, which is what a row composed before
+   * this field existed knew about itself. That is the rule every other appended
+   * field in this contract follows.
+   */
+  ready?: boolean;
+  /**
+   * APPENDED (Phase 84): the file name of the key Tortie made for this machine,
+   * or null when Tortie has made none.
+   *
+   * It is the LEAF and never the path. The row already draws the whole path
+   * where a person needs it, and a renderer that composed the path itself could
+   * name a file main does not write to.
+   *
+   * THREE STATES, NOT TWO. A string means the key pair is on this Mac and
+   * Tortie names it on every command it sends to that machine. Null means there
+   * is no such key and every sign in uses whatever key the person loaded
+   * themselves. ABSENT means main did not answer the question, and the row then
+   * draws neither sentence rather than guessing at one of them.
+   */
+  keyFile?: string | null;
 }
 
 /** Everything the Machines section needs in one read. */
@@ -667,6 +701,12 @@ export interface MachinesInvokeChannelMap {
     res: MachineReviewPair;
   };
   // ---- END PHASE 73 BLOCK C ----
+  // PHASE 84. One READ of one folder on one machine, for the folder picker in
+  // the create sheet. It lists folders and never files, it writes nothing on
+  // either computer, and main refuses it while it is not connected to that
+  // machine. A folder it could not read comes back as a refusal with a
+  // sentence, never as an exception a surface has to read prose out of.
+  'machines:listDir': { req: [input: RemoteDirListInput]; res: RemoteDirListing };
 }
 
 /** The one event channel: the connection test's own bytes and its end. */
@@ -727,6 +767,10 @@ export interface GmuxMachinesExtras {
     reviewFiles(input: MachineReviewInput): Promise<MachineReviewList>;
     reviewFile(input: MachineReviewFileInput): Promise<MachineReviewPair>;
     // ---- END PHASE 73 BLOCK C ----
+    // Phase 84. Reads the folders inside one folder on one machine, for the
+    // picker beside the create sheet's Directory field. It reads and never
+    // writes.
+    listDir(input: RemoteDirListInput): Promise<RemoteDirListing>;
   };
 }
 
@@ -866,3 +910,70 @@ export interface MachineReviewPair {
   note: string | null;
 }
 // ---- END PHASE 73 BLOCK C ----
+
+// ---------------------------------------------------------------------------
+// The folder picker for another machine (Phase 84, item 6)
+// ---------------------------------------------------------------------------
+//
+// WHAT THIS IS FOR. The create sheet's Directory field names a folder on the
+// other computer. Until this phase a person had to know that path by heart and
+// type it, because the picker beside the field walks THIS Mac's disk and a
+// path chosen here names nothing over there. This one channel lets Tortie draw
+// a picker for the machine itself.
+//
+// WHAT IT DOES NOT DO. It lists folders and never files, so it is a folder
+// chooser and not a file browser. It writes nothing on either computer. It
+// carries no file contents. It cannot be reached while Tortie is not connected
+// to the machine.
+
+/**
+ * The most entries one listing carries. 500.
+ *
+ * CHOSEN, not measured. No load test set it. It is here so a home directory
+ * holding thousands of folders cannot make one answer megabytes long, and
+ * {@link RemoteDirListing.total} is what keeps the number honest on screen.
+ */
+export const REMOTE_DIR_LIST_MAX = 500;
+
+/** One folder inside a folder on another machine. */
+export interface RemoteDirEntry {
+  /** The entry's own name. It holds no path and no slash. */
+  name: string;
+}
+
+export interface RemoteDirListInput {
+  machineId: string;
+  /**
+   * The absolute path to read. An empty string means that machine's own home
+   * directory, which the machine itself resolves. Tortie composes no home path
+   * for another computer.
+   */
+  path: string;
+}
+
+/** Why a folder could not be listed. Null when it was. */
+export type RemoteDirRefusal = 'missing' | 'notdir' | 'denied' | 'unreachable';
+
+export interface RemoteDirListing {
+  /** The absolute path that was read, as the machine reported it. */
+  path: string;
+  /** The parent of `path`, or null when `path` is the root. */
+  parent: string | null;
+  /** The folders inside it, sorted, at most REMOTE_DIR_LIST_MAX of them. */
+  entries: RemoteDirEntry[];
+  /** How many folders are really in there. Never smaller than entries.length. */
+  total: number;
+  /** Null when the folder was read. */
+  refusal: RemoteDirRefusal | null;
+  /**
+   * Main's own sentence for the refusal, or null.
+   *
+   * THE PICKER DOES NOT DRAW IT, and that is deliberate rather than an
+   * oversight. The three answers a machine gives about a folder are fixed, so
+   * their sentences live in src/renderer/app/machine-copy.ts where the
+   * vocabulary audit reads them, and `unreachable` is composed on this side
+   * because main never sends it. The field is here for a surface that has no
+   * copy of its own and for a log line that wants one string.
+   */
+  refusalText: string | null;
+}

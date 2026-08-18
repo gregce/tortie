@@ -5,19 +5,24 @@
  * ## What it brings back, and what it does not
  *
  * IT BRINGS BACK the session, on that machine, in the same folder, running the
- * same program by bare name, with the four session options and both pane
- * environment variables, and the manifest row moves to `running`.
+ * same program at the absolute path that machine reports for it TODAY, with the
+ * four session options and both pane environment variables, and the manifest
+ * row moves to `running`.
  *
  * IT DOES NOT BRING BACK the conversation, and Phase 73 did not change that.
  * What Phase 73 changed is the record. The connected time store harvest reads
  * an agent's own store on a machine while Tortie is connected to it, so a row
  * for one of four agents can now carry a `resume_argv` and a
  * `remote-store-harvest` provenance, and for a muse row the arming gate says
- * yes. Saying yes is not typing. Nothing in this release types a resume command
+ * yes. PHASE 84 ADDED A SECOND SHAPE OF ROW THAT GETS A YES, being any of the
+ * seven agents that take a conversation id on their own launch flag, because a
+ * remote create now puts one on the line and records it.
+ *
+ * Saying yes is still not typing. Nothing in this release types a resume command
  * into a pane on another machine, so `resumeArmed` is false on every outcome
- * this function returns and the sentence a person reads is unchanged. A row the
- * harvest could not prove still says `remote-not-collected` rather than saying
- * nothing, and every surface prints that sentence.
+ * this function returns. An armed row carries {@link RESUME_NOT_TYPED_HERE},
+ * and a row the harvest could not prove still says `remote-not-collected`. Every
+ * agent row comes back with a sentence, and none of them comes back silent.
  *
  * IT DOES NOT PUT THE SAVED OUTPUT BACK on that machine. Tortie keeps a copy of
  * a remote session's output on this Mac, and the copy stays here. Three
@@ -57,16 +62,17 @@
 
 import { getLog } from '../log';
 import { gmuxError } from '../errors';
-import type { Session } from '@shared/types';
+import type { LaunchableAgentKind, Session } from '@shared/types';
 import { savedOutputAt } from '../restore/snapshots';
 import type { ManifestSessionRecord } from '../manifest/codecs';
 import { provenanceOf } from '../manifest/contract';
-import { assertArgvBelongsToMachine, captureRemoteArgv } from './remote-argv';
+import { assertArgvBelongsToMachine, findRemoteProgram } from './remote-argv';
 import { execOn } from './exec-plane';
 import { ensureRemoteServer } from './remote-server';
 import {
   REPLAY_IS_NOT_ATTEMPTED,
   RESTORE_NO_RECORD,
+  RESUME_NOT_TYPED_HERE,
   noRemoteRowFor
 } from './remote-copy';
 // Phase 72. The pure gate that decides whether a restore may type the command
@@ -85,6 +91,7 @@ import {
   remoteRestoreVerdictFor,
   remoteSessionRow,
   remoteStampArgs,
+  remoteLaunchEntry,
   projectRemoteRecord,
   startMachineFeed
 } from './remote-sessions';
@@ -100,7 +107,24 @@ const machinesLog = getLog('config');
  * restore looks for them, and because the harnesses that watch them fire import
  * them from here.
  */
-export { REPLAY_IS_NOT_ATTEMPTED, RESTORE_NO_RECORD };
+export { REPLAY_IS_NOT_ATTEMPTED, RESTORE_NO_RECORD, RESUME_NOT_TYPED_HERE };
+
+/**
+ * Why a restore did not continue the conversation, as an outcome can report it.
+ *
+ * FOUR OF THE FIVE COME FROM THE GATE in `./resume-arming.ts`, and each of
+ * those is a fact about the ROW: what was collected, how strong it was, and
+ * which machine it was collected on.
+ *
+ * THE FIFTH IS THIS FILE'S OWN and it is a fact about the RELEASE.
+ * `not-typed-here` is what a row gets when the gate armed it and nothing typed
+ * the command, which is every armed row in this release. It is kept separate
+ * from the gate's four on purpose. The gate answers whether an id may be used,
+ * and it must keep answering yes for a row whose id is provable, or the round
+ * that builds the typing half has a gate arm to delete instead of a caller to
+ * write.
+ */
+export type RemoteResumeRefusal = ArmingRefusal | 'not-typed-here';
 
 /** What one remote restore did, in facts a surface can print. */
 export interface RemoteRestoreOutcome {
@@ -120,18 +144,31 @@ export interface RemoteRestoreOutcome {
   /**
    * True when the restore typed the command that continues a conversation.
    *
-   * FALSE for every row this release can produce. No remote row carries a
-   * conversation id, because reading an agent's own files on another machine is
-   * M6, so the arming gate refuses every one of them.
+   * FALSE for every row this release can produce, and it is false for two
+   * different reasons now. Most rows are refused by the gate in
+   * `./resume-arming.ts`. A row the gate arms is not typed either, because
+   * nothing in this release can type into a pane on another machine, and such a
+   * row reports `not-typed-here`.
    */
   readonly resumeArmed: boolean;
-  /** Which arm of the arming gate this row took, or null when it armed. */
-  readonly resumeRefusal: ArmingRefusal | null;
+  /**
+   * Why the conversation did not come back, or null.
+   *
+   * NULL IS UNREACHABLE FOR AN AGENT ROW in this release, and that is the point
+   * of the fifth member. A row the gate arms takes `not-typed-here`, because
+   * nothing types the command. Null is left in the type for the round that
+   * builds the typing half, and for a shell it is `nothing-to-arm` rather than
+   * null because a shell never had a conversation.
+   */
+  readonly resumeRefusal: RemoteResumeRefusal | null;
   /**
    * The sentence about the conversation, or null when there is nothing to say.
    *
    * It is null for a session whose agent keeps no conversation, which is every
    * shell: nothing was lost, so inventing a sentence would invent a problem.
+   * For every other row it carries a sentence, including a row the gate armed,
+   * because a restore that continues nothing and says nothing is a restore a
+   * person finds out about in an empty pane.
    */
   readonly resumeNote: string | null;
   /** The sentence about the saved output, when there is any. */
@@ -199,14 +236,40 @@ export async function restoreRemoteSession(
   // back and captures the PATH the new pane will take.
   const server = await ensureRemoteServer(ctx);
 
-  // Step 3b. The program is still on that machine. A read, and it turns the
-  // failure a person would otherwise meet, being a pane that prints "command not
-  // found" and dies about a second later, into a sentence naming the program and
-  // the machine. It runs after `ensureRemoteServer` because that is what
+  // Step 3b. WHERE THAT MACHINE KEEPS THE PROGRAM, ASKED AGAIN, AND THE ANSWER
+  // IS WHAT LAUNCHES.
+  //
+  // This read does two jobs and the second one is the one the fix round added.
+  // It turns the failure a person would otherwise meet, being a pane that prints
+  // "command not found" and dies about a second later, into a sentence naming
+  // the program and the machine. It also supplies `argv[0]`.
+  //
+  // MEASURED on the operator's Mac Pro, 2026-08-18. A restore that launched by
+  // bare name left a pane reading `pane_dead=1`, `pane_dead_status=1` and an
+  // empty screen, with `pane_start_command = claude --session-id <id>`, while
+  // the manifest row still read `idle`. A pane on that machine gets
+  // `/usr/bin:/bin:/usr/sbin:/sbin` and `claude` is at `~/.local/bin/claude`,
+  // which is on neither that list nor the login shell's. `remoteCreate` had
+  // already been moved onto the absolute path and this path had not, so a
+  // create worked and the restore of the same row killed the session.
+  //
+  // It is asked again rather than read off the row, because the row records
+  // where the program was on the day the session was created and a machine can
+  // move or lose it in between. `assertArgvBelongsToMachine` above is what makes
+  // the row's own path safe to compare against; this is what makes the launch
+  // true today. It runs after `ensureRemoteServer` because that is what
   // refreshes the search list this read is asked against.
-  const launchArgv = bareLaunchArgv(record);
+  const launchArgv = searchNameArgv(record);
   const bare = launchArgv[0] ?? '';
-  if (bare.length > 0) await captureRemoteArgv(ctx, bare);
+  if (bare.length > 0) {
+    const entry = remoteLaunchEntry(record.agent as LaunchableAgentKind);
+    const found = await findRemoteProgram(
+      ctx,
+      bare,
+      entry?.extraProbeDirs ?? []
+    );
+    launchArgv[0] = found.path;
+  }
 
   // Step 4. The double run guard, asked again against a fresh list. Step 3 is
   // several commands and a session can appear inside that window, e.g. somebody
@@ -223,10 +286,10 @@ export async function restoreRemoteSession(
     // against it, because this Mac cannot answer for another computer's disk.
     cwd: record.cwd,
     sessionId,
-    // BY BARE NAME. The row's `argv[0]` is the absolute path captured on that
-    // machine, and it is a record rather than an instruction. See
-    // `./remote-argv.ts` for the two reasons the launch stays bare, and step 3b
-    // above for the read that proved the machine still has it.
+    // THE ABSOLUTE PATH ON THAT MACHINE, as step 3b above just found it. The
+    // create path composes its launch the same way, at step 6 of `remoteCreate`
+    // in `./remote-sessions.ts`, and the two must not differ: a restore is the
+    // same session starting again.
     argv: launchArgv,
     ...(record.env !== undefined ? { env: record.env } : {})
   });
@@ -292,12 +355,27 @@ export async function restoreRemoteSession(
     resumeArgvLength: record.resumeArgv?.length ?? 0,
     provenance: provenanceOf(record.resumeProvenance)
   });
+  // REACHED as of Phase 73, for a muse row whose id the connected time store
+  // harvest proved on this machine, and as of PHASE 84 for a row of any of the
+  // seven agents that take a conversation id on their own launch flag, because a
+  // remote create now puts one there and records it.
+  //
+  // THE OUTCOME STILL CARRIES A REFUSAL AND A SENTENCE, and the fix round put
+  // them here. Before it, an armed row came back with `resumeRefusal: null` and
+  // `resumeNote: null`, so the one shape of row Phase 84 added was the one shape
+  // that said nothing at all about its conversation. `resumeArmed` was already
+  // false and the log line was already written, and neither of those is
+  // something a person reads.
+  //
+  // The refusal is this file's own rather than the gate's, for the reason on
+  // {@link RemoteResumeRefusal}. Typing a resume command into a pane on another
+  // machine needs `send-keys`, which is on the permanently refused verb list at
+  // `./exec-plane.ts`, and the decision to change that list is not made here.
+  const refusal: RemoteResumeRefusal | null = arming.arm
+    ? 'not-typed-here'
+    : arming.refusal;
+  const note = arming.arm ? RESUME_NOT_TYPED_HERE : arming.reason;
   if (arming.arm) {
-    // REACHED as of Phase 73, for a muse row whose id the connected time store
-    // harvest proved on this machine. It stays a refusal rather than a silent
-    // success, because typing a resume command into a pane on another machine
-    // is a half nothing in this release builds. A silent success here would
-    // report a continued conversation that was never continued.
     machinesLog.warn(
       `the arming gate allowed a conversation for ${sessionId} on ${machineId} ` +
         `and this release has no way to continue one on another machine`
@@ -309,11 +387,12 @@ export async function restoreRemoteSession(
     stampsLanded,
     serverWasBorn: server.born,
     savedOutputAt: savedAt,
-    // Always false. The gate above can now say yes, and the typing half does
-    // not exist. Phase 73's backlog entry records it as the first owed item.
+    // Always false. The gate above can now say yes for two different shapes of
+    // row, and the typing half does not exist for either. Phase 73's backlog
+    // entry records it as the first owed item and Phase 84 did not close it.
     resumeArmed: false,
-    resumeRefusal: arming.refusal,
-    resumeNote: arming.reason,
+    resumeRefusal: refusal,
+    resumeNote: note,
     replayNote: savedAt === null ? null : REPLAY_IS_NOT_ATTEMPTED
   };
 }
@@ -346,17 +425,21 @@ async function assertStillAbsent(
 }
 
 /**
- * The launch argv for a restore, BY BARE NAME.
+ * The argv a restore ASKS THE MACHINE ABOUT, with the bare name at `argv[0]`.
  *
- * The row records the absolute path on that machine at `argv[0]`, and the launch
- * puts the bare name back. Both reasons are in `./remote-argv.ts`. The rest of
- * the argv is the row's own, unchanged, because those are the flags the session
- * was created with and a resume does not re-apply launch flags.
+ * It is not the argv that launches. The row records the absolute path the
+ * machine reported on the day the session was created, and `findRemoteProgram`
+ * takes a bare name, so the name is cut out of the recorded path and the answer
+ * that comes back is put in its place. Step 3b of {@link restoreRemoteSession}
+ * is where that swap happens and why.
+ *
+ * The rest of the argv is the row's own, unchanged, because those are the flags
+ * the session was created with and a resume does not re-apply launch flags.
  *
  * An empty argv is a plain shell session, and tmux starts the machine's own
  * default command for it, which is what the create did too.
  */
-function bareLaunchArgv(record: ManifestSessionRecord): string[] {
+function searchNameArgv(record: ManifestSessionRecord): string[] {
   const argv = record.argv;
   const first = argv[0] ?? '';
   if (first.length === 0) return [];

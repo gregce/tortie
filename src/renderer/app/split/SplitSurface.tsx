@@ -148,6 +148,31 @@ function SplitHeader({
 // Pane-scoped ended / ready-to-restore states (S4A "Per-split states")
 // ---------------------------------------------------------------------------
 
+/**
+ * Whether a split leaf draws Restart (Phase 84, item 1).
+ *
+ * Exported because it is the one decision this file makes that a test can read
+ * without a browser, and because the answer has to agree with the two surfaces
+ * that already refuse a remote restart, being `../TerminalRegion.tsx` and
+ * `../session-actions.tsx`.
+ *
+ * A session on another machine never draws it. A restart ends a session and
+ * starts a new one, and the starting half would have started it on this Mac
+ * while the agent kept running over there. Main refuses such a restart outright
+ * as well, so this is the second line of the same defence rather than the only
+ * one.
+ *
+ * The rest of the rule is unchanged from Phase 26.3: Restart is drawn beside
+ * Restore on an ended leaf, and on its own when Restore is not offered.
+ */
+export function splitLeafOffersRestart(
+  session: Session,
+  offersRestore: boolean
+): boolean {
+  if (session.machine !== undefined) return false;
+  return !offersRestore || session.status === 'exited';
+}
+
 function SplitPaneState({ session }: { session: Session }): React.JSX.Element {
   const restartSession = useApp((s) => s.restartSession);
   const removeSession = useApp((s) => s.removeSession);
@@ -208,7 +233,10 @@ function SplitPaneState({ session }: { session: Session }): React.JSX.Element {
         {/* Restart drops to secondary beside Restore on an exited leaf and
             stays primary when Restore is absent. The restorable leaf keeps
             its Restore-and-Remove pair unchanged. */}
-        {!offersRestore || session.status === 'exited' ? (
+        {/* PHASE 84, item 1. No new copy for a leaf on another machine: the
+            button is simply not there, which is what the other two surfaces
+            do. The rule is one exported function above. */}
+        {splitLeafOffersRestart(session, offersRestore) ? (
           <button
             type="button"
             className={`btn ${offersRestore ? 'btn-secondary' : 'btn-primary'} btn-sm`}

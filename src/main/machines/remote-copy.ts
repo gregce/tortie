@@ -92,6 +92,27 @@ export const RESTORE_STILL_RUNNING =
  * checked over a connection. What is true for a row carrying this sentence is
  * narrower and is what the sentence now says: no id was got for THIS session.
  */
+/**
+ * The gate said the conversation id may be used, and nothing typed it.
+ *
+ * PINNED as `machine.resume-not-typed-here`. It is the honest half of Phase
+ * 84's item 9. A remote create now puts a conversation id on the launch line for
+ * the seven agents that take one, and the connected harvest of Phase 73 proves
+ * one for a muse session, so the arming gate in `./resume-arming.ts` can answer
+ * yes for a row on a machine. Nothing acts on that yes. Typing a command into a
+ * pane on another machine needs a verb this product refuses on purpose, and the
+ * decision to change that list is not made in this phase.
+ *
+ * Without this sentence a person restores an agent session on a machine, reads
+ * no note at all, and finds out in an empty pane. That is the exact failure
+ * {@link RESUME_NOT_COLLECTED} exists to prevent for the other rows.
+ */
+export const RESUME_NOT_TYPED_HERE =
+  'Tortie has a conversation id it can stand behind for this session, and it ' +
+  'did not continue the conversation. Continuing one on another machine is ' +
+  'something this release does not do. The session comes back with its folder ' +
+  'and its program.';
+
 export const RESUME_NOT_COLLECTED =
   "Tortie has no conversation id for this session. It reads an agent's own " +
   'files on a machine only while it is connected to that machine, and it did ' +
@@ -125,10 +146,60 @@ export const MACHINE_NOT_READY =
   'Tortie has not signed in to that machine yet, so it cannot start a session ' +
   'there. Open Settings and then Machines, and prepare it. Nothing was started.';
 
-/** The folder named for the new session is not on that machine. */
+/**
+ * The folder named for the new session is not on that machine.
+ *
+ * PHASE 84 GAVE IT ITS FIRST LIVE CALLER. Until this phase it was matched
+ * against the text a failed create THREW, and a create against a folder that is
+ * not there does not throw. MEASURED 2026-08-18 on tmux 3.6a over a scratch
+ * socket: `new-session -c /a-path-that-is-not-there` exits 0, prints `$0`,
+ * makes a live session and puts the pane in the home directory. So the folder
+ * is now asked about with the `dir-list` script BEFORE the create line is
+ * composed, and this sentence is what a person reads when the answer is that
+ * there is nothing there.
+ */
 export const REMOTE_DIR_MISSING =
   'That machine has no folder at the path you gave, so nothing was started ' +
   'there.';
+
+/** The path named for the new session is on that machine and is not a folder. */
+export const REMOTE_DIR_NOT_A_FOLDER =
+  'That path is on that machine and it is not a folder, so nothing was ' +
+  'started there.';
+
+/** The account on that machine cannot read the folder that was named. */
+export const REMOTE_DIR_DENIED =
+  'That account cannot read that folder on that machine, so Tortie did not ' +
+  'start anything there.';
+
+/**
+ * The machine did not answer the folder question, so nothing was listed.
+ *
+ * It is the picker's own version of {@link MACHINE_NOT_CONNECTED}, written with
+ * the machine's label in it because the picker draws a whole panel about one
+ * machine and a sentence with no name in it reads as being about all of them.
+ */
+export function dirListUnreachable(label: string): string {
+  return `${label} did not answer, so there is nothing to show.`;
+}
+
+/**
+ * Restart, refused because the session runs on another machine (Phase 84).
+ *
+ * PINNED as `machine.restart-on-machine`. Restart composes a create out of the
+ * old row and drops the machine on the floor, so before this phase a restart of
+ * a row on a machine started the session on THIS Mac and hard deleted the
+ * remote record. Between two Macs whose folder shapes agree, the result was a
+ * local session wearing the remote one's name while the agent kept running over
+ * there, with no undo.
+ *
+ * Main refuses BEFORE `createSession` is called, so nothing is created and
+ * nothing is discarded. The sentence says what a person can do instead.
+ */
+export const RESTART_ON_MACHINE =
+  'Tortie will not restart this session, because it runs on another machine ' +
+  'and restarting it here would start it on this Mac instead. End it, then ' +
+  'start a new session on that machine. Nothing was changed.';
 
 /** A create that ran and then could not be found again by name. */
 export function noRemoteRowFor(name: string): string {
@@ -179,17 +250,31 @@ export const RESTORE_NO_RECORD =
   'machine. It cannot be brought back. Nothing was started.';
 
 /**
- * The machine has no program of that name (Phase 72).
+ * The machine has no program of that name (Phase 72, widened in Phase 84).
  *
  * A refusal rather than a guess, for the same reason `noRemotePathRefusal` is
  * one. A program Tortie cannot find on that machine is a program that will not
  * start there, and composing a path from what this Mac holds would run nothing
  * or run something nobody chose.
+ *
+ * PHASE 84 ADDED THE COUNT, because the old sentence was refusing on a machine
+ * where the program was installed. It said Tortie could not find claude on the
+ * operator's Mac Pro while claude sat at `~/.local/bin/claude` and two of
+ * Tortie's own claude sessions ran there. The count is how many folders were
+ * actually searched, so a person reading it can tell "Tortie looked in 17
+ * folders" from "Tortie asked one question and gave up". The list of folders
+ * itself goes to the log and to the error detail rather than on screen.
  */
-export function noRemoteProgramRefusal(bare: string, label: string): string {
+export function noRemoteProgramRefusal(
+  bare: string,
+  label: string,
+  searched: number
+): string {
   return (
-    `Tortie could not find ${bare} on ${label}, so it did not start the ` +
-    `session there. Install it there, or start the session on a machine that ` +
+    `Tortie could not find ${bare} on ${label}. It looked in ` +
+    `${String(searched)} folders, being the ones that machine lists for ` +
+    `programs and the ones programs are usually kept in. Nothing was started ` +
+    `there. Install it on ${label}, or start the session on a machine that ` +
     `has it.`
   );
 }

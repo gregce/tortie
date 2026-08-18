@@ -1,8 +1,8 @@
 /**
  * The machines half of the bridge (Phase 68, one call added in Phase 69, one
- * more in Phase 71, one more in Phase 79.1 and one more in Phase 83). One
- * object, fourteen calls and two subscriptions, typed from the shared
- * contract.
+ * more in Phase 71, one more in Phase 79.1, one more in Phase 83 and one more
+ * in Phase 84). One object, eighteen calls and two subscriptions, typed from
+ * the shared contract.
  *
  * Four of these calls can start a process, and every one of them is a person
  * pressing a button in Settings. `tailscaleNames` runs the Tailscale program at
@@ -68,6 +68,10 @@ export const machines: NonNullable<GmuxMachinesExtras['machines']> = {
   // read: nothing on either computer is written by either of them, and main
   // refuses both while it is not connected to that machine.
   reviewFiles: (input) => invoke('machines:reviewFiles', input),
-  reviewFile: (input) => invoke('machines:reviewFile', input)
+  reviewFile: (input) => invoke('machines:reviewFile', input),
   // ---- END PHASE 73 BLOCK C ----
+  // Phase 84. Reads the folders inside one folder on one machine. It reads and
+  // never writes, and main refuses it while it is not connected to that
+  // machine.
+  listDir: (input) => invoke('machines:listDir', input)
 };

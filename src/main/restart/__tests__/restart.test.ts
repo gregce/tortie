@@ -23,6 +23,7 @@ vi.mock('electron', () => ({
 const { restartSession } = await import('../restart');
 import type { RestartHost } from '../restart';
 import type { ManifestSessionRecord } from '../../manifest/store';
+import { RESTART_ON_MACHINE } from '../../machines/remote-copy';
 
 const SESSION_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
 
@@ -219,5 +220,66 @@ describe('when the flags cannot be recovered', () => {
     expect(out.extrasRecovered).toBe(false);
     expect(f.calls).toEqual(['create', 'discard', 'broadcast']);
     expect(warned.join('\n')).toContain('without its launch flags');
+  });
+});
+
+/**
+ * PHASE 84. A row whose session runs on another machine.
+ *
+ * The defect this covers lost work rather than annoying somebody. A restart of
+ * such a row created the replacement on this Mac, because the composed input
+ * carries no machine, and then hard deleted the original row. The agent kept
+ * running on the other machine with nothing pointing at it.
+ *
+ * What is proven here is that NOTHING HAPPENED. Zero creates, zero kills, zero
+ * discards, zero broadcasts, and a rejection carrying the sentence a person
+ * reads. An order is proven by recording the calls, and so is an absence.
+ */
+describe('a session that runs on another machine', () => {
+  it('is refused, and nothing at all is created or removed', async () => {
+    const f = fake(record({ machineId: 'studio', status: 'running' }));
+    await expect(restartSession(f.host, SESSION_ID)).rejects.toThrow(
+      RESTART_ON_MACHINE
+    );
+    expect(f.calls).toEqual([]);
+    expect(f.created).toEqual([]);
+  });
+
+  it('is refused whatever the row says it is doing', async () => {
+    for (const status of ['running', 'idle', 'exited', 'restorable'] as const) {
+      const f = fake(record({ machineId: 'studio', status }));
+      await expect(restartSession(f.host, SESSION_ID)).rejects.toThrow(
+        RESTART_ON_MACHINE
+      );
+      expect(f.calls).toEqual([]);
+    }
+  });
+
+  it('says why, and names neither a machine nor any transport word', async () => {
+    const f = fake(record({ machineId: 'studio' }));
+    let message = '';
+    try {
+      await restartSession(f.host, SESSION_ID);
+    } catch (err) {
+      message = (err as Error).message;
+    }
+    expect(message).toContain('runs on another machine');
+    expect(message).toContain('Nothing was changed.');
+    for (const word of ['pane', 'window', 'prefix', 'socket', 'ssh', 'tmux']) {
+      expect(message.toLowerCase()).not.toContain(word);
+    }
+  });
+
+  it('restarts a row that names this Mac exactly as it always did', async () => {
+    const f = fake(record({ machineId: 'local' }));
+    await restartSession(f.host, SESSION_ID);
+    expect(f.calls).toEqual(['create', 'discard', 'broadcast']);
+  });
+
+  it('restarts a row written before machines existed, which names none', async () => {
+    const f = fake(record());
+    expect(f.host.manifest.getSession(SESSION_ID)?.machineId).toBeUndefined();
+    await restartSession(f.host, SESSION_ID);
+    expect(f.calls).toEqual(['create', 'discard', 'broadcast']);
   });
 });

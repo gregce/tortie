@@ -231,6 +231,32 @@ export interface SshCarriage {
   readonly controlPath: string;
   /** The two identity record files, Tortie's own first. */
   readonly hostKeys: MachineHostKeyFiles;
+  /**
+   * APPENDED (Phase 84): Tortie's own key for this machine, or null.
+   *
+   * ## The defect it closes
+   *
+   * `IdentityFile` and a bare `-i` appeared zero times under
+   * `src/main/machines/` before this phase. The Install button in Settings
+   * makes a key at `<userData>/gmux/machines/keys/machine-<12 hex>` and puts
+   * its public half on the machine, and then NOTHING named that file on any
+   * command. That path is not one of the client's default identities, so every
+   * sign in depended on whatever key the person happened to have loaded, and
+   * nothing on screen said so.
+   *
+   * ## `IdentitiesOnly` is NOT set, and that is a decision
+   *
+   * Setting it would tell the client to offer Tortie's key and nothing else.
+   * The operator's Mac Pro works TODAY through a key he loaded himself, and
+   * `IdentitiesOnly=yes` would break that on the first run of a new build. So
+   * Tortie names its own key IN ADDITION to whatever the person has, and the
+   * sentence in Settings says exactly that.
+   *
+   * ABSENT reads as null, which is a machine Tortie has made no key for.
+   * Nothing is named then, because naming a file that is not there makes the
+   * client print a warning on every command for nothing.
+   */
+  readonly identityFile?: string | null;
 }
 
 /**
@@ -250,7 +276,17 @@ export function sshOptions(carriage: SshCarriage): string[] {
     '-o',
     'StrictHostKeyChecking=yes',
     '-o',
-    composeKnownHostsOption(carriage.hostKeys),
+    composeKnownHostsOption(carriage.hostKeys)
+  ];
+  // PHASE 84. After the record file option and before the connection reuse
+  // options, so the fixed order the golden comparison reads stays fixed. It is
+  // QUOTED for the reason `composeKnownHostsOption` quotes its two paths: this
+  // path is under Tortie's own data directory, and that directory has a space
+  // in its name on every Mac.
+  if (carriage.identityFile != null && carriage.identityFile.length > 0) {
+    argv.push('-o', `IdentityFile="${carriage.identityFile}"`);
+  }
+  argv.push(
     '-o',
     'ControlMaster=auto',
     '-o',
@@ -261,7 +297,7 @@ export function sshOptions(carriage: SshCarriage): string[] {
     `ServerAliveInterval=${String(SSH_SERVER_ALIVE_INTERVAL_SECONDS)}`,
     '-o',
     `ServerAliveCountMax=${String(SSH_SERVER_ALIVE_COUNT_MAX)}`
-  ];
+  );
   if (carriage.port !== null) argv.push('-p', String(carriage.port));
   if (carriage.user !== null) argv.push('-l', carriage.user);
   return argv;

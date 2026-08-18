@@ -35,6 +35,27 @@
  * neither is a secret, and both are already readable in a pane's environment on
  * this Mac.
  *
+ * ## PHASE 84 PROPOSED A THIRD NAME AND MEASUREMENT REFUSED IT
+ *
+ * `PATH` was going to join the set. A pane on the operator's Mac Pro gets four
+ * directories, being `/usr/bin:/bin:/usr/sbin:/sbin`, its login shell's own
+ * list holds ten, and `claude` is at `~/.local/bin/claude`, which is on
+ * neither. So a bare name launch cannot work there, and one way out was to put
+ * the right list on the `new-session` line.
+ *
+ * MEASURED 2026-08-18 by `build/probe-execplane.mjs` step 17c, on tmux 3.6a. A
+ * session was created with `-e PATH=/p84-planted-85507:/usr/bin:/bin` and its
+ * pane printed `/Users/gdc/.cargo/bin:/usr/bin:/bin:/usr/sbin:/sbin`. A second
+ * measurement on a scratch socket separated the two possible causes:
+ * `-e FOO=bar-planted` DID reach the pane on the same line, and `-e PATH=` did
+ * not, while `show-environment` read both back. So tmux takes a pane's PATH
+ * from the server rather than from the session environment, and PATH is the one
+ * name an `-e` pair cannot set.
+ *
+ * The set therefore stays at TWO. Phase 84 sends the absolute program path as
+ * `argv[0]` instead, and `./remote-sessions.ts` records what that costs. An
+ * allowance nothing uses would be a widening for nothing.
+ *
  * The refusal sentence lives in `./remote-copy.ts` with every other sentence
  * main prints about a session on another machine, and is re-exported here so a
  * caller reads one module.
@@ -48,18 +69,32 @@ export { REMOTE_ENV_PASSTHROUGH_REFUSED };
 /**
  * The names Tortie's own create is allowed to put on a session on a machine.
  *
- * They are exactly the two `managedPaneEnv` composes in `../tmux/env.ts`. The
- * list is written here rather than imported from that module on purpose: this
- * is the set a person's safety is argued from, and it must not widen because a
- * later phase adds a third name to the pane environment for some other reason.
- * `src/main/machines/__tests__/remote-env.test.ts` compares the two sets and
- * fails when they drift, so a drift is a decision somebody makes rather than a
- * thing that happens.
+ * The first two are exactly the pair `managedPaneEnv` composes in
+ * `../tmux/env.ts`. The list is written here rather than imported from that
+ * module on purpose: this is the set a person's safety is argued from, and it
+ * must not widen because a later phase adds a name to the pane environment for
+ * some other reason. `src/main/machines/__tests__/remote-env.test.ts` compares
+ * the two sets and fails when they drift, so a drift is a decision somebody
+ * makes rather than a thing that happens.
+ *
+ * PHASE 84 TRIED TO ADD `PATH` AND MEASUREMENT REFUSED IT, which is written out
+ * in this file's header. A pane takes its PATH from the server rather than from
+ * the session environment, so the pair would have crossed to another computer
+ * and changed nothing at all.
  */
 export const REMOTE_ENV_ALLOWED: readonly string[] = [
   'GMUX_MANAGED',
   'GMUX_SESSION_ID'
 ];
+
+/**
+ * The one name Phase 84 measured and did not add.
+ *
+ * Exported so `build/conformance-machines.mjs` condition 47 can assert that it
+ * is NOT in the set. A later round that adds it has to move this line too, and
+ * moving it means reading the measurement in this file's header first.
+ */
+export const REMOTE_ENV_MEASURED_AND_REFUSED = 'PATH';
 
 /** True when this name may cross to a machine on a create. Pure. */
 export function remoteEnvNameAllowed(name: string): boolean {

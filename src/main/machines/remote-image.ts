@@ -66,6 +66,7 @@ import {
   IMAGE_NOT_WRITTEN,
   imageTooLargeRefusal
 } from './remote-copy';
+import { machineGeneration, type RemoteMachineContext } from './context';
 import { readyRemoteContext } from './remote-sessions';
 import { runRemoteRead, runRemoteWrite } from './remote-run';
 import { REMOTE_SCRIPT_EMPTY } from './remote-scripts';
@@ -152,6 +153,62 @@ export function parseMachineFacts(payload: string): RemoteMachineFactsAnswer {
     env,
     uname: values.get('uname') ?? ''
   };
+}
+
+// ---------------------------------------------------------------------------
+// PHASE 84. The far side's own home directory, remembered per connection
+// ---------------------------------------------------------------------------
+
+/** What one machine last said about itself, and the connection it said it on. */
+const homes = new Map<string, { generation: number; home: string }>();
+
+/**
+ * That machine's own home directory, read once per connection.
+ *
+ * ## Who needs it and why it is cached here
+ *
+ * `./remote-argv.ts` composes the folders it asks about against it, on every
+ * create of an agent session. Without a cache that is one extra command per
+ * create, for a value that does not move inside one connection.
+ *
+ * It is remembered against the GENERATION rather than against the machine, for
+ * the reason `./remote-harvest.ts` gives about the same value: a machine that
+ * reconnects is asked again, because a connection to a DIFFERENT account on the
+ * same address is exactly the case where assuming the home did not move is how
+ * a folder gets composed under somebody else's name.
+ *
+ * ## What an empty answer means
+ *
+ * The machine did not say. That is not a failure and it does not stop a create:
+ * `./remote-argv.ts` then walks only the folders that do not depend on a home,
+ * and Tortie composes no home path for another computer out of a guess. The
+ * empty answer is NOT cached, so the next call asks again.
+ */
+export async function remoteMachineHome(
+  ctx: RemoteMachineContext
+): Promise<string> {
+  const generation = machineGeneration(ctx.machineId).generation;
+  const held = homes.get(ctx.machineId);
+  if (held !== undefined && held.generation === generation) return held.home;
+  let home = '';
+  try {
+    const answer = await runRemoteRead(ctx, 'machine-facts', [], {
+      timeoutMs: REMOTE_FACTS_TIMEOUT_MS
+    });
+    home = parseMachineFacts(answer.payload).home;
+  } catch {
+    // A machine that would not answer is a machine with no extra folders to
+    // search. The caller's own refusal says what was searched and what was not.
+    return '';
+  }
+  if (home.length === 0) return '';
+  homes.set(ctx.machineId, { generation, home });
+  return home;
+}
+
+/** Forget every remembered home. Tests and the smoke. */
+export function resetRemoteMachineHomesForTests(): void {
+  homes.clear();
 }
 
 /**

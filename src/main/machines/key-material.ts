@@ -248,6 +248,30 @@ function hasPrivateHalf(path: string): boolean {
 }
 
 /**
+ * True when BOTH halves of Tortie's own key for one machine are on this Mac.
+ *
+ * PHASE 84, item 7. It is the question `./context.ts` asks before it names the
+ * key on every command, and `src/renderer/settings/MachineRow.tsx` draws one of
+ * two sentences from the same answer. It makes nothing and it writes nothing:
+ * a machine with no key is an ordinary state, and the Install button is what
+ * changes it.
+ *
+ * BOTH HALVES, not one. A private half with no public half is a key Tortie
+ * cannot have installed anywhere, and naming a file the client then fails to
+ * read makes it print a warning on every command for nothing.
+ */
+export function machineKeyPairPresent(
+  id: string,
+  userDataOverride?: string
+): boolean {
+  const trimmed = id.trim();
+  if (trimmed.length === 0) return false;
+  const line = readTrimmed(machinePublicKeyPath(trimmed, userDataOverride));
+  if (line === null || !isPublicKeyLine(line)) return false;
+  return hasPrivateHalf(machineKeyPath(trimmed, userDataOverride));
+}
+
+/**
  * The key for one machine, made once and used again after that.
  *
  * ## Why it is used again rather than made again

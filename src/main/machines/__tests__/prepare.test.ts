@@ -61,6 +61,7 @@ vi.mock('../exec-plane', () => ({
 }));
 
 const { readRemoteTmuxVersion } = await import('../prepare');
+const { MACHINE_FEED_NOT_STARTED } = await import('../errors');
 
 /** The text tmux prints when nothing of Tortie's is running on that machine. */
 const NO_SERVER = new Error(
@@ -217,5 +218,54 @@ describe('prepareMachine', () => {
     expect(arm).toContain('class: read.cls');
     // The refusal about a program is never composed on this path.
     expect(arm).not.toContain('version-unmeasured');
+  });
+
+  // -------------------------------------------------------------------------
+  // PHASE 84, item 4. Preparing a machine is what makes its sessions appear
+  //
+  // Until this phase Prepare signed in, read the version, started the program
+  // and reported success, and started nothing that reads the machine's list of
+  // sessions. A machine asleep at launch stayed unread for the whole run, and
+  // the badge sent the person to the button that could not fix it.
+  //
+  // These read the source rather than driving the function, for the reason the
+  // arms above do: `prepareMachine` opens a connection to another computer.
+  // `npm run smoke:execplane` drives it and reads the feed back.
+  // -------------------------------------------------------------------------
+
+  it('starts the machine’s feed in the success arm', () => {
+    const arm = src.slice(
+      src.indexOf('const server = await ensureRemoteServer(ctx);'),
+      src.indexOf("const copy = composeOutcomeCopy('prepared'")
+    );
+    expect(arm).toContain('await startMachineFeed(input.machineId);');
+  });
+
+  it('starts it AFTER the server, because there is nothing to list before it', () => {
+    expect(src.indexOf('ensureRemoteServer(ctx)')).toBeLessThan(
+      src.indexOf('startMachineFeed(input.machineId)')
+    );
+  });
+
+  it('starts it only on the success arm, and on no refusal', () => {
+    expect(src.split('startMachineFeed(').length - 1).toBe(1);
+  });
+
+  /**
+   * A feed that will not start does NOT fail the prepare. The machine really
+   * was signed in to and the program really is running on it, so the honest
+   * answer is the success sentence with one more sentence after it.
+   */
+  it('says what is still not true rather than reporting a failure', () => {
+    expect(src).toContain('feedStarted = false;');
+    expect(src).toContain('${copy.detail} ${MACHINE_FEED_NOT_STARTED}');
+  });
+
+  it('names the button a person can press again', () => {
+    expect(MACHINE_FEED_NOT_STARTED).toContain('Press Prepare again.');
+    expect(MACHINE_FEED_NOT_STARTED).not.toMatch(/[—–]/);
+    for (const word of ['ssh', 'tmux', 'socket', 'pane']) {
+      expect(MACHINE_FEED_NOT_STARTED.toLowerCase()).not.toContain(word);
+    }
   });
 });

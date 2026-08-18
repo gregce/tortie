@@ -320,6 +320,119 @@ describe('the tombstone a removed machine leaves', () => {
 });
 
 // ---------------------------------------------------------------------------
+// PHASE 84, item 9. The conversation id Tortie chose itself
+//
+// Seven of the thirteen agents take a fresh conversation id on their own launch
+// flag, and a remote create composed no such flag. So the durable row said
+// nothing was collected for an agent whose id Tortie could have chosen and did
+// not. This does NOT make the conversation come back on a machine, and nothing
+// in the product may say it does.
+// ---------------------------------------------------------------------------
+
+describe('a row for an agent that took an id on its launch line', () => {
+  const AGENT_SESSION = '99999999-8888-7777-6666-555555555555';
+
+  function writePreassigned(): void {
+    writeOne({
+      agentSessionId: AGENT_SESSION,
+      resumeArgv: ['/opt/homebrew/bin/claude', '--resume', AGENT_SESSION]
+    });
+  }
+
+  it('records the id that is on the launch line', () => {
+    writePreassigned();
+    expect(store.getSession('sess-1')?.agentSessionId).toBe(AGENT_SESSION);
+  });
+
+  it('records the command that would continue that conversation', () => {
+    writePreassigned();
+    expect(store.getSession('sess-1')?.resumeArgv).toEqual([
+      '/opt/homebrew/bin/claude',
+      '--resume',
+      AGENT_SESSION
+    ]);
+  });
+
+  it('records where the id came from, and that it is proven', () => {
+    writePreassigned();
+    const provenance = store.getSession('sess-1')?.resumeProvenance;
+    expect(provenance?.source).toBe('preassigned');
+    expect(provenance?.confidence).toBe('exact');
+    // The machine is still on it, so the arming gate can refuse a row whose id
+    // belongs to a different machine without reading the row's own column.
+    expect(provenance?.machineId).toBe('studio');
+  });
+
+  /**
+   * `resumeCapture` STAYS `unavailable`, and that is a decision rather than an
+   * oversight. `../../sessions/launch-plan.ts` maps a pre-assigned local row to
+   * `armed`, and a person reads `armed` as "this session comes back with its
+   * conversation". On a machine it does not: `send-keys` is on the permanently
+   * refused verb list, so nothing types the resume command.
+   */
+  it('does not claim the conversation comes back', () => {
+    writePreassigned();
+    expect(store.getSession('sess-1')?.resumeCapture).toBe('unavailable');
+  });
+
+  it('reads the same from a fresh handle', () => {
+    writePreassigned();
+    store.close();
+    const second = new ManifestStore(join(root, 'manifest.db'));
+    try {
+      expect(second.getSession('sess-1')?.agentSessionId).toBe(AGENT_SESSION);
+      expect(second.getSession('sess-1')?.resumeProvenance?.source).toBe(
+        'preassigned'
+      );
+    } finally {
+      second.close();
+      store = new ManifestStore(join(root, 'manifest.db'));
+      setRemoteManifest(store);
+    }
+  });
+});
+
+describe('a row for the nine agents that do not pre-assign', () => {
+  it('records what it always recorded, byte for byte', () => {
+    writeOne();
+    const record = store.getSession('sess-1');
+    expect(record?.agentSessionId).toBeUndefined();
+    expect(record?.resumeArgv).toBeUndefined();
+    expect(record?.resumeCapture).toBe('unavailable');
+    expect(record?.resumeProvenance?.source).toBe('remote-not-collected');
+    expect(record?.resumeProvenance?.confidence).toBe('none');
+  });
+
+  it('records nothing for an empty resume command either', () => {
+    writeOne({ resumeArgv: [] });
+    expect(store.getSession('sess-1')?.resumeArgv).toBeUndefined();
+  });
+});
+
+describe('the provenance composer', () => {
+  it('says nothing was collected unless Tortie chose the id', () => {
+    const plain = remoteResumeProvenance({
+      machineId: 'studio',
+      at: CREATED_AT,
+      cwd: '/w'
+    });
+    expect(plain.source).toBe('remote-not-collected');
+    expect(plain.confidence).toBe('none');
+  });
+
+  it('says the id was pre-assigned when Tortie chose it', () => {
+    const chosen = remoteResumeProvenance({
+      machineId: 'studio',
+      at: CREATED_AT,
+      cwd: '/w',
+      preassigned: true
+    });
+    expect(chosen.source).toBe('preassigned');
+    expect(chosen.confidence).toBe('exact');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // The injected store
 // ---------------------------------------------------------------------------
 

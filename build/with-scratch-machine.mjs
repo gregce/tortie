@@ -157,6 +157,15 @@ writeFileSync(
       // The refusal a harness drives needs a program reporting a version nobody
       // measured. It runs on this Mac and contacts nothing.
       stubTmuxPath: writeVersionStub(root, PREFIX),
+      // PHASE 84 FIX ROUND. Where this machine keeps its own session server.
+      // The one line that makes this machine a machine rather than an alias for
+      // this Mac is `SetEnv TMUX_TMPDIR=` in its sshd configuration, so a
+      // command run HERE reaches a different server than the same command run
+      // over the connection. `src/main/machines/remote-smoke.ts` needs a person
+      // at the keyboard of one pane, which no product path can supply, so it
+      // runs the far tmux command locally with this directory in its
+      // environment. Nothing in the product reads this field.
+      tmuxTmp: machine.tmuxTmp,
       authSock: yard.authSock
     },
     null,

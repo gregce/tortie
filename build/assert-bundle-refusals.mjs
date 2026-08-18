@@ -758,6 +758,44 @@ const MACHINE_REFUSALS = [
       'its program. The conversation does not come back.'
     ]
   },
+  {
+    id: 'machine.resume-not-typed-here',
+    source: 'src/main/machines/remote-copy.ts',
+    why:
+      'a remote create now records which conversation it started, so the ' +
+      'arming gate says yes for a row it used to refuse, and a person who ' +
+      'reads no sentence at all finds out in an empty pane that nothing ' +
+      'continued',
+    fragments: [
+      'Tortie has a conversation id it can stand behind for this session, and it ',
+      'did not continue the conversation. Continuing one on another machine is ',
+      'something this release does not do. The session comes back with its folder ',
+      'and its program.'
+    ]
+  },
+  // ---------------------------------------------------------------------------
+  // Phase 84 added this one. Restart composes a create out of the old row and
+  // that composition has no machine in it, so before Phase 84 a restart of a
+  // session on another machine started it on THIS Mac and then hard deleted the
+  // remote record. Between two Macs whose folder shapes agree it looked like it
+  // had worked, while the agent kept running over there and the record was gone
+  // with no undo. Main refuses before anything is created, and this is the
+  // sentence. It is reached only by a person pressing Restart on a remote row,
+  // which is exactly the branch a bundler can prove unreachable from a test.
+  // ---------------------------------------------------------------------------
+  {
+    id: 'machine.restart-on-machine',
+    source: 'src/main/machines/remote-copy.ts',
+    why:
+      'restarting a session that runs on another machine here would start a ' +
+      'second agent on this Mac and hard delete the record of the one still ' +
+      'running over there, and there is no undo for that',
+    fragments: [
+      'Tortie will not restart this session, because it runs on another machine ',
+      'and restarting it here would start it on this Mac instead. End it, then ',
+      'start a new session on that machine. Nothing was changed.'
+    ]
+  },
   // ---------------------------------------------------------------------------
   // Phase 79.1 added these seven. The channel makes a key and puts it on another
   // computer, so every one of them stands between a person's agreement and a

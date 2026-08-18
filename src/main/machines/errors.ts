@@ -374,6 +374,27 @@ export const MACHINE_VERSION_ACCEPTED_HONESTY =
   'live connection, because it has not measured how this version speaks over ' +
   'one.';
 
+/**
+ * What a person reads when Prepare signed in and could not start the feed
+ * (Phase 84, item 4).
+ *
+ * ## The defect it names
+ *
+ * Preparing a machine signed in, read the version, started the program and
+ * reported success, and then started nothing that reads that machine's list of
+ * sessions. The only production callers of `startMachineFeed` were the launch
+ * sign in, a create and a restore, so a machine that was asleep when Tortie
+ * launched stayed unread for the whole run even after Prepare said it was
+ * ready. The badge sent the person to the button that could not fix it.
+ *
+ * `prepareMachine` now starts the feed itself, in the success arm. This
+ * sentence is appended to the success detail on the one path where that fails,
+ * because "prepared" on a machine whose sessions cannot be listed is a lie.
+ */
+export const MACHINE_FEED_NOT_STARTED =
+  'Tortie signed in to this machine and could not start reading its list of ' +
+  'sessions, so the sessions on it are not shown here yet. Press Prepare again.';
+
 export function lastPrintedLine(text: string): string {
   const lines = text
     .split('\n')

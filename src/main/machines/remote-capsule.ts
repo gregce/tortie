@@ -448,6 +448,107 @@ export async function captureMachineOnce(machineId: string): Promise<number> {
 }
 
 // ---------------------------------------------------------------------------
+// The one copy a person asked for (Phase 84, item 2)
+// ---------------------------------------------------------------------------
+
+/**
+ * How long ONE copy taken at End gets. 15,000 ms.
+ *
+ * CHOSEN, not measured. A person is waiting on the confirm sheet with their
+ * finger off the mouse, so this is the longest Tortie is willing to make them
+ * wait before it ends the session anyway. It is half the 30,000 ms a background
+ * read gets, and that is the whole difference: nobody is waiting on those.
+ */
+export const REMOTE_END_CAPTURE_TIMEOUT_MS = 15_000;
+
+/**
+ * Take ONE copy of ONE remote session's screen, right now.
+ *
+ * ## Why this exists beside `captureMachineOnce`
+ *
+ * The End confirm says "The scrollback is saved first, so you can restore this
+ * session later." For a session on a machine that was not true. `killSession`
+ * detached and killed with no capture at all, so the newest copy was whatever
+ * the 120,000 ms cadence last took. Up to two minutes of an agent's work,
+ * including its final answer, could be missing. Quitting did not help either,
+ * because the quit pass only captures rows with a local tmux binding.
+ *
+ * IT IS NOT `captureMachineOnce`. That one is connected only, bounded to eight
+ * sessions per pass, and silent about everything, because it is a background
+ * cadence nobody asked for. This one runs for a machine on the TIMER feed as
+ * well, because the person pressed End and the confirm promised a copy, and it
+ * answers whether it got one so the caller can withdraw that promise in words.
+ *
+ * ## What it never does
+ *
+ * It never throws and it never stops a kill. A copy is a convenience and the
+ * person asked for the session to end. Every failure is a `false` return, and
+ * `../sessions/core.ts` posts one notice and kills anyway.
+ *
+ * ## What it reuses
+ *
+ * `remoteCaptureArgs`, `execOn` and `storeCapsuleText`, all of which are already
+ * in this file's pass. `capture-pane` is already on the allowed verb list, so
+ * nothing about the ledger changes.
+ *
+ * @returns true when a copy was written, or when the screen read exactly as the
+ *   newest copy already on disk. Both mean the newest copy holds what the
+ *   session last printed, which is what the confirm promised.
+ */
+export async function captureRemoteSessionNow(
+  sessionId: string
+): Promise<boolean> {
+  const row = remoteSessionRow(sessionId);
+  if (row === null) return false;
+  const machineId = row.machineId;
+  let ctx;
+  try {
+    ctx = readyRemoteContext(machineId);
+  } catch {
+    return false;
+  }
+  let text: string;
+  try {
+    commandsSent += 1;
+    text = await execOn(ctx, remoteCaptureArgs(row.tmuxId, savedSnapshotLines()), {
+      timeoutMs: REMOTE_END_CAPTURE_TIMEOUT_MS
+    });
+  } catch (err) {
+    capsuleLog.warn(
+      `the screen of ${sessionId} on ${machineId} could not be read before it ` +
+        `was ended: ${(err as Error).message}`
+    );
+    return false;
+  }
+  try {
+    // `skipIfIdentical` is what makes a true return honest when nothing was
+    // written. A screen that reads exactly as the newest copy already recorded
+    // needs no second generation, and the copy a person can open still holds
+    // what the session last printed.
+    await storeCapsuleText({
+      sessionId,
+      text,
+      reason: 'remote-checkpoint',
+      cwd: row.cwd,
+      machineId,
+      skipIfIdentical: true
+    });
+  } catch (err) {
+    capsuleLog.warn(
+      `the screen of ${sessionId} on ${machineId} was read and could not be ` +
+        `kept: ${(err as Error).message}`
+    );
+    return false;
+  }
+  memory.set(sessionId, {
+    machineId,
+    capturedAt: Date.now(),
+    activityAt: row.activityAt
+  });
+  return true;
+}
+
+// ---------------------------------------------------------------------------
 // The reads other modules make
 // ---------------------------------------------------------------------------
 

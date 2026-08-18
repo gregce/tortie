@@ -33,6 +33,8 @@ import {
   captureLoginShellEnv,
   captureLoginShellPath,
   extraBinDirs,
+  extraBinDirsFor,
+  SYSTEM_PATH_DIRS,
   fallbackPath,
   getUserPath,
   mergePathDirs,
@@ -543,6 +545,49 @@ describe('mergePathDirs / fallbackPath', () => {
     const fp = fallbackPath({ PATH: '/first/dir:/usr/bin' });
     assert.ok(fp.startsWith('/first/dir'));
     assert.ok(fp.split(delimiter).includes(join(homedir(), '.local', 'bin')));
+  });
+});
+
+// PHASE 84 EXTRACTED THE HOME ARGUMENT, and nothing about the list moved.
+// `src/main/machines/remote-argv.ts` asks the same question about ANOTHER
+// computer, and the only honest way to compose those paths is with that
+// machine's own $HOME, which it states for itself. Copying the eight leaves
+// into the machines layer would be two lists that drift, so there is one list
+// and it takes the home as an argument.
+describe('extraBinDirsFor, the same eight folders against any home', () => {
+  it('answers exactly what extraBinDirs answers for this Mac', () => {
+    assert.deepEqual(extraBinDirsFor(homedir()), extraBinDirs());
+  });
+
+  it('composes every home folder against the home it was given', () => {
+    const dirs = extraBinDirsFor('/home/gdc');
+    assert.ok(dirs.includes('/home/gdc/.local/bin'));
+    assert.ok(dirs.includes('/home/gdc/.claude/local'));
+    assert.ok(dirs.includes('/home/gdc/.cursor/bin'));
+    for (const dir of dirs) {
+      assert.ok(dir.startsWith('/home/gdc/') || dir.startsWith('/opt/') || dir.startsWith('/usr/'));
+    }
+  });
+
+  it('keeps the two folders that do not depend on a home', () => {
+    const dirs = extraBinDirsFor('/home/gdc');
+    assert.ok(dirs.includes('/opt/homebrew/bin'));
+    assert.ok(dirs.includes('/usr/local/bin'));
+  });
+
+  it('keeps the order, because it is the order a search walks', () => {
+    assert.equal(extraBinDirsFor('/h')[0], '/h/.local/bin');
+    assert.equal(extraBinDirsFor('/h').length, 8);
+  });
+});
+
+describe('SYSTEM_PATH_DIRS', () => {
+  /**
+   * PHASE 84 EXPORTED IT, so a reader and a test can name the four directories
+   * rather than infer them from a composed string.
+   */
+  it('is the four directories every PATH keeps', () => {
+    assert.deepEqual(SYSTEM_PATH_DIRS, ['/usr/bin', '/bin', '/usr/sbin', '/sbin']);
   });
 });
 

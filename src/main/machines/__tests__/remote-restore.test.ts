@@ -12,14 +12,18 @@
  *
  *  - a row with no record on this Mac is refused before anything is composed
  *  - a row whose machine is not known is refused with the sentence for that
- *  - the launch argv is recomposed BY BARE NAME from an absolute path
+ *  - the launch argv is recomposed from the row's absolute path, with the
+ *    bare name asked of the machine again and its answer put back at
+ *    `argv[0]`. Phase 84's fix round moved the restore onto that answer,
+ *    because a pane on another machine does not get that machine's own
+ *    program search list and a bare name launch left a dead pane there.
  *  - the saved output instant comes from this Mac and is reported honestly
  *
  * The gate itself has its own file, `./restore-gate.test.ts`. This one is about
  * what the verb does with the gate's answer.
  */
 
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -187,6 +191,39 @@ describe('what a restore promises and what it does not', () => {
       expect(sentence).not.toContain('—');
       expect(sentence).not.toContain('–');
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 84, item 9. Saying yes is still not typing
+// ---------------------------------------------------------------------------
+
+describe('what an armed verdict does not do', () => {
+  /**
+   * WHAT THIS TEST IS AND IS NOT. It reads the source of the verb rather than
+   * driving it, because driving it sends commands to another computer and a
+   * mocked spawn would prove the mock. What it proves is narrow and it is the
+   * thing Phase 84 could have broken: the field is a LITERAL false with no
+   * branch in front of it.
+   *
+   * Phase 84 gave the arming gate a second shape of row it says yes to, being a
+   * row whose conversation id Tortie put on the launch line itself. Nothing in
+   * this release types a resume command into a pane on another machine, because
+   * `send-keys` is on the permanently refused verb list. So a later round that
+   * wires the gate's yes to this field would be claiming a conversation was
+   * continued when nothing continued it, and this test fails on that edit.
+   *
+   * The end to end proof is `GMUX_SMOKE=remote-sessions`, which restores a real
+   * row on a real machine and reads the field back.
+   */
+  it('reports resumeArmed false with no branch in front of it', () => {
+    const source = readFileSync(
+      join(import.meta.dirname, '..', 'remote-restore.ts'),
+      'utf8'
+    );
+    expect(source).toContain('resumeArmed: false');
+    expect(source).not.toMatch(/resumeArmed:\s*arming\.arm/);
+    expect(source).not.toMatch(/resumeArmed:\s*[a-zA-Z]+\s*\?/);
   });
 });
 

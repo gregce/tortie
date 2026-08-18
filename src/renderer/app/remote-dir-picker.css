@@ -1,0 +1,128 @@
+/* Phase 84, item 6 — the folder picker for another machine.
+
+   Colocated with the component per the growth guardrails. Every colour is a
+   token, so the panel follows the theme the way the sheet around it does.
+
+   It is an inline panel inside the create sheet and not a second dialog on top
+   of it. Two stacked scrims would give a person two Escapes to press and two
+   overlapping focus traps to get out of, for one folder. */
+
+.dirpick {
+  margin-top: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-raised);
+  padding: var(--space-4);
+}
+
+.dirpick-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.dirpick-title {
+  flex: 1 1 auto;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+.dirpick-close {
+  flex: 0 0 auto;
+}
+
+.dirpick-honesty {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+}
+
+/* The path the machine reported, drawn in the mono face the Directory field
+   above uses, so the two read as the same kind of thing. It wraps rather than
+   being cut, because a path a person cannot read whole is a path they cannot
+   check. */
+.dirpick-path {
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+  min-height: var(--lh-xs);
+}
+
+.dirpick-nav {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+/* A fixed height, so descending into a folder with three entries and back out
+   into one with forty does not move the Create button under the pointer. */
+.dirpick-body {
+  margin-top: var(--space-3);
+  height: 180px;
+  overflow-y: auto;
+}
+
+.dirpick-note {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+}
+
+.dirpick-refusal {
+  color: var(--warning);
+}
+
+.dirpick-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.dirpick-entry {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.dirpick-entry:hover {
+  background: var(--bg-active);
+}
+
+.dirpick-entry:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.dirpick-entry-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dirpick-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-3);
+}

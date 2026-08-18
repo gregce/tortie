@@ -44,7 +44,9 @@
 
 import { app } from 'electron';
 import { execFileSync } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import {
+  chmodSync,
   mkdirSync,
   readFileSync,
   readdirSync,
@@ -86,7 +88,9 @@ import {
   RESTORE_STILL_RUNNING,
   RESTORE_UNSEEN,
   RESTORE_WRONG_MACHINE,
+  REMOTE_DIR_MISSING,
   RESUME_NOT_COLLECTED,
+  RESUME_NOT_TYPED_HERE,
   TARGET_UNBOUND
 } from './remote-copy';
 import {
@@ -102,7 +106,8 @@ import {
   remoteRestoreVerdictFor,
   remoteSessionRow,
   remoteSessions,
-  startRemotePoll
+  startRemotePoll,
+  type RemoteListRow
 } from './remote-sessions';
 // Phase 72. The manifest row a remote create now writes, the restore behind the
 // gate, and the per machine program path capture.
@@ -136,6 +141,23 @@ import {
   remoteStoreRecordOf
 } from './remote-record';
 import { resumeArmingVerdict } from './resume-arming';
+// PHASE 84. The five lifecycle steps drive the REAL core, so they need the real
+// core, the real restart verb, the real capsule store and the real notice
+// channel. Every one of these is the production module, not a stand in.
+import { getGmuxCore } from '../sessions';
+import { restartSession } from '../restart/restart';
+import { RESTART_ON_MACHINE } from './remote-copy';
+import { newestCapsuleFor, remoteCaptureArgs } from './remote-capsule';
+import { hasSaidNotice, takePendingNotices } from '../notice';
+import { remoteTmuxArgv } from './context';
+// Phase 84 fix round. Steps 17 and 18 are the gate the spec asked for and the
+// first build did not write: the two halves of the Directory field, and the
+// four answers the folder picker's own read can give.
+import { listRemoteDir } from './dir-list';
+import { remoteMachineHome } from './remote-image';
+// The folder this Mac keeps copies of session screens in. Step 14 makes it read
+// only for the length of one end, inside this run's own isolated profile.
+import { snapshotsDir } from '../restore/snapshots';
 import { runRemoteRead } from './remote-run';
 import { pollRemoteMachine, remoteStampArgs } from './remote-sessions';
 import { provenanceOf } from '../manifest/contract';
@@ -195,6 +217,14 @@ interface Carriage {
   user: string;
   remoteTmuxPath: string;
   stubTmuxPath?: string;
+  /**
+   * Where that machine keeps its own session server.
+   *
+   * `build/with-scratch-machine.mjs` writes it and `build/probe-execplane.mjs`
+   * does not, so it is optional. Only `plantInPane` reads it, and that helper
+   * says in full why it needs it.
+   */
+  tmuxTmp?: string;
 }
 
 const ID = 'remotesessions';
@@ -765,9 +795,13 @@ export async function runRemoteSessionsSmoke(): Promise<void> {
         `${onMachine.path}, which is where that machine says it keeps it`
     );
 
-    // The launch itself stays BY BARE NAME on both sides. The recorded path is
-    // evidence about a machine, never an instruction, so it must not appear on
-    // the command the machine ran.
+    // PHASE 84 REVERSED THE LAUNCH RULE ON THE REMOTE SIDE, so this read is no
+    // longer looking for a bare name. A pane on another machine does not get
+    // that machine's login shell program list, and `-e PATH=` cannot give it
+    // one, both measured by step 17c of `build/probe-execplane.mjs`. So the
+    // absolute path this row records is also the command that ran, and what is
+    // asserted here is that the machine's own list holds the session with the
+    // agent stamp on it.
     const agentListed = await execOn(ctx, remoteListArgs());
     const agentRow = agentListed
       .split('\n')
@@ -790,21 +824,91 @@ export async function runRemoteSessionsSmoke(): Promise<void> {
           `landed on the restored agent session`
       );
     }
-    if (agentOutcome.resumeRefusal !== 'not-collected') {
+    // THE RESTORED PANE IS ALIVE AND IT IS RUNNING THE PATH THE ROW RECORDS.
+    //
+    // THIS IS THE GUARD FOR THE WORK LOSING DEFECT THE FIX ROUND CLOSED. Phase
+    // 84 moved the CREATE onto the absolute path and left the RESTORE launching
+    // by bare name. MEASURED on the operator's Mac Pro, 2026-08-18: a restored
+    // claude session read `pane_start_command = claude --session-id <id>`,
+    // `pane_dead=1`, `pane_dead_status=1` and an empty screen, while the
+    // manifest row still read idle. The same failure reproduces on this
+    // harness, because a pane here gets four directories and claude is at
+    // /Users/gdc/.local/bin/claude, which is on none of them.
+    //
+    // The far side runs no `remain-on-exit`, so a dead pane takes its window and
+    // its session with it. Both facts are read anyway, because a session that is
+    // still listed and a pane that is alive are two different claims.
+    await new Promise((r) => setTimeout(r, 2500));
+    const restoredPane = (
+      await execOn(ctx, [
+        'display-message',
+        '-p',
+        '-t',
+        agentOutcome.tmuxId,
+        '#{pane_dead}|#{pane_start_command}'
+      ]).catch(() => '')
+    ).trim();
+    const [restoredDead = '', restoredCommand = ''] = restoredPane.split('|');
+    if (restoredPane === '') {
       fail(
-        `the arming gate answered ${String(agentOutcome.resumeRefusal)} for a ` +
-          `session whose conversation Tortie never collected`
+        `${agentOutcome.tmuxId} was gone from ${ID} 2500 ms after the restore, ` +
+          `which is what a program the machine could not find looks like`
       );
     }
-    if (agentOutcome.resumeNote !== RESUME_NOT_COLLECTED) {
-      fail('the restore result does not say that no conversation comes back');
+    if (restoredDead !== '0') {
+      fail(
+        `the restored pane reads pane_dead=${JSON.stringify(restoredDead)} and ` +
+          `it was started with ${JSON.stringify(restoredCommand)}`
+      );
+    }
+    if (!restoredCommand.startsWith(onMachine.path)) {
+      fail(
+        `the restored pane was started with ${JSON.stringify(restoredCommand)} ` +
+          `and the row records ${onMachine.bare} at ` +
+          `${JSON.stringify(onMachine.path)}. A restore that launches by bare ` +
+          `name is the defect the Phase 84 fix round closed.`
+      );
+    }
+    log(
+      `    the restored pane is alive and was started with ` +
+        `${restoredCommand}`
+    );
+
+    // WHICH SENTENCE IS OWED DEPENDS ON ONE FACT ABOUT THE ROW, and the fact is
+    // read off the row rather than assumed. Phase 84 item 9 puts a conversation
+    // id on the launch line for the seven agents that take one, and that row's
+    // provenance is `preassigned` with `exact` confidence, so the arming gate
+    // arms it. An agent that takes no such flag records nothing and the gate
+    // refuses it with `not-collected`.
+    //
+    // BOTH ARMS DEMAND A SENTENCE. Neither may report null, because a restore
+    // that continues nothing and says nothing is the failure both sentences
+    // exist to prevent. The arm taken is printed, so a reader of the log knows
+    // which agent this machine had.
+    const preAssigned = agentRecord.agentSessionId !== undefined;
+    const owedRefusal = preAssigned ? 'not-typed-here' : 'not-collected';
+    const owedNote = preAssigned ? RESUME_NOT_TYPED_HERE : RESUME_NOT_COLLECTED;
+    if (agentOutcome.resumeRefusal !== owedRefusal) {
+      fail(
+        `the restore answered ${String(agentOutcome.resumeRefusal)} for a row ` +
+          `whose conversation id Tortie ` +
+          `${preAssigned ? 'chose itself' : 'never collected'}, and ` +
+          `${owedRefusal} is what it owes`
+      );
+    }
+    if (agentOutcome.resumeNote !== owedNote) {
+      fail(
+        `the restore result says ${JSON.stringify(agentOutcome.resumeNote)} ` +
+          `rather than the sentence for ${owedRefusal}`
+      );
     }
     if (agentOutcome.resumeArmed) {
       fail('the restore claims it continued a conversation');
     }
     log(
       `    and the restore brought it back as ${agentOutcome.tmuxId} with four ` +
-        `stamps, saying the conversation does not come back`
+        `stamps, answering ${owedRefusal} and saying the conversation does ` +
+        `not come back`
     );
     await remoteKill(agentSession.id).catch(() => undefined);
 
@@ -1244,7 +1348,607 @@ export async function runRemoteSessionsSmoke(): Promise<void> {
     manifest.close();
     setRemoteManifest(null);
 
+    // =======================================================================
+    // PHASE 84. Steps 12 to 16, the three verbs that could lose work.
+    // =======================================================================
+    //
+    // WHY THEY DRIVE THE REAL CORE AND NOT THIS FILE'S OWN HANDLE. Items 1, 2
+    // and 3 are three lines of ORDER inside `../sessions/core.ts`, and an order
+    // is only proved by the thing that has it. So the harness hands its manifest
+    // back, boots the product's own core, and asks that core to restart, end and
+    // remove sessions exactly as the buttons do.
+    //
+    // WHY A SECOND MACHINE. Step 10d removed the first one from the machines
+    // file and tombstoned every row on it, which is what that step is about.
+    // These five steps need a machine that is still there, so they add, confirm
+    // and prepare one of their own, against the same scratch sshd.
+    const LIFE_ID = 'p84lifecycle';
+    addMachineRow({
+      id: LIFE_ID,
+      label: 'Phase 84 Lifecycle',
+      color: 'blue',
+      host: fields.host,
+      ...(fields.user === null ? {} : { user: fields.user }),
+      ...(fields.port === null ? {} : { port: fields.port }),
+      ...(fields.remoteTmuxPath === null
+        ? {}
+        : { remoteTmuxPath: fields.remoteTmuxPath })
+    });
+    reloadMachines();
+    confirmAsAPerson(LIFE_ID, fields);
+
+    // The core opens its own manifest at the same path this harness just closed,
+    // installs it for the machine layer, and is the object every step below
+    // talks to. Nothing else in this file uses `manifest` after this line.
+    const core = await getGmuxCore();
+    const lifePrepared = await prepareMachine({
+      machineId: LIFE_ID,
+      fields,
+      tortieHostKeys: machineHostKeysPath()
+    });
+    if (lifePrepared.class !== 'prepared') {
+      fail(`the lifecycle machine answered ${lifePrepared.class}: ${lifePrepared.detail}`);
+    }
+    await startRemotePoll(LIFE_ID);
+    const lifeCtx = machineContext(LIFE_ID) as RemoteMachineContext;
+
+    /** Every session this profile holds that is NOT on a machine. */
+    const localSessionCount = (): number =>
+      core.listSessions().filter((one) => one.machine === undefined).length;
+
+    /** Every name the machine's own server lists right now. */
+    const machineList = async (): Promise<RemoteListRow[]> =>
+      (await execOn(lifeCtx, remoteListArgs()))
+        .split('\n')
+        .map(parseRemoteListLine)
+        .filter((one): one is RemoteListRow => one !== null);
+
+    /** Is this Tortie id still on that machine's own list? */
+    const stillOnMachine = async (sessionId: string): Promise<boolean> =>
+      (await machineList()).some((one) => one.gmuxId === sessionId);
+
+    /** One create on the lifecycle machine, through the product's own path. */
+    const createLife = async (name: string): Promise<string> => {
+      const made = await core.createSession({
+        machineId: LIFE_ID,
+        name,
+        projectPath: '/tmp',
+        cwd: '/tmp',
+        agent: 'shell'
+      });
+      return made.id;
+    };
+
+    /**
+     * Plant a value in one remote pane, as a PERSON WOULD.
+     *
+     * THIS IS HARNESS SETUP AND IT DELIBERATELY GOES AROUND EVERY PRODUCT PATH.
+     * `send-keys` is on `VERBS_THIS_RUNG_REFUSES` forever, because a person's
+     * keystrokes belong on the attach plane and never on the exec plane, and
+     * `./exec-smoke.ts` watches that refusal fire. What this helper needs is a
+     * person at the keyboard, and no product path in this harness has one.
+     *
+     * IT RUNS THE COMMAND ON THIS MAC, and that is the whole reason it is
+     * allowed to exist. On this harness the other machine IS this Mac, over a
+     * scratch sshd, and `remoteTmuxArgv` names that machine's own program and
+     * that machine's own scratch socket. So the argv can be run here with
+     * `execFileSync` and it reaches exactly the pane it would have reached over
+     * the connection. Nothing in the product is asked to carry it, so
+     * `execRemoteShell` keeps the five callers `build/conformance-machines.mjs`
+     * allows it, and a keystroke still has no route through the exec plane.
+     *
+     * A LOOPBACK ONLY HELPER, said plainly. Point this harness at a machine that
+     * is not this Mac and this helper stops working, because the command would
+     * run here and the pane would be over there. Every step that uses it says so.
+     *
+     * It retries, because a pane whose shell has not finished starting swallows
+     * what is typed at it. The value is read back through `capture-pane`, which
+     * IS on the ledger as a read, so the confirmation goes through the product's
+     * own door.
+     */
+    const plantInPane = async (
+      tmuxId: string,
+      token: string
+    ): Promise<boolean> => {
+      const argv = remoteTmuxArgv(lifeCtx, [
+        'send-keys',
+        '-t',
+        tmuxId,
+        `printf '${token}\\n'`,
+        'Enter'
+      ]);
+      // The machine's own session directory, which is the whole reason this
+      // works. Without it the command would reach this Mac's own default
+      // directory, which holds a different server and not this pane.
+      const farEnv = {
+        ...process.env,
+        ...(carriage.tmuxTmp === undefined
+          ? {}
+          : { TMUX_TMPDIR: carriage.tmuxTmp })
+      };
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        try {
+          execFileSync(argv[0] ?? '', argv.slice(1), {
+            stdio: 'ignore',
+            env: farEnv
+          });
+        } catch {
+          /* a pane that is not ready yet, and the read below is what decides */
+        }
+        await new Promise((r) => setTimeout(r, 500));
+        const screen = await execOn(
+          lifeCtx,
+          remoteCaptureArgs(tmuxId, 200)
+        ).catch(() => '');
+        // The command line that typed it is on the screen too, so the token is
+        // only proof when it stands on a line of its own.
+        if (screen.split('\n').some((line) => line.trim() === token)) return true;
+      }
+      return false;
+    };
+
+    // --- 12. A restart of a row on a machine is refused, and nothing moves ----
+    //
+    // The defect was one composition. `restartSession` built a create with no
+    // machine on it, so the replacement started on THIS Mac, and step 4 of the
+    // restart then hard deleted the row for the session still running there.
+    const restartId = await createLife('p84 restart');
+    const localBeforeRestart = localSessionCount();
+    let restartRefusal = '';
+    try {
+      await restartSession(core, restartId);
+    } catch (err) {
+      restartRefusal = (err as Error).message;
+    }
+    if (!restartRefusal.includes(RESTART_ON_MACHINE)) {
+      fail(
+        `a restart of a session on a machine answered "${restartRefusal}" ` +
+          `instead of refusing`
+      );
+    }
+    const restartRow = core.manifest.getSession(restartId);
+    if (restartRow === undefined) {
+      fail('the refused restart removed the row it was aimed at');
+    }
+    if (restartRow.status === 'discarded' || restartRow.status === 'exited') {
+      fail(`the refused restart left the row reading ${restartRow.status}`);
+    }
+    if (restartRow.machineId !== LIFE_ID) {
+      fail(
+        `the refused restart moved the row from ${LIFE_ID} to ` +
+          `${String(restartRow.machineId)}`
+      );
+    }
+    if (!(await stillOnMachine(restartId))) {
+      fail('the refused restart ended the session on the machine');
+    }
+    if (localSessionCount() !== localBeforeRestart) {
+      fail(
+        `the refused restart created ${String(
+          localSessionCount() - localBeforeRestart
+        )} session(s) on this Mac`
+      );
+    }
+    log(
+      `12. a restart of a session on a machine was refused, the row still ` +
+        `reads ${restartRow.status} on ${LIFE_ID}, the session is still on ` +
+        `that machine, and this Mac still holds ` +
+        `${String(localBeforeRestart)} local session(s)`
+    );
+
+    // --- 13. End takes the copy BEFORE it kills ------------------------------
+    //
+    // The value is planted in the pane and appears nowhere else in this run. A
+    // copy holding it cannot have been taken after the kill, because there is
+    // no pane to read after the kill. That is the whole proof of the order.
+    const endId = await createLife('p84 end');
+    const endRow = remoteSessionRow(endId);
+    if (endRow === null) fail('the create for step 13 produced no row');
+    const token = `TORTIE-P84-${randomBytes(6).toString('hex').toUpperCase()}`;
+    if (!(await plantInPane(endRow.tmuxId, token))) {
+      fail(
+        `the harness could not get ${token} onto the screen of ${endRow.tmuxId}, ` +
+          `so step 13 would have measured nothing`
+      );
+    }
+    await core.killSession(endId);
+    const capsule = newestCapsuleFor(endId);
+    if (capsule === null) {
+      fail(
+        'ending a session on a machine wrote no copy of its screen. The end ' +
+          'confirm promises one before anything is stopped.'
+      );
+    }
+    const body = readFileSync(capsule.path, 'utf8');
+    if (!body.includes(token)) {
+      fail(
+        `the copy taken at the end does not hold ${token}, so it is older ` +
+          `than the last thing the session printed`
+      );
+    }
+    if (await stillOnMachine(endId)) {
+      fail('the end left the session running on the machine');
+    }
+    log(
+      `13. the end wrote a copy of ${String(capsule.bytes)} byte(s) holding ` +
+        `${token}, and only then stopped the session on ${LIFE_ID}`
+    );
+
+    // --- 14. A copy that cannot be taken never cancels the end ---------------
+    //
+    // TWO DEVIATIONS FROM THE SPEC'S WORDING, AND BOTH ARE NAMED RATHER THAN
+    // HIDDEN. The spec asked for a machine made unreachable.
+    //
+    // A machine that cannot be reached cannot be sent `kill-session` either, so
+    // the end would fail and the step could not check that the end still
+    // happened. That is the first deviation and the first build of this step
+    // already carried it.
+    //
+    // The first build then ended the pane out of band and let the read fail on
+    // a pane that was gone. MEASURED by the Phase 84 verifier and it does not
+    // work: a completed list runs before the end reaches `remoteKill`, the row
+    // leaves the machine's own list, and `boundRemoteRow` refuses the kill with
+    // the `TARGET_UNBOUND` sentence. That refusal is correct. Tortie will not
+    // send a command aimed at a session no completed list reported. So the step
+    // measured a refusal rather than an end, and everything after it never ran.
+    //
+    // WHAT IS DRIVEN NOW is the second of the two failures
+    // `captureRemoteSessionNow` can have. The screen is read and the copy
+    // cannot be KEPT, because the folder this Mac writes copies into is made
+    // read only for the length of the end. The pane is alive the whole time, so
+    // the kill goes through the ordinary path with the ordinary binding, and
+    // what is measured is the promise being withdrawn in words while the end
+    // still happens.
+    const orphanId = await createLife('p84 orphan');
+    const orphanRow = remoteSessionRow(orphanId);
+    if (orphanRow === null) fail('the create for step 14 produced no row');
+    // A VALUE ON THE SCREEN FIRST, and the step is vacuous without it. MEASURED
+    // by the first run of this step: a pane that has printed nothing yet is
+    // trimmed to zero bytes, `storeCapsuleText` returns without writing and
+    // without throwing, and the end posts no notice because nothing failed.
+    // That is the correct answer for a screen with nothing on it, and it is not
+    // what this step is about. This step is about a write that was attempted
+    // and could not be kept, so the pane is given something to hold first.
+    const orphanToken = `TORTIE-P84-${randomBytes(6).toString('hex').toUpperCase()}`;
+    if (!(await plantInPane(orphanRow.tmuxId, orphanToken))) {
+      fail(
+        `the harness could not get ${orphanToken} onto the screen of ` +
+          `${orphanRow.tmuxId}, so step 14 would have measured an empty screen ` +
+          `rather than a copy that could not be kept`
+      );
+    }
+    // The notice channel latches one notice per kind per run, so this step is
+    // only worth anything while nothing has spent that latch. Nothing should
+    // have, because step 13's copy was written and asserted. If something did,
+    // the step says so rather than passing on an empty read.
+    if (hasSaidNotice('snapshot-failed')) {
+      fail(
+        'something earlier in this run already posted a snapshot-failed ' +
+          'notice, so the latch is spent and step 14 would measure nothing'
+      );
+    }
+    // INSIDE THIS RUN'S OWN ISOLATED PROFILE, never the operator's. `iso` is the
+    // isolation guard's answer and step 10d already read `iso.userData` above.
+    const copiesDir = snapshotsDir();
+    if (!copiesDir.startsWith(iso.userData)) {
+      fail(
+        `the copies folder is ${copiesDir}, which is not inside this run's own ` +
+          `profile at ${iso.userData}`
+      );
+    }
+    const copiesMode = statSync(copiesDir).mode & 0o777;
+    // WHAT IS ON DISK BEFORE THE END, so the check after it is about the end's
+    // own copy and not about every copy of that session. The background cadence
+    // in `./remote-capsule.ts` keeps copies of a connected machine's screens on
+    // its own timer, and one of those can land between the create and the end.
+    // Comparing the generation number rather than asking whether any copy exists
+    // is what makes this step immune to that timer.
+    const copyBefore = newestCapsuleFor(orphanId)?.generation ?? 0;
+    chmodSync(copiesDir, 0o500);
+    try {
+      await core.killSession(orphanId);
+    } finally {
+      chmodSync(copiesDir, copiesMode);
+    }
+    // No renderer is listening in this harness, so every notice posted so far
+    // is still queued. This takes the whole queue and looks for the one the end
+    // was supposed to post.
+    const notices = takePendingNotices();
+    const said = notices.find(
+      (one) =>
+        one.kind === 'snapshot-failed' &&
+        one.atSessionEnd === true &&
+        one.remote === true
+    );
+    if (said === undefined) {
+      fail(
+        `ending a session whose screen could not be read posted ` +
+          `${String(notices.length)} notice(s) and none of them said the copy ` +
+          `was not taken`
+      );
+    }
+    if (said.kind === 'snapshot-failed' && said.sessionName !== 'p84 orphan') {
+      fail(`the notice named ${String(said.sessionName)} rather than the session`);
+    }
+    const orphanAfter = remoteSessionRow(orphanId);
+    if (orphanAfter === null || orphanAfter.status !== 'exited') {
+      fail(
+        `the end did not finish. The row reads ` +
+          `${String(orphanAfter?.status)} rather than exited`
+      );
+    }
+    if (await stillOnMachine(orphanId)) {
+      fail('the end left the session on the machine');
+    }
+    const copyAfter = newestCapsuleFor(orphanId)?.generation ?? 0;
+    if (copyAfter !== copyBefore) {
+      fail(
+        `the copies of ${orphanId} went from generation ` +
+          `${String(copyBefore)} to ${String(copyAfter)}, so the end wrote one ` +
+          `after all and step 14 measured an ordinary end`
+      );
+    }
+    log(
+      `14. a copy that could not be kept did not cancel the end. The copies of ` +
+        `${orphanId} are still at generation ${String(copyAfter)}, the session ` +
+        `is gone from ${LIFE_ID}, the row reads exited, and the notice said so.`
+    );
+
+    // --- 15. Remove sticks in the run you did it in --------------------------
+    //
+    // Read back from a SECOND handle opened on the file, not from the one the
+    // core holds. The defect was that nothing durable was written at all, and a
+    // read through the writer's own memory would not have caught it.
+    core.removeSession(endId);
+    const freshHandle = new ManifestStore(manifestPath);
+    let readBack: string | undefined;
+    try {
+      readBack = freshHandle.getSession(endId)?.status;
+    } finally {
+      freshHandle.close();
+    }
+    if (readBack !== 'discarded') {
+      fail(
+        `after Remove, a fresh handle on ${manifestPath} reads ` +
+          `${String(readBack)} rather than discarded`
+      );
+    }
+    if (remoteSessionRow(endId) !== null) {
+      fail('Remove left the row in memory');
+    }
+    log(
+      `15. Remove wrote the tombstone. A second handle on the file reads ` +
+        `discarded, and the row is gone from memory`
+    );
+
+    // --- 16. The same four verbs on this Mac, unchanged ----------------------
+    //
+    // The regression guard. Everything above is a branch in code every session
+    // goes through, so a change that fixes a machine and breaks this Mac must
+    // not pass, and it has to fail in the SAME run.
+    const localMade = await core.createSession({
+      name: 'p84 local',
+      projectPath: '/tmp',
+      cwd: '/tmp',
+      agent: 'shell'
+    });
+    if (core.manifest.getSession(localMade.id) === undefined) {
+      fail('a create on this Mac wrote no row');
+    }
+    const restarted = await restartSession(core, localMade.id);
+    if (core.manifest.getSession(localMade.id) !== undefined) {
+      fail('a restart on this Mac left the original row behind');
+    }
+    const survivorRow = core.manifest.getSession(restarted.session.id);
+    if (survivorRow === undefined) {
+      fail('a restart on this Mac wrote no row for the replacement');
+    }
+    if (survivorRow.name !== 'p84 local') {
+      fail(`the replacement is called ${survivorRow.name}`);
+    }
+    await core.killSession(restarted.session.id);
+    if (core.manifest.getSession(restarted.session.id)?.status !== 'exited') {
+      fail(
+        `an end on this Mac left the row reading ` +
+          `${String(core.manifest.getSession(restarted.session.id)?.status)}`
+      );
+    }
+    core.removeSession(restarted.session.id);
+    const localHandle = new ManifestStore(manifestPath);
+    let localReadBack: string | undefined;
+    try {
+      localReadBack = localHandle.getSession(restarted.session.id)?.status;
+    } finally {
+      localHandle.close();
+    }
+    if (localReadBack !== 'discarded') {
+      fail(
+        `after Remove on this Mac, a fresh handle reads ` +
+          `${String(localReadBack)} rather than discarded`
+      );
+    }
+    log(
+      `16. create, restart, end and remove on this Mac all still land in the ` +
+        `session list, and the removed row reads discarded on disk`
+    );
+
+    // --- 17. The Directory field, both halves (item 5) ----------------------
+    //
+    // The spec's own verification plan asked for these two and the first build
+    // did not write them, so both behaviours were correct and unwatched.
+    //
+    // 17a. AN EMPTY FIELD LANDS IN THAT MACHINE'S OWN HOME. Before this phase
+    // an empty field sent this Mac's project path, which names nothing over
+    // there. Now no folder is sent at all and tmux's own fallback decides, and
+    // the fallback is the home directory of the account the connection signed in
+    // as. The home is read from the machine's own `machine-facts` answer rather
+    // than from this Mac's environment, so the two sides are not being compared
+    // against one guess.
+    const farHome = await remoteMachineHome(lifeCtx);
+    if (!farHome.startsWith('/')) {
+      fail(`the machine answered ${JSON.stringify(farHome)} for its own home`);
+    }
+    const homeMade = await core.createSession({
+      machineId: LIFE_ID,
+      name: 'p84 no folder',
+      projectPath: '/tmp',
+      agent: 'shell'
+    });
+    const homeRow = core.manifest.getSession(homeMade.id);
+    if (homeRow === undefined) fail('the create with no folder wrote no row');
+    if (homeRow.cwd !== '') {
+      fail(
+        `the row for a create with no folder records ` +
+          `${JSON.stringify(homeRow.cwd)} rather than the empty string. The ` +
+          `row records what Tortie sent, and it sent no folder.`
+      );
+    }
+    const homeListed = (await machineList()).find(
+      (one) => one.gmuxId === homeMade.id
+    );
+    if (homeListed === undefined) {
+      fail('the create with no folder is not on the machine’s own list');
+    }
+    if (homeListed.cwd !== farHome) {
+      fail(
+        `the session with no folder is in ${JSON.stringify(homeListed.cwd)} ` +
+          `and that machine says its home is ${JSON.stringify(farHome)}`
+      );
+    }
+    log(
+      `17a. a create with no folder recorded the empty string and landed in ` +
+        `${farHome}, which is the home that machine states for itself`
+    );
+
+    // 17b. A FOLDER THAT IS NOT THERE IS REFUSED BEFORE ANY CREATE LINE.
+    //
+    // MEASURED 2026-08-18 on tmux 3.6a: `new-session -c <a path that is not
+    // there>` exits 0, prints a session id, makes a live session and silently
+    // puts the pane in the home directory. So the only place this can be caught
+    // is before the line is composed, and the proof that it was caught there is
+    // that the machine's own session count did not move.
+    const missingDir = `/tmp/p84-not-there-${randomBytes(6).toString('hex')}`;
+    const beforeMissing = (await machineList()).length;
+    let missingRefusal = '';
+    try {
+      await core.createSession({
+        machineId: LIFE_ID,
+        name: 'p84 missing folder',
+        projectPath: '/tmp',
+        cwd: missingDir,
+        agent: 'shell'
+      });
+    } catch (err) {
+      missingRefusal = (err as Error).message;
+    }
+    if (!missingRefusal.includes(REMOTE_DIR_MISSING)) {
+      fail(
+        `a create naming a folder that is not there answered ` +
+          `${JSON.stringify(missingRefusal)} rather than the sentence for a ` +
+          `folder that is not there`
+      );
+    }
+    const afterMissing = (await machineList()).length;
+    if (afterMissing !== beforeMissing) {
+      fail(
+        `the refused create moved that machine from ` +
+          `${String(beforeMissing)} to ${String(afterMissing)} session(s), so ` +
+          `it was refused after a session had already been made`
+      );
+    }
+    log(
+      `17b. a create naming ${missingDir} was refused before anything was ` +
+        `composed, and that machine still holds ${String(afterMissing)} ` +
+        `session(s)`
+    );
+
+    // --- 18. The folder picker's own read (item 6) --------------------------
+    //
+    // `machines:listDir` is a new channel and `dir-list` is the eighth frozen
+    // script, and the first build of this phase put neither of them under a
+    // gate. Four answers are driven here, being the three the machine can give
+    // and the one Tortie gives when it cannot ask.
+    const pickRoot = join(iso.userData, 'p84-pick');
+    mkdirSync(join(pickRoot, 'beta'), { recursive: true });
+    mkdirSync(join(pickRoot, 'alpha'), { recursive: true });
+    writeFileSync(join(pickRoot, 'a-file.txt'), 'not a folder\n');
+    const picked = await listRemoteDir({ machineId: LIFE_ID, path: pickRoot });
+    if (picked.refusal !== null) {
+      fail(`the picker read of ${pickRoot} answered ${picked.refusal}`);
+    }
+    const names = picked.entries.map((one) => one.name);
+    if (names.join(',') !== 'alpha,beta') {
+      fail(
+        `the picker listed ${JSON.stringify(names)}. It owes exactly the two ` +
+          `folders, in name order, and never the file beside them.`
+      );
+    }
+    if (picked.total !== 2) {
+      fail(`the picker counted ${String(picked.total)} folder(s) rather than 2`);
+    }
+    if (picked.parent !== iso.userData) {
+      fail(
+        `the picker offers ${String(picked.parent)} as the folder one level up ` +
+          `from ${pickRoot}`
+      );
+    }
+    const missingListing = await listRemoteDir({
+      machineId: LIFE_ID,
+      path: missingDir
+    });
+    if (missingListing.refusal !== 'missing') {
+      fail(
+        `the picker answered ${String(missingListing.refusal)} for a folder ` +
+          `that is not there`
+      );
+    }
+    if (missingListing.refusalText !== REMOTE_DIR_MISSING) {
+      fail('the picker drew no sentence for a folder that is not there');
+    }
+    const fileListing = await listRemoteDir({
+      machineId: LIFE_ID,
+      path: join(pickRoot, 'a-file.txt')
+    });
+    if (fileListing.refusal !== 'notdir') {
+      fail(
+        `the picker answered ${String(fileListing.refusal)} for a path that is ` +
+          `a file`
+      );
+    }
+    const unknownListing = await listRemoteDir({
+      machineId: 'p84-no-such-machine',
+      path: '/tmp'
+    });
+    if (unknownListing.refusal !== 'unreachable') {
+      fail(
+        `the picker answered ${String(unknownListing.refusal)} for a machine ` +
+          `Tortie has not signed in to`
+      );
+    }
+    log(
+      `18. the picker read ${String(picked.total)} folder(s) in ${pickRoot} and ` +
+        `never the file beside them, and it drew a sentence for a folder that ` +
+        `is not there, for a path that is a file, and for a machine it cannot ` +
+        `reach`
+    );
+
+    await core.killSession(homeMade.id).catch(() => undefined);
+    core.removeSession(homeMade.id);
+
+    // Everything this block made on the machine goes, so the count in step 11
+    // is about the operator's server and nothing else.
+    for (const id of [restartId, orphanId]) {
+      await core.killSession(id).catch(() => undefined);
+      core.removeSession(id);
+    }
+    forgetMachineRows(LIFE_ID);
+    removeMachineRow(LIFE_ID);
+
     // --- 11. The operator's server -------------------------------------------
+    //
+    // Numbered 11 because it was written before steps 12 to 16 existed. It stays
+    // LAST whatever its number says, because it is the count that has to hold
+    // after everything this file did.
     const operatorAfter = operatorSessionCount();
     if (operatorAfter !== operatorBefore) {
       fail(

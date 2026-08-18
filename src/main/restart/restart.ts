@@ -34,11 +34,27 @@
  * both are alive. The DISPLAY name, which is the only one a person reads, is
  * the original on both rows and is the original on the survivor. No tmux
  * vocabulary reaches the UI, so the suffix is invisible.
+ *
+ * PHASE 84 ADDED THE FIRST REFUSAL THIS FUNCTION HAS EVER HAD, and the defect
+ * behind it lost work. A row whose session runs on another machine was
+ * restarted here like any other. Step 2 composed a `CreateSessionInput` with no
+ * machine on it, so the create took the local branch and started the session on
+ * this Mac. Step 4 then discarded the original, which is the hard delete. The
+ * agent kept running on the other machine, the record of it was gone, and the
+ * tab showed a session on this Mac wearing the other one's name.
+ *
+ * The refusal is in main rather than in the renderer because three renderer
+ * surfaces draw Restart and a fourth one would miss the guard. Nothing is
+ * created and nothing is discarded, because the check runs before step 2.
  */
 
 import type { CreateSessionInput, Session } from '@shared/types';
 import type { ManifestSessionRecord } from '../manifest/store';
 import { recoverLaunchExtras } from './extras';
+// PHASE 84. `../machines/remote-copy` is pure data and imports nothing at all,
+// so naming it here keeps this module free of the session core, of the machines
+// barrel and of Electron, which is what lets its tests drive a fake host.
+import { RESTART_ON_MACHINE } from '../machines/remote-copy';
 import { getLog } from '../log';
 
 /**
@@ -91,6 +107,21 @@ export async function restartSession(
     throw new Error(`No session ${sessionId} to restart.`);
   }
 
+  // PHASE 84, AND IT IS BEFORE STEP 2 ON PURPOSE. A restart of a session that
+  // runs on another machine would create the replacement on this Mac and then
+  // hard delete the only record of the one still running over there. Nothing
+  // below this line runs for such a row, so nothing is created and nothing is
+  // discarded.
+  //
+  // The literal is `LOCAL_MACHINE_ROW` from `../manifest/codecs`, which is the
+  // one definition of the word. It is written out here rather than imported
+  // because importing it as a value would pull the whole manifest store, and
+  // with it better-sqlite3 and Electron, into this module's graph. This file is
+  // deliberately free of both.
+  if (rec.machineId !== undefined && rec.machineId !== 'local') {
+    throw new Error(RESTART_ON_MACHINE);
+  }
+
   const recovered = recoverLaunchExtras(rec);
   const extras = recovered ?? [];
   // The capture choice, read from the row rather than from the argv: a
@@ -98,6 +129,10 @@ export async function restartSession(
   // records the request as.
   const capture = rec.specstory?.enabled === true;
 
+  // PHASE 84. This composition drops `machineId` on the floor, and that is now
+  // safe rather than lucky, because the refusal above means every row reaching
+  // this line runs on this Mac. Passing the machine through would be a remote
+  // restart, which is a different verb and is not built here.
   const input: CreateSessionInput = {
     name: rec.name,
     projectPath: rec.projectPath,

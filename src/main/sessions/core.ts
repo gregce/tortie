@@ -191,13 +191,20 @@ import {
   remoteSessionRow,
   remoteSessions,
   setRemotePollFocused,
-  startRemotePoll,
   stopRemotePolls
 } from '../machines/remote-sessions';
 // PHASE 72. The manifest handle the machine layer writes remote rows through,
 // and the verb behind the restore gate. Both are direct rather than through
 // `../machines`, for the same reason the three imports above are.
-import { setRemoteManifest } from '../machines/remote-record';
+import {
+  isRemoteRecord,
+  remoteRecordOf,
+  setRemoteManifest
+} from '../machines/remote-record';
+// PHASE 84, item 2. The end confirm for a session on a machine now promises a
+// copy of the screen, and this is the function that keeps the promise. It is a
+// direct import for the same reason the machines imports above are.
+import { captureRemoteSessionNow } from '../machines/remote-capsule';
 import { restoreRemoteSession } from '../machines/remote-restore';
 import type { RemoteMachineContext } from '../machines/context';
 import { gmuxError, isGmuxError } from '../errors';
@@ -782,7 +789,13 @@ export class GmuxCore {
           markMachineQuiet(row.id);
           continue;
         }
-        await startRemotePoll(row.id);
+        // PHASE 84, item 4. The `await startRemotePoll(row.id)` that used to
+        // stand here is gone. `prepareMachine` starts the feed itself now, in
+        // its success arm, so that a machine prepared from Settings gets a feed
+        // too. Two callers starting it was one caller too many, and the one
+        // that was missing it was the button a person presses when a machine
+        // is asleep. `startMachineFeed` is a no-op for a machine that already
+        // has one, so nothing here depends on which of them ran first.
       } catch (err) {
         sessionsLog.warn(
           `signing in to ${row.id} failed: ${(err as Error).message}`
@@ -2460,7 +2473,17 @@ export class GmuxCore {
         machineId: input.machineId,
         name: input.name,
         projectPath: input.projectPath,
-        cwd: input.cwd ?? input.projectPath,
+        // PHASE 84, item 5. NOT `?? input.projectPath`. That path is this Mac's
+        // project folder and it names nothing on the other computer, so an
+        // empty Directory field used to start the session in a folder named
+        // after a project that is not there. An absent cwd sends no `-c` at
+        // all, and tmux's own fallback on that machine is the home directory,
+        // which is a fact about that machine rather than a guess made here.
+        // An empty string is treated as absent too, so a field a person
+        // cleared cannot reach the far side as `-c ''`.
+        ...(input.cwd !== undefined && input.cwd.length > 0
+          ? { cwd: input.cwd }
+          : {}),
         agent: input.agent,
         ...(input.extraArgs !== undefined ? { extraArgs: input.extraArgs } : {})
       });
@@ -2915,12 +2938,44 @@ export class GmuxCore {
    * manual end. Nothing here may be reordered to kill first.
    */
   async killSession(sessionId: string): Promise<void> {
-    // PHASE 70. A remote end has no snapshot to take first, because this
-    // release saves no scrollback for a session on another machine, and the
-    // create sheet says so before the session exists. What it does have is the
-    // binding rule: the command is composed only against an identifier a
-    // completed list from that machine reported.
+    // PHASE 84, ITEM 2. THE ORDER HERE IS THE PROMISE, exactly as it is on the
+    // local branch below.
+    //
+    // Phase 70 wrote this branch with no capture in it, and the comment said
+    // the release saved no scrollback for a session on another machine. Phase
+    // 72 made that false. Copies of a remote screen are taken on a two minute
+    // cadence and kept on this Mac. So the newest copy at the moment a person
+    // pressed End was up to two minutes old, and the last two minutes of the
+    // agent's work, including its final answer, were not in it. The end confirm
+    // for a remote session now says a copy is saved first, and this is what
+    // makes that word true.
+    //
+    // A capture that fails NEVER cancels the kill. The person asked for the
+    // session to end and it ends. What changes is that the promise is withdrawn
+    // in words, through the same notice channel the local branch uses, with
+    // `remote: true` so the sentence does not offer a conversation that is not
+    // coming back.
     if (isRemoteSessionId(sessionId)) {
+      const remoteRow = remoteSessionRow(sessionId);
+      const saved = await captureRemoteSessionNow(sessionId);
+      if (!saved) {
+        sessionsLog.warn(
+          `the end-time copy of "${remoteRow?.name ?? sessionId}" on ` +
+            `${remoteRow?.machineId ?? 'that machine'} was not written`
+        );
+        postDurabilityNotice({
+          kind: 'snapshot-failed',
+          sessions: 1,
+          // A remote copy is written to this Mac's disk like any other, so a
+          // full disk is possible. It is not distinguished here, because
+          // `captureRemoteSessionNow` answers with one boolean and a guess at
+          // the cause would be a guess.
+          outOfSpace: false,
+          ...(remoteRow !== null ? { sessionName: remoteRow.name } : {}),
+          atSessionEnd: true,
+          remote: true
+        });
+      }
       this.attachHost.detach(sessionId);
       await remoteKill(sessionId);
       broadcast(EVT_STATUS_CHANGED, sessionId, 'exited');
@@ -3013,9 +3068,36 @@ export class GmuxCore {
    * because restoreSession rewrites it on the way back.
    */
   removeSession(sessionId: string): void {
-    // Phase 70. A remote row is forgotten rather than tombstoned, because this
-    // release writes no manifest row for one and there is nothing to bring back.
-    if (forgetRemoteRow(sessionId)) {
+    // PHASE 84, ITEM 3. THE DURABLE HALF FIRST, THEN THE MEMORY HALF.
+    //
+    // The old order returned as soon as `forgetRemoteRow` found the id in
+    // memory, which is true for every remote row this run created, saw or
+    // ended. `markSessionRemoved` never ran, nothing durable was written, and
+    // the next broadcast redrew the row reading "not running". A Remove stuck
+    // only after a relaunch, which is not what a person pressing Remove is
+    // asking for.
+    //
+    // A row created by 0.34 or 0.35 has no manifest record at all. It skips the
+    // block below and the memory half alone is still the whole of what can be
+    // done for it, which is why the two halves are separate rather than one
+    // branch.
+    //
+    // The record is asked whether it names ANOTHER machine rather than merely
+    // whether it exists. Every local row is in this manifest too, and a guard
+    // that only asked "is there a record" would tombstone a local row here and
+    // then tombstone it a second time on the path below.
+    const record = remoteRecordOf(sessionId);
+    const hasRemoteRecord = record !== null && isRemoteRecord(record);
+    if (hasRemoteRecord || isRemoteSessionId(sessionId)) {
+      if (hasRemoteRecord) {
+        releaseConversationClaims(sessionId);
+        this.manifest.markSessionRemoved(sessionId);
+        this.releaseSessionResources(sessionId);
+      }
+      // Phase 70. The memory half. NOTHING IS SENT TO ANY MACHINE. It returns
+      // false for a row this run never saw, and that is not a failure. The
+      // durable half above is the whole of what such a row needed.
+      forgetRemoteRow(sessionId);
       this.broadcastSessions();
       return;
     }

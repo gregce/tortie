@@ -51,6 +51,16 @@ const FILES: readonly string[] = [
   // machine's label and a time, and it must not draw a word from the
   // transport layer while doing it.
   'src/renderer/app/SavedOutputModal.tsx',
+  // Phase 84. The folder picker for another machine. It is a new surface that
+  // says things about a machine, so it is audited like the rest.
+  //
+  // TWO FILES ARE DELIBERATELY NOT ADDED, being
+  // src/renderer/state/sessions-slice.ts and
+  // src/renderer/app/split/split-menu.ts, where Phase 84 writes the two end
+  // session confirm sentences. Each holds hundreds of unrelated existing
+  // strings and a sweep of them belongs to its own round. Those two sentences
+  // are checked by review instead, and the phase report records that reading.
+  'src/renderer/app/RemoteDirPicker.tsx',
   'src/main/machines/remote-copy.ts',
   // Phase 71. The link statement's own sentences, composed in main because
   // only main holds the confirm gate's answer and the link's own reason.

@@ -525,12 +525,23 @@ export const createSessionsSlice: StateCreator<
       // and does not resume mid-task. "First" is the Phase 19 ordering
       // promise (main captures before it kills); main's capture-failure
       // notice is what keeps that word honest on a full disk.
+      // PHASE 84, item 2. A session on another machine gets its own body, and
+      // it is read from `session.machine`, which the projection already
+      // carries. The old body was false twice for such a session. It promised a
+      // copy that main never took, and it promised a restore that brings the
+      // conversation back, which no remote restore does. Main now takes the
+      // copy before it kills anything, so "first" is true, and the last
+      // sentence says plainly what does not come back.
+      const machine = session.machine;
       const resumable = resumeReadiness(session) === 'conversation';
       get().setConfirm({
         title: `End '${session.name}'?`,
-        body: resumable
-          ? 'This stops what is running in it. The scrollback and the conversation are saved first, so you can restore this session later.'
-          : 'This stops what is running in it. The scrollback is saved first, so you can restore this session later.',
+        body:
+          machine !== undefined
+            ? `This stops what is running in it on ${machine.label}. Tortie saves a copy of what it printed first, so you can read that copy here afterwards. The conversation does not come back.`
+            : resumable
+              ? 'This stops what is running in it. The scrollback and the conversation are saved first, so you can restore this session later.'
+              : 'This stops what is running in it. The scrollback is saved first, so you can restore this session later.',
         confirmLabel: 'End session',
         destructive: true,
         onConfirm: () => {

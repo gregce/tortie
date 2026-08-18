@@ -14,6 +14,7 @@ import { describe, expect, it } from 'vitest';
 import { GmuxError } from '../../errors';
 import {
   REMOTE_ENV_ALLOWED,
+  REMOTE_ENV_MEASURED_AND_REFUSED,
   REMOTE_ENV_PASSTHROUGH_REFUSED,
   assertRemoteEnvAllowed,
   remoteEnvNameAllowed
@@ -36,6 +37,25 @@ describe('the allowed set', () => {
     expect(composed).toEqual([...REMOTE_ENV_ALLOWED].sort());
   });
 
+  /**
+   * PHASE 84 TRIED TO ADD `PATH` AND MEASUREMENT REFUSED IT.
+   *
+   * MEASURED 2026-08-18 by `build/probe-execplane.mjs` step 17c on tmux 3.6a. A
+   * session created with `-e PATH=/p84-planted-85507:/usr/bin:/bin` produced a
+   * pane printing `/Users/gdc/.cargo/bin:/usr/bin:/bin:/usr/sbin:/sbin`. On a
+   * scratch socket, `-e FOO=bar-planted` on the same line DID reach the pane
+   * and `-e PATH=` did not, while `show-environment` read both back. A pane
+   * takes its PATH from the server rather than from the session environment.
+   *
+   * So the pair would have crossed to another computer and changed nothing, and
+   * an allowance nothing uses is a widening for nothing.
+   */
+  it('does not hold PATH, because the pair would change nothing there', () => {
+    expect(REMOTE_ENV_MEASURED_AND_REFUSED).toBe('PATH');
+    expect(REMOTE_ENV_ALLOWED).not.toContain(REMOTE_ENV_MEASURED_AND_REFUSED);
+    expect(remoteEnvNameAllowed('PATH')).toBe(false);
+  });
+
   it('answers per name', () => {
     expect(remoteEnvNameAllowed('GMUX_SESSION_ID')).toBe(true);
     expect(remoteEnvNameAllowed('ANTHROPIC_API_KEY')).toBe(false);
@@ -52,8 +72,18 @@ describe('the refusal', () => {
     ).not.toThrow();
   });
 
-  it('accepts an empty record, which is what every create passes today', () => {
+  it('accepts an empty record', () => {
     expect(() => assertRemoteEnvAllowed({})).not.toThrow();
+  });
+
+  /** PHASE 84. Measurement refused this pair, so the refusal still fires. */
+  it('refuses a list of folders, because it would change nothing there', () => {
+    expect(() =>
+      assertRemoteEnvAllowed({
+        ...managedPaneEnv('11111111-2222-3333-4444-555555555555'),
+        PATH: '/Users/gdc/.local/bin:/usr/local/bin:/usr/bin:/bin'
+      })
+    ).toThrow();
   });
 
   it('refuses any other name and names the first offending one', () => {

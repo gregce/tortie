@@ -108,12 +108,21 @@ export const PATH_MARKER = '__GMUX_PATH__';
 const PATH_CAPTURE_RE = /__GMUX_PATH__(.*?)__GMUX_PATH__/s;
 
 /**
- * Install dirs GUI-launched apps typically miss. Used both as the PATH
- * fallback tail and as the extra probe dirs for binary resolution
- * (superset of the agent registry's extraDirs — research 11).
+ * Install dirs GUI-launched apps typically miss, composed against ONE named
+ * home directory. Used both as the PATH fallback tail and as the extra probe
+ * dirs for binary resolution. It is a superset of the agent registry's
+ * extraDirs, from research 11.
+ *
+ * PHASE 84 EXTRACTED THE HOME ARGUMENT, and nothing about the list moved. The
+ * eight leaves are the eight leaves, in the same order, and `extraBinDirs()`
+ * below is this function called with this Mac's own home. The reason for the
+ * split is a machine that is not this Mac: `src/main/machines/remote-argv.ts`
+ * asks the same question about another computer, and the only honest way to
+ * compose those paths is with THAT machine's own `$HOME`, which it states for
+ * itself. Copying the eight leaves into the machines layer would be two lists
+ * that drift, so there is one list and it takes the home as an argument.
  */
-export function extraBinDirs(): string[] {
-  const home = homedir();
+export function extraBinDirsFor(home: string): string[] {
   return [
     join(home, '.local', 'bin'),
     '/opt/homebrew/bin',
@@ -129,8 +138,21 @@ export function extraBinDirs(): string[] {
   ];
 }
 
-/** System baseline every PATH must keep, whatever the capture said. */
-const SYSTEM_PATH_DIRS = ['/usr/bin', '/bin', '/usr/sbin', '/sbin'];
+/** The same eight folders, against this Mac's own home directory. */
+export function extraBinDirs(): string[] {
+  return extraBinDirsFor(homedir());
+}
+
+/**
+ * System baseline every PATH must keep, whatever the capture said.
+ *
+ * PHASE 84 EXPORTED IT, so a reader and a test can name the four directories
+ * rather than infer them from a composed string. Nothing outside this module
+ * composes a PATH out of it: Phase 84 measured that a pane on another machine
+ * takes its PATH from the tmux server rather than from anything Tortie can put
+ * on a `new-session` line, so there is no second composer to share it with.
+ */
+export const SYSTEM_PATH_DIRS = ['/usr/bin', '/bin', '/usr/sbin', '/sbin'];
 
 /** Join dir lists into a PATH string, deduped, order-preserving. */
 export function mergePathDirs(...groups: readonly (readonly string[])[]): string {

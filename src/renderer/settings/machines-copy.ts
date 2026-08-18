@@ -768,6 +768,54 @@ export const KEY_WROTE_PRESENT =
 export const KEY_FINGERPRINT_LABEL = 'Key fingerprint';
 
 // ---------------------------------------------------------------------------
+// Which key Tortie uses, said on the row (Phase 84, item 7)
+// ---------------------------------------------------------------------------
+//
+// THE DEFECT THESE TWO SENTENCES CLOSE. Tortie has written a key of its own
+// for a machine since Phase 79.1 and named it on no command it sent, so every
+// sign in went through whatever key the person happened to have loaded
+// themselves, and nothing on screen said so. Phase 84 names Tortie's own key on
+// every command. These say which of the two states this machine is in.
+//
+// THE FILE NAME ARRIVES FROM MAIN. `keyNamedOnEveryCommand` takes it as an
+// argument and this file writes no path, for the same reason the block above
+// writes none: a path composed here could differ from the path main writes to,
+// and a person would have read the wrong one.
+
+/**
+ * Said on a row whose key pair is on this Mac.
+ *
+ * The second sentence is the one that stops this reading as Tortie taking over
+ * the sign in. Tortie names its own key IN ADDITION to whatever the person has
+ * loaded, and it deliberately does not tell the sign in program to offer its
+ * key and nothing else. The operator's own Mac Pro answers today through a key
+ * he loaded himself, and narrowing the offer would have broken it on the first
+ * run of this build.
+ */
+export function keyNamedOnEveryCommand(leaf: string): string {
+  return (
+    `Tortie names its own key for this machine, the file called ${leaf}, on ` +
+    `every command it sends there. It also lets the sign in program offer any ` +
+    `key you have loaded yourself.`
+  );
+}
+
+/**
+ * Said on a row that has no key of Tortie's, which is the ordinary case.
+ *
+ * THE LAST SENTENCE NAMES WHAT IS ACTUALLY ON SCREEN. The spec drafted it as
+ * "The Install button makes one", and there is no button by that name: the
+ * block that makes a key is drawn under the connection test, and only for the
+ * three answers where a key would help. So the sentence names the test, which
+ * is the control a person can actually press from here.
+ */
+export const KEY_NOT_MADE_YET =
+  'Tortie has no key of its own for this machine, so every sign in uses ' +
+  'whatever key you have loaded yourself. Run the connection test. When that ' +
+  'machine asks for a password, or turns the sign in down, Tortie offers to ' +
+  'make one.';
+
+// ---------------------------------------------------------------------------
 // The sheet the Add flow records, and why no label for it is in this file
 // ---------------------------------------------------------------------------
 

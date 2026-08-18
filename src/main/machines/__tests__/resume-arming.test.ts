@@ -290,6 +290,56 @@ describe('the refusal list', () => {
     }
   });
 
+  /**
+   * PHASE 84, item 9. A remote row whose conversation id TORTIE ITSELF chose,
+   * which is a shape no row had before this phase.
+   *
+   * The gate says yes to it, for the same reason it already said yes to a muse
+   * row the Phase 73 harvest proved: the source is the strongest there is and
+   * the id was fixed on the machine being restored on.
+   *
+   * SAYING YES IS NOT TYPING, and `../remote-restore.ts` still reports
+   * `resumeArmed: false` for it, because `send-keys` is on the permanently
+   * refused verb list and nothing in this release types a resume command into a
+   * pane on another machine. That is asserted in `remote-restore.test.ts`, and
+   * the two tests together are the whole of the claim.
+   */
+  it('arms a row whose id Tortie put on the launch line itself', () => {
+    expect(
+      resumeArmingVerdict({
+        machineId: 'studio',
+        targetMachineId: 'studio',
+        agentKeepsConversation: true,
+        resumeArgvLength: 3,
+        provenance: provenance('preassigned', 'exact', 'studio')
+      })
+    ).toEqual({ arm: true, refusal: null, reason: null });
+  });
+
+  it('refuses a pre-assigned row whose id was fixed on a different machine', () => {
+    const verdict = resumeArmingVerdict({
+      machineId: 'studio',
+      targetMachineId: 'attic',
+      agentKeepsConversation: true,
+      resumeArgvLength: 3,
+      provenance: provenance('preassigned', 'exact', 'studio')
+    });
+    expect(verdict.arm).toBe(false);
+    expect(verdict.refusal).toBe('other-machine');
+  });
+
+  it('refuses a pre-assigned row that carries no command to type', () => {
+    const verdict = resumeArmingVerdict({
+      machineId: 'studio',
+      targetMachineId: 'studio',
+      agentKeepsConversation: true,
+      resumeArgvLength: 0,
+      provenance: provenance('preassigned', 'exact', 'studio')
+    });
+    expect(verdict.arm).toBe(false);
+    expect(verdict.refusal).toBe('nothing-to-arm');
+  });
+
   it('writes no dash of any kind into a sentence a person reads', () => {
     // The writing rules bind copy, and these three sentences are copy.
     for (const text of [

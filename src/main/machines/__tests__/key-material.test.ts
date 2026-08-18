@@ -38,6 +38,7 @@ const {
   PUBLIC_KEY_LINE_RE,
   ensureMachineKey,
   isPublicKeyLine,
+  machineKeyPairPresent,
   machineKeyComment,
   machineKeyDir,
   machineKeyLeaf,
@@ -230,6 +231,52 @@ describe('making the key', () => {
       expect(key.publicKeyLine).not.toContain('etc');
       expect(key.publicKeyLine).not.toContain('..');
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 84, item 7. Whether the key is there at all
+//
+// It is the question `../context.ts` asks before it names the key on every
+// command, and it is what the Settings row draws one of two sentences from.
+// ---------------------------------------------------------------------------
+
+describe('whether Tortie has a key of its own for one machine', () => {
+  it('is false before the Install button has ever been pressed', () => {
+    expect(machineKeyPairPresent('studio', root)).toBe(false);
+  });
+
+  it('is true once both halves are on this Mac', () => {
+    ensureMachineKey({ id: 'studio', userDataOverride: root });
+    expect(machineKeyPairPresent('studio', root)).toBe(true);
+  });
+
+  /**
+   * BOTH HALVES, not one. A private half with no public half is a key Tortie
+   * cannot have installed anywhere, and naming a file the client then fails to
+   * read makes it print a warning on every command for nothing.
+   */
+  it('is false when only the private half is there', () => {
+    ensureMachineKey({ id: 'studio', userDataOverride: root });
+    rmSync(machinePublicKeyPath('studio', root));
+    expect(machineKeyPairPresent('studio', root)).toBe(false);
+  });
+
+  it('is false when the public half is not a key line Tortie recognises', () => {
+    ensureMachineKey({ id: 'studio', userDataOverride: root });
+    writeFileSync(machinePublicKeyPath('studio', root), 'not a key at all\n');
+    expect(machineKeyPairPresent('studio', root)).toBe(false);
+  });
+
+  it('answers per machine, so one machine’s key is not another’s', () => {
+    ensureMachineKey({ id: 'studio', userDataOverride: root });
+    expect(machineKeyPairPresent('studio', root)).toBe(true);
+    expect(machineKeyPairPresent('attic', root)).toBe(false);
+  });
+
+  it('is false for an id with nothing in it', () => {
+    expect(machineKeyPairPresent('', root)).toBe(false);
+    expect(machineKeyPairPresent('   ', root)).toBe(false);
   });
 });
 

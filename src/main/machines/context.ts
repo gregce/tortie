@@ -140,6 +140,23 @@ export interface RemoteMachineContext {
    * is still a valid one, and it composes the same command it always did.
    */
   readonly acceptedTmuxVersion?: string | null;
+  /**
+   * Tortie's own key for this machine, or null (Phase 84).
+   *
+   * It REACHES THE ARGV, and it is the only field here that Phase 83's note
+   * above says its own field does not. `./ssh.ts` names it with `IdentityFile`
+   * on every steady state command, quoted, and the whole argument for that is
+   * in `SshCarriage`.
+   *
+   * It is filled at Prepare from the pair on disk, and null when there is no
+   * pair. A key made mid run is picked up on the NEXT Prepare rather than
+   * behind the person's back, which is what `machines:installKey` already asks
+   * them to do.
+   *
+   * OPTIONAL, and absent means the same as null. A context written before this
+   * field existed composes the command it always did.
+   */
+  readonly identityFile?: string | null;
 }
 
 export type MachineContext = LocalMachineContext | RemoteMachineContext;
@@ -296,6 +313,20 @@ export interface RemoteContextInput {
   readonly uid: number;
   /** Tortie's own identity record file. Named first on every command. */
   readonly tortieHostKeys: string;
+  /**
+   * APPENDED (Phase 84, item 7): Tortie's own key for this machine, or null.
+   *
+   * It is HANDED OVER rather than looked up, for the reason `tortieHostKeys`
+   * above is: this module reads no store and opens no file, and the one module
+   * that knows where a machine's key lives imports the store to find out. An
+   * import from here to that module put a native file watcher into the import
+   * graph of the manifest, which `node build/contract-inventory.mjs` found.
+   *
+   * Absent, and null, both mean Tortie has made no key for this machine. The
+   * command then names none, because naming a file that is not there makes the
+   * client print a warning on every command for nothing.
+   */
+  readonly identityFile?: string | null;
 }
 
 /**
@@ -353,7 +384,11 @@ export function buildRemoteMachineContext(
     hostKeys,
     // Phase 83. Taken from the fields the gate just agreed to, so an acceptance
     // that is not part of the confirmed hash cannot reach this object.
-    acceptedTmuxVersion: input.fields.acceptedTmuxVersion ?? null
+    acceptedTmuxVersion: input.fields.acceptedTmuxVersion ?? null,
+    // Phase 84, item 7. The caller hands it over only when BOTH halves are on
+    // this Mac. The person's own loaded keys are still offered, because
+    // `IdentitiesOnly` is deliberately not set. See `SshCarriage.identityFile`.
+    identityFile: input.identityFile ?? null
   };
 }
 

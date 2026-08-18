@@ -2601,6 +2601,172 @@ const ALLOWED_GIT_VERBS = ['rev-parse', 'status', 'show'];
 }
 
 // ---------------------------------------------------------------------------
+// 46 to 48. Phase 84. The program search, the third environment name and the
+// key Tortie made
+// ---------------------------------------------------------------------------
+//
+// Every check below reads a compiled constant or a composed argv. None of them
+// starts a process, opens a file under the person's home, or contacts a
+// machine.
+
+const p84 = data.phase84 ?? {};
+
+{
+  // 46. `program-find` walks two LISTS, and rule 2 of the catalogue says every
+  //     positional is read as "$1" to "$9" and is always quoted. `for d in $2`
+  //     would be a bare positional and rule 2 would be gone. So each list is
+  //     read once, in quotes, into a local name, and the word splitting happens
+  //     on that local name under IFS.
+  const find = p84.programFind ?? null;
+  if (find === null) {
+    fail(
+      'the catalogue holds no script called program-find, so an agent ' +
+        'installed anywhere but a machine\'s login shell list cannot be found ' +
+        'on it and a create of that agent is refused up front.'
+    );
+  } else {
+    if (find.mode !== 'read' || find.params !== 3) {
+      fail(
+        `program-find is a ${String(find.mode)} taking ${String(find.params)} ` +
+          `value(s). It is a read taking three, being the name, the machine's ` +
+          `own list and the install folders.`
+      );
+    }
+    if ((find.bareLoops ?? []).length > 0) {
+      fail(
+        `program-find walks a bare positional: ${find.bareLoops.join(', ')}. ` +
+          `Every positional is read as "$1" to "$9" and is always quoted, and a ` +
+          `loop over a bare one ends that rule for the whole catalogue.`
+      );
+    }
+    for (const one of find.assignments ?? []) {
+      if (one.at < 0) {
+        fail(
+          `program-find never reads its ${one.name} list into a local name. A ` +
+            `list has to be read once, in quotes, before anything splits it.`
+        );
+      } else if (one.loopAt < 0) {
+        fail(`program-find assigns ${one.name} and no loop walks it.`);
+      } else if (one.at > one.loopAt) {
+        fail(
+          `program-find walks its ${one.name} list at byte ` +
+            `${String(one.loopAt)} and assigns it at byte ${String(one.at)}, so ` +
+            `the loop reads a name that has not been read yet.`
+        );
+      }
+    }
+    if (find.redirects !== 0) {
+      fail(
+        `program-find carries ${String(find.redirects)} redirection(s). It only ` +
+          `asks whether a file is executable, so it writes nothing anywhere and ` +
+          `redirects nothing at all.`
+      );
+    }
+  }
+}
+
+{
+  // 47. The set a person's safety is argued from. Phase 84 proposed a third
+  //     name and step 17c of build/probe-execplane.mjs refused it: a pane takes
+  //     its PATH from the server rather than from the session environment, so
+  //     the pair would have crossed to another computer and changed nothing.
+  //     An allowance nothing uses is a widening for nothing.
+  const allowed = [...(p84.envAllowed ?? [])].sort();
+  if (JSON.stringify(allowed) !== JSON.stringify(['GMUX_MANAGED', 'GMUX_SESSION_ID'])) {
+    fail(
+      `Tortie may put ${String(allowed.length)} name(s) on a session on another ` +
+        `machine, being ${allowed.join(', ') || 'none'}. It is exactly the two ` +
+        `identity variables. A value on a new-session line stands in two ` +
+        `process tables at once for the life of the create, and no Linux ` +
+        `machine has been measured for who can read them.`
+    );
+  }
+  if (p84.envMeasuredAndRefused !== 'PATH') {
+    fail(
+      `the name Phase 84 measured and did not add reads ` +
+        `${JSON.stringify(p84.envMeasuredAndRefused)}. It is PATH, and a round ` +
+        `that changes this line has to read the measurement in ` +
+        `src/main/machines/remote-env.ts first.`
+    );
+  }
+  if (allowed.includes(String(p84.envMeasuredAndRefused))) {
+    fail(
+      `${String(p84.envMeasuredAndRefused)} is in the allowed set. Step 17c of ` +
+        `build/probe-execplane.mjs measured that an -e pair for it does not ` +
+        `reach a pane, so sending it would put a value on a command line on ` +
+        `another computer for no effect at all.`
+    );
+  }
+}
+
+{
+  // 48. The key the Install button writes, named on every command.
+  //
+  // Before Phase 84 that file was used by nothing: `IdentityFile` and a bare
+  // `-i` appeared zero times under src/main/machines/, so every sign in
+  // depended on whatever key the person happened to have loaded.
+  const identity = p84.identity ?? {};
+  const named = identity.named ?? [];
+  if (named.length !== 1) {
+    fail(
+      `a command for a machine with a key names ${String(named.length)} ` +
+        `identity file(s). It names exactly one, being the key Tortie made for ` +
+        `that machine.`
+    );
+  } else {
+    const value = String(named[0]).slice('IdentityFile='.length);
+    if (value !== `"${identity.keyPath}"`) {
+      fail(
+        `the identity file option carries ${value} and Tortie's own key for ` +
+          `that machine is at "${identity.keyPath}". Naming any other file ` +
+          `would offer a key nobody agreed to.`
+      );
+    }
+    if (!String(identity.keyPath ?? '').startsWith(String(identity.keyDir ?? '\u0000'))) {
+      fail(
+        `Tortie named ${identity.keyPath}, which is not inside the folder it ` +
+          `keeps machine keys in, being ${identity.keyDir}.`
+      );
+    }
+    if (!value.startsWith('"') || !value.endsWith('"')) {
+      fail(
+        'the identity file path is unquoted. The client reads that value as a ' +
+          "list separated by spaces, and Tortie's own data directory has a " +
+          'space in its name on every Mac.'
+      );
+    }
+  }
+  if ((identity.identitiesOnly ?? []).length > 0) {
+    fail(
+      'a command carries IdentitiesOnly. It is deliberately NOT set: it would ' +
+        "tell the client to offer Tortie's key and nothing else, and the " +
+        'operator\'s Mac Pro works today through a key he loaded himself. ' +
+        'Tortie names its own key IN ADDITION to whatever the person has.'
+    );
+  }
+  if ((identity.bareArgv ?? []).some((one) => String(one).includes('IdentityFile'))) {
+    fail(
+      'a command for a machine Tortie has made no key for still names an ' +
+        'identity file. Naming a file that is not there makes the client print ' +
+        'a warning on every command for nothing.'
+    );
+  }
+}
+
+process.stdout.write(
+  `\nTortie may put ${String((p84.envAllowed ?? []).length)} environment name(s) on a ` +
+    `session on another machine, being ${(p84.envAllowed ?? []).join(', ')}. ` +
+    `${String(p84.envMeasuredAndRefused)} was measured and is not one of them, because a ` +
+    `pane takes its list of folders from the server rather than from the session.\n`
+);
+process.stdout.write(
+  `Tortie's own key for one machine is named as ` +
+    `${(p84.identity?.named ?? []).join(', ') || '(nothing)'}, and IdentitiesOnly appears ` +
+    `${String((p84.identity?.identitiesOnly ?? []).length)} time(s), so the person's own ` +
+    `loaded keys are still offered.\n`
+);
+
+// ---------------------------------------------------------------------------
 // Phase 69's tables
 // ---------------------------------------------------------------------------
 

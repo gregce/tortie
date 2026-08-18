@@ -45,6 +45,8 @@ let stored: Array<{
   reason?: string;
   skipIfIdentical?: boolean;
 }> = [];
+/** PHASE 84. A this Mac that cannot keep the copy, which must not stop a kill. */
+let storeThrows = false;
 
 vi.mock('../control-plane', () => ({
   isControlPlaneLive: (machineId: string) => live.has(machineId),
@@ -107,13 +109,16 @@ vi.mock('../../restore/snapshots', () => ({
         ? { skipIfIdentical: input.skipIfIdentical }
         : {})
     });
+    if (storeThrows) throw new Error('this Mac is out of space');
     return Promise.resolve(input.text.trim().length > 0);
   }
 }));
 
 const {
   REMOTE_CAPSULE_PER_PASS,
+  REMOTE_END_CAPTURE_TIMEOUT_MS,
   captureMachineOnce,
+  captureRemoteSessionNow,
   chooseCaptureTargets,
   remoteCaptureArgs,
   remoteCapsuleFacts,
@@ -149,6 +154,7 @@ beforeEach(() => {
   rows = [];
   execCalls = [];
   stored = [];
+  storeThrows = false;
   execAnswer = () => 'screen text\n';
 });
 
@@ -417,5 +423,85 @@ describe('one pass over one machine', () => {
     await captureMachineOnce(MACHINE);
     expect(stored.map((one) => one.sessionId)).toEqual(['a']);
     expect(execCalls).toHaveLength(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 84, item 2. The one copy a person asked for
+//
+// The End confirm says the screen is saved first. For a session on a machine
+// that was not true: `killSession` detached and killed with no capture at all,
+// so the newest copy was whatever the 120,000 ms cadence last took. Up to two
+// minutes of an agent's work, including its final answer, could be missing.
+// ---------------------------------------------------------------------------
+
+describe('one copy, taken because the person pressed End', () => {
+  it('reads the screen of exactly the session it was asked about', async () => {
+    rows = [row('a'), row('b')];
+    expect(await captureRemoteSessionNow('a')).toBe(true);
+    expect(execCalls).toHaveLength(1);
+    expect(execCalls[0]).toEqual(remoteCaptureArgs('$a', 10_000));
+    expect(stored.map((one) => one.sessionId)).toEqual(['a']);
+  });
+
+  /**
+   * IT IS NOT `captureMachineOnce`. That one is connected only, because it is a
+   * background cadence nobody asked for. This one runs for a machine on the
+   * TIMER feed as well, because the person pressed End and the confirm promised
+   * a copy.
+   */
+  it('takes the copy even when the machine has no live connection', async () => {
+    rows = [row('a')];
+    live = new Set();
+    expect(await captureRemoteSessionNow('a')).toBe(true);
+    expect(stored.map((one) => one.sessionId)).toEqual(['a']);
+  });
+
+  it('reads no other session, whatever else the machine holds', async () => {
+    rows = [row('a'), row('b'), row('c')];
+    await captureRemoteSessionNow('b');
+    expect(execCalls).toHaveLength(1);
+    expect(stored.map((one) => one.sessionId)).toEqual(['b']);
+  });
+
+  it('writes the copy against the machine and the far side’s folder', async () => {
+    rows = [row('a')];
+    await captureRemoteSessionNow('a');
+    expect(stored[0]?.machineId).toBe(MACHINE);
+    expect(stored[0]?.reason).toBe('remote-checkpoint');
+    // A screen that has not changed is not a new generation, and the copy a
+    // person can open still holds what the session last printed.
+    expect(stored[0]?.skipIfIdentical).toBe(true);
+  });
+
+  it('answers false for a session no list from any machine reported', async () => {
+    rows = [];
+    expect(await captureRemoteSessionNow('gone')).toBe(false);
+    expect(execCalls).toEqual([]);
+  });
+
+  /**
+   * IT NEVER THROWS. A copy is a convenience and the person asked for the
+   * session to end, so every failure is a false return and `../../sessions/core.ts`
+   * posts one notice and kills anyway.
+   */
+  it('answers false rather than throwing when the read fails', async () => {
+    rows = [row('a')];
+    execAnswer = () => {
+      throw new Error('the machine stopped answering');
+    };
+    await expect(captureRemoteSessionNow('a')).resolves.toBe(false);
+    expect(stored).toEqual([]);
+  });
+
+  it('answers false rather than throwing when the copy cannot be kept', async () => {
+    rows = [row('a')];
+    execAnswer = () => 'the last thing the agent said\n';
+    storeThrows = true;
+    await expect(captureRemoteSessionNow('a')).resolves.toBe(false);
+  });
+
+  it('is half the budget a background read gets, because somebody is waiting', () => {
+    expect(REMOTE_END_CAPTURE_TIMEOUT_MS).toBe(15_000);
   });
 });

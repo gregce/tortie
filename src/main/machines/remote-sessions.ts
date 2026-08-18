@@ -123,7 +123,12 @@ import { managedPaneEnv } from '../tmux/env';
 // zero sessions (Phase 67).
 import { serverProbeVerdict } from '../tmux/errors';
 import { dedupeSessionName, sanitizeSessionName } from '../tmux/names';
-import { getLaunchableEntry, launchArgvFor } from '../agents/registry';
+import {
+  getLaunchableEntry,
+  launchArgvFor,
+  resumeArgvFor,
+  type LaunchableEntryLike
+} from '../agents/registry';
 // The same three the local create path asks, in the same order, so a configured
 // agent is confirmed before it can run on another machine as well as on this
 // one. They are asked here rather than through `../manifest/agents.ts`'s own
@@ -143,9 +148,14 @@ import {
 } from './context';
 import { execOn } from './exec-plane';
 import { machineColorOf, machineLabelOf, machineRow } from './store';
-// Phase 72. The per machine program path, captured on that machine and recorded
-// against that machine's id. It is never sent; the launch stays by bare name.
-import { captureRemoteArgv } from './remote-argv';
+// Phase 72, widened in Phase 84. The per machine program path, captured on that
+// machine and recorded against that machine's id. Since Phase 84 it is also
+// what launches: a pane on the far side does not get that machine's login shell
+// program list, and `-e PATH=` cannot give it one. See `remoteCreate` below.
+import { findRemoteProgram, type RemoteProgramAnswer } from './remote-argv';
+// Phase 84, item 5. The folder is asked about before the create line is
+// composed, because a create against a folder that is not there exits 0.
+import { assertRemoteDirUsable } from './dir-list';
 // Phase 72. The ONE place a remote session meets the manifest. This file imports
 // nothing else from `../manifest/`, which is how the boundary stays checkable.
 import {
@@ -510,8 +520,21 @@ export interface RemoteCreateInput {
   readonly name: string;
   /** The project tab's path, ON THAT MACHINE. */
   readonly projectPath: string;
-  /** The working directory, ON THAT MACHINE. */
-  readonly cwd: string;
+  /**
+   * The working directory, ON THAT MACHINE. ABSENT means the person named none.
+   *
+   * PHASE 84 MADE IT OPTIONAL, and the old shape was a defect rather than a
+   * simplification. `../sessions/core.ts` composed `input.cwd ?? input.projectPath`,
+   * and `projectPath` is the project tab's path ON THIS MAC. So an empty
+   * Directory field started the session in a folder named after this Mac's
+   * project, on the other computer, or failed.
+   *
+   * When it is absent no `-c` is sent at all, and tmux's own fallback on that
+   * machine is that machine's home directory. That is a fact about the machine
+   * rather than a guess made here, which is why Tortie does not compose a home
+   * path of its own to put in its place.
+   */
+  readonly cwd?: string;
   readonly agent: LaunchableAgentKind;
   readonly extraArgs?: readonly string[];
 }
@@ -526,7 +549,8 @@ export interface RemoteCreateInput {
  */
 export function remoteCreateArgs(input: {
   readonly tmuxName: string;
-  readonly cwd: string;
+  /** ABSENT sends no `-c` at all. See {@link RemoteCreateInput.cwd}. */
+  readonly cwd?: string;
   readonly sessionId: string;
   readonly argv: readonly string[];
   readonly env?: Readonly<Record<string, string>>;
@@ -538,17 +562,21 @@ export function remoteCreateArgs(input: {
     '-F',
     REMOTE_CREATE_FORMAT,
     '-s',
-    input.tmuxName,
-    // Evaluated on the far side. The local existsSync check every local create
-    // makes is deliberately skipped, per research 51 section 4.3: the folder is
-    // not on this Mac, so this Mac cannot answer for it. A folder that is not
-    // there fails the create with tmux's own sentence and Tortie prints a plain
-    // one over it.
-    '-c',
-    input.cwd
+    input.tmuxName
   ];
+  // PHASE 84. Evaluated on the far side, and sent only when the person named a
+  // folder. The local existsSync check every local create makes is deliberately
+  // skipped, per research 51 section 4.3: the folder is not on this Mac, so this
+  // Mac cannot answer for it. `./dir-list.ts` asks the MACHINE instead, before
+  // this function is called, because a create against a folder that is not there
+  // exits 0 and leaves the pane in the home directory with no error at all.
+  if (input.cwd !== undefined && input.cwd.length > 0) {
+    args.push('-c', input.cwd);
+  }
   // PHASE 73, item 2. Every name that reaches this loop is checked against the
-  // two Tortie is allowed to put on a session on another machine. The trace
+  // three Tortie is allowed to put on a session on another machine. PHASE 84
+  // added the third, being PATH, and `./remote-env.ts` writes out why the
+  // argument below fails for it in every clause. The trace
   // behind the refusal is in docs/research/52-remote-env-and-review.md, and the
   // short version is that a value sent this way is one element of the argv of
   // the local ssh process and one element of the argv of that machine's own
@@ -905,33 +933,61 @@ export function readyRemoteContext(machineId: string): RemoteMachineContext {
 }
 
 /**
- * The argv for one agent, by BARE NAME, and the reason is the opposite of the
- * local one.
+ * The entry one agent launches from, with the confirm gate asked on the way.
  *
- * Locally an agent is launched by bare name so that a `pkill -f` over the
- * resolved path does not match every durable session (CLAUDE.md, Phase 12.7 F3).
- * Remotely it is bare name because the machine's own program search list, read
- * by `captureRemotePath` and written into that server's environment, is the only
- * thing that knows where that machine keeps its programs.
+ * EXPORTED SINCE PHASE 84's FIX ROUND, for `./remote-restore.ts`. A restore
+ * starts a process on another computer, so it asks the confirm gate the create
+ * asks, and it reads the same `extraProbeDirs` the create hands to the program
+ * search. Two answers to one question is how the restore came to launch by a
+ * bare name the create had already proved does not resolve there.
  *
- * PHASE 72 DID NOT CHANGE THIS LINE, and that is worth stating because it added
- * the capture. `./remote-argv.ts` reads where that machine keeps the program and
- * the answer goes into the manifest row, bound to that machine's id. It does not
- * go on this argv, and it does not go on any command line.
+ * A compiled agent answers from the registry. A configured row answers from the
+ * overlay, and its execution fields have to have been agreed to by a person
+ * before anything composed from them can run. Null execution hash means the row
+ * supplied nothing that can run, so there is nothing to have agreed to and
+ * nothing to refuse.
  */
-function remoteLaunchArgv(
-  agent: LaunchableAgentKind,
-  extraArgs: readonly string[]
-): string[] {
-  if (agent === 'shell') return [];
+export function remoteLaunchEntry(
+  agent: LaunchableAgentKind
+): LaunchableEntryLike | null {
+  // A plain shell is not an agent and the registry has no row for one. Null
+  // rather than a stand in row, so nothing downstream can read an agent's
+  // fields for a session that has no agent.
+  if (agent === 'shell') return null;
   const merged = launchableAgentEntry(agent);
-  if (merged === null) return launchArgvFor(getLaunchableEntry(agent), extraArgs);
-  // Null means the row supplied nothing that can run, so there is nothing for a
-  // person to have agreed to and nothing to refuse.
+  if (merged === null) return getLaunchableEntry(agent);
   if (merged.executionHash !== null) {
     assertConfigRowMayLaunch(merged.id, executionFieldsOf(merged));
   }
-  return launchArgvFor(merged, extraArgs);
+  return merged;
+}
+
+/** True when this agent takes a conversation id on its own launch line. */
+function preAssigns(entry: LaunchableEntryLike): boolean {
+  return entry.resume.idCapture.mode === 'pre-assign';
+}
+
+/**
+ * The argv for one agent, by bare name, before the program is found.
+ *
+ * The bare name is what the search in `./remote-argv.ts` is given. What
+ * actually launches on the machine is this argv with `argv[0]` REPLACED by the
+ * absolute path that search found, and the reason that is so is written on
+ * {@link remoteCreate} because it reverses a rule this file used to state.
+ *
+ * PHASE 84 PASSES THE SESSION ID, for the agents that take a conversation id on
+ * their own launch flag. `launchArgvFor` reads the flag off the same
+ * `idCapture` record `../manifest/agents.ts` reads for a local create, so one
+ * function owns id injection on both sides. An agent that does not pre-assign
+ * is passed nothing and its argv is byte for byte what it was.
+ */
+function remoteLaunchArgv(
+  entry: LaunchableEntryLike | null,
+  extraArgs: readonly string[],
+  agentSessionId?: string
+): string[] {
+  if (entry === null) return [];
+  return launchArgvFor(entry, extraArgs, undefined, agentSessionId);
 }
 
 /**
@@ -946,9 +1002,17 @@ function takenNames(machineId: string): Set<string> {
   return new Set(stateOf(machineId).names);
 }
 
+/** Where a program was found on a machine, and the folder to put on the PATH. */
+interface RemoteBin {
+  /** The absolute path, or the empty string for a plain shell session. */
+  readonly bin: string;
+  /** The folder holding it, or the empty string when there is no program. */
+  readonly dir: string;
+}
+
 /**
  * Where that machine keeps the program this create is about to launch
- * (Phase 72).
+ * (Phase 72, widened in Phase 84).
  *
  * A read, not a mutation, so it runs before anything is created. Three answers:
  *
@@ -959,15 +1023,57 @@ function takenNames(machineId: string): Set<string> {
  *    recorded as given and no question is asked.
  *  - Anything else is a bare name, and the machine is asked where it keeps it.
  *    No answer is a refusal rather than a guess.
+ *
+ * PHASE 84 PASSES THE AGENT'S OWN PROBE FOLDERS with the question. Before this
+ * the machine was asked one question, being what its login shell resolves, and
+ * an agent installed anywhere else was reported absent. `./remote-argv.ts` now
+ * walks the same three lists `../tmux/resolve.ts` walks on this Mac.
  */
 async function remoteBinFor(
   ctx: RemoteMachineContext,
+  entry: LaunchableEntryLike | null,
   argv: readonly string[]
-): Promise<string> {
+): Promise<RemoteBin> {
   const bare = argv[0] ?? '';
-  if (bare.length === 0) return '';
-  if (bare.startsWith('/')) return bare;
-  return captureRemoteArgv(ctx, bare);
+  if (bare.length === 0) return { bin: '', dir: '' };
+  if (bare.startsWith('/')) {
+    const at = bare.lastIndexOf('/');
+    return { bin: bare, dir: at > 0 ? bare.slice(0, at) : '/' };
+  }
+  const found: RemoteProgramAnswer = await findRemoteProgram(
+    ctx,
+    bare,
+    entry?.extraProbeDirs ?? []
+  );
+  machinesLog.info(
+    `${ctx.machineId} keeps ${bare} at ${found.path}, found in its ` +
+      `${found.source === 'path' ? 'own list of places it looks for programs' : 'install folders'} ` +
+      `after ${String(found.searched)} folder(s) were tested`
+  );
+  return { bin: found.path, dir: found.dir };
+}
+
+/**
+ * True when a create on this machine would get past {@link readyRemoteContext}.
+ *
+ * PHASE 84, item 8. It asks exactly what that function asks and it asks nothing
+ * of the machine, so the create sheet can draw a machine it cannot start a
+ * session on as unavailable instead of letting a person pick it, type a name,
+ * press Create and read a refusal that sends them back to the screen that just
+ * refused them.
+ *
+ * It is NOT the same question as `usable` on a machine row. That one says a
+ * person confirmed the machine, and Settings reads it to decide whether the
+ * Prepare button is offered at all. A confirmed machine that is asleep has to
+ * keep offering Prepare, because Prepare is the one button that fixes it.
+ */
+export function machineCanHoldSession(machineId: string): boolean {
+  try {
+    readyRemoteContext(machineId);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -977,34 +1083,96 @@ async function remoteBinFor(
  *
  *  1. Refuse unless the machine is signed in to and its program list was read.
  *  2. Compose the argv by bare name, asking the agent confirm gate on the way.
- *  3. Ask the machine where it keeps that program. A read, before any mutation.
- *  4. Read the machine's list, and pick a name that collides with none of it.
- *  5. Write the manifest row, BEFORE the create line, the same order a local
+ *     An agent that takes a conversation id on its launch flag gets a fresh one
+ *     here, which is what makes the row record which conversation it started.
+ *  3. Read the machine's list, and pick a name that collides with none of it.
+ *     PHASE 84 MOVED THIS AHEAD OF THE PROGRAM SEARCH. The searches below go
+ *     through the one door in `./remote-run.ts`, which refuses a machine that
+ *     has not answered in this run, and a completed list is what makes it
+ *     answer. It is still a read and it still starts nothing.
+ *  4. Ask the machine whether the folder is there, when a folder was named. A
+ *     read. tmux does NOT refuse a folder that is not there, so this is the only
+ *     place that question gets asked.
+ *  5. Ask the machine where it keeps that program, walking its own three lists.
+ *     A read, before any mutation.
+ *  6. Put that absolute path at `argv[0]`. THIS REVERSES A RULE THIS FILE USED
+ *     TO STATE, and section 3.4 below is why.
+ *  7. Write the manifest row, BEFORE the create line, the same order a local
  *     create uses. A session that starts before its row exists is a session a
  *     crash can strand with a live agent and no record of it.
- *  6. `new-session`, with both identity variables on the line itself.
- *  7. If that failed, ONE read of the environment, to see whether it ran anyway.
+ *  8. `new-session`, with both identity variables on the line itself.
+ *  9. If that failed, ONE read of the environment, to see whether it ran anyway.
  *     A create that truly failed takes its row back out.
- *  8. Stamp the four options. A stamp that fails is logged and the create still
+ * 10. Stamp the four options. A stamp that fails is logged and the create still
  *     succeeds, because the pane environment already carries the identity.
- *  9. Poll once, at once, so the row is on screen without waiting a cadence.
+ * 11. Poll once, at once, so the row is on screen without waiting a cadence.
+ *
+ * ## 3.4 Why `argv[0]` is an absolute path on a machine, and what that costs
+ *
+ * Locally an agent is launched by BARE NAME, so that a `pkill -f` over the
+ * resolved path does not match every durable session. That is CLAUDE.md's rule
+ * and it came from Phase 12.7 F3. Remotely this file used to do the same, on
+ * the belief that the machine's own list of places it looks for programs was
+ * what a pane gets.
+ *
+ * MEASURED, and the belief is false. On the operator's Mac Pro, 2026-08-18, a
+ * pane gets `/usr/bin:/bin:/usr/sbin:/sbin` while the login shell's own list
+ * holds ten folders, and `claude` is at `~/.local/bin/claude`, which is on
+ * neither. So a bare name launch cannot work there at all. Two candidates were
+ * written and ONE PROBE decided between them rather than an argument.
+ *
+ * | Candidate | Probe | Verdict |
+ * | --- | --- | --- |
+ * | Put the folder holding the program on the pane's own PATH with `-e PATH=` and keep the bare name | `build/probe-execplane.mjs` step 17c | REJECTED by measurement |
+ * | Send the absolute path as `argv[0]` | none needed | TAKEN, as the recorded fallback |
+ *
+ * MEASURED 2026-08-18, step 17c, tmux 3.6a. A session was created with
+ * `-e PATH=/p84-planted-85507:/usr/bin:/bin` and its pane printed
+ * `/Users/gdc/.cargo/bin:/usr/bin:/bin:/usr/sbin:/sbin`. A second measurement
+ * on a scratch socket separated the two possible causes: `-e FOO=bar-planted`
+ * DID reach the pane and `-e PATH=` on the same line did NOT, while
+ * `show-environment` read both back. So tmux takes a pane's PATH from the
+ * server rather than from the session environment, and PATH is the one name an
+ * `-e` pair cannot set.
+ *
+ * ## THE COST, written down rather than absorbed
+ *
+ * A `pkill -f "$(command -v claude)"` run ON THAT MACHINE now matches every
+ * durable Tortie agent on it. That is the failure Phase 12.7 F3 fixed on this
+ * Mac, and this phase moves it to the machine. It is taken because the
+ * alternative is that no agent can be started on that machine at all, and it is
+ * recorded here, in the commit body and in the backlog so that a later round
+ * closing it knows what it is closing.
+ *
+ * ## What is still not true
+ *
+ * The agent's own CHILDREN still get the pane's four directory PATH. An agent
+ * on that machine that shells out to a program outside `/usr/bin` will not find
+ * it. Nothing in this phase changes that, and no measurement in this phase says
+ * otherwise.
  */
 export async function remoteCreate(input: RemoteCreateInput): Promise<Session> {
   if (input.name.trim().length === 0) {
     throw gmuxError('INVALID_INPUT', 'Session name cannot be empty.');
   }
   const ctx = readyRemoteContext(input.machineId);
-  const argv = remoteLaunchArgv(input.agent, input.extraArgs ?? []);
-  // Step 3. Before the create, because a machine with no copy of the program is
-  // a machine where the create would produce a pane that prints an error and
-  // dies, and a refusal naming the program is a better answer than that.
-  const bin = await remoteBinFor(ctx, argv);
   const sessionId = randomUUID();
-  // MEASURED 2026-08-17 against a scratch machine: without this read the first
-  // create of a Tortie run picks a name from an empty set, and a machine that
-  // already holds a session of that name refuses the whole create with tmux's
-  // own "duplicate session". So the names are read first and the new one is
-  // deduped against them, which is what a local create has always done. The
+  const entry = remoteLaunchEntry(input.agent);
+  // PHASE 84, item 9. A fresh conversation id for the agents that take one on
+  // their own launch flag, and nothing at all for the nine that do not. It is a
+  // DIFFERENT value from the session id above, because they are two different
+  // things: one names the session Tortie holds and one names the conversation
+  // the agent holds. `pre-assign-cmd` is deliberately not done here, because
+  // that mode runs a side command and the command would have to run on that
+  // machine, which this phase does not build a route for.
+  const agentSessionId =
+    entry !== null && preAssigns(entry) ? randomUUID() : undefined;
+  const argv = remoteLaunchArgv(entry, input.extraArgs ?? [], agentSessionId);
+  // Step 3. MEASURED 2026-08-17 against a scratch machine: without this read the
+  // first create of a Tortie run picks a name from an empty set, and a machine
+  // that already holds a session of that name refuses the whole create with
+  // tmux's own "duplicate session". So the names are read first and the new one
+  // is deduped against them, which is what a local create has always done. The
   // residual race, being a session created on that machine between this read and
   // the create below, still ends as tmux's own refusal, and that is honest: it is
   // also what makes new-session safe to run twice.
@@ -1013,11 +1181,21 @@ export async function remoteCreate(input: RemoteCreateInput): Promise<Session> {
     sanitizeSessionName(input.name),
     takenNames(input.machineId)
   );
+  // Step 4. Before anything is written and before the create line is composed.
+  const cwd = input.cwd ?? '';
+  await assertRemoteDirUsable(ctx, cwd);
+  // Step 5. Before the create, because a machine with no copy of the program is
+  // a machine where the create would produce a pane that prints an error and
+  // dies, and a refusal naming the program is a better answer than that.
+  const { bin } = await remoteBinFor(ctx, entry, argv);
+  // Step 6. THE ABSOLUTE PATH IS WHAT LAUNCHES. See the header of this function
+  // for the measurement that forced it and for what it costs.
+  const launchArgv = bin.length > 0 ? [bin, ...argv.slice(1)] : argv;
   const args = remoteCreateArgs({
     tmuxName,
-    cwd: input.cwd,
+    ...(cwd.length > 0 ? { cwd } : {}),
     sessionId,
-    argv
+    argv: launchArgv
   });
 
   // BEFORE the line is sent, and not after. The failure this exists for is a
@@ -1030,16 +1208,35 @@ export async function remoteCreate(input: RemoteCreateInput): Promise<Session> {
     name: oneLine(input.name),
     agent: String(input.agent),
     projectPath: oneLine(input.projectPath),
-    cwd: input.cwd,
+    cwd,
     issuedAt: Date.now()
   });
 
-  // PHASE 72, STEP 5. The durable row, written before the create line, which is
+  // PHASE 72, STEP 6. The durable row, written before the create line, which is
   // §2.4 Step 0 for a session on another machine. `argv[0]` is the path captured
   // ON THAT MACHINE, and every path in the row belongs to that machine.
   //
   // A create that then fails takes the row back out below. A create that runs
   // and loses its answer KEEPS it, because the session is there.
+  //
+  // PHASE 84. `cwd` is the empty string when the person named no folder, and
+  // THE MANIFEST ROW RECORDS EXACTLY THAT. Tortie does NOT compose a home path
+  // for the other computer to put in its place, because a recorded path has to
+  // be a path a machine stated, and no folder was sent. tmux's own fallback put
+  // the pane in that machine's home directory.
+  //
+  // THE ROW A PERSON READS IS NOT THIS ROW, and the fix round added this
+  // sentence because the two were read as one and they disagreed. Once a
+  // completed list comes back, `projectRemoteRecord` in this file draws the
+  // session from the MACHINE'S row rather than from the manifest row, and the
+  // machine reports the folder its pane is really in. So the manifest holds the
+  // empty string, meaning Tortie sent no folder, and the session list on screen
+  // shows the home directory that machine chose. Both are true and they are
+  // answers to two different questions.
+  //
+  // The three resume fields are written only for an agent that took a
+  // conversation id on its own launch line. For every other agent, and for
+  // every shell, they are absent and the row says what it always said.
   const createdAt = Date.now();
   writeRemoteRow({
     sessionId,
@@ -1047,11 +1244,24 @@ export async function remoteCreate(input: RemoteCreateInput): Promise<Session> {
     name: oneLine(input.name),
     tmuxName,
     projectPath: oneLine(input.projectPath),
-    cwd: input.cwd,
+    cwd,
     agent: String(input.agent),
-    argv: bin.length > 0 ? [bin, ...argv.slice(1)] : argv,
+    // The row records what ran, which since Phase 84 is the same array that was
+    // sent rather than a second composition of it.
+    argv: launchArgv,
     bin,
-    createdAt
+    createdAt,
+    ...(entry !== null && agentSessionId !== undefined
+      ? {
+          agentSessionId,
+          resumeArgv: resumeArgvFor(
+            entry,
+            agentSessionId,
+            input.extraArgs ?? [],
+            bin
+          )
+        }
+      : {})
   });
 
   let tmuxId: string;
@@ -1073,7 +1283,7 @@ export async function remoteCreate(input: RemoteCreateInput): Promise<Session> {
       // for the same reason, and leaving one here would put a permanent
       // `restorable` row on screen for work that never started.
       dropRemoteRow(sessionId);
-      throw createFailure(err, input.cwd);
+      throw createFailure(err, cwd);
     }
     tmuxId = found;
     machinesLog.warn(
@@ -1181,19 +1391,19 @@ async function confirmCreate(
 /**
  * A failed create, with the plain sentence over tmux's own where it fits.
  *
- * THE FOLDER ARM OF THIS IS DEAD CODE TODAY, and that is measured rather than
- * suspected. MEASURED 2026-08-18 on tmux 3.6a over a scratch socket:
+ * THE FOLDER ARM OF THIS WAS DEAD CODE UNTIL PHASE 84, and that was measured
+ * rather than suspected. MEASURED 2026-08-18 on tmux 3.6a over a scratch socket:
  * `new-session -d -s NAME -c /a-path-that-is-not-there -P -F '#{session_id}'`
  * exits 0, prints `$0`, creates a live session and silently puts the pane in the
  * home directory. tmux prints nothing. A create that exits 0 throws nothing, so
- * the {@link REMOTE_DIR_MISSING} branch below never runs for the case it was
- * written for, and a person who types a folder that is not on the far machine
- * gets a session in the wrong place with no sentence saying so.
+ * the {@link REMOTE_DIR_MISSING} branch below never ran for the case it was
+ * written for, and a person who typed a folder that is not on the far machine
+ * got a session in the wrong place with no sentence saying so.
  *
- * The fix is a read only check before the create rather than a rule about the
- * error text, and it is written into the Phase 84 entry of docs/BACKLOG.md with
- * the measurement attached. The pattern below stays for the creates that do
- * throw.
+ * PHASE 84 ASKS THE MACHINE INSTEAD, in `./dir-list.ts`, before the create line
+ * is composed. That is where a missing folder is refused now, and this pattern
+ * stays for the creates that really do throw, e.g. a machine that answered and
+ * then would not start a server.
  */
 function createFailure(err: unknown, cwd: string): Error {
   const text = err instanceof Error ? err.message : String(err);

@@ -43,6 +43,7 @@ import {
   composeAuthorizedKeysCommand,
   composeKeyInstallArgv,
   composeKeyInstallCommandLine,
+  MACHINE_KEY_USED_NEXT_PREPARE,
   composeKeyInstallCopy,
   describeKeyInstall,
   keyInstallHash,
@@ -373,10 +374,28 @@ describe('the sentences one install ends on', () => {
       text: `${REMOTE_KEY_MARKER}added${REMOTE_KEY_MARKER}\n`,
       exitCode: 0
     });
-    expect(copy).toEqual(machineOutcomeCopy('key-installed'));
+    expect(copy.class).toBe(machineOutcomeCopy('key-installed').class);
     expect(copy.headline).toBe('The key is on that machine.');
     expect(copy.detail).toContain('testing the connection now');
     expect(copy.alarm).toBe(false);
+  });
+
+  /**
+   * PHASE 84, item 7. Tortie now names its own key on every command it sends to
+   * a machine, and it reads which key that is when the machine is PREPARED. So
+   * a key made in the middle of a run is picked up at the next Prepare.
+   * Rebuilding the connection behind the person's back would start work on
+   * their machine because a file appeared, and this product does not do that.
+   */
+  it('says when the key starts being named on commands', () => {
+    const copy = composeKeyInstallCopy({
+      cls: 'key-installed',
+      text: `${REMOTE_KEY_MARKER}added${REMOTE_KEY_MARKER}\n`,
+      exitCode: 0
+    });
+    expect(copy.detail).toContain(MACHINE_KEY_USED_NEXT_PREPARE);
+    expect(MACHINE_KEY_USED_NEXT_PREPARE).toContain('next time you prepare it');
+    expect(MACHINE_KEY_USED_NEXT_PREPARE).not.toMatch(/[—–]/);
   });
 
   it('says the password was refused, and that nothing was tried twice', () => {

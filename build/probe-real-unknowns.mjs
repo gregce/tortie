@@ -1,7 +1,21 @@
 /**
  * `npm run probe:realunknowns`. The five unknowns from research 54 section 7,
  * and the first session Tortie ever created on a machine that is not this one
- * (Phase 83).
+ * (Phase 83). PHASE 84 ADDED THREE MORE MEASUREMENTS, all of them about finding
+ * and starting an agent on that machine:
+ *
+ *  - the question Phase 72 asked, being `command -v claude` under a login
+ *    shell, beside the three list walk Phase 84 replaced it with
+ *  - whether `-e PATH=` on a `new-session` line reaches a pane there, and
+ *    whether an ordinary `-e` pair does
+ *  - the program at the absolute path the walk found, started in a pane, with
+ *    `--version` so that no conversation begins and no tokens are spent
+ *
+ * WHAT IS STILL OWED after a passing run. A full agent session created through
+ * the product's own create path on this machine, with its manifest row read
+ * back from a fresh handle. This probe holds no manifest and starts no
+ * Electron, so it cannot stand in for that. `GMUX_SMOKE=remote-sessions`
+ * pointed at this machine is what closes it.
  *
  * ---------------------------------------------------------------------------
  * WHAT EACH ANSWER OWES THE READER
@@ -265,6 +279,189 @@ step(
   5,
   'unknown 1, the answer',
   `${String(foundCount)} of ${String(AGENT_BINARIES.length)} agent names resolve under the pane's PATH`
+);
+
+// ===========================================================================
+// PHASE 84, item 10. Finding an agent on a machine that does not list it
+//
+// The measurement that forced this phase's largest change, repeated here on the
+// machine it was made on, so that a later round reads the number rather than
+// the story.
+//
+// `remoteBinFor` used to ask ONE question, being `"$SHELL" -lc 'command -v
+// claude'`. On this machine that prints nothing, because claude lives at
+// ~/.local/bin/claude and that folder is on neither the login shell's list nor
+// the pane's. So Tortie refused to create a claude session on a machine where
+// claude is installed and its own claude sessions were running.
+//
+// Phase 84 walks three lists instead, being the machine's own login list, the
+// agent entry's own folders rebased on that machine's $HOME, and the install
+// folders a GUI launched app misses, also rebased. This block runs both
+// questions and prints both answers.
+// ===========================================================================
+
+process.stdout.write(`\n[${TAG}] PHASE 84. the program search, old question and new\n`);
+
+const farHomeForSearch = runOnMachine(machine, 'printf %s "$HOME"');
+show("the machine's own home directory", farHomeForSearch.command, farHomeForSearch);
+const searchHome = farHomeForSearch.stdout.trim();
+
+const oldQuestion = runOnMachine(
+  machine,
+  `"$SHELL" -lc 'printf __TORTIE_PATH__%s__TORTIE_PATH__ "$(command -v claude 2>/dev/null)"'`
+);
+show('the Phase 72 question, asked as Phase 72 asked it', oldQuestion.command, oldQuestion);
+const oldAnswer = (
+  /__TORTIE_PATH__(.*?)__TORTIE_PATH__/s.exec(oldQuestion.stdout)?.[1] ?? ''
+).trim();
+
+/**
+ * The three lists, composed here the way `src/main/machines/remote-argv.ts`
+ * composes them. This lane imports nothing from `src/`, so the eight install
+ * folders and the one probe folder are copied. A change there and not here is a
+ * drift a later round has to fix.
+ */
+const CLAUDE_PROBE_DIRS = ['~/.claude/local'];
+const INSTALL_LEAVES = [
+  '~/.local/bin',
+  '/opt/homebrew/bin',
+  '/usr/local/bin',
+  '~/bin',
+  '~/.claude/local',
+  '~/.npm-global/bin',
+  '~/.bun/bin',
+  '~/.cursor/bin'
+];
+const rebase = (one) =>
+  one.startsWith('~/') ? `${searchHome}/${one.slice(2)}` : one;
+const searchDirs = [];
+for (const one of [...CLAUDE_PROBE_DIRS, ...INSTALL_LEAVES]) {
+  const dir = rebase(one);
+  if (!searchDirs.includes(dir)) searchDirs.push(dir);
+}
+const searchLogin = loginPath.stdout.trim();
+
+/** The ninth script, copied verbatim from src/main/machines/remote-scripts.ts. */
+const PROGRAM_FIND = [
+  'set -e',
+  'umask 077',
+  'n="$1"',
+  'p="$2"',
+  'x="$3"',
+  'f=',
+  's=',
+  'IFS=:',
+  'for d in $p; do',
+  '  [ -n "$d" ] || continue',
+  '  if [ -x "$d/$n" ]; then f="$d/$n"; s=path; break; fi',
+  'done',
+  'if [ -z "$f" ]; then',
+  '  for d in $x; do',
+  '    [ -n "$d" ] || continue',
+  '    if [ -x "$d/$n" ]; then f="$d/$n"; s=install; break; fi',
+  '  done',
+  'fi',
+  "printf '__TORTIE_RUN__%s %s__TORTIE_RUN__\\n' \"${s:-none}\" \"${f:-none}\""
+].join('\n');
+
+const newQuestion = runOnMachine(
+  machine,
+  shellQuoteArgv([
+    '/bin/sh',
+    '-c',
+    PROGRAM_FIND,
+    'tortie-program-find',
+    'claude',
+    searchLogin,
+    searchDirs.join(':')
+  ])
+);
+show('the Phase 84 question, over three lists', newQuestion.command, newQuestion);
+const newAnswer = (
+  /__TORTIE_RUN__(.*?)__TORTIE_RUN__/s.exec(newQuestion.stdout)?.[1] ?? ''
+).trim();
+const searchedCount = new Set(
+  [...searchLogin.split(':'), ...searchDirs].filter((one) => one.length > 0)
+).size;
+
+step(
+  '5b',
+  'the program search, both questions',
+  `the Phase 72 question answered ${JSON.stringify(oldAnswer)}. The Phase 84 ` +
+    `walk over ${String(searchedCount)} folder(s) answered ` +
+    `${JSON.stringify(newAnswer)}.`
+);
+if (oldAnswer === '' && newAnswer.startsWith('install ')) {
+  say(
+    `   this is the defect and the fix, on the machine it was found on. The ` +
+      `one question found nothing and refused the create. The walk found the ` +
+      `program in the install folders.`
+  );
+}
+if (newAnswer === 'none none') {
+  fail(
+    `the Phase 84 walk found no claude on ${machine.host} in ` +
+      `${String(searchedCount)} folder(s), so item 10 is not proven here`
+  );
+}
+
+// ===========================================================================
+// PHASE 84, item 10. Whether -e PATH= reaches a pane on THIS machine
+//
+// `build/probe-execplane.mjs` step 17c measured this against a loopback
+// carriage on this Mac and answered no. This repeats it on the machine the
+// phase is for, because the decision it makes is about that machine.
+// ===========================================================================
+
+process.stdout.write(`\n[${TAG}] PHASE 84. whether -e PATH= reaches a pane\n`);
+
+const ePathSession = name('epath');
+const ePathFile = `/tmp/${ePathSession}.txt`;
+const PLANTED = `/p84-planted-${pid}`;
+const plantedValue = `${PLANTED}:/usr/bin:/bin`;
+const ePathCreate = farTmux(machine, REAL_SOCKET, [
+  'new-session',
+  '-d',
+  '-s',
+  ePathSession,
+  '-e',
+  `PATH=${plantedValue}`,
+  '-e',
+  `P84_MARKER=planted-${pid}`,
+  '--',
+  '/bin/sh',
+  '-c',
+  `printenv PATH > ${ePathFile}; printenv P84_MARKER >> ${ePathFile}; sleep 20`
+]);
+show('the session, created with two -e pairs', ePathCreate.quoted, ePathCreate);
+await sleep(1500);
+const ePathRead = runOnMachine(machine, `cat ${quoteArg(ePathFile)}`);
+show("the pane's own PATH and marker", ePathRead.command, ePathRead);
+const ePathLines = ePathRead.stdout.trim().split('\n');
+const panePathValue = ePathLines[0] ?? '';
+const paneMarker = ePathLines[1] ?? '';
+killSession(machine, REAL_SOCKET, ePathSession);
+runOnMachine(machine, `rm -f ${quoteArg(ePathFile)}`);
+
+const eReachesPath = panePathValue === plantedValue;
+const eReachesOther = paneMarker === `planted-${pid}`;
+step(
+  '5c',
+  'whether -e reaches a pane, and whether PATH is different',
+  `PATH was set to ${JSON.stringify(plantedValue)} and the pane read ` +
+    `${JSON.stringify(panePathValue)}. A second pair on the same line read ` +
+    `${JSON.stringify(paneMarker)}.`
+);
+say(
+  `   -e PATH= ${eReachesPath ? 'REACHES' : 'does NOT reach'} the pane, and an ` +
+    `ordinary -e pair ${eReachesOther ? 'DOES' : 'does not'}. ` +
+    `${
+      eReachesPath
+        ? 'A later round can keep the bare name launch and set the pane PATH.'
+        : 'So Phase 84 sends the absolute program path as argv[0], and a ' +
+          'pkill -f over that path ON THIS MACHINE matches every durable ' +
+          'Tortie agent on it.'
+    }`
 );
 
 // ===========================================================================
@@ -575,6 +772,58 @@ await sleep(500);
 killSession(machine, REAL_SOCKET, helloSession);
 
 // ===========================================================================
+// PHASE 84, item 10. The launch shape this phase composes, run on this machine
+//
+// WHAT THIS PROVES AND WHAT IT DOES NOT. It starts the program at the absolute
+// path the walk above found, in a pane on this machine, and reads back what it
+// printed. That is the launch shape Phase 84 composes, and it is the shape a
+// bare name launch cannot produce here. It does NOT start a conversation and it
+// spends no tokens: the argument is `--version`.
+//
+// A FULL AGENT SESSION ON THIS MACHINE, created through the product's own
+// create path with its manifest row read back, is OWED to the live
+// `GMUX_SMOKE=remote-sessions` run pointed at this machine. This probe holds no
+// manifest and starts no Electron, so it cannot stand in for that.
+// ===========================================================================
+
+if (newAnswer.startsWith('path ') || newAnswer.startsWith('install ')) {
+  process.stdout.write(`\n[${TAG}] PHASE 84. the launch shape, run here\n`);
+  const claudePath = newAnswer.slice(newAnswer.indexOf(' ') + 1);
+  const shapeSession = name('shape');
+  const shapeFile = `/tmp/${shapeSession}.txt`;
+  const shapeCreate = createSession(machine, {
+    socket: REAL_SOCKET,
+    name: shapeSession,
+    argv: ['/bin/sh', '-c', `${quoteArg(claudePath)} --version > ${shapeFile} 2>&1; sleep 20`]
+  });
+  show(`created ${shapeSession} launching ${claudePath}`, shapeCreate.quoted, shapeCreate);
+  await sleep(4000);
+  const shapeRead = runOnMachine(machine, `cat ${quoteArg(shapeFile)}`);
+  show('what the program printed', shapeRead.command, shapeRead);
+  killSession(machine, REAL_SOCKET, shapeSession);
+  runOnMachine(machine, `rm -f ${quoteArg(shapeFile)}`);
+  const printed = shapeRead.stdout.trim();
+  step(
+    '11b',
+    'the absolute path Phase 84 puts at argv[0], started in a pane here',
+    printed === ''
+      ? `${claudePath} printed nothing, so the launch shape is NOT proven`
+      : `${claudePath} printed ${JSON.stringify(printed)}`
+  );
+  if (printed === '') {
+    fail(
+      `the program at ${claudePath} printed nothing when started in a pane on ` +
+        `${machine.host}, so item 10's launch shape is not proven here`
+    );
+  }
+  say(
+    `   a bare name launch could not have produced this, because the pane's ` +
+      `own list of folders is ${JSON.stringify(panePath)} and the program is ` +
+      `at ${claudePath}.`
+  );
+}
+
+// ===========================================================================
 // Both machines, after
 // ===========================================================================
 
@@ -629,6 +878,21 @@ process.stdout.write(`| 2, a directory that is not there | ${unknown2.split('.')
 process.stdout.write(`| 3, #{session_activity} | ${unknown3.split('.')[0]} |\n`);
 process.stdout.write(`| 4, the socket directory | ${unknown4.split('.')[0]} |\n`);
 process.stdout.write(`| 5, the channel ceiling | ${String(ceiling)} held at once |\n`);
+
+process.stdout.write(`\n[${TAG}] what Phase 84 measured here\n`);
+process.stdout.write('| question | answer |\n| --- | --- |\n');
+process.stdout.write(
+  `| the Phase 72 question, command -v claude | ${oldAnswer === '' ? '(nothing)' : oldAnswer} |\n`
+);
+process.stdout.write(
+  `| the Phase 84 walk, over ${String(searchedCount)} folders | ${newAnswer} |\n`
+);
+process.stdout.write(
+  `| does -e PATH= reach a pane | ${eReachesPath ? 'yes' : 'NO'} |\n`
+);
+process.stdout.write(
+  `| does an ordinary -e pair reach a pane | ${eReachesOther ? 'yes' : 'NO'} |\n`
+);
 
 if (failures.length > 0) {
   process.stdout.write(`[${TAG}] FAILED with ${String(failures.length)} problem(s)\n`);

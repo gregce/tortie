@@ -6169,7 +6169,7 @@ question the operator asked directly. Run them in this order and do not reshuffl
 | --- | --- | --- | --- |
 | 1 | **83** mac-pro is a machine Tortie will speak to, and the harness that proves it ✅ SHIPPED 2026-08-18 | 3 | nothing. It gated the rest. It shipped without reaching mac-pro, so every number in it came from this Mac |
 | 2 | **Research 55** a project folder that lives on another machine ✅ DELIVERED 2026-08-18 | — | it did not need 83 after all. ssh to mac-pro signed in on the first attempt, so the round took the latency number itself |
-| 2 | **84** getting a session to exist over there, and ending it honestly | 3 and 2 per item | 83, for three measurements. All three arrived, and all three were taken on this Mac over a loopback carriage |
+| 2 | **84** getting a session to exist over there, and ending it honestly ✅ SHIPPED 2026-08-18 | 3 and 2 per item | 83, for three measurements. All three arrived, and all three were taken on this Mac over a loopback carriage |
 | 3 | **85** the status dot tells the truth on a connected machine | 3 | 83, for the `#{session_activity}` measurement. It arrived, and it was taken on this Mac over a loopback carriage |
 | 3 | **81** the session list stops waiting for your shell | 3 | nothing. Different domain, runs beside 85 |
 | beside 1 | **86** the splits and the two sheets you actually use ✅ SHIPPED 2026-08-18 | per item | nothing. Operator reported 2026-08-18. It owned `src/renderer/app/**` and ran beside Phase 83, whose files are all under `src/main` and `build/` |
@@ -6563,7 +6563,28 @@ effective value was never read back, because `sshd -T` needs root.
 | RECORD | The version acceptance copy this phase added was never read on screen in a running window. That surface appears only after a machine reports a version, and no machine is reachable, which is the same cause as the three owed items above. It was verified through `npm run conformance:machines` instead, which proves the confirm hash moves for `acceptedTmuxVersion` and rejects five hostile values. |
 | RECORD | An unusable agent tile could not be pressed in the live drive, because all 12 tiles on this Mac reported `aria-disabled="false"`. Every agent is installed here, so there was no unusable tile to press. Forcing one would have meant writing store state, which is not genuine input. |
 
-## Phase 84 — getting a session to exist over there, and ending it honestly (operator queued 2026-08-18) QUEUED
+## Phase 84 — getting a session to exist over there, and ending it honestly (operator queued 2026-08-18) ✅ SHIPPED 2026-08-18 (this commit, 0.43.0, gates green, 6,001 tests). No conversation comes back on a remote machine, which is named below and is still true
+
+**What the shipping build does, recorded 2026-08-18.** Items 1 to 10 all landed and every one
+of them is watched by a gate. `npm run smoke:remote` grew steps 12 to 18, which drive the refused
+restart, the end that writes a copy first, the end whose copy failed and went ahead anyway, the
+Remove that writes a tombstone, the local lifecycle that must not regress, the create with no
+folder, the create naming a folder that is not there, and the folder picker. The operator server
+was counted at 38 sessions before and 38 after.
+
+**Unknown 1 got its real answer, and it changed the design.** The `-e PATH=` branch written into
+this entry above was REJECTED by measurement. Step 17c of `npm run probe:execplane` created a
+session with `-e PATH=/p84-planted:/usr/bin:/bin` and the pane read back
+`/usr/bin:/bin:/usr/sbin:/sbin`, while a second `-e` pair on the same line did reach the pane. So
+tmux drops PATH from that list and keeps every other name. A remote create now sends the absolute
+program path, found by a ninth frozen read script that walks the machine's own install folders,
+and a remote restore sends the same absolute path rather than a bare name.
+
+**What is NOT true after this phase, said plainly.** No conversation comes back on a remote
+machine, because `send-keys` is still on the refused verb list. No screenshot was taken of the
+folder picker or of the create sheet, so items 6 and 8 are proven in main and in unit tests and
+nobody has looked at them on screen. `npm run smoke:t3`, `npm run package` and the full
+`npm run conformance:resume` roundtrip were not run for this phase.
 
 **Subject:** `feat(machines): a remote session is created, ended and removed honestly`
 **First body line:** `Phase 84: getting a session to exist over there, and ending it honestly`

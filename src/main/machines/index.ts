@@ -167,6 +167,7 @@ export {
   lastPrintedLine,
   machineOutcomeCopy,
   MACHINE_ALARM_CLASS,
+  MACHINE_FEED_NOT_STARTED,
   MACHINE_OUTCOME_CLASSES,
   type MachineOutcomeCopy
 } from './errors';
@@ -312,22 +313,43 @@ export {
 
 export {
   MACHINE_NOT_READY,
+  REMOTE_DIR_DENIED,
   REMOTE_DIR_MISSING,
+  REMOTE_DIR_NOT_A_FOLDER,
+  RESTART_ON_MACHINE,
   RESTORE_FORGOTTEN,
   RESTORE_STILL_RUNNING,
   RESTORE_UNSEEN,
   RESTORE_WRONG_MACHINE,
   RESUME_NOT_COLLECTED,
   TARGET_UNBOUND,
+  dirListUnreachable,
   noRemoteProgramRefusal,
   noRemoteRowFor
 } from './remote-copy';
+
+// ---------------------------------------------------------------------------
+// Phase 84: the folder picker for another machine, and the folder check a
+// create makes before it composes anything
+// ---------------------------------------------------------------------------
+
+export {
+  assertRemoteDirUsable,
+  dirRefusalText,
+  listRemoteDir,
+  parentOfRemoteDir,
+  parseDirList,
+  REMOTE_DIR_CHECK_CAP,
+  REMOTE_DIR_TIMEOUT_MS,
+  type RemoteDirAnswer
+} from './dir-list';
 
 export {
   boundRemoteRow,
   forgetMachineRows,
   forgetRemoteRow,
   isRemoteSessionId,
+  machineCanHoldSession,
   markMachineQuiet,
   nameOf,
   notifyRemoteRowsChanged,
@@ -389,9 +411,17 @@ export {
 export {
   assertArgvBelongsToMachine,
   captureRemoteArgv,
+  captureRemoteWhich,
+  findRemoteProgram,
+  parseProgramFind,
   parseRemoteWhich,
+  rebaseRemoteDir,
+  remoteSearchCount,
+  remoteSearchDirs,
   remoteWhichCommand,
-  REMOTE_ARGV_TIMEOUT_MS
+  REMOTE_ARGV_TIMEOUT_MS,
+  type RemoteProgramAnswer,
+  type RemoteSearchDirs
 } from './remote-argv';
 
 export {

@@ -112,6 +112,74 @@ describe('the options every steady state command carries', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// PHASE 84, item 7. The key Tortie made, named on every command
+//
+// Before this phase `IdentityFile` and a bare `-i` appeared zero times under
+// src/main/machines/. The Install button made a key and put its public half on
+// the machine, and then nothing named that file, so every sign in depended on
+// whatever key the person happened to have loaded.
+// ---------------------------------------------------------------------------
+
+const KEY_PATH =
+  '/Users/x/Library/Application Support/Tortie/gmux/machines/keys/machine-0123456789ab';
+
+describe('the key Tortie made for one machine', () => {
+  const withKey = sshOptions({ ...CARRIAGE, identityFile: KEY_PATH });
+  const text = withKey.join(' ');
+
+  it('is named on the command', () => {
+    expect(text).toContain(`IdentityFile="${KEY_PATH}"`);
+  });
+
+  /**
+   * Tortie's own data directory has a space in its name on every Mac, and the
+   * client reads this value as a list separated by spaces. It is quoted for the
+   * same reason `composeKnownHostsOption` quotes its two paths.
+   */
+  it('is quoted, because that path holds a space on every Mac', () => {
+    const named = withKey[withKey.indexOf('-o', withKey.indexOf('-o') + 1)];
+    expect(named).toBeDefined();
+    expect(text).toContain('IdentityFile="/Users/x/Library/Application Support/');
+  });
+
+  it('sits after the record file option and before the reuse options', () => {
+    // The order is fixed so the golden comparison and the conformance gate can
+    // read the argv as one string.
+    expect(text.indexOf('UserKnownHostsFile')).toBeLessThan(
+      text.indexOf('IdentityFile')
+    );
+    expect(text.indexOf('IdentityFile')).toBeLessThan(
+      text.indexOf('ControlMaster')
+    );
+  });
+
+  /**
+   * DELIBERATELY NOT SET, and it is a decision rather than an omission. Setting
+   * it would tell the client to offer Tortie's key and nothing else, and the
+   * operator's Mac Pro works today through a key he loaded himself. So Tortie
+   * names its own key IN ADDITION to whatever the person has.
+   */
+  it('does not tell the client to offer Tortie’s key and nothing else', () => {
+    expect(text).not.toContain('IdentitiesOnly');
+  });
+
+  it('names nothing when Tortie has made no key for the machine', () => {
+    expect(sshOptions(CARRIAGE).join(' ')).not.toContain('IdentityFile');
+    expect(
+      sshOptions({ ...CARRIAGE, identityFile: null }).join(' ')
+    ).not.toContain('IdentityFile');
+  });
+
+  it('changes nothing else about the command', () => {
+    const without = sshOptions(CARRIAGE);
+    const removed = withKey.filter(
+      (one, at) => !(one.startsWith('IdentityFile=') || withKey[at + 1]?.startsWith('IdentityFile='))
+    );
+    expect(removed).toEqual(without);
+  });
+});
+
 describe('the name of the connection', () => {
   it('is twelve hex characters after m-, so its length is fixed', () => {
     const leaf = controlPathLeaf({ executionHash: 'a'.repeat(64), uid: 501 });

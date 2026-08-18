@@ -1177,6 +1177,99 @@ for (const [what, value] of [
 }
 
 // ---------------------------------------------------------------------------
+// Step 17c. Does `-e PATH=` on the new-session line reach the pane (Phase 84)
+// ---------------------------------------------------------------------------
+//
+// THIS STEP DECIDES A DESIGN, and a builder may not choose the branch by
+// argument. Phase 84 measured that a pane on the operator's Mac Pro gets four
+// directories, being /usr/bin:/bin:/usr/sbin:/sbin, while claude lives at
+// ~/.local/bin/claude. So a bare name launch cannot work there, and one of two
+// things has to change.
+//
+//   CHOSEN, if this step says yes. Put the folder holding the program that was
+//   found on the pane's own PATH with `-e PATH=` and keep the bare name. One
+//   `-e` pair, and the local invariant is kept.
+//
+//   THE FALLBACK, if this step says no. Send the absolute program path as
+//   `argv[0]`. That makes every durable Tortie agent on that machine the one
+//   process a `pkill -f` over the resolved path matches, which is the exact
+//   failure CLAUDE.md records as Phase 12.7 F3, moved to somebody else's
+//   computer. If the fallback is taken, the cost goes in the commit body.
+//
+// `-e` reaching a pane is PROVEN for GMUX_SESSION_ID, because the pane
+// environment rescue reads it back. `-e PATH=` is a different question, and
+// research 47 section 2 measured that `set-environment -g PATH` does NOT reach
+// a pane, which is close enough to be worth doubting. Step 17b above measured
+// that again on this carriage.
+//
+// The planted value appears nowhere else on this Mac, so a pane that answers
+// with it answers because the `-e` pair reached it.
+const PLANTED_DIR = `/p84-planted-${String(process.pid)}`;
+const plantedPath = `${PLANTED_DIR}:/usr/bin:/bin`;
+
+function paneEnvPathWithE(label, value) {
+  const session = `zz-p84-epath-${label}-${String(process.pid)}`;
+  const file = join(root, `p84-pane-epath-${label}.txt`);
+  let created = false;
+  try {
+    const made = remoteTmux([
+      'new-session',
+      '-d',
+      '-s',
+      session,
+      '-e',
+      `PATH=${value}`,
+      '--',
+      '/bin/sh',
+      '-c',
+      `printenv PATH > ${file}; sleep 20`
+    ]);
+    created = made.code === 0;
+    if (!created) {
+      return `the create exited ${String(made.code)}: ${made.both.trim()}`;
+    }
+    for (let tries = 0; tries < 40; tries += 1) {
+      if (existsSync(file)) break;
+      execFileSync('/bin/sleep', ['0.1']);
+    }
+    return existsSync(file)
+      ? readFileSync(file, 'utf8').trim()
+      : 'the pane never wrote the file';
+  } finally {
+    // By EXACT name. Nothing else on that socket can match this.
+    if (created) remoteTmux(['kill-session', '-t', `=${session}`]);
+  }
+}
+
+const paneWithE = paneEnvPathWithE('one', plantedPath);
+const eReaches = paneWithE === plantedPath;
+step(
+  '17c',
+  'whether -e PATH= reaches a pane, which decides Phase 84 item 10',
+  `the value put on the new-session line was ${JSON.stringify(plantedPath)} ` +
+    `and the pane answered ${JSON.stringify(paneWithE)}`
+);
+say(
+  `   -e PATH= ${eReaches ? 'REACHES' : 'does NOT reach'} the pane. ` +
+    `${
+      eReaches
+        ? 'So Phase 84 keeps the bare name launch and puts the folder holding ' +
+          'the program on the pane PATH, and the local invariant from Phase ' +
+          '12.7 F3 is kept on every machine.'
+        : 'So Phase 84 has to send the absolute program path as argv[0], and ' +
+          'a pkill -f over that path on that machine then matches every ' +
+          'durable Tortie agent on it. That cost belongs in the commit body.'
+    }`
+);
+say(
+  `   the planted folder ${PLANTED_DIR} appears nowhere else on this Mac, so a ` +
+    `pane answering with it answers because the pair reached it.`
+);
+if (paneWithE.startsWith('the pane never') || paneWithE.startsWith('the create exited')) {
+  fail(`step 17c measured nothing: ${paneWithE}`);
+}
+
+// ---------------------------------------------------------------------------
 // The carriage file the Electron harness reads
 // ---------------------------------------------------------------------------
 

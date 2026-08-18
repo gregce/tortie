@@ -29,6 +29,11 @@
  *     that names a different version from the one the machine reports now is a
  *     refusal of its own, so an acceptance of 3.8a does not carry to 3.9a.
  *  5. `ensureRemoteServer`. Boot, PATH capture, options, read back.
+ *  5a. PHASE 84. Start the machine's feed, which is what makes its sessions
+ *     appear. Before this phase Prepare reported success and started nothing
+ *     that reads the machine's list, so a machine asleep at launch stayed
+ *     unread for the whole run and the badge sent the person to the button that
+ *     could not fix it. A feed that will not start does not fail the prepare.
  *  6. Compose one class, one headline and one detail, all in main.
  *
  * ## What it is not, and why the connection test was left alone
@@ -60,12 +65,18 @@ import {
 import { execOn, execRemoteShell } from './exec-plane';
 import { shellQuoteArgv } from '../restore/command';
 import {
+  MACHINE_FEED_NOT_STARTED,
   MACHINE_VERSION_ACCEPT_MISMATCH,
   MACHINE_VERSION_ACCEPT_OFFER,
   classifyMachineOutput,
   composeOutcomeCopy
 } from './errors';
 import { ensureRemoteServer } from './remote-server';
+// PHASE 84, item 4. Preparing a machine is what makes its sessions visible, and
+// until this phase it started nothing that reads them. `startMachineFeed` is a
+// no-op for a machine that already has one, so calling it here and at the launch
+// sign in is one feed rather than two.
+import { startMachineFeed } from './remote-sessions';
 import { describeMachine, type MachineExecutionFields } from './confirm';
 
 const machinesLog = getLog('config');
@@ -79,6 +90,13 @@ export interface PrepareInput {
   readonly fields: MachineExecutionFields;
   /** Tortie's own identity record file. Named first on every command. */
   readonly tortieHostKeys: string;
+  /**
+   * Tortie's own key for this machine, or null (Phase 84, item 7).
+   *
+   * Handed over rather than looked up, for the reason `tortieHostKeys` is: this
+   * module reads no store. `./ipc.ts` is the caller that knows.
+   */
+  readonly identityFile?: string | null;
   readonly packaged?: boolean;
   readonly env?: NodeJS.ProcessEnv;
   readonly home?: string;
@@ -216,7 +234,8 @@ export async function prepareMachine(
         env: input.env ?? process.env,
         home: input.home ?? homedir(),
         uid: input.uid ?? process.getuid?.() ?? 0,
-        tortieHostKeys: input.tortieHostKeys
+        tortieHostKeys: input.tortieHostKeys,
+        identityFile: input.identityFile ?? null
       })
     );
   } catch (err) {
@@ -340,6 +359,23 @@ export async function prepareMachine(
   // Step 5.
   try {
     const server = await ensureRemoteServer(ctx);
+    // Step 5a. PHASE 84, item 4. The feed, started HERE rather than in the
+    // channel above, because `signInToConfirmedMachines` in
+    // `../sessions/core.ts` already calls this function and then started a feed
+    // by hand. One of those two calls had to go away rather than a third being
+    // added. A feed that will not start does not fail the prepare: the machine
+    // really was signed in to and the program really is running on it, so the
+    // honest answer is the success sentence with one more sentence after it.
+    let feedStarted = true;
+    try {
+      await startMachineFeed(input.machineId);
+    } catch (err) {
+      feedStarted = false;
+      machinesLog.warn(
+        `${input.machineId} was prepared and its list of sessions could not be ` +
+          `read: ${sentenceOf(err)}`
+      );
+    }
     const copy = composeOutcomeCopy('prepared', {
       resolvedPath: ctx.remoteTmuxPath,
       version,
@@ -356,7 +392,11 @@ export async function prepareMachine(
       class: 'prepared',
       alarm: copy.alarm,
       headline: copy.headline,
-      detail: copy.detail,
+      // PHASE 84. The one sentence that says what is still not true, appended
+      // rather than replacing the success sentence, because both are true.
+      detail: feedStarted
+        ? copy.detail
+        : `${copy.detail} ${MACHINE_FEED_NOT_STARTED}`,
       version,
       supported,
       serverBorn: server.born,

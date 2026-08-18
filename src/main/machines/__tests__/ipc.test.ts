@@ -239,6 +239,13 @@ describe('every channel is registered, and only the ones listed here', () => {
       // line to one file on one machine, and it checks the hash of what the
       // person read before it starts anything at all.
       'machines:installKey',
+      // ---- PHASE 84 ----
+      // One READ of the folders inside one folder on one machine, so the create
+      // sheet can offer a picker for the other computer. It lists folders and
+      // never files, it writes nothing on either computer, and it refuses while
+      // Tortie is not connected to the machine.
+      'machines:listDir',
+      // ---- END PHASE 84 ----
       // Phase 69's one new channel. It starts something on another machine, and
       // it is the only channel in the product that does.
       'machines:prepare',

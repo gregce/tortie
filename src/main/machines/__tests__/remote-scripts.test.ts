@@ -89,11 +89,17 @@ function positionals(text: string): Positional[] {
 }
 
 describe('the catalogue', () => {
-  it('holds seven scripts and this release holds no others', () => {
-    expect(REMOTE_SCRIPTS).toHaveLength(7);
+  it('holds nine scripts and this release holds no others', () => {
+    expect(REMOTE_SCRIPTS).toHaveLength(9);
     expect(REMOTE_SCRIPTS.map((script) => script.id).sort()).toEqual([
+      // PHASE 84 added the two reads below. `dir-list` names the folders inside
+      // one folder, and `program-find` tests whether one name is an executable
+      // file in each of a list of folders. Both write nothing, so the one write
+      // in this catalogue is still `image-put` and still the only one.
+      'dir-list',
       'image-put',
       'machine-facts',
+      'program-find',
       'review-file',
       'review-list',
       'store-copy',
@@ -282,6 +288,105 @@ describe('the one write', () => {
     expect(write?.text).toContain('d="$HOME/.tortie/images"');
     const paths = [...(write?.text ?? '').matchAll(/"(\/[^"]*)"/g)];
     expect(paths).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 84. The two reads this phase added
+// ---------------------------------------------------------------------------
+
+describe('the folder listing', () => {
+  const dirList = remoteScript('dir-list');
+
+  it('is a read that takes two values', () => {
+    expect(dirList?.mode).toBe('read');
+    expect(dirList?.params).toBe(2);
+  });
+
+  it('lists folders and never files', () => {
+    // `ls -A -p` marks a directory with a trailing slash and the filter keeps
+    // only those. A picker that listed files would be a file browser, and it
+    // would send every file name in a home directory across for nothing.
+    expect(dirList?.text).toContain('ls -A -p');
+    expect(dirList?.text).toContain("grep '/$'");
+  });
+
+  it('counts the folders separately from the ones it lists', () => {
+    // Without this a picker showing 500 of 900 would present 500 as all of them.
+    expect(dirList?.text).toContain("grep -c '/$'");
+    expect(dirList?.text).toContain('head -n "$2"');
+  });
+
+  it('answers a word for every state a folder can be in', () => {
+    for (const word of ['missing', 'notdir', 'denied', 'ok']) {
+      expect(dirList?.text, word).toContain(`__TORTIE_RUN__${word}`);
+    }
+  });
+
+  it('lets that machine resolve its own home when no folder was named', () => {
+    // Tortie composes no home path for another computer.
+    expect(dirList?.text).toContain('if [ -z "$p" ]; then p="$HOME"; fi');
+  });
+
+  it('redirects nothing except the two noise silencers', () => {
+    const redirects = [...(dirList?.text ?? '').matchAll(/>\s*\S+/g)].map(
+      (hit) => hit[0]
+    );
+    expect(redirects).toEqual(['>/dev/null', '>/dev/null']);
+  });
+});
+
+describe('the program search', () => {
+  const find = remoteScript('program-find');
+
+  it('is a read that takes three values', () => {
+    expect(find?.mode).toBe('read');
+    expect(find?.params).toBe(3);
+  });
+
+  /**
+   * THE RULE THIS SCRIPT COULD HAVE BROKEN, and the reason it does not.
+   *
+   * Rule 2 of the catalogue is that every positional is read as `"$1"` to
+   * `"$9"` and is always quoted. This script walks two LISTS, and `for d in $2`
+   * would be a bare positional. So each list is read once, in quotes, into a
+   * local name, and the word splitting happens on that local name under `IFS`.
+   * The quoting test above covers every script; this one names the mechanism so
+   * a later edit cannot undo it by going back to the obvious spelling.
+   */
+  it('reads each list into a local name before any loop walks it', () => {
+    const text = find?.text ?? '';
+    expect(text).toContain('p="$2"');
+    expect(text).toContain('x="$3"');
+    expect(text).toContain('for d in $p; do');
+    expect(text).toContain('for d in $x; do');
+    expect(text).not.toContain('for d in $2');
+    expect(text).not.toContain('for d in $3');
+    // Assigned BEFORE the loops, not after them.
+    expect(text.indexOf('p="$2"')).toBeLessThan(text.indexOf('for d in $p'));
+    expect(text.indexOf('x="$3"')).toBeLessThan(text.indexOf('for d in $x'));
+  });
+
+  it('splits on a colon, which is how every list of folders is written', () => {
+    expect(find?.text).toContain('IFS=:');
+  });
+
+  it('tests for an executable file rather than for a name that exists', () => {
+    expect(find?.text).toContain('[ -x "$d/$n" ]');
+  });
+
+  it('says which of the two lists the answer came from', () => {
+    expect(find?.text).toContain('s=path');
+    expect(find?.text).toContain('s=install');
+  });
+
+  it('answers the empty word when it found nothing', () => {
+    expect(find?.text).toContain('"${s:-none}"');
+    expect(find?.text).toContain('"${f:-none}"');
+  });
+
+  it('redirects nothing at all, because it only asks questions', () => {
+    expect(find?.text).not.toContain('>');
   });
 });
 

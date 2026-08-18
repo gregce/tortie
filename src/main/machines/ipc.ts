@@ -99,8 +99,12 @@ import type {
   MachineReviewFileInput,
   MachineReviewInput,
   MachineReviewList,
-  MachineReviewPair
+  MachineReviewPair,
   // ---- END PHASE 73 BLOCK C ----
+  // ---- PHASE 84 ----
+  RemoteDirListInput,
+  RemoteDirListing
+  // ---- END PHASE 84 ----
 } from '@shared/ipc';
 import { EVT_MACHINE_STATE, EVT_MACHINE_TEST } from '@shared/ipc';
 import { gmuxError } from '../errors';
@@ -146,7 +150,19 @@ import {
 // `ensureMachineKey` is the one call that runs ssh-keygen, and it runs only
 // after the hash a person read has been checked.
 import { allowControlPlaneAgain } from './control-plane';
-import { ensureMachineKey, machineKeyPath } from './key-material';
+import {
+  ensureMachineKey,
+  machineKeyLeaf,
+  machineKeyPairPresent,
+  machineKeyPath
+} from './key-material';
+// Phase 84, item 8. Whether a create on this machine would get past the ready
+// check, asked here so the create sheet does not have to guess and does not
+// have to ask the machine.
+import { machineCanHoldSession } from './remote-sessions';
+// Phase 84, item 6. The folder listing, which is a read and writes nothing on
+// either computer.
+import { listRemoteDir } from './dir-list';
 import { prepareMachine } from './prepare';
 import { validateMachinesFile } from './schema';
 // Phase 72: the record a removal leaves behind. It writes tombstones and
@@ -219,7 +235,18 @@ function viewOf(row: MachineRowV1): MachineRowView {
     sessions: machineSessionCount(row.id),
     // Phase 83. The version this person accepted for this machine, so the row
     // can draw it and offer to withdraw it.
-    acceptedTmuxVersion: fields.acceptedTmuxVersion
+    acceptedTmuxVersion: fields.acceptedTmuxVersion,
+    // PHASE 84, item 8. Whether a session could be started on this machine
+    // RIGHT NOW, which is a different question from whether a person confirmed
+    // it. `usable` above keeps its meaning, because Settings reads it to decide
+    // whether the Prepare button is offered and a confirmed machine that is
+    // asleep has to keep offering Prepare. This one asks exactly what
+    // `readyRemoteContext` asks, and it asks the machine nothing.
+    ready: machineCanHoldSession(row.id),
+    // PHASE 84, item 7. The file name of Tortie's own key for this machine, or
+    // null when there is none. The LEAF and never the path: the row already
+    // draws the whole path where a person needs it.
+    keyFile: machineKeyPairPresent(row.id) ? machineKeyLeaf(row.id) : null
   };
 }
 
@@ -605,7 +632,14 @@ export function registerMachinesIpc(ipc: IpcMain): void {
       return prepareMachine({
         machineId: row.id,
         fields: machineFieldsOf(row),
-        tortieHostKeys: ensureMachineHostKeysPath()
+        tortieHostKeys: ensureMachineHostKeysPath(),
+        // PHASE 84, item 7. The key Tortie made for this machine, named on
+        // every command it sends there from now on. It is read HERE rather
+        // than inside the context builder, because the module that knows
+        // where a machine's key lives reads the store, and an import from the
+        // context builder to it put a native file watcher into the import
+        // graph of the manifest.
+        identityFile: machineKeyPairPresent(row.id) ? machineKeyPath(row.id) : null
       });
     }
   );
@@ -733,6 +767,33 @@ export function registerMachinesIpc(ipc: IpcMain): void {
       })
   );
   // ---- END PHASE 73 BLOCK C ----
+
+  // ---- PHASE 84 ----
+  // PHASE 84, item 6. One channel that READS the folders inside one folder on
+  // one machine, so the create sheet can offer a picker for the other computer.
+  //
+  // It is safe to add for the reason the two review channels above are: it
+  // cannot compose what it asks. The command that crosses is `dir-list` from
+  // the frozen catalogue in ./remote-scripts.ts, chosen by name, with the
+  // folder arriving there as a positional parameter. It lists folders and never
+  // files, so it is a folder chooser rather than a file browser, and it carries
+  // no file contents at all.
+  //
+  // It NEVER THROWS for anything the machine said. A folder that is not there,
+  // a path that is not a folder, a folder the account cannot read and a machine
+  // that did not answer all come back as a listing carrying its own refusal and
+  // one sentence, because the picker has a panel to draw either way.
+  //
+  // It does not ask {@link assertMachineMayConnect} again, for the reason the
+  // review channels do not: a machine with a registered context has already
+  // been through that gate, and `readyRemoteContext` refuses one that has not.
+  handle(
+    ipc,
+    'machines:listDir',
+    async (_event, input: RemoteDirListInput): Promise<RemoteDirListing> =>
+      listRemoteDir({ machineId: input.machineId, path: input.path })
+  );
+  // ---- END PHASE 84 ----
 }
 
 /**

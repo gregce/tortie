@@ -57,6 +57,15 @@ export interface SnapshotFailedNotice {
    * brings back the conversation only. Absent on every other capture pass.
    */
   atSessionEnd?: boolean;
+  /**
+   * APPENDED (Phase 84): true when the session was on another machine.
+   *
+   * The end-time sentence for a session on this Mac says "Restore resumes it",
+   * and that is false for a session on another machine, where the conversation
+   * does not come back. Absent reads as false, so every notice written before
+   * this field means exactly what it always did.
+   */
+  remote?: boolean;
 }
 
 /**
