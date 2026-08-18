@@ -5913,7 +5913,7 @@ because a View row is added, so the native menus change in the same commit.
 6. Control-Command-F still toggles window full screen and a packaged build still shows exactly one full screen row.
 7. Screenshots of enter, of the settled focus, and of leave, read by eye.
 
-## Phase 79 — the Machines screen tells you what to do (operator reported 2026-08-17) ✅ SHIPPED 2026-08-17 (this commit, 0.36.1, gates green)
+## Phase 79 — the Machines screen tells you what to do (operator reported 2026-08-17) ✅ SHIPPED 2026-08-17 (3e1ba07, 0.36.1, gates green, CI green)
 
 **What landed, and the two places the plan below was wrong.** All seven items shipped. The stale
 sentence is gone and a test named RETIRED_CLAIMS fails if any string in the copy file makes that
@@ -6070,7 +6070,7 @@ the writing rules including no em or en dashes. Prove no file under `src/main/se
 `src/main/restore/`, `src/main/manifest/` or `src/shared/ipc/` was edited, and that the only
 `src/main/machines/` change is the one word, and say so explicitly.
 
-## Phase 78 — three font presets, and the screenshot that must keep matching (operator requested 2026-08-17) ✅ SHIPPED 2026-08-17 (this commit, 0.36.0, gates green)
+## Phase 78 — three font presets, and the screenshot that must keep matching (operator requested 2026-08-17) ✅ SHIPPED 2026-08-17 (7b429d5, 0.36.0, gates green, CI green)
 
 Closes GitHub issue 1 for the work area only. Six researchers surveyed nine products and one
 adversarial critic re-measured every number by downloading both font releases and parsing their
@@ -6350,6 +6350,8 @@ blocks a rung. This round runs after 73, or earlier if the operator asks for it.
 | 78 | `'SF Mono'` does not resolve on this machine either, measured the same way that proved `'SF Pro Text'` does not, being that it measures identically to a family name that does not exist. Phase 78 deleted the dead name from `--font-ui` and left this one at the head of both `--font-mono` and the System value of `--font-terminal`, under a comment calling the stack verified. Nothing draws wrong, because the next entry matches, and the comment misleads the next reader |
 | 78 | A capture started in the first second after a preset change measures its cell correction against the old face. `--font-terminal` moves at 8 ms and `document.fonts.check` for the new family stayed false until 1,252 ms in one measured run. The error is bounded by the 0.34 percent advance difference, about 0.026 css pixels per character, so it is far smaller than the defect Phase 78 removed. The fix is for the capture path to await the named face rather than `document.fonts.ready` |
 | 78 | `src/renderer/terminal/capture/index.ts` now holds two `no FontFaceSet outside a browser` comments that differ by one character, because Phase 78 wrote its new one without an em dash and left the older one alone |
+| orchestrator | A fence that is too tight blocks the phase it was meant to protect. Phase 79 deleted a user-facing sentence, and `build/assert-bundle-refusals.mjs` asserts that named sentences reach the shipped bundles, so the build gate failed on a file no builder was allowed to edit. A fence must name every file the change reaches, not only the files the feature lives in |
+| orchestrator | A research figure was written into a phase entry without measuring the files. The Phase 78 charter said the bundled fonts were 335,296 bytes and the four files measure 340,472. The committer caught it. A number in a charter is checked against the thing it describes before a builder reads it |
 
 ## Phase 46.1 — the Runs pane reads clearly (operator reported 2026-08-16) ✅ SHIPPED 2026-08-17 (d1ce49f, 0.31.1, gates green)
 
