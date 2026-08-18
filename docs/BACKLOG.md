@@ -5845,6 +5845,109 @@ performance audit's subsystem table has no row for it and its idle table omits t
 remote ladder built exactly the shape the audits warn about, in the weeks after they were written.
 Nothing is broken. It is unmapped, and the next audit refresh owns it.
 
+## Phase 78 — three font presets, and the screenshot that must keep matching (operator requested 2026-08-17) QUEUED
+
+Closes GitHub issue 1 for the work area only. Six researchers surveyed nine products and one
+adversarial critic re-measured every number by downloading both font releases and parsing their
+glyph tables. The critic reproduced every byte figure and every licence claim, and returned
+needs_work on four points, all of which are answered below.
+
+**The design spec already sanctioned this with a condition, and the condition is the design.**
+`docs/DESIGN-SPEC.md:601` withdrew the font SIZE stepper "not deferred again", because per-region
+zoom already answers size and a Settings field would be a second answer fighting the first. The same
+line says the `--font-terminal` token "remains the family lever" and that "if a family picker is
+ever built it sets that token, and zoom stays a multiplier over whatever base size it implies". So
+this phase builds a FAMILY picker that sets that token, and ships NO size control. The issue asked
+for both. The size half is refused, and the refusal is older than the issue.
+
+**Three presets, in the shape of the shipped highlight and contrast presets.**
+
+| Preset | Source | Licence | Bytes shipped | The one reason it earns a slot |
+| --- | --- | --- | --- | --- |
+| System, the default | already on the machine, resolves to Menlo | named only | 0 | A person who never opens the section sees exactly today, byte identical |
+| JetBrains Mono 2.304 | bundled, regular and bold woff2 | SIL OFL 1.1, no reserved name | 186,752 | The only bundleable face measured that covers the whole glyph gauntlet, and it sits on the same grid at 0.6000 em advance against Menlo's 0.6021, so letterforms change and the cell does not |
+| Source Code Pro 2.042 | bundled, regular and bold woff2 | SIL OFL 1.1, reserved name "Source" | 148,544 | x-height 0.4860 em against Menlo's 0.5469, which is 11 percent smaller, and it is the only measured candidate that gives a quieter page at the same pixel size |
+
+Total shipped bytes 335,296. For scale the app already ships `codicon.ttf` twice, at 149,508 and
+140,956 bytes. Fonts are assets rather than JavaScript, so they do not enter the eager JS budget the
+performance audit tracks, but they are still bytes and the phase reports them.
+
+**Every preset is a stack ending in Menlo**, for example `'JetBrains Mono', Menlo, monospace`,
+because both bundled faces sit within 0.35 percent of Menlo's advance so a fallback glyph lands
+inside the cell.
+
+**THE BLOCKING FIX, and the operator chose it.** Bundling a face silently breaks the terminal
+screenshot export. `src/renderer/terminal/capture/rasterize.ts` serialises the terminal into an SVG
+inside a `data:` URL, and that SVG is an isolated document. Chromium does not apply the host page's
+`@font-face` rules inside it and fetches nothing from it, which is exactly why the canvas is never
+tainted. So a bundled face is not available to the rasteriser and two things go wrong with no error.
+The exported PNG draws in Menlo while the screen draws in the chosen face. Worse,
+`letterSpacingCorrection` at `rasterize.ts:33` computes the cell correction against the chosen
+face's advance on the main document and then applies it to text the SVG renders in Menlo, so the
+correction becomes WRONG rather than merely absent. The operator chose to fix it: inline the selected
+face as a base64 `@font-face` inside a `<style>` element within the foreignObject. For JetBrains Mono
+Regular that is 92,164 bytes of woff2 becoming about 122,900 bytes of base64 in each capture. The CSP
+already permits it, at `src/renderer/index.html:19` and `src/renderer/settings/index.html:10`, both
+carrying `font-src 'self' data:`. When the System preset is chosen, inline nothing and keep today's
+path exactly.
+
+**Four corrections the critic required, all binding.**
+
+1. **Menlo is not a blanket safety net.** Only Menlo REGULAR covers the gauntlet. Menlo Bold has
+0 of 128 box drawing characters. Menlo Italic is missing the check, cross, arrow and warning marks.
+Menlo Bold Italic fails both ways. Monaco renders comments in italic commonly, so this is reachable.
+State the fallback claim as what it is, being that Menlo Regular is the safe upright last resort.
+2. **Source Code Pro is missing three marks** and the recommendation table must say so rather than
+hiding it behind a box-and-block rule. It lacks the cross at U+2717, the arrow at U+279C and the
+warning at U+26A0. When one falls back to Menlo inside a Source Code Pro line, the fallback glyph
+carries an x-height 12.5 percent taller than its neighbours. The advance matches so the grid holds,
+and the size mismatch shows. Keep the preset and state the cost.
+3. **Menlo Bold's missing box drawing does not show**, because the terminal draws all 128 box
+characters itself in `@xterm/addon-webgl` 0.19.0, along with 32 block elements, 19 powerline
+codepoints and 31 legacy computing glyphs. That is also why no bundled face is needed for box,
+block or powerline coverage. A font buys letterforms and nothing else here.
+4. **`'SF Pro Text'` in `src/renderer/styles/tokens.css:124` has never matched anything.** The critic
+checked 2,166 registered families on this machine and there is no such family. It is harmless because
+`-apple-system` matches first, and it misleads the next reader. Delete it.
+
+**NO SIDEBAR FONT CONTROL, and this is a deliberate refusal of half the issue.** The macOS system
+interface font is correct. It is the only value that keeps tracking the system face across releases
+and gets the system's own optical sizing at the 11 px to 15 px sizes the tree uses. VS Code has
+closed four separate requests for a UI font setting without shipping one, and GitHub Desktop's
+Appearance pane carries theme, date format, time format, number format and diff tab size with no
+typography field. Zed is the only surveyed exception and it bundles its own sans at 822,124 bytes.
+Say this in the issue rather than deferring it. If the operator later wants the density the request
+is probably really about, the control that fits the existing shape is a three step interface text
+size scaling the `--text-*` and `--lh-*` tokens, beside contrast. That is a preset. A font list for
+chrome is a picker.
+
+**What this phase does NOT fix, recorded so nobody expects it.** Agent spinners are braille. No
+monospace face on this machine has any of the 256 braille codepoints, none of the eight measured
+candidates has any, and neither does the Nerd Font symbols file. `Apple Braille.ttf` has all 256, so
+macOS is drawing spinners from it today at a width the terminal grid did not plan for. No font preset
+changes that. The fix is an xterm.js upgrade and it belongs in its own phase.
+
+**Subject:** `feat(appearance): three font presets for the work area`
+**First body line:** `Phase 78: three font presets, and the screenshot that must keep matching`
+**Semver:** minor.
+**Tier 2 for the preset itself, and Tier 3 for the rasteriser**, because a wrong cell correction
+silently corrupts an export a person may rely on.
+
+**Builder split, disjoint.**
+
+| Builder | Owns | Item |
+| --- | --- | --- |
+| A | the font assets, `src/renderer/styles/tokens.css`, the `@font-face` declarations, the terminal and Monaco font wiring | the presets and the token |
+| B | `src/renderer/settings/AppearanceSection.tsx`, the settings store rows, the preset data and its tests | the Settings surface |
+| C | `src/renderer/terminal/capture/rasterize.ts`, `src/renderer/terminal/capture/index.ts` and their tests | the screenshot fix |
+
+**Probes.** Photograph the Appearance section showing three presets. Switch to each and photograph
+the terminal, reading the letterforms by eye. Export a terminal screenshot under each preset and
+compare the PNG against the screen, proving they match rather than asserting it. Measure the cell
+geometry under each preset and show the grid did not move. Prove zoom still multiplies over the
+chosen base. Prove the System preset is byte identical to today by comparing a capture before and
+after the change.
+
 ## Phase 77 — the quit and suspend contract, NOT QUEUED and BLOCKED ON PHASE 72
 
 **This may not run while Phase 72 is in flight.** Builder A owns all 3,192 lines of
