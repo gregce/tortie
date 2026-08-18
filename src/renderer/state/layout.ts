@@ -40,6 +40,7 @@ import {
   splitLeaf
 } from './split-tree';
 import type { NavDir, SplitEdge, SplitNode } from './split-tree';
+import { readPopOutFocus } from './pop-out-focus';
 
 export type { NavDir, SplitEdge, SplitNode };
 
@@ -106,6 +107,18 @@ interface LayoutState {
     targetLeafId: string,
     edge: SplitEdge,
     draggedId: string
+  ): void;
+  /**
+   * Phase 86. Move a leaf that is ALREADY in a group to another position in
+   * that same group: it leaves its slot, its sibling absorbs the space, and it
+   * takes the armed half of the target leaf at 50/50. Nothing leaves the
+   * group, so no tab appears in the strip and MAX_LEAVES is not consulted.
+   */
+  moveLeafWithin(
+    projectPath: string,
+    sessionId: string,
+    targetLeafId: string,
+    edge: SplitEdge
   ): void;
   /** Remove a leaf from its group into its own tab/row at `toIndex`. */
   popOut(projectPath: string, sessionId: string, toIndex: number | null): void;
@@ -414,6 +427,46 @@ export const useLayout = create<LayoutState>((set, get) => {
       useApp.getState().setActiveSession(draggedId);
     },
 
+    moveLeafWithin(projectPath, sessionId, targetLeafId, edge) {
+      const sessions = projectSessions(projectPath);
+      const prev = get().layouts[projectPath];
+      const surfaces = currentSurfaces(get(), projectPath, sessions);
+      const at = surfaces.findIndex(
+        (x) => x.isGroup && x.leafIds.includes(sessionId)
+      );
+      const group = surfaces[at];
+      if (at === -1 || group === undefined) return;
+      // A leaf cannot move onto itself, and the two must be siblings in one
+      // tree. Every refusal here writes nothing and moves no focus.
+      if (sessionId === targetLeafId) return;
+      if (!group.leafIds.includes(targetLeafId)) return;
+      const without = removeLeaf(group.root, sessionId);
+      // A group holds two or more leaves, so this cannot happen. The guard is
+      // what keeps it from becoming a collapse if it ever does.
+      if (without === null) return;
+      const root = splitLeaf(without, targetLeafId, edge, sessionId);
+      // Dropping a leaf back where it already is must not write, must not
+      // re-persist and must not move focus.
+      if (JSON.stringify(root) === JSON.stringify(group.root)) return;
+      const next: Surface[] = surfaces.map((surf) =>
+        surf.id === group.id
+          ? {
+              id: group.id,
+              root,
+              leafIds: leafIds(root),
+              isGroup: true
+            }
+          : surf
+      );
+      write(projectPath, toLayoutState(next, prev));
+      // The moved leaf takes the focus. The header press no longer selects on
+      // its own (see `leaf-press.ts`) and the drag swallows the click that
+      // would have, so this line is the one thing that focuses it. Nothing
+      // left the split, so the pop-out preference has no second place to send
+      // the eye and is not read here.
+      useApp.getState().setActiveSession(sessionId);
+    },
+
     popOut(projectPath, sessionId, toIndex) {
       const sessions = projectSessions(projectPath);
       const prev = get().layouts[projectPath];
@@ -458,7 +511,31 @@ export const useLayout = create<LayoutState>((set, get) => {
         isGroup: false
       });
       write(projectPath, toLayoutState(next, prev));
-      useApp.getState().setActiveSession(sessionId);
+      // Phase 86. Where the eye goes after a leaf leaves a split is the
+      // person's choice, read fresh on every pop out so the Settings window's
+      // write is in force at once.
+      const app = useApp.getState();
+      if (readPopOutFocus() === 'moved') {
+        app.setActiveSession(sessionId);
+        return;
+      }
+      // 'stayed' means the eye keeps looking at the split the leaf came from,
+      // and that is not the same thing as moving no focus. The active surface
+      // is DERIVED from the active session, so when the leaf that left was the
+      // active one, doing nothing would carry the eye out of the split with
+      // it. Point the active session at a leaf that stayed. The group's
+      // remembered focus wins when it is still there, and the first remaining
+      // leaf answers otherwise.
+      if (app.activeProject()?.path !== projectPath) return;
+      if (app.activeSession()?.id !== sessionId) return;
+      const remembered = prev?.groups[group.id]?.focused;
+      const stay =
+        remembered !== undefined &&
+        remembered !== sessionId &&
+        rest.includes(remembered)
+          ? remembered
+          : restFirst;
+      if (stay !== undefined) app.setActiveSession(stay);
     },
 
     breakUp(projectPath, groupId) {
@@ -477,6 +554,11 @@ export const useLayout = create<LayoutState>((set, get) => {
       const next = [...surfaces];
       next.splice(at, 1, ...singles);
       write(projectPath, toLayoutState(next, prev));
+      // Phase 86. This verb does NOT read the pop-out preference, and it never
+      // will. It pops EVERY leaf out at once, so under 'moved' there is no
+      // single session that was dragged out, and under 'stayed' there is no
+      // split left to keep looking at. Moving no focus is the one answer the
+      // preference cannot disagree with.
     },
 
     setSurfaceRatio(projectPath, surfaceId, path, ratio) {

@@ -1124,3 +1124,56 @@ export const RESERVED_APP_CHORDS: Readonly<Record<string, string>> =
       { ...NATIVE_ROLE_CHORDS }
     )
   );
+
+// ---------------------------------------------------------------------------
+// Reading filter — the one both keyboard surfaces use (Phase 86)
+// ---------------------------------------------------------------------------
+
+/**
+ * The name of the action, or the chord itself — not the explanation.
+ *
+ * The query is trimmed and lowercased here rather than by the caller, so the
+ * two surfaces cannot hand this different things. An empty query answers
+ * true, which is the contract `keymapMatches` already has.
+ */
+export function nameOrChordMatches(entry: KeymapEntry, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (q === '') return true;
+  const haystack = [
+    entry.action,
+    ...entry.keys.map((c) => c.display),
+    ...entry.keys.map((c) => c.accelerator ?? '')
+  ]
+    .join(' ')
+    .toLowerCase();
+  return haystack.includes(q);
+}
+
+/**
+ * Precision first, then relax.
+ *
+ * `keymapMatches` searches the explanations too, which is what makes
+ * "scrollback" and "trash" findable — but every per-agent row explains itself
+ * as "…in the project you are looking at", so a plain search for "project"
+ * answered with eleven session rows before the Projects group. So: match
+ * names and chords, and only fall back to searching the sentences when that
+ * finds nothing at all. Nothing becomes unfindable; the obvious query just
+ * stops being buried by the boilerplate.
+ *
+ * It lives here, and not beside one of its callers, because the Settings map
+ * and the shortcuts overlay must narrow the same list the same way. One of
+ * them owning it is how the two drift.
+ */
+export function filterForReading(
+  sections: readonly KeymapSection[],
+  query: string
+): readonly KeymapSection[] {
+  if (query.trim() === '') return sections;
+  const byName = sections
+    .map((s) => ({
+      group: s.group,
+      entries: s.entries.filter((e) => nameOrChordMatches(e, query))
+    }))
+    .filter((s) => s.entries.length > 0);
+  return byName.length > 0 ? byName : filterKeymapSections(sections, query);
+}

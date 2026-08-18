@@ -1,0 +1,133 @@
+/* S8 — the shortcuts overlay (Phase 86). Colocated with its component per the
+   growth guardrails; the shared modal shell (.modal-scrim, .modal,
+   .modal-title) and .key-range stay in styles/app.css, because other surfaces
+   draw them too.
+
+   The sheet is now a HEADER, a scrolling BODY and a FOOTER rather than one
+   scrolling box. The search field and the count have to stay readable while
+   the body is 400 px down, and a group title has to pin to the top of the
+   rows it names.
+
+   The three balanced columns this replaces are gone on purpose. `position:
+   sticky` does nothing inside CSS multi-column fragmentation, so a sticky
+   group title and a three-column map cannot both exist. The map stops fitting
+   on one screen and becomes searchable instead. That is the trade. */
+
+/* Written .modal.modal-shortcuts, not .modal-shortcuts, on purpose: it has to
+   beat .modal's own `overflow-y: auto` and `width` in styles/app.css whatever
+   order the bundler emits the two stylesheets in. */
+.modal.modal-shortcuts {
+  width: min(600px, calc(100vw - var(--space-9)));
+  display: flex;
+  flex-direction: column;
+  /* The body scrolls, not the sheet. On a short window the body shrinks
+     below its 70vh instead, so the footer is never clipped. */
+  overflow: hidden;
+}
+
+.shortcut-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.shortcut-head .modal-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+.shortcut-count {
+  flex: 0 0 auto;
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+}
+
+.shortcut-search {
+  flex: 0 0 auto;
+  width: 100%;
+  margin-bottom: var(--space-5);
+}
+
+.shortcut-groups {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 70vh;
+  overflow-y: auto;
+  /* The sticky titles fill to the sheet's own background, so rows scrolling
+     under a title are covered rather than showing through it. */
+  background: var(--bg-surface);
+}
+
+.shortcut-group {
+  margin: 0 0 var(--space-6);
+}
+
+.shortcut-group:last-child {
+  margin-bottom: 0;
+}
+
+.shortcut-group-title {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg-surface);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0;
+  padding: var(--space-2) 0 var(--space-3);
+}
+
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  height: 26px;
+  gap: var(--space-3);
+  padding: 0 var(--space-3);
+  border-radius: var(--r-sm);
+  scroll-margin-top: var(--space-8);
+}
+
+.shortcut-row[aria-current='true'] {
+  background: var(--bg-active);
+}
+
+.shortcut-action {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Chips never give up width to the label. */
+.shortcut-row .key {
+  flex: 0 0 auto;
+}
+
+.shortcut-empty {
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  color: var(--text-secondary);
+  margin: 0;
+  padding: var(--space-4) var(--space-3);
+}
+
+.shortcut-foot {
+  flex: 0 0 auto;
+  margin: var(--space-5) 0 0;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+}

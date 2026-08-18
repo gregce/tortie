@@ -1,7 +1,8 @@
 /**
  * Settings → General (S13): Open at login (moved here from the activity-bar
  * gear's one-item menu) + Default agent (drives the ⌘T picker's initial
- * selection — explicit claude out of the box, never alphabetical).
+ * selection — explicit claude out of the box, never alphabetical) + where the
+ * eye lands after a session leaves a split (Phase 86).
  */
 
 import React, { useEffect, useState } from 'react';
@@ -14,6 +15,12 @@ import type {
 } from '@shared/ipc';
 import type { LaunchableAgentKind } from '@shared/types';
 import { keyDisplay } from '@shared/keymap';
+import {
+  DEFAULT_POP_OUT_FOCUS,
+  readPopOutFocus,
+  writePopOutFocus
+} from '../state/pop-out-focus';
+import type { PopOutFocus } from '../state/pop-out-focus';
 import { ScrollbackSection } from './ScrollbackSection';
 import { useSettingsStore } from './settings-store';
 import { Switch } from './Switch';
@@ -251,6 +258,51 @@ function DefaultAgentRow(): React.JSX.Element {
 }
 
 /**
+ * Phase 86. Where the eye lands after a session is dragged out of a split.
+ * The two answers in plain words: Tortie either shows you the session you
+ * dragged out, or keeps you looking at the split you dragged it from. The
+ * first answer is what the app has always done and it stays the default.
+ *
+ * The value is a localStorage key rather than a settings-file field, because
+ * it is presentation state that belongs beside the layout record it acts on.
+ * The reasons are written out in `src/renderer/state/pop-out-focus.ts`. The
+ * row reads the stored answer once on mount and writes it on every change,
+ * and the main window reads it fresh on the next pop out.
+ */
+function PopOutFocusRow(): React.JSX.Element {
+  const [value, setValue] = useState<PopOutFocus>(DEFAULT_POP_OUT_FOCUS);
+
+  useEffect(() => {
+    setValue(readPopOutFocus());
+  }, []);
+
+  return (
+    <div className="set-row tall">
+      <div className="set-row-text">
+        <span className="set-row-label">After a session leaves a split</span>
+        <span className="set-row-caption">
+          Choose where you are looking after you drag a session out of a split
+          and into its own tab.
+        </span>
+      </div>
+      <select
+        className="set-select"
+        aria-label="After a session leaves a split"
+        value={value}
+        onChange={(e) => {
+          const next = e.target.value as PopOutFocus;
+          setValue(next);
+          writePopOutFocus(next);
+        }}
+      >
+        <option value="moved">Show me the session I moved</option>
+        <option value="stayed">Keep me on the split it came from</option>
+      </select>
+    </div>
+  );
+}
+
+/**
  * Phase 24. One read only row: the running version, and what the updater is
  * doing about it. Data comes from the `updates:state` invoke channel, fetched
  * when the section mounts. The row does not live update; reopening Settings
@@ -317,6 +369,7 @@ export function GeneralSection(): React.JSX.Element {
       <div className="set-group-label">Sessions</div>
       <div className="set-card">
         <DefaultAgentRow />
+        <PopOutFocusRow />
       </div>
 
       {/* Phase 51. The tortie shell command: install and remove are the two

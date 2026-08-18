@@ -11,3 +11,61 @@
 .install-page-link:hover {
   text-decoration: underline;
 }
+
+/* PHASE 86 — the Options disclosure.
+
+   The block used to draw every preset row for the selected agent, so the
+   sheet's height changed when the agent changed and the Create button moved
+   under the pointer. It is collapsed now, and this row is what replaces the
+   plain "OPTIONS" field label. It carries the same 11px uppercase treatment
+   that label had, so the field rhythm of the sheet does not change, plus a
+   chevron on the left and the count in the text itself.
+
+   The count is drawn even when it is zero, which is what makes the summary
+   safe to trust: a flag seeded from Settings launch defaults is counted here
+   whether or not anybody expands the block. */
+
+.options-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+.options-summary:hover {
+  color: var(--text-secondary);
+}
+
+.options-summary:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-sm);
+}
+
+/* The glyph turns rather than swapping shape, so the collapse reads as one
+   control in two states. The component picks chevron-right or chevron-down,
+   and this only keeps it from stretching the row. */
+.options-chevron {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+}
+
+.options-summary-text {
+  white-space: nowrap;
+}
+
+/* The expanded rows keep the spacing the plain field label gave them. */
+.options-summary + [role='group'] {
+  margin-top: var(--space-3);
+}

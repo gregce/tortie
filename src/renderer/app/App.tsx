@@ -66,7 +66,10 @@ import { PastSessionsModal } from './PastSessionsModal';
 // Phase 72. The saved output panel. One session menu item opens it, it reads
 // one file on this Mac and it sends nothing anywhere.
 import { SavedOutputModal } from './SavedOutputModal';
-import { ShortcutsOverlay } from './ShortcutsOverlay';
+import {
+  ShortcutsOverlay,
+  shortcutSearchTookEscape
+} from './ShortcutsOverlay';
 import { AttentionOverlay } from './AttentionOverlay';
 import { ConfirmDialog } from './ConfirmDialog';
 import { ContextInstallHost } from '../context';
@@ -276,7 +279,12 @@ function useKeyboardMap(): void {
         } else if (s.shortcutsOpen) {
           e.preventDefault();
           e.stopPropagation();
-          s.setShortcutsOpen(false);
+          // Phase 86: the overlay's search field owns the first Escape while
+          // it holds text. Losing the whole sheet because you wanted to undo
+          // a query is the wrong trade, and this ladder is the only place
+          // that can make the call, because it is capture-phase on window and
+          // runs before anything inside the overlay.
+          if (!shortcutSearchTookEscape()) s.setShortcutsOpen(false);
         } else if (s.sessionFocus && !inTerminal) {
           // Phase 80.1. Escape leaves session focus, but ONLY when the
           // keyboard is not in a session. Escape inside a terminal belongs to

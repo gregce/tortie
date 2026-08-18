@@ -35,6 +35,13 @@ import { useSettingsStore } from '../settings/settings-store';
 import { cloneAction } from '../state/clone';
 // Phase 12.12 item 1: the fleet board is a shared component now — the ⌘T
 // sheet renders the identical tiles from ./AgentGrid.
+//
+// PHASE 86. Every tile is its own Tab stop, in this launch board and in the
+// ⌘T sheet's picker. This surface already behaved that way, because launch
+// mode never set a roving tabindex. What changed here is that a project
+// created from the New Project or Clone dialog now really does hand the
+// keyboard to the default tile: focusFleetPrimary() was querying a class this
+// board stopped drawing in Phase 12.12, so the handoff moved focus nowhere.
 import { AgentGrid } from './AgentGrid';
 import { Codicon } from '../icons';
 import { HomeScreen } from './HomeScreen';

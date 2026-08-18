@@ -1,6 +1,7 @@
 /**
  * S6 — New session modal (⌘T). w:480, top 20vh, scrim; Enter creates from
- * any field; Esc cancels. Total happy path: ⌘T ↩ = two keys.
+ * any field and from the agent board; Esc cancels. Total happy path:
+ * ⌘T ↩ = two keys.
  *
  * Phase 10 (create-modal stream): the 3-option segmented control became a
  * grid over EVERY launchable registry agent (agents:list-driven when the
@@ -224,7 +225,7 @@ export function BlockedWays({
  * modal actually offers (verified). Danger defaults pre-check too — the
  * warning styling still renders (S6).
  */
-function seededFlags(
+export function seededFlags(
   agent: string,
   settings: Pick<GmuxSettings, 'launchDefaults'>,
   presets: readonly AgentFlagPresetView[]
@@ -237,6 +238,36 @@ function seededFlags(
   const offered = new Set(presets.map((p) => p.flag));
   return enabled.filter((f) => offered.has(f));
 }
+
+/**
+ * The presets that are ON, in preset order.
+ *
+ * PHASE 86. This is the ONE expression behind both the collapsed Options
+ * summary's count and the argv the create actually sends. A flag can never be
+ * seeded on, hidden by the collapse and left out of the count, because the
+ * count and the argv read the same list. Exported for the unit test.
+ */
+export function activePresets(
+  presets: readonly AgentFlagPresetView[],
+  checkedFlags: readonly string[]
+): readonly AgentFlagPresetView[] {
+  return presets.filter((p) => checkedFlags.includes(p.flag));
+}
+
+/**
+ * What the collapsed Options summary says. The number is always drawn,
+ * including zero, so a summary that reads a number means that number.
+ */
+export function optionsSummaryText(activeCount: number): string {
+  return `Options, ${activeCount} on`;
+}
+
+/**
+ * Said once, on the summary, when one of the flags that is on widens what the
+ * agent may do. The rows themselves keep the warning glyph they already had.
+ */
+export const OPTIONS_DANGER_SENTENCE =
+  'One of the options that is on changes what the agent is allowed to do.';
 
 export function CreateSessionModal(): React.JSX.Element | null {
   const open = useApp((s) => s.createOpen);
@@ -319,6 +350,19 @@ export function CreateSessionModal(): React.JSX.Element | null {
   );
   const [creating, setCreating] = useState(false);
   /**
+   * PHASE 86. Whether the Options block is expanded, for this opening of the
+   * sheet only.
+   *
+   * It starts closed every time and it remembers nothing across openings,
+   * which is the whole point: the sheet is the same height on every ⌘T, and
+   * that height no longer depends on how many presets the selected agent
+   * happens to have. It never auto expands either, not even when a flag is
+   * already on, because auto expanding would put the variable height back.
+   * The summary carries the count instead, and the count is drawn even when
+   * it is zero.
+   */
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  /**
    * SpecStory capture for THIS session. null = the user has not touched the
    * switch, so the per-agent sticky default answers — which is what makes
    * changing agent mid-sheet pick up that agent's remembered choice instead
@@ -355,6 +399,7 @@ export function CreateSessionModal(): React.JSX.Element | null {
     setBlocked(null);
     setHintAgent(null);
     setFlagSel({});
+    setOptionsOpen(false);
     setCaptureChoice(null);
     setCreating(false);
     // A new opening of the sheet has no choice behind it yet, so the first
@@ -451,6 +496,9 @@ export function CreateSessionModal(): React.JSX.Element | null {
   )[agent];
   const presets = catalog?.presets.filter((p) => p.verified) ?? [];
   const checkedFlags = flagSel[agent] ?? seededFlags(agent, settings, presets);
+  // PHASE 86. The one list the summary counts and the create sends.
+  const active = activePresets(presets, checkedFlags);
+  const anyDanger = active.some((p) => p.danger);
   const selectedOption = options.find((o) => o.id === agent);
 
   // PHASE 70. The machine this create will run on, or null for this Mac. A
@@ -537,9 +585,9 @@ export function CreateSessionModal(): React.JSX.Element | null {
     setGenericError(null);
     setAbsent(null);
     setBlocked(null);
-    const extraArgs = presets
-      .filter((p) => checkedFlags.includes(p.flag))
-      .flatMap((p) => presetArgvTokens(p.flag));
+    const extraArgs = activePresets(presets, checkedFlags).flatMap((p) =>
+      presetArgvTokens(p.flag)
+    );
     // Remember the capture answer per agent, but only when this sheet could
     // actually ask the question and the user actually answered it — a sheet
     // that never showed the row must not write a default, and a cancelled
@@ -848,12 +896,50 @@ export function CreateSessionModal(): React.JSX.Element | null {
           ) : null}
         </div>
 
+        {/* PHASE 86. The Options block starts collapsed, so the sheet's height
+            does not change with the selected agent's preset count. The
+            summary always names how many are on, so a flag seeded from
+            Settings cannot hide behind the collapse. It is a plain button and
+            not a <details>/<summary>, because Enter on a summary element
+            would both toggle the block and, under this phase's Enter rule,
+            reach the sheet's Create. */}
         {presets.length > 0 ? (
           <div className="field">
-            <span className="field-label" id="options-label">
-              Options
-            </span>
-            <div role="group" aria-labelledby="options-label">
+            <button
+              type="button"
+              className="options-summary"
+              aria-expanded={optionsOpen}
+              aria-controls="options-group"
+              onClick={() => setOptionsOpen(!optionsOpen)}
+              {...(anyDanger
+                ? {
+                    title: OPTIONS_DANGER_SENTENCE,
+                    'aria-label': `${optionsSummaryText(active.length)}. ${OPTIONS_DANGER_SENTENCE}`
+                  }
+                : {})}
+            >
+              <Codicon
+                name={optionsOpen ? 'chevron-down' : 'chevron-right'}
+                size={12}
+                className="options-chevron"
+              />
+              <span className="options-summary-text">
+                {optionsSummaryText(active.length)}
+              </span>
+              {anyDanger ? (
+                <Codicon
+                  name="warning"
+                  size={14}
+                  className="preset-warning"
+                />
+              ) : null}
+            </button>
+            <div
+              id="options-group"
+              role="group"
+              aria-label="Options"
+              hidden={!optionsOpen}
+            >
               {presets.map((preset) => {
                 const on = checkedFlags.includes(preset.flag);
                 return (

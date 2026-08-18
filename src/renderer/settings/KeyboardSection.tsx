@@ -31,7 +31,7 @@ import {
   acceleratorToDisplay,
   agentKeymapEntries,
   agentKeymapId,
-  filterKeymapSections,
+  filterForReading,
   keymapSections
 } from '@shared/keymap';
 import type {
@@ -83,44 +83,6 @@ function sharedScopeLabel(entries: readonly KeymapEntry[]): string | null {
 /** "In the editor" → "in the editor", for use inside a heading. */
 function lowerFirst(s: string): string {
   return s.charAt(0).toLowerCase() + s.slice(1);
-}
-
-/** The name of the action, or the chord itself — not the explanation. */
-function nameOrChordMatches(entry: KeymapEntry, q: string): boolean {
-  const haystack = [
-    entry.action,
-    ...entry.keys.map((c) => c.display),
-    ...entry.keys.map((c) => c.accelerator ?? '')
-  ]
-    .join(' ')
-    .toLowerCase();
-  return haystack.includes(q);
-}
-
-/**
- * Precision first, then relax.
- *
- * `keymapMatches` searches the explanations too, which is what makes
- * "scrollback" and "trash" findable — but every per-agent row explains itself
- * as "…in the project you are looking at", so a plain search for "project"
- * answered with eleven session rows before the Projects group. So: match
- * names and chords, and only fall back to searching the sentences when that
- * finds nothing at all. Nothing becomes unfindable; the obvious query just
- * stops being buried by the boilerplate.
- */
-function filterForReading(
-  sections: readonly KeymapSection[],
-  query: string
-): readonly KeymapSection[] {
-  const q = query.trim().toLowerCase();
-  if (q === '') return sections;
-  const byName = sections
-    .map((s) => ({
-      group: s.group,
-      entries: s.entries.filter((e) => nameOrChordMatches(e, q))
-    }))
-    .filter((s) => s.entries.length > 0);
-  return byName.length > 0 ? byName : filterKeymapSections(sections, query);
 }
 
 export function KeyboardSection(): React.JSX.Element {

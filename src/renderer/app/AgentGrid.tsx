@@ -18,10 +18,38 @@
  *
  * What the two surfaces genuinely do NOT share is semantics, and that is the
  * one axis this component splits on:
- *   mode="launch" → role=group; each tile is a button that starts a session.
- *   mode="select" → role=radiogroup; tiles are radios with roving tabindex and
- *                   arrow-key movement across the installed ones.
+ *   mode="launch" → each tile is a button that starts a session.
+ *   mode="select" → each tile is a toggle button carrying aria-pressed, and
+ *                   arrow keys still move the choice across the installed
+ *                   ones.
  * Everything else is defined once, here, so the next change lands on both.
+ *
+ * PHASE 86. The select board used to be a radiogroup with a roving tabindex,
+ * which meant the WHOLE board was one Tab stop and Tab could not walk the
+ * tiles. The operator reported that as the sheet not answering the keyboard.
+ * It is a group of aria-pressed buttons now, and every tile is its own Tab
+ * stop in both modes.
+ *
+ * What that gives up, recorded here rather than hidden. A screen reader user
+ * loses the one-stop-per-group behaviour a radiogroup gives and gains one Tab
+ * stop per agent, which is thirteen stops today. The mitigation is the role
+ * itself: a toggle button that Tab reaches is the honest role for a control
+ * Tab walks, and each tile still announces its own pressed state.
+ *
+ * PHASE 86 FIX ROUND. Focus and choice are the SAME THING on this board in
+ * select mode. Tab moving focus while only the arrows moved the choice let the
+ * two disagree, and then Enter created the chosen agent rather than the one
+ * under focus. Measured with claude as the default agent: one Shift+Tab from
+ * the Name field landed on the Shell tile and Enter there created `claude-1`,
+ * and eight Tabs landed on the Cursor tile and Enter there created `claude-1`
+ * as well. A person acted on one tile and got another.
+ *
+ * So focusing a tile that can run chooses it, exactly as an arrow key already
+ * does, and Enter can only ever create the agent the person is looking at.
+ * There is one exception and it is the only one. Focusing a tile that CANNOT
+ * run does not move the choice, because that agent cannot be started. Such a
+ * tile stays a Tab stop so a person can reach it and read why it is refused,
+ * and Enter on it is still refused with the reason shown.
  */
 
 import React, { useRef } from 'react';
@@ -34,7 +62,28 @@ import type { AgentPickerOption } from '../state/agents';
 import { agentBlockedReason } from '../state/agents';
 import { AcceleratorKeycap } from '../keys';
 import { AgentIcon } from '../icons';
+import { ENTER_SUBMITS_ATTR } from './focus-trap';
 import './agent-grid.css';
+
+/**
+ * Does moving the keyboard onto this tile also move the CHOICE onto it?
+ *
+ * Phase 86 fix round, and it is the whole of that fix. True for a select-mode
+ * tile whose agent can actually be started. False in launch mode, where
+ * activation starts a session and merely arriving on a tile must never do
+ * that. False for a tile that is not installed or that the confirm gate will
+ * not start, because the choice may not land on something that cannot run.
+ *
+ * Exported so the test presses the same rule the board uses.
+ */
+export function focusChoosesTile(
+  mode: 'launch' | 'select',
+  option: AgentPickerOption
+): boolean {
+  return (
+    mode === 'select' && option.installed && agentBlockedReason(option) === null
+  );
+}
 
 export interface AgentGridProps {
   options: readonly AgentPickerOption[];
@@ -77,7 +126,7 @@ export function AgentGrid({
 }: AgentGridProps): React.JSX.Element {
   const tileRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
-  /** Radio semantics: arrows move the check across the ENABLED tiles. */
+  /** Arrows move the choice across the ENABLED tiles. Select mode only. */
   const onKeyDown = (e: React.KeyboardEvent): void => {
     if (mode !== 'select') return;
     const forward = e.key === 'ArrowRight' || e.key === 'ArrowDown';
@@ -103,7 +152,7 @@ export function AgentGrid({
     <div
       className="agent-grid"
       data-mode={mode}
-      role={mode === 'select' ? 'radiogroup' : 'group'}
+      role="group"
       {...(ariaLabel !== undefined ? { 'aria-label': ariaLabel } : {})}
       {...(ariaLabelledBy !== undefined
         ? { 'aria-labelledby': ariaLabelledBy }
@@ -187,15 +236,38 @@ function AgentTile({
     if (unusable) onUnhint?.(option.id);
   };
 
+  // Phase 86 fix round. Arriving on a tile IS choosing it, in select mode and
+  // for a tile that can run. `focusChoosesTile` reads the same two facts
+  // `unusable` reads above, so the two can never disagree about one tile.
+  // Repeating the choice a tile already holds is harmless: the arrow handler
+  // chooses and then focuses, and the second call sets the same id.
+  const focus = (): void => {
+    hint();
+    if (focusChoosesTile(mode, option)) onActivate(option);
+  };
+
   const selected = mode === 'select' && primary;
-  const radioProps =
-    mode === 'select'
-      ? ({
-          role: 'radio',
-          'aria-checked': selected,
-          tabIndex: selected ? 0 : -1
-        } as const)
-      : {};
+  // Select mode only. `aria-pressed` says which agent is chosen without
+  // claiming the radio role, and ENTER_SUBMITS_ATTR is what lets Enter on a
+  // chosen tile reach the sheet's Create instead of stopping at the button.
+  // No tabIndex is set in either mode, so every tile is a Tab stop.
+  //
+  // An unusable tile carries no ENTER_SUBMITS_ATTR. `aria-disabled` describes
+  // a tile rather than removing it, so a tile for an agent that is not
+  // installed, or that the confirm gate will not start, is still a Tab stop.
+  // With the attribute on it, landing on "Droid, not installed" and pressing
+  // Enter closed the sheet and created a session with whichever agent was
+  // chosen. Measured: 1 session became 2 and the new row was `shell-1`. A
+  // person acted on Droid and got a shell. Without it, Enter runs the tile's
+  // own activation, which shows that agent's install caption and creates
+  // nothing. Measured after the fix: 1 session stayed 1 and the sheet stayed
+  // open.
+  const pressedProps =
+    mode !== 'select'
+      ? {}
+      : unusable
+        ? ({ 'aria-pressed': selected } as const)
+        : ({ 'aria-pressed': selected, [ENTER_SUBMITS_ATTR]: '' } as const);
 
   return (
     <button
@@ -228,11 +300,11 @@ function AgentTile({
           ? `Start ${option.label}`
           : undefined)
       }
-      {...radioProps}
+      {...pressedProps}
       onClick={() => onActivate(option)}
       onMouseEnter={hint}
       onMouseLeave={unhint}
-      onFocus={hint}
+      onFocus={focus}
       onBlur={unhint}
     >
       <AgentIcon

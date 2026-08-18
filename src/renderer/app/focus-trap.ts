@@ -45,6 +45,18 @@ export function trapTabKey(
 }
 
 /**
+ * A control inside a modal whose Enter means "submit this dialog", not
+ * "activate me".
+ *
+ * Phase 86. The ⌘T sheet's agent tiles are buttons because they are tiles,
+ * but choosing an agent is a SELECTION, and Enter after a selection has to
+ * reach the form. The opt-out is marked on the control rather than guessed
+ * from the tag, so no other dialog's Cancel button changes behaviour. Exactly
+ * one control in the product carries it today.
+ */
+export const ENTER_SUBMITS_ATTR = 'data-enter-submits';
+
+/**
  * The whole keyboard contract of a gmux form modal, in one call: Tab cycles
  * inside the dialog, Return submits, Escape closes.
  *
@@ -53,7 +65,9 @@ export function trapTabKey(
  * guardrail). Two of these four lines are the kind that go missing in the
  * NEXT copy and are never noticed until someone hits a key:
  *  - Return on a focused BUTTON must run that button's own activation, or
- *    [Cancel] / [Choose…] silently submit the form instead of doing their job;
+ *    [Cancel] / [Choose…] silently submit the form instead of doing their job.
+ *    Phase 86 narrows that skip by one attribute, `ENTER_SUBMITS_ATTR`, for a
+ *    control that is a button only because it is a tile;
  *  - `isComposing` guards the IME — Return committing a Japanese candidate is
  *    not Return submitting the dialog;
  *  - Escape is stopped from propagating so it closes the dialog and nothing
@@ -73,7 +87,19 @@ export function modalKeyDown(
 ): void {
   trapTabKey(e, container);
   if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
-    if (e.target instanceof HTMLElement && e.target.tagName === 'BUTTON') {
+    // Phase 86. The BUTTON skip stays, and it is narrowed by one attribute.
+    // The test environment has no HTMLElement, so the element check is duck
+    // typed on `closest` and `tagName` rather than done with `instanceof`.
+    // A target with no `closest` is not an element and is not skipped.
+    const el = e.target as unknown as {
+      tagName?: string;
+      closest?: (selector: string) => unknown;
+    } | null;
+    const marked =
+      el !== null &&
+      typeof el.closest === 'function' &&
+      el.closest(`[${ENTER_SUBMITS_ATTR}]`) != null;
+    if (!marked && el?.tagName === 'BUTTON') {
       return;
     }
     e.preventDefault();
@@ -100,7 +126,11 @@ export function modalKeyDown(
  */
 export function focusFleetPrimary(): void {
   setTimeout(() => {
-    document.querySelector<HTMLButtonElement>('.onb-tile.primary')?.focus();
+    // Phase 86. The class is `.agent-tile.primary`. It was `.onb-tile.primary`
+    // from Phase 12.9 until now, and the board stopped drawing `.onb-tile` in
+    // Phase 12.12, so this handoff moved the keyboard nowhere for that whole
+    // stretch. New Project and Clone both end here.
+    document.querySelector<HTMLButtonElement>('.agent-tile.primary')?.focus();
   }, FLEET_FOCUS_DELAY_MS);
 }
 

@@ -4,7 +4,10 @@
  * reorders (2px accent insertion indicator); dragged ACROSS into the
  * terminal region it arms a split-drop zone (quadrant hit-testing, --drop-
  * wash overlay). Group tabs/rows reorder but never enter split mode. Split
- * headers drag the other way: onto the strip/dock to pop the leaf out.
+ * headers have two destinations of their own (Phase 86): onto the strip/dock
+ * to pop the leaf out, or onto another leaf of the same split to take that
+ * leaf's armed half. Both destinations use the same quadrant hit-testing, so
+ * a move looks exactly like a create and adds no new visual language.
  *
  * Built on the pointer-drag primitive; all transient UI (indicators, the
  * armed drop zone) lives in the layout store so the strip, dock, and split
@@ -86,11 +89,30 @@ function trackHome(home: SurfaceHome, x: number, y: number): boolean {
 }
 
 /**
- * Update the S4A drop zone for a pointer over the terminal region.
- * `draggedId` is the dragged surface's id (always a single session here).
- * Returns true when the pointer is over the surface area at all.
+ * Which drag is asking, because the two have different refusals.
+ *  - 'add' is a session tab or row crossing into the terminal region. It
+ *    ADDS a leaf, so the leaf ceiling binds and a surface cannot be dropped
+ *    onto itself.
+ *  - 'move' is a split header moving inside its own group (Phase 86). It adds
+ *    no leaf, so the ceiling is not reached, and the only new refusal is that
+ *    a leaf cannot move onto itself.
+ * Both refuse a drop whose halves would go under the minimum pane size, and
+ * both refuse when there is no active project to drop into.
  */
-function trackSplitZone(draggedId: string, x: number, y: number): boolean {
+type ZoneRule = 'add' | 'move';
+
+/**
+ * Update the S4A drop zone for a pointer over the terminal region.
+ * `draggedId` is the dragged surface's id for 'add' and the dragged leaf's
+ * session id for 'move'. Returns true when the pointer is over the surface
+ * area at all.
+ */
+function trackDropZone(
+  draggedId: string,
+  x: number,
+  y: number,
+  rule: ZoneRule
+): boolean {
   const layout = useLayout.getState();
   const root = document.querySelector<HTMLElement>(leavesSelector);
   if (!root || !rectContains(root.getBoundingClientRect(), x, y)) {
@@ -105,8 +127,10 @@ function trackSplitZone(draggedId: string, x: number, y: number): boolean {
   const activeSurfaceId = root.dataset['surfaceId'] ?? '';
   if (
     projectPath === null ||
-    activeCount >= MAX_LEAVES ||
-    activeSurfaceId === draggedId // the dragged tab IS the surface's only leaf
+    (rule === 'add' &&
+      (activeCount >= MAX_LEAVES ||
+        // the dragged tab IS the surface's only leaf
+        activeSurfaceId === draggedId))
   ) {
     layout.setSplitDrop(null);
     return true;
@@ -116,6 +140,11 @@ function trackSplitZone(draggedId: string, x: number, y: number): boolean {
     root.querySelectorAll<HTMLElement>('[data-split-leaf]')
   ).find((el) => rectContains(el.getBoundingClientRect(), x, y));
   if (!leafEl) {
+    layout.setSplitDrop(null);
+    return true;
+  }
+  const leafId = leafEl.dataset['splitLeaf'] ?? '';
+  if (rule === 'move' && leafId === draggedId) {
     layout.setSplitDrop(null);
     return true;
   }
@@ -130,10 +159,7 @@ function trackSplitZone(draggedId: string, x: number, y: number): boolean {
     layout.setSplitDrop(null);
     return true;
   }
-  layout.setSplitDrop({
-    leafId: leafEl.dataset['splitLeaf'] ?? '',
-    edge
-  });
+  layout.setSplitDrop({ leafId, edge });
   return true;
 }
 
@@ -158,7 +184,7 @@ export function startSurfaceDrag(
       ghost?.move(e.clientX, e.clientY);
       const overHome = trackHome(home, e.clientX, e.clientY);
       if (!overHome && !surface.isGroup) {
-        trackSplitZone(surface.id, e.clientX, e.clientY);
+        trackDropZone(surface.id, e.clientX, e.clientY, 'add');
       } else {
         useLayout.getState().setSplitDrop(null);
       }
@@ -187,9 +213,15 @@ export function startSurfaceDrag(
 }
 
 /**
- * Drag a split's header onto the tab strip (top) or dock list (right): the
- * S2-style insertion indicator appears; drop pops the leaf out at that
- * index (S4A "Pop out"). Anywhere else = no-op.
+ * Drag a split's header. Two destinations (Phase 86):
+ *  - onto the tab strip (top) or dock list (right): the S2-style insertion
+ *    indicator appears and the drop pops the leaf out at that index (S4A
+ *    "Pop out");
+ *  - onto another leaf of the same split: the --drop-wash overlay arms on the
+ *    armed half and the drop moves the leaf there, without it ever leaving
+ *    the group.
+ * Anywhere else = no-op, and Esc cancels both with no motion and no write,
+ * because `armPointerDrag` does not call `onDrop` on a cancel.
  */
 export function startHeaderDrag(
   down: PointerDragInit,
@@ -206,13 +238,20 @@ export function startHeaderDrag(
     },
     onMove(e) {
       ghost?.move(e.clientX, e.clientY);
-      trackHome(home, e.clientX, e.clientY);
+      const overHome = trackHome(home, e.clientX, e.clientY);
+      if (!overHome) trackDropZone(sessionId, e.clientX, e.clientY, 'move');
+      else useLayout.getState().setSplitDrop(null);
     },
     onDrop() {
       const layout = useLayout.getState();
       const homeIndex = home === 'strip' ? layout.stripDrop : layout.dockDrop;
       if (homeIndex !== null) {
         layout.popOut(projectPath, sessionId, homeIndex);
+        return;
+      }
+      const zone = layout.splitDrop;
+      if (zone !== null) {
+        layout.moveLeafWithin(projectPath, sessionId, zone.leafId, zone.edge);
       }
     },
     onEnd() {

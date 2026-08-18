@@ -5607,21 +5607,22 @@ arithmetic would have to change. It already takes the base as an argument at
 | 3 | What the unit of work is, and what the create verb is called | DESIGN | n/a | Phase 75, research |
 | 4 | An immediate work surface on the New Tab chord | DESIGN | 3 | Blocked by 75 |
 | 2 | A positional shortcut that reaches a session | DESIGN | 2 to 3 | Blocked by 75 |
-| 7 | A filter field in the shortcuts overlay | DESIGN | 2 | Blocked on one measurement, below |
+| 7 | A filter field in the shortcuts overlay | DESIGN | 2 | ✅ CLOSED by Phase 86. The measurement is in |
 | 1 | Font family and base size in Settings | DESIGN | 2 to 3 | Blocked on one operator decision, below |
 
-**Issue 7 is not in the batch, and the reason is a measurement.** The whole case for the filter is
-that about 60 rows overflow the sheet. `src/renderer/styles/app.css:1436` gives the shipped overlay
-three columns, `max-height: 78vh` and `width: min(880px, ...)`. Sixty rows in six groups is about 20
-rows per column at 26 px, so roughly 680 px in total. At 78 vh that fits any window taller than about
-870 px, and a 14 inch MacBook Pro gives 982 logical pixels. On the operator's own machine the overlay
-does not scroll unless several per-agent chords are assigned. Measure that on his window before
-building anything. If it does not overflow, the honest answer is that the filter is IDE parity work
-and the scope guardrail refuses it. Two further facts if it is ever built: `nameOrChordMatches` and
-`filterForReading` in `src/renderer/settings/KeyboardSection.tsx` already solve the exact ordering
-problem and should be lifted into `src/shared/keymap.ts` rather than a second scorer being created,
-and `docs/DESIGN-SPEC.md:526` still describes a 640 px two-column overlay while the code ships 880 px
-and three columns, so the spec and the code already disagree.
+**Issue 7 was parked on a measurement, and Phase 86 took it.** The park said to measure whether the
+overlay actually overflows before building the filter, because the estimate at the time was about 60
+rows at 26 px in three columns inside `max-height: 78vh`, which fits a 982 pixel window. Two things
+settled it. The operator said directly that the list is hard to read, scroll and navigate. Then the
+Phase 86 verifier measured the shipped overlay at 61 rows: `scrollHeight` 1864 against `clientHeight`
+619. It overflowed by about three screens, with no scroll affordance and no way to narrow it. The
+estimate was wrong, so the guardrail's refusal never applied.
+
+The two facts the park recorded were both honoured. `nameOrChordMatches` and `filterForReading`
+moved out of `src/renderer/settings/KeyboardSection.tsx` into `src/shared/keymap.ts` and both
+surfaces call them, so no second scorer was written. `docs/DESIGN-SPEC.md` section S8 was rewritten
+in the same commit, because it described a 640 px two-column sheet while the code shipped three
+columns, and it now describes what ships.
 
 **Issue 1 is blocked on one sentence from the operator.** Where does the font list come from. The
 three choices are a short fixed list of faces the design vouches for, a free-text field with a safe
@@ -6000,7 +6001,7 @@ question the operator asked directly. Run them in this order and do not reshuffl
 | 2 | **84** getting a session to exist over there, and ending it honestly | 3 and 2 per item | 83, for three measurements. All three arrived, and all three were taken on this Mac over a loopback carriage |
 | 3 | **85** the status dot tells the truth on a connected machine | 3 | 83, for the `#{session_activity}` measurement. It arrived, and it was taken on this Mac over a loopback carriage |
 | 3 | **81** the session list stops waiting for your shell | 3 | nothing. Different domain, runs beside 85 |
-| beside 1 | **86** the splits and the two sheets you actually use | per item | nothing. Operator reported 2026-08-18. It owns `src/renderer/app/**` and runs beside Phase 83, whose files are all under `src/main` and `build/` |
+| beside 1 | **86** the splits and the two sheets you actually use ✅ SHIPPED 2026-08-18 | per item | nothing. Operator reported 2026-08-18. It owned `src/renderer/app/**` and ran beside Phase 83, whose files are all under `src/main` and `build/` |
 
 **Two decisions the operator made on 2026-08-18, binding on these phases.**
 
@@ -6018,7 +6019,7 @@ question the operator asked directly. Run them in this order and do not reshuffl
 | `needs input` for a remote session | The oracles read local disk. A partial answer exists through codex's title oracle and it is recorded in Phase 85, not built |
 | **82** cross-machine conversation reconstruction | The operator's stated destination. It sits on top of all of the above and it needs a real machine with a real agent, which Phase 83 provides for the first time |
 
-## Phase 86 — the splits and the two sheets you actually use (operator reported 2026-08-18) QUEUED
+## Phase 86 — the splits and the two sheets you actually use (operator reported 2026-08-18) ✅ SHIPPED 2026-08-18 (this commit, 0.42.0, gates green, 5,846 tests). All six items landed. Two defects the round found are recorded in Phase 86.1 rather than fixed here
 
 **Subject:** `fix(ui): a split leaf moves without leaving, and the two sheets answer the keyboard`
 **First body line:** `Phase 86: the splits and the two sheets you actually use`
@@ -6191,6 +6192,17 @@ button itself and show ONE session created rather than two. A double create is a
 
 Item 2 adds a setting, which is a Settings surface rather than a menu item, so no native menu
 changes. State that in the commit body so the house rule is visibly satisfied rather than skipped.
+
+## Phase 86.1 — the third recorded nits round, NOT QUEUED
+
+Small things that shipped phases left behind, collected as they were found so none is lost. None
+blocks a rung. Phase 73.1 emptied the previous table on 2026-08-18, so this is where a nit goes now.
+This round runs when the operator asks for it.
+
+| From | The nit |
+| --- | --- |
+| 86 | The prefilled name in the Cmd-T sheet is selected on some opens and not on others, so pressing Cmd-T and typing a letter replaces the name most of the time and appends to it some of the time. The cause is `requestAnimationFrame(() => nameRef.current?.select())` at `src/renderer/app/CreateSessionModal.tsx:408` racing React's commit of the prefilled name, which the same effect sets. When the value lands first the call selects it, and when it does not the call runs on an empty field. Measured on the running app, the whole name was selected on 6 of 6 opens under no load, sampled at 268 of 269, 270 of 271, 271 of 272, 269 of 270, 268 of 269 and 271 of 272 frames, and typing one letter replaced the name on 3 of 3. Under load average 13.5 the same build gave the opposite answer on 1 of 3 opens, reading 0 of 262 frames selected and settling at caret 8. Phase 86 cut the sentence from `docs/DESIGN-SPEC.md` rather than write a race down as a rule, so the specification now says nothing about the selection. The fix is to select in a layout effect after the value is committed, rather than on a frame callback. The 6 of 6 figure is optimistic and a later reader should not treat it as reproducible. A second person measured the same build twice and read 5 of 6 opens selected at load average 3.38 to 3.59, and in both runs the open that lost was the first one after a burst of create and kill work |
+| 86 | This round's own verification created three sessions on the operator's live tmux server and could not remove them, being `shell-1-5`, `cursor-1-2` and `claude-1-4`. The first probe launched the app without `GMUX_SHOT`, and `activeTmuxSocket` in `src/main/tmux/resolve.ts` honours `GMUX_TMUX_SOCKET` only on a harness launch, so the socket override was ignored and the app used `-L gmux`. That is the exact failure the comment in that function has recorded since Phase 22. The lesson for every future probe is that a launch which is not a harness launch ignores the socket override, so a probe sets `GMUX_SHOT` or one of the harness modes before it can trust its isolation |
 
 ## Phase 83 — mac-pro is a machine Tortie will speak to, and the harness that proves it (operator queued 2026-08-18) ✅ SHIPPED 2026-08-18 (this commit, 0.41.0, gates green, 5,785 tests). The mac-pro leg is owed and only the operator can close it
 
@@ -6695,7 +6707,7 @@ conversation.
 | **44 and 45**, Catch Me Up | HELD 2026-08-15 pending the operator's thinking | Unchanged. It needs a decision from him rather than work from anyone else |
 | **50** Tortie speaks outside its own window | NOT QUEUED, blocked on a Zen decision | It asks whether Tortie may model the human's attention rather than only the sessions' state. That is a principle to accept or refuse, and only the operator can do it |
 | **25** downloads and usage measurement | DEFERRED 2026-08-12 by the operator | Worth re-raising once, because it must ship IN a released build. Every release cut without it is a cohort that can never be measured |
-| **Issue 7**, a filter field in the shortcuts overlay | Blocked on one measurement | Measure whether the overlay actually overflows on the operator's window. If it does not, the scope guardrail refuses it and the row is closed rather than carried |
+| **Issue 7**, a filter field in the shortcuts overlay | ✅ CLOSED by Phase 86 | The measurement came in and the estimate was wrong. The shipped overlay measured `scrollHeight` 1864 against `clientHeight` 619 at 61 rows, so it overflowed by about three screens. The overlay now opens with a search field, a scrolling body with sticky group titles, an Up and Down highlight and a count |
 | **Issue 1**, font family and size in Settings | Blocked on one sentence from the operator | Where the font list comes from. A short vouched list, a free text field with a fallback, or a Chromium permission gated enumeration |
 
 **The one recommendation.** After this remote round, ask the operator whether the Arch hold lifts.

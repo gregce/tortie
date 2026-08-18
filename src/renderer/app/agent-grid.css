@@ -138,9 +138,12 @@
   color: var(--text-primary);
 }
 
-/* select: the checked radio is a filled state, not a hairline — the sheet
-   creates whatever is checked when you press ↩, so it has to be unmistakable
-   rather than merely suggested. */
+/* select: the chosen tile is a filled state, not a hairline — the sheet
+   creates whatever is chosen when you press ↩, so it has to be unmistakable
+   rather than merely suggested. Phase 86 replaced the radio role with a
+   pressed toggle so Tab can walk the board; the fill is unchanged, and the
+   2px focus ring sits inside the 8px grid gap, so a tile Tab reaches is
+   visible and nothing clips it. */
 .agent-tile.selected {
   background: var(--bg-active);
   border-color: var(--accent);

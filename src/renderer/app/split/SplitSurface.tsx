@@ -2,8 +2,10 @@
  * S4A — Split surface renderer: a binary split tree of sessions, each leaf
  * its own durable tmux-backed session with its own TerminalPane. Headers
  * (24px) appear because the surface holds ≥2 leaves; the whole header is
- * the pop-out drag handle. Dividers drag to re-ratio (min 200×120, double-
- * click resets 50/50); exited / ready-to-restore states are pane-scoped.
+ * the drag handle, and since Phase 86 it has two destinations: the strip or
+ * dock pops the leaf out, and another leaf of the same split moves it to that
+ * leaf's armed half. Dividers drag to re-ratio (min 200×120, double-click
+ * resets 50/50); exited / ready-to-restore states are pane-scoped.
  *
  * Copy rule (DESIGN.md §7): the user-facing noun is "split" — "pane" never
  * appears in a rendered string.
@@ -40,6 +42,7 @@ import {
 } from '../resume';
 import { AgentIcon, Codicon } from '../../icons';
 import { armPointerDrag, isSecondaryPress } from './pointer-drag';
+import { pressSelectsLeafNow } from './leaf-press';
 import { startHeaderDrag } from './surface-dnd';
 
 // ---------------------------------------------------------------------------
@@ -59,6 +62,7 @@ function SplitHeader({
   const setMenu = useApp((s) => s.setMenu);
   const orientation = useApp((s) => s.sessionOrientation);
   const popOut = useLayout((s) => s.popOut);
+  const selectLeaf = useLayout((s) => s.selectLeaf);
 
   const status = effectiveStatusOf(session);
   const visual = statusVisual(status, session);
@@ -71,8 +75,10 @@ function SplitHeader({
       className={`split-header${focused ? ' focused' : ''}`}
       data-session-id={session.id}
       onPointerDown={(e) => {
-        // The whole header is the drag handle (grab → pop out). Buttons,
-        // the rename input, and secondary presses opt out.
+        // The whole header is the drag handle: drop on the strip or dock to
+        // pop the leaf out, drop on another leaf of this split to move it
+        // there (Phase 86). Buttons, the rename input, and secondary presses
+        // opt out.
         if (
           isSecondaryPress(e) ||
           (e.target as HTMLElement).closest('button, input') !== null ||
@@ -87,6 +93,15 @@ function SplitHeader({
           projectPath,
           orientation === 'top' ? 'strip' : 'dock'
         );
+      }}
+      onClick={() => {
+        // Phase 86. The header selects on the click, not on the press. The
+        // press may be the start of a drag that takes this leaf out of the
+        // split, and selecting on the press moved the eye onto the leaf
+        // before `popOut` ever read the pop-out preference. `armPointerDrag`
+        // swallows the click that follows a real drag, so a drop never also
+        // selects. This is the same shape a strip tab and a dock row use.
+        if (!focused) selectLeaf(projectPath, session.id);
       }}
       onDoubleClick={() => setRenaming(session.id)}
       onContextMenu={(e) => {
@@ -312,8 +327,13 @@ function SplitNodeView({
         className={`split-pane${focused ? ' focused' : ''}`}
         data-split-leaf={session.id}
         aria-label={session.name}
-        onPointerDownCapture={() => {
-          if (!focused) selectLeaf(projectPath, session.id);
+        onPointerDownCapture={(e) => {
+          // A press in the body selects at once, because that is a click into
+          // a terminal. A press on the header does not: see `leaf-press.ts`
+          // for why, and `SplitHeader`'s onClick for where it happens
+          // instead.
+          if (focused || !pressSelectsLeafNow(e.target)) return;
+          selectLeaf(projectPath, session.id);
         }}
       >
         <SplitHeader
