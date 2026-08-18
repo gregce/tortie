@@ -4,7 +4,10 @@ gmux is a lightweight macOS shell for agentic coding: durable named terminal ses
 
 ## Start here
 
-- **[Current architecture simplification audit](audits/2026-08-14-electron-typescript-architecture.md)** - the as-built runtime map, assessment, behavior-preserving target tree, and implementation order.
+- **[Session focus mode](research/53-session-focus-mode.md)** - research only. How a keystroke could grow the active session surface to fill the window without breaking the live terminal resize rule.
+- **[Performance and simplification map](audits/2026-08-17-performance-and-simplification.md)** - subsystem map and five measured speed fixes that do not change the UI or the durability promise.
+- **[Current architecture follow-up](audits/2026-08-16-electron-typescript-architecture.md)** - the current runtime map, lifecycle findings, behavior-preserving target tree, and implementation order.
+- **[Phase 42 architecture simplification](audits/2026-08-14-electron-typescript-architecture.md)** - the historical audit and execution charter for the cleanup that landed on 15 August.
 - **[Pre-build architecture assessment](audits/2026-08-09-prebuild-architecture-assessment.md)** - the historical decision record: recommended architecture, Electron-versus-Tauri-versus-native verdict, phased roadmap, risks, and original open questions.
 
 ## research/ — the ten dimension deep-dives

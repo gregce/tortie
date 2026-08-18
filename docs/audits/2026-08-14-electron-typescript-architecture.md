@@ -2,6 +2,8 @@
 
 Date: 2026-08-14
 
+Status: Historical execution charter. Use the [16 August follow-up](2026-08-16-electron-typescript-architecture.md) for the current source map and recommendations.
+
 ## Outcome
 
 Tortie does not need an architectural rewrite. Its important runtime boundaries are sound: main owns privileged work, the renderer reaches it through one preload bridge, the private tmux server owns live sessions, and SQLite and snapshots own recovery.

@@ -3,7 +3,7 @@
 Tortie is installed. This is the state of the shipped thing.
 
 **Measured 2026-08-12** · version 0.0.1 · macOS 15.7.9 arm64 · node v22.23.1 ·
-electron 43.3.0 · electron-builder 26.15.3 · system tmux 3.6a
+electron 43.3.0 · electron-builder 26.15.3 · bundled tmux 3.7b
 (`/opt/homebrew/bin/tmux`) · private socket `-L gmux`.
 
 ---
@@ -13,7 +13,7 @@ electron 43.3.0 · electron-builder 26.15.3 · system tmux 3.6a
 A calm, durable place for agentic work — an Electron window in front of a
 **private tmux server**, so the sessions belong to the work rather than to the
 application displaying them. Product philosophy: [docs/ZEN-OF-TORTIE.md](docs/ZEN-OF-TORTIE.md).
-Architecture: [current architecture simplification audit](docs/audits/2026-08-14-electron-typescript-architecture.md).
+Architecture: [current architecture follow-up](docs/audits/2026-08-16-electron-typescript-architecture.md).
 
 Three things it does that a normal editor cannot, and everything else is in
 service of them:
@@ -396,11 +396,9 @@ these gates on the packaged-app smoke, never on `out/`, which is exactly why
 they survived sixteen phases.
 
 ### Bundled pinned tmux
-Tortie uses system tmux 3.6a (homebrew → `/usr/bin` → PATH). **Reopen when**
-the app must run on a machine without tmux. The machinery is ready: add it to
-`NESTED_BINARIES` in `build/sign-nested-binaries.cjs` and to `mac.binaries`, the
-same two lines specstory took — plus static libevent/ncurses and terminfo
-(research 09 Appendix F.1/F.2), which specstory did not need.
+Packaged Tortie uses its pinned bundled tmux 3.7b and never consults `PATH` or
+`GMUX_TMUX_BIN`. Development keeps the measured override and system resolution
+path needed by harnesses and interoperability probes.
 
 ### OSC-133 prompt marking
 Status detection is heuristic (output-flow + prompt regex, main-side per-agent
@@ -515,7 +513,7 @@ vendored. It only re-copies authored assets; nothing generates the icon.
 | Question | File |
 |---|---|
 | Why does Tortie exist, what is it for | `docs/ZEN-OF-TORTIE.md` |
-| Architecture | `docs/audits/2026-08-14-electron-typescript-architecture.md` |
+| Architecture | `docs/audits/2026-08-16-electron-typescript-architecture.md` |
 | Design | `DESIGN.md`, `docs/DESIGN-SPEC.md` |
 | Agent conventions and invariants | `CLAUDE.md` |
 | What is still called gmux, and why | `README.md` |

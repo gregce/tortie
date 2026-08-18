@@ -1,7 +1,7 @@
 # gmux pre-build architecture assessment
 
 **Date:** 2026-08-09
-**Status:** Historical decision record. It synthesizes `docs/research/01–10` and `docs/designs/design-{a,b,c,d}` from before implementation. Use the [current architecture simplification audit](2026-08-14-electron-typescript-architecture.md) for the as-built source map and current recommendations.
+**Status:** Historical decision record. It synthesizes `docs/research/01–10` and `docs/designs/design-{a,b,c,d}` from before implementation. Use the [current architecture follow-up](2026-08-16-electron-typescript-architecture.md) for the as-built source map and current recommendations.
 
 ---
 
