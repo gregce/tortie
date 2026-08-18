@@ -163,6 +163,77 @@ describe('a row is dropped whole and the good row beside it survives', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Phase 83. The version a person accepted
+// ---------------------------------------------------------------------------
+
+describe('the accepted version field', () => {
+  it('accepts a plain version', () => {
+    const out = validateMachinesFile({
+      schema: 1,
+      machines: [{ id: 'box', host: 'a.example', acceptedTmuxVersion: '3.9a' }]
+    });
+    expect(out.problems).toEqual([]);
+    expect(out.rows[0]?.acceptedTmuxVersion).toBe('3.9a');
+  });
+
+  it('drops a row whose accepted version carries a command', () => {
+    const message = expectDropped(
+      { id: 'bad', host: 'a.example', acceptedTmuxVersion: '3.7c; rm -rf /' },
+      'acceptedTmuxVersion'
+    );
+    expect(message).toContain('A version looks like 3.7c.');
+  });
+
+  it('drops a row whose accepted version is a path', () => {
+    expectDropped(
+      { id: 'bad', host: 'a.example', acceptedTmuxVersion: '../../etc' },
+      'acceptedTmuxVersion'
+    );
+  });
+
+  it('drops a row whose accepted version is empty', () => {
+    expectDropped(
+      { id: 'bad', host: 'a.example', acceptedTmuxVersion: '' },
+      'acceptedTmuxVersion'
+    );
+  });
+
+  it('drops a row whose accepted version is forty characters', () => {
+    expectDropped(
+      {
+        id: 'bad',
+        host: 'a.example',
+        acceptedTmuxVersion: '3.7c3.7c3.7c3.7c3.7c3.7c3.7c3.7c3.7c3.7c'
+      },
+      'acceptedTmuxVersion'
+    );
+  });
+
+  it('drops a row whose accepted version carries a newline', () => {
+    expectDropped(
+      { id: 'bad', host: 'a.example', acceptedTmuxVersion: '3.7c\n3.6a' },
+      'acceptedTmuxVersion'
+    );
+  });
+
+  it('writes the field after the program path, and only when it is there', () => {
+    const withOne = serializeMachines([
+      {
+        id: 'box',
+        host: 'a.example',
+        remoteTmuxPath: '/usr/bin/tmux',
+        acceptedTmuxVersion: '3.9a'
+      }
+    ]);
+    expect(withOne.indexOf('acceptedTmuxVersion')).toBeGreaterThan(
+      withOne.indexOf('remoteTmuxPath')
+    );
+    const without = serializeMachines([{ id: 'box', host: 'a.example' }]);
+    expect(without).not.toContain('acceptedTmuxVersion');
+  });
+});
+
 describe('a whole file failure takes every row with it', () => {
   it('refuses a schema that is not 1', () => {
     const out = validateMachinesFile({ schema: 2, machines: [GOOD] });

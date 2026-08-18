@@ -132,6 +132,12 @@ export interface TestedRemoteTmux {
   readonly measured: { readonly exec: boolean; readonly control: boolean };
   /** ISO date of the measurement, and the machine it was made against. */
   readonly measuredAt: string;
+  /**
+   * WHICH COPY of that version was read. A distribution's patched build is not
+   * the same subject as an upstream tarball, and a row that does not say which
+   * one it read is a row the next reader cannot trust.
+   */
+  readonly subject: string;
   readonly note: string;
 }
 
@@ -145,16 +151,20 @@ export interface TestedRemoteTmux {
  * of `show-options -gv <name>`, and the stderr text and exit code a machine with
  * no server produces.
  *
- * WHAT IS NOT HERE, and it is owed rather than assumed. The operator's four
- * machines are never contacted by this rung, so their versions are unknown and
- * every one of them is refused today. They join this list only after a
- * measurement he attends.
+ * WHAT IS NOT HERE, and it is owed rather than assumed. Every row below was
+ * measured against a scratch server on THIS Mac, reached over a scratch sign in
+ * program on 127.0.0.1. No row was measured across a real machine boundary. A
+ * row also names one COPY of a version rather than the version in general, and
+ * that is what the `subject` field carries. A distribution's patched build is a
+ * different subject from an upstream tarball, so a row measured against one
+ * says nothing about the other.
  */
 export const TESTED_REMOTE_TMUX_VERSIONS: readonly TestedRemoteTmux[] = [
   {
     version: '3.6a',
     measured: { exec: true, control: true },
     measuredAt: '2026-08-17',
+    subject: 'the copy of tmux already on this Mac',
     note:
       'The tmux this Mac runs, reached over the sign in program to a scratch ' +
       'server on this same Mac. All four exec plane shapes answered as this ' +
@@ -170,6 +180,9 @@ export const TESTED_REMOTE_TMUX_VERSIONS: readonly TestedRemoteTmux[] = [
     version: '3.7b',
     measured: { exec: true, control: true },
     measuredAt: '2026-08-17',
+    subject:
+      'the copy built by "npm run vendor:tmux" from the upstream tarball ' +
+      'pinned in build/tmux-release.json',
     note:
       'The version Tortie carries inside the application, built by ' +
       '"npm run vendor:tmux" into the working tree and reached over the same ' +
@@ -178,6 +191,39 @@ export const TESTED_REMOTE_TMUX_VERSIONS: readonly TestedRemoteTmux[] = [
       'exit 0, and show-options read back 25000. Control mode matched the local ' +
       'child of the same version on the same eight steps. The copy inside an ' +
       'installed Tortie.app was not read.'
+  },
+  {
+    version: '3.7c',
+    measured: { exec: true, control: true },
+    measuredAt: '2026-08-18',
+    subject:
+      'the upstream tarball at ' +
+      'https://github.com/tmux/tmux/releases/download/3.7c/tmux-3.7c.tar.gz, ' +
+      'sha256 7c60cae9a0e25288e2e24750aafc9e8800fc7fd4555e447e1b29ee4201cfb3bf, ' +
+      'built by "node build/build-tmux-version.mjs 3.7c" on this Mac with ' +
+      '--enable-utf8proc and --disable-jemalloc. tmux 3.7c stops its own ' +
+      'configure on macOS unless it is given one of the two jemalloc flags, ' +
+      'and this pipeline seals pkg-config off from Homebrew so an installed ' +
+      'jemalloc cannot be found, which is why the flag reads disable. It is ' +
+      "not Homebrew's build, and Homebrew's build is what the operator's Mac " +
+      'Pro runs.',
+    note:
+      'Built here by "node build/build-tmux-version.mjs 3.7c" and reached over ' +
+      'the sign in program to a scratch server on this same Mac. All four exec ' +
+      'plane shapes answered as this build expects. list-sessions -F answered ' +
+      'one row reading $0 on a server holding one session, and no rows with ' +
+      "exit 0 on a running server holding none. display-message -p " +
+      "'#{version}' answered 3.7c with exit 0. show-options -gv history-limit " +
+      'answered 25000, and 12 of 12 server options stuck after the boot and ' +
+      'again after the server was ended and reborn. A machine with no server ' +
+      'answered "error connecting to <the socket path> (No such file or ' +
+      'directory)" with exit 1. Control mode was opened by ' +
+      '"npm run probe:controldialect" and its stream matched a local control ' +
+      'child of the same version on all eight comparable steps, being the ' +
+      'greeting, the no output block, the guard shape, the notifications on a ' +
+      'create, a kill and a rename, the rename argument order, the window ' +
+      'traffic, the exit line, and one list compared byte for byte against the ' +
+      'same list over the exec plane at 117 bytes each way.'
   }
 ];
 
@@ -202,6 +248,16 @@ export type RemoteControlGate =
  * connection, twice, with the same answer both times. An untested wire pair
  * HANGS rather than errors, which is measured at the top of this file, and a
  * hang reads to a person as Tortie freezing on work they care about.
+ *
+ * IT TAKES NO ACCEPTANCE, AND IT NEVER WILL. Phase 83 gave
+ * {@link decideRemoteVersionGate} a fourth outcome, so a person can accept a
+ * version Tortie has not measured and start sessions on that machine over the
+ * exec plane. This gate has no third argument and reads no acceptance. An
+ * acceptance for the exec plane says nothing about the wire protocol, because
+ * the two are different protocols, and the ONE measured failure in this tree is
+ * a control mode hang. A machine whose version was accepted rather than
+ * measured keeps the timer feed, which is slower and correct. A later round
+ * that wants to widen this has to argue with that measurement first.
  */
 export function decideRemoteControlGate(
   version: string | null,
@@ -216,9 +272,11 @@ export function decideRemoteControlGate(
     : { kind: 'unmeasured', version, supported };
 }
 
-/** What the version read on another machine adds up to. */
+/** What the version read on another machine adds up to for the exec plane. */
 export type RemoteVersionGate =
   | { kind: 'measured'; version: string }
+  /** Not measured, and a person accepted this exact version for this machine. */
+  | { kind: 'accepted'; version: string }
   | { kind: 'unmeasured'; version: string; supported: readonly string[] }
   | { kind: 'unreadable'; supported: readonly string[] };
 
@@ -230,16 +288,37 @@ export type RemoteVersionGate =
  * operator as Tortie freezing on work he cares about. A version that cannot be
  * read is refused for the reason the local gate refuses one, which is that
  * attaching to something nobody can identify is the case that hangs.
+ *
+ * PHASE 83 ADDED THE THIRD ARGUMENT. A person may accept one exact version for
+ * one machine, through the machine's own confirm sheet, and that acceptance is
+ * what `accepted` holds. The four rules run in this order.
+ *
+ *  1. A version nobody could read gives `unreadable`, whatever `accepted`
+ *     holds. There is nothing for an acceptance to bind to.
+ *  2. A version on the measured list gives `measured`. Measured beats accepted
+ *     when both are true, so a version that later earns a measurement stops
+ *     being carried by a person's acceptance.
+ *  3. An acceptance that is byte equal to the version the machine reports gives
+ *     `accepted`.
+ *  4. Anything else gives `unmeasured`.
+ *
+ * THERE IS NO VERSION ARITHMETIC HERE AND THERE MUST NEVER BE. The comparison
+ * is byte equality on the whole string. Four measured data points do not make a
+ * rule, and the one measured failure in this tree is one minor version apart.
  */
 export function decideRemoteVersionGate(
   version: string | null,
-  list: readonly TestedRemoteTmux[] = TESTED_REMOTE_TMUX_VERSIONS
+  list: readonly TestedRemoteTmux[] = TESTED_REMOTE_TMUX_VERSIONS,
+  accepted?: string | null
 ): RemoteVersionGate {
   const supported = list.filter((row) => row.measured.exec).map((row) => row.version);
   if (version === null) return { kind: 'unreadable', supported };
-  return supported.includes(version)
-    ? { kind: 'measured', version }
-    : { kind: 'unmeasured', version, supported };
+  if (supported.includes(version)) return { kind: 'measured', version };
+  // Undefined and null both mean nobody accepted anything, and so does an empty
+  // string, which is what a cleared field reads as.
+  const bound = accepted ?? '';
+  if (bound !== '' && bound === version) return { kind: 'accepted', version };
+  return { kind: 'unmeasured', version, supported };
 }
 
 /**

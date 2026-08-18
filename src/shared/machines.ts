@@ -20,12 +20,20 @@
  *
  * ## The two kinds of field
  *
- * Four fields decide what runs, being `host`, `user`, `port` and
- * `remoteTmuxPath`. Two fields decide how a row looks, being `label` and
- * `color`. The confirm hash covers the first four and the row id, and it covers
- * neither of the last two. A person who renames a machine is not asked to
- * confirm it again, because a name cannot change what runs, and a gate that
- * asks about a rename trains a person to click through the sheet that matters.
+ * Five fields decide what runs, being `host`, `user`, `port`,
+ * `remoteTmuxPath` and `acceptedTmuxVersion`. Two fields decide how a row
+ * looks, being `label` and `color`. The confirm hash covers the first five and
+ * the row id, and it covers neither of the last two. A person who renames a
+ * machine is not asked to confirm it again, because a name cannot change what
+ * runs, and a gate that asks about a rename trains a person to click through
+ * the sheet that matters.
+ *
+ * Phase 83 added the fifth. `acceptedTmuxVersion` is the version of the program
+ * a person accepted for this one machine after Tortie said it had not measured
+ * it. It decides whether Tortie will start work there at all, so it is an
+ * execution bearing field and the hash covers it. The hash text appends it only
+ * when it is set, so a row nobody accepted a version for hashes exactly as it
+ * did before Phase 83 and nobody is asked to confirm a machine again.
  *
  * ## Why ssh reads its own argv, and what follows from it
  *
@@ -78,6 +86,17 @@ export const MACHINE_HOST_PATTERN =
  * useradd accepts on Linux and macOS.
  */
 export const MACHINE_USER_PATTERN = '^[a-z_][a-z0-9_-]{0,31}$';
+
+/**
+ * A version of the program on the other machine, as that machine reports it.
+ *
+ * It is the shape `parseTmuxVersion` already accepts, e.g. 3.7c. It starts with
+ * a digit and carries letters, digits, dots, plus signs and hyphens after it.
+ * The set is closed so a value from this field can never be read as an option
+ * or as a shell word, and Tortie compares it to what the machine reports rather
+ * than passing it to anything.
+ */
+export const MACHINE_VERSION_PATTERN = '^[0-9][A-Za-z0-9.+-]{0,31}$';
 
 /** The bounds a row and a file are checked against. */
 export const MACHINE_LIMITS = {
@@ -137,20 +156,35 @@ export interface MachineRowV1 {
   port?: number;
   /** The absolute path of the program Tortie runs on that machine. */
   remoteTmuxPath?: string;
+  /**
+   * The version a person accepted for this machine, which Tortie has not
+   * measured. Absent means they have accepted none.
+   *
+   * Phase 83. Tortie refuses a version it has not measured, because an
+   * untested one can hang instead of failing. A person may accept one anyway
+   * for one machine. The acceptance is bound to this exact string, so a machine
+   * whose program is updated asks again.
+   */
+  acceptedTmuxVersion?: string;
 }
 
 /**
- * The four fields that decide what runs.
+ * The five fields that decide what runs.
  *
  * The conformance gate compares this list against the hash normalizer's own key
- * set, so a fifth field added to one and not the other fails the gate instead
+ * set, so a sixth field added to one and not the other fails the gate instead
  * of falling quietly out of the hash.
+ *
+ * It was four until Phase 83. `acceptedTmuxVersion` joined it because a version
+ * a person accepted is what decides whether Tortie starts work on that machine
+ * at all.
  */
 export const MACHINE_EXECUTION_FIELDS: readonly string[] = [
   'host',
   'user',
   'port',
-  'remoteTmuxPath'
+  'remoteTmuxPath',
+  'acceptedTmuxVersion'
 ];
 
 /** The two fields that decide how a row looks and nothing else. */
@@ -164,7 +198,8 @@ export const MACHINE_ROW_KEYS: readonly string[] = [
   'host',
   'user',
   'port',
-  'remoteTmuxPath'
+  'remoteTmuxPath',
+  'acceptedTmuxVersion'
 ];
 
 // ---------------------------------------------------------------------------

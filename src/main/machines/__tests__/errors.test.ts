@@ -17,6 +17,9 @@ import { describe, expect, it } from 'vitest';
 import {
   MACHINE_ALARM_CLASS,
   MACHINE_OUTCOME_CLASSES,
+  MACHINE_VERSION_ACCEPTED_HONESTY,
+  MACHINE_VERSION_ACCEPT_MISMATCH,
+  MACHINE_VERSION_ACCEPT_OFFER,
   classifyMachineOutput,
   composeOutcomeCopy,
   lastPrintedLine,
@@ -285,6 +288,88 @@ describe('the four classes that carry a fact from the run', () => {
     expect(
       classifyMachineOutput('ssh: connect to host 127.0.0.1 port 22: Connection refused')
     ).toBe('refused');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 83. Accepting a version Tortie has not measured
+// ---------------------------------------------------------------------------
+
+describe('the sentences about an accepted version', () => {
+  const DASHES = /[\u2013\u2014]/;
+  const EVERY = [
+    MACHINE_VERSION_ACCEPT_MISMATCH,
+    MACHINE_VERSION_ACCEPT_OFFER,
+    MACHINE_VERSION_ACCEPTED_HONESTY
+  ];
+
+  it('uses no em dash and no en dash', () => {
+    for (const text of EVERY) expect(DASHES.test(text)).toBe(false);
+  });
+
+  it('names no program, no protocol and no transport', () => {
+    for (const text of EVERY) {
+      for (const word of ['ssh', 'tmux', 'socket', 'pane', 'prefix']) {
+        expect(text.toLowerCase()).not.toContain(word);
+      }
+    }
+  });
+
+  it('says what was not started when the versions disagree', () => {
+    expect(MACHINE_VERSION_ACCEPT_MISMATCH).toContain('Nothing was started.');
+    expect(MACHINE_VERSION_ACCEPT_MISMATCH).toContain(
+      'Accept the version it runs now'
+    );
+  });
+
+  it('says what accepting cannot promise', () => {
+    expect(MACHINE_VERSION_ACCEPT_OFFER).toContain('a session may fail to start');
+    expect(MACHINE_VERSION_ACCEPT_OFFER).toContain(
+      'This acceptance covers this one version on this one machine.'
+    );
+  });
+
+  it('offers the acceptance only when a sheet is being drawn beside it', () => {
+    const without = composeOutcomeCopy('version-unmeasured', {
+      resolvedPath: '/usr/bin/tmux',
+      version: '3.9a',
+      supportedPhrase: '3.6a, 3.7b and 3.7c'
+    });
+    expect(without.detail).not.toContain(MACHINE_VERSION_ACCEPT_OFFER);
+    const withOne = composeOutcomeCopy('version-unmeasured', {
+      resolvedPath: '/usr/bin/tmux',
+      version: '3.9a',
+      supportedPhrase: '3.6a, 3.7b and 3.7c',
+      acceptOffered: true
+    });
+    expect(withOne.detail).toContain(MACHINE_VERSION_ACCEPT_OFFER);
+    expect(withOne.detail).toContain('Nothing was changed on either machine.');
+  });
+
+  it('offers nothing for a machine that would not name a version', () => {
+    const copy = composeOutcomeCopy('version-unmeasured', {
+      resolvedPath: '/usr/bin/tmux',
+      version: null,
+      acceptOffered: true
+    });
+    expect(copy.detail).not.toContain(MACHINE_VERSION_ACCEPT_OFFER);
+  });
+
+  it('says the version was accepted rather than measured on a prepared row', () => {
+    const measured = composeOutcomeCopy('prepared', {
+      resolvedPath: '/usr/bin/tmux',
+      version: '3.7c',
+      serverBorn: false
+    });
+    expect(measured.detail).not.toContain(MACHINE_VERSION_ACCEPTED_HONESTY);
+    const accepted = composeOutcomeCopy('prepared', {
+      resolvedPath: '/usr/bin/tmux',
+      version: '3.9a',
+      serverBorn: false,
+      versionAccepted: true
+    });
+    expect(accepted.detail).toContain(MACHINE_VERSION_ACCEPTED_HONESTY);
+    expect(accepted.alarm).toBe(false);
   });
 });
 

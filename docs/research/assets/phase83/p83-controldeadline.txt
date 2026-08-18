@@ -1,0 +1,36 @@
+[probe-control-deadline] the operator has 34 session(s) on -L gmux. This is a read.
+[probe-control-deadline] socket gmux-p83-deadline-89089, run directory /var/folders/7f/43d9mxrd1q3_82py34w8lwf40000gn/T/p83-deadline-89089
+[probe-control-deadline] a scratch machine is listening on 127.0.0.1:47831
+[probe-control-deadline] a scratch tmux server is running on that machine as pid 89166
+[probe-control-deadline] killed 4 recorded pid(s): 89098, 89101, 89166, 91257
+
+leg  what was measured                                    answer
+------------------------------------------------------------------------
+1    the deadline this build carries, in ms               10000
+1    ssh children before the connection was opened        0
+1    ssh children while the child was hanging             1
+1    the connection was live while it hung                false
+1    ms from spawn to the fallback                        10002
+1    the sentence the feed was given is the deadline one  true
+1    the child was still alive afterwards                 false
+1    the machine's link reads                             polling
+1    the clause beside it is the deadline clause          true
+1    the machine is held off a connection for this run    true
+2    a second open answered                               false
+2    the second open spawned nothing                      true
+3    a healthy far side greeted in ms                     11
+3    the healthy connection reached live                  true
+4    a far side printing %exit produced disconnects       3
+4    a far side printing %exit produced greeting timeouts 0
+5    the local client greeted in ms                       22
+
+[probe-control-deadline] the operator had 34 session(s) on -L gmux before and 34 after.
+
+WHAT THIS DOES NOT PROVE. The timer feed itself lives in
+src/main/machines/remote-sessions.ts and this probe installs its own sink,
+so what leg 1 measured is that the control plane calls sink.lost with the
+deadline sentence. That call is the one that arms the timer, and the arming
+side of it is unchanged by this phase.
+
+PASS. A live connection that is never greeted is taken away, the machine
+keeps the timer feed, and nothing was started twice.

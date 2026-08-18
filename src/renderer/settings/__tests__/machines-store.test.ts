@@ -27,11 +27,13 @@
 
 import { beforeEach, describe, expect, it } from 'vitest';
 import type {
+  MachineAcceptVersionInput,
   MachineAddInput,
   MachineConfirmSheet,
   MachineKeyInstallInput,
   MachineKeyInstallResult,
   MachineKeySheet,
+  MachinePrepareResult,
   MachineTestInput,
   MachineTestStarted,
   MachinesResult
@@ -60,9 +62,19 @@ interface Recorded {
   tests: MachineTestInput[];
   adds: MachineAddInput[];
   installs: MachineKeyInstallInput[];
+  /** PHASE 83. Every acceptance that crossed the bridge, in order. */
+  accepts: MachineAcceptVersionInput[];
+  /** PHASE 83. Every machine id a prepare was asked for, in order. */
+  prepares: string[];
 }
 
-const recorded: Recorded = { tests: [], adds: [], installs: [] };
+const recorded: Recorded = {
+  tests: [],
+  adds: [],
+  installs: [],
+  accepts: [],
+  prepares: []
+};
 
 /** The password the tests type. It must exist in exactly one place. */
 const PASSWORD = 'correct-horse-battery-staple';
@@ -99,6 +111,39 @@ function installed(
   };
 }
 
+/** What Prepare answers for a machine that named a version nobody measured. */
+const UNMEASURED: MachinePrepareResult = {
+  id: 'scratch-box',
+  class: 'version-unmeasured',
+  alarm: false,
+  headline: 'Tortie has not measured the program this machine runs.',
+  detail: 'the detail main composed',
+  version: '3.9a',
+  supported: ['3.6a', '3.7b', '3.7c'],
+  serverBorn: false,
+  options: [],
+  pathCaptured: false,
+  durationMs: 500,
+  acceptSheet: {
+    hash: 'e5'.repeat(32),
+    lines: [
+      'Machine: 127.0.0.1',
+      'Runs this program on that machine: /opt/homebrew/bin/tmux',
+      'Accepts this version of the program, which Tortie has not measured: 3.9a'
+    ],
+    warning: 'the warning main owns'
+  }
+};
+
+/** What Prepare answers once the version has been accepted. */
+const PREPARED_AFTER_ACCEPT: MachinePrepareResult = {
+  ...UNMEASURED,
+  class: 'prepared',
+  headline: 'This machine is ready.',
+  serverBorn: true,
+  acceptSheet: null
+};
+
 function emptyRows(): MachinesResult {
   return {
     rows: [],
@@ -120,6 +165,8 @@ function installBridge(answer: () => MachineKeyInstallResult = installed): void 
   recorded.tests = [];
   recorded.adds = [];
   recorded.installs = [];
+  recorded.accepts = [];
+  recorded.prepares = [];
   const machines = {
     rows: async () => emptyRows(),
     reload: async () => emptyRows(),
@@ -150,6 +197,15 @@ function installBridge(answer: () => MachineKeyInstallResult = installed): void 
       recorded.installs.push(input);
       return answer();
     },
+    // PHASE 83. Both calls the accept button makes, in the order it makes them.
+    acceptVersion: async (input: MachineAcceptVersionInput) => {
+      recorded.accepts.push(input);
+      return { id: input.id } as unknown as never;
+    },
+    prepare: async (id: string) => {
+      recorded.prepares.push(id);
+      return PREPARED_AFTER_ACCEPT;
+    },
     onTestEvent: () => () => undefined
   };
   (globalThis as { window?: unknown }).window = { gmux: { machines } };
@@ -166,7 +222,10 @@ function reset(): void {
     tailscaleBusy: false,
     tailscaleReadAt: null,
     test: null,
-    keyInstall: null
+    keyInstall: null,
+    prepared: {},
+    preparing: null,
+    accepting: null
   });
 }
 
@@ -435,5 +494,70 @@ describe('setting up a key on one machine', () => {
     expect(useMachinesStore.getState().keyInstall?.running).toBe(false);
     expect(useMachinesStore.getState().keyInstall?.result).toBeNull();
     expect(recorded.tests).toHaveLength(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 83. Accepting the version one machine reports
+// ---------------------------------------------------------------------------
+//
+// The same rule this file was written for applies: what matters is the payload.
+// The sheet is main's, and the store has to send back the hash it was drawn
+// from and the lines that were on it, untouched. A renderer that composed
+// either one would be a second composer, and main would refuse every acceptance
+// with the sentence about a machine that changed after it was shown.
+
+describe('accepting a version over the bridge', () => {
+  beforeEach(() => {
+    installBridge();
+    reset();
+    useMachinesStore.setState({ prepared: { 'scratch-box': UNMEASURED } });
+  });
+
+  it('sends the version, the hash and the lines main composed', async () => {
+    const said = await useMachinesStore.getState().acceptVersion('scratch-box');
+    expect(said).toBeNull();
+    expect(recorded.accepts).toHaveLength(1);
+    expect(recorded.accepts[0]).toEqual({
+      id: 'scratch-box',
+      version: '3.9a',
+      hashRead: UNMEASURED.acceptSheet?.hash,
+      linesRead: UNMEASURED.acceptSheet?.lines
+    });
+  });
+
+  it('prepares the machine straight after, because that is what was asked for', async () => {
+    await useMachinesStore.getState().acceptVersion('scratch-box');
+    expect(recorded.prepares).toEqual(['scratch-box']);
+    expect(useMachinesStore.getState().prepared['scratch-box']?.class).toBe(
+      'prepared'
+    );
+  });
+
+  it('sends nothing for a machine with no sheet to accept', async () => {
+    useMachinesStore.setState({
+      prepared: { 'scratch-box': { ...UNMEASURED, acceptSheet: null } }
+    });
+    expect(await useMachinesStore.getState().acceptVersion('scratch-box')).toBeNull();
+    expect(recorded.accepts).toHaveLength(0);
+    expect(recorded.prepares).toHaveLength(0);
+  });
+
+  it('leaves the button free again when the call was refused', async () => {
+    (globalThis as { window?: unknown }).window = {
+      gmux: {
+        machines: {
+          ...(globalThis as { window: { gmux: { machines: object } } }).window.gmux
+            .machines,
+          acceptVersion: async () => {
+            throw new Error('Tortie did not accept that version for scratch-box.');
+          },
+          rows: async () => emptyRows()
+        }
+      }
+    };
+    const said = await useMachinesStore.getState().acceptVersion('scratch-box');
+    expect(said).toContain('did not accept that version');
+    expect(useMachinesStore.getState().accepting).toBeNull();
   });
 });

@@ -401,16 +401,46 @@ export async function runExecPlaneSmoke(): Promise<void> {
     const supported = TESTED_REMOTE_TMUX_VERSIONS.filter(
       (row) => row.measured.exec
     ).map((row) => row.version);
-    const madeUp = decideRemoteVersionGate(`0.0-probe-${String(process.pid)}`);
+    const invented = `0.0-probe-${String(process.pid)}`;
+    const madeUp = decideRemoteVersionGate(
+      invented,
+      TESTED_REMOTE_TMUX_VERSIONS,
+      null
+    );
     if (madeUp.kind !== 'unmeasured') {
       fail(`a made-up version was not refused by the gate: ${madeUp.kind}`);
     }
-    if (decideRemoteVersionGate(null).kind !== 'unreadable') {
+    if (
+      decideRemoteVersionGate(null, TESTED_REMOTE_TMUX_VERSIONS, null).kind !==
+      'unreadable'
+    ) {
       fail('a machine that would not say its version was not refused');
     }
+    // PHASE 83. The accepted arm, watched firing in a real process rather than
+    // only in a unit test. The same made-up version, with a person's acceptance
+    // of it, answers `accepted`. A version nobody could read stays `unreadable`
+    // whatever is accepted, because there is nothing for an acceptance to bind
+    // to.
+    const acceptedGate = decideRemoteVersionGate(
+      invented,
+      TESTED_REMOTE_TMUX_VERSIONS,
+      invented
+    );
+    if (acceptedGate.kind !== 'accepted') {
+      fail(
+        `a version a person accepted answered ${acceptedGate.kind} rather ` +
+          `than accepted`
+      );
+    }
+    if (
+      decideRemoteVersionGate(null, TESTED_REMOTE_TMUX_VERSIONS, invented)
+        .kind !== 'unreadable'
+    ) {
+      fail('a version nobody could read was carried by an acceptance');
+    }
     log(
-      `8. a made-up version is refused, and the list it names is ` +
-        `${supported.join(', ')}`
+      `8. a made-up version is refused, the same version a person accepted is ` +
+        `allowed, and the list the refusal names is ${supported.join(', ')}`
     );
     if (carriage?.stubTmuxPath !== undefined) {
       const stubFields: MachineExecutionFields = {

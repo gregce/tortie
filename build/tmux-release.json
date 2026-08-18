@@ -1,5 +1,5 @@
 {
-  "note": "THE PIN for the tmux copy bundled inside Tortie.app. build/build-tmux.mjs is the only reader. tmux is BUILT here, not downloaded, so the gate is on the SOURCE tarball hashes. The built binary's own hash is machine dependent and is deliberately not a gate. Bump version, url and sha256 together, and move testedPair in the same commit.",
+  "note": "THE PIN for the tmux copy bundled inside Tortie.app. build/build-tmux.mjs is the only reader. tmux is BUILT here, not downloaded, so the gate is on the SOURCE tarball hashes. The built binary's own hash is machine dependent and is deliberately not a gate. Bump version, url and sha256 together, and move testedPair in the same commit. Versions that exist only so a probe can MEASURE a server on another machine are pinned in build/tmux-probe-versions.json instead, and adding a row there never moves this pin.",
   "version": "3.7b",
   "identifierSuffix": "tmux",
   "testedPair": { "server": "3.6a", "client": "3.7b" },

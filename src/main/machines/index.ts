@@ -34,8 +34,9 @@
  *  - `schema.ts` validates, and is pure. No disk, no Electron.
  *  - `store.ts` owns every read, the snapshot, the reload, the watcher and the
  *    two writes.
- *  - `confirm.ts` owns the four execution bearing fields, the hash, the sealed
- *    record key and the six refusals.
+ *  - `confirm.ts` owns the five execution bearing fields, the hash, the sealed
+ *    record key and the six refusals. Phase 68 shipped four of them and Phase 83
+ *    added the accepted tmux version as the fifth.
  *  - `errors.ts` turns what the sign in program printed into one class and one
  *    piece of copy, with exactly one alarming class.
  *  - `tailscale.ts` resolves the pinned Tailscale program and parses its answer.
@@ -86,6 +87,23 @@
  * in CLAUDE.md asks for a small deliberate export surface rather than a
  * complete one. Add the re-export when a caller outside this directory needs
  * one, and not before.
+ *
+ * PHASE 83 ADDED NO MODULE, and it changed two things worth naming here.
+ *
+ *  - A machine row gained a fifth execution bearing field,
+ *    `acceptedTmuxVersion`. It is the version of the program on that machine
+ *    which a person accepted after Tortie said it had not measured it. The
+ *    confirm hash covers it, and `confirm.ts` appends it to the hash text only
+ *    when it is set, so every machine a person had already confirmed stays
+ *    confirmed. `prepare.ts` asks the version gate about it and refuses when
+ *    the machine reports something else.
+ *  - `control-plane.ts` now takes a live connection away when its greeting
+ *    never arrives, and hands the machine back to the timer feed. The deadline
+ *    itself lives in `../tmux/control-client.ts`, because that class schedules
+ *    its own reconnects and each one spawns a child.
+ *
+ * **What is still not here.** No conversation resumes on a machine. The status
+ * dot still only moves when a list runs.
  */
 
 export {

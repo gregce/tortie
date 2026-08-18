@@ -638,7 +638,40 @@ if (historyAfterRebirth !== '25000') {
 const versionOverPlane = remoteTmux(['display-message', '-p', '#{version}']);
 const versionOfBinary = remoteShell(`${tmuxPath} -V`);
 const reported = versionOverPlane.stdout.trim();
-const MEASURED = ['3.6a', '3.7b'];
+// The measured list is READ FROM THE PRODUCT rather than copied here. A second
+// copy of it in this file is what made this probe refuse 3.7c on the same day
+// the product started accepting it: the row went into
+// `TESTED_REMOTE_TMUX_VERSIONS` and the constant here did not move. So this
+// reads the one array the gate itself reads. It parses the TypeScript rather
+// than importing it because this file is plain Node and that module is not, and
+// the parse fails loudly rather than falling back to a guess.
+const MEASURED = readMeasuredVersions();
+
+function readMeasuredVersions() {
+  const source = readFileSync(
+    join(repoRoot, 'src', 'main', 'tmux', 'version.ts'),
+    'utf8'
+  );
+  const start = source.indexOf('TESTED_REMOTE_TMUX_VERSIONS');
+  if (start < 0) {
+    throw new Error(
+      'src/main/tmux/version.ts no longer names TESTED_REMOTE_TMUX_VERSIONS'
+    );
+  }
+  const open = source.indexOf('[', start);
+  const close = source.indexOf('\n];', open);
+  if (open < 0 || close < 0) {
+    throw new Error('the TESTED_REMOTE_TMUX_VERSIONS array could not be read');
+  }
+  const block = source.slice(open, close);
+  const found = [...block.matchAll(/^\s*version: '([^']+)',$/gm)].map(
+    (match) => match[1]
+  );
+  if (found.length === 0) {
+    throw new Error('TESTED_REMOTE_TMUX_VERSIONS parsed to no versions at all');
+  }
+  return found;
+}
 step(
   10,
   'the version probe',
@@ -923,18 +956,71 @@ if (bundleText === '') {
 // Step 15. The taxonomy goldens
 // ---------------------------------------------------------------------------
 
+// THIS STEP USED TO REWRITE FIVE CHECKED IN FILES, and that was a defect
+// rather than a feature. `capture-machine-goldens.mjs` writes over the files
+// `golden.test.ts` reads. Running this probe therefore left
+// host-key-changed.txt, manifest.json, no-server.txt, ok.txt and refused.txt
+// dirty, with their bytes moved, and manifest.json also lost the
+// password-required row because a different script writes that one. Two
+// builders in Phase 83 hit it and both had to undo it by hand. So the capture
+// now goes to a scratch directory under this probe's own root, and this step
+// COMPARES the fresh bytes against the checked in ones. A difference is
+// reported as a difference. Nothing a test reads is touched here. A person who
+// wants the checked in files to move runs `npm run goldens:machines`.
+const goldenScratch = join(root, 'goldens');
 const goldens = sh('/usr/bin/env', [
   'node',
-  join(repoRoot, 'build', 'capture-machine-goldens.mjs')
+  join(repoRoot, 'build', 'capture-machine-goldens.mjs'),
+  '--out',
+  goldenScratch
 ]);
 const goldenLines = goldens.stdout
   .split('\n')
   .filter((line) => /exit -?\d+, \d+ bytes/.test(line));
+const checkedInGoldens = join(
+  repoRoot,
+  'src',
+  'main',
+  'machines',
+  '__tests__',
+  'golden'
+);
+const drifted = [];
+const matched = [];
+for (const line of goldenLines) {
+  const cls = /^\[goldens\] ([a-z-]+): exit/.exec(line)?.[1];
+  if (!cls) continue;
+  const fresh = join(goldenScratch, `${cls}.txt`);
+  const checkedIn = join(checkedInGoldens, `${cls}.txt`);
+  if (!existsSync(fresh) || !existsSync(checkedIn)) {
+    drifted.push(`${cls} (one of the two files is not there)`);
+    continue;
+  }
+  const a = readFileSync(fresh, 'utf8');
+  const b = readFileSync(checkedIn, 'utf8');
+  if (a === b) matched.push(cls);
+  else
+    drifted.push(
+      `${cls} (${String(Buffer.byteLength(b))} bytes checked in, ` +
+        `${String(Buffer.byteLength(a))} bytes now)`
+    );
+}
 step(
   15,
   'the taxonomy goldens',
-  `${String(goldenLines.length)} class(es) captured from real output`
+  `${String(goldenLines.length)} class(es) captured from real output into ` +
+    `${goldenScratch}. ${String(matched.length)} matched the checked in file ` +
+    `byte for byte. ${
+      drifted.length === 0 ? 'None differ.' : `These differ: ${drifted.join(', ')}.`
+    } Nothing under src/ was written.`
 );
+if (drifted.length > 0) {
+  say(
+    `   a class whose text carries this run's own socket path, port or pid can ` +
+      `never match the checked in file byte for byte, so a difference here is ` +
+      `only a finding when the byte counts also moved.`
+  );
+}
 for (const line of goldenLines) say(`   ${line.replace('[goldens] ', '')}`);
 if (goldens.code !== 0) fail('the golden capture exited non zero');
 
@@ -983,9 +1069,112 @@ step(
 say(
   `   the prefix ${
     prefixedValue.includes('/p69-marker-dir') ? 'WINS' : 'is IGNORED'
-  }, so M3 knows the mechanism before it needs it. This is de-risking and NOT ` +
-    `proof that a remote pane gets the captured list, because M2 creates no pane.`
+  }, so M3 knows the mechanism before it needs it.`
 );
+
+// ---------------------------------------------------------------------------
+// Step 17b. What PATH a PANE gets, which is unknown 1 of research 54 section 7
+// ---------------------------------------------------------------------------
+//
+// Step 17 above measures a login shell and a prefixed command. Neither is a
+// pane, and the line here used to say so and stop. That left unknown 1 open on
+// every carriage, including this one, and unknown 1 is what decides whether
+// launching an agent by bare name works on another machine at all.
+//
+// So this step makes a real pane over the real carriage and reads PATH from
+// INSIDE it. The session is created detached, its name carries the zz- prefix
+// and this run's pid, the pane writes one file and then holds, and the session
+// is ended by exact name whatever happens.
+//
+// WHAT THIS IS NOT. The far side of this carriage is this Mac, so this answers
+// unknown 1 for the loopback topology and for nothing else. The answer for
+// mac-pro comes from `npm run probe:realunknowns`, which needs an ssh key this
+// Mac does not have yet.
+// IT IS MEASURED TWICE, and this is the state the two readings are taken in.
+// `src/main/machines/remote-server.ts:161` sends
+// `set-environment -g PATH <the login shell's PATH>` when it boots a machine's
+// server, and step 5 of this probe sent the same command against this server
+// long before here. `src/main/machines/remote-path.ts` says in its own header
+// that the command is NOT evidence a pane gets that value, because research 47
+// section 2 measured the local case and found `-g PATH` is the one variable a
+// pane does not inherit. So the first reading is taken with the server env as
+// this run already left it, the command is then sent again, and the second
+// reading is taken after that. Two readings that agree are a stronger answer
+// than one, and neither of them is a server that never had PATH set, which this
+// probe cannot produce this late in its run.
+function paneEnvPath(label) {
+  const session = `zz-p69-path-${label}-${String(process.pid)}`;
+  const file = join(root, `p69-pane-path-${label}.txt`);
+  let created = false;
+  try {
+    const made = remoteTmux([
+      'new-session',
+      '-d',
+      '-s',
+      session,
+      '--',
+      '/bin/sh',
+      '-c',
+      `printenv PATH > ${file}; sleep 20`
+    ]);
+    created = made.code === 0;
+    if (!created) {
+      return `the create exited ${String(made.code)}: ${made.both.trim()}`;
+    }
+    // The pane writes the file as its first act, so a poll of tenths beats a
+    // fixed sleep that is either slow or flaky.
+    for (let tries = 0; tries < 40; tries += 1) {
+      if (existsSync(file)) break;
+      execFileSync('/bin/sleep', ['0.1']);
+    }
+    return existsSync(file)
+      ? readFileSync(file, 'utf8').trim()
+      : 'the pane never wrote the file';
+  } finally {
+    // By EXACT name. Nothing else on that socket can match this.
+    if (created) remoteTmux(['kill-session', '-t', `=${session}`]);
+  }
+}
+
+const loginPath = plainValue;
+const paneFirst = paneEnvPath('first');
+remoteTmux(['set-environment', '-g', 'PATH', loginPath]);
+const paneAfterSet = paneEnvPath('afterset');
+const serverPath = remoteTmux(['show-environment', '-g', 'PATH']).stdout.trim();
+step(
+  '17b',
+  'what PATH a pane gets, which is unknown 1',
+  `a pane answers ${JSON.stringify(paneFirst)}. After set-environment -g PATH ` +
+    `is sent again it answers ${JSON.stringify(paneAfterSet)}, while ` +
+    `show-environment -g reads back ${JSON.stringify(serverPath)}. The login ` +
+    `shell answers ${JSON.stringify(loginPath)}.`
+);
+say(
+  `   the pane ${paneFirst === loginPath ? 'DOES' : 'does NOT'} get the login ` +
+    `shell's list, and it ` +
+    `${paneAfterSet === loginPath ? 'DOES' : 'does NOT'} get it after ` +
+    `set-environment -g PATH is sent again, while the server itself ` +
+    `${serverPath.includes(loginPath) ? 'HOLDS' : 'does not hold'} that list. ` +
+    `So launching an agent by bare name over there ` +
+    `${
+      paneAfterSet === loginPath
+        ? 'finds whatever the login shell finds'
+        : 'CANNOT rely on the captured list, and an absolute path or an -e pair is needed'
+    }.`
+);
+say(
+  `   the far side of this carriage is this Mac, so this answers unknown 1 for ` +
+    `the loopback topology only. mac-pro's answer comes from ` +
+    `"npm run probe:realunknowns".`
+);
+for (const [what, value] of [
+  ['on the first reading', paneFirst],
+  ['after set-environment', paneAfterSet]
+]) {
+  if (value.startsWith('the pane never') || value.startsWith('the create exited')) {
+    fail(`unknown 1 was not answered ${what}: ${value}`);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // The carriage file the Electron harness reads

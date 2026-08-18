@@ -228,6 +228,10 @@ describe('every channel is registered, and only the ones listed here', () => {
   // that goes stale between two of them. The array is the fact.
   it('registers exactly the machines channels this list names', () => {
     expect([...handlers.keys()].sort()).toEqual([
+      // Phase 83's one new channel. It writes the version a person accepted
+      // into one row and records the agreement in one call. It contacts no
+      // machine and starts nothing.
+      'machines:acceptVersion',
       'machines:add',
       'machines:confirm',
       'machines:forget',
@@ -835,6 +839,108 @@ describe('machines:confirm, forget and remove', () => {
     addMachineRow(POP);
     const after = call<{ rows: { state: string }[] }>('machines:rows');
     expect(after.rows[0]?.state).toBe('never');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 83. Accepting the version one machine reports
+// ---------------------------------------------------------------------------
+
+describe('machines:acceptVersion', () => {
+  /** The sheet main would draw for accepting one version on this row. */
+  function sheetFor(version: string): { hash: string; lines: string[] } {
+    const summary = describeMachine('pop-os', {
+      ...machineFieldsOf(POP),
+      acceptedTmuxVersion: version
+    });
+    return { hash: summary.hash, lines: [...summary.lines] };
+  }
+
+  beforeEach(() => {
+    writeFile({ schema: 1, machines: [POP] });
+    loadMachines('boot');
+  });
+
+  it('writes the version and records the agreement in one call', () => {
+    const sheet = sheetFor('3.9a');
+    const view = call<{ state: string; usable: boolean; acceptedTmuxVersion: string | null }>(
+      'machines:acceptVersion',
+      { id: 'pop-os', version: '3.9a', hashRead: sheet.hash, linesRead: sheet.lines }
+    );
+    expect(view.acceptedTmuxVersion).toBe('3.9a');
+    expect(view.state).toBe('confirmed');
+    expect(view.usable).toBe(true);
+    expect(machineRow('pop-os')?.acceptedTmuxVersion).toBe('3.9a');
+    expect(spawned).toHaveLength(0);
+    expect(machineSshSpawnCount()).toBe(0);
+  });
+
+  it('refuses a stale sheet and writes NOTHING', () => {
+    const stale = describeMachine('pop-os', machineFieldsOf(POP));
+    expect(() =>
+      call('machines:acceptVersion', {
+        id: 'pop-os',
+        version: '3.9a',
+        hashRead: stale.hash,
+        linesRead: [...stale.lines]
+      })
+    ).toThrow(/changed after it was shown/);
+    expect(machineRow('pop-os')?.acceptedTmuxVersion).toBeUndefined();
+    expect(spawned).toHaveLength(0);
+  });
+
+  it('refuses a value that is not a version, before anything is written', () => {
+    expect(() =>
+      call('machines:acceptVersion', {
+        id: 'pop-os',
+        version: '3.7c; rm -rf /',
+        hashRead: 'whatever',
+        linesRead: []
+      })
+    ).toThrow(/not a version Tortie can read/);
+    expect(machineRow('pop-os')?.acceptedTmuxVersion).toBeUndefined();
+  });
+
+  it('refuses a machine that is not in the file', () => {
+    expect(() =>
+      call('machines:acceptVersion', {
+        id: 'nowhere',
+        version: '3.9a',
+        hashRead: 'whatever',
+        linesRead: []
+      })
+    ).toThrow(/There is no machine called nowhere/);
+  });
+
+  it('writes the accepted version into the sheet the row draws', () => {
+    const sheet = sheetFor('3.9a');
+    call('machines:acceptVersion', {
+      id: 'pop-os',
+      version: '3.9a',
+      hashRead: sheet.hash,
+      linesRead: sheet.lines
+    });
+    const out = call<{ rows: { lines: string[] }[] }>('machines:rows');
+    expect(out.rows[0]?.lines.join('\n')).toContain(
+      'Accepts this version of the program, which Tortie has not measured: 3.9a'
+    );
+  });
+
+  it('takes the accepted version away when the agreement is withdrawn', () => {
+    const sheet = sheetFor('3.9a');
+    call('machines:acceptVersion', {
+      id: 'pop-os',
+      version: '3.9a',
+      hashRead: sheet.hash,
+      linesRead: sheet.lines
+    });
+    const view = call<{ state: string; acceptedTmuxVersion: string | null }>(
+      'machines:forget',
+      'pop-os'
+    );
+    expect(view.acceptedTmuxVersion).toBeNull();
+    expect(view.state).toBe('never');
+    expect(machineRow('pop-os')?.acceptedTmuxVersion).toBeUndefined();
   });
 });
 

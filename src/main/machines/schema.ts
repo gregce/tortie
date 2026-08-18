@@ -19,7 +19,7 @@
  * ## What this module does NOT decide
  *
  * It does not decide whether a row is confirmed and it does not own the hash.
- * `./confirm.ts` owns the four execution bearing fields, the algorithm name,
+ * `./confirm.ts` owns the five execution bearing fields, the algorithm name,
  * the lines a person reads and the seal. There is one hash in this phase and it
  * is not here.
  *
@@ -33,6 +33,13 @@
  * A `remoteTmuxPath` containing a single quote is refused. The remote command
  * is composed with `shellQuoteArgv`, so a path holding a space is already safe,
  * and refusing the quote leaves no quoting question open at all.
+ *
+ * ## Phase 83 added one field, and it is checked the same way
+ *
+ * `acceptedTmuxVersion` is the version a person accepted for this machine. It
+ * is checked against a closed pattern that only a version string matches, so a
+ * value that could be read as an option, as a path or as a shell word drops the
+ * row whole with a sentence naming the field.
  */
 
 import type { MachineProblem, MachineRowV1 } from '@shared/machines';
@@ -44,12 +51,14 @@ import {
   MACHINE_LIMITS,
   MACHINE_ROW_KEYS,
   MACHINE_USER_PATTERN,
+  MACHINE_VERSION_PATTERN,
   type MachineColor
 } from '@shared/machines';
 
 const ID_RE = new RegExp(MACHINE_ID_PATTERN);
 const HOST_RE = new RegExp(MACHINE_HOST_PATTERN);
 const USER_RE = new RegExp(MACHINE_USER_PATTERN);
+const VERSION_RE = new RegExp(MACHINE_VERSION_PATTERN);
 /** Control characters. They never belong in a name, an address or a path. */
 const CONTROL_RE = /[\u0000-\u001f\u007f]/;
 
@@ -173,6 +182,27 @@ function remotePathField(value: unknown, field: string): string {
   return text;
 }
 
+/**
+ * A version a person accepted for this machine (Phase 83).
+ *
+ * It is compared against what the machine reports and it reaches no command, so
+ * the only question is whether it is a version string at all. The set is closed
+ * to the shape `parseTmuxVersion` reads, which leaves no quoting question open
+ * and no way for a value here to be read as an option.
+ */
+function versionField(value: unknown, field: string): string {
+  const text = plainString(value, field, 32);
+  if (!VERSION_RE.test(text)) {
+    fail(
+      field,
+      `${field} is not a version Tortie can read. A version looks like 3.7c. ` +
+        `Tortie will not accept a value it cannot compare against what the ` +
+        `machine reports.`
+    );
+  }
+  return text;
+}
+
 function colorField(value: unknown, field: string): MachineColor {
   if (typeof value !== 'string' || !MACHINE_COLORS.includes(value as MachineColor)) {
     fail(field, `${field} must be one of ${MACHINE_COLORS.join(', ')}.`);
@@ -218,6 +248,12 @@ function validateRow(raw: unknown, index: number): MachineRowV1 {
     row.remoteTmuxPath = remotePathField(
       obj['remoteTmuxPath'],
       `${field}.remoteTmuxPath`
+    );
+  }
+  if (obj['acceptedTmuxVersion'] !== undefined) {
+    row.acceptedTmuxVersion = versionField(
+      obj['acceptedTmuxVersion'],
+      `${field}.acceptedTmuxVersion`
     );
   }
   return row;
@@ -370,6 +406,12 @@ export function serializeMachines(rows: readonly MachineRowV1[]): string {
       ...(row.port !== undefined ? { port: row.port } : {}),
       ...(row.remoteTmuxPath !== undefined
         ? { remoteTmuxPath: row.remoteTmuxPath }
+        : {}),
+      // Phase 83. Written after remoteTmuxPath, and only when it is there, so a
+      // file for a machine nobody accepted a version for is the file this
+      // product has always written.
+      ...(row.acceptedTmuxVersion !== undefined
+        ? { acceptedTmuxVersion: row.acceptedTmuxVersion }
         : {})
     }))
   };

@@ -196,15 +196,15 @@ export async function runMachinesSmoke(): Promise<void> {
 
     // --- 5. A presentation change moves nothing -----------------------------
     // A machine's label and colour are not in the hash and are not in these
-    // fields at all, so the proof here is that the hash of the same four values
+    // fields at all, so the proof here is that the hash of the same five values
     // is byte equal to the one that was sealed.
     const before = machineExecutionHash(ID, ROW);
     const again = machineExecutionHash(ID, { ...ROW });
     if (before !== again) fail('hashing the same machine twice gave two answers');
     if (machineRowStatus(ID, ROW).state !== 'confirmed') {
-      fail('a machine whose four fields did not move stopped being confirmed');
+      fail('a machine whose five fields did not move stopped being confirmed');
     }
-    log(`the hash of the four fields is stable: ${before.slice(0, 16)}`);
+    log(`the hash of the five fields is stable: ${before.slice(0, 16)}`);
 
     // --- 6. A hash that moved while the sheet was open is not confirmed -----
     assertRefused(

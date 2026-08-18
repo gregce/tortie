@@ -1,7 +1,8 @@
 /**
  * The machines half of the bridge (Phase 68, one call added in Phase 69, one
- * more in Phase 71 and one more in Phase 79.1). One object, thirteen calls and
- * two subscriptions, typed from the shared contract.
+ * more in Phase 71, one more in Phase 79.1 and one more in Phase 83). One
+ * object, fourteen calls and two subscriptions, typed from the shared
+ * contract.
  *
  * Four of these calls can start a process, and every one of them is a person
  * pressing a button in Settings. `tailscaleNames` runs the Tailscale program at
@@ -33,6 +34,11 @@ export const machines: NonNullable<GmuxMachinesExtras['machines']> = {
   testCancel: (testId) => invoke('machines:testCancel', testId),
   add: (input) => invoke('machines:add', input),
   confirm: (input) => invoke('machines:confirm', input),
+  // Phase 83. Records that a person accepted the version one machine reports,
+  // and writes it into the row. It contacts no machine and starts nothing. The
+  // renderer sends back the hash the sheet was drawn from and the lines that
+  // were on it, and main refuses a stale hash.
+  acceptVersion: (input) => invoke('machines:acceptVersion', input),
   forget: (id) => invoke('machines:forget', id),
   remove: (id) => invoke('machines:remove', id),
   // Phase 69. The first thing Tortie ever starts on another machine, and the one

@@ -20,6 +20,9 @@
  * - The honesty sentence and the confirm warning appear exactly as main sent
  *   them. Neither is composed here, so a passing test proves this surface
  *   cannot reword them.
+ * - PHASE 83. A row that carries a version a person accepted says which one,
+ *   says that withdrawing it withdraws the confirmation too, and offers the one
+ *   button that does it. A row that carries none draws none of that.
  *
  * The vitest environment is node, so these read static markup from
  * react-dom/server rather than a mounted DOM. They render `MachinesView`
@@ -33,11 +36,14 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import type { MachineRowView, MachinesResult } from '@shared/ipc';
 import { MachinesView } from '../MachinesSection';
 import {
+  ACCEPTED_VERSION_LABEL,
+  BTN_WITHDRAW_VERSION,
   DISCLOSURE_LABEL,
   HONESTY_NO_ADOPTION,
   HONESTY_OWN_RECORD,
   SECTION_CAPTION,
-  SECTION_CONFIRM_LINE
+  SECTION_CONFIRM_LINE,
+  WITHDRAW_VERSION_EXPLAIN
 } from '../machines-copy';
 
 /** The sentence main owns. The surface may draw it and may not touch it. */
@@ -79,6 +85,13 @@ function row(over: Partial<MachineRowView>): MachineRowView {
     warning: WARNING,
     ...over
   };
+}
+
+/** The one row element, so what is inside it can be read alone. */
+function machineRow(html: string): string {
+  const at = html.indexOf('<div class="mach-row"');
+  expect(at).toBeGreaterThan(-1);
+  return html.slice(at);
 }
 
 function result(over: Partial<MachinesResult>): MachinesResult {
@@ -429,5 +442,53 @@ describe('a build whose preload has no machines surface', () => {
     );
     expect(html).toContain('Machines are not available in this build.');
     expect(html).not.toContain('No machines yet.');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 83. The version a person accepted for one machine
+// ---------------------------------------------------------------------------
+
+describe('a row carrying a version the person accepted', () => {
+  // The row is drawn in a state whose detail is open, because a confirmed row
+  // starts shut and a server render cannot press Show what it runs. Everything
+  // on this row lives behind that one disclosure and this block is no
+  // exception.
+  const html = machineRow(
+    draw(
+      result({
+        rows: [row({ state: 'never', usable: false, acceptedTmuxVersion: '3.9a' })]
+      })
+    )
+  );
+
+  it('names the version, under a label that says what it is', () => {
+    expect(html).toContain(ACCEPTED_VERSION_LABEL);
+    expect(html).toContain('>3.9a<');
+  });
+
+  it('says that withdrawing it withdraws the confirmation too', () => {
+    expect(html).toContain(WITHDRAW_VERSION_EXPLAIN);
+  });
+
+  it('offers the one button that withdraws it', () => {
+    expect(html).toContain('data-machines-action="withdraw-version"');
+    expect(html).toContain(BTN_WITHDRAW_VERSION);
+  });
+});
+
+describe('a row carrying no accepted version', () => {
+  const html = machineRow(
+    draw(result({ rows: [row({ state: 'never', usable: false })] }))
+  );
+
+  it('draws nothing at all about accepting a version', () => {
+    expect(html).not.toContain(ACCEPTED_VERSION_LABEL);
+    expect(html).not.toContain(BTN_WITHDRAW_VERSION);
+    expect(html).not.toContain('data-machines-action="withdraw-version"');
+  });
+
+  it('draws no accept button, because Prepare has not answered yet', () => {
+    expect(html).not.toContain('data-machines-action="accept-version"');
   });
 });

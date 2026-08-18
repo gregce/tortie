@@ -212,6 +212,39 @@ export const PREPARING = 'Preparing this machine';
 
 export const PREPARE_NEEDS_CONFIRM = 'Confirm this machine before Tortie prepares it.';
 
+// ---------------------------------------------------------------------------
+// Accepting a version Tortie has not measured (Phase 83)
+// ---------------------------------------------------------------------------
+//
+// Labels and buttons only. Every sentence about what accepting means comes from
+// main on the Prepare result, unchanged, per the rule at the top of this file.
+// The block is drawn only when main sent a sheet, and a sheet is only sent for a
+// machine that named a version Tortie has not measured.
+
+export const BTN_ACCEPT_VERSION = 'Accept this version and prepare it';
+
+export const ACCEPTING_VERSION = 'Accepting this version';
+
+/** Stands immediately before the version a person accepted. */
+export const ACCEPTED_VERSION_LABEL = 'Version you accepted:';
+
+export const ACCEPTED_VERSION_NONE =
+  'You have not accepted a version for this machine.';
+
+export const BTN_WITHDRAW_VERSION = 'Withdraw this version';
+
+/**
+ * Drawn beside the withdraw button, because withdrawing does two things.
+ *
+ * The version is one of the five facts the confirmation covers, so it cannot be
+ * dropped on its own. Saying so here is cheaper than a person finding out by
+ * pressing the button.
+ */
+export const WITHDRAW_VERSION_EXPLAIN =
+  'Withdrawing the version also withdraws your confirmation of this machine, ' +
+  'because the version is one of the things you confirmed. Confirm the ' +
+  'machine again to use it.';
+
 /** Stands immediately before the version the machine reported. */
 export const PREPARE_VERSION_LABEL = 'Version on that machine:';
 
@@ -508,11 +541,12 @@ export const COLOUR_LABEL: Readonly<Record<MachineColor, string>> = {
  * fails when the two disagree, so the list is kept honest by a test rather
  * than by a promise.
  */
-export const MEASURED_VERSIONS: readonly string[] = ['3.6a', '3.7b'];
+export const MEASURED_VERSIONS: readonly string[] = ['3.6a', '3.7b', '3.7c'];
 
 export const VERSION_GATE_EXPLAIN =
   'Tortie only uses versions of that program it has measured. If the ' +
-  'machine runs a different version, Tortie says so and starts nothing.';
+  'machine runs a version Tortie has not measured, Tortie says so, starts ' +
+  'nothing, and offers to let you accept that version yourself.';
 
 export const BTN_TEST = 'Test the connection';
 export const TESTING = 'Testing the connection';
@@ -771,5 +805,8 @@ export const LABELS_ENDING_IN_A_COLON: readonly string[] = [
   TRANSCRIPT_RUNNING_LABEL,
   PREPARE_VERSION_LABEL,
   PREPARE_SUPPORTED_LABEL,
-  PREPARE_SETTINGS_LABEL
+  PREPARE_SETTINGS_LABEL,
+  // Phase 83. It stands immediately before the version a person accepted and
+  // carries nothing of its own past the colon.
+  ACCEPTED_VERSION_LABEL
 ];

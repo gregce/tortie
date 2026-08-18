@@ -1,0 +1,62 @@
+[p69] 1. the operator's server before the run: 34 session(s), history-limit 25000, exit-empty off
+[p69] 2. the carriage: sshd pid 86618 on 127.0.0.1:36602, key /var/folders/7f/43d9mxrd1q3_82py34w8lwf40000gn/T/p69-execplane-86602/p69-hostkey, remote program /private/tmp/claude-501/-Users-gdc-gmux/69469eba-62a7-4552-8d1e-1ba54287a99f/scratchpad/wt-p83/build/vendor/tmux-probe/3.7c/bin/tmux. It accepts this run's own key plus 0 of the person's own public key(s). The exec plane names no key, so this run also holds its key in an agent of its own at /var/folders/7f/43d9mxrd1q3_82py34w8lwf40000gn/T//ssh-KcwAe8ntHEJH/agent.86615
+[p69] 3. the composed argv: 28 arguments, 9 of 9 required options present
+[p69]    /usr/bin/ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="/var/folders/7f/43d9mxrd1q3_82py34w8lwf40000gn/T/p69-execplane-86602/p69-known-machines" "/Users/gdc/.ssh/known_hosts" -o ControlMaster=auto -o ControlPath=/var/folders/7f/43d9mxrd1q3_82py34w8lwf40000gn/T/tortie-mux/m-p6986602 -o ControlPersist=60s -o ServerAliveInterval=5 -o ServerAliveCountMax=3 -o IdentityFile=/var/folders/7f/43d9mxrd1q3_82py34w8lwf40000gn/T/p69-execplane-86602/p69-userkey -o IdentitiesOnly=yes -p 36602 -l gdc 127.0.0.1 /private/tmp/claude-501/-Users-gdc-gmux/69469eba-62a7-4552-8d1e-1ba54287a99f/scratchpad/wt-p83/build/vendor/tmux-probe/3.7c/bin/tmux -L gmux-p69-86602 -f /dev/null list-sessions -F '#{session_id}'
+[p69] 4. the control path: /var/folders/7f/43d9mxrd1q3_82py34w8lwf40000gn/T/tortie-mux/m-p6986602 is 70 bytes of a 100 byte budget, in a directory at mode 700
+[p69] 5. the first verb against a machine with no server: 40 ms, exit 1, class no-server, stderr "error connecting to /private/tmp/tmux-501/gmux-p69-86602 (No such file or directory)"
+[p69] 6. ControlMaster: first verb 40 ms, second verb 11 ms, 2 process(es) hold the shared connection
+[p69] 7. the ordering: start-server at position 2, the program list read at 3, the first set-option at 5
+[p69]    the argv sequence was: list-sessions -F #{session_id} | list-sessions -F #{session_id} | start-server ; set-option -s exit-empty off | SHELL "$SHELL" -lc 'printf __TORTIE_PATH__%s__TORTIE_PATH__ "$PATH"' | set-environment -g PATH /Users/gdc/.local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/Library/Apple/usr/bin:/Applications/quarto/bin:/Users/gdc/.cargo/bin | set-option -g status off | set-option -s escape-time 0 | set-option -s extended-keys on | set-option -g allow-passthrough on | set-option -s focus-events on | set-option -g default-terminal tmux-256color | set-option -g remain-on-exit failed | set-option -s exit-empty off | set-option -g mouse off | set-option -g copy-mode-position-format  | set-option -g mode-style noattr,bg=default,fg=default | set-option -g history-limit 25000
+[p69]    the machine's program search list is /Users/gdc/.local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/Library/Apple/usr/bin:/Applications/quarto/bin:/Users/gdc/.cargo/bin
+[p69] 8. the options after boot: 12 of 12 stuck
+
+      option                       wanted                         observed
+      --------------------------------------------------------------------------------
+      status                       "off"                          "off"
+      escape-time                  "0"                            "0"
+      extended-keys                "on"                           "on"
+      allow-passthrough            "on"                           "on"
+      focus-events                 "on"                           "on"
+      default-terminal             "tmux-256color"                "tmux-256color"
+      remain-on-exit               "failed"                       "failed"
+      exit-empty                   "off"                          "off"
+      mouse                        "off"                          "off"
+      copy-mode-position-format    ""                             ""
+      mode-style                   "noattr,bg=default,fg=default" "noattr,bg=default,fg=default"
+      history-limit                "25000"                        "25000"
+
+[p69] 9. the reborn server: the scratch server was ended (exit 0), the next read confirmed it was gone, and after a second boot 12 of 12 options stuck
+[p69] 10. the version probe: over the plane the machine reports "3.7c", and /private/tmp/claude-501/-Users-gdc-gmux/69469eba-62a7-4552-8d1e-1ba54287a99f/scratchpad/wt-p83/build/vendor/tmux-probe/3.7c/bin/tmux -V says "tmux 3.7c". The measured list is 3.6a, 3.7b, 3.7c, so this machine is ACCEPTED
+[p69]    the version this working tree builds, at /private/tmp/claude-501/-Users-gdc-gmux/69469eba-62a7-4552-8d1e-1ba54287a99f/scratchpad/wt-p83/build/vendor/tmux/bin/tmux, was measured on its OWN scratch socket gmux-p69-86602-bundled over the same carriage: -V over the login shell = tmux 3.7b; the no server sentence = recognised; display-message -p '#{version}' = 3.7b; list-sessions -F on an empty server = exit 0, no rows; show-options -gv history-limit = 25000
+[p69] 11. the keepalives: 3 pair(s) measured
+
+      pair    seconds to error  recovered  message
+      --------------------------------------------------------------------------------
+      5,3     19.5              yes        mux_client_request_session: read from master failed: Broken pipe
+      10,3    39.6              yes        mux_client_request_session: read from master failed: Broken pipe
+      15,3    59.6              yes        mux_client_request_session: read from master failed: Broken pipe
+
+[p69] 12. at-least-once: all 7 ledger verbs were run twice, and the machine's full option and environment state is BYTE EQUAL after one run and after two (1065 bytes)
+[p69] 13. the ordering refusal: present in the bundle: "before it has read the list of places that machine looks for programs"
+[p69] 14. the ledger refusal: present in the bundle: "Only commands Tortie has written down as safe to run twice may cross to a machine"
+[p69] 15. the taxonomy goldens: 8 class(es) captured from real output into /var/folders/7f/43d9mxrd1q3_82py34w8lwf40000gn/T/p69-execplane-86602/goldens. 4 matched the checked in file byte for byte. These differ: ok (53 bytes checked in, 163 bytes now), no-server (92 bytes checked in, 92 bytes now), host-key-changed (898 bytes checked in, 898 bytes now), refused (63 bytes checked in, 63 bytes now). Nothing under src/ was written.
+[p69]    a class whose text carries this run's own socket path, port or pid can never match the checked in file byte for byte, so a difference here is only a finding when the byte counts also moved.
+[p69]    ok: exit 0, 163 bytes, first line "__TORTIE_PATH__/private/tmp/claude-501/-Users-gdc-gmux/69469eba-62a7-4552-8d1e-1ba54287a99f/scratchpad/wt-p83/build/vendor/tmux-probe/3.7c/bin/tmux__TORTIE_PATH__"
+[p69]    no-server: exit 1, 92 bytes, first line "error connecting to /private/tmp/tmux-501/gmux-p69-golden-58782 (No such file or directory)"
+[p69]    no-program: exit 0, 31 bytes, first line "__TORTIE_PATH____TORTIE_PATH__"
+[p69]    host-key-changed: exit 255, 898 bytes, first line "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+[p69]    auth-refused: exit 255, 47 bytes, first line "gdc@127.0.0.1: Permission denied (publickey)."
+[p69]    refused: exit 255, 63 bytes, first line "ssh: connect to host 127.0.0.1 port 34783: Connection refused"
+[p69]    not-resolved: exit 255, 107 bytes, first line "ssh: Could not resolve hostname p69-no-such-machine.invalid: nodename nor servname provided, or not known"
+[p69]    unreachable: exit 255, 61 bytes, first line "ssh: connect to host 192.0.2.1 port 22: Operation timed out"
+[p69] 16. the identity records: Tortie's own file was 289 bytes after the one first contact and 289 bytes after the whole run. The person's own file was 2120 bytes before and 2120 bytes after.
+[p69] 17. the M3 de-risking probe: plain login shell answers "/Users/gdc/.local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/Library/Apple/usr/bin:/Applications/quarto/bin:/Users/gdc/.cargo/bin"; with a value put in front of the command it answers "/Users/gdc/.cargo/bin:/p69-marker-dir:/usr/bin:/bin"
+[p69]    the prefix WINS, so M3 knows the mechanism before it needs it.
+[p69] 17b. what PATH a pane gets, which is unknown 1: a pane answers "/Users/gdc/.cargo/bin:/usr/bin:/bin:/usr/sbin:/sbin". After set-environment -g PATH is sent again it answers "/Users/gdc/.cargo/bin:/usr/bin:/bin:/usr/sbin:/sbin", while show-environment -g reads back "PATH=/Users/gdc/.local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/Library/Apple/usr/bin:/Applications/quarto/bin:/Users/gdc/.cargo/bin". The login shell answers "/Users/gdc/.local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/Library/Apple/usr/bin:/Applications/quarto/bin:/Users/gdc/.cargo/bin".
+[p69]    the pane does NOT get the login shell's list, and it does NOT get it after set-environment -g PATH is sent again, while the server itself HOLDS that list. So launching an agent by bare name over there CANNOT rely on the captured list, and an absolute path or an -e pair is needed.
+[p69]    the far side of this carriage is this Mac, so this answers unknown 1 for the loopback topology only. mac-pro's answer comes from "npm run probe:realunknowns".
+[p69] 18. the operator's server after the run: 34 session(s), history-limit 25000, exit-empty off. IDENTICAL to before.
+[p69] killed only these recorded pids: 86616, 86618, 86636, 86641, 86897, 86909, 88285, 88313, 92429, 92434
+
+[p69] PASS. 19 steps, every one measured. The operator's server is byte identical before and after, and neither identity record file changed.
+FINAL_EXEC_EXIT=0

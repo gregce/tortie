@@ -5995,10 +5995,10 @@ question the operator asked directly. Run them in this order and do not reshuffl
 
 | Order | Item | Tier | Gated on |
 | --- | --- | --- | --- |
-| 1 | **83** mac-pro is a machine Tortie will speak to, and the harness that proves it | 3 | nothing. It gates the rest |
-| 2 | **Research 55** a project folder that lives on another machine | — | 83, for the latency number |
-| 2 | **84** getting a session to exist over there, and ending it honestly | 3 and 2 per item | 83, for three measurements |
-| 3 | **85** the status dot tells the truth on a connected machine | 3 | 83, for the `#{session_activity}` measurement |
+| 1 | **83** mac-pro is a machine Tortie will speak to, and the harness that proves it ✅ SHIPPED 2026-08-18 | 3 | nothing. It gated the rest. It shipped without reaching mac-pro, so every number in it came from this Mac |
+| 2 | **Research 55** a project folder that lives on another machine | — | 83, for the latency number. Phase 83 did not produce it, because it never reached mac-pro |
+| 2 | **84** getting a session to exist over there, and ending it honestly | 3 and 2 per item | 83, for three measurements. All three arrived, and all three were taken on this Mac over a loopback carriage |
+| 3 | **85** the status dot tells the truth on a connected machine | 3 | 83, for the `#{session_activity}` measurement. It arrived, and it was taken on this Mac over a loopback carriage |
 | 3 | **81** the session list stops waiting for your shell | 3 | nothing. Different domain, runs beside 85 |
 | beside 1 | **86** the splits and the two sheets you actually use | per item | nothing. Operator reported 2026-08-18. It owns `src/renderer/app/**` and runs beside Phase 83, whose files are all under `src/main` and `build/` |
 
@@ -6192,13 +6192,17 @@ button itself and show ONE session created rather than two. A double create is a
 Item 2 adds a setting, which is a Settings surface rather than a menu item, so no native menu
 changes. State that in the commit body so the house rule is visibly satisfied rather than skipped.
 
-## Phase 83 — mac-pro is a machine Tortie will speak to, and the harness that proves it (operator queued 2026-08-18) QUEUED
+## Phase 83 — mac-pro is a machine Tortie will speak to, and the harness that proves it (operator queued 2026-08-18) ✅ SHIPPED 2026-08-18 (this commit, 0.41.0, gates green, 5,785 tests). The mac-pro leg is owed and only the operator can close it
 
 **Subject:** `feat(machines): a version Tortie measured, and the harness that measured it`
 **First body line:** `Phase 83: mac-pro is a machine Tortie will speak to`
 **Semver:** minor.
 **Tier 3.** It decides whether anything runs on another machine at all, and the failure it exists to
 prevent is a hang rather than an error.
+
+**Read the last section of this entry first.** It is called "What is owed, and only the operator can
+close it". This phase shipped without talking to a second computer, and that section names the three
+evidence items that are therefore unmeasured.
 
 ### Why the machine is refused today
 
@@ -6315,6 +6319,67 @@ The local path and the loopback carriage, because the loopback carriage is what 
 `npm run smoke:t1`, `smoke:t3`, `smoke:remote`, `smoke:execplane` and `conformance:machines` all stay
 green.
 
+### What is owed, and only the operator can close it
+
+This phase shipped without talking to a second computer. No number in it came from another machine.
+Every measurement it produced was taken on this Mac, and the far side of every carriage was this Mac
+again, reached over its own loopback sshd.
+
+Three of the six items in "The evidence this phase must produce" are unmeasured. They are:
+
+1. The two probes run against mac-pro, being the four exec shapes and the eight control mode steps,
+   with their answers compared against the local 3.7c measurement.
+2. A session created on mac-pro, attached, typed into and read back.
+3. The far machine's session list before and after, compared for any difference other than this
+   run's own scratch rows.
+
+The cause is one thing, and it is not a fault in the harness. This Mac holds no ssh private key that
+mac-pro will accept. `ssh-add -l` answers "The agent has no identities" and `~/.ssh` holds no private
+key at all, so every sign in to mac-pro ends with
+"Permission denied (publickey,password,keyboard-interactive)" and exit 255. The real machine carriage
+sends one `true` over the connection before it claims anything, reads that failure, exits 3 and
+reports no result. That is the behaviour that was wanted, and it is also why no agent can close these
+three items on its own.
+
+There are two ways forward, and both need the operator at the keyboard:
+
+- Generate a key on this Mac with `ssh-keygen -t ed25519`, then put its public half in mac-pro's
+  `~/.ssh/authorized_keys`.
+- Load a key that mac-pro already trusts into the running agent with `ssh-add <path to that key>`.
+
+**The name to set is not `mac-pro`.** That name does not resolve on this Mac. The carriage refuses it
+with "the host mac-pro resolved to no address at all" and exit 2, which is a refusal about DNS
+rather than the key failure described above. The address that resolves today is
+`gregs-mac-pro.tail2ddfe1.ts.net`, and it answers `100.113.101.95` over Tailscale. Set both
+`GMUX_REAL_MACHINE_HOST` and `GMUX_REAL_MACHINE_CONFIRM` to that address, byte for byte, because the
+carriage refuses to run unless the two agree.
+
+After either one, `npm run probe:realmachine` and `npm run probe:realunknowns` produce the three
+items above. Both read the machine from the five `GMUX_REAL_MACHINE_*` variables and from
+`GMUX_P83_LOCAL`, rather than from the operator's `machines.json`, and DEVELOPMENT.md names all six.
+
+This is the house pattern rather than an exception. Phase 79.1 shipped on exactly this basis, and its
+recorded nit says that a real sshd accepting a correct password is owed and needs the operator
+present, so no round can close it on its own.
+
+**What this costs Phase 84 and Phase 85.** Unknowns 1, 2 and 3 are answered, and each answer is a
+measurement of a real mechanism rather than an argument. Each was taken on the loopback topology
+only. Both phases may be specced from those answers. A point where mac-pro behaves differently would
+not be caught by anything this phase ran, so the first run of the real machine carriage may still
+move a design decision in either phase. Unknown 5, the far side's sshd channel ceiling, is open on
+both machines. This Mac's `/etc/ssh/sshd_config` carries `#MaxSessions 10` at line 43, commented,
+which is a sentence about this Mac and says nothing about mac-pro. Even here the running program's
+effective value was never read back, because `sshd -T` needs root.
+
+### Nits recorded by this round, none of them blocking
+
+| Status | The nit |
+| --- | --- |
+| REMOVED | The fix round added `src/renderer/app/__tests__/agent-grid-enter.test.tsx`, which reads what Enter does on an agent tile. The committer removed it before the commit, for two reasons. It sits outside this phase, which owns `src/main/tmux`, `src/main/machines` and `build/`. It also asserts that `modalKeyDown` does not submit when Enter arrives on a `BUTTON`, and item 6 of Phase 86 changes that exact early return, so the test would have failed the phase that fixes the bug the test describes. Phase 86 owns `src/renderer/app/**` and writes its own test there. |
+| RECORD | `unusable` in `src/renderer/app/AgentGrid.tsx` is `!option.installed \|\| blocked !== null`, and `start` in `src/renderer/app/EmptyStates.tsx:132` branches only on `!opt.installed`. An installed but unconfirmed configured agent draws a tile that reads "confirm first" and carries `aria-disabled="true"`, and Enter on that tile still reaches `quickCreate`. Main refuses it, because the packaged bundle carries 6 config confirm-gate refusals, so nothing unsafe runs. The refusal arrives from the wrong layer. It predates this phase and it belongs to Phase 86, which owns that file. |
+| RECORD | The version acceptance copy this phase added was never read on screen in a running window. That surface appears only after a machine reports a version, and no machine is reachable, which is the same cause as the three owed items above. It was verified through `npm run conformance:machines` instead, which proves the confirm hash moves for `acceptedTmuxVersion` and rejects five hostile values. |
+| RECORD | An unusable agent tile could not be pressed in the live drive, because all 12 tiles on this Mac reported `aria-disabled="false"`. Every agent is installed here, so there was no unusable tile to press. Forcing one would have meant writing store state, which is not genuine input. |
+
 ## Phase 84 — getting a session to exist over there, and ending it honestly (operator queued 2026-08-18) QUEUED
 
 **Subject:** `feat(machines): a remote session is created, ended and removed honestly`
@@ -6358,6 +6423,41 @@ first. No test in the tree covers `core.removeSession` at all, so this phase wri
 
 ### Getting a session to exist over there
 
+**Unknown 1 is answered, and it decides how a remote agent is launched.** MEASURED 2026-08-18 by step
+17b of `npm run probe:execplane`, over a real ssh carriage on tmux 3.6a. A pane was made with
+`new-session -d -s NAME -- /bin/sh -c 'printenv PATH > FILE'` and the file was read back. It was done
+twice, with `set-environment -g PATH <the login shell's list>` sent again in between. That is the
+command `src/main/machines/remote-server.ts:161` sends when it boots a machine's server.
+
+```
+                                  what PATH read
+the login shell (-lc)             /Users/gdc/.local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:...
+the pane, first reading           /Users/gdc/.cargo/bin:/usr/bin:/bin:/usr/sbin:/sbin
+the pane, after the command       /Users/gdc/.cargo/bin:/usr/bin:/bin:/usr/sbin:/sbin
+show-environment -g PATH          the login shell's list, in full
+```
+
+The pane does not get the login shell's list. The server holds that list and hands none of it to the
+pane. The probe cannot produce a server that never had PATH set, because step 5 of the same run sets
+it, so the two readings above are the two states it can reach and they agree. This is research 47 section 2's
+local finding holding on the remote side as well, and `src/main/machines/remote-path.ts` said in its
+own header that it was owed this measurement.
+
+**What follows for this phase.** A remote create cannot launch an agent by bare name. `/opt/homebrew/bin`
+is not on the pane's PATH, so `claude` typed as a bare word would not be found on this carriage, and
+the local rule from CLAUDE.md, which is that agents are launched by bare name because
+`process.env['PATH'] = userPath` in `src/main/tmux/supervisor.ts` puts the login shell's list into
+the server env, does not carry over. Two candidates, and this phase picks one with a measurement
+rather than by argument. Compose the remote create with `-e PATH=<the captured list>` on the
+`new-session` line, the way `GMUX_MANAGED` and `GMUX_SESSION_ID` already ride there. Or send the
+absolute program path, which is what the manifest already stores for the local case. The first keeps
+bare name launching and is one `-e` pair. The second is what the version gate already does for tmux
+itself.
+
+What is NOT true about this measurement. The far side of that carriage is this Mac, so this is the
+loopback topology's answer. mac-pro's answer comes from `npm run probe:realunknowns` once this Mac
+holds an ssh key that machine trusts.
+
 **4. Prepare does not start the machine's feed.** The `machines:prepare` handler at
 `src/main/ipc.ts:526` calls `prepareMachine` and nothing else. The only production callers of
 `startMachineFeed` are the launch sign in, a create and a restore. A machine asleep at launch stays
@@ -6366,8 +6466,44 @@ the button that cannot fix it.
 
 **5. An empty Directory field sends this Mac's project path.** Ask the machine for `$HOME` and send
 that, or send no `-c` at all. `machine-facts` already reads the far `$HOME` and `remote-image.ts`
-already builds paths from it. **Phase 83's unknown 2 decides which of the two this becomes**, because
-what the far tmux does with a missing `-c` path is what makes one of them safe.
+already builds paths from it.
+
+**Unknown 2 is answered, and the answer is worse than either branch assumed.** MEASURED 2026-08-18 on
+tmux 3.6a at `/opt/homebrew/bin/tmux`, over a scratch socket, with the operator's own server counted
+at 34 sessions before and 34 after. The command was
+`tmux -L <scratch> -f /dev/null new-session -d -s zz-p83-missing -c /p83-not-there -P -F '#{session_id}'`.
+
+```
+exit code                0
+stdout                   $0
+list-sessions            zz-p83-missing: 1 windows (created Tue Aug 18 15:11:43 2026)
+list-panes               dead=0  path=/Users/gdc  cmd=zsh
+capture-pane             empty
+```
+
+tmux printed no error at all. It created a live session and silently put the pane in the home
+directory instead of the folder that was asked for. The same command with a program after `--` also
+exited 0 and printed `$1`.
+
+**This makes an existing refusal dead code, and that is the finding.**
+`createFailure` in `src/main/machines/remote-sessions.ts` matches
+`/no such file or directory|can't find|not a directory/i` against what the create THREW, and turns a
+match into `REMOTE_DIR_MISSING`. A create that exits 0 throws nothing, so that branch never runs for
+the case it was written for. A person who types a folder that is not on the far machine gets a
+session in their home directory over there, with no sentence saying so, and the agent starts in the
+wrong place. `REMOTE_DIR_MISSING` appears at four places in source and zero places in any test, and
+this measurement is why.
+
+**So the fix in this phase is a check before the create, not a rule about the error text.** Ask the
+machine whether the folder is there, with a read only test in the existing `machine-facts` script,
+and refuse before `new-session` is composed. Sending no `-c` at all is then safe as the empty field
+behaviour, because tmux's own fallback is the home directory and that is what a person would expect
+from an empty field. Keep `createFailure`'s pattern for the cases that do throw, and add the first
+test for it.
+
+What is NOT true about this measurement. It was taken on this Mac's tmux 3.6a, not on mac-pro and
+not on 3.7b or 3.7c. `npm run probe:realunknowns` re-runs it on the far machine once this Mac holds
+an ssh key mac-pro trusts.
 
 **6. A remote folder picker.** One `machines:listDir` channel and one frozen script, the eighth. It
 is drawn by Tortie rather than by macOS, because the macOS panel cannot browse another computer. The
@@ -6435,13 +6571,40 @@ because `refresh()` only lists this Mac's socket.
 
 The remote list reads `#{session_activity}`. `src/main/activity/panes.ts:11` says that field tracks
 clients rather than output, that it froze at attach time while output flowed, and that it is
-deliberately absent from the local format. `src/main/machines/remote-sessions.ts:76` says it is
-evidence the session printed something. Two modules in one tree disagree and only one carries a
+deliberately absent from the local format. The header of `src/main/machines/remote-sessions.ts` said it was
+evidence the session printed something. Two modules in one tree disagreed and only one carried a
 measurement.
 
-**Phase 83's harness measures it on a real machine.** If the local measurement holds, this phase
-moves off the field. If the remote module is right, this phase adds a periodic list beside the
-control connection. The build brief is written after the measurement, never before it.
+**IT IS SETTLED. Phase 83 measured it, and `panes.ts` was right.** MEASURED 2026-08-18 on this Mac's
+tmux 3.6a at `/opt/homebrew/bin/tmux`, over a scratch socket, with the operator's own server
+untouched at 34 sessions before and 34 after. One session was created, left alone for three seconds,
+and then made to print a line with `send-keys`. The two fields read:
+
+```
+                                  #{session_activity}   #{window_activity}
+just created                      1787079802            1787079802
+after 3 idle seconds              1787079802            1787079802
+after the pane printed a line     1787079802            1787079805
+```
+
+`#{session_activity}` did not move when the pane printed. `#{window_activity}` moved by 3 seconds.
+`remoteRowStatus` in `src/main/machines/remote-sessions.ts` returns `running` only when
+`activityAt` moved, and `activityAt` is parsed from `#{session_activity}` by `parseRemoteRow` in the
+same file. So a remote
+row NEVER reads `running` because work happened. This is finding 6 of
+`docs/research/54-remote-parity.md`, confirmed by measurement for the first time.
+
+What is NOT true about this measurement, said plainly. It was taken on this Mac, not on mac-pro, and
+not on tmux 3.7b or 3.7c. Phase 83 could not reach mac-pro because this Mac holds no ssh key that
+machine trusts. So the field's behaviour on the far machine's own tmux is still unmeasured, and this
+phase re-runs the three rows above through `npm run probe:realunknowns` once a key is in place.
+
+**What this phase therefore does.** It moves off `#{session_activity}`. `#{window_activity}` is the
+candidate the measurement above points at, and the remote list format at
+`REMOTE_LIST_FORMAT` in `src/main/machines/remote-sessions.ts` is where the field is chosen. A periodic list beside the
+control connection is still needed for the ten minute gap named above, because a field that moves is
+no use if nobody re-reads it. The correction to that header landed in Phase 83, so the
+tree no longer states the wrong thing while this phase waits.
 
 ### Also in scope
 

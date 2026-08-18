@@ -41,7 +41,8 @@ const CTX: RemoteMachineContext = {
   remoteTmuxPath: '/opt/homebrew/bin/tmux',
   socket: 'gmux-p71-unit',
   controlPath: '/tmp/tortie-501/m-0123456789ab',
-  hostKeys: { tortie: '/t/known-machines', user: '/u/known_hosts' }
+  hostKeys: { tortie: '/t/known-machines', user: '/u/known_hosts' },
+  acceptedTmuxVersion: null
 };
 
 /** What each door answers with. An Error is thrown, a string is returned. */
@@ -159,9 +160,52 @@ describe('prepareMachine', () => {
 
   it('answers for a machine it never reached BEFORE it asks the version gate', () => {
     const unreached = src.indexOf("if (read.kind === 'unreached')");
-    const gate = src.indexOf('decideRemoteVersionGate(version)');
+    const gate = src.indexOf('const gate = decideRemoteVersionGate(');
     expect(unreached).toBeGreaterThan(-1);
     expect(gate).toBeGreaterThan(unreached);
+  });
+
+  // -------------------------------------------------------------------------
+  // Phase 83. The acceptance arms
+  // -------------------------------------------------------------------------
+
+  it('asks about a version that does not match the acceptance BEFORE the gate', () => {
+    // The gate answers `unmeasured` for that case, and the plain unmeasured
+    // sentence would not say what actually happened, which is that the program
+    // on that machine is not the program the person accepted.
+    const mismatch = src.indexOf('accepted !== null && version !== null');
+    const gate = src.indexOf('const gate = decideRemoteVersionGate(');
+    expect(mismatch).toBeGreaterThan(-1);
+    expect(gate).toBeGreaterThan(mismatch);
+  });
+
+  it('hands the acceptance to the gate as its third argument', () => {
+    expect(src).toContain('TESTED_REMOTE_TMUX_VERSIONS,\n    accepted\n  );');
+  });
+
+  it('lets an accepted version through to the step that starts something', () => {
+    // The refusal arm fires for neither `measured` nor `accepted`, so the two
+    // are the only ways past it.
+    expect(src).toContain(
+      "if (gate.kind !== 'measured' && gate.kind !== 'accepted')"
+    );
+  });
+
+  it('offers a sheet only for a machine that named a version', () => {
+    const composer = src.slice(
+      src.indexOf('const sheetFor ='),
+      src.indexOf('// PHASE 83. The arm that stops')
+    );
+    expect(composer).toContain("if (reported === null) return null;");
+    expect(composer).toContain('acceptedTmuxVersion: reported');
+  });
+
+  it('composes no argv out of the accepted version', () => {
+    // It reaches the gate and the sheet, and nothing else. A command composed
+    // from it would be a value a person typed reaching a process.
+    const uses = src.split('acceptedTmuxVersion').length - 1;
+    expect(uses).toBeGreaterThan(0);
+    expect(src).not.toContain('shellQuoteArgv([ctx.acceptedTmuxVersion');
   });
 
   it('reports no version at all for a machine it never reached', () => {

@@ -639,6 +639,46 @@ const MACHINE_REFUSALS = [
       'either machine.'
     ]
   },
+  // ---------------------------------------------------------------------------
+  // Phase 83 added these two, and the first is the one that stops a freeze
+  // ---------------------------------------------------------------------------
+  //
+  // A server that prints `%exit` and then holds the pipe open leaves the control
+  // child alive with nothing arriving on it. Before Phase 83 nothing waited for
+  // the greeting and nothing gave up on it. The branch has no member in
+  // production today, because the version gates refuse every real pair measured
+  // to hang before an attach is composed, which is exactly the case a bundler
+  // folds away. `build/probe-control-deadline.mjs` is the second caller and it
+  // drives the branch with a program that reports a measured version and then
+  // hangs on the attach.
+  {
+    id: 'machine.control-greeting-deadline',
+    source: 'src/main/machines/control-plane.ts',
+    why:
+      'a live connection that is opened and never greeted leaves a child alive ' +
+      'and the person told nothing, and a machine with no feed at all is a ' +
+      'machine whose sessions stop appearing. Without this sentence the ' +
+      'fallback to the timer feed happens silently',
+    fragments: [
+      'This machine did not finish opening a live connection in ',
+      ' seconds, so Tortie asks it for its list on a timer instead. Sessions on ',
+      'it keep running. Nothing was changed on either machine.'
+    ]
+  },
+  {
+    id: 'machine.version-accept-mismatch',
+    source: 'src/main/machines/errors.ts',
+    why:
+      'a person accepted a program they looked at, and the program on that ' +
+      'machine can be updated by anyone with access to it. Without this ' +
+      'refusal an acceptance of one version would carry to every version after ' +
+      'it, which is the whole thing the acceptance was meant to bound',
+    fragments: [
+      'This machine runs a different version of the program from the one you ',
+      'accepted, so Tortie will not use it. Nothing was started. Accept the ',
+      'version it runs now, or update the program on that machine.'
+    ]
+  },
   {
     id: 'machine.control-path-too-long',
     source: 'src/main/machines/ssh.ts',

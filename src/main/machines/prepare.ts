@@ -23,6 +23,11 @@
  *  4. `decideRemoteVersionGate`. An unmeasured version stops here and NOTHING is
  *     started on that machine. That ordering is deliberate and
  *     `build/probe-execplane.mjs` records the argv sequence to prove it.
+ *     PHASE 83 GAVE THE GATE A FOURTH ANSWER. A person may accept one version
+ *     for one machine, and an accepted version proceeds to step 5 with the
+ *     success copy saying plainly that Tortie measured nothing. An acceptance
+ *     that names a different version from the one the machine reports now is a
+ *     refusal of its own, so an acceptance of 3.8a does not carry to 3.9a.
  *  5. `ensureRemoteServer`. Boot, PATH capture, options, read back.
  *  6. Compose one class, one headline and one detail, all in main.
  *
@@ -54,9 +59,14 @@ import {
 } from './context';
 import { execOn, execRemoteShell } from './exec-plane';
 import { shellQuoteArgv } from '../restore/command';
-import { classifyMachineOutput, composeOutcomeCopy } from './errors';
+import {
+  MACHINE_VERSION_ACCEPT_MISMATCH,
+  MACHINE_VERSION_ACCEPT_OFFER,
+  classifyMachineOutput,
+  composeOutcomeCopy
+} from './errors';
 import { ensureRemoteServer } from './remote-server';
-import type { MachineExecutionFields } from './confirm';
+import { describeMachine, type MachineExecutionFields } from './confirm';
 
 const machinesLog = getLog('config');
 
@@ -187,7 +197,11 @@ export async function prepareMachine(
     supported,
     serverBorn: false,
     options: [],
-    pathCaptured: false
+    pathCaptured: false,
+    // PHASE 83. Null on every outcome but the two that offer a sheet, because a
+    // machine Tortie measured needs no acceptance and a machine that would not
+    // name a version has nothing for an acceptance to bind to.
+    acceptSheet: null as MachinePrepareResult['acceptSheet']
   };
 
   let ctx: RemoteMachineContext;
@@ -241,12 +255,71 @@ export async function prepareMachine(
   }
 
   const version = read.kind === 'version' ? read.version : null;
-  const gate = decideRemoteVersionGate(version);
-  if (gate.kind !== 'measured') {
+  const accepted = ctx.acceptedTmuxVersion ?? null;
+
+  /**
+   * The sheet a person reads to accept the version this machine reports.
+   *
+   * It is `describeMachine` over the row's own fields with the accepted version
+   * set to what the machine reported, so the hash on it is the hash
+   * `machines:acceptVersion` recomputes before it writes anything. A machine
+   * that named no version gets no sheet, because there is nothing to bind an
+   * acceptance to.
+   */
+  const sheetFor = (
+    reported: string | null
+  ): MachinePrepareResult['acceptSheet'] => {
+    if (reported === null) return null;
+    const summary = describeMachine(input.machineId, {
+      ...input.fields,
+      acceptedTmuxVersion: reported
+    });
+    return {
+      hash: summary.hash,
+      lines: [...summary.lines],
+      warning: summary.warning
+    };
+  };
+
+  // PHASE 83. The arm that stops an acceptance carrying to the next version.
+  // It is asked BEFORE the gate, because the gate answers `unmeasured` for this
+  // case and the plain unmeasured sentence would not say what actually
+  // happened, which is that the program on that machine is not the program the
+  // person accepted.
+  if (accepted !== null && version !== null && accepted !== version) {
     const copy = composeOutcomeCopy('version-unmeasured', {
       resolvedPath: ctx.remoteTmuxPath,
       version,
       supportedPhrase: joinVersionList(supported)
+    });
+    machinesLog.warn(
+      `${input.machineId} reports tmux ${version} and the version accepted for ` +
+        `it is ${accepted}, so nothing was started`
+    );
+    return {
+      ...base,
+      version,
+      class: 'version-unmeasured',
+      alarm: copy.alarm,
+      headline: copy.headline,
+      detail: `${MACHINE_VERSION_ACCEPT_MISMATCH} ${MACHINE_VERSION_ACCEPT_OFFER}`,
+      acceptSheet: sheetFor(version),
+      durationMs: Date.now() - startedAt
+    };
+  }
+
+  const gate = decideRemoteVersionGate(
+    version,
+    TESTED_REMOTE_TMUX_VERSIONS,
+    accepted
+  );
+  if (gate.kind !== 'measured' && gate.kind !== 'accepted') {
+    const sheet = sheetFor(version);
+    const copy = composeOutcomeCopy('version-unmeasured', {
+      resolvedPath: ctx.remoteTmuxPath,
+      version,
+      supportedPhrase: joinVersionList(supported),
+      acceptOffered: sheet !== null
     });
     machinesLog.warn(
       `${input.machineId} reports tmux ${version ?? 'nothing at all'} and this ` +
@@ -259,6 +332,7 @@ export async function prepareMachine(
       alarm: copy.alarm,
       headline: copy.headline,
       detail: copy.detail,
+      acceptSheet: sheet,
       durationMs: Date.now() - startedAt
     };
   }
@@ -271,7 +345,11 @@ export async function prepareMachine(
       version,
       // The sentence says which of the two happened, because the row draws an
       // honesty line beside it saying the same thing and the two must agree.
-      serverBorn: server.born
+      serverBorn: server.born,
+      // PHASE 83. A machine standing on an acceptance says so in the success
+      // sentence, so nobody reads "this machine is ready" as "Tortie measured
+      // this version".
+      versionAccepted: gate.kind === 'accepted'
     });
     return {
       id: input.machineId,
@@ -289,6 +367,7 @@ export async function prepareMachine(
         agrees: row.agrees
       })),
       pathCaptured: machineGeneration(input.machineId).remotePath !== null,
+      acceptSheet: null,
       durationMs: Date.now() - startedAt
     };
   } catch (err) {

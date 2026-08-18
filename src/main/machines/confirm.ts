@@ -7,10 +7,29 @@
  * Configuration selects from choices the compiled world already contains, or
  * names an executable the user has personally confirmed. A machine row names
  * an address, an account and a program path on a computer that is not this one,
- * so it is squarely the second half of that sentence. The four fields that
+ * so it is squarely the second half of that sentence. The five fields that
  * decide what runs are hashed, a person confirms that hash once, out of band of
- * any agent turn, and the confirmation is bound to it. Change any of those four
- * and the hash changes, so Tortie asks again.
+ * any agent turn, and the confirmation is bound to it. Change any of those five
+ * and the hash changes, so Tortie asks again. Phase 68 shipped four of them and
+ * Phase 83 added the fifth, which is the accepted tmux version.
+ *
+ * ## The fifth field, and why the algorithm name did not move (Phase 83)
+ *
+ * `acceptedTmuxVersion` is the fifth execution bearing field. It holds the
+ * version of the program on that machine which a person accepted after Tortie
+ * said it had not measured it. It decides whether Tortie starts work there at
+ * all, so it belongs in the hash.
+ *
+ * {@link canonicalMachineText} appends it ONLY when it is set. Every row that
+ * exists today carries no accepted version, so every one of them hashes byte
+ * for byte as it did before Phase 83 and nobody is asked to confirm a machine
+ * again. That is why {@link MACHINE_EXECUTION_HASH_ALGORITHM} still reads
+ * `sha256-machine-exec-v1`. The name exists so a record written by a build with
+ * different bytes fails loudly, and this build produces the same bytes for
+ * every record that exists. Asking again for a change that cannot affect a
+ * person is how they are trained to click through the sheet that matters.
+ * `build/conformance-machines.mjs` pins the unaccepted hash against a hard
+ * coded value, so this is checked rather than promised.
  *
  * ## Why this gate has its OWN field type and does not reuse the agent gate's
  *
@@ -19,13 +38,15 @@
  * ssh options inside the hash. Phase 69 sets keepalive values from measurement,
  * and under a shared type that measurement would invalidate every machine a
  * person had already confirmed, which would train them to click through the
- * sheet that matters. So the hash below binds the four fields a person actually
+ * sheet that matters. So the hash below binds the five fields a person actually
  * chose and nothing else.
  *
  * The mapped type `Normalizers` is copied from that module deliberately. It
- * covers every key of {@link MachineExecutionFields}, so a fifth execution
+ * covers every key of {@link MachineExecutionFields}, so a sixth execution
  * bearing field added later without a normalizer line is a compile error rather
- * than a field that quietly falls out of the hash.
+ * than a field that quietly falls out of the hash. Phase 83 added the fifth
+ * through exactly that route, and the compile error is what asked for its
+ * normalizer line.
  *
  * ## One record file, two key spaces
  *
@@ -107,6 +128,23 @@ export interface MachineExecutionFields {
   readonly port: number | null;
   /** The absolute path of the program Tortie runs there, or null when unset. */
   readonly remoteTmuxPath: string | null;
+  /**
+   * The version a person accepted for this machine, or null when they accepted
+   * none.
+   *
+   * Phase 83. It is execution bearing because it is what lets Tortie start work
+   * on a machine running a version nobody measured. It reaches no argv: nothing
+   * composes a command out of it, and it is only ever compared against what the
+   * machine reports.
+   *
+   * IT IS OPTIONAL, and absent means the same as null, which is a machine
+   * nobody accepted a version for. That is deliberate and it is the rule every
+   * appended field in this codebase follows: a fields object written before this
+   * field existed is still a valid one, and it hashes exactly as it did. The
+   * mapped type below still covers this key with `-?`, so a normalizer line is
+   * still compulsory and the field still cannot fall quietly out of the hash.
+   */
+  readonly acceptedTmuxVersion?: string | null;
 }
 
 /**
@@ -127,8 +165,20 @@ const NORMALIZE: Normalizers = {
   host: (v) => v,
   user: (v) => v,
   port: (v) => v,
-  remoteTmuxPath: (v) => v
+  remoteTmuxPath: (v) => v,
+  acceptedTmuxVersion: (v) => v
 };
+
+/**
+ * The keys appended after Phase 68, in the order they were added.
+ *
+ * A key on this list is emitted into the hash text only when its value is a
+ * non-empty string. A key that is not on this list is emitted always. See the
+ * fifth field section at the top of this file for why that split exists.
+ */
+const APPENDED_KEYS: readonly (keyof MachineExecutionFields)[] = [
+  'acceptedTmuxVersion'
+];
 
 /** Names the algorithm, so a record written by an older build fails loudly. */
 export const MACHINE_EXECUTION_HASH_ALGORITHM = 'sha256-machine-exec-v1';
@@ -153,19 +203,38 @@ export const EMPTY_MACHINE_FIELDS: MachineExecutionFields = {
   host: '',
   user: null,
   port: null,
-  remoteTmuxPath: null
+  remoteTmuxPath: null,
+  acceptedTmuxVersion: null
 };
 
-/** The text that is hashed. Exported so a test can read what was covered. */
+/**
+ * The text that is hashed. Exported so a test can read what was covered.
+ *
+ * The four fields Phase 68 hashed are emitted exactly as they were, sorted, in
+ * every case. The fifth is appended only when a person has accepted a version.
+ * A row nobody accepted a version for therefore hashes byte for byte as it did
+ * before Phase 83, so this build does not ask every machine a person already
+ * confirmed to be confirmed again. Asking again for a change that cannot affect
+ * them is how a person is trained to click through the sheet that matters.
+ * `build/conformance-machines.mjs` pins the unaccepted hash against a hard
+ * coded value, so this property is checked rather than promised.
+ */
 export function canonicalMachineText(
   id: string,
   fields: MachineExecutionFields
 ): string {
-  const keys = (Object.keys(NORMALIZE) as (keyof MachineExecutionFields)[]).sort();
+  const every = Object.keys(NORMALIZE) as (keyof MachineExecutionFields)[];
+  const original = every.filter((key) => !APPENDED_KEYS.includes(key)).sort();
   const rows: [string, unknown][] = [['id', machineRecordKey(id)]];
-  for (const key of keys) {
+  for (const key of original) {
     const normalize = NORMALIZE[key] as (value: unknown) => unknown;
     rows.push([key, normalize(fields[key])]);
+  }
+  for (const key of APPENDED_KEYS) {
+    const value = fields[key];
+    if (typeof value !== 'string' || value.length === 0) continue;
+    const normalize = NORMALIZE[key] as (value: unknown) => unknown;
+    rows.push([key, normalize(value)]);
   }
   return `${MACHINE_EXECUTION_HASH_ALGORITHM}\n${JSON.stringify(rows)}`;
 }
@@ -245,6 +314,18 @@ export function describeMachine(
       'not chosen yet, so Tortie cannot use this machine.'
     }`
   );
+  // Phase 83. Drawn only when a person has accepted a version, so `lines` stays
+  // exactly the hashed facts. A row with no accepted version has no fifth entry
+  // in the hash text either, and the two must say the same thing.
+  if (
+    typeof fields.acceptedTmuxVersion === 'string' &&
+    fields.acceptedTmuxVersion.length > 0
+  ) {
+    lines.push(
+      `Accepts this version of the program, which Tortie has not measured: ` +
+        `${fields.acceptedTmuxVersion}`
+    );
+  }
   return {
     id,
     hash: machineExecutionHash(id, fields),

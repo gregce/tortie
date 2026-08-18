@@ -327,6 +327,53 @@ export function classifyMachineOutput(text: string): MachineTestClass {
 }
 
 /** The last line the program printed, for the `unknown` case. */
+/**
+ * The refusal when a machine runs a version other than the one a person
+ * accepted for it (Phase 83).
+ *
+ * Pinned by `build/assert-bundle-refusals.mjs` as
+ * `machine.version-accept-mismatch`. It exists so an acceptance of one version
+ * does not carry to the next one. A person accepted a program they looked at.
+ * The program on that machine can be updated by anyone with access to it, and a
+ * new version is a new thing to look at.
+ */
+export const MACHINE_VERSION_ACCEPT_MISMATCH =
+  'This machine runs a different version of the program from the one you ' +
+  'accepted, so Tortie will not use it. Nothing was started. Accept the ' +
+  'version it runs now, or update the program on that machine.';
+
+/**
+ * What a person reads when Tortie offers to let them accept a version it has
+ * not measured (Phase 83).
+ *
+ * It is appended to the unmeasured refusal, never drawn on its own, so the
+ * refusal still says first that nothing was started. It names what is not true:
+ * Tortie will not open a live connection to a version it has not measured, so
+ * the machine gets the timer feed, and a session may fail to start.
+ */
+export const MACHINE_VERSION_ACCEPT_OFFER =
+  'You can accept this version yourself. Accepting it lets Tortie start ' +
+  'sessions on this machine and read them back. Tortie will not open a live ' +
+  'connection to a version it has not measured, so it asks this machine for ' +
+  'its list on a timer instead. That is slower and it is correct. If the ' +
+  'version turns out to be wrong for Tortie, a session may fail to start, and ' +
+  'Tortie will say so rather than freeze. This acceptance covers this one ' +
+  'version on this one machine. If the program on it is updated, Tortie asks ' +
+  'you again.';
+
+/**
+ * What a person reads on a machine that was prepared on an accepted version
+ * rather than a measured one (Phase 83).
+ *
+ * Appended to the prepared sentence, so the success answer says plainly which
+ * of the two it is standing on.
+ */
+export const MACHINE_VERSION_ACCEPTED_HONESTY =
+  'Tortie has not measured this version. You accepted it, so Tortie is using ' +
+  'it. It asks this machine for its list on a timer rather than opening a ' +
+  'live connection, because it has not measured how this version speaks over ' +
+  'one.';
+
 export function lastPrintedLine(text: string): string {
   const lines = text
     .split('\n')
@@ -352,6 +399,16 @@ export function composeOutcomeCopy(
     supportedPhrase?: string;
     /** True when this visit created the server rather than finding it. */
     serverBorn?: boolean;
+    /**
+     * PHASE 83. True when a person accepted this version rather than Tortie
+     * having measured it. It changes what the sentence says and nothing else.
+     */
+    versionAccepted?: boolean;
+    /**
+     * PHASE 83. True when the refusal is being drawn beside a sheet a person
+     * can accept. A refusal with no sheet beside it does not offer one.
+     */
+    acceptOffered?: boolean;
   }
 ): MachineOutcomeCopy {
   const base = COPY[cls];
@@ -386,7 +443,10 @@ export function composeOutcomeCopy(
             `up the way it needs.`
           : `The program at ${path} was already running on this machine, so ` +
             `Tortie left it running and set it up the way it needs.`) +
-        ` The machine reports version ${version}.`
+        ` The machine reports version ${version}.` +
+        (facts.versionAccepted === true
+          ? ` ${MACHINE_VERSION_ACCEPTED_HONESTY}`
+          : '')
     };
   }
   if (cls === 'version-unmeasured') {
@@ -411,22 +471,27 @@ function composeUnmeasuredDetail(facts: {
   resolvedPath?: string | null;
   version?: string | null;
   supportedPhrase?: string;
+  acceptOffered?: boolean;
 }): string {
   const path = facts.resolvedPath ?? '';
   const supported = facts.supportedPhrase ?? '';
   if (facts.version === null || facts.version === undefined) {
+    // A machine that would not name a version has nothing to accept, so the
+    // offer is never appended here even when the caller asked for it.
     return (
       `The program at ${path} on this machine would not report its version. ` +
       `Tortie will not use a program it cannot identify. Nothing was changed ` +
       `on either machine.`
     );
   }
-  return (
+  const refusal =
     `The copy at ${path} on this machine reports version ${facts.version}. ` +
     `Tortie has measured ${supported}. Tortie will not use a version it has ` +
     `not measured, because an untested one can hang instead of failing, and a ` +
     `hang looks like Tortie freezing on work you care about. Nothing was ` +
     `changed on either machine. Update the program on that machine to a ` +
-    `version Tortie has measured, then prepare it again.`
-  );
+    `version Tortie has measured, then prepare it again.`;
+  return facts.acceptOffered === true
+    ? `${refusal} ${MACHINE_VERSION_ACCEPT_OFFER}`
+    : refusal;
 }

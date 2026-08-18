@@ -155,6 +155,86 @@ describe('the hash', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Phase 83. The fifth field
+// ---------------------------------------------------------------------------
+
+describe('the version a person accepted', () => {
+  /**
+   * The hash of the four field row, taken on 2026-08-18 before Phase 83 added
+   * the fifth field.
+   *
+   * It is hard coded because the one property that keeps every already
+   * confirmed machine confirmed is that a row carrying no acceptance hashes to
+   * exactly what it hashed to before. Every other value here is computed by the
+   * same code that would be wrong.
+   */
+  const BEFORE_PHASE_83 =
+    'dbd8aa39c1dd0154b556593a2a4ef56e2471afd575d98f3f8431abe20c445d46';
+
+  it('leaves a row that accepted nothing hashing exactly as it did', () => {
+    expect(machineExecutionHash(ID, ROW)).toBe(BEFORE_PHASE_83);
+    expect(
+      machineExecutionHash(ID, { ...ROW, acceptedTmuxVersion: null })
+    ).toBe(BEFORE_PHASE_83);
+  });
+
+  it('keeps the key out of the hash text until a version is accepted', () => {
+    expect(canonicalMachineText(ID, ROW)).not.toContain('acceptedTmuxVersion');
+    expect(
+      canonicalMachineText(ID, { ...ROW, acceptedTmuxVersion: '3.9a' })
+    ).toContain('acceptedTmuxVersion');
+  });
+
+  it('moves the hash when a version is accepted, and again when it changes', () => {
+    const none = machineExecutionHash(ID, ROW);
+    const one = machineExecutionHash(ID, { ...ROW, acceptedTmuxVersion: '3.9a' });
+    const two = machineExecutionHash(ID, { ...ROW, acceptedTmuxVersion: '3.8a' });
+    expect(one).not.toBe(none);
+    expect(two).not.toBe(one);
+  });
+
+  it('hashes back to the original when the acceptance is withdrawn', () => {
+    const accepted: Fields = { ...ROW, acceptedTmuxVersion: '3.9a' };
+    expect(machineExecutionHash(ID, accepted)).not.toBe(BEFORE_PHASE_83);
+    expect(
+      machineExecutionHash(ID, { ...accepted, acceptedTmuxVersion: null })
+    ).toBe(BEFORE_PHASE_83);
+  });
+
+  it('names the version on the sheet, and only when there is one', () => {
+    expect(describeMachine(ID, ROW).lines.join('\n')).not.toContain(
+      'Accepts this version'
+    );
+    const lines = describeMachine(ID, {
+      ...ROW,
+      acceptedTmuxVersion: '3.9a'
+    }).lines;
+    expect(lines[lines.length - 1]).toBe(
+      'Accepts this version of the program, which Tortie has not measured: 3.9a'
+    );
+  });
+
+  it('refuses a confirmation whose sheet was drawn before the acceptance', () => {
+    const stale = describeMachine(ID, ROW);
+    expect(() =>
+      confirmMachine(ID, { ...ROW, acceptedTmuxVersion: '3.9a' }, {
+        acknowledgement: MACHINE_CONFIRM_ACKNOWLEDGEMENT,
+        hashRead: stale.hash,
+        linesRead: stale.lines
+      })
+    ).toThrow(/changed after it was/);
+  });
+
+  it('stops a confirmed machine being usable when a version is accepted', () => {
+    confirmAsAPerson(ID, ROW);
+    expect(isMachineConfirmed(ID, ROW)).toBe(true);
+    expect(isMachineConfirmed(ID, { ...ROW, acceptedTmuxVersion: '3.9a' })).toBe(
+      false
+    );
+  });
+});
+
 describe('a machine and a configured agent with the same bare id', () => {
   it('do not produce the same hash', () => {
     const agent = executionHash(ID, {

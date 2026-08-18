@@ -1,8 +1,8 @@
 /**
  * The ONE `machines:*` registrar (Phase 68, one channel added in Phase 69, one
- * more in Phase 71 and one more in Phase 79.1).
+ * more in Phase 71, one more in Phase 79.1 and one more in Phase 83).
  *
- * Thirteen channels, and what is NOT here is the point of the file.
+ * Fourteen channels, and what is NOT here is the point of the file.
  *
  *  - There is no `machines:connect`, no `machines:attach` and no
  *    `machines:createSession`. Neither Phase 68 nor Phase 69 opens a session on
@@ -72,8 +72,13 @@
 import { homedir } from 'node:os';
 import { app, type IpcMain, type WebContents } from 'electron';
 import type { MachineRowV1 } from '@shared/machines';
-import { MACHINE_COLORS, MACHINE_DEFAULT_COLOR } from '@shared/machines';
+import {
+  MACHINE_COLORS,
+  MACHINE_DEFAULT_COLOR,
+  MACHINE_VERSION_PATTERN
+} from '@shared/machines';
 import type {
+  MachineAcceptVersionInput,
   MachineAddInput,
   MachineConfirmInput,
   MachineKeyInstallInput,
@@ -140,6 +145,7 @@ import {
 // failed connection test can name the file on the block without a key existing.
 // `ensureMachineKey` is the one call that runs ssh-keygen, and it runs only
 // after the hash a person read has been checked.
+import { allowControlPlaneAgain } from './control-plane';
 import { ensureMachineKey, machineKeyPath } from './key-material';
 import { prepareMachine } from './prepare';
 import { validateMachinesFile } from './schema';
@@ -157,7 +163,8 @@ import {
   machineRow,
   machinesPath,
   reloadMachines,
-  removeMachineRow
+  removeMachineRow,
+  setMachineAcceptedVersion
 } from './store';
 import { readTailnetMachines } from './tailscale';
 // ---- PHASE 73 BLOCK B ----
@@ -209,7 +216,10 @@ function viewOf(row: MachineRowV1): MachineRowView {
     warning: MACHINE_CONFIRM_WARNING,
     // Phase 72. Counted on this Mac, from the manifest. The machine is not
     // asked, so the answer is the same whether it is reachable or not.
-    sessions: machineSessionCount(row.id)
+    sessions: machineSessionCount(row.id),
+    // Phase 83. The version this person accepted for this machine, so the row
+    // can draw it and offer to withdraw it.
+    acceptedTmuxVersion: fields.acceptedTmuxVersion
   };
 }
 
@@ -467,7 +477,64 @@ export function registerMachinesIpc(ipc: IpcMain): void {
     }
   );
 
+  // PHASE 83. A person accepts the version one machine reports, after Tortie
+  // has said it has not measured it. The order below is `machines:add`'s order,
+  // and it is the order that makes a stale sheet write nothing.
+  //
+  //  1. The machine has to be in the file.
+  //  2. The version has to be a version. A value that is not refuses HERE, with
+  //     nothing written and nothing started.
+  //  3. The hash is recomputed over the row as it is now plus the accepted
+  //     version, and compared against the hash the sheet was drawn from. A
+  //     mismatch refuses and NOTHING is written.
+  //  4. Only then is the field written, and only then is the agreement
+  //     recorded.
+  //
+  // It contacts no machine and starts nothing. Preparing the machine is a
+  // separate button the person presses afterwards.
+  handle(
+    ipc,
+    'machines:acceptVersion',
+    (_event, input: MachineAcceptVersionInput): MachineRowView => {
+      const row = rowOrThrow(input.id);
+      if (!new RegExp(MACHINE_VERSION_PATTERN).test(input.version)) {
+        throw gmuxError(
+          'INVALID_INPUT',
+          `Tortie did not accept that value for ${row.id}, because it is not a ` +
+            `version Tortie can read. A version looks like 3.7c. Nothing was ` +
+            `written and nothing was started.`
+        );
+      }
+      const next: MachineExecutionFields = {
+        ...machineFieldsOf(row),
+        acceptedTmuxVersion: input.version
+      };
+      const summary = describeMachine(row.id, next);
+      if (input.hashRead !== summary.hash) {
+        throw gmuxError(
+          'INVALID_INPUT',
+          `Tortie did not accept that version for ${row.id}, because the ` +
+            `machine changed after it was shown. Read it again and confirm ` +
+            `what it says now. Nothing was written.`
+        );
+      }
+      setMachineAcceptedVersion(row.id, input.version);
+      // The field is on disk from here on. A keychain that refuses to seal
+      // leaves it in place and returns the sentence, rather than dropping what
+      // a person just chose.
+      recordAgreement(row.id, next, input.hashRead, input.linesRead);
+      const written = machineRow(row.id);
+      return viewOf(written ?? row);
+    }
+  );
+
   handle(ipc, 'machines:forget', (_event, id: string): MachineRowView => {
+    // PHASE 83. The accepted version goes with the agreement, and it has to.
+    // The version is one of the five facts the hash covers, so a row that kept
+    // it after the agreement was dropped would ask to be confirmed again on a
+    // sheet still carrying a version the person had just withdrawn. Both
+    // buttons that reach this channel say so in their own words.
+    setMachineAcceptedVersion(id, null);
     forgetMachine(id);
     const row = machineRow(id);
     if (row !== null) return viewOf(row);
@@ -492,7 +559,8 @@ export function registerMachinesIpc(ipc: IpcMain): void {
       warning: MACHINE_CONFIRM_WARNING,
       // The row is not in the file, so Tortie holds no machine to count
       // sessions for.
-      sessions: 0
+      sessions: 0,
+      acceptedTmuxVersion: null
     };
   });
 
@@ -528,6 +596,12 @@ export function registerMachinesIpc(ipc: IpcMain): void {
     'machines:prepare',
     async (_event, id: string): Promise<MachinePrepareResult> => {
       const row = rowOrThrow(id);
+      // PHASE 83. Preparing a machine is a person pressing a button, so it is
+      // the one act that takes that machine back off the greeting deadline set.
+      // Without this line a machine that missed the greeting once kept the timer
+      // feed until Tortie was quit, and there was no way back from inside the
+      // app. Nothing is sent to the machine by this call.
+      allowControlPlaneAgain(row.id);
       return prepareMachine({
         machineId: row.id,
         fields: machineFieldsOf(row),

@@ -689,6 +689,42 @@
 }
 
 /* ---------------------------------------------------------------------------
+   Accepting a version Tortie has not measured (Phase 83)
+   ---------------------------------------------------------------------------
+   Two blocks, and both are set in the ordinary tones. Neither is an alarm and
+   neither may become one: the single alarm on this surface is a changed host
+   key, and a second loud thing on the same panel is how a person learns to
+   read past the first.
+
+   `.mach-accept` hangs inside the Prepare answer, under the refusal, and it
+   carries the lines main composed plus the one button. It sits on the same
+   warning border the refusal around it already carries, so it reads as part
+   of that answer rather than as a new thing.
+
+   `.mach-accepted` stands on the row itself and says what a person accepted
+   earlier, with the one button that withdraws it. */
+
+.mach-accept {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: flex-start;
+  margin-top: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.mach-accepted {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: flex-start;
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+/* ---------------------------------------------------------------------------
    Setting up a key for one machine (Phase 79.1)
    ---------------------------------------------------------------------------
    The block hangs off the bottom of the connection test, under the advice,

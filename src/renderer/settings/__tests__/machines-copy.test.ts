@@ -206,7 +206,10 @@ describe('words and punctuation', () => {
       // after it and carries nothing of its own past the colon.
       'Version on that machine:',
       'Versions Tortie has measured:',
-      'Settings Tortie asserted:'
+      'Settings Tortie asserted:',
+      // Phase 83. It stands immediately before the version a person accepted
+      // and carries nothing of its own past the colon.
+      'Version you accepted:'
     ]);
   });
 
@@ -396,6 +399,41 @@ describe('claims a shipped rung has retired', () => {
       expect(offenders).toEqual([]);
     });
   }
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 83. Accepting a version Tortie has not measured
+// ---------------------------------------------------------------------------
+
+describe('the words the accept block writes for itself', () => {
+  it('says what a button will do before it does it', () => {
+    expect(copy.BTN_ACCEPT_VERSION).toBe('Accept this version and prepare it');
+    expect(copy.ACCEPTING_VERSION).toBe('Accepting this version');
+  });
+
+  it('writes no sentence about what accepting means, because main does', () => {
+    // Every claim about what Tortie will and will not do with an unmeasured
+    // version arrives on the Prepare result. A copy of it here would be a
+    // second place to reword a refusal into a success.
+    for (const name of ['BTN_ACCEPT_VERSION', 'ACCEPTED_VERSION_NONE'] as const) {
+      expect(copy[name]).not.toContain('measured');
+    }
+  });
+
+  it('says that withdrawing a version withdraws the confirmation too', () => {
+    expect(copy.WITHDRAW_VERSION_EXPLAIN).toContain(
+      'also withdraws your confirmation'
+    );
+    expect(copy.WITHDRAW_VERSION_EXPLAIN).toContain(
+      'Confirm the machine again to use it.'
+    );
+  });
+
+  it('offers the acceptance in the sentence beside the version list', () => {
+    expect(copy.VERSION_GATE_EXPLAIN).toContain(
+      'offers to let you accept that version yourself'
+    );
+  });
 });
 
 describe('the three copies of main, checked by machine', () => {

@@ -73,8 +73,17 @@
  *    and the conversation does not come back. A row the harvest could not prove
  *    still records `remote-not-collected` rather than nothing.
  *  - A remote row's status comes from one format field, `#{session_activity}`.
- *    It is evidence that the session printed something. It is not the local
- *    attention verdict, and no remote row ever says `needs input`.
+ *    That field does NOT mean the session printed something, and this file used
+ *    to say it did. MEASURED 2026-08-18 on tmux 3.6a over a scratch socket. A
+ *    session was created, left alone for three seconds, and then made to print
+ *    a line. `#{session_activity}` read 1787079802 at all three moments.
+ *    `#{window_activity}` read 1787079802 at the first two and 1787079805 after
+ *    the line was printed. So a remote row does not read `running` because work
+ *    happened, and `remoteRowStatus` below inherits that. This is finding 6 of
+ *    docs/research/54-remote-parity.md, confirmed by measurement. Changing which
+ *    field is read is a later phase, and it is written into docs/BACKLOG.md with
+ *    the numbers above rather than left here to be re-derived. It is not the
+ *    local attention verdict, and no remote row ever says `needs input`.
  *  - A remote session created by 0.34 or 0.35 has no manifest row, because those
  *    builds wrote none. It is a feed row and nothing else, and it cannot be
  *    brought back.
@@ -1169,7 +1178,23 @@ async function confirmCreate(
   }
 }
 
-/** A failed create, with the plain sentence over tmux's own where it fits. */
+/**
+ * A failed create, with the plain sentence over tmux's own where it fits.
+ *
+ * THE FOLDER ARM OF THIS IS DEAD CODE TODAY, and that is measured rather than
+ * suspected. MEASURED 2026-08-18 on tmux 3.6a over a scratch socket:
+ * `new-session -d -s NAME -c /a-path-that-is-not-there -P -F '#{session_id}'`
+ * exits 0, prints `$0`, creates a live session and silently puts the pane in the
+ * home directory. tmux prints nothing. A create that exits 0 throws nothing, so
+ * the {@link REMOTE_DIR_MISSING} branch below never runs for the case it was
+ * written for, and a person who types a folder that is not on the far machine
+ * gets a session in the wrong place with no sentence saying so.
+ *
+ * The fix is a read only check before the create rather than a rule about the
+ * error text, and it is written into the Phase 84 entry of docs/BACKLOG.md with
+ * the measurement attached. The pattern below stays for the creates that do
+ * throw.
+ */
 function createFailure(err: unknown, cwd: string): Error {
   const text = err instanceof Error ? err.message : String(err);
   const detail = err instanceof GmuxError ? String(err.payload.detail ?? '') : '';

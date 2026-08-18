@@ -34,6 +34,28 @@
  * Usage:
  *   node build/capture-machine-goldens.mjs            capture, write the files
  *   node build/capture-machine-goldens.mjs --dry-run  print what it would do
+ *   node build/capture-machine-goldens.mjs --out DIR  write to DIR instead
+ *
+ * ## Why `--out` exists, and it is a defect this script used to cause
+ *
+ * This script writes over the files the golden test reads. That is what it is
+ * for when a person runs `npm run goldens:machines` on purpose. It is NOT what
+ * a person wants when another probe calls it for a number, and
+ * `build/probe-execplane.mjs` did exactly that at its step 15. Running that
+ * probe left five checked in files rewritten and their bytes moved, with no
+ * sign of it except `git status`. So the probe now passes `--out` and points
+ * this script at a scratch directory, and the checked in files move only when
+ * somebody asks for them to move.
+ *
+ * ## Why rows are carried forward rather than dropped
+ *
+ * Two rows in the manifest were not written by this script. `password-required`
+ * comes from `build/probe-key-install.mjs --capture-golden`, because that
+ * question arrives while the client is still running and this script runs every
+ * case to an exit. `key-installed` is a `noGolden` row a later phase added. A
+ * plain rewrite dropped both. So the manifest already at the destination is
+ * read first, and any row this run did not produce is kept with its own note
+ * and its own capture date beside it.
  */
 
 import { execFileSync, spawn } from 'node:child_process';
@@ -51,7 +73,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const goldenDir = join(
+const checkedInDir = join(
   repoRoot,
   'src',
   'main',
@@ -60,6 +82,16 @@ const goldenDir = join(
   'golden'
 );
 const dryRun = process.argv.includes('--dry-run');
+
+/**
+ * Where the files land. `--out DIR` sends them somewhere else, which is how a
+ * probe reads these numbers without moving anything a test reads.
+ */
+const outFlag = process.argv.indexOf('--out');
+const goldenDir =
+  outFlag >= 0 && typeof process.argv[outFlag + 1] === 'string'
+    ? resolve(process.argv[outFlag + 1])
+    : checkedInDir;
 
 /** The scratch root. Every file this script writes carries the p69- prefix. */
 const root = join(tmpdir(), `p69-goldens-${String(process.pid)}`);
@@ -111,6 +143,9 @@ const userRecordBefore = sizeOf(userRecord);
 if (dryRun) {
   say('dry run. Nothing is started and nothing is written.');
   say(`it would write to ${goldenDir}`);
+  if (goldenDir !== checkedInDir) {
+    say(`that is NOT the checked in directory, which is ${checkedInDir}`);
+  }
   say(`it would run an sshd on 127.0.0.1 with keys under ${root}`);
   process.exit(0);
 }
@@ -440,18 +475,57 @@ const noGolden = [
 ];
 
 const userRecordAfter = sizeOf(userRecord);
+
+/**
+ * The manifest already at the destination, if there is one. Rows this run did
+ * not produce are read out of it and kept, so a re-run adds and never subtracts.
+ */
+function existingManifest() {
+  const path = join(goldenDir, 'manifest.json');
+  if (!existsSync(path)) return { captures: [], noGolden: [] };
+  try {
+    const parsed = JSON.parse(readFileSync(path, 'utf8'));
+    return {
+      captures: Array.isArray(parsed.captures) ? parsed.captures : [],
+      noGolden: Array.isArray(parsed.noGolden) ? parsed.noGolden : []
+    };
+  } catch {
+    return { captures: [], noGolden: [] };
+  }
+}
+
+const kept = existingManifest();
+const mine = new Set(captures.map((row) => row.class));
+const carriedCaptures = kept.captures.filter((row) => !mine.has(row.class));
+const mineNoGolden = new Set(noGolden.map((row) => row.class));
+const carriedNoGolden = kept.noGolden.filter(
+  (row) => !mineNoGolden.has(row.class)
+);
+for (const row of carriedCaptures) {
+  say(
+    `carried forward the ${row.class} row, which ${
+      row.capturedBy ?? 'another script'
+    } wrote. This run did not measure it.`
+  );
+}
+for (const row of carriedNoGolden) {
+  say(`carried forward the ${row.class} no-golden row.`);
+}
+
 const manifest = {
   note:
     'Captured by build/capture-machine-goldens.mjs against a scratch sshd on ' +
-    '127.0.0.1. Re-run it after an ssh upgrade or a tmux upgrade. ' +
+    '127.0.0.1. A row carrying its own capturedBy was written by the script ' +
+    'that row names, and this script carries it forward rather than dropping ' +
+    'it. Re-run them after an ssh upgrade or a tmux upgrade. ' +
     'src/main/machines/__tests__/golden.test.ts reads these files and runs ' +
     'nothing at all.',
   capturedAt: new Date().toISOString().slice(0, 10),
   sshClient: sshVersion,
   remoteTmux: remoteTmuxVersion,
   carriageStarted: carriageUp,
-  captures,
-  noGolden
+  captures: [...captures, ...carriedCaptures],
+  noGolden: [...noGolden, ...carriedNoGolden]
 };
 writeFileSync(
   join(goldenDir, 'manifest.json'),

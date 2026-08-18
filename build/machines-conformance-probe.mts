@@ -107,7 +107,11 @@ import {
   remoteCreateArgs
 } from '../src/main/machines/remote-sessions';
 import { SERVER_OPTIONS } from '../src/main/tmux/server-options';
-import { TESTED_REMOTE_TMUX_VERSIONS } from '../src/main/tmux/version';
+import {
+  TESTED_REMOTE_TMUX_VERSIONS,
+  decideRemoteControlGate,
+  decideRemoteVersionGate
+} from '../src/main/tmux/version';
 // Phase 71, condition 25. `status-truth.ts` imports one type from @shared and
 // nothing else: no tmux, no SQLite, no filesystem, no timer. The manifest's own
 // numbers are deliberately NOT read here, because importing them would load
@@ -195,8 +199,21 @@ const base = machineExecutionHash(ID, BASE);
 // 1. The hash, per field
 // ---------------------------------------------------------------------------
 
+/**
+ * The execution bearing fields the hash text APPENDS rather than always emits.
+ *
+ * Phase 83. `acceptedTmuxVersion` is absent from the hash of every row that
+ * carries no acceptance, which is what keeps every already confirmed machine
+ * confirmed. It therefore cannot be varied by the generic loop below, whose
+ * whole shape is "change it, unset it, and both must move the hash". It gets
+ * its own block, and conditions 41 to 43 read that block.
+ */
+const APPENDED_EXECUTION_FIELDS = ['acceptedTmuxVersion'];
+
 const fieldRows = [
-  ...MACHINE_EXECUTION_FIELDS.map((field) => ({
+  ...MACHINE_EXECUTION_FIELDS.filter(
+    (field) => !APPENDED_EXECUTION_FIELDS.includes(field)
+  ).map((field) => ({
     field,
     kind: 'execution',
     changedHash: CHANGED[field] === undefined ? null : machineExecutionHash(ID, CHANGED[field]),
@@ -244,6 +261,70 @@ const hashedKeys = (JSON.parse(canonical.split('\n')[1] ?? '[]') as [string, unk
   .filter((key) => key !== 'id')
   .sort();
 
+// Phase 83. A row carrying every field, so the key set the hash covers can be
+// compared against MACHINE_EXECUTION_FIELDS in full. The row above carries no
+// acceptance, so its key set is the four Phase 68 fields and condition 43 reads
+// that one.
+const ACCEPTED: MachineExecutionFields = { ...BASE, acceptedTmuxVersion: '3.9a' };
+const canonicalAccepted = canonicalMachineText(ID, ACCEPTED);
+const hashedKeysAccepted = (
+  JSON.parse(canonicalAccepted.split('\n')[1] ?? '[]') as [string, unknown][]
+)
+  .map(([key]) => key)
+  .filter((key) => key !== 'id')
+  .sort();
+
+/** Everything conditions 41 and 42 need about the fifth field. */
+const acceptedVersion = {
+  unaccepted: base,
+  accepted: machineExecutionHash(ID, ACCEPTED),
+  acceptedOther: machineExecutionHash(ID, {
+    ...BASE,
+    acceptedTmuxVersion: '3.8a'
+  }),
+  backToUnset: machineExecutionHash(ID, {
+    ...ACCEPTED,
+    acceptedTmuxVersion: null
+  }),
+  canonicalCarriesVersion: canonicalAccepted.includes('3.9a'),
+  unacceptedCanonicalCarriesKey: canonical.includes('acceptedTmuxVersion'),
+  sheetLines: [...describeMachine(ID, ACCEPTED).lines],
+  appendedFields: APPENDED_EXECUTION_FIELDS
+};
+
+/**
+ * Condition 44. An acceptance is for the exec plane and reaches no other one.
+ *
+ * The two gates are asked about the SAME version with the SAME acceptance. The
+ * exec gate answers `accepted` and the control gate answers `unmeasured`,
+ * because control mode is a different wire protocol and an acceptance says
+ * nothing about it.
+ */
+const acceptanceReach = (() => {
+  const version = '9.9z';
+  return {
+    version,
+    exec: decideRemoteVersionGate(version, TESTED_REMOTE_TMUX_VERSIONS, version)
+      .kind,
+    control: decideRemoteControlGate(version, TESTED_REMOTE_TMUX_VERSIONS).kind,
+    execWithoutAcceptance: decideRemoteVersionGate(
+      version,
+      TESTED_REMOTE_TMUX_VERSIONS,
+      null
+    ).kind,
+    unreadableWithAcceptance: decideRemoteVersionGate(
+      null,
+      TESTED_REMOTE_TMUX_VERSIONS,
+      version
+    ).kind,
+    measuredBeatsAccepted: decideRemoteVersionGate(
+      TESTED_REMOTE_TMUX_VERSIONS[0]?.version ?? '3.6a',
+      TESTED_REMOTE_TMUX_VERSIONS,
+      TESTED_REMOTE_TMUX_VERSIONS[0]?.version ?? '3.6a'
+    ).kind
+  };
+})();
+
 // ---------------------------------------------------------------------------
 // 5. The drop whole rule
 // ---------------------------------------------------------------------------
@@ -266,7 +347,39 @@ const BAD_ROWS: { name: string; row: unknown; field: string }[] = [
   { name: 'a port outside the range', row: { id: 'p', host: 'a.example', port: 70000 }, field: 'port' },
   { name: 'a colour outside the six', row: { id: 'c', host: 'a.example', color: 'puce' }, field: 'color' },
   { name: 'an unknown key', row: { id: 'u', host: 'a.example', sshOptions: [] }, field: 'sshOptions' },
-  { name: 'a missing address', row: { id: 'nohost' }, field: 'host' }
+  { name: 'a missing address', row: { id: 'nohost' }, field: 'host' },
+  // Phase 83, condition 45. A value in the accepted version field reaches
+  // nothing that runs, and it still drops the row whole, because a field Tortie
+  // cannot read is a field a person cannot rely on.
+  {
+    name: 'an accepted version carrying a command',
+    row: { id: 'av1', host: 'a.example', acceptedTmuxVersion: '3.7c; rm -rf /' },
+    field: 'acceptedTmuxVersion'
+  },
+  {
+    name: 'an accepted version that is a path',
+    row: { id: 'av2', host: 'a.example', acceptedTmuxVersion: '../../etc' },
+    field: 'acceptedTmuxVersion'
+  },
+  {
+    name: 'an empty accepted version',
+    row: { id: 'av3', host: 'a.example', acceptedTmuxVersion: '' },
+    field: 'acceptedTmuxVersion'
+  },
+  {
+    name: 'an accepted version of forty characters',
+    row: {
+      id: 'av4',
+      host: 'a.example',
+      acceptedTmuxVersion: '3.7c3.7c3.7c3.7c3.7c3.7c3.7c3.7c3.7c3.7c'
+    },
+    field: 'acceptedTmuxVersion'
+  },
+  {
+    name: 'an accepted version carrying a newline',
+    row: { id: 'av5', host: 'a.example', acceptedTmuxVersion: '3.7c\n3.6a' },
+    field: 'acceptedTmuxVersion'
+  }
 ];
 
 const dropRows = BAD_ROWS.map((entry) => {
@@ -480,7 +593,11 @@ const remoteList = TESTED_REMOTE_TMUX_VERSIONS.map((row) => ({
   exec: row.measured.exec,
   control: row.measured.control,
   measuredAt: row.measuredAt,
-  noteLength: row.note.length
+  noteLength: row.note.length,
+  // Phase 83. Which copy of that version was read. A row that does not say is
+  // a row the next reader cannot trust, so condition 17 fails on an empty one.
+  subject: row.subject,
+  subjectLength: row.subject.length
 }));
 
 /** The golden files and the manifest beside them. */
@@ -1027,6 +1144,10 @@ process.stdout.write(
     executionFields: [...MACHINE_EXECUTION_FIELDS],
     presentationFields: [...MACHINE_PRESENTATION_FIELDS],
     hashedKeys,
+    // Phase 83, conditions 7 and 43.
+    hashedKeysAccepted,
+    acceptedVersion,
+    acceptanceReach,
     canonical,
     canonicalCarriesLabel: canonical.includes('Pop OS') || canonical.includes('label'),
     canonicalCarriesColor: canonical.includes('blue') || canonical.includes('color'),

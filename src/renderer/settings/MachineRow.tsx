@@ -41,6 +41,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import type { MachinePrepareResult, MachineRowView } from '@shared/ipc';
 import { ConnectionTestView, Remedy } from './ConnectionTestView';
 import {
+  ACCEPTED_VERSION_LABEL,
+  ACCEPTED_VERSION_NONE,
+  ACCEPTING_VERSION,
+  BTN_ACCEPT_VERSION,
   BTN_CONFIRM,
   BTN_CONFIRM_CHANGED,
   BTN_HIDE,
@@ -51,6 +55,7 @@ import {
   BTN_SHOW,
   BTN_TEST_AGAIN,
   BTN_WITHDRAW,
+  BTN_WITHDRAW_VERSION,
   CONFIRMED_LIST_LABEL,
   CURRENT_LIST_LABEL,
   HONESTY_NO_ADOPTION,
@@ -66,7 +71,8 @@ import {
   PREPARING,
   removeQuestion,
   STATE_CHIP,
-  STATE_SENTENCE
+  STATE_SENTENCE,
+  WITHDRAW_VERSION_EXPLAIN
 } from './machines-copy';
 import { useMachinesStore } from './machines-store';
 
@@ -78,10 +84,21 @@ import { useMachinesStore } from './machines-store';
  * this file cannot draw a refusal as a success or an alarm calmly.
  */
 function PrepareResult({
-  result
+  result,
+  accepting,
+  onAccept
 }: {
   result: MachinePrepareResult;
+  /** True while this row's acceptance and the prepare after it are in flight. */
+  accepting: boolean;
+  onAccept: () => void;
 }): React.JSX.Element {
+  // PHASE 83. Main sends a sheet only for a machine that named a version Tortie
+  // has not measured. A machine Tortie measured needs no acceptance, and a
+  // machine that would not name a version has nothing to bind one to, so the
+  // block below simply does not exist for either.
+  const sheet =
+    result.class === 'version-unmeasured' ? (result.acceptSheet ?? null) : null;
   return (
     <div
       className="mach-prepare-result"
@@ -142,6 +159,27 @@ function PrepareResult({
         </div>
       )}
 
+      {/* PHASE 83. The sheet a person reads before they accept a version
+          Tortie has not measured. Every line and the warning come from main
+          with the result, and the hash they are bound to goes back unchanged,
+          so this surface can neither compose the sheet nor reword it. */}
+      {sheet === null ? null : (
+        <div className="mach-accept" data-machines-accept={result.id}>
+          <p className="mach-prepare-explain">{ACCEPTED_VERSION_NONE}</p>
+          <Lines label={null} lines={sheet.lines} />
+          <p className="set-config-warning">{sheet.warning}</p>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            disabled={accepting}
+            data-machines-action="accept-version"
+            onClick={onAccept}
+          >
+            {accepting ? ACCEPTING_VERSION : BTN_ACCEPT_VERSION}
+          </button>
+        </div>
+      )}
+
       {/* PHASE 79. Prepare answers with main's own classes, so it gets the
           same advice the connection test gets, from the same table. A person
           who reads that the machine has no program should not have to go
@@ -192,8 +230,10 @@ export function MachineRow({
   const prepare = useMachinesStore((s) => s.prepareMachine);
   const installKey = useMachinesStore((s) => s.installKey);
   const keyInstall = useMachinesStore((s) => s.keyInstall);
+  const acceptVersion = useMachinesStore((s) => s.acceptVersion);
   const prepared = useMachinesStore((s) => s.prepared[row.id]);
   const preparing = useMachinesStore((s) => s.preparing) === row.id;
+  const accepting = useMachinesStore((s) => s.accepting) === row.id;
   const busy = useMachinesStore((s) => s.busy) === row.id;
 
   // Shut for a machine that is ready and open for one that is not. A person
@@ -364,7 +404,50 @@ export function MachineRow({
             </button>
           </div>
 
-          {prepared === undefined ? null : <PrepareResult result={prepared} />}
+          {/* PHASE 83. The version this person accepted for this machine, and
+              the one button that withdraws it. It is drawn only for a row that
+              carries one, so a machine running a version Tortie measured shows
+              nothing here at all. */}
+          {row.acceptedTmuxVersion === null ||
+          row.acceptedTmuxVersion === undefined ? null : (
+            <div className="mach-accepted" data-machines-accepted={row.id}>
+              <div className="mach-prepare-fact">
+                <span className="mach-prepare-label">
+                  {ACCEPTED_VERSION_LABEL}
+                </span>
+                <span
+                  className="mach-prepare-value"
+                  data-machine-accepted-version
+                >
+                  {row.acceptedTmuxVersion}
+                </span>
+              </div>
+              <p className="mach-prepare-explain">{WITHDRAW_VERSION_EXPLAIN}</p>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={busy}
+                data-machines-action="withdraw-version"
+                onClick={() => {
+                  setError(null);
+                  void forget(row.id).then(setError);
+                }}
+              >
+                {BTN_WITHDRAW_VERSION}
+              </button>
+            </div>
+          )}
+
+          {prepared === undefined ? null : (
+            <PrepareResult
+              result={prepared}
+              accepting={accepting}
+              onAccept={() => {
+                setError(null);
+                void acceptVersion(row.id).then(setError);
+              }}
+            />
+          )}
 
           {/* PHASE 72. The question names the sessions Tortie holds a record
               of on that machine, counted, because removing a machine turns

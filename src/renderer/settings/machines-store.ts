@@ -146,7 +146,14 @@ export function portOf(value: string): number | null {
   return port >= 1 && port <= 65_535 ? port : null;
 }
 
-/** The four execution bearing values, as the test and the add call want them. */
+/**
+ * The four execution bearing values a person types, as the test and the add call
+ * want them.
+ *
+ * There are FIVE execution bearing fields on the hash. The fifth is the accepted
+ * tmux version, and it is not here because nobody types it. Main sets it when a
+ * person accepts an unmeasured version, so a draft never carries one.
+ */
 export function draftOf(form: MachineFormState): MachineDraft {
   return {
     host: form.host.trim(),
@@ -193,7 +200,7 @@ export function machineIdFrom(
  *
  * THIS IS THE WHOLE OF THE ADD FLOW'S AGREEMENT, so it is worth saying why the
  * renderer does not compose it. The hash a person's agreement binds to covers
- * the machine id and the four execution bearing fields, and one of those four
+ * the machine id and the five execution bearing fields, and one of those five
  * is the program path, which is not known until the machine itself answers. So
  * main composes the hash and the lines together at the end of the test and
  * sends both on the outcome. The renderer draws those exact lines and sends
@@ -323,6 +330,15 @@ export interface MachinesStoreState {
   preparing: string | null;
 
   /**
+   * The id an acceptance is in flight for, or null (Phase 83).
+   *
+   * Kept apart from `busy` and from `preparing` because accepting a version
+   * runs one call and then a second one, being the acceptance and the prepare
+   * that follows it, and the button has to stay disabled across both.
+   */
+  accepting: string | null;
+
+  /**
    * The key install for the machine a test is open on, or null.
    *
    * At most one exists, because at most one connection test exists and the
@@ -369,6 +385,18 @@ export interface MachinesStoreState {
   prepareMachine(id: string): Promise<string | null>;
 
   /**
+   * Records that a person accepted the version one machine reports, and then
+   * prepares that machine. One button reaches this.
+   *
+   * The sheet is main's. This file sends back the hash it was drawn from and
+   * the lines that were on it, both untouched, and main refuses a stale hash
+   * before it writes anything. The prepare that follows is the same call the
+   * Prepare button makes, and it is here because a person who accepts a version
+   * is saying they want the machine ready.
+   */
+  acceptVersion(id: string): Promise<string | null>;
+
+  /**
    * Makes a key for the machine the open test is about, puts its public half
    * on that machine, and then starts the connection test again. One button
    * reaches this.
@@ -403,6 +431,7 @@ export const useMachinesStore = create<MachinesStoreState>()((set, get) => ({
   test: null,
   prepared: {},
   preparing: null,
+  accepting: null,
   keyInstall: null,
 
   init() {
@@ -708,6 +737,39 @@ export const useMachinesStore = create<MachinesStoreState>()((set, get) => ({
       return sentenceOf(err);
     } finally {
       set({ preparing: null });
+    }
+  },
+
+  async acceptVersion(id) {
+    const b = bridge();
+    if (b === null) return BRIDGE_MISSING;
+    if (b.acceptVersion === undefined) return BRIDGE_MISSING;
+    const result = get().prepared[id];
+    const sheet = result?.acceptSheet ?? null;
+    const version = result?.version ?? null;
+    // Nothing to accept without both. Main would refuse anyway, and this is
+    // only about not sending a call that is certain to be refused.
+    if (sheet === null || version === null) return null;
+    set({ accepting: id });
+    try {
+      await b.acceptVersion({
+        id,
+        version,
+        hashRead: sheet.hash,
+        linesRead: [...sheet.lines]
+      });
+      await get().refresh();
+      // The person accepted a version so that Tortie would use the machine, so
+      // the machine is prepared straight after. It is the same call the Prepare
+      // button makes.
+      const prepared = await b.prepare(id);
+      set((s) => ({ prepared: { ...s.prepared, [id]: prepared } }));
+      return null;
+    } catch (err) {
+      await get().refresh();
+      return sentenceOf(err);
+    } finally {
+      set({ accepting: null });
     }
   },
 

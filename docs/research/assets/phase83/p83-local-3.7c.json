@@ -1,0 +1,40 @@
+{
+  "version": "3.7c",
+  "client": "3.7b",
+  "clientNote": "The exec plane and the control plane both run tmux ON the far machine, so the tmux that talks to a 3.7c server is that machine's own 3.7c. The shipping 3.7b client was built and present for the run, at build/vendor/tmux/bin/tmux, and build/probe-control-dialect.mjs measured it as a second program in the same run. It is never the client of the 3.7c server.",
+  "builtFrom": "upstream tarball https://github.com/tmux/tmux/releases/download/3.7c/tmux-3.7c.tar.gz, 789431 bytes, sha256 7c60cae9a0e25288e2e24750aafc9e8800fc7fd4555e447e1b29ee4201cfb3bf, built by \"node build/build-tmux-version.mjs 3.7c\" with --enable-utf8proc and --disable-jemalloc. It is not Homebrew's build.",
+  "binary": "build/vendor/tmux-probe/3.7c/bin/tmux, 1437872 bytes",
+  "measuredAt": "2026-08-18",
+  "carriage": "build/probe-execplane.mjs and build/probe-control-dialect.mjs, both over a real ssh carriage to a scratch sshd on 127.0.0.1, with the far side's program pointed at the built 3.7c by putting its directory first on PATH.",
+  "exec": {
+    "listSessions": "list-sessions -F '#{session_id}' answers \"$0\" and exit 0 on a server holding one session, and no rows with exit 0 on a running server holding none.",
+    "displayMessageVersion": "display-message -p '#{version}' answers \"3.7c\" and exit 0. Over the ssh carriage the machine reported \"3.7c\".",
+    "showOptions": "show-options -gv history-limit answers \"25000\" and exit 0. After the machine boot 12 of 12 server options stuck, and they stuck again after the server was ended and reborn.",
+    "noServer": {
+      "stderr": "error connecting to /private/tmp/tmux-501/gmux-p69-20962 (No such file or directory)",
+      "exit": 1,
+      "class": "no-server",
+      "note": "A socket that never existed gives this sentence. A socket whose server has gone away gives \"no server running on <path>\" and exit 1 instead. Both were read on 3.7c."
+    }
+  },
+  "control": [
+    { "step": 1, "name": "the greeting", "bytes": "%begin <t> 283 0\\n%end <t> 283 0\\n%window-add @0\\n%sessions-changed\\n%session-changed $0 gmux-control\\n", "matched": true },
+    { "step": 2, "name": "the no output block", "bytes": "%begin <t> 289 1\\n%end <t> 289 1\\n", "matched": true },
+    { "step": 3, "name": "the guard shape", "bytes": "%begin <t> 283 0 and %end <t> 283 0, same word and same flag on every guard", "matched": true },
+    { "step": 4, "name": "the notifications on a create, a kill and a rename", "bytes": "create %unlinked-window-add @1, %sessions-changed, %unlinked-window-renamed @1 <name>; rename %session-renamed $1 <name>; kill %sessions-changed, %unlinked-window-close @1, %unlinked-window-close @2", "matched": true },
+    { "step": 5, "name": "the rename argument order", "bytes": "%session-renamed $1 p71-worker-32074-2", "matched": true },
+    { "step": 6, "name": "the window traffic", "bytes": "%session-window-changed $1 @2, %unlinked-window-add @2, %unlinked-window-renamed @2 <name>, %unlinked-window-renamed @1 zsh", "matched": true },
+    { "step": 7, "name": "the exit line", "bytes": "%exit after 46 ms", "matched": true },
+    { "step": 9, "name": "one list over control against the same list over exec", "bytes": "117 bytes against 117 bytes, byte equal", "matched": true }
+  ],
+  "controlExtras": {
+    "step8": "The -u question, asked of the control plane on 3.7c: identical with and without -u, 106 bytes each. -u is not added to the control carriage.",
+    "step10": "A killed far side ended the control child in 0.1 s.",
+    "step11": "A frozen far side ended the control child in 19.7 s, with ServerAliveInterval=5 and ServerAliveCountMax=3."
+  },
+  "operatorSessions": { "before": 33, "after": 33 },
+  "notTrue": [
+    "Homebrew's build of 3.7c was not read by this run. The operator's Mac Pro runs Homebrew's build, and this file records the upstream tarball built on this Mac.",
+    "The 3.7c server was never reached across a machine boundary here. The far side of both probes is this same Mac over a scratch sshd on 127.0.0.1."
+  ]
+}

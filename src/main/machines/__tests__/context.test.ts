@@ -45,7 +45,11 @@ const REMOTE: RemoteMachineContext = {
   hostKeys: {
     tortie: '/Users/x/Library/Application Support/Tortie/gmux/machines/known-machines',
     user: '/Users/x/.ssh/known_hosts'
-  }
+  },
+  // Phase 83. It is carried on the context and it reaches no argv. The vectors
+  // below are what says so: every one of them is composed from a context that
+  // carries a version, and none of the composed strings names it.
+  acceptedTmuxVersion: '3.9a'
 };
 
 /** The twelve vectors, taken from the real call sites rather than invented. */
@@ -191,6 +195,29 @@ describe('the remote composition', () => {
     );
     expect(bare.argv).not.toContain('-p');
     expect(bare.argv).not.toContain('-l');
+  });
+});
+
+describe('the version a person accepted (Phase 83)', () => {
+  it('reaches no argv on either door', () => {
+    // The context above carries 3.9a. If any composer put it on a command, a
+    // value a person typed into a sheet would be reaching a process.
+    const verb = tmuxCommand(REMOTE, ['list-sessions', '-F', '#{session_id}']);
+    const shell = shellCommand(REMOTE, 'command -v claude');
+    expect(verb.argv.join(' ')).not.toContain('3.9a');
+    expect(shell.argv.join(' ')).not.toContain('3.9a');
+    expect(remoteTmuxArgv(REMOTE, ['kill-session']).join(' ')).not.toContain(
+      '3.9a'
+    );
+  });
+
+  it('changes not one byte of a composed command', () => {
+    const withOne = tmuxCommand(REMOTE, ['list-sessions']);
+    const withNone = tmuxCommand(
+      { ...REMOTE, acceptedTmuxVersion: null },
+      ['list-sessions']
+    );
+    expect(withOne).toEqual(withNone);
   });
 });
 

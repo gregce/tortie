@@ -67,6 +67,7 @@ import { getLog } from '../log';
 import { gmuxError } from '../errors';
 import {
   CONTROL_ATTACH_ARGS,
+  CONTROL_GREETING_DEADLINE_MS,
   TmuxControlClient,
   type ControlTransport
 } from '../tmux/control-client';
@@ -110,6 +111,29 @@ export const CONTROL_DIALECT_UNMEASURED =
   'it asks the machine for its list on a timer instead. Nothing was changed on ' +
   'either machine.';
 
+/**
+ * What a person reads when a live connection was opened and never greeted
+ * (Phase 83).
+ *
+ * Pinned by `build/assert-bundle-refusals.mjs` as
+ * `machine.control-greeting-deadline`. The number is composed from
+ * {@link CONTROL_GREETING_DEADLINE_MS}, so there is one source of it.
+ *
+ * It is not an error a person has to act on. The machine still works, on the
+ * timer feed, and the sentence says exactly that. It names no program and no
+ * protocol, because neither is a thing the person chose.
+ */
+export const CONTROL_GREETING_DEADLINE =
+  'This machine did not finish opening a live connection in ' +
+  String(CONTROL_GREETING_DEADLINE_MS / 1000) +
+  ' seconds, so Tortie asks it for its list on a timer instead. Sessions on ' +
+  'it keep running. Nothing was changed on either machine.';
+
+/** The one clause a machine row draws beside its label. */
+export const CONTROL_GREETING_DEADLINE_REASON =
+  'did not finish opening a live connection, so Tortie asks it for its list ' +
+  'on a timer';
+
 // ---------------------------------------------------------------------------
 // The link, as a surface reads it
 // ---------------------------------------------------------------------------
@@ -147,6 +171,24 @@ interface LinkRecord {
 
 const links = new Map<string, LinkRecord>();
 const clients = new Map<string, TmuxControlClient>();
+
+/**
+ * Machines that missed the greeting deadline in this run.
+ *
+ * PHASE 83. One miss per machine per run is the ceiling. Without it a machine
+ * that hangs every time would spawn and kill a child on every backoff step, for
+ * as long as Tortie was open. A machine on this set keeps the timer feed, which
+ * works.
+ *
+ * TWO THINGS TAKE A MACHINE BACK OFF IT, and both are the person acting.
+ * Restarting Tortie clears the whole set, because the set lives in memory.
+ * Preparing that machine again clears that one entry through
+ * {@link allowControlPlaneAgain}, which the prepare channel calls. Prepare is a
+ * button a person presses, so it is the right place: without it a person who hit
+ * the deadline once had no way back to a live connection except quitting, and
+ * the doc comment here used to claim prepare cleared it while nothing did.
+ */
+const noControlThisRun = new Set<string>();
 
 let linkListeners: (() => void)[] = [];
 
@@ -386,6 +428,17 @@ export function assertControlDialectMeasured(
  */
 export async function openControlPlane(machineId: string): Promise<boolean> {
   if (clients.has(machineId)) return true;
+  // PHASE 83. A machine whose greeting never arrived keeps the timer feed until
+  // the person prepares it again or restarts Tortie. Nothing is spawned here and
+  // nothing is sent.
+  if (noControlThisRun.has(machineId)) {
+    machinesLog.info(
+      `${machineId} did not finish opening a live connection earlier in this ` +
+        `run, so it keeps the timer feed. Prepare it again, or start Tortie ` +
+        `again, to let it try once more.`
+    );
+    return false;
+  }
   noteMachineConnecting(machineId);
 
   let ctx: RemoteMachineContext;
@@ -467,6 +520,24 @@ function wire(machineId: string, client: TmuxControlClient): void {
     );
     sink?.lost(machineId, 'the live connection ended');
   });
+  // PHASE 83. The child was spawned and the greeting never arrived. The client
+  // has already killed it by the time this fires.
+  //
+  // `sink?.lost` is the line that matters. `closeControlPlane` alone would take
+  // the client away and call no sink, which would leave the machine with no
+  // feed at all. The feed's `lost` is what arms the timer, and it is the same
+  // call the ordinary `disconnected` handler above makes.
+  client.on('greeting-timeout', () => {
+    noControlThisRun.add(machineId);
+    closeControlPlane(machineId);
+    setLink(machineId, 'polling', CONTROL_GREETING_DEADLINE_REASON);
+    machinesLog.warn(
+      `${machineId} did not finish opening a live connection within ` +
+        `${String(CONTROL_GREETING_DEADLINE_MS)} ms, so it was taken away and ` +
+        `the machine keeps the timer feed until it is prepared again.`
+    );
+    sink?.lost(machineId, CONTROL_GREETING_DEADLINE);
+  });
   client.on('error', (err) => {
     machinesLog.warn(`the live connection to ${machineId}: ${err.message}`);
   });
@@ -505,5 +576,32 @@ export function resetControlPlanesForTests(): void {
   closeEveryControlPlane();
   links.clear();
   linkListeners = [];
+  noControlThisRun.clear();
   sink = null;
+}
+
+/**
+ * Let this machine try a live connection again.
+ *
+ * PHASE 83. Called by the `machines:prepare` handler, which is a person pressing
+ * a button. It clears one entry and nothing else. It opens no connection, sends
+ * nothing to the machine, and a machine that was never on the set is unaffected.
+ */
+export function allowControlPlaneAgain(machineId: string): void {
+  if (!noControlThisRun.delete(machineId)) return;
+  machinesLog.info(
+    `${machineId} was prepared again, so a live connection may be opened to it ` +
+      `once more in this run.`
+  );
+}
+
+/**
+ * True when this machine missed the greeting deadline in this run.
+ *
+ * Read by `build/probe-control-deadline.mjs` and by the unit test. It has no
+ * production caller, and that is deliberate: no surface draws this, because a
+ * person sees the timer feed and the link reason rather than a flag.
+ */
+export function missedGreetingThisRun(machineId: string): boolean {
+  return noControlThisRun.has(machineId);
 }

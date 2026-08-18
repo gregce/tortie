@@ -72,10 +72,13 @@ value below is read from the script in `package.json`, and `${TMPDIR}` is
 | `npm run smoke:machines` | `${TMPDIR}gmux-smoke-machines` | `gmux-smoke-machines` |
 | `npm run smoke:execplane` | `${TMPDIR}gmux-p69-exec` | `gmux-p69-exec` |
 | `npm run smoke:remote` | `${TMPDIR}gmux-p70-remote` | `gmux-p70-remote` |
+| `npm run probe:realmachine` | `<tmpdir>/p83-real-<pid>`, made fresh on every run | none on this Mac. One scratch socket on the far machine, named `p83-<pid>-ctl` |
+| `npm run probe:realunknowns` | `<tmpdir>/p83-real-<pid>`, made fresh on every run | none on this Mac. One scratch socket on the far machine, named `p83-<pid>-sockpath`, and socket `gmux` over there for the sessions it creates by name |
 
 `smoke:execplane` and `smoke:remote` both honour a `GMUX_CONFIG_ROOT` already in
-the environment and fall back to the value above. The other two always use the
-value above.
+the environment and fall back to the value above. `smoke:config` and
+`smoke:machines` always use the value above. The two `probe:real` rows read no
+config root at all, because they drive no Electron process.
 
 Two more gates set a config root without naming it in `package.json`, because
 their harness makes a new one on every run. `npm run smoke:partition` uses
@@ -94,6 +97,185 @@ the ssh control socket and removes its own run directory. Since Phase 71
 `smoke:remote` provisions its own machine through
 `build/with-scratch-machine.mjs`, so the handoff mode is a convenience a person
 asks for and nothing depends on it.
+
+The two `probe:real` rows have no fixed root. `build/real-machine.mjs` makes
+`<tmpdir>/p83-real-<pid>` on every run and removes nothing else, so there is no
+root to point at wrongly and nothing carries over between runs.
+
+### Talking to a real machine
+
+Every remote number this product recorded before Phase 83 came from a loopback
+sshd whose far side is this Mac. `build/scratch-machine.mjs` says so in capitals
+in its own header, and it is right to. That carriage is a good gate and it is
+not a second machine, because the client, the server, the account, the
+filesystem and the tmux build are all the same computer. `build/real-machine.mjs`
+is the second carriage. Its far side is a machine a person names, and it runs
+only when that person asks for it.
+
+The evidence this phase produced on this Mac is committed at
+`docs/research/assets/phase83/`, with a README naming what each file is and what
+it is not.
+
+Two runners use it. `npm run probe:realmachine` measures the four exec shapes
+and the eight control mode steps against the named machine. `npm run
+probe:realunknowns` answers the five unknowns from research 54 section 7 and
+creates, attaches to, types into and reads back one session over there.
+
+This never runs in CI. The carriage refuses outright when `CI` is set. CI has
+no second machine to reach and no person watching the run, so a carriage that
+contacts a real computer has no business starting there.
+
+#### What you set
+
+| Variable | Default | What it is |
+| --- | --- | --- |
+| `GMUX_REAL_MACHINE_HOST` | none, required | The address to contact |
+| `GMUX_REAL_MACHINE_CONFIRM` | none, required | The same address again |
+| `GMUX_REAL_MACHINE_USER` | the name on this Mac | The account over there |
+| `GMUX_REAL_MACHINE_PORT` | 22 | The port |
+| `GMUX_REAL_MACHINE_TMUX` | `/usr/local/bin/tmux` | The program over there |
+| `GMUX_P83_LOCAL` | none | Path to the local 3.7c measurement, so each row prints the local answer beside the far one. It is committed at `docs/research/assets/phase83/p83-local-3.7c.json`, so the usual value is that path |
+
+#### The five refusals, asked before anything is contacted
+
+1. `GMUX_REAL_MACHINE_HOST` is unset or empty. No machine was named, so there is
+   nothing to contact.
+2. `GMUX_REAL_MACHINE_CONFIRM` is not byte equal to `GMUX_REAL_MACHINE_HOST`.
+   Two variables that have to agree is the whole rule that a person named this
+   machine, and a leftover variable from another run refuses instead of reaching
+   a machine nobody chose.
+3. `CI` is set to anything at all. See the paragraph above.
+4. The socket in play is `gmux` or `default`. The check is `refuseRealSockets`
+   from `build/scratch-machine.mjs`, imported rather than copied, so there is one
+   place that list of names lives.
+5. The host resolves to a loopback address. This carriage exists to reach a
+   second machine, so a loopback host means the person pointed it at the wrong
+   thing.
+
+A sixth check runs after the gate and is not a refusal of the same kind. The
+carriage sends one `true` over the connection and ends the run with exit 3 when
+it cannot sign in. Without it, a command that could not authenticate exits 255
+with an empty answer, and an empty session list reads exactly like a machine
+holding no sessions.
+
+#### The session ledger, which outranks every result
+
+Nothing this harness runs may kill, rename or reconfigure a session it did not
+create, on either side. The rules are mechanical rather than promised.
+
+1. Every scratch session name is `zz-p83-<what it is>-<pid>`.
+2. `createSession` refuses a name that does not start `zz-p83-`.
+3. `killSession` refuses a name that does not start `zz-p83-`, and it sends
+   `kill-session -t '=<name>'`, which is the exact match form. It never sends a
+   bare name.
+4. The far machine's session list is read before anything and after everything,
+   and the two are compared. A difference other than this run's own rows is a
+   failure whatever else passed.
+5. The far machine's socket is `gmux`, because that is the socket the product
+   uses and the point is to measure what the product meets. Reading it is free.
+   Every write to it goes through the two name checked functions above.
+   `probe:realmachine` writes to it not at all. It reads that socket's session
+   list twice and runs every shape and every step on a scratch socket instead.
+6. This Mac's own `-L gmux` server is counted before and after with
+   `list-sessions`, read only, and a moved count is a failure.
+7. `kill-server` is sent from exactly one file of this carriage,
+   `build/probe-real-machine.mjs`, at the control step that measures what the far
+   side says when its server ends. Its socket argument is composed by
+   `scratchSocket`, every name that composer builds starts `p83-`, and the
+   composer asks `refuseRealSockets` as well. Read the composer rather than the
+   sentence. There is no `pkill` and no `killall` anywhere in this carriage.
+
+#### What it reads and what it never writes
+
+It never reads the operator's `machines.json`. Every value comes from the
+environment. It never writes into Tortie's data directory. It copies Tortie's
+own identity record and the person's `~/.ssh/known_hosts` into its run directory
+and points `UserKnownHostsFile` at the copy, so `StrictHostKeyChecking=yes` can
+succeed on a machine the person already knows while both originals stay closed
+to writing. Each runner prints the size and modification time of both originals
+at the end and fails when either moved.
+
+#### The five unknowns, and which of them is answered today
+
+Research 54 section 7 names five unknowns. Phase 83 was meant to close all five
+against mac-pro and closed none of them there, because this Mac holds no ssh key
+that machine trusts. `ssh-add -l` answers "The agent has no identities" and
+`~/.ssh` holds no private key at all, so every sign in to mac-pro ends with
+"Permission denied (publickey,password,keyboard-interactive)" and exit 255. The
+harness exits 3 rather than reporting a pass, which is the behaviour that is
+wanted. A person has to put a key on this Mac that mac-pro trusts before any row
+below can say mac-pro.
+
+Four of the five have a local answer. A local answer is a real measurement of a
+mechanism and it is not an answer for mac-pro, so both are stated on every row.
+
+| Unknown | Answered on this Mac | Answered on mac-pro | The command |
+| --- | --- | --- | --- |
+| 1. What PATH a pane gets | yes, and it changes how a remote agent must be launched | no | step 17b of `npm run probe:execplane` |
+| 2. `new-session -c <a path that is not there>` | yes, and it made an existing refusal dead code | no | `new-session -d -s NAME -c /p83-not-there -P -F '#{session_id}'` |
+| 3. What `#{session_activity}` reports | yes, and it contradicted this tree | no | `list-sessions -F '#{session_activity} #{window_activity}'` at three moments |
+| 4. What a reboot does to the tmux socket directory | yes, once | no | `stat -f '%SB' /private/tmp/tmux-501` against `sysctl -n kern.boottime` |
+| 5. The far sshd channel ceiling | no. This Mac's own file says nothing about another machine | no | `grep -i maxsessions /etc/ssh/sshd_config` |
+
+**Unknown 1, measured 2026-08-18 by step 17b of `npm run probe:execplane`, on
+tmux 3.6a over a real ssh carriage.** A pane was made with
+`new-session -d -s NAME -- /bin/sh -c 'printenv PATH > FILE'` and the file was
+read back. It was done twice, with `set-environment -g PATH <the login shell's
+list>` sent again in between. That is the command
+`src/main/machines/remote-server.ts:161` sends when it boots a machine's server.
+
+```
+                                  what PATH read
+the login shell (-lc)             /Users/gdc/.local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:...
+the pane, first reading           /Users/gdc/.cargo/bin:/usr/bin:/bin:/usr/sbin:/sbin
+the pane, after the command       /Users/gdc/.cargo/bin:/usr/bin:/bin:/usr/sbin:/sbin
+show-environment -g PATH          the login shell's list, in full
+```
+
+The pane does not get the login shell's list. The server holds that list and
+hands none of it to the pane, which is research 47 section 2's local finding
+holding on the remote side as well. So a remote create cannot launch an agent by
+bare name, because `/opt/homebrew/bin` is not on the pane's PATH. The Phase 84
+entry in `docs/BACKLOG.md` carries the two candidates for what it does instead,
+being an `-e PATH=` pair on the `new-session` line or an absolute program path.
+
+What is not true here. This probe cannot produce a server that never had PATH
+set, because step 5 of the same run sets it. Both readings agree, which is a
+stronger answer than one reading, and neither of them is that third state.
+
+**Unknown 2, measured 2026-08-18 on tmux 3.6a at `/opt/homebrew/bin/tmux`, over a
+scratch socket.** The create exited 0, printed `$0`, and made a live session whose
+pane sat in `/Users/gdc` rather than the folder that was asked for. tmux printed
+no error of any kind, and `capture-pane` on that pane was empty. So
+`createFailure` at `src/main/machines/remote-sessions.ts` can never turn this
+case into `REMOTE_DIR_MISSING`, because a create that exits 0 throws nothing. The
+Phase 84 entry in `docs/BACKLOG.md` carries the full measurement and the fix,
+which is a read only check before the create rather than a rule about tmux's
+error text.
+
+**Unknown 3, measured 2026-08-18 on tmux 3.6a at `/opt/homebrew/bin/tmux`, over a
+scratch socket.** One session was created, left alone for three seconds, and then
+made to print a line. `#{session_activity}` read 1787079802 at all three moments.
+`#{window_activity}` read 1787079802 at the first two and 1787079805 after the
+line was printed. So `#{session_activity}` is not evidence that a session printed
+something, and a remote row never reads `running` because work happened. The
+Phase 85 entry in `docs/BACKLOG.md` carries this measurement and acts on it. The
+operator's own server was counted at 34 sessions before and 34 after.
+
+**Unknown 4, measured 2026-08-18 on this Mac, once.** `/private/tmp/tmux-501` was
+born at 2026-08-09T13:59:54. This Mac last booted at 2026-08-09 11:46:27, read
+from `sysctl -n kern.boottime`, and has been up 9 days since. The directory is
+2 hours and 13 minutes younger than the boot, so nothing in it survived that
+reboot and the directory was made again afterwards. That is one measurement on
+one machine and it is not a rule. It is not measured on mac-pro, and finding 9 of
+research 54 stays written as two branches until it is.
+
+**Unknown 5 is open and nothing here narrows it.** This Mac's
+`/etc/ssh/sshd_config` carries `#MaxSessions 10` at line 43, commented, so
+OpenSSH's compiled default of 10 channels on one connection applies here. That
+sentence is about this Mac. It says nothing about mac-pro, whose file nobody has
+read, and `sshd -T` needs root so even here the effective value was not read back
+from the running program.
 
 ### Environment variables for the tmux work
 

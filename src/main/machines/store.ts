@@ -160,13 +160,16 @@ export function machineRow(id: string): MachineRowV1 | null {
   return currentMachines().rows.find((row) => row.id === id) ?? null;
 }
 
-/** The four execution bearing fields of one row, in the gate's flat shape. */
+/** The five execution bearing fields of one row, in the gate's flat shape. */
 export function machineFieldsOf(row: MachineRowV1): MachineExecutionFields {
   return {
     host: row.host,
     user: row.user ?? null,
     port: row.port ?? null,
-    remoteTmuxPath: row.remoteTmuxPath ?? null
+    remoteTmuxPath: row.remoteTmuxPath ?? null,
+    // Phase 83. Absent reads as null, which is a machine nobody accepted a
+    // version for, and that is what every row in every file says today.
+    acceptedTmuxVersion: row.acceptedTmuxVersion ?? null
   };
 }
 
@@ -335,6 +338,31 @@ export function addMachineRow(row: MachineRowV1): MachinesSnapshot {
 export function removeMachineRow(id: string): MachinesSnapshot {
   const rows = currentMachines().rows.filter((row) => row.id !== id);
   return writeMachines(rows);
+}
+
+/**
+ * Write the version a person accepted for one machine, or clear it (Phase 83).
+ *
+ * It writes one field of one row and nothing else. It starts nothing, contacts
+ * no machine and does not record an agreement: `machines:acceptVersion` in
+ * `./ipc.ts` is the one caller, it checks the hash a person read BEFORE this
+ * runs, and it records the agreement after. A machine this id does not name
+ * leaves the file untouched.
+ */
+export function setMachineAcceptedVersion(
+  id: string,
+  version: string | null
+): MachinesSnapshot {
+  const rows = currentMachines().rows;
+  if (!rows.some((row) => row.id === id)) return currentMachines();
+  const next = rows.map((row) => {
+    if (row.id !== id) return row;
+    const copy: MachineRowV1 = { ...row };
+    if (version === null) delete copy.acceptedTmuxVersion;
+    else copy.acceptedTmuxVersion = version;
+    return copy;
+  });
+  return writeMachines(next);
 }
 
 // ---------------------------------------------------------------------------

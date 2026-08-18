@@ -6,8 +6,9 @@
  * WHAT THESE ARE FOR. A machine is a configuration row that names a computer
  * Tortie may sign in to as the user. Before Tortie signs in, a person reads what
  * it will run there and agrees to it once, out of band of any agent turn, and
- * the agreement is bound to a hash of the four fields that decide what runs.
- * Change one of those fields and it asks again.
+ * the agreement is bound to a hash of the five fields that decide what runs.
+ * Change one of those fields and it asks again. Phase 68 shipped four of them
+ * and Phase 83 added the accepted tmux version as the fifth.
  *
  * WHAT NO CHANNEL HERE DOES, and this is the point of the list rather than a
  * caveat on it.
@@ -99,6 +100,20 @@ export interface MachineRowView {
    * contract follows.
    */
   sessions?: number;
+  /**
+   * APPENDED (Phase 83): the version a person accepted for this machine, or
+   * null when they accepted none.
+   *
+   * The row draws it so a person can see what they accepted and withdraw it.
+   * It is one of the fields the confirm hash covers, so it appears in `lines`
+   * as well when it is set.
+   *
+   * Optional, and absent reads as null. Main sets it on every row it composes.
+   * The field is optional so that a fixture written before it existed is still
+   * a valid row, which is the rule every other appended field in this contract
+   * follows.
+   */
+  acceptedTmuxVersion?: string | null;
 }
 
 /** Everything the Machines section needs in one read. */
@@ -169,8 +184,8 @@ export interface MachineDraft {
    * sheet for exactly that id and returns it on {@link MachineTestOutcome.sheet}.
    *
    * WHY THIS FIELD EXISTS, stated so it is not removed as clutter. The confirm
-   * hash covers the id and the four execution bearing fields, and one of those
-   * four is the program path, which is not known until the connection test has
+   * hash covers the id and the five execution bearing fields, and one of those
+   * five is the program path, which is not known until the connection test has
    * finished. So the hash a person's agreement binds to cannot exist before the
    * test ends, and there is no other point in the flow where main could hand it
    * over. Without this the Add Machine sheet has no hash to send back and every
@@ -201,7 +216,7 @@ export interface MachineConfirmSheet {
  * (Phase 79.1).
  *
  * It is a SECOND agreement with a SECOND hash, and it is deliberately not the
- * machine's own. The machine hash covers the four fields that decide what runs
+ * machine's own. The machine hash covers the five fields that decide what runs
  * there, and putting a key on a machine changes none of them. This hash covers
  * the machine id, the address, the account name, the port, the file that will
  * be written on that machine, and the absolute path the private half will be
@@ -365,6 +380,25 @@ export interface MachineConfirmInput {
   linesRead: string[];
 }
 
+/**
+ * What the renderer sends when a person accepts the version a machine reports
+ * (Phase 83).
+ *
+ * It is the same shape a confirmation takes, with the version added, because it
+ * IS a confirmation: main writes the field into the row and records the
+ * agreement in one call, over the sheet the person read. A stale hash refuses
+ * and writes nothing.
+ */
+export interface MachineAcceptVersionInput {
+  id: string;
+  /** The exact version string the machine reported, from the Prepare result. */
+  version: string;
+  /** The hash the sheet was drawn from. Main refuses a stale one. */
+  hashRead: string;
+  /** The lines that were on the sheet. Recorded verbatim. */
+  linesRead: string[];
+}
+
 // ---------------------------------------------------------------------------
 // Making a key and putting it on a machine (Phase 79.1)
 // ---------------------------------------------------------------------------
@@ -464,6 +498,18 @@ export interface MachinePrepareResult {
   /** True when the machine's program search list was read for this connection. */
   pathCaptured: boolean;
   durationMs: number;
+  /**
+   * APPENDED (Phase 83): the sheet a person reads to accept the version this
+   * machine reports.
+   *
+   * Set only when the class is `version-unmeasured` and the machine named a
+   * version. A machine that would not name one has nothing to accept, and a
+   * machine Tortie has measured needs no acceptance. Null on every other
+   * outcome.
+   *
+   * Optional, so a fixture written against the older contract is still valid.
+   */
+  acceptSheet?: MachineConfirmSheet | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -570,6 +616,13 @@ export interface MachinesInvokeChannelMap {
   'machines:testCancel': { req: [testId: string]; res: void };
   'machines:add': { req: [input: MachineAddInput]; res: MachineRowView };
   'machines:confirm': { req: [input: MachineConfirmInput]; res: MachineRowView };
+  // PHASE 83. Writes the accepted version into the row and records the
+  // agreement in one call, over the sheet the person read. A stale hash refuses
+  // before either write, and nothing is started on any machine by this call.
+  'machines:acceptVersion': {
+    req: [input: MachineAcceptVersionInput];
+    res: MachineRowView;
+  };
   'machines:forget': { req: [id: string]; res: MachineRowView };
   'machines:remove': { req: [id: string]; res: MachinesResult };
   'machines:prepare': { req: [id: string]; res: MachinePrepareResult };
@@ -649,6 +702,9 @@ export interface GmuxMachinesExtras {
     testCancel(testId: string): Promise<void>;
     add(input: MachineAddInput): Promise<MachineRowView>;
     confirm(input: MachineConfirmInput): Promise<MachineRowView>;
+    // Phase 83. Records that a person accepted the version one machine reports.
+    // It contacts no machine and starts nothing.
+    acceptVersion(input: MachineAcceptVersionInput): Promise<MachineRowView>;
     forget(id: string): Promise<MachineRowView>;
     remove(id: string): Promise<MachinesResult>;
     prepare(id: string): Promise<MachinePrepareResult>;

@@ -95,12 +95,17 @@ export {
 } from './version';
 
 // Phase 69. Which versions Tortie has measured on ANOTHER machine, and the gate
-// that fails closed on one it has not. Every row carries control: false, because
-// this release opens no control connection and so cannot honestly claim one.
+// that fails closed on one it has not. Phase 71 measured the control plane, so
+// each row now carries a measurement per plane and there are TWO gates.
+// Phase 83 added a third version and a fourth exec outcome, `accepted`, which
+// is a version one person accepted for one machine. The control gate takes no
+// acceptance and never will.
 export {
+  decideRemoteControlGate,
   decideRemoteVersionGate,
   joinVersionList,
   TESTED_REMOTE_TMUX_VERSIONS,
+  type RemoteControlGate,
   type RemoteVersionGate,
   type TestedRemoteTmux
 } from './version';

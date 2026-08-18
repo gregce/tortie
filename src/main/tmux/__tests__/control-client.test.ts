@@ -24,6 +24,9 @@
  *    the block closes
  *  - `%exit` fails every pending command with TMUX_UNREACHABLE and names the
  *    machine
+ *  - PHASE 83. A child that is spawned and never greets is killed when the
+ *    deadline passes, the `greeting-timeout` event fires before `disconnected`,
+ *    and a child that greets in time is never killed at all.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -76,7 +79,8 @@ vi.mock('../supervisor', () => ({
   tmuxArgs: () => []
 }));
 
-const { TmuxControlClient, CONTROL_ATTACH_ARGS } = await import('../control-client');
+const { TmuxControlClient, CONTROL_ATTACH_ARGS, CONTROL_GREETING_DEADLINE_MS } =
+  await import('../control-client');
 type Client = InstanceType<typeof TmuxControlClient>;
 
 /** What the transport recorded, so the ORDER of precheck and spawn is testable. */
@@ -239,6 +243,71 @@ describe('death', () => {
     expect(err).toBeInstanceOf(GmuxError);
     expect((err as GmuxError).payload.code).toBe('TMUX_UNREACHABLE');
     expect((err as GmuxError).payload.message).toContain('studio');
+  });
+
+  // -------------------------------------------------------------------------
+  // Phase 83. The greeting deadline
+  // -------------------------------------------------------------------------
+  //
+  // The clock is faked, so nothing here waits ten seconds. What is measured is
+  // that the deadline exists, that it kills the child, and that a client which
+  // greeted is never touched by it.
+
+  it('kills a child that never greets, and says so before it says disconnected', async () => {
+    vi.useFakeTimers();
+    client = new TmuxControlClient(transport('studio'));
+    const seen: string[] = [];
+    client.on('greeting-timeout', () => seen.push('greeting-timeout'));
+    client.on('disconnected', () => seen.push('disconnected'));
+    await client.start();
+    expect(children[0]?.killed).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(CONTROL_GREETING_DEADLINE_MS + 1);
+
+    expect(children[0]?.killed).toBe(true);
+    // The event fires first, because the machines lane uses it to take the
+    // client away before the ordinary disconnect handler runs.
+    expect(seen[0]).toBe('greeting-timeout');
+    expect(client.connected).toBe(false);
+  });
+
+  it('leaves a child that greeted in time alone', async () => {
+    vi.useFakeTimers();
+    client = new TmuxControlClient(transport('studio'));
+    let timeouts = 0;
+    client.on('greeting-timeout', () => {
+      timeouts += 1;
+    });
+    await client.start();
+    feed(0, GREETING);
+    expect(client.connected).toBe(true);
+
+    await vi.advanceTimersByTimeAsync(CONTROL_GREETING_DEADLINE_MS * 3);
+
+    expect(timeouts).toBe(0);
+    expect(children[0]?.killed).toBe(false);
+    expect(client.connected).toBe(true);
+  });
+
+  it('gives every spawn its own deadline, not only the first', async () => {
+    vi.useFakeTimers();
+    client = new TmuxControlClient(transport('studio'));
+    let timeouts = 0;
+    client.on('greeting-timeout', () => {
+      timeouts += 1;
+    });
+    await client.start();
+    await vi.advanceTimersByTimeAsync(CONTROL_GREETING_DEADLINE_MS + 1);
+    expect(timeouts).toBe(1);
+    expect(spawns.length).toBe(1);
+
+    // The reconnect backoff starts at 500 ms, so the second child exists well
+    // before the second deadline could pass.
+    await vi.advanceTimersByTimeAsync(600);
+    expect(spawns.length).toBe(2);
+    await vi.advanceTimersByTimeAsync(CONTROL_GREETING_DEADLINE_MS + 1);
+    expect(timeouts).toBe(2);
+    expect(children[1]?.killed).toBe(true);
   });
 
   it('refuses a command when there is no child, naming the machine', async () => {

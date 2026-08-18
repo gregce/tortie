@@ -5,8 +5,10 @@
  *
  * WHAT IT IS FOR. A machine row names a computer Tortie may sign in to as the
  * user, and a program it may run there. The claim that comes with that is
- * large: a person agrees once, the agreement is bound to the four fields that
- * decide what runs, and nothing else can move it. A claim like that decays.
+ * large: a person agrees once, the agreement is bound to the five fields that
+ * decide what runs, and nothing else can move it. Phase 68 shipped four of them
+ * and Phase 83 added the accepted tmux version as the fifth. A claim like that
+ * decays.
  * This gate is the executable half of it, and it costs about a second.
  *
  * It is the fourth gate of its shape, beside `conformance:agents`,
@@ -14,7 +16,7 @@
  * no tmux server, no Electron, no manifest, no file under the person's home, no
  * request and no write anywhere. Safe on a machine with live sessions on it.
  *
- * THE FORTY CONDITIONS IT FAILS ON. Each one is a way a person's agreement
+ * THE FORTY FIVE CONDITIONS IT FAILS ON. Each one is a way a person's agreement
  * could come to cover something they did not read, a way a refusal could quietly
  * stop being a refusal, or (from 11 on) a way a command Tortie sends to another
  * machine could come to land somewhere nobody chose.
@@ -29,7 +31,10 @@
  *  6. A machine id and an agent id that are the same bare string produce the
  *     same record key or the same hash.
  *  7. The normalizer key set and MACHINE_EXECUTION_FIELDS disagree, which is
- *     how a fifth field added later would fall out of the hash.
+ *     how a sixth field added later would fall out of the hash. PHASE 83 MOVED
+ *     WHICH ROW THIS READS. The key set is taken from a row carrying every
+ *     field, because the fifth field is appended to the hash text only when it
+ *     is set. Condition 43 reads the row that carries no acceptance.
  *  8. The connection test argv does not name exactly one record file option,
  *     or the file Tortie owns is not first in it, or the person's own file is
  *     not named second, or either path is unquoted. Also fails when any
@@ -57,8 +62,10 @@
  *     value or scope flag, in either direction; the local re-assert order moved;
  *     or a second row started taking its value from Settings.
  * 17. `TESTED_REMOTE_TMUX_VERSIONS` is empty, a row is missing its measurement
- *     date or its note, or a row claims control mode was measured while the exec
- *     plane was not. Phase 69 and Phase 70 failed on ANY control claim, because
+ *     date, its note or its subject, or a row claims control mode was measured
+ *     while the exec plane was not. PHASE 83 ADDED THE SUBJECT. A row names
+ *     which copy of that version was read, because a distribution's patched
+ *     build is not the same subject as an upstream tarball. Phase 69 and Phase 70 failed on ANY control claim, because
  *     neither release opened a control connection. Phase 71 measures the dialect
  *     with `npm run probe:controldialect` and flips the field for the versions
  *     that matched, so the rule is now that a claim carries its measurement.
@@ -106,9 +113,14 @@
  *     key path, each varied alone; it does not carry the file it writes on the
  *     other machine or the record prefix; it carries `remoteTmuxPath`, a label or
  *     a colour; or it equals the machine execution hash for the same machine.
- *     PHASE 79.1 DID NOT ADD A FIELD TO THE MACHINE HASH, and conditions 1, 2
- *     and 7 still hold that set at four. Installing a key is a second act, so it
- *     gets a second agreement over its own facts.
+ *     PHASE 83 ADDED A FIFTH FIELD TO THE MACHINE HASH, being
+ *     `acceptedTmuxVersion`, and conditions 1, 2, 7 and 43 now hold that set at
+ *     five. THE KEY INSTALL HASH STILL DOES NOT CARRY IT, and that is the point
+ *     of this condition rather than an omission. Installing a key is a second
+ *     act over its own facts, being the machine id, the address, the account
+ *     name, the port, the file written on that machine and the path the private
+ *     half is kept at here. Which version of tmux that machine runs is not one
+ *     of those facts, and changing it changes nothing about the key.
  * 29. The key install argv is missing `BatchMode=no`, `StrictHostKeyChecking=yes`,
  *     `NumberOfPasswordPrompts=1`, `PubkeyAuthentication=no` or
  *     `IdentitiesOnly=yes`; weakens the host key check; or does not name exactly
@@ -153,6 +165,24 @@
  * 40. `remote-scripts.ts` imports anything at all, or `carriage.ts`,
  *     `context.ts`, `exec-plane.ts` or `control-plane.ts` imports the door.
  *     `execRemoteShell` is called from a file that is not on the named list.
+ * 41. The confirm hash does not move for `acceptedTmuxVersion` varied alone, or
+ *     does not move when a row that carried one is set back to carrying none.
+ *     This is the condition refusal 8 in CLAUDE.md asks for: which version of a
+ *     program Tortie will start work on is a field that decides what runs.
+ * 42. The hash of a row whose `acceptedTmuxVersion` is null differs from the
+ *     hex pinned in this gate, which was taken from this same gate on
+ *     2026-08-18, before Phase 83 changed anything. This is what proves the new
+ *     field does not ask every already confirmed machine to be confirmed again.
+ * 43. `MACHINE_EXECUTION_FIELDS` is not five, does not carry
+ *     `acceptedTmuxVersion`, or the key set the hash covers for a row with NO
+ *     acceptance is not exactly the other four.
+ * 44. `decideRemoteControlGate` gives a different answer when a version is
+ *     accepted for the exec plane, an acceptance carries a version nobody could
+ *     read, or an acceptance outranks a measurement.
+ * 45. A row whose `acceptedTmuxVersion` is not a plain version string is not
+ *     dropped whole, or is dropped without a problem naming the field and the
+ *     reason, or takes a valid row down with it. It is condition 5's mechanism
+ *     over five hostile values.
  *
  * WHAT IT DOES NOT PROVE, stated so nobody reads more into a pass. The record
  * is sealed through `safeStorage`, which needs an Electron process, so this
@@ -349,13 +379,17 @@ if (data.agentCanonicalCarriesPrefix) {
 // ---------------------------------------------------------------------------
 
 const declared = [...data.executionFields].sort();
-if (data.hashedKeys.join('|') !== declared.join('|')) {
-  const missing = declared.filter((k) => !data.hashedKeys.includes(k));
-  const extra = data.hashedKeys.filter((k) => !declared.includes(k));
+// PHASE 83. Read from a row carrying EVERY field. The fifth is appended to the
+// hash text only when it is set, so a row with no acceptance covers four keys on
+// purpose, and condition 43 is what holds that half.
+const hashedEverything = data.hashedKeysAccepted ?? data.hashedKeys;
+if (hashedEverything.join('|') !== declared.join('|')) {
+  const missing = declared.filter((k) => !hashedEverything.includes(k));
+  const extra = hashedEverything.filter((k) => !declared.includes(k));
   fail(
     'the fields the hash actually covered and MACHINE_EXECUTION_FIELDS disagree. ' +
       `Missing from the hash: ${missing.join(', ') || 'nothing'}; hashed but not ` +
-      `declared: ${extra.join(', ') || 'nothing'}. This is how a fifth field added ` +
+      `declared: ${extra.join(', ') || 'nothing'}. This is how a sixth field added ` +
       'later falls out of the hash without anything failing.'
   );
 }
@@ -928,6 +962,15 @@ for (const row of remoteVersions) {
   if (Number(row.noteLength) < 20) {
     fail(
       `the row for ${String(row.version)} says nothing about what was measured.`
+    );
+  }
+  // PHASE 83. Which copy of that version was read.
+  if (typeof row.subject !== 'string' || Number(row.subjectLength) < 10) {
+    fail(
+      `the row for ${String(row.version)} does not say which copy of that ` +
+        `version was read. A distribution's patched build is not the same ` +
+        `subject as an upstream tarball, and a row that does not say which one ` +
+        `it read is a row the next reader cannot trust.`
     );
   }
   // PHASE 71 CHANGED THIS CHECK, and the change is the whole shape of the
@@ -2031,6 +2074,175 @@ const key = data.keyInstall ?? {};
 }
 
 // ---------------------------------------------------------------------------
+// 41 to 45. The version a person accepted for one machine (Phase 83)
+// ---------------------------------------------------------------------------
+
+/**
+ * The hash of the gate's own base machine, with no accepted version.
+ *
+ * TAKEN FROM THIS GATE ON 2026-08-18, on the commit before Phase 83 changed
+ * anything, by running `build/machines-conformance-probe.mts` and reading its
+ * `base`. It is hard coded here on purpose. Phase 83 added a fifth field to the
+ * machine hash, and the one property that keeps every machine a person has
+ * already confirmed confirmed is that a row carrying no acceptance hashes to
+ * exactly what it hashed to before. A pinned hex is the only way to check that,
+ * because every other value in this gate is computed by the same code that
+ * would be wrong.
+ *
+ * If this number ever has to move, every machine every person confirmed is
+ * being asked again, and that is a decision rather than a rebase.
+ */
+const UNACCEPTED_HASH_2026_08_18 =
+  'dbd8aa39c1dd0154b556593a2a4ef56e2471afd575d98f3f8431abe20c445d46';
+
+const accepted = data.acceptedVersion ?? null;
+const acceptVerdicts = [];
+
+if (accepted === null) {
+  fail(
+    'the probe printed nothing about the accepted version field, so conditions ' +
+      '41 to 43 checked nothing at all.'
+  );
+} else {
+  // 41. The hash moves for the fifth field, in both directions.
+  const movesWhenSet = accepted.accepted !== accepted.unaccepted;
+  const movesBetweenVersions = accepted.accepted !== accepted.acceptedOther;
+  const movesWhenCleared = accepted.backToUnset !== accepted.accepted;
+  if (!movesWhenSet) {
+    fail(
+      'accepting a version left the confirm hash unchanged. A person would be ' +
+        'able to make Tortie start work on a version nobody measured without ' +
+        'the sheet ever moving.'
+    );
+  }
+  if (!movesBetweenVersions) {
+    fail(
+      'two different accepted versions hashed to the same value, so an ' +
+        'acceptance of one version would carry to another.'
+    );
+  }
+  if (!movesWhenCleared) {
+    fail(
+      'withdrawing an accepted version left the confirm hash unchanged. ' +
+        'Removing a value changes what runs exactly as much as replacing it.'
+    );
+  }
+  acceptVerdicts.push({
+    field: 'acceptedTmuxVersion',
+    kind: 'execution',
+    moves: movesWhenSet && movesBetweenVersions && movesWhenCleared ? 'yes' : 'NO',
+    verdict:
+      movesWhenSet && movesBetweenVersions && movesWhenCleared ? 'pass' : 'FAIL'
+  });
+
+  // 42. A machine nobody accepted a version for is not asked again.
+  if (accepted.unaccepted !== UNACCEPTED_HASH_2026_08_18) {
+    fail(
+      `a machine with no accepted version now hashes to ${String(
+        accepted.unaccepted
+      )} and it hashed to ${UNACCEPTED_HASH_2026_08_18} before Phase 83. Every ` +
+        'machine every person confirmed would be asked to confirm it again, ' +
+        'and asking again for a change that cannot affect them is how a person ' +
+        'is trained to click through the sheet that matters.'
+    );
+  }
+  if (accepted.backToUnset !== UNACCEPTED_HASH_2026_08_18) {
+    fail(
+      'a row whose accepted version was withdrawn does not hash back to what ' +
+        'it hashed to before the acceptance, so withdrawing would leave the ' +
+        'machine permanently unconfirmed.'
+    );
+  }
+  if (accepted.unacceptedCanonicalCarriesKey) {
+    fail(
+      'the hash text of a row with no accepted version carries the key ' +
+        'anyway, which is the same hole stated above.'
+    );
+  }
+  if (!accepted.canonicalCarriesVersion) {
+    fail(
+      'the hash text of a row WITH an accepted version does not carry the ' +
+        'version, so the acceptance is not covered by the hash at all.'
+    );
+  }
+  const sheetSaysIt = (accepted.sheetLines ?? []).some((line) =>
+    String(line).includes('3.9a')
+  );
+  if (!sheetSaysIt) {
+    fail(
+      'the sheet a person reads does not name the version they would be ' +
+        'accepting, so the lines and the hash do not say the same thing.'
+    );
+  }
+}
+
+// 43. The declared list is five, and the four Phase 68 fields still stand alone.
+const declaredFields = [...(data.executionFields ?? [])];
+if (declaredFields.length !== 5) {
+  fail(
+    `MACHINE_EXECUTION_FIELDS lists ${String(declaredFields.length)} field(s) ` +
+      'and Phase 83 holds it at five.'
+  );
+}
+if (!declaredFields.includes('acceptedTmuxVersion')) {
+  fail(
+    'MACHINE_EXECUTION_FIELDS does not carry acceptedTmuxVersion, so the field ' +
+      'that decides whether Tortie starts work on an unmeasured version is not ' +
+      'declared as one that decides what runs.'
+  );
+}
+const phase68Keys = declaredFields
+  .filter((field) => field !== 'acceptedTmuxVersion')
+  .sort();
+if ([...(data.hashedKeys ?? [])].sort().join('|') !== phase68Keys.join('|')) {
+  fail(
+    'the key set the hash covers for a row with NO accepted version is ' +
+      `${(data.hashedKeys ?? []).join(', ')} rather than the four Phase 68 ` +
+      `fields ${phase68Keys.join(', ')}. That is the property that keeps every ` +
+      'already confirmed machine confirmed.'
+  );
+}
+
+// 44. An acceptance is for the exec plane and reaches no other one.
+const reach = data.acceptanceReach ?? null;
+if (reach === null) {
+  fail('the probe printed nothing about where an acceptance reaches.');
+} else {
+  if (reach.exec !== 'accepted') {
+    fail(
+      `the exec gate answered ${String(reach.exec)} for a version a person ` +
+        'accepted. The whole surface exists to make that answer accepted.'
+    );
+  }
+  if (reach.control !== 'unmeasured') {
+    fail(
+      `the control gate answered ${String(reach.control)} for a version that ` +
+        'was accepted for the exec plane only. An acceptance says nothing ' +
+        'about the wire protocol, and the one measured failure in this tree is ' +
+        'a control mode hang.'
+    );
+  }
+  if (reach.execWithoutAcceptance !== 'unmeasured') {
+    fail(
+      'the exec gate allowed a version nobody measured and nobody accepted.'
+    );
+  }
+  if (reach.unreadableWithAcceptance !== 'unreadable') {
+    fail(
+      'an acceptance carried a version nobody could read. There is nothing for ' +
+        'an acceptance to bind to when the machine named no version.'
+    );
+  }
+  if (reach.measuredBeatsAccepted !== 'measured') {
+    fail(
+      'a measured version answered as accepted rather than as measured, so a ' +
+        "version that later earns a measurement would still be carried by a " +
+        "person's acceptance."
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // The tables, printed whatever the verdict, because the point is that a person
 // can read them.
 // ---------------------------------------------------------------------------
@@ -2039,7 +2251,7 @@ const pad = (value, width) => String(value).padEnd(width);
 
 process.stdout.write('\nfield                kind          hash moves  verdict\n');
 process.stdout.write('-'.repeat(60) + '\n');
-for (const row of fieldVerdicts) {
+for (const row of [...fieldVerdicts, ...acceptVerdicts]) {
   process.stdout.write(
     `${pad(row.field, 20)} ${pad(row.kind, 13)} ${pad(row.moves, 11)} ${row.verdict}\n`
   );
@@ -2610,6 +2822,6 @@ if (failures.length > 0) {
 }
 
 process.stdout.write(
-  '\nPASS. A machine confirmation is bound to the four fields that decide what runs, to ' +
+  '\nPASS. A machine confirmation is bound to the five fields that decide what runs, to ' +
     'the prefixed id, and to nothing else. Nothing was started by this gate.\n'
 );

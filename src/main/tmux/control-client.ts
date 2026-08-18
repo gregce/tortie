@@ -50,6 +50,19 @@
  *    control carriage. That is the opposite of the attach carriage, where `-u`
  *    is load bearing (Bug C, Phase 9.2), and the difference is measured rather
  *    than assumed. The full table is docs/research/52-control-mode-dialect.md.
+ *
+ * ## Phase 83: the greeting has a deadline, and it lives here
+ *
+ * A server that prints `%exit` and then holds the pipe open leaves this child
+ * alive with nothing arriving on it. Before Phase 83 nothing waited for the
+ * greeting and nothing gave up on it, so that child stayed for the life of the
+ * process and the person was told nothing.
+ *
+ * The deadline is inside this class rather than in its caller, and the reason
+ * is {@link TmuxControlClient.scheduleReconnect}. Every retry spawns a child, so
+ * a deadline outside the client would cover the first spawn and none of the
+ * others. One timer here covers every spawn there will ever be, local and
+ * remote.
  */
 
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
@@ -65,6 +78,25 @@ import { ensureServer, tmuxArgs } from './supervisor';
 
 /** Name of the pinned control session (never shown in the UI). */
 export const CONTROL_SESSION_NAME = 'gmux-control';
+
+/**
+ * How long a control client gets to finish its greeting after its child is
+ * spawned, before Tortie calls it a hang and takes the child away.
+ *
+ * 10,000 ms. For a remote client the precheck completed over this same link a
+ * moment earlier, inside its own 5,000 ms cap, so the greeting gets twice what
+ * a one line read already took. MEASURED on this Mac on 2026-08-18 and printed
+ * by `node build/probe-control-deadline.mjs`, over four runs: the local
+ * greeting completes in 22 ms to 26 ms and the loopback remote greeting in
+ * 9 ms to 10 ms, so the budget is about 385 times the slowest of them.
+ *
+ * The remote number is a floor rather than a typical figure. The far side there
+ * is this same Mac, and the connection the precheck opened is still open, so
+ * that greeting crossed no network at all. A machine on the other side of a
+ * house is slower than this and a machine on the other side of a country is
+ * slower again, which is why the budget is set against the local number.
+ */
+export const CONTROL_GREETING_DEADLINE_MS = 10_000;
 
 /**
  * The tmux arguments that open the event bus, on either kind of machine.
@@ -157,6 +189,15 @@ export interface ControlClientEvents {
   notification: [event: ControlEvent];
   /** Non-fatal internal errors (reconnect keeps running). */
   error: [error: Error];
+  /**
+   * The child was spawned and the greeting did not arrive inside the deadline.
+   *
+   * PHASE 83. It fires BEFORE `disconnected`, and the child is already dead by
+   * the time it fires. A listener is optional: an EventEmitter only throws for
+   * an unlistened `'error'`, so the local client, which has no listener for
+   * this, is unchanged.
+   */
+  'greeting-timeout': [];
 }
 
 interface PendingCommand {
@@ -184,6 +225,14 @@ export class TmuxControlClient extends EventEmitter<ControlClientEvents> {
   private reconnectDelayMs = RECONNECT_MIN_MS;
   private reconnectTimer: NodeJS.Timeout | null = null;
   private starting = false;
+  /**
+   * Armed on every spawn, cleared the moment the greeting block closes.
+   *
+   * PHASE 83. It is one field rather than one per spawn because there is at
+   * most one child at a time, and `handleDisconnect` clears it before any
+   * reconnect arms a new one.
+   */
+  private greetingTimer: NodeJS.Timeout | null = null;
 
   /**
    * @param transport How this client reaches its server. Defaults to the server
@@ -230,6 +279,9 @@ export class TmuxControlClient extends EventEmitter<ControlClientEvents> {
       this.greetingConsumed = false;
       this.blockLines = null;
       this.lineBuffer.reset();
+      // PHASE 83. Armed immediately after spawn and before any listener, so a
+      // child that answers nothing at all is still covered.
+      this.armGreetingTimer(child);
 
       child.stdout.setEncoding('utf8');
       child.stdout.on('data', (chunk: string) => {
@@ -269,6 +321,7 @@ export class TmuxControlClient extends EventEmitter<ControlClientEvents> {
   /** Stop for good (app quit). No reconnect after this. */
   stop(): void {
     this.stopped = true;
+    this.clearGreetingTimer();
     if (this.reconnectTimer !== null) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
@@ -383,6 +436,9 @@ export class TmuxControlClient extends EventEmitter<ControlClientEvents> {
     if (!this.greetingConsumed) {
       // The attach itself emits one guard block before any of our commands.
       this.greetingConsumed = true;
+      // PHASE 83. This is the ONE place the greeting completes, so it is the
+      // one place the deadline is cleared on success.
+      this.clearGreetingTimer();
       this.reconnectDelayMs = RECONNECT_MIN_MS;
       this.flushOutbox();
       this.emit('connected');
@@ -395,6 +451,7 @@ export class TmuxControlClient extends EventEmitter<ControlClientEvents> {
   }
 
   private handleDisconnect(reason: string | undefined): void {
+    this.clearGreetingTimer();
     const hadChild = this.child !== null;
     if (this.child !== null) {
       const child = this.child;
@@ -426,6 +483,37 @@ export class TmuxControlClient extends EventEmitter<ControlClientEvents> {
       if (p !== undefined) p.reject(err);
     }
     this.outbox.length = 0;
+  }
+
+  /**
+   * Start the greeting deadline for one spawned child.
+   *
+   * On fire the child is killed EXPLICITLY and first, because the whole failure
+   * this exists for is a child that will not exit on its own. `stop()`'s kill is
+   * deliberately not reused: `stop()` also sets `stopped`, which would suppress
+   * the reconnect the local path relies on.
+   */
+  private armGreetingTimer(child: ChildProcessWithoutNullStreams): void {
+    this.clearGreetingTimer();
+    this.greetingTimer = setTimeout(() => {
+      this.greetingTimer = null;
+      if (this.child !== child) return;
+      child.kill('SIGKILL');
+      this.emit('greeting-timeout');
+      this.handleDisconnect(
+        `the greeting did not arrive within ${String(
+          CONTROL_GREETING_DEADLINE_MS
+        )} ms`
+      );
+    }, CONTROL_GREETING_DEADLINE_MS);
+    // Never hold the process open just for this timer.
+    this.greetingTimer.unref();
+  }
+
+  private clearGreetingTimer(): void {
+    if (this.greetingTimer === null) return;
+    clearTimeout(this.greetingTimer);
+    this.greetingTimer = null;
   }
 
   private scheduleReconnect(): void {

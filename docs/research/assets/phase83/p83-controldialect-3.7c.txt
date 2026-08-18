@@ -1,0 +1,28 @@
+[p71] 0. the operator's server before the run: 33 session(s), history-limit 25000, exit-empty off
+[p71] 0.5. the carriage and the programs: sshd pid 32124 on 127.0.0.1:38074. Programs measured: 3.7c at /private/tmp/claude-501/-Users-gdc-gmux/69469eba-62a7-4552-8d1e-1ba54287a99f/scratchpad/wt-p83/build/vendor/tmux-probe/3.7c/bin/tmux, 3.7b at /private/tmp/claude-501/-Users-gdc-gmux/69469eba-62a7-4552-8d1e-1ba54287a99f/scratchpad/wt-p83/build/vendor/tmux/bin/tmux
+[p71] 1. 3.7c step 1, the greeting block: local "%begin 1787076410 283 0\n%end 1787076410 283 0\n%window-add @0\n%sessions-changed\n%session-changed $0 gmux-control\n" against remote "%begin 1787076413 283 0\n%end 1787076413 283 0\n%window-add @0\n%sessions-changed\n%session-changed $0 gmux-control\n" — IDENTICAL
+[p71] 2. 3.7c step 2, refresh-client -f no-output: "%begin 1787076414 289 1\n%end 1787076414 289 1\n" — IDENTICAL to local
+[p71] 3. 3.7c step 3, the guard shape: local ["%begin 1787076410 283 0","%end 1787076410 283 0"] against remote ["%begin 1787076413 283 0","%end 1787076413 283 0"] — same word and same flag on every guard
+[p71] 4. 3.7c step 4, %sessions-changed on create, kill and rename: create ["%unlinked-window-add @1","%sessions-changed","%unlinked-window-renamed @1 kernel_task"], rename ["%session-renamed $1 p71-worker-32074-2"], kill ["%sessions-changed","%unlinked-window-close @1","%unlinked-window-close @2"] — same notifications as local
+[p71] 5. 3.7c step 5, %session-renamed and its argument order: "%session-renamed $1 p71-worker-32074-2" — identical to local
+[p71] 6. 3.7c step 6, window and session-changed traffic: ["%session-window-changed $1 @2","%unlinked-window-add @2","%unlinked-window-renamed @2 tmux","%unlinked-window-renamed @1 zsh"] — same parsed notifications as local. Notifications with no named arm, which land in other-notification: %begin, %end, %window-add, %unlinked-window-add, %unlinked-window-renamed, %unlinked-window-close
+[p71] 7. 3.7c step 7, %exit when the far side's server is killed: "%exit" after 46 ms — identical to local
+[p71] 9. 3.7c step 9, one list over control against the same over exec: 117 bytes against 117 bytes — BYTE EQUAL
+[p71]    3.7c VERDICT: steps 1, 2, 3, 4, 5, 6, 7, 9 matched. measured.control may be true
+[p71] 1. 3.7b step 1, the greeting block: local "%begin 1787076416 283 0\n%end 1787076416 283 0\n%window-add @0\n%sessions-changed\n%session-changed $0 gmux-control\n" against remote "%begin 1787076418 283 0\n%end 1787076418 283 0\n%window-add @0\n%sessions-changed\n%session-changed $0 gmux-control\n" — IDENTICAL
+[p71] 2. 3.7b step 2, refresh-client -f no-output: "%begin 1787076419 289 1\n%end 1787076419 289 1\n" — IDENTICAL to local
+[p71] 3. 3.7b step 3, the guard shape: local ["%begin 1787076416 283 0","%end 1787076416 283 0"] against remote ["%begin 1787076418 283 0","%end 1787076418 283 0"] — same word and same flag on every guard
+[p71] 4. 3.7b step 4, %sessions-changed on create, kill and rename: create ["%unlinked-window-add @1","%sessions-changed","%unlinked-window-renamed @1 tmux"], rename ["%session-renamed $1 p71-worker-32074-2"], kill ["%sessions-changed","%unlinked-window-close @1","%unlinked-window-close @2"] — same notifications as local
+[p71] 5. 3.7b step 5, %session-renamed and its argument order: "%session-renamed $1 p71-worker-32074-2" — identical to local
+[p71] 6. 3.7b step 6, window and session-changed traffic: ["%session-window-changed $1 @2","%unlinked-window-add @2","%unlinked-window-renamed @2 kernel_task","%unlinked-window-renamed @1 zsh"] — same parsed notifications as local. Notifications with no named arm, which land in other-notification: %begin, %end, %window-add, %unlinked-window-add, %unlinked-window-renamed, %unlinked-window-close
+[p71] 7. 3.7b step 7, %exit when the far side's server is killed: "%exit" after 50 ms — identical to local
+[p71] 9. 3.7b step 9, one list over control against the same over exec: 117 bytes against 117 bytes — BYTE EQUAL
+[p71]    3.7b VERDICT: steps 1, 2, 3, 4, 5, 6, 7, 9 matched. measured.control may be true
+[p71] 8. the -u question, asked of the control plane: IDENTICAL on 3.7c, 106 bytes each. -u is NOT added to the control carriage
+[p71] 10. a killed far side: 0.1 s from the kill of the far side to the control child exiting
+[p71] 11. a frozen far side: 19.7 s from the freeze of the far side to the control child exiting, with ServerAliveInterval=5 and ServerAliveCountMax=3
+[p71] 12. the operator's server after the run: 33 session(s), history-limit 25000, exit-empty off. IDENTICAL to before.
+[p71] killed only these recorded pids: 32124, 32181, 33472, 34774, 36235, 37547, 37907, 38445, 38479, 38581
+[p71] versions whose control stream matched the local child on steps 1 to 9: 3.7c, 3.7b
+
+[p71] PASS. 22 rows, every one measured. The operator's server is identical before and after.

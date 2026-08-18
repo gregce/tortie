@@ -127,6 +127,19 @@ export interface RemoteMachineContext {
   readonly controlPath: string;
   /** The two identity record files, Tortie's own first. */
   readonly hostKeys: MachineHostKeyFiles;
+  /**
+   * The version a person accepted for this machine, or null (Phase 83).
+   *
+   * IT REACHES NO ARGV. Nothing in this file or in `./exec-plane.ts` composes a
+   * command out of it. It is carried here so `./prepare.ts` can ask the version
+   * gate about it without reading the store a second time, and it is only ever
+   * compared against the version the machine reports.
+   *
+   * IT IS OPTIONAL, and absent means the same as null, which is a machine
+   * nobody accepted a version for. A context written before this field existed
+   * is still a valid one, and it composes the same command it always did.
+   */
+  readonly acceptedTmuxVersion?: string | null;
 }
 
 export type MachineContext = LocalMachineContext | RemoteMachineContext;
@@ -337,7 +350,10 @@ export function buildRemoteMachineContext(
     // The ONE place the remote socket name comes from. Never a literal.
     socket: activeTmuxSocket(input.env),
     controlPath,
-    hostKeys
+    hostKeys,
+    // Phase 83. Taken from the fields the gate just agreed to, so an acceptance
+    // that is not part of the confirmed hash cannot reach this object.
+    acceptedTmuxVersion: input.fields.acceptedTmuxVersion ?? null
   };
 }
 

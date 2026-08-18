@@ -140,13 +140,26 @@ describe('the failure direction', () => {
 });
 
 describe('the row helpers', () => {
-  it('reads the four execution bearing fields, with null for the absent ones', () => {
+  it('reads the five execution bearing fields, with null for the absent ones', () => {
     expect(machineFieldsOf({ id: 'bare', host: 'a.example' })).toEqual({
       host: 'a.example',
       user: null,
       port: null,
-      remoteTmuxPath: null
+      remoteTmuxPath: null,
+      // Phase 83. A row nobody accepted a version for reads null, which is
+      // every row in every file this product has written so far.
+      acceptedTmuxVersion: null
     });
+  });
+
+  it('reads the version a person accepted when the row carries one', () => {
+    expect(
+      machineFieldsOf({
+        id: 'bare',
+        host: 'a.example',
+        acceptedTmuxVersion: '3.9a'
+      }).acceptedTmuxVersion
+    ).toBe('3.9a');
   });
 
   it('shows the label when there is one, and the address when there is not', () => {

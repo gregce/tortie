@@ -1,0 +1,12 @@
+{
+  "note": "PROBE ONLY. Nothing here is bundled, signed, or shipped. build/build-tmux-version.mjs is the only reader. These versions exist so a probe can measure a server Tortie will talk to on another machine. The client Tortie ships is pinned in build/tmux-release.json and it does not move because a row is added here.",
+  "versions": {
+    "3.7c": {
+      "url": "https://github.com/tmux/tmux/releases/download/3.7c/tmux-3.7c.tar.gz",
+      "sha256": "7c60cae9a0e25288e2e24750aafc9e8800fc7fd4555e447e1b29ee4201cfb3bf",
+      "why": "The version the operator's Mac Pro runs, read from Homebrew's build on 2026-08-18.",
+      "configureArgs": ["--disable-jemalloc"],
+      "configureArgsWhy": "MEASURED on 2026-08-18. tmux 3.7c's configure STOPS on macOS unless it is given --enable-jemalloc or --disable-jemalloc, and 3.7b's did not. --enable-jemalloc needs an installed jemalloc found through pkg-config. This build replaces the pkg-config search path with its own two scratch prefixes so that Homebrew cannot leak into the link, and this Mac has no jemalloc anyway, so --enable-jemalloc cannot succeed here. Homebrew's own build of 3.7c is expected to use jemalloc, because \"Build with jemalloc on macOS\" is the first line of the 3.7b to 3.7c change list. The allocator does not decide the wire protocol or the four exec shapes this build exists to measure. The row in src/main/tmux/version.ts names which copy was measured, and it says plainly that it is not Homebrew's build."
+    }
+  }
+}

@@ -415,6 +415,7 @@ describe('decideRemoteControlGate', () => {
         version: '4.0',
         measured: { exec: true, control: false },
         measuredAt: '2026-08-17',
+        subject: 'a made up copy, for this test only',
         note: 'the exec plane only'
       }
     ];
@@ -435,6 +436,7 @@ describe('decideRemoteControlGate', () => {
         version: '4.0',
         measured: { exec: true, control: true },
         measuredAt: '2026-08-17',
+        subject: 'a made up copy, for this test only',
         note: 'both planes'
       }
     ];
@@ -447,7 +449,7 @@ describe('decideRemoteControlGate', () => {
   it('refuses a version it could not read, and names what it has measured', () => {
     const gate = decideRemoteControlGate(null);
     assert.equal(gate.kind, 'unreadable');
-    assert.deepEqual([...gate.supported], ['3.6a', '3.7b']);
+    assert.deepEqual([...gate.supported], ['3.6a', '3.7b', '3.7c']);
   });
 
   it('holds the two versions build/probe-control-dialect.mjs measured', () => {
@@ -457,7 +459,7 @@ describe('decideRemoteControlGate', () => {
     const measured = TESTED_REMOTE_TMUX_VERSIONS.filter(
       (row) => row.measured.control
     ).map((row) => row.version);
-    assert.deepEqual(measured, ['3.6a', '3.7b']);
+    assert.deepEqual(measured, ['3.6a', '3.7b', '3.7c']);
   });
 
   it('never measures control without measuring exec first', () => {
@@ -467,5 +469,130 @@ describe('decideRemoteControlGate', () => {
     for (const row of TESTED_REMOTE_TMUX_VERSIONS) {
       if (row.measured.control) assert.equal(row.measured.exec, true);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The exec gate and its fourth outcome (Phase 83)
+// ---------------------------------------------------------------------------
+
+describe('decideRemoteVersionGate', () => {
+  /** One row, measured on the exec plane, so the list is a known quantity. */
+  const list = [
+    {
+      version: '4.0',
+      measured: { exec: true, control: true },
+      measuredAt: '2026-08-18',
+      subject: 'a made up copy, for this test only',
+      note: 'both planes'
+    }
+  ];
+
+  it('rule 1: a version nobody could read is unreadable, even with an acceptance', () => {
+    // A version that could not be read is not a version an acceptance can bind
+    // to, so the acceptance is ignored rather than honoured.
+    assert.deepEqual(decideRemoteVersionGate(null, list, '4.1'), {
+      kind: 'unreadable',
+      supported: ['4.0']
+    });
+    assert.deepEqual(decideRemoteVersionGate(null, list, null), {
+      kind: 'unreadable',
+      supported: ['4.0']
+    });
+  });
+
+  it('rule 2: a measured version is measured, and measured beats accepted', () => {
+    assert.deepEqual(decideRemoteVersionGate('4.0', list), {
+      kind: 'measured',
+      version: '4.0'
+    });
+    // The person accepted the same version this build has since measured. The
+    // measurement is the stronger fact, so the outcome stops being an
+    // acceptance and the person is not carrying it any more.
+    assert.deepEqual(decideRemoteVersionGate('4.0', list, '4.0'), {
+      kind: 'measured',
+      version: '4.0'
+    });
+  });
+
+  it('rule 3: an acceptance byte equal to the reported version is accepted', () => {
+    assert.deepEqual(decideRemoteVersionGate('4.1', list, '4.1'), {
+      kind: 'accepted',
+      version: '4.1'
+    });
+  });
+
+  it('rule 4: everything else is unmeasured, and names what has been measured', () => {
+    assert.deepEqual(decideRemoteVersionGate('4.1', list), {
+      kind: 'unmeasured',
+      version: '4.1',
+      supported: ['4.0']
+    });
+    // An acceptance of a DIFFERENT version does not carry. This is the arm that
+    // makes accepting 3.8a mean nothing once the machine reports 3.9a.
+    assert.deepEqual(decideRemoteVersionGate('4.2', list, '4.1'), {
+      kind: 'unmeasured',
+      version: '4.2',
+      supported: ['4.0']
+    });
+    // An empty acceptance is not an acceptance.
+    assert.deepEqual(decideRemoteVersionGate('4.1', list, ''), {
+      kind: 'unmeasured',
+      version: '4.1',
+      supported: ['4.0']
+    });
+    // A null acceptance is the ordinary case, and it is the same answer.
+    assert.deepEqual(decideRemoteVersionGate('4.1', list, null), {
+      kind: 'unmeasured',
+      version: '4.1',
+      supported: ['4.0']
+    });
+  });
+
+  it('compares whole strings, never parts of them', () => {
+    // There is no version arithmetic in this gate. "4" is not a prefix match
+    // for "4.0", and "4.0a" is not near enough to "4.0".
+    assert.equal(decideRemoteVersionGate('4', list).kind, 'unmeasured');
+    assert.equal(decideRemoteVersionGate('4.0a', list).kind, 'unmeasured');
+    assert.equal(decideRemoteVersionGate('4.1', list, '4.1 ').kind, 'unmeasured');
+  });
+
+  it('holds the three versions the probes measured on the exec plane', () => {
+    // THE GATE AND THE MEASUREMENT ARE ONE FACT, the same way the control gate
+    // holds its own. build/probe-execplane.mjs is the evidence for all three.
+    const measured = TESTED_REMOTE_TMUX_VERSIONS.filter(
+      (row) => row.measured.exec
+    ).map((row) => row.version);
+    assert.deepEqual(measured, ['3.6a', '3.7b', '3.7c']);
+  });
+
+  it('accepts 3.7c, which is what the Mac Pro reports, and still refuses a made up version', () => {
+    assert.deepEqual(decideRemoteVersionGate('3.7c'), {
+      kind: 'measured',
+      version: '3.7c'
+    });
+    const refused = decideRemoteVersionGate('9.9z');
+    assert.equal(refused.kind, 'unmeasured');
+  });
+});
+
+describe('every tested remote row names the copy it read', () => {
+  it('has a non-empty subject on every row', () => {
+    // A row that does not say WHICH copy of a version it read is a row the next
+    // reader cannot trust. Homebrew's build and an upstream tarball are two
+    // different subjects, and only one of them was measured for each row.
+    for (const row of TESTED_REMOTE_TMUX_VERSIONS) {
+      assert.equal(typeof row.subject, 'string');
+      assert.ok(
+        row.subject.trim().length > 0,
+        `${row.version} has no subject, so nobody knows which copy was measured`
+      );
+    }
+  });
+
+  it('says plainly that the 3.7c row is not Homebrew\'s build', () => {
+    const row = TESTED_REMOTE_TMUX_VERSIONS.find((one) => one.version === '3.7c');
+    assert.ok(row !== undefined, '3.7c is not in the list');
+    assert.ok(row.subject.includes("not Homebrew's build"));
   });
 });

@@ -19,6 +19,9 @@
  *  - the precheck is a READ over the exec plane and never anything that could
  *    start a server, on this Mac or on that machine
  *  - a machine that did not answer the precheck opens nothing
+ *  - PHASE 83. A connection that is opened and never greeted takes the client
+ *    away, tells the feed with the deadline sentence, leaves the machine on
+ *    `polling` with the deadline clause, and is not tried again in this run
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -36,7 +39,8 @@ const CTX: RemoteMachineContext = {
   remoteTmuxPath: '/usr/bin/tmux',
   socket: 'gmux-p71-unit',
   controlPath: '/tmp/tortie-501/m-0123456789ab',
-  hostKeys: { tortie: '/t/known-machines', user: '/u/known_hosts' }
+  hostKeys: { tortie: '/t/known-machines', user: '/u/known_hosts' },
+  acceptedTmuxVersion: null
 };
 
 /** Every argv the exec plane was handed, in order. */
@@ -93,6 +97,9 @@ vi.mock('../../tmux/control-client', async (importOriginal) => ({
 
 const {
   CONTROL_DIALECT_UNMEASURED,
+  CONTROL_GREETING_DEADLINE,
+  CONTROL_GREETING_DEADLINE_REASON,
+  allowControlPlaneAgain,
   assertControlDialectMeasured,
   closeControlPlane,
   everyMachineLinkFacts,
@@ -100,6 +107,7 @@ const {
   machineLinkFacts,
   noteMachineAnswered,
   noteMachineRefused,
+  missedGreetingThisRun,
   openControlPlane,
   openControlPlaneCount,
   remoteControlTransport,
@@ -301,6 +309,107 @@ describe('the link a surface reads', () => {
     for (const word of ['ssh', 'tmux', 'socket', 'pane', 'prefix']) {
       expect(reason.toLowerCase()).not.toContain(word);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 83. The greeting deadline
+// ---------------------------------------------------------------------------
+
+describe('a connection that is never greeted', () => {
+  /** What the wire handler does when the client gives up on its child. */
+  async function missTheGreeting(): Promise<{ id: string; reason: string }[]> {
+    const lost: { id: string; reason: string }[] = [];
+    setControlPlaneSink({
+      connected: () => undefined,
+      sessionsChanged: () => undefined,
+      sessionRenamed: () => undefined,
+      lost: (id, reason) => lost.push({ id, reason })
+    });
+    await openControlPlane('studio');
+    onlyClient().emit('greeting-timeout');
+    return lost;
+  }
+
+  it('tells the feed, with the sentence a person reads', async () => {
+    const lost = await missTheGreeting();
+    // `sink.lost` is the call that arms the timer. `closeControlPlane` on its
+    // own calls no sink, so a handler that only closed would leave the machine
+    // with no feed at all.
+    expect(lost).toEqual([{ id: 'studio', reason: CONTROL_GREETING_DEADLINE }]);
+  });
+
+  it('takes the client away and leaves the machine on the timer', async () => {
+    const client = onlyClient.bind(null);
+    await missTheGreeting();
+    expect(client().stopped).toBe(true);
+    expect(openControlPlaneCount()).toBe(0);
+    expect(isControlPlaneLive('studio')).toBe(false);
+    expect(machineLinkFacts('studio').link).toBe('polling');
+    expect(machineLinkFacts('studio').reason).toBe(
+      CONTROL_GREETING_DEADLINE_REASON
+    );
+  });
+
+  it('does not try that machine again in this run', async () => {
+    await missTheGreeting();
+    expect(missedGreetingThisRun('studio')).toBe(true);
+    const made = FakeClient.made.length;
+    expect(await openControlPlane('studio')).toBe(false);
+    expect(FakeClient.made.length).toBe(made);
+    expect(openControlPlaneCount()).toBe(0);
+  });
+
+  it('holds no machine back that did not miss its greeting', async () => {
+    await missTheGreeting();
+    expect(missedGreetingThisRun('attic')).toBe(false);
+  });
+
+  // PHASE 83 FIX. The doc comment on the set used to say preparing the machine
+  // again lifted the block. Nothing cleared it, so a person who hit the deadline
+  // once could not get a live connection back without quitting Tortie. The
+  // prepare channel now calls this, and these three tests are what make that a
+  // measurement rather than a sentence.
+  it('lets a prepared machine try a live connection again', async () => {
+    await missTheGreeting();
+    expect(missedGreetingThisRun('studio')).toBe(true);
+    allowControlPlaneAgain('studio');
+    expect(missedGreetingThisRun('studio')).toBe(false);
+    const made = FakeClient.made.length;
+    expect(await openControlPlane('studio')).toBe(true);
+    expect(FakeClient.made.length).toBe(made + 1);
+  });
+
+  it('sends nothing to the machine when it lets one try again', async () => {
+    await missTheGreeting();
+    sent = [];
+    allowControlPlaneAgain('studio');
+    expect(sent).toEqual([]);
+    expect(openControlPlaneCount()).toBe(0);
+  });
+
+  it('leaves every other machine alone when one is prepared again', async () => {
+    await missTheGreeting();
+    allowControlPlaneAgain('attic');
+    expect(missedGreetingThisRun('studio')).toBe(true);
+  });
+
+  it('sends nothing to the machine when it gives up', async () => {
+    await openControlPlane('studio');
+    sent = [];
+    onlyClient().emit('greeting-timeout');
+    expect(sent).toEqual([]);
+  });
+
+  it('says how long it waited, in seconds, and names nothing technical', () => {
+    expect(CONTROL_GREETING_DEADLINE).toContain('10 seconds');
+    for (const word of ['ssh', 'tmux', 'socket', 'pane', 'greeting']) {
+      expect(CONTROL_GREETING_DEADLINE.toLowerCase()).not.toContain(word);
+    }
+    expect(CONTROL_GREETING_DEADLINE).toContain('Sessions on it keep running.');
+    expect(CONTROL_GREETING_DEADLINE).toContain(
+      'Nothing was changed on either machine.'
+    );
   });
 });
 
