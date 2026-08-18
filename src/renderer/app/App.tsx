@@ -26,7 +26,11 @@ import type {
 import { OPEN_RECENT_PREFIX } from '@shared/ipc';
 import { acceleratorToDisplay, keyDisplay } from '@shared/keymap';
 import { sessionsPositionForMenuAction } from '@shared/sessions-position';
-import { useApp, whenSessionsPositionPushed } from '../state/store';
+import {
+  effectiveStatusOf,
+  useApp,
+  whenSessionsPositionPushed
+} from '../state/store';
 import type { SidebarViewId } from '../state/store';
 import { isSidebarViewId } from '../state/sidebar-views';
 import { cloneAction } from '../state/clone';
@@ -43,7 +47,15 @@ import { MachineStatement, TerminalRegion } from './TerminalRegion';
 import { SessionStrip } from './SessionStrip';
 import { termFocusHandlers } from './term-focus';
 import { SessionDock } from './SessionDock';
+// Phase 80.1. One derivation of "what is on the surface right now", shared
+// with the strip, the region and the dock. The wash below reads the visible
+// leaves from it rather than deriving them a fourth time.
+import { useProjectSurfaces } from './surfaces';
+import { rollupDot } from './status';
 import './work-area.css';
+// Phase 80.1. Every region session focus hides is hidden from this one
+// stylesheet, by one class on the shell root.
+import './focus-mode.css';
 import { CreateSessionModal } from './CreateSessionModal';
 import { NewProjectModal } from './NewProjectModal';
 import { CloneRepoModal } from './CloneRepoModal';
@@ -70,6 +82,10 @@ import {
 import { digitToIndex } from './project-shortcuts';
 // Shared with the ⌘J overlay: "land the user in this session" exists once.
 import { focusTerminal, jumpToSession } from './session-focus';
+// Phase 80.1, the ⇧⌘↩ chord. The 200 ms flight, the refusals and the swap.
+// A DIFFERENT module from ./session-focus above, which is much older and means
+// "land the user in a session" for ⌘J and the menu-bar sentinel.
+import { toggleSessionFocus } from './focus-flight';
 // Phase 12.4/12.6: "show this once, ever" lives in exactly one place — the
 // first-quit toast below is one of its catalog entries, not a second copy.
 import { showOneTimeTip } from './one-time-tip';
@@ -114,6 +130,8 @@ import type { SearchProbeSpec, SymbolProbeSpec } from '../search/shot-probe';
 import { installContextDetailHost } from '../context/detail-host';
 import { driveContext } from '../context/shot-probe';
 import type { ContextProbeSpec } from '../context/shot-probe';
+import { driveSessionFocus } from './focus-shot-drive';
+import type { SessionFocusProbeSpec } from './focus-shot-drive';
 
 // ---------------------------------------------------------------------------
 // Keyboard map (DESIGN.md §4) — one capture-phase listener; ⌘-chords and F2
@@ -172,6 +190,43 @@ function showSearchAction(): void {
   focusSearchInput(inBox ? undefined : selectionSeed());
 }
 
+/**
+ * A sheet or an overlay owns the keyboard right now.
+ *
+ * One expression, read by `runMenuAction` (which had it inline until Phase
+ * 80.1) and by the focus chord below. The two palettes are NOT in it, because
+ * ⌘P and ⌘⇧O are both meant to work from inside another layer; the focus
+ * chord adds them at its own call site.
+ */
+function modalLayerOpen(): boolean {
+  const s = useApp.getState();
+  return (
+    s.confirm !== null ||
+    s.createOpen ||
+    s.newProjectOpen ||
+    s.shortcutsOpen ||
+    s.attentionOpen ||
+    s.pastOpen
+  );
+}
+
+/**
+ * Phase 80.1. ⇧⌘↩ is swallowed while any layer is up, exactly as ⌘B is.
+ *
+ * Growing a session to fill the window behind an open sheet would put the
+ * sheet on top of a layout the person never asked for, and the way back is a
+ * chord they cannot see. Silence is the right answer here. It is the only one
+ * of the mode's three refusals that says nothing, because the other two can
+ * be reached from a menu click and so must speak (./focus-flight.ts).
+ */
+function focusChordSwallowed(): boolean {
+  return (
+    modalLayerOpen() ||
+    useQuickOpen.getState().open ||
+    useSymbols.getState().open
+  );
+}
+
 function useKeyboardMap(): void {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {
@@ -222,6 +277,19 @@ function useKeyboardMap(): void {
           e.preventDefault();
           e.stopPropagation();
           s.setShortcutsOpen(false);
+        } else if (s.sessionFocus && !inTerminal) {
+          // Phase 80.1. Escape leaves session focus, but ONLY when the
+          // keyboard is not in a session. Escape inside a terminal belongs to
+          // the agent. It is the key a person presses to interrupt Claude
+          // Code, and taking it while they are typing into the very session
+          // the mode exists to serve would be a worse bug than the one the
+          // affordance fixes. This is a deliberate deviation from the Phase
+          // 80.1 charter sentence "The same chord, Escape, or a View menu item
+          // puts every region back". The way out stays discoverable through
+          // the one-time tip the mode shows the first time it is entered.
+          e.preventDefault();
+          e.stopPropagation();
+          void toggleSessionFocus();
         } else if (focusInsideSearch()) {
           // The Search view extends the same ladder INSIDE itself: clear the
           // query if there is one, else hand the keyboard to the results, else
@@ -334,6 +402,26 @@ function useKeyboardMap(): void {
       }
 
       if (!meta) return;
+
+      // ⇧⌘↩, session focus (Phase 80.1). Registered above the shift chords
+      // below because it is matched on e.key === 'Enter' rather than on a
+      // letter, and Shift does not rewrite it.
+      //
+      // ⇧⌘C is NOT this chord, and the reason is the same one written against
+      // ⌃⇧C above. DESIGN.md §4 uses ⇧⌘C as the worked example of a per-agent
+      // hotkey, and Claude Code's defaultHotkeyHint is 'c'. ⇧⌘↩ is free in
+      // KEYMAP, macOS reserves no Enter chord, and macOS never delivers a
+      // Command chord to a pty, so no agent CLI can want it either.
+      //
+      // preventDefault runs even when the chord is swallowed. The native View
+      // row carries the same accelerator and arrives about 5 ms later, so
+      // letting it through would play the flight behind the open sheet that
+      // the swallow exists to protect.
+      if (e.shiftKey && e.key === 'Enter') {
+        e.preventDefault();
+        if (!focusChordSwallowed()) void toggleSessionFocus();
+        return;
+      }
 
       // ⌘⇧F — Search view. Registered HERE, above the inEditable guard,
       // for the reason the guard exists: the search box IS a text field, and
@@ -477,13 +565,7 @@ const FOCUS_SESSION_PREFIX = 'focus-session:';
 
 function runMenuAction(action: AnyMenuActionWithProjects): void {
   const s = useApp.getState();
-  const layerOpen =
-    s.confirm !== null ||
-    s.createOpen ||
-    s.newProjectOpen ||
-    s.shortcutsOpen ||
-    s.attentionOpen ||
-    s.pastOpen;
+  const layerOpen = modalLayerOpen();
 
   switch (action) {
     case 'new-session':
@@ -571,6 +653,15 @@ function runMenuAction(action: AnyMenuActionWithProjects): void {
     // toggleEditorFill so the button, ⇧⌘B and this menu item cannot drift.
     case 'toggle-editor-fill':
       toggleEditorFill();
+      return;
+    // Phase 80.1. View > Focus the Session, one row under Fill the Window.
+    // The renderer's keydown branch is what runs when ⇧⌘↩ is pressed (it
+    // precedes the accelerator and preventDefaults it), so this path only
+    // fires on a real click. The guard lives inside toggleSessionFocus, so
+    // the row and the chord cannot drift, and a click that cannot be honoured
+    // says why rather than doing nothing.
+    case 'toggle-session-focus':
+      void toggleSessionFocus();
       return;
     case 'attention':
       s.setAttentionOpen(!s.attentionOpen);
@@ -761,6 +852,19 @@ interface ShotLayoutExtras {
    * group land somewhere sane" is a question only a picture answers.
    */
   shortcuts?: boolean;
+  /**
+   * Phase 80.1. Press ⇧⌘↩ for real and record every `Terminal.onResize` with
+   * its offset in milliseconds from the press.
+   *
+   * This is the phase's one Tier 3 measurement. The claim is that a live
+   * multiplexed surface receives NO resize until the flight ends, and a
+   * resize is the one thing about this mode that costs the person their work,
+   * because every fit sends new columns and rows to a real session. No
+   * screenshot can show it and no unit test can see it, so the driver prints
+   * a table of leaf id, columns, rows and offset, and the probe reads tmux on
+   * the harness socket at the same time as the second, independent witness.
+   */
+  sessionFocus?: SessionFocusProbeSpec;
 }
 
 function useShotLayoutHook(): void {
@@ -959,6 +1063,14 @@ function useShotLayoutHook(): void {
         await driveContext(ext.context);
         window.__gmuxShotReady = true;
       }
+      // Phase 80.1, after everything else, so the chord fires over the
+      // finished layout. With `splitGrid` set, that layout is four real
+      // attached sessions, which is the substrate the Tier 3 claim needs.
+      if (ext.sessionFocus !== undefined) {
+        window.__gmuxShotReady = false;
+        await driveSessionFocus(ext.sessionFocus);
+        window.__gmuxShotReady = true;
+      }
     };
 
     w.__gmuxShotCleanup = async (): Promise<void> => {
@@ -1070,6 +1182,39 @@ function useWindowTitle(): void {
 }
 
 // ---------------------------------------------------------------------------
+// The focus wash (Phase 80.1)
+// ---------------------------------------------------------------------------
+
+/**
+ * The soft colour that fills the title band while session focus is on.
+ *
+ * Colour is for state in this app, so the wash reads the VISIBLE LEAVES and
+ * nothing else, which is the leaves of the surface that is on screen. Any
+ * leaf that needs input wins, else any leaf that is working, else idle. That ordering
+ * is `rollupDot`, which is the same expression a project tab rolls its
+ * sessions up with, so the band cannot disagree with the tab it replaced.
+ *
+ * It is its own component for one reason. It re-reads the sessions on every
+ * activity tick, which is once a second, and the shell must not re-render at
+ * that rate. Here the cost is one empty div whose only prop is a three-value
+ * string.
+ *
+ * It renders in every mode. Outside focus its opacity is 0, so there is no
+ * mount and no first paint to wait for at the moment the chord is pressed,
+ * and the flight in ./focus-flight.ts can fade it in from CSS alone.
+ */
+function FocusWash(): React.JSX.Element {
+  const { activeSurface, sessionsById } = useProjectSurfaces();
+  const statuses = (activeSurface?.leafIds ?? []).flatMap((id) => {
+    const session = sessionsById.get(id);
+    return session === undefined ? [] : [effectiveStatusOf(session)];
+  });
+  const roll = rollupDot(statuses);
+  const wash = roll === 'attention' || roll === 'working' ? roll : 'idle';
+  return <div className="focus-wash" data-wash={wash} aria-hidden="true" />;
+}
+
+// ---------------------------------------------------------------------------
 // App
 // ---------------------------------------------------------------------------
 
@@ -1080,6 +1225,9 @@ export function App(): React.JSX.Element {
   const projects = useApp((s) => s.projects);
   const sidebarVisible = useApp((s) => s.sidebarVisible);
   const orientation = useApp((s) => s.sessionOrientation);
+  // Phase 80.1. A boolean selector, so the shell re-renders on the swap and
+  // on nothing else. The 200 ms of flight before it are CSS and a copy.
+  const sessionFocus = useApp((s) => s.sessionFocus);
 
   useKeyboardMap();
   useZoomKeymap();
@@ -1138,7 +1286,11 @@ export function App(): React.JSX.Element {
   }
 
   return (
-    <div className="shell">
+    <div className={`shell${sessionFocus ? ' session-focus' : ''}`}>
+      {/* Phase 80.1. First child, and deliberately not in the boot-block
+          returns above. The wash is only ever seen in focus mode, and focus
+          mode cannot be entered from a screen with no session on it. */}
+      <FocusWash />
       <Titlebar />
       {ready && projects.length === 0 ? (
         // PHASE 71 fix round. A confirmed machine that did not answer is named

@@ -431,8 +431,16 @@ export interface GmuxViewMenuExtras {
 // ⇧⌘B belongs beside it rather than in a mode of its own.
 // ---------------------------------------------------------------------------
 
-/** View-menu action added by Phase 18: fill the chrome with the open file. */
-export type ChromeMenuActionId = 'toggle-editor-fill';
+/**
+ * View-menu actions that hand one region the whole window.
+ *
+ * `toggle-editor-fill` came from Phase 18 and belongs to the open file.
+ * `toggle-session-focus` came from Phase 80.1 and belongs to the session
+ * surface. They sit in one union because they are the same kind of thing, and
+ * both ride the existing EVT_MENU_ACTION event. Neither is an invoke channel,
+ * so the contract inventory does not move.
+ */
+export type ChromeMenuActionId = 'toggle-editor-fill' | 'toggle-session-focus';
 
 /**
  * Every action the native menus (app menu + status item) can forward — the

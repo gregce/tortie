@@ -495,6 +495,15 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         { type: 'separator' },
         item('Toggle Sidebar', 'toggle-sidebar', accel('view.sidebar')),
         item('Fill the Window', 'toggle-editor-fill', accel('view.fillEditor')),
+        // Phase 80.1. Session focus is fill's sibling, so it sits directly
+        // under it. Fill gives the open file the window. Focus gives the
+        // session surface the window. Nothing else in this menu moved when
+        // this row was added.
+        item(
+          'Focus the Session',
+          'toggle-session-focus',
+          accel('view.sessionFocus')
+        ),
         item('Toggle Editor', 'toggle-editor', accel('editor.toggle')),
         { type: 'separator' },
         item('Sessions That Need Input', 'attention', accel('session.attention')),

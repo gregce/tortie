@@ -11,6 +11,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { keyDisplay } from '@shared/keymap';
 
 const toast = vi.fn();
 
@@ -111,6 +112,20 @@ describe('showOneTimeTip', () => {
       ['info', 'Quitting — your sessions keep running.']
     ]);
     expect(storage.items.get('gmux.tipShown.quit-hold')).toBe('1');
+  });
+
+  it('teaches the way out of session focus, with the chord from the keymap', () => {
+    // Phase 80.1. Escape does not leave the mode while the keyboard is in a
+    // terminal, so this sentence is the only thing that says how to get out.
+    // The chord is read back from KEYMAP rather than written as a glyph, and
+    // this test is what fails if someone types one in.
+    const storage = installStorage();
+    expect(showOneTimeTip('session-focus-exit')).toBe(true);
+    expect(toast.mock.calls).toEqual([
+      ['info', `Press ${keyDisplay('view.sessionFocus')} again to bring the rest of Tortie back.`]
+    ]);
+    expect(toast.mock.calls[0]?.[1]).toContain('again to bring the rest of Tortie back.');
+    expect(storage.items.get('gmux.tipShown.session-focus-exit')).toBe('1');
   });
 
   it('honors the quit toast’s pre-catalog flag', () => {

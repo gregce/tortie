@@ -74,6 +74,37 @@ export interface ChromeSlice {
    * at launch is a trap.
    */
   editorFill: EditorFillMemento | null;
+  /**
+   * Phase 80.1. Session focus: the session surface has the whole window.
+   *
+   * A BOOLEAN, not a memento, and that is the whole design. Editor fill needs
+   * a memento because it WRITES `sidebarVisible` and `dockCollapsed` on the
+   * way in. Focus writes neither. Every region focus hides is hidden by one
+   * CSS class on the shell root (src/renderer/app/focus-mode.css), so the
+   * sidebar's width, the dock's width, the editor's width and the strip's
+   * orientation are never touched. They come back byte for byte because they
+   * never left.
+   *
+   * FOCUS AND FILL MAY BOTH BE ON. Focus owns the session, fill owns the file.
+   * The Phase 80.1 charter asked for one memento stack with last in first out.
+   * The stack has exactly ONE entry, fill's, because focus keeps no memento at
+   * all. It writes nothing, so it has nothing to put back, and last in first
+   * out therefore holds without a stack existing. Two cases say what that
+   * means in practice.
+   *
+   *   fill on, then focus on, then focus off. You are filling again, and
+   *   fill's memento is the same object it was before focus was entered.
+   *
+   *   focus on, then the fill chord. Focus leaves first, because
+   *   `enterEditorFill` calls `set({ sessionFocus: false })`, and then fill
+   *   enters. Fill's memento therefore records the layout the person actually
+   *   had, not the focused layout, which is the whole failure a stack would
+   *   have been protecting against.
+   *
+   * Never persisted. Always false on boot. A mode you cannot see the exit
+   * from at launch is a trap, and editor fill already proved it.
+   */
+  sessionFocus: boolean;
   /** Active sidebar view per project id (activity bar; persisted). */
   sidebarViewByProject: Record<string, SidebarViewId>;
 
@@ -114,6 +145,15 @@ export interface ChromeSlice {
    * four gestures cannot drift apart.
    */
   forgetEditorFill(): void;
+  /**
+   * Phase 80.1. Turn session focus on or off.
+   *
+   * A plain write and nothing else. No localStorage key, no memento, no
+   * second flag. The 200 ms flight that plays around it lives in
+   * src/renderer/app/focus-flight.ts and calls this exactly once, at the end
+   * of the flight, which is the moment the layout actually changes.
+   */
+  setSessionFocus(on: boolean): void;
   /** Set the active project's sidebar view (persisted per project). */
   setSidebarView(view: SidebarViewId): void;
   /** ⌘⇧E / ⌃⇧G: open the sidebar if collapsed and show the view. */
@@ -137,6 +177,15 @@ const LS_DOCK_COLLAPSED = 'gmux.dockCollapsed';
  * of `liveChromeGeometry()` in ./store, kept here so the slice's own
  * write-time clamp and the facade cannot compute the row's budget
  * differently (the Phase 18 fix round happened because two callers did).
+ *
+ * Phase 80.1 note, so a later round does not "fix" it. This function, and
+ * `workAreaWidth` and `clampSidebarWidth` under it, keep computing as if the
+ * sidebar and the dock were on screen while session focus is on. That is
+ * deliberate. Their one consumer is the sidebar's own width clamp, the
+ * sidebar is not drawn in focus mode, and nothing they return is written
+ * anywhere. Teaching them about `sessionFocus` would give focus a way to
+ * change a number the person chose, which is the one thing the mode must
+ * never do.
  */
 export function chromeGeometryOf(
   s: Pick<
@@ -201,6 +250,11 @@ export const createChromeSlice: StateCreator<AppState, [], [], ChromeSlice> = (
   ),
   dockCollapsed: loadLocal<unknown>(LS_DOCK_COLLAPSED, false) === true,
   editorFill: null,
+  // Phase 80.1. There is no loadLocal call here, and that is deliberate.
+  // Focus is never persisted, so a stray key under the gmux prefix left
+  // behind by a hand edit is never read, and this phase adds no line to the
+  // contract inventory.
+  sessionFocus: false,
   sidebarViewByProject: loadLocal<Record<string, SidebarViewId>>(
     LS_SIDEBAR_VIEW,
     {}
@@ -212,6 +266,10 @@ export const createChromeSlice: StateCreator<AppState, [], [], ChromeSlice> = (
     // while the editor is filling is the user overruling fill mode, not
     // exiting it: the memento is dropped, nothing is put back.
     get().forgetEditorFill();
+    // Phase 80.1. A layout gesture of the person's own leaves session focus,
+    // instantly and with no flight. They asked for a region, not for the
+    // flight, and the sidebar is not drawn while focus is on.
+    set({ sessionFocus: false });
     set((s) => ({ sidebarVisible: !s.sidebarVisible }));
   },
 
@@ -231,6 +289,9 @@ export const createChromeSlice: StateCreator<AppState, [], [], ChromeSlice> = (
   },
 
   setSessionOrientation(orientation) {
+    // Phase 80.1, same rule as toggleSidebar: moving the session surface is a
+    // layout gesture, and the surface it moves is not drawn while focus is on.
+    set({ sessionFocus: false });
     set({ sessionOrientation: orientation });
     saveLocal(LS_ORIENTATION, orientation);
     // ONE truth, several controls (Phase 12.12 item 2): the View-menu
@@ -250,12 +311,18 @@ export const createChromeSlice: StateCreator<AppState, [], [], ChromeSlice> = (
     // Expanding or collapsing the dock by hand while filling is the user
     // taking the layout back — same rule as ⌘B above.
     get().forgetEditorFill();
+    set({ sessionFocus: false }); // Phase 80.1, the same layout-gesture rule.
     if (get().dockCollapsed === collapsed) return;
     set({ dockCollapsed: collapsed });
     saveLocal(LS_DOCK_COLLAPSED, collapsed);
   },
 
   enterEditorFill() {
+    // Phase 80.1. Filling leaves focus FIRST, and then fills. This one line is
+    // what keeps EditorPanel.tsx out of that phase: the button, the chord and
+    // the View row all arrive here. The order matters for the memento below,
+    // which must record the layout the person had rather than the focused one.
+    set({ sessionFocus: false });
     const { editorFill, sidebarVisible, dockCollapsed } = get();
     if (editorFill !== null) return;
     // Note what to put back BEFORE putting anything away, and write the new
@@ -288,6 +355,10 @@ export const createChromeSlice: StateCreator<AppState, [], [], ChromeSlice> = (
     saveLocal(LS_DOCK_COLLAPSED, dockCollapsed);
   },
 
+  setSessionFocus(on) {
+    set({ sessionFocus: on });
+  },
+
   setSidebarView(view) {
     const { activeProjectId } = get();
     if (activeProjectId === null) return;
@@ -303,6 +374,7 @@ export const createChromeSlice: StateCreator<AppState, [], [], ChromeSlice> = (
     // Reaching for a view is a layout gesture too — it overrules fill mode
     // rather than exiting it (Phase 18 item 2).
     get().forgetEditorFill();
+    set({ sessionFocus: false }); // Phase 80.1, the same layout-gesture rule.
     if (!get().sidebarVisible) set({ sidebarVisible: true });
     get().setSidebarView(view);
   },

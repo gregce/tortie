@@ -18,6 +18,7 @@
  * developer (or a support answer) restores the fresh-user experience.
  */
 
+import { keyDisplay } from '@shared/keymap';
 import { useApp } from '../state/store';
 
 interface Tip {
@@ -50,6 +51,20 @@ const TIPS = {
   'quit-hold': {
     text: 'Quitting — your sessions keep running.',
     legacyFlag: 'gmux.quitToastShown'
+  },
+  /**
+   * Phase 80.1. Session focus hides every region except the session, and
+   * Escape deliberately does NOT bring them back while the keyboard is in a
+   * terminal. Escape is how a person interrupts Claude Code, and taking that
+   * key from them is worse than the affordance is worth. So the way out is
+   * said once, in words, the first time anyone enters the mode.
+   *
+   * The chord is read back from the keymap rather than written as a glyph.
+   * src/shared/__tests__/keymap-single-source.test.ts fails on a modifier
+   * glyph in executable source, and the fix is always to ask the keymap.
+   */
+  'session-focus-exit': {
+    text: `Press ${keyDisplay('view.sessionFocus')} again to bring the rest of Tortie back.`
   }
 } as const satisfies Record<string, Tip>;
 

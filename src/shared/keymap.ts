@@ -805,6 +805,36 @@ export const KEYMAP = [
     menuAction: 'toggle-editor-fill'
   },
   {
+    // Phase 80.1. Session focus sits beside editor fill because they are the
+    // same kind of thing. Fill gives the open file the window. Focus gives
+    // the session surface the window.
+    //
+    // THE CHORD IS ⇧⌘↩ AND IT IS NOT ⇧⌘C. The Phase 80.1 backlog entry says
+    // the research found ⇧⌘C free. The research says the opposite in its
+    // section 8, and three places in this tree agree with the research: the
+    // comment on view.context above, DESIGN.md §4 which uses ⇧⌘C as the
+    // worked example of a per-agent hotkey, and Claude Code's
+    // defaultHotkeyHint of 'c' in src/main/agents/registry.ts. Taking ⇧⌘C
+    // would put it in RESERVED_APP_CHORDS, and validateChord() would then
+    // refuse the documented example for every person who tried to record it.
+    //
+    // ⇧⌘↩ is free. No other row in this file carries it, macOS reserves no
+    // Enter chord, and macOS never delivers a Command chord to a pty, so no
+    // agent CLI can want it. The research's other candidate, ⌃⇧↩, is worse
+    // for that exact reason, because Ctrl IS a terminal modifier.
+    // src/shared/__tests__/focus-chord.test.ts holds all of this down.
+    id: 'view.sessionFocus',
+    keys: [k('Shift+Cmd+Enter')],
+    action: 'Focus the session',
+    explain:
+      'Grows the session you are in, and every split beside it, until it fills the window. Press it again, or press Escape when the keyboard is not in a session, to put the rest of Tortie back.',
+    group: 'views',
+    scope: 'app',
+    assignable: false,
+    source: 'built-in',
+    menuAction: 'toggle-session-focus'
+  },
+  {
     id: 'view.sessionsPosition',
     keys: [],
     action: 'Sessions top or right',

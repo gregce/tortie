@@ -1,0 +1,264 @@
+/* ---------------------------------------------------------------------------
+   Session focus (Phase 80.1)
+
+   One chord gives the session surface the whole window. Everything the mode
+   hides is hidden from HERE, by one class on the shell root, and nothing is
+   unmounted. Unmounting would tear down Monaco and re-key the session strip,
+   and it would make the destination measurement in focus-flight.ts impossible
+   to take inside one task.
+
+   THREE CLASSES, and they are not interchangeable.
+
+     .session-focus       React puts it on the shell root when the store's
+                          `sessionFocus` is true. This is the settled mode.
+     .gmux-focus-measure  focus-flight.ts adds it, forces layout, reads the
+                          surface's rect and removes it, all in ONE task. The
+                          browser never paints it and no ResizeObserver is
+                          notified. It exists only to answer "where would the
+                          surface be if focus were on", so it MUST hide exactly
+                          what .session-focus hides. Every rule below that can
+                          move a box names both classes in one selector list,
+                          and focus-mode.test.ts fails if one of them drifts.
+     .gmux-focusing       on the shell root for the 200 ms of the flight, in
+                          both directions. It only fades. It moves nothing.
+   And ONE ATTRIBUTE, which is not a fourth class for a reason.
+
+     [data-focus-arriving]  on the shell root for the 200 ms AFTER a leave has
+                          swapped. It fades the chrome back in. It runs after
+                          the swap rather than during the flight because a
+                          region that is not drawn cannot fade, and drawing it
+                          early would resize the live surface. It only fades.
+                          It moves nothing. It is an ATTRIBUTE because React
+                          owns this element's class attribute: the swap changes
+                          the rendered className and React rewrites the whole
+                          string, which erases anything `classList.add` put
+                          there. focus-flight.ts has the measurement.
+
+   THE RULE THAT BINDS EVERY LINE IN THIS FILE. Nothing here may animate a
+   width, a height, an inset or a flex basis on any box that contains a live
+   terminal. Every animated frame of a resize is a ResizeObserver fit, and
+   every fit sends new columns and rows to a real session
+   (DESIGN.md §5, and the same warning at the top of ./work-area.css). Only
+   opacity and colour are transitioned here, and the growing rectangle a person
+   sees is a still photograph flying on `transform` (./focus-copy.ts).
+
+   The selectors are prefixed with `.shell` so they outrank a region's own
+   rule whatever order the bundler puts the stylesheets in. `.ed-panel.ed-fill`
+   and `.session-dock.collapsed` are both two-class selectors, and a hide that
+   depends on import order is a hide that fails once.
+--------------------------------------------------------------------------- */
+
+/* ---------------------------------------------------------------------------
+   1. The regions that stop being drawn
+
+   `display: none`, never `visibility` and never a zero width. The surface has
+   to actually reflow into the space, and @xterm/addon-fit floors columns at 2,
+   so a live terminal container at 0 CSS width proposes TWO COLUMNS and resizes
+   the person's session. `display: none` is the only safe vanish (the same
+   reason editor.css gives for its own zero-width rule).
+
+   The title band's CHILDREN go, not the band. The traffic lights sit in its
+   76px inset, and the band must keep its height so they do not move.
+--------------------------------------------------------------------------- */
+
+.shell.session-focus .titlebar > *,
+.shell.session-focus [data-slot='activity-bar'],
+.shell.session-focus [data-slot='sidebar'],
+.shell.session-focus [data-slot='session-strip'],
+.shell.session-focus [data-slot='session-dock'],
+.shell.session-focus .center > .term-header,
+.shell.session-focus .ed-panel,
+.shell.gmux-focus-measure .titlebar > *,
+.shell.gmux-focus-measure [data-slot='activity-bar'],
+.shell.gmux-focus-measure [data-slot='sidebar'],
+.shell.gmux-focus-measure [data-slot='session-strip'],
+.shell.gmux-focus-measure [data-slot='session-dock'],
+.shell.gmux-focus-measure .center > .term-header,
+.shell.gmux-focus-measure .ed-panel {
+  display: none;
+}
+
+/* ---------------------------------------------------------------------------
+   2. The title band stays, and stays empty
+
+   The height and the traffic-light inset are restated rather than inherited,
+   so a later change to app.css cannot move the lights in focus mode without
+   this file disagreeing out loud. The band's own background goes transparent
+   because the wash in section 6 is what fills it.
+--------------------------------------------------------------------------- */
+
+.shell.session-focus .titlebar,
+.shell.gmux-focus-measure .titlebar {
+  height: 38px;
+  flex: 0 0 38px;
+  padding-left: 76px; /* traffic-light inset, as app.css sets it */
+}
+
+.shell.session-focus .titlebar,
+.shell.gmux-focusing .titlebar {
+  background-color: transparent;
+  border-bottom-color: transparent;
+  transition:
+    background-color var(--dur-panel) var(--ease-out),
+    border-bottom-color var(--dur-panel) var(--ease-out);
+}
+
+/* ---------------------------------------------------------------------------
+   3. The editor's fill rule must not blank the session
+
+   editor.css hides the terminal region while a file fills the work row, and
+   its selector reads the DOM through `:has()`, so hiding `.ed-panel` in
+   section 1 does not switch it off. Focus and fill may both be on. Focus owns
+   the session, and fill owns the file. Without this rule, entering focus while a
+   file was filling would show an empty window.
+--------------------------------------------------------------------------- */
+
+.shell.session-focus .work-row:has(> .ed-panel) > .center,
+.shell.gmux-focus-measure .work-row:has(> .ed-panel) > .center {
+  display: flex;
+}
+
+/* ---------------------------------------------------------------------------
+   4. The flight
+
+   For the 200 ms of an ENTER the chrome is still laid out at its ordinary
+   size and only its opacity moves, which is exactly why the live surface's
+   border box does not change during the flight and no resize is sent. The
+   swap happens at the end, in one frame, when React adds `.session-focus`.
+
+   On a LEAVE this rule does nothing, because these regions are still
+   `display: none` from section 1 for the whole flight and a region that is
+   not drawn cannot fade. Section 4b is what gives the leave its fade, and it
+   runs after the swap instead of during it.
+--------------------------------------------------------------------------- */
+
+.shell.gmux-focusing .titlebar > *,
+.shell.gmux-focusing [data-slot='activity-bar'],
+.shell.gmux-focusing [data-slot='sidebar'],
+.shell.gmux-focusing [data-slot='session-strip'],
+.shell.gmux-focusing [data-slot='session-dock'],
+.shell.gmux-focusing .center > .term-header,
+.shell.gmux-focusing .ed-panel {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-panel) var(--ease-out);
+}
+
+/* ---------------------------------------------------------------------------
+   4b. The chrome comes back
+
+   The leave used to read as a shrink followed by a snap. The photograph flew
+   for 200 ms over an empty dark window, and then every region appeared at
+   full opacity in one frame. Measured on 2026-08-18 at about 110 ms into a
+   leave: the shrinking photograph was alone on the window.
+
+   THE ORDER IS THE POINT. The chrome cannot be brought back DURING the
+   flight. Giving the sidebar and the dock their widths back changes the live
+   surface's border box, which is a ResizeObserver fit and a tmux resize of
+   real work, and the whole phase exists to stop exactly that. So the chrome
+   is drawn at the swap, when the one resize per leaf has already been paid
+   for, and only its opacity moves after that. The leave therefore reads as a
+   200 ms shrink and then a 200 ms fade, which is longer than the enter's
+   single 200 ms and is the only shape that is safe.
+
+   AN ATTRIBUTE, not a class. React renders this element's className from the
+   store, so the swap rewrites the whole class attribute and takes any hand
+   added class with it. Measured on 2026-08-18 with a class: the sidebar went
+   from `display: none` at opacity 0 straight to `display: flex` at opacity 1
+   in one frame, with the class already gone.
+
+   An ANIMATION, not a transition. A transition needs the browser to have
+   already computed opacity 0 on a drawn element, and the element is drawn by
+   a React render that the scheduler flushes on its own clock. An animation
+   starts whenever the element is first drawn, so there is no frame to race.
+   Under reduced motion tokens.css caps every animation at 1 ms, so the
+   arrival is instant there without this file naming the media query.
+--------------------------------------------------------------------------- */
+
+@keyframes gmux-focus-chrome-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.shell[data-focus-arriving] .titlebar > *,
+.shell[data-focus-arriving] [data-slot='activity-bar'],
+.shell[data-focus-arriving] [data-slot='sidebar'],
+.shell[data-focus-arriving] [data-slot='session-strip'],
+.shell[data-focus-arriving] [data-slot='session-dock'],
+.shell[data-focus-arriving] .center > .term-header,
+.shell[data-focus-arriving] .ed-panel {
+  animation: gmux-focus-chrome-in var(--dur-panel) var(--ease-out) both;
+}
+
+/* ---------------------------------------------------------------------------
+   5. The still copy
+
+   focus-copy.ts builds it, gives it its rect and its per-leaf children as
+   inline styles, and focus-flight.ts animates its `transform`. This rule owns
+   only what never varies. It sits above the shell's own regions and below the
+   toasts, so the one-time tip that explains the way out is readable while the
+   photograph is still flying.
+--------------------------------------------------------------------------- */
+
+.gmux-focus-copy {
+  position: fixed;
+  z-index: var(--z-focus-copy);
+  pointer-events: none;
+  overflow: hidden;
+  transform-origin: 0 0;
+  /* The gutters between panes. Every leaf's own pixels are painted into its
+     canvas; this is what is left over, and it is the same material the live
+     surface shows there. */
+  background: var(--bg-canvas);
+}
+
+/* ---------------------------------------------------------------------------
+   6. The wash
+
+   Colour is for state, so the wash reads the visible leaves and nothing else.
+   Attention beats working beats idle. That ordering is App.tsx's FocusWash,
+   which rolls the leaves up through the same `rollupDot` the project tabs
+   already use.
+
+   It is one empty strip over the vacated title band, `pointer-events: none`,
+   drawn under the band's own transparent background. It never pulses, never
+   sits on the terminal and carries no shadow. Outside focus mode its opacity
+   is 0 and it costs one element.
+
+   The strip is fixed to the band rather than to the whole window on purpose.
+   A full-window layer would have to paint either over the live terminal, which
+   the wash must never do, or behind it, which would need a stacking context on
+   `.shell` and would reorder the four hover cards that portal to `document.
+   body` against the toasts.
+--------------------------------------------------------------------------- */
+
+.focus-wash {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 38px; /* the title band, and only the title band */
+  z-index: 1; /* under .titlebar (--z-titlebar), over nothing else */
+  opacity: 0;
+  pointer-events: none;
+  background: var(--focus-wash-idle);
+  transition: opacity var(--dur-panel) var(--ease-out);
+}
+
+.focus-wash[data-wash='working'] {
+  background: var(--focus-wash-working);
+}
+
+.focus-wash[data-wash='attention'] {
+  background: var(--focus-wash-attention);
+}
+
+.shell.session-focus > .focus-wash,
+.shell.gmux-focusing > .focus-wash {
+  opacity: 1;
+}

@@ -5936,7 +5936,70 @@ all three after a successful run.
 needs `SSH_AUTH_SOCK` exported from the Phase 69 carriage file because the npm script does not
 export it. That gate runnability defect is itself a recorded nit.
 
-## Phase 80.1 — session focus mode, the build (operator queued 2026-08-17) QUEUED
+## Phase 80.1 — session focus mode, the build (operator queued 2026-08-17) ✅ SHIPPED 2026-08-18 (this commit, 0.38.0, gates green)
+
+**What landed.** ⇧⌘↩ grows the session surface, including every split leaf, until it fills the
+window. The activity bar, the sidebar, the session strip and the editor go to `display: none` from
+one class on the shell root, and a wash in the surface's own status colour fills the title band the
+project tabs left behind. The same chord puts every region back. Escape also puts them back, but
+only when the keyboard is not inside a session, and that is a deliberate deviation from the charter
+sentence. Escape is how a person interrupts Claude Code, and taking that key inside the very session
+the mode exists to serve would be worse than the affordance is worth. A one-time tip says the way
+out in words the first time anyone enters the mode.
+
+**The chord is ⇧⌘↩ and it is not ⇧⌘C.** The entry above says the research found ⇧⌘C free. Section 8
+of the research says the opposite, and three places in the tree agree with the research: the comment
+on `view.context` in `src/shared/keymap.ts`, DESIGN.md §4 which uses ⇧⌘C as its worked example of a
+per-agent hotkey, and Claude Code's `defaultHotkeyHint` of `c`. Taking ⇧⌘C would have put it in
+`RESERVED_APP_CHORDS` and made the documented example unrecordable. ⇧⌘↩ is free in KEYMAP, macOS
+reserves no Enter chord, and macOS never delivers a Command chord to a pty.
+
+**Nothing is persisted and nothing is remembered, which is why proof 1 holds by construction.**
+Session focus is one boolean in `chrome-slice.ts`. It writes no localStorage key and keeps no
+memento, because it changes no width and no orientation. Editor fill keeps the only memento, and it
+is a stack of one. Focus leaves first when fill is entered, so fill records the layout the person
+actually had. Both modes may be on, and the stack unwinds last in first out in both orders.
+
+**The seven proofs, with the one the phase cannot claim.**
+
+| # | Proof | Result |
+| --- | --- | --- |
+| 1 | Enter and leave restore every region byte for byte | Pass. Six regions measured to the hundredth of a pixel across five cycles. No localStorage key moved |
+| 2 | No resize during the flight, exactly one per leaf after it. The Tier 3 item | Pass. The renderer saw 4 resizes at 232 to 237 ms and 0 before 200 ms. tmux polled at 25 ms saw exactly two sizes per leaf, 70x19 then 92x20 at +250 ms |
+| 3 | A split stays a split and every leaf stays attached | Pass, on four leaves rather than two. `list-sessions` read at three moments showed `attached=1` and a distinct tty for each |
+| 4 | A restorable selected session does not enter | Pass after a fix round. It failed for a split group, and the gate that fixes it is in this commit |
+| 5 | Reduced motion is instant | Pass, driven with `--force-prefers-reduced-motion`. Every resize inside 32 ms, and no photograph was ever built |
+| 6 | ⌃⌘F still works and a packaged build shows exactly one full screen row | Half proven. The key was driven for real and toggled the window from 1440x884 to 1512x945 and back. The packaged on-screen row count is UNVERIFIED |
+| 7 | Screenshots of enter, of settled focus and of leave, read by eye | Pass. Three captures were read. The leave has a known cosmetic fault, named below |
+
+**Proof 4 failed the first time and the fix is in this commit.** `TerminalRegion` writes
+`data-surface-leaves` for any split group whatever its leaves are doing, so resting the refusal on
+that DOM query alone let a group of four restorable sessions fill the window with four Restore cards
+under an empty title band. It was measured on 2026-08-18. `focusRefusal()` now has a second gate
+that reads the store and refuses when every visible leaf is waiting to be restored. An empty list is
+not an answer and does not refuse, and a group with one live leaf among five restorable ones is
+still worth focusing.
+
+**What is not true.** Nobody has read the packaged View menu for this build. The packaged probe
+failed twice with "the View menu was not readable within 90 s", and the packaged binary launched
+with an isolated HOME gets no window and no menu bar, because an unanswered macOS keychain dialog
+stops it. That block is environmental and predates this phase. What was read instead is the packaged
+`out/main/index.js` inside `app.asar`, which declares exactly one `Toggle Full Screen` with
+`acceleratorWorksWhenHidden: true` and `Control+Command+F`, zero `role: togglefullscreen`, and one
+`Focus the Session`. That is the shape Phase 62.1 fixed, unchanged.
+
+**One cosmetic fault ships, named rather than hidden.** On the way out the chrome does not fade in.
+`.session-focus` stays on the shell root for the whole 200 ms, so the sidebar, the rail, the strip
+and the editor stay at `display: none` and appear at the swap. The enter reads as one gesture. The
+leave reads as a shrink followed by a snap.
+
+**Also not covered.** The wash was only ever seen in its idle colour on a live run, so its working
+and attention colours are held by source assertions and unit tests alone. Six leaves, the upper
+bound the research names, was not driven. A remote machine session, a second project and the mode
+under a Monaco diff were not driven. The pixel measurement of the still copy is from one Mac at
+devicePixelRatio 2, and one leaf returned zero ink on one gesture, so the fallback that flies
+without pixels is reachable on this machine.
+
 
 The build the research in `docs/research/53-session-focus-mode.md` earned. Section 9 of that
 document is the charter and a builder does not re-litigate section 0, which already decided the

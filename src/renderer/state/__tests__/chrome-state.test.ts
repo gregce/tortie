@@ -18,6 +18,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { useApp as UseApp } from '../store';
 
 const cell = new Map<string, string>();
+/**
+ * Every key written since the last `installGlobals`, in order.
+ *
+ * Phase 80.1 needs it, because "session focus never persists" is a claim
+ * about what
+ * did NOT happen, and the only honest way to assert that is to watch the
+ * writes rather than to check one key's absence.
+ */
+const writes: string[] = [];
 
 function installGlobals(innerWidth = 1440): void {
   vi.stubGlobal('window', {
@@ -29,9 +38,11 @@ function installGlobals(innerWidth = 1440): void {
     // the orientation test below would otherwise log its (correct) complaint.
     gmux: { setSessionsPosition: () => Promise.resolve() }
   });
+  writes.length = 0;
   vi.stubGlobal('localStorage', {
     getItem: (k: string) => cell.get(k) ?? null,
     setItem: (k: string, v: string) => {
+      writes.push(k);
       cell.set(k, v);
     },
     removeItem: (k: string) => {
@@ -390,6 +401,121 @@ describe('editorFill', () => {
       app.getState().forgetEditorFill();
       expect(stored('gmux.dockCollapsed')).toBe(undefined);
       expect(app.getState().editorFill).toBe(null);
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 80.1. Session focus is a boolean, and it never writes
+//
+// The mode hides the sidebar, the activity bar, the strip or dock, the editor
+// and the project tabs with ONE CSS class on the shell root. It changes no
+// number the person chose, so there is nothing to put back and no memento to
+// keep. These tests are proof item 1 of the phase at unit cost, because they
+// compare the five fields the mode is accused of disturbing, field by field,
+// across an enter and a leave.
+// ---------------------------------------------------------------------------
+
+describe('sessionFocus', () => {
+  it('is false on boot, even with a stray key in storage', async () => {
+    const app = await boot({ 'gmux.sessionFocus': true });
+    expect(app.getState().sessionFocus).toBe(false);
+    // A mode you cannot see the exit from at launch is a trap, which is the
+    // same reason editorFill is never restored from disk.
+    expect(app.getState().editorFill).toBe(null);
+  });
+
+  it('writes NOTHING when it is turned on or off', async () => {
+    const app = await boot({}, 1440);
+    writes.length = 0;
+    app.getState().setSessionFocus(true);
+    expect(app.getState().sessionFocus).toBe(true);
+    app.getState().setSessionFocus(false);
+    expect(app.getState().sessionFocus).toBe(false);
+    expect(writes).toEqual([]);
+    expect(stored('gmux.sessionFocus')).toBe(undefined);
+  });
+
+  it('leaves all five layout fields byte for byte identical', async () => {
+    const app = await boot({}, 1440);
+    app.getState().setSidebarWidth(517);
+    app.getState().setRightListWidth(233);
+    app.getState().setSessionOrientation('right');
+    app.getState().setDockCollapsed(true);
+
+    const fields = (): Record<string, unknown> => {
+      const s = app.getState();
+      return {
+        sidebarVisible: s.sidebarVisible,
+        sidebarWidth: s.sidebarWidth,
+        dockCollapsed: s.dockCollapsed,
+        rightListWidth: s.rightListWidth,
+        sessionOrientation: s.sessionOrientation
+      };
+    };
+    const before = fields();
+
+    app.getState().setSessionFocus(true);
+    expect(fields()).toEqual(before);
+    app.getState().setSessionFocus(false);
+    expect(fields()).toEqual(before);
+  });
+
+  describe('the one memento stack has exactly one entry, and fill owns it', () => {
+    it('gives fill back its own memento after a focus round trip', async () => {
+      const app = await boot({}, 1440);
+      app.getState().enterEditorFill();
+      const memento = app.getState().editorFill;
+      expect(memento).toEqual({ sidebarVisible: true, dockCollapsed: false });
+
+      app.getState().setSessionFocus(true);
+      app.getState().setSessionFocus(false);
+
+      // The SAME object, not an equal one: focus never went near it.
+      expect(app.getState().editorFill).toBe(memento);
+      expect(app.getState().sidebarVisible).toBe(false);
+      expect(app.getState().dockCollapsed).toBe(true);
+    });
+
+    it('leaves focus BEFORE fill captures, so the memento is the real layout', async () => {
+      const app = await boot({}, 1440);
+      expect(app.getState().sidebarVisible).toBe(true);
+      expect(app.getState().dockCollapsed).toBe(false);
+
+      app.getState().setSessionFocus(true);
+      app.getState().enterEditorFill();
+
+      expect(app.getState().sessionFocus).toBe(false);
+      // The layout the person actually had, which is the whole failure a
+      // stack would have been protecting against.
+      expect(app.getState().editorFill).toEqual({
+        sidebarVisible: true,
+        dockCollapsed: false
+      });
+    });
+
+    it('is left by every one of the five layout gestures', async () => {
+      const gestures: [string, (app: typeof UseApp) => void][] = [
+        ['toggleSidebar', (a) => a.getState().toggleSidebar()],
+        ['showSidebarView', (a) => a.getState().showSidebarView('search')],
+        // The SAME value it already holds: the gesture is the person reaching
+        // for the dock, not the value changing, so the early return must not
+        // swallow it.
+        ['setDockCollapsed', (a) => a.getState().setDockCollapsed(false)],
+        [
+          'setSessionOrientation',
+          (a) => a.getState().setSessionOrientation('right')
+        ],
+        ['enterEditorFill', (a) => a.getState().enterEditorFill()]
+      ];
+      for (const [name, gesture] of gestures) {
+        const app = await boot({}, 1440);
+        app.getState().setSessionFocus(true);
+        gesture(app);
+        expect(app.getState().sessionFocus, `${name} must leave focus`).toBe(
+          false
+        );
+      }
     });
   });
 });

@@ -21,6 +21,13 @@
  * role is the shape that makes the live probe blind, and they pin the hidden
  * item's shape so the chord cannot quietly disappear.
  *
+ * Phase 80.1 added a third job. The View menu gained one visible row named
+ * "Focus the Session", carrying the keymap's Shift+Cmd+Enter, placed directly
+ * under "Fill the Window". No row was removed, renamed or reordered. The
+ * first describe below pins that row, its position and its action id, and it
+ * restates the full screen shape once more, because the new row lives in the
+ * same submenu as the hidden full screen item.
+ *
  * Same fake-electron pattern as sessions-position-menu.test.ts: the real
  * menu.ts runs against a template-capturing Menu mock.
  */
@@ -206,6 +213,51 @@ describe('the four views, in the activity bar’s order', () => {
     const search = viewItems().find((it) => it.label === 'Search');
     search?.click?.();
     expect(win.sent).toEqual([[EVT_MENU_ACTION, 'show-search']]);
+  });
+});
+
+describe('Focus the Session, the row Phase 80.1 added', () => {
+  it('adds exactly one row with that label', () => {
+    installAppMenu();
+    const rows = viewItems().filter((it) => it.label === 'Focus the Session');
+    expect(rows).toHaveLength(1);
+  });
+
+  it('places it immediately under Fill the Window', () => {
+    installAppMenu();
+    const items = viewItems();
+    const fill = items.findIndex((it) => it.label === 'Fill the Window');
+    expect(fill).toBeGreaterThan(-1);
+    expect(items[fill + 1]?.label).toBe('Focus the Session');
+  });
+
+  it('reads its accelerator from the keymap rather than typing one', () => {
+    installAppMenu();
+    const row = viewItems().find((it) => it.label === 'Focus the Session');
+    expect(row?.accelerator).toBe(accelerator('view.sessionFocus'));
+  });
+
+  it('forwards toggle-session-focus when clicked', () => {
+    installAppMenu();
+    const win = makeWindow();
+    state.windows = [win];
+    const row = viewItems().find((it) => it.label === 'Focus the Session');
+    expect(row?.click).toBeDefined();
+    row?.click?.();
+    expect(win.sent).toEqual([[EVT_MENU_ACTION, 'toggle-session-focus']]);
+  });
+
+  it('leaves the full screen shape exactly as Phase 62.1 measured it', () => {
+    // The new row sits in the same submenu as the hidden full screen item,
+    // so this states in one place that adding it moved nothing there. The
+    // describe below pins the same shape for its own reasons.
+    setPlatform('darwin');
+    installAppMenu();
+    expect(fullscreenRoleCount()).toBe(0);
+    const items = fullscreenItems();
+    expect(items).toHaveLength(1);
+    expect(items[0]?.visible).toBe(false);
+    expect(items[0]?.accelerator).toBe('Control+Command+F');
   });
 });
 

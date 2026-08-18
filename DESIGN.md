@@ -320,6 +320,7 @@ View menu (native, mirrors §2.2): "Sessions on top" / "Sessions on right" — a
 - Modal/overlay: fade+scale 0.98→1 in `--dur-panel`; editor split: width transition; toast: 8px slide-up + fade.
 - Drag: lifted ghosts track the pointer 1:1 (no easing); insertion indicators, drop lines, and drop-zone overlays appear/disappear instantly; displaced tabs settle in `--dur-base` on drop; Esc cancels any drag with zero motion.
 - Terminal region: zero animation ever (no fades over live output) — this includes the drop-zone overlay, which snaps on/off with no transition.
+- Phase 80.1 adds a second authored moment. Entering or leaving session focus flies a still copy of the session surface for `--dur-panel` with `--ease-out`. It is a state change rather than perpetual motion, it never runs on load, and it never animates the live terminal's layout box, which is why it runs on a copy. On the way in the chrome fades out under the copy over the same `--dur-panel`. On the way out the chrome cannot fade with it, because it is not drawn until the swap, so it fades in for one further `--dur-panel` after the copy lands. Giving it its widths back any earlier would resize live sessions mid gesture.
 
 ## 6. Every empty & error state (copy is final; sentence case; no exclamation marks)
 

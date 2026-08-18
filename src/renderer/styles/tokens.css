@@ -191,6 +191,12 @@
 
   --z-titlebar: 100;
   --z-editor-overlay: 300;
+  /* Phase 80.1. The still photograph that flies while session focus enters or
+     leaves. Above the editor overlay and the title bar, because it stands in
+     for the whole window while it flies. Below the modal, the attention
+     overlay and the toast, because the one-time tip that says how to get out
+     of focus mode has to be readable while the photograph is still moving. */
+  --z-focus-copy: 400;
   --z-modal: 500;
   --z-attention: 600;
   --z-toast: 700;
@@ -237,6 +243,23 @@
   --dur-base: 160ms;
   --dur-panel: 200ms;
   --ease-out: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Session focus (Phase 80.1). The soft wash that fills the title band the
+     project tabs left behind. It is not the keyboard focus ring above it.
+     These three are the mode's own colour, and they are the only colour it
+     has.
+
+     The wash follows the visible leaves, so it is state and not decoration.
+     Attention beats working beats idle, which is the ordering every other
+     surface in the app already rolls sessions up by.
+
+     Three literals, not three aliases. The research asked for a wash that can
+     be turned off with one edit, and a literal per row makes taking an alpha
+     to zero a three character change that cannot move any other colour.
+     --focus-wash-working repeats --accent-wash's value for that reason. */
+  --focus-wash-attention: rgba(245, 184, 74, 0.14); /* --status-attention */
+  --focus-wash-working: rgba(77, 157, 232, 0.14); /* --accent-wash's value */
+  --focus-wash-idle: rgba(34, 37, 43, 0.5); /* --bg-raised, low */
 }
 
 /* The one authored moment (DESIGN.md §5): the needs-input pulse.
