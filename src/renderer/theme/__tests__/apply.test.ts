@@ -5,6 +5,10 @@
  * - A non-default appearance writes the derived properties inline, and
  *   switching back to the defaults removes every one of them, leaving zero
  *   inline custom properties.
+ * - Phase 78: the font half rides the same mechanism. A bundled preset adds
+ *   exactly `--font-terminal` and `--font-editor` on top of the colour map,
+ *   the System preset adds nothing, and going back to System removes both.
+ *   The chosen preset reaches the store xterm and Monaco watch.
  * - Applying the same appearance twice derives once (the JSON-compare skip).
  * - The base is captured once, before any write, and includes the scheme
  *   family, the contrast lists and the `--bg-canvas` anchor.
@@ -31,17 +35,25 @@ import {
   createAppearanceApplier,
   initAppearance,
   refreshLiveTerminalThemes,
+  type AppliedAppearance,
   type AppearanceEnv
 } from '../apply';
 
-const BLUE_NORMAL: Appearance = {
+const BLUE_NORMAL: AppliedAppearance = {
   highlightScheme: 'blue',
-  contrastLevel: 'normal'
+  contrastLevel: 'normal',
+  workAreaFont: 'system'
 };
-const TEAL_HIGH: Appearance = {
+const TEAL_HIGH: AppliedAppearance = {
   highlightScheme: 'teal',
-  contrastLevel: 'high'
+  contrastLevel: 'high',
+  workAreaFont: 'system'
 };
+const BLUE_NORMAL_JETBRAINS: AppliedAppearance = {
+  ...BLUE_NORMAL,
+  workAreaFont: 'jetbrains-mono'
+};
+const JETBRAINS_STACK = "'JetBrains Mono', Menlo, monospace";
 
 /**
  * A fake environment: inline properties live in a Map, the derivation is a
@@ -53,6 +65,7 @@ function fakeEnv(derived: Record<string, string>): {
   inline: Map<string, string>;
   derive: ReturnType<typeof vi.fn>;
   refresh: ReturnType<typeof vi.fn>;
+  setFont: ReturnType<typeof vi.fn>;
   reads: string[];
   writesBeforeFirstRead: number;
 } {
@@ -70,6 +83,7 @@ function fakeEnv(derived: Record<string, string>): {
         : derived
     ),
     refresh: vi.fn(),
+    setFont: vi.fn(),
     env: undefined as unknown as AppearanceEnv
   };
   out.env = {
@@ -87,6 +101,7 @@ function fakeEnv(derived: Record<string, string>): {
       inline.delete(token);
     },
     refreshTerminals: out.refresh,
+    setFont: out.setFont,
     derive: out.derive as unknown as AppearanceEnv['derive']
   };
   return out;
@@ -142,6 +157,62 @@ describe('the appearance applier', () => {
     const apply = createAppearanceApplier(f.env);
     apply(TEAL_HIGH);
     expect(f.inline.has('--bg-canvas')).toBe(false);
+  });
+});
+
+describe('the work-area font half (Phase 78)', () => {
+  it('writes nothing at all for the System preset', () => {
+    const f = fakeEnv({});
+    const apply = createAppearanceApplier(f.env);
+    apply(BLUE_NORMAL);
+    expect(f.inline.size).toBe(0);
+  });
+
+  it('adds exactly the two font tokens for a bundled preset', () => {
+    const f = fakeEnv({});
+    const apply = createAppearanceApplier(f.env);
+    apply(BLUE_NORMAL_JETBRAINS);
+    expect([...f.inline.keys()].sort()).toEqual([
+      '--font-editor',
+      '--font-terminal'
+    ]);
+    expect(f.inline.get('--font-terminal')).toBe(JETBRAINS_STACK);
+    expect(f.inline.get('--font-editor')).toBe(JETBRAINS_STACK);
+  });
+
+  it('removes both tokens on the way back to System', () => {
+    const f = fakeEnv({});
+    const apply = createAppearanceApplier(f.env);
+    apply(BLUE_NORMAL_JETBRAINS);
+    expect(f.inline.size).toBe(2);
+    apply(BLUE_NORMAL);
+    expect(f.inline.size).toBe(0);
+  });
+
+  it('keeps the colour overrides beside the font overrides', () => {
+    const f = fakeEnv({ '--accent': '#00aaaa' });
+    const apply = createAppearanceApplier(f.env);
+    apply({ ...TEAL_HIGH, workAreaFont: 'source-code-pro' });
+    expect(f.inline.get('--accent')).toBe('#00aaaa');
+    expect(f.inline.get('--font-terminal')).toBe(
+      "'Source Code Pro', Menlo, monospace"
+    );
+  });
+
+  it('re-applies when only the font changed', () => {
+    const f = fakeEnv({});
+    const apply = createAppearanceApplier(f.env);
+    apply(BLUE_NORMAL);
+    apply(BLUE_NORMAL_JETBRAINS);
+    expect(f.derive).toHaveBeenCalledTimes(2);
+    expect(f.inline.get('--font-terminal')).toBe(JETBRAINS_STACK);
+  });
+
+  it('publishes the preset to the store xterm and Monaco watch', () => {
+    const f = fakeEnv({});
+    const apply = createAppearanceApplier(f.env);
+    apply(BLUE_NORMAL_JETBRAINS);
+    expect(f.setFont).toHaveBeenCalledWith('jetbrains-mono');
   });
 });
 

@@ -45,6 +45,14 @@ import { multilineSequenceFor, primeMultilineKeys } from './keys/multiline';
 import { ScrollSurface } from './scroll/surface';
 import { TerminalScrollbar } from './scroll/TerminalScrollbar';
 import { canSplit, showTerminalMenu } from './terminal-menu';
+// Phase 78: the work-area font preset. The pane subscribes because xterm owns
+// an imperative `fontFamily` option that a custom property change cannot
+// reach, and because the face has to be LOADED before anything measures a cell.
+import {
+  loadWorkAreaFace,
+  useWorkAreaFont,
+  workFont
+} from '../theme/work-fonts';
 import {
   resolveTerminalFontFamily,
   resolveTerminalTheme,
@@ -175,6 +183,15 @@ export function TerminalPane({
   const zoomRef = useRef(zoomFactor);
   zoomRef.current = zoomFactor;
 
+  // Phase 78. One preset for the whole work area, the same shape as the zoom
+  // level above. `appliedFontRef` records which preset this xterm has actually
+  // been measured against, so the font effect below does its work once per
+  // change and once per fresh attach, and never twice for the same face.
+  const workAreaFont = useWorkAreaFont((s) => s.preset);
+  const workAreaFontRef = useRef(workAreaFont);
+  workAreaFontRef.current = workAreaFont;
+  const appliedFontRef = useRef<typeof workAreaFont | null>(null);
+
   const [overlay, setOverlay] = useState<OverlayState | null>(null);
   // Bumping the epoch tears the terminal down and attaches fresh (retry).
   const [attachEpoch, setAttachEpoch] = useState(0);
@@ -237,6 +254,14 @@ export function TerminalPane({
       rightClickSelectsWord: TERMINAL_RIGHT_CLICK_SELECTS_WORD
     });
     termRef.current = term;
+    // The constructor above read `--font-terminal`, so a pane mounting under
+    // a preset that ships no face is already drawing the right one and has
+    // nothing to await. A bundled preset leaves this null, so the font effect
+    // loads the face and re-measures the new terminal once.
+    appliedFontRef.current =
+      workFont(workAreaFontRef.current).familyName === null
+        ? workAreaFontRef.current
+        : null;
 
     // Right-click is a gmux gesture, never a byte on the wire (see the mouse
     // note in resources/gmux-tmux.conf). xterm attaches its own NATIVE
@@ -390,9 +415,11 @@ export function TerminalPane({
     observer.observe(container);
 
     // ---- fonts: keep the glyph atlas honest --------------------------------
-    // If a font finishes loading AFTER the terminal opened (late webfont,
-    // user-changed --font-mono), stale atlas glyphs would keep rendering —
-    // re-apply the family and rebuild the atlas. No-op churn is cheap.
+    // If a font finishes loading AFTER the terminal opened (a bundled preset's
+    // woff2 arriving late), stale atlas glyphs would keep rendering, so
+    // re-apply the family and rebuild the atlas. No-op churn is cheap. This is
+    // a BELT: the Phase 78 effect below is the path that also re-fits, and it
+    // runs whether or not this listener fires.
     const onFontsLoaded = (): void => {
       if (disposed || !termRef.current) return;
       term.options.fontFamily = resolveTerminalFontFamily();
@@ -542,6 +569,59 @@ export function TerminalPane({
     surface?.refresh();
     surface?.holdPositionAcrossResize();
   }, [zoomFactor, surface, attachEpoch]);
+
+  // ---- the work-area font preset (Phase 78) --------------------------------
+  // Written as a copy of the zoom effect above, because zoom is the working
+  // sibling for exactly this problem. The cell size changes, the pane re-fits,
+  // and the new cols/rows reach tmux through the same onResize path a window
+  // resize uses. The scrollbar refresh and the position hold are here for the
+  // two reasons the zoom effect gives.
+  //
+  // THE ONE THING THAT IS NOT LIKE ZOOM, and it is the whole reason this is an
+  // async effect. A `@font-face` is fetched only when something renders in it.
+  // Assigning the family to xterm first makes xterm measure the cell and build
+  // its WebGL glyph atlas in the FALLBACK face, and it stays wrong until the
+  // next resize, with no error anywhere. So the face is awaited first and the
+  // family is assigned second.
+  //
+  // One thing a reader will see and should not read as a fault. The two
+  // bundled faces advance 0.6000 em where Menlo advances 0.6021, which is
+  // 2.2 px over 80 columns, so at some pane widths the column count changes by
+  // one when the preset changes. That is a correct re-fit, and tmux is told.
+  useEffect(() => {
+    const term = termRef.current;
+    const fit = fitRef.current;
+    if (term === null || fit === null) return;
+    if (appliedFontRef.current === workAreaFont) return;
+    let cancelled = false;
+    void (async () => {
+      await loadWorkAreaFace(
+        workAreaFont,
+        term.options.fontSize ?? terminalBaseFontSize()
+      );
+      if (cancelled) return;
+      appliedFontRef.current = workAreaFont;
+      // Assigned unconditionally rather than under an equality guard. The
+      // `loadingdone` belt in the mount effect may have set the same string
+      // already, and the geometry work below still has to run.
+      term.options.fontFamily = resolveTerminalFontFamily();
+      try {
+        webglRef.current?.clearTextureAtlas();
+      } catch {
+        /* the renderer may have fallen back to DOM, so there is none */
+      }
+      try {
+        fit.fit();
+      } catch {
+        /* fitting a pane with no size yet is a no-op, not an error */
+      }
+      surface?.refresh();
+      surface?.holdPositionAcrossResize();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [workAreaFont, surface, attachEpoch]);
 
   // ---- the machine woke up (Phase 19 item 11) -------------------------------
   // A WebGL texture atlas is a GPU resource, and it does not survive the GPU

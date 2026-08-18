@@ -31,6 +31,11 @@ import {
   TERMINAL_LINE_HEIGHT
 } from '../theme';
 import {
+  currentWorkAreaFont,
+  faceCssFor,
+  hasBoldRuns
+} from './capture-fonts';
+import {
   measureCells,
   rowBandRect,
   screenElement,
@@ -380,6 +385,15 @@ export async function captureSelection(
     toast('info', `Capturing the last ${rowCount} of the selected lines.`);
   }
   try {
+    // Measure the advance against a face that has finished loading. Without
+    // this the correction below can be computed from the fallback face on the
+    // first capture after a preset change, which is a wrong number rather than
+    // a missing one. `captureHistory` has had this await since Phase 12.
+    try {
+      await document.fonts?.ready;
+    } catch {
+      /* no FontFaceSet outside a browser, so proceed */
+    }
     const html = serializeAsHtml(term, {
       theme: resolveTerminalTheme(),
       range: { startLine, endLine },
@@ -397,7 +411,12 @@ export async function captureSelection(
       html,
       widthCss: metrics.cellWidth * metrics.cols,
       heightCss: metrics.cellHeight * rowCount,
-      background: resolveTerminalTheme().background ?? TERMINAL_BACKGROUND
+      background: resolveTerminalTheme().background ?? TERMINAL_BACKGROUND,
+      // The SVG is its own document and the page's faces do not reach into
+      // it, so a bundled preset has to travel with the capture (Phase 78).
+      fontCss: await faceCssFor(currentWorkAreaFont(), {
+        bold: hasBoldRuns(html)
+      })
     });
     await bridge.image({ png, suggestedName: suggestedName(session) });
     captured('Captured your selection to the clipboard.');
@@ -502,7 +521,12 @@ export async function captureHistory(
       html,
       widthCss: metrics.cellWidth * metrics.cols,
       heightCss: metrics.cellHeight * drawnRows,
-      background: theme.background ?? TERMINAL_BACKGROUND
+      background: theme.background ?? TERMINAL_BACKGROUND,
+      // Same as the selection path above. The face rides along, or the PNG
+      // comes back in Menlo while the screen shows the chosen preset.
+      fontCss: await faceCssFor(currentWorkAreaFont(), {
+        bold: hasBoldRuns(html)
+      })
     });
     await bridge.image({ png, suggestedName: suggestedName(session) });
     captured(`Captured the last ${rows.length} lines to the clipboard.`);

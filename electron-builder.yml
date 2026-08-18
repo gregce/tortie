@@ -78,6 +78,10 @@ afterPack: build/after-pack.cjs
 files:
   - out/**
   - package.json
+  # Phase 78 bundles two OFL 1.1 font families, and the OFL requires the
+  # licence to travel with the font software. This puts NOTICE at the root of
+  # app.asar, beside the woff2 files it covers.
+  - NOTICE
   # electron-vite bundles ALL renderer deps into out/renderer and the main
   # bundle only requires node-pty, better-sqlite3 and @parcel/watcher at
   # runtime (externalizeDepsPlugin) — so keep the renderer-only production

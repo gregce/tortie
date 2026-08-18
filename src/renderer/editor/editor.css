@@ -502,7 +502,10 @@
   overflow: auto;
   background: var(--bg-canvas);
 
-  --diffs-font-family: var(--font-mono);
+  /* Phase 78: the work-area font token, not the chrome one. Pierre draws in
+     shadow DOM and a custom property inherits through the host, so the diff
+     follows the preset with no code. */
+  --diffs-font-family: var(--font-editor);
   --diffs-font-size: 12px;
 
   /* Gutter numbers annotate; they never compete with the code. Pierre would

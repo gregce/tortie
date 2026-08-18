@@ -121,18 +121,39 @@
   --space-10: 48px;
 
   /* §1.8 Type */
-  --font-ui:
-    -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue',
-    sans-serif;
+  /* Phase 78 deleted 'SF Pro Text' from this stack. It never matched anything.
+     There is no family registered under that name on macOS, so -apple-system
+     always matched first and the entry only misled the next reader. */
+  --font-ui: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  /* CHROME ONLY, and Phase 78 is the reason that word is in capitals. This
+     token has about 60 users and most of them are chrome, being the SCM
+     sidebar, search, quick open, the settings window, the clone dialog, the
+     home screen and the tab SHA chip. The work-area font preset deliberately
+     does not touch it, so the sidebar keeps the same face at every preset. */
   --font-mono: 'SF Mono', ui-monospace, Menlo, monospace;
-  /* xterm ONLY — never conflated with --font-mono (§1.8). Verified native
+  /* xterm ONLY, and never conflated with --font-mono (§1.8). Verified native
      stack (Phase 9.2 Bug C): "SF Mono" is Terminal.app-private and Chromium
-     lacks ui-monospace, so Menlo is the face that actually renders — and it
-     covers the prompt-glyph gauntlet (➜ ✗ ● ▲ λ) at one cell advance. The
-     historical underscores were a missing UTF-8 locale (src/main/tmux/env.ts),
-     not glyph coverage, so no bundled face ships. The deferred Settings →
-     General terminal-font control (DESIGN-SPEC S13) retargets this token. */
+     lacks ui-monospace, so Menlo is the face that actually renders here.
+     MENLO REGULAR is the safe upright last resort, and only the regular face.
+     It covers the prompt-glyph gauntlet (➜ ✗ ● ▲ λ) at one cell advance.
+     Menlo Bold has 0 of the 128 box drawing characters, Menlo Italic is
+     missing the check at U+2713, the cross at U+2717, the arrow at U+279C and
+     the warning at U+26A0, and Menlo Bold Italic fails both ways. None of that
+     shows in the terminal, because xterm's WebGL renderer draws the box, block,
+     powerline and legacy computing glyphs itself. The historical underscores
+     were a missing UTF-8 locale (src/main/tmux/env.ts), not glyph coverage.
+     Phase 78 made this token a LIVE lever. Settings → Appearance → Font writes
+     a bundled family in front of this stack, the fallback tail stays, and the
+     value below is what the System preset draws. There is no size control
+     here. Zoom multiplies terminalBaseFontSize() and stays the only size. */
   --font-terminal: 'SF Mono', ui-monospace, Menlo, monospace;
+  /* The work area's OTHER half, added in Phase 78 with a value byte identical
+     to --font-mono above, so the first frame after that phase drew exactly
+     what the frame before it drew. It exists because Monaco, the Pierre diff
+     and the markdown preview's code and pre must follow the font preset while
+     the 60 chrome rules on --font-mono must not. A keycap (.md-content kbd)
+     is chrome and stays on --font-mono. */
+  --font-editor: 'SF Mono', ui-monospace, Menlo, monospace;
 
   --text-xs: 11px; /* section labels (uppercase +0.04em), badges, ages */
   --lh-xs: 16px;

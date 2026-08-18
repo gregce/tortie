@@ -40,7 +40,8 @@ import {
   dangerKey,
   defaultGmuxSettings,
   sanitizeContrastLevel,
-  sanitizeHighlightScheme
+  sanitizeHighlightScheme,
+  sanitizeWorkAreaFont
 } from '@shared/settings';
 import type { LaunchableAgentId, LaunchableAgentKind } from '@shared/types';
 import { LAUNCHABLE_AGENT_IDS } from '../agents/registry';
@@ -385,12 +386,14 @@ export function sanitizeSettings(raw: unknown): GmuxSettings {
     out.scrollbackLines
   );
 
-  // Appearance (Phase 62). Membership checks only. These are preferences
-  // with no danger semantics. They never touch the danger seal. A
-  // hand-edited file can at worst pick a different preset, and an old file
-  // without either key loads as the defaults, which derive zero overrides.
+  // Appearance (Phase 62, and the work area font in Phase 78). Membership
+  // checks only. These are preferences with no danger semantics. They never
+  // touch the danger seal. A hand-edited file can at worst pick a different
+  // preset, and an old file without these keys loads as the defaults, which
+  // derive zero overrides.
   out.highlightScheme = sanitizeHighlightScheme(obj['highlightScheme']);
   out.contrastLevel = sanitizeContrastLevel(obj['contrastLevel']);
+  out.workAreaFont = sanitizeWorkAreaFont(obj['workAreaFont']);
 
   return out;
 }

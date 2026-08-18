@@ -73,19 +73,27 @@ export const TERMINAL_RIGHT_CLICK_SELECTS_WORD = false;
 
 /**
  * DESIGN.md §1.8: terminal runs `--font-terminal` at 13px, lineHeight 1.25,
- * spacing 0 — the verified macOS-native stack below (no bundled face).
+ * spacing 0. The stack below is the macOS-native one, and it is what the
+ * System preset draws.
  *
  * Glyph coverage — verified in this Chromium (Phase 9.2 Bug C canvas-bitmap
  * probe): "SF Mono" is not system-registered (Terminal.app-private) and
  * Chromium does not implement `ui-monospace`, so the face that actually
- * renders is **Menlo** — which covers the whole prompt-glyph gauntlet
+ * renders is **Menlo**. Menlo REGULAR covers the whole prompt-glyph gauntlet
  * (➜ U+279C, ✗ U+2717, ● U+25CF, ▲ U+25B2, λ U+03BB) at exactly 1 cell
- * advance. macOS per-glyph fallback covers anything further; no bundled
- * font is needed. (The historical "underscores instead of glyphs" bug was
- * never fonts: a locale-less launchd env made tmux mark the attach client
- * non-UTF-8 and substitute `_` server-side — fixed in src/main/tmux/env.ts
- * + `tmux -u`.) Powerline PUA glyphs (U+E0B0…) are drawn by xterm.js
- * itself (customGlyphs), independent of this stack.
+ * advance, and only the regular face does. Menlo Bold has 0 of the 128 box
+ * drawing characters and Menlo Italic is missing the check at U+2713, the
+ * cross at U+2717, the arrow at U+279C and the warning at U+26A0. Neither gap
+ * reaches this pane, because xterm.js draws the box, block, powerline and
+ * legacy computing glyphs itself (customGlyphs), independent of this stack.
+ * macOS per-glyph fallback covers anything further. (The historical
+ * "underscores instead of glyphs" bug was never fonts. A locale-less launchd
+ * env made tmux mark the attach client non-UTF-8 and substitute `_`
+ * server-side, and it was fixed in src/main/tmux/env.ts with `tmux -u`.)
+ *
+ * Phase 78 bundles two faces, JetBrains Mono and Source Code Pro, and offers
+ * them in Settings → Appearance → Font. They are LETTERFORMS and nothing more.
+ * No bundled face is needed for coverage, and none ships for it.
  */
 export const TERMINAL_FONT_FALLBACK =
   '"SF Mono", ui-monospace, Menlo, monospace';
@@ -119,12 +127,13 @@ export const TERMINAL_SCROLLBACK = 10000;
  * THE base terminal font size — the one number a terminal's size is decided
  * from, and the number Phase 12.11's zoom MULTIPLIES.
  *
- * DESIGN.md §9.7 / DESIGN-SPEC S13 describe a Settings → General family+size
- * control; it was deferred in Phase 10 and is still not built (the docs now
- * say so instead of promising it). When it lands it changes THIS function's
- * answer — it must never become a second, competing size next to zoom, or two
- * controls will fight over one pane. Zoom is always a per-region multiplier
- * over whatever this returns.
+ * NOTHING IN SETTINGS CHANGES THIS NUMBER, and that is settled rather than
+ * pending. docs/DESIGN-SPEC.md:601 withdrew the terminal font SIZE stepper,
+ * not deferred it again, because per-region zoom already answers size and a
+ * Settings field would be a second answer fighting the first. The same line
+ * kept `--font-terminal` as the FAMILY lever, and Phase 78 built the family
+ * picker that sets it. A preset changes the face and never this function's
+ * answer. Zoom stays a per-region multiplier over whatever this returns.
  */
 export function terminalBaseFontSize(): number {
   return TERMINAL_FONT_SIZE;
@@ -159,10 +168,16 @@ export function resolveTerminalTheme(): ITheme {
 }
 
 /**
- * `--font-terminal` token when present, else the DESIGN.md stack. The token
- * is xterm-only (DESIGN.md §1.8): `--font-mono` stays the UI-mono token and
- * the two are never conflated, so the terminal face can change (deferred
- * Settings → General control, DESIGN-SPEC S13) without touching UI chrome.
+ * `--font-terminal` token when present, else the DESIGN.md stack. The token is
+ * xterm-only (DESIGN.md §1.8). `--font-mono` stays the chrome token and the
+ * two are never conflated, which is what lets Settings → Appearance → Font
+ * change the terminal face without touching the sidebar.
+ *
+ * CALL THIS AFTER THE FACE IS LOADED, never before. A `@font-face` is fetched
+ * only when something renders in it, so assigning a family xterm has not seen
+ * makes it measure the cell and build its WebGL atlas in the fallback, and it
+ * stays wrong until the next resize. TerminalPane awaits `loadWorkAreaFace`
+ * first (src/renderer/theme/work-fonts.ts) for exactly that reason.
  */
 export function resolveTerminalFontFamily(): string {
   const styles = getComputedStyle(document.documentElement);

@@ -30,6 +30,10 @@ import type { EditorTab } from './store';
 // font-size API — a CSS zoom around the editor would leave its cursor,
 // selection and hit-testing measuring a coordinate space it does not use.
 import { useZoom, zoomedFontSize } from '../zoom';
+// Phase 78: the work-area font preset. Monaco owns an imperative `fontFamily`
+// option, so a custom property change alone would move the token and leave the
+// editor measuring the old face.
+import { loadWorkAreaFace, useWorkAreaFont } from '../theme/work-fonts';
 
 function cssVar(name: string, fallback: string): string {
   const v = getComputedStyle(document.documentElement)
@@ -83,7 +87,13 @@ function baseOptions(
   zoom: number
 ): monacoNs.editor.IStandaloneEditorConstructionOptions {
   return {
-    fontFamily: cssVar('--font-mono', '"SF Mono", ui-monospace, Menlo, monospace'),
+    // Phase 78: `--font-editor`, not `--font-mono`. The two carry the same
+    // shipped value. The editor token follows the work-area font preset and
+    // the mono token stays put, so the sidebar never changes face.
+    fontFamily: cssVar(
+      '--font-editor',
+      '"SF Mono", ui-monospace, Menlo, monospace'
+    ),
     fontSize: zoomedFontSize(EDITOR_BASE_FONT_SIZE, zoom),
     minimap: { enabled: false },
     scrollBeyondLastLine: false,
@@ -150,6 +160,7 @@ export function MonacoHost({
   const zoom = useZoom((s) => s.levels.editor);
   const zoomRef = useRef(zoom);
   zoomRef.current = zoom;
+  const workAreaFont = useWorkAreaFont((s) => s.preset);
 
   const [ready, setReady] = useState<boolean>(getLoadedMonaco() !== null);
 
@@ -336,6 +347,33 @@ export function MonacoHost({
       fontSize: zoomedFontSize(EDITOR_BASE_FONT_SIZE, zoom)
     });
   }, [zoom, ready, contentReady]);
+
+  // Settings → Appearance → Font (Phase 78). Two calls, in this order, and
+  // both are needed. `updateOptions` moves the family Monaco draws with.
+  // `remeasureFonts` is Monaco's own answer to a face that changed underneath
+  // it, and without it the cursor, the selection and the horizontal scroll
+  // range keep the previous character width.
+  //
+  // The face is awaited first for the same reason the terminal awaits it. A
+  // `@font-face` is fetched only when something renders in it, so assigning
+  // the family first would have Monaco measure the fallback and cache that.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      await loadWorkAreaFace(workAreaFont, EDITOR_BASE_FONT_SIZE);
+      if (cancelled) return;
+      codeEditor.current?.updateOptions({
+        fontFamily: cssVar(
+          '--font-editor',
+          '"SF Mono", ui-monospace, Menlo, monospace'
+        )
+      });
+      getLoadedMonaco()?.editor.remeasureFonts();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [workAreaFont, ready, contentReady]);
 
   // -- teardown on unmount ----------------------------------------------------
   // Mode toggles (File → Diff) unmount this host: keep the cursor/scroll so

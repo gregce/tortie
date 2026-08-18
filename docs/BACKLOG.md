@@ -6040,7 +6040,7 @@ the writing rules including no em or en dashes. Prove no file under `src/main/se
 `src/main/restore/`, `src/main/manifest/` or `src/shared/ipc/` was edited, and that the only
 `src/main/machines/` change is the one word, and say so explicitly.
 
-## Phase 78 — three font presets, and the screenshot that must keep matching (operator requested 2026-08-17) QUEUED
+## Phase 78 — three font presets, and the screenshot that must keep matching (operator requested 2026-08-17) ✅ SHIPPED 2026-08-17 (this commit, 0.36.0, gates green)
 
 Closes GitHub issue 1 for the work area only. Six researchers surveyed nine products and one
 adversarial critic re-measured every number by downloading both font releases and parsing their
@@ -6061,9 +6061,12 @@ for both. The size half is refused, and the refusal is older than the issue.
 | --- | --- | --- | --- | --- |
 | System, the default | already on the machine, resolves to Menlo | named only | 0 | A person who never opens the section sees exactly today, byte identical |
 | JetBrains Mono 2.304 | bundled, regular and bold woff2 | SIL OFL 1.1, no reserved name | 186,752 | The only bundleable face measured that covers the whole glyph gauntlet, and it sits on the same grid at 0.6000 em advance against Menlo's 0.6021, so letterforms change and the cell does not |
-| Source Code Pro 2.042 | bundled, regular and bold woff2 | SIL OFL 1.1, reserved name "Source" | 148,544 | x-height 0.4860 em against Menlo's 0.5469, which is 11 percent smaller, and it is the only measured candidate that gives a quieter page at the same pixel size |
+| Source Code Pro 2.042 | bundled, regular and bold woff2 | SIL OFL 1.1, reserved name "Source" | 153,720 as shipped, corrected from the 148,544 written here before the build | x-height 0.4860 em against Menlo's 0.5469, which is 11 percent smaller, and it is the only measured candidate that gives a quieter page at the same pixel size |
 
-Total shipped bytes 335,296. For scale the app already ships `codicon.ttf` twice, at 149,508 and
+Total shipped bytes 340,472 as measured on the four files that shipped, corrected from the 335,296
+written here before the build. The Source Code Pro figure above named the WOFF2 built from the TTF
+release while the file list named the WOFF2 built from the OTF release. The OTF pair is what shipped,
+because that is what the file list named, and it is 5,176 bytes larger. For scale the app already ships `codicon.ttf` twice, at 149,508 and
 140,956 bytes. Fonts are assets rather than JavaScript, so they do not enter the eager JS budget the
 performance audit tracks, but they are still bytes and the phase reports them.
 
@@ -6142,6 +6145,65 @@ compare the PNG against the screen, proving they match rather than asserting it.
 geometry under each preset and show the grid did not move. Prove zoom still multiplies over the
 chosen base. Prove the System preset is byte identical to today by comparing a capture before and
 after the change.
+
+**WHAT SHIPPED, and every number below was measured on this build rather than predicted.**
+
+1. A **Font** group in Settings, Appearance, under Contrast. One select, three options, in the order
+System, JetBrains Mono and Source Code Pro. There is no size field and no range input on the section.
+The preset is persisted as `workAreaFont` in main's `settings.json`, beside the two Phase 62
+appearance fields.
+2. A preset writes two custom properties and nothing else, being `--font-terminal` and the new
+`--font-editor`. `--font-editor` was added with a value byte identical to `--font-mono`, and Monaco,
+the Pierre diff and the markdown preview's code now read it. `--font-mono` did not move, so the
+sidebar and the rest of the chrome did not move.
+3. System writes no override. Three exports from the current build and from a build of `9d5d0eb`
+under System came out at 120,219 bytes each with sha256
+`c5679653a01396f42976c07620c24122485008868a60fe9a3e5a7d6b686076cd`, so an untouched install renders
+what it rendered before. Under System both bundled families are declared and both report unloaded, so
+that install fetches no font bytes.
+4. The screenshot export keeps matching the screen, which is the reason this phase was Tier 3. The
+capture path inlines the chosen face as a base64 `@font-face` inside the SVG's own `<style>`. Three
+runs, each a fresh isolated user data directory on its own harness socket, each driving the real
+rasteriser. Percent of ink differing, export in the row and screen in the column: system against the
+three screens 15.20, 19.82 and 34.50; jetbrains-mono 25.01, 5.64 and 35.33; source-code-pro 28.85,
+29.95 and 15.78. The diagonal is the minimum of its row and of its column in all three, so each
+export matches its own screen better than it matches either other face.
+5. The bold member is inlined only when the serialized capture holds a bold run. That keeps the
+common JetBrains Mono capture at 123,032 extra bytes instead of 249,296, and the common Source Code
+Pro capture at 101,945 instead of 205,254.
+6. The grid did not move. Advance per em measured in a real renderer against the shipped files is
+Menlo 0.60205, JetBrains Mono 0.6000 and Source Code Pro 0.6000, so both bundled faces are 0.34
+percent narrower than Menlo. Live geometry was 147 by 42 under all three presets and all three
+exported PNGs are 2246 by 336 device pixels. Over a 60 character ruler line the export advances 15.02
+device pixels per character and the screen advances 15.00, a whole-span difference of one device
+pixel in 899, or 0.11 percent.
+7. Zoom still multiplies. Real chords at the terminal logged "terminal font 13 to 19.5" at 1.5 and
+"13 to 11.7" at 0.9, and `--font-terminal` still named the chosen preset after zooming both ways.
+8. The four correction points the critic required were re-measured rather than carried. `'SF Pro
+Text'` does not resolve on this machine and it is deleted from `--font-ui`. Menlo Bold is missing
+U+2500 and Menlo Italic is missing the cross, the arrow and the warning. Source Code Pro regular and
+bold are missing U+2717, U+279C and U+26A0, and the Settings card says so in plain words. Menlo's
+x-height is 0.5469 em against Source Code Pro's 0.4860 em, a ratio of 1.1252, which is where the
+card's 12.5 percent comes from.
+
+**What is NOT true after this phase, stated so nobody expects it.**
+
+- Braille spinners are unchanged. No monospace face on this Mac has any of the 256 braille
+  codepoints, so macOS still draws them from `Apple Braille.ttf`. That fix is an xterm.js upgrade and
+  it is not this phase.
+- There is no sidebar or interface font control, and there is no size control anywhere. Both halves
+  were refused on purpose and the reasons are above.
+- The woff2 glyph tables were not decoded. Every coverage answer above is a rendering test in a real
+  renderer, not a `cmap` read.
+- The packaged application was not launched. `electron-builder` produced an `app.asar` holding
+  `/NOTICE` with sha256 `b1e87cde314b4b940d772a02c0638ca83d31dc0d30afcc0638c6a6ef8b5e2e36`, identical
+  to the repository file, and all four woff2 files under `/out/renderer/assets/`. The pack then failed
+  after the asar was sealed because the verification worktree symlinks `node_modules`, which is a
+  worktree problem and not a font problem.
+- One residual race is measured and left. After a preset change `--font-terminal` moves at 8 ms while
+  `document.fonts.check` for the new family stayed false until 1,252 ms in one run. A capture started
+  inside that window computes its cell correction from the old face. The error is bounded by the 0.34
+  percent advance difference, about 0.026 css pixels per character. It is recorded in the nits round.
 
 ## Phase 77 — the quit and suspend contract, NOT QUEUED and BLOCKED ON PHASE 72
 
@@ -6255,6 +6317,9 @@ blocks a rung. This round runs after 73, or earlier if the operator asks for it.
 | 46.1 | On the hover card a failed jobs read is indistinguishable from a run that was never expanded |
 | 46.1 | The hover card closes on the runs body's own scroll only, so an outer container scrolling moves the rows without closing it. The History card behaves the same way |
 | 46.1 | The copy button reads `Run URL` rather than `Copy` when `run.number` is 0 |
+| 78 | `'SF Mono'` does not resolve on this machine either, measured the same way that proved `'SF Pro Text'` does not, being that it measures identically to a family name that does not exist. Phase 78 deleted the dead name from `--font-ui` and left this one at the head of both `--font-mono` and the System value of `--font-terminal`, under a comment calling the stack verified. Nothing draws wrong, because the next entry matches, and the comment misleads the next reader |
+| 78 | A capture started in the first second after a preset change measures its cell correction against the old face. `--font-terminal` moves at 8 ms and `document.fonts.check` for the new family stayed false until 1,252 ms in one measured run. The error is bounded by the 0.34 percent advance difference, about 0.026 css pixels per character, so it is far smaller than the defect Phase 78 removed. The fix is for the capture path to await the named face rather than `document.fonts.ready` |
+| 78 | `src/renderer/terminal/capture/index.ts` now holds two `no FontFaceSet outside a browser` comments that differ by one character, because Phase 78 wrote its new one without an em dash and left the older one alone |
 
 ## Phase 46.1 — the Runs pane reads clearly (operator reported 2026-08-16) ✅ SHIPPED 2026-08-17 (d1ce49f, 0.31.1, gates green)
 

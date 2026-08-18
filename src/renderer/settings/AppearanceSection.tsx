@@ -5,18 +5,27 @@
  * applies them in every window at once (src/renderer/theme/apply.ts), so the
  * live window is the preview and there is no Save.
  *
+ * Phase 78 added a third control in the same shape. It picks the face the
+ * terminal and the editor draw with, from three presets. It writes the same
+ * kind of one-field patch and the same applier reads it. It sets no size.
+ * The size stepper stays withdrawn (docs/DESIGN-SPEC.md:601) because
+ * per-region zoom already changes the terminal's size for real.
+ *
  * The section uses the existing settings vocabulary only. The option labels
  * are the spec's exact strings; the values are the persisted union members
  * from @shared/settings.
  */
 
 import React from 'react';
+import { keyDisplay } from '@shared/keymap';
 import type {
   ContrastLevel,
   GmuxSettings,
-  HighlightScheme
+  HighlightScheme,
+  WorkAreaFont
 } from '@shared/settings';
 import { SCHEME_PRESETS } from '../theme/presets';
+import { WORK_FONTS } from '../theme/work-fonts';
 import { useSettingsStore } from './settings-store';
 
 /**
@@ -33,6 +42,15 @@ export const CONTRAST_OPTIONS: { value: ContrastLevel; label: string }[] = [
   { value: 'raised', label: 'Raised' },
   { value: 'high', label: 'High' }
 ];
+
+/**
+ * The three font presets, in UI order. System is the shipped default and
+ * writes no token override. The list and its labels come from the preset
+ * data in src/renderer/theme/work-fonts.ts, so the select can never offer a
+ * face the applier does not implement.
+ */
+export const WORK_FONT_OPTIONS: { value: WorkAreaFont; label: string }[] =
+  WORK_FONTS.map((f) => ({ value: f.id, label: f.label }));
 
 /**
  * Persist a scheme pick as a one-field patch. Exported for the unit test,
@@ -53,6 +71,15 @@ export function selectContrastLevel(
   return useSettingsStore
     .getState()
     .update({ contrastLevel: value as ContrastLevel });
+}
+
+/** Persist a font pick as a one-field patch. Exported for the test. */
+export function selectWorkAreaFont(
+  value: string
+): Promise<GmuxSettings | null> {
+  return useSettingsStore
+    .getState()
+    .update({ workAreaFont: value as WorkAreaFont });
 }
 
 function HighlightSchemeRow(): React.JSX.Element {
@@ -113,6 +140,36 @@ function ContrastRow(): React.JSX.Element {
   );
 }
 
+function WorkAreaFontRow(): React.JSX.Element {
+  const settings = useSettingsStore((s) => s.settings);
+  return (
+    <div className="set-row tall">
+      <div className="set-row-text">
+        <span className="set-row-label">Terminal and editor font</span>
+        <span className="set-row-caption">
+          The face the terminal and the editor draw with. System is Menlo,
+          which is already on your Mac. The sidebar and the rest of the app
+          keep the system interface font. Changes apply at once.
+        </span>
+      </div>
+      <select
+        className="set-select"
+        aria-label="Terminal and editor font"
+        value={settings.workAreaFont}
+        onChange={(e) => {
+          void selectWorkAreaFont(e.target.value);
+        }}
+      >
+        {WORK_FONT_OPTIONS.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 export function AppearanceSection(): React.JSX.Element {
   return (
     <section aria-label="Appearance">
@@ -133,6 +190,47 @@ export function AppearanceSection(): React.JSX.Element {
               Text inside the terminal keeps its shipped colors. So do diff
               views and the file tree. The terminal selection highlight
               follows the highlight scheme.
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="set-group-label">Font</div>
+      <div className="set-card">
+        <WorkAreaFontRow />
+        {/* The three recorded limits, on the card where the user is looking. */}
+        <div className="set-row">
+          <div className="set-row-text">
+            {/*
+              The two chords are read from src/shared/keymap.ts rather than
+              typed here, which is the single-source rule
+              (src/shared/__tests__/keymap-single-source.test.ts). They
+              render as ⌘+ and ⌘-.
+            */}
+            <span className="set-row-caption">
+              {`Size is not set here. Use ${keyDisplay('view.zoomIn')} and ` +
+                `${keyDisplay('view.zoomOut')} to change the size of the ` +
+                `area you are working in.`}
+            </span>
+          </div>
+        </div>
+        <div className="set-row">
+          <div className="set-row-text">
+            <span className="set-row-caption">
+              Source Code Pro is missing three of the marks agents print. The
+              first is the cross at U+2717. The second is the arrow at U+279C.
+              The third is the warning at U+26A0. Menlo draws each one instead,
+              12.5 percent taller than the letters beside it. The column grid
+              does not move.
+            </span>
+          </div>
+        </div>
+        <div className="set-row">
+          <div className="set-row-text">
+            <span className="set-row-caption">
+              Agent spinners are drawn from Apple Braille under all three
+              options. No monospace font on this Mac has those marks, so
+              nothing here changes them.
             </span>
           </div>
         </div>

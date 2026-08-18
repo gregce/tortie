@@ -20,14 +20,41 @@
  * `--bg-canvas` is read as the contrast anchor and is NEVER written. The
  * pre-paint window background, the terminal background mirror and the
  * capture path all depend on its exact byte value.
+ *
+ * Phase 78 added the work-area FONT to the same mechanism, and it added
+ * nothing else. The font half does not go through `deriveOverrides`, which is
+ * colour math with an sRGB contract and its own tests. It is a second, tiny
+ * map merged on top, produced by the pure `fontOverrides` in ./work-fonts.ts.
+ * The System preset returns an empty map, so the zero-override guarantee above
+ * now covers three fields rather than two, and the existing diff is what
+ * removes both font tokens again when a person goes back to System.
+ *
+ * The applier is also the ONE writer of the work-area font store. xterm and
+ * Monaco each own an imperative font option that a custom property change
+ * cannot reach, so they subscribe to that store and re-measure themselves.
+ * They do that AFTER awaiting the named face, which this module never does on
+ * their behalf.
  */
 
 import type { GmuxSettingsExtras } from '@shared/ipc';
-import type { GmuxSettings } from '@shared/settings';
+import { sanitizeWorkAreaFont } from '@shared/settings';
+import type { GmuxSettings, WorkAreaFont } from '@shared/settings';
 import { forEachTerminal } from '../terminal/drop/registry';
 import { resolveTerminalTheme } from '../terminal/theme';
 import { deriveOverrides, type Appearance } from './derive';
 import { ALL_THEME_TOKENS } from './presets';
+import { fontOverrides, setWorkAreaFont } from './work-fonts';
+
+/**
+ * Everything the applier reconciles the document to: the two Phase 62 colour
+ * fields and the Phase 78 font field.
+ *
+ * It is a superset of `Appearance`, which stays exactly the colour pair
+ * `deriveOverrides` accepts. The font never reaches the colour derivation.
+ */
+export interface AppliedAppearance extends Appearance {
+  workAreaFont: WorkAreaFont;
+}
 
 /**
  * What the applier needs from the world, injectable so the unit tests can
@@ -43,6 +70,14 @@ export interface AppearanceEnv {
   removeProperty(token: string): void;
   /** Re-resolve the theme of every live terminal (selection highlight). */
   refreshTerminals(): void;
+  /**
+   * Publish the chosen preset to the store TerminalPane and MonacoHost watch.
+   * It deliberately does NOT assign xterm's `fontFamily` here. Assigning the
+   * family before the face has loaded makes xterm measure the cell and build
+   * its WebGL glyph atlas in the fallback, and it stays wrong until the next
+   * resize. Each pane awaits its own face and then re-measures itself.
+   */
+  setFont(preset: WorkAreaFont): void;
   /** The pure derivation; the real env passes `deriveOverrides`. */
   derive: typeof deriveOverrides;
 }
@@ -60,7 +95,7 @@ export interface AppearanceEnv {
  */
 export function createAppearanceApplier(
   env: AppearanceEnv
-): (appearance: Appearance) => void {
+): (appearance: AppliedAppearance) => void {
   let base: Record<string, string> | null = null;
   let lastKey: string | null = null;
   let applied: Record<string, string> = {};
@@ -81,7 +116,13 @@ export function createAppearanceApplier(
       base = captured;
     }
 
-    const next = env.derive(appearance, base);
+    // Colour first, then the font map on top. They share no key, so the
+    // spread is a union rather than a precedence question, and both halves
+    // return {} at their defaults.
+    const next = {
+      ...env.derive(appearance, base),
+      ...fontOverrides(appearance.workAreaFont)
+    };
     for (const [token, value] of Object.entries(next)) {
       if (applied[token] !== value) env.setProperty(token, value);
     }
@@ -92,6 +133,7 @@ export function createAppearanceApplier(
     lastKey = key;
 
     env.refreshTerminals();
+    env.setFont(appearance.workAreaFont);
   };
 }
 
@@ -106,11 +148,19 @@ export function refreshLiveTerminalThemes(): void {
   });
 }
 
-/** The two appearance fields out of the full settings shape. */
-function toAppearance(settings: GmuxSettings): Appearance {
+/**
+ * The three appearance fields out of the full settings shape.
+ *
+ * The font field is sanitized again here even though main sanitizes it before
+ * it is written. This renderer also reads a settings object over the bridge,
+ * and a value that is not a preset would otherwise reach the store xterm and
+ * Monaco subscribe to. The sanitizer answers 'system', which writes nothing.
+ */
+function toAppearance(settings: GmuxSettings): AppliedAppearance {
   return {
     highlightScheme: settings.highlightScheme,
-    contrastLevel: settings.contrastLevel
+    contrastLevel: settings.contrastLevel,
+    workAreaFont: sanitizeWorkAreaFont(settings.workAreaFont)
   };
 }
 
@@ -122,6 +172,7 @@ function browserEnv(): AppearanceEnv {
     setProperty: (token, value) => root.style.setProperty(token, value),
     removeProperty: (token) => root.style.removeProperty(token),
     refreshTerminals: refreshLiveTerminalThemes,
+    setFont: setWorkAreaFont,
     derive: deriveOverrides
   };
 }

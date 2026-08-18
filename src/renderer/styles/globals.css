@@ -4,6 +4,10 @@
  */
 
 @import './tokens.css';
+/* Phase 78: the two bundled work-area faces. Declaring a family costs
+   nothing until something renders in it, and the default preset renders in
+   neither. */
+@import './fonts.css';
 @import './app.css';
 
 * {

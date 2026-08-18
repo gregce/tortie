@@ -2,14 +2,21 @@
  * Inline-styled HTML → PNG bytes, in about forty lines and zero dependencies.
  *
  * `html-to-image` and friends exist to clone a live DOM node, inline every
- * computed style and embed webfonts. Our input is machine-generated, already
- * fully inline-styled, and uses a system font — so all that is left is:
+ * computed style and embed webfonts. Our input is machine-generated and
+ * already fully inline-styled, so all that is left is:
  *
  *   XMLSerializer → <svg><foreignObject> → data: URL → <img>.decode()
  *                 → canvas.drawImage → canvas.toBlob('image/png')
  *
  * An SVG from a `data:` URL is same-origin and carries no external
  * references, so the canvas is never tainted (verified, research 17 §4.2).
+ * That isolation is also why the caller may have to hand us a face. The SVG is
+ * its own document. The host page's `@font-face` rules do not reach inside it
+ * and it fetches nothing. Under the System preset the terminal draws in a face
+ * the machine already has and `fontCss` stays empty. Under a bundled preset
+ * (Phase 78) the caller passes base64 `@font-face` rules and they go into the
+ * foreignObject, or the export comes out in Menlo while the screen shows the
+ * chosen face.
  *
  * Hard cap: a canvas dimension tops out near 65,535 device px ≈ 1,770 rows at
  * dpr 2 — well past the 1,000-row ceiling the capture UI offers.
@@ -49,6 +56,48 @@ export interface RasterizeInput {
   heightCss: number;
   /** Painted behind the content so the PNG has no transparent gutter. */
   background: string;
+  /**
+   * CSS to place inside the foreignObject, e.g. base64 `@font-face` rules
+   * from `capture-fonts.ts`. Empty or absent inlines nothing, which is the
+   * System preset and the pre-Phase-78 output byte for byte.
+   */
+  fontCss?: string;
+}
+
+/**
+ * The whole SVG string, split out so a test can byte-compare it without a
+ * canvas, an image decode or a DOM.
+ *
+ * `serializedRoot` is the XMLSerializer output for the content div, already
+ * XHTML-namespaced. `fontCss === ''` MUST return the string this file built
+ * before Phase 78, and a unit test holds that rather than a promise.
+ *
+ * PLACEMENT, measured rather than guessed. Probe P6 drew the same text three
+ * ways in a real Electron 43.3.0 renderer and counted differing ink pixels
+ * against the same face installed in the main document. With the `<style>`
+ * inside the foreignObject the difference was 0 of 15,458 pixels. With no
+ * `<style>` it was 2,838 of 16,758, and that render matched Menlo exactly, 0
+ * of 16,758, which is the defect this fix removes. An SVG-namespaced `<style>`
+ * directly under `<svg>` also measured 0, so both placements work and the
+ * inner one is chosen because it keeps the rules with the subtree they style.
+ */
+export function buildCaptureSvg(
+  serializedRoot: string,
+  width: number,
+  height: number,
+  fontCss: string
+): string {
+  const style =
+    fontCss === ''
+      ? ''
+      : `<style xmlns="http://www.w3.org/1999/xhtml">${fontCss}</style>`;
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">` +
+    `<foreignObject width="100%" height="100%">` +
+    style +
+    serializedRoot +
+    `</foreignObject></svg>`
+  );
 }
 
 /** Render `html` to PNG bytes at the display's device pixel ratio. */
@@ -68,11 +117,12 @@ export async function rasterizeHtml(
     root.style.padding = `${PAD}px`;
   }
 
-  const svg =
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">` +
-    `<foreignObject width="100%" height="100%">` +
-    new XMLSerializer().serializeToString(root) +
-    `</foreignObject></svg>`;
+  const svg = buildCaptureSvg(
+    new XMLSerializer().serializeToString(root),
+    width,
+    height,
+    input.fontCss ?? ''
+  );
 
   const img = new Image();
   img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;

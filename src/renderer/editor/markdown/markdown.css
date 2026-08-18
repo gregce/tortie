@@ -151,8 +151,11 @@
   font-weight: var(--weight-semibold);
 }
 
+/* Phase 78: code follows the work-area font preset, the same as Monaco and
+   the diff. Split view puts the editor beside this preview on one screen, and
+   two faces for the same code would read as a rendering fault. */
 .md-content code {
-  font-family: var(--font-mono);
+  font-family: var(--font-editor);
   font-size: 12px;
 }
 
@@ -164,6 +167,8 @@
   color: var(--text-primary);
 }
 
+/* A keycap is chrome, not code, so it stays on --font-mono while the code and
+   the fences above and below follow the preset. */
 .md-content kbd {
   padding: 1px 5px;
   border: 1px solid var(--border-strong);
@@ -182,7 +187,7 @@
   border: 1px solid var(--border);
   border-radius: var(--r-md);
   overflow-x: auto;
-  font-family: var(--font-mono);
+  font-family: var(--font-editor);
   font-size: 12px;
   line-height: 1.55;
   tab-size: 2;

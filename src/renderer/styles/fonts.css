@@ -1,0 +1,68 @@
+/**
+ * The two bundled work-area faces (Phase 78).
+ *
+ * Nothing here changes what the app draws by itself. A `@font-face` only
+ * declares that a family EXISTS; the face is fetched the first time something
+ * renders in it. The default preset is System, which writes no override, so an
+ * untouched install never asks for either family and never reads either file.
+ *
+ * WHAT IS AND IS NOT BUNDLED, and why the list is this short. Four files ship,
+ * being the regular and the bold member of each family. No italic member
+ * ships. Chromium synthesises an oblique from the regular face when a family
+ * has no italic member, so italic text under a bundled preset stays in the
+ * bundled face instead of falling back to Menlo Italic, which is missing the
+ * check at U+2713, the cross at U+2717, the arrow at U+279C and the warning at
+ * U+26A0. No symbol face and no Nerd Font ships either. xterm's WebGL renderer
+ * draws all 128 box drawing characters, the 32 block elements, the 19
+ * powerline codepoints and the 31 legacy computing glyphs itself in
+ * @xterm/addon-webgl 0.19.0, so a bundled font buys letterforms here and
+ * nothing else.
+ *
+ * `font-display: block` on every face. The alternative, `swap`, paints one
+ * frame in the fallback and then reflows the terminal grid under the reader.
+ * The blocking period is short because the file is on local disk, and the
+ * consumers await `document.fonts.load` for the named face before they
+ * re-measure anything (see src/renderer/theme/work-fonts.ts).
+ *
+ * Licences and copyright lines are in NOTICE at the repository root, which
+ * also ships inside the application bundle beside these bytes. Both families
+ * are under the SIL Open Font License 1.1. "Source" is a reserved font name,
+ * so the Source Code Pro files keep their upstream filenames and the family is
+ * never renamed.
+ */
+
+/* JetBrains Mono 2.304, from JetBrainsMono-2.304.zip, fonts/webfonts/.
+   Regular 92,164 bytes, Bold 94,588 bytes. */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url('../assets/fonts/JetBrainsMono-Regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: block;
+  src: url('../assets/fonts/JetBrainsMono-Bold.woff2') format('woff2');
+}
+
+/* Source Code Pro 2.042, from WOFF2-source-code-pro-2.042R-u_1.062R-i_1.026Rvf.zip,
+   WOFF2/OTF/. Regular 76,348 bytes, Bold 77,372 bytes. */
+@font-face {
+  font-family: 'Source Code Pro';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url('../assets/fonts/SourceCodePro-Regular.otf.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Source Code Pro';
+  font-style: normal;
+  font-weight: 700;
+  font-display: block;
+  src: url('../assets/fonts/SourceCodePro-Bold.otf.woff2') format('woff2');
+}

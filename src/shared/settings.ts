@@ -86,6 +86,14 @@ export interface GmuxSettings {
    * `highlightScheme` above. No danger semantics, never sealed.
    */
   contrastLevel: ContrastLevel;
+  /**
+   * Which face the terminal and the editor draw with (Phase 78). 'system'
+   * derives ZERO overrides and is byte identical to the shipped stylesheet.
+   * It has the same posture as `highlightScheme` and `contrastLevel` above.
+   * It is a preference with no danger semantics and it is never sealed. A
+   * hand-edited file can at worst pick a different preset.
+   */
+  workAreaFont: WorkAreaFont;
 }
 
 // ---------------------------------------------------------------------------
@@ -134,6 +142,39 @@ export function sanitizeContrastLevel(value: unknown): ContrastLevel {
     (CONTRAST_LEVELS as readonly string[]).includes(value)
     ? (value as ContrastLevel)
     : DEFAULT_CONTRAST_LEVEL;
+}
+
+// ---------------------------------------------------------------------------
+// The work area font (Phase 78). A family picker, and no size control.
+// ---------------------------------------------------------------------------
+
+/**
+ * Which face the terminal and the editor draw with, in UI order (Phase 78).
+ * 'system' is the shipped answer and writes no token override at all, so an
+ * install that never opens the section renders the shipped stylesheet bytes.
+ *
+ * The preset DATA (the bare family name and the stack written into the two
+ * tokens) lives in src/renderer/theme/work-fonts.ts. Here is only the
+ * persisted id, so main can sanitize a file it reads without importing any
+ * renderer module.
+ *
+ * There is no size field anywhere. docs/DESIGN-SPEC.md:601 withdrew the size
+ * stepper, and per-region zoom already changes the terminal's size for real.
+ */
+export type WorkAreaFont = 'system' | 'jetbrains-mono' | 'source-code-pro';
+export const WORK_AREA_FONTS: readonly WorkAreaFont[] = [
+  'system',
+  'jetbrains-mono',
+  'source-code-pro'
+];
+export const DEFAULT_WORK_AREA_FONT: WorkAreaFont = 'system';
+
+/** Membership check for a persisted work area font. Same pattern as above. */
+export function sanitizeWorkAreaFont(value: unknown): WorkAreaFont {
+  return typeof value === 'string' &&
+    (WORK_AREA_FONTS as readonly string[]).includes(value)
+    ? (value as WorkAreaFont)
+    : DEFAULT_WORK_AREA_FONT;
 }
 
 // ---------------------------------------------------------------------------
@@ -211,7 +252,8 @@ export function defaultGmuxSettings(): GmuxSettings {
     scrollbackLines: DEFAULT_SCROLLBACK_LINES,
     savedScrollbackLines: DEFAULT_SAVED_SCROLLBACK_LINES,
     highlightScheme: DEFAULT_HIGHLIGHT_SCHEME,
-    contrastLevel: DEFAULT_CONTRAST_LEVEL
+    contrastLevel: DEFAULT_CONTRAST_LEVEL,
+    workAreaFont: DEFAULT_WORK_AREA_FONT
   };
 }
 
