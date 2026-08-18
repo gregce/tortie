@@ -5845,6 +5845,99 @@ performance audit's subsystem table has no row for it and its idle table omits t
 remote ladder built exactly the shape the audits warn about, in the weeks after they were written.
 Nothing is broken. It is unmapped, and the next audit refresh owns it.
 
+## Phase 79 — the Machines screen tells you what to do (operator reported 2026-08-17) QUEUED
+
+The operator photographed the Machines section and said it is a wall of text that does not tell a
+person what to do. He is right, and while checking it a worse thing turned up.
+
+**THE SCREEN IS LYING RIGHT NOW.** `src/renderer/settings/machines-copy.ts:62` reads "You cannot
+open a session on a machine yet. This release records the machine, proves Tortie can reach it, and
+sets it up so that it is ready. Opening sessions comes later." Phase 70 shipped remote sessions on
+2026-08-17 at 0.34.0. That sentence has been false since it landed. It went stale because it sits in
+a block nobody re-reads, which is the argument for this phase rather than a decoration on it.
+
+**THE SECOND FINDING, and it is the biggest win here.** The operator hit a real failure while trying
+to use the feature. `ssh gregs-mac-pro tmux -V` returned "Connection refused" because macOS ships
+with Remote Login off. Tortie's error taxonomy classified it correctly and told him
+`refused: "That machine answered and refused the connection. Something is at that address and it is
+not accepting connections on this port."` That is diagnostically perfect and practically useless. It
+knew what was wrong and did not say what to do. The same is true of `auth-refused`, which says
+"Tortie does not handle keys or passwords" and leaves the person stuck. **The taxonomy is a
+diagnosis and it should be a remedy.**
+
+**THE FENCE, and it decides the shape.** Phase 72 owns `src/main/machines/**`, `src/main/sessions/
+core.ts`, `src/main/restore/**` and `src/main/manifest/**`. This phase touches NONE of them. The
+renderer already receives `class: MachineTestClass` on every outcome, at
+`src/shared/ipc/machines.ts:225`, so every remedy is keyed off that class in renderer copy. Main
+classifies and the renderer advises, which is the correct split anyway.
+
+**Subject:** `fix(machines): the setup screen says what to do next`
+**First body line:** `Phase 79: the Machines screen tells you what to do`
+**Semver:** patch. No new capability, no new channel, no durable state.
+**Tier 2.** Copy and one renderer surface, proven with screenshots of each state.
+
+### What ships
+
+1. **Delete the stale sentence**, and add a test that fails if the intro copy claims something the
+shipped rungs contradict. The test names the sentence and the rung that disproves it, so the next
+person who edits copy learns why the test exists.
+
+2. **The empty state becomes one line and one button.** For a person with no machines the section
+reads a heading, one sentence saying Tortie can keep work running on another machine you own, and
+Add a machine. Nothing else. "Check the file again" does not belong on a first run when there is no
+file yet, so it appears only once at least one machine exists.
+
+3. **The honesty text moves to where it decides something.** It is not deleted, because every line
+of it is true and load bearing. It moves. The sealing sentence, that confirming seals which program
+runs and cannot seal the bytes of that program, belongs on the confirm sheet at the moment of
+agreement. The line that Tortie never adopts work already running belongs on a machine row. The rest
+goes behind one disclosure for the person who wants it.
+
+4. **Every error class gains a remedy line**, keyed off `MachineTestClass` in renderer copy. The
+remedy says what to do next in plain words, and it never guesses. Two are named here because they
+are the ones the operator hit, and the rest follow the same rule.
+
+| Class | Remedy the person needs |
+| --- | --- |
+| `refused` | On that Mac, open System Settings, then General, then Sharing, and turn on Remote Login. macOS ships with it off |
+| `auth-refused` | That machine did not accept your sign in. If you have no key, Tortie can make one. If you have one, it may not be on that machine yet |
+| `not-resolved` | Pick the machine from your tailnet list rather than typing an address |
+| `no-program` | The machine answered and has no tmux. Install it there, then test again |
+
+5. **Say the version gate out loud before it bites.** Tortie has measured tmux 3.6a and 3.7b and
+refuses anything else. Today a person discovers that after adding a machine. The Add flow should say
+which versions are supported before the test runs, so the refusal is expected rather than a surprise.
+
+### What is deliberately NOT in this phase
+
+**Generating and installing an ssh key.** It is the right idea and the operator asked for it. It
+needs a main-side action to run `ssh-keygen`, and installing the key needs the visible connection
+test to carry a password prompt, and both need a new IPC channel. `src/shared/ipc/machines.ts` and
+`src/main/machines/**` are inside Phase 72's blast radius, so building it now means a merge in the
+directory that decides whether the operator's remote work is safe. It is recorded as Phase 79.1 and
+runs after 72 lands.
+
+**Turning on Remote Login for the person.** Tortie cannot, and no phase will change that. It needs
+`sudo` on a machine Tortie cannot reach, because reaching it is the thing being enabled. The remedy
+line above is the whole answer.
+
+### Builder split, disjoint, renderer only
+
+| Builder | Owns |
+| --- | --- |
+| A | `src/renderer/settings/machines-copy.ts` and its tests, being the stale sentence, the remedies and the moved honesty text |
+| B | `src/renderer/settings/MachinesSection.tsx`, `AddMachine.tsx`, `MachineRow.tsx`, `machines.css` and their tests, being the empty state, the disclosure and where each moved line now renders |
+
+### Probes
+
+Photograph the empty state and confirm it is one line and one button. Photograph a state with one
+machine and confirm the moved lines appear where they now belong. Drive a real failing connection
+against a port with nothing listening, read the refused remedy on screen, and quote it. Photograph
+the confirm sheet and confirm the sealing sentence is on it. Read every new string against the
+writing rules including no em or en dashes. Prove no file under `src/main/machines/`,
+`src/main/sessions/`, `src/main/restore/`, `src/main/manifest/` or `src/shared/ipc/` was edited, and
+say so explicitly.
+
 ## Phase 78 — three font presets, and the screenshot that must keep matching (operator requested 2026-08-17) QUEUED
 
 Closes GitHub issue 1 for the work area only. Six researchers surveyed nine products and one
