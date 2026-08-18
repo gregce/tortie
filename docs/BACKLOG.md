@@ -5758,7 +5758,32 @@ not already answered. It does not decide fonts, the SpecStory sign-in, project n
 shortcuts filter. It runs no tmux command against the default server, and any live probe uses
 `-L gmux` only.
 
-## Phase 76 — appearance and discoverability, NOT QUEUED and BLOCKED ON ONE DECISION
+## Phase 76 — appearance and discoverability ✅ CLOSED 2026-08-18, both halves resolved without building it
+
+**CLOSED, and neither half became a build.** Both questions this phase was holding now have
+answers, and in both cases the answer is that the work does not happen here.
+
+**Issue 1, fonts, is SHIPPED by Phase 78 at 7b429d5 and 0.36.0.** The table below asks where the
+font list comes from and offers three options. Phase 78 chose the first one, being a short fixed
+list of faces the design vouches for, and shipped it as three presets under Contrast. System stays
+the default and ships zero bytes. JetBrains Mono and Source Code Pro are bundled at 340,472 bytes
+together, so nothing is enumerated, nothing is downloaded and no new capability was added. The
+permission-gated enumeration was never needed. The size stepper stayed withdrawn, as
+`docs/DESIGN-SPEC.md:601` already required.
+
+**Issue 7, the shortcuts overlay filter, is REFUSED because its own build condition has not fired.**
+The condition recorded below is to build the filter when per-agent chords are in normal use, and not
+before. Measured on 2026-08-18 by reading the operator's configuration directory: it holds
+`agents.schema.json`, an `examples` directory and a `README.md`, and NO configured agent at all. So
+zero per-agent chords exist on the machine of the person who filed the issue. The overlay therefore
+carries the 60 built-in rows alone, which the table below measures at 677 px against 733 px
+available, fitting with 56 px spare. A list that fits on screen does not need a search field, and
+the scope guardrail refuses parity work that does not serve the agentic-coding workflow.
+
+**What reopens this.** One sentence from the operator saying he wants a font beyond the three, or a
+configuration directory that holds agents with chords. Until one of those is true, building either
+half would be work nobody asked for. The measurement and the two binding rules below stay recorded
+so that whoever reopens it does not re-derive them.
 
 This exists so that every open issue has a home. It covers issues 1 and 7, which Phase 74 does not
 touch and Phase 75 does not answer. Neither can start today, and the reasons are different.
