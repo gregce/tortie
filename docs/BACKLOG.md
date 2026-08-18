@@ -6943,3 +6943,32 @@ src/renderer/dnd/drop/target.ts read `session.status` directly, where the spec s
 reads through `effectiveStatusOf`. The behaviour is identical today because nothing else rewrites
 the status on the way out. It stops being identical the moment M4 gives each machine its own
 reconcile, so Phase 71 fixes both call sites as part of its own work.
+
+## Phase 77 — research: session focus mode (operator requested 2026-08-17) RESEARCH LANDED, BUILD NOT QUEUED
+
+Window full screen still shows the title bar, the activity bar, the sidebar and the session strip.
+The operator asked for a keystroke that grows the session they are in, including a split group,
+until only that work remains, with a quiet status-coloured wash and a short Mac-like flight.
+
+**This phase is research only.** The deliverable is `docs/research/53-session-focus-mode.md`.
+Nothing under `src` changes until the operator queues a build. The document names the product
+shape, weights mechanism and library options, and attacks the winner.
+
+**What it decided, so a later build does not re-litigate it.**
+
+- In-window focus of the active surface. Not window full screen. Not a second BrowserWindow.
+- The unit is the surface, including every split leaf. Not one leaf pulled out of a group.
+- Flight is a still copy, then one live swap. Never a width transition on a live terminal.
+- Engine is the Web Animations API. No new npm package. GSAP is refused on license. Motion is
+  refused as weight for one tween.
+- Glow is a status wash on vacated chrome. Not a halo on the terminal. Not an agent brand colour.
+- Never persist. Copy the editor-fill memento.
+- DESIGN.md section 5 gains one sentence if this is built. Duration stays `--dur-panel`.
+
+**What a later build must not regress.** Control-Command-F and the single packaged full screen
+row from Phase 62.1. Editor fill. Hidden sessions stay detached. Activity status rules. The
+terminal resize rule in `work-area.css`.
+
+**Tier** of a later build: 2 for enter and leave, 3 for the claim that a live split group is not
+resized until the flight ends. **Semver** of a later build: feat. Chord is chosen at build time
+against the keymap and the operator's recorded per-agent hotkeys. Shift-Command-C stays free.
