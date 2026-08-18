@@ -2,10 +2,13 @@
  * The one visible connection test (Phase 68, research 51 section 4.2, the one
  * interactive moment).
  *
- * It runs ssh once, shows the person every byte the program prints, and lets
- * them answer the program's own questions. It is the first and only place in
- * Tortie where ssh vocabulary is on screen, and it is on screen because the
- * bytes belong to a real program rather than to Tortie.
+ * It runs ssh once, shows the person the bytes the program printed, and lets
+ * them answer the program's own questions. Two things are taken out of what
+ * reaches the screen and nothing else is: the ANSI control sequences, and the
+ * marker pair Tortie asked the other machine to print around its answer. The
+ * answer itself is left exactly as the machine sent it. It is the first and
+ * only place in Tortie where ssh vocabulary is on screen, and it is on screen
+ * because the bytes belong to a real program rather than to Tortie.
  *
  * ## Why it needs a controlling terminal
  *
@@ -277,6 +280,76 @@ export function parseResolvedPath(text: string): string | null {
   return value;
 }
 
+/**
+ * The longest tail of `text` that could still be the start of a marker.
+ *
+ * The terminal hands over whatever bytes have arrived, so one marker can be cut
+ * in two across a pair of reads. A tail that matches the start of the marker is
+ * held back until the rest of it arrives. One byte less than the whole marker
+ * is the most that can ever be held, because a whole one would have been found.
+ */
+function markerTailLength(text: string): number {
+  const most = Math.min(text.length, REMOTE_PATH_MARKER.length - 1);
+  for (let len = most; len > 0; len -= 1) {
+    if (REMOTE_PATH_MARKER.startsWith(text.slice(text.length - len))) return len;
+  }
+  return 0;
+}
+
+/**
+ * Split a run of transcript text into the part a person may read now and the
+ * part that is held back.
+ *
+ * Tortie asks the other machine to print its answer between two copies of
+ * {@link REMOTE_PATH_MARKER}. The markers are Tortie's and the answer between
+ * them is the machine's, so the markers come out and the answer stays.
+ *
+ * A marker can arrive split across two reads from the terminal, so the tail is
+ * held whenever it could still be the beginning of one. Held text is shown as
+ * soon as the rest of it arrives, and it is flushed with any lone marker
+ * removed when the run ends.
+ *
+ * Phase 73.1, row 1. Before this the handler pushed every byte it read, so a
+ * person watching the test read `__TORTIE_PATH__/opt/homebrew/bin/tmux__TORTIE_PATH__`.
+ * The path is the machine's and it stays. The markers are Tortie's own and a
+ * person has no reason to read them.
+ */
+export function splitTranscriptForDisplay(pending: string): {
+  show: string;
+  hold: string;
+} {
+  const width = REMOTE_PATH_MARKER.length;
+  let show = '';
+  let at = 0;
+  for (;;) {
+    const open = pending.indexOf(REMOTE_PATH_MARKER, at);
+    if (open === -1) {
+      const rest = pending.slice(at);
+      const held = markerTailLength(rest);
+      return {
+        show: show + rest.slice(0, rest.length - held),
+        hold: rest.slice(rest.length - held)
+      };
+    }
+    const close = pending.indexOf(REMOTE_PATH_MARKER, open + width);
+    if (close === -1) {
+      return { show: show + pending.slice(at, open), hold: pending.slice(open) };
+    }
+    show += pending.slice(at, open) + pending.slice(open + width, close);
+    at = close + width;
+  }
+}
+
+/**
+ * Remove every marker from a whole transcript. For the paths that never stream.
+ *
+ * A key install resolves once with the whole text rather than pushing it out as
+ * it arrives, so it has no held tail to carry and this is all it needs.
+ */
+export function stripPathMarkers(text: string): string {
+  return text.split(REMOTE_PATH_MARKER).join('');
+}
+
 // ---------------------------------------------------------------------------
 // The run
 // ---------------------------------------------------------------------------
@@ -341,6 +414,13 @@ interface LiveTest {
   pid: number | null;
   startedAt: number;
   buffer: string;
+  /**
+   * Text read from the terminal that is not on screen yet, because it could
+   * still turn out to be the front half of a marker. Phase 73.1, row 1. It is
+   * always short: one byte less than a marker at the most, unless a first
+   * marker arrived and its pair has not.
+   */
+  held: string;
   bytes: number;
   deadline: NodeJS.Timeout | null;
   finished: boolean;
@@ -422,6 +502,17 @@ function finish(
   if (test.settle !== null) {
     test.settle(cls, exitCode);
     return;
+  }
+  // Phase 73.1, row 1. Whatever is still held could not turn into a pair, so it
+  // is shown now with any lone marker taken out. This runs before the outcome
+  // is composed, so the last of the program's bytes reach the screen ahead of
+  // Tortie's own sentence about them.
+  if (test.held.length > 0) {
+    const rest = stripPathMarkers(test.held);
+    test.held = '';
+    if (rest.length > 0) {
+      test.emit({ testId: test.testId, kind: 'output', text: rest });
+    }
   }
   const resolvedPath = cls === 'ok' ? parseResolvedPath(test.buffer) : null;
   const copy = composeOutcomeCopy(cls, {
@@ -615,6 +706,7 @@ export function startMachineTest(input: StartTestInput): StartedTest {
     pid: null,
     startedAt: Date.now(),
     buffer: '',
+    held: '',
     bytes: 0,
     deadline: null,
     finished: false,
@@ -665,7 +757,14 @@ export function startMachineTest(input: StartTestInput): StartedTest {
     const text = stripAnsi(chunk);
     test.bytes += Buffer.byteLength(chunk, 'utf8');
     test.buffer += text;
-    test.emit({ testId, kind: 'output', text });
+    // Phase 73.1, row 1. The buffer keeps the raw bytes, because
+    // `parseResolvedPath` and `classifyProbeOutput` both read it and both need
+    // the markers. Only the copy that reaches the screen has them taken out.
+    const split = splitTranscriptForDisplay(test.held + text);
+    test.held = split.hold;
+    if (split.show.length > 0) {
+      test.emit({ testId, kind: 'output', text: split.show });
+    }
     if (test.bytes > TEST_MAX_OUTPUT_BYTES) {
       test.emit({
         testId,
@@ -742,7 +841,11 @@ export interface KeyInstallRun {
   cls: MachineTestClass;
   /** 'added', 'present', or null when the machine reported nothing. */
   wrote: 'added' | 'present' | null;
-  /** The bytes the program printed, ANSI stripped and the password replaced. */
+  /**
+   * The bytes the program printed, with three things taken out: the ANSI
+   * control sequences, every copy of the password, and the marker pair Tortie
+   * asked the machine to print around its answer.
+   */
   transcript: string;
   exitCode: number | null;
   durationMs: number;
@@ -830,6 +933,7 @@ export function startKeyInstall(
       pid: null,
       startedAt,
       buffer: '',
+      held: '',
       bytes: 0,
       deadline: null,
       finished: false,
@@ -846,7 +950,12 @@ export function startKeyInstall(
           // password that happened to be the word `added` cannot change the
           // answer the machine gave.
           wrote: parseKeyInstallAnswer(test.buffer),
-          transcript: redactPassword(test.buffer, input.password),
+          // Phase 73.1, row 1. The same marker pair is taken out here, for the
+          // same reason. Nothing streams on this path, so the whole string
+          // form is enough and no tail is ever held.
+          transcript: stripPathMarkers(
+            redactPassword(test.buffer, input.password)
+          ),
           exitCode,
           durationMs: Date.now() - startedAt
         });

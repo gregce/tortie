@@ -57,6 +57,44 @@ npm run dev        # electron-vite dev server + Electron with HMR
 | `npm run pin:tmux:check` | Prove `build/tmux-release.json` and `src/main/tmux/version.ts` say the same thing. Spawns nothing, makes no request, measured at 0.1 s. `npm run package` runs it too, so a drifted pin cannot reach a build. |
 | `npm run conformance:tmux-pair` | Drive the release's one tested tmux version pair with a real attach: a warm server on the older tmux, the app's create and verify smoke halves as the newer client, and proof the old server never moved. |
 
+### Where each remote gate keeps its isolated config root
+
+Each of these gates runs the app under its own config root and its own tmux
+socket, so two of them can run at once and neither can reach the operator's
+data. Pointing a probe at the wrong root produces a refused connection to a port
+nothing is listening on, which reads like a broken machine and is not one. Every
+value below is read from the script in `package.json`, and `${TMPDIR}` is
+`${TMPDIR:-/tmp/}` as the scripts write it.
+
+| Gate | Config root | tmux socket |
+| --- | --- | --- |
+| `npm run smoke:config` | `${TMPDIR}gmux-smoke-config` | `gmux-smoke-config` |
+| `npm run smoke:machines` | `${TMPDIR}gmux-smoke-machines` | `gmux-smoke-machines` |
+| `npm run smoke:execplane` | `${TMPDIR}gmux-p69-exec` | `gmux-p69-exec` |
+| `npm run smoke:remote` | `${TMPDIR}gmux-p70-remote` | `gmux-p70-remote` |
+
+`smoke:execplane` and `smoke:remote` both honour a `GMUX_CONFIG_ROOT` already in
+the environment and fall back to the value above. The other two always use the
+value above.
+
+Two more gates set a config root without naming it in `package.json`, because
+their harness makes a new one on every run. `npm run smoke:partition` uses
+`<tmpdir>/p71-partition-<pid>` and `npm run smoke:matrix` uses
+`<tmpdir>/p72-matrix-<pid>`. Both take their socket from
+`build/harness-socket.mjs`, which is `gmux-p71-partition` and
+`gmux-p72-matrix`. There is no fixed root to point at for those two, so there is
+nothing to point at wrongly.
+
+`node build/probe-execplane.mjs` reads `GMUX_CONFIG_ROOT` too, and it is the one
+place the variable changes what the script does rather than only where it writes.
+With the variable set the probe writes its carriage file into that root, leaves
+its scratch sshd and key holder running for a harness, and prints the kill
+command for both. With the variable empty it kills every pid it recorded, closes
+the ssh control socket and removes its own run directory. Since Phase 71
+`smoke:remote` provisions its own machine through
+`build/with-scratch-machine.mjs`, so the handoff mode is a convenience a person
+asks for and nothing depends on it.
+
 ### Environment variables for the tmux work
 
 | Variable | What it does |

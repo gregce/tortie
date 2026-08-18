@@ -29,6 +29,22 @@
  *
  * It kills only pids it recorded and prints that list at the end. Every scratch
  * file carries a `p69-` prefix.
+ *
+ * ---------------------------------------------------------------------------
+ * THE TWO MODES, AND WHICH CONFIG ROOT EACH GATE READS
+ * ---------------------------------------------------------------------------
+ * Run with `GMUX_CONFIG_ROOT` set, the probe hands its machine to a harness
+ * under `${TMPDIR}gmux-p69-exec`. It writes the carriage file there, leaves the
+ * sshd and the key holder running, and prints the exact kill command for both.
+ * Run without it, the probe cleans up after itself. It kills every recorded
+ * pid, it closes the ssh control socket, and it removes its own run directory.
+ * Both arms are the `configRoot` branches near the end of this file.
+ * `npm run smoke:remote` reads a different root,
+ * `${TMPDIR}gmux-p70-remote`, and provisions its own machine through
+ * `build/with-scratch-machine.mjs`, so since Phase 71 nothing needs the handoff
+ * and a person who wants one asks for it by setting the variable. The table in
+ * DEVELOPMENT.md, under "Where each remote gate keeps its isolated config
+ * root", names every gate's root.
  */
 
 import { execFileSync, spawn, spawnSync } from 'node:child_process';

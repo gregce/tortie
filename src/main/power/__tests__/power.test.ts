@@ -8,13 +8,19 @@
  * taken after the capture. Every call site below passes it, because the
  * dependency is required rather than optional: an optional one is a call site
  * that can forget.
+ *
+ * Phase 73.1, row 19. That step answers with one of three outcomes rather than
+ * a boolean. The old false meant both `unchanged` and `failed`, and the line
+ * the handler printed said the manifest had not changed for both of them. The
+ * last three tests in this file are the ones that hold the three lines apart.
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   installPowerHandlers,
   SUSPEND_CAPTURE_DEADLINE_MS,
-  type PowerMonitorLike
+  type PowerMonitorLike,
+  type SuspendTakeOutcome
 } from '../index';
 
 /** A stand-in for Electron's powerMonitor that a test can fire by hand. */
@@ -47,11 +53,11 @@ function fakeMonitor(): PowerMonitorLike & {
 const settle = (): Promise<void> => new Promise((r) => setImmediate(r));
 
 /**
- * A take that reports nothing was copied, which is the common answer.
+ * A take that reports the manifest had not changed, which is the common answer.
  *
  * The tests that care about the take pass their own.
  */
-const noTake = (): Promise<boolean> => Promise.resolve(false);
+const noTake = (): Promise<SuspendTakeOutcome> => Promise.resolve('unchanged');
 
 describe('installPowerHandlers', () => {
   beforeEach(() => {
@@ -212,7 +218,7 @@ describe('installPowerHandlers', () => {
     const monitor = fakeMonitor();
     const info = vi.spyOn(console, 'log').mockImplementation(() => undefined);
     const captureAll = vi.fn().mockResolvedValue(undefined);
-    const takeManifestGeneration = vi.fn().mockResolvedValue(true);
+    const takeManifestGeneration = vi.fn().mockResolvedValue('taken');
     installPowerHandlers({
       captureAll,
       takeManifestGeneration,
@@ -240,7 +246,7 @@ describe('installPowerHandlers', () => {
       },
       takeManifestGeneration: async () => {
         order.push('take');
-        return true;
+        return 'taken';
       },
       onResume: () => undefined,
       monitor
@@ -256,7 +262,7 @@ describe('installPowerHandlers', () => {
     const info = vi.spyOn(console, 'log').mockImplementation(() => undefined);
     installPowerHandlers({
       captureAll: async () => undefined,
-      takeManifestGeneration: async () => false,
+      takeManifestGeneration: async () => 'unchanged',
       onResume: () => undefined,
       monitor
     });
@@ -270,6 +276,73 @@ describe('installPowerHandlers', () => {
         )
       )
     ).toBe(true);
+  });
+
+  /**
+   * PHASE 73.1, ROW 19. A take that did not work says so.
+   *
+   * The old shape was a boolean, so a take that returned not ok and a take that
+   * threw both printed the sentence about the manifest not changing. The ring's
+   * own warning naming the real reason printed on the line above it, so the log
+   * held a true line and a false one about the same event.
+   */
+  it('a take that did not work never says the manifest had not changed', async () => {
+    const monitor = fakeMonitor();
+    const info = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    // console.log is already spied in beforeEach, so spying again hands back
+    // the same recorder with every earlier test's line still in it. The point
+    // of this test is which lines are ABSENT, so it starts from empty.
+    info.mockClear();
+    installPowerHandlers({
+      captureAll: async () => undefined,
+      takeManifestGeneration: async () => 'failed',
+      onResume: () => undefined,
+      monitor
+    });
+
+    monitor.fire('suspend');
+    await settle();
+    const lines = info.mock.calls.map(([msg]) => String(msg));
+    expect(
+      lines.some((line) =>
+        line.includes(
+          'suspend: no manifest generation was taken, and the warning above names the reason'
+        )
+      )
+    ).toBe(true);
+    expect(
+      lines.some((line) => line.includes('the manifest has not changed'))
+    ).toBe(false);
+    expect(lines.some((line) => line.includes('took a manifest generation'))).toBe(
+      false
+    );
+  });
+
+  it('a take that threw prints the same third line, and not the other two', async () => {
+    const monitor = fakeMonitor();
+    const info = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    info.mockClear();
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    installPowerHandlers({
+      captureAll: async () => undefined,
+      takeManifestGeneration: async () => {
+        throw new Error('the disk is full');
+      },
+      onResume: () => undefined,
+      monitor
+    });
+
+    monitor.fire('suspend');
+    await settle();
+    const lines = info.mock.calls.map(([msg]) => String(msg));
+    expect(
+      lines.some((line) =>
+        line.includes('suspend: no manifest generation was taken')
+      )
+    ).toBe(true);
+    expect(
+      lines.some((line) => line.includes('the manifest has not changed'))
+    ).toBe(false);
   });
 
   it('a failed take is logged, swallowed, and leaves the next suspend free', async () => {
@@ -306,7 +379,7 @@ describe('installPowerHandlers', () => {
   it('a failed capture still lets the generation be taken', async () => {
     const monitor = fakeMonitor();
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const takeManifestGeneration = vi.fn().mockResolvedValue(true);
+    const takeManifestGeneration = vi.fn().mockResolvedValue('taken');
     installPowerHandlers({
       captureAll: async () => {
         throw new Error('tmux is gone');

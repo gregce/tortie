@@ -28,7 +28,9 @@
  * because GMUX_UPDATE_REHEARSAL is set, the tmux socket is a harness socket
  * and the profile is isolated. The only process killed is the one recorded
  * pid. The operator's server is only ever LISTED, read only, and the count
- * is printed before and after.
+ * is printed before and after. The evidence photo is the window's own content
+ * over CDP, and its fallback is the app's window rectangle through
+ * build/window-shot.mjs, so no run of this probe photographs the screen.
  *
  * Usage:
  *   node build/harness-socket.mjs gmux-p621-line \
@@ -50,6 +52,8 @@ import { connect as netConnect } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { windowShot } from './window-shot.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
@@ -379,7 +383,12 @@ end tell`
   return null;
 }
 
-/** The evidence photo over CDP, with screencapture as the fallback. */
+/**
+ * The evidence photo. CDP first, because it photographs the window's own
+ * content and nothing else can be in the frame. The fallback is the app's
+ * window rectangle through build/window-shot.mjs, which refuses when the app
+ * under test is not in front. Neither path can photograph the whole screen.
+ */
 async function screenshot(cdp) {
   mkdirSync(dirname(shotPath), { recursive: true });
   try {
@@ -391,13 +400,11 @@ async function screenshot(cdp) {
       return;
     }
   } catch {
-    // Fall through to screencapture.
+    // Fall through to the window rectangle.
   }
-  const r = spawnSync('screencapture', ['-x', shotPath], { encoding: 'utf8' });
-  if (r.status === 0) {
-    log(`screenshot saved to ${shotPath} (screencapture, active space)`);
-  } else {
-    log('no screenshot could be taken. The DOM reads above are the evidence.');
+  const answer = windowShot({ pid: appPid, path: shotPath, log });
+  if (answer !== 'saved') {
+    log('the DOM reads above are the evidence for this step.');
   }
 }
 

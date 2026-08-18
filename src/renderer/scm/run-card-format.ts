@@ -59,7 +59,7 @@ export interface RunCardModel {
   jobs: RunCardJobLine[];
   /** The muted line under `Jobs` when there are no job lines. Null otherwise. */
   jobsNote: string | null;
-  /** The copy button's face, `#128`, or `Run URL` when gh sent no number. */
+  /** The copy button's face, `#128`, or `Copy` when gh sent no number. */
   copyLabel: string;
   /** `Run 128 of gates`, or the workflow name alone when the number is 0. */
   ariaLabel: string;
@@ -120,7 +120,7 @@ export function runCardModel(
     fields,
     jobs,
     jobsNote,
-    copyLabel: run.number > 0 ? `#${run.number}` : 'Run URL',
+    copyLabel: run.number > 0 ? `#${run.number}` : 'Copy',
     ariaLabel:
       run.number > 0
         ? `Run ${run.number} of ${run.workflowName}`

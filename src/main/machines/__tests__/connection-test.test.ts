@@ -30,6 +30,8 @@ import {
   composeTestCommandLine,
   parseResolvedPath,
   remoteProbeCommand,
+  splitTranscriptForDisplay,
+  stripPathMarkers,
   userHostKeysPath
 } from '../connection-test';
 
@@ -308,5 +310,100 @@ describe('a machine that asks for a password', () => {
     // No em dash, no en dash, and the house colon rule.
     expect(TEST_PASSWORD_STOP_NOTE).not.toMatch(/[\u2014\u2013]/);
     expect(TEST_PASSWORD_STOP_NOTE).not.toContain(':');
+  });
+});
+/**
+ * PHASE 73.1, ROW 1. What reaches the screen.
+ *
+ * The marker pair is Tortie's own. The path between the two copies is the
+ * machine's answer. Before this round the handler pushed every byte it read, so
+ * a person watching the test read Tortie's marker twice around their own path.
+ *
+ * The raw bytes are untouched. `parseResolvedPath` and `classifyProbeOutput`
+ * both read the buffer and both need the markers, so only the copy that is
+ * pushed to the window is changed. The tests below hold that line.
+ */
+describe('the marker pair leaves the transcript', () => {
+  const M = REMOTE_PATH_MARKER;
+
+  it('shows the path alone when a whole pair arrives in one read', () => {
+    const split = splitTranscriptForDisplay(`${M}/opt/homebrew/bin/tmux${M}\n`);
+    expect(split.show).toBe('/opt/homebrew/bin/tmux\n');
+    expect(split.hold).toBe('');
+  });
+
+  it('never shows a marker when the pair is split across two reads', () => {
+    // The terminal hands over whatever bytes arrived, so this is the ordinary
+    // case rather than the awkward one.
+    const whole = `login noise\n${M}/usr/bin/tmux${M}\ndone\n`;
+    const cut = 20;
+    const first = splitTranscriptForDisplay(whole.slice(0, cut));
+    const second = splitTranscriptForDisplay(first.hold + whole.slice(cut));
+    const shown = first.show + second.show;
+    expect(shown).not.toContain('__TORTIE_');
+    expect(shown).toBe('login noise\n/usr/bin/tmux\ndone\n');
+    expect(second.hold).toBe('');
+  });
+
+  it('holds no marker back at any cut point at all', () => {
+    const whole = `banner\n${M}/usr/local/bin/tmux${M}\nbye\n`;
+    for (let cut = 0; cut <= whole.length; cut += 1) {
+      const first = splitTranscriptForDisplay(whole.slice(0, cut));
+      const second = splitTranscriptForDisplay(first.hold + whole.slice(cut));
+      expect(first.show + second.show).toBe('banner\n/usr/local/bin/tmux\nbye\n');
+    }
+  });
+
+  it('shows text with no marker whole, except a tail that could start one', () => {
+    expect(splitTranscriptForDisplay('Welcome to Pop OS\n')).toEqual({
+      show: 'Welcome to Pop OS\n',
+      hold: ''
+    });
+    const partial = splitTranscriptForDisplay('Welcome\n__TORTIE_');
+    expect(partial.show).toBe('Welcome\n');
+    expect(partial.hold).toBe('__TORTIE_');
+  });
+
+  it('holds a lone marker, and the flush shows the text without it', () => {
+    const split = splitTranscriptForDisplay(`answer\n${M}/usr/bin/tmux`);
+    expect(split.show).toBe('answer\n');
+    expect(split.hold).toBe(`${M}/usr/bin/tmux`);
+    // What `finish` does with whatever is still held when the run ends.
+    expect(stripPathMarkers(split.hold)).toBe('/usr/bin/tmux');
+  });
+
+  it('leaves the raw buffer alone, so the parser still reads the path', () => {
+    const raw = `noise\n${M}/opt/homebrew/bin/tmux${M}\n`;
+    expect(parseResolvedPath(raw)).toBe('/opt/homebrew/bin/tmux');
+    // And the shown copy no longer carries what the parser needs, which is
+    // exactly why the two are kept apart.
+    expect(parseResolvedPath(splitTranscriptForDisplay(raw).show)).toBeNull();
+  });
+
+  it('shows no marker anywhere in a whole successful transcript', () => {
+    // Byte for byte the shape a real run produces, fed one read at a time.
+    const reads = [
+      'Warning: Permanently added \'127.0.0.1\' to the list of known hosts.\r\n',
+      `${M.slice(0, 7)}`,
+      `${M.slice(7)}/opt/homebrew/bin/tmux${M.slice(0, 3)}`,
+      `${M.slice(3)}\r\n`
+    ];
+    let held = '';
+    let shown = '';
+    for (const read of reads) {
+      const split = splitTranscriptForDisplay(held + read);
+      held = split.hold;
+      shown += split.show;
+    }
+    shown += stripPathMarkers(held);
+    expect(shown).not.toContain('__TORTIE_');
+    expect(shown).toContain('/opt/homebrew/bin/tmux');
+    expect(shown.split('/opt/homebrew/bin/tmux')).toHaveLength(2);
+  });
+
+  it('takes every marker out of a whole transcript at once', () => {
+    expect(stripPathMarkers(`a${M}b${M}c`)).toBe('abc');
+    expect(stripPathMarkers(`${M}alone`)).toBe('alone');
+    expect(stripPathMarkers('nothing to do')).toBe('nothing to do');
   });
 });

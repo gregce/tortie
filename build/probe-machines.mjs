@@ -671,6 +671,13 @@ async function step2AddMachine() {
  * connection was pressed, and the host key question is answered by typing into
  * the answer field and pressing Send. The event stream is subscribed to as well,
  * but only to MEASURE. Nothing here is caused by that subscription.
+ *
+ * PHASE 73.1 added two reads and one clause to the verdict. The transcript a
+ * person reads must NOT contain Tortie's own marker, and it must contain the
+ * resolved path. Both reads are scoped to the transcript element. The marker
+ * is still in the header's command tooltip and in the data-command-line
+ * attribute, on purpose, because those carry the exact command Tortie runs and
+ * editing them would make the line false.
  */
 async function step3Test(env) {
   const shot = join(outDir, 'p68-connection-test.png');
@@ -692,6 +699,10 @@ async function step3Test(env) {
       off();
       const end = events.find((e) => e.kind === 'end');
       const first = events[0] || null;
+      const resolved =
+        end && end.outcome && typeof end.outcome.resolvedPath === 'string'
+          ? end.outcome.resolvedPath
+          : null;
       show('.mach-test');
       await wait(400);
       return {
@@ -708,7 +719,16 @@ async function step3Test(env) {
         headerOnScreen:
           text().includes('Tortie is running:') &&
           text().includes('Everything below this line comes from that program'),
-        transcriptOnScreenHead: transcriptOnScreen().slice(0, 400)
+        transcriptOnScreenHead: transcriptOnScreen().slice(0, 400),
+        // Phase 73.1, row 1. Read the TRANSCRIPT ELEMENT ONLY. The whole
+        // document still carries the marker inside the command tooltip and
+        // the data-command-line attribute, and that is deliberate, because
+        // those hold the exact command Tortie runs.
+        markerOnScreen: transcriptOnScreen().includes('__TORTIE_PATH__'),
+        pathOnScreen:
+          resolved !== null &&
+          resolved.length > 0 &&
+          transcriptOnScreen().includes(resolved)
       };
     `)
   });
@@ -722,7 +742,9 @@ async function step3Test(env) {
     Array.isArray(d.sheetOnScreen) &&
     d.sheetOnScreen.length >= 2 &&
     typeof d.outcome.resolvedPath === 'string' &&
-    d.outcome.resolvedPath.startsWith('/');
+    d.outcome.resolvedPath.startsWith('/') &&
+    d.markerOnScreen === false &&
+    d.pathOnScreen === true;
   note(
     3,
     'the one visible connection test',
@@ -736,7 +758,9 @@ async function step3Test(env) {
       `lines on screen ${String(d?.headerOnScreen)}, sheet on screen ` +
       `${JSON.stringify(d?.sheetOnScreen ?? null)}, add button disabled ` +
       `${String(d?.addButtonDisabled)}. The command a person can read names ` +
-      `${JSON.stringify(d?.commandLineOnScreen ?? null)}. Screenshot ${shot}`
+      `${JSON.stringify(d?.commandLineOnScreen ?? null)}. ` +
+      `the marker is on screen: ${String(d?.markerOnScreen)}, and the resolved ` +
+      `path is in the transcript: ${String(d?.pathOnScreen)}. Screenshot ${shot}`
   );
   return { ok, resolvedPath: d?.outcome?.resolvedPath ?? null };
 }

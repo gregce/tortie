@@ -580,12 +580,16 @@ app.whenReady().then(async () => {
     // Phase 77. The second half of the same promise. The quit path took a
     // manifest generation and the sleep path did not, so a machine that slept
     // and never woke left the newest generation as old as the five minute
-    // floor allowed. False means the manifest had not changed since the last
-    // generation, which is the common case and is not a failure.
+    // floor allowed.
+    // Phase 73.1, row 19. Three answers rather than a boolean. A null result is
+    // a manifest that had not changed, which is the common case and is not a
+    // failure. A result that is not ok is a failure, and the ring has already
+    // warned with the reason.
     takeManifestGeneration: async () => {
       const core = await getGmuxCore();
       const result = await core.takeManifestGenerationOnSuspend();
-      return result !== null && result.ok;
+      if (result === null) return 'unchanged';
+      return result.ok ? 'taken' : 'failed';
     },
     onResume: () => {
       broadcastEvent(EVT_POWER_RESUME);

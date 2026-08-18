@@ -138,6 +138,10 @@ describe('attribute escaping', () => {
   it('escapes the quotes in the terminal font stack', () => {
     const html = serializeAsHtml(fakeTerm([text('x')]), {
       theme: THEME,
+      // A quoted family name chosen for this test. It is no longer the
+      // shipped stack, because Phase 73.1 deleted 'SF Mono' from every live
+      // stack. The escaping rule is about the double quote character, so the
+      // fixture keeps one.
       fontFamily: '"SF Mono", ui-monospace, Menlo, monospace',
       fontSizePx: 13
     });

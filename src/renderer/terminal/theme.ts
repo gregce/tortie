@@ -76,10 +76,15 @@ export const TERMINAL_RIGHT_CLICK_SELECTS_WORD = false;
  * spacing 0. The stack below is the macOS-native one, and it is what the
  * System preset draws.
  *
- * Glyph coverage — verified in this Chromium (Phase 9.2 Bug C canvas-bitmap
- * probe): "SF Mono" is not system-registered (Terminal.app-private) and
- * Chromium does not implement `ui-monospace`, so the face that actually
- * renders is **Menlo**. Menlo REGULAR covers the whole prompt-glyph gauntlet
+ * Glyph coverage, verified in this Chromium (Phase 9.2 Bug C canvas-bitmap
+ * probe). Phase 73.1 deleted `"SF Mono"` from the head of this stack, and
+ * from `--font-mono`, `--font-terminal` and `--font-editor` in tokens.css.
+ * Nothing on this Mac is registered under that name, measured the way Phase
+ * 78 measured `'SF Pro Text'`, being that a string set in it is exactly as
+ * wide as a string set in a family name that does not exist. Chromium does
+ * not implement `ui-monospace` either, so the face that actually renders is
+ * **Menlo**, and it rendered before the deletion too. Menlo REGULAR covers
+ * the whole prompt-glyph gauntlet
  * (➜ U+279C, ✗ U+2717, ● U+25CF, ▲ U+25B2, λ U+03BB) at exactly 1 cell
  * advance, and only the regular face does. Menlo Bold has 0 of the 128 box
  * drawing characters and Menlo Italic is missing the check at U+2713, the
@@ -95,8 +100,7 @@ export const TERMINAL_RIGHT_CLICK_SELECTS_WORD = false;
  * them in Settings → Appearance → Font. They are LETTERFORMS and nothing more.
  * No bundled face is needed for coverage, and none ships for it.
  */
-export const TERMINAL_FONT_FALLBACK =
-  '"SF Mono", ui-monospace, Menlo, monospace';
+export const TERMINAL_FONT_FALLBACK = 'ui-monospace, Menlo, monospace';
 export const TERMINAL_FONT_SIZE = 13;
 export const TERMINAL_LINE_HEIGHT = 1.25;
 export const TERMINAL_LETTER_SPACING = 0;

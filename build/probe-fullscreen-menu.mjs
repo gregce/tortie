@@ -77,6 +77,19 @@
  * not affect the read this probe asserts on, which happens against the closed
  * menu. It can sit on top of the photograph.
  *
+ * THE PHOTOGRAPH. It is a fixed screen region, the top left 1100 by 760
+ * points, and not a window. A dropped menu is drawn outside every window, so
+ * no window rectangle contains it and the helper in build/window-shot.mjs
+ * cannot be used here. Phase 73.1 added the check that goes with it: the
+ * capture runs only while the app under test is the frontmost process, so the
+ * probe cannot photograph the operator's screen when the app lost focus.
+ *
+ * WHAT THE FRONTMOST CHECK DOES NOT DO. It proves the app under test is in
+ * front. It does not make the region belong to that app. The rectangle is
+ * still the screen's top left corner, so another process's window sitting in
+ * that corner is in the frame even on a passing run. Read the photograph as a
+ * picture of that corner rather than a picture of the app.
+ *
  * Usage:
  *   node build/probe-fullscreen-menu.mjs [--keep]
  * or, equivalently:
@@ -88,6 +101,8 @@ import { existsSync, mkdirSync, openSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { frontmostPid } from './window-shot.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const keep = process.argv.includes('--keep');
@@ -347,21 +362,31 @@ try {
     await sleep(1200);
     // The menu's own rectangle is not readable for a packaged build, which is
     // recorded in the header, so the capture takes the top left corner of the
-    // screen. The View menu always drops there and the operator's other
-    // windows mostly stay out of the frame.
-    const shot = spawnSync(
-      'screencapture',
-      ['-x', '-R0,0,1100,760', shotPath],
-      { encoding: 'utf8' }
-    );
-    if (shot.status === 0) {
+    // SCREEN rather than a window. A menu is drawn outside every window, so
+    // no window rectangle would contain it. The frame is therefore bounded by
+    // a fixed region and by the check below, and it is taken only while the
+    // app under test is in front. The View menu always drops in that corner.
+    const front = frontmostPid();
+    if (front !== pid) {
       console.log(
-        `[probe:fullscreenmenu] screenshot ${shotPath} (the top left 1100 by 760 points, where the View menu drops)`
+        `[probe:fullscreenmenu] no photograph taken: the app under test is not in front, so the frame would be someone else's screen. ` +
+          `The frontmost process is pid ${front === null ? 'unreadable' : String(front)} and the app under test is pid ${String(pid)}.`
       );
     } else {
-      console.log(
-        `[probe:fullscreenmenu] screencapture failed (${(shot.stderr ?? '').trim()}). The row read above is the evidence.`
+      const shot = spawnSync(
+        'screencapture',
+        ['-x', '-R0,0,1100,760', shotPath],
+        { encoding: 'utf8' }
       );
+      if (shot.status === 0) {
+        console.log(
+          `[probe:fullscreenmenu] screenshot ${shotPath} (the top left 1100 by 760 points of the screen, where the View menu drops)`
+        );
+      } else {
+        console.log(
+          `[probe:fullscreenmenu] screencapture failed (${(shot.stderr ?? '').trim()}). The row read above is the evidence.`
+        );
+      }
     }
     osaTry('tell application "System Events" to key code 53', 5000);
   }

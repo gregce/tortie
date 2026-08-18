@@ -129,11 +129,19 @@
      token has about 60 users and most of them are chrome, being the SCM
      sidebar, search, quick open, the settings window, the clone dialog, the
      home screen and the tab SHA chip. The work-area font preset deliberately
-     does not touch it, so the sidebar keeps the same face at every preset. */
-  --font-mono: 'SF Mono', ui-monospace, Menlo, monospace;
+     does not touch it, so the sidebar keeps the same face at every preset.
+     Phase 73.1 deleted 'SF Mono' from the head of this stack. Nothing on this
+     Mac is registered under that name, and the note under --font-terminal
+     below carries the measurement. */
+  --font-mono: ui-monospace, Menlo, monospace;
   /* xterm ONLY, and never conflated with --font-mono (§1.8). Verified native
-     stack (Phase 9.2 Bug C): "SF Mono" is Terminal.app-private and Chromium
-     lacks ui-monospace, so Menlo is the face that actually renders here.
+     stack, first checked in Phase 9.2 Bug C. Phase 73.1 deleted 'SF Mono'
+     from the head of this stack, from --font-mono and from --font-editor.
+     Nothing on this Mac is registered under that name, measured the way
+     Phase 78 measured 'SF Pro Text', being that a string set in it is exactly
+     as wide as a string set in a family name that does not exist. Chromium
+     does not implement ui-monospace either, so Menlo is the face that renders
+     and it rendered before the deletion too.
      MENLO REGULAR is the safe upright last resort, and only the regular face.
      It covers the prompt-glyph gauntlet (➜ ✗ ● ▲ λ) at one cell advance.
      Menlo Bold has 0 of the 128 box drawing characters, Menlo Italic is
@@ -146,14 +154,14 @@
      a bundled family in front of this stack, the fallback tail stays, and the
      value below is what the System preset draws. There is no size control
      here. Zoom multiplies terminalBaseFontSize() and stays the only size. */
-  --font-terminal: 'SF Mono', ui-monospace, Menlo, monospace;
+  --font-terminal: ui-monospace, Menlo, monospace;
   /* The work area's OTHER half, added in Phase 78 with a value byte identical
      to --font-mono above, so the first frame after that phase drew exactly
      what the frame before it drew. It exists because Monaco, the Pierre diff
      and the markdown preview's code and pre must follow the font preset while
      the 60 chrome rules on --font-mono must not. A keycap (.md-content kbd)
      is chrome and stays on --font-mono. */
-  --font-editor: 'SF Mono', ui-monospace, Menlo, monospace;
+  --font-editor: ui-monospace, Menlo, monospace;
 
   --text-xs: 11px; /* section labels (uppercase +0.04em), badges, ages */
   --lh-xs: 16px;

@@ -90,10 +90,7 @@ function baseOptions(
     // Phase 78: `--font-editor`, not `--font-mono`. The two carry the same
     // shipped value. The editor token follows the work-area font preset and
     // the mono token stays put, so the sidebar never changes face.
-    fontFamily: cssVar(
-      '--font-editor',
-      '"SF Mono", ui-monospace, Menlo, monospace'
-    ),
+    fontFamily: cssVar('--font-editor', 'ui-monospace, Menlo, monospace'),
     fontSize: zoomedFontSize(EDITOR_BASE_FONT_SIZE, zoom),
     minimap: { enabled: false },
     scrollBeyondLastLine: false,
@@ -363,10 +360,7 @@ export function MonacoHost({
       await loadWorkAreaFace(workAreaFont, EDITOR_BASE_FONT_SIZE);
       if (cancelled) return;
       codeEditor.current?.updateOptions({
-        fontFamily: cssVar(
-          '--font-editor',
-          '"SF Mono", ui-monospace, Menlo, monospace'
-        )
+        fontFamily: cssVar('--font-editor', 'ui-monospace, Menlo, monospace')
       });
       getLoadedMonaco()?.editor.remeasureFonts();
     })();

@@ -167,6 +167,8 @@ import { homedir, tmpdir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { frontmostPid, windowShot } from './window-shot.mjs';
+
 const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const REHEARSAL_SOCKET = 'gmux-update-rehearsal';
 /** Extra instances in the two instance probes get sockets of their own. */
@@ -1105,15 +1107,24 @@ return "no window matched"`,
   }
 }
 
-/** Best effort screenshot. The accessibility read is the assertion. */
-function screenshot(name) {
+/**
+ * Best effort screenshot of the app under test's own window. The
+ * accessibility read is the assertion, and this is the picture beside it.
+ *
+ * It goes through build/window-shot.mjs, so it takes no photograph at all
+ * when the app under test is not in front. Before Phase 73.1 this called
+ * `screencapture -x` with no region, which photographed the whole active
+ * space and caught the operator's desktop once. When a dialog is up the
+ * dialog is window 1, so the frame is the dialog, which is what these call
+ * sites want.
+ */
+function screenshot(name, pid) {
   const path = join(logsDir, name);
-  const r = spawnSync('screencapture', ['-x', path], { encoding: 'utf8' });
-  if (r.status === 0) {
-    log(`screenshot saved to ${path}. It shows the active space, which may not be the app's space.`);
-  } else {
-    log(`screencapture failed (${(r.stderr ?? '').trim()}). The accessibility reads above are the evidence.`);
+  const answer = windowShot({ pid, path, log });
+  if (answer !== 'saved') {
+    log('the accessibility reads above are the evidence for this step.');
   }
+  return answer;
 }
 
 // -- the ready dialog probe (Phase 31 item 1, fix round) ----------------------
@@ -1150,7 +1161,7 @@ async function probeReadyDialog(feedUrl) {
   // Dialog one, the downloading answer.
   const foundTexts = await waitForDialogOnScreen(run.pid, 'is downloading', 180_000, 'the Update found dialog');
   log(`the Update found dialog is on screen. The window reads, verbatim:\n${foundTexts}`);
-  screenshot('ready-probe-update-found.png');
+  screenshot('ready-probe-update-found.png', run.pid);
   clickDialogButton(run.pid, 'is downloading', 'OK');
   log('dismissed the Update found dialog with its OK button');
 
@@ -1168,7 +1179,7 @@ async function probeReadyDialog(feedUrl) {
     fail('the ready dialog is on screen but the app never logged showing it, so the updates.log record is incomplete');
   }
   log('the app logged the dialog moment, so updates.log carries it in packaged builds');
-  screenshot('ready-probe-ready.png');
+  screenshot('ready-probe-ready.png', run.pid);
   clickDialogButton(run.pid, readyTitle, 'OK');
   log('dismissed the ready dialog with its OK button');
 
@@ -1403,7 +1414,7 @@ async function probeR1(feedUrl) {
   const refusalNeedle = 'did not install because another copy of Tortie was running';
   const refusalTexts = await waitForDialogOnScreen(recovery.pid, refusalNeedle, 60_000, 'the refusal dialog');
   log(`the refusal dialog is on screen. The window reads, verbatim:\n${refusalTexts}`);
-  screenshot('r1-refusal-dialog.png');
+  screenshot('r1-refusal-dialog.png', recovery.pid);
   clickDialogButton(recovery.pid, refusalNeedle, 'OK');
   log('dismissed the refusal dialog with its OK button. Boot continues.');
   await recovery.waitFor(/tmux conf verified/, 120_000, 'r1-recovery booting after the dialog');
@@ -1756,7 +1767,7 @@ async function probeWreckAndHeal(feedUrl) {
   await run.waitFor(/showing the refusal dialog for/, 90_000, 'the refusal dialog log line');
   const texts = await waitForDialogOnScreen(run.pid, WRECK_NEEDLE, 60_000, 'the wreck dialog');
   log(`the wreck dialog is on screen. The window reads, verbatim:\n${texts}`);
-  screenshot('p43-wreck-dialog.png');
+  screenshot('p43-wreck-dialog.png', run.pid);
   const expected =
     `The update to ${V2} did not install. Tortie had prepared a copy of the new version, and that copy was gone from disk when the installer ran. ` +
     'The installer tried 3 times and then saved that it had given up. It does not try again until Tortie clears what it saved. ' +
@@ -1820,7 +1831,7 @@ async function probeWreckAndHeal(feedUrl) {
     'the repair result dialog'
   );
   log(`the repair result dialog reads, verbatim:\n${clearedTexts}`);
-  screenshot('p43-wreck-cleared.png');
+  screenshot('p43-wreck-cleared.png', run.pid);
   if (!clearedTexts.includes("Tortie cleared the installer's leftovers")) {
     fail(`the repair reported itself as something other than a whole clear. The window reads:\n${clearedTexts}`);
   }
@@ -1925,7 +1936,7 @@ async function probeWreckHealthy(feedUrl) {
     'the ready update refusal'
   );
   log(`leg B: the refusal is on screen. The window reads, verbatim:\n${refusalTexts}`);
-  screenshot('p43-healthy-refusal.png');
+  screenshot('p43-healthy-refusal.png', runB.pid);
   const afterB = listWithSizes(stateRoot).join('\n');
   if (afterB !== beforeB) {
     fail(`leg B removed something after refusing.\nbefore:\n${beforeB}\nafter:\n${afterB}`);
@@ -1995,7 +2006,7 @@ async function probeWreckLive(feedUrl) {
   const recovery = new AppRun('p43-live-recovery', feedUrl);
   const texts = await waitForDialogOnScreen(recovery.pid, WRECK_NEEDLE, 120_000, 'the wreck dialog on the relaunch');
   log(`the relaunch shows the wreck dialog. The window reads, verbatim:\n${texts}`);
-  screenshot('p43-live-dialog.png');
+  screenshot('p43-live-dialog.png', recovery.pid);
   clickDialogButton(recovery.pid, WRECK_NEEDLE, CLEAR_BUTTON);
   await recovery.waitFor(/repair finished as/, 60_000, 'the repair finishing');
 
@@ -2614,8 +2625,13 @@ async function openRingMenuAndChoose(cdp, run, ring, n, label, bridgeExpr, shotN
     clickRing(cdp);
     await sleep(1_100);
     if (shotName !== undefined) {
-      screenshot(shotName);
-      log(`the open menu is photographed in ${shotName}; the item words are read from that screenshot, because the popup is not AX-exposed`);
+      // The frame is the app's own window rectangle, so a menu that dropped
+      // past the window's bottom edge would be clipped. The ring sits at the
+      // top of the rail and the menu drops beside it, well inside the window.
+      const took = screenshot(shotName, run.pid);
+      if (took === 'saved') {
+        log(`the open menu is photographed in ${shotName}; the item words are read from that screenshot, because the popup is not AX-exposed`);
+      }
       shotName = undefined;
     }
     if (tryChooseOpenMenuItemByKeys(run.pid, n, label)) return 'menu';
@@ -2635,10 +2651,25 @@ async function openRingMenuAndChoose(cdp, run, ring, n, label, bridgeExpr, shotN
   return 'bridge';
 }
 
-/** A zoomed screenshot of the ring area plus a small margin. */
-function ringShot(name, ring) {
+/**
+ * A zoomed screenshot of the ring area plus a small margin.
+ *
+ * The rectangle is already read from the app's own window, so Phase 73.1 left
+ * it alone and added the frontmost check the other captures gained. Without
+ * that check the same rectangle photographs whatever the operator raised over
+ * the app.
+ */
+function ringShot(name, ring, pid) {
   const pad = 30;
   const path = join(logsDir, name);
+  const front = frontmostPid();
+  if (front !== pid) {
+    log(
+      `no ring screenshot for ${name}: the app under test is not in front, so the frame would be someone else's screen. ` +
+        `The frontmost process is pid ${front === null ? 'unreadable' : String(front)} and the app under test is pid ${String(pid)}.`
+    );
+    return;
+  }
   const r = spawnSync(
     'screencapture',
     [
@@ -2738,8 +2769,8 @@ async function probeRingJourney(feedUrl) {
   log(`photographing the ring at "${dlShot.label}"`);
   raiseApp(run.pid);
   await sleep(300);
-  ringShot('p58-ring-downloading.png', dlShot);
-  screenshot('p58-ring-downloading-full.png');
+  ringShot('p58-ring-downloading.png', dlShot, run.pid);
+  screenshot('p58-ring-downloading-full.png', run.pid);
   await sleep(4_000);
   const dl2 = await ringRead(cdp);
   const m2 = dl2 === null ? null : /^Downloading (\S+), (\d+) percent$/.exec(dl2.label ?? '');
@@ -2762,8 +2793,8 @@ async function probeRingJourney(feedUrl) {
   log(`the ready ring reads, verbatim: "${ready.label}" (${readyAtS.toFixed(1)} s after launch, classes "${ready.className}")`);
   raiseApp(run.pid);
   await sleep(300);
-  ringShot('p58-ring-ready.png', ready);
-  screenshot('p58-ring-ready-full.png');
+  ringShot('p58-ring-ready.png', ready, run.pid);
+  screenshot('p58-ring-ready-full.png', run.pid);
 
   sweeping = false;
   await sweep;
@@ -2805,7 +2836,7 @@ async function probeRingSilence(feedUrl) {
   cdp = await ensureProjectOpen(cdp, profileDir);
   raiseApp(run.pid);
   await sleep(1_000);
-  screenshot('p58-ring-silence-before.png');
+  screenshot('p58-ring-silence-before.png', run.pid);
   log('raised the app window for the before screenshot');
 
   // Poll from before the 30 second first check to the staged line. The ring
@@ -2843,8 +2874,8 @@ async function probeRingSilence(feedUrl) {
   log(`once staged, the ring surfaced in ready, verbatim: "${ready.label}"`);
   raiseApp(run.pid);
   await sleep(300);
-  ringShot('p58-ring-silence-after.png', ready);
-  screenshot('p58-ring-silence-after-full.png');
+  ringShot('p58-ring-silence-after.png', ready, run.pid);
+  screenshot('p58-ring-silence-after-full.png', run.pid);
   if (run.sawLine(/showing the (ready|refusal) dialog|Update found/)) {
     fail('the app logged showing a dialog during the background journey');
   }
@@ -2881,8 +2912,8 @@ async function probeRingFailed(deadFeedUrl) {
   log(`the failed ring reads, verbatim: "${failedRing.label}" (classes "${failedRing.className}")`);
   raiseApp(run.pid);
   await sleep(300);
-  ringShot('p58-ring-failed.png', failedRing);
-  screenshot('p58-ring-failed-full.png');
+  ringShot('p58-ring-failed.png', failedRing, run.pid);
+  screenshot('p58-ring-failed-full.png', run.pid);
   const up = anyDialogUp(run.pid);
   if (up !== null) fail(`a dialog is up after the failed check; the ring must be the only surface:\n${up}`);
   log('no dialog anywhere after the failed check. The ring is the only surface.');
@@ -2909,7 +2940,7 @@ async function probeRingFailed(deadFeedUrl) {
   if (!whyTexts.includes('Tortie could not reach the update feed. It will try again on its own.')) {
     fail('the why it failed body is not the pinned copy');
   }
-  screenshot('p58-ring-why-failed.png');
+  screenshot('p58-ring-why-failed.png', run.pid);
   clickDialogButton(run.pid, 'The update check failed', 'OK');
   log('dismissed the why it failed dialog with its OK button');
   // The modal's nested run loop holds the main process's stdout flush, so
@@ -2957,7 +2988,7 @@ async function probeRingFailed(deadFeedUrl) {
     await sleep(1_000);
   }
   log(`Repair updates reached a Phase 43 repair surface. It reads, verbatim:\n${repairTexts}`);
-  screenshot('p58-ring-repair.png');
+  screenshot('p58-ring-repair.png', run.pid);
   const okNeedle = repairNeedles.find((n) => repairTexts.includes(n));
   clickDialogButton(run.pid, okNeedle, 'OK');
   log('dismissed the repair outcome dialog');

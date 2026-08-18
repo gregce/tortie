@@ -144,9 +144,9 @@ Rhythm rules: tight inside a group (2–8px), generous between groups (16–24px
 ### 1.8 Type
 
 ```css
---font-ui:   -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
---font-mono: "SF Mono", ui-monospace, Menlo, monospace;
---font-terminal: "SF Mono", ui-monospace, Menlo, monospace;  /* xterm ONLY — verified native stack (Bug C); never conflated with --font-mono */
+--font-ui:   -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+--font-mono: ui-monospace, Menlo, monospace;
+--font-terminal: ui-monospace, Menlo, monospace;  /* xterm ONLY — verified native stack (Bug C); never conflated with --font-mono */
 
 --text-xs:   11px/16px;   /* section labels (uppercase +0.04em), badges, ages   */
 --text-sm:   12px/18px;   /* dense rows (tree, SCM), branch names (mono)        */
@@ -157,9 +157,10 @@ Rhythm rules: tight inside a group (2–8px), generous between groups (16–24px
 --weight-regular: 400;  --weight-medium: 500;  --weight-semibold: 600;
 ```
 
+- `--font-ui` has no `"SF Pro Text"` entry. Phase 78 deleted it from `tokens.css` because nothing on macOS is registered under that name, so `-apple-system` always matched first. Phase 73.1 deleted the same dead name from this block, which had kept it two rounds longer than the code.
 - One family (system sans) carries all UI. **Mono is for terminal-adjacent truth only**: branch names, paths shown as paths, SHAs, commands, exit codes, keyboard shortcuts in the ⌘/ overlay — never as a "technical" costume on labels.
 - Counts and ages use `font-variant-numeric: tabular-nums`.
-- Terminal: `--font-terminal` at 13px, xterm `lineHeight: 1.25`, `letterSpacing: 0`. The stack is macOS-native and **verified, not bundled** (Bug C resolution, Phase 9.2): "SF Mono" is Terminal.app-private and Chromium lacks `ui-monospace`, so the face that actually renders is **Menlo** — which covers the prompt-glyph gauntlet (➜ ✗ ● λ) at exactly one cell advance. The historical underscores were tmux substituting `_` for non-ASCII under a locale-less launchd env (fixed at source in `src/main/tmux/env.ts` + `tmux -u`), not missing glyphs, so the once-planned bundled JetBrains Mono was dropped as unnecessary. `--font-mono` stays the UI-mono token and xterm reads only `--font-terminal` (`resolveTerminalFontFamily()`) — the two are never conflated. Family + size become user-configurable when the deferred Settings → General terminal-font control lands (DESIGN-SPEC S13); it retargets this token.
+- Terminal: `--font-terminal` at 13px, xterm `lineHeight: 1.25`, `letterSpacing: 0`. The stack is macOS-native and **verified, not bundled** (Bug C resolution, Phase 9.2). Phase 73.1 deleted `"SF Mono"` from the head of this stack, from `--font-mono` and from `--font-editor`, the work-area token Phase 78 added. Nothing on this Mac is registered under that name. It was measured the way Phase 78 measured `"SF Pro Text"`, being that a string set in it is exactly as wide as a string set in a family name that does not exist. Chromium does not implement `ui-monospace` either, so the face that actually renders is **Menlo**, and it rendered before the deletion too. Menlo covers the prompt-glyph gauntlet (➜ ✗ ● λ) at exactly one cell advance. The historical underscores were tmux substituting `_` for non-ASCII under a locale-less launchd env (fixed at source in `src/main/tmux/env.ts` + `tmux -u`), not missing glyphs, so the once-planned bundled JetBrains Mono was dropped as unnecessary. `--font-mono` stays the UI-mono token and xterm reads only `--font-terminal` (`resolveTerminalFontFamily()`) — the two are never conflated. Family + size become user-configurable when the deferred Settings → General terminal-font control lands (DESIGN-SPEC S13); it retargets this token.
 - No display faces anywhere. Scale ratio ≈ 1.18; contrast between steps comes from weight (500/600), not size jumps.
 
 ### 1.9 Radii, borders, shadows, z-layers

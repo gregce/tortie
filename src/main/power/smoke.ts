@@ -185,12 +185,15 @@ export async function runPowerSmoke(): Promise<void> {
       },
       // Phase 77. The same call the real suspend handler makes, for the same
       // reason as the line above it. The result is kept so the run can print
-      // the generation number rather than only the boolean the handler reads.
+      // the generation number rather than only the outcome the handler reads.
+      // Phase 73.1, row 19. The mapping is the one src/main/index.ts uses, byte
+      // for byte, so this harness still proves what the app does.
       takeManifestGeneration: async () => {
         const result = await core.takeManifestGenerationOnSuspend();
         takes.last = result;
         takes.calls += 1;
-        return result !== null && result.ok;
+        if (result === null) return 'unchanged';
+        return result.ok ? 'taken' : 'failed';
       },
       onResume: () => {
         resumeCalls += 1;

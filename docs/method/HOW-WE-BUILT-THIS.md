@@ -88,6 +88,21 @@ other agents produced the audit that found the last time guessing harvest. Askin
 spike on a neighboring project produced a durability comparison that named the one place Tortie is
 behind.
 
+## What the third run cost, in five lessons
+
+Phases 46.1 to 80.1 ran three at a time and paid for these five. Each one is a
+thing that went wrong, and each row says what it cost. They are here rather than
+in the backlog because the next agent reads this file and does not read a table
+6,700 lines into a queue.
+
+| The lesson | What it cost |
+| --- | --- |
+| An exit code is not a result. Read the rows a gate printed and its own PASS line | Two runs of the ten row fault matrix reported exit 0 while dying halfway through |
+| `node --check` passes a module body that does not parse. Compile it inside an async wrapper against a known-good control | A broken escape survived the check |
+| A fence must name every file the change reaches, not only the files the feature lives in | A build gate failed on a file no builder was allowed to edit |
+| A number in a charter is checked against the thing it describes before a builder reads it | A charter said 335,296 bytes and the four files measure 340,472 |
+| A user-facing copy defect belongs on one shared list | Two rungs fixed the same false sentence independently |
+
 ## Rules learned the hard way
 
 1. **Research before building anything unmeasured**, and write it to `docs/research/` so the next

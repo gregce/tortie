@@ -75,8 +75,12 @@ const MISSING = 'Tortie cannot find this folder.';
 
 /**
  * Characters kept in the mono parent path before truncateMiddle folds it.
- * 28 characters of SF Mono at 11px is about 185px, which leaves the name more
- * than half of the 460px column even when the path is long.
+ * 28 characters of the mono stack at 11px is about 185px, which leaves the name
+ * more than half of the 460px column even when the path is long. The face that
+ * draws is Menlo. Phase 73.1 deleted the name `SF Mono` from this note, because
+ * nothing on this Mac is registered under it and the note read as if it were
+ * the face being measured. The 185px figure is unchanged, because the face that
+ * produced it is the face that draws.
  */
 const PATH_CHARS = 28;
 

@@ -16,7 +16,9 @@
  * one and the sleep path did not, so a machine that slept and never woke left
  * the newest generation as old as the five minute floor allowed. The take runs
  * after the capture, in the order the quit path uses, and inside the same
- * deadline. It is the second half of the same promise the capture makes.
+ * deadline. It is the second half of the same promise the capture makes. It
+ * answers with one of three outcomes rather than a boolean, and Phase 73.1
+ * records why in {@link SuspendTakeOutcome}.
  *
  * **resume → clear the terminal glyph atlas, then reconcile.** This is the
  * handler VS Code wires in `terminalNativeContribution.ts`, to the same
@@ -65,6 +67,21 @@ export interface PowerMonitorLike {
   removeListener(event: 'suspend' | 'resume', listener: () => void): unknown;
 }
 
+/**
+ * What one suspend-time manifest generation came to.
+ *
+ * Three answers rather than a boolean, because two of them used to print the
+ * same sentence and only one of the two was true. `unchanged` is the common
+ * case and is not a failure. `failed` covers a take that threw and a take that
+ * returned not ok, and in both of those a warning naming the reason is already
+ * on the line above.
+ *
+ * It is a small three-way answer of this module's own rather than the manifest
+ * layer's result type, so no manifest type crosses into `src/main/power/` and
+ * this module keeps importing nothing but the log.
+ */
+export type SuspendTakeOutcome = 'taken' | 'unchanged' | 'failed';
+
 export interface PowerHandlerDeps {
   /**
    * Capture every live session's scrollback now. Resolves when the pass is
@@ -74,16 +91,23 @@ export interface PowerHandlerDeps {
   captureAll: () => Promise<void>;
   /**
    * Take a manifest generation because the machine is going to sleep (Phase
-   * 77). Runs after the capture and inside the same deadline. Resolves true
-   * when a generation was copied, and false when the manifest had not changed
-   * since the last one, which is the common case and is not a failure.
-   * Rejections are logged and swallowed, because a failed copy must never be
-   * the reason a machine refuses to sleep.
+   * 77). Runs after the capture and inside the same deadline.
+   *
+   * It resolves with one of the three answers in {@link SuspendTakeOutcome}.
+   * `taken` means a generation was copied. `unchanged` means the manifest had
+   * not changed since the last one, which is the common case and is not a
+   * failure. `failed` means the take returned not ok. Rejections are logged
+   * and turned into `failed` here, because a failed copy must never be the
+   * reason a machine refuses to sleep.
+   *
+   * Phase 73.1, row 19. This was a boolean, and false meant both `unchanged`
+   * and `failed`. The suspend line said the manifest had not changed in all
+   * three cases, so it was false in two of them.
    *
    * Required rather than optional on purpose. An optional dependency is a call
    * site that can forget, and there are only three call sites.
    */
-  takeManifestGeneration: () => Promise<boolean>;
+  takeManifestGeneration: () => Promise<SuspendTakeOutcome>;
   /**
    * The machine woke. Broadcast the atlas clear and reconcile. Synchronous
    * and must not throw: there is no user waiting on this and nowhere to
@@ -214,17 +238,28 @@ export function installPowerHandlers(deps: PowerHandlerDeps): () => void {
     await deps.captureAll().catch((err: unknown) => {
       powerLog.warn(`suspend capture failed: ${(err as Error).message}`);
     });
-    const took = await deps.takeManifestGeneration().catch((err: unknown) => {
-      powerLog.warn(
-        `suspend: taking a manifest generation failed: ${(err as Error).message}`
-      );
-      return false;
-    });
-    if (took) {
+    const took: SuspendTakeOutcome = await deps
+      .takeManifestGeneration()
+      .catch((err: unknown) => {
+        powerLog.warn(
+          `suspend: taking a manifest generation failed: ${(err as Error).message}`
+        );
+        return 'failed' as const;
+      });
+    // Phase 73.1, row 19. One line per answer, and each of the three is true.
+    // The old shape printed the unchanged sentence for a take that threw and
+    // for a take that returned not ok, with the ring's own warning naming the
+    // real reason on the line above it.
+    if (took === 'taken') {
       powerLog.info('suspend: took a manifest generation');
-    } else {
+    } else if (took === 'unchanged') {
       powerLog.info(
         'suspend: the manifest has not changed, so no generation was taken'
+      );
+    } else {
+      powerLog.info(
+        'suspend: no manifest generation was taken, and the warning above ' +
+          'names the reason'
       );
     }
   };

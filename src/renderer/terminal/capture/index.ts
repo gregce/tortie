@@ -469,7 +469,7 @@ export async function captureHistory(
     try {
       await document.fonts?.ready;
     } catch {
-      /* no FontFaceSet outside a browser — proceed */
+      /* no FontFaceSet outside a browser, so proceed */
     }
 
     offscreen = new Terminal({

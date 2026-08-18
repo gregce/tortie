@@ -220,11 +220,17 @@ export function escapeHtml(text: string): string {
 }
 
 /**
- * Attribute values need the quote escaped too — and this is not theoretical:
- * the terminal font stack is `"SF Mono", ui-monospace, Menlo, monospace`, so
- * an unescaped `style="font-family:"SF Mono"…"` closes the attribute early,
- * the SVG stops being well-formed XML, and `img.decode()` rejects with
- * EncodingError. (Measured — it is how the first rasterized capture failed.)
+ * Attribute values need the quote escaped too, and it is not theoretical. A
+ * family name written with double quotes closes the style attribute early
+ * unless it is escaped. The terminal stack carried `"SF Mono"` at its head
+ * until Phase 73.1, and an unescaped `style="font-family:"SF Mono"…"` ended
+ * the attribute at that second quote, the SVG stopped being well-formed XML,
+ * and `img.decode()` rejected with EncodingError. That was measured, and it
+ * is how the first rasterized capture failed. No stack Tortie ships today
+ * carries a double quoted name, so this escape now guards the shape rather
+ * than a value in the tree. It stays because the family is read from a CSS
+ * custom property at capture time, and the rule is about the character rather
+ * than about one stack.
  */
 export function escapeAttr(value: string): string {
   return escapeHtml(value).replace(/"/g, '&quot;');

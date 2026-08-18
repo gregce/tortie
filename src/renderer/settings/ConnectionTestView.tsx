@@ -12,7 +12,10 @@
  *
  * The words a person reads here come from three places and only three. The
  * two header lines are Tortie's and say so. Everything in the transcript is
- * another program's bytes, unchanged. The headline and the detail under the
+ * another program's bytes, with two things taken out and nothing else
+ * changed: the ANSI control sequences, removed in main, and the marker pair
+ * Tortie asked that program to print around its answer. The answer itself is
+ * exactly what the machine sent. The headline and the detail under the
  * transcript are main's, from the taxonomy, so the one alarming outcome
  * cannot be drawn calmly by a later edit to this file.
  *

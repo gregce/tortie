@@ -395,7 +395,7 @@ Clear                   ⌘K
 ┌ editor tabs [h:36] — lives in the HEADER BAND (S1) · bg --bg-sidebar ──────┐
 │ auth.ts ●    db.ts ×                              [ Diff | File ]          │
 ├────────────────────────────────────────────────────────────────────────────┤
-│ File mode: Monaco · bg --bg-canvas · font SF Mono 12 · minimap off        │
+│ File mode: Monaco · bg --bg-canvas · font --font-editor 12 · minimap off  │
 │ Diff mode: @pierre/diffs, read-only, virtualized (two columns ≥ 640px of  │
 │ panel, one below) — same font ramp, colors and gutter weight              │
 └────────────────────────────────────────────────────────────────────────────┘

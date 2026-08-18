@@ -158,8 +158,8 @@ describe('runCardModel, a run gh sent no number for', () => {
     expect(model.ariaLabel).toBe('gates');
   });
 
-  it('gives the copy button a face that is not #0', () => {
-    expect(model.copyLabel).toBe('Run URL');
+  it('gives the copy button the word Copy rather than a number that exists nowhere', () => {
+    expect(model.copyLabel).toBe('Copy');
   });
 });
 

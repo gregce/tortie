@@ -22,6 +22,10 @@
  *     which is where the two `void` lines were.
  *  4. The wedge guard is 2,000 ms, so an edit that removes the bound, or that
  *     lets the quit hang on a worker that never answers, fails here.
+ *  5. That guard's timer is cleared once the race has settled. Phase 73.1,
+ *     rows 20 and 37, moved the bound from a bare `setTimeout` into the
+ *     `afterMs` helper for exactly that reason, so the expectation names the
+ *     helper and the `cancel()` call rather than the old inline timer.
  *
  * What is NOT pinned here, and is measured instead: the quit latency this
  * await adds. With neither surface ever opened the pair resolves in well under
@@ -83,12 +87,14 @@ describe('disposeMainCapabilities (the quit-time teardown)', () => {
     expect(workers).toBeLessThan(reap);
   });
 
-  it('bounds the wait at 2,000 ms and swallows a rejection', () => {
+  it('bounds the wait at 2,000 ms, clears that timer, and swallows a rejection', () => {
     expect(flat(body)).toContain(
-      'await Promise.race([ ' +
+      'const workerGuard = afterMs(2_000); ' +
+        'await Promise.race([ ' +
         'Promise.allSettled([disposeQuickOpenIpc(), disposeSymbolsIpc()]), ' +
-        'new Promise((r) => setTimeout(r, 2_000)) ' +
-        ']).catch(() => undefined);'
+        'workerGuard.wait ' +
+        ']).catch(() => undefined); ' +
+        'workerGuard.cancel();'
     );
   });
 });

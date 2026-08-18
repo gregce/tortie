@@ -271,6 +271,31 @@ export function installMainCapabilities(
 }
 
 /**
+ * A promise that resolves after `ms`, with a way to clear its timer.
+ *
+ * `Promise.race` settles on its first arm and leaves the other one running, so
+ * the plain `setTimeout` shape below left one armed timer per race for the rest
+ * of the process. Nothing measurable was lost, because Electron does not wait
+ * for the event loop to drain at quit. It is cleared because a timer nobody
+ * will ever read is one more thing the next reader has to work out.
+ *
+ * Phase 73.1, rows 20 and 37. The rows name the 2,000 ms race. The 3,000 ms one
+ * above it has the same shape and this one helper covers both.
+ */
+function afterMs(ms: number): { wait: Promise<void>; cancel: () => void } {
+  let timer: NodeJS.Timeout | undefined;
+  const wait = new Promise<void>((resolve) => {
+    timer = setTimeout(resolve, ms);
+  });
+  return {
+    wait,
+    cancel: () => {
+      if (timer !== undefined) clearTimeout(timer);
+    }
+  };
+}
+
+/**
  * Quit-time teardown, in Phase 36's order. It kills ONLY gmux-side clients
  * (attach PTYs, control client, repo watchers). The tmux server and every
  * session keep running — T1 by design.
@@ -324,6 +349,12 @@ export async function disposeMainCapabilities(): Promise<MainDisposeOutcome> {
   // pass already in flight stops between reads and writes nothing more.
   stopRemoteHarvest();
   stopRemoteStoreSync();
+  // Phase 73.1, rows 20 and 37. The wedge guard's timer is cleared once the
+  // race has settled. The cancel runs after the catch, so it runs whichever arm
+  // won and whether or not the other one rejected. Nothing about the ORDER of
+  // this path moves: no await is added, none is removed, and neither arm waits
+  // for anything different.
+  const wedgeGuard = afterMs(3_000);
   await Promise.race([
     Promise.allSettled([
       disposeGitIpc(),
@@ -332,8 +363,9 @@ export async function disposeMainCapabilities(): Promise<MainDisposeOutcome> {
       // path the agents.json one uses, for the same Phase 36 reason.
       stopMachinesWatch()
     ]).then(() => drainWatcherCloses(2_000)),
-    new Promise((r) => setTimeout(r, 3_000))
+    wedgeGuard.wait
   ]).catch(() => undefined);
+  wedgeGuard.cancel();
   disposeSearchIpc(); // SIGKILL any in-flight ripgrep
   disposeActionsIpc(); // stop every Runs watch timer; the watch is not durable
   // Phase 77. These two were `void`, and that is the shape Phase 36 measured
@@ -345,10 +377,15 @@ export async function disposeMainCapabilities(): Promise<MainDisposeOutcome> {
   // only. Measured on this build with neither surface ever opened, the pair
   // resolves in 0.036 ms, 0.044 ms and 0.037 ms across three quit harness
   // runs, because the coordinator and the service are still null.
+  // Phase 73.1, rows 20 and 37. This is the timer the rows name. It lost the
+  // race on every measured quit, because the pair resolves in under 0.05 ms,
+  // and it stayed armed until the process exited.
+  const workerGuard = afterMs(2_000);
   await Promise.race([
     Promise.allSettled([disposeQuickOpenIpc(), disposeSymbolsIpc()]),
-    new Promise((r) => setTimeout(r, 2_000))
+    workerGuard.wait
   ]).catch(() => undefined);
+  workerGuard.cancel();
   // Phase 13.8: any question-asking child still in flight (login-shell PATH
   // probe, an agent `--version`, cursor's create-chat) dies WITH the app.
   // This is the hole the 19-hour `zsh -lic` orphans came through: their
