@@ -5629,7 +5629,7 @@ fallback, or a Chromium permission-gated enumeration. There is no font enumerati
 repository today, so this is a new capability rather than a wiring job. Nothing else about the issue
 is hard.
 
-## Phase 74 — the small-issue batch: login shells, project naming, sign-in copy, NOT QUEUED
+## Phase 74 — the small-issue batch: login shells, project naming, sign-in copy ✅ SHIPPED 2026-08-17 (2867223, 0.35.1, gates green, CI green)
 
 **Closes issues 8 and 5, and the two real defects behind issue 6.** It does not close issue 6 as
 written, because the name suggestion the issue asks for would produce a wrong path.
