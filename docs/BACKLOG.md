@@ -5983,6 +5983,112 @@ all three after a successful run.
 needs `SSH_AUTH_SOCK` exported from the Phase 69 carriage file because the npm script does not
 export it. That gate runnability defect is itself a recorded nit.
 
+## Phase 81 — the session list stops waiting for your shell (operator queued 2026-08-18) QUEUED
+
+**Build the SMALL HALF of performance fix 1 and nothing else.** The audit's fix 1 was examined by
+eleven agents on 2026-08-18 against the tree at d414746. The examination found the small claim true
+and the rest of the proposal unsafe. This entry is the safe part, and it names the unsafe part so a
+builder does not helpfully add it back.
+
+**Subject:** `perf(boot): the session list no longer waits for the login shell`
+**First body line:** `Phase 81: the session list stops waiting for your shell`
+**Semver:** minor.
+**Tier 3.** This moves a boot ordering that four correctness checks stand on, and a wrong PATH
+reaches the manifest, which is durable.
+
+### What a person gets
+
+Their sessions and project tabs appear about 0.3 s after launch, read from the manifest, instead of
+after the login shell answers. The window already paints first today, so this changes what is IN the
+window rather than when the window arrives.
+
+The operator's own log records three captures: 1,907 ms, 4,012 ms and 4,161 ms, each returning 30
+directories against a 10,000 ms budget. A standalone probe on an idle machine measured 0.96 to
+1.10 s. Both are true and the difference is machine load.
+
+### The four things to change
+
+1. `sessions:list` no longer sits behind `getUserPath`. Today it awaits `getGmuxCore` at
+`src/main/ipc.ts:99`, which awaits `ensureServer` at `src/main/sessions/core.ts:676`, which awaits
+`getUserPath` at `src/main/tmux/supervisor.ts:431`.
+2. `projects:list` no longer sits behind it either, at `src/main/ipc.ts:166`.
+3. `sessions:attach` no longer sits behind it. Attaching to a pane that already exists needs no
+PATH, and this was measured rather than assumed.
+4. Create, restore and the per agent create hotkey ALL gate on the same cached promise, and the
+Restore button gates in the RENDERER as well as in main.
+
+### What must NOT be built, and this is the whole reason the phase is scoped this way
+
+**Do not persist a PATH under `userData` and install it at boot.** That cache does not exist today
+and every finding about a stale one is reasoned rather than measured.
+
+**Do not replace `process.env.PATH` mid run.** This is the one that breaks things.
+`process.env['PATH']` and the value `getUserPath()` returns are the SAME STRING BY CONSTRUCTION,
+written on two adjacent lines at `src/main/tmux/supervisor.ts:431-432`. Four correctness checks on
+the create path stand on that identity. One create reads the PATH at four moments, being the
+absolute path written to the manifest row, the interpreter verdict, the bare name decision, and the
+file the pane's `execvp` picks, at `src/main/sessions/core.ts:2515`, `:2539`, `:2599` and
+`src/main/tmux/sessions.ts:186`. A create that straddles a replacement can RECORD ONE BINARY AND RUN
+ANOTHER. On this machine the concrete case is node: the login shell has v22.23.1 under nvm and the
+fallback has /usr/local/bin/node at v22.14.0 from February 2025.
+
+Four caches also hold answers computed from the PATH and only one is keyed on a generation, at
+`src/main/agents/health.ts:456-457`. Two have no reachable reset at all, so an
+`AGENT_INTERPRETER_MISSING` refusal computed against the short PATH would stick until quit, and
+Re-scan does not touch `src/main/agents/availability.ts`.
+
+### The hazard this phase exists to avoid, and the gate for it
+
+**A restored session must never get the short PATH.** Restore becomes clickable 1.0 to 4.2 s before
+the capture lands and nothing on that path waits for it today, at
+`src/main/restore/restore.ts:814`, with no `getUserPath` anywhere in that directory. The agent holder
+shell gets no login flag so it cannot rebuild the PATH itself. Restore all runs one row after
+another at `src/renderer/state/sessions-slice.ts:658-667`, so a capture landing part way through
+would give some restored sessions the full PATH and the rest the launchd one, inside one gesture,
+with nothing saying which is which. What a person sees is `command not found` for a tool that works
+in Terminal, and the only cure is killing the session.
+
+**The Tier 3 proof:** drive a restore that begins before the capture lands and prove the restored
+pane has all 30 directories, then drive a Restore all across the capture boundary and prove every
+restored session got the same PATH. A session that gets the 4 entry launchd PATH is a FAIL and the
+phase does not ship.
+
+### Two defects found during the examination, both in scope
+
+1. **Diagnostics has always reported the wrong PATH.** It says 4 entries on every healthy boot while
+the capture reports 30, because `src/main/log/snapshot.ts:93` runs before the capture. Six boots in
+the operator's log all read `"entries":4`. Neither half of fix 1 changes this, so fix it here.
+2. **A failed capture tells the person nothing.** Two lines land in `app.log` at
+`src/main/tmux/resolve.ts:298-306` and `:313-321` and no message appears anywhere. The retained log
+window covers 2026-08-15 to 2026-08-17 and six boots with zero fallbacks, so this path has never
+been seen in the wild.
+
+### Comments that become false and must be corrected in the same commit
+
+`src/main/tmux/resolve.ts:87-91` says the create path is the only thing that waits and that
+"Nothing else gets slower". Session list, project list and attach all wait too, so that sentence is
+already wrong and this phase makes it wronger.
+
+### What was measured, and what the numbers really are
+
+| Claim | Status |
+| --- | --- |
+| Attaching to an existing pane needs no PATH | TRUE, and measured. A pane takes the creating client's PATH, tmux's default `update-environment` is nine entries with PATH not among them, and `resources/gmux-tmux.conf` sets no such line |
+| Starting the packaged tmux before the capture poisons future panes | FALSE. Measured on a scratch socket with tmux 3.6a. Each session takes its own client's PATH |
+| The gain equals the PATH number | OVERSTATED. `getGmuxCore()` at `src/main/index.ts:482` and `createWindow()` at `:516` are 34 lines apart with no await between them, so the capture already overlaps the renderer parsing its own 3.3 MB bundle. Only the part that outlasts the renderer's readiness is on the critical path |
+| A spinner goes away | FALSE. There is none. `src/renderer/app/App.tsx:1295` already renders the shell body with empty lists while the wait happens |
+
+**Measure the real gain before and after on a PACKAGED build.** The newest boot in the operator's
+log is 0.31.0 and nobody has measured a cold boot on 0.40.1, so the phase produces its own before
+number rather than quoting the audit.
+
+### What is NOT true of this entry
+
+No agent launched Tortie during the examination. Every timing above is either from the operator's
+own `app.log` or from a standalone subprocess that copies what the code does. Nobody measured CPU
+contention between boot work and the first attach. Nobody exercised any of the three PATH failure
+branches, because none has occurred in the retained log window.
+
 ## Phase 80.1 — session focus mode, the build (operator queued 2026-08-17) ✅ SHIPPED 2026-08-18 (8713547, 0.38.0, gates green, CI green)
 
 **What landed.** ⇧⌘↩ grows the session surface, including every split leaf, until it fills the
