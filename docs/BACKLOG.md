@@ -5845,6 +5845,74 @@ performance audit's subsystem table has no row for it and its idle table omits t
 remote ladder built exactly the shape the audits warn about, in the weeks after they were written.
 Nothing is broken. It is unmapped, and the next audit refresh owns it.
 
+## Phase 80.1 — session focus mode, the build (operator queued 2026-08-17) QUEUED
+
+The build the research in `docs/research/53-session-focus-mode.md` earned. Section 9 of that
+document is the charter and a builder does not re-litigate section 0, which already decided the
+product, the unit, the engine, the flight, the glow and the persistence question with a reason on
+each row.
+
+**What a person gets.** One chord grows the session they are in, including a split group of up to
+six leaves, until only that work remains. The title bar, activity bar, sidebar, editor and session
+strip recede, and a soft wash in the session's own status colour fills the space they leave. The
+same chord, Escape, or a View menu item puts every region back exactly as it was. Sessions keep
+running throughout and the window is still one window.
+
+**The sentence that is the whole design, quoted from the research.** Nothing animates the live
+terminal's layout box while it is attached. DESIGN.md section 5 forbids animation over live output,
+and `work-area.css` forbids width transitions because every animated frame is a ResizeObserver fit
+and every fit is a tmux resize. So the flight runs on a STILL COPY and swaps to the live hosts once,
+at the end.
+
+**Decided already, do not re-open.**
+
+| Question | Decision |
+| --- | --- |
+| Product | In-window focus of the active surface, not macOS full screen and not a second window |
+| Unit | The whole surface including every split leaf, never one leaf pulled out of a group |
+| Engine | The Web Animations API that Chromium already ships. No new package. GSAP refused on licence, Motion refused as weight for one tween |
+| Flight | Still copy, First Last Invert Play, then one live swap |
+| Glow | A status wash on the vacated chrome, never a halo on the terminal |
+| Persistence | Never. Editor fill already proved a mode you cannot see the exit from at launch is a trap |
+| Duration | `--dur-panel` at 200 ms with `--ease-out`, inside the existing 250 ms cap |
+
+**Subject:** `feat(sessions): one chord gives a session the whole window`
+**First body line:** `Phase 80.1: session focus mode, the build`
+**Semver:** minor.
+**Tier 2 for enter and leave. Tier 3 for one claim only**, being that a live multiplexed surface
+receives no resize until the flight ends. That claim is the reason the still copy exists, so it is
+the claim that gets driven.
+
+**A FENCE, because Phase 78 is in flight.** Phase 78, the font presets, owns
+`src/renderer/styles/tokens.css`. If this phase needs a new token for the wash alpha, it waits for
+78 to land or it uses an existing token. It must not edit that file concurrently. Everything else it
+needs is unowned.
+
+**Files a builder should expect.** `src/renderer/state/chrome-slice.ts` for the memento,
+`src/renderer/app/App.tsx` and the work area for the layer, a new small module such as
+`src/renderer/app/session-focus.ts` for the copy and the flight and the swap, `src/shared/keymap.ts`
+and `src/main/menu.ts` for the chord and the row, and one sentence in DESIGN.md section 5.
+
+**What must not be touched.** tmux, the manifest, and the rule that hidden sessions stay detached.
+Window full screen and its single packaged row, which Phase 62.1 measured and fixed. Editor fill's
+meaning: the two modes may both be on, focus owns the session and fill owns the file, and if both
+would hide the same chrome then one memento stack is enough with last in first out, and the builder
+writes that down and tests it. Activity status rules.
+
+**The chord is chosen at build time** against `src/shared/keymap.ts` and the operator's own recorded
+per-agent hotkeys. The research notes Shift-Command-C is free. The CLAUDE.md menu rule applies
+because a View row is added, so the native menus change in the same commit.
+
+**Proof the phase must produce, from section 9 of the research.**
+
+1. Enter and leave restore sidebar width, dock width, editor width and strip orientation byte for byte, unless the person moved them.
+2. During the 200 ms flight `sessions.resize` is NOT called, and after the swap it is called exactly once per visible leaf. This is the Tier 3 item.
+3. A two leaf split stays two leaves and both stay attached.
+4. A restorable selected session does not enter the mode.
+5. Reduced motion is instant, with no flight.
+6. Control-Command-F still toggles window full screen and a packaged build still shows exactly one full screen row.
+7. Screenshots of enter, of the settled focus, and of leave, read by eye.
+
 ## Phase 79 — the Machines screen tells you what to do (operator reported 2026-08-17) QUEUED
 
 The operator photographed the Machines section twice and said it is a wall of text that does not
@@ -6944,13 +7012,13 @@ reads through `effectiveStatusOf`. The behaviour is identical today because noth
 the status on the way out. It stops being identical the moment M4 gives each machine its own
 reconcile, so Phase 71 fixes both call sites as part of its own work.
 
-## Phase 77 — research: session focus mode (operator requested 2026-08-17) RESEARCH LANDED, BUILD NOT QUEUED
+## Phase 80 — research: session focus mode (operator requested 2026-08-17) RESEARCH LANDED
 
 Window full screen still shows the title bar, the activity bar, the sidebar and the session strip.
 The operator asked for a keystroke that grows the session they are in, including a split group,
 until only that work remains, with a quiet status-coloured wash and a short Mac-like flight.
 
-**This phase is research only.** The deliverable is `docs/research/53-session-focus-mode.md`.
+**This phase is research only, and it was renumbered from 77 to 80 because Phase 77 is the quit and suspend contract queued the same evening.** The deliverable is `docs/research/53-session-focus-mode.md`.
 Nothing under `src` changes until the operator queues a build. The document names the product
 shape, weights mechanism and library options, and attacks the winner.
 
