@@ -5691,7 +5691,7 @@ extra flag, quit, relaunch, and read the restored pane's argv, quoting the bytes
 in New Project and show the fallback name rather than an empty field. Read the picker message and the
 SpecStory caption by screenshot.
 
-## Phase 75 — research: the unit of work, and what a session digit counts ✅ SHIPPED 2026-08-18 (this commit, 0.38.2, gates green)
+## Phase 75 — research: the unit of work, and what a session digit counts ✅ SHIPPED 2026-08-18 (3d7781a, 0.38.2, gates green, CI green)
 
 **What it decided, and the artifact is `docs/research/52-unit-of-work.md` at 707 lines.** The
 project stays the primary unit, because the falsification condition in research 10 section 9 has
