@@ -3248,8 +3248,25 @@ function isDirectory(path: string): boolean {
 let corePromise: Promise<GmuxCore> | null = null;
 
 /**
+ * The teardown in flight, so a second caller joins it rather than starting a
+ * second one (Phase 77).
+ *
+ * It is cleared once the teardown settles, and that is what keeps a second
+ * boot-and-shutdown cycle in the same process real work. A promise that was
+ * never reset would make cycle two join a settled promise, return at once, and
+ * skip the snapshot pass, the capture drain, the quit generation and dispose.
+ * Every durability harness in the tree is built from those cycles.
+ */
+let shutdownPromise: Promise<void> | null = null;
+
+/**
  * Boot (or return) the singleton core. A failed boot clears the cache so the
  * next call retries — e.g. after the user installs tmux and hits "Try again".
+ *
+ * Phase 77. During a shutdown this hands back the core that is going away,
+ * because the slot is not cleared until dispose has returned. A disposed core
+ * is honest about being disposed. A second live core, with a second manifest
+ * handle and a second control client, is not.
  */
 export function getGmuxCore(): Promise<GmuxCore> {
   if (corePromise === null) {
@@ -3274,28 +3291,41 @@ export function getGmuxCore(): Promise<GmuxCore> {
  * a smaller failure than a Dock icon that will not go away.
  */
 export async function shutdownGmuxCore(): Promise<void> {
+  if (shutdownPromise !== null) return shutdownPromise;
   if (corePromise === null) return;
   const pending = corePromise;
-  corePromise = null;
-  try {
-    const core = await pending;
-    faultPoint('quit.before-snapshots');
-    await Promise.race([
-      core.snapshotAllSessions(),
-      new Promise<void>((resolve) => setTimeout(resolve, 8_000))
-    ]).catch(() => undefined);
-    faultPoint('quit.after-snapshots');
-    await Promise.race([
-      core.captureSyncsIdle(),
-      new Promise<void>((resolve) => setTimeout(resolve, SYNC_QUIT_TIMEOUT_MS))
-    ]).catch(() => undefined);
-    // Phase 20 item 2. Last, and before dispose closes the connection, so the
-    // generation holds everything the quit itself wrote. It costs 21 ms, it
-    // skips the five minute floor because there is no next tick, and it takes
-    // nothing at all when the manifest has not changed.
-    await core.takeManifestGenerationOnQuit().catch(() => null);
-    core.dispose();
-  } catch {
-    /* boot never finished — nothing to tear down */
-  }
+  shutdownPromise = (async () => {
+    try {
+      const core = await pending;
+      faultPoint('quit.before-snapshots');
+      await Promise.race([
+        core.snapshotAllSessions(),
+        new Promise<void>((resolve) => setTimeout(resolve, 8_000))
+      ]).catch(() => undefined);
+      faultPoint('quit.after-snapshots');
+      await Promise.race([
+        core.captureSyncsIdle(),
+        new Promise<void>((resolve) => setTimeout(resolve, SYNC_QUIT_TIMEOUT_MS))
+      ]).catch(() => undefined);
+      // Phase 20 item 2. Last, and before dispose closes the connection, so the
+      // generation holds everything the quit itself wrote. It costs 21 ms, it
+      // skips the five minute floor because there is no next tick, and it takes
+      // nothing at all when the manifest has not changed.
+      await core.takeManifestGenerationOnQuit().catch(() => null);
+      core.dispose();
+    } catch {
+      /* boot never finished, so there is nothing to tear down */
+    } finally {
+      // Phase 77. The slot is cleared HERE, after dispose has returned, and not
+      // before the snapshot race above. It used to be cleared on the third line
+      // of this function, so for the whole 8,000 ms window getGmuxCore() saw an
+      // empty slot and called GmuxCore.boot() again. Measured before the fix,
+      // with the snapshot pass held open: two boots, and the second core was
+      // then left in the slot after the shutdown finished, because this
+      // function had already captured the first promise.
+      corePromise = null;
+      shutdownPromise = null;
+    }
+  })();
+  return shutdownPromise;
 }

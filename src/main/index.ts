@@ -555,7 +555,9 @@ app.whenReady().then(async () => {
   // Suspend forces the same capture the quit path runs. Sleep is the other
   // moment the app is told in advance that it is about to stop, and without
   // this the newest snapshot on disk could be hours older than the pane when
-  // a machine goes down and does not come back.
+  // a machine goes down and does not come back. Phase 77 added the second
+  // step the quit path already had, which is a manifest generation taken
+  // after the capture and inside the same deadline.
   //
   // Resume does two things. It asks every terminal to clear its WebGL glyph
   // atlas, because a texture atlas does not survive the GPU process losing
@@ -574,6 +576,16 @@ app.whenReady().then(async () => {
       // from one taken as the app closed, and this is the call site that
       // creates the sleep case.
       await core.snapshotAllSessions('system-sleep');
+    },
+    // Phase 77. The second half of the same promise. The quit path took a
+    // manifest generation and the sleep path did not, so a machine that slept
+    // and never woke left the newest generation as old as the five minute
+    // floor allowed. False means the manifest had not changed since the last
+    // generation, which is the common case and is not a failure.
+    takeManifestGeneration: async () => {
+      const core = await getGmuxCore();
+      const result = await core.takeManifestGenerationOnSuspend();
+      return result !== null && result.ok;
     },
     onResume: () => {
       broadcastEvent(EVT_POWER_RESUME);

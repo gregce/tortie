@@ -119,6 +119,22 @@ describe('the change test', () => {
     expect(ring.calls).toEqual(['launch']);
   });
 
+  it('skips a suspend take when the manifest has not changed', async () => {
+    // Phase 77 wired the suspend handler to this call, and the handler logs
+    // "the manifest has not changed, so no generation was taken" off a null.
+    // That sentence is only honest while a null means exactly this.
+    const ring = goodRing();
+    const schedule = new ManifestRingSchedule({
+      take: ring.take,
+      fingerprint: () => 'same',
+      now: clock().now
+    });
+
+    await schedule.maybeTake('launch');
+    expect(await schedule.onSuspend()).toBeNull();
+    expect(ring.calls).toEqual(['launch']);
+  });
+
   it('is skipped entirely by a forced take', async () => {
     const ring = goodRing();
     const schedule = new ManifestRingSchedule({

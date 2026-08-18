@@ -136,6 +136,7 @@ Main owns disk, git, processes, and durable sessions. The renderer owns presenta
 | `migrate/`, `login/`, `tray/`, `menu/` | Rename migration, login item, menu-bar affordances and native commands | Small boot work; none belongs on core readiness |
 | `preview/` | `gmux-preview:` HTML frame | First HTML preview |
 | `power/` | Sleep snapshot, wake reconcile | Event only |
+| `machines/` | Machine rows, the exec plane, one control connection per machine, remote sessions and remote restore | Only when a machine is configured. No connection is opened at boot |
 | `projects/`, `shell/` | Project rows and shell-open routing | Project list at hydrate; shell work on demand |
 
 ### Renderer surfaces
@@ -488,13 +489,61 @@ A phase that claims a speed win prints those four numbers on five packaged launc
 
 Keep this diagnostic surface proportionate. VS Code's current model proves that lifecycle marks and a startup report are enough to localise a regression; Tortie does not need telemetry, an extension profiler, or a permanent dashboard. A JSON line in the existing file log plus an opt-in trace harness is sufficient.
 
+## Re-measured 2026-08-18 (Phase 77)
+
+This section was added by Phase 77, the quit and suspend contract. Nothing above it was rewritten, because a dated measurement that is rewritten in place stops being a record of when it was taken. Two things changed above this line and both are named here. A `machines/` row was added to `### Main subsystems`, and three rows of `## Companion to the 16 August audit` moved from open to closed.
+
+The file the companion table calls the 16 August audit is on disk as `docs/audits/2026-08-14-electron-typescript-architecture.md`. On 18 August 2026, the day Phase 77 shipped, the audits directory held no file dated 16 August. A later round may add one. Phase 77 did not rename anything and records the mismatch here so a reader can find the file.
+
+### The tree, measured again
+
+Measured at commit `9b945cf`, which is the commit Phase 77 branched from. Each row names the command that produced the number, and no number here was written without running its command.
+
+| Thing | Figure in the 14 August audit | Measured 2026-08-18 | Command |
+|---|---|---|---|
+| `src/main/index.ts` | 2,231 lines | 629 lines | `wc -l src/main/index.ts` |
+| `src/main/sessions/core.ts` | 2,931 lines | 3,301 lines | `wc -l src/main/sessions/core.ts` |
+| `src/renderer/app/App.tsx` | 1,168 lines | 1,211 lines | `wc -l src/renderer/app/App.tsx` |
+| `src/shared/ipc.ts` | 3,269 lines in one file | gone. 16 files under `src/shared/ipc/`, 4,705 lines together | `find src/shared/ipc -name '*.ts'` |
+| `src/shared/types.ts` | 1,263 lines | 1,444 lines | `wc -l src/shared/types.ts` |
+| `src/main/manifest/store.ts` | 2,163 lines in one file | gone. 27 production files under `src/main/manifest/`, 11,461 lines together | `find src/main/manifest -name '*.ts' -not -path '*__tests__*'` |
+| `src/renderer/state/store.ts` | 1,820 lines in one file | gone. 24 production files under `src/renderer/state/`, 6,511 lines together | `find src/renderer/state -name '*.ts*' -not -path '*__tests__*'` |
+| invoke channels | 124 in 36 maps | 158 in 44 maps before Phase 77, and 156 after it | `docs/audits/contract-baseline.txt` line 5, and the intersection at `src/shared/ipc/index.ts:195` |
+| production renderer files reading `window.gmux` | 49 | 62 | `grep -rl 'window\.gmux' src/renderer \| grep -v __tests__ \| wc -l` |
+| production import cycles | four | not re-measured | there is no cycle checker in this repo, and Phase 77 did not add a dependency to get one |
+| `src/main/capabilities.ts` | did not exist | 412 lines, holding one ordered disposer | `wc -l src/main/capabilities.ts` |
+| `src/preload/index.ts` | one file holding the whole bridge | 13 files under `src/preload/`, 824 lines together | `find src/preload -name '*.ts'` |
+| `src/main/machines/` | did not exist | 31 production files, 12,760 lines together | `find src/main/machines -name '*.ts' -not -path '*__tests__*'` |
+
+Phase 77 then edited five of the files counted above, being `src/main/sessions/core.ts`, `src/main/index.ts`, `src/main/power/index.ts`, `src/main/capabilities.ts` and `src/shared/ipc/app.ts`. Re-running these commands on the phase's own commit returns slightly larger numbers for those five. The figures above are the state the phase started from, which is what makes them comparable to the dated figures beside them.
+
+`src/main/machines/` is the largest directory under `src/main/` at 12,760 lines, ahead of `manifest/` at 11,461 and `context/` at 6,483. It did not exist when either audit was written. It holds the remote ladder from Phases 67 to 72, and none of it runs at boot unless a machine is configured.
+
+### What Phase 77 did with each of the five fixes
+
+None of the five shipped. Phase 77 is a lifecycle repair round and the operator's condition on it was no user or technical behaviour change. Each fix has one line saying why it is not in this round.
+
+| Fix | Phase 77's answer | Reason |
+|---|---|---|
+| 1. PATH off the list path | Refused | A PATH cache adds a persisted input that decides what a launch runs. That input did not exist before. It is admissible only as its own phase carrying a threat model for the cache as a launch input |
+| 2. Split the first JS parse | Deferred | It is internal only and genuinely admissible. It is also a wide renderer edit that shares no file with this round, so it goes second rather than holding a lifecycle repair up behind a bundler question |
+| 3. Git only the project that is on screen | Deferred | Admissible, and one of its two supporting claims was found wrong, so it needs its own re-measurement before it is built |
+| 4. Restore all as one wave | Refused | It changes the order and the nature of durable side effects and it changes a failure mode. The serial loop exists because parallel session creation races name dedupe. It needs its own Tier 3 round with a fault-injection matrix |
+| 5. Agent version scan on demand | Deferred | Admissible, and there are five always-reachable trigger sites rather than the one this audit names, so the change is wider than written |
+
+No number in `### Numbers on this machine` was re-measured. Phase 77 booted no packaged app and timed no launch. Every figure in that block still dates from 2026-08-17.
+
+### The lifecycle line in `## What must stay`
+
+That block ends with the line "The 16 August lifecycle repairs (suspend generation, quit singleton, awaited worker dispose)". All three landed in Phase 77, so the line now records what the code does rather than what it still owed. It stays where it is, because it is also the rule that stops a later round from undoing any of the three.
+
 ## Companion to the 16 August audit
 
 | 16 August item | This audit |
 |---|---|
-| Suspend never takes a manifest generation | Still open. Correctness. Do it first if a sleep can lose a generation |
-| Quit clears the core singleton early | Still open. Can start a second core. Correctness |
-| Worker dispose not awaited | Still open. Quit crash risk |
+| Suspend never takes a manifest generation | Closed in Phase 77. The suspend handler now runs the scrollback capture and then takes a manifest generation, both inside one deadline, in the order the quit path already used |
+| Quit clears the core singleton early | Closed in Phase 77. The slot is held until `core.dispose()` returns, so a call arriving during the shutdown window joins that shutdown instead of booting a second core |
+| Worker dispose not awaited | Closed in Phase 77. The ordered disposer now awaits both worker disposals together, with a 2,000 ms bound so a stuck worker cannot hold the quit open |
 | Broad file splits | Do not combine with these five. Speed first, then seams |
 
 A phase that lands fix 1 should not also split `core.ts`. A phase that lands fix 2 should not also redesign the shell.

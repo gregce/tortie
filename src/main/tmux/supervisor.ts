@@ -420,8 +420,14 @@ let ensureInFlight: Promise<TmuxContext> | null = null;
 export function ensureServer(): Promise<TmuxContext> {
   if (ensureInFlight !== null) return ensureInFlight;
   const attempt = (async () => {
-    // PATH first: findTmuxBinary/getTmuxContext scan PATH too, and a tmux
-    // in an exotic login-shell dir should still be found.
+    // PATH first, and the reason is not the same in both builds. In a
+    // development build the resolution ends with a PATH scan
+    // (resolve.ts, planTmuxResolution), so a tmux in an exotic login-shell
+    // directory is only found once this line has run. A packaged build never
+    // reaches that scan. The packaged branch returns the copy inside the
+    // bundle and ignores PATH. The line still runs first in both, because the
+    // assignment below is what gives every new pane its PATH, and that is
+    // true of a packaged build too.
     const userPath = await getUserPath();
     process.env['PATH'] = userPath;
 

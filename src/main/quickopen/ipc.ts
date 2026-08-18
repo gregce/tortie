@@ -9,6 +9,10 @@
  *
  *     await disposeQuickOpenIpc();
  *
+ * Phase 77 made that await real. The quit path fired this disposer with
+ * `void` until then, so the ranking worker could still be terminating when
+ * the process tore its environment down.
+ *
  * Two channels only. `warm` is fire-and-forget indexing; `query` is a plain
  * request/response because the whole round trip is p50 4-13 ms at 50,000
  * files — there is nothing worth streaming.

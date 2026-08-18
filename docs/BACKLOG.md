@@ -6389,7 +6389,7 @@ card's 12.5 percent comes from.
   inside that window computes its cell correction from the old face. The error is bounded by the 0.34
   percent advance difference, about 0.026 css pixels per character. It is recorded in the nits round.
 
-## Phase 77 — the quit and suspend contract, NOT QUEUED and BLOCKED ON PHASE 72
+## Phase 77 — the quit and suspend contract ✅ SHIPPED 2026-08-18 (this commit, 0.38.1, gates green)
 
 **This may not run while Phase 72 is in flight.** Builder A owns all 3,192 lines of
 `src/main/sessions/core.ts` and Builder C owns `sessions-slice.ts`. Phase 72, remote restore, needs
@@ -6479,6 +6479,77 @@ still on screen and a 2,000 ms bound can hold it there.
 | Performance fix 5, the agent scan | Admissible, but there are five always-reachable trigger sites rather than the one the audit names, so the change is wider than written |
 | The renderer cycle, the exact bridge type, the TypeScript config split | All admissible and all internal only, but every one is a wide shape-only edit across many renderer files and none repairs a defect. They form the second half |
 
+**What shipped.** All six items landed on the tree that was verified. The three repairs were driven
+in the real app at Tier 3. The three internal changes were proved by the gates at Tier 1. No
+renderer file changed, no user-facing string changed, and no surface was added, renamed or removed,
+so the native menu rule did not apply.
+
+1. **Sleep takes a manifest generation.** `onSuspend` in `ring-schedule.ts` was written as the
+suspend handler and nothing called it. The power handler calls it now, after the scrollback capture
+and inside the same 4,000 ms deadline, which is the order the quit path already used. One suspend
+reached both halves in one `smoke:power` run: the capture wrote 1,113 bytes carrying its marker in
+103 ms, and the take printed `manifest generation 2 taken (suspend) in 14 ms`. Four suspends fired
+about 200 ms apart each took a generation, at 14, 14, 13 and 12 ms, which measures the five minute
+floor being skipped rather than assuming it.
+2. **`shutdownGmuxCore` holds the singleton until dispose returns.** It used to clear the slot on
+its third line, before an 8,000 ms snapshot race, so `getGmuxCore()` booted a second core for that
+whole window. The verifier drove both trees with the same probe. On the fixed tree the call during
+shutdown returned the same core and one launch generation was taken. On the pre-fix tree it returned
+a different core and two launch generations were taken, so a second manifest handle and a second
+control client really did start. All four durability harness modes still do real teardown, each
+proved by its own quit ring take, and `smoke:fault` passed 20 cases including the fault point inside
+the new wrapper.
+3. **The quit path awaits the quick open and symbol disposals.** Both were fired with `void`. With
+both services warmed, the awaited pair returned after 8.901 ms with both promises settled, and the
+`void` shape returned after 2.680 ms with them unsettled. Each of those disposers ends in an awaited
+`worker.terminate()`. Quit latency was measured five times on each tree, from the harness calling
+`app.quit()` to process exit: 845.2 ms at the median before and 839.9 ms after, all ten exits code
+0. Nobody waits longer.
+5. **The two ghost invoke channels are gone.** `projects:rename` and `app:setBadgeCount` had no main
+handler and no preload method. The contract baseline moves in the same commit and the diff is
+exactly three lines: the count from 158 to 156, and the two channel names. The two optional
+interface methods stay, each with a comment saying the channel has to be declared again before a
+preload method can be wired to it.
+6. **The stale PATH comment at `supervisor.ts` is correct now.** It names `planTmuxResolution` rather
+than a line number, and it keeps the development-build truth, which is that the PATH read is live in
+a dev build and only the packaged branch skips it.
+7. **Both audits carry the measured figures.** Thirteen counts were re-run against the tree, e.g.
+`core.ts` at 3,301 lines and `capabilities.ts` at 412. The 17 August audit gained a `machines/` row
+in its subsystem table, at 31 files and 12,760 lines, and three companion rows moved from open to
+closed. Nothing above the new section was rewritten, because a dated measurement rewritten in place
+stops being a record of when it was taken.
+
+**The cost of item 1, measured rather than reasoned.** The recovery ring holds five generations.
+After one run with four suspends the ring held a launch generation plus four suspend generations,
+and its oldest record predated the session by 27 ms. A fifth suspend inside one app run evicts the
+launch generation, after which every generation in the ring is younger than the session. A second
+run on the same profile showed exactly that, holding four suspend generations from the first run
+plus the new launch. A person who closes the lid many times a day shortens the span the ring covers.
+That is the price of the repair and it was accepted knowingly.
+
+**What is not true.**
+
+- A suspend log line is wrong in two failure cases. `power/index.ts` prints `suspend: the manifest
+has not changed, so no generation was taken` whenever the take did not happen, and that covers three
+different causes: the manifest had not changed, the take threw, and the take returned not ok. In the
+last two the sentence is false. The ring's own warning naming the real reason prints on the line
+above it, so the truth is on the same screen. It is recorded as a nit for Phase 73.1.
+- The crash item 3 guards against was never reproduced. The `void` shape also exited 0 in the warm
+probe, so awaiting the two disposals remains a precaution against a class of abort rather than a fix
+for a measured one.
+- The worker thread count proves nothing on its own. `process.report` read two workers before and
+zero after in both shapes, because `worker.terminate()` removes the thread from the report before
+its promise resolves. The proof is that the promises had settled, not that the threads were gone.
+- The 2,000 ms timer that loses the disposal race is never cleared, so one armed timer survives until
+the process exits. It costs nothing measurable, because the quit after the change is 5.3 ms faster
+at the median. It is recorded as a nit for Phase 73.1.
+- Two statements in this charter were wrong when a builder read them. The invoke count moves from 158
+to 156, not the 157 to 155 written above, because a later phase added a channel after the charter was
+written. Decision 1 says `durability.ts` boots and shuts down four times in one process, and those
+four shutdowns are four separate Electron processes, one per smoke mode. The fix is right either way,
+and the verifier drove two full boot and shutdown cycles inside one process by hand, which is the
+case decision 1 was worried about.
+
 ## Phase 73.1 — the second recorded nits round, NOT QUEUED
 
 Small things that shipped phases left behind, collected as they were found so none is lost. None
@@ -6504,6 +6575,8 @@ blocks a rung. This round runs after 73, or earlier if the operator asks for it.
 | 78 | `'SF Mono'` does not resolve on this machine either, measured the same way that proved `'SF Pro Text'` does not, being that it measures identically to a family name that does not exist. Phase 78 deleted the dead name from `--font-ui` and left this one at the head of both `--font-mono` and the System value of `--font-terminal`, under a comment calling the stack verified. Nothing draws wrong, because the next entry matches, and the comment misleads the next reader |
 | 78 | A capture started in the first second after a preset change measures its cell correction against the old face. `--font-terminal` moves at 8 ms and `document.fonts.check` for the new family stayed false until 1,252 ms in one measured run. The error is bounded by the 0.34 percent advance difference, about 0.026 css pixels per character, so it is far smaller than the defect Phase 78 removed. The fix is for the capture path to await the named face rather than `document.fonts.ready` |
 | 78 | `src/renderer/terminal/capture/index.ts` now holds two `no FontFaceSet outside a browser` comments that differ by one character, because Phase 78 wrote its new one without an em dash and left the older one alone |
+| 77 | The suspend log line `suspend: the manifest has not changed, so no generation was taken` prints whenever the take did not happen, and there are three causes: the manifest had not changed, the take threw, and the take returned not ok. In the last two the sentence is false. The ring's own warning naming the real reason prints on the line above it. The fix is about three lines, being to have the dependency return a small result instead of a boolean, or to print the unchanged sentence only when the result is null |
+| 77 | The 2,000 ms timer that loses the worker disposal race in `capabilities.ts` is never cleared, so one armed timer survives until the process exits. It costs nothing measurable, because the quit after Phase 77 is 5.3 ms faster at the median than before it, and Electron does not wait for the event loop to drain. Recorded so a later reader does not have to work it out again |
 | orchestrator | A fence that is too tight blocks the phase it was meant to protect. Phase 79 deleted a user-facing sentence, and `build/assert-bundle-refusals.mjs` asserts that named sentences reach the shipped bundles, so the build gate failed on a file no builder was allowed to edit. A fence must name every file the change reaches, not only the files the feature lives in |
 | orchestrator | A research figure was written into a phase entry without measuring the files. The Phase 78 charter said the bundled fonts were 335,296 bytes and the four files measure 340,472. The committer caught it. A number in a charter is checked against the thing it describes before a builder reads it |
 | orchestrator | An exit code is not a result. Two runs of the ten row fault matrix reported exit 0 while dying halfway through, because the command was backgrounded a second time inside a call that was already backgrounded, so the child was killed when the wrapper returned. A gate's result is the rows it printed and its own PASS line. Read those, not the status |

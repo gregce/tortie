@@ -27,9 +27,12 @@ import type { ShellOpenMenuActionId } from './shell';
 // INTEGRATOR wiring (main handler exists where noted):
 //   'sessions:discard' → core.discardSession(id) + broadcastSessions()
 //                        (src/main/ipc.ts already implements discardSession)
-//   'projects:rename'  → new manifest update (no core method yet)
-//   'app:setBadgeCount'→ app.setBadgeCount / dock.setBadge in main
 // Preload: add the matching methods per the GmuxApi pattern.
+//
+// Phase 77 removed two channels from the map below, 'projects:rename' and
+// 'app:setBadgeCount'. Neither was ever implemented. Neither had a main
+// handler and neither had a preload method, so both counted toward the app's
+// capability surface without adding anything to it.
 // ---------------------------------------------------------------------------
 
 /** New invoke channels appended by the shell stream (see InvokeChannelMap). */
@@ -39,10 +42,6 @@ export interface ShellInvokeChannelMap {
    * The §6.6 "Remove" affordance. Never valid for a live session.
    */
   'sessions:discard': { req: [sessionId: string]; res: void };
-  /** Rename a project tab (F2 on tab). */
-  'projects:rename': { req: [projectId: string, name: string]; res: Project };
-  /** Mirror the global NEEDS_INPUT count onto the Dock badge. */
-  'app:setBadgeCount': { req: [count: number]; res: void };
 }
 
 /**
@@ -54,13 +53,26 @@ export interface GmuxSessionExtras {
   discard?(sessionId: string): Promise<void>;
 }
 
-/** OPTIONAL extensions to GmuxApi['projects'], feature-detected. */
+/**
+ * OPTIONAL extensions to GmuxApi['projects'], feature-detected.
+ *
+ * The channel behind `rename`, 'projects:rename', never existed. Phase 77
+ * removed it from ShellInvokeChannelMap. Anyone who implements renaming later
+ * has to declare the channel again before wiring a preload method to it.
+ */
 export interface GmuxProjectExtras {
   /** Rename a project tab. */
   rename?(projectId: string, name: string): Promise<Project>;
 }
 
-/** OPTIONAL app-level extras (Dock badge), feature-detected. */
+/**
+ * OPTIONAL app-level extras (Dock badge), feature-detected.
+ *
+ * The channel behind `setBadgeCount`, 'app:setBadgeCount', never existed.
+ * Phase 77 removed it from ShellInvokeChannelMap. Anyone who implements the
+ * Dock badge later has to declare the channel again before wiring a preload
+ * method to it.
+ */
 export interface GmuxAppExtras {
   /** Set the Dock badge to the global needs-input count (0 clears). */
   setBadgeCount?(count: number): Promise<void>;

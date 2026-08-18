@@ -12,6 +12,12 @@
  * went down and never came back. This is the same capture the quit path runs,
  * called from the other event that means "you are about to stop".
  *
+ * **suspend → then take a manifest generation (Phase 77).** The quit path took
+ * one and the sleep path did not, so a machine that slept and never woke left
+ * the newest generation as old as the five minute floor allowed. The take runs
+ * after the capture, in the order the quit path uses, and inside the same
+ * deadline. It is the second half of the same promise the capture makes.
+ *
  * **resume → clear the terminal glyph atlas, then reconcile.** This is the
  * handler VS Code wires in `terminalNativeContribution.ts`, to the same
  * event, calling the same public `clearTextureAtlas()` from `@xterm/xterm@6`.
@@ -67,6 +73,18 @@ export interface PowerHandlerDeps {
    */
   captureAll: () => Promise<void>;
   /**
+   * Take a manifest generation because the machine is going to sleep (Phase
+   * 77). Runs after the capture and inside the same deadline. Resolves true
+   * when a generation was copied, and false when the manifest had not changed
+   * since the last one, which is the common case and is not a failure.
+   * Rejections are logged and swallowed, because a failed copy must never be
+   * the reason a machine refuses to sleep.
+   *
+   * Required rather than optional on purpose. An optional dependency is a call
+   * site that can forget, and there are only three call sites.
+   */
+  takeManifestGeneration: () => Promise<boolean>;
+  /**
    * The machine woke. Broadcast the atlas clear and reconcile. Synchronous
    * and must not throw: there is no user waiting on this and nowhere to
    * report a failure to.
@@ -79,7 +97,7 @@ export interface PowerHandlerDeps {
 }
 
 /**
- * How long a suspend capture may run before this module stops waiting on it.
+ * How long the suspend work may run before this module stops waiting on it.
  *
  * 4 s, chosen against the two numbers either side of it. The quit path bounds
  * the same pass at 8 s, and quit can afford that because the user is watching
@@ -87,6 +105,10 @@ export interface PowerHandlerDeps {
  * going down whatever this module thinks, so the deadline exists only to keep
  * one log line honest about what finished. The pass itself is parallel across
  * sessions, so 4 s is far more than the 43-session shape needs.
+ *
+ * Phase 77 put a second step inside the same deadline and did not raise it. A
+ * take costs about 21 ms on the operator's manifest, so the number that was
+ * far more than the capture needs is still far more than both steps need.
  */
 export const SUSPEND_CAPTURE_DEADLINE_MS = 4_000;
 
@@ -178,6 +200,35 @@ export function installPowerHandlers(deps: PowerHandlerDeps): () => void {
   // a second pass over the same panes would only make the first one slower.
   let capturing = false;
 
+  /**
+   * The two steps sleep gets, in this order, inside one deadline.
+   *
+   * Phase 77. The take runs after the capture, which is the order the quit
+   * path already uses in shutdownGmuxCore, so the copy holds every row the
+   * capture itself wrote. It skips the five minute floor because sleep has no
+   * next tick, and it copies nothing when the manifest has not changed. Each
+   * step catches its own failure, so a failed capture still lets the take run
+   * and neither one can reject at the caller.
+   */
+  const suspendWork = async (): Promise<void> => {
+    await deps.captureAll().catch((err: unknown) => {
+      powerLog.warn(`suspend capture failed: ${(err as Error).message}`);
+    });
+    const took = await deps.takeManifestGeneration().catch((err: unknown) => {
+      powerLog.warn(
+        `suspend: taking a manifest generation failed: ${(err as Error).message}`
+      );
+      return false;
+    });
+    if (took) {
+      powerLog.info('suspend: took a manifest generation');
+    } else {
+      powerLog.info(
+        'suspend: the manifest has not changed, so no generation was taken'
+      );
+    }
+  };
+
   const onSuspend = (): void => {
     if (capturing) {
       powerLog.info('suspend: a capture is already running');
@@ -187,20 +238,17 @@ export function installPowerHandlers(deps: PowerHandlerDeps): () => void {
     const startedAt = Date.now();
     void (async () => {
       try {
-        const finished = await withDeadline(
-          deps.captureAll().catch((err: unknown) => {
-            powerLog.warn(`suspend capture failed: ${(err as Error).message}`);
-          }),
-          deadlineMs
-        );
-        const took = Date.now() - startedAt;
+        const finished = await withDeadline(suspendWork(), deadlineMs);
+        const elapsed = Date.now() - startedAt;
         if (finished) {
-          powerLog.info(`suspend: captured every session in ${took} ms`, {
-            tookMs: took
-          });
+          powerLog.info(
+            'suspend: the capture and the manifest generation both finished ' +
+              `in ${elapsed} ms`,
+            { tookMs: elapsed }
+          );
         } else {
           powerLog.warn(
-            `suspend: capture still running after ${deadlineMs} ms. ` +
+            `suspend: still working after ${deadlineMs} ms. ` +
               'The machine may sleep before it finishes.',
             { deadlineMs }
           );

@@ -9,6 +9,10 @@
  *
  *     await disposeSymbolsIpc();
  *
+ * Phase 77 made that await real. The quit path fired this disposer with
+ * `void` until then, so the tree-sitter pool could still be terminating when
+ * the process tore its environment down.
+ *
  * Everything expensive is LAZY. Registering these handlers opens no database,
  * starts no thread and compiles no wasm: the service, the pool and the SQLite
  * file are all created on the first `symbols:ensure`, which only happens when

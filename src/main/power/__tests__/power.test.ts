@@ -3,6 +3,11 @@
  *
  * Nothing here waits on a real machine sleeping. `powerMonitor` is injected,
  * so the tests fire the two events by hand and assert what the app does.
+ *
+ * Phase 77 added the second step of a suspend, which is a manifest generation
+ * taken after the capture. Every call site below passes it, because the
+ * dependency is required rather than optional: an optional one is a call site
+ * that can forget.
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -41,6 +46,13 @@ function fakeMonitor(): PowerMonitorLike & {
 /** Let queued microtasks run. */
 const settle = (): Promise<void> => new Promise((r) => setImmediate(r));
 
+/**
+ * A take that reports nothing was copied, which is the common answer.
+ *
+ * The tests that care about the take pass their own.
+ */
+const noTake = (): Promise<boolean> => Promise.resolve(false);
+
 describe('installPowerHandlers', () => {
   beforeEach(() => {
     vi.spyOn(console, 'log').mockImplementation(() => undefined);
@@ -50,7 +62,12 @@ describe('installPowerHandlers', () => {
   it('captures every session when the machine suspends', async () => {
     const monitor = fakeMonitor();
     const captureAll = vi.fn().mockResolvedValue(undefined);
-    installPowerHandlers({ captureAll, onResume: () => undefined, monitor });
+    installPowerHandlers({
+      captureAll,
+      takeManifestGeneration: noTake,
+      onResume: () => undefined,
+      monitor
+    });
 
     expect(captureAll).not.toHaveBeenCalled();
     monitor.fire('suspend');
@@ -63,6 +80,7 @@ describe('installPowerHandlers', () => {
     const onResume = vi.fn();
     installPowerHandlers({
       captureAll: async () => undefined,
+      takeManifestGeneration: noTake,
       onResume,
       monitor
     });
@@ -80,7 +98,12 @@ describe('installPowerHandlers', () => {
           release = resolve;
         })
     );
-    installPowerHandlers({ captureAll, onResume: () => undefined, monitor });
+    installPowerHandlers({
+      captureAll,
+      takeManifestGeneration: noTake,
+      onResume: () => undefined,
+      monitor
+    });
 
     // The sleep / wake / sleep flurry a lid gets on a desk.
     monitor.fire('suspend');
@@ -109,6 +132,7 @@ describe('installPowerHandlers', () => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
       installPowerHandlers({
         captureAll,
+        takeManifestGeneration: noTake,
         onResume: () => undefined,
         monitor,
         captureDeadlineMs: 50
@@ -118,7 +142,7 @@ describe('installPowerHandlers', () => {
       await vi.advanceTimersByTimeAsync(60);
       expect(
         warn.mock.calls.some(([msg]) =>
-          String(msg).includes('capture still running after 50 ms')
+          String(msg).includes('still working after 50 ms')
         )
       ).toBe(true);
     } finally {
@@ -130,7 +154,12 @@ describe('installPowerHandlers', () => {
     const monitor = fakeMonitor();
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const captureAll = vi.fn().mockRejectedValue(new Error('tmux is gone'));
-    installPowerHandlers({ captureAll, onResume: () => undefined, monitor });
+    installPowerHandlers({
+      captureAll,
+      takeManifestGeneration: noTake,
+      onResume: () => undefined,
+      monitor
+    });
 
     expect(() => monitor.fire('suspend')).not.toThrow();
     await settle();
@@ -145,6 +174,7 @@ describe('installPowerHandlers', () => {
     const monitor = fakeMonitor();
     installPowerHandlers({
       captureAll: async () => undefined,
+      takeManifestGeneration: noTake,
       onResume: () => {
         throw new Error('no window');
       },
@@ -158,7 +188,12 @@ describe('installPowerHandlers', () => {
     const monitor = fakeMonitor();
     const captureAll = vi.fn().mockResolvedValue(undefined);
     const onResume = vi.fn();
-    const dispose = installPowerHandlers({ captureAll, onResume, monitor });
+    const dispose = installPowerHandlers({
+      captureAll,
+      takeManifestGeneration: noTake,
+      onResume,
+      monitor
+    });
 
     expect(monitor.count('suspend')).toBe(1);
     expect(monitor.count('resume')).toBe(1);
@@ -171,6 +206,121 @@ describe('installPowerHandlers', () => {
     await settle();
     expect(captureAll).not.toHaveBeenCalled();
     expect(onResume).not.toHaveBeenCalled();
+  });
+
+  it('takes a manifest generation on the same suspend as the capture', async () => {
+    const monitor = fakeMonitor();
+    const info = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const captureAll = vi.fn().mockResolvedValue(undefined);
+    const takeManifestGeneration = vi.fn().mockResolvedValue(true);
+    installPowerHandlers({
+      captureAll,
+      takeManifestGeneration,
+      onResume: () => undefined,
+      monitor
+    });
+
+    monitor.fire('suspend');
+    await settle();
+    expect(captureAll).toHaveBeenCalledTimes(1);
+    expect(takeManifestGeneration).toHaveBeenCalledTimes(1);
+    expect(
+      info.mock.calls.some(([msg]) =>
+        String(msg).includes('suspend: took a manifest generation')
+      )
+    ).toBe(true);
+  });
+
+  it('takes it AFTER the capture, so the copy holds what the capture wrote', async () => {
+    const monitor = fakeMonitor();
+    const order: string[] = [];
+    installPowerHandlers({
+      captureAll: async () => {
+        order.push('capture');
+      },
+      takeManifestGeneration: async () => {
+        order.push('take');
+        return true;
+      },
+      onResume: () => undefined,
+      monitor
+    });
+
+    monitor.fire('suspend');
+    await settle();
+    expect(order).toEqual(['capture', 'take']);
+  });
+
+  it('says so when the manifest had not changed, which is the common case', async () => {
+    const monitor = fakeMonitor();
+    const info = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    installPowerHandlers({
+      captureAll: async () => undefined,
+      takeManifestGeneration: async () => false,
+      onResume: () => undefined,
+      monitor
+    });
+
+    monitor.fire('suspend');
+    await settle();
+    expect(
+      info.mock.calls.some(([msg]) =>
+        String(msg).includes(
+          'suspend: the manifest has not changed, so no generation was taken'
+        )
+      )
+    ).toBe(true);
+  });
+
+  it('a failed take is logged, swallowed, and leaves the next suspend free', async () => {
+    const monitor = fakeMonitor();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const captureAll = vi.fn().mockResolvedValue(undefined);
+    const takeManifestGeneration = vi
+      .fn()
+      .mockRejectedValue(new Error('the disk is full'));
+    installPowerHandlers({
+      captureAll,
+      takeManifestGeneration,
+      onResume: () => undefined,
+      monitor
+    });
+
+    expect(() => monitor.fire('suspend')).not.toThrow();
+    await settle();
+    expect(
+      warn.mock.calls.some(([msg]) =>
+        String(msg).includes(
+          'suspend: taking a manifest generation failed: the disk is full'
+        )
+      )
+    ).toBe(true);
+
+    // The in-flight flag has to clear, or the lid closing twice would leave
+    // the app doing nothing on the second one for the rest of the run.
+    monitor.fire('suspend');
+    await settle();
+    expect(captureAll).toHaveBeenCalledTimes(2);
+  });
+
+  it('a failed capture still lets the generation be taken', async () => {
+    const monitor = fakeMonitor();
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const takeManifestGeneration = vi.fn().mockResolvedValue(true);
+    installPowerHandlers({
+      captureAll: async () => {
+        throw new Error('tmux is gone');
+      },
+      takeManifestGeneration,
+      onResume: () => undefined,
+      monitor
+    });
+
+    monitor.fire('suspend');
+    await settle();
+    // A scrollback capture that failed is not a reason to skip the manifest
+    // copy. They protect different things.
+    expect(takeManifestGeneration).toHaveBeenCalledTimes(1);
   });
 
   it('the deadline is long enough for the quit-path capture shape', () => {

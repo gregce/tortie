@@ -12,6 +12,14 @@
  * event is the real app: the capture writes a real file, the broadcast crosses
  * a real context bridge, and the renderer subscribes through the real preload.
  *
+ * PHASE 77 added the second half of a suspend. The handler now takes a manifest
+ * generation after the capture, so this harness reads the recovery ring before
+ * the first suspend, fires four suspends in all, and prints the span the ring
+ * covers afterwards. The ring holds five generations, so four suspends plus the
+ * launch generation fill it exactly and the launch generation is still the
+ * oldest record. A fifth suspend would prune it, and that is the cost decision 4
+ * of the phase names.
+ *
  * SAFETY. It refuses to run unless the profile is under GMUX_POWER_ROOT and
  * the tmux socket has been moved off the real one, both checked before a
  * single session is created. Its sessions are `zz-power` prefixed and are
@@ -27,6 +35,8 @@ import {
   teardownHarnessServer,
   type HarnessIsolation
 } from '../harness/isolation';
+import { readBackupIndex, type BackupCapsule } from '../manifest/recovery';
+import type { RingTakeResult } from '../manifest/ring-schedule';
 import { readCapsules, snapshotsDir } from '../restore/snapshots';
 import { getGmuxCore } from '../sessions';
 import { broadcastEvent } from '../typed-events';
@@ -161,11 +171,26 @@ export async function runPowerSmoke(): Promise<void> {
     // --- the suspend half -----------------------------------------------
     const monitor = drivableMonitor();
     let resumeCalls = 0;
+    // One holder rather than two `let`s, because both are written inside the
+    // dependency below and read out here.
+    const takes: { last: RingTakeResult | null; calls: number } = {
+      last: null,
+      calls: 0
+    };
     const dispose = installPowerHandlers({
       captureAll: async () => {
         // The same argument the real suspend handler passes, so what this
         // harness proves is what the app does.
         await core.snapshotAllSessions('system-sleep');
+      },
+      // Phase 77. The same call the real suspend handler makes, for the same
+      // reason as the line above it. The result is kept so the run can print
+      // the generation number rather than only the boolean the handler reads.
+      takeManifestGeneration: async () => {
+        const result = await core.takeManifestGenerationOnSuspend();
+        takes.last = result;
+        takes.calls += 1;
+        return result !== null && result.ok;
       },
       onResume: () => {
         resumeCalls += 1;
@@ -173,6 +198,18 @@ export async function runPowerSmoke(): Promise<void> {
         core.scheduleRefresh();
       },
       monitor
+    });
+
+    /** The ring's records, oldest first. */
+    const ringRecords = (): BackupCapsule[] =>
+      [...readBackupIndex()].sort((a, b) => a.generation - b.generation);
+
+    // What the boot left behind, read before any suspend so the span below can
+    // be read against it. One `launch` record is the expected shape.
+    const ringBefore = ringRecords();
+    emit('ring-before', {
+      records: ringBefore.length,
+      reasons: ringBefore.map((c) => c.reason)
     });
 
     const suspendAt = Date.now();
@@ -195,6 +232,67 @@ export async function runPowerSmoke(): Promise<void> {
       capsuleReason: reason,
       bytes: body.length,
       tookMs: Date.now() - suspendAt
+    });
+
+    // --- the manifest generation half (Phase 77) ---------------------------
+    //
+    // The take runs after the capture, so the file above can be on disk while
+    // the take is still going. Wait for the take rather than for a delay.
+    const waitForTake = async (before: number): Promise<void> => {
+      for (let i = 0; i < 50 && takes.calls === before; i++) {
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      // One more turn, so the handler's own in-flight flag is clear before the
+      // next suspend is fired. Without it a suspend fired too early is refused
+      // with "a capture is already running" and this run would prove nothing.
+      await new Promise((r) => setTimeout(r, 100));
+    };
+    await waitForTake(0);
+
+    const ringAfterFirst = ringRecords();
+    const firstGeneration = takes.last?.generation ?? null;
+    const firstCapsule =
+      firstGeneration === null
+        ? undefined
+        : ringAfterFirst.find((c) => c.generation === firstGeneration);
+    emit('suspend-generation', {
+      generation: firstGeneration,
+      reason: firstCapsule?.reason ?? null,
+      records: ringAfterFirst.length,
+      ok: takes.last?.ok ?? false,
+      detail: takes.last?.detail ?? null
+    });
+
+    // Three more suspends, four in all. Each one is preceded by a change to
+    // the manifest, because the change test skips a take that would copy the
+    // same bytes again, and a rename is the cheapest change this harness can
+    // make. Each is awaited to completion before the next is fired.
+    const probeName = `${SESSION_NAME}-${String(process.pid)}`;
+    for (let round = 2; round <= 4; round++) {
+      const before = takes.calls;
+      await core.renameSession({
+        sessionId: session.id,
+        name: `${probeName}-${String(round)}`
+      });
+      monitor.fire('suspend');
+      await waitForTake(before);
+    }
+
+    const span = ringRecords();
+    const reasonsInRing = span.map((c) => c.reason);
+    const oldest = span[0];
+    const oldestPredatesSession =
+      oldest !== undefined && oldest.capturedAt < session.createdAt;
+    emit('ring-span', {
+      takes: takes.calls,
+      records: span.map((c) => ({
+        generation: c.generation,
+        reason: c.reason,
+        takenAt: c.capturedAt
+      })),
+      reasons: reasonsInRing,
+      sessionCreatedAt: session.createdAt,
+      oldestPredatesSession
     });
 
     // --- the resume half --------------------------------------------------
@@ -227,7 +325,13 @@ export async function runPowerSmoke(): Promise<void> {
       reason === 'system-sleep' &&
       resumeCalls === 1 &&
       hits === 1 &&
-      hitsAfter === 1;
+      hitsAfter === 1 &&
+      // Phase 77. A suspend that captured but took no generation is the defect
+      // this phase repaired, so the run fails when the ring holds no `suspend`
+      // record, and it fails when four suspends have shortened the span the
+      // ring covers past the session it was watching.
+      reasonsInRing.includes('suspend') &&
+      oldestPredatesSession;
 
     // Teardown: kill our own session by id, then the isolated server, then
     // remove the socket file the dead server leaves on disk. Asking tmux for

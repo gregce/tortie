@@ -307,8 +307,19 @@ export async function disposeMainCapabilities(): Promise<MainDisposeOutcome> {
   ]).catch(() => undefined);
   disposeSearchIpc(); // SIGKILL any in-flight ripgrep
   disposeActionsIpc(); // stop every Runs watch timer; the watch is not durable
-  void disposeQuickOpenIpc(); // terminate the ⌘P ranking worker
-  void disposeSymbolsIpc(); // terminate the tree-sitter pool, close its db
+  // Phase 77. These two were `void`, and that is the shape Phase 36 measured
+  // as fatal three lines above. A napi completion still queued when
+  // node::FreeEnvironment runs is answered with napi_fatal_error, and all 5
+  // real quits on 2026-08-14 died that way. Both of these terminate a live
+  // worker_threads Worker, the ⌘P ranking worker and the tree-sitter pool,
+  // which is the same class of pending completion. The bound is a wedge guard
+  // only. Measured on this build with neither surface ever opened, the pair
+  // resolves in 0.036 ms, 0.044 ms and 0.037 ms across three quit harness
+  // runs, because the coordinator and the service are still null.
+  await Promise.race([
+    Promise.allSettled([disposeQuickOpenIpc(), disposeSymbolsIpc()]),
+    new Promise((r) => setTimeout(r, 2_000))
+  ]).catch(() => undefined);
   // Phase 13.8: any question-asking child still in flight (login-shell PATH
   // probe, an agent `--version`, cursor's create-chat) dies WITH the app.
   // This is the hole the 19-hour `zsh -lic` orphans came through: their

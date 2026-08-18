@@ -12,6 +12,8 @@ The app's behavior and user interface should not change.
 
 ## Today
 
+Every figure in this block was taken on 2026-08-14. Phase 42 has since split all five files named here, and Phase 77 measured the same tree again. The figures below are left as they were written, because a dated measurement that is rewritten in place stops being a record of when it was taken. The current numbers are in `## Re-measured 2026-08-18 (Phase 77)` near the end of this file.
+
 This is the relevant part of the current tree. Unaffected domain folders are omitted.
 
 ```text
@@ -169,6 +171,8 @@ large implementation file
 
 ## Why these seams
 
+Three rows of this table have moved since it was written, being the five coordination files, the invoke channel count and the count of renderer files reading `window.gmux`. The current values are in `## Re-measured 2026-08-18 (Phase 77)` near the end of this file. The other three rows were not re-measured. The table below is left as it was written on 2026-08-14.
+
 The evidence is concentrated enough to justify a focused change:
 
 | Evidence | Why it matters |
@@ -224,6 +228,39 @@ Do not combine these structural changes with renderer sandboxing, a custom appli
 - The full test run completed with 3,277 passed, 35 failed, and 2 skipped tests. Most failures were integration timeouts under full parallel load; the audit changed no app source.
 - A focused IPC and preview set passed 20 tests.
 - The audit did not boot Electron, touch the live `gmux` tmux socket, open a live manifest, or run durability smoke.
+
+## Re-measured 2026-08-18 (Phase 77)
+
+This section was added by Phase 77, the quit and suspend contract. Nothing above it was rewritten. The tree was measured again at commit `9b945cf`, which is the commit Phase 77 branched from. Each row names the command that produced the number, and no number here was written without running its command.
+
+| Thing | Figure on 2026-08-14 | Measured 2026-08-18 | Command |
+|---|---|---|---|
+| `src/main/index.ts` | 2,231 lines | 629 lines | `wc -l src/main/index.ts` |
+| `src/main/sessions/core.ts` | 2,931 lines | 3,301 lines | `wc -l src/main/sessions/core.ts` |
+| `src/renderer/app/App.tsx` | 1,168 lines | 1,211 lines | `wc -l src/renderer/app/App.tsx` |
+| `src/shared/ipc.ts` | 3,269 lines in one file | gone. 16 files under `src/shared/ipc/`, 4,705 lines together | `find src/shared/ipc -name '*.ts'` |
+| `src/shared/types.ts` | 1,263 lines | 1,444 lines | `wc -l src/shared/types.ts` |
+| `src/main/manifest/store.ts` | 2,163 lines in one file | gone. 27 production files under `src/main/manifest/`, 11,461 lines together | `find src/main/manifest -name '*.ts' -not -path '*__tests__*'` |
+| `src/renderer/state/store.ts` | 1,820 lines in one file | gone. 24 production files under `src/renderer/state/`, 6,511 lines together | `find src/renderer/state -name '*.ts*' -not -path '*__tests__*'` |
+| invoke channels | 124 in 36 maps | 158 in 44 maps before Phase 77, and 156 after it | `docs/audits/contract-baseline.txt` line 5, and the intersection at `src/shared/ipc/index.ts:195` |
+| production renderer files reading `window.gmux` | 49 | 62 | `grep -rl 'window\.gmux' src/renderer \| grep -v __tests__ \| wc -l` |
+| production import cycles | four | not re-measured | there is no cycle checker in this repo, and Phase 77 did not add a dependency to get one |
+| `src/main/capabilities.ts` | did not exist | 412 lines, holding one ordered disposer | `wc -l src/main/capabilities.ts` |
+| `src/preload/index.ts` | one file holding the whole bridge | 13 files under `src/preload/`, 824 lines together | `find src/preload -name '*.ts'` |
+| `src/main/machines/` | did not exist | 31 production files, 12,760 lines together | `find src/main/machines -name '*.ts' -not -path '*__tests__*'` |
+
+Phase 77 then edited five of the files counted above, being `src/main/sessions/core.ts`, `src/main/index.ts`, `src/main/power/index.ts`, `src/main/capabilities.ts` and `src/shared/ipc/app.ts`. Re-running these commands on the phase's own commit returns slightly larger numbers for those five. The figures above are the state the phase started from, which is what makes them comparable to the dated figures beside them.
+
+Six rows moved far enough to need a sentence.
+
+- `src/main/index.ts` fell from 2,231 lines to 629. Boot, windows, harnesses, registration and shutdown left it. Registration and ordered disposal now live in `src/main/capabilities.ts`, which did not exist when this audit was written.
+- `src/main/sessions/core.ts` grew from 2,931 lines to 3,301, even though Phase 42 stage 5 moved its pure launch and reconcile decisions into `launch-plan.ts` and `reconcile-plan.ts`. The growth is remote work from Phases 67 to 72. Splitting it further is not part of Phase 77.
+- The three single-file coordination points named in `## Today` are gone as files. Each is now a directory behind a facade, and each directory holds more lines in total than the one file did. The point of the split was one responsibility per module, not fewer lines.
+- The invoke count rose from 124 to 158 in the phases between 2026-08-14 and 2026-08-18. Phase 77 removed two channels that had no main handler and no preload method, `projects:rename` and `app:setBadgeCount`, so the committed baseline now reads 156.
+- Production renderer files reading `window.gmux` rose from 49 to 62. Phase 42 kept the one bridge and split the contract behind it, and it did not remove the direct reads. No gate in this repo counts them, so the number can move again without anyone noticing.
+- `src/main/machines/` did not exist on 2026-08-14 and is now the largest directory under `src/main/`, at 12,760 lines against 11,461 for `manifest/` and 6,483 for `context/`. It holds the remote ladder from Phases 67 to 72, being machine rows, the exec plane, one control connection per machine, remote sessions and remote restore. The command is a per-directory `find` and `wc -l` over `src/main/*/` with test directories excluded.
+
+**Where `## Implementation order` stands.** All nine stages of that table shipped in Phase 42 on 2026-08-15, with one commit each, and the backlog entry for Phase 42 pins every commit hash. Stages 1 to 7 are visible in the tree measured above. Stage 8 is recorded as shipped at `a1c7e1e`, and Phase 77 did not confirm it, because the repo has no cycle checker. `build/assert-import-boundaries.mjs` from stage 7 enforces which layer may import which, and that is a different question from whether a cycle exists. A phase that wants the cycle count answered has to add a checker first.
 
 ## Appendix A: Assessment record
 
