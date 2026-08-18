@@ -5552,7 +5552,7 @@ present, b.md active, the pane showing the second file's marker, and all of it s
 - The original race in nit 3 has no deterministic witness. Ten green rounds plus the ordering unit
   tests are the evidence, and a run that used to fail about once in three is not proof by itself.
 
-## Phases 67 to 73 — the remote ladder, M0 to M6 given their phase names (operator greenlit 2026-08-16) QUEUED IN ORDER
+## Phases 67 to 73 — the remote ladder, M0 to M6 given their phase names (operator greenlit 2026-08-16) ✅ COMPLETE 2026-08-18, all seven rungs shipped
 
 The operator's word: build M0 to M6, referred to by phase numbers for consistency.
 docs/research/51-remote-machines.md is the specification of record for every rung, its section 6
@@ -6597,7 +6597,7 @@ four shutdowns are four separate Electron processes, one per smoke mode. The fix
 and the verifier drove two full boot and shutdown cycles inside one process by hand, which is the
 case decision 1 was worried about.
 
-## Phase 73 — M6, the last ladder rung (research 51, M6) ✅ SHIPPED 2026-08-18 (this commit, 0.40.0, gates green)
+## Phase 73 — M6, the last ladder rung (research 51, M6) ✅ SHIPPED 2026-08-18 (ecd1b67, 0.40.0, gates green, CI green)
 
 The last rung of the remote ladder. Its specification of record is docs/research/51-remote-machines.md
 section 6 row M6 and section 7, and the working spec that drove the build was deleted at the commit
@@ -6739,7 +6739,7 @@ blocks a rung. This round runs after 73, or earlier if the operator asks for it.
 | --- | --- |
 | 68 | The connection test transcript shows Tortie's own parsing marker to the person, reading `__TORTIE_PATH__/opt/homebrew/bin/tmux__TORTIE_PATH__`. It is honest, because those are the remote program's own bytes under a header that says so, but a person should not read our internal marker |
 | 68 | Three probe screenshots driven through the bridge rather than the controls are byte identical, md5 `9267afdf432e8a93225941ef047651a7`, so their captions claim more than the images show |
-| 70 | `npm run smoke:remote` CANNOT be run from a clean checkout. It reads `p69-carriage.json` from its own root `${TMPDIR}gmux-p70-remote`, and that file records the path of an ssh-agent socket the exec plane probe started. The npm script never exports `SSH_AUTH_SOCK`, so ssh authenticates with nothing, `tmux -V` returns no bytes, and the gate fails with a version-unmeasured refusal that looks like a product defect and is not one. Measured on 2026-08-17: the same gate failed three times and then passed 11 of 11 with only `SSH_AUTH_SOCK` exported to the socket named in the carriage. The fix is for the script to read the carriage and export the socket itself |
+| 70 | RETIRED 2026-08-18, and the row is kept because the correction matters more than the claim did. This said `npm run smoke:remote` cannot run from a clean checkout without exporting `SSH_AUTH_SOCK` by hand. It is FALSE now. `build/with-scratch-machine.mjs` provisions its own machine and sets `SSH_AUTH_SOCK` from its own yard at line 167, so an earlier rung closed this and nobody noticed. Phase 73's verifier ran the gate green with no export, and the orchestrator then ran it again with the variable explicitly unset and got PASS. The socket the old carriage names is dead and answers `Connection refused`. The lesson is that a recorded nit can go stale, so one is re-checked against the tree before it is repeated |
 | 70 | The exec plane probe leaves its scratch sshd running when it exits. Three were listening at once after three runs, on ports 37534 and two others. They are harmless and cost nothing measurable, but they accumulate for anyone who runs the gate repeatedly |
 | 69, 70 | Two gates read two different config roots and the difference is not written anywhere a person would look. `smoke:execplane` reads `${TMPDIR}gmux-p69-exec` and `smoke:remote` reads `${TMPDIR}gmux-p70-remote`, so pointing the probe at the wrong one produces a refused connection to a dead port. Name the root each gate reads in its own script header |
 | all probes | `build/probe-home-update-line.mjs`, `build/probe-fullscreen-menu.mjs` and `build/update-rehearsal.mjs` call `screencapture` with no window target, so any of them photographs the whole screen when the app is not frontmost. This happened on 2026-08-17 during Phase 70's verification and caught the operator's own desktop including private browser content; the files were deleted immediately, never read further and nothing from them was reported. Capture the app window by id instead |
@@ -6767,6 +6767,10 @@ blocks a rung. This round runs after 73, or earlier if the operator asks for it.
 | 79.1 | No leg of the verification watched a real sshd accept a CORRECT password. A server that verifies one runs as root and this phase never asks for root, so the single run ending in a green test used a stand-in sign in program named through `GMUX_SSH_BIN`. The wrong password, the appended line, the file modes and every refusal WERE driven with the real `/usr/bin/ssh` against a real sshd. The happy path against a real password server is owed and needs a machine the operator signs in to himself |
 | 79.1 | `src/main/machines/index.ts` documents `key-install.ts` and `key-material.ts` in its header but re-exports nothing from them, because every caller imports the module directly. Recorded as a decision rather than an oversight |
 | 79.1 | Forgetting a machine still does not remove its key. The entry left that open on purpose, because it asks whether Tortie should reach out to a machine it is being told to forget |
+| 73 | The image cap is 90,000 bytes, so most real screenshots are refused. A screenshot on this Mac is commonly 200 KB to 2 MB. The cap is measured rather than chosen, being what fits inside the 131,072 byte argument limit, and the refusal names it as 90 KB. Raising it needs a different transport than one exec-plane write |
+| 73 | Three surfaces whose specification asks for a screenshot were verified by code chain, unit tests and probes instead, because each needs a machine configured through the confirm gate in a live window and no harness drives that path |
+| 73 | qwen and antigravity remote harvest was not built. qwen needs a process table read on the far side and antigravity needs open descriptor inspection there |
+| 73 | Pre-assignment on the remote create path was not built, and it would be a bigger win for less work than the typing half. Seven of the thirteen agents pre-assign a conversation id and the remote create path does not use it |
 | orchestrator | The committer worktree fix WORKED on its first use. Phase 79.1's committer reported that `/Users/gdc/gmux` still read `8713547` and was never entered, which is the behaviour the template now requires and Phase 80.1's committer did not have |
 | 77 | One suspend log line is still wrong in two failure cases. "suspend: the manifest has not changed, so no generation was taken" prints whenever the take did not happen, and the take can also throw or return not ok. The ring prints its own warning naming the real reason on the line above. The fix changes the dependency's return type across four files, so it was named rather than made |
 | 77 | The 2,000 ms timer that loses the worker disposal race in `capabilities.ts` is never cleared, so one armed timer survives until the process exits. It costs nothing measurable, because the quit got faster |
