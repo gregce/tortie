@@ -6261,7 +6261,25 @@ business: `needs_input` for a remote session, and SpecStory capture. Do not reop
    either is worth building at all under the scope guardrail. It is legitimate to rule that one of
    them is not.
 
-7. **THE PLAN.** Turn every answer above into an ordered list of phases. Each row carries the phase
+8. **CONTEXT, and the operator corrected an earlier answer to put it here.** He was told on
+   2026-08-19 that Context could never work on another machine because skills, servers and hooks are
+   files on this Mac. **That answer was wrong and he said so.** His words: the local Context reads
+   from very generic and common locations for where and how that is stored, so the same reader
+   pointed at the same paths on the other machine answers the same question. SpecStory capture stays
+   closed and is not reopened. Context is not.
+
+   Establish first, by reading `src/main/context/agent-context.ts` and `src/renderer/context/groups.ts`,
+   exactly which paths the local reader opens per agent, and which of them are inside the person's
+   home folder rather than inside the project. Then rule on reading the same set on a machine, and
+   answer these: whether one new read script can carry the whole set in one round trip, what it costs
+   against the Mac Pro measured rather than estimated, what happens when a path is absent over there,
+   and whether the per-agent precedence matrix that `npm run conformance:context` guards stays true
+   when the files come from a different computer. **That conformance gate is a hard constraint. A
+   remote answer that breaks a row of that matrix is refused.** Say plainly which parts of Context
+   are genuinely local forever, if any, e.g. anything that names a program installed here rather than
+   a file read from disk.
+
+9. **THE PLAN.** Turn every answer above into an ordered list of phases. Each row carries the phase
    name, one sentence of what a person can do afterwards, the size, the tier, the risk, and what it
    depends on. Order by what the operator would hit first, which he has said is search, then
    scrollback, then save, then the git writes. Say which rows should NOT be built and why. This table
