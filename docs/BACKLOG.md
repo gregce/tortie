@@ -6181,10 +6181,34 @@ Move to Trash, Open With and Reveal in Finder rests on unit tests. Phase 89's zs
 Mac Pro is still owed and is proven on the loopback scratch machine only. `needs input` never lights
 for a remote session and SpecStory capture never runs on one, both closed by decision.
 
-## Research 57 — closing the remote gap, being every capability a session on another machine does not have (operator requested 2026-08-19) QUEUED
+## Research 57 — closing the remote gap, being every capability a session on another machine does not have (operator requested 2026-08-19) ✅ DELIVERED 2026-08-19 (this commit), docs/research/57-remote-parity.md, checked against the tree of `08c0abe`
 
 **Subject:** `docs(research): how to bring a session on another machine to parity`
 **First body line:** `Research 57: closing the remote gap`
+
+**The ruling, recorded.** Of the twenty gaps between a local tab and a tab on another machine,
+fifteen should be built, one should wait and four are refused permanently, being trash, reveal,
+discard and Symbols. Do not ship or send a ripgrep, because `git ls-files` piped into the machine's
+own `grep` returns the same 14 matching lines on the same corpus in 174 to 176 ms against ripgrep's
+16 to 58 ms, so a binary would buy 0.15 s and cost a third write door, a 47 chunk transfer, a per
+architecture matrix and a sixth confirmed field on every machine. Build the smaller scrollback
+affordance rather than a scrollbar, because `capture-pane -S` is already on the verb ledger and
+25,000 lines was measured at 0.51 s, which is a menu item and 32 times too slow for a wheel notch,
+and build remote Context, because the earlier answer was wrong and `ContextFs` in
+`src/main/context/port.ts` already makes the reader a pure function over an injectable filesystem
+port.
+
+**Two decisions need the operator's word before phases 6 to 9 start.** The first is whether Tortie
+may write a file on his machine at all and what he confirms when it does, because `file-put` moves
+`ALLOWED_WRITERS` from two to eight and weakens the checkable sentence from no command may replace a
+file somebody already had to no command may replace a file whose contents Tortie did not just verify
+by checksum. The second is whether remote search refuses outside a git repository or answers with the
+wider `find` result and says so, since the `find` walk cost 366 to 753 ms against 174 to 176 ms and
+returned 19 lines where the git path returned 14.
+
+**The phase plan is section 12 of the document.** It orders 13 phases and lists 8 rows that should
+not be built. Phase 95's copy must drop the sentence saying scrolling back is not available on that
+machine, because this round shows that reason is wrong for a read only affordance.
 
 **The operator's ask, in his words.** He wants the remote session experience mapped against the local
 one, then "a full audit of how we can close the gap and build the capabilities to bring them to as
