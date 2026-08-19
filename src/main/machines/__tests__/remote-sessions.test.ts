@@ -51,7 +51,10 @@ let sent: string[][] = [];
  * moment the command is sent, so a list can answer with the uuid the create that
  * just ran generated.
  */
-let answers: Record<string, string | Error | (() => string)> = {};
+let answers: Record<
+  string,
+  string | Error | (() => string | Promise<string>)
+> = {};
 /** The uuid the last create put on its own new-session line. */
 let createdUuid = '';
 /** Whether the machine has a program search list recorded. */
@@ -111,6 +114,30 @@ vi.mock('../../tmux/control-client', async (importOriginal) => ({
   TmuxControlClient: FakeControlClient
 }));
 
+/**
+ * The manifest half of a pass, replaced so the writes can be COUNTED.
+ *
+ * PHASE 85 threw a cadence at `writeBackCompletedPass`, so how often it writes
+ * is now a property rather than an implementation detail, and a property has to
+ * be measured. Only two functions are replaced. `remoteManifestInstalled`
+ * answers a flag that is false by default, so every test written before this
+ * phase behaves exactly as it did. `noteRemoteRowSeen` records its arguments
+ * instead of touching a database, and no database is opened anywhere in this
+ * file.
+ */
+const record = vi.hoisted(() => ({
+  installed: false,
+  seen: [] as { id: string; status: string; at: number }[]
+}));
+
+vi.mock('../remote-record', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../remote-record')>()),
+  remoteManifestInstalled: () => record.installed,
+  noteRemoteRowSeen: (id: string, status: string, at: number) => {
+    record.seen.push({ id, status, at });
+  }
+}));
+
 const {
   MACHINE_NOT_READY,
   RESTORE_FORGOTTEN,
@@ -119,8 +146,12 @@ const {
 
 const {
   REMOTE_CREATE_FORMAT,
+  REMOTE_LAST_SEEN_WRITE_MS,
   REMOTE_LIST_FIELDS,
   REMOTE_LIST_FORMAT,
+  REMOTE_POLL_FOCUSED_MS,
+  REMOTE_POLL_IDLE_MS,
+  REMOTE_WORKING_HOLD_MS,
   boundRemoteRow,
   forgetRemoteRow,
   isRemoteSessionId,
@@ -144,6 +175,7 @@ const {
   splitQuotedLine,
   machinesWithBothFeeds,
   remoteMachinesWoke,
+  setRemotePollFocused,
   startMachineFeed,
   stopMachineFeeds
 } = await import('../remote-sessions');
@@ -199,6 +231,8 @@ beforeEach(() => {
   remotePath = '/usr/bin:/bin';
   registered = true;
   FakeControlClient.made = [];
+  record.installed = false;
+  record.seen = [];
   resetRemoteSessionsForTests();
   resetControlPlanesForTests();
   resetRescueForTests();
@@ -229,6 +263,26 @@ describe('the list format', () => {
     // connection has no locale unless both sides were configured to forward one.
     expect(REMOTE_LIST_FORMAT).not.toContain('\t');
     expect(REMOTE_CREATE_FORMAT).not.toContain('\t');
+  });
+
+  /**
+   * PHASE 85. MEASURED 2026-08-19 on this Mac, tmux 3.6a, over a scratch socket,
+   * one detached session with no client attached, through `list-sessions -F`
+   * because that is the call this module makes:
+   *
+   *                                  session_activity   window_activity
+   *   just created                   1787111236         1787111236
+   *   after 3 idle seconds           1787111236         1787111236
+   *   after the pane printed a line  1787111236         1787111239
+   *   after 3 more idle seconds      1787111236         1787111239
+   *   after a second line            1787111236         1787111243
+   *
+   * So `#{session_activity}` does not move when a session prints, and a remote
+   * row that read it could never say `running` because work happened.
+   */
+  it('reads the field that moves when a session prints, and not the other one', () => {
+    expect(REMOTE_LIST_FORMAT).toContain('#{q:window_activity}');
+    expect(REMOTE_LIST_FORMAT).not.toContain('session_activity');
   });
 
   it('quotes every field with tmux’s own quoting, and separates with a space', () => {
@@ -382,12 +436,52 @@ describe('the create argv', () => {
 
 describe('the status ladder', () => {
   it('is idle the first time a row is seen, because nothing has moved yet', () => {
-    expect(remoteRowStatus(undefined, 10)).toBe('idle');
+    expect(remoteRowStatus(undefined, 10, 1_000)).toEqual({
+      status: 'idle',
+      movedAt: 0
+    });
   });
 
-  it('is running when the activity moved and idle when it did not', () => {
-    expect(remoteRowStatus(10, 20)).toBe('running');
-    expect(remoteRowStatus(20, 20)).toBe('idle');
+  it('is running when the activity moved, and records when that was seen', () => {
+    expect(remoteRowStatus({ activityAt: 10, movedAt: 0 }, 20, 1_000)).toEqual({
+      status: 'running',
+      movedAt: 1_000
+    });
+  });
+
+  it('is idle again once the hold window has passed with no move', () => {
+    const after = remoteRowStatus(
+      { activityAt: 20, movedAt: 1_000 },
+      20,
+      1_000 + REMOTE_WORKING_HOLD_MS
+    );
+    expect(after).toEqual({ status: 'idle', movedAt: 1_000 });
+  });
+
+  /**
+   * THE CASE A NAIVE DELTA RULE GETS WRONG, and the reason the hold exists.
+   *
+   * Phase 85 put a list on a timer beside the live connection, and the
+   * connection lists on its own events too, so two lists can land 200 ms apart.
+   * The second reads no move, and without the hold it would write idle over a
+   * row that is working.
+   */
+  it('stays running for a second list inside the hold window', () => {
+    const inside = remoteRowStatus(
+      { activityAt: 20, movedAt: 1_000 },
+      20,
+      1_200
+    );
+    expect(inside).toEqual({ status: 'running', movedAt: 1_000 });
+  });
+
+  it('holds nothing for a row that has never moved', () => {
+    // `movedAt` of 0 is not an instant, it is the absence of one, so a row seen
+    // twice with no move is idle rather than held.
+    expect(remoteRowStatus({ activityAt: 20, movedAt: 0 }, 20, 200)).toEqual({
+      status: 'idle',
+      movedAt: 0
+    });
   });
 });
 
@@ -991,5 +1085,243 @@ describe('what this module is allowed to import', () => {
 
   it('names the list argv in one place', () => {
     expect(remoteListArgs()).toEqual(['list-sessions', '-F', REMOTE_LIST_FORMAT]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 85. The status list that runs beside a live connection
+// ---------------------------------------------------------------------------
+
+describe('the status list beside a live connection', () => {
+  /** The one client `startMachineFeed` made, or a failure that says so. */
+  function onlyClient(): FakeControlClient {
+    const client = FakeControlClient.made[0];
+    if (client === undefined) throw new Error('no control client was made');
+    return client;
+  }
+
+  /** How many lists have been sent to the machine so far. */
+  function listCount(): number {
+    return sent.filter((argv) => argv[0] === 'list-sessions').length;
+  }
+
+  /** A machine on a live connection, with one row on it. */
+  async function connect(): Promise<void> {
+    answers['display-message'] = 'tmux 3.6a\n';
+    answers['list-sessions'] = line({ tmuxId: '$1', gmuxId: 'ours-1' });
+    await startMachineFeed(MACHINE);
+    onlyClient().connected = true;
+    onlyClient().emit('connected');
+    await Promise.resolve();
+    await Promise.resolve();
+  }
+
+  it('is armed by the connection, and the fallback timer is not', async () => {
+    await connect();
+    const facts = remoteMachineFacts(MACHINE);
+    expect(facts.onControl).toBe(true);
+    expect(facts.statusTimerArmed).toBe(true);
+    expect(facts.timerArmed).toBe(false);
+    // The Phase 71 property, and Phase 85 does not move it. What must never be
+    // armed beside a connection is the FALLBACK timer.
+    expect(machinesWithBothFeeds()).toEqual([]);
+    stopMachineFeeds();
+  });
+
+  it('is swapped for the fallback timer the moment the connection drops', async () => {
+    await connect();
+    onlyClient().connected = false;
+    onlyClient().emit('disconnected', true);
+
+    const facts = remoteMachineFacts(MACHINE);
+    expect(facts.onControl).toBe(false);
+    expect(facts.statusTimerArmed).toBe(false);
+    expect(facts.timerArmed).toBe(true);
+    expect(machinesWithBothFeeds()).toEqual([]);
+    stopMachineFeeds();
+  });
+
+  it('lists on the focused cadence and slows when nothing is in front', async () => {
+    vi.useFakeTimers();
+    try {
+      await connect();
+      const armed = listCount();
+
+      // Four ticks at 5,000 ms in 20,000 ms.
+      await vi.advanceTimersByTimeAsync(4 * REMOTE_POLL_FOCUSED_MS);
+      expect(listCount() - armed).toBe(4);
+
+      // Losing focus SLOWS the list rather than stopping it, because a Tortie
+      // window can be on screen without having focus and a person reads the
+      // dots in that state.
+      setRemotePollFocused(false);
+      const slowed = listCount();
+      expect(remoteMachineFacts(MACHINE).statusTimerArmed).toBe(true);
+      await vi.advanceTimersByTimeAsync(2 * REMOTE_POLL_IDLE_MS);
+      expect(listCount() - slowed).toBe(2);
+
+      // Gaining focus lists ONE AT ONCE, so a person coming back does not read
+      // a dot up to 30 seconds old.
+      const back = listCount();
+      setRemotePollFocused(true);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(listCount() - back).toBe(1);
+
+      // And the cadence is the fast one again.
+      const fast = listCount();
+      await vi.advanceTimersByTimeAsync(2 * REMOTE_POLL_FOCUSED_MS);
+      expect(listCount() - fast).toBe(2);
+      stopMachineFeeds();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('skips a tick while a list is outstanding, and never skips an event list', async () => {
+    vi.useFakeTimers();
+    try {
+      await connect();
+      // The next list hangs until it is released, so the tick after it has one
+      // command already outstanding.
+      const held: { release: () => void } = { release: () => undefined };
+      answers['list-sessions'] = () =>
+        new Promise<string>((resolve) => {
+          held.release = () => {
+            resolve(line({ tmuxId: '$1', gmuxId: 'ours-1' }));
+          };
+        });
+
+      const before = listCount();
+      await vi.advanceTimersByTimeAsync(REMOTE_POLL_FOCUSED_MS);
+      expect(listCount() - before).toBe(1);
+
+      // The tick that lands while it is still outstanding sends nothing.
+      await vi.advanceTimersByTimeAsync(REMOTE_POLL_FOCUSED_MS);
+      expect(listCount() - before).toBe(1);
+
+      // A list the machine asked for is never skipped.
+      onlyClient().emit('sessions-changed');
+      await vi.advanceTimersByTimeAsync(0);
+      expect(listCount() - before).toBe(2);
+
+      held.release();
+      await vi.advanceTimersByTimeAsync(0);
+      stopMachineFeeds();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('asks once when a window comes back, however many times focus moves', async () => {
+    // PHASE 85 FIX ROUND. Focus is a person's key press and not a timer, so a
+    // person moving between Tortie and another program can raise it many times
+    // a second. The list a return to the window asks for is throttled to the
+    // focused cadence, which keeps the fastest a machine can be asked at
+    // 5,000 ms whatever the person does with their windows.
+    vi.useFakeTimers();
+    try {
+      await connect();
+      const before = listCount();
+      for (let switched = 0; switched < 5; switched += 1) {
+        setRemotePollFocused(false);
+        setRemotePollFocused(true);
+        await vi.advanceTimersByTimeAsync(100);
+      }
+      expect(listCount() - before).toBe(1);
+
+      // Once the throttle window has passed, a return lists again.
+      await vi.advanceTimersByTimeAsync(REMOTE_POLL_FOCUSED_MS + 100);
+      const settled = listCount();
+      setRemotePollFocused(false);
+      setRemotePollFocused(true);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(listCount() - settled).toBe(1);
+      stopMachineFeeds();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('what a cadence costs the session list on disk', () => {
+  /**
+   * PHASE 85. `writeBackCompletedPass` used to write `last_seen` for every held
+   * row on every completed pass, which cost almost nothing while a connected
+   * machine only completed a pass when the machine reported an event. A 5,000 ms
+   * list would make it 12 reads and 12 writes a minute for every row, so the
+   * write is throttled to `REMOTE_LAST_SEEN_WRITE_MS` unless the row's status
+   * moved.
+   */
+  function writesFor(id: string): number {
+    return record.seen.filter((one) => one.id === id).length;
+  }
+
+  it('writes once for a row whose status did not move inside the window', async () => {
+    vi.useFakeTimers();
+    try {
+      record.installed = true;
+      answers['list-sessions'] = line({ tmuxId: '$1', gmuxId: 'ours-1' });
+      await pollRemoteMachine(MACHINE);
+      expect(writesFor('ours-1')).toBe(1);
+
+      await vi.advanceTimersByTimeAsync(1_000);
+      await pollRemoteMachine(MACHINE);
+      expect(writesFor('ours-1')).toBe(1);
+
+      await vi.advanceTimersByTimeAsync(REMOTE_LAST_SEEN_WRITE_MS);
+      await pollRemoteMachine(MACHINE);
+      expect(writesFor('ours-1')).toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('writes every time the row status moved, whatever the throttle says', async () => {
+    vi.useFakeTimers();
+    try {
+      record.installed = true;
+      answers['list-sessions'] = line({ tmuxId: '$1', gmuxId: 'ours-1' });
+      await pollRemoteMachine(MACHINE);
+      expect(writesFor('ours-1')).toBe(1);
+
+      // The machine printed, so the row moves to running and the write is made
+      // 200 ms after the last one.
+      await vi.advanceTimersByTimeAsync(200);
+      answers['list-sessions'] = line({
+        tmuxId: '$1',
+        gmuxId: 'ours-1',
+        activity: 1_700_000_500
+      });
+      await pollRemoteMachine(MACHINE);
+      expect(writesFor('ours-1')).toBe(2);
+      expect(record.seen.at(-1)?.status).toBe('running');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('writes nothing at all when no session list is installed', async () => {
+    answers['list-sessions'] = line({ tmuxId: '$1', gmuxId: 'ours-1' });
+    await pollRemoteMachine(MACHINE);
+    expect(record.seen).toEqual([]);
+  });
+
+  it('forgets the write instant of a row that left the machine', async () => {
+    // PHASE 85 FIX ROUND. The throttle keeps one instant per held row. Nothing
+    // dropped a key when its session ended, so a machine that ran many sessions
+    // over a long run kept one entry for every session that ever existed. A
+    // completed pass reports the whole membership, so it is also the moment
+    // that knows what is gone.
+    record.installed = true;
+    answers['list-sessions'] = [
+      line({ tmuxId: '$1', gmuxId: 'ours-1' }),
+      line({ tmuxId: '$2', gmuxId: 'ours-2' })
+    ].join('\n');
+    await pollRemoteMachine(MACHINE);
+    expect(remoteMachineFacts(MACHINE).lastSeenTracked).toBe(2);
+
+    answers['list-sessions'] = line({ tmuxId: '$1', gmuxId: 'ours-1' });
+    await pollRemoteMachine(MACHINE);
+    expect(remoteMachineFacts(MACHINE).lastSeenTracked).toBe(1);
   });
 });

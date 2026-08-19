@@ -40,6 +40,17 @@
  * written by `build/probe-execplane.mjs`. When the file is not there, the steps
  * that need a real far side are SKIPPED and said to be skipped, and the refusal
  * steps still run, because none of them sends anything.
+ *
+ * ## PHASE 85 added steps 19a, 19b and 19c
+ *
+ * They are the phase's central proof, and they are here rather than in a unit
+ * test because a unit test cannot make a real pane print. 19a plants a line in a
+ * pane on the machine and measures how long the row takes to read `running` and
+ * then `idle` again, with nothing calling the poll by hand. It waits for the new
+ * session to settle to `idle` first, because a shell prints its prompt when it
+ * starts and the row correctly reads `running` for a few seconds because of it. 19b reads both
+ * activity fields through the product's own call and pins which one moved. 19c
+ * times ten lists over the open connection and prints the mean.
  */
 
 import { app } from 'electron';
@@ -94,6 +105,7 @@ import {
   TARGET_UNBOUND
 } from './remote-copy';
 import {
+  REMOTE_POLL_FOCUSED_MS,
   forgetMachineRows,
   markMachineQuiet,
   parseRemoteListLine,
@@ -106,6 +118,7 @@ import {
   remoteRestoreVerdictFor,
   remoteSessionRow,
   remoteSessions,
+  splitQuotedLine,
   startRemotePoll,
   type RemoteListRow
 } from './remote-sessions';
@@ -1931,6 +1944,208 @@ export async function runRemoteSessionsSmoke(): Promise<void> {
         `is not there, for a path that is a file, and for a machine it cannot ` +
         `reach`
     );
+
+    // --- 19. PHASE 85. The dot tells the truth on a connected machine --------
+    //
+    // THE CENTRAL PROOF OF THE PHASE, and nothing here calls the poll by hand.
+    // A session is made on the lifecycle machine, a line is planted in its pane
+    // the way a person would type one, and the row is watched until it reads
+    // `running` and then until it reads `idle` again. Both numbers are printed.
+    //
+    // Before Phase 85 this could not pass for two separate reasons, and both had
+    // to be fixed for it to pass now. The list read `#{session_activity}`, which
+    // does not move when a detached session prints. And a machine on a live
+    // connection issued no list at all unless the machine reported an event, so
+    // there was nothing to re-read the field with.
+    const statusId = await createLife('p85 status');
+    const statusRow = remoteSessionRow(statusId);
+    if (statusRow === null) fail('the create for step 19 produced no row');
+    // A first pause, so the shell's own prompt is out before the row is
+    // watched. It is not on its own enough, and the wait further down is what
+    // settles the row. See the comment there for the measurement.
+    await new Promise((r) => setTimeout(r, 2_000));
+
+    // A LIVE CONNECTION, or this step measures the fallback timer instead.
+    const connected = await (async (): Promise<boolean> => {
+      const until = Date.now() + 20_000;
+      while (Date.now() < until) {
+        if (remoteMachineFacts(LIFE_ID).onControl) return true;
+        await new Promise((r) => setTimeout(r, 250));
+      }
+      return false;
+    })();
+    if (!connected) {
+      fail(
+        `${LIFE_ID} never reached a live connection, so step 19 would measure ` +
+          `the fallback timer rather than the status list Phase 85 added`
+      );
+    }
+    const feedNow = remoteMachineFacts(LIFE_ID);
+    if (feedNow.timerArmed) {
+      fail(
+        `${LIFE_ID} has the fallback timer armed beside a live connection, ` +
+          `which is the Phase 71 property and it must still hold`
+      );
+    }
+    if (!feedNow.statusTimerArmed) {
+      fail(
+        `${LIFE_ID} is on a live connection and has no status list armed, so ` +
+          `nothing would re-read what its sessions are doing`
+      );
+    }
+
+    /** Both activity fields for this session, through the product's own call. */
+    const activityFields = async (): Promise<{
+      session: number;
+      window: number;
+    }> => {
+      const printed = await execOn(lifeCtx, [
+        'list-sessions',
+        '-F',
+        '#{q:@gmux-id} #{q:session_activity} #{q:window_activity}'
+      ]);
+      for (const one of printed.split('\n')) {
+        const parts = splitQuotedLine(one);
+        if (parts[0] !== statusId) continue;
+        return { session: Number(parts[1]), window: Number(parts[2]) };
+      }
+      return { session: 0, window: 0 };
+    };
+
+    /** Watch the row until it reads this status, and count the lists that ran. */
+    const watchFor = async (
+      want: string,
+      upToMs: number,
+      lists: Set<number>
+    ): Promise<number> => {
+      const from = Date.now();
+      while (Date.now() - from < upToMs) {
+        lists.add(remoteMachineFacts(LIFE_ID).snapshotAt);
+        const row = remoteSessions().find((one) => one.id === statusId);
+        if (row?.status === want) return Date.now() - from;
+        await new Promise((r) => setTimeout(r, 250));
+      }
+      return -1;
+    };
+
+    // WAIT FOR IDLE, DO NOT ASSERT IT AT A FIXED MOMENT. A shell prints its
+    // prompt when it starts, that is output like any other, and after this
+    // phase the row correctly reads `running` because of it. The worst case is
+    // a 5,000 ms tick that observes the prompt plus the 4,000 ms hold that
+    // follows, so a brand new row can read `running` for about 9 seconds before
+    // anybody types anything. The wait is 15,000 ms to leave room above that
+    // sum.
+    //
+    // MEASURED by the Phase 85 fix round. The version of this step that slept
+    // 2,000 ms and then asserted `idle` failed 5 of 9 runs at this line, always
+    // with the row reading `running`. Waiting for the row to settle passed 4 of
+    // 4.
+    const settleLists = new Set<number>();
+    const toSettle = await watchFor('idle', 15_000, settleLists);
+    if (toSettle < 0) {
+      const stuck = remoteSessions().find((one) => one.id === statusId);
+      fail(
+        `the new session on ${LIFE_ID} still reads ${String(stuck?.status)} ` +
+          `15,000 ms after it was made, with nothing planted in it, so step 19 ` +
+          `would prove nothing`
+      );
+    }
+    const fieldsBefore = await activityFields();
+
+    // The plant and the watch run together, because the row goes back to idle
+    // one cadence after the last line and the plant confirms itself by reading
+    // the screen, which takes a second of its own.
+    const statusToken = `TORTIE-P85-${randomBytes(6).toString('hex').toUpperCase()}`;
+    const runningLists = new Set<number>();
+    const planting = plantInPane(statusRow.tmuxId, statusToken);
+    const toRunning = await watchFor('running', 12_000, runningLists);
+    const planted = await planting;
+    if (!planted) {
+      fail(
+        `the harness could not get ${statusToken} onto the screen of ` +
+          `${statusRow.tmuxId}, so step 19 would have measured nothing`
+      );
+    }
+    if (toRunning < 0) {
+      fail(
+        `a line was printed in a pane on ${LIFE_ID} and the row never read ` +
+          `running in 12,000 ms. That is the defect Phase 85 exists to end.`
+      );
+    }
+    const fieldsAfter = await activityFields();
+
+    const idleLists = new Set<number>();
+    const toIdle = await watchFor('idle', 12_000, idleLists);
+    if (toIdle < 0) {
+      fail(
+        `the row on ${LIFE_ID} stopped printing and never read idle again in ` +
+          `12,000 ms, so it would say a finished session is still working`
+      );
+    }
+    log(
+      `19a. a line printed in a pane on ${LIFE_ID} made the row read running ` +
+        `after ${String(toRunning)} ms, and it read idle again ` +
+        `${String(toIdle)} ms after that. ${String(runningLists.size - 1)} and ` +
+        `${String(idleLists.size - 1)} list(s) ran in the two windows, on a ` +
+        `${String(REMOTE_POLL_FOCUSED_MS)} ms cadence, and nothing in this ` +
+        `harness asked for any of them. The same session took ` +
+        `${String(toSettle)} ms to read idle after it was made, with nothing ` +
+        `planted in it, because a shell prints its prompt when it starts and ` +
+        `that is output like any other.`
+    );
+
+    // --- 19b. The field, pinned in a gate for the first time -----------------
+    //
+    // Phase 83 measured this question through `display-message`. The product
+    // uses `list-sessions -F`, and that is the call made here. It puts the
+    // measurement inside a gate that runs from now on rather than inside a
+    // document that has to be believed.
+    if (!(fieldsAfter.window > fieldsBefore.window)) {
+      fail(
+        `#{window_activity} read ${String(fieldsBefore.window)} before the ` +
+          `line was printed and ${String(fieldsAfter.window)} after it. It did ` +
+          `not move, so the field the product reads is the wrong one on this ` +
+          `machine.`
+      );
+    }
+    if (fieldsAfter.session !== fieldsBefore.session) {
+      fail(
+        `#{session_activity} read ${String(fieldsBefore.session)} before the ` +
+          `line was printed and ${String(fieldsAfter.session)} after it. It ` +
+          `moved, which this Mac does not do, and the phase's measurement ` +
+          `needs re-taking on this machine.`
+      );
+    }
+    log(
+      `19b. through list-sessions -F, session_activity read ` +
+        `${String(fieldsBefore.session)} before the line and ` +
+        `${String(fieldsAfter.session)} after it, and window_activity read ` +
+        `${String(fieldsBefore.window)} then ${String(fieldsAfter.window)}. ` +
+        `Only the second one moved.`
+    );
+
+    // --- 19c. What one list costs ------------------------------------------
+    //
+    // A FLOOR AND NOT A TAILNET NUMBER, said plainly. The far side of this
+    // connection is this same Mac over the loopback address, so this measures
+    // the local ssh client, the local sshd and the local tmux and nothing else.
+    // Nobody has paid this over a network with real packet loss.
+    const listMs: number[] = [];
+    for (let taken = 0; taken < 10; taken += 1) {
+      const from = Date.now();
+      await execOn(lifeCtx, remoteListArgs());
+      listMs.push(Date.now() - from);
+    }
+    const meanMs = listMs.reduce((a, b) => a + b, 0) / listMs.length;
+    log(
+      `19c. ten lists over the open connection took ${meanMs.toFixed(1)} ms on ` +
+        `average, from ${String(Math.min(...listMs))} ms to ` +
+        `${String(Math.max(...listMs))} ms. It is a loopback floor and not a ` +
+        `number for a real network.`
+    );
+
+    await core.killSession(statusId).catch(() => undefined);
+    core.removeSession(statusId);
 
     await core.killSession(homeMade.id).catch(() => undefined);
     core.removeSession(homeMade.id);

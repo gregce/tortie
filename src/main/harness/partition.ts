@@ -674,52 +674,83 @@ export async function runPartitionSmoke(): Promise<void> {
 
     startSampling(core);
 
-    // --- the poll is GONE while a connection is up --------------------------
+    // --- the status list runs, and the FALLBACK timer does not ---------------
     //
-    // Phase 71's claim is that a live connection replaces the timer, and until
-    // this window it rested on an armed-timer unit test and on reading the code.
-    // This measures it on a running machine instead.
+    // PHASE 85 INVERTED THIS STEP, deliberately, and the old wording is left
+    // here so the change is readable rather than silent.
+    //
+    // Phase 71's claim was that a live connection replaces the timer, so this
+    // step failed when a connected machine issued 4 or more lists in 20,000 ms,
+    // because 4 is the 5,000 ms cadence. Phase 85 measured that a connected
+    // machine which never re-reads its own list can never say a session is
+    // working, because the connection reports membership and renames and never
+    // reports output. So a connected machine now runs a status list on the same
+    // two cadences, and the count this step used to refuse is the count it now
+    // requires.
+    //
+    // What did NOT change is the property Phase 71 shipped. The FALLBACK timer
+    // must still never be armed beside a connection, because those two are the
+    // same read of the same list. That is asserted below exactly as before.
     //
     // The instrument is `snapshotAt`, which is stamped before every list this
-    // machine's feed issues. Nothing happens on this machine during the window,
-    // so a connection that has replaced the timer issues NO list and that number
-    // never moves. The Phase 70 timer ran at 5,000 ms in front, so it would have
-    // issued four lists in the same twenty seconds.
+    // machine's feed issues.
     const quietFor = 20_000;
     const snapshotBefore = remoteMachineFacts(MACHINE_ID).snapshotAt;
     const lists = new Set<number>();
     let timerSeen = false;
+    let statusTimerSeen = false;
     for (let taken = 0; taken * SAMPLE_EVERY_MS < quietFor; taken += 1) {
       const facts = remoteMachineFacts(MACHINE_ID);
       if (facts.timerArmed) timerSeen = true;
+      if (facts.statusTimerArmed) statusTimerSeen = true;
       if (facts.snapshotAt !== snapshotBefore) lists.add(facts.snapshotAt);
       await new Promise((r) => setTimeout(r, SAMPLE_EVERY_MS));
     }
     const onControl = remoteMachineFacts(MACHINE_ID).onControl;
     if (!onControl) {
-      fail(`${MACHINE_ID} is not on a live connection, so the poll cannot be gone`);
+      fail(
+        `${MACHINE_ID} is not on a live connection, so this step would measure ` +
+          `the fallback timer rather than the status list`
+      );
     }
     if (timerSeen) {
       fail(
-        `${MACHINE_ID} had a timer armed while its connection was up. One ` +
-          `machine never carries both feeds.`
+        `${MACHINE_ID} had the FALLBACK timer armed while its connection was ` +
+          `up. One machine never carries that timer and a connection at once.`
       );
     }
-    // Four is what the Phase 70 cadence would have produced in this window. A
-    // machine that issued that many lists is still being polled.
-    if (lists.size >= 4) {
+    if (!statusTimerSeen) {
+      fail(
+        `${MACHINE_ID} is on a live connection and had no status list armed at ` +
+          `any of the ${String(Math.floor(quietFor / SAMPLE_EVERY_MS))} ` +
+          `readings, so nothing would re-read what its sessions are doing`
+      );
+    }
+    // ZERO IS THE DEFECT PHASE 85 EXISTS TO END, and it gets its own sentence
+    // because it is the answer this step used to demand.
+    if (lists.size === 0) {
+      fail(
+        `${MACHINE_ID} issued no list at all in ${String(quietFor)} ms while ` +
+          `connected. That is the defect Phase 85 exists to end, because a row ` +
+          `on that machine can never say a session is working when nothing ` +
+          `re-reads it.`
+      );
+    }
+    // 4 is the expected count at 5,000 ms in 20,000 ms. The band is one either
+    // side because the window is wall clock and a tick can straddle an edge.
+    if (lists.size < 3 || lists.size > 5) {
       fail(
         `${MACHINE_ID} issued ${String(lists.size)} list(s) in ` +
-          `${String(quietFor)} ms with nothing happening on it, which is the ` +
-          `timer cadence rather than a connection`
+          `${String(quietFor)} ms with nothing happening on it. The status ` +
+          `list runs at 5,000 ms, so 3 to 5 is the band and 4 is expected.`
       );
     }
     log(
-      `4. the poll is gone: over ${String(quietFor)} ms with nothing happening ` +
-        `on ${MACHINE_ID}, its feed issued ${String(lists.size)} list(s) and ` +
-        `no timer was armed at any of the ` +
-        `${String(Math.floor(quietFor / SAMPLE_EVERY_MS))} readings. The timer ` +
-        `cadence would have issued 4.`
+      `4. the status list runs and the fallback timer does not: over ` +
+        `${String(quietFor)} ms with nothing happening on ${MACHINE_ID}, its ` +
+        `feed issued ${String(lists.size)} list(s), the status list was armed ` +
+        `and the fallback timer was armed at none of the ` +
+        `${String(Math.floor(quietFor / SAMPLE_EVERY_MS))} readings`
     );
 
     // The supervisor waits for this line before it answers any request.

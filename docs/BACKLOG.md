@@ -7471,7 +7471,67 @@ phase says so on screen rather than leaving it to be discovered.
 The local lifecycle. Restart, End and Remove on a local session behave exactly as they do today,
 proven by the existing smoke gates plus one driven local restart, end and remove.
 
-## Phase 85 — the status dot tells the truth on a connected machine (operator queued 2026-08-18) QUEUED
+## Phase 85 — the status dot tells the truth on a connected machine (operator queued 2026-08-18) ✅ SHIPPED 2026-08-19 (this commit, 0.44.4, gates green, 6,122 tests). The dot moves when an agent prints. It still never says `needs input` on another machine
+
+**What the shipping build does, recorded 2026-08-19.** The remote list format reads
+`#{window_activity}` where it read `#{session_activity}`, so a row reads `running` when a session on
+the far machine prints. A connected machine also gets a status list on a timer now, at 5,000 ms
+while a Tortie window is in front and 30,000 ms when none is. The Phase 71 exclusivity is unchanged.
+The fallback timer and the live connection are still never armed together, `machinesWithBothFeeds`
+counts it, and step 4 of `npm run smoke:partition` read 4 lists in 20,000 ms with the fallback timer
+armed at none of 80 readings. A row that moved holds `running` for 4,000 ms, so two lists landing
+200 ms apart cannot blink a working row to idle and back. A row whose status did not move has its
+`last_seen` write throttled to 15,000 ms, which is the number `ACTIVITY_WRITE_MS` already uses for
+the same kind of write on this Mac. The one list a machine gets when a window comes back to the
+front is throttled to 5,000 ms and skips a machine that already has a list outstanding. A remote
+row's tooltip carries a second line that says how often Tortie asks that machine, and says that a
+session over there never reports that it needs input.
+
+**The field question is now settled on a second machine and on a second tmux.** MEASURED 2026-08-19
+on mac-pro at `/usr/local/bin/tmux`, version 3.7c, over the operator's tailnet, through
+`list-sessions -F` because that is the call the product makes. One session ran a loop that printed
+one line a second for 70 seconds. 26 readings were taken over 138 seconds:
+
+| phase | readings | `#{session_activity}` | `#{window_activity}` |
+| --- | --- | --- | --- |
+| idle, before the job | 4 | 1787113297 at all 4 | 1787113298 at all 4 |
+| the job printing | 16 | 1787113297 at all 16 | 1787113328 to 1787113397, moved at 14 of the 16 |
+| after the job stopped | 6 | 1787113297 at all 6 | 1787113397 at all 6 |
+
+`#{session_activity}` did not move once across 138 seconds and 70 printed lines.
+`#{window_activity}` moved at almost every 5 second reading while the job ran, and it froze the
+moment the job stopped. mac-pro read 6 sessions before the probe and 6 after, and the probe session
+was killed by its tmux id.
+
+**The worst case from work starting to the dot moving is 5.03 seconds.** Five passing runs of step
+19a of `npm run smoke:remote` measured 3,023, 3,268, 3,269, 3,774 and 5,028 ms from the planted line
+to the row reading `running`. The return to `idle` measured 4,777, 4,784, 5,030, 5,032 and 5,036 ms,
+so 5.04 seconds is the worst case there. Both sit inside one 5,000 ms cadence, which is what the
+design predicts. These are loopback numbers taken on this Mac. No product level timing was taken
+against mac-pro.
+
+**A brand new remote row reads `running` for about 9 seconds before anybody types anything, and that
+is new with this phase.** The shell that starts in the session prints its prompt,
+`#{window_activity}` moves because of it, and the field cannot tell that output apart from an
+agent's. The worst case is the 5,000 ms list that observes the prompt plus the 4,000 ms hold that
+follows it. The row settles to `idle` on its own with nothing further to do. Nothing suppresses it,
+because the only suppression available would be a rule that ignores the first move on a new row, and
+that rule would also hide an agent that started working straight away. The fix round rewrote step 19
+of `npm run smoke:remote` to wait up to 15,000 ms for the row to settle rather than assert `idle` at
+a fixed moment. The version that slept 2,000 ms and then asserted `idle` failed 5 of 9 runs at that
+line. The version that waits passed every run after it.
+
+**What is NOT true after this phase, said plainly.** No remote row ever says `needs input`, and
+Phase 88 is where that is queued. No screenshot was taken, because the new sentence is a `title`
+attribute that needs a hover and no harness in the tree draws a remote row with a live machine on
+screen. It is proven through `sessionTooltip`'s return value and 5 unit tests. No live product run
+was driven against mac-pro. The mac-pro evidence is the two tmux fields above plus a replay of those
+26 readings through `remoteRowStatus`, which produced 4 idle, then 15 running, then 7 idle. The
+field is still unmeasured on tmux 3.7b, which is the third accepted version. `npm run smoke:t3`,
+`npm run package` and the full `npm run conformance:resume` roundtrip were not run for this phase.
+
+**The local activity poll did not change.** No file under `src/main/activity` or `src/main/sessions`
+is in this commit, and `PANE_FORMAT` is byte identical to the commit before it.
 
 **Subject:** `fix(machines): a remote row says what the agent is actually doing`
 **First body line:** `Phase 85: the status dot tells the truth on a connected machine`

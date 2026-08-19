@@ -364,10 +364,12 @@ export async function runExecPlaneSmoke(): Promise<void> {
         );
       }
       log(
-        `4b. the machine's feed is running after Prepare: timer ` +
+        `4b. the machine's feed is running after Prepare: fallback timer ` +
           `${feed.timerArmed ? 'armed' : 'not armed'}, live connection ` +
-          `${feed.onControl ? 'open' : 'not open'}, and exactly one of the two ` +
-          `is what this rung allows`
+          `${feed.onControl ? 'open' : 'not open'}, status list ` +
+          `${feed.statusTimerArmed ? 'armed' : 'not armed'}. Exactly one of the ` +
+          `first two is what this rung allows, and the status list belongs to ` +
+          `the connection (Phase 85).`
       );
       if (feed.timerArmed && feed.onControl) {
         fail('the machine has BOTH a timer and a live connection reading it');

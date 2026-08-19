@@ -33,6 +33,7 @@ import { Codicon } from '../icons';
 import { openSessionContext } from '../context/open-session';
 import {
   badgeTitle,
+  remoteStatusNote,
   NO_SNAPSHOT,
   REVIEW_ITEM_SUBLABEL,
   REVIEW_READING,
@@ -60,6 +61,11 @@ export function isOutsideProject(session: Session): boolean {
  * back after a restart."). The dense surfaces can only carry a 12px mark, so
  * the tooltip is where the mark's meaning — and the agent-specific reason —
  * actually reaches the user.
+ *
+ * PHASE 85. A session on another machine has no resume sentence, and that
+ * second line now carries `remoteStatusNote` instead, which says how often
+ * Tortie asks that machine and says what its dot cannot tell you. A machine
+ * that is not answering carries no second line at all.
  */
 export function sessionTooltip(
   session: Session,
@@ -74,7 +80,19 @@ export function sessionTooltip(
   // Phase 70: no resume sentence for a session on another machine, for the
   // same reason the mark is dropped. Every one of those sentences describes
   // what a restart brings back, and Tortie refuses to restart one.
-  const note = session.machine === undefined ? resumeNote(session) : null;
+  //
+  // PHASE 85 gives that line to a remote row instead of leaving it empty. The
+  // second line now says how often Tortie asks that machine what its sessions
+  // are doing, and says the one thing the dot cannot tell you about a session
+  // over there. A machine that is not answering gets no note at all, because
+  // the badge beside the row already says it did not answer and a promise to
+  // ask every 5 seconds would be false beside it.
+  const note =
+    session.machine === undefined
+      ? resumeNote(session)
+      : session.machine.answering
+        ? remoteStatusNote(session.machine.label)
+        : null;
   return note === null ? head : `${head}\n${note}`;
 }
 

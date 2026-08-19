@@ -13,6 +13,15 @@
  * shipped, at the same two cadences. A machine never has both at once, which is
  * asserted by counting armed timers rather than promised in this comment.
  *
+ * ## What Phase 85 added beside that, and it is not a third shape
+ *
+ * A connected machine now also gets a STATUS LIST on a timer, at the same two
+ * cadences, and {@link armStatusTimer} owns it. The connection reports
+ * membership and renames and never reports output, so a machine could sit with a
+ * moving activity stamp that nobody re-read. The Phase 71 exclusivity is
+ * unchanged and still counted: the FALLBACK timer and the connection are never
+ * armed together, and {@link machinesWithBothFeeds} is the count.
+ *
  * The status ladder moved out of this file. `./status-truth.ts` is now the only
  * place research 51 section 4.4's case table is written, and every status this
  * feed writes for a whole machine comes from `machineTruth`. Two behaviours
@@ -72,18 +81,52 @@
  *    into a pane on another machine, so `resumeArmed` is false on every restore
  *    and the conversation does not come back. A row the harvest could not prove
  *    still records `remote-not-collected` rather than nothing.
- *  - A remote row's status comes from one format field, `#{session_activity}`.
- *    That field does NOT mean the session printed something, and this file used
- *    to say it did. MEASURED 2026-08-18 on tmux 3.6a over a scratch socket. A
- *    session was created, left alone for three seconds, and then made to print
- *    a line. `#{session_activity}` read 1787079802 at all three moments.
- *    `#{window_activity}` read 1787079802 at the first two and 1787079805 after
- *    the line was printed. So a remote row does not read `running` because work
- *    happened, and `remoteRowStatus` below inherits that. This is finding 6 of
- *    docs/research/54-remote-parity.md, confirmed by measurement. Changing which
- *    field is read is a later phase, and it is written into docs/BACKLOG.md with
- *    the numbers above rather than left here to be re-derived. It is not the
- *    local attention verdict, and no remote row ever says `needs input`.
+ *  - A remote row's status comes from one format field, and PHASE 85 CHANGED
+ *    WHICH ONE. It reads `#{window_activity}`. It used to read
+ *    `#{session_activity}`, which does not move when a session prints, so a
+ *    remote row could never read `running` because work happened.
+ *
+ *    MEASURED 2026-08-19 on this Mac, tmux 3.6a at /opt/homebrew/bin/tmux, over
+ *    a scratch socket, one detached session with no client attached, through
+ *    `list-sessions -F` because that is the call this module makes. Phase 83
+ *    measured the same question through `display-message`, which is a different
+ *    call, and that is why it was re-run:
+ *
+ *                                    session_activity   window_activity
+ *      just created                  1787111236         1787111236
+ *      after 3 idle seconds          1787111236         1787111236
+ *      after the pane printed a line 1787111236         1787111239
+ *      after 3 more idle seconds     1787111236         1787111239
+ *      after a second line           1787111236         1787111243
+ *
+ *    Three things that settles. `#{window_activity}` resolves inside
+ *    `list-sessions -F`, because tmux fills the window from the session's
+ *    current window, so no second command is needed. It moves when a detached
+ *    pane prints, with no client attached anywhere. And `#{session_activity}`
+ *    did not move across 7 seconds and two prints.
+ *
+ *    WHAT IS NOT TRUE OF THAT MEASUREMENT. It was taken on this Mac and on tmux
+ *    3.6a. Nobody has taken it on a machine that is not this one, and nobody has
+ *    taken it on 3.7b or 3.7c, which are two of the three accepted versions.
+ *    This Mac holds no key mac-pro trusts, and that key is Phase 79.1's work.
+ *    `build/probe-real-unknowns.mjs` asks the question through the right call
+ *    for the day a key exists.
+ *
+ *    This is finding 6 of docs/research/54-remote-parity.md, closed. It is still
+ *    not the local attention verdict, and no remote row ever says `needs input`.
+ *  - A REMOTE ROW READS `running` FOR ABOUT 9 SECONDS AFTER IT IS MADE, before
+ *    the person has typed anything, and that is new with Phase 85. The shell
+ *    that starts in the new session prints its prompt, `#{window_activity}`
+ *    moves because of it, and the field cannot tell that output apart from an
+ *    agent's. The worst case is the 5,000 ms list that observes the prompt plus
+ *    the {@link REMOTE_WORKING_HOLD_MS} hold that follows it. It settles to
+ *    `idle` on its own with nothing further to do. MEASURED by step 19 of
+ *    `npm run smoke:remote` on 2026-08-19, over a scratch machine on the
+ *    loopback address, across three runs. One run read `idle` within 2,000 ms
+ *    of the create, and the other two took 6,278 ms and 6,528 ms. Nothing
+ *    suppresses it, because the only suppression available would be a rule that
+ *    ignores the first move on a new row, and that rule would also hide an
+ *    agent that started working straight away.
  *  - A remote session created by 0.34 or 0.35 has no manifest row, because those
  *    builds wrote none. It is a feed row and nothing else, and it cannot be
  *    brought back.
@@ -265,9 +308,21 @@ const machinesLog = getLog('config');
  *
  * A row that does not split into exactly {@link REMOTE_LIST_FIELDS} parts is not
  * read at all.
+ *
+ * ## The third field, replaced in Phase 85
+ *
+ * It was `#{q:session_activity}` and it is now `#{q:window_activity}`. The
+ * measurement is in this file's header. The field was REPLACED rather than
+ * added to, for three reasons. Nothing else in the product reads
+ * `#{session_activity}`. A tenth field is a tenth thing that can be quoted
+ * wrongly. And leaving the old field in the format would leave this module and
+ * `../activity/panes.ts` still disagreeing about what it means.
+ *
+ * {@link REMOTE_LIST_FIELDS} stays 10 and the four free-form fields stay last,
+ * in the same order.
  */
 export const REMOTE_LIST_FORMAT =
-  '#{q:session_id} #{q:session_created} #{q:session_activity} ' +
+  '#{q:session_id} #{q:session_created} #{q:window_activity} ' +
   '#{q:session_attached} #{q:@gmux-id} #{q:@gmux-agent} ' +
   '#{q:session_name} #{q:@gmux-project} #{q:session_path} #{q:@gmux-name}';
 
@@ -296,18 +351,62 @@ export const REMOTE_STAMPS = [
 // ---------------------------------------------------------------------------
 
 /**
- * How often a machine is asked for its list while this window is in front.
+ * How often a machine is asked for its list while a Tortie window is in front.
  *
- * 5,000 ms. CHOSEN, NOT MEASURED, and the copy on the create sheet says so.
- * Nobody has measured what this costs over a tailnet with real packet loss.
+ * 5,000 ms. CHOSEN, NOT MEASURED. Nobody has measured what it costs over a
+ * tailnet with real packet loss.
+ *
+ * SINCE PHASE 85 IT IS TRUE OF EVERY MACHINE. It used to apply only to a machine
+ * on the fallback timer, and a machine on a live connection listed on that
+ * machine's own events instead. Both feeds now carry it, which is what lets
+ * `remoteStatusNote` in `../../renderer/app/machine-copy.ts` state one number on
+ * a remote row's tooltip and have it be true whichever feed drew the row.
  */
 export const REMOTE_POLL_FOCUSED_MS = 5_000;
 
-/** The same when no window has focus. 30,000 ms, chosen for the same reason. */
+/**
+ * The same when no Tortie window has focus. 30,000 ms, chosen for the same
+ * reason. Neither feed STOPS on a focus change, because a Tortie window can be
+ * on screen without having focus and a person reads the dots in that state.
+ */
 export const REMOTE_POLL_IDLE_MS = 30_000;
 
 /** How long one poll gets before it is killed. */
 export const REMOTE_POLL_TIMEOUT_MS = 10_000;
+
+/**
+ * How long a row that moved keeps reading `running` with no further move.
+ *
+ * 4,000 ms. CHOSEN, NOT MEASURED, and it is a guard put in before the case it
+ * guards against can occur. Two lists a cadence apart are what the delta rule
+ * below was written for. Phase 85 puts a list on a timer BESIDE the live
+ * connection, and the connection lists on its own events, so two lists can now
+ * land 200 ms apart and the second would read no move and write idle over a row
+ * that is working.
+ *
+ * The number is under the 5,000 ms focused cadence, so a row that stops printing
+ * reads idle at the very next tick. It is over the gap between a timer list and
+ * an event list that follows it, so a create or a rename on the machine cannot
+ * blink a working row to idle and back.
+ */
+export const REMOTE_WORKING_HOLD_MS = 4_000;
+
+/**
+ * How often one row's `last_seen` is written to the manifest when nothing about
+ * it moved.
+ *
+ * 15,000 ms. The number is copied from `ACTIVITY_WRITE_MS` in
+ * `../activity/monitor.ts`, which is the same throttle this Mac's own tier
+ * applies to the same kind of write.
+ *
+ * It exists because Phase 85 gave a connected machine a list every 5,000 ms.
+ * Before this phase a connected machine completed a pass only when the machine
+ * reported an event, so writing `last_seen` for every held row on every pass
+ * cost almost nothing. On a cadence it would be 12 reads and 12 writes a minute
+ * for every remote row. A row whose STATUS moved is written every time, whatever
+ * this throttle says.
+ */
+export const REMOTE_LAST_SEEN_WRITE_MS = 15_000;
 
 // ---------------------------------------------------------------------------
 // The rows
@@ -319,7 +418,15 @@ export interface RemoteListRow {
   readonly tmuxId: string;
   /** Epoch ms the session was created, from that machine's clock. */
   readonly createdAt: number;
-  /** Epoch ms of the last activity, from that machine's clock. */
+  /**
+   * Epoch ms of the last OUTPUT that machine's server saw for this session,
+   * from that machine's clock.
+   *
+   * Since Phase 85 it is `#{window_activity}`, which is the same sentence
+   * `PaneFacts.activityAt` in `../activity/panes.ts` already carries for this
+   * Mac. It is only ever compared with another `activityAt` from the same
+   * machine, per research 51 section 4.4's clock rule.
+   */
   readonly activityAt: number;
   readonly attached: boolean;
   /** The `@gmux-id` stamp. Empty when the session is not Tortie's. */
@@ -347,6 +454,15 @@ export interface RemoteSessionRow {
   readonly createdAt: number;
   readonly activityAt: number;
   readonly status: SessionStatus;
+  /**
+   * THIS MAC'S clock, at the last list that saw this row's activity move.
+   *
+   * 0 until a move has been seen. It is a local instant on purpose, and it is
+   * compared only with another local instant, so no far side time is ever
+   * subtracted from one of this Mac's. It is what the hold window in
+   * {@link remoteRowStatus} reads.
+   */
+  readonly movedAt: number;
 }
 
 /** What one machine's polling knows. */
@@ -387,6 +503,41 @@ interface MachineSessions {
   names: Set<string>;
   timer: NodeJS.Timeout | null;
   /**
+   * The status list that runs BESIDE a live connection (Phase 85).
+   *
+   * It is a second, separately named timer rather than the fallback one, and
+   * that is the whole reason it has its own field. The fallback timer and the
+   * connection stay exclusive, which is what {@link machinesWithBothFeeds}
+   * counts and what `./exec-smoke.ts` asserts. This one is armed only while
+   * {@link MachineSessions.onControl} is true.
+   *
+   * It exists because the connection reports membership and renames and never
+   * reports output, so a field that moves is no use until somebody re-reads it.
+   */
+  statusTimer: NodeJS.Timeout | null;
+  /**
+   * How many lists for this machine are in flight right now.
+   *
+   * The status timer skips a tick while it is above zero, so a machine that is
+   * slow to answer gets one command outstanding rather than a queue. A list a
+   * person or an event asked for is never skipped, which is why this is a count
+   * rather than a flag: two outstanding lists must not be cleared by whichever
+   * of them finishes first.
+   */
+  listsInFlight: number;
+  /**
+   * THIS MAC'S clock at the last `last_seen` write for each row, by Tortie id.
+   *
+   * It is what {@link REMOTE_LAST_SEEN_WRITE_MS} throttles against.
+   *
+   * IT IS PRUNED ON EVERY COMPLETED PASS. A completed pass reports the whole
+   * membership of the machine, so a key that pass did not report names a
+   * session that is no longer there and it is dropped. Without that the map
+   * grew by one entry for every session that ever ran on the machine during a
+   * run, and only removing the machine cleared it.
+   */
+  lastSeenWriteAt: Map<string, number>;
+  /**
    * True while this machine has a live connection.
    *
    * It is what makes the two feeds exclusive. {@link armTimer} refuses to arm a
@@ -412,6 +563,14 @@ const machines = new Map<string, MachineSessions>();
 /** True while a window has focus. Decides which of the two cadences is used. */
 let pollFocused = true;
 
+/**
+ * This Mac's clock at the last list {@link pollOnFocusGain} issued, or 0.
+ *
+ * It is what stops a person switching between two programs from asking every
+ * machine once per switch.
+ */
+let lastFocusPollAt = 0;
+
 /** Called after any change a surface would draw. */
 type Listener = () => void;
 let listeners: Listener[] = [];
@@ -436,6 +595,9 @@ function stateOf(machineId: string): MachineSessions {
     foreign: 0,
     names: new Set(),
     timer: null,
+    statusTimer: null,
+    listsInFlight: 0,
+    lastSeenWriteAt: new Map(),
     onControl: false,
     passing: false,
     lastMachineStatus: null
@@ -670,27 +832,70 @@ export function parseRemoteListLine(line: string): RemoteListRow | null {
   };
 }
 
+/** What the last completed list knew about one row, for the ladder below. */
+export interface RemoteRowMemory {
+  /** That machine's clock, from the last list that held this row. */
+  readonly activityAt: number;
+  /** THIS MAC'S clock, at the last list that saw the activity move. 0 if none. */
+  readonly movedAt: number;
+}
+
+/** One row's status, and the instant the move behind it was seen. */
+export interface RemoteRowVerdict {
+  readonly status: SessionStatus;
+  /** THIS MAC'S clock, carried forward so the hold window can be measured. */
+  readonly movedAt: number;
+}
+
 /**
- * The status one poll gives one row.
+ * The status one list gives one row.
  *
  * The whole ladder is here so the rule can be read in one place:
  *
  *   the row is there and activity moved      -> running
- *   the row is there and activity did not    -> idle
- *   the row is gone and the machine answered -> exited
+ *   the row is there and it moved recently   -> running, for the hold window
+ *   the row is there and neither is true     -> idle
+ *   the row is gone and the machine answered -> restorable
  *   the machine did not answer               -> unknown
  *
- * A row seen for the first time is `idle`, because there is no previous poll for
+ * PHASE 85 ADDED THE SECOND RUNG, and it is the only thing that changed. The
+ * delta rule underneath is sound only when the two lists it compares are a
+ * cadence apart, which was true while a connected machine listed on its own
+ * events alone. It now lists on a 5,000 ms timer as well, so two lists can land
+ * 200 ms apart and the second would read no move and write idle over a row that
+ * is working. The hold window is {@link REMOTE_WORKING_HOLD_MS}.
+ *
+ * BOTH SIDES OF EVERY SUBTRACTION ARE THIS MAC'S CLOCK. `snapshotAt` is stamped
+ * here before the list is issued and `movedAt` is a value this function wrote,
+ * so no time from the far side is ever compared with a local one. That is
+ * research 51 section 4.4's clock rule, and it is why the hold is measured in
+ * local time rather than in the machine's own activity stamps.
+ *
+ * A row seen for the first time is `idle`, because there is no previous list for
  * anything to have moved since. `needs_input` is never produced here. The status
  * oracles read local disk and cannot run on another machine, and pretending
  * otherwise would be the one status rule Tortie does not break.
+ *
+ * @param previous what the last completed list knew, or undefined on first sight
+ * @param activityAt that machine's clock, from this list
+ * @param snapshotAt this Mac's clock, stamped before this list was issued
  */
 export function remoteRowStatus(
-  previousActivityAt: number | undefined,
-  activityAt: number
-): SessionStatus {
-  if (previousActivityAt === undefined) return 'idle';
-  return activityAt > previousActivityAt ? 'running' : 'idle';
+  previous: RemoteRowMemory | undefined,
+  activityAt: number,
+  snapshotAt: number,
+  holdMs: number = REMOTE_WORKING_HOLD_MS
+): RemoteRowVerdict {
+  if (previous === undefined) return { status: 'idle', movedAt: 0 };
+  if (activityAt > previous.activityAt) {
+    return { status: 'running', movedAt: snapshotAt };
+  }
+  const held =
+    previous.movedAt > 0 && snapshotAt - previous.movedAt < holdMs;
+  return {
+    status: held ? 'running' : 'idle',
+    movedAt: previous.movedAt
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -1620,9 +1825,14 @@ export function forgetMachineRows(
   const state = machines.get(machineId);
   if (state !== undefined) {
     clearTimer(state);
+    // PHASE 85. The key is deleted on the next line, so a status list left armed
+    // would keep firing against a machine nobody holds and `stateOf` would build
+    // the entry again on every tick.
+    clearStatusTimer(state);
     state.rows.clear();
     state.gone.clear();
     state.names.clear();
+    state.lastSeenWriteAt.clear();
     state.onControl = false;
     state.lastMachineStatus = null;
   }
@@ -1810,6 +2020,27 @@ export function refuseRemoteRestore(sessionId: string): void {
  */
 export async function pollRemoteMachine(machineId: string): Promise<void> {
   const state = stateOf(machineId);
+  // PHASE 85. Counted for the whole call, so the status timer's tick can see
+  // that a list is already outstanding and skip. A machine that is slow to
+  // answer gets one command outstanding rather than a backlog of them.
+  state.listsInFlight += 1;
+  try {
+    await onePass(machineId, state);
+  } finally {
+    state.listsInFlight -= 1;
+  }
+}
+
+/**
+ * The pass itself, with the in-flight count held around it by the caller.
+ *
+ * It is split out for one reason only, which is that every ending of a pass has
+ * to decrement that count and there are four of them.
+ */
+async function onePass(
+  machineId: string,
+  state: MachineSessions
+): Promise<void> {
   let ctx: RemoteMachineContext;
   try {
     ctx = readyRemoteContext(machineId);
@@ -1863,6 +2094,7 @@ export async function pollRemoteMachine(machineId: string): Promise<void> {
       continue;
     }
     const previous = state.rows.get(parsed.gmuxId);
+    const verdict = remoteRowStatus(previous, parsed.activityAt, snapshotAt);
     seen.set(parsed.gmuxId, {
       id: parsed.gmuxId,
       machineId,
@@ -1874,7 +2106,8 @@ export async function pollRemoteMachine(machineId: string): Promise<void> {
       cwd: parsed.cwd,
       createdAt: parsed.createdAt,
       activityAt: parsed.activityAt,
-      status: remoteRowStatus(previous?.activityAt, parsed.activityAt)
+      status: verdict.status,
+      movedAt: verdict.movedAt
     });
   }
 
@@ -1895,6 +2128,12 @@ export async function pollRemoteMachine(machineId: string): Promise<void> {
   // Captured before the two are overwritten, because the manifest writes below
   // are bounded by whether the machine's membership actually moved.
   const previousIds = new Set(state.rows.keys());
+  // PHASE 85. What each held row read on the last completed pass, captured
+  // before the overwrite, so the write back below can tell a row whose status
+  // moved from a row that only needs its `last_seen` refreshed.
+  const previousStatus = new Map(
+    [...state.rows].map(([id, row]) => [id, row.status])
+  );
   const firstCompletedPass = !state.everAnswered;
   state.rows = seen;
   state.names = names;
@@ -1903,6 +2142,7 @@ export async function pollRemoteMachine(machineId: string): Promise<void> {
   applyMachineEvent(machineId, event);
   writeBackCompletedPass(machineId, {
     seen,
+    previousStatus,
     absentStatus,
     snapshotAt,
     // A row appearing or disappearing is the only thing that can make a manifest
@@ -1932,11 +2172,25 @@ export async function pollRemoteMachine(machineId: string): Promise<void> {
  *
  * TWO WRITES, and the difference between them is the point.
  *
- * A row this pass HELD gets `last_seen` on EVERY pass, through a one column
- * statement, and its status only when the status moved. `last_seen` is what the
- * tombstone reads later to say when Tortie last saw the session, so a value
- * refreshed only on a change would name the last time the status moved rather
- * than the last time the session was there.
+ * A row this pass HELD gets `last_seen` through a one column statement, and its
+ * status only when the status moved. `last_seen` is what the tombstone reads
+ * later to say when Tortie last saw the session, so a value refreshed only on a
+ * change would name the last time the status moved rather than the last time the
+ * session was there.
+ *
+ * PHASE 85 THROTTLED THE FIRST WRITE, and the reason is arithmetic. Before this
+ * phase a connected machine completed a pass only when the machine reported an
+ * event, so a write per held row per pass cost almost nothing. Phase 85 gives a
+ * connected machine a list every 5,000 ms, which would be 12 reads and 12 writes
+ * a minute for every remote row. So a row whose status MOVED is written every
+ * time, and a row that only needs its `last_seen` refreshed is written at most
+ * once every {@link REMOTE_LAST_SEEN_WRITE_MS}. `./remote-record.ts` is
+ * unchanged, and the throttle is here because this is where the cadence is.
+ *
+ * This also ends finding 20 of docs/research/54-remote-parity.md as a side
+ * effect rather than as a purpose. "Last seen" froze on a connected machine
+ * because only a completed pass wrote it and a completed pass only happened on
+ * an event. A completed pass now happens on a cadence.
  *
  * A manifest row this COMPLETED pass did not hold gets the case table's `absent`
  * answer, which is `restorable`. That is the write that makes Restore offerable
@@ -1957,14 +2211,30 @@ function writeBackCompletedPass(
   machineId: string,
   pass: {
     readonly seen: ReadonlyMap<string, RemoteSessionRow>;
+    readonly previousStatus: ReadonlyMap<string, SessionStatus>;
     readonly absentStatus: SessionStatus;
     readonly snapshotAt: number;
     readonly membershipMoved: boolean;
   }
 ): void {
   if (!remoteManifestInstalled()) return;
+  const written = stateOf(machineId).lastSeenWriteAt;
   for (const [id, row] of pass.seen) {
+    const moved = pass.previousStatus.get(id) !== row.status;
+    const since = pass.snapshotAt - (written.get(id) ?? 0);
+    if (!moved && since < REMOTE_LAST_SEEN_WRITE_MS) continue;
+    written.set(id, pass.snapshotAt);
     noteRemoteRowSeen(id, row.status, pass.snapshotAt);
+  }
+  // A ROW THAT LEFT THE MACHINE LEAVES THIS MAP TOO. Without this line the map
+  // holds one entry for every session that ever ran on the machine during this
+  // run, and only removing the machine cleared it. A completed pass reports the
+  // whole membership, so anything absent from it is gone and its last write
+  // instant is worth nothing.
+  if (written.size > pass.seen.size) {
+    for (const id of [...written.keys()]) {
+      if (!pass.seen.has(id)) written.delete(id);
+    }
   }
   if (!pass.membershipMoved) return;
   for (const record of remoteRecordsForMachine(machineId)) {
@@ -2095,10 +2365,16 @@ function installControlSink(): void {
     connected(machineId: string): void {
       const state = stateOf(machineId);
       state.onControl = true;
-      // THE TIMER GOES THE MOMENT THE CONNECTION IS UP. One machine never
-      // carries both feeds, and `remoteMachineFacts` exposes both flags so a
-      // test can count rather than trust this comment.
+      // THE FALLBACK TIMER GOES THE MOMENT THE CONNECTION IS UP. One machine
+      // never carries the fallback timer and the connection at once, and
+      // `remoteMachineFacts` exposes every flag so a test can count rather than
+      // trust this comment.
       clearTimer(state);
+      // PHASE 85. The status list takes its place. The connection reports
+      // membership and renames and never reports output, so without this a row
+      // on a connected machine would only be re-read when something else
+      // happened on the machine.
+      armStatusTimer(machineId);
       void pollRemoteMachine(machineId).catch(() => undefined);
     },
     sessionsChanged(machineId: string): void {
@@ -2110,6 +2386,8 @@ function installControlSink(): void {
     lost(machineId: string, reason: string): void {
       const state = stateOf(machineId);
       state.onControl = false;
+      // PHASE 85. The status list belongs to the connection and goes with it.
+      clearStatusTimer(state);
       markMachineQuiet(machineId, reason);
       // The timer is the fallback, armed the moment the connection drops, so a
       // machine is never left with no feed at all.
@@ -2123,9 +2401,13 @@ function installControlSink(): void {
  *
  * The feed is one of two shapes and the machine's own version decides which:
  *
- *   control dialect measured, connection live   one list per event, no timer
- *   control dialect measured, connection down   the timer, until it is back
- *   control dialect unmeasured                  the timer, at Phase 70's cadences
+ *   control dialect measured, connection live   one list per event, plus the
+ *                                               status list on the two cadences,
+ *                                               and no fallback timer
+ *   control dialect measured, connection down   the fallback timer, until it is
+ *                                               back
+ *   control dialect unmeasured                  the fallback timer, at Phase
+ *                                               70's cadences
  *
  * The timer is armed here in every case, including the case where a connection
  * is about to open. `openControlPlane` resolves when the child is SPAWNED rather
@@ -2159,25 +2441,109 @@ function clearTimer(state: MachineSessions): void {
   state.timer = null;
 }
 
+function clearStatusTimer(state: MachineSessions): void {
+  if (state.statusTimer !== null) clearInterval(state.statusTimer);
+  state.statusTimer = null;
+}
+
+/** Whichever of the two cadences the window's focus asks for right now. */
+function pollEvery(): number {
+  return pollFocused ? REMOTE_POLL_FOCUSED_MS : REMOTE_POLL_IDLE_MS;
+}
+
+/**
+ * Arm the status list that runs BESIDE a live connection (Phase 85).
+ *
+ * It is per machine, one list per tick, at the two cadences Phase 70 chose for
+ * the fallback timer. No new cadence constant exists, because a person reading
+ * a dot should not have to know which feed drew it.
+ *
+ * IT SLOWS TO {@link REMOTE_POLL_IDLE_MS} RATHER THAN STOPPING when no window
+ * has focus, and that is deliberate. A Tortie window can be on screen without
+ * having focus, and a person reads the dots in that state, so a timer that was
+ * cleared would freeze exactly the reading this list exists to fix. It is also
+ * the pattern the rest of this layer already follows, being 60,000 ms to
+ * 300,000 ms for the connected harvest and 5,000 ms to 30,000 ms here. The cost
+ * is one short lived local process and one round trip per machine every 30
+ * seconds when nobody is looking, and `./ssh.ts` sets `ControlMaster=auto`, so a
+ * list reuses the connection that is already open.
+ *
+ * A tick is SKIPPED while a list for this machine is still outstanding.
+ */
+function armStatusTimer(machineId: string): void {
+  const state = stateOf(machineId);
+  clearStatusTimer(state);
+  // It belongs to the connection. A machine on the fallback timer already has a
+  // list on the same cadence and does not need a second one.
+  if (!state.onControl) return;
+  state.statusTimer = setInterval(() => {
+    const now = stateOf(machineId);
+    if (now.listsInFlight > 0) return;
+    void pollRemoteMachine(machineId).catch(() => undefined);
+  }, pollEvery());
+  state.statusTimer.unref?.();
+}
+
+/** Arm the FALLBACK timer, which is the feed a machine with no connection has. */
 function armTimer(machineId: string): void {
   const state = stateOf(machineId);
   clearTimer(state);
-  // A machine on a live connection is TOLD what changed, so a timer beside it
-  // would be a second feed asking the same question for nothing.
+  // A machine on a live connection already has a list on this cadence, from
+  // {@link armStatusTimer}, so this one beside it would ask the same question
+  // twice.
   if (state.onControl) return;
-  const every = pollFocused ? REMOTE_POLL_FOCUSED_MS : REMOTE_POLL_IDLE_MS;
   state.timer = setInterval(() => {
     void pollRemoteMachine(machineId).catch(() => undefined);
-  }, every);
+  }, pollEvery());
   state.timer.unref?.();
 }
 
-/** Drop to the slower cadence when no window has focus. */
+/**
+ * Move both feeds to the other cadence when the window's focus changes.
+ *
+ * PHASE 85 ADDED TWO THINGS. The status list moves with the fallback timer, so
+ * one sentence is true of every machine whichever feed it is on. And gaining
+ * focus runs one list at once, because without it a person coming back to the
+ * window would read a dot up to 30 seconds old for a moment.
+ *
+ * Neither timer is CLEARED here. The reason is written at {@link armStatusTimer}.
+ */
 export function setRemotePollFocused(focused: boolean): void {
   if (focused === pollFocused) return;
   pollFocused = focused;
-  for (const machineId of machines.keys()) {
-    if (machines.get(machineId)?.timer !== null) armTimer(machineId);
+  for (const [machineId, state] of machines) {
+    if (state.timer !== null) armTimer(machineId);
+    if (state.statusTimer !== null) armStatusTimer(machineId);
+  }
+  if (focused) pollOnFocusGain();
+}
+
+/**
+ * The one list a machine gets when a Tortie window comes back to the front.
+ *
+ * IT IS THROTTLED, AND IT SKIPS A MACHINE THAT ALREADY HAS A LIST OUTSTANDING.
+ * Both rules exist for the same reason. Focus is a person's key press and not a
+ * timer, so a person moving between Tortie and another program can raise this
+ * many times a second. The first build of this asked every machine every time,
+ * which would put more commands on a machine than the 5,000 ms cadence this
+ * phase chose ever does.
+ *
+ * The throttle is {@link REMOTE_POLL_FOCUSED_MS}, which is the same 5,000 ms the
+ * status list runs on while the window is in front. So the fastest a machine can
+ * be asked stays 5,000 ms whatever the person does with their windows, and a
+ * return to the window that arrives inside that window is answered by the list
+ * that already ran.
+ *
+ * A machine with a list outstanding is skipped for the same reason the timer
+ * skips it, which is that one command outstanding is the cap.
+ */
+function pollOnFocusGain(): void {
+  const at = Date.now();
+  if (at - lastFocusPollAt < REMOTE_POLL_FOCUSED_MS) return;
+  lastFocusPollAt = at;
+  for (const [machineId, state] of machines) {
+    if (state.listsInFlight > 0) continue;
+    void pollRemoteMachine(machineId).catch(() => undefined);
   }
 }
 
@@ -2232,6 +2598,7 @@ function hookWake(): void {
 export function stopMachineFeeds(): void {
   for (const state of machines.values()) {
     clearTimer(state);
+    clearStatusTimer(state);
     state.onControl = false;
   }
   closeEveryControlPlane();
@@ -2250,6 +2617,7 @@ export function resetRemoteSessionsForTests(): void {
   machines.clear();
   listeners = [];
   pollFocused = true;
+  lastFocusPollAt = 0;
 }
 
 /**
@@ -2264,10 +2632,19 @@ export function remoteMachineFacts(machineId: string): {
   answering: boolean;
   everAnswered: boolean;
   snapshotAt: number;
-  /** True while a timer is armed for this machine. */
+  /** True while the FALLBACK timer is armed for this machine. */
   timerArmed: boolean;
+  /** True while the status list beside a live connection is armed (Phase 85). */
+  statusTimerArmed: boolean;
   /** True while this machine has a live connection. */
   onControl: boolean;
+  /**
+   * How many rows the `last_seen` write throttle is still tracking (Phase 85).
+   *
+   * It is here so a test can prove the map is pruned when a row leaves the
+   * machine, rather than growing for the length of a run.
+   */
+  lastSeenTracked: number;
   /** What the case table last said about this machine. */
   evidence: string;
 } {
@@ -2281,13 +2658,23 @@ export function remoteMachineFacts(machineId: string): {
     everAnswered: state.everAnswered,
     snapshotAt: state.snapshotAt,
     timerArmed: state.timer !== null,
+    statusTimerArmed: state.statusTimer !== null,
     onControl: state.onControl,
+    lastSeenTracked: state.lastSeenWriteAt.size,
     evidence: state.truth.evidence
   };
 }
 
 /**
- * How many machines carry BOTH feeds at once. It must always be zero.
+ * Every machine carrying the FALLBACK TIMER and the connection at once. It must
+ * always be empty.
+ *
+ * READ THE NAME NARROWLY, because Phase 85 made a wider reading false. A machine
+ * on a live connection now also has the status list armed, which is a second
+ * timer, and that is the point of Phase 85 rather than a defect. What must never
+ * happen is the Phase 70 fallback timer running beside a connection, because
+ * those two are the same read of the same list and one of them would be for
+ * nothing. This function counts that and only that.
  *
  * It is a counter rather than a comment because the exclusivity is the property
  * this rung has to keep, and a test that counts is evidence while a comment is

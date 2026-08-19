@@ -520,10 +520,31 @@ if (missing.code !== 0 && !matched) {
 }
 
 // ===========================================================================
-// Unknown 3. What #{session_activity} reports
+// Unknown 3. Which activity field moves when a detached session prints
 // ===========================================================================
+//
+// PHASE 85 CHANGED THE QUESTION AND THE CALL, and both changes matter.
+//
+// The question used to be about `#{session_activity}` alone. It is now about
+// that field AND `#{window_activity}`, side by side, because Phase 85 moved the
+// product's list onto the second one and nobody has read either of them on a
+// machine that is not this Mac.
+//
+// The call used to be `display-message -p -t`. It is now `list-sessions -F`,
+// which is the call `src/main/machines/remote-sessions.ts` actually makes. The
+// two are not the same call, and Phase 83 answered this question through the
+// first one while the product used the second.
+//
+// MEASURED ON THIS MAC on 2026-08-19, tmux 3.6a, through `list-sessions -F`,
+// one detached session with no client attached: `#{session_activity}` read
+// 1787111236 at all five readings across 7 seconds and two prints, and
+// `#{window_activity}` read 1787111236, 1787111236, 1787111239, 1787111239 and
+// 1787111243. THIS PROBE HAS NOT BEEN RUN ON ANY OTHER MACHINE, because this
+// Mac holds no key mac-pro trusts. That key is Phase 79.1's work.
 
-process.stdout.write(`\n[${TAG}] UNKNOWN 3. what #{session_activity} reports\n`);
+process.stdout.write(
+  `\n[${TAG}] UNKNOWN 3. which activity field moves when a detached session prints\n`
+);
 
 const actSession = name('activity');
 const actCreate = createSession(machine, {
@@ -533,26 +554,40 @@ const actCreate = createSession(machine, {
 });
 show('the session, created', actCreate.quoted, actCreate);
 
+/**
+ * Both fields, on one line, through the call the product makes.
+ *
+ * `#{window_activity}` resolves inside `list-sessions -F` because tmux fills
+ * the window from the session's current window, so one command answers both
+ * questions and there is no second read to race.
+ */
+const ACTIVITY_FORMAT =
+  '#{q:session_name} #{q:session_activity} #{q:window_activity}';
+
 function readActivity(label) {
   const out = farTmux(machine, REAL_SOCKET, [
-    'display-message',
-    '-p',
-    '-t',
-    paneTarget(actSession),
-    '#{session_activity}'
+    'list-sessions',
+    '-F',
+    ACTIVITY_FORMAT
   ]);
-  const value = out.stdout.trim();
+  const row = out.stdout
+    .split('\n')
+    .map((one) => one.trim().split(' '))
+    .find((parts) => parts[0] === actSession);
+  const session = row === undefined ? '' : (row[1] ?? '');
+  const window = row === undefined ? '' : (row[2] ?? '');
   process.stdout.write(
-    `[${TAG}]   ${label}: ${value || '(nothing)'} ` +
+    `[${TAG}]   ${label}: session_activity ${session || '(nothing)'}, ` +
+      `window_activity ${window || '(nothing)'} ` +
       `(this Mac's clock read ${new Date().toISOString()})\n`
   );
-  return Number(value);
+  return { session: Number(session), window: Number(window) };
 }
 
 process.stdout.write(
   `[${TAG}]   $ ssh <the nine options> ${machine.host} ` +
     `${machine.remoteTmuxPath} -L ${REAL_SOCKET} -f ${REMOTE_CONF_PATH} ` +
-    `display-message -p -t '${paneTarget(actSession)}' '#{session_activity}'\n`
+    `list-sessions -F '${ACTIVITY_FORMAT}'\n`
 );
 const read1 = readActivity('1. right after new-session -d');
 await sleep(5000);
@@ -599,28 +634,41 @@ try {
 await sleep(2000);
 const read4 = readActivity('4. after a client attached and detached, with nothing printing');
 
-const movedOnOutput = Number.isFinite(read3) && Number.isFinite(read2) && read3 > read2;
-const movedOnAttach = Number.isFinite(read4) && Number.isFinite(read3) && read4 > read3;
+const moved = (before, after, field) =>
+  Number.isFinite(after[field]) &&
+  Number.isFinite(before[field]) &&
+  after[field] > before[field];
+const windowMovedOnOutput = moved(read2, read3, 'window');
+const sessionMovedOnOutput = moved(read2, read3, 'session');
+const sessionMovedOnAttach = moved(read3, read4, 'session');
 let unknown3;
-if (movedOnOutput) {
+if (windowMovedOnOutput && !sessionMovedOnOutput) {
   unknown3 =
-    'the field moved when the pane printed with nothing attached, so it is evidence ' +
-    'the session printed something. `src/main/machines/remote-sessions.ts:76` is right ' +
-    'about this machine and `src/main/activity/panes.ts:11` is wrong about it.';
-} else if (movedOnAttach) {
+    'window_activity moved when the pane printed with nothing attached and ' +
+    'session_activity did not, which is what this Mac reads and what Phase 85 ' +
+    'shipped. The product reads the right field on this machine.';
+} else if (windowMovedOnOutput && sessionMovedOnOutput) {
   unknown3 =
-    'the field did not move when the pane printed, and it moved when a client attached, ' +
-    'so it tracks clients. `src/main/activity/panes.ts:11` is right about this machine ' +
-    'and `src/main/machines/remote-sessions.ts:76` is wrong about it.';
+    'BOTH fields moved when the pane printed with nothing attached, which this ' +
+    'Mac does not do. The product still reads the right field, and the ' +
+    'difference between the two machines is worth recording.';
+} else if (sessionMovedOnAttach) {
+  unknown3 =
+    'window_activity did NOT move when the pane printed, and session_activity ' +
+    'moved when a client attached, so on this machine neither field reports ' +
+    'output while detached. Phase 85 would be wrong here and the row would ' +
+    'never read running.';
 } else {
   unknown3 =
-    'the field moved on neither the output nor the attach in this run, so neither claim ' +
-    'in the tree is supported by it and the question stays open.';
+    'neither field moved on the output and neither moved on the attach in this ' +
+    'run, so this run supports no claim about either and the question stays open.';
 }
+const pair = (one) => `${String(one.session)}/${String(one.window)}`;
 step(
   7,
   'unknown 3, the answer',
-  `${String(read1)}, ${String(read2)}, ${String(read3)}, ${String(read4)}. ` +
+  `session_activity/window_activity at the four readings: ${pair(read1)}, ` +
+    `${pair(read2)}, ${pair(read3)}, ${pair(read4)}. ` +
     `The session read attached=${attachedFlag || '(nothing)'} while the client was on. ` +
     unknown3
 );
@@ -875,7 +923,9 @@ process.stdout.write(`\n[${TAG}] the five unknowns\n`);
 process.stdout.write('| unknown | answer |\n| --- | --- |\n');
 process.stdout.write(`| 1, the pane's PATH | ${String(foundCount)} of ${String(AGENT_BINARIES.length)} agent names resolve |\n`);
 process.stdout.write(`| 2, a directory that is not there | ${unknown2.split('.')[0]} |\n`);
-process.stdout.write(`| 3, #{session_activity} | ${unknown3.split('.')[0]} |\n`);
+process.stdout.write(
+  `| 3, which activity field moves | ${unknown3.split('.')[0]} |\n`
+);
 process.stdout.write(`| 4, the socket directory | ${unknown4.split('.')[0]} |\n`);
 process.stdout.write(`| 5, the channel ceiling | ${String(ceiling)} held at once |\n`);
 

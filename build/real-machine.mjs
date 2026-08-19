@@ -133,9 +133,13 @@ export const REMOTE_CONF_PATH = '/dev/null';
 /**
  * The list format the product reads on another machine.
  * Copied from `REMOTE_LIST_FORMAT` in `src/main/machines/remote-sessions.ts`.
+ *
+ * PHASE 85 moved the third field from `#{session_activity}` to
+ * `#{window_activity}`, because the first one does not move when a detached
+ * session prints. The measurement is in that module's header.
  */
 export const REMOTE_LIST_FORMAT =
-  '#{q:session_id} #{q:session_created} #{q:session_activity} ' +
+  '#{q:session_id} #{q:session_created} #{q:window_activity} ' +
   '#{q:session_attached} #{q:@gmux-id} #{q:@gmux-agent} ' +
   '#{q:session_name} #{q:@gmux-project} #{q:session_path} #{q:@gmux-name}';
 

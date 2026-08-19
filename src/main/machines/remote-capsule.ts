@@ -218,6 +218,13 @@ export interface CaptureMemory {
  * changed produces no new generation and the ring keeps three real ones. That
  * is a stronger rule than the one it replaces, because it is true whatever the
  * far side does to make its screen change.
+ *
+ * PHASE 85 MOVED THE FIELD THIS MEMORY IS ABOUT, and the rule above still
+ * stands. `./remote-sessions.ts` now reads `#{window_activity}` in its list
+ * rather than `#{session_activity}`, because that is the field that moves when
+ * a detached session prints. Nothing here reads either one. The byte comparison
+ * stays exactly as it is, because it is true whatever the far side does and a
+ * stamp that works is still a stamp this module would have to trust.
  */
 export function chooseCaptureTargets(
   candidates: readonly CaptureCandidate[],

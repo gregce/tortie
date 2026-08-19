@@ -324,9 +324,14 @@ step(
 // One control child, local or remote, with a line reader in front of it
 // ---------------------------------------------------------------------------
 
-/** The list format the app uses, copied so the probe reads the same bytes. */
+/**
+ * The list format the app uses, copied so the probe reads the same bytes.
+ *
+ * PHASE 85 moved the third field to `#{window_activity}`, and this copy moved
+ * with it so the probe still sends what the product sends.
+ */
 const REMOTE_LIST_FORMAT =
-  '#{q:session_id} #{q:session_created} #{q:session_activity} ' +
+  '#{q:session_id} #{q:session_created} #{q:window_activity} ' +
   '#{q:session_attached} #{q:@gmux-id} #{q:@gmux-agent} ' +
   '#{q:session_name} #{q:@gmux-project} #{q:session_path} #{q:@gmux-name}';
 

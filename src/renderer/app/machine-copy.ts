@@ -66,6 +66,48 @@ export function badgeSilentTitle(label: string): string {
 }
 
 // ---------------------------------------------------------------------------
+// The status note on a row that runs on another machine (Phase 85)
+// ---------------------------------------------------------------------------
+
+/**
+ * What the status dot on a remote row is worth, said where the dot is drawn.
+ *
+ * WHY THIS SENTENCE IS HERE AND NOT ON THE CREATE SHEET. Phase 87 deleted the
+ * paragraph that said these same two numbers under the machine field on the
+ * create sheet, and the reason it gave is still true. A person on that sheet
+ * has not created anything, so a cadence describes nothing they can see yet.
+ * The deleted name is recorded in ./__tests__/create-copy.test.ts, which is
+ * also what stops it coming back, so it is not written again here.
+ *
+ * What was wrong with that sentence was never its numbers. It was its scope,
+ * because those two cadences applied only to a machine Tortie was not connected
+ * to. Phase 85 makes both numbers true for every machine, whatever feed it is
+ * on, so the sentence is true again and it is drawn on the row whose dot it
+ * explains.
+ *
+ * WHAT IT CLAIMS. Two things, and no more. The first is how often Tortie asks,
+ * which is what tells a person how old a dot can be. The second is the one
+ * thing the dot cannot say for a session on another machine, which is that the
+ * session is waiting for them. Tortie works that out from files this Mac holds,
+ * and a session on another machine writes those files over there.
+ *
+ * WHERE IT IS DRAWN. `sessionTooltip` in ./session-actions.tsx, on the second
+ * line, which is the line a session on this Mac uses for its resume sentence.
+ * That reaches the dock row, the tab and the rail hover card with no further
+ * edit. It is drawn only for a machine that is answering, because a promise to
+ * ask every 5 seconds beside a machine that answers nothing is the class of
+ * claim Phase 67 existed to end.
+ */
+export function remoteStatusNote(label: string): string {
+  return (
+    `Tortie asks ${label} what its sessions are doing every 5 seconds while a ` +
+    `Tortie window is in front, and every 30 seconds when none is. A session ` +
+    `on another machine never says it needs input, because Tortie works that ` +
+    `out from files on this Mac.`
+  );
+}
+
+// ---------------------------------------------------------------------------
 // The condition bar for a machine Tortie holds no rows for (Phase 71)
 // ---------------------------------------------------------------------------
 
