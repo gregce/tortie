@@ -5984,6 +5984,114 @@ all three after a successful run.
 needs `SSH_AUTH_SOCK` exported from the Phase 69 carriage file because the npm script does not
 export it. That gate runnability defect is itself a recorded nit.
 
+## Phase 92 — the home screen opens a folder on another machine (operator requested 2026-08-19) QUEUED, blocked on Phase 90.3
+
+**Subject:** `feat(home): open a folder on another machine from the home screen`
+**First body line:** `Phase 92: the home screen opens a folder on another machine`
+**Semver:** minor.
+**Tier 2**, with a screenshot read at three window heights and one live drive against the operator's
+Mac Pro.
+
+**His words.** "The main screen in Tortie should support opening remote machine folders when a
+machine has been added, in a very NICE way that matches with the current design aesthetic."
+
+### The dependency, stated first because it decides when this runs
+
+**Opening a remote folder means opening a remote PROJECT, and a remote project does not exist yet.**
+Research 56 ruled model A, where a project carries a machine and a tab is either local or remote,
+and research 55 priced its carrier as an additive `remote_projects` table with
+`UNIQUE(machine_id, path)`. Nothing has built it. Phase 90.1 fixes the identity defect and Phase 90.2
+adds the create-time lookup and clone, and NEITHER makes a remote folder openable as a project.
+
+**So this phase is blocked on Phase 90.3, the remote project itself**, which is queued below it. A
+home screen row that opens something the app cannot hold is worse than no row.
+
+### What the screen is today, and it is not an ordinary screen
+
+`src/renderer/app/HomeScreen.tsx` is 382 lines with a design specification behind every choice, and
+its own header records what must NOT come back. Read it and `home-screen.css` before touching
+either. The parts that constrain this phase:
+
+- One 460 px column, centred in the window, contents left aligned, and the header records why the
+  left alignment is a deliberate break from the centred family in DESIGN-SPEC S9.
+- Five parts in a fixed order: the lockup, one promise sentence, **three action rows being Open then
+  New then Clone**, up to five recent projects, and one hint about dropping a folder.
+- **The mark's height depends on the window and never on how many recents exist.** One `min-height`
+  in `home-screen.css` carries that, and its own comment says centring the column plainly and
+  anchoring it to the top each satisfy one requirement and break the other.
+- **Section 5 forbids, by name:** a status dot on a recent row, a needs-input count badge, a pulse, a
+  last-opened time, a session count and a branch name. The Zen forbids a number that rises on its own
+  where a person cannot act on it.
+- **There is no motion on this screen at all.**
+
+### What ships
+
+**One action row, and one only, however many machines exist.** It appears only when at least one
+machine is confirmed, and it sits after Open and before New, because it is a kind of Open.
+
+- With exactly one machine, the row names it, e.g. `Open on Greg's Mac Pro…`.
+- With more than one, the row reads `Open on another machine…` and the machine is picked in the
+  sheet that follows.
+
+**A fourth row is a real cost on a screen whose height is load bearing**, so the phase measures the
+column at three window heights and proves the lockup's top edge did not move. **One row per machine
+is refused**, because the screen would grow with a list the person cannot act on, which is the same
+rule section 5 already applies to recents.
+
+**The picker is the one Phase 90.2 builds.** It is drawn by Tortie because the macOS panel cannot
+browse another computer, and this phase reuses it rather than writing a second one.
+
+### Recents, and this is the design question the phase must answer rather than assume
+
+A remote project that has been opened wants to be reopenable. Recents today are local absolute paths.
+Under model A a project is `(machineId, path)`, so a remote recent needs its machine.
+
+Three things follow and each needs a decision written down:
+
+1. **The recents store gains a machine**, which changes what `useRecents` holds and what the native
+   File then Open Recent menu lists. A remote recent in a native menu that a person clicks while the
+   machine is asleep must fail with a sentence rather than a hang.
+2. **A remote recent row must be distinguishable from a local one.** A machine name is IDENTITY and
+   not a status, so it does not fall under the section 5 refusals, which are about numbers that rise
+   on their own. Draw the machine name, quietly, in the existing style. **Do not add a dot, a colour
+   or a badge that could be read as liveness.**
+3. **A remote recent whose machine has been forgotten** is a row pointing at nothing. Decide whether
+   it is hidden, drawn refused, or removed, and say which. The local `missing` handling in
+   `useHomeRecents` is the shape to follow.
+
+### What must not regress
+
+The five parts stay in their order. The promise sentence stays exactly one sentence. Nothing animates.
+No status, count, time or branch appears on any row. Every colour comes from tokens.
+
+### The evidence
+
+Screenshots at three window heights with the lockup's top edge measured in pixels in each, proving it
+did not move when the row was added. One live drive against the operator's Mac Pro opening a real
+folder as a project. One drive of the forgotten-machine case. And the native Open Recent menu shown
+listing a remote entry.
+
+## Phase 90.3 — a remote folder is a project (Research 56 model A) QUEUED
+
+The large half of Phase 90, and the thing Phase 92 needs. Research 55 sections on the workspace
+surfaces and Research 56 rule its shape, and both are already written, so this phase builds rather
+than decides.
+
+**What it carries.** The additive `remote_projects` table with `UNIQUE(machine_id, path)`, so
+`MANIFEST_MIN_COMPATIBLE_VERSION` stays at 13. A project tab that can be remote. The Explorer reading
+that machine's folder through the frozen listing script Phase 84 shipped, asking for a SUBTREE rather
+than a folder, because research 55 measured 409.7 ms for nine folders in series against 42.3 ms for
+one subtree call on this operator's tailnet. The five workspace surfaces that cross, and the eight
+that refuse, exactly as research 55 counted them. And the "Files live on \<machine\>" label, which
+research 55 ruled permanent and part of this design rather than a stopgap.
+
+**It must not** re-open the no-install decision, make the sidebars follow the focused session, which
+is model C and refused, or let a local write look like a remote one, which is finding 15 of research
+54 and the defect the whole round exists to remove.
+
+**Tier 3**, because it can show a person one machine's files under another machine's name, and
+because search and git reads cross a network. It runs after Phase 90.2.
+
 ## THE OVERNIGHT ORDER, set 2026-08-19. Run it in this order and do not reshuffle without asking
 
 **The goal in one sentence: in the morning a person can open a local project, press Cmd+T, pick the
@@ -6000,6 +6108,8 @@ standing cap and these waves stay under it.
 | 2 | **85** the status dot tells the truth · **91** capture is refused honestly | `machines/**` and activity · specstory and the create paths | 91 needs Phase 87 to have settled the create sheet copy first |
 | 3 | **90.2** the counterpart lookup and the clone | `machines/**` and the create sheet | Needs wave 2 to release `machines/**`, and needs 90.1's identity to be correct first |
 | 4 | **89** a conversation comes back on a remote machine | `machines/**`, `exec-plane.ts`, restore | Needs the whole create path settled, and it is the only phase that changes a refusal |
+| 5 | **90.3** a remote folder is a project | `remote_projects`, the Explorer, the workspace surfaces | The large half. Research 55 and 56 already ruled its shape, so it builds rather than decides |
+| 6 | **92** the home screen opens a folder on another machine | `HomeScreen.tsx`, recents | Blocked on 90.3, because a row that opens something the app cannot hold is worse than no row |
 
 **Phase 88 is CLOSED and is not in this order.** Phase 82 is not queued.
 
