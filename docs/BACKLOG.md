@@ -6241,6 +6241,49 @@ written above the capture refusal at `core.ts:2569` and the lesson Phase 84 lear
 leaf Restart defect. The renderer's line 548 may stay as it is. If a builder wants to change it too,
 that is allowed, but main must be correct on its own with the renderer untouched.
 
+### ITEM 2, ADDED AFTER THE FIRST DIAGNOSIS. The no-modal create ignores the tab's machine
+
+**This is a second defect, it is the same root as item 1, and it explains the three sessions the
+operator could not clear this morning.** It was found by reading his own manifest at 16:45 on
+2026-08-19 rather than by reasoning.
+
+`src/renderer/state/sessions-slice.ts:632` is the create path used by the agent board and by the
+per-agent hotkeys. It sends **no `machineId` at all**. In a tab whose files are on a machine, that
+create starts a session ON THIS MAC, at the tab's own path, which is a path on the other computer.
+
+The Cmd+T sheet is guarded. `tabMachineUnusable` in `CreateSessionModal.tsx` refuses a create in a
+remote tab when the machine is not usable, and the sheet sends the tab's machine when it is. The
+no-modal path has neither check. This is exactly the failure mode the comment above the capture
+refusal at `core.ts:2569` describes, being a guard living in some create surfaces and missing from
+another.
+
+**The evidence, being his own rows in time order on 2026-08-19.**
+
+| Time | Session | Machine | project_path | What it is |
+| --- | --- | --- | --- | --- |
+| 10:26:25 | claude-1 | greg-s-mac-pro | /Users/gdc/dev/test-tortie | correct, the folder he named |
+| 10:26:52 | claude-2 | greg-s-mac-pro | /Users/gdc | ITEM 1, landed in the far home folder |
+| 10:26:57 | claude-2 | greg-s-mac-pro | /Users/gdc | ITEM 1 again |
+| 10:27:48 | shell-1 | greg-s-mac-pro | /Users/gdc | ITEM 1 again |
+| 10:28:40 | claude-3 | **local** | /Users/gdc | ITEM 2, a LOCAL session in a remote tab |
+| 10:28:42 | claude-3 | **local** | /Users/gdc | ITEM 2 |
+| 10:28:45 | claude-3 | **local** | /Users/gdc | ITEM 2 |
+
+`/Users/gdc` is not in his `projects` table, so those three had no tab. The display name dedupe in
+`sessions-slice.ts` runs over `projectSessions()`, which was empty for a path with no project row, so
+all three were named `claude-3` with no number added. That is why he saw three rows with the same
+name, no folder, and an Enter that did nothing. **PHASE 93 ITEM 4 IS ANSWERED BY THIS TABLE and does
+not need its own diagnosis.**
+
+The same sequence repeated at 16:18 and 16:19 when he tested it deliberately, and
+`remote_projects` currently holds the stray row it created, being `/Users/gdc` named `gdc` on
+greg-s-mac-pro, added at 16:19:15.
+
+**The fix for item 2.** The no-modal create must carry the tab's machine, and must refuse rather than
+fall back to this Mac when that machine cannot hold a session. Decide in the spec whether the right
+place is `sessions-slice.ts:632` alone or a shared composer that both surfaces call, and say why. A
+per-agent hotkey pressed in a remote tab must never start a process on this Mac.
+
 ### Two questions to answer rather than assume
 
 1. **Does the rehome rule need changing as well?** After the fix the machine reports the right folder,
