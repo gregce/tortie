@@ -6181,6 +6181,247 @@ Move to Trash, Open With and Reveal in Finder rests on unit tests. Phase 89's zs
 Mac Pro is still owed and is proven on the loopback scratch machine only. `needs input` never lights
 for a remote session and SpecStory capture never runs on one, both closed by decision.
 
+## Phase 96 — the four defects on the remote surfaces (research 57 row, queued 2026-08-19) QUEUED
+
+**Subject:** `fix(machines): four defects the parity audit found on the remote surfaces`
+**First body line:** `Phase 96: the four defects on the remote surfaces`
+**Semver:** minor for a new capability, patch for a correctness fix. The committer decides and says which in the body.
+**Tier 2.** Size Small.
+**Charter:** this entry plus `docs/research/57-remote-parity.md`. That document measured every number here and its rulings bind this phase.
+
+**Where the detail is.** Research 57 section 9, defects 1, 2, 3 and 4.
+
+**Depends on.** Nothing.
+
+### The mechanism
+
+1. `src/renderer/editor/MonacoHost.tsx`, `readOnly` is `tab.deleted || tab.truncated || tab.commit !== null` and omits `tab.remote`, while `save` in `src/renderer/editor/tab-io.ts` refuses every remote tab. A person types freely into a tab whose every save is refused. THIS IS THE ONE THE OPERATOR WOULD HIT.
+2. `src/renderer/terminal/terminal-menu.ts`, `canCapture` is `live && captureBridge() !== null` with no remote check, and a remote session has a live terminal because of the ssh attach, so Capture and Clear are drawn on a session that is not on this Mac. `resolvePaneTarget` in `src/main/tmux/sessions.ts` searches THIS Mac's server by name, so the ordinary outcome is a thrown error and the bad outcome needs a local session with the same name, which is possible because names are deduped per server.
+3. `src/main/machines/remote-scripts.ts`, `IMAGE_PUT` uses `$$` in its temp name and nothing removes `~/.tortie/images/*.part.*`, so every interrupted upload leaves one file on his machine forever. A deterministic temp name fixes it.
+4. `src/main/machines/remote-run.ts`, `runRemoteScript` compares `command.length`, which is UTF-16 code units, against a limit named in bytes. Not reachable at 90,000 and still wrong in the one guard that bounds every write.
+
+### What is NOT in this phase
+
+Defects 5, 6 and 7 from that section. 5 is `--absolute-git-dir` in `src/main/git/service.ts` and it is cosmetic locally; the later git phases must use `--git-common-dir` and will carry it. 6 and 7 are prose in `build/conformance-machines.mjs` and a doc comment on `runRemoteWrite`, and Phase 103 rewrites rule 6 anyway.
+
+### The evidence
+
+Drive the real app. For defect 1, open a file on a remote tab and prove the editor refuses the keystroke rather than accepting it and refusing the save. For defect 2, open the session menu on a remote session and photograph what is drawn. For defect 3, interrupt an image upload and prove no `.part.` file survives on the machine. For defect 4, a unit test with a multi-byte string that proves the guard counts bytes. Count the operator's sessions with `tmux -L gmux list-sessions` before and after and report both numbers. `src/main/tmux/resolve.ts` honours `GMUX_TMUX_SOCKET` ONLY when `GMUX_SHOT` or `GMUX_SMOKE` is set, so a launch without one of those silently uses his real server.
+
+## Phase 97 — untracked files in the remote Changes list (research 57 row, queued 2026-08-19) QUEUED
+
+**Subject:** `feat(scm): the remote Changes list shows files an agent just created`
+**First body line:** `Phase 97: untracked files in the remote Changes list`
+**Semver:** minor for a new capability, patch for a correctness fix. The committer decides and says which in the body.
+**Tier 2.** Size Small.
+**Charter:** this entry plus `docs/research/57-remote-parity.md`. That document measured every number here and its rulings bind this phase.
+
+**Where the detail is.** Research 57 section 5, and `src/main/machines/remote-review.ts`, which drops untracked and ignored entries.
+
+**Depends on.** Nothing.
+
+### The mechanism
+
+An agent working on that machine creates files. Today they are absent from the Changes list, and Phase 90.3 added a sentence saying so rather than dropping them in silence. That sentence is honest and it is not the answer. The read must carry untracked entries and the list must draw each one as an all-green diff, which is what a local untracked file already gets.
+
+### What is NOT in this phase
+
+Ignored entries stay out. Staging is Phase 103.
+
+### The evidence
+
+Create a file on the loopback scratch machine, prove it appears in the list, prove it opens as an all-green diff, and prove an ignored file still does not appear. Delete the sentence that said untracked files are missing. Count the operator's sessions with `tmux -L gmux list-sessions` before and after and report both numbers. `src/main/tmux/resolve.ts` honours `GMUX_TMUX_SOCKET` ONLY when `GMUX_SHOT` or `GMUX_SMOKE` is set, so a launch without one of those silently uses his real server.
+
+## Phase 98 — search on a machine (research 57 row, queued 2026-08-19) QUEUED
+
+**Subject:** `feat(search): search a project on another machine`
+**First body line:** `Phase 98: search on a machine`
+**Semver:** minor for a new capability, patch for a correctness fix. The committer decides and says which in the body.
+**Tier 2.** Size Medium.
+**Charter:** this entry plus `docs/research/57-remote-parity.md`. That document measured every number here and its rulings bind this phase.
+
+**Where the detail is.** Research 57 section 2, which measured this and REFUSED shipping or sending a ripgrep.
+
+**Depends on.** Nothing. It owns the `ls-files` gate edit.
+
+### The mechanism
+
+`git ls-files -z` piped into the machine's own `grep` returns the same 14 matching lines ripgrep returns on the same corpus. Measured 0.174 to 0.176 s on a 33,023,414 byte tracked corpus against ripgrep's 0.016 to 0.058 s. One new read script, one new allowed git verb, one gate edit, one IPC channel, and the Search view's refusal copy deleted. The panel, the caps and the result shape are the ones the local search already has.
+
+### What is NOT in this phase
+
+**Shipping a ripgrep in the bundle and sending it to the machine is REFUSED by research 57 and must not be built.** It buys 0.15 s and costs a third write door, a 47 chunk transfer protocol, a per architecture binary matrix, a sixth confirmed field every existing machine would have to agree to again, and a Tortie-placed executable on his computer.
+
+### The evidence
+
+Search a real project on the loopback scratch machine and prove the hits match a local search of the same corpus line for line. Report the seconds. Prove a pattern that matches nothing answers rather than hangs, and prove the caps hold. Count the operator's sessions with `tmux -L gmux list-sessions` before and after and report both numbers. `src/main/tmux/resolve.ts` honours `GMUX_TMUX_SOCKET` ONLY when `GMUX_SHOT` or `GMUX_SMOKE` is set, so a launch without one of those silently uses his real server.
+
+## Phase 99 — Quick Open on a remote tab (research 57 row, queued 2026-08-19) QUEUED
+
+**Subject:** `feat(quickopen): reach any file on another machine by typing its name`
+**First body line:** `Phase 99: Quick Open on a remote tab`
+**Semver:** minor for a new capability, patch for a correctness fix. The committer decides and says which in the body.
+**Tier 2.** Size Medium.
+**Charter:** this entry plus `docs/research/57-remote-parity.md`. That document measured every number here and its rulings bind this phase.
+
+**Where the detail is.** Research 57 section 6, which ruled Quick Open IN and Symbols out for now.
+
+**Depends on.** Phase 98, for the git verb.
+
+### The mechanism
+
+One new read script for the name list, one optional worker protocol field, two renderer key changes carrying the machine id, and one copy deletion. It needs the same one line gate edit Phase 98 makes.
+
+### What is NOT in this phase
+
+**Symbols is ruled NOT NOW and must not be built here.** There is no parser on the machine and the only honest mechanism moves 4,014,080 compressed bytes on a keystroke into a tab that cannot be saved. Revisit after Phase 101.
+
+### The evidence
+
+Open the palette on a remote tab, prove a file is reachable by name, and prove the recents key carries the machine id so a local and a remote file with the same path cannot collide. THE RECENTS KEY IS THE TRAP AND THE BRIEF NAMES IT. Count the operator's sessions with `tmux -L gmux list-sessions` before and after and report both numbers. `src/main/tmux/resolve.ts` honours `GMUX_TMUX_SOCKET` ONLY when `GMUX_SHOT` or `GMUX_SMOKE` is set, so a launch without one of those silently uses his real server.
+
+## Phase 100 — read the last lines of a session on another machine (research 57 row, queued 2026-08-19) QUEUED
+
+**Subject:** `feat(sessions): read back the last lines of a session on another machine`
+**First body line:** `Phase 100: read the last lines of a session on another machine`
+**Semver:** minor for a new capability, patch for a correctness fix. The committer decides and says which in the body.
+**Tier 2.** Size Small.
+**Charter:** this entry plus `docs/research/57-remote-parity.md`. That document measured every number here and its rulings bind this phase.
+
+**Where the detail is.** Research 57 section 3, which ruled AGAINST a real remote scrollbar.
+
+**Depends on.** Phase 95, whose copy must drop the sentence saying scrolling back is not available.
+
+### The mechanism
+
+`capture-pane` with a start line is already a read row on the verb ledger and `remoteCaptureArgs` in `src/main/machines/remote-capsule.ts` already composes it. No new script and no ledger change. One new IPC channel and one panel, reached from the session menu.
+
+### What is NOT in this phase
+
+**A real remote scrollbar is REFUSED.** It needs `copy-mode` on the ledger and an open family of `send-keys -X` commands through the door Phase 89 deliberately narrowed, or it needs the control connection, which is the one carriage with no gate. Pulling 25,000 lines was measured at 0.51 s, which is fine for a menu item and 32 times too slow for a wheel notch against the 16 ms budget in `WHEEL_COALESCE_MS`.
+
+### The evidence
+
+Pull the last lines of a real session on the loopback scratch machine and prove the text matches what the pane holds. Report the seconds for one screen and for 25,000 lines. Prove Phase 95's sentence is gone. Count the operator's sessions with `tmux -L gmux list-sessions` before and after and report both numbers. `src/main/tmux/resolve.ts` honours `GMUX_TMUX_SOCKET` ONLY when `GMUX_SHOT` or `GMUX_SMOKE` is set, so a launch without one of those silently uses his real server.
+
+## Phase 105 — runs on a remote tab (research 57 row, queued 2026-08-19) QUEUED
+
+**Subject:** `feat(actions): the runs list for the branch checked out on another machine`
+**First body line:** `Phase 105: runs on a remote tab`
+**Semver:** minor for a new capability, patch for a correctness fix. The committer decides and says which in the body.
+**Tier 2.** Size Small.
+**Charter:** this entry plus `docs/research/57-remote-parity.md`. That document measured every number here and its rulings bind this phase.
+
+**Where the detail is.** Research 57 section 5.
+
+**Depends on.** Nothing, and after Phase 98 for the script shape.
+
+### The mechanism
+
+One new read script with 4 spawns to learn the branch and the repository over there. `gh` runs on THIS Mac and never leaves it, and no credential crosses. `src/main/actions/*` is unchanged.
+
+### What is NOT in this phase
+
+Nothing about writing to a machine.
+
+### The evidence
+
+Show the runs for a branch checked out on the loopback scratch machine and prove no credential and no `gh` invocation reached that machine. Count the operator's sessions with `tmux -L gmux list-sessions` before and after and report both numbers. `src/main/tmux/resolve.ts` honours `GMUX_TMUX_SOCKET` ONLY when `GMUX_SHOT` or `GMUX_SMOKE` is set, so a launch without one of those silently uses his real server.
+
+## Phase 106 — branches on a remote tab (research 57 row, queued 2026-08-19) QUEUED
+
+**Subject:** `feat(scm): which branch is checked out on another machine`
+**First body line:** `Phase 106: branches on a remote tab`
+**Semver:** minor for a new capability, patch for a correctness fix. The committer decides and says which in the body.
+**Tier 2.** Size Medium.
+**Charter:** this entry plus `docs/research/57-remote-parity.md`. That document measured every number here and its rulings bind this phase.
+
+**Where the detail is.** Research 57 section 5.
+
+**Depends on.** Phase 105.
+
+### The mechanism
+
+One new read script, `for-each-ref` added to the allowed verbs, and one gate edit. It shows the checked out branch over there, its upstream, and how far ahead or behind it is.
+
+### What is NOT in this phase
+
+Switching branches on a machine is not in this phase.
+
+### The evidence
+
+Read the branch, the upstream and the ahead and behind counts from the loopback scratch machine and prove each against the machine's own git. Count the operator's sessions with `tmux -L gmux list-sessions` before and after and report both numbers. `src/main/tmux/resolve.ts` honours `GMUX_TMUX_SOCKET` ONLY when `GMUX_SHOT` or `GMUX_SMOKE` is set, so a launch without one of those silently uses his real server.
+
+## Phase 107 — history on a remote tab (research 57 row, queued 2026-08-19) QUEUED
+
+**Subject:** `feat(scm): read the commit graph of a repository on another machine`
+**First body line:** `Phase 107: history on a remote tab`
+**Semver:** minor for a new capability, patch for a correctness fix. The committer decides and says which in the body.
+**Tier 2.** Size Large.
+**Charter:** this entry plus `docs/research/57-remote-parity.md`. That document measured every number here and its rulings bind this phase.
+
+**Where the detail is.** Research 57 section 5.
+
+**Depends on.** Phase 106.
+
+### The mechanism
+
+One new read script naming 4 new verbs, a paging story, and `sanitizeRefNames` moving to the far side. The answer grows at 270 base64 bytes per commit, so paging is the whole design question.
+
+### What is NOT in this phase
+
+Nothing that writes. If paging lets a person ask for 20,000 commits the tier rises to 3 and the brief says so.
+
+### The evidence
+
+Walk a real repository on the loopback scratch machine, open a commit's file diff, and report the bytes and the seconds at 100, 1,000 and 10,000 commits. Use `--git-common-dir` rather than `--absolute-git-dir`, which is defect 5 of section 9. Count the operator's sessions with `tmux -L gmux list-sessions` before and after and report both numbers. `src/main/tmux/resolve.ts` honours `GMUX_TMUX_SOCKET` ONLY when `GMUX_SHOT` or `GMUX_SMOKE` is set, so a launch without one of those silently uses his real server.
+
+## Phase 108 — Context on a machine (research 57 row, queued 2026-08-19) QUEUED
+
+**Subject:** `feat(context): what an agent on another machine will actually read`
+**First body line:** `Phase 108: Context on a machine`
+**Semver:** minor for a new capability, patch for a correctness fix. The committer decides and says which in the body.
+**Tier 2.** Size Large.
+**Charter:** this entry plus `docs/research/57-remote-parity.md`. That document measured every number here and its rulings bind this phase.
+
+**Where the detail is.** Research 57 section 7. THE OPERATOR CORRECTED AN EARLIER WRONG ANSWER TO PUT THIS ON THE LIST and he was right.
+
+**Depends on.** Nothing. Its position is by value rather than by dependency and it may be pulled forward at any time.
+
+### The mechanism
+
+`ContextFs` in `src/main/context/port.ts` already declares six operations and `src/main/context/agent-context.ts` has exactly one value import, so the reader is already a pure function over an injectable filesystem port. This is a PORT SWAP rather than a rebuild. One new read script, 3 more `printf` lines in `machine-facts`, a miss-recording `ContextFs`, and a per call cap on the read list.
+
+### What is NOT in this phase
+
+**Install, enable and pin are REFUSED on a remote tab, permanently.** Eleven of the twelve `context:*` channels run a binary under `process.resourcesPath`, reach the network, or write Tortie's own pin store. Remote Context is a READ and nothing else.
+
+### The evidence
+
+`npm run conformance:context` IS A HARD GATE AND NO ROW OF THE PRECEDENCE MATRIX MAY MOVE. Prove that first. Then read a real Context on the loopback scratch machine and prove the per agent ordering matches what the same agent would read there. Report the seconds. Prove an absent path answers rather than throws. Count the operator's sessions with `tmux -L gmux list-sessions` before and after and report both numbers. `src/main/tmux/resolve.ts` honours `GMUX_TMUX_SOCKET` ONLY when `GMUX_SHOT` or `GMUX_SMOKE` is set, so a launch without one of those silently uses his real server.
+
+## Phases 101 to 104 — the four write phases, HELD pending the operator's word on decision 1
+
+Research 57 section 11 names one decision that is his and not an agent's, and **nothing in these four
+may start before he answers it.** They are, in order: Phase 101 save a file and create an empty file
+on a machine; Phase 102 new folder and rename or move on a machine; Phase 103 stage and unstage on a
+remote tab; Phase 104 commit on a remote tab.
+
+**The decision.** May Tortie write a file on his machine at all, and what does he confirm when it
+does. Today the product can state, and check by reading script text, that no command it sends can
+replace a file somebody already had. After `file-put` that sentence weakens to a checksum promise and
+`ALLOWED_WRITERS` goes from two to eight. Three shapes are possible and the document recommends the
+first: a machine carries a new confirmed field the way `remoteTmuxPath` does, which means every
+existing machine's confirmation moves; or a write is confirmed per project folder, which is a new
+confirmation surface; or writes ride the existing machine confirmation with no new field, which is
+the smallest change and says the least.
+
+**Also ruled REFUSED and never to be built**, from section 12: duplicate on a machine is not now,
+trash on a machine is never as a delete because `shell.trashItem` has no far side equal, reveal on a
+machine is never because it opens Finder on this Mac over a file that is not here, and discard on a
+remote tab is never because it destroys uncommitted work with no undo over there and no read can
+answer afterwards whether it ran.
+
 ## Research 57 — closing the remote gap, being every capability a session on another machine does not have (operator requested 2026-08-19) ✅ DELIVERED 2026-08-19 (this commit), docs/research/57-remote-parity.md, checked against the tree of `08c0abe`
 
 **Subject:** `docs(research): how to bring a session on another machine to parity`
