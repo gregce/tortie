@@ -1,0 +1,10 @@
+- group [ref=e3]:
+  - generic "Advanced" [ref=e4] [cursor=pointer]
+  - generic [ref=e5]:
+    - generic [ref=e6]: Port
+    - textbox "Port" [ref=e7]
+  - generic [ref=e8]: Leave this empty for the usual port.
+  - generic [ref=e9]:
+    - generic [ref=e10]: Program path on that machine
+    - textbox "Program path on that machine" [ref=e11]
+  - generic [ref=e12]: Tortie runs one program on the machine you add, and that program is what keeps your work alive after you close the lid. Leave this empty and the connection test will find it.

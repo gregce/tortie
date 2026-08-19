@@ -6181,6 +6181,117 @@ Move to Trash, Open With and Reveal in Finder rests on unit tests. Phase 89's zs
 Mac Pro is still owed and is proven on the loopback scratch machine only. `needs input` never lights
 for a remote session and SpecStory capture never runs on one, both closed by decision.
 
+## Phase 93 — a session you cannot reach can still be cleared (operator reported 2026-08-19, with two screenshots) QUEUED
+
+**Subject:** `fix(attention): a session whose project is closed can still be reached and cleared`
+**First body line:** `Phase 93: a session you cannot reach can still be cleared`
+**Semver:** minor, because item 3 changes what the manifest guarantees.
+**Tier 3.** It touches the durable record and it can leave a person unable to reach a running agent.
+
+**The operator's report.** He ran the 0.47.0 development build, opened and closed several sessions on
+his Mac Pro by hand, and was left with three rows in the Cmd-J attention overlay all reading
+`claude-3`, all saying they need his input, and pressing Enter on each did nothing. His words: "I
+still see notifications for them needing input that doesn't seem to have been cleaned up when I
+exited them, and hitting enter on them does not have them return or take me to them." He then asked
+for two things: the notifications should show the machine and the path they relate to, and the data
+should be stored so that a remote session would still be clearable if he detaches from that project
+on a remote machine.
+
+### The root cause, measured in his own manifest on 2026-08-19
+
+**It is ONE cause with three symptoms, and the cause is that a session whose project is not open is
+handled everywhere by falling back to nothing.**
+
+His three rows are real sessions, alive on his own `-L gmux` server as `claude-3`, `claude-3-2` and
+`claude-3-3`. Their manifest rows carry `project_path = /Users/gdc`, and `/Users/gdc` IS NOT IN THE
+PROJECTS TABLE. His nine open projects are all one level below it.
+
+| Surface | What it does when no project matches | Symptom he sees |
+| --- | --- | --- |
+| `AttentionOverlay.tsx:31` | Filters on `effectiveStatusOf(x) === 'needs_input'` and NOTHING else, so a session whose project is closed is still drawn | Three rows he cannot act on |
+| `projectNameFor` in the same file | `projects.find(...)?.name ?? ''` returns the EMPTY STRING | All three read bare `claude-3` with nothing to tell them apart |
+| `jumpToSession` in `session-focus.ts` | `if (project) s.setActiveProject(project.id)` then sets the active session anyway | Enter is a silent no-op |
+
+The third line is the defect he pressed. The function sets the active session to one that no visible
+tab contains, and says nothing. **A silent no-op on a keystroke a person chose is the failure mode
+this phase exists to end.**
+
+### Item 1, required. Enter always does something
+
+When the session's project is not open, the product does ONE of these and never nothing:
+
+- reopens the project and jumps, if the folder is still there and the machine is reachable, or
+- refuses with a sentence naming what it could not reach, e.g. the folder or the machine.
+
+A refusal is honest. Silence is not. Do NOT fix this by hiding the row, because then a running agent
+that wants him would vanish from the one surface built to surface it.
+
+### Item 2, the operator's improvement. The row says where it is
+
+Each row shows the machine and the path it belongs to, drawn quietly in the existing style. This is
+not cosmetic here: with three rows all named `claude-3`, the path is the ONLY thing that tells them
+apart and the machine is the only thing that says whether jumping can work at all.
+
+**Do not add a dot, a colour or a badge.** The Zen rules for the attention surface still hold, and a
+machine name and a path are identity rather than status, which is the same ruling research 55 made
+for the recents rows.
+
+`projectNameFor` currently returns `''` for exactly the case that matters. It must say what it knows,
+e.g. the folder path when no project row exists, rather than falling silent.
+
+### Item 3, the data question he asked, and it is the durable half
+
+**His words: store this so that a remote session is still clearable if he detaches from that project
+on a remote machine.**
+
+Today `removeProject` in `src/main/sessions/core.ts` calls `deleteProject` with the comment "sessions
+keep their history". So closing a tab leaves its sessions pointing at a `project_path` that no
+project row holds. That is exactly how his three rows became unreachable, and it is worse for a
+remote session, because the folder is on another computer and the row also carries a `machine_id`.
+
+What must be true after this phase:
+
+- A session whose project row is gone is still **reachable**, still **clearable**, and still
+  **honest about where it lives**, on this Mac and on another machine alike.
+- Ending or removing such a session works from wherever it can be seen, without needing its project
+  tab back first.
+- A remote session whose MACHINE has been forgotten follows the tombstone shape Phase 84 already
+  built, rather than becoming a second kind of orphan.
+
+Read `machine_tombstone` and `removed_at` in the sessions table before designing, because the
+machine case already has a recorded answer and this must not invent a competing one.
+
+### Item 4, a diagnosis rather than a fix
+
+**Where did those three local `claude-3` sessions come from?** They were created at 10:28:40, 10:28:42
+and 10:28:45 on 2026-08-19, within five seconds of each other, while the operator was REMOVING his
+remote sessions at 10:28:25 to 10:28:58. They are `machine_id = 'local'` and rooted at `/Users/gdc`,
+which is his home directory and not a project.
+
+Three local sessions appearing in a five second window while remote ones are being ended is not
+obviously a coincidence. **Find out what created them.** Start at the remote End and Remove paths and
+at anything that composes a create without a machine, because that is the same family as the split
+leaf Restart defect Phase 84 fixed, where a remote action fell through to a local create.
+
+**If the answer is that he created them himself, say so plainly and close the item.** A diagnosis
+that finds nothing is a good diagnosis. Do not invent a defect to justify the item.
+
+### What must not regress
+
+The attention overlay's existing rules: no count that rises on its own, no badge, no pulse, nothing
+that animates. `effectiveStatusOf` and the status semantics do not move: "needs input" may only be
+triggered by session behaviour and never by the person's own input, which is the standing rule in
+CLAUDE.md.
+
+### The evidence
+
+Drive the real app. Build the exact state he hit: a session whose project is NOT open, in the
+attention overlay, and press Enter. Prove something happens and name what. Then do the same for a
+session on another machine whose project tab has been closed, and prove it can be ended from there.
+Photograph the overlay showing the machine and the path on both a local and a remote row. And report
+the answer to item 4 in plain words, including the answer "he created them himself" if that is what
+the evidence says.
+
 ## THE OVERNIGHT ORDER, set 2026-08-19. Run it in this order and do not reshuffle without asking
 
 **The goal in one sentence: in the morning a person can open a local project, press Cmd+T, pick the
