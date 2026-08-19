@@ -6181,7 +6181,7 @@ Move to Trash, Open With and Reveal in Finder rests on unit tests. Phase 89's zs
 Mac Pro is still owed and is proven on the loopback scratch machine only. `needs input` never lights
 for a remote session and SpecStory capture never runs on one, both closed by decision.
 
-## Phase 94 — a second session in a remote tab starts in that tab's folder (operator reported 2026-08-19, with four screenshots) QUEUED
+## Phase 94 — a second session in a remote tab starts in that tab's folder (operator reported 2026-08-19, with four screenshots) ✅ SHIPPED 2026-08-19 (this commit, 0.48.1, gates green, 6,498 tests)
 
 **Subject:** `fix(machines): a session started in a remote tab runs in that tab's folder`
 **First body line:** `Phase 94: a second session in a remote tab starts in that tab's folder`
@@ -6313,6 +6313,44 @@ Required:
 - Prove Phase 84 item 5 did not regress: from a LOCAL tab with the Directory field cleared, no `-c`
   is sent and the session lands in the machine's home directory.
 - Count the operator's sessions with `tmux -L gmux list-sessions` before and after and report both.
+
+### What shipped, and the two questions answered
+
+**Item 1, the folder.** `remoteCreateFolders` in `src/main/sessions/launch-plan.ts` is the one pure
+rule that decides both folders a remote create sends. A typed Directory value still wins. When none
+was typed, the tab's own folder becomes the working directory, but only when it is an absolute path.
+Phase 84 item 5 survives that last clause: from a tab on this Mac with the Directory field cleared,
+the folder is the empty string, so the `cwd` key is absent, no `-c` is composed and the machine's own
+home directory fallback still decides. `createSession` in `src/main/sessions/core.ts` calls the rule
+instead of composing the two folders inline.
+
+**Item 2, the machine.** The fix is in two places on purpose. `createMachineIdFor` in
+`launch-plan.ts` is main's backstop, computed as the first statement of `createSession`, so a create
+that names no machine but says its tab's files are on one runs on that machine. The renderer's
+`createSession` in `src/renderer/state/sessions-slice.ts` is the shared composer, and it now sends the
+tab's machine and refuses with one sticky sentence when that machine cannot hold a session. The
+per-agent hotkey in `src/renderer/settings/integration.ts` used to call the bridge directly with its
+own payload, so neither half could read anything. It now goes through the store's `createSession` and
+decides only the session name and the Settings launch flags.
+
+**Question 1, does the re-home rule need changing?** No, and it was not changed.
+`remoteProjectPathFor` in `src/main/machines/remote-rehome.ts` keeps the recorded folder when the
+reported one equals it or is a subfolder of it. After this fix the machine reports the folder Tortie
+named, so the rule returns the recorded path and the tab stays. A reported folder that is a strict
+parent of the recorded one still moves the row, and that is correct on its own terms: it means the
+session really is somewhere the row does not describe, and the honest answer is to say where it is.
+Changing that rule would have hidden item 1 rather than fixed it.
+
+**Question 2, is the stray `gdc` tab left behind?** Yes, and closing it is enough. A remote project
+tab is a row in `remote_projects`, and nothing else depends on it. The sessions that were under it are
+reachable after it is closed, because a session is found by its own identity rather than through its
+tab. This phase writes no migration and removes no row from the operator's own manifest.
+
+**What was not driven.** The two live drives that exist are `npm run probe:p94hotkey`, which drives
+the real window and reads the hotkey and the agent board refusing in a tab on a machine nothing is
+signed in to, and `npm run smoke:remote` steps 17c to 17e, which run the operator's own sequence
+against the loopback scratch machine. No drive ran against his real Mac Pro. The rows and the stray
+tab the defect already wrote in his manifest are untouched.
 
 ## Phase 93 — a session you cannot reach can still be cleared (operator reported 2026-08-19, with two screenshots) QUEUED
 

@@ -37,6 +37,10 @@ import { pastRestoreNeedsAsk, resumeReadiness } from '../app/resume';
 // Every sentence about a machine comes from one file, which is the one the
 // vocabulary audit reads.
 import { remoteTabOpened } from '../app/machine-copy';
+// PHASE 94. The label a person gave the tab's machine, for the one refusal
+// sentence below. It falls back to the machine's id when no row is held, so the
+// sentence never has a hole in it.
+import { machineLabelFor } from './machines-slice';
 // PHASE 90.3. A session belongs to a tab when the PAIR matches, being the
 // machine and the folder. A bare path comparison is correct on one computer and
 // wrong on two, and it put a session on another machine under a tab whose
@@ -519,6 +523,65 @@ export const createSessionsSlice: StateCreator<
     }) {
       const project = get().activeProject();
       if (!gmux || !project) return false;
+      // PHASE 94. A tab whose files are on a machine already knows which
+      // machine a new session belongs on. Every create surface reaches this one
+      // function, being the ⌘T sheet, the agent board, the per-agent hotkeys,
+      // the terminal menu's new session verb and the empty state, so the rule is
+      // written here once. A guard written into one surface covers that surface
+      // and misses the next one added, which is the failure mode Phase 84 found
+      // in Restart.
+      const tabMachineId = project.machineId ?? 'local';
+      // The sheet names a machine, and in a remote tab its Machine field is
+      // locked to the tab's machine, so this rule only ever changes a create
+      // that named none. A caller asking for this Mac from a tab whose files are
+      // on a machine is asking for a session in a folder this Mac does not have,
+      // and no surface in this build means to ask for that.
+      const effectiveMachineId =
+        machineId !== undefined && machineId !== 'local'
+          ? machineId
+          : tabMachineId !== 'local'
+            ? tabMachineId
+            : undefined;
+      if (
+        effectiveMachineId !== undefined &&
+        effectiveMachineId !== machineId
+      ) {
+        // The tab's machine is about to be used because the caller named none,
+        // so it is checked first. The answer is read from the same place the ⌘T
+        // sheet reads it, being main's own rows with `usable` true. The store's
+        // machineStates copy would be a second answer, and it is empty until the
+        // first read completes. Measured on a cold boot, the link read `quiet`
+        // at 1 ms and `connected` at 504 ms, so a hotkey pressed inside that
+        // window would be refused against a machine that is fine. This call
+        // reads memory in main and starts nothing.
+        const api = gmux.machines as typeof gmux.machines | undefined;
+        let usable = false;
+        if (api !== undefined) {
+          try {
+            const result = await api.rows();
+            usable = result.rows.some(
+              (row) => row.id === effectiveMachineId && row.usable
+            );
+          } catch {
+            // A read that failed. It cannot say the machine is usable, so the
+            // create is refused. That is the sheet's behaviour too, where a
+            // failed read sets the list to empty and the Create button goes off.
+            usable = false;
+          }
+        }
+        if (!usable) {
+          const label = machineLabelFor(get().machineStates, effectiveMachineId);
+          get().toast(
+            'error',
+            `Tortie is not connected to ${label}, so it started nothing. ` +
+              'The files in this tab are on that machine, so a session on this ' +
+              'Mac would run in a folder this Mac does not have. Open Settings ' +
+              'and then Machines to prepare it, then try again.',
+            { sticky: true }
+          );
+          return false;
+        }
+      }
       // Silent display-name dedupe within the project (S6).
       const existing = new Set(
         get()
@@ -559,8 +622,11 @@ export const createSessionsSlice: StateCreator<
         // unless that machine is confirmed and its version is one Tortie has
         // measured, so this field can ask for a machine and can never grant
         // one.
-        ...(machineId !== undefined && machineId !== 'local'
-          ? { machineId }
+        //
+        // PHASE 94. The value is the effective machine decided above, which is
+        // the caller's when it named one and the tab's machine when it did not.
+        ...(effectiveMachineId !== undefined
+          ? { machineId: effectiveMachineId }
           : {})
       });
       // PHASE 90.3. A session started on a machine FROM A TAB ON THIS MAC has
@@ -571,9 +637,12 @@ export const createSessionsSlice: StateCreator<
       // It runs only for that one case. A create in a tab that is already on
       // that machine lands in the tab it was started from, and a create on this
       // Mac never touches this branch at all.
+      //
+      // PHASE 94. It reads the effective machine, which in this branch is the
+      // caller's own value: the branch only runs when the tab is on this Mac,
+      // and the tab machine rule above changes nothing in that case.
       if (
-        machineId !== undefined &&
-        machineId !== 'local' &&
+        effectiveMachineId !== undefined &&
         (project.machineId ?? 'local') === 'local'
       ) {
         try {
@@ -587,7 +656,7 @@ export const createSessionsSlice: StateCreator<
               'info',
               remoteTabOpened(
                 session.projectPath,
-                session.machine?.label ?? machineId
+                session.machine?.label ?? effectiveMachineId
               )
             );
           }

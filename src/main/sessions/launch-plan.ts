@@ -402,3 +402,108 @@ export function newSessionRecord(facts: LaunchRecordFacts): ManifestSessionRecor
     })
   };
 }
+
+/**
+ * The two folders a create bound for another machine sends (Phase 94, item 1).
+ *
+ * Both fields are paths ON THAT MACHINE. Nothing here is a path on this Mac.
+ */
+export interface RemoteCreateFolders {
+  /** The project folder, as a path on that machine. May be the empty string. */
+  readonly projectPath: string;
+  /** The working directory. THE KEY IS ABSENT when no folder is to be sent. */
+  readonly cwd?: string;
+}
+
+/**
+ * Which folder a create on another machine runs in (Phase 94, item 1). PURE.
+ *
+ * THE DEFECT THIS RULE REMOVES. The operator opened a folder on his Mac Pro,
+ * got a tab for it, pressed Cmd+T again inside that tab and changed nothing.
+ * The sheet drops a Directory value that equals the tab's own folder, so no
+ * `cwd` arrived, so no `-c` was composed, so that machine's own tmux fell back
+ * to the home directory. The session really ran in his whole home folder, the
+ * re-home read that folder from the machine and opened a second tab named
+ * after it. The project folder was computed correctly one line above and was
+ * then not used to decide where the session runs.
+ *
+ * The rule, in three sentences.
+ *
+ *  1. `far` is the project path when the tab is already on the machine this
+ *     create is bound for, and it is the typed folder otherwise. This is the
+ *     Phase 90.3 expression, moved here unchanged.
+ *  2. A typed folder wins. A person who names a subfolder gets that subfolder.
+ *  3. Otherwise the tab's own folder is the working directory, but only when
+ *     it is an absolute path. When it is not, THE KEY IS ABSENT.
+ *
+ * PHASE 84 ITEM 5 IS PRESERVED BY STEP 3, AND IT IS THE ROW TO CHECK FIRST.
+ * From a tab on this Mac the renderer sends no `projectMachineId`, so `far` is
+ * `input.cwd ?? ''`, and with the Directory field cleared that is the empty
+ * string. `''.startsWith('/')` is false, so the key is absent, so `-c` is not
+ * composed and that machine's own home directory fallback still decides. This
+ * function never reads a path that belongs to this Mac, so the fallback Phase
+ * 84 deleted is not restored anywhere.
+ *
+ * The key is ABSENT rather than present and undefined. `remoteCreate` reads
+ * `input.cwd ?? ''` and sends `-c` only when the result has length, so the two
+ * are the same thing at that call site. They are not the same thing to a
+ * person reading the spread at the create, and that spread is what Phase 84
+ * item 5 is written about.
+ */
+export function remoteCreateFolders(input: {
+  readonly machineId: string;
+  readonly projectMachineId?: string;
+  readonly projectPath: string;
+  readonly cwd?: string;
+}): RemoteCreateFolders {
+  const far =
+    input.projectMachineId !== undefined &&
+    input.projectMachineId === input.machineId
+      ? input.projectPath
+      : (input.cwd ?? '');
+  if (input.cwd !== undefined && input.cwd.length > 0) {
+    return { projectPath: far, cwd: input.cwd };
+  }
+  return far.startsWith('/') ? { projectPath: far, cwd: far } : { projectPath: far };
+}
+
+/**
+ * Which machine a create actually runs on (Phase 94, item 2). PURE.
+ *
+ * THE DEFECT THIS RULE REMOVES. The create the agent board and the per-agent
+ * hotkeys use sent no machine at all. Pressed inside a tab whose files are on
+ * another computer, it started a process on THIS Mac, at a path only that
+ * other computer has. The operator got three sessions named the same thing,
+ * with no folder and no tab, and an Enter that did nothing.
+ *
+ * The rule. A create that names a machine runs on it. A create that names none,
+ * or names this Mac, in a tab whose files are on a machine, runs on that
+ * machine. Anything else runs here.
+ *
+ * WHY THIS IS SAFE. The renderer sends `projectMachineId` only when the active
+ * project's machine is set and is not `local`, so the field names a machine
+ * only when the tab's files really are over there. There is no case in this
+ * build where a session should run on this Mac in a folder that exists only on
+ * another computer, so this rule can take nothing away.
+ *
+ * IT REFUSES RATHER THAN FALLING BACK. When that machine is not ready,
+ * `readyRemoteContext` answers MACHINE_NOT_READY and nothing is started. The
+ * renderer's own sentence gets there first for the surfaces this build has, and
+ * this is the answer for a surface written later.
+ *
+ * It is computed as the FIRST statement of `createSession`, above the capture
+ * refusal read, for the same reason that read sits above the remote branch: a
+ * create path added later must not be composable above it.
+ */
+export function createMachineIdFor(input: {
+  readonly machineId?: string;
+  readonly projectMachineId?: string;
+}): string | undefined {
+  if (input.machineId !== undefined && input.machineId !== 'local') {
+    return input.machineId;
+  }
+  if (input.projectMachineId !== undefined && input.projectMachineId !== 'local') {
+    return input.projectMachineId;
+  }
+  return undefined;
+}

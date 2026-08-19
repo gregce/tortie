@@ -271,9 +271,11 @@ import {
   agentNotFoundMessage,
   bareNameFor,
   binaryCandidatesOf,
+  createMachineIdFor,
   interpreterMissingMessage,
   newSessionRecord,
   paneEnvFor,
+  remoteCreateFolders,
   snapshotRecipeOf,
   spawnArgvFor
 } from './launch-plan';
@@ -2555,6 +2557,19 @@ export class GmuxCore {
     if (input.name.trim().length === 0) {
       throw gmuxError('INVALID_INPUT', 'Session name cannot be empty.');
     }
+    // PHASE 94, ITEM 2. WHICH MACHINE THIS CREATE RUNS ON, DECIDED ONCE, HERE.
+    //
+    // It is the FIRST statement of the method, above the capture refusal read
+    // below, for the reason that read gives for its own position: a create path
+    // added later must not be composable above it. Every read of the machine
+    // inside this method is this value, and `input.machineId` is not read again.
+    //
+    // The defect it removes is the create the agent board and the per-agent
+    // hotkeys use. It sends no machine at all, so a hotkey pressed inside a tab
+    // whose files are on another computer started a process on THIS Mac, at a
+    // path only that computer has. See createMachineIdFor in ./launch-plan for
+    // the rule and for why it can take nothing away.
+    const machineId = createMachineIdFor(input);
     // PHASE 91. The one place this product decides that a session on another
     // machine is not captured. It is READ HERE, above the remote branch, so
     // that it covers the branch below AND the wrap further down, and so that a
@@ -2566,49 +2581,44 @@ export class GmuxCore {
     // a create and a fifth will be added. A guard living in four of them is a
     // guard the fifth misses, which is how the split leaf Restart defect
     // happened and how Phase 84 fixed it.
-    const captureRefused = captureRefusedOnMachine(input.agent, input.machineId);
+    const captureRefused = captureRefusedOnMachine(input.agent, machineId);
     // PHASE 70. A create on another machine leaves this method here, before any
     // local check runs. Every check below asks about this Mac: whether a folder
     // exists here, which binary is here, what this Mac's login shell PATH holds.
     // None of them can answer for a different computer, and running them anyway
     // is how a create would refuse a folder that is perfectly there.
-    if (input.machineId !== undefined && input.machineId !== 'local') {
-      // PHASE 90.3. THE PROJECT FOLDER SENT TO THAT MACHINE IS A FOLDER ON THAT
-      // MACHINE, which is what `RemoteCreateInput.projectPath` has documented
-      // since Phase 70 and what this call site disagreed with until now.
+    if (machineId !== undefined) {
+      // PHASE 90.3, AS PHASE 94 LEFT IT. Both folders sent to that machine are
+      // folders ON THAT MACHINE, and one function decides them both. The whole
+      // rule, every case it answers and the Phase 84 item 5 trace live on
+      // `remoteCreateFolders` in ./launch-plan. Two things are worth having in
+      // front of a reader of this call.
       //
-      // Two creates reach this line and they carry different things.
+      // `projectPath` may be the empty string, which records that Tortie sent
+      // no folder and leaves the machine's own list to report what its server
+      // chose, which is what the re-home reads.
       //
-      //   from a tab on that machine   `projectPath` is already a far path, so
-      //                                it is sent as it stands
-      //   from a tab on this Mac       `projectPath` is a folder HERE and names
-      //                                nothing over there, so the folder the
-      //                                person named in the Directory field is
-      //                                the project folder instead
-      //
-      // An empty answer is sent as an empty string, exactly as `cwd` is. The row
-      // then records that Tortie sent no folder, and the machine's own list
-      // reports the folder its server chose, which is what the re-home reads.
-      const farProjectPath =
-        input.projectMachineId !== undefined &&
-        input.projectMachineId === input.machineId
-          ? input.projectPath
-          : (input.cwd ?? '');
+      // THE `cwd` KEY IS ABSENT rather than empty when no folder is to be sent.
+      // Phase 84 item 5 is that absence. It is NOT `?? input.projectPath`: that
+      // path is this Mac's project folder and it names nothing on the other
+      // computer, so an empty Directory field used to start the session in a
+      // folder named after a project that is not there. That fallback is not
+      // restored here, and `remoteCreateFolders` never reads a path belonging
+      // to this Mac.
+      const folders = remoteCreateFolders({
+        machineId,
+        ...(input.projectMachineId !== undefined
+          ? { projectMachineId: input.projectMachineId }
+          : {}),
+        projectPath: input.projectPath,
+        ...(input.cwd !== undefined ? { cwd: input.cwd } : {})
+      });
+      const farProjectPath = folders.projectPath;
       const session = await remoteCreate({
-        machineId: input.machineId,
+        machineId,
         name: input.name,
         projectPath: farProjectPath,
-        // PHASE 84, item 5. NOT `?? input.projectPath`. That path is this Mac's
-        // project folder and it names nothing on the other computer, so an
-        // empty Directory field used to start the session in a folder named
-        // after a project that is not there. An absent cwd sends no `-c` at
-        // all, and tmux's own fallback on that machine is the home directory,
-        // which is a fact about that machine rather than a guess made here.
-        // An empty string is treated as absent too, so a field a person
-        // cleared cannot reach the far side as `-c ''`.
-        ...(input.cwd !== undefined && input.cwd.length > 0
-          ? { cwd: input.cwd }
-          : {}),
+        ...(folders.cwd !== undefined ? { cwd: folders.cwd } : {}),
         agent: input.agent,
         ...(input.extraArgs !== undefined ? { extraArgs: input.extraArgs } : {})
       });
@@ -2640,7 +2650,7 @@ export class GmuxCore {
       if (farProjectPath.startsWith('/')) {
         try {
           this.manifest.upsertRemoteProject({
-            machineId: input.machineId,
+            machineId,
             path: farProjectPath,
             name: projectNameForPath(farProjectPath)
           });
@@ -2649,7 +2659,7 @@ export class GmuxCore {
           // that is already running over there. The next completed list re-homes
           // it, because the same folder comes back on every pass.
           sessionsLog.warn(
-            `the session started on ${input.machineId} and its folder could ` +
+            `the session started on ${machineId} and its folder could ` +
               `not be opened as a tab: ${(err as Error).message}`
           );
         }

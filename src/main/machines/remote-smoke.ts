@@ -62,6 +62,7 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   rmSync,
   statSync,
   writeFileSync
@@ -85,6 +86,10 @@ import {
 } from './confirm';
 import { execOn } from './exec-plane';
 import { prepareMachine } from './prepare';
+// Phase 94. The re-home rule is READ here, over a folder this machine really
+// reported, so the step proves the create rule and the re-home rule agree on
+// measured values rather than on two constants.
+import { remoteProjectPathFor } from './remote-rehome';
 import {
   machineContext,
   machineGeneration,
@@ -2020,6 +2025,213 @@ export async function runRemoteSessionsSmoke(): Promise<void> {
       `17b. a create naming ${missingDir} was refused before anything was ` +
         `composed, and that machine still holds ${String(afterMissing)} ` +
         `session(s)`
+    );
+
+    // --- 17c to 17e. The operator's own sequence, Phase 94 ------------------
+    //
+    // He opened a folder on his Mac Pro from a local tab, got a tab for it,
+    // pressed Cmd+T again inside that tab and changed nothing. The second
+    // session started in his whole home folder on that computer and Tortie
+    // opened a second tab named after it. These three steps are that sequence,
+    // driven through the product's own core, with every folder read back from
+    // the machine's own list rather than from anything this Mac believes.
+    //
+    // The far folder is inside this profile, so nothing outside `iso.userData`
+    // is written and the operator's own home is never touched. It is realpathed
+    // because tmux reports the resolved path and `/tmp` on this Mac is a link.
+    const p94FarMade = join(iso.userData, 'p94-far');
+    mkdirSync(p94FarMade, { recursive: true });
+    const p94Far = realpathSync(p94FarMade);
+
+    // 17c. FROM A LOCAL TAB, NAMING A FAR FOLDER. This is the half that already
+    // worked, and it is asserted here so that the fix below cannot be bought by
+    // breaking it.
+    const p94TabsOf = (): string[] =>
+      core.manifest
+        .listProjects()
+        .filter((one) => one.machineId === LIFE_ID)
+        .map((one) => one.path)
+        .sort();
+    const p94TabsAtStart = p94TabsOf();
+    const p94First = await core.createSession({
+      machineId: LIFE_ID,
+      name: 'p94 first',
+      projectPath: '/tmp',
+      cwd: p94Far,
+      agent: 'shell'
+    });
+    const p94FirstListed = (await machineList()).find(
+      (one) => one.gmuxId === p94First.id
+    );
+    if (p94FirstListed === undefined) {
+      fail('the first Phase 94 create is not on the machine’s own list');
+    }
+    if (p94FirstListed.cwd !== p94Far) {
+      fail(
+        `the first Phase 94 session is in ${JSON.stringify(p94FirstListed.cwd)} ` +
+          `and the folder named in the Directory field was ` +
+          `${JSON.stringify(p94Far)}`
+      );
+    }
+    const p94TabsAfterFirst = p94TabsOf();
+    if (!p94TabsAfterFirst.includes(p94Far)) {
+      fail(
+        `the first Phase 94 create opened no tab for ${p94Far}. That machine ` +
+          `holds ${JSON.stringify(p94TabsAfterFirst)}.`
+      );
+    }
+    // The ADDED tabs, and nothing else. This profile is reused between runs of
+    // this harness, so the tab for that folder may already be there from a run
+    // before this one. What must be true either way is that this create added
+    // no tab other than the folder it was given.
+    const p94AddedByFirst = p94TabsAfterFirst.filter(
+      (one) => !p94TabsAtStart.includes(one) && one !== p94Far
+    );
+    if (p94AddedByFirst.length > 0) {
+      fail(
+        `the first Phase 94 create also opened ` +
+          `${JSON.stringify(p94AddedByFirst)}, and it owes only the folder it ` +
+          `was given`
+      );
+    }
+    /** Every tab that machine holds right now, as one comparable string. */
+    const p94PathsBefore = p94TabsAfterFirst.join(', ');
+    log(
+      `17c. a create from a local tab naming ${p94Far} landed there on the ` +
+        `machine and opened one tab for it`
+    );
+
+    // 17d. FROM THE TAB THAT STEP JUST MADE, WITH NOTHING TYPED. This is the
+    // defect. The sheet drops a Directory value equal to the tab's own folder,
+    // so `cwd` is absent and `projectMachineId` names the machine, which is
+    // exactly the shape composed here. Before the fix no `-c` was sent, that
+    // machine's tmux fell back to the home directory, and the re-home opened a
+    // second tab named after the home folder.
+    const p94Second = await core.createSession({
+      machineId: LIFE_ID,
+      projectMachineId: LIFE_ID,
+      name: 'p94 second',
+      projectPath: p94Far,
+      agent: 'shell'
+    });
+    const p94AfterSecond = await machineList();
+    const p94SecondListed = p94AfterSecond.find(
+      (one) => one.gmuxId === p94Second.id
+    );
+    const p94FirstAgain = p94AfterSecond.find(
+      (one) => one.gmuxId === p94First.id
+    );
+    if (p94SecondListed === undefined || p94FirstAgain === undefined) {
+      fail('the two Phase 94 sessions are not both on the machine’s own list');
+    }
+    // The two REPORTED values are compared with each other rather than with a
+    // constant, so this asserts the thing the operator asked for, being that the
+    // second session sits beside the first, and not that both match a string
+    // this Mac composed.
+    if (p94SecondListed.cwd !== p94FirstAgain.cwd) {
+      fail(
+        `the second session is in ${JSON.stringify(p94SecondListed.cwd)} and ` +
+          `the first is in ${JSON.stringify(p94FirstAgain.cwd)}. A create in a ` +
+          `remote tab owes the folder of the tab it was started in.`
+      );
+    }
+    if (p94SecondListed.cwd === farHome) {
+      fail(
+        `the second session is in ${farHome}, which is the home directory that ` +
+          `machine states for itself. No folder reached it.`
+      );
+    }
+    // THE TAB COUNT. The second create was started in a tab that already
+    // existed, so it owes no new tab at all. The whole path list is compared
+    // rather than the count, so a tab that is swapped for another is caught too.
+    const p94PathsAfter = p94TabsOf().join(', ');
+    if (p94PathsAfter !== p94PathsBefore) {
+      fail(
+        `the second create moved that machine's tabs from ` +
+          `${JSON.stringify(p94PathsBefore)} to ` +
+          `${JSON.stringify(p94PathsAfter)}. It owes no new tab at all.`
+      );
+    }
+    // THE SECOND TAB THE OPERATOR REPORTED, PROVED WITHOUT WAITING FOR A POLL.
+    // The extra tab he saw was not written by the create. It was written by the
+    // re-home, which read the folder that machine reported and found it was not
+    // the folder Tortie recorded. So the rule is read here, over the folder that
+    // machine really reported a moment ago, and it must keep the recorded tab.
+    // This is deterministic where waiting for the next poll would not be.
+    //
+    // The far home already has a tab of its own at this point, written by the
+    // re-home for the session step 17a deliberately started there. That is why
+    // this step compares path lists and reads the rule, rather than asserting
+    // that no tab for the far home exists anywhere.
+    const p94Rehomed = remoteProjectPathFor(p94Far, p94SecondListed.cwd);
+    if (p94Rehomed !== p94Far) {
+      fail(
+        `the re-home would move the second session's tab from ` +
+          `${JSON.stringify(p94Far)} to ${JSON.stringify(p94Rehomed)}, which ` +
+          `is the second tab the operator reported`
+      );
+    }
+    log(
+      `17d. a second create in that tab landed in ${p94SecondListed.cwd}, the ` +
+        `same folder the first is in, the re-home keeps that tab, and that ` +
+        `machine's tabs are unchanged at ${JSON.stringify(p94PathsAfter)}`
+    );
+
+    // 17e. THE MAIN BACKSTOP, being item 2. No `machineId` at all, which is
+    // what the agent board and the per-agent hotkeys send. Before the fix this
+    // started a process on THIS Mac, at a path only that machine has, and the
+    // operator got three sessions with no folder and no tab.
+    const p94LocalBefore = localSessionCount();
+    const p94NoMachine = await core.createSession({
+      projectMachineId: LIFE_ID,
+      name: 'p94 no machine',
+      projectPath: p94Far,
+      agent: 'shell'
+    });
+    if (p94NoMachine.machine === undefined) {
+      fail(
+        'a create with no machine, started in a tab on a machine, came back ' +
+          'with no machine of its own, so it ran on this Mac'
+      );
+    }
+    if (p94NoMachine.machine.id !== LIFE_ID) {
+      fail(
+        `a create with no machine came back on ${p94NoMachine.machine.id} ` +
+          `rather than on the machine its tab is on`
+      );
+    }
+    const p94NoMachineRow = core.manifest.getSession(p94NoMachine.id);
+    if (p94NoMachineRow?.machineId !== LIFE_ID) {
+      fail(
+        `the row for a create with no machine records ` +
+          `${String(p94NoMachineRow?.machineId)} rather than ${LIFE_ID}`
+      );
+    }
+    const p94NoMachineListed = (await machineList()).find(
+      (one) => one.gmuxId === p94NoMachine.id
+    );
+    if (p94NoMachineListed === undefined) {
+      fail('a create with no machine is not on that machine’s own list');
+    }
+    if (p94NoMachineListed.cwd !== p94FirstAgain.cwd) {
+      fail(
+        `a create with no machine landed in ` +
+          `${JSON.stringify(p94NoMachineListed.cwd)} rather than in the tab's ` +
+          `own folder ${JSON.stringify(p94FirstAgain.cwd)}`
+      );
+    }
+    const p94LocalAfter = localSessionCount();
+    if (p94LocalAfter !== p94LocalBefore) {
+      fail(
+        `a create with no machine moved this Mac from ` +
+          `${String(p94LocalBefore)} to ${String(p94LocalAfter)} session(s), ` +
+          `so it started a process here`
+      );
+    }
+    log(
+      `17e. a create carrying no machine ran on ${LIFE_ID} in ` +
+        `${p94NoMachineListed.cwd}, and this Mac still holds ` +
+        `${String(p94LocalAfter)} session(s) of its own`
     );
 
     // --- 18. The folder picker's own read (item 6) --------------------------
