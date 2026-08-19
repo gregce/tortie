@@ -6181,6 +6181,93 @@ Move to Trash, Open With and Reveal in Finder rests on unit tests. Phase 89's zs
 Mac Pro is still owed and is proven on the loopback scratch machine only. `needs input` never lights
 for a remote session and SpecStory capture never runs on one, both closed by decision.
 
+## Research 57 — closing the remote gap, being every capability a session on another machine does not have (operator requested 2026-08-19) QUEUED
+
+**Subject:** `docs(research): how to bring a session on another machine to parity`
+**First body line:** `Research 57: closing the remote gap`
+
+**The operator's ask, in his words.** He wants the remote session experience mapped against the local
+one, then "a full audit of how we can close the gap and build the capabilities to bring them to as
+close as parity as possible with smart choices about how to close each". He named one example
+himself: if shipping and vendoring ripgrep is the answer, do it the way tmux is already vendored.
+The output must be a set of phases that can be built one at a time.
+
+**THIS DOCUMENT MUST RULE.** For every gap it either names the mechanism, the cost and the phase, or
+it says plainly that the gap should stay open and why. A gap left open on purpose is a good answer.
+An invented mechanism to avoid saying so is not.
+
+### The measured gap, which is the input rather than a question
+
+Verified in the tree on 2026-08-19. Parity: create, name, end, attach, type, survive a quit, resume
+the conversation, drop an image, open a file and read it, review a diff. Partial: status reaches
+`idle` and `running` and never `needs_input`; the Explorer tree is read only; the Changes list omits
+untracked files. Absent: scroll back, save a file, new file, new folder, rename, duplicate, trash,
+reveal, search, Quick Open, Symbols, stage, unstage, discard, commit, history, branches, runs,
+Context, SpecStory capture.
+
+Two of those are closed by the operator's own decision on 2026-08-19 and are NOT this document's
+business: `needs_input` for a remote session, and SpecStory capture. Do not reopen them.
+
+### What binds this document
+
+- **CLAUDE.md's scope guardrail.** Justify parity work. Assemble, never reimplement.
+- **The permanent refusals in CLAUDE.md**, especially that no third party native code goes inside the
+  signed bundle and that nothing may start a process on a configuration change alone.
+- **The exec plane's shape.** A frozen catalogue of scripts, of which exactly two are `mode: 'write'`,
+  plus an allowed verb ledger. Any proposal that widens either says so at the top of its row and
+  states what a person confirms.
+- **No credential ever crosses from this Mac to a machine.**
+
+### The questions
+
+1. **THE DOORS.** What can travel to a machine today, counted rather than described. Every script in
+   `src/main/machines/remote-scripts.ts` with its mode, its size limit and its timeout. The allowed
+   and refused verbs in `src/main/machines/exec-plane.ts`. The one narrow send door Phase 89 opened
+   and the five rules it enforces. Then, for each remaining gap, whether it fits through a door that
+   exists or needs a new script, and say which.
+
+2. **THE RIPGREP QUESTION, and it is the operator's own example.** Establish first how tmux is
+   vendored today, being `Resources/bin/tmux`, who puts it there, what electron-builder does, and
+   what signing and notarisation cost it. Then rule on remote search among these options, with the
+   deciding reason on every row including the rejected ones: ship a ripgrep in the bundle and send it
+   to the machine; require the person to install ripgrep there and refuse honestly until they do;
+   use what every machine already has, being `grep` and `find`, and accept the cost; run the search
+   on this Mac over pulled file contents. **Measure, do not estimate.** Run a real search on the
+   operator's Mac Pro with what is already installed there and give the seconds. Note that the Mac
+   Pro is arm64 and that a machine of a different architecture would need a different binary, and say
+   what the product does then. Say where a sent binary would land, who would confirm it, and how the
+   refusal about starting processes on configuration alone applies.
+
+3. **THE FILE WRITES**, being save, new file, new folder, rename, duplicate and trash. This is the
+   largest new risk in the whole programme, because it writes a person's files on a computer they are
+   not looking at. One mechanism for all six or several, and say which. Cover atomicity, the size
+   limit, encoding, permissions, what a half written file looks like, and what happens when the link
+   dies mid write. Rule on whether trash is built at all, given that a delete on another machine
+   cannot be undone from here.
+
+4. **THE GIT VERBS.** Separate the reads from the writes. History, branches and runs are reads and
+   should be cheap. Stage, unstage, discard and commit are writes, and `discard` destroys a person's
+   work. Say what each needs, and rule on whether `discard` should exist on a remote tab at all.
+
+5. **SCROLLBACK.** Can a person scroll back through an agent's output on another machine. Read what
+   Phase 89 established about `send-keys` and what the verb ledger refuses. Ask whether a READ ONLY
+   path exists that needs no key at all, e.g. `capture-pane` with a start line, and what it costs to
+   pull a screen and to pull a large history over a real connection. Measure it against the Mac Pro.
+   Rule on whether the answer is a real scrollback, a smaller "read the last N lines" affordance, or
+   nothing.
+
+6. **QUICK OPEN AND SYMBOLS.** Both need a list of files, and Symbols needs file contents parsed.
+   Say what the existing tree listing already gives for free, where the work should run, and whether
+   either is worth building at all under the scope guardrail. It is legitimate to rule that one of
+   them is not.
+
+7. **THE PLAN.** Turn every answer above into an ordered list of phases. Each row carries the phase
+   name, one sentence of what a person can do afterwards, the size, the tier, the risk, and what it
+   depends on. Order by what the operator would hit first, which he has said is search, then
+   scrollback, then save, then the git writes. Say which rows should NOT be built and why. This table
+   is what the phases are written from, so it must be complete enough to write them without asking
+   the document a second question.
+
 ## Phase 95 — asking a session that is not running where its scrollbar is (operator reported 2026-08-19) QUEUED
 
 **Subject:** `fix(terminal): a session with no pane on this Mac answers the scroll poll instead of throwing`
