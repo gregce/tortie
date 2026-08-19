@@ -6095,13 +6095,95 @@ round exists to remove.
 It may not re-open the no install decision. Research 55 settled that on measured round trips and the
 answer was to build on the ssh door that already exists. This round designs on top of that answer.
 
-## Phase 90 — the workspace follows the machine you are looking at, NOT QUEUED, Research 56 has ruled
+## Phase 90 — the workspace knows which machine it is looking at (operator ordered 2026-08-19) QUEUED, and Research 56 rules its shape
 
-It builds model A. The order of work is section 10 of
-`docs/research/56-project-model-many-machines.md`, being six items with a verification tier named on
-each, of which four are Tier 3. It absorbs research 54 item 15, being the
-"Files live on \<machine\>" label that research 51 section 4.5 specified and nobody wrote, because a
-label is either part of this design or it is a stopgap for it.
+**Read `docs/research/56-project-model-many-machines.md` section 0.1 before anything else.** The
+model is A, a project carries a machine and a tab is either local or remote, confirmed by four
+independent teams in the prior art. Model B, one project holding two live paths, is refused. Model
+C, the sidebars following the focused session, is refused.
+
+### Item 1, required, and it is a defect in the model that WAS chosen
+
+**A path string is not an identity, and this tree treats it as one.** `useFileTree.setRoot`,
+`useTreeGitStatus.setRepo`, `useSearch.syncProject` and `useContext.syncProject` all return early
+when the path string is unchanged. That is correct on one computer and wrong the moment there are
+two.
+
+The failure under model A, which is the model being built: a person has `/Users/gdc/gmux` on this
+Mac and `/Users/gdc/gmux` on the Mac Pro, so they have two tabs. Switching between the two tabs
+hands all four stores the same path string. All four return early. **The machine badge changes and
+the file tree, the git decorations, the search rows and the Context readout keep showing this Mac.**
+Nothing errors and nothing looks broken, which is what makes it the dangerous kind of defect.
+
+**The fix is that the cache key becomes the pair `(machineId, path)` in all four stores.** The prior
+art is unanimous across a twenty year gap. VS Code puts the host inside the identifier as
+`vscode-remote://ssh-remote+<host><path>`. Emacs TRAMP puts it inside the file name as
+`/ssh:user@host:path`. Neither will let an operation be built from a bare path.
+
+**The proof this item ships with:** two tabs on the same path string, one local and one remote, and a
+driven switch between them showing the tree, the git state and the search root all changing. A
+switch where the badge moves and the content does not is a FAIL.
+
+### Item 2, the operator's create-time counterpart, ordered 2026-08-19
+
+**His words.** "I want machine plus path BUT also allowing you to open and find similar folders with
+upstream remotes SO that if I want to work on something that I have or can create on my remote
+machine that we can actually USE a remote session in a way that would make sense to open one with
+Cmd T when I open something locally."
+
+**What this is, stated so nobody widens it.** The git remote is read ONCE, at create time, to answer
+one question: where does this project live on that machine? The answer fills the Directory field.
+**The session is then bound to `machineId` and an absolute path, exactly like every other session,
+and the remote URL is never consulted again.** It is a lookup, not an identity, and it never
+resolves a file, a git read or a search.
+
+**The gesture.** A person is in a local project tab. They press Cmd+T and pick a machine. The
+Directory field is filled in for them with the counterpart on that machine, and they can still
+change it or clear it.
+
+**The three cases, and each needs an answer on screen.**
+
+| Case | What Tortie does |
+| --- | --- |
+| The counterpart exists over there | Fill the Directory field with it and say how it was found, e.g. "found on Greg's Mac Pro by its GitHub remote" |
+| The remote is known but no clone exists over there | Offer to create it. This is the half his words call "or can create", and it is the first thing Tortie would ever WRITE to a far machine beyond the image upload, so it is a confirm, never automatic |
+| The project has no git remote at all | Say so plainly and fall back to the folder picker Phase 84 shipped. **3 of the operator's 11 open projects have no remote**, being `test-prime-agent`, `the-zen-of-tortie` and `tortiedotsh`, so this is not a rare branch |
+
+**How the counterpart is found, and this needs a measured decision rather than a guess.** Scanning a
+far machine for git repositories is expensive and the round must price it. The candidates are to
+remember the answer per project and machine after the first time, to ask `git -C <candidate> remote
+get-url origin` at a small number of likely paths such as the same path and the same basename under
+the far home, or to search once and cache. Measure before choosing. Research 55 measured one folder
+listing at 30.8 ms and a nine folder subtree at 42.3 ms on this operator's tailnet, so a wide scan is
+not free.
+
+**What must be refused, and the reasons are recorded so a later round does not reopen them.**
+
+- **A match is a SUGGESTION and never a silent action.** The field is filled in and the person can
+  see and change it. Nothing is created, cloned or opened without a press.
+- **Never resolve a file, a git read or a search through the remote URL.** That is model B and it is
+  refused, because a project holding two live paths keeps a live chance of resolving the wrong one.
+  Microsoft's own report, `microsoft/vscode` issue 190566, reproduces the harm in seven steps and
+  the filer's own summary is that a person ends up looking at the wrong version of a file while the
+  tab name looks correct.
+- **A shared remote does not mean the same work.** Two clones can sit on different branches with
+  different uncommitted changes, worktrees of one repository share a remote, a monorepo means
+  several projects share one, and a fork shares a remote with upstream rather than with its
+  siblings. The copy must never imply the two folders hold the same state.
+- **Cloning writes to the operator's machine.** It is a confirm with the URL and the destination
+  path shown, and it is the only write in this phase.
+
+### What this phase does NOT do
+
+It does not make the sidebars follow the focused session, which is model C and is refused. It does
+not merge two machines' tabs into one project, which is model B and is refused. It absorbs research
+54 item 15, being the "Files live on \<machine\>" label that research 51 section 4.5 specified and
+nobody wrote, because research 55 ruled that label permanent and part of this design rather than a
+stopgap.
+
+**Tier 3 for item 1**, because it is a silent wrong answer about which computer a person is looking
+at. **Tier 2 for item 2**, plus a live drive on the operator's real Mac Pro for the found case and
+the no-remote case, and a confirm-then-clone driven once against a scratch path over there.
 
 ## Phase 91 — SpecStory capture for a remote session, NOT QUEUED
 
