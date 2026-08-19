@@ -23,7 +23,7 @@ import type {
   GmuxQuitExtras,
   MenuActionWithFind
 } from '@shared/ipc';
-import { OPEN_RECENT_PREFIX } from '@shared/ipc';
+import { OPEN_RECENT_ON_PREFIX, OPEN_RECENT_PREFIX } from '@shared/ipc';
 import { acceleratorToDisplay, keyDisplay } from '@shared/keymap';
 import { sessionsPositionForMenuAction } from '@shared/sessions-position';
 import {
@@ -34,6 +34,11 @@ import {
 import type { SidebarViewId } from '../state/store';
 import { isSidebarViewId } from '../state/sidebar-views';
 import { cloneAction } from '../state/clone';
+// Phase 92. File > Open Recent can now carry a row on another machine. The
+// rule for splitting that row's payload and the sentence a refusal produces
+// both live in the module below, so both are reachable by a unit test rather
+// than only through this component.
+import { openRecentOnMachine } from './open-recent-on-machine';
 import { pullPendingShellOpen } from '../state/shell-open';
 import { useLayout } from '../state/layout';
 import type { NavDir } from '../state/layout';
@@ -784,6 +789,17 @@ function useMenuActions(): void {
         void useApp
           .getState()
           .addProjectPath(action.slice(OPEN_RECENT_PREFIX.length));
+        return;
+      }
+      // Phase 92: File > Open Recent > a row whose folder is on another
+      // machine. Checked beside the branch above and never before it, because
+      // the two prefixes differ at their eleventh character and so a string
+      // starting with one never starts with the other.
+      if (action.startsWith(OPEN_RECENT_ON_PREFIX)) {
+        void openRecentOnMachine(
+          action.slice(OPEN_RECENT_ON_PREFIX.length),
+          useApp.getState()
+        );
         return;
       }
       // Phase 51: a warm launch delivered a folder (`tortie .` or a Finder

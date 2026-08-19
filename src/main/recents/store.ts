@@ -20,6 +20,19 @@
  * time on the row and no repository facts. The home screen shows a name and a
  * parent path, and research 35 section 5.1 records why the rest was cut.
  *
+ * PHASE 92: A ROW'S IDENTITY IS THE PAIR. A row can now name the machine its
+ * folder is on, so every place that used to compare `row.path` compares
+ * `targetKey(workspaceTarget(row.path, row.machineId))` instead. Two machines
+ * can hold `/Users/gdc/dev`, and keying on the bare path would have made one
+ * of those two rows delete or replace the other. The key for a row on this Mac
+ * is still the bare path, so every row already in a person's file keeps its
+ * identity byte for byte.
+ *
+ * WHAT THIS FILE STILL DOES NOT KNOW. It does not know which machines exist.
+ * Filtering out a row whose machine has been forgotten is ./visible.ts, which
+ * is the one place both `recents:list` and `File > Open Recent` read, so those
+ * two surfaces cannot disagree about which rows exist.
+ *
  * Ownership: src/main/recents/**.
  */
 
@@ -29,6 +42,11 @@ import { basename, dirname, isAbsolute, join } from 'node:path';
 import { app } from 'electron';
 import type { RecentProject } from '@shared/ipc';
 import type { Project } from '@shared/types';
+import {
+  LOCAL_MACHINE_ID,
+  targetKey,
+  workspaceTarget
+} from '@shared/workspace-target';
 import { getLog } from '../log';
 
 /**
@@ -49,6 +67,46 @@ export const RECENTS_FILE_MAX = 20;
 
 /** Longest name kept from a file on disk, so a hand-edited row cannot bloat. */
 const MAX_NAME_LENGTH = 200;
+
+/**
+ * What a machine id looks like (Phase 92). The same pattern the machines file
+ * validates a row's id against, restated here because this file reads JSON a
+ * person may have edited by hand and must not carry a made-up id into a menu.
+ */
+const MACHINE_ID_PATTERN = /^[a-z][a-z0-9-]{0,31}$/;
+
+/**
+ * The machine a row names, or `local` when it names this Mac.
+ *
+ * An omitted field, the string `local` and anything that is not a valid id all
+ * mean this Mac. That is what every row written before Phase 92 meant.
+ */
+export function recentMachineOf(row: {
+  machineId?: string;
+}): string {
+  const id = row.machineId;
+  if (typeof id !== 'string' || id === LOCAL_MACHINE_ID) return LOCAL_MACHINE_ID;
+  return MACHINE_ID_PATTERN.test(id) ? id : LOCAL_MACHINE_ID;
+}
+
+/**
+ * The identity of a row, which is the PAIR and never the path.
+ *
+ * A row on this Mac keys on the bare path, so nothing in an existing file
+ * changes identity. Any other row keys on `<machineId>:<path>`, and the two
+ * forms cannot collide because an absolute path starts with a slash.
+ */
+export function recentKey(row: {
+  path: string;
+  machineId?: string;
+}): string {
+  return targetKey(workspaceTarget(row.path, row.machineId));
+}
+
+/** True when this row's folder is on this Mac. */
+export function isLocalRecent(row: { machineId?: string }): boolean {
+  return recentMachineOf(row) === LOCAL_MACHINE_ID;
+}
 
 // ---------------------------------------------------------------------------
 // The list algebra, pure and exported for tests
@@ -81,8 +139,17 @@ export function sanitizeRecents(raw: unknown): RecentProject[] {
     const entry = row as Record<string, unknown>;
     const path = entry['path'];
     if (typeof path !== 'string' || !isAbsolute(path)) continue;
-    if (seen.has(path)) continue;
-    seen.add(path);
+    // Phase 92: a machine id that is not a string, is `local`, or does not
+    // match the pattern all mean this Mac, and the field is then left off the
+    // row entirely. A row is never dropped for a bad machine id, because the
+    // path is still a folder somebody opened.
+    const rawMachine = entry['machineId'];
+    const machineId = recentMachineOf({
+      machineId: typeof rawMachine === 'string' ? rawMachine : undefined
+    });
+    const key = recentKey({ path, machineId });
+    if (seen.has(key)) continue;
+    seen.add(key);
     const rawName = entry['name'];
     const name =
       typeof rawName === 'string' && rawName.trim().length > 0
@@ -90,32 +157,71 @@ export function sanitizeRecents(raw: unknown): RecentProject[] {
         : basename(path);
     const at = entry['lastOpenedAt'];
     const lastOpenedAt = typeof at === 'number' && Number.isFinite(at) ? at : 0;
-    out.push({ path, name, lastOpenedAt });
+    out.push(
+      machineId === LOCAL_MACHINE_ID
+        ? { path, name, lastOpenedAt }
+        : { path, name, lastOpenedAt, machineId }
+    );
   }
   out.sort((a, b) => b.lastOpenedAt - a.lastOpenedAt);
   return out.slice(0, RECENTS_FILE_MAX);
 }
 
 /**
- * `list` with `entry` at the front, any older row for the same path gone, and
+ * `list` with `entry` at the front, any older row for the SAME PAIR gone, and
  * the tail cut to the cap. Pure.
+ *
+ * It keys on the pair and not the path, so opening `/Users/gdc/dev` on the Mac
+ * Pro leaves the row for `/Users/gdc/dev` on this Mac exactly where it was.
  */
 export function withRecent(
   list: readonly RecentProject[],
   entry: RecentProject
 ): RecentProject[] {
-  return [entry, ...list.filter((r) => r.path !== entry.path)].slice(
+  const key = recentKey(entry);
+  return [entry, ...list.filter((r) => recentKey(r) !== key)].slice(
     0,
     RECENTS_FILE_MAX
   );
 }
 
-/** `list` with the row for `path` gone. Pure. */
+/**
+ * `list` with the row for this path on this machine gone. Pure.
+ *
+ * An omitted machine means this Mac, so every existing caller keeps its
+ * meaning and removes the local row rather than every row with that path.
+ */
 export function withoutRecent(
   list: readonly RecentProject[],
-  path: string
+  path: string,
+  machineId?: string
 ): RecentProject[] {
-  return list.filter((r) => r.path !== path);
+  const key = recentKey({ path, machineId });
+  return list.filter((r) => recentKey(r) !== key);
+}
+
+/**
+ * `list` with every row naming a machine that is not in `knownMachineIds`
+ * dropped. Pure.
+ *
+ * A row on this Mac is always kept. A row naming a machine that is still in the
+ * machines file is kept whether or not a person has confirmed it, because
+ * confirmation decides whether a read may run and this decides whether a row
+ * exists at all.
+ *
+ * WHY DROP RATHER THAN DRAW REFUSED. Tortie no longer holds the label of a
+ * machine a person removed, so the row would have to print an id like `m1`
+ * where a name belongs, and a click on it could do nothing but refuse. The row
+ * stays in the file, so adding the same machine back brings the rows back.
+ */
+export function withKnownMachines(
+  list: readonly RecentProject[],
+  knownMachineIds: ReadonlySet<string>
+): RecentProject[] {
+  return list.filter((row) => {
+    const machineId = recentMachineOf(row);
+    return machineId === LOCAL_MACHINE_ID || knownMachineIds.has(machineId);
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -203,14 +309,28 @@ export function rememberProject(project: Project | undefined): void {
     project.name.trim().length > 0
       ? project.name.trim().slice(0, MAX_NAME_LENGTH)
       : basename(project.path);
-  persist(
-    withRecent(load(), { path: project.path, name, lastOpenedAt: Date.now() })
-  );
+  // Phase 92: a project on another machine is remembered exactly as a local one
+  // is, and it carries the machine so the row can be drawn and opened again.
+  const machineId = recentMachineOf(project);
+  const row: RecentProject =
+    machineId === LOCAL_MACHINE_ID
+      ? { path: project.path, name, lastOpenedAt: Date.now() }
+      : { path: project.path, name, lastOpenedAt: Date.now(), machineId };
+  persist(withRecent(load(), row));
 }
 
-/** Remove from Recent, on one row. Resolves to the list that is left. */
-export function removeRecent(path: string): RecentProject[] {
-  const next = withoutRecent(load(), path);
+/**
+ * Remove from Recent, on one row. Resolves to the list that is left.
+ *
+ * Phase 92: the machine is optional and omitting it means this Mac, so a caller
+ * that knows nothing about machines removes the local row and leaves another
+ * machine's row with the same path alone.
+ */
+export function removeRecent(
+  path: string,
+  machineId?: string
+): RecentProject[] {
+  const next = withoutRecent(load(), path, machineId);
   if (next.length !== load().length) persist(next);
   return [...next];
 }
@@ -232,9 +352,17 @@ export function clearRecents(): RecentProject[] {
  * A row is missing when the path is gone AND when it is now a file rather than
  * a directory. Both mean the same thing to the user, which is that Tortie
  * cannot open it.
+ *
+ * PHASE 92: LOCAL ROWS ONLY, AND THIS IS NOT AN OMISSION. A row on another
+ * machine is never checked and never returned. Statting the path here would be
+ * this Mac answering for another computer, and `/Users/gdc/test-sync` can be
+ * gone here and present over there. Asking the machine itself would put a
+ * network round trip in front of a screen that never waits on a filesystem. So
+ * a remote row is never marked, and a click on one that has gone refuses with
+ * the sentence `addRemoteRefusal` writes for `missing`.
  */
 export async function missingRecents(): Promise<string[]> {
-  const rows = load();
+  const rows = load().filter((row) => isLocalRecent(row));
   const checks = await Promise.all(
     rows.map(async (row) => {
       try {

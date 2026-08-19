@@ -20,11 +20,28 @@
  * WITHOUT THE BRIDGE. A build whose preload has no `recents` surface reports
  * an empty list forever, so the home screen draws no recents block. That is a
  * state the screen already has, because it is what a first launch looks like.
+ *
+ * PHASE 92: A ROW CAN NAME A MACHINE. `useHomeRecents` now hands the screen a
+ * prepared row rather than an entry and a set of paths, so the three rules that
+ * follow from the pair are decided once here instead of at every use site. The
+ * row carries its own React key, which is the pair, its own machine id, and its
+ * own `missing` flag, which is false for every row on another machine.
+ *
+ * IT STILL DOES NOT KNOW WHAT A MACHINE IS CALLED. The label lookup belongs to
+ * the screen, which already holds the machine states, and the decision to hide
+ * a row whose machine has been forgotten belongs to main, which owns the file.
+ * This module stays a leaf and imports the bridge, React and one pure shared
+ * module.
  */
 
 import { useEffect, useMemo } from 'react';
 import { create } from 'zustand';
 import type { GmuxRecentsExtras, RecentProject } from '@shared/ipc';
+import {
+  LOCAL_MACHINE_ID,
+  targetKey,
+  workspaceTarget
+} from '@shared/workspace-target';
 
 /**
  * How many rows the home screen holds. The narrow window shows three, and that
@@ -67,8 +84,13 @@ interface RecentsState {
   refresh(): Promise<void>;
   /** Stat every remembered folder. Call after the first paint, never before. */
   checkMissing(): Promise<void>;
-  /** Remove from Recent, on one row. */
-  remove(path: string): Promise<void>;
+  /**
+   * Remove from Recent, on one row.
+   *
+   * Phase 92: the machine is optional and omitting it means this Mac, so the
+   * row for a path on another machine is removed on its own.
+   */
+  remove(path: string, machineId?: string): Promise<void>;
 }
 
 let initialized = false;
@@ -117,11 +139,11 @@ export const useRecents = create<RecentsState>((set, get) => ({
     }
   },
 
-  async remove(path) {
+  async remove(path, machineId) {
     const api = bridge();
     if (api === null) return;
     try {
-      set({ recents: await api.remove(path), loaded: true });
+      set({ recents: await api.remove(path, machineId), loaded: true });
     } catch {
       // The row stays. The user can try again.
     }
@@ -129,9 +151,64 @@ export const useRecents = create<RecentsState>((set, get) => ({
 }));
 
 /**
- * The rows the home screen draws, plus which of them have lost their folder.
+ * One row of the home screen's recent list, with every decision already made.
  *
- * The list is capped at five here and the narrow window hides two of those in
+ * PHASE 92. The screen used to receive the entries and the set of missing paths
+ * and work the rest out per row. Three of those decisions are wrong the moment
+ * a row can name a machine, so they are made here, once, and the screen reads
+ * the answers.
+ */
+export interface HomeRecentRow {
+  /** The stored row, exactly as main sent it. */
+  entry: RecentProject;
+  /**
+   * The React key, which is `targetKey(workspaceTarget(path, machineId))`.
+   *
+   * It is the PAIR and never the path. Two machines can hold the same path, and
+   * a duplicate key would make React draw one row where there are two projects.
+   */
+  key: string;
+  /** The machine the folder is on. `local` for this Mac, and never undefined. */
+  machineId: string;
+  /** True when the folder is on another machine. */
+  remote: boolean;
+  /**
+   * True when the folder is gone. LOCAL ROWS ONLY.
+   *
+   * A row on another machine is never marked, because nothing checks. Main
+   * stats local rows only, and this flag never reads the missing set for a
+   * remote row even if a path in it happens to match. `/Users/gdc/test-sync`
+   * can be gone here and present over there, and this Mac has no standing to
+   * answer for another computer.
+   */
+  missing: boolean;
+}
+
+/**
+ * Turn the stored rows into rows the screen can draw. Pure, and exported so the
+ * three rules above are reachable by a test without rendering anything.
+ */
+export function homeRecentRows(
+  all: readonly RecentProject[],
+  missing: ReadonlySet<string>
+): HomeRecentRow[] {
+  return all.slice(0, HOME_RECENTS_MAX).map((entry) => {
+    const target = workspaceTarget(entry.path, entry.machineId);
+    const remote = target.machineId !== LOCAL_MACHINE_ID;
+    return {
+      entry,
+      key: targetKey(target),
+      machineId: target.machineId,
+      remote,
+      missing: !remote && missing.has(entry.path)
+    };
+  });
+}
+
+/**
+ * The rows the home screen draws, each one ready to draw.
+ *
+ * The list is capped at five here and the narrow window hides some of those in
  * CSS. Both caps have to agree about WHICH rows exist, so there is one order
  * and one truncation, and the media query only ever hides from the bottom.
  *
@@ -141,10 +218,7 @@ export const useRecents = create<RecentsState>((set, get) => ({
  * slot is reserved on every row, the answer arriving adds a mark and moves
  * nothing.
  */
-export function useHomeRecents(): {
-  recents: RecentProject[];
-  missing: ReadonlySet<string>;
-} {
+export function useHomeRecents(): { rows: HomeRecentRow[] } {
   const all = useRecents((s) => s.recents);
   const missing = useRecents((s) => s.missing);
 
@@ -156,8 +230,8 @@ export function useHomeRecents(): {
     return () => cancelAnimationFrame(frame);
   }, []);
 
-  const recents = useMemo(() => all.slice(0, HOME_RECENTS_MAX), [all]);
-  return { recents, missing };
+  const rows = useMemo(() => homeRecentRows(all, missing), [all, missing]);
+  return { rows };
 }
 
 // The read starts when this module loads and not when the home screen mounts,

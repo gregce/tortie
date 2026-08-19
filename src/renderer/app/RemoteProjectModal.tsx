@@ -25,10 +25,21 @@
  *
  * ## What it never does
  *
- * It writes nothing on either computer. It starts no process anywhere. It puts
- * nothing on the home screen's recent list, because every row on that list
- * opens a folder on this Mac and a row that cannot do that would be a button
- * that fails.
+ * It writes nothing on either computer. It starts no process anywhere.
+ *
+ * ## What changed in Phase 92
+ *
+ * This header used to say that a folder opened here is deliberately kept off
+ * the home screen's recent list, on the ground that every row on that list
+ * opens a folder on this Mac. That is no longer true. A recents row now carries
+ * the machine its folder is on, the home screen draws that machine's name
+ * beside the path, and clicking the row opens the folder over there. So a
+ * folder opened from this sheet is remembered exactly as a local one is, by the
+ * same `rememberProject` call in main.
+ *
+ * This file's own behaviour did not change. It still calls
+ * `addRemoteProject(machineId, path)` and nothing else, and main does the
+ * remembering.
  */
 
 import React, { useEffect, useRef, useState } from 'react';

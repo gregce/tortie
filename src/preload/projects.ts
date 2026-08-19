@@ -56,11 +56,15 @@ export const projects: InstalledProjectsApi = {
  * Three calls and one subscription. The list is read once when the renderer
  * loads, the missing check runs after the home screen's first paint, and the
  * event fires when main writes the file, which is when a project is opened or
- * closed and when a row is removed.
+ * closed and when a row is removed. Since Phase 92 it also fires when the
+ * machines file changes, because that changes which rows a person may see.
  */
 export const recents: NonNullable<GmuxRecentsExtras['recents']> = {
   list: () => invoke('recents:list'),
   missing: () => invoke('recents:missing'),
-  remove: (path) => invoke('recents:remove', path),
+  // Phase 92: the machine is the second argument and omitting it means this
+  // Mac, so a row on another machine is removed without touching the row that
+  // holds the same path here.
+  remove: (path, machineId) => invoke('recents:remove', path, machineId),
   onChanged: (cb) => on(EVT_RECENTS_CHANGED, cb)
 };

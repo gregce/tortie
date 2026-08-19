@@ -18,6 +18,14 @@ export interface RecentMenuTarget {
   path: string;
   /** True once the existence check has found the folder gone. */
   missing?: boolean;
+  /**
+   * PHASE 92. True when the folder is on another machine.
+   *
+   * It is a separate field from `missing` because the two answer different
+   * questions. `missing` says Tortie looked here and found nothing. `remote`
+   * says the folder is not on this Mac at all, so nothing here ever looked.
+   */
+  remote?: boolean;
 }
 
 export interface RecentMenuActions {
@@ -33,6 +41,11 @@ export interface RecentMenuActions {
  * A missing folder hides it too, because there is nothing to reveal. Remove
  * from Recent always stays, because a row pointing at a folder that is gone
  * is the row the user most wants to be rid of.
+ *
+ * PHASE 92 ADDED THE THIRD REASON TO HIDE IT. A folder on another machine is
+ * not on this Mac, so Finder has nothing to show. Copy Path stays, and it
+ * copies the path exactly as that machine states it. Open stays, and it asks
+ * that machine. Remove from Recent stays for the reason above.
  */
 export function recentMenuItems(
   target: RecentMenuTarget,
@@ -42,7 +55,7 @@ export function recentMenuItems(
   const items: (MenuItemSpec | 'sep')[] = [
     { label: 'Open', run: () => actions.open() }
   ];
-  if (target.missing !== true && canReveal) {
+  if (target.missing !== true && target.remote !== true && canReveal) {
     items.push({ label: 'Reveal in Finder', run: () => actions.reveal() });
   }
   items.push({ label: 'Copy Path', run: () => actions.copyPath() });

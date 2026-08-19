@@ -1085,6 +1085,49 @@ export function remoteProjectAlreadyOpen(label: string): string {
   return `That folder on ${label} is already open. Tortie moved to its tab.`;
 }
 
+// -- the home screen (Phase 92) ----------------------------------------------
+
+/**
+ * The home screen's action row, when this person has exactly one machine.
+ *
+ * It names the machine, because with one machine the row is the whole verb and
+ * the sheet that follows has nothing left to choose. A person reads where the
+ * folder will come from before they press anything.
+ */
+export function openOnMachineTitle(label: string): string {
+  return `Open on ${label}…`;
+}
+
+/**
+ * The same row, when this person has more than one machine.
+ *
+ * It names no machine, because the sheet is where the machine is chosen. One
+ * row per machine was refused: the home screen's height is fixed, and a list
+ * that grows with the machines file pushes the recent projects off the screen.
+ */
+export const OPEN_ON_ANY_MACHINE_TITLE = 'Open on another machine…';
+
+/**
+ * The row's second line, in both cases.
+ *
+ * Two facts and no more. The folder stays where it is, and Tortie only reads
+ * it. That is the pair people are surprised by, and the sheet says the same two
+ * things again before the folder is opened.
+ */
+export const OPEN_ON_MACHINE_SUBTITLE =
+  'The folder stays on that machine. Tortie never writes there.';
+
+/**
+ * A recent project on another machine, on hover.
+ *
+ * The path is printed exactly as that machine states it, with no `~`, because a
+ * tilde is a claim about whose home folder a path is in and Tortie does not know
+ * that about another computer.
+ */
+export function remoteRecentTooltip(path: string, label: string): string {
+  return `${path} on ${label}`;
+}
+
 // -- the tab, and sessions in it ---------------------------------------------
 
 /** A tab whose folder is on a machine, on hover. */

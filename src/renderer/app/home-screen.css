@@ -58,6 +58,67 @@
    tallest state is therefore 514 px now (490 plus 24), and the top-edge
    rule above still holds because the slot never appears or disappears.
 
+   PHASE 92 ADDED A FOURTH ACTION ROW, being "open a folder on another
+   machine". `.home-action` is 48 px and the rows are adjacent siblings with
+   no gap, so a state that draws it is exactly 48 px taller.
+
+   THE BOX HEIGHT NOW DEPENDS ON THE WINDOW, and it depends on nothing else.
+   There are two values and they are chosen by one media query at the bottom
+   of this file:
+
+     - a window taller than 760 px draws five recents, so its tallest state
+       is 562 px, being 514 plus the new row.
+     - a window of 760 px or less draws three recents, so its tallest state is
+       506 px, being 562 less two rows of 28 px.
+
+   THE QUERY IS THE WINDOW AND NOT THE DATA, and that distinction is the whole
+   rule. The window's height is known before the first paint, so a box sized
+   from it is a constant from the first frame. `machineStates` and the recents
+   list both arrive one IPC round trip later, so a box sized from either would
+   change height after a person had already looked at the wordmark. Neither
+   number below asks whether this person has a machine or how many projects
+   they have opened.
+
+   WHY THE SHORT WINDOW GOT ITS OWN NUMBER, and it fixes a defect that was
+   here before this phase. The single 514 px box was taller than the tallest
+   state a short window can draw, because the cap at the bottom of this file
+   hides two rows there. At the 960 by 600 minimum window the scroll container
+   measures 548 px. A 514 px box plus the 40 px of padding on that container
+   needs 554 px, so 0.47.0 already overflowed by 6 px and the screen scrolled
+   at its own smallest size. This build needs 548 px there and does not
+   scroll.
+
+   WHAT THIS COSTS, AND EVERY NUMBER BELOW WAS MEASURED rather than worked
+   out, by build/probe-home-machines.mjs at four viewport heights. The left
+   column is this build and the right one is the 0.47.0 box with the new
+   action row drawn:
+
+     viewport   box   wordmark      0.47.0 box   wordmark
+       900 px   562        188            514         212
+       760 px   506        146            514         142
+       620 px   506         76            514          72
+       586 px   506         59            514          58
+
+   So in a tall window the wordmark sits 24 px higher than it did, and in a
+   short window it sits 1 px to 4 px lower. Nobody loses a recent row.
+
+   THE 0.47.0 BOX IS NOT AN OPTION, and the same run is what proves it. With
+   one 514 px box and a machine confirmed, the column measured 562 px at the
+   900 px viewport and 514 px with no machine, so the wordmark moved 24 px at
+   the moment the machines list arrived. A box that a person's own data can
+   grow is the one thing this note exists to prevent.
+
+   WHAT "THE TOP EDGE DID NOT MOVE" MEANS HERE, because the backlog entry asks
+   for it and the phrase has two readings. It means the edge does not move for
+   a person as their own data changes, so it is the same with no machine, with
+   one and with two, and the same with no recents and with five. It cannot
+   also mean the edge matches 0.47.0 to the pixel. A 48 px row inside a
+   centred box moves the edge 24 px, and the only ways to hold 514 px are to
+   cut everyone's recents to three or to let the box grow with the recents
+   list, which is the invariant this whole note exists to protect. So the
+   first reading is the one this file implements, and the 24 px is written
+   down above rather than hidden.
+
    The container scrolls. A window shorter than the content must scroll rather
    than clip, and it must never shrink the type.
 --------------------------------------------------------------------------- */
@@ -74,9 +135,11 @@
 .home-col {
   width: 460px;
   flex: 0 0 auto;
-  /* The tallest state (§1.5), plus the Phase 62.1 update line slot. See the
-     note above before changing it. */
-  min-height: 514px;
+  /* The tallest state a tall window can draw: five recents (§1.5), the
+     Phase 62.1 update line slot and the Phase 92 action row. The short-window
+     value is in the media query at the bottom of this file. Read the note
+     above before changing either. */
+  min-height: 562px;
   margin: auto 0;
 }
 
@@ -313,6 +376,39 @@
   color: var(--text-secondary);
 }
 
+/* The machine a recent project's folder is on (Phase 92).
+
+   THE UI FONT AND NOT MONO. DESIGN.md §1.8 reserves mono for terminal adjacent
+   truth and names a path shown as a path. A machine's label is a name a person
+   typed, so it sets in the UI font beside the path rather than in it.
+
+   IT IS IDENTITY AND NOT STATUS, so it gets no dot, no fill, no border, no
+   badge and no colour of its own. Research 35 §5 forbids anything on this
+   screen that says how a thing is doing right now, and this says only where the
+   folder is. It takes the same size, the same colour token and the same hover
+   step-up as the path, so the two read as one quiet run of detail.
+
+   The hover step-up is not cosmetic. --text-muted on --bg-raised measures
+   4.38:1, below the 4.5:1 floor, and --text-secondary on --bg-raised measures
+   6.83:1. The path rule above carries the same note for the same reason.
+
+   The max-width stops a long label from pushing the project's name out of the
+   row. The name shrinks first because it is the only flexible child. */
+.home-recent-machine {
+  flex: 0 0 auto;
+  max-width: 120px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+}
+
+.home-recent:hover .home-recent-machine {
+  color: var(--text-secondary);
+}
+
 /* Reserved on EVERY row, empty unless the folder is missing, so the warning
    can appear without moving anything. */
 .home-recent-warn {
@@ -348,7 +444,7 @@
 }
 
 /* ---------------------------------------------------------------------------
-   The short-window cap (§1.5)
+   The short window (§1.5), being the cap on recent rows and the box height
 
    Five rows plus the rest of the column is 490px of content, which does not
    fit the 562px content area of the 960 by 600 minimum window once the
@@ -356,11 +452,30 @@
 
    Phase 62.1 added the 24px update line slot to every state. Five rows is
    514px now and still does not fit. Three rows is 458px and still fits, with
-   20px to spare instead of 44px. The cap of 3 therefore does not move.
+   20px to spare instead of 44px. The cap of 3 therefore did not move then.
 
-   nth-of-type and NOT nth-child: the section label is the first child, so
-   nth-child(n+4) would hide one row too many. That was caught in the
-   prototype. The rows are the only buttons in this group, so counting by type
+   PHASE 92 KEPT THE CAP AT 3 AND MOVED THE BOX INSTEAD. Its first build cut
+   the cap to 2 and left one 562px box everywhere. Both halves of that were
+   wrong. The cap took a row away from every person, machine or none, and the
+   562px box made the screen scroll at two window heights where it never had.
+   What the probe measured at the 960 by 600 minimum window, where the scroll
+   container is 548px:
+
+     the first build, a 562px box     602px   54px over, and it scrolled
+     0.47.0, a 514px box              554px    6px over, and it scrolled
+     this build, a 506px box          548px   fits, and it does not scroll
+
+   So the box here is 506px, which is the tallest thing this window can draw,
+   being four action rows and three recent rows. The cap stays at 3 and nobody
+   loses a row.
+
+   Both numbers are chosen by the WINDOW and never by the data. The window's
+   height is known at the first paint. The machines list and the recents list
+   both arrive later.
+
+   It stays nth-of-type and NOT nth-child, for the reason it always had: the
+   section label is the first child, so nth-child(n+4) would hide the wrong
+   rows. The rows are the only buttons in this group, so counting by type
    counts rows.
 
    This is a CSS rule and not a JavaScript branch, and the arrow-key walk in
@@ -368,6 +483,10 @@
    cannot be focused.
 --------------------------------------------------------------------------- */
 @media (max-height: 760px) {
+  .home-col {
+    min-height: 506px;
+  }
+
   .home-recents .home-recent:nth-of-type(n + 4) {
     display: none;
   }

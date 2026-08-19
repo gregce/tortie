@@ -38,7 +38,7 @@
 
 import type { MachineLink, MachineStateView } from '@shared/ipc';
 import type { MachineRowV1 } from '@shared/machines';
-import { machineRowStatus } from './confirm';
+import { machineRowStatus, onMachineConfirmationsChanged } from './confirm';
 import {
   machineLinkFacts,
   onMachineLinkChanged,
@@ -190,9 +190,19 @@ export function currentMachineStates(): MachineStateView[] {
 /**
  * Fire `listener` whenever the answer would change.
  *
- * Two sources, because two things move it: the link itself, and the machines
- * file (a machine added, removed or confirmed). Both are subscribed here so the
+ * THREE sources, because three things move it. The link itself. The machines
+ * file, when a machine is added or removed. And the confirmation record, when a
+ * person presses the button in Settings. All three are subscribed here so the
  * renderer subscribes to one thing.
+ *
+ * The third source was added in the Phase 92 fix round, and it was a real bug
+ * rather than a tidy-up. A confirmation is written to
+ * `<userData>/gmux/config-confirmations.json` and it touches neither of the
+ * other two sources, so a person who added and confirmed their first machine
+ * got exactly one push, and that push carried the state from BEFORE they
+ * pressed the button, which is `refused`. Every surface that hides an
+ * unconfirmed machine, the home screen's action row among them, stayed hidden
+ * until Tortie was restarted.
  */
 export function onMachineStateChanged(
   listener: (states: MachineStateView[]) => void
@@ -202,8 +212,10 @@ export function onMachineStateChanged(
   };
   const offLink = onMachineLinkChanged(fire);
   const offRows = onMachinesChanged(fire);
+  const offConfirm = onMachineConfirmationsChanged(fire);
   return () => {
     offLink();
     offRows();
+    offConfirm();
   };
 }

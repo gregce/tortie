@@ -134,3 +134,29 @@ export function machineAnswering(
   const link = states.find((one) => one.id === machineId)?.link ?? null;
   return link === 'connected' || link === 'polling';
 }
+
+/**
+ * The machines this person has confirmed, in the order the machines file holds
+ * them.
+ *
+ * PHASE 92. The home screen's fourth action row is drawn only when this list is
+ * not empty, because a row that opens a sheet with nothing in it is a row
+ * nobody can act on.
+ *
+ * WHY `refused` IS EXACTLY THE UNCONFIRMED SET, and it is not an inference.
+ * `machineStateViewOf` in src/main/machines/machine-state.ts returns `refused`
+ * for a row whose confirm gate has not been passed, and it returns it BEFORE it
+ * reads any link fact. The live half never produces `refused` from a link fact,
+ * because a link is one of `connected`, `polling`, `connecting` or `quiet`. So a
+ * row that is not `refused` is a row a person confirmed, whether or not that
+ * machine is answering right now.
+ *
+ * A machine that is asleep is still confirmed and still counts. The sheet says
+ * what it found when it tries, and that sentence is better than a row that was
+ * never offered.
+ */
+export function confirmedMachines(
+  states: readonly MachineStateView[]
+): MachineStateView[] {
+  return states.filter((one) => one.link !== 'refused');
+}

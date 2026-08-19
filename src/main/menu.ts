@@ -28,8 +28,7 @@ import { app, BrowserWindow, Menu } from 'electron';
 import type { MenuItemConstructorOptions } from 'electron';
 import {
   EVT_MENU_ACTION,
-  EVT_QUIT_REQUESTED,
-  OPEN_RECENT_PREFIX
+  EVT_QUIT_REQUESTED
 } from '@shared/ipc';
 import type { MenuActionWithFind } from '@shared/ipc';
 // Every accelerator below comes from the ONE keymap (Phase 12.12). Do not
@@ -58,7 +57,12 @@ import { BUILD_COMMIT } from './build-info';
 // Phase 18.6. The recents domain hands over the whole `Open Recent` item as
 // DATA and knows nothing about how a click reaches the renderer, which is the
 // one decision this file keeps.
-import { clearRecents, onRecentsChanged, openRecentMenuItem } from './recents';
+import {
+  clearRecents,
+  onRecentsChanged,
+  openRecentActionId,
+  openRecentMenuItem
+} from './recents';
 // Phase 90.3. Whether File > Open Folder on a Machine… has anything to open.
 // Direct module imports, NOT the ./machines barrel, which re-exports the whole
 // remote layer and would pull the session feed into the menu's import graph.
@@ -406,8 +410,16 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         // puts it. The rows are built from <userData>/recents.json at the
         // moment the menu is built, and `rebuildAppMenu()` runs on every
         // change to that file, so the submenu cannot go stale.
+        // PHASE 92. A row can name another machine, and the two families are
+        // separate ids rather than one id with a flag, because a menu action
+        // id carries no structure of its own. The id itself is composed by
+        // `openRecentActionId` in the recents domain, so a test can pin the
+        // exact string without building a native menu, and this file keeps the
+        // one decision it has always kept, which is how a click reaches the
+        // renderer.
         openRecentMenuItem({
-          open: (path) => sendMenuAction(`${OPEN_RECENT_PREFIX}${path}`),
+          open: (path, machineId) =>
+            sendMenuAction(openRecentActionId(path, machineId)),
           clear: () => clearRecents()
         }),
         { type: 'separator' },

@@ -10,6 +10,7 @@ import type { Project } from '../types';
 import type {
   CloneMenuActionId,
   OpenRecentActionId,
+  OpenRecentOnMachineActionId,
   ProjectMenuActionId,
   RemoteProjectMenuActionId
 } from './projects';
@@ -479,7 +480,11 @@ export type MenuActionWithFind =
   | FocusSessionActionId
   // Phase 18.6. The third template family, alongside the two above: File >
   // Open Recent carries a path, which cannot be a union member.
-  | OpenRecentActionId;
+  | OpenRecentActionId
+  // Phase 92. The fourth template family. A recent row whose folder is on
+  // another machine carries the machine and the path, which is one more thing
+  // than a union member can hold.
+  | OpenRecentOnMachineActionId;
 
 // ---------------------------------------------------------------------------
 // APPENDED by Phase 19 item 11 (sleep and wake) — one new EVENT channel, its

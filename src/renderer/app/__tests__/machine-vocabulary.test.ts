@@ -70,6 +70,12 @@ const FILES: readonly string[] = [
   // the rest. Every sentence it draws is a named export in that file, which is
   // where they live until they move to machine-copy.ts.
   'src/renderer/app/RemoteProjectModal.tsx',
+  // Phase 92. The home screen. It now names a machine in two places, being the
+  // action row that opens a folder on another machine and the quiet run of text
+  // after a recent project's path. Both come from machine-copy.ts, and the file
+  // is on this list so a later round cannot type a sentence straight into the
+  // screen without the audit reading it.
+  'src/renderer/app/HomeScreen.tsx',
   // Phase 90.3. The Explorer's own sentences reach a person through this file,
   // and from this phase they include six states about a folder on a machine.
   'src/renderer/tree/FilesSection.tsx',

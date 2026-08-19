@@ -6,6 +6,10 @@
  * disappears when the preload cannot reveal, rather than offering a verb that
  * throws on click. Remove from Recent survives both, because a row pointing
  * at a folder that no longer exists is the one the user most wants gone.
+ *
+ * PHASE 92 ADDED A FOURTH. Reveal in Finder also disappears on a folder that
+ * is on another machine, because Finder has nothing to show. The other three
+ * items stay, and Copy Path copies the path exactly as that machine states it.
  */
 
 import { describe, expect, it, vi } from 'vitest';
@@ -55,6 +59,33 @@ describe('recentMenuItems', () => {
     const items = recentMenuItems({ path: '/a/b' }, actions(), false);
     expect(labels(items)).not.toContain('Reveal in Finder');
     expect(labels(items)).toContain('Remove from Recent');
+  });
+
+  it('drops Reveal in Finder for a folder on another machine', () => {
+    const items = recentMenuItems(
+      { path: '/Users/gdc/dev', remote: true },
+      actions(),
+      true
+    );
+    expect(labels(items)).toEqual([
+      'Open',
+      'Copy Path',
+      '---',
+      'Remove from Recent'
+    ]);
+  });
+
+  it('keeps Reveal in Finder for a local row beside a remote one', () => {
+    // The two targets differ only in the new field, so this pins the field as
+    // the thing that decides it rather than something else in the row.
+    const local = recentMenuItems({ path: '/Users/gdc/dev' }, actions(), true);
+    const remote = recentMenuItems(
+      { path: '/Users/gdc/dev', remote: true },
+      actions(),
+      true
+    );
+    expect(labels(local)).toContain('Reveal in Finder');
+    expect(labels(remote)).not.toContain('Reveal in Finder');
   });
 
   it('runs the callback the caller supplied, and only that one', () => {

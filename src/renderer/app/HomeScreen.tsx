@@ -17,15 +17,22 @@
  *
  * Vertically it is the TALLEST state that is centred, and every shorter state
  * keeps that same top edge, so the mark's height depends on the window and
- * never on how many recents exist. The mechanism is one `min-height` in
+ * never on how many recents exist. The mechanism is a `min-height` in
  * home-screen.css and the reasoning is written there. Read it before changing
  * either half: centring the column plainly, or anchoring it to the top, each
  * satisfies one of the two requirements and breaks the other.
  *
+ * Since Phase 92 there are two values for that box, one for a window taller
+ * than 760 px and one for a window at or below it, because a short window
+ * draws three recent rows rather than five. The box is still a constant from
+ * the first frame, because the window's height is known then. It is never
+ * sized from the machines list or the recents list, because both of those
+ * arrive after the first paint.
+ *
  * Five parts, in this order (§0):
  *   1. the lockup, which is the mark at 48px beside the TORTIE.sh wordmark
  *   2. the promise, one sentence, the only line that says why Tortie exists
- *   3. three action rows, Open then New then Clone
+ *   3. the action rows, Open then Open on a machine then New then Clone
  *   4. up to five recent projects
  *   5. one hint about dropping a folder
  *
@@ -35,28 +42,62 @@
  * a screen where the user cannot act on it, and the menu bar tray already
  * lists every live session. Read §5.1 before adding any of them back.
  *
+ * PHASE 92 ADDED TWO THINGS AND NEITHER IS ON THAT LIST. The first is a fourth
+ * action row that opens a folder on another machine, and it appears only when
+ * this person has confirmed at least one machine. The second is the machine's
+ * name, drawn as one quiet run of muted text after the path on a recent row.
+ *
+ * A machine's name is IDENTITY and not status. It says where the folder is,
+ * which is a fact that does not change while a person watches, and it is the
+ * only way to tell two rows apart when the same path exists on two computers.
+ * Nothing about the link reaches this screen: no dot, no colour, no badge, no
+ * icon and no tooltip about whether that machine is answering. A row on
+ * another machine is never marked missing either, because checking would mean
+ * asking another computer on every paint, and this screen never waits on a
+ * filesystem, let alone a network. If the folder has gone over there, the
+ * click says so.
+ *
  * There is no motion on this screen at all (§1.12). DESIGN.md §5 says nothing
  * animates on app load, and the one thing that could have pulsed is cut.
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import type { RecentProject } from '@shared/ipc';
+import type { AddRemoteProjectResult, MachineStateView } from '@shared/ipc';
 import { keyDisplay } from '@shared/keymap';
 import { Codicon } from '../icons';
 import { Keycap } from '../keys';
 import { canReveal, reveal } from '../tree/fs-bridge';
 import { useApp } from '../state/store';
+// Phase 92. The confirmed set and the label lookup are two pure reads over the
+// machine list main last sent. The screen holds no other machine knowledge.
+import { confirmedMachines, machineLabelFor } from '../state/machines-slice';
 // Recents are their own leaf store (Phase 18.6 item 2). The screen reads the
-// rows and the missing set, and asks it to forget one. It owns nothing else
+// rows, each one already carrying its key, its machine and whether the folder
+// is gone, and asks the store to forget one. It owns nothing else
 // about them: the file, the native File > Open Recent menu and the after-paint
 // existence check all live behind that module.
 import { useHomeRecents, useRecents } from '../state/recents';
+import type { HomeRecentRow } from '../state/recents';
 import { displayPath, parentDir, truncateMiddle } from './format';
+// Every sentence this screen says about a machine comes from the one file the
+// vocabulary audit reads, including the refusal a click can produce.
+import {
+  addRemoteRefusal,
+  OPEN_ON_ANY_MACHINE_TITLE,
+  OPEN_ON_MACHINE_SUBTITLE,
+  openOnMachineTitle,
+  remoteRecentTooltip
+} from './machine-copy';
 // Phase 62.1. The one line that mirrors the update ring's state, because
 // this screen has no activity bar and a manual check started here was
 // silent. It is text only and its slot is reserved, so nothing shifts.
 import { HomeUpdateLine } from './HomeUpdateLine';
 import { recentMenuItems } from './recent-menu';
+// Phase 92. The harness drive that injects machine rows and reads the column's
+// geometry. It assigns one function to `window` and changes nothing else, so
+// outside the harness it is one unused property. Registered here rather than in
+// a component body, exactly as the tree's own drives are.
+import { registerHomeMachinesDrive } from './home-machines-drive';
 // Phase 12.85: the ONE in-window Tortie mark, copied from the brand package
 // (docs/brand/tortie/dock/tortie-dock-128.png) by `npm run icon`. §1.7 keeps
 // the shipping mark at full opacity: its outline and shell measure 10.39:1 on
@@ -64,6 +105,8 @@ import { recentMenuItems } from './recent-menu';
 // from the 3:1 floor. A dark-ground variant is brand work, not a gate here.
 import tortieMark from '../assets/brand/tortie-128.png';
 import './home-screen.css';
+
+registerHomeMachinesDrive();
 
 // ---------------------------------------------------------------------------
 // Copy — §1.11 is the authority on every string on this screen
@@ -101,7 +144,7 @@ export interface HomeScreenProps {
   onClone?: () => void;
 }
 
-interface ActionSpec {
+export interface ActionSpec {
   id: string;
   /** Codicon id. Each one is the glyph the app already uses for that verb. */
   icon: string;
@@ -112,6 +155,229 @@ interface ActionSpec {
   run: () => void;
 }
 
+/**
+ * What the action list is decided from. Four facts and four verbs.
+ *
+ * PHASE 92 PULLED THIS OUT OF THE COMPONENT, for the reason ./recent-menu.ts is
+ * its own module: the SHAPE of the list is the part that regresses in silence,
+ * and this repository has no jsdom, so a rendered row cannot be clicked in a
+ * test. A pure builder can be, and it is the same function the screen runs.
+ */
+export interface HomeActionsInput {
+  /** Whether this build can create a project folder. */
+  canCreateProject: boolean;
+  /** Whether this build can open a folder on another machine. */
+  canAddRemote: boolean;
+  /** The confirmed machines, in the order the machines file holds them. */
+  confirmed: readonly MachineStateView[];
+  /** The Clone verb, or undefined on a build that cannot clone. */
+  onClone?: () => void;
+  openProject(): void;
+  setNewProjectOpen(open: boolean): void;
+  setRemoteProjectOpen(open: boolean): void;
+}
+
+/**
+ * The action rows, in order.
+ *
+ * Order is the hierarchy (§1.8). Open is first because it is the common case.
+ * There is no accent fill, no coloured icon and no visual primary, so the order
+ * and the initial keyboard focus carry the rank.
+ */
+export function homeActions(input: HomeActionsInput): ActionSpec[] {
+  const list: ActionSpec[] = [
+    {
+      id: 'open',
+      icon: 'folder-opened',
+      title: 'Open project…',
+      subtitle: 'Any folder works. A git repository gets the full sidebar.',
+      chip: keyDisplay('project.open'),
+      run: () => input.openProject()
+    }
+  ];
+  // PHASE 92. Between Open and New, because it is a kind of Open.
+  //
+  // TWO CONDITIONS AND BOTH ARE REQUIRED. The build has to carry the verb at
+  // all, which an older preload does not, and this person has to have confirmed
+  // at least one machine. Without the second the row would open a sheet with
+  // nothing in it to choose.
+  //
+  // ONE ROW, however many machines exist. One row per machine was refused: this
+  // screen's height is fixed, and a list that grows with the machines file
+  // pushes the recent projects off the bottom. With exactly one usable machine
+  // the sheet already preselects it, so the row hands over no argument and this
+  // phase writes no second picker.
+  const onlyMachine =
+    input.confirmed.length === 1 ? input.confirmed[0] : undefined;
+  if (input.canAddRemote && input.confirmed.length > 0) {
+    list.push({
+      id: 'open-remote',
+      // The glyph the Machines section of Settings already uses, so the two
+      // surfaces name the same thing with the same mark.
+      icon: 'vm',
+      title:
+        onlyMachine === undefined
+          ? OPEN_ON_ANY_MACHINE_TITLE
+          : openOnMachineTitle(onlyMachine.label),
+      subtitle: OPEN_ON_MACHINE_SUBTITLE,
+      // No chord, for the reason Clone has none. Every built-in chord leaves
+      // the pool a person may record as a per-agent hotkey.
+      chip: null,
+      run: () => input.setRemoteProjectOpen(true)
+    });
+  }
+  // An older preload with no projects:create hides the verb rather than
+  // offering one that cannot work. Same guard as project-menu.ts.
+  if (input.canCreateProject) {
+    list.push({
+      id: 'new',
+      icon: 'new-folder',
+      title: 'New project…',
+      subtitle: 'Create an empty folder and start a git repository in it.',
+      chip: keyDisplay('project.new'),
+      run: () => input.setNewProjectOpen(true)
+    });
+  }
+  const clone = input.onClone;
+  if (clone !== undefined) {
+    list.push({
+      id: 'clone',
+      icon: 'repo-clone',
+      title: 'Clone repository…',
+      subtitle: 'Download a git repository and open it as a project.',
+      // No chord, on purpose (§0). Every built-in chord leaves the pool the
+      // user may record for a per-agent hotkey, and that is a bad trade for a
+      // weekly action. Clone lives in three places already.
+      chip: null,
+      run: clone
+    });
+  }
+  return list;
+}
+
+/** What a click on a recent row is decided from. */
+export interface OpenRecentInput {
+  /** The machine list, for the label a refusal sentence names. */
+  machineStates: readonly MachineStateView[];
+  addRemoteProject(
+    machineId: string,
+    path: string
+  ): Promise<AddRemoteProjectResult>;
+  addProjectPath(path: string): Promise<void> | void;
+  openProject(): Promise<void> | void;
+  toast(kind: 'error', text: string): void;
+}
+
+/**
+ * PHASE 92. The click branches on which computer the folder is on, and the two
+ * branches share nothing.
+ *
+ * A local row keeps exactly what it did before, including handing over the
+ * picker when the folder is gone. A row on another machine asks that machine,
+ * and a refusal becomes the sentence machine-copy.ts already writes for that
+ * reason word. It cannot hang: main's own add checks the link first and answers
+ * `notConnected` without contacting anything when the machine is not signed in.
+ */
+export async function openRecentRow(
+  row: HomeRecentRow,
+  input: OpenRecentInput
+): Promise<void> {
+  const entry = row.entry;
+  if (row.remote) {
+    const label = machineLabelFor(input.machineStates, row.machineId);
+    const result = await input.addRemoteProject(row.machineId, entry.path);
+    if (!result.ok) {
+      input.toast('error', addRemoteRefusal(result.reason, entry.path, label));
+    }
+    return;
+  }
+  if (row.missing) {
+    // The folder moved or was deleted, so the row hands the user the picker to
+    // point at where it went. Seeding the picker at the last known parent is
+    // not possible today: projects:pickDirectory is a frozen channel that takes
+    // no argument. Phase 74 appended projects:pickDirectoryFor beside it, and
+    // that sentence is still true, because the new channel takes which question
+    // the panel asks and not a folder to start in. Seeding would need a third
+    // argument that neither channel has.
+    await input.openProject();
+    return;
+  }
+  await input.addProjectPath(entry.path);
+}
+
+/**
+ * The machine's label for a recent row, or null when the folder is on this Mac.
+ *
+ * The id is the fallback inside {@link machineLabelFor}, because a person can
+ * forget a machine while its row is on screen. A short unfamiliar word says
+ * more than a blank, which is what the three sidebars already decided.
+ */
+export function recentRowMachineLabel(
+  row: HomeRecentRow,
+  machineStates: readonly MachineStateView[]
+): string | null {
+  return row.remote ? machineLabelFor(machineStates, row.machineId) : null;
+}
+
+/** The row's hover title. The pair when the folder is on another machine. */
+export function recentRowTitle(
+  row: HomeRecentRow,
+  label: string | null
+): string {
+  if (row.missing) return MISSING;
+  if (label === null) return row.entry.path;
+  return remoteRecentTooltip(row.entry.path, label);
+}
+
+/**
+ * What is inside a recent row's button.
+ *
+ * IT IS ITS OWN COMPONENT so a test can hold the markup. This repository has no
+ * jsdom and zustand answers a server render from its INITIAL state, so
+ * rendering the whole screen would draw the empty first-launch shape whatever a
+ * test put in the stores. A component that takes its row as a prop draws the
+ * row the test asked for.
+ */
+export function HomeRecentRowBody({
+  row,
+  label
+}: {
+  row: HomeRecentRow;
+  label: string | null;
+}): React.JSX.Element {
+  return (
+    <>
+      <span className="home-recent-name">{row.entry.name}</span>
+      {/* Mono, because DESIGN.md §1.8 reserves it for terminal adjacent truth
+          and names a path shown as a path. The machine id is passed so a path
+          on another machine is drawn exactly as that machine states it, with
+          no `~`. */}
+      <span className="home-recent-path">
+        {truncateMiddle(
+          displayPath(parentDir(row.entry.path), row.machineId),
+          PATH_CHARS
+        )}
+      </span>
+      {/* The machine's name, on a row whose folder is elsewhere. One quiet run
+          of muted text in the UI font, with no dot, no fill, no border and no
+          icon, because it says WHERE the folder is and never how that machine
+          is doing. A screen reader reads it as part of the button, so the row
+          needs no aria-label of its own. */}
+      {label === null ? null : (
+        <span className="home-recent-machine">{label}</span>
+      )}
+      {/* Reserved on every row, so marking one causes no reflow. Three
+          redundant channels carry the missing state: the name steps down, the
+          path is struck through, and this icon appears. No state is ever colour
+          alone. A row on another machine is never marked, so this slot is
+          always empty there. */}
+      <span className="home-recent-warn">
+        {row.missing ? <Codicon name="warning" size={12} /> : null}
+      </span>
+    </>
+  );
+}
+
 export function HomeScreen({ onClone }: HomeScreenProps): React.JSX.Element {
   const openProject = useApp((s) => s.openProject);
   const setNewProjectOpen = useApp((s) => s.setNewProjectOpen);
@@ -119,53 +385,49 @@ export function HomeScreen({ onClone }: HomeScreenProps): React.JSX.Element {
   const addProjectPath = useApp((s) => s.addProjectPath);
   const setMenu = useApp((s) => s.setMenu);
   const toast = useApp((s) => s.toast);
-  const { recents, missing } = useHomeRecents();
+  // Phase 92. The four reads the machine row and the remote recents need.
+  const machineStates = useApp((s) => s.machineStates);
+  const canAddRemote = useApp((s) => s.canAddRemoteProject());
+  const setRemoteProjectOpen = useApp((s) => s.setRemoteProjectOpen);
+  const addRemoteProject = useApp((s) => s.addRemoteProject);
+  const { rows: recents } = useHomeRecents();
   const removeRecent = useRecents((s) => s.remove);
 
-  // Order is the hierarchy (§1.8). Open is first because it is the common
-  // case. There is no accent fill, no coloured icon and no visual primary —
-  // the order and the initial keyboard focus carry the rank.
-  const actions = useMemo<readonly ActionSpec[]>(() => {
-    const list: ActionSpec[] = [
-      {
-        id: 'open',
-        icon: 'folder-opened',
-        title: 'Open project…',
-        subtitle: 'Any folder works. A git repository gets the full sidebar.',
-        chip: keyDisplay('project.open'),
-        run: () => void openProject()
-      }
-    ];
-    // An older preload with no projects:create hides the verb rather than
-    // offering one that cannot work. Same guard as project-menu.ts.
-    if (canCreateProject) {
-      list.push({
-        id: 'new',
-        icon: 'new-folder',
-        title: 'New project…',
-        subtitle: 'Create an empty folder and start a git repository in it.',
-        chip: keyDisplay('project.new'),
-        run: () => setNewProjectOpen(true)
-      });
-    }
-    if (onClone !== undefined) {
-      list.push({
-        id: 'clone',
-        icon: 'repo-clone',
-        title: 'Clone repository…',
-        subtitle: 'Download a git repository and open it as a project.',
-        // No chord, on purpose (§0). Every built-in chord leaves the pool the
-        // user may record for a per-agent hotkey, and that is a bad trade for
-        // a weekly action. Clone lives in three places already.
-        chip: null,
-        run: onClone
-      });
-    }
-    return list;
-  }, [canCreateProject, onClone, openProject, setNewProjectOpen]);
+  /**
+   * The machines this person confirmed, whether or not they are answering now.
+   *
+   * It is memoised because the actions list below depends on it, and a fresh
+   * array on every render would rebuild that list on every render.
+   */
+  const confirmed = useMemo(
+    () => confirmedMachines(machineStates),
+    [machineStates]
+  );
+
+  const actions = useMemo<readonly ActionSpec[]>(
+    () =>
+      homeActions({
+        canCreateProject,
+        canAddRemote,
+        confirmed,
+        onClone,
+        openProject: () => void openProject(),
+        setNewProjectOpen,
+        setRemoteProjectOpen
+      }),
+    [
+      canAddRemote,
+      canCreateProject,
+      confirmed,
+      onClone,
+      openProject,
+      setNewProjectOpen,
+      setRemoteProjectOpen
+    ]
+  );
 
   // -- one list, one tab stop (§1.13) ---------------------------------------
-  // The three actions and the recents are walked by Up and Down as a single
+  // The action rows and the recents are walked by Up and Down as a single
   // list with a roving tabindex. They are buttons in labelled groups and not
   // a listbox, because each row performs an action rather than selecting a
   // value. Arrow handling is written by hand, which is what DESIGN.md §4 asks
@@ -221,35 +483,32 @@ export function HomeScreen({ onClone }: HomeScreenProps): React.JSX.Element {
 
   // -- recents behaviour ----------------------------------------------------
 
-  const openRecent = (entry: RecentProject): void => {
-    if (missing.has(entry.path)) {
-      // The folder moved or was deleted, so the row hands the user the picker
-      // to point at where it went. Seeding the picker at the last known
-      // parent is not possible today: projects:pickDirectory is a frozen
-      // channel that takes no argument. Phase 74 appended
-      // projects:pickDirectoryFor beside it, and that sentence is still true,
-      // because the new channel takes which question the panel asks and not a
-      // folder to start in. Seeding would need a third argument that neither
-      // channel has.
-      void openProject();
-      return;
-    }
-    void addProjectPath(entry.path);
+  const openRecent = (row: HomeRecentRow): void => {
+    void openRecentRow(row, {
+      machineStates,
+      addRemoteProject,
+      addProjectPath,
+      openProject,
+      toast
+    });
   };
 
-  const recentMenu = (e: React.MouseEvent, entry: RecentProject): void => {
+  const recentMenu = (e: React.MouseEvent, row: HomeRecentRow): void => {
     e.preventDefault();
+    const entry = row.entry;
     const items = recentMenuItems(
-      { path: entry.path, missing: missing.has(entry.path) },
+      { path: entry.path, missing: row.missing, remote: row.remote },
       {
-        open: () => openRecent(entry),
+        open: () => openRecent(row),
         reveal: () => {
           void reveal(entry.path).catch(() =>
             toast('error', 'Could not reveal the folder in Finder')
           );
         },
         copyPath: () => void navigator.clipboard.writeText(entry.path),
-        remove: () => void removeRecent(entry.path)
+        // The pair, never the path. Two machines can hold the same path, and
+        // forgetting one row must not forget the other.
+        remove: () => void removeRecent(entry.path, entry.machineId)
       },
       canReveal()
     );
@@ -331,41 +590,32 @@ export function HomeScreen({ onClone }: HomeScreenProps): React.JSX.Element {
             onKeyDown={onKeyDown}
           >
             <div className="home-group-label">Recent</div>
-            {recents.map((entry, n) => {
+            {recents.map((row, n) => {
+              const entry = row.entry;
               const i = actions.length + n;
-              const gone = missing.has(entry.path);
-              const parent = parentDir(entry.path);
+              const label = recentRowMachineLabel(row, machineStates);
               return (
                 <button
-                  key={entry.path}
+                  // The PAIR, never the path (Phase 92). Two machines can hold
+                  // the same path, and a duplicate key would make React draw
+                  // one row where there are two projects.
+                  key={row.key}
                   type="button"
                   className="home-row home-recent"
-                  data-missing={gone ? 'true' : undefined}
+                  data-missing={row.missing ? 'true' : undefined}
                   ref={(el) => {
                     rows.current[i] = el;
                   }}
                   tabIndex={active === i ? 0 : -1}
                   onFocus={() => setActive(i)}
-                  onClick={() => openRecent(entry)}
-                  onContextMenu={(e) => recentMenu(e, entry)}
-                  title={gone ? MISSING : entry.path}
-                  {...(gone
+                  onClick={() => openRecent(row)}
+                  onContextMenu={(e) => recentMenu(e, row)}
+                  title={recentRowTitle(row, label)}
+                  {...(row.missing
                     ? { 'aria-label': `${entry.name}. ${MISSING}` }
                     : {})}
                 >
-                  <span className="home-recent-name">{entry.name}</span>
-                  {/* Mono, because DESIGN.md §1.8 reserves it for terminal
-                      adjacent truth and names a path shown as a path. */}
-                  <span className="home-recent-path">
-                    {truncateMiddle(displayPath(parent), PATH_CHARS)}
-                  </span>
-                  {/* Reserved on every row, so marking one causes no reflow.
-                      Three redundant channels carry the missing state: the
-                      name steps down, the path is struck through, and this
-                      icon appears. No state is ever colour alone. */}
-                  <span className="home-recent-warn">
-                    {gone ? <Codicon name="warning" size={12} /> : null}
-                  </span>
+                  <HomeRecentRowBody row={row} label={label} />
                 </button>
               );
             })}

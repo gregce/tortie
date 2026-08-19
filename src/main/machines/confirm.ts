@@ -560,6 +560,46 @@ export interface MachineConfirmConsent {
 }
 
 /**
+ * Who to tell when a machine's confirmation changes (Phase 92 fix round).
+ *
+ * The bug this closes was measured on a real Mac. A person added their first
+ * machine and confirmed it, and the home screen's new action row did not
+ * appear until Tortie was restarted. The window is pushed a machine's state by
+ * `onMachineStateChanged` in ./machine-state.ts, which listened to two things,
+ * being the link and `machines.json`. A confirmation is neither. It is written
+ * to `<userData>/gmux/config-confirmations.json`, so nothing fired and the
+ * window kept the answer it was given before the person pressed the button.
+ *
+ * Main itself was always right, because `machineRowStatus` reads the record
+ * file on every call. Only the push was missing, so this is the whole fix.
+ */
+type ConfirmListener = () => void;
+let confirmListeners: ConfirmListener[] = [];
+
+/** Fire `cb` after a machine confirmation is recorded or withdrawn. */
+export function onMachineConfirmationsChanged(cb: ConfirmListener): () => void {
+  confirmListeners.push(cb);
+  return () => {
+    confirmListeners = confirmListeners.filter((one) => one !== cb);
+  };
+}
+
+/** Tell everyone. A listener that throws never stops the others. */
+function fireConfirmationsChanged(): void {
+  for (const cb of [...confirmListeners]) {
+    try {
+      cb();
+    } catch (err) {
+      machinesLog.warn(
+        `a machine confirmation listener threw: ${
+          err instanceof Error ? err.message : String(err)
+        }`
+      );
+    }
+  }
+}
+
+/**
  * Record that a person agreed to one machine. The only way a machine
  * confirmation is ever written.
  *
@@ -605,6 +645,7 @@ export function confirmMachine(
     );
     return null;
   }
+  fireConfirmationsChanged();
   return record;
 }
 
@@ -620,6 +661,7 @@ export function forgetMachine(id: string): void {
   if (rows[key] === undefined) return;
   delete rows[key];
   writeConfirmRecords(rows);
+  fireConfirmationsChanged();
 }
 
 /** Every machine confirmation on record. For the tests and for the smoke. */

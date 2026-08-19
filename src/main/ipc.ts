@@ -163,35 +163,47 @@ export function registerIpcHandlers(): void {
     (await getGmuxCore()).activity.noteUserInput(sessionId);
   });
 
-  // Phase 18.6 item 2: the recents file is written HERE, at the two moments
-  // that mean "the user was just in this project". Every route into a project
-  // ends at projects:add, which is the folder picker, a window drop, New
-  // Project, Clone and the home screen's own recent rows, so a route added
-  // later cannot forget to record itself. The rules and the file are in
-  // ./recents; these two lines are the whole call site.
+  // Phase 18.6 item 2: the recents file is written HERE, at the moments that
+  // mean "the user was just in this project". Every route into a project on
+  // this Mac ends at projects:add, which is the folder picker, a window drop,
+  // New Project, Clone and the home screen's own recent rows, so a route added
+  // later cannot forget to record itself. Phase 92 added the third call site
+  // below, which is the same recording for a folder on another machine. The
+  // rules and the file are in ./recents.
   handle('projects:add', async (_e, path) => {
     const project = (await getGmuxCore()).addProject(path);
     rememberProject(project);
     return project;
   });
-  // PHASE 90.3. One folder on one machine, opened as a project tab. It is NOT
-  // written to recents.json and does not appear on the home screen's recent
-  // list: every row on that list opens a folder on this Mac, and a row that
-  // cannot do that would be a button that fails.
-  handle('projects:addRemote', async (_e, input) =>
-    (await getGmuxCore()).addRemoteProject(input)
-  );
+  // PHASE 90.3. One folder on one machine, opened as a project tab.
+  //
+  // PHASE 92 REWROTE THIS COMMENT, because what it used to say stopped being
+  // true. It said a remote project is deliberately kept off the recents list,
+  // on the ground that every row on that list opens a folder on this Mac. A
+  // recents row now carries the machine its folder is on, the home screen draws
+  // that machine's name and opens the folder over there, so the row is a button
+  // that works and it is written here exactly as a local one is.
+  handle('projects:addRemote', async (_e, input) => {
+    const result = await (await getGmuxCore()).addRemoteProject(input);
+    if (result.ok) rememberProject(result.project);
+    return result;
+  });
   handle('projects:list', async () => (await getGmuxCore()).listProjects());
   handle('projects:remove', async (_e, projectId) => {
     const core = await getGmuxCore();
     // Read the row BEFORE it is deleted, so the recents entry keeps the name
     // the user gave the project rather than falling back to the folder name.
     const row = core.listProjects().find((p) => p.id === projectId);
-    // PHASE 90.3. A folder on another machine is NOT written to recents.json.
-    // Every row on the home screen's recent list opens a folder on this Mac,
-    // and a row that cannot do that would be a button that fails.
+    // PHASE 92. Either kind is remembered, because a recents row now carries
+    // the machine its folder is on. The previous comment here said a folder on
+    // another machine is deliberately kept out of recents.json, and that is no
+    // longer true.
+    //
+    // `here` still decides ONE thing, which is the preview token below. That
+    // token is a door into a folder on this Mac, and no folder on another
+    // machine ever had one.
     const here = row !== undefined && (row.machineId ?? 'local') === 'local';
-    if (here) rememberProject(row);
+    rememberProject(row);
     core.removeProject(projectId);
     // Phase 20.5: drop this project's `gmux-preview:` token, so a page still
     // held in a closed tab stops resolving. Nothing breaks if it is skipped,

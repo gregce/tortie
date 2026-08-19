@@ -5984,7 +5984,7 @@ all three after a successful run.
 needs `SSH_AUTH_SOCK` exported from the Phase 69 carriage file because the npm script does not
 export it. That gate runnability defect is itself a recorded nit.
 
-## Phase 92 — the home screen opens a folder on another machine (operator requested 2026-08-19) QUEUED, blocked on Phase 90.3
+## Phase 92 — the home screen opens a folder on another machine (operator requested 2026-08-19) ✅ SHIPPED 2026-08-19 (this commit, 0.48.0, gates green, 6,469 tests)
 
 **Subject:** `feat(home): open a folder on another machine from the home screen`
 **First body line:** `Phase 92: the home screen opens a folder on another machine`
@@ -6071,6 +6071,56 @@ did not move when the row was added. One live drive against the operator's Mac P
 folder as a project. One drive of the forgotten-machine case. And the native Open Recent menu shown
 listing a remote entry.
 
+### What landed
+
+**One action row, and one only.** It appears when at least one machine is confirmed, and it sits
+second, after Open and before New. With one machine it names it, e.g. `Open on Mac Pro…`. With more
+than one it reads `Open on another machine…` and the machine is picked in the sheet. The sheet is the
+one Phase 90.2 already draws, reached by the same call the File menu item uses, so there is no second
+picker.
+
+**The row now appears the moment a person confirms their first machine.** It did not in the first
+build, and that was the phase's own first-run path. A confirmation is written to
+`<userData>/gmux/config-confirmations.json`, and `onMachineStateChanged` listened only to the link and
+to `machines.json`, so the window kept the answer it was given before the button was pressed and the
+row stayed hidden until Tortie was restarted. `confirmMachine` and `forgetMachine` now tell their own
+listeners, and `onMachineStateChanged` subscribes to that third source. The probe measures 3 ms from
+the confirmation to the row, with no relaunch.
+
+**Recents carry a machine.** The store gains an optional `machineId`, the home row draws the machine
+name in the UI font beside the path with no dot, no fill and no badge, and the native File then Open
+Recent menu gives a remote entry the sublabel `<folder> on <machine>`. A remote recent whose machine
+has been forgotten is HIDDEN rather than drawn refused or deleted, because the row points at nothing a
+person can act on and the machine may come back. Clicking a remote row while nothing is signed in says
+"Tortie is not connected to <machine>." in 6 ms rather than hanging.
+
+**The column's height is chosen by the window and never by the data.** A fourth action row is 48 px on
+a screen whose height is load bearing, so `min-height` is 562 px in a window taller than 760 px and
+506 px at or below it, where the recents cap of three already applies. The recents cap stayed at three.
+The first build cut it to two for everyone and kept one 562 px box, which took a row away from a person
+with no machine and made the screen scroll at two window heights where it never had.
+
+**The measured geometry, from `build/probe-home-machines.mjs` across twelve cells.** The lockup's top
+edge is the same number with no machine, with one and with two at every height: 188 px at a 900 px
+viewport, 146 px at 760 px, 76 px at 620 px and 59 px at 586 px. No cell scrolls, including the 960 by
+600 minimum window, where 0.47.0 itself overflowed by 6 px. Against 0.47.0 the wordmark sits 24 px
+higher in a tall window and 1 px to 4 px lower in a short one, which is what a 48 px row inside a
+centred box costs. The backlog asked this phase to prove the top edge did not move. The reading it
+implements is that the edge does not move as a person's own data changes, and the 24 px against the
+shipped build is written into `home-screen.css` rather than hidden.
+
+**The live drive against the operator's Mac Pro.** The machine was added and confirmed through the real
+Settings controls, `/Users/gdc/test-sync` was opened over there as a project, and the Explorer drew the
+ten entries that folder holds on the Mac Pro rather than the seven this Mac holds at the same path. The
+open was remembered with its `machineId`, and the home screen drew it as `test-sync`, `/Users/gdc`,
+`Greg's Mac Pro`. The Mac Pro's session list held one session before the drive and the same one after.
+
+**What is not true.** The `RemoteDirPicker`'s own folder listing over ssh is unproven; the sheet it sits
+in is proven. All four viewport heights are emulated over CDP rather than resized by the window manager.
+The 0.47.0 comparison numbers come from this build with 0.47.0's two CSS values put back, not from a
+checkout of 0.47.0. `build/probe-remote-recents.mjs` reads the native menu through the main process's own
+inspector, and its System Events cross-check is skipped unless the terminal has accessibility access.
+
 ## Phase 90.3 — a remote folder is a project (Research 56 model A) ✅ SHIPPED 2026-08-19 (this commit, 0.47.0, gates green, 6,417 tests)
 
 The large half of Phase 90, and the thing Phase 92 needs. Research 55 sections on the workspace
@@ -6148,7 +6198,7 @@ standing cap and these waves stay under it.
 | 3 | **90.2** the counterpart lookup and the clone ✅ SHIPPED 2026-08-19 | `machines/**` and the create sheet | Needs wave 2 to release `machines/**`, and needs 90.1's identity to be correct first |
 | 4 | **89** a conversation comes back on a remote machine | `machines/**`, `exec-plane.ts`, restore | Needs the whole create path settled, and it is the only phase that changes a refusal |
 | 5 | **90.3** a remote folder is a project ✅ SHIPPED 2026-08-19 | `remote_projects`, the Explorer, the workspace surfaces | The large half. Research 55 and 56 already ruled its shape, so it builds rather than decides |
-| 6 | **92** the home screen opens a folder on another machine | `HomeScreen.tsx`, recents | Blocked on 90.3, because a row that opens something the app cannot hold is worse than no row |
+| 6 | **92** the home screen opens a folder on another machine ✅ SHIPPED 2026-08-19 | `HomeScreen.tsx`, recents | Blocked on 90.3, because a row that opens something the app cannot hold is worse than no row |
 
 **Phase 88 is CLOSED and is not in this order.** Phase 82 is not queued.
 

@@ -324,12 +324,27 @@ export interface GmuxProjectCloneExtras {
 
 /** One remembered project. Newest first wherever a list of these appears. */
 export interface RecentProject {
-  /** Absolute path of the project folder. */
+  /** Absolute path of the project folder, ON THE MACHINE NAMED BELOW. */
   path: string;
   /** What the project is called. The manifest's name, which a rename edits. */
   name: string;
   /** Epoch milliseconds of the last open or close. */
   lastOpenedAt: number;
+  /**
+   * APPENDED (Phase 92). The machine this project's folder is on.
+   *
+   * Omitted, or the string `local`, means this Mac, which is every row written
+   * before this release. A row's identity is the PAIR of the machine and the
+   * path, and never the path alone, because two machines can hold the same
+   * path. `targetKey(workspaceTarget(path, machineId))` in
+   * src/shared/workspace-target.ts is the one function that composes that key,
+   * and main and the renderer both use it rather than each writing their own.
+   *
+   * The recents FILE version stays 1. An older build reading a row with a key
+   * it does not know ignores the key, and a newer build reading a row with no
+   * machine reads this Mac, which is what every such row always meant.
+   */
+  machineId?: string;
 }
 
 /** New invoke channels appended by the recent projects stream. */
@@ -341,8 +356,18 @@ export interface RecentsInvokeChannelMap {
    * row. Called after the first paint, so a slow disk cannot delay the screen.
    */
   'recents:missing': { req: []; res: string[] };
-  /** Forget one row. Resolves with the list that is left. */
-  'recents:remove': { req: [path: string]; res: RecentProject[] };
+  /**
+   * Forget one row. Resolves with the list that is left.
+   *
+   * WIDENED by Phase 92 with a second, optional argument. The path alone stopped
+   * being an identity when a row could name a machine, so a caller that omits
+   * the machine still means this Mac and a caller that passes one removes that
+   * machine's row and leaves the other machine's row with the same path.
+   */
+  'recents:remove': {
+    req: [path: string, machineId?: string];
+    res: RecentProject[];
+  };
 }
 
 /** Main to renderers: the recents file changed. Payload is the whole list. */
@@ -362,7 +387,8 @@ export interface GmuxRecentsExtras {
   recents?: {
     list(): Promise<RecentProject[]>;
     missing(): Promise<string[]>;
-    remove(path: string): Promise<RecentProject[]>;
+    /** Phase 92: the machine is optional and omitting it means this Mac. */
+    remove(path: string, machineId?: string): Promise<RecentProject[]>;
     onChanged(cb: (recents: RecentProject[]) => void): Unsubscribe;
   };
 }
@@ -401,6 +427,34 @@ export type OpenRecentActionId = `open-recent:${string}`;
 
 /** The prefix above, so main and the renderer split the id the same way. */
 export const OPEN_RECENT_PREFIX = 'open-recent:' as const;
+
+/**
+ * File > Open Recent > a row whose folder is on another machine (Phase 92).
+ *
+ * A second TEMPLATE family beside the one above, handled by prefix before the
+ * dispatcher's switch ever sees it. The payload is `${machineId}:${path}`, and
+ * the renderer splits it at the FIRST colon. That split is exact: a machine id
+ * matches `^[a-z][a-z0-9-]{0,31}$` and so can never contain a colon, while a
+ * path may contain as many as it likes.
+ *
+ * It is a separate family rather than a widening of `open-recent:` because a
+ * menu action id carries no structure of its own, so the only way main can say
+ * which computer a path names is to say it in the id.
+ *
+ * The two prefixes cannot be confused. `open-recent-on:` and `open-recent:`
+ * differ at the eleventh character, so a string starting with one never starts
+ * with the other.
+ *
+ * The click fails the way every other route to an unreachable machine fails,
+ * which is `projects:addRemote` answering a reason word and the renderer
+ * drawing the sentence `addRemoteRefusal` already writes for it. Nothing here
+ * waits on a machine: the add refuses at once for a machine that is not signed
+ * in, without contacting anything.
+ */
+export type OpenRecentOnMachineActionId = `open-recent-on:${string}`;
+
+/** The prefix above, so main and the renderer split the id the same way. */
+export const OPEN_RECENT_ON_PREFIX = 'open-recent-on:' as const;
 
 // ---------------------------------------------------------------------------
 // APPENDED by Phase 74 (GitHub issue 6). One folder picker channel that takes
