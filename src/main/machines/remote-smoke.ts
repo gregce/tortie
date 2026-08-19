@@ -58,6 +58,7 @@ import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import {
   chmodSync,
+  existsSync,
   mkdirSync,
   readFileSync,
   readdirSync,
@@ -171,7 +172,23 @@ import { remoteMachineHome } from './remote-image';
 // The folder this Mac keeps copies of session screens in. Step 14 makes it read
 // only for the length of one end, inside this run's own isolated profile.
 import { snapshotsDir } from '../restore/snapshots';
-import { runRemoteRead } from './remote-run';
+import { runRemoteRead, runRemoteWrite } from './remote-run';
+// PHASE 90.2. The walk that finds this project on a machine, and the copy that
+// puts it there. Step 20 drives both against the scratch machine.
+import {
+  findProjectOnMachine,
+  remoteProjectWalkCount,
+  remoteRepoKey,
+  resetRemoteProjectFindForTests,
+  resetRemoteProjectWalkCountForTests,
+  walkRemoteRepos
+} from './project-counterpart';
+import {
+  cloneProjectOnMachine,
+  parseCloneAnswer,
+  remoteCloneSendCount,
+  resetRemoteCloneSendCountForTests
+} from './remote-clone';
 import { pollRemoteMachine, remoteStampArgs } from './remote-sessions';
 import { provenanceOf } from '../manifest/contract';
 import { createHash } from 'node:crypto';
@@ -1943,6 +1960,291 @@ export async function runRemoteSessionsSmoke(): Promise<void> {
         `never the file beside them, and it drew a sentence for a folder that ` +
         `is not there, for a path that is a file, and for a machine it cannot ` +
         `reach`
+    );
+
+
+    // --- 20. PHASE 90.2. Finding this project on a machine, and putting it
+    //     there (items 2 and 3) ------------------------------------------------
+    //
+    // NINE STEPS, A TO I, and every one of them runs inside this run's own
+    // isolated root. Nothing under the operator's home is read and nothing
+    // outside `iso.userData` is written. In this harness the other machine is
+    // this same Mac, so every path below is a scratch path this harness made.
+    //
+    // WHAT THESE STEPS PROVE AND WHAT THEY DO NOT. They drive the two new
+    // catalogue scripts against a real sign in server and read what a real git
+    // did. They do NOT reach any network: every address in them is a scratch
+    // repository on this disk, or a path that is deliberately not there. The
+    // product's own classification of the four answers is covered by the unit
+    // tests, and the live drive against a second computer is
+    // `node build/probe-remote-clone.mjs`.
+    const p902Root = join(iso.userData, 'p902');
+    const p902Search = join(p902Root, 'search');
+    const p902Made: string[] = [];
+    const gitHere = (cwd: string, args: string[]): void => {
+      execFileSync('git', args, {
+        cwd,
+        stdio: 'ignore',
+        env: {
+          ...process.env,
+          GIT_TERMINAL_PROMPT: '0',
+          GIT_CONFIG_GLOBAL: '/dev/null',
+          GIT_CONFIG_SYSTEM: '/dev/null'
+        }
+      });
+    };
+    const p902Repo = (path: string, origin: string | null): void => {
+      mkdirSync(path, { recursive: true });
+      gitHere(path, ['init', '-q', '.']);
+      if (origin !== null) gitHere(path, ['remote', 'add', 'origin', origin]);
+      p902Made.push(path);
+    };
+    p902Repo(join(p902Search, 'alpha'), 'https://github.com/gregce/alpha.git');
+    p902Repo(join(p902Search, 'beta'), 'git@github.com:gregce/beta.git');
+    p902Repo(join(p902Search, 'with a space'), 'https://github.com/gregce/spaced.git');
+    // A worktree carries a `.git` FILE rather than a directory, and the walk
+    // asks for a directory. This is the limit stated rather than assumed.
+    mkdirSync(join(p902Search, 'worktree'), { recursive: true });
+    writeFileSync(join(p902Search, 'worktree', '.git'), 'gitdir: /nowhere\n');
+
+    // --- A. The walk answers for a whole tree in one call -------------------
+    const walked = await walkRemoteRepos(lifeCtx, p902Search, 3);
+    if (walked.length !== 3) {
+      fail(
+        `the walk of ${p902Search} returned ${String(walked.length)} folder(s) ` +
+          `and three git folders with an origin are in there`
+      );
+    }
+    for (const one of walked) {
+      if (remoteRepoKey(one.url) === null) {
+        fail(`the walk returned ${JSON.stringify(one.url)}, which is no address`);
+      }
+      if (!one.path.startsWith(p902Search)) {
+        fail(`the walk returned ${one.path}, which is outside the scratch root`);
+      }
+    }
+    log(
+      `20a. one call walked ${p902Search} and returned ${String(walked.length)} ` +
+        `git folders, and every address parsed`
+    );
+
+    // --- B. A folder whose name holds a space comes back whole --------------
+    const spaced = walked.find((one) => one.path.endsWith('with a space'));
+    if (spaced === undefined) {
+      fail(
+        `the walk cut the folder whose name holds a space. It returned ` +
+          `${JSON.stringify(walked.map((one) => one.path))}`
+      );
+    }
+    log(`20b. the folder named ${JSON.stringify(spaced.path)} came back whole`);
+
+    // --- C. A worktree is not returned, and the limit is real ---------------
+    if (walked.some((one) => one.path.endsWith('worktree'))) {
+      fail(
+        'the walk returned a folder whose .git is a file. It asks for a ' +
+          'directory, so a worktree and a submodule are both outside what it ' +
+          'can find, and the phase report says so.'
+      );
+    }
+    log('20c. a folder whose .git is a FILE was not returned, as stated');
+
+    // --- D. A project with no remote contacts the machine zero times --------
+    const p902NoRemote = join(p902Root, 'no-remote');
+    p902Repo(p902NoRemote, null);
+    resetRemoteProjectFindForTests();
+    resetRemoteProjectWalkCountForTests();
+    const noRemote = await findProjectOnMachine({
+      machineId: LIFE_ID,
+      localPath: p902NoRemote
+    });
+    if (noRemote.outcome !== 'noRemote') {
+      fail(
+        `a project with no git remote answered ${noRemote.outcome} rather than ` +
+          `noRemote`
+      );
+    }
+    if (remoteProjectWalkCount() !== 0) {
+      fail(
+        `a project with no git remote sent ` +
+          `${String(remoteProjectWalkCount())} command(s) to the machine. It ` +
+          `owes none, because the local read happens first.`
+      );
+    }
+    log(
+      `20d. a project with no git remote answered noRemote and sent 0 commands ` +
+        `to ${LIFE_ID}`
+    );
+
+    // --- E. A destination that is already there is never opened -------------
+    const p902Taken = join(p902Root, 'taken');
+    mkdirSync(p902Taken, { recursive: true });
+    writeFileSync(join(p902Taken, 'mine.txt'), 'do not touch\n');
+    const takenBefore = readFileSync(join(p902Taken, 'mine.txt'), 'utf8');
+    const takenSizeBefore = statSync(join(p902Taken, 'mine.txt')).size;
+    const p902Bare = join(p902Root, 'bare.git');
+    execFileSync('git', ['init', '-q', '--bare', p902Bare], { stdio: 'ignore' });
+    gitHere(join(p902Search, 'alpha'), [
+      '-c',
+      'user.email=p902@tortie.test',
+      '-c',
+      'user.name=p902',
+      'commit',
+      '-q',
+      '--allow-empty',
+      '-m',
+      'one'
+    ]);
+    gitHere(join(p902Search, 'alpha'), ['push', '-q', p902Bare, 'HEAD:refs/heads/main']);
+    const existsAnswer = parseCloneAnswer(
+      (
+        await runRemoteWrite(lifeCtx, 'git-clone', [p902Bare, p902Taken], {
+          timeoutMs: 60_000
+        })
+      ).payload
+    );
+    if (existsAnswer?.word !== 'exists') {
+      fail(
+        `the copy into a folder that is already there answered ` +
+          `${JSON.stringify(existsAnswer?.word)} rather than exists`
+      );
+    }
+    const takenAfter = readFileSync(join(p902Taken, 'mine.txt'), 'utf8');
+    if (takenAfter !== takenBefore) {
+      fail('the refused copy changed the file that was already in that folder');
+    }
+    if (statSync(join(p902Taken, 'mine.txt')).size !== takenSizeBefore) {
+      fail('the refused copy changed the size of the file that was there');
+    }
+    log(
+      `20e. a copy into ${p902Taken} answered exists, and the ` +
+        `${String(takenSizeBefore)} byte file already in it is byte identical`
+    );
+
+    // --- F. An address nobody can reach writes nothing, and does not hang ---
+    const p902Nowhere = join(p902Root, 'nowhere');
+    const unreachableFrom = Date.now();
+    const unreachableAnswer = parseCloneAnswer(
+      (
+        await runRemoteWrite(
+          lifeCtx,
+          'git-clone',
+          [join(p902Root, 'no-such-repository.git'), p902Nowhere],
+          { timeoutMs: 60_000 }
+        )
+      ).payload
+    );
+    const unreachableMs = Date.now() - unreachableFrom;
+    if (unreachableAnswer?.word !== 'unreachable') {
+      fail(
+        `a copy from an address nobody can reach answered ` +
+          `${JSON.stringify(unreachableAnswer?.word)} rather than unreachable`
+      );
+    }
+    if (existsSync(p902Nowhere)) {
+      fail(`the refused copy created ${p902Nowhere}`);
+    }
+    if (unreachableMs > 30_000) {
+      fail(
+        `a copy from an address nobody can reach took ` +
+          `${String(unreachableMs)} ms. It answers before it starts, so it owes ` +
+          `an answer well inside 30,000 ms, and a longer one means it waited ` +
+          `for something.`
+      );
+    }
+    log(
+      `20f. a copy from an address nobody can reach answered unreachable in ` +
+        `${String(unreachableMs)} ms, created nothing at ${p902Nowhere}, and ` +
+        `waited for nothing`
+    );
+
+    // --- G. A copy that can be made is made ---------------------------------
+    const p902Dest = join(p902Root, 'copied');
+    const clonedAnswer = parseCloneAnswer(
+      (
+        await runRemoteWrite(lifeCtx, 'git-clone', [p902Bare, p902Dest], {
+          timeoutMs: 60_000
+        })
+      ).payload
+    );
+    if (clonedAnswer?.word !== 'cloned') {
+      fail(
+        `the copy answered ${JSON.stringify(clonedAnswer?.word)} rather than ` +
+          `cloned`
+      );
+    }
+    if (!existsSync(join(p902Dest, '.git'))) {
+      fail(`the copy said cloned and there is no repository at ${p902Dest}`);
+    }
+    log(`20g. the copy answered cloned and ${p902Dest} holds a repository`);
+
+    // --- H. The same copy again is the same folder, not a refusal -----------
+    //
+    // A link that dies after the far side finished leaves a good copy Tortie
+    // never heard about. The retry reads `exists` for a folder Tortie itself
+    // made, so the product asks the destination what it holds and answers
+    // `existsSame`. That second read is what is driven here.
+    const againAnswer = parseCloneAnswer(
+      (
+        await runRemoteWrite(lifeCtx, 'git-clone', [p902Bare, p902Dest], {
+          timeoutMs: 60_000
+        })
+      ).payload
+    );
+    if (againAnswer?.word !== 'exists') {
+      fail(
+        `the second copy answered ${JSON.stringify(againAnswer?.word)} rather ` +
+          `than exists`
+      );
+    }
+    const atDest = await walkRemoteRepos(lifeCtx, p902Dest, 1);
+    const bareKey = remoteRepoKey(p902Bare);
+    const sameThere = atDest.some((one) => remoteRepoKey(one.url) === bareKey);
+    if (bareKey !== null && !sameThere) {
+      fail(
+        `the read at ${p902Dest} did not recognise the folder Tortie itself ` +
+          `made, so a retry after a lost answer would be reported as a refusal`
+      );
+    }
+    if (atDest.length !== 1) {
+      fail(
+        `the read at ${p902Dest} returned ${String(atDest.length)} folder(s) ` +
+          `and it looks one folder deep, so it owes exactly one`
+      );
+    }
+    log(
+      `20h. the second copy answered exists, and the one read at ${p902Dest} ` +
+        `found the folder Tortie made, which is what turns that answer into ` +
+        `existsSame. The address there is a folder on this disk, so its key is ` +
+        `${JSON.stringify(bareKey)} and the product refuses to copy from it.`
+    );
+
+    // --- I. An address the sheet drew that main does not agree with ---------
+    resetRemoteCloneSendCountForTests();
+    const changed = await cloneProjectOnMachine({
+      machineId: LIFE_ID,
+      localPath: join(p902Search, 'alpha'),
+      expectUrl: 'https://github.com/someone/else.git',
+      path: join(p902Root, 'never')
+    });
+    if (changed.outcome !== 'changed') {
+      fail(
+        `a copy whose address does not equal main's own read answered ` +
+          `${changed.outcome} rather than changed`
+      );
+    }
+    if (remoteCloneSendCount() !== 0) {
+      fail(
+        `a copy whose address does not equal main's own read sent ` +
+          `${String(remoteCloneSendCount())} command(s) to the machine`
+      );
+    }
+    if (existsSync(join(p902Root, 'never'))) {
+      fail('the refused copy created its destination');
+    }
+    log(
+      `20i. a copy whose address does not equal main's own read answered ` +
+        `changed, sent 0 commands and created nothing. This is why the ` +
+        `renderer cannot choose what crosses.`
     );
 
     // --- 19. PHASE 85. The dot tells the truth on a connected machine --------

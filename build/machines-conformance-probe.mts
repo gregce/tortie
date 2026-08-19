@@ -1027,6 +1027,33 @@ const { machineKeyDir: keyDirFor, machineKeyPath: keyPathFor } = await import(
 /** A value nothing in this product would ever pass, for the hostile check. */
 const HOSTILE_VALUE = "'; rm -rf ~; touch /tmp/pwned; echo '";
 
+/**
+ * Every command in one script that names `git`, with what stands in front of it
+ * on the same line (Phase 90.2, condition 49).
+ *
+ * The two environment names are read from the text BEFORE the `git` token on
+ * that line, because that is the only place a shell would accept them. A
+ * command that carries neither is a command that can stop and wait for a
+ * password on a machine nobody is watching, and a wait like that reads to a
+ * person as the app freezing.
+ */
+function gitCallsOf(
+  text: string
+): { verb: string; prompt: boolean; gcm: boolean }[] {
+  const out: { verb: string; prompt: boolean; gcm: boolean }[] = [];
+  for (const line of text.split('\n')) {
+    for (const hit of line.matchAll(/git (?:--no-pager )?([a-z-]+)/g)) {
+      const before = line.slice(0, hit.index ?? 0);
+      out.push({
+        verb: hit[1] ?? '',
+        prompt: before.includes('GIT_TERMINAL_PROMPT=0'),
+        gcm: before.includes('GCM_INTERACTIVE=never')
+      });
+    }
+  }
+  return out;
+}
+
 /** Where every `$1` to `$9` sits in one script, and how it is quoted. */
 function positionalsOf(
   text: string
@@ -1094,6 +1121,9 @@ const scriptRows = REMOTE_SCRIPTS.map((script) => {
       (hit) => hit[1] ?? ''
     ),
     gitVerbIsAValue: /git (?:--no-pager )?"?\$/.test(script.text),
+    // Phase 90.2, condition 49. Every git command, with whether the two names
+    // that turn a hidden password prompt off stand in front of it.
+    gitCalls: gitCallsOf(script.text),
     // Every command word, for the mutating program check.
     words: script.text.split(/[\s;|&(){}]+/).filter((word) => word.length > 0)
   };

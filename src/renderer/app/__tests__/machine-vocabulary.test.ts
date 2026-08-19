@@ -61,6 +61,10 @@ const FILES: readonly string[] = [
   // strings and a sweep of them belongs to its own round. Those two sentences
   // are checked by review instead, and the phase report records that reading.
   'src/renderer/app/RemoteDirPicker.tsx',
+  // Phase 90.2. The counterpart block in the create sheet. It draws main's own
+  // sentences and writes a few of its own, and both halves say things about a
+  // machine, so it is audited like the rest.
+  'src/renderer/app/CounterpartBlock.tsx',
   'src/main/machines/remote-copy.ts',
   // Phase 71. The link statement's own sentences, composed in main because
   // only main holds the confirm gate's answer and the link's own reason.

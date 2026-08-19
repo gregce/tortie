@@ -70,6 +70,10 @@ import {
   ShortcutsOverlay,
   shortcutSearchTookEscape
 } from './ShortcutsOverlay';
+// Phase 90.2. The one state in the create sheet that refuses Escape. The sheet
+// cannot enforce it on its own, because this file's ladder is capture-phase on
+// `window` and stops the event before the sheet's own handler runs.
+import { escapeMayCloseCreateSheet } from './create-copy-running';
 import { AttentionOverlay } from './AttentionOverlay';
 import { ConfirmDialog } from './ConfirmDialog';
 import { ContextInstallHost } from '../context';
@@ -279,7 +283,12 @@ function useKeyboardMap(): void {
         } else if (s.createOpen) {
           e.preventDefault();
           e.stopPropagation();
-          s.setCreateOpen(false);
+          // PHASE 90.2. Escape does nothing at all while a copy is running on
+          // another machine. Closing the sheet then would throw away the answer
+          // to a write that is happening on somebody else's computer, and the
+          // counterpart block has one sentence on screen saying so. The key is
+          // still swallowed, so it reaches neither the sheet nor a session.
+          if (escapeMayCloseCreateSheet()) s.setCreateOpen(false);
         } else if (s.newProjectOpen) {
           e.preventDefault();
           e.stopPropagation();

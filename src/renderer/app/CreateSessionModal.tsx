@@ -36,12 +36,29 @@
  *  - The sheet still resets to This Mac on every opening. The operator decided
  *    on 2026-08-18 that the last machine is NOT remembered per project, so one
  *    Cmd-T and one Return can never start a process on another computer.
+ *
+ * PHASE 90.2 adds one block under the Directory field, in ./CounterpartBlock.tsx.
+ * Picking a machine asks that machine once where this project already is,
+ * matched on the git remote, and fills the Directory field when exactly one
+ * folder over there matches. When nothing over there matches, the block offers
+ * to put the project on that machine, behind a confirm.
+ *
+ * TWO RULES THIS SHEET OWNS FOR THAT BLOCK.
+ *
+ *  - The fill never overwrites something a person typed. It lands only when
+ *    the field is still empty at the moment the answer arrives.
+ *  - Escape and the background are REFUSED while a copy is running on another
+ *    machine, and that is the one moment in this sheet where closing is
+ *    refused. Closing then would throw away the answer to a write that is
+ *    happening on somebody's computer. The block draws one sentence saying so.
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AgentGrid } from './AgentGrid';
 import type { LaunchableAgentKind } from '@shared/types';
-import type { MachineRowView } from '@shared/ipc';
+import type { MachineRowView, RemoteProjectFindResult } from '@shared/ipc';
+import { CounterpartBlock } from './CounterpartBlock';
+import { setCreateSheetCopyRunning } from './create-copy-running';
 import {
   captureNotOnMachine,
   CREATE_DIR_HINT,
@@ -448,6 +465,42 @@ export function CreateSessionModal(): React.JSX.Element | null {
    * dialog, so there is one Escape to press and one focus trap to be inside.
    */
   const [pickerOpen, setPickerOpen] = useState(false);
+  /**
+   * PHASE 90.2, item 2. What the chosen machine said about this project.
+   *
+   * Null means Tortie has not asked, which is the state on every opening and
+   * for This Mac. It is never remembered across a machine change, because an
+   * answer belongs to the machine it came from.
+   */
+  const [counterpart, setCounterpart] =
+    useState<RemoteProjectFindResult | null>(null);
+  /** True while that one question is in flight. */
+  const [counterpartLooking, setCounterpartLooking] = useState(false);
+  /**
+   * PHASE 90.2, item 3. True while a copy is running on the chosen machine.
+   *
+   * It is the one state in this sheet that refuses Escape and the background,
+   * and it refuses them because closing would throw away the answer to a write
+   * that is happening on somebody's computer. The block says so on screen.
+   */
+  const [cloneBusy, setCloneBusy] = useState(false);
+  /**
+   * PHASE 90.2 fix round. Hand the same answer to App.tsx's Escape ladder.
+   *
+   * The two guards below, on the scrim and on the dialog's own key handler, are
+   * not enough on their own. The ladder is a capture-phase listener on `window`
+   * and it calls `stopPropagation`, so it sees Escape first and the dialog
+   * never sees it at all. The ladder reads
+   * `escapeMayCloseCreateSheet` from `./create-copy-running.ts`, and this is
+   * what keeps that answer equal to the state on screen. It goes false when the
+   * sheet unmounts, so nothing is refused once there is no sheet.
+   */
+  useEffect(() => {
+    setCreateSheetCopyRunning(cloneBusy);
+    return () => {
+      setCreateSheetCopyRunning(false);
+    };
+  }, [cloneBusy]);
   const [genericError, setGenericError] = useState<string | null>(null);
   // Agent whose binary create-time resolution POSITIVELY reported missing
   // (AGENT_NOT_FOUND) — pins the caption row, because the boot-time scan can
@@ -499,6 +552,14 @@ export function CreateSessionModal(): React.JSX.Element | null {
    * exactly what it must not cause. It gates the settle hop below.
    */
   const agentPickedByUser = useRef(false);
+  /**
+   * PHASE 90.2. The machine the newest lookup was started for.
+   *
+   * A late answer for a machine that is no longer chosen is dropped, which is
+   * the same rule Phase 90.1 put on the four sidebar stores. It is a ref
+   * rather than state because nothing renders from it.
+   */
+  const counterpartFor = useRef<string>('local');
   const toast = useApp((s) => s.toast);
   const specstory = useSpecStoryStatus(open);
 
@@ -517,6 +578,9 @@ export function CreateSessionModal(): React.JSX.Element | null {
     setCwd(project?.path ?? '');
     setDirError(null);
     setPickerOpen(false);
+    setCounterpart(null);
+    setCounterpartLooking(false);
+    setCloneBusy(false);
     setGenericError(null);
     setAbsent(null);
     setBlocked(null);
@@ -632,6 +696,63 @@ export function CreateSessionModal(): React.JSX.Element | null {
       ? null
       : (machines.find((row) => row.id === machineId) ?? null);
   const remote = machine !== null;
+
+  // PHASE 90.2, item 2. The lookup is offered only for a project whose files
+  // are on this Mac. `project.machineId` is undefined or 'local' for every
+  // project in every build so far, and a project that is already on another
+  // machine has no local git config for Tortie to read.
+  const projectIsHere =
+    project.machineId === undefined || project.machineId === 'local';
+  const counterpartOffered = remote && projectIsHere;
+
+  /**
+   * PHASE 90.2, item 2. Fill the Directory field, but never over something a
+   * person typed.
+   *
+   * The sheet clears the field on every machine change, so the ordinary path
+   * fills it. A person who typed a path while the question was in flight keeps
+   * what they typed, because a field that changes under a cursor is worse than
+   * a field a person has to fill twice.
+   */
+  const fillDirectoryIfEmpty = (path: string): void => {
+    setCwd((current) => (current.trim().length === 0 ? path : current));
+  };
+
+  /**
+   * PHASE 90.2, item 2. Ask one machine where this project already is.
+   *
+   * It runs on the machine choice changing and on nothing else. It does not
+   * run on every keystroke, it does not run when the sheet opens, and it never
+   * runs for This Mac. One gesture is one question.
+   *
+   * A bridge that does not answer at all leaves the block drawing nothing.
+   * Main answers every state it knows about as an outcome with its own
+   * sentences, including the machine not answering, so there is no sentence
+   * written on this side for a bridge that broke, and inventing one here would
+   * put a claim on screen that nothing proved.
+   */
+  const startCounterpartLookup = (nextMachineId: string): void => {
+    counterpartFor.current = nextMachineId;
+    setCounterpart(null);
+    setCounterpartLooking(false);
+    if (nextMachineId === 'local' || !projectIsHere) return;
+    const api = window.gmux?.machines;
+    if (api?.findProject === undefined) return;
+    setCounterpartLooking(true);
+    void api.findProject({ machineId: nextMachineId, localPath: project.path }).then(
+      (answer) => {
+        if (counterpartFor.current !== nextMachineId) return;
+        setCounterpartLooking(false);
+        setCounterpart(answer);
+        const only = answer.outcome === 'found' ? answer.matches[0] : undefined;
+        if (only !== undefined) fillDirectoryIfEmpty(only.path);
+      },
+      () => {
+        if (counterpartFor.current !== nextMachineId) return;
+        setCounterpartLooking(false);
+      }
+    );
+  };
 
   // SpecStory capture (Phase 15). Offered only where it would actually work:
   // a resolved binary AND a provider for this agent (shells never).
@@ -843,6 +964,11 @@ export function CreateSessionModal(): React.JSX.Element | null {
     <div
       className="modal-scrim"
       onMouseDown={(e) => {
+        // PHASE 90.2. The background closes the sheet, except while a copy is
+        // running on another machine. Closing then would throw away the answer
+        // to a write that is happening on somebody's computer, and the block
+        // has one sentence on screen saying so.
+        if (cloneBusy) return;
         if (e.target === e.currentTarget) setOpen(false);
       }}
     >
@@ -856,7 +982,12 @@ export function CreateSessionModal(): React.JSX.Element | null {
             // Wrapped, so a key handler can never pass its event in as the
             // `startAnyway` argument.
             submit: () => submit(),
-            close: () => setOpen(false)
+            // PHASE 90.2. The same refusal as the background above, for the
+            // same reason. Escape does nothing at all while a copy runs.
+            close: () => {
+              if (cloneBusy) return;
+              setOpen(false);
+            }
           })
         }
       >
@@ -950,6 +1081,10 @@ export function CreateSessionModal(): React.JSX.Element | null {
                 // and another machine starts empty, because Tortie holds no
                 // list of home directories on other machines.
                 setCwd(next === 'local' ? (project?.path ?? '') : '');
+                // PHASE 90.2, item 2. One gesture is one question. The field
+                // has just been cleared above, so the answer has somewhere to
+                // land, and This Mac asks nothing of anybody.
+                startCounterpartLookup(next);
               }}
             >
               <option value="local">{THIS_MAC}</option>
@@ -1058,6 +1193,28 @@ export function CreateSessionModal(): React.JSX.Element | null {
             <div className="input-error-text">{dirError}</div>
           ) : null}
         </div>
+
+        {/* PHASE 90.2, items 2 and 3. Where this project already is on the
+            chosen machine, and the one button that offers to put it there. It
+            is drawn under the Directory field because it fills that field, and
+            it is drawn only once Tortie has asked, so a sheet that has asked
+            nobody anything looks exactly as it did before this release. */}
+        {counterpartOffered &&
+        machine !== null &&
+        (counterpartLooking || counterpart !== null) ? (
+          <CounterpartBlock
+            machineId={machine.id}
+            machineLabel={machine.label}
+            localPath={project.path}
+            find={counterpart}
+            looking={counterpartLooking}
+            onUsePath={(path) => {
+              setCwd(path);
+              setDirError(null);
+            }}
+            onBusyChange={setCloneBusy}
+          />
+        ) : null}
 
         {/* PHASE 86. The Options block starts collapsed, so the sheet's height
             does not change with the selected agent's preset count. The
@@ -1221,6 +1378,7 @@ export function CreateSessionModal(): React.JSX.Element | null {
           <button
             type="button"
             className="btn btn-secondary"
+            disabled={cloneBusy}
             onClick={() => setOpen(false)}
           >
             Cancel
@@ -1228,7 +1386,7 @@ export function CreateSessionModal(): React.JSX.Element | null {
           <button
             type="button"
             className="btn btn-primary"
-            disabled={creating || dirError !== null}
+            disabled={creating || dirError !== null || cloneBusy}
             onClick={() => submit()}
           >
             {creating ? 'Creating…' : 'Create'}

@@ -445,3 +445,38 @@ export {
   RESTORE_NO_RECORD,
   type RemoteRestoreOutcome
 } from './remote-restore';
+
+// ---------------------------------------------------------------------------
+// Phase 90.2: finding this project on a machine, and offering to put it there
+// ---------------------------------------------------------------------------
+
+export {
+  findProjectOnMachine,
+  parseRepoAddress,
+  parseRepoFind,
+  readOriginUrl,
+  remoteCloneUrl,
+  remoteProjectWalkCount,
+  remoteRepoFindFolderDepth,
+  remoteRepoKey,
+  resetRemoteProjectFindForTests,
+  resetRemoteProjectWalkCountForTests,
+  suggestedClonePath,
+  walkRemoteRepos,
+  REMOTE_REPO_FIND_DEPTH,
+  REMOTE_REPO_FIND_MAX,
+  REMOTE_REPO_FIND_TIMEOUT_MS,
+  type RemoteRepoAddress,
+  type RemoteRepoRow
+} from './project-counterpart';
+
+export {
+  cloneProjectOnMachine,
+  parseCloneAnswer,
+  remoteCloneSendCount,
+  resetRemoteCloneSendCountForTests,
+  REMOTE_CLONE_CHECK_DEPTH,
+  REMOTE_CLONE_TIMEOUT_MINUTES,
+  REMOTE_CLONE_TIMEOUT_MS,
+  type RemoteCloneAnswer
+} from './remote-clone';

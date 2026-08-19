@@ -9,6 +9,13 @@
  * command to a machine's own login shell, and until this phase it had exactly
  * one caller, being the program search list capture.
  *
+ * PHASE 90.2 ADDED TWO MORE, being one read and the second write. `repo-find`
+ * walks one root on a machine once and prints every git folder under it with
+ * its origin address, so the create sheet can fill the Directory field with the
+ * folder that holds this same project over there. `git-clone` puts a project on
+ * a machine that does not have it yet. It is the second write this product can
+ * make on another computer and rule 6 below now says two rather than one.
+ *
  * PHASE 84 ADDED TWO MORE, and both are reads. `dir-list` names the folders
  * inside one folder, so the create sheet can offer a picker for the other
  * computer and so a folder that is not there is refused before a session is
@@ -58,12 +65,22 @@
  *  5. A `read` script names none of `rm`, `mv`, `cp`, `mkdir`, `touch`,
  *     `chmod`, `chown`, `ln`, `dd`, `tee` or `truncate` as a command, and every
  *     `>` in it is part of `2>/dev/null`.
- *  6. Exactly ONE script has `mode: 'write'`, and it is `image-put`. Every `>`
- *     in it aims at the temporary name, so no redirection in this file can ever
- *     land on a file the person already had.
- *  7. The two git scripts use no git verb other than `rev-parse`, `status` and
- *     `show`. The verb is part of the text, never a parameter, so no caller can
- *     turn a review into a commit.
+ *  6. TWO scripts have `mode: 'write'`, and they are `image-put` and
+ *     `git-clone`, in that order. Phase 90.2 moved that number from one to two,
+ *     once and on purpose, because putting a project on a machine is a write and
+ *     there is no honest way to write it as a read. The two carry SEPARATE
+ *     redirection rules rather than one shared rule, because they are different
+ *     shapes: every `>` in `image-put` aims at the temporary name, and every `>`
+ *     in `git-clone` aims at `/dev/null`. Both refuse a destination that is
+ *     already there before they write anything, `image-put` with `[ -f "$f" ]`
+ *     and `git-clone` with `[ -e "$d" ]`.
+ *  7. Three git verbs may appear in any script, being `rev-parse`, `status` and
+ *     `show`. Two more may appear in `git-clone` and in NO other script, being
+ *     `ls-remote` and `clone`. Every verb is part of the text and never a
+ *     parameter, so no caller can turn a review into a commit. Every git command
+ *     that is not one of the three read verbs carries `GIT_TERMINAL_PROMPT=0`
+ *     and `GCM_INTERACTIVE=never` in front of it, so a command on a machine
+ *     nobody is watching cannot stop and wait for a password.
  *
  * ## Every script is safe to run twice
  *
@@ -453,12 +470,167 @@ const PROGRAM_FIND = [
   "printf '__TORTIE_RUN__%s %s__TORTIE_RUN__\\n' \"${s:-none}\" \"${f:-none}\""
 ].join('\n');
 
+
 /**
- * The whole catalogue. Nine scripts, and this release holds no others.
+ * Every git folder under one root on another machine, with its origin address
+ * (Phase 90.2, item 2).
+ *
+ * ## Why the walk is one call and not a list of guesses
+ *
+ * Research 55 measured, on the operator's tailnet against his Mac Pro, that one
+ * warm call costs 35.9 ms and that nine calls cost 409.7 ms while the same nine
+ * answers in ONE call cost 42.3 ms. The cost is the round trip rather than the
+ * work. So the create sheet asks once and matches on this Mac.
+ *
+ * The rejected shape was probing a short list of likely paths, e.g. the same
+ * path as here and the basename under the far home. It answers "there is no
+ * copy over there" for a repository that is really there, and that answer is
+ * the branch that offers to WRITE. A wrong absent is how a person ends up with
+ * two clones of one project on one machine.
+ *
+ * ## What it prints
+ *
+ * One line per git folder. The line is the base64 of the origin address, one
+ * space, and then the folder path as THE REST OF THE LINE. The path is last
+ * because a folder on another computer can hold a space in its name. The
+ * address is base64 because it is not the rest of the line and nothing promises
+ * an address is free of spaces.
+ *
+ * ## Six properties of this text, and each one is a rule the gate reads
+ *
+ *  1. IT NAMES NO GIT VERB. The origin comes out of `.git/config` with `awk`,
+ *     so the git verb list in rule 7 of the header is untouched by this script.
+ *  2. The awk program holds no `$` followed by a digit. An awk field reference
+ *     inside single quotes reads to this catalogue's own checkers as a single
+ *     quoted positional parameter, and rule 2 would fail on it. The origin
+ *     reader uses a flag, `sub()` and `print` instead of a field reference.
+ *  3. It names none of the eleven mutating programs. It names `find`,
+ *     `dirname`, `awk`, `head`, `printf`, `base64`, `tr` and `read`.
+ *  4. Its only redirection is `2>/dev/null`, twice.
+ *  5. Every positional is read double quoted.
+ *  6. It is safe to run twice, because it writes nothing at all.
+ *
+ * `Library` and `node_modules` are pruned, and both names are constants in this
+ * text that no caller can change. A home directory's `Library` folder on this
+ * kind of machine is large and holds no projects, and a repository inside
+ * `node_modules` is not a project a person opens.
+ *
+ * ## What it cannot find, said plainly
+ *
+ * A worktree, because its `.git` is a file rather than a directory and this
+ * asks for `-type d`. A submodule, for the same reason. A repository outside
+ * the searched root, or deeper than `$2`. A repository whose origin address is
+ * not the first `url` line under `[remote "origin"]`.
+ *
+ * An empty `$1` is that machine's own `$HOME`, resolved by that machine's own
+ * shell, exactly as `dir-list` does it. Tortie composes no home path for
+ * another computer.
+ */
+const REPO_FIND = [
+  'set -e',
+  'umask 077',
+  'r="$1"',
+  'if [ -z "$r" ]; then r="$HOME"; fi',
+  'if [ -d "$r" ]; then',
+  '  o=$(find "$r" -maxdepth "$2" \\( -name Library -o -name node_modules \\)' +
+    ' -prune -o -type d -name \'.git\' -print 2>/dev/null |',
+  '    head -n "$3" |',
+  '    while IFS= read -r g; do',
+  '      p=$(dirname "$g")',
+  '      u=$(awk \'/^\\[remote "origin"\\]/ { f=1; next } /^\\[/ { f=0 }' +
+    ' f && /^[ \\t]*url[ \\t]*=/ { sub(/^[ \\t]*url[ \\t]*=[ \\t]*/, "");' +
+    ' print; exit }\' "$g/config" 2>/dev/null || true)',
+  '      [ -n "$u" ] || continue',
+  '      e=$(printf \'%s\' "$u" | base64 | tr -d \'\\n\')',
+  '      printf \'%s %s\\n\' "$e" "$p"',
+  '    done)',
+  'else',
+  '  o=',
+  'fi',
+  "printf '__TORTIE_RUN__%s__TORTIE_RUN__\\n' \"${o:-none}\""
+].join('\n');
+
+/**
+ * The second write in this catalogue, and the second write this product can
+ * make on another computer (Phase 90.2, item 3).
+ *
+ * It asks git to put one project into one folder that is not there yet. Two
+ * values, being the address and the absolute destination.
+ *
+ * ## Eight safety properties, and every one of them is a property of this text
+ *
+ *  1. THE DESTINATION IS TESTED FIRST, with `-e`. A path that is already there
+ *     is never opened, never written into and never removed. That is what makes
+ *     this write safe to run twice, and it is the same shape `image-put` uses
+ *     with `-f`.
+ *  2. THE REACHABILITY CHECK RUNS BEFORE THE CLONE. A machine that cannot sign
+ *     in to the address answers `unreachable` having written nothing at all, so
+ *     no slow failing download is ever started.
+ *  3. BOTH GIT COMMANDS CARRY `GIT_TERMINAL_PROMPT=0` AND `GCM_INTERACTIVE=never`.
+ *     A clone that stops on a hidden password prompt on a machine nobody is
+ *     watching is a hang, and a hang reads to a person as the app freezing.
+ *  4. `timeout` IS NOT USED AND IS NOT PRESENT. It is GNU coreutils and this
+ *     kind of machine does not ship it. The deadline is enforced on this Mac by
+ *     `execRemoteShell`, which hands `timeout` to `execFile` with
+ *     `killSignal: 'SIGKILL'`.
+ *  5. It names none of the eleven mutating programs. `git` does the writing and
+ *     `git` is not one of them.
+ *  6. EVERY REDIRECTION AIMS AT `/dev/null`. There are two, being
+ *     `>/dev/null 2>&1` on the reachability check and `2>&1 >/dev/null` on the
+ *     clone. The second one keeps git's own words in `$m` and throws its
+ *     progress lines away.
+ *  7. BOTH GIT VERBS ARE PART OF THE TEXT, being `ls-remote` and `clone`. No
+ *     caller chooses a verb, and no other script in this catalogue may name
+ *     either of them.
+ *  8. NO CREDENTIAL CROSSES. Tortie reads none, sends none, caches none and
+ *     asks for none. The machine signs in with what it already has, or this
+ *     script answers `unreachable`.
+ *
+ * ## What it prints
+ *
+ * A word, then base64 of what git said or the empty word, then the destination
+ * as the rest of the line. The four words are `exists`, `cloned`, `failed` and
+ * `unreachable`. Three of them are ordinary states rather than failures.
+ *
+ * ## What can still be left behind, and Tortie says so on screen
+ *
+ * If the deadline on this Mac is hit, or the link drops part way, the clone may
+ * keep running over there and a partly downloaded folder may remain. This
+ * script cannot report that, because by then nobody is reading its answer. The
+ * next attempt refuses that path by name, because property 1 finds it there.
+ */
+const GIT_CLONE = [
+  'set -e',
+  'umask 077',
+  'u="$1"',
+  'd="$2"',
+  'if [ -e "$d" ]; then',
+  "  printf '__TORTIE_RUN__exists none %s__TORTIE_RUN__\\n' \"$d\"",
+  'elif GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never git ls-remote --' +
+    ' "$u" HEAD >/dev/null 2>&1; then',
+  '  s=0',
+  '  m=$(GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never git clone --' +
+    ' "$u" "$d" 2>&1 >/dev/null) || s=1',
+  '  if [ "$s" = 0 ]; then',
+  "    printf '__TORTIE_RUN__cloned none %s__TORTIE_RUN__\\n' \"$d\"",
+  '  else',
+  '    b=$(printf \'%s\' "$m" | base64 | tr -d \'\\n\')',
+  "    printf '__TORTIE_RUN__failed %s %s__TORTIE_RUN__\\n' \"${b:-none}\" \"$d\"",
+  '  fi',
+  'else',
+  "  printf '__TORTIE_RUN__unreachable none %s__TORTIE_RUN__\\n' \"$d\"",
+  'fi'
+].join('\n');
+
+/**
+ * The whole catalogue. Eleven scripts, and this release holds no others.
  *
  * A name that is not here is refused by `./remote-run.ts` before anything is
  * composed, which is the shape the verb ledger has as well: the refusal happens
  * before a string exists, rather than after one was built and then inspected.
+ *
+ * TWO of the eleven write, being `image-put` and `git-clone`, and they are in
+ * that order in this array. {@link remoteWriteScripts} returns them in it.
  */
 export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
   {
@@ -534,6 +706,25 @@ export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
     reason:
       'It tests whether one name is an executable file in each of a list of ' +
       'folders, and writes nothing. Running it twice asks the same question.'
+  },
+  {
+    id: 'repo-find',
+    mode: 'read',
+    params: 3,
+    text: REPO_FIND,
+    reason:
+      'It walks one folder tree and reads one line out of each git folder it ' +
+      'finds. It writes nothing, so running it twice reads the same tree twice.'
+  },
+  {
+    id: 'git-clone',
+    mode: 'write',
+    params: 2,
+    text: GIT_CLONE,
+    reason:
+      'A destination that is already there is never opened and never written ' +
+      'into. The script answers exists instead, so a second run of the same ' +
+      'copy leaves the machine as the first run left it.'
   }
 ];
 
@@ -543,11 +734,12 @@ export function remoteScript(id: string): RemoteScript | null {
 }
 
 /**
- * Every script that writes.
+ * Every script that writes, in catalogue order.
  *
- * It has exactly one member, and rule 6 in the header is what holds it there.
- * The gate calls this rather than counting a list of its own, so a script added
- * with the wrong mode is caught by the same call the product makes.
+ * It has exactly two members, being `image-put` and then `git-clone`, and rule
+ * 6 in the header is what holds it there. The gate calls this rather than
+ * counting a list of its own, so a script added with the wrong mode is caught by
+ * the same call the product makes.
  */
 export function remoteWriteScripts(): readonly RemoteScript[] {
   return REMOTE_SCRIPTS.filter((script) => script.mode === 'write');

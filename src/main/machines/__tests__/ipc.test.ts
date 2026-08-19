@@ -233,7 +233,23 @@ describe('every channel is registered, and only the ones listed here', () => {
       // machine and starts nothing.
       'machines:acceptVersion',
       'machines:add',
+      // ---- PHASE 90.2 ----
+      // The SECOND write this product can make on another computer, and the
+      // only one this phase adds. It copies one project into one folder that
+      // is not there yet, after main has re-read the address from the project
+      // folder on this Mac and refused when it did not equal the one the sheet
+      // drew. Nothing is written into the session list until the machine says
+      // the folder is there.
+      'machines:cloneProject',
+      // ---- END PHASE 90.2 ----
       'machines:confirm',
+      // ---- PHASE 90.2 ----
+      // One READ. It reads this project's git remote here, then asks one
+      // machine once for every git folder under that machine's own home
+      // directory. It writes nothing on either computer, and a project with no
+      // git remote contacts the machine zero times.
+      'machines:findProject',
+      // ---- END PHASE 90.2 ----
       'machines:forget',
       // Phase 79.1's one new channel. It makes a key on this Mac and adds one
       // line to one file on one machine, and it checks the hash of what the

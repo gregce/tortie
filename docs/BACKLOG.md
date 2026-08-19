@@ -6106,7 +6106,7 @@ standing cap and these waves stay under it.
 | 0 | **87** the copy stops explaining itself | renderer copy and Settings | Running now |
 | 1 | **90.1** machine plus path identity ✅ SHIPPED 2026-08-18 · **81** the session list stops waiting for your shell | the four renderer stores · `sessions/core.ts` | 90.1 is REQUIRED before any other Phase 90 item, because it is a silent wrong answer sitting in the chosen model |
 | 2 | **85** the status dot tells the truth · **91** capture is refused honestly ✅ SHIPPED 2026-08-19 | `machines/**` and activity · specstory and the create paths | 91 needs Phase 87 to have settled the create sheet copy first |
-| 3 | **90.2** the counterpart lookup and the clone | `machines/**` and the create sheet | Needs wave 2 to release `machines/**`, and needs 90.1's identity to be correct first |
+| 3 | **90.2** the counterpart lookup and the clone ✅ SHIPPED 2026-08-19 | `machines/**` and the create sheet | Needs wave 2 to release `machines/**`, and needs 90.1's identity to be correct first |
 | 4 | **89** a conversation comes back on a remote machine | `machines/**`, `exec-plane.ts`, restore | Needs the whole create path settled, and it is the only phase that changes a refusal |
 | 5 | **90.3** a remote folder is a project | `remote_projects`, the Explorer, the workspace surfaces | The large half. Research 55 and 56 already ruled its shape, so it builds rather than decides |
 | 6 | **92** the home screen opens a folder on another machine | `HomeScreen.tsx`, recents | Blocked on 90.3, because a row that opens something the app cannot hold is worse than no row |
@@ -6421,7 +6421,7 @@ round exists to remove.
 It may not re-open the no install decision. Research 55 settled that on measured round trips and the
 answer was to build on the ssh door that already exists. This round designs on top of that answer.
 
-## Phase 90 — the workspace knows which machine it is looking at (operator ordered 2026-08-19) ITEM 1 SHIPPED 2026-08-18, items 2 and 3 QUEUED, and Research 56 rules its shape
+## Phase 90 — the workspace knows which machine it is looking at (operator ordered 2026-08-19) ITEM 1 SHIPPED 2026-08-18, ITEMS 2 AND 3 SHIPPED 2026-08-19, and Research 56 rules its shape
 
 **Read `docs/research/56-project-model-many-machines.md` section 0.1 before anything else.** The
 model is A, a project carries a machine and a tab is either local or remote, confirmed by four
@@ -6539,7 +6539,7 @@ target, and a test reads an older build's key back. `gmux.filesCollapsed` is sti
 id. `gmux.treeOpen.<rootPath>` is unchanged. The contract inventory matches its baseline byte for
 byte, so this phase added no IPC channel, no `gmux.*` key and no `GMUX_*` variable.
 
-### Item 2, the operator's create-time counterpart, ordered 2026-08-19
+### Item 2, the operator's create-time counterpart, ordered 2026-08-19 ✅ SHIPPED 2026-08-19 (this commit, 0.45.0, gates green, 6,219 tests)
 
 **His words.** "I want machine plus path BUT also allowing you to open and find similar folders with
 upstream remotes SO that if I want to work on something that I have or can create on my remote
@@ -6588,7 +6588,7 @@ not free.
 - **Cloning writes to the operator's machine.** It is a confirm with the URL and the destination
   path shown, and it is the only write in this phase.
 
-### Item 3, clone it onto the machine as part of creating the session (operator ordered 2026-08-19)
+### Item 3, clone it onto the machine as part of creating the session (operator ordered 2026-08-19) ✅ SHIPPED 2026-08-19 (this commit, 0.45.0, gates green, 6,219 tests)
 
 **His words.** "I should be able to ALSO start a remote session on a remote machine from a local git
 project I am by being able to clone it into a new folder on the other machine if I create a new
@@ -6658,6 +6658,219 @@ row is written.
 the operator's real Mac Pro into a scratch path, the session created in it, an agent started and
 read back, and the scratch path removed afterwards by exact path. The refusal cases are driven too:
 a URL that cannot authenticate, a destination that already exists, and a project with no remote.
+
+### WHAT SHIPPED for items 2 and 3, 2026-08-19, and every number below was read from a run
+
+**Subject:** `feat(machines): Cmd-T finds the project on the machine, or offers to put it there`
+**First body line:** `Phase 90.2: Cmd-T finds or creates the project on the machine`
+**Semver:** minor, 0.44.4 to 0.45.0. The create sheet gains a block a person acts in.
+**Native menus:** nothing was added, renamed or removed. The whole surface is one block inside the
+create sheet, which is the shape Phase 91 used.
+**Tier 2 for item 2 and Tier 3 for item 3**, verified per item at its own tier. Item 3 writes to
+another computer, which is the trigger.
+
+**What a person can do now that they could not before.** They open a local project, press Cmd+T and
+pick a machine. Tortie reads that project's git remote on this Mac, asks the machine once for every
+git folder under its own home folder, and fills the Directory field when exactly one folder over
+there has the same remote. When nothing over there matches, a button offers to put the project on
+that machine. That is a confirm showing the address and the destination, and the copy is the second
+thing this product can write on another computer.
+
+**The boundary held.** The git remote is read once, at create time, to fill one field. The session
+is then bound to a machine id and an absolute path like every other session, and the address is
+never consulted again. It resolves no file, no git read and no search. That is model B and it stays
+refused.
+
+#### The read
+
+A new read script, `repo-find`, in `src/main/machines/remote-scripts.ts`. It takes the root, the
+`find -maxdepth` value and a cap. It prints one line per git folder, being the base64 of the origin
+address, one space, and then the folder path as the rest of the line, so a folder whose name holds a
+space comes back whole. It names no git verb, because the origin is read out of `.git/config` with
+`awk`. `Library` and `node_modules` are pruned and the two names are constants inside the text.
+
+**The depth is a measurement.** `npm run probe:remoteclone -- --measure` ran `repo-find` against the
+operator's Mac Pro at four depths, three runs each, and wrote nothing anywhere.
+
+| maxdepth | p50 ms | p90 ms | answer bytes | git folders |
+| --- | --- | --- | --- | --- |
+| 2 | 54 | 251 | 74 | 1 |
+| 3 | 130 | 138 | 178 | 2 |
+| 4 | 80 | 114 | 178 | 2 |
+| 5 | 92 | 189 | 178 | 2 |
+
+The rule was written before the numbers were seen, being take the largest depth whose p50 is at or
+under 1,500 ms and whose answer is at or under 32,768 bytes. All four depths qualify, so
+`REMOTE_REPO_FIND_DEPTH` is 5. `REMOTE_REPO_FIND_MAX` is 200 folders and
+`REMOTE_REPO_FIND_TIMEOUT_MS` is 20,000, which is a deadline and not an expectation.
+
+**The memo is one walk per connection.** `project-counterpart.ts` holds what one machine answered,
+keyed by the machine id and the connection generation. A second lookup in the same connection came
+back in 13 ms of wall clock against a 115 ms walk. Nothing is written to disk and nothing survives a
+quit. The copy path drops the held answer before it writes, so a person who copies into the
+suggested folder and opens the sheet again is not told the folder is absent.
+
+#### The write
+
+A second write script, `git-clone`. Its safety is a property of its own text rather than of a guard
+around it.
+
+1. The destination is tested with `-e` first, so a folder that is already there is never opened,
+   never written into and never removed.
+2. `git ls-remote` runs before the clone, so a machine that cannot sign in answers having written
+   nothing.
+3. Both git commands carry `GIT_TERMINAL_PROMPT=0` and `GCM_INTERACTIVE=never`, so nothing stops on
+   a hidden password prompt on a machine nobody is watching.
+4. The `timeout` program is not used, because macOS does not ship it. The deadline is
+   `REMOTE_CLONE_TIMEOUT_MS`, being 600,000 ms, and it is enforced on this Mac by the exec plane.
+5. No credential crosses. Tortie reads none, forwards none, caches none and asks for none.
+
+**The address that crosses is always a web address.** The Mac Pro has no key of its own, so
+`git@github.com:gregce/tortie.git` is translated to `https://github.com/gregce/tortie.git` before
+anything is sent, and a sentence names both. Main re-reads the origin itself and refuses when its
+own read does not equal the address the sheet drew, so the renderer never chooses what crosses.
+
+**The open question in this entry is answered this way. The copy finishes before any session
+exists.** No manifest row, no tmux session and no tab is written until the far machine has said the
+folder is there, so a failed copy cannot leave a half made session behind. One thing can be left
+behind and the copy names it, being a partly downloaded folder when the deadline is hit or the link
+drops. Tortie says so, names the path, and the next attempt refuses that path because it now exists.
+
+#### The screen
+
+A block inside the create sheet, under the Directory field, drawn only when a machine other than
+this Mac is chosen and the current project is on this Mac. The lookup runs on the machine change and
+on nothing else. A late answer for a machine that is no longer chosen is dropped. The fill never
+overwrites something a person typed.
+
+| Case | What a person reads |
+| --- | --- |
+| One folder matches | `Found at {path} on {label}. That folder has the same git remote as this project. Tortie has not compared what is in the two folders.` |
+| Several match | `{total} folders on {label} have the same git remote as this project. They may hold different work, so Tortie filled nothing in. Pick one below, or type the folder yourself.` Up to five paths are drawn as buttons |
+| Nothing matches | `No folder on {label} has this project's git remote. Tortie read {searched} git folders under your home folder there.` and the copy button |
+| No remote at all | `This project has no git remote, so Tortie has nothing to look for on {label}. Type the folder, or press Browse.` No machine is contacted |
+| The remote is a folder on this Mac | `This project's remote is a folder on this Mac. {label} cannot reach it, so there is nothing to copy from.` No machine is contacted |
+| The machine did not answer | `{label} did not answer, so Tortie could not look for this project there. Type the folder, or press Browse.` |
+
+Every case also carries the search rule sentence, which says how deep Tortie looked and that it read
+nothing else. The confirm shows the address, an editable destination, the plan line and three fixed
+sentences. While the copy runs the block shows the elapsed seconds, and the Create button, the
+confirm button and the sheet's own Cancel are all disabled.
+
+#### The contract
+
+Two invoke channels, and no new event channel, no new `gmux.*` key and no new `GMUX_*` name. The
+baseline in `docs/audits/contract-baseline.txt` moved by three lines in this commit, being the count
+from 163 to 165, the two names, and the machine refusal count from 34 to 36.
+
+| Channel | What it does |
+| --- | --- |
+| `machines:findProject` | Reads one local git config, then one folder walk on that machine. Writes nothing anywhere |
+| `machines:cloneProject` | The one write. It is the second write this product can make on another computer |
+
+Neither call throws for anything a machine said. Every state comes back as a typed outcome with
+sentences, so no surface reads prose out of an error.
+
+#### The gate moved once, deliberately, and it was proven to bite
+
+`npm run conformance:machines` now reads the writer set as exactly `image-put` and `git-clone`, in
+that order, and it gives `git-clone` its own write rules rather than sharing `image-put`'s. A new
+condition 49 says that every git command on a machine must carry both environment names or be one of
+the three read verbs, and that no script other than `git-clone` may name `clone` or `ls-remote`. The
+gate prints the whole picture, being `2 of 11 script(s) write, being image-put, git-clone.` and
+`5 git command(s) run on a machine across the whole catalogue`.
+
+The mutation that proves it bites was run again by the verifier rather than believed. Removing
+`GCM_INTERACTIVE=never` from the clone line produced `remote script git-clone runs git clone without
+GCM_INTERACTIVE=never in front of it.` and the file was byte identical after it was restored.
+
+#### The proof, driven on the operator's own Mac Pro
+
+Safety first, because it outranks the results. This Mac's own server held 41 sessions before and
+after every run. The Mac Pro held 6 sessions before and after, being the same rows. Every session
+the drive made on the far machine landed on a harness socket and was ended by tmux id. The only
+authorised write over there was `/tmp/tortie-p902-verify-3550/`, removed by exact path behind a
+guard that refuses any path not starting `/tmp/tortie-p902-`. Nothing under `/Users/gdc` on the Mac
+Pro was written. The operator's `~/.ssh/known_hosts` is 2,120 bytes and unchanged, and Tortie's own
+known-machines file is 113 bytes and unchanged. Every app launch used its own `--user-data-dir` and
+a copy of the machine row.
+
+| Case | Driven | What came back |
+| --- | --- | --- |
+| Found | live | The field moved to `/Users/gdc/Desktop/Meditations on Tech`, a path the machine reported that holds a space |
+| No remote | live | The sentence, an empty field, no copy button, `tookMs` 0 and 0 folders searched |
+| Absent with a translated address | live | Three sentences and the button, naming both the sign in address and the web address |
+| The confirm, not pressed | live | Four sentences and the edited destination in the plan line. Nothing existed on the Mac Pro afterwards |
+| The copy | live, once | 76 MB at `/tmp/tortie-p902-verify-3550/repo`, origin `https://github.com/gregce/tortie.git`, branch main, HEAD `5e4e217` |
+| A session in the copied folder | live | tmux over there reported the pane in that folder, and `GMUX_SESSION_ID` matched the manifest row |
+| The same destination again | live, 1,203 ms | `existsSame`, the field filled and nothing copied |
+| A destination that is taken | live, 1,201 ms | The refusal. The 13 byte file in it was byte identical afterwards and the folder stayed 4 KB |
+| An address nobody can reach | live, 2,816 ms | The refusal with no prompt, and nothing at the destination afterwards |
+
+`npm run smoke:remote` gained nine steps, 20a to 20i, against the loopback scratch machine, so the
+walk over three git folders, the folder with a space, the `.git` that is a file, the zero calls for
+a project with no remote, the exists refusal, the unreachable refusal, a real copy, the second copy
+and the changed-address refusal all run in CI reach and cost nothing.
+
+#### The defect the verifier found, and the fix
+
+The verifier pressed Escape during the real 76 MB copy onto the Mac Pro. The sheet closed, the
+result panel never drew, and the folder landed over there with nothing on screen about it. The
+sheet's own Escape guard was dead code. `App.tsx` holds the Escape ladder as a capture-phase
+listener on `window`, so it sees the key first and calls `stopPropagation`, and nothing inside the
+dialog is ever asked.
+
+The fix puts the decision where the key arrives. `src/renderer/app/create-copy-running.ts` holds one
+boolean, the sheet sets it while a copy is running and clears it when it unmounts, and the ladder
+asks `escapeMayCloseCreateSheet()` before it closes the sheet. That is the shape `ShortcutsOverlay`
+already uses for its search field. Three tests cover it, and one of them asserts the unguarded line
+is absent rather than only asserting the guarded one is present. The background click was refused
+correctly the whole time, because that guard sits on a mousedown on an element and no ladder takes
+mouse events.
+
+The fix round drove it again against the Mac Pro. Its screenshot,
+`p902v/shots/p90.2-rv-result.png`, was read by eye by the committer and shows the create sheet still
+open at the end of that run, with the Directory field holding `/tmp/tortie-p902-rv-memo/repo` and
+the sentence `Copied into /tmp/tortie-p902-rv-memo/repo on Greg's Mac Pro. Nothing on this Mac
+changed.` drawn under it. The same picture shows the search rule sentence reading 4 folders deep,
+which is the shipped depth of 5 minus one.
+
+The verifier also found three smaller things and each is fixed in this commit. The depth constant was
+4 while the phase's own rule picked 5. The held walk was never dropped after a copy landed, so a
+second lookup in the same connection would have offered the copy again. One docstring said a line
+whose address does not decode into printable text is dropped, which the code does not do.
+
+#### What is NOT true, and it must be read before Phase 90.3 is planned
+
+- **No remote folder can be a project tab yet.** Nothing here writes `Project.machineId`. That is
+  Phase 90.3.
+- **A worktree, a submodule and a repository outside the searched root are not found.** A worktree
+  and a submodule have a `.git` that is a file, and the walk returns directories only. Smoke step
+  20c proves that limit rather than assuming it.
+- **Tortie never compares what is in the two folders**, and the found sentence says so on screen. A
+  shared remote is not shared work.
+- **Nothing about a counterpart survives a quit.** The memo is in memory and tied to one connection.
+- **The several case was never driven live.** Only two git folders sit under the Mac Pro's home and
+  they do not share a remote, so making that case would have needed a second write outside the one
+  authorised path. It is covered by unit tests only.
+- **The timeout outcome and the partly downloaded folder were not driven.** Nothing made a copy run
+  past 600,000 ms.
+- **`CLONE_NOT_WEB_ADDRESS` and `CLONE_PATH_NOT_ABSOLUTE` are unreachable from the sheet** and were
+  not reached. They are pinned in `build/assert-bundle-refusals.mjs` so a bundler cannot fold them
+  away.
+- **The live no-remote run did not count the calls to the machine.** `tookMs` 0 and 0 folders
+  searched agree with contacting nothing, and the counted spy is smoke step 20d.
+- **`claude` is not installed on the Mac Pro.** The session that ran in the copied folder used the
+  shell agent.
+- **The committer did not press Escape himself.** The fix round's own drive printed its per press
+  answers to a console and saved no log, so what the committer read is the screenshot named above
+  and the three tests, not the fix round's numbers.
+- **The committer did not check the far machine's scratch folders afterwards.** The read only probe
+  refuses to run without the machine named in the environment, and the committer did not name it.
+- **The Escape fix was never driven live after it landed.** The press that found the defect was
+  live. The fix is covered by three tests and by a reading of the one branch in `App.tsx`, and
+  nobody pressed Escape during a real copy again. The fix round wrote a drive script for it and
+  printed its answer to a console nobody saved, so no measurement survives.
 
 ### What this phase does NOT do
 
@@ -7092,6 +7305,7 @@ This round runs when the operator asks for it.
 | 86 | The prefilled name in the Cmd-T sheet is selected on some opens and not on others, so pressing Cmd-T and typing a letter replaces the name most of the time and appends to it some of the time. The cause is `requestAnimationFrame(() => nameRef.current?.select())` at `src/renderer/app/CreateSessionModal.tsx:408` racing React's commit of the prefilled name, which the same effect sets. When the value lands first the call selects it, and when it does not the call runs on an empty field. Measured on the running app, the whole name was selected on 6 of 6 opens under no load, sampled at 268 of 269, 270 of 271, 271 of 272, 269 of 270, 268 of 269 and 271 of 272 frames, and typing one letter replaced the name on 3 of 3. Under load average 13.5 the same build gave the opposite answer on 1 of 3 opens, reading 0 of 262 frames selected and settling at caret 8. Phase 86 cut the sentence from `docs/DESIGN-SPEC.md` rather than write a race down as a rule, so the specification now says nothing about the selection. The fix is to select in a layout effect after the value is committed, rather than on a frame callback. The 6 of 6 figure is optimistic and a later reader should not treat it as reproducible. A second person measured the same build twice and read 5 of 6 opens selected at load average 3.38 to 3.59, and in both runs the open that lost was the first one after a burst of create and kill work |
 | 86 | This round's own verification created three sessions on the operator's live tmux server and could not remove them, being `shell-1-5`, `cursor-1-2` and `claude-1-4`. The first probe launched the app without `GMUX_SHOT`, and `activeTmuxSocket` in `src/main/tmux/resolve.ts` honours `GMUX_TMUX_SOCKET` only on a harness launch, so the socket override was ignored and the app used `-L gmux`. That is the exact failure the comment in that function has recorded since Phase 22. The lesson for every future probe is that a launch which is not a harness launch ignores the socket override, so a probe sets `GMUX_SHOT` or one of the harness modes before it can trust its isolation |
 | 87 | The written instruction in the row above has now failed a second time, and the next round that touches `build/` must make the harness refuse to drive an app whose socket override was ignored. This round's verification launched the app without `GMUX_SMOKE` and without `GMUX_SHOT`, so `activeTmuxSocket` in `src/main/tmux/resolve.ts` ignored the harness socket and the app ran against the operator's live `-L gmux` server. It created two sessions there, being `shell-1-6` at 22:19:53 and `claude-1-4` at 22:20:20 on 2026-08-19, and both are still on his server awaiting his word. The app logged "GMUX_TMUX_SOCKET is set but this is not a harness launch, so it is ignored" three times and nobody read it. Phase 86 stranded three sessions the same way one day earlier and recorded the lesson as prose, which is the part that did not work. A probe author has to remember prose. So the harness itself must read that line from the app log, or assert which socket the app actually used, and stop the run rather than continue. Relying on a person to remember has now been measured at 0 of 2 |
+| 90.2 | A drive script prints its answer to a console and nobody saves it, so the evidence is gone the moment the transcript is. This round lost the numbers for its own Escape re-drive that way. `p902rv/p90.2-rv-escape.mjs` ends in three `console.log` calls and holds no write, so the phase entry has to say the fix was not measured. Phase 87 lost a whole study the same way. The rule the next round writes into `build/` is that a drive script writes its result to a file under the scratchpad and the verifier reads that file, rather than relying on console output surviving |
 
 ## Phase 83 — mac-pro is a machine Tortie will speak to, and the harness that proves it (operator queued 2026-08-18) ✅ SHIPPED 2026-08-18 (this commit, 0.41.0, gates green, 5,785 tests). The mac-pro leg is owed and only the operator can close it
 

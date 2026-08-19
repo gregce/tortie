@@ -1,0 +1,121 @@
+/* Phase 90.2, items 2 and 3 — where this project already is on the chosen
+   machine, and the one button that offers to put it there.
+
+   Colocated with the component per the growth guardrails. Every colour is a
+   token, so the block follows the theme the way the sheet around it does.
+
+   It is an inline block inside the create sheet and not a second dialog on top
+   of it, which is the shape Phase 84's folder picker settled on for the same
+   reason: two stacked scrims would give a person two Escapes to press and two
+   overlapping focus traps to get out of, for one folder. */
+
+.cpart {
+  margin-top: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-raised);
+  padding: var(--space-4);
+}
+
+.cpart-body {
+  display: block;
+}
+
+/* Every sentence in this block, whether main composed it or this screen did.
+   One class, because one wording rule applies to all of them. */
+.cpart-line {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+}
+
+.cpart-line:last-child {
+  margin-bottom: 0;
+}
+
+.cpart-list {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+}
+
+/* One matching folder over there, with the path first and the button last, so
+   a column of them reads as a list of paths rather than a column of buttons. */
+.cpart-match {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+}
+
+/* The path is drawn in the mono face the Directory field above uses, so the
+   two read as the same kind of thing. It wraps rather than being cut, because
+   a path a person cannot read whole is a path they cannot check. */
+.cpart-path {
+  flex: 1 1 auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.cpart-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+/* The confirm, drawn inside the block rather than over it. The rule above it
+   is what separates what Tortie found from what Tortie is about to do. */
+.cpart-confirm {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+.cpart-confirm-title {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+/* The destination field sits above the four sentences, so the last thing read
+   before the press is the plan and not the field. */
+.cpart-confirm .input {
+  margin-bottom: var(--space-3);
+}
+
+/* The running line is the one sentence in this block a person is waiting on,
+   so it is the one that is not muted. */
+.cpart-running {
+  color: var(--text-primary);
+}
+
+.cpart-result {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+/* What the machine itself reported. It is that machine's words and not
+   Tortie's, so it is drawn as it arrived, in the mono face, and it scrolls
+   rather than growing the sheet without limit. */
+.cpart-detail {
+  margin: var(--space-3) 0 0;
+  padding: var(--space-2) var(--space-3);
+  max-height: 120px;
+  overflow: auto;
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

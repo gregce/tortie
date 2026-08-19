@@ -16,7 +16,7 @@
  * no tmux server, no Electron, no manifest, no file under the person's home, no
  * request and no write anywhere. Safe on a machine with live sessions on it.
  *
- * THE FORTY FIVE CONDITIONS IT FAILS ON. Each one is a way a person's agreement
+ * THE FORTY NINE CONDITIONS IT FAILS ON. Each one is a way a person's agreement
  * could come to cover something they did not read, a way a refusal could quietly
  * stop being a refusal, or (from 11 on) a way a command Tortie sends to another
  * machine could come to land somewhere nobody chose.
@@ -183,6 +183,18 @@
  *     dropped whole, or is dropped without a problem naming the field and the
  *     reason, or takes a valid row down with it. It is condition 5's mechanism
  *     over five hostile values.
+ *
+ * Conditions 46 to 48 arrived with Phase 84 and are described at their own
+ * block further down this file, beside the checks themselves.
+ *
+ * 49. A script runs a git command that is not one of the three read verbs and
+ *     does not carry both `GIT_TERMINAL_PROMPT=0` and `GCM_INTERACTIVE=never`
+ *     in front of it, or a script other than `git-clone` names `clone` or
+ *     `ls-remote`. The first half is what stops a command on a machine nobody
+ *     is watching from stopping to wait for a password, which reads to a person
+ *     as the app freezing. The second half binds the widening of the verb list
+ *     to ONE script id, because a verb allowed everywhere is a verb any future
+ *     script can use.
  *
  * WHAT IT DOES NOT PROVE, stated so nobody reads more into a pass. The record
  * is sealed through `safeStorage`, which needs an Electron process, so this
@@ -2320,8 +2332,25 @@ const MUTATING_PROGRAMS = [
   'truncate'
 ];
 
-/** The only git verbs any script in the catalogue may name. */
+/** The git verbs ANY script in the catalogue may name. All three are reads. */
 const ALLOWED_GIT_VERBS = ['rev-parse', 'status', 'show'];
+
+/**
+ * The two more verbs `git-clone` may name, and no other script may.
+ *
+ * PHASE 90.2 WIDENED THE LIST, once and on purpose, and bound the widening to
+ * one script id. A verb allowed everywhere is a verb any future script can use.
+ */
+const GIT_CLONE_VERBS = ['ls-remote', 'clone'];
+
+/**
+ * Every script that may write, in catalogue order.
+ *
+ * PHASE 90.2 MOVED THIS FROM ONE TO TWO. It is the number that bounds what
+ * Tortie can do to another person's computer, so it stays an exact allowlist
+ * and never becomes a count.
+ */
+const ALLOWED_WRITERS = ['image-put', 'git-clone'];
 
 {
   // 35. The catalogue's shape.
@@ -2339,12 +2368,17 @@ const ALLOWED_GIT_VERBS = ['rev-parse', 'status', 'show'];
     );
   }
   const writers = run.writers ?? [];
-  if (writers.length !== 1 || writers[0] !== 'image-put') {
+  const writersAgree =
+    writers.length === ALLOWED_WRITERS.length &&
+    writers.every((id, at) => id === ALLOWED_WRITERS[at]);
+  if (!writersAgree) {
     fail(
       `${String(writers.length)} script(s) in the catalogue write, being ` +
-        `${writers.join(', ') || 'none'}. Exactly one may, and it is image-put. ` +
-        `This is the number that bounds what Tortie can do to another person's ` +
-        `computer.`
+        `${writers.join(', ') || 'none'}. Exactly ${String(
+          ALLOWED_WRITERS.length
+        )} may, being ${ALLOWED_WRITERS.join(', ')}, in that order. This is the ` +
+        `number that bounds what Tortie can do to another person's computer, ` +
+        `and Phase 90.2 moved it from one to two once and on purpose.`
     );
   }
   for (const row of scripts) {
@@ -2461,8 +2495,11 @@ const ALLOWED_GIT_VERBS = ['rev-parse', 'status', 'show'];
 }
 
 {
-  // 38. A read script reads. The one write aims every redirection at a
-  //     temporary name and then moves it.
+  // 38. A read script reads. Each of the two writes obeys its OWN redirection
+  //     rule, because the two are different shapes: `image-put` decodes bytes
+  //     into a file and moves a temporary name into place, and `git-clone`
+  //     asks git to make a folder and keeps nothing. Sharing one rule would
+  //     either weaken the image rule or make the clone rule a lie.
   for (const row of scripts) {
     if (row.mode === 'read') {
       const named = (row.words ?? []).filter((word) =>
@@ -2481,7 +2518,7 @@ const ALLOWED_GIT_VERBS = ['rev-parse', 'status', 'show'];
             `writes is not a read.`
         );
       }
-    } else {
+    } else if (row.id === 'image-put') {
       const targets = row.redirects ?? [];
       if (targets.length === 0) {
         fail(
@@ -2507,17 +2544,55 @@ const ALLOWED_GIT_VERBS = ['rev-parse', 'status', 'show'];
       if (!row.text.includes('if [ -f "$f" ]; then')) {
         fail(
           `write script ${row.id} does not check whether the file is already ` +
-            `there. That check is what makes the one write in this product safe ` +
-            `to run twice.`
+            `there. That check is what makes this write safe to run twice.`
         );
       }
-    }
-    for (const verb of row.gitVerbs ?? []) {
-      if (ALLOWED_GIT_VERBS.includes(verb)) continue;
+    } else if (row.id === 'git-clone') {
+      // PHASE 90.2. The second write, and its own two rules. It keeps nothing
+      // it is given, so every redirection in it throws bytes away, and it
+      // refuses a destination that is already there before it does anything
+      // else. That refusal is what makes it safe to run twice.
+      const targets = row.redirects ?? [];
+      if (targets.length === 0) {
+        fail(
+          `write script ${row.id} carries no redirection at all, so this gate ` +
+            `cannot tell what it writes to.`
+        );
+      }
+      for (const target of targets) {
+        if (target === '/dev/null') continue;
+        fail(
+          `write script ${row.id} redirects to ${target}. Every redirection in ` +
+            `it has to aim at /dev/null, because the only thing it writes is ` +
+            `the folder git makes and everything else it reads is thrown away.`
+        );
+      }
+      if (!row.text.includes('if [ -e "$d" ]; then')) {
+        fail(
+          `write script ${row.id} does not test its destination with -e before ` +
+            `anything else. That test is what makes it safe to run twice, and ` +
+            `it is what stops it ever writing into a folder a person already had.`
+        );
+      }
+    } else {
       fail(
-        `remote script ${row.id} runs git ${verb}. The three verbs a script may ` +
-          `name are ${ALLOWED_GIT_VERBS.join(', ')}, and anything else turns a ` +
-          `review into something that changes a repository.`
+        `write script ${row.id} has no redirection rule of its own in this ` +
+          `gate. Every write carries its own rule, because two writes of ` +
+          `different shapes cannot share one.`
+      );
+    }
+    // PHASE 90.2. The three read verbs are allowed everywhere. The two the
+    // clone needs are allowed in `git-clone` and nowhere else.
+    const allowedVerbs =
+      row.id === 'git-clone'
+        ? [...ALLOWED_GIT_VERBS, ...GIT_CLONE_VERBS]
+        : ALLOWED_GIT_VERBS;
+    for (const verb of row.gitVerbs ?? []) {
+      if (allowedVerbs.includes(verb)) continue;
+      fail(
+        `remote script ${row.id} runs git ${verb}. The verbs it may name are ` +
+          `${allowedVerbs.join(', ')}, and anything else turns a review into ` +
+          `something that changes a repository.`
       );
     }
     if (row.gitVerbIsAValue) {
@@ -2597,6 +2672,57 @@ const ALLOWED_GIT_VERBS = ['rev-parse', 'status', 'show'];
         `remote-scripts.ts, and a fifth caller composing its own string is ` +
         `neither.`
     );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 49. Phase 90.2. Every git command on a machine, and who may name which verb
+// ---------------------------------------------------------------------------
+//
+// Phase 90.2 gave the catalogue a second write, and that write asks git to copy
+// a project onto somebody's computer. Two properties of the TEXT are what make
+// it safe, and this condition is what keeps both of them checkable rather than
+// asserted.
+//
+// A git command that can stop and wait for a password is a hang, and a hang on
+// a machine nobody is watching reads to a person as the app freezing. So every
+// git command that is not one of the three read verbs carries
+// `GIT_TERMINAL_PROMPT=0` and `GCM_INTERACTIVE=never` in front of it. The three
+// read verbs are exempt because each of them runs inside a repository the
+// person already has on that machine, and none of them reaches a server.
+//
+// The two verbs the copy needs are bound to ONE script id. A verb allowed
+// everywhere is a verb any future script can use, and this is the check that
+// keeps the widening where Phase 90.2 put it.
+
+const READ_ONLY_GIT_VERBS = new Set(ALLOWED_GIT_VERBS);
+
+{
+  for (const row of scripts) {
+    for (const call of row.gitCalls ?? []) {
+      if (READ_ONLY_GIT_VERBS.has(call.verb)) continue;
+      if (!call.prompt || !call.gcm) {
+        const missing = [
+          call.prompt ? null : 'GIT_TERMINAL_PROMPT=0',
+          call.gcm ? null : 'GCM_INTERACTIVE=never'
+        ].filter((one) => one !== null);
+        fail(
+          `remote script ${row.id} runs git ${call.verb} without ` +
+            `${missing.join(' and ')} in front of it. A git command that ` +
+            `reaches a server can stop and wait for a password, and nobody is ` +
+            `watching the machine it would wait on.`
+        );
+      }
+    }
+    for (const verb of row.gitVerbs ?? []) {
+      if (!GIT_CLONE_VERBS.includes(verb)) continue;
+      if (row.id === 'git-clone') continue;
+      fail(
+        `remote script ${row.id} names git ${verb}. Only git-clone may name ` +
+          `${GIT_CLONE_VERBS.join(' or ')}, because a verb allowed everywhere ` +
+          `is a verb any future script can use.`
+      );
+    }
   }
 }
 
@@ -2973,6 +3099,25 @@ process.stdout.write(
   )} byte command against a ${String(run.maxBytes)} byte limit on one argument ` +
     `of a Linux login shell. That limit is the kernel's own constant and it was ` +
     `NOT measured here, because no Linux machine was contacted.\n`
+);
+process.stdout.write(
+  `${String(
+    scripts.reduce((sum, row) => sum + (row.gitCalls ?? []).length, 0)
+  )} git command(s) run on a machine across the whole catalogue: ` +
+    `${scripts
+      .flatMap((row) =>
+        (row.gitCalls ?? []).map(
+          (call) =>
+            `${row.id}:${call.verb}${
+              READ_ONLY_GIT_VERBS.has(call.verb)
+                ? ' (read)'
+                : call.prompt && call.gcm
+                  ? ' (no prompt)'
+                  : ' (CAN PROMPT)'
+            }`
+        )
+      )
+      .join(', ')}. Only git-clone may name ${GIT_CLONE_VERBS.join(' or ')}.\n`
 );
 process.stdout.write(
   `execRemoteShell is called from ${String(

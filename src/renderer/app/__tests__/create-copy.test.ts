@@ -41,6 +41,19 @@ const MODAL_SOURCE = readFileSync(
   resolve(import.meta.dirname, '../CreateSessionModal.tsx'),
   'utf8'
 );
+/**
+ * PHASE 90.2 added a third file to this sheet, and the guard follows it.
+ *
+ * The deleted paragraphs were cut because they described things that have not
+ * happened yet on a sheet where no session exists. A new block on that same
+ * sheet is exactly where one of them would come back, so the guard reads it
+ * too rather than covering two of the three files it now takes to draw this
+ * sheet's copy.
+ */
+const BLOCK_SOURCE = readFileSync(
+  resolve(import.meta.dirname, '../CounterpartBlock.tsx'),
+  'utf8'
+);
 
 /** Every export this phase deleted from `machine-copy.ts`. */
 const DELETED: readonly string[] = [
@@ -62,6 +75,13 @@ describe('the honesty block under the machine field', () => {
 
   it('names none of the four paragraphs this phase deleted', () => {
     const found = DELETED.filter((name) => COPY_SOURCE.includes(name));
+    expect(found).toEqual([]);
+  });
+
+  it('does not let one back in through a later block on the same sheet', () => {
+    const found = DELETED.filter(
+      (name) => MODAL_SOURCE.includes(name) || BLOCK_SOURCE.includes(name)
+    );
     expect(found).toEqual([]);
   });
 });

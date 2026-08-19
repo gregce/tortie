@@ -433,3 +433,193 @@ export function reviewMoreFiles(shown: number, total: number): string {
     `not listed here.`
   );
 }
+
+// ---------------------------------------------------------------------------
+// PHASE 90.2. Finding this project on a machine, and offering to put it there
+// ---------------------------------------------------------------------------
+//
+// Two rules run through every sentence below.
+//
+// TORTIE NEVER COMPARES THE CONTENTS OF THE TWO FOLDERS, and the sentences say
+// so rather than leaving a person to assume it. A shared git remote means two
+// folders were cloned from one place. It does not mean they hold the same work,
+// and Microsoft's own `microsoft/vscode` issue 190566 is seven steps of what
+// happens when a product quietly assumes it does.
+//
+// A MATCH IS A SUGGESTION. Nothing here is written by a match. The Directory
+// field is filled and stays editable, and the one write in this block happens
+// only after a person reads the address and the destination and presses a
+// button.
+
+/** Exactly one folder over there has this project's git remote. */
+export function counterpartFound(label: string, path: string): string {
+  return (
+    `Found at ${path} on ${label}. That folder has the same git remote as ` +
+    `this project. Tortie has not compared what is in the two folders.`
+  );
+}
+
+/** Two or more folders over there have it, so nothing is filled in. */
+export function counterpartSeveral(label: string, total: number): string {
+  return (
+    `${String(total)} folders on ${label} have the same git remote as this ` +
+    `project. They may hold different work, so Tortie filled nothing in. Pick ` +
+    `one below, or type the folder yourself.`
+  );
+}
+
+/** The remote is known and nothing over there matches it. */
+export function counterpartAbsent(label: string, searched: number): string {
+  return (
+    `No folder on ${label} has this project's git remote. Tortie read ` +
+    `${String(searched)} git folders under your home folder there.`
+  );
+}
+
+/** The project has no git remote, so no machine was contacted. */
+export function counterpartNoRemote(label: string): string {
+  return (
+    `This project has no git remote, so Tortie has nothing to look for on ` +
+    `${label}. Type the folder, or press Browse.`
+  );
+}
+
+/** The remote is a folder on this Mac, so that machine cannot reach it. */
+export function counterpartLocalRemote(label: string): string {
+  return (
+    `This project's remote is a folder on this Mac. ${label} cannot reach it, ` +
+    `so there is nothing to copy from.`
+  );
+}
+
+/** The machine did not answer the one read. */
+export function counterpartUnreachable(label: string): string {
+  return (
+    `${label} did not answer, so Tortie could not look for this project ` +
+    `there. Type the folder, or press Browse.`
+  );
+}
+
+/** What was searched, in the person's own terms. `depth` is folders deep. */
+export function counterpartSearchRule(label: string, depth: number): string {
+  return (
+    `Tortie looked under your home folder on ${label}, ${String(depth)} ` +
+    `folders deep, for a folder with the same git remote. It read nothing else.`
+  );
+}
+
+/**
+ * The address was rewritten before anything crossed, and both are shown.
+ *
+ * MEASURED on the operator's Mac Pro on 2026-08-18. Its `~/.ssh` holds only
+ * `authorized_keys` and no key of its own, so an address written for a sign in
+ * key cannot authenticate from there and the web address can. The sentence
+ * names neither transport, because the word teaches a person nothing and the
+ * vocabulary audit forbids it.
+ */
+export function counterpartTranslated(
+  origin: string,
+  https: string,
+  label: string
+): string {
+  return (
+    `This project's remote address is written for a sign in key, and ${label} ` +
+    `has no key of its own. Tortie will use the web address instead. The ` +
+    `address here is ${origin}. The address Tortie will use is ${https}.`
+  );
+}
+
+/** The copy finished. */
+export function cloneDone(label: string, path: string): string {
+  return `Copied into ${path} on ${label}. Nothing on this Mac changed.`;
+}
+
+/** Something is already at the destination, so nothing was written. */
+export function cloneExists(label: string, path: string): string {
+  return (
+    `There is already something at ${path} on ${label}. Tortie never writes ` +
+    `into a folder that is already there. Choose another folder.`
+  );
+}
+
+/**
+ * The destination already holds this same project, so the folder is used.
+ *
+ * It exists because a lost answer is not a failed copy. A link that dies after
+ * the far side finished leaves a good copy Tortie never heard about, and the
+ * next attempt would then read `exists` for a folder Tortie itself made.
+ */
+export function cloneExistsSame(label: string, path: string): string {
+  return (
+    `There is already a copy of this project at ${path} on ${label}. Tortie ` +
+    `used that folder and copied nothing.`
+  );
+}
+
+/** The machine could not sign in to the address, and wrote nothing. */
+export function cloneUnreachable(label: string, url: string): string {
+  return (
+    `${label} could not reach ${url}. It signs in with what it already has, ` +
+    `and Tortie sends no password and no key from this Mac. Nothing was ` +
+    `written on ${label}.`
+  );
+}
+
+/** git refused, and what it printed is drawn under this line. */
+export function cloneFailed(label: string, url: string): string {
+  return `${label} could not copy ${url}. What it reported is under this line.`;
+}
+
+/** The deadline was hit on this Mac. The copy may still be running there. */
+export function cloneTimedOut(
+  label: string,
+  path: string,
+  minutes: number
+): string {
+  return (
+    `The copy did not finish within ${String(minutes)} minutes, so Tortie ` +
+    `stopped waiting. It may still be running on ${label}, and part of the ` +
+    `project may be left at ${path}. Look there before you try again.`
+  );
+}
+
+/**
+ * Main's own read of the remote disagreed with the address the sheet drew.
+ *
+ * This is the sentence behind the rule that the renderer never chooses the
+ * address. Main re-reads the origin at the project folder, translates it again
+ * and compares. A disagreement copies nothing.
+ */
+export const CLONE_CHANGED =
+  "This project's git remote changed while this sheet was open, so Tortie " +
+  'copied nothing. Close this sheet and open it again.';
+
+/** Tortie is not connected to that machine, so nothing was sent. */
+export function cloneOffline(label: string): string {
+  return (
+    `Tortie is not connected to ${label} right now, so it copied nothing.`
+  );
+}
+
+/**
+ * The address is not a web address, so nothing was sent.
+ *
+ * PINNED as `machine.clone-not-web-address`. A correct caller never reaches it,
+ * because the button that opens the confirm is drawn only for a project whose
+ * remote already translated to a web address. That is exactly the shape a
+ * bundler can prove dead and fold away, which is what this pin exists for.
+ */
+export const CLONE_NOT_WEB_ADDRESS =
+  'Tortie only copies a project from a web address. This project\'s remote ' +
+  'is not one, so nothing was sent to that machine.';
+
+/**
+ * The destination is not a full path on that machine, so nothing was sent.
+ *
+ * PINNED as `machine.clone-path-not-absolute`, for the reason above. The field
+ * is filled with a full path composed from that machine's own home directory,
+ * so a person reaches this only by editing it into something else.
+ */
+export const CLONE_PATH_NOT_ABSOLUTE =
+  'That folder has to be a full path on the other machine, starting with a ' +
+  'slash. Nothing was sent.';

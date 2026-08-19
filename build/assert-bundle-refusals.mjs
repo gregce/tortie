@@ -974,6 +974,39 @@ const MACHINE_REFUSALS = [
     ]
   },
   {
+    // PHASE 90.2. The first of the two TypeScript refusals that stand in front
+    // of the second write this product can make on another computer.
+    id: 'machine.clone-not-web-address',
+    source: 'src/main/machines/remote-copy.ts',
+    why:
+      'the button that opens the copy confirm is drawn only for a project ' +
+      'whose remote already translated to a web address, so no correct caller ' +
+      'reaches this branch. That is exactly the shape rollup can prove dead ' +
+      'and fold away, and without it an address that begins with a dash could ' +
+      'reach git on somebody else machine as an option',
+    fragments: [
+      'Tortie only copies a project from a web address. This project',
+      's remote ',
+      'is not one, so nothing was sent to that machine.'
+    ]
+  },
+  {
+    // PHASE 90.2. The second one. The destination field is filled with a full
+    // path composed from that machine own home directory, so a person reaches
+    // this only by editing it into something else.
+    id: 'machine.clone-path-not-absolute',
+    source: 'src/main/machines/remote-copy.ts',
+    why:
+      'the destination is composed from the machine own answer about its home ' +
+      'directory, so no correct caller reaches this branch either. Without it ' +
+      'a relative path would reach git on that machine and the folder would ' +
+      'land wherever that machine own shell happened to be',
+    fragments: [
+      'That folder has to be a full path on the other machine, starting with a ',
+      'slash. Nothing was sent.'
+    ]
+  },
+  {
     id: 'machine.capture-never-on-another-machine',
     // PHASE 91. The FIRST row in this array whose source is outside
     // src/main/machines/. It belongs to this array rather than to REFUSALS

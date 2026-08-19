@@ -103,8 +103,14 @@ import type {
   // ---- END PHASE 73 BLOCK C ----
   // ---- PHASE 84 ----
   RemoteDirListInput,
-  RemoteDirListing
+  RemoteDirListing,
   // ---- END PHASE 84 ----
+  // ---- PHASE 90.2 ----
+  RemoteCloneInput,
+  RemoteCloneResult,
+  RemoteProjectFindInput,
+  RemoteProjectFindResult
+  // ---- END PHASE 90.2 ----
 } from '@shared/ipc';
 import { EVT_MACHINE_STATE, EVT_MACHINE_TEST } from '@shared/ipc';
 import { gmuxError } from '../errors';
@@ -163,6 +169,14 @@ import { machineCanHoldSession } from './remote-sessions';
 // Phase 84, item 6. The folder listing, which is a read and writes nothing on
 // either computer.
 import { listRemoteDir } from './dir-list';
+// Phase 90.2, item 2. One git config read here, then one folder walk there. It
+// writes nothing on either computer.
+import { findProjectOnMachine } from './project-counterpart';
+// Phase 90.2, item 3. The SECOND write this product can make on another
+// computer, and the only one this phase adds. It starts no process of its own:
+// the copy goes through the write door in ./remote-run.ts, which can send only
+// a script the frozen catalogue holds.
+import { cloneProjectOnMachine } from './remote-clone';
 import { prepareMachine } from './prepare';
 import { validateMachinesFile } from './schema';
 // Phase 72: the record a removal leaves behind. It writes tombstones and
@@ -794,6 +808,65 @@ export function registerMachinesIpc(ipc: IpcMain): void {
       listRemoteDir({ machineId: input.machineId, path: input.path })
   );
   // ---- END PHASE 84 ----
+
+  // ---- PHASE 90.2 ----
+  // PHASE 90.2, item 2. One channel that READS. It reads this project's git
+  // remote on this Mac with `git config --get`, then asks one machine once for
+  // every git folder under that machine's own home directory, and matches the
+  // two here. It writes nothing on either computer.
+  //
+  // THE ADDRESS IS READ ONCE AND DROPPED. The result carries paths and
+  // sentences and nothing a caller could resolve. No sidebar, no editor and no
+  // search ever sees it, and the session that follows is bound to a machine id
+  // and an absolute path exactly like every other session.
+  //
+  // A project with no git remote, and a project whose remote is a folder on
+  // this Mac, contact the machine ZERO times. The local read happens first for
+  // exactly that reason.
+  //
+  // It NEVER THROWS for anything the machine said. Six outcomes, each with its
+  // own sentences, because the block in the create sheet has a panel to draw
+  // either way.
+  handle(
+    ipc,
+    'machines:findProject',
+    async (
+      _event,
+      input: RemoteProjectFindInput
+    ): Promise<RemoteProjectFindResult> =>
+      findProjectOnMachine({
+        machineId: input.machineId,
+        localPath: input.localPath
+      })
+  );
+
+  // PHASE 90.2, item 3. The channel that WRITES, and it is the second write
+  // this product can make on another computer.
+  //
+  // It cannot compose what it sends. The command that crosses is `git-clone`
+  // from the frozen catalogue in ./remote-scripts.ts, chosen by name, with the
+  // address and the destination arriving there as positional parameters.
+  //
+  // THE RENDERER DOES NOT CHOOSE THE ADDRESS. Main re-reads the origin at
+  // `localPath`, translates it again, and refuses with `changed` when its own
+  // read does not equal `expectUrl`. So what crosses is always an address main
+  // read from a repository on this Mac.
+  //
+  // NO SESSION EXISTS WHILE IT RUNS. Nothing is written into the manifest and
+  // no session is started until the machine says the folder is there, so a
+  // copy that failed cannot leave a session in a folder that is not there.
+  handle(
+    ipc,
+    'machines:cloneProject',
+    async (_event, input: RemoteCloneInput): Promise<RemoteCloneResult> =>
+      cloneProjectOnMachine({
+        machineId: input.machineId,
+        localPath: input.localPath,
+        expectUrl: input.expectUrl,
+        path: input.path
+      })
+  );
+  // ---- END PHASE 90.2 ----
 }
 
 /**

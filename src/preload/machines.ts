@@ -1,11 +1,14 @@
 /**
  * The machines half of the bridge (Phase 68, one call added in Phase 69, one
- * more in Phase 71, one more in Phase 79.1, one more in Phase 83 and one more
- * in Phase 84). One object, eighteen calls and two subscriptions, typed from
- * the shared contract.
+ * more in Phase 71, one more in Phase 79.1, one more in Phase 83, one more in
+ * Phase 84 and two more in Phase 90.2). One object, twenty calls and two
+ * subscriptions, typed from the shared contract.
  *
- * Four of these calls can start a process, and every one of them is a person
- * pressing a button in Settings. `tailscaleNames` runs the Tailscale program at
+ * TWO of these calls write on another computer, being `putImage` and
+ * `cloneProject`. Everything else on this bridge reads.
+ *
+ * Four of these calls can start a process from Settings, and every one of them
+ * is a person pressing a button there. `tailscaleNames` runs the Tailscale program at
  * a pinned absolute path, `test` runs ssh once, `prepare` runs ssh and starts
  * the program a machine's work will live in, and `installKey` runs the program
  * macOS ships for making a key and then one ssh. Everything else reads memory
@@ -73,5 +76,18 @@ export const machines: NonNullable<GmuxMachinesExtras['machines']> = {
   // Phase 84. Reads the folders inside one folder on one machine. It reads and
   // never writes, and main refuses it while it is not connected to that
   // machine.
-  listDir: (input) => invoke('machines:listDir', input)
+  listDir: (input) => invoke('machines:listDir', input),
+  // ---- PHASE 90.2 BLOCK ----
+  // Phase 90.2, item 2. THIS ONE READS. It reads this project's git remote on
+  // this Mac, then asks that machine once for the git folders under its own
+  // home directory, and answers with the ones whose remote matches. It writes
+  // nothing on either computer and keeps nothing on disk.
+  findProject: (input) => invoke('machines:findProject', input),
+  // Phase 90.2, item 3. THIS ONE WRITES, and it is the second call on this
+  // bridge that can write on another computer. The address that crosses is the
+  // one main reads from the project folder on this Mac, never the one sent
+  // from here: main compares its own read against `expectUrl` and refuses when
+  // they differ. The machine checks the destination before it writes anything.
+  cloneProject: (input) => invoke('machines:cloneProject', input)
+  // ---- END PHASE 90.2 BLOCK ----
 };

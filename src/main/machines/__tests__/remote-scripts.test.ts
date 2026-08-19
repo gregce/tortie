@@ -39,8 +39,11 @@ const MUTATING = [
   'truncate'
 ];
 
-/** The only git verbs any script in this catalogue may name. */
+/** The git verbs ANY script in this catalogue may name. All three are reads. */
 const GIT_VERBS = ['rev-parse', 'status', 'show'];
+
+/** The two more verbs `git-clone` may name, and no other script may. */
+const CLONE_VERBS = ['ls-remote', 'clone'];
 
 function words(text: string): string[] {
   return text.split(/[\s;|&(){}]+/).filter((word) => word.length > 0);
@@ -89,17 +92,19 @@ function positionals(text: string): Positional[] {
 }
 
 describe('the catalogue', () => {
-  it('holds nine scripts and this release holds no others', () => {
-    expect(REMOTE_SCRIPTS).toHaveLength(9);
+  it('holds eleven scripts and this release holds no others', () => {
+    expect(REMOTE_SCRIPTS).toHaveLength(11);
     expect(REMOTE_SCRIPTS.map((script) => script.id).sort()).toEqual([
-      // PHASE 84 added the two reads below. `dir-list` names the folders inside
-      // one folder, and `program-find` tests whether one name is an executable
-      // file in each of a list of folders. Both write nothing, so the one write
-      // in this catalogue is still `image-put` and still the only one.
+      // PHASE 90.2 added `repo-find`, which walks one root for git folders and
+      // writes nothing, and `git-clone`, which is the SECOND write in this
+      // catalogue and the second write this product can make on another
+      // computer.
       'dir-list',
+      'git-clone',
       'image-put',
       'machine-facts',
       'program-find',
+      'repo-find',
       'review-file',
       'review-list',
       'store-copy',
@@ -120,12 +125,17 @@ describe('the catalogue', () => {
     expect(remoteScript('IMAGE-PUT')).toBeNull();
   });
 
-  it('has exactly ONE script that writes, and it is image-put', () => {
+  it('has exactly TWO scripts that write, and names both of them', () => {
     // This is rule 6, and it is the one that keeps the size of what Tortie can
-    // do to another person's computer at one known thing.
+    // do to another person's computer at a known list rather than a count.
+    // Phase 90.2 moved it from one to two, once and on purpose, and the list
+    // stays exact so a third one fails here rather than passing quietly.
     const writers = remoteWriteScripts();
-    expect(writers).toHaveLength(1);
-    expect(writers[0]?.id).toBe('image-put');
+    expect(writers).toHaveLength(2);
+    expect(writers.map((script) => script.id)).toEqual([
+      'image-put',
+      'git-clone'
+    ]);
   });
 
   it('gives every script a reason that says why a repeat is safe', () => {
@@ -219,6 +229,14 @@ describe('a read script', () => {
     }
   });
 
+  it('names no git verb at all in the two reads Phase 90.2 could have used', () => {
+    // `repo-find` reads an origin address out of `.git/config` with `awk`
+    // rather than by asking git for it. That is what keeps the git verb list
+    // untouched for it: a read that named a verb would widen the list for
+    // every script at once.
+    expect(remoteScript('repo-find')?.text).not.toContain('git ');
+  });
+
   it('never puts a git verb anywhere but in its own text', () => {
     for (const script of reads) {
       if (!script.text.includes('git ')) continue;
@@ -241,7 +259,7 @@ describe('a read script', () => {
   });
 });
 
-describe('the one write', () => {
+describe('the image write', () => {
   const write = remoteScript('image-put');
 
   it('never opens a file that is already there', () => {
@@ -395,5 +413,146 @@ describe('the size limit', () => {
     // 32 pages of 4,096 bytes. It is not measured by this phase, and the module
     // header says so: no Linux machine was contacted.
     expect(REMOTE_SCRIPT_MAX_BYTES).toBe(32 * 4096);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 90.2. The walk that finds a project, and the second write
+// ---------------------------------------------------------------------------
+
+describe('the project walk', () => {
+  const find = remoteScript('repo-find');
+
+  it('is a read that takes three values', () => {
+    expect(find?.mode).toBe('read');
+    expect(find?.params).toBe(3);
+  });
+
+  it('lets that machine resolve its own home when no root was named', () => {
+    // Tortie composes no home path for another computer. An empty first value
+    // is that machine's own HOME, resolved by that machine's own shell.
+    expect(find?.text).toContain('if [ -z "$r" ]; then r="$HOME"; fi');
+  });
+
+  it('asks for a directory named .git and never a file', () => {
+    // A worktree and a submodule both carry a `.git` FILE rather than a
+    // directory, so neither is found. That limit is stated on screen and in
+    // the phase report rather than assumed away.
+    expect(find?.text).toContain("-type d -name '.git'");
+  });
+
+  it('prunes the two folder names that hold no projects', () => {
+    // Both names are constants in the text. No caller can change them.
+    expect(find?.text).toContain('-name Library');
+    expect(find?.text).toContain('-name node_modules');
+  });
+
+  it('reads the origin address with awk rather than with git', () => {
+    expect(find?.text).toContain('awk ');
+    expect(find?.text).toContain('"$g/config"');
+  });
+
+  it('holds no $ followed by a digit inside its awk program', () => {
+    // An awk field reference inside single quotes reads to the positional
+    // scanner above as a single quoted parameter, and the quoting rule would
+    // fail on it. The origin reader uses a flag, sub() and print instead.
+    const awkStart = (find?.text ?? '').indexOf("awk '");
+    expect(awkStart).toBeGreaterThan(0);
+    const awkEnd = (find?.text ?? '').indexOf("'", awkStart + 5);
+    const program = (find?.text ?? '').slice(awkStart + 5, awkEnd);
+    expect(program.length).toBeGreaterThan(20);
+    expect(program).not.toMatch(/\$[0-9]/);
+  });
+
+  it('prints the address first and the folder as the rest of the line', () => {
+    // A folder on another computer can hold a space in its name, so the path
+    // has to be last. The address is base64 for the same reason.
+    expect(find?.text).toContain("printf '%s %s\\n' \"$e\" \"$p\"");
+    expect(find?.text).toContain('base64');
+  });
+
+  it('answers the empty word when the root is not there', () => {
+    expect(find?.text).toContain('"${o:-none}"');
+  });
+
+  it('redirects nothing except the two noise silencers', () => {
+    const rest = (find?.text ?? '').split('2>/dev/null').join('');
+    expect(rest).not.toContain('>');
+  });
+});
+
+describe('the project copy', () => {
+  const clone = remoteScript('git-clone');
+
+  it('is the second write and it takes two values', () => {
+    expect(clone?.mode).toBe('write');
+    expect(clone?.params).toBe(2);
+  });
+
+  it('tests the destination before it does anything else', () => {
+    // This is what makes the write safe to run twice, and it is what stops it
+    // ever opening a folder a person already had.
+    const lines = (clone?.text ?? '').split('\n');
+    expect(lines[4]).toBe('if [ -e "$d" ]; then');
+    expect(clone?.text).toContain("printf '__TORTIE_RUN__exists none");
+  });
+
+  it('checks that the address can be reached before it copies anything', () => {
+    const text = clone?.text ?? '';
+    expect(text.indexOf('git ls-remote')).toBeGreaterThan(0);
+    expect(text.indexOf('git ls-remote')).toBeLessThan(text.indexOf('git clone'));
+  });
+
+  it('turns off both password prompts on both git commands', () => {
+    // A command that stops and waits for a password on a machine nobody is
+    // watching is a hang, and a hang reads to a person as the app freezing.
+    for (const line of (clone?.text ?? '').split('\n')) {
+      if (!/git (ls-remote|clone)/.test(line)) continue;
+      expect(line, line).toContain('GIT_TERMINAL_PROMPT=0');
+      expect(line, line).toContain('GCM_INTERACTIVE=never');
+    }
+  });
+
+  it('puts -- in front of the address on both git commands', () => {
+    expect(clone?.text).toContain('git ls-remote -- "$u"');
+    expect(clone?.text).toContain('git clone -- "$u" "$d"');
+  });
+
+  it('aims every redirection at /dev/null', () => {
+    const targets = [
+      ...(clone?.text ?? '').matchAll(/(?<!2)>\s*([^\s;|)]+)/g)
+    ].map((match) => match[1]);
+    expect(targets.length).toBeGreaterThan(0);
+    for (const target of targets) expect(target).toBe('/dev/null');
+  });
+
+  it('names timeout nowhere, because this kind of machine has no such program', () => {
+    // The deadline is enforced on this Mac by execRemoteShell. `timeout` is GNU
+    // coreutils and macOS does not ship it.
+    expect(words(clone?.text ?? '')).not.toContain('timeout');
+  });
+
+  it('names no program that can remove or replace a file', () => {
+    const named = words(clone?.text ?? '').filter((word) =>
+      MUTATING.includes(word)
+    );
+    expect(named).toEqual([]);
+  });
+
+  it('answers one of exactly four words', () => {
+    for (const word of ['exists', 'cloned', 'failed', 'unreachable']) {
+      expect(clone?.text).toContain(`__TORTIE_RUN__${word} `);
+    }
+  });
+
+  it('is the only script allowed to name its two verbs', () => {
+    for (const script of REMOTE_SCRIPTS) {
+      if (script.id === 'git-clone') continue;
+      for (const match of script.text.matchAll(/git (?:--no-pager )?([a-z-]+)/g)) {
+        expect(CLONE_VERBS, `${script.id} runs git ${String(match[1])}`).not.toContain(
+          match[1]
+        );
+      }
+    }
   });
 });
