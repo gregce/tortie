@@ -6181,6 +6181,96 @@ Move to Trash, Open With and Reveal in Finder rests on unit tests. Phase 89's zs
 Mac Pro is still owed and is proven on the loopback scratch machine only. `needs input` never lights
 for a remote session and SpecStory capture never runs on one, both closed by decision.
 
+## Phase 94 — a second session in a remote tab starts in that tab's folder (operator reported 2026-08-19, with four screenshots) QUEUED
+
+**Subject:** `fix(machines): a session started in a remote tab runs in that tab's folder`
+**First body line:** `Phase 94: a second session in a remote tab starts in that tab's folder`
+**Semver:** patch. It changes no capability and adds no surface. It makes an existing one correct.
+**Tier 3.** The operator reported it himself, it touches remote create, and it moved a running session
+out of its own tab.
+
+### What he did, and what he got
+
+He started in his local project `/Users/gdc/grok-build`, pressed Cmd+T, chose Greg's Mac Pro and
+typed `/Users/gdc/dev/test-tortie` in the Directory field. That worked. Claude Code came up on the
+Mac Pro in `~/dev/test-tortie` and Tortie opened a tab for that folder with the machine's badge on
+it. THAT HALF IS CORRECT AND MUST NOT REGRESS.
+
+He then pressed Cmd+T again from inside that remote tab. The sheet showed the machine locked to
+Greg's Mac Pro, the caption "This project is on Greg's Mac Pro, so the session runs there", and the
+Directory field already holding `/Users/gdc/dev/test-tortie`. He changed nothing and pressed Create.
+
+Claude Code started in `/Users/gdc`, which is the home directory on that machine, and printed its
+trust prompt for that folder. Tortie then opened a SECOND remote tab named `gdc` and put the session
+under it. The session he expected to sit beside `claude-1` in the `test-tortie` tab was in a tab of
+its own, rooted at his whole home directory on that computer.
+
+### The root cause, read from the source at 8df31d7
+
+**It is two correct decisions meeting in a case neither was written for.**
+
+1. `src/renderer/state/sessions-slice.ts:548` sends `cwd` only when it differs from the project path.
+   The Directory field equals the project path here, so THE FIELD IS DROPPED AND NEVER SENT. That is
+   right for a local create, because main falls back to `input.projectPath` further down.
+2. `src/main/sessions/core.ts:2609` forwards `cwd` only when it arrived and is not empty. Phase 84
+   removed `?? input.projectPath` from that line on purpose, because for a create started from a
+   LOCAL tab that path is a folder on this Mac and naming it over there started sessions in folders
+   that do not exist.
+3. So no `-c` reaches the machine, its own tmux falls back to the home directory, and the session
+   really is in `/Users/gdc` over there.
+4. `src/main/machines/remote-rehome.ts:78` then does its job faithfully. It keeps the recorded folder
+   only when the reported one is a SUBFOLDER of it. Here the reported folder is the PARENT, so the
+   rule replaces the recorded path with `/Users/gdc` and `rehomeRemoteSessions` opens a tab there.
+
+The gap is the case Phase 90.3 created and Phase 84 predates: a create started from a tab that is
+ALREADY ON THE MACHINE, where `projectPath` is a real path over there. `farProjectPath` is computed
+correctly at `core.ts:2593` and then is not used to decide the working directory.
+
+### The fix
+
+**Send `farProjectPath` as the working directory when it is an absolute path and no Directory was
+sent.** One decision, in main, at the choke point every create surface passes through.
+
+It preserves Phase 84 item 5 byte for byte in the case that item was written for. From a LOCAL tab,
+`farProjectPath` is `input.cwd ?? ''`, so a cleared Directory field still sends no `-c` and the
+machine's own home directory fallback still applies. That behaviour is deliberate and it stays.
+
+**Fix it in main and not in the renderer.** Four renderer surfaces compose a create and a fifth is
+coming. A guard living in four of them is a guard the fifth misses, which is the reasoning already
+written above the capture refusal at `core.ts:2569` and the lesson Phase 84 learned from the split
+leaf Restart defect. The renderer's line 548 may stay as it is. If a builder wants to change it too,
+that is allowed, but main must be correct on its own with the renderer untouched.
+
+### Two questions to answer rather than assume
+
+1. **Does the rehome rule need changing as well?** After the fix the machine reports the right folder,
+   so the rule stops firing on this path. Decide whether a reported folder that is a strict PARENT of
+   the recorded one should move the row at all, state the answer in the spec, and change nothing
+   unless the answer is yes with a reason.
+2. **Is the stray `gdc` tab left behind?** He now has a remote tab he did not ask for. Say whether
+   closing it is enough, and whether the session under it is reachable after closing it, which is the
+   same question Phase 93 is answering for local sessions.
+
+### The evidence
+
+Drive the real app on a harness socket with an isolated profile. Note that
+`src/main/tmux/resolve.ts` honours `GMUX_TMUX_SOCKET` ONLY when `GMUX_SHOT` or `GMUX_SMOKE` is set,
+and a launch without one of those silently uses the operator's real `-L gmux` server. That has
+stranded probe sessions on his machine twice in this project.
+
+Required:
+
+- Reproduce his exact sequence against the loopback scratch machine: create from a local tab naming a
+  far folder, then create again from the resulting remote tab with the Directory field untouched.
+  Prove the second session's folder ON THAT MACHINE, read from the machine's own
+  `#{q:session_path}`, equals the first one's.
+- Prove the tab count. One remote tab after two sessions, not two.
+- Prove by mutation that the regression test is real: restore the old line, show the test fail,
+  restore the fix byte for byte, show it pass.
+- Prove Phase 84 item 5 did not regress: from a LOCAL tab with the Directory field cleared, no `-c`
+  is sent and the session lands in the machine's home directory.
+- Count the operator's sessions with `tmux -L gmux list-sessions` before and after and report both.
+
 ## Phase 93 — a session you cannot reach can still be cleared (operator reported 2026-08-19, with two screenshots) QUEUED
 
 **Subject:** `fix(attention): a session whose project is closed can still be reached and cleared`
