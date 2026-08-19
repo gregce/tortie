@@ -146,7 +146,7 @@ describe('the markup', () => {
     );
   });
 
-  it('carries the four exact font sentences', () => {
+  it('carries the two exact font sentences', () => {
     expect(html).toContain(
       'The face the terminal and the editor draw with. System is Menlo, ' +
         'which is already on your Mac. The sidebar and the rest of the app ' +
@@ -156,18 +156,18 @@ describe('the markup', () => {
       'Size is not set here. Use ⌘+ and ⌘- to change the size of the area ' +
         'you are working in.'
     );
-    expect(html).toContain(
-      'Source Code Pro is missing three of the marks agents print. The ' +
-        'first is the cross at U+2717. The second is the arrow at U+279C. ' +
-        'The third is the warning at U+26A0. Menlo draws each one instead, ' +
-        '12.5 percent taller than the letters beside it. The column grid ' +
-        'does not move.'
-    );
-    expect(html).toContain(
-      'Agent spinners are drawn from Apple Braille under all three options. ' +
-        'No monospace font on this Mac has those marks, so nothing here ' +
-        'changes them.'
-    );
+  });
+
+  it('carries neither font measurement, which moved to research 57', () => {
+    // Phase 87 moved the Source Code Pro note and the Apple Braille note to
+    // docs/research/57-terminal-font-glyph-coverage.md, verbatim. Neither
+    // says anything a person acts on while picking a face, and a later round
+    // must not put them back on the dropdown.
+    expect(html).not.toContain('U+2717');
+    expect(html).not.toContain('U+279C');
+    expect(html).not.toContain('U+26A0');
+    expect(html).not.toContain('Apple Braille');
+    expect(html).not.toContain('12.5 percent');
   });
 });
 

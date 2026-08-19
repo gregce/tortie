@@ -52,7 +52,13 @@ type SectionId =
  */
 type RailIcon = { codicon: string } | { svg: string };
 
-const SECTIONS: { id: SectionId; label: string; icon: RailIcon }[] = [
+/**
+ * The rail, in the order it is drawn.
+ *
+ * Exported so `__tests__/settings-sections.test.ts` reads this array rather
+ * than a copy of it. Diagnostics is last and a test holds it there.
+ */
+export const SECTIONS: { id: SectionId; label: string; icon: RailIcon }[] = [
   { id: 'general', label: 'General', icon: { codicon: 'settings-gear' } },
   { id: 'agents', label: 'Agents', icon: { codicon: 'hubot' } },
   { id: 'keyboard', label: 'Keyboard', icon: { codicon: 'keyboard' } },
@@ -75,22 +81,26 @@ const SECTIONS: { id: SectionId; label: string; icon: RailIcon }[] = [
   // end of the rail. §4.5 also records a 22-of-24 inset variant if review ever
   // judges the weight too heavy.
   { id: 'specstory', label: 'SpecStory', icon: { svg: specstorySvg } },
-  // Phase 35. Last on the rail, the same reasoning as SpecStory above: it is
-  // the newest section and the least often visited, and inserting it
-  // mid-list would move entries people already know the position of. It is
-  // actions, not readings, so it does not break the no-dashboard rule.
-  { id: 'diagnostics', label: 'Diagnostics', icon: { codicon: 'output' } },
-  // Phase 62. Last on the rail, the house rule for a new section: it is the
-  // newest and inserting it mid-list would move entries people already know
-  // the position of.
+  // Phase 62 appended this one. A new section is appended rather than
+  // inserted, because inserting it mid-list would move entries people already
+  // know the position of. Since Phase 87 it is appended BEFORE Diagnostics,
+  // which `__tests__/settings-sections.test.ts` pins in last place.
   { id: 'appearance', label: 'Appearance', icon: { codicon: 'symbol-color' } },
-  // Phase 68. Last on the rail, the house rule for a new section: it is the
-  // newest and inserting it mid-list would move entries people already know
-  // the position of. The `vm` glyph, not `server` and not `remote`: a machine
-  // here is another computer a person owns and signs in to as themselves,
-  // which is what that glyph draws. `remote` already means "this branch is on
-  // a remote" everywhere else in this app.
-  { id: 'machines', label: 'Machines', icon: { codicon: 'vm' } }
+  // Phase 68 appended this one, under the same rule as Appearance above, and
+  // since Phase 87 it is appended before Diagnostics rather than at the end.
+  // The `vm` glyph, not `server` and not `remote`. A machine here is another
+  // computer a person owns and signs in to as themselves, which is what that
+  // glyph draws. `remote` already means "this branch is on a remote"
+  // everywhere else in this app.
+  { id: 'machines', label: 'Machines', icon: { codicon: 'vm' } },
+  // Phase 35 put this here for the reason SpecStory above gives, being that it
+  // was the newest section and the least often visited. Phase 87 moved it to
+  // the end and it now sits last on purpose. Diagnostics is the one section a
+  // person opens when something is wrong rather than when they are setting
+  // something up, so it belongs after the sections they came for.
+  // `__tests__/settings-sections.test.ts` holds it in last place, and a new
+  // section is appended before it rather than after it.
+  { id: 'diagnostics', label: 'Diagnostics', icon: { codicon: 'output' } }
 ];
 
 export function SettingsApp(): React.JSX.Element {

@@ -5,9 +5,9 @@
  * an address, tests the connection and watches it happen, reads the lines the
  * agreement will be bound to, and presses one button that writes the row and
  * records the confirmation together. The button is disabled until the machine
- * itself has answered, and the reason is written under it while it is
- * disabled, because a control that is off without saying why is a puzzle
- * rather than a safeguard.
+ * itself has answered, and Phase 87 moved the reason onto the button as its
+ * tooltip rather than under it as a paragraph, because a control that is off
+ * without saying why is a puzzle rather than a safeguard.
  *
  * WHY THE ADD BUTTON WAITS FOR THE TEST. The row names a program Tortie will
  * run on another machine. Until the connection test comes back with an
@@ -94,7 +94,6 @@ import {
   TAILSCALE_TITLE,
   TAILSCALE_WHY,
   TESTING,
-  VERSION_GATE_EXPLAIN,
   lastLookedLine,
   tailnetCountLine
 } from './machines-copy';
@@ -504,19 +503,11 @@ export function AddMachineView({
             add a machine can go and check what it runs first, rather than
             learning the rule from a machine that was turned down. */}
         <div className="mach-block">
-          <div className="mach-version-gate">
-            <div className="mach-prepare-fact">
-              <span className="mach-prepare-label">
-                {PREPARE_SUPPORTED_LABEL}
-              </span>
-              <span
-                className="mach-prepare-value"
-                data-measured-versions="1"
-              >
-                {MEASURED_VERSIONS.join(', ')}
-              </span>
-            </div>
-            <div className="mach-hint">{VERSION_GATE_EXPLAIN}</div>
+          <div className="mach-prepare-fact">
+            <span className="mach-prepare-label">{PREPARE_SUPPORTED_LABEL}</span>
+            <span className="mach-prepare-value" data-measured-versions="1">
+              {MEASURED_VERSIONS.join(', ')}
+            </span>
           </div>
           <button
             type="button"
@@ -556,24 +547,31 @@ export function AddMachineView({
           ) : null}
 
           {/* Both come from main on the result, so this surface can neither
-              omit them nor reword them. */}
+              omit them nor reword them. Phase 87 draws them in one paragraph
+              rather than two, which removes one paragraph gap. The shortening
+              itself happened in main, where MACHINE_PATH_HONESTY lost its
+              third sentence. This surface still draws whatever main sends,
+              word for word. */}
           {machines !== null ? (
-            <>
-              <p className="set-config-warning">{machines.warning}</p>
-              <p className="set-config-warning">{machines.honesty}</p>
-            </>
+            <p className="set-config-warning">
+              {`${machines.warning} ${machines.honesty}`}
+            </p>
           ) : null}
 
+          {/* The reason the button is off rides on the button rather than
+              standing under it. A control that is off without saying why is a
+              puzzle, and the tooltip is only spread while it is off, so an
+              enabled button carries no title at all. */}
           <button
             type="button"
             className="btn btn-primary"
             disabled={!canAdd}
+            {...(canAdd ? {} : { title: ADD_DISABLED_REASON })}
             data-machines-action="add-confirm"
             onClick={onAdd}
           >
             {BTN_ADD_CONFIRM}
           </button>
-          {canAdd ? null : <div className="mach-hint">{ADD_DISABLED_REASON}</div>}
           {error !== null ? <div className="set-row-error">{error}</div> : null}
         </div>
       </div>

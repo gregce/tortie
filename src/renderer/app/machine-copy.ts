@@ -293,86 +293,35 @@ export const CREATE_DIR_HINT =
   'folder is there before it starts anything.';
 
 /**
- * The second half of the directory hint.
+ * The one line of the honesty block, and the one fact that changes what a
+ * person does before a session exists.
  *
- * Tortie holds no list of home directories, and this release adds no way to
- * ask for one, so an empty field is the way to say "start where I land". The
- * sentence exists so a person does not have to guess a path.
- */
-export const CREATE_DIR_EMPTY_HINT =
-  'Leave this empty to start in your home directory on that machine.';
-
-/**
- * The first line of the honesty block, and the one that matters most.
+ * PHASE 87 CUT THIS BLOCK FROM FIVE PARAGRAPHS TO ONE. Three of the four that
+ * went said how often Tortie asks a machine for its list, how often it copies
+ * what a session printed, and what it cannot yet tell you about a session that
+ * is waiting for you. None of those things has happened yet on a sheet where
+ * no session exists, so they belong on the surfaces where they do happen.
  *
- * PHASE 72 rewrote it because it had become false. It used to say Tortie did
- * not save what the session printed, did not keep a record of it here, and
- * could not bring it back. Tortie now does all three, so the sentence names
- * what it does and then names the one thing it still cannot do, which is the
- * conversation.
+ * The fourth said Tortie had not checked what is installed on the other
+ * machine, and Phase 84 made that false. `remote-argv.ts` in
+ * `src/main/machines` asks the machine itself where the named program lives
+ * before anything is composed, and `noRemoteProgramRefusal` in
+ * `src/main/machines/remote-copy.ts` refuses at the moment a person presses
+ * Create, naming the program, the machine and how many folders were searched.
+ * A false caveat is worse than a missing one, so that sentence was cut rather
+ * than reworded, which is what Phase 84 did to `CREATE_DIR_HINT` above.
+ *
+ * What survives is the one thing a person cannot find out any other way before
+ * they act, which is that the conversation does not come back. The four names
+ * this phase deleted are recorded in ./__tests__/create-copy.test.ts, which is
+ * also what stops them coming back.
  */
 export const CREATE_HONESTY =
-  'A session on another machine runs there and keeps running when you quit ' +
-  'Tortie. Tortie keeps a record of it on this Mac, keeps a copy of what it ' +
-  'prints, and can start it again on that machine. The conversation does not ' +
-  'come back.';
+  'Tortie can start this session again on that machine, and the conversation ' +
+  'does not come back.';
 
-/**
- * The second line. The numbers are chosen rather than measured, and no copy
- * anywhere claims otherwise.
- */
-export const POLL_HONESTY =
-  'Tortie asks this machine for its list every 5 seconds while this window ' +
-  'is in front, and every 30 seconds when it is not. What you see can be ' +
-  'that old.';
-
-/**
- * The third line.
- *
- * The status oracles read this Mac's own disk, so none of them can run for a
- * session on another machine. What a list can report is that the session is
- * there and that it printed something, and that is what the sentence says.
- */
-export const ATTENTION_HONESTY =
-  'Tortie cannot yet tell you when a session on another machine is waiting ' +
-  'for you. It can tell you that the session is there and whether it printed ' +
-  'anything since the last check.';
-
-/**
- * The fourth line, added while the sheet was built.
- *
- * The board above the choice says which agents are installed, and it says it
- * about this Mac, because the scan that fills it runs here. Drawing that board
- * over a create that will run somewhere else claims a fact nobody checked, so
- * the sheet says which machine the board is about. Tortie does not check the
- * other machine in this release, and a create that names an agent the machine
- * does not have fails there with the machine's own answer.
- */
-export const AGENT_LOCAL_CHECK =
-  'The board above says which agents are installed on this Mac. Tortie has ' +
-  'not checked what is installed on the other machine.';
-
-/**
- * The fifth line, added by Phase 72 with the copy it describes.
- *
- * The number is CHOSEN rather than measured and the sentence does not pretend
- * otherwise: it says how often Tortie asks and it says the copy can be that
- * old. It also says the one condition, which is that Tortie has to be able to
- * see the machine, because a copy stops the moment the machine goes quiet.
- */
-export const CAPTURE_HONESTY =
-  'While Tortie can see the machine, it copies what each session printed ' +
-  'about every 2 minutes and keeps that copy on this Mac. The copy can be ' +
-  'that old, and Tortie stops taking copies while it cannot see the machine.';
-
-/** The five honesty lines in the order the sheet draws them. */
-export const CREATE_HONESTY_LINES: readonly string[] = [
-  CREATE_HONESTY,
-  POLL_HONESTY,
-  CAPTURE_HONESTY,
-  ATTENTION_HONESTY,
-  AGENT_LOCAL_CHECK
-];
+/** The honesty lines in the order the sheet draws them. */
+export const CREATE_HONESTY_LINES: readonly string[] = [CREATE_HONESTY];
 
 // ---------------------------------------------------------------------------
 // A machine that is in the list and cannot hold a session yet (Phase 84, item 8)

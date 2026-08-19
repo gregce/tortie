@@ -43,7 +43,6 @@ import { AgentGrid } from './AgentGrid';
 import type { LaunchableAgentKind } from '@shared/types';
 import type { MachineRowView } from '@shared/ipc';
 import {
-  CREATE_DIR_EMPTY_HINT,
   CREATE_DIR_HINT,
   CREATE_HONESTY_LINES,
   createDirLabel,
@@ -989,10 +988,7 @@ export function CreateSessionModal(): React.JSX.Element | null {
             />
           ) : null}
           {machine !== null ? (
-            <>
-              <p className="field-caption">{CREATE_DIR_HINT}</p>
-              <p className="field-caption">{CREATE_DIR_EMPTY_HINT}</p>
-            </>
+            <p className="field-caption">{CREATE_DIR_HINT}</p>
           ) : null}
           {dirError !== null ? (
             <div className="input-error-text">{dirError}</div>

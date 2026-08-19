@@ -435,12 +435,6 @@ describe('the words the accept block writes for itself', () => {
       'Confirm the machine again to use it.'
     );
   });
-
-  it('offers the acceptance in the sentence beside the version list', () => {
-    expect(copy.VERSION_GATE_EXPLAIN).toContain(
-      'offers to let you accept that version yourself'
-    );
-  });
 });
 
 describe('the three copies of main, checked by machine', () => {
@@ -588,11 +582,12 @@ describe('the four sentences Phase 79 writes', () => {
   });
 
   it('says why Tortie wants Tailscale, and that it is not required', () => {
+    // Phase 87 cut three of the four sentences. What is left is the two facts
+    // a person acts on, being what Tortie asks Tailscale for and that typing
+    // an address is still a path.
     expect(copy.TAILSCALE_WHY).toBe(
-      'Tortie asks Tailscale which machines you own, so you pick a name ' +
-        'rather than typing an address, and Tailscale carries the connection. ' +
-        'You can still add a machine by typing its address below, so ' +
-        'Tailscale is the easy path rather than the only one.'
+      'Tortie asks Tailscale which machines you own, and you can type an ' +
+        'address below instead.'
     );
   });
 

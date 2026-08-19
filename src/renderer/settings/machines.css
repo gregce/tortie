@@ -410,6 +410,18 @@
   outline-offset: 2px;
 }
 
+/* The spacing inside an open Advanced block, and it is deliberately uneven.
+   A hint sits 6px under the field it explains and the next field starts 12px
+   below that hint, so each hint reads as part of the field above it rather
+   than as an introduction to the field below it.
+
+   PHASE 87 tried to replace these three rules with one flex column on the
+   details element and that was wrong. Chromium puts everything after the
+   summary inside one generated content box, so a flex container on
+   `details` has exactly two items, being the summary and that box. The gap
+   landed once, between the summary and the first field, and the four gaps
+   measured 8px, 0px, 0px and 0px. The hint and the next label touched. These
+   margins are back and the four gaps measure 12px, 6px, 12px and 6px. */
 .mach-advanced[open] > summary {
   margin-bottom: var(--space-5);
 }
@@ -424,16 +436,6 @@
 
 .mach-sheet {
   align-self: stretch;
-}
-
-/* PHASE 79. The rule about measured versions, on screen before the test rather
-   than only in the sentence that turns a machine down. It is a fact and not an
-   alarm, so it is set in the ordinary tones and carries no border. */
-.mach-version-gate {
-  align-self: stretch;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
 }
 
 /* ------------------------------------------------- the connection test view */

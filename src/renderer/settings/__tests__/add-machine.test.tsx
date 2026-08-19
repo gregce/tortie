@@ -130,9 +130,8 @@ function machines(): MachinesResult {
     path: '/Users/x/Library/Application Support/Tortie/gmux/config/machines.json',
     present: true,
     honesty:
-      'Confirming seals which program Tortie runs on that machine. It cannot ' +
-      'seal the bytes of that program. Anyone who can write to that machine ' +
-      'can change it, and Tortie will not see that happen.',
+      'Confirming seals which program Tortie runs on that machine. It can ' +
+      'never seal the bytes of that program.',
     warning:
       'This names a machine Tortie will sign in to as you, and a program it ' +
       'will run there with your files and your credentials.',
@@ -199,6 +198,11 @@ describe('the confirm button waits for the machine to answer', () => {
       'Run the connection test first. Tortie needs to see the machine ' +
         'answer, and it needs the program path the machine reports.'
     );
+    // Phase 87. The reason is on the button rather than under it. It is the
+    // same words, in a place that costs no standing paragraph.
+    expect(addButtonTag(html)).toContain(
+      'title="Run the connection test first.'
+    );
   });
 
   it('is still off while the test is running', () => {
@@ -255,6 +259,9 @@ describe('the confirm button waits for the machine to answer', () => {
     });
     expect(addButtonTag(html)).not.toContain('disabled');
     expect(html).not.toContain('Run the connection test first.');
+    // Phase 87. The tooltip is spread only while the button is off, so an
+    // enabled button carries no title at all.
+    expect(addButtonTag(html)).not.toContain('title=');
   });
 
   it('draws main’s own sheet lines, and no name and no colour', () => {
@@ -269,16 +276,20 @@ describe('the confirm button waits for the machine to answer', () => {
     expect(html).not.toContain('Colour: ');
   });
 
-  it('carries both sentences main sent on the result', () => {
+  it('carries both sentences main sent on the result, in one paragraph', () => {
     const html = seed({ form: form({ host: '127.0.0.1' }) });
     expect(html).toContain(
       'This names a machine Tortie will sign in to as you, and a program it ' +
         'will run there with your files and your credentials.'
     );
     expect(html).toContain(
-      'Confirming seals which program Tortie runs on that machine. It cannot ' +
-        'seal the bytes of that program.'
+      'Confirming seals which program Tortie runs on that machine. It can ' +
+        'never seal the bytes of that program.'
     );
+    // Phase 87 draws the pair in one paragraph rather than two, and it also
+    // cut the third sentence of the sealing line in main. The warning is
+    // unchanged. The count below is what proves the pair is one block.
+    expect(html.match(/set-config-warning/g) ?? []).toHaveLength(1);
   });
 });
 
@@ -293,7 +304,7 @@ describe('the Tailscale panel, before anything is pressed', () => {
   });
 
   it('says a person can type an address instead, so this is not the only path', () => {
-    expect(TAILSCALE_WHY).toContain('typing its address');
+    expect(TAILSCALE_WHY).toContain('type an address');
   });
 
   it('offers the button once, and starts nothing by being drawn', () => {
@@ -569,7 +580,9 @@ describe('the versions Tortie has measured, before any test runs', () => {
     const html = seed({ form: form({ host: '127.0.0.1' }) });
     expect(html).toContain('Versions Tortie has measured:');
     expect(html).toContain(MEASURED_VERSIONS.join(', '));
-    expect(html).toContain(
+    // Phase 87 cut the paragraph beside the list. The list is the useful part
+    // and the sentence explained the rule a person meets in the refusal.
+    expect(html).not.toContain(
       'Tortie only uses versions of that program it has measured.'
     );
     // Proven to be before the test rather than after it: nothing has run.

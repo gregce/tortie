@@ -1,0 +1,85 @@
+/**
+ * Phase 87 — the create sheet stops explaining itself.
+ *
+ * WHAT THIS PHASE DELETED. The machine field used to draw five paragraphs under
+ * the dropdown. Four of them are gone, being `POLL_HONESTY`, `CAPTURE_HONESTY`,
+ * `ATTENTION_HONESTY` and `AGENT_LOCAL_CHECK`, along with
+ * `CREATE_DIR_EMPTY_HINT` under the Directory field.
+ *
+ * WHY THE SURVIVING SENTENCE IS THE SURVIVING ONE. A person reading this sheet
+ * has not created anything yet. Poll cadence, capture cadence and what Tortie
+ * cannot tell you about a waiting session all describe things that happen after
+ * a session exists, so they belong on the surfaces where they happen. The
+ * conversation not coming back is the one fact a person cannot find out any
+ * other way, and it changes whether they start the session at all.
+ *
+ * WHY `AGENT_LOCAL_CHECK` WAS CUT RATHER THAN REWORDED. It said Tortie had not
+ * checked what is installed on the other machine. Phase 84 made that false.
+ * `src/main/machines/remote-argv.ts` asks the machine itself where the named
+ * program lives before anything is composed, and `noRemoteProgramRefusal` in
+ * `src/main/machines/remote-copy.ts` refuses at the moment a person presses
+ * Create. A caveat that claims the opposite of what the code does is worse than
+ * no caveat.
+ *
+ * HOW IT READS. A deleted export cannot be imported, so the deletions are read
+ * out of the source, which is the shape `create-machine-ready.test.tsx` already
+ * uses for the reset rule. The environment is node and nothing here renders.
+ */
+
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { describe, expect, it } from 'vitest';
+
+import { CREATE_DIR_HINT, CREATE_HONESTY_LINES } from '../machine-copy';
+
+/** The two files this phase edited, read as text. */
+const COPY_SOURCE = readFileSync(
+  resolve(import.meta.dirname, '../machine-copy.ts'),
+  'utf8'
+);
+const MODAL_SOURCE = readFileSync(
+  resolve(import.meta.dirname, '../CreateSessionModal.tsx'),
+  'utf8'
+);
+
+/** Every export this phase deleted from `machine-copy.ts`. */
+const DELETED: readonly string[] = [
+  'POLL_HONESTY',
+  'CAPTURE_HONESTY',
+  'ATTENTION_HONESTY',
+  'AGENT_LOCAL_CHECK',
+  'CREATE_DIR_EMPTY_HINT'
+];
+
+describe('the honesty block under the machine field', () => {
+  it('draws one paragraph, and it is the one about the conversation', () => {
+    expect(CREATE_HONESTY_LINES).toHaveLength(1);
+    expect(CREATE_HONESTY_LINES[0]).toBe(
+      'Tortie can start this session again on that machine, and the ' +
+        'conversation does not come back.'
+    );
+  });
+
+  it('names none of the four paragraphs this phase deleted', () => {
+    const found = DELETED.filter((name) => COPY_SOURCE.includes(name));
+    expect(found).toEqual([]);
+  });
+});
+
+describe('the caption under the Directory field', () => {
+  it('is drawn once, and the second caption is gone from the sheet', () => {
+    const drawn = MODAL_SOURCE.split('CREATE_DIR_HINT').length - 1;
+    expect(drawn).toBe(2);
+    expect(MODAL_SOURCE).not.toContain('CREATE_DIR_EMPTY_HINT');
+  });
+
+  it('still says what Phase 84 wrote, byte for byte', () => {
+    // The one caveat this phase kept. It survives because the check it
+    // describes happens at the moment a person presses Create, which is what
+    // makes it true. A later round must not soften it.
+    expect(CREATE_DIR_HINT).toBe(
+      'This folder is on the other machine. Tortie asks that machine whether ' +
+        'the folder is there before it starts anything.'
+    );
+  });
+});

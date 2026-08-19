@@ -296,7 +296,7 @@ describe('machines:rows', () => {
   it('carries the honesty line and the warning from main', () => {
     loadMachines('boot');
     const out = call<{ honesty: string; warning: string }>('machines:rows');
-    expect(out.honesty).toContain('It cannot seal');
+    expect(out.honesty).toContain('It can never seal');
     expect(out.warning).toContain('sign in to as you');
   });
 

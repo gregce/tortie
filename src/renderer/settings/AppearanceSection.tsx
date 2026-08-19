@@ -198,7 +198,10 @@ export function AppearanceSection(): React.JSX.Element {
       <div className="set-group-label">Font</div>
       <div className="set-card">
         <WorkAreaFontRow />
-        {/* The three recorded limits, on the card where the user is looking. */}
+        {/* One note, and it is the one a person meets by acting. They came
+            here to change the font and there is no size control. The two font
+            glyph measurements Phase 78 recorded moved to
+            docs/research/57-terminal-font-glyph-coverage.md in Phase 87. */}
         <div className="set-row">
           <div className="set-row-text">
             {/*
@@ -211,26 +214,6 @@ export function AppearanceSection(): React.JSX.Element {
               {`Size is not set here. Use ${keyDisplay('view.zoomIn')} and ` +
                 `${keyDisplay('view.zoomOut')} to change the size of the ` +
                 `area you are working in.`}
-            </span>
-          </div>
-        </div>
-        <div className="set-row">
-          <div className="set-row-text">
-            <span className="set-row-caption">
-              Source Code Pro is missing three of the marks agents print. The
-              first is the cross at U+2717. The second is the arrow at U+279C.
-              The third is the warning at U+26A0. Menlo draws each one instead,
-              12.5 percent taller than the letters beside it. The column grid
-              does not move.
-            </span>
-          </div>
-        </div>
-        <div className="set-row">
-          <div className="set-row-text">
-            <span className="set-row-caption">
-              Agent spinners are drawn from Apple Braille under all three
-              options. No monospace font on this Mac has those marks, so
-              nothing here changes them.
             </span>
           </div>
         </div>

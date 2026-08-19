@@ -275,11 +275,26 @@ export const MACHINE_CONFIRM_WARNING =
  * Research 51 section 4.2 requires this on screen and these are its words in
  * plain form. It is carried on every result so no surface can omit or reword
  * it.
+ *
+ * TWO SENTENCES, AND IT STAYS TWO. A third sentence once stood here, reading
+ * "Anyone who can write to that machine can change it, and Tortie will not see
+ * that happen." Do not put it back. It describes something that has not
+ * happened at the moment a person presses the confirm button, and a caveat
+ * about a later event belongs where that event happens. The threat itself is
+ * written down in research 51 section 4.2.
+ *
+ * REWORDING THIS IS A COPY CHANGE AND NOT AN AGREEMENT CHANGE. This text is
+ * drawn beside the hashed facts rather than being one of them. It is kept out
+ * of {@link MachineSummary.lines} and out of the canonical text the hash
+ * covers, and confirm.test.ts asserts both of those. So the words here can be
+ * corrected without moving any hash and without invalidating any record. The
+ * words are still pinned, by ipc.test.ts in main and by the Settings copy
+ * tests in the renderer, so a change here fails those until they are updated
+ * with it.
  */
 export const MACHINE_PATH_HONESTY =
-  'Confirming seals which program Tortie runs on that machine. It cannot seal ' +
-  'the bytes of that program. Anyone who can write to that machine can change ' +
-  'it, and Tortie will not see that happen.';
+  'Confirming seals which program Tortie runs on that machine. It can never ' +
+  'seal the bytes of that program.';
 
 /** Everything the sheet shows about one machine, and what gets recorded. */
 export interface MachineSummary {

@@ -48,9 +48,8 @@ import {
 
 /** The sentence main owns. The surface may draw it and may not touch it. */
 const HONESTY =
-  'Confirming seals which program Tortie runs on that machine. It cannot ' +
-  'seal the bytes of that program. Anyone who can write to that machine can ' +
-  'change it, and Tortie will not see that happen.';
+  'Confirming seals which program Tortie runs on that machine. It can never ' +
+  'seal the bytes of that program.';
 
 /** The confirm warning main owns, carried on every row and on the result. */
 const WARNING =

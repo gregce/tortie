@@ -264,6 +264,39 @@ describe('focus and choice are the same thing on the board', () => {
     expect(s.created).toEqual(['cursor']);
   });
 
+  // Phase 87 fix round. The case above presses one pair. This presses every
+  // pair, because one pair passes for a board where only that pair is wired.
+  // Each run starts with the choice on one usable tile, lands the keyboard on
+  // a DIFFERENT usable tile, and reads which agent Enter created. Six pairs,
+  // and the created agent is the focused tile in all six.
+  //
+  // What is not true, said plainly. Focus and choice cannot still disagree at
+  // the moment Enter fires on a usable tile, because arriving on that tile is
+  // what moves the choice. The disagreement these cases press is between the
+  // tile chosen before the keyboard arrived and the tile it arrived on, which
+  // is the state the Phase 86 bug shipped in. Cut `onFocus={focus}` back to
+  // `onFocus={hint}` in AgentGrid.tsx and every pair below creates the agent
+  // that was chosen before, which is the bug.
+  const USABLE: readonly (readonly [string, string])[] = [
+    ['claude', 'Claude Code'],
+    ['shell', 'Shell'],
+    ['cursor', 'Cursor']
+  ];
+  for (const [, focusLabel] of USABLE) {
+    for (const [chosenId] of USABLE) {
+      const focusId = USABLE.find((u) => u[1] === focusLabel)?.[0];
+      if (focusId === chosenId) continue;
+      it(`creates ${focusId} when the choice was ${chosenId} and the keyboard lands on ${focusLabel}`, () => {
+        const s = sheet(BOARD, chosenId);
+        expect(s.chosen()).toBe(chosenId);
+        s.tabTo(focusLabel);
+        expect(s.chosen()).toBe(focusId);
+        s.enterOn(focusLabel);
+        expect(s.created).toEqual([focusId]);
+      });
+    }
+  }
+
   it('creates Shell when one Shift+Tab from Name lands on Shell', () => {
     const s = sheet(BOARD, 'claude');
     s.tabTo('Shell');

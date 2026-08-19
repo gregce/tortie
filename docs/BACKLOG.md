@@ -6225,7 +6225,7 @@ exactly how the split leaf Restart defect happened and Phase 84 fixed it the sam
 **Under Phase 87's copy rule this earns its sentence**, because a person is about to act and would
 otherwise be surprised.
 
-## Phase 87 — the copy stops explaining itself (operator reported 2026-08-19, with three screenshots) QUEUED
+## Phase 87 — the copy stops explaining itself (operator reported 2026-08-19, with three screenshots) ✅ SHIPPED 2026-08-19 (this commit, 0.44.2, gates green)
 
 **Subject:** `fix(ui): three screens say less, and diagnostics sits last`
 **First body line:** `Phase 87: the copy stops explaining itself`
@@ -6979,6 +6979,7 @@ This round runs when the operator asks for it.
 | --- | --- |
 | 86 | The prefilled name in the Cmd-T sheet is selected on some opens and not on others, so pressing Cmd-T and typing a letter replaces the name most of the time and appends to it some of the time. The cause is `requestAnimationFrame(() => nameRef.current?.select())` at `src/renderer/app/CreateSessionModal.tsx:408` racing React's commit of the prefilled name, which the same effect sets. When the value lands first the call selects it, and when it does not the call runs on an empty field. Measured on the running app, the whole name was selected on 6 of 6 opens under no load, sampled at 268 of 269, 270 of 271, 271 of 272, 269 of 270, 268 of 269 and 271 of 272 frames, and typing one letter replaced the name on 3 of 3. Under load average 13.5 the same build gave the opposite answer on 1 of 3 opens, reading 0 of 262 frames selected and settling at caret 8. Phase 86 cut the sentence from `docs/DESIGN-SPEC.md` rather than write a race down as a rule, so the specification now says nothing about the selection. The fix is to select in a layout effect after the value is committed, rather than on a frame callback. The 6 of 6 figure is optimistic and a later reader should not treat it as reproducible. A second person measured the same build twice and read 5 of 6 opens selected at load average 3.38 to 3.59, and in both runs the open that lost was the first one after a burst of create and kill work |
 | 86 | This round's own verification created three sessions on the operator's live tmux server and could not remove them, being `shell-1-5`, `cursor-1-2` and `claude-1-4`. The first probe launched the app without `GMUX_SHOT`, and `activeTmuxSocket` in `src/main/tmux/resolve.ts` honours `GMUX_TMUX_SOCKET` only on a harness launch, so the socket override was ignored and the app used `-L gmux`. That is the exact failure the comment in that function has recorded since Phase 22. The lesson for every future probe is that a launch which is not a harness launch ignores the socket override, so a probe sets `GMUX_SHOT` or one of the harness modes before it can trust its isolation |
+| 87 | The written instruction in the row above has now failed a second time, and the next round that touches `build/` must make the harness refuse to drive an app whose socket override was ignored. This round's verification launched the app without `GMUX_SMOKE` and without `GMUX_SHOT`, so `activeTmuxSocket` in `src/main/tmux/resolve.ts` ignored the harness socket and the app ran against the operator's live `-L gmux` server. It created two sessions there, being `shell-1-6` at 22:19:53 and `claude-1-4` at 22:20:20 on 2026-08-19, and both are still on his server awaiting his word. The app logged "GMUX_TMUX_SOCKET is set but this is not a harness launch, so it is ignored" three times and nobody read it. Phase 86 stranded three sessions the same way one day earlier and recorded the lesson as prose, which is the part that did not work. A probe author has to remember prose. So the harness itself must read that line from the app log, or assert which socket the app actually used, and stop the run rather than continue. Relying on a person to remember has now been measured at 0 of 2 |
 
 ## Phase 83 — mac-pro is a machine Tortie will speak to, and the harness that proves it (operator queued 2026-08-18) ✅ SHIPPED 2026-08-18 (this commit, 0.41.0, gates green, 5,785 tests). The mac-pro leg is owed and only the operator can close it
 
@@ -7552,7 +7553,7 @@ conversation.
 It is the only large piece of work in the repository that is fully specified, fully decided, blocked
 on nothing, and paused for a reason that is about to stop being true.
 
-## Phase 81.1 — Restore turns on even when a boot read fails (Phase 81's own committer reported 2026-08-18) ✅ SHIPPED 2026-08-18 (this commit, 0.44.1, gates green)
+## Phase 81.1 — Restore turns on even when a boot read fails (Phase 81's own committer reported 2026-08-18) ✅ SHIPPED 2026-08-18 (e5d2034, 0.44.1, gates green)
 
 **The regression, and who found it.** Phase 81 shipped a regression, and the person who found it was
 the committer of Phase 81. He wrote it into that phase's own "What is not true" list under the

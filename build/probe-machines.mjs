@@ -550,7 +550,11 @@ function driver(body) {
 
 const HONESTY_ONE =
   'Tortie never adopts work that is already running on your machines';
-const HONESTY_THREE = 'It cannot seal the bytes of that program.';
+// The second sentence of MACHINE_PATH_HONESTY in src/main/machines/confirm.ts,
+// copied because a probe cannot import TypeScript. It must match that constant
+// word for word. If it does not, step 1 asserts the absence of a string that is
+// nowhere in the product, which cannot fail and measures nothing.
+const HONESTY_THREE = 'It can never seal the bytes of that program.';
 
 /**
  * PHASE 79 rewrote what step 1 measures, and this is why.

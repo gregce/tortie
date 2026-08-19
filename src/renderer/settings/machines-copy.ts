@@ -441,10 +441,8 @@ export const TAILSCALE_TITLE = 'Tailscale';
  * reading as a hard requirement. Typing an address always works.
  */
 export const TAILSCALE_WHY =
-  'Tortie asks Tailscale which machines you own, so you pick a name rather ' +
-  'than typing an address, and Tailscale carries the connection. You can ' +
-  'still add a machine by typing its address below, so Tailscale is the ' +
-  'easy path rather than the only one.';
+  'Tortie asks Tailscale which machines you own, and you can type an address ' +
+  'below instead.';
 
 export const TAILSCALE_NOT_INSTALLED = 'Tailscale is not installed.';
 
@@ -543,18 +541,17 @@ export const COLOUR_LABEL: Readonly<Record<MachineColor, string>> = {
  */
 export const MEASURED_VERSIONS: readonly string[] = ['3.6a', '3.7b', '3.7c'];
 
-export const VERSION_GATE_EXPLAIN =
-  'Tortie only uses versions of that program it has measured. If the ' +
-  'machine runs a version Tortie has not measured, Tortie says so, starts ' +
-  'nothing, and offers to let you accept that version yourself.';
-
 export const BTN_TEST = 'Test the connection';
 export const TESTING = 'Testing the connection';
 export const BTN_CANCEL_TEST = 'Cancel the test';
 
 export const BTN_ADD_CONFIRM = 'Add this machine and confirm it';
 
-/** Drawn under the confirm button for as long as it is disabled. */
+/**
+ * Why the confirm button is off. Phase 87 moved it onto the button itself as
+ * its tooltip, so the reason is still there and it costs no standing
+ * paragraph. The words did not change.
+ */
 export const ADD_DISABLED_REASON =
   'Run the connection test first. Tortie needs to see the machine answer, ' +
   'and it needs the program path the machine reports.';
