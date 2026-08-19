@@ -7,6 +7,55 @@ say which of them was right. Section 12 lists what I did not measure.
 
 ---
 
+## 0.1 Correction, added 2026-08-19 after the prior art arrived
+
+**The ruling stands. Two of the three reasons under it do not.** Investigator 3, the prior art
+study, was still running when this document was written, so section 0 was reasoned without it. Its
+findings are in `docs/research/56-i3-prior-art-and-the-mapping-question.md` and they change two
+things. Read that document before building Phase 90.
+
+**Model A is confirmed, and by four independent teams.** VS Code Remote SSH, VS Code Remote Tunnels,
+Zed and JetBrains Gateway all bind one window or one project to exactly one host. No product shipped
+anything else and kept it. One detail is added: Tortie's unit should be the TAB rather than the
+window, which is a better shape than any of them managed, because a VS Code window inherits a
+stateful server connection and Tortie holds its connection at the app level instead.
+
+**The reason given against model B expires and must be replaced.** This document refused B because
+none of the operator's 11 project folders exists on his Mac Pro. That is true today and it stops
+being true the first time he runs `git clone` over there, on a machine he set up hours ago. The
+prior art shows the same checkout on both machines is the NORMAL case for everyone else, and that it
+is also the case that broke the one product which allowed it. Microsoft's own bug report reproduces
+it in seven steps and the filer's summary is that a person ends up "looking at the wrong version of
+the file", with the tab name looking correct. So B is refused because a project holding two live
+paths keeps a live chance of resolving the wrong one, not because the operator's machines happen to
+share no folder this week.
+
+**The reason given against model C is not a reason. It is a bug, and it is OUR bug under model A
+too.** This document refused C because `useFileTree.setRoot`, `useTreeGitStatus.setRepo`,
+`useSearch.syncProject` and `useContext.syncProject` all return early when the path string is
+unchanged. That early return is wrong the moment a second machine exists, and model A does not avoid
+it. Under A, a person with `/Users/gdc/gmux` on this Mac and `/Users/gdc/gmux` on the Mac Pro gets
+two tabs. Switching between them hands all four stores the same path string, all four return early,
+the badge changes and the tree does not. That is the same silent wrong answer inside the model that
+was chosen.
+
+**So Phase 90 gains a required item, and it is the first one.** The cache key in those four stores
+becomes the pair `(machine, path)` rather than a path string. The prior art is unanimous on this
+across a twenty year gap: VS Code puts the host inside the identifier as
+`vscode-remote://ssh-remote+<host><path>` and Emacs TRAMP puts it inside the file name as
+`/ssh:user@host:path`. Neither lets an operation be built from a bare path. A path string is not an
+identity, and this tree currently treats it as one.
+
+**C is still refused, on two better reasons.** It makes the host of every surface implicit and
+derived from focus, so a keystroke changes which machine a git read runs against with no explicit
+act by the person, where A makes it explicit. And the one product that ships C, Emacs with TRAMP,
+records the cost as connections starting when nobody asked, because packages that touch remote file
+names at load time block. What this document should not say is that C is impossible for Tortie. The
+VS Code maintainer closed their version because the window "doesn't know that you ran ssh and
+connected to a different machine", and Tortie does know, because Tortie launched the session.
+
+---
+
 ## 0. The answer
 
 **Build model A. A project carries a machine, and a tab is either local or remote. Refuse model B and
