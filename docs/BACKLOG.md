@@ -5984,6 +5984,91 @@ all three after a successful run.
 needs `SSH_AUTH_SOCK` exported from the Phase 69 carriage file because the npm script does not
 export it. That gate runnability defect is itself a recorded nit.
 
+## Phase 87 — the copy stops explaining itself (operator reported 2026-08-19, with three screenshots) QUEUED
+
+**Subject:** `fix(ui): three screens say less, and diagnostics sits last`
+**First body line:** `Phase 87: the copy stops explaining itself`
+**Semver:** patch.
+**Tier 1 for the settings order. Tier 2 for the three screens**, each with a before and after
+screenshot read at the operator's own window width.
+
+**The root cause, and it is ours rather than a bug.** The house rules tell every agent to say what
+is not true. Phase after phase obeyed, and each one added its caveat as a new paragraph next to the
+last one. Nobody was ever asked to look at the result as a whole. The create sheet now carries five
+paragraphs of ambient explanation before a person reaches the Name field, and Appearance carries
+four notes under one dropdown. Every sentence is true. Together they are unreadable, and a wall of
+true sentences teaches less than one.
+
+**The rule this phase applies, and later rounds inherit it.** A caveat earns its place on screen
+when a person would otherwise be surprised AT THE MOMENT THEY ACT. A caveat about something that has
+not happened yet belongs where it happens, not in front of the button. Prefer no sentence. If a
+sentence is needed, prefer one. A second sentence needs a reason.
+
+### 1. The create sheet, `src/renderer/app/machine-copy.ts`
+
+`CREATE_HONESTY_LINES` is five paragraphs drawn under the machine dropdown, being `CREATE_HONESTY`,
+`POLL_HONESTY`, `CAPTURE_HONESTY`, `ATTENTION_HONESTY` and `AGENT_LOCAL_CHECK`. **Cut to at most
+one short line.** The operator's screenshot shows them pushing Name and Directory below the fold.
+
+**None of the five is pinned by `build/assert-bundle-refusals.mjs`, checked 2026-08-19**, so the
+gate does not fail when they go. The gate's 301 pinned fragments are refusal and notice copy, which
+a person reads when something has gone wrong, and this phase touches none of it.
+
+What survives, and where it goes instead:
+
+- The one fact that changes what a person does is that the conversation does not come back. Keep a
+  short form of that, and only that.
+- Poll cadence, capture cadence and attention limits are not needed before a session exists. They
+  belong in the session's own surfaces or in Settings, not in the create sheet.
+- `AGENT_LOCAL_CHECK` says the agent board describes this Mac. **Phase 84 made the create path ask
+  the machine where a program lives, so check whether this sentence is still true before keeping
+  it.** A false caveat is worse than a missing one.
+- The Directory field keeps ONE line. It currently has two, and the second one, about leaving it
+  empty, is now what the placeholder already says.
+
+### 2. Add a machine, `src/renderer/settings/AddMachine.tsx` and `machines-copy.ts`
+
+The operator asked for less text AND better spacing. Both.
+
+- The Tailscale paragraph becomes one line at most. The button beside it already says what it does.
+- The version paragraph under `Versions Tortie has measured` goes. The list of versions is the
+  useful part and it stays.
+- The two paragraphs above `Add this machine and confirm it` are the confirm's own reasoning. **Keep
+  the one that names what confirming binds, because that is a security statement a person acts on.**
+  Cut or shorten the other.
+- The sentence under the disabled button, telling a person to run the test first, is a disabled
+  state and belongs in a tooltip or on the button, not as a standing paragraph.
+- **Spacing.** The dialog runs 1,392 px tall in the screenshot. Group the four fields, give the
+  sections one consistent rhythm, and use the existing tokens. No new spacing values.
+
+### 3. Appearance, `src/renderer/settings/AppearanceSection.tsx`
+
+Four notes hang under two controls. Cut to one line per control, at most.
+
+The note that must go first is the Source Code Pro paragraph naming three Unicode code points and a
+12.5 percent height difference. That is a measurement from Phase 78's research and it belongs in
+`docs/research/`, not under a dropdown. The Apple Braille spinner note goes with it.
+
+### 4. Diagnostics sits last in Settings, forever
+
+`SECTIONS` in `src/renderer/settings/SettingsApp.tsx` decides the rail order. Move Diagnostics to
+the end and **add a unit test that fails when it is not last**, because the house rule for a new
+section is to append it, and the next appended section would silently take that place.
+
+### What must NOT happen
+
+- **No refusal, error or notice copy is touched.** Those 301 fragments are pinned by the build gate
+  for good reasons, each written down beside its own entry.
+- **No sentence is made vaguer to make it shorter.** Cutting a caveat entirely is honest. Softening
+  one into something that no longer says the true thing is not.
+- **No new spacing tokens.** Use what `tokens.css` already has.
+
+### The evidence
+
+Before and after screenshots of all three screens at the operator's window width, with the pixel
+height of each named. The create sheet must show Name and Directory without scrolling. Plus the
+Settings rail with Diagnostics last, and the new test failing when it is moved.
+
 ## Making remote real, ordered 2026-08-18 by the operator
 
 **His words.** "I think we need to solve all of this." He then named the harder half himself: "today
