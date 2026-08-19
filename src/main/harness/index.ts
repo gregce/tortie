@@ -13,6 +13,19 @@
  *                       settings, hotkeys, tip flags, snapshots, adoption from
  *                       the migrated manifest, and the captured session whose
  *                       recorded specstory bin the rename kills (Phase 16.5a)
+ *  - GMUX_SMOKE=capture-remote  a session on another machine is not captured,
+ *                       and a person is told so (Phase 91). Ten steps against a
+ *                       real scratch machine: a create that asks for capture
+ *                       RESOLVES, its manifest row records none, exactly one
+ *                       declined notice reaches a renderer through the real
+ *                       preload with the sentence byte for byte, the far side
+ *                       has no .specstory folder, a create that asked for
+ *                       nothing is told nothing, the create sheet draws the
+ *                       Capture row off with its reason, and the far side loses
+ *                       exactly the sessions this run made. Isolated profile AND
+ *                       isolated socket, and it refuses the real socket by name
+ *                       because the far side of its connection is this same Mac.
+ *                       `npm run smoke:capture:remote`.
  *  - GMUX_SMOKE=identity  sessions bind by @gmux-id, never by name: external
  *                       rename, a foreign session squatting the freed name,
  *                       kill, stale-row reconcile, pane markers, and an
@@ -175,6 +188,10 @@ import { runPowerSmoke } from '../power/smoke';
 import { runSmokeAgent } from './agent';
 import { runSmokeBasic } from './basic';
 import { runSmokeCapture } from './capture';
+// Phase 91: the refusal of capture on a session that runs on another machine.
+// It is the second caller `machine.capture-never-on-another-machine` needs, and
+// the only place the sentence is watched crossing the context bridge.
+import { runCaptureRemoteSmoke } from './capture-remote';
 import {
   runSmokeCreate,
   runSmokeT3Prep,
@@ -245,6 +262,14 @@ export async function dispatchHarness(deps: HarnessDeps): Promise<boolean> {
   // Phase 15: the captured-launch acceptance test (wrap + resume + flush).
   if (smoke === 'capture') {
     await runSmokeCapture();
+    return true;
+  }
+  // Phase 91: a create that asks for capture on another machine still starts
+  // the session, records no capture, and says one sentence about it. Driven
+  // against a real scratch machine, with the notice read back through the real
+  // preload and the create sheet photographed with the row drawn off.
+  if (smoke === 'capture-remote') {
+    await runCaptureRemoteSmoke(deps);
     return true;
   }
   if (smoke === 'identity') {

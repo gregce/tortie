@@ -580,3 +580,55 @@ export function wrapWithRecord(
     ...(record.noCloud === true ? { noCloud: true } : {})
   });
 }
+
+// ---------------------------------------------------------------------------
+// PHASE 91. Capture and a session that runs on another machine
+// ---------------------------------------------------------------------------
+
+/**
+ * PHASE 91. The one sentence for a capture that was asked for on a session
+ * that will run on another machine.
+ *
+ * THE OPERATOR DROPPED REMOTE CAPTURE ON 2026-08-19. The specstory binary is
+ * inside Tortie on this Mac and nothing installs it on the far machine, so
+ * there is no program over there to wrap the agent with and no folder over
+ * there for it to write to. This sentence is what replaces the silence.
+ *
+ * It does NOT copy the shape of its three siblings in `declineSentence`, which
+ * join two clauses with a colon. The writing rules allow a colon only to
+ * introduce a list, so this one is written as two sentences. The three older
+ * ones are not reworded here, because moving three pinned strings buys nothing
+ * a person can see.
+ *
+ * It is pinned in build/assert-bundle-refusals.mjs. The guard has one call
+ * site and that call site passes a value rollup can follow, which is the exact
+ * shape that made that file necessary.
+ */
+export const CAPTURE_NOT_ON_ANOTHER_MACHINE =
+  'SpecStory capture is off for this session. Tortie runs SpecStory on this ' +
+  'Mac only, and this session runs on another machine.';
+
+/**
+ * Is a requested capture refused because this session runs somewhere else?
+ *
+ * Returns the sentence, or null when capture may go ahead. `machineId` is the
+ * create's own field: absent, or the literal `local`, is this Mac, which is
+ * every create before the Phase 70 release.
+ *
+ * The `shell` term mirrors the wrap's own condition. A shell was never going
+ * to be captured, so naming the machine as the reason would be a second reason
+ * that is not the first one.
+ *
+ * The literal `local` is written out here rather than imported, for the same
+ * reason src/main/restart/restart.ts writes it out: importing the constant as
+ * a value pulls the manifest store, and with it better-sqlite3 and Electron,
+ * into this module's graph.
+ */
+export function captureRefusedOnMachine(
+  agent: string,
+  machineId: string | undefined
+): string | null {
+  if (agent === 'shell') return null;
+  if (machineId === undefined || machineId === 'local') return null;
+  return CAPTURE_NOT_ON_ANOTHER_MACHINE;
+}

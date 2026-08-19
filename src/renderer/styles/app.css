@@ -1376,6 +1376,17 @@
   cursor: pointer;
 }
 
+/* PHASE 91 — a row that stays on screen and cannot be used. The same
+   treatment .seg-option:disabled already gets, so the sheet has one
+   vocabulary for an option it is showing and refusing. */
+.preset-row.off {
+  cursor: default;
+}
+
+.preset-row.off .preset-label {
+  color: var(--text-disabled);
+}
+
 .preset-check {
   width: 14px;
   height: 14px;

@@ -972,6 +972,24 @@ const MACHINE_REFUSALS = [
       'That folder on the machine is not inside a repository, so there are no ',
       'changes for Tortie to show. Nothing was changed on either machine.'
     ]
+  },
+  {
+    id: 'machine.capture-never-on-another-machine',
+    // PHASE 91. The FIRST row in this array whose source is outside
+    // src/main/machines/. It belongs to this array rather than to REFUSALS
+    // because the count `machines=` in the contract baseline is the count of
+    // what Tortie refuses about another machine, and this is one of those.
+    source: 'src/main/specstory/capture.ts',
+    why:
+      'the guard has ONE call site and that call site passes a value rollup ' +
+      'can follow, which is the shape that made this file necessary. Without ' +
+      'the sentence in the artifact a person starting a session on another ' +
+      'machine under capture is told nothing at all, which is the state this ' +
+      'phase removed',
+    fragments: [
+      'SpecStory capture is off for this session. Tortie runs SpecStory on this ',
+      'Mac only, and this session runs on another machine.'
+    ]
   }
 ];
 

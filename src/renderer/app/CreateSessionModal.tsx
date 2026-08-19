@@ -43,6 +43,7 @@ import { AgentGrid } from './AgentGrid';
 import type { LaunchableAgentKind } from '@shared/types';
 import type { MachineRowView } from '@shared/ipc';
 import {
+  captureNotOnMachine,
   CREATE_DIR_HINT,
   CREATE_HONESTY_LINES,
   createDirLabel,
@@ -124,6 +125,60 @@ export function MachineOptions({
         </option>
       ))}
     </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// PHASE 91. Capture, on screen even when this create cannot be captured
+// ---------------------------------------------------------------------------
+
+/**
+ * The Capture row, drawn.
+ *
+ * Two questions decide what a person sees, and the caller answers both. The
+ * row is on screen when this Mac could capture this agent at all. It is usable
+ * only when this create may actually be captured, which is the same question
+ * plus "no machine was chosen".
+ *
+ * A row that vanished when a machine was picked taught nothing, which is the
+ * defect this phase removes. It is drawn off with its reason instead, which is
+ * the rule {@link MachineOptions} above already follows.
+ *
+ * Exported so a test can read the disabled state and the caption. The
+ * environment there is node, so the test reads static markup.
+ */
+export function CaptureField(props: {
+  /** True when the checkbox works and this create may be captured. */
+  offered: boolean;
+  /** The person's answer. Ignored when `offered` is false. */
+  checked: boolean;
+  /** One sentence under the row. */
+  caption: string;
+  onChange?: (on: boolean) => void;
+}): React.JSX.Element {
+  const { offered, checked, caption, onChange } = props;
+  return (
+    <div className="field">
+      <span className="field-label" id="capture-label">
+        Capture
+      </span>
+      <label className={`preset-row${offered ? '' : ' off'}`}>
+        <input
+          type="checkbox"
+          className="preset-check"
+          checked={offered ? checked : false}
+          disabled={!offered}
+          aria-describedby="capture-caption"
+          onChange={() => onChange?.(!checked)}
+        />
+        <span className="preset-label">
+          Save this session&rsquo;s history with SpecStory
+        </span>
+      </label>
+      <p className="field-caption" id="capture-caption">
+        {caption}
+      </p>
+    </div>
   );
 }
 
@@ -581,11 +636,20 @@ export function CreateSessionModal(): React.JSX.Element | null {
   // SpecStory capture (Phase 15). Offered only where it would actually work:
   // a resolved binary AND a provider for this agent (shells never).
   //
-  // PHASE 70 adds one term. Capture runs the agent under the SpecStory program
-  // ON THIS MAC and writes the transcript to a folder here, and neither is
-  // true of a session on another machine, so the row is not drawn for one. The
-  // honesty block under the machine choice says the same thing in words.
-  const captureOffered = captureAvailableFor(specstory, agent) && !remote;
+  // PHASE 91. Two questions, and they used to be one.
+  //  - `captureSupported` asks whether this Mac could capture this agent at
+  //    all. It decides whether the row is on screen.
+  //  - `captureOffered` asks whether this create may actually be captured. It
+  //    decides whether the checkbox works and whether submit sends the field.
+  //
+  // Capture runs the agent under the SpecStory program ON THIS MAC and writes
+  // the transcript to a folder here, and neither is true of a session on
+  // another machine. Before this phase the row simply disappeared for one, and
+  // a person could read that as capture they had turned off, as capture that
+  // did not apply, or as capture that silently worked. The row now stays and
+  // is drawn off, with the reason under it.
+  const captureSupported = captureAvailableFor(specstory, agent);
+  const captureOffered = captureSupported && !remote;
   const capture =
     captureChoice ?? captureDefaultFor(settings, agent);
   const setCapture = (on: boolean): void => setCaptureChoice(on);
@@ -1069,28 +1133,24 @@ export function CreateSessionModal(): React.JSX.Element | null {
           </div>
         ) : null}
 
-        {/* Phase 15 — SpecStory capture. The row exists only when this
-            machine can actually do it: a resolved SpecStory binary AND a
-            provider for the selected agent. An offer that would be declined
-            at spawn is worse than no offer. */}
-        {captureOffered ? (
-          <div className="field">
-            <span className="field-label" id="capture-label">
-              Capture
-            </span>
-            <label className="preset-row">
-              <input
-                type="checkbox"
-                className="preset-check"
-                checked={capture}
-                onChange={() => setCapture(!capture)}
-              />
-              <span className="preset-label">
-                Save this session&rsquo;s history with SpecStory
-              </span>
-            </label>
-            <p className="field-caption">{captureCaption}</p>
-          </div>
+        {/* Phase 15 — SpecStory capture. The row is on screen only when this
+            Mac can actually do it: a resolved SpecStory binary AND a provider
+            for the selected agent. An offer that would be declined at spawn is
+            worse than no offer.
+
+            PHASE 91. When a machine is chosen the row STAYS and is drawn off,
+            with one sentence naming why. Drawing it for an agent this Mac
+            cannot capture at all would put a second reason on screen beside
+            the first, so that case still draws nothing. */}
+        {captureSupported ? (
+          <CaptureField
+            offered={captureOffered}
+            checked={capture}
+            caption={
+              machine !== null ? captureNotOnMachine(machine.label) : captureCaption
+            }
+            onChange={setCapture}
+          />
         ) : null}
 
         {/* PHASE 48. The two states a create can be refused in, each drawn in

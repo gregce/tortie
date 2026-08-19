@@ -6105,7 +6105,7 @@ standing cap and these waves stay under it.
 | --- | --- | --- | --- |
 | 0 | **87** the copy stops explaining itself | renderer copy and Settings | Running now |
 | 1 | **90.1** machine plus path identity ✅ SHIPPED 2026-08-18 · **81** the session list stops waiting for your shell | the four renderer stores · `sessions/core.ts` | 90.1 is REQUIRED before any other Phase 90 item, because it is a silent wrong answer sitting in the chosen model |
-| 2 | **85** the status dot tells the truth · **91** capture is refused honestly | `machines/**` and activity · specstory and the create paths | 91 needs Phase 87 to have settled the create sheet copy first |
+| 2 | **85** the status dot tells the truth · **91** capture is refused honestly ✅ SHIPPED 2026-08-19 | `machines/**` and activity · specstory and the create paths | 91 needs Phase 87 to have settled the create sheet copy first |
 | 3 | **90.2** the counterpart lookup and the clone | `machines/**` and the create sheet | Needs wave 2 to release `machines/**`, and needs 90.1's identity to be correct first |
 | 4 | **89** a conversation comes back on a remote machine | `machines/**`, `exec-plane.ts`, restore | Needs the whole create path settled, and it is the only phase that changes a refusal |
 | 5 | **90.3** a remote folder is a project | `remote_projects`, the Explorer, the workspace surfaces | The large half. Research 55 and 56 already ruled its shape, so it builds rather than decides |
@@ -6671,13 +6671,125 @@ stopgap.
 at. **Tier 2 for item 2**, plus a live drive on the operator's real Mac Pro for the found case and
 the no-remote case, and a confirm-then-clone driven once against a scratch path over there.
 
-## Phase 91 — SpecStory capture for a remote session, NOT QUEUED
+## Phase 91 — capture is refused honestly on a remote session (operator decided 2026-08-19) ✅ SHIPPED 2026-08-19 (this commit, 0.44.3, gates green, 6,104 tests)
 
-Today the capture checkbox disappears when a machine is picked, with no sentence naming why. The
-decision it needs is where the transcript lives. The specstory binary is bundled in Tortie on this
-Mac and nothing installs on the far machine, so either the transcript is written over there by a
-program that is already there, or the capture wraps nothing and the row stays absent honestly. Do
-not build until that is decided.
+**Subject:** `fix(capture): SpecStory is refused on a remote session, visibly and everywhere`
+**First body line:** `Phase 91: capture is refused honestly on a remote session`
+**Semver:** patch. No surface is added, renamed or removed. One row inside an existing sheet goes
+from absent to present and disabled, so the native menus do not change either.
+**Tier 2**, chosen deliberately. None of the four Tier 3 triggers is hit. It writes no manifest
+field, changes no argv for any session that is created and changes no restore path, so it does not
+touch durability. Its claim is about machines rather than about agents, so nothing is claimed to
+work universally. A refused capture starts the same session it always did, so no data can be lost.
+No number regressed and the operator reported no bug. It is a decision he made.
+
+**The decision, in his words.** "We can drop specstory for remote machine sessions AND that should
+flow through to ensure that if you start a remote machine session you can't inadvertently try to
+run it from command plus T." This phase builds no remote capture. It makes the refusal visible
+where a person acts, and it makes the refusal impossible to walk around.
+
+### What the defect actually was
+
+Capture was already impossible on a remote session before this phase, and it was impossible
+silently. A remote create left `GmuxCore.createSession` at the remote branch, and the wrap sat two
+hundred lines below that branch, so the wrap never ran. Nothing anywhere said so. In the create
+sheet the whole Capture row simply vanished when a machine was picked, and a person could read a
+missing checkbox as capture they had turned off, as capture that did not apply, or as capture that
+silently worked.
+
+The impossibility rested on one `return` sitting above one `if`. Move either, or add a fifth path
+that composes a create, and a remote session could be started under capture with nothing in the
+tree objecting.
+
+### The two halves that shipped
+
+**The visible refusal.** The Capture row stays on screen when a machine is chosen. It is drawn
+disabled and unchecked, with one sentence under it. The sheet now asks two questions where it asked
+one. `captureSupported` asks whether this Mac could capture this agent at all and decides whether
+the row is drawn. `captureOffered` asks whether this create may actually be captured and decides
+whether the checkbox works and whether submit sends the field. The row is a component,
+`CaptureField` in `src/renderer/app/CreateSessionModal.tsx`, so a render test reads it. Switching
+back to This Mac restores the person's own answer, because the refused state renders unchecked and
+never writes it.
+
+**The refusal in main, and it is the load bearing half.** `captureRefusedOnMachine(agent, machineId)`
+in `src/main/specstory/capture.ts` states the rule once. `GmuxCore.createSession` reads it once,
+above the remote branch, so one answer covers that branch and the wrap below it, and a create path
+added later cannot be composed above it. Every route that composes a create passes through that one
+method, being the sheet, the per agent hotkey, the quick create board, the empty state board and
+the terminal menu item. The remote branch then logs and broadcasts the `capture:notice` the product
+has had since Phase 15, with `kind: 'declined'`, so the phase adds no IPC channel and no new event.
+
+**The session still starts.** The backlog asked for the capture to be refused, not the session. A
+person gets the session they asked for, without capture, and one sentence saying so.
+
+**The sheet answers for itself, and every other route asks main.** Once a machine is chosen
+`captureOffered` is false, so the sheet's submit sends no capture field at all. A person who uses
+the sheet reads the disabled row and its one sentence, which is a better answer than a toast after
+the fact. Every route that has no sheet sends whatever the person's settings say, and main answers
+those with the declined notice and the toast. That is why the guard sits in main and not only in
+the sheet. No no-modal route names a machine today, so the guard is there for the day one does.
+
+### The strings that now exist
+
+Under the Capture row, in `src/renderer/app/machine-copy.ts`:
+
+> Tortie runs SpecStory on this Mac only, so a session on Greg's Mac Pro is not captured.
+
+In the log and in the notice, in `src/main/specstory/capture.ts`:
+
+> SpecStory capture is off for this session. Tortie runs SpecStory on this Mac only, and this
+> session runs on another machine.
+
+The toast a person reads is the one Phase 15 already wrote, being `"claude-3" is running without
+SpecStory capture.` It is unchanged. It arrives only on a route that actually sends `capture: true`
+together with a machine. The create sheet is not that route, because it sends no capture field once
+a machine is chosen, so a person using the sheet gets the disabled row and its sentence instead.
+
+### The gates
+
+`npm run typecheck`, `npm run build`, `npm test`, `npm run smoke:t1`,
+`node build/assert-bundle-refusals.mjs`, `node build/contract-inventory.mjs --check`,
+`npm run conformance:machines`, `npm run smoke:capture` and the phase's own
+`npm run smoke:capture:remote`.
+
+The picture the gate takes is `out/p91-capture-row.png`. Read by eye, it shows the Capture heading,
+an unchecked and greyed checkbox reading `Save this session's history with SpecStory`, and under it
+`Tortie runs SpecStory on this Mac only, so a session on Capture Probe is not captured.` The toast
+from the create a moment earlier is still in the corner.
+
+`npm run smoke:capture:remote` is new. It runs `GMUX_SMOKE=capture-remote` in the shipped bundle
+against the scratch machine `build/with-scratch-machine.mjs` starts and takes away again. Ten
+steps: a real confirmed and prepared machine, a real remote create asking for capture, then the
+call resolving, the manifest row carrying no capture record, exactly one declined notice arriving
+through the real preload with the sentence byte for byte, the far side holding no `.specstory`
+folder, a second create that asked for nothing being told nothing, the create sheet drawn with the
+row present and off and captioned, and the far side losing exactly the rows this run made.
+
+Two contract lines moved on purpose and were re-baselined in the same commit.
+`[harness.smoke.modes]` went from 25 to 26 for `capture-remote`, and `[bundle.refusals] machines=`
+went from 33 to 34 for the row that pins the new sentence into `out/main/index.js`. That gate
+exists because rollup once deleted a whole refusal branch while every unit test passed, and a guard
+with one call site passing a value rollup can follow is exactly that shape.
+
+### What is still NOT true
+
+- **No capture runs on another machine.** Nothing in this phase makes that true and nothing was
+  meant to. The SpecStory program is inside Tortie on this Mac and nothing installs it over there.
+  This is a decision the operator made rather than a gap left open.
+- **Nobody drove the toast by hand.** The live gate reads the payload the renderer received
+  through the bridge, and the picture it takes happens to catch the toast in the corner reading
+  `"p91-capture-987…" is running without SpecStory capture.` Nobody clicked it, hovered it, or
+  watched it time out.
+- **The row is proven at one machine label.** A very long label was not tested against the sheet's
+  width.
+- **A remote create for the `shell` agent is refused without a word.** `captureRefusedOnMachine`
+  returns null for `shell`, because a shell session is not captured on this Mac either. It was
+  measured. The session is created, no capture is recorded, and no notice is raised. No interface
+  can reach this, because the Capture row is never drawn for a shell.
+- **`quickCreate` was not shown to send a machine**, because no no-modal path sends one today.
+  Every one of them creates on this Mac. The guard covers them the day one starts naming a machine,
+  and that day is Phase 90.3.
 
 ## Phase 88 — `needs input` for a remote session, NOT QUEUED
 

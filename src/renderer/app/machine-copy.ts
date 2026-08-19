@@ -353,6 +353,28 @@ export const MACHINE_NOT_SIGNED_IN_HINT =
   'session there. Open Settings, then Machines, then press Prepare.';
 
 // ---------------------------------------------------------------------------
+// Capture, on a session that runs on another machine (Phase 91)
+// ---------------------------------------------------------------------------
+
+/**
+ * Under the Capture row, when the session will run on another machine.
+ *
+ * THE ROW STAYS AND IS DRAWN OFF. A row that vanishes teaches nothing, and a
+ * person can reasonably read a missing checkbox as capture they turned off, as
+ * capture that did not apply, or as capture that silently worked. This is the
+ * same shape as {@link machineNotSignedInOption} above and as the agent tile
+ * that cannot run.
+ *
+ * WHY IT EARNS A SENTENCE UNDER PHASE 87'S RULE. A caveat belongs on screen
+ * when a person would otherwise be surprised at the moment they act. This
+ * person is about to press Create. One sentence is right and a paragraph is
+ * not.
+ */
+export function captureNotOnMachine(label: string): string {
+  return `Tortie runs SpecStory on this Mac only, so a session on ${label} is not captured.`;
+}
+
+// ---------------------------------------------------------------------------
 // The folder picker for another machine (Phase 84, item 6)
 // ---------------------------------------------------------------------------
 //

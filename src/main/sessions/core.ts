@@ -151,6 +151,7 @@ import { getSettings, onSettingsUpdated } from '../settings/store';
 import {
   SYNC_QUIT_TIMEOUT_MS,
   SyncQueue,
+  captureRefusedOnMachine,
   cloudDisabledByEnv,
   wrapForCapture,
   wrapWithRecord,
@@ -2463,6 +2464,18 @@ export class GmuxCore {
     if (input.name.trim().length === 0) {
       throw gmuxError('INVALID_INPUT', 'Session name cannot be empty.');
     }
+    // PHASE 91. The one place this product decides that a session on another
+    // machine is not captured. It is READ HERE, above the remote branch, so
+    // that it covers the branch below AND the wrap further down, and so that a
+    // create path added later cannot be composed above it.
+    //
+    // The operator dropped remote capture on 2026-08-19. His words were that
+    // it must flow through, so that a person cannot inadvertently start a
+    // remote session under capture from Cmd+T. Four renderer surfaces compose
+    // a create and a fifth will be added. A guard living in four of them is a
+    // guard the fifth misses, which is how the split leaf Restart defect
+    // happened and how Phase 84 fixed it.
+    const captureRefused = captureRefusedOnMachine(input.agent, input.machineId);
     // PHASE 70. A create on another machine leaves this method here, before any
     // local check runs. Every check below asks about this Mac: whether a folder
     // exists here, which binary is here, what this Mac's login shell PATH holds.
@@ -2487,6 +2500,24 @@ export class GmuxCore {
         agent: input.agent,
         ...(input.extraArgs !== undefined ? { extraArgs: input.extraArgs } : {})
       });
+      // PHASE 91. The session exists on that machine and it is not captured.
+      // Said now, next to the session it is about, because the alternative is
+      // a person finding an empty .specstory/history days later. This is the
+      // same notice a local declined capture raises, so the toast, the log and
+      // the contract are the ones Phase 15 already shipped.
+      //
+      // The session is NOT refused. A refused capture has never been fatal in
+      // this product and it does not become fatal here. The person gets the
+      // session they asked for, without capture, and one sentence saying so.
+      if (input.capture === true && captureRefused !== null) {
+        sessionsLog.warn(`${captureRefused} (session "${input.name}")`);
+        broadcast(EVT_CAPTURE_NOTICE, {
+          kind: 'declined',
+          sessionId: session.id,
+          sessionName: input.name,
+          message: captureRefused
+        });
+      }
       this.broadcastSessions();
       return session;
     }
@@ -2662,7 +2693,15 @@ export class GmuxCore {
     // and the sentence reaches the user (toast) and the log.
     let capture: SpecstoryCaptureRecord | undefined;
     let captureDeclined: string | null = null;
-    if (input.capture === true && input.agent !== 'shell') {
+    // PHASE 91. The second term is the SAME answer read at the top of this
+    // method, above the remote branch. Read here as well, so that an edit
+    // which moves or removes that branch still cannot compose a wrap for a
+    // session that runs on another machine.
+    if (
+      input.capture === true &&
+      captureRefused === null &&
+      input.agent !== 'shell'
+    ) {
       const wrapped = await wrapForCapture(input.agent, spec.argv);
       if (wrapped.argv !== null && wrapped.record !== null) {
         capture = wrapped.record;

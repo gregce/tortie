@@ -53,7 +53,9 @@ export {
 export {
   availableProviders,
   capturableAgents,
+  CAPTURE_NOT_ON_ANOTHER_MACHINE,
   captureMatrix,
+  captureRefusedOnMachine,
   captureSupportFor,
   parseProviderIds,
   parseProviderList,

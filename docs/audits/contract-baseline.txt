@@ -346,10 +346,11 @@ GMUX_TMUX_TARBALL_DIR
 GMUX_UPDATE_REHEARSAL
 GMUX_UPDATE_STATE_ROOT
 
-[harness.smoke.modes] count=25
+[harness.smoke.modes] count=26
 agent
 basic
 capture
+capture-remote
 config
 conformance-resume
 create
@@ -377,5 +378,5 @@ verify
 durability=23
 skills=6
 config=6
-machines=33
+machines=34
 updater=8
