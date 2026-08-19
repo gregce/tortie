@@ -5984,6 +5984,56 @@ all three after a successful run.
 needs `SSH_AUTH_SOCK` exported from the Phase 69 carriage file because the npm script does not
 export it. That gate runnability defect is itself a recorded nit.
 
+## THE OVERNIGHT ORDER, set 2026-08-19. Run it in this order and do not reshuffle without asking
+
+**The goal in one sentence: in the morning a person can open a local project, press Cmd+T, pick the
+Mac Pro, and get an agent running over there in the right folder, with a status dot that tells the
+truth and sidebars that know which computer they are showing.**
+
+Waves are grouped so no two phases in one wave share a file. Three build workflows at once is the
+standing cap and these waves stay under it.
+
+| Wave | Phases | Owns | Why it cannot move earlier |
+| --- | --- | --- | --- |
+| 0 | **87** the copy stops explaining itself | renderer copy and Settings | Running now |
+| 1 | **90.1** machine plus path identity · **81** the session list stops waiting for your shell | the four renderer stores · `sessions/core.ts` | 90.1 is REQUIRED before any other Phase 90 item, because it is a silent wrong answer sitting in the chosen model |
+| 2 | **85** the status dot tells the truth · **91** capture is refused honestly | `machines/**` and activity · specstory and the create paths | 91 needs Phase 87 to have settled the create sheet copy first |
+| 3 | **90.2** the counterpart lookup and the clone | `machines/**` and the create sheet | Needs wave 2 to release `machines/**`, and needs 90.1's identity to be correct first |
+| 4 | **89** a conversation comes back on a remote machine | `machines/**`, `exec-plane.ts`, restore | Needs the whole create path settled, and it is the only phase that changes a refusal |
+
+**Phase 88 is CLOSED and is not in this order.** Phase 82 is not queued.
+
+### What the runner may and may not do
+
+- **It commits every phase.** One commit per phase, the house shape, no trailers.
+- **It pushes at the END OF EACH WAVE, not after each commit.** The operator set this on 2026-08-19.
+  A wave is a coherent set and a push is the point where CI gets a say.
+- **It watches the GitHub Actions run for every push and FIXES what it broke.** A red run is
+  investigated before anything is touched, per the standing rule that a red gate is not evidence of a
+  defect. Run the failing job alone, compare against a green run of the same code, and only then
+  change anything. A flake is recorded rather than fixed.
+- **It never cuts a release and never tags.** The release gate is the operator running the seven step
+  acceptance script himself, and no agent may declare it met.
+- **It stops after two consecutive phase failures** rather than spending the night on a broken tree.
+- **It touches the operator's Mac Pro read only**, except where a phase's own entry authorises a
+  write, being Phase 90.2's clone into a scratch path and Phase 89's single armed resume. Both are
+  driven once and cleaned up by exact path or exact id.
+
+### What is true in the morning if every wave lands
+
+A person opens a local project, presses Cmd+T, picks the Mac Pro, and Tortie fills in the folder over
+there or offers to clone it. The agent starts. The status dot moves while it works. The sidebars say
+which machine they are showing. Ending the session saves the scrollback first. Restoring it types the
+resume command and waits for a keypress.
+
+### What is still NOT true in the morning, and this is stated so nobody reads the list above as done
+
+- **`needs input` never lights for a remote session.** Closed by decision, not by work.
+- **SpecStory capture never runs on another machine.** Dropped by decision, and now refused visibly.
+- **The Explorer, the git sidebar and search still show this Mac's files** unless Phase 90's large
+  half also lands, which is not in this order.
+- **The release gate is unmet until the operator runs the acceptance script himself.**
+
 ## Three decisions the operator made on 2026-08-19, and they bind every later round
 
 He was asked three questions that no agent may answer, and he answered all three. They are recorded
