@@ -7011,13 +7011,90 @@ computer. One partial answer is recorded and not built: codex's title oracle nee
 remote list format carries no `#{pane_title}` today. Adding that field gives one agent the state and
 leaves twelve without it, which is a decision about honesty rather than a coding task.
 
-## Phase 89 — a conversation comes back on a remote machine, NOT QUEUED
+## Phase 89 — a conversation comes back on a remote machine ✅ SHIPPED 2026-08-19 (this commit, 0.46.0, gates green, 6,276 tests)
 
-Nothing types a resume command into a pane on another computer, because `send-keys` is on the
-permanently refused verb list at `src/main/machines/exec-plane.ts:231` and that refusal is load
-bearing. This phase cannot be built without either a different mechanism or a decision to change
-that list, and changing it is not a thing a builder may do. Phase 82, cross machine conversation
-reconstruction, sits above this one.
+**What a person can do now that they could not before.** Bring back a session on another computer
+and find the command that continues its conversation already typed into it, waiting for Enter. The
+person presses Enter. Tortie never presses it, on any machine, on any path.
+
+**What it took, and it changed a refusal.** `send-keys` came off the permanently refused verb list
+and onto the ledger as the first row whose repeat class is `unsafe`. The general door in
+`src/main/machines/exec-plane.ts` refuses it, so `execOn` cannot send it at all. One narrow door,
+`sendArmedResumeText`, may send one line, and it composes its own five element argv so no caller can
+add a second command, a second target or a key name. It refuses a target that is not an immutable
+identifier, an empty text, a text over 1000 characters, and a text carrying a newline, a carriage
+return or any other control character. A newline typed with `-l` is Enter, which is why that last
+refusal is where the promise lives.
+
+**What that door does NOT check, said plainly so nobody reads more into it.** It does not know what
+Tortie composed and it does not refuse a text on those grounds. Handed one line of printable
+characters it types that line. The rule that only Tortie's own composed text ever reaches it lives
+one layer up, in `src/main/machines/remote-arm.ts`, which builds every word out of the compiled
+agent catalogue and refuses a word that did not come from there.
+`npm run conformance:machines` counts the call sites so "one product caller" is a measurement.
+
+**The restore changed shape.** The arming gate is asked before the create now, and so is the
+composer, because between them they decide what the session comes back running:
+
+| The gate | The composer | What the session comes back running |
+| --- | --- | --- |
+| yes | composed a command | that machine's own shell, with the command typed into it |
+| yes | refused | its own program, exactly as before this phase |
+| no | not asked | its own program, exactly as before this phase |
+
+**The second row is the fix round's and it cost a person their program in the first build.** An
+agent somebody added in Settings keeps its launch flags in the overlay rather than in the compiled
+catalogue, so the gate arms it and the composer refuses it. With the composer asked after the
+create, that session came back as a bare shell with no agent in it, which is worse than what it got
+before this phase, while the refusal sentence told the person the session comes back with its
+program. Composing first is what makes that sentence true, and
+`src/main/machines/__tests__/remote-restore.test.ts` asserts the order.
+
+**The counter had to survive a wrapped line, and this is the defect the first build shipped with.**
+`capture-pane -J` joins a row the TERMINAL wrapped. zsh wraps its own input line and writes its own
+line break, so tmux never marks the row as wrapped and `-J` has nothing to join. Measured on this
+Mac, tmux 3.6a, a detached session 40 columns wide, one resume command typed with `send-keys -l`:
+
+| shell | copies found, contiguous search | copies found, spaces removed |
+| --- | --- | --- |
+| `/bin/sh` | 1 | 1 |
+| `/bin/zsh` | 0 | 1 |
+| `/bin/zsh`, sent twice | 0 | 2 |
+
+The operator's own shell is zsh. On his Mac Pro an armed resume that had landed was reported
+`absent`, and a real double send was never reported as `twice`, which removed the whole reason the
+unsafe ledger row was allowed to exist. `countOccurrences` now takes every space out of both the
+screen and the text before it searches, so the reading survives a break wherever the shell put it.
+Two gates hold it: condition 68 of `npm run conformance:machines`, which spawns nothing, and
+`npm run probe:remotearm`, whose panes are 40 columns wide and run zsh so every send below wraps.
+
+**Measured on the scratch machine, 2026-08-19, by `npm run probe:remotearm`.** The scratch machine
+is a real sshd with a real tmux and a real pane, and the operator's own server held 41 sessions
+before the run and 41 after it:
+
+| Reading | Result |
+| --- | --- |
+| one arm, copies before then after | 0 then 1, landing `armed` |
+| the command on the screen as one unbroken run | no, the shell broke it across rows |
+| the staged double send, three counts | 0, 1, 2 |
+| what the arming path reports for a double send | `twice`, with its own sentence byte for byte |
+| the pane's own program after every send | still zsh, so Enter was never pressed |
+| `send-keys` through the general door | refused with `REPEAT_UNSAFE` |
+| a text carrying a newline, and a target that is a name | both refused, screen byte identical afterwards |
+| a row carrying a word Tortie did not compose | refused, nothing sent, no landing |
+
+**What is still not true.** Nine of the thirteen agents record `remote-not-collected` on a remote row
+and every one of them comes back with its folder and its program and no conversation. An agent a
+person added in Settings is refused by the composer for the reason in CLAUDE.md, being that
+configuration selects from choices the compiled world already contains. `attach-session`,
+`kill-server` and `respawn-pane` are still refused forever, and `attach-session`'s reason is still
+written beside it. A restored remote agent session reads as idle until the person presses Enter,
+because its pane is running a shell and nothing is working yet, which is what a local restored
+session does too. The fix is proven on the scratch machine on this Mac and NOT on the operator's Mac
+Pro. A verification run there is what found the wrapped line defect, and no armed resume was driven
+on that machine after the counter was fixed.
+
+**Phase 82, cross machine conversation reconstruction, still sits above this one and is not queued.**
 
 ## THE RELEASE GATE, decided by the operator 2026-08-18. Phase 87 is REFUSED
 
@@ -7077,8 +7154,13 @@ signal that confirms it. A step that needs a follow-up question has failed as a 
 release and every one of them is known:
 
 - `needs input` never lights for a remote session. The oracles read local disk.
-- No conversation comes back on a remote machine, for any agent. `send-keys` is a permanently
-  refused verb, so nothing types a resume command over there.
+- The script does not ask you to bring a conversation back on the Mac Pro. Phase 89 built that, so
+  the old line here saying no conversation ever comes back is gone. A row two answers prove comes
+  back running that machine's own shell with the command that continues the conversation already
+  typed into it, and you press Enter. A row either answer refuses comes back with its folder and its
+  program and no conversation, which is nine of the thirteen agents plus every agent you added in
+  Settings. If you want to watch it, add a step 5b: end the session from step 4, restore it, and
+  read the pane.
 - The Explorer, the git sidebar, search and Quick Open all show THIS Mac's files while a remote
   session is selected, with no label. Research 55 rules on the fix and it is not built.
 - SpecStory capture is not offered for a remote session.

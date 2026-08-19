@@ -13,6 +13,13 @@
  * SYNTHETIC ledger row built at runtime, which is the only way either one is ever
  * watched firing.
  *
+ * PHASE 89 ADDED THREE STEPS, and they are here for the same reason. The one
+ * function that may type on another machine composes its own argv and refuses
+ * anything that is not one line of printable characters. Its refusals have one
+ * product call site each, which is exactly the shape rollup follows and folds
+ * away, so steps 5b to 5d watch all three fire against the built bundle and
+ * read the ssh process count afterwards to prove nothing was started.
+ *
  * It also proves the two things a unit test cannot. The confirm gate is sealed
  * through `safeStorage`, which needs an Electron process, so this is where an
  * unconfirmed machine is watched refusing Prepare against the real keychain. And
@@ -62,6 +69,8 @@ import {
 import {
   REMOTE_VERB_LEDGER,
   assertRemoteVerbAllowed,
+  execOn,
+  sendArmedResumeText,
   type LedgerRow
 } from './exec-plane';
 import { prepareMachine } from './prepare';
@@ -382,14 +391,49 @@ export async function runExecPlaneSmoke(): Promise<void> {
     // point of the ledger. It used to drive `new-session`, which was refused
     // because nobody had written it down. Phase 70 wrote it down WITH its repeat
     // reasoning, so it is on the ledger now and this step would refuse nothing.
-    // `send-keys` is refused and stays refused: it is a person's keystrokes, and
-    // this door is a one-shot exec with no terminal on either end.
+    //
+    // PHASE 89 CHANGED IT AGAIN, for the same reason. It drove `send-keys`,
+    // and `send-keys` is on the ledger now as the first row that is not safe to
+    // run twice. So this step drives `respawn-pane`, which nobody has written
+    // down and which nothing on this rung sends.
     assertRefused(
       '5. a verb nobody wrote down',
       'Only commands Tortie has written down as safe to run twice',
       () => {
-        assertRemoteVerbAllowed(ctx, ['send-keys', '-t', '$1', 'rm -rf /']);
+        assertRemoteVerbAllowed(ctx, ['respawn-pane', '-t', '$1', '-k']);
       }
+    );
+
+    // --- 5b, 5c and 5d. PHASE 89. The armed resume door ---------------------
+    //
+    // The general door refuses the verb outright. The armed door refuses a
+    // target that is not an immutable identifier and a text that is not one
+    // line of printable characters, which is what a door can check. It does not
+    // check who composed the text, and that rule lives in `./remote-arm.ts`
+    // instead. Each refusal below is watched firing here rather than assumed to
+    // exist, and the ssh count afterwards is what says nothing was started.
+    const sshBeforeArmed = sshChildCount();
+    await assertRefusedAsync(
+      '5b. send-keys through the general door',
+      'running it twice could leave two of something',
+      async () => execOn(ctx, ['send-keys', '-t', '$0', '-l', 'x'])
+    );
+    await assertRefusedAsync(
+      '5c. an armed text carrying a newline, which is Enter',
+      'The only thing it may type there is the command it composed itself',
+      async () => sendArmedResumeText(ctx, '$0', 'claude --resume abc\n')
+    );
+    await assertRefusedAsync(
+      '5d. an armed text aimed at a name rather than an identifier',
+      'The only thing it may type there is the command it composed itself',
+      async () => sendArmedResumeText(ctx, 'my-session', 'claude --resume abc')
+    );
+    if (sshChildCount() !== sshBeforeArmed) {
+      fail('one of the three armed resume refusals started an ssh process');
+    }
+    log(
+      `   and the ssh child count is still ${String(sshBeforeArmed)}, so all ` +
+        `three refused before anything was sent`
     );
 
     // --- 6. The unsafe repeat refusal, driven with a synthetic row -----------

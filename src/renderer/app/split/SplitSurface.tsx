@@ -192,7 +192,18 @@ function SplitPaneState({ session }: { session: Session }): React.JSX.Element {
     canRestore() &&
     (restorable ||
       (session.status === 'exited' && hasRestoreMaterial(session)));
-  const resumeShort = resumeMarkLabel(resumeReadiness(session));
+  // PHASE 89. No resume mark for a session on another machine, which is the
+  // rule `resumeMark` in ../session-actions.tsx has followed since Phase 70 and
+  // which this surface was not following. The projection for a remote session
+  // carries neither `resumeCapture` nor `resumeArgv`, so the reading here was
+  // always "directory only" whatever the row held. That was true of every
+  // remote row until Phase 89 and it is false now for a row the arming gate and
+  // the composer both prove, because such a row comes back with the command
+  // that continues its conversation typed into it.
+  const resumeShort =
+    session.machine !== undefined
+      ? null
+      : resumeMarkLabel(resumeReadiness(session));
 
   return (
     <div className="split-state">

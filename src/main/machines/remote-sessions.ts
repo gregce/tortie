@@ -74,13 +74,16 @@
  *
  * ## What is NOT true, and no surface may imply otherwise
  *
- *  - No conversation comes back, whatever the row records. Phase 73's
- *    connected time store harvest can now put a `resume_argv` and a
- *    `remote-store-harvest` provenance on a remote row, and for a muse row the
- *    arming gate says yes to it. Nothing in this release TYPES a resume command
- *    into a pane on another machine, so `resumeArmed` is false on every restore
- *    and the conversation does not come back. A row the harvest could not prove
- *    still records `remote-not-collected` rather than nothing.
+ *  - A conversation comes back only for a row TWO answers prove, and Phase 89
+ *    is what made that true. The arming gate in `./resume-arming.ts` reads the
+ *    row's provenance, and the composer in `./remote-arm.ts` reads every word of
+ *    the recorded resume command against Tortie's compiled catalogue. When both
+ *    say yes the restore starts that machine's own shell, types the command into
+ *    it and stops, and `resumeArmed` says whether Tortie read that command back
+ *    off the screen. A row either answer refuses comes back with its folder and
+ *    its program and no conversation, and a row the Phase 73 harvest could not
+ *    prove still records `remote-not-collected` rather than nothing. Enter is
+ *    never pressed on any of those paths.
  *  - A remote row's status comes from one format field, and PHASE 85 CHANGED
  *    WHICH ONE. It reads `#{window_activity}`. It used to read
  *    `#{session_activity}`, which does not move when a session prints, so a

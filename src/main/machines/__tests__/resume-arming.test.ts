@@ -298,11 +298,17 @@ describe('the refusal list', () => {
    * row the Phase 73 harvest proved: the source is the strongest there is and
    * the id was fixed on the machine being restored on.
    *
-   * SAYING YES IS NOT TYPING, and `../remote-restore.ts` still reports
-   * `resumeArmed: false` for it, because `send-keys` is on the permanently
-   * refused verb list and nothing in this release types a resume command into a
-   * pane on another machine. That is asserted in `remote-restore.test.ts`, and
-   * the two tests together are the whole of the claim.
+   * PHASE 89 GAVE THE YES A CONSEQUENCE. Up to Phase 88 this comment said that
+   * saying yes is not typing, because `send-keys` was on the permanently refused
+   * verb list. It is on the ledger now, marked unsafe to repeat, and one narrow
+   * door may send it. So `../remote-restore.ts` creates a row like this one with
+   * an EMPTY argv, which starts that machine's own shell, and types the resume
+   * command into it without pressing Enter.
+   *
+   * WHAT THIS TEST STILL PROVES IS THE GATE ALONE. Whether the command is
+   * composed of words Tortie itself chose is decided in `../remote-arm.ts`, and
+   * `remote-arm.test.ts` is where that is driven. A yes here is necessary and it
+   * is not sufficient.
    */
   it('arms a row whose id Tortie put on the launch line itself', () => {
     expect(

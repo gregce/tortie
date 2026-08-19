@@ -161,17 +161,29 @@ export function machineSilentText(labels: readonly string[]): string {
  * reworded.
  *
  * Three claims, in the order a person needs them. What comes back: the session,
- * on that machine, in the same folder, running the same program. What stays
- * here: the output Tortie saved, which is not put back on the other machine.
- * What does not come back: the conversation. The second and third are the
- * whole difference between a restore on this Mac and a restore on a machine,
- * and they are said here rather than discovered in an empty pane.
+ * on that machine, in the same folder. What stays here: the output Tortie
+ * saved, which is not put back on the other machine. What happens to the
+ * conversation, which has two answers as of Phase 89.
+ *
+ * PHASE 89 REWROTE THE THIRD CLAIM. It said flatly that the conversation does
+ * not come back, and that is no longer true for every row. A remote restore now
+ * starts that machine's own shell and types the command that continues the
+ * conversation into it, for a row two answers prove, being the arming gate and
+ * the composer in main. THIS FILE CANNOT KNOW WHICH ROW THAT IS. Both answers
+ * are read at restore time, one of them against the machine itself. So the
+ * sentence gives both outcomes and names the thing that decides between them,
+ * which is whether Tortie recorded the conversation.
+ *
+ * It also stopped saying "running the same program", because a row that arms
+ * comes back running the machine's own shell with the command waiting in it.
  */
 export function restoreRemoteBody(label: string): string {
   return (
-    `Restoring starts this session again on ${label}, in the same folder, ` +
-    `running the same program. The output Tortie saved is kept on this Mac ` +
-    `and is not put back on ${label}. The conversation does not come back.`
+    `Restoring starts this session again on ${label}, in the same folder. The ` +
+    `output Tortie saved is kept on this Mac and is not put back on ${label}. ` +
+    `When Tortie recorded this conversation it types the command that ` +
+    `continues it into the session and you press Enter, and otherwise the ` +
+    `session comes back running the same program with no conversation.`
   );
 }
 
@@ -354,13 +366,19 @@ export const CREATE_DIR_HINT =
  * than reworded, which is what Phase 84 did to `CREATE_DIR_HINT` above.
  *
  * What survives is the one thing a person cannot find out any other way before
- * they act, which is that the conversation does not come back. The four names
- * this phase deleted are recorded in ./__tests__/create-copy.test.ts, which is
- * also what stops them coming back.
+ * they act, which is what happens to the conversation. The four names this
+ * phase deleted are recorded in ./__tests__/create-copy.test.ts, which is also
+ * what stops them coming back.
+ *
+ * PHASE 89 REWROTE IT. It said the conversation does not come back, and a
+ * remote restore now brings it back for an agent whose conversation Tortie
+ * recorded, which is seven of the thirteen. The sheet cannot promise it for the
+ * agent in the picker, because the composer and the arming gate both answer at
+ * restore time, so the sentence names the condition instead of the outcome.
  */
 export const CREATE_HONESTY =
-  'Tortie can start this session again on that machine, and the conversation ' +
-  'does not come back.';
+  'Tortie can start this session again on that machine, and it brings the ' +
+  'conversation back only for an agent whose conversation it recorded.';
 
 /** The honesty lines in the order the sheet draws them. */
 export const CREATE_HONESTY_LINES: readonly string[] = [CREATE_HONESTY];

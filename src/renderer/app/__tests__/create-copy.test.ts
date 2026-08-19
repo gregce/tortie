@@ -68,8 +68,9 @@ describe('the honesty block under the machine field', () => {
   it('draws one paragraph, and it is the one about the conversation', () => {
     expect(CREATE_HONESTY_LINES).toHaveLength(1);
     expect(CREATE_HONESTY_LINES[0]).toBe(
-      'Tortie can start this session again on that machine, and the ' +
-        'conversation does not come back.'
+      'Tortie can start this session again on that machine, and it brings ' +
+        'the conversation back only for an agent whose conversation it ' +
+        'recorded.'
     );
   });
 

@@ -206,7 +206,10 @@ import {
 // copy of the screen, and this is the function that keeps the promise. It is a
 // direct import for the same reason the machines imports above are.
 import { captureRemoteSessionNow } from '../machines/remote-capsule';
-import { restoreRemoteSession } from '../machines/remote-restore';
+import {
+  restoreRemoteSession,
+  type RemoteRestoreOutcome
+} from '../machines/remote-restore';
 import type { RemoteMachineContext } from '../machines/context';
 import { gmuxError, isGmuxError } from '../errors';
 import { broadcastEvent } from '../typed-events';
@@ -1498,6 +1501,7 @@ export class GmuxCore {
       try {
         refuseRemoteRestore(sessionId);
         const outcome = await restoreRemoteSession(sessionId);
+        this.reportRemoteResume(outcome);
         this.broadcastSessions();
         return outcome.session;
       } finally {
@@ -1699,6 +1703,44 @@ export class GmuxCore {
           : lostScrollback
             ? 'scrollback'
             : 'resume'
+    });
+  }
+
+  /**
+   * Say what happened to the resume command on a session that came back on
+   * another machine (Phase 89).
+   *
+   * Phase 89 gave a remote restore the local restore's shape. The session comes
+   * back running that machine's own shell, Tortie types the command that
+   * continues the conversation into it, and Tortie stops. It never presses
+   * Enter. It then reads that session's screen and counts the copies of what it
+   * sent, and `resumeLanding` is what that count said.
+   *
+   * NOTHING IS SAID FOR THE GOOD ANSWER, and that is the rule rather than an
+   * omission. A command that landed exactly once is sitting on the screen of
+   * that session where the person can read it. Nothing is degraded, so there is
+   * nothing to say, which is the same answer the local restore gives.
+   *
+   * NOTHING IS SAID FOR A ROW THE ARMING GATE REFUSED either. Such a row never
+   * had a send, its `resumeLanding` is null, and the refusal already carries its
+   * own sentence on the outcome for the surface that asked for the restore.
+   *
+   * The latch is the ordinary one, being once per kind per app run. A restore
+   * of every session on a machine that has gone strange should not put nine
+   * toasts on the screen, and the per session detail is in the log line
+   * `../machines/remote-restore.ts` writes for every arm.
+   */
+  private reportRemoteResume(outcome: RemoteRestoreOutcome): void {
+    const landing = outcome.resumeLanding;
+    if (landing === null || landing === 'armed') return;
+    sessionsLog.warn(
+      `the resume command for "${outcome.session.name}" on another machine ` +
+        `landed as ${landing}`
+    );
+    postDurabilityNotice({
+      kind: 'remote-resume',
+      sessionName: outcome.session.name,
+      landing
     });
   }
 

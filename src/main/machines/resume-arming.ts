@@ -43,14 +43,29 @@
  * list, so the id can be checked rather than guessed. Three more agents get a
  * recorded id at `confidence: 'weak'`, and they take arm 6 and are refused.
  * Every other remote row still records `source: 'remote-not-collected'` and
- * takes arm 4.
+ * takes arm 4. PHASE 84 added a second shape of row that reaches the last arm,
+ * being any of the seven agents that take a conversation id on their own launch
+ * flag, because a remote create now puts one on the line and records it.
  *
- * WHAT THE ARM STILL DOES NOT DO, and it is the honest half. Saying yes is not
- * typing. `./remote-restore.ts` reads this verdict, and this release has no way
- * to type a resume command into a pane on another machine, so it reports
- * `resumeArmed: false` for every row and logs the gap. So a muse conversation
- * on a machine is now PROVABLE and still not CONTINUED. Closing that is the
- * typing half, recorded as owed in the Phase 73 backlog entry.
+ * ## PHASE 89 GAVE THE YES A CONSEQUENCE, and this header used to say it had none
+ *
+ * From Phase 73 to Phase 88 this header said that saying yes is not typing, and
+ * that `./remote-restore.ts` reported `resumeArmed: false` for every row it
+ * armed. Both sentences were true then and both are false now, so both are
+ * gone rather than left standing.
+ *
+ * WHAT A YES NOW CAUSES. `./remote-restore.ts` creates the session with an
+ * EMPTY argv, so that machine starts its own shell, and then `./remote-arm.ts`
+ * types the command that continues the conversation into that shell and stops.
+ * A no still creates the session with the row's launch argv, exactly as it did
+ * before, and carries the sentence this file hands back.
+ *
+ * WHAT THIS FILE STILL DOES NOT DECIDE, and it is worth naming because the
+ * consequence is now real. This gate answers whether an id may be used. It does
+ * not compose the command, it does not check the words in it, and it does not
+ * send anything. `./remote-arm.ts` owns all three, and it refuses any word that
+ * did not come from Tortie's own compiled list of programs and flags, so a yes
+ * here is a necessary answer rather than a sufficient one.
  *
  * The gate was built one rung before its producer, and this is the reason. The
  * gate that says yes has to exist before the rung that fills it, or the rung
@@ -230,7 +245,10 @@ export function resumeArmingVerdict(facts: ArmingFacts): ArmingVerdict {
     };
   }
   // 7. Reached by a muse row the Phase 73 harvest proved on the machine being
-  //    restored on. Saying yes here is not typing: see the header.
+  //    restored on, and by any Phase 84 row whose id Tortie put on the launch
+  //    line itself. As of Phase 89 this yes causes the restore to start that
+  //    machine's own shell and type the resume command into it. What may be in
+  //    that command is decided in `./remote-arm.ts` and not here.
   return { arm: true, refusal: null, reason: null };
 }
 

@@ -473,6 +473,33 @@ function showDegraded(store: AppStore, notice: DurabilityNotice): void {
     });
     return;
   }
+  if (notice.kind === 'remote-resume') {
+    // Phase 89. A session on another machine came back and the command that
+    // continues its conversation did not land once. Two lines of about 29
+    // characters with no button beside it, which is the same shape the
+    // restore shortfall sentence above measured.
+    //
+    // THERE IS NO SENTENCE FOR THE GOOD ANSWER, and main sends none. A command
+    // that landed exactly once is sitting on the screen of that session where
+    // the person can read it, so nothing is degraded and a toast would be a
+    // dashboard line rather than a notice.
+    //
+    // There is no action button on any of the three, because the thing to do
+    // is in that session on the other machine and Tortie cannot press it from
+    // here. The three sentences measure 51, 48 and 54 characters with the
+    // longest name this helper can produce, against the 58 the column holds.
+    const short = shortName(notice.sessionName);
+    getState().toast(
+      'error',
+      notice.landing === 'twice'
+        ? `"${short}" was typed twice. Clear the line.`
+        : notice.landing === 'absent'
+          ? `"${short}" came back without its resume.`
+          : `Tortie cannot read "${short}" on that machine.`,
+      { sticky: true }
+    );
+    return;
+  }
   // A kind added to the shared union without a sentence here fails the
   // build, rather than shipping a degraded state nobody is told about.
   const unhandled: never = notice;

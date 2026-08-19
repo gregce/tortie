@@ -550,9 +550,10 @@ const MACHINE_REFUSALS = [
     why:
       'a machine can sleep or drop after it ran a command and before the reply ' +
       'arrives, so only a command written down as safe to run twice may cross ' +
-      'to one. This refusal is also what keeps new-session, kill-session, ' +
-      'rename-session, attach-session, send-keys and respawn-pane out of this ' +
-      'release in code rather than in prose',
+      'to one. This refusal is also what keeps kill-server, attach-session and ' +
+      'respawn-pane out of this release in code rather than in prose. Phase 89 ' +
+      'moved send-keys off that list and onto the ledger as the one unsafe ' +
+      'row, so it is the refusal below that stands in front of it now',
     fragments: [
       'Tortie will not send that command to another machine. Only commands Tortie ',
       'has written down as safe to run twice may cross to a machine, and this one ',
@@ -563,9 +564,11 @@ const MACHINE_REFUSALS = [
     id: 'machine.repeat-unsafe',
     source: 'src/main/machines/exec-plane.ts',
     why:
-      'the class has no members in this release, so a bundler that folds it away ' +
-      'costs nothing today and costs the refusal on the day the first unsafe ' +
-      'verb is added',
+      'Phase 89 gave the unsafe class its first member, being send-keys, so ' +
+      'this refusal is what the general door answers with for the one verb ' +
+      'that can type on another machine. Losing it would let a send-keys argv ' +
+      'reach a machine through any caller instead of through the one narrow ' +
+      'door that reads the screen before and after',
     fragments: [
       'Tortie will not send that command to another machine, because running it ',
       'twice could leave two of something and Tortie cannot yet tell one from the ',
@@ -758,19 +761,92 @@ const MACHINE_REFUSALS = [
       'its program. The conversation does not come back.'
     ]
   },
+  // ---------------------------------------------------------------------------
+  // Phase 89 added these five, and it DELETED `machine.resume-not-typed-here`
+  // ---------------------------------------------------------------------------
+  //
+  // That sentence said that continuing a conversation on another machine is
+  // something this release does not do. After Phase 89 that is false, so it was
+  // deleted rather than reworded, the way Phase 72 deleted
+  // `machine.restore-refused` when it became false. It has no producer left.
+  //
+  // What took its place is one sentence per landing the read back can report,
+  // plus one for a command Tortie did not compose itself. Three of the five are
+  // reached only when something went wrong on the other machine, which is
+  // exactly the branch a bundler folds away, and the cost of losing one is that
+  // a person is told nothing about a command sitting in a session on a computer
+  // they are not looking at. `build/probe-remote-arm.mjs` drives the double
+  // send for real and step 10a of `npm run smoke:remote` drives the armed one.
   {
-    id: 'machine.resume-not-typed-here',
+    id: 'machine.resume-typed-twice',
     source: 'src/main/machines/remote-copy.ts',
     why:
-      'a remote create now records which conversation it started, so the ' +
-      'arming gate says yes for a row it used to refuse, and a person who ' +
-      'reads no sentence at all finds out in an empty pane that nothing ' +
-      'continued',
+      'send-keys is the first verb on the remote ledger that is not safe to ' +
+      'run twice, and this sentence is what the guard named on that row ' +
+      'produces when it finds the second copy. Without it a person reads a ' +
+      'session holding two copies of a command and has to guess whether one ' +
+      'of them ran',
     fragments: [
-      'Tortie has a conversation id it can stand behind for this session, and it ',
-      'did not continue the conversation. Continuing one on another machine is ',
-      'something this release does not do. The session comes back with its folder ',
-      'and its program.'
+      'This session on that machine shows two copies of the command that ',
+      'continues this conversation. Tortie sent it once and the machine took it ',
+      'twice, which can happen when a reply is lost on the way back. Nothing ran, ',
+      'because Tortie never presses Enter. Clear the line before you press Enter.'
+    ]
+  },
+  {
+    id: 'machine.resume-not-landed',
+    source: 'src/main/machines/remote-copy.ts',
+    why:
+      'a send that reported success and left nothing on the screen is the one ' +
+      'shape a person cannot see from here, and without this sentence the ' +
+      'restore would report an armed conversation that is not armed',
+    fragments: [
+      'Tortie sent the command that continues this conversation and this session ',
+      'on that machine does not show it. Nothing ran on that machine. The session ',
+      'came back with its folder, and the conversation did not come back.'
+    ]
+  },
+  {
+    id: 'machine.resume-arm-unreadable',
+    source: 'src/main/machines/remote-copy.ts',
+    why:
+      'telling a person a command is not there when Tortie could not look is ' +
+      'a different claim from telling them it is not there, and folding this ' +
+      'one away would collapse the two into the confident half',
+    fragments: [
+      'Tortie sent the command that continues this conversation and then could ',
+      'not read the screen of that session, so it cannot say whether the command ',
+      'is there. Nothing ran, because Tortie never presses Enter. Look at the ',
+      'session before you press Enter.'
+    ]
+  },
+  {
+    id: 'machine.resume-not-composed',
+    source: 'src/main/machines/remote-copy.ts',
+    why:
+      'this is the sentence behind the rule that the bytes typed on another ' +
+      'machine are composed by Tortie from its own compiled lists and never ' +
+      'by a person. A correct row never reaches it, which is exactly the shape ' +
+      'rollup proves dead, and without it a refused arm would be silent',
+    fragments: [
+      'Tortie will not type this command on another machine, because one word in ',
+      'it did not come from the list of programs and flags Tortie was built with. ',
+      'Tortie only types commands it composed itself. The session comes back with ',
+      'its folder and its program, and the conversation does not come back.'
+    ]
+  },
+  {
+    id: 'machine.armed-text-refused',
+    source: 'src/main/machines/exec-plane.ts',
+    why:
+      'a newline typed with -l IS Enter, so this refusal is where the promise ' +
+      'that Tortie never presses Enter for a person is enforced rather than ' +
+      'described. Its one product call site passes a value rollup can follow, ' +
+      'which is the shape that made this whole file necessary',
+    fragments: [
+      'Tortie will not type that on another machine. The only thing it may type ',
+      'there is the command it composed itself to continue a conversation, on one ',
+      'line, with no key press after it. Nothing was sent.'
     ]
   },
   // ---------------------------------------------------------------------------

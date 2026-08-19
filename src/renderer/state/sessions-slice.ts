@@ -548,16 +548,26 @@ export const createSessionsSlice: StateCreator<
       // it is read from `session.machine`, which the projection already
       // carries. The old body was false twice for such a session. It promised a
       // copy that main never took, and it promised a restore that brings the
-      // conversation back, which no remote restore does. Main now takes the
-      // copy before it kills anything, so "first" is true, and the last
-      // sentence says plainly what does not come back.
+      // conversation back, which no remote restore did. Main now takes the
+      // copy before it kills anything, so "first" is true.
+      //
+      // PHASE 89 CHANGED THE LAST SENTENCE, because it said flatly that the
+      // conversation does not come back and that is no longer true for every
+      // row. A remote restore now types the command that continues the
+      // conversation for a row two answers prove, being the arming gate in
+      // main's `machines/resume-arming.ts` and the composer in
+      // `machines/remote-arm.ts`. THE RENDERER CANNOT KNOW WHICH ROW THAT IS.
+      // Both answers are read at restore time, one of them against the machine
+      // itself, and the projection for a remote session carries neither
+      // `resumeCapture` nor `resumeArgv`. So the sentence says what is true of
+      // every row and promises nothing about this one.
       const machine = session.machine;
       const resumable = resumeReadiness(session) === 'conversation';
       get().setConfirm({
         title: `End '${session.name}'?`,
         body:
           machine !== undefined
-            ? `This stops what is running in it on ${machine.label}. Tortie saves a copy of what it printed first, so you can read that copy here afterwards. The conversation does not come back.`
+            ? `This stops what is running in it on ${machine.label}. Tortie saves a copy of what it printed first, so you can read that copy here afterwards. Bringing it back always returns the folder, and it returns the conversation only when Tortie recorded one for this agent.`
             : resumable
               ? 'This stops what is running in it. The scrollback and the conversation are saved first, so you can restore this session later.'
               : 'This stops what is running in it. The scrollback is saved first, so you can restore this session later.',

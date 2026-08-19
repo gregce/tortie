@@ -364,13 +364,20 @@ describe('a row for an agent that took an id on its launch line', () => {
   });
 
   /**
-   * `resumeCapture` STAYS `unavailable`, and that is a decision rather than an
-   * oversight. `../../sessions/launch-plan.ts` maps a pre-assigned local row to
-   * `armed`, and a person reads `armed` as "this session comes back with its
-   * conversation". On a machine it does not: `send-keys` is on the permanently
-   * refused verb list, so nothing types the resume command.
+   * `resumeCapture` STAYS `unavailable`, and PHASE 89 RE-EXAMINED IT rather than
+   * leaving the old reason standing. The old reason was that `send-keys` is
+   * permanently refused so nothing types the resume command. Phase 89 types it.
+   *
+   * THE REASON TODAY IS THAT A CREATE TIME FIELD CANNOT ANSWER A RESTORE TIME
+   * QUESTION. Whether the conversation comes back on a machine is decided when
+   * the restore runs, by the arming gate reading the machine and by the
+   * composer reading every word of the recorded command against the compiled
+   * catalogue. Writing `armed` here would promise, on the day the session
+   * starts, an answer neither of those has given yet. Nothing a person reads
+   * comes from this field on a remote row either, because
+   * `projectRemoteRecord` does not put it on the session the renderer draws.
    */
-  it('does not claim the conversation comes back', () => {
+  it('does not claim at create time that the conversation comes back', () => {
     writePreassigned();
     expect(store.getSession('sess-1')?.resumeCapture).toBe('unavailable');
   });

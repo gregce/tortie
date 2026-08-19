@@ -126,10 +126,11 @@ const REMOTE_STORE_HARVEST: ResumeIdSource = 'remote-store-harvest';
  * writes for the same reason: the id was not read off anything, it was decided
  * before the process existed and put on its own launch line.
  *
- * IT STILL DOES NOT BRING A CONVERSATION BACK ON A MACHINE. Nothing in this
- * release types a resume command into a pane on another machine, so
- * `./remote-restore.ts` still reports `resumeArmed: false`. What this changes is
- * that the row records the truth instead of nothing.
+ * PHASE 89 IS WHAT MADE THE ROW WORTH WRITING. A restore of a row carrying this
+ * source starts that machine's own shell and types the command that continues
+ * the conversation into it, and `./remote-restore.ts` reports
+ * `resumeArmed: true` when it reads that command back off the screen. Phase 84
+ * recorded the truth and Phase 89 is what uses it.
  */
 const REMOTE_PREASSIGNED: ResumeIdSource = 'preassigned';
 
@@ -334,14 +335,28 @@ export function writeRemoteRow(
     argv: [...input.argv],
     lastSeen: input.createdAt,
     machineId: input.machineId,
-    // PHASE 84. `resumeCapture` stays `unavailable` on EVERY remote row,
-    // including a pre-assigned one, and that is a decision rather than an
-    // oversight. `../sessions/launch-plan.ts` maps `preassigned` to `armed` for
-    // a local row, and `armed` is read by a person as "this session comes back
-    // with its conversation". On a machine it does not: `send-keys` is on the
-    // permanently refused verb list, so nothing types the resume command. The
-    // id and the command are recorded on the fields below, where they are a
-    // record of what was started rather than a promise about what comes back.
+    // PHASE 84 SET THIS AND PHASE 89 RE-EXAMINED IT. `resumeCapture` stays
+    // `unavailable` on EVERY remote row, including a pre-assigned one, and it
+    // is still a decision rather than an oversight. The reason changed, because
+    // the old reason is now false. It used to read that `send-keys` is
+    // permanently refused so nothing types the resume command. Phase 89 types
+    // it.
+    //
+    // THE REASON TODAY IS THAT A CREATE TIME FIELD CANNOT ANSWER A RESTORE TIME
+    // QUESTION. Whether the conversation comes back on a machine is decided
+    // when the restore runs, by two things this row cannot see: the arming gate
+    // reading the machine that is being restored on, and the composer reading
+    // every word of the recorded command against Tortie's compiled catalogue.
+    // Writing `armed` here would promise, on the day the session starts, an
+    // answer neither of those has given yet.
+    //
+    // NOTHING A PERSON READS COMES FROM THIS FIELD ON A REMOTE ROW.
+    // `projectRemoteRecord` in `./remote-sessions.ts` does not put
+    // `resumeCapture` or `resumeArgv` on the session the renderer draws, and
+    // `resumeMark` in `../../renderer/app/session-actions.tsx` returns null for
+    // any row that names a machine. So this value is a manifest fact and not a
+    // sentence. The id and the command are recorded on the fields below, where
+    // they are a record of what was started.
     resumeCapture: 'unavailable',
     ...(input.resumeArgv !== undefined && input.resumeArgv.length > 0
       ? { resumeArgv: [...input.resumeArgv] }
@@ -365,10 +380,13 @@ export function writeRemoteRow(
       // would name a folder on this Mac or nothing at all.
       cwdReal: input.cwd,
       projectReal: input.projectPath,
-      // Every resume field says the same thing: there is no conversation to come
-      // back. Reading the live registry for these would be the Phase 21 defect,
-      // and the answers below are facts about this release rather than guesses
-      // about the agent.
+      // The recovery contract's own resume fields stay empty, and Phase 89 did
+      // not change them. They exist for `../manifest/reconstruct.ts`, which
+      // rebuilds a row from a database that lost it, and that module names no
+      // machine anywhere in it. Reading the live registry for them would be the
+      // Phase 21 defect. What a remote restore types is composed from the
+      // compiled registry at restore time, in `./remote-arm.ts`, and not from
+      // these.
       requiresOriginalCwd: false,
       bareResumeIsDangerous: false,
       resumeStrategy: 'none',

@@ -92,9 +92,14 @@ import {
 import {
   REMOTE_VERB_LEDGER,
   VERBS_THIS_RUNG_REFUSES,
+  composeArmedResumeArgv,
   remoteVerbsOf
 } from '../src/main/machines/exec-plane';
 import { remoteBootArgs } from '../src/main/machines/remote-server';
+// Phase 89 fix round, condition 68. The counter that decides whether an armed
+// resume landed. It is pure and it spawns nothing, so the gate can drive it
+// against the screen shapes a real shell produces.
+import { countOccurrences } from '../src/main/machines/remote-arm';
 // Phase 70, conditions 19 to 24. All four are pure. `attach-plan` is imported
 // DIRECTLY rather than through `../src/main/attach`, because that index also
 // exports the attach host and that file loads node-pty. This probe must load no
@@ -585,7 +590,10 @@ const ledgerRows = REMOTE_VERB_LEDGER.map((row) => ({
   verb: row.verb,
   repeat: row.repeat,
   kind: row.kind,
-  reasonLength: row.reason.length
+  reasonLength: row.reason.length,
+  // Phase 89. An unsafe row names the thing that finds a repeat after it has
+  // happened. A safe row has none, because it needs none.
+  guard: row.guard ?? ''
 }));
 
 const remoteList = TESTED_REMOTE_TMUX_VERSIONS.map((row) => ({
@@ -1175,6 +1183,74 @@ const wholeTree = (() => {
   return collected;
 })();
 
+// ---------------------------------------------------------------------------
+// Phase 89. Who may type on another machine, read out of the tree
+// ---------------------------------------------------------------------------
+//
+// `sendArmedResumeText` is the only function that can send `send-keys` to a
+// machine. It is declared in exec-plane.ts, so that file is left out of the
+// list and what remains is every file that CALLS it. The gate beside this
+// probe fails on a third one.
+const armedResumeCallFiles = [
+  ...new Set(
+    mentions(wholeTree, 'sendArmedResumeText')
+      .filter((hit) => hit.file !== 'src/main/machines/exec-plane.ts')
+      .map((hit) => hit.file)
+  )
+].sort();
+
+// Every file under src/main/machines/, tests excluded, that names the verb as a
+// string. The local tmux layer is outside this scan on purpose: it sends keys
+// to sessions on this Mac and always has.
+const sendKeysLiteralFiles = [
+  ...new Set(mentions(files, "'send-keys'").map((hit) => hit.file))
+].sort();
+
+// The argv the one door composes, read without spawning anything. Composing it
+// cannot send it, because the only function that spawns is in exec-plane.ts.
+const armedResumeArgv = composeArmedResumeArgv(
+  '$7',
+  '/Users/someone/.local/bin/claude --resume 11111111-2222-4333-8444-555555555555'
+);
+
+// ---------------------------------------------------------------------------
+// Phase 89 fix round, condition 68. The counter against a wrapped screen
+// ---------------------------------------------------------------------------
+//
+// MEASURED on this Mac, tmux 3.6a, a detached session 40 columns wide, the
+// command typed with `send-keys -l` and read with `capture-pane -p -J`. Under
+// `/bin/sh` the screen came back as one row, because the terminal did the
+// wrapping and `-J` joins a row the terminal wrapped. Under `/bin/zsh` it came
+// back as three rows, because zsh wraps its own input line and writes its own
+// line break, so tmux never marks the row as wrapped and `-J` has nothing to
+// join.
+//
+// The counter that only searched for a contiguous string found 0 copies of a
+// command that was plainly on the screen. The person was told the conversation
+// did not come back while it had, and a real double send was never reported as
+// twice. The operator's own shell is zsh. These three screens are what that
+// failure looked like, and the gate beside this probe asserts 1, 2 and 0.
+const ARMED_WRAP_TEXT =
+  '/Users/someone/.local/bin/claude --resume 11111111-2222-4333-8444-555555555555';
+const armedResumeWrapCounts = {
+  text: ARMED_WRAP_TEXT,
+  onceWrapped: countOccurrences(
+    'Gregs-Mac-Pro% /Users/someone/.local/b\n' +
+      'in/claude --resume 11111111-2222-4333-\n' +
+      '8444-555555555555\n',
+    ARMED_WRAP_TEXT
+  ),
+  twiceWrapped: countOccurrences(
+    'Gregs-Mac-Pro% /Users/someone/.local/b\n' +
+      'in/claude --resume 11111111-2222-4333-\n' +
+      '8444-555555555555/Users/someone/.local\n' +
+      '/bin/claude --resume 11111111-2222-433\n' +
+      '3-8444-555555555555\n',
+    ARMED_WRAP_TEXT
+  ),
+  absent: countOccurrences('Gregs-Mac-Pro%\n\n\n', ARMED_WRAP_TEXT)
+};
+
 process.stdout.write(
   JSON.stringify({
     id: ID,
@@ -1243,6 +1319,11 @@ process.stdout.write(
     controlLeafForOtherUid: controlPathLeaf({ executionHash: base, uid: 502 }),
     localRows,
     ledger: ledgerRows,
+    // --- Phase 89, conditions 63 to 67 --------------------------------------
+    armedResumeCallFiles,
+    sendKeysLiteralFiles,
+    armedResumeArgv: [...armedResumeArgv],
+    armedResumeWrapCounts,
     forbiddenVerbs: [...VERBS_THIS_RUNG_REFUSES],
     serverOptions: optionRows,
     confOnlyOptions: confOnly,

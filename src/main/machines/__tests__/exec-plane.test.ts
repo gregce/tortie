@@ -16,14 +16,18 @@ import {
   type RemoteMachineContext
 } from '../context';
 import {
+  ARMED_TEXT_REFUSED,
   PATH_BEFORE_MUTATION,
   REMOTE_VERB_LEDGER,
   REPEAT_UNSAFE,
   VERBS_THIS_RUNG_REFUSES,
   VERB_NOT_IN_LEDGER,
   assertRemoteVerbAllowed,
+  composeArmedResumeArgv,
+  execOn,
   ledgerRowFor,
   remoteVerbsOf,
+  sendArmedResumeText,
   type LedgerRow
 } from '../exec-plane';
 
@@ -62,7 +66,7 @@ describe('the ledger', () => {
     }
   });
 
-  it('holds none of the four verbs Tortie refuses to send', () => {
+  it('holds none of the three verbs Tortie refuses to send', () => {
     // This is the scope fence in code rather than in prose. A later rung adds each
     // of these WITH its repeat reasoning written down beside it, which is what
     // Phase 70 did for new-session, kill-session and rename-session.
@@ -96,19 +100,33 @@ describe('the ledger', () => {
     }
   });
 
-  it('has no unsafe row, because nothing may cross that is not safe to repeat', () => {
-    expect(REMOTE_VERB_LEDGER.filter((row) => row.repeat === 'unsafe')).toEqual([]);
+  it('has exactly one unsafe row, and it names the guard that finds a repeat', () => {
+    // PHASE 89 GAVE THE CLASS ITS FIRST MEMBER. Before it the list was empty and
+    // the refusal in front of it had no member to exercise it. An unsafe row
+    // with no guard is refused by every caller, so the guard is what the row is
+    // worth.
+    const unsafe = REMOTE_VERB_LEDGER.filter((row) => row.repeat === 'unsafe');
+    expect(unsafe.map((row) => row.verb)).toEqual(['send-keys']);
+    expect(unsafe[0]?.guard).toBe('armed-resume-read-back');
+    expect((unsafe[0]?.reason ?? '').length).toBeGreaterThan(120);
   });
 
-  it('marks the three verbs that change something as mutating', () => {
+  it('gives every safe row no guard, because a safe row needs none', () => {
+    for (const row of REMOTE_VERB_LEDGER) {
+      if (row.repeat === 'safe') expect(row.guard).toBeUndefined();
+    }
+  });
+
+  it('marks the four verbs that change something as mutating', () => {
     // A mutating verb is refused until the machine's own program search list has
     // been read for the current connection. Phase 69 wrote that rule with no
-    // member to exercise it, and these are its first three.
+    // member to exercise it, Phase 70 gave it its first three, and Phase 89
+    // added the fourth.
     expect(
       REMOTE_VERB_LEDGER.filter((row) => row.kind === 'mutating').map(
         (row) => row.verb
       )
-    ).toEqual(['new-session', 'kill-session', 'rename-session']);
+    ).toEqual(['new-session', 'kill-session', 'rename-session', 'send-keys']);
   });
 });
 
@@ -140,10 +158,10 @@ describe('every verb in one command, because tmux takes more than one', () => {
 describe('the three refusals', () => {
   it('refuses a verb nobody wrote down, and names it in the detail', () => {
     const payload = refusalOf(() => {
-      assertRemoteVerbAllowed(CTX, ['send-keys', '-t', '$1', 'rm -rf /']);
+      assertRemoteVerbAllowed(CTX, ['respawn-pane', '-t', '$1', '-k']);
     });
     expect(payload?.message).toBe(VERB_NOT_IN_LEDGER);
-    expect(payload?.detail ?? '').toContain('send-keys');
+    expect(payload?.detail ?? '').toContain('respawn-pane');
     expect(payload?.detail ?? '').toContain('popos');
   });
 
@@ -246,5 +264,137 @@ describe('the three refusals', () => {
     for (const verb of ['new-session', 'kill-session', 'rename-session']) {
       expect(() => assertRemoteVerbAllowed(CTX, [verb])).not.toThrow();
     }
+  });
+});
+
+
+// ---------------------------------------------------------------------------
+// PHASE 89. The one door that may type on another machine
+// ---------------------------------------------------------------------------
+//
+// NOTHING HERE SENDS ANYTHING EITHER. Every case below is refused before the
+// spawn, which is the property being tested: a text Tortie did not compose, and
+// a text carrying Enter, never reach a machine at all.
+
+describe('the general door still refuses send-keys', () => {
+  it('refuses the verb through assertRemoteVerbAllowed with no guard', () => {
+    const payload = refusalOf(() => {
+      assertRemoteVerbAllowed(CTX, ['send-keys', '-t', '$1', '-l', 'x']);
+    });
+    expect(payload?.message).toBe(REPEAT_UNSAFE);
+    expect(payload?.detail ?? '').toContain('send-keys');
+  });
+
+  it('refuses the verb through execOn, which is the door every caller uses', async () => {
+    // Phase 89 gave this refusal its first member in production. Before it, the
+    // branch had none and only a synthetic ledger row reached it.
+    setMachineRemotePath(CTX.machineId, '/usr/bin:/bin');
+    let message = '';
+    try {
+      await execOn(CTX, ['send-keys', '-t', '$1', '-l', 'x']);
+    } catch (err) {
+      message = err instanceof GmuxError ? err.payload.message : '';
+    }
+    expect(message).toBe(REPEAT_UNSAFE);
+  });
+
+  it('refuses an unsafe row that names no guard at all', () => {
+    const unguarded: LedgerRow = {
+      verb: 'probe-unguarded',
+      repeat: 'unsafe',
+      kind: 'server-setup',
+      reason: 'a synthetic row with no guard.'
+    };
+    const payload = refusalOf(() => {
+      assertRemoteVerbAllowed(
+        CTX,
+        ['probe-unguarded'],
+        [...REMOTE_VERB_LEDGER, unguarded],
+        'armed-resume-read-back'
+      );
+    });
+    expect(payload?.message).toBe(REPEAT_UNSAFE);
+  });
+});
+
+describe('the armed resume door', () => {
+  /** The refusal a call produced, or null when it did not refuse. */
+  async function refusalOfAsync(
+    work: () => Promise<unknown>
+  ): Promise<GmuxError['payload'] | null> {
+    try {
+      await work();
+      return null;
+    } catch (err) {
+      return err instanceof GmuxError ? err.payload : null;
+    }
+  }
+
+  it('composes five elements, carries -l, and carries no key name', () => {
+    const argv = composeArmedResumeArgv('$7', 'claude --resume abc');
+    expect(argv).toEqual(['send-keys', '-t', '$7', '-l', 'claude --resume abc']);
+    expect(argv).toHaveLength(5);
+    expect(argv).not.toContain('Enter');
+    expect(argv).not.toContain('C-m');
+    expect(argv).not.toContain(';');
+  });
+
+  it('refuses a text carrying a newline, because that newline is Enter', async () => {
+    const payload = await refusalOfAsync(() =>
+      sendArmedResumeText(CTX, '$7', 'claude --resume abc\n')
+    );
+    expect(payload?.message).toBe(ARMED_TEXT_REFUSED);
+  });
+
+  it('refuses a text carrying a carriage return', async () => {
+    const payload = await refusalOfAsync(() =>
+      sendArmedResumeText(CTX, '$7', 'claude --resume abc\r')
+    );
+    expect(payload?.message).toBe(ARMED_TEXT_REFUSED);
+  });
+
+  it('refuses a text carrying any other control character', async () => {
+    const payload = await refusalOfAsync(() =>
+      sendArmedResumeText(
+        CTX,
+        '$7',
+        `claude --resume abc${String.fromCharCode(1)}`
+      )
+    );
+    expect(payload?.message).toBe(ARMED_TEXT_REFUSED);
+  });
+
+  it('refuses an empty text and a text over the cap', async () => {
+    expect(
+      (await refusalOfAsync(() => sendArmedResumeText(CTX, '$7', '')))?.message
+    ).toBe(ARMED_TEXT_REFUSED);
+    expect(
+      (
+        await refusalOfAsync(() =>
+          sendArmedResumeText(CTX, '$7', 'x'.repeat(1001))
+        )
+      )?.message
+    ).toBe(ARMED_TEXT_REFUSED);
+  });
+
+  it('refuses a target that is not an immutable identifier', async () => {
+    // A name can be renamed between the read and the send, and the send would
+    // then land on a different session.
+    for (const target of ['my-session', '=my-session', '$', '$7:1', '', '%3']) {
+      const payload = await refusalOfAsync(() =>
+        sendArmedResumeText(CTX, target, 'claude --resume abc')
+      );
+      expect(payload?.message).toBe(ARMED_TEXT_REFUSED);
+    }
+  });
+
+  it('refuses before the program search list has been read', async () => {
+    // The row is mutating, so the ordering gate applies to it the way it applies
+    // to a create. A machine nobody prepared gets nothing typed on it.
+    bumpMachineGeneration(CTX.machineId);
+    const payload = await refusalOfAsync(() =>
+      sendArmedResumeText(CTX, '$7', 'claude --resume abc')
+    );
+    expect(payload?.message).toBe(PATH_BEFORE_MUTATION);
   });
 });

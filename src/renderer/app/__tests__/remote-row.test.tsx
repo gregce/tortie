@@ -245,12 +245,16 @@ describe('the ended surface', () => {
         }
       }
     }
-    // The three claims, in the order a person needs them.
+    // The three claims, in the order a person needs them. PHASE 89 rewrote the
+    // third one, because a remote restore brings some conversations back now
+    // and this file cannot know which row will be one of them.
     expect(restoreRemoteBody('Studio')).toBe(
-      'Restoring starts this session again on Studio, in the same folder, ' +
-        'running the same program. The output Tortie saved is kept on this ' +
-        'Mac and is not put back on Studio. The conversation does not come ' +
-        'back.'
+      'Restoring starts this session again on Studio, in the same folder. ' +
+        'The output Tortie saved is kept on this Mac and is not put back on ' +
+        'Studio. When Tortie recorded this conversation it types the command ' +
+        'that continues it into the session and you press Enter, and ' +
+        'otherwise the session comes back running the same program with no ' +
+        'conversation.'
     );
   });
 

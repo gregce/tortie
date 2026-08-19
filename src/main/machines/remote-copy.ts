@@ -12,6 +12,16 @@
  * vocabulary at all. A person reading one of these should learn what Tortie did
  * not do and what is still true of their work.
  *
+ * ## What Phase 89 changed
+ *
+ * `RESUME_NOT_TYPED_HERE` is GONE. It said that continuing a conversation on
+ * another machine is something this release does not do, and after Phase 89
+ * that is false: a restore of a row the arming gate proves types the command
+ * into the session on that machine and stops without pressing Enter. Five
+ * sentences take its place, being one per landing the read back can report and
+ * one for a command Tortie did not compose itself. It was deleted rather than
+ * reworded, the way Phase 72 deleted `RESTORE_REFUSED` when it became false.
+ *
  * ## What Phase 72 changed
  *
  * `RESTORE_REFUSED` is GONE. It said that bringing a session back on another
@@ -93,25 +103,87 @@ export const RESTORE_STILL_RUNNING =
  * narrower and is what the sentence now says: no id was got for THIS session.
  */
 /**
- * The gate said the conversation id may be used, and nothing typed it.
+ * The command was typed into the session on that machine, and nothing ran.
  *
- * PINNED as `machine.resume-not-typed-here`. It is the honest half of Phase
- * 84's item 9. A remote create now puts a conversation id on the launch line for
- * the seven agents that take one, and the connected harvest of Phase 73 proves
- * one for a muse session, so the arming gate in `./resume-arming.ts` can answer
- * yes for a row on a machine. Nothing acts on that yes. Typing a command into a
- * pane on another machine needs a verb this product refuses on purpose, and the
- * decision to change that list is not made in this phase.
+ * NOT PINNED, because every successful remote agent restore reaches it and a
+ * bundler cannot fold away a branch production takes. It is the answer for a
+ * landing of `armed`, being a screen that showed the command exactly once after
+ * the send.
  *
- * Without this sentence a person restores an agent session on a machine, reads
- * no note at all, and finds out in an empty pane. That is the exact failure
- * {@link RESUME_NOT_COLLECTED} exists to prevent for the other rows.
+ * The second sentence is an instruction rather than a description, because the
+ * one thing left to do belongs to the person and nothing else says so. It is
+ * the same promise the local restore has always made: Tortie types the command
+ * and the person presses Enter.
  */
-export const RESUME_NOT_TYPED_HERE =
-  'Tortie has a conversation id it can stand behind for this session, and it ' +
-  'did not continue the conversation. Continuing one on another machine is ' +
-  'something this release does not do. The session comes back with its folder ' +
-  'and its program.';
+export const RESUME_ARMED_NOT_PRESSED =
+  'Tortie typed the command that continues this conversation into this ' +
+  'session on that machine, and it did not press Enter. Press Enter in this ' +
+  'session to continue the conversation.';
+
+/**
+ * The screen showed the command twice after one send.
+ *
+ * PINNED as `machine.resume-typed-twice`. `send-keys` is the first verb on the
+ * remote ledger that is not safe to run twice, and this sentence is what the
+ * guard named on that row produces when it finds the second copy. A machine can
+ * take a command and lose the reply on the way back, so a send Tortie believes
+ * failed can have landed.
+ *
+ * Nothing ran, and the sentence says so before it asks for anything, because a
+ * person reading about two copies of a command will assume one of them ran.
+ */
+export const RESUME_TYPED_TWICE =
+  'This session on that machine shows two copies of the command that ' +
+  'continues this conversation. Tortie sent it once and the machine took it ' +
+  'twice, which can happen when a reply is lost on the way back. Nothing ran, ' +
+  'because Tortie never presses Enter. Clear the line before you press Enter.';
+
+/**
+ * Tortie read the screen and the command is not on it.
+ *
+ * PINNED as `machine.resume-not-landed`. It is a screen Tortie READ. The
+ * separate sentence below is for a screen Tortie could not read, and the two
+ * are kept apart for the reason the restore gate keeps `no-route` and `unseen`
+ * apart: telling a person a thing is not there when nobody looked is a
+ * different claim from telling them it is not there.
+ */
+export const RESUME_NOT_LANDED =
+  'Tortie sent the command that continues this conversation and this session ' +
+  'on that machine does not show it. Nothing ran on that machine. The session ' +
+  'came back with its folder, and the conversation did not come back.';
+
+/**
+ * Tortie could not read the screen after the send.
+ *
+ * PINNED as `machine.resume-arm-unreadable`. The honest answer when the read
+ * back itself failed. Tortie does not know whether the command is there, and
+ * the sentence says that rather than guessing either way.
+ */
+export const RESUME_ARM_UNREADABLE =
+  'Tortie sent the command that continues this conversation and then could ' +
+  'not read the screen of that session, so it cannot say whether the command ' +
+  'is there. Nothing ran, because Tortie never presses Enter. Look at the ' +
+  'session before you press Enter.';
+
+/**
+ * One word of the command did not come from Tortie's own compiled lists.
+ *
+ * PINNED as `machine.resume-not-composed`. This is the sentence behind rule 1
+ * of Phase 89, being that the bytes typed on another machine are composed by
+ * Tortie from the agent registry and never by a person. Every element after the
+ * program path has to be a token the compiled build already holds, or the row's
+ * own conversation id. One element outside that set refuses the whole thing and
+ * nothing is sent.
+ *
+ * An agent a person added in Settings is refused here, because its flags come
+ * from the overlay rather than from the compiled catalogue. That session comes
+ * back with its folder and its program.
+ */
+export const RESUME_NOT_COMPOSED =
+  'Tortie will not type this command on another machine, because one word in ' +
+  'it did not come from the list of programs and flags Tortie was built with. ' +
+  'Tortie only types commands it composed itself. The session comes back with ' +
+  'its folder and its program, and the conversation does not come back.';
 
 export const RESUME_NOT_COLLECTED =
   "Tortie has no conversation id for this session. It reads an agent's own " +

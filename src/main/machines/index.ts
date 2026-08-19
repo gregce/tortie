@@ -22,12 +22,23 @@
  * conditions checked by one pure table, and a machine a person removes leaves a
  * record of what Tortie last knew rather than silence.
  *
- * **What is still not here.** No conversation comes back, because Tortie reads
- * no agent's own files on another machine, so every remote row records
- * `remote-not-collected` and `resume_argv` is NULL. The output Tortie saved
- * stays on this Mac and is not put back into the recreated session. The verb
- * ledger in `exec-plane.ts` still refuses `kill-server`, `attach-session`,
- * `send-keys` and `respawn-pane` in code rather than in prose.
+ * PHASE 89 BRINGS THE CONVERSATION BACK, for a row two answers prove. The
+ * arming gate in `resume-arming.ts` reads the row's provenance and the composer
+ * in `remote-arm.ts` reads every word of the recorded resume command against
+ * the compiled agent catalogue. When both say yes the restore starts that
+ * machine's own shell, types the command that continues the conversation into
+ * it and stops. The person presses Enter. Tortie never presses it.
+ *
+ * **What is still not here.** A row either answer refuses comes back with its
+ * folder and its program and no conversation, which is nine of the thirteen
+ * agents plus every agent a person added in Settings. Tortie still reads no
+ * agent's own files on another machine, so a row the Phase 73 harvest cannot
+ * prove records `remote-not-collected` and `resume_argv` is NULL. The output
+ * Tortie saved stays on this Mac and is not put back into the recreated
+ * session. The verb ledger in `exec-plane.ts` still refuses `kill-server`,
+ * `attach-session` and `respawn-pane` in code rather than in prose, and it
+ * carries `send-keys` as the first row that is unsafe to run twice, which the
+ * general door refuses and one narrow door may send.
  *
  * The pieces are deliberately separate, the same way `../config/` is.
  *

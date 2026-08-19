@@ -272,6 +272,40 @@ export interface ShellPathFallbackNotice {
   shell: string;
 }
 
+/**
+ * A session on another machine came back and its resume command did not land
+ * the way Tortie meant it to. Phase 89.
+ *
+ * Phase 89 gave a remote restore the shape the local restore has always had.
+ * The session comes back running that machine's own shell, in the recorded
+ * folder, and Tortie types the command that continues the conversation into it
+ * and stops. It never presses Enter. Tortie reads that session's screen before
+ * the send and again after it, and counts the copies of the command it sent.
+ *
+ * THIS NOTICE IS ONLY FOR THE THREE ANSWERS THAT ARE NOT THE GOOD ONE. A
+ * command that landed exactly once says nothing, because the command is sitting
+ * on the screen where the person can read it and nothing is degraded. That is
+ * the same answer the local restore gives.
+ *
+ * `landing` is what the second read said:
+ *
+ *  - `twice`: two copies are on the line. Tortie sent one. Pressing Enter would
+ *    run something nobody composed, so the person has to clear the line first.
+ *  - `absent`: Tortie read that screen and the command is not on it. The
+ *    session is back with its folder and its program and the conversation is
+ *    not back.
+ *  - `unknown`: Tortie could not read that screen at all, so it cannot say
+ *    whether the command is there. "Could not look" is a different fact from
+ *    "it is not there" and it gets a different word here for that reason.
+ */
+export interface RemoteResumeNotice {
+  kind: 'remote-resume';
+  /** The session as the person named it. */
+  sessionName: string;
+  /** What the screen said after the send. Never `armed`, per the header. */
+  landing: 'twice' | 'absent' | 'unknown';
+}
+
 /** Every degraded state Tortie can report. One kind per state, no free text. */
 export type DurabilityNotice =
   | BackupFailingNotice
@@ -285,7 +319,8 @@ export type DurabilityNotice =
   | UpdateIncompleteNotice
   | UncleanExitNotice
   | EnvUnresolvedNotice
-  | ShellPathFallbackNotice;
+  | ShellPathFallbackNotice
+  | RemoteResumeNotice;
 
 /**
  * Everything that travels on `scrollback:notice`: the three scrollback events
@@ -306,7 +341,8 @@ export const DURABILITY_NOTICE_KINDS = [
   'update-incomplete',
   'unclean-exit',
   'env-unresolved',
-  'shell-path-fallback'
+  'shell-path-fallback',
+  'remote-resume'
 ] as const;
 
 /** Narrow a notice off the shared channel to a degraded state. */

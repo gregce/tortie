@@ -124,24 +124,32 @@ beforeEach(async () => {
 });
 
 describe('the end confirm for a session on another machine', () => {
-  it('names the machine, promises the copy first, and withdraws the conversation', () => {
+  it('names the machine, promises the copy first, and promises no conversation', () => {
     const out = confirmFor(session({ machine: STUDIO }));
     expect(out.title).toBe("End 'auth'?");
     expect(out.body).toBe(
       'This stops what is running in it on Studio. Tortie saves a copy of ' +
         'what it printed first, so you can read that copy here afterwards. ' +
-        'The conversation does not come back.'
+        'Bringing it back always returns the folder, and it returns the ' +
+        'conversation only when Tortie recorded one for this agent.'
     );
     expect(out.label).toBe('End session');
   });
 
-  it('says it whatever the row claims about resuming', () => {
+  /**
+   * PHASE 89. A remote restore does bring some conversations back now, so the
+   * body no longer says flatly that none come back. It still says the same
+   * thing for every remote row, because the two answers that decide it are read
+   * at restore time and the projection carries neither of them.
+   */
+  it('says the same thing whatever the row claims about resuming', () => {
     const armed = session({
       machine: STUDIO,
       resumeCapture: 'armed',
       resumeArgv: ['claude', '--resume', 'x']
     } as Partial<Session>);
-    expect(confirmFor(armed).body).toContain('The conversation does not come back.');
+    expect(confirmFor(armed).body).toBe(confirmFor(session({ machine: STUDIO })).body);
+    expect(confirmFor(armed).body).not.toContain('does not come back');
   });
 
   it('names no transport word', () => {

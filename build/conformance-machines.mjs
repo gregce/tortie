@@ -56,8 +56,8 @@
  *     than 20 s to call a dead link dead.
  * 14. The composed control path is over its byte budget, its directory is not
  *     created mode 0700, or two accounts would share one connection name.
- * 15. The ledger holds any of the four verbs this release refuses, a row carries
- *     an empty reason, or a verb the plane does send is absent from it.
+ * 15. The ledger holds any of the three verbs this release refuses, a row
+ *     carries an empty reason, or a verb the plane does send is absent from it.
  * 16. `SERVER_OPTIONS` and `resources/gmux-tmux.conf` disagree on any option,
  *     value or scope flag, in either direction; the local re-assert order moved;
  *     or a second row started taking its value from Settings.
@@ -79,8 +79,10 @@
  *     socket, or targets a name that is not an exact match or is unquoted.
  * 21. The ledger is missing `new-session`, `kill-session` or `rename-session`,
  *     any of the three carries a thin reason or is not marked mutating, or any
- *     of `kill-server`, `attach-session`, `send-keys` or `respawn-pane` left the
- *     refused list.
+ *     of `kill-server`, `attach-session` or `respawn-pane` left the refused
+ *     list. PHASE 89 TOOK `send-keys` OFF THAT LIST and put it on the ledger as
+ *     the first row that is not safe to run twice, so conditions 63 to 67 below
+ *     are what stand in its place.
  * 22. A remote create argv is missing `-d`, is missing `-P -F`, is missing `--`,
  *     or does not carry both `GMUX_MANAGED` and `GMUX_SESSION_ID` as `-e` pairs
  *     on the `new-session` line itself.
@@ -209,6 +211,12 @@
  * password is typed and nothing is written to any machine. That is
  * `npm run probe:keyinstall`, which drives the real client and a real scratch
  * server on 127.0.0.1.
+ *
+ * Conditions 63 to 67 read the ledger row for `send-keys`, the argv the one
+ * armed resume door composes, and the set of files that name that door. They
+ * send nothing and they type nothing on any machine. That a real machine takes
+ * the text once, and that a second send is FOUND rather than assumed away, is
+ * `node build/probe-remote-arm.mjs` and step 10a of `npm run smoke:remote`.
  *
  * Conditions 35 to 40 read the TEXT of the seven scripts Tortie may run on
  * another machine, and the composed command for each. Nothing is sent, no
@@ -1211,13 +1219,188 @@ for (const verb of ['new-session', 'kill-session', 'rename-session']) {
     );
   }
 }
-const STILL_REFUSED = ['kill-server', 'attach-session', 'send-keys', 'respawn-pane'];
+// PHASE 89 TOOK `send-keys` OFF THIS LIST, and it is the only verb that ever
+// left it. It is not allowed generally: it is on the ledger as the first row
+// whose repeat class is unsafe, the general door refuses it, and one narrow
+// door named in condition 65 may send one line of Tortie's own composed text.
+// The other three stay here and nothing on this rung sends them.
+const STILL_REFUSED = ['kill-server', 'attach-session', 'respawn-pane'];
 for (const verb of STILL_REFUSED) {
   if ((data.forbiddenVerbs ?? []).includes(verb)) continue;
   fail(
     `"${verb}" left the refused list. attach-session in particular is refused ` +
       `forever: attach is a different plane with a different carriage, and a ` +
       `person's keystrokes must never be reachable through a one-shot exec.`
+  );
+}
+if ((data.forbiddenVerbs ?? []).includes('send-keys')) {
+  fail(
+    'send-keys is back on the refused list AND on the ledger, so two rules ' +
+      'now disagree about the one verb that can type on another machine. One ' +
+      'of them is not being read.'
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 63 to 67. PHASE 89. The one door that may type on another machine
+// ---------------------------------------------------------------------------
+//
+// Each condition here is one of the five rules the phase was built to. They are
+// checked from the composed shapes and from the source tree, and nothing in
+// this block contacts a machine.
+
+// 63. The ledger row itself, being rule 5.
+{
+  const row = ledger.find((one) => one.verb === 'send-keys');
+  if (row === undefined) {
+    fail(
+      'send-keys is not on the ledger, so the one door that may type on ' +
+        'another machine would be refused by its own gate.'
+    );
+  } else {
+    if (row.repeat !== 'unsafe') {
+      fail(
+        `the ledger row for send-keys reads ${JSON.stringify(row.repeat)}. ` +
+          `Running it twice types the text twice and tmux has no rule that ` +
+          `stops the second copy, so the row has to say it is unsafe. A row ` +
+          `edited to safe would let the general door send it.`
+      );
+    }
+    if (String(row.guard ?? '') === '') {
+      fail(
+        'the ledger row for send-keys names no guard. An unsafe row is worth ' +
+          'something only when the thing that finds a repeat after it has ' +
+          'happened is named on the row itself.'
+      );
+    }
+    if (Number(row.reasonLength) < 120) {
+      fail(
+        `the ledger row for send-keys says almost nothing about why it is not ` +
+          `safe to run twice. It is the only unsafe row on this list and the ` +
+          `reasoning is the whole reason it may be there at all.`
+      );
+    }
+    if (row.kind !== 'mutating') {
+      fail(
+        `the ledger row for send-keys is ${JSON.stringify(row.kind)} rather ` +
+          `than mutating, so it could be sent before the machine's own ` +
+          `program search list had been read.`
+      );
+    }
+  }
+}
+
+// 64. The composed argv, being rule 3. Five elements, -l, and no key name.
+{
+  const argv = (data.armedResumeArgv ?? []).map(String);
+  if (argv.length !== 5) {
+    fail(
+      `the armed resume composes ${String(argv.length)} elements rather than ` +
+        `five, so a caller could be adding something to the line.`
+    );
+  }
+  if (argv[0] !== 'send-keys' || argv[1] !== '-t' || argv[3] !== '-l') {
+    fail(
+      `the armed resume argv is ${JSON.stringify(argv)} rather than ` +
+        `send-keys -t <id> -l <text>.`
+    );
+  }
+  for (const forbidden of ['Enter', 'C-m', ';']) {
+    if (!argv.includes(forbidden)) continue;
+    fail(
+      `the armed resume argv carries ${JSON.stringify(forbidden)}. Tortie ` +
+        `types the command and the person presses Enter, on every machine, ` +
+        `and that promise is this line.`
+    );
+  }
+}
+
+// 68. The counter finds a command the shell wrapped, being rule 4.
+//
+// THE FIX ROUND ADDED THIS CONDITION AND IT IS THE ONE THAT WOULD HAVE CAUGHT
+// THE DEFECT. `capture-pane -J` joins a row the TERMINAL wrapped. zsh wraps its
+// own input line and writes its own line break, so tmux never marks that row as
+// wrapped and `-J` has nothing to join. A counter that searched for a
+// contiguous string found 0 copies of a command that was on the screen, so an
+// armed resume that had landed was reported as absent and a real double send
+// was never reported as twice. The operator's shell is zsh and both readings
+// were measured on his Mac Pro.
+{
+  const counts = data.armedResumeWrapCounts ?? {};
+  if (counts.onceWrapped !== 1) {
+    fail(
+      `the counter finds ${String(counts.onceWrapped)} copies of a command a ` +
+        `shell wrapped across three rows, and it should find one. A person ` +
+        `whose command landed would be told it did not, and a double send ` +
+        `would never be found. The screen a wrapped command produces is not a ` +
+        `contiguous string and the counter has to survive that.`
+    );
+  }
+  if (counts.twiceWrapped !== 2) {
+    fail(
+      `the counter finds ${String(counts.twiceWrapped)} copies of a wrapped ` +
+        `command that was sent twice, and it should find two. This is the ` +
+        `measurement the ledger row's unsafe class claims, being that a second ` +
+        `copy is found rather than assumed away.`
+    );
+  }
+  if (counts.absent !== 0) {
+    fail(
+      `the counter finds ${String(counts.absent)} copies of the command on a ` +
+        `screen that holds a prompt and nothing else. A counter that finds a ` +
+        `command nobody typed would report every failed send as armed.`
+    );
+  }
+}
+
+// 65. One product call site, being rule 2.
+{
+  const expected = [
+    'src/main/machines/exec-smoke.ts',
+    'src/main/machines/remote-arm.ts'
+  ];
+  const actual = (data.armedResumeCallFiles ?? []).map(String);
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    fail(
+      `sendArmedResumeText is named in ${JSON.stringify(actual)} outside its ` +
+        `own file. Exactly two may name it: remote-arm.ts, which is the one ` +
+        `product caller and the only reason the door exists, and exec-smoke.ts, ` +
+        `which is the harness that watches the door's refusals fire against the ` +
+        `built bundle. A third file is a second way to type on somebody else's ` +
+        `computer.`
+    );
+  }
+}
+
+// 66. Who names the verb at all, so a later round cannot open a second route.
+{
+  const expected = [
+    'src/main/machines/exec-plane.ts',
+    'src/main/machines/exec-smoke.ts',
+    'src/main/machines/remote-smoke.ts'
+  ];
+  const actual = (data.sendKeysLiteralFiles ?? []).map(String);
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    fail(
+      `the files under src/main/machines/ that name "send-keys" are ` +
+        `${JSON.stringify(actual)} rather than ${JSON.stringify(expected)}. ` +
+        `exec-plane.ts owns the ledger and the door, exec-smoke.ts watches the ` +
+        `refusals fire, and remote-smoke.ts spawns the far tmux directly to set ` +
+        `a session up for a test. The local tmux layer is outside this ` +
+        `condition on purpose: it sends keys to sessions on this Mac and always ` +
+        `has.`
+    );
+  }
+}
+
+// 67. The three verbs that stay refused are still named as refused forever.
+if (!(data.forbiddenVerbs ?? []).includes('attach-session')) {
+  fail(
+    'attach-session is not on the refused list. It is refused forever: attach ' +
+      'is a different plane with a different carriage, and a person’s ' +
+      'keystrokes must never be reachable through a one-shot exec. Phase 89 ' +
+      'opened one narrow door for text Tortie composed itself and it did not ' +
+      'open this one.'
   );
 }
 
@@ -2896,19 +3079,37 @@ process.stdout.write(
 // Phase 69's tables
 // ---------------------------------------------------------------------------
 
-process.stdout.write('\nverb                 repeat  kind          reason\n');
-process.stdout.write('-'.repeat(70) + '\n');
+process.stdout.write(
+  '\nverb                 repeat  kind          reason      guard\n'
+);
+process.stdout.write('-'.repeat(80) + '\n');
 for (const row of data.ledger ?? []) {
   process.stdout.write(
-    `${pad(row.verb, 20)} ${pad(row.repeat, 7)} ${pad(row.kind, 13)} ${String(
-      row.reasonLength
-    )} chars\n`
+    `${pad(row.verb, 20)} ${pad(row.repeat, 7)} ${pad(row.kind, 13)} ${pad(
+      `${String(row.reasonLength)} chars`,
+      11
+    )} ${String(row.guard ?? '')}\n`
   );
 }
 process.stdout.write(
   `nothing else may cross to a machine. These ` +
     `${String((data.forbiddenVerbs ?? []).length)} are absent and stay absent: ` +
     `${(data.forbiddenVerbs ?? []).join(', ')}.\n`
+);
+process.stdout.write(
+  `send-keys is on the ledger as the one unsafe row, and ` +
+    `${String((data.armedResumeCallFiles ?? []).length)} file(s) may name the ` +
+    `door that sends it: ${(data.armedResumeCallFiles ?? []).join(', ')}. The ` +
+    `argv it composes is ${(data.armedResumeArgv ?? [])
+      .slice(0, 4)
+      .join(' ')} <text>, which is five elements and no key press.\n`
+);
+process.stdout.write(
+  `the counter that decides whether it landed reads a wrapped screen as ` +
+    `${String((data.armedResumeWrapCounts ?? {}).onceWrapped)} copy for one ` +
+    `send, ${String((data.armedResumeWrapCounts ?? {}).twiceWrapped)} for two ` +
+    `sends, and ${String((data.armedResumeWrapCounts ?? {}).absent)} for a ` +
+    `screen holding only a prompt.\n`
 );
 
 process.stdout.write('\noption                       scope  value                          conf\n');

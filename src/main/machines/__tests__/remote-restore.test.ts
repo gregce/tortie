@@ -18,6 +18,9 @@
  *    because a pane on another machine does not get that machine's own
  *    program search list and a bare name launch left a dead pane there.
  *  - the saved output instant comes from this Mac and is reported honestly
+ *  - PHASE 89: which argv the create takes, and where `resumeArmed` comes
+ *    from. Both are read off the source rather than driven, for the reason
+ *    above, and the driven proof is live probe 1 in the remote smoke.
  *
  * The gate itself has its own file, `./restore-gate.test.ts`. This one is about
  * what the verb does with the gate's answer.
@@ -162,9 +165,9 @@ describe('the refusals that run before anything is sent', () => {
 
 describe('what a restore promises and what it does not', () => {
   /**
-   * No conversation comes back, in this release, for every remote row. It is a
-   * fact about the build rather than a case that sometimes applies, so the
-   * sentence is on the outcome unconditionally.
+   * The sentence for a row whose conversation id Tortie never collected, which
+   * is nine of the thirteen agents on a machine and did not change in Phase 89.
+   * Such a row comes back running its own program and nothing is typed into it.
    */
   it('says the session comes back and the conversation does not', () => {
     expect(RESUME_NOT_COLLECTED).toContain('The session comes back');
@@ -195,35 +198,126 @@ describe('what a restore promises and what it does not', () => {
 });
 
 // ---------------------------------------------------------------------------
-// PHASE 84, item 9. Saying yes is still not typing
+// PHASE 89. The gate's answer picks the argv, and the screen decides the field
 // ---------------------------------------------------------------------------
 
-describe('what an armed verdict does not do', () => {
+/**
+ * WHAT THESE TESTS ARE AND ARE NOT. They read the source of the verb rather
+ * than driving it, because driving it sends commands to another computer and a
+ * mocked spawn would prove the mock. What they prove is narrow and it is the
+ * set of things a later edit could quietly break.
+ *
+ * The driven proof is live probe 1 of `GMUX_SMOKE=remote-sessions`, which
+ * restores a real agent row on a real machine over a real connection, reads
+ * that session's screen and counts the copies of the command on it.
+ */
+describe('the shape a remote restore takes, read off its own source', () => {
+  const source = readFileSync(
+    join(import.meta.dirname, '..', 'remote-restore.ts'),
+    'utf8'
+  );
   /**
-   * WHAT THIS TEST IS AND IS NOT. It reads the source of the verb rather than
-   * driving it, because driving it sends commands to another computer and a
-   * mocked spawn would prove the mock. What it proves is narrow and it is the
-   * thing Phase 84 could have broken: the field is a LITERAL false with no
-   * branch in front of it.
-   *
-   * Phase 84 gave the arming gate a second shape of row it says yes to, being a
-   * row whose conversation id Tortie put on the launch line itself. Nothing in
-   * this release types a resume command into a pane on another machine, because
-   * `send-keys` is on the permanently refused verb list. So a later round that
-   * wires the gate's yes to this field would be claiming a conversation was
-   * continued when nothing continued it, and this test fails on that edit.
-   *
-   * The end to end proof is `GMUX_SMOKE=remote-sessions`, which restores a real
-   * row on a real machine and reads the field back.
+   * The same file with its prose taken out, so an assertion about what the CODE
+   * does is not answered by a comment that happens to name the thing it stopped
+   * doing. The header of that file names `RESUME_NOT_TYPED_HERE` on purpose,
+   * because a reader needs to know the sentence was deleted and why.
    */
-  it('reports resumeArmed false with no branch in front of it', () => {
-    const source = readFileSync(
-      join(import.meta.dirname, '..', 'remote-restore.ts'),
-      'utf8'
+  const code = source
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^\s*\/\/.*$/gm, '');
+
+  /**
+   * THE ORDER IS THE PHASE. Before Phase 89 the gate was asked after the
+   * create, because its answer only picked a sentence. It picks the argv now,
+   * so a version that asks it afterwards would compose the create from the
+   * launch argv and then type a resume command into a pane already running the
+   * agent, which puts the text in that agent's input box and continues nothing.
+   */
+  it('asks the arming gate before it composes the create', () => {
+    const gate = source.indexOf('resumeArmingVerdict(');
+    const create = source.indexOf('remoteCreateArgs(');
+    expect(gate).toBeGreaterThan(-1);
+    expect(create).toBeGreaterThan(-1);
+    expect(gate).toBeLessThan(create);
+  });
+
+  /**
+   * The empty argv is what makes tmux start that machine's own shell, which is
+   * the same thing the local restore does before it types the command.
+   */
+  it('creates with an empty argv only when there is a command to type into it', () => {
+    expect(source).toContain('const createArgv = armsForReal ? [] : launchArgv;');
+    expect(source).toContain(
+      'const armsForReal = composed !== null && composed.text !== null;'
     );
-    expect(source).toContain('resumeArmed: false');
-    expect(source).not.toMatch(/resumeArmed:\s*arming\.arm/);
-    expect(source).not.toMatch(/resumeArmed:\s*[a-zA-Z]+\s*\?/);
+    expect(source).toContain('argv: createArgv,');
+  });
+
+  /**
+   * THE FIX ROUND'S OWN TEST, AND IT IS A REGRESSION TEST.
+   *
+   * The gate saying yes is not the same answer as Tortie composing a command.
+   * The gate reads the row's provenance. The composer reads every word of the
+   * recorded command against the compiled catalogue, so an agent a person added
+   * in Settings is armed by the gate and refused by the composer.
+   *
+   * The first version composed AFTER the create. Such a row came back running a
+   * bare shell with no agent in it, which is worse than what it got before this
+   * phase, while `RESUME_NOT_COMPOSED` told the person the session comes back
+   * with its program. Composing before the create is what makes that sentence
+   * true, so the order is asserted here rather than trusted.
+   */
+  it('composes the command before it composes the create', () => {
+    const compose = source.indexOf('composeArmedResumeText(');
+    const create = source.indexOf('remoteCreateArgs(');
+    expect(compose).toBeGreaterThan(-1);
+    expect(compose).toBeLessThan(create);
+  });
+
+  it('hands the composed answer to the arming path rather than asking twice', () => {
+    // One `composeArmedResumeText(` call in the code, and the answer travels to
+    // `armRemoteResume` as its third argument. Two calls would be two
+    // decisions, and only one of them chose the create.
+    expect(code.match(/composeArmedResumeText\(/gu)?.length ?? 0).toBe(1);
+    expect(code).toMatch(
+      /armRemoteResume\(\s*\{ \.\.\.armBase, target: tmuxId \},\s*undefined,\s*composed\s*\)/u
+    );
+  });
+
+  /**
+   * `resumeArmed` is a claim that a person's conversation is waiting for them.
+   * It may only come from a screen Tortie read back, never from the gate that
+   * allowed the attempt, because a send can fail and a machine can take the
+   * text twice.
+   */
+  it('reports resumeArmed from the screen it read back, never from the gate', () => {
+    expect(source).toContain(
+      "resumeArmed: armed !== null && armed.landing === 'armed'"
+    );
+    expect(code).not.toMatch(/resumeArmed:\s*arming\.arm/);
+    expect(code).not.toMatch(/resumeArmed:\s*true/);
+  });
+
+  /**
+   * ENTER IS NEVER SENT, and this file cannot send it even by accident: it
+   * composes no argv for the far side's `send-keys` at all. The five element
+   * argv is composed inside `../exec-plane.ts`, which is the only module that
+   * can hand the ledger the guard the unsafe row names.
+   */
+  it('composes no key press and no send-keys argv of its own', () => {
+    expect(code).not.toContain("'Enter'");
+    expect(code).not.toContain('send-keys');
+  });
+
+  /**
+   * The sentence said that continuing a conversation on another machine is
+   * something this release does not do. This release does it, so the sentence
+   * was deleted rather than left standing, the way Phase 72 deleted
+   * `RESTORE_REFUSED` when it became false.
+   */
+  it('no longer names the sentence that said this cannot be done', () => {
+    expect(code).not.toContain('RESUME_NOT_TYPED_HERE');
+    expect(code).not.toContain('not-typed-here');
   });
 });
 

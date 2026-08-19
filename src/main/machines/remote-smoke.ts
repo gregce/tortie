@@ -102,9 +102,13 @@ import {
   RESTORE_WRONG_MACHINE,
   REMOTE_DIR_MISSING,
   RESUME_NOT_COLLECTED,
-  RESUME_NOT_TYPED_HERE,
   TARGET_UNBOUND
 } from './remote-copy';
+// PHASE 89. The sentence an armed resume carries, compared byte for byte in
+// step 10a rather than described. It is imported from the module that produces
+// it, so a rewording that forgets this harness fails the gate rather than
+// passing it.
+import { RESUME_ARMED_NOT_PRESSED } from './remote-arm';
 import {
   REMOTE_POLL_FOCUSED_MS,
   forgetMachineRows,
@@ -854,15 +858,38 @@ export async function runRemoteSessionsSmoke(): Promise<void> {
           `landed on the restored agent session`
       );
     }
-    // THE RESTORED PANE IS ALIVE AND IT IS RUNNING THE PATH THE ROW RECORDS.
+
+    // --- 10a LIVE PROBE 1. THE RESUME COMMAND, TYPED FOR REAL (Phase 89) ----
     //
-    // THIS IS THE GUARD FOR THE WORK LOSING DEFECT THE FIX ROUND CLOSED. Phase
-    // 84 moved the CREATE onto the absolute path and left the RESTORE launching
-    // by bare name. MEASURED on the operator's Mac Pro, 2026-08-18: a restored
-    // claude session read `pane_start_command = claude --session-id <id>`,
-    // `pane_dead=1`, `pane_dead_status=1` and an empty screen, while the
-    // manifest row still read idle. The same failure reproduces on this
-    // harness, because a pane here gets four directories and claude is at
+    // WHICH SHAPE THE RESTORE TOOK DEPENDS ON ONE FACT ABOUT THE ROW, and the
+    // fact is read off the row rather than chosen here. Phase 84 puts a
+    // conversation id on the launch line for the seven agents that take one,
+    // and that row's provenance is `preassigned` with `exact` confidence, so
+    // the arming gate arms it. An agent that takes no such flag records nothing
+    // and the gate refuses it with `not-collected`.
+    //
+    // AN ARMED ROW COMES BACK RUNNING THE MACHINE'S OWN SHELL, because the
+    // create takes an empty argv, and Tortie types the resume command into that
+    // shell without pressing Enter. A REFUSED ROW COMES BACK RUNNING ITS OWN
+    // PROGRAM, which is exactly what every remote restore did before Phase 89.
+    //
+    // BOTH ARMS DEMAND A SENTENCE. Neither may report null, because a restore
+    // that continues nothing and says nothing is the failure both sentences
+    // exist to prevent. The arm taken is printed, so a reader of the log knows
+    // which agent this machine had.
+    const preAssigned = agentRecord.agentSessionId !== undefined;
+
+    // THE RESTORED PANE IS ALIVE, and on the refused arm it is running the path
+    // the row records.
+    //
+    // THAT SECOND HALF IS THE GUARD FOR THE WORK LOSING DEFECT THE PHASE 84 FIX
+    // ROUND CLOSED. Phase 84 moved the CREATE onto the absolute path and left
+    // the RESTORE launching by bare name. MEASURED on the operator's Mac Pro,
+    // 2026-08-18: a restored claude session read
+    // `pane_start_command = claude --session-id <id>`, `pane_dead=1`,
+    // `pane_dead_status=1` and an empty screen, while the manifest row still
+    // read idle. The same failure reproduces on this harness, because a pane
+    // here gets four directories and claude is at
     // /Users/gdc/.local/bin/claude, which is on none of them.
     //
     // The far side runs no `remain-on-exit`, so a dead pane takes its window and
@@ -875,10 +902,11 @@ export async function runRemoteSessionsSmoke(): Promise<void> {
         '-p',
         '-t',
         agentOutcome.tmuxId,
-        '#{pane_dead}|#{pane_start_command}'
+        '#{pane_dead}|#{pane_start_command}|#{pane_current_command}'
       ]).catch(() => '')
     ).trim();
-    const [restoredDead = '', restoredCommand = ''] = restoredPane.split('|');
+    const [restoredDead = '', restoredCommand = '', restoredCurrent = ''] =
+      restoredPane.split('|');
     if (restoredPane === '') {
       fail(
         `${agentOutcome.tmuxId} was gone from ${ID} 2500 ms after the restore, ` +
@@ -891,55 +919,152 @@ export async function runRemoteSessionsSmoke(): Promise<void> {
           `it was started with ${JSON.stringify(restoredCommand)}`
       );
     }
-    if (!restoredCommand.startsWith(onMachine.path)) {
-      fail(
-        `the restored pane was started with ${JSON.stringify(restoredCommand)} ` +
-          `and the row records ${onMachine.bare} at ` +
-          `${JSON.stringify(onMachine.path)}. A restore that launches by bare ` +
-          `name is the defect the Phase 84 fix round closed.`
-      );
-    }
-    log(
-      `    the restored pane is alive and was started with ` +
-        `${restoredCommand}`
-    );
 
-    // WHICH SENTENCE IS OWED DEPENDS ON ONE FACT ABOUT THE ROW, and the fact is
-    // read off the row rather than assumed. Phase 84 item 9 puts a conversation
-    // id on the launch line for the seven agents that take one, and that row's
-    // provenance is `preassigned` with `exact` confidence, so the arming gate
-    // arms it. An agent that takes no such flag records nothing and the gate
-    // refuses it with `not-collected`.
-    //
-    // BOTH ARMS DEMAND A SENTENCE. Neither may report null, because a restore
-    // that continues nothing and says nothing is the failure both sentences
-    // exist to prevent. The arm taken is printed, so a reader of the log knows
-    // which agent this machine had.
-    const preAssigned = agentRecord.agentSessionId !== undefined;
-    const owedRefusal = preAssigned ? 'not-typed-here' : 'not-collected';
-    const owedNote = preAssigned ? RESUME_NOT_TYPED_HERE : RESUME_NOT_COLLECTED;
-    if (agentOutcome.resumeRefusal !== owedRefusal) {
-      fail(
-        `the restore answered ${String(agentOutcome.resumeRefusal)} for a row ` +
-          `whose conversation id Tortie ` +
-          `${preAssigned ? 'chose itself' : 'never collected'}, and ` +
-          `${owedRefusal} is what it owes`
+    if (preAssigned) {
+      // 1. THE CREATE TOOK THE EMPTY ARGV BRANCH. This is what makes typing a
+      //    resume command mean anything: the pane is a shell waiting for a
+      //    line, not an agent with an input box.
+      if (restoredCommand.startsWith(onMachine.path)) {
+        fail(
+          `the restored pane was started with ` +
+            `${JSON.stringify(restoredCommand)}, so the create took the launch ` +
+            `argv for a row the arming gate armed. Typing a resume command ` +
+            `into a pane already running the agent puts the text in that ` +
+            `agent's own input box and continues nothing.`
+        );
+      }
+      if (restoredCurrent === onMachine.bare) {
+        fail(
+          `the restored pane is running ${restoredCurrent}, and an armed row ` +
+            `has to come back running that machine's own shell`
+        );
+      }
+
+      // 2. THE LANDING, AND THE SENTENCE, BYTE FOR BYTE.
+      if (agentOutcome.resumeLanding !== 'armed') {
+        fail(
+          `the restore answered landing ` +
+            `${JSON.stringify(String(agentOutcome.resumeLanding))} and refusal ` +
+            `${JSON.stringify(String(agentOutcome.resumeRefusal))} for a row ` +
+            `whose conversation id Tortie chose itself`
+        );
+      }
+      if (!agentOutcome.resumeArmed) {
+        fail('the restore landed the command and does not say it is armed');
+      }
+      if (agentOutcome.resumeRefusal !== null) {
+        fail(
+          `the restore reports refusal ` +
+            `${JSON.stringify(String(agentOutcome.resumeRefusal))} on a row it armed`
+        );
+      }
+      if (agentOutcome.resumeNote !== RESUME_ARMED_NOT_PRESSED) {
+        fail(
+          `the restore result says ${JSON.stringify(agentOutcome.resumeNote)} ` +
+            `rather than the sentence for an armed resume`
+        );
+      }
+
+      // 3. THE SCREEN SHOWS THE COMMAND EXACTLY ONCE. The count is printed
+      //    rather than only asserted, because "once" is the whole claim and a
+      //    reader of this log should see the number Tortie counted.
+      const typed = agentOutcome.resumeCommand ?? '';
+      if (typed.length === 0) {
+        fail('the restore says it armed a resume and names no command');
+      }
+      const screen = await execOn(ctx, [
+        'capture-pane',
+        '-p',
+        '-J',
+        '-t',
+        agentOutcome.tmuxId
+      ]);
+      const copies = screen.split(typed).length - 1;
+      log(`    the screen of ${agentOutcome.tmuxId} shows the command ${String(copies)} time(s)`);
+      if (copies !== 1) {
+        fail(
+          `the screen shows the command ${String(copies)} times and one is ` +
+            `the only right answer. Two is the machine taking the send twice, ` +
+            `and zero is a send that did not arrive.`
+        );
+      }
+
+      // 4. THE BYTES ARE THE ONES TORTIE COMPOSED. An absolute path at
+      //    `argv[0]`, because a pane on another machine does not get that
+      //    machine's login shell program list, and the row's own conversation
+      //    id in the line.
+      if (!typed.startsWith(onMachine.path)) {
+        fail(
+          `the typed command is ${JSON.stringify(typed)} and that machine ` +
+            `keeps ${onMachine.bare} at ${JSON.stringify(onMachine.path)}. A ` +
+            `bare name would print "command not found" the moment the person ` +
+            `presses Enter.`
+        );
+      }
+      const convo = agentRecord.agentSessionId ?? '';
+      if (convo.length === 0 || !typed.includes(convo)) {
+        fail(
+          `the typed command does not carry the row's own conversation id ` +
+            `${JSON.stringify(convo)}`
+        );
+      }
+
+      // 5. ENTER WAS NOT PRESSED. If it had been, the agent would be running
+      //    in that pane by now. The pane is read again after a wait rather than
+      //    once, because a program takes a moment to appear.
+      await new Promise((r) => setTimeout(r, 1500));
+      const stillShell = (
+        await execOn(ctx, [
+          'display-message',
+          '-p',
+          '-t',
+          agentOutcome.tmuxId,
+          '#{pane_current_command}'
+        ]).catch(() => '')
+      ).trim();
+      if (stillShell === onMachine.bare) {
+        fail(
+          `${agentOutcome.tmuxId} is running ${stillShell} 1500 ms after the ` +
+            `resume command was typed into it, which is what pressing Enter ` +
+            `looks like. Tortie never presses Enter.`
+        );
+      }
+      log(
+        `    and the restore brought it back as ${agentOutcome.tmuxId} with ` +
+          `four stamps, running ${stillShell} rather than ${onMachine.bare}, ` +
+          `with the resume command typed once and no key pressed after it`
+      );
+    } else {
+      if (!restoredCommand.startsWith(onMachine.path)) {
+        fail(
+          `the restored pane was started with ${JSON.stringify(restoredCommand)} ` +
+            `and the row records ${onMachine.bare} at ` +
+            `${JSON.stringify(onMachine.path)}. A restore that launches by bare ` +
+            `name is the defect the Phase 84 fix round closed.`
+        );
+      }
+      if (agentOutcome.resumeRefusal !== 'not-collected') {
+        fail(
+          `the restore answered ${String(agentOutcome.resumeRefusal)} for a row ` +
+            `whose conversation id Tortie never collected, and not-collected ` +
+            `is what it owes`
+        );
+      }
+      if (agentOutcome.resumeNote !== RESUME_NOT_COLLECTED) {
+        fail(
+          `the restore result says ${JSON.stringify(agentOutcome.resumeNote)} ` +
+            `rather than the sentence for not-collected`
+        );
+      }
+      if (agentOutcome.resumeArmed || agentOutcome.resumeLanding !== null) {
+        fail('the restore claims it typed a command into a row the gate refused');
+      }
+      log(
+        `    and the restore brought it back as ${agentOutcome.tmuxId} with four ` +
+          `stamps, started with ${restoredCommand}, answering not-collected ` +
+          `and saying the conversation does not come back`
       );
     }
-    if (agentOutcome.resumeNote !== owedNote) {
-      fail(
-        `the restore result says ${JSON.stringify(agentOutcome.resumeNote)} ` +
-          `rather than the sentence for ${owedRefusal}`
-      );
-    }
-    if (agentOutcome.resumeArmed) {
-      fail('the restore claims it continued a conversation');
-    }
-    log(
-      `    and the restore brought it back as ${agentOutcome.tmuxId} with four ` +
-        `stamps, answering ${owedRefusal} and saying the conversation does ` +
-        `not come back`
-    );
     await remoteKill(agentSession.id).catch(() => undefined);
 
     // --- 10e. The connected harvest, end to end (Phase 73, item 1) ----------
@@ -1453,10 +1578,13 @@ export async function runRemoteSessionsSmoke(): Promise<void> {
      * Plant a value in one remote pane, as a PERSON WOULD.
      *
      * THIS IS HARNESS SETUP AND IT DELIBERATELY GOES AROUND EVERY PRODUCT PATH.
-     * `send-keys` is on `VERBS_THIS_RUNG_REFUSES` forever, because a person's
-     * keystrokes belong on the attach plane and never on the exec plane, and
-     * `./exec-smoke.ts` watches that refusal fire. What this helper needs is a
-     * person at the keyboard, and no product path in this harness has one.
+     * PHASE 89 MOVED `send-keys` off `VERBS_THIS_RUNG_REFUSES` and onto the
+     * ledger as the first row that is unsafe to run twice, so the general door
+     * refuses it and one narrow door may send one line of Tortie's own composed
+     * text through it. Neither of those is what this helper wants. It wants a
+     * person at the keyboard typing whatever a test decided, and no product path
+     * in this harness has one. `./exec-smoke.ts` watches the general door refuse
+     * the verb and watches the narrow door refuse a text that is not one line.
      *
      * IT RUNS THE COMMAND ON THIS MAC, and that is the whole reason it is
      * allowed to exist. On this harness the other machine IS this Mac, over a

@@ -284,6 +284,65 @@ describe('each degraded state says one plain thing', () => {
     expect(out.text).toBe('"auth" started without its shell variables.');
     expect(out.kind).toBe('error');
   });
+
+  /**
+   * PHASE 89. A session on another machine came back and Tortie typed the
+   * command that continues its conversation into it without pressing Enter.
+   * These three sentences are what a person reads when that did not land once.
+   *
+   * THE GOOD ANSWER HAS NO SENTENCE HERE AND NO KIND ON THE WIRE. A command
+   * that landed exactly once is on the screen of that session, so nothing is
+   * degraded and main sends nothing. That is asserted in
+   * `src/main/sessions/__tests__/remote-resume-notice.test.ts`, which is where
+   * the emitter lives.
+   */
+  it('two copies of the resume command say to clear the line first', () => {
+    const out = say({
+      kind: 'remote-resume',
+      sessionName: 'auth',
+      landing: 'twice'
+    });
+    expect(out.text).toBe('"auth" was typed twice. Clear the line.');
+    expect(out.kind).toBe('error');
+    // No button. What to press is in that session on the other machine, and
+    // Tortie cannot press it from here.
+    expect(out.action).toBeUndefined();
+  });
+
+  it('a resume that is not on the screen says the session came back without it', () => {
+    const out = say({
+      kind: 'remote-resume',
+      sessionName: 'auth',
+      landing: 'absent'
+    });
+    expect(out.text).toBe('"auth" came back without its resume.');
+    expect(out.kind).toBe('error');
+  });
+
+  /**
+   * "Could not look" is a different fact from "it is not there", and the two
+   * sentences say two different things on purpose. Telling a person their
+   * resume is missing when Tortie could not read the screen is the shape of
+   * dishonesty the restore gate already split apart for the same reason.
+   */
+  it('a screen Tortie could not read says so rather than guessing', () => {
+    const out = say({
+      kind: 'remote-resume',
+      sessionName: 'auth',
+      landing: 'unknown'
+    });
+    expect(out.text).toBe('Tortie cannot read "auth" on that machine.');
+    expect(out.kind).toBe('error');
+  });
+
+  it('none of the three carries a dash the writing rules refuse', () => {
+    for (const landing of ['twice', 'absent', 'unknown'] as const) {
+      const text = say({ kind: 'remote-resume', sessionName: 'auth', landing })
+        .text;
+      expect(text).not.toContain('\u2014');
+      expect(text).not.toContain('\u2013');
+    }
+  });
 });
 
 describe('every line fits the toast it has to fit in', () => {
@@ -328,7 +387,22 @@ describe('every line fits the toast it has to fit in', () => {
       names: ['FIREWORKS_API_KEY'],
       probeFailed: true
     },
-    { kind: 'shell-path-fallback', shell: '/bin/zsh' }
+    { kind: 'shell-path-fallback', shell: '/bin/zsh' },
+    {
+      kind: 'remote-resume',
+      sessionName: 'a-very-long-session-name',
+      landing: 'twice'
+    },
+    {
+      kind: 'remote-resume',
+      sessionName: 'a-very-long-session-name',
+      landing: 'absent'
+    },
+    {
+      kind: 'remote-resume',
+      sessionName: 'a-very-long-session-name',
+      landing: 'unknown'
+    }
   ];
 
   for (const notice of CASES) {
