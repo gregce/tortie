@@ -413,6 +413,16 @@ export interface Project {
   path: string;
   /** Display name (defaults to basename of path). */
   name: string;
+  /**
+   * APPENDED (Phase 90.1): the machine this project's files are on.
+   *
+   * Omitted, or the string `local`, means this Mac, which is every project in
+   * every build so far. Main does not set it yet. It exists so the four
+   * sidebar stores can be keyed on identity rather than on a path string,
+   * which is wrong the moment two machines hold the same path. See
+   * `WorkspaceTarget` in ./workspace-target.ts for the pair itself.
+   */
+  machineId?: string;
 }
 
 // ---------------------------------------------------------------------------

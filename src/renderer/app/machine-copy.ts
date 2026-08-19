@@ -571,3 +571,49 @@ export function conversationCopyLine(at: number | null | undefined): string {
     `agent has said since then is on that machine and not on this Mac.`
   );
 }
+
+// ---------------------------------------------------------------------------
+// The three sidebars, when the project they are following is on another
+// machine (Phase 90.1)
+// ---------------------------------------------------------------------------
+
+/**
+ * WHY THESE SIX LIVE HERE. Files, Search and Context each draw one title and
+ * one body when the active project is on another machine. Every other sentence
+ * this renderer says about another machine is in this file, and the vocabulary
+ * audit reads this file already. Putting them in the three view files instead
+ * would mean adding three modules of several hundred unrelated strings to that
+ * audit's list, which is the reason already recorded there for two other files.
+ *
+ * WHAT THEY MAY CLAIM. Each pair says what is true, being that the folder is on
+ * a named machine, and then says what Tortie does not do, being that it reads
+ * only this Mac. Neither half implies a failure, because nothing failed. There
+ * is no retry offered, because there is nothing to retry.
+ */
+
+/** The Files section, over an empty tree. */
+export function filesElsewhereTitle(label: string): string {
+  return `These files live on ${label}.`;
+}
+
+/** The Files section's second line. */
+export const FILES_ELSEWHERE_BODY =
+  'Tortie reads files on this Mac only, so nothing is listed here.';
+
+/** The Search view, in place of its results. */
+export function searchElsewhereTitle(label: string): string {
+  return `Search does not reach ${label}.`;
+}
+
+/** The Search view's second line. */
+export const SEARCH_ELSEWHERE_BODY =
+  'Tortie searches files on this Mac only. The files in this project are on that machine, so there is nothing here to search.';
+
+/** The Context view, in place of its groups. */
+export function contextElsewhereTitle(label: string): string {
+  return `These agent files live on ${label}.`;
+}
+
+/** The Context view's second line. */
+export const CONTEXT_ELSEWHERE_BODY =
+  'Tortie reads skills, servers and hooks from this Mac only, so nothing is listed here.';

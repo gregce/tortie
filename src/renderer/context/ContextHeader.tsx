@@ -135,12 +135,15 @@ export function ContextHeader(): React.JSX.Element {
           <Codicon name="close" size={16} />
         </button>
       ) : null}
+      {/* Disabled for `elsewhere` as well as for `unavailable`: there is
+          nothing on this Mac to read again for a project whose files are on
+          another computer (Phase 90.1). */}
       <button
         type="button"
         className="icon-btn view-header-action"
         aria-label="Read the configuration again"
         title="Read the configuration again. The watcher cannot see a directory that did not exist when this view opened."
-        disabled={status === 'unavailable'}
+        disabled={status === 'unavailable' || status === 'elsewhere'}
         onClick={() => refresh()}
       >
         <Codicon name="refresh" size={16} />

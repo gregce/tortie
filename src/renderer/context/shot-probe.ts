@@ -25,6 +25,7 @@
  */
 
 import type { ContextEntry, ContextScanResult } from '@shared/context';
+import { localTarget } from '@shared/workspace-target';
 import { useApp } from '../state/store';
 import { contextAvailable, skillsWriteAvailable } from './bridge';
 import { openSessionContext } from './open-session';
@@ -343,7 +344,7 @@ export async function driveContext(spec: ContextProbeSpec): Promise<void> {
     // feature-detected and this build may have no reader at all, which is
     // exactly the build in which the responsive claims still have to hold.
     useContext.setState({
-      cwd: '/fixtures',
+      target: localTarget('/fixtures'),
       status: 'ready',
       scan: fixtures(),
       error: null

@@ -12,8 +12,20 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import type { GitFileStatus } from '@shared/types';
+import {
+  localPathOf,
+  sameTarget,
+  targetKey,
+  targetOfProject
+} from '@shared/workspace-target';
 import { useApp } from '../state/store';
 import { onRepoChanged } from '../state/repo-changed';
+import {
+  FILES_ELSEWHERE_BODY,
+  filesElsewhereTitle
+} from '../app/machine-copy';
+import { registerTargetShotDrive } from '../app/target-shot-drive';
+import { machineLabelFor } from '../state/machines-slice';
 import { Codicon } from '../icons';
 import { useTreeDensity } from './density';
 import { useTreeGitStatus } from './git-status';
@@ -21,6 +33,11 @@ import { useTreeIgnored } from './ignored';
 import { useFileTree } from './store';
 import { FileTree } from './FileTree';
 import './tree.css';
+
+// The Phase 90.1 harness hook. It assigns one function to `window` and changes
+// nothing else, exactly like the other shot probes. This module is the one the
+// Explorer always loads, so registering here needs no edit to App.tsx.
+registerTargetShotDrive();
 
 // Collapse persistence (spec: "collapse state persists per project").
 const LS_COLLAPSED = 'gmux.filesCollapsed';
@@ -67,12 +84,25 @@ export function FilesSection({
   const projects = useApp((s) => s.projects);
   const activeProjectId = useApp((s) => s.activeProjectId);
 
+  const machineStates = useApp((s) => s.machineStates);
+
   const project = useMemo(
     () => projects.find((p) => p.id === activeProjectId) ?? null,
     [projects, activeProjectId]
   );
 
-  const rootPath = useFileTree((s) => s.rootPath);
+  /**
+   * The pair the four sidebar stores are keyed on (Phase 90.1).
+   *
+   * It is composed once per project change rather than per render, and the
+   * stores compare it by value anyway, so a fresh but equal object costs
+   * nothing.
+   */
+  const target = useMemo(() => targetOfProject(project), [project]);
+  /** The path this Mac may read, or null for a project on another machine. */
+  const localPath = localPathOf(target);
+
+  const root = useFileTree((s) => s.root);
   const rootLoaded = useFileTree((s) => s.rootLoaded);
   const rootError = useFileTree((s) => s.rootError);
   const bridgeMissing = useFileTree((s) => s.bridgeMissing);
@@ -99,39 +129,49 @@ export function FilesSection({
 
   // Follow the active project.
   useEffect(() => {
-    void setRoot(project?.path ?? null);
-    if (!externalStatus) {
-      void setRepo(project?.path ?? null);
+    void setRoot(target);
+    // Under an external decoration source this section normally never touches
+    // the git store, because the SCM store feeds it. A target on another
+    // machine is the exception, and it has to be: the SCM store reads this Mac
+    // only, so it has nothing to feed and the old decorations would sit there
+    // under the new machine's badge. `setRepo` re-targets and clears, and
+    // fetches nothing because the target is not local.
+    if (!externalStatus || localPath === null) {
+      void setRepo(target);
     }
     setCollapsed(
       project ? (loadCollapsedMap()[project.id] ?? false) : false
     );
     // statusFiles handled by the effect below when external.
-  }, [project, setRoot, setRepo, externalStatus]);
+  }, [project, target, localPath, setRoot, setRepo, externalStatus]);
 
-  // External decoration source (SCM store) — no fetching.
+  // External decoration source (SCM store) — no fetching. The store drops a
+  // target that is not local, because the SCM store reads this Mac only.
   useEffect(() => {
-    if (statusFiles !== undefined && project) {
-      applyExternal(project.path, statusFiles);
+    if (statusFiles !== undefined && localPath !== null && target !== null) {
+      applyExternal(target, statusFiles);
     }
-  }, [statusFiles, project, applyExternal]);
+  }, [statusFiles, target, localPath, applyExternal]);
 
   // Refresh listings + decorations when the repo changes on disk
   // (git:changed fires on worktree/index/HEAD changes — branch flips too).
   useEffect(() => {
-    if (!project) return;
+    // No subscription at all for a project on another machine. The watcher
+    // reports paths on this Mac, so a path it sends can only ever be about a
+    // folder this tab is not showing.
+    if (localPath === null) return;
     // The 150 ms coalescing window (checkout touches many files) is now the
     // renderer-wide one in state/repo-changed.ts, which every other surface
     // shares — so the tree, Changes, History and the editor all repaint in
     // the same tick instead of over 150 ms of visible disagreement.
     return onRepoChanged((repoPath) => {
-      if (repoPath !== project.path) return;
+      if (repoPath !== localPath) return;
       void refreshLoaded();
       invalidateIgnored();
       if (!externalStatus) void refreshStatus();
     });
   }, [
-    project,
+    localPath,
     refreshLoaded,
     refreshStatus,
     externalStatus,
@@ -154,9 +194,22 @@ export function FilesSection({
 
   let body: React.ReactNode = null;
   if (!collapsed) {
-    if (!project) {
+    if (!project || target === null) {
       body = (
         <div className="section-stub">Open a project to browse its files.</div>
+      );
+    } else if (localPath === null) {
+      // Said BEFORE the bridge branch and before the skeleton. There is
+      // nothing to load, so a shimmer here would be a promise Tortie cannot
+      // keep.
+      body = (
+        <div className="section-stub">
+          {filesElsewhereTitle(
+            machineLabelFor(machineStates, target.machineId)
+          )}
+          <br />
+          {FILES_ELSEWHERE_BODY}
+        </div>
       );
     } else if (bridgeMissing) {
       // Pre-integration state: fs:readDir isn't wired in this build.
@@ -174,7 +227,7 @@ export function FilesSection({
           </button>
         </div>
       );
-    } else if (!rootLoaded || rootPath !== project.path) {
+    } else if (!rootLoaded || !sameTarget(root, target)) {
       body = <TreeSkeleton />;
     } else {
       body = (
@@ -183,8 +236,8 @@ export function FilesSection({
           // at construction, so changing it means a fresh tree. Expansion is
           // written to localStorage on unmount and comes straight back;
           // selection, scroll position and an open filter do not.
-          key={`${project.path}:${density}`}
-          rootPath={project.path}
+          key={`${targetKey(target)}:${density}`}
+          rootPath={localPath}
           statusFiles={statusFiles ?? storeFiles}
           isRepo={isRepo}
           density={density}
@@ -216,7 +269,7 @@ export function FilesSection({
           className="icon-btn files-refresh"
           aria-label="Refresh files"
           title="Refresh files"
-          disabled={!project || bridgeMissing}
+          disabled={localPath === null || bridgeMissing}
           onClick={refresh}
         >
           <Codicon name="refresh" size={14} />

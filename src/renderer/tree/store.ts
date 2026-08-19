@@ -10,6 +10,11 @@
 
 import { create } from 'zustand';
 import type { FsDirEntry } from '@shared/types';
+import {
+  localPathOf,
+  sameTarget,
+  type WorkspaceTarget
+} from '@shared/workspace-target';
 import { errorText } from '../state/store';
 import { canReadDir, readDir } from './fs-bridge';
 
@@ -28,19 +33,30 @@ function prepare(entries: readonly FsDirEntry[]): FsDirEntry[] {
 }
 
 interface FileTreeState {
-  /** Active project root (absolute) — the tree's subject. */
-  rootPath: string | null;
+  /**
+   * The folder the tree is showing, being one path on one computer.
+   *
+   * PHASE 90.1 replaced a bare path here. Two machines can hold the same path,
+   * so a path alone could not tell one tab from another and every switch
+   * between them returned early with this Mac's listing still on screen.
+   */
+  root: WorkspaceTarget | null;
   /** Loaded directory (absolute path) → filtered, sorted entries. */
   entriesByDir: Record<string, FsDirEntry[]>;
-  /** Root listing finished at least once for the current rootPath. */
+  /** Root listing finished at least once for the current root. */
   rootLoaded: boolean;
   /** Friendly one-liner when the ROOT listing failed (child errors toast). */
   rootError: string | null;
   /** True when the preload lacks fs.readDir (integration pending). */
   bridgeMissing: boolean;
 
-  /** Point the tree at a project root (clears cache, lists the root). */
-  setRoot(rootPath: string | null): Promise<void>;
+  /**
+   * Point the tree at a project root (clears cache, lists the root).
+   *
+   * A target on another machine clears the cache and lists nothing, because
+   * Tortie reads files on this Mac only.
+   */
+  setRoot(target: WorkspaceTarget | null): Promise<void>;
   /** List one directory into the cache (expand / lazy load). */
   loadDir(dirPath: string): Promise<void>;
   /** Re-list the root and every cached directory (refresh). */
@@ -81,7 +97,7 @@ export const useFileTree = create<FileTreeState>((set, get) => {
       }));
     } catch (err) {
       if (seq !== rootSeq) return;
-      if (dirPath === get().rootPath) {
+      if (dirPath === localPathOf(get().root)) {
         set({ rootError: errorText(err) });
       } else {
         // A child dir vanished (branch flip, rm -rf): drop it quietly.
@@ -97,38 +113,46 @@ export const useFileTree = create<FileTreeState>((set, get) => {
   };
 
   return {
-    rootPath: null,
+    root: null,
     entriesByDir: {},
     rootLoaded: false,
     rootError: null,
     bridgeMissing: !canReadDir(),
 
-    async setRoot(rootPath) {
-      if (get().rootPath === rootPath) return;
+    async setRoot(target) {
+      // BY VALUE, and it is the reason sameTarget exists. FilesSection composes
+      // a fresh target object on every render, so a comparison by reference
+      // would rebuild the whole tree on every frame.
+      if (sameTarget(get().root, target)) return;
       const seq = ++rootSeq;
       inFlight.clear();
       const bridgeMissing = !canReadDir();
       set({
-        rootPath,
+        root: target,
         entriesByDir: {},
         rootLoaded: false,
         rootError: null,
         bridgeMissing
       });
-      if (rootPath === null || bridgeMissing) return;
-      await listInto(rootPath, seq);
+      const local = localPathOf(target);
+      // `local` is null for no project AND for a project on another machine.
+      // The second case is the one Phase 90.1 added, and it is why nothing
+      // below may be built from `target.path` directly.
+      if (local === null || bridgeMissing) return;
+      await listInto(local, seq);
       if (seq === rootSeq) set({ rootLoaded: true });
     },
 
     async loadDir(dirPath) {
-      const { rootPath, bridgeMissing, entriesByDir } = get();
-      if (rootPath === null || bridgeMissing) return;
+      const { root, bridgeMissing, entriesByDir } = get();
+      if (localPathOf(root) === null || bridgeMissing) return;
       if (entriesByDir[dirPath] !== undefined) return; // already cached
       await listInto(dirPath, rootSeq);
     },
 
     async relist(dirPaths) {
-      const { rootPath, bridgeMissing } = get();
+      const { root, bridgeMissing } = get();
+      const rootPath = localPathOf(root);
       if (rootPath === null || bridgeMissing) return;
       const seq = rootSeq;
       const wanted = dirPaths.filter(
@@ -155,7 +179,8 @@ export const useFileTree = create<FileTreeState>((set, get) => {
     },
 
     async refreshLoaded() {
-      const { rootPath, bridgeMissing } = get();
+      const { root, bridgeMissing } = get();
+      const rootPath = localPathOf(root);
       if (rootPath === null) return;
       const bridgeNow = !canReadDir();
       if (bridgeNow !== bridgeMissing) set({ bridgeMissing: bridgeNow });

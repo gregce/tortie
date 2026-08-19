@@ -22,8 +22,9 @@
  *    cursor. Refresh is a click.
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import type { GmuxApi } from '@shared/ipc';
+import { targetOfProject } from '@shared/workspace-target';
 import { Codicon } from '../icons';
 import { useApp } from '../state/store';
 import { QueryBlock } from './QueryBlock';
@@ -150,12 +151,17 @@ export function SearchSection(): React.JSX.Element {
   const projects = useApp((s) => s.projects);
   const activeProjectId = useApp((s) => s.activeProjectId);
 
-  const activePath =
-    projects.find((p) => p.id === activeProjectId)?.path ?? null;
+  const project = useMemo(
+    () => projects.find((p) => p.id === activeProjectId) ?? null,
+    [projects, activeProjectId]
+  );
+  // The pair, never the path (Phase 90.1). Two projects on two machines can
+  // hold the same path, and the store has to be able to tell them apart.
+  const target = useMemo(() => targetOfProject(project), [project]);
 
   useEffect(() => {
-    syncProject(activePath);
-  }, [activePath, syncProject]);
+    syncProject(target);
+  }, [target, syncProject]);
 
   // Staleness rides the SAME repo watcher git already uses — one FSEvents
   // subscription per repo, two consumers (src/main/watcher/bus.ts).

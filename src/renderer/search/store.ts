@@ -34,6 +34,12 @@ import type {
   SearchProgress
 } from '@shared/ipc';
 import { SEARCH_LIMITS } from '@shared/ipc';
+import type { WorkspaceTarget } from '@shared/workspace-target';
+import {
+  localPathOf,
+  sameTarget,
+  targetOfProject
+} from '@shared/workspace-target';
 import { useApp } from '../state/store';
 import { requestOpenFile } from '../state/open-file';
 import type { ContextLine } from './rows';
@@ -65,8 +71,16 @@ export function searchAvailable(): boolean {
 export type SearchStatus = 'idle' | 'searching' | 'done' | 'error';
 
 export interface SearchState {
-  /** The project this result set belongs to. Switching projects resets. */
-  repoPath: string | null;
+  /**
+   * Which folder, on which computer, this result set belongs to. Switching
+   * projects resets it.
+   *
+   * PHASE 90.1 replaced a bare path here. Two projects on two machines can
+   * hold the same path, and while this was a string a switch between them
+   * looked like no change at all, so the rows from the first machine stayed on
+   * screen under the second machine's name.
+   */
+  target: WorkspaceTarget | null;
 
   query: string;
   isRegex: boolean;
@@ -130,8 +144,13 @@ export interface SearchState {
   stepResult(delta: 1 | -1): boolean;
 
   /** React to the active project changing. */
-  syncProject(repoPath: string | null): void;
-  /** Note that the project changed on disk (watcher / git:changed). */
+  syncProject(target: WorkspaceTarget | null): void;
+  /**
+   * Note that the project changed on disk (watcher / git:changed).
+   *
+   * This one keeps a plain path, because the watcher reports a folder on this
+   * Mac and it has nothing to say about any other computer.
+   */
   noteRepoChanged(repoPath: string): void;
 }
 
@@ -184,7 +203,9 @@ function stopLive(): void {
 export const useSearch = create<SearchState>((set, get) => {
   /** A query worth spending a process on. */
   function runnable(state: SearchState): boolean {
-    if (state.repoPath === null) return false;
+    // `localPathOf` is null for a project on another machine, so such a
+    // project never schedules a run and never spends a process.
+    if (localPathOf(state.target) === null) return false;
     const q = state.query;
     if (q.length === 0) return false;
     return state.isRegex || q.length >= MIN_LITERAL_QUERY;
@@ -216,7 +237,7 @@ export const useSearch = create<SearchState>((set, get) => {
   }
 
   return {
-    repoPath: useApp.getState().activeProject()?.path ?? null,
+    target: targetOfProject(useApp.getState().activeProject()),
 
     query: '',
     isRegex: false,
@@ -298,7 +319,7 @@ export const useSearch = create<SearchState>((set, get) => {
         return;
       }
       if (!runnable(state)) return;
-      const repoPath = state.repoPath;
+      const repoPath = localPathOf(state.target);
       if (repoPath === null) return;
 
       stopLive();
@@ -395,7 +416,7 @@ export const useSearch = create<SearchState>((set, get) => {
       set({ expanded });
       if (get().context.has(key)) return;
 
-      const repoPath = get().repoPath;
+      const repoPath = localPathOf(get().target);
       const search = bridge();
       if (repoPath === null || search === undefined) return;
       const epoch = live.epoch;
@@ -430,7 +451,7 @@ export const useSearch = create<SearchState>((set, get) => {
 
     stepResult(delta) {
       const state = get();
-      const repoPath = state.repoPath;
+      const repoPath = localPathOf(state.target);
       if (repoPath === null) return false;
 
       // F4 walks MATCHES, not rows: file headers and context lines are
@@ -461,11 +482,14 @@ export const useSearch = create<SearchState>((set, get) => {
       return true;
     },
 
-    syncProject(repoPath) {
-      if (repoPath === get().repoPath) return;
+    syncProject(target) {
+      // BY VALUE, not by reference. The view composes a fresh target object on
+      // every render, so a comparison by reference would clear the result set
+      // on every render instead of never.
+      if (sameTarget(get().target, target)) return;
       stopLive();
       set({
-        repoPath,
+        target,
         status: 'idle',
         resultLimit: SEARCH_LIMITS.maxResults,
         ...blankResults()
@@ -477,7 +501,10 @@ export const useSearch = create<SearchState>((set, get) => {
 
     noteRepoChanged(repoPath) {
       const state = get();
-      if (state.repoPath !== repoPath) return;
+      // The watcher names a folder on this Mac. While the view is showing a
+      // project on another machine there is no folder here for it to be
+      // talking about, and `localPathOf` returns null, which matches nothing.
+      if (localPathOf(state.target) !== repoPath) return;
       if (state.status !== 'done' || state.files.length === 0) return;
       if (state.stale) return;
       set({ stale: true });

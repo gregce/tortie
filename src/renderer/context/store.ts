@@ -26,38 +26,61 @@
 import { create } from 'zustand';
 import type { ContextScanResult } from '@shared/context';
 import type { ContextSkillPinCheck } from '@shared/ipc';
+import type { WorkspaceTarget } from '@shared/workspace-target';
+import { localPathOf, sameTarget, targetKey } from '@shared/workspace-target';
 import { contextAvailable, contextBridge } from './bridge';
 
+/**
+ * `elsewhere` is Phase 90.1. It means the project belongs to another computer,
+ * so this Mac has nothing to read and says so instead of showing the last
+ * project's files under a new name.
+ */
 export type ContextStatus =
   | 'idle'
   | 'loading'
   | 'ready'
   | 'error'
-  | 'unavailable';
+  | 'unavailable'
+  | 'elsewhere';
 
-const AGENT_KEY = (cwd: string): string => `gmux.context.agent.${cwd}`;
+/**
+ * Where one project's remembered agent choice lives.
+ *
+ * `targetKey` of a project on this Mac is the bare path, so this key is byte
+ * for byte the key it was before Phase 90.1 and a choice made in an older
+ * build is still found.
+ */
+const AGENT_KEY = (target: WorkspaceTarget): string =>
+  `gmux.context.agent.${targetKey(target)}`;
 
-function loadAgent(cwd: string): string | null {
+function loadAgent(target: WorkspaceTarget): string | null {
   try {
-    const raw = localStorage.getItem(AGENT_KEY(cwd));
+    const raw = localStorage.getItem(AGENT_KEY(target));
     return raw === null || raw === '' ? null : raw;
   } catch {
     return null;
   }
 }
 
-function saveAgent(cwd: string, agentId: string | null): void {
+function saveAgent(target: WorkspaceTarget, agentId: string | null): void {
   try {
-    if (agentId === null) localStorage.removeItem(AGENT_KEY(cwd));
-    else localStorage.setItem(AGENT_KEY(cwd), agentId);
+    if (agentId === null) localStorage.removeItem(AGENT_KEY(target));
+    else localStorage.setItem(AGENT_KEY(target), agentId);
   } catch {
     /* a remembered choice is cosmetic; never fail the view over it */
   }
 }
 
 export interface ContextViewState {
-  /** The project this scan belongs to. Switching projects re-reads. */
-  cwd: string | null;
+  /**
+   * Which folder, on which computer, this scan belongs to. Switching projects
+   * re-reads.
+   *
+   * PHASE 90.1 replaced a bare path here, for the reason in the search store:
+   * two machines can hold the same path, and a string could not tell them
+   * apart.
+   */
+  target: WorkspaceTarget | null;
   status: ContextStatus;
   scan: ContextScanResult | null;
   /** The sentence shown when the whole read failed, never a stack trace. */
@@ -95,7 +118,7 @@ export interface ContextViewState {
   /** Monotonic; every read bumps it so a late answer cannot overtake. */
   epoch: number;
 
-  syncProject(cwd: string | null): void;
+  syncProject(target: WorkspaceTarget | null): void;
   refresh(): void;
   setFilter(next: string): void;
   setAgent(agentId: string | null): void;
@@ -161,8 +184,15 @@ export const useContext = create<ContextViewState>((set, get) => {
     }
   };
 
-  /** Read one project, epoch-gated so a project switch cannot be overtaken. */
-  const read = (cwd: string): void => {
+  /**
+   * Read one project, epoch-gated so a project switch cannot be overtaken.
+   *
+   * It takes the TARGET and asks `localPathOf` for the folder, so there is no
+   * way to reach this reader with a path that names another computer.
+   */
+  const read = (target: WorkspaceTarget): void => {
+    const cwd = localPathOf(target);
+    if (cwd === null) return;
     const api = contextBridge();
     if (api === null) {
       set({ status: 'unavailable', scan: null, error: null });
@@ -179,12 +209,12 @@ export const useContext = create<ContextViewState>((set, get) => {
       .scan({ cwd, agent: null, hash: 'head' })
       .then((scan) => {
         // A late answer for a project the user has left must never paint.
-        if (get().epoch !== started || get().cwd !== cwd) return;
+        if (get().epoch !== started || !sameTarget(get().target, target)) return;
         set({ status: 'ready', scan, error: null });
         void recheckPins(scan, started);
       })
       .catch((err: unknown) => {
-        if (get().epoch !== started || get().cwd !== cwd) return;
+        if (get().epoch !== started || !sameTarget(get().target, target)) return;
         set({
           status: 'error',
           error: err instanceof Error ? err.message : String(err)
@@ -193,7 +223,7 @@ export const useContext = create<ContextViewState>((set, get) => {
   };
 
   return {
-    cwd: null,
+    target: null,
     status: contextAvailable() ? 'idle' : 'unavailable',
     scan: null,
     error: null,
@@ -205,11 +235,15 @@ export const useContext = create<ContextViewState>((set, get) => {
     pins: new Map(),
     epoch: 0,
 
-    syncProject(cwd) {
-      if (get().cwd === cwd) return;
-      const agentId = cwd === null ? null : loadAgent(cwd);
+    syncProject(target) {
+      // BY VALUE, not by reference. The view composes a fresh target object on
+      // every render, and a comparison by reference would blank this panel on
+      // every render instead of never.
+      if (sameTarget(get().target, target)) return;
+      const local = target === null ? null : localPathOf(target);
+      const agentId = target === null ? null : loadAgent(target);
       set({
-        cwd,
+        target,
         scan: null,
         error: null,
         filter: '',
@@ -219,18 +253,20 @@ export const useContext = create<ContextViewState>((set, get) => {
         sessionId: null,
         sessionName: null,
         pins: new Map(),
-        status: contextAvailable()
-          ? cwd === null
+        status: !contextAvailable()
+          ? 'unavailable'
+          : target === null
             ? 'idle'
-            : 'loading'
-          : 'unavailable'
+            : local === null
+              ? 'elsewhere'
+              : 'loading'
       });
-      if (cwd !== null) read(cwd);
+      if (target !== null && local !== null) read(target);
     },
 
     refresh() {
-      const { cwd } = get();
-      if (cwd !== null) read(cwd);
+      const { target } = get();
+      if (target !== null) read(target);
     },
 
     setFilter(next) {
@@ -238,9 +274,9 @@ export const useContext = create<ContextViewState>((set, get) => {
     },
 
     setAgent(agentId) {
-      const { cwd } = get();
+      const { target } = get();
       set({ agentId });
-      if (cwd !== null) saveAgent(cwd, agentId);
+      if (target !== null) saveAgent(target, agentId);
     },
 
     enterSessionMode(sessionId, agentId, sessionName) {

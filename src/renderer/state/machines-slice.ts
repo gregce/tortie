@@ -89,3 +89,20 @@ export function badgeMachineOf(state: MachineStateView): SessionMachine {
     restoreReason: state.detail
   };
 }
+
+/**
+ * The label a person gave a machine, or its id when Tortie has no row for it.
+ *
+ * PHASE 90.1. The three sidebars name the machine a project's files are on, and
+ * the only list of machines the renderer holds is this one. A target can carry
+ * an id that has no row, e.g. a machine a person removed while its tab was
+ * still open, so the id is the fallback rather than an empty sentence. The
+ * fallback is visible on purpose: a person reads a short unfamiliar word and
+ * knows which tab to close, where a blank would say nothing at all.
+ */
+export function machineLabelFor(
+  states: readonly MachineStateView[],
+  machineId: string
+): string {
+  return states.find((one) => one.id === machineId)?.label ?? machineId;
+}

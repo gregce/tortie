@@ -61,6 +61,11 @@
  */
 
 import { homedir } from 'node:os';
+// PHASE 90.1. The id this Mac is registered under now has ONE definition, and
+// it is in src/shared because the renderer needs the same string to tell a
+// project on this Mac from a project on another machine. Main re-exports it
+// below under its old name, so every caller here is unchanged.
+import { LOCAL_MACHINE_ID } from '@shared/workspace-target';
 import {
   activeTmuxSocket,
   assertConfUsable,
@@ -95,8 +100,14 @@ import { shellQuoteArgv } from '../restore/command';
 
 export type MachineKind = 'local' | 'remote';
 
-/** The id the local Mac is registered under. It is not a machine row. */
-export const LOCAL_MACHINE_ID = 'local';
+/**
+ * The id the local Mac is registered under. It is not a machine row.
+ *
+ * PHASE 90.1: the string itself now lives in `@shared/workspace-target`, which
+ * is the one definition. This line re-exports it so main's callers keep the
+ * import they already have.
+ */
+export { LOCAL_MACHINE_ID };
 
 export interface LocalMachineContext {
   readonly kind: 'local';

@@ -14,7 +14,17 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  localPathOf,
+  sameTarget,
+  targetOfProject
+} from '@shared/workspace-target';
 import { FileIcon, Codicon } from '../icons';
+import {
+  SEARCH_ELSEWHERE_BODY,
+  searchElsewhereTitle
+} from '../app/machine-copy';
+import { machineLabelFor } from '../state/machines-slice';
 import { useApp } from '../state/store';
 import {
   openSearchLine,
@@ -36,7 +46,10 @@ import type { SearchRow } from './rows';
 const OVERSCAN = 8;
 
 export function ResultsList(): React.JSX.Element {
-  const repoPath = useSearch((s) => s.repoPath);
+  const target = useSearch((s) => s.target);
+  // The one way a path leaves the store. It is null for a project on another
+  // machine, and every open below already had a branch for a null path.
+  const repoPath = localPathOf(target);
   const files = useSearch((s) => s.files);
   const collapsed = useSearch((s) => s.collapsed);
   const expanded = useSearch((s) => s.expanded);
@@ -397,10 +410,28 @@ function EmptyResults(): React.JSX.Element {
   const isRegex = useSearch((s) => s.isRegex);
   const setIncludes = useSearch((s) => s.setIncludes);
   const setExcludes = useSearch((s) => s.setExcludes);
-  const repoPath = useSearch((s) => s.repoPath);
+  const target = useSearch((s) => s.target);
   const projects = useApp((s) => s.projects);
+  const machineStates = useApp((s) => s.machineStates);
+  // The project is found by IDENTITY, not by path (Phase 90.1). A path alone
+  // matched the first project with that path, which on two machines is the
+  // wrong one half the time.
   const projectName =
-    projects.find((p) => p.path === repoPath)?.name ?? 'this project';
+    projects.find((p) => sameTarget(targetOfProject(p), target))?.name ??
+    'this project';
+
+  // Said FIRST, before anything about queries or filters. Nothing here is
+  // searchable, so nothing else on this panel is worth saying.
+  if (target !== null && localPathOf(target) === null) {
+    return (
+      <div className="search-empty">
+        <p className="search-empty-title">
+          {searchElsewhereTitle(machineLabelFor(machineStates, target.machineId))}
+        </p>
+        <p className="search-empty-body">{SEARCH_ELSEWHERE_BODY}</p>
+      </div>
+    );
+  }
 
   if (status === 'error' && error !== null && !isRegex) {
     return (

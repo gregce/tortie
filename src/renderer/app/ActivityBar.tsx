@@ -13,6 +13,7 @@
 import React, { useMemo } from 'react';
 import type { GmuxSettingsExtras } from '@shared/ipc';
 import { keyDisplay } from '@shared/keymap';
+import { sameTarget, targetOfProject } from '@shared/workspace-target';
 import { dirtyCount, useGit } from '../state/git';
 import { loginItemExtras, useApp } from '../state/store';
 import type { SidebarViewId } from '../state/store';
@@ -177,8 +178,13 @@ export function ActivityBar(): React.JSX.Element {
   );
 
   // Files with at least one hit in the live result set (Phase 14).
+  //
+  // Compared by IDENTITY since Phase 90.1. The old comparison was against a
+  // path alone, so the badge would have kept the first machine's count while
+  // the rail sat beside a project of the same path on a second machine.
+  const projectTarget = useMemo(() => targetOfProject(project), [project]);
   const resultFiles = useSearch((s) =>
-    s.repoPath !== null && s.repoPath === project?.path ? s.totalFiles : 0
+    s.target !== null && sameTarget(s.target, projectTarget) ? s.totalFiles : 0
   );
 
   // Dirty-file count badge on the Source Control item — accent, never amber

@@ -6104,7 +6104,7 @@ standing cap and these waves stay under it.
 | Wave | Phases | Owns | Why it cannot move earlier |
 | --- | --- | --- | --- |
 | 0 | **87** the copy stops explaining itself | renderer copy and Settings | Running now |
-| 1 | **90.1** machine plus path identity · **81** the session list stops waiting for your shell | the four renderer stores · `sessions/core.ts` | 90.1 is REQUIRED before any other Phase 90 item, because it is a silent wrong answer sitting in the chosen model |
+| 1 | **90.1** machine plus path identity ✅ SHIPPED 2026-08-18 · **81** the session list stops waiting for your shell | the four renderer stores · `sessions/core.ts` | 90.1 is REQUIRED before any other Phase 90 item, because it is a silent wrong answer sitting in the chosen model |
 | 2 | **85** the status dot tells the truth · **91** capture is refused honestly | `machines/**` and activity · specstory and the create paths | 91 needs Phase 87 to have settled the create sheet copy first |
 | 3 | **90.2** the counterpart lookup and the clone | `machines/**` and the create sheet | Needs wave 2 to release `machines/**`, and needs 90.1's identity to be correct first |
 | 4 | **89** a conversation comes back on a remote machine | `machines/**`, `exec-plane.ts`, restore | Needs the whole create path settled, and it is the only phase that changes a refusal |
@@ -6421,14 +6421,14 @@ round exists to remove.
 It may not re-open the no install decision. Research 55 settled that on measured round trips and the
 answer was to build on the ssh door that already exists. This round designs on top of that answer.
 
-## Phase 90 — the workspace knows which machine it is looking at (operator ordered 2026-08-19) QUEUED, and Research 56 rules its shape
+## Phase 90 — the workspace knows which machine it is looking at (operator ordered 2026-08-19) ITEM 1 SHIPPED 2026-08-18, items 2 and 3 QUEUED, and Research 56 rules its shape
 
 **Read `docs/research/56-project-model-many-machines.md` section 0.1 before anything else.** The
 model is A, a project carries a machine and a tab is either local or remote, confirmed by four
 independent teams in the prior art. Model B, one project holding two live paths, is refused. Model
 C, the sidebars following the focused session, is refused.
 
-### Item 1, required, and it is a defect in the model that WAS chosen
+### Item 1, required, and it is a defect in the model that WAS chosen ✅ SHIPPED 2026-08-18 (this commit, 0.43.1, gates green, 6,063 tests). The four sidebar stores key on the pair now, and the Source Control badge still does not
 
 **A path string is not an identity, and this tree treats it as one.** `useFileTree.setRoot`,
 `useTreeGitStatus.setRepo`, `useSearch.syncProject` and `useContext.syncProject` all return early
@@ -6449,6 +6449,95 @@ art is unanimous across a twenty year gap. VS Code puts the host inside the iden
 **The proof this item ships with:** two tabs on the same path string, one local and one remote, and a
 driven switch between them showing the tree, the git state and the search root all changing. A
 switch where the badge moves and the content does not is a FAIL.
+
+**WHAT SHIPPED, and every number below was read from a run rather than predicted.**
+
+A new shared module, `src/shared/workspace-target.ts`, holds the pair. A target is a machine id and
+a path together, and `localPathOf` is the only way to get a local path out of one. It returns null
+when the target names another machine, so a caller cannot build a file read from a remote target by
+accident.
+
+All four stores now key on the pair.
+
+| Store | File | What it does now |
+| --- | --- | --- |
+| The file tree | `src/renderer/tree/store.ts` | `setRoot` takes a target. `loadDir`, `relist` and `refreshLoaded` return when the target is not local |
+| The git decorations | `src/renderer/tree/git-status.ts` | `setRepo` takes a target. A late answer that arrives after the target moved is dropped rather than decorating the new tab |
+| Search | `src/renderer/search/store.ts` | `syncProject` takes a target. A re-target stops the live run first. `run`, `toggleContext` and `stepResult` all take their path from `localPathOf` |
+| Context | `src/renderer/context/store.ts` | `syncProject` takes a target. `read` returns before it reaches the bridge when the target is not local |
+
+Three sentences appear when a tab's project is on another machine, and each one names the machine.
+
+- The Explorer says "These files live on \<machine\>. Tortie reads files on this Mac only, so
+  nothing is listed here."
+- Search says "Search does not reach \<machine\>." with "Tortie searches files on this Mac only. The
+  files in this project are on that machine, so there is nothing here to search."
+- Context says "These agent files live on \<machine\>." with "Tortie reads skills, servers and hooks
+  from this Mac only, so nothing is listed here."
+
+**The proof, driven live on an isolated profile and an isolated socket.** Two tabs carry the SAME
+path string, one local and one on a machine called `p901`. The verifier read the injected tab's own
+source to confirm the two path strings are equal rather than taking it on trust.
+
+| Moment | File tree | Git decorations | Search | Context |
+| --- | --- | --- | --- | --- |
+| The local tab | local, 1 directory, 2 entries, loaded | local, is a repo, 1 changed file | local, done, 2 files | local, ready, 154 entries |
+| The `p901` tab | p901, 0 directories, 0 entries, not loaded | p901, not a repo, 0 files | p901, idle, 0 files | p901, elsewhere, 0 entries |
+| The local tab again | local, 1 directory, 2 entries, loaded | local, is a repo, 1 changed file | local, done, 2 files | local, ready, 154 entries |
+
+The FAIL this item names, being the badge moving while the content stays, did not happen in any of
+the twelve cells. Setting a freshly built but equal target 50 times in a row produced 0 target
+changes and 0 store notifications, so the early return still holds when the pair is unchanged. Three
+screenshots were read by eye and each one shows the sentence and no rows.
+
+The local path did not regress. A second drive seeded two real local projects at DIFFERENT paths,
+clicked between their tabs and read the rows out of the tree. The first tab settled in 17 ms, the
+second in 717 ms, and the return to the first in 15 ms. Fifty clicks on the tab that was already
+active changed nothing on screen.
+
+**What is NOT true, and it must be read before the next item is planned.**
+
+- **No product surface can create a project tab on another machine yet.** Main never sets
+  `Project.machineId`. The second tab in the proof above was injected into the renderer's own store.
+  What is proven is what the four stores do on a switch, not a person making such a tab.
+- **There is no before number.** No earlier build can be driven into the two-tab state, so the
+  before state is a reading of four lines of code rather than a measurement.
+- **No sidebar reads files, git state, search results or agent configuration from another machine**,
+  and nothing here makes that possible.
+- **The `fs.readDir` call counts come from the unit tests and not from the live app.** The verifier
+  could not attach a counter to the contextBridge object, so every live readDir number in that drive
+  is 0 for that reason and not because no read happened.
+- **The Source Control badge on the activity rail still shows this Mac's changed-file count** on a
+  tab whose project is on another machine. It read "1" in all three screenshots. It is in the table
+  below.
+- **Search's Refresh and Clear buttons stay enabled** for a project on another machine. Pressing
+  Refresh calls `run`, which returns without starting anything, so the button is inert rather than
+  wrong. Context's Refresh IS disabled in the same state, so the two views disagree.
+- **No native menu changed, and no command or keyboard shortcut was added.**
+
+**Found, not fixed. The next wave inherits this list, and none of it can be reached by a project on
+another machine today.**
+
+| Where | The same defect | Why it was left |
+| --- | --- | --- |
+| `src/renderer/scm/depth.ts`, `scm/runs.ts` | Records keyed by `repoPath` alone, and the activity rail badge that draws from them | The Changes and History sections are outside the four stores this item names. It is the one visibly wrong number on screen |
+| `src/renderer/tree/ignored.ts` | The ignored set is kept when the path matches, whatever the machine | The tree lists no rows for a project on another machine, so nothing is dimmed. It becomes a defect the day a remote tree lists rows |
+| `src/renderer/app/session-focus.ts`, `AttentionOverlay.tsx`, `quickopen/QuickOpenPalette.tsx`, `state/shell-open.ts`, `state/sessions-slice.ts`, `scm/history-scope.ts` | `projects.find((p) => p.path === …)`, a project looked up by path alone | Six call sites in five domains. Fixing them inside two store lanes would have put one file in two builders' hands |
+| `src/renderer/search/symbols-store.ts` | The store is keyed by `repoPath`, and one comparison reads `tab.repoPath === project.path` | Found by the verifier's own sweep, after the spec was written |
+| `src/renderer/quickopen/recents.ts` | Entries keyed by `repoPath` plus `relPath` | The same sweep |
+| `src/renderer/state/git.ts` | `repoState` reads a record keyed by `repoPath` | The same sweep |
+| `src/renderer/editor/store.ts` | Two comparisons on `repoPath` alone | The same sweep |
+| The `gmux.treeOpen.<rootPath>` localStorage key | Two machines with the same path would share one set of open folders | The same sweep. It is harmless while a remote tree lists no rows |
+| `src/renderer/editor/tab-identity.ts` | Nothing. It already puts the machine in the tab id | Recorded as the prior art inside this tree, not as a defect |
+
+**One file was edited that neither builder owned.** `src/renderer/app/ActivityBar.tsx` got one line,
+which stops the search-hit badge counting for a project on another machine. Without it the tree does
+not compile. No test covers that line.
+
+**Nothing a person already had moved.** `gmux.context.agent.<path>` is byte identical for a local
+target, and a test reads an older build's key back. `gmux.filesCollapsed` is still keyed by project
+id. `gmux.treeOpen.<rootPath>` is unchanged. The contract inventory matches its baseline byte for
+byte, so this phase added no IPC channel, no `gmux.*` key and no `GMUX_*` variable.
 
 ### Item 2, the operator's create-time counterpart, ordered 2026-08-19
 

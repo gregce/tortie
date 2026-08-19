@@ -58,6 +58,12 @@ import {
   useSectionDrag,
   useSectionOrder
 } from '../scm/sections';
+import { localPathOf, targetOfProject } from '@shared/workspace-target';
+import {
+  CONTEXT_ELSEWHERE_BODY,
+  contextElsewhereTitle
+} from '../app/machine-copy';
+import { machineLabelFor } from '../state/machines-slice';
 import { useApp } from '../state/store';
 import { openFileAt, requestOpenContext } from './open-detail';
 import {
@@ -425,8 +431,18 @@ export function ContextSection({
   const activeProjectId = useApp((s) => s.activeProjectId);
   const setMenu = useApp((s) => s.setMenu);
   const toast = useApp((s) => s.toast);
+  const machineStates = useApp((s) => s.machineStates);
 
-  const cwd = projects.find((p) => p.id === activeProjectId)?.path ?? null;
+  const project = useMemo(
+    () => projects.find((p) => p.id === activeProjectId) ?? null,
+    [projects, activeProjectId]
+  );
+  // The pair, never the path (Phase 90.1).
+  const target = useMemo(() => targetOfProject(project), [project]);
+  // `cwd` is the folder THIS MAC may read, and it is null for a project on
+  // another computer. Every use of it below already had a null branch, so a
+  // project on another machine opens no file and reads no directory.
+  const cwd = localPathOf(target);
 
   const status = useContext((s) => s.status);
   const scan = useContext((s) => s.scan);
@@ -448,8 +464,8 @@ export function ContextSection({
   } | null>(null);
 
   useEffect(() => {
-    syncProject(cwd);
-  }, [cwd, syncProject]);
+    syncProject(target);
+  }, [target, syncProject]);
 
   // The watcher re-reads. It never announces: no toast, no badge, no dot on a
   // session tab. A user who edits `.mcp.json` while three sessions run sees
@@ -678,6 +694,21 @@ export function ContextSection({
   const body = (): React.JSX.Element => {
     if (status === 'unavailable') {
       return <div className="section-stub">{CONTEXT_COPY.unavailable}</div>;
+    }
+    // The project belongs to another computer. Tortie reads this Mac, so there
+    // is nothing here to list and the panel says which machine the files are
+    // on rather than showing an empty list that looks like a failure.
+    if (status === 'elsewhere') {
+      return (
+        <div className="ctx-empty">
+          <p className="ctx-empty-title">
+            {contextElsewhereTitle(
+              machineLabelFor(machineStates, target?.machineId ?? '')
+            )}
+          </p>
+          <p className="ctx-empty-body">{CONTEXT_ELSEWHERE_BODY}</p>
+        </div>
+      );
     }
     if (status === 'loading' && scan === null) {
       return <div className="section-stub">{CONTEXT_COPY.reading}</div>;
