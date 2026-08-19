@@ -7552,6 +7552,73 @@ conversation.
 It is the only large piece of work in the repository that is fully specified, fully decided, blocked
 on nothing, and paused for a reason that is about to stop being true.
 
+## Phase 81.1 — Restore turns on even when a boot read fails (Phase 81's own committer reported 2026-08-18) ✅ SHIPPED 2026-08-18 (this commit, 0.44.1, gates green)
+
+**The regression, and who found it.** Phase 81 shipped a regression, and the person who found it was
+the committer of Phase 81. He wrote it into that phase's own "What is not true" list under the
+heading "Restore can stay disabled for the whole run if the first hydration read fails" rather than
+leaving it for a user to hit. It shipped for exactly one commit, being 2f0e841 at 0.44.0, and this
+commit is the fix.
+
+**The cause.** `hydrateAppState` in `src/renderer/state/subscriptions.ts` called
+`readShellPathReady(store)` at the END of its `try` block, after
+`await Promise.all([gmux.projects.list(), gmux.sessions.list()])`. If either read rejected with an
+error that is not one of the three boot block codes, control left the `try` before that line ran.
+The `catch` then set `ready: true` and raised a sticky toast, the shell body rendered, and sessions
+could still arrive later over `sessions:changed`. The shell PATH question was never asked, so the
+`shellPathReady` flag stayed false for the whole run.
+
+Five controls read that one flag, so all five were dead together:
+
+- the session card Restore button in `TerminalRegion.tsx`
+- the Restore all strip in `TerminalRegion.tsx`
+- the Past Sessions row in `PastSessionsModal.tsx`
+- the split leaf card in `split/SplitSurface.tsx`
+- the native session menu row in `session-actions.tsx`
+
+The four with a tooltip kept showing "Tortie is still asking your shell where your tools are
+installed. Restore turns on as soon as the answer arrives", which was no longer true, because nobody
+was asking. Quitting was the only way out. Restore worked in that state before Phase 81, so this was
+a regression and not a gap that had always been there.
+
+**The fix, one moved line.** `void readShellPathReady(store)` now sits BEFORE the two awaits, at the
+top of the `try`. It is still not awaited, because the session list must not wait on it and the read
+only decides whether Restore is pressable yet. It is asked once and not again from the `catch`,
+because asking from both places would ask twice on the happy path. `readShellPathReady` already
+handles its own rejection, since its one `await` is inside a `try` whose `catch` swallows the
+failure, so calling it earlier cannot break the boot. The comment above the call says the position
+is load bearing and why, so a later tidy does not move it back.
+
+**The test, proved by mutation.** `src/renderer/state/__tests__/shell-path-ready-boot-failure.test.ts`
+boots against a bridge whose `sessions.list()` rejects with an ordinary error that carries no JSON
+payload and therefore no boot block code. It asserts that the app is ready, that there is no boot
+block screen, that the failure arrives as a toast, that the shell PATH question was still asked
+exactly once, and that the flag flips to true once main answers. The two assertions that carry the
+regression are the call count and the flag, and both fail without the fix. The `canRestore()` line
+beside them is not one of the two, because that selector only checks that the bridge offers a
+`restore` function, so it reads true with the regression present as well. The test
+was proved rather than assumed. With the call moved back after the two awaits, the file reverted to
+2f0e841, the run failed on `expected +0 to be 1` at the call count. With the line back in its fixed
+position, the file byte identical to this commit's version at sha256
+ad5e44bf83a609620b4db6a4ee94a1a98d28590fadada47dc8a5377e64e57da3, both this file and the Phase 81
+test file pass.
+
+**What is not true.**
+
+- No live app was driven for this fix. The proof is the mutation run above, and it exercises the
+  same store and the same `hydrateAppState` the window uses.
+- The five controls and the sentence they draw were not touched. Only the position of one call
+  changed.
+- The other items in Phase 81's "What is not true" list are still true. The native menu row was
+  still never read out of a live native menu, and the create half of the ordering window was still
+  driven with a shell row rather than a claude row.
+
+**Subject:** `fix(boot): Restore turns on even when a boot read fails`
+**First body line:** `Phase 81.1: Restore turns on even when a boot read fails`
+**Semver:** patch, 0.44.0 to 0.44.1.
+**Tier 2.** One call moved inside one function, with a unit test that fails without it. No tmux, no
+manifest and no durable state is touched.
+
 ## Phase 81 — the session list stops waiting for your shell (operator queued 2026-08-18) ✅ SHIPPED 2026-08-18 (this commit, 0.44.0, gates green)
 
 **What landed.** `ensureServer` starts the login shell PATH capture and no longer waits for it, so
@@ -7614,7 +7681,8 @@ server created by a client with one PATH gave a later client's session that late
   flag is never asked for. Every Restore control then stays off for the rest of the run carrying a
   sentence that is no longer true, and the only way out is quitting. Before this phase Restore
   worked in that state. The fix is one line, being to ask before the `Promise.all` or again from the
-  catch. It is not in this commit.
+  catch. It is not in this commit. It is fixed in Phase 81.1, which is the entry directly above
+  this one, so it shipped for exactly one commit.
 - The native menu item was never read out of a live native menu. What exists is
   `disabled: !shellPathReady` in `session-actions.tsx` and the one mapping to `enabled: false` in
   `ContextMenu.tsx`.

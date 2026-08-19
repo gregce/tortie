@@ -57,6 +57,15 @@ export async function hydrateAppState(store: AppStore): Promise<void> {
   if (!gmux) return;
   const { getState, setState } = store;
   try {
+    // PHASE 81, and its position is load bearing (Phase 81.1). It is asked
+    // BEFORE the two lists are awaited, not after them. It sat after them
+    // once, and any failure in this try that was not a boot block code then
+    // skipped it, so every Restore control stayed greyed for the whole run
+    // under a sentence that was no longer true, and quitting was the only way
+    // out. Restore worked in that state before Phase 81, so it was a
+    // regression. Not awaited, because the session list must not wait on it
+    // and this only decides whether Restore is pressable yet.
+    void readShellPathReady(store);
     const [projects, sessions] = await Promise.all([
       gmux.projects.list(),
       gmux.sessions.list()
@@ -113,9 +122,6 @@ export async function hydrateAppState(store: AppStore): Promise<void> {
     // read never blocks the boot: a build with no machines surface, or a read
     // that fails, leaves the list empty and every other surface as it was.
     void readMachineStates(store);
-    // PHASE 81. Not awaited, and it must not be: the session list is on screen
-    // already and this only decides whether Restore is pressable yet.
-    void readShellPathReady(store);
     // Phase 51: a folder passed to a cold launch (`tortie .` or a Finder
     // open while Tortie was not running). The pull is take-and-clear
     // main-side, so this and the shell-open-pending menu action can both
