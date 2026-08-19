@@ -6007,14 +6007,50 @@ below lands after that release, unless he says otherwise.
 
 | # | Item | Size | Blocked on |
 | --- | --- | --- | --- |
-| 1 | **Research 56** the project and session model when there is more than one machine | research | nothing. Runs now, it is docs only |
+| 1 | **Research 56** the project and session model when there is more than one machine ✅ DELIVERED 2026-08-18 | research | done. It ruled build A, refuse B, refuse C |
 | 2 | **85** the status dot tells the truth on a connected machine | medium | Phase 84's files |
-| 3 | **90** the workspace follows the machine you are looking at | large | Research 56 |
+| 3 | **90** the workspace follows the machine you are looking at | large | nothing. Research 56 has ruled and section 10 of it is the order of work |
 | 4 | **91** SpecStory capture for a remote session | medium | nothing technical. It needs a decision about where the transcript lives |
 | 5 | **88** `needs input` for a remote session | large | the oracle question, which Research 56 does not touch |
 | 6 | **89** a conversation comes back on a remote machine | large | a decision about the permanently refused `send-keys` verb |
 
-## Research 56 — the project and session model when there is more than one machine (operator ordered 2026-08-18) QUEUED
+## Research 56 — the project and session model when there is more than one machine (operator ordered 2026-08-18) ✅ DELIVERED 2026-08-18 (this commit), docs/research/56-project-model-many-machines.md, checked against the tree of `50deb20`
+
+**The ruling, recorded.** Build model A, refuse model B and refuse model C, and the two refusals are
+independent of each other. B fails on field data, because 0 of the operator's 11 open project folders
+exists on the Mac Pro and the only Tortie work over there is an empty folder that is not a repository
+root, so there is no pair to map. C fails on this tree, because `useFileTree.setRoot`,
+`useTreeGitStatus.setRepo`, `useSearch.syncProject` and `useContext.syncProject` all return early when
+the path string is unchanged, so on two Macs that both hold `/Users/gdc/gmux` the badge would flip and
+the file tree, the git decorations, the search rows and the Context readout would keep showing this
+Mac. Model A also costs less than the round priced it, because its carrier is an additive
+`remote_projects` table with `UNIQUE(machine_id, path)` and `MANIFEST_MIN_COMPATIBLE_VERSION` stays at
+13.
+
+**Question 3 is ruled by hand, and there is no counterpart to learn.** Path equality fails 11 times
+out of 11 and basename fails 11 times out of 11. Matching the git remote URL and asking the machine
+cannot be attempted at all, because `/Users/gdc/dev` has 0 git remotes. A remote project is added by
+naming the machine and typing the folder, and the folder is checked once with one `test -d` at add
+time rather than once per session at create time.
+
+**The "Files live on \<machine\>" label is affirmed permanent.** This repeats research 55 section 11
+and it refuses shipping the label on its own. Under model A the label becomes a statement about the
+tab, so it is written once in the sidebar header and it does not move while the tab is open. It ships
+in the same commit as the per-tab refusal it explains.
+
+**One rule from research 55 is corrected by measurement.** Six sidebar calls issued in series cost
+310.8 ms, the same six issued at once cost 44.0 ms, and the same six as one command line cost 60.9 ms.
+The rule is never in series, rather than always batch into one call. A per-machine ceiling of 10 calls
+in flight is required, because the far machine's effective `MaxSessions` is 10 and the step from
+46.3 ms to 258.8 ms reproduced between k=10 and k=11 with 0 failures in 168 calls.
+
+**One new defect, and it is blocked on none of this.** Split Terminal on a remote session silently
+creates a local session in the same split, because `canSplit` in
+`src/renderer/terminal/terminal-menu.ts` has no machine test and `quickCreate` in
+`src/renderer/state/sessions-slice.ts` sends no `machineId`. Section 11 of the document lists five
+defects of that kind and section 10 gives the order of work for Phase 90.
+
+The charter below is kept as the operator wrote it.
 
 **It rules. It does not survey.** Three candidate models are named below because the operator named
 them. The round may find a fourth, and it must say plainly if one of his three is wrong.
@@ -6059,10 +6095,11 @@ round exists to remove.
 It may not re-open the no install decision. Research 55 settled that on measured round trips and the
 answer was to build on the ssh door that already exists. This round designs on top of that answer.
 
-## Phase 90 — the workspace follows the machine you are looking at, NOT QUEUED, blocked on Research 56
+## Phase 90 — the workspace follows the machine you are looking at, NOT QUEUED, Research 56 has ruled
 
-The build of whatever Research 56 rules. It is named here so the research has a destination, and it
-stays unqueued until the ruling exists. It absorbs research 54 item 15, being the
+It builds model A. The order of work is section 10 of
+`docs/research/56-project-model-many-machines.md`, being six items with a verification tier named on
+each, of which four are Tier 3. It absorbs research 54 item 15, being the
 "Files live on \<machine\>" label that research 51 section 4.5 specified and nobody wrote, because a
 label is either part of this design or it is a stopgap for it.
 
