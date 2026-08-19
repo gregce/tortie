@@ -6173,6 +6173,77 @@ not free.
 - **Cloning writes to the operator's machine.** It is a confirm with the URL and the destination
   path shown, and it is the only write in this phase.
 
+### Item 3, clone it onto the machine as part of creating the session (operator ordered 2026-08-19)
+
+**His words.** "I should be able to ALSO start a remote session on a remote machine from a local git
+project I am by being able to clone it into a new folder on the other machine if I create a new
+session."
+
+This is item 2's "or can create" half, promoted to its own item because it is the flow that makes a
+machine useful from a standing start rather than a fallback branch. A person is in a local project,
+presses Cmd+T, picks a machine, and the project is not over there yet. Tortie offers to put it
+there, and the session starts in it.
+
+**IT IS FEASIBLE, AND THIS WAS MEASURED ON THE OPERATOR'S OWN MAC PRO ON 2026-08-19.** The question
+that decides the whole item is whether the far machine can authenticate to a private repository with
+nobody at its keyboard. It can.
+
+| What was measured | Answer |
+| --- | --- |
+| git on the machine | `/usr/bin/git` |
+| Credential helper | `/usr/local/share/gcm-core/git-credential-manager`, configured globally |
+| A private repository, reached with `GIT_TERMINAL_PROMPT=0` and `GCM_INTERACTIVE=never` | **`git ls-remote https://github.com/gregce/tortie.git HEAD` returned the head sha with no prompt** |
+| ssh keys on the far machine | **NONE.** `~/.ssh` holds only `authorized_keys` |
+| `gh` CLI | Not installed |
+| `timeout` | **Not installed.** It is GNU coreutils and macOS does not ship it |
+
+**Three consequences follow directly from those rows and they are requirements, not suggestions.**
+
+1. **Use the https form of the remote, never the ssh form.** The Mac Pro has no ssh key of its own,
+   so `git@github.com:gregce/tortie.git` cannot authenticate from there while
+   `https://github.com/gregce/tortie.git` can. A local project whose origin is the ssh form must
+   have it translated before it crosses, and the person is told that is what happened.
+2. **Every git command sent for this item sets `GIT_TERMINAL_PROMPT=0` and `GCM_INTERACTIVE=never`.**
+   A clone that stops on a hidden password prompt on a machine nobody is looking at is a hang, and a
+   hang reads to a person as Tortie freezing.
+3. **The frozen scripts may not use `timeout`.** It is absent on this machine and probably on every
+   macOS machine. Any deadline is enforced on this Mac by the exec plane, which already has one.
+
+**What must be true before a clone runs.**
+
+- **A confirm, always, showing the URL and the exact destination path.** This is the first thing
+  Tortie would ever write to a far machine beyond the 90 KB image upload, and it creates a directory
+  and downloads a repository. It is never automatic and it never rides on a create.
+- **A reachability check first.** `git ls-remote` against the URL, from the far machine, with the two
+  environment variables above. If it cannot authenticate, say so with the URL named and offer the
+  folder picker instead. Do NOT start a clone that will fail slowly.
+- **A destination that does not already exist.** If the path is taken, refuse and say what is there.
+  Never clone into a non-empty directory and never overwrite.
+- **A stated default path with a rule the person can predict**, e.g. the same basename under the far
+  machine's own home directory, which `machine-facts` already reads. The field is editable.
+
+**What must be refused.**
+
+- **No credential ever crosses from this Mac.** Tortie does not read, forward, cache or ask for one.
+  The far machine authenticates with what it already has, or the clone is refused. If that machine
+  has no credentials, the answer is a sentence naming the URL, not a prompt.
+- **No branch, no depth, no submodule and no LFS cleverness in the first version.** A plain clone of
+  the default branch. Anything else is a later decision with its own evidence.
+- **The clone does not make the two folders one project.** They are two tabs under model A, keyed on
+  `(machineId, path)`. Cloning is how the second folder comes to exist, and it changes nothing about
+  identity.
+
+**What a person sees while it runs.** A clone of a real repository takes seconds to minutes and the
+create sheet cannot simply freeze. The phase decides whether the session is created first and the
+clone reported into its pane, or the sheet shows progress and the session waits. **Prefer the shape
+that never leaves a half made session behind**, and say what happens when the clone fails after the
+row is written.
+
+**Tier 3 for this item**, because it writes to another computer. The proof is one clone driven onto
+the operator's real Mac Pro into a scratch path, the session created in it, an agent started and
+read back, and the scratch path removed afterwards by exact path. The refusal cases are driven too:
+a URL that cannot authenticate, a destination that already exists, and a project with no remote.
+
 ### What this phase does NOT do
 
 It does not make the sidebars follow the focused session, which is model C and is refused. It does
