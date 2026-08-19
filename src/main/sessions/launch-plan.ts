@@ -223,6 +223,8 @@ export function interpreterMissingMessage(
  * HONESTY, so the next editor knows what this is insurance for. For a bare
  * name TODAY the null test this replaced and the equality test coincide,
  * because `getUserPath()` merges `extraBinDirs()` into every captured PATH,
+ * and by Phase 81 `createSession` awaits `installUserPath()` before it reads
+ * anything, so the PATH those two reads see is one value that never changes,
  * so any hit `resolveBinary(bare)` can find is also a userPath hit and equals
  * `abs`. This function binds the invariant to the create path itself instead
  * of to that merge, which someone tuning boot latency can remove without ever
@@ -246,8 +248,10 @@ export function bareNameFor(
  * Bug A), but the absolute path in argv[0] is also what made a durable gmux
  * agent the ONE process on the machine that `pkill -f "$(command -v claude)"`
  * hits, while every ephemeral `claude` walked away. Bug A's real fix is the
- * login-shell PATH injected into the tmux server env (supervisor.ts), so
- * tmux's execvp resolves the bare name just as the user's own shell does.
+ * login-shell PATH written into this process, the tmux client, at the one
+ * assignment in ../tmux/user-path.ts (Phase 81 moved that line out of
+ * supervisor.ts), so tmux's execvp resolves the bare name just as the user's
+ * own shell does.
  *
  * A CAPTURED session gets the same treatment ONE LEVEL IN: argv[0] is the
  * specstory binary (absolute — it is not on PATH when it is the bundled

@@ -7552,7 +7552,87 @@ conversation.
 It is the only large piece of work in the repository that is fully specified, fully decided, blocked
 on nothing, and paused for a reason that is about to stop being true.
 
-## Phase 81 — the session list stops waiting for your shell (operator queued 2026-08-18) QUEUED
+## Phase 81 — the session list stops waiting for your shell (operator queued 2026-08-18) ✅ SHIPPED 2026-08-18 (this commit, 0.44.0, gates green)
+
+**What landed.** `ensureServer` starts the login shell PATH capture and no longer waits for it, so
+`sessions:list`, `projects:list` and `sessions:attach` read the manifest while the shell is still
+answering. On a packaged build measured cold five times, the moment the renderer holds the session
+list moved from a median of 1749 ms to 584 ms, a gain of 1.17 s. With a fake login shell that takes
+8 s to answer, the same moment moved from 8493 to 8519 ms down to 559 to 582 ms. The window itself
+already painted first, so what changed is what is in the window rather than when the window arrives.
+
+**The one PATH assignment moved to its own module and there is still exactly one.**
+`process.env['PATH']` is written on one line in `src/main` and that line is now in
+`src/main/tmux/user-path.ts`. `installUserPath()` is one cached promise, and everything that can
+start a pane awaits it: `createSession` awaits it before it reads the PATH for the manifest row,
+`restoreSessionInTmux` awaits it at its own top, and the per agent create hotkey reaches the same
+create. `src/main/tmux/__tests__/user-path.test.ts` asserts the one writer rule against the source,
+so a second assignment fails the build rather than the next person's restore.
+
+**The hazard the phase existed to avoid, driven twice.** A restore that begins before the capture
+lands must still get the full PATH. On a packaged build with a login shell rigged to answer at
+7917 ms, four restores all STARTED at 1231 ms and settled between 8021 and 8067 ms, so every one of
+them began before the capture landed and crossed the boundary. Each of the four restored panes
+printed its own PATH from inside the pane. All four printed the same value, 68 directories, carrying
+all 30 of the probe's invented directories including a sentinel that exists nowhere else on the
+machine. No pane got the 4 entry launchd PATH. The development build was driven the same way with
+the same result. `build/probe-shell-path.mjs` is the probe and `npm run probe:shellpath` runs it.
+
+**Restore is off in the renderer for about one second and says why.** A new invoke channel,
+`sessions:shellPathReady`, resolves when the PATH is installed. Five Restore controls read the
+flag: the session card button, the Restore all strip, the Past Sessions row, the split surface card
+and the native session menu item. The four with a tooltip carry one shared sentence, "Tortie is
+still asking your shell where your tools are installed. Restore turns on as soon as the answer
+arrives." The native menu item carries none, because a native menu has no tooltip. Main awaits the
+same promise, so a restore that slipped through would still be correct. A driven run read the
+controls 67 times while the flag was false, every one disabled with that sentence, and once after it
+flipped, with no sentence.
+
+**The two defects named in the entry are fixed.** `boot.env` used to record 4 PATH entries on every
+healthy boot while the capture line in the same file recorded 30, because the snapshot ran before
+the capture. It now awaits the same cached capture and both lines read 37 on a driven boot. The
+diagnostics label says "login shell PATH entries" so a person knows which PATH the number counts. A
+capture that falls back now raises a sticky toast, "Your shell did not answer. Agents may not
+start.", with a View logs action. It was driven on a packaged build with a shell that prints
+nothing, and exactly one `shell-path-fallback` record appears in `app.log`.
+
+**One build still waits, and only when it has to.** A development build looks for tmux in three
+known directories and then scans the PATH, so `ensureServer` waits for the capture when that scan is
+the only way to find tmux. A packaged build runs the copy inside its own bundle and never reaches
+the scan, so it never waits. The `set-environment -g PATH` write is chained on the install rather
+than awaited, and `serverPathPublished()` is the handle the `GMUX_SMOKE=agent` harness waits on.
+Chaining it is safe because a pane takes its PATH from the tmux CLIENT: measured on tmux 3.6a, a
+server created by a client with one PATH gave a later client's session that later client's PATH.
+
+**What is not true.**
+
+- **Restore can stay disabled for the whole run if the first hydration read fails.**
+  `readShellPathReady` is called at the end of the `try` in
+  `src/renderer/state/subscriptions.ts`, after `await Promise.all([projects.list(), sessions.list()])`.
+  If either read rejects with an error that is not one of the three boot block codes, the catch sets
+  `ready: true`, the shell body renders, sessions can still arrive over `sessions:changed`, and the
+  flag is never asked for. Every Restore control then stays off for the rest of the run carrying a
+  sentence that is no longer true, and the only way out is quitting. Before this phase Restore
+  worked in that state. The fix is one line, being to ask before the `Promise.all` or again from the
+  catch. It is not in this commit.
+- The native menu item was never read out of a live native menu. What exists is
+  `disabled: !shellPathReady` in `session-actions.tsx` and the one mapping to `enabled: false` in
+  `ContextMenu.tsx`.
+- The create half of the ordering window was driven with a shell row rather than a claude row,
+  because the probe's invented PATH holds no real binaries. `npm run conformance:agents` and
+  `npm run conformance:resume:capture` both pass and cover the claude shape, but not inside this
+  phase's ordering window.
+- The probe's own preparation check counts the hidden control session, so a run that made one fewer
+  session than asked would still pass its prep check. That is a weakness in the probe and not in the
+  product.
+- `userPathInstalled()` is exported and has no product caller. Only its unit test reads it.
+- `armShellPathProbe()` runs at module load in `App.tsx` on every launch, not only under the shot
+  harness. It leaves one store subscription installed, which removes itself once it has its two
+  timestamps.
+- Older records still point at the line that moved. `docs/research/47-agent-installs.md` twice names
+  `process.env['PATH'] = userPath` at `supervisor.ts:558`, and two shipped backlog entries say the
+  same. They are historical records and were left alone.
+
 
 **Build the SMALL HALF of performance fix 1 and nothing else.** The audit's fix 1 was examined by
 eleven agents on 2026-08-18 against the tree at d414746. The examination found the small claim true

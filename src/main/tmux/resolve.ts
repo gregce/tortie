@@ -86,9 +86,23 @@ const tmuxLog = getLog('tmux');
  *
  * THE ONE COST, stated so it is not discovered later. A machine whose login
  * shell never prints now waits 10 s instead of 3 s before the first session can
- * be created, because `getUserPath` is awaited on the create path. Nothing else
- * gets slower: a shell that answers settles on the markers, and this number is
- * only the deadline.
+ * be created, because `getUserPath` is awaited on the create path.
+ *
+ * WHAT WAITS FOR THIS NUMBER, corrected in Phase 81. This paragraph used to
+ * say that a create is the only thing that waits and that nothing else gets
+ * slower. That was already false. `ensureServer` awaited the capture, and the
+ * session list, the project list and every attach sat behind `ensureServer`,
+ * so a machine whose shell never printed showed an empty window for the whole
+ * 10 s. Since Phase 81 the sentence is true. `ensureServer` starts the capture
+ * and does not wait for it. What waits is anything that can start a pane,
+ * being create, restore and the per agent create hotkey, and all of them await
+ * one cached promise in ./user-path.ts.
+ *
+ * A DEVELOPMENT BUILD HAS ONE MORE WAIT and takes it only when it needs it.
+ * Such a build looks for tmux in three known directories and then scans the
+ * PATH, so a tmux installed anywhere else is found only after the capture. On
+ * that machine `ensureServer` waits before it resolves tmux. A packaged build
+ * never reaches the scan, because it runs the copy inside its own bundle.
  */
 export const PATH_CAPTURE_TIMEOUT_MS = 10_000;
 
@@ -271,6 +285,11 @@ export function captureLoginShellPath(
       // process, because `getUserPath` caches the promise.
       const elapsedMs = Date.now() - startedAt;
       const source = captured === null ? 'fallback' : 'login shell';
+      // PHASE 81. The same verdict the log line below already carried, kept
+      // where a reader can ask for it. ./user-path.ts asks, because the one
+      // place that can tell a person their shell did not answer is the place
+      // that installs what it answered with.
+      lastCapture = { source, shell };
       const dirCount = merged.split(delimiter).filter(Boolean).length;
       tmuxLog.info(
         `login-shell PATH capture: ${source}, ${String(elapsedMs)} ms, ` +
@@ -531,6 +550,29 @@ let userPathPromise: Promise<string> | null = null;
 let userPathGeneration = 0;
 
 /**
+ * How the last {@link captureLoginShellPath} settled, and which program it
+ * asked. Null before any capture in this process.
+ *
+ * PHASE 81. It exists so the fallback can be reported to the person instead
+ * of only to the log. `captureLoginShellPath` never rejects, so a fallback is
+ * indistinguishable from a good answer at the call site, and until this phase
+ * the only trace of one was two lines in app.log that nothing above the
+ * surface read.
+ */
+let lastCapture: { source: 'login shell' | 'fallback'; shell: string } | null =
+  null;
+
+/** How the last capture settled, or null when none has run. */
+export function userPathSource(): 'login shell' | 'fallback' | null {
+  return lastCapture?.source ?? null;
+}
+
+/** Which program the last capture asked, e.g. /bin/zsh. Null before one. */
+export function userPathShell(): string | null {
+  return lastCapture?.shell ?? null;
+}
+
+/**
  * The user's real PATH, captured once per boot (cached promise — concurrent
  * callers share the one capture). Always resolves.
  */
@@ -557,6 +599,7 @@ export function userPathEpoch(): number {
 /** Test hook. Leaves the epoch alone, so the next capture moves it. */
 export function resetUserPathCache(): void {
   userPathPromise = null;
+  lastCapture = null;
 }
 
 // ---------------------------------------------------------------------------

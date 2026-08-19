@@ -474,6 +474,15 @@ export function sessionMenuItems(
       ? [
           {
             label: 'Restore',
+            // PHASE 81. Off until the login shell has said where the person's
+            // tools are installed. A native menu carries no tooltip, so this
+            // item says nothing extra, and a greyed item for about one second
+            // is better than an item that does nothing. Main awaits the same
+            // promise, so a restore that got through would still be correct.
+            // The renderer's own field is `disabled`; ContextMenu turns it
+            // into the bridge's `enabled: false` at the one place that talks
+            // to the native menu.
+            disabled: !useApp.getState().shellPathReady,
             run: () => void useApp.getState().restoreSession(session.id)
           }
         ]

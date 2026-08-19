@@ -5,7 +5,7 @@
  *
  * A pane takes its PATH from the tmux client that asked for the session. On this
  * Mac that client is the Electron process, which is why
- * `process.env['PATH'] = userPath` in `../tmux/supervisor.ts` is load bearing.
+ * the one PATH assignment in `../tmux/user-path.ts` is load bearing.
  * On a machine reached over a connection the client is the tmux process the far
  * side's sign in program spawns, and **that command runs a non-login shell**, so
  * the machine's own login files are never read and the PATH is short. An agent

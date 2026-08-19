@@ -135,6 +135,14 @@ import { driveContext } from '../context/shot-probe';
 import type { ContextProbeSpec } from '../context/shot-probe';
 import { driveSessionFocus } from './focus-shot-drive';
 import type { SessionFocusProbeSpec } from './focus-shot-drive';
+import { armShellPathProbe, driveShellPath } from './shell-path-shot-drive';
+import type { ShellPathProbeSpec } from './shell-path-shot-drive';
+
+// PHASE 81 harness hook, armed at module load because the moment it has to
+// see, the session list arriving, is over before any drive can start. It
+// takes four timestamps and its store subscription removes itself as soon as
+// it has them. Nothing else in a real run reaches it.
+armShellPathProbe();
 
 // ---------------------------------------------------------------------------
 // Keyboard map (DESIGN.md §4) — one capture-phase listener; ⌘-chords and F2
@@ -873,6 +881,17 @@ interface ShotLayoutExtras {
    * the harness socket at the same time as the second, independent witness.
    */
   sessionFocus?: SessionFocusProbeSpec;
+  /**
+   * Phase 81. Start a restore and a create before the login shell has
+   * answered, read every Restore control out of the document while the
+   * answer is still coming, and report when each of those moments was.
+   *
+   * The phase's claims are all about order in time. A screenshot cannot show
+   * an order and a unit test cannot see a real login shell, so the driver
+   * prints a table of moments and build/probe-shell-path.mjs reads the panes
+   * those verbs produced as the second, independent witness.
+   */
+  shellPath?: ShellPathProbeSpec;
 }
 
 function useShotLayoutHook(): void {
@@ -1077,6 +1096,14 @@ function useShotLayoutHook(): void {
       if (ext.sessionFocus !== undefined) {
         window.__gmuxShotReady = false;
         await driveSessionFocus(ext.sessionFocus);
+        window.__gmuxShotReady = true;
+      }
+      // Phase 81. It runs as early as the harness lets a drive run, because
+      // every claim it measures is about the seconds before the login shell
+      // answers. GMUX_SHOT_DELAY_MS is what decides how early that is.
+      if (ext.shellPath !== undefined) {
+        window.__gmuxShotReady = false;
+        await driveShellPath(ext.shellPath);
         window.__gmuxShotReady = true;
       }
     };

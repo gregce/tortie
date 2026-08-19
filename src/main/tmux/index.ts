@@ -22,6 +22,9 @@ export {
   findTmuxBinary,
   resolveConfPath,
   execTmux,
+  // Phase 81: harness only. When the captured PATH reached the server's
+  // global environment, which is what GMUX_SMOKE=agent asserts on.
+  serverPathPublished,
   tmuxArgs,
   TMUX_SOCKET,
   activeTmuxSocket,
@@ -54,11 +57,24 @@ export {
   // Phase 48: the counter a cache keys on when its answer was computed against
   // the captured PATH. See src/main/agents/health.ts.
   userPathEpoch,
+  // Phase 81: how the last capture settled, and which program it asked. The
+  // fallback notice is composed from these two.
+  userPathShell,
+  userPathSource,
   ENV_CAPTURE_MAX_VALUE_BYTES,
   PATH_CAPTURE_TIMEOUT_MS,
   type CaptureEnvResult,
   type CapturePathOptions
 } from './resolve';
+
+// PHASE 81 — the one place this process's PATH is written, and the wait that
+// everything able to start a pane takes. `restore/` and `sessions/` reach it
+// through this facade, which is the one they already use.
+export {
+  installUserPath,
+  resetUserPathInstallForTests,
+  userPathInstalled
+} from './user-path';
 
 // Phase 41 — which tmux this process runs, and the one composer for the two
 // "there is no tmux to run" messages.

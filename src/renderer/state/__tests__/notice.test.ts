@@ -233,6 +233,19 @@ describe('each degraded state says one plain thing', () => {
     expect(out.kind).toBe('info');
   });
 
+  it('a login shell that did not answer says what it costs, not what it was (Phase 81)', () => {
+    // The sentence says the consequence rather than the mechanism. "Your
+    // shell did not print its PATH" is not something a person can act on and
+    // "agents may not start" is. The shell's own name is in the log, which is
+    // where the action goes, because a path does not fit in a toast.
+    const out = say({ kind: 'shell-path-fallback', shell: '/bin/zsh' });
+    expect(out.text).toBe('Your shell did not answer. Agents may not start.');
+    expect(out.kind).toBe('error');
+    expect(out.action).toBe('View logs');
+    useApp.getState().toasts[0]?.action?.run();
+    expect(logFolderOpens).toBe(1);
+  });
+
   it('a pane that started without one promised variable names it (Phase 33)', () => {
     const out = say({
       kind: 'env-unresolved',
@@ -314,7 +327,8 @@ describe('every line fits the toast it has to fit in', () => {
       sessionName: 'a-very-long-session-name',
       names: ['FIREWORKS_API_KEY'],
       probeFailed: true
-    }
+    },
+    { kind: 'shell-path-fallback', shell: '/bin/zsh' }
   ];
 
   for (const notice of CASES) {

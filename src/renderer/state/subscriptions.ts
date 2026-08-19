@@ -31,6 +31,7 @@ import type {
   GmuxNoticeExtras,
   GmuxScrollbackExtras,
   GmuxSettingsExtras,
+  GmuxShellPathExtras,
   GmuxSpecStoryExtras
 } from '@shared/ipc';
 import type { DurabilityNotice, GmuxNotice } from '@shared/notice';
@@ -112,6 +113,9 @@ export async function hydrateAppState(store: AppStore): Promise<void> {
     // read never blocks the boot: a build with no machines surface, or a read
     // that fails, leaves the list empty and every other surface as it was.
     void readMachineStates(store);
+    // PHASE 81. Not awaited, and it must not be: the session list is on screen
+    // already and this only decides whether Restore is pressable yet.
+    void readShellPathReady(store);
     // Phase 51: a folder passed to a cold launch (`tortie .` or a Finder
     // open while Tortie was not running). The pull is take-and-clear
     // main-side, so this and the shell-open-pending menu action can both
@@ -165,6 +169,34 @@ async function readMachineStates(store: AppStore): Promise<void> {
     store.getState().applyMachineStates(await machines.state());
   } catch {
     /* a machine list that could not be read leaves the previous one alone */
+  }
+}
+
+/**
+ * Ask main whether the login shell PATH is installed, and flip the flag when
+ * it says so.
+ *
+ * PHASE 81. The five Restore controls are off until this resolves. A build
+ * whose preload has no such method starts with the flag already true, so this
+ * function returns at once and the controls behave the way they always did.
+ * A failure is swallowed: main awaits the same promise on the restore path,
+ * so a flag that never flipped would cost the person a disabled button and
+ * never a wrong restore. The call itself always resolves, at worst on the
+ * capture's own 10,000 ms deadline.
+ */
+async function readShellPathReady(store: AppStore): Promise<void> {
+  const gmux = window.gmux as typeof window.gmux | undefined;
+  if (!gmux) return;
+  const sessions = gmux.sessions as typeof gmux.sessions & GmuxShellPathExtras;
+  if (typeof sessions.shellPathReady !== 'function') {
+    store.getState().applyShellPathReady();
+    return;
+  }
+  try {
+    await sessions.shellPathReady();
+    store.getState().applyShellPathReady();
+  } catch {
+    /* the controls stay off; main's own wait is what keeps a restore right */
   }
 }
 
@@ -408,6 +440,31 @@ function showDegraded(store: AppStore, notice: DurabilityNotice): void {
           : `"${short}" started without ${notice.names.length} of its variables.`,
       { sticky: true }
     );
+    return;
+  }
+  if (notice.kind === 'shell-path-fallback') {
+    // Phase 81. The login shell did not print its PATH, so every pane this
+    // run gets the fallback, which carries no version managed node directory.
+    // The sentence says the consequence and not the mechanism, because "your
+    // shell did not print its PATH" is not something a person can act on and
+    // "agents may not start" is. 47 characters, which is two lines of about
+    // 26 beside the action button. The shell's own name is in the log, which
+    // is where the action goes, because a path does not fit here.
+    const logExtras = gmux
+      ? (gmux as typeof gmux & GmuxLogExtras).log
+      : null;
+    const openFolder = logExtras?.openFolder;
+    getState().toast('error', 'Your shell did not answer. Agents may not start.', {
+      sticky: true,
+      ...(typeof openFolder === 'function'
+        ? {
+            action: {
+              label: 'View logs',
+              run: () => void openFolder()
+            }
+          }
+        : {})
+    });
     return;
   }
   // A kind added to the shared union without a sentence here fails the

@@ -258,3 +258,41 @@ export interface GmuxAskRestoreProjectExtras {
     input: AskRestoreProjectInput
   ): Promise<AskRestoreProjectAnswer>;
 }
+
+// ---------------------------------------------------------------------------
+// APPENDED by Phase 81 (the session list stops waiting for the login shell) —
+// ONE new invoke channel. The one existing line touched elsewhere is the
+// GmuxInvokeChannelMap intersection, exactly the one-line fold this file's
+// other streams prescribe.
+//
+// WHY THE RENDERER NEEDS TO ASK AT ALL. The session list used to arrive after
+// the login shell had answered, because `ensureServer` awaited that answer and
+// `sessions:list` sat behind `ensureServer`. It does not any more, so Restore
+// is on screen about one second before Tortie can honour it. Main awaits the
+// same promise, so a restore that slipped through would still be correct. This
+// channel exists so the button can be honest rather than slow.
+//
+// MAIN: src/main/ipc.ts, beside sessions:attach. It does NOT boot the session
+// core: asking whether the shell has answered must not itself start anything.
+// ---------------------------------------------------------------------------
+
+/** New invoke channel appended by Phase 81. */
+export interface ShellPathInvokeChannelMap {
+  /**
+   * Resolves when Tortie has the PATH from the user's login shell and has
+   * installed it in the main process. It starts the capture if nothing else
+   * has. It always resolves, at worst on the 10,000 ms deadline, because the
+   * capture falls back rather than failing.
+   */
+  'sessions:shellPathReady': { req: []; res: void };
+}
+
+/**
+ * OPTIONAL extension to GmuxApi['sessions'], feature-detected by the renderer
+ * (`typeof window.gmux.sessions.shellPathReady === 'function'`). Without it
+ * the renderer treats the PATH as ready from the start, which is exactly the
+ * behaviour every preload before Phase 81 had.
+ */
+export interface GmuxShellPathExtras {
+  shellPathReady?(): Promise<void>;
+}

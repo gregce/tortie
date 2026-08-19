@@ -60,7 +60,8 @@ import {
   restoreActionCopy,
   restoreExitedCopy,
   restoreSummary,
-  resumeNote
+  resumeNote,
+  SHELL_PATH_PENDING_TITLE
 } from './resume';
 import { AgentIcon, Codicon } from '../icons';
 // §6.2 lives with the other full-window empty states (./EmptyStates).
@@ -164,6 +165,10 @@ function RestoreAllBar({
   const canRestore = useApp((s) => s.canRestore);
   const restoreAllSessions = useApp((s) => s.restoreAllSessions);
   const restoringIds = useApp((s) => s.restoringIds);
+  // PHASE 81. The session list arrives before the login shell answers now, so
+  // this strip can be on screen about a second before Tortie can honour it.
+  // The button says so rather than failing quietly.
+  const shellPathReady = useApp((s) => s.shellPathReady);
 
   // PHASE 71. Two changes, and both are about offering an action Tortie will
   // actually perform.
@@ -191,7 +196,8 @@ function RestoreAllBar({
       <button
         type="button"
         className="btn-restore"
-        disabled={busy}
+        disabled={busy || !shellPathReady}
+        {...(shellPathReady ? {} : { title: SHELL_PATH_PENDING_TITLE })}
         onClick={() => void restoreAllSessions()}
       >
         <Codicon name="history" size={12} />
@@ -452,6 +458,8 @@ export function TerminalRegion(): React.JSX.Element {
   const canRestore = useApp((s) => s.canRestore);
   const restoreSession = useApp((s) => s.restoreSession);
   const restoringIds = useApp((s) => s.restoringIds);
+  // Phase 81, the same honesty on the session card's own Restore button.
+  const cardShellReady = useApp((s) => s.shellPathReady);
   const setVisibleSessions = useApp((s) => s.setVisibleSessions);
   // Phase 48. When this window saw each session stop, for the ones it also
   // saw running. The projection carries no death time, so the "stopped right
@@ -638,7 +646,10 @@ export function TerminalRegion(): React.JSX.Element {
                 <button
                   type="button"
                   className="btn btn-primary"
-                  disabled={restoringIds[active.id] === true}
+                  disabled={restoringIds[active.id] === true || !cardShellReady}
+                  {...(cardShellReady
+                    ? {}
+                    : { title: SHELL_PATH_PENDING_TITLE })}
                   onClick={() => void restoreSession(active.id)}
                 >
                   {restoringIds[active.id] === true ? 'Restoring…' : 'Restore'}

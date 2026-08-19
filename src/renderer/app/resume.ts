@@ -190,6 +190,24 @@ export function hasRestoreMaterial(session: Session): boolean {
 }
 
 /**
+ * The sentence a Restore control carries while Tortie is still waiting for
+ * the login shell to say where the person's tools are installed. Phase 81.
+ *
+ * Two sentences. The first says what Tortie is doing, in words with no jargon
+ * in them. The second says when the control comes back. It does not say
+ * "PATH", because a tooltip is not the place to teach a term, and the log
+ * line and the fallback notice both name it properly for anyone who needs it.
+ *
+ * One string, read by four controls, so the four cannot drift. The native
+ * session menu's Restore item takes no tooltip at all: a native menu carries
+ * none, and a greyed item for about one second is better than an item that
+ * does nothing.
+ */
+export const SHELL_PATH_PENDING_TITLE =
+  'Tortie is still asking your shell where your tools are installed. ' +
+  'Restore turns on as soon as the answer arrives.';
+
+/**
  * Body copy for an exited session that offers Restore (Phase 26.3). The verb
  * copy says what comes back and names what does not: the process that was
  * killed stays gone, so nobody expects a stopped build to resume mid-compile.

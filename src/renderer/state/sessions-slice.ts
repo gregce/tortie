@@ -28,6 +28,7 @@ import type {
   GmuxSessionExtras,
   GmuxSessionRestartExtras,
   GmuxSessionRestoreExtras,
+  GmuxShellPathExtras,
   SavedSessionOutput
 } from '@shared/ipc';
 // Pure over Session fields; resume.ts imports only types and state/agents,
@@ -150,6 +151,23 @@ export interface SessionsSlice {
   restoringIds: Record<string, boolean>;
   /** Whether the optional sessions:restore bridge method exists. */
   canRestore(): boolean;
+  /**
+   * PHASE 81. False until main says the login shell PATH is installed.
+   *
+   * The session list arrives before the shell answers now, so Restore is on
+   * screen about one second before Tortie can honour it. Main awaits the same
+   * promise, so a restore that slipped through would still be correct. This
+   * flag exists so the button is honest rather than slow.
+   *
+   * An older preload has no such call. In that case this is true from the
+   * start, which is exactly the behaviour that preload had.
+   */
+  shellPathReady: boolean;
+  /**
+   * Adopt main's answer. Subscription entry point (./subscriptions calls it),
+   * never a component verb, and it only ever sets the flag to true.
+   */
+  applyShellPathReady(): void;
   /**
    * Restore one 'restorable' session: recreate it in tmux with its saved
    * scrollback replayed and the resume command ARMED (typed, not run).
@@ -318,7 +336,8 @@ export const createSessionsSlice: StateCreator<
         GmuxSessionRestoreExtras &
         GmuxSessionRestartExtras &
         GmuxPastSessionsExtras &
-        GmuxAskRestoreProjectExtras)
+        GmuxAskRestoreProjectExtras &
+        GmuxShellPathExtras)
     : null;
 
   // Phase 72: the saved output read. It is on the top-level scrollback surface
@@ -635,6 +654,14 @@ export const createSessionsSlice: StateCreator<
 
     canRestore() {
       return typeof sessionExtras?.restore === 'function';
+    },
+
+    // PHASE 81. False on a build whose preload can answer the question, true
+    // from the start on one that cannot. The five Restore controls read it.
+    shellPathReady: typeof sessionExtras?.shellPathReady !== 'function',
+
+    applyShellPathReady() {
+      set({ shellPathReady: true });
     },
 
     async restoreSession(sessionId) {

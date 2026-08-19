@@ -701,6 +701,11 @@ export async function restoreSessionInTmux(
   rec: ManifestSessionRecord,
   options: RestoreSessionOptions = {}
 ): Promise<RestoreOutcome> {
+  // PHASE 81. Restore becomes clickable before the capture lands now, so the
+  // wait that used to be free has to be asked for. A restored pane that got
+  // the launchd PATH shows `command not found` for a tool that works in
+  // Terminal, and the only cure is killing the session.
+  await tmux.installUserPath();
   const originalCwdGone = !existsSync(rec.cwd);
 
   // THE SUBSTITUTION IS NOT ALWAYS SAFE (research 22 §3.5, unimplemented

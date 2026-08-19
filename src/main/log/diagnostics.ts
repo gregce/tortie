@@ -52,7 +52,10 @@ function bootSection(env: BootEnvRaw, level: LogLevel, fileOn: boolean): string[
     env.tmuxVersion === null
       ? `tmux not found, socket ${env.tmuxSocket ?? 'unknown'}`
       : `${env.tmuxVersion}, socket ${env.tmuxSocket ?? 'unknown'}`,
-    `PATH entries ${env.pathEntries}`,
+    // PHASE 81. The label says which PATH, because the number now means the
+    // login shell's own and used to mean the launchd one this app was
+    // started with. A person reading Copy diagnostics should be told which.
+    `login shell PATH entries ${env.pathEntries}`,
     `log level ${level}, file logging ${fileOn ? 'on' : 'off'}`
   );
   return lines;

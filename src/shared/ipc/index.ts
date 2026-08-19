@@ -132,7 +132,9 @@ import type {
   GmuxPastSessionsExtras,
   GmuxSessionRestartExtras,
   GmuxSessionRestoreExtras,
-  RestoreInvokeChannelMap
+  GmuxShellPathExtras,
+  RestoreInvokeChannelMap,
+  ShellPathInvokeChannelMap
 } from './sessions';
 import type { GmuxLogExtras, LogInvokeChannelMap } from './log';
 import type {
@@ -235,7 +237,8 @@ export type GmuxInvokeChannelMap = InvokeChannelMap &
   AskRestoreProjectInvokeChannelMap &
   ShellCommandInvokeChannelMap &
   MachinesInvokeChannelMap &
-  ProjectPickerInvokeChannelMap;
+  ProjectPickerInvokeChannelMap &
+  ShellPathInvokeChannelMap;
 
 export type GmuxInvokeChannel = keyof GmuxInvokeChannelMap;
 
@@ -284,7 +287,8 @@ export type InstalledSessionsApi = GmuxApi['sessions'] &
   GmuxSessionRestoreExtras &
   GmuxSessionRestartExtras &
   GmuxPastSessionsExtras &
-  GmuxAskRestoreProjectExtras;
+  GmuxAskRestoreProjectExtras &
+  GmuxShellPathExtras;
 
 /**
  * The `projects` object the preload installs: the frozen base surface plus

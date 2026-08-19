@@ -38,7 +38,8 @@ import {
   restoreExitedCopy,
   resumeMarkLabel,
   resumeNote,
-  resumeReadiness
+  resumeReadiness,
+  SHELL_PATH_PENDING_TITLE
 } from '../resume';
 import { AgentIcon, Codicon } from '../../icons';
 import { armPointerDrag, isSecondaryPress } from './pointer-drag';
@@ -180,6 +181,9 @@ function SplitPaneState({ session }: { session: Session }): React.JSX.Element {
   const canRestore = useApp((s) => s.canRestore);
   const restoreSession = useApp((s) => s.restoreSession);
   const restoringIds = useApp((s) => s.restoringIds);
+  // Phase 81. A split leaf reaches the same restore path, so it takes the
+  // same gate and the same sentence.
+  const shellPathReady = useApp((s) => s.shellPathReady);
 
   const restorable = session.status === 'restorable';
   // Phase 26.3: an exited leaf offers Restore under the same material rule
@@ -216,14 +220,18 @@ function SplitPaneState({ session }: { session: Session }): React.JSX.Element {
           <button
             type="button"
             className="btn btn-primary btn-sm"
-            disabled={restoringIds[session.id] === true}
+            disabled={restoringIds[session.id] === true || !shellPathReady}
             // Phase 26.3: the split has no room for body copy, so the verb
             // sentence rides the tooltip. It says what comes back and that
-            // the killed process does not.
+            // the killed process does not. Phase 81 borrows the same tooltip
+            // for the one second the login shell is still answering, because
+            // a disabled button with no reason is worse than a slow one.
             title={
-              session.status === 'exited'
-                ? restoreExitedCopy(session)
-                : undefined
+              !shellPathReady
+                ? SHELL_PATH_PENDING_TITLE
+                : session.status === 'exited'
+                  ? restoreExitedCopy(session)
+                  : undefined
             }
             onClick={() => void restoreSession(session.id)}
           >

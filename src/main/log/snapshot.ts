@@ -17,6 +17,9 @@ import { app, screen } from 'electron';
 import { cpus, totalmem } from 'node:os';
 import { runGuarded } from '../proc/guarded';
 import { getTmuxContext } from '../tmux/supervisor';
+// LEAF import for the same reason the line above is one: ../tmux re-exports
+// the whole layer, and this file needs the one cached login shell capture.
+import { getUserPath } from '../tmux/resolve';
 
 export interface BootEnvRaw {
   appVersion: string;
@@ -90,7 +93,19 @@ export async function collectBootEnvRaw(): Promise<BootEnvRaw> {
     /* headless test shells have no screen */
   }
 
-  const pathValue = process.env['PATH'] ?? '';
+  // PHASE 81. This used to read process.env['PATH'], which on every healthy
+  // boot is the launchd PATH, because the snapshot is collected before the
+  // capture lands. Six boots in the operator's log all recorded 4 entries
+  // while the capture line in the same file recorded 30, so the one field in
+  // this record that exists to diagnose a weird environment was the one field
+  // that was never true. `getUserPath()` caches its promise, so this joins the
+  // capture the boot already started rather than running a second one.
+  //
+  // THE ONE COST, stated so it is not discovered later. In a mode where the
+  // session core never boots and file logging is on, this starts the login
+  // shell probe that nothing else would have started. That is one bounded,
+  // tracked, reaped probe, and the record it writes is a record that is true.
+  const pathValue = await getUserPath();
   return {
     appVersion: app.getVersion(),
     electronVersion: process.versions.electron ?? 'unknown',

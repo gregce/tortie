@@ -33,7 +33,7 @@ import { agentShortLabel } from '../state/agents';
 import { useApp } from '../state/store';
 import { displayPath } from './format';
 import { modalKeyDown } from './focus-trap';
-import { pastSessionPromise } from './resume';
+import { pastSessionPromise, SHELL_PATH_PENDING_TITLE } from './resume';
 import './past-sessions.css';
 
 const MONTHS = [
@@ -92,6 +92,9 @@ export function PastSessionsModal(): React.JSX.Element | null {
   const loading = useApp((s) => s.pastLoading);
   const restoringIds = useApp((s) => s.restoringIds);
   const restorePastSession = useApp((s) => s.restorePastSession);
+  // Phase 81. A past row restores through the same main-side path, so it takes
+  // the same gate. The panel can be opened during the second it is off.
+  const shellPathReady = useApp((s) => s.shellPathReady);
 
   const [query, setQuery] = useState('');
   const searchRef = useRef<HTMLInputElement | null>(null);
@@ -213,7 +216,12 @@ export function PastSessionsModal(): React.JSX.Element | null {
                   <button
                     type="button"
                     className="btn btn-secondary past-restore"
-                    disabled={restoring || gone !== undefined}
+                    disabled={
+                      restoring || gone !== undefined || !shellPathReady
+                    }
+                    {...(shellPathReady
+                      ? {}
+                      : { title: SHELL_PATH_PENDING_TITLE })}
                     onClick={() => void restorePastSession(session.id)}
                   >
                     {restoring ? 'Restoring…' : 'Restore'}

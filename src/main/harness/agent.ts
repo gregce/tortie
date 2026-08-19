@@ -23,9 +23,16 @@ export async function runSmokeAgent(): Promise<void> {
     const agent =
       process.env['GMUX_SMOKE_AGENT'] === 'codex' ? 'codex' : 'claude';
     const core = await getGmuxCore();
-    smokeLog('1/7 core booted (login-shell PATH captured + injected)');
+    // PHASE 81 corrected this line. The core booting no longer means the login
+    // shell PATH has been captured, because `ensureServer` starts that capture
+    // and does not wait for it.
+    smokeLog('1/7 core booted');
 
-    // The server's global env must now carry the user's install dirs.
+    // The server's global env must now carry the user's install dirs. Since
+    // Phase 81 the write is chained on the install rather than awaited inside
+    // the start loop, so this waits for the handle the supervisor exports.
+    // Nothing in the product reads that value to decide anything.
+    await tmux.serverPathPublished();
     const serverPath = await tmux.execTmux(['show-environment', '-g', 'PATH']);
     if (!/(\.local\/bin|homebrew)/.test(serverPath)) {
       throw new Error(`tmux server PATH not injected: ${serverPath.trim()}`);

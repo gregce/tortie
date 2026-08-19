@@ -31,7 +31,10 @@ export const sessions: InstalledSessionsApi = {
   // Phase 29. The Past Sessions panel's data: discarded rows, newest first.
   listRemoved: () => invoke('sessions:listRemoved'),
   // Phase 60. The ask before restoring into a project that is not open.
-  askRestoreProject: (input) => invoke('sessions:askRestoreProject', input)
+  askRestoreProject: (input) => invoke('sessions:askRestoreProject', input),
+  // Phase 81. Whether Tortie has the PATH from the user's login shell yet.
+  // The five Restore controls are off until this resolves.
+  shellPathReady: () => invoke('sessions:shellPathReady')
 };
 
 /**

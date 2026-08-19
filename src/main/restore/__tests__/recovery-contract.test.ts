@@ -43,6 +43,11 @@ vi.mock('../../tmux', async () => {
     await vi.importActual<typeof import('../../tmux/errors')>('../../tmux/errors');
   return {
     ...errors,
+    // PHASE 81. `restoreSessionInTmux` awaits the login shell PATH install
+    // before it touches anything. A unit test has no login shell to ask, and
+    // the value is not what any assertion here is about, so it resolves at
+    // once with the PATH this process already has.
+    installUserPath: () => Promise.resolve(process.env['PATH'] ?? ''),
     createSession: (opts: { cwd: string }) => createSession(opts),
     execTmux: vi.fn(async (args: string[]) => {
       if (args[0] === 'send-keys' && args[3] === '-l') typed.push(args[4] ?? '');

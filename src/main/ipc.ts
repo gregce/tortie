@@ -33,6 +33,10 @@ import { rememberProject } from './recents';
 // one synchronous read of the snapshot store.
 import { readSavedOutput } from './restore/snapshots';
 import { getGmuxCore } from './sessions';
+// LEAF import, for the same reason the three above are leaf imports: ./tmux
+// re-exports the supervisor and the control client, and this file needs the
+// one cached promise that installs the login shell PATH.
+import { installUserPath } from './tmux/user-path';
 import { handle as handleTyped } from './typed-ipc';
 
 // ---------------------------------------------------------------------------
@@ -106,6 +110,13 @@ export function registerIpcHandlers(): void {
   handle('sessions:attach', async (e, sessionId) =>
     (await getGmuxCore()).attachSession(sessionId, e.sender)
   );
+  // PHASE 81. Whether the login shell has answered and its PATH is installed.
+  // It deliberately does NOT call getGmuxCore(): asking whether the shell has
+  // answered must not itself boot the session core, and the renderer asks this
+  // during hydration, which is the one moment the core is still coming up.
+  handle('sessions:shellPathReady', async () => {
+    await installUserPath();
+  });
   handle('sessions:detach', async (_e, sessionId) =>
     (await getGmuxCore()).detachSession(sessionId)
   );

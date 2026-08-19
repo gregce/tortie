@@ -252,6 +252,26 @@ export interface EnvUnresolvedNotice {
   probeFailed: boolean;
 }
 
+/**
+ * The login shell did not print its PATH, so every pane this run gets the
+ * fallback. Phase 81.
+ *
+ * The fallback carries the install directories a Finder launched app misses,
+ * and it carries no version managed node directory at all. So Tortie can
+ * still find an agent whose shim sits in one of those directories and can no
+ * longer find that shim's interpreter. The pane opens and dies at once with
+ * exit 127, and until this phase nothing above the log said why.
+ *
+ * `shell` is the program that was asked, e.g. /bin/zsh, so the log and the
+ * record name the thing the person would go and look at. The toast does not
+ * carry it: two lines of about 26 characters have no room for a path.
+ */
+export interface ShellPathFallbackNotice {
+  kind: 'shell-path-fallback';
+  /** The program the capture asked, e.g. /bin/zsh. */
+  shell: string;
+}
+
 /** Every degraded state Tortie can report. One kind per state, no free text. */
 export type DurabilityNotice =
   | BackupFailingNotice
@@ -264,7 +284,8 @@ export type DurabilityNotice =
   | RestoreShortfallNotice
   | UpdateIncompleteNotice
   | UncleanExitNotice
-  | EnvUnresolvedNotice;
+  | EnvUnresolvedNotice
+  | ShellPathFallbackNotice;
 
 /**
  * Everything that travels on `scrollback:notice`: the three scrollback events
@@ -284,7 +305,8 @@ export const DURABILITY_NOTICE_KINDS = [
   'restore-shortfall',
   'update-incomplete',
   'unclean-exit',
-  'env-unresolved'
+  'env-unresolved',
+  'shell-path-fallback'
 ] as const;
 
 /** Narrow a notice off the shared channel to a degraded state. */

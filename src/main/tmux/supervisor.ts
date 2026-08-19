@@ -6,9 +6,12 @@
  * server or ~/.tmux.conf (FINAL-REPORT §2.3). This module:
  *
  *   - resolves binary + conf via ./resolve (the ONE resolution module)
- *   - injects the user's real login-shell PATH into the server environment
- *     at boot, BEFORE any session ops — so agent CLIs in ~/.local/bin etc.
- *     spawn correctly inside panes (Phase 9.2 Bug A)
+ *   - STARTS the user's real login-shell PATH capture at boot and no longer
+ *     waits for it (Phase 81). The value is installed in this process by
+ *     ./user-path.ts, which is what gives every pane its PATH, and the paths
+ *     that can start a pane await that install themselves. What used to wait
+ *     here, and had no use for the answer, was the session list (Phase 9.2
+ *     Bug A is unchanged; only who waits for it moved)
  *   - guarantees a UTF-8 locale in the server environment (Phase 9.2 Bug C:
  *     launchd launches carry no LANG, tmux then draws every non-ASCII cell
  *     as `_` and pane apps degrade to ASCII — see ./env.ts)
@@ -36,8 +39,11 @@ import {
   activeTmuxSocket,
   assertConfUsable,
   assertVerbAllowedOnSocket,
-  getUserPath
+  getUserPath,
+  isPackagedApp,
+  resolveTmux
 } from './resolve';
+import { installUserPath } from './user-path';
 import { assertServerVersionUsable, logCreatedServerVersion } from './version';
 // PHASE 69. The one door moved to ../machines/exec-plane.ts, where it takes a
 // machine as well as a command, and `execTmux` below is the local key's name for
@@ -390,18 +396,44 @@ export async function isServerRunning(): Promise<boolean> {
 let ensureInFlight: Promise<TmuxContext> | null = null;
 
 /**
+ * The chained `set-environment -g PATH` write, so a harness can wait for it.
+ *
+ * PHASE 81. The write used to sit inside the start loop and be awaited, which
+ * made every boot wait for the login shell twice over. It is chained on the
+ * install now, and this handle is the only way anything learns it finished.
+ */
+let serverPathPublish: Promise<void> | null = null;
+
+/**
+ * Resolves when the captured PATH has reached the server's global
+ * environment. Harness only. No product path reads that value to decide
+ * anything. Resolves at once when no server has been ensured yet, because
+ * there is then nothing to have published.
+ */
+export function serverPathPublished(): Promise<void> {
+  return serverPathPublish ?? Promise.resolve();
+}
+
+/**
  * Ensure the private tmux server is up (idempotent, safe to call often;
  * concurrent callers share one attempt). `start-server` with `-f` applies
  * gmux-tmux.conf only when it actually creates the server — an already
  * running server keeps its config, which is exactly what we want.
  *
- * Bug A (Phase 9.2), with its explanation corrected in Phase 48. Before any
- * session can be created, the user's real login shell PATH is captured and
- * written into THIS PROCESS's environment, at the
- * `process.env['PATH'] = userPath` line below. That assignment is the load
- * bearing one and it must not be deleted as redundant. A pane takes its PATH
- * from the tmux CLIENT that asked for the session, and this process is that
- * client.
+ * Bug A (Phase 9.2), with its explanation corrected in Phase 48 and its
+ * pointer moved in Phase 81. Before any session can be created, the user's
+ * real login shell PATH is captured and written into THIS PROCESS's
+ * environment, at the one assignment in ./user-path.ts. That assignment is the
+ * load bearing one and it must not be deleted as redundant. A pane takes its
+ * PATH from the tmux CLIENT that asked for the session, and this process is
+ * that client.
+ *
+ * PHASE 81 MOVED THE WAIT AND NOT THE ASSIGNMENT. This function starts the
+ * capture and no longer awaits it, so the session list, the project list and
+ * every attach come off a wait they were never served by. The two paths that
+ * can start a pane, being create and restore, await `installUserPath()`
+ * themselves. The value written is the same value, written once, at the same
+ * wall clock moment it was written before.
  *
  * The `set-environment -g PATH` call further down does NOT give a pane its
  * PATH, and the comment here used to say that it did. Measured twice,
@@ -420,16 +452,25 @@ let ensureInFlight: Promise<TmuxContext> | null = null;
 export function ensureServer(): Promise<TmuxContext> {
   if (ensureInFlight !== null) return ensureInFlight;
   const attempt = (async () => {
-    // PATH first, and the reason is not the same in both builds. In a
-    // development build the resolution ends with a PATH scan
-    // (resolve.ts, planTmuxResolution), so a tmux in an exotic login-shell
-    // directory is only found once this line has run. A packaged build never
-    // reaches that scan. The packaged branch returns the copy inside the
-    // bundle and ignores PATH. The line still runs first in both, because the
-    // assignment below is what gives every new pane its PATH, and that is
-    // true of a packaged build too.
-    const userPath = await getUserPath();
-    process.env['PATH'] = userPath;
+    // PHASE 81. The capture STARTS here and is not awaited. `getUserPath()`
+    // caches its promise, so this line is what makes the login shell begin
+    // answering at exactly the moment it always did, and the session list, the
+    // project list and every attach now read the manifest while it answers.
+    void getUserPath();
+
+    // ONE BUILD STILL WAITS, and only when it has to. A development build
+    // looks for tmux in /opt/homebrew/bin, /usr/local/bin and /usr/bin and
+    // then scans the PATH, so a tmux installed anywhere else is found only
+    // after the capture lands. When that scan comes back empty, wait. A
+    // packaged build never reaches the scan: it returns the copy inside its
+    // own bundle and ignores PATH entirely, so it never waits here.
+    // `resolveTmux()` is three existsSync calls plus, only if those miss, one
+    // PATH scan, and it populates no cache, so asking costs nothing and
+    // changes no later answer. `installUserPath()` does not await this
+    // function, so this branch cannot deadlock.
+    if (!isPackagedApp() && resolveTmux().path === null) {
+      await installUserPath();
+    }
 
     // Bug C: guarantee a UTF-8 locale BEFORE the server exists — a server
     // spawned from a locale-less launchd env passes C/POSIX to every pane,
@@ -481,11 +522,6 @@ export function ensureServer(): Promise<TmuxContext> {
       try {
         await execTmux(['start-server']);
         await execTmux(['list-sessions', '-F', '#{session_id}']);
-        // The server's global environment, kept honest for anything that
-        // reads it on purpose. It is NOT how the pane gets its PATH: that
-        // comes from this process, the tmux client, at the assignment above.
-        // Idempotent, and it also repairs long lived servers.
-        await execTmux(['set-environment', '-g', 'PATH', userPath]);
         // Bug C, same repair logic: future panes must see a UTF-8 locale
         // even on a server that booted from a locale-less launchd env.
         if (lang !== undefined && lang.length > 0) {
@@ -505,6 +541,31 @@ export function ensureServer(): Promise<TmuxContext> {
             source: ctx.binSource
           });
         }
+        // The server's global environment, kept honest for anything that
+        // reads it on purpose. It is NOT how a pane gets its PATH: that comes
+        // from this process, the tmux client, at the assignment in
+        // ./user-path.ts. Chained rather than awaited since Phase 81, so a
+        // server that is up does not wait for a shell that is still
+        // answering. Nothing in the product reads this value to decide
+        // anything, and the one reader that asserts on it is the
+        // GMUX_SMOKE=agent harness, which awaits `serverPathPublished()`.
+        // Idempotent, and it also repairs long lived servers.
+        serverPathPublish = installUserPath().then(
+          async (userPath) => {
+            try {
+              await execTmux(['set-environment', '-g', 'PATH', userPath]);
+            } catch (err) {
+              tmuxLog.warn(
+                `the server's global PATH was not updated: ${(err as Error).message}`
+              );
+            }
+          },
+          (err: unknown) => {
+            tmuxLog.warn(
+              `the login shell PATH was never installed: ${String(err)}`
+            );
+          }
+        );
         return ctx;
       } catch (err) {
         lastFailure = err instanceof Error ? err.message : String(err);

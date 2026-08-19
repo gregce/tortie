@@ -2490,6 +2490,12 @@ export class GmuxCore {
       this.broadcastSessions();
       return session;
     }
+    // PHASE 81. The one wait a create still has. Every read below and the
+    // pane's own execvp must see the same PATH, and this is the line that
+    // guarantees they do. It is after the remote branch on purpose: a session
+    // on another machine takes that machine's PATH, and this Mac's capture
+    // answers nothing about it. See src/main/tmux/user-path.ts.
+    await tmux.installUserPath();
     if (!isDirectory(input.projectPath)) {
       throw gmuxError(
         'PROJECT_NOT_FOUND',
@@ -2591,9 +2597,10 @@ export class GmuxCore {
       // independently, on tmux 3.6a. What WAS measured: the same session
       // created with an absolute argv[0] runs, and created with the bare name
       // plus `-e PATH=<dir>` dies at once with "Pane is dead (status 1)". The
-      // client's PATH is set in supervisor.ts ensureServer, at the
-      // `process.env['PATH'] = userPath` line. See
-      // docs/research/47-agent-installs.md section 2.
+      // client's PATH is set at the one assignment in
+      // src/main/tmux/user-path.ts, which `createSession` awaits above
+      // (Phase 81 moved the line; it used to sit in supervisor.ts
+      // ensureServer). See docs/research/47-agent-installs.md section 2.
       //
       // So an agent whose binary exists ONLY in a directory its own entry names
       // cannot be launched by its bare name at all. Detection found it, the
