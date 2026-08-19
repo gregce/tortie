@@ -689,7 +689,12 @@ async function main() {
       });
       r.randomFraction = Number(fraction.toFixed(4));
       if (r.work.signal === 'SIGKILL') break;
-      at = Math.max(lo, Math.round(at * 0.6));
+      // Floor at 1 ms, the same bound every other draw uses. This read `lo`
+      // until 2026-08-19, which is defined nowhere in this file, so the redraw
+      // threw ReferenceError instead of redrawing. It only fires when a case
+      // finishes before its kill, which is why the nightly durability lane
+      // caught it and the push gates never did.
+      at = Math.max(1, Math.round(at * 0.6));
       console.log(
         `[fault] random ${String(i + 1)} finished before the kill; redrawing at ${String(at)} ms`
       );
