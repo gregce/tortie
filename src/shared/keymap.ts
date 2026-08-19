@@ -130,6 +130,7 @@ export type KeymapGroupId = KeymapGroup['id'];
 export type KeymapScope =
   | 'app'
   | 'session'
+  | 'attention'
   | 'terminal'
   | 'editor'
   | 'explorer'
@@ -140,6 +141,7 @@ export type KeymapScope =
 export const SCOPE_LABELS: Readonly<Record<KeymapScope, string>> = {
   app: 'Anywhere',
   session: 'In the session list',
+  attention: 'In the list of sessions needing input',
   terminal: 'In a session',
   editor: 'In the editor',
   explorer: 'In the file tree',
@@ -299,12 +301,46 @@ export const KEYMAP = [
     keys: [],
     action: 'End session…',
     explain:
-      'Deliberately has no shortcut. Ending a session lives in the menu and the row’s ⋯, and always asks first — nothing ends by accident.',
+      'Has no shortcut of its own, anywhere in the app. Ending the session you are looking at lives in the menu and in the row’s ⋯, and it always asks first, so nothing ends by accident. The one key that ends a session is the next row, and it only works inside the ⌘J list.',
     group: 'sessions',
     scope: 'app',
     assignable: false,
     source: 'built-in',
     menuAction: 'end-session'
+  },
+  {
+    /**
+     * PHASE 93. The one key in the product that ends a session, and it works
+     * only while the ⌘J list is on screen.
+     *
+     * WHY IT EXISTS AT ALL, given that the row above says ending has no
+     * shortcut. The ⌘J list is the only surface that shows a session whose
+     * project tab is closed. A person reaches it with a key, walks it with
+     * keys, and before this phase had to reach for the mouse to clear a
+     * session they could not otherwise get to. That is the gap this phase was
+     * opened to close, so the list gets a key and no other surface does.
+     *
+     * WHY ⌘⌫ AND NOT A BARE ⌫, which is what `files.trash` and
+     * `git.discard` use in their own lists. The rows in this panel follow the
+     * pointer, so the selected row can change under a still hand. A modifier
+     * is asked for because the row a bare ⌫ would act on is not always the
+     * row the person last chose with a key.
+     *
+     * IT ENDS NOTHING ON ITS OWN. It opens the same confirm the row’s menu
+     * opens, and the confirm is answered by a person.
+     */
+    id: 'session.endFromAttention',
+    keys: [k('Cmd+Backspace')],
+    // NOT 'End session…', which is the row above. The ⌘/ overlay draws the
+    // action and the chord and nothing else, so two rows reading 'End session…'
+    // would be one row saying it has no key and another saying it has one.
+    action: 'End highlighted session',
+    explain:
+      'Ends the highlighted session in the list of sessions needing input, after asking first. It is the only key in Tortie that ends a session, and it is here because a session whose project tab is closed can be seen in that list and nowhere else.',
+    group: 'sessions',
+    scope: 'attention',
+    assignable: false,
+    source: 'built-in'
   },
 
   // -- Projects -------------------------------------------------------------

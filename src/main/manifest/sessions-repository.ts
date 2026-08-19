@@ -25,7 +25,9 @@ import {
   LOCAL_MACHINE_ROW,
   manifestError,
   rowToRecord,
+  serializeClosedProjectTab,
   serializeMachineTombstone,
+  type ClosedProjectTab,
   type MachineTombstone,
   type ManifestSessionPatch,
   type ManifestSessionRecord,
@@ -180,7 +182,7 @@ export class SessionsRepository {
               exit_signal, pane_pid, resume_capture, specstory, restore,
               agent_version, agent_contract, resume_provenance,
               context_snapshot, env_passthrough, exit_detail, machine_id,
-              machine_tombstone)
+              machine_tombstone, project_tombstone)
            VALUES
              (@id, @name, @tmuxName, @projectPath, @cwd, @agent,
               @agentSessionId, @argv, @resumeArgv, @env, @status,
@@ -188,7 +190,7 @@ export class SessionsRepository {
               @resumeCapture, @specstory, @restore,
               @agentVersion, @agentContract, @resumeProvenance,
               @contextSnapshot, @envPassthrough, @exitDetail, @machineId,
-              @machineTombstone)`
+              @machineTombstone, @projectTombstone)`
         )
         .run({
           id: record.id,
@@ -241,7 +243,12 @@ export class SessionsRepository {
           // Phase 72. NULL at insert on every create of any kind. A session
           // whose machine has been removed cannot be a session being created.
           // `markMachineForgotten` is the only writer.
-          machineTombstone: serializeMachineTombstone(record.machineTombstone)
+          machineTombstone: serializeMachineTombstone(record.machineTombstone),
+          // Phase 93. NULL at insert on every create of any kind. A session
+          // whose project tab has been closed cannot be a session being
+          // created, because the create needs the tab to start from.
+          // `markProjectTabClosed` is the only writer.
+          projectTombstone: serializeClosedProjectTab(record.projectTombstone)
         });
     } catch (err) {
       throw manifestError(
@@ -686,6 +693,92 @@ export class SessionsRepository {
         );
       }
     });
+  }
+
+  /**
+   * Stamp every session a closing project tab leaves without one
+   * (Phase 93, migration 016).
+   *
+   * ONE DURABLE STATEMENT, and the caller runs it BEFORE it deletes the project
+   * row. The project row has never been durable, so a crash between the two
+   * writes can only lose the tab, which costs a tab. The other order could lose
+   * the record of a tab that is already gone, which is the exact state this
+   * method exists to remove.
+   *
+   * IT NEVER CHANGES A STATUS. `markMachineForgotten` above sets 'discarded'
+   * because the sessions on a removed machine cannot be seen any more. A closed
+   * tab is not that. The sessions are still running, still in the attention list
+   * and still reachable, so a status written here would end a session nobody
+   * asked to end.
+   *
+   * IT SKIPS A DISCARDED ROW. A row Phase 72 already tombstoned for its machine
+   * carries the record of what Tortie last knew about it, and writing a second
+   * record over it would replace what Tortie knew with less.
+   *
+   * THE MATCH IS ON THE FOLDER AND THE MACHINE, never on the path alone.
+   * `/Users/gdc/gmux` on this Mac and `/Users/gdc/gmux` on another computer are
+   * two different folders, which is the same rule migration 015 wrote into the
+   * `remote_projects` table. A NULL `machine_id` counts as this Mac, because
+   * that is what {@link rowToRecord} reads it as.
+   *
+   * NOTHING IS SENT TO ANY MACHINE by this method or by its caller.
+   *
+   * @returns how many rows were stamped, so the caller can log it. Zero is an
+   * ordinary answer: a tab with no sessions in it is a tab a person opened and
+   * never used.
+   */
+  markProjectTabClosed(
+    target: { path: string; machineId?: string },
+    tab: ClosedProjectTab
+  ): number {
+    const machine = target.machineId ?? LOCAL_MACHINE_ROW;
+    let changed = 0;
+    durableTransaction(this.db, () => {
+      const info = this.db
+        .prepare<[string, string, string]>(
+          `UPDATE sessions
+              SET project_tombstone = ?
+            WHERE project_path = ?
+              AND COALESCE(NULLIF(machine_id, ''), '${LOCAL_MACHINE_ROW}') = ?
+              AND status <> 'discarded'`
+        )
+        .run(JSON.stringify(tab), target.path, machine);
+      changed = info.changes;
+    });
+    return changed;
+  }
+
+  /**
+   * Clear the stamp on every session in a folder that has a tab again
+   * (Phase 93, migration 016).
+   *
+   * It runs from the two adds in `../sessions/core.ts`, after the upsert
+   * returns. A stamp that said "you closed this tab" beside a tab that is open
+   * again would be a false record, and the alternative of leaving it there and
+   * gating every reader on "is there a tab" was rejected because a later reader
+   * would have to remember the gate.
+   *
+   * NOT A DURABLE COMMIT. Losing it leaves a stale stamp on a row whose tab is
+   * open, and the next close writes over it. Nothing is lost and nothing is
+   * stranded, so this write does not buy a drive flush.
+   *
+   * The match is the same folder and machine pair {@link markProjectTabClosed}
+   * writes, and a discarded row is left alone for the same reason.
+   *
+   * @returns how many rows were cleared.
+   */
+  clearProjectTabClosed(target: { path: string; machineId?: string }): number {
+    const machine = target.machineId ?? LOCAL_MACHINE_ROW;
+    return this.db
+      .prepare<[string, string]>(
+        `UPDATE sessions
+            SET project_tombstone = NULL
+          WHERE project_path = ?
+            AND COALESCE(NULLIF(machine_id, ''), '${LOCAL_MACHINE_ROW}') = ?
+            AND project_tombstone IS NOT NULL
+            AND status <> 'discarded'`
+      )
+      .run(target.path, machine).changes;
   }
 
   /**

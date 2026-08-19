@@ -302,6 +302,30 @@ export interface Session {
    * that stops a person reading an hours old screen as live.
    */
   savedOutputAt?: number;
+  /**
+   * APPENDED (Phase 93): what Tortie knew about this session's project tab at
+   * the moment a person closed it.
+   *
+   * Present only on a row whose tab was closed while the session existed, and
+   * cleared the moment the same folder is opened as a tab again. It says nothing
+   * about status: the session is still running and still reachable.
+   *
+   * It exists so a surface can tell a folder whose tab a person closed from a
+   * folder that never had one. Opening a tab a person closed needs no
+   * explanation, because the tab is back and the session is in front of them.
+   * Opening a tab for a folder that never had one gets one sentence saying why.
+   *
+   * `path` is the path on whichever computer this session's own `machine` field
+   * names, so no local file check may run against it for a remote session.
+   */
+  closedProject?: {
+    /** The tab's name at the moment it closed. */
+    name: string;
+    /** The folder, on whichever computer the session's own machine names. */
+    path: string;
+    /** Local epoch ms of the close. */
+    closedAt: number;
+  };
 }
 
 /**

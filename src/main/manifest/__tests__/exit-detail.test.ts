@@ -64,9 +64,10 @@ describe('migration 012', () => {
   it('is the twelfth migration and the version counts it', () => {
     expect(MANIFEST_MIGRATION_NAMES).toHaveLength(MANIFEST_SCHEMA_VERSION);
     // Phase 71 appended 013-machine-id, Phase 72 appended
-    // 014-machine-tombstone and Phase 90.3 appended 015-remote-projects, so the
-    // version reads 15 and this migration's own position is what stays pinned.
-    expect(MANIFEST_SCHEMA_VERSION).toBe(15);
+    // 014-machine-tombstone, Phase 90.3 appended 015-remote-projects and Phase
+    // 93 appended 016-project-tombstone, so the version reads 16 and this
+    // migration's own position is what stays pinned.
+    expect(MANIFEST_SCHEMA_VERSION).toBe(16);
     expect(MANIFEST_MIGRATION_NAMES[11]).toBe('012-exit-detail');
   });
 
@@ -185,7 +186,7 @@ describe('the exit_detail column', () => {
     raw.close();
 
     const migrated = new ManifestStore(elevenPath);
-    expect(migrated.schemaState().userVersion).toBe(15);
+    expect(migrated.schemaState().userVersion).toBe(16);
     expect(migrated.schemaState().minCompatible).toBe(13);
     const old = migrated.getSession('old-row');
     expect(old?.exitCode).toBe(1);

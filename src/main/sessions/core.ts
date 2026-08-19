@@ -2504,8 +2504,30 @@ export class GmuxCore {
       // this field.
       const remote = atHomeOnItsMachine(projectRemoteRecord(rec));
       const remoteSavedAt = savedOutputAt(remote.id);
+      // PHASE 93, FIX ROUND, and it was found by driving a real machine rather
+      // than by reading the code. `projectRemoteRecord` builds a session from
+      // eight named fields and the record's tab stamp is not one of them, so a
+      // remote row reached the window with no record of the tab a person had
+      // closed. `jumpToSession` reads exactly that field to decide whether a
+      // tab coming back needs a sentence, so every remote session was told it
+      // never had a tab. It is stamped HERE for the same reason
+      // `savedOutputAt` is: this is the one place the two lists are merged, and
+      // the machines layer is not allowed to reach into the manifest's codecs.
+      const withTab =
+        rec.projectTombstone === undefined
+          ? remote
+          : {
+              ...remote,
+              closedProject: {
+                name: rec.projectTombstone.projectName,
+                path: rec.projectTombstone.path,
+                closedAt: rec.projectTombstone.closedAt
+              }
+            };
       out.push(
-        remoteSavedAt === null ? remote : { ...remote, savedOutputAt: remoteSavedAt }
+        remoteSavedAt === null
+          ? withTab
+          : { ...withTab, savedOutputAt: remoteSavedAt }
       );
     }
     for (const session of remoteSessions()) {
@@ -3425,13 +3447,18 @@ export class GmuxCore {
         abs
       );
     }
-    return this.manifest.upsertProject({
+    const project = this.manifest.upsertProject({
       id: randomUUID(),
       path: abs,
       // Phase 74: basename is empty for the root of a volume. See
       // ../projects/name for what a nameless folder is called and why.
       name: projectNameForPath(abs)
     });
+    // PHASE 93. The folder has a tab again, so the record of the last close is
+    // no longer true and is cleared. Leaving it would let a surface tell a
+    // person they had closed a tab that is open in front of them.
+    this.manifest.clearProjectTabClosed({ path: abs });
+    return project;
   }
 
   /**
@@ -3478,6 +3505,12 @@ export class GmuxCore {
       path: stored,
       name: projectNameForPath(stored)
     });
+    // PHASE 93, the same clear the local add runs, matched on this machine so a
+    // folder with the same path on this Mac keeps its own record.
+    this.manifest.clearProjectTabClosed({
+      path: stored,
+      machineId: input.machineId
+    });
     return { ok: true, project, alreadyOpen };
   }
 
@@ -3497,7 +3530,56 @@ export class GmuxCore {
     if (project !== undefined && (project.machineId ?? 'local') === 'local') {
       void unwatchGitRepo(project.path).catch(() => undefined);
     }
+    // PHASE 93. The sessions this tab leaves behind are stamped with what Tortie
+    // knew about the tab, in ONE DURABLE WRITE, BEFORE the project row is
+    // deleted.
+    //
+    // WHY THIS ORDER AND NOT THE OTHER. The project row has never been durable.
+    // A crash between these two writes can therefore only lose the tab, which
+    // costs a tab and nothing else. Deleting first and stamping second could
+    // lose the record of a tab that is already gone, which is the exact state
+    // this item exists to remove.
+    //
+    // NO STATUS MOVES AND NOTHING IS ENDED. Every session in the folder keeps
+    // running, keeps its `project_path` and its `machine_id`, and stays in the
+    // attention list where it can be reached and cleared.
+    let stampedCount = 0;
+    if (project !== undefined) {
+      const machineId = project.machineId ?? 'local';
+      stampedCount = this.manifest.markProjectTabClosed(
+        machineId === 'local'
+          ? { path: project.path }
+          : { path: project.path, machineId },
+        {
+          v: 1,
+          projectId: project.id,
+          projectName: project.name,
+          ...(machineId === 'local' ? {} : { machineId }),
+          path: project.path,
+          closedAt: Date.now()
+        }
+      );
+      if (stampedCount > 0) {
+        sessionsLog.info('project tab closed, sessions stamped', {
+          projectId: project.id,
+          sessions: stampedCount
+        });
+      }
+    }
     this.manifest.deleteProject(projectId); // sessions keep their history
+    // PHASE 93, FIX ROUND. The stamp above is a fact about a SESSION, and the
+    // window holds its own copy of the session list. Closing a tab pushes the
+    // project list and nothing else, so without this the rows in the window
+    // still read as sessions whose folder never had a tab.
+    //
+    // MEASURED on 2026-08-19 in build/probe-p93-attention.mjs: 700 ms after the
+    // close was confirmed, the window's row for a session in that folder still
+    // carried no record of the tab, and it carried one after a quit and a
+    // start. `jumpToSession` reads exactly that field to decide whether a tab
+    // coming back needs a sentence, so a person who closed a tab themselves
+    // could be told the folder had never had one. It is pushed here, once,
+    // rather than waiting for the next poll.
+    if (stampedCount > 0) this.broadcastSessions();
   }
 
   // -------------------------------------------------------------------------

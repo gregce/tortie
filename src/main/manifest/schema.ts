@@ -469,6 +469,46 @@ export const MIGRATIONS: readonly SqliteMigration[] = [
         );
       `);
     }
+  },
+  {
+    // Phase 93: `project_tombstone`, what Tortie knew about a project tab at
+    // the moment a person closed it.
+    //
+    // WHAT IT FIXES. Closing a tab was an unrecorded event. `removeProject`
+    // deleted the project row and left every session in that folder pointing at
+    // a `project_path` no row held, with nothing anywhere saying the tab had
+    // ever existed. Tortie could not tell a folder whose tab a person closed
+    // from a folder that never had one, so the attention list could not say why
+    // a session had no tab and reopening one could not say whether it was
+    // giving a tab back or making a new one. The operator's three unreachable
+    // rows on 2026-08-19 were the second kind and Tortie said nothing at all.
+    //
+    // WHAT GOES IN IT. One JSON value carrying the project row's id, the tab's
+    // name, the machine the folder is on, the absolute path on that machine and
+    // the local instant of the close. It is one column rather than five for the
+    // reason `machine_tombstone` is one: the fields are meaningless apart. A
+    // name with no path cannot tell two tabs apart, and a path with no instant
+    // cannot be rendered as a sentence.
+    //
+    // IT NEVER CHANGES A STATUS. `machine_tombstone` sets 'discarded' because
+    // the sessions on a removed machine cannot be seen any more. A closed tab is
+    // not that. Those sessions are still running, still in the attention list
+    // and still reachable, so a status written here would end a session nobody
+    // asked to end.
+    //
+    // ADDITIVE, NOT BREAKING, by the rule in research 27 section 4.3, and the
+    // minimum stays at 13. The test is whether an old build writing NULL here
+    // produces a row the new build reads WRONGLY. It cannot. NULL means "no tab
+    // of this row's was ever closed", which is true of every row written before
+    // this migration and of every row whose folder still has a tab. Nothing on
+    // the restore path reads the column and no launch depends on it.
+    //
+    // So MANIFEST_SCHEMA_VERSION moves to 16 and
+    // MANIFEST_MIN_COMPATIBLE_VERSION STAYS AT 13.
+    name: '016-project-tombstone',
+    up: (db) => {
+      addColumnIfMissing(db, 'sessions', 'project_tombstone', 'TEXT');
+    }
   }
 ];
 
@@ -490,7 +530,7 @@ export const MANIFEST_APPLICATION_ID = 0x54525445;
  * one. Keep it that way: a number that has to be reasoned about is a number
  * that gets set wrong under time pressure.
  */
-export const MANIFEST_SCHEMA_VERSION = 15;
+export const MANIFEST_SCHEMA_VERSION = 16;
 
 /**
  * The oldest schema version whose code may still write this manifest.
@@ -564,6 +604,15 @@ export const MANIFEST_SCHEMA_VERSION = 15;
  * writes that it reads wrongly, because it does not read the table. So the
  * migration is additive by the same rule as 009 to 012 and 014, and the number
  * does not move.
+ *
+ * PHASE 93 LEFT IT AT 13 TOO, and this paragraph is the record of that decision.
+ * Migration 016 adds the `project_tombstone` column. A build at schema 13, 14 or
+ * 15 has never heard of the column, so it writes NULL into it and never reads
+ * it. NULL is the true answer for such a row, because that build cannot close a
+ * tab it has no record of. There is no row it can write that this build reads
+ * wrongly, and no row this build writes that it reads wrongly. Nothing on the
+ * restore path reads the column and no launch depends on it, so the migration is
+ * additive by the same rule as the ones above and the number does not move.
  */
 export const MANIFEST_MIN_COMPATIBLE_VERSION = 13;
 

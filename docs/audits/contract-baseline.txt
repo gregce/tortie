@@ -173,10 +173,10 @@ updates:whyFailed
 
 [sqlite.identity]
 application_id=1414681669
-user_version=15
+user_version=16
 min_compatible_version=13
 
-[sqlite.migrations] count=15
+[sqlite.migrations] count=16
 001-initial
 002-exit-code
 003-death-forensics
@@ -192,6 +192,7 @@ min_compatible_version=13
 013-machine-id
 014-machine-tombstone
 015-remote-projects
+016-project-tombstone
 
 [sqlite.schema] objects=9
 -- index idx_restore_attempts_open
@@ -258,7 +259,7 @@ CREATE TABLE sessions (
           status           TEXT NOT NULL DEFAULT 'running',
           created_at       INTEGER NOT NULL,
           last_seen        INTEGER NOT NULL
-        , exit_code INTEGER, exit_signal TEXT, pane_pid INTEGER, resume_capture TEXT, specstory TEXT, restore TEXT, agent_version TEXT, agent_contract TEXT, resume_provenance TEXT, context_snapshot TEXT, removed_at INTEGER, env_passthrough TEXT, exit_detail TEXT, machine_id TEXT, machine_tombstone TEXT)
+        , exit_code INTEGER, exit_signal TEXT, pane_pid INTEGER, resume_capture TEXT, specstory TEXT, restore TEXT, agent_version TEXT, agent_contract TEXT, resume_provenance TEXT, context_snapshot TEXT, removed_at INTEGER, env_passthrough TEXT, exit_detail TEXT, machine_id TEXT, machine_tombstone TEXT, project_tombstone TEXT)
 
 [localStorage.keys] count=35
 gmux.
@@ -361,7 +362,7 @@ GMUX_TMUX_TARBALL_DIR
 GMUX_UPDATE_REHEARSAL
 GMUX_UPDATE_STATE_ROOT
 
-[harness.smoke.modes] count=26
+[harness.smoke.modes] count=27
 agent
 basic
 capture
@@ -375,6 +376,7 @@ fault-work
 identity
 machines
 migrate
+p93-remote-clear
 partition
 power
 procid

@@ -56,6 +56,7 @@ import type {
 } from '@shared/types';
 import { MANIFEST_SCHEMA_IDENTITY, MIGRATIONS } from './schema';
 import type {
+  ClosedProjectTab,
   MachineTombstone,
   ManifestSessionPatch,
   ManifestSessionRecord,
@@ -90,7 +91,9 @@ export {
   toSession,
   toSessionCapture,
   serializeMachineTombstone,
+  serializeClosedProjectTab,
   LOCAL_MACHINE_ROW,
+  type ClosedProjectTab,
   type MachineTombstone,
   type ManifestSessionPatch,
   type ManifestSessionRecord,
@@ -426,6 +429,27 @@ export class ManifestStore {
    */
   markMachineForgotten(id: string, tombstone: MachineTombstone): void {
     this.sessions.markMachineForgotten(id, tombstone);
+  }
+
+  /**
+   * Phase 93. Stamp every session a closing project tab leaves without one. One
+   * durable write, no status change, and nothing is sent to any machine. The
+   * caller runs it BEFORE it deletes the project row. See the repository method
+   * for why that order is the only safe one.
+   */
+  markProjectTabClosed(
+    target: { path: string; machineId?: string },
+    tab: ClosedProjectTab
+  ): number {
+    return this.sessions.markProjectTabClosed(target, tab);
+  }
+
+  /**
+   * Phase 93. Clear the stamp on every session in a folder that has a tab
+   * again. Runs from both project adds, after the upsert returns.
+   */
+  clearProjectTabClosed(target: { path: string; machineId?: string }): number {
+    return this.sessions.clearProjectTabClosed(target);
   }
 
   /**

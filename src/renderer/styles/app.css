@@ -1524,7 +1524,20 @@
   white-space: nowrap;
 }
 
-.attention-project {
+/* PHASE 93. The two facts a session always has, replacing the project tab's
+   name. The old span drew an empty string for a session whose folder has no
+   open tab, which is the row a person most needs named. Neither span carries a
+   fill, a border or a colour of its own: a machine label is identity, exactly
+   as the machine badge draws it, and a folder path is a fact. */
+.attention-machine {
+  flex: 0 0 auto;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.attention-path {
+  flex: 0 0 auto;
   font-size: var(--text-sm);
   color: var(--text-muted);
   white-space: nowrap;
@@ -1548,7 +1561,8 @@
 }
 
 /* Contrast rule (§1.1): step secondary info up on the active fill. */
-.attention-row.selected .attention-project,
+.attention-row.selected .attention-machine,
+.attention-row.selected .attention-path,
 .attention-row.selected .attention-age {
   color: var(--text-secondary);
 }
@@ -1572,6 +1586,17 @@
   padding: var(--space-6);
   font-size: var(--text-base);
   color: var(--text-secondary);
+}
+
+/* PHASE 93. A row's End is confirm gated and the panel stays open behind that
+   confirm, so the person can see which row they are ending. The panel's own
+   layer sits ABOVE the modal layer, so without this rule the panel would draw
+   over the confirm and the backdrop would swallow the confirm's buttons.
+   Dropping both to the modal layer puts the confirm in front, because App.tsx
+   renders it after the panel and an equal layer is decided by document order. */
+.attention-backdrop.under-confirm,
+.attention-panel.under-confirm {
+  z-index: var(--z-modal);
 }
 
 /* ---------------------------------------------------------------------------
@@ -1771,6 +1796,17 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* PHASE 93. A sticky toast is the one a person dismisses themselves, and it is
+   the one that carries a refusal of two sentences. Two lines cut the second
+   sentence off, and the second sentence is the one saying the session is still
+   running. MEASURED on 2026-08-19: a 197 character refusal is 5 lines at this
+   width, so six lines holds every sentence this product writes today. A longer
+   one from a message main composed would still be cut, and this is the only
+   thing standing between it and the person. */
+.toast-sticky .toast-text {
+  -webkit-line-clamp: 6;
 }
 
 .toast-overflow {

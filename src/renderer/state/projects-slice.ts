@@ -5,7 +5,7 @@
  */
 
 import type { StateCreator } from 'zustand';
-import type { Project } from '@shared/types';
+import type { GmuxErrorPayload, Project } from '@shared/types';
 import type {
   AddRemoteProjectResult,
   CreateProjectInput,
@@ -15,17 +15,54 @@ import type {
   GmuxRemoteProjectExtras,
   GmuxSymbolsExtras
 } from '@shared/ipc';
+import type { WorkspaceTarget } from '@shared/workspace-target';
 import { isLocalTarget, targetOfProject } from '@shared/workspace-target';
 import { machineLabelFor } from './machines-slice';
 // Every sentence about a machine comes from one file, which is the one the
 // vocabulary audit reads.
+import type { AddRemoteRefusalReason } from '../app/machine-copy';
 import {
   remoteTabCloseBody,
   remoteTabCloseTitle
 } from '../app/machine-copy';
-import { errorText } from './errors';
+import { errorPayload, errorText } from './errors';
 import { loadLocal, saveLocal } from './local';
 import type { AppState } from './app-state';
+
+/**
+ * What {@link ProjectsSlice.openTargetProject} did, or why it did nothing.
+ *
+ * PHASE 93. It carries a refusal rather than raising one, because the caller is
+ * the one that knows what the person was trying to do. `addProjectPath` and
+ * `addRemoteProject` both keep their own behaviour: the first still toasts its
+ * own error and the second still answers a bare reason word, and neither is
+ * changed here, because their callers rely on exactly that.
+ */
+export type OpenTargetResult =
+  | { ok: true; projectId: string }
+  | {
+      /** A folder on this Mac that main refused. `message` is main's own. */
+      ok: false;
+      kind: 'local';
+      message: string;
+      /**
+       * Main's own code for the refusal, when the rejection carried one.
+       *
+       * PHASE 93 ADDED THIS FIELD, and the spec's table does not list it. The
+       * caller writes a different sentence for a folder that is not there than
+       * for any other refusal, and the code is the only field that tells the two
+       * apart. Reading main's English instead would make a sentence a contract.
+       */
+      code?: GmuxErrorPayload['code'];
+    }
+  | {
+      /** A folder on a machine. `reason` is the word `projects:addRemote` said. */
+      ok: false;
+      kind: 'remote';
+      reason: AddRemoteRefusalReason;
+    }
+  /** This build's preload cannot open a folder on a machine at all. */
+  | { ok: false; kind: 'unsupported' };
 
 export interface ProjectsSlice {
   projects: Project[];
@@ -67,6 +104,19 @@ export interface ProjectsSlice {
   ): Promise<AddRemoteProjectResult>;
   /** Whether this build can open a folder on a machine at all. */
   canAddRemoteProject(): boolean;
+  /**
+   * PHASE 93. Open one folder, on whichever computer names it, as a tab.
+   *
+   * ONE IMPLEMENTATION FOR BOTH ROUTES, so a caller that has a target in hand
+   * never has to branch on the machine itself. It resolves after the tab is in
+   * the list and active, which is what lets the caller set the active session
+   * on the next line and have `activeSession()` find the tab it needs.
+   *
+   * It raises no toast of its own. The one caller this phase adds writes a
+   * sentence naming what it could not reach, and a toast raised here as well
+   * would say the same thing twice.
+   */
+  openTargetProject(target: WorkspaceTarget): Promise<OpenTargetResult>;
   closeProject(projectId: string): void;
   /**
    * Phase 12.9 item 1 — make a folder, optionally `git init` it, open it as a
@@ -190,6 +240,41 @@ export const createProjectsSlice: StateCreator<
       set({ projects: await projects.list() });
       get().setActiveProject(result.project.id);
       return result;
+    },
+
+    async openTargetProject(target) {
+      if (isLocalTarget(target)) {
+        if (!gmux) {
+          return {
+            ok: false,
+            kind: 'local',
+            message: 'Tortie cannot open a folder right now.'
+          };
+        }
+        try {
+          const project = await gmux.projects.add(target.path);
+          // The list is re-read rather than patched, for the reason
+          // `addRemoteProject` above gives: the row ids and the tab order come
+          // from main exactly as every other project route gets them.
+          set({ projects: await gmux.projects.list() });
+          get().setActiveProject(project.id);
+          return { ok: true, projectId: project.id };
+        } catch (err) {
+          const payload = errorPayload(err);
+          return {
+            ok: false,
+            kind: 'local',
+            message: errorText(err),
+            ...(payload === null ? {} : { code: payload.code })
+          };
+        }
+      }
+      if (!get().canAddRemoteProject()) {
+        return { ok: false, kind: 'unsupported' };
+      }
+      const result = await get().addRemoteProject(target.machineId, target.path);
+      if (result.ok) return { ok: true, projectId: result.project.id };
+      return { ok: false, kind: 'remote', reason: result.reason };
     },
 
     canCreateProject() {

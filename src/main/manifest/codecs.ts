@@ -190,6 +190,21 @@ export interface ManifestSessionRecord extends Session {
    * name afterwards.
    */
   machineTombstone?: MachineTombstone;
+  /**
+   * What Tortie knew about this session's project tab at the moment a person
+   * closed it (Phase 93, migration 016).
+   *
+   * PRESENT ONLY ON A ROW WHOSE TAB WAS CLOSED WHILE THE SESSION EXISTED. It is
+   * written by `markProjectTabClosed` in one durable statement, before the
+   * project row is deleted, and it is cleared by `clearProjectTabClosed` when
+   * the same folder is opened as a tab again.
+   *
+   * IT SAYS NOTHING ABOUT STATUS. The sessions it stamps are still running and
+   * still reachable from the attention list. It exists so that a surface can
+   * tell a folder whose tab a person closed from a folder that never had one,
+   * which are two different sentences to write when a tab is opened again.
+   */
+  projectTombstone?: ClosedProjectTab;
 }
 
 /**
@@ -213,6 +228,29 @@ export interface MachineTombstone {
   lastSeenAt: number;
   /** Local ms of the removal. */
   forgottenAt: number;
+}
+
+/**
+ * What Tortie knew about a project tab at the moment a person closed it
+ * (Phase 93, migration 016).
+ *
+ * It is written into `project_tombstone` as JSON and read back whole. Every
+ * field is a LOCAL fact about the tab rather than about the folder's contents.
+ * The path is the path ON THE MACHINE the session names, so no local `existsSync`
+ * may run against it when `machineId` is set.
+ */
+export interface ClosedProjectTab {
+  v: 1;
+  /** The project row's id at the moment the tab closed. */
+  projectId: string;
+  /** The tab's name, which is the folder's own name. */
+  projectName: string;
+  /** The machine the folder is on. Absent means this Mac. */
+  machineId?: string;
+  /** The absolute path of the folder, on that machine. */
+  path: string;
+  /** Local epoch ms of the close. */
+  closedAt: number;
 }
 
 /**
@@ -371,6 +409,14 @@ export interface SessionRow {
    * written before the migration. NULL is the true answer for both.
    */
   machine_tombstone: string | null;
+  /**
+   * What Tortie knew about this session's project tab when a person closed it,
+   * as JSON (migration 016, Phase 93).
+   *
+   * NULL on every row whose folder still has a tab, and on every row written
+   * before the migration. NULL is the true answer for both.
+   */
+  project_tombstone: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -450,6 +496,60 @@ export function serializeMachineTombstone(
   tombstone: MachineTombstone | undefined
 ): string | null {
   return tombstone === undefined ? null : JSON.stringify(tombstone);
+}
+
+/**
+ * Parse the `project_tombstone` column (Phase 93, migration 016).
+ *
+ * It mirrors {@link parseMachineTombstone} exactly, and for the same reason. An
+ * unreadable value is dropped WHOLE rather than partly merged. Half a record
+ * would draw a sentence naming a folder it cannot name, or an instant it does
+ * not have, and a hand edited file must not be able to crash a boot.
+ */
+function parseClosedProjectTab(text: string | null): ClosedProjectTab | undefined {
+  if (text === null) return undefined;
+  try {
+    const v: unknown = JSON.parse(text);
+    if (v === null || typeof v !== 'object' || Array.isArray(v)) return undefined;
+    const o = v as Record<string, unknown>;
+    const projectId = o['projectId'];
+    const projectName = o['projectName'];
+    const machineId = o['machineId'];
+    const path = o['path'];
+    const closedAt = o['closedAt'];
+    if (typeof projectId !== 'string' || projectId.length === 0) return undefined;
+    if (typeof projectName !== 'string' || projectName.length === 0) {
+      return undefined;
+    }
+    if (typeof path !== 'string' || path.length === 0) return undefined;
+    if (typeof closedAt !== 'number' || !Number.isFinite(closedAt)) {
+      return undefined;
+    }
+    if (
+      machineId !== undefined &&
+      (typeof machineId !== 'string' || machineId.length === 0)
+    ) {
+      return undefined;
+    }
+    const parsed: ClosedProjectTab = {
+      v: 1,
+      projectId,
+      projectName,
+      path,
+      closedAt
+    };
+    if (typeof machineId === 'string') parsed.machineId = machineId;
+    return parsed;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Serialize the closed tab record for the column. Undefined in, NULL out. */
+export function serializeClosedProjectTab(
+  tab: ClosedProjectTab | undefined
+): string | null {
+  return tab === undefined ? null : JSON.stringify(tab);
 }
 
 // ---------------------------------------------------------------------------
@@ -715,6 +815,10 @@ export function rowToRecord(row: SessionRow): ManifestSessionRecord {
   // what NULL means, and absent on a value that would not parse whole.
   const tombstone = parseMachineTombstone(row.machine_tombstone ?? null);
   if (tombstone !== undefined) record.machineTombstone = tombstone;
+  // Phase 93. Absent on every row whose folder still has a tab, which is what
+  // NULL means, and absent on a value that would not parse whole.
+  const closedTab = parseClosedProjectTab(row.project_tombstone ?? null);
+  if (closedTab !== undefined) record.projectTombstone = closedTab;
   return record;
 }
 
@@ -795,6 +899,20 @@ export function toSession(record: ManifestSessionRecord): Session {
       lastStatus: record.machineTombstone.lastStatus,
       lastSeenAt: record.machineTombstone.lastSeenAt,
       forgottenAt: record.machineTombstone.forgottenAt
+    };
+  }
+  // Phase 93: a session whose project tab a person closed. The attention list
+  // reads it to decide whether opening the folder again is giving a tab back,
+  // which needs no sentence, or making a tab that never existed, which gets one.
+  // The machine id is deliberately not projected, for the same reason
+  // `machineGone` projects a label rather than an id: the session's own
+  // `machine` field already says which computer the folder is on, and a second
+  // id in the projection would be a second answer to one question.
+  if (record.projectTombstone !== undefined) {
+    session.closedProject = {
+      name: record.projectTombstone.projectName,
+      path: record.projectTombstone.path,
+      closedAt: record.projectTombstone.closedAt
     };
   }
   return session;

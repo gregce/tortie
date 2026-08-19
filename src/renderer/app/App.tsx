@@ -95,6 +95,10 @@ import {
 import { digitToIndex } from './project-shortcuts';
 // Shared with the ⌘J overlay: "land the user in this session" exists once.
 import { focusTerminal, jumpToSession } from './session-focus';
+// PHASE 93. The harness drive for build/probe-p93-attention.mjs. It assigns one
+// property to `window` at module load and changes nothing else, which is the
+// same shape ./remote-boot-drive.ts uses. Outside the harness it is unused.
+import { registerP93AttentionDrive } from './p93-attention-drive';
 // Phase 80.1, the ⇧⌘↩ chord. The 200 ms flight, the refusals and the swap.
 // A DIFFERENT module from ./session-focus above, which is much older and means
 // "land the user in a session" for ⌘J and the menu-bar sentinel.
@@ -153,6 +157,10 @@ import type { ShellPathProbeSpec } from './shell-path-shot-drive';
 // takes four timestamps and its store subscription removes itself as soon as
 // it has them. Nothing else in a real run reaches it.
 armShellPathProbe();
+
+// PHASE 93 harness hook, in the same shape. It assigns one object to `window`
+// and reads nothing until build/probe-p93-attention.mjs calls a method on it.
+registerP93AttentionDrive();
 
 // ---------------------------------------------------------------------------
 // Keyboard map (DESIGN.md §4) — one capture-phase listener; ⌘-chords and F2
@@ -778,7 +786,11 @@ function useMenuActions(): void {
     return bridge.onMenuAction((action: MenuActionWithFind) => {
       // Phase 12.85: the menu-bar sentinel's rows carry a session id.
       if (action.startsWith(FOCUS_SESSION_PREFIX)) {
-        jumpToSession(action.slice(FOCUS_SESSION_PREFIX.length));
+        // PHASE 93. The jump is asynchronous now, because a session whose
+        // folder has no tab gets one opened before it is landed in. Nothing
+        // here waits for it: the answer is a toast the jump raises itself, and
+        // this handler has no panel of its own to keep open.
+        void jumpToSession(action.slice(FOCUS_SESSION_PREFIX.length));
         return;
       }
       // Phase 18.6: File > Open Recent > a row. The path travels on the id

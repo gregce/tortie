@@ -80,6 +80,8 @@
  *                       refuses the real socket BY NAME because the far side of
  *                       its connection is this same Mac.
  *                       `npm run smoke:execplane`.
+ *  - GMUX_SMOKE=p93-remote-clear a session on a machine outlives its tab and
+ *                                is still ended by id (Phase 93)
  *  - GMUX_SMOKE=remote-sessions  create, list, rename and end a session on a
  *                       machine (Phase 70), in the shipped bundle against a
  *                       scratch sshd. Eleven steps: four refusals that start
@@ -178,6 +180,7 @@ import { runExecPlaneSmoke } from '../machines/exec-smoke';
 // pins. It is the second caller `machine.restore-refused` and
 // `machine.remote-target-unbound` need, and it counts manifest writes.
 import { runRemoteSessionsSmoke } from '../machines/remote-smoke';
+import { runP93RemoteClearSmoke } from './p93-remote-clear';
 import { runMigrateSmoke } from '../migrate/smoke';
 import { runReconstructSmoke } from '../manifest/reconstruct-smoke';
 import { runRefusalSmoke } from '../manifest/refusal-smoke';
@@ -356,6 +359,14 @@ export async function dispatchHarness(deps: HarnessDeps): Promise<boolean> {
   // measurement rather than a reading of the code.
   if (smoke === 'remote-sessions') {
     await runRemoteSessionsSmoke();
+    return true;
+  }
+  // Phase 93: a session on a machine outlives its project tab and can still be
+  // ended by id. It is the only gate that ends a session on another computer
+  // after the tab for its folder is gone, which is the half of the operator's
+  // question the ⌘J probe cannot reach.
+  if (smoke === 'p93-remote-clear') {
+    await runP93RemoteClearSmoke();
     return true;
   }
   // Phase 71: the link to a machine cut at five named moments, in a real

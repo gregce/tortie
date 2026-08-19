@@ -504,12 +504,13 @@ describe('what the PREVIOUS release does with this manifest', () => {
       // Three from migration 008, one from 009, one from 010 (Phase 29's
       // removed_at), one from 011 (Phase 33's env_passthrough), one from 012
       // (Phase 48's exit_detail), one from 013 (Phase 71's machine_id), one from
-      // 014 (Phase 72's machine_tombstone). The point of the case is that an old
-      // build's `SELECT *` neither throws nor mis-reads the row it gets, so the
-      // number moves with every additive migration after this one and is
-      // deliberately spelled out rather than hidden behind a constant.
+      // 014 (Phase 72's machine_tombstone), one from 016 (Phase 93's
+      // project_tombstone). The point of the case is that an old build's
+      // `SELECT *` neither throws nor mis-reads the row it gets, so the number
+      // moves with every additive migration after this one and is deliberately
+      // spelled out rather than hidden behind a constant.
       expect(Object.keys(rows[0] ?? {})).toHaveLength(
-        SCHEMA_7_COLUMNS.length + 3 + 1 + 1 + 1 + 1 + 1 + 1
+        SCHEMA_7_COLUMNS.length + 3 + 1 + 1 + 1 + 1 + 1 + 1 + 1
       );
     } finally {
       old.close();

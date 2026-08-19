@@ -73,13 +73,14 @@ value below is read from the script in `package.json`, and `${TMPDIR}` is
 | `npm run smoke:execplane` | `${TMPDIR}gmux-p69-exec` | `gmux-p69-exec` |
 | `npm run smoke:remote` | `${TMPDIR}gmux-p70-remote` | `gmux-p70-remote` |
 | `npm run smoke:capture:remote` | `${TMPDIR}gmux-p91-capture` | `gmux-p91-capture` |
+| `npm run smoke:p93remote` | `${TMPDIR}gmux-p93-remote` | `gmux-p93-remote` |
 | `npm run probe:realmachine` | `<tmpdir>/p83-real-<pid>`, made fresh on every run | none on this Mac. One scratch socket on the far machine, named `p83-<pid>-ctl` |
 | `npm run probe:realunknowns` | `<tmpdir>/p83-real-<pid>`, made fresh on every run | none on this Mac. One scratch socket on the far machine, named `p83-<pid>-sockpath`, and socket `gmux` over there for the sessions it creates by name |
 | `npm run probe:remotearm` | `<tmpdir>/gmux-p89-arm-<pid>`, made fresh on every run and removed at the end | `gmux-p89-<pid>`, on the scratch machine, which is this Mac over a loopback sshd. `refuseRealSockets` rejects the names `gmux` and `default` before anything starts. |
 
-`smoke:execplane`, `smoke:remote` and `smoke:capture:remote` all honour a
-`GMUX_CONFIG_ROOT` already in the environment and fall back to the value
-above. `smoke:config` and `smoke:machines` always use the value above. The two `probe:real` rows read no
+`smoke:execplane`, `smoke:remote`, `smoke:capture:remote` and `smoke:p93remote`
+all honour a `GMUX_CONFIG_ROOT` already in the environment and fall back to the
+value above. `smoke:config` and `smoke:machines` always use the value above. The two `probe:real` rows read no
 config root at all, because they drive no Electron process.
 
 Two more gates set a config root without naming it in `package.json`, because

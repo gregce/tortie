@@ -96,7 +96,15 @@ const FILES: readonly string[] = [
   // where every sentence main prints about a session on another machine lives.
   // A module that holds log lines as well as copy cannot be audited by reading
   // its strings, and ./remote-restore.ts is one of those.
-  'src/renderer/settings/machines-copy.ts'
+  'src/renderer/settings/machines-copy.ts',
+  // Phase 93. The three files that say what happened when a person asked to be
+  // taken to a session. `reach-copy.ts` holds every sentence, `session-focus.ts`
+  // picks which one is said and composes the machine's name, and the ⌘J list is
+  // the surface that draws the rows and, from this phase, names the machine a
+  // session runs on. All three can name a machine, so all three are read here.
+  'src/renderer/app/reach-copy.ts',
+  'src/renderer/app/session-focus.ts',
+  'src/renderer/app/AttentionOverlay.tsx'
 ];
 
 /**
@@ -124,6 +132,26 @@ const FORBIDDEN: readonly string[] = [
   'list-sessions',
   '-L gmux'
 ];
+
+/**
+ * One word on the list is an English fragment of an ordinary word, so it is
+ * matched on a word boundary rather than anywhere inside a literal.
+ *
+ * PHASE 93 ADDED THIS. The ⌘J list joined the audit, and its own class name is
+ * `attention-panel`, which contains `pane`. MEASURED on 2026-08-19: the audit
+ * failed with `pane in \`attention-panel${under}\``. A panel is not a pane, and
+ * `\bpanes?\b` still catches the word the rule exists for, which is the one a
+ * person could read as the name of a thing inside a session.
+ */
+const BOUNDED: ReadonlySet<string> = new Set(['pane']);
+
+/** Whether one literal carries one forbidden word. */
+export function carriesWord(literal: string, word: string): boolean {
+  if (BOUNDED.has(word)) {
+    return new RegExp(`\\b${word}s?\\b`, 'i').test(literal);
+  }
+  return literal.toLowerCase().includes(word.toLowerCase());
+}
 
 /** Block and line comments out. The `[^:]` guard spares a `https://` inside a string. */
 function stripComments(source: string): string {
@@ -171,9 +199,8 @@ describe('the machine vocabulary audit', () => {
         continue;
       }
       for (const literal of copyLiteralsOf(source)) {
-        const lower = literal.toLowerCase();
         for (const word of FORBIDDEN) {
-          if (lower.includes(word.toLowerCase())) {
+          if (carriesWord(literal, word)) {
             found.push(`${file}: ${word} in ${literal}`);
           }
         }
@@ -191,5 +218,17 @@ describe('the machine vocabulary audit', () => {
     ]);
     expect(copyLiteralsOf('// a tmux comment')).toEqual([]);
     expect(copyLiteralsOf("import x from './tmux';")).toEqual([]);
+  });
+
+  it('tells a pane from a panel', () => {
+    // The word the rule exists for still fails.
+    expect(carriesWord("'Tortie could not read that pane.'", 'pane')).toBe(true);
+    expect(carriesWord("'two panes'", 'pane')).toBe(true);
+    // The ⌘J list's own class name does not, and neither does the word people
+    // use for a piece of the window.
+    expect(carriesWord("'attention-panel'", 'pane')).toBe(false);
+    expect(carriesWord("'the panel stays open'", 'pane')).toBe(false);
+    // Every other word is still matched anywhere in the literal.
+    expect(carriesWord("'gmux-tmuxish'", 'tmux')).toBe(true);
   });
 });

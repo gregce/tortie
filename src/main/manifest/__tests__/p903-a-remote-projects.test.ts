@@ -83,15 +83,18 @@ function buildSchema14(): Database.Database {
 }
 
 describe('migration 015, the remote_projects table', () => {
-  it('moves the version to 15 and leaves the minimum at 13', () => {
+  it('leaves the minimum at 13, and the version has kept counting', () => {
     buildSchema14().close();
     const store = new ManifestStore(dbPath);
     try {
       const db = new Database(dbPath, { readonly: true });
       const version = (db.pragma('user_version') as { user_version: number }[])[0];
-      expect(version?.user_version).toBe(15);
+      // Phase 93 appended 016-project-tombstone, so an open now lands on 16.
+      // What this file pins is that opening a schema 14 file runs migration 015
+      // and that the minimum does not move, and both are still true.
+      expect(version?.user_version).toBe(16);
       db.close();
-      expect(MANIFEST_SCHEMA_VERSION).toBe(15);
+      expect(MANIFEST_SCHEMA_VERSION).toBe(16);
       expect(MANIFEST_MIN_COMPATIBLE_VERSION).toBe(13);
     } finally {
       store.close();

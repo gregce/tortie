@@ -6352,7 +6352,7 @@ signed in to, and `npm run smoke:remote` steps 17c to 17e, which run the operato
 against the loopback scratch machine. No drive ran against his real Mac Pro. The rows and the stray
 tab the defect already wrote in his manifest are untouched.
 
-## Phase 93 — a session you cannot reach can still be cleared (operator reported 2026-08-19, with two screenshots) QUEUED
+## Phase 93 — a session you cannot reach can still be cleared (operator reported 2026-08-19, with two screenshots) ✅ SHIPPED 2026-08-19 (this commit, 0.49.0, gates green, 6,560 tests)
 
 **Subject:** `fix(attention): a session whose project is closed can still be reached and cleared`
 **First body line:** `Phase 93: a session you cannot reach can still be cleared`
@@ -6462,6 +6462,38 @@ session on another machine whose project tab has been closed, and prove it can b
 Photograph the overlay showing the machine and the path on both a local and a remote row. And report
 the answer to item 4 in plain words, including the answer "he created them himself" if that is what
 the evidence says.
+
+### What shipped, and what is NOT true, written after the fix round
+
+- **Item 1 landed.** Enter on a row now opens the folder as a tab and lands in the session, or it
+  refuses in one sentence naming the folder or the machine. Every refusal also says the session is
+  still running and that Tortie did not end it.
+- **Item 2 landed as asked, and it does not tell HIS three rows apart.** The row now draws the
+  folder for every session and the machine label for a session that is not on this Mac. His three
+  rows all carry `project_path = /Users/gdc` and `machine_id = 'local'`, so all three draw `~` and
+  no machine, and all three still read `claude-3   ~`. What tells them apart after this phase is
+  that Enter lands in a different session for each and that each can be ended on its own. The
+  duplicate display name comes from `nextOrdinal`, and Phase 94 item 2 fixed it.
+- **Item 3 landed.** Closing a tab stamps every live session in that folder, on that machine, with
+  what Tortie knew about the tab, in one durable write before the project row is deleted. Migration
+  016 adds the column. `npm run smoke:p93remote` opens a folder on another machine as a tab, starts
+  a session there, closes the tab and then ends that session from its id alone, in 7 steps, with no
+  tab for its folder anywhere. The machine it uses is the scratch machine, which is this Mac over a
+  loopback sshd, so the ssh path and the far tmux server are real and the second computer is not.
+- **Item 4 is answered and it is not a defect in End or Remove.** He started the three sessions
+  himself, from the quick create paths, while the tab in front of him was a folder on his Mac Pro.
+  Those paths send no machine and main decides local against remote on that one field, so three
+  local agents started in `/Users/gdc`. Phase 94 item 2 above carries the fix. It was written from
+  the same rows and it shipped the same day, so this phase queued no entry of its own.
+- **A remote row cannot reach the ⌘J list today.** The list filters on `needs input`, and that
+  status is never set for a session on another machine, by the decision of 2026-08-19. The machine
+  label, the remote refusal sentence and the remote End are all built and all measured, and none of
+  them can be seen in that list until that decision changes. Nobody will see a machine name in the
+  ⌘J list yet.
+- **⌘⌫ in that list is now the only key in Tortie that ends a session.** It is the keymap row
+  `session.endFromAttention`, it is scoped to that list alone, and it opens the same confirm the
+  row's right click menu opens. The recorded decision that `session.end` has no chord anywhere
+  still stands and `accelerator('session.end')` still throws.
 
 ## THE OVERNIGHT ORDER, set 2026-08-19. Run it in this order and do not reshuffle without asking
 
