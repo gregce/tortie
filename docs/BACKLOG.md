@@ -6181,6 +6181,83 @@ Move to Trash, Open With and Reveal in Finder rests on unit tests. Phase 89's zs
 Mac Pro is still owed and is proven on the loopback scratch machine only. `needs input` never lights
 for a remote session and SpecStory capture never runs on one, both closed by decision.
 
+## Phase 95 — asking a session that is not running where its scrollbar is (operator reported 2026-08-19) QUEUED
+
+**Subject:** `fix(terminal): a session with no pane on this Mac answers the scroll poll instead of throwing`
+**First body line:** `Phase 95: asking a session that is not running where its scrollbar is`
+**Semver:** patch.
+**Tier 2.** It touches no durable state, starts nothing and ends nothing. The evidence is a live drive
+of a remote session with the console watched.
+
+### What he saw
+
+He opened a Claude session on his Mac Pro from a 0.49.0 development build and his terminal filled with
+the same stack trace over and over:
+
+```
+Error occurred in handler for 'terminal:scrollState': GmuxError:
+  {"code":"SESSION_NOT_FOUND","message":"This session is not running right now.",
+   "detail":"9ed07ab5-fadb-4c94-bc22-94cf040a42a1"}
+    at GmuxCore.scrollTarget (core.ts:2370)
+    at GmuxCore.scrollState (core.ts:2385)
+```
+
+It repeated for two different session ids, dozens of times each, for as long as the session was on
+screen. Nothing else in that output is a fault. The lines about sessions Tortie did not create, the
+kept copies of session screens, and the one session that came back with its name are all normal
+reporting.
+
+### The cause
+
+`scrollTarget` at `src/main/sessions/core.ts:2370` reads `this.liveIds`, which holds the tmux id of
+every session running ON THIS MAC. A session on another machine has no entry there, and neither does
+a local session that is not running. The method throws `SESSION_NOT_FOUND` rather than answering.
+
+`ScrollSurface.enqueue` in `src/renderer/terminal/scroll/surface.ts:293` catches the failure and
+reschedules, on purpose, so that a transient tmux hiccup does not kill the poll. The result for a case
+that is not transient is a poll that fails forever, at the poll rate, with a full stack trace printed
+by Electron's own handler wrapper on every attempt.
+
+**Two things are wrong and they need separating.**
+
+1. **"This session has no pane on this Mac" is not an error.** It is an ordinary, permanent, correct
+   state, and the four scroll methods should say so rather than throw. A refusal that repeats forever
+   is a design fault rather than a fault report.
+2. **The renderer arms a scroll poll for a session whose scroll it can never read.** That is the poll
+   that should not exist, rather than a poll whose failures are swallowed more quietly.
+
+### What must be true after this phase
+
+- Opening a session on another machine prints NOTHING repeating in the console, in a development run
+  and in a packaged run. A packaged build writes that wrapper's output to `app.log`, so today this
+  grows a person's log file for as long as a remote session is on screen.
+- The same holds for a LOCAL session that is not running, which reaches the identical line.
+- A person looking for a scrollbar on a session on another machine is told, once and quietly, that
+  scrolling back is not available there yet. Not an error, not a toast that returns, not a badge.
+  Decide the surface in the spec and keep it in the existing style.
+- Nothing about a session running on this Mac changes. Scrollback, the drag, the anchor and the
+  resize hold all behave exactly as they do now.
+
+### What is NOT in this phase, and say so in the report
+
+**Scrolling a session on another machine is not built here.** It would need copy-mode verbs to travel
+over the exec plane, and the verb ledger in `src/main/machines/exec-plane.ts` is a deliberate list
+that this phase does not extend. This phase makes the absence honest and quiet. It does not fill it.
+
+### The evidence
+
+- Drive a session on the loopback scratch machine in a live window, with the main process output
+  captured to a file, and show the count of `terminal:scrollState` errors is 0 over at least 60
+  seconds. State the before count from the same drive on the parent commit.
+- Do the same for a local session that is not running.
+- Prove by mutation that the regression test is real, being restore the throw, show the test fail,
+  restore the fix byte for byte, show it pass.
+- Read a screenshot of a remote session's terminal showing whatever the spec chose for the scrollbar
+  area, so the operator can see what he will get.
+- Count his sessions with `tmux -L gmux list-sessions` before and after and report both numbers.
+  `src/main/tmux/resolve.ts` honours `GMUX_TMUX_SOCKET` ONLY when `GMUX_SHOT` or `GMUX_SMOKE` is set,
+  and a launch without one of those silently uses his real server.
+
 ## Phase 94 — a second session in a remote tab starts in that tab's folder (operator reported 2026-08-19, with four screenshots) ✅ SHIPPED 2026-08-19 (this commit, 0.48.1, gates green, 6,498 tests)
 
 **Subject:** `fix(machines): a session started in a remote tab runs in that tab's folder`
