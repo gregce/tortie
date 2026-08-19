@@ -425,6 +425,50 @@ export const MIGRATIONS: readonly SqliteMigration[] = [
     up: (db) => {
       addColumnIfMissing(db, 'sessions', 'machine_tombstone', 'TEXT');
     }
+  },
+  {
+    // Phase 90.3 (research 56 model A): a folder ON ANOTHER MACHINE, opened as
+    // a project tab.
+    //
+    // WHY A SECOND TABLE AND NOT A COLUMN. The `projects` table has
+    // `path TEXT NOT NULL UNIQUE`, and that constraint is the whole reason a
+    // column cannot work. `/Users/gdc/gmux` on this Mac and `/Users/gdc/gmux` on
+    // another machine are two different folders and must be two rows, and the
+    // unique index refuses the second one. Widening that index would rewrite the
+    // table every existing build reads, which is a breaking change for a feature
+    // that does not need one. A separate table with `UNIQUE(machine_id, path)`
+    // says exactly what is true: one folder per machine per path.
+    //
+    // ADDITIVE, NOT BREAKING, by the rule in research 27 section 4.3. The test
+    // is whether an older build produces a row this build reads WRONGLY, or
+    // reads a row this build wrote and gets it wrong. Neither can happen. An
+    // older build has never heard of this table, so it lists local projects only
+    // and never writes here. Listing local projects only is TRUE rather than
+    // misleading: that build cannot open a folder on another machine, so a tab
+    // for one would be a tab it could not draw. Nothing on the restore path
+    // reads this table and no launch depends on it.
+    //
+    // So MANIFEST_SCHEMA_VERSION moves to 15 and
+    // MANIFEST_MIN_COMPATIBLE_VERSION STAYS AT 13.
+    //
+    // WHAT IS IN IT. The machine's row id, the absolute path ON THAT MACHINE,
+    // the name a person reads, and when it was added. Nothing about a session
+    // and nothing about a connection. A project row has never been durable and
+    // this one is not either: losing it costs a tab, and the sessions in that
+    // folder carry their own `project_path`.
+    name: '015-remote-projects',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS remote_projects (
+          id         TEXT NOT NULL PRIMARY KEY,
+          machine_id TEXT NOT NULL,
+          path       TEXT NOT NULL,
+          name       TEXT NOT NULL,
+          added_at   INTEGER NOT NULL,
+          UNIQUE(machine_id, path)
+        );
+      `);
+    }
   }
 ];
 
@@ -446,7 +490,7 @@ export const MANIFEST_APPLICATION_ID = 0x54525445;
  * one. Keep it that way: a number that has to be reasoned about is a number
  * that gets set wrong under time pressure.
  */
-export const MANIFEST_SCHEMA_VERSION = 14;
+export const MANIFEST_SCHEMA_VERSION = 15;
 
 /**
  * The oldest schema version whose code may still write this manifest.
@@ -510,6 +554,16 @@ export const MANIFEST_SCHEMA_VERSION = 14;
  * The oldest limit still holds too: a build that shipped before the refusal
  * existed has no code to read this number, so it will still open the file. The
  * protection starts with the first build that carries it.
+ *
+ * PHASE 90.3 LEFT IT AT 13, and this paragraph is the record of that decision.
+ * Migration 015 adds the `remote_projects` table. A build at schema 13 or 14 has
+ * never heard of that table, so it lists local projects only and writes nothing
+ * into it. Listing local projects only is TRUE about that build rather than
+ * misleading, because it cannot open a folder on another machine at all. There
+ * is no row it can write that this build reads wrongly, and no row this build
+ * writes that it reads wrongly, because it does not read the table. So the
+ * migration is additive by the same rule as 009 to 012 and 014, and the number
+ * does not move.
  */
 export const MANIFEST_MIN_COMPATIBLE_VERSION = 13;
 

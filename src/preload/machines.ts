@@ -1,8 +1,8 @@
 /**
  * The machines half of the bridge (Phase 68, one call added in Phase 69, one
  * more in Phase 71, one more in Phase 79.1, one more in Phase 83, one more in
- * Phase 84 and two more in Phase 90.2). One object, twenty calls and two
- * subscriptions, typed from the shared contract.
+ * Phase 84, two more in Phase 90.2 and one more in Phase 90.3). One object,
+ * twenty one calls and two subscriptions, typed from the shared contract.
  *
  * TWO of these calls write on another computer, being `putImage` and
  * `cloneProject`. Everything else on this bridge reads.
@@ -88,6 +88,14 @@ export const machines: NonNullable<GmuxMachinesExtras['machines']> = {
   // one main reads from the project folder on this Mac, never the one sent
   // from here: main compares its own read against `expectUrl` and refuses when
   // they differ. The machine checks the destination before it writes anything.
-  cloneProject: (input) => invoke('machines:cloneProject', input)
+  cloneProject: (input) => invoke('machines:cloneProject', input),
   // ---- END PHASE 90.2 BLOCK ----
+  // ---- PHASE 90.3 BLOCK ----
+  // Phase 90.3. THIS ONE READS. It walks one folder tree on one machine to a
+  // fixed depth in one call, so the Explorer of a project on that machine can
+  // list rows without one call per folder. It writes nothing on either
+  // computer, it carries no file contents, and main refuses it while it is not
+  // connected to that machine. Nothing calls it on a clock.
+  listTree: (input) => invoke('machines:listTree', input)
+  // ---- END PHASE 90.3 BLOCK ----
 };

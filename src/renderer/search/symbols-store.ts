@@ -23,7 +23,9 @@
 import { create } from 'zustand';
 import type { GmuxSymbolsExtras } from '@shared/ipc';
 import type { SymbolHit, SymbolIndexProgress } from '@shared/symbols';
+import { localPathOf, targetOfProject } from '@shared/workspace-target';
 import { useApp } from '../state/store';
+import { machineLabelFor } from '../state/machines-slice';
 import { useEditor } from '../editor/store';
 import { requestOpenFile } from '../state/open-file';
 import { parseSymbolQuery } from './symbol-query';
@@ -66,6 +68,17 @@ export interface SymbolsState {
   /** No index exists yet and none is being built. */
   cold: boolean;
   error: string | null;
+  /**
+   * The machine this project's files are on, when they are not on this Mac
+   * (Phase 90.3). Null for every project on this Mac, which is what every
+   * build before that phase had.
+   *
+   * The palette OPENS in this state and says so, rather than refusing to open.
+   * An empty list would read as a project with no symbols, which is a different
+   * and wrong conclusion, and it is the same reasoning the cold index case
+   * above already follows.
+   */
+  elsewhere: string | null;
 
   openPalette(mode?: SymbolMode): void;
   close(): void;
@@ -148,10 +161,39 @@ export const useSymbols = create<SymbolsState>((set, get) => {
     total: 0,
     cold: false,
     error: null,
+    elsewhere: null,
 
     openPalette(mode) {
-      const project = useApp.getState().activeProject();
+      const app = useApp.getState();
+      const project = app.activeProject();
       if (project === null) return;
+      // PHASE 90.3. THE CONVERSION SITE. `localPathOf` is null for a project on
+      // another machine, so the store is never filled under such a tab: no
+      // index is asked for, no build is started and `repoPath` stays null, which
+      // is the value `refresh` returns early on. The symbol index is built from
+      // files on this Mac, and a path from another computer names a different
+      // file here or none at all.
+      const target = targetOfProject(project);
+      if (target !== null && localPathOf(target) === null) {
+        live.epoch += 1;
+        stopPolling();
+        set({
+          open: true,
+          repoPath: null,
+          fileScope: null,
+          mode: '#',
+          query: '#',
+          hits: [],
+          selected: 0,
+          indexing: false,
+          indexed: 0,
+          total: 0,
+          cold: false,
+          error: null,
+          elsewhere: machineLabelFor(app.machineStates, target.machineId)
+        });
+        return;
+      }
       if (!symbolsAvailable()) {
         // An older preload has no symbols surface. Open anyway and SAY so —
         // a palette that shows an empty list here reads as "this project has
@@ -166,7 +208,8 @@ export const useSymbols = create<SymbolsState>((set, get) => {
           selected: 0,
           indexing: false,
           cold: false,
-          error: 'Go to Symbol is not available in this build.'
+          error: 'Go to Symbol is not available in this build.',
+          elsewhere: null
         });
         return;
       }
@@ -187,7 +230,8 @@ export const useSymbols = create<SymbolsState>((set, get) => {
         query: start,
         hits: [],
         selected: 0,
-        error: null
+        error: null,
+        elsewhere: null
       });
 
       // The ONLY place a build is ever started. Fire and forget: the reply is
@@ -202,7 +246,7 @@ export const useSymbols = create<SymbolsState>((set, get) => {
     close() {
       live.epoch += 1;
       stopPolling();
-      set({ open: false, hits: [], query: '', error: null });
+      set({ open: false, hits: [], query: '', error: null, elsewhere: null });
     },
 
     setQuery(query) {

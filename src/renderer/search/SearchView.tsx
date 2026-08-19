@@ -24,7 +24,7 @@
 
 import React, { useEffect, useMemo } from 'react';
 import type { GmuxApi } from '@shared/ipc';
-import { targetOfProject } from '@shared/workspace-target';
+import { localPathOf, targetOfProject } from '@shared/workspace-target';
 import { Codicon } from '../icons';
 import { useApp } from '../state/store';
 import { QueryBlock } from './QueryBlock';
@@ -36,6 +36,20 @@ export function SearchHeader(): React.JSX.Element {
   const status = useSearch((s) => s.status);
   const files = useSearch((s) => s.files);
   const query = useSearch((s) => s.query);
+  // PHASE 90.3. Search does not reach another machine, and until this phase its
+  // header still offered Refresh and Clear on a tab whose folder is over there.
+  // Both are drawn OFF now rather than removed, which is the rule the rest of
+  // this app follows: a control that vanished would read as a missing feature.
+  // It also stops Search and Context disagreeing, because the Context view has
+  // drawn its own controls off in that state since Phase 90.1.
+  const projects = useApp((s) => s.projects);
+  const activeProjectId = useApp((s) => s.activeProjectId);
+  const onMachine = useMemo(() => {
+    const target = targetOfProject(
+      projects.find((p) => p.id === activeProjectId) ?? null
+    );
+    return target !== null && localPathOf(target) === null;
+  }, [projects, activeProjectId]);
   const run = useSearch((s) => s.run);
   const cancel = useSearch((s) => s.cancel);
   const clear = useSearch((s) => s.clear);
@@ -67,7 +81,7 @@ export function SearchHeader(): React.JSX.Element {
           className="icon-btn view-header-action"
           aria-label="Run this search again"
           title="Run this search again"
-          disabled={query.length === 0}
+          disabled={query.length === 0 || onMachine}
           onClick={() => run()}
         >
           <Codicon name="refresh" size={16} />
@@ -78,7 +92,7 @@ export function SearchHeader(): React.JSX.Element {
         className="icon-btn view-header-action"
         aria-label="Clear the search"
         title="Clear the search"
-        disabled={query.length === 0 && !hasResults}
+        disabled={(query.length === 0 && !hasResults) || onMachine}
         onClick={clear}
       >
         <Codicon name="clear-all" size={16} />

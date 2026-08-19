@@ -106,3 +106,31 @@ export function machineLabelFor(
 ): string {
   return states.find((one) => one.id === machineId)?.label ?? machineId;
 }
+
+/**
+ * Whether Tortie can ask this machine for something right now.
+ *
+ * PHASE 90.3 FIX ROUND. It answers the question the two crossing sidebars have
+ * to ask, and it is a different question from "is this machine healthy". A
+ * machine that is `connecting` is not ready yet, and one that is `quiet` or
+ * `refused` will refuse the call, so only `connected` and `polling` are true
+ * here. `badgeMachineOf` above draws the same two words into `answering`, and
+ * both readings come from this one place so they cannot drift.
+ *
+ * WHY IT IS NEEDED. On a cold boot the window is drawn before any machine has
+ * answered. Measured on 2026-08-19: the link read `quiet` at 1 ms and
+ * `connected` at 504 ms. The Explorer's first read of a folder on that machine
+ * therefore landed on a link that was not up, drew the sentence saying Tortie
+ * is not connected, and nothing re-read it for the rest of the run. The two
+ * surfaces read this and try once more when the machine starts answering.
+ *
+ * A machine with no row here is false, which is the honest answer: Tortie holds
+ * no statement about it at all.
+ */
+export function machineAnswering(
+  states: readonly MachineStateView[],
+  machineId: string
+): boolean {
+  const link = states.find((one) => one.id === machineId)?.link ?? null;
+  return link === 'connected' || link === 'polling';
+}

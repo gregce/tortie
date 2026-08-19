@@ -2910,6 +2910,95 @@ const READ_ONLY_GIT_VERBS = new Set(ALLOWED_GIT_VERBS);
 }
 
 // ---------------------------------------------------------------------------
+// 50 and 51. Phase 90.3. The path a renderer chooses, and the tree it walks
+// ---------------------------------------------------------------------------
+//
+// Until this phase every path that reached `review-file` came from a
+// `review-list` answer, so nothing could aim it. The Explorer changes that: from
+// this phase the renderer chooses the path. Research 55 section 9.3 ran that
+// script's exact text with `../above.txt` and read a file above the repository
+// root. So the script gained one constant line that refuses a path starting with
+// a slash and a path holding two dots, and this is the condition that reads it.
+//
+// A guard in main would be a SECOND COPY of a rule the far side has to enforce
+// anyway, and two copies of one rule is how one of them goes stale.
+
+const REVIEW_FILE_GUARD = 'case "$2" in /*|*..*) exit 1;; esac';
+
+{
+  const p903 = data.phase903 ?? {};
+  // 50. The containment line, read from the text, and standing BEFORE anything
+  //     that uses the value it guards.
+  const review = p903.reviewFile ?? null;
+  if (review === null) {
+    fail(
+      'the catalogue holds no script called review-file, so the read only ' +
+        'review of a file on another machine has no far side at all.'
+    );
+  } else {
+    if (review.guard !== REVIEW_FILE_GUARD) {
+      fail(
+        `review-file carries ${JSON.stringify(review.guard)} where its ` +
+          `containment line should be. It is exactly ` +
+          `${JSON.stringify(REVIEW_FILE_GUARD)}. Research 55 section 9.3 ran ` +
+          `this script's text with ../above.txt and read a file above the ` +
+          `repository root, and from Phase 90.3 the renderer chooses the path ` +
+          `that reaches it.`
+      );
+    }
+    if (review.guardAt < 0 || review.firstUseAt < 0) {
+      fail(
+        `review-file has its containment line at ${String(review.guardAt)} and ` +
+          `its first use of that value at ${String(review.firstUseAt)}. Both ` +
+          `have to exist for the check to mean anything.`
+      );
+    } else if (review.guardAt > review.firstUseAt) {
+      fail(
+        `review-file uses $2 at line ${String(review.firstUseAt)} and does not ` +
+          `check it until line ${String(review.guardAt)}. A check after the use ` +
+          `is not a check.`
+      );
+    }
+  }
+
+  // 51. The new read, and the four properties the Explorer depends on.
+  const tree = p903.treeList ?? null;
+  if (tree === null) {
+    fail(
+      'the catalogue holds no script called tree-list, so the Explorer of a ' +
+        'project on another machine has nothing to list rows from.'
+    );
+  } else {
+    if (tree.mode !== 'read' || tree.params !== 3) {
+      fail(
+        `tree-list is a ${String(tree.mode)} taking ${String(tree.params)} ` +
+          `value(s). It is a read taking three, being the folder, the depth and ` +
+          `the cap.`
+      );
+    }
+    if (!tree.prunesGit) {
+      fail(
+        'tree-list does not prune .git. A repository\'s internals would cross ' +
+          'the link on every listing, and no surface in this product asks for ' +
+          'them.'
+      );
+    }
+    if (!tree.depthFromCaller) {
+      fail(
+        'tree-list does not read its depth from $2, so the walk is not bounded ' +
+          'by what the caller asked for.'
+      );
+    }
+    if (!tree.capped) {
+      fail(
+        'tree-list does not cap its output with head -n "$3". One folder ' +
+          'holding a home directory would then send an answer of any size.'
+      );
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // 46 to 48. Phase 84. The program search, the third environment name and the
 // key Tortie made
 // ---------------------------------------------------------------------------

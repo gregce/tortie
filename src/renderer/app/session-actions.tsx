@@ -47,8 +47,18 @@ import {
 /**
  * True when the session runs outside the project checkout (a git worktree
  * or any other directory) — surfaces mark it with a small ⎇ (S4 tab spec).
+ *
+ * PHASE 90.3. NEVER for a session on another machine, and this is a refusal
+ * rather than a simplification. The mark means one thing on this Mac, being a
+ * git worktree or a folder outside the checkout. On a machine, the same
+ * comparison was true for every session an earlier build created, because the
+ * row carried this Mac's project folder and the pane's folder was over there.
+ * A mark that means "worktree" for one row and "the two paths are on different
+ * computers" for another teaches a person nothing, so a row on a machine gets
+ * no mark at all. Its badge already says which machine it is on.
  */
 export function isOutsideProject(session: Session): boolean {
+  if (session.machine !== undefined) return false;
   return (
     session.cwd !== session.projectPath &&
     !session.cwd.startsWith(`${session.projectPath}/`)
@@ -75,7 +85,9 @@ export function sessionTooltip(
 ): string {
   const age = formatAge(lastActivity ?? session.createdAt, now);
   const parts = [session.agent, visual.label, age];
-  if (isOutsideProject(session)) parts.push(displayPath(session.cwd));
+  if (isOutsideProject(session)) {
+    parts.push(displayPath(session.cwd, session.machine?.id));
+  }
   const head = `${session.name} — ${parts.join(' · ')}`;
   // Phase 70: no resume sentence for a session on another machine, for the
   // same reason the mark is dropped. Every one of those sentences describes

@@ -7,6 +7,11 @@
  * select the session, hand it the keyboard.
  */
 
+import {
+  sameTarget,
+  targetOfProject,
+  targetOfSession
+} from '@shared/workspace-target';
 import { useApp } from '../state/store';
 
 /** Hand the keyboard to the visible terminal. */
@@ -21,7 +26,11 @@ export function jumpToSession(sessionId: string): void {
   const s = useApp.getState();
   const session = s.sessions.find((x) => x.id === sessionId);
   if (!session) return;
-  const project = s.projects.find((p) => p.path === session.projectPath);
+  // PHASE 90.3. The pair, so a session on another machine lands in that
+  // machine's tab rather than in a tab on this Mac that happens to have the
+  // same folder path.
+  const target = targetOfSession(session);
+  const project = s.projects.find((p) => sameTarget(targetOfProject(p), target));
   if (project) s.setActiveProject(project.id);
   s.setActiveSession(session.id);
   // After the tab switch has rendered the session's terminal.

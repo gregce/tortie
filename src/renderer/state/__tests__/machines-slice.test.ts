@@ -17,7 +17,9 @@
 import { describe, expect, it } from 'vitest';
 import type { MachineLink, MachineStateView } from '@shared/ipc';
 
-const { badgeMachineOf, silentMachines } = await import('../machines-slice');
+const { badgeMachineOf, machineAnswering, silentMachines } = await import(
+  '../machines-slice'
+);
 
 function state(over: Partial<MachineStateView> & { link: MachineLink }): MachineStateView {
   return {
@@ -92,5 +94,36 @@ describe('badgeMachineOf', () => {
     expect(badge.restoreReason).toBe(
       state({ id: 'attic', label: 'Attic', color: 'green', link: 'quiet' }).detail
     );
+  });
+});
+
+describe('machineAnswering (Phase 90.3 fix round)', () => {
+  // The two crossing sidebars read this to decide whether one more read is
+  // worth making. Only a machine that is actually up counts. `connecting` is
+  // not up yet and would waste the one retry a sign in buys.
+  const answers: [MachineLink, boolean][] = [
+    ['connected', true],
+    ['polling', true],
+    ['connecting', false],
+    ['quiet', false],
+    ['refused', false]
+  ];
+  for (const [link, want] of answers) {
+    it(`answers ${String(want)} for ${link}`, () => {
+      expect(machineAnswering([state({ link })], 'studio')).toBe(want);
+    });
+  }
+
+  it('answers false for a machine it holds no row for', () => {
+    // Empty is the state at boot, before main's first push. False there means
+    // the sidebars wait for a statement rather than acting on an absence.
+    expect(machineAnswering([], 'studio')).toBe(false);
+    expect(machineAnswering([state({ link: 'connected' })], 'other')).toBe(false);
+  });
+
+  it('agrees with the badge, which draws the same two words', () => {
+    for (const [link, want] of answers) {
+      expect(badgeMachineOf(state({ link })).answering).toBe(want);
+    }
   });
 });

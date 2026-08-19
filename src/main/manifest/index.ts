@@ -24,6 +24,12 @@ export {
 } from './store';
 
 /**
+ * Phase 90.3. The shape an add of a folder on another machine takes. It is
+ * exported from the barrel because the sessions core composes one.
+ */
+export type { RemoteProjectInput } from './projects-repository';
+
+/**
  * The persistence half of the recovery contract (Phase 21, migration 008).
  * The SHAPES are exported from './agents' just below, beside the code that
  * composes them.

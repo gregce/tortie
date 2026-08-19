@@ -258,6 +258,15 @@ const emptyRepo: RepoDepthState = {
   syncOp: null
 };
 
+/**
+ * One repository's record, or the empty one.
+ *
+ * PHASE 90.3 MADE THE NULL CASE LOAD BEARING. Every caller now yields
+ * `localPathOf(target)` rather than a project's bare path, so a tab whose folder
+ * is on another machine asks for null here and reads the empty record. This
+ * store's every read runs git on THIS Mac, and a path from another computer
+ * names a different repository here or none at all.
+ */
 export function depthRepoState(
   repos: Record<string, RepoDepthState>,
   repoPath: string | null | undefined

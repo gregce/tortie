@@ -67,6 +67,13 @@ export const scopeTag = (scope: GitLogScope): string => TAGS[scope];
 
 const storageKey = (repoPath: string): string =>
   `gmux.scm.historyScope.${repoPath}`;
+// PHASE 90.3. This key holds a path and it can never hold a path on another
+// machine, and the reason is structural rather than a guard here. History is
+// not rendered at all for a tab whose folder is on another machine, so no
+// caller of this module exists in that tab. The two readers of this key,
+// `HistorySection` and `HistoryScopeControl`, are both children of the local
+// branch of `ScmSection`, which is reached only when `localPathOf(target)` is
+// a string.
 
 const isScope = (v: string | null): v is GitLogScope =>
   v === 'branch' || v === 'local' || v === 'everything';

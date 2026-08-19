@@ -262,6 +262,14 @@ describe('every channel is registered, and only the ones listed here', () => {
       // Tortie is not connected to the machine.
       'machines:listDir',
       // ---- END PHASE 84 ----
+      // ---- PHASE 90.3 ----
+      // One READ of one folder TREE on one machine, for the Explorer of a
+      // project that lives over there. It walks to a fixed depth in one call
+      // rather than one call per folder, `.git` is pruned on the far side, it
+      // carries no file contents, and it refuses while Tortie is not connected
+      // to the machine. Nothing calls it on a clock.
+      'machines:listTree',
+      // ---- END PHASE 90.3 ----
       // Phase 69's one new channel. It starts something on another machine, and
       // it is the only channel in the product that does.
       'machines:prepare',

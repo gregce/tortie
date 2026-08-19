@@ -32,6 +32,7 @@
  */
 
 import type { GmuxShellExtras, ShellPendingOpen } from '@shared/ipc';
+import { isLocalTarget, targetOfProject } from '@shared/workspace-target';
 import { requestOpenFile } from './open-file';
 import { useApp } from './store';
 
@@ -82,9 +83,14 @@ async function deliverPendingShellOpen(): Promise<void> {
   // project list is the proof it worked. When the folder never became a
   // project, the file half is abandoned on purpose: a file open without
   // its project has no tab to land in.
+  // PHASE 90.3. A LOCAL project with that path. `addProjectPath` above opens a
+  // folder on this Mac, so a tab for a folder of the same path on another
+  // machine is not proof that it worked, and the file half must not ride on it.
   const opened = useApp
     .getState()
-    .projects.some((p) => p.path === pair.folder);
+    .projects.some(
+      (p) => p.path === pair.folder && isLocalTarget(targetOfProject(p))
+    );
   if (!opened) return;
 
   // The editor store subscribes to the open bus in its init(), which

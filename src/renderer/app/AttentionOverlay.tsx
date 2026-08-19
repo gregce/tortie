@@ -10,6 +10,11 @@ import { effectiveStatusOf, useApp } from '../state/store';
 import { formatAge, useNow } from './format';
 import { jumpToSession } from './session-focus';
 import { AgentIcon } from '../icons';
+import {
+  sameTarget,
+  targetOfProject,
+  targetOfSession
+} from '@shared/workspace-target';
 
 export function AttentionOverlay(): React.JSX.Element | null {
   const open = useApp((s) => s.attentionOpen);
@@ -45,8 +50,14 @@ export function AttentionOverlay(): React.JSX.Element | null {
     jumpToSession(session.id);
   };
 
-  const projectNameFor = (session: Session): string =>
-    projects.find((p) => p.path === session.projectPath)?.name ?? '';
+  // PHASE 90.3. The pair, so a row for a session on another machine names that
+  // machine's tab rather than a tab on this Mac with the same folder path.
+  const projectNameFor = (session: Session): string => {
+    const target = targetOfSession(session);
+    return (
+      projects.find((p) => sameTarget(targetOfProject(p), target))?.name ?? ''
+    );
+  };
 
   return (
     <>

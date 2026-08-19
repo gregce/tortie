@@ -65,6 +65,17 @@ const FILES: readonly string[] = [
   // sentences and writes a few of its own, and both halves say things about a
   // machine, so it is audited like the rest.
   'src/renderer/app/CounterpartBlock.tsx',
+  // Phase 90.3. The sheet that opens a folder on a machine as a project tab. It
+  // is a new surface that says things about a machine, so it is audited like
+  // the rest. Every sentence it draws is a named export in that file, which is
+  // where they live until they move to machine-copy.ts.
+  'src/renderer/app/RemoteProjectModal.tsx',
+  // Phase 90.3. The Explorer's own sentences reach a person through this file,
+  // and from this phase they include six states about a folder on a machine.
+  'src/renderer/tree/FilesSection.tsx',
+  // Phase 90.3. The Source Control view's read only store for a folder on a
+  // machine. It says what it read and when, so it is audited like the rest.
+  'src/renderer/scm/remote-changes.ts',
   'src/main/machines/remote-copy.ts',
   // Phase 71. The link statement's own sentences, composed in main because
   // only main holds the confirm gate's answer and the link's own reason.

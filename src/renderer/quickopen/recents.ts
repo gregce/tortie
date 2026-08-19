@@ -96,6 +96,15 @@ export function startRecordingRecents(): () => void {
     // A historical file is a view of the past, not a file you are working in;
     // recording it would put `<sha>` versions in tomorrow's empty palette.
     if (req.commit !== undefined) return;
+    // PHASE 90.3. A file on another machine is refused for a stronger reason.
+    // Its `repoPath` is a path on THAT computer, and this record is read back
+    // as a rank tiebreaker over paths quick open listed on this Mac. Quick open
+    // cannot list a path from over there, because `rootsFor` in ./store.ts drops
+    // every project that is not on this Mac, so such an entry could only ever
+    // match a DIFFERENT file that this Mac happens to hold at the same path.
+    // The guard is here as well as there, because the two answers must agree
+    // and this bus carries every open gesture in the app.
+    if (req.remote !== undefined) return;
     noteOpened(req.repoPath, req.relPath);
   });
   return () => {

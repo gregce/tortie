@@ -41,6 +41,22 @@
  * drop event never fires). Widening it to 'copyMove' is what lets the cursor
  * name which family you are in.
  *
+ * ── PHASE 90.3 — the same tree, rows on another machine ───────────────────
+ * A project can be a folder on another machine now, and this component draws
+ * that tab's rows too. `remote` is the one prop that says so, and everything
+ * that changes hangs off it:
+ * · the listing comes from tree/store.ts, which fills the same cache from ONE
+ *   `machines:listTree` call rather than one `fs:readDir` per folder;
+ * · the persisted expansion key is the TARGET's key, so two machines holding
+ *   the same path keep two sets;
+ * · nothing is dimmed, because `git check-ignore` reads this Mac;
+ * · dragging is refused at the source, because a drag means MOVE and there is
+ *   no write script for another machine;
+ * · four verbs are in the menu and the rest are absent (see tree-menu.ts);
+ * · Copy Path puts the machine in front of the path;
+ * · an open carries the remote reference, so the editor reads both sides from
+ *   that machine and the tab is read only.
+ *
  * Model options are captured ONCE (usePierreModel snapshots them on the first
  * render), so every callback below reads the live state through a ref.
  */
@@ -69,10 +85,15 @@ import {
   useFileTreeSearch
 } from '@pierre/trees/react';
 import { isProtectedFsPath } from '@shared/fs-ops';
+import { targetKey, workspaceTarget } from '@shared/workspace-target';
 import type { OpenWithApps, OpenWithHandler } from '@shared/ipc';
 import type { FsDirEntry, GitFileStatus } from '@shared/types';
 import { useApp } from '../state/store';
 import type { MenuItemSpec } from '../state/store';
+import {
+  REMOTE_COPIED_WITH_MACHINE,
+  remoteTreeEmpty as remoteEmptyLine
+} from '../app/machine-copy';
 import { showOneTimeTip } from '../app/one-time-tip';
 import { treeStyles } from '../pierre/theme-bridge';
 import { beginTreeDrag } from '../terminal/drop/tree-drag';
@@ -124,13 +145,26 @@ const CLEAR_BUTTON_PX = 16;
 const CLEAR_BUTTON_INSET_PX = 4;
 
 /**
+ * The storage key one tab's expansion set is remembered under.
+ *
+ * PHASE 90.3. It is `targetKey`, so a folder on this Mac keeps the bare path it
+ * has always used and every set a person already has keeps working byte for
+ * byte, while the same path on another machine gets `<machineId>:<path>`. The
+ * `gmux.treeOpen.` prefix does not move, so the contract inventory does not
+ * move for it either.
+ */
+function storageKeyFor(rootPath: string, machineId: string | null): string {
+  return targetKey(workspaceTarget(rootPath, machineId));
+}
+
+/**
  * Read the persisted expanded-dir list: canonical Pierre paths (root-relative,
  * trailing '/'). Tolerates the pre-Phase-11 arborist format (absolute path →
  * true) so existing expansion state survives the swap.
  */
-function loadExpanded(rootPath: string): string[] {
+function loadExpanded(rootPath: string, key: string): string[] {
   try {
-    const raw = localStorage.getItem(LS_OPEN_PREFIX + rootPath);
+    const raw = localStorage.getItem(LS_OPEN_PREFIX + key);
     if (raw === null) return [];
     const parsed: unknown = JSON.parse(raw);
     if (Array.isArray(parsed)) {
@@ -147,11 +181,11 @@ function loadExpanded(rootPath: string): string[] {
   return [];
 }
 
-function saveExpanded(rootPath: string, expanded: readonly string[]): void {
+function saveExpanded(key: string, expanded: readonly string[]): void {
   try {
     // Cap so one deep spelunk can't bloat storage.
     localStorage.setItem(
-      LS_OPEN_PREFIX + rootPath,
+      LS_OPEN_PREFIX + key,
       JSON.stringify(expanded.slice(0, 500))
     );
   } catch {
@@ -268,11 +302,21 @@ ${FOLDER_ICON_CSS}`;
 
 export function FileTree({
   rootPath,
+  remote,
   statusFiles,
   isRepo,
   density
 }: {
   rootPath: string;
+  /**
+   * PHASE 90.3. The machine this folder is on, or null for this Mac.
+   *
+   * `label` is that machine's own label and `readOnlyNote` is the one sentence
+   * its context menu ends with. Both are composed in
+   * src/renderer/app/machine-copy.ts and passed in, because this component
+   * writes no sentence of its own.
+   */
+  remote: { machineId: string; label: string; readOnlyNote: string } | null;
   statusFiles: readonly GitFileStatus[];
   /**
    * Whether this folder is a git repository. Only a repository can be asked
@@ -288,6 +332,18 @@ export function FileTree({
   const loadDir = useFileTree((s) => s.loadDir);
   const setMenu = useApp((s) => s.setMenu);
   const toast = useApp((s) => s.toast);
+
+  /**
+   * PHASE 90.3. The two things every branch below reads, computed once.
+   *
+   * `isRemote` is the whole switch. `storeKey` is what the expansion set is
+   * remembered under, and it is the bare path for a folder on this Mac.
+   */
+  const isRemote = remote !== null;
+  const storeKey = useMemo(
+    () => storageKeyFor(rootPath, remote?.machineId ?? null),
+    [rootPath, remote]
+  );
 
   // Canonical path set + kind lookup derived from the lazy listing cache.
   const treeInput = useMemo(() => {
@@ -371,23 +427,35 @@ export function FileTree({
    * A PENDING CREATE's row is not draggable either (Phase 37): while the
    * inline name editor is open there is nothing on disk behind the row.
    */
-  const canDrag = useCallback((paths: readonly string[]): boolean => {
-    const ops = opsRef.current;
-    if (ops === null || paths.some(isProtectedFsPath)) return false;
-    const pending = ops.pendingPath();
-    return pending === null || !paths.includes(pending);
-  }, []);
+  const canDrag = useCallback(
+    (paths: readonly string[]): boolean => {
+      // PHASE 90.3. A drag out of this tree means MOVE, and there is no write
+      // script for another machine. Refusing at the SOURCE is what keeps the
+      // gesture from also arming the terminal pane's ATTACH contract with a
+      // path that names nothing on this Mac.
+      if (isRemote) return false;
+      const ops = opsRef.current;
+      if (ops === null || paths.some(isProtectedFsPath)) return false;
+      const pending = ops.pendingPath();
+      return pending === null || !paths.includes(pending);
+    },
+    [isRemote]
+  );
 
   /**
    * `.git` is never a destination either — the same one shared predicate.
    * Nor is a pending folder (Phase 37); its real parent still is.
    */
-  const canDropInto = useCallback((event: FileTreeDropContext): boolean => {
-    const dir = event.target.directoryPath;
-    if (dir === null) return true;
-    if (isProtectedFsPath(dir)) return false;
-    return dir !== opsRef.current?.pendingPath();
-  }, []);
+  const canDropInto = useCallback(
+    (event: FileTreeDropContext): boolean => {
+      if (isRemote) return false;
+      const dir = event.target.directoryPath;
+      if (dir === null) return true;
+      if (isProtectedFsPath(dir)) return false;
+      return dir !== opsRef.current?.pendingPath();
+    },
+    [isRemote]
+  );
 
   /** Pierre moved its own rows first; the disk is asked second. */
   const onDropComplete = useCallback((event: FileTreeDropResult): void => {
@@ -421,7 +489,7 @@ export function FileTree({
   );
   initialRef.current ??= {
     paths: [...treeInput.paths],
-    expanded: loadExpanded(rootPath)
+    expanded: loadExpanded(rootPath, storeKey)
   };
   const initial = initialRef.current;
 
@@ -591,12 +659,24 @@ export function FileTree({
   // ignored, so expanding node_modules costs no call at all. `ignoredEpoch`
   // is in the deps so a .gitignore edit re-asks about everything.
   useEffect(() => {
-    if (!isRepo) {
+    // PHASE 90.3. A tab on another machine is dropped here rather than inside
+    // the store, because there is nothing to ask and nothing to keep: git
+    // check-ignore reads THIS Mac, and dimming another machine's rows from this
+    // Mac's answers is exactly the wrong machine defect this round removes.
+    if (!isRepo || isRemote) {
       resetIgnored();
       return;
     }
-    void syncIgnored(rootPath, treeInput.paths);
-  }, [isRepo, rootPath, treeInput, ignoredEpoch, syncIgnored, resetIgnored]);
+    void syncIgnored(workspaceTarget(rootPath, null), treeInput.paths);
+  }, [
+    isRepo,
+    isRemote,
+    rootPath,
+    treeInput,
+    ignoredEpoch,
+    syncIgnored,
+    resetIgnored
+  ]);
 
   // The false dirty-descendant dot, removed. See ignoredOnlyAncestors in
   // ignored.ts for why the library puts one there and why it is wrong.
@@ -799,7 +879,7 @@ export function FileTree({
       if (saveTimer.current !== null) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(() => {
         saveTimer.current = null;
-        saveExpanded(rootPath, expanded);
+        saveExpanded(storeKey, expanded);
       }, 250);
     };
     const unsubscribe = model.subscribe(() => {
@@ -814,10 +894,10 @@ export function FileTree({
       if (saveTimer.current !== null) {
         clearTimeout(saveTimer.current);
         saveTimer.current = null;
-        saveExpanded(rootPath, [...expandedRef.current]);
+        saveExpanded(storeKey, [...expandedRef.current]);
       }
     };
-  }, [model, rootPath, loadDir, openDirs, setExpandedCount]);
+  }, [model, rootPath, storeKey, loadDir, openDirs, setExpandedCount]);
 
   // ----- the name filter ---------------------------------------------------
   const search = useFileTreeSearch(model);
@@ -1077,13 +1157,29 @@ export function FileTree({
         repoPath: rootPath,
         relPath: rel,
         path: rootPath + '/' + rel,
-        // Canonical bus mode: 'file' is the plain-open gesture.
-        mode: openModeFor(gitState.byPath.get(rel)) === 'diff' ? 'diff' : 'file',
+        // Canonical bus mode: 'file' is the plain-open gesture. A file on
+        // another machine is always opened plain: the diff base would be a
+        // working tree on THIS Mac, which is not where the file is.
+        mode:
+          remote === null && openModeFor(gitState.byPath.get(rel)) === 'diff'
+            ? 'diff'
+            : 'file',
         source: 'tree',
-        preview: !keep
+        preview: !keep,
+        // PHASE 90.3. Its presence is what makes the editor fill both sides
+        // from that machine and treat the tab as read only.
+        ...(remote === null
+          ? {}
+          : {
+              remote: {
+                machineId: remote.machineId,
+                machineLabel: remote.label,
+                repoPath: rootPath
+              }
+            })
       });
     },
-    [rootPath, treeInput, gitState]
+    [rootPath, remote, treeInput, gitState]
   );
 
   // Pierre selects/focuses on click internally; opening is ours. A modified
@@ -1135,6 +1231,11 @@ export function FileTree({
       }
 
       if (e.key === 'Backspace' || e.key === 'Delete') {
+        // PHASE 90.3. ⌫ is Move to Trash, and Move to Trash is absent for a
+        // folder on another machine, permanently. `shell.trashItem` has no far
+        // side equal and a remote `rm` would turn a recoverable delete into an
+        // unrecoverable one.
+        if (isRemote) return;
         const selected = model.getSelectedPaths();
         const focused = model.getFocusedPath();
         const targets =
@@ -1144,20 +1245,34 @@ export function FileTree({
         opsRef.current?.trash(targets);
       }
     },
-    [model, openRel]
+    [model, isRemote, openRel]
   );
 
   // ----- context menu (native) --------------------------------------------
 
   const copyPaths = useCallback(
     (canonicals: readonly string[], relative: boolean): void => {
-      const text = pathsForClipboard(rootPath, canonicals, relative);
+      // PHASE 90.3. An absolute path from a tab on another machine is pasted
+      // with that machine in front of it, because a bare absolute path names a
+      // folder on THIS Mac when it is pasted into a terminal here.
+      const text = pathsForClipboard(
+        rootPath,
+        canonicals,
+        relative,
+        relative || remote === null ? null : remote.label
+      );
       void navigator.clipboard.writeText(text).then(
-        () => toast('info', copiedMessage(canonicals.length, relative)),
+        () =>
+          toast(
+            'info',
+            !relative && remote !== null
+              ? REMOTE_COPIED_WITH_MACHINE
+              : copiedMessage(canonicals.length, relative)
+          ),
         () => toast('error', 'Could not copy the path')
       );
     },
-    [rootPath, toast]
+    [rootPath, remote, toast]
   );
 
   const revealPath = useCallback(
@@ -1261,7 +1376,8 @@ export function FileTree({
         !isDirPath(canonical) &&
         openable &&
         selection.length <= 1;
-      const openWithItems = single ? await openWithItemsFor(canonical) : null;
+      const openWithItems =
+        single && !isRemote ? await openWithItemsFor(canonical) : null;
 
       const items = buildTreeMenu(
         {
@@ -1271,9 +1387,10 @@ export function FileTree({
           openable
         },
         {
-          mutate: ops !== null && canMutate(),
+          mutate: !isRemote && ops !== null && canMutate(),
           duplicate: canDuplicate(),
-          reveal: canReveal()
+          reveal: !isRemote && canReveal(),
+          readOnlyNote: remote?.readOnlyNote ?? null
         },
         {
           open: (path, keep) => {
@@ -1295,6 +1412,8 @@ export function FileTree({
     [
       model,
       treeInput,
+      isRemote,
+      remote,
       openRel,
       revealPath,
       copyPaths,
@@ -1339,7 +1458,12 @@ export function FileTree({
       // (and its refusal) is settled and the multi-select set is resolved.
       // A refusal shows up as a prevented default — `.git`, an out-of-root
       // row, or a drag attempted while the filter is narrowing the tree.
-      if (e.defaultPrevented) {
+      // PHASE 90.3. `canDrag` already refuses in the model, which is what
+      // prevents the default here. This is the second door, and it is the one
+      // that matters: `beginTreeDrag` arms the terminal pane's ATTACH contract
+      // with ABSOLUTE PATHS, and an absolute path from another machine names a
+      // file on this Mac or nothing at all.
+      if (e.defaultPrevented || isRemote) {
         dragPathsRef.current = [];
         return;
       }
@@ -1371,7 +1495,7 @@ export function FileTree({
         rootPath
       );
     },
-    [model, rootPath]
+    [model, rootPath, isRemote]
   );
 
   const armRoot = useCallback((armed: boolean): void => {
@@ -1441,6 +1565,13 @@ export function FileTree({
   );
 
   const rootEmpty = rootLoaded && (entriesByDir[rootPath]?.length ?? 0) === 0;
+  /**
+   * PHASE 90.3. The empty folder line names the machine when the folder is on
+   * one. The sentence itself comes from machine-copy.ts; this component picks
+   * which of the two to draw and writes neither.
+   */
+  const emptyLine =
+    remote === null ? 'This folder is empty.' : remoteEmptyLine(remote.label);
 
   return (
     <div
@@ -1453,7 +1584,7 @@ export function FileTree({
       onDragEnd={onDragEnd}
     >
       {rootEmpty && !search.isOpen ? (
-        <div className="section-stub">This folder is empty.</div>
+        <div className="section-stub">{emptyLine}</div>
       ) : (
         <PierreTree
           model={model}

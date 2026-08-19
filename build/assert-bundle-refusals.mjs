@@ -1083,6 +1083,33 @@ const MACHINE_REFUSALS = [
     ]
   },
   {
+    // PHASE 90.3. The FIRST two rows in this array whose text is a line of one
+    // of Tortie's own frozen shell scripts rather than a sentence a person
+    // reads. They belong here for the reason the array exists: what the count
+    // `machines=` in the contract baseline counts is what Tortie refuses about
+    // another machine, and both of these are refusals that run over there.
+    id: 'machine.review-file-contained',
+    source: 'src/main/machines/remote-scripts.ts',
+    why:
+      'until Phase 90.3 every path this script received came from a ' +
+      'review-list answer, so nothing could aim it. The Explorer changed that: ' +
+      'from that phase the renderer chooses the path. Research 55 section 9.3 ' +
+      'ran the old text with ../above.txt and read a file above the repository ' +
+      'root. Without this line in the artifact, a path that climbs is joined to ' +
+      'the repository root on somebody else machine and read',
+    fragments: ['in /*|*..*', ') exit 1;; esac']
+  },
+  {
+    id: 'machine.tree-list-prunes-git',
+    source: 'src/main/machines/remote-scripts.ts',
+    why:
+      'the Explorer of a project on another machine lists every file under one ' +
+      'folder in one call. Without the prune, every object, every ref and every ' +
+      'log file inside that repository crosses the link on every listing, and no ' +
+      'surface in this product asks for any of them',
+    fragments: ['-mindepth 1 -name', '-prune -o -print']
+  },
+  {
     id: 'machine.capture-never-on-another-machine',
     // PHASE 91. The FIRST row in this array whose source is outside
     // src/main/machines/. It belongs to this array rather than to REFUSALS

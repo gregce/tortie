@@ -13,11 +13,17 @@
 import React, { useMemo } from 'react';
 import type { GmuxSettingsExtras } from '@shared/ipc';
 import { keyDisplay } from '@shared/keymap';
-import { sameTarget, targetOfProject } from '@shared/workspace-target';
+import {
+  localPathOf,
+  sameTarget,
+  targetKey,
+  targetOfProject
+} from '@shared/workspace-target';
 import { dirtyCount, useGit } from '../state/git';
 import { loginItemExtras, useApp } from '../state/store';
 import type { SidebarViewId } from '../state/store';
 import { useSearch } from '../search';
+import { useRemoteChanges } from '../scm/remote-changes';
 import { Codicon } from '../icons';
 import { UpdateRing } from './UpdateRing';
 
@@ -189,11 +195,25 @@ export function ActivityBar(): React.JSX.Element {
 
   // Dirty-file count badge on the Source Control item — accent, never amber
   // (amber is attention-only, S3).
-  const dirty = useGit((s) => {
-    if (!project) return 0;
-    const status = s.repos[project.path]?.status;
+  //
+  // PHASE 90.3 SPLIT THIS IN TWO, and closing it is the one visibly wrong
+  // number Phase 90.1 left on screen. The old read took `project.path` and
+  // asked THIS Mac's git store for it, so a tab whose folder is on another
+  // machine wore a count measured on this Mac. Now the local branch is keyed on
+  // `localPathOf`, which is null for such a tab, and the remote branch reads
+  // the count that machine itself reported.
+  const localRepoPath = localPathOf(projectTarget);
+  const localDirty = useGit((s) => {
+    if (localRepoPath === null) return 0;
+    const status = s.repos[localRepoPath]?.status;
     return status?.isRepo === true ? dirtyCount(status) : 0;
   });
+  const remoteKey = projectTarget === null ? null : targetKey(projectTarget);
+  const remoteDirty = useRemoteChanges((s) => {
+    if (localRepoPath !== null || remoteKey === null) return 0;
+    return s.byTarget[remoteKey]?.files.length ?? 0;
+  });
+  const dirty = localRepoPath === null ? remoteDirty : localDirty;
 
   return (
     <nav className="activitybar" aria-label="Views" data-slot="activity-bar">

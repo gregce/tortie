@@ -70,6 +70,7 @@ const {
   REMOTE_REVIEW_MAX_BYTES,
   REMOTE_REVIEW_MAX_FILES,
   REVIEW_ANSWER_UNREADABLE,
+  REVIEW_NO_FOLDER,
   parseRemoteReviewListing,
   parseRemoteReviewPair,
   reviewFileOn,
@@ -301,5 +302,55 @@ describe('the two answers', () => {
     expect(asked.map((one) => one.args[1])).toEqual(['src/new.ts', 'src/old.ts']);
     expect(pair.oldContents).toBe('the old one\n');
     expect(pair.newContents).toBe('the new one\n');
+  });
+});
+
+describe('a required field with nothing in it (Phase 90.3 fix round)', () => {
+  // Both verbs took their folder straight to the shell quoter, which reads
+  // `.length` on it, so a call missing the field threw a raw TypeError across
+  // IPC and the renderer received "Cannot read properties of undefined
+  // (reading length)". The product's own callers always send the field, so this
+  // was never reachable from a surface. A required field with no check is still
+  // a gap in the channel.
+  it('refuses a review of nothing with INVALID_INPUT and asks nobody', async () => {
+    await expect(
+      reviewFilesOn({ machineId: 'studio' } as unknown as {
+        machineId: string;
+        cwd: string;
+      })
+    ).rejects.toBeInstanceOf(GmuxError);
+    expect(asked).toEqual([]);
+  });
+
+  it('names the field and the sentence rather than a TypeError', async () => {
+    const err = await reviewFilesOn({
+      machineId: 'studio',
+      cwd: 'not-absolute'
+    }).catch((e: unknown) => e as GmuxError);
+    expect(err).toBeInstanceOf(GmuxError);
+    expect((err as GmuxError).payload.code).toBe('INVALID_INPUT');
+    expect((err as GmuxError).payload.message).toBe(REVIEW_NO_FOLDER);
+    expect(String((err as GmuxError).payload.detail)).toContain('"cwd"');
+    expect(asked).toEqual([]);
+  });
+
+  it('refuses a file review with no repository and with no path', async () => {
+    await expect(
+      reviewFileOn({
+        machineId: 'studio',
+        repoPath: '',
+        path: 'src/a.ts',
+        origPath: null
+      })
+    ).rejects.toBeInstanceOf(GmuxError);
+    await expect(
+      reviewFileOn({
+        machineId: 'studio',
+        repoPath: '/r',
+        path: '',
+        origPath: null
+      })
+    ).rejects.toBeInstanceOf(GmuxError);
+    expect(asked).toEqual([]);
   });
 });

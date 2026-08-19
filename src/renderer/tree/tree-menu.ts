@@ -42,6 +42,30 @@ export interface TreeMenuCapabilities {
   mutate: boolean;
   duplicate: boolean;
   reveal: boolean;
+  /**
+   * PHASE 90.3. The one sentence a remote row's menu ends with, or null for a
+   * folder on this Mac.
+   *
+   * Its presence is what tells this function the rows are on another machine.
+   * FOUR VERBS CROSS and the rest are absent, which is the split research 55
+   * section 14.3 counted:
+   *
+   *  - Open and Open in New Tab cross, read only.
+   *  - Copy Relative Path crosses unchanged, because a relative path is true on
+   *    both computers.
+   *  - Copy Path crosses with the machine in front of it.
+   *  - Open With and Reveal in Finder are absent, because both start a program
+   *    on this Mac against a file that is not here.
+   *  - New File, New Folder, Rename and Duplicate are absent, because each
+   *    needs a write script nobody has written.
+   *  - Move to Trash is absent PERMANENTLY. `shell.trashItem` has no far side
+   *    equal, and a remote `rm` would turn a recoverable delete into an
+   *    unrecoverable one.
+   *
+   * The sentence itself is written once in src/renderer/app/machine-copy.ts and
+   * this module never composes one.
+   */
+  readOnlyNote?: string | null;
 }
 
 export interface TreeMenuActions {
@@ -80,6 +104,12 @@ export function buildTreeMenu(
   const single = selection.length === 1 ? selection[0] : undefined;
   const many = selection.length > 1;
   const isFolder = canonical !== null && isDirPath(canonical);
+  // PHASE 90.3. A note means the rows are on another machine. Every verb that
+  // writes, and every verb that starts a program on this Mac, is then absent
+  // rather than disabled: a row nobody can use is noise on a 24 px menu, and
+  // the one disabled line at the end says why once.
+  const note = caps.readOnlyNote ?? null;
+  const remote = note !== null;
 
   // -- open ----------------------------------------------------------------
   // The preview/pinned tab model is invisible until something says it out
@@ -94,7 +124,7 @@ export function buildTreeMenu(
     // Open With sits with the two openings, under exactly their condition:
     // one file, not a folder, not a multi-row selection, and openable. A
     // folder, a socket, a FIFO or a device is not a document.
-    if (openWith !== null) {
+    if (openWith !== null && !remote) {
       items.push({
         label: OPEN_WITH_LABEL,
         submenu: openWith,
@@ -107,7 +137,7 @@ export function buildTreeMenu(
   }
 
   // -- create --------------------------------------------------------------
-  if (caps.mutate) {
+  if (caps.mutate && !remote) {
     items.push(
       {
         label: 'New File…',
@@ -121,7 +151,7 @@ export function buildTreeMenu(
   }
 
   // -- edit ----------------------------------------------------------------
-  if (caps.mutate && single !== undefined) {
+  if (caps.mutate && !remote && single !== undefined) {
     items.push('sep', {
       label: 'Rename…',
       hint: 'F2',
@@ -132,7 +162,7 @@ export function buildTreeMenu(
     }
   }
 
-  if (caps.mutate && selection.length > 0) {
+  if (caps.mutate && !remote && selection.length > 0) {
     items.push('sep', {
       // Honest label: gmux never unlinks. `shell.trashItem` is the only
       // deletion in the app, so the menu says where the file is going.
@@ -148,7 +178,9 @@ export function buildTreeMenu(
   // -- locate --------------------------------------------------------------
   const locate: (MenuItemSpec | 'sep')[] = [];
   const revealTarget = single ?? canonical;
-  if (caps.reveal && revealTarget !== undefined && revealTarget !== null) {
+  const canLocate =
+    caps.reveal && !remote && revealTarget !== undefined && revealTarget !== null;
+  if (canLocate) {
     locate.push({
       label: 'Reveal in Finder',
       run: () => actions.reveal(revealTarget)
@@ -177,23 +209,45 @@ export function buildTreeMenu(
     items.push(...locate);
   }
 
+  // -- the one line that says why the rest is not here ----------------------
+  // It is DISABLED, so it cannot be pressed, and it is last, so it reads as a
+  // footnote rather than as a verb. An empty menu would be the alternative, and
+  // a person right clicking a row deserves an answer.
+  if (remote && note !== null && items.length > 0) {
+    items.push('sep', { label: note, disabled: true, run: () => undefined });
+  }
+
   return items;
 }
 
 /** Exported for the test — the plural noun is copy, and copy regresses. */
 export { countedNoun };
 
-/** Clipboard text for a Copy Path / Copy Relative Path pick. */
+/**
+ * Clipboard text for a Copy Path / Copy Relative Path pick.
+ *
+ * PHASE 90.3 ADDED `machineLabel`. An absolute path from a tab on another
+ * machine is pasted with that machine's own label and a colon in front of it,
+ * e.g. `mac-pro:/Users/gdc/gmux/src`. A bare absolute path would name a folder
+ * on THIS Mac when it is pasted into a terminal here, which is the one way this
+ * verb could quietly point at the wrong computer.
+ *
+ * A RELATIVE path is unchanged, and that is deliberate. A relative path is true
+ * on both computers, so putting a machine in front of it would make a true
+ * string less useful.
+ */
 export function pathsForClipboard(
   rootPath: string,
   canonicals: readonly string[],
-  relative: boolean
+  relative: boolean,
+  machineLabel: string | null = null
 ): string {
   return canonicals
     .map((canonical) => {
       const rel = canonical.endsWith('/') ? canonical.slice(0, -1) : canonical;
       if (relative) return rel;
-      return rel.length === 0 ? rootPath : `${rootPath}/${rel}`;
+      const abs = rel.length === 0 ? rootPath : `${rootPath}/${rel}`;
+      return machineLabel === null ? abs : `${machineLabel}:${abs}`;
     })
     .join('\n');
 }

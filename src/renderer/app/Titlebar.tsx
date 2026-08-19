@@ -25,7 +25,22 @@ import React, {
 } from 'react';
 import type { Project, SessionStatus } from '@shared/types';
 import { keyDisplay } from '@shared/keymap';
-import { effectiveStatusOf, sortProjects, useApp } from '../state/store';
+import { MACHINE_DEFAULT_COLOR } from '@shared/machines';
+import {
+  isLocalTarget,
+  localPathOf,
+  sameTarget,
+  targetOfProject,
+  targetOfSession
+} from '@shared/workspace-target';
+import {
+  badgeMachineOf,
+  effectiveStatusOf,
+  sortProjects,
+  useApp
+} from '../state/store';
+import { MachineBadge } from './MachineBadge';
+import { remoteTabTooltip } from './machine-copy';
 import { useGit } from '../state/git';
 import { rollupDot } from './status';
 import type { DotKind } from './status';
@@ -45,6 +60,18 @@ interface TabData {
   project: Project;
   dot: DotKind | 'none';
   attentionCount: number;
+  /**
+   * PHASE 90.3. The machine this tab's files are on, or null for this Mac.
+   *
+   * A tab on this Mac draws nothing, for the reason every other surface draws
+   * nothing: the computer in front of the person is not a special case that
+   * needs announcing. A tab for a folder on another machine says which one, in
+   * that machine's own label and colour, because two tabs can otherwise carry
+   * the same folder name and mean different computers.
+   */
+  machine: ReturnType<typeof badgeMachineOf> | null;
+  /** The tooltip, composed once where the machine's label is in hand. */
+  title: string;
 }
 
 function ProjectTab({
@@ -66,7 +93,7 @@ function ProjectTab({
   /** A tab drag started/ended (suppresses the ⌘ hint). */
   onDragState: (dragging: boolean) => void;
 }): React.JSX.Element {
-  const { project, dot, attentionCount } = data;
+  const { project, dot, attentionCount, machine, title } = data;
   const setActiveProject = useApp((s) => s.setActiveProject);
   const closeProject = useApp((s) => s.closeProject);
   const moveProjectToIndex = useApp((s) => s.moveProjectToIndex);
@@ -144,8 +171,8 @@ function ProjectTab({
         // never holds ⌘ (Phase 12.12 item 4).
         title={
           hintDigit !== null
-            ? `${project.path}\n${tabShortcutLabel(hintDigit)}`
-            : project.path
+            ? `${title}\n${tabShortcutLabel(hintDigit)}`
+            : title
         }
         onClick={() => setActiveProject(project.id)}
         aria-label={`${project.name}${
@@ -159,6 +186,9 @@ function ProjectTab({
             dirty count live in the sidebar header, never on the tab. */}
         <span className={`dot dot-${dot === 'none' ? 'none' : dot}`} />
         <span className="ptab-name">{truncateMiddle(project.name, 24)}</span>
+        {machine !== null ? (
+          <MachineBadge machine={machine} className="ptab-machine" />
+        ) : null}
         {attentionCount > 0 ? (
           <span className="badge-attention num">{attentionCount}</span>
         ) : null}
@@ -231,11 +261,27 @@ export function Titlebar(): React.JSX.Element {
 
   // Warm the git store for every open project (status is ready the moment a
   // tab is switched to); git:changed (subscribed via init) keeps it live.
+  //
+  // PHASE 90.3 FIX ROUND. ONLY A FOLDER ON THIS MAC. A project tab can now be a
+  // folder on another machine, and `git:status` reads this Mac's own disk. The
+  // loop used to pass `p.path`, which is a bare path used as an identity, and
+  // that is the thing this phase exists to remove. Two outcomes were measured
+  // on 2026-08-19: when the path does not exist here, every boot logged one
+  // `git:status` failure reading "That project folder does not exist"; when a
+  // folder of the same name does exist here, the call succeeded and filed THIS
+  // Mac's git status under the other machine's project key. No surface drew the
+  // second one, because ActivityBar and Sidebar both read through
+  // `localPathOf`, but a wrong number sitting in the store waiting for a reader
+  // is not a state to leave behind.
   useEffect(() => {
     gitInit();
-    for (const p of projects) ensureStatus(p.path);
+    for (const p of projects) {
+      const local = localPathOf(targetOfProject(p));
+      if (local !== null) ensureStatus(local);
+    }
   }, [projects, gitInit, ensureStatus]);
   const sessions = useApp((s) => s.sessions);
+  const machineStates = useApp((s) => s.machineStates);
   const activeProjectId = useApp((s) => s.activeProjectId);
   const setAttentionOpen = useApp((s) => s.setAttentionOpen);
   const attentionOpen = useApp((s) => s.attentionOpen);
@@ -253,17 +299,52 @@ export function Titlebar(): React.JSX.Element {
   const tabs = useMemo<TabData[]>(() => {
     const ordered = sortProjects(projects, tabOrder);
     return ordered.map((project) => {
+      // PHASE 90.3. The PAIR decides which sessions this tab rolls up. A bare
+      // path comparison added another machine's sessions into a local tab's dot
+      // and badge whenever the two folders had the same path.
+      const target = targetOfProject(project);
       const statuses: SessionStatus[] = [];
       let attentionCount = 0;
       for (const sess of sessions) {
-        if (sess.projectPath !== project.path) continue;
+        if (!sameTarget(targetOfSession(sess), target)) continue;
         const status = effectiveStatusOf(sess);
         statuses.push(status);
         if (status === 'needs_input') attentionCount++;
       }
-      return { project, dot: rollupDot(statuses), attentionCount };
+      const state = isLocalTarget(target)
+        ? undefined
+        : machineStates.find((one) => one.id === project.machineId);
+      // A machine a person removed while its tab was still open has no state
+      // row. The tab keeps its badge, drawn from the id, so a person can read
+      // which tab to close rather than seeing the tab lose its only mark.
+      const machine =
+        isLocalTarget(target)
+          ? null
+          : state !== undefined
+            ? badgeMachineOf(state)
+            : {
+                id: project.machineId ?? '',
+                label: project.machineId ?? '',
+                color: MACHINE_DEFAULT_COLOR,
+                answering: false,
+                canRestore: false,
+                restoreReason: null
+              };
+      // Every sentence about a machine comes from ./machine-copy.ts, which is
+      // the one file the vocabulary audit reads.
+      const title =
+        machine === null
+          ? project.path
+          : remoteTabTooltip(project.name, project.path, machine.label);
+      return {
+        project,
+        dot: rollupDot(statuses),
+        attentionCount,
+        machine,
+        title
+      };
     });
-  }, [projects, tabOrder, sessions]);
+  }, [projects, tabOrder, sessions, machineStates]);
 
   const attentionTotal = useMemo(
     () =>

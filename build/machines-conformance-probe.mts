@@ -1449,6 +1449,42 @@ process.stdout.write(
       })()
     },
 
+    // --- Phase 90.3, conditions 50 and 51 ----------------------------------
+    // Both are pure. They read two compiled script texts and nothing else.
+    phase903: {
+      // 50. The containment line in `review-file`. From this phase the renderer
+      //     chooses the path that reaches it, so the far side has to refuse a
+      //     path that climbs out of the repository. Research 55 section 9.3 ran
+      //     the old text with `../above.txt` and read a file above the root.
+      reviewFile: (() => {
+        const script = REMOTE_SCRIPTS.find((row) => row.id === 'review-file');
+        if (script === undefined) return null;
+        const lines = script.text.split('\n');
+        return {
+          params: script.params,
+          mode: script.mode,
+          guard: lines.find((line) => line.startsWith('case ')) ?? null,
+          guardAt: lines.findIndex((line) => line.startsWith('case ')),
+          firstUseAt: lines.findIndex((line) => line.includes('$2') && !line.startsWith('case '))
+        };
+      })(),
+      // 51. The new read. It walks a tree, it prunes `.git`, and it names no
+      //     git verb, so a repository's internals never cross the link.
+      treeList: (() => {
+        const script = REMOTE_SCRIPTS.find((row) => row.id === 'tree-list');
+        if (script === undefined) return null;
+        const text = script.text;
+        return {
+          params: script.params,
+          mode: script.mode,
+          prunesGit: text.includes('-name ".git" -prune'),
+          walkers: [...text.matchAll(/find /g)].length,
+          capped: text.includes('head -n "$3"'),
+          depthFromCaller: text.includes('-maxdepth "$2"')
+        };
+      })()
+    },
+
     // --- Phase 73, conditions 35 to 40 -------------------------------------
     remoteRun: {
       marker: REMOTE_SCRIPT_MARKER,

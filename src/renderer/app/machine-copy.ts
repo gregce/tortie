@@ -609,27 +609,24 @@ export function conversationCopyLine(at: number | null | undefined): string {
 // ---------------------------------------------------------------------------
 
 /**
- * WHY THESE SIX LIVE HERE. Files, Search and Context each draw one title and
- * one body when the active project is on another machine. Every other sentence
- * this renderer says about another machine is in this file, and the vocabulary
- * audit reads this file already. Putting them in the three view files instead
- * would mean adding three modules of several hundred unrelated strings to that
- * audit's list, which is the reason already recorded there for two other files.
+ * WHY THESE FOUR LIVE HERE. Search and Context each draw one title and one body
+ * when the active project is on another machine. Every other sentence this
+ * renderer says about another machine is in this file, and the vocabulary audit
+ * reads this file already. Putting them in the two view files instead would
+ * mean adding two modules of several hundred unrelated strings to that audit's
+ * list, which is the reason already recorded there for two other files.
  *
  * WHAT THEY MAY CLAIM. Each pair says what is true, being that the folder is on
  * a named machine, and then says what Tortie does not do, being that it reads
  * only this Mac. Neither half implies a failure, because nothing failed. There
  * is no retry offered, because there is nothing to retry.
+ *
+ * PHASE 90.3 DELETED THE FILES PAIR. It said "Tortie reads files on this Mac
+ * only, so nothing is listed here", and from this phase the Explorer lists that
+ * machine's own rows, so the sentence had become false. The Explorer's states
+ * are in the Phase 90.3 block at the end of this file. The Search and Context
+ * pairs are unchanged, because neither of those two reads another machine.
  */
-
-/** The Files section, over an empty tree. */
-export function filesElsewhereTitle(label: string): string {
-  return `These files live on ${label}.`;
-}
-
-/** The Files section's second line. */
-export const FILES_ELSEWHERE_BODY =
-  'Tortie reads files on this Mac only, so nothing is listed here.';
 
 /** The Search view, in place of its results. */
 export function searchElsewhereTitle(label: string): string {
@@ -765,3 +762,367 @@ export function cloneRunningLine(
 export const CLONE_BUSY_CLOSE =
   'Tortie is copying this project onto that machine. Wait for it to finish ' +
   'before you close this.';
+
+// ---------------------------------------------------------------------------
+// A folder on another machine is a project (Phase 90.3)
+// ---------------------------------------------------------------------------
+//
+// WHY THIS BLOCK IS HERE AND NOT SPREAD OVER TEN VIEW FILES. Phase 90.3 gives a
+// folder on another machine its own project tab, and eight surfaces in that tab
+// say something about the machine: the label band, the Explorer, Source
+// Control, Quick Open, the symbol palette, the editor, the sheet that opens the
+// folder, and the tab itself. Every one of those sentences is written once
+// here. The vocabulary audit reads this file, so a sentence that names the
+// transport fails a test rather than reaching a person.
+//
+// THE ONE WORD THAT NEVER APPEARS. `label` is always the name the person gave
+// the machine. No sentence below says "remote", and none of them composes a
+// host name.
+//
+// WHAT THESE SENTENCES MAY CLAIM. Tortie reads a folder on that machine and
+// never writes there. That is the whole promise of the phase, and every
+// refusal below is a plain statement of something Tortie does not do rather
+// than a report of a failure.
+
+/**
+ * One instant on this Mac's own clock, as "14:32".
+ *
+ * The time of day rather than the full date, because every one of these reads
+ * happens while the person is looking at the screen. The clock is this Mac's,
+ * never the other machine's, so it can be read against the reader's own watch.
+ */
+export function readClockTime(at: number): string {
+  const d = new Date(at);
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+}
+
+// -- the label band, which is permanent --------------------------------------
+
+/**
+ * The band at the top of every view of a tab whose folder is on a machine.
+ *
+ * It is drawn on all four views and it never goes away. Research 54 finding 15
+ * is the reason: a person looking at a sidebar had no way to tell whose files
+ * they were reading, and one wrong assumption there is a change made on the
+ * wrong computer.
+ */
+export function remoteBandTitle(label: string): string {
+  return `Files live on ${label}.`;
+}
+
+/** The band's second line. It says the one thing Tortie will not do. */
+export const REMOTE_BAND_BODY =
+  'Tortie reads what is in this folder on that machine. It never writes there.';
+
+// -- the Explorer ------------------------------------------------------------
+
+/**
+ * After a good read, with the time it happened.
+ *
+ * The time is on screen because nothing polls that machine. A file an agent
+ * writes over there does not appear until Refresh is pressed, so the person is
+ * told which moment they are looking at.
+ */
+export function remoteReadAt(at: number): string {
+  return `Read at ${readClockTime(at)}. Press Refresh to read it again.`;
+}
+
+/**
+ * The same sentence under the name the Explorer imports it by.
+ *
+ * ONE DEFINITION, TWO NAMES. The Explorer and Source Control say the same thing
+ * after a good read, because it is the same fact: nothing polls that machine,
+ * so the person is told which moment they are looking at. An alias rather than a
+ * second copy, so the two can never drift apart.
+ */
+export const remoteTreeReadAt = remoteReadAt;
+
+/** The folder named by the tab is not on that machine. */
+export function remoteTreeMissingTitle(label: string): string {
+  return `That folder is not on ${label}.`;
+}
+
+/** The second line, naming the exact path Tortie asked for. */
+export function remoteTreeMissingBody(path: string): string {
+  return `Tortie asked for ${path} and that machine says there is nothing there.`;
+}
+
+/** The path is there and it is a file. */
+export function remoteTreeNotAFolder(path: string, label: string): string {
+  return `${path} on ${label} is a file, not a folder.`;
+}
+
+/** That machine would not let Tortie read the folder. */
+export function remoteTreeDenied(path: string, label: string): string {
+  return `Tortie cannot read ${path} on ${label}.`;
+}
+
+/** The machine did not answer in time. */
+export function remoteTreeUnreachable(label: string): string {
+  return `${label} did not answer, so Tortie could not read that folder.`;
+}
+
+/** Tortie is not signed in to that machine in this run. */
+export function remoteTreeNotConnected(label: string): string {
+  return `Tortie is not connected to ${label}, so it cannot read that folder.`;
+}
+
+/** The folder is there and it holds nothing. */
+export function remoteTreeEmpty(label: string): string {
+  return `That folder is empty on ${label}.`;
+}
+
+/**
+ * The answer held more entries than one read carries.
+ *
+ * All three numbers are real. `shown` and `total` are the machine's own counts
+ * and `max` is the cap Tortie asked under, so a person can see that the missing
+ * rows exist rather than guessing that the folder is smaller than it is.
+ */
+export function remoteTreeTruncated(
+  shown: number,
+  total: number,
+  max: number
+): string {
+  return (
+    `Showing ${shown.toLocaleString()} of ${total.toLocaleString()} files ` +
+    `and folders. Tortie reads at most ${max.toLocaleString()} of them in ` +
+    `one go.`
+  );
+}
+
+/**
+ * The one disabled row at the end of the tree's menu on a machine's file.
+ *
+ * The verbs that write are absent rather than disabled, because each of them
+ * needs a script nobody has written. This line says once why the menu is short,
+ * so the shortness is an answer instead of a puzzle.
+ */
+export function remoteTreeReadOnly(label: string): string {
+  return `Tortie only reads files on ${label}.`;
+}
+
+/** Copy Path on a machine's file puts the machine in front of the path. */
+export const REMOTE_COPIED_WITH_MACHINE =
+  'Copied the path with the machine in front of it.';
+
+// -- Source Control ----------------------------------------------------------
+
+/** The band under the Source Control header, on a tab whose folder is there. */
+export function remoteChangesBand(label: string): string {
+  return (
+    `These changes are on ${label}. Tortie can show them and cannot change ` +
+    `them.`
+  );
+}
+
+/** Nothing in that folder differs from its last commit. */
+export function remoteChangesNone(label: string): string {
+  return `Nothing has changed in that folder on ${label}.`;
+}
+
+/** The machine did not answer the Source Control read. */
+export function remoteChangesUnreachable(label: string): string {
+  return `${label} did not answer, so Tortie could not read what changed.`;
+}
+
+/** The folder is there and git does not track it. */
+export function remoteChangesNotRepo(label: string): string {
+  return `That folder on ${label} is not a git repository.`;
+}
+
+/**
+ * Why History, Branches and Runs are not on screen.
+ *
+ * Said once, under the Changes group, rather than three empty sections. Each of
+ * those three needs a read Tortie does not make on another machine, and an
+ * empty section would read as a repository with no history.
+ */
+export const REMOTE_SCM_SECTIONS_ABSENT =
+  'Tortie shows the changed files for a folder on another machine. It does ' +
+  'not show history, branches or runs there.';
+
+/**
+ * Why a file somebody just created over there is not in the list.
+ *
+ * PHASE 90.3 FIX ROUND. The read behind this list drops an untracked and an
+ * ignored entry, in src/main/machines/remote-review.ts, and that behaviour
+ * predates this phase. The Source Control view for a folder on THIS Mac has an
+ * Untracked group, and the one for a folder on another machine has no
+ * equivalent, so without this line a new file over there is simply absent and
+ * nothing says why. Measured on 2026-08-19: `git status --porcelain` over there
+ * reported one modified file and one untracked file, and the panel drew 1 row.
+ */
+export const REMOTE_SCM_UNTRACKED_ABSENT =
+  'A file that git is not yet tracking is not listed here.';
+
+// -- Quick Open and the symbol palette ---------------------------------------
+//
+// Search keeps the two sentences Phase 90.1 shipped and gains nothing. These
+// four are the same shape: what does not reach that machine, then what Tortie
+// does read.
+
+/** Quick Open, in place of its rows. */
+export function quickOpenElsewhereTitle(label: string): string {
+  return `Quick Open does not reach ${label}.`;
+}
+
+/** Quick Open's second line. */
+export const QUICK_OPEN_ELSEWHERE_BODY =
+  "Tortie lists files on this Mac only. This project's files are on that " +
+  'machine.';
+
+/** The symbol palette, in place of its rows. */
+export function symbolsElsewhereTitle(label: string): string {
+  return `Symbols do not reach ${label}.`;
+}
+
+/** The symbol palette's second line. */
+export const SYMBOLS_ELSEWHERE_BODY =
+  'Tortie reads symbols from files on this Mac only.';
+
+// -- the editor --------------------------------------------------------------
+
+/**
+ * The band under a tab holding a file from another machine.
+ *
+ * It says two things and both are needed. The file is over there, which is why
+ * the bytes on screen may be older than the file. And Tortie cannot save it,
+ * which is why typing changes nothing.
+ */
+export function remoteFileChip(label: string): string {
+  return (
+    `This file is on ${label}. Tortie is showing what it read and cannot ` +
+    `save changes.`
+  );
+}
+
+/**
+ * What a person reads when they press Save on such a tab.
+ *
+ * Before this phase the save was a silent no operation. A person who typed and
+ * pressed Save was told nothing at all, which reads as a save that worked.
+ */
+export function remoteSaveRefused(label: string): string {
+  return `That file is on ${label}, so Tortie cannot save it.`;
+}
+
+// -- opening a folder on a machine -------------------------------------------
+
+/** The File menu item, directly under Open Project. */
+export const OPEN_REMOTE_FOLDER_MENU_ITEM = 'Open Folder on a Machine…';
+
+/** The sheet's title. */
+export const OPEN_REMOTE_TITLE = 'Open a folder on a machine';
+
+/** The folder field's label, which names the machine that was chosen. */
+export function openRemoteFolderLabel(label: string): string {
+  return `Folder on ${label}`;
+}
+
+/**
+ * The honesty line, drawn every time the sheet is open.
+ *
+ * Three facts, in the order a person needs them: Tortie reads that folder, it
+ * never writes there, and it does not search it. The third is the one people
+ * are surprised by, so it is said before they press the button rather than
+ * after.
+ */
+export function openRemoteHonesty(label: string): string {
+  return (
+    `Tortie reads this folder on ${label}. It never writes there, and it ` +
+    `does not search it.`
+  );
+}
+
+/** The sheet's button. */
+export const OPEN_REMOTE_BUTTON = 'Open it';
+
+/** Why an add did not happen, as main's reason word names it. */
+export type AddRemoteRefusalReason =
+  | 'missing'
+  | 'notdir'
+  | 'denied'
+  | 'unreachable'
+  | 'notConnected'
+  | 'notAbsolute'
+  | 'noSuchMachine';
+
+/**
+ * The sentence for one refusal word.
+ *
+ * NO PROSE CROSSES THE CHANNEL. Main answers a word and this composes the
+ * sentence, which is the shape `machines:listDir` already uses. It keeps every
+ * sentence about a machine inside the one file the vocabulary audit reads.
+ */
+export function addRemoteRefusal(
+  reason: AddRemoteRefusalReason,
+  path: string,
+  label: string
+): string {
+  switch (reason) {
+    case 'missing':
+      return `There is no folder at ${path} on ${label}.`;
+    case 'notdir':
+      return `${path} on ${label} is a file, not a folder.`;
+    case 'denied':
+      return `Tortie cannot read ${path} on ${label}.`;
+    case 'unreachable':
+      return `${label} did not answer, so Tortie could not check that folder.`;
+    case 'notConnected':
+      return `Tortie is not connected to ${label}.`;
+    case 'notAbsolute':
+      return 'Type the whole path, starting with a slash.';
+    case 'noSuchMachine':
+      return 'Tortie has no machine with that name any more.';
+  }
+}
+
+/** The folder is already a tab, so the add moved to it instead of making one. */
+export function remoteProjectAlreadyOpen(label: string): string {
+  return `That folder on ${label} is already open. Tortie moved to its tab.`;
+}
+
+// -- the tab, and sessions in it ---------------------------------------------
+
+/** A tab whose folder is on a machine, on hover. */
+export function remoteTabTooltip(
+  name: string,
+  path: string,
+  label: string
+): string {
+  return `${name}, ${path} on ${label}`;
+}
+
+/** The confirm title when such a tab is closed. */
+export function remoteTabCloseTitle(name: string): string {
+  return `Close '${name}'?`;
+}
+
+/**
+ * The confirm body when such a tab is closed.
+ *
+ * Closing the tab ends nothing. The sessions keep running on that machine, and
+ * a person who has just read the word "close" needs to be told so before they
+ * press it.
+ */
+export function remoteTabCloseBody(label: string): string {
+  return (
+    `Its sessions keep running on ${label} and reappear when you open that ` +
+    `folder again.`
+  );
+}
+
+/** In the create sheet, when the tab's folder is on a machine. */
+export function createInRemoteProject(label: string): string {
+  return `This project is on ${label}, so the session runs there.`;
+}
+
+/** After a session made from a local tab lands in that machine's own tab. */
+export function remoteTabOpened(path: string, label: string): string {
+  return (
+    `Tortie opened a tab for ${path} on ${label} and put the session in it.`
+  );
+}

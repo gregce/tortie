@@ -1,6 +1,6 @@
 /**
- * The three ways to get a project (Phase 12.9 item 1, third verb Phase 18.6),
- * in one list and in one order.
+ * The four ways to get a project (Phase 12.9 item 1, third verb Phase 18.6,
+ * fourth verb Phase 90.3), in one list and in one order.
  *
  * This module is the only place the + at the end of the tab strip spells them.
  * Before Phase 12.9 the + went straight to the folder picker, which is why
@@ -11,8 +11,13 @@
  * tree when it says it is. The native menu is built in main (src/main/menu.ts)
  * from ids, because main owns the accelerators and the renderer is not running
  * when the menu is first installed. So the ORDER below is the contract those
- * two surfaces share, and File carries the same three verbs in the same order
- * by matching it. If a fourth verb is ever added, add it in both.
+ * two surfaces share, and File carries the same four verbs in the same order
+ * by matching it. If a fifth verb is ever added, add it in both.
+ *
+ * PHASE 90.3 FIX ROUND added the fourth. Phase 90.3 put Open Folder on a
+ * Machine… in the File menu and not here, so the + at the end of the tab strip
+ * offered three verbs while File offered four, and the only route to a folder
+ * on another machine was the menu bar.
  *
  * Native menu, per DESIGN.md §3: gmux never draws a menu in the DOM. Labels
  * are Title Case because that is what every other native menu in the app
@@ -22,6 +27,7 @@
 
 import { keyDisplay } from '@shared/keymap';
 import { cloneAction } from '../state/clone';
+import { OPEN_REMOTE_FOLDER_MENU_ITEM } from './machine-copy';
 import type { MenuSpec } from '../state/store';
 import { useApp } from '../state/store';
 
@@ -49,6 +55,25 @@ export function projectMenuItems(canCreate: boolean): MenuSpec['items'] {
       label: 'New Project…',
       hint: keyDisplay('project.new'),
       run: () => s.setNewProjectOpen(true)
+    });
+  }
+  // PHASE 90.3 FIX ROUND. The fourth verb. It sits after the two verbs that
+  // reach a folder on this Mac and before Clone Repository…, which is the
+  // position the File menu gives it. The label is the one constant both
+  // surfaces read, so the two cannot drift.
+  //
+  // TWO CONDITIONS, and they are the two the File menu already applies. The
+  // preload has to carry `projects:addRemote`, and at least one machine has to
+  // be confirmed. A row that opens a sheet with an empty list would spend a
+  // person a click to learn nothing. `refused` is main's word for a machine
+  // nobody has confirmed, so a list holding only those rows counts as none.
+  if (
+    s.canAddRemoteProject() &&
+    s.machineStates.some((one) => one.link !== 'refused')
+  ) {
+    items.push({
+      label: OPEN_REMOTE_FOLDER_MENU_ITEM,
+      run: () => s.setRemoteProjectOpen(true)
     });
   }
   const clone = cloneAction();

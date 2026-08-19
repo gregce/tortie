@@ -120,6 +120,17 @@
   color: var(--text-muted);
 }
 
+/* PHASE 90.3. When the rows in this tab were read off another machine, and
+   when the answer was capped. Nothing re-reads that machine on a clock, so the
+   line is what keeps a stale tree from reading as a wrong one. */
+.files-remote-note {
+  margin: 0;
+  padding: var(--space-1) var(--space-3) var(--space-2);
+  font-size: var(--text-xs);
+  line-height: var(--lh-sm);
+  color: var(--text-muted);
+}
+
 /* Loading skeleton: three shimmer lines, no spinner (OPERATE). */
 .files-skeleton {
   display: flex;

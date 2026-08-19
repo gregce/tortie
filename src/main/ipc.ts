@@ -174,13 +174,24 @@ export function registerIpcHandlers(): void {
     rememberProject(project);
     return project;
   });
+  // PHASE 90.3. One folder on one machine, opened as a project tab. It is NOT
+  // written to recents.json and does not appear on the home screen's recent
+  // list: every row on that list opens a folder on this Mac, and a row that
+  // cannot do that would be a button that fails.
+  handle('projects:addRemote', async (_e, input) =>
+    (await getGmuxCore()).addRemoteProject(input)
+  );
   handle('projects:list', async () => (await getGmuxCore()).listProjects());
   handle('projects:remove', async (_e, projectId) => {
     const core = await getGmuxCore();
     // Read the row BEFORE it is deleted, so the recents entry keeps the name
     // the user gave the project rather than falling back to the folder name.
     const row = core.listProjects().find((p) => p.id === projectId);
-    rememberProject(row);
+    // PHASE 90.3. A folder on another machine is NOT written to recents.json.
+    // Every row on the home screen's recent list opens a folder on this Mac,
+    // and a row that cannot do that would be a button that fails.
+    const here = row !== undefined && (row.machineId ?? 'local') === 'local';
+    if (here) rememberProject(row);
     core.removeProject(projectId);
     // Phase 20.5: drop this project's `gmux-preview:` token, so a page still
     // held in a closed tab stops resolving. Nothing breaks if it is skipped,
@@ -188,7 +199,9 @@ export function registerIpcHandlers(): void {
     // should not keep a live door open. Failure is ignored on purpose: a
     // project that has already been deleted from disk still had its row
     // removed above, and the close must not fail because of a token.
-    if (row) await releasePreviewRoot(row.path).catch(() => undefined);
+    // The preview token is a door into a folder on THIS Mac, and no folder on
+    // another machine ever had one, so there is nothing to release for one.
+    if (here && row) await releasePreviewRoot(row.path).catch(() => undefined);
   });
   handle('projects:pickDirectory', async (e) => pickDirectory(e, 'project'));
   // Phase 74. The same panel, worded for the question the caller is asking.

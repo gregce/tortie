@@ -72,6 +72,7 @@ import {
   renderedEditorWidth,
   saveEditorWidths
 } from './panel-width';
+import { remoteFileChip } from '../app/machine-copy';
 import './editor.css';
 
 // Screenshot-harness hook: registered at module load so GMUX_SHOT_DRIVE can
@@ -836,6 +837,19 @@ activeTab.error !== null ? (
             <span>
               This file is too large to edit — showing the first 5 MB
               read-only.
+            </span>
+          </div>
+        ) : activeTab.remote !== undefined ? (
+          // PHASE 90.3. The fourth read-only reason, and the only one whose
+          // file is not on this Mac. It says two things and both are needed.
+          // The file is over there, which is why the bytes on screen may be
+          // older than the file. And Tortie cannot save it, which is why typing
+          // changes nothing. Not a warning, because nothing is wrong: a folder
+          // on another machine being read only is what this product promises.
+          <div className="banner ed-banner-readonly">
+            <Codicon name="lock" size={14} />
+            <span className="banner-text">
+              {remoteFileChip(activeTab.remote.machineLabel)}
             </span>
           </div>
         ) : activeTab.commit !== null ? (

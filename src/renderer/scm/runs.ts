@@ -80,6 +80,15 @@ export const emptyRunsRecord: RepoRunsRecord = {
 };
 
 /** The record for a repo, or the empty one. Never undefined at a call site. */
+/**
+ * One repository's runs record, or the empty one.
+ *
+ * PHASE 90.3. The Runs section is not rendered at all for a tab whose folder is
+ * on another machine, so no caller of this module exists in that tab. The null
+ * case is here as the second answer to the same question, because this record
+ * is keyed by a path on THIS Mac and a path from another computer would name a
+ * different repository here or none at all.
+ */
 export function runsRepoState(
   repos: Record<string, RepoRunsRecord>,
   repoPath: string | null | undefined

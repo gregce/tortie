@@ -19,6 +19,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { localTarget, workspaceTarget } from '@shared/workspace-target';
 
 /** What git would answer "ignored" for right now. */
 let truth: string[] = [];
@@ -43,7 +44,13 @@ vi.stubGlobal('window', { gmux: { git: { checkIgnore } } });
 
 const { useTreeIgnored } = await import('../ignored');
 
-const REPO = '/repo';
+/**
+ * PHASE 90.3. The store is keyed on a TARGET now, because two machines can hold
+ * the same path. Every call below passes the local target for `/repo`, so these
+ * tests assert exactly what they asserted before, and the two new ones at the
+ * bottom assert what the key change bought.
+ */
+const REPO = localTarget('/repo');
 
 const store = (): ReturnType<typeof useTreeIgnored.getState> =>
   useTreeIgnored.getState();
@@ -91,7 +98,7 @@ describe('invalidate', () => {
     store().invalidate();
     expect(store().epoch).toBe(before.epoch + 1);
     expect(store().ignored).toBe(before.ignored);
-    expect(store().repoPath).toBe(REPO);
+    expect(store().target).toBe(REPO);
   });
 
   it('coalesces a burst into one leading and one trailing pass', async () => {
@@ -218,11 +225,39 @@ describe('staleness', () => {
   });
 
   it('starts clean when the project moves to another repository', async () => {
+    const other = localTarget('/other');
     truth = ['dist/'];
     await store().sync(REPO, ['dist/', 'src/']);
     truth = [];
-    await store().sync('/other', ['src/']);
-    expect(store().repoPath).toBe('/other');
+    await store().sync(other, ['src/']);
+    expect(store().target).toBe(other);
+    expect(shown()).toEqual([]);
+  });
+
+  // -- PHASE 90.3 -----------------------------------------------------------
+
+  it('p903-b: the same path on another machine is a different key', async () => {
+    truth = ['dist/'];
+    await store().sync(REPO, ['dist/', 'src/']);
+    expect(shown()).toEqual(['dist/']);
+
+    // The SAME path string, on a machine. Before this phase the store compared
+    // the path alone, returned early, and this Mac's answers went on dimming
+    // another machine's rows.
+    asks = [];
+    await store().sync(workspaceTarget('/repo', 'mac-pro'), ['dist/', 'src/']);
+    expect(shown()).toEqual([]);
+    expect(store().target).toBeNull();
+    expect(asks).toEqual([]);
+  });
+
+  it('p903-b: a machine target asks git nothing at all', async () => {
+    asks = [];
+    await store().sync(workspaceTarget('/elsewhere', 'mac-pro'), [
+      'node_modules/',
+      'src/'
+    ]);
+    expect(asks).toEqual([]);
     expect(shown()).toEqual([]);
   });
 
@@ -251,7 +286,7 @@ describe('reset', () => {
 
     store().reset();
     expect(shown()).toEqual([]);
-    expect(store().repoPath).toBeNull();
+    expect(store().target).toBeNull();
   });
 
   it('cancels a pending revalidation instead of leaving it to fire', async () => {

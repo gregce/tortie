@@ -91,6 +91,18 @@ const emptyRepo: RepoGitState = {
   logLoading: false
 };
 
+/**
+ * One repository's state, or the empty record.
+ *
+ * PHASE 90.3 MADE THE NULL CASE LOAD BEARING. Every caller now yields
+ * `localPathOf(target)` rather than a project's bare path, so a tab whose
+ * folder is on another machine asks for null here and reads the empty record.
+ * The four conversion sites are `Sidebar.tsx`, `ActivityBar.tsx`,
+ * `BranchHeader.tsx` and `ScmSection.tsx`. Nothing in this store ever holds a
+ * path on another machine, because every read and every write below runs git on
+ * THIS Mac, and a path from another computer names a different file here or
+ * none at all.
+ */
 export function repoState(
   repos: Record<string, RepoGitState>,
   repoPath: string | null | undefined

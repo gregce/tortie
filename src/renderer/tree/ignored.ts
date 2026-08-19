@@ -40,9 +40,21 @@
  * Everything here is an ENHANCEMENT. A preload without the channel, a failed
  * read and a folder that is not a repository all leave the set empty and the
  * tree undimmed, exactly as before this phase.
+ *
+ * PHASE 90.3 KEYED THE SET ON THE TARGET RATHER THAN ON A PATH. Two machines
+ * can hold the same path. Keyed on a path alone, a tab on another machine whose
+ * folder happened to match this Mac's would have kept this Mac's ignore set and
+ * dimmed another machine's rows from it. A remote target asks nothing and holds
+ * nothing: `git check-ignore` runs on this Mac, so there is no honest answer for
+ * a folder that is not here, and an undimmed tree is the true state.
  */
 
 import { create } from 'zustand';
+import {
+  localPathOf,
+  sameTarget,
+  type WorkspaceTarget
+} from '@shared/workspace-target';
 import { ancestorDirsOf } from './tree-paths';
 
 const NONE: ReadonlySet<string> = new Set<string>();
@@ -196,8 +208,12 @@ export function ignoredDotSuppressionCss(dirs: readonly string[]): string {
 }
 
 interface TreeIgnoredState {
-  /** Repo the current set belongs to (the active project path). */
-  repoPath: string | null;
+  /**
+   * The folder the current set belongs to, being one path on one computer.
+   *
+   * PHASE 90.3 replaced a bare path here, for the reason in the module header.
+   */
+  target: WorkspaceTarget | null;
   /** Canonical ignored paths; a directory keeps its trailing '/'. */
   ignored: ReadonlySet<string>;
   /**
@@ -206,8 +222,14 @@ interface TreeIgnoredState {
    * remembered answers. It does NOT change what is rendered on its own.
    */
   epoch: number;
-  /** Ask about whatever is new in `paths`. Never throws. */
-  sync(repoPath: string, paths: Iterable<string>): Promise<void>;
+  /**
+   * Ask about whatever is new in `paths`. Never throws.
+   *
+   * A target on another machine is dropped whole: the set is emptied and no
+   * call is made, because `git check-ignore` reads this Mac and a folder over
+   * there is not here to read.
+   */
+  sync(target: WorkspaceTarget, paths: Iterable<string>): Promise<void>;
   /**
    * Distrust the remembered answers and ask again (git:changed). The set the
    * tree renders is left alone until the replacement lands. See the rule in
@@ -272,21 +294,33 @@ export const useTreeIgnored = create<TreeIgnoredState>((set, get) => {
   };
 
   return {
-    repoPath: null,
+    target: null,
     ignored: NONE,
     epoch: 0,
 
-    async sync(repoPath, paths) {
+    async sync(target, paths) {
+      const repoPath = localPathOf(target);
+      if (repoPath === null) {
+        // A folder on another machine. Nothing on this Mac can answer for it,
+        // so the set is emptied and no call is made. `reset` is idempotent.
+        if (get().target !== null || get().ignored.size > 0) {
+          answered = new Set();
+          revalidating = false;
+          syncSeq++;
+          set({ target: null, ignored: NONE });
+        }
+        return;
+      }
       const gmux = window.gmux as typeof window.gmux | undefined;
       const checkIgnore = gmux?.git.checkIgnore;
       if (gmux === undefined || typeof checkIgnore !== 'function') return;
 
-      if (get().repoPath !== repoPath) {
+      if (!sameTarget(get().target, target)) {
         // A different repository is a real transition, not a refresh. Nothing
         // known about the old one is worth showing over the new one.
         answered = new Set();
         revalidating = false;
-        set({ repoPath, ignored: NONE });
+        set({ target, ignored: NONE });
       }
 
       // A revalidation asks about EVERY loaded path. The remembered answers
@@ -321,7 +355,7 @@ export const useTreeIgnored = create<TreeIgnoredState>((set, get) => {
       // invalidated while this call was in flight. Dropping the result keeps
       // the last good set on screen, which is the point of the whole store.
       if (seq !== syncSeq) return;
-      if (get().repoPath !== repoPath || get().epoch !== epoch) return;
+      if (!sameTarget(get().target, target) || get().epoch !== epoch) return;
 
       if (replace) {
         answered = new Set(ask);
@@ -358,10 +392,10 @@ export const useTreeIgnored = create<TreeIgnoredState>((set, get) => {
       // Idempotent, and it does NOT touch the epoch. The tree's sync effect
       // watches the epoch and calls this one when the folder is not a
       // repository, so bumping it here would be a loop.
-      if (get().repoPath === null && get().ignored.size === 0) return;
+      if (get().target === null && get().ignored.size === 0) return;
       answered = new Set();
       syncSeq++;
-      set({ repoPath: null, ignored: NONE });
+      set({ target: null, ignored: NONE });
     }
   };
 });

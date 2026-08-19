@@ -22,6 +22,8 @@ import { existsSync, statSync } from 'node:fs';
 import { readdir, realpath, rm } from 'node:fs/promises';
 import { join, resolve as resolvePath } from 'node:path';
 import type {
+  AddRemoteProjectInput,
+  AddRemoteProjectResult,
   TerminalScrollByInput,
   TerminalScrollPollInput,
   TerminalScrollState,
@@ -176,7 +178,8 @@ import { prepareMachine } from '../machines/prepare';
 import {
   currentMachines,
   machineFieldsOf,
-  machineHostKeysPath
+  machineHostKeysPath,
+  machineRow
 } from '../machines/store';
 import {
   forgetRemoteRow,
@@ -206,6 +209,17 @@ import {
 // copy of the screen, and this is the function that keeps the promise. It is a
 // direct import for the same reason the machines imports above are.
 import { captureRemoteSessionNow } from '../machines/remote-capsule';
+// PHASE 90.3. A session on another machine belongs to a folder ON THAT MACHINE.
+// One pure rule decides which folder that is, and one pass puts every live
+// session in the right tab. Direct imports, for the same reason the machines
+// imports above are.
+import {
+  rehomeRemoteSessions,
+  remoteProjectPathFor
+} from '../machines/remote-rehome';
+// PHASE 90.3. The one check a folder on another machine gets before it becomes
+// a tab. It reads that folder once and writes nothing.
+import { listRemoteDir } from '../machines/dir-list';
 import {
   restoreRemoteSession,
   type RemoteRestoreOutcome
@@ -225,6 +239,26 @@ import { projectNameForPath } from '../projects/name';
  * build keeps it.
  */
 const sessionsLog = getLog('sessions');
+
+/**
+ * PHASE 90.3. One session on another machine, drawn against the folder it is
+ * really in ON THAT MACHINE. PURE.
+ *
+ * Every row an earlier build wrote carries this Mac's project folder in
+ * `projectPath`, and the window groups sessions into tabs by comparing that
+ * field with a project's path. Left alone, one of those rows appears under a tab
+ * whose sidebars are showing a folder on a different computer.
+ *
+ * The rule is `remoteProjectPathFor` in `../machines/remote-rehome.ts`, which is
+ * the same rule the manifest correction uses, so what a person sees and what the
+ * manifest records cannot disagree. A row that already names a folder on that
+ * machine is returned unchanged, object identity included.
+ */
+function atHomeOnItsMachine(session: Session): Session {
+  if (session.machine === undefined) return session;
+  const home = remoteProjectPathFor(session.projectPath, session.cwd);
+  return home === session.projectPath ? session : { ...session, projectPath: home };
+}
 
 // The pure launch and reconcile decisions (Phase 42 stage 5). This class is
 // the orchestrator: it runs the execs and the writes, and asks these two
@@ -587,6 +621,18 @@ export class GmuxCore {
     // ordinary reconcile would never notice. One subscription, and the same
     // coalescing broadcast every local flip already uses.
     this.unsubscribeRemote = onRemoteSessionsChanged(() => {
+      // PHASE 90.3. Before the broadcast, so the list the window is about to
+      // draw already has every session in the right tab. It reads what the poll
+      // already fetched and sends nothing to any machine.
+      try {
+        rehomeRemoteSessions(remoteSessions());
+      } catch (err) {
+        sessionsLog.warn(
+          `could not place a session on its machine's folder: ${
+            (err as Error).message
+          }`
+        );
+      }
       this.scheduleSessionsBroadcast();
     });
     // Phase 13.7: a depth change has to reach the live server the moment it
@@ -2454,7 +2500,7 @@ export class GmuxCore {
       // build creates. The copies were on disk the whole time. The menu item
       // stayed disabled and the kept-here line never drew, because both read
       // this field.
-      const remote = projectRemoteRecord(rec);
+      const remote = atHomeOnItsMachine(projectRemoteRecord(rec));
       const remoteSavedAt = savedOutputAt(remote.id);
       out.push(
         remoteSavedAt === null ? remote : { ...remote, savedOutputAt: remoteSavedAt }
@@ -2462,6 +2508,9 @@ export class GmuxCore {
     }
     for (const session of remoteSessions()) {
       if (covered.has(session.id)) continue;
+      // PHASE 90.3. The folder the machine reports, so a feed row lands in the
+      // tab for a folder on that machine rather than under a tab on this Mac.
+      const shown = atHomeOnItsMachine(session);
       // PHASE 72 FIX ROUND. A feed row has no manifest row, so `toSession` never
       // saw it and nothing stamped the instant of the copy Tortie keeps of its
       // output. The menu item that opens the saved output panel is offered only
@@ -2473,7 +2522,7 @@ export class GmuxCore {
       // test holds. This is the one place the two lists are merged, so it is the
       // one place a field that comes from a third place belongs.
       const savedAt = savedOutputAt(session.id);
-      out.push(savedAt === null ? session : { ...session, savedOutputAt: savedAt });
+      out.push(savedAt === null ? shown : { ...shown, savedOutputAt: savedAt });
     }
     return out;
   }
@@ -2524,10 +2573,31 @@ export class GmuxCore {
     // None of them can answer for a different computer, and running them anyway
     // is how a create would refuse a folder that is perfectly there.
     if (input.machineId !== undefined && input.machineId !== 'local') {
+      // PHASE 90.3. THE PROJECT FOLDER SENT TO THAT MACHINE IS A FOLDER ON THAT
+      // MACHINE, which is what `RemoteCreateInput.projectPath` has documented
+      // since Phase 70 and what this call site disagreed with until now.
+      //
+      // Two creates reach this line and they carry different things.
+      //
+      //   from a tab on that machine   `projectPath` is already a far path, so
+      //                                it is sent as it stands
+      //   from a tab on this Mac       `projectPath` is a folder HERE and names
+      //                                nothing over there, so the folder the
+      //                                person named in the Directory field is
+      //                                the project folder instead
+      //
+      // An empty answer is sent as an empty string, exactly as `cwd` is. The row
+      // then records that Tortie sent no folder, and the machine's own list
+      // reports the folder its server chose, which is what the re-home reads.
+      const farProjectPath =
+        input.projectMachineId !== undefined &&
+        input.projectMachineId === input.machineId
+          ? input.projectPath
+          : (input.cwd ?? '');
       const session = await remoteCreate({
         machineId: input.machineId,
         name: input.name,
-        projectPath: input.projectPath,
+        projectPath: farProjectPath,
         // PHASE 84, item 5. NOT `?? input.projectPath`. That path is this Mac's
         // project folder and it names nothing on the other computer, so an
         // empty Directory field used to start the session in a folder named
@@ -2559,6 +2629,30 @@ export class GmuxCore {
           sessionName: input.name,
           message: captureRefused
         });
+      }
+      // PHASE 90.3. The folder over there becomes a tab, so the session lands
+      // somewhere a person can see it and every sidebar in that tab reads the
+      // machine the session is on. It is upserted rather than checked: the
+      // create just proved the folder is usable on that machine, so asking again
+      // would be a second round trip for an answer already in hand.
+      //
+      // Nothing is sent to the machine by this line.
+      if (farProjectPath.startsWith('/')) {
+        try {
+          this.manifest.upsertRemoteProject({
+            machineId: input.machineId,
+            path: farProjectPath,
+            name: projectNameForPath(farProjectPath)
+          });
+        } catch (err) {
+          // A tab that could not be recorded is not a reason to fail a session
+          // that is already running over there. The next completed list re-homes
+          // it, because the same folder comes back on every pass.
+          sessionsLog.warn(
+            `the session started on ${input.machineId} and its folder could ` +
+              `not be opened as a tab: ${(err as Error).message}`
+          );
+        }
       }
       this.broadcastSessions();
       return session;
@@ -3330,6 +3424,53 @@ export class GmuxCore {
     });
   }
 
+  /**
+   * PHASE 90.3. One folder on one machine, opened as a project tab.
+   *
+   * IT ANSWERS A REASON WORD AND NEVER A SENTENCE. The renderer draws every
+   * sentence a person reads about a machine, which keeps them all in one file
+   * and keeps the vocabulary audit reading one file.
+   *
+   * ONE ROUND TRIP, AND IT IS A READ. `listRemoteDir` asks that machine what is
+   * inside the folder, through the frozen `dir-list` script Phase 84 shipped. It
+   * writes nothing on either computer. It is asked HERE, once per project add,
+   * rather than once per session create, which is where research 56 section 4.5
+   * moved it.
+   *
+   * IT DOES NOT FAIL OPEN. A machine that did not answer refuses the add. That
+   * is the opposite of `assertRemoteDirUsable`, which fails open on purpose
+   * because a create is about to talk to the same machine anyway. Nothing talks
+   * to the machine after this, so a tab made on no answer at all would be a tab
+   * whose folder nobody ever checked.
+   */
+  async addRemoteProject(
+    input: AddRemoteProjectInput
+  ): Promise<AddRemoteProjectResult> {
+    const path = input.path.trim();
+    if (!path.startsWith('/')) return { ok: false, reason: 'notAbsolute' };
+    if (machineRow(input.machineId) === null) {
+      return { ok: false, reason: 'noSuchMachine' };
+    }
+    try {
+      readyRemoteContext(input.machineId);
+    } catch {
+      return { ok: false, reason: 'notConnected' };
+    }
+    const listing = await listRemoteDir({ machineId: input.machineId, path });
+    if (listing.refusal !== null) return { ok: false, reason: listing.refusal };
+    // The machine's OWN resolution of the path, not the string that was typed.
+    // A person who typed a trailing slash gets the tab the machine named.
+    const stored = listing.path.length > 0 ? listing.path : path;
+    const alreadyOpen =
+      this.manifest.getRemoteProject(input.machineId, stored) !== undefined;
+    const project = this.manifest.upsertRemoteProject({
+      machineId: input.machineId,
+      path: stored,
+      name: projectNameForPath(stored)
+    });
+    return { ok: true, project, alreadyOpen };
+  }
+
   listProjects(): Project[] {
     return this.manifest.listProjects();
   }
@@ -3340,7 +3481,10 @@ export class GmuxCore {
     const project = this.manifest
       .listProjects()
       .find((p) => p.id === projectId);
-    if (project !== undefined) {
+    // PHASE 90.3. The watcher watches a folder on THIS Mac. A tab for a folder
+    // on another machine never armed one, and asking to stop watching a path
+    // that names nothing here would be a local read done in a machine's name.
+    if (project !== undefined && (project.machineId ?? 'local') === 'local') {
       void unwatchGitRepo(project.path).catch(() => undefined);
     }
     this.manifest.deleteProject(projectId); // sessions keep their history

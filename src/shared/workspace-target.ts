@@ -146,3 +146,29 @@ export function targetOfProject(
   if (project === null || project === undefined) return null;
   return workspaceTarget(project.path, project.machineId);
 }
+
+/**
+ * The target a SESSION belongs to, or null when there is no session.
+ *
+ * APPENDED (Phase 90.3). A session's folder and a project's folder were
+ * compared as two bare strings in five renderer places, and that comparison is
+ * wrong the moment two machines hold the same path. This is the second half of
+ * the pair {@link targetOfProject} already produces, so the two sides of every
+ * such comparison are now the same kind of value.
+ *
+ * `machine` is absent for a session on this Mac, which is every session in
+ * every build before Phase 70, so an omitted machine reads as this Mac.
+ *
+ * It takes the two fields it reads rather than the whole `Session` type,
+ * because src/shared/workspace-target.ts imports nothing, including from its
+ * own directory.
+ */
+export function targetOfSession(
+  session:
+    | { projectPath: string; machine?: { id: string } }
+    | null
+    | undefined
+): WorkspaceTarget | null {
+  if (session === null || session === undefined) return null;
+  return workspaceTarget(session.projectPath, session.machine?.id);
+}

@@ -18,10 +18,12 @@
 
 import { useMemo } from 'react';
 import type { Project, Session } from '@shared/types';
+import { sameTarget, targetOfProject, targetOfSession } from '@shared/workspace-target';
 import { useApp } from '../state/store';
 import {
   deriveSurfaces,
   focusedLeafOf,
+  layoutKeyForProject,
   surfaceOf,
   useLayout
 } from '../state/layout';
@@ -58,11 +60,14 @@ export function useProjectSurfaces(): ProjectSurfaces {
     [projects, activeProjectId]
   );
 
-  const projectSessions = useMemo(
-    () =>
-      project ? sessions.filter((x) => x.projectPath === project.path) : [],
-    [sessions, project]
-  );
+  // PHASE 90.3. The PAIR, being the machine and the folder. A bare path
+  // comparison put a session on another machine into a tab on this Mac whenever
+  // the two folders had the same path.
+  const projectSessions = useMemo(() => {
+    if (project === null) return [];
+    const target = targetOfProject(project);
+    return sessions.filter((x) => sameTarget(targetOfSession(x), target));
+  }, [sessions, project]);
 
   const remembered =
     activeProjectId !== null
@@ -81,8 +86,10 @@ export function useProjectSurfaces(): ProjectSurfaces {
     () =>
       deriveSurfaces(
         // Phase 38: layouts key by the project's path, which survives a
-        // close and reopen. The project row's UUID does not.
-        project ? layouts[project.path] : undefined,
+        // close and reopen. The project row's UUID does not. Phase 90.3 made
+        // that key the target, so a folder on another machine keeps its own
+        // record instead of sharing one with a local folder of the same path.
+        project ? layouts[layoutKeyForProject(project)] : undefined,
         sessionIdsKey === '' ? [] : sessionIdsKey.split(',')
       ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -101,7 +108,7 @@ export function useProjectSurfaces(): ProjectSurfaces {
       : focusedLeafOf(
           activeSurface,
           selected?.id ?? null,
-          project ? layouts[project.path] : undefined
+          project ? layouts[layoutKeyForProject(project)] : undefined
         );
 
   return {

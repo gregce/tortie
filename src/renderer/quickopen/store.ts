@@ -26,7 +26,9 @@ import type {
   QuickOpenHit,
   QuickOpenResult
 } from '@shared/ipc';
+import { localPathOf, targetOfProject } from '@shared/workspace-target';
 import { useApp } from '../state/store';
+import { machineLabelFor } from '../state/machines-slice';
 import { useEditor } from '../editor/store';
 import { requestOpenFile } from '../state/open-file';
 import type { OpenFileSelection } from '../state/open-file';
@@ -87,6 +89,12 @@ export interface QuickOpenState {
    * index forever.
    */
   error: string | null;
+  /**
+   * The machine this project's files are on, when they are not on this Mac
+   * (Phase 90.3). Null for every project on this Mac, which is what every build
+   * before that phase had.
+   */
+  elsewhere: string | null;
 
   openPalette(): void;
   /** ⌘P again while open: widen/narrow the scope rather than re-opening. */
@@ -119,14 +127,38 @@ function clearPoll(): void {
  * gmux is multi-project and main deliberately has no opinion about which
  * projects are open — the renderer is the only place that knows, so it says
  * so on every query. Closing a project simply stops sending its path.
+ *
+ * PHASE 90.3. Every root is `localPathOf(target)` and a project on another
+ * machine yields null, so it is dropped here and reaches no query. That is the
+ * line that makes the recents record unreachable for a file on a machine as
+ * well: quick open is the only writer of a rank tiebreaker, it can only rank
+ * what it listed, and it can never list a path from over there. The engine is
+ * ripgrep walking THIS Mac's disk, so a far path would either name a different
+ * file here or nothing at all.
  */
 function rootsFor(allProjects: boolean): string[] {
   const app = useApp.getState();
-  const active = app.activeProject();
-  if (!allProjects) return active === null ? [] : [active.path];
-  const ordered = app.projects.map((p) => p.path);
+  const active = localPathOf(targetOfProject(app.activeProject()));
+  if (!allProjects) return active === null ? [] : [active];
+  const ordered = app.projects
+    .map((p) => localPathOf(targetOfProject(p)))
+    .filter((path): path is string => path !== null);
   if (active === null) return ordered;
-  return [active.path, ...ordered.filter((p) => p !== active.path)];
+  return [active, ...ordered.filter((p) => p !== active)];
+}
+
+/**
+ * The machine the active project's files are on, or null for this Mac.
+ *
+ * Read once when the palette opens. The palette OPENS in this state and says
+ * so, rather than refusing to open, which is the same rule the cold index case
+ * follows: an empty list would read as a project with no files.
+ */
+function machineOfActiveProject(): string | null {
+  const app = useApp.getState();
+  const target = targetOfProject(app.activeProject());
+  if (target === null || localPathOf(target) !== null) return null;
+  return machineLabelFor(app.machineStates, target.machineId);
 }
 
 export const useQuickOpen = create<QuickOpenState>((set, get) => {
@@ -206,9 +238,14 @@ export const useQuickOpen = create<QuickOpenState>((set, get) => {
     capped: false,
     unavailable: false,
     error: null,
+    elsewhere: null,
 
     openPalette() {
-      set({ open: true, query: '', selected: 0, hits: [] });
+      // PHASE 90.3. Read once, at open. A tab whose folder is on another
+      // machine has no root to send, so `warm` and the query below both do
+      // nothing, and the palette says why instead of showing an empty list.
+      const elsewhere = machineOfActiveProject();
+      set({ open: true, query: '', selected: 0, hits: [], elsewhere });
       get().warm();
       queryNow('');
     },
@@ -220,7 +257,14 @@ export const useQuickOpen = create<QuickOpenState>((set, get) => {
 
     close() {
       clearPoll();
-      set({ open: false, hits: [], query: '', selected: 0, pending: false });
+      set({
+        open: false,
+        hits: [],
+        query: '',
+        selected: 0,
+        pending: false,
+        elsewhere: null
+      });
     },
 
     setQuery(next) {

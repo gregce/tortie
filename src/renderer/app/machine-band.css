@@ -1,0 +1,39 @@
+/**
+ * The machine band (Phase 90.3). One strip, four views.
+ *
+ * WHY IT IS DRAWN ON EVERY VIEW AND NEVER HIDES. Research 54 finding 15 is that
+ * a person reading a sidebar had no way to tell whose files they were reading.
+ * Two projects can hold the same path on two computers, and one wrong
+ * assumption there is a change made on the wrong machine. So the band is not a
+ * notice a person can dismiss. It is part of what a tab on a machine looks
+ * like.
+ *
+ * COLOUR. No hue of its own. A tinted panel here would read as a warning, and
+ * nothing is wrong: the folder being on another computer is the ordinary state
+ * of this tab. It uses the surface ground and the muted text every other quiet
+ * strip in this app uses, and it draws one hairline under itself so the view
+ * below still starts against a line.
+ */
+
+.machine-band {
+  flex: 0 0 auto;
+  padding: var(--space-3) var(--space-5);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+}
+
+.machine-band-title {
+  display: block;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+}
+
+.machine-band-body {
+  display: block;
+  margin-top: var(--space-1);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+}

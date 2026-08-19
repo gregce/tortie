@@ -103,6 +103,8 @@ import type {
   // ---- END PHASE 73 BLOCK C ----
   // ---- PHASE 84 ----
   RemoteDirListInput,
+  RemoteTreeListInput,
+  RemoteTreeListing,
   RemoteDirListing,
   // ---- END PHASE 84 ----
   // ---- PHASE 90.2 ----
@@ -169,6 +171,7 @@ import { machineCanHoldSession } from './remote-sessions';
 // Phase 84, item 6. The folder listing, which is a read and writes nothing on
 // either computer.
 import { listRemoteDir } from './dir-list';
+import { listRemoteTree } from './tree-list';
 // Phase 90.2, item 2. One git config read here, then one folder walk there. It
 // writes nothing on either computer.
 import { findProjectOnMachine } from './project-counterpart';
@@ -867,6 +870,38 @@ export function registerMachinesIpc(ipc: IpcMain): void {
       })
   );
   // ---- END PHASE 90.2 ----
+
+  // ---- PHASE 90.3 ----
+  // PHASE 90.3. One channel that READS one folder TREE on one machine, so the
+  // Explorer of a project that lives over there can list rows.
+  //
+  // It is safe to add for the reason `machines:listDir` above is: it cannot
+  // compose what it asks. The command that crosses is `tree-list` from the
+  // frozen catalogue in ./remote-scripts.ts, chosen by name, with the folder,
+  // the depth and the cap arriving there as positional parameters. It carries
+  // no file contents at all, and `.git` is pruned on the far side, so a
+  // repository's internals never cross the link.
+  //
+  // NOTHING CALLS IT ON A CLOCK. The renderer calls it when a tab is opened,
+  // when a folder is expanded past the fetched depth, and when a person presses
+  // Refresh. There is no poll in this product for it.
+  //
+  // It NEVER THROWS for anything the machine said. A folder that is not there,
+  // a path that is a file, a folder the account cannot read, a machine that did
+  // not answer and a machine Tortie is not signed in to all come back as a
+  // status word. No prose crosses this channel: the renderer draws the sentence
+  // from src/renderer/app/machine-copy.ts, where the vocabulary audit reads it.
+  handle(
+    ipc,
+    'machines:listTree',
+    async (_event, input: RemoteTreeListInput): Promise<RemoteTreeListing> =>
+      listRemoteTree({
+        machineId: input.machineId,
+        root: input.root,
+        ...(input.depth === undefined ? {} : { depth: input.depth })
+      })
+  );
+  // ---- END PHASE 90.3 ----
 }
 
 /**

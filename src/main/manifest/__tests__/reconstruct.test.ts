@@ -475,6 +475,9 @@ describe('rebuilding from capsules and stamps', () => {
       'meta',
       'migrations',
       'projects',
+      // Phase 90.3. The additive table for a folder on another machine. It is a
+      // user table like the rest, so the digest covers it.
+      'remote_projects',
       'restore_attempts',
       'sessions'
     ]);

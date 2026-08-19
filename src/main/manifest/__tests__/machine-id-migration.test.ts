@@ -264,14 +264,17 @@ function userVersion(): number {
 // ---------------------------------------------------------------------------
 
 describe('the three compatibility numbers', () => {
-  it('the schema version is the migration count, and both are 14', () => {
-    expect(MANIFEST_SCHEMA_VERSION).toBe(14);
-    expect(MIGRATIONS.length).toBe(14);
+  it('the schema version is the migration count, and both are 15', () => {
+    expect(MANIFEST_SCHEMA_VERSION).toBe(15);
+    expect(MIGRATIONS.length).toBe(15);
   });
 
-  it('the last migration is 014-machine-tombstone', () => {
-    expect(MIGRATIONS.at(-1)?.name).toBe('014-machine-tombstone');
-    expect(MIGRATIONS.at(-2)?.name).toBe('013-machine-id');
+  // Phase 90.3 appended 015-remote-projects. The two this file is about keep
+  // their positions, which is what these lines exist to pin.
+  it('keeps 013-machine-id and 014-machine-tombstone in their places', () => {
+    expect(MIGRATIONS.at(-1)?.name).toBe('015-remote-projects');
+    expect(MIGRATIONS.at(-2)?.name).toBe('014-machine-tombstone');
+    expect(MIGRATIONS.at(-3)?.name).toBe('013-machine-id');
   });
 
   /**
@@ -320,7 +323,7 @@ describe('a manifest built at schema 12, migrated', () => {
     const store = new ManifestStore(dbPath);
     try {
       // 1. The version moved.
-      expect(userVersion()).toBe(14);
+      expect(userVersion()).toBe(15);
 
       // 2. Every pre-existing row reads local.
       const records = store.listSessions();
@@ -373,7 +376,7 @@ describe('a manifest built at schema 12, migrated', () => {
     const second = new ManifestStore(dbPath);
     second.close();
     expect(rawRows()).toEqual(afterOnce);
-    expect(userVersion()).toBe(14);
+    expect(userVersion()).toBe(15);
   });
 
   it('a row inserted after the migration carries local', () => {

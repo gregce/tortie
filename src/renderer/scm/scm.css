@@ -1725,3 +1725,41 @@ body.scm-section-dragging .section-gripper {
   min-width: 0;
   flex: 0 1 auto;
 }
+
+/* ---------------------------------------------------------------------------
+   Source Control for a folder on another machine (Phase 90.3)
+
+   No hue of its own, for the same reason the sidebar band has none: the folder
+   being on another computer is the ordinary state of this tab, and a tinted
+   panel would read as a warning about something that is not wrong. Every line
+   here is the muted text this view already uses for a sentence that is not a
+   row.
+   --------------------------------------------------------------------------- */
+
+.scm-remote-band {
+  margin: 0;
+  padding: var(--space-3) var(--space-5);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  border-bottom: 1px solid var(--border);
+}
+
+.scm-remote-note {
+  margin: 0;
+  padding: var(--space-3) var(--space-5);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+}
+
+/* The time of the last read, in the header band beside Refresh. Nothing polls
+   that machine, so this number is the answer to "how old is what I am
+   looking at". */
+.scm-remote-read {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  padding-right: var(--space-2);
+  user-select: none;
+}

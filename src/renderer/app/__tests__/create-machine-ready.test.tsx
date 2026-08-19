@@ -126,16 +126,23 @@ describe('the hint under the field', () => {
 });
 
 describe('the reset the operator asked for', () => {
-  it('still puts every opening of the sheet on This Mac', () => {
+  it("still puts every opening of the sheet on the tab's own machine", () => {
     // DECIDED BY THE OPERATOR, 2026-08-18. The last machine is not remembered
     // per project, and neither is the last folder, so one Cmd-T and one Return
     // cannot start a process on another computer. There is no DOM here to open
     // the sheet in, so the line itself is held.
+    //
+    // PHASE 90.3 CHANGED THE LINE AND NOT THE RULE. The value comes from the
+    // tab that is on screen, which is `local` for every tab whose files are on
+    // this Mac. A tab whose files are on a machine is a tab where every session
+    // belongs on that machine, so opening on that machine is not a memory of a
+    // past choice. Nothing is read back out of storage, which is what the two
+    // lines below hold.
     const source = readFileSync(
       resolve(import.meta.dirname, '../CreateSessionModal.tsx'),
       'utf8'
     );
-    expect(source).toContain("setMachineId('local');");
+    expect(source).toContain("setMachineId(project?.machineId ?? 'local');");
     // And nothing reads a remembered machine back out of storage.
     expect(source).not.toContain('lastMachine');
     expect(source).not.toContain('gmux.machine.last');

@@ -11,6 +11,15 @@
  */
 
 export { BranchHeader } from './BranchHeader';
+// Phase 90.3. What has changed in a folder on another machine, read only. The
+// activity rail's badge reads it, which is what makes that number the machine's
+// own count instead of this Mac's.
+export {
+  remoteChangesAvailable,
+  remoteChangesOf,
+  useRemoteChanges
+} from './remote-changes';
+export type { RemoteChangesEntry } from './remote-changes';
 export { ScmSection } from './ScmSection';
 export { OPEN_FILE_EVENT, onOpenFile, requestOpenFile } from './open-file';
 export type { OpenFileRequest, OpenFileSelection } from './open-file';

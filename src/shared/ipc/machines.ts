@@ -743,6 +743,20 @@ export interface MachinesInvokeChannelMap {
     req: [input: RemoteCloneInput];
     res: RemoteCloneResult;
   };
+  // PHASE 90.3. One READ of one folder TREE on one machine, for the Explorer
+  // of a project that lives over there. It writes nothing on either computer,
+  // it carries no file contents, and main refuses it while it is not connected
+  // to that machine.
+  //
+  // ONE CALL AND NEVER ONE CALL PER ROW. Research 55 measured nine folders as
+  // nine calls at 409.7 ms and the same nine answers in one subtree call at
+  // 42.3 ms, so the Explorer asks for a whole subtree at once. A folder that
+  // could not be read comes back as a status word, never as an exception a
+  // surface has to read prose out of, and never as prose main composed.
+  'machines:listTree': {
+    req: [input: RemoteTreeListInput];
+    res: RemoteTreeListing;
+  };
 }
 
 /** The one event channel: the connection test's own bytes and its end. */
@@ -813,6 +827,9 @@ export interface GmuxMachinesExtras {
     // Phase 90.2. Puts this project on that machine. It is the second call in
     // this contract that writes on another computer.
     cloneProject(input: RemoteCloneInput): Promise<RemoteCloneResult>;
+    // Phase 90.3. Reads one folder tree on one machine, to a fixed depth, in
+    // one call. It reads and never writes.
+    listTree(input: RemoteTreeListInput): Promise<RemoteTreeListing>;
   };
 }
 
@@ -1169,3 +1186,108 @@ export interface RemoteCloneResult {
   readonly sentences: readonly string[];
   readonly tookMs: number;
 }
+
+// ---------------------------------------------------------------------------
+// One folder tree on another machine (Phase 90.3)
+// ---------------------------------------------------------------------------
+//
+// WHAT THIS IS FOR. A project can now be a folder on another machine, and the
+// Explorer in that tab has to list that machine's files. Phase 84's
+// `machines:listDir` cannot do it: it lists folders and never files, and it
+// answers about one folder per call.
+//
+// WHAT IT DOES NOT DO. It carries no file contents. It writes nothing on
+// either computer. It reaches nothing outside the folder it was asked about,
+// because the far side is given that folder as a positional parameter and
+// walks down from it. It cannot be reached while Tortie is not connected to
+// the machine.
+//
+// NO TIMER READS IT. The Explorer calls it when a tab is opened, when a folder
+// is expanded past the fetched depth, and when a person presses Refresh. It is
+// never called on a clock. Research 55 section 5.4 offered a two second poll
+// and this phase does not take it, because nothing counts calls in flight to
+// one machine and the far machine's effective ceiling is 10, measured in
+// research 56 section 1.5.
+
+/**
+ * How deep one listing walks by default. 3.
+ *
+ * It is `find -maxdepth 3` from the folder that was asked about, so the
+ * folder's own entries, their entries, and one level under those. A person
+ * expanding past it costs exactly one more call, rooted where they expanded.
+ *
+ * MEASURED by `build/probe-remote-tree.mjs` against a real second machine.
+ *
+ * THE RULE the number is checked against is written in that probe before the
+ * numbers are read, and it is a BOUND rather than a pick. Let ALLOWED be the
+ * depths whose median is at or under 1,500 ms, whose answer is at or under
+ * 262,144 bytes and whose entry count is at or under
+ * {@link REMOTE_TREE_MAX_ENTRIES}. The shipped depth has to be in ALLOWED, and
+ * it has to be at or above the smallest allowed depth carrying at least 95% of
+ * the entries the deepest allowed depth carries.
+ *
+ * THE MEASUREMENTS, both on the operator's Mac Pro on 2026-08-19. On
+ * /Users/gdc/.oh-my-zsh, which holds 1,492 entries, depth 3 measured 101.0 ms,
+ * 68,610 bytes and 1,445 entries, being 96.8% of what depth 5 carried, so the
+ * bound was "at or above 3" and 3 is inside it. On
+ * /Users/gdc/Desktop/Meditations on Tech, which holds 51 entries at every
+ * depth, the bound was "at or above 2" and the probe printed that the run
+ * learned nothing about depth from a folder shallower than the walk.
+ *
+ * WHY IT IS A BOUND AND NOT A PICK, because the Phase 90.3 fix round got this
+ * wrong twice before writing it down. A rule that picks one number from one
+ * folder picks whatever that folder happens to be shaped like: "largest depth
+ * inside the ceilings" picked 5 on a folder no ceiling bound, and "smallest
+ * depth carrying 95%" picked 3 on one folder and 2 on the next. One folder on
+ * one network can bound this number. It cannot choose it.
+ *
+ * WHAT IS NOT CLAIMED. Nothing here says 3 is the best depth. Too deep is
+ * guarded by the three ceilings and by nothing else.
+ */
+export const REMOTE_TREE_DEPTH = 3;
+
+/**
+ * The most entries one listing carries. 4,000.
+ *
+ * Research 55 measured a whole 1,695 entry repository at 112,574 bytes and
+ * 65.5 ms, so 4,000 entries stays well inside the 2,097,152 byte read cap.
+ * {@link RemoteTreeListing.total} is what keeps the number honest on screen
+ * when a folder holds more than this.
+ */
+export const REMOTE_TREE_MAX_ENTRIES = 4_000;
+
+export interface RemoteTreeListInput {
+  machineId: string;
+  /** The folder to walk. Absolute, ON THAT MACHINE. */
+  root: string;
+  /** How deep to walk. Omitted means {@link REMOTE_TREE_DEPTH}. */
+  depth?: number;
+}
+
+/** One entry under a folder on another machine. */
+export interface RemoteTreeEntry {
+  /** The absolute path ON THAT MACHINE. */
+  path: string;
+  /** Only these two. A link and a socket are reported as files. */
+  kind: 'dir' | 'file';
+}
+
+/** Why a tree could not be read, or the tree. */
+export type RemoteTreeListing =
+  | {
+      status: 'ok';
+      /** The root, as the machine reported it. */
+      root: string;
+      /** Every entry the machine printed, sorted by path. */
+      entries: readonly RemoteTreeEntry[];
+      /** How many entries the machine counted before the cap. */
+      total: number;
+      /** True when the machine held more than it printed. */
+      truncated: boolean;
+      /** Epoch ms ON THIS MAC when the answer arrived. */
+      readAt: number;
+    }
+  | {
+      status: 'missing' | 'notdir' | 'denied' | 'unreachable' | 'notConnected';
+      root: string;
+    };

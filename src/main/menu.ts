@@ -59,6 +59,15 @@ import { BUILD_COMMIT } from './build-info';
 // DATA and knows nothing about how a click reaches the renderer, which is the
 // one decision this file keeps.
 import { clearRecents, onRecentsChanged, openRecentMenuItem } from './recents';
+// Phase 90.3. Whether File > Open Folder on a Machine… has anything to open.
+// Direct module imports, NOT the ./machines barrel, which re-exports the whole
+// remote layer and would pull the session feed into the menu's import graph.
+import { isMachineConfirmed } from './machines/confirm';
+import {
+  currentMachines,
+  machineFieldsOf,
+  onMachinesChanged
+} from './machines/store';
 // Phase 20 fix round. Reconstruction had no door: no menu item, no channel, no
 // flag. This is the door, and it runs entirely in main behind two native
 // dialogs, so there is no renderer surface to keep in step with it.
@@ -377,6 +386,19 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         // first, the way every Mac app orders them.
         item('New Project…', 'new-project', accel('project.new')),
         item('Open Project…', 'open-project', accel('project.open')),
+        // PHASE 90.3. Directly under Open Project…, because it is the same
+        // verb aimed at a different computer. No accelerator, for the reason
+        // Clone Repository has none: every built in chord is one a person can
+        // no longer record as a per agent hotkey.
+        //
+        // DISABLED when the machines file holds no confirmed machine, which is
+        // the ordinary case for a person who has only this Mac. A row that
+        // opens a sheet with an empty list would spend a person a click to
+        // learn nothing.
+        {
+          ...item('Open Folder on a Machine…', 'open-remote-project'),
+          enabled: anyConfirmedMachine()
+        },
         // Phase 18.6. The third project verb, in the same order the + menu
         // lists them (src/renderer/app/project-menu.ts). No accelerator.
         item('Clone Repository…', 'clone-repository'),
@@ -623,6 +645,20 @@ export function rebuildAppMenu(): void {
   applyMenu();
 }
 
+/**
+ * Phase 90.3. Whether any machine in the file is confirmed.
+ *
+ * It reads memory and the sealed record and starts nothing, which is what makes
+ * it safe to call while the menu template is being built. An unconfirmed row
+ * would refuse every read anyway, so a menu item offering it would spend a
+ * person a click to learn nothing.
+ */
+function anyConfirmedMachine(): boolean {
+  return currentMachines().rows.some((row) =>
+    isMachineConfirmed(row.id, machineFieldsOf(row))
+  );
+}
+
 /** True once the recents subscription exists, so a second install is a no-op. */
 let watchingRecents = false;
 
@@ -653,6 +689,21 @@ function watchUpdatesForMenu(): void {
   onUpdateStateChanged(() => applyMenu());
 }
 
+/** True once the machines subscription exists, so a second install is a no-op. */
+let watchingMachines = false;
+
+/**
+ * Rebuild whenever the machines file changes (Phase 90.3), so File > Open
+ * Folder on a Machine… becomes reachable the moment a person confirms their
+ * first machine, and stops being reachable when they remove their last one.
+ * Same mechanism as the two subscriptions above.
+ */
+function watchMachinesForMenu(): void {
+  if (watchingMachines) return;
+  watchingMachines = true;
+  onMachinesChanged(() => applyMenu());
+}
+
 export function installAppMenu(): void {
   // The About panel reads CFBundleName/CFBundleShortVersionString from the
   // bundle in a packaged build and Electron's own values in dev, so a dev run
@@ -679,5 +730,6 @@ export function installAppMenu(): void {
   }
   watchRecentsForMenu();
   watchUpdatesForMenu();
+  watchMachinesForMenu();
   applyMenu();
 }

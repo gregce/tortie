@@ -121,7 +121,11 @@ describe('opening a review', () => {
     useEditor.getState().openFromRequest(reviewReq());
     await flush();
     const remoteTab = useEditor.getState().activeTab();
-    expect(remoteTab?.id).toBe('machine:studio:src/auth.ts');
+    // PHASE 90.3 PUT THE REPOSITORY PATH IN THE KEY as well as the machine. It
+    // was `machine:studio:src/auth.ts`, so two folders on ONE machine that both
+    // hold `src/auth.ts` opened into one tab. A folder on a machine is a project
+    // tab from that phase, so two such folders on one machine is ordinary.
+    expect(remoteTab?.id).toBe('machine:studio:/home/greg/api:src/auth.ts');
 
     // The same absolute path, opened from this Mac. In this phase's own probes
     // the far side IS this Mac, so this collision is not hypothetical.
@@ -136,7 +140,7 @@ describe('opening a review', () => {
     await flush();
     expect(useEditor.getState().tabs).toHaveLength(2);
     const ids = useEditor.getState().tabs.map((one) => one.id);
-    expect(ids).toContain('machine:studio:src/auth.ts');
+    expect(ids).toContain('machine:studio:/home/greg/api:src/auth.ts');
     expect(ids).toContain('/home/greg/api/src/auth.ts');
   });
 

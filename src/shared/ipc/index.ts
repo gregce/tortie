@@ -102,9 +102,11 @@ import type {
   GmuxProjectPickerExtras,
   GmuxRecentsExtras,
   ImageProjectInvokeChannelMap,
+  GmuxRemoteProjectExtras,
   ProjectPickerInvokeChannelMap,
   RecentsEventPayloadMap,
-  RecentsInvokeChannelMap
+  RecentsInvokeChannelMap,
+  RemoteProjectInvokeChannelMap
 } from './projects';
 import type {
   GmuxQuickOpenExtras,
@@ -238,6 +240,7 @@ export type GmuxInvokeChannelMap = InvokeChannelMap &
   ShellCommandInvokeChannelMap &
   MachinesInvokeChannelMap &
   ProjectPickerInvokeChannelMap &
+  RemoteProjectInvokeChannelMap &
   ShellPathInvokeChannelMap;
 
 export type GmuxInvokeChannel = keyof GmuxInvokeChannelMap;
@@ -299,7 +302,8 @@ export type InstalledSessionsApi = GmuxApi['sessions'] &
 export type InstalledProjectsApi = GmuxApi['projects'] &
   GmuxProjectCreateExtras &
   GmuxProjectCloneExtras &
-  GmuxProjectPickerExtras;
+  GmuxProjectPickerExtras &
+  GmuxRemoteProjectExtras;
 
 /** The `git` object the preload installs: base plus every appended stream. */
 export type InstalledGitApi = GmuxApi['git'] &

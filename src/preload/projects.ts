@@ -37,6 +37,9 @@ export const projects: InstalledProjectsApi = {
   pickDirectory: () => invoke('projects:pickDirectory'),
   pickDirectoryFor: (purpose) => invoke('projects:pickDirectoryFor', purpose),
   create: (input) => invoke('projects:create', input),
+  // Phase 90.3. One folder on one machine, opened as a project tab. It reads
+  // that folder once to prove it is a folder and writes nothing anywhere.
+  addRemote: (input) => invoke('projects:addRemote', input),
   clonePreflight: (input) => invoke('projects:clonePreflight', input),
   clone: (input) => invoke('projects:clone', input),
   cancelClone: (cloneId) => invoke('projects:cancelClone', cloneId),

@@ -34,6 +34,21 @@ import type {
 // Pure over Session fields; resume.ts imports only types and state/agents,
 // and agents.ts does not import this store, so no cycle closes here.
 import { pastRestoreNeedsAsk, resumeReadiness } from '../app/resume';
+// Every sentence about a machine comes from one file, which is the one the
+// vocabulary audit reads.
+import { remoteTabOpened } from '../app/machine-copy';
+// PHASE 90.3. A session belongs to a tab when the PAIR matches, being the
+// machine and the folder. A bare path comparison is correct on one computer and
+// wrong on two, and it put a session on another machine under a tab whose
+// sidebars were showing this Mac.
+import {
+  isLocalTarget,
+  localTarget,
+  sameTarget,
+  targetKey,
+  targetOfProject,
+  targetOfSession
+} from '@shared/workspace-target';
 // Direct module import (NOT ../settings barrel): the barrel re-exports
 // integration.ts which imports the app store — presets.ts itself does not.
 import { defaultLaunchArgsFor } from '../settings/presets';
@@ -236,7 +251,13 @@ export interface SessionsSlice {
   activeSession(): Session | null;
   effectiveStatus(session: Session): SessionStatus;
   attentionSessions(): Session[];
-  attentionCountFor(projectPath: string): number;
+  /**
+   * PHASE 90.3 gave this the machine as well. A count keyed on a bare path is
+   * the count of two tabs added together the moment two machines hold the same
+   * path. An omitted machine reads as this Mac, so every existing caller keeps
+   * the answer it had.
+   */
+  attentionCountFor(projectPath: string, machineId?: string): number;
 }
 
 /** Next free `<base>-<n>` ordinal within a session list (S6 name prefill). */
@@ -318,6 +339,50 @@ function withEndedAt(
   return changed ? next : prev;
 }
 
+/**
+ * PHASE 90.3. Folders on machines that hold a session and have no tab yet.
+ *
+ * Main opens the tab. This is the window learning that it did. The project list
+ * is a pull, so without this a session on a machine would sit in the list with
+ * no tab to appear in until something else happened to re-read the projects.
+ *
+ * The set of folders it has already acted on is remembered, so a steady state
+ * costs one comparison per session per broadcast and no calls at all. It is
+ * module scope rather than store state because nothing renders from it.
+ */
+const tabsAskedFor = new Set<string>();
+
+/** Re-read the project list once for each folder on a machine that has none. */
+async function reconcileRemoteTabs(
+  get: () => AppState,
+  set: (partial: Partial<AppState>) => void
+): Promise<void> {
+  const api = window.gmux?.projects;
+  if (api === undefined) return;
+  const state = get();
+  const known = new Set(
+    state.projects.map((p) => targetKey(targetOfProject(p) ?? localTarget(p.path)))
+  );
+  const wanted: string[] = [];
+  for (const session of state.sessions) {
+    const target = targetOfSession(session);
+    if (target === null || isLocalTarget(target)) continue;
+    const key = targetKey(target);
+    if (known.has(key) || tabsAskedFor.has(key)) continue;
+    tabsAskedFor.add(key);
+    wanted.push(key);
+  }
+  if (wanted.length === 0) return;
+  try {
+    set({ projects: await api.list() });
+  } catch {
+    // A read that failed changes nothing on screen and is retried the next
+    // time a folder with no tab appears. The keys stay remembered on purpose:
+    // retrying on every broadcast would be a call per poll for a list that is
+    // not coming back any sooner.
+  }
+}
+
 export const createSessionsSlice: StateCreator<
   AppState,
   [],
@@ -392,13 +457,25 @@ export const createSessionsSlice: StateCreator<
         attentionSince: withAttention(s.attentionSince, sessions),
         endedSeenAt: withEndedAt(s.endedSeenAt, s.sessions, sessions)
       }));
+      // PHASE 90.3. A session on a machine whose folder has no tab yet.
+      //
+      // Main opens that tab, in `remote-rehome.ts`, when a machine's list comes
+      // back. The project list is a PULL, so the window would not learn about
+      // the new tab until something else re-read it, and the session would be
+      // in the list with nowhere to appear. One re-read closes that, and the
+      // guard below means it happens once per new folder rather than once per
+      // poll.
+      void reconcileRemoteTabs(get, set);
       // Keep per-project selection valid.
       const s = get();
       const { activeProjectId, activeSessionByProject } = s;
       if (activeProjectId !== null) {
         const proj = s.projects.find((p) => p.id === activeProjectId);
         if (proj) {
-          const inProject = sessions.filter((x) => x.projectPath === proj.path);
+          const target = targetOfProject(proj);
+          const inProject = sessions.filter((x) =>
+            sameTarget(targetOfSession(x), target)
+          );
           const selected = activeSessionByProject[activeProjectId];
           if (
             selected === undefined ||
@@ -455,6 +532,13 @@ export const createSessionsSlice: StateCreator<
       const session = await gmux.sessions.create({
         name: finalName,
         projectPath: project.path,
+        // PHASE 90.3. Which machine `projectPath` is a path on. Main cannot tell
+        // the two remote creates apart without it: a create from a tab that is
+        // itself on the machine sends a far path, and a create from a tab on
+        // this Mac sends a path that means nothing over there.
+        ...(project.machineId !== undefined && project.machineId !== 'local'
+          ? { projectMachineId: project.machineId }
+          : {}),
         // INTEGRATOR (Phase 10): CreateSessionInput.agent is still the frozen
         // AgentKind trio; shared/types.ts's registry-stream note widens it to
         // LaunchableAgentKind at reconciliation (main's buildLaunchSpec
@@ -479,6 +563,40 @@ export const createSessionsSlice: StateCreator<
           ? { machineId }
           : {})
       });
+      // PHASE 90.3. A session started on a machine FROM A TAB ON THIS MAC has
+      // its own tab over there, because main opened one for the folder the
+      // person named. Without this the session would be created, be correct,
+      // and be invisible: it belongs to a tab this window has not read yet.
+      //
+      // It runs only for that one case. A create in a tab that is already on
+      // that machine lands in the tab it was started from, and a create on this
+      // Mac never touches this branch at all.
+      if (
+        machineId !== undefined &&
+        machineId !== 'local' &&
+        (project.machineId ?? 'local') === 'local'
+      ) {
+        try {
+          const list = await gmux.projects.list();
+          set({ projects: list });
+          const target = targetOfSession(session);
+          const opened = list.find((p) => sameTarget(targetOfProject(p), target));
+          if (opened !== undefined) {
+            get().setActiveProject(opened.id);
+            get().toast(
+              'info',
+              remoteTabOpened(
+                session.projectPath,
+                session.machine?.label ?? machineId
+              )
+            );
+          }
+        } catch {
+          // The session is running over there either way. The list is re-read
+          // by `reconcileRemoteTabs` on the next broadcast, so the tab still
+          // appears; what is lost is landing on it and the one sentence.
+        }
+      }
       get().setActiveSession(session.id);
       return true;
     },
@@ -610,6 +728,11 @@ export const createSessionsSlice: StateCreator<
           get().setActiveSession(created.id);
           return;
         }
+        // PHASE 90.3. The fallback below sends no machine, so it would start a
+        // process on THIS Mac in a folder path that names a folder over there.
+        // A session on a machine is restarted by main, through the extra above,
+        // or not at all.
+        if (session.machine !== undefined) return;
         const created = await gmux.sessions.create({
           name: session.name,
           projectPath: session.projectPath,
@@ -753,6 +876,13 @@ export const createSessionsSlice: StateCreator<
       const row = get().pastSessions.find((x) => x.id === sessionId);
       if (
         row !== undefined &&
+        // PHASE 90.3. Never for a row that names a machine. The ask ends in
+        // `addProjectPath`, which opens a folder on THIS Mac, and the path on
+        // that row is a path over there. Opening it here would be a local tab
+        // wearing another machine's folder name, which is the exact defect this
+        // phase exists to remove.
+        row.machine === undefined &&
+        row.machineGone === undefined &&
         pastRestoreNeedsAsk(row, get().projects.map((p) => p.path)) &&
         typeof sessionExtras.askRestoreProject === 'function'
       ) {
@@ -783,8 +913,9 @@ export const createSessionsSlice: StateCreator<
         // project may not be an open tab (closing a tab keeps session rows);
         // in that case the restore still happened and the list refresh above
         // is the whole visible effect.
-        const project = get().projects.find(
-          (p) => p.path === restored.projectPath
+        const restoredTarget = targetOfSession(restored);
+        const project = get().projects.find((p) =>
+          sameTarget(targetOfProject(p), restoredTarget)
         );
         if (project !== undefined) {
           get().setActiveProject(project.id);
@@ -879,7 +1010,8 @@ export const createSessionsSlice: StateCreator<
       const id = projectId === undefined ? s.activeProjectId : projectId;
       const project = s.projects.find((p) => p.id === id);
       if (!project) return [];
-      return s.sessions.filter((x) => x.projectPath === project.path);
+      const target = targetOfProject(project);
+      return s.sessions.filter((x) => sameTarget(targetOfSession(x), target));
     },
 
     activeSession() {
@@ -909,11 +1041,12 @@ export const createSessionsSlice: StateCreator<
         );
     },
 
-    attentionCountFor(projectPath) {
+    attentionCountFor(projectPath, machineId) {
       const s = get();
+      const target = targetOfProject({ path: projectPath, machineId });
       return s.sessions.filter(
         (x) =>
-          x.projectPath === projectPath &&
+          sameTarget(targetOfSession(x), target) &&
           s.effectiveStatus(x) === 'needs_input'
       ).length;
     }

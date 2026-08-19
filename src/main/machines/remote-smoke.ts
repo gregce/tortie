@@ -62,6 +62,7 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
+  rmSync,
   statSync,
   writeFileSync
 } from 'node:fs';
@@ -172,6 +173,7 @@ import { remoteTmuxArgv } from './context';
 // first build did not write: the two halves of the Directory field, and the
 // four answers the folder picker's own read can give.
 import { listRemoteDir } from './dir-list';
+import { listRemoteTree } from './tree-list';
 import { remoteMachineHome } from './remote-image';
 // The folder this Mac keeps copies of session screens in. Step 14 makes it read
 // only for the length of one end, inside this run's own isolated profile.
@@ -2091,6 +2093,150 @@ export async function runRemoteSessionsSmoke(): Promise<void> {
     );
 
 
+    // --- 19. PHASE 90.3. The Explorer's one read of a folder tree (item 1) ---
+    //
+    // `machines:listTree` is a new channel and `tree-list` is the twelfth
+    // frozen script. SIX SHAPES are driven here against a real sign in server,
+    // being a listing, a folder that is not there, a path that is a file, a
+    // capped answer, a folder whose name holds a space, and the containment
+    // refusal the safety fix to `review-file` added.
+    //
+    // Every path below is inside this run's own isolated root. Nothing under
+    // the operator's home is read and nothing outside `iso.userData` is
+    // written.
+    const treeRoot = join(iso.userData, 'p903-tree');
+    mkdirSync(join(treeRoot, 'src', 'deep', 'deeper'), { recursive: true });
+    mkdirSync(join(treeRoot, 'with space'), { recursive: true });
+    mkdirSync(join(treeRoot, '.git', 'objects'), { recursive: true });
+    writeFileSync(join(treeRoot, 'README.md'), 'top\n');
+    writeFileSync(join(treeRoot, 'src', 'a.ts'), 'a\n');
+    writeFileSync(join(treeRoot, 'src', 'deep', 'b.ts'), 'b\n');
+    writeFileSync(join(treeRoot, 'src', 'deep', 'deeper', 'c.ts'), 'c\n');
+    writeFileSync(join(treeRoot, 'with space', 'file one.txt'), 'one\n');
+    writeFileSync(join(treeRoot, '.git', 'objects', 'secret'), 'never\n');
+
+    const treeListed = await listRemoteTree({ machineId: LIFE_ID, root: treeRoot });
+    if (treeListed.status !== 'ok') {
+      fail(`the tree read of ${treeRoot} answered ${treeListed.status}`);
+    }
+    const treePaths: string[] =
+      treeListed.status === 'ok'
+        ? treeListed.entries.map((one) => one.path)
+        : [];
+    for (const wanted of [
+      join(treeRoot, 'README.md'),
+      join(treeRoot, 'src'),
+      join(treeRoot, 'src', 'a.ts'),
+      join(treeRoot, 'src', 'deep'),
+      join(treeRoot, 'src', 'deep', 'b.ts'),
+      join(treeRoot, 'with space'),
+      join(treeRoot, 'with space', 'file one.txt')
+    ]) {
+      if (!treePaths.includes(wanted)) {
+        fail(
+          `the tree read did not carry ${wanted}. It carried ` +
+            `${JSON.stringify(treePaths.slice(0, 12))}`
+        );
+      }
+    }
+    // A folder whose name holds a space arrives whole, because the far side
+    // prints one path per line and the path is the rest of the line.
+    const treeSpaced =
+      treeListed.status === 'ok'
+        ? treeListed.entries.find((one) => one.path.endsWith('with space'))
+        : undefined;
+    if (treeSpaced === undefined || treeSpaced.kind !== 'dir') {
+      fail('a folder whose name holds a space did not arrive as a folder');
+    }
+    // `.git` is pruned on the far side, so no repository internals cross.
+    const treeGitLines = treePaths.filter((one) => one.includes('/.git'));
+    if (treeGitLines.length !== 0) {
+      fail(
+        `the tree read carried ${String(treeGitLines.length)} path(s) inside .git, ` +
+          `so a repository's internals crossed the link`
+      );
+    }
+    // The default depth is 3, so the fourth level is NOT in the answer.
+    if (treePaths.includes(join(treeRoot, 'src', 'deep', 'deeper', 'c.ts'))) {
+      fail('the tree read walked past its own depth');
+    }
+
+    const treeMissing = await listRemoteTree({
+      machineId: LIFE_ID,
+      root: join(treeRoot, 'not-there')
+    });
+    if (treeMissing.status !== 'missing') {
+      fail(
+        `the tree read answered ${treeMissing.status} for a folder that is ` +
+          `not there`
+      );
+    }
+    const treeFile = await listRemoteTree({
+      machineId: LIFE_ID,
+      root: join(treeRoot, 'README.md')
+    });
+    if (treeFile.status !== 'notdir') {
+      fail(`the tree read answered ${treeFile.status} for a path that is a file`);
+    }
+    const treeUnknown = await listRemoteTree({
+      machineId: 'p903-no-such-machine',
+      root: treeRoot
+    });
+    if (treeUnknown.status !== 'notConnected') {
+      fail(
+        `the tree read answered ${treeUnknown.status} for a machine Tortie ` +
+          `has not signed in to`
+      );
+    }
+    // The capped answer. Depth 1 with the shipped cap would fit, so the cap is
+    // proven by asking the far side directly with a cap of one, through the
+    // same door the product uses.
+    const cappedOut = await runRemoteRead(
+      lifeCtx,
+      'tree-list',
+      [treeRoot, '3', '1'],
+      { timeoutMs: 20_000 }
+    );
+    const cappedLines = cappedOut.payload.split('\n');
+    const cappedHead = cappedLines[0] ?? '';
+    const cappedTotal = Number(cappedHead.split(' ')[1] ?? '0');
+    if (cappedLines.length - 1 !== 1 || cappedTotal <= 1) {
+      fail(
+        `a capped read printed ${String(cappedLines.length - 1)} line(s) and ` +
+          `reported a total of ${String(cappedTotal)}. It owes one line and a ` +
+          `total larger than one, because the count is taken separately from ` +
+          `the listing.`
+      );
+    }
+    // The containment refusal. `review-file` refuses a path that climbs out of
+    // the repository, and it refuses by printing no markers at all, which the
+    // door reads as an answer it cannot use.
+    let contained = '';
+    try {
+      await runRemoteRead(
+        lifeCtx,
+        'review-file',
+        [treeRoot, '../../etc/passwd', '200'],
+        { timeoutMs: 20_000 }
+      );
+    } catch (err) {
+      contained = (err as Error).message;
+    }
+    if (contained.length === 0) {
+      fail(
+        'review-file answered for a path that climbs out of the folder it was ' +
+          'given, so the containment line is not doing anything'
+      );
+    }
+    log(
+      `19. one tree read of ${treeRoot} carried ` +
+        `${String(treePaths.length)} entr(ies) including a folder with a space in ` +
+        `its name, carried nothing from .git, stopped at its own depth, and ` +
+        `answered missing, notdir and notConnected for the three refusals. A ` +
+        `capped read reported ${String(cappedTotal)} entries and printed one. ` +
+        `A review of ../../etc/passwd was refused.`
+    );
+
     // --- 20. PHASE 90.2. Finding this project on a machine, and putting it
     //     there (items 2 and 3) ------------------------------------------------
     //
@@ -2107,6 +2253,15 @@ export async function runRemoteSessionsSmoke(): Promise<void> {
     // tests, and the live drive against a second computer is
     // `node build/probe-remote-clone.mjs`.
     const p902Root = join(iso.userData, 'p902');
+    // PHASE 90.3 FIX ROUND. Thrown away first, so a second run at the same
+    // config root builds this block's repositories rather than tripping over
+    // the ones the last run left. MEASURED on 2026-08-19: a second
+    // `npm run smoke:remote` at one root exited 1 on
+    // "git remote add origin https://github.com/gregce/alpha.git", and after
+    // that was closed it exited 1 on the push into `bare.git`. One removal of
+    // the whole folder closes every one of them. This path is written by this
+    // harness alone and is inside this run's own isolated user data directory.
+    rmSync(p902Root, { recursive: true, force: true });
     const p902Search = join(p902Root, 'search');
     const p902Made: string[] = [];
     const gitHere = (cwd: string, args: string[]): void => {

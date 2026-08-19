@@ -145,10 +145,10 @@ describe('migration 009', () => {
   it('is the ninth migration, and the schema version has kept counting', () => {
     expect(MANIFEST_MIGRATION_NAMES).toHaveLength(MANIFEST_SCHEMA_VERSION);
     // Phase 29 appended migration 010, Phase 33 appended 011, Phase 48
-    // appended 012, Phase 71 appended 013 and Phase 72 appended 014, so the
-    // version moved to 14 and this migration's own position is what stays
-    // pinned.
-    expect(MANIFEST_SCHEMA_VERSION).toBe(14);
+    // appended 012, Phase 71 appended 013, Phase 72 appended 014 and Phase
+    // 90.3 appended 015, so the version moved to 15 and this migration's own
+    // position is what stays pinned.
+    expect(MANIFEST_SCHEMA_VERSION).toBe(15);
     expect(MANIFEST_MIGRATION_NAMES[8]).toBe('009-context-snapshot');
   });
 

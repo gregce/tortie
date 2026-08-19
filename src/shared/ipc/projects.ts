@@ -451,3 +451,81 @@ export interface ProjectPickerInvokeChannelMap {
 export interface GmuxProjectPickerExtras {
   pickDirectoryFor?(purpose: DirectoryPickPurpose): Promise<string | null>;
 }
+
+// ---------------------------------------------------------------------------
+// APPENDED by Phase 90.3. One folder on one machine, opened as a project tab.
+//
+// WHY A NEW CHANNEL. `projects:add` is declared in the FROZEN
+// src/shared/ipc/base.ts. It takes one path and nothing else, so it cannot say
+// which computer the path is on, and every one of its callers means a folder on
+// this Mac. Widening it would make every existing caller ambiguous.
+//
+// NO PROSE CROSSES THIS CHANNEL. Main answers a reason WORD and the renderer
+// draws the sentence. That is the shape `machines:listDir` already uses, and it
+// keeps every sentence about a machine in one renderer file, which is what the
+// vocabulary audit reads.
+//
+// `projects:remove` is unchanged and now removes either kind, because a remote
+// project row carries an id from the same space as a local one.
+//
+// MAIN: src/main/ipc.ts, rules in src/main/sessions/core.ts.
+// PRELOAD: `addRemote` joins the existing `projects` object, feature detected
+// so an older preload hides the File menu item rather than throwing.
+//
+// The one existing line touched is the GmuxInvokeChannelMap intersection in
+// ./index.ts, plus the InstalledProjectsApi intersection beside it, exactly as
+// those declarations' own comments prescribe.
+// ---------------------------------------------------------------------------
+
+/** Where a folder on another machine is, and nothing else. */
+export interface AddRemoteProjectInput {
+  /** The machine row's id. */
+  machineId: string;
+  /** Absolute, ON THAT MACHINE. */
+  path: string;
+}
+
+/** Why an add did not happen, or the project it made. */
+export type AddRemoteProjectResult =
+  | {
+      ok: true;
+      project: Project;
+      /** True when that folder on that machine already had a tab. */
+      alreadyOpen: boolean;
+    }
+  | {
+      ok: false;
+      reason:
+        | 'missing'
+        | 'notdir'
+        | 'denied'
+        | 'unreachable'
+        | 'notConnected'
+        | 'notAbsolute'
+        | 'noSuchMachine';
+    };
+
+/** The invoke channel appended by Phase 90.3. */
+export interface RemoteProjectInvokeChannelMap {
+  /** Open one folder on one machine as a project tab. Reads, never writes. */
+  'projects:addRemote': {
+    req: [input: AddRemoteProjectInput];
+    res: AddRemoteProjectResult;
+  };
+}
+
+/**
+ * OPTIONAL extension to GmuxApi['projects'], feature detected by the shell.
+ * Without it the File menu item does nothing a person can reach, so the shell
+ * says this build cannot open a folder on a machine rather than throwing.
+ */
+export interface GmuxRemoteProjectExtras {
+  addRemote?(input: AddRemoteProjectInput): Promise<AddRemoteProjectResult>;
+}
+
+/**
+ * File > Open Folder on a Machine…, the fourth project verb. No accelerator,
+ * for the reason Clone Repository has none: every built in chord is one a
+ * person can no longer record as a per agent hotkey.
+ */
+export type RemoteProjectMenuActionId = 'open-remote-project';

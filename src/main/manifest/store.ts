@@ -62,7 +62,10 @@ import type {
   UpdateSessionOptions
 } from './codecs';
 import { SessionsRepository } from './sessions-repository';
-import { ProjectsRepository } from './projects-repository';
+import {
+  ProjectsRepository,
+  type RemoteProjectInput
+} from './projects-repository';
 import { RestoreJournal, type RestoreAttemptRecord } from './restore-journal';
 import {
   reconcileManifest,
@@ -511,6 +514,24 @@ export class ManifestStore {
 
   getProjectByPath(path: string): Project | undefined {
     return this.projects.getProjectByPath(path);
+  }
+
+  /**
+   * Phase 90.3. One folder on one machine, opened as a project tab. Idempotent
+   * on `(machineId, path)`, and a second add keeps the original id.
+   */
+  upsertRemoteProject(input: RemoteProjectInput): Project {
+    return this.projects.upsertRemoteProject(input);
+  }
+
+  /** Phase 90.3. One folder on one machine, or undefined. */
+  getRemoteProject(machineId: string, path: string): Project | undefined {
+    return this.projects.getRemoteProject(machineId, path);
+  }
+
+  /** Phase 90.3. Every folder on every machine. */
+  listRemoteProjects(): Project[] {
+    return this.projects.listRemoteProjects();
   }
 
   listProjects(): Project[] {

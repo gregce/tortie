@@ -67,20 +67,20 @@ function row(
 }
 
 describe('the two schema numbers', () => {
-  // Phase 71 appended migration 013 and Phase 72 appended 014, so the version
-  // reads 14 here. The minimum is the number this file is actually about, and
+  // Phase 71 appended migration 013, Phase 72 appended 014 and Phase 90.3
+  // appended 015, so the version reads 15 here. The minimum is the number this file is actually about, and
   // Phase 72 moved it from 8 to 13: this build records sessions on other
   // machines, and a build at schema 12 would read such a row as a session on
   // this Mac and could recreate it here. Migration 010, which is what this file
   // covers, is still additive and moved neither number itself.
-  it('schema version is 14 and the minimum is 13', () => {
-    expect(MANIFEST_SCHEMA_VERSION).toBe(14);
+  it('schema version is 15 and the minimum is 13', () => {
+    expect(MANIFEST_SCHEMA_VERSION).toBe(15);
     expect(MANIFEST_MIN_COMPATIBLE_VERSION).toBe(13);
   });
 
   it('stamps both numbers on the file', () => {
     const state = store.schemaState();
-    expect(state.userVersion).toBe(14);
+    expect(state.userVersion).toBe(15);
     expect(state.minCompatible).toBe(13);
   });
 });
@@ -129,7 +129,7 @@ describe('migration 010 against a schema 9 file', () => {
     // First open: all five pending migrations run.
     const migrated = new ManifestStore(dbPath);
     const state = migrated.schemaState();
-    expect(state.userVersion).toBe(14);
+    expect(state.userVersion).toBe(15);
     expect(state.minCompatible).toBe(13);
     // Migration 013 backfilled the row this fixture wrote at schema 9.
     expect(migrated.getSession('old-row')?.machineId).toBe('local');
@@ -146,7 +146,7 @@ describe('migration 010 against a schema 9 file', () => {
 
     // Second open: nothing pending, nothing changes.
     const again = new ManifestStore(dbPath);
-    expect(again.schemaState().userVersion).toBe(14);
+    expect(again.schemaState().userVersion).toBe(15);
     expect(again.getSession('old-row')?.removedAt).toBe(removedAt);
     expect(again.getSession('old-row')?.status).toBe('discarded');
     again.close();

@@ -6071,7 +6071,7 @@ did not move when the row was added. One live drive against the operator's Mac P
 folder as a project. One drive of the forgotten-machine case. And the native Open Recent menu shown
 listing a remote entry.
 
-## Phase 90.3 — a remote folder is a project (Research 56 model A) QUEUED
+## Phase 90.3 — a remote folder is a project (Research 56 model A) ✅ SHIPPED 2026-08-19 (this commit, 0.47.0, gates green, 6,417 tests)
 
 The large half of Phase 90, and the thing Phase 92 needs. Research 55 sections on the workspace
 surfaces and Research 56 rule its shape, and both are already written, so this phase builds rather
@@ -6092,6 +6092,45 @@ is model C and refused, or let a local write look like a remote one, which is fi
 **Tier 3**, because it can show a person one machine's files under another machine's name, and
 because search and git reads cross a network. It runs after Phase 90.2.
 
+**What landed.** A project can now name a machine and a folder on it. The additive `remote_projects`
+table carries the row with `UNIQUE(machine_id, path)`, migration `015-remote-projects` moves
+`user_version` to 15, and `MANIFEST_MIN_COMPATIBLE_VERSION` stays at 13, so an older build still
+opens the manifest. Two channels are new, being `machines:listTree` and `projects:addRemote`. A
+person reaches the folder from File then `Open Folder on a Machine…`, and after the fix round the +
+at the end of the tab strip offers the same four verbs the File menu does. The Explorer, the Source
+Control changed-file list, the read-only review tab, Quick Open's roots and the tab spine all read
+the tab's machine rather than this Mac. The band on a remote tab reads "Files live on Mac Pro." and
+the eight surfaces that cannot cross say so by name instead of drawing this Mac's answer.
+
+**The proof, driven against the operator's Mac Pro over Tailscale.** Three project tabs sat side by
+side, and two of them carried the same path string `/Users/gdc/test-sync`, one on each machine, which
+is finding 15 of research 54 in its exact shape. Every switch between those two tabs replaced the
+whole set of rows, taking 88 ms, 67 ms and 256 ms to the remote tab, and 24 ms, 25 ms and 24 ms back.
+None of the six names listed on the remote tab exists on this Mac, and none of the eight listed
+locally exists on that one. One `machines:listTree` of `/Users/gdc/dev` took 118 ms. Nine folders
+read as nine calls cost 415.0 ms and one `tree-list` carrying the same nine answers cost 106.0 ms, which
+reproduces research 55's rule on the day rather than quoting it. Zero lines of a listing came from
+inside a `.git` folder.
+
+**The fix round closed four defects the verifier found, and the phase is not marked shipped without
+them.** On a cold boot with a remote tab active, the Explorer and Source Control both read the
+machine before the link was up, drew a refusal saying Tortie is not connected, and never recovered on
+their own. That sentence was still on screen at 44,694 ms. Both stores now read once more when a
+machine starts answering, and `build/probe-remote-project.mjs` counts those reads so the claim can be
+re-run. The title bar warmed this Mac's git status for a folder on another machine, which is a bare
+path used as an identity, and it now warms only local paths. `build/probe-remote-tree.mjs` picked a
+depth the shipped one did not match, and its rule is rewritten with the reason written beside it. The
++ menu gained its fourth verb. The remote Changes list still leaves untracked files out, and it now
+says so in one sentence rather than dropping them in silence.
+
+**What is still not true.** Search, Quick Open results, Symbols, Context, Source Control history,
+branches and runs, New file, New folder and saving a file all refuse on a remote tab. That is the
+design and the count matches research 55. The tree context menu on a remote row was not driven in the
+live app, because the menu is native and the bridge is frozen, so the absence of Rename, Duplicate,
+Move to Trash, Open With and Reveal in Finder rests on unit tests. Phase 89's zsh read-back on the
+Mac Pro is still owed and is proven on the loopback scratch machine only. `needs input` never lights
+for a remote session and SpecStory capture never runs on one, both closed by decision.
+
 ## THE OVERNIGHT ORDER, set 2026-08-19. Run it in this order and do not reshuffle without asking
 
 **The goal in one sentence: in the morning a person can open a local project, press Cmd+T, pick the
@@ -6108,7 +6147,7 @@ standing cap and these waves stay under it.
 | 2 | **85** the status dot tells the truth · **91** capture is refused honestly ✅ SHIPPED 2026-08-19 | `machines/**` and activity · specstory and the create paths | 91 needs Phase 87 to have settled the create sheet copy first |
 | 3 | **90.2** the counterpart lookup and the clone ✅ SHIPPED 2026-08-19 | `machines/**` and the create sheet | Needs wave 2 to release `machines/**`, and needs 90.1's identity to be correct first |
 | 4 | **89** a conversation comes back on a remote machine | `machines/**`, `exec-plane.ts`, restore | Needs the whole create path settled, and it is the only phase that changes a refusal |
-| 5 | **90.3** a remote folder is a project | `remote_projects`, the Explorer, the workspace surfaces | The large half. Research 55 and 56 already ruled its shape, so it builds rather than decides |
+| 5 | **90.3** a remote folder is a project ✅ SHIPPED 2026-08-19 | `remote_projects`, the Explorer, the workspace surfaces | The large half. Research 55 and 56 already ruled its shape, so it builds rather than decides |
 | 6 | **92** the home screen opens a folder on another machine | `HomeScreen.tsx`, recents | Blocked on 90.3, because a row that opens something the app cannot hold is worse than no row |
 
 **Phase 88 is CLOSED and is not in this order.** Phase 82 is not queued.
@@ -6140,8 +6179,8 @@ resume command and waits for a keypress.
 
 - **`needs input` never lights for a remote session.** Closed by decision, not by work.
 - **SpecStory capture never runs on another machine.** Dropped by decision, and now refused visibly.
-- **The Explorer, the git sidebar and search still show this Mac's files** unless Phase 90's large
-  half also lands, which is not in this order.
+- **The Explorer and the git sidebar now show the tab's own machine**, because Phase 90's large half
+  landed as Phase 90.3. **Search still does not cross.** It refuses on a remote tab and says so.
 - **The release gate is unmet until the operator runs the acceptance script himself.**
 
 ## Three decisions the operator made on 2026-08-19, and they bind every later round

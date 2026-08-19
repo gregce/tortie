@@ -28,7 +28,15 @@ import React, {
 import type { GitFileState, GitFileStatus } from '@shared/types';
 import type { GmuxGitExtras } from '@shared/ipc';
 import { keyDisplay } from '@shared/keymap';
+import type { MachineReviewFile } from '@shared/ipc';
+import type { WorkspaceTarget } from '@shared/workspace-target';
+import {
+  localPathOf,
+  targetKey,
+  targetOfProject
+} from '@shared/workspace-target';
 import { useApp } from '../state/store';
+import { machineAnswering, machineLabelFor } from '../state/machines-slice';
 import type { ConfirmSpec, MenuItemSpec } from '../state/store';
 import {
   gitErrorLine,
@@ -39,8 +47,22 @@ import {
 import type { PendingOp, ScmGroups } from '../state/git';
 import { Codicon } from '../icons';
 import { showOneTimeTip } from '../app/one-time-tip';
+import {
+  REMOTE_SCM_SECTIONS_ABSENT,
+  REMOTE_SCM_UNTRACKED_ABSENT,
+  remoteChangesBand,
+  remoteChangesNone,
+  remoteChangesNotRepo,
+  remoteChangesUnreachable,
+  remoteReadAt
+} from '../app/machine-copy';
 import { splitPath } from './format';
 import { requestOpenFile } from './open-file';
+import {
+  remoteChangesAvailable,
+  remoteChangesOf,
+  useRemoteChanges
+} from './remote-changes';
 import { HistorySection } from './HistorySection';
 import { BranchesView } from './BranchesView';
 import { RunsSection } from './RunsSection';
@@ -566,6 +588,265 @@ function InitRepoStub({ repoPath }: { repoPath: string }): React.JSX.Element {
   );
 }
 
+/**
+ * The letter badge for one changed file on another machine.
+ *
+ * The same five badges the history file rows already draw, from the same
+ * letters, because it is the same question: what did this commit or this
+ * working tree do to this file.
+ */
+function remoteBadge(status: MachineReviewFile['status']): {
+  letter: string;
+  cls: string;
+  word: string;
+} {
+  switch (status) {
+    case 'A':
+      return { letter: 'A', cls: 'scm-badge-added', word: 'added' };
+    case 'D':
+      return { letter: 'D', cls: 'scm-badge-deleted', word: 'deleted' };
+    case 'R':
+      return { letter: 'R', cls: 'scm-badge-renamed', word: 'renamed' };
+    case 'C':
+      return { letter: 'C', cls: 'scm-badge-renamed', word: 'copied' };
+    case 'U':
+      return { letter: '!', cls: 'scm-badge-conflict', word: 'conflicted' };
+    default:
+      return { letter: 'M', cls: 'scm-badge-modified', word: 'modified' };
+  }
+}
+
+/**
+ * Source Control for a tab whose folder is on another machine (Phase 90.3).
+ *
+ * ONE GROUP AND NO VERB THAT WRITES. There is no commit box, no checkbox, no
+ * stage, no unstage and no discard, and History, Branches and Runs are not
+ * rendered at all. That is not a subset chosen for time. Each missing verb
+ * would have to write on somebody else's computer, and this product writes on
+ * another machine in exactly two places, neither of which is git.
+ *
+ * CLICKING A ROW opens the same read only view the session menu's review
+ * already opens, through the one open file bus, so the editor needs no new tab
+ * kind for it.
+ */
+function RemoteScmSection({
+  target
+}: {
+  target: WorkspaceTarget;
+}): React.JSX.Element {
+  const machineStates = useApp((s) => s.machineStates);
+  const label = machineLabelFor(machineStates, target.machineId);
+  const entry = useRemoteChanges((s) => remoteChangesOf(s.byTarget, target));
+  const ensure = useRemoteChanges((s) => s.ensure);
+  const refresh = useRemoteChanges((s) => s.refresh);
+  const [collapsed, setCollapsed] = usePersistedBool(
+    `gmux.scm.changesCollapsed.${targetKey(target)}`,
+    false
+  );
+
+  useEffect(() => {
+    if (remoteChangesAvailable()) ensure(target);
+  }, [target, ensure]);
+
+  /**
+   * PHASE 90.3 FIX ROUND. One more read, the moment that machine starts
+   * answering.
+   *
+   * THE BUG THIS CLOSES, with the numbers. On a cold boot with a remote tab
+   * active this view asks before any machine has answered. Measured on
+   * 2026-08-19: the read failed, main logged that no program search list is
+   * recorded for that machine's current connection, this view drew the sentence
+   * saying the machine did not answer, and that sentence was still on screen at
+   * 11.5 s with the link long since connected. Switching tabs away and back
+   * fixed it, so a person who never did that was shown a false statement for
+   * the whole run.
+   *
+   * IT IS NOT A TIMER. The trigger is the link moving into answering, which
+   * happens once per sign in. `retried` holds the target the retry was already
+   * spent on and is cleared only when that machine stops answering, so one sign
+   * in buys exactly one extra read. A read that fails again leaves the sentence
+   * up until a person presses Refresh, which is the honest outcome.
+   */
+  const answering = machineAnswering(machineStates, target.machineId);
+  const retried = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!answering) {
+      retried.current = null;
+      return;
+    }
+    if (!remoteChangesAvailable()) return;
+    if (!entry.failed || entry.loading || entry.refreshing) return;
+    const key = targetKey(target);
+    if (retried.current === key) return;
+    retried.current = key;
+    void refresh(target);
+  }, [
+    target,
+    answering,
+    entry.failed,
+    entry.loading,
+    entry.refreshing,
+    refresh
+  ]);
+
+  const open = (file: MachineReviewFile): void => {
+    if (entry.repoPath.length === 0) return;
+    requestOpenFile({
+      repoPath: entry.repoPath,
+      relPath: file.path,
+      path: `${entry.repoPath}/${file.path}`,
+      ...(file.origPath !== null ? { origPath: file.origPath } : {}),
+      mode: 'diff',
+      source: 'machine',
+      // Opened for keeps. A person reading three files wants three tabs, and a
+      // preview tab would replace each one with the next.
+      preview: false,
+      remote: {
+        machineId: target.machineId,
+        machineLabel: label,
+        repoPath: entry.repoPath,
+        ...(file.origPath !== null ? { origPath: file.origPath } : {})
+      }
+    });
+  };
+
+  const body = (): React.JSX.Element => {
+    if (!remoteChangesAvailable()) {
+      return (
+        <div className="section-stub">
+          Reading what changed on another machine is not available in this
+          build.
+        </div>
+      );
+    }
+    if (entry.failed) {
+      return (
+        <div className="section-stub">{remoteChangesUnreachable(label)}</div>
+      );
+    }
+    if (entry.loading || entry.readAt === 0) {
+      // The skeleton covers both the read in flight and the frames before it
+      // starts. A sentence here would be a claim about a folder nothing has
+      // asked about yet.
+      return (
+        <div className="scm-skeleton" aria-label="Reading what changed">
+          <div className="scm-skeleton-row" style={{ width: '64%' }} />
+          <div className="scm-skeleton-row" style={{ width: '78%' }} />
+          <div className="scm-skeleton-row" style={{ width: '52%' }} />
+        </div>
+      );
+    }
+    if (entry.notRepo) {
+      return <div className="section-stub">{remoteChangesNotRepo(label)}</div>;
+    }
+    if (entry.files.length === 0) {
+      return <div className="section-stub">{remoteChangesNone(label)}</div>;
+    }
+    return (
+      <div className="scm-list" role="list" aria-label="Changed files">
+        {entry.files.map((file) => {
+          const badge = remoteBadge(file.status);
+          const { dir, base } = splitPath(file.path);
+          return (
+            <div
+              key={file.path}
+              role="listitem"
+              className="scm-hfile"
+              title={
+                file.origPath !== null
+                  ? `${file.path}, renamed from ${file.origPath}`
+                  : file.path
+              }
+              onClick={() => open(file)}
+            >
+              <span className={`scm-badge ${badge.cls}`} aria-hidden="true">
+                {badge.letter}
+              </span>
+              <span
+                className={`scm-row-name${file.status === 'D' ? ' deleted' : ''}`}
+              >
+                {base}
+              </span>
+              {dir !== '' ? <span className="scm-row-dir">{dir}</span> : null}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  return (
+    <div className="scm-sections">
+      {/* The band. It is drawn above the group rather than inside it, so it
+          stays on screen when the group is collapsed. */}
+      <p className="scm-remote-band">{remoteChangesBand(label)}</p>
+      <section
+        className={`section-scm${collapsed ? ' collapsed' : ''}`}
+        data-section-root="changes"
+      >
+        <div
+          className={`section-header${collapsed ? ' collapsed' : ''}`}
+          data-section="changes"
+        >
+          <button
+            type="button"
+            className="section-toggle"
+            aria-expanded={!collapsed}
+            onClick={() => setCollapsed(!collapsed)}
+          >
+            <span className="section-chevron">
+              <Codicon name="chevron-down" size={12} />
+            </span>
+            Changes
+            <span className="section-count num">
+              {entry.files.length > 0 ? entry.files.length : ''}
+            </span>
+          </button>
+          <span className="section-spacer" />
+          {/* PHASE 90.3 FIX ROUND. The one affordance that re-reads that
+              machine, and until now this view had none at all. The store's own
+              header said a read happens when the tab is opened and when a
+              person presses Refresh, and there was no Refresh to press: the
+              only way back from a failed read was to switch tabs away and
+              back. It is disabled on a build with no machines bridge, for the
+              same reason the Explorer's is. */}
+          <button
+            type="button"
+            className="icon-btn scm-action"
+            aria-label="Refresh changes"
+            title="Refresh changes"
+            disabled={!remoteChangesAvailable() || entry.loading || entry.refreshing}
+            onClick={() => void refresh(target)}
+          >
+            <Codicon name="refresh" size={14} />
+          </button>
+        </div>
+        {!collapsed ? (
+          <div className="section-body scm-body">{body()}</div>
+        ) : null}
+      </section>
+      {/* Main's own sentence under a capped list, drawn under the rows rather
+          than instead of them. */}
+      {entry.note !== null ? (
+        <p className="scm-remote-note">{entry.note}</p>
+      ) : null}
+      {entry.readAt > 0 ? (
+        <p className="scm-remote-note">{remoteReadAt(entry.readAt)}</p>
+      ) : null}
+      {/* PHASE 90.3 FIX ROUND. Said wherever the rows are, because a person
+          who creates a file over there and sees nothing needs the reason. Not
+          said for a folder that is not in a repository, where there is no
+          tracked and untracked to tell apart. */}
+      {!entry.notRepo && entry.readAt > 0 ? (
+        <p className="scm-remote-note">{REMOTE_SCM_UNTRACKED_ABSENT}</p>
+      ) : null}
+      {/* Said once, rather than three empty sections. */}
+      <p className="scm-remote-note">{REMOTE_SCM_SECTIONS_ABSENT}</p>
+    </div>
+  );
+}
+
 export function ScmSection(): React.JSX.Element | null {
   const projects = useApp((s) => s.projects);
   const activeProjectId = useApp((s) => s.activeProjectId);
@@ -583,12 +864,21 @@ export function ScmSection(): React.JSX.Element | null {
     () => projects.find((p) => p.id === activeProjectId) ?? null,
     [projects, activeProjectId]
   );
-  const repoPath = project?.path ?? null;
+  // PHASE 90.3. The conversion site. `repoPath` is the path THIS MAC may act
+  // on, so it is null for a tab whose folder is on another machine, and every
+  // verb in this component hangs off it. A machine tab is answered by
+  // `RemoteScmSection` below instead, which has no verb that writes.
+  const target = useMemo(() => targetOfProject(project), [project]);
+  const repoPath = localPathOf(target);
   const repo = repoState(repos, repoPath);
   const status = repo.status;
 
+  // Keyed by the PAIR since Phase 90.3, so a local tab and a machine tab at
+  // one path remember their own collapse. The `gmux.scm.changesCollapsed.`
+  // prefix is unchanged and a local target's key is its bare path, so every
+  // stored answer a person already has keeps working byte for byte.
   const [collapsed, setCollapsed] = usePersistedBool(
-    `gmux.scm.changesCollapsed.${repoPath ?? ''}`,
+    `gmux.scm.changesCollapsed.${target === null ? '' : targetKey(target)}`,
     false
   );
 
@@ -738,6 +1028,9 @@ export function ScmSection(): React.JSX.Element | null {
     }
   };
 
+  if (project !== null && target !== null && repoPath === null) {
+    return <RemoteScmSection target={target} />;
+  }
   if (!project || repoPath === null) return null;
 
   const pendingForRepo = pending[repoPath] ?? {};

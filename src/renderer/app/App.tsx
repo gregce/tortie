@@ -58,6 +58,7 @@ import './work-area.css';
 import './focus-mode.css';
 import { CreateSessionModal } from './CreateSessionModal';
 import { NewProjectModal } from './NewProjectModal';
+import { RemoteProjectModal } from './RemoteProjectModal';
 import { CloneRepoModal } from './CloneRepoModal';
 // Phase 29. The Past Sessions panel. The Session menu holds its one entry
 // point, with no accelerator and no renderer keydown fallback, on purpose.
@@ -219,6 +220,7 @@ function modalLayerOpen(): boolean {
     s.confirm !== null ||
     s.createOpen ||
     s.newProjectOpen ||
+    s.remoteProjectOpen ||
     s.shortcutsOpen ||
     s.attentionOpen ||
     s.pastOpen
@@ -293,6 +295,12 @@ function useKeyboardMap(): void {
           e.preventDefault();
           e.stopPropagation();
           s.setNewProjectOpen(false);
+        } else if (s.remoteProjectOpen) {
+          // PHASE 90.3. The folder panel inside this sheet stops its own
+          // Escape, so this only ever closes the sheet itself.
+          e.preventDefault();
+          e.stopPropagation();
+          s.setRemoteProjectOpen(false);
         } else if (s.shortcutsOpen) {
           e.preventDefault();
           e.stopPropagation();
@@ -637,6 +645,13 @@ function runMenuAction(action: AnyMenuActionWithProjects): void {
     // Phase 18.6. The third project verb. `cloneAction()` is undefined on a
     // preload with no projects:clone, and the same guard the New Project case
     // uses says so out loud rather than doing nothing.
+    // PHASE 90.3. The fourth project verb. It is feature detected like the two
+    // above it, so a preload with no `projects:addRemote` says so out loud
+    // rather than opening a sheet whose only button cannot work.
+    case 'open-remote-project':
+      if (s.canAddRemoteProject()) s.setRemoteProjectOpen(true);
+      else s.toast('info', 'This build cannot open a folder on a machine.');
+      return;
     case 'clone-repository': {
       const clone = cloneAction();
       if (clone === undefined) s.toast('info', 'This build cannot clone repositories.');
@@ -1377,6 +1392,7 @@ export function App(): React.JSX.Element {
 
       <CreateSessionModal />
       <NewProjectModal />
+      <RemoteProjectModal />
       {/* Phase 18.6. Mounted beside New Project because it is reachable from
           the same three places (the home row, the + menu, File) and, unlike
           the home screen, those two of them work from INSIDE a project. It

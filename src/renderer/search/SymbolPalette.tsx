@@ -26,6 +26,10 @@ import { Codicon } from '../icons';
 // fuzzy-match vocabulary (scorer, positions, runs); this is its renderer half.
 // An inline copy lived here until Phase 14 integration deleted it.
 import { highlightRuns } from '../quickopen/highlight';
+import {
+  SYMBOLS_ELSEWHERE_BODY,
+  symbolsElsewhereTitle
+} from '../app/machine-copy';
 import { splitPath } from './rows';
 import { symbolIcon, symbolKindLabel } from './symbol-kinds';
 import { useSymbols } from './symbols-store';
@@ -70,6 +74,7 @@ export function SymbolPalette(): React.JSX.Element | null {
   const total = useSymbols((s) => s.total);
   const cold = useSymbols((s) => s.cold);
   const error = useSymbols((s) => s.error);
+  const elsewhere = useSymbols((s) => s.elsewhere);
 
   const close = useSymbols((s) => s.close);
   const setQuery = useSymbols((s) => s.setQuery);
@@ -218,7 +223,17 @@ export function SymbolPalette(): React.JSX.Element | null {
             );
           })}
 
-          {hits.length === 0 && !indexing ? (
+          {/* PHASE 90.3. Said FIRST, before anything about the index or the
+              query. Nothing here can be read, so nothing else in this panel is
+              worth saying. Two lines: what does not reach that machine, then
+              what Tortie does read. */}
+          {elsewhere !== null ? (
+            <div className="symbol-empty">
+              {symbolsElsewhereTitle(elsewhere)}
+              <br />
+              {SYMBOLS_ELSEWHERE_BODY}
+            </div>
+          ) : hits.length === 0 && !indexing ? (
             <div className="symbol-empty">
               {cold
                 ? 'No symbol index for this project yet.'

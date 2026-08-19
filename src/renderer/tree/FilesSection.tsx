@@ -8,11 +8,25 @@
  * `<FilesSection />` (import from '../tree'). Optional `statusFiles` prop
  * feeds decorations from the SCM store's status list instead of this
  * module's own git:status fetcher (see git-status.ts).
+ *
+ * ## PHASE 90.3 — a folder on another machine now lists rows
+ *
+ * Phase 90.1 said the files were elsewhere and drew nothing. This section now
+ * draws the tree for that tab too, and adds ONE line under the header saying
+ * when the folder was read and that Refresh reads it again. Every sentence
+ * comes from src/renderer/app/machine-copy.ts, which is where the machine
+ * vocabulary audit reads them; this module writes none of its own.
+ *
+ * REFRESH IS THE ONLY THING THAT RE-READS A MACHINE. There is no timer in this
+ * component for a remote tab, and the repository watcher is not subscribed for
+ * one either, because that watcher reports paths on THIS Mac.
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { REMOTE_TREE_MAX_ENTRIES } from '@shared/ipc';
 import type { GitFileStatus } from '@shared/types';
 import {
+  isLocalTarget,
   localPathOf,
   sameTarget,
   targetKey,
@@ -21,11 +35,19 @@ import {
 import { useApp } from '../state/store';
 import { onRepoChanged } from '../state/repo-changed';
 import {
-  FILES_ELSEWHERE_BODY,
-  filesElsewhereTitle
+  remoteTreeDenied,
+  remoteTreeMissingBody,
+  remoteTreeMissingTitle,
+  remoteTreeNotAFolder,
+  remoteTreeNotConnected,
+  remoteTreeReadAt,
+  remoteTreeReadOnly,
+  remoteTreeTruncated,
+  remoteTreeUnreachable
 } from '../app/machine-copy';
 import { registerTargetShotDrive } from '../app/target-shot-drive';
-import { machineLabelFor } from '../state/machines-slice';
+import { registerRemoteBootDrive } from '../app/remote-boot-drive';
+import { machineAnswering, machineLabelFor } from '../state/machines-slice';
 import { Codicon } from '../icons';
 import { useTreeDensity } from './density';
 import { useTreeGitStatus } from './git-status';
@@ -38,6 +60,9 @@ import './tree.css';
 // nothing else, exactly like the other shot probes. This module is the one the
 // Explorer always loads, so registering here needs no edit to App.tsx.
 registerTargetShotDrive();
+// The Phase 90.3 fix round hook, registered here for the same reason: this
+// module is the one the Explorer always loads, so no edit to App.tsx is needed.
+registerRemoteBootDrive();
 
 // Collapse persistence (spec: "collapse state persists per project").
 const LS_COLLAPSED = 'gmux.filesCollapsed';
@@ -101,11 +126,28 @@ export function FilesSection({
   const target = useMemo(() => targetOfProject(project), [project]);
   /** The path this Mac may read, or null for a project on another machine. */
   const localPath = localPathOf(target);
+  /**
+   * PHASE 90.3. The machine this tab's files are on, with the two strings the
+   * tree needs, or null for a folder on this Mac.
+   *
+   * The label is that machine's own label and never a name Tortie chose. Both
+   * strings are composed in machine-copy.ts, so this module writes neither.
+   */
+  const remote = useMemo(() => {
+    if (target === null || isLocalTarget(target)) return null;
+    const label = machineLabelFor(machineStates, target.machineId);
+    return {
+      machineId: target.machineId,
+      label,
+      readOnlyNote: remoteTreeReadOnly(label)
+    };
+  }, [target, machineStates]);
 
   const root = useFileTree((s) => s.root);
   const rootLoaded = useFileTree((s) => s.rootLoaded);
   const rootError = useFileTree((s) => s.rootError);
   const bridgeMissing = useFileTree((s) => s.bridgeMissing);
+  const remoteRead = useFileTree((s) => s.remote);
   const setRoot = useFileTree((s) => s.setRoot);
   const refreshLoaded = useFileTree((s) => s.refreshLoaded);
 
@@ -144,6 +186,60 @@ export function FilesSection({
     );
     // statusFiles handled by the effect below when external.
   }, [project, target, localPath, setRoot, setRepo, externalStatus]);
+
+  /**
+   * PHASE 90.3 FIX ROUND. One more read, the moment that machine starts
+   * answering.
+   *
+   * THE BUG THIS CLOSES, with the numbers. On a cold boot with a remote tab
+   * active the window is drawn before any machine has answered. Measured on
+   * 2026-08-19: the link read `quiet` at 1 ms, the Explorer's first read was
+   * refused, the section drew the sentence saying Tortie is not connected to
+   * that machine, and the link read `connected` at 504 ms. Nothing re-read the
+   * folder, so the same sentence and zero rows were still on screen at
+   * 44,694 ms. Pressing Refresh fixed it in 200 ms, which is exactly the point:
+   * a person who never pressed it was shown a false statement for the whole
+   * run.
+   *
+   * IT IS NOT A TIMER AND IT DOES NOT BECOME ONE. The trigger is the link
+   * moving into answering, which happens once per sign in. `retried` holds the
+   * target the retry was already spent on, and it is cleared only when that
+   * machine stops answering, so one sign in buys exactly one extra read. A read
+   * that fails again leaves the sentence up until a person presses Refresh.
+   *
+   * IT ONLY RETRIES A CONNECTION SHAPED REFUSAL. A folder that is missing, is
+   * not a folder, or cannot be read is that machine's own answer about the
+   * folder, and asking again would give the same answer.
+   */
+  const remoteAnswering = useMemo(
+    () =>
+      remote === null ? false : machineAnswering(machineStates, remote.machineId),
+    [remote, machineStates]
+  );
+  const retried = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (remote === null || target === null) {
+      retried.current = null;
+      return;
+    }
+    if (!remoteAnswering) {
+      // The next sign in to this machine buys one more read.
+      retried.current = null;
+      return;
+    }
+    if (remoteRead === null || remoteRead.loading) return;
+    if (
+      remoteRead.status !== 'unreachable' &&
+      remoteRead.status !== 'notConnected'
+    ) {
+      return;
+    }
+    const key = targetKey(target);
+    if (retried.current === key) return;
+    retried.current = key;
+    void refreshLoaded();
+  }, [remote, target, remoteAnswering, remoteRead, refreshLoaded]);
 
   // External decoration source (SCM store) — no fetching. The store drops a
   // target that is not local, because the SCM store reads this Mac only.
@@ -188,9 +284,79 @@ export function FilesSection({
 
   const refresh = (): void => {
     void refreshLoaded();
+    // PHASE 90.3. A tab on another machine has no ignore set to distrust and no
+    // git status on this Mac to re-read, so Refresh there is exactly one call
+    // to that machine and nothing else.
+    if (remote !== null) return;
     invalidateIgnored();
     if (!externalStatus) void refreshStatus();
   };
+
+  /**
+   * PHASE 90.3. The refusal a machine answered with, drawn as its sentence, or
+   * null when the folder was read.
+   *
+   * `notConnected` covers a preload with no `machines.listTree` as well as a
+   * machine Tortie is not signed in to, and both are true to a person: Tortie
+   * is not connected to that machine, so it cannot read that folder.
+   */
+  const remoteRefusal = useMemo((): React.ReactNode => {
+    if (remote === null || remoteRead === null) return null;
+    const label = remote.label;
+    const at = remoteRead.root;
+    switch (remoteRead.status) {
+      case 'ok':
+        return null;
+      case 'missing':
+        return (
+          <>
+            {remoteTreeMissingTitle(label)}
+            <br />
+            {remoteTreeMissingBody(at)}
+          </>
+        );
+      case 'notdir':
+        return remoteTreeNotAFolder(at, label);
+      case 'denied':
+        return remoteTreeDenied(at, label);
+      case 'unreachable':
+        return remoteTreeUnreachable(label);
+      case 'notConnected':
+        return remoteTreeNotConnected(label);
+    }
+  }, [remote, remoteRead]);
+
+  /**
+   * PHASE 90.3. The one line that says when this folder was last read, and the
+   * one that says the answer was capped.
+   *
+   * IT IS THE HONEST HALF OF HAVING NO TIMER. Nothing re-reads that machine on
+   * a clock, so a file an agent writes over there does not appear until Refresh
+   * is pressed. Saying when the rows are from is what keeps that from reading
+   * as a tree that is simply wrong.
+   */
+  const readLine =
+    collapsed ||
+    remote === null ||
+    remoteRead === null ||
+    remoteRead.status !== 'ok' ||
+    remoteRead.readAt === null
+      ? null
+      : (
+          <p className="files-remote-note">
+            {remoteTreeReadAt(remoteRead.readAt)}
+            {remoteRead.truncated ? (
+              <>
+                <br />
+                {remoteTreeTruncated(
+                  remoteRead.shown,
+                  remoteRead.total,
+                  REMOTE_TREE_MAX_ENTRIES
+                )}
+              </>
+            ) : null}
+          </p>
+        );
 
   let body: React.ReactNode = null;
   if (!collapsed) {
@@ -198,18 +364,31 @@ export function FilesSection({
       body = (
         <div className="section-stub">Open a project to browse its files.</div>
       );
+    } else if (remote !== null && remoteRefusal !== null) {
+      // Said BEFORE the skeleton. The machine has answered and its answer is
+      // that there is nothing to draw, so a shimmer here would be a promise
+      // Tortie cannot keep.
+      body = <div className="section-stub">{remoteRefusal}</div>;
+    } else if (remote !== null) {
+      body =
+        !rootLoaded || !sameTarget(root, target) ? (
+          <TreeSkeleton />
+        ) : (
+          <FileTree
+            key={`${targetKey(target)}:${density}`}
+            rootPath={target.path}
+            remote={remote}
+            // A folder on another machine has no decorations from this Mac.
+            // The Source Control view for that tab reads that machine
+            // separately, and it does not feed this tree.
+            statusFiles={[]}
+            isRepo={false}
+            density={density}
+          />
+        );
     } else if (localPath === null) {
-      // Said BEFORE the bridge branch and before the skeleton. There is
-      // nothing to load, so a shimmer here would be a promise Tortie cannot
-      // keep.
       body = (
-        <div className="section-stub">
-          {filesElsewhereTitle(
-            machineLabelFor(machineStates, target.machineId)
-          )}
-          <br />
-          {FILES_ELSEWHERE_BODY}
-        </div>
+        <div className="section-stub">Open a project to browse its files.</div>
       );
     } else if (bridgeMissing) {
       // Pre-integration state: fs:readDir isn't wired in this build.
@@ -238,6 +417,7 @@ export function FilesSection({
           // selection, scroll position and an open filter do not.
           key={`${targetKey(target)}:${density}`}
           rootPath={localPath}
+          remote={null}
           statusFiles={statusFiles ?? storeFiles}
           isRepo={isRepo}
           density={density}
@@ -269,12 +449,13 @@ export function FilesSection({
           className="icon-btn files-refresh"
           aria-label="Refresh files"
           title="Refresh files"
-          disabled={localPath === null || bridgeMissing}
+          disabled={(localPath === null && remote === null) || bridgeMissing}
           onClick={refresh}
         >
           <Codicon name="refresh" size={14} />
         </button>
       </div>
+      {readLine}
       {body}
     </section>
   );

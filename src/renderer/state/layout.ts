@@ -27,6 +27,12 @@
 
 import { create } from 'zustand';
 import type { Project, Session } from '@shared/types';
+import {
+  sameTarget,
+  targetKey,
+  targetOfProject,
+  targetOfSession
+} from '@shared/workspace-target';
 import { loadLocal, saveLocal, useApp } from './store';
 import {
   leaf,
@@ -158,6 +164,67 @@ interface LayoutState {
 // ---------------------------------------------------------------------------
 
 const LS_LAYOUTS = 'gmux.splitLayouts';
+
+/**
+ * PHASE 90.3. What a layout record is keyed by, and why the callers did not
+ * have to change.
+ *
+ * The key is `targetKey` from src/shared/workspace-target.ts. A local target's
+ * key IS the bare absolute path, so every record a person already has keeps
+ * working byte for byte and the `gmux.splitLayouts` name does not move. A folder
+ * on another machine keys as `<machineId>:/path`, which cannot collide with a
+ * path because a machine id matches `^[a-z][a-z0-9-]{0,31}$` and a path starts
+ * with a slash.
+ *
+ * EVERY CALLER STILL PASSES `project.path`, and that is deliberate. Fourteen
+ * components pass this value down as a prop, and widening all of them would be a
+ * large change to files this phase does not otherwise touch. So the resolution
+ * happens HERE instead, and it has one rule.
+ *
+ * A key that is already a target key is used as it stands. A bare path is
+ * resolved against the ACTIVE project, and that is correct rather than a
+ * shortcut: every one of these call sites is a surface drawing the active tab's
+ * sessions, so the active project is the project the caller means. When the
+ * active project's path does not match, the bare path is used, which is exactly
+ * the behaviour before this phase.
+ */
+function isLayoutKey(key: string): boolean {
+  return /^\/|^[a-z][a-z0-9-]{0,31}:\//.test(key);
+}
+
+/** The record key for what a caller passed. See the note above. */
+function layoutKeyOf(pathOrKey: string): string {
+  if (!pathOrKey.startsWith('/')) return pathOrKey;
+  const app = useApp.getState();
+  const active = app.projects.find((p) => p.id === app.activeProjectId);
+  if (active === undefined || active.path !== pathOrKey) return pathOrKey;
+  const target = targetOfProject(active);
+  return target === null ? pathOrKey : targetKey(target);
+}
+
+/** The target a record key names, for comparing a session against it. */
+function targetOfLayoutKey(pathOrKey: string): {
+  machineId: string;
+  path: string;
+} | null {
+  const key = layoutKeyOf(pathOrKey);
+  if (key.startsWith('/')) return { machineId: 'local', path: key };
+  const at = key.indexOf(':');
+  if (at <= 0) return null;
+  return { machineId: key.slice(0, at), path: key.slice(at + 1) };
+}
+
+/**
+ * The record key for one project, for a caller that HAS the project row.
+ *
+ * `../app/surfaces.ts` reads the record directly rather than through an action,
+ * so it needs the same key this store writes under.
+ */
+export function layoutKeyForProject(project: Project | null): string {
+  const target = targetOfProject(project);
+  return target === null ? '' : targetKey(target);
+}
+
 /** Trailing debounce for the localStorage write (divider drags burst). */
 const PERSIST_DEBOUNCE_MS = 200;
 
@@ -245,7 +312,7 @@ function currentSurfaces(
   sessions: Session[]
 ): Surface[] {
   return deriveSurfaces(
-    state.layouts[projectPath],
+    state.layouts[layoutKeyOf(projectPath)],
     sessions.map((x) => x.id)
   );
 }
@@ -307,24 +374,37 @@ export const useLayout = create<LayoutState>((set, get) => {
   }
 
   const write = (projectPath: string, next: ProjectLayoutState): void => {
-    // Phase 38 guard: the record keys by absolute project path. A key that
-    // does not start with '/' is a bug at the call site (most likely a
-    // project UUID), and persisting it would orphan the layout on close.
-    if (!projectPath.startsWith('/')) {
+    const key = layoutKeyOf(projectPath);
+    // Phase 38 guard, widened by Phase 90.3. The record keys by the target, and
+    // a local target's key is the bare absolute path, byte for byte what every
+    // key in a person's storage already is. A folder on another machine keys as
+    // `<machineId>:/path`. Anything else is a bug at the call site (most likely
+    // a project UUID), and persisting it would orphan the layout on close.
+    if (!isLayoutKey(key)) {
       console.error(
-        `layout: refused to persist under key '${projectPath}'. ` +
-          'Layout records are keyed by the absolute project path.'
+        `layout: refused to persist under key '${key}'. ` +
+          'Layout records are keyed by the project target.'
       );
       return;
     }
-    const layouts = { ...get().layouts, [projectPath]: next };
+    const layouts = { ...get().layouts, [key]: next };
     set({ layouts });
     schedulePersist();
   };
 
-  /** Sessions of a project, in store (creation) order. */
-  const projectSessions = (projectPath: string): Session[] =>
-    useApp.getState().sessions.filter((x) => x.projectPath === projectPath);
+  /**
+   * Sessions of a project, in store (creation) order.
+   *
+   * PHASE 90.3 made this compare the PAIR. A bare path comparison put a session
+   * on another machine into the layout of a tab on this Mac whenever the two
+   * folders happened to have the same path.
+   */
+  const projectSessions = (projectPath: string): Session[] => {
+    const target = targetOfLayoutKey(projectPath);
+    return useApp
+      .getState()
+      .sessions.filter((x) => sameTarget(targetOfSession(x), target));
+  };
 
   return {
     layouts: loadLocal<Record<string, ProjectLayoutState>>(LS_LAYOUTS, {}),
@@ -364,7 +444,7 @@ export const useLayout = create<LayoutState>((set, get) => {
     },
 
     reconcile(projectPath, sessionIds) {
-      const prev = get().layouts[projectPath];
+      const prev = get().layouts[layoutKeyOf(projectPath)];
       const surfaces = deriveSurfaces(prev, sessionIds);
       const next = toLayoutState(surfaces, prev);
       if (prev !== undefined && sameLayout(prev, next)) return;
@@ -380,7 +460,7 @@ export const useLayout = create<LayoutState>((set, get) => {
 
     reorderSurface(projectPath, surfaceId, toIndex) {
       const sessions = projectSessions(projectPath);
-      const prev = get().layouts[projectPath];
+      const prev = get().layouts[layoutKeyOf(projectPath)];
       const surfaces = currentSurfaces(get(), projectPath, sessions);
       const from = surfaces.findIndex((x) => x.id === surfaceId);
       if (from === -1) return;
@@ -396,7 +476,7 @@ export const useLayout = create<LayoutState>((set, get) => {
 
     splitWith(projectPath, targetLeafId, edge, draggedId) {
       const sessions = projectSessions(projectPath);
-      const prev = get().layouts[projectPath];
+      const prev = get().layouts[layoutKeyOf(projectPath)];
       const surfaces = currentSurfaces(get(), projectPath, sessions);
       const target = surfaces.find((x) => x.leafIds.includes(targetLeafId));
       const dragged = surfaces.find((x) => x.id === draggedId);
@@ -429,7 +509,7 @@ export const useLayout = create<LayoutState>((set, get) => {
 
     moveLeafWithin(projectPath, sessionId, targetLeafId, edge) {
       const sessions = projectSessions(projectPath);
-      const prev = get().layouts[projectPath];
+      const prev = get().layouts[layoutKeyOf(projectPath)];
       const surfaces = currentSurfaces(get(), projectPath, sessions);
       const at = surfaces.findIndex(
         (x) => x.isGroup && x.leafIds.includes(sessionId)
@@ -469,7 +549,7 @@ export const useLayout = create<LayoutState>((set, get) => {
 
     popOut(projectPath, sessionId, toIndex) {
       const sessions = projectSessions(projectPath);
-      const prev = get().layouts[projectPath];
+      const prev = get().layouts[layoutKeyOf(projectPath)];
       const surfaces = currentSurfaces(get(), projectPath, sessions);
       const at = surfaces.findIndex(
         (x) => x.isGroup && x.leafIds.includes(sessionId)
@@ -540,7 +620,7 @@ export const useLayout = create<LayoutState>((set, get) => {
 
     breakUp(projectPath, groupId) {
       const sessions = projectSessions(projectPath);
-      const prev = get().layouts[projectPath];
+      const prev = get().layouts[layoutKeyOf(projectPath)];
       const surfaces = currentSurfaces(get(), projectPath, sessions);
       const at = surfaces.findIndex((x) => x.id === groupId && x.isGroup);
       const group = surfaces[at];
@@ -562,7 +642,7 @@ export const useLayout = create<LayoutState>((set, get) => {
     },
 
     setSurfaceRatio(projectPath, surfaceId, path, ratio) {
-      const prev = get().layouts[projectPath];
+      const prev = get().layouts[layoutKeyOf(projectPath)];
       const group = prev?.groups[surfaceId];
       if (!prev || !group) return;
       const root = setRatioAt(group.root, path, ratio);
@@ -574,7 +654,7 @@ export const useLayout = create<LayoutState>((set, get) => {
     },
 
     selectLeaf(projectPath, sessionId) {
-      const prev = get().layouts[projectPath];
+      const prev = get().layouts[layoutKeyOf(projectPath)];
       if (prev) {
         // Remember the focus inside whichever group holds this leaf.
         for (const [gid, group] of Object.entries(prev.groups)) {
@@ -635,7 +715,7 @@ export const useLayout = create<LayoutState>((set, get) => {
       const target = focusedLeafOf(
         next,
         null,
-        get().layouts[project.path]
+        get().layouts[layoutKeyForProject(project)]
       );
       if (target !== '') get().selectLeaf(project.path, target);
     },
@@ -659,7 +739,7 @@ export const useLayout = create<LayoutState>((set, get) => {
         b: { type: 'branch', dir: 'column', ratio: 0.5, a: leaf(b), b: leaf(d) }
       };
       const sessions = projectSessions(projectPath);
-      const prev = get().layouts[projectPath];
+      const prev = get().layouts[layoutKeyOf(projectPath)];
       const surfaces = currentSurfaces(get(), projectPath, sessions).filter(
         (x) => !sessionIds.includes(x.id)
       );
@@ -674,11 +754,17 @@ export const useLayout = create<LayoutState>((set, get) => {
 
     migrateLegacyLayouts(projects) {
       const layouts = get().layouts;
-      const pathById = new Map(projects.map((p) => [p.id, p.path]));
+      const pathById = new Map(
+        projects.map((p) => [p.id, layoutKeyForProject(p)])
+      );
       let changed = false;
       const next: Record<string, ProjectLayoutState> = {};
       for (const [key, value] of Object.entries(layouts)) {
-        if (key.startsWith('/')) {
+        // PHASE 90.3 widened this test from `startsWith('/')` to the same rule
+        // `write` uses. Without it a record for a folder on another machine
+        // would be read as a legacy project UUID and dropped as an orphan on
+        // the next launch.
+        if (isLayoutKey(key)) {
           next[key] = value;
           continue;
         }

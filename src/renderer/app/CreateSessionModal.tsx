@@ -60,7 +60,9 @@ import type { MachineRowView, RemoteProjectFindResult } from '@shared/ipc';
 import { CounterpartBlock } from './CounterpartBlock';
 import { setCreateSheetCopyRunning } from './create-copy-running';
 import {
+  addRemoteRefusal,
   captureNotOnMachine,
+  createInRemoteProject,
   CREATE_DIR_HINT,
   CREATE_HONESTY_LINES,
   createDirLabel,
@@ -72,6 +74,11 @@ import {
   THIS_MAC
 } from './machine-copy';
 import { RemoteDirPicker } from './RemoteDirPicker';
+import {
+  sameTarget,
+  targetOfProject,
+  targetOfSession
+} from '@shared/workspace-target';
 import {
   captureDefaultFor,
   presetArgvTokens,
@@ -414,10 +421,14 @@ export function CreateSessionModal(): React.JSX.Element | null {
     [projects, activeProjectId]
   );
 
-  const projectSessions = useMemo(
-    () => (project ? sessions.filter((x) => x.projectPath === project.path) : []),
-    [sessions, project]
-  );
+  // PHASE 90.3. The PAIR, so the `<agent>-<n>` name this sheet suggests counts
+  // the sessions in THIS tab rather than in two tabs that share a folder path
+  // on two computers.
+  const projectSessions = useMemo(() => {
+    if (project === null) return [];
+    const target = targetOfProject(project);
+    return sessions.filter((x) => sameTarget(targetOfSession(x), target));
+  }, [sessions, project]);
 
   const avail = useAgentAvailability();
   // One settings truth across windows: persisted settings (default agent +
@@ -572,7 +583,13 @@ export function CreateSessionModal(): React.JSX.Element | null {
     // Phase 70. Every opening of the sheet starts on this Mac. A remembered
     // machine would mean a person who created one remote session two days ago
     // presses ⌘T ↩ and starts a process on another computer.
-    setMachineId('local');
+    //
+    // PHASE 90.3 GAVE THAT ONE EXCEPTION, and it is not a memory. A tab whose
+    // files are on a machine is a tab where every session belongs on that
+    // machine, so the sheet opens on the tab's own machine and cannot be moved
+    // off it. Nothing is remembered from one opening to the next; the value is
+    // read from the tab that is on screen.
+    setMachineId(project?.machineId ?? 'local');
     setNameTouched(false);
     setName(`${initial}-${nextOrdinal(projectSessions, initial)}`);
     setCwd(project?.path ?? '');
@@ -636,7 +653,15 @@ export function CreateSessionModal(): React.JSX.Element | null {
   // there, and this would refill it with a path that exists on this Mac and
   // means nothing on the other machine.
   useEffect(() => {
-    if (open && machineId === 'local' && cwd.length === 0 && project) {
+    // PHASE 90.3. The project's own machine rather than the literal 'local'.
+    // In a tab whose files are on a machine, the project's folder IS a folder
+    // on that machine, so it is the right default for the field.
+    if (
+      open &&
+      machineId === (project?.machineId ?? 'local') &&
+      cwd.length === 0 &&
+      project
+    ) {
       setCwd(project.path);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -696,6 +721,20 @@ export function CreateSessionModal(): React.JSX.Element | null {
       ? null
       : (machines.find((row) => row.id === machineId) ?? null);
   const remote = machine !== null;
+
+  // PHASE 90.3. The tab's own machine, and whether this sheet may move off it.
+  //
+  // A tab is either on this Mac or on one machine, for the whole life of the
+  // tab. So in a remote tab the Machine field shows that machine and is off.
+  // The Directory field stays editable, because a session may run in a
+  // subfolder of the project over there.
+  const tabMachineId = project.machineId ?? 'local';
+  const tabIsRemote = tabMachineId !== 'local';
+  // The tab names a machine that is not in the usable list, which is a machine
+  // a person removed or has not signed in to in this run. The create is refused
+  // rather than quietly falling back to this Mac, because falling back would
+  // start a process HERE in a folder path that names a folder over there.
+  const tabMachineUnusable = tabIsRemote && machine === null;
 
   // PHASE 90.2, item 2. The lookup is offered only for a project whose files
   // are on this Mac. `project.machineId` is undefined or 'local' for every
@@ -827,6 +866,10 @@ export function CreateSessionModal(): React.JSX.Element | null {
    */
   const submit = (startAnyway = false): void => {
     if (creating) return;
+    // PHASE 90.3. A tab on a machine Tortie is not connected to starts nothing.
+    // The caption under the Machine field already says why, and the button is
+    // off, so this is the keyboard path saying the same thing.
+    if (tabMachineUnusable) return;
     const trimmed = name.trim();
     if (trimmed.length === 0) {
       setGenericError('Give the session a name.');
@@ -1059,7 +1102,7 @@ export function CreateSessionModal(): React.JSX.Element | null {
         {/* PHASE 70. The machine choice. It is drawn only when there is a
             machine to choose, so a person with none sees the sheet they have
             always seen. This Mac is first and is the value on every opening. */}
-        {machines.length > 0 ? (
+        {machines.length > 0 || tabIsRemote ? (
           <div className="field">
             <label className="field-label" htmlFor="session-machine">
               {MACHINE_FIELD_LABEL}
@@ -1068,6 +1111,11 @@ export function CreateSessionModal(): React.JSX.Element | null {
               id="session-machine"
               className="input"
               value={machineId}
+              // PHASE 90.3. A tab is either on this Mac or on one machine, for
+              // the whole life of the tab. So in a remote tab there is nothing
+              // to choose and the field says which machine rather than offering
+              // one.
+              disabled={tabIsRemote}
               onChange={(e) => {
                 const next = e.target.value;
                 setMachineId(next);
@@ -1087,9 +1135,27 @@ export function CreateSessionModal(): React.JSX.Element | null {
                 startCounterpartLookup(next);
               }}
             >
-              <option value="local">{THIS_MAC}</option>
-              <MachineOptions rows={machines} />
+              {tabIsRemote ? (
+                <option value={tabMachineId}>
+                  {machine?.label ?? tabMachineId}
+                </option>
+              ) : (
+                <>
+                  <option value="local">{THIS_MAC}</option>
+                  <MachineOptions rows={machines} />
+                </>
+              )}
             </select>
+            {tabIsRemote ? (
+              <p className="field-caption">
+                {createInRemoteProject(machine?.label ?? tabMachineId)}
+              </p>
+            ) : null}
+            {tabMachineUnusable ? (
+              <p className="field-caption warn" aria-live="polite">
+                {addRemoteRefusal('notConnected', '', tabMachineId)}
+              </p>
+            ) : null}
             {/* Once, not per row. The answer is the same for every machine in
                 the list that is off, and three copies of one sentence is three
                 times the reading for one fact. */}
@@ -1386,7 +1452,9 @@ export function CreateSessionModal(): React.JSX.Element | null {
           <button
             type="button"
             className="btn btn-primary"
-            disabled={creating || dirError !== null || cloneBusy}
+            disabled={
+              creating || dirError !== null || cloneBusy || tabMachineUnusable
+            }
             onClick={() => submit()}
           >
             {creating ? 'Creating…' : 'Create'}

@@ -24,8 +24,13 @@ import React, { useEffect, useMemo, useRef } from 'react';
 // every keycap below is read back from the keymap, so the palette's footer
 // can never drift from what the handler and the native Find menu do.
 import { keyDisplay } from '@shared/keymap';
+import { localPathOf, targetOfProject } from '@shared/workspace-target';
 import { FileIcon } from '../icons';
 import { useApp } from '../state/store';
+import {
+  QUICK_OPEN_ELSEWHERE_BODY,
+  quickOpenElsewhereTitle
+} from '../app/machine-copy';
 import { useEditor } from '../editor/store';
 import { parseQuickOpen } from './parse';
 import { highlightRuns, splitRelPath } from './highlight';
@@ -84,6 +89,7 @@ export function QuickOpenPalette(): React.JSX.Element | null {
   const capped = useQuickOpen((s) => s.capped);
   const unavailable = useQuickOpen((s) => s.unavailable);
   const error = useQuickOpen((s) => s.error);
+  const elsewhere = useQuickOpen((s) => s.elsewhere);
 
   const projects = useApp((s) => s.projects);
   const activeProjectId = useApp((s) => s.activeProjectId);
@@ -130,8 +136,14 @@ export function QuickOpenPalette(): React.JSX.Element | null {
   const store = useQuickOpen.getState();
   const parsed = parseQuickOpen(query);
   const activeTab = useEditor.getState().activeTab();
+  // PHASE 90.3. A hit's `repoPath` is always a path on THIS Mac, because
+  // `rootsFor` sends no other kind. So the project it belongs to is the one
+  // whose target is local and whose path matches, and never a project of the
+  // same path on a machine, which would put the wrong name on the row.
   const projectNameFor = (repoPath: string): string =>
-    projects.find((p) => p.path === repoPath)?.name ?? '';
+    projects.find(
+      (p) => localPathOf(targetOfProject(p)) === repoPath
+    )?.name ?? '';
 
   const onKeyDown = (e: React.KeyboardEvent): void => {
     if (e.key === 'Escape') {
@@ -212,7 +224,17 @@ export function QuickOpenPalette(): React.JSX.Element | null {
           aria-label="Files"
           ref={listRef}
         >
-          {unavailable ? (
+          {/* PHASE 90.3. Said FIRST, before the bridge branch and before
+              anything about the query. Quick open lists files on this Mac, and
+              a tab whose folder is on another machine has nothing here to
+              list, so nothing else on this panel is worth saying. */}
+          {elsewhere !== null ? (
+            <div className="qo-note">
+              {quickOpenElsewhereTitle(elsewhere)}
+              <br />
+              {QUICK_OPEN_ELSEWHERE_BODY}
+            </div>
+          ) : unavailable ? (
             <div className="qo-note">
               Quick open is unavailable in this build.
             </div>

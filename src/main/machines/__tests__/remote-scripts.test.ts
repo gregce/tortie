@@ -92,9 +92,13 @@ function positionals(text: string): Positional[] {
 }
 
 describe('the catalogue', () => {
-  it('holds eleven scripts and this release holds no others', () => {
-    expect(REMOTE_SCRIPTS).toHaveLength(11);
+  it('holds twelve scripts and this release holds no others', () => {
+    expect(REMOTE_SCRIPTS).toHaveLength(12);
     expect(REMOTE_SCRIPTS.map((script) => script.id).sort()).toEqual([
+      // PHASE 90.3 added `tree-list`, which walks one folder tree to a fixed
+      // depth in one call so the Explorer of a project on another machine can
+      // list rows. It prunes `.git` and it writes nothing.
+      //
       // PHASE 90.2 added `repo-find`, which walks one root for git folders and
       // writes nothing, and `git-clone`, which is the SECOND write in this
       // catalogue and the second write this product can make on another
@@ -109,7 +113,8 @@ describe('the catalogue', () => {
       'review-list',
       'store-copy',
       'store-head',
-      'store-list'
+      'store-list',
+      'tree-list'
     ]);
   });
 

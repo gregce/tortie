@@ -10,7 +10,8 @@ import type { Project } from '../types';
 import type {
   CloneMenuActionId,
   OpenRecentActionId,
-  ProjectMenuActionId
+  ProjectMenuActionId,
+  RemoteProjectMenuActionId
 } from './projects';
 import type { FindMenuActionId } from './search';
 import type { PastSessionsMenuActionId } from './sessions';
@@ -386,7 +387,9 @@ export type AnyMenuActionWithProjects =
   // Phase 60. The View menu gained "Context", the same one-line fold.
   | ContextMenuActionId
   // Phase 51. The payload-free nudge that a shell open is pending.
-  | ShellOpenMenuActionId;
+  | ShellOpenMenuActionId
+  // Phase 90.3. File > Open Folder on a Machine…, the same one-line fold.
+  | RemoteProjectMenuActionId;
 
 // ---------------------------------------------------------------------------
 // APPENDED by Phase 12.12 item 2 (the inline sessions-position toggle) — one

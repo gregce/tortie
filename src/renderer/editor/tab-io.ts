@@ -27,6 +27,7 @@ import type {
   GmuxMachinesExtras
 } from '@shared/ipc';
 import { errorText, useApp } from '../state/store';
+import { remoteSaveRefused } from '../app/machine-copy';
 import type {
   OpenFileCommitRef,
   OpenFileRemoteRef
@@ -364,7 +365,20 @@ export function createTabIo(deps: TabIoDeps): TabIo {
     // an old revision over the live file. Phase 73: a review tab is refused
     // here too, and for a stronger reason. Its path names a file on another
     // computer, so a write would land on whatever this Mac holds at that path.
-    if (tab.commit !== null || tab.remote !== undefined) return false;
+    if (tab.commit !== null) return false;
+    // PHASE 90.3. A review tab was refused here silently since Phase 73, so a
+    // person who typed and pressed Save was told nothing at all, which reads as
+    // a save that worked. It is refused OUT LOUD now, naming the machine. The
+    // sentence is in ./../app/machine-copy.ts with every other sentence this
+    // renderer says about a machine, so the vocabulary audit reads one file.
+    if (tab.remote !== undefined) {
+      useApp
+        .getState()
+        .toast('error', remoteSaveRefused(tab.remote.machineLabel), {
+          sticky: true
+        });
+      return false;
+    }
     if (tab.deleted || tab.truncated || tab.error !== null) return false;
     const model = getWorkingModel(id);
     if (model === null) return false;

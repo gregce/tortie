@@ -80,3 +80,12 @@
 .srow-machine {
   margin-left: var(--space-2);
 }
+
+/* PHASE 90.3. The project tab, when the tab's FILES are on another machine.
+   It is narrower than the four session surfaces, because the tab strip is the
+   one row that must stay scannable and the label is beside a project name that
+   already has to fit. */
+.ptab-machine {
+  margin-left: var(--space-2);
+  max-width: 64px;
+}

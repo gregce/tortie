@@ -114,6 +114,35 @@ export const REVIEW_ANSWER_UNREADABLE =
   'Tortie could not read what that machine sent back, so it is not showing a ' +
   'review. Nothing was changed on either machine.';
 
+/**
+ * The caller did not say what to review.
+ *
+ * PHASE 90.3 FIX ROUND. Both review verbs took their folder straight to the
+ * shell quoter, which reads `.length` on it, so a call missing the field threw
+ * a raw TypeError across IPC and the renderer received
+ * "Cannot read properties of undefined (reading length)". The product's own
+ * callers always send the field, so this was never reachable from a surface,
+ * but a required field with no check is a gap in the channel rather than in the
+ * caller. This refusal names the field and says nothing ran.
+ */
+export const REVIEW_NO_FOLDER =
+  'Tortie was not told what to review, so it asked that machine for nothing. ' +
+  'Nothing was changed on either machine.';
+
+/**
+ * The folder as an absolute path on that machine, or a refusal naming the
+ * field. Pure.
+ */
+function reviewFolderOrThrow(value: unknown, field: string): string {
+  if (typeof value === 'string' && value.startsWith('/')) return value;
+  throw gmuxError(
+    'INVALID_INPUT',
+    REVIEW_NO_FOLDER,
+    `"${field}" has to be an absolute path on that machine, and the caller ` +
+      `sent ${JSON.stringify(value) ?? 'undefined'}`
+  );
+}
+
 /** How many bytes of a side decide whether it is binary. */
 const BINARY_SNIFF_BYTES = 8 * 1024;
 
@@ -294,8 +323,9 @@ export async function reviewFilesOn(input: {
   machineId: string;
   cwd: string;
 }): Promise<RemoteReviewList> {
+  const cwd = reviewFolderOrThrow(input.cwd, 'cwd');
   const ctx = readyRemoteContext(input.machineId);
-  const answer = await runRemoteRead(ctx, 'review-list', [input.cwd], {
+  const answer = await runRemoteRead(ctx, 'review-list', [cwd], {
     timeoutMs: REMOTE_REVIEW_TIMEOUT_MS
   });
   const machineLabel = labelOf(input.machineId);
@@ -344,13 +374,22 @@ export async function reviewFileOn(input: {
   path: string;
   origPath: string | null;
 }): Promise<RemoteReviewPair> {
+  const repoPath = reviewFolderOrThrow(input.repoPath, 'repoPath');
+  if (typeof input.path !== 'string' || input.path.length === 0) {
+    throw gmuxError(
+      'INVALID_INPUT',
+      REVIEW_NO_FOLDER,
+      `"path" has to be the file's path inside that repository, and the ` +
+        `caller sent ${JSON.stringify(input.path) ?? 'undefined'}`
+    );
+  }
   const ctx = readyRemoteContext(input.machineId);
   const cap = String(REMOTE_REVIEW_MAX_BYTES);
   const read = async (path: string): Promise<RemoteReviewPair> => {
     const answer = await runRemoteRead(
       ctx,
       'review-file',
-      [input.repoPath, path, cap],
+      [repoPath, path, cap],
       { timeoutMs: REMOTE_REVIEW_TIMEOUT_MS }
     );
     return parseRemoteReviewPair(answer.payload, REMOTE_REVIEW_MAX_BYTES);

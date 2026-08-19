@@ -21,7 +21,9 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { localPathOf, targetOfProject } from '@shared/workspace-target';
 import { useApp } from '../state/store';
+import { machineLabelFor } from '../state/machines-slice';
 import type { MenuItemSpec } from '../state/store';
 import { gitErrorLine, repoState, useGit } from '../state/git';
 import { displayPath, useNow } from '../app/format';
@@ -34,6 +36,8 @@ import {
   fetchIsStale,
   honestSyncTooltip
 } from './freshness';
+import { remoteChangesOf, useRemoteChanges } from './remote-changes';
+import { readClockTime, remoteReadAt } from '../app/machine-copy';
 import { requestManageBranches } from './manage-branches';
 import { MiniModal } from './MiniModal';
 import type { MiniModalSpec } from './MiniModal';
@@ -70,9 +74,25 @@ export function BranchHeader(): React.JSX.Element {
     () => projects.find((p) => p.id === activeProjectId) ?? null,
     [projects, activeProjectId]
   );
-  const repoPath = project?.path ?? null;
+  // PHASE 90.3. The conversion site, and it is the whole fix for this header.
+  // `repoPath` is the path THIS MAC may act on, so it is null for a tab whose
+  // folder is on another machine. Every git verb below hangs off it, so a
+  // machine tab reaches none of them by construction rather than by a guard on
+  // each one.
+  const target = useMemo(() => targetOfProject(project), [project]);
+  const repoPath = localPathOf(target);
   const repo = repoState(repos, repoPath);
   const status = repo.status;
+
+  const machineStates = useApp((s) => s.machineStates);
+  const remoteEntry = useRemoteChanges((s) => remoteChangesOf(s.byTarget, target));
+  const refreshRemote = useRemoteChanges((s) => s.refresh);
+  const ensureRemote = useRemoteChanges((s) => s.ensure);
+  const onMachine = project !== null && target !== null && repoPath === null;
+
+  useEffect(() => {
+    if (target !== null && repoPath === null) ensureRemote(target);
+  }, [target, repoPath, ensureRemote]);
 
   const depthRepo = depthRepoState(
     useGitDepth((s) => s.repos),
@@ -274,6 +294,47 @@ export function BranchHeader(): React.JSX.Element {
       <div className="branch-header" data-slot="branch-header">
         <Codicon name="git-branch" size={14} />
         <span className="branch-folder">No project open</span>
+      </div>
+    );
+  }
+
+  // PHASE 90.3. A tab whose folder is on another machine. The band carries the
+  // folder, the machine, the time of the last read and one Refresh button, and
+  // it carries nothing else. Every other control in this header writes on a
+  // repository, and Tortie never writes on that machine: the branch menu
+  // switches branches, the sync control pushes and pulls, and the actions menu
+  // holds pull, push and fetch. They are ABSENT rather than disabled, because a
+  // disabled Push would say Tortie could push there under some condition, and
+  // there is no such condition.
+  if (onMachine && project !== null && target !== null) {
+    const label = machineLabelFor(machineStates, target.machineId);
+    const busy = remoteEntry.loading || remoteEntry.refreshing;
+    return (
+      <div className="branch-header" data-slot="branch-header">
+        <Codicon name="git-branch" size={14} />
+        <span className="branch-folder" title={`${project.path} on ${label}`}>
+          {project.name}
+        </span>
+        <span className="branch-spacer" />
+        {remoteEntry.readAt > 0 ? (
+          <span className="scm-remote-read" title={remoteReadAt(remoteEntry.readAt)}>
+            {readClockTime(remoteEntry.readAt)}
+          </span>
+        ) : null}
+        <button
+          type="button"
+          className={`icon-btn branch-refresh${busy ? ' busy' : ''}`}
+          aria-label="Read what changed on that machine again"
+          title={
+            remoteEntry.readAt > 0
+              ? remoteReadAt(remoteEntry.readAt)
+              : 'Read what changed on that machine'
+          }
+          disabled={busy}
+          onClick={() => void refreshRemote(target)}
+        >
+          <Codicon name="refresh" size={14} />
+        </button>
       </div>
     );
   }

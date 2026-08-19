@@ -36,7 +36,9 @@
  */
 
 import React, { useMemo, useRef } from 'react';
+import { localPathOf, targetOfProject } from '@shared/workspace-target';
 import { liveChromeGeometry, useApp } from '../state/store';
+import { machineLabelFor } from '../state/machines-slice';
 import {
   clampSidebarWidth,
   dockRenderedWidth,
@@ -60,6 +62,52 @@ import {
   useTreeHandle
 } from '../tree';
 import { Codicon } from '../icons';
+import {
+  REMOTE_BAND_BODY,
+  remoteBandTitle,
+  remoteTreeReadOnly
+} from './machine-copy';
+import './machine-band.css';
+
+/**
+ * The machine a tab's folder is on, as a label, or null when it is this Mac.
+ *
+ * PHASE 90.3. One hook, read by the band and by the two create buttons, so the
+ * sidebar answers "whose files are these" in exactly one place. It compares the
+ * PAIR through `localPathOf` rather than looking at a path, which is the rule
+ * Phase 90.1 put in `@shared/workspace-target` and the reason two projects with
+ * the same path on two computers cannot be confused for each other.
+ */
+function useMachineLabel(): string | null {
+  const projects = useApp((s) => s.projects);
+  const activeProjectId = useApp((s) => s.activeProjectId);
+  const machineStates = useApp((s) => s.machineStates);
+  const target = useMemo(
+    () =>
+      targetOfProject(projects.find((p) => p.id === activeProjectId) ?? null),
+    [projects, activeProjectId]
+  );
+  if (target === null || localPathOf(target) !== null) return null;
+  return machineLabelFor(machineStates, target.machineId);
+}
+
+/**
+ * The band that says whose files the view below is showing (Phase 90.3).
+ *
+ * Drawn under the header of ALL FOUR views and never dismissible. The sidebars
+ * do not follow the focused session, they follow the tab, so this one line is
+ * true for the whole life of the tab. It renders nothing at all for a folder on
+ * this Mac, which is every tab in every build before this phase.
+ */
+function MachineBand({ label }: { label: string | null }): React.JSX.Element | null {
+  if (label === null) return null;
+  return (
+    <div className="machine-band" data-slot="machine-band" role="note">
+      <span className="machine-band-title">{remoteBandTitle(label)}</span>
+      <span className="machine-band-body">{REMOTE_BAND_BODY}</span>
+    </div>
+  );
+}
 
 /**
  * Explorer view header — the band slice above the tree ([h:36], S3B).
@@ -90,7 +138,13 @@ function ExplorerHeader(): React.JSX.Element {
   // An older preload without the mutation channels hides nothing here — it
   // DISABLES, because a create button that vanished would read as a missing
   // feature rather than as a build that cannot write files.
-  const canCreate = treeHandle !== null && canMutate();
+  //
+  // PHASE 90.3 added the third condition, and it is the strongest of the three.
+  // A tab whose folder is on another machine has no write path at all: Tortie
+  // reads that folder and never writes there. The buttons stay on screen and
+  // are drawn off, for the same reason the older preload case does.
+  const machineLabel = useMachineLabel();
+  const canCreate = treeHandle !== null && canMutate() && machineLabel === null;
 
   const create = (kind: 'file' | 'dir'): void => {
     if (treeHandle === null) return;
@@ -122,7 +176,7 @@ function ExplorerHeader(): React.JSX.Element {
         type="button"
         className="icon-btn view-header-action"
         aria-label="New file"
-        title="New file"
+        title={machineLabel === null ? 'New file' : remoteTreeReadOnly(machineLabel)}
         disabled={!canCreate}
         onClick={() => create('file')}
       >
@@ -132,7 +186,9 @@ function ExplorerHeader(): React.JSX.Element {
         type="button"
         className="icon-btn view-header-action"
         aria-label="New folder"
-        title="New folder"
+        title={
+          machineLabel === null ? 'New folder' : remoteTreeReadOnly(machineLabel)
+        }
         disabled={!canCreate}
         onClick={() => create('dir')}
       >
@@ -207,11 +263,23 @@ export function Sidebar(): React.JSX.Element {
     [projects, activeProjectId]
   );
 
+  const machineLabel = useMachineLabel();
+
   // One status source for the whole sidebar: the SCM store's list feeds the
   // tree's decorations (null → the tree fetches for itself, e.g. non-repo).
+  //
+  // PHASE 90.3. The lookup key is `localPathOf(target)` and never the project's
+  // bare path. `useGit` holds git status read on THIS Mac, so a tab whose folder
+  // is on another machine must find nothing here: a local repository at the same
+  // path would otherwise decorate that machine's rows with this Mac's changes,
+  // which is the wrong machine defect this phase exists to remove.
+  const localRepoPath = useMemo(
+    () => localPathOf(targetOfProject(project)),
+    [project]
+  );
   const scmStatusFiles = useGit((s) => {
-    if (!project) return null;
-    const status = s.repos[project.path]?.status;
+    if (localRepoPath === null) return null;
+    const status = s.repos[localRepoPath]?.status;
     return status?.isRepo === true ? status.files : null;
   });
 
@@ -261,6 +329,7 @@ export function Sidebar(): React.JSX.Element {
         <div className="sidebar-view" data-view="scm" tabIndex={-1}>
           {/* Band: ⎇ branch · ↑↓ ahead/behind · refresh ([h:36], S3A). */}
           <BranchHeader />
+          <MachineBand label={machineLabel} />
           <div className="sidebar-rest">
             <ScmSection />
           </div>
@@ -271,6 +340,7 @@ export function Sidebar(): React.JSX.Element {
         // scrollbars and break the sticky "Show more" footer.
         <div className="sidebar-view" data-view="search" tabIndex={-1}>
           <SearchHeader />
+          <MachineBand label={machineLabel} />
           <SearchSection />
         </div>
       ) : view === 'context' ? (
@@ -281,6 +351,7 @@ export function Sidebar(): React.JSX.Element {
         // Search's exception.
         <div className="sidebar-view" data-view="context" tabIndex={-1}>
           <ContextHeader />
+          <MachineBand label={machineLabel} />
           <div className="sidebar-rest">
             {/* SEAM 3, closed. Pass an object and the write verbs appear in
                 the row menus; pass nothing and they do not exist. Phase 22
@@ -292,6 +363,7 @@ export function Sidebar(): React.JSX.Element {
       ) : (
         <div className="sidebar-view" data-view="explorer" tabIndex={-1}>
           <ExplorerHeader />
+          <MachineBand label={machineLabel} />
           <div className="sidebar-rest">
             {/* Decorations fed from the SCM store's status list. */}
             <FilesSection

@@ -7,12 +7,22 @@
 import type { StateCreator } from 'zustand';
 import type { Project } from '@shared/types';
 import type {
+  AddRemoteProjectResult,
   CreateProjectInput,
   CreateProjectResult,
   GmuxActionsExtras,
   GmuxProjectCreateExtras,
+  GmuxRemoteProjectExtras,
   GmuxSymbolsExtras
 } from '@shared/ipc';
+import { isLocalTarget, targetOfProject } from '@shared/workspace-target';
+import { machineLabelFor } from './machines-slice';
+// Every sentence about a machine comes from one file, which is the one the
+// vocabulary audit reads.
+import {
+  remoteTabCloseBody,
+  remoteTabCloseTitle
+} from '../app/machine-copy';
 import { errorText } from './errors';
 import { loadLocal, saveLocal } from './local';
 import type { AppState } from './app-state';
@@ -35,6 +45,28 @@ export interface ProjectsSlice {
 
   openProject(): Promise<void>;
   addProjectPath(path: string): Promise<void>;
+  /**
+   * PHASE 90.3. Whether the "Open a folder on a machine" sheet is on screen.
+   *
+   * It lives on this slice rather than on the overlays slice because it is a
+   * project verb and its whole state is one boolean. The Escape handling in
+   * ../app/App.tsx reads it beside the other sheets.
+   */
+  remoteProjectOpen: boolean;
+  setRemoteProjectOpen(open: boolean): void;
+  /**
+   * PHASE 90.3. Open one folder on one machine as a project tab.
+   *
+   * Resolves with main's answer, refusals included, so the sheet can put the
+   * reason on the field that caused it. It never toasts a refusal itself. A
+   * success focuses the tab, whether it was just made or was already open.
+   */
+  addRemoteProject(
+    machineId: string,
+    path: string
+  ): Promise<AddRemoteProjectResult>;
+  /** Whether this build can open a folder on a machine at all. */
+  canAddRemoteProject(): boolean;
   closeProject(projectId: string): void;
   /**
    * Phase 12.9 item 1 — make a folder, optionally `git init` it, open it as a
@@ -65,6 +97,7 @@ export const createProjectsSlice: StateCreator<
     projects: [],
     tabOrder: loadLocal<string[]>(LS_TAB_ORDER, []),
     activeProjectId: null,
+    remoteProjectOpen: false,
 
     setActiveProject(projectId) {
       set({ activeProjectId: projectId });
@@ -132,6 +165,33 @@ export const createProjectsSlice: StateCreator<
       }
     },
 
+    setRemoteProjectOpen(open) {
+      set({ remoteProjectOpen: open });
+    },
+
+    canAddRemoteProject() {
+      const projects = gmux?.projects as
+        | (NonNullable<typeof gmux>['projects'] & GmuxRemoteProjectExtras)
+        | undefined;
+      return typeof projects?.addRemote === 'function';
+    },
+
+    async addRemoteProject(machineId, path) {
+      const projects = gmux?.projects as
+        | (NonNullable<typeof gmux>['projects'] & GmuxRemoteProjectExtras)
+        | undefined;
+      if (projects === undefined || typeof projects.addRemote !== 'function') {
+        return { ok: false, reason: 'notConnected' };
+      }
+      const result = await projects.addRemote({ machineId, path });
+      if (!result.ok) return result;
+      // The list is re-read rather than patched, so the tab order and the row
+      // ids come from main exactly as every other project route gets them.
+      set({ projects: await projects.list() });
+      get().setActiveProject(result.project.id);
+      return result;
+    },
+
     canCreateProject() {
       const projects = gmux?.projects as
         | (NonNullable<typeof gmux>['projects'] & GmuxProjectCreateExtras)
@@ -167,9 +227,20 @@ export const createProjectsSlice: StateCreator<
     closeProject(projectId) {
       const project = get().projects.find((p) => p.id === projectId);
       if (!project || !gmux) return;
+      // PHASE 90.3. A tab whose files are on another machine says where its
+      // sessions keep running, because "they keep running" is ambiguous the
+      // moment there is more than one computer in the answer.
+      const target = targetOfProject(project);
+      const here = isLocalTarget(target);
       get().setConfirm({
-        title: `Close '${project.name}'?`,
-        body: 'Its sessions keep running and reappear when you reopen it.',
+        title: here
+          ? `Close '${project.name}'?`
+          : remoteTabCloseTitle(project.name),
+        body: here
+          ? 'Its sessions keep running and reappear when you reopen it.'
+          : remoteTabCloseBody(
+              machineLabelFor(get().machineStates, project.machineId ?? '')
+            ),
         confirmLabel: 'Close project',
         onConfirm: () => {
           void (async () => {
@@ -180,21 +251,29 @@ export const createProjectsSlice: StateCreator<
               // project fails to close — the index rebuilds from SQLite if
               // the project is reopened, and evicts itself after 30 idle
               // minutes even if this call never happens.
-              void (
-                window.gmux as (typeof window.gmux & GmuxSymbolsExtras) | undefined
-              )?.symbols
-                ?.release(project.path)
-                .catch(() => undefined);
+              // PHASE 90.3. Both releases name a path on THIS Mac, so neither
+              // is asked for a tab whose files are on another machine. There is
+              // no index and no watch to release: `rootsFor` excludes every
+              // remote project and no watch is ever armed for one.
+              if (here) {
+                void (
+                  window.gmux as (typeof window.gmux & GmuxSymbolsExtras) | undefined
+                )?.symbols
+                  ?.release(project.path)
+                  .catch(() => undefined);
+              }
               // Phase 46: end any GitHub Actions watch this project armed.
               // Same posture as the release above, and for the same reason:
               // feature-detected, fire-and-forget, never a reason a project
               // fails to close. Watch state is in memory only, so the worst a
               // missed call costs is one poller until the app quits.
-              void (
-                window.gmux as (typeof window.gmux & GmuxActionsExtras) | undefined
-              )?.actions
-                ?.release(project.path)
-                .catch(() => undefined);
+              if (here) {
+                void (
+                  window.gmux as (typeof window.gmux & GmuxActionsExtras) | undefined
+                )?.actions
+                  ?.release(project.path)
+                  .catch(() => undefined);
+              }
               const projects = await gmux.projects.list();
               set((s) => {
                 const next: Partial<AppState> = { projects };

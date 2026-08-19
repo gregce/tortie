@@ -16,6 +16,13 @@
  * a machine that does not have it yet. It is the second write this product can
  * make on another computer and rule 6 below now says two rather than one.
  *
+ * PHASE 90.3 ADDED ONE MORE, and it is a read. `tree-list` names every file
+ * and folder under one folder on a machine, to a fixed depth, in ONE call. It
+ * is what the Explorer draws for a project that lives on another computer.
+ * Research 55 measured nine folders as nine calls at 409.7 ms and the same nine
+ * answers in one subtree call at 42.3 ms, so a listing per row is the shape
+ * this script exists to avoid.
+ *
  * PHASE 84 ADDED TWO MORE, and both are reads. `dir-list` names the folders
  * inside one folder, so the create sheet can offer a picker for the other
  * computer and so a folder that is not there is refused before a session is
@@ -159,7 +166,7 @@ export const REMOTE_SCRIPT_EMPTY = 'none';
 export const REMOTE_SCRIPT_MAX_BYTES = 131_072;
 
 // ---------------------------------------------------------------------------
-// The seven scripts
+// The twelve scripts
 // ---------------------------------------------------------------------------
 
 /**
@@ -346,6 +353,21 @@ const REVIEW_LIST = [
 /**
  * Both sides of one file, each capped at `$3` bytes and each encoded.
  *
+ * PHASE 90.3 ADDED THE CONTAINMENT LINE, and it is a safety fix rather than a
+ * feature. Until this phase `$2` was joined to the repository root with no
+ * check at all. Research 55 section 9.3 ran this exact text with `../above.txt`
+ * and read a file above the root. Nothing exploited it, because every path this
+ * script received came from a `review-list` answer. The Explorer changes that,
+ * because from this phase the renderer chooses the path. So the second line of
+ * the body refuses a path that starts with a slash and a path that holds two
+ * dots, and it refuses by leaving the script with no markers printed at all.
+ *
+ * WHAT THAT LINE ALSO REFUSES, said plainly. A file whose own name holds two
+ * dots in a row, e.g. `notes..md`, is refused as well. That is a false refusal
+ * and it is taken on purpose, because the check is one constant line on the far
+ * side and a guard on this Mac would be a second copy of a rule the far side has
+ * to enforce anyway.
+ *
  * The committed side comes from `git show HEAD:<path>`, which reads the object
  * database and never the working tree. The working side is the file itself. A
  * side that does not exist, being a file that was added or a file that was
@@ -355,6 +377,7 @@ const REVIEW_LIST = [
 const REVIEW_FILE = [
   'set -e',
   'umask 077',
+  'case "$2" in /*|*..*) exit 1;; esac',
   'cd "$1"',
   'a=$(git --no-pager show "HEAD:$2" 2>/dev/null | head -c "$3" | base64 |' +
     " tr -d '\\n' || true)",
@@ -623,13 +646,95 @@ const GIT_CLONE = [
 ].join('\n');
 
 /**
- * The whole catalogue. Eleven scripts, and this release holds no others.
+ * Every file and folder under one folder on another machine, to a fixed depth,
+ * in ONE call (Phase 90.3).
+ *
+ * ## Why one call and never one call per row
+ *
+ * MEASURED, on the operator's tailnet against his Mac Pro, and written down in
+ * research 55. Nine folders read as nine calls cost 409.7 ms. The same nine
+ * answers in one subtree call cost 42.3 ms. Research 56 section 1.4 sharpened
+ * it: six calls issued at once cost 44.0 ms, so what matters is that calls are
+ * not in series, and folding them into one command line is not required. The
+ * Explorer therefore asks once when a tab opens, once when a person expands
+ * past the fetched depth, and once when they press Refresh.
+ *
+ * ## What it prints
+ *
+ * FOUR ANSWERS, and three of them are ordinary states rather than failures,
+ * exactly as `dir-list` has them. A path that is not there answers `missing`. A
+ * path that is there and is not a folder answers `notdir`. A folder the account
+ * cannot read answers `denied`. Anything else answers `ok`, the number of
+ * entries really under there, the root, and then at most `$3` lines.
+ *
+ * THE COUNT COMES BEFORE THE ROOT on that first line, and the order has the
+ * reason `dir-list` has: a folder on another computer can hold a space in its
+ * name, so the path has to be the rest of the line.
+ *
+ * Every line after the first is one absolute path, with a trailing slash when
+ * it is a directory. The reader in `./tree-list.ts` drops any line that does not
+ * begin with the root.
+ *
+ * ## Seven properties of this text, and each one is a rule the gate reads
+ *
+ *  1. It begins `set -e` and then `umask 077`.
+ *  2. Every positional is read double quoted, and there are three.
+ *  3. It names none of the eleven mutating programs. It names `find`, `head`,
+ *     `printf`, `wc`, `tr`, `read` and `test`.
+ *  4. Its only redirection is `2>/dev/null`, twice.
+ *  5. It names no git verb at all. `.git` appears twice, each time as a
+ *     QUOTED name for `find` to prune. The quotes are what keep the word `git`
+ *     from being followed by a space in this text, which is what the gate's
+ *     git verb reader looks for.
+ *  6. `.git` is pruned, so a repository's internals never cross the link.
+ *  7. It writes nothing, so running it twice reads the same folder twice.
+ *
+ * ## What it cannot do, said plainly
+ *
+ * A file whose name holds a NEWLINE arrives as two lines. The second one does
+ * not begin with the root and the reader drops it, and the first one is a path
+ * that is not really there. No repository this phase measured holds such a
+ * name, and refusing the whole listing over one of them would be worse.
+ *
+ * The count is a second walk of the same tree, which is what `dir-list` does
+ * with its two `ls` runs. It is what keeps "this folder holds 9,000 entries and
+ * Tortie is showing the first 4,000" honest, and the probe records what the
+ * second walk costs.
+ *
+ * `$3` IS NEVER ZERO. BSD `head -n 0` refuses with "illegal line count", which
+ * is the same rule `dir-list` carries.
+ */
+const TREE_LIST = [
+  'set -e',
+  'umask 077',
+  'p="$1"',
+  'if [ ! -e "$p" ]; then',
+  "  printf '__TORTIE_RUN__missing %s\\n__TORTIE_RUN__\\n' \"$p\"",
+  'elif [ ! -d "$p" ]; then',
+  "  printf '__TORTIE_RUN__notdir %s\\n__TORTIE_RUN__\\n' \"$p\"",
+  'elif [ ! -r "$p" ] || [ ! -x "$p" ]; then',
+  "  printf '__TORTIE_RUN__denied %s\\n__TORTIE_RUN__\\n' \"$p\"",
+  'else',
+  '  o=$(find "$p" -maxdepth "$2" -mindepth 1 -name ".git" -prune -o -print' +
+    ' 2>/dev/null |',
+  '    head -n "$3" |',
+  '    while IFS= read -r f; do',
+  '      if [ -d "$f" ]; then printf "%s/\\n" "$f"; else printf "%s\\n" "$f"; fi',
+  '    done)',
+  '  c=$(find "$p" -maxdepth "$2" -mindepth 1 -name ".git" -prune -o -print' +
+    ' 2>/dev/null | wc -l | tr -d " ")',
+  "  printf '__TORTIE_RUN__ok %s %s\\n%s__TORTIE_RUN__\\n' \"${c:-0}\" \"$p\" \"${o:-}\"",
+  'fi'
+].join('\n');
+
+/**
+ * The whole catalogue. Twelve scripts, and this release holds no others.
  *
  * A name that is not here is refused by `./remote-run.ts` before anything is
  * composed, which is the shape the verb ledger has as well: the refusal happens
  * before a string exists, rather than after one was built and then inspected.
  *
- * TWO of the eleven write, being `image-put` and `git-clone`, and they are in
+ * TWO of the twelve write, being `image-put` and `git-clone`, and they are in
  * that order in this array. {@link remoteWriteScripts} returns them in it.
  */
 export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
@@ -715,6 +820,15 @@ export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
     reason:
       'It walks one folder tree and reads one line out of each git folder it ' +
       'finds. It writes nothing, so running it twice reads the same tree twice.'
+  },
+  {
+    id: 'tree-list',
+    mode: 'read',
+    params: 3,
+    text: TREE_LIST,
+    reason:
+      'It walks one folder tree to a fixed depth and prints what is in it. It ' +
+      'writes nothing, so running it twice reads the same tree twice.'
   },
   {
     id: 'git-clone',

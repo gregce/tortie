@@ -467,6 +467,19 @@ export interface CreateSessionInput {
    * has measured.
    */
   machineId?: string;
+  /**
+   * APPENDED (Phase 90.3): which machine {@link CreateSessionInput.projectPath}
+   * is a path on.
+   *
+   * Omitted, or the string 'local', means this Mac, which is every create
+   * before this release. It exists because main cannot otherwise tell the two
+   * remote creates apart. A create started from a tab that is itself on the
+   * machine sends a project path that already belongs to that machine. A
+   * create started from a tab on this Mac sends this Mac's project path and
+   * names the folder over there in `cwd`, and main must not record this Mac's
+   * path as the folder of a session that runs somewhere else.
+   */
+  projectMachineId?: string;
 }
 
 export interface RenameSessionInput {

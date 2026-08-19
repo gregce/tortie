@@ -335,10 +335,18 @@ export const useEditor = create<EditorState>((set, get) => {
       // file belongs to no builder in this phase and three builders were
       // writing this tree at once. The integrator moves it, and the answer
       // does not change when it does.
+      //
+      // PHASE 90.3 ADDED THE REPOSITORY PATH. The key was
+      // `machine:<machineId>:<relPath>`, which is the collision research 55
+      // section 9.2 found: two folders on ONE machine that both hold `src/a.ts`
+      // opened into one tab, and the second read replaced the first file's
+      // bytes under the first file's tab. A folder on a machine is a project
+      // tab from this phase, so two such folders on one machine is the ordinary
+      // case rather than a corner of it.
       const id =
         req.remote === undefined
           ? tabIdFor(req)
-          : `machine:${req.remote.machineId}:${req.relPath}`;
+          : `machine:${req.remote.machineId}:${req.remote.repoPath}:${req.relPath}`;
       const now = Date.now();
       const redoubled = lastOpen.id === id && now - lastOpen.at < DOUBLE_OPEN_MS;
       lastOpen = { id, at: now };
