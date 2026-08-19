@@ -5984,6 +5984,87 @@ all three after a successful run.
 needs `SSH_AUTH_SOCK` exported from the Phase 69 carriage file because the npm script does not
 export it. That gate runnability defect is itself a recorded nit.
 
+## Three decisions the operator made on 2026-08-19, and they bind every later round
+
+He was asked three questions that no agent may answer, and he answered all three. They are recorded
+here with their reasons so a later round does not reopen them or widen them.
+
+### 1. The `send-keys` refusal is lifted, NARROWLY. Phase 89 becomes buildable
+
+**His words.** "Lets remove the refusal narrowly."
+
+`send-keys` has been on `VERBS_THIS_RUNG_REFUSES` in `src/main/machines/exec-plane.ts` since Phase
+69, beside `kill-server`, `attach-session` and `respawn-pane`. It comes off that list, and NOTHING
+ELSE DOES. `attach-session` stays refused forever for the reason already written there, being that
+attach is a different plane with a different carriage.
+
+**What narrow means, and this is the whole safety of the change.** The file's own rule is that every
+allowed verb carries written reasoning for what happens when it runs twice, because a dropped link
+means a command can be sent again. `send-keys` is not repeat safe in general. So it is not allowed in
+general.
+
+| Rule | Why |
+| --- | --- |
+| The bytes are composed BY TORTIE from the agent registry, never by a person and never from any field a person typed | The stated principle beside `attach-session`, that a person's keystrokes must never be reachable through this door, survives intact. Tortie's own composed resume command is not a person's keystrokes |
+| It is used for exactly ONE purpose, arming a resume, and the call site is single | A second call site is a second decision and needs its own reasoning written beside it |
+| `Enter` is NEVER sent | This matches the local behaviour at `src/main/restore/restore.ts:253`, which types the command and stops so the person presses Enter. The armed but unexecuted resume is the product's existing promise and it does not change for remote |
+| The pane is checked before and after, so a double send is DETECTED rather than assumed away | This is the repeat safety reasoning the ledger demands. Read the pane, send, read again, and if the text landed twice say so plainly rather than leaving a person to find it |
+| The ledger row records `repeat: 'unsafe'` with the guard named | The ledger must not gain a row that quietly claims to be safe. An honest unsafe row with a guard is the truthful shape |
+
+**What is still refused after this.** Sending arbitrary text to a remote pane. Sending anything a
+person typed. Sending Enter. Any second call site. `attach-session`, `kill-server` and
+`respawn-pane`.
+
+**Phase 89 is now buildable and it is queued in the overnight order below.** Phase 82, cross machine
+conversation reconstruction, still sits above it and is not queued.
+
+### 2. `needs input` stays ABSENT for every remote session. Phase 88 is CLOSED, not queued
+
+**His words.** "For remote execution I guess we can leave it absent for all since how we determine
+and monitor what is happening now."
+
+He is right about the mechanism. The agent native oracles read local disk, and the one exception is
+codex's title oracle, which needs no disk. Building it would give the state to 1 agent of 13 and
+leave 12 without it, and a status that lights for one agent and not the others teaches a person the
+wrong rule about what silence means.
+
+**So it is not built, and the product says so rather than leaving a person to notice.** A remote
+session has 5 status states where a local one has 6, and the surface that would carry the sixth says
+plainly that Tortie cannot yet tell you when a session on another machine is waiting for you. That
+sentence already exists as `ATTENTION_HONESTY`. **Phase 87 is cutting it from the create sheet, so
+whichever round closes this decision must make sure it survives somewhere a person meets it at the
+moment it matters**, which is the session's own surface rather than the create sheet.
+
+Reopening this needs a different detection mechanism, not another attempt at the same one.
+
+### 3. SpecStory capture is DROPPED for remote sessions, and the refusal becomes visible
+
+**His words.** "We can drop specstory for remote machine sessions AND that should flow through to
+ensure that if you start a remote machine session you can't inadvertently try to run it from command
+plus T."
+
+**Phase 91 is no longer a build phase. It is a refusal phase**, and it is small.
+
+Today the capture checkbox simply DISAPPEARS when a machine is picked in the create sheet, with no
+sentence naming why. A row that vanishes teaches nothing and a person can reasonably think they
+turned it off, or that it did not apply, or that it silently worked.
+
+**What ships instead.** The row stays visible and is drawn disabled, with one short sentence saying
+capture does not run on another machine. That is the same shape the create sheet already uses for a
+machine that cannot hold a session and for an agent tile that cannot run, which Phase 84 and Phase
+86 both settled: the option stays, drawn disabled with its reason, because removing an option fixes
+a refusal by teaching nothing.
+
+**The second half of his sentence is the load bearing part.** It must be impossible to start a
+remote session under capture by any route, not only by the checkbox. Every path that composes a
+create must refuse capture when a machine is named, being the sheet, the per agent hotkey, the quick
+create board and the empty state board. The refusal lives in MAIN rather than only in the renderer,
+because a guard that lives in four renderer surfaces is a guard a fifth surface will miss, which is
+exactly how the split leaf Restart defect happened and Phase 84 fixed it the same way.
+
+**Under Phase 87's copy rule this earns its sentence**, because a person is about to act and would
+otherwise be surprised.
+
 ## Phase 87 — the copy stops explaining itself (operator reported 2026-08-19, with three screenshots) QUEUED
 
 **Subject:** `fix(ui): three screens say less, and diagnostics sits last`
