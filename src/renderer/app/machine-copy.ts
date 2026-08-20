@@ -1169,3 +1169,38 @@ export function remoteTabOpened(path: string, label: string): string {
     `Tortie opened a tab for ${path} on ${label} and put the session in it.`
   );
 }
+
+// ---------------------------------------------------------------------------
+// Scrolling back through a session on another machine (Phase 95)
+// ---------------------------------------------------------------------------
+
+/**
+ * The identity strip's quiet note for a session that runs on another machine.
+ *
+ * WHY IT EXISTS. Tortie reads a session's saved output from the private
+ * session server on this Mac. A session on another machine has no such record
+ * here, so the right edge of the terminal has no bar and the wheel moves
+ * nothing. Before this note a person read that as a broken scrollbar. The note
+ * says the plain fact instead.
+ *
+ * WHERE IT IS DRAWN. In BOTH bands above the terminal, because neither one is
+ * always on screen. The identity strip in ./TerminalRegion.tsx is the band in
+ * the "right" orientation and it puts the note in the slot the resume mark
+ * leaves empty, which is empty for exactly these sessions because
+ * {@link ./session-actions!resumeMark} returns null for every session on
+ * another machine. The session tab strip in ./SessionStrip.tsx is the band in
+ * the "top" orientation, which is the default, and it puts the note in its own
+ * pinned cell beside the overflow chevron. One component draws both, being
+ * {@link ./session-actions!NoScrollbackNote}. It is not drawn for a session on
+ * this Mac that is not running, because that surface already says what it is.
+ *
+ * WHAT IT DOES NOT CLAIM. It does not say the session is broken and it does
+ * not say the output is gone. What a person sees in the terminal is the live
+ * session, and the sentence says so.
+ */
+export const NO_SCROLLBACK_HERE = 'Cannot scroll back';
+
+/** The same note as a full sentence, for its tooltip and its `title`. */
+export const NO_SCROLLBACK_HERE_TITLE =
+  'Scrolling back is not available for a session on another machine yet. ' +
+  'What you see is live.';

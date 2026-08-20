@@ -340,6 +340,23 @@ const DEAD_ROW_RESCUE_TIMEOUT_MS = 20_000;
 const CREATE_IN_FLIGHT_MAX_MS = 60_000;
 
 /**
+ * The answer for a session with no pane of its own on this Mac (Phase 95).
+ *
+ * It is a fact rather than a failure, so it is a value rather than a throw.
+ * Every number is 0 and every flag is false, which is what the scrollbar
+ * already draws nothing for.
+ */
+const NO_PANE_HERE: TerminalScrollState = {
+  hasPane: false,
+  position: 0,
+  history: 0,
+  rows: 0,
+  inMode: false,
+  innerAlt: false,
+  innerMouse: false
+};
+
+/**
  * Server options resources/gmux-tmux.conf sets that gmux cannot afford to
  * have wrong — a tmux server left running from an OLDER conf never re-reads
  * the file, so every boot re-asserts them on the private socket.
@@ -2366,49 +2383,60 @@ export class GmuxCore {
    *
    * F1: no binding means no target. Driving copy-mode through a name would
    * scroll whatever session happens to hold it.
+   *
+   * Phase 95: no binding is a fact rather than a failure, so this returns
+   * null instead of throwing. Two ordinary states have no binding, being a
+   * session that runs on another machine and a session on this Mac that is
+   * not running. The throw made the renderer's 1 Hz poll print a stack trace
+   * once a second for as long as such a session was on screen.
    */
-  private scrollTarget(sessionId: string): string {
-    const live = this.liveIds.get(sessionId);
-    if (live === undefined) {
-      throw gmuxError(
-        'SESSION_NOT_FOUND',
-        'This session is not running right now.',
-        sessionId
-      );
-    }
-    return live;
+  private scrollTarget(sessionId: string): string | null {
+    return this.liveIds.get(sessionId) ?? null;
   }
 
   async scrollState(
     input: TerminalScrollPollInput
   ): Promise<TerminalScrollState> {
     const target = this.scrollTarget(input.sessionId);
-    return input.anchorFrom === undefined
-      ? tmux.readPaneScroll(this.runScrollCommand, target)
-      : tmux.anchorPaneScroll(this.runScrollCommand, target, input.anchorFrom);
+    if (target === null) return NO_PANE_HERE;
+    const state =
+      input.anchorFrom === undefined
+        ? await tmux.readPaneScroll(this.runScrollCommand, target)
+        : await tmux.anchorPaneScroll(
+            this.runScrollCommand,
+            target,
+            input.anchorFrom
+          );
+    return { ...state, hasPane: true };
   }
 
   async scrollBy(input: TerminalScrollByInput): Promise<TerminalScrollState> {
-    return tmux.scrollPaneBy(
+    const target = this.scrollTarget(input.sessionId);
+    if (target === null) return NO_PANE_HERE;
+    const state = await tmux.scrollPaneBy(
       this.runScrollCommand,
-      this.scrollTarget(input.sessionId),
+      target,
       input.lines
     );
+    return { ...state, hasPane: true };
   }
 
   async scrollTo(input: TerminalScrollToInput): Promise<TerminalScrollState> {
-    return tmux.scrollPaneTo(
+    const target = this.scrollTarget(input.sessionId);
+    if (target === null) return NO_PANE_HERE;
+    const state = await tmux.scrollPaneTo(
       this.runScrollCommand,
-      this.scrollTarget(input.sessionId),
+      target,
       input.position
     );
+    return { ...state, hasPane: true };
   }
 
   async scrollLive(sessionId: string): Promise<TerminalScrollState> {
-    return tmux.exitPaneScroll(
-      this.runScrollCommand,
-      this.scrollTarget(sessionId)
-    );
+    const target = this.scrollTarget(sessionId);
+    if (target === null) return NO_PANE_HERE;
+    const state = await tmux.exitPaneScroll(this.runScrollCommand, target);
+    return { ...state, hasPane: true };
   }
 
   // -------------------------------------------------------------------------

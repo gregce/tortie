@@ -34,6 +34,7 @@ import type { Surface } from '../state/layout';
 import { rollupDot, statusVisual } from './status';
 import { useNow } from './format';
 import {
+  NoScrollbackNote,
   RenameInput,
   ResumeMark,
   EndSessionButton,
@@ -344,6 +345,18 @@ function SessionTabStrip({
   const stripDrop = useLayout((s) => s.stripDrop);
   const now = useNow();
 
+  // Phase 95. The session the terminal below is showing, which is the one the
+  // scrollback note would be about. In a split group it is the focused leaf,
+  // which is the same session ./TerminalRegion.tsx hands its identity strip.
+  const shownSession =
+    activeSurface === null
+      ? undefined
+      : sessionsById.get(
+          activeSurface.leafIds.includes(activeLeafId)
+            ? activeLeafId
+            : (activeSurface.leafIds[0] ?? '')
+        );
+
   const listRef = useRef<HTMLDivElement | null>(null);
   const [overflow, setOverflow] = useState<{
     has: boolean;
@@ -493,6 +506,15 @@ function SessionTabStrip({
           <StripIndicator index={stripDrop} listRef={listRef} />
         ) : null}
       </div>
+      {/* Phase 95. The same note the identity strip draws in the "right"
+          orientation, in the band a person actually has by default. It
+          describes the session on screen, so it sits outside the scrolling tab
+          list rather than inside a tab. The tabs are too narrow for words, and
+          repeating the sentence on every remote tab would say the same thing
+          several times over. */}
+      {shownSession !== undefined ? (
+        <NoScrollbackNote session={shownSession} className="strip-note" />
+      ) : null}
       {overflow.has ? (
         <div className="strip-cell">
           <button

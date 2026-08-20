@@ -6779,7 +6779,7 @@ business: `needs_input` for a remote session, and SpecStory capture. Do not reop
    is what the phases are written from, so it must be complete enough to write them without asking
    the document a second question.
 
-## Phase 95 — asking a session that is not running where its scrollbar is (operator reported 2026-08-19) QUEUED
+## Phase 95 — asking a session that is not running where its scrollbar is (operator reported 2026-08-19) ✅ SHIPPED 2026-08-19 (this commit, 0.49.2, gates green, 6,624 tests)
 
 **Subject:** `fix(terminal): a session with no pane on this Mac answers the scroll poll instead of throwing`
 **First body line:** `Phase 95: asking a session that is not running where its scrollbar is`
@@ -6855,6 +6855,70 @@ that this phase does not extend. This phase makes the absence honest and quiet. 
 - Count his sessions with `tmux -L gmux list-sessions` before and after and report both numbers.
   `src/main/tmux/resolve.ts` honours `GMUX_TMUX_SOCKET` ONLY when `GMUX_SHOT` or `GMUX_SMOKE` is set,
   and a launch without one of those silently uses his real server.
+
+### What shipped, and what is not true
+
+**Main answers instead of throwing.** `scrollTarget` in `src/main/sessions/core.ts` returns null
+rather than throwing when a session has no pane on this Mac. The four scroll methods, being
+`scrollState`, `scrollBy`, `scrollTo` and `scrollLive`, return one shared constant for that case.
+Every number in it is 0 and every flag is false, which is what the scrollbar already draws nothing
+for.
+
+**The answer carries a new field.** `TerminalScrollState` in `src/shared/ipc/terminal.ts` gained
+`hasPane`. It is true when a session on this Mac answered. It is false in the two ordinary cases,
+being a session that runs on another machine and a session on this Mac that is not running. No IPC
+channel was added and none was removed, so `node build/contract-inventory.mjs --check` still matches
+the baseline byte for byte and no re-baseline was needed.
+
+**The renderer stops asking.** `ScrollSurface` in `src/renderer/terminal/scroll/surface.ts` keeps a
+`noPane` flag. The first answer with `hasPane` false clears the armed timer, tells the subscribers
+once, and arms nothing further. `schedule` refuses on the same flag, so every path that could arm a
+timer is stopped in one place. The wheel returns false rather than handing the event to xterm,
+because xterm's alternate-scroll branch sends `ESC O A` and `ESC O B`, and claude and codex read
+those as prompt-history navigation. Typing still goes straight through, so a session on another
+machine takes input exactly as it did before.
+
+**The note a person sees.** Both bands above the terminal draw the same short note, being "Cannot
+scroll back", with the full sentence in its tooltip. One component draws it, being
+`NoScrollbackNote` in `src/renderer/app/session-actions.tsx`. The first build of this phase put the
+note only in the identity strip, which is the band for the "right" orientation. The default
+orientation is "top", where the band is the session tab strip, so most people would have seen no
+note at all. The verifier measured that and the fix round put the note in both. The old comment at
+`src/renderer/app/TerminalRegion.tsx` claiming the identity strip is the one band always on screen
+was wrong, and it is corrected in place.
+
+**The note is not drawn for a local session that is not running.** That surface is already the
+restore card or the ended card, and both of those say what the session is. A second sentence about
+scrolling would be noise on top of an answer the person already has.
+
+**Measured, before and after, on the same drive.** A session on the loopback scratch machine on
+screen for 62.0 seconds produced 62 `terminal:scrollState` error lines on the parent commit and 0 on
+this tree. 20 wheel turns over that pane produced 21 lines and 0. The whole run's app log went from
+1,150 lines with 94 scroll error lines to 23 lines with 0. Asking main directly for a remote session
+threw `SESSION_NOT_FOUND` before and now answers `hasPane` false with every number 0. A session
+running on this Mac read the same numbers on both builds, being read 0/361/42, by(30) giving 30, two
+Shift+PageUps giving 112, a drag to 100 giving 100, one resize holding 100, and live giving 0.
+
+**Proved by mutation, three times.** Restoring the throw in `scrollTarget` failed 7 of the 10 tests
+in `p95-scroll-no-pane.test.ts`. Removing `noPane` from `schedule` failed 1 of the 8 in
+`p95-scroll-stops.test.ts`. Turning off the stop in `apply` failed 5 of those 8. Each file was put
+back byte for byte and each set passed again.
+
+**What is NOT true, and saying so is the point of this phase.** Scrolling back through a session on
+another machine is still not built. It would need copy-mode verbs to travel over the exec plane, and
+the verb ledger in `src/main/machines/exec-plane.ts` was not extended. This phase makes the absence
+honest and quiet. Phase 96 is where that gap gets filled, and its entry already says this phase's
+sentence must be dropped when it is.
+
+**What was not measured.** The packaged build was not driven. All the numbers above come from a
+development run. The main process code is the same in both and only the sink differs, being the
+console against `app.log`, but `npm run package` was not run and no packaged app was driven for this
+phase. The 62 second watch on a LOCAL session that stopped running discriminates nothing, because
+the pane unmounts about 1 second after the status flips to restorable and the restore card replaces
+the terminal. What proves that half is the direct ask, where the parent commit threw
+`SESSION_NOT_FOUND` for the dead local session's id and this tree answers `hasPane` false. The
+operator's own tmux server was read four times with `tmux -L gmux list-sessions | wc -l` and never
+written. It held 47 sessions before this phase and 47 after.
 
 ## Phase 94 — a second session in a remote tab starts in that tab's folder (operator reported 2026-08-19, with four screenshots) ✅ SHIPPED 2026-08-19 (this commit, 0.48.1, gates green, 6,498 tests)
 

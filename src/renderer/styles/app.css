@@ -2295,3 +2295,26 @@ body.gmux-dragging:has([role='separator'][aria-orientation='horizontal'].draggin
   pointer-events: none;
   z-index: 4;
 }
+
+/* Phase 95. The quiet note that Tortie cannot scroll back through a session
+   on another machine. BOTH bands above the terminal draw it, because neither
+   one is always on screen: the identity strip is the band in the "right"
+   orientation, and the session tab strip is the band in the "top" orientation,
+   which is the default. It is the same shape as .strip-resume above: small,
+   muted, one glyph and a few words, no motion. */
+.strip-note {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+/* In the tab strip the note is a pinned cell rather than an item inside the
+   identity strip's own run of text, so it takes the same side padding the
+   other pinned cells take (.strip-cell, .strip-new above). */
+.strip-tabs > .strip-note {
+  padding: 0 var(--space-2);
+}

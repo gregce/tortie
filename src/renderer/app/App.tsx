@@ -103,6 +103,10 @@ import { registerP93AttentionDrive } from './p93-attention-drive';
 // same shape as the one above. It assigns one property to `window` and reads
 // nothing until the probe calls a method on it.
 import { registerP96RemoteSurfacesDrive } from './p96-remote-surfaces-drive';
+// PHASE 95. The harness drive for build/probe-p95-scroll.mjs, in the same
+// shape. It assigns one property to `window` at module load and reads nothing
+// until the probe calls a method on it.
+import { registerP95ScrollDrive } from '../terminal/p95-scroll-drive';
 // Phase 80.1, the ⇧⌘↩ chord. The 200 ms flight, the refusals and the swap.
 // A DIFFERENT module from ./session-focus above, which is much older and means
 // "land the user in a session" for ⌘J and the menu-bar sentinel.
@@ -168,6 +172,9 @@ registerP93AttentionDrive();
 
 // PHASE 96 harness hook, same again, read by build/probe-p96-remote-surfaces.mjs.
 registerP96RemoteSurfacesDrive();
+
+// PHASE 95 harness hook, in the same shape and for the same reason.
+registerP95ScrollDrive();
 
 // ---------------------------------------------------------------------------
 // Keyboard map (DESIGN.md §4) — one capture-phase listener; ⌘-chords and F2

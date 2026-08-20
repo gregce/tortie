@@ -50,6 +50,7 @@ import {
   restoreRemoteBody
 } from './machine-copy';
 import {
+  NoScrollbackNote,
   RenameInput,
   resumeMark,
   sessionMenuItems,
@@ -74,7 +75,7 @@ import { useTermFocused } from './term-focus';
 // Orientation "right": identity strip in the band (list lives in SessionDock)
 // ---------------------------------------------------------------------------
 
-function IdentityStrip({
+export function IdentityStrip({
   session,
   grouped,
   termFocused
@@ -118,7 +119,11 @@ function IdentityStrip({
         </span>
       )}
       {/* Phase 70: the identity strip has the room to say where this session
-          runs, and it is the one band that is always on screen. */}
+          runs. Phase 95 corrects a sentence that used to sit here, which said
+          this was the one band always on screen above a session. It is not.
+          It is the band for the "right" orientation only, and the "top"
+          orientation, which is the default, draws ./SessionStrip.tsx instead.
+          Anything that has to be seen by everyone goes in both. */}
       <MachineBadge machine={session.machine} className="identity-machine" />
       <span
         className={`strip-status${status === 'needs_input' ? ' attention' : ''}`}
@@ -133,6 +138,11 @@ function IdentityStrip({
           {mark}
         </span>
       ) : null}
+      {/* Phase 95: the same slot, the same muted shape. `resumeMark` is null
+          for every session on another machine, so these two never both draw.
+          ./SessionStrip.tsx draws the identical note in the "top" orientation,
+          because this band is not on screen there. */}
+      <NoScrollbackNote session={session} className="strip-note" />
       <span className="strip-spacer" />
       <button
         type="button"

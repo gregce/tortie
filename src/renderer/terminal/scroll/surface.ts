@@ -59,9 +59,20 @@ export interface ScrollView {
   atLive: boolean;
   /** gmux owns this pane's wheel (normal buffer, no inner mouse tracking). */
   owned: boolean;
+  /**
+   * A session on THIS Mac answered the last poll (Phase 95).
+   *
+   * True before the first answer arrives, so nothing is disabled while the
+   * first call is in flight. It goes false once and stays false for the life
+   * of this surface, which is what stops the poll.
+   */
+  hasPane: boolean;
 }
 
 const EMPTY: TerminalScrollState = {
+  // Phase 95. The state before the first answer. True, because the surface
+  // must not disable itself while its first call is still in flight.
+  hasPane: true,
   position: 0,
   history: 0,
   rows: 0,
@@ -87,7 +98,8 @@ function viewOf(state: TerminalScrollState): ScrollView {
     history: state.history,
     rows: state.rows,
     atLive: state.position === 0,
-    owned: !state.innerAlt && !state.innerMouse
+    owned: !state.innerAlt && !state.innerMouse,
+    hasPane: state.hasPane
   };
 }
 
@@ -105,6 +117,20 @@ export class ScrollSurface {
   private readonly inputQueue: string[] = [];
   private dragging = false;
   private disposed = false;
+  /**
+   * Main answered that there is no session for this row on this Mac (Phase 95).
+   *
+   * Two ordinary states produce that answer, being a session that runs on
+   * another machine and a session on this Mac that is not running. Neither is
+   * an error and neither changes while this surface is mounted, so the answer
+   * is kept and the poll stops. Before this field the surface asked again
+   * every second for as long as the session was on screen, and main threw
+   * every time, which printed a stack trace every second.
+   *
+   * A surface is built per mount, so a restore that brings a pane back builds
+   * a new one and the poll starts again.
+   */
+  private noPane = false;
   /** Reader's place before the current burst of resizes — see the hold below. */
   private holdPosition = 0;
   private holdTimer: ReturnType<typeof setTimeout> | null = null;
@@ -147,6 +173,12 @@ export class ScrollSurface {
    * whole bug; returning true hands the event to the app inside the pane.
    */
   handleWheel(event: WheelEvent): boolean {
+    // Phase 95. There is nothing here to scroll, so the wheel does nothing at
+    // all. False, not true: true hands the event to xterm, whose
+    // alternate-scroll branch emits `ESC O A` and `ESC O B`, and claude and
+    // codex read those as prompt-history navigation. Doing nothing is honest.
+    // Sending the wrong keys is not.
+    if (this.noPane) return false;
     if (!this.view.owned || scrollBridge() === null) return true;
     if (event.deltaY === 0) return false;
     this.pendingLines -= this.wheelLines(event);
@@ -185,6 +217,7 @@ export class ScrollSurface {
 
   /** Positive scrolls back in time; negative toward live output. */
   scrollBy(lines: number): void {
+    if (this.noPane) return;
     const api = scrollBridge();
     if (api === null || lines === 0) return;
     this.enqueue(() => api.by({ sessionId: this.sessionId, lines }));
@@ -192,12 +225,14 @@ export class ScrollSurface {
 
   /** One screen, the ⇧PageUp/⇧PageDown step. */
   scrollPages(pages: number): void {
+    if (this.noPane) return;
     const rows = Math.max(1, this.state.rows || this.term.rows);
     this.scrollBy(Math.round(pages * Math.max(1, rows - 1)));
   }
 
   /** Scrollbar drag: scrub to an absolute offset above the live bottom. */
   scrollTo(position: number): void {
+    if (this.noPane) return;
     const api = scrollBridge();
     if (api === null) return;
     this.enqueue(() => api.to({ sessionId: this.sessionId, position }));
@@ -219,7 +254,14 @@ export class ScrollSurface {
     const api = scrollBridge();
     const gmux = window.gmux;
     if (gmux === undefined) return;
-    if (api === null || (this.state.position === 0 && !this.state.inMode)) {
+    // Phase 95. `this.noPane` first: there is no copy-mode here to leave, so
+    // the keystroke goes straight through. Typing into a session on another
+    // machine has to keep working, and this is the line that decides it.
+    if (
+      this.noPane ||
+      api === null ||
+      (this.state.position === 0 && !this.state.inMode)
+    ) {
       gmux.term.sendInput(this.sessionId, data);
       return;
     }
@@ -260,7 +302,7 @@ export class ScrollSurface {
    * is also what keeps this off the hot path for every ordinary re-fit.
    */
   holdPositionAcrossResize(): void {
-    if (this.disposed) return;
+    if (this.disposed || this.noPane) return;
     if (this.holdTimer === null) {
       if (this.state.position === 0) return;
       this.holdPosition = this.state.position;
@@ -276,6 +318,7 @@ export class ScrollSurface {
 
   /** Re-read the pane, holding the reader's place under new output. */
   refresh(): void {
+    if (this.noPane) return;
     const api = scrollBridge();
     if (api === null) return;
     const anchorFrom =
@@ -309,21 +352,37 @@ export class ScrollSurface {
   private apply(state: TerminalScrollState): void {
     if (this.disposed) return;
     const changed =
+      state.hasPane !== this.state.hasPane ||
       state.position !== this.state.position ||
       state.history !== this.state.history ||
       state.rows !== this.state.rows ||
       state.innerAlt !== this.state.innerAlt ||
       state.innerMouse !== this.state.innerMouse;
     this.state = state;
+    // Phase 95. Main says there is no session for this row on this Mac. That
+    // is a fact rather than a failure and it does not change under this
+    // surface, so the answer is kept, the armed timer is dropped, the
+    // subscribers are told once, and no new timer is armed.
+    if (!state.hasPane) {
+      this.noPane = true;
+      if (this.timer !== null) {
+        clearTimeout(this.timer);
+        this.timer = null;
+        this.pollMs = 0;
+      }
+    }
     if (changed) {
       const view = this.view;
       for (const listener of this.listeners) listener(view);
     }
+    if (this.noPane) return;
     this.schedule();
   }
 
   private schedule(): void {
-    if (this.disposed) return;
+    // Phase 95. The brace to the belt in `apply` above. Every path that could
+    // arm a timer runs through here, so one test makes the stop permanent.
+    if (this.disposed || this.noPane) return;
     const wanted =
       this.state.position > 0 || this.dragging
         ? SCROLLED_POLL_MS

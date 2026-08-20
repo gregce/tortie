@@ -34,6 +34,8 @@ import { openSessionContext } from '../context/open-session';
 import {
   badgeTitle,
   remoteStatusNote,
+  NO_SCROLLBACK_HERE,
+  NO_SCROLLBACK_HERE_TITLE,
   NO_SNAPSHOT,
   REVIEW_ITEM_SUBLABEL,
   REVIEW_READING,
@@ -166,6 +168,59 @@ export function ResumeMark({
   return (
     <span className="resume-mark">
       <Codicon name="folder" size={12} />
+    </span>
+  );
+}
+
+/**
+ * Whether a surface says that Tortie cannot scroll back through this session
+ * (Phase 95).
+ *
+ * TRUE FOR EXACTLY ONE CASE, being a session that runs on another machine.
+ * Tortie reads saved output from the private session server on this Mac, and a
+ * session over there has no record here, so the lane at the right edge stays
+ * blank and the wheel moves nothing.
+ *
+ * FALSE FOR A SESSION ON THIS MAC THAT IS NOT RUNNING, and that is deliberate.
+ * Its surface is already the restore card or the ended card, and both of those
+ * say what the session is. A second sentence about scrolling would be noise on
+ * top of an answer the person already has.
+ *
+ * Exported so the tests can state the rule over a set of sessions rather than
+ * inferring it from what a render happened to produce.
+ */
+export function showsNoScrollbackNote(session: Session): boolean {
+  return session.machine !== undefined;
+}
+
+/**
+ * The quiet note itself, drawn by BOTH bands above the terminal (Phase 95).
+ *
+ * WHY IT LIVES HERE. There is no single band above a session. In the "right"
+ * orientation the band is the identity strip in ./TerminalRegion.tsx, and in
+ * the "top" orientation, which is the default a person gets, the band is the
+ * session tab strip in ./SessionStrip.tsx. A note written into only one of
+ * them is invisible to most people, which is exactly what the first build of
+ * this phase did. One component, imported by both, is what stops that.
+ *
+ * The two strips place it differently and that is why `className` is a prop.
+ * The identity strip draws it beside the resume mark, in the slot that is
+ * empty for exactly these sessions. The tab strip draws it in its own trailing
+ * cell, beside the overflow chevron, because the tabs themselves are too
+ * narrow for words and only the session on screen is being described.
+ */
+export function NoScrollbackNote({
+  session,
+  className
+}: {
+  session: Session;
+  className: string;
+}): React.JSX.Element | null {
+  if (!showsNoScrollbackNote(session)) return null;
+  return (
+    <span className={className} title={NO_SCROLLBACK_HERE_TITLE}>
+      <Codicon name="history" size={12} />
+      {NO_SCROLLBACK_HERE}
     </span>
   );
 }

@@ -270,6 +270,22 @@ export interface GmuxCaptureExtras {
 
 /** Live scroll geometry for one pane; drives both the wheel and the bar. */
 export interface TerminalScrollState {
+  /**
+   * A session on THIS Mac answered this call (Phase 95).
+   *
+   * False means Tortie has nothing here whose scroll it can read. That is the
+   * ordinary and correct answer in two cases, being a session that runs on
+   * another machine, and a session on this Mac that is not running. It is not
+   * an error and main never throws for it, so a caller gets an answer rather
+   * than a refusal it can only repeat.
+   *
+   * Every other field in this object is 0 or false when this is false, so a
+   * caller that ignores the field still draws no bar. A caller that reads it
+   * stops asking, which is the point: the poll that produced the same refusal
+   * once a second for as long as the session was on screen is the fault this
+   * field ends.
+   */
+  hasPane: boolean;
   /** Lines scrolled above the live bottom. 0 = live output. */
   position: number;
   /** Scrollback lines tmux holds above the screen. */
