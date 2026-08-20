@@ -6503,17 +6503,38 @@ below and no later round reopens them without his word.
 
 **Decision 1. Tortie MAY write a file on his machine, and a machine carries a NEW CONFIRMED FIELD for
 it.** He chose the shape with a precedent in the product, being the one `remoteTmuxPath` already
-follows. Three consequences, and the first is the one he will feel:
+follows.
 
-- **Every machine he has already confirmed asks him to confirm again**, because the execution hash
-  gains a field and an old agreement no longer matches. That includes Greg's Mac Pro. Phase 101 owns
-  saying this on screen in a way that reads as deliberate rather than as a fault.
-- `ALLOWED_WRITERS` moves from two to eight across phases 101 to 104, and rule 6 of
-  `src/main/machines/remote-scripts.ts` is rewritten in Phase 101 rather than accumulating silently.
-- The checkable sentence weakens on purpose. It was "no command Tortie sends can replace a file
+**A CORRECTION TO RESEARCH 57, MADE ON 2026-08-19 AFTER HE ASKED WHETHER THIS WOULD BLOCK HIM.** The
+document said every machine he has already confirmed would have to be confirmed again, and that is
+NOT true. The mechanism that avoids it is in the same file the document cites. `APPENDED_KEYS` in
+`src/main/machines/confirm.ts` holds the keys that `canonicalMachineText` emits ONLY when they are
+set, and `acceptedTmuxVersion` went in through exactly that route in Phase 83. Every row that existed
+then hashed byte for byte as before and nobody was asked again. The header of that file states the
+reason in its own words: asking again for a change that cannot affect a person is how they are
+trained to click through the sheet that matters.
+
+**So the sixth field takes the same route and these are the real consequences.**
+
+- **No machine he has already confirmed is disturbed.** A machine with writes not enabled carries no
+  value for the new key, so its hash does not move, its sessions keep running, and it asks nothing.
+  Phase 101 must prove this rather than assert it, by pinning the unchanged hash the way
+  `build/conformance-machines.mjs` already pins the unaccepted one.
+- **He confirms once, the first time he wants to save**, not when the phase lands. Enabling writes for
+  a machine sets the field, which moves that machine's hash, which is the moment the sheet appears.
+  That is the same flow Phase 83 shipped.
+- **Until he enables it, every write script refuses** and says which machine needs his word and where
+  to give it. A refusal is the correct state and it is not a fault.
+- `ALLOWED_WRITERS` still moves from two to eight across phases 101 to 104, and rule 6 of
+  `src/main/machines/remote-scripts.ts` is still rewritten in Phase 101 rather than accumulating
+  silently.
+- The checkable sentence still weakens on purpose. It was "no command Tortie sends can replace a file
   somebody already had". It becomes "no command Tortie sends can replace a file whose contents Tortie
   did not just verify by checksum". Phase 101 writes that sentence into the conformance gate so it
   stays checkable rather than becoming a claim.
+- `MACHINE_EXECUTION_HASH_ALGORITHM` stays `sha256-machine-exec-v1`, for the reason its own comment
+  gives. If a builder finds it must move, that is a finding to report rather than a change to make
+  quietly.
 
 **Decision 2. Search ANSWERS outside a git repository and says so.** It falls back to a `find` walk.
 He was told the cost before choosing: 366 to 753 ms against 174 to 176 ms, and the walk's answer
@@ -6521,7 +6542,17 @@ includes build output, so on the measured corpus it returned 19 lines where the 
 and 5 of the 19 were wrong. Phase 98 must say plainly, on screen, that the folder is not a repository
 and that nothing is being skipped, so a person can read why the answer looks wider than it should.
 
-## Phases 101 to 104 — the four write phases, UNBLOCKED 2026-08-19 by decision 1 above
+## Phases 101 to 104 — the four write phases, UNBLOCKED 2026-08-19 and MOVED TO LAST at his request
+
+**THE BUILD ORDER, set by him on 2026-08-19.** He said he would not be at the computer, so these four
+run LAST, after every read phase has landed. The reason he gave has since been shown not to apply,
+because the correction above means nothing here asks him to confirm a machine again. The order stands
+anyway, and for a better reason: these are the only Tier 3 rows in the programme, they are the first
+time Tortie replaces a file somebody already had on a computer nobody is watching, and he should be
+at the keyboard for the first save rather than reading about it afterwards.
+
+So the queue runs 97, 98, 99, 100, 105, 106, 107, 108 first, and then 101, 102, 103, 104 in that
+order.
 
 Research 57 section 11 named one decision that is his and not an agent's. **He answered it above on
 2026-08-19 and these four are now buildable.** They are, in order: Phase 101 save a file and create an empty file
