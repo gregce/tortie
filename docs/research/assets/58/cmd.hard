@@ -1,0 +1,56 @@
+/bin/sh -c 'set -e
+umask 077
+p="$1"
+x="$2"
+r="$3"
+o=
+b=
+IFS=:
+for d in $p; do
+  if [ -n "$d" ] && [ -d "$d" ] && { [ ! -r "$d" ] || [ ! -x "$d" ]; }; then b="$b$d
+"; fi
+done
+for d in $x; do
+  if [ -n "$d" ] && [ -d "$d" ] && { [ ! -r "$d" ] || [ ! -x "$d" ]; }; then b="$b$d
+"; fi
+done
+IFS='\''
+'\''
+for line in $r; do
+  if [ -z "$line" ]; then continue; fi
+  n=${line%% *}
+  if [ "$n" = "$line" ]; then e=; else e=${line#* }; fi
+  f=
+  s=
+  IFS=:
+  for d in $p; do
+    if [ -n "$d" ] && [ -f "$d/$n" ] && [ -x "$d/$n" ]; then f="$d/$n"; s=path; break; fi
+  done
+  if [ -z "$f" ]; then
+    for d in $e; do
+      if [ -n "$d" ] && [ -f "$d/$n" ] && [ -x "$d/$n" ]; then f="$d/$n"; s=agent; break; fi
+    done
+  fi
+  if [ -z "$f" ]; then
+    for d in $x; do
+      if [ -n "$d" ] && [ -f "$d/$n" ] && [ -x "$d/$n" ]; then f="$d/$n"; s=install; break; fi
+    done
+  fi
+  IFS='\''
+'\''
+  o="$o${s:-none} $n ${f:-none}
+"
+done
+printf '\''__TORTIE_RUN__%s%s__TORTIE_RUN__\n'\'' "${o:-none}" "${b:+unreadable
+$b}"
+' tortie-agents-find /usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/Library/Apple/usr/bin /Users/gdc/.local/bin:/opt/homebrew/bin:/usr/local/bin:/Users/gdc/bin:/Users/gdc/.claude/local:/Users/gdc/.npm-global/bin:/Users/gdc/.bun/bin:/Users/gdc/.cursor/bin 'claude /Users/gdc/.claude/local
+cursor-agent /Users/gdc/.cursor/bin
+codex
+gemini
+droid
+codewhale
+agy
+muse
+qwen
+pi /Users/gdc/.npm-global/bin:/Users/gdc/.local/bin
+grok /Users/gdc/.grok/bin'

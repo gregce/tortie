@@ -1,0 +1,12 @@
+__TORTIE_RUN__install claude /Users/gdc/.local/bin/claude
+install cursor-agent /Users/gdc/.local/bin/cursor-agent
+none codex none
+none gemini none
+none droid none
+none codewhale none
+none agy none
+none muse none
+none qwen none
+none pi none
+none grok none
+__TORTIE_RUN__

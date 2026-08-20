@@ -7754,10 +7754,34 @@ Tier 3. A verifier that only reads code has not verified this phase. Every item 
 18. **Count the operator's sessions with `tmux -L gmux list-sessions` before and after and report both numbers.** `activeTmuxSocket` in `src/main/tmux/resolve.ts` honours `GMUX_TMUX_SOCKET` ONLY when one of `GMUX_SMOKE`, `GMUX_SHOT` or `GMUX_UPDATE_REHEARSAL` is set. A launch without one of those logs `GMUX_TMUX_SOCKET is set but this is not a harness launch, so it is ignored.` through `tmuxLog.warn` and then uses his real server, so the warning is in the log and the sessions at risk are his.
 19. **Say what is not true.** Name what was measured on the loopback machine only and never on the Mac Pro. Name whether any Linux machine was contacted. Name whether a signing configuration was ever exercised, and if it was not, say that hazard 2 is answered by design and by one photographed sentence rather than by measurement. Say plainly that the window between main's `review-list` re-read and the far side's commit is one round trip wide and is not closed.
 
-## Research 58 — which agents exist on which machine, and when Tortie looks (operator requested 2026-08-19) QUEUED
+## Research 58 — which agents exist on which machine, and when Tortie looks (operator requested 2026-08-19) ✅ DELIVERED 2026-08-19 (this commit), docs/research/58-agents-per-machine.md, checked against the tree of `a497521`
 
 **Subject:** `docs(research): which agents exist on which machine, and when Tortie looks`
 **First body line:** `Research 58: which agents exist on which machine`
+
+**The ruling, recorded.** Build it, smaller and in a different order than the earlier draft
+proposed, because the defect the operator lives with today is the reverse of the one that draft
+named. `AgentTile` in `src/renderer/app/AgentGrid.tsx` greys a tile on `!option.installed`, and
+`option.installed` comes from `buildAgentOptions` in `src/renderer/state/agents.ts`, which takes no
+machine, so an agent installed on the machine and absent from this Mac is already unselectable with
+no way to overrule it, and fixing that costs zero round trips and is why only a POSITIVE absent may
+ever grey a tile. The batched read becomes a thirteenth read script called `agents-find` rather than
+a rewrite of `program-find`, because `program-find` sits on the remote restore path at
+`src/main/machines/remote-restore.ts:339`, and its answer is held in main memory against the
+connection generation and written to no disk, so Phase 109 at Tier 3 and Phase 110 at Tier 2 can
+both start without the operator's word.
+
+**No decision needs the operator's word.** Two choices were made on his behalf and section 10 of the
+document records both with the cost of overruling them. The tile keeps the words `not installed` and
+the machine is named once under the board, because `MACHINE_LIMITS.maxLabel` is 40 and the meta slot
+was measured at 67 px. The create still asks the machine at create time rather than trusting the
+scan, so a remote create costs the same round trip it costs today.
+
+**The phase entries are section 11 of the document, ready to paste.** Phase 109 owns the IPC channel
+and the corrections, so the two file sets are disjoint. The measured numbers behind the shape are
+52 ms for the one batched call against 480 ms for 11 separate `program-find` calls in series, and
+1,703 composed bytes against the 131,072 byte cap. Section 9 lists what nobody measured, and the
+largest item is that no gate was run and no machine was contacted by the author.
 
 **The operator's ask, in his words.** "We should add a phase that ensures that we appropriately scan
 the remote machine to verify its installed agents, because with Cmd+T you can mistakenly try to open
