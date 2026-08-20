@@ -27,8 +27,18 @@ import * as tmux from '../tmux';
 const delay = (ms: number): Promise<void> =>
   new Promise((r) => setTimeout(r, ms));
 
-/** Root under $TMPDIR for the per-agent scratch working directories. */
-export const SCRATCH_ROOT = join(tmpdir(), 'gmux-conformance');
+/**
+ * Root for the per-agent scratch working directories. Under a harness run,
+ * GMUX_HARNESS_DIR is set before this process starts and the root sits inside
+ * that run's own directory, so two conformance runs never share a working
+ * directory and one run's sweep deletes only its own work (Phase 114, root 2
+ * of Phase 112's list). Without a harness the old location under $TMPDIR is
+ * kept.
+ */
+export const SCRATCH_ROOT = join(
+  process.env['GMUX_HARNESS_DIR'] ?? tmpdir(),
+  'gmux-conformance'
+);
 
 /**
  * Every session this harness creates starts with this. It is the ONLY thing

@@ -92,6 +92,19 @@ the harness puts `<repo>/node_modules/.bin` on the child's PATH itself, so
 `electron` is found without `npm run`. Before Phase 112 the second way exited
 127 with `electron: command not found`.
 
+Since Phase 114 the harness writes a run marker named `<socket>.run` beside
+the socket file before its child starts, and its teardown removes the marker.
+The cleanup at the start of every harness run reads marker files only. A
+server whose marker names a dead process id is ended, and a socket file with
+no marker is never touched, whatever its name looks like. Sockets left behind
+by runs from before Phase 114 carry no marker, so a person removes those by
+hand. The same phase gave the standalone smokes their own names. `npm run
+smoke:create` and `npm run smoke:verify` outside a harness now run on
+`gmux-smoke-t1-<directory>` with the profile at
+`${TMPDIR:-/tmp}/gmux-smoke-t1-<directory>`, so two directories never share a
+server while create and verify in one directory still do. The wrapper writes
+no marker on purpose, because the server has to survive between the two runs.
+
 ### Where each remote gate keeps its isolated config root
 
 Each of these gates runs the app under its own config root and its own tmux

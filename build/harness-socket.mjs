@@ -28,7 +28,9 @@
  *
  * WHAT IT REFUSES, AND IN WHICH ORDER. The socket name `gmux` and the socket
  * name `default` are rejected, and the base must look like `gmux-<something>`.
- * These three checks run on the BASE the caller passed, BEFORE the tag is
+ * The checks and their messages live in `build/harness-run-tag.mjs`, shared
+ * with `build/smoke-standalone.mjs` so the two scripts can never drift. These
+ * three checks run on the BASE the caller passed, BEFORE the tag is
  * composed. Composing first would let `gmux` become `gmux-wt-1234`, which is
  * not `gmux` and would pass every check. The order is the safety property, so
  * do not move the composition above the refusals. A fourth check runs after the
@@ -45,61 +47,52 @@
  * no-op. It is kept because it costs nothing and because a caller that means
  * "start from nothing" should be able to say so.
  *
- * ENDING WHAT AN EARLIER RUN LEFT. A harness killed with SIGKILL never runs its
- * teardown, and a generated name is one nobody will type again by hand. So at
- * start this script ends servers whose name matches `gmux-<something>-<digits>`
- * and whose trailing number is a process id that is no longer alive. A run in a
- * neighbouring worktree has a live process id and is skipped, which is what
- * makes two runs at once safe from each other.
+ * THE RUN MARKER (Phase 114). Before the child spawns, this script writes
+ * `<socket>.run` beside the socket file, one JSON line with the pid, the
+ * working directory and the start time, and `teardown` removes it. The marker
+ * is the proof that THIS mechanism created the server, and it is what the
+ * reap below trusts. tmux never opens the marker, because nothing passes a
+ * name ending in `.run` to `-L`.
  *
- * `harnessRunTag()` is exported for a later phase. Importing this file also
- * runs the command line above it, so a phase that wants the function should
- * move it into a module of its own first.
+ * ENDING WHAT AN EARLIER RUN LEFT. A harness killed with SIGKILL never runs
+ * its teardown, and a generated name is one nobody will type again by hand. So
+ * at start this script ends the servers that dead runs left behind. Since
+ * Phase 114 it reads MARKER files only: a marker named
+ * `gmux-<something>-<digits>.run` whose trailing number is a process id that
+ * is no longer alive names a dead run, and its server, its socket file and the
+ * marker itself are removed. A socket file with no marker is NEVER touched,
+ * whatever its name looks like, so a server some other mechanism created, e.g.
+ * a standalone smoke server whose directory slug happens to end in digits, is
+ * safe from this script. A run in a neighbouring worktree has a live process
+ * id and is skipped, which is what makes two runs at once safe from each
+ * other. One cost is accepted: sockets left behind by runs from before the
+ * marker existed carry no marker and are no longer reaped, and a person
+ * removes those by hand.
+ *
+ * Process ids are reused on macOS, so a stale marker whose number has been
+ * taken by an unrelated live process survives until that process exits. It is
+ * ended by a later run. This is a cleanup and not a promise that the directory
+ * is empty at any instant.
  *
  * Usage: node build/harness-socket.mjs [--fresh] <socket-name> '<shell command>'
  */
 
 import { execFile, spawn } from 'node:child_process';
-import { mkdirSync, readdirSync, rmSync } from 'node:fs';
-import { dirname, join, basename } from 'node:path';
+import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
+import {
+  harnessRunTag,
+  refuseReason,
+  MAX_SOCKET_NAME
+} from './harness-run-tag.mjs';
 
 const execFileP = promisify(execFile);
-
-/** The operator's live server. Never reachable from this script. */
-const REAL_SOCKET = 'gmux';
-/** The user's own tmux server. Tortie never touches it. */
-const USER_SOCKET = 'default';
-/**
- * The longest composed socket name this script will use. tmux puts the socket
- * at `${TMUX_TMPDIR:-/tmp}/tmux-<uid>/<name>`, which is 14 bytes of prefix on
- * this Mac, so 64 leaves the path at 78 bytes against a system limit of 104.
- */
-const MAX_SOCKET_NAME = 64;
 
 function refuse(why) {
   console.error(`[harness-socket] ${why}`);
   process.exit(2);
-}
-
-/**
- * The part of a socket name that makes it this run's own.
- *
- * The slug is the current directory's own name, so a worktree at
- * `/tmp/.../wt-p112` gives `wt-p112` and a CI checkout gives the repository
- * name. It is lowercased, every character outside a to z and 0 to 9 becomes a
- * dash, runs of dashes collapse to one, leading and trailing dashes go, and the
- * result is cut to 12 characters. When nothing is left the word `run` is used.
- */
-export function harnessRunTag() {
-  const cut = basename(process.cwd())
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 12)
-    .replace(/-+$/, '');
-  return `${cut === '' ? 'run' : cut}-${process.pid}`;
 }
 
 /** Where tmux keeps its socket files for this user. */
@@ -110,13 +103,16 @@ function socketDir() {
 /**
  * End the servers that runs which have already exited left behind.
  *
- * The bounds here are the whole safety argument. A name is only considered when
- * it starts with `gmux-` and ends with a dash and digits, so `gmux` itself never
- * matches and neither does `default`. The digits are read as a process id and
- * the server is only ended when that process is gone. A live neighbour is
- * skipped, so two runs at once cannot end each other.
+ * The bounds here are the whole safety argument. Only MARKER files are
+ * considered, and only this script writes markers, so a server that some
+ * other mechanism created is never a candidate no matter what its name looks
+ * like. A marker names a dead run only when its trailing digits are a process
+ * id that is gone. A live neighbour is skipped, so two runs at once cannot
+ * end each other. A marker whose server never started is still cleaned up,
+ * because the kill is best effort and removing the marker is what ends the
+ * entry.
  *
- * Process ids are reused on macOS, so a stale socket whose number has been
+ * Process ids are reused on macOS, so a stale marker whose number has been
  * taken by an unrelated live process survives until that process exits. It is
  * ended by a later run. This is a cleanup and not a promise that the directory
  * is empty at any instant.
@@ -130,10 +126,11 @@ async function reapDeadRuns() {
     return; // no socket directory yet, nothing to end
   }
   let ended = 0;
-  for (const name of entries) {
-    const match = /^gmux-.+-(\d+)$/.exec(name);
+  for (const entry of entries) {
+    const match = /^(gmux-.+-(\d+))\.run$/.exec(entry);
     if (match === null) continue;
-    const pid = Number(match[1]);
+    const name = match[1];
+    const pid = Number(match[2]);
     if (!Number.isInteger(pid) || pid <= 0) continue;
     try {
       process.kill(pid, 0);
@@ -143,6 +140,7 @@ async function reapDeadRuns() {
     }
     await execFileP('tmux', ['-L', name, 'kill-server']).catch(() => undefined);
     rmSync(join(dir, name), { force: true });
+    rmSync(join(dir, entry), { force: true });
     ended += 1;
   }
   if (ended > 0) {
@@ -162,15 +160,8 @@ if (!base || !command) {
 }
 // The three refusals run on the BASE, before the tag is composed. See the
 // header comment: composing first would let "gmux" pass.
-if (base === REAL_SOCKET) {
-  refuse(`refusing to run a harness on "${base}", the real server`);
-}
-if (base === USER_SOCKET) {
-  refuse(`refusing to run a harness on "${base}", the user's own tmux`);
-}
-if (!/^gmux-[A-Za-z0-9._-]+$/.test(base)) {
-  refuse(`"${base}" is not a harness socket name; use gmux-<something>`);
-}
+const why = refuseReason(base);
+if (why !== null) refuse(why);
 
 const socket = `${base}-${harnessRunTag()}`;
 if (socket.length > MAX_SOCKET_NAME) {
@@ -178,6 +169,13 @@ if (socket.length > MAX_SOCKET_NAME) {
     `the socket name "${socket}" is ${socket.length} characters and the limit is ${MAX_SOCKET_NAME}. Use a shorter base name.`
   );
 }
+
+/**
+ * The run marker, beside the socket file itself. Writing it is what makes the
+ * server reapable by a later run; removing it in teardown is what makes this
+ * run finished. See the header.
+ */
+const markerFile = join(socketDir(), `${socket}.run`);
 
 /**
  * This run's own directory, named after its own socket so a person reading a
@@ -192,10 +190,14 @@ console.log(`[harness-socket] socket ${socket}, profile ${runDir}`);
 await reapDeadRuns();
 
 /**
- * End the scratch server and remove the socket file it leaves behind.
+ * End the scratch server, remove the socket file it leaves behind, and remove
+ * this run's marker.
  *
  * The path is read out of tmux rather than guessed. tmux puts its sockets under
- * $TMUX_TMPDIR or /tmp, never under the TMPDIR Node reports on macOS.
+ * $TMUX_TMPDIR or /tmp, never under the TMPDIR Node reports on macOS. The
+ * marker is removed unconditionally, because a run whose child never started a
+ * server has no server to end and the marker must not outlive the run either
+ * way.
  */
 async function teardown(when) {
   const path = await execFileP('tmux', [
@@ -207,9 +209,14 @@ async function teardown(when) {
   ])
     .then((r) => r.stdout.trim())
     .catch(() => '');
+  if (path !== '') {
+    await execFileP('tmux', ['-L', socket, 'kill-server']).catch(
+      () => undefined
+    );
+    if (path.endsWith(`/${socket}`)) rmSync(path, { force: true });
+  }
+  rmSync(markerFile, { force: true });
   if (path === '') return; // no server on this socket, nothing to end
-  await execFileP('tmux', ['-L', socket, 'kill-server']).catch(() => undefined);
-  if (path.endsWith(`/${socket}`)) rmSync(path, { force: true });
   console.log(
     `[harness-socket] ended the scratch server on -L ${socket} (${when})`
   );
@@ -218,6 +225,19 @@ async function teardown(when) {
 // `--fresh` runs the same teardown first, so a server an earlier run left
 // behind cannot be mistaken for the one this run creates.
 if (fresh) await teardown('before the harness');
+
+// The marker is written after the refusals, after the reap, and after the
+// `--fresh` pre-teardown, immediately before the child spawns. The directory
+// is created with the ownership and mode tmux itself requires.
+mkdirSync(socketDir(), { recursive: true, mode: 0o700 });
+writeFileSync(
+  markerFile,
+  `${JSON.stringify({
+    pid: process.pid,
+    cwd: process.cwd(),
+    started: new Date().toISOString()
+  })}\n`
+);
 
 // `npm run` is what puts node_modules/.bin on PATH, so driving this script with
 // plain `node` used to exit 127 with "electron: command not found". The folder

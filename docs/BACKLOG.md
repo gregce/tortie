@@ -6714,7 +6714,7 @@ decides.**
 Every probe that reads a screenshot has to be re-checked, because each one currently sees whatever
 his server holds. Count them first and say the number.
 
-## Phase 114 — three more shared roots Phase 112 did not close QUEUED
+## Phase 114 — three more shared roots Phase 112 did not close ✅ SHIPPED 2026-08-20 (this commit, 0.58.3, gates green, 7,163 tests)
 
 **Subject:** `fix(build): the last shared harness roots get a run of their own`
 **First body line:** `Phase 114: three more shared roots`
@@ -6741,6 +6741,61 @@ Two more facts from Phase 112, recorded and not scheduled: the reap does not emp
 directory, because macOS reuses process ids and a stale socket whose number was taken by a live
 process survives until that process exits. And run directories are never deleted, which was a
 deliberate choice, because a failed run's profile is the evidence a person needs.
+
+### How it landed, 2026-08-20
+
+All three roots are closed and each one was proved by running things rather than by reading code.
+The version moved from 0.58.0 to 0.58.1, a patch, because the one product line that changed is a
+scratch directory location.
+
+**Root 1, the standalone smokes.** `smoke:create` and `smoke:verify` now run through
+`build/smoke-standalone.mjs`. Inside a harness the wrapper uses the harness's socket and profile
+untouched, which `npm run smoke:t1` proves by passing. Standalone, it composes
+`gmux-smoke-t1-<directory>`. Two real create and verify pairs ran at once in two directories with
+neither variable set. The socket directory held both sockets at the same time, one pair read
+`gmux-smoke-t1-wt-p114` and the other read `gmux-smoke-t1-p114v-two`, and both pairs finished 5/5
+create and 6/6 verify with exit 0. Create and verify in one directory still land on one server,
+because the composed name carries no process id on purpose, and the wrapper writes no run marker,
+so the reap can never end the server between the two runs. The wrapper also refuses what the old
+lines let through. `GMUX_TMUX_SOCKET=gmux npm run smoke:create` used to reach the operator's real
+server, and it now exits 2 before any Electron process exists.
+
+**Root 2, the conformance scratch root.** `SCRATCH_ROOT` sits under `GMUX_HARNESS_DIR` when that
+variable is set, which it always is under the harness. Two `npm run conformance:resume:capture`
+runs ran at once. Each Electron kept its per agent directories inside its own run directory, a
+sentinel file planted at the old shared `join(tmpdir(), 'gmux-conformance')` survived both runs
+untouched, and both runs finished 7 PASS, 0 FAIL, 0 BLOCKED, 4 SKIP in 22.7 s and 22.0 s. Neither
+run's sweep deleted the other's work. A new unit test in
+`src/main/conformance/__tests__/scratch-root.test.ts` pins the constant with and without the
+variable.
+
+**Root 3, the reap now needs a marker.** The harness writes `<socket>.run` beside the socket file
+before its child starts and removes it at teardown. The cleanup at the start of every run reads
+marker files only. In a controlled run, a marked dead entry was reaped and the directory diff
+showed exactly two entries removed, being the socket and its marker, while an unmarked look-alike
+server with a dead process id in its name still answered `list-sessions` after the reap line
+printed. A server this mechanism did not create can no longer be ended by it.
+
+**The refusals still refuse, measured.** `node build/harness-socket.mjs gmux 'true'` exits 2 with
+the real server message, and `default` and a nonsense name exit 2 with theirs. The wrapper shares
+the same texts through `refuseReason` in the new `build/harness-run-tag.mjs`, so the two scripts
+cannot drift. `node build/contract-inventory.mjs --check` matched the baseline byte for byte, so
+no `GMUX_*` name was added or changed and no re-baseline was made.
+
+**Two costs, named so nobody is surprised.**
+
+- Sockets left behind by runs from before this phase carry no marker and are never reaped again.
+  The socket directory held about 140 such entries at ship time. A person removes them by hand if
+  an empty directory is wanted.
+- A stale marker whose dead process id was taken by a live process survives until that process
+  exits. That caveat is unchanged from Phase 112.
+
+One more thing is still true for a while. Worktrees running code from before this phase keep the
+old name shape reap until they rebase, so a neighbouring run can still end an unmarked server.
+That resolves as the other in-flight phases land on top of this commit.
+
+The operator's server was read only throughout. `tmux -L gmux list-sessions | wc -l` read 39 at
+every checkpoint of the build, the verification and the commit.
 
 ## Phase 96 — the four defects on the remote surfaces (research 57 row, queued 2026-08-19) ✅ SHIPPED 2026-08-19 (this commit, 0.49.1, gates green, 6,575 tests)
 
