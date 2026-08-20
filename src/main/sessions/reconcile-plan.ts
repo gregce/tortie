@@ -22,6 +22,9 @@ import { IDENTITY_HARVEST_KEYS } from '../manifest';
 import type { ClaimStrength, ManifestSessionRecord } from '../manifest';
 // Type only, so this module still touches no tmux code at runtime.
 import type { ServerProbeVerdict } from '../tmux/errors';
+// Type only, for the same reason. The reason word the pass logs is the one the
+// capsule already records, so there is one vocabulary rather than two.
+import type { SnapshotReason } from '../restore';
 // Phase 71. The id this Mac is registered under, imported rather than written
 // again, so there is ONE definition of the word `local` on the reconcile path.
 // It is a plain string constant; nothing is started by reading it.
@@ -61,6 +64,125 @@ export function snapshotFailureNotice(
     sessions: unwritten.length,
     outOfSpace: unwritten.some((one) => one.outOfSpace)
   };
+}
+
+// ---------------------------------------------------------------------------
+// Phase 111 — a capture pass that says what it did
+//
+// The pass has four ways to write nothing and, until this phase, three of them
+// left no trace at all. Only a DurableWriteError was ever reported. A row
+// skipped for its status, a row with no live binding on this Mac, and a pane
+// with an empty screen all passed in silence. That silence is why the nightly
+// durability lane read red for two days with nothing able to say which of the
+// three had happened, so the pass now accounts for itself in one line.
+//
+// COUNTING IS NOT NAMING, and the two rules are deliberately different. Every
+// row is counted. Only a row that had a live pane on this Mac and still ended
+// with nothing saved is named, being an empty screen or a write that threw.
+// A row that was never a candidate for a capture is counted and not named.
+// There are two of those, being a row whose status is not a live one and a row
+// that is live on a different machine, and neither is a loss. Naming them cost
+// the line the only thing it exists to print. A manifest holds every session a
+// person ever ran, so the names of long-finished rows fill the whole budget
+// before the one real failure is reached, and a session running fine on
+// another Mac reads as lost under the heading "Not written". The decision is
+// made here, in `NAMED_OUTCOMES`, so that no call site can get it wrong.
+//
+// It adds no user-facing notice and it changes none. The Phase 19 item 4 rule
+// above is untouched: one notice per pass, and only for a write failure.
+// ---------------------------------------------------------------------------
+
+/** At most this many names are printed before the count takes over. */
+const UNWRITTEN_NAME_CAP = 8;
+
+/**
+ * Every way one row can leave a capture pass. Each row lands in exactly one.
+ *
+ * - `written`: the capsule is on disk.
+ * - `nothingOnScreen`: the capture resolved false. On this pass that means the
+ *   pane was live and its screen was empty, so there was nothing to save, and
+ *   an empty screen is the only producer of false that reaches here.
+ *   `storeCapsuleLocked` also returns false when a remote capture repeats a
+ *   body it already holds. That path does not run in this pass. A later phase
+ *   that routes a remote capture through here has to add a member rather than
+ *   reuse this one, because the words below would be wrong for that row.
+ * - `notRunning`: the row's status is not a live one, so the pass never looked
+ *   at a pane. A row the person discarded is counted here too.
+ * - `noPaneHere`: the row is live, and it is live on another machine, so this
+ *   Mac holds no binding for it.
+ * - `failed`: a capture or a write threw.
+ */
+export type SnapshotOutcome =
+  | 'written'
+  | 'nothingOnScreen'
+  | 'notRunning'
+  | 'noPaneHere'
+  | 'failed';
+
+/** What one row did in a capture pass. */
+export interface SnapshotPassResult {
+  name: string;
+  outcome: SnapshotOutcome;
+}
+
+/**
+ * The phrase each outcome is named with, or null for the ones only counted.
+ *
+ * This table is the naming rule from the header, written once. An outcome
+ * added without an answer here is a compile error, rather than a line that
+ * quietly buries the failure it was written to show.
+ */
+const NAMED_OUTCOMES: Record<SnapshotOutcome, string | null> = {
+  written: null,
+  nothingOnScreen: 'nothing on screen',
+  notRunning: null,
+  noPaneHere: null,
+  failed: 'could not be written'
+};
+
+/**
+ * The one line a capture pass owes the log, built from its own results.
+ *
+ * Pure. It returns a string and logs nothing, which is what makes the wording
+ * testable without a booted core. The caller does the writing.
+ *
+ * The caller hands over one result per row and nothing else. Which outcomes
+ * get a name, and how many names one line may carry, are both settled here.
+ */
+export function snapshotPassLine(
+  reason: SnapshotReason,
+  results: readonly SnapshotPassResult[]
+): string {
+  const counts: Record<SnapshotOutcome, number> = {
+    written: 0,
+    nothingOnScreen: 0,
+    notRunning: 0,
+    noPaneHere: 0,
+    failed: 0
+  };
+  const names: string[] = [];
+  for (const one of results) {
+    counts[one.outcome] += 1;
+    const phrase = NAMED_OUTCOMES[one.outcome];
+    if (phrase !== null) names.push(`"${one.name}" (${phrase})`);
+  }
+  const total = results.length;
+  let line =
+    `scrollback pass (${reason}) over ${total} ` +
+    `${total === 1 ? 'session' : 'sessions'}: ` +
+    `${counts.written} written, ` +
+    `${counts.nothingOnScreen} had nothing on screen, ` +
+    `${counts.notRunning} were not running, ` +
+    `${counts.noPaneHere} had no pane on this Mac, ` +
+    `${counts.failed} could not be written.`;
+  if (names.length > 0) {
+    const shown = names.slice(0, UNWRITTEN_NAME_CAP);
+    const rest = names.length - shown.length;
+    line +=
+      ` Not written: ${shown.join(', ')}` +
+      `${rest > 0 ? `, and ${rest} more` : ''}.`;
+  }
+  return line;
 }
 
 // ---------------------------------------------------------------------------

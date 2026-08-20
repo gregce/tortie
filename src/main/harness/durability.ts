@@ -16,11 +16,17 @@ import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import type { ManifestSessionRecord } from '../manifest';
-import { snapshotPath, stripAnsi } from '../restore';
+import { snapshotPath } from '../restore';
 import { getGmuxCore, shutdownGmuxCore } from '../sessions';
 import type { GmuxCore } from '../sessions';
 import * as tmux from '../tmux';
-import { armWatchdog, receiveTermBytes, smokeFail, smokeLog } from './support';
+import {
+  armWatchdog,
+  receiveTermBytes,
+  smokeFail,
+  smokeLog,
+  waitForPaneText
+} from './support';
 
 const SMOKE_KEEPER = 'smoke-keeper';
 
@@ -165,7 +171,15 @@ async function cleanupT3Leftovers(core: GmuxCore): Promise<void> {
 
 /** GMUX_SMOKE=t3-prep — first half of the T3 acceptance test. */
 export async function runSmokeT3Prep(): Promise<void> {
-  armWatchdog(60_000);
+  // PHASE 111 raised this from 60 s. The prep now waits for each planted
+  // marker to reach the pane, and each of those two waits may take 25 s. Boot
+  // plus two creates measures about 5 s on this Mac, so the worst case is
+  // about 55 s and the old ceiling left 5 s of room. A runner slow enough to
+  // have produced this failure would have hit the watchdog first and printed
+  // "60s watchdog expired", which says nothing, instead of the wait's own
+  // message, which names the string that never arrived and prints the last 15
+  // lines of the pane.
+  armWatchdog(90_000);
   try {
     const core = await getGmuxCore();
     smokeLog('1/6 core booted');
@@ -185,9 +199,16 @@ export async function runSmokeT3Prep(): Promise<void> {
         extraArgs: ['-c', `echo ${marker}; while true; do date; sleep 1; done`]
       });
       const bytes = await receiveTermBytes(core, session.id);
+      // PHASE 111. THE BYTES ARE NOT THE MARKER. `receiveTermBytes` resolves on
+      // the first %output chunk of any size, and that chunk is the attach
+      // client redrawing the pane. It arrives whether the shell has printed or
+      // not. Nothing may quit until the marker is really on the screen the
+      // app-quit capture is about to read, or that capture reads an empty pane,
+      // writes nothing, and the snapshot read below fails with ENOENT.
+      await waitForPaneText(session.tmuxName, [marker], { label: kase.name });
       smokeLog(
         `3/6 ${kase.name} created: ${session.tmuxName} (${session.id}), ` +
-          `${bytes} bytes of term data — marker is on screen`
+          `${bytes} bytes of term data, marker on screen`
       );
 
       // The row is relabelled to the agent under test so restore takes that
@@ -294,27 +315,14 @@ async function verifyT3Case(
 
   // The pane runs the user's real interactive shell; poll capture-pane
   // until the replayed marker AND the armed (typed, unexecuted) resume
-  // command are both visible.
-  const deadline = Date.now() + 25_000;
-  let lastCapture = '';
-  let ok = false;
-  while (Date.now() < deadline) {
-    lastCapture = stripAnsi(
-      await tmux.capturePane(restoredLive.sessionId).catch(() => '')
-    );
-    if (lastCapture.includes(marker) && lastCapture.includes(armed)) {
-      ok = true;
-      break;
-    }
-    await new Promise((r) => setTimeout(r, 500));
-  }
-  if (!ok) {
-    throw new Error(
-      `${kase.name}: capture-pane never showed marker+armed command.\n` +
-        `wanted marker: ${marker}\nwanted armed: ${armed}\n` +
-        `last capture tail:\n${lastCapture.split('\n').slice(-15).join('\n')}`
-    );
-  }
+  // command are both visible. Phase 111 moved this poll into
+  // `waitForPaneText`, because the T3 prep needs the same wait and two copies
+  // of it is how the prep ended up with none.
+  const lastCapture = await waitForPaneText(
+    restoredLive.sessionId,
+    [marker, armed],
+    { label: kase.name }
+  );
 
   // The armed line must be TYPED, not executed — the fake uuid would have
   // errored loudly if the agent had actually run. Cheap negative check:

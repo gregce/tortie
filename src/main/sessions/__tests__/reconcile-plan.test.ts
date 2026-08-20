@@ -15,6 +15,10 @@
  * Phase 71 gave `unreachableFlips` its machine filter and added the suite that
  * proves it, being the last one in this file. The property it holds is short:
  * one machine's lost link never moves another machine's rows.
+ *
+ * Phase 111 added the `snapshotPassLine` suite. It pins the sentence a capture
+ * pass writes about itself, which is the line a red durability lane is meant to
+ * be readable from.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -24,9 +28,11 @@ import {
   identityProbeVerdict,
   listAttemptOutcome,
   retainedBindings,
+  snapshotPassLine,
   staleCreateIds,
   statusFlipActions,
-  unreachableFlips
+  unreachableFlips,
+  type SnapshotPassResult
 } from '../reconcile-plan';
 import { LOCAL_MACHINE_ID } from '../../machines/context';
 import type { SessionStatus } from '@shared/types';
@@ -363,5 +369,138 @@ describe('unreachableFlips', () => {
     it('LOCAL_MACHINE is the id the machine registry uses', () => {
       expect(LOCAL_MACHINE).toBe(LOCAL_MACHINE_ID);
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 111 — the line a capture pass writes about itself
+// ---------------------------------------------------------------------------
+
+describe('snapshotPassLine', () => {
+  /** `n` rows of one outcome, named `<prefix>0` upward. */
+  const rows = (
+    n: number,
+    outcome: SnapshotPassResult['outcome'],
+    prefix: string
+  ): SnapshotPassResult[] =>
+    Array.from({ length: n }, (_, i) => ({ name: `${prefix}${i}`, outcome }));
+
+  it('says nothing more than the count when everything was written', () => {
+    expect(snapshotPassLine('app-quit', rows(6, 'written', 'live'))).toBe(
+      'scrollback pass (app-quit) over 6 sessions: 6 written, 0 had nothing ' +
+        'on screen, 0 were not running, 0 had no pane on this Mac, 0 could ' +
+        'not be written.'
+    );
+  });
+
+  it('is the sentence in the spec for a mixed pass', () => {
+    const results: SnapshotPassResult[] = [
+      ...rows(6, 'written', 'live'),
+      { name: 'smoke-t3-agent', outcome: 'nothingOnScreen' },
+      ...rows(2, 'notRunning', 'old-run-')
+    ];
+    expect(snapshotPassLine('app-quit', results)).toBe(
+      'scrollback pass (app-quit) over 9 sessions: 6 written, 1 had nothing ' +
+        'on screen, 2 were not running, 0 had no pane on this Mac, 0 could ' +
+        'not be written. Not written: "smoke-t3-agent" (nothing on screen).'
+    );
+  });
+
+  /** One session is one session. A line that reads "1 sessions" is sloppy. */
+  it('writes the singular when the pass saw one row', () => {
+    expect(snapshotPassLine('session-close', rows(1, 'written', 'one'))).toBe(
+      'scrollback pass (session-close) over 1 session: 1 written, 0 had ' +
+        'nothing on screen, 0 were not running, 0 had no pane on this Mac, ' +
+        '0 could not be written.'
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // The naming rule. These four are the whole point of the line, because a
+  // count with the wrong names beside it is harder to read than no names.
+  // -------------------------------------------------------------------------
+
+  /**
+   * The regression the fix round was called for. A manifest holds every
+   * session the person ever ran, in created_at order, so the finished ones
+   * come first and there are many of them. Naming those spent all eight slots
+   * and the one session that actually failed to write was never printed.
+   */
+  it('names the one write failure behind twenty finished sessions', () => {
+    const results: SnapshotPassResult[] = [
+      ...rows(20, 'notRunning', 'old-'),
+      ...rows(3, 'written', 'live'),
+      { name: 'the-one-that-failed', outcome: 'failed' }
+    ];
+    expect(snapshotPassLine('app-quit', results)).toBe(
+      'scrollback pass (app-quit) over 24 sessions: 3 written, 0 had nothing ' +
+        'on screen, 20 were not running, 0 had no pane on this Mac, 1 could ' +
+        'not be written. Not written: "the-one-that-failed" ' +
+        '(could not be written).'
+    );
+  });
+
+  /**
+   * A session running fine on another Mac is not a loss and must never be
+   * listed as one. This pass holds no binding for it because the pane is on
+   * the other machine, which is the ordinary state for a remote row.
+   */
+  it('never names a session that is live on another machine', () => {
+    const line = snapshotPassLine('app-quit', [
+      { name: 'here', outcome: 'written' },
+      { name: 'on-the-mini', outcome: 'noPaneHere' }
+    ]);
+    expect(line).toBe(
+      'scrollback pass (app-quit) over 2 sessions: 1 written, 0 had nothing ' +
+        'on screen, 0 were not running, 1 had no pane on this Mac, 0 could ' +
+        'not be written.'
+    );
+    expect(line).not.toContain('on-the-mini');
+    expect(line).not.toContain('Not written');
+  });
+
+  /** A written row is a success. It is counted and never named. */
+  it('never names a session it wrote', () => {
+    const line = snapshotPassLine('app-quit', [
+      { name: 'saved-fine', outcome: 'written' },
+      { name: 'empty-pane', outcome: 'nothingOnScreen' }
+    ]);
+    expect(line).toContain('Not written: "empty-pane" (nothing on screen).');
+    expect(line).not.toContain('saved-fine');
+  });
+
+  it('prints eight names and counts the rest', () => {
+    const line = snapshotPassLine(
+      'server-exit',
+      rows(11, 'nothingOnScreen', 's')
+    );
+    expect(line).toContain('"s0" (nothing on screen)');
+    expect(line).toContain('"s7" (nothing on screen)');
+    expect(line).not.toContain('"s8" (nothing on screen)');
+    expect(line.endsWith(', and 3 more.')).toBe(true);
+  });
+
+  it('names all eight when eight is all there is', () => {
+    const line = snapshotPassLine(
+      'system-sleep',
+      rows(8, 'nothingOnScreen', 's')
+    );
+    expect(line).toContain('"s7" (nothing on screen)');
+    expect(line).not.toContain('more');
+  });
+
+  /** The reason word is the capsule's own, so the two vocabularies cannot drift. */
+  it('carries each reason word through unchanged', () => {
+    for (const reason of [
+      'app-quit',
+      'session-close',
+      'session-death',
+      'server-exit',
+      'system-sleep'
+    ] as const) {
+      expect(snapshotPassLine(reason, [])).toContain(
+        `scrollback pass (${reason}) over 0 sessions:`
+      );
+    }
   });
 });

@@ -57,6 +57,40 @@ npm run dev        # electron-vite dev server + Electron with HMR
 | `npm run pin:tmux:check` | Prove `build/tmux-release.json` and `src/main/tmux/version.ts` say the same thing. Spawns nothing, makes no request, measured at 0.1 s. `npm run package` runs it too, so a drifted pin cannot reach a build. |
 | `npm run conformance:tmux-pair` | Drive the release's one tested tmux version pair with a real attach: a warm server on the older tmux, the app's create and verify smoke halves as the newer client, and proof the old server never moved. |
 
+### Which gate a change has to run
+
+Some gates are pinned to the paths they protect. Run the gate when the commit
+touches the path, whatever else the commit is about. The rule in bold below is
+the one Phase 111 added.
+
+Two things about that rule, and the second one matters more. Phase 100 touched
+`src/main/restore/snapshots.ts` and did not run `npm run smoke:t3`, so the rule
+does fire on that commit and would have asked for the gate. It would not have
+caught the failure that turned the nightly durability lane red. That failure is
+a race in the T3 harness that is older than Phase 100 by many commits, and the
+smoke passes on this Mac, so running it at Phase 100 would have printed a green
+line and found nothing. The rule is here because a change to the restore path
+deserves the one gate that drives restore end to end, and not because it would
+have caught this one.
+
+| A commit that touches | Runs |
+| --- | --- |
+| **`src/main/restore/**`, `src/main/manifest/**` or `src/main/sessions/core.ts`** | **`npm run smoke:t3`** |
+| `src/main/context/agent-context.ts` or `src/renderer/context/groups.ts` | `npm run conformance:context` |
+| `src/main/agents/registry.ts`, `src/main/manifest/harvest/**`, `src/main/manifest/agents.ts` or `src/main/restore/**` | `npm run conformance:resume:capture` |
+| `src/main/agents/registry.ts`, `src/main/manifest/agents.ts`, `src/main/config/**` or `src/renderer/state/agents.ts` | `npm run conformance:agents` |
+| `src/main/agents/registry.ts` | `npm run conformance:installs` |
+| `src/main/machines/**` | `npm run conformance:machines` |
+
+`npm run smoke:t3` measured 30 s on this Mac, being 24 s of build and 6 s of
+harness. It plants two sessions on a scratch tmux socket, quits so the app-quit
+snapshot is written, kills those sessions out of band, and proves both come back
+with their scrollback replayed and their resume command typed but not run.
+Drive it through `npm run`. Driving `build/harness-socket.mjs` straight exits
+127 with `electron: command not found`, because `npm run` is what puts
+`node_modules/.bin` on PATH. Add that folder to PATH if you drive it another
+way.
+
 ### Where each remote gate keeps its isolated config root
 
 Each of these gates runs the app under its own config root and its own tmux

@@ -288,10 +288,12 @@ import {
   restoredStatus,
   retainedBindings,
   snapshotFailureNotice,
+  snapshotPassLine,
   staleCreateIds,
   statusFlipActions,
   unreachableFlips,
   type MachineId,
+  type SnapshotPassResult,
   type UnwrittenSnapshot
 } from './reconcile-plan';
 
@@ -1423,6 +1425,13 @@ export class GmuxCore {
    */
   async snapshotAllSessions(reason: SnapshotReason = 'app-quit'): Promise<void> {
     const jobs: Promise<unknown>[] = [];
+    // PHASE 111 — THE PASS ACCOUNTS FOR ITSELF. Nothing below decides
+    // anything: the three skip rules are exactly the ones that were already
+    // here. What is new is that every row records the outcome it took, so a
+    // red durability lane can say which of the five happened instead of
+    // leaving a person to guess. `snapshotPassLine` owns both the counting and
+    // the rule about which outcomes are worth a name.
+    const results: SnapshotPassResult[] = [];
     /** Sessions whose scrollback this pass could not write. */
     const unwritten: UnwrittenSnapshot[] = [];
     for (const rec of this.manifest.listSessions()) {
@@ -1434,35 +1443,59 @@ export class GmuxCore {
         rec.status === 'restorable' ||
         rec.status === 'unknown'
       ) {
+        results.push({ name: rec.name, outcome: 'notRunning' });
         continue;
       }
       // F1: only capture panes we can prove are ours — a name-resolved
       // capture would file a STRANGER's scrollback as this session's
       // history and replay it on restore.
       const target = this.liveIds.get(rec.id);
-      if (target === undefined) continue;
+      if (target === undefined) {
+        // A row the person removed is a tombstone rather than a session this
+        // Mac lost track of, so it is counted with the ones that were not
+        // running. Every other row here is live on a different machine, which
+        // `runsElsewhere` in reconciliation.ts is what keeps live.
+        results.push({
+          name: rec.name,
+          outcome: rec.status === 'discarded' ? 'notRunning' : 'noPaneHere'
+        });
+        continue;
+      }
       jobs.push(
         captureSessionSnapshot(target, rec.id, {
           reason,
           session: snapshotRecipeOf(rec)
-        }).catch((err: unknown) => {
-          // A failed WRITE is the failure that means protection stopped, and
-          // the durable writer's own error type is what identifies one. Every
-          // other failure here is a pane that went away, and the %exit path
-          // calls this with a dying tmux server, which produces a whole pass
-          // of those. Announcing on those would be a false alarm on the one
-          // channel that must never cry wolf.
-          if (err instanceof DurableWriteError) {
-            unwritten.push({ name: rec.name, outOfSpace: isOutOfSpace(err) });
-            return;
+        }).then(
+          (stored) => {
+            // A false answer here is a live pane with an empty screen. Writing
+            // nothing is the right answer, and until Phase 111 it was also a
+            // silent one.
+            results.push({
+              name: rec.name,
+              outcome: stored ? 'written' : 'nothingOnScreen'
+            });
+          },
+          (err: unknown) => {
+            results.push({ name: rec.name, outcome: 'failed' });
+            // A failed WRITE is the failure that means protection stopped, and
+            // the durable writer's own error type is what identifies one. Every
+            // other failure here is a pane that went away, and the %exit path
+            // calls this with a dying tmux server, which produces a whole pass
+            // of those. Announcing on those would be a false alarm on the one
+            // channel that must never cry wolf.
+            if (err instanceof DurableWriteError) {
+              unwritten.push({ name: rec.name, outOfSpace: isOutOfSpace(err) });
+              return;
+            }
+            sessionsLog.warn(
+              `snapshot failed for "${rec.name}": ${(err as Error).message}`
+            );
           }
-          sessionsLog.warn(
-            `snapshot failed for "${rec.name}": ${(err as Error).message}`
-          );
-        })
+        )
       );
     }
     await Promise.allSettled(jobs);
+    sessionsLog.info(snapshotPassLine(reason, results));
     this.reportUnwrittenSnapshots(unwritten);
   }
 

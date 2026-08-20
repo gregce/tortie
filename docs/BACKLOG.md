@@ -6181,7 +6181,7 @@ Move to Trash, Open With and Reveal in Finder rests on unit tests. Phase 89's zs
 Mac Pro is still owed and is proven on the loopback scratch machine only. `needs input` never lights
 for a remote session and SpecStory capture never runs on one, both closed by decision.
 
-## Phase 111 — the nightly durability lane is red and the push gates cannot see it QUEUED, AND IT OUTRANKS THE REMAINING FEATURE WORK
+## Phase 111 — the nightly durability lane is red and the push gates cannot see it ✅ SHIPPED 2026-08-20 (this commit, 0.55.1, gates green, 7,026 tests)
 
 **Subject:** `fix(restore): the app-quit snapshot lands for every session, not the first`
 **First body line:** `Phase 111: the nightly durability lane is red`
@@ -6277,6 +6277,83 @@ whether a person was affected. `src/main/tmux/resolve.ts` honours `GMUX_TMUX_SOC
 `GMUX_SHOT` or `GMUX_SMOKE` is set, so use `build/harness-socket.mjs` on your own named socket, since
 neighbouring worktrees contend for the shared one. Count the operator's sessions with
 `tmux -L gmux list-sessions` before and after and report both numbers.
+
+### What shipped, and the numbers behind it
+
+**The harness was at fault. No person lost anything, and the app-quit pass never skipped a session.**
+The subject line was written from the symptom before anyone knew the cause, and it names a defect
+that does not exist. `snapshotAllSessions` pushes a job for every row that has a live pane on this
+Mac and it awaits all of them. There is no first-versus-rest branch in it, and the function is byte
+for byte identical between `e61e836` and `ce56d1f`.
+
+What went wrong is a race inside the T3 smoke. The prep plants a session whose shell prints a marker,
+waits for `receiveTermBytes`, and then logged that the marker was on screen. It never checked.
+`receiveTermBytes` resolves on the first `%output` chunk of any size, and that chunk is the attach
+client redrawing the pane, so it arrives whether the shell has printed or not. The prep then quit
+about 40 ms later, the app-quit capture read an empty screen, and `captureSessionSnapshot` correctly
+wrote nothing. The harness then read a snapshot file that was never written and failed with ENOENT.
+
+Two numbers say it plainly. On the runner the first planted pane reports 676 bytes and the second
+reports 559 bytes, on the failing night and on the passing night alike. 559 bytes is the redraw of an
+empty pane. 676 bytes is the redraw of a pane that already carries one line.
+
+**No bisect could have found it.** `git log -S "marker is on screen"` returns the commit that wrote
+the T3 harness and the Phase 42 commit that moved it. Both are ancestors of `158d2c2`, the last green
+nightly. The missing wait predates the whole window, so no commit in it removed a wait.
+
+| # | What was tested | Result |
+| --- | --- | --- |
+| 1 | Does `smoke:t3` pass on this Mac | PASS, prep 6 of 6, verify 3 of 3 |
+| 2 | The runner's `agent detection: 0/13 installed []` lead | the app printed the same line and the smoke still passed. Lead disproved |
+| 3 | The tmux version lead, a relocated 3.7c bottle through `GMUX_TMUX_BIN` | the server reported `running 3.7c` and the smoke passed. Lead disproved |
+| 4 | Is it flaky here, 25 consecutive prep runs on fresh profiles | 25 passed, 0 failed |
+| 5 | Is it flaky on the runner, `durability.yml` run twice at `3ee9baa` | the lane passed both times, in 4m53s and 5m55s |
+| 6 | **The cause**, the second planted pane given `sleep 2;` so its screen is still empty at the quit | **FAIL: ENOENT on `<second id>.txt`**, the nightly's exact failure, on unchanged code |
+
+Row 6 is the reproduction. It is deterministic, it takes about 3 s, and it needs neither CI nor luck.
+The verifier repeated it on its own socket and got 559 bytes on both panes and the same ENOENT.
+
+**Proven by mutation.** With the fix in place and the same 2 s delay planted, the smoke passed. With
+the single line `await waitForPaneText(session.tmuxName, [marker]);` deleted and nothing else changed,
+the smoke failed with the nightly's shape and the new accounting line read `2 had nothing on screen`.
+The file was restored from a byte-exact copy, checked with `shasum -a 256 -c`, and the smoke passed
+again.
+
+**The product change is the accounting line, and it is small.** The pass had four ways to write
+nothing and three of them left no trace at all. Only a `DurableWriteError` was ever reported. A row
+skipped for its status, a row with no live pane on this Mac, and a pane with an empty screen all
+passed in silence, which is why two people read a red lane for two days without being able to say
+which had happened. `snapshotAllSessions` now logs one line, e.g. `scrollback pass (app-quit) over 2
+sessions: 2 written, 0 had nothing on screen, 0 were not running, 0 had no pane on this Mac, 0 could
+not be written.` It adds no user-facing notice and it changes none.
+
+**Counting is not naming, and the fix round is what made those two rules different.** The first
+version named every row it did not write, in manifest order, capped at eight. Measured with 20
+finished rows and one genuine write failure, the line spent all eight slots on the finished rows and
+never printed the one name it exists to print, and a session running fine on another Mac was listed
+under `Not written`. Now only a row that had a live pane here and still ended with nothing saved is
+named. The decision lives in `NAMED_OUTCOMES` in `src/main/sessions/reconcile-plan.ts`, so no caller
+can get it wrong, and nine tests hold the sentence.
+
+**The gate rule this phase adds, and what it does not claim.** DEVELOPMENT.md now says that a commit
+touching `src/main/restore/**`, `src/main/manifest/**` or `src/main/sessions/core.ts` runs
+`npm run smoke:t3`. The rule does fire on Phase 100's diff, which touched
+`src/main/restore/snapshots.ts` and did not run that gate. It would not have caught this failure. The
+race is older than Phase 100 by many commits and the smoke passes on this Mac, so running it there
+would have printed a green line and found nothing.
+
+**What is not proven.** No commit is named as the trigger for the lane flipping on 2026-08-19,
+because the race is older than the window and the lane passed twice at `3ee9baa` after the fix work
+began. One candidate inside the window was never measured, being `2f0e841` (Phase 81), which moved
+the login shell PATH capture out of `ensureServer` and into a call that create and restore await, so
+it changed the timing this race turns on. Only the empty screen outcome has been seen turning a lane
+red. The other three counted outcomes are now visible and none has been seen causing one.
+
+**Gates on the committed tree.** typecheck, build, `npm test` at 7,026 passing and 23 skipped over
+448 files, `assert-bundle-refusals`, `contract-inventory --check` with no baseline change, smoke:t1
+at create 5 of 5 and verify 6 of 6, and smoke:t3 at prep 6 of 6 and verify 3 of 3 in 6.2 s of harness
+time. Every run used its own socket through `build/harness-socket.mjs` and its own profile. The
+operator's private server read 47 sessions before the work and 47 after.
 
 ## Phase 112 — two smoke runs share one socket and one profile, so both readings are worthless QUEUED
 
