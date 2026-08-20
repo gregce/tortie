@@ -21,19 +21,32 @@
  *     `state/context-session.ts` and `@shared/context-snapshot`. Keeping the
  *     comparison out of here is what stops a second implementation of "did
  *     this change" appearing beside the first.
+ *
+ *  5. **A project on another machine is one call, and it is never on a timer**
+ *     (Phase 108). The read happens when the view opens on the tab, when the
+ *     tab's project changes, and when a person presses Refresh. At no other
+ *     time. Rule 1 holds over there with no watcher at all: nothing on the
+ *     machine tells this store anything, and the Refresh tooltip says so.
  */
 
 import { create } from 'zustand';
 import type { ContextScanResult } from '@shared/context';
-import type { ContextSkillPinCheck } from '@shared/ipc';
+import type {
+  ContextSkillPinCheck,
+  GmuxMachinesExtras,
+  MachineContextMode
+} from '@shared/ipc';
 import type { WorkspaceTarget } from '@shared/workspace-target';
 import { localPathOf, sameTarget, targetKey } from '@shared/workspace-target';
 import { contextAvailable, contextBridge } from './bridge';
 
 /**
- * `elsewhere` is Phase 90.1. It means the project belongs to another computer,
- * so this Mac has nothing to read and says so instead of showing the last
- * project's files under a new name.
+ * `elsewhere` was Phase 90.1, and Phase 108 narrowed it to one honest meaning:
+ * this build's preload cannot ask a machine anything, so there is nothing to
+ * read and the view says so. A project on another machine is otherwise READ,
+ * over `machines:readContext`, and lands in `ready` like a local one, with
+ * `remoteMode` carrying what the machine answered. That is the Phase 98
+ * search-store shape, copied.
  */
 export type ContextStatus =
   | 'idle'
@@ -42,6 +55,24 @@ export type ContextStatus =
   | 'error'
   | 'unavailable'
   | 'elsewhere';
+
+/** The machines bridge, or null on a build without one (Phase 108). */
+function machinesBridge(): NonNullable<GmuxMachinesExtras['machines']> | null {
+  const api = window.gmux as
+    | (typeof window.gmux & GmuxMachinesExtras)
+    | undefined;
+  return api?.machines ?? null;
+}
+
+/**
+ * Can this build read agent files on another machine at all (Phase 108)?
+ *
+ * An older preload has no `readContext` on its machines bridge. Asking it
+ * would throw, so nothing asks it and the panel says so instead.
+ */
+export function remoteContextAvailable(): boolean {
+  return typeof machinesBridge()?.readContext === 'function';
+}
 
 /**
  * Where one project's remembered agent choice lives.
@@ -85,6 +116,19 @@ export interface ContextViewState {
   scan: ContextScanResult | null;
   /** The sentence shown when the whole read failed, never a stack trace. */
   error: string | null;
+
+  /**
+   * PHASE 108. What the machine answered about this project, or null when the
+   * scan came from this Mac. It is a mode word and never a sentence. Every
+   * sentence a person reads is drawn from src/renderer/app/machine-copy.ts.
+   * The three fields are set with the answer they describe and cleared with
+   * it, so a note can never outlive its rows.
+   */
+  remoteMode: MachineContextMode | null;
+  /** PHASE 108. That machine's own label, as main sent it. Never composed here. */
+  machineLabel: string | null;
+  /** PHASE 108. The pass cap ended the read with paths still unread. */
+  remoteCut: boolean;
 
   /** §5.3 — one filter across every section. */
   filter: string;
@@ -185,14 +229,73 @@ export const useContext = create<ContextViewState>((set, get) => {
   };
 
   /**
+   * PHASE 108. Read one project on another machine, epoch-gated exactly like
+   * the local branch.
+   *
+   * Every mode the machine can answer lands as `ready`: `context` with the
+   * scan, and the three refusal words with `scan: null` and the word, which
+   * the view draws as a sentence. Only a rejected promise is `error`, because
+   * main never throws for anything a machine said.
+   *
+   * PINS ARE NEVER ASKED FOR A REMOTE SCAN. `recheckPins` re-hashes
+   * directories on THIS Mac's disk, and a remote row's path would hash a
+   * different file here or nothing. The map is set empty with the answer, and
+   * no install, enable or update flow is reachable on a remote tab, so no
+   * surface reads a pin it does not have.
+   */
+  const readRemote = (target: WorkspaceTarget): void => {
+    const machines = machinesBridge();
+    if (machines === null || typeof machines.readContext !== 'function') {
+      set({
+        status: 'elsewhere',
+        scan: null,
+        error: null,
+        remoteMode: null,
+        machineLabel: null,
+        remoteCut: false
+      });
+      return;
+    }
+    const started = get().epoch + 1;
+    set({ status: 'loading', epoch: started });
+    void machines
+      .readContext({ machineId: target.machineId, cwd: target.path })
+      .then((answer) => {
+        // A late answer for a project the user has left must never paint.
+        if (get().epoch !== started || !sameTarget(get().target, target)) return;
+        set({
+          status: 'ready',
+          scan: answer.mode === 'context' ? answer.scan : null,
+          error: null,
+          remoteMode: answer.mode,
+          machineLabel: answer.machineLabel,
+          remoteCut: answer.mode === 'context' ? answer.cut : false,
+          pins: new Map()
+        });
+      })
+      .catch((err: unknown) => {
+        if (get().epoch !== started || !sameTarget(get().target, target)) return;
+        set({
+          status: 'error',
+          error: err instanceof Error ? err.message : String(err)
+        });
+      });
+  };
+
+  /**
    * Read one project, epoch-gated so a project switch cannot be overtaken.
    *
-   * It takes the TARGET and asks `localPathOf` for the folder, so there is no
-   * way to reach this reader with a path that names another computer.
+   * It takes the TARGET and asks `localPathOf` for the folder. A target whose
+   * folder is on another machine goes to `readRemote` (Phase 108), so the
+   * local reader can still never be reached with a path that names another
+   * computer.
    */
   const read = (target: WorkspaceTarget): void => {
     const cwd = localPathOf(target);
-    if (cwd === null) return;
+    if (cwd === null) {
+      readRemote(target);
+      return;
+    }
     const api = contextBridge();
     if (api === null) {
       set({ status: 'unavailable', scan: null, error: null });
@@ -210,7 +313,17 @@ export const useContext = create<ContextViewState>((set, get) => {
       .then((scan) => {
         // A late answer for a project the user has left must never paint.
         if (get().epoch !== started || !sameTarget(get().target, target)) return;
-        set({ status: 'ready', scan, error: null });
+        set({
+          status: 'ready',
+          scan,
+          error: null,
+          // The three machine fields go with the answer they describe. A local
+          // answer has none, so a note about a machine can never sit under
+          // rows read on this Mac.
+          remoteMode: null,
+          machineLabel: null,
+          remoteCut: false
+        });
         void recheckPins(scan, started);
       })
       .catch((err: unknown) => {
@@ -227,6 +340,9 @@ export const useContext = create<ContextViewState>((set, get) => {
     status: contextAvailable() ? 'idle' : 'unavailable',
     scan: null,
     error: null,
+    remoteMode: null,
+    machineLabel: null,
+    remoteCut: false,
     filter: '',
     agentId: null,
     mode: 'browse',
@@ -242,10 +358,24 @@ export const useContext = create<ContextViewState>((set, get) => {
       if (sameTarget(get().target, target)) return;
       const local = target === null ? null : localPathOf(target);
       const agentId = target === null ? null : loadAgent(target);
+      // PHASE 108. A project on another machine reads over the machines
+      // bridge, so `elsewhere` is only the build that has no such bridge.
+      const status: ContextStatus = !contextAvailable()
+        ? 'unavailable'
+        : target === null
+          ? 'idle'
+          : local === null
+            ? remoteContextAvailable()
+              ? 'loading'
+              : 'elsewhere'
+            : 'loading';
       set({
         target,
         scan: null,
         error: null,
+        remoteMode: null,
+        machineLabel: null,
+        remoteCut: false,
         filter: '',
         agentId,
         // The readout belongs to a session in the project you left.
@@ -253,15 +383,11 @@ export const useContext = create<ContextViewState>((set, get) => {
         sessionId: null,
         sessionName: null,
         pins: new Map(),
-        status: !contextAvailable()
-          ? 'unavailable'
-          : target === null
-            ? 'idle'
-            : local === null
-              ? 'elsewhere'
-              : 'loading'
+        status
       });
-      if (target !== null && local !== null) read(target);
+      if (target !== null && (local !== null || status === 'loading')) {
+        read(target);
+      }
     },
 
     refresh() {

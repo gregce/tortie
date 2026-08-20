@@ -230,7 +230,7 @@
  *     `runRemoteWrite`, makes other than exactly one remote read, names a script
  *     other than `repo-branch`, or imports anything from `../actions/`; the
  *     catalogue's writers are not exactly `image-put` then `git-clone`; or the
- *     catalogue does not hold seventeen scripts. TWO ITEMS CARRY THIS FEATURE.
+ *     catalogue does not hold eighteen scripts. TWO ITEMS CARRY THIS FEATURE.
  *     The format relation is what keeps one format in one place, and the fetch
  *     names are the executable form of the sentence telling a person that Tortie
  *     counted against a copy that machine already had and fetched nothing.
@@ -252,7 +252,7 @@
  *     `repo-history`, imports anything from `../actions/`, or names
  *     `sanitizeRefNames`; `REMOTE_HISTORY_PAGE` is not 50 or
  *     `REMOTE_HISTORY_MAX_COMMITS` is not 500; the catalogue's writers are not
- *     exactly `image-put` then `git-clone`, or it does not hold seventeen
+ *     exactly `image-put` then `git-clone`, or it does not hold eighteen
  *     scripts; `src/renderer/scm/remote-history.ts` names a timer; or
  *     `src/renderer/scm/RemoteHistorySection.tsx` does not name `hasMore`,
  *     `atCeiling` and `divergenceTruncated`. THREE ITEMS CARRY THIS FEATURE.
@@ -265,6 +265,27 @@
  *     form of "no ref name is a value", which is what let the guard
  *     `sanitizeRefNames` stay on this side of the link instead of being written
  *     again in `sh`.
+ *
+ *  58. PHASE 108, being the Context of a folder on another machine. It fails
+ *     when: the catalogue does not hold eighteen scripts with the writers
+ *     exactly `image-put` then `git-clone`; `context-read` is absent, or is
+ *     anything but a read taking three values, or does not read its two lists
+ *     into local names split under `IFS`, or names ANY git verb;
+ *     `src/main/machines/remote-agent-context.ts` is absent, does not import
+ *     `scanContext`, imports `agent-context` or `node:fs`, declares a location
+ *     table of its own, or names a timer; `src/main/context/recording-fs.ts`
+ *     is absent or imports from the machines domain;
+ *     `src/renderer/context/store.ts` names a timer; `machine-facts` does not
+ *     print `claude_config_dir`, `xdg_config_home` and `xdg_state_home`;
+ *     `CONTEXT_READ_LIST_MAX_BYTES` is not 100,000,
+ *     `CONTEXT_READ_FILE_MAX_BYTES` is not 33,554,432 or the `head -c`
+ *     literal disagrees with it, `CONTEXT_READ_MAX_PASSES` is not 8, or
+ *     `CONTEXT_ENUM_DEPTH` is not 2; or
+ *     `src/renderer/context/ContextView.tsx` does not name
+ *     `contextOnMachineLine`, `CONTEXT_NESTED_NOT_LISTED` and
+ *     `contextCutLine`. THE IMPORT RULES ARE THE POINT: they are the
+ *     executable form of "no second table" from research 57 i7 section 6.3,
+ *     and `npm run conformance:context` proves the matrix itself.
  *
  * WHAT IT DOES NOT PROVE, stated so nobody reads more into a pass. The record
  * is sealed through `safeStorage`, which needs an Electron process, so this
@@ -3739,13 +3760,14 @@ const P105_CREDENTIAL_WORDS =
     );
   }
   const p105Count = ((data.remoteRun ?? {}).scripts ?? []).length;
-  if (p105Count !== 17) {
+  // Phase 108 moved this count from seventeen to eighteen, by one read.
+  if (p105Count !== 18) {
     fail(
-      `the catalogue holds ${String(p105Count)} script(s). It holds seventeen, ` +
+      `the catalogue holds ${String(p105Count)} script(s). It holds eighteen, ` +
         `of which two write. Phase 106 moved that number from fifteen by one ` +
-        `read and Phase 107 moved it from sixteen by one read. A script that ` +
-        `appeared without a phase saying so is a command somebody can run on ` +
-        `another person's computer.`
+        `read, Phase 107 moved it from sixteen by one read and Phase 108 moved ` +
+        `it from seventeen by one read. A script that appeared without a phase ` +
+        `saying so is a command somebody can run on another person's computer.`
     );
   }
   // 55i. The one gh command line, and the allowlist's own verdict on it.
@@ -3943,9 +3965,10 @@ const P105_CREDENTIAL_WORDS =
     );
   }
   const p106Count = ((data.remoteRun ?? {}).scripts ?? []).length;
-  if (p106Count !== 17) {
+  // Phase 108 moved this count from seventeen to eighteen, by one read.
+  if (p106Count !== 18) {
     fail(
-      `the catalogue holds ${String(p106Count)} script(s). It holds seventeen, ` +
+      `the catalogue holds ${String(p106Count)} script(s). It holds eighteen, ` +
         `of which two write.`
     );
   }
@@ -4184,9 +4207,10 @@ const P105_CREDENTIAL_WORDS =
     );
   }
   const p107Count = ((data.remoteRun ?? {}).scripts ?? []).length;
-  if (p107Count !== 17) {
+  // Phase 108 moved this count from seventeen to eighteen, by one read.
+  if (p107Count !== 18) {
     fail(
-      `the catalogue holds ${String(p107Count)} script(s). It holds seventeen, ` +
+      `the catalogue holds ${String(p107Count)} script(s). It holds eighteen, ` +
         `of which two write.`
     );
   }
@@ -4224,6 +4248,252 @@ const P105_CREDENTIAL_WORDS =
           `will not read further, and divergenceTruncated says an older commit ` +
           `is drawn without a mark whether it has one or not. Phase 99 carried ` +
           `a truncation flag through main that the panel never read, and a cut ` +
+          `list drew as a whole one.`
+      );
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 58. Phase 108. The Context of a folder on another machine, the one
+// precedence table, and the caps that keep one call small
+// ---------------------------------------------------------------------------
+//
+// A person can now read, on a tab whose project lives on another machine, the
+// skills, MCP servers, hooks, plugins and instruction files the agents THERE
+// will load. Three properties carry this feature and all three are checked
+// here rather than promised.
+//
+//   THERE IS NO SECOND TABLE. The reader that resolves the per agent
+//   precedence runs UNCHANGED on this Mac, and the far side only lists
+//   directories and sends file bytes back. `npm run conformance:context`
+//   proves the matrix itself; condition 58d proves the remote path cannot hold
+//   a copy, because the driver imports `scanContext` and nothing from
+//   `agent-context`, and the recording filesystem imports nothing from the
+//   machines domain.
+//
+//   REMOTE CONTEXT IS A READ AND NOTHING ELSE. Install, enable and pin are
+//   refused permanently, the catalogue's write list does not move, and
+//   `context-read` names no git verb at all because context is not a git
+//   question.
+//
+//   THE HONEST SENTENCES ARE REAL. A remote list says it came from the
+//   machine, a remote list says nested project skills are not in it, and a cut
+//   list says it was cut. Phase 99 carried a truncation flag through main that
+//   the panel never read, and condition 58h is what stops that repeating.
+//
+// Every check below reads one compiled script text, compiled constants and
+// four source files. It starts nothing, opens no file under the person's home,
+// contacts no machine and makes no request.
+
+{
+  const p108 = data.phase108 ?? {};
+  const script = p108.script ?? null;
+  // 58a. The catalogue holds eighteen scripts and the write list did not move.
+  const p108Writers = (data.remoteRun ?? {}).writers ?? [];
+  if (
+    JSON.stringify(p108Writers) !== JSON.stringify(['image-put', 'git-clone'])
+  ) {
+    fail(
+      `the catalogue's write scripts are ${p108Writers.join(', ') || 'none'}. ` +
+        `They are exactly image-put and then git-clone. Phase 108 added a read ` +
+        `and nothing about what Tortie may write on another computer moved.`
+    );
+  }
+  const p108Count = ((data.remoteRun ?? {}).scripts ?? []).length;
+  if (p108Count !== 18) {
+    fail(
+      `the catalogue holds ${String(p108Count)} script(s). It holds eighteen, ` +
+        `of which two write. Phase 108 moved that number from seventeen by one ` +
+        `read, being context-read.`
+    );
+  }
+  // 58b. The row's own shape. Rules 1 to 5 are asserted for every script by
+  // the generic conditions 35 to 40; this pins what is particular to this row.
+  if (script === null) {
+    fail(
+      'the catalogue holds no script called context-read, so the Context view ' +
+        'on a tab whose project lives on another machine has nothing to ask.'
+    );
+  } else {
+    if (script.mode !== 'read' || script.params !== 3) {
+      fail(
+        `context-read is a ${String(script.mode)} taking ` +
+          `${String(script.params)} value(s). It is a read taking three, being ` +
+          `the list of directories to enumerate, the depth, and the list of ` +
+          `files to read back.`
+      );
+    }
+    if (p108.readsListsIntoLocals !== true || p108.splitsUnderIfs !== true) {
+      fail(
+        `context-read reads its lists ` +
+          `${p108.readsListsIntoLocals === true ? 'into local names' : 'WITHOUT local names'} ` +
+          `and ${p108.splitsUnderIfs === true ? 'splits under IFS' : 'DOES NOT split under IFS'}. ` +
+          `Each list is read once, in quotes, into a local name, and the word ` +
+          `splitting happens on that local name under IFS set to a newline. ` +
+          `That is the program-find shape, being condition 46's precedent, ` +
+          `because a bare positional in a for loop would end rule 2 of the ` +
+          `catalogue.`
+      );
+    }
+    // 58c. Context is not a git question.
+    const verbs = [...(p108.gitVerbs ?? [])].sort();
+    if (verbs.length > 0) {
+      fail(
+        `context-read names git ${verbs.join(', ')}. It names NO git verb at ` +
+          `all. Context is not a git question, and a git verb appearing here ` +
+          `would be a widening no phase asked for.`
+      );
+    }
+  }
+  // 58d. NO SECOND TABLE, in its executable form (research 57 i7 section 6.3).
+  if (p108.driverPresent !== true) {
+    fail(
+      'src/main/machines/remote-agent-context.ts is not there, so the Context ' +
+        'view on a tab whose project lives on another machine has nothing ' +
+        'behind it.'
+    );
+  } else {
+    if (p108.driverImportsScan !== true) {
+      fail(
+        'src/main/machines/remote-agent-context.ts does not import ' +
+          'scanContext from ../context/scan. The remote path reuses the one ' +
+          'reader whole; anything else is a second reader whose answers the ' +
+          'matrix gate never sees.'
+      );
+    }
+    const driverImports = p108.driverImports ?? [];
+    const forbidden = driverImports.filter(
+      (one) => one.includes('agent-context') || one === 'node:fs'
+    );
+    if (forbidden.length > 0) {
+      fail(
+        `src/main/machines/remote-agent-context.ts imports ` +
+          `${forbidden.join(', ')}. It imports neither agent-context nor ` +
+          `node:fs: the precedence table stays in the one file ` +
+          `conformance:context reads, and the driver reads no disk of its own.`
+      );
+    }
+    if (p108.driverNamesAtTable === true) {
+      fail(
+        'src/main/machines/remote-agent-context.ts declares location rows of ' +
+          'its own. The declared locations live in agent-context.ts and ' +
+          'nowhere else, so a remote tab cannot draw a ladder the local panel ' +
+          'would not draw.'
+      );
+    }
+  }
+  if (p108.recordingPresent !== true) {
+    fail(
+      'src/main/context/recording-fs.ts is not there, so the remote read has ' +
+        'no filesystem to run the reader over.'
+    );
+  } else {
+    const machineImports = (p108.recordingImports ?? []).filter((one) =>
+      one.includes('machines')
+    );
+    if (machineImports.length > 0) {
+      fail(
+        `src/main/context/recording-fs.ts imports ${machineImports.join(', ')} ` +
+          `from the machines domain. It is pure and it faces the reader only, ` +
+          `so the context domain cannot grow a dependency on a connection.`
+      );
+    }
+  }
+  // 58e. NO TIMER, ANYWHERE. Main cannot see a file change on another
+  // computer, so a timer would read a machine nobody asked it to read.
+  if ((p108.driverTimers ?? []).length > 0) {
+    fail(
+      `src/main/machines/remote-agent-context.ts names ` +
+        `${p108.driverTimers.join(', ')}. It names none of them. A read ` +
+        `happens when the view opens, when the project changes and on ` +
+        `Refresh, and at no other time.`
+    );
+  }
+  if (p108.storePresent !== true) {
+    fail(
+      'src/renderer/context/store.ts is not there, so nothing drives the ' +
+        'Context view at all.'
+    );
+  } else if ((p108.storeTimers ?? []).length > 0) {
+    fail(
+      `src/renderer/context/store.ts names ${p108.storeTimers.join(', ')}. ` +
+        `It names none of them, for the reason condition 57l gives about the ` +
+        `history store: main cannot see a change on another computer, so ` +
+        `there is nothing for a timer to notice and everything for it to cost.`
+    );
+  }
+  // 58f. The three environment names that move a configuration directory.
+  {
+    const printed = p108.machineFactsPrints ?? [];
+    const wanted = ['claude_config_dir', 'xdg_config_home', 'xdg_state_home'];
+    const absent = wanted.filter((one) => !printed.includes(one));
+    if (absent.length > 0) {
+      fail(
+        `machine-facts does not print ${absent.join(', ')}. It prints all ` +
+          `three. Without them a remote read points at ~/.claude on a machine ` +
+          `where the person moved their configuration, and the panel draws an ` +
+          `empty Skills section and is wrong rather than empty.`
+      );
+    }
+  }
+  // 58g. The caps hold, and the head -c literal is the compiled constant.
+  if (p108.listMax !== 100000) {
+    fail(
+      `CONTEXT_READ_LIST_MAX_BYTES is ${String(p108.listMax)}. It is 100,000, ` +
+        `the per call cap on the read list: a longer list becomes more calls ` +
+        `in the same pass, and the composed command stays inside the one ` +
+        `131,072 byte argument the far side's shell accepts.`
+    );
+  }
+  if (p108.fileMax !== 33554432 || p108.headCapLiteral !== 33554432) {
+    fail(
+      `CONTEXT_READ_FILE_MAX_BYTES is ${String(p108.fileMax)} and the head -c ` +
+        `literal in context-read is ${String(p108.headCapLiteral)}. Both are ` +
+        `33,554,432, which is the reader's own bigJsonMaxBytes. Two copies of ` +
+        `one number is how one of them goes stale, and this is the check that ` +
+        `holds them together.`
+    );
+  }
+  if (p108.maxPasses !== 8) {
+    fail(
+      `CONTEXT_READ_MAX_PASSES is ${String(p108.maxPasses)}. It is 8, the ` +
+        `reader's own dependency depth: roots, children, plugins, then ` +
+        `@import at its maxImportDepth of 5. Research 57 section 7.3 calls 8 ` +
+        `the honest ceiling.`
+    );
+  }
+  if (p108.enumDepth !== 2) {
+    fail(
+      `CONTEXT_ENUM_DEPTH is ${String(p108.enumDepth)}. It is 2. Depth 2 is ` +
+        `what keeps pass 2 from becoming two passes, and blind depth 7 on ` +
+        `~/.claude/plugins costs 1.37 MB to find 149 files, so plugin roots ` +
+        `are asked by name after the manifest parse instead.`
+    );
+  }
+  // 58h. The renderer's remote note is real, so a remote list cannot draw as
+  // a local one and a cut list cannot draw as a whole one.
+  if (p108.viewPresent !== true) {
+    fail(
+      'src/renderer/context/ContextView.tsx is not there, so nothing draws ' +
+        'the configuration this feature reads.'
+    );
+  } else {
+    const drawn = p108.viewHonestyNames ?? [];
+    const wanted = [
+      'contextOnMachineLine',
+      'CONTEXT_NESTED_NOT_LISTED',
+      'contextCutLine'
+    ];
+    const absent = wanted.filter((one) => !drawn.includes(one));
+    if (absent.length > 0) {
+      fail(
+        `src/renderer/context/ContextView.tsx does not name ` +
+          `${absent.join(', ')}. It names all three. The first says the list ` +
+          `came from the machine and that installing works on this Mac only, ` +
+          `the second says nested project skills are not listed, and the ` +
+          `third says the pass cap cut the list. Phase 99 carried a ` +
+          `truncation flag through main that the panel never read, and a cut ` +
           `list drew as a whole one.`
       );
     }
@@ -4786,6 +5056,35 @@ process.stdout.write(
           `divergenceTruncated, so nothing that was cut is drawn as whole. It ` +
           `names none of git fetch, git pull or git remote update, and it can ` +
           `never check out, branch or cherry pick over there.\n`
+  );
+}
+
+// Phase 108. What the Context view on a remote tab runs, said out loud.
+{
+  const p108 = data.phase108 ?? {};
+  const script = p108.script ?? null;
+  process.stdout.write(
+    script === null || p108.driverPresent !== true
+      ? 'context-read or src/main/machines/remote-agent-context.ts is NOT ' +
+          'there, so the Context view on a tab whose project lives on another ' +
+          'machine has no far side at all.\n'
+      : `the Context view on a machine runs context-read, a ` +
+          `${String(script.mode)} taking ${String(script.params)} value(s). ` +
+          `It names NO git verb, because context is not a git question. The ` +
+          `reader that resolves the per agent precedence runs on this Mac and ` +
+          `the far side only lists directories and sends file bytes back, so ` +
+          `there is no second table and conformance:context proves the one ` +
+          `matrix for both kinds of tab. machine-facts carries ` +
+          `claude_config_dir, xdg_config_home and xdg_state_home, so the read ` +
+          `follows a moved configuration directory. The list cap is ` +
+          `${String(p108.listMax)} bytes per call, one file is cut at ` +
+          `${String(p108.fileMax)} bytes by head -c, the walk depth is ` +
+          `${String(p108.enumDepth)} and the pass cap is ` +
+          `${String(p108.maxPasses)}. The panel names contextOnMachineLine, ` +
+          `CONTEXT_NESTED_NOT_LISTED and contextCutLine, so a remote list ` +
+          `never draws as a local one and a cut list never draws as a whole ` +
+          `one. It writes nothing, and install, enable and pin are refused on ` +
+          `a remote tab permanently.\n`
   );
 }
 

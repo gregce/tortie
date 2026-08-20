@@ -15,6 +15,13 @@
  * One case here is about a person rather than about a machine: the storage key
  * for a project on this Mac is unchanged, so an agent choice made in an older
  * build is still found after the upgrade.
+ *
+ * PHASE 108 NARROWED WHAT `elsewhere` MEANS, and these cases still hold
+ * because of what this file stubs. The window here carries no machines
+ * bridge, which is exactly the build `elsewhere` now describes, so a remote
+ * target still re-targets, clears and reads nothing. The build WITH the
+ * bridge, where the same transition reads the machine, is driven in
+ * ./p108-remote-context.test.ts.
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';

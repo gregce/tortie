@@ -137,8 +137,12 @@ import type {
   // ---- END PHASE 106 ----
   // ---- PHASE 107 ----
   MachineHistoryInput,
-  MachineHistoryResult
+  MachineHistoryResult,
   // ---- END PHASE 107 ----
+  // ---- PHASE 108 ----
+  MachineContextInput,
+  MachineContextResult
+  // ---- END PHASE 108 ----
 } from '@shared/ipc';
 import { EVT_MACHINE_STATE, EVT_MACHINE_TEST } from '@shared/ipc';
 import { gmuxError } from '../errors';
@@ -214,6 +218,11 @@ import { readSessionLinesOnMachine } from './remote-lines';
 // and nothing on either computer is written.
 import { readBranchOnMachine } from './remote-branch';
 import { readHistoryOnMachine } from './remote-history';
+// Phase 108. The agent configuration on one machine, being what the agents
+// over there will load. The reader that resolves precedence runs on THIS Mac;
+// the machine only lists directories and sends file bytes back. It reads and
+// writes nothing on either computer.
+import { readContextOnMachine } from './remote-agent-context';
 import { readRunsOnMachine } from './remote-runs';
 // Phase 90.2, item 2. One git config read here, then one folder walk there. It
 // writes nothing on either computer.
@@ -1186,6 +1195,45 @@ export function registerMachinesIpc(ipc: IpcMain): void {
       })
   );
   // ---- END PHASE 107 ----
+
+  // ---- PHASE 108 ----
+  // PHASE 108. One channel that READS the agent configuration on one machine,
+  // being the skills, MCP servers, hooks, plugins and instruction files the
+  // agents THERE will load.
+  //
+  // THE READER RUNS ON THIS MAC. The far side does no parsing: `context-read`
+  // from the frozen catalogue in ./remote-scripts.ts lists directories and
+  // sends file bytes back, and the same scanContext that draws a local tab
+  // folds them here. So there is no second precedence table, and
+  // npm run conformance:context keeps proving the one matrix for both kinds
+  // of tab. Condition 58d of build/conformance-machines.mjs reads the driver's
+  // imports and holds that.
+  //
+  // IT CANNOT COMPOSE WHAT IT ASKS. The commands that cross are
+  // `machine-facts` and `context-read`, chosen by name, with the two path
+  // lists and the depth arriving there as positional parameters.
+  //
+  // IT WRITES NOTHING, on either computer. The catalogue's two writers did not
+  // move. Install, enable and pin are refused on a remote tab, permanently,
+  // and the renderer draws no control that could ask for any of them.
+  //
+  // NOTHING CALLS IT ON A CLOCK. A read happens when the view opens on the
+  // tab, when the tab's project changes, and when a person presses Refresh.
+  // There is no watch, because main cannot see a file change on another
+  // computer.
+  //
+  // It NEVER THROWS for a machine state. A machine Tortie is not signed in to,
+  // a machine that did not say where its home folder is, and a machine that
+  // did not answer all come back as a mode word. No prose crosses this
+  // channel: the renderer draws every sentence from
+  // src/renderer/app/machine-copy.ts, where the vocabulary audit reads it.
+  handle(
+    ipc,
+    'machines:readContext',
+    async (_event, input: MachineContextInput): Promise<MachineContextResult> =>
+      readContextOnMachine({ machineId: input.machineId, cwd: input.cwd })
+  );
+  // ---- END PHASE 108 ----
 }
 
 /**

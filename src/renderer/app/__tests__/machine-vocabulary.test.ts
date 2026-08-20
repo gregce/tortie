@@ -156,7 +156,15 @@ const FILES: readonly string[] = [
   // which is the first file on this list. Both are read as well, so a later
   // round cannot type a sentence straight into the group.
   'src/renderer/scm/remote-history.ts',
-  'src/renderer/scm/RemoteHistorySection.tsx'
+  'src/renderer/scm/RemoteHistorySection.tsx',
+  // Phase 108. The Context view reads what agents will load in a folder on
+  // another machine, being the body that draws the states and the notes, and
+  // the band whose Refresh tooltip names the machine. Every sentence they
+  // draw is a named export in machine-copy.ts, which is the first file on
+  // this list. Both are read as well, so a later round cannot type a sentence
+  // straight into the view.
+  'src/renderer/context/ContextView.tsx',
+  'src/renderer/context/ContextHeader.tsx'
 ];
 
 /**

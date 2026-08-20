@@ -2,9 +2,12 @@
  * The machines half of the bridge (Phase 68, one call added in Phase 69, one
  * more in Phase 71, one more in Phase 79.1, one more in Phase 83, one more in
  * Phase 84, two more in Phase 90.2, one more in Phase 90.3, one more in
- * Phase 98, one more in Phase 99, one more in Phase 100, one more in Phase 105
- * and one more in Phase 106). One object, twenty six calls and two
- * subscriptions, typed from the shared contract.
+ * Phase 98, one more in Phase 99, one more in Phase 100, one more in Phase 105,
+ * one more in Phase 106, one more in Phase 107 and one more in Phase 108). One
+ * object, twenty eight calls and two subscriptions, typed from the shared
+ * contract. THE COUNT HAD GONE STALE and Phase 108 says so rather than quietly
+ * fixing it: this header named neither Phase 107 nor its call while the object
+ * already carried `readHistory`.
  *
  * TWO of these calls write on another computer, being `putImage` and
  * `cloneProject`. Everything else on this bridge reads.
@@ -138,5 +141,12 @@ export const machines: NonNullable<GmuxMachinesExtras['machines']> = {
   // machine. Main also clamps the count to 500, so one answer stays under about
   // 162,000 bytes. Nothing calls it on a clock, and it does not read the files
   // one commit changed.
-  readHistory: (input) => invoke('machines:readHistory', input)
+  readHistory: (input) => invoke('machines:readHistory', input),
+  // Phase 108. THIS ONE READS. It asks a machine for the agent configuration
+  // its agents will load, being directory listings and file bytes, and the
+  // reader that resolves precedence runs on THIS Mac. It writes nothing on
+  // either computer, it cannot install, enable or pin anything anywhere, and
+  // main refuses it while it is not connected to that machine. Nothing calls
+  // it on a clock.
+  readContext: (input) => invoke('machines:readContext', input)
 };

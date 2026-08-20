@@ -124,9 +124,16 @@ function positionals(text: string): Positional[] {
 }
 
 describe('the catalogue', () => {
-  it('holds seventeen scripts and this release holds no others', () => {
-    expect(REMOTE_SCRIPTS).toHaveLength(17);
+  it('holds eighteen scripts and this release holds no others', () => {
+    expect(REMOTE_SCRIPTS).toHaveLength(18);
     expect(REMOTE_SCRIPTS.map((script) => script.id).sort()).toEqual([
+      // PHASE 108 added `context-read`, which lists directories and reads
+      // files back so the Context view on a tab that lives over there shows
+      // what the agents THERE will load. The reader and every parser stay on
+      // this Mac; the far side knows nothing about any agent. It is a read,
+      // it writes nothing, and it names NO git verb, so neither the write
+      // count below nor GIT_VERBS above moved.
+      //
       // PHASE 107 added `repo-history`, which prints a page of the newest
       // commits in one folder so the History group on a tab that lives over
       // there draws the same picture the local History draws. It is a read and
@@ -164,6 +171,7 @@ describe('the catalogue', () => {
       // writes nothing, and `git-clone`, which is the SECOND write in this
       // catalogue and the second write this product can make on another
       // computer.
+      'context-read',
       'dir-list',
       'git-clone',
       'image-put',
@@ -201,8 +209,8 @@ describe('the catalogue', () => {
     // do to another person's computer at a known list rather than a count.
     // Phase 90.2 moved it from one to two, once and on purpose, and the list
     // stays exact so a third one fails here rather than passing quietly.
-    // Phase 105, Phase 106 and Phase 107 each added a read and left this
-    // number alone.
+    // Phase 105, Phase 106, Phase 107 and Phase 108 each added a read and
+    // left this number alone.
     const writers = remoteWriteScripts();
     expect(writers).toHaveLength(2);
     expect(writers.map((script) => script.id)).toEqual([

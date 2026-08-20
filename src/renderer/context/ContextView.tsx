@@ -33,6 +33,16 @@
  * counting context (§5.1), no ambient signal when a file changes under a
  * running session (§8.4), and no featured, trending or recommended surface
  * (§13.4).
+ *
+ * A PROJECT ON ANOTHER MACHINE IS A READ AND NOTHING ELSE (Phase 108,
+ * research 57 §12). The same scan shape arrives over `machines:readContext`
+ * and the same groups draw it, with the same ladders and the same marks. What
+ * is REFUSED there, permanently: install, enable, pin, remove, update,
+ * create, open and reveal. The row actions are `{}` on a remote tab and the
+ * menus carry a `remote` flag, so every one of those verbs is an absent menu
+ * item rather than a dead control. Three note lines under the sections say
+ * where the rows came from, that nested project skills are not listed, and
+ * when a cut read left entries out.
  */
 
 import React, {
@@ -58,10 +68,22 @@ import {
   useSectionDrag,
   useSectionOrder
 } from '../scm/sections';
-import { localPathOf, targetOfProject } from '@shared/workspace-target';
 import {
-  CONTEXT_ELSEWHERE_BODY,
-  contextElsewhereTitle
+  localPathOf,
+  targetKey,
+  targetOfProject
+} from '@shared/workspace-target';
+import {
+  CONTEXT_NESTED_NOT_LISTED,
+  CONTEXT_NO_BRIDGE,
+  contextCutLine,
+  contextElsewhereTitle,
+  contextEmptyOnMachine,
+  contextNoAnswer,
+  contextNoHome,
+  contextNotConnected,
+  contextOnMachineLine,
+  contextReadingOn
 } from '../app/machine-copy';
 import { machineLabelFor } from '../state/machines-slice';
 import { useApp } from '../state/store';
@@ -108,6 +130,13 @@ import './context.css';
 // ---------------------------------------------------------------------------
 // The body
 // ---------------------------------------------------------------------------
+
+/**
+ * PHASE 108. What a remote tab gets instead of the injected write verbs. One
+ * frozen empty object rather than a literal in the component, so its identity
+ * is stable across renders and the memoized menus do not rebuild for nothing.
+ */
+const NO_REMOTE_ACTIONS: ContextRowActions = {};
 
 /**
  * Requirement 2, as one boolean the row can draw.
@@ -443,12 +472,18 @@ export function ContextSection({
   // another computer. Every use of it below already had a null branch, so a
   // project on another machine opens no file and reads no directory.
   const cwd = localPathOf(target);
+  // PHASE 108. The rows on a remote tab come from the machine, and every
+  // verb that writes, opens or reveals is refused there permanently.
+  const remote = target !== null && cwd === null;
 
   const status = useContext((s) => s.status);
   const scan = useContext((s) => s.scan);
   const pins = useContext((s) => s.pins);
   const reviewPin = useInstallFlow((s) => s.reviewPin);
   const error = useContext((s) => s.error);
+  const remoteMode = useContext((s) => s.remoteMode);
+  const storeMachineLabel = useContext((s) => s.machineLabel);
+  const remoteCut = useContext((s) => s.remoteCut);
   const filter = useContext((s) => s.filter);
   const setFilter = useContext((s) => s.setFilter);
   const agentId = useContext((s) => s.agentId);
@@ -456,6 +491,16 @@ export function ContextSection({
   const sessionId = useContext((s) => s.sessionId);
   const syncProject = useContext((s) => s.syncProject);
   const refresh = useContext((s) => s.refresh);
+
+  // PHASE 108. The machine's name for every sentence about it: the machine's
+  // own label once an answer landed, the sidebar's list before that.
+  const machineName =
+    storeMachineLabel ??
+    machineLabelFor(machineStates, target?.machineId ?? '');
+  // PHASE 108. The write verbs are refused on a remote tab, permanently. An
+  // empty object is how this view already draws an unwired verb: every one of
+  // them is an absent menu item or an absent button, never a dead control.
+  const verbs = remote ? NO_REMOTE_ACTIONS : actions;
 
   const [selected, setSelected] = useState<string | null>(null);
   const [hover, setHover] = useState<{
@@ -551,9 +596,12 @@ export function ContextSection({
           () => toast('success', 'Copied.'),
           () => toast('error', 'Could not copy that.')
         );
-      }
+      },
+      // PHASE 108. On a remote tab the menus build no item that opens or
+      // reveals, because the paths are on the other computer.
+      remote
     }),
-    [cwd, toast]
+    [cwd, remote, toast]
   );
 
   const onActivate = useCallback(
@@ -566,7 +614,7 @@ export function ContextSection({
 
   const onMenu = useCallback(
     (entry: ContextEntry, at: { x: number; y: number }): void => {
-      const items = rowMenuItems(entry, menuDeps, actions);
+      const items = rowMenuItems(entry, menuDeps, verbs);
       // Requirement 2's way back. A row Tortie has switched off is asking a
       // question, and the answer has to be reachable from the row itself.
       const pin = pins.get(entry.id);
@@ -581,7 +629,7 @@ export function ContextSection({
       }
       setMenu(menuAt(at, items));
     },
-    [actions, menuDeps, pins, reviewPin, setMenu]
+    [menuDeps, pins, reviewPin, setMenu, verbs]
   );
 
   const onGroupMenu = useCallback(
@@ -695,28 +743,49 @@ export function ContextSection({
     if (status === 'unavailable') {
       return <div className="section-stub">{CONTEXT_COPY.unavailable}</div>;
     }
-    // The project belongs to another computer. Tortie reads this Mac, so there
-    // is nothing here to list and the panel says which machine the files are
-    // on rather than showing an empty list that looks like a failure.
+    // PHASE 108 narrowed this state to one honest meaning: this build's
+    // preload cannot ask a machine anything. A remote tab a current build can
+    // read never lands here, because the store reads it instead.
     if (status === 'elsewhere') {
       return (
         <div className="ctx-empty">
           <p className="ctx-empty-title">
-            {contextElsewhereTitle(
-              machineLabelFor(machineStates, target?.machineId ?? '')
-            )}
+            {contextElsewhereTitle(machineName)}
           </p>
-          <p className="ctx-empty-body">{CONTEXT_ELSEWHERE_BODY}</p>
+          <p className="ctx-empty-body">{CONTEXT_NO_BRIDGE}</p>
         </div>
       );
     }
     if (status === 'loading' && scan === null) {
-      return <div className="section-stub">{CONTEXT_COPY.reading}</div>;
+      return (
+        <div className="section-stub">
+          {remote ? contextReadingOn(machineName) : CONTEXT_COPY.reading}
+        </div>
+      );
     }
     if (status === 'error') {
       return (
         <div className="section-stub ctx-error">
           {error ?? 'Your agent configuration could not be read.'}
+        </div>
+      );
+    }
+    // PHASE 108. The machine was asked and answered a refusal word, or did
+    // not answer. Each word is one sentence under the title that names the
+    // machine, and none of them is an error: nothing failed on this Mac.
+    if (remote && remoteMode !== null && remoteMode !== 'context') {
+      return (
+        <div className="ctx-empty">
+          <p className="ctx-empty-title">
+            {contextElsewhereTitle(machineName)}
+          </p>
+          <p className="ctx-empty-body">
+            {remoteMode === 'notConnected'
+              ? contextNotConnected(machineName)
+              : remoteMode === 'noHome'
+                ? contextNoHome(machineName)
+                : contextNoAnswer(machineName)}
+          </p>
         </div>
       );
     }
@@ -726,15 +795,20 @@ export function ContextSection({
       return (
         <div className="ctx-empty">
           <p className="ctx-empty-title">{CONTEXT_COPY.emptyTitle}</p>
-          <p className="ctx-empty-body">{CONTEXT_COPY.emptyBody}</p>
+          <p className="ctx-empty-body">
+            {/* PHASE 108. On a remote tab the body says where adding happens,
+                in place of the Find a skill button below: install is refused
+                over there, so the button would be a dead control. */}
+            {remote ? contextEmptyOnMachine(machineName) : CONTEXT_COPY.emptyBody}
+          </p>
           {/* The one primary §11 item 1 gives this state, and only when
               something is actually wired to it. An empty state whose button
               did nothing would be worse than an empty state with no button. */}
-          {actions.newSkill !== undefined ? (
+          {verbs.newSkill !== undefined ? (
             <button
               type="button"
               className="btn btn-primary ctx-empty-action"
-              onClick={actions.newSkill}
+              onClick={verbs.newSkill}
             >
               Find a skill…
             </button>
@@ -743,6 +817,7 @@ export function ContextSection({
       );
     }
     return (
+      <>
       <div
         ref={sectionsRef}
         className="ctx-sections"
@@ -765,10 +840,14 @@ export function ContextSection({
               (p) =>
                 p.category === CONTEXT_SECTION_CATEGORY[id as ContextSectionId]
             )}
-            cwd={cwd ?? ''}
+            // The persisted collapse keys. `targetKey` of a folder on this
+            // Mac is the bare path, so every key written before Phase 108 is
+            // still found, and a project on a machine gets its own key
+            // instead of sharing one empty string with every other one.
+            cwd={target === null ? '' : targetKey(target)}
             filter={filter}
-            {...(actions.searchFor !== undefined
-              ? { onSearchRegistry: actions.searchFor }
+            {...(verbs.searchFor !== undefined
+              ? { onSearchRegistry: verbs.searchFor }
               : {})}
             agentId={agentId}
             precedence={precedence[id as ContextSectionId]}
@@ -789,6 +868,19 @@ export function ContextSection({
         ))}
         {sectionDrag.overlay}
       </div>
+      {/* PHASE 108. The note under the sections whenever the scan came from
+          a machine, in the position the search view's note already uses for
+          the same job. The first two lines are always drawn together; the
+          third only when the pass cap cut the read, so a cut list can never
+          draw as a whole one. */}
+      {remote && remoteMode === 'context' ? (
+        <div className="ctx-remote-note">
+          <p>{contextOnMachineLine(machineName)}</p>
+          <p>{CONTEXT_NESTED_NOT_LISTED}</p>
+          {remoteCut ? <p>{contextCutLine(machineName)}</p> : null}
+        </div>
+      ) : null}
+      </>
     );
   };
 
@@ -823,11 +915,11 @@ export function ContextSection({
       {filter.trim() !== '' && visible.length === 0 && entries.length > 0 ? (
         <div className="ctx-no-match">
           <span>{CONTEXT_COPY.noFilterMatch(filter.trim())}</span>
-          {actions.searchFor !== undefined ? (
+          {verbs.searchFor !== undefined ? (
             <button
               type="button"
               className="btn-text ctx-search-source"
-              onClick={() => actions.searchFor?.(filter.trim())}
+              onClick={() => verbs.searchFor?.(filter.trim())}
             >
               {`Search skills.sh for "${filter.trim()}"`}
             </button>

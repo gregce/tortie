@@ -99,21 +99,29 @@ export const REMOTE_IMAGE_DIR_DISPLAY = '~/.tortie/images';
 /** How long one upload gets. 60,000 ms, because 120,000 bytes cross a link. */
 export const REMOTE_IMAGE_TIMEOUT_MS = 60_000;
 
-/** How long the one facts read gets. It prints four short values. */
+/** How long the one facts read gets. It prints seven short values. */
 export const REMOTE_FACTS_TIMEOUT_MS = 10_000;
 
 /** What the `machine-facts` script said about one machine. */
 export interface RemoteMachineFactsAnswer {
   /** The far side's own HOME. Never composed on this Mac. */
   readonly home: string;
-  /** CODEX_HOME and XDG_DATA_HOME, and nothing else. Empty when unset. */
+  /**
+   * The environment names that move a path Tortie reads, and nothing else.
+   * `CODEX_HOME` and `XDG_DATA_HOME` since Phase 73; `CLAUDE_CONFIG_DIR`,
+   * `XDG_CONFIG_HOME` and `XDG_STATE_HOME` since Phase 108, because
+   * `resolveHomes` in `src/main/context/env.ts` reads them and a remote
+   * Context read without them points at `~/.claude` on a machine where the
+   * person moved their configuration. A name the far side has not set is
+   * ABSENT here rather than empty.
+   */
   readonly env: Record<string, string>;
   /** What `uname -s` printed there, e.g. 'Darwin'. */
   readonly uname: string;
 }
 
 /**
- * Read the four facts one machine states about itself. Pure parse, live read.
+ * Read the seven facts one machine states about itself. Pure parse, live read.
  *
  * It is here rather than in `./remote-harvest.ts` because two items need it and
  * neither owns the other. A caller that needs it more than once per connection
@@ -130,11 +138,14 @@ export async function readRemoteMachineFacts(
 }
 
 /**
- * One `machine-facts` payload into the four values. PURE.
+ * One `machine-facts` payload into its values. PURE.
  *
  * A line the script did not write is ignored rather than guessed at, and a name
  * the far side has not set arrives as an empty value, which is a different fact
- * from the name being absent.
+ * from the name being absent. That tolerance is what let Phase 108 add three
+ * lines to the script without touching the other two parse sites, being
+ * `./remote-harvest.ts` and step 10e of `./remote-smoke.ts`: both go through
+ * this parse or read the payload as prose, and neither counts lines.
  */
 export function parseMachineFacts(payload: string): RemoteMachineFactsAnswer {
   const values = new Map<string, string>();
@@ -144,10 +155,16 @@ export function parseMachineFacts(payload: string): RemoteMachineFactsAnswer {
     values.set(line.slice(0, at), line.slice(at + 1));
   }
   const env: Record<string, string> = {};
-  const codex = values.get('codex_home') ?? '';
-  const xdg = values.get('xdg_data_home') ?? '';
-  if (codex.length > 0) env['CODEX_HOME'] = codex;
-  if (xdg.length > 0) env['XDG_DATA_HOME'] = xdg;
+  const carry = (fact: string, name: string): void => {
+    const value = values.get(fact) ?? '';
+    if (value.length > 0) env[name] = value;
+  };
+  carry('codex_home', 'CODEX_HOME');
+  carry('xdg_data_home', 'XDG_DATA_HOME');
+  // Phase 108. The three names `resolveHomes` reads that did not cross before.
+  carry('claude_config_dir', 'CLAUDE_CONFIG_DIR');
+  carry('xdg_config_home', 'XDG_CONFIG_HOME');
+  carry('xdg_state_home', 'XDG_STATE_HOME');
   return {
     home: values.get('home') ?? '',
     env,

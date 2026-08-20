@@ -18,8 +18,11 @@
  */
 
 import React, { useEffect } from 'react';
+import { localPathOf } from '@shared/workspace-target';
+import { contextRefreshOnMachineTitle } from '../app/machine-copy';
 import { AgentIcon, agentMenuIcon, Codicon, warmAgentMenuIcons } from '../icons';
 import { agentShortLabel } from '../state/agents';
+import { machineLabelFor } from '../state/machines-slice';
 import { useApp } from '../state/store';
 import type { MenuItemSpec } from '../state/store';
 import { useContext } from './store';
@@ -37,16 +40,26 @@ import { useContext } from './store';
  */
 export function ContextHeader(): React.JSX.Element {
   const setMenu = useApp((s) => s.setMenu);
+  const machineStates = useApp((s) => s.machineStates);
   const scan = useContext((s) => s.scan);
   const agentId = useContext((s) => s.agentId);
   const setAgent = useContext((s) => s.setAgent);
   const refresh = useContext((s) => s.refresh);
   const status = useContext((s) => s.status);
+  const target = useContext((s) => s.target);
+  const machineLabel = useContext((s) => s.machineLabel);
   const mode = useContext((s) => s.mode);
   const sessionName = useContext((s) => s.sessionName);
   const exitSessionMode = useContext((s) => s.exitSessionMode);
 
   const agents = scan?.agents ?? [];
+
+  // PHASE 108. Whether the files this view describes are on another machine,
+  // and what that machine is called. The machine's own label from its answer
+  // wins; before an answer lands the sidebar's list supplies the name.
+  const remote = target !== null && localPathOf(target) === null;
+  const remoteLabel =
+    machineLabel ?? machineLabelFor(machineStates, target?.machineId ?? '');
 
   useEffect(() => {
     void warmAgentMenuIcons(agents.map((a) => a.agent));
@@ -135,14 +148,21 @@ export function ContextHeader(): React.JSX.Element {
           <Codicon name="close" size={16} />
         </button>
       ) : null}
-      {/* Disabled for `elsewhere` as well as for `unavailable`: there is
-          nothing on this Mac to read again for a project whose files are on
-          another computer (Phase 90.1). */}
+      {/* Disabled for `elsewhere` as well as for `unavailable`, and Phase 108
+          gives the condition its two halves. A remote tab this build can read
+          is never in `elsewhere` any more, so Refresh works there and triggers
+          the read. A remote tab this build cannot read stays `elsewhere`, and
+          a control that could do nothing stays disabled rather than erroring
+          when pressed. */}
       <button
         type="button"
         className="icon-btn view-header-action"
         aria-label="Read the configuration again"
-        title="Read the configuration again. The watcher cannot see a directory that did not exist when this view opened."
+        title={
+          remote
+            ? contextRefreshOnMachineTitle(remoteLabel)
+            : 'Read the configuration again. The watcher cannot see a directory that did not exist when this view opened.'
+        }
         disabled={status === 'unavailable' || status === 'elsewhere'}
         onClick={() => refresh()}
       >

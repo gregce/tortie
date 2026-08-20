@@ -117,11 +117,21 @@ const wait = (ms: number): Promise<void> =>
  * quietly widening its own edit. Phase 90.3 changed that second line to
  * "Tortie lists files on this Mac only", and the two Explorer failures in this
  * probe are on HEAD as well as here.
+ *
+ * PHASE 108 MOVED THE CONTEXT MARK, the same move Phase 98 made for search.
+ * It read "Tortie reads skills, servers and hooks from this Mac only", which
+ * was the body of the refusal Phase 90.1 gave the Context view. Phase 108
+ * deleted that refusal, because the Context view reads a project on a machine
+ * now. What the injected tab reaches instead is a machine main has never
+ * heard of, and the panel says so. The fragment is the tail of
+ * `contextNotConnected` in machine-copy.ts, and it appears in no other
+ * sentence in this renderer: the search sentence ends "searched nothing" and
+ * this one ends "read nothing".
  */
 const SENTENCE_MARKS: Readonly<Record<string, string>> = {
   filesElsewhere: 'Tortie reads files on this Mac only',
   searchElsewhere: 'so it searched nothing',
-  contextElsewhere: 'Tortie reads skills, servers and hooks from this Mac only'
+  contextElsewhere: 'so it read nothing'
 };
 
 function readSentences(): Record<string, boolean> {
@@ -169,7 +179,10 @@ function reading(name: string): TargetProbeReading {
       localPath: localPathOf(context.target),
       counts: {
         status: context.status,
-        entries: context.scan?.entries.length ?? 0
+        entries: context.scan?.entries.length ?? 0,
+        // PHASE 108. What the machine answered, so a probe report can tell a
+        // read that landed from a refusal word without reading the screen.
+        remoteMode: context.remoteMode
       }
     },
     sentences: readSentences()

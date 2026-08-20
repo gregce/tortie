@@ -63,6 +63,15 @@ export interface ContextMenuDeps {
   copyText(text: string): void;
   /** Scroll to and select another row — the shadowed entry. */
   revealEntry?(id: string): void;
+  /**
+   * PHASE 108. The rows describe files on another machine. Every item that
+   * names a program on this Mac — Open, Open the script, Reveal in Finder,
+   * and the jump to a shadowed entry's file — is NOT BUILT, because the row's
+   * path is on the other computer and the program here would open the wrong
+   * file or nothing. The Copy verbs stay: copying that machine's path is true
+   * and useful. An absent verb is one fewer menu item, never a dead one.
+   */
+  remote: boolean;
 }
 
 function copyItem(
@@ -99,31 +108,38 @@ export function rowMenuItems(
   deps: ContextMenuDeps,
   actions: ContextRowActions = {}
 ): (MenuItemSpec | 'sep')[] {
-  const items: (MenuItemSpec | 'sep')[] = [
-    {
+  const items: (MenuItemSpec | 'sep')[] = [];
+
+  // PHASE 108. On a remote tab no item that opens or reveals is built, per
+  // the `remote` field's own comment above.
+  if (!deps.remote) {
+    items.push({
       label: openLabelFor(entry),
       run: () =>
         deps.openPath(
           entry.sourcePath,
           entry.problem?.line ?? undefined
         )
-    }
-  ];
+    });
 
-  if (entry.payload.kind === 'hook') {
-    // The script is a resolved absolute path when the reader could find one,
-    // and null when it could not. A missing script is still a row with its own
-    // broken mark; it is not a menu item that opens nothing.
-    const script = entry.payload.scriptPath;
-    if (script !== null && !entry.payload.scriptMissing) {
-      items.push({ label: 'Open the script', run: () => deps.openPath(script) });
+    if (entry.payload.kind === 'hook') {
+      // The script is a resolved absolute path when the reader could find
+      // one, and null when it could not. A missing script is still a row with
+      // its own broken mark; it is not a menu item that opens nothing.
+      const script = entry.payload.scriptPath;
+      if (script !== null && !entry.payload.scriptMissing) {
+        items.push({
+          label: 'Open the script',
+          run: () => deps.openPath(script)
+        });
+      }
     }
+
+    items.push({
+      label: 'Reveal in Finder',
+      run: () => deps.revealPath(entry.sourcePath)
+    });
   }
-
-  items.push({
-    label: 'Reveal in Finder',
-    run: () => deps.revealPath(entry.sourcePath)
-  });
 
   if (entry.category === 'mcp' && actions.checkConnection !== undefined) {
     const check = actions.checkConnection;
@@ -134,8 +150,9 @@ export function rowMenuItems(
 
   // §6.3 — the shadowed entry is always reachable from the winner. Without
   // this the loser is a mark with nowhere to go, and the user edits the file
-  // that does not win, which is exactly the failure R4 names.
-  if (entry.shadows.length > 0 && deps.revealEntry !== undefined) {
+  // that does not win, which is exactly the failure R4 names. On a remote tab
+  // it opens a file on this Mac that is not there, so it is not built.
+  if (!deps.remote && entry.shadows.length > 0 && deps.revealEntry !== undefined) {
     const first = entry.shadows[0];
     if (first !== undefined) {
       items.push({
@@ -183,7 +200,10 @@ export function rowMenuItems(
   }
   if (writes.length > 0) items.push('sep', ...writes);
 
-  items.push('sep', copyItem('Copy name', entry.name, deps));
+  // On a remote tab the copy verbs can be the whole menu, and a menu must not
+  // open with a separator, so the separator goes in only under other items.
+  if (items.length > 0) items.push('sep');
+  items.push(copyItem('Copy name', entry.name, deps));
   items.push(copyItem('Copy path', entry.sourcePath, deps));
   if (entry.category === 'mcp' || entry.category === 'hook') {
     // The summary IS the command for these two (§7.2), so there is one string
@@ -201,6 +221,11 @@ export function groupMenuItems(
 ): (MenuItemSpec | 'sep')[] {
   const first = entries[0];
   if (first === undefined) return [];
+  // PHASE 108. On a remote tab the group's file is on the other computer, so
+  // Open and Reveal are not built and Copy path is the whole menu.
+  if (deps.remote) {
+    return [copyItem('Copy path', first.sourcePath, deps)];
+  }
   const managed = scope === 'managed';
   const items: (MenuItemSpec | 'sep')[] = [
     {

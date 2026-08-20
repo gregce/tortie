@@ -299,6 +299,17 @@ describe('every channel is registered, and only the ones listed here', () => {
       // machine. Nothing calls it on a clock, and nothing on this path fetches.
       'machines:readBranch',
       // ---- END PHASE 106 ----
+      // ---- PHASE 108 ----
+      // One READ of the agent configuration on one machine, being the skills,
+      // MCP servers, hooks, plugins and instruction files the agents THERE
+      // will load. The reader and every parser run on this Mac; the machine
+      // only lists directories and sends file bytes back, so no second
+      // precedence table exists anywhere. It writes nothing on either
+      // computer, install, enable and pin are not behind it and never will
+      // be, and it refuses while Tortie is not connected to the machine.
+      // Nothing calls it on a clock.
+      'machines:readContext',
+      // ---- END PHASE 108 ----
       // ---- PHASE 107 ----
       // One READ of a page of the newest commits in one folder on one machine,
       // with the two anchors the swimlane picture needs and the marks that say
@@ -561,6 +572,48 @@ describe('machines:readHistory', () => {
   it('starts nothing at all, on either computer', async () => {
     const before = spawned.length;
     await call<Promise<unknown>>('machines:readHistory', {
+      machineId: 'nobody-is-connected-to-this',
+      cwd: '/work/project'
+    });
+    expect(spawned.length).toBe(before);
+    expect(machineSshSpawnCount()).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 108. The Context of a folder on another machine
+// ---------------------------------------------------------------------------
+
+describe('machines:readContext', () => {
+  it('hands the input to main unchanged and answers rather than throwing', async () => {
+    // Nothing in this process is connected to any machine, so the read
+    // refuses with its own mode word and contacts nothing. What this proves
+    // is the wiring: the channel exists and the machine id and the folder
+    // cross it untouched.
+    const out = await call<Promise<{
+      machineId: string;
+      cwd: string;
+      mode: string;
+      scan: unknown;
+      passes: number;
+      calls: number;
+      cut: boolean;
+    }>>('machines:readContext', {
+      machineId: 'nobody-is-connected-to-this',
+      cwd: '/work/project'
+    });
+    expect(out.machineId).toBe('nobody-is-connected-to-this');
+    expect(out.cwd).toBe('/work/project');
+    expect(out.mode).toBe('notConnected');
+    expect(out.scan).toBeNull();
+    expect(out.passes).toBe(0);
+    expect(out.calls).toBe(0);
+    expect(out.cut).toBe(false);
+  });
+
+  it('starts nothing at all, on either computer', async () => {
+    const before = spawned.length;
+    await call<Promise<unknown>>('machines:readContext', {
       machineId: 'nobody-is-connected-to-this',
       cwd: '/work/project'
     });

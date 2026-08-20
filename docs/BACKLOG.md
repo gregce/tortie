@@ -7696,7 +7696,7 @@ The picture was taken at one window size and one sidebar width. `tmux -L gmux li
 before and 39 after every run, and the operator's `~/.ssh/known_hosts` was 2,120 bytes before the
 probe and 2,120 bytes after it.
 
-## Phase 108 — Context on a machine (research 57 row, queued 2026-08-19) QUEUED
+## Phase 108 — Context on a machine (research 57 row, queued 2026-08-19) ✅ SHIPPED 2026-08-20 (this commit, 0.59.0, gates green, 7,221 tests, verifier pass with the committer bookkeeping done by the coordinator after a session limit)
 
 **Subject:** `feat(context): what an agent on another machine will actually read`
 **First body line:** `Phase 108: Context on a machine`

@@ -1035,7 +1035,13 @@ const {
   REMOTE_SCRIPT_MAX_BYTES,
   // Phase 98, condition 52. The size ceiling one search answer may hold, read
   // here so the gate can compare it against the constant inside the script text.
-  REMOTE_SEARCH_MAX_BYTES
+  REMOTE_SEARCH_MAX_BYTES,
+  // Phase 108, condition 58g. The per call cap on the context read list and
+  // the per file byte cap, read here so the gate can compare the second
+  // against the `head -c` literal inside the script text. Both are compiled
+  // constants in a module that imports nothing.
+  CONTEXT_READ_LIST_MAX_BYTES,
+  CONTEXT_READ_FILE_MAX_BYTES
 } = await import('../src/main/machines/remote-scripts');
 const { composeRemoteScriptCommand, remoteScriptName } = await import(
   '../src/main/machines/remote-run'
@@ -2015,6 +2021,119 @@ process.stdout.write(
         panelHonestyFields: ['hasMore', 'atCeiling', 'divergenceTruncated'].filter(
           (field) => panelText.includes(field)
         )
+      };
+    })(),
+
+    // --- Phase 108, condition 58 -------------------------------------------
+    // Pure. It reads one compiled script text, two compiled constants and four
+    // modules' own source text. It starts nothing, opens no file under the
+    // person's home, contacts no machine and makes no request. Two of the four
+    // source files belong to the renderer, and they are READ AS TEXT rather
+    // than imported, because importing a React module here would pull a
+    // renderer into a probe that must stay pure. The driver and the recording
+    // filesystem are read as text too, so loading them cannot start anything.
+    phase108: (() => {
+      const readText = (path: string): string => {
+        try {
+          return readFileSync(path, 'utf8');
+        } catch {
+          return '';
+        }
+      };
+      const driverPath = join(machinesDir, 'remote-agent-context.ts');
+      const driverText = readText(driverPath);
+      const recordingText = readText(
+        join(repoRoot, 'src', 'main', 'context', 'recording-fs.ts')
+      );
+      const rendererContext = join(repoRoot, 'src', 'renderer', 'context');
+      const storeText = readText(join(rendererContext, 'store.ts'));
+      const viewText = readText(join(rendererContext, 'ContextView.tsx'));
+      const script = REMOTE_SCRIPTS.find((row) => row.id === 'context-read');
+      const text = script?.text ?? '';
+      const facts = REMOTE_SCRIPTS.find((row) => row.id === 'machine-facts');
+      const factsText = facts?.text ?? '';
+      // 58e. A timer would make the panel read a machine nobody asked it to
+      // read. Names are composed so this probe's own text does not trip it.
+      const TIMERS = [
+        `setInt${'e'}rval`,
+        `setTim${'e'}out`,
+        `requestAnimation${'F'}rame`
+      ];
+      // 58g. The caps the driver declares, read out of its text rather than by
+      // importing it, because the driver imports the door and the door's
+      // world. A constant read as text is still the shipped number: the
+      // regexes anchor on the export statements.
+      const constOf = (name: string): number | null => {
+        const hit = new RegExp(
+          `export const ${name} = ([0-9_]+);`
+        ).exec(driverText);
+        return hit?.[1] === undefined
+          ? null
+          : Number(hit[1].replaceAll('_', ''));
+      };
+      return {
+        script:
+          script === undefined
+            ? null
+            : { mode: script.mode, params: script.params },
+        // 58c. Context is not a git question.
+        gitVerbs: [
+          ...new Set(
+            [...text.matchAll(/git (?:--no-pager )?([a-z-]+)/g)].map(
+              (hit) => hit[1] ?? ''
+            )
+          )
+        ].sort(),
+        // 58b. The row's own shape: both lists read into local names, split
+        // under IFS, and the only redirection is 2>/dev/null (the generic
+        // conditions already assert the redirection rule for every read).
+        readsListsIntoLocals:
+          text.includes('el="$1"') &&
+          text.includes('dp="$2"') &&
+          text.includes('rl="$3"'),
+        splitsUnderIfs: text.includes("IFS='\n'"),
+        marker: text.split(REMOTE_SCRIPT_MARKER).length - 1,
+        // 58f. The three environment names Phase 108 added to machine-facts.
+        machineFactsPrints: [
+          'claude_config_dir',
+          'xdg_config_home',
+          'xdg_state_home'
+        ].filter((name) => factsText.includes(`${name}=%s`)),
+        // 58g. The caps.
+        listMax: CONTEXT_READ_LIST_MAX_BYTES,
+        fileMax: CONTEXT_READ_FILE_MAX_BYTES,
+        headCapLiteral: (() => {
+          const hit = /head -c (\d+)/.exec(text);
+          return hit?.[1] === undefined ? null : Number(hit[1]);
+        })(),
+        maxPasses: constOf('CONTEXT_READ_MAX_PASSES'),
+        enumDepth: constOf('CONTEXT_ENUM_DEPTH'),
+        answerBudget: constOf('CONTEXT_ANSWER_BUDGET_BYTES'),
+        // 58d. NO SECOND TABLE. The driver reuses scanContext whole, imports
+        // nothing from agent-context, reads no disk of its own and declares no
+        // location table. The recording filesystem imports nothing from the
+        // machines domain, so the remote path cannot learn an agent's rules
+        // anywhere but the one file the matrix gate reads.
+        driverPresent: driverText.length > 0,
+        driverImports: importSpecifiers(driverPath),
+        driverImportsScan: driverText.includes("from '../context/scan'"),
+        driverNamesAtTable: driverText.includes("at: '"),
+        recordingPresent: recordingText.length > 0,
+        recordingImports: [
+          ...recordingText.matchAll(/from '([^']+)'/g)
+        ].map((hit) => hit[1] ?? ''),
+        // 58e. No timer, in main or in the renderer store.
+        driverTimers: TIMERS.filter((name) => driverText.includes(name)),
+        storePresent: storeText.length > 0,
+        storeTimers: TIMERS.filter((name) => storeText.includes(name)),
+        // 58h. The remote note lines are real, so a remote list cannot draw as
+        // a local one and a cut list cannot draw as a whole one.
+        viewPresent: viewText.length > 0,
+        viewHonestyNames: [
+          'contextOnMachineLine',
+          'CONTEXT_NESTED_NOT_LISTED',
+          'contextCutLine'
+        ].filter((name) => viewText.includes(name))
       };
     })(),
 

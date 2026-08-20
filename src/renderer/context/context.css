@@ -690,3 +690,23 @@
 .ctx-search-source {
   text-align: left;
 }
+
+/* ---------------------------------------------------------------------------
+   Phase 108 — the note under the sections when the scan came from a machine.
+   The same anatomy as .search-machine-note, which does the same job for the
+   Search view: quiet lines in the muted text token, under the rows they
+   describe, never instead of them.
+--------------------------------------------------------------------------- */
+.ctx-remote-note {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-5) var(--space-3) var(--space-5);
+}
+
+.ctx-remote-note p {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: var(--lh-sm);
+  color: var(--text-muted);
+}

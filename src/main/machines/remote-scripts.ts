@@ -65,6 +65,16 @@
  * names `git fetch`, `git pull` or `git remote update`. IT READS NO FILE
  * CONTENTS, so it cannot show the files one commit changed.
  *
+ * PHASE 108 ADDED ONE MORE, and it is a read. `context-read` lists directories
+ * and reads files back, so the Context view on a tab whose project lives on
+ * another machine can show what the agents THERE will load. It knows nothing
+ * about any agent: the far side does no parsing, and every parser stays on
+ * this Mac inside the reader it already lives in. That is what keeps it one
+ * script rather than a second copy of the precedence table. It names no git
+ * verb at all, because context is not a git question. It writes nothing, and
+ * `head -c` inside it caps every file it reads back at
+ * {@link CONTEXT_READ_FILE_MAX_BYTES}.
+ *
  * PHASE 90.3 ADDED ONE MORE, and it is a read. `tree-list` names every file
  * and folder under one folder on a machine, to a fixed depth, in ONE call. It
  * is what the Explorer draws for a project that lives on another computer.
@@ -282,8 +292,41 @@ export const REMOTE_SCRIPT_MAX_BYTES = 131_072;
  */
 export const REMOTE_SEARCH_MAX_BYTES = 4_194_304;
 
+/**
+ * The most bytes one `context-read` LIST parameter may hold. 100,000.
+ *
+ * The composed command shares {@link REMOTE_SCRIPT_MAX_BYTES}, being 131,072.
+ * Research 57 i7 section 3.4 measured 1,263 paths at 47,020 bytes and ruled
+ * that a longer list is split at 100,000 bytes. THIS IS THE PER CALL CAP ON
+ * THE READ LIST the Phase 108 charter names: a longer list becomes more calls
+ * in the same pass, each paying the measured 0.03 s round trip and nothing
+ * else. Both list parameters take the same cap. The driver in
+ * `./remote-agent-context.ts` enforces it; this file only states the number,
+ * because this file imports nothing.
+ */
+export const CONTEXT_READ_LIST_MAX_BYTES = 100_000;
+
+/**
+ * The most bytes of one file `context-read` sends back. 33,554,432.
+ *
+ * It equals `CONTEXT_READ_LIMITS.bigJsonMaxBytes` in
+ * `src/main/context/port.ts`, the largest read the local reader ever asks for,
+ * because `~/.claude.json` is over a megabyte today and the ceiling has to
+ * clear it the same way on both computers. This file imports nothing, so the
+ * two constants cannot share a definition; a unit test in
+ * `src/main/machines/__tests__/remote-agent-context.test.ts` asserts they are
+ * equal, and condition 58g of `build/conformance-machines.mjs` asserts the
+ * same number appears as the `head -c` literal in the script text below. A
+ * longer file is truncated by `head -c` on the far side and then fails its
+ * parse into a problem row here, which is byte for byte what the local reader
+ * does to the same file.
+ */
+export const CONTEXT_READ_FILE_MAX_BYTES = 33_554_432;
+
 // ---------------------------------------------------------------------------
-// The fifteen scripts
+// The eighteen scripts. THIS DIVIDER HAD GONE STALE and Phase 108 says so
+// rather than quietly fixing it: it read fifteen while the array below held
+// seventeen. The catalogue comment above the array is the counted one.
 // ---------------------------------------------------------------------------
 
 /**
@@ -293,8 +336,18 @@ export const REMOTE_SEARCH_MAX_BYTES = 4_194_304;
  * home path for another computer from anything except that machine's own
  * answer, and this is that answer. `CODEX_HOME` and `XDG_DATA_HOME` are the two
  * names the store descriptors read, and a name that is not set prints as an
- * empty value rather than being absent, so the parse sees the same four lines
+ * empty value rather than being absent, so the parse sees the same lines
  * every time.
+ *
+ * PHASE 108 ADDED THREE LINES, being `claude_config_dir`, `xdg_config_home`
+ * and `xdg_state_home`. `resolveHomes` in `src/main/context/env.ts` reads six
+ * environment names, and until this phase only `HOME` and `CODEX_HOME`
+ * crossed. Without the three, a remote Context read points at `~/.claude` on a
+ * machine where the person moved their Claude Code configuration with
+ * `CLAUDE_CONFIG_DIR`, and the panel draws an empty Skills section and is
+ * wrong rather than empty. `parseMachineFacts` in `./remote-image.ts` ignores
+ * a line it does not know, so every caller that predates the three lines keeps
+ * working, and all three parse sites were checked rather than assumed.
  */
 const MACHINE_FACTS = [
   'set -e',
@@ -303,6 +356,9 @@ const MACHINE_FACTS = [
   "printf 'home=%s\\n' \"$HOME\"",
   "printf 'codex_home=%s\\n' \"${CODEX_HOME:-}\"",
   "printf 'xdg_data_home=%s\\n' \"${XDG_DATA_HOME:-}\"",
+  "printf 'claude_config_dir=%s\\n' \"${CLAUDE_CONFIG_DIR:-}\"",
+  "printf 'xdg_config_home=%s\\n' \"${XDG_CONFIG_HOME:-}\"",
+  "printf 'xdg_state_home=%s\\n' \"${XDG_STATE_HOME:-}\"",
   "u=$(uname -s)",
   "printf 'uname=%s\\n' \"$u\"",
   "printf '__TORTIE_RUN__\\n'"
@@ -1518,16 +1574,180 @@ const REPO_HISTORY = [
 ].join('\n');
 
 /**
- * The whole catalogue. Seventeen scripts, and this release holds no others.
+ * What one folder on a machine holds and what a list of files there says
+ * (Phase 108, research 57 section 7 and research 57 i7).
+ *
+ * ## What it is for
+ *
+ * The Context view shows the skills, MCP servers, hooks, plugins and
+ * instruction files the agents will load. On a tab whose project lives on
+ * another machine, the reader in `src/main/context/scan.ts` runs UNCHANGED on
+ * this Mac against a bundle of answers, and this script is how the bundle is
+ * filled. The driver in `./remote-agent-context.ts` sends the paths the reader
+ * missed, this script answers with listings and file bytes, and the reader
+ * runs again. THE FAR SIDE DOES NO PARSING. It does not know what `SKILL.md`
+ * is, and that is what keeps it one script rather than a second copy of the
+ * per agent precedence table.
+ *
+ * ## The three values
+ *
+ * ```
+ *   $1  a newline separated list of directories to enumerate
+ *   $2  the depth to enumerate each of them to. The driver always sends 2
+ *   $3  a newline separated list of files to read back
+ * ```
+ *
+ * Each list is read once, in quotes, into a local name, and the word splitting
+ * happens on that local name under `IFS` set to a newline. That is the
+ * `program-find` shape, being condition 46's precedent, because `for d in $1`
+ * would be a bare positional and rule 2 of this catalogue would be gone.
+ * `set -f` stands beside it so a path holding `*` stays a path rather than
+ * becoming a pattern.
+ *
+ * ## What it prints, between the markers, line by line
+ *
+ * The path is always the REST of its line, so a path holding a space parses.
+ * The reader's own absolute row is
+ * `/Library/Application Support/ClaudeCode/managed-settings.json`, so this is
+ * a shipped path rather than a caution. A path holding a NEWLINE breaks its
+ * record and the parse on this Mac drops that record rather than guessing,
+ * which is the `STORE_LIST` precedent.
+ *
+ * | Record | Lines | Meaning |
+ * | --- | --- | --- |
+ * | `E <kind> <mtime> <size> <path>` | 1 | One entry found while enumerating. `kind` is `d`, `f`, `ld`, `lf` or `o`. `find -mindepth 0` includes the root itself, so an enumerated root gets its own `E` line. |
+ * | `R <resolved path>` | 1, directly after an `E` line whose kind starts with `l` | Where that symlink really points, absolute. |
+ * | `F <size> <path>` then one base64 line | 2 | One file read back, the `STORE_COPY` recipe. `<size>` is the file's whole size, and the payload is capped by `head -c`. |
+ * | `X <path>` | 1 | A path from either list that is not there or not readable. An ordinary answer, never an error. |
+ *
+ * A directory that arrives in the READ list answers its own `E d` line rather
+ * than `X`, because a root readout asks whether a directory exists, and `X`
+ * for a directory that is there would draw `exists: false` on screen for a
+ * folder the machine holds.
+ *
+ * ## The two `stat` spellings, and why GNU comes first here
+ *
+ * Metadata comes from `stat` in its two spellings, batched through
+ * `find -exec … {} +` rather than one spawn per entry, the `STORE_LIST`
+ * precedent. The ORDER IS REVERSED from `STORE_LIST`, deliberately. GNU
+ * `stat -f` means "file system status" and prints multi line blocks to stdout
+ * before failing on the format string, so trying the BSD spelling first on a
+ * Linux machine would put garbage lines into the payload. BSD `stat -c` fails
+ * with a usage error and prints NOTHING to stdout. So the GNU spelling is
+ * tried first and the failed spelling is silent on both kinds of machine.
+ *
+ * ## The symlink lines
+ *
+ * One physical `SKILL.md` is reachable from up to nine agent directories
+ * through symlinks, and the reader dedupes by `realPath`, so the `R` line is
+ * load bearing rather than decoration. It is resolved with `realpath` where
+ * that program answers, and with the `cd`/`pwd -P` fallback for a directory
+ * link where it does not (research 57 i7 section 4.8 measured both). A file
+ * link on a machine with no `realpath` gets no `R` line, and the reader then
+ * draws that skill without the dedupe rather than failing. An enumerated ROOT
+ * that is itself a symlink gets its own `E ld` and `R` lines before the walk,
+ * because `find -H` follows the root and would otherwise report it as a plain
+ * directory, and the dedupe above would silently stop working at the root.
+ *
+ * ## The size cap, stated as a literal
+ *
+ * `head -c 33554432` is {@link CONTEXT_READ_FILE_MAX_BYTES}. The literal is in
+ * the text because this file imports nothing, and condition 58g of
+ * `build/conformance-machines.mjs` holds the two together.
+ *
+ * ## The catalogue rules, one at a time
+ *
+ * The text holds no backtick and no caller value. The positionals are `"$1"`,
+ * `"$2"` and `"$3"`, each read double quoted exactly once, into `el`, `dp` and
+ * `rl`. It begins `set -e` and then `umask 077`. Every answer is printed
+ * between one marker pair. It names none of the eleven mutating programs: it
+ * names `find`, `stat`, `realpath`, `pwd`, `wc`, `tr`, `head`, `base64`, `cd`,
+ * `read` and `test`. Its only redirection is `2>/dev/null`. It names NO git
+ * verb at all, because context is not a git question, and condition 58c holds
+ * that. When both lists are empty it prints {@link REMOTE_SCRIPT_EMPTY}, so
+ * "the machine answered and there was nothing" stays apart from "the machine
+ * did not answer".
+ *
+ * Running it twice reads the same directories and files twice. It writes
+ * nothing on either computer.
+ */
+const CONTEXT_READ = [
+  'set -e',
+  'umask 077',
+  'set -f',
+  'el="$1"',
+  'dp="$2"',
+  'rl="$3"',
+  'n=0',
+  "IFS='",
+  "'",
+  'for d in $el; do if [ -n "$d" ]; then n=1; fi; done',
+  'for f in $rl; do if [ -n "$f" ]; then n=1; fi; done',
+  "printf '__TORTIE_RUN__'",
+  'if [ "$n" = 0 ]; then',
+  "  printf 'none'",
+  'else',
+  '  for d in $el; do',
+  '    [ -n "$d" ] || continue',
+  '    if [ -d "$d" ] && [ -r "$d" ] && [ -x "$d" ]; then',
+  '      if [ -h "$d" ]; then',
+  "        m=$(stat -L -c '%Y %s' \"$d\" 2>/dev/null || true)",
+  "        if [ -z \"$m\" ]; then m=$(stat -L -f '%m %z' \"$d\" 2>/dev/null || true); fi",
+  "        printf 'E ld %s %s\\n' \"${m:-0 0}\" \"$d\"",
+  '        r=$(realpath "$d" 2>/dev/null || true)',
+  '        if [ -z "$r" ]; then r=$(cd "$d" 2>/dev/null && pwd -P || true); fi',
+  "        if [ -n \"$r\" ]; then printf 'R %s\\n' \"$r\"; fi",
+  '      fi',
+  "      find -H \"$d\" -mindepth 0 -maxdepth \"$dp\" -type d -exec stat -c 'E d %Y %s %n' {} + 2>/dev/null ||",
+  "        find -H \"$d\" -mindepth 0 -maxdepth \"$dp\" -type d -exec stat -f 'E d %m %z %N' {} + 2>/dev/null || true",
+  "      find -H \"$d\" -mindepth 1 -maxdepth \"$dp\" -type f -exec stat -c 'E f %Y %s %n' {} + 2>/dev/null ||",
+  "        find -H \"$d\" -mindepth 1 -maxdepth \"$dp\" -type f -exec stat -f 'E f %m %z %N' {} + 2>/dev/null || true",
+  '      find -H "$d" -mindepth 1 -maxdepth "$dp" -type l -print 2>/dev/null | while IFS= read -r e; do',
+  '        if [ -d "$e" ]; then k=ld; elif [ -f "$e" ]; then k=lf; else k=o; fi',
+  "        m=$(stat -L -c '%Y %s' \"$e\" 2>/dev/null || true)",
+  "        if [ -z \"$m\" ]; then m=$(stat -L -f '%m %z' \"$e\" 2>/dev/null || true); fi",
+  "        printf 'E %s %s %s\\n' \"$k\" \"${m:-0 0}\" \"$e\"",
+  '        r=',
+  '        if [ "$k" != o ]; then',
+  '          r=$(realpath "$e" 2>/dev/null || true)',
+  '          if [ -z "$r" ] && [ "$k" = ld ]; then r=$(cd "$e" 2>/dev/null && pwd -P || true); fi',
+  '        fi',
+  "        if [ -n \"$r\" ]; then printf 'R %s\\n' \"$r\"; fi",
+  '      done',
+  '    else',
+  "      printf 'X %s\\n' \"$d\"",
+  '    fi',
+  '  done',
+  '  for f in $rl; do',
+  '    [ -n "$f" ] || continue',
+  '    if [ -f "$f" ] && [ -r "$f" ]; then',
+  '      z=$(wc -c < "$f" | tr -d \' \')',
+  "      printf 'F %s %s\\n' \"${z:-0}\" \"$f\"",
+  "      head -c 33554432 \"$f\" | base64 | tr -d '\\n' || true",
+  "      printf '\\n'",
+  '    elif [ -d "$f" ]; then',
+  "      m=$(stat -c 'E d %Y %s %n' \"$f\" 2>/dev/null || true)",
+  "      if [ -z \"$m\" ]; then m=$(stat -f 'E d %m %z %N' \"$f\" 2>/dev/null || true); fi",
+  '      if [ -n "$m" ]; then printf \'%s\\n\' "$m"; else printf \'X %s\\n\' "$f"; fi',
+  '    else',
+  "      printf 'X %s\\n' \"$f\"",
+  '    fi',
+  '  done',
+  'fi',
+  "printf '__TORTIE_RUN__\\n'"
+].join('\n');
+
+/**
+ * The whole catalogue. Eighteen scripts, and this release holds no others.
  *
  * A name that is not here is refused by `./remote-run.ts` before anything is
  * composed, which is the shape the verb ledger has as well: the refusal happens
  * before a string exists, rather than after one was built and then inspected.
  *
- * TWO of the seventeen write, being `image-put` and `git-clone`, and they are in
+ * TWO of the eighteen write, being `image-put` and `git-clone`, and they are in
  * that order in this array. {@link remoteWriteScripts} returns them in it.
  * PHASE 98 ADDED A READ AND LEFT THAT NUMBER ALONE. SO DID PHASE 99, PHASE 105,
- * PHASE 106 AND PHASE 107.
+ * PHASE 106, PHASE 107 AND PHASE 108.
  */
 export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
   {
@@ -1535,7 +1755,7 @@ export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
     mode: 'read',
     params: 0,
     text: MACHINE_FACTS,
-    reason: 'It prints four values and writes nothing.'
+    reason: 'It prints seven values and writes nothing.'
   },
   {
     id: 'store-list',
@@ -1671,6 +1891,13 @@ export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
       'It asks git for the newest commits in one folder and for two anchors ' +
       'around them. It writes nothing, so running it twice reads the same ' +
       'folder twice.'
+  },
+  {
+    id: 'context-read',
+    mode: 'read',
+    params: 3,
+    text: CONTEXT_READ,
+    reason: 'It lists directories, reads files and writes nothing.'
   },
   {
     id: 'git-clone',

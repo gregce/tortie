@@ -11,8 +11,14 @@
  * PHASE 98 TOOK THE SEARCH PAIR OFF IT, for the same reason. Those two said
  * "Search does not reach Studio" and "Tortie searches files on this Mac only",
  * and the Search view now searches that machine's own folder, so both had
- * become false. The eleven sentences that replaced them are pinned below. The
- * Context pair is unchanged, because Context still reads this Mac only.
+ * become false. The eleven sentences that replaced them are pinned below.
+ *
+ * PHASE 108 TOOK THE CONTEXT BODY OFF IT, the same move again. It said
+ * "Tortie reads skills, servers and hooks from this Mac only, so nothing is
+ * listed here", and the Context view now reads a project on a machine, so the
+ * sentence had become false. The title stays, because the files do live on
+ * that machine in every state. The sentences that replaced the body are
+ * pinned below.
  *
  * The strings are pinned here because two builders write against them and
  * because a person reads them. The vocabulary audit next door already covers
@@ -26,8 +32,17 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
-  CONTEXT_ELSEWHERE_BODY,
+  CONTEXT_NESTED_NOT_LISTED,
+  CONTEXT_NO_BRIDGE,
+  contextCutLine,
   contextElsewhereTitle,
+  contextEmptyOnMachine,
+  contextNoAnswer,
+  contextNoHome,
+  contextNotConnected,
+  contextOnMachineLine,
+  contextReadingOn,
+  contextRefreshOnMachineTitle,
   SEARCH_ANSWER_TOO_LARGE,
   SEARCH_FILTERS_ON_THIS_MAC,
   SEARCH_NO_BRIDGE,
@@ -64,14 +79,69 @@ function copyLiteralsOf(source: string): string[] {
   );
 }
 
-describe('the Context pair', () => {
-  it('says what Context draws', () => {
+describe('what Context says about a project on a machine (Phase 108)', () => {
+  it('keeps the title, because it is true in every state', () => {
     expect(contextElsewhereTitle('Studio')).toBe(
       'These agent files live on Studio.'
     );
-    expect(CONTEXT_ELSEWHERE_BODY).toBe(
-      'Tortie reads skills, servers and hooks from this Mac only, so nothing ' +
-        'is listed here.'
+  });
+
+  it('takes the body Phase 108 made false out of the file', async () => {
+    const copy = (await import('../machine-copy')) as Record<string, unknown>;
+    expect(copy.CONTEXT_ELSEWHERE_BODY).toBeUndefined();
+  });
+
+  it('says what an old build cannot do, and nothing more', () => {
+    expect(CONTEXT_NO_BRIDGE).toBe(
+      'This build cannot read agent files on another machine.'
+    );
+  });
+
+  it('says whose files are being read while they are', () => {
+    expect(contextReadingOn('Studio')).toBe(
+      'Reading what agents will load on Studio…'
+    );
+  });
+
+  it('answers each of the three words that mean no rows', () => {
+    expect(contextNotConnected('Studio')).toBe(
+      'Tortie is not connected to Studio, so it read nothing.'
+    );
+    expect(contextNoAnswer('Studio')).toBe(
+      'Studio did not answer, so there is nothing to show.'
+    );
+    expect(contextNoHome('Studio')).toBe(
+      'Studio did not say where its home folder is, so Tortie read nothing ' +
+        'rather than guess at paths.'
+    );
+  });
+
+  it('names the three limits under every list a machine sent', () => {
+    expect(contextOnMachineLine('Studio')).toBe(
+      'Tortie read these files on Studio. Installing, enabling and pinning ' +
+        'work on this Mac only.'
+    );
+    expect(CONTEXT_NESTED_NOT_LISTED).toBe(
+      'Skills kept in folders inside this project are not listed when the ' +
+        'project is on another machine.'
+    );
+    expect(contextCutLine('Studio')).toBe(
+      'Studio holds more configuration than Tortie read this time, so some ' +
+        'entries can be missing from this list.'
+    );
+  });
+
+  it('says where adding happens, in place of a button that could do nothing', () => {
+    expect(contextEmptyOnMachine('Studio')).toBe(
+      'Nothing is configured for these agents on Studio. Adding a skill ' +
+        'happens on that machine, or from an agent running there.'
+    );
+  });
+
+  it('tells the Refresh control the truth about what it cannot see', () => {
+    expect(contextRefreshOnMachineTitle('Studio')).toBe(
+      'Read the files on Studio again. Tortie cannot see a change made on ' +
+        'that machine until you press this.'
     );
   });
 });
@@ -163,13 +233,21 @@ describe('the writing rules, over every sentence in machine-copy.ts', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('uses no colon in the Context pair or in any Phase 98 sentence', () => {
+  it('uses no colon in any Phase 98 or Phase 108 sentence', () => {
     // The whole file is not swept for a colon, because one literal in it is a
     // clock time and a clock time is not punctuation. These introduce no list,
     // so none of them may hold one.
     const sentences = [
       contextElsewhereTitle('Studio'),
-      CONTEXT_ELSEWHERE_BODY,
+      CONTEXT_NO_BRIDGE,
+      contextNotConnected('Studio'),
+      contextNoAnswer('Studio'),
+      contextNoHome('Studio'),
+      contextOnMachineLine('Studio'),
+      CONTEXT_NESTED_NOT_LISTED,
+      contextCutLine('Studio'),
+      contextEmptyOnMachine('Studio'),
+      contextRefreshOnMachineTitle('Studio'),
       searchOnMachineLine('Studio'),
       SEARCH_NOT_A_REPOSITORY,
       searchFolderMissing('Studio'),
@@ -183,8 +261,12 @@ describe('the writing rules, over every sentence in machine-copy.ts', () => {
     ];
     expect(sentences.filter((one) => one.includes(':'))).toEqual([]);
     // Each one is a complete sentence and ends in a full stop. The Stop label
-    // is not in this list, because a control label is not a sentence.
+    // is not in this list, because a control label is not a sentence, and the
+    // Phase 108 reading line is not either, because a line that describes
+    // work in progress ends in an ellipsis the way REVIEW_READING does.
     expect(sentences.filter((one) => !one.endsWith('.'))).toEqual([]);
     expect(SEARCH_STOP_WAITING.includes(':')).toBe(false);
+    expect(contextReadingOn('Studio').includes(':')).toBe(false);
+    expect(contextReadingOn('Studio').endsWith('…')).toBe(true);
   });
 });
