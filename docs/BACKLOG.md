@@ -6797,6 +6797,65 @@ That resolves as the other in-flight phases land on top of this commit.
 The operator's server was read only throughout. `tmux -L gmux list-sessions | wc -l` read 39 at
 every checkpoint of the build, the verification and the commit.
 
+## Phase 120 — a release run started from a tag never appears in Runs (operator reported 2026-08-20, with a screenshot) QUEUED
+
+**Subject:** `fix(actions): runs started from a tag appear beside the branch's runs`
+**First body line:** `Phase 120: a release run started from a tag never appears in Runs`
+**Semver:** patch.
+**Tier 3.** The operator personally reported it, so he gets proof rather than assurance.
+
+### What he saw
+
+His deadreckon Release workflow was live at run 32405134143, started by pushing tag `v0.8.7`. The
+Runs group in the deadreckon tab showed ten older runs and said "Last checked just now", and Refresh
+never surfaced the running one.
+
+### The cause, measured rather than guessed
+
+GitHub records a tag-push run's head branch as the TAG NAME. His run answers
+`headBranch: "v0.8.7"`, not `main`. Tortie's local list runs
+`gh run list --branch main` (`buildRunListForBranchArgv` in `src/main/actions/argv.ts`), so a tag
+run is excluded no matter its status and no matter how often he refreshes. There is NO status
+filter, so a queued or in-progress run ON THE BRANCH does appear today with its live state; the
+invisible ones are runs whose head branch is not the branch, which is every tag release.
+
+**The remote Runs group shares the blind spot.** `src/main/machines/remote-runs.ts` composes the
+same `run list --repo ... --branch ...` shape from this Mac, so a tag release for a folder on
+another machine is equally invisible.
+
+### The fix, and the machinery half exists
+
+`buildRunListForCommitArgv` already exists in the same file, with a refusal that `run list` takes a
+branch or a commit and never both. The fix is TWO queries merged: the branch query as today, plus
+the commit query at the branch tip, deduplicated by run id and sorted by start time. A tag pushed at
+the tip, which is how releases are cut, has that commit as its head, so it appears. Both the local
+group and the remote group get the same merge. The far side script does NOT change; the remote half
+is gh argv composition on this Mac only, so this phase touches no file under `src/main/machines/`
+except `remote-runs.ts` and does not touch `remote-scripts.ts`, which the parallel agents-scan phase
+owns next.
+
+### The operator's second ask, folded in
+
+He said just-launched runs must appear on refresh. For branch runs they already do; PROVE it rather
+than assert it, with a live in-progress run drawn in its running state, because his screenshot
+happens to show only finished rows and the claim has never been photographed.
+
+### What is NOT in this phase
+
+No polling and no timer; a read still happens on expand and on Refresh, which is the standing rule.
+No new far-side script. No change to the run row's verbs.
+
+### The evidence
+
+(1) Against a REAL repository read-only, being gregce/tortie or deadreckon, prove the merged query
+returns a tag-started run the branch query alone omits, and name the run id. (2) Drive the Runs
+group in the live app with a fixture set containing queued, in progress and completed rows, and read
+a screenshot showing the live states drawn. (3) Prove the dedupe, being a run reachable by both
+queries appears once. (4) Prove the remote group gets the same result through its own path against
+the loopback machine, with the gh invocation captured to show no credential crossed. Count the
+operator's sessions before and after; the operator moves the count himself, so the invariant is that
+your runs do not move it.
+
 ## Phase 96 — the four defects on the remote surfaces (research 57 row, queued 2026-08-19) ✅ SHIPPED 2026-08-19 (this commit, 0.49.1, gates green, 6,575 tests)
 
 **Subject:** `fix(machines): four defects the parity audit found on the remote surfaces`
