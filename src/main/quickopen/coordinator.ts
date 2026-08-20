@@ -11,7 +11,12 @@
 
 import { Worker } from 'node:worker_threads';
 import { resolve as resolvePath } from 'node:path';
-import type { QuickOpenQueryInput, QuickOpenResult } from '@shared/ipc';
+import type {
+  QuickOpenQueryInput,
+  QuickOpenResult,
+  QuickOpenWarmInput
+} from '@shared/ipc';
+import { isLocalTarget, targetOfRootKey } from '@shared/workspace-target';
 import type { QuickOpenRequest, QuickOpenResponse } from './protocol';
 import { WORKER_NAMES } from '../proc/identity';
 
@@ -61,7 +66,7 @@ interface Pending {
 }
 
 export interface QuickOpenCoordinator {
-  warm(repoPath: string): void;
+  warm(input: QuickOpenWarmInput): void;
   query(input: QuickOpenQueryInput): Promise<QuickOpenResult>;
   dispose(): Promise<void>;
 }
@@ -82,8 +87,22 @@ export function createQuickOpenCoordinator(
   /** Why the worker could not start, if it could not. Shown to the user. */
   let startupError: string | null = null;
 
-  /** Everything addresses roots by their resolved absolute path, once. */
-  const norm = (p: string): string => resolvePath(p);
+  /**
+   * Root keys are compared as strings, once.
+   *
+   * A folder on this Mac is resolved, so `/a/b/../b` and `/a/b` are one index.
+   * PHASE 99: a key naming another machine is left exactly as it arrived. That
+   * path was resolved by the machine that owns it, and `resolve` here would
+   * resolve it against THIS Mac's working directory and hand the worker a
+   * different string every time the process started somewhere else.
+   *
+   * The question is asked of `targetOfRootKey` rather than of the prefix,
+   * because the worker asks that same function which roots it may enumerate.
+   * Two readers of one key shape have to give one answer, and one shared
+   * function is how they do.
+   */
+  const norm = (key: string): string =>
+    isLocalTarget(targetOfRootKey(key)) ? resolvePath(key) : key;
 
   /**
    * The honest answer when there is nothing to say yet: no rows, not ready,
@@ -227,6 +246,10 @@ export function createQuickOpenCoordinator(
     sweep.unref?.();
   }
 
+  // The watcher runs on THIS Mac, so its paths are local and this subscription
+  // can never match a root key that names another machine. That is correct:
+  // nothing here watches a folder on another computer, and the palette re-reads
+  // that machine on its own five second rule instead.
   if (typeof deps.onRepoChanged === 'function') {
     unsubscribeWatcher = deps.onRepoChanged((repoPath) => {
       const root = norm(repoPath);
@@ -238,11 +261,18 @@ export function createQuickOpenCoordinator(
   }
 
   return {
-    warm(repoPath) {
-      const root = norm(repoPath);
+    warm(input) {
+      const root = norm(input.root);
       lastUsed.set(root, Date.now());
       startSweep();
-      send({ type: 'warm', root });
+      // PHASE 99. `paths` is forwarded only when the caller sent it. An absent
+      // field means "enumerate this root yourself", and an EMPTY ARRAY means
+      // "Tortie holds no names for this root", which are two different answers.
+      send({
+        type: 'warm',
+        root,
+        ...(input.paths === undefined ? {} : { paths: input.paths })
+      });
     },
 
     query(input) {

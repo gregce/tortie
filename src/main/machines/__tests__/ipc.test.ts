@@ -1,6 +1,11 @@
 /**
- * The thirteen channels, and the four sentences that decide whether this phase
- * is safe.
+ * Every `machines:*` channel, and the four sentences that decide whether this
+ * phase is safe.
+ *
+ * THE TITLE USED TO SAY THIRTEEN, which was true when Phase 68 wrote it and
+ * false from Phase 69 onward. Phase 99 took the number out rather than writing
+ * a new one that goes stale in the same way. The array in the first test is the
+ * fact, and it names every channel or it names none.
  *
  *  1. `machines:test` in `saved` mode asks the gate BEFORE it spawns anything.
  *     A machine nobody confirmed refuses, and node-pty is never called.
@@ -262,6 +267,14 @@ describe('every channel is registered, and only the ones listed here', () => {
       // Tortie is not connected to the machine.
       'machines:listDir',
       // ---- END PHASE 84 ----
+      // ---- PHASE 99 ----
+      // One READ of the file NAMES in one folder on one machine, for the Quick
+      // Open palette on a tab whose project lives over there. It carries names
+      // and never contents, it sends no program, it writes nothing on either
+      // computer, and it refuses while Tortie is not connected to the machine.
+      // Nothing calls it on a clock.
+      'machines:listFiles',
+      // ---- END PHASE 99 ----
       // ---- PHASE 90.3 ----
       // One READ of one folder TREE on one machine, for the Explorer of a
       // project that lives over there. It walks to a fixed depth in one call

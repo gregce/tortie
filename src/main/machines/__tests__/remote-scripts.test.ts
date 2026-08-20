@@ -16,6 +16,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { REMOTE_FILE_LIST_MAX_BYTES } from '@shared/ipc';
 import {
   REMOTE_SCRIPTS,
   REMOTE_SCRIPT_MARKER,
@@ -99,9 +100,14 @@ function positionals(text: string): Positional[] {
 }
 
 describe('the catalogue', () => {
-  it('holds thirteen scripts and this release holds no others', () => {
-    expect(REMOTE_SCRIPTS).toHaveLength(13);
+  it('holds fourteen scripts and this release holds no others', () => {
+    expect(REMOTE_SCRIPTS).toHaveLength(14);
     expect(REMOTE_SCRIPTS.map((script) => script.id).sort()).toEqual([
+      // PHASE 99 added `repo-files`, which names every file in one folder so
+      // the Quick Open palette on a tab that lives over there can rank them. It
+      // carries names and never contents, it is a read, and it writes nothing,
+      // so the write count below stays at two.
+      //
       // PHASE 98 added `repo-search`, which prints every matching line in one
       // folder using that machine's own grep. It is a read and it writes
       // nothing, so the write count below stays at two.
@@ -119,6 +125,7 @@ describe('the catalogue', () => {
       'image-put',
       'machine-facts',
       'program-find',
+      'repo-files',
       'repo-find',
       'repo-search',
       'review-file',
@@ -703,5 +710,119 @@ describe('the remote search', () => {
   it('redirects nothing except the two noise silencers', () => {
     const rest = (search?.text ?? '').split('2>/dev/null').join('');
     expect(rest).not.toContain('>');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 99. The name list that runs on the machine
+// ---------------------------------------------------------------------------
+
+describe('the remote name list', () => {
+  const files = remoteScript('repo-files');
+
+  it('is a read that takes two values', () => {
+    expect(files?.mode).toBe('read');
+    expect(files?.params).toBe(2);
+  });
+
+  it('names exactly the two git verbs it needs, and both are reads', () => {
+    // Both are already on the list Phase 98 left. This phase widened nothing.
+    const verbs = [
+      ...new Set(
+        [...(files?.text ?? '').matchAll(/git (?:--no-pager )?([a-z-]+)/g)].map(
+          (match) => match[1]
+        )
+      )
+    ].sort();
+    expect(verbs).toEqual(['ls-files', 'rev-parse']);
+    for (const verb of verbs) expect(GIT_VERBS).toContain(verb);
+  });
+
+  it('lists the untracked files git is not ignoring as well as the tracked ones', () => {
+    // A file an agent on that machine made five minutes ago is a file a person
+    // wants to open by name, and it is the case this feature exists for.
+    expect(files?.text).toContain(
+      'git ls-files --cached --others --exclude-standard'
+    );
+  });
+
+  it('caps the answer in lines and in bytes on both of its branches', () => {
+    const branches = (files?.text ?? '')
+      .split('\n')
+      .filter((line) => line.includes('o=$('));
+    expect(branches).toHaveLength(2);
+    for (const branch of branches) {
+      // The cap PLUS ONE arrives as "$2", so a body with more lines than the
+      // cap is proof the cap bit rather than a second walk of the tree.
+      expect(branch, branch).toContain('head -n "$2"');
+      // ONE BYTE PAST THE CEILING. That byte is what makes the cut an answer
+      // rather than a guess about the last byte of the body.
+      expect(branch, branch).toContain(
+        `head -c ${String(REMOTE_FILE_LIST_MAX_BYTES + 1)}`
+      );
+    }
+  });
+
+  it('agrees with the exported ceiling, because two copies go stale', () => {
+    const caps = [...(files?.text ?? '').matchAll(/head -c ([0-9]+)/g)].map(
+      (match) => Number(match[1])
+    );
+    expect(caps).toHaveLength(2);
+    for (const cap of caps) expect(cap).toBe(REMOTE_FILE_LIST_MAX_BYTES + 1);
+    expect(REMOTE_FILE_LIST_MAX_BYTES).toBe(REMOTE_SEARCH_MAX_BYTES);
+  });
+
+  it('says whether the byte ceiling bit, rather than leaving it to be guessed', () => {
+    const text = files?.text ?? '';
+    expect(text).toContain('case "$o" in *==) p=2;; *=) p=1;; esac');
+    expect(text).toContain('n=$(( ${#o} / 4 * 3 - p ))');
+    const tests = [...text.matchAll(/"\$n" -gt ([0-9]+)/g)].map((match) =>
+      Number(match[1])
+    );
+    expect(tests).toEqual([REMOTE_FILE_LIST_MAX_BYTES]);
+  });
+
+  it('prunes .git and node_modules on the branch that walks a folder', () => {
+    // A folder that is not a repository can still hold one below it, and no
+    // surface in this product asks for a repository's internals. `node_modules`
+    // is pruned because a palette full of dependency files is a palette nobody
+    // can find their own file in.
+    expect(files?.text).toContain(
+      "find . \\( -name '.git' -o -name 'node_modules' \\) -prune -o -type f -print"
+    );
+  });
+
+  it('answers one of exactly three words, a cut answer and a body', () => {
+    // The cut answer is `0` on the missing branch, because it read no bytes of
+    // anybody's files.
+    expect(files?.text).toContain('__TORTIE_RUN__missing 0 none');
+    expect(files?.text).toContain('m=repo');
+    expect(files?.text).toContain('m=walk');
+    expect(files?.text).toContain('"${o:-none}"');
+    expect(files?.text).toContain(
+      "printf '__TORTIE_RUN__%s %s %s__TORTIE_RUN__"
+    );
+  });
+
+  it('names no search engine, and no way of putting one on a machine', () => {
+    const text = files?.text ?? '';
+    for (const pattern of [/ripgrep/, /\brg\b/, /\bcurl\b/, /\bscp\b/, /\binstall\b/]) {
+      expect(pattern.test(text), pattern.source).toBe(false);
+    }
+  });
+
+  it('redirects nothing except the two noise silencers', () => {
+    const rest = (files?.text ?? '').split('2>/dev/null').join('');
+    expect(rest).not.toContain('>');
+  });
+
+  it('reads no file contents at all, so it needs no file size cap', () => {
+    // It carries names. `cat`, `head -c` on a file and `base64` of a file are
+    // the three ways this catalogue reads contents, and only the last appears
+    // here, applied to the LIST rather than to a file.
+    const text = files?.text ?? '';
+    expect(text).not.toContain('cat ');
+    expect(text).not.toContain('base64 "');
+    expect(text).toContain('| base64 |');
   });
 });

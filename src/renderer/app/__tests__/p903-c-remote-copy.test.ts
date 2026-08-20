@@ -13,6 +13,12 @@
  * PHASE 97 MOVED THREE THINGS HERE. `remoteChangesNone` answers for both groups
  * now, `reviewUntrackedTitle` is new, and the sentence saying a new file is not
  * listed is deleted, because the list holds it.
+ *
+ * PHASE 99 REPLACED THE QUICK OPEN PAIR WITH SEVEN SENTENCES. The pair said
+ * "Quick Open does not reach Studio", and Quick Open reads that machine's own
+ * file names now, so the refusal had become false. The seven that replaced it
+ * are pinned below. The symbol palette's pair is unchanged, because there is no
+ * parser on the other machine and that refusal is still true.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -26,8 +32,13 @@ import {
   OPEN_REMOTE_BUTTON,
   OPEN_REMOTE_FOLDER_MENU_ITEM,
   OPEN_REMOTE_TITLE,
-  QUICK_OPEN_ELSEWHERE_BODY,
-  quickOpenElsewhereTitle,
+  quickOpenFolderMissing,
+  quickOpenNamesCapped,
+  quickOpenNamesFrom,
+  quickOpenNoAnswer,
+  quickOpenNotConnected,
+  quickOpenNotRepo,
+  quickOpenReadingNames,
   readClockTime,
   REMOTE_BAND_BODY,
   REMOTE_COPIED_WITH_MACHINE,
@@ -179,17 +190,66 @@ describe('Source Control', () => {
   });
 });
 
-describe('Quick Open and the symbol palette', () => {
+describe('the symbol palette', () => {
   it('says what does not reach that machine, then what Tortie does read', () => {
-    expect(quickOpenElsewhereTitle(L)).toBe('Quick Open does not reach Studio.');
-    expect(QUICK_OPEN_ELSEWHERE_BODY).toBe(
-      "Tortie lists files on this Mac only. This project's files are on that " +
-        'machine.'
-    );
     expect(symbolsElsewhereTitle(L)).toBe('Symbols do not reach Studio.');
     expect(SYMBOLS_ELSEWHERE_BODY).toBe(
       'Tortie reads symbols from files on this Mac only.'
     );
+  });
+});
+
+describe('Quick Open on a folder that is on a machine (Phase 99)', () => {
+  it('says a read is in flight rather than showing an empty list', () => {
+    expect(quickOpenReadingNames(L)).toBe(
+      'Tortie is reading the file names on Studio.'
+    );
+  });
+
+  it('names the machine and the moment the names were read', () => {
+    // The time is on screen because nothing polls that machine. A file an
+    // agent creates over there is not in this list until the next read.
+    expect(quickOpenNamesFrom(L, AT)).toBe(
+      'These file names came from Studio. Tortie read them at 14:32.'
+    );
+  });
+
+  it('says how many names it read when the cap cut the list', () => {
+    expect(quickOpenNamesCapped(50000, L)).toBe(
+      'Tortie read the first 50,000 file names on Studio. A name past that ' +
+        'one is not in this list.'
+    );
+  });
+
+  it('says a folder that is not a repository was walked, and what was skipped', () => {
+    expect(quickOpenNotRepo(L)).toBe(
+      'That folder on Studio is not a git repository. Tortie listed the ' +
+        'files under it, apart from the ones inside .git and node_modules.'
+    );
+  });
+
+  it('answers each of the three words that mean no names', () => {
+    expect(quickOpenFolderMissing(L)).toBe(
+      'There is no folder at this path on Studio, so there are no file names ' +
+        'to show.'
+    );
+    expect(quickOpenNotConnected(L)).toBe(
+      'Tortie is not connected to Studio, so it has no file names for this ' +
+        'project.'
+    );
+    expect(quickOpenNoAnswer(L)).toBe(
+      'Studio did not answer, so Tortie has no file names for this project.'
+    );
+  });
+
+  it('takes the pair Phase 99 made false out of the file', () => {
+    const source = readFileSync(
+      resolve(ROOT, 'src/renderer/app/machine-copy.ts'),
+      'utf8'
+    );
+    expect(source).not.toContain('QUICK_OPEN_ELSEWHERE_BODY');
+    expect(source).not.toContain('quickOpenElsewhereTitle');
+    expect(source).not.toContain('Quick Open does not reach');
   });
 });
 
@@ -301,10 +361,15 @@ const EVERY: readonly string[] = [
   remoteChangesNotRepo(L),
   REMOTE_SCM_SECTIONS_ABSENT,
   reviewUntrackedTitle(L),
-  quickOpenElsewhereTitle(L),
-  QUICK_OPEN_ELSEWHERE_BODY,
   symbolsElsewhereTitle(L),
   SYMBOLS_ELSEWHERE_BODY,
+  quickOpenReadingNames(L),
+  quickOpenNamesFrom(L, AT),
+  quickOpenNamesCapped(50000, L),
+  quickOpenNotRepo(L),
+  quickOpenFolderMissing(L),
+  quickOpenNotConnected(L),
+  quickOpenNoAnswer(L),
   remoteFileChip(L),
   remoteSaveRefused(L),
   openRemoteHonesty(L),
@@ -333,14 +398,17 @@ describe('the house writing rules, over every Phase 90.3 sentence', () => {
   });
 
   it('holds no colon, because not one of them introduces a list', () => {
-    // One sentence is exempt and it is named rather than filtered out by a
-    // pattern. "Read at 14:32" holds a clock time, and a clock time is not
-    // punctuation. Every other sentence must hold no colon at all.
-    const exempt = remoteReadAt(AT);
+    // TWO sentences are exempt and both are named rather than filtered out by
+    // a pattern. Each holds a clock time, and a clock time is not punctuation.
+    // PHASE 99 ADDED THE SECOND ONE, which is Quick Open saying when it read
+    // the file names. Every other sentence must hold no colon at all.
+    const exempt = [remoteReadAt(AT), quickOpenNamesFrom(L, AT)];
     expect(
-      EVERY.filter((one) => one !== exempt && one.includes(':'))
+      EVERY.filter((one) => !exempt.includes(one) && one.includes(':'))
     ).toEqual([]);
-    expect(exempt.replace('14:32', '')).not.toContain(':');
+    for (const one of exempt) {
+      expect(one.replace('14:32', '')).not.toContain(':');
+    }
   });
 
   it('is complete sentences, each ending in a full stop', () => {
@@ -382,7 +450,6 @@ describe('the house writing rules, over every Phase 90.3 sentence', () => {
       remoteTreeTruncated(4000, 12500, 4000),
       REMOTE_COPIED_WITH_MACHINE,
       REMOTE_SCM_SECTIONS_ABSENT,
-      QUICK_OPEN_ELSEWHERE_BODY,
       SYMBOLS_ELSEWHERE_BODY,
       addRemoteRefusal('notAbsolute', P, L),
       addRemoteRefusal('noSuchMachine', P, L)

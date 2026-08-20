@@ -49,8 +49,8 @@ function ensureCoordinator(): QuickOpenCoordinator {
 }
 
 export function registerQuickOpenIpc(ipc: IpcMain): void {
-  handle(ipc, 'quickopen:warm', (_e, repoPath) => {
-    ensureCoordinator().warm(repoPath);
+  handle(ipc, 'quickopen:warm', (_e, input) => {
+    ensureCoordinator().warm(input);
   });
 
   handle(ipc, 'quickopen:query', (_e, input) => ensureCoordinator().query(input));

@@ -40,8 +40,19 @@
  *      — a plain folder, or one whose watcher subscription failed — has NO
  *      watcher and would otherwise never refresh. Every `warm` (the renderer
  *      sends one each time ⌘P opens) re-enumerates a list older than
- *      WARM_STALE_MS. Worst case there = the age of the list when you
- *      pressed ⌘P, and pressing ⌘P is what fixes it.
+ *      QUICK_OPEN_WARM_STALE_MS. Worst case there = the age of the list when
+ *      you pressed ⌘P, and pressing ⌘P is what fixes it.
+ *
+ * ── A root this worker cannot enumerate (Phase 99) ─────────────────────────
+ * A project can be a folder on ANOTHER MACHINE. This worker cannot spawn
+ * anything over there, and handing ripgrep a path that names a folder on that
+ * machine would make it read a different folder here or nothing at all. So such
+ * a root is told apart by its ROOT KEY, `machine:<machineId>:<path>`, its index
+ * is created empty, and its whole name list arrives on a `warm` and is adopted.
+ * The freshness rule above does not apply to it, because there is nothing here
+ * to re-enumerate: the renderer applies the same QUICK_OPEN_WARM_STALE_MS to
+ * its own read of that machine instead. One number, two appliers, and no root
+ * is subject to both.
  *
  * Both bounds are deliberately in the worker, not the coordinator: the
  * coordinator does not know when an enumeration finished, and a second timer
@@ -55,6 +66,8 @@ import { parentPort, workerData } from 'node:worker_threads';
 import { go, snapshot } from 'fuzzysort';
 import type { Snapshot } from 'fuzzysort';
 import type { QuickOpenHit } from '@shared/ipc';
+import { QUICK_OPEN_WARM_STALE_MS } from '@shared/ipc';
+import { LOCAL_MACHINE_ID, targetOfRootKey } from '@shared/workspace-target';
 // THE `rg --files` argv (research 19 §2.3, O2 "one ripgrep, three
 // consumers"). It lives in the content-search module because that module owns
 // the ripgrep vocabulary; importing the leaf directly rather than the package
@@ -67,6 +80,7 @@ import type {
   QuickOpenResponse,
   QuickOpenWorkerData
 } from './protocol';
+import { hitOf, recentHitOf } from './rows';
 import {
   compareScored,
   positionsForPath,
@@ -101,9 +115,6 @@ const MAX_PATHS = 200_000;
 /** At most one watcher-driven re-enumeration per this window. */
 const REFRESH_COALESCE_MS = 2_000;
 
-/** A `warm` re-enumerates a list older than this. See the header, bound 2. */
-const WARM_STALE_MS = 5_000;
-
 /**
  * Recents kept as a tiebreaker map. The renderer sends its list; fifty is far
  * more than anyone scrolls back through and keeps the message trivial.
@@ -115,7 +126,13 @@ const MAX_RECENTS = 50;
 // ---------------------------------------------------------------------------
 
 interface RootIndex {
+  /** The ROOT KEY, not necessarily a path this Mac has. */
   root: string;
+  /**
+   * PHASE 99. The root is a folder on another machine, so nothing here may
+   * enumerate it and its names are handed to it by a `warm`.
+   */
+  remote: boolean;
   /** The authoritative list from the last COMPLETED enumeration. */
   paths: string[];
   /** Membership set for the cheap "did anything actually change" diff. */
@@ -139,7 +156,7 @@ interface RootIndex {
 
 const indexes = new Map<string, RootIndex>();
 
-/** `${repoPath} ${relPath}` → position in the renderer's recents list. */
+/** `${rootKey} ${relPath}` → position in the renderer's recents list. */
 let recentRank = new Map<string, number>();
 
 const { rgPath } = workerData as QuickOpenWorkerData;
@@ -162,6 +179,9 @@ function ensureIndex(root: string): RootIndex {
   if (idx === undefined) {
     idx = {
       root,
+      // PHASE 99. One string comparison decides whether this worker may run a
+      // program for this root at all.
+      remote: targetOfRootKey(root).machineId !== LOCAL_MACHINE_ID,
       paths: [],
       set: new Set<string>(),
       snap: null,
@@ -174,12 +194,19 @@ function ensureIndex(root: string): RootIndex {
       error: null
     };
     indexes.set(root, idx);
-    enumerate(idx);
+    // A root on another machine starts EMPTY with `builtAt` at 0, and waits for
+    // its names. It stays not ready until a `warm` carrying them arrives, which
+    // is the honest answer: Tortie holds no names for it yet.
+    if (!idx.remote) enumerate(idx);
   }
   return idx;
 }
 
 function enumerate(idx: RootIndex): void {
+  // PHASE 99, defence in depth. Ripgrep must never be handed a path that names
+  // a folder on another computer. It would read a DIFFERENT file here, or none
+  // at all, and either answer would be presented as that machine's files.
+  if (idx.remote) return;
   if (idx.building !== null) {
     // An enumeration is already running. Remember that its answer will
     // already be stale when it lands, and run exactly one more afterwards —
@@ -333,6 +360,7 @@ function dropIndex(root: string): void {
 // ---------------------------------------------------------------------------
 
 interface Row extends ScoredItem {
+  /** The ROOT KEY the path came from. `./rows.ts` takes it apart. */
   repoPath: string;
   relPath: string;
   recentRank: number;
@@ -357,8 +385,17 @@ function gate(idx: RootIndex, query: string): readonly string[] {
   return out;
 }
 
-function recentKey(repoPath: string, relPath: string): string {
-  return `${repoPath} ${relPath}`;
+/**
+ * The tiebreaker key, being `${rootKey} ${relPath}`.
+ *
+ * PHASE 99 PUT THE MACHINE INSIDE THE FIRST FIELD, by taking the root key
+ * rather than a path. `idx.root` is already that key, so this function's body
+ * did not change and its meaning did. The renderer composes the same string
+ * from `rootKeyOf`, and the two have to agree byte for byte or a recent file
+ * never ties anything.
+ */
+function recentKey(rootKey: string, relPath: string): string {
+  return `${rootKey} ${relPath}`;
 }
 
 /**
@@ -377,7 +414,13 @@ function compareRows(a: Row, b: Row): number {
   return compareScored(a, b);
 }
 
-/** The empty query answers with recents, in the renderer's own order. */
+/**
+ * The empty query answers with recents, in the renderer's own order.
+ *
+ * The membership test is on the ROOT KEY, so a recent file only answers inside
+ * the root it was opened from. `./rows.ts` then takes the key apart into the
+ * path and the machine, which is the one place that decomposition happens.
+ */
 function recentsFor(roots: readonly string[], limit: number): QuickOpenHit[] {
   const rootSet = new Set(roots);
   const ordered = [...recentRank.entries()].sort((a, b) => a[1] - b[1]);
@@ -385,10 +428,10 @@ function recentsFor(roots: readonly string[], limit: number): QuickOpenHit[] {
   for (const [key] of ordered) {
     const space = key.indexOf(' ');
     if (space < 0) continue;
-    const repoPath = key.slice(0, space);
-    const relPath = key.slice(space + 1);
-    if (!rootSet.has(repoPath)) continue;
-    hits.push({ repoPath, relPath, positions: [], score: 0, recent: true });
+    if (!rootSet.has(key.slice(0, space))) continue;
+    const hit = recentHitOf(key);
+    if (hit === null) continue;
+    hits.push(hit);
     if (hits.length >= limit) break;
   }
   return hits;
@@ -455,13 +498,15 @@ function runQuery(msg: QueryMessage): void {
   post({
     type: 'result',
     id: msg.id,
-    hits: rows.map((row) => ({
-      repoPath: row.repoPath,
-      relPath: row.relPath,
-      positions: positionsForPath(row.relPath, row),
-      score: row.score,
-      recent: row.recentRank < MAX_RECENTS
-    })),
+    hits: rows.map((row) =>
+      hitOf(
+        row.repoPath,
+        row.relPath,
+        positionsForPath(row.relPath, row),
+        row.score,
+        row.recentRank < MAX_RECENTS
+      )
+    ),
     total,
     ready,
     indexed,
@@ -479,7 +524,18 @@ port.on('message', (msg: QuickOpenRequest) => {
     switch (msg.type) {
       case 'warm': {
         const idx = ensureIndex(msg.root);
-        const stale = Date.now() - idx.builtAt > WARM_STALE_MS;
+        // PHASE 99. A name list arrived for a root this worker cannot
+        // enumerate. `adopt` sets `builtAt`, and it skips rebuilding the
+        // snapshot when the set did not change, so a re-read that found nothing
+        // new costs no CPU at all.
+        if (msg.paths !== undefined) {
+          adopt(idx, msg.paths);
+          return;
+        }
+        // A remote root with no paths on this message has nothing to do here.
+        // `enumerate` refuses it anyway, and the staleness rule below is about
+        // a list this worker built.
+        const stale = Date.now() - idx.builtAt > QUICK_OPEN_WARM_STALE_MS;
         if (idx.builtAt > 0 && (msg.force === true || stale)) enumerate(idx);
         return;
       }

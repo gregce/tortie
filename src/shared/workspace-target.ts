@@ -172,3 +172,64 @@ export function targetOfSession(
   if (session === null || session === undefined) return null;
   return workspaceTarget(session.projectPath, session.machine?.id);
 }
+
+// ---------------------------------------------------------------------------
+// Phase 99. The key one folder on one computer is remembered by, for the
+// quick open palette
+// ---------------------------------------------------------------------------
+//
+// WHY A SECOND KEY SHAPE EXISTS BESIDE {@link targetKey}. `targetKey` writes a
+// machine's folder as `<machineId>:<path>`. That form has no word in front of
+// the machine id, so a reader has to know the machine id list to take it apart
+// again. Quick Open needs the inverse as well as the composer, because the
+// ranking worker in main is handed a key and has to answer whether it may run
+// ripgrep over it. `src/renderer/editor/store.ts` already composes
+// `machine:<machineId>:<repoPath>:<relPath>` for a tab's identity, so this pair
+// follows that spelling rather than inventing a third one. `targetKey` is left
+// exactly as it is: its callers store settings per target and never read a key
+// back apart.
+
+/** The word that begins the key of a folder that is not on this Mac. */
+const MACHINE_KEY_PREFIX = 'machine:';
+
+/**
+ * The string that names one folder on one computer, for a map key.
+ *
+ * A folder on this Mac is its own absolute path, unchanged, so every key a
+ * build before Phase 99 wrote is still the key this build composes. A folder on
+ * another machine is `machine:<machineId>:<path>`. The two shapes cannot be
+ * confused, because an absolute path begins with `/` and this prefix never
+ * does.
+ *
+ * THE COLLISION THIS EXISTS FOR. A file at `/Users/gdc/gmux/README.md` on this
+ * Mac and a file at the same path on another machine are DIFFERENT files.
+ * Before this pair the palette held one index for both, so a name typed on one
+ * tab could open the other computer's file.
+ */
+export function rootKeyOf(target: WorkspaceTarget): string {
+  return isLocalTarget(target)
+    ? target.path
+    : `${MACHINE_KEY_PREFIX}${target.machineId}:${target.path}`;
+}
+
+/**
+ * The inverse of {@link rootKeyOf}. A key that does not begin with `machine:`
+ * is a folder on this Mac.
+ *
+ * The machine id is the text up to the FIRST colon after the prefix, and the
+ * path is ALL of the rest, so a path holding a colon round trips. A machine id
+ * cannot hold a colon: `MACHINE_ID_PATTERN` in `src/shared/machines.ts` is
+ * `^[a-z][a-z0-9-]{0,31}$`.
+ *
+ * A key that begins with the prefix and holds no second colon has no path in
+ * it, so it is read as a folder on this Mac under its whole text. That is the
+ * honest answer for a string nothing here composed, and it never hands a caller
+ * a machine id with an empty path.
+ */
+export function targetOfRootKey(key: string): WorkspaceTarget {
+  if (!key.startsWith(MACHINE_KEY_PREFIX)) return localTarget(key);
+  const rest = key.slice(MACHINE_KEY_PREFIX.length);
+  const at = rest.indexOf(':');
+  if (at <= 0) return localTarget(key);
+  return { machineId: rest.slice(0, at), path: rest.slice(at + 1) };
+}

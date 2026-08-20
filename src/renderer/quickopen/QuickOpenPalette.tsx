@@ -17,6 +17,12 @@
  *    tab; ⌘↩ (or ⌘-click) keeps it — the same bargain the tree and SCM
  *    already offer, so walking six candidates does not leave six tabs
  *    behind.
+ *
+ * PHASE 99. On a tab whose folder is on another machine the rows come from that
+ * machine's own file names. Phase 90.3 drew a refusal in their place, and it is
+ * deleted. One quiet line above the rows says which machine the names came from
+ * and when they were read, because nothing polls that machine and the list is
+ * only as fresh as the last read.
  */
 
 import React, { useEffect, useMemo, useRef } from 'react';
@@ -24,17 +30,28 @@ import React, { useEffect, useMemo, useRef } from 'react';
 // every keycap below is read back from the keymap, so the palette's footer
 // can never drift from what the handler and the native Find menu do.
 import { keyDisplay } from '@shared/keymap';
-import { localPathOf, targetOfProject } from '@shared/workspace-target';
+import type { QuickOpenHit } from '@shared/ipc';
+import {
+  LOCAL_MACHINE_ID,
+  sameTarget,
+  targetOfProject
+} from '@shared/workspace-target';
 import { FileIcon } from '../icons';
 import { useApp } from '../state/store';
 import {
-  QUICK_OPEN_ELSEWHERE_BODY,
-  quickOpenElsewhereTitle
+  quickOpenFolderMissing,
+  quickOpenNamesCapped,
+  quickOpenNamesFrom,
+  quickOpenNoAnswer,
+  quickOpenNotConnected,
+  quickOpenNotRepo,
+  quickOpenReadingNames
 } from '../app/machine-copy';
 import { useEditor } from '../editor/store';
 import { parseQuickOpen } from './parse';
 import { highlightRuns, splitRelPath } from './highlight';
 import { startRecordingRecents } from './recents';
+import type { QuickOpenElsewhereRead } from './store';
 import { useQuickOpen } from './store';
 import './quickopen.css';
 
@@ -43,6 +60,66 @@ const WARM_IDLE_TIMEOUT_MS = 3_000;
 
 function formatCount(n: number): string {
   return n.toLocaleString();
+}
+
+/**
+ * What the panel says about the machine the names came from (Phase 99).
+ *
+ * One line for most answers and two for a folder that is not a repository,
+ * because that folder's list came from a walk and the walk includes files git
+ * would have skipped. A cut list adds a third. Every sentence is written in
+ * ../app/machine-copy.ts and none of them is composed here.
+ */
+export function machineNoteLines(
+  label: string,
+  read: QuickOpenElsewhereRead | null
+): string[] {
+  // Nothing has come back yet in this run. The read is in flight and the
+  // palette says so rather than drawing an empty list, which would read as a
+  // project holding no files.
+  if (read === null) return [quickOpenReadingNames(label)];
+  const cut = read.capped ? [quickOpenNamesCapped(read.count, label)] : [];
+  if (read.mode === 'repo') return [quickOpenNamesFrom(label, read.at), ...cut];
+  if (read.mode === 'walk') {
+    return [quickOpenNotRepo(label), quickOpenNamesFrom(label, read.at), ...cut];
+  }
+  if (read.mode === 'missing') return [quickOpenFolderMissing(label)];
+  if (read.mode === 'notConnected') return [quickOpenNotConnected(label)];
+  return [quickOpenNoAnswer(label)];
+}
+
+/**
+ * One row's React key (Phase 99).
+ *
+ * THE MACHINE IS IN IT. Two hits with the same path from two computers are two
+ * rows, and React folding them into one would draw one row and open the wrong
+ * file from it. The separator is NUL, which no path and no machine id can hold.
+ */
+export function rowKeyOf(hit: QuickOpenHit): string {
+  const id = hit.machineId ?? LOCAL_MACHINE_ID;
+  return `${id}\u0000${hit.repoPath}\u0000${hit.relPath}`;
+}
+
+/**
+ * The name of the project one hit came from, or the empty string.
+ *
+ * PHASE 99 MATCHES ON THE MACHINE AS WELL AS THE PATH. Phase 90.3 could match
+ * on the path alone, because `rootsFor` sent no path from another machine. It
+ * sends them now, and two projects at the same path on two computers would
+ * otherwise take each other's name in the all projects scope.
+ */
+export function projectNameFor(
+  projects: readonly { name: string; path: string; machineId?: string }[],
+  hit: QuickOpenHit
+): string {
+  return (
+    projects.find((p) =>
+      sameTarget(targetOfProject(p), {
+        machineId: hit.machineId ?? LOCAL_MACHINE_ID,
+        path: hit.repoPath
+      })
+    )?.name ?? ''
+  );
 }
 
 function Runs({
@@ -90,6 +167,7 @@ export function QuickOpenPalette(): React.JSX.Element | null {
   const unavailable = useQuickOpen((s) => s.unavailable);
   const error = useQuickOpen((s) => s.error);
   const elsewhere = useQuickOpen((s) => s.elsewhere);
+  const elsewhereRead = useQuickOpen((s) => s.elsewhereRead);
 
   const projects = useApp((s) => s.projects);
   const activeProjectId = useApp((s) => s.activeProjectId);
@@ -136,14 +214,6 @@ export function QuickOpenPalette(): React.JSX.Element | null {
   const store = useQuickOpen.getState();
   const parsed = parseQuickOpen(query);
   const activeTab = useEditor.getState().activeTab();
-  // PHASE 90.3. A hit's `repoPath` is always a path on THIS Mac, because
-  // `rootsFor` sends no other kind. So the project it belongs to is the one
-  // whose target is local and whose path matches, and never a project of the
-  // same path on a machine, which would put the wrong name on the row.
-  const projectNameFor = (repoPath: string): string =>
-    projects.find(
-      (p) => localPathOf(targetOfProject(p)) === repoPath
-    )?.name ?? '';
 
   const onKeyDown = (e: React.KeyboardEvent): void => {
     if (e.key === 'Escape') {
@@ -217,6 +287,20 @@ export function QuickOpenPalette(): React.JSX.Element | null {
             genuinely is work in flight. No spinner on a warm index. */}
         <div className={`qo-progress${ready && !pending ? '' : ' busy'}`} />
 
+        {/* PHASE 99. Above the rows and outside the list, so it stays put while
+            the rows scroll and so the listbox holds options and nothing else.
+            Phase 90.3 drew a refusal in place of the rows here, reading "Quick
+            Open does not reach Studio." The rows come from that machine now, so
+            the refusal is deleted and this says where they came from and when
+            they were read. */}
+        {elsewhere !== null ? (
+          <div className="qo-machine-note" data-slot="quickopen-machine-note">
+            {machineNoteLines(elsewhere.label, elsewhereRead).map((line) => (
+              <div key={line}>{line}</div>
+            ))}
+          </div>
+        ) : null}
+
         <div
           className="qo-list"
           id="qo-list"
@@ -224,17 +308,7 @@ export function QuickOpenPalette(): React.JSX.Element | null {
           aria-label="Files"
           ref={listRef}
         >
-          {/* PHASE 90.3. Said FIRST, before the bridge branch and before
-              anything about the query. Quick open lists files on this Mac, and
-              a tab whose folder is on another machine has nothing here to
-              list, so nothing else on this panel is worth saying. */}
-          {elsewhere !== null ? (
-            <div className="qo-note">
-              {quickOpenElsewhereTitle(elsewhere)}
-              <br />
-              {QUICK_OPEN_ELSEWHERE_BODY}
-            </div>
-          ) : unavailable ? (
+          {unavailable ? (
             <div className="qo-note">
               Quick open is unavailable in this build.
             </div>
@@ -295,7 +369,7 @@ export function QuickOpenPalette(): React.JSX.Element | null {
                 const { name, dir, nameOffset } = splitRelPath(hit.relPath);
                 return (
                   <button
-                    key={`${hit.repoPath}\u0000${hit.relPath}`}
+                    key={rowKeyOf(hit)}
                     type="button"
                     role="option"
                     aria-selected={i === selected}
@@ -327,7 +401,7 @@ export function QuickOpenPalette(): React.JSX.Element | null {
                     />
                     {allProjects ? (
                       <span className="qo-project">
-                        {projectNameFor(hit.repoPath)}
+                        {projectNameFor(projects, hit)}
                       </span>
                     ) : null}
                   </button>
@@ -341,8 +415,14 @@ export function QuickOpenPalette(): React.JSX.Element | null {
           <span className="qo-status" aria-live="polite">
             {error !== null
               ? ''
-              : !ready
-                ? `Indexing ${formatCount(indexed)} files…`
+              : // PHASE 99. "Indexing N files" is about a folder this Mac walks
+                // itself. On a tab whose folder is on a machine the note line
+                // above already says what the wait is, and two sentences about
+                // one wait is worse than one.
+                !ready
+                ? elsewhere !== null
+                  ? ''
+                  : `Indexing ${formatCount(indexed)} files…`
                 : capped
                   ? 'Showing the first 200,000 files in this project'
                   : hits.length > 0 && query.length > 0

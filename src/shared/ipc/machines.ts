@@ -1,5 +1,5 @@
 /**
- * The machines contract (Phase 68, M1). Twenty two invoke channels behind ONE
+ * The machines contract (Phase 68, M1). Twenty three invoke channels behind ONE
  * optional preload extra, `window.gmux.machines`, plus two event channels, one
  * for the connection test's own bytes and one for the link state.
  *
@@ -616,7 +616,7 @@ export interface MachinesEventPayloadMap {
 // ---------------------------------------------------------------------------
 
 /**
- * The twenty two channels, and what each one may do.
+ * The twenty three channels, and what each one may do.
  *
  * THE COUNT USED TO SAY THIRTEEN and the table listed thirteen rows, which was
  * true when Phase 68 wrote it. Phase 73, Phase 83, Phase 84 and Phase 90.2
@@ -627,6 +627,7 @@ export interface MachinesEventPayloadMap {
  * IT WENT STALE AGAIN, and Phase 98 says so rather than quietly fixing it.
  * Phase 90.3 added `listTree` without a row, so the count read twenty while the
  * file held twenty one. Both that row and Phase 98's own are in the table now.
+ * PHASE 99 ADDS ONE ROW AND MOVES THE COUNT WITH IT, being `listFiles`.
  *
  * | Channel | Reads | Writes | Spawns |
  * | --- | --- | --- | --- |
@@ -652,6 +653,7 @@ export interface MachinesEventPayloadMap {
  * | cloneProject | one git config here | one folder on that machine | ssh |
  * | listTree | one folder tree on that machine | nothing | ssh |
  * | searchContent | one folder on that machine | nothing | ssh |
+ * | listFiles | one folder on that machine | nothing | ssh |
  *
  * Every one of them that spawns does so on a person's click and from nowhere
  * else. TWO of them write on another computer, being `putImage` and
@@ -785,6 +787,27 @@ export interface MachinesInvokeChannelMap {
     req: [input: MachineSearchInput];
     res: MachineSearchResult;
   };
+  // PHASE 99. One READ of the FILE NAMES in one folder on one machine, for the
+  // Quick Open palette on a tab whose project lives over there. It carries
+  // names and never contents, it writes nothing on either computer, and main
+  // refuses it while it is not connected to that machine.
+  //
+  // IT CANNOT COMPOSE WHAT IT ASKS. The command that crosses is `repo-files`
+  // from the frozen catalogue in src/main/machines/remote-scripts.ts, chosen by
+  // name, with the folder and the name cap plus one arriving there as
+  // positional parameters.
+  //
+  // NOTHING CALLS IT ON A CLOCK. The palette asks when a person opens it, and
+  // it skips a root it read less than QUICK_OPEN_WARM_STALE_MS ago.
+  //
+  // A folder that is not there, a machine that did not answer and a machine
+  // Tortie is not signed in to all come back as a mode word. No prose crosses
+  // this channel: the renderer draws every sentence from
+  // src/renderer/app/machine-copy.ts, where the vocabulary audit reads it.
+  'machines:listFiles': {
+    req: [input: MachineFileListInput];
+    res: MachineFileListResult;
+  };
 }
 
 /** The one event channel: the connection test's own bytes and its end. */
@@ -861,6 +884,10 @@ export interface GmuxMachinesExtras {
     // Phase 98. Searches one folder on one machine with that machine's own
     // grep. It reads and never writes.
     searchContent(input: MachineSearchInput): Promise<MachineSearchResult>;
+    // Phase 99. Reads the file NAMES in one folder on one machine, so Quick
+    // Open on a tab that lives over there can rank them. It carries no file
+    // contents. It reads and never writes.
+    listFiles(input: MachineFileListInput): Promise<MachineFileListResult>;
   };
 }
 
@@ -1400,6 +1427,97 @@ export interface MachineSearchResult {
   readonly capped: boolean;
   /** The size ceiling cut the answer on that machine. */
   readonly truncated: boolean;
+  /** Wall time from the call to the answer, in ms. The round trip is in it. */
+  readonly elapsedMs: number;
+}
+
+// ---------------------------------------------------------------------------
+// The file names in one folder on one machine (Phase 99, research 57 section 6)
+// ---------------------------------------------------------------------------
+//
+// ONE READ, ONE ANSWER. Nothing is written on either computer. The command that
+// crosses is `repo-files` from the frozen catalogue in
+// src/main/machines/remote-scripts.ts, chosen by name, with the folder and the
+// name cap plus one arriving there as positional parameters. NOTHING IS SENT TO
+// THAT MACHINE except that constant text.
+//
+// IT CARRIES NAMES AND NEVER CONTENTS. A person's source stays on the computer
+// it is on. Opening one of these names is a separate read, and it lands in the
+// read only tab Phase 90.3 shipped.
+//
+// WHY THE RENDERER ASKS AND MAIN'S RANKING WORKER DOES NOT. The worker reaches
+// a local root by spawning ripgrep in it. It cannot spawn anything on another
+// computer, and handing it a path that names a folder over there would make it
+// read a DIFFERENT file here or nothing at all. So the palette reads the names
+// through this channel and hands the whole list to the worker, which adopts it.
+//
+// NO PROSE CROSSES THIS CHANNEL. Every sentence a person reads about a name
+// list is drawn by the renderer from src/renderer/app/machine-copy.ts, where
+// the vocabulary audit reads it. This answer carries a mode word and counts.
+
+/**
+ * The most file names one read carries. 50,000.
+ *
+ * CHOSEN rather than measured, and bounded by two measured points from research
+ * 57 section 6.3. On the operator's tailnet, 1,096 tracked files were 31,964
+ * bytes and 15,581 files were 657,058 bytes in 108.6 to 201.0 ms, while 289,980
+ * files were 43,954,137 bytes in 8,218 to 10,563 ms. 50,000 names is about
+ * 2,100,000 bytes at the rate the middle point sets, which is well inside the
+ * ceiling below and far away from the third point. The local palette holds
+ * 200,000 paths per project. This number is smaller because these ones cross a
+ * link.
+ */
+export const REMOTE_FILE_LIST_MAX = 50_000;
+
+/**
+ * The most bytes one name list may hold before encoding. 4,194,304.
+ *
+ * The same ceiling `REMOTE_SEARCH_MAX_BYTES` carries, and enforced the same
+ * way: the script reads ONE BYTE PAST IT, counts what it read, and prints `1`
+ * or `0`. The number is a constant in the script text as well, and condition 53
+ * of `build/conformance-machines.mjs` asserts the two agree. Two copies of one
+ * number is how one of them goes stale.
+ */
+export const REMOTE_FILE_LIST_MAX_BYTES = 4_194_304;
+
+/** Which files the far side named, or why it named none. */
+export type MachineFileListMode =
+  /** The folder is a git repository. Its tracked and untracked files are here. */
+  | 'repo'
+  /** The folder is not a repository. Every file under it is here. */
+  | 'walk'
+  /** There is no folder at that path on that machine. */
+  | 'missing'
+  /** Tortie is not connected to that machine. Nothing was asked. */
+  | 'notConnected'
+  /** The machine did not answer, or answered something unreadable. */
+  | 'unreachable';
+
+/** One name list read against one folder on one machine. */
+export interface MachineFileListInput {
+  readonly machineId: string;
+  /** The folder on that machine. Absolute, and never a path on this Mac. */
+  readonly cwd: string;
+  /** Clamped to {@link REMOTE_FILE_LIST_MAX}. Omitted means that number. */
+  readonly maxPaths?: number;
+}
+
+/** What one machine answered about the names in one folder. */
+export interface MachineFileListResult {
+  readonly machineId: string;
+  /** That machine's own label, so the renderer never composes one. */
+  readonly machineLabel: string;
+  /** The folder that was read, on that machine. */
+  readonly cwd: string;
+  readonly mode: MachineFileListMode;
+  /** Relative to `cwd`, POSIX separators, no leading `./`. */
+  readonly paths: readonly string[];
+  /** The name cap cut the list. These are the first N, not all of them. */
+  readonly capped: boolean;
+  /** The byte ceiling cut the answer on that machine. */
+  readonly truncated: boolean;
+  /** Epoch ms ON THIS MAC when the answer arrived. */
+  readonly readAt: number;
   /** Wall time from the call to the answer, in ms. The round trip is in it. */
   readonly elapsedMs: number;
 }

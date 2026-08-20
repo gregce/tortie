@@ -57,8 +57,14 @@ export const symbols: NonNullable<GmuxSymbolsExtras['symbols']> = {
  * indexing — the palette calls it at first idle and again each time it opens,
  * because fuzzysort's per-path cost is lazy and would otherwise land on the
  * user's first keystroke.
+ *
+ * PHASE 99 turned `warm`'s one string into an object, and added no channel. A
+ * root on another machine cannot be enumerated by anything in main, so its whole
+ * name list rides in that object and the worker adopts it. The `root` field is
+ * the bare absolute path for a folder on this Mac, which is exactly what every
+ * caller before Phase 99 sent.
  */
 export const quickOpen: NonNullable<GmuxQuickOpenExtras['quickOpen']> = {
   query: (input) => invoke('quickopen:query', input),
-  warm: (repoPath) => invoke('quickopen:warm', repoPath)
+  warm: (input) => invoke('quickopen:warm', input)
 };

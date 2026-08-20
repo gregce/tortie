@@ -1,9 +1,9 @@
 /**
  * The machines half of the bridge (Phase 68, one call added in Phase 69, one
  * more in Phase 71, one more in Phase 79.1, one more in Phase 83, one more in
- * Phase 84, two more in Phase 90.2, one more in Phase 90.3 and one more in
- * Phase 98). One object, twenty two calls and two subscriptions, typed from the
- * shared contract.
+ * Phase 84, two more in Phase 90.2, one more in Phase 90.3, one more in
+ * Phase 98 and one more in Phase 99). One object, twenty three calls and two
+ * subscriptions, typed from the shared contract.
  *
  * TWO of these calls write on another computer, being `putImage` and
  * `cloneProject`. Everything else on this bridge reads.
@@ -104,5 +104,10 @@ export const machines: NonNullable<GmuxMachinesExtras['machines']> = {
   // draws rows instead of a refusal. It sends no program, it writes nothing on
   // either computer, and main refuses it while it is not connected to that
   // machine.
-  searchContent: (input) => invoke('machines:searchContent', input)
+  searchContent: (input) => invoke('machines:searchContent', input),
+  // Phase 99. THIS ONE READS. It asks a machine which files are in one folder,
+  // so Quick Open on a tab that lives over there can rank names. It carries no
+  // file contents, it writes nothing on either computer, and main refuses it
+  // while it is not connected to that machine.
+  listFiles: (input) => invoke('machines:listFiles', input)
 };

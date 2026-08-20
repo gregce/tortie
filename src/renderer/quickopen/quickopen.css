@@ -248,6 +248,22 @@
   color: var(--text-secondary);
 }
 
+/* Phase 99. What the panel says about the machine the names came from. It sits
+   above the list rather than inside it, so it stays on screen while the rows
+   scroll, and it is quieter than a row so it never competes with one. */
+.qo-machine-note {
+  flex: 0 0 auto;
+  padding: var(--space-3) var(--space-6);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+}
+
+.qo-machine-note > div + div {
+  margin-top: var(--space-2);
+}
+
 .qo-kbd {
   font-family: var(--font-mono);
   font-size: var(--text-sm);

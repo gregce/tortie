@@ -6449,7 +6449,7 @@ part line when that flag is set and the panel says the list stops early.
 | RECORD | The explorer sentence mark in `src/renderer/app/target-shot-drive.ts` is stale and this phase left it alone. It reads `Tortie reads files on this Mac only` while `machine-copy.ts` has said `Tortie lists files on this Mac only` since Phase 90.3. `npm run probe:workspacetarget` fails on it at HEAD as well as here, being 2 FAIL lines both naming the explorer sentence. Phase 98 fixed only its own search mark rather than widening its edit. |
 | RECORD | `repo-search` has no `--max-filesize` equal, so a file over 10 MB is searched on a machine and is not searched here. Applying it on the far side needs a size test per file and a second measurement. |
 
-## Phase 99 — Quick Open on a remote tab (research 57 row, queued 2026-08-19) QUEUED
+## Phase 99 — Quick Open on a remote tab (research 57 row, queued 2026-08-19) ✅ SHIPPED 2026-08-20 (this commit, 0.52.0, gates green, 6,761 tests)
 
 **Subject:** `feat(quickopen): reach any file on another machine by typing its name`
 **First body line:** `Phase 99: Quick Open on a remote tab`
@@ -6472,6 +6472,61 @@ One new read script for the name list, one optional worker protocol field, two r
 ### The evidence
 
 Open the palette on a remote tab, prove a file is reachable by name, and prove the recents key carries the machine id so a local and a remote file with the same path cannot collide. THE RECENTS KEY IS THE TRAP AND THE BRIEF NAMES IT. Count the operator's sessions with `tmux -L gmux list-sessions` before and after and report both numbers. `src/main/tmux/resolve.ts` honours `GMUX_TMUX_SOCKET` ONLY when `GMUX_SHOT` or `GMUX_SMOKE` is set, so a launch without one of those silently uses his real server.
+
+### What shipped, and the numbers behind it
+
+The palette opens on a tab whose project is a folder on another machine and it ranks that folder's
+own file names. The refusal that read `Quick Open does not reach <machine>` is deleted. One new read
+script carries the names, being `repo-files` in the frozen catalogue at 703 bytes and two positional
+values. Inside a repository it asks `git ls-files --cached --others --exclude-standard`, so a file
+an agent over there made five minutes ago and has not committed is in the list. Outside a repository
+it walks with `find` and prunes `.git` and `node_modules`, and the palette says on screen that the
+answer can hold build output.
+
+THE RECENTS KEY CARRIES THE MACHINE, which is the trap the brief named. `rootKeyOf` in
+`src/shared/workspace-target.ts` composes a folder on this Mac as its own absolute path and a folder
+on a machine as `machine:<machineId>:<path>`, and the same function composes the key in the renderer
+and in the ranking worker. Measured on a loopback machine asked for the same absolute path the local
+project has, `gmux.quickopen.recents` held two entries with the same `repoPath` and the same
+`relPath` and different `machineId`, and their composed keys differed.
+
+Measured against this worktree over the loopback machine, 1,610 names by git's own count: Tortie
+1,610, git 1,610, 0 missing, 0 extra. Three whole reads took 0.049 s, 0.046 s and 0.049 s. A cap of
+500 delivered exactly 500 names with the cut flag set, in 0.045 s. A cap of 999,999 was clamped to
+50,000 and delivered 1,610 names with the flag clear, in 0.048 s. On a smaller corpus the read wrote
+nothing: 127 files under `.git` unchanged in size and modification time, and `git status --porcelain`
+identical at 14 bytes. The palette painted 28 ms after the chord and nine keystrokes had a median of
+5.2 ms and a worst of 11.1 ms.
+
+### What is not true, said plainly
+
+- The byte ceiling is dropped before it reaches a person, and it is this round's one honesty gap.
+  The script answers whether it cut at 4,194,304 bytes and `src/main/machines/remote-files.ts`
+  carries that answer as `truncated`, and `QuickOpenElsewhereRead` in
+  `src/renderer/quickopen/store.ts` does not read it. So a list the machine cut at the byte ceiling
+  arrives short, the name cap flag is clear because the line count is under 50,000, and the note
+  says the names came from that machine as if the list were whole. The name cap has a sentence and
+  the byte cap has none. No run reached this state, because the largest corpus measured was 1,610
+  names against a ceiling that about 50,000 names would reach.
+- The far side was this Mac over a loopback sign in server in every number above. No Linux machine
+  and no machine of the operator's was contacted. GNU `git`, GNU `find` and GNU `head` are reasoned
+  about from POSIX rather than measured.
+- No slow link was measured. Every second reported is read time with the connection already open.
+- A palette opened while the link is momentarily down warms the worker with an EMPTY name list, so
+  names Tortie already held for that root are discarded. The person sees no rows and the sentence
+  saying Tortie is not connected, rather than the last good list with its age.
+- The palette's idle prewarm sends one `machines:listFiles` per remote root in scope on a project
+  switch, before anybody presses the chord. `QUICK_OPEN_WARM_STALE_MS` bounds it to one command per
+  root per 5,000 ms, so it cannot run away. Nothing counts commands in flight, and research 56 puts
+  a machine's effective ceiling at 10. This was not measured.
+- A file name holding a newline is dropped in the repository branch, because git quotes such a name
+  and `remote-files.ts` drops a line beginning with `"` rather than guessing. In the walk branch its
+  two halves arrive as two wrong lines. That is the rule `tree-list` already carries.
+- A repository on a machine that has no `git` at all takes the walk branch, and the palette then
+  says the folder is not a repository, which names the wrong cause. That is `repo-search`'s own
+  limitation, unchanged.
+- Symbols still refuses on a remote tab and this phase did not widen it. The card reads `Symbols do
+  not reach <machine>` and drew 0 rows in the live check.
 
 ## Phase 100 — read the last lines of a session on another machine (research 57 row, queued 2026-08-19) QUEUED
 

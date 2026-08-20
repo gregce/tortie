@@ -1,10 +1,10 @@
 /**
  * The ONE `machines:*` registrar (Phase 68, one channel added in Phase 69, one
  * more in Phase 71, one more in Phase 79.1, one more in Phase 83, one more in
- * Phase 84, two more in Phase 90.2, one more in Phase 90.3 and one more in
- * Phase 98).
+ * Phase 84, two more in Phase 90.2, one more in Phase 90.3, one more in
+ * Phase 98 and one more in Phase 99).
  *
- * Twenty two channels, and what is NOT here is the point of the file.
+ * Twenty three channels, and what is NOT here is the point of the file.
  *
  *  - There is no `machines:connect`, no `machines:attach` and no
  *    `machines:createSession`. Neither Phase 68 nor Phase 69 opens a session on
@@ -117,8 +117,12 @@ import type {
   // ---- END PHASE 90.2 ----
   // ---- PHASE 98 ----
   MachineSearchInput,
-  MachineSearchResult
+  MachineSearchResult,
   // ---- END PHASE 98 ----
+  // ---- PHASE 99 ----
+  MachineFileListInput,
+  MachineFileListResult
+  // ---- END PHASE 99 ----
 } from '@shared/ipc';
 import { EVT_MACHINE_STATE, EVT_MACHINE_TEST } from '@shared/ipc';
 import { gmuxError } from '../errors';
@@ -181,6 +185,10 @@ import { listRemoteTree } from './tree-list';
 // Phase 98. One folder on one machine, searched with that machine's own grep.
 // It reads and writes nothing on either computer.
 import { searchOnMachine } from './remote-search';
+// Phase 99. The file NAMES in one folder on one machine, for the Quick Open
+// palette on a tab that lives over there. It carries no file contents and it
+// writes nothing on either computer.
+import { listFilesOnMachine } from './remote-files';
 // Phase 90.2, item 2. One git config read here, then one folder walk there. It
 // writes nothing on either computer.
 import { findProjectOnMachine } from './project-counterpart';
@@ -948,6 +956,39 @@ export function registerMachinesIpc(ipc: IpcMain): void {
       })
   );
   // ---- END PHASE 98 ----
+
+  // ---- PHASE 99 ----
+  // PHASE 99. One channel that READS the file NAMES in one folder on one
+  // machine, so the Quick Open palette on a tab that lives over there lists
+  // files instead of a sentence saying it does not reach that far.
+  //
+  // IT CARRIES NAMES AND NEVER CONTENTS. A person's source stays on the
+  // computer it is on. Opening one of these names is a separate read, and it
+  // lands in the read only tab Phase 90.3 shipped.
+  //
+  // It cannot compose what it asks. The command that crosses is `repo-files`
+  // from the frozen catalogue in ./remote-scripts.ts, chosen by name, with the
+  // folder and the name cap plus one arriving there as positional parameters.
+  // NOTHING IS SENT TO THAT MACHINE except that constant text.
+  //
+  // NOTHING CALLS IT ON A CLOCK. The palette asks when a person opens it, and
+  // the renderer skips a root it read less than QUICK_OPEN_WARM_STALE_MS ago.
+  //
+  // It NEVER THROWS. A folder that is not there, a machine that did not answer
+  // and a machine Tortie is not signed in to all come back as a mode word. No
+  // prose crosses this channel: the renderer draws the sentence from
+  // src/renderer/app/machine-copy.ts, where the vocabulary audit reads it.
+  handle(
+    ipc,
+    'machines:listFiles',
+    async (_event, input: MachineFileListInput): Promise<MachineFileListResult> =>
+      listFilesOnMachine({
+        machineId: input.machineId,
+        cwd: input.cwd,
+        ...(input.maxPaths === undefined ? {} : { maxPaths: input.maxPaths })
+      })
+  );
+  // ---- END PHASE 99 ----
 }
 
 /**

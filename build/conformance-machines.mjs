@@ -3147,6 +3147,165 @@ const P98_FORBIDDEN = 'ripgrep, rg, curl, scp or install';
   }
 }
 
+
+// ---------------------------------------------------------------------------
+// 53. Phase 99. The name list that runs on the machine rather than on this Mac
+// ---------------------------------------------------------------------------
+//
+// Copied from condition 52, which Phase 98 wrote for `repo-search`. Quick Open
+// on a tab whose project lives on another machine needs the names of the files
+// over there, and research 57 section 6 ruled that the enumeration happens where
+// the files are for the same reasons the search does.
+//
+// Every check below reads the compiled script text and two compiled numbers. It
+// sends nothing, starts nothing and contacts no machine.
+
+const P99_FORBIDDEN = P98_FORBIDDEN;
+
+{
+  const p99 = data.phase99 ?? {};
+  const files = p99.repoFiles ?? null;
+  if (files === null) {
+    fail(
+      'the catalogue holds no script called repo-files, so the Quick Open ' +
+        'palette on a tab that lives on another machine has nothing to ask.'
+    );
+  } else {
+    // 53a. A read that is not in the catalogue cannot be sent at all.
+    if (files.mode !== 'read' || files.params !== 2) {
+      fail(
+        `repo-files is a ${String(files.mode)} taking ` +
+          `${String(files.params)} value(s). It is a read taking two, being ` +
+          `the folder and the name cap plus one.`
+      );
+    }
+    // 53b. The two verbs it may name, and no third one a later edit adds here.
+    const verbs = [...(files.gitVerbs ?? [])].sort();
+    if (JSON.stringify(verbs) !== JSON.stringify(['ls-files', 'rev-parse'])) {
+      fail(
+        `repo-files names git ${verbs.join(', ') || 'nothing'}. It names ` +
+          `exactly rev-parse, to ask whether the folder is a repository, and ` +
+          `ls-files, to ask which files are in it. Both are reads and neither ` +
+          `reaches a server.`
+      );
+    }
+    // 53c. The cap is in the text and not in a caller.
+    if (files.branches !== 2) {
+      fail(
+        `repo-files builds its list on ${String(files.branches)} line(s). ` +
+          `There are exactly two, being the repository branch and the walk ` +
+          `branch, and every cap below is checked on both.`
+      );
+    }
+    if (files.branchesCapped !== files.branches) {
+      fail(
+        `${String(files.branchesCapped)} of ${String(files.branches)} ` +
+          `branch(es) of repo-files carry head -n "$2". A branch without it ` +
+          `would send every name in a home directory in one answer.`
+      );
+    }
+    // 53d. Two copies of one number is how one of them goes stale.
+    const caps = files.byteCaps ?? [];
+    if (caps.length !== files.branches) {
+      fail(
+        `repo-files carries ${String(caps.length)} head -c cap(s) and has ` +
+          `${String(files.branches)} branch(es). Each branch ends at the size ` +
+          `ceiling or it does not have one.`
+      );
+    }
+    for (const cap of caps) {
+      // ONE BYTE PAST THE CEILING, and that byte is the proof. A `head -c` that
+      // stopped AT the ceiling cannot tell a stream of exactly that size from a
+      // stream that was cut, and the answer would then be a guess.
+      if (cap === files.declaredMaxBytes + 1) continue;
+      fail(
+        `repo-files reads ${String(cap)} bytes and REMOTE_FILE_LIST_MAX_BYTES ` +
+          `reads ${String(files.declaredMaxBytes)}, so it should read ` +
+          `${String(files.declaredMaxBytes + 1)}. The script text and the ` +
+          `exported number are two copies of one ceiling, and this is the ` +
+          `check that keeps them one value.`
+      );
+    }
+    // 53e. The far side ANSWERS whether it cut, rather than leaving this end to
+    // infer it from the last byte of the body.
+    const tests = files.cutTests ?? [];
+    if (tests.length !== 1 || tests[0] !== files.declaredMaxBytes) {
+      fail(
+        `repo-files compares the bytes it read against ` +
+          `${tests.length === 0 ? 'nothing' : tests.join(', ')}. It compares ` +
+          `them against ${String(files.declaredMaxBytes)} exactly once, and ` +
+          `that comparison is the only thing that makes the cut an answer ` +
+          `rather than a guess about the last byte of the body.`
+      );
+    }
+    // 53f. Three words, being the mode, the cut answer and the body.
+    if (files.answerWords !== 3) {
+      fail(
+        `repo-files prints ${String(files.answerWords)} word(s) between the ` +
+          `markers. It prints three, being the mode, the cut answer and the ` +
+          `body. Inferring the cut from the body ends a name list early and ` +
+          `calls it complete.`
+      );
+    }
+    // 53g. A repository's internals never cross the link, and a palette full of
+    //      dependency files is a palette nobody can find their own file in.
+    if (!files.prunesGit) {
+      fail(
+        'the walk branch of repo-files does not prune .git. A folder that is ' +
+          'not a repository can still hold one below it, and no surface in ' +
+          "this product asks for a repository's internals."
+      );
+    }
+    if (!files.prunesNodeModules) {
+      fail(
+        'the walk branch of repo-files does not prune node_modules. A palette ' +
+          'holding one dependency tree is a palette a person cannot find their ' +
+          'own file in.'
+      );
+    }
+    // 53h. The executable form of the refusal in research 57 section 2.1.
+    if ((files.namesAProgram ?? []).length > 0) {
+      fail(
+        `repo-files names ${files.namesAProgram.join(', ')}. It may name ` +
+          `none of ${P99_FORBIDDEN}: research 57 section 2 refused shipping a ` +
+          `program to another person's computer, and this is the check that ` +
+          `keeps the refusal executable rather than written down.`
+      );
+    }
+  }
+  // 53i. The write door did not move. Phase 99 added a READ.
+  const writers = (data.remoteRun ?? {}).writers ?? [];
+  if (JSON.stringify(writers) !== JSON.stringify(['image-put', 'git-clone'])) {
+    fail(
+      `the catalogue's write scripts are ${writers.join(', ') || 'none'}. They ` +
+        `are exactly image-put and then git-clone. Phase 99 added a read and ` +
+        `nothing about what Tortie may write on another computer moved.`
+    );
+  }
+  // 53j. The git verb list did not grow. Phase 98 added `ls-files` and Phase 99
+  //      needed the same verb, so it added nothing. This is asserted on the
+  //      list's own contents so a later round that widens it for convenience
+  //      fails here rather than in review.
+  const readVerbs = [...(p99.gitVerbsAcrossReads ?? [])].sort();
+  const allowed = [...ALLOWED_GIT_VERBS].sort();
+  for (const verb of readVerbs) {
+    if (allowed.includes(verb)) continue;
+    fail(
+      `a read script names git ${verb}, which is not one of ` +
+        `${allowed.join(', ')}. Phase 99 widened that list by nothing and no ` +
+        `later phase may widen it here.`
+    );
+  }
+  if (JSON.stringify(allowed) !== JSON.stringify(['ls-files', 'rev-parse', 'show', 'status'])) {
+    fail(
+      `ALLOWED_GIT_VERBS holds ${allowed.join(', ')}. It holds exactly ` +
+        `ls-files, rev-parse, show and status. Phase 98 added the first and ` +
+        `Phase 99 added nothing, and a round that grows this list has widened ` +
+        `what every script in the catalogue may run.`
+    );
+  }
+}
+
 // ---------------------------------------------------------------------------
 // 46 to 48. Phase 84. The program search, the third environment name and the
 // key Tortie made
@@ -3582,6 +3741,27 @@ process.stdout.write(
           `${String(search.branches)} branch(es) and says so in its own ` +
           `answer, and it names none of ${P98_FORBIDDEN}. No search engine is ` +
           `sent to any machine.\n`
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Phase 99's line
+// ---------------------------------------------------------------------------
+
+{
+  const files = (data.phase99 ?? {}).repoFiles ?? null;
+  process.stdout.write(
+    files === null
+      ? 'repo-files is NOT in the catalogue, so Quick Open on a machine has no ' +
+          'far side at all.\n'
+      : `Quick Open on a machine runs repo-files, a ${String(files.mode)} ` +
+          `taking ${String(files.params)} value(s). It names git ` +
+          `${[...(files.gitVerbs ?? [])].sort().join(' and ')}, it carries at ` +
+          `most ${String(files.declaredMaxPaths)} names, it cuts its answer at ` +
+          `${String(files.declaredMaxBytes)} bytes on ` +
+          `${String(files.branches)} branch(es) and says so in its own answer, ` +
+          `and it names none of ${P99_FORBIDDEN}. It carries names and never ` +
+          `file contents.\n`
   );
 }
 

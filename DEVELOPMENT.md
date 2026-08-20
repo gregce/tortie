@@ -78,6 +78,7 @@ value below is read from the script in `package.json`, and `${TMPDIR}` is
 | `npm run probe:realunknowns` | `<tmpdir>/p83-real-<pid>`, made fresh on every run | none on this Mac. One scratch socket on the far machine, named `p83-<pid>-sockpath`, and socket `gmux` over there for the sessions it creates by name |
 | `npm run probe:remotearm` | `<tmpdir>/gmux-p89-arm-<pid>`, made fresh on every run and removed at the end | `gmux-p89-<pid>`, on the scratch machine, which is this Mac over a loopback sshd. `refuseRealSockets` rejects the names `gmux` and `default` before anything starts. |
 | `npm run probe:p98` | `/tmp/p98-search-<pid>`, made fresh on every run and removed at the end. It drives no Electron, so it reads no config root. | `gmux-p98-search-<pid>`, on the scratch machine, which is this Mac over a loopback sshd. `refuseRealSockets` rejects the names `gmux` and `default` before anything starts. |
+| `npm run probe:p99` | `/tmp/p99-quickopen-<pid>`, made fresh on every run and removed at the end. It drives no Electron, so it reads no config root. | `gmux-p99-quickopen-<pid>`, on the scratch machine, which is this Mac over a loopback sshd. `refuseRealSockets` rejects the names `gmux` and `default` before anything starts. |
 
 `smoke:execplane`, `smoke:remote`, `smoke:capture:remote` and `smoke:p93remote`
 all honour a `GMUX_CONFIG_ROOT` already in the environment and fall back to the
@@ -115,6 +116,19 @@ matching lines is compared against
 run directly in that repository, and against the ripgrep this build ships, on
 the same corpus. It also counts `tmux -L gmux list-sessions` before and after
 and fails on a difference.
+
+`npm run probe:p99` is Phase 99's live gate, being the file names of a project
+that lives on another machine. It makes its own repository under `/tmp`, drives
+`src/main/machines/remote-files.ts` against a loopback sign in server, and
+checks twelve things. The one the phase rests on is the second. The set of names
+Tortie holds is compared against
+`git ls-files --cached --others --exclude-standard` run directly in that
+repository, and it requires zero missing and zero extra. It also proves that a
+folder which is not a repository answers with a walk that names nothing under
+`.git` and nothing under `node_modules`, that the name cap delivers exactly what
+was asked for and says it cut, and that the read left the repository byte for
+byte as it found it. It counts `tmux -L gmux list-sessions` before and after and
+fails on a difference.
 
 ### Talking to a real machine
 

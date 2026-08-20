@@ -366,10 +366,27 @@ export interface GmuxSymbolsExtras {
 // worker evicts an index nobody has queried for a while on its own.
 // ---------------------------------------------------------------------------
 
+/**
+ * How old a Quick Open name list may be before it is read again. 5,000 ms.
+ *
+ * ONE NUMBER AND TWO APPLIERS, and no root is subject to both. The ranking
+ * worker in main applies it to a root it enumerates itself. The renderer
+ * applies it to a root on another machine, which the worker cannot enumerate,
+ * so nothing there could apply it. Research 57 section 6.5 ruled for the same
+ * 5,000 ms on both, and this is the definition both of them read.
+ */
+export const QUICK_OPEN_WARM_STALE_MS = 5_000;
+
 /** One ranked path from quick open. */
 export interface QuickOpenHit {
   /** Which project root it came from (a query may span several). */
   repoPath: string;
+  /**
+   * PHASE 99. The machine `repoPath` is on, absent for this Mac. A path alone
+   * cannot say whose computer it is on, and the same path on two computers is
+   * two different files.
+   */
+  machineId?: string;
   /** Path relative to `repoPath`, POSIX separators, as ripgrep printed it. */
   relPath: string;
   /**
@@ -390,6 +407,12 @@ export interface QuickOpenQueryInput {
    * Every root to search, most important first (the active project first).
    * Roots the worker has not indexed yet are indexed on arrival; the answer
    * comes back immediately either way with `ready: false`.
+   *
+   * PHASE 99. Each one is a ROOT KEY from `rootKeyOf` in
+   * src/shared/workspace-target.ts, which is the bare absolute path for a
+   * folder on this Mac and `machine:<machineId>:<path>` for a folder on another
+   * machine. The worker never enumerates the second kind and waits for its
+   * names to be handed to it by `quickopen:warm`.
    */
   roots: string[];
   /** What the user typed, already stripped of any `:line` suffix. */
@@ -399,10 +422,17 @@ export interface QuickOpenQueryInput {
   /** How many hits to render. 50 is the VS Code number and this build's. */
   limit: number;
   /**
-   * `repoPath relPath` keys of recently opened files, most recent first.
+   * `rootKey relPath` keys of recently opened files, most recent first.
    * Used ONLY as a tiebreaker between equally-scored paths and to answer the
    * empty query — never as a score bonus, which would float a bad match over
    * a good one just because it was opened once.
+   *
+   * PHASE 99 PUT THE MACHINE INSIDE THE FIRST FIELD. The key used to be
+   * `repoPath relPath`, so `/Users/gdc/gmux/README.md` on this Mac and the same
+   * path on another machine composed ONE key and tie broke each other. The
+   * first field is now a root key from `rootKeyOf` in
+   * src/shared/workspace-target.ts, which is the bare path for this Mac, so
+   * every key an older build wrote is still the key this build composes.
    */
   recents?: string[];
 }
@@ -444,7 +474,32 @@ export interface QuickOpenInvokeChannelMap {
    * a prewarm the user pays for the whole index on their first keystroke.
    * Resolves as soon as the work is queued — never blocks the palette.
    */
-  'quickopen:warm': { req: [repoPath: string]; res: void };
+  'quickopen:warm': { req: [input: QuickOpenWarmInput]; res: void };
+}
+
+/**
+ * What one `quickopen:warm` carries.
+ *
+ * PHASE 99 turned one string into this object. The channel name did not change
+ * and no channel was added, so the contract inventory gains no line from it.
+ */
+export interface QuickOpenWarmInput {
+  /**
+   * The ROOT KEY, from `rootKeyOf` in src/shared/workspace-target.ts. A folder
+   * on this Mac is its own absolute path, so every caller before Phase 99 sent
+   * this same string.
+   */
+  root: string;
+  /**
+   * PHASE 99. The whole name list for a root Tortie cannot enumerate itself.
+   * Present only for a folder on another machine, where the names arrive
+   * through `machines:listFiles` rather than through ripgrep. When it is
+   * present the worker ADOPTS it and never spawns anything for that root.
+   *
+   * An EMPTY array is a real answer and not a missing one. It says Tortie holds
+   * no names for that root, which is what a refusal from that machine means.
+   */
+  paths?: string[];
 }
 
 /**
@@ -456,7 +511,7 @@ export interface QuickOpenInvokeChannelMap {
 export interface GmuxQuickOpenExtras {
   quickOpen?: {
     query(input: QuickOpenQueryInput): Promise<QuickOpenResult>;
-    warm(repoPath: string): Promise<void>;
+    warm(input: QuickOpenWarmInput): Promise<void>;
   };
 }
 

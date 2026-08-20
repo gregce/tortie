@@ -99,6 +99,19 @@
  * complete one. Add the re-export when a caller outside this directory needs
  * one, and not before.
  *
+ * PHASE 98 AND PHASE 99 EACH ADDED ONE MODULE and this file re-exports
+ * NEITHER, for the reason the Phase 79.1 note above gives.
+ *
+ *  - `remote-search.ts` reads every matching line in one folder on a machine,
+ *    with that machine's own `grep`.
+ *  - `remote-files.ts` reads the file NAMES in one folder on a machine, so the
+ *    Quick Open palette on a tab that lives over there can rank them. It
+ *    carries names and never contents.
+ *
+ * The only caller of either one is `ipc.ts`, inside this directory, and it
+ * imports the module directly. A re-export here would be a second name for
+ * something nothing outside asks for.
+ *
  * PHASE 83 ADDED NO MODULE, and it changed two things worth naming here.
  *
  *  - A machine row gained a fifth execution bearing field,

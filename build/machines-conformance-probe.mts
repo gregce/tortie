@@ -1023,7 +1023,14 @@ const { composeRemoteScriptCommand, remoteScriptName } = await import(
 const { REMOTE_DROP_IMAGES_ONLY: MAIN_DROP_COPY } = await import(
   '../src/main/machines/remote-copy'
 );
-const { REMOTE_IMAGE_MAX_BYTES } = await import('../src/shared/ipc');
+const {
+  REMOTE_IMAGE_MAX_BYTES,
+  // Phase 99, condition 53. The size ceiling one name list may hold, read here
+  // so the gate can compare it against the constant inside the script text.
+  REMOTE_FILE_LIST_MAX_BYTES,
+  // The most names one read carries, so the gate can say the number out loud.
+  REMOTE_FILE_LIST_MAX
+} = await import('../src/shared/ipc');
 
 // --- Phase 84, conditions 46 to 48 -----------------------------------------
 // All three are pure. The allowed environment set is a compiled constant, the
@@ -1553,6 +1560,83 @@ process.stdout.write(
             .map((one) => one.source)
         };
       })()
+    },
+
+    // --- Phase 99, condition 53 --------------------------------------------
+    // Pure. It reads one compiled script text and two compiled numbers. It
+    // starts nothing, opens no file under the person's home and contacts no
+    // machine.
+    phase99: {
+      repoFiles: (() => {
+        const script = REMOTE_SCRIPTS.find((row) => row.id === 'repo-files');
+        if (script === undefined) return null;
+        const text = script.text;
+        // The two branches are the two lines that assign the encoded list. Every
+        // cap the gate checks is on those lines, so they are collected whole
+        // rather than as booleans over the whole file.
+        const branches = text
+          .split('\n')
+          .filter((line) => line.includes('o=$('));
+        return {
+          params: script.params,
+          mode: script.mode,
+          gitVerbs: [
+            ...new Set(
+              [...text.matchAll(/git (?:--no-pager )?([a-z-]+)/g)].map(
+                (hit) => hit[1] ?? ''
+              )
+            )
+          ].sort(),
+          branches: branches.length,
+          branchesCapped: branches.filter((line) => line.includes('head -n "$2"'))
+            .length,
+          byteCaps: [...text.matchAll(/head -c ([0-9]+)/g)].map((hit) =>
+            Number(hit[1] ?? '0')
+          ),
+          // The number the script itself compares the bytes it read against, so
+          // the gate can prove the far side answers about the SAME ceiling it
+          // reads one byte past.
+          cutTests: [...text.matchAll(/"\$n" -gt ([0-9]+)/g)].map((hit) =>
+            Number(hit[1] ?? '0')
+          ),
+          // The answer carries three words rather than two, being the mode, the
+          // cut answer and the body.
+          answerWords: text.includes(
+            "printf '__TORTIE_RUN__%s %s %s__TORTIE_RUN__"
+          )
+            ? 3
+            : 2,
+          declaredMaxBytes: REMOTE_FILE_LIST_MAX_BYTES,
+          declaredMaxPaths: REMOTE_FILE_LIST_MAX,
+          prunesGit: text.includes("-name '.git'") && text.includes('-prune'),
+          prunesNodeModules:
+            text.includes("-name 'node_modules'") && text.includes('-prune'),
+          // The executable form of the refusal in research 57 section 2.1. The
+          // same five names Phase 98 refuses, because a name list is a second
+          // door and a second door with a weaker rule is no rule.
+          namesAProgram: [
+            /ripgrep/,
+            /\brg\b/,
+            /\bcurl\b/,
+            /\bscp\b/,
+            /\binstall\b/
+          ]
+            .filter((one) => one.test(text))
+            .map((one) => one.source)
+        };
+      })(),
+      // 53j. Phase 98 added `ls-files` and Phase 99 added nothing. The gate
+      // asserts the list's own contents so a later round that widens it for
+      // convenience fails here rather than in review.
+      gitVerbsAcrossReads: [
+        ...new Set(
+          REMOTE_SCRIPTS.filter((row) => row.mode === 'read').flatMap((row) =>
+            [...row.text.matchAll(/git (?:--no-pager )?([a-z-]+)/g)].map(
+              (hit) => hit[1] ?? ''
+            )
+          )
+        )
+      ].sort()
     },
 
     // --- Phase 73, conditions 35 to 40 -------------------------------------

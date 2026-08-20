@@ -25,6 +25,12 @@
  * over the link against 0.176 s of scanning in place, and it puts a person's
  * source on a second computer. So the scan happens where the files are.
  *
+ * PHASE 99 ADDED ONE MORE, and it is a read. `repo-files` names every file in
+ * one folder on a machine, so the Quick Open palette on a tab that lives over
+ * there can rank names. It carries NAMES AND NEVER CONTENTS, which is why it
+ * needs no file size cap of its own. Research 57 section 6 measured it and ruled
+ * Quick Open in and Symbols out, because there is no parser on that machine.
+ *
  * PHASE 90.3 ADDED ONE MORE, and it is a read. `tree-list` names every file
  * and folder under one folder on a machine, to a fixed depth, in ONE call. It
  * is what the Explorer draws for a project that lives on another computer.
@@ -104,7 +110,9 @@
  *     index is a read, it reaches no server, and it meets the same test the
  *     other three meet. Phase 99, being Quick Open on a tab that lives on
  *     another machine, needs the same verb and therefore needs no widening of
- *     its own.
+ *     its own. IT ADDED NOTHING TO THAT LIST, and condition 53j of the gate
+ *     asserts the list's own contents so a later round cannot widen it for
+ *     convenience.
  *
  * ## Every script is safe to run twice
  *
@@ -209,7 +217,7 @@ export const REMOTE_SCRIPT_MAX_BYTES = 131_072;
 export const REMOTE_SEARCH_MAX_BYTES = 4_194_304;
 
 // ---------------------------------------------------------------------------
-// The thirteen scripts
+// The fourteen scripts
 // ---------------------------------------------------------------------------
 
 /**
@@ -930,15 +938,124 @@ const REPO_SEARCH = [
 ].join('\n');
 
 /**
- * The whole catalogue. Thirteen scripts, and this release holds no others.
+ * Every file name in one folder on another machine (Phase 99).
+ *
+ * ## What it is for
+ *
+ * A project can be a folder on another machine, and until this phase the Quick
+ * Open palette on that tab drew a sentence saying it does not reach over there.
+ * It does now. This script is where the names come from. Research 57 section 6
+ * ruled Quick Open in and Symbols out, because ranking a name list needs no
+ * parser and finding a symbol does, and there is no parser on that machine.
+ *
+ * ## Which names are read
+ *
+ * Inside a repository, `git ls-files --cached --others --exclude-standard`
+ * names the tracked files plus the untracked files git is not ignoring. That is
+ * the same set `rg --files` reads on this Mac, so the palette on a remote tab
+ * and the palette on a local tab list the same kind of thing. A file an agent
+ * on that machine made five minutes ago and has not committed is in the list,
+ * which is the case this feature exists for.
+ *
+ * Outside a repository the script walks every file under the folder with `find`
+ * and prunes `.git` and `node_modules`. That answer can hold build output, and
+ * the palette says so on screen.
+ *
+ * ## The two values
+ *
+ * ```
+ *   $1  the folder on that machine, absolute
+ *   $2  how many names to print, being the cap PLUS ONE
+ * ```
+ *
+ * `$2` IS THE CAP PLUS ONE, exactly as `repo-search`'s `$4` is. A body holding
+ * more lines than the cap is proof the cap bit, so nothing has to walk the tree
+ * a second time to count. This is the one place this phase departs from
+ * research 57 section 6.5, which sketched an honest total printed before the
+ * capped list. That total costs a second enumeration and no surface draws one:
+ * the palette on this Mac says it is showing the first 200,000 files in a
+ * project and reports no total either.
+ *
+ * ## The answer
+ *
+ * ```
+ *   __TORTIE_RUN__<mode> <cut> <base64 of one name per line>__TORTIE_RUN__
+ * ```
+ *
+ * `<mode>` is `repo`, `walk` or `missing`. `<cut>` is `1` when the byte ceiling
+ * bit and `0` when it did not. The third word is the word `none` when there is
+ * nothing, exactly as `review-list` does it. The body is base64 because a file
+ * name can hold any byte except NUL, and base64 is also what stops a file name
+ * from ever forging the marker pair.
+ *
+ * THE SCRIPT SAYS WHETHER IT CUT, rather than leaving this end to guess. It
+ * reads the ceiling PLUS ONE BYTE, then counts the bytes it read back out of
+ * the base64 it is about to send, being `${#o} / 4 * 3` less the padding, and
+ * compares that count against the ceiling. So `<cut>` is an answer and not an
+ * inference. That is the whole finding Phase 98 wrote down: `head -c` cuts at a
+ * byte offset, so about one cut in every average line length lands on a
+ * newline, and a reader that asked whether the body ended cleanly would call a
+ * cut list complete.
+ *
+ * ## What it cannot do, said plainly
+ *
+ *  - A file name holding a NEWLINE arrives as two lines. Git quotes such a
+ *    name, so the repository branch delivers it as one line beginning with `"`,
+ *    and `./remote-files.ts` DROPS a line beginning with `"` rather than
+ *    guessing at it. The walk branch has no such quoting, so the two halves
+ *    arrive as two lines and both are wrong. That is the rule `tree-list`
+ *    already carries.
+ *  - THERE IS NO FILE SIZE CAP AND THERE DOES NOT NEED TO BE ONE. This script
+ *    carries names and never contents.
+ *  - The `walk` branch's answer can include build output, apart from what is
+ *    inside `.git` and `node_modules`. The palette says so.
+ *  - A folder that is a repository on a machine with no `git` at all takes the
+ *    walk branch, and the palette then says the folder is not a repository,
+ *    which names the wrong cause. That is `repo-search`'s own limitation,
+ *    unchanged.
+ *  - EVERY NUMBER RESEARCH 57 SECTION 6 MEASURED had this Mac or the operator's
+ *    own tailnet as the far side. GNU `git`, GNU `find` and GNU `head` are
+ *    reasoned about from POSIX rather than measured.
+ */
+const REPO_FILES = [
+  'set -e',
+  'umask 077',
+  'if [ ! -d "$1" ]; then',
+  "  printf '__TORTIE_RUN__missing 0 none__TORTIE_RUN__\\n'",
+  'else',
+  '  cd "$1"',
+  '  r=$(git rev-parse --show-toplevel 2>/dev/null || true)',
+  '  if [ -n "$r" ]; then',
+  '    m=repo',
+  '    o=$(git ls-files --cached --others --exclude-standard |' +
+    ' head -n "$2" | head -c 4194305 | base64 |' +
+    " tr -d '\\n' || true)",
+  '  else',
+  '    m=walk',
+  "    o=$(find . \\( -name '.git' -o -name 'node_modules' \\) -prune -o" +
+    ' -type f -print 2>/dev/null |' +
+    ' head -n "$2" | head -c 4194305 | base64 |' +
+    " tr -d '\\n' || true)",
+  '  fi',
+  '  p=0',
+  '  case "$o" in *==) p=2;; *=) p=1;; esac',
+  '  n=$(( ${#o} / 4 * 3 - p ))',
+  '  c=0',
+  '  if [ "$n" -gt 4194304 ]; then c=1; fi',
+  "  printf '__TORTIE_RUN__%s %s %s__TORTIE_RUN__\\n' \"$m\" \"$c\" \"${o:-none}\"",
+  'fi'
+].join('\n');
+
+/**
+ * The whole catalogue. Fourteen scripts, and this release holds no others.
  *
  * A name that is not here is refused by `./remote-run.ts` before anything is
  * composed, which is the shape the verb ledger has as well: the refusal happens
  * before a string exists, rather than after one was built and then inspected.
  *
- * TWO of the thirteen write, being `image-put` and `git-clone`, and they are in
+ * TWO of the fourteen write, being `image-put` and `git-clone`, and they are in
  * that order in this array. {@link remoteWriteScripts} returns them in it.
- * PHASE 98 ADDED A READ AND LEFT THAT NUMBER ALONE.
+ * PHASE 98 ADDED A READ AND LEFT THAT NUMBER ALONE. SO DID PHASE 99.
  */
 export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
   {
@@ -1042,6 +1159,16 @@ export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
       'It asks git which files are in one folder and reads them with that ' +
       "machine's own grep. It writes nothing, so running it twice reads the " +
       'same files twice.'
+  },
+  {
+    id: 'repo-files',
+    mode: 'read',
+    params: 2,
+    text: REPO_FILES,
+    reason:
+      'It asks git which files are in one folder, or walks that folder once ' +
+      'when git does not answer. It writes nothing, so running it twice lists ' +
+      'the same folder twice.'
   },
   {
     id: 'git-clone',

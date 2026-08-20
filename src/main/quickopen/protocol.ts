@@ -19,9 +19,20 @@ export interface QuickOpenWorkerData {
 /** Index this root now (project opened, or the palette just opened). */
 export interface WarmMessage {
   type: 'warm';
+  /**
+   * The ROOT KEY. See `QuickOpenWarmInput` in src/shared/ipc/search.ts. A
+   * folder on this Mac is its own absolute path; a folder on another machine is
+   * `machine:<machineId>:<path>`.
+   */
   root: string;
   /** Re-enumerate even if the index looks fresh. */
   force?: boolean;
+  /**
+   * PHASE 99, and it is the one field research 57 section 6.5 priced. The whole
+   * name list for a root the worker cannot enumerate itself. When it is present
+   * `ensureIndex` adopts it and never spawns anything for that root.
+   */
+  paths?: string[];
 }
 
 /** Rank across roots. `id` comes back on the matching QueryDone. */
@@ -36,7 +47,11 @@ export interface QueryMessage {
 /** The renderer's recently-opened list changed (tiebreaker + empty query). */
 export interface RecentsMessage {
   type: 'recents';
-  /** `${repoPath}\u0000${relPath}` keys, most recent first. */
+  /**
+   * `${rootKey} ${relPath}` keys, most recent first. PHASE 99 put the machine
+   * inside the first field, so the same relative path under the same absolute
+   * path on two computers is two keys rather than one.
+   */
   keys: string[];
 }
 

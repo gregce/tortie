@@ -114,7 +114,13 @@ const FILES: readonly string[] = [
   // a later round cannot type a sentence straight into the view.
   'src/renderer/search/SearchView.tsx',
   'src/renderer/search/ResultsList.tsx',
-  'src/renderer/search/QueryBlock.tsx'
+  'src/renderer/search/QueryBlock.tsx',
+  // Phase 99. Quick Open ranks the file names in a folder on another machine,
+  // and the palette draws a line above the rows saying which machine they came
+  // from and when they were read. Every one of those sentences is a named
+  // export in machine-copy.ts, which is the first file on this list. The panel
+  // is read as well, so a later round cannot type a sentence straight into it.
+  'src/renderer/quickopen/QuickOpenPalette.tsx'
 ];
 
 /**

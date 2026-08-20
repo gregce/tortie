@@ -1,28 +1,33 @@
 /**
- * Phase 90.3. Quick Open lists files on this Mac and nothing else.
+ * Phase 90.3, rewritten by Phase 99. The roots quick open sends, and the record
+ * it keeps of the files you have been in.
  *
- * THE RULE BEING PROVED. `rootsFor` yields `localPathOf(target)` for every
- * project, and a project on another machine yields null, so it is dropped. That
- * one line is what makes three separate claims true at once:
+ * WHAT PHASE 90.3 PROVED HERE, AND WHY IT IS GONE. That phase dropped every
+ * project on another machine from `rootsFor`, because the engine was ripgrep
+ * walking THIS Mac's disk and such a path would have named a different file
+ * here or nothing at all. Quick open reads that machine's own file names now,
+ * so the drop is deleted and so is the recents refusal that followed from it.
  *
- *  1. No query, and no index warm, ever carries a path from another computer.
- *     The engine is ripgrep walking THIS Mac's disk, so such a path would name
- *     a different file here or nothing at all.
- *  2. The recents record can never hold an entry for a file on a machine,
- *     because quick open is the only reader of that record as a rank
- *     tiebreaker and it can only rank what it listed. The bus guard in
- *     ./../recents.ts is checked here as well, because the two answers have to
- *     agree.
- *  3. The palette opens on such a tab and SAYS so, rather than showing an empty
- *     list. An empty list reads as a project with no files, which is a
- *     different and wrong conclusion.
+ * THE RULE BEING PROVED INSTEAD. Every project yields a ROOT KEY. A folder on
+ * this Mac keys as its own absolute path, byte for byte what every build before
+ * this phase sent, and a folder on another machine keys as
+ * `machine:<machineId>:<path>`. Three claims follow and all three are below:
+ *
+ *  1. No query and no warm ever sends a bare path from another computer, so
+ *     nothing on this Mac can be asked to walk one.
+ *  2. The recents record carries the machine inside its first field, so
+ *     `/Users/gdc/gmux README.md` on this Mac and the same path on a machine
+ *     are two different keys and can never break each other's ties.
+ *  3. The palette opens on such a tab and lists that machine's files. The
+ *     sentence it draws above them is proved in ./p99-remote-palette.test.ts.
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /** Every root quick open asked about, in order. */
 let queried: string[][] = [];
-let warmed: string[] = [];
+let warmed: { root: string; paths?: string[] }[] = [];
+let listed: { machineId: string; cwd: string; maxPaths?: number }[] = [];
 let stored: Record<string, string> = {};
 
 /** A real listener registry, so the open file bus can actually be driven. */
@@ -62,9 +67,29 @@ vi.stubGlobal('window', {
           capped: false
         });
       },
-      warm: (root: string) => {
-        warmed.push(root);
+      warm: (input: { root: string; paths?: string[] }) => {
+        warmed.push(input);
         return Promise.resolve();
+      }
+    },
+    machines: {
+      listFiles: (input: {
+        machineId: string;
+        cwd: string;
+        maxPaths?: number;
+      }) => {
+        listed.push(input);
+        return Promise.resolve({
+          machineId: input.machineId,
+          machineLabel: 'Studio',
+          cwd: input.cwd,
+          mode: 'repo',
+          paths: ['src/auth.ts'],
+          capped: false,
+          truncated: false,
+          readAt: Date.now(),
+          elapsedMs: 12
+        });
       }
     }
   }
@@ -112,16 +137,31 @@ const THERE = {
 
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
 
+/**
+ * A clock that jumps ten seconds between tests.
+ *
+ * The store reads a machine's names at most once every 5,000 ms and remembers
+ * when it last asked, in a module value that outlives one test. Without this
+ * jump the second test in the file would find the first test's read fresh and
+ * ask nothing.
+ */
+const realNow = Date.now;
+let clock = realNow();
+
 beforeEach(() => {
+  clock += 10_000;
+  Date.now = () => clock;
   queried = [];
   warmed = [];
+  listed = [];
   stored = {};
   useQuickOpen.setState({
     open: false,
     query: '',
     hits: [],
     allProjects: false,
-    elsewhere: null
+    elsewhere: null,
+    elsewhereRead: null
   });
   useApp.setState({
     projects: [HERE, THERE],
@@ -133,44 +173,61 @@ beforeEach(() => {
 });
 
 describe('the roots quick open sends', () => {
-  it('sends this Mac folder when the active tab is on this Mac', async () => {
+  it('sends this Mac folder as its own path when the tab is on this Mac', async () => {
     useQuickOpen.getState().openPalette();
     await flush();
     expect(queried).toEqual([['/Users/gdc/gmux']]);
-    expect(warmed).toEqual(['/Users/gdc/gmux']);
+    expect(warmed).toEqual([{ root: '/Users/gdc/gmux' }]);
+    expect(listed).toEqual([]);
     expect(useQuickOpen.getState().elsewhere).toBeNull();
   });
 
-  it('sends nothing at all when the active tab is on a machine', async () => {
+  it('sends the machine root key when the tab is on a machine', async () => {
     useApp.setState({ activeProjectId: THERE.id } as never);
     useQuickOpen.getState().openPalette();
     await flush();
-    expect(queried).toEqual([]);
-    expect(warmed).toEqual([]);
-    // The palette OPENED. It just says why it has no rows.
+    expect(queried).toEqual([['machine:studio:/Users/gdc/gmux']]);
+    expect(listed).toEqual([
+      { machineId: 'studio', cwd: '/Users/gdc/gmux', maxPaths: 50_000 }
+    ]);
+    // The names arrive from the machine and are adopted under the same key the
+    // query carries. Nothing on this Mac is asked to walk that path.
+    expect(warmed).toEqual([
+      { root: 'machine:studio:/Users/gdc/gmux', paths: ['src/auth.ts'] }
+    ]);
     expect(useQuickOpen.getState().open).toBe(true);
-    expect(useQuickOpen.getState().elsewhere).toBe('Studio');
+    expect(useQuickOpen.getState().elsewhere).toEqual({
+      machineId: 'studio',
+      label: 'Studio'
+    });
   });
 
-  it('drops the machine folder from the all projects scope', async () => {
+  it('keeps both roots in the all projects scope, active first', async () => {
     useQuickOpen.setState({ allProjects: true });
     useQuickOpen.getState().openPalette();
     await flush();
-    expect(queried).toEqual([['/Users/gdc/gmux']]);
-    expect(warmed).toEqual(['/Users/gdc/gmux']);
+    expect(queried).toEqual([
+      ['/Users/gdc/gmux', 'machine:studio:/Users/gdc/gmux']
+    ]);
+    expect(warmed[0]).toEqual({ root: '/Users/gdc/gmux' });
+    expect(listed).toEqual([
+      { machineId: 'studio', cwd: '/Users/gdc/gmux', maxPaths: 50_000 }
+    ]);
   });
 
-  it('clears the sentence when the palette closes', async () => {
+  it('clears both machine fields when the palette closes', async () => {
     useApp.setState({ activeProjectId: THERE.id } as never);
     useQuickOpen.getState().openPalette();
     await flush();
+    expect(useQuickOpen.getState().elsewhereRead).not.toBeNull();
     useQuickOpen.getState().close();
     expect(useQuickOpen.getState().elsewhere).toBeNull();
+    expect(useQuickOpen.getState().elsewhereRead).toBeNull();
   });
 });
 
 describe('the recents record', () => {
-  it('records a file opened from this Mac', () => {
+  it('records a file opened from this Mac under its bare path', () => {
     const stop = startRecordingRecents();
     openOnTheBus({
       repoPath: '/Users/gdc/gmux',
@@ -183,23 +240,51 @@ describe('the recents record', () => {
     stop();
   });
 
-  it('refuses a file on a machine, so the record can never rank one', () => {
+  it('records a file on a machine, with the machine inside the key', () => {
     const stop = startRecordingRecents();
-    const before = recentKeys().length;
     openOnTheBus({
       repoPath: '/home/greg/api',
       relPath: 'src/auth.ts',
       path: '/home/greg/api/src/auth.ts',
-      mode: 'diff',
-      source: 'machine',
+      mode: 'file',
+      source: 'quickopen',
       remote: {
         machineId: 'studio',
         machineLabel: 'Studio',
         repoPath: '/home/greg/api'
       }
     });
-    expect(recentKeys().length).toBe(before);
+    expect(recentKeys()).toContain('machine:studio:/home/greg/api src/auth.ts');
+    // The bare path is NOT a key any more, which is the whole of the trap.
     expect(recentKeys()).not.toContain('/home/greg/api src/auth.ts');
+    stop();
+  });
+
+  it('keys the same path on two computers as two different strings', () => {
+    const stop = startRecordingRecents();
+    openOnTheBus({
+      repoPath: '/Users/gdc/gmux',
+      relPath: 'README.md',
+      path: '/Users/gdc/gmux/README.md',
+      mode: 'file',
+      source: 'tree'
+    });
+    openOnTheBus({
+      repoPath: '/Users/gdc/gmux',
+      relPath: 'README.md',
+      path: '/Users/gdc/gmux/README.md',
+      mode: 'file',
+      source: 'quickopen',
+      remote: {
+        machineId: 'studio',
+        machineLabel: 'Studio',
+        repoPath: '/Users/gdc/gmux'
+      }
+    });
+    const keys = recentKeys();
+    expect(keys).toContain('/Users/gdc/gmux README.md');
+    expect(keys).toContain('machine:studio:/Users/gdc/gmux README.md');
+    expect(keys[0]).not.toBe(keys[1]);
     stop();
   });
 
@@ -220,8 +305,13 @@ describe('the recents record', () => {
 });
 
 describe('the direct record, which the bus guard sits in front of', () => {
-  it('is still the plain two field write', () => {
+  it('reads an omitted machine as this Mac', () => {
     noteOpened('/Users/gdc/gmux', 'src/c.ts');
     expect(recentKeys()[0]).toBe('/Users/gdc/gmux src/c.ts');
+  });
+
+  it('takes the machine as its third value', () => {
+    noteOpened('/home/greg/api', 'src/d.ts', 'studio');
+    expect(recentKeys()[0]).toBe('machine:studio:/home/greg/api src/d.ts');
   });
 });
