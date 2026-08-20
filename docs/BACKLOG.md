@@ -5,6 +5,44 @@ Everything above Phase 18 is HISTORY and is kept because each entry records the 
 reference screenshots and the decisions behind a phase — that context is why later agents got things
 right. How this queue is run: docs/method/HOW-WE-BUILT-THIS.md and HOW-WE-DROVE-THIS.md.
 
+## THE RUN ORDER, set by the operator on 2026-08-20. THIS IS THE AUTHORITY
+
+Read this before starting anything. It supersedes the ordering notes inside individual entries where
+they disagree. The goal it serves, in his words: get through the remote machine work and cut a
+release.
+
+| # | Phase | Why here | State |
+| ---: | --- | --- | --- |
+| 1 | **109** which agents the machine has | Finishes the remote machine story he asked for | RUNNING |
+| 2 | **110** what exists where, in Settings | The view for 109's scan. Last of the remote feature work | queued |
+| 3 | **117** an unreachable confirmation is not proof of absence | Audit P0. It can lose a live remote session's row, and the write phases lean on it | queued |
+| 4 | **118** remote children are owned, removal is one transaction | Audit P1, same reason | queued |
+| 5 | **119** decline capture on restore | Insurance from research 59 | queued |
+| — | **RELEASE POINT** | Everything above is user facing and finishes the remote programme. Tag here | operator |
+| 6 | **101** save a file on a machine | The write tranche. He is at the keyboard for the first save | queued |
+| 7 | **102** new folder and rename | | queued |
+| 8 | **103** stage and unstage | | queued |
+| 9 | **104** commit on a remote tab | | queued |
+| — | **RELEASE POINT** | The writes are the next release's story | operator |
+| 10 | **Run A** 121, 122, 124 | Architecture, invisible to a person. Compile time and gates | queued |
+| 11 | **Run B** 123 | The six runtime cycles | queued |
+| 12 | **Run C** 125, 126 | Machines contract and orchestration split. Needs 117 and 118 done | queued |
+| 13 | **Run D** 127 | App, FileTree and state to app | queued |
+| 14 | **128** reassess the three large files | Reads the evidence the runs produced. May rule against itself | queued |
+| — | **THEN** | Arch, Phases 63 to 66, unheld only after 128 | operator |
+
+**Two things run BESIDE this queue rather than in it, because their files are disjoint.** Run A may
+start at any time, including now, since it touches no machines file and no renderer surface. Phase
+113 is blocked on his answer about whether a screenshot shows his real server or a scratch one.
+
+**The rule for everything from Run A onward, his words on 2026-08-20.** They land only if they break
+NO user facing functionality and they improve the technical architecture. A phase that cannot be done
+without a visible change STOPS and reports rather than shipping it.
+
+**Not in this queue and not forgotten:** Phase 88 needs input for a remote session, closed by his own
+decision. Phase 82 cross machine conversation reconstruction, recorded. Phase 86.1 the nits round.
+Phases 44, 45 and 50, held by him for reasons unrelated to this programme.
+
 **ACTIVE QUEUE, rewritten 2026-08-12. Run it in this order and do not reshuffle without asking.**
 
 The repository now exists at github.com/gregce/tortie. It is private until the operator decides
