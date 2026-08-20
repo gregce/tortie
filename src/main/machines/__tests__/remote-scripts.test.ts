@@ -17,6 +17,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { REMOTE_FILE_LIST_MAX_BYTES } from '@shared/ipc';
+import { BRANCH_FORMAT } from '../../git/parse';
 import {
   REMOTE_SCRIPTS,
   REMOTE_SCRIPT_MARKER,
@@ -42,13 +43,17 @@ const MUTATING = [
 ];
 
 /**
- * The git verbs ANY script in this catalogue may name. All four are reads.
+ * The git verbs ANY script in this catalogue may name. All five are reads.
  *
  * PHASE 98 ADDED `ls-files`. The remote search asks git which files are in one
  * folder and reads them with that machine's own grep. Reading the index is a
  * read and it reaches no server.
+ *
+ * PHASE 106 ADDED `for-each-ref`, and it is the fifth. It reads the ref store
+ * and it contacts no server, so it meets the same test the other four meet and
+ * it takes the same exemption from the two prompt names.
  */
-const GIT_VERBS = ['rev-parse', 'status', 'show', 'ls-files'];
+const GIT_VERBS = ['rev-parse', 'status', 'show', 'ls-files', 'for-each-ref'];
 
 /** The two more verbs `git-clone` may name, and no other script may. */
 const CLONE_VERBS = ['ls-remote', 'clone'];
@@ -100,9 +105,16 @@ function positionals(text: string): Positional[] {
 }
 
 describe('the catalogue', () => {
-  it('holds fifteen scripts and this release holds no others', () => {
-    expect(REMOTE_SCRIPTS).toHaveLength(15);
+  it('holds sixteen scripts and this release holds no others', () => {
+    expect(REMOTE_SCRIPTS).toHaveLength(16);
     expect(REMOTE_SCRIPTS.map((script) => script.id).sort()).toEqual([
+      // PHASE 106 added `repo-branch`, which prints one line about the branch
+      // checked out in one folder so the Source Control view on a tab that
+      // lives over there can say which branch it is. It is a read and it writes
+      // nothing, so the write count below stays at two. It is the one script
+      // since Phase 98 that added a git verb, being `for-each-ref`, and
+      // GIT_VERBS above holds five for that reason.
+      //
       // PHASE 105 added `repo-facts`, which prints four short strings about one
       // folder so the Runs section on a tab that lives over there can ask GitHub
       // about the right branch. It is a read, it writes nothing, and it names
@@ -131,6 +143,7 @@ describe('the catalogue', () => {
       'image-put',
       'machine-facts',
       'program-find',
+      'repo-branch',
       'repo-facts',
       'repo-files',
       'repo-find',
@@ -161,7 +174,7 @@ describe('the catalogue', () => {
     // do to another person's computer at a known list rather than a count.
     // Phase 90.2 moved it from one to two, once and on purpose, and the list
     // stays exact so a third one fails here rather than passing quietly.
-    // Phase 105 added a read and left this number alone.
+    // Phase 105 and Phase 106 each added a read and left this number alone.
     const writers = remoteWriteScripts();
     expect(writers).toHaveLength(2);
     expect(writers.map((script) => script.id)).toEqual([
@@ -946,6 +959,115 @@ describe('the remote repository facts', () => {
     // It carries four short strings. `base64` is applied to two values this
     // script computed, never to a file.
     const text = facts?.text ?? '';
+    expect(text).not.toContain('cat ');
+    expect(text).not.toContain('head -c');
+    expect(text).not.toContain('base64 "');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 106. The branch checked out in one folder, read so the Source Control
+// view on a remote tab can name it
+// ---------------------------------------------------------------------------
+
+describe('the remote branch read', () => {
+  const branch = remoteScript('repo-branch');
+
+  it('is a read that takes one value', () => {
+    expect(branch?.mode).toBe('read');
+    expect(branch?.params).toBe(1);
+  });
+
+  it('names two git verbs and one of them is the verb this phase added', () => {
+    const verbs = [
+      ...new Set(
+        [...(branch?.text ?? '').matchAll(/git (?:--no-pager )?([a-z-]+)/g)].map(
+          (match) => match[1]
+        )
+      )
+    ].sort();
+    expect(verbs).toEqual(['for-each-ref', 'rev-parse']);
+    for (const verb of verbs) expect(GIT_VERBS).toContain(verb);
+  });
+
+  it('runs two rev-parse processes and one for-each-ref, and no more', () => {
+    expect([...(branch?.text ?? '').matchAll(/git rev-parse/g)]).toHaveLength(2);
+    expect([...(branch?.text ?? '').matchAll(/git for-each-ref/g)]).toHaveLength(1);
+  });
+
+  it('asks with a format that is BRANCH_FORMAT minus the subject', () => {
+    // TWO COPIES OF ONE FORMAT IS HOW ONE OF THEM GOES STALE. The far side
+    // prints this and `parseForEachRefBranches` reads it, so if they ever
+    // disagree the main side reads the wrong field as a branch name. The
+    // subject is the one field of BRANCH_FORMAT with no length bound and this
+    // read carries no cut, so it is not asked for and the trailing %1f leaves
+    // the seventh field empty. Condition 56d of build/conformance-machines.mjs
+    // asserts the same relation from outside the test runner.
+    const format = /--format='([^']*)'/.exec(branch?.text ?? '')?.[1] ?? '';
+    expect(format.length).toBeGreaterThan(0);
+    expect(format + '%(subject)').toBe(BRANCH_FORMAT);
+  });
+
+  it('asks for the common git directory and never the worktree one', () => {
+    // Research 57 section 9 defect 5. A linked worktree must answer as a
+    // repository, and `--absolute-git-dir` answers with the worktree's own
+    // directory.
+    expect(branch?.text).toContain('git rev-parse --git-common-dir');
+    expect(branch?.text).not.toContain('--absolute-git-dir');
+  });
+
+  it('reports no branch on a detached head rather than a branch called HEAD', () => {
+    // `git rev-parse --symbolic-full-name HEAD` prints the word HEAD there, and
+    // a branch called HEAD is a branch nobody has. The value is kept only when
+    // it begins refs/heads/, and everything else prints `nobranch`.
+    expect(branch?.text).toContain('case "$h" in');
+    expect(branch?.text).toContain('      refs/heads/*)');
+    expect(branch?.text).toContain('__TORTIE_RUN__nobranch none__TORTIE_RUN__');
+  });
+
+  it('answers one of exactly six words, and none on five of them', () => {
+    for (const word of ['missing', 'denied', 'notrepo', 'nodetails', 'nobranch']) {
+      expect(branch?.text).toContain(`__TORTIE_RUN__${word} none__TORTIE_RUN__`);
+    }
+    expect(branch?.text).toContain(
+      "printf '__TORTIE_RUN__repo %s__TORTIE_RUN__"
+    );
+  });
+
+  it('has a word for a git too old to answer the format', () => {
+    // `nobracket` was added to git in 2.13. An older git refuses the whole
+    // format, `for-each-ref` prints nothing and exits non-zero, and without
+    // this branch the answer would be `repo` with an empty payload, which reads
+    // as no branch at all. That names the wrong cause.
+    expect(branch?.text).toContain('nobracket');
+    expect(branch?.text).toContain('        if [ -z "$r" ]; then');
+  });
+
+  it('never fetches, and this is the executable form of a sentence on screen', () => {
+    // `branchCountsAreThatMachines` tells a person the counts are measured
+    // against the copy of the upstream that machine last fetched. Condition 56i
+    // of build/conformance-machines.mjs asserts the same three names from
+    // outside the test runner.
+    const text = branch?.text ?? '';
+    for (const verb of ['git fetch', 'git pull', 'git remote update']) {
+      expect(text.includes(verb), verb).toBe(false);
+    }
+  });
+
+  it('encodes its one answer so a field holding a space survives', () => {
+    // `%(upstream:track,nobracket)` prints "ahead 2, behind 1", which holds two
+    // spaces and a comma, and the answer is read as whitespace separated words.
+    expect(branch?.text).toContain('| base64 | tr -d ');
+  });
+
+  it('redirects nothing except the three noise silencers', () => {
+    const text = branch?.text ?? '';
+    expect([...text.matchAll(/2>\/dev\/null/g)]).toHaveLength(3);
+    expect(text.split('2>/dev/null').join('')).not.toContain('>');
+  });
+
+  it('reads no file contents at all', () => {
+    const text = branch?.text ?? '';
     expect(text).not.toContain('cat ');
     expect(text).not.toContain('head -c');
     expect(text).not.toContain('base64 "');

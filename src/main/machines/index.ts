@@ -129,9 +129,17 @@
  *    credential and no `gh` crosses the link, and it writes nothing on either
  *    computer or on GitHub.
  *
+ * PHASE 106 ADDED ONE MODULE and this file does NOT re-export it either, for
+ * the same reason.
+ *
+ *  - `remote-branch.ts` reads which branch is checked out in one folder on one
+ *    machine, the branch it follows, and how far ahead and how far behind it
+ *    is. It is a read, it writes nothing on either computer, and it can never
+ *    change what is checked out over there.
+ *
  * Its only caller is `ipc.ts`, inside this directory. THE PHASE BRIEF ASKED FOR
  * "the one export line" HERE AND THERE IS NONE, which is a deviation this note
- * states rather than hides: three phases in a row have added a module to this
+ * states rather than hides: four phases in a row have added a module to this
  * directory without a re-export, the growth guardrail in CLAUDE.md asks for a
  * small deliberate export surface rather than a complete one, and no caller
  * outside this directory asks for the name. Add the re-export when one does.

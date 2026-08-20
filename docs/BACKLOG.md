@@ -6885,7 +6885,7 @@ connected reads a sentence saying so and presses Refresh. The packaged build was
 | RECORD | Driving the Runs section through the base shot hook with only a `remoteRuns` spec and no `projectPath` makes the hook call `projects:add` with undefined and raises three toasts over the picture. The base hook is older than Phase 105 and was not changed by it. Anyone taking that screenshot must pass a `projectPath` as well. |
 | RECORD | `RunRow` draws the workflow name and the display title, and for a scheduled workflow the two strings are equal, so the row reads the same words twice at the sidebar's width. It is shared with the local Runs section and Phase 105 did not change that part of it, so it is not a regression. It is more visible in the remote panel because that panel is narrow. |
 
-## Phase 106 — branches on a remote tab (research 57 row, queued 2026-08-19) QUEUED
+## Phase 106 — branches on a remote tab (research 57 row, queued 2026-08-19) ✅ SHIPPED 2026-08-20 (this commit, 0.55.0, gates green, 7,017 tests)
 
 **Subject:** `feat(scm): which branch is checked out on another machine`
 **First body line:** `Phase 106: branches on a remote tab`
@@ -6908,6 +6908,115 @@ Switching branches on a machine is not in this phase.
 ### The evidence
 
 Read the branch, the upstream and the ahead and behind counts from the loopback scratch machine and prove each against the machine's own git. Count the operator's sessions with `tmux -L gmux list-sessions` before and after and report both numbers. `src/main/tmux/resolve.ts` honours `GMUX_TMUX_SOCKET` ONLY when `GMUX_SHOT` or `GMUX_SMOKE` is set, so a launch without one of those silently uses his real server.
+
+### What shipped, and the numbers behind it
+
+A tab whose folder lives on another machine now has a Branch group in the Source Control view.
+Expand it and Tortie asks that machine which branch is checked out in that folder. It draws the
+branch name, the short commit that branch points at, the branch it follows, and how far ahead and
+how far behind it is. It draws nothing else about branches. The other branches on that machine are
+not listed, because listing them is a second question and this group answers one.
+
+THE GROUP ONLY READS. There is no checkout control, no switch verb and no write of any kind. The
+screenshot driver counts the controls that could switch a branch rather than asserting there are
+none, and it counted 0 against a list of four selectors written out by hand so a control added later
+under one of those names is counted rather than missed. The group draws 2 buttons, being its own
+collapse toggle and Refresh.
+
+NOTHING FETCHES ON THAT MACHINE. The two counts are measured against the copy of the followed branch
+that machine already had, so the answer can be older than what is on the server at the moment it is
+read. That is said on screen rather than left for a person to discover. Condition 56i of
+`build/conformance-machines.mjs` fails the script text if it ever names `git fetch`, `git pull` or
+`git remote update`, which is what keeps the sentence checkable instead of merely written.
+
+NOTHING POLLS. A read happens when a person opens the group and when they press Refresh, and at no
+other time. Main cannot see a branch switched on another computer, so there is no arming path and no
+timer. The group says so on screen.
+
+**One channel, one script, and the main side writes no second parser.** The wire grew by one invoke
+channel, `machines:readBranch`, and `docs/audits/contract-baseline.txt` moved from 171 to 172. The
+frozen catalogue grew by one read, `repo-branch`, at 954 bytes and one value, and it still holds
+exactly two writers, being `image-put` and `git-clone`. The script's `for-each-ref` format is
+`BRANCH_FORMAT` from `src/main/git/parse.ts` minus `%(subject)`, so `parseForEachRefBranches` reads
+the answer unchanged and there is no second copy of that parsing to drift. Condition 56d of the gate
+asserts that relation.
+
+**Measured by `npm run probe:p106`, driving `src/main/machines/remote-branch.ts` against a loopback
+scratch machine.** All 16 rows passed. Each answer was compared against the machine's own git rather
+than against an expectation written into the probe.
+
+| What was read | What Tortie drew | What git said directly |
+| --- | --- | --- |
+| the branch | `main` | `main` |
+| the commit and short commit | `68e7c9f5c6b8438ec799a4354d70e9b72df8296f`, `68e7c9f` | the same two strings |
+| the branch it follows | `origin/main`, gone false | `origin/main` |
+| ahead and behind | 2 ahead, 1 behind | `git rev-list --left-right --count` said 2 and 1 |
+| a branch that follows nothing | no upstream, 0 and 0, unreadable false | the branch has no upstream |
+| a branch whose upstream that machine no longer has | `upstreamGone` true | the ref is gone over there |
+| a linked worktree on a second branch | `p106-second` | `p106-second` |
+| a detached head | `noBranch`, no branch name | HEAD points at a commit |
+| a repository with no commits | `noBranch`, no commit | there is no commit |
+| a folder git does not track | `notRepo` | not a repository |
+| a folder that is not there | `missing` | there is no folder, so git was not run |
+| a folder at mode 000 | `denied` | the folder cannot be entered, so git was not run |
+
+The linked worktree row is the one that would fail if the script ever asked with `--absolute-git-dir`
+instead of `--git-common-dir`, so it is in the probe rather than in a comment.
+
+**The far side runs five external programs, measured rather than estimated.** Research 57 section 5.1
+priced this read at 3, counting git alone. Counting wrappers were put on PATH ahead of `git`, `base64`
+and `tr`, and the shipped script text was run five times against each shape on 2026-08-20. A folder
+with a branch checked out ran 5 programs on all five runs, being git three times, `base64` once and
+`tr` once. A repository with no commits ran 2. A folder git does not track ran 1. A folder that is not
+there ran 0. `printf`, `cd`, `case` and `[` are shell builtins, so a counting wrapper never sees them.
+The whole path, from the renderer's call to the answer, took 54 ms, 53 ms and 57 ms over three reads.
+
+**The read left the repository exactly as it found it.** All 49 files under `.git` were identical in
+size and modification time before and after, and `git status --porcelain` was 0 bytes and byte for
+byte identical on both sides of the read.
+
+**The folder value cannot become a command.** A folder named `/tmp/p106-'; touch /tmp/p106-pwned;
+echo '` was sent through the real door. The composed command was 1,085 bytes, the value appeared once
+and quoted and zero times raw, it was not inside the script text, and `/tmp/p106-pwned` was not
+created.
+
+**The operator's sessions did not move.** `tmux -L gmux list-sessions` counted 47 before and 47 after
+the probe, and 47 before and 47 after the screenshot run. Both runs used their own scratch socket and
+`refuseRealSockets` rejects the names `gmux` and `default` before anything starts.
+
+**The screenshot, read at 1440 by 888.** The Source Control view drew three groups in this order:
+Changes, Branch, Runs. The Branch group drew its band, three lines in its body and five sentences
+below it. Every one of the five was fully visible, with 0 px hidden on each, and the last of them
+ended at y 800 against a window 888 px tall. None of the five sat inside the group's own scrolling
+body, which is the defect the Runs group below it shipped with and had fixed in the same round.
+`switchControls` was 0 and there were no error toasts. The sentence saying which sections are absent
+now reads "Tortie shows the changed files, the branch and the runs for a folder on another machine.
+It does not show history there", so branches came out of the refusal in the same commit that made
+them true.
+
+**Gates.** `typecheck` clean over 763 production files and 4,332 imports with 0 import boundary
+violations. `build` clean. `test` 7,017 passed and 23 skipped over 448 files. `smoke:t1` 5 of 5 on
+create and 6 of 6 on verify. `conformance:machines` PASS with the new condition set for `repo-branch`.
+`smoke:t3` PASS.
+
+**What is NOT true.** The far side of every measurement was this Mac over a loopback sign in server.
+No Linux machine and no machine of the operator's was contacted, so GNU git, GNU `base64` and GNU
+coreutils `tr` are reasoned about from POSIX rather than measured. NO OLD GIT WAS RUN, so the
+`nodetails` answer a git before 2.13 gives is covered by a unit test on the parser and by nothing
+live. Nothing switched a branch, because no code in this product can. Nothing measured two remote
+tabs reading at once. The screenshot seeded the answer rather than reading a machine, so it is
+evidence of the look and the probe is the evidence of the behaviour. There is no automatic second
+read when a machine starts answering, so a person who expanded the group before their machine had
+connected reads a sentence saying so and presses Refresh. The packaged build was not driven.
+
+### Nits recorded by this round, none of them blocking
+
+| Status | The nit |
+| --- | --- |
+| RECORD | The group's body is capped and scrolls, and at the ordinary three line answer it was 118 px tall over 120 px of content. That is 2 px of overflow, and a scrollbar is drawn for it. The cap is the shared section behaviour and Phase 106 did not add it, so this is cosmetic and shared with the Changes group above. A later round could stop drawing the track when the overflow is under a few pixels. |
+| RECORD | There is no automatic second read when a machine starts answering. This is the same nit Phase 105 recorded for the Runs group, and this group inherits it for the same reason. The cost is one press of Refresh, because the group has a Refresh button from its first commit. |
+| RECORD | `src/main/machines/index.ts` still re-exports nothing for this directory's newest four modules, including `remote-branch.ts`. The phase brief asked for the one export line and there is none, because the only caller is `ipc.ts` inside the same directory and the growth guardrail asks for a small deliberate export surface. The file's own header states this rather than hiding it. Add the re-export when a caller outside the directory asks for the name. |
+| RECORD | Two test files failed on the first full run of the suite and passed alone immediately afterwards, being `src/main/symbols/__tests__/store.test.ts` at 93.7 ms against an 80 ms budget and `src/main/tmux/__tests__/resolve.test.ts` at its 5,000 ms timeout. Neither file is touched by this phase. Both are wall clock budgets measured while other work was running on the same Mac. The clean rerun of the whole suite passed 7,017 tests. |
 
 ## Phase 107 — history on a remote tab (research 57 row, queued 2026-08-19) QUEUED
 

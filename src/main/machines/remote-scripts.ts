@@ -41,6 +41,18 @@
  * in. It adds no git verb, because `rev-parse` was already on the list in rule 7
  * below and `awk` reads the origin out of the config the way `repo-find` does.
  *
+ * PHASE 106 ADDED ONE MORE, and it is a read. `repo-branch` prints one line
+ * about the branch checked out in one folder on a machine, being its name, the
+ * branch it follows, and how far ahead and how far behind it is. It exists so
+ * the Source Control view on a tab whose project lives over there can say which
+ * branch is checked out without a person opening a session and typing. It is
+ * the ONE script that adds a git verb since Phase 98, being `for-each-ref`, and
+ * rule 7 below says why that verb takes the same exemption the other four take.
+ * IT NEVER FETCHES. The two counts are measured against the copy of the
+ * upstream that machine last fetched, so the answer can be older than what is
+ * on the server, and condition 56i of `build/conformance-machines.mjs` fails
+ * this text if it ever names `git fetch`, `git pull` or `git remote update`.
+ *
  * PHASE 90.3 ADDED ONE MORE, and it is a read. `tree-list` names every file
  * and folder under one folder on a machine, to a fixed depth, in ONE call. It
  * is what the Explorer draws for a project that lives on another computer.
@@ -106,11 +118,11 @@
  *     in `git-clone` aims at `/dev/null`. Both refuse a destination that is
  *     already there before they write anything, `image-put` with `[ -f "$f" ]`
  *     and `git-clone` with `[ -e "$d" ]`.
- *  7. FOUR git verbs may appear in any script, being `rev-parse`, `status`,
- *     `show` and `ls-files`. Two more may appear in `git-clone` and in NO other
- *     script, being `ls-remote` and `clone`. Every verb is part of the text and
- *     never a parameter, so no caller can turn a review into a commit. Every
- *     git command that is not one of the four read verbs carries
+ *  7. FIVE git verbs may appear in any script, being `rev-parse`, `status`,
+ *     `show`, `ls-files` and `for-each-ref`. Two more may appear in `git-clone`
+ *     and in NO other script, being `ls-remote` and `clone`. Every verb is part
+ *     of the text and never a parameter, so no caller can turn a review into a
+ *     commit. Every git command that is not one of the five read verbs carries
  *     `GIT_TERMINAL_PROMPT=0` and `GCM_INTERACTIVE=never` in front of it, so a
  *     command on a machine nobody is watching cannot stop and wait for a
  *     password.
@@ -129,7 +141,18 @@
  *     three questions are `rev-parse`. `symbolic-ref` was not needed because
  *     `rev-parse` answers the same question, and `remote` was not needed because
  *     `awk` over the config answers it, which is what `repo-find` already does.
- *     Condition 55c of the gate holds the list at four.
+ *
+ *     PHASE 106 ADDED `for-each-ref`, and it is the fifth. It reads the ref
+ *     store and it contacts no server, so it meets the same test the other four
+ *     meet and it takes the same exemption from the two prompt names. It joined
+ *     the list rather than starting a second one under a better name. Research
+ *     57 section 5.5 proposed a fourth list for read verbs that touch no server,
+ *     and `ALLOWED_GIT_VERBS` in `build/conformance-machines.mjs` already IS
+ *     that list: every member is a pure read of the object database, the index
+ *     or the ref store, `READ_ONLY_GIT_VERBS` is built straight from it, and a
+ *     second list with the same members under a better name is a rename of a
+ *     safety list, which is its own round. Conditions 53j, 55c and 56c of the
+ *     gate hold the list at those five.
  *
  * ## Every script is safe to run twice
  *
@@ -1183,16 +1206,150 @@ const REPO_FACTS = [
 ].join('\n');
 
 /**
- * The whole catalogue. Fifteen scripts, and this release holds no others.
+ * The branch checked out in one folder on a machine (Phase 106, research 57
+ * section 5).
+ *
+ * ## What it answers, and why a second read exists beside `repo-facts`
+ *
+ * `repo-facts` gives the branch name and the commit `HEAD` points at. It gives
+ * neither the branch that one follows nor the two counts, which are two of the
+ * three things the Branch group must show. Widening `repo-facts` would make
+ * every Runs read pay for a group nobody opened, which is the union script
+ * shape research 57 section 5.3 refused. So each group pays for itself and a
+ * collapsed group costs nothing.
+ *
+ * ## The six answers
+ *
+ * | First word | Meaning |
+ * | --- | --- |
+ * | `repo` | a branch is checked out, and one base64 field follows |
+ * | `nobranch` | a commit is checked out directly, or there are no commits |
+ * | `nodetails` | the branch name was read and its details could not be |
+ * | `notrepo` | the folder is there and git does not track it |
+ * | `missing` | there is no folder at that path |
+ * | `denied` | the folder is there and the account cannot read it |
+ *
+ * `nodetails` exists so an old git names the right cause. `%(upstream:track)`
+ * takes the `nobracket` option only from git 2.13. An older git refuses the
+ * whole format, `for-each-ref` prints nothing and exits non-zero, and without
+ * this branch the answer would have been `repo` with an empty payload, which
+ * the parser would read as no branch at all. That names the wrong cause. It
+ * also catches any other reason `for-each-ref` produced nothing.
+ *
+ * ## The format is `BRANCH_FORMAT` minus one field, and the gate holds it there
+ *
+ * The format below plus `%(subject)` is exactly `BRANCH_FORMAT` from
+ * `src/main/git/parse.ts`, so `parseForEachRefBranches` reads this answer
+ * unchanged and THE MAIN SIDE WRITES NO SECOND PARSER. Condition 56d of
+ * `build/conformance-machines.mjs` asserts that relation, so the two copies
+ * cannot drift. The subject is the one field of `BRANCH_FORMAT` with no length
+ * bound and this read carries no cut, so it is not asked for. The trailing
+ * `%1f` leaves the seventh field empty, which is what keeps the field count at
+ * the seven that parser needs.
+ *
+ * ## Why each line is the way it is
+ *
+ *  - `--git-common-dir` and never `--absolute-git-dir`. That is research 57
+ *    section 9 defect 5. Here the call is the repository test rather than a
+ *    config read, and it still has to be the common spelling, because a linked
+ *    worktree must answer as a repository.
+ *  - `--symbolic-full-name HEAD` prints the word `HEAD` on a detached head, and
+ *    prints nothing in a repository with no commits. The `case` keeps a value
+ *    only when it begins `refs/heads/`, so both land on `nobranch` and a branch
+ *    called `HEAD` is never drawn.
+ *  - The refname reaches `for-each-ref` as `"$h"`, which is git's OWN output on
+ *    that machine and never a caller value. It is quoted. git forbids `*`, `?`,
+ *    `[`, `~`, `^`, `:` and a backslash in a ref name, so the pattern cannot
+ *    hold a glob character.
+ *  - The answer is base64 so a field holding a space survives.
+ *    `%(upstream:track,nobracket)` prints `ahead 2, behind 1`, which holds two
+ *    spaces and a comma.
+ *  - IT NEVER FETCHES. The counts are measured against the copy of the upstream
+ *    that machine last fetched, and Tortie runs no fetch of its own, so the
+ *    answer can be older than what is on the server at the moment it is read.
+ *    The renderer says so on screen and condition 56i fails this text if it ever
+ *    names `git fetch`, `git pull` or `git remote update`.
+ *
+ * ## The external programs it runs, COUNTED rather than estimated
+ *
+ * Research 57 section 5.1 priced this read at 3, counting git alone. That is
+ * the same shape of mistake the Phase 105 entry made when it said 4 and the far
+ * side ran 8. MEASURED on 2026-08-20 by putting counting wrappers on PATH ahead
+ * of git, base64 and tr and running this text against scratch repositories:
+ *
+ * | Far side path | Programs | Which ones |
+ * | --- | --- | --- |
+ * | a folder that is not there | 0 | none |
+ * | a folder the account cannot read | 0 | none |
+ * | a folder git does not track | 1 | git rev-parse |
+ * | a detached head, or no commits | 2 | git rev-parse twice |
+ * | a branch is checked out | 5 | git rev-parse twice, git for-each-ref once, base64 once, tr once |
+ *
+ * `printf`, `cd`, `case` and `[` are builtins in dash and in bash, so a counting
+ * wrapper on PATH never sees them and they are not in those numbers. Row 12 of
+ * `node build/probe-p106-branch.mjs` measures the same thing again on every run.
+ *
+ * ## The catalogue rules, one at a time
+ *
+ * The text holds no backtick and no caller value. The only positional is `"$1"`,
+ * read double quoted at four places, and `g`, `h` and `r` are local names. It
+ * begins `set -e` and then `umask 077`. Every answer is printed between the
+ * marker pair, and there are six pairs. It names none of the eleven mutating
+ * programs: it names `git`, `printf`, `base64`, `tr`, `cd` and `test`. Every `>`
+ * in it is part of `2>/dev/null`, and there are THREE of those. It is a `read`,
+ * so the two writers in this catalogue do not move. It names two git verbs,
+ * being `rev-parse` and `for-each-ref`, and the second is the one this phase
+ * added to rule 7.
+ *
+ * Running it twice reads the same folder twice. It writes nothing on either
+ * computer.
+ */
+const REPO_BRANCH = [
+  'set -e',
+  'umask 077',
+  'if [ ! -d "$1" ]; then',
+  "  printf '__TORTIE_RUN__missing none__TORTIE_RUN__\\n'",
+  'elif [ ! -r "$1" ] || [ ! -x "$1" ]; then',
+  "  printf '__TORTIE_RUN__denied none__TORTIE_RUN__\\n'",
+  'else',
+  '  cd "$1"',
+  '  g=$(git rev-parse --git-common-dir 2>/dev/null || true)',
+  '  if [ -z "$g" ]; then',
+  "    printf '__TORTIE_RUN__notrepo none__TORTIE_RUN__\\n'",
+  '  else',
+  '    h=$(git rev-parse --symbolic-full-name HEAD 2>/dev/null || true)',
+  '    r=',
+  '    case "$h" in',
+  '      refs/heads/*)',
+  "        r=$(git for-each-ref --format='%(refname:short)%1f%(HEAD)%1f" +
+    '%(objectname)%1f%(objectname:short)%1f%(upstream:short)%1f' +
+    "%(upstream:track,nobracket)%1f' \"$h\" 2>/dev/null" +
+    " | base64 | tr -d '\\n' || true)",
+  '        if [ -z "$r" ]; then',
+  "          printf '__TORTIE_RUN__nodetails none__TORTIE_RUN__\\n'",
+  '        else',
+  "          printf '__TORTIE_RUN__repo %s__TORTIE_RUN__\\n' \"$r\"",
+  '        fi',
+  '        ;;',
+  '      *)',
+  "        printf '__TORTIE_RUN__nobranch none__TORTIE_RUN__\\n'",
+  '        ;;',
+  '    esac',
+  '  fi',
+  'fi'
+].join('\n');
+
+/**
+ * The whole catalogue. Sixteen scripts, and this release holds no others.
  *
  * A name that is not here is refused by `./remote-run.ts` before anything is
  * composed, which is the shape the verb ledger has as well: the refusal happens
  * before a string exists, rather than after one was built and then inspected.
  *
- * TWO of the fifteen write, being `image-put` and `git-clone`, and they are in
+ * TWO of the sixteen write, being `image-put` and `git-clone`, and they are in
  * that order in this array. {@link remoteWriteScripts} returns them in it.
- * PHASE 98 ADDED A READ AND LEFT THAT NUMBER ALONE. SO DID PHASE 99, AND SO DID
- * PHASE 105.
+ * PHASE 98 ADDED A READ AND LEFT THAT NUMBER ALONE. SO DID PHASE 99, PHASE 105
+ * AND PHASE 106.
  */
 export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
   {
@@ -1316,6 +1473,16 @@ export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
       'It asks git three questions about one folder and reads one line out of ' +
       'that folder\'s git config. It writes nothing, so running it twice reads ' +
       'the same folder twice.'
+  },
+  {
+    id: 'repo-branch',
+    mode: 'read',
+    params: 1,
+    text: REPO_BRANCH,
+    reason:
+      'It asks git two questions about one folder and reads one line about ' +
+      'one branch. It writes nothing, so running it twice reads the same ' +
+      'folder twice.'
   },
   {
     id: 'git-clone',

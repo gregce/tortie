@@ -2,9 +2,9 @@
  * The machines half of the bridge (Phase 68, one call added in Phase 69, one
  * more in Phase 71, one more in Phase 79.1, one more in Phase 83, one more in
  * Phase 84, two more in Phase 90.2, one more in Phase 90.3, one more in
- * Phase 98, one more in Phase 99, one more in Phase 100 and one more in
- * Phase 105). One object, twenty five calls and two subscriptions, typed from
- * the shared contract.
+ * Phase 98, one more in Phase 99, one more in Phase 100, one more in Phase 105
+ * and one more in Phase 106). One object, twenty six calls and two
+ * subscriptions, typed from the shared contract.
  *
  * TWO of these calls write on another computer, being `putImage` and
  * `cloneProject`. Everything else on this bridge reads.
@@ -124,5 +124,11 @@ export const machines: NonNullable<GmuxMachinesExtras['machines']> = {
   // host name crosses the link. It writes nothing on either computer and
   // nothing on GitHub, and main refuses it while it is not connected to that
   // machine. Nothing calls it on a clock.
-  readRuns: (input) => invoke('machines:readRuns', input)
+  readRuns: (input) => invoke('machines:readRuns', input),
+  // Phase 106. THIS ONE READS. It asks a machine which branch is checked out in
+  // one folder, which branch that one follows, and how far ahead and how far
+  // behind it is. It writes nothing on either computer, it cannot change what
+  // is checked out over there, and main refuses it while it is not connected to
+  // that machine. Nothing calls it on a clock.
+  readBranch: (input) => invoke('machines:readBranch', input)
 };

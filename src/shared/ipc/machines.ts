@@ -624,7 +624,7 @@ export interface MachinesEventPayloadMap {
 // ---------------------------------------------------------------------------
 
 /**
- * The twenty five channels, and what each one may do.
+ * The twenty six channels, and what each one may do.
  *
  * THE COUNT USED TO SAY THIRTEEN and the table listed thirteen rows, which was
  * true when Phase 68 wrote it. Phase 73, Phase 83, Phase 84 and Phase 90.2
@@ -642,6 +642,9 @@ export interface MachinesEventPayloadMap {
  * count read twenty three while the file held twenty four. That row and Phase
  * 105's own `readRuns` are both in the table below, and the count is twenty
  * five.
+ *
+ * PHASE 106 ADDS ONE ROW AND MOVES THE COUNT WITH IT, being `readBranch`. The
+ * count is twenty six.
  *
  * | Channel | Reads | Writes | Spawns |
  * | --- | --- | --- | --- |
@@ -670,6 +673,7 @@ export interface MachinesEventPayloadMap {
  * | listFiles | one folder on that machine | nothing | ssh |
  * | readSessionLines | the last lines of one session there | nothing | ssh |
  * | readRuns | one folder on that machine, then github.com | nothing | ssh, then gh ON THIS MAC |
+ * | readBranch | one folder on that machine | nothing | ssh |
  *
  * `readRuns` is the one row whose Spawns column names two programs. The ssh is
  * the read of that machine's branch. The gh runs HERE and never leaves this Mac,
@@ -886,6 +890,35 @@ export interface MachinesInvokeChannelMap {
     req: [input: MachineRunsInput];
     res: MachineRunsResult;
   };
+  // PHASE 106. One channel that READS which branch is checked out in one folder
+  // on one machine, the branch it follows, and how far ahead and how far behind
+  // it is.
+  //
+  // IT CANNOT COMPOSE WHAT IT ASKS. The command that crosses is `repo-branch`
+  // from the frozen catalogue in src/main/machines/remote-scripts.ts, chosen by
+  // name, with the folder arriving there as the one positional parameter.
+  //
+  // IT WRITES NOTHING, on either computer. It cannot change what is checked out
+  // over there, and the renderer draws no control that could.
+  //
+  // NOTHING CALLS IT ON A CLOCK. A person expands the group or presses Refresh,
+  // and each of those is one read.
+  //
+  // TORTIE NEVER FETCHES ON THAT MACHINE, so the two counts are measured
+  // against the copy of the upstream that machine last fetched and can be older
+  // than what is on the server. Condition 56i of build/conformance-machines.mjs
+  // fails the script if it ever names `git fetch`, `git pull` or
+  // `git remote update`.
+  //
+  // A folder that is not there, a folder git does not track, a detached head, a
+  // git too old to answer, a machine that did not answer and a machine Tortie is
+  // not signed in to all come back as a mode word. No prose crosses this
+  // channel: the renderer draws every sentence from
+  // src/renderer/app/machine-copy.ts, where the vocabulary audit reads it.
+  'machines:readBranch': {
+    req: [input: MachineBranchInput];
+    res: MachineBranchResult;
+  };
 }
 
 /** The one event channel: the connection test's own bytes and its end. */
@@ -977,6 +1010,11 @@ export interface GmuxMachinesExtras {
     // reads and never writes, on either computer and on GitHub, and no
     // credential and no gh crosses the link.
     readRuns(input: MachineRunsInput): Promise<MachineRunsResult>;
+    // Phase 106. Reads which branch is checked out in one folder on one
+    // machine, the branch it follows, and how far ahead and how far behind it
+    // is. It reads and never writes, and it cannot change what is checked out
+    // over there.
+    readBranch(input: MachineBranchInput): Promise<MachineBranchResult>;
   };
 }
 
@@ -1817,3 +1855,103 @@ export interface MachineRunsResult {
   /** Wall time from the call to the answer, in ms. The round trip is in it. */
   readonly elapsedMs: number;
 }
+
+// ---- PHASE 106 ----
+// Which branch is checked out in one folder on another machine (Phase 106,
+// research 57 section 5).
+//
+// WHAT THIS IS FOR. A project can be a folder on another machine. On that tab
+// the Source Control view already draws the changed files and the workflow
+// runs. It did not say which branch is checked out over there, so a person had
+// to open a session and type. This call answers with the branch, the branch it
+// follows, and how far ahead and how far behind it is.
+//
+// IT IS A SECOND READ RATHER THAN A WIDER `readRuns`. Phase 105's `repo-facts`
+// gives the branch name and the commit HEAD points at. It gives neither the
+// upstream nor the two counts, which are two of the three things this call must
+// show. Widening it would make every Runs read pay for a group nobody opened,
+// which is the union script shape research 57 section 5.3 refused.
+//
+// NOTHING IS WRITTEN, on either computer. The `repo-branch` script is a read,
+// the catalogue's two writers did not move, and this call cannot change what is
+// checked out over there.
+//
+// NOTHING CALLS IT ON A CLOCK. A person expands the group or presses Refresh,
+// and each of those is one read. Main cannot see a branch switched on another
+// computer, so there is no watch and no poll.
+//
+// TORTIE NEVER FETCHES ON THAT MACHINE. The ahead and behind counts are
+// measured against the copy of the upstream that machine last fetched, so the
+// answer can be older than what is on the server at the moment it is read. The
+// renderer says so on screen, and condition 56i of
+// build/conformance-machines.mjs fails the script if it ever names `git fetch`,
+// `git pull` or `git remote update`.
+
+/** Why one read of the branch on a remote tab answered the way it did. */
+export type MachineBranchMode =
+  /** A branch is checked out and its details were read. */
+  | 'ok'
+  /** A commit is checked out directly, or the repository has no commits. */
+  | 'noBranch'
+  /** The branch name was read and its details could not be. */
+  | 'noDetails'
+  /** The folder is there and git does not track it. */
+  | 'notRepo'
+  /** There is no folder at that path on that machine. */
+  | 'missing'
+  /** The folder is there and that account cannot read it. */
+  | 'denied'
+  /** Tortie is not signed in to that machine. Nothing was asked. */
+  | 'notConnected'
+  /** The machine did not answer, or answered something unreadable. */
+  | 'unreachable';
+
+/** One branch read against one folder on one machine. */
+export interface MachineBranchInput {
+  readonly machineId: string;
+  /** The folder on that machine. Absolute, and never a path on this Mac. */
+  readonly cwd: string;
+}
+
+/** What one machine answered about the branch checked out in one folder. */
+export interface MachineBranchResult {
+  readonly machineId: string;
+  /** That machine's own label, so the renderer never composes one. */
+  readonly machineLabel: string;
+  /** The folder that was read, on that machine. */
+  readonly cwd: string;
+  readonly mode: MachineBranchMode;
+  /** The branch checked out over there, or null. */
+  readonly branch: string | null;
+  /** The full commit its tip points at, or null. */
+  readonly sha: string | null;
+  /** The same commit as git shortens it, or null. */
+  readonly shortSha: string | null;
+  /** The branch it follows, e.g. origin/main, or null when none is set. */
+  readonly upstream: string | null;
+  /** True when that machine no longer has the branch it is set to follow. */
+  readonly upstreamGone: boolean;
+  /** Commits it holds that the followed branch does not. 0 when unknown. */
+  readonly ahead: number;
+  /** Commits the followed branch holds that it does not. 0 when unknown. */
+  readonly behind: number;
+  /**
+   * True when a tracking answer arrived and this end could not read it.
+   *
+   * THE HONESTY FIELD, AND THE RENDERER DRAWS IT. An empty tracking answer
+   * means level and reads as 0 and 0, so two zeroes alone cannot tell level
+   * apart from unread. The flag is set when the answer that arrived is not
+   * empty and is not exactly one of the four shapes git prints, being `gone`,
+   * `ahead N`, `behind N` and `ahead N, behind M`. When it is set, `ahead` and
+   * `behind` are both 0 whatever fell out of a partial parse, because a number
+   * nobody measured is worse than a sentence saying the answer could not be
+   * read. Phase 99 carried a flag the renderer never read and a cut list drew
+   * as a whole one. This one is drawn.
+   */
+  readonly trackUnreadable: boolean;
+  /** Epoch ms ON THIS MAC when the answer arrived. */
+  readonly readAt: number;
+  /** Wall time from the call to the answer, in ms. The round trip is in it. */
+  readonly elapsedMs: number;
+}
+// ---- END PHASE 106 ----

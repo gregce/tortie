@@ -139,7 +139,16 @@ const FILES: readonly string[] = [
   // this list. Both are read as well, so a later round cannot type a sentence
   // straight into the section.
   'src/renderer/scm/remote-runs.ts',
-  'src/renderer/scm/RemoteRunsSection.tsx'
+  'src/renderer/scm/RemoteRunsSection.tsx',
+  // Phase 106. The Branch group for a folder on another machine, being the
+  // store that holds one answer per folder and the section that draws it.
+  // Between them they name a machine, a branch, a second branch it follows, a
+  // commit, two counts and an instant. Every sentence they draw is a named
+  // export in machine-copy.ts, which is the first file on this list. Both are
+  // read as well, so a later round cannot type a sentence straight into the
+  // group.
+  'src/renderer/scm/remote-branch.ts',
+  'src/renderer/scm/RemoteBranchSection.tsx'
 ];
 
 /**

@@ -77,6 +77,10 @@ import {
   userHostKeysPath
 } from '../src/main/machines/connection-test';
 import { validateMachinesFile } from '../src/main/machines/schema';
+// Phase 106, condition 56d. One exported constant, read so the format the far
+// side prints and the format this end parses cannot drift apart. Loading this
+// module spawns nothing: every function in it is a pure parser.
+import { BRANCH_FORMAT } from '../src/main/git/parse';
 // Phase 69, conditions 11 to 18. Every one of these is pure: no spawn, no server,
 // no Electron and no request.
 import {
@@ -1797,6 +1801,79 @@ process.stdout.write(
         // 55i. The one gh command line, and the allowlist's own verdict on it.
         ghArgv,
         ghRefusal
+      };
+    })(),
+
+    // --- Phase 106, condition 56 -------------------------------------------
+    // Pure. It reads one compiled script text, one composed command, one
+    // compiled format constant and one module's own source text. It starts
+    // nothing, opens no file under the person's home, contacts no machine and
+    // makes no request.
+    phase106: (() => {
+      const branchPath = join(machinesDir, 'remote-branch.ts');
+      let source = '';
+      try {
+        source = readFileSync(branchPath, 'utf8');
+      } catch {
+        source = '';
+      }
+      const script = REMOTE_SCRIPTS.find((row) => row.id === 'repo-branch');
+      const text = script?.text ?? '';
+      // The exact bytes the door would compose for a hostile folder value. The
+      // gate searches these rather than the script alone, because the command is
+      // what actually crosses.
+      const command =
+        script === undefined
+          ? ''
+          : composeRemoteScriptCommand(script, [HOSTILE_VALUE]);
+      // 56d. The format the far side asks with, read out of the text rather
+      // than written a second time here.
+      const format = /--format='([^']*)'/.exec(text)?.[1] ?? '';
+      // 56i. The three verbs that would make the sentence on screen false. They
+      // are composed from pieces so this probe's own text does not trip the rule
+      // it is checking.
+      const FETCH_VERBS = [
+        `git fe${'t'}ch`,
+        `git pu${'l'}l`,
+        `git remote up${'d'}ate`
+      ];
+      return {
+        present: source.length > 0,
+        script:
+          script === undefined
+            ? null
+            : { mode: script.mode, params: script.params },
+        gitVerbs: [
+          ...new Set(
+            [...text.matchAll(/git (?:--no-pager )?([a-z-]+)/g)].map(
+              (hit) => hit[1] ?? ''
+            )
+          )
+        ].sort(),
+        // 56d. Two copies of one format is how one of them goes stale.
+        format,
+        formatPlusSubject: format + '%(subject)',
+        branchFormat: BRANCH_FORMAT,
+        // 56e. Research 57 section 9 defect 5, made executable a second time.
+        namesCommonDir: text.includes('--git-common-dir'),
+        namesAbsoluteDir: text.includes(`--absolute${'-'}git-dir`),
+        // 56f. The bytes that actually cross, rather than the script alone.
+        command,
+        hostileInCommand: command.split(HOSTILE_VALUE).length - 1,
+        hostileQuoted: command.includes(shellQuoteArgv([HOSTILE_VALUE])),
+        hostileInScript: text.includes(HOSTILE_VALUE),
+        // 56i. THE EXECUTABLE FORM OF A SENTENCE ON SCREEN. The panel tells a
+        // person Tortie does not fetch on their machine.
+        fetchVerbsInScript: FETCH_VERBS.filter((verb) => text.includes(verb)),
+        // 56g and 56j. What the module does, counted in its own text.
+        remoteReads: [...source.matchAll(/runRemoteRead\(/g)].length,
+        callsRemoteWrite: source.includes('runRemoteWrite'),
+        scriptIdsNamed: REMOTE_SCRIPTS.map((row) => row.id).filter((id) =>
+          source.includes(`'${id}'`)
+        ),
+        actionsImports: [
+          ...source.matchAll(/from '\.\.\/actions\/([a-z-]+)'/g)
+        ].map((hit) => hit[1] ?? '')
       };
     })(),
 

@@ -81,6 +81,7 @@ value below is read from the script in `package.json`, and `${TMPDIR}` is
 | `npm run probe:p99` | `/tmp/p99-quickopen-<pid>`, made fresh on every run and removed at the end. It drives no Electron, so it reads no config root. | `gmux-p99-quickopen-<pid>`, on the scratch machine, which is this Mac over a loopback sshd. `refuseRealSockets` rejects the names `gmux` and `default` before anything starts. |
 | `npm run probe:p100` | `/tmp/p100-lines-<pid>`, made fresh on every run and removed at the end. It drives no Electron, so it reads no config root. | `gmux-p100-lines-<pid>`, on the scratch machine, which is this Mac over a loopback sshd. `refuseRealSockets` rejects the names `gmux` and `default` before anything starts. It is the only tmux server this probe writes to, and it holds the one session the run makes. |
 | `npm run probe:p105` | `/tmp/p105-runs-<pid>`, made fresh on every run and removed at the end. It drives no Electron, so it reads no config root. | `gmux-p105-runs-<pid>`, on the scratch machine, which is this Mac over a loopback sshd. `refuseRealSockets` rejects the names `gmux` and `default` before anything starts. This probe starts no tmux session at all. |
+| `npm run probe:p106` | `/tmp/p106-branch-<pid>`, made fresh on every run and removed at the end. It drives no Electron, so it reads no config root. | `gmux-p106-branch-<pid>`, on the scratch machine, which is this Mac over a loopback sshd. `refuseRealSockets` rejects the names `gmux` and `default` before anything starts. This probe starts no tmux session at all. |
 
 `smoke:execplane`, `smoke:remote`, `smoke:capture:remote` and `smoke:p93remote`
 all honour a `GMUX_CONFIG_ROOT` already in the environment and fall back to the
@@ -131,6 +132,22 @@ folder which is not a repository answers with a walk that names nothing under
 was asked for and says it cut, and that the read left the repository byte for
 byte as it found it. It counts `tmux -L gmux list-sessions` before and after and
 fails on a difference.
+
+`npm run probe:p106` is Phase 106's live gate, being the branch checked out on
+another machine. It makes its own repositories under `/tmp`, drives
+`src/main/machines/remote-branch.ts` against a loopback sign in server, and
+checks sixteen things. Four of them are what the phase rests on. Row 5 builds a
+branch that is two commits ahead of its upstream and one behind, and compares
+the counts Tortie drew against `git rev-list --left-right --count` run directly
+in that repository. Row 8 is a linked worktree on a second branch, and it is the
+row that fails if the script ever asks with `--absolute-git-dir` instead of
+`--git-common-dir`. Row 12 measures the number of external programs the far side
+runs, by putting counting wrappers on PATH ahead of `git`, `base64` and `tr`, and
+it prints what it measured rather than what anybody claimed. Row 13 compares
+`git status --porcelain` byte for byte before and after, and the size and
+modification time of every file under `.git`, because a read must leave the
+repository as it found it. It counts `tmux -L gmux list-sessions` before and
+after and fails on a difference.
 
 `npm run probe:p105` is Phase 105's live gate, being the workflow runs for the
 branch checked out on another machine. It makes six repositories and three plain

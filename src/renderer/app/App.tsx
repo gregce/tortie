@@ -169,6 +169,8 @@ import { driveRemoteLines } from './p100-lines-shot';
 import type { RemoteLinesProbeSpec } from './p100-lines-shot';
 import { driveRemoteRuns } from '../scm/p105-runs-shot';
 import type { RemoteRunsProbeSpec } from '../scm/p105-runs-shot';
+import { driveRemoteBranch } from '../scm/p106-branch-shot';
+import type { RemoteBranchProbeSpec } from '../scm/p106-branch-shot';
 
 // PHASE 81 harness hook, armed at module load because the moment it has to
 // see, the session list arriving, is over before any drive can start. It
@@ -980,6 +982,19 @@ interface ShotLayoutExtras {
    */
   remoteRuns?: RemoteRunsProbeSpec;
   /**
+   * Phase 106. Seed one branch answer for a tab whose folder is on another
+   * machine, open the group through its own control, and report every sentence
+   * it drew with the box the layout engine gave it.
+   *
+   * The screenshot is the point of this one. Four of the sentences exist to say
+   * what is not true, being that the answer does not refresh, that the two
+   * counts were measured against a copy that machine holds, that Tortie changes
+   * nothing over there and that only the checked out branch is read. Whether
+   * all four fit under the group without being clipped is a question only a
+   * picture answers, and the driver turns it into a pair of numbers as well.
+   */
+  remoteBranch?: RemoteBranchProbeSpec;
+  /**
    * Phase 81. Start a restore and a create before the login shell has
    * answered, read every Restore control out of the document while the
    * answer is still coming, and report when each of those moments was.
@@ -1208,6 +1223,13 @@ function useShotLayoutHook(): void {
       if (ext.remoteRuns !== undefined) {
         window.__gmuxShotReady = false;
         await driveRemoteRuns(ext.remoteRuns);
+        window.__gmuxShotReady = true;
+      }
+      // Phase 106. After the Runs drive, so a picture that carries both groups
+      // shows each of them in the state its own driver left it in.
+      if (ext.remoteBranch !== undefined) {
+        window.__gmuxShotReady = false;
+        await driveRemoteBranch(ext.remoteBranch);
         window.__gmuxShotReady = true;
       }
       // Phase 81. It runs as early as the harness lets a drive run, because

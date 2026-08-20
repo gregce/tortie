@@ -129,8 +129,12 @@ import type {
   // ---- END PHASE 100 ----
   // ---- PHASE 105 ----
   MachineRunsInput,
-  MachineRunsResult
+  MachineRunsResult,
   // ---- END PHASE 105 ----
+  // ---- PHASE 106 ----
+  MachineBranchInput,
+  MachineBranchResult
+  // ---- END PHASE 106 ----
 } from '@shared/ipc';
 import { EVT_MACHINE_STATE, EVT_MACHINE_TEST } from '@shared/ipc';
 import { gmuxError } from '../errors';
@@ -204,6 +208,7 @@ import { readSessionLinesOnMachine } from './remote-lines';
 // Phase 105. The branch checked out in one folder on one machine, and then the
 // runs GitHub holds for it. The gh program runs on THIS Mac and never leaves it,
 // and nothing on either computer is written.
+import { readBranchOnMachine } from './remote-branch';
 import { readRunsOnMachine } from './remote-runs';
 // Phase 90.2, item 2. One git config read here, then one folder walk there. It
 // writes nothing on either computer.
@@ -1089,6 +1094,43 @@ export function registerMachinesIpc(ipc: IpcMain): void {
       })
   );
   // ---- END PHASE 105 ----
+
+  // ---- PHASE 106 ----
+  // PHASE 106. One channel that READS which branch is checked out in one folder
+  // on one machine, the branch it follows, and how far ahead and how far behind
+  // it is.
+  //
+  // It cannot compose what it asks. The command that crosses is `repo-branch`
+  // from the frozen catalogue in ./remote-scripts.ts, chosen by name, with the
+  // folder arriving there as the one positional parameter.
+  //
+  // IT WRITES NOTHING, on either computer. The catalogue's two writers did not
+  // move, and this channel cannot change what is checked out over there. There
+  // is no checkout verb behind it and the renderer draws no control that could
+  // ask for one.
+  //
+  // IT NEVER FETCHES. The two counts are measured against the copy of the
+  // upstream that machine last fetched, so the answer can be older than what is
+  // on the server. Condition 56i of build/conformance-machines.mjs fails the
+  // script text if it ever names `git fetch`, `git pull` or `git remote update`,
+  // which is what keeps the sentence on screen checkable.
+  //
+  // NOTHING CALLS IT ON A CLOCK. A person expands the group or presses Refresh,
+  // and each of those is one read. There is no watch, because main cannot see a
+  // branch switched on another computer.
+  //
+  // It NEVER THROWS. A folder that is not there, a folder git does not track, a
+  // detached head, a git too old to answer the format, a machine that did not
+  // answer and a machine Tortie is not signed in to all come back as a mode
+  // word. No prose crosses this channel: the renderer draws the sentence from
+  // src/renderer/app/machine-copy.ts, where the vocabulary audit reads it.
+  handle(
+    ipc,
+    'machines:readBranch',
+    async (_event, input: MachineBranchInput): Promise<MachineBranchResult> =>
+      readBranchOnMachine({ machineId: input.machineId, cwd: input.cwd })
+  );
+  // ---- END PHASE 106 ----
 }
 
 /**

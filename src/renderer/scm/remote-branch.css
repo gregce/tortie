@@ -1,0 +1,62 @@
+/**
+ * The Branch group for a folder on another machine (Phase 106).
+ *
+ * Tokens only, per DESIGN.md section 1. There is no colour literal in this
+ * file. The metrics copy the Runs group below it, so a sixth section does not
+ * read as a different product.
+ *
+ * The group has no hue of its own, for the same reason the band above it has
+ * none. The folder being on another computer is the ordinary state of this tab,
+ * and a tinted panel would read as a warning about something that is not wrong.
+ */
+
+.section-scm-remote-branch {
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 auto;
+  min-height: 0;
+}
+
+/* The same 45% cap the sections beside it carry, and it is why every sentence
+   this group says about the answer as a whole is drawn BELOW the section rather
+   than inside its body. The body scrolls, so a sentence in it can end up under
+   its own fold. That happened to the Runs group for one round and 36 of the 44
+   px of one sentence were hidden. See the header of ./RemoteBranchSection.tsx. */
+.section-scm-remote-branch:not(.collapsed) {
+  max-height: 45%;
+}
+
+.section-scm-remote-branch.collapsed {
+  max-height: none;
+  flex: 0 0 auto;
+}
+
+.rbranch-body {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: var(--space-3);
+}
+
+/* The one sentence that stands in place of the facts. */
+.rbranch-note {
+  padding: var(--space-2) var(--space-5) var(--space-2) var(--space-7);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-muted);
+}
+
+/* A line of fact rather than a line of prose about the read, so it takes the
+   secondary text colour the row lists beside it use. */
+.rbranch-fact {
+  padding: var(--space-2) var(--space-5) var(--space-2) var(--space-7);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+/* The branch name is the one fact this group exists for, so it is the one line
+   that is not muted. */
+.rbranch-name {
+  color: var(--text-primary);
+}

@@ -180,17 +180,21 @@ describe('Source Control', () => {
     );
   });
 
-  it('says once why history and branches are not on screen', () => {
-    // PHASE 105 REWROTE THIS ONE. It named three sections that are not drawn
-    // for a folder on another machine and Runs was one of them. A Runs group is
-    // drawn there now, so the sentence names runs among the things Tortie does
-    // show and refuses the two that are still true.
+  it('says once why history is not on screen', () => {
+    // PHASE 105 REWROTE THIS ONE AND PHASE 106 REWROTE IT AGAIN. It named three
+    // sections that are not drawn for a folder on another machine, and each
+    // round that shipped one of them made another clause false. History is the
+    // one that is left. The word branch is singular on purpose, because Tortie
+    // shows the one branch that is checked out and does not list the others.
     expect(REMOTE_SCM_SECTIONS_ABSENT).toBe(
-      'Tortie shows the changed files and the runs for a folder on another ' +
-        'machine. It does not show history or branches there.'
+      'Tortie shows the changed files, the branch and the runs for a folder ' +
+        'on another machine. It does not show history there.'
     );
     expect(REMOTE_SCM_SECTIONS_ABSENT).not.toMatch(
       /does not show[^.]*\bruns\b/i
+    );
+    expect(REMOTE_SCM_SECTIONS_ABSENT).not.toMatch(
+      /does not show[^.]*\bbranch(es)?\b/i
     );
   });
 

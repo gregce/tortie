@@ -291,6 +291,14 @@ describe('every channel is registered, and only the ones listed here', () => {
       // belongs to no builder in this phase and the list has to name every
       // channel or it names none.
       'machines:putImage',
+      // ---- PHASE 106 ----
+      // One READ of which branch is checked out in one folder on one machine,
+      // the branch it follows, and how far ahead and how far behind it is. It
+      // writes nothing on either computer, it can never change what is checked
+      // out over there, and it refuses while Tortie is not connected to the
+      // machine. Nothing calls it on a clock, and nothing on this path fetches.
+      'machines:readBranch',
+      // ---- END PHASE 106 ----
       // ---- PHASE 105 ----
       // One READ of the branch checked out in one folder on one machine,
       // followed by one gh read ON THIS MAC. No token, no gh invocation and no
@@ -421,6 +429,56 @@ describe('machines:readRuns', () => {
   it('starts nothing at all, on either computer', async () => {
     const before = spawned.length;
     await call<Promise<unknown>>('machines:readRuns', {
+      machineId: 'nobody-is-connected-to-this',
+      cwd: '/work/project'
+    });
+    expect(spawned.length).toBe(before);
+    expect(machineSshSpawnCount()).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 106. The branch checked out on another machine
+// ---------------------------------------------------------------------------
+
+describe('machines:readBranch', () => {
+  it('hands the input to main unchanged and answers rather than throwing', async () => {
+    // Nothing in this process is connected to any machine, so the read refuses
+    // with its own mode word and contacts nothing. What this proves is the
+    // wiring: the channel exists and the machine id and the folder cross it
+    // untouched.
+    const out = await call<Promise<{
+      machineId: string;
+      cwd: string;
+      mode: string;
+      branch: string | null;
+      sha: string | null;
+      shortSha: string | null;
+      upstream: string | null;
+      upstreamGone: boolean;
+      ahead: number;
+      behind: number;
+      trackUnreadable: boolean;
+    }>>('machines:readBranch', {
+      machineId: 'nobody-is-connected-to-this',
+      cwd: '/work/project'
+    });
+    expect(out.machineId).toBe('nobody-is-connected-to-this');
+    expect(out.cwd).toBe('/work/project');
+    expect(out.mode).toBe('notConnected');
+    expect(out.branch).toBeNull();
+    expect(out.sha).toBeNull();
+    expect(out.shortSha).toBeNull();
+    expect(out.upstream).toBeNull();
+    expect(out.upstreamGone).toBe(false);
+    expect(out.ahead).toBe(0);
+    expect(out.behind).toBe(0);
+    expect(out.trackUnreadable).toBe(false);
+  });
+
+  it('starts nothing at all, on either computer', async () => {
+    const before = spawned.length;
+    await call<Promise<unknown>>('machines:readBranch', {
       machineId: 'nobody-is-connected-to-this',
       cwd: '/work/project'
     });

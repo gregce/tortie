@@ -64,6 +64,7 @@ import {
   useRemoteChanges
 } from './remote-changes';
 import { registerP97UntrackedDrive } from './p97-untracked-drive';
+import { RemoteBranchSection } from './RemoteBranchSection';
 import { RemoteRunsSection } from './RemoteRunsSection';
 import { HistorySection } from './HistorySection';
 import { BranchesView } from './BranchesView';
@@ -891,11 +892,20 @@ function RemoteScmSection({
       {entry.readAt > 0 ? (
         <p className="scm-remote-note">{remoteReadAt(entry.readAt)}</p>
       ) : null}
-      {/* PHASE 105. The second group this view draws for a folder on another
+      {/* PHASE 106. The second group this view draws for a folder on another
+          machine, and it is ABOVE Runs on purpose. The runs below are the runs
+          for the branch this group names, so a person reads which branch it is
+          first. It ships collapsed and reads nothing until somebody expands it,
+          so a tab that is only being looked at asks that machine nothing. It
+          owns its own band, its own Refresh button and its own store, and it
+          has no verb that writes. */}
+      <RemoteBranchSection target={target} label={label} />
+      {/* PHASE 105. The third group this view draws for a folder on another
           machine. It ships collapsed and reads nothing until somebody expands
           it, so a tab that is only being looked at asks that machine nothing
           and starts no gh process on this Mac. It owns its own band, its own
-          Refresh button and its own store. */}
+          Refresh button and its own store. PHASE 106 MOVED IT DOWN ONE PLACE
+          and changed nothing else about it. */}
       <RemoteRunsSection target={target} label={label} />
       {/* Said once, rather than two empty sections. */}
       <p className="scm-remote-note">{REMOTE_SCM_SECTIONS_ABSENT}</p>

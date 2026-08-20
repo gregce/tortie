@@ -199,9 +199,10 @@
  *     script can use.
  *
  * THE NUMBERED LIST ABOVE STOPS AT 49 AND THE FILE HOLDS MORE. Phases 90.3, 98,
- * 100 and 105 each added a condition and left the list where it was, so this
- * says so rather than quietly renumbering. Conditions 50 and 51 are Phase 90.3's,
- * 52 is Phase 98's, 53 is Phase 99's, 54 is Phase 100's, and 55 is this one:
+ * 100, 105 and 106 each added a condition and left the list where it was, so
+ * this says so rather than quietly renumbering. Conditions 50 and 51 are Phase
+ * 90.3's, 52 is Phase 98's, 53 is Phase 99's, 54 is Phase 100's, 55 is Phase
+ * 105's and 56 is Phase 106's:
  *
  * 55. `repo-facts` is not a one value read in the catalogue; it names a git verb
  *     other than `rev-parse`; `ALLOWED_GIT_VERBS` is not exactly `ls-files`,
@@ -216,6 +217,23 @@
  *     that feature composes is refused by `assertReadOnlyArgv` or is not a
  *     `run list` naming `--repo`. THE FOURTH ITEM IS THE ONE THE FEATURE RESTS
  *     ON: gh runs on this Mac and never leaves it.
+ *
+ * 56. `repo-branch` is not a one value read in the catalogue; it names a git
+ *     verb other than `rev-parse` and `for-each-ref`; the format inside its text
+ *     plus `%(subject)` is not exactly `BRANCH_FORMAT` from
+ *     `src/main/git/parse.ts`; `ALLOWED_GIT_VERBS` is not exactly
+ *     `for-each-ref`, `ls-files`, `rev-parse`, `show` and `status`; the script
+ *     names `--absolute-git-dir` or does not name `--git-common-dir`; a hostile
+ *     folder value reaches the script text or appears other than once and quoted
+ *     in the composed command; the script names `git fetch`, `git pull` or
+ *     `git remote update`; `src/main/machines/remote-branch.ts` is absent, calls
+ *     `runRemoteWrite`, makes other than exactly one remote read, names a script
+ *     other than `repo-branch`, or imports anything from `../actions/`; the
+ *     catalogue's writers are not exactly `image-put` then `git-clone`; or the
+ *     catalogue does not hold sixteen scripts. TWO ITEMS CARRY THIS FEATURE. The
+ *     format relation is what keeps one format in one place, and the fetch names
+ *     are the executable form of the sentence telling a person that Tortie
+ *     counted against a copy that machine already had and fetched nothing.
  *
  * WHAT IT DOES NOT PROVE, stated so nobody reads more into a pass. The record
  * is sealed through `safeStorage`, which needs an Electron process, so this
@@ -2535,15 +2553,37 @@ const MUTATING_PROGRAMS = [
 ];
 
 /**
- * The git verbs ANY script in the catalogue may name. All four are reads.
+ * The git verbs ANY script in the catalogue may name. ALL FIVE READ AND NONE OF
+ * THEM REACHES A SERVER, and that is what this list is.
+ *
+ * The name says "allowed" and the membership test is narrower than that. Every
+ * member is a pure read of the object database, the index or the ref store, and
+ * none of them contacts anything over a network. `READ_ONLY_GIT_VERBS` below is
+ * built straight from this list and is what exempts a verb from carrying
+ * `GIT_TERMINAL_PROMPT=0` and `GCM_INTERACTIVE=never`, which is only sound
+ * because of that second property. A verb that reads but reaches a server does
+ * not belong here.
  *
  * PHASE 98 ADDED `ls-files`. The remote search asks git which files are in the
  * folder and then reads them with the machine's own grep. Reading the index is
  * a read, it reaches no server, and it meets the same test the other three
  * meet. Phase 99, being Quick Open on a tab that lives on another machine,
  * needs the same verb and therefore needs no widening of its own.
+ *
+ * PHASE 106 ADDED `for-each-ref`, and it is the fifth. It reads the ref store
+ * and it contacts nothing, so it meets the same test and takes the same
+ * exemption. Research 57 section 5.5 proposed a fourth list named for read
+ * verbs that touch no server. That list is this one, so this comment says what
+ * the list is rather than starting a second one with the same members under a
+ * better name. A rename of a safety list is its own round.
  */
-const ALLOWED_GIT_VERBS = ['rev-parse', 'status', 'show', 'ls-files'];
+const ALLOWED_GIT_VERBS = [
+  'rev-parse',
+  'status',
+  'show',
+  'ls-files',
+  'for-each-ref'
+];
 
 /**
  * The two more verbs `git-clone` may name, and no other script may.
@@ -3301,8 +3341,9 @@ const P99_FORBIDDEN = P98_FORBIDDEN;
         `nothing about what Tortie may write on another computer moved.`
     );
   }
-  // 53j. The git verb list did not grow. Phase 98 added `ls-files` and Phase 99
-  //      needed the same verb, so it added nothing. This is asserted on the
+  // 53j. The git verb list. Phase 98 added `ls-files` and Phase 99 needed the
+  //      same verb, so it added nothing. Phase 106 added `for-each-ref`, and it
+  //      is the fifth and the only one added since. This is asserted on the
   //      list's own contents so a later round that widens it for convenience
   //      fails here rather than in review.
   const readVerbs = [...(p99.gitVerbsAcrossReads ?? [])].sort();
@@ -3312,15 +3353,19 @@ const P99_FORBIDDEN = P98_FORBIDDEN;
     fail(
       `a read script names git ${verb}, which is not one of ` +
         `${allowed.join(', ')}. Phase 99 widened that list by nothing and no ` +
-        `later phase may widen it here.`
+        `later phase may widen it here without saying so.`
     );
   }
-  if (JSON.stringify(allowed) !== JSON.stringify(['ls-files', 'rev-parse', 'show', 'status'])) {
+  if (
+    JSON.stringify(allowed) !==
+    JSON.stringify(['for-each-ref', 'ls-files', 'rev-parse', 'show', 'status'])
+  ) {
     fail(
       `ALLOWED_GIT_VERBS holds ${allowed.join(', ')}. It holds exactly ` +
-        `ls-files, rev-parse, show and status. Phase 98 added the first and ` +
-        `Phase 99 added nothing, and a round that grows this list has widened ` +
-        `what every script in the catalogue may run.`
+        `for-each-ref, ls-files, rev-parse, show and status. Phase 98 added ` +
+        `ls-files, Phase 99 added nothing and Phase 106 added for-each-ref, ` +
+        `and a round that grows this list has widened what every script in the ` +
+        `catalogue may run.`
     );
   }
 }
@@ -3585,18 +3630,20 @@ const P105_CREDENTIAL_WORDS =
       );
     }
   }
-  // 55c. The git verb list did not grow. Phase 98 added `ls-files`, and Phases
-  //      99, 100 and 105 added nothing. Asserted on the list's own contents so a
-  //      later round that widens it for convenience fails here.
+  // 55c. The git verb list. Phase 98 added `ls-files`, Phases 99, 100 and 105
+  //      added nothing, and Phase 106 added `for-each-ref`. Asserted on the
+  //      list's own contents so a later round that widens it for convenience
+  //      fails here.
   const p105Allowed = [...ALLOWED_GIT_VERBS].sort();
   if (
     JSON.stringify(p105Allowed) !==
-    JSON.stringify(['ls-files', 'rev-parse', 'show', 'status'])
+    JSON.stringify(['for-each-ref', 'ls-files', 'rev-parse', 'show', 'status'])
   ) {
     fail(
       `ALLOWED_GIT_VERBS holds ${p105Allowed.join(', ')}. It holds exactly ` +
-        `ls-files, rev-parse, show and status. Phase 98 added the first and ` +
-        `Phases 99, 100 and 105 added nothing.`
+        `for-each-ref, ls-files, rev-parse, show and status. Phase 98 added ` +
+        `ls-files, Phases 99, 100 and 105 added nothing, and Phase 106 added ` +
+        `for-each-ref.`
     );
   }
   // 55g. What the module does, counted in its own text.
@@ -3640,11 +3687,12 @@ const P105_CREDENTIAL_WORDS =
     );
   }
   const p105Count = ((data.remoteRun ?? {}).scripts ?? []).length;
-  if (p105Count !== 15) {
+  if (p105Count !== 16) {
     fail(
-      `the catalogue holds ${String(p105Count)} script(s). It holds fifteen, ` +
-        `of which two write. A script that appeared without a phase saying so ` +
-        `is a command somebody can run on another person's computer.`
+      `the catalogue holds ${String(p105Count)} script(s). It holds sixteen, ` +
+        `of which two write. Phase 106 moved that number from fifteen by one ` +
+        `read. A script that appeared without a phase saying so is a command ` +
+        `somebody can run on another person's computer.`
     );
   }
   // 55i. The one gh command line, and the allowlist's own verdict on it.
@@ -3664,6 +3712,189 @@ const P105_CREDENTIAL_WORDS =
         `${ghArgv.includes('--repo') ? 'names' : 'does not name'} its ` +
         `repository. It is a run list and it always names --repo, so no folder ` +
         `on either computer can change the answer.`
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 56. Phase 106. The branch checked out on another machine, and the fetch that
+// never happens
+// ---------------------------------------------------------------------------
+//
+// A person can now read which branch is checked out in a folder that lives on
+// another computer, the branch it follows, and how far ahead and how far behind
+// it is. Two properties carry this feature and both are checked here rather
+// than promised.
+//
+//   TORTIE NEVER FETCHES ON THAT MACHINE. The two counts are measured against
+//   the copy of the upstream that machine last fetched, so the answer can be
+//   older than what is on the server when it is read. The panel says so in its
+//   own words, and 56i is what keeps that sentence checkable.
+//
+//   ONE FORMAT, IN ONE PLACE. The far side asks `for-each-ref` with a format,
+//   and `parseForEachRefBranches` in src/main/git/parse.ts reads what comes
+//   back. Two copies of one format is how one of them goes stale, and a stale
+//   one means this end reads the wrong field as a branch name. 56d asserts that
+//   the script's format plus `%(subject)` is exactly `BRANCH_FORMAT`.
+//
+// Every check below reads one compiled script text, one composed command, one
+// compiled constant and one module's own source text. It starts nothing, opens
+// no file under the person's home, contacts no machine and makes no request.
+
+{
+  const p106 = data.phase106 ?? {};
+  const script = p106.script ?? null;
+  // 56a. A read that is not in the catalogue cannot be sent at all.
+  if (script === null) {
+    fail(
+      'the catalogue holds no script called repo-branch, so the Branch group ' +
+        'on a tab whose project lives on another machine has nothing to ask.'
+    );
+  } else {
+    if (script.mode !== 'read' || script.params !== 1) {
+      fail(
+        `repo-branch is a ${String(script.mode)} taking ` +
+          `${String(script.params)} value(s). It is a read taking one, being ` +
+          `the folder on that machine.`
+      );
+    }
+    // 56b. Two git verbs, and no third.
+    const verbs = [...(p106.gitVerbs ?? [])].sort();
+    if (JSON.stringify(verbs) !== JSON.stringify(['for-each-ref', 'rev-parse'])) {
+      fail(
+        `repo-branch names git ${verbs.join(', ') || 'nothing'}. It names ` +
+          `exactly rev-parse, twice, and for-each-ref, once. rev-parse answers ` +
+          `where the git directory is and what HEAD names, and for-each-ref ` +
+          `answers everything about the branch in one line.`
+      );
+    }
+    // 56d. ONE FORMAT, IN ONE PLACE.
+    if (p106.formatPlusSubject !== p106.branchFormat) {
+      fail(
+        `the format repo-branch asks with is ${String(p106.format)}. That ` +
+          `plus %(subject) is not BRANCH_FORMAT, which is ` +
+          `${String(p106.branchFormat)}. The far side prints what this format ` +
+          `says and parseForEachRefBranches reads it, so two copies that ` +
+          `disagree means this end reads the wrong field as a branch name. The ` +
+          `subject is dropped because it is the one field with no length bound ` +
+          `and this read carries no cut.`
+      );
+    }
+    // 56e. Research 57 section 9 defect 5, made executable a second time.
+    if (p106.namesCommonDir !== true || p106.namesAbsoluteDir === true) {
+      fail(
+        `repo-branch asks for the git directory with ` +
+          `${p106.namesAbsoluteDir === true ? 'the worktree spelling' : 'neither spelling'}. ` +
+          `It asks with --git-common-dir and never --absolute-git-dir. A ` +
+          `linked worktree must answer as a repository, and the second ` +
+          `spelling answers with the worktree's own directory.`
+      );
+    }
+    // 56f. A caller value never reaches the text, and crosses once and quoted.
+    if (p106.hostileInScript === true) {
+      fail(
+        'a caller value reached the repo-branch text itself. Values cross as ' +
+          'positional parameters and nothing is ever composed into a script.'
+      );
+    }
+    if (p106.hostileInCommand !== 1 || p106.hostileQuoted !== true) {
+      fail(
+        `a hostile folder value appears ${String(p106.hostileInCommand)} ` +
+          `time(s) in the composed command and quoted is ` +
+          `${String(p106.hostileQuoted)}. It appears exactly once, in the ` +
+          `quoted tail, and never inside the script.`
+      );
+    }
+    // 56i. THE EXECUTABLE FORM OF A SENTENCE ON SCREEN.
+    const fetchers = p106.fetchVerbsInScript ?? [];
+    if (fetchers.length > 0) {
+      fail(
+        `repo-branch names ${fetchers.join(', ')}. It may name none of them. ` +
+          `The panel tells a person that Tortie counted against the copy of ` +
+          `the upstream that machine holds and that Tortie does not fetch ` +
+          `there, and this is the check that keeps that sentence executable ` +
+          `rather than written down. A fetch would also be a write on somebody ` +
+          `else's computer made by a read.`
+      );
+    }
+  }
+  // 56c. The git verb list, held at the five this phase leaves it at.
+  const p106Allowed = [...ALLOWED_GIT_VERBS].sort();
+  if (
+    JSON.stringify(p106Allowed) !==
+    JSON.stringify(['for-each-ref', 'ls-files', 'rev-parse', 'show', 'status'])
+  ) {
+    fail(
+      `ALLOWED_GIT_VERBS holds ${p106Allowed.join(', ')}. It holds exactly ` +
+        `for-each-ref, ls-files, rev-parse, show and status. Phase 106 added ` +
+        `for-each-ref because it reads the ref store and reaches no server, ` +
+        `which is the same test the other four meet and the reason all five ` +
+        `take the exemption from the two prompt names.`
+    );
+  }
+  // 56g. What the module does, counted in its own text.
+  if (p106.present !== true) {
+    fail(
+      'src/main/machines/remote-branch.ts is not there, so the Branch group on ' +
+        'a tab whose project lives on another machine has nothing behind it.'
+    );
+  } else {
+    if (p106.callsRemoteWrite === true) {
+      fail(
+        'src/main/machines/remote-branch.ts calls runRemoteWrite. This whole ' +
+          'feature is a read, and nothing in it writes on either computer. ' +
+          'Switching a branch on a machine is a write and no phase has built ' +
+          'one.'
+      );
+    }
+    if (p106.remoteReads !== 1) {
+      fail(
+        `src/main/machines/remote-branch.ts makes ${String(p106.remoteReads)} ` +
+          `remote read(s). It makes one. A second call site is a second thing ` +
+          `a person's machine can be asked without anybody reading this file ` +
+          `again.`
+      );
+    }
+    const ids = [...(p106.scriptIdsNamed ?? [])].sort();
+    if (JSON.stringify(ids) !== JSON.stringify(['repo-branch'])) {
+      fail(
+        `src/main/machines/remote-branch.ts names the catalogue script(s) ` +
+          `${ids.join(', ') || 'none'}. It names exactly repo-branch.`
+      );
+    }
+    // 56j. The stale sentence Phase 105 had to leave standing is not made
+    //      worse. The header of src/main/actions/index.ts says that directory's
+    //      argv allowlist, gh spawn and parser are imported only by its own
+    //      tests, and Phase 105 made that false for one production module. This
+    //      phase adds no second one.
+    const fromActions = [...(p106.actionsImports ?? [])].sort();
+    if (fromActions.length > 0) {
+      fail(
+        `src/main/machines/remote-branch.ts imports ${fromActions.join(', ')} ` +
+          `from ../actions/. It imports nothing from there. That directory's ` +
+          `own header says its argv allowlist, its gh spawn and its parser are ` +
+          `imported directly only by its tests, Phase 105 already made that ` +
+          `sentence stale for one module, and a second one would make it worse ` +
+          `rather than fix it.`
+      );
+    }
+  }
+  // 56h. The write door did not move, and the catalogue grew by exactly one.
+  const p106Writers = (data.remoteRun ?? {}).writers ?? [];
+  if (
+    JSON.stringify(p106Writers) !== JSON.stringify(['image-put', 'git-clone'])
+  ) {
+    fail(
+      `the catalogue's write scripts are ${p106Writers.join(', ') || 'none'}. ` +
+        `They are exactly image-put and then git-clone. Phase 106 added a read ` +
+        `and nothing about what Tortie may write on another computer moved.`
+    );
+  }
+  const p106Count = ((data.remoteRun ?? {}).scripts ?? []).length;
+  if (p106Count !== 16) {
+    fail(
+      `the catalogue holds ${String(p106Count)} script(s). It holds sixteen, ` +
+        `of which two write.`
     );
   }
 }
@@ -4171,6 +4402,31 @@ process.stdout.write(
           `${[...(p105.ghArgv ?? [])].slice(0, 6).join(' ')} …, it is composed ` +
           `on THIS MAC, the allowlist accepts it as a read, and no credential ` +
           `and no gh crosses the link.\n`
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Phase 106's line
+// ---------------------------------------------------------------------------
+
+{
+  const p106 = data.phase106 ?? {};
+  const script = p106.script ?? null;
+  process.stdout.write(
+    script === null || p106.present !== true
+      ? 'repo-branch or src/main/machines/remote-branch.ts is NOT there, so the ' +
+          'Branch group on a tab whose project lives on another machine has no ' +
+          'far side at all.\n'
+      : `the Branch group on a machine runs repo-branch, a ${String(script.mode)} ` +
+          `taking ${String(script.params)} value(s). It names git ` +
+          `${[...(p106.gitVerbs ?? [])].sort().join(' and ')} and nothing else, ` +
+          `it asks with --git-common-dir and never --absolute-git-dir, and its ` +
+          `format plus %(subject) is BRANCH_FORMAT, so the far side and ` +
+          `parseForEachRefBranches cannot drift. It names none of git fetch, ` +
+          `git pull or git remote update, so the two counts are measured ` +
+          `against the copy of the upstream that machine already had and ` +
+          `nothing was fetched on it. It can never change what is checked out ` +
+          `over there.\n`
   );
 }
 
