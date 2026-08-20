@@ -41,6 +41,11 @@ import type { MachineColor } from '../machines';
 // surfaces already speak, so a file on another machine and a file in a
 // commit carry the same vocabulary.
 import type { GitCommitFileState } from '../types';
+// PHASE 107. A commit read from another machine is the row the local History
+// already draws, so the swimlane picture is laid out by one set of code for
+// both. Two declarations of one shape is how the two ends of a channel drift
+// apart.
+import type { GitGraphLogEntry } from '../types';
 // PHASE 98. A search on another machine returns the rows the search on this Mac
 // already returns, so the Search view draws ONE kind of row. Two declarations of
 // one shape is how the two ends of a channel drift apart.
@@ -646,6 +651,9 @@ export interface MachinesEventPayloadMap {
  * PHASE 106 ADDS ONE ROW AND MOVES THE COUNT WITH IT, being `readBranch`. The
  * count is twenty six.
  *
+ * PHASE 107 ADDS ONE ROW AND MOVES THE COUNT WITH IT, being `readHistory`. The
+ * count is twenty seven.
+ *
  * | Channel | Reads | Writes | Spawns |
  * | --- | --- | --- | --- |
  * | rows | memory in main, plus the sealed record | nothing | nothing |
@@ -674,6 +682,7 @@ export interface MachinesEventPayloadMap {
  * | readSessionLines | the last lines of one session there | nothing | ssh |
  * | readRuns | one folder on that machine, then github.com | nothing | ssh, then gh ON THIS MAC |
  * | readBranch | one folder on that machine | nothing | ssh |
+ * | readHistory | one folder on that machine | nothing | ssh |
  *
  * `readRuns` is the one row whose Spawns column names two programs. The ssh is
  * the read of that machine's branch. The gh runs HERE and never leaves this Mac,
@@ -919,6 +928,35 @@ export interface MachinesInvokeChannelMap {
     req: [input: MachineBranchInput];
     res: MachineBranchResult;
   };
+  // PHASE 107. One READ of a page of the newest commits in one folder on one
+  // machine, with the two anchors the swimlane picture needs and the marks that
+  // say which commits are ahead of the followed branch and which are behind it.
+  //
+  // IT CANNOT COMPOSE WHAT IT ASKS. The command that crosses is `repo-history`
+  // from the frozen catalogue in src/main/machines/remote-scripts.ts, chosen by
+  // name, with the folder and the count arriving there as the two positional
+  // parameters.
+  //
+  // IT WRITES NOTHING, on either computer. There is no checkout, no branch and
+  // no cherry pick behind this channel, and the renderer draws no control that
+  // could ask for one.
+  //
+  // THE COUNT IS CLAMPED IN MAIN to 1 and to REMOTE_HISTORY_MAX_COMMITS, so a
+  // renderer that asked for 20,000 is still answered with 500. Condition 57j of
+  // build/conformance-machines.mjs holds that number.
+  //
+  // NOTHING CALLS IT ON A CLOCK. A person expands the group, presses Load more
+  // or presses Refresh, and each of those is one read.
+  //
+  // A folder that is not there, a folder git does not track, a repository with
+  // no commits, a machine that did not answer and a machine Tortie is not
+  // signed in to all come back as a mode word. No prose crosses this channel:
+  // the renderer draws every sentence from src/renderer/app/machine-copy.ts,
+  // where the vocabulary audit reads it.
+  'machines:readHistory': {
+    req: [input: MachineHistoryInput];
+    res: MachineHistoryResult;
+  };
 }
 
 /** The one event channel: the connection test's own bytes and its end. */
@@ -1015,6 +1053,11 @@ export interface GmuxMachinesExtras {
     // is. It reads and never writes, and it cannot change what is checked out
     // over there.
     readBranch(input: MachineBranchInput): Promise<MachineBranchResult>;
+    // Phase 107. Reads a page of the newest commits in one folder on one
+    // machine, with the two anchors the swimlane picture needs. It reads and
+    // never writes, it is capped at 500 commits in one answer, and it does not
+    // read the files one commit changed.
+    readHistory(input: MachineHistoryInput): Promise<MachineHistoryResult>;
   };
 }
 
@@ -1955,3 +1998,155 @@ export interface MachineBranchResult {
   readonly elapsedMs: number;
 }
 // ---- END PHASE 106 ----
+
+// ---- PHASE 107 ----
+// The commit graph of one folder on another machine (Phase 107, research 57
+// section 5).
+//
+// WHAT THIS IS FOR. A project can be a folder on another machine. On that tab
+// the Source Control view already draws the changed files, the branch and the
+// workflow runs. It did not draw the history, so a person had to open a session
+// over there and type. This call answers with a page of the newest commits, the
+// two anchors the swimlane picture needs, and the marks that say which commits
+// are ahead of the followed branch and which are behind it.
+//
+// IT IS A SECOND READ RATHER THAN A WIDER `readBranch`. A history read costs
+// tens of thousands of bytes and a branch read costs a hundred. Folding them
+// into one call would make every Branch read pay for a group nobody opened,
+// which is the union script shape research 57 section 5.3 refused. So each
+// group pays for itself and a collapsed group costs nothing.
+//
+// NOTHING IS WRITTEN, on either computer. The `repo-history` script is a read,
+// the catalogue's two writers did not move, and there is no checkout, no branch
+// and no cherry pick behind this channel. The local History group has all three
+// and this one has none.
+//
+// NOTHING CALLS IT ON A CLOCK. A person expands the group, presses Load more or
+// presses Refresh, and each of those is one read. Main cannot see a commit made
+// on another computer, so there is no watch and no poll.
+//
+// THE ANSWER IS CAPPED AT 500 COMMITS AND MAIN CLAMPS IT. One commit is about
+// 270 base64 bytes, so 500 is about 135,000 bytes and 20,000 would be 5,400,000
+// bytes in one answer that main buffers whole. Condition 57j of
+// build/conformance-machines.mjs holds the two constants below.
+//
+// THE FILES ONE COMMIT CHANGED ARE NOT READ. Reading them is a second script
+// and a third one for the two sides of a file, and this phase ships one script.
+// The renderer says so on screen.
+
+/**
+ * The page a person gets on the first expand, and what Load more adds.
+ *
+ * 50, which is what `HISTORY_PAGE` in `src/renderer/scm/depth.ts` already gives
+ * the local History, so the two page at the same rate and a person learns one
+ * number.
+ */
+export const REMOTE_HISTORY_PAGE = 50;
+
+/**
+ * The most commits Tortie will read from another machine in one answer.
+ *
+ * 500, and it is a wire budget rather than a taste. One commit is about 270
+ * base64 bytes, so 500 is about 135,000 bytes and 20,000 would be 5,400,000
+ * bytes in one answer that main buffers whole, hands to a parser whole and
+ * sends over one IPC message whole. `MAX_LOG_COUNT` in
+ * `src/main/git/service.ts` is 20,000 because a local walk pays for it in local
+ * disk reads. A remote walk pays for it over a link a person's laptop may be
+ * holding on a hotel network. Condition 57j of
+ * `build/conformance-machines.mjs` holds this at 500.
+ */
+export const REMOTE_HISTORY_MAX_COMMITS = 500;
+
+/** Why one read of the history on a remote tab answered the way it did. */
+export type MachineHistoryMode =
+  /** The walk answered and it carried at least one commit. */
+  | 'ok'
+  /**
+   * The folder is a repository and the walk carried no commit.
+   *
+   * ONE WORD FOR TWO CAUSES. A repository with no commits yet answers this, and
+   * so does a repository with no branches, tags or remote branches to walk
+   * from. The sentence on screen names both.
+   */
+  | 'noCommits'
+  /** The folder is there and git does not track it. */
+  | 'notRepo'
+  /** There is no folder at that path on that machine. */
+  | 'missing'
+  /** The folder is there and that account cannot read it. */
+  | 'denied'
+  /** Tortie is not signed in to that machine. Nothing was asked. */
+  | 'notConnected'
+  /** The machine did not answer, or answered something unreadable. */
+  | 'unreachable';
+
+/** One history read against one folder on one machine. */
+export interface MachineHistoryInput {
+  readonly machineId: string;
+  /** The folder on that machine. Absolute, and never a path on this Mac. */
+  readonly cwd: string;
+  /**
+   * Commits to draw. Clamped to 1 and to {@link REMOTE_HISTORY_MAX_COMMITS}.
+   *
+   * The window is re-walked from the top on every read rather than continued
+   * from a cursor. A cursor has to be right about what happened on the far side
+   * between two presses, and it cannot be, because a commit made over there in
+   * between shifts the window and the two pages then overlap or drop a row.
+   */
+  readonly maxCount?: number;
+}
+
+/** What one machine answered about the commits in one folder. */
+export interface MachineHistoryResult {
+  readonly machineId: string;
+  /** That machine's own label, so the renderer never composes one. */
+  readonly machineLabel: string;
+  /** The folder that was read, on that machine. */
+  readonly cwd: string;
+  readonly mode: MachineHistoryMode;
+  /** The page, newest first, in topological order. */
+  readonly entries: readonly GitGraphLogEntry[];
+  /** What was asked for after the clamp. */
+  readonly maxCount: number;
+  /** The ceiling itself, so no sentence on screen writes the number. */
+  readonly ceiling: number;
+  /**
+   * THE CUT. True when the walk found more commits than the page holds.
+   *
+   * The far side is asked for one commit more than the page, and this is set
+   * when that extra commit arrived. The extra one is dropped rather than drawn.
+   */
+  readonly hasMore: boolean;
+  /**
+   * THE FAR END. True when `maxCount` is the ceiling and `hasMore` is true.
+   *
+   * There are older commits in that folder and Tortie does not read them here.
+   * The renderer draws no Load more button in this state and says why.
+   */
+  readonly atCeiling: boolean;
+  /** HEAD's tip over there, or null. */
+  readonly headSha: string | null;
+  /** The tip of the branch HEAD follows over there, or null. */
+  readonly upstreamSha: string | null;
+  /** `git merge-base` of those two over there, or null. */
+  readonly mergeBase: string | null;
+  /** How many commits in the page carry an unpushed or unpulled mark. */
+  readonly markedCount: number;
+  /**
+   * THE SECOND CUT. True when the mark read came back at its own cap.
+   *
+   * The marks are read with the same count as the walk. When that many arrived,
+   * an older commit is drawn without a mark whether it has one or not, and the
+   * renderer says so. Phase 99 carried a truncation flag through main that the
+   * panel never read, so a cut list drew as a whole one. This one is drawn, and
+   * so are `hasMore` and `atCeiling`.
+   */
+  readonly divergenceTruncated: boolean;
+  /** Bytes the machine's answer carried, so a probe can report them. */
+  readonly answerBytes: number;
+  /** Epoch ms ON THIS MAC when the answer arrived. */
+  readonly readAt: number;
+  /** Wall time from the call to the answer, in ms. The round trip is in it. */
+  readonly elapsedMs: number;
+}
+// ---- END PHASE 107 ----

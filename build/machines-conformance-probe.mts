@@ -81,6 +81,15 @@ import { validateMachinesFile } from '../src/main/machines/schema';
 // side prints and the format this end parses cannot drift apart. Loading this
 // module spawns nothing: every function in it is a pure parser.
 import { BRANCH_FORMAT } from '../src/main/git/parse';
+// Phase 107, condition 57d. The same reason as the line above, for the format
+// the history walk asks with. Loading this module spawns nothing, because
+// every function in it is a pure parser.
+import { GRAPH_LOG_FORMAT } from '../src/main/git/graph-parse';
+// Phase 107, condition 57j reads its two numbers out of the dynamic import of
+// '../src/shared/ipc' below, rather than with a static import. A static one
+// through that barrel is refused at instantiation time by this loader, which is
+// why every other constant this probe takes from the contract arrives the same
+// way.
 // Phase 69, conditions 11 to 18. Every one of these is pure: no spawn, no server,
 // no Electron and no request.
 import {
@@ -1046,7 +1055,12 @@ const {
   REMOTE_SESSION_LINE_DEPTHS,
   REMOTE_SESSION_LINES_BYTES_MAX,
   REMOTE_SESSION_LINES_DEFAULT,
-  REMOTE_SESSION_LINES_MAX
+  REMOTE_SESSION_LINES_MAX,
+  // Phase 107, condition 57j. The page and the ceiling, being the two numbers
+  // that keep one history answer under about 162,000 bytes and keep this phase
+  // at tier 2. Both are compiled constants.
+  REMOTE_HISTORY_PAGE,
+  REMOTE_HISTORY_MAX_COMMITS
 } = await import('../src/shared/ipc');
 // Phase 100, condition 54. The composer the read reuses. It is pure: it reads no
 // machine, opens no file and starts nothing.
@@ -1874,6 +1888,133 @@ process.stdout.write(
         actionsImports: [
           ...source.matchAll(/from '\.\.\/actions\/([a-z-]+)'/g)
         ].map((hit) => hit[1] ?? '')
+      };
+    })(),
+
+    // --- Phase 107, condition 57 -------------------------------------------
+    // Pure. It reads one compiled script text, one composed command, two
+    // compiled constants and three modules' own source text. It starts nothing,
+    // opens no file under the person's home, contacts no machine and makes no
+    // request. Two of the three source files belong to the renderer, and they
+    // are READ AS TEXT rather than imported, because importing a React module
+    // here would pull a renderer into a probe that must stay pure.
+    phase107: (() => {
+      const historyPath = join(machinesDir, 'remote-history.ts');
+      let source = '';
+      try {
+        source = readFileSync(historyPath, 'utf8');
+      } catch {
+        source = '';
+      }
+      const rendererScm = join(repoRoot, 'src', 'renderer', 'scm');
+      const readText = (path: string): string => {
+        try {
+          return readFileSync(path, 'utf8');
+        } catch {
+          return '';
+        }
+      };
+      // 57l and 57m. The renderer's own two files, read as text.
+      const storeText = readText(join(rendererScm, 'remote-history.ts'));
+      const panelText = readText(join(rendererScm, 'RemoteHistorySection.tsx'));
+      const script = REMOTE_SCRIPTS.find((row) => row.id === 'repo-history');
+      const text = script?.text ?? '';
+      // The exact bytes the door would compose for a hostile folder value. The
+      // gate searches these rather than the script alone, because the command
+      // is what actually crosses.
+      const command =
+        script === undefined
+          ? ''
+          : composeRemoteScriptCommand(script, [HOSTILE_VALUE, '51']);
+      // 57d. The format the far side asks with, read out of the text rather
+      // than written a second time here.
+      const format = /--format='([^']*)'/.exec(text)?.[1] ?? '';
+      // 57g. The three verbs that would make a sentence on screen false. They
+      // are composed from pieces so this probe's own text does not trip the
+      // rule it is checking.
+      const FETCH_VERBS = [
+        `git fe${'t'}ch`,
+        `git pu${'l'}l`,
+        `git remote up${'d'}ate`
+      ];
+      // 57l. A timer would make this group read a machine nobody asked it to
+      // read. Names are composed so this probe's own text does not trip it.
+      const TIMERS = [
+        `setInt${'e'}rval`,
+        `setTim${'e'}out`,
+        `requestAnimation${'F'}rame`
+      ];
+      return {
+        present: source.length > 0,
+        script:
+          script === undefined
+            ? null
+            : { mode: script.mode, params: script.params },
+        gitVerbs: [
+          ...new Set(
+            [...text.matchAll(/git (?:--no-pager )?([a-z-]+)/g)].map(
+              (hit) => hit[1] ?? ''
+            )
+          )
+        ].sort(),
+        // 57d. Two copies of one format is how one of them goes stale.
+        format,
+        graphLogFormat: GRAPH_LOG_FORMAT,
+        // 57e. Research 57 section 9 defect 5, made executable a third time.
+        namesCommonDir: text.includes('--git-common-dir'),
+        namesAbsoluteDir: text.includes(`--absolute${'-'}git-dir`),
+        // 57f. The bytes that actually cross, rather than the script alone.
+        command,
+        hostileInCommand: command.split(HOSTILE_VALUE).length - 1,
+        hostileQuoted: command.includes(shellQuoteArgv([HOSTILE_VALUE])),
+        hostileInScript: text.includes(HOSTILE_VALUE),
+        // 57g. IT NEVER FETCHES.
+        fetchVerbsInScript: FETCH_VERBS.filter((verb) => text.includes(verb)),
+        // 57h. THE EXECUTABLE FORM OF "NO REF NAME IS A VALUE". The walk names
+        // its three ref classes and enumerates nothing, so nothing is piped and
+        // no name crosses the link.
+        walksBranches: text.includes('--branches'),
+        walksTags: text.includes('--tags'),
+        walksRemotes: text.includes('--remotes'),
+        refusedWalkFlags: ['--stdin', '--all', 'refs/stash', 'refs/notes'].filter(
+          (flag) => text.includes(flag)
+        ),
+        // 57i. What the module does, counted in its own text.
+        remoteReads: [...source.matchAll(/runRemoteRead\(/g)].length,
+        callsRemoteWrite: source.includes('runRemoteWrite'),
+        scriptIdsNamed: REMOTE_SCRIPTS.map((row) => row.id).filter((id) =>
+          source.includes(`'${id}'`)
+        ),
+        actionsImports: [
+          ...source.matchAll(/from '\.\.\/actions\/([a-z-]+)'/g)
+        ].map((hit) => hit[1] ?? ''),
+        // 57i, THE GUARD THAT STAYED HOME. The header of remote-history.ts
+        // says in prose that `sanitizeRefNames` is never called and never
+        // crosses, so a raw count of the name would fail on the sentence that
+        // explains it. What is counted here is CODE LINES that name it, with
+        // comment lines dropped, which is the shape `namesSafeStorage` below
+        // already uses for the same reason.
+        sanitizeRefNamesLines:
+          source.length === 0
+            ? []
+            : sourceLines(historyPath)
+                .filter(
+                  (row) =>
+                    row.text.includes('sanitizeRefNames') &&
+                    !/^(\*|\/\/|\/\*)/.test(row.text)
+                )
+                .map((row) => row.line),
+        // 57j. THE EXECUTABLE FORM OF THE TIER STAYING AT 2.
+        page: REMOTE_HISTORY_PAGE,
+        ceiling: REMOTE_HISTORY_MAX_COMMITS,
+        // 57l. No timer, anywhere in the renderer's store.
+        storePresent: storeText.length > 0,
+        storeTimers: TIMERS.filter((name) => storeText.includes(name)),
+        // 57m. THE EXECUTABLE FORM OF THE PHASE 99 HONESTY GAP NOT REPEATING.
+        panelPresent: panelText.length > 0,
+        panelHonestyFields: ['hasMore', 'atCeiling', 'divergenceTruncated'].filter(
+          (field) => panelText.includes(field)
+        )
       };
     })(),
 

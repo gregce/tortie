@@ -121,6 +121,7 @@ it as `GMUX_HARNESS_DIR`.
 | `npm run probe:p100` | `/tmp/p100-lines-<pid>`, made fresh on every run and removed at the end. It drives no Electron, so it reads no config root. | `gmux-p100-lines-<pid>`, on the scratch machine, which is this Mac over a loopback sshd. `refuseRealSockets` rejects the names `gmux` and `default` before anything starts. It is the only tmux server this probe writes to, and it holds the one session the run makes. |
 | `npm run probe:p105` | `/tmp/p105-runs-<pid>`, made fresh on every run and removed at the end. It drives no Electron, so it reads no config root. | `gmux-p105-runs-<pid>`, on the scratch machine, which is this Mac over a loopback sshd. `refuseRealSockets` rejects the names `gmux` and `default` before anything starts. This probe starts no tmux session at all. |
 | `npm run probe:p106` | `/tmp/p106-branch-<pid>`, made fresh on every run and removed at the end. It drives no Electron, so it reads no config root. | `gmux-p106-branch-<pid>`, on the scratch machine, which is this Mac over a loopback sshd. `refuseRealSockets` rejects the names `gmux` and `default` before anything starts. This probe starts no tmux session at all. |
+| `npm run probe:p107` | `/tmp/p107-history-<pid>`, made fresh on every run and removed at the end. It drives no Electron, so it reads no config root. | `gmux-p107-history-<pid>`, on the scratch machine, which is this Mac over a loopback sshd. `refuseRealSockets` rejects the names `gmux` and `default` before anything starts. This probe starts no tmux session at all. |
 
 `smoke:execplane`, `smoke:remote`, `smoke:capture:remote` and `smoke:p93remote`
 all honour a `GMUX_CONFIG_ROOT` already in the environment and fall back to the
@@ -187,6 +188,45 @@ it prints what it measured rather than what anybody claimed. Row 13 compares
 modification time of every file under `.git`, because a read must leave the
 repository as it found it. It counts `tmux -L gmux list-sessions` before and
 after and fails on a difference.
+
+`npm run probe:p107` is Phase 107's live gate, being the commit graph of a
+folder on another machine. It makes its own repositories under `/tmp`, one of
+them holding 10,000 commits, drives `src/main/machines/remote-history.ts`
+against a loopback sign in server, and checks twenty one things. Five of them
+are what the phase rests on.
+
+Row 2 compares the 50 commit names Tortie drew against
+`git log --branches --tags --remotes --topo-order --max-count=50 --format=%H`
+run directly in that repository, name for name and in order.
+
+Row 7 asks for 20,000 commits against the 10,000 commit repository and requires
+the answer to carry 500 rows. That is the row that keeps this phase at tier 2,
+because a person who cannot ask for 20,000 commits cannot make main buffer
+5,400,000 bytes in one answer.
+
+Row 9 is a linked worktree on a second branch, and it is the row that fails if
+the script ever asks with `--absolute-git-dir` instead of `--git-common-dir`.
+
+Row 13 builds a repository holding a commit and no refs at all, and requires
+the answer to carry no rows. That is the measured refusal of the
+`git log --stdin` shape research 57 proposed. Measured on 2026-08-20 against
+git 2.50.1, `printf '' | git log --stdin` walks HEAD silently, so an empty ref
+list on the far side would have answered a HEAD only walk while this end
+believed it had asked for everything.
+
+Row 16 measures the number of external programs the far side runs, by putting
+counting wrappers on PATH ahead of `git`, `base64` and `tr` and running each of
+eight shapes five times. It prints what it measured rather than what anybody
+claimed.
+
+Three more rows carry numbers rather than verdicts. Rows 4, 5 and 6 print the
+answer bytes and the milliseconds at 100, 1,000 and 10,000 commits. Row 20
+measures the two `git show` calls a commit's file diff would need, over plain
+`ssh` and outside the product, because Tortie does not draw that diff on a
+remote tab after this phase and the next phase should inherit a measurement
+rather than an estimate. The probe counts `tmux -L gmux list-sessions` before
+and after and fails on a difference, and it reads the size of the person's own
+`~/.ssh/known_hosts` before and after for the same reason.
 
 `npm run probe:p105` is Phase 105's live gate, being the workflow runs for the
 branch checked out on another machine. It makes six repositories and three plain

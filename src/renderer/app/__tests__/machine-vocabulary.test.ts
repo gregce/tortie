@@ -148,7 +148,15 @@ const FILES: readonly string[] = [
   // read as well, so a later round cannot type a sentence straight into the
   // group.
   'src/renderer/scm/remote-branch.ts',
-  'src/renderer/scm/RemoteBranchSection.tsx'
+  'src/renderer/scm/RemoteBranchSection.tsx',
+  // Phase 107. The History group for a folder on another machine, being the
+  // store that holds one page per folder and the section that draws it.
+  // Between them they name a machine, a commit, an author, a branch mark and an
+  // instant. Every sentence they draw is a named export in machine-copy.ts,
+  // which is the first file on this list. Both are read as well, so a later
+  // round cannot type a sentence straight into the group.
+  'src/renderer/scm/remote-history.ts',
+  'src/renderer/scm/RemoteHistorySection.tsx'
 ];
 
 /**

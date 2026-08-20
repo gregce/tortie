@@ -1736,6 +1736,57 @@ body.scm-section-dragging .section-gripper {
    row.
    --------------------------------------------------------------------------- */
 
+/* THE COLUMN FOR A FOLDER ON ANOTHER MACHINE SCROLLS. THE LOCAL ONE STILL DOES
+   NOT, AND HERE IS WHY THE TWO DIFFER.
+
+   `.sidebar-rest` in ../styles/app.css carries `overflow: hidden` and gives its
+   reason, which is that every section manages its own scrolling and an outer
+   scrollbar would double up. That holds for the local column, where the four
+   groups are the whole of the content and each one has a body of its own.
+
+   IT DOES NOT HOLD HERE, and Phase 107 is where it stopped holding. This column
+   also draws sentences BETWEEN the groups, which belong to no body and cannot
+   scroll inside one. MEASURED at 1440 by 885 with the default sidebar, with the
+   History group open over fifty rows, the column is 748 px and its content is
+   1170 px. The sentences under the History group are 480 of those, being 64% of
+   the column. Nothing can make that fit.
+
+   WHAT THE SHIPPED BUILD DID INSTEAD, and it is why this rule is here. Every
+   group carried `flex: 0 1 auto`, so the column met the shortfall by shrinking
+   the groups. The History group went to 0 px with 50 rows inside it, the Changes
+   group went to 0 px with its own sentence cut through the middle, and the
+   Runs group and the closing sentence were pushed past the bottom of a box with
+   `overflow: hidden` over it, where no gesture could reach them.
+
+   So the groups keep their heights, each one is capped at 45% of the column, and
+   what does not fit is scrolled to. Both scrollbars are real and neither is
+   decoration: the column's reaches the groups below, and a group's own body
+   reaches the rest of its rows. */
+.scm-sections.remote {
+  overflow-y: auto;
+  /* NEVER SIDEWAYS. CSS computes the other axis to `auto` when its pair is not
+     visible, so without this line a row overshooting by a few pixels raises a
+     horizontal scrollbar under the whole column. The local History body carries
+     the same line for the same reason, with its own measurements. */
+  overflow-x: hidden;
+}
+
+/* The Changes group shares its class with the local column, so its no-shrink
+   rule is written here rather than beside it. The three groups below it carry
+   the same rule in their own files. */
+.scm-sections.remote > .section-scm {
+  flex-shrink: 0;
+}
+
+/* A SENTENCE IS NEVER SQUASHED, and `flex: 0 0 auto` is the whole of that rule.
+   Both of these are direct children of `.scm-sections`, which is a flex column,
+   so without it a column with more content than height shrinks them and their
+   own text draws over the sentence beneath. A sentence a person cannot read is
+   the defect Phase 105 and Phase 107 each fixed once, and two sentences drawn on
+   top of each other is a third way to reach it. With this rule the group that
+   holds rows is the one thing that gives way, down to the floor its own file
+   sets, and past that the column runs off the bottom where it can be seen and
+   measured rather than overlapping in place. */
 .scm-remote-band {
   margin: 0;
   padding: var(--space-3) var(--space-5);
@@ -1743,6 +1794,7 @@ body.scm-section-dragging .section-gripper {
   font-size: var(--text-xs);
   line-height: var(--lh-xs);
   border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
 }
 
 .scm-remote-note {
@@ -1751,6 +1803,7 @@ body.scm-section-dragging .section-gripper {
   color: var(--text-muted);
   font-size: var(--text-xs);
   line-height: var(--lh-xs);
+  flex: 0 0 auto;
 }
 
 /* The time of the last read, in the header band beside Refresh. Nothing polls

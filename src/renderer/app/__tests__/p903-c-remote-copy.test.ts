@@ -49,7 +49,7 @@ import {
   readClockTime,
   REMOTE_BAND_BODY,
   REMOTE_COPIED_WITH_MACHINE,
-  REMOTE_SCM_SECTIONS_ABSENT,
+  REMOTE_SCM_SECTIONS_NOTE,
   remoteBandTitle,
   remoteChangesBand,
   remoteChangesNone,
@@ -180,22 +180,41 @@ describe('Source Control', () => {
     );
   });
 
-  it('says once why history is not on screen', () => {
-    // PHASE 105 REWROTE THIS ONE AND PHASE 106 REWROTE IT AGAIN. It named three
-    // sections that are not drawn for a folder on another machine, and each
-    // round that shipped one of them made another clause false. History is the
-    // one that is left. The word branch is singular on purpose, because Tortie
-    // shows the one branch that is checked out and does not list the others.
-    expect(REMOTE_SCM_SECTIONS_ABSENT).toBe(
-      'Tortie shows the changed files, the branch and the runs for a folder ' +
-        'on another machine. It does not show history there.'
+  it('says once what the view shows and what it does not', () => {
+    // PHASE 105 REWROTE THIS ONE, PHASE 106 REWROTE IT AGAIN AND PHASE 107
+    // RENAMED IT. It named three sections that are not drawn for a folder on
+    // another machine, and each round that shipped one of them made another
+    // clause false. All three are drawn now, so the constant stopped being a
+    // refusal and its name lost the word ABSENT. What it refuses now is one
+    // read rather than a section, being the files one commit changed. The word
+    // branch is singular on purpose, because Tortie shows the one branch that
+    // is checked out and does not list the others.
+    expect(REMOTE_SCM_SECTIONS_NOTE).toBe(
+      'Tortie shows the changed files, the history, the branch and the runs ' +
+        'for a folder on another machine. It does not show the files one ' +
+        'commit changed there, and it writes nothing in that folder.'
     );
-    expect(REMOTE_SCM_SECTIONS_ABSENT).not.toMatch(
-      /does not show[^.]*\bruns\b/i
+    for (const shipped of ['runs', 'branch', 'history']) {
+      expect(REMOTE_SCM_SECTIONS_NOTE).not.toMatch(
+        new RegExp(`does not show[^.]*\\b${shipped}(es)?\\b`, 'i')
+      );
+    }
+  });
+
+  it('has no export left under the old name', () => {
+    // PHASE 107 PINS THE RENAME, which is the shape this file already uses for
+    // the two constants Phase 97 deleted. A constant that is renamed and left
+    // behind under both names is how two surfaces come to say two things.
+    const source = readFileSync(
+      resolve(ROOT, 'src/renderer/app/machine-copy.ts'),
+      'utf8'
     );
-    expect(REMOTE_SCM_SECTIONS_ABSENT).not.toMatch(
-      /does not show[^.]*\bbranch(es)?\b/i
-    );
+    // The old name survives in ONE place on purpose, being the comment above
+    // the constant that records the rename. The export itself is gone, and so
+    // is the sentence it used to hold.
+    expect(source).not.toContain('export const REMOTE_SCM_SECTIONS_ABSENT');
+    expect(source).not.toContain('It does not show history there.');
+    expect(source).toContain('export const REMOTE_SCM_SECTIONS_NOTE');
   });
 
   it('no longer says a new file is missing, because it is not missing', () => {
@@ -476,7 +495,7 @@ const EVERY: readonly string[] = [
   remoteChangesNone(L),
   remoteChangesUnreachable(L),
   remoteChangesNotRepo(L),
-  REMOTE_SCM_SECTIONS_ABSENT,
+  REMOTE_SCM_SECTIONS_NOTE,
   reviewUntrackedTitle(L),
   symbolsElsewhereTitle(L),
   SYMBOLS_ELSEWHERE_BODY,
@@ -588,7 +607,7 @@ describe('the house writing rules, over every Phase 90.3 sentence', () => {
       remoteTreeMissingBody(P),
       remoteTreeTruncated(4000, 12500, 4000),
       REMOTE_COPIED_WITH_MACHINE,
-      REMOTE_SCM_SECTIONS_ABSENT,
+      REMOTE_SCM_SECTIONS_NOTE,
       SYMBOLS_ELSEWHERE_BODY,
       addRemoteRefusal('notAbsolute', P, L),
       addRemoteRefusal('noSuchMachine', P, L),

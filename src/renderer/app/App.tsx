@@ -171,6 +171,8 @@ import { driveRemoteRuns } from '../scm/p105-runs-shot';
 import type { RemoteRunsProbeSpec } from '../scm/p105-runs-shot';
 import { driveRemoteBranch } from '../scm/p106-branch-shot';
 import type { RemoteBranchProbeSpec } from '../scm/p106-branch-shot';
+import { driveRemoteHistory } from '../scm/p107-history-shot';
+import type { RemoteHistoryProbeSpec } from '../scm/p107-history-shot';
 
 // PHASE 81 harness hook, armed at module load because the moment it has to
 // see, the session list arriving, is over before any drive can start. It
@@ -995,6 +997,22 @@ interface ShotLayoutExtras {
    */
   remoteBranch?: RemoteBranchProbeSpec;
   /**
+   * Phase 107. Seed one history answer for a tab whose folder is on another
+   * machine, open the group through its own control, optionally press Load
+   * more once, and report every sentence it drew with the box the layout engine
+   * gave it.
+   *
+   * The screenshot is the point of this one. Six of the sentences exist to say
+   * what is not true, being that the answer does not refresh, that older
+   * commits exist behind the page, that Tortie stops at a ceiling, that the
+   * ahead and behind marks were read for the page and no further, that a page
+   * is read fresh so the lines on the left can move, and that the files one
+   * commit changed are not read at all. This body is the tallest one the column
+   * draws, so whether all of them fit under the group is a question only a
+   * picture answers, and the driver turns it into a pair of numbers as well.
+   */
+  remoteHistory?: RemoteHistoryProbeSpec;
+  /**
    * Phase 81. Start a restore and a create before the login shell has
    * answered, read every Restore control out of the document while the
    * answer is still coming, and report when each of those moments was.
@@ -1230,6 +1248,13 @@ function useShotLayoutHook(): void {
       if (ext.remoteBranch !== undefined) {
         window.__gmuxShotReady = false;
         await driveRemoteBranch(ext.remoteBranch);
+        window.__gmuxShotReady = true;
+      }
+      // Phase 107. After the Branch drive, so a picture that carries every
+      // group shows each of them in the state its own driver left it in.
+      if (ext.remoteHistory !== undefined) {
+        window.__gmuxShotReady = false;
+        await driveRemoteHistory(ext.remoteHistory);
         window.__gmuxShotReady = true;
       }
       // Phase 81. It runs as early as the harness lets a drive run, because

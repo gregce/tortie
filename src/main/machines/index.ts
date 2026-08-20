@@ -137,9 +137,19 @@
  *    is. It is a read, it writes nothing on either computer, and it can never
  *    change what is checked out over there.
  *
+ * PHASE 107 ADDED ONE MODULE and this file does NOT re-export it either, for
+ * the same reason.
+ *
+ *  - `remote-history.ts` reads a page of the newest commits in one folder on
+ *    one machine, with the two anchors the swimlane picture needs and the marks
+ *    that say which commits are ahead of the followed branch and which are
+ *    behind it. It is a read, it writes nothing on either computer, and it
+ *    cannot check out, branch or cherry pick over there. It does not read the
+ *    files one commit changed.
+ *
  * Its only caller is `ipc.ts`, inside this directory. THE PHASE BRIEF ASKED FOR
  * "the one export line" HERE AND THERE IS NONE, which is a deviation this note
- * states rather than hides: four phases in a row have added a module to this
+ * states rather than hides: five phases in a row have added a module to this
  * directory without a re-export, the growth guardrail in CLAUDE.md asks for a
  * small deliberate export surface rather than a complete one, and no caller
  * outside this directory asks for the name. Add the re-export when one does.

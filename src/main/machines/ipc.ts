@@ -133,8 +133,12 @@ import type {
   // ---- END PHASE 105 ----
   // ---- PHASE 106 ----
   MachineBranchInput,
-  MachineBranchResult
+  MachineBranchResult,
   // ---- END PHASE 106 ----
+  // ---- PHASE 107 ----
+  MachineHistoryInput,
+  MachineHistoryResult
+  // ---- END PHASE 107 ----
 } from '@shared/ipc';
 import { EVT_MACHINE_STATE, EVT_MACHINE_TEST } from '@shared/ipc';
 import { gmuxError } from '../errors';
@@ -209,6 +213,7 @@ import { readSessionLinesOnMachine } from './remote-lines';
 // runs GitHub holds for it. The gh program runs on THIS Mac and never leaves it,
 // and nothing on either computer is written.
 import { readBranchOnMachine } from './remote-branch';
+import { readHistoryOnMachine } from './remote-history';
 import { readRunsOnMachine } from './remote-runs';
 // Phase 90.2, item 2. One git config read here, then one folder walk there. It
 // writes nothing on either computer.
@@ -1131,6 +1136,56 @@ export function registerMachinesIpc(ipc: IpcMain): void {
       readBranchOnMachine({ machineId: input.machineId, cwd: input.cwd })
   );
   // ---- END PHASE 106 ----
+
+  // ---- PHASE 107 ----
+  // PHASE 107. One channel that READS a page of the newest commits in one
+  // folder on one machine, with the two anchors the swimlane picture needs and
+  // the marks that say which commits are ahead of the followed branch and which
+  // are behind it.
+  //
+  // It cannot compose what it asks. The command that crosses is `repo-history`
+  // from the frozen catalogue in ./remote-scripts.ts, chosen by name, with the
+  // folder and the count arriving there as the two positional parameters.
+  //
+  // IT WRITES NOTHING, on either computer. The catalogue's two writers did not
+  // move. There is no checkout, no branch, no cherry pick and no revert behind
+  // this channel, and the renderer draws no control that could ask for one. The
+  // local History group has three of those verbs and this one has none.
+  //
+  // THE COUNT IS CLAMPED HERE as well as in the renderer, to 1 and to
+  // REMOTE_HISTORY_MAX_COMMITS, which is 500. A renderer that asked for 20,000
+  // is answered with 500. Condition 57j of build/conformance-machines.mjs holds
+  // that number, and it is what keeps one answer under about 162,000 bytes.
+  //
+  // IT NEVER FETCHES. The marks are measured against the copy of the upstream
+  // that machine last fetched, so they can be older than what is on the server.
+  // Condition 57g of build/conformance-machines.mjs fails the script text if it
+  // ever names `git fetch`, `git pull` or `git remote update`.
+  //
+  // NOTHING CALLS IT ON A CLOCK. A person expands the group, presses Load more
+  // or presses Refresh, and each of those is one read. There is no watch,
+  // because main cannot see a commit made on another computer.
+  //
+  // THE FILES ONE COMMIT CHANGED ARE NOT READ. That is a second script and a
+  // third one for the two sides of a file, and this phase ships one script. The
+  // renderer says so on screen.
+  //
+  // It NEVER THROWS. A folder that is not there, a folder git does not track, a
+  // repository with no commits, a machine that did not answer and a machine
+  // Tortie is not signed in to all come back as a mode word. No prose crosses
+  // this channel: the renderer draws every sentence from
+  // src/renderer/app/machine-copy.ts, where the vocabulary audit reads it.
+  handle(
+    ipc,
+    'machines:readHistory',
+    async (_event, input: MachineHistoryInput): Promise<MachineHistoryResult> =>
+      readHistoryOnMachine({
+        machineId: input.machineId,
+        cwd: input.cwd,
+        ...(input.maxCount === undefined ? {} : { maxCount: input.maxCount })
+      })
+  );
+  // ---- END PHASE 107 ----
 }
 
 /**

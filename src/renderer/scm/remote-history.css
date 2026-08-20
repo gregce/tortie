@@ -1,0 +1,192 @@
+/**
+ * The History group for a folder on another machine (Phase 107).
+ *
+ * Tokens only, per DESIGN.md section 1. There is no colour literal in this
+ * file. The row metrics copy the local History exactly, because the picture in
+ * the gutter is drawn by the same code and it is built for a 24 px row.
+ *
+ * THE ROW IS NOT AN AFFORDANCE. It has no hover fill, no selected fill and no
+ * pointer cursor, because there is nothing to press. The local History row has
+ * all three and it opens the files that commit changed. This group does not
+ * read those, the group says so under itself, and a row that lit up under the
+ * pointer would promise something that never happens.
+ *
+ * The group has no hue of its own, for the same reason the three groups beside
+ * it have none. The folder being on another computer is the ordinary state of
+ * this tab, and a tinted panel would read as a warning about something that is
+ * not wrong.
+ */
+
+/* IT NEVER GIVES UP ITS OWN HEIGHT, and `flex: 0 0 auto` is the whole of that.
+   Every group in this column used to carry `flex: 0 1 auto`, which lets the
+   column shrink a group to nothing when there is more content than height.
+   MEASURED at 1440 by 885 with the default sidebar, this group's own content is
+   about 1252 px at fifty rows against a 748 px column, so it took nearly all the
+   shrinking, the section came out 0 px tall, the body came out 6 px, 50 rows sat
+   in the document, 0 were on screen, and the Load more button was inside those
+   6 px. A section sets no `overflow` of its own, so its header kept drawing at
+   full height over the 0 px box, and `document.elementFromPoint` over the first
+   sentence below the group returned that header's chevron.
+
+   The Changes group above had the same rule and the same result in the same
+   picture. Its body measured 0 px and the sentence inside it, which says nothing
+   has changed in that folder, was cut through the middle.
+
+   So no group in this column shrinks any more, each one is capped at 45% of the
+   column by the rule below, and the column itself scrolls. `.scm-sections.remote`
+   in ./scm.css carries that rule and the numbers behind it. */
+.section-scm-remote-history {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  min-height: 0;
+}
+
+/* THE 45% CAP IS WHAT DECIDES HOW MANY ROWS A PERSON SEES, now that the group
+   takes its own height rather than what the column has left. Measured at 1440 by
+   885, the column is 748 px, the cap is 336 px, the header takes 28 of those and
+   the body shows 12 whole rows of the 50 in the page. The rest of the page is
+   reached by scrolling the body, which is where the Load more button sits.
+
+   The cap is also why every sentence this group says about the answer as a whole
+   is drawn BELOW the section rather than inside its body. The body scrolls, so a
+   sentence in it can end up under its own fold. That happened to the Runs group
+   for one round and 36 of the 44 px of one sentence were hidden. See the header
+   of ./RemoteHistorySection.tsx. */
+.section-scm-remote-history:not(.collapsed) {
+  max-height: 45%;
+}
+
+.section-scm-remote-history.collapsed {
+  max-height: none;
+  flex: 0 0 auto;
+}
+
+/* The scrolling list. It names the same container the local History names, so
+   the ref pills shrink at the same widths in both. Without the container the
+   pills would keep their full width at a 220 px sidebar and the subject column
+   would lose its floor. */
+.rhist-body {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: var(--space-3);
+  container-type: inline-size;
+  container-name: scm-history;
+}
+
+/* The one sentence that stands in place of the rows. */
+.rhist-note {
+  padding: var(--space-2) var(--space-5) var(--space-2) var(--space-7);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-muted);
+}
+
+/* 24 px, and it is not a taste. The gutter SVG is drawn at exactly that height
+   by ./graph/geometry.ts, so a taller row would leave the lanes with a gap
+   between them and the picture would read as broken history. */
+.rhist-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 24px;
+  flex: 0 0 24px;
+  padding-right: var(--space-4);
+  padding-left: 0;
+  min-width: 0;
+  cursor: default;
+  user-select: none;
+}
+
+/* Work this end holds that the followed branch does not is the ordinary case
+   and it takes no treatment. Work the followed branch holds and this end does
+   not is a lightness step rather than a hue, so it survives greyscale and
+   colour blindness, and it is the same step the local History takes. */
+.rhist-row[data-sync='unpulled'] .rhist-subject {
+  color: var(--text-secondary);
+}
+
+.rhist-subject {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 0 4 auto;
+  min-width: 48px;
+}
+
+.rhist-author {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* Sheds before the subject, which shrinks at 4 above. */
+  flex: 0 8 auto;
+  min-width: 0;
+}
+
+.rhist-space {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.rhist-age {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+
+/* The one control under the rows. It sits inside the list that scrolls, which
+   is where the local History puts its own, so a person finds it at the bottom
+   of the rows rather than under a group they have to scroll past. */
+.rhist-more {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  height: 24px;
+  flex: 0 0 24px;
+  padding: 0 var(--space-4) 0 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--accent-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.rhist-more:disabled {
+  color: var(--text-muted);
+  cursor: default;
+}
+
+/* The lanes run THROUGH the paging row, so the picture reads as continuing into
+   the next page rather than stopping at the button. */
+.rhist-more > .scm-graph,
+.rhist-tail > .scm-graph {
+  margin-right: var(--space-3);
+}
+
+.rhist-tail {
+  display: flex;
+  align-items: center;
+  height: 24px;
+  flex: 0 0 24px;
+}
+
+/* The rows themselves. The body is the box that scrolls and this is the column
+   inside it, so the paging button at the end sits under the last row. */
+.rhist-list {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}

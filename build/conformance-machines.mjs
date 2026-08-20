@@ -222,7 +222,7 @@
  *     verb other than `rev-parse` and `for-each-ref`; the format inside its text
  *     plus `%(subject)` is not exactly `BRANCH_FORMAT` from
  *     `src/main/git/parse.ts`; `ALLOWED_GIT_VERBS` is not exactly
- *     `for-each-ref`, `ls-files`, `rev-parse`, `show` and `status`; the script
+ *     the eight members of `ALLOWED_GIT_VERBS`; the script
  *     names `--absolute-git-dir` or does not name `--git-common-dir`; a hostile
  *     folder value reaches the script text or appears other than once and quoted
  *     in the composed command; the script names `git fetch`, `git pull` or
@@ -230,10 +230,41 @@
  *     `runRemoteWrite`, makes other than exactly one remote read, names a script
  *     other than `repo-branch`, or imports anything from `../actions/`; the
  *     catalogue's writers are not exactly `image-put` then `git-clone`; or the
- *     catalogue does not hold sixteen scripts. TWO ITEMS CARRY THIS FEATURE. The
- *     format relation is what keeps one format in one place, and the fetch names
- *     are the executable form of the sentence telling a person that Tortie
+ *     catalogue does not hold seventeen scripts. TWO ITEMS CARRY THIS FEATURE.
+ *     The format relation is what keeps one format in one place, and the fetch
+ *     names are the executable form of the sentence telling a person that Tortie
  *     counted against a copy that machine already had and fetched nothing.
+ *
+ *  57. PHASE 107, being the commit graph of a folder on another machine. It
+ *     fails when: the catalogue holds no `repo-history`, or holds it as
+ *     anything but a read taking two values; that script names a git verb
+ *     other than `log`, `merge-base`, `rev-list` and `rev-parse`;
+ *     `ALLOWED_GIT_VERBS` is not exactly its eight members; the `--format=`
+ *     literal inside the script is not `GRAPH_LOG_FORMAT` from
+ *     `src/main/git/graph-parse.ts`; the script names `--absolute-git-dir` or
+ *     does not name `--git-common-dir`; a hostile folder value reaches the
+ *     script text or appears other than once and quoted in the composed
+ *     command; the script names `git fetch`, `git pull` or `git remote update`;
+ *     the script does not name `--branches`, `--tags` and `--remotes`, or names
+ *     any of `--stdin`, `--all`, `refs/stash` and `refs/notes`;
+ *     `src/main/machines/remote-history.ts` is absent, calls `runRemoteWrite`,
+ *     makes other than exactly one remote read, names a script other than
+ *     `repo-history`, imports anything from `../actions/`, or names
+ *     `sanitizeRefNames`; `REMOTE_HISTORY_PAGE` is not 50 or
+ *     `REMOTE_HISTORY_MAX_COMMITS` is not 500; the catalogue's writers are not
+ *     exactly `image-put` then `git-clone`, or it does not hold seventeen
+ *     scripts; `src/renderer/scm/remote-history.ts` names a timer; or
+ *     `src/renderer/scm/RemoteHistorySection.tsx` does not name `hasMore`,
+ *     `atCeiling` and `divergenceTruncated`. THREE ITEMS CARRY THIS FEATURE.
+ *     The two constants are the executable form of the tier staying at 2,
+ *     because a person who cannot ask for 20,000 commits cannot make main
+ *     buffer 5,400,000 bytes in one answer. The three field names are the
+ *     executable form of the Phase 99 honesty gap not repeating, because that
+ *     phase carried a truncation flag through main that the panel never read
+ *     and a cut list drew as a whole one. The ref name rules are the executable
+ *     form of "no ref name is a value", which is what let the guard
+ *     `sanitizeRefNames` stay on this side of the link instead of being written
+ *     again in `sh`.
  *
  * WHAT IT DOES NOT PROVE, stated so nobody reads more into a pass. The record
  * is sealed through `safeStorage`, which needs an Electron process, so this
@@ -2576,13 +2607,38 @@ const MUTATING_PROGRAMS = [
  * verbs that touch no server. That list is this one, so this comment says what
  * the list is rather than starting a second one with the same members under a
  * better name. A rename of a safety list is its own round.
+ *
+ * PHASE 107 ADDED THREE, being `log`, `merge-base` and `rev-list`, and they are
+ * the sixth, the seventh and the eighth. `log` walks the object database and
+ * prints commits. `merge-base` reads two commits already in it and answers with
+ * a third. `rev-list` walks the same database and prints commit names. None of
+ * the three opens a network connection, none of them writes a ref, an index or
+ * a working tree file, and none of them can be turned into a write by any flag
+ * this catalogue passes. Research 57 section 5 priced the widening at four, and
+ * it is three because `for-each-ref` joined this list in Phase 106 after that
+ * research was written.
  */
 const ALLOWED_GIT_VERBS = [
   'rev-parse',
   'status',
   'show',
   'ls-files',
-  'for-each-ref'
+  'for-each-ref',
+  'log',
+  'merge-base',
+  'rev-list'
+];
+
+/** The eight members above, sorted, so three conditions read one list. */
+const ALLOWED_GIT_VERBS_SORTED = [
+  'for-each-ref',
+  'log',
+  'ls-files',
+  'merge-base',
+  'rev-list',
+  'rev-parse',
+  'show',
+  'status'
 ];
 
 /**
@@ -3356,16 +3412,13 @@ const P99_FORBIDDEN = P98_FORBIDDEN;
         `later phase may widen it here without saying so.`
     );
   }
-  if (
-    JSON.stringify(allowed) !==
-    JSON.stringify(['for-each-ref', 'ls-files', 'rev-parse', 'show', 'status'])
-  ) {
+  if (JSON.stringify(allowed) !== JSON.stringify(ALLOWED_GIT_VERBS_SORTED)) {
     fail(
       `ALLOWED_GIT_VERBS holds ${allowed.join(', ')}. It holds exactly ` +
-        `for-each-ref, ls-files, rev-parse, show and status. Phase 98 added ` +
-        `ls-files, Phase 99 added nothing and Phase 106 added for-each-ref, ` +
-        `and a round that grows this list has widened what every script in the ` +
-        `catalogue may run.`
+        `${ALLOWED_GIT_VERBS_SORTED.join(', ')}. Phase 98 added ls-files, ` +
+        `Phase 99 added nothing, Phase 106 added for-each-ref and Phase 107 ` +
+        `added log, merge-base and rev-list, and a round that grows this list ` +
+        `has widened what every script in the catalogue may run.`
     );
   }
 }
@@ -3636,14 +3689,13 @@ const P105_CREDENTIAL_WORDS =
   //      fails here.
   const p105Allowed = [...ALLOWED_GIT_VERBS].sort();
   if (
-    JSON.stringify(p105Allowed) !==
-    JSON.stringify(['for-each-ref', 'ls-files', 'rev-parse', 'show', 'status'])
+    JSON.stringify(p105Allowed) !== JSON.stringify(ALLOWED_GIT_VERBS_SORTED)
   ) {
     fail(
       `ALLOWED_GIT_VERBS holds ${p105Allowed.join(', ')}. It holds exactly ` +
-        `for-each-ref, ls-files, rev-parse, show and status. Phase 98 added ` +
-        `ls-files, Phases 99, 100 and 105 added nothing, and Phase 106 added ` +
-        `for-each-ref.`
+        `${ALLOWED_GIT_VERBS_SORTED.join(', ')}. Phase 98 added ls-files, ` +
+        `Phases 99, 100 and 105 added nothing, Phase 106 added for-each-ref ` +
+        `and Phase 107 added log, merge-base and rev-list.`
     );
   }
   // 55g. What the module does, counted in its own text.
@@ -3687,12 +3739,13 @@ const P105_CREDENTIAL_WORDS =
     );
   }
   const p105Count = ((data.remoteRun ?? {}).scripts ?? []).length;
-  if (p105Count !== 16) {
+  if (p105Count !== 17) {
     fail(
-      `the catalogue holds ${String(p105Count)} script(s). It holds sixteen, ` +
+      `the catalogue holds ${String(p105Count)} script(s). It holds seventeen, ` +
         `of which two write. Phase 106 moved that number from fifteen by one ` +
-        `read. A script that appeared without a phase saying so is a command ` +
-        `somebody can run on another person's computer.`
+        `read and Phase 107 moved it from sixteen by one read. A script that ` +
+        `appeared without a phase saying so is a command somebody can run on ` +
+        `another person's computer.`
     );
   }
   // 55i. The one gh command line, and the allowlist's own verdict on it.
@@ -3821,15 +3874,14 @@ const P105_CREDENTIAL_WORDS =
   // 56c. The git verb list, held at the five this phase leaves it at.
   const p106Allowed = [...ALLOWED_GIT_VERBS].sort();
   if (
-    JSON.stringify(p106Allowed) !==
-    JSON.stringify(['for-each-ref', 'ls-files', 'rev-parse', 'show', 'status'])
+    JSON.stringify(p106Allowed) !== JSON.stringify(ALLOWED_GIT_VERBS_SORTED)
   ) {
     fail(
       `ALLOWED_GIT_VERBS holds ${p106Allowed.join(', ')}. It holds exactly ` +
-        `for-each-ref, ls-files, rev-parse, show and status. Phase 106 added ` +
-        `for-each-ref because it reads the ref store and reaches no server, ` +
-        `which is the same test the other four meet and the reason all five ` +
-        `take the exemption from the two prompt names.`
+        `${ALLOWED_GIT_VERBS_SORTED.join(', ')}. Phase 106 added for-each-ref ` +
+        `because it reads the ref store and reaches no server, which is the ` +
+        `same test the other four meet, and Phase 107 added log, merge-base ` +
+        `and rev-list on the same test.`
     );
   }
   // 56g. What the module does, counted in its own text.
@@ -3891,11 +3943,290 @@ const P105_CREDENTIAL_WORDS =
     );
   }
   const p106Count = ((data.remoteRun ?? {}).scripts ?? []).length;
-  if (p106Count !== 16) {
+  if (p106Count !== 17) {
     fail(
-      `the catalogue holds ${String(p106Count)} script(s). It holds sixteen, ` +
+      `the catalogue holds ${String(p106Count)} script(s). It holds seventeen, ` +
         `of which two write.`
     );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 57. Phase 107. The commit graph of a folder on another machine, the ceiling
+// that keeps one answer small, and the guard that stayed home
+// ---------------------------------------------------------------------------
+//
+// A person can now read the newest commits in a folder that lives on another
+// computer, with the same swimlane picture the local History draws. Three
+// properties carry this feature and all three are checked here rather than
+// promised.
+//
+//   A PERSON CANNOT ASK FOR 20,000 COMMITS. One commit is about 270 base64
+//   bytes, so 500 is about 135,000 and 20,000 would be 5,400,000 in one answer
+//   that main buffers whole, hands to a parser whole and sends over one IPC
+//   message whole. The backlog entry says the tier rises to 3 if paging lets a
+//   person ask for that. Condition 57j is what holds the two constants, and it
+//   is therefore the executable form of the tier staying at 2.
+//
+//   THE THREE CUTS ARE DRAWN. Phase 99 carried a truncation flag through main
+//   that the panel never read, so a cut list drew as a whole one. This answer
+//   carries three flags saying what was cut, being `hasMore`, `atCeiling` and
+//   `divergenceTruncated`, and condition 57m fails the build when the panel
+//   does not name all three.
+//
+//   NO REF NAME IS A VALUE. Research 57 section 5.5 proposed reading the ref
+//   names on the far side with `for-each-ref`, piping them into
+//   `git log --stdin`, and moving the guard `sanitizeRefNames` over there. The
+//   shipped walk is `--branches --tags --remotes`, which enumerates nothing and
+//   pipes nothing, so the guard's job is removed rather than relocated.
+//   Condition 57h is the executable form of that, and it also refuses `--stdin`
+//   for a measured reason. `printf '' | git log --stdin` walks HEAD SILENTLY,
+//   so an empty ref list on the far side would answer a HEAD only walk while
+//   this end believed it had asked for everything.
+//
+// Every check below reads one compiled script text, one composed command, two
+// compiled constants and three source files. It starts nothing, opens no file
+// under the person's home, contacts no machine and makes no request.
+
+{
+  const p107 = data.phase107 ?? {};
+  const script = p107.script ?? null;
+  // 57a. A read that is not in the catalogue cannot be sent at all.
+  if (script === null) {
+    fail(
+      'the catalogue holds no script called repo-history, so the History group ' +
+        'on a tab whose project lives on another machine has nothing to ask.'
+    );
+  } else {
+    if (script.mode !== 'read' || script.params !== 2) {
+      fail(
+        `repo-history is a ${String(script.mode)} taking ` +
+          `${String(script.params)} value(s). It is a read taking two, being ` +
+          `the folder on that machine and how many commits to walk.`
+      );
+    }
+    // 57b. Four git verbs, and no fifth.
+    const verbs = [...(p107.gitVerbs ?? [])].sort();
+    if (
+      JSON.stringify(verbs) !==
+      JSON.stringify(['log', 'merge-base', 'rev-list', 'rev-parse'])
+    ) {
+      fail(
+        `repo-history names git ${verbs.join(', ') || 'nothing'}. It names ` +
+          `exactly log, merge-base, rev-list and rev-parse. rev-parse answers ` +
+          `where the git directory is and what two refs point at, log walks ` +
+          `the commits, merge-base finds where the branch and its upstream ` +
+          `parted, and rev-list names the commits on each side of that.`
+      );
+    }
+    // 57d. ONE FORMAT, IN ONE PLACE.
+    if (p107.format !== p107.graphLogFormat) {
+      fail(
+        `the format repo-history asks with is ${String(p107.format)} and ` +
+          `GRAPH_LOG_FORMAT is ${String(p107.graphLogFormat)}. They are one ` +
+          `format. The far side prints what this format says and parseGraphLog ` +
+          `reads it, so two copies that disagree means this end reads the wrong ` +
+          `field as a commit subject. remote-scripts.ts imports nothing, not ` +
+          `even a type, so the format is written out there as a literal and ` +
+          `this is the check that holds the two together.`
+      );
+    }
+    // 57e. Research 57 section 9 defect 5, made executable a third time.
+    if (p107.namesCommonDir !== true || p107.namesAbsoluteDir === true) {
+      fail(
+        `repo-history asks for the git directory with ` +
+          `${p107.namesAbsoluteDir === true ? 'the worktree spelling' : 'neither spelling'}. ` +
+          `It asks with --git-common-dir and never --absolute-git-dir. A ` +
+          `linked worktree must answer as a repository, and row 9 of ` +
+          `node build/probe-p107-history.mjs is the row that fails when the ` +
+          `wrong spelling is used.`
+      );
+    }
+    // 57f. A caller value never reaches the text, and crosses once and quoted.
+    if (p107.hostileInScript === true) {
+      fail(
+        'a caller value reached the repo-history text itself. Values cross as ' +
+          'positional parameters and nothing is ever composed into a script.'
+      );
+    }
+    if (p107.hostileInCommand !== 1 || p107.hostileQuoted !== true) {
+      fail(
+        `a hostile folder value appears ${String(p107.hostileInCommand)} ` +
+          `time(s) in the composed command and quoted is ` +
+          `${String(p107.hostileQuoted)}. It appears exactly once, in the ` +
+          `quoted tail, and never inside the script.`
+      );
+    }
+    // 57g. IT NEVER FETCHES.
+    const fetchers = p107.fetchVerbsInScript ?? [];
+    if (fetchers.length > 0) {
+      fail(
+        `repo-history names ${fetchers.join(', ')}. It may name none of them. ` +
+          `The marks that say which commits are ahead of the followed branch ` +
+          `and which are behind it are measured against the copy of the ` +
+          `upstream that machine last fetched, and a fetch would also be a ` +
+          `write on somebody else's computer made by a read.`
+      );
+    }
+    // 57h. THE EXECUTABLE FORM OF "NO REF NAME IS A VALUE".
+    const missingWalk = [
+      p107.walksBranches === true ? null : '--branches',
+      p107.walksTags === true ? null : '--tags',
+      p107.walksRemotes === true ? null : '--remotes'
+    ].filter((one) => one !== null);
+    if (missingWalk.length > 0) {
+      fail(
+        `repo-history does not name ${missingWalk.join(', ')}. The walk names ` +
+          `its three ref classes itself, which is what keeps every ref name off ` +
+          `the wire and lets the guard sanitizeRefNames stay on this side of ` +
+          `the link instead of being written again in sh.`
+      );
+    }
+    const refused = p107.refusedWalkFlags ?? [];
+    if (refused.length > 0) {
+      fail(
+        `repo-history names ${refused.join(', ')}. It may name none of them. ` +
+          `--stdin is refused because git log --stdin WALKS HEAD SILENTLY when ` +
+          `its input is empty, measured on 2026-08-20 against git 2.50.1, so a ` +
+          `repository with no refs would answer a HEAD only walk while this end ` +
+          `believed it had asked for everything. --all, refs/stash and ` +
+          `refs/notes are refused for research 24's reason, being that they are ` +
+          `not history a person reasons about.`
+      );
+    }
+  }
+  // 57c. The git verb list, held at the eight this phase leaves it at.
+  const p107Allowed = [...ALLOWED_GIT_VERBS].sort();
+  if (
+    JSON.stringify(p107Allowed) !== JSON.stringify(ALLOWED_GIT_VERBS_SORTED)
+  ) {
+    fail(
+      `ALLOWED_GIT_VERBS holds ${p107Allowed.join(', ')}. It holds exactly ` +
+        `${ALLOWED_GIT_VERBS_SORTED.join(', ')}. Phase 107 added log, ` +
+        `merge-base and rev-list because each of them walks or reads the ` +
+        `object database and reaches no server, which is the same test the ` +
+        `first five meet and the reason all eight take the exemption from the ` +
+        `two prompt names.`
+    );
+  }
+  // 57i. What the module does, counted in its own text.
+  if (p107.present !== true) {
+    fail(
+      'src/main/machines/remote-history.ts is not there, so the History group ' +
+        'on a tab whose project lives on another machine has nothing behind it.'
+    );
+  } else {
+    if (p107.callsRemoteWrite === true) {
+      fail(
+        'src/main/machines/remote-history.ts calls runRemoteWrite. This whole ' +
+          'feature is a read, and nothing in it writes on either computer. The ' +
+          'local History group offers checkout, create branch and cherry pick, ' +
+          'and every one of those is a write no phase has built for a machine.'
+      );
+    }
+    if (p107.remoteReads !== 1) {
+      fail(
+        `src/main/machines/remote-history.ts makes ` +
+          `${String(p107.remoteReads)} remote read(s). It makes one. A second ` +
+          `call site is a second thing a person's machine can be asked without ` +
+          `anybody reading this file again.`
+      );
+    }
+    const ids = [...(p107.scriptIdsNamed ?? [])].sort();
+    if (JSON.stringify(ids) !== JSON.stringify(['repo-history'])) {
+      fail(
+        `src/main/machines/remote-history.ts names the catalogue script(s) ` +
+          `${ids.join(', ') || 'none'}. It names exactly repo-history.`
+      );
+    }
+    const fromActions = [...(p107.actionsImports ?? [])].sort();
+    if (fromActions.length > 0) {
+      fail(
+        `src/main/machines/remote-history.ts imports ${fromActions.join(', ')} ` +
+          `from ../actions/. It imports nothing from there. That directory's ` +
+          `own header says its argv allowlist, its gh spawn and its parser are ` +
+          `imported directly only by its tests, Phase 105 already made that ` +
+          `sentence stale for one module, and a second one would make it worse ` +
+          `rather than fix it.`
+      );
+    }
+    const guardLines = p107.sanitizeRefNamesLines ?? [];
+    if (guardLines.length > 0) {
+      fail(
+        `src/main/machines/remote-history.ts names sanitizeRefNames on code ` +
+          `line(s) ${guardLines.join(', ')}. It names it in prose and nowhere ` +
+          `else. The walk is --branches --tags --remotes, so no ref name is a ` +
+          `value at any point and there is nothing for that guard to sanitise. ` +
+          `A call here would mean a ref name had become a value again.`
+      );
+    }
+  }
+  // 57j. THE EXECUTABLE FORM OF THE TIER STAYING AT 2.
+  if (p107.page !== 50 || p107.ceiling !== 500) {
+    fail(
+      `REMOTE_HISTORY_PAGE is ${String(p107.page)} and ` +
+        `REMOTE_HISTORY_MAX_COMMITS is ${String(p107.ceiling)}. They are 50 ` +
+        `and 500. One commit is about 270 base64 bytes, so 500 is about ` +
+        `135,000 bytes in one answer and 20,000 would be 5,400,000. The Phase ` +
+        `107 entry says the tier rises to 3 if paging lets a person ask for ` +
+        `20,000 commits, and this pair is what stops them asking.`
+    );
+  }
+  // 57k. The write door did not move, and the catalogue grew by exactly one.
+  const p107Writers = (data.remoteRun ?? {}).writers ?? [];
+  if (
+    JSON.stringify(p107Writers) !== JSON.stringify(['image-put', 'git-clone'])
+  ) {
+    fail(
+      `the catalogue's write scripts are ${p107Writers.join(', ') || 'none'}. ` +
+        `They are exactly image-put and then git-clone. Phase 107 added a read ` +
+        `and nothing about what Tortie may write on another computer moved.`
+    );
+  }
+  const p107Count = ((data.remoteRun ?? {}).scripts ?? []).length;
+  if (p107Count !== 17) {
+    fail(
+      `the catalogue holds ${String(p107Count)} script(s). It holds seventeen, ` +
+        `of which two write.`
+    );
+  }
+  // 57l. NO TIMER, ANYWHERE. Main cannot see a commit made on another computer,
+  //      so a timer here would read a machine nobody asked it to read.
+  if (p107.storePresent !== true) {
+    fail(
+      'src/renderer/scm/remote-history.ts is not there, so the History group ' +
+        'on a remote tab has no store behind it.'
+    );
+  } else if ((p107.storeTimers ?? []).length > 0) {
+    fail(
+      `src/renderer/scm/remote-history.ts names ` +
+        `${p107.storeTimers.join(', ')}. It names none of them. A read happens ` +
+        `on the first expand, on Load more and on Refresh, and at no other ` +
+        `time. Main cannot see a commit made on another computer, so there is ` +
+        `nothing for a timer to notice and everything for it to cost.`
+    );
+  }
+  // 57m. THE EXECUTABLE FORM OF THE PHASE 99 HONESTY GAP NOT REPEATING.
+  if (p107.panelPresent !== true) {
+    fail(
+      'src/renderer/scm/RemoteHistorySection.tsx is not there, so nothing ' +
+        'draws the commits this feature reads.'
+    );
+  } else {
+    const drawn = p107.panelHonestyFields ?? [];
+    const wanted = ['hasMore', 'atCeiling', 'divergenceTruncated'];
+    const absent = wanted.filter((one) => !drawn.includes(one));
+    if (absent.length > 0) {
+      fail(
+        `src/renderer/scm/RemoteHistorySection.tsx does not name ` +
+          `${absent.join(', ')}. It names all three. Each one says something ` +
+          `was cut: hasMore says older commits exist, atCeiling says Tortie ` +
+          `will not read further, and divergenceTruncated says an older commit ` +
+          `is drawn without a mark whether it has one or not. Phase 99 carried ` +
+          `a truncation flag through main that the panel never read, and a cut ` +
+          `list drew as a whole one.`
+      );
+    }
   }
 }
 
@@ -4427,6 +4758,34 @@ process.stdout.write(
           `against the copy of the upstream that machine already had and ` +
           `nothing was fetched on it. It can never change what is checked out ` +
           `over there.\n`
+  );
+}
+
+// Phase 107. What the History group on a remote tab runs, said out loud.
+{
+  const p107 = data.phase107 ?? {};
+  const script = p107.script ?? null;
+  process.stdout.write(
+    script === null || p107.present !== true
+      ? 'repo-history or src/main/machines/remote-history.ts is NOT there, so ' +
+          'the History group on a tab whose project lives on another machine ' +
+          'has no far side at all.\n'
+      : `the History group on a machine runs repo-history, a ` +
+          `${String(script.mode)} taking ${String(script.params)} value(s). It ` +
+          `names git ${[...(p107.gitVerbs ?? [])].sort().join(', ')} and ` +
+          `nothing else, it asks with --git-common-dir and never ` +
+          `--absolute-git-dir, and the format it asks with is GRAPH_LOG_FORMAT ` +
+          `itself, so the far side and parseGraphLog cannot drift. It walks ` +
+          `--branches --tags --remotes and names none of --stdin, --all, ` +
+          `refs/stash and refs/notes, so no ref name is a value at any point ` +
+          `and sanitizeRefNames stays on this side of the link. It reads at ` +
+          `most ${String(p107.ceiling)} commits in one answer, a page being ` +
+          `${String(p107.page)}, which is about 135,000 base64 bytes at the ` +
+          `ceiling against 5,400,000 for the 20,000 a local walk allows. The ` +
+          `panel names all three of hasMore, atCeiling and ` +
+          `divergenceTruncated, so nothing that was cut is drawn as whole. It ` +
+          `names none of git fetch, git pull or git remote update, and it can ` +
+          `never check out, branch or cherry pick over there.\n`
   );
 }
 

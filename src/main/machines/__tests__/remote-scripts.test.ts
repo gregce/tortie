@@ -18,6 +18,7 @@
 import { describe, expect, it } from 'vitest';
 import { REMOTE_FILE_LIST_MAX_BYTES } from '@shared/ipc';
 import { BRANCH_FORMAT } from '../../git/parse';
+import { GRAPH_LOG_FORMAT } from '../../git/graph-parse';
 import {
   REMOTE_SCRIPTS,
   REMOTE_SCRIPT_MARKER,
@@ -43,7 +44,7 @@ const MUTATING = [
 ];
 
 /**
- * The git verbs ANY script in this catalogue may name. All five are reads.
+ * The git verbs ANY script in this catalogue may name. All eight are reads.
  *
  * PHASE 98 ADDED `ls-files`. The remote search asks git which files are in one
  * folder and reads them with that machine's own grep. Reading the index is a
@@ -52,8 +53,26 @@ const MUTATING = [
  * PHASE 106 ADDED `for-each-ref`, and it is the fifth. It reads the ref store
  * and it contacts no server, so it meets the same test the other four meet and
  * it takes the same exemption from the two prompt names.
+ *
+ * PHASE 107 ADDED `log`, `merge-base` and `rev-list`, and they are the sixth,
+ * the seventh and the eighth. `log` walks the object database and prints
+ * commits, `merge-base` reads two commits already in it and answers with a
+ * third, and `rev-list` walks the same database and prints commit names. None
+ * of the three opens a network connection and none of them writes a ref, an
+ * index or a working tree file. Research 57 priced this widening at four verbs
+ * and it is three, because `for-each-ref` joined the list in Phase 106 after
+ * that research was written.
  */
-const GIT_VERBS = ['rev-parse', 'status', 'show', 'ls-files', 'for-each-ref'];
+const GIT_VERBS = [
+  'rev-parse',
+  'status',
+  'show',
+  'ls-files',
+  'for-each-ref',
+  'log',
+  'merge-base',
+  'rev-list'
+];
 
 /** The two more verbs `git-clone` may name, and no other script may. */
 const CLONE_VERBS = ['ls-remote', 'clone'];
@@ -105,9 +124,16 @@ function positionals(text: string): Positional[] {
 }
 
 describe('the catalogue', () => {
-  it('holds sixteen scripts and this release holds no others', () => {
-    expect(REMOTE_SCRIPTS).toHaveLength(16);
+  it('holds seventeen scripts and this release holds no others', () => {
+    expect(REMOTE_SCRIPTS).toHaveLength(17);
     expect(REMOTE_SCRIPTS.map((script) => script.id).sort()).toEqual([
+      // PHASE 107 added `repo-history`, which prints a page of the newest
+      // commits in one folder so the History group on a tab that lives over
+      // there draws the same picture the local History draws. It is a read and
+      // it writes nothing, so the write count below stays at two. It added
+      // three git verbs, being `log`, `merge-base` and `rev-list`, and
+      // GIT_VERBS above holds eight for that reason.
+      //
       // PHASE 106 added `repo-branch`, which prints one line about the branch
       // checked out in one folder so the Source Control view on a tab that
       // lives over there can say which branch it is. It is a read and it writes
@@ -147,6 +173,7 @@ describe('the catalogue', () => {
       'repo-facts',
       'repo-files',
       'repo-find',
+      'repo-history',
       'repo-search',
       'review-file',
       'review-list',
@@ -174,7 +201,8 @@ describe('the catalogue', () => {
     // do to another person's computer at a known list rather than a count.
     // Phase 90.2 moved it from one to two, once and on purpose, and the list
     // stays exact so a third one fails here rather than passing quietly.
-    // Phase 105 and Phase 106 each added a read and left this number alone.
+    // Phase 105, Phase 106 and Phase 107 each added a read and left this
+    // number alone.
     const writers = remoteWriteScripts();
     expect(writers).toHaveLength(2);
     expect(writers.map((script) => script.id)).toEqual([
@@ -1071,5 +1099,123 @@ describe('the remote branch read', () => {
     expect(text).not.toContain('cat ');
     expect(text).not.toContain('head -c');
     expect(text).not.toContain('base64 "');
+  });
+});
+
+describe('the remote history read', () => {
+  const history = remoteScript('repo-history');
+
+  it('is a read that takes two values', () => {
+    expect(history?.mode).toBe('read');
+    expect(history?.params).toBe(2);
+  });
+
+  it('names four git verbs and three of them are the ones this phase added', () => {
+    const verbs = [
+      ...new Set(
+        [...(history?.text ?? '').matchAll(/git (?:--no-pager )?([a-z-]+)/g)].map(
+          (match) => match[1]
+        )
+      )
+    ].sort();
+    expect(verbs).toEqual(['log', 'merge-base', 'rev-list', 'rev-parse']);
+    for (const verb of verbs) expect(GIT_VERBS).toContain(verb);
+  });
+
+  it('runs three rev-parse processes, one log, one merge-base and one rev-list', () => {
+    const text = history?.text ?? '';
+    expect([...text.matchAll(/git rev-parse/g)]).toHaveLength(3);
+    expect([...text.matchAll(/git --no-pager log/g)]).toHaveLength(1);
+    expect([...text.matchAll(/git merge-base/g)]).toHaveLength(1);
+    expect([...text.matchAll(/git rev-list/g)]).toHaveLength(1);
+  });
+
+  it('asks with the format the graph parser already reads', () => {
+    // TWO COPIES OF ONE FORMAT IS HOW ONE OF THEM GOES STALE. The far side
+    // prints this and `parseGraphLog` reads it, so if they ever disagree the
+    // main side reads the wrong field as a commit subject. This file imports
+    // nothing, so the literal is written out in the script and condition 57d of
+    // build/conformance-machines.mjs asserts the same relation from outside the
+    // test runner.
+    const format = /--format='([^']*)'/.exec(history?.text ?? '')?.[1] ?? '';
+    expect(format).toBe(GRAPH_LOG_FORMAT);
+  });
+
+  it('walks branches, tags and remote branches, and never stdin or all', () => {
+    // `git log --stdin` WALKS HEAD WHEN ITS INPUT IS EMPTY, and it does so
+    // silently. Measured on 2026-08-20 against git 2.50.1: `printf '' | git log
+    // --stdin` printed the HEAD commit and `printf '\n' | git log --stdin`
+    // printed it too. A `for-each-ref` on the far side that printed nothing
+    // would therefore answer with a HEAD only walk while this end believed it
+    // had asked for every branch, tag and remote branch. `--branches --tags
+    // --remotes` cannot fall back, because there is no list that can be empty.
+    //
+    // `--all` is refused for research 24's reason. It drags in `refs/stash` and
+    // `refs/notes/*`, which are not history a person reasons about.
+    const text = history?.text ?? '';
+    expect(text).toContain('--branches --tags --remotes');
+    expect(text).not.toContain('--stdin');
+    expect(text).not.toContain('--all');
+    expect(text).not.toContain('refs/stash');
+    expect(text).not.toContain('refs/notes');
+  });
+
+  it('asks for the common git directory and never the worktree one', () => {
+    // Research 57 section 9 defect 5. A linked worktree must answer as a
+    // repository, and `--absolute-git-dir` answers with the worktree's own
+    // directory. Row 8 of `node build/probe-p107-history.mjs` is the row that
+    // fails when the wrong spelling is used.
+    expect(history?.text).toContain('git rev-parse --git-common-dir');
+    expect(history?.text).not.toContain('--absolute-git-dir');
+  });
+
+  it('answers one of exactly four words, and none five times on three of them', () => {
+    for (const word of ['missing', 'denied', 'notrepo']) {
+      expect(history?.text).toContain(
+        `__TORTIE_RUN__${word} none none none none none__TORTIE_RUN__`
+      );
+    }
+    expect(history?.text).toContain(
+      "printf '__TORTIE_RUN__repo %s %s %s %s %s__TORTIE_RUN__"
+    );
+  });
+
+  it('reads the count as a quoted positional and never as text', () => {
+    // `--max-count="$2"` is a caller value used as an argument. Main clamps it
+    // to an integer between 1 and 501 before it is sent, and the same value is
+    // used for the walk and for the marks so the two describe one window.
+    const text = history?.text ?? '';
+    expect([...text.matchAll(/--max-count="\$2"/g)]).toHaveLength(2);
+  });
+
+  it('never fetches, and this is the executable form of a sentence on screen', () => {
+    // The marks are measured against the copy of the upstream that machine last
+    // fetched. Condition 57g of build/conformance-machines.mjs asserts the same
+    // three names from outside the test runner.
+    const text = history?.text ?? '';
+    for (const verb of ['git fetch', 'git pull', 'git remote update']) {
+      expect(text.includes(verb), verb).toBe(false);
+    }
+  });
+
+  it('encodes both answers so a commit subject holding anything survives', () => {
+    // A subject can hold a newline, a space and a NUL, and the answer is read
+    // as whitespace separated words.
+    expect(
+      [...(history?.text ?? '').matchAll(/\| base64 \| tr -d /g)]
+    ).toHaveLength(2);
+  });
+
+  it('redirects nothing except the six noise silencers', () => {
+    const text = history?.text ?? '';
+    expect([...text.matchAll(/2>\/dev\/null/g)]).toHaveLength(6);
+    expect(text.split('2>/dev/null').join('')).not.toContain('>');
+  });
+
+  it('reads no file contents at all, so it cannot show a commit’s files', () => {
+    const text = history?.text ?? '';
+    expect(text).not.toContain('cat ');
+    expect(text).not.toContain('head -c');
+    expect(text).not.toContain('git show');
   });
 });

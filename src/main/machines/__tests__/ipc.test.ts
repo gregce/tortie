@@ -299,6 +299,17 @@ describe('every channel is registered, and only the ones listed here', () => {
       // machine. Nothing calls it on a clock, and nothing on this path fetches.
       'machines:readBranch',
       // ---- END PHASE 106 ----
+      // ---- PHASE 107 ----
+      // One READ of a page of the newest commits in one folder on one machine,
+      // with the two anchors the swimlane picture needs and the marks that say
+      // which commits are ahead of the followed branch and which are behind it.
+      // It writes nothing on either computer, there is no checkout, no branch
+      // and no cherry pick behind it, and it refuses while Tortie is not
+      // connected to the machine. Main clamps the count to 500, so one answer
+      // stays under about 162,000 bytes. Nothing calls it on a clock, nothing on
+      // this path fetches, and it does not read the files one commit changed.
+      'machines:readHistory',
+      // ---- END PHASE 107 ----
       // ---- PHASE 105 ----
       // One READ of the branch checked out in one folder on one machine,
       // followed by one gh read ON THIS MAC. No token, no gh invocation and no
@@ -479,6 +490,77 @@ describe('machines:readBranch', () => {
   it('starts nothing at all, on either computer', async () => {
     const before = spawned.length;
     await call<Promise<unknown>>('machines:readBranch', {
+      machineId: 'nobody-is-connected-to-this',
+      cwd: '/work/project'
+    });
+    expect(spawned.length).toBe(before);
+    expect(machineSshSpawnCount()).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 107. The commit graph of a folder on another machine
+// ---------------------------------------------------------------------------
+
+describe('machines:readHistory', () => {
+  it('hands the input to main unchanged and answers rather than throwing', async () => {
+    // Nothing in this process is connected to any machine, so the read refuses
+    // with its own mode word and contacts nothing. What this proves is the
+    // wiring: the channel exists and the machine id, the folder and the count
+    // cross it untouched.
+    const out = await call<Promise<{
+      machineId: string;
+      cwd: string;
+      mode: string;
+      entries: unknown[];
+      maxCount: number;
+      ceiling: number;
+      hasMore: boolean;
+      atCeiling: boolean;
+      headSha: string | null;
+      upstreamSha: string | null;
+      mergeBase: string | null;
+      markedCount: number;
+      divergenceTruncated: boolean;
+      answerBytes: number;
+    }>>('machines:readHistory', {
+      machineId: 'nobody-is-connected-to-this',
+      cwd: '/work/project'
+    });
+    expect(out.machineId).toBe('nobody-is-connected-to-this');
+    expect(out.cwd).toBe('/work/project');
+    expect(out.mode).toBe('notConnected');
+    expect(out.entries).toEqual([]);
+    expect(out.maxCount).toBe(50);
+    expect(out.ceiling).toBe(500);
+    expect(out.hasMore).toBe(false);
+    expect(out.atCeiling).toBe(false);
+    expect(out.headSha).toBeNull();
+    expect(out.upstreamSha).toBeNull();
+    expect(out.mergeBase).toBeNull();
+    expect(out.markedCount).toBe(0);
+    expect(out.divergenceTruncated).toBe(false);
+    expect(out.answerBytes).toBe(0);
+  });
+
+  it('clamps the count in main, so a renderer cannot ask for 20,000', async () => {
+    // THIS IS WHAT KEEPS THE PHASE AT TIER 2. 20,000 commits would be about
+    // 5,400,000 base64 bytes in one answer that main buffers whole.
+    const out = await call<Promise<{ maxCount: number; ceiling: number }>>(
+      'machines:readHistory',
+      {
+        machineId: 'nobody-is-connected-to-this',
+        cwd: '/work/project',
+        maxCount: 20_000
+      }
+    );
+    expect(out.maxCount).toBe(500);
+    expect(out.ceiling).toBe(500);
+  });
+
+  it('starts nothing at all, on either computer', async () => {
+    const before = spawned.length;
+    await call<Promise<unknown>>('machines:readHistory', {
       machineId: 'nobody-is-connected-to-this',
       cwd: '/work/project'
     });

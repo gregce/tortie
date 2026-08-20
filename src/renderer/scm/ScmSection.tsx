@@ -48,7 +48,7 @@ import type { PendingOp, ScmGroups } from '../state/git';
 import { Codicon } from '../icons';
 import { showOneTimeTip } from '../app/one-time-tip';
 import {
-  REMOTE_SCM_SECTIONS_ABSENT,
+  REMOTE_SCM_SECTIONS_NOTE,
   remoteChangesBand,
   remoteChangesNone,
   remoteChangesNotRepo,
@@ -65,6 +65,7 @@ import {
 } from './remote-changes';
 import { registerP97UntrackedDrive } from './p97-untracked-drive';
 import { RemoteBranchSection } from './RemoteBranchSection';
+import { RemoteHistorySection } from './RemoteHistorySection';
 import { RemoteRunsSection } from './RemoteRunsSection';
 import { HistorySection } from './HistorySection';
 import { BranchesView } from './BranchesView';
@@ -628,15 +629,24 @@ function remoteBadge(status: MachineReviewFile['status']): {
 /**
  * Source Control for a tab whose folder is on another machine (Phase 90.3).
  *
- * ONE GROUP AND NO VERB THAT WRITES. There is no commit box, no checkbox, no
- * stage, no unstage and no discard, and History, Branches and Runs are not
- * rendered at all. That is not a subset chosen for time. Each missing verb
- * would have to write on somebody else's computer, and this product writes on
- * another machine in exactly two places, neither of which is git.
+ * FOUR GROUPS AND NO VERB THAT WRITES. The groups are Changes, History, Branch
+ * and Runs, in that order, which is the order the local panel already draws. It
+ * is the order a person learns once. There is no commit box, no checkbox, no
+ * stage, no unstage, no discard, no checkout, no branch and no cherry pick.
+ * That is not a subset chosen for time. Each of those verbs would have to write
+ * on somebody else's computer, and this product writes on another machine in
+ * exactly two places, neither of which is git.
  *
- * CLICKING A ROW opens the same read only view the session menu's review
- * already opens, through the one open file bus, so the editor needs no new tab
- * kind for it.
+ * THE PARAGRAPH ABOVE WAS REWRITTEN THREE TIMES and each rewrite was a phase.
+ * It said "ONE GROUP" and named History, Branches and Runs as not rendered at
+ * all. Phase 105 drew the runs, Phase 106 drew the branch and Phase 107 drew
+ * the history, so every clause of the old sentence became false in turn.
+ *
+ * CLICKING A CHANGED FILE opens the same read only view the session menu's
+ * review already opens, through the one open file bus, so the editor needs no
+ * new tab kind for it. CLICKING A COMMIT DOES NOTHING, because the files one
+ * commit changed are not read for a folder on another machine. The History
+ * group says so under itself.
  */
 function RemoteScmSection({
   target
@@ -830,7 +840,15 @@ function RemoteScmSection({
   };
 
   return (
-    <div className="scm-sections">
+    /* PHASE 107 FIX ROUND. `remote` is what makes this column scroll, and the
+       local one still does not. The rule and the measurements are at
+       `.scm-sections.remote` in ./scm.css. In short, this column draws sentences
+       between its groups, those sentences belong to no scrolling body, and at
+       1440 by 885 they are 480 px of a 748 px column. Before this class the
+       column met the shortfall by shrinking its groups, and the Runs group and
+       the closing sentence ended up under a box with `overflow: hidden` where no
+       gesture could reach them. */
+    <div className="scm-sections remote">
       {/* The band. It is drawn above the group rather than inside it, so it
           stays on screen when the group is collapsed. */}
       <p className="scm-remote-band">{remoteChangesBand(label)}</p>
@@ -892,7 +910,16 @@ function RemoteScmSection({
       {entry.readAt > 0 ? (
         <p className="scm-remote-note">{remoteReadAt(entry.readAt)}</p>
       ) : null}
-      {/* PHASE 106. The second group this view draws for a folder on another
+      {/* PHASE 107. The second group this view draws for a folder on another
+          machine, and its place is the place the local panel already gives
+          History, being under Changes and above Branch. One order rather than
+          two. It ships collapsed and reads nothing until somebody expands it,
+          which matters most here because this is the largest read the product
+          makes over a link. It owns its own band, its own Refresh button, its
+          own paging control and its own store, and it has no verb that
+          writes. */}
+      <RemoteHistorySection target={target} label={label} />
+      {/* PHASE 106. The third group this view draws for a folder on another
           machine, and it is ABOVE Runs on purpose. The runs below are the runs
           for the branch this group names, so a person reads which branch it is
           first. It ships collapsed and reads nothing until somebody expands it,
@@ -900,15 +927,18 @@ function RemoteScmSection({
           owns its own band, its own Refresh button and its own store, and it
           has no verb that writes. */}
       <RemoteBranchSection target={target} label={label} />
-      {/* PHASE 105. The third group this view draws for a folder on another
+      {/* PHASE 105. The fourth group this view draws for a folder on another
           machine. It ships collapsed and reads nothing until somebody expands
           it, so a tab that is only being looked at asks that machine nothing
           and starts no gh process on this Mac. It owns its own band, its own
           Refresh button and its own store. PHASE 106 MOVED IT DOWN ONE PLACE
           and changed nothing else about it. */}
       <RemoteRunsSection target={target} label={label} />
-      {/* Said once, rather than two empty sections. */}
-      <p className="scm-remote-note">{REMOTE_SCM_SECTIONS_ABSENT}</p>
+      {/* Said once, under the four groups. PHASE 107 turned this from a
+          refusal into a note. It named three sections that were not drawn, and
+          all three are drawn now. What it still refuses is one read rather than
+          a section, being the files one commit changed. */}
+      <p className="scm-remote-note">{REMOTE_SCM_SECTIONS_NOTE}</p>
     </div>
   );
 }

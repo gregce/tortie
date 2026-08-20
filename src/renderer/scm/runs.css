@@ -280,10 +280,13 @@
    Tokens only, and this block adds no colour of its own.
 --------------------------------------------------------------------------- */
 
+/* IT NEVER GIVES UP ITS OWN HEIGHT, for the reason `.section-scm-remote-branch`
+   in ./remote-branch.css gives. This group is the LAST one in that column, so it
+   is the one a shrinking column pushed off the bottom first. */
 .section-scm-remote-runs {
   display: flex;
   flex-direction: column;
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   min-height: 0;
 }
 

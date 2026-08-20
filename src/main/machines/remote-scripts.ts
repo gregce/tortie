@@ -53,6 +53,18 @@
  * on the server, and condition 56i of `build/conformance-machines.mjs` fails
  * this text if it ever names `git fetch`, `git pull` or `git remote update`.
  *
+ * PHASE 107 ADDED ONE MORE, and it is a read. `repo-history` prints a page of
+ * the newest commits in one folder on a machine, with the two anchors the
+ * swimlane picture needs and the marks that say which commits are ahead of the
+ * followed branch and which are behind it. It exists so the History group on a
+ * tab whose project lives over there draws the same picture the local History
+ * draws. It adds THREE git verbs to rule 7 below, being `log`, `merge-base` and
+ * `rev-list`, and all three are reads of the object database that reach no
+ * server. IT NEVER FETCHES, for the same reason `repo-branch` never does, and
+ * condition 57g of `build/conformance-machines.mjs` fails this text if it ever
+ * names `git fetch`, `git pull` or `git remote update`. IT READS NO FILE
+ * CONTENTS, so it cannot show the files one commit changed.
+ *
  * PHASE 90.3 ADDED ONE MORE, and it is a read. `tree-list` names every file
  * and folder under one folder on a machine, to a fixed depth, in ONE call. It
  * is what the Explorer draws for a project that lives on another computer.
@@ -118,11 +130,12 @@
  *     in `git-clone` aims at `/dev/null`. Both refuse a destination that is
  *     already there before they write anything, `image-put` with `[ -f "$f" ]`
  *     and `git-clone` with `[ -e "$d" ]`.
- *  7. FIVE git verbs may appear in any script, being `rev-parse`, `status`,
- *     `show`, `ls-files` and `for-each-ref`. Two more may appear in `git-clone`
- *     and in NO other script, being `ls-remote` and `clone`. Every verb is part
+ *  7. EIGHT git verbs may appear in any script, being `rev-parse`, `status`,
+ *     `show`, `ls-files`, `for-each-ref`, `log`, `merge-base` and `rev-list`.
+ *     Two more may appear in `git-clone` and in NO other script, being
+ *     `ls-remote` and `clone`. Every verb is part
  *     of the text and never a parameter, so no caller can turn a review into a
- *     commit. Every git command that is not one of the five read verbs carries
+ *     commit. Every git command that is not one of the eight read verbs carries
  *     `GIT_TERMINAL_PROMPT=0` and `GCM_INTERACTIVE=never` in front of it, so a
  *     command on a machine nobody is watching cannot stop and wait for a
  *     password.
@@ -152,7 +165,20 @@
  *     or the ref store, `READ_ONLY_GIT_VERBS` is built straight from it, and a
  *     second list with the same members under a better name is a rename of a
  *     safety list, which is its own round. Conditions 53j, 55c and 56c of the
- *     gate hold the list at those five.
+ *     gate held the list at those five until Phase 107.
+ *
+ *     PHASE 107 ADDED THREE, being `log`, `merge-base` and `rev-list`, and they
+ *     are the sixth, the seventh and the eighth. `log` walks the object
+ *     database and prints commits. `merge-base` reads two commits already in it
+ *     and answers with a third. `rev-list` walks the same database and prints
+ *     commit names. None of the three opens a network connection, none of them
+ *     writes a ref, an index or a working tree file, and none of them can be
+ *     turned into a write by any flag this catalogue passes. So all three meet
+ *     the test the first five meet and they take the same exemption from the
+ *     two prompt names. Research 57 section 5 priced this widening at four
+ *     verbs, and it is three because `for-each-ref` joined the list in Phase
+ *     106 after that research was written. Condition 57c of the gate holds the
+ *     list at those eight.
  *
  * ## Every script is safe to run twice
  *
@@ -1340,16 +1366,168 @@ const REPO_BRANCH = [
 ].join('\n');
 
 /**
- * The whole catalogue. Sixteen scripts, and this release holds no others.
+ * A page of the newest commits in one folder on a machine (Phase 107, research
+ * 57 section 5).
+ *
+ * ## What it answers
+ *
+ * Six words. The first says what the folder is, and the five after it are the
+ * commit HEAD points at, the commit the followed branch points at, the merge
+ * base of those two, the walk itself, and the two sides of the divergence. The
+ * last two are base64, because a commit subject can hold anything at all.
+ *
+ * | First word | Meaning |
+ * | --- | --- |
+ * | `repo` | the folder is a repository and five fields follow |
+ * | `notrepo` | the folder is there and git does not track it |
+ * | `missing` | there is no folder at that path |
+ * | `denied` | the folder is there and the account cannot read it |
+ *
+ * The three words that are not `repo` print `none` five times, so every answer
+ * this script can print is six words long.
+ *
+ * ## Why the walk is `--branches --tags --remotes` and not `git log --stdin`
+ *
+ * Research 57 section 5.5 proposed reading the ref names with `for-each-ref` on
+ * the far side, piping them into `git log --stdin`, and moving the guard
+ * `sanitizeRefNames` over there with them. This script does not do that. Four
+ * reasons, and the third decides it. It was measured on 2026-08-20 against git
+ * 2.50.1 rather than reasoned.
+ *
+ *  1. It is one process fewer. The `--stdin` shape runs `for-each-ref` and then
+ *     `log`, being two git processes. This one runs `log`, being one.
+ *  2. No ref name is a value at any point. Nothing is enumerated on the far
+ *     side, nothing is piped, nothing is quoted into an argument and no name
+ *     crosses the link. So `sanitizeRefNames` is not moved to the far side. Its
+ *     job is removed instead of relocated.
+ *  3. `git log --stdin` WALKS HEAD WHEN ITS INPUT IS EMPTY, AND IT DOES SO
+ *     SILENTLY. Measured on git 2.50.1, `printf '' | git log --stdin` printed
+ *     the HEAD commit, and `printf '\n' | git log --stdin` printed it too. A
+ *     `for-each-ref` that printed nothing, which is what a repository with no
+ *     refs gives, would therefore answer with a HEAD only walk while this end
+ *     believed it had asked for every branch, tag and remote branch. `walk()` in
+ *     `src/main/git/service.ts` carries an explicit guard for exactly this and
+ *     calls it a guard rather than an optimisation. On the far side that guard
+ *     would have to be written again in `sh`. `--branches --tags --remotes`
+ *     cannot fall back, because there is no list that can be empty.
+ *  4. `--branches --tags --remotes` is exactly `refs/heads`, `refs/remotes` and
+ *     `refs/tags`, which is what `allWalkableRefs()` walks locally. It is not
+ *     `--all`, which research 24 refused because that drags in `refs/stash` and
+ *     `refs/notes/*`.
+ *
+ * ONE REASON AN EARLIER DRAFT GAVE IS WITHDRAWN, because the measurement
+ * refused it. The draft said a tag pointing at a blob is a hard
+ * `fatal: not a commit` under the `--stdin` shape, which is what `parseScopeRefs`
+ * filters against locally. Measured on git 2.50.1 with a lightweight tag on a
+ * blob and again with an annotated tag on a blob. BOTH shapes answered with the
+ * commit row at exit code 0 and neither failed. So that filter is defensive on
+ * this version of git rather than load bearing, and the tag case is not a
+ * reason to prefer one shape over the other. Row 12 of
+ * `node build/probe-p107-history.mjs` still builds the case, because the
+ * shipped shape has to survive it on the far side's own git.
+ *
+ * ## The format is `GRAPH_LOG_FORMAT` itself, and the gate holds it there
+ *
+ * The literal below is exactly `GRAPH_LOG_FORMAT` from
+ * `src/main/git/graph-parse.ts`, so `parseGraphLog` reads this answer unchanged
+ * and THE MAIN SIDE WRITES NO SECOND PARSER. This file imports nothing, not
+ * even a type, so the format is written out here as a literal. Two copies of
+ * one format is how one of them goes stale, and condition 57d of
+ * `build/conformance-machines.mjs` asserts the literal equals the constant.
+ *
+ * ## Why each line is the way it is
+ *
+ *  - `--git-common-dir` and never `--absolute-git-dir`. That is research 57
+ *    section 9 defect 5. A linked worktree must answer as a repository, and row
+ *    9 of `node build/probe-p107-history.mjs` is the row that fails when the
+ *    wrong spelling is used.
+ *  - `@{u}` is a constant in this text. It is git's own spelling for the
+ *    upstream of HEAD, it is not a caller value, and it fails quietly on a
+ *    detached head, on a branch that follows nothing and on a branch whose
+ *    upstream that machine no longer has. All three leave `p` empty, and then
+ *    no merge base and no marks are read at all.
+ *  - `"$s...$p"` holds two local names and both are commit names git itself
+ *    printed on that machine. It is quoted. This is the same shape `repo-branch`
+ *    uses when it passes `"$h"` to `for-each-ref`.
+ *  - `--max-count="$2"` is a caller value used as an argument. It is quoted, and
+ *    main clamps it to an integer between 1 and 501 before it is sent.
+ *    `review-file` already passes `"$3"` to `head -c` and `repo-search` already
+ *    passes a count to `grep -m`, so this is the established shape.
+ *  - The two answers are base64 so a commit subject holding a newline, a space
+ *    or a NUL survives the trip.
+ *  - IT NEVER FETCHES. The marks are measured against the copy of the upstream
+ *    that machine last fetched, so they can be older than what is on the server
+ *    at the moment they are read. Condition 57g fails this text if it ever names
+ *    `git fetch`, `git pull` or `git remote update`.
+ *
+ * ## The external programs it runs, ESTIMATED HERE AND COUNTED BY THE PROBE
+ *
+ * Research 57 priced Phase 105 at 4 and the truth was 8, and Phase 106 at 3 and
+ * the truth was 5, so the table in the header of
+ * `src/main/machines/remote-history.ts` is the one that carries the MEASURED
+ * numbers. Row 16 of `node build/probe-p107-history.mjs` measures them again on
+ * every run by putting counting wrappers on PATH ahead of `git`, `base64` and
+ * `tr`.
+ *
+ * ## The catalogue rules, one at a time
+ *
+ * The text holds no backtick and no caller value. The positionals are `"$1"`,
+ * read double quoted at four places, and `"$2"`, read double quoted at two
+ * places. Every other name in it is a local. It begins `set -e` and then
+ * `umask 077`. Every answer is printed between the marker pair, and there are
+ * four pairs. It names none of the eleven mutating programs: it names `git`,
+ * `printf`, `base64`, `tr`, `cd` and `test`. Every `>` in it is part of
+ * `2>/dev/null`, and there are SIX of those. It is a `read`, so the two writers
+ * in this catalogue do not move. It names four git verbs, being `rev-parse`,
+ * `log`, `merge-base` and `rev-list`, and the last three are the ones this
+ * phase added to rule 7.
+ *
+ * Running it twice reads the same folder twice. It writes nothing on either
+ * computer.
+ */
+const REPO_HISTORY = [
+  'set -e',
+  'umask 077',
+  'if [ ! -d "$1" ]; then',
+  "  printf '__TORTIE_RUN__missing none none none none none__TORTIE_RUN__\\n'",
+  'elif [ ! -r "$1" ] || [ ! -x "$1" ]; then',
+  "  printf '__TORTIE_RUN__denied none none none none none__TORTIE_RUN__\\n'",
+  'else',
+  '  cd "$1"',
+  '  g=$(git rev-parse --git-common-dir 2>/dev/null || true)',
+  '  if [ -z "$g" ]; then',
+  "    printf '__TORTIE_RUN__notrepo none none none none none__TORTIE_RUN__\\n'",
+  '  else',
+  '    s=$(git rev-parse --verify --quiet HEAD 2>/dev/null || true)',
+  "    p=$(git rev-parse --verify --quiet '@{u}' 2>/dev/null || true)",
+  '    l=$(git --no-pager log --branches --tags --remotes -z --topo-order' +
+    ' --decorate=full --max-count="$2"' +
+    " --format='%H%x1f%h%x1f%P%x1f%an%x1f%ae%x1f%at%x1f%D%x1f%s'" +
+    " 2>/dev/null | base64 | tr -d '\\n' || true)",
+  '    m=',
+  '    d=',
+  '    if [ -n "$s" ] && [ -n "$p" ]; then',
+  '      m=$(git merge-base "$s" "$p" 2>/dev/null || true)',
+  '      d=$(git rev-list --left-right --max-count="$2" "$s...$p"' +
+    " 2>/dev/null | base64 | tr -d '\\n' || true)",
+  '    fi',
+  "    printf '__TORTIE_RUN__repo %s %s %s %s %s__TORTIE_RUN__\\n'" +
+    ' "${s:-none}" "${p:-none}" "${m:-none}" "${l:-none}" "${d:-none}"',
+  '  fi',
+  'fi'
+].join('\n');
+
+/**
+ * The whole catalogue. Seventeen scripts, and this release holds no others.
  *
  * A name that is not here is refused by `./remote-run.ts` before anything is
  * composed, which is the shape the verb ledger has as well: the refusal happens
  * before a string exists, rather than after one was built and then inspected.
  *
- * TWO of the sixteen write, being `image-put` and `git-clone`, and they are in
+ * TWO of the seventeen write, being `image-put` and `git-clone`, and they are in
  * that order in this array. {@link remoteWriteScripts} returns them in it.
- * PHASE 98 ADDED A READ AND LEFT THAT NUMBER ALONE. SO DID PHASE 99, PHASE 105
- * AND PHASE 106.
+ * PHASE 98 ADDED A READ AND LEFT THAT NUMBER ALONE. SO DID PHASE 99, PHASE 105,
+ * PHASE 106 AND PHASE 107.
  */
 export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
   {
@@ -1482,6 +1660,16 @@ export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
     reason:
       'It asks git two questions about one folder and reads one line about ' +
       'one branch. It writes nothing, so running it twice reads the same ' +
+      'folder twice.'
+  },
+  {
+    id: 'repo-history',
+    mode: 'read',
+    params: 2,
+    text: REPO_HISTORY,
+    reason:
+      'It asks git for the newest commits in one folder and for two anchors ' +
+      'around them. It writes nothing, so running it twice reads the same ' +
       'folder twice.'
   },
   {

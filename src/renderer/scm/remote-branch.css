@@ -10,10 +10,15 @@
  * and a tinted panel would read as a warning about something that is not wrong.
  */
 
+/* IT NEVER GIVES UP ITS OWN HEIGHT. `flex: 0 1 auto` let the column shrink a
+   group to nothing when the column held more content than height, and Phase 107
+   measured exactly that on the two groups above this one. Every group in this
+   column now takes its own height, capped at 45%, and the column scrolls. The
+   numbers are at `.scm-sections.remote` in ./scm.css. */
 .section-scm-remote-branch {
   display: flex;
   flex-direction: column;
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   min-height: 0;
 }
 

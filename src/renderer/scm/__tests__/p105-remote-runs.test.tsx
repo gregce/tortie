@@ -525,18 +525,18 @@ describe('a group nobody opened', () => {
   it('no longer says Tortie cannot show runs on another machine', () => {
     // The sentence used to name three sections it does not show and Runs was
     // one of them. It names runs among the things it DOES show now.
-    expect(copy.REMOTE_SCM_SECTIONS_ABSENT).not.toMatch(
+    //
+    // PHASE 107 RENAMED THE CONSTANT and rewrote the sentence a third time.
+    // The old name carried the word ABSENT and the sentence was a refusal.
+    // Phase 105 shipped the runs, Phase 106 shipped the branch and Phase 107
+    // shipped the history, so there is no section left to refuse. The two
+    // assertions this test owns are unchanged in what they mean, being that
+    // runs are not refused and that runs are named among what is shown.
+    expect(copy.REMOTE_SCM_SECTIONS_NOTE).not.toMatch(
       /does not show[^.]*\bruns\b/i
     );
-    expect(copy.REMOTE_SCM_SECTIONS_ABSENT).toMatch(/shows[^.]*\bruns\b/i);
-    expect(copy.REMOTE_SCM_SECTIONS_ABSENT).toContain('history');
-    // PHASE 106 CHANGED THE LINE BELOW, and it is the only line in this file
-    // that phase touched. It read `toContain('branches')`, which was the
-    // refusal clause naming the Branches section. Phase 106 draws a Branch
-    // group for a folder on another machine, so that clause is gone and the
-    // sentence names the branch among the things Tortie does show. History is
-    // the one section the sentence still refuses, and the assertion above
-    // already reads it.
-    expect(copy.REMOTE_SCM_SECTIONS_ABSENT).toMatch(/shows[^.]*\bbranch\b/i);
+    expect(copy.REMOTE_SCM_SECTIONS_NOTE).toMatch(/shows[^.]*\bruns\b/i);
+    expect(copy.REMOTE_SCM_SECTIONS_NOTE).toMatch(/shows[^.]*\bbranch\b/i);
+    expect(copy.REMOTE_SCM_SECTIONS_NOTE).toMatch(/shows[^.]*\bhistory\b/i);
   });
 });

@@ -7437,7 +7437,7 @@ connected reads a sentence saying so and presses Refresh. The packaged build was
 | RECORD | `src/main/machines/index.ts` still re-exports nothing for this directory's newest four modules, including `remote-branch.ts`. The phase brief asked for the one export line and there is none, because the only caller is `ipc.ts` inside the same directory and the growth guardrail asks for a small deliberate export surface. The file's own header states this rather than hiding it. Add the re-export when a caller outside the directory asks for the name. |
 | RECORD | Two test files failed on the first full run of the suite and passed alone immediately afterwards, being `src/main/symbols/__tests__/store.test.ts` at 93.7 ms against an 80 ms budget and `src/main/tmux/__tests__/resolve.test.ts` at its 5,000 ms timeout. Neither file is touched by this phase. Both are wall clock budgets measured while other work was running on the same Mac. The clean rerun of the whole suite passed 7,017 tests. |
 
-## Phase 107 — history on a remote tab (research 57 row, queued 2026-08-19) QUEUED
+## Phase 107 — history on a remote tab (research 57 row, queued 2026-08-19) ✅ SHIPPED 2026-08-20 (this commit, 0.57.0, gates green, 7,136 tests)
 
 **Subject:** `feat(scm): read the commit graph of a repository on another machine`
 **First body line:** `Phase 107: history on a remote tab`
@@ -7460,6 +7460,106 @@ Nothing that writes. If paging lets a person ask for 20,000 commits the tier ris
 ### The evidence
 
 Walk a real repository on the loopback scratch machine, open a commit's file diff, and report the bytes and the seconds at 100, 1,000 and 10,000 commits. Use `--git-common-dir` rather than `--absolute-git-dir`, which is defect 5 of section 9. Count the operator's sessions with `tmux -L gmux list-sessions` before and after and report both numbers. `src/main/tmux/resolve.ts` honours `GMUX_TMUX_SOCKET` ONLY when `GMUX_SHOT` or `GMUX_SMOKE` is set, so a launch without one of those silently uses his real server.
+
+### What shipped, and the numbers behind it
+
+A tab whose folder lives on another machine now has a History group in the Source Control view.
+Expand it and Tortie asks that machine for the commits in that folder. It draws the rows the local
+History draws, being the lanes on the left, the subject, the author, the age and the marks naming
+branches and tags. It reads 50 commits at a time, and a person asks for the next 50 with Load 50
+more.
+
+THE GROUP ONLY READS. There is no checkout, no branch, no cherry pick and no write of any kind. The
+screenshot driver counts the controls that could write rather than asserting there are none, and it
+counted 0 against five selectors written out by hand. The group draws 3 buttons when the page is
+cut, being its own collapse toggle, Refresh and Load 50 more, and 2 buttons at the ceiling. Row 17
+of `npm run probe:p107` compared all 49 files under `.git` before and after a read and found every
+one unchanged in size and modification time, and `git status --porcelain` printed 0 bytes on both
+sides.
+
+THE WALK MATCHES THAT MACHINE'S OWN GIT. Row 2 read a 100 commit repository at the page and got 50
+rows with `hasMore` true, name for name and in order against
+`git log --branches --tags --remotes --topo-order --max-count=50 --format=%H` run in that
+repository. Row 3 read the same repository at 100 and got 100 rows with `hasMore` false. The
+verifier ran a second comparison of its own, over a fresh repository behind its own loopback sign in
+server, and every row matched on hash, short hash, parents, author name, author email and subject.
+
+THE PAGE IS 50 AND THE CEILING IS 500. `REMOTE_HISTORY_PAGE` and `REMOTE_HISTORY_MAX_COMMITS` in
+`src/shared/ipc/machines.ts` hold both numbers and main clamps to them, so a page a person asks for
+is never what decides the size of the answer. Measured over a loopback on 2026-08-20.
+
+| Repository | At the page of 50 | At the ceiling of 500 |
+| --- | --- | --- |
+| 100 commits | 50 rows, 9,982 bytes, 66 ms | 100 rows, 19,390 bytes, 64 ms, `atCeiling` false |
+| 1,000 commits | 50 rows, 10,050 bytes, 67 ms | 500 rows, 97,650 bytes, 71 ms, `atCeiling` true |
+| 10,000 commits | 50 rows, 10,118 bytes, 84 ms | 500 rows, 98,322 bytes, 86 ms, `atCeiling` true |
+
+Row 7 asked for 20,000 commits against the 10,000 commit repository and the answer carried 500 rows
+at 98,322 bytes in 89 ms. A person cannot make main buffer more than that, which is why this phase
+stayed at tier 2 rather than rising to tier 3. Research 57 priced a commit at 270 base64 bytes and
+the measured figure is 196 bytes a commit at the ceiling, so paging is cheaper than that document
+assumed rather than dearer.
+
+THE GROUP DREW 50 ROWS AND SHOWED NONE OF THEM FOR ONE ROUND, and the fix is part of this commit.
+Measured at 1440 by 884 with the default sidebar, `.section-scm-remote-history` was 0 px tall,
+`.rhist-body` was 6 px, 50 rows sat in the document, 0 were on screen, and the Load 50 more button
+was inside those 6 px. The sentence saying when Tortie read the commits was drawn under the group
+header, where `document.elementFromPoint` returned the header's chevron over it. The cause was
+`flex: 0 1 auto` on every group in that column, which lets the column meet a shortfall by shrinking
+a group down to its own header. The Changes group carried the same rule and its own sentence was cut
+through the middle in the same picture. Every group in the remote column now carries
+`flex: 0 0 auto`, each one is capped at 45% of the column, and `.scm-sections.remote` scrolls. At
+1440 by 885 the column is 748 px, the cap is 336 px, and the body shows 12 whole rows of the 50 in
+the page.
+
+The screenshot driver was blind to that defect and it was fixed in the same round. Its clipping
+measure tested the window and every ancestor with a clip on it, so it reported nothing clipped while
+one sentence sat under the header and every row sat outside a 6 px body. It now hit tests each
+sentence at the middle of its own box, and it reports the body's height beside the number of rows
+fully inside it.
+
+WHAT THE PANEL SAYS RATHER THAN LEAVES TO BE FOUND. Three flags cross the wire and each one has its
+own sentence on screen. `hasMore` says these are the newest 50 commits and there are older ones.
+`atCeiling` says Tortie reads at most 500 commits from another machine and has read them all, and it
+names opening a session on that machine as the way to read further back. `divergenceTruncated` says
+the ahead and behind marks were asked for over the page and no further, so an older row is drawn
+without a mark whether it has one or not. The group also says that it does not refresh, that a page
+is read fresh so the lines on the left can be drawn differently after Load more, that the marks are
+that machine's own copies of what a server holds, and that nothing in that folder is changed.
+
+**One channel and one script.** The wire grew by one invoke channel, `machines:readHistory`, and
+`docs/audits/contract-baseline.txt` moved from 172 to 173. The frozen catalogue grew by one read,
+`repo-history`, taking 2 values and naming `git log`, `merge-base`, `rev-list` and `rev-parse`. It
+asks with `--git-common-dir` rather than `--absolute-git-dir`, which is defect 5 of research 57
+section 9, and row 9 proved a linked worktree on a second branch answers with 4 rows and the head
+git itself prints. The format it asks with is `GRAPH_LOG_FORMAT` itself, so the far side and
+`parseGraphLog` cannot drift. It walks `--branches --tags --remotes` and names none of `--stdin`,
+`--all`, `refs/stash` and `refs/notes`, so no ref name is ever a value that crosses the link and
+`sanitizeRefNames` stays on this side of it.
+
+ROW 13 IS WHY THE `--stdin` SHAPE RESEARCH 57 PROPOSED WAS REFUSED. It builds a repository holding a
+commit and no refs at all and requires the answer to carry no rows. Measured on 2026-08-20 against
+git 2.50.1, `printf '' | git log --stdin` walks HEAD silently, so an empty ref list on the far side
+would have answered a HEAD only walk while this end believed it had asked for everything.
+
+THE PROGRAMS THE FAR SIDE RUNS WERE COUNTED RATHER THAN CLAIMED. Row 16 put counting wrappers on
+PATH ahead of `git`, `base64` and `tr` and ran each of eight shapes five times. Every run of a shape
+gave the same number, being 0 for a folder that is not there, 0 for a folder the account cannot
+read, 1 for a folder git does not track, 6 for a repository with no commits, 6 for a branch that
+follows nothing, 6 for a detached head, 10 for an ordinary read and 10 at the ceiling.
+
+**What is not in this phase.** Tortie does not draw the files one commit changed on another machine,
+and the note on a remote tab now says so in those words. Row 20 measured the two `git show` calls
+that read would need, over plain `ssh` and outside the product, so the phase that draws it inherits
+a number rather than an estimate. The after side was 5,380 bytes in 52 ms and the before side was 32
+bytes in 55 ms.
+
+**What is not true.** The far side was this Mac over a loopback in every run, so no Linux machine,
+no GNU coreutils and no older git were exercised. The milliseconds are a loopback floor rather than
+what a link with distance in it would give. Nothing here measured two remote tabs reading at once.
+The picture was taken at one window size and one sidebar width. `tmux -L gmux list-sessions` read 39
+before and 39 after every run, and the operator's `~/.ssh/known_hosts` was 2,120 bytes before the
+probe and 2,120 bytes after it.
 
 ## Phase 108 — Context on a machine (research 57 row, queued 2026-08-19) QUEUED
 

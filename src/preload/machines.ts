@@ -130,5 +130,13 @@ export const machines: NonNullable<GmuxMachinesExtras['machines']> = {
   // behind it is. It writes nothing on either computer, it cannot change what
   // is checked out over there, and main refuses it while it is not connected to
   // that machine. Nothing calls it on a clock.
-  readBranch: (input) => invoke('machines:readBranch', input)
+  readBranch: (input) => invoke('machines:readBranch', input),
+  // Phase 107. THIS ONE READS. It asks a machine for a page of the newest
+  // commits in one folder, with the two anchors the swimlane picture needs. It
+  // writes nothing on either computer, it cannot check out, branch or cherry
+  // pick over there, and main refuses it while it is not connected to that
+  // machine. Main also clamps the count to 500, so one answer stays under about
+  // 162,000 bytes. Nothing calls it on a clock, and it does not read the files
+  // one commit changed.
+  readHistory: (input) => invoke('machines:readHistory', input)
 };
