@@ -6181,6 +6181,81 @@ Move to Trash, Open With and Reveal in Finder rests on unit tests. Phase 89's zs
 Mac Pro is still owed and is proven on the loopback scratch machine only. `needs input` never lights
 for a remote session and SpecStory capture never runs on one, both closed by decision.
 
+## Phase 111 — the nightly durability lane is red and the push gates cannot see it QUEUED, AND IT OUTRANKS THE REMAINING FEATURE WORK
+
+**Subject:** `fix(restore): the app-quit snapshot lands for every session, not the first`
+**First body line:** `Phase 111: the nightly durability lane is red`
+**Semver:** patch unless the cause turns out to be a capability change, and then the committer says which and why.
+**Tier 3.** It is durability. The house rules put anything touching restore, the manifest or session
+lifecycle at the highest tier, and this is the lane that guards all three.
+
+### What is red, measured rather than guessed
+
+`durability.yml` runs nightly at 09:00 UTC and it is the ONLY lane that runs `npm run smoke:t3`. The
+push gates do not run it. Its history:
+
+| Date | Commit | Result | Failing step |
+| --- | --- | --- | --- |
+| 2026-08-18 | 158d2c2 | success | none |
+| 2026-08-19 | e61e836 | failure | the fault battery, `ReferenceError: lo is not defined` |
+| 2026-08-20 | ce56d1f | failure | **T3, restorable to restored to armed** |
+
+The 2026-08-19 failure was fixed by hand in `build/fault-harness.mjs` and that step now passes. **The
+2026-08-20 failure is a different and deeper one that was standing behind it.**
+
+### The failure
+
+```
+[gmux-smoke] 3/6 smoke-t3 created: smoke-t3 (fd92bb99-...), 676 bytes of term data
+[gmux-smoke] 4/6 armed resume argv planted (claude --resume 5c89a7fc-...)
+[gmux-smoke] 3/6 smoke-t3-agent created: smoke-t3-agent (5fee5659-...), 559 bytes of term data
+[gmux-smoke] 4/6 armed resume argv planted (pi --session-id d7d7eed7-...)
+[gmux] manifest generation 2 taken (quit) in 10 ms
+[gmux-smoke] FAIL: ENOENT: no such file or directory,
+             open '.../t3/gmux/snapshots/5fee5659-...txt'
+```
+
+Both sessions were created. The quit ran and took its manifest generation. **The app-quit snapshot
+exists for the first session and not for the second.** The read that fails is in
+`src/main/harness/durability.ts`, in the loop over `planted` after `shutdownGmuxCore()`.
+
+### What this phase must do, in this order
+
+1. **BISECT IT.** The lane passed at `158d2c2` on 2026-08-18 and this step failed at `ce56d1f`. Every
+   commit between them is a candidate and there are many. Find the one that did it and name it. Do
+   NOT start from a theory.
+2. **Say whether a person is affected or only the harness.** If the app-quit snapshot really is
+   skipping sessions, a person loses the screen of every session but the first on quit, and that is
+   data loss on the restore path. If the harness is at fault, say so just as plainly. **The answer
+   matters more than the fix and it goes in the commit body either way.**
+3. Fix it, with a test that fails before and passes after, proven by mutation.
+
+### Two leads, offered and not to be trusted
+
+The CI runner reports `agent detection: 0/13 installed []`, so no agent binary exists there, and the
+harness deliberately relabels a shell pane to `claude` and to `pi` to exercise the restore path. A
+snapshot writer that skips a row whose agent is not installed would produce exactly this. That is a
+guess. The second lead is that `src/main/restore/snapshots.ts` was touched by Phase 100 at `ce56d1f`,
+but the whole of that change is adding the word `export` to `stripControls`, so it is almost
+certainly not the cause. **Check both against the bisect rather than instead of it.**
+
+### The process failure this phase also fixes, and it is mine
+
+`smoke:t3` was not in Phase 100's gate list even though that phase touched
+`src/main/restore/snapshots.ts`. The gate list per phase is chosen when the phase is briefed, and
+that choice was wrong. **This phase adds a rule to DEVELOPMENT.md**: any commit touching
+`src/main/restore/**`, `src/main/manifest/**` or `src/main/sessions/core.ts` runs `npm run smoke:t3`
+before it lands, the same way the context and resume gates are already pinned to their own paths.
+
+### The evidence
+
+Run `npm run smoke:t3` yourself, before and after, and paste both tails. Prove the fix by mutation,
+being restore the broken line, show the test fail, restore the fix byte for byte, show it pass. Say
+whether a person was affected. `src/main/tmux/resolve.ts` honours `GMUX_TMUX_SOCKET` ONLY when
+`GMUX_SHOT` or `GMUX_SMOKE` is set, so use `build/harness-socket.mjs` on your own named socket, since
+neighbouring worktrees contend for the shared one. Count the operator's sessions with
+`tmux -L gmux list-sessions` before and after and report both numbers.
+
 ## Phase 96 — the four defects on the remote surfaces (research 57 row, queued 2026-08-19) ✅ SHIPPED 2026-08-19 (this commit, 0.49.1, gates green, 6,575 tests)
 
 **Subject:** `fix(machines): four defects the parity audit found on the remote surfaces`
