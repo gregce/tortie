@@ -6528,6 +6528,57 @@ identical at 14 bytes. The palette painted 28 ms after the chord and nine keystr
 - Symbols still refuses on a remote tab and this phase did not widen it. The card reads `Symbols do
   not reach <machine>` and drew 0 rows in the live check.
 
+## Phase 99.1 — a list a machine cut is drawn as if it were whole (found by Phase 99's own verifier) QUEUED
+
+**Subject:** `fix(quickopen): say when a machine cut the file list short`
+**First body line:** `Phase 99.1: a list a machine cut is drawn as if it were whole`
+**Semver:** patch.
+**Tier 2.** Small. No new script, no new door, no new channel.
+**Charter:** this entry, plus the Phase 99 entry above and `docs/research/57-remote-parity.md` section 6.
+
+**Where this came from.** Phase 99's own verifier found it, its committer refused to fix it in the same
+commit because no builder lane had verified a change to that code, and it wrote the gap into the
+commit body rather than leaving it silent. That was the right call and this entry is the follow up.
+
+### The defect
+
+The read script answers whether it cut the list at 4,194,304 bytes.
+`src/main/machines/remote-files.ts` carries that answer through as `truncated`. And
+`QuickOpenElsewhereRead` in `src/renderer/quickopen/store.ts` **never reads it**.
+
+So a list that a machine cut at the byte ceiling arrives short, the name cap flag stays clear because
+the line count is under 50,000, and the note under the rows says the names came from that machine as
+if the list were whole. **The name cap has a sentence and the byte cap has none.**
+
+A person searching for a file that exists over there would be told, in effect, that it is not there.
+
+**No run has reached this state.** The largest corpus measured was 1,610 names, far under both caps.
+That is why it shipped, and it is also why the fix needs a test that forces the state rather than
+waiting for it.
+
+### The fix
+
+Read `truncated` where the name cap is already read, and give the byte cap its own sentence in the
+same place and the same style as the name cap's. Say plainly that the machine stopped listing, so a
+file may be missing, rather than implying the list is complete.
+
+### What is NOT in this phase
+
+Raising either cap. Changing the script. Changing what crosses the link. Two more things Phase 99
+recorded and left alone are also out of scope, and they are separate entries if they are ever built:
+a palette opened while the link is down warms the ranking worker with an empty list and discards
+names Tortie already held, and the idle prewarm sends one command per remote root with nothing
+counting commands in flight against a machine's effective ceiling of 10.
+
+### The evidence
+
+Force the state rather than waiting for it. Build a name list that crosses 4,194,304 bytes while
+staying under 50,000 names, prove the sentence appears, and prove the name cap's own sentence still
+appears in its own case. Read a screenshot of both. `src/main/tmux/resolve.ts` honours
+`GMUX_TMUX_SOCKET` ONLY when `GMUX_SHOT` or `GMUX_SMOKE` is set, so use `build/harness-socket.mjs`
+and an isolated `--user-data-dir`. Count the operator's sessions with `tmux -L gmux list-sessions`
+before and after and report both numbers.
+
 ## Phase 100 — read the last lines of a session on another machine (research 57 row, queued 2026-08-19) QUEUED
 
 **Subject:** `feat(sessions): read back the last lines of a session on another machine`
