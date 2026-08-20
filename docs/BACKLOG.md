@@ -6659,7 +6659,13 @@ frozen. Its absence for a session on this Mac was driven live. The packaged buil
 
 ### The mechanism
 
-One new read script with 4 spawns to learn the branch and the repository over there. `gh` runs on THIS Mac and never leaves it, and no credential crosses. `src/main/actions/*` is unchanged.
+One new read script to learn the branch and the repository over there. `gh` runs on THIS Mac and
+never leaves it, and no credential crosses. `src/main/actions/*` is unchanged.
+
+**CORRECTED WHEN THIS PHASE SHIPPED.** This line said "4 spawns", which was research 57's estimate
+and it is wrong. The far side runs EIGHT external programs, and the shipped block below explains the
+miscount. The number is corrected here rather than left standing, because a later phase reading this
+entry for a price would inherit the error.
 
 ### What is NOT in this phase
 
