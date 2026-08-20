@@ -18,7 +18,7 @@ release.
 | 3 | **117** an unreachable confirmation is not proof of absence | Audit P0. It can lose a live remote session's row, and the write phases lean on it | queued |
 | 4 | **118** remote children are owned, removal is one transaction | Audit P1, same reason | queued |
 | 5 | **119** decline capture on restore | Insurance from research 59 | queued |
-| — | **RELEASE POINT** | Everything above is user facing and finishes the remote programme. Tag here | operator |
+| — | **RELEASE POINT, AND HE DELEGATED IT** | Everything above is user facing and finishes the remote programme | **AGENT, once, see below** |
 | 6 | **101** save a file on a machine | The write tranche. He is at the keyboard for the first save | queued |
 | 7 | **102** new folder and rename | | queued |
 | 8 | **103** stage and unstage | | queued |
@@ -30,6 +30,23 @@ release.
 | 13 | **Run D** 127 | App, FileTree and state to app | queued |
 | 14 | **128** reassess the three large files | Reads the evidence the runs produced. May rule against itself | queued |
 | — | **THEN** | Arch, Phases 63 to 66, unheld only after 128 | operator |
+
+**THE RELEASE AFTER PHASE 119 IS DELEGATED, AND THIS IS THE ONE EXCEPTION TO A STANDING RULE.** The
+standing rule everywhere else in this file and in every phase brief is that an agent NEVER tags and
+NEVER cuts a release. On 2026-08-20 the operator said, in his words, to make sure to cut a release
+and push it and watch it run after 119 finishes, and not to wait on him. That grant is:
+
+- **ONE release only**, the one at the release point after Phase 119. It does not extend to the
+  second release point after the write phases, and it does not become a standing permission.
+- **The order is fixed.** Append the missing CHANGELOG items first, one per commit in the house
+  shape, and retitle the entry to the version being tagged. Then confirm the working tree is clean
+  and main is pushed. Then tag `v<version>` and push the tag. `release.yml` fires only on a `v*` tag.
+- **Watch the run to its end** and report the outcome, including the artifacts it published and the
+  notarization result, which is the thing research 59 said only a real signed build can prove.
+- **If any gate is red, or the changelog cannot be completed honestly, DO NOT TAG.** Report and stop.
+  A release is the one action here that cannot be taken back.
+- **A tag is never moved or deleted once pushed.** If something is wrong after the fact, the answer
+  is another release, not a retag.
 
 **Two things run BESIDE this queue rather than in it, because their files are disjoint.** Run A may
 start at any time, including now, since it touches no machines file and no renderer surface. Phase
