@@ -6667,15 +6667,176 @@ transaction, tombstoning every row or none, with the machine file removed only a
 outcome classified. Fault the kth row of a removal and prove zero changes, then retry and prove
 idempotence.
 
-### The rest of the audit, recorded so nothing is lost
+### Audit phases 3 to 9 are now Phases 121 to 127, and the Arch work waits for them
 
-Audit phases 3 to 9, queued after 116 to 118 land, each independently shippable: the quick open
-recents delimiter (a space splits a path with a space in it), the bridge member optionality and the
-exact IPC closure, the six runtime dependency cycles and an AST cycle gate, the truthful TypeScript
-reference graph, the split of the machine contracts and orchestration behind stable facades, the
-App.tsx controller extraction and gated probe registration, and the FileTree controllers. The audit
-also names what NOT to do, being no split of `shared/types.ts`, `agents/registry.ts` or
-`git/service.ts` on line count alone.
+The operator asked on 2026-08-20 for these to be numbered and completed BEFORE the Arch pane
+(Phases 63 to 66) is unheld. Each is independently shippable and behaviour preserving. The audit's
+own rule binds every one of them: no phase changes normal UI behaviour, public IPC names, durable
+identity, remote execution policy or the one bridge rule, and durability work is never combined with
+broad file moves, because the failure proofs need a small review surface. The contract inventory must
+match after every phase, and a deliberate contract change is re-baselined and explained in the same
+commit.
+
+**THE OPERATOR'S RULE FOR THIS WHOLE BLOCK, set 2026-08-20.** These land only if they break NO user
+facing functionality and they improve the technical architecture. Nothing here is allowed to change
+what a person sees or does. Every one of them carries the same headline proof: the app behaves
+identically before and after, and the phase says which evidence shows it. **If a phase cannot be done
+without a visible change, it STOPS and reports rather than shipping the change.**
+
+He also asked them grouped rather than run one at a time. They are grouped into FOUR RUNS below by
+what they touch, so each run is one phase workflow with several items inside it, and no two runs
+contend for the same files.
+
+| Run | Items | Why they group | May run beside |
+| --- | --- | --- | --- |
+| **A, the type and gate run** | 121, 122, 124 | All three are compile time and gate work, being the recents tuple and closure fixture, the bridge member requirement, and the truthful project graph. Their proof is typecheck, the fixtures and the gates, with no runtime behaviour to photograph | Anything. It touches no machines file and no renderer surface |
+| **B, the cycle run** | 123 | The six cycles cross main and renderer at once, so it cannot share a tree with a run that moves the same modules. It cuts the three ownership cycles first, then the three small ones | Nothing that moves main or renderer modules |
+| **C, the machines run** | 125, 126 | Both split the machines contract and orchestration, so they must be one review surface. **Runs only after 117 and 118**, because those change the workflows it moves | Run A only |
+| **D, the renderer shell run** | 127 | App, FileTree and the state-to-app edge share one proof surface, being the screenshots and the shipped path harnesses | Run A only |
+
+**128 is not in a run.** It is a judgement that may rule against itself, and it comes last, after the
+four runs have produced the responsibility evidence it reads.
+
+**Order.** Run A can start any time. Runs B, C and D follow 117 and 118, in that order. The Arch work,
+Phases 63 to 66, is unheld only after 128, which is the operator's own sequencing.
+
+## Phase 121 — recents encode a path with a space wrongly, and the IPC closure is not gated (audit phase 3) QUEUED
+
+**Subject:** `fix(quickopen): recents keep a path with a space in it`
+**First body line:** `Phase 121: recents encode a path with a space wrongly`
+**Semver:** patch. **Tier 2**, rising for the decoder, which reads rows a person already has.
+
+Two items the audit pairs.
+
+**The delimiter.** `src/main/quickopen/rows.ts` and `worker.ts` join the root and the relative path
+with a literal space and decode at the FIRST space, so a root or a relative path containing a space
+decodes wrong. The fix is a structured tuple with a BACKWARD COMPATIBLE decoder for rows already on
+disk. **Proof the audit demands:** local and remote roots containing spaces, relative paths
+containing spaces, and the same path on two machines.
+
+**The closure gate.** The declared, preload and main invoke sets close exactly today, at 172 when the
+audit ran and higher now, and NOTHING enforces it. Add the exact closure fixture. This is separate
+from `contract-inventory --check`, which compares a baseline file; this proves the three sets are the
+same set.
+
+**NOT in this phase.** The bridge member optionality is Phase 122. Do not widen.
+
+## Phase 122 — an installed bridge has optional members, so casts keep spreading (audit phase 3, second half) QUEUED
+
+**Subject:** `fix(types): every member of an installed bridge is required`
+**First body line:** `Phase 122: an installed bridge has optional members`
+**Semver:** patch. **Tier 1**, because it is compile time only, with the gates as proof.
+
+`Window.gmux` is required as a whole while most installed capability members are optional, so
+renderer compatibility casts compensate and keep spreading. Make WHOLE BRIDGE ABSENCE optional and
+every member of an INSTALLED bridge required, then remove the `Extras` intersections. **Proof:**
+compile-time missing-member fixtures, plus the exact declared, preload and main closure from Phase
+121. Every cast removed is named in the commit body.
+
+## Phase 123 — six runtime dependency cycles, and a gate that cannot see them (audit phase 4) QUEUED
+
+**Subject:** `fix(arch): no production runtime cycles, proven by a graph gate`
+**First body line:** `Phase 123: six runtime dependency cycles`
+**Semver:** patch. **Tier 2**, with the focused suites after each cut.
+
+An AST graph over production runtime imports found six strongly connected components across 32
+modules, type-only edges excluded. `src/shared/__tests__/source-scan.test.ts` checks FIXED STRINGS,
+so it passes while they exist. The audit's own seams, and its ranking:
+
+| SCC | Modules | The seam |
+| --- | ---: | --- |
+| Main logging, tmux, machines | 15 | Move boot environment collection out of logging, or inject it into `runLogBootSequence` |
+| Main remote sessions | 5 | Extract readiness, context and stamp composition into leaves; at least two seams are needed |
+| Renderer state and editor | 5 | Inject app, store and editor operations into `shell-open.ts`; state must not import its composition owners |
+| Main key setup | 3 | Move shared constants and classifiers out of `connection-test`, `key-install` and `key-material` |
+| Renderer probe registration | 2 | Invert one registration dependency through a gated loader |
+| Renderer connection remedy | 2 | Extract the shared remedy model from `ConnectionTestView` and `KeyInstall` |
+
+**CUT THE LARGER OWNERSHIP CYCLES FIRST.** The audit says the 15 node, the remote session and the
+renderer state cycles are the architectural problems; the two 2-node ones are navigation and bundle
+hygiene, not correctness. **Proof:** zero production runtime SCCs, plus a fixture proving a type-only
+edge does NOT fail the gate and a real runtime cycle DOES. Replace the fixed-string check with the
+AST gate in the same commit.
+
+## Phase 124 — the TypeScript project graph states a weaker boundary than production follows (audit phase 5) QUEUED
+
+**Subject:** `fix(build): the TypeScript reference graph tells the truth`
+**First body line:** `Phase 124: the TypeScript project graph is not truthful`
+**Semver:** patch. **Tier 1.**
+
+Web production still inherits test-driven main and Node reachability. Separate the cross process
+tests, remove the web-to-main production reference and the Node types from shared and web, and gate
+package and builtin imports. **Proof:** fixtures reject `node:fs` and `electron` in shared and
+renderer while existing cross process tests REMAIN DISCOVERABLE, which is the trap. Plus typecheck,
+test discovery and the import boundary gate.
+
+## Phase 125 — `shared/ipc/machines.ts` is one superdomain, and `GmuxCore` owns too many workflows (audit phase 6) QUEUED
+
+**Subject:** `refactor(machines): contracts and orchestration split behind stable facades`
+**First body line:** `Phase 125: the machine contracts and orchestration split`
+**Semver:** patch, because nothing a person can see changes. **Tier 3**, because it moves the code
+that owns durable session identity.
+
+Two P2 findings the audit's phase 6 pairs. `shared/ipc/machines.ts` was 1,957 lines and 26 invokes
+when the audit ran and has grown since; split it into physical contracts by capability family behind
+the STABLE `machines` barrel, and correct the stale invoke count header. `GmuxCore` and
+`remote-sessions.ts` own too many effectful workflows; extract local create, remote create, ready
+context, feed ownership and removal BEHIND THE EXISTING FACADES. The audit's Tomorrow tree names the
+target files.
+
+**Proof:** the contract inventory and the runtime closure remain BYTE FOR BYTE stable, and fault
+point tests preserve declaration before spawn, rollback, restore, identity and feed exclusivity.
+**This phase must land AFTER 117 and 118**, because they change the very workflows it moves, and the
+audit forbids combining durability work with file moves.
+
+## Phase 126 — remote SCM reaches into private local action leaves (audit phase 6, third P2) QUEUED
+
+**Subject:** `refactor(scm): one read-only runs service for local and remote`
+**First body line:** `Phase 126: remote SCM reaches into private local leaves`
+**Semver:** patch. **Tier 2.**
+
+Remote SCM imports private local action leaves and a broad Git barrel. Promote a stable read only
+runs and parser service used by BOTH paths, with transport staying under machines. **Proof:** an
+import boundary test plus local and remote parity fixtures. Note Phase 120 already added the merged
+runs read on both paths, so this phase inherits that shape rather than changing it.
+
+## Phase 127 — `App.tsx` and `FileTree.tsx` carry controllers, and state imports app (audit phases 7 and 8) QUEUED
+
+**Subject:** `refactor(renderer): controllers move behind the shells they belong to`
+**First body line:** `Phase 127: App and FileTree controllers move out`
+**Semver:** patch. **Tier 2**, with screenshots, because the whole claim is that nothing looks or
+behaves different.
+
+Three renderer findings the audit splits across its phases 7 and 8, kept together here because they
+share one proof surface. `App.tsx` was 1,538 lines with 71 imports and statically registers shipped
+path probe drivers; extract keyboard, menu actions and quit, and move probe registration behind ONE
+GATED LOADER with the probes still on the shipped implementation path. `FileTree.tsx` was 1,636 lines
+with 18 effects; extract the model, rename, menu and drag controllers behind the current component.
+And renderer state imports app owned machine copy and resume logic; move neutral machine presentation
+to a lower layer and inject app operations into the state controllers.
+
+**Proof:** every keyboard, menu and quit test, EVERY shipped path drive and shot harness, production
+build containment, the boundary fixture proving state cannot import app or editor, the tree
+interaction tests, and screenshots showing no visual or behaviour change.
+
+**If this proves too large in the spec, split it back into the audit's own 7 and 8 and say so.** The
+audit made them separate phases and this entry merges them only because their proof surface is one.
+
+## Phase 128 — reassess shared types, the agent registry and the Git service (audit phase 9) QUEUED, AND IT MAY RULE AGAINST ITSELF
+
+**Subject:** `docs(arch): what shared types, the registry and the Git service should become`
+**First body line:** `Phase 128: reassess the three large files`
+**Semver:** none if it ships as a document. **Tier 1.**
+
+`shared/types.ts`, `agents/registry.ts` and `git/service.ts` are candidates for later physical
+splits. **THE AUDIT IS EXPLICIT THAT SIZE ALONE IS NOT THE REASON TO CHANGE THEM**, and that the
+registry is mostly declarative and therefore lower priority despite being 1,724 lines. This phase
+judges them by REASONS TO CHANGE and dependency direction, using the responsibility evidence the
+earlier phases produced.
+
+**RULING AGAINST A SPLIT IS A GOOD OUTCOME AND THE ENTRY SAYS SO.** If the evidence does not support
+moving a file, the phase ships a document saying which file, what evidence, and why it stays. Do not
+manufacture a refactor to justify the phase.
 
 ## Phase 113 — `npm run shot` still attaches to the operator's own server, AND IT NEEDS HIS WORD QUEUED, BLOCKED
 
