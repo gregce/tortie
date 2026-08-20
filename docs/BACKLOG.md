@@ -6230,6 +6230,28 @@ exists for the first session and not for the second.** The read that fails is in
    matters more than the fix and it goes in the commit body either way.**
 3. Fix it, with a test that fails before and passes after, proven by mutation.
 
+### A NARROWING MEASURED ON 2026-08-20, AND IT CHANGES WHERE TO LOOK
+
+**`npm run smoke:t3` PASSES on this Mac and FAILS on the CI runner, on the same tree.** Phase 106's
+committer ran it on commit `02aed16`, on its own socket `gmux-p106-t3` with its own `TMPDIR`, and got
+prep 6 of 6 and verify 3 of 3, with both the claude shape and the pi shape restored. The nightly
+failed the same smoke at `ce56d1f`, one commit earlier.
+
+So this is very likely NOT a plain code regression, and a bisect over the commits alone may find
+nothing. **Look first at what differs between the two machines.** The runner's own log prints
+`agent detection: 0/13 installed []`, and this Mac has twelve of thirteen. The harness deliberately
+relabels a shell pane to `claude` and to `pi` to exercise the restore path, so a snapshot writer that
+behaves differently when no agent binary exists would produce exactly this split.
+
+**Reproduce the CI condition locally rather than reasoning about it.** Run the T3 smoke on this Mac
+with the agent binaries made invisible, e.g. with a PATH that contains none of them, and see whether
+the second session's snapshot goes missing. If it does, the cause is found without a bisect. If it
+does not, bisect as the entry already says.
+
+One more fact worth having: `smoke:t3` driven straight through `build/harness-socket.mjs` exits 127
+with `electron: command not found`, because `npm run` is what puts `node_modules/.bin` on PATH. Add
+that directory to PATH when driving it outside npm. That is a note for whoever runs it, not a defect.
+
 ### Two leads, offered and not to be trusted
 
 The CI runner reports `agent detection: 0/13 installed []`, so no agent binary exists there, and the
