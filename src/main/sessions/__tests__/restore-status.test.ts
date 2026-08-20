@@ -124,7 +124,8 @@ describe('restoreSession, read as source', () => {
 
   function restoreSessionBody(): string {
     const src = readFileSync(CORE, 'utf8');
-    const start = src.indexOf('async restoreSession(');
+    // Phase 116 moved the body behind the admission gate.
+    const start = src.indexOf('async restoreSessionAdmitted(');
     expect(start).toBeGreaterThan(-1);
     const end = src.indexOf('\n  private reportRestoreStages', start);
     expect(end).toBeGreaterThan(start);

@@ -81,7 +81,9 @@ import type { ManifestSessionRecord } from '../../manifest/store';
 /** The real bodies, borrowed. No subclass, no cast of the whole class. */
 const proto = GmuxCore.prototype as unknown as {
   addProject: (this: unknown, path: string) => { id: string; path: string };
-  addRemoteProject: (
+  // Phase 116 put an admission gate in front of addRemoteProject; the body
+  // this file drives is the admitted one.
+  addRemoteProjectAdmitted: (
     this: unknown,
     input: { machineId: string; path: string }
   ) => Promise<{ ok: boolean }>;
@@ -318,7 +320,7 @@ describe('closing a project tab on another machine', () => {
     expect(store.getSession('remote-a')?.projectTombstone).toBeDefined();
     expect(store.getSession('local-a')?.projectTombstone).toBeDefined();
 
-    await proto.addRemoteProject.call(host(), {
+    await proto.addRemoteProjectAdmitted.call(host(), {
       machineId: 'macpro',
       path: '/Users/gdc/gmux'
     });

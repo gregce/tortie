@@ -1066,6 +1066,15 @@ export interface GmuxErrorPayload {
     // comes from classifyTmuxFailure reading tmux's own words, so it can
     // arrive at any command, not only at boot.
     | 'TMUX_VERSION_MISMATCH'
+    // APPENDED (Phase 116): shutdown has started, so the core refuses to
+    // start new work instead of handing back the instance being torn down.
+    // `getGmuxCore()` and every guarded mutator answer with this code from
+    // the moment `shutdownGmuxCore()` runs until the process ends. `detail`
+    // carries the entry point that refused, e.g. `createSession`. The
+    // renderer needs no new handling: the refusal fires only while the
+    // windows are closing, and every call site already catches invoke
+    // rejections.
+    | 'SHUTTING_DOWN'
     | 'UNKNOWN';
   message: string;
   detail?: string;

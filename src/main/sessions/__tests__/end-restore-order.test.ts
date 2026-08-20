@@ -45,7 +45,9 @@ function body(decl: string, end: string): string {
 }
 
 describe('killSession (manual end)', () => {
-  const kill = body('async killSession(', 'discardSession(');
+  // Phase 116 moved the body behind the admission gate; the pinned
+  // ordering lives in the admitted body, so that is where the slice starts.
+  const kill = body('async killSessionAdmitted(', 'discardSession(');
 
   it('captures the snapshot before tmux.killSession, and awaits it', () => {
     const capture = kill.indexOf('await captureSessionSnapshot(');

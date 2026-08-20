@@ -132,6 +132,15 @@
  *                       leftover count, hides the window, and drains again
  *                       for up to 15 s, so a 0 with those lines is the
  *                       classified late quit. `npm run smoke:quit`.
+ *  - GMUX_SMOKE=shutdown-refusal  the core fails closed once shutdown starts
+ *                       (Phase 116, Tier 3). Holds the REAL shutdown inside
+ *                       the snapshot pass, proves `getGmuxCore()` and a real
+ *                       `createSession` are refused with the typed
+ *                       SHUTTING_DOWN payload while manifest rows, tmux
+ *                       sessions and pane pids stay unchanged, proves the
+ *                       create admitted before shutdown resolved before the
+ *                       snapshot, and proves a clean second boot in the same
+ *                       process. `npm run smoke:shutdown`.
  *  - GMUX_SMOKE=shadow  the bare-name invariant under a shadowed binary
  *                       (Phase 49, Tier 3): two scratch copies of `droid` are
  *                       planted at the head of a stubbed login-shell PATH, a
@@ -204,6 +213,9 @@ import {
 import { runSmokeIdentity } from './identity';
 import { runSmokeProcId } from './procid';
 import { runSmokeQuit } from './quit';
+// Phase 116: the shutdown refusal proof. LEAF import like ../fault/harness,
+// because it pulls in the session core.
+import { runShutdownRefusalSmoke } from './shutdown-refusal';
 // Phase 71: the partition harness's Electron leg. It is the only place the
 // "a cut link never says a session ended" rule is measured against a real app
 // holding a real connection with a real terminal attached.
@@ -248,6 +260,15 @@ export async function dispatchHarness(deps: HarnessDeps): Promise<boolean> {
   // the bug it guards against lives between before-quit and FreeEnvironment.
   if (smoke === 'quit') {
     await runSmokeQuit();
+    return true;
+  }
+  // Phase 116: the core fails closed once shutdown starts. Holds the real
+  // shutdown inside the snapshot pass and proves the typed refusal of
+  // acquisition and mutation with manifest, tmux and pid counts unchanged,
+  // proves the admitted create was joined before the snapshot, and proves a
+  // clean second boot in the same process. `npm run smoke:shutdown`.
+  if (smoke === 'shutdown-refusal') {
+    await runShutdownRefusalSmoke();
     return true;
   }
   if (smoke === 't3-prep') {

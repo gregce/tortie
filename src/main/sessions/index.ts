@@ -8,4 +8,10 @@
  * file to reach a service object. The class itself was moved verbatim.
  */
 
-export { getGmuxCore, shutdownGmuxCore, GmuxCore } from './core';
+export {
+  coreLifecycleState,
+  getGmuxCore,
+  shutdownGmuxCore,
+  GmuxCore
+} from './core';
+export type { CoreLifecycleState } from './core';

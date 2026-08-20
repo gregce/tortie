@@ -563,6 +563,24 @@ export class GmuxCore {
   private disposed = false;
 
   /**
+   * Phase 116, refusal site B. True from the moment `shutdownGmuxCore()` has
+   * settled the boot, set through {@link beginShutdown}. Main-process code
+   * that already holds a core reference, e.g. the tray or a timer, reaches
+   * the mutators without passing `getGmuxCore()`, so the instance carries its
+   * own flag rather than trusting the module gate alone.
+   */
+  private shuttingDown = false;
+
+  /**
+   * Phase 116. The admission ledger: every mutation {@link admit} let in and
+   * that has not settled yet. `shutdownGmuxCore()` joins this set before the
+   * final snapshot, so work the core accepted is landed rather than abandoned
+   * mid write. Entries are settle-only wrappers, so the ledger can never turn
+   * a caller's handled rejection into an unhandled one.
+   */
+  private readonly admitted = new Set<Promise<void>>();
+
+  /**
    * Diagnostic tap: called with (sessionId, byteLength) for every term:data
    * flush the attach host sends. Used by the smoke harness to assert bytes
    * really flow through main; never wired in production.
@@ -1567,7 +1585,16 @@ export class GmuxCore {
    * assigned (Phase 19 item 6). See {@link restoredStatus} for why `running`
    * is not one of the answers.
    */
-  async restoreSession(sessionId: string): Promise<Session> {
+  restoreSession(sessionId: string): Promise<Session> {
+    // Phase 116: refused once shutdown starts, joined by the quit path when
+    // admitted before it. A restore spawns locally or execs remotely, and
+    // neither may begin against a core that is being disposed.
+    return this.admit('restoreSession', () =>
+      this.restoreSessionAdmitted(sessionId)
+    );
+  }
+
+  private async restoreSessionAdmitted(sessionId: string): Promise<Session> {
     // PHASE 72, and it is the first branch on purpose. A session on another
     // machine takes a different path entirely: a different composer, a
     // different transport, a different set of conditions in front of it, and
@@ -2644,8 +2671,19 @@ export class GmuxCore {
   /**
    * ⌘T create. Manifest row is written BEFORE the tmux spawn (§2.4 Step 0);
    * on spawn failure the row is removed and the error surfaces to the UI.
+   *
+   * Phase 116: the whole body runs inside {@link admit}. The guard therefore
+   * sits above `createMachineIdFor` and above the capture refusal read, which
+   * Phase 94 placed first for exactly this reason: a path composed later
+   * cannot sit above it. A refused remote create never reaches the exec plane.
    */
-  async createSession(input: CreateSessionInput): Promise<Session> {
+  createSession(input: CreateSessionInput): Promise<Session> {
+    return this.admit('createSession', () => this.createSessionAdmitted(input));
+  }
+
+  private async createSessionAdmitted(
+    input: CreateSessionInput
+  ): Promise<Session> {
     if (input.name.trim().length === 0) {
       throw gmuxError('INVALID_INPUT', 'Session name cannot be empty.');
     }
@@ -3164,8 +3202,18 @@ export class GmuxCore {
     return toSession(stored ?? record);
   }
 
-  /** F2 rename: tmux first (when live), manifest always, event loop confirms. */
-  async renameSession(input: RenameSessionInput): Promise<Session> {
+  /**
+   * F2 rename: tmux first (when live), manifest always, event loop confirms.
+   *
+   * Phase 116: admitted, because it writes the manifest and can exec remotely.
+   */
+  renameSession(input: RenameSessionInput): Promise<Session> {
+    return this.admit('renameSession', () => this.renameSessionAdmitted(input));
+  }
+
+  private async renameSessionAdmitted(
+    input: RenameSessionInput
+  ): Promise<Session> {
     if (input.name.trim().length === 0) {
       throw gmuxError('INVALID_INPUT', 'Session name cannot be empty.');
     }
@@ -3221,7 +3269,14 @@ export class GmuxCore {
    * never deleted), with its resume argv, so Restore stays possible after a
    * manual end. Nothing here may be reordered to kill first.
    */
-  async killSession(sessionId: string): Promise<void> {
+  killSession(sessionId: string): Promise<void> {
+    // Phase 116: admitted, because it destroys a session and can exec
+    // remotely. A kill admitted before shutdown is joined so its capture and
+    // its status write land before the final snapshot.
+    return this.admit('killSession', () => this.killSessionAdmitted(sessionId));
+  }
+
+  private async killSessionAdmitted(sessionId: string): Promise<void> {
     // PHASE 84, ITEM 2. THE ORDER HERE IS THE PROMISE, exactly as it is on the
     // local branch below.
     //
@@ -3330,6 +3385,10 @@ export class GmuxCore {
    * remove tombstones too.
    */
   discardSession(sessionId: string): void {
+    // Phase 116: a durable delete, refused once shutdown starts.
+    if (this.shuttingDown || this.disposed) {
+      throw shutdownRefusal('discardSession');
+    }
     // The row is going, so its hold on its conversation goes with it. Anything
     // else would keep a discarded session's claim alive for the rest of the
     // run and stop a new session in that folder from recording an id. A row
@@ -3352,6 +3411,10 @@ export class GmuxCore {
    * because restoreSession rewrites it on the way back.
    */
   removeSession(sessionId: string): void {
+    // Phase 116: a durable tombstone write, refused once shutdown starts.
+    if (this.shuttingDown || this.disposed) {
+      throw shutdownRefusal('removeSession');
+    }
     // PHASE 84, ITEM 3. THE DURABLE HALF FIRST, THEN THE MEMORY HALF.
     //
     // The old order returned as soon as `forgetRemoteRow` found the id in
@@ -3416,8 +3479,22 @@ export class GmuxCore {
     );
   }
 
-  /** Start streaming a session into `sender` (visible pane mount). */
-  async attachSession(sessionId: string, sender: WebContents): Promise<void> {
+  /**
+   * Start streaming a session into `sender` (visible pane mount).
+   *
+   * Phase 116: admitted, because an attach spawns an attach host process.
+   * Detach stays unguarded on purpose: the teardown itself detaches.
+   */
+  attachSession(sessionId: string, sender: WebContents): Promise<void> {
+    return this.admit('attachSession', () =>
+      this.attachSessionAdmitted(sessionId, sender)
+    );
+  }
+
+  private async attachSessionAdmitted(
+    sessionId: string,
+    sender: WebContents
+  ): Promise<void> {
     // PHASE 70. A remote attach is a pty running the sign in program, carrying
     // that machine's own tmux on the far end. The composition is in
     // src/main/attach/attach-plan.ts and the target is the immutable identifier
@@ -3509,6 +3586,9 @@ export class GmuxCore {
   // -------------------------------------------------------------------------
 
   addProject(path: string): Project {
+    // Phase 116: a durable write, refused once shutdown starts. It completes
+    // inside one tick, so it needs refusal but not admission.
+    if (this.shuttingDown || this.disposed) throw shutdownRefusal('addProject');
     const abs = resolvePath(path);
     if (!isDirectory(abs)) {
       throw gmuxError(
@@ -3550,7 +3630,17 @@ export class GmuxCore {
    * to the machine after this, so a tab made on no answer at all would be a tab
    * whose folder nobody ever checked.
    */
-  async addRemoteProject(
+  addRemoteProject(
+    input: AddRemoteProjectInput
+  ): Promise<AddRemoteProjectResult> {
+    // Phase 116: admitted, because it writes a durable project row and reads
+    // the folder through the exec plane.
+    return this.admit('addRemoteProject', () =>
+      this.addRemoteProjectAdmitted(input)
+    );
+  }
+
+  private async addRemoteProjectAdmitted(
     input: AddRemoteProjectInput
   ): Promise<AddRemoteProjectResult> {
     const path = input.path.trim();
@@ -3589,6 +3679,11 @@ export class GmuxCore {
   }
 
   removeProject(projectId: string): void {
+    // Phase 116: it deletes the project row and stamps sessions, refused once
+    // shutdown starts.
+    if (this.shuttingDown || this.disposed) {
+      throw shutdownRefusal('removeProject');
+    }
     // Closing the tab also stops the repo watcher (Phase 4) — best-effort,
     // and BEFORE the row disappears so we still know the path.
     const project = this.manifest
@@ -3656,6 +3751,56 @@ export class GmuxCore {
   // Shutdown — attach clients die, tmux sessions all SURVIVE (T1 by design)
   // -------------------------------------------------------------------------
 
+  /**
+   * Phase 116. Called once by `shutdownGmuxCore()` as soon as the boot has
+   * settled. From this line on, every guarded mutator answers with the typed
+   * `SHUTTING_DOWN` refusal instead of running against a core that is about
+   * to be disposed.
+   */
+  beginShutdown(): void {
+    this.shuttingDown = true;
+  }
+
+  /**
+   * Phase 116. Wait for every admitted mutation to settle, bounded.
+   *
+   * The bound keeps the promise the quit path has always made: a sick call
+   * can never wedge quit. The common quit pays nothing here, because the set
+   * is empty unless a mutation is actually in flight.
+   */
+  async joinAdmitted(deadlineMs: number): Promise<void> {
+    if (this.admitted.size === 0) return;
+    await Promise.race([
+      Promise.all([...this.admitted]),
+      new Promise<void>((resolve) => setTimeout(resolve, deadlineMs))
+    ]);
+  }
+
+  /**
+   * Phase 116, the gate in front of every asynchronous mutator. A call that
+   * arrives after shutdown began is refused with the typed error, before the
+   * body can insert a manifest row, spawn a process or reach the exec plane.
+   * A call that arrives before is recorded in {@link admitted}, so the quit
+   * path can join it ahead of the final snapshot.
+   *
+   * The tracked copy swallows the settlement on purpose. The caller keeps
+   * the original promise and its own error handling; the ledger only needs
+   * to know when the work is over.
+   */
+  private admit<T>(entry: string, work: () => Promise<T>): Promise<T> {
+    if (this.shuttingDown || this.disposed) {
+      return Promise.reject(shutdownRefusal(entry));
+    }
+    const p = work();
+    const tracked = p.then(
+      () => undefined,
+      () => undefined
+    );
+    this.admitted.add(tracked);
+    void tracked.then(() => this.admitted.delete(tracked));
+    return p;
+  }
+
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
@@ -3721,6 +3866,55 @@ function isDirectory(path: string): boolean {
 // Core lifecycle — boot once, retry on demand after a failed boot
 // ---------------------------------------------------------------------------
 
+/**
+ * Phase 116. The one refusal sentence, used by every refusal site. It is the
+ * phase's only user facing string. A person almost never reads it, because it
+ * fires only after they chose to quit, while the windows are closing, and
+ * every renderer call site already catches invoke rejections. It exists so
+ * that any surface that does render the error, e.g. a log line, shows a true
+ * and simple sentence.
+ */
+const SHUTDOWN_REFUSAL = 'Tortie is quitting, so this action was not started.';
+
+/**
+ * Phase 116. The one place the typed refusal is built. The guards read the
+ * two instance flags inline, on purpose: several seam tests in this tree
+ * borrow the real methods off `GmuxCore.prototype` and run them against a
+ * plain object holding only the fields the body touches, and an inline read
+ * of a missing flag is simply false, exactly as it is for a live core that
+ * is not shutting down.
+ */
+function shutdownRefusal(entry: string): Error {
+  return gmuxError('SHUTTING_DOWN', SHUTDOWN_REFUSAL, entry);
+}
+
+/**
+ * Phase 116. How long the quit path waits for admitted mutations to settle
+ * before the final snapshot. Ten seconds covers a remote create over ssh,
+ * which is the slowest admitted mutation, and the wait is spent only when a
+ * mutation is actually in flight. The common quit pays zero.
+ */
+const ADMITTED_JOIN_TIMEOUT_MS = 10_000;
+
+/**
+ * Phase 116. Where the module singleton is in its life. `shuttingDown` is the
+ * state every refusal reads, and it is entered synchronously on the first
+ * line of `shutdownGmuxCore()` so the gate closes in the same tick the quit
+ * flow starts.
+ */
+export type CoreLifecycleState = 'empty' | 'booting' | 'ready' | 'shuttingDown';
+
+let lifecycle: CoreLifecycleState = 'empty';
+
+/**
+ * Phase 116. Read by the tests and the shutdown-refusal harness. No IPC
+ * channel exposes it, on purpose: the renderer has no business steering by
+ * the main process's internal lifecycle.
+ */
+export function coreLifecycleState(): CoreLifecycleState {
+  return lifecycle;
+}
+
 let corePromise: Promise<GmuxCore> | null = null;
 
 /**
@@ -3739,17 +3933,36 @@ let shutdownPromise: Promise<void> | null = null;
  * Boot (or return) the singleton core. A failed boot clears the cache so the
  * next call retries — e.g. after the user installs tmux and hits "Try again".
  *
- * Phase 77. During a shutdown this hands back the core that is going away,
- * because the slot is not cleared until dispose has returned. A disposed core
- * is honest about being disposed. A second live core, with a second manifest
- * handle and a second control client, is not.
+ * Phase 77 made the slot survive the shutdown window, so this used to hand
+ * back the core being torn down. Phase 116 replaces that with a typed
+ * refusal: during a shutdown the caller gets `SHUTTING_DOWN`, never the
+ * dying instance and never a second boot. Every mutating IPC handler
+ * acquires through this function, so this one check closes the whole IPC
+ * surface, reads included. That is deliberate. Fail closed means the gate
+ * does not sort calls into safe and unsafe while the core underneath it is
+ * being disposed. The refusal never touches `corePromise`, so the teardown
+ * in flight keeps the instance it captured.
+ *
+ * The boot callbacks are guarded on the `booting` state: a shutdown can
+ * start while boot is still in flight, and the boot resolving later must not
+ * overwrite `shuttingDown` with `ready`.
  */
 export function getGmuxCore(): Promise<GmuxCore> {
+  if (lifecycle === 'shuttingDown') {
+    return Promise.reject(shutdownRefusal('getGmuxCore'));
+  }
   if (corePromise === null) {
+    lifecycle = 'booting';
     corePromise = GmuxCore.boot();
-    corePromise.catch(() => {
-      corePromise = null;
-    });
+    corePromise.then(
+      () => {
+        if (lifecycle === 'booting') lifecycle = 'ready';
+      },
+      () => {
+        if (lifecycle === 'booting') lifecycle = 'empty';
+        corePromise = null;
+      }
+    );
   }
   return corePromise;
 }
@@ -3769,10 +3982,23 @@ export function getGmuxCore(): Promise<GmuxCore> {
 export async function shutdownGmuxCore(): Promise<void> {
   if (shutdownPromise !== null) return shutdownPromise;
   if (corePromise === null) return;
+  // Phase 116. Set synchronously, before any await, so the acquisition gate
+  // closes in the same tick the quit flow starts. The instance flag flips as
+  // soon as the boot has settled, below. Between those two moments no
+  // mutation can slip through, because every path to a mutator runs either
+  // through getGmuxCore(), which is already refusing, or through a reference
+  // whose calls land after beginShutdown() in the same awaited sequence.
+  lifecycle = 'shuttingDown';
   const pending = corePromise;
   shutdownPromise = (async () => {
     try {
       const core = await pending;
+      // Phase 116. Refusals on from here, then the join, BEFORE the snapshot
+      // pass, so the final snapshot and the quit manifest generation see the
+      // admitted work's result, e.g. the session a create just declared. The
+      // join is bounded, so quit cannot wedge on a sick call.
+      core.beginShutdown();
+      await core.joinAdmitted(ADMITTED_JOIN_TIMEOUT_MS).catch(() => undefined);
       faultPoint('quit.before-snapshots');
       await Promise.race([
         core.snapshotAllSessions(),
@@ -3801,6 +4027,9 @@ export async function shutdownGmuxCore(): Promise<void> {
       // function had already captured the first promise.
       corePromise = null;
       shutdownPromise = null;
+      // Phase 116. The circle closes: a later boot in the same process, e.g.
+      // the second cycle every durability harness runs, starts from `empty`.
+      lifecycle = 'empty';
     }
   })();
   return shutdownPromise;

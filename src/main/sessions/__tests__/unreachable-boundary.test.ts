@@ -325,7 +325,9 @@ describe('the guards that keep unknown until a list completes', () => {
  * `GMUX_SMOKE=remote-sessions`.
  */
 describe('the remote branch in front of the local restore', () => {
-  const gate = body('async restoreSession(', 'const rec = this.mustGetSession(');
+  // Phase 116 moved the body behind the admission gate; the remote branch
+  // lives in the admitted body, so that is where the slice starts.
+  const gate = body('async restoreSessionAdmitted(', 'const rec = this.mustGetSession(');
 
   /**
    * The refusal runs before anything is composed and before anything is sent.

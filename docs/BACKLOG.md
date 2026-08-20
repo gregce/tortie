@@ -6630,7 +6630,7 @@ UI behavior, public IPC names, durable identity, remote execution policy or the 
 durability work is never combined with broad file moves. These three phases are its phases 0, 1 and
 2, one Tortie phase each, in order. Its phases 3 to 9 are RECORDED below and queue after these land.
 
-### Phase 116 — mutating IPC can acquire the core after shutdown starts (audit phase 0, both P0 items start here)
+### Phase 116 — mutating IPC can acquire the core after shutdown starts (audit phase 0, both P0 items start here) ✅ SHIPPED 2026-08-20 (this commit, 0.58.2, gates green, 7166 tests)
 
 **Subject:** `fix(lifecycle): the core fails closed once shutdown starts`
 **First body line:** `Phase 116: the core fails closed once shutdown starts`

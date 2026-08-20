@@ -309,7 +309,8 @@ describe('both rules are read in createSession, in the right order', () => {
     // method itself, from its own signature to the local branch below it.
     const source = coreSource();
     const start = source.indexOf(
-      'async createSession(input: CreateSessionInput): Promise<Session> {'
+      // Phase 116 moved the body behind the admission gate.
+      'async createSessionAdmitted('
     );
     const end = source.indexOf('await tmux.installUserPath();', start);
     expect(start).toBeGreaterThan(-1);
