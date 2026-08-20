@@ -173,6 +173,12 @@ import { driveRemoteBranch } from '../scm/p106-branch-shot';
 import type { RemoteBranchProbeSpec } from '../scm/p106-branch-shot';
 import { driveRemoteHistory } from '../scm/p107-history-shot';
 import type { RemoteHistoryProbeSpec } from '../scm/p107-history-shot';
+// PHASE 120. The LOCAL Runs section's own hook, in the Phase 105 shape. It
+// seeds five runs, one of them a release stand in whose head branch is a tag
+// name, opens the group through its own control, and reports every glyph the
+// section drew.
+import { driveLocalRuns } from '../scm/p120-runs-shot';
+import type { LocalRunsProbeSpec } from '../scm/p120-runs-shot';
 
 // PHASE 81 harness hook, armed at module load because the moment it has to
 // see, the session list arriving, is over before any drive can start. It
@@ -984,6 +990,18 @@ interface ShotLayoutExtras {
    */
   remoteRuns?: RemoteRunsProbeSpec;
   /**
+   * Phase 120. Seed the LOCAL Runs section with five runs, being a queued
+   * one, a running one, a succeeded one, a failed one, and a running release
+   * whose head branch is a tag name, then open the group through its own
+   * control and report what it drew.
+   *
+   * The screenshot is the point of this one. The phase's claim is that a
+   * queued row, two spinning rows and a tag run's row are drawn side by side
+   * with their live states, and whether the five glyphs read clearly at once
+   * is a question only a picture answers.
+   */
+  localRuns?: LocalRunsProbeSpec;
+  /**
    * Phase 106. Seed one branch answer for a tab whose folder is on another
    * machine, open the group through its own control, and report every sentence
    * it drew with the box the layout engine gave it.
@@ -1241,6 +1259,14 @@ function useShotLayoutHook(): void {
       if (ext.remoteRuns !== undefined) {
         window.__gmuxShotReady = false;
         await driveRemoteRuns(ext.remoteRuns);
+        window.__gmuxShotReady = true;
+      }
+      // Phase 120. The same shape for the LOCAL Runs group, so the section
+      // opens in its real surroundings and the picture shows the five glyphs
+      // over the finished layout.
+      if (ext.localRuns !== undefined) {
+        window.__gmuxShotReady = false;
+        await driveLocalRuns(ext.localRuns);
         window.__gmuxShotReady = true;
       }
       // Phase 106. After the Runs drive, so a picture that carries both groups

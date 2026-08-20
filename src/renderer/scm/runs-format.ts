@@ -31,8 +31,12 @@ import { formatRelative, formatRelativeLong } from './format';
 /** First read in flight, nothing on screen yet. */
 export const RUNS_LOOKING = 'Looking for runs.';
 
-/** A read came back with zero rows. gh prints `[]` and exits 0 for this. */
-export const RUNS_EMPTY = 'No runs for this branch yet.';
+/**
+ * A read came back with zero rows. gh prints `[]` and exits 0 for this.
+ * Phase 120 widened the read to two queries, the branch and the branch's
+ * newest commit, so the sentence names both or it would claim too little.
+ */
+export const RUNS_EMPTY = 'No runs yet for this branch or its newest commit.';
 
 /** A run was expanded and its jobs read is in flight. */
 export const RUNS_JOBS_LOADING = 'Loading jobs.';
@@ -327,28 +331,33 @@ export function activityTooltip(a: RunActivity, nowMs: number): string {
 }
 
 /**
- * The header icon's tooltip. It speaks about the branch rather than about one
- * workflow, because the header carries one icon for a list of rows.
+ * The header icon's tooltip. It speaks about the newest run rather than about
+ * one workflow, because the header carries one icon for a list of rows.
+ *
+ * Phase 120 dropped the words "for this branch" from every sentence here. The
+ * list now merges two queries, the branch and the branch's newest commit, so
+ * the newest run can be one a tag push started. Naming the branch for such a
+ * run would be false, and the header has one icon for the whole list.
  */
 export function headerTooltip(latest: ActionsRun): string {
-  if (latest.status === 'queued') return 'A run for this branch is queued.';
+  if (latest.status === 'queued') return 'A run is queued.';
   if (latest.status === 'in_progress') {
-    return 'A run for this branch is running now.';
+    return 'A run is running now.';
   }
   if (latest.status === 'completed') {
     if (latest.conclusion === 'success') {
-      return 'The latest run for this branch succeeded.';
+      return 'The latest run succeeded.';
     }
     if (latest.conclusion === 'failure') {
-      return 'The latest run for this branch failed.';
+      return 'The latest run failed.';
     }
     if (latest.conclusion === 'cancelled') {
-      return 'The latest run for this branch was cancelled.';
+      return 'The latest run was cancelled.';
     }
     const word = latest.conclusionRaw ?? latest.statusRaw;
-    return `The latest run for this branch reports "${word}".`;
+    return `The latest run reports "${word}".`;
   }
-  return `The latest run for this branch reports "${latest.statusRaw}".`;
+  return `The latest run reports "${latest.statusRaw}".`;
 }
 
 /** "Last checked 3 minutes ago." or "Not checked yet." */

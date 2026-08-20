@@ -283,11 +283,15 @@ export function RemoteRunsPanel({
       ) : null}
       {/* The row limit was reached, so there are older runs and they are not
           here. Phase 99 carried a cut through main that the panel never drew,
-          and this is the sentence that stops the same shape happening. */}
+          and this is the sentence that stops the same shape happening. Phase
+          120 made the comparison `>=` rather than `===`, because the cap in
+          main keeps a run at the branch tip past the limit, so the merged
+          list can hold one row more than the limit in exactly the case that
+          has extra rows. */}
       {!collapsed &&
       rowsRead &&
       entry.limit > 0 &&
-      runs.length === entry.limit ? (
+      runs.length >= entry.limit ? (
         <p className="scm-remote-note runs-newest">{runsNewest(runs.length)}</p>
       ) : null}
       {!collapsed && entry.branch !== null && sha !== '' ? (

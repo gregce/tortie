@@ -21,6 +21,13 @@
  * The ceiling is therefore two gh processes per open project tab, and the
  * number of open tabs is the user's own choice.
  *
+ * Since Phase 120 a list refresh makes up to TWO gh reads, the branch list
+ * and then the commit list at the branch tip, because GitHub records a tag
+ * push run's head branch as the tag name and the branch query alone can
+ * never return it. The two reads run one after the other on the read lane,
+ * never in parallel, so the lane still holds at most one live gh process at
+ * a time and the two process ceiling per tab is unchanged.
+ *
  * ONE ARMING PATH FOR BOTH PUSH MOMENTS, and this is the one deviation from
  * research 45 section 5.3. That document arms from the typed push result for
  * a push made in Tortie and from `git:changed` for a push made in a
@@ -58,6 +65,7 @@ import {
   buildRunListForCommitArgv,
   buildRunViewArgv
 } from './argv';
+import { mergeRunQueries } from './merge';
 import { parseJsonOrNull, parseRunJobs, parseRunList } from './parse';
 import {
   readBranch,
@@ -345,23 +353,69 @@ async function runBranchRead(rec: RepoRecord): Promise<ActionsUpdate> {
     return snapshot(rec);
   }
 
+  // The branch tip, for the SECOND query below. The upstream tracking sha is
+  // preferred because a run can only exist for a commit GitHub has, and a
+  // local HEAD ahead of the push would name a commit with no runs. HEAD is
+  // the fallback for a branch with no upstream at all.
+  const tipSha =
+    (await readUpstreamSha(rec.repoPath)) ?? (await readHeadSha(rec.repoPath));
+
   const outcome = await runGh(
     buildRunListForBranchArgv({ ownerRepo, branch, limit: rec.limit }),
     { cwd: rec.repoPath, timeoutMs: READ_TIMEOUT_MS }
   );
   if (!outcome.ok) {
+    // A broken gh makes ONE process per read, not two: the commit query is
+    // never run after a branch failure.
     rec.health = outcome.health;
     if (outcome.health.state === 'rate-limited') stopTimer(rec);
     return snapshot(rec);
   }
 
-  const parsed = parseRunList(parseJsonOrNull(outcome.stdout));
-  rec.runs = mergeRuns(rec, parsed.runs, 'branch');
-  rec.issues = parsed.issues;
+  const branchParsed = parseRunList(parseJsonOrNull(outcome.stdout));
+
+  // The SECOND query (Phase 120): the runs the tip commit started. GitHub
+  // records a tag push run's head branch as the tag name, so the branch
+  // query alone can never return a release run. Sequential on this same
+  // lane, never in parallel, per the ceiling in the file header.
+  let commitRuns: readonly ActionsRun[] = [];
+  let commitIssues: readonly ActionsParseIssue[] = [];
+  let commitHealth: ActionsHealth = { state: 'ready' };
+  if (tipSha !== null) {
+    const commitOutcome = await runGh(
+      buildRunListForCommitArgv({
+        ownerRepo,
+        sha: tipSha,
+        limit: WATCH_LIMITS.COMMIT_RUN_LIMIT
+      }),
+      { cwd: rec.repoPath, timeoutMs: READ_TIMEOUT_MS }
+    );
+    if (commitOutcome.ok) {
+      const commitParsed = parseRunList(parseJsonOrNull(commitOutcome.stdout));
+      commitRuns = commitParsed.runs;
+      commitIssues = commitParsed.issues;
+    } else {
+      // The branch rows below still fold in and `lastCheckedAt` is still
+      // set, because a check did happen. Health carries the COMMIT failure
+      // so the panel does not claim a full read that did not happen.
+      commitHealth = commitOutcome.health;
+      if (commitOutcome.health.state === 'rate-limited') stopTimer(rec);
+    }
+  }
+
+  rec.runs = mergeRuns(
+    rec,
+    mergeRunQueries(branchParsed.runs, commitRuns),
+    'branch'
+  );
+  rec.issues = [...branchParsed.issues, ...commitIssues];
   rec.lastCheckedAt = Date.now();
-  rec.health = { state: 'ready' };
+  rec.health = commitHealth;
   // A read is a user action, so it lifts a poller that a rate limit stopped.
-  if (rec.watch.phase === 'discovering' || rec.watch.phase === 'watching') {
+  if (
+    commitHealth.state !== 'rate-limited' &&
+    (rec.watch.phase === 'discovering' || rec.watch.phase === 'watching')
+  ) {
     ensureTimer(rec);
   }
   return snapshot(rec);

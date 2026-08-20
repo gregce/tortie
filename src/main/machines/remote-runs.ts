@@ -45,17 +45,29 @@
  *                           │ normalizeGitHubRemote  →  owner/repo
  *                           ▼
  *                         runGh(run list --repo … --branch …)
+ *                         runGh(run list --repo … --commit …)   (Phase 120)
  *                           │
  *                           ▼
  *                       github.com     NOTHING ON THIS LINE TOUCHES THE MACHINE
  * ```
  *
- * ## Four modules from `src/main/actions` are imported, and that directory is
- * not edited
+ * TWO gh READS SINCE PHASE 120, still both on this Mac's side of the line.
+ * GitHub records a tag push run's head branch as the TAG NAME, so the branch
+ * query alone can never return a release run. After a good branch read the
+ * same gh is asked for the runs the head commit started, one after the
+ * other, never in parallel, and the two answers are folded through
+ * `../actions/merge`. The ONE REMOTE READ property is untouched: still
+ * exactly one `repo-facts` read per call, which is what condition 55g of
+ * `build/conformance-machines.mjs` counts. The worst case time grows to the
+ * facts deadline plus two `READ_TIMEOUT_MS`, being 15 s plus 20 s.
+ *
+ * ## Five modules from `src/main/actions` are imported, and that directory is
+ * owned by its own phase
  *
  * | From | Names |
  * | --- | --- |
- * | `../actions/argv` | `MAX_LIMIT`, `assertReadOnlyArgv`, `buildRunListForBranchArgv` |
+ * | `../actions/argv` | `MAX_LIMIT`, `assertReadOnlyArgv`, `buildRunListForBranchArgv`, `buildRunListForCommitArgv` |
+ * | `../actions/merge` | `capRuns`, `mergeRunQueries` |
  * | `../actions/parse` | `parseJsonOrNull`, `parseRunList` |
  * | `../actions/spawn` | `READ_TIMEOUT_MS`, `runGh` |
  * | `../actions/watch` | `WATCH_LIMITS` |
@@ -75,8 +87,8 @@
  * on the way to the first read. This path does not run one at all.
  * `classifyGhFailure` reads gh's own words and returns the `logged-out` rung from
  * the read itself, which is what the local service's own comment says catches a
- * person signing out. One process instead of two, and the panel says the same
- * sentence.
+ * person signing out. One process fewer on every read, and the panel says the
+ * same sentence.
  *
  * gh IS GIVEN THIS MAC'S HOME DIRECTORY AS ITS WORKING DIRECTORY. `--repo
  * owner/repo` is explicit in every argv the allowlist permits, and
@@ -117,8 +129,10 @@ import type { ActionsHealth, ActionsParseIssue, ActionsRun } from '@shared/actio
 import {
   MAX_LIMIT,
   assertReadOnlyArgv,
-  buildRunListForBranchArgv
+  buildRunListForBranchArgv,
+  buildRunListForCommitArgv
 } from '../actions/argv';
+import { capRuns, mergeRunQueries } from '../actions/merge';
 import { parseJsonOrNull, parseRunList } from '../actions/parse';
 import { READ_TIMEOUT_MS, runGh, type GhSpawner } from '../actions/spawn';
 import { WATCH_LIMITS } from '../actions/watch';
@@ -385,14 +399,17 @@ export async function readRunsOnMachine(
   } catch {
     return answerWithout(input, 'noBranch', started, facts, ownerRepo);
   }
-  const outcome = await runGh(argv, {
-    // THIS MAC'S HOME DIRECTORY. `--repo` is explicit in the argv above, so no
-    // folder on either computer can change the answer.
+  // THIS MAC'S HOME DIRECTORY, for BOTH gh reads. `--repo` is explicit in
+  // every argv above and below, so no folder on either computer can change
+  // the answer. The seam fields are the same for both reads, so a test that
+  // captures one captures the other.
+  const ghOptions = {
     cwd: homedir(),
     timeoutMs: READ_TIMEOUT_MS,
     ...(seam.ghSpawner === undefined ? {} : { spawner: seam.ghSpawner }),
     ...(seam.ghBin === undefined ? {} : { bin: seam.ghBin })
-  });
+  };
+  const outcome = await runGh(argv, ghOptions);
   let runs: readonly ActionsRun[] = [];
   let issues: readonly ActionsParseIssue[] = [];
   let health: ActionsHealth = { state: 'ready' };
@@ -400,6 +417,47 @@ export async function readRunsOnMachine(
     const parsed = parseRunList(parseJsonOrNull(outcome.stdout));
     runs = parsed.runs;
     issues = parsed.issues;
+
+    // The SECOND gh read (Phase 120): the runs the head commit started.
+    // GitHub records a tag push run's head branch as the tag name, so the
+    // branch query alone can never return a release run. Sequential, after
+    // the branch read, and never run at all when the branch read failed, so
+    // a broken gh still makes one process per read. `facts.headSha` already
+    // matched SHA_ONLY above, so the argv module's own sha rule accepts it.
+    if (facts.headSha !== null) {
+      const commitArgv = buildRunListForCommitArgv({
+        ownerRepo,
+        sha: facts.headSha,
+        limit: WATCH_LIMITS.COMMIT_RUN_LIMIT
+      });
+      let commitRefused = false;
+      try {
+        // The allowlist's own rule, the same belt the branch argv gets.
+        assertReadOnlyArgv(commitArgv);
+      } catch {
+        // A sha SHA_ONLY accepted and SHA_RE refuses does not exist, so this
+        // is a guard on a case nobody has. The branch rows stand.
+        commitRefused = true;
+      }
+      if (!commitRefused) {
+        const commitOutcome = await runGh(commitArgv, ghOptions);
+        if (commitOutcome.ok) {
+          const commitParsed = parseRunList(
+            parseJsonOrNull(commitOutcome.stdout)
+          );
+          runs = capRuns(
+            mergeRunQueries(runs, commitParsed.runs),
+            limit,
+            facts.headSha
+          );
+          issues = [...issues, ...commitParsed.issues];
+        } else {
+          // The branch rows stand, and the rung names the commit failure so
+          // the panel does not claim a full read that did not happen.
+          health = commitOutcome.health;
+        }
+      }
+    }
   } else {
     // The machine answered fine and GitHub is a separate question, so the mode
     // stays `ok` and the rung says what went wrong with gh.

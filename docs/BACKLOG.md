@@ -6797,7 +6797,7 @@ That resolves as the other in-flight phases land on top of this commit.
 The operator's server was read only throughout. `tmux -L gmux list-sessions | wc -l` read 39 at
 every checkpoint of the build, the verification and the commit.
 
-## Phase 120 — a release run started from a tag never appears in Runs (operator reported 2026-08-20, with a screenshot) QUEUED
+## Phase 120 — a release run started from a tag never appears in Runs (operator reported 2026-08-20, with a screenshot) ✅ SHIPPED 2026-08-20 (this commit, 0.59.1, gates green, 7,260 tests)
 
 **Subject:** `fix(actions): runs started from a tag appear beside the branch's runs`
 **First body line:** `Phase 120: a release run started from a tag never appears in Runs`
@@ -6855,6 +6855,47 @@ queries appears once. (4) Prove the remote group gets the same result through it
 the loopback machine, with the gh invocation captured to show no credential crossed. Count the
 operator's sessions before and after; the operator moves the count himself, so the invariant is that
 your runs do not move it.
+
+### What shipped, and the numbers behind it
+
+**The blind spot is closed at both fold sites.** The Runs group now makes two read queries. The
+first is the branch query it always made. The second is the commit query at the branch tip, using
+the `buildRunListForCommitArgv` composer that already existed. The answers are merged, deduplicated
+by run id and sorted by start time, so a release run whose head branch is a tag name appears beside
+the branch runs. The pure fold lives in `src/main/actions/merge.ts`. The local read folds in
+`src/main/actions/service.ts` and the remote read composes the same argv pair in
+`src/main/machines/remote-runs.ts`. The far side script did not change.
+
+**Evidence 1, the real repository, read only.** Against gregce/deadreckon, the branch query for
+main answered 50 runs and omitted run 32405134143, the release run the operator reported, recorded
+by GitHub with head branch `v0.8.7`. The merged answer held 51 runs and contained it. Only gh read
+verbs ran. Nothing was written and no workflow was dispatched.
+
+**Evidence 2, the live states photographed.** The live app on its own harness socket drew the Runs
+group open with 5 rows side by side, being a queued circle, a spinning glyph on a run in progress,
+a green success glyph at 6m 00s, a red failure glyph at 8m 00s, and a second spinning glyph on the
+release row at "now". The header tooltip read "A run is queued." All 9 screenshot assertions
+passed.
+
+**Evidence 3, the dedupe.** A run answered by both queries appears exactly once in the merged list,
+and the copy kept is the commit query's. The probe measured the merged list [9001, 9002, 9101] with
+run 9002 answered twice and drawn once. Unit tests hold the same property at both fold sites.
+
+**Evidence 4, the remote path.** Against the loopback machine, the read made exactly 2 gh
+invocations, the branch query first and the commit query second, with `--repo` explicit on both.
+The far side received 1,067 bytes and a search of those bytes found 0 hits across nine credential
+words, so no gh and no credential crossed the link. The end to end read returned 10 runs and the
+operator's release run was among them.
+
+**Evidence 5, the leading dash defense.** `runGh` refused a composed argv whose sha begins with a
+dash, and refused a sha that is not hexadecimal, each before any process spawned. The refusal lives
+in `assertReadOnlyArgv`, which every spawn passes through first.
+
+**What is NOT true.** A tag cut on a commit that is not the branch tip stays invisible, and the
+charter puts that case out of the phase, because releases are cut at the tip. No Linux far side was
+measured, because the loopback machine is this Mac. The screenshot's five rows were seeded, so the
+picture proves the drawing and the merge probe proves the behavior. There is still no polling and
+no timer. A read happens on expand and on Refresh, which is the standing rule.
 
 ## Phase 96 — the four defects on the remote surfaces (research 57 row, queued 2026-08-19) ✅ SHIPPED 2026-08-19 (this commit, 0.49.1, gates green, 6,575 tests)
 

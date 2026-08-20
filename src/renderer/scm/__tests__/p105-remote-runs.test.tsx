@@ -406,6 +406,20 @@ describe('what the panel admits about its own answer', () => {
     expect(draw({ runs: three, limit: 4 })).not.toContain('These are the newest');
   });
 
+  it('still says it when the list is longer than the limit', () => {
+    // PHASE 120. The cap in main keeps a run at the branch tip past the
+    // limit, so the merged list can hold one row more than the limit. The
+    // caption used strict equality, which would have dropped the sentence in
+    // exactly the case that has extra rows.
+    const four = [
+      run({ id: 1 }),
+      run({ id: 2 }),
+      run({ id: 3 }),
+      run({ id: 4 })
+    ];
+    expect(draw({ runs: four, limit: 3 })).toContain(copy.runsNewest(4));
+  });
+
   it('says which rows GitHub sent that the parser refused', () => {
     const issues: ActionsParseIssue[] = [
       { kind: 'run', field: 'databaseId', reason: 'missing' }

@@ -1621,8 +1621,8 @@ export function runsBranchAt(
 /** The row limit was reached, so older runs exist and are not here. */
 export function runsNewest(shown: number): string {
   return (
-    `These are the newest ${shown.toLocaleString()} runs for that branch. ` +
-    `There are older ones.`
+    `These are the newest ${shown.toLocaleString()} runs for that branch ` +
+    `and its newest commit. There are older ones.`
   );
 }
 

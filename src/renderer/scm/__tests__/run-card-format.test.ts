@@ -78,7 +78,7 @@ describe('runCardModel, a completed run', () => {
   it('fills every grid row, in order', () => {
     expect(model.fields).toEqual([
       { label: 'Run', value: '#128' },
-      { label: 'Branch', value: 'main' },
+      { label: 'Branch or tag', value: 'main' },
       { label: 'Trigger', value: 'push' },
       { label: 'Started', value: formatAbsolute(T - 10 * MIN) },
       { label: 'Duration', value: '5 minutes' }
@@ -115,7 +115,7 @@ describe('runCardModel, a running run', () => {
   it('shows Started but never a Duration while unfinished', () => {
     expect(model.fields).toEqual([
       { label: 'Run', value: '#128' },
-      { label: 'Branch', value: 'main' },
+      { label: 'Branch or tag', value: 'main' },
       { label: 'Trigger', value: 'push' },
       { label: 'Started', value: formatAbsolute(T - 90_000) }
     ]);
@@ -140,7 +140,7 @@ describe('runCardModel, a queued run', () => {
     expect(model.summary).toBe('gates is queued.');
     expect(model.fields).toEqual([
       { label: 'Run', value: '#128' },
-      { label: 'Branch', value: 'main' },
+      { label: 'Branch or tag', value: 'main' },
       { label: 'Trigger', value: 'push' }
     ]);
     expect(model.glyph).toEqual(runGlyph('queued', null));
@@ -160,6 +160,20 @@ describe('runCardModel, a run gh sent no number for', () => {
 
   it('gives the copy button the word Copy rather than a number that exists nowhere', () => {
     expect(model.copyLabel).toBe('Copy');
+  });
+});
+
+describe('runCardModel, a run a tag push started', () => {
+  it('shows the tag under the Branch or tag label, in gh\'s own word', () => {
+    // PHASE 120. gh records a tag push run's head branch as the tag name,
+    // e.g. v0.8.7, and such runs are in the list now. The label admits both
+    // shapes and the value stays exactly what gh sent.
+    const model = runCardModel(run({ headBranch: 'v0.8.7' }), null, T);
+    expect(model.fields).toContainEqual({
+      label: 'Branch or tag',
+      value: 'v0.8.7'
+    });
+    expect(model.fields.some((f) => f.label === 'Branch')).toBe(false);
   });
 });
 

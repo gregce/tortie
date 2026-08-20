@@ -23,7 +23,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { MAX_LIMIT } from '../../actions/argv';
+import { MAX_LIMIT, assertReadOnlyArgv } from '../../actions/argv';
 import { WATCH_LIMITS } from '../../actions/watch';
 import type { GhRunResult } from '../../actions/spawn';
 
@@ -85,6 +85,12 @@ let ghResult: GhRunResult = {
   timedOut: false,
   spawnError: null
 };
+/**
+ * Per call answers, consumed in order, for the tests where the branch query
+ * and the commit query must answer differently (Phase 120). When the queue
+ * is empty every call gets `ghResult`, as before.
+ */
+let ghResultQueue: GhRunResult[] = [];
 
 const spawner = (
   bin: string,
@@ -92,7 +98,7 @@ const spawner = (
   options: { cwd: string; env: NodeJS.ProcessEnv; timeoutMs: number }
 ): Promise<GhRunResult> => {
   ghCalls.push({ bin, argv: [...argv], cwd: options.cwd, env: options.env });
-  return Promise.resolve(ghResult);
+  return Promise.resolve(ghResultQueue.shift() ?? ghResult);
 };
 
 const seam = { ghSpawner: spawner, ghBin: '/usr/bin/gh' };
@@ -147,6 +153,7 @@ beforeEach(() => {
     timedOut: false,
     spawnError: null
   };
+  ghResultQueue = [];
 });
 
 // ---------------------------------------------------------------------------
@@ -341,10 +348,13 @@ describe('the answers that make no gh process at all', () => {
 // ---------------------------------------------------------------------------
 
 describe('the gh command line', () => {
-  it('composes run list for that branch, element by element', async () => {
+  it('composes run list for that branch and then for the head commit', async () => {
+    // TWO invocations since Phase 120, branch first, commit second, never one
+    // argv with both flags. The commit query is what returns a tag push run,
+    // whose head branch GitHub records as the tag name.
     const out = await readRunsOnMachine({ machineId: 'far', cwd: '/w' }, seam);
     expect(out.mode).toBe('ok');
-    expect(ghCalls).toHaveLength(1);
+    expect(ghCalls).toHaveLength(2);
     expect(ghCalls[0]?.argv).toEqual([
       'run',
       'list',
@@ -358,6 +368,22 @@ describe('the gh command line', () => {
       'databaseId,number,workflowName,displayTitle,status,conclusion,event,' +
         'headBranch,headSha,createdAt,startedAt,updatedAt,url'
     ]);
+    expect(ghCalls[1]?.argv).toEqual([
+      'run',
+      'list',
+      '--repo',
+      'owner/repo',
+      '--commit',
+      'a'.repeat(40),
+      '--limit',
+      String(WATCH_LIMITS.COMMIT_RUN_LIMIT),
+      '--json',
+      'databaseId,number,workflowName,displayTitle,status,conclusion,event,' +
+        'headBranch,headSha,createdAt,startedAt,updatedAt,url'
+    ]);
+    // The same belt the branch argv gets: the commit argv is a shape the
+    // allowlist accepts, asked here on the exact argv that was spawned.
+    expect(() => assertReadOnlyArgv(ghCalls[1]?.argv ?? [])).not.toThrow();
   });
 
   it('reads exactly one thing from the machine, and it is repo-facts', async () => {
@@ -384,26 +410,30 @@ describe('the gh command line', () => {
     // invocation and no GitHub host name is sent to the machine, and the
     // command line Tortie composes carries no credential of any kind.
     await readRunsOnMachine({ machineId: 'far', cwd: '/w' }, seam);
-    const line = (ghCalls[0]?.argv ?? []).join(' ');
-    for (const word of [
-      'GH_TOKEN',
-      'GITHUB_TOKEN',
-      'Authorization',
-      'hosts.yml',
-      '.config/gh',
-      'netrc'
-    ]) {
-      expect(line, word).not.toContain(word);
+    expect(ghCalls.length).toBeGreaterThan(0);
+    for (const call of ghCalls) {
+      const line = call.argv.join(' ');
+      for (const word of [
+        'GH_TOKEN',
+        'GITHUB_TOKEN',
+        'Authorization',
+        'hosts.yml',
+        '.config/gh',
+        'netrc'
+      ]) {
+        expect(line, word).not.toContain(word);
+      }
+      expect(call.env['GH_TOKEN']).toBeUndefined();
     }
-    expect(ghCalls[0]?.env['GH_TOKEN']).toBeUndefined();
     // The whole read sent ONE thing to the machine and it was a folder path.
     expect(reads).toEqual([{ script: 'repo-facts', args: ['/w'] }]);
   });
 
-  it('runs gh in this Mac’s own home directory', async () => {
+  it('runs every gh in this Mac’s own home directory', async () => {
     const { homedir } = await import('node:os');
     await readRunsOnMachine({ machineId: 'far', cwd: '/w' }, seam);
-    expect(ghCalls[0]?.cwd).toBe(homedir());
+    expect(ghCalls.length).toBeGreaterThan(0);
+    for (const call of ghCalls) expect(call.cwd).toBe(homedir());
   });
 });
 
@@ -446,7 +476,12 @@ describe('what gh answered', () => {
   it('drops a row missing a required field into issues rather than into runs', async () => {
     const bad = ghRow();
     delete bad['headSha'];
-    ghResult = { ...ghResult, stdout: JSON.stringify([ghRow(), bad]) };
+    // The branch query answers the bad row; the commit query answers a clean
+    // empty list, so the one issue below is the branch parse's own.
+    ghResultQueue = [
+      { ...ghResult, stdout: JSON.stringify([ghRow(), bad]) },
+      { ...ghResult, stdout: '[]' }
+    ];
     const out = await readRunsOnMachine({ machineId: 'far', cwd: '/w' }, seam);
     expect(out.runs).toHaveLength(1);
     expect(out.issues).toEqual([
@@ -459,5 +494,101 @@ describe('what gh answered', () => {
     contextReady = new Set(['nameless']);
     const out = await readRunsOnMachine({ machineId: 'nameless', cwd: '/w' }, seam);
     expect(out.machineLabel).toBe('nameless');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 120. The second query, and the fold of the two answers
+// ---------------------------------------------------------------------------
+
+describe('the merged answer of the two queries', () => {
+  it('lists a tag run the branch query alone omits', async () => {
+    // The defect Phase 120 fixes: GitHub records a tag push run's head branch
+    // as the tag name, so only the commit query returns a release run.
+    ghResultQueue = [
+      { ...ghResult, stdout: JSON.stringify([ghRow()]) },
+      {
+        ...ghResult,
+        stdout: JSON.stringify([
+          ghRow({ databaseId: 5001, headBranch: 'v9.9.9' })
+        ])
+      }
+    ];
+    const out = await readRunsOnMachine({ machineId: 'far', cwd: '/w' }, seam);
+    expect(out.mode).toBe('ok');
+    expect(out.runs.map((row) => row.id).sort()).toEqual([4001, 5001]);
+    expect(out.runs.some((row) => row.headBranch === 'v9.9.9')).toBe(true);
+    // Still exactly one remote read for the whole merged answer.
+    expect(reads).toHaveLength(1);
+  });
+
+  it('lands a run returned by both queries exactly once', async () => {
+    ghResultQueue = [
+      { ...ghResult, stdout: JSON.stringify([ghRow()]) },
+      {
+        ...ghResult,
+        stdout: JSON.stringify([ghRow(), ghRow({ databaseId: 5002 })])
+      }
+    ];
+    const out = await readRunsOnMachine({ machineId: 'far', cwd: '/w' }, seam);
+    expect(out.runs.map((row) => row.id).sort()).toEqual([4001, 5002]);
+  });
+
+  it('makes one gh process when the machine reported no head sha', async () => {
+    // A branch with no commit behind it has no tip for the second query.
+    readAnswer = () => factsAnswer('git@github.com:owner/repo.git', 'main', null);
+    const out = await readRunsOnMachine({ machineId: 'far', cwd: '/w' }, seam);
+    expect(out.mode).toBe('ok');
+    expect(ghCalls).toHaveLength(1);
+    expect(ghCalls[0]?.argv).toContain('--branch');
+  });
+
+  it('keeps the branch rows and the ok mode when the commit query fails', async () => {
+    ghResultQueue = [
+      { ...ghResult, stdout: JSON.stringify([ghRow()]) },
+      {
+        stdout: '',
+        stderr: 'gh auth login is required',
+        code: 4,
+        timedOut: false,
+        spawnError: null
+      }
+    ];
+    const out = await readRunsOnMachine({ machineId: 'far', cwd: '/w' }, seam);
+    expect(out.mode).toBe('ok');
+    expect(out.runs.map((row) => row.id)).toEqual([4001]);
+    // The rung names the commit failure, so the panel does not claim a full
+    // read that did not happen.
+    expect(out.health).toEqual({ state: 'logged-out' });
+  });
+
+  it('keeps a tip run past the limit, so the merged list can exceed it', async () => {
+    const tip = 'a'.repeat(40);
+    ghResultQueue = [
+      {
+        ...ghResult,
+        stdout: JSON.stringify([
+          ghRow({ databaseId: 4002, headSha: 'b'.repeat(40) })
+        ])
+      },
+      {
+        ...ghResult,
+        stdout: JSON.stringify([
+          ghRow({ databaseId: 5003, headSha: tip }),
+          ghRow({ databaseId: 5004, headSha: tip })
+        ])
+      }
+    ];
+    const out = await readRunsOnMachine(
+      { machineId: 'far', cwd: '/w', limit: 1 },
+      seam
+    );
+    // The limit is 1 and three rows merged: the newest row filled the limit
+    // and the two tip rows are kept past it.
+    expect(out.limit).toBe(1);
+    expect(out.runs.length).toBeGreaterThan(1);
+    for (const row of out.runs.slice(1)) {
+      expect(row.headSha).toBe(tip);
+    }
   });
 });

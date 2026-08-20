@@ -84,7 +84,10 @@ export function runCardModel(
   const fields: RunCardField[] = [];
   if (run.number > 0) fields.push({ label: 'Run', value: `#${run.number}` });
   if (run.headBranch !== '') {
-    fields.push({ label: 'Branch', value: run.headBranch });
+    // gh records a tag push run's head branch as the TAG NAME, and Phase 120
+    // put such runs in the list. The value is gh's own word either way, so
+    // the label names both shapes rather than calling a tag a branch.
+    fields.push({ label: 'Branch or tag', value: run.headBranch });
   }
   if (run.event !== '') {
     // The exact event word gh printed, e.g. `push` or `workflow_dispatch`.

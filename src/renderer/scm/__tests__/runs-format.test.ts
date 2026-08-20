@@ -17,6 +17,7 @@ import type {
   ActionsWatchView
 } from '@shared/actions';
 import {
+  RUNS_EMPTY,
   RUNS_JOBS_FAILED,
   activityDuration,
   activityDurationText,
@@ -316,28 +317,38 @@ describe('runActivity', () => {
 // ---------------------------------------------------------------------------
 
 describe('headerTooltip', () => {
-  it('speaks about the branch, not about one workflow', () => {
-    expect(headerTooltip(run({}))).toBe(
-      'The latest run for this branch succeeded.'
-    );
+  it('names no scope, because the newest run can be one a tag started', () => {
+    // PHASE 120 DROPPED "for this branch" FROM EVERY SENTENCE HERE. The list
+    // merges the branch query with a query at the branch's newest commit, so
+    // the newest run can be one a tag push started, and claiming the branch
+    // for it would be false.
+    expect(headerTooltip(run({}))).toBe('The latest run succeeded.');
     expect(
       headerTooltip(run({ conclusion: 'failure', conclusionRaw: 'failure' }))
-    ).toBe('The latest run for this branch failed.');
+    ).toBe('The latest run failed.');
     expect(
       headerTooltip(run({ conclusion: 'cancelled', conclusionRaw: 'cancelled' }))
-    ).toBe('The latest run for this branch was cancelled.');
+    ).toBe('The latest run was cancelled.');
     expect(
       headerTooltip(run({ status: 'in_progress', statusRaw: 'in_progress' }))
-    ).toBe('A run for this branch is running now.');
+    ).toBe('A run is running now.');
     expect(headerTooltip(run({ status: 'queued', statusRaw: 'queued' }))).toBe(
-      'A run for this branch is queued.'
+      'A run is queued.'
     );
     expect(
       headerTooltip(run({ conclusion: 'unknown', conclusionRaw: 'flaky' }))
-    ).toBe('The latest run for this branch reports "flaky".');
+    ).toBe('The latest run reports "flaky".');
     expect(
       headerTooltip(run({ status: 'unknown', statusRaw: 'waiting' }))
-    ).toBe('The latest run for this branch reports "waiting".');
+    ).toBe('The latest run reports "waiting".');
+  });
+});
+
+describe('RUNS_EMPTY', () => {
+  it('names both halves of the widened read', () => {
+    // Phase 120 reads two queries, the branch and its newest commit. An empty
+    // list is now a claim about both, so the sentence says both.
+    expect(RUNS_EMPTY).toBe('No runs yet for this branch or its newest commit.');
   });
 });
 

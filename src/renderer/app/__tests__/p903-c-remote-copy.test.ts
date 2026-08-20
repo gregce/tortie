@@ -432,8 +432,11 @@ describe('the runs for a folder that is on a machine (Phase 105)', () => {
     // PHASE 99 IS WHY THIS SENTENCE EXISTS. It carried a cut through main that
     // the panel never drew, so a list that had been cut was drawn as if it were
     // whole. A row count equal to the limit gets this sentence under it.
+    // PHASE 120 WIDENED THE READ. The list now merges the branch query with a
+    // query at the branch's newest commit, so the sentence names both.
     expect(runsNewest(10)).toBe(
-      'These are the newest 10 runs for that branch. There are older ones.'
+      'These are the newest 10 runs for that branch and its newest commit. ' +
+        'There are older ones.'
     );
   });
 
