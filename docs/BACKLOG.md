@@ -48,6 +48,34 @@ and push it and watch it run after 119 finishes, and not to wait on him. That gr
 - **A tag is never moved or deleted once pushed.** If something is wrong after the fact, the answer
   is another release, not a retag.
 
+**AFTER THE RELEASE, CLOSE THE ISSUES IT ACTUALLY FIXED, AND ONLY THOSE.** He asked for this on
+2026-08-20, in his words, to verify and close out any open issues included as fixed in the release.
+Seven issues are open on github.com/gregce/tortie and every one was filed by the same outside user,
+`aronchick`. Commenting on and closing another person's issue is an outward facing act, so the
+discipline is:
+
+1. **Verify against the SHIPPED ARTIFACT, not against the diff.** Download the released build and
+   check the claim on it. A fix that is only in the source is not a fix a reporter can see.
+2. **Close only what is fully fixed.** A partial fix gets a comment saying exactly what landed and
+   what did not, and the issue STAYS OPEN. Do not close on a partial.
+3. **The comment names the version and what a person can now check themselves**, and it says what
+   remains unproven. Do not write marketing.
+4. **Never edit, retitle or reopen anything, and never close an issue this release did not fix.**
+
+The assessment as it stands on 2026-08-20, to be re-checked against the release rather than trusted:
+
+| Issue | Subject | Reading now |
+| --- | --- | --- |
+| **#10** | bundled SpecStory killed for executable memory | **The one to close.** Phase 115 shipped the entitlement and the 2.10.0 pin, and its verifier proved the kill and the survival on a real signed package. **BUT the comment must say plainly that the ticket's own bounded soak, being captured sessions run, ended and synced repeatedly on a real installed build, is the reporter's to confirm**, and invite him to reopen if he still sees it. Research 59 section 8 says only a real signed notarized build proves it |
+| **#1** | persistent font family AND base size, work area AND sidebar | **PARTIAL. Do not close.** Three font presets shipped for the work area. No base size control shipped, and the sidebar and interface font are untouched. Comment with exactly that and leave it open |
+| **#5** | close the SpecStory sign-in browser tab | Not addressed. Leave alone |
+| **#8** | broken zsh completion in a new shell | Not addressed. A shell session becoming a login shell shipped earlier, which is adjacent and NOT the same thing. Leave alone unless the release build genuinely fixes it, verified |
+| **#2**, **#7**, **#11** | number shortcuts, fuzzy shortcut search, repository onboarding | Not addressed. Leave alone |
+
+**If the verification shows an issue is fixed that this table calls unaddressed, close it and say what
+fixed it.** The table is a starting point, not a permission list. The reverse also holds: if #10 does
+not verify on the shipped artifact, do not close it.
+
 **AFTER THE RELEASE, DO NOT STOP.** He said on 2026-08-20 to roll into the write phases after the
 release and then continue with the other phased work. So the loop watches the release run to its end,
 reports it, and continues straight into 101, 102, 103 and 104, then the four architecture runs and
