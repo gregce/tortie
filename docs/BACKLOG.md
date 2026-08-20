@@ -6907,8 +6907,14 @@ back byte for byte and each set passed again.
 **What is NOT true, and saying so is the point of this phase.** Scrolling back through a session on
 another machine is still not built. It would need copy-mode verbs to travel over the exec plane, and
 the verb ledger in `src/main/machines/exec-plane.ts` was not extended. This phase makes the absence
-honest and quiet. Phase 96 is where that gap gets filled, and its entry already says this phase's
-sentence must be dropped when it is.
+honest and quiet. **Phase 100 is where that gap gets filled**, and its entry already says this
+phase's sentence must be dropped when it is. Phase 100 builds the smaller affordance research 57
+section 3 ruled for, being a read of the last N lines from the session menu, rather than a scrollbar.
+A real remote scrollbar is REFUSED by that section for the reason stated above.
+
+**A CORRECTION TO THIS ENTRY, made when it was merged.** Its committer wrote "Phase 96" on the line
+above. Phase 96 was the four defects the parity audit found and it shipped earlier the same day. The
+phase that fills this gap is 100.
 
 **What was not measured.** The packaged build was not driven. All the numbers above come from a
 development run. The main process code is the same in both and only the sink differs, being the
