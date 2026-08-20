@@ -1,5 +1,5 @@
 /**
- * The machines contract (Phase 68, M1). Twenty invoke channels behind ONE
+ * The machines contract (Phase 68, M1). Twenty two invoke channels behind ONE
  * optional preload extra, `window.gmux.machines`, plus two event channels, one
  * for the connection test's own bytes and one for the link state.
  *
@@ -41,6 +41,10 @@ import type { MachineColor } from '../machines';
 // surfaces already speak, so a file on another machine and a file in a
 // commit carry the same vocabulary.
 import type { GitCommitFileState } from '../types';
+// PHASE 98. A search on another machine returns the rows the search on this Mac
+// already returns, so the Search view draws ONE kind of row. Two declarations of
+// one shape is how the two ends of a channel drift apart.
+import type { SearchFileResult } from './search';
 
 // ---------------------------------------------------------------------------
 // The rows
@@ -612,13 +616,17 @@ export interface MachinesEventPayloadMap {
 // ---------------------------------------------------------------------------
 
 /**
- * The twenty channels, and what each one may do.
+ * The twenty two channels, and what each one may do.
  *
  * THE COUNT USED TO SAY THIRTEEN and the table listed thirteen rows, which was
  * true when Phase 68 wrote it. Phase 73, Phase 83, Phase 84 and Phase 90.2
  * each added channels without adding rows, so the table described a contract
- * the file no longer held. The missing seven are written out below rather than
- * left to be counted by hand.
+ * the file no longer held. The missing seven were written out rather than left
+ * to be counted by hand.
+ *
+ * IT WENT STALE AGAIN, and Phase 98 says so rather than quietly fixing it.
+ * Phase 90.3 added `listTree` without a row, so the count read twenty while the
+ * file held twenty one. Both that row and Phase 98's own are in the table now.
  *
  * | Channel | Reads | Writes | Spawns |
  * | --- | --- | --- | --- |
@@ -642,6 +650,8 @@ export interface MachinesEventPayloadMap {
  * | listDir | one folder on that machine | nothing | ssh |
  * | findProject | one git config here, one folder walk there | nothing | ssh |
  * | cloneProject | one git config here | one folder on that machine | ssh |
+ * | listTree | one folder tree on that machine | nothing | ssh |
+ * | searchContent | one folder on that machine | nothing | ssh |
  *
  * Every one of them that spawns does so on a person's click and from nowhere
  * else. TWO of them write on another computer, being `putImage` and
@@ -757,6 +767,24 @@ export interface MachinesInvokeChannelMap {
     req: [input: RemoteTreeListInput];
     res: RemoteTreeListing;
   };
+  // PHASE 98. One READ of one folder on one machine, for the Search view of a
+  // project that lives over there. It writes nothing on either computer, it
+  // sends no program, and main refuses it while it is not connected to that
+  // machine.
+  //
+  // IT CANNOT COMPOSE WHAT IT ASKS. The command that crosses is `repo-search`
+  // from the frozen catalogue in src/main/machines/remote-scripts.ts, chosen by
+  // name, with the folder, the pattern, the flag letters and the two caps
+  // arriving there as positional parameters.
+  //
+  // A folder that is not there, a pattern that machine's grep refused and a
+  // machine that did not answer all come back as a status word. No prose
+  // crosses this channel: the renderer draws every sentence from
+  // src/renderer/app/machine-copy.ts, where the vocabulary audit reads it.
+  'machines:searchContent': {
+    req: [input: MachineSearchInput];
+    res: MachineSearchResult;
+  };
 }
 
 /** The one event channel: the connection test's own bytes and its end. */
@@ -830,6 +858,9 @@ export interface GmuxMachinesExtras {
     // Phase 90.3. Reads one folder tree on one machine, to a fixed depth, in
     // one call. It reads and never writes.
     listTree(input: RemoteTreeListInput): Promise<RemoteTreeListing>;
+    // Phase 98. Searches one folder on one machine with that machine's own
+    // grep. It reads and never writes.
+    searchContent(input: MachineSearchInput): Promise<MachineSearchResult>;
   };
 }
 
@@ -1295,3 +1326,80 @@ export type RemoteTreeListing =
       status: 'missing' | 'notdir' | 'denied' | 'unreachable' | 'notConnected';
       root: string;
     };
+
+// ---------------------------------------------------------------------------
+// Searching one folder on one machine (Phase 98, research 57 section 2)
+// ---------------------------------------------------------------------------
+//
+// ONE READ, ONE ANSWER. Nothing is written on either computer. The command that
+// crosses is `repo-search` from the frozen catalogue in
+// src/main/machines/remote-scripts.ts, chosen by name, with the folder, the
+// pattern, the flag letters and the two caps arriving there as positional
+// parameters. NOTHING IS SENT TO THAT MACHINE except that constant text.
+//
+// THE ROWS ARE THE LOCAL ROWS. `files` carries `SearchFileResult`, which is what
+// the ⌘⇧F stream carries, so the Search view draws one kind of row and
+// `ResultsList`, `rows.ts` and `result-menu.ts` need no second shape.
+//
+// THE CAPS ARE THE LOCAL CAPS. `SEARCH_LIMITS.maxResults`,
+// `SEARCH_LIMITS.maxPerFile` and `SEARCH_LIMITS.maxLineChars` from ./search.ts
+// bound this answer too. No new number is invented for any of the three.
+//
+// NO PROSE CROSSES THIS CHANNEL. Every sentence a person reads about a remote
+// search is drawn by the renderer from src/renderer/app/machine-copy.ts, where
+// the vocabulary audit reads it. This answer carries a status word and counts.
+//
+// THERE IS NO STREAM, because there is nothing to stream. The far side has
+// finished scanning before the first byte comes back: research 57 section 2.4
+// measured a whole 33,023,414 byte tracked corpus at 174 to 176 ms.
+
+/** Which files the far side read, or why it read none. */
+export type MachineSearchMode =
+  /** The folder is a git repository. Its tracked and untracked files were read. */
+  | 'repo'
+  /** The folder is not a repository. Every file under it was read. */
+  | 'walk'
+  /** There is no folder at that path on that machine. */
+  | 'missing'
+  /** That machine's grep did not accept the pattern. */
+  | 'badPattern'
+  /** Tortie is not connected to that machine. Nothing was asked. */
+  | 'notConnected'
+  /** The machine did not answer, or answered something unreadable. */
+  | 'unreachable';
+
+/** One ⌘⇧F query against one folder on one machine. */
+export interface MachineSearchInput {
+  readonly machineId: string;
+  /** The folder on that machine. Absolute, and never a path on this Mac. */
+  readonly cwd: string;
+  /** The pattern. An empty one is refused before anything is sent. */
+  readonly query: string;
+  readonly isRegex: boolean;
+  readonly isCaseSensitive: boolean;
+  readonly matchWholeWord: boolean;
+  /** Clamped to SEARCH_LIMITS.maxResults. Omitted means that number. */
+  readonly maxResults?: number;
+}
+
+/** What one machine answered about one folder. */
+export interface MachineSearchResult {
+  readonly machineId: string;
+  /** That machine's own label, so the renderer never composes one. */
+  readonly machineLabel: string;
+  /** The folder that was searched, on that machine. */
+  readonly cwd: string;
+  readonly mode: MachineSearchMode;
+  /** The rows, in the shape the local search already produces. */
+  readonly files: SearchFileResult[];
+  /** Matching lines delivered. */
+  readonly totalMatches: number;
+  /** Files with at least one match. */
+  readonly totalFiles: number;
+  /** The match cap cut the answer. These are the first N, not all of them. */
+  readonly capped: boolean;
+  /** The size ceiling cut the answer on that machine. */
+  readonly truncated: boolean;
+  /** Wall time from the call to the answer, in ms. The round trip is in it. */
+  readonly elapsedMs: number;
+}

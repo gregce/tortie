@@ -13,12 +13,21 @@
  * They are hidden when empty and PINNED OPEN whenever either has a value, so
  * a filter can never be silently in force behind a collapsed disclosure — and
  * the no-results state names them again on the way out.
+ *
+ * PHASE 98 DREW THREE CONTROLS OFF, and only on a tab whose folder is on
+ * another machine. The three modifiers all work there, because each of them is
+ * a letter this app hands to that machine's own grep. Include, exclude and the
+ * ignore files toggle do not. A search over there has no glob machinery, and
+ * its file list comes from git. They are drawn OFF rather than removed, which is
+ * the rule the rest of this app follows, and their title says why.
  */
 
 import React from 'react';
 import { keyDisplay } from '@shared/keymap';
 import type { KeymapId } from '@shared/keymap';
+import { localPathOf } from '@shared/workspace-target';
 import { Codicon } from '../icons';
+import { SEARCH_FILTERS_ON_THIS_MAC } from '../app/machine-copy';
 import { focusResultsList } from './results-focus';
 import { useSearch } from './store';
 
@@ -62,6 +71,8 @@ export function QueryBlock(): React.JSX.Element {
   const detailsOpen = useSearch((s) => s.detailsOpen);
   const status = useSearch((s) => s.status);
   const error = useSearch((s) => s.error);
+  const target = useSearch((s) => s.target);
+  const remoteMode = useSearch((s) => s.remoteMode);
 
   const setQuery = useSearch((s) => s.setQuery);
   const setIncludes = useSearch((s) => s.setIncludes);
@@ -75,9 +86,17 @@ export function QueryBlock(): React.JSX.Element {
 
   const hasFilters = includes.trim().length > 0 || excludes.trim().length > 0;
   const showDetails = detailsOpen || hasFilters;
+  const onMachine = target !== null && localPathOf(target) === null;
   // Only a regex error belongs on the input: everything else (an unreadable
   // root, a missing binary) is about the search, not about what was typed.
-  const badPattern = status === 'error' && isRegex && error !== null;
+  //
+  // PHASE 98 ADDED THE SECOND HALF. A machine's grep can refuse a pattern this
+  // Mac would have accepted, and that refusal is about what was typed too. The
+  // sentence for it is drawn in the results area, so the box is marked and no
+  // second message is written here.
+  const badPattern =
+    (status === 'error' && isRegex && error !== null) ||
+    remoteMode === 'badPattern';
 
   return (
     <div className="search-query" data-slot="search-query">
@@ -131,7 +150,7 @@ export function QueryBlock(): React.JSX.Element {
         />
       </div>
 
-      {badPattern ? (
+      {badPattern && error !== null ? (
         <p className="search-invalid" role="alert">
           {error}
         </p>
@@ -175,6 +194,8 @@ export function QueryBlock(): React.JSX.Element {
               autoComplete="off"
               placeholder="src/**, *.ts"
               value={includes}
+              disabled={onMachine}
+              title={onMachine ? SEARCH_FILTERS_ON_THIS_MAC : undefined}
               onChange={(e) => setIncludes(e.target.value)}
             />
           </label>
@@ -187,6 +208,8 @@ export function QueryBlock(): React.JSX.Element {
               autoComplete="off"
               placeholder="**/dist/**"
               value={excludes}
+              disabled={onMachine}
+              title={onMachine ? SEARCH_FILTERS_ON_THIS_MAC : undefined}
               onChange={(e) => setExcludes(e.target.value)}
             />
           </label>
@@ -194,10 +217,13 @@ export function QueryBlock(): React.JSX.Element {
             type="button"
             className={`search-ignore${useIgnoreFiles ? '' : ' off'}`}
             aria-pressed={!useIgnoreFiles}
+            disabled={onMachine}
             title={
-              useIgnoreFiles
-                ? 'Ignored files are being skipped. Including them is 12–80× slower.'
-                : 'Ignored files are being searched — 12–80× slower than skipping them.'
+              onMachine
+                ? SEARCH_FILTERS_ON_THIS_MAC
+                : useIgnoreFiles
+                  ? 'Ignored files are being skipped. Including them is 12–80× slower.'
+                  : 'Ignored files are being searched — 12–80× slower than skipping them.'
             }
             onClick={toggleUseIgnoreFiles}
           >

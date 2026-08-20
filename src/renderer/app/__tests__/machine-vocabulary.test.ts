@@ -104,7 +104,17 @@ const FILES: readonly string[] = [
   // session runs on. All three can name a machine, so all three are read here.
   'src/renderer/app/reach-copy.ts',
   'src/renderer/app/session-focus.ts',
-  'src/renderer/app/AttentionOverlay.tsx'
+  'src/renderer/app/AttentionOverlay.tsx',
+  // Phase 98. The Search view searches a folder on another machine, and three
+  // of its files now draw a sentence about one. `SearchView.tsx` draws the note
+  // under the summary, `ResultsList.tsx` draws the states that mean no rows,
+  // and `QueryBlock.tsx` draws the sentence on the three filters that do not go
+  // there. Every one of those sentences is a named export in machine-copy.ts,
+  // which is the first file on this list. The three files are read as well, so
+  // a later round cannot type a sentence straight into the view.
+  'src/renderer/search/SearchView.tsx',
+  'src/renderer/search/ResultsList.tsx',
+  'src/renderer/search/QueryBlock.tsx'
 ];
 
 /**

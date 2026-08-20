@@ -77,6 +77,7 @@ value below is read from the script in `package.json`, and `${TMPDIR}` is
 | `npm run probe:realmachine` | `<tmpdir>/p83-real-<pid>`, made fresh on every run | none on this Mac. One scratch socket on the far machine, named `p83-<pid>-ctl` |
 | `npm run probe:realunknowns` | `<tmpdir>/p83-real-<pid>`, made fresh on every run | none on this Mac. One scratch socket on the far machine, named `p83-<pid>-sockpath`, and socket `gmux` over there for the sessions it creates by name |
 | `npm run probe:remotearm` | `<tmpdir>/gmux-p89-arm-<pid>`, made fresh on every run and removed at the end | `gmux-p89-<pid>`, on the scratch machine, which is this Mac over a loopback sshd. `refuseRealSockets` rejects the names `gmux` and `default` before anything starts. |
+| `npm run probe:p98` | `/tmp/p98-search-<pid>`, made fresh on every run and removed at the end. It drives no Electron, so it reads no config root. | `gmux-p98-search-<pid>`, on the scratch machine, which is this Mac over a loopback sshd. `refuseRealSockets` rejects the names `gmux` and `default` before anything starts. |
 
 `smoke:execplane`, `smoke:remote`, `smoke:capture:remote` and `smoke:p93remote`
 all honour a `GMUX_CONFIG_ROOT` already in the environment and fall back to the
@@ -104,6 +105,16 @@ asks for and nothing depends on it.
 The two `probe:real` rows have no fixed root. `build/real-machine.mjs` makes
 `<tmpdir>/p83-real-<pid>` on every run and removes nothing else, so there is no
 root to point at wrongly and nothing carries over between runs.
+
+`npm run probe:p98` is Phase 98's live gate, being a search of a project that
+lives on another machine. It makes its own repository under `/tmp`, drives
+`src/main/machines/remote-search.ts` against a loopback sign in server, and
+checks seventeen things. Two of them are what the phase rests on. The set of
+matching lines is compared against
+`git ls-files -z --cached --others --exclude-standard | xargs -0 grep -I -H -n`
+run directly in that repository, and against the ripgrep this build ships, on
+the same corpus. It also counts `tmux -L gmux list-sessions` before and after
+and fails on a difference.
 
 ### Talking to a real machine
 

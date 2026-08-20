@@ -288,6 +288,15 @@ describe('every channel is registered, and only the ones listed here', () => {
       'machines:reviewFiles',
       // ---- END PHASE 73 BLOCK C ----
       'machines:rows',
+      // ---- PHASE 98 ----
+      // One READ of one folder on one machine, for the Search view of a project
+      // that lives over there. It sends no program: the command that crosses is
+      // `repo-search` from the frozen catalogue, and that machine's own grep
+      // reads its own disk. It writes nothing on either computer and it refuses
+      // while Tortie is not connected to the machine. Nothing calls it on a
+      // clock.
+      'machines:searchContent',
+      // ---- END PHASE 98 ----
       // Phase 71's one new channel. It reads memory in main and answers: no
       // machine is asked anything, no file is opened and nothing is started.
       'machines:state',

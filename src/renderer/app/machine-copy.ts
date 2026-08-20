@@ -616,38 +616,36 @@ export function conversationCopyLine(at: number | null | undefined): string {
 }
 
 // ---------------------------------------------------------------------------
-// The three sidebars, when the project they are following is on another
-// machine (Phase 90.1)
+// The sidebars, when the project they are following is on another machine
+// (Phase 90.1)
 // ---------------------------------------------------------------------------
 
 /**
- * WHY THESE FOUR LIVE HERE. Search and Context each draw one title and one body
- * when the active project is on another machine. Every other sentence this
- * renderer says about another machine is in this file, and the vocabulary audit
- * reads this file already. Putting them in the two view files instead would
- * mean adding two modules of several hundred unrelated strings to that audit's
- * list, which is the reason already recorded there for two other files.
+ * WHY THIS PAIR LIVES HERE. The Context view draws one title and one body when
+ * the active project is on another machine. Every other sentence this renderer
+ * says about another machine is in this file, and the vocabulary audit reads
+ * this file already. Putting the pair in the view file instead would mean
+ * adding a module of several hundred unrelated strings to that audit's list,
+ * which is the reason already recorded there for two other files.
  *
- * WHAT THEY MAY CLAIM. Each pair says what is true, being that the folder is on
- * a named machine, and then says what Tortie does not do, being that it reads
+ * WHAT IT MAY CLAIM. The pair says what is true, being that the folder is on a
+ * named machine, and then says what Tortie does not do, being that it reads
  * only this Mac. Neither half implies a failure, because nothing failed. There
  * is no retry offered, because there is nothing to retry.
  *
  * PHASE 90.3 DELETED THE FILES PAIR. It said "Tortie reads files on this Mac
- * only, so nothing is listed here", and from this phase the Explorer lists that
+ * only, so nothing is listed here", and from that phase the Explorer lists that
  * machine's own rows, so the sentence had become false. The Explorer's states
- * are in the Phase 90.3 block at the end of this file. The Search and Context
- * pairs are unchanged, because neither of those two reads another machine.
+ * are in the Phase 90.3 block at the end of this file.
+ *
+ * PHASE 98 DELETED THE SEARCH PAIR, for the same reason and in the same shape.
+ * It said "Search does not reach Studio" and "Tortie searches files on this Mac
+ * only", and from this phase the Search view searches that machine's own folder
+ * and draws that machine's own rows, so both sentences had become false. What
+ * the Search view says instead is in the Phase 98 block at the end of this
+ * file. The Context pair is unchanged, because Context still reads this Mac
+ * only.
  */
-
-/** The Search view, in place of its results. */
-export function searchElsewhereTitle(label: string): string {
-  return `Search does not reach ${label}.`;
-}
-
-/** The Search view's second line. */
-export const SEARCH_ELSEWHERE_BODY =
-  'Tortie searches files on this Mac only. The files in this project are on that machine, so there is nothing here to search.';
 
 /** The Context view, in place of its groups. */
 export function contextElsewhereTitle(label: string): string {
@@ -1033,16 +1031,17 @@ export function openRemoteFolderLabel(label: string): string {
 /**
  * The honesty line, drawn every time the sheet is open.
  *
- * Three facts, in the order a person needs them: Tortie reads that folder, it
- * never writes there, and it does not search it. The third is the one people
- * are surprised by, so it is said before they press the button rather than
- * after.
+ * TWO facts, in the order a person needs them. Tortie reads that folder, and
+ * Tortie never writes there. The second is the one people are surprised by, so
+ * it is said before they press the button rather than after.
+ *
+ * IT SAID THREE UNTIL PHASE 98. The third was "and it does not search it", and
+ * the Search view of a tab on a machine searches that folder now, so the
+ * sentence had become false on a sheet a person reads every time they open a
+ * folder over there.
  */
 export function openRemoteHonesty(label: string): string {
-  return (
-    `Tortie reads this folder on ${label}. It never writes there, and it ` +
-    `does not search it.`
-  );
+  return `Tortie reads this folder on ${label}. It never writes there.`;
 }
 
 /** The sheet's button. */
@@ -1212,3 +1211,109 @@ export const NO_SCROLLBACK_HERE = 'Cannot scroll back';
 export const NO_SCROLLBACK_HERE_TITLE =
   'Scrolling back is not available for a session on another machine yet. ' +
   'What you see is live.';
+
+// ---------------------------------------------------------------------------
+// Searching a project on another machine (Phase 98)
+// ---------------------------------------------------------------------------
+
+/**
+ * WHAT THIS BLOCK REPLACES. Phase 90.1 gave the Search view two sentences that
+ * said it does not reach another machine. Phase 98 makes it reach one, so those
+ * two are gone and these eleven take their place. The pair that was deleted is
+ * described in the block above.
+ *
+ * NO PROSE CROSSES THE CHANNEL. Main answers a status word and a set of counts
+ * for one search, and this file holds every sentence a person reads about it.
+ * That is the shape `machines:listDir` and `machines:reviewFiles` already use,
+ * and it keeps every sentence about a machine inside the one file the
+ * vocabulary audit reads.
+ *
+ * WHAT THEY MAY CLAIM. A search on this Mac and a search on another machine are
+ * not the same search, and these sentences say the two differences rather than
+ * hiding them. The first is the program, because the far side uses that
+ * machine's own grep and can read a pattern differently. The second is the
+ * three file filters, which work here and do not go there.
+ */
+
+/**
+ * Under the results, whenever the folder being searched is on a machine.
+ *
+ * It is the LAST line the note draws, so a person reads what happened before
+ * they read how it was done.
+ */
+export function searchOnMachineLine(label: string): string {
+  return (
+    `Tortie searched this project on ${label} with that machine's own grep. ` +
+    `A pattern that works here can behave differently there.`
+  );
+}
+
+/**
+ * The folder searched is not a git repository.
+ *
+ * Both halves are needed. Nothing was skipped, which is the good news, and the
+ * results can hold build output, which is the cost of it.
+ */
+export const SEARCH_NOT_A_REPOSITORY =
+  'This folder is not a git repository, so Tortie searched every file in it. ' +
+  'Nothing was skipped, and the results can include build output.';
+
+/** There is no folder at that path on that machine. */
+export function searchFolderMissing(label: string): string {
+  return `There is no folder at this path on ${label}, so nothing was searched.`;
+}
+
+/** That machine's grep refused the pattern. */
+export function searchPatternRefused(label: string): string {
+  return (
+    `The grep on ${label} did not accept this pattern. A search on another ` +
+    `machine uses that machine's own program, and it does not read every ` +
+    `pattern the search on this Mac reads.`
+  );
+}
+
+/** Tortie is not signed in to that machine. */
+export function searchNotConnected(label: string): string {
+  return `Tortie is not connected to ${label}, so it searched nothing.`;
+}
+
+/** The machine did not answer. */
+export function searchNoAnswer(label: string): string {
+  return `${label} did not answer, so there are no results to show.`;
+}
+
+/** The match cap cut the list. */
+export function searchFirstMatches(shown: number): string {
+  return `Tortie is showing the first ${shown.toLocaleString()} matching lines. There are more.`;
+}
+
+/** The size ceiling on one answer cut the list. */
+export const SEARCH_ANSWER_TOO_LARGE =
+  'That machine had more to send than Tortie reads in one answer, so this ' +
+  'list stops early. Narrow the search to see the rest.';
+
+/**
+ * The three filters that do not reach a machine.
+ *
+ * IT IS THE IDLE BODY, read before a person types, which is before they can see
+ * the note that says a folder is not a repository. So the second sentence has to
+ * cover both answers. It said "Tortie searches the files git knows about in the
+ * folder" alone, which is true of a repository and false of every other folder,
+ * where `repo-search` walks the whole tree instead.
+ */
+export const SEARCH_FILTERS_ON_THIS_MAC =
+  'Include, exclude and the ignore files toggle work on this Mac only. On ' +
+  'another machine Tortie searches the files git knows about, or every file ' +
+  'in the folder when it is not a repository.';
+
+/**
+ * The Stop control while a machine is being waited on.
+ *
+ * It says what the control does. Nothing here can stop the scan on that
+ * machine, and a label reading "Stop this search" would claim that it can.
+ */
+export const SEARCH_STOP_WAITING = 'Stop waiting for this search';
+
+/** An older preload has no way to ask a machine anything. */
+export const SEARCH_NO_BRIDGE =
+  'This build cannot search a folder on another machine.';

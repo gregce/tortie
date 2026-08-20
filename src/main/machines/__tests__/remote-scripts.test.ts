@@ -20,6 +20,7 @@ import {
   REMOTE_SCRIPTS,
   REMOTE_SCRIPT_MARKER,
   REMOTE_SCRIPT_MAX_BYTES,
+  REMOTE_SEARCH_MAX_BYTES,
   remoteScript,
   remoteWriteScripts
 } from '../remote-scripts';
@@ -39,8 +40,14 @@ const MUTATING = [
   'truncate'
 ];
 
-/** The git verbs ANY script in this catalogue may name. All three are reads. */
-const GIT_VERBS = ['rev-parse', 'status', 'show'];
+/**
+ * The git verbs ANY script in this catalogue may name. All four are reads.
+ *
+ * PHASE 98 ADDED `ls-files`. The remote search asks git which files are in one
+ * folder and reads them with that machine's own grep. Reading the index is a
+ * read and it reaches no server.
+ */
+const GIT_VERBS = ['rev-parse', 'status', 'show', 'ls-files'];
 
 /** The two more verbs `git-clone` may name, and no other script may. */
 const CLONE_VERBS = ['ls-remote', 'clone'];
@@ -92,9 +99,13 @@ function positionals(text: string): Positional[] {
 }
 
 describe('the catalogue', () => {
-  it('holds twelve scripts and this release holds no others', () => {
-    expect(REMOTE_SCRIPTS).toHaveLength(12);
+  it('holds thirteen scripts and this release holds no others', () => {
+    expect(REMOTE_SCRIPTS).toHaveLength(13);
     expect(REMOTE_SCRIPTS.map((script) => script.id).sort()).toEqual([
+      // PHASE 98 added `repo-search`, which prints every matching line in one
+      // folder using that machine's own grep. It is a read and it writes
+      // nothing, so the write count below stays at two.
+      //
       // PHASE 90.3 added `tree-list`, which walks one folder tree to a fixed
       // depth in one call so the Explorer of a project on another machine can
       // list rows. It prunes `.git` and it writes nothing.
@@ -109,6 +120,7 @@ describe('the catalogue', () => {
       'machine-facts',
       'program-find',
       'repo-find',
+      'repo-search',
       'review-file',
       'review-list',
       'store-copy',
@@ -568,5 +580,128 @@ describe('the project copy', () => {
         );
       }
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 98. The search that runs on the machine
+// ---------------------------------------------------------------------------
+
+describe('the remote search', () => {
+  const search = remoteScript('repo-search');
+
+  it('is a read that takes five values', () => {
+    expect(search?.mode).toBe('read');
+    expect(search?.params).toBe(5);
+  });
+
+  it('names exactly the two git verbs it needs, and both are reads', () => {
+    const verbs = [
+      ...new Set(
+        [...(search?.text ?? '').matchAll(/git (?:--no-pager )?([a-z-]+)/g)].map(
+          (match) => match[1]
+        )
+      )
+    ].sort();
+    expect(verbs).toEqual(['ls-files', 'rev-parse']);
+  });
+
+  it('lists the untracked files git is not ignoring as well as the tracked ones', () => {
+    // Research 57 measured `git ls-files -z` alone, which lists tracked files
+    // only. A file an agent on that machine made five minutes ago would then
+    // not be searched, and Phase 97 has just put exactly those files on a
+    // person's screen in the Changes list.
+    expect(search?.text).toContain(
+      'git ls-files -z --cached --others --exclude-standard'
+    );
+  });
+
+  it('puts the pattern behind -e in every grep it runs', () => {
+    // A person searching for `-v` is searching for `-v`, not passing a flag.
+    const calls = [...(search?.text ?? '').matchAll(/grep [^\n|]*/g)].map(
+      (match) => match[0]
+    );
+    expect(calls.length).toBeGreaterThan(0);
+    for (const call of calls) expect(call, call).toContain('-e "$2"');
+  });
+
+  it('turns the flag letters into constants of its own', () => {
+    // The letters are compared against constants and the value assigned is a
+    // constant in the text, so a caller cannot put a word of its own on the
+    // grep command line.
+    expect(search?.text).toContain('case "$3" in *i*) ic="-i";; esac');
+    expect(search?.text).toContain('case "$3" in *w*) wd="-w";; esac');
+    expect(search?.text).toContain('case "$3" in *e*) rx="-E";; esac');
+    expect(search?.text).toContain('rx="-F"');
+  });
+
+  it('caps the answer in lines, in characters per line and in bytes', () => {
+    const branches = (search?.text ?? '')
+      .split('\n')
+      .filter((line) => line.includes('xargs -0 grep'));
+    expect(branches).toHaveLength(2);
+    for (const branch of branches) {
+      expect(branch, branch).toContain('head -n "$4"');
+      expect(branch, branch).toContain('cut -c "1-$5"');
+      // ONE BYTE PAST THE CEILING. That byte is what makes the cut an answer
+      // rather than a guess about the last byte of the body.
+      expect(branch, branch).toContain(
+        `head -c ${String(REMOTE_SEARCH_MAX_BYTES + 1)}`
+      );
+    }
+  });
+
+  it('agrees with the exported ceiling, because two copies go stale', () => {
+    const caps = [...(search?.text ?? '').matchAll(/head -c ([0-9]+)/g)].map(
+      (match) => Number(match[1])
+    );
+    expect(caps).toHaveLength(2);
+    for (const cap of caps) expect(cap).toBe(REMOTE_SEARCH_MAX_BYTES + 1);
+    expect(REMOTE_SEARCH_MAX_BYTES).toBe(4 * 1024 * 1024);
+  });
+
+  it('says whether the byte ceiling bit, rather than leaving it to be guessed', () => {
+    // `head -c` cuts at a byte offset. About one cut in every average line
+    // length lands on a newline, and an answer that ended cleanly would have
+    // been read as a complete result set.
+    const text = search?.text ?? '';
+    expect(text).toContain('case "$o" in *==) p=2;; *=) p=1;; esac');
+    expect(text).toContain('n=$(( ${#o} / 4 * 3 - p ))');
+    expect(text).toContain(`if [ "$n" -gt ${String(REMOTE_SEARCH_MAX_BYTES)} ]`);
+    const tests = [...text.matchAll(/"\$n" -gt ([0-9]+)/g)].map((match) =>
+      Number(match[1])
+    );
+    expect(tests).toEqual([REMOTE_SEARCH_MAX_BYTES]);
+  });
+
+  it('prunes .git on the branch that walks a folder tree', () => {
+    expect(search?.text).toContain("find . -name '.git' -prune -o -type f -print0");
+  });
+
+  it('answers one of exactly four words, a cut answer and a body', () => {
+    for (const word of ['missing', 'badpattern']) {
+      // The cut answer is `0` on both of these, because neither of them read a
+      // byte of anybody's files.
+      expect(search?.text).toContain(`__TORTIE_RUN__${word} 0 none`);
+    }
+    expect(search?.text).toContain('m=repo');
+    expect(search?.text).toContain('m=walk');
+    expect(search?.text).toContain('"${o:-none}"');
+    expect(search?.text).toContain(
+      "printf '__TORTIE_RUN__%s %s %s__TORTIE_RUN__"
+    );
+  });
+
+  it('names no search engine, and no way of putting one on a machine', () => {
+    // This is the executable form of research 57 section 2.1's refusal.
+    const text = search?.text ?? '';
+    for (const pattern of [/ripgrep/, /\brg\b/, /\bcurl\b/, /\bscp\b/, /\binstall\b/]) {
+      expect(pattern.test(text), pattern.source).toBe(false);
+    }
+  });
+
+  it('redirects nothing except the two noise silencers', () => {
+    const rest = (search?.text ?? '').split('2>/dev/null').join('');
+    expect(rest).not.toContain('>');
   });
 });

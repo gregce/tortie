@@ -1012,7 +1012,10 @@ function sourceLines(file: string): { line: number; text: string }[] {
 const {
   REMOTE_SCRIPTS,
   REMOTE_SCRIPT_MARKER,
-  REMOTE_SCRIPT_MAX_BYTES
+  REMOTE_SCRIPT_MAX_BYTES,
+  // Phase 98, condition 52. The size ceiling one search answer may hold, read
+  // here so the gate can compare it against the constant inside the script text.
+  REMOTE_SEARCH_MAX_BYTES
 } = await import('../src/main/machines/remote-scripts');
 const { composeRemoteScriptCommand, remoteScriptName } = await import(
   '../src/main/machines/remote-run'
@@ -1481,6 +1484,73 @@ process.stdout.write(
           walkers: [...text.matchAll(/find /g)].length,
           capped: text.includes('head -n "$3"'),
           depthFromCaller: text.includes('-maxdepth "$2"')
+        };
+      })()
+    },
+
+    // --- Phase 98, condition 52 --------------------------------------------
+    // Pure. It reads one compiled script text and one compiled number. It
+    // starts nothing, opens no file under the person's home and contacts no
+    // machine.
+    phase98: {
+      repoSearch: (() => {
+        const script = REMOTE_SCRIPTS.find((row) => row.id === 'repo-search');
+        if (script === undefined) return null;
+        const text = script.text;
+        // The two branches are the two lines that pipe a file list into grep.
+        // Everything the caps check is on those lines, so they are collected
+        // whole rather than as booleans over the file.
+        const branches = text
+          .split('\n')
+          .filter((line) => line.includes('xargs -0 grep'));
+        return {
+          params: script.params,
+          mode: script.mode,
+          gitVerbs: [
+            ...new Set(
+              [...text.matchAll(/git (?:--no-pager )?([a-z-]+)/g)].map(
+                (hit) => hit[1] ?? ''
+              )
+            )
+          ].sort(),
+          branches: branches.length,
+          branchesCapped: branches.filter((line) => line.includes('head -n "$4"'))
+            .length,
+          branchesClamped: branches.filter((line) =>
+            line.includes('cut -c "1-$5"')
+          ).length,
+          byteCaps: [...text.matchAll(/head -c ([0-9]+)/g)].map((hit) =>
+            Number(hit[1] ?? '0')
+          ),
+          // The number the script itself compares the bytes it read against, so
+          // the gate can prove the far side answers about the SAME ceiling it
+          // reads one byte past.
+          cutTests: [...text.matchAll(/"\$n" -gt ([0-9]+)/g)].map((hit) =>
+            Number(hit[1] ?? '0')
+          ),
+          // The answer carries three words rather than two, being the mode, the
+          // cut answer and the body.
+          answerWords: text.includes(
+            "printf '__TORTIE_RUN__%s %s %s__TORTIE_RUN__"
+          )
+            ? 3
+            : 2,
+          declaredMaxBytes: REMOTE_SEARCH_MAX_BYTES,
+          prunesGit: text.includes("-name '.git' -prune"),
+          // Every grep command in the text, up to the next pipe or newline. The
+          // pattern has to ride behind `-e` in each one, or a pattern beginning
+          // with a dash would be read as a flag.
+          grepCalls: [...text.matchAll(/grep [^\n|]*/g)].map((hit) => hit[0]),
+          // The executable form of the refusal in research 57 section 2.1.
+          namesAProgram: [
+            /ripgrep/,
+            /\brg\b/,
+            /\bcurl\b/,
+            /\bscp\b/,
+            /\binstall\b/
+          ]
+            .filter((one) => one.test(text))
+            .map((one) => one.source)
         };
       })()
     },

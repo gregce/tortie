@@ -109,6 +109,22 @@
   gap: var(--space-1);
 }
 
+/* PHASE 98. The three filters that do not reach another machine. Disabled is a
+   STATE and not a dimmer, which is the rule globals.css states for buttons, so
+   these drop to the neutral surface and let --text-disabled carry the meaning.
+   Their title says why in one sentence. */
+.search-glob:disabled,
+.search-ignore:disabled {
+  background: var(--bg-raised);
+  color: var(--text-disabled);
+  border-color: var(--border);
+  cursor: default;
+}
+
+.search-glob:disabled::placeholder {
+  color: var(--text-disabled);
+}
+
 .search-field-label {
   font-size: var(--text-xs);
   line-height: var(--lh-xs);
@@ -218,6 +234,26 @@
 .search-stale-action {
   color: var(--accent-text);
   font-weight: var(--weight-medium);
+}
+
+/* PHASE 98. The two sentences under the summary, for a folder on another
+   machine. It is quiet type at the summary's own size, because it is a note
+   about the list rather than part of it, and it sits above the list so a
+   person reads it before the rows and not after scrolling past them. At most
+   two lines are ever drawn, and it is a stack rather than a paragraph so that
+   each sentence gets its own line and neither runs into the other. */
+.search-machine-note {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-bottom: var(--space-2);
+}
+
+.search-machine-note p {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: var(--lh-sm);
+  color: var(--text-muted);
 }
 
 /* ---------------------------------------------------------------------------

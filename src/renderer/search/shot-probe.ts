@@ -60,6 +60,19 @@ export interface SearchProbeSpec {
    * query, then move focus to the results, then leave.
    */
   keys?: boolean;
+  /**
+   * PHASE 98. Fail loudly unless the machine note under the summary holds this
+   * text. It reads what the panel DREW, which is the only way to settle a
+   * sentence. A screenshot cannot be compared to a string, and the store's
+   * status word is not the sentence a person reads.
+   */
+  expectMachineNote?: string;
+  /**
+   * PHASE 98. Print what one machine answered, being the status word, the
+   * label, the two cut flags and the time. Numbers only, so the phase report
+   * can quote them instead of describing them.
+   */
+  report?: boolean;
 }
 
 export interface SymbolProbeSpec {
@@ -333,6 +346,28 @@ export async function driveSearch(spec: SearchProbeSpec): Promise<void> {
     );
   }
 
+  // (6) Phase 98. What one machine answered, and what the panel drew about it.
+  if (spec.report === true) {
+    const s = useSearch.getState();
+    console.log(
+      `[search-probe] machine: mode=${s.remoteMode ?? 'none'} ` +
+        `label=${s.machineLabel ?? 'none'} capped=${String(s.capped)} ` +
+        `truncated=${String(s.truncated)} ` +
+        `elapsedMs=${s.elapsedMs === null ? 'none' : s.elapsedMs.toFixed(0)}`
+    );
+    console.log(`[search-probe] machine note: "${machineNoteText()}"`);
+  }
+
+  if (spec.expectMachineNote !== undefined) {
+    const drawn = machineNoteText();
+    console.log(
+      drawn.includes(spec.expectMachineNote)
+        ? `[search-probe] expectMachineNote OK: the note holds "${spec.expectMachineNote}"`
+        : `[search-probe] FAILED: the note is "${drawn}", which does not hold ` +
+            `"${spec.expectMachineNote}"`
+    );
+  }
+
   if (spec.context === true) {
     const first = useSearch.getState().files[0];
     const line = first?.matches[0]?.line;
@@ -381,6 +416,12 @@ export async function driveSearch(spec: SearchProbeSpec): Promise<void> {
         )}`
     );
   }
+}
+
+/** The machine note under the summary, as drawn, or the empty string. */
+function machineNoteText(): string {
+  const node = document.querySelector('[data-slot="search-machine-note"]');
+  return node?.textContent?.trim() ?? '';
 }
 
 export async function driveSymbols(spec: SymbolProbeSpec): Promise<void> {

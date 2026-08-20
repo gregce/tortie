@@ -210,10 +210,12 @@ describe('opening a folder on a machine', () => {
     expect(OPEN_REMOTE_FOLDER_MENU_ITEM).toBe('Open Folder on a Machine…');
     expect(OPEN_REMOTE_TITLE).toBe('Open a folder on a machine');
     expect(openRemoteFolderLabel(L)).toBe('Folder on Studio');
+    // PHASE 98 DROPPED THE THIRD CLAUSE. It read "and it does not search it",
+    // and the Search view of a tab on a machine searches that folder now.
     expect(openRemoteHonesty(L)).toBe(
-      'Tortie reads this folder on Studio. It never writes there, and it ' +
-        'does not search it.'
+      'Tortie reads this folder on Studio. It never writes there.'
     );
+    expect(openRemoteHonesty(L)).not.toContain('search');
     expect(OPEN_REMOTE_BUTTON).toBe('Open it');
   });
 

@@ -16,6 +16,15 @@
  * a machine that does not have it yet. It is the second write this product can
  * make on another computer and rule 6 below now says two rather than one.
  *
+ * PHASE 98 ADDED ONE MORE, and it is a read. `repo-search` prints every
+ * matching line in one folder on a machine, using that machine's own `grep`.
+ * Research 57 section 2 measured the alternatives and refused both of them.
+ * Sending a ripgrep to the machine buys 0.15 s and costs a third write door, a
+ * transfer protocol, a binary per architecture and an executable Tortie placed
+ * on somebody else's computer. Copying the files here to search them costs 2.4 s
+ * over the link against 0.176 s of scanning in place, and it puts a person's
+ * source on a second computer. So the scan happens where the files are.
+ *
  * PHASE 90.3 ADDED ONE MORE, and it is a read. `tree-list` names every file
  * and folder under one folder on a machine, to a fixed depth, in ONE call. It
  * is what the Explorer draws for a project that lives on another computer.
@@ -81,13 +90,21 @@
  *     in `git-clone` aims at `/dev/null`. Both refuse a destination that is
  *     already there before they write anything, `image-put` with `[ -f "$f" ]`
  *     and `git-clone` with `[ -e "$d" ]`.
- *  7. Three git verbs may appear in any script, being `rev-parse`, `status` and
- *     `show`. Two more may appear in `git-clone` and in NO other script, being
- *     `ls-remote` and `clone`. Every verb is part of the text and never a
- *     parameter, so no caller can turn a review into a commit. Every git command
- *     that is not one of the three read verbs carries `GIT_TERMINAL_PROMPT=0`
- *     and `GCM_INTERACTIVE=never` in front of it, so a command on a machine
- *     nobody is watching cannot stop and wait for a password.
+ *  7. FOUR git verbs may appear in any script, being `rev-parse`, `status`,
+ *     `show` and `ls-files`. Two more may appear in `git-clone` and in NO other
+ *     script, being `ls-remote` and `clone`. Every verb is part of the text and
+ *     never a parameter, so no caller can turn a review into a commit. Every
+ *     git command that is not one of the four read verbs carries
+ *     `GIT_TERMINAL_PROMPT=0` and `GCM_INTERACTIVE=never` in front of it, so a
+ *     command on a machine nobody is watching cannot stop and wait for a
+ *     password.
+ *
+ *     PHASE 98 ADDED `ls-files`, and it is the fourth. It asks git which files
+ *     are in a folder so the machine's own `grep` can read them. Reading the
+ *     index is a read, it reaches no server, and it meets the same test the
+ *     other three meet. Phase 99, being Quick Open on a tab that lives on
+ *     another machine, needs the same verb and therefore needs no widening of
+ *     its own.
  *
  * ## Every script is safe to run twice
  *
@@ -165,8 +182,34 @@ export const REMOTE_SCRIPT_EMPTY = 'none';
  */
 export const REMOTE_SCRIPT_MAX_BYTES = 131_072;
 
+/**
+ * The most bytes one search answer may hold before encoding, being 4,194,304.
+ *
+ * CHOSEN rather than measured, and it is a ceiling rather than an expectation.
+ * What was measured on this Mac is that the broadest realistic query over this
+ * repository produced 1,818,096 bytes of matching lines, which is well inside
+ * it. The number is a CONSTANT inside the `repo-search` text as well, because
+ * `head -c` on the far side is what enforces it, and condition 52 of
+ * `build/conformance-machines.mjs` asserts the two agree. Two copies of one
+ * number is how one of them goes stale.
+ *
+ * THE SCRIPT READS ONE BYTE PAST IT, so its `head -c` says 4,194,305. That
+ * extra byte is the whole proof. A first draft of this phase asked whether the
+ * answer ended in a newline and called it cut when it did not, which is a guess
+ * rather than an answer: `head -c` cuts at a byte offset, and about one cut in
+ * every average-line-length lands on a newline. The answer would then have read
+ * as complete while the far side had thrown away everything past the ceiling.
+ * The script counts the bytes it actually read and prints `1` or `0`, so this
+ * end is told rather than left to infer.
+ *
+ * When it bites, the last line of the body is usually cut in the middle.
+ * `./remote-search.ts` drops that final part line and says on screen that the
+ * list stops early.
+ */
+export const REMOTE_SEARCH_MAX_BYTES = 4_194_304;
+
 // ---------------------------------------------------------------------------
-// The twelve scripts
+// The thirteen scripts
 // ---------------------------------------------------------------------------
 
 /**
@@ -733,14 +776,169 @@ const TREE_LIST = [
 ].join('\n');
 
 /**
- * The whole catalogue. Twelve scripts, and this release holds no others.
+ * Every matching line in one folder on another machine (Phase 98).
+ *
+ * ## What it is for
+ *
+ * A project can be a folder on another machine, and the Search view in that tab
+ * has to answer. Research 57 section 2 measured the three ways of doing that and
+ * refused two of them. Sending a ripgrep to the machine buys 0.15 s and costs a
+ * third write door, a transfer protocol, a binary per architecture and a Tortie
+ * placed executable on somebody else's computer. Copying the files here costs
+ * 2.4 s of link time against 0.176 s of scanning in place, and it puts a
+ * person's source on a second computer. So the scan happens where the files are,
+ * with the program that machine already has.
+ *
+ * ## Which files are read
+ *
+ * Inside a repository, `git ls-files --cached --others --exclude-standard` names
+ * the tracked files plus the untracked files git is not ignoring. That is the
+ * same set ripgrep reads on this Mac, so a search here and a search there answer
+ * about the same files. Research 57 measured `git ls-files -z` alone, which
+ * lists tracked files only, and this script deviates from that on purpose: a
+ * file an agent on that machine made five minutes ago and has not committed is a
+ * file Phase 97 already put on a person's screen in the Changes list, and it
+ * would not have been searched. Measured on this Mac over 1,598 files the extra
+ * listing costs 10 ms, being 0.02 to 0.03 s against 0.01 to 0.02 s.
+ *
+ * Outside a repository the script walks every file under the folder with `find`
+ * and prunes `.git`. That is Decision 2 of 2026-08-19, taken with its cost
+ * known: the walk measured 366 to 753 ms against 174 to 176 ms, and its answer
+ * includes build output. The answer carries the word `walk` so the panel can say
+ * the folder is not a repository and that nothing was skipped.
+ *
+ * ## The five values
+ *
+ * ```
+ *   $1  the folder on that machine, absolute
+ *   $2  the pattern, which rides behind -e so a pattern starting with a dash
+ *       is a pattern rather than a flag
+ *   $3  the flag letters: i for ignore case, w for whole word, e for a regular
+ *       expression, in any combination, and the empty string for none
+ *   $4  how many matching lines to print, being the match cap PLUS ONE
+ *   $5  how many characters of one line to keep
+ * ```
+ *
+ * `$3` IS LETTERS AND NEVER FLAG TEXT. Each letter is compared against a
+ * constant with `case`, and the value assigned is a constant in this text. So a
+ * caller cannot put a word of its own on the `grep` command line. The three
+ * shell names expanded without quotes are `ic`, `wd` and `rx`, and each can hold
+ * only one of four constants this script itself assigned.
+ *
+ * `$4` IS THE CAP PLUS ONE. A body holding more lines than the cap is proof the
+ * cap bit, so main can say "the first 20,000" without asking the machine to walk
+ * the tree a second time to count. `tree-list` pays for that second walk. A
+ * search would pay 0.17 s for it and this shape pays nothing.
+ *
+ * ## The answer
+ *
+ * ```
+ *   __TORTIE_RUN__<mode> <cut> <base64 of grep's own lines>__TORTIE_RUN__
+ * ```
+ *
+ * `<mode>` is `repo`, `walk`, `missing` or `badpattern`. `<cut>` is `1` when the
+ * byte ceiling bit and `0` when it did not. The third word is the word `none`
+ * when there is nothing, exactly as `review-list` does it. The body is base64
+ * because a matching line can hold any byte, including a newline in a file name
+ * and any control character. Decoded it is `grep -H -n` output, being
+ * `<path>:<line>:<text>` per line. `-H` is not optional: `xargs` hands `grep` its
+ * last batch, and a batch of one file makes `grep` drop the name.
+ *
+ * THE SCRIPT SAYS WHETHER IT CUT, rather than leaving this end to guess. It
+ * reads the ceiling PLUS ONE BYTE, then counts the bytes it read back out of the
+ * base64 it is about to send, being `${#o} / 4 * 3` less the padding, and
+ * compares that count against the ceiling. So `<cut>` is an answer and not an
+ * inference. The first draft asked whether the body ended in a newline instead,
+ * and `head -c` cuts at a byte offset, so about one cut in every average line
+ * length would have landed on a newline and been reported as a complete result
+ * set.
+ *
+ * ## What it cannot do, said plainly
+ *
+ *  - A file whose NAME holds a newline arrives as two lines and the second one
+ *    does not parse. It is dropped, which is the rule `tree-list` already
+ *    carries.
+ *  - `cut -c` counts bytes under the `C` locale, which is the locale a non
+ *    interactive sign in gets. A line cut at the character cap can end in the
+ *    middle of a multi-byte character, and that character arrives as one
+ *    replacement character.
+ *  - `cut -c "1-$5"` COUNTS THE WHOLE LINE, being the path, the line number and
+ *    the two colons as well as the text. The search on this Mac applies that cap
+ *    to the line text alone, so a deep path leaves less text than the same query
+ *    would leave here. Measured on this Mac, a 5,006 character line in a file
+ *    called `p98-long.ts` arrived at 1,986 characters, being the 2,000 character
+ *    cap less the 14 characters of `p98-long.ts:1:`.
+ *  - THERE IS NO FILE SIZE CAP HERE. The search on this Mac hands ripgrep
+ *    `--max-filesize`, being `SEARCH_LIMITS.maxFilesizeBytes` at 10,485,760, so
+ *    a file larger than that is not read here. This script has no size test at
+ *    all and reads that file. Three of the four caps are the same on both
+ *    computers and this is the fourth. Adding it would cost one `stat` per file
+ *    inside the repository branch, where the file list comes from git rather
+ *    than from `find`.
+ *  - A folder that is a repository on a machine with no `git` at all takes the
+ *    walk branch, and the panel then says the folder is not a repository, which
+ *    names the wrong cause. No machine this product can hold a session on has
+ *    been seen without git.
+ *  - Binary files are skipped by `grep -I`, which is the policy the search on
+ *    this Mac already has.
+ *  - EVERY NUMBER IN THIS BLOCK WAS MEASURED WITH THIS MAC AS THE FAR SIDE, over
+ *    a loopback connection. The programs a Linux machine runs are GNU `grep`,
+ *    GNU `xargs` and GNU `find` rather than the BSD ones measured here. Every
+ *    flag used is in POSIX and behaves the same in both, and that is reasoned
+ *    about rather than measured.
+ */
+const REPO_SEARCH = [
+  'set -e',
+  'umask 077',
+  'if [ ! -d "$1" ]; then',
+  "  printf '__TORTIE_RUN__missing 0 none__TORTIE_RUN__\\n'",
+  'else',
+  '  cd "$1"',
+  '  ic=""',
+  '  case "$3" in *i*) ic="-i";; esac',
+  '  wd=""',
+  '  case "$3" in *w*) wd="-w";; esac',
+  '  rx="-F"',
+  '  case "$3" in *e*) rx="-E";; esac',
+  '  s=0',
+  "  printf '' | grep $rx $ic $wd -e \"$2\" 2>/dev/null || s=$?",
+  '  if [ "$s" -gt 1 ]; then',
+  "    printf '__TORTIE_RUN__badpattern 0 none__TORTIE_RUN__\\n'",
+  '  else',
+  '    r=$(git rev-parse --show-toplevel 2>/dev/null || true)',
+  '    if [ -n "$r" ]; then',
+  '      m=repo',
+  '      o=$(git ls-files -z --cached --others --exclude-standard |' +
+    ' xargs -0 grep -I -H -n $ic $wd $rx -e "$2" 2>/dev/null |' +
+    ' cut -c "1-$5" | head -n "$4" | head -c 4194305 | base64 |' +
+    " tr -d '\\n' || true)",
+  '    else',
+  '      m=walk',
+  "      o=$(find . -name '.git' -prune -o -type f -print0 2>/dev/null |" +
+    ' xargs -0 grep -I -H -n $ic $wd $rx -e "$2" 2>/dev/null |' +
+    ' cut -c "1-$5" | head -n "$4" | head -c 4194305 | base64 |' +
+    " tr -d '\\n' || true)",
+  '    fi',
+  '    p=0',
+  '    case "$o" in *==) p=2;; *=) p=1;; esac',
+  '    n=$(( ${#o} / 4 * 3 - p ))',
+  '    c=0',
+  '    if [ "$n" -gt 4194304 ]; then c=1; fi',
+  "    printf '__TORTIE_RUN__%s %s %s__TORTIE_RUN__\\n' \"$m\" \"$c\" \"${o:-none}\"",
+  '  fi',
+  'fi'
+].join('\n');
+
+/**
+ * The whole catalogue. Thirteen scripts, and this release holds no others.
  *
  * A name that is not here is refused by `./remote-run.ts` before anything is
  * composed, which is the shape the verb ledger has as well: the refusal happens
  * before a string exists, rather than after one was built and then inspected.
  *
- * TWO of the twelve write, being `image-put` and `git-clone`, and they are in
+ * TWO of the thirteen write, being `image-put` and `git-clone`, and they are in
  * that order in this array. {@link remoteWriteScripts} returns them in it.
+ * PHASE 98 ADDED A READ AND LEFT THAT NUMBER ALONE.
  */
 export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
   {
@@ -834,6 +1032,16 @@ export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
     reason:
       'It walks one folder tree to a fixed depth and prints what is in it. It ' +
       'writes nothing, so running it twice reads the same tree twice.'
+  },
+  {
+    id: 'repo-search',
+    mode: 'read',
+    params: 5,
+    text: REPO_SEARCH,
+    reason:
+      'It asks git which files are in one folder and reads them with that ' +
+      "machine's own grep. It writes nothing, so running it twice reads the " +
+      'same files twice.'
   },
   {
     id: 'git-clone',

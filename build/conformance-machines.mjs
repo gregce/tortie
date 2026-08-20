@@ -2515,8 +2515,16 @@ const MUTATING_PROGRAMS = [
   'truncate'
 ];
 
-/** The git verbs ANY script in the catalogue may name. All three are reads. */
-const ALLOWED_GIT_VERBS = ['rev-parse', 'status', 'show'];
+/**
+ * The git verbs ANY script in the catalogue may name. All four are reads.
+ *
+ * PHASE 98 ADDED `ls-files`. The remote search asks git which files are in the
+ * folder and then reads them with the machine's own grep. Reading the index is
+ * a read, it reaches no server, and it meets the same test the other three
+ * meet. Phase 99, being Quick Open on a tab that lives on another machine,
+ * needs the same verb and therefore needs no widening of its own.
+ */
+const ALLOWED_GIT_VERBS = ['rev-parse', 'status', 'show', 'ls-files'];
 
 /**
  * The two more verbs `git-clone` may name, and no other script may.
@@ -2999,6 +3007,147 @@ const REVIEW_FILE_GUARD = 'case "$2" in /*|*..*) exit 1;; esac';
 }
 
 // ---------------------------------------------------------------------------
+// 52. Phase 98. The search that runs on the machine rather than on this Mac
+// ---------------------------------------------------------------------------
+//
+// Research 57 section 2 measured this and refused two of the three ways of
+// doing it. Sending a ripgrep to the machine buys 0.15 s and costs a third
+// write door, a transfer protocol, a binary per architecture and a Tortie
+// placed executable on somebody else's computer. Copying the files here costs
+// 2.4 s of link time against 0.176 s of scanning in place. So one read script
+// crosses and the machine's own grep reads its own disk.
+//
+// Every check below reads the compiled script text and one compiled number. It
+// sends nothing, starts nothing and contacts no machine.
+
+const P98_FORBIDDEN = 'ripgrep, rg, curl, scp or install';
+
+{
+  const search = (data.phase98 ?? {}).repoSearch ?? null;
+  if (search === null) {
+    fail(
+      'the catalogue holds no script called repo-search, so the Search view of ' +
+        'a project on another machine has nothing to ask.'
+    );
+  } else {
+    // 52a. A search that is not in the catalogue cannot be sent at all.
+    if (search.mode !== 'read' || search.params !== 5) {
+      fail(
+        `repo-search is a ${String(search.mode)} taking ` +
+          `${String(search.params)} value(s). It is a read taking five, being ` +
+          `the folder, the pattern, the flag letters, the match cap plus one ` +
+          `and the per line character cap.`
+      );
+    }
+    // 52b. The two verbs it may name, and no third one a later edit adds here.
+    const verbs = [...(search.gitVerbs ?? [])].sort();
+    if (JSON.stringify(verbs) !== JSON.stringify(['ls-files', 'rev-parse'])) {
+      fail(
+        `repo-search names git ${verbs.join(', ') || 'nothing'}. It names ` +
+          `exactly rev-parse, to ask whether the folder is a repository, and ` +
+          `ls-files, to ask which files are in it. Both are reads and neither ` +
+          `reaches a server.`
+      );
+    }
+    // 52c. The caps are in the text and not in a caller.
+    if (search.branches !== 2) {
+      fail(
+        `repo-search pipes a file list into grep on ${String(search.branches)} ` +
+          `line(s). There are exactly two, being the repository branch and the ` +
+          `walk branch, and every cap below is checked on both.`
+      );
+    }
+    if (search.branchesCapped !== search.branches) {
+      fail(
+        `${String(search.branchesCapped)} of ${String(search.branches)} ` +
+          `branch(es) of repo-search carry head -n "$4". A branch without it ` +
+          `would send every matching line in a repository in one answer.`
+      );
+    }
+    if (search.branchesClamped !== search.branches) {
+      fail(
+        `${String(search.branchesClamped)} of ${String(search.branches)} ` +
+          `branch(es) of repo-search carry cut -c "1-$5". A minified bundle ` +
+          `produces a 7 MB line, measured at 6,952,086 bytes by research 19, ` +
+          `and one such line would fill the answer on its own.`
+      );
+    }
+    // 52d. Two copies of one number is how one of them goes stale.
+    const caps = search.byteCaps ?? [];
+    if (caps.length !== search.branches) {
+      fail(
+        `repo-search carries ${String(caps.length)} head -c cap(s) and has ` +
+          `${String(search.branches)} branch(es). Each branch ends at the size ` +
+          `ceiling or it does not have one.`
+      );
+    }
+    for (const cap of caps) {
+      // ONE BYTE PAST THE CEILING, and that byte is the proof. A `head -c` that
+      // stopped AT the ceiling cannot tell a stream of exactly that size from a
+      // stream that was cut, and the answer would then be a guess.
+      if (cap === search.declaredMaxBytes + 1) continue;
+      fail(
+        `repo-search reads ${String(cap)} bytes and REMOTE_SEARCH_MAX_BYTES ` +
+          `reads ${String(search.declaredMaxBytes)}, so it should read ` +
+          `${String(search.declaredMaxBytes + 1)}. The script text and the ` +
+          `exported number are two copies of one ceiling, and this is the ` +
+          `check that keeps them one value.`
+      );
+    }
+    // 52h. The far side ANSWERS whether it cut, rather than leaving this end to
+    // infer it from the last byte of the body.
+    const tests = search.cutTests ?? [];
+    if (tests.length !== 1 || tests[0] !== search.declaredMaxBytes) {
+      fail(
+        `repo-search compares the bytes it read against ` +
+          `${tests.length === 0 ? 'nothing' : tests.join(', ')}. It compares ` +
+          `them against ${String(search.declaredMaxBytes)} exactly once, and ` +
+          `that comparison is the only thing that makes the cut an answer ` +
+          `rather than a guess about the last byte of the body.`
+      );
+    }
+    if (search.answerWords !== 3) {
+      fail(
+        `repo-search prints ${String(search.answerWords)} word(s) between the ` +
+          `markers. It prints three, being the mode, the cut answer and the ` +
+          `body. Inferring the cut from the body ends a result set early and ` +
+          `calls it complete.`
+      );
+    }
+    // 52e. A repository's internals never cross the link.
+    if (!search.prunesGit) {
+      fail(
+        'the walk branch of repo-search does not prune .git. A folder that is ' +
+          'not a repository can still hold one below it, and no surface in ' +
+          'this product asks for a repository\'s internals.'
+      );
+    }
+    // 52f. A query that starts with a dash is a query.
+    const calls = search.grepCalls ?? [];
+    if (calls.length === 0) {
+      fail('repo-search runs no grep at all, so it cannot be searching anything.');
+    }
+    for (const call of calls) {
+      if (call.includes('-e "$2"')) continue;
+      fail(
+        `repo-search runs ${JSON.stringify(call.trim())} without -e "$2". The ` +
+          `pattern has to ride behind -e, or a person searching for -v would ` +
+          `hand grep a flag instead of a pattern.`
+      );
+    }
+    // 52g. The executable form of the refusal in research 57 section 2.1.
+    if ((search.namesAProgram ?? []).length > 0) {
+      fail(
+        `repo-search names ${search.namesAProgram.join(', ')}. It may name ` +
+          `none of ${P98_FORBIDDEN}: research 57 section 2 refused shipping a ` +
+          `search engine to another person's computer, and this is the check ` +
+          `that keeps the refusal executable rather than written down.`
+      );
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // 46 to 48. Phase 84. The program search, the third environment name and the
 // key Tortie made
 // ---------------------------------------------------------------------------
@@ -3415,6 +3564,26 @@ process.stdout.write(
   )} file(s): ${(run.shellCallers ?? []).join(', ')}. The door in remote-run.ts ` +
     `is the only one that sends a catalogue script.\n`
 );
+
+// ---------------------------------------------------------------------------
+// Phase 98's line
+// ---------------------------------------------------------------------------
+
+{
+  const search = (data.phase98 ?? {}).repoSearch ?? null;
+  process.stdout.write(
+    search === null
+      ? 'repo-search is NOT in the catalogue, so a search on a machine has no ' +
+          'far side at all.\n'
+      : `a search on a machine runs repo-search, a ${String(search.mode)} ` +
+          `taking ${String(search.params)} value(s). It names git ` +
+          `${[...(search.gitVerbs ?? [])].sort().join(' and ')}, it cuts its ` +
+          `answer at ${String(search.declaredMaxBytes)} bytes on ` +
+          `${String(search.branches)} branch(es) and says so in its own ` +
+          `answer, and it names none of ${P98_FORBIDDEN}. No search engine is ` +
+          `sent to any machine.\n`
+  );
+}
 
 if (failures.length > 0) {
   process.stdout.write(`\nFAIL, ${failures.length}:\n`);

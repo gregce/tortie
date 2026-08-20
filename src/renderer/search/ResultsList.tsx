@@ -11,6 +11,14 @@
  * and "load 40 files" is the difference between a usable list and a stuttering
  * one. ↩ opens into the preview tab and FOCUS STAYS HERE, so ↓ ↩ ↓ ↩ walks the
  * result set with one tab recycling behind it. ⌘↩ and double-click pin.
+ *
+ * PHASE 98 GAVE THIS LIST A SECOND KIND OF ROW, and it is the same row. A
+ * result from another machine carries the shape a result from this Mac carries,
+ * so nothing here branches on where it came from except three things. The
+ * folder a row names is that machine's folder rather than a folder here. An
+ * open carries the machine, which is what makes the editor read the file over
+ * there. And a match row draws no surrounding lines toggle, because the reader
+ * that fetches those lines reads this Mac.
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -21,14 +29,16 @@ import {
 } from '@shared/workspace-target';
 import { FileIcon, Codicon } from '../icons';
 import {
-  SEARCH_ELSEWHERE_BODY,
-  searchElsewhereTitle
+  SEARCH_FILTERS_ON_THIS_MAC,
+  SEARCH_NO_BRIDGE
 } from '../app/machine-copy';
-import { machineLabelFor } from '../state/machines-slice';
 import { useApp } from '../state/store';
 import {
+  machineEmptyLine,
   openSearchLine,
   openSearchResult,
+  remoteRefOf,
+  remoteSearchAvailable,
   searchAvailable,
   useSearch
 } from './store';
@@ -47,9 +57,18 @@ const OVERSCAN = 8;
 
 export function ResultsList(): React.JSX.Element {
   const target = useSearch((s) => s.target);
-  // The one way a path leaves the store. It is null for a project on another
-  // machine, and every open below already had a branch for a null path.
-  const repoPath = localPathOf(target);
+  const machineLabel = useSearch((s) => s.machineLabel);
+  // PHASE 98. The folder, on whichever computer it is on. Until this phase this
+  // was `localPathOf`, which is null for a folder on another machine, so every
+  // open, every Copy Path and every Copy Relative Path returned early. The
+  // machine reference beside it is what tells the editor which computer to read
+  // the file from, and it is null for this Mac.
+  const repoPath = target?.path ?? null;
+  const onMachine = target !== null && localPathOf(target) === null;
+  const remote = useMemo(
+    () => remoteRefOf({ target, machineLabel }),
+    [target, machineLabel]
+  );
   const files = useSearch((s) => s.files);
   const collapsed = useSearch((s) => s.collapsed);
   const expanded = useSearch((s) => s.expanded);
@@ -107,15 +126,15 @@ export function ResultsList(): React.JSX.Element {
     (row: SearchRow, preview: boolean): void => {
       if (repoPath === null) return;
       if (row.kind === 'match') {
-        openSearchResult(repoPath, row.relPath, row.match, preview);
+        openSearchResult(repoPath, row.relPath, row.match, preview, remote);
       } else if (row.kind === 'context') {
-        openSearchLine(repoPath, row.relPath, row.context.line, preview);
+        openSearchLine(repoPath, row.relPath, row.context.line, preview, remote);
       } else if (row.kind === 'file') {
         const line = row.file.matches[0]?.line ?? 1;
-        openSearchLine(repoPath, row.relPath, line, preview);
+        openSearchLine(repoPath, row.relPath, line, preview, remote);
       }
     },
-    [repoPath]
+    [repoPath, remote]
   );
 
   const move = useCallback(
@@ -225,6 +244,7 @@ export function ResultsList(): React.JSX.Element {
               ) : row.kind === 'match' ? (
                 <MatchRow
                   row={row}
+                  onMachine={onMachine}
                   onSelect={() => setSelectedKey(key)}
                   onOpen={(preview) => open(row, preview)}
                   onToggleContext={() =>
@@ -245,7 +265,12 @@ export function ResultsList(): React.JSX.Element {
         })}
       </div>
 
-      {capped && status !== 'searching' ? (
+      {/* PHASE 98. "Show more" raises the cap and runs the search again, which
+          on another machine means asking that machine to scan the whole tree a
+          second time. The machine note under the summary states the cut
+          instead, in one sentence, and the count above it already reads "so
+          far". */}
+      {capped && status !== 'searching' && !onMachine ? (
         <div className="search-capped">
           <span>
             Showing the first {useSearch.getState().resultLimit.toLocaleString()}{' '}
@@ -303,11 +328,14 @@ function FileRow({
 
 function MatchRow({
   row,
+  onMachine,
   onSelect,
   onOpen,
   onToggleContext
 }: {
   row: Extract<SearchRow, { kind: 'match' }>;
+  /** PHASE 98. The row came from a machine, so it has no context toggle. */
+  onMachine: boolean;
   onSelect: () => void;
   onOpen: (preview: boolean) => void;
   onToggleContext: () => void;
@@ -315,32 +343,43 @@ function MatchRow({
   const pieces = splitHighlights(row.match.text, row.match.ranges);
   return (
     <div className="search-match" role="treeitem" aria-selected={false}>
-      <button
-        type="button"
-        className={`search-context-toggle${row.expanded ? ' on' : ''}`}
-        aria-label={row.expanded ? 'Hide surrounding lines' : 'Show surrounding lines'}
-        aria-expanded={row.expanded}
-        title={row.expanded ? 'Hide surrounding lines' : 'Show surrounding lines'}
-        onClick={(e) => {
-          e.stopPropagation();
-          onSelect();
-          onToggleContext();
-        }}
-      >
-        {/* The same chevron the file groups use. `fold`/`unfold` were tried
-            first and read as ✕ at 12 px — a delete affordance on every match
-            row is not a mistake worth risking. */}
-        <Codicon
-          name={
-            row.loading
-              ? 'loading'
-              : row.expanded
-                ? 'chevron-down'
-                : 'chevron-right'
+      {/* PHASE 98. The surrounding lines come from `search:context`, which
+          reads a file on this Mac, and there is no such file for a row a
+          machine sent. The gutter takes the toggle's place there, so the row
+          stays aligned with every other row in the list and no control is
+          drawn that could not do its job. */}
+      {onMachine ? (
+        <span className="search-context-gutter" />
+      ) : (
+        <button
+          type="button"
+          className={`search-context-toggle${row.expanded ? ' on' : ''}`}
+          aria-label={
+            row.expanded ? 'Hide surrounding lines' : 'Show surrounding lines'
           }
-          size={12}
-        />
-      </button>
+          aria-expanded={row.expanded}
+          title={row.expanded ? 'Hide surrounding lines' : 'Show surrounding lines'}
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelect();
+            onToggleContext();
+          }}
+        >
+          {/* The same chevron the file groups use. `fold`/`unfold` were tried
+              first and read as ✕ at 12 px — a delete affordance on every
+              match row is not a mistake worth risking. */}
+          <Codicon
+            name={
+              row.loading
+                ? 'loading'
+                : row.expanded
+                  ? 'chevron-down'
+                  : 'chevron-right'
+            }
+            size={12}
+          />
+        </button>
+      )}
       <button
         type="button"
         className="search-match-body"
@@ -411,8 +450,9 @@ function EmptyResults(): React.JSX.Element {
   const setIncludes = useSearch((s) => s.setIncludes);
   const setExcludes = useSearch((s) => s.setExcludes);
   const target = useSearch((s) => s.target);
+  const remoteMode = useSearch((s) => s.remoteMode);
+  const machineLabel = useSearch((s) => s.machineLabel);
   const projects = useApp((s) => s.projects);
-  const machineStates = useApp((s) => s.machineStates);
   // The project is found by IDENTITY, not by path (Phase 90.1). A path alone
   // matched the first project with that path, which on two machines is the
   // wrong one half the time.
@@ -420,15 +460,63 @@ function EmptyResults(): React.JSX.Element {
     projects.find((p) => sameTarget(targetOfProject(p), target))?.name ??
     'this project';
 
-  // Said FIRST, before anything about queries or filters. Nothing here is
-  // searchable, so nothing else on this panel is worth saying.
+  // PHASE 98. Said FIRST, because every sentence after it is about a search on
+  // this Mac. The folder is on another machine, and what a person reads depends
+  // on the one word that machine answered with.
   if (target !== null && localPathOf(target) === null) {
+    // An older preload cannot ask a machine anything at all. Said before a
+    // person types, not after, which is the rule the local case follows too.
+    if (!remoteSearchAvailable()) {
+      return (
+        <div className="search-empty">
+          <p className="search-empty-title">{SEARCH_NO_BRIDGE}</p>
+        </div>
+      );
+    }
+    // The four words that mean no rows at all. Each one is a whole sentence
+    // from machine-copy.ts, and the note under the summary stays silent for
+    // all four so the same thing is never said twice.
+    const refusal = machineEmptyLine(
+      remoteMode,
+      machineLabel ?? target.machineId
+    );
+    if (refusal !== null) {
+      return (
+        <div className="search-empty">
+          <p className="search-empty-title">{refusal}</p>
+        </div>
+      );
+    }
+    if (status === 'error' && error !== null) {
+      return (
+        <div className="search-empty" role="alert">
+          <p className="search-empty-title">Search could not run.</p>
+          <p className="search-empty-body">{error}</p>
+        </div>
+      );
+    }
+    if (status === 'searching') {
+      return (
+        <div className="search-empty">
+          <p className="search-empty-body">Searching…</p>
+        </div>
+      );
+    }
+    if (query.length === 0 || status === 'idle') {
+      // The body names the three filters rather than the stream, because a
+      // search on another machine arrives in one answer and does not stream,
+      // and because those three are the ones that do not go there.
+      return (
+        <div className="search-empty">
+          <p className="search-empty-title">Search across {projectName}</p>
+          <p className="search-empty-body">{SEARCH_FILTERS_ON_THIS_MAC}</p>
+        </div>
+      );
+    }
+    // A read that found nothing. The note above says how the folder was read.
     return (
       <div className="search-empty">
-        <p className="search-empty-title">
-          {searchElsewhereTitle(machineLabelFor(machineStates, target.machineId))}
-        </p>
-        <p className="search-empty-body">{SEARCH_ELSEWHERE_BODY}</p>
+        <p className="search-empty-title">No results found.</p>
       </div>
     );
   }

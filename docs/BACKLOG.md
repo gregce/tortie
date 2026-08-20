@@ -6356,7 +6356,7 @@ apart in their wording. The activity rail badge and the section header now come 
 | --- | --- |
 | RECORD | `reviewMoreFiles` and `reviewTooManyEntries` in `src/main/machines/remote-copy.ts` both use `toLocaleString` now, so the panel prints one number style. `machine-copy.ts:498` still uses `String(total)` for the capped-folder sentence in the Explorer. That is a different surface and it was left alone deliberately. |
 
-## Phase 98 — search on a machine (research 57 row, queued 2026-08-19) QUEUED
+## Phase 98 — search on a machine (research 57 row, queued 2026-08-19) ✅ SHIPPED 2026-08-20 (this commit, 0.51.0, gates green, 6,691 tests)
 
 **Subject:** `feat(search): search a project on another machine`
 **First body line:** `Phase 98: search on a machine`
@@ -6385,6 +6385,69 @@ path returned 14 and 5 of the 19 were wrong.
 ### The evidence
 
 Search a real project on the loopback scratch machine and prove the hits match a local search of the same corpus line for line. Report the seconds. Prove a pattern that matches nothing answers rather than hangs, and prove the caps hold. Count the operator's sessions with `tmux -L gmux list-sessions` before and after and report both numbers. `src/main/tmux/resolve.ts` honours `GMUX_TMUX_SOCKET` ONLY when `GMUX_SHOT` or `GMUX_SMOKE` is set, so a launch without one of those silently uses his real server.
+
+### What shipped, and how each claim was proved
+
+The Search view of a tab whose project is a folder on another machine now returns rows. It drew a
+refusal before. One new read script crossed the boundary, being `repo-search` in the frozen
+catalogue in `src/main/machines/remote-scripts.ts`, at 1,146 bytes and five positional values. It
+asks git for the file list with `ls-files -z --cached --others --exclude-standard`, pipes that into
+that machine's own `grep -I -H -n`, and base64 encodes the answer. `src/main/machines/remote-search.ts`
+parses the answer into the row shape the Search view has always drawn. The caps are the local caps,
+because `SEARCH_LIMITS` in `src/shared/ipc/search.ts` is one constant that both
+`src/main/search/args.ts` and `src/main/machines/remote-search.ts` read.
+
+Outside a git repository the search answers with a `find` walk rather than refusing, which is
+decision 2 of the charter. The panel says on screen that the folder is not a repository, that
+nothing was skipped, and that the results can include build output.
+
+| Claim | How it was proved | The number |
+| --- | --- | --- |
+| The hits equal what git and grep find | `npm run probe:p98` row 1, against `git ls-files -z \| xargs -0 grep -I -H -n` run directly in the corpus | Tortie 1,043 lines, git and grep 1,093, 1 file cut by the per file cap, 0 missing and 0 extra |
+| The hits equal what ripgrep finds | the same run, row 2, against the ripgrep this build ships | ripgrep 1,093 lines, 0 differences in either direction |
+| A pattern that matches nothing answers | row 8 | mode `repo`, 0 files, 0.044 s |
+| The seconds | row 9, three searches of the whole corpus | 0.048 s, 0.048 s, 0.045 s |
+| The match cap holds | row 10 | a cap of 20 delivered 20 lines, `capped` true |
+| The per file cap holds | row 11 | 1,000 kept of 1,050 found, `clipped` true |
+| The per line cap holds | row 6 | a 5,006 character line arrived at 1,986 characters, highlight at column 100, where the needle is |
+| A folder that is not a repository answers | row 12 | mode `walk`, 2 files, and the file `.gitignore` names is one of them |
+| The search wrote nothing | row 16 | 70 files under `.git` unchanged in size and modification time, `git status --porcelain` 14 bytes identical |
+| No search engine is sent to any machine | `npm run conformance:machines` condition 52 | `repo-search` names none of ripgrep, rg, curl, scp or install |
+| The operator's sessions did not move | rows 17, and counted again around every gate | 47 before, 47 after |
+
+The 4 MB ceiling tells rather than infers. A first draft read the last byte of the answer and called
+it cut when that byte was not a newline, which is a guess: `head -c` cuts at a byte offset and about
+one cut in every average line length lands on a newline. The shipped script reads ONE byte past the
+ceiling, counts the bytes it actually read, and prints `1` or `0`. `remote-search.ts` drops the final
+part line when that flag is set and the panel says the list stops early.
+
+### What is not true, said plainly
+
+- The far side was this Mac over a loopback sign in server in every number above. No Linux machine
+  and no machine of the operator's was contacted. GNU `grep`, GNU `xargs` and GNU `find` are
+  reasoned about from POSIX rather than measured.
+- No slow link was measured. Every second reported is scan time with the connection already open.
+- The file size cap is missing on the far side. A search here hands ripgrep `--max-filesize` at
+  10,485,760 bytes, so a larger file is not read on this Mac. `repo-search` has no size test and
+  reads it. The other three caps are the same numbers on both computers. The module header names
+  this rather than leaving it to be found.
+- The per line character cap counts something slightly different over there. `cut -c "1-$5"` runs on
+  the whole `path:line:text` line, so a deeper path leaves less text. Measured, a 5,006 character
+  line in `p98-long.ts` arrived at 1,986 characters, being 2,000 less the 14 characters of
+  `p98-long.ts:1:`.
+- A path shaped `x:12:y.txt` parses as the path `x` at line 12, because `grep -H -n` has no escape
+  for a colon in a file name.
+- A repository on a machine that has no `git` at all takes the walk branch, and the panel then names
+  the wrong cause.
+- The scan cannot be stopped on the machine. Stop stops Tortie waiting. The far side finishes and
+  its output is thrown away.
+
+### Nits recorded by this round, none of them blocking
+
+| Status | The nit |
+| --- | --- |
+| RECORD | The explorer sentence mark in `src/renderer/app/target-shot-drive.ts` is stale and this phase left it alone. It reads `Tortie reads files on this Mac only` while `machine-copy.ts` has said `Tortie lists files on this Mac only` since Phase 90.3. `npm run probe:workspacetarget` fails on it at HEAD as well as here, being 2 FAIL lines both naming the explorer sentence. Phase 98 fixed only its own search mark rather than widening its edit. |
+| RECORD | `repo-search` has no `--max-filesize` equal, so a file over 10 MB is searched on a machine and is not searched here. Applying it on the far side needs a size test per file and a second measurement. |
 
 ## Phase 99 — Quick Open on a remote tab (research 57 row, queued 2026-08-19) QUEUED
 

@@ -20,36 +20,38 @@
  *  - It never re-runs itself. Agents rewrite this repo continuously; a search
  *    that refreshed on every watcher event would move rows out from under the
  *    cursor. Refresh is a click.
+ *
+ * PHASE 98 ADDED ONE ROW AND TOOK TWO REFUSALS AWAY. The row is the machine
+ * note under the summary, drawn only when the folder being searched is on
+ * another machine. It says at most two sentences, being what happened and then
+ * which program did it, and every one of them is drawn from
+ * src/renderer/app/machine-copy.ts. The two refusals were the disabled Refresh
+ * and Clear controls Phase 90.3 put on a tab whose folder is over there. Both
+ * work now, so neither is drawn off.
  */
 
 import React, { useEffect, useMemo } from 'react';
 import type { GmuxApi } from '@shared/ipc';
 import { localPathOf, targetOfProject } from '@shared/workspace-target';
 import { Codicon } from '../icons';
+import { SEARCH_STOP_WAITING, searchOnMachineLine } from '../app/machine-copy';
 import { useApp } from '../state/store';
 import { QueryBlock } from './QueryBlock';
 import { ResultsList } from './ResultsList';
-import { useSearch } from './store';
+import { machineNoteLine, useSearch } from './store';
 
 /** The sidebar's 36 px band slice for this view. */
 export function SearchHeader(): React.JSX.Element {
   const status = useSearch((s) => s.status);
   const files = useSearch((s) => s.files);
   const query = useSearch((s) => s.query);
-  // PHASE 90.3. Search does not reach another machine, and until this phase its
-  // header still offered Refresh and Clear on a tab whose folder is over there.
-  // Both are drawn OFF now rather than removed, which is the rule the rest of
-  // this app follows: a control that vanished would read as a missing feature.
-  // It also stops Search and Context disagreeing, because the Context view has
-  // drawn its own controls off in that state since Phase 90.1.
-  const projects = useApp((s) => s.projects);
-  const activeProjectId = useApp((s) => s.activeProjectId);
-  const onMachine = useMemo(() => {
-    const target = targetOfProject(
-      projects.find((p) => p.id === activeProjectId) ?? null
-    );
-    return target !== null && localPathOf(target) === null;
-  }, [projects, activeProjectId]);
+  // PHASE 98. Refresh and Clear used to be drawn off on a tab whose folder is
+  // on another machine, because nothing could search it. Both do their job now
+  // and neither is drawn off. What the machine changes here is one label.
+  // Nothing can stop a scan that has already started over there, so on such a
+  // tab the Stop control says what it actually does.
+  const target = useSearch((s) => s.target);
+  const onMachine = target !== null && localPathOf(target) === null;
   const run = useSearch((s) => s.run);
   const cancel = useSearch((s) => s.cancel);
   const clear = useSearch((s) => s.clear);
@@ -69,8 +71,8 @@ export function SearchHeader(): React.JSX.Element {
         <button
           type="button"
           className="icon-btn view-header-action"
-          aria-label="Stop this search"
-          title="Stop this search"
+          aria-label={onMachine ? SEARCH_STOP_WAITING : 'Stop this search'}
+          title={onMachine ? SEARCH_STOP_WAITING : 'Stop this search'}
           onClick={cancel}
         >
           <Codicon name="search-stop" size={16} />
@@ -81,7 +83,7 @@ export function SearchHeader(): React.JSX.Element {
           className="icon-btn view-header-action"
           aria-label="Run this search again"
           title="Run this search again"
-          disabled={query.length === 0 || onMachine}
+          disabled={query.length === 0}
           onClick={() => run()}
         >
           <Codicon name="refresh" size={16} />
@@ -92,7 +94,7 @@ export function SearchHeader(): React.JSX.Element {
         className="icon-btn view-header-action"
         aria-label="Clear the search"
         title="Clear the search"
-        disabled={(query.length === 0 && !hasResults) || onMachine}
+        disabled={query.length === 0 && !hasResults}
         onClick={clear}
       >
         <Codicon name="clear-all" size={16} />
@@ -157,6 +159,51 @@ function Summary(): React.JSX.Element | null {
   );
 }
 
+/**
+ * The two sentences under the summary, for a folder on another machine.
+ *
+ * PHASE 98. It draws at most two lines and never more. The first is the one
+ * state sentence there is, when there is one, and the second names the program
+ * that ran, because a search here and a search there are not the same search.
+ * The order is deliberate, because a person reads what happened before they
+ * read how it was done.
+ *
+ * IT IS SILENT FOR THE FOUR REFUSAL WORDS. Each of those means no rows at all,
+ * and the results area says the whole sentence there instead. Drawing both
+ * would say the same thing twice, three inches apart.
+ */
+function MachineNote(): React.JSX.Element | null {
+  const target = useSearch((s) => s.target);
+  const mode = useSearch((s) => s.remoteMode);
+  const label = useSearch((s) => s.machineLabel);
+  const totalMatches = useSearch((s) => s.totalMatches);
+  const capped = useSearch((s) => s.capped);
+  const truncated = useSearch((s) => s.truncated);
+
+  if (target === null || localPathOf(target) !== null) return null;
+  if (mode === null) return null;
+  // The label main sent, and the machine's id when it sent none. Never a name
+  // this file composes.
+  const name = label ?? target.machineId;
+  const stateLine = machineNoteLine({
+    mode,
+    label: name,
+    totalMatches,
+    capped,
+    truncated
+  });
+  const engineLine =
+    mode === 'repo' || mode === 'walk' ? searchOnMachineLine(name) : null;
+  if (stateLine === null && engineLine === null) return null;
+
+  return (
+    <div className="search-machine-note" data-slot="search-machine-note">
+      {stateLine !== null ? <p>{stateLine}</p> : null}
+      {engineLine !== null ? <p>{engineLine}</p> : null}
+    </div>
+  );
+}
+
 /** The view body below the header band. */
 export function SearchSection(): React.JSX.Element {
   const status = useSearch((s) => s.status);
@@ -199,6 +246,7 @@ export function SearchSection(): React.JSX.Element {
           role="presentation"
         />
         <Summary />
+        <MachineNote />
       </div>
       <ResultsList />
     </>

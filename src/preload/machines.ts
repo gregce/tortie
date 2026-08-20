@@ -1,8 +1,9 @@
 /**
  * The machines half of the bridge (Phase 68, one call added in Phase 69, one
  * more in Phase 71, one more in Phase 79.1, one more in Phase 83, one more in
- * Phase 84, two more in Phase 90.2 and one more in Phase 90.3). One object,
- * twenty one calls and two subscriptions, typed from the shared contract.
+ * Phase 84, two more in Phase 90.2, one more in Phase 90.3 and one more in
+ * Phase 98). One object, twenty two calls and two subscriptions, typed from the
+ * shared contract.
  *
  * TWO of these calls write on another computer, being `putImage` and
  * `cloneProject`. Everything else on this bridge reads.
@@ -96,6 +97,12 @@ export const machines: NonNullable<GmuxMachinesExtras['machines']> = {
   // list rows without one call per folder. It writes nothing on either
   // computer, it carries no file contents, and main refuses it while it is not
   // connected to that machine. Nothing calls it on a clock.
-  listTree: (input) => invoke('machines:listTree', input)
+  listTree: (input) => invoke('machines:listTree', input),
   // ---- END PHASE 90.3 BLOCK ----
+  // Phase 98. THIS ONE READS. It searches one folder on one machine with that
+  // machine's own grep, so the Search view of a project that lives over there
+  // draws rows instead of a refusal. It sends no program, it writes nothing on
+  // either computer, and main refuses it while it is not connected to that
+  // machine.
+  searchContent: (input) => invoke('machines:searchContent', input)
 };

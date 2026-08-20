@@ -104,10 +104,23 @@ const wait = (ms: number): Promise<void> =>
  * The three sentences, matched on a distinctive fragment rather than the whole
  * string. The whole string is in machine-copy.ts and a unit test pins it there.
  * This reading only has to answer whether the words are on screen.
+ *
+ * PHASE 98 MOVED THE SEARCH MARK. It read "Tortie searches files on this Mac
+ * only", which was the second line of the refusal Phase 90.1 gave the Search
+ * view. Phase 98 deleted that refusal, because the Search view searches a
+ * folder on a machine now, so the mark named a sentence no build draws. What
+ * the injected tab reaches instead is a machine main has never heard of, and
+ * the panel says so. The fragment is the tail of `searchNotConnected` in
+ * machine-copy.ts and it appears in no other sentence in this renderer.
+ *
+ * THE EXPLORER MARK IS STALE TOO and this phase leaves it alone rather than
+ * quietly widening its own edit. Phase 90.3 changed that second line to
+ * "Tortie lists files on this Mac only", and the two Explorer failures in this
+ * probe are on HEAD as well as here.
  */
 const SENTENCE_MARKS: Readonly<Record<string, string>> = {
   filesElsewhere: 'Tortie reads files on this Mac only',
-  searchElsewhere: 'Tortie searches files on this Mac only',
+  searchElsewhere: 'so it searched nothing',
   contextElsewhere: 'Tortie reads skills, servers and hooks from this Mac only'
 };
 

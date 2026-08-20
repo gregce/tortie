@@ -9,24 +9,65 @@
  *
  * Six transitions are driven below and they are the whole matrix. `L1` and `L2`
  * are two folders on this Mac. `R` is `L1`'s path on machine `p901`. `R2` is
- * the same path again on machine `p902`. The count that matters in every row is
- * the number of ripgrep runs the store asked for.
+ * the same path again on machine `p902`.
  *
- * No process, no window and no view. `search.start` is a fake that records what
- * it was asked to run.
+ * PHASE 98 REWROTE TRANSITIONS 3 AND 5. Both used to assert that a folder on
+ * another machine runs NOTHING, which was true while nothing could search one.
+ * Each of them now asks that machine once and asks ripgrep nothing, and the two
+ * counts are read separately so a run on the wrong computer cannot pass.
+ *
+ * No process, no window and no view. `search.start` and `machines.searchContent`
+ * are fakes that record what they were asked to run.
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MachineSearchResult } from '@shared/ipc';
 import type { WorkspaceTarget } from '@shared/workspace-target';
 
-/** Every search this store asked for, in order. */
+/** Every ripgrep search this store asked for, in order. */
 let starts: { repoPath: string; query: string }[] = [];
+/** Every search this store asked a MACHINE for, in order. */
+let remotes: { machineId: string; cwd: string; query: string }[] = [];
 /** Every cancel, so a switch can be shown to stop what was running. */
 let cancels = 0;
+
+/** One row, so a machine's answer can be told apart from this Mac's. */
+function remoteAnswer(machineId: string, cwd: string): MachineSearchResult {
+  return {
+    machineId,
+    machineLabel: machineId === 'p901' ? 'Studio' : 'Loft',
+    cwd,
+    mode: 'repo',
+    files: [
+      {
+        relPath: 'src/there.ts',
+        matchCount: 1,
+        matches: [
+          {
+            line: 7,
+            text: 'needle',
+            trimmed: 0,
+            ranges: [[0, 6]],
+            byteOffset: 0
+          }
+        ],
+        clipped: false
+      }
+    ],
+    totalMatches: 1,
+    totalFiles: 1,
+    capped: false,
+    truncated: false,
+    elapsedMs: 201
+  };
+}
 
 vi.stubGlobal('window', {
   addEventListener() {},
   removeEventListener() {},
+  dispatchEvent() {
+    return true;
+  },
   setTimeout,
   clearTimeout,
   gmux: {
@@ -41,6 +82,20 @@ vi.stubGlobal('window', {
       },
       onResults: () => () => undefined,
       context: () => Promise.resolve({ lines: [] })
+    },
+    machines: {
+      searchContent: (input: {
+        machineId: string;
+        cwd: string;
+        query: string;
+      }) => {
+        remotes.push({
+          machineId: input.machineId,
+          cwd: input.cwd,
+          query: input.query
+        });
+        return Promise.resolve(remoteAnswer(input.machineId, input.cwd));
+      }
     }
   }
 });
@@ -71,10 +126,16 @@ function fresh(target: WorkspaceTarget): WorkspaceTarget {
 
 const store = (): ReturnType<typeof useSearch.getState> => useSearch.getState();
 
-/** Switch to a target and let the 150 ms debounce fire. */
-function switchTo(target: WorkspaceTarget | null): void {
+/**
+ * Switch to a target and let the debounce fire.
+ *
+ * 600 ms clears both pauses, being 150 ms for a folder on this Mac and 400 ms
+ * for one on a machine. It is awaited so the one call to a machine has landed
+ * before anything is read, which is what a person waiting 0.2 s gets.
+ */
+async function switchTo(target: WorkspaceTarget | null): Promise<void> {
   store().syncProject(target);
-  vi.advanceTimersByTime(300);
+  await vi.advanceTimersByTimeAsync(600);
 }
 
 /** One result file, so "the previous set is still on screen" can be staged. */
@@ -91,6 +152,7 @@ function oneFile(): ReturnType<typeof useSearch.getState>['files'] {
 beforeEach(() => {
   vi.useFakeTimers();
   starts = [];
+  remotes = [];
   cancels = 0;
   store().clear();
   useSearch.setState({ target: null });
@@ -100,48 +162,68 @@ beforeEach(() => {
 });
 
 describe('the six transitions', () => {
-  it('1. none to L1 runs once, on L1', () => {
-    switchTo(L1);
+  it('1. none to L1 runs once, on L1', async () => {
+    await switchTo(L1);
     expect(starts).toEqual([{ repoPath: '/l1', query: 'needle' }]);
+    expect(remotes).toEqual([]);
   });
 
-  it('2. L1 to L2 runs once more, on L2', () => {
-    switchTo(L1);
-    switchTo(L2);
+  it('2. L1 to L2 runs once more, on L2', async () => {
+    await switchTo(L1);
+    await switchTo(L2);
     expect(starts.map((s) => s.repoPath)).toEqual(['/l1', '/l2']);
+    expect(remotes).toEqual([]);
   });
 
-  it('3. L1 to R re-targets, clears, and runs NOTHING. This is the defect', () => {
-    switchTo(L1);
+  it('3. L1 to R re-targets and runs ONE search on that machine, and no ripgrep', async () => {
+    await switchTo(L1);
     useSearch.setState({ files: oneFile(), totalFiles: 1, totalMatches: 1 });
     starts = [];
+    remotes = [];
 
-    switchTo(R);
+    await switchTo(R);
 
     expect(store().target).toEqual(R);
+    // Nothing on this Mac ran. This is the half the old assertion kept.
     expect(starts).toEqual([]);
-    expect(store().files).toEqual([]);
-    expect(store().totalFiles).toBe(0);
-    expect(store().status).toBe('idle');
+    // One call, to the right machine, for the right folder.
+    expect(remotes).toEqual([
+      { machineId: 'p901', cwd: '/l1', query: 'needle' }
+    ]);
+    // That machine's own rows, and that machine's own label, are what is on
+    // screen. The row from this Mac is gone.
+    expect(store().files.map((f) => f.relPath)).toEqual(['src/there.ts']);
+    expect(store().remoteMode).toBe('repo');
+    expect(store().machineLabel).toBe('Studio');
+    expect(store().status).toBe('done');
   });
 
-  it('4. R to L1 runs once, on L1', () => {
-    switchTo(R);
+  it('4. R to L1 runs once, on L1', async () => {
+    await switchTo(R);
     starts = [];
-    switchTo(L1);
+    remotes = [];
+    await switchTo(L1);
     expect(starts).toEqual([{ repoPath: '/l1', query: 'needle' }]);
+    expect(remotes).toEqual([]);
+    // The note about the previous machine went with its rows.
+    expect(store().remoteMode).toBeNull();
+    expect(store().machineLabel).toBeNull();
   });
 
-  it('5. R to R2 re-targets and still runs nothing', () => {
-    switchTo(R);
-    starts = [];
-    switchTo(R2);
+  it('5. R to R2 re-targets and asks the SECOND machine, not the first', async () => {
+    await switchTo(R);
+    remotes = [];
+    await switchTo(R2);
     expect(store().target).toEqual(R2);
+    expect(remotes).toEqual([
+      { machineId: 'p902', cwd: '/l1', query: 'needle' }
+    ]);
     expect(starts).toEqual([]);
+    expect(store().machineLabel).toBe('Loft');
   });
 
-  it('6. L1 to L1, by a fresh but equal object, does nothing at all', () => {
-    switchTo(L1);
+  it('6. L1 to L1, by a fresh but equal object, does nothing at all', async () => {
+    await switchTo(L1);
     starts = [];
     let notifications = 0;
     const stop = useSearch.subscribe(() => {
@@ -149,24 +231,25 @@ describe('the six transitions', () => {
     });
 
     for (let i = 0; i < 50; i += 1) store().syncProject(fresh(L1));
-    vi.advanceTimersByTime(300);
+    await vi.advanceTimersByTimeAsync(600);
     stop();
 
     expect(notifications).toBe(0);
     expect(starts).toEqual([]);
+    expect(remotes).toEqual([]);
   });
 });
 
 describe('what a switch must not break', () => {
-  it('keeps the query and the toggles across a switch', () => {
-    switchTo(L1);
+  it('keeps the query and the toggles across a switch', async () => {
+    await switchTo(L1);
     useSearch.setState({
       isRegex: true,
       isCaseSensitive: true,
       includes: '*.ts'
     });
 
-    switchTo(L2);
+    await switchTo(L2);
 
     expect(store().query).toBe('needle');
     expect(store().isRegex).toBe(true);
@@ -174,17 +257,17 @@ describe('what a switch must not break', () => {
     expect(store().includes).toBe('*.ts');
   });
 
-  it('stops the running search when the target changes', () => {
-    switchTo(L1);
+  it('stops the running search when the target changes', async () => {
+    await switchTo(L1);
     const before = cancels;
-    switchTo(L2);
+    await switchTo(L2);
     expect(cancels).toBeGreaterThan(before);
   });
 });
 
 describe('noteRepoChanged, which is still a path', () => {
-  it('marks the set stale when the watcher names the folder being shown', () => {
-    switchTo(L1);
+  it('marks the set stale when the watcher names the folder being shown', async () => {
+    await switchTo(L1);
     useSearch.setState({ status: 'done', files: oneFile(), stale: false });
 
     store().noteRepoChanged('/l1');
@@ -192,12 +275,13 @@ describe('noteRepoChanged, which is still a path', () => {
     expect(store().stale).toBe(true);
   });
 
-  it('ignores that same folder while the view is showing another machine', () => {
-    switchTo(R);
+  it('ignores that same folder while the view is showing another machine', async () => {
+    await switchTo(R);
     useSearch.setState({ status: 'done', files: oneFile(), stale: false });
 
     // The watcher can only ever be talking about this Mac, and this Mac is not
-    // what the panel is showing.
+    // what the panel is showing. Phase 98 did not change this. A result set
+    // read from a machine is never marked stale by a change here.
     store().noteRepoChanged('/l1');
 
     expect(store().stale).toBe(false);

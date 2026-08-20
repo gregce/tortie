@@ -1,8 +1,10 @@
 /**
  * The ONE `machines:*` registrar (Phase 68, one channel added in Phase 69, one
- * more in Phase 71, one more in Phase 79.1 and one more in Phase 83).
+ * more in Phase 71, one more in Phase 79.1, one more in Phase 83, one more in
+ * Phase 84, two more in Phase 90.2, one more in Phase 90.3 and one more in
+ * Phase 98).
  *
- * Fourteen channels, and what is NOT here is the point of the file.
+ * Twenty two channels, and what is NOT here is the point of the file.
  *
  *  - There is no `machines:connect`, no `machines:attach` and no
  *    `machines:createSession`. Neither Phase 68 nor Phase 69 opens a session on
@@ -111,8 +113,12 @@ import type {
   RemoteCloneInput,
   RemoteCloneResult,
   RemoteProjectFindInput,
-  RemoteProjectFindResult
+  RemoteProjectFindResult,
   // ---- END PHASE 90.2 ----
+  // ---- PHASE 98 ----
+  MachineSearchInput,
+  MachineSearchResult
+  // ---- END PHASE 98 ----
 } from '@shared/ipc';
 import { EVT_MACHINE_STATE, EVT_MACHINE_TEST } from '@shared/ipc';
 import { gmuxError } from '../errors';
@@ -172,6 +178,9 @@ import { machineCanHoldSession } from './remote-sessions';
 // either computer.
 import { listRemoteDir } from './dir-list';
 import { listRemoteTree } from './tree-list';
+// Phase 98. One folder on one machine, searched with that machine's own grep.
+// It reads and writes nothing on either computer.
+import { searchOnMachine } from './remote-search';
 // Phase 90.2, item 2. One git config read here, then one folder walk there. It
 // writes nothing on either computer.
 import { findProjectOnMachine } from './project-counterpart';
@@ -902,6 +911,43 @@ export function registerMachinesIpc(ipc: IpcMain): void {
       })
   );
   // ---- END PHASE 90.3 ----
+
+  // ---- PHASE 98 ----
+  // PHASE 98. One channel that READS one folder on one machine, so the Search
+  // view of a project that lives over there draws rows instead of a sentence
+  // saying search does not reach that far.
+  //
+  // It cannot compose what it asks. The command that crosses is `repo-search`
+  // from the frozen catalogue in ./remote-scripts.ts, chosen by name, with the
+  // folder, the pattern, the flag letters and the two caps arriving there as
+  // positional parameters. NOTHING IS SENT TO THAT MACHINE except that constant
+  // text: research 57 section 2 measured shipping a ripgrep and refused it.
+  //
+  // NOTHING CALLS IT ON A CLOCK. A search happens when a person types, and the
+  // renderer owns the debounce. There is no poll in this product for it.
+  //
+  // It NEVER THROWS for anything the machine said. A folder that is not there,
+  // a pattern that machine's grep refused, a machine that did not answer and a
+  // machine Tortie is not signed in to all come back as a mode word. No prose
+  // crosses this channel: the renderer draws the sentence from
+  // src/renderer/app/machine-copy.ts, where the vocabulary audit reads it. The
+  // one thing that throws is an empty pattern, which is a caller error rather
+  // than a state of a machine, and nothing is sent for it.
+  handle(
+    ipc,
+    'machines:searchContent',
+    async (_event, input: MachineSearchInput): Promise<MachineSearchResult> =>
+      searchOnMachine({
+        machineId: input.machineId,
+        cwd: input.cwd,
+        query: input.query,
+        isRegex: input.isRegex,
+        isCaseSensitive: input.isCaseSensitive,
+        matchWholeWord: input.matchWholeWord,
+        ...(input.maxResults === undefined ? {} : { maxResults: input.maxResults })
+      })
+  );
+  // ---- END PHASE 98 ----
 }
 
 /**
