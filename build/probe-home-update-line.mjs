@@ -62,7 +62,8 @@ const scratchAt = argv.indexOf('--scratch');
 const scratch =
   scratchAt !== -1 && argv[scratchAt + 1]
     ? argv[scratchAt + 1]
-    : join(tmpdir(), 'p62.1-home-update-line');
+    : (process.env['GMUX_HARNESS_DIR'] ??
+      join(tmpdir(), 'p62.1-home-update-line'));
 
 const appPath = join(repoRoot, 'release', 'mac-arm64', 'Tortie.app');
 const appBinary = join(appPath, 'Contents', 'MacOS', 'Tortie');

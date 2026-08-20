@@ -145,7 +145,8 @@ say(`harness socket: ${socket}`);
 // second tab that claims the same path on a machine nothing is signed in to.
 // ---------------------------------------------------------------------------
 
-const scratch = process.env['TMPDIR'] ?? tmpdir();
+const scratch =
+  process.env['GMUX_HARNESS_DIR'] ?? process.env['TMPDIR'] ?? tmpdir();
 const rawRoot = join(scratch, 'p903-remote-project');
 rmSync(rawRoot, { recursive: true, force: true });
 mkdirSync(join(rawRoot, 'project', 'src'), { recursive: true });

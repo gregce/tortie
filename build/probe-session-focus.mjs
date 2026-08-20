@@ -131,7 +131,8 @@ say(`harness socket: ${socket}`);
 // The scratch project
 // ---------------------------------------------------------------------------
 
-const scratch = process.env['TMPDIR'] ?? tmpdir();
+const scratch =
+  process.env['GMUX_HARNESS_DIR'] ?? process.env['TMPDIR'] ?? tmpdir();
 const rawRoot = join(scratch, 'gmux-p801-focus');
 rmSync(rawRoot, { recursive: true, force: true });
 mkdirSync(join(rawRoot, 'project'), { recursive: true });

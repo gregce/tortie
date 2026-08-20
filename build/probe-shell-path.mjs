@@ -166,7 +166,8 @@ say(packaged ? `binary: ${packagedBin}` : 'binary: development build');
 // The scratch project and the fake login shell
 // ---------------------------------------------------------------------------
 
-const scratch = process.env['TMPDIR'] ?? tmpdir();
+const scratch =
+  process.env['GMUX_HARNESS_DIR'] ?? process.env['TMPDIR'] ?? tmpdir();
 const rawRoot = join(scratch, 'p81-shell-path');
 rmSync(rawRoot, { recursive: true, force: true });
 mkdirSync(join(rawRoot, 'project'), { recursive: true });

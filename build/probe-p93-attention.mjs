@@ -158,7 +158,8 @@ say(`harness socket: ${socket}`);
 // The scratch world
 // ---------------------------------------------------------------------------
 
-const scratch = process.env['TMPDIR'] ?? tmpdir();
+const scratch =
+  process.env['GMUX_HARNESS_DIR'] ?? process.env['TMPDIR'] ?? tmpdir();
 const rawRoot = join(scratch, 'p93-attention');
 rmSync(rawRoot, { recursive: true, force: true });
 mkdirSync(join(rawRoot, 'project'), { recursive: true });

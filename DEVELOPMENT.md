@@ -86,10 +86,11 @@ have caught this one.
 harness. It plants two sessions on a scratch tmux socket, quits so the app-quit
 snapshot is written, kills those sessions out of band, and proves both come back
 with their scrollback replayed and their resume command typed but not run.
-Drive it through `npm run`. Driving `build/harness-socket.mjs` straight exits
-127 with `electron: command not found`, because `npm run` is what puts
-`node_modules/.bin` on PATH. Add that folder to PATH if you drive it another
-way.
+Drive it either way. `npm run smoke:t3` works, and so does
+`node build/harness-socket.mjs gmux-smoke-t3 '...'` on its own. Since Phase 112
+the harness puts `<repo>/node_modules/.bin` on the child's PATH itself, so
+`electron` is found without `npm run`. Before Phase 112 the second way exited
+127 with `electron: command not found`.
 
 ### Where each remote gate keeps its isolated config root
 
@@ -97,17 +98,21 @@ Each of these gates runs the app under its own config root and its own tmux
 socket, so two of them can run at once and neither can reach the operator's
 data. Pointing a probe at the wrong root produces a refused connection to a port
 nothing is listening on, which reads like a broken machine and is not one. Every
-value below is read from the script in `package.json`, and `${TMPDIR}` is
-`${TMPDIR:-/tmp/}` as the scripts write it.
+base name below is read from the script in `package.json`. Since Phase 112 the
+rest of the name is composed by `build/harness-socket.mjs` from the current
+directory's own name, cut to 12 characters, and the process id of that script,
+so two runs on one Mac never share a socket or a root. The root is the same
+directory as the socket, it sits under `${TMPDIR:-/tmp}`, and the app is handed
+it as `GMUX_HARNESS_DIR`.
 
 | Gate | Config root | tmux socket |
 | --- | --- | --- |
-| `npm run smoke:config` | `${TMPDIR}gmux-smoke-config` | `gmux-smoke-config` |
-| `npm run smoke:machines` | `${TMPDIR}gmux-smoke-machines` | `gmux-smoke-machines` |
-| `npm run smoke:execplane` | `${TMPDIR}gmux-p69-exec` | `gmux-p69-exec` |
-| `npm run smoke:remote` | `${TMPDIR}gmux-p70-remote` | `gmux-p70-remote` |
-| `npm run smoke:capture:remote` | `${TMPDIR}gmux-p91-capture` | `gmux-p91-capture` |
-| `npm run smoke:p93remote` | `${TMPDIR}gmux-p93-remote` | `gmux-p93-remote` |
+| `npm run smoke:config` | `<tmpdir>/gmux-smoke-config-<worktree>-<pid>` | `gmux-smoke-config-<worktree>-<pid>` |
+| `npm run smoke:machines` | `<tmpdir>/gmux-smoke-machines-<worktree>-<pid>` | `gmux-smoke-machines-<worktree>-<pid>` |
+| `npm run smoke:execplane` | `<tmpdir>/gmux-p69-exec-<worktree>-<pid>` | `gmux-p69-exec-<worktree>-<pid>` |
+| `npm run smoke:remote` | `<tmpdir>/gmux-p70-remote-<worktree>-<pid>` | `gmux-p70-remote-<worktree>-<pid>` |
+| `npm run smoke:capture:remote` | `<tmpdir>/gmux-p91-capture-<worktree>-<pid>` | `gmux-p91-capture-<worktree>-<pid>` |
+| `npm run smoke:p93remote` | `<tmpdir>/gmux-p93-remote-<worktree>-<pid>` | `gmux-p93-remote-<worktree>-<pid>` |
 | `npm run probe:realmachine` | `<tmpdir>/p83-real-<pid>`, made fresh on every run | none on this Mac. One scratch socket on the far machine, named `p83-<pid>-ctl` |
 | `npm run probe:realunknowns` | `<tmpdir>/p83-real-<pid>`, made fresh on every run | none on this Mac. One scratch socket on the far machine, named `p83-<pid>-sockpath`, and socket `gmux` over there for the sessions it creates by name |
 | `npm run probe:remotearm` | `<tmpdir>/gmux-p89-arm-<pid>`, made fresh on every run and removed at the end | `gmux-p89-<pid>`, on the scratch machine, which is this Mac over a loopback sshd. `refuseRealSockets` rejects the names `gmux` and `default` before anything starts. |
@@ -126,9 +131,9 @@ Two more gates set a config root without naming it in `package.json`, because
 their harness makes a new one on every run. `npm run smoke:partition` uses
 `<tmpdir>/p71-partition-<pid>` and `npm run smoke:matrix` uses
 `<tmpdir>/p72-matrix-<pid>`. Both take their socket from
-`build/harness-socket.mjs`, which is `gmux-p71-partition` and
-`gmux-p72-matrix`. There is no fixed root to point at for those two, so there is
-nothing to point at wrongly.
+`build/harness-socket.mjs`, which is `gmux-p71-partition-<worktree>-<pid>` and
+`gmux-p72-matrix-<worktree>-<pid>`. There is no fixed root to point at for
+those two, so there is nothing to point at wrongly.
 
 `node build/probe-execplane.mjs` reads `GMUX_CONFIG_ROOT` too, and it is the one
 place the variable changes what the script does rather than only where it writes.

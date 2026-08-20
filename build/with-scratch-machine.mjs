@@ -28,10 +28,12 @@
  * own agent, because the exec plane names no key and this Mac may have none of
  * its own.
  *
- * `npm run smoke:remote` runs this script with `GMUX_CONFIG_ROOT` set to
- * `${TMPDIR}gmux-p70-remote`, and the carriage file lands inside it. That root
- * is not the one `npm run smoke:execplane` reads, which is
- * `${TMPDIR}gmux-p69-exec`. Pointing a probe at the wrong one produces a
+ * `npm run smoke:remote` runs this script with `GMUX_CONFIG_ROOT` set to that
+ * gate's own run directory, and the carriage file lands inside it. Since Phase
+ * 112 the directory is composed on every run, so it reads
+ * `<tmpdir>/gmux-p70-remote-<worktree>-<pid>` rather than a fixed path. It is
+ * not the root `npm run smoke:execplane` reads, which is composed the same way
+ * from the base `gmux-p69-exec`. Pointing a probe at the wrong one produces a
  * refused connection to a port nothing is listening on, which reads like a
  * broken machine and is not one. The table in DEVELOPMENT.md, under "Where
  * each remote gate keeps its isolated config root", names every gate's root.

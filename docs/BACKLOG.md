@@ -6355,7 +6355,7 @@ at create 5 of 5 and verify 6 of 6, and smoke:t3 at prep 6 of 6 and verify 3 of 
 time. Every run used its own socket through `build/harness-socket.mjs` and its own profile. The
 operator's private server read 47 sessions before the work and 47 after.
 
-## Phase 112 — two smoke runs share one socket and one profile, so both readings are worthless QUEUED
+## Phase 112 — two smoke runs share one socket and one profile, so both readings are worthless ✅ SHIPPED 2026-08-20 (this commit, 0.55.2, gates green, 7,026 tests)
 
 **Subject:** `fix(build): every smoke run gets a socket and a profile of its own`
 **First body line:** `Phase 112: two smoke runs share one socket and one profile`
@@ -6421,6 +6421,72 @@ socket names and profile paths printed and different. That is the whole point an
 not evidence for it. Then show no tmux server survives either run. Then run `npm run smoke:t3` the
 same way. Count the operator's sessions with `tmux -L gmux list-sessions` before and after and report
 both numbers; it has read 47 at every checkpoint through this whole programme.
+
+### How it landed, 2026-08-20
+
+`build/harness-socket.mjs` composes every name it uses. The socket is `<base>-<slug>-<pid>`, where
+the base is what `package.json` passes, the slug is the current directory's own name cut to 12
+characters, and the pid is the harness process id. The run directory is `${TMPDIR:-/tmp}/<socket>`,
+the script creates it, and the child reads it as `GMUX_HARNESS_DIR`. A run in this worktree read
+`gmux-smoke-t1-wt-p112-80726` for both.
+
+**34 scripts in `package.json` were in scope and 34 changed.** 26 of them already called
+`build/harness-socket.mjs` and 8 launched Electron on their own. Five of those 8 now run inside the
+harness, being `smoke`, `smoke:power`, `smoke:refusal`, `smoke:config` and `smoke:machines`, so they
+gain a teardown they never had. Ten files under `build/` that composed a fixed scratch root under
+`TMPDIR` now read `GMUX_HARNESS_DIR` first. The four `rm -rf` clauses that existed because a
+directory was reused are gone, because a fresh directory every run replaces them.
+
+**The three refusals still run on the base name, before the tag is composed.** Measured by running
+them: `gmux` exits 2, `default` exits 2, `notgmux` exits 2, and `gmux-p112v-ok` exits 0. A fourth
+check runs after composition and refuses a name longer than 64 characters. The longest base in the
+tree is `gmux-smoke-reconstruct` at 22 characters, so the worst composed name is about 41.
+
+**Two runs at once were proved by running them.** Two `npm run smoke:t1` in two directories
+overlapped for at least 2.6 seconds by a 0.5 second sampler, both printed 6/6 PASS and both exited 0
+on different sockets and different profiles. Each created a tmux session named `smoke-keeper` on its
+own server, which is the collision this phase names. `npm run smoke:t3` was run the same way and both
+printed 3/3 PASS. The `/tmp/tmux-501` listing was byte identical before and after each pair, at 141
+entries.
+
+**A run that is killed is cleaned up by the next one.** A harness sent SIGKILL left its socket file
+and its server behind, which is what SIGKILL requires. The next harness printed `ended 1 scratch
+server left behind by runs that have exited` and the file was gone. A neighbour whose process was
+still alive was skipped and its session survived.
+
+**The PATH footgun Phase 111 reported is closed.** `node build/harness-socket.mjs` without `npm run`
+used to exit 127 with `electron: command not found`. The harness now puts `<repo>/node_modules/.bin`
+on the child's PATH and electron is found either way.
+
+**The operator's server was read only throughout.** `tmux -L gmux list-sessions | wc -l` read 47 at
+every checkpoint of the build, the verification and the commit.
+
+### What is not true after this phase
+
+- `smoke:create` and `smoke:verify` keep a fallback socket and a fallback profile named
+  `gmux-smoke-t1`. Under `npm run smoke:t1` the harness supplies both variables and the fallbacks are
+  never reached, which was measured. Run on their own in two directories at once they still share one
+  server and one profile, and nothing ends it. Closing that needs a harness that knows it is already
+  inside a harness, which is a design change rather than a one line edit.
+- `npm run shot` still attaches to the operator's real `-L gmux` server. It sets `GMUX_SHOT` and no
+  socket, and `activeTmuxSocket` in `src/main/tmux/resolve.ts` falls back to `gmux`. This phase gave
+  `shot` a per shell profile directory and left its socket alone, because moving it would change what
+  every screenshot shows and other phases gather evidence that way. It needs a decision from the
+  operator.
+- `src/main/conformance/scratch.ts` still fixes `SCRATCH_ROOT` to `join(tmpdir(), 'gmux-conformance')`
+  and `sweepLeftovers` removes that whole directory. Two `conformance:resume` runs now get separate
+  sockets and separate profiles and still share those per agent working directories.
+- The reap does not empty the socket directory. It removes only names matching
+  `gmux-<something>-<digits>` whose trailing number is a process id that is gone. Process ids are
+  reused on macOS, so a stale socket whose number was taken by a live process survives until that
+  process exits. It also reaches servers this script did not create, if their name has that shape and
+  their number is dead.
+- Every run makes a new directory and none of them is deleted. One `smoke:t1` profile measured
+  676 KB. Deleting them was rejected because a failed run's profile is the evidence a person needs,
+  and macOS clears `TMPDIR` on its own schedule.
+- `harnessRunTag()` is exported and nothing can import it yet, because importing the file also runs
+  the command line beneath it. A later phase that wants the function moves it into its own module
+  first.
 
 ## Phase 96 — the four defects on the remote surfaces (research 57 row, queued 2026-08-19) ✅ SHIPPED 2026-08-19 (this commit, 0.49.1, gates green, 6,575 tests)
 
