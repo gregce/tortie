@@ -35,10 +35,16 @@ interface FileListAnswer {
   mode: MachineFileListMode;
   paths: string[];
   capped: boolean;
+  truncated: boolean;
 }
 
 /** What the next `listFiles` answers, and whether it answers at all. */
-let answer: FileListAnswer = { mode: 'repo', paths: ['src/a.ts'], capped: false };
+let answer: FileListAnswer = {
+  mode: 'repo',
+  paths: ['src/a.ts'],
+  capped: false,
+  truncated: false
+};
 let refuse = false;
 
 let warmed: { root: string; paths?: string[] }[] = [];
@@ -110,7 +116,7 @@ vi.stubGlobal('window', {
           mode: answer.mode,
           paths: answer.paths,
           capped: answer.capped,
-          truncated: false,
+          truncated: answer.truncated,
           readAt: Date.now(),
           elapsedMs: 12
         });
@@ -165,7 +171,7 @@ let offBus: (() => void) | null = null;
 beforeEach(() => {
   clock += 10_000;
   Date.now = () => clock;
-  answer = { mode: 'repo', paths: ['src/a.ts'], capped: false };
+  answer = { mode: 'repo', paths: ['src/a.ts'], capped: false, truncated: false };
   refuse = false;
   warmed = [];
   listed = [];
@@ -195,7 +201,12 @@ beforeEach(() => {
 
 describe('the read of one machine name list', () => {
   it('asks once and adopts the names under the machine root key', async () => {
-    answer = { mode: 'repo', paths: ['src/a.ts', 'src/b.ts'], capped: false };
+    answer = {
+      mode: 'repo',
+      paths: ['src/a.ts', 'src/b.ts'],
+      capped: false,
+      truncated: false
+    };
     useQuickOpen.getState().warm();
     await flush();
     expect(listed).toEqual([
@@ -222,12 +233,36 @@ describe('the read of one machine name list', () => {
     await flush();
     expect(listed.length).toBe(2);
   });
+
+  it('carries the byte cut flag into the palette state (Phase 99.1)', async () => {
+    // The carry-through the store dropped. The second read proves the field
+    // is a reading rather than a constant.
+    answer = {
+      mode: 'repo',
+      paths: ['src/a.ts'],
+      capped: false,
+      truncated: true
+    };
+    useQuickOpen.getState().warm();
+    await flush();
+    expect(useQuickOpen.getState().elsewhereRead?.truncated).toBe(true);
+    clock += 6_000;
+    answer = {
+      mode: 'repo',
+      paths: ['src/a.ts'],
+      capped: false,
+      truncated: false
+    };
+    useQuickOpen.getState().warm();
+    await flush();
+    expect(useQuickOpen.getState().elsewhereRead?.truncated).toBe(false);
+  });
 });
 
 describe('an answer that carries no names', () => {
   for (const mode of ['missing', 'notConnected'] as const) {
     it(`adopts an empty list for ${mode}, so the index is built`, async () => {
-      answer = { mode, paths: [], capped: false };
+      answer = { mode, paths: [], capped: false, truncated: false };
       useQuickOpen.getState().warm();
       await flush();
       expect(warmed).toEqual([{ root: KEY, paths: [] }]);
@@ -255,36 +290,103 @@ describe('which sentence the panel draws', () => {
 
   it('names the machine and the time after a good read', () => {
     expect(
-      machineNoteLines(L, { mode: 'repo', count: 12, capped: false, at: AT })
+      machineNoteLines(L, {
+        mode: 'repo',
+        count: 12,
+        capped: false,
+        truncated: false,
+        at: AT
+      })
     ).toEqual([copy.quickOpenNamesFrom(L, AT)]);
   });
 
   it('says the folder is not a repository before it says anything else', () => {
     expect(
-      machineNoteLines(L, { mode: 'walk', count: 12, capped: false, at: AT })
+      machineNoteLines(L, {
+        mode: 'walk',
+        count: 12,
+        capped: false,
+        truncated: false,
+        at: AT
+      })
     ).toEqual([copy.quickOpenNotRepo(L), copy.quickOpenNamesFrom(L, AT)]);
   });
 
   it('adds the cut sentence, with the count, when the cap bit', () => {
     expect(
-      machineNoteLines(L, { mode: 'repo', count: 50_000, capped: true, at: AT })
+      machineNoteLines(L, {
+        mode: 'repo',
+        count: 50_000,
+        capped: true,
+        truncated: false,
+        at: AT
+      })
     ).toEqual([
       copy.quickOpenNamesFrom(L, AT),
       copy.quickOpenNamesCapped(50_000, L)
     ]);
   });
 
+  it('says the machine stopped listing when the byte ceiling cut it (Phase 99.1)', () => {
+    // The defect's exact state, forced. The count stays under the name cap,
+    // so before this phase no cut sentence was drawn at all.
+    expect(
+      machineNoteLines(L, {
+        mode: 'repo',
+        count: 31_204,
+        capped: false,
+        truncated: true,
+        at: AT
+      })
+    ).toEqual([
+      copy.quickOpenNamesFrom(L, AT),
+      copy.quickOpenNamesTruncated(31_204, L)
+    ]);
+  });
+
+  it('adds the byte cut sentence to a walked folder as well', () => {
+    expect(
+      machineNoteLines(L, {
+        mode: 'walk',
+        count: 34_612,
+        capped: false,
+        truncated: true,
+        at: AT
+      })
+    ).toEqual([
+      copy.quickOpenNotRepo(L),
+      copy.quickOpenNamesFrom(L, AT),
+      copy.quickOpenNamesTruncated(34_612, L)
+    ]);
+  });
+
+  it('draws the name cap sentence before the byte cut sentence when both bit', () => {
+    expect(
+      machineNoteLines(L, {
+        mode: 'repo',
+        count: 50_000,
+        capped: true,
+        truncated: true,
+        at: AT
+      })
+    ).toEqual([
+      copy.quickOpenNamesFrom(L, AT),
+      copy.quickOpenNamesCapped(50_000, L),
+      copy.quickOpenNamesTruncated(50_000, L)
+    ]);
+  });
+
   it('says each of the three ways a read gives no names', () => {
-    const at = AT;
-    expect(
-      machineNoteLines(L, { mode: 'missing', count: 0, capped: false, at })
-    ).toEqual([copy.quickOpenFolderMissing(L)]);
-    expect(
-      machineNoteLines(L, { mode: 'notConnected', count: 0, capped: false, at })
-    ).toEqual([copy.quickOpenNotConnected(L)]);
-    expect(
-      machineNoteLines(L, { mode: 'unreachable', count: 0, capped: false, at })
-    ).toEqual([copy.quickOpenNoAnswer(L)]);
+    const none = { count: 0, capped: false, truncated: false, at: AT };
+    expect(machineNoteLines(L, { mode: 'missing', ...none })).toEqual([
+      copy.quickOpenFolderMissing(L)
+    ]);
+    expect(machineNoteLines(L, { mode: 'notConnected', ...none })).toEqual([
+      copy.quickOpenNotConnected(L)
+    ]);
+    expect(machineNoteLines(L, { mode: 'unreachable', ...none })).toEqual([
+      copy.quickOpenNoAnswer(L)
+    ]);
   });
 
   it('draws no sentence Phase 90.3 wrote, because it is deleted', () => {

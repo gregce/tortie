@@ -7089,7 +7089,7 @@ identical at 14 bytes. The palette painted 28 ms after the chord and nine keystr
 - Symbols still refuses on a remote tab and this phase did not widen it. The card reads `Symbols do
   not reach <machine>` and drew 0 rows in the live check.
 
-## Phase 99.1 — a list a machine cut is drawn as if it were whole (found by Phase 99's own verifier) QUEUED
+## Phase 99.1 — a list a machine cut is drawn as if it were whole (found by Phase 99's own verifier) ✅ SHIPPED 2026-08-20 (this commit, 0.58.1, gates green, 7,167 tests). The state where both caps bite in one read is pinned by a unit test, not by a live run
 
 **Subject:** `fix(quickopen): say when a machine cut the file list short`
 **First body line:** `Phase 99.1: a list a machine cut is drawn as if it were whole`
@@ -7139,6 +7139,27 @@ appears in its own case. Read a screenshot of both. `src/main/tmux/resolve.ts` h
 `GMUX_TMUX_SOCKET` ONLY when `GMUX_SHOT` or `GMUX_SMOKE` is set, so use `build/harness-socket.mjs`
 and an isolated `--user-data-dir`. Count the operator's sessions with `tmux -L gmux list-sessions`
 before and after and report both numbers.
+
+### What shipped, and what the verifier measured
+
+The palette now reads the `truncated` flag that `src/main/machines/remote-files.ts` was already
+sending. When the byte ceiling cut a list on the far machine, the note under the rows draws its own
+sentence for that cut, in the same place and the same style as the name cap's. The sentence names
+the delivered count and the 4,194,304 byte ceiling, and it reads the number from the contract so it
+cannot drift from the rule main applies. Nothing crossed the link differently. No cap moved.
+
+The phase verifier forced the state in the real app against a loopback scratch machine, through
+`build/harness-socket.mjs` and an isolated user data dir:
+
+- a git repo of 19,000 names totalling about 4,389,000 list bytes drew the byte cut sentence with
+  18,157 names delivered, and did not draw the name cap's sentence
+- a repo of 50,120 short names, about 1.1 MB, drew the name cap sentence and not the byte cut's
+- a 12 name repo drew neither cut sentence
+
+The count in the byte cut sentence is the number of names delivered, not that machine's total,
+because the far side does not report a total. The wording says so. The state where both caps bite in
+one read was proven by a unit test that fixes the order, the name cap sentence first. No live run
+reached it. The far side was this Mac over loopback, so a slow link and GNU git were not measured.
 
 ## Phase 100 — read the last lines of a session on another machine (research 57 row, queued 2026-08-19) ✅ SHIPPED 2026-08-20 (this commit, 0.53.0, gates green, 6,844 tests)
 

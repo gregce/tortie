@@ -42,6 +42,7 @@ import {
   quickOpenFolderMissing,
   quickOpenNamesCapped,
   quickOpenNamesFrom,
+  quickOpenNamesTruncated,
   quickOpenNoAnswer,
   quickOpenNotConnected,
   quickOpenNotRepo,
@@ -67,8 +68,10 @@ function formatCount(n: number): string {
  *
  * One line for most answers and two for a folder that is not a repository,
  * because that folder's list came from a walk and the walk includes files git
- * would have skipped. A cut list adds a third. Every sentence is written in
- * ../app/machine-copy.ts and none of them is composed here.
+ * would have skipped. Each of the two caps adds its own sentence when it bit,
+ * the name cap first because its sentence carries the earlier cut point. Every
+ * sentence is written in ../app/machine-copy.ts and none of them is composed
+ * here.
  */
 export function machineNoteLines(
   label: string,
@@ -78,7 +81,10 @@ export function machineNoteLines(
   // palette says so rather than drawing an empty list, which would read as a
   // project holding no files.
   if (read === null) return [quickOpenReadingNames(label)];
-  const cut = read.capped ? [quickOpenNamesCapped(read.count, label)] : [];
+  const cut = [
+    ...(read.capped ? [quickOpenNamesCapped(read.count, label)] : []),
+    ...(read.truncated ? [quickOpenNamesTruncated(read.count, label)] : [])
+  ];
   if (read.mode === 'repo') return [quickOpenNamesFrom(label, read.at), ...cut];
   if (read.mode === 'walk') {
     return [quickOpenNotRepo(label), quickOpenNamesFrom(label, read.at), ...cut];

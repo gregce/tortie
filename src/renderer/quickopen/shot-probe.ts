@@ -239,7 +239,9 @@ export async function driveQuickOpen(spec: QuickOpenProbeSpec): Promise<void> {
     const read = useQuickOpen.getState().elsewhereRead;
     console.log(
       `[qo-probe] machine read: mode=${read?.mode ?? 'none'} ` +
-        `names=${String(read?.count ?? 0)} capped=${String(read?.capped ?? false)}`
+        `names=${String(read?.count ?? 0)} ` +
+        `capped=${String(read?.capped ?? false)} ` +
+        `truncated=${String(read?.truncated ?? false)}`
     );
     console.log(`[qo-probe] machine note: "${machineNoteText()}"`);
   }

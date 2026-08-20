@@ -89,6 +89,8 @@ export interface QuickOpenElsewhereRead {
   count: number;
   /** The name cap cut the list. These are the first N, not all of them. */
   capped: boolean;
+  /** The byte ceiling cut the answer on that machine. */
+  truncated: boolean;
   /** Epoch ms on THIS Mac when the answer arrived. */
   at: number;
 }
@@ -313,6 +315,7 @@ export const useQuickOpen = create<QuickOpenState>((set, get) => {
       mode,
       count: 0,
       capped: false,
+      truncated: false,
       at: Date.now()
     });
   };
@@ -358,6 +361,7 @@ export const useQuickOpen = create<QuickOpenState>((set, get) => {
             mode: res.mode,
             count: res.paths.length,
             capped: res.capped,
+            truncated: res.truncated,
             at: res.readAt
           });
         },

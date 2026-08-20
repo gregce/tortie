@@ -22,10 +22,14 @@
  * transport, the program Tortie runs on the far side, or any of its verbs.
  */
 
-// The ceiling one read may bring back. Phase 100's cut sentence states it as a
-// number rather than as a word, and it reads it from the contract so the
-// sentence cannot drift away from the rule main applies.
-import { REMOTE_SESSION_LINES_BYTES_MAX } from '@shared/ipc';
+// Two ceilings a read may hit, each stated as a number in a cut sentence and
+// each read from the contract so the sentence cannot drift away from the rule
+// main applies. Phase 100's sentence states the session lines ceiling. Phase
+// 99.1's sentence states the file name list ceiling.
+import {
+  REMOTE_FILE_LIST_MAX_BYTES,
+  REMOTE_SESSION_LINES_BYTES_MAX
+} from '@shared/ipc';
 // The one size formatter this codebase has. Phase 100's counts sentence uses it
 // so a size reads the same in the panel as it does in the session menu.
 import { formatScrollbackBytes } from '@shared/scrollback';
@@ -1031,6 +1035,16 @@ export function quickOpenNamesCapped(shown: number, label: string): string {
   return (
     `Tortie read the first ${shown.toLocaleString()} file names on ${label}. ` +
     `A name past that one is not in this list.`
+  );
+}
+
+/** The byte ceiling cut the list on that machine. */
+export function quickOpenNamesTruncated(shown: number, label: string): string {
+  return (
+    `${label} stopped listing at ${shown.toLocaleString()} file names, ` +
+    `because Tortie reads at most ` +
+    `${REMOTE_FILE_LIST_MAX_BYTES.toLocaleString()} bytes of names in one ` +
+    `go. A file over there may be missing from this list.`
   );
 }
 

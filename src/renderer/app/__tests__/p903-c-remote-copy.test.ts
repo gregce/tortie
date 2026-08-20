@@ -42,6 +42,7 @@ import {
   quickOpenFolderMissing,
   quickOpenNamesCapped,
   quickOpenNamesFrom,
+  quickOpenNamesTruncated,
   quickOpenNoAnswer,
   quickOpenNotConnected,
   quickOpenNotRepo,
@@ -270,6 +271,14 @@ describe('Quick Open on a folder that is on a machine (Phase 99)', () => {
     expect(quickOpenNamesCapped(50000, L)).toBe(
       'Tortie read the first 50,000 file names on Studio. A name past that ' +
         'one is not in this list.'
+    );
+  });
+
+  it('says the machine stopped listing when the byte ceiling cut it (Phase 99.1)', () => {
+    expect(quickOpenNamesTruncated(31204, L)).toBe(
+      'Studio stopped listing at 31,204 file names, because Tortie reads at ' +
+        'most 4,194,304 bytes of names in one go. A file over there may be ' +
+        'missing from this list.'
     );
   });
 
@@ -502,6 +511,7 @@ const EVERY: readonly string[] = [
   quickOpenReadingNames(L),
   quickOpenNamesFrom(L, AT),
   quickOpenNamesCapped(50000, L),
+  quickOpenNamesTruncated(31204, L),
   quickOpenNotRepo(L),
   quickOpenFolderMissing(L),
   quickOpenNotConnected(L),
