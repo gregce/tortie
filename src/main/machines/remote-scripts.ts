@@ -291,6 +291,11 @@ const STORE_COPY = [
  *  3. The decode goes to a temporary name and is moved into place, so a link
  *     that dies halfway leaves a `.part` file rather than half an image under
  *     the real name. Both redirections in this text aim at that temporary name.
+ *     PHASE 96 made that name DETERMINISTIC. It was `"$f.part.$$"`, and `$$` is
+ *     the far side shell's process id, so every interrupted upload left a file
+ *     nothing would ever open again and the folder grew without a bound. `$1`
+ *     is a checksum of the bytes, so one image now has one temporary name and
+ *     the next attempt at that image reuses it.
  *  4. `base64 -d` is tried first and `base64 -D` second, because the two
  *     spellings differ between this Mac and the machines this is meant for. The
  *     probe records which one answered.
@@ -304,7 +309,7 @@ const IMAGE_PUT = [
   'if [ -f "$f" ]; then',
   '  s=present',
   'else',
-  '  t="$f.part.$$"',
+  '  t="$f.part"',
   '  if printf \'%s\' "$2" | base64 -d > "$t" 2>/dev/null; then',
   '    :',
   '  else',

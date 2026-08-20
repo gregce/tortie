@@ -125,6 +125,28 @@ function baseOptions(
 }
 
 /**
+ * The four reasons a tab is not an edit surface. Exported for its test.
+ *
+ * A deleted file has nothing left to write to. A truncated file holds only the
+ * head of what is on disk, so a save would cut the rest off. A history tab
+ * shows a file as it was at one commit, and the past is not an edit surface
+ * (VS Code opens commit contents read-only for the same reason, because a save
+ * would write an old revision over the live file).
+ *
+ * PHASE 96. `tab.remote` is the fourth reason and it was missing. A review tab
+ * names a file on another computer, so `save` in ./tab-io.ts has refused it
+ * since Phase 73 and says so out loud since Phase 90.3. Monaco was never told,
+ * so a person typed freely into a tab whose every save is refused, and the band
+ * ./EditorPanel.tsx draws over it already promised that typing changes nothing.
+ * This makes that promise true.
+ */
+export function tabIsReadOnly(tab: EditorTab): boolean {
+  return (
+    tab.deleted || tab.truncated || tab.commit !== null || tab.remote !== undefined
+  );
+}
+
+/**
  * Per-tab options. Everything here is applied with `updateOptions()` on every
  * tab switch, because the editor instance is created once and re-used.
  *
@@ -195,10 +217,8 @@ export function MonacoHost({
   }, [setMonacoError]);
 
   // -- (re)wire the editor whenever the shown path changes ------------------
-  // A history tab shows a file as it was at one commit — the past is not an
-  // edit surface (VS Code opens commit contents read-only for the same
-  // reason: a save would write an old revision over the live file).
-  const readOnly = tab.deleted || tab.truncated || tab.commit !== null;
+  // The reasons a tab refuses every keystroke are in `tabIsReadOnly` above.
+  const readOnly = tabIsReadOnly(tab);
   const contentReady = !tab.loading && tab.error === null;
 
   useEffect(() => {

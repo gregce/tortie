@@ -239,10 +239,20 @@ async function runRemoteScript(
   // 5. The connection this answer will belong to.
   const before = machineGeneration(ctx.machineId).generation;
   // 6. One quoted argument, and a length the far side's shell can accept.
+  //
+  // PHASE 96. The count is UTF-8 BYTES. It was `command.length`, which is
+  // UTF-16 code units, and the limit it is compared against is a count of
+  // bytes: it is Linux's own `MAX_ARG_STRLEN`, which caps one argument of one
+  // program. Every argument this door has ever sent is ASCII, where the two
+  // counts agree, so nothing shipped was ever let through by the difference.
+  // It was still the wrong count in the one guard that bounds every write, and
+  // a value with characters outside ASCII in it would have been measured at
+  // between a half and a third of its real size.
   const command = composeRemoteScriptCommand(script, args);
-  if (command.length > REMOTE_SCRIPT_MAX_BYTES) {
+  const commandBytes = Buffer.byteLength(command, 'utf8');
+  if (commandBytes > REMOTE_SCRIPT_MAX_BYTES) {
     throw new Error(
-      `remote script "${scriptId}" composed ${String(command.length)} bytes and ` +
+      `remote script "${scriptId}" composed ${String(commandBytes)} bytes and ` +
         `the limit is ${String(REMOTE_SCRIPT_MAX_BYTES)}. The whole command ` +
         `reaches the far side as one argument of its own login shell.`
     );

@@ -21,7 +21,7 @@
  *    the no-selection case would silently do nothing.
  *  - ⌘A selects the buffer once, not twice (xterm handles ⌘A itself but does
  *    not preventDefault, so `role:'selectAll'` fired straight after it).
- *  - ⌘K clears.
+ *  - ⌘K clears, and since Phase 96 only for a session on THIS Mac.
  *
  * ⌘V is deliberately NOT handled here: letting it fall through to
  * `role:'paste'` runs xterm's own paste handler, which applies bracketed
@@ -58,7 +58,10 @@ export function terminalKeyHandler(
   term: Terminal,
   tmuxName: () => string,
   surface: ScrollSurface,
-  multiline: () => string | null
+  multiline: () => string | null,
+  // PHASE 96. Read per keystroke, like the two closures above it, because a
+  // session row is replaced whenever main pushes its list again.
+  onThisMac: () => boolean
 ): (event: KeyboardEvent) => boolean {
   return (event: KeyboardEvent): boolean => {
     if (event.type !== 'keydown') return true;
@@ -124,7 +127,12 @@ export function terminalKeyHandler(
         return false;
       case 'k':
         event.preventDefault();
-        void clearSession(sessionId, tmuxName());
+        // PHASE 96. Clear drops the history in this Mac's own session server,
+        // and that server does not hold a session that runs on another
+        // machine. The menu refuses this for the same reason; this is the same
+        // verb reached through the keyboard. preventDefault and the false stay
+        // either way, so the application menu never acts on the chord instead.
+        if (onThisMac()) void clearSession(sessionId, tmuxName());
         return false;
       default:
         return true;

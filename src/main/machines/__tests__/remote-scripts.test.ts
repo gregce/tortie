@@ -284,8 +284,17 @@ describe('the image write', () => {
   });
 
   it('moves the temporary name into place rather than writing over the real one', () => {
-    expect(write?.text).toContain('t="$f.part.$$"');
+    expect(write?.text).toContain('t="$f.part"');
     expect(write?.text).toContain('mv "$t" "$f"');
+  });
+
+  it('builds the temporary name out of the image name and nothing else', () => {
+    // Phase 96. The name used to end in `$$`, which is the far side shell's
+    // process id. A temporary name built from it is a file nothing will ever
+    // open again, so each interrupted upload left one more of them and nothing
+    // removed any of them. The name is now decided by `$1` alone, and `$1` is a
+    // checksum of the bytes, so one image has one temporary name for ever.
+    expect(write?.text).not.toContain('$$');
   });
 
   it('creates its own directory mode 0700 and its files mode 0600', () => {

@@ -13,8 +13,9 @@
  *   ──────────
  *   Capture Screen                 → clipboard, with Save… on the toast
  *   Capture Selection              (needs a selection)
- *   Capture Last 250 Lines         ┐ always offered — the pane's history is
- *   Capture Last 1000 Lines        ┘ in the tmux server, not in this client
+ *   Capture Last 250 Lines         ┐ the pane's history is in the tmux server,
+ *   Capture Last 1000 Lines        ┘ not in this client, so these are drawn
+ *                                    only for a session on THIS Mac (Phase 96)
  *   ──────────
  *   Scrollback  4,210 of 25,000 lines · about 1.5 MB   (informational)
  *   Clear                   ⌘K
@@ -114,6 +115,17 @@ export function terminalMenuItems(
       ? snapshot !== null
       : live && hasSelection(session.id);
   const canCapture = live && captureBridge() !== null;
+  // PHASE 96. A session on another machine has a live terminal in this window,
+  // because Tortie is attached to it over the link. Its history is not here.
+  // Three items read THIS Mac's own session server by name, being the two
+  // "Capture Last N Lines" items and Clear, and a name is unique on one machine
+  // rather than across machines. The ordinary outcome is a thrown error. The bad
+  // outcome is a session on this Mac that happens to carry the same name, and
+  // then Clear drops somebody else's history. Both are refused here.
+  //
+  // The other capture and copy items stay: they read or photograph the buffer
+  // this window is already drawing, which is true whichever machine produced it.
+  const onThisMac = session.machine === undefined;
 
   const items: (MenuItemSpec | 'sep')[] = [
     {
@@ -162,15 +174,20 @@ export function terminalMenuItems(
       disabled: !selected,
       run: () => void captureSelection(session, snapshot)
     });
-    for (const lines of CAPTURE_PRESETS) {
-      items.push({
-        // Never disabled: the history these read is the tmux server's, which
-        // exists whatever this attach client's own buffer is doing. The old
-        // `disabled: isAlternateScreen(…)` was always true, because `tmux
-        // attach` puts the CLIENT in the alternate buffer on connect.
-        label: `Capture Last ${lines.toLocaleString()} Lines`,
-        run: () => void captureHistory(session, lines)
-      });
+    // Not drawn at all for a session on another machine, because the history
+    // they read is in THIS Mac's session server and that server does not hold
+    // that session.
+    if (onThisMac) {
+      for (const lines of CAPTURE_PRESETS) {
+        items.push({
+          // Never disabled: the history these read is the tmux server's, which
+          // exists whatever this attach client's own buffer is doing. The old
+          // `disabled: isAlternateScreen(…)` was always true, because `tmux
+          // attach` puts the CLIENT in the alternate buffer on connect.
+          label: `Capture Last ${lines.toLocaleString()} Lines`,
+          run: () => void captureHistory(session, lines)
+        });
+      }
     }
   }
 
@@ -188,7 +205,9 @@ export function terminalMenuItems(
   items.push({
     label: 'Clear',
     hint: keyDisplay('terminal.clear'),
-    disabled: !live,
+    // Present rather than absent for a session on another machine: the item is
+    // a fact about this session, and a verb that vanishes reads as a bug.
+    disabled: !live || !onThisMac,
     run: () => void clearSession(session.id, session.tmuxName)
   });
 

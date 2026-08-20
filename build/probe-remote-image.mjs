@@ -22,7 +22,7 @@
  *  5. The operator's server is counted before and after, read only.
  *
  * ---------------------------------------------------------------------------
- * THE SIX LEGS
+ * THE LEGS
  * ---------------------------------------------------------------------------
  *  1. The composed command. Every one of the seven scripts is composed by
  *     Tortie's own `composeRemoteScriptCommand` and shown to be ONE quoted
@@ -38,6 +38,12 @@
  *     writes anything, proven by a directory listing before and after.
  *  6. Connected only, live. The machine's link is put back to quiet the way a
  *     failed poll leaves it, and the upload is refused with nothing sent.
+ *  7. The largest image the contract allows, carried for real.
+ *  8. PHASE 96. What an upload that never finished leaves behind. Two attempts
+ *     at one image leave ONE temporary file rather than two, a second image
+ *     makes it two, and finishing the first image takes its file back. The
+ *     temporary name used to end in the far side shell's process id, so the
+ *     folder grew by one file per attempt and nothing ever removed any of them.
  *
  * ---------------------------------------------------------------------------
  * WHAT THIS PROBE DOES NOT MEASURE
@@ -263,6 +269,15 @@ if (input.op === 'compose') {
     refused = said(err);
   }
   out = { refused, link: control.machineLinkFacts(ctx.machineId).link };
+} else if (input.op === 'compose-one') {
+  // PHASE 96. One command, composed by Tortie's own composer, for values the
+  // probe chose. Leg 8 sends this itself so it can decide how the run ends.
+  out = {
+    command: run.composeRemoteScriptCommand(
+      scripts.remoteScript(input.scriptId)!,
+      input.args
+    )
+  };
 } else if (input.op === 'catalogue') {
   // A name nobody wrote down, and a write through the read door. Neither
   // reaches a machine, and this proves it against a machine that is answering.
@@ -766,6 +781,151 @@ if (limitPlacement?.remotePath === null || limitStat === null) {
 }
 
 // ---------------------------------------------------------------------------
+// Leg 8. What an upload that never finished leaves behind (Phase 96)
+// ---------------------------------------------------------------------------
+//
+// The script decodes into a temporary name and moves that name into place, so
+// an upload that never finishes leaves the temporary file. Until Phase 96 that
+// name ended in `$$`, which is the far side shell's own process id, so every
+// attempt left a NEW file and nothing ever removed any of them. The name is now
+// decided by the image name alone, so one image has one temporary name for ever
+// and the next attempt at that image reclaims it.
+//
+// HOW THE UPLOAD IS MADE TO FAIL, said plainly. The payload is not valid base64,
+// so both spellings of the decoder fail and the script stops before the move.
+// The link is NOT dropped. A dropped link cannot be timed: the decode of an
+// image this size finishes in a few milliseconds, so a kill either arrives
+// before the far side started or after it moved the file into place, and
+// neither of those measures anything. What is measured here is the residue the
+// script leaves when it stops between the redirection and the move, which is
+// the same file a dropped link would leave and is produced by the same line.
+
+/** Everything matching `*.part*` on the far side, by name. */
+function farSideParts() {
+  const dir = join(farHome, '.tortie', 'images');
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir)
+    .filter((name) => name.includes('.part'))
+    .sort();
+}
+
+/** Send one composed command over a real connection to the scratch machine. */
+function sendComposed(command) {
+  return sh(
+    '/usr/bin/ssh',
+    [
+      '-p',
+      String(PORT),
+      '-o',
+      'BatchMode=yes',
+      '-o',
+      'StrictHostKeyChecking=yes',
+      '-o',
+      `UserKnownHostsFile=${ctxInput.hostKeys}`,
+      '-o',
+      'LogLevel=ERROR',
+      `${yard.user}@${TARGET}`,
+      command
+    ],
+    { env: { ...process.env, SSH_AUTH_SOCK: yard.authSock } }
+  );
+}
+
+/** One upload of one image that stops before the move, run over ssh. */
+function failedUpload(name) {
+  const composed = drive({
+    op: 'compose-one',
+    ...ctxInput,
+    scriptId: 'image-put',
+    args: [name, '@@@@']
+  });
+  if (composed === null) return;
+  sendComposed(composed.command);
+}
+
+const xPng = join(root, 'p96-image-x.png');
+const yPng = join(root, 'p96-image-y.png');
+const xBytes = makePng(30_000);
+const yBytes = makePng(31_000);
+writeFileSync(xPng, xBytes);
+writeFileSync(yPng, yBytes);
+const xName = `p96sess-${sha256(xBytes).slice(0, 16)}.png`;
+const yName = `p96sess-${sha256(yBytes).slice(0, 16)}.png`;
+
+const partsAtStart = farSideParts();
+failedUpload(xName);
+failedUpload(xName);
+const partsAfterTwoOnX = farSideParts();
+failedUpload(yName);
+const partsAfterOneOnY = farSideParts();
+
+const finished = drive({
+  op: 'put',
+  ...ctxInput,
+  sessionId: 'p96sess',
+  paths: [xPng]
+});
+const partsAfterXLanded = farSideParts();
+const xLanded = String(finished?.placements?.[0]?.remotePath ?? '');
+
+if (partsAtStart.length !== 0) {
+  fail(
+    `the far side already held ${String(partsAtStart.length)} temporary ` +
+      `file(s) before this leg started: ${partsAtStart.join(', ')}`
+  );
+}
+if (partsAfterTwoOnX.length !== 1) {
+  fail(
+    `two uploads of ONE image that never finished left ` +
+      `${String(partsAfterTwoOnX.length)} temporary file(s) and one is the ` +
+      `whole point of the fix: ${partsAfterTwoOnX.join(', ')}`
+  );
+}
+if (partsAfterTwoOnX.some((name) => /\.part\.[0-9]+$/.test(name))) {
+  fail(
+    `a temporary name still carries a process id: ` +
+      `${partsAfterTwoOnX.join(', ')}`
+  );
+}
+if (partsAfterOneOnY.length !== 2) {
+  fail(
+    `a second image that never finished should make the count 2, being one ` +
+      `per image. It is ${String(partsAfterOneOnY.length)}: ` +
+      `${partsAfterOneOnY.join(', ')}`
+  );
+}
+if (xLanded === '' || xLanded === 'null') {
+  fail('the finished upload of the first image did not land, so nothing could be reclaimed.');
+}
+if (partsAfterXLanded.length !== 1 || partsAfterXLanded[0] !== `${yName}.part`) {
+  fail(
+    `finishing the first image should leave exactly the second image's ` +
+      `temporary file. It left ${String(partsAfterXLanded.length)}: ` +
+      `${partsAfterXLanded.join(', ')}`
+  );
+}
+
+step(
+  11,
+  'an upload that never finished leaves one file per image, not one per attempt',
+  `0 at the start, ${String(partsAfterTwoOnX.length)} after TWO attempts at ` +
+    `one image, ${String(partsAfterOneOnY.length)} after one attempt at a ` +
+    `second image, ${String(partsAfterXLanded.length)} once the first image ` +
+    `was uploaded for real. The leftover is ` +
+    `${partsAfterXLanded.join(', ') || 'none'}${
+      partsAfterXLanded.some((name) => /\.part\.[0-9]+$/.test(name))
+        ? ', and a name in it still carries a process id'
+        : ', with no process id in it'
+    }`
+);
+say(
+  'NOT SWEPT, and this is what the fix does not do: one image that was never ' +
+    `finished still leaves one file. It is ${partsAfterXLanded.join(', ') || 'none'} ` +
+    'and nothing removes it. The next successful upload of that same image is ' +
+    'what reclaims it.'
+);
+
+// ---------------------------------------------------------------------------
 // Which base64 spelling answered, measured rather than assumed
 // ---------------------------------------------------------------------------
 
@@ -850,6 +1010,7 @@ process.stdout.write(
   '\nPASS. Every one of the seven scripts ran on a real machine, one real PNG ' +
     'landed with the same checksum on both sides, the same image sent twice ' +
     'wrote one file, a file over the limit and a text file named .png were both ' +
-    'refused with nothing written, and an upload to a machine that was not ' +
-    'answering was refused before anything was sent.\n'
+    'refused with nothing written, an upload to a machine that was not ' +
+    'answering was refused before anything was sent, and two uploads of one ' +
+    'image that never finished left one temporary file rather than two.\n'
 );

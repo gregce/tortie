@@ -252,3 +252,48 @@ describe('what the door is for other callers', () => {
     expect(REMOTE_RUN_TIMEOUT_MS).toBe(15_000);
   });
 });
+
+describe('the size guard', () => {
+  it('counts UTF-8 bytes rather than UTF-16 code units', async () => {
+    // Phase 96, and this case is the whole of that defect. The guard is the one
+    // bound on every command this product sends to another computer, and the
+    // limit it compares against is a count of bytes. It used to compare
+    // `command.length`, which counts UTF-16 code units. The two counts agree
+    // for ASCII and they do not agree for anything else.
+    //
+    // One `漢` is 1 UTF-16 code unit and 3 UTF-8 bytes. Fifty thousand of them
+    // make a command whose code unit count is under the limit and whose byte
+    // count is roughly three times it, so the old count let it through and the
+    // fixed count refuses it.
+    const value = '漢'.repeat(50_000);
+    const command = composeRemoteScriptCommand(remoteScript('review-list')!, [
+      value
+    ]);
+    expect(command.length).toBeLessThan(131_072);
+    expect(Buffer.byteLength(command, 'utf8')).toBeGreaterThan(131_072);
+
+    await expect(runRemoteRead(ctx, 'review-list', [value])).rejects.toThrow(
+      /composed \d+ bytes and the limit is 131072/
+    );
+    // The number the sentence names is the byte count, not the code unit count.
+    let message = '';
+    try {
+      await runRemoteRead(ctx, 'review-list', [value]);
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    const named = Number(/composed (\d+) bytes/.exec(message)?.[1]);
+    expect(named).toBeGreaterThan(131_072);
+    expect(named).toBe(Buffer.byteLength(command, 'utf8'));
+    // Nothing left this Mac.
+    expect(sent).toEqual([]);
+  });
+
+  it('still sends an ordinary command well under the limit', async () => {
+    // The guard did not start refusing the work it has always allowed.
+    await expect(
+      runRemoteRead(ctx, 'review-list', ['/home/greg/work'])
+    ).resolves.toEqual(expect.objectContaining({ payload: 'ok' }));
+    expect(sent).toHaveLength(1);
+  });
+});

@@ -305,7 +305,10 @@ export function TerminalPane({
         term,
         () => sessionRow()?.tmuxName ?? '',
         scroll,
-        () => multilineSequenceFor(sessionRow()?.agent ?? 'shell')
+        () => multilineSequenceFor(sessionRow()?.agent ?? 'shell'),
+        // PHASE 96. ⌘K reaches this Mac's own session server, which does not
+        // hold a session that runs on another machine.
+        () => sessionRow()?.machine === undefined
       )
     );
 

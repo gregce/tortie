@@ -13,13 +13,15 @@ import type { ScrollSurface } from '../../scroll/surface';
 
 // The ⌘C/⌘A/⌘K actions are the handler's OTHER branch and reach the zustand
 // store, which needs a `window` this node-environment suite does not have.
-// Nothing below exercises them, so stub the module rather than the browser.
+// The ⌘K cases at the bottom read the mock's calls rather than the store, so
+// stub the module rather than the browser.
 vi.mock('../../capture', () => ({
   clearSession: vi.fn(),
   copySelection: vi.fn(),
   selectAll: vi.fn()
 }));
 
+import { clearSession } from '../../capture';
 import { terminalKeyHandler } from '../index';
 import {
   __setMultilineKeyTable,
@@ -40,7 +42,12 @@ interface Harness {
   scrolled: number[];
 }
 
-function harness(sequence: string | null = LF): Harness {
+function harness(
+  sequence: string | null = LF,
+  // PHASE 96. The sixth argument the handler now reads on ⌘K. True is the
+  // ordinary session, running on this Mac.
+  onThisMac = true
+): Harness {
   const written: string[] = [];
   const scrolled: number[] = [];
   const term = {
@@ -57,7 +64,8 @@ function harness(sequence: string | null = LF): Harness {
       term,
       () => 'zz',
       surface,
-      () => sequence
+      () => sequence,
+      () => onThisMac
     ),
     written,
     scrolled
@@ -209,5 +217,39 @@ describe('the multiline cache', () => {
     });
     expect(multilineSequenceFor('droid')).toBeNull();
     expect(multilineSequenceFor('claude')).toBe(LF);
+  });
+});
+
+/**
+ * PHASE 96, defect 2, the second door.
+ *
+ * ⌘K clears the history held by THIS Mac's own session server, and that server
+ * does not hold a session that runs on another machine. `resolvePaneTarget`
+ * searches it by name, so the ordinary outcome is a thrown error and the bad
+ * outcome is a session on this Mac carrying the same name having its history
+ * dropped. The session menu refuses the same verb for the same reason.
+ */
+describe('⌘K', () => {
+  afterEach(() => {
+    vi.mocked(clearSession).mockClear();
+  });
+
+  it('clears a session that runs on this Mac', () => {
+    const h = harness(LF, true);
+    const { event, prevented } = keydown({ key: 'k', metaKey: true });
+    expect(h.handler(event)).toBe(false);
+    expect(vi.mocked(clearSession).mock.calls).toEqual([['s1', 'zz']]);
+    expect(prevented()).toBe(true);
+  });
+
+  it('does nothing for a session that runs on another machine', () => {
+    // The chord is still swallowed. preventDefault is what keeps the
+    // application menu from acting on ⌘K instead, so a refusal here must not
+    // hand the key back to it.
+    const h = harness(LF, false);
+    const { event, prevented } = keydown({ key: 'k', metaKey: true });
+    expect(h.handler(event)).toBe(false);
+    expect(vi.mocked(clearSession).mock.calls).toEqual([]);
+    expect(prevented()).toBe(true);
   });
 });

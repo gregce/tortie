@@ -64,6 +64,26 @@ const SESSION: Session = {
   createdAt: 0
 };
 
+/**
+ * The same session, running on another machine (Phase 96).
+ *
+ * It carries the SAME `tmuxName`, which is the whole reason the defect was
+ * worth fixing: a name is unique on one machine and not across machines, so a
+ * verb that searches this Mac's session server by name can find somebody
+ * else's session and act on it.
+ */
+const REMOTE_SESSION: Session = {
+  ...SESSION,
+  machine: {
+    id: 'studio',
+    label: 'Studio',
+    color: 'magenta',
+    answering: true,
+    canRestore: false,
+    restoreReason: null
+  }
+};
+
 /** A terminal that reports exactly the selection it was built with. */
 function fakeTerminal(text: string | null): Terminal {
   return {
@@ -153,5 +173,68 @@ describe('snapshotSelection', () => {
       text: 'one\ntwo',
       position: RANGE
     });
+  });
+});
+
+/**
+ * PHASE 96, defect 2. Three items in this menu reach THIS Mac's own session
+ * server by name, being the two history presets and Clear. A session on
+ * another machine has a live terminal in this window because Tortie is
+ * attached to it over the link, so before this phase all three were offered
+ * and each one searched the wrong server.
+ *
+ * The four cases below pin what moved and, in case 4, everything that did not.
+ */
+describe('a session that runs on another machine', () => {
+  it('draws both history presets and an enabled Clear on THIS Mac', () => {
+    unregister = registerTerminal(SESSION.id, fakeTerminal(null));
+    const items = terminalMenuItems(SESSION, { selection: null });
+    expect(enabled(items, 'Capture Last 250 Lines')).toBe(true);
+    expect(enabled(items, 'Capture Last 1,000 Lines')).toBe(true);
+    expect(enabled(items, 'Clear')).toBe(true);
+  });
+
+  it('draws neither history preset for a session on another machine', () => {
+    // Absent rather than disabled: the history they read is not on this Mac at
+    // all, so there is nothing here for the item to be about.
+    unregister = registerTerminal(REMOTE_SESSION.id, fakeTerminal(null));
+    const items = terminalMenuItems(REMOTE_SESSION, { selection: null });
+    expect(enabled(items, 'Capture Last 250 Lines')).toBe('missing');
+    expect(enabled(items, 'Capture Last 1,000 Lines')).toBe('missing');
+  });
+
+  it('keeps Clear on screen and disables it', () => {
+    // Present because the item is a fact about this session. A verb that
+    // vanishes from a menu a person knows reads as a bug in the product.
+    unregister = registerTerminal(REMOTE_SESSION.id, fakeTerminal(null));
+    const items = terminalMenuItems(REMOTE_SESSION, { selection: null });
+    expect(enabled(items, 'Clear')).toBe(false);
+  });
+
+  it('leaves every other item exactly as a session on this Mac has it', () => {
+    // This is the case that fails if a later round widens the refusal. Each of
+    // these reads or photographs the buffer this window is already drawing,
+    // which is true whichever machine produced it.
+    const selection = { text: 'one\ntwo', position: RANGE };
+    unregister = registerTerminal(SESSION.id, fakeTerminal(null));
+    const local = terminalMenuItems(SESSION, { selection });
+    unregister();
+    unregister = registerTerminal(REMOTE_SESSION.id, fakeTerminal(null));
+    const remote = terminalMenuItems(REMOTE_SESSION, { selection });
+    for (const label of [
+      'New Session…',
+      'Split Session',
+      'Copy',
+      'Copy as HTML',
+      'Paste',
+      'Select All',
+      'Capture Screen',
+      'Capture Selection'
+    ]) {
+      expect([label, enabled(remote, label)]).toEqual([
+        label,
+        enabled(local, label)
+      ]);
+    }
   });
 });

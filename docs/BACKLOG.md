@@ -6181,7 +6181,7 @@ Move to Trash, Open With and Reveal in Finder rests on unit tests. Phase 89's zs
 Mac Pro is still owed and is proven on the loopback scratch machine only. `needs input` never lights
 for a remote session and SpecStory capture never runs on one, both closed by decision.
 
-## Phase 96 — the four defects on the remote surfaces (research 57 row, queued 2026-08-19) QUEUED
+## Phase 96 — the four defects on the remote surfaces (research 57 row, queued 2026-08-19) ✅ SHIPPED 2026-08-19 (this commit, 0.49.1, gates green, 6,575 tests)
 
 **Subject:** `fix(machines): four defects the parity audit found on the remote surfaces`
 **First body line:** `Phase 96: the four defects on the remote surfaces`
@@ -6207,6 +6207,96 @@ Defects 5, 6 and 7 from that section. 5 is `--absolute-git-dir` in `src/main/git
 ### The evidence
 
 Drive the real app. For defect 1, open a file on a remote tab and prove the editor refuses the keystroke rather than accepting it and refusing the save. For defect 2, open the session menu on a remote session and photograph what is drawn. For defect 3, interrupt an image upload and prove no `.part.` file survives on the machine. For defect 4, a unit test with a multi-byte string that proves the guard counts bytes. Count the operator's sessions with `tmux -L gmux list-sessions` before and after and report both numbers. `src/main/tmux/resolve.ts` honours `GMUX_TMUX_SOCKET` ONLY when `GMUX_SHOT` or `GMUX_SMOKE` is set, so a launch without one of those silently uses his real server.
+
+### What shipped, measured 2026-08-19
+
+All four defects are closed and each one was proved by running something rather than by reading
+code. Semver is a patch, 0.49.0 to 0.49.1, because all four are corrections to surfaces that
+already existed and no capability was added. The operator's session server was counted on
+`tmux -L gmux list-sessions` at every step by every role, and it read 47 every time.
+
+**Defect 1, the editor now refuses the keystroke.** The four reasons a tab is not an edit surface
+moved into an exported `tabIsReadOnly(tab)` in `src/renderer/editor/MonacoHost.tsx`, and
+`tab.remote !== undefined` is the fourth. `npm run probe:p96` drove the real app on the harness
+socket `gmux-p96-remote` with its own `--user-data-dir`, and measured the same open tab twice. On
+the tab as a local file, `readOnly` read false and a type command turned `export const auth = 1;`
+into `Xexport const auth = 1;`. On the same tab id carrying `remote`, `readOnly` read true and the
+model did not change. The screenshot shows Monaco's own tooltip, "Cannot edit in read-only
+editor", over the band that already said the file is on another machine.
+
+**Defect 2, two doors closed and eight items kept.** `terminal-menu.ts` gained `onThisMac`, which
+is `session.machine === undefined`. `keys/index.ts` took a sixth parameter and ⌘K reads it, so the
+chord and the menu item now agree. The probe recorded the real item list twice through
+`terminalMenuItems`, once for a session on this Mac and once for the same session carrying a
+machine. Exactly three cells moved out of eleven.
+
+| Menu item | On this Mac | On another machine |
+| --- | --- | --- |
+| Capture Last 250 Lines | enabled | absent |
+| Capture Last 1,000 Lines | enabled | absent |
+| Clear | enabled | disabled |
+| New Session…, Split Session, Copy, Copy as HTML, Paste, Select All, Capture Screen, Capture Selection | enabled | enabled |
+
+The eight kept items read or photograph the buffer this window is already drawing, and that buffer
+is true whichever machine produced it. `src/main/menu.ts` names neither Capture nor Clear, checked
+by grep, so the native application menu needed no change in this commit.
+
+**Defect 3, the temporary name is deterministic.** `IMAGE_PUT` in
+`src/main/machines/remote-scripts.ts` writes to `"$f.part"` instead of `"$f.part.$$"`, and `$1` is
+a checksum of the bytes, so one image has one temporary name for ever. `node
+build/probe-remote-image.mjs` counted the files under the scratch machine's `~/.tortie/images` at
+four points and read 0 at the start, 1 after two interrupted attempts at one image, 2 after one
+interrupted attempt at a second image, and 1 once the first image was uploaded for real. The
+verifier put `$$` back, rebuilt, and got 0, 2, 3, 3 with three names each carrying a different far
+side process id, then restored the tree and proved the restore by hash. The script text fell from
+592 bytes to 589, which `npm run conformance:machines` prints.
+
+**Defect 4, the guard counts bytes.** `runRemoteScript` in `src/main/machines/remote-run.ts` now
+compares `Buffer.byteLength(command, 'utf8')` against `REMOTE_SCRIPT_MAX_BYTES`. A unit test sends
+50,000 copies of `漢`, which is 1 UTF-16 code unit and 3 UTF-8 bytes. `command.length` reads
+50,387 and is under the 131,072 limit. `Buffer.byteLength` reads 150,387 and is over it. The fixed
+code throws, names 150,387 in the sentence, and `sent` is empty. The verifier put `command.length`
+back and the same test reported that the promise resolved instead of rejecting, which is a
+150,387 byte command reaching the far side and being answered.
+
+**Gates, run by the committer on the exact committed tree.** `npm run typecheck` passed with 747
+production files, 4,198 imports and 0 import violations. `npm run build` passed and printed 23
+durability, 6 skills-write, 6 config confirm-gate, 42 machine confirm-gate, 8 updater and 1
+crash-capture refusals. `npm test` passed 6,575 tests with 23 skipped and 0 failures, with no flake
+to isolate. It was run twice on this code, once before the rebase onto the new base and once after,
+and it read 30.52 s and 27.89 s. `npm run smoke:t1` passed 5 of 5 on create and 6 of 6 on verify.
+`node build/assert-bundle-refusals.mjs` passed. `node build/contract-inventory.mjs --check`
+matched the baseline byte for byte, so no line was re-baselined. `npm run conformance:machines`
+and `npm run conformance:installs` both passed.
+
+### What is not true, said plainly
+
+- One interrupted upload still leaves one file, being `~/.tortie/images/<name>.part`. Nothing
+  sweeps it. The bound moved from one file per attempt to one file per distinct image, and the
+  next successful upload of that same image is what reclaims it. No `rm` and no `trap` was added,
+  because a shell killed by a dropped link does not reliably run an EXIT trap.
+- The entry's evidence line for defect 3 asked for proof that no `.part.` file survives. That is
+  stronger than a deterministic name can give and it was not delivered. The `*.part.<pid>` form is
+  gone and that is what shipped.
+- The upload in the probe is interrupted by sending a payload that is not valid base64, not by
+  dropping the link. A 30,000 byte decode finishes in a few milliseconds, so a kill could not be
+  made to land there. The residue comes from the same redirection on the same line a dropped link
+  would stop at. No dropped-link case was measured anywhere in this phase.
+- No photograph of the native popup menu was taken for defect 2. A native menu is a window of its
+  own, and `Menu.popup` blocks the main process until somebody dismisses it. The evidence is the
+  item list the renderer hands to the native bridge, measured in the running app.
+- Defect 4 has no live probe and cannot have one at the shipped image cap of 90,000 bytes, which
+  composes 120,681 bytes against the 131,072 byte limit. The unit test is the whole of its
+  evidence and nothing crossed a connection to prove the guard.
+- No Linux machine was contacted. The machine in probe 1 is an injected row and nothing is signed
+  in to its id, so what is proved is what Tortie draws and what Monaco refuses.
+
+### Nits recorded by this round, none of them blocking
+
+| Status | The nit |
+| --- | --- |
+| RECORD | The same file keeps the same mistake two lines below the fix. `src/main/machines/remote-run.ts:269` prints `out.length` as "byte(s)" in an error sentence, and `:284` returns `bytes: out.length`, which `remote-harvest.ts` adds into a running total. Both are UTF-16 code unit counts named bytes. The audit named the guard and only the guard, so this was left alone deliberately. Every payload between the markers is base64 or ASCII today, where the two counts agree. |
+| RECORD | Defect 5 from research 57 section 9 is still open. `--absolute-git-dir` in `src/main/git/service.ts` should be `--git-common-dir`. It is cosmetic on this Mac and the later git phases carry it. Defects 6 and 7 are prose and Phase 103 rewrites one of them anyway. |
 
 ## Phase 97 — untracked files in the remote Changes list (research 57 row, queued 2026-08-19) QUEUED
 

@@ -99,6 +99,10 @@ import { focusTerminal, jumpToSession } from './session-focus';
 // property to `window` at module load and changes nothing else, which is the
 // same shape ./remote-boot-drive.ts uses. Outside the harness it is unused.
 import { registerP93AttentionDrive } from './p93-attention-drive';
+// PHASE 96. The harness drive for build/probe-p96-remote-surfaces.mjs, in the
+// same shape as the one above. It assigns one property to `window` and reads
+// nothing until the probe calls a method on it.
+import { registerP96RemoteSurfacesDrive } from './p96-remote-surfaces-drive';
 // Phase 80.1, the ⇧⌘↩ chord. The 200 ms flight, the refusals and the swap.
 // A DIFFERENT module from ./session-focus above, which is much older and means
 // "land the user in a session" for ⌘J and the menu-bar sentinel.
@@ -161,6 +165,9 @@ armShellPathProbe();
 // PHASE 93 harness hook, in the same shape. It assigns one object to `window`
 // and reads nothing until build/probe-p93-attention.mjs calls a method on it.
 registerP93AttentionDrive();
+
+// PHASE 96 harness hook, same again, read by build/probe-p96-remote-surfaces.mjs.
+registerP96RemoteSurfacesDrive();
 
 // ---------------------------------------------------------------------------
 // Keyboard map (DESIGN.md §4) — one capture-phase listener; ⌘-chords and F2
